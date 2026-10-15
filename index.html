@@ -100,6 +100,10 @@
         <button type="button" id="tab-appel-fonds" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('appel-fonds')">
           <span class="sidebar-link-icone" id="icon-nav-appel-fonds" aria-hidden="true"></span>Appel de fonds
         </button>
+        <!-- Constitution de dossier (étude 15/10) : les courriers d'interrogation d'une vente ou d'une succession, d'après la fiche et Authentic. -->
+        <button type="button" id="tab-constitution" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('constitution')">
+          <span class="sidebar-link-icone" id="icon-nav-constitution" aria-hidden="true"></span>Constitution de dossier
+        </button>
         <!-- Arbitrage du forfait mobilier : la prisée d'un commissaire de justice écarte le forfait
              de 5 % de l'art. 764 CGI, mais elle a un coût — l'outil compare les deux. Sans dossier,
              comme les deux simulateurs voisins : rien n'est enregistré. -->
@@ -1349,6 +1353,18 @@
      l'artefact abandonnées au profit des jetons de CLAIRE. L'aperçu de droite reste une FEUILLE
      (fond blanc, Times New Roman comme le .docx produit) dans les deux thèmes : c'est le
      fac-similé du document, même principe que le courrier d'appel de fonds. -->
+
+<!-- Constitution de dossier (étude 15/10, client/72-constitution-dossier.js, commun/constitution.js) : courriers d'interrogation d'une vente ou d'une succession. -->
+<div class="onglet-panel" id="onglet-constitution" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Ventes et successions</div>
+      <div class="dash-titre-ligne"><h1 class="dash-titre">Constitution de dossier</h1></div>
+    </div>
+  </div>
+  <div class="outil-sommaire-place" data-outil="constitution"></div>
+  <div id="cst-corps" class="cst-corps"></div>
+</div>
 
 <div class="onglet-panel" id="onglet-quotites" style="display:none;">
   <div class="dash-header">
@@ -2681,6 +2697,7 @@
 <script src="commun/planning.js"></script>
 <script src="commun/assistant.js"></script>
 <script src="commun/courriers-succession.js"></script>
+<script src="commun/constitution.js"></script>
 <script src="client/00-version.js"></script>
 <script src="client/01-socle.js"></script>
 <script src="client/02-extraction-type-acte-qualites.js"></script>
@@ -2753,6 +2770,6 @@
 <script src="client/69-depot-dia.js"></script>
 <script src="client/70-memoire.js"></script>
 <script src="client/71-diagnostic-lecture.js"></script>
-<script src="client/72-courriers-succession.js"></script>
+<script src="client/72-constitution-dossier.js"></script>
 </body>
 </html>

@@ -25,7 +25,7 @@ const DOSSIERS = [
   { id: 'f3', nom: 'DURAND', responsable: 'Julie VASSELIN', typeAffaire: 'succession', sansPret: true, parties: [{ role: 'PARTIE', nom: 'DURAND', prenom: 'Marie' }], biens: [], pieces: {}, historique: hist('Dossier créé') },
   { id: 'f4', nom: 'PETIT / ROUX', responsable: 'Jérémy SAUJOT', archive: true, archiveLe: dans(-20), rendezVousSignature: dans(-30), echeancesValidees: { acte: true, rendezVousSignature: true }, pieces: {}, parties: [], historique: hist('Dossier créé') }
 ];
-const ONGLETS = ['suivi', 'assistant', 'agenda', 'scans', 'nouveau', 'confreres', 'calculateur', 'appel-fonds', 'quotites', 'redaction', 'preemption', 'prorata', 'inventaire', 'analyse-ia', 'reglages', 'dashboard'];
+const ONGLETS = ['suivi', 'assistant', 'agenda', 'scans', 'nouveau', 'confreres', 'calculateur', 'appel-fonds', 'constitution', 'quotites', 'redaction', 'preemption', 'prorata', 'inventaire', 'analyse-ia', 'reglages', 'dashboard'];
 const ONGLETS_FICHE = ['tableau', 'pieces', 'dossier', 'fonds', 'echanges', 'historique'];
 
 const db = ouvrirDb(':memory:');
@@ -103,6 +103,13 @@ try {
         verifier(fiche.ouverte && fiche.texte.includes(attendu), `fiche ${id} ouverte (${attendu})`);
         for (const o of ONGLETS_FICHE) { await geste(page, `fiche ${id} › ${o}`, (x) => definirOngletFiche(x), o); await pause(150); await boutonsIntacts(page, `fiche ${id} › ${o}`); }
         await page.evaluate(() => { try { fermerDossierDrawer(); } catch (e) { /* déjà fermée */ } });
+      }
+      // Constitution de dossier (15/10) : une vente et une succession rattachées, l'écran se dessine avec ses courriers.
+      for (const [id, attendu] of [['f1', 'Courriers'], ['f3', 'défunt']]) {
+        await geste(page, `constitution ${id}`, (x) => { definirOnglet('constitution'); choisirDossierConstitution(x); }, id);
+        await pause(500);
+        const cst = await page.evaluate(() => (document.getElementById('cst-corps') || {}).textContent || '');
+        verifier(cst.includes(attendu), `constitution ${id} : écran rendu (${attendu})`);
       }
       // Tâches à venir (13/10) : visibles par le lien de la carte « Aujourd'hui », listées dans la grande fenêtre de toutes les tâches.
       const avenir = await geste(page, 'tâches à venir', () => {

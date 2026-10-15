@@ -24,6 +24,7 @@ const { creerRouteurNavigation } = require('./routes/navigation');
 const { creerRouteurPlanAerien } = require('./routes/planAerien');
 const { creerRouteurDepotDia } = require('./routes/depotDia');
 const { creerRouteurMemoire } = require('./routes/memoire');
+const { creerRouteurConstitution } = require('./routes/constitution');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
 const { creerRouteurCorrectionsApprises } = require('./routes/correctionsApprises');
@@ -233,6 +234,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
   // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
+  // Constitution de dossier : adresses de destinataires saisies par l'étude, retenues pour la fois suivante (voir routes/constitution.js).
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConstitution(parametresRepo, urbanisme || {}));
   // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.
   const routeurMemoire = creerRouteurMemoire(config, db, parametresRepo, memoire || {});
   app.use('/api', gestionnaireAuth.middlewareAuth, routeurMemoire);

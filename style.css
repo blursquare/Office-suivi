@@ -9503,3 +9503,40 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-photo-etiquette.dossier { font-size: var(--texte-s); font-weight: 600; }
 .pr-photo-vide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); font-size: var(--texte-s); }
 @media (max-width: 700px) { .pr-photos { grid-template-columns: 1fr; } }
+
+/* ---- Constitution de dossier (étude 15/10, client/72-constitution-dossier.js) ---- */
+.cst-corps { display: flex; flex-direction: column; gap: 16px; }
+.cst-corps > .calc-card { display: flex; flex-direction: column; gap: 12px; }
+.cst-dossier { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--rayon-m); background: var(--paper-sunk); }
+.cst-dossier-titre { font-size: var(--texte-l); font-weight: 500; }
+.cst-dossier-infos { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: var(--texte-s); color: var(--muted); }
+.cst-dossier-infos strong { color: var(--ink); font-weight: 600; }
+.cst-sous-titre { margin: 8px 0 0; font-size: var(--texte-m); font-weight: 600; }
+.cst-ligne { display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 2fr) auto auto; gap: 8px; align-items: center; }
+.cst-ligne > * { min-width: 0; }
+.cst-commune { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.cst-commune-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-puces { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.cst-parcelles { display: flex; flex-direction: column; gap: 4px; }
+.cst-parcelle { display: grid; grid-template-columns: auto 100px minmax(0, 1fr) 110px auto; gap: 8px; align-items: center; font-size: var(--texte-m); }
+.cst-parcelle-ref { font-weight: 600; }
+.cst-parcelle-lieu, .cst-parcelle-surf { color: var(--muted); font-size: var(--texte-s); }
+.cst-off { opacity: 0.6; }
+.cst-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-ajout .prop-champ { flex: 1 1 120px; min-width: 0; }
+.cst-doc { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.cst-doc-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.cst-doc-corps { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.cst-doc-corps textarea { width: 100%; resize: vertical; }
+.cst-doc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cst-contact { margin-top: 6px; width: 100%; }
+.cst-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.cst-grille > * { min-width: 0; }
+.cst-grille .cst-large { grid-column: 1 / -1; }
+.cst-alerte { margin: 0; color: var(--urgent); font-size: var(--texte-s); }
+.cst-alerte-bloc { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--urgent) 10%, transparent); }
+.cst-formats { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+@media (max-width: 900px) {
+  .cst-doc-corps { grid-template-columns: minmax(0, 1fr); }
+  .cst-ligne, .cst-parcelle { grid-template-columns: minmax(0, 1fr); }
+}

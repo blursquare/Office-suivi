@@ -6,5 +6,6 @@
   "pieces.js",
   "planning.js",
   "assistant.js",
-  "courriers-succession.js"
+  "courriers-succession.js",
+  "constitution.js"
 ]

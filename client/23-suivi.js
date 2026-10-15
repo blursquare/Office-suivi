@@ -760,7 +760,7 @@
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
-        ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCourriersSuccession('${escapeOnclickArg(d.id)}')" title="Interroger la banque, l’assurance-vie, les caisses, l’EHPAD, les impôts… : courriers de l’étude sur son papier à en-tête">Courriers d’interrogation</wa-button>`, null, 'prop-pleine')}
+        ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers d’interrogation (banque, assurance-vie, impôts, caisses, EHPAD…) d’après la fiche du défunt dans Authentic">Constitution de dossier</wa-button>`, null, 'prop-pleine')}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${parties.length ? parties.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Parties', `<span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}`, null, 'prop-pleine')).join('')
@@ -777,6 +777,7 @@
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
+        ${d.archive || d.roleNotaire === 'participant' ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers à la mairie (numérotage, alignement, péril, assainissement) : toutes les parcelles et tous les vendeurs d’Authentic">Constitution de dossier</wa-button>`, null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>

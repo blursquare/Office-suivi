@@ -85,6 +85,42 @@
     return blocs;
   }
 
+  // Pure : les blocs du PDF d'un courrier écrit au format de `courrierRenduAgent` (bloc d'adresse, « Blois, le … », paragraphes, listes, tableaux,
+  // « Me … » suivi du tampon et de la signature, sauts de page) — même mise en page que le courrier d'appel de fonds. Les tableaux s'écrivent en
+  // lignes (cellules séparées), la ligne d'en-tête en gras.
+  function blocsPdfDepuisContenu(contenu) {
+    const blocs = blocsDocumentAgent(contenu, true);
+    const t = (texte, style) => Object.assign({ t: String(texte == null ? '' : texte) }, style || {});
+    const runsGras = (texte) => morceauxGrasAgent(texte).map(m => t(m.texte, m.gras ? { b: true } : {}));
+    const sortie = [{ type: 'para', runs: [], avant: 0, apres: 0 }];
+    blocs.forEach((b, i) => {
+      if (b.type === 'saut') { sortie.push({ type: 'saut' }); return; }
+      if (b.type === 'tableau') {
+        b.lignes.forEach((l, k) => {
+          const texte = l.map(c => String(c || '').trim()).filter(Boolean).join('   ');
+          if (texte) sortie.push({ type: 'para', runs: [t(texte, k === 0 ? { b: true } : {})], apres: k === b.lignes.length - 1 ? 10 : 2 });
+        });
+        return;
+      }
+      if (b.type === 'puce' || b.type === 'numero') {
+        const fin = !(blocs[i + 1] && blocs[i + 1].type === b.type);
+        sortie.push({ type: 'para', runs: runsGras((b.type === 'puce' ? '- ' : b.numero + '. ') + b.texte), apres: fin ? 10 : 4, jc: 'both' });
+        return;
+      }
+      if (b.type === 'titre1' || b.type === 'titre2') { sortie.push({ type: 'para', runs: [t(b.texte, { b: true })], avant: 6, apres: 6 }); return; }
+      if (i === 0 && /\n/.test(b.texte)) { sortie.push({ type: 'para', runs: [t(b.texte), t('\n\n\n\n\n')], avant: 10, apres: 4, habillage: true }); return; }
+      if (RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { sortie.push({ type: 'para', runs: [t(b.texte + '\n\n')], avant: 15, apres: 15, habillage: true }); return; }
+      if (/^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
+        sortie.push({ type: 'para', runs: [t(b.texte)], avant: 20, apres: 0, jc: 'right', avecSuivant: true });
+        sortie.push({ type: 'tampon' });
+        return;
+      }
+      if (/\n/.test(b.texte)) { sortie.push({ type: 'para', runs: runsGras(b.texte), apres: 10 }); return; }
+      sortie.push({ type: 'para', runs: runsGras(b.texte), jc: 'both', apres: 10 });
+    });
+    return sortie;
+  }
+
   // Pure : découpe des segments de texte (gras / italique / souligné) en mots et espaces, puis en lignes d'au plus `largeur`
   // points ; `mesurer(texte, style)` rend la largeur d'un texte. Un « \n » force la ligne. Chaque ligne dit si elle est la
   // dernière de son paragraphe ou finie par un retour forcé : celles-là ne sont jamais justifiées.
@@ -191,11 +227,13 @@
   }
 
   // Génère le PDF/A-2U du courrier et renvoie { blob, nom, donnees } — même contrat que genererBlobAppelFonds.
-  async function genererPdfAAppelFonds(donneesGardees, nomGarde) {
+  // `generique` (étude 15/10, « Constitution de dossier ») : { blocs, ref } — n'importe quel courrier de l'office sur le même papier
+  // (en-tête, polices embarquées, tampon et signature, PDF/A-2U) ; sans lui, le courrier d'appel de fonds.
+  async function genererPdfAAppelFonds(donneesGardees, nomGarde, generique) {
     const octetsPolices = await chargerOutilsPdfA();
     const { PDFDocument, PDFName, PDFString, PDFHexString, rgb } = window.PDFLib;
-    const donnees = normaliserDonneesCourrierAppelFonds(donneesGardees || donneesCourrierAppelFonds());
-    const nomDocx = nomGarde || afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim()));
+    const donnees = generique ? { ref: String(generique.ref || '') } : normaliserDonneesCourrierAppelFonds(donneesGardees || donneesCourrierAppelFonds());
+    const nomDocx = nomGarde || (generique ? 'Courrier' : afNomFichierDocx(afClients.filter(c => String(c.nom || '').trim())));
     const doc = await PDFDocument.create();
     doc.registerFontkit(window.fontkit);
     const polices = {};
@@ -301,7 +339,7 @@
     };
 
     let apresPrecedent = 0;
-    const blocs = blocsCourrierPdfA(donnees);
+    const blocs = generique ? generique.blocs : blocsCourrierPdfA(donnees);
     nouvellePage();
     for (let n = 0; n < blocs.length; n++) {
       const b = blocs[n];
@@ -366,6 +404,9 @@
         filetsVerticaux(hautTableau, y + 0.5);
         filetDouble(y + 0.5, true);
         y += 1.7;
+        apresPrecedent = 0;
+      } else if (b.type === 'saut') {
+        nouvellePage();
         apresPrecedent = 0;
       } else if (b.type === 'tampon') {
         const T = TAMPON_PDFA;

@@ -452,10 +452,30 @@
   // un côté resté vide. Ce qu'Authentic a donné est retenu (personnes, coordonnées, identité, adresse, prix, type de vente) : la
   // première page relevée après la création ne repose rien, et une valeur corrigée à la main dans « Vérifier » reste.
   // → les textes d'historique.
+  // Modifie d : TOUS les immeubles du dossier Authentic (adresse, type, parcelles avec leur commune) retenus à la création — un
+  // dossier à plusieurs articles ne perd aucune parcelle (étude 15/10). d.authentic.immeubles, 12 au plus.
+  function retenirImmeublesAuthentic(d, donnees) {
+    if (!d || !donnees) return false;
+    const ids = donnees.biens || [];
+    const liste = (donnees.immeubles || []).filter(im => !ids.length || ids.includes(im.id)).slice(0, 12).map(im => ({
+      adresse: im.adresse && im.adresse.texte ? normaliserAdresse(im.adresse.texte) : '',
+      codePostal: (im.adresse && im.adresse.codePostal) || '', commune: (im.adresse && im.adresse.commune) || '',
+      type: im.type || '', description: String(im.description || '').slice(0, 160),
+      parcelles: (im.parcelles || []).slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
+        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
+    })).filter(im => im.adresse || im.parcelles.length);
+    if (!liste.length) return false;
+    d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });
+    return true;
+  }
+
   function fichesAuthenticACreation(d, donnees, o) {
     const textes = [];
     if (!d || !donnees) return textes;
     const maintenant = (o && o.maintenant) || new Date().toISOString();
+    // Les fiches client lues avant la création sont retenues telles quelles (domicile, décès, situation…), pour tous les dossiers.
+    (donnees.personnes || []).forEach(pers => retenirFicheClientAuthentic(d, pers, maintenant));
+    retenirImmeublesAuthentic(d, donnees);
     const parties = partiesExportAuthentic(donnees);
     // Succession : la civilité est déjà sur chaque partie (partiesSuccessionDepuisAuthentic) ; ni côté ni couple.
     if (estSuccession(d)) return textes;

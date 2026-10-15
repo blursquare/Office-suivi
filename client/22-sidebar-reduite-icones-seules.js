@@ -159,7 +159,7 @@
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
     scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
-    reglages: 'Réglages', assistant: 'Demander à CLAIRE', agenda: 'Agenda', redaction: 'Aide à la rédaction'
+    reglages: 'Réglages', assistant: 'Demander à CLAIRE', agenda: 'Agenda', constitution: 'Constitution de dossier'
   };
 
   // L'écran `nom` est-il celui qu'on voit ? Faux quand une fiche s'affiche en page par-dessus (onglets, 11/10) : les raccourcis
@@ -204,6 +204,7 @@
     document.getElementById('onglet-prorata').style.display = nom === 'prorata' ? '' : 'none';
     document.getElementById('onglet-appel-fonds').style.display = nom === 'appel-fonds' ? '' : 'none';
     document.getElementById('onglet-inventaire').style.display = nom === 'inventaire' ? '' : 'none';
+    document.getElementById('onglet-constitution').style.display = nom === 'constitution' ? '' : 'none';
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
     document.getElementById('onglet-preemption').style.display = nom === 'preemption' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
@@ -221,6 +222,7 @@
     document.getElementById('tab-prorata').setAttribute('aria-selected', String(nom === 'prorata'));
     document.getElementById('tab-appel-fonds').setAttribute('aria-selected', String(nom === 'appel-fonds'));
     document.getElementById('tab-inventaire').setAttribute('aria-selected', String(nom === 'inventaire'));
+    document.getElementById('tab-constitution').setAttribute('aria-selected', String(nom === 'constitution'));
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
     document.getElementById('tab-preemption').setAttribute('aria-selected', String(nom === 'preemption'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
@@ -234,6 +236,7 @@
     document.getElementById('tab-prorata').classList.toggle('actif', nom === 'prorata');
     document.getElementById('tab-appel-fonds').classList.toggle('actif', nom === 'appel-fonds');
     document.getElementById('tab-inventaire').classList.toggle('actif', nom === 'inventaire');
+    document.getElementById('tab-constitution').classList.toggle('actif', nom === 'constitution');
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
     document.getElementById('tab-preemption').classList.toggle('actif', nom === 'preemption');
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
@@ -276,4 +279,5 @@
     // sont posés dans la foulée (voir initInventaire / reinitialiserInventaire).
     if (nom === 'inventaire') initInventaire();
     if (nom === 'preemption') initPreemption();
+    if (nom === 'constitution') initConstitution();
   }

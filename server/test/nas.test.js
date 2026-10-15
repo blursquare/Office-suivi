@@ -343,3 +343,14 @@ test('deposer-document : .docx à la racine du dossier client, copie « (2) », 
   assert.equal(r.status, 200);
   assert.equal(path.dirname(path.join(racine, (await r.json()).chemin)), path.join(racine, '2024-118 DUPONT MARTIN'), 'le nom ne sort pas du dossier');
 });
+
+test('deposer-document : un PDF (courriers de « Constitution de dossier ») se range avec format « pdf » ; un Word déguisé ou l’inverse est refusé', async () => {
+  const poster = (corps) => fetch(`${baseUrl}/api/nas/deposer-document`, { method: 'POST', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const pdf = Buffer.from('%PDF-1.7\ncontenu inventé').toString('base64');
+  const docx = Buffer.concat([Buffer.from('PK\u0003\u0004'), Buffer.from('contenu inventé')]).toString('base64');
+  const r = await poster({ dossierId: 'n1', nom: 'Alignement - COMMUNE', contenu: pdf, format: 'pdf' });
+  assert.equal(r.status, 200);
+  assert.equal(path.basename((await r.json()).chemin), 'Alignement - COMMUNE.pdf');
+  assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: docx, format: 'pdf' })).status, 400, 'un Word n’est pas un PDF');
+  assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: pdf })).status, 400, 'sans format, seul le Word passe');
+});

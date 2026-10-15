@@ -70,3 +70,15 @@ test('pièces jointes : PDF et images seulement, jamais le nom du fichier dans l
   assert.doesNotMatch(m, /DUPONT|MARTIN/);
   assert.equal(app.mentionPiecesJointesAgent([]), '');
 });
+
+test('courrier pré-signé : le tampon et la signature du modèle suivent « Me … », y compris avant un saut de page', () => {
+  const modele = '<w:body><w:p><w:pPr/><w:r><w:t>{x}</w:t></w:r></w:p><w:p><w:pPr/><w:r><w:drawing><a:blip r:embed="rId25"/></w:drawing></w:r><w:r><w:drawing><a:blip r:embed="rId26"/></w:drawing></w:r></w:p><w:sectPr/></w:body>';
+  const sig = app.paragrapheSignatureModele(modele);
+  assert.match(sig, /^<w:p><w:pPr\/>.*rId25.*rId26.*<\/w:p>$/);
+  assert.equal(app.paragrapheSignatureModele('<w:p>rien</w:p>'), '');
+  const blocs = app.blocsDocumentAgent('Texte.\n\nMe Sophie GOSSART\n\n<<saut de page>>\n\nPage deux.', true);
+  assert.equal(blocs.map(b => b.type).join(), 'para,para,saut,para');
+  const corps = app.xmlCorpsCourrierAgent(blocs, sig);
+  assert.match(corps, /Me Sophie GOSSART<\/w:t><\/w:r><\/w:p><w:p><w:pPr\/>.*rId25.*<\/w:p><w:p><w:r><w:br w:type="page"\/><\/w:r><\/w:p>/, 'signature juste après Me, puis le saut de page');
+  assert.doesNotMatch(app.xmlCorpsCourrierAgent(blocs), /rId25/, 'sans option, aucun tampon');
+});

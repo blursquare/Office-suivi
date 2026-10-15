@@ -136,6 +136,7 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       finTableau();
       let m;
       if (!l) { finPara(); return; }
+      if (/^<<saut de page>>$/i.test(l)) { finPara(); blocs.push({ type: 'saut' }); return; }
       if ((m = /^#{3,}\s+(.*)$/.exec(l)) || (m = /^##\s+(.*)$/.exec(l))) { finPara(); blocs.push({ type: 'titre2', texte: m[1] }); return; }
       if ((m = /^#\s+(.*)$/.exec(l))) { finPara(); blocs.push({ type: 'titre1', texte: m[1] }); return; }
       if ((m = /^[-•*]\s+(.*)$/.exec(l))) { finPara(); blocs.push({ type: 'puce', texte: m[1] }); return; }
@@ -169,17 +170,23 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
   // Comme le modèle (relecture du rendu, 13/10) : le bloc d'adresse en tête, aligné à gauche, suivi de cinq retours (il remplit la
   // fenêtre d'enveloppe dessinée par l'en-tête) ; « Blois, le … » espacé avant et après ; un paragraphe à plusieurs lignes à gauche.
   var RE_LIEU_DATE_COURRIER = /^[A-ZÀ-Ü][A-Za-zÀ-ÿ' -]{1,40}, le \S/;
-  function xmlCorpsCourrierAgent(blocs) {
+  function xmlCorpsCourrierAgent(blocs, signatureXml) {
     const para = (contenu, ppr) => `<w:p><w:pPr>${ppr || '<w:spacing w:after="200"/><w:jc w:val="both"/>'}</w:pPr>${contenu}</w:p>`;
     const morceaux = ['<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>'];
     (blocs || []).forEach((b, i) => {
       if (b.type === 'para' && i === 0 && /\n/.test(b.texte)) { morceaux.push(para(xmlRunsCourrierAgent(b.texte) + '<w:r>' + '<w:br/>'.repeat(5) + '</w:r>', '<w:spacing w:before="200" w:after="80"/>')); return; }
       if (b.type === 'para' && RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { morceaux.push(para(xmlRunsCourrierAgent(b.texte) + '<w:r><w:br/><w:br/></w:r>', '<w:spacing w:before="300" w:after="300"/>')); return; }
       // La signature « Me … » à droite, gardée avec la ligne d'avant, comme « Me {notaire} » du modèle.
-      if (b.type === 'para' && /^Me\s/.test(b.texte) && i === blocs.length - 1) { morceaux.push(para(xmlRunsCourrierAgent(b.texte), '<w:keepNext/><w:spacing w:before="400"/><w:jc w:val="right"/>')); return; }
+      // (suivie du tampon et de la signature quand le courrier est pré-signé ; « Me … » peut précéder une page de questionnaire)
+      if (b.type === 'para' && /^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
+        morceaux.push(para(xmlRunsCourrierAgent(b.texte), '<w:keepNext/><w:spacing w:before="400"/><w:jc w:val="right"/>'));
+        if (signatureXml) morceaux.push(signatureXml);
+        return;
+      }
       if (b.type === 'para' && /\n/.test(b.texte)) { morceaux.push(para(xmlRunsCourrierAgent(b.texte), '<w:spacing w:after="200"/>')); return; }
       // Le dernier point d'une liste garde l'espace d'un paragraphe avant le texte qui suit.
       const finListe = (b.type === 'puce' || b.type === 'numero') && !(blocs[i + 1] && blocs[i + 1].type === b.type) ? '200' : '60';
+      if (b.type === 'saut') { morceaux.push('<w:p><w:r><w:br w:type="page"/></w:r></w:p>'); return; }
       if (b.type === 'titre1' || b.type === 'titre2') morceaux.push(para(xmlRunsCourrierAgent(b.texte, true), '<w:keepNext/><w:spacing w:before="200" w:after="120"/>'));
       else if (b.type === 'puce') morceaux.push(para(xmlRunsCourrierAgent('- ' + b.texte), `<w:spacing w:after="${finListe}"/><w:ind w:left="284"/><w:jc w:val="both"/>`));
       else if (b.type === 'numero') morceaux.push(para(xmlRunsCourrierAgent(b.numero + '. ' + b.texte), `<w:spacing w:after="${finListe}"/><w:ind w:left="284"/><w:jc w:val="both"/>`));
@@ -207,9 +214,21 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     return x.slice(0, debut) + '<w:body>' + corps + x.slice(sect, fin) + '</w:body></w:document>';
   }
 
+  // Pure : le paragraphe du modèle qui porte le tampon et la signature (images ancrées, rId25 et rId26), pour pré-signer un courrier
+  // (étude 15/10) ; '' si le modèle n'en a pas.
+  function paragrapheSignatureModele(modeleXml) {
+    const x = String(modeleXml || '');
+    const i = x.indexOf('r:embed="rId25"');
+    if (i < 0) return '';
+    const debut = Math.max(x.lastIndexOf('<w:p>', i), x.lastIndexOf('<w:p ', i));
+    const fin = x.indexOf('</w:p>', i);
+    return debut >= 0 && fin > i ? x.slice(debut, fin + 6) : '';
+  }
+
   // Courrier sur le papier à en-tête de l'office (étude 13/10 : « pour les courriers reprendre de base l'entête de l'office des
   // appels de fonds ») : le modèle Word de l'appel de fonds, corps remplacé.
-  async function courrierRenduAgent(contenu, d) {
+  // `options.signe` : tampon de l'office et signature « p/o » sous le dernier paragraphe (comme l'appel de fonds) — « Constitution de dossier ».
+  async function courrierRenduAgent(contenu, d, options) {
     await chargerModeleAppelFonds();
     const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
     // « Nos Réf : {ref} » de l'en-tête : la référence du dossier, comme l'appel de fonds (son nom), sinon rien.
@@ -217,7 +236,8 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       const x = zip.file(n).asText();
       if (x.includes('{ref}')) zip.file(n, x.split('{ref}').join(xmlTexteWord(d ? d.nom : '')));
     });
-    const xml = documentXmlCourrierAgent(zip.file('word/document.xml').asText(), xmlCorpsCourrierAgent(blocsDocumentAgent(contenu, true)));
+    const modeleXml = zip.file('word/document.xml').asText();
+    const xml = documentXmlCourrierAgent(modeleXml, xmlCorpsCourrierAgent(blocsDocumentAgent(contenu, true), options && options.signe ? paragrapheSignatureModele(modeleXml) : ''));
     if (!xml) throw new Error('modèle de l’office illisible');
     zip.file('word/document.xml', xml);
     return zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });

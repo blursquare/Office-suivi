@@ -101,8 +101,12 @@ function creerRouteurNas(config, depot) {
     const base64 = typeof b.contenu === 'string' ? b.contenu : '';
     if (!base64 || base64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/=\s]+$/.test(base64)) { res.status(400).json({ erreur: 'Document vide ou trop lourd.' }); return; }
     const contenu = Buffer.from(base64, 'base64');
-    // Un .docx est une archive ZIP : « PK » en tête, sinon ce n'est pas le document produit par CLAIRE.
-    if (contenu.length < 4 || contenu[0] !== 0x50 || contenu[1] !== 0x4b) { res.status(400).json({ erreur: 'Ce n’est pas un document Word.' }); return; }
+    // Un .docx est une archive ZIP : « PK » en tête, sinon ce n'est pas le document produit par CLAIRE. Les courriers de « Constitution de
+    // dossier » (étude 15/10) se rangent aussi en PDF (`format: 'pdf'`, « %PDF- » en tête) : un seul des deux types par appel.
+    const pdf = b.format === 'pdf';
+    if (pdf ? (contenu.length < 5 || contenu.toString('latin1', 0, 5) !== '%PDF-') : (contenu.length < 4 || contenu[0] !== 0x50 || contenu[1] !== 0x4b)) {
+      res.status(400).json({ erreur: pdf ? 'Ce n’est pas un PDF.' : 'Ce n’est pas un document Word.' }); return;
+    }
     // Le dossier du NAS est celui que la fiche de CLAIRE a relié, lu ici — jamais un chemin fourni par le poste (relecture 13/10).
     const d = depot && typeof b.dossierId === 'string' ? depot.trouverParId(b.dossierId) : null;
     if (!d || !d.nasDossier) { res.status(400).json({ erreur: 'Dossier inconnu ou non relié au NAS.' }); return; }
@@ -110,7 +114,7 @@ function creerRouteurNas(config, depot) {
     let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120) : '';
     if (/^\s*(con|prn|aux|nul|com\d|lpt\d)\s*$/i.test(nom)) nom = 'Document ' + nom.trim();
     const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier),
-      rubriques: [], nomCible: nom || 'Document CLAIRE', extension: 'docx', contenu });
+      rubriques: [], nomCible: nom || 'Document CLAIRE', extension: pdf ? 'pdf' : 'docx', contenu });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
     res.json({ ok: true, chemin: r.chemin });
   }));

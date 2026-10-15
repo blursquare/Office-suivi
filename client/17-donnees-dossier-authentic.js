@@ -134,7 +134,7 @@
       if (!cle || vues.has(cle)) return;
       vues.add(cle);
       out.push(Object.assign({ section: String(p.section).toUpperCase(), numero: String(p.numero) },
-        Object.fromEntries(['nature', 'surface', 'lieuDit'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))));
+        Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))));
     }));
     return out.slice(0, 40);
   }

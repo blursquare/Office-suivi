@@ -943,6 +943,13 @@
     return liste;
   }
 
+  // Pure : { date (AAAA-MM-JJ), lieu, pays } d'une fiche client dont la personne est décédée, sinon null.
+  function decesFicheAuthentic(champs) {
+    const date = dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /dateDeces/i.test(b)));
+    if (!date) return null;
+    return { date, lieu: valeurChampAuthentic(champs, n => n === 'cp, ville (deces)'), pays: valeurChampAuthentic(champs, n => n === 'pays (deces)') };
+  }
+
   function clientDepuisFicheAuthentic(capture) {
     const champs = (capture && capture.champs) || [];
     const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
@@ -965,6 +972,11 @@
       dateNaissance: dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
       lieuNaissance: valeurChampAuthentic(champs, n => n === 'cp, ville (naissance)'),
       adresse: adresseFicheAuthentic(champs),
+      paysNaissance: valeurChampAuthentic(champs, n => n === 'pays (naissance)'),
+      nationalite: valeurChampAuthentic(champs, n => n === 'nationalite'),
+      // Défunt (étude 15/10 : « il ne faut pas se tromper dans la date de décès ») : la fiche de la personne décédée porte la date,
+      // le lieu et le pays du décès ; une fiche sans date de décès n'est pas celle d'un défunt.
+      deces: decesFicheAuthentic(champs),
       emails, telephones,
       profession: valeurChampAuthentic(champs, n => n === 'profession'),
       situationMatrimoniale: situationMatrimonialeAuthentic(capture),
@@ -1449,6 +1461,8 @@
       const iNature = entete.indexOf('nature');
       const iSurface = entete.findIndex(e => /^(surface|contenance)/.test(e));
       const iLieu = entete.findIndex(e => /lieu-dit|lieu dit/.test(e));
+      const iCommune = entete.indexOf('commune');
+      const iPrefixe = entete.findIndex(e => /^pr[ée]fixe/.test(e) || /^prefixe/.test(e));
       const cellule = (l, i) => (i >= 0 ? String(l[i] == null ? '' : l[i]).replace(/\s+/g, ' ').trim() : '');
       (t.lignes || []).forEach(l => {
         const section = String(l[iSection] || '').trim().toUpperCase();
@@ -1458,6 +1472,9 @@
         if (cellule(l, iNature)) p.nature = cellule(l, iNature);
         if (cellule(l, iSurface)) p.surface = cellule(l, iSurface);
         if (cellule(l, iLieu)) p.lieuDit = cellule(l, iLieu);
+        // Commune et préfixe de la parcelle (étude 15/10 : toutes les parcelles, chacune à la bonne mairie).
+        if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
+        if (cellule(l, iPrefixe)) p.prefixe = cellule(l, iPrefixe);
         parcelles.push(p);
       });
     });
@@ -1559,6 +1576,8 @@
   // remonte pas côté vendeur »).
   function roleClientAuthenticDansDossier(d, personne) {
     if (!d || !personne || !personne.nom) return '';
+    // Succession (étude 15/10) : pas de côté vendeur / acquéreur — la personne est une partie de la fiche, ou le défunt nommé par l'intitulé.
+    if (estSuccession(d)) return partieSuccessionDeLaFiche(d, personne) ? 'PARTIE' : '';
     for (const nom of [personne.nom, personne.nomUsage].filter(Boolean)) {
       const role = roleClientAuthenticParNom(d, nom, personne.prenom);
       if (role) return role;
@@ -1611,6 +1630,76 @@
 
   // Pure (modifie le dossier passé) : téléphones et email d'une fiche client reportés sur le côté
   // `role` du dossier (s'ils manquent), situation matrimoniale gardée ; la fiche quitte « à rattacher ».
+  // Pure : la clé d'une fiche client dans le registre du dossier (« prénom nom » sans accent ni ponctuation).
+  function cleFicheClientAuthentic(personne) {
+    return normaliserPourRecherche([personne && personne.prenom, personne && personne.nom].filter(Boolean).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Modifie d : la fiche client d'Authentic est RETENUE telle quelle sur le dossier (d.authentic.fichesClients) — identité, naissance,
+  // domicile, décès, situation matrimoniale. Authentic est la base des courriers de « Constitution de dossier » (étude 15/10) : rien
+  // n'y est deviné ni repris d'un compromis. Une relecture de la même fiche remplace la précédente. → vrai si quelque chose a changé.
+  function retenirFicheClientAuthentic(d, personne, maintenant) {
+    if (!d || !personne || !personne.nom) return false;
+    const cle = cleFicheClientAuthentic(personne);
+    if (!cle) return false;
+    const adresse = personne.adresse || null;
+    const fiche = {
+      nom: [personne.prenom, personne.nom].filter(Boolean).join(' '), prenom: personne.prenom || '', autresPrenoms: personne.autresPrenoms || '',
+      nomFamille: personne.nom, nomUsage: personne.nomUsage || '', civilite: civiliteDepuisTexte(personne.civilite) || '',
+      dateNaissance: personne.dateNaissance || '', lieuNaissance: personne.lieuNaissance || '', paysNaissance: personne.paysNaissance || '',
+      domicile: adresse && adresse.texte ? adresse.texte : '',
+      adresse: adresse ? { codePostal: adresse.codePostal || '', commune: adresse.commune || '', departement: adresse.departement || '' } : null,
+      deces: personne.deces || null, situationMatrimoniale: personne.situationMatrimoniale || null
+    };
+    const avant = d.authentic || {};
+    const reg = Object.assign({}, avant.fichesClients || {});
+    if (reg[cle] && JSON.stringify(Object.assign({}, reg[cle], { vuLe: '' })) === JSON.stringify(Object.assign({}, fiche, { vuLe: '' }))) return false;
+    reg[cle] = Object.assign(fiche, { vuLe: maintenant || new Date().toISOString() });
+    const cles = Object.keys(reg);
+    if (cles.length > 24) delete reg[cles[0]];
+    d.authentic = Object.assign({}, avant, { fichesClients: reg });
+    return true;
+  }
+
+  // Pure : la partie de la succession que désigne la fiche client — par le nom (et un prénom) parmi les parties, sinon, pour une personne
+  // DÉCÉDÉE, par le nom du défunt dans l'intitulé du dossier (« SUCC Alice FRA veuve FISCHER » : nom ET prénom cités). null sinon.
+  function partieSuccessionDeLaFiche(d, personne) {
+    if (!d || !personne || !personne.nom) return null;
+    const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
+    const premier = String(personne.prenom || '').trim().split(/\s+/)[0] || '';
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet)
+      || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
+    if (trouvee) return trouvee;
+    if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    return null;
+  }
+
+  // Modifie d : une fiche client lue sur un dossier de SUCCESSION — la personne est une partie (le défunt, nommé par l'intitulé, y entre
+  // s'il n'y était pas) ; la fiche entière est retenue. Aucune qualité n'est devinée : le défunt se reconnaît à sa date de décès.
+  function appliquerClientSuccession(d, personne, noter, resultat, maintenant) {
+    const partie = partieSuccessionDeLaFiche(d, personne);
+    const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    if (!partie) return resultat;
+    if (partie.nouvelle) {
+      d.parties = (Array.isArray(d.parties) ? d.parties : []).concat(Object.assign({
+        nom: complet, role: 'PARTIE', qualiteActe: '', qualitePersonne: 'physique', representant: null, origine: 'authentic',
+        emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3)
+      }, civiliteDepuisTexte(personne.civilite) ? { civilite: civiliteDepuisTexte(personne.civilite) } : {}, personne.nomUsage ? { nomUsage: personne.nomUsage } : {}));
+      noter(`Personne ajoutée d’après sa fiche Authentic : ${complet}`);
+    }
+    const ancienne = d.authentic && d.authentic.fichesClients && d.authentic.fichesClients[cleFicheClientAuthentic(personne)];
+    if (retenirFicheClientAuthentic(d, personne, maintenant)) {
+      resultat.modifie = true;
+      if (personne.deces && !(ancienne && ancienne.deces && ancienne.deces.date === personne.deces.date)) {
+        noter(`Fiche du défunt lue dans Authentic : ${complet}, décédé${/^madame|^mme/i.test(String(personne.civilite || '')) ? 'e' : ''} le ${formatDateFr(personne.deces.date)}${personne.deces.lieu ? ' à ' + personne.deces.lieu : ''}`);
+      } else if (!ancienne) noter(`Fiche client de ${complet} retenue (succession)`);
+    }
+    return resultat;
+  }
+
   function appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant) {
     const qui = role === 'VENDEUR' ? 'du vendeur' : 'de l’acquéreur';
     const nomComplet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
@@ -1618,6 +1707,8 @@
     // changement d'Authentic est proposé, jamais écrit (voir client/52-authentic-fait-foi.js). Même règle pour l'identité de la partie.
     appliquerContactAuthentic(d, role, nomComplet, { emails: personne.emails, telephones: personne.telephones }, { noter, maintenant });
     alignerIdentitePartieAuthentic(d, personne, role, { noter, maintenant }).forEach(noter);
+    // La fiche client entière est retenue (domicile, naissance, situation) : base des courriers de « Constitution de dossier ».
+    retenirFicheClientAuthentic(d, personne, maintenant);
     const avant = d.authentic || {};
     const cle = normaliserPourRecherche(nomComplet).replace(/[^a-z0-9]+/g, ' ').trim();
     const personnes = (avant.personnes || []).filter(p => normaliserPourRecherche(p.nom).replace(/[^a-z0-9]+/g, ' ').trim() !== cle);
@@ -1957,7 +2048,7 @@
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
     const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
-    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
     const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
     let complete = false;
     const anciennes = deja.map(p => {
@@ -2038,6 +2129,7 @@
     if (type === 'client') {
       const personne = clientDepuisFicheAuthentic(capture);
       if (!personne) return resultat;
+      if (estSuccession(d)) return appliquerClientSuccession(d, personne, noter, resultat, maintenant);
       const role = roleClientAuthenticDansDossier(d, personne);
       if (!role) {
         // Côté inconnu (jamais deviné) : la fiche est gardée « à rattacher » sur la fiche du dossier,
