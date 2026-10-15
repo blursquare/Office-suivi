@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.247.0';
+  const VERSION_APP = '0.248.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.248.0', date: '2026-10-15 22:58', resume: "Fiche succession : un onglet « Factures » dédié — nombre et total à régler et réglés, factures à régler en tête puis réglées (organisme et montant corrigeables, case « réglée », ouvrir le fichier), et « Ajouter une facture » pour une facture reçue hors Claire Scan." },
     { version: '0.247.0', date: '2026-10-15 22:51', resume: "Successions et Claire Scan : les courriers et les renonciations sont rangés dans le sous-dossier « Courrier reçu » du dossier de la succession, les factures dans « Factures à régler » (créés s'ils manquent). Organisme et montant lus sur la facture, notés sur la fiche (onglet Dossier, carte « Régler la facture » du Tableau, case « réglée »), liste de toutes les factures en attente en tête de Claire Scan, et message Teams à Sophie (dossier, organisme, montant, lien) — son adresse se règle dans Réglages › Collaborateurs." },
     { version: '0.246.4', date: '2026-10-15 22:32', resume: "Successions : le défunt et les héritiers viennent de la qualité « Défunt » / « Héritier » des comparants d'Authentic (légataire et conjoint survivant compris) — défunt nommé même avant la lecture de sa fiche, conjoint (« veuve de … ») repris, héritiers listés avec leur qualité, personnes hors comparants à part." },
     { version: '0.246.3', date: '2026-10-15 22:25', resume: "Successions : tout vient d'Authentic, sans analyse ni document lu avant. Chaque fiche client est gardée entière (naissance, nationalité, profession, domicile, situation matrimoniale, téléphones, emails) et montrée sous l'héritier ; le défunt a sa date et son lieu de naissance. Chaque fiche bien est gardée entière (type, désignation, parcelles avec nature, lieu-dit et contenance, lots), fusionnée avec le même bien ; plusieurs biens possibles. Plus de bloc d'analyse ni d'« extraction » sur la fiche d'une succession." },

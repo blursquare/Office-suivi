@@ -198,26 +198,48 @@
     render();
   }
 
-  // Bloc « Factures à régler » de l'onglet Dossier d'une succession.
+  // Facture ajoutée à la main (reçue par email ou en main propre, sans passer par Claire Scan).
+  function ajouterFactureSuccession(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d) return;
+    const f = noterFactureSuccession(d, { organisme: '', montant: null }, '', new Date().toISOString());
+    ajouterHistorique(d, 'Facture ajoutée à la main');
+    sauvegarder(d);
+    render();
+    setTimeout(() => { const champ = document.querySelector(`[data-facture="${f.id}"] .succ-facture-organisme`); if (champ) champ.focus(); }, 0);
+  }
+
+  // Onglet « Factures » d'une succession (étude 15/10 : « un onglet dédié aux factures ») : à régler en tête, puis réglées.
   function renderFacturesSuccessionFiche(d) {
     const liste = facturesSuccession(d);
     const idJs = escapeOnclickArg(d.id);
     const enAttente = liste.filter(f => !f.regleeLe);
-    const total = enAttente.reduce((s, f) => s + (f.montant || 0), 0);
+    const reglees = liste.filter(f => f.regleeLe);
+    const somme = (l) => l.reduce((s, f) => s + (f.montant || 0), 0);
     const ligneFacture = (f) => {
       const fJs = escapeOnclickArg(f.id);
       const montant = f.montant ? formaterPrixCentimes(f.montant) : '';
-      return `<li class="succ-facture${f.regleeLe ? ' reglee' : ''}">
-        <input type="checkbox" aria-label="Facture réglée"${f.regleeLe ? ' checked' : ''} onchange="basculerFactureReglee('${idJs}', '${fJs}')">
+      return `<li class="succ-facture${f.regleeLe ? ' reglee' : ''}" data-facture="${escapeAttr(f.id)}">
+        <input type="checkbox" aria-label="Facture réglée" title="${f.regleeLe ? 'Remettre à régler' : 'Marquer réglée'}"${f.regleeLe ? ' checked' : ''} onchange="basculerFactureReglee('${idJs}', '${fJs}')">
         <input type="text" class="prop-champ succ-facture-organisme" value="${escapeAttr(f.organisme || '')}" placeholder="Organisme" aria-label="Organisme de la facture" onchange="changerFactureSuccession('${idJs}', '${fJs}', 'organisme', this.value)">
         <input type="text" class="prop-champ succ-facture-montant" value="${escapeAttr(montant)}" placeholder="Montant" aria-label="Montant de la facture" onchange="changerFactureSuccession('${idJs}', '${fJs}', 'montant', this.value)">
-        <span class="hint">reçue le ${escapeHtml(formatDateFr(f.recueLe))}${f.regleeLe ? ` · réglée le ${escapeHtml(formatDateFr(f.regleeLe))}` : ''}</span>
-        ${f.fichier ? `<button type="button" class="lien-action" onclick="ouvrirFichierNas('${escapeOnclickArg(f.fichier)}')">Ouvrir</button>` : ''}
+        <span class="hint">reçue le ${escapeHtml(formatDateFr(f.recueLe))}${f.regleeLe ? ` · réglée le ${escapeHtml(formatDateFr(f.regleeLe))}${f.reglePar ? ' par ' + escapeHtml(f.reglePar.split(' ')[0]) : ''}` : ''}</span>
+        ${f.fichier ? `<button type="button" class="lien-action" onclick="ouvrirFichierNas('${escapeOnclickArg(f.fichier)}')">Ouvrir</button>` : '<span class="hint">ajoutée à la main</span>'}
         <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer du suivi" aria-label="Retirer du suivi" onclick="retirerFactureSuccession('${idJs}', '${fJs}')">${icone('x')}</wa-button>
       </li>`;
     };
-    return `<div class="section-eyebrow fiche-sous-titre">Factures à régler <span class="hint">· ${enAttente.length ? `${enAttente.length} en attente${total ? ' — ' + escapeHtml(formaterPrixCentimes(total)) : ''}` : 'aucune en attente'}</span> ${infoBulle('Chaque facture scannée pour cette succession est rangée par Claire Scan dans « Factures à régler » du dossier du NAS et annoncée à Sophie sur Teams. Cochez-la une fois réglée.')}</div>
-      ${liste.length ? `<ul class="succ-factures">${liste.map(ligneFacture).join('')}</ul>` : '<p class="hint succ-factures-vide">Aucune facture reçue par Claire Scan.</p>'}`;
+    const total = (l) => somme(l) ? ' — ' + escapeHtml(formaterPrixCentimes(somme(l))) : '';
+    return `<div class="succ-factures-onglet">
+      <div class="succ-factures-synthese">
+        <div class="succ-factures-chiffre${enAttente.length ? ' en-attente' : ''}"><span class="succ-factures-nombre">${enAttente.length}</span><span>à régler${total(enAttente)}</span></div>
+        <div class="succ-factures-chiffre"><span class="succ-factures-nombre">${reglees.length}</span><span>réglée${reglees.length > 1 ? 's' : ''}${total(reglees)}</span></div>
+        ${infoBulle('Chaque facture scannée pour cette succession est rangée par Claire Scan dans « Factures à régler » du dossier du NAS, son organisme et son montant lus, et annoncée à Sophie sur Teams. Cochez-la une fois réglée.')}
+      </div>
+      <div class="section-eyebrow fiche-sous-titre">À régler</div>
+      ${enAttente.length ? `<ul class="succ-factures">${enAttente.map(ligneFacture).join('')}</ul>` : '<p class="hint succ-factures-vide">Aucune facture en attente de règlement.</p>'}
+      <wa-button appearance="outlined" class="bouton-ajout" onclick="ajouterFactureSuccession('${idJs}')"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter une facture</wa-button>
+      ${reglees.length ? `<div class="section-eyebrow fiche-sous-titre">Réglées</div><ul class="succ-factures">${reglees.map(ligneFacture).join('')}</ul>` : ''}
+    </div>`;
   }
 
   // Cartes du Tableau : une carte « À faire » par facture en attente.

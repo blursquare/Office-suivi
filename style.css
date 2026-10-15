@@ -9584,6 +9584,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .succ-facture .succ-facture-montant { flex: 0 1 120px; min-width: 0; font-variant-numeric: tabular-nums; }
 .succ-facture.reglee .prop-champ { text-decoration: line-through; color: var(--muted); }
 .succ-factures-vide { margin: 4px 0 12px; }
+.succ-factures-onglet { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.succ-factures-onglet > .succ-factures { align-self: stretch; }
+.succ-factures-synthese { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 8px; }
+.succ-factures-chiffre { display: flex; align-items: baseline; gap: 8px; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--muted); }
+.succ-factures-chiffre.en-attente { color: var(--ink); }
+.succ-factures-nombre { font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
 .scans-factures { margin-bottom: 16px; }
 .scans-factures ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .scans-factures li { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 10px; align-items: center; font-size: var(--texte-m); }

@@ -2051,7 +2051,7 @@
       const notifications = d.piecesNotifications || [];
       const notifPieces = notifications.some(c => c !== CLE_NOTIF_OFFRE_PRET);
       const nbEcheancesAVenir = echeancesPlanning(d).length;
-      const onglet = (ongletFiche === 'analyse') ? 'pieces' : (ongletFiche === 'echeances' ? 'tableau' : (ongletFiche === 'fonds' && estSuccession(d) ? 'tableau' : ongletFiche));
+      const onglet = (ongletFiche === 'analyse') ? 'pieces' : (ongletFiche === 'echeances' ? 'tableau' : (ongletFiche === 'fonds' && estSuccession(d) ? 'tableau' : (ongletFiche === 'factures' && !estSuccession(d) ? 'tableau' : ongletFiche)));
       const cache = nom => onglet === nom ? '' : ' hidden';
 
       // Un onglet par geste, dans l'ordre où on les accomplit sur un dossier : ce qui arrive
@@ -2071,6 +2071,8 @@
         { cle: 'dossier', libelle: 'Dossier', compteur: '', titre: 'Parties, bien, financement, notaires, dossier du NAS' },
         // Fonds (étude 05/10) : provision, appel de fonds, fonds reçus et confirmation, relance, RIB — sortis d'Échanges.
         estSuccession(d) ? null : { cle: 'fonds', libelle: 'Fonds', compteur: '', titre: fondsCompletsAConfirmer(d) ? 'Tous les fonds sont reçus : confirmation au client à envoyer' : 'Provision, appel de fonds, fonds reçus, relance, RIB', nouveau: fondsCompletsAConfirmer(d) },
+        // Factures d'une succession (étude 15/10 : « un onglet dédié aux factures »), rangées par Claire Scan ou ajoutées à la main.
+        estSuccession(d) ? { cle: 'factures', libelle: 'Factures', compteur: facturesARegler(d).length ? String(facturesARegler(d).length) : '', titre: `${facturesARegler(d).length} facture(s) à régler sur ${facturesSuccession(d).length}`, nouveau: facturesARegler(d).length > 0 } : null,
         { cle: 'echanges', libelle: 'Échanges', compteur: '', titre: 'Emails, appels, sondages de dates, questionnaire' },
         { cle: 'historique', libelle: 'Historique', compteur: historique.length ? String(historique.length) : '', titre: `${historique.length} entrée(s)` }
       ].filter(Boolean);
@@ -2184,6 +2186,10 @@
             ${estSuccession(d) ? '' : `<section class="fiche-panneau" data-onglet="fonds" role="tabpanel"${cache('fonds')}>
               ${renderFondsDossier(d)}
             </section>`}
+
+            ${estSuccession(d) ? `<section class="fiche-panneau" data-onglet="factures" role="tabpanel"${cache('factures')}>
+              ${renderFacturesSuccessionFiche(d)}
+            </section>` : ''}
 
             <section class="fiche-panneau" data-onglet="echanges" role="tabpanel"${cache('echanges')}>
               ${renderEchangesDossier(d)}

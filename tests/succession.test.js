@@ -332,3 +332,15 @@ test('Claire Scan dans une succession : facture → « Factures à régler » (o
   app.cartesFacturesSuccessionFiche(Object.assign({}, d, { succession: { factures: [Object.assign({}, f, { regleeLe: '' })] } }), (col, c) => cartes.push(col + ':' + c.titre + ':' + c.sous));
   assert.match(cartes[0], /^faire:Régler la facture — POMPES FUNÈBRES DU VAL:2\.376,00\s€ · reçue le/);
 });
+
+test('onglet « Factures » de la fiche succession : à régler puis réglées, ajout à la main', () => {
+  const d = base({ id: 's14', succession: { factures: [
+    { id: 'f1', organisme: 'EHPAD TEST', montant: 1200, recueLe: '2026-10-01', fichier: 'SUCC/Factures à régler/a.pdf', regleeLe: '' },
+    { id: 'f2', organisme: 'EDF', montant: 80.5, recueLe: '2026-09-20', fichier: '', regleeLe: '2026-10-02' }
+  ] } });
+  const html = app.renderFacturesSuccessionFiche(d);
+  assert.match(html, /succ-factures-nombre">1<\/span><span>à régler — 1\.200,00\s€/);
+  assert.match(html, /Réglées/);
+  assert.ok(html.indexOf('EHPAD TEST') < html.indexOf('EDF'), 'à régler en tête');
+  assert.match(html, /Ajouter une facture/);
+});
