@@ -13,8 +13,8 @@
 
   // L'état des deux consultations, rangé dans l'état de l'outil (oublié avec lui au changement de dossier).
   function etatSitesPreemption() {
-    if (!prEtat) return { echelle: 0, plan: null };
-    if (!prEtat.sites) prEtat.sites = { echelle: 0, plan: null };
+    if (!prEtat) return { echelle: 0, plan: null, aerien: null };
+    if (!prEtat.sites) prEtat.sites = { echelle: 0, plan: null, aerien: null };
     return prEtat.sites;
   }
 
@@ -134,6 +134,92 @@
     return plans.map((p, i) => `${plans.length > 1 ? `Plan ${i + 1}/${plans.length} : ` : 'Extrait '}au 1/${p.echelle || ''} — parcelles ${p.parcelles || ''}${p.echelleRelevee ? ' (échelle demandée trop fine pour tout faire tenir)' : ''}.`);
   }
 
+  // ===== Plan aérien IGN (étude 15/10 : « mettre les numéros de parcelle sur le plan IGN pour comparer et créer le pourcentage ») :
+  // la photographie aérienne de l'IGN avec les parcelles du dossier surlignées et numérotées, les parcelles voisines numérotées, et la
+  // PART de chaque zone du document d'urbanisme dans chaque parcelle. Services ouverts de l'IGN, lus par le serveur : ni navigateur,
+  // ni IA, ni jeton. =====
+
+  async function lancerPlanAerien() {
+    const e = prEtat;
+    const manque = manqueConsultationSites(e);
+    if (manque) { afficherToast(manque); return; }
+    const st = etatSitesPreemption();
+    st.aerien = { etat: 'envoi' };
+    renderSitesPreemption();
+    try {
+      const r = await fetchAvecAuth(`/api/urbanisme/plan-aerien`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insee: e.insee, parcelles: parcellesNormaliseesSites(e.parcelles), dossierId: e.dossierId || '' }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
+      if (etatSitesPreemption() === st) st.aerien = Object.assign({ etat: 'fini' }, j);
+    } catch (err) {
+      if (etatSitesPreemption() === st) st.aerien = { etat: 'erreur', erreur: err.message };
+    }
+    renderSitesPreemption();
+  }
+
+  async function ouvrirPlanAerien(id) {
+    const fenetre = window.open('', '_blank');
+    try {
+      const r = await fetchAvecAuth(`/api/urbanisme/plan-aerien/${encodeURIComponent(id)}`);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `réponse ${r.status}`);
+      const url = URL.createObjectURL(await r.blob());
+      if (fenetre) fenetre.location = url; else window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+    } catch (err) {
+      if (fenetre) fenetre.close();
+      afficherToast(`Plan indisponible : ${err.message}`);
+    }
+  }
+
+  async function rangerPlanAerien(id) {
+    const dossierId = prEtat && prEtat.dossierId;
+    if (!dossierId) { afficherToast('Choisissez d’abord le dossier suivi.'); return; }
+    try {
+      const r = await fetchAvecAuth(`/api/urbanisme/plan-aerien/${encodeURIComponent(id)}/ranger`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dossierId }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.erreur || `réponse ${r.status}`);
+      afficherToast(`Rangé dans le dossier du NAS : ${String(j.chemin || '').split(/[\\/]/).pop()}`);
+    } catch (err) {
+      afficherToast(`Non rangé : ${err.message}`);
+    }
+  }
+
+  // Pure : « 66,6 % » (une décimale, virgule).
+  function pourcentageZonage(valeur) {
+    return `${String(Math.round(Number(valeur) * 10) / 10).replace('.', ',')} %`;
+  }
+
+  // Pure : les lignes du tableau des parts de zone — une par parcelle et par zone, « hors zone » seulement s'il y en a.
+  function lignesZonagePlanAerien(plans) {
+    const lignes = [];
+    (plans || []).forEach((plan) => (plan.parcelles || []).forEach((p) => {
+      const nom = `${p.section} ${p.numero}`;
+      if (!p.zonageLu) { lignes.push({ parcelle: nom, zone: 'Zonage non lu (Géoportail de l’urbanisme injoignable)', part: '' }); return; }
+      if (!p.zones.length) { lignes.push({ parcelle: nom, zone: p.rnu ? 'Règlement national d’urbanisme (pas de document)' : 'Aucune zone publiée sur cette parcelle', part: '' }); return; }
+      p.zones.forEach((z) => lignes.push({ parcelle: nom, zone: z.libelong ? `${z.libelle} — ${z.libelong}` : z.libelle, part: pourcentageZonage(z.pourcentage) }));
+      if (p.horsZone >= 0.5) lignes.push({ parcelle: nom, zone: 'Hors zone du document', part: pourcentageZonage(p.horsZone) });
+    }));
+    return lignes;
+  }
+
+  // Les parts de zone et les servitudes patrimoniales du plan rendu.
+  function renderResultatPlanAerien(a) {
+    const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
+    const lignes = lignesZonagePlanAerien(a.plans);
+    const servitudes = [];
+    (a.plans || []).forEach((plan) => (plan.parcelles || []).forEach((p) => (p.patrimoine.servitudes || []).forEach((s) => { const t = s.nom ? `${s.libelle} — ${s.nom}` : s.libelle; if (!servitudes.includes(t)) servitudes.push(t); })));
+    const lu = (a.plans || []).every((plan) => (plan.parcelles || []).every((p) => p.patrimoine.lu));
+    return `<ul class="sites-docs"><li class="sites-doc">
+        <span class="sites-doc-icone">${icone('file-text')}</span>
+        <span class="sites-doc-texte"><span class="sites-doc-titre">${escapeHtml(a.nom || 'Plan aérien.pdf')}</span><span class="hint">PDF · ${Math.max(1, Math.round((a.taille || 0) / 1024))} Ko${(a.plans || []).length > 1 ? ` · ${(a.plans || []).length} plans` : ''}</span></span>
+        <wa-button appearance="outlined" size="s" onclick="ouvrirPlanAerien('${escapeOnclickArg(a.id)}')">Ouvrir</wa-button>
+        ${d && d.nasDossier ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="rangerPlanAerien('${escapeOnclickArg(a.id)}')" title="Ranger dans le dossier du NAS" aria-label="Ranger dans le dossier du NAS">${icone('folder')}</wa-button>` : ''}
+      </li></ul>
+      <table class="sites-zonage"><thead><tr><th>Parcelle</th><th>Zone</th><th>Part de la parcelle</th></tr></thead><tbody>${lignes.map(l => `<tr><td>${escapeHtml(l.parcelle)}</td><td>${escapeHtml(l.zone)}</td><td>${escapeHtml(l.part)}</td></tr>`).join('')}</tbody></table>
+      <p class="hint">${icone(servitudes.length ? 'alert-triangle' : 'check')} ${escapeHtml(servitudes.length ? `Protection du patrimoine : ${servitudes.slice(0, 3).join(' ; ')}.` : lu ? 'Aucune servitude de protection du patrimoine publiée sur ces parcelles.' : 'Protection du patrimoine non lue : à vérifier sur le Géoportail de l’urbanisme.')}</p>`;
+  }
+
   // Les étapes et la capture d'une consultation en cours.
   function renderSuiviTacheSite(genre, t) {
     const enCours = t.etat === 'attente' || t.etat === 'en-cours' || t.etat === 'envoi';
@@ -167,6 +253,7 @@
     const st = etatSitesPreemption();
     const manque = manqueConsultationSites(e);
     const plan = st.plan;
+    const aerien = st.aerien;
     const enCours = (t) => !!t && (t.etat === 'attente' || t.etat === 'en-cours' || t.etat === 'envoi');
     const actif = document.activeElement && document.activeElement.id;
     zone.innerHTML = `${manque ? `<p class="hint">${escapeHtml(manque)}</p>` : ''}
@@ -182,6 +269,16 @@
           : plan.etat === 'fini' ? `${lignesPlansSites(plan.resultat).map(l => `<p class="hint">${icone('check')} ${escapeHtml(l)}</p>`).join('')}
               ${renderDocumentsSite(plan)}`
           : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(plan.erreur || 'Consultation arrêtée.')}</p>`) : ''}
+      </div>
+      <div class="sites-carte">
+        <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('map-pin')} Plan aérien IGN — numéros de parcelles et zonage</span>
+          ${infoBulle('Photographie aérienne de l’IGN : les parcelles du dossier surlignées en jaune fluo avec leur numéro, les parcelles voisines numérotées pour comparer avec le plan du cadastre, et la part de chaque zone du document d’urbanisme dans chaque parcelle (calcul géométrique sur les contours publiés, à titre indicatif).')}</div>
+        <div class="sites-ligne">
+          <wa-button variant="brand" size="s" onclick="lancerPlanAerien()"${manque || (aerien && aerien.etat === 'envoi') ? ' disabled' : ''}${aerien && aerien.etat === 'envoi' ? ' loading' : ''}>${icone('map-pin')} Tirer le plan aérien</wa-button>
+        </div>
+        ${aerien ? (aerien.etat === 'envoi' ? '<p class="hint">Lecture de la photographie aérienne, du cadastre et du zonage…</p>'
+          : aerien.etat === 'fini' ? renderResultatPlanAerien(aerien)
+          : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(aerien.erreur || 'Plan non tiré.')}</p>`) : ''}
       </div>`;
     if (actif) { const el = document.getElementById(actif); if (el && el.focus) el.focus(); }
   }

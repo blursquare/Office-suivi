@@ -9451,6 +9451,10 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .sites-doc-texte { display: flex; flex-direction: column; min-width: 0; }
 .sites-doc-titre { font-size: var(--texte-m); color: var(--ink); overflow-wrap: anywhere; }
 .sites-doc .hint { margin: 0; }
+.sites-zonage { width: 100%; border-collapse: collapse; font-size: var(--texte-m); margin: 8px 0; }
+.sites-zonage th { text-align: left; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--line); }
+.sites-zonage td { padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.sites-zonage td:last-child { white-space: nowrap; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 .pr-travail { padding: 12px 14px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
 .pr-zone-abf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--texte-m); }

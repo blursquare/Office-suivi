@@ -31,3 +31,16 @@ test('une ligne par plan tiré : échelle, parcelles, échelle demandée relevé
   assert.strictEqual(deux[0], 'Plan 1/2 : au 1/500 — parcelles AL 694.');
   assert.match(deux[1], /^Plan 2\/2 : au 1\/1000 — parcelles CV 50 \(échelle demandée trop fine/);
 });
+
+test('plan aérien : parts de zone en « 66,6 % », une ligne par parcelle et par zone, hors zone dit seulement s’il existe', () => {
+  assert.strictEqual(app.pourcentageZonage(66.64), '66,6 %');
+  assert.strictEqual(app.pourcentageZonage(100), '100 %');
+  const plans = [{ parcelles: [
+    { section: 'AL', numero: '694', zonageLu: true, rnu: false, zones: [{ libelle: 'UA', libelong: 'Centre', pourcentage: 70 }, { libelle: 'N', libelong: '', pourcentage: 29.6 }], horsZone: 0.4 },
+    { section: 'AL', numero: '887', zonageLu: true, rnu: false, zones: [{ libelle: 'N', libelong: 'Naturelle', pourcentage: 90 }], horsZone: 10 },
+    { section: 'AL', numero: '1', zonageLu: true, rnu: true, zones: [], horsZone: 100 },
+    { section: 'AL', numero: '2', zonageLu: false, zones: [] }] }];
+  const l = app.lignesZonagePlanAerien(plans).map(x => `${x.parcelle}|${x.zone}|${x.part}`);
+  assert.strictEqual(l.join(' // '), ['AL 694|UA — Centre|70 %', 'AL 694|N|29,6 %', 'AL 887|N — Naturelle|90 %', 'AL 887|Hors zone du document|10 %',
+    'AL 1|Règlement national d’urbanisme (pas de document)|', 'AL 2|Zonage non lu (Géoportail de l’urbanisme injoignable)|'].join(' // '));
+});

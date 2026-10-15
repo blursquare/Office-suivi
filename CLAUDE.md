@@ -81,6 +81,8 @@ server/                              Serveur (son propre package.json ; le packa
                                      (chrome.js, session.js : liste blanche, PDF en mémoire), plan de situation de cadastre.gouv.fr
                                      (planCadastre.js, lambert.js, surlignage.js — pdf-lib), tâches (taches.js) ;
                                      routes/navigation.js ; poste : client/69-sites-claire.js
+  src/planAerien.js, routes/planAerien.js  Plan aérien IGN (15/10) : photo WMS + parcelles numérotées + part de chaque zone du GPU par parcelle,
+                                     services ouverts de l'IGN, sans navigateur ni IA ; poste : client/69-sites-claire.js
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)

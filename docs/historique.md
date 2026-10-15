@@ -19762,3 +19762,26 @@ Relecture du retrait de Géofoncier (0.229.1) : rien de cassé ; gestes du navig
 terrain corrigée (plus de champ « chemin du navigateur »). À dire à l'étude : les sauvegardes quotidiennes faites pendant la 0.229.0
 peuvent contenir le mot de passe Géofoncier saisi alors — le changer sur Géofoncier si besoin.
 
+## 15/10/2026 — Plan aérien IGN : numéros de parcelles et pourcentage de zonage (0.231.0)
+
+Demande de l'étude : « Pour Géoportail tu utilises la même méthode que pour le plan du cadastre ? » → non, l'IGN publie des services
+ouverts, lus directement par le serveur (pas de navigateur) ; puis « oui, tu peux mettre les numéros de parcelle sur le plan IGN pour
+comparer et créer le pourcentage ».
+
+- `server/src/planAerien.js`, `routes/planAerien.js` (`POST /api/urbanisme/plan-aerien`, `GET …/:id` PDF, `POST …/:id/ranger`) : photographie
+  aérienne (WMS Géoplateforme, Web Mercator, cadre 515 × 500 pt, 3 px/pt), parcelles du dossier surlignées en jaune fluo (découpe
+  pair-impair, trous compris) avec leur numéro (centre « le plus intérieur » `centreInterieur`), parcelles voisines (API Carto, `geom` du
+  cadre, 600 au plus — au-delà aucune, trop dense) en filet blanc avec leur numéro quand elles sont assez grandes, contours des zones du
+  Géoportail de l'urbanisme en pointillés colorés, barre d'échelle, nord, tableau « part de chaque zone dans la parcelle », protection du
+  patrimoine (servitudes AC1/AC2/AC4 déjà lues par `zonageParcelle`), mention des sources. Parcelles proches sur un plan (≤ 1 100 m),
+  éloignées sur des plans à part (6 au plus), 12 parcelles au plus.
+- **Pourcentage de zonage** = `repartitionZonage` : balayage de lignes horizontales (une tous les ~25 cm, 200 à 1 500) sur la parcelle et
+  chaque zone, longueurs communes — géométrie exacte à la précision du pas, sans bibliothèque ; somme des zones + « hors zone » = 100 %.
+  Testé sur des rectangles (30/70, trou, multi-polygone). **La surface mesurée peut différer de la contenance cadastrale** (DR 597 à Blois :
+  298 m² mesurés pour 532 m² de contenance — les deux sont dites) : les parts se comptent sur la surface mesurée. Indicatif.
+- Client : `client/69-sites-claire.js` (`lancerPlanAerien`, `lignesZonagePlanAerien`, `pourcentageZonage`, carte « Plan aérien IGN » du
+  Contrôle de l'urbanisme, Ouvrir / Ranger dans le dossier du NAS), `style.css` `.sites-zonage`. Point terrain `plan-aerien-ign`.
+- Vérifié ici : services réels de l'IGN joignables (WMS, API Carto, zone-urba), PDF rendu et regardé sur Blois (DR 597 / DR 596) ; tests
+  `server/test/plan-aerien.test.js` avec de faux services. **Non vérifié** : une parcelle à cheval sur deux zones sur de vraies données
+  (aucune trouvée dans les essais ; vérifié sur géométrie inventée), communes sans document d'urbanisme (RNU), qualité du rendu à l'impression.
+

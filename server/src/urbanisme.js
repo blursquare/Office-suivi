@@ -142,6 +142,27 @@ async function parcelleCadastre(insee, section, numero, injections) {
   });
 }
 
+/** Zones du document d'urbanisme (Géoportail de l'urbanisme) qui touchent une géométrie, AVEC leur contour — pour mesurer la part de
+ * chaque zone dans une parcelle (plan aérien, étude 15/10). @param {any} geometrie GeoJSON en degrés @param {any} [injections] */
+async function zonesAvecGeometrie(geometrie, injections) {
+  const geom = encodeURIComponent(JSON.stringify(geometrie));
+  const cle = `zg:${geom.length}:${geom.slice(0, 160)}:${geom.slice(-160)}`;
+  return enCache(cle, async () => {
+    const r = await lireJson(`${BASE}/gpu/zone-urba?geom=${geom}`, injections);
+    return (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry).map((f) => ({
+      libelle: String((f.properties && f.properties.libelle) || ''), libelong: String((f.properties && f.properties.libelong) || ''),
+      typezone: String((f.properties && f.properties.typezone) || ''), geometry: f.geometry
+    }));
+  });
+}
+
+/** Les parcelles du cadastre dans un polygone (le cadre d'un plan), 600 au plus. @param {any} polygone GeoJSON @param {any} [injections] */
+async function parcellesDansPolygone(polygone, injections) {
+  const geom = encodeURIComponent(JSON.stringify(polygone));
+  const r = await lireJson(`${BASE}/cadastre/parcelle?geom=${geom}&_limit=600`, injections);
+  return (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry);
+}
+
 function viderCacheUrbanisme() { cache.clear(); }
 
-module.exports = { normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
+module.exports = { zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
