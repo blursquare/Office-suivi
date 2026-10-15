@@ -45,7 +45,7 @@ test('envoiAgendaARattraper : un envoi validé sans note dans Outlook (décompte
   assert.equal(app.envoiAgendaARattraper(sansNote, jour), true);
   // Déjà dans le lieu relevé, déjà noté par CLAIRE, ou refusé (reste affiché sur la fiche) : rien.
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { rendezVousSignatureLieu: 'BA - Appel de fonds envoyé' }), jour), false);
-  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z', agendaLieuNoteEnvois: { appelFonds: true, projet: false } }), jour), false);
+  assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: new Date().toISOString(), agendaLieuNoteEnvois: { appelFonds: true, projet: false } }), jour), false, 'note toute récente : la lecture de l’agenda n’a pas encore suivi');
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuNoteLe: '2026-10-05T10:00:00Z', rendezVousSignatureLieu: '' }), jour), false);
   assert.equal(app.envoiAgendaARattraper(Object.assign({}, sansNote, { agendaLieuEchec: { le: '2026-10-05T10:00:00Z', message: 'Aucun rendez-vous' } }), jour), false);
   // Rendez-vous passé, sans rendez-vous, archivé, ou aucun envoi validé : rien.
@@ -83,4 +83,22 @@ test('envoiAgendaARattraper : appel de fonds noté, puis projet envoyé — la m
   const refus = (envois) => base({ rendezVousSignatureLieu: '', agendaLieuEchec: { le: '2026-10-01T10:00:00Z', message: 'Aucun rendez-vous', envois } });
   assert.equal(app.envoiAgendaARattraper(refus({ appelFonds: true, projet: false }), jour), true);
   assert.equal(app.envoiAgendaARattraper(refus({ appelFonds: true, projet: true }), jour), false);
+});
+
+test('rendez-vous décalé ou recréé dans Outlook : le lieu relevé sans mention ni nom du notaire est repris malgré une note ancienne (15/10)', () => {
+  const app = chargerApplication();
+  const jour = '2026-10-05';
+  const confrere = { notaireAcquereur: 'Maître Paul DURAND (Tours)', notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', roleNotaire: 'instrumentaire', coteInstrumentaire: 'vendeur', responsable: 'Bastien ANGLUMENT' };
+  const noteAvant = { agendaLieuNoteLe: '2026-10-01T10:00:00Z', agendaLieuNoteEnvois: { appelFonds: true, projet: true } };
+  // Lieu relevé complet (initiales, notaire, mention) : rien à refaire.
+  assert.equal(app.envoiAgendaARattraper(base(Object.assign({}, confrere, noteAvant, { rendezVousSignatureLieu: 'BA - Me DURAND en 2nd - Appel de fonds et projet envoyé' })), jour), false);
+  // Rendez-vous recréé : lieu relevé vide de mention → repris, bien que CLAIRE l'ait noté avant.
+  assert.equal(app.envoiAgendaARattraper(base(Object.assign({}, confrere, noteAvant, { rendezVousSignatureLieu: 'BA' })), jour), true);
+  // Mention présente mais le notaire a disparu du lieu : repris aussi.
+  assert.equal(app.envoiAgendaARattraper(base(Object.assign({}, confrere, noteAvant, { rendezVousSignatureLieu: 'BA - Appel de fonds et projet envoyé' })), jour), true);
+  assert.equal(app.confrereDansLieuAgenda(base(Object.assign({}, confrere, { rendezVousSignatureLieu: 'BA - Me Durand - Projet envoyé' }))), true, 'casse libre');
+  // Pas de confrère sur la fiche : le nom n'est jamais exigé.
+  assert.equal(app.confrereDansLieuAgenda(base({ rendezVousSignatureLieu: 'BA' })), true);
+  // Lieu relevé pour une AUTRE date : inconnu, la note gardée reste la référence.
+  assert.equal(app.envoiAgendaARattraper(base(Object.assign({}, confrere, noteAvant, { rendezVousSignatureLieu: 'BA', detectionsAgenda: { rendezVousSignature: '2026-10-10' } })), jour), false);
 });

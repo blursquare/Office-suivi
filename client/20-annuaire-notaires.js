@@ -1306,7 +1306,20 @@
     // Un refus reste affiché sur la fiche (« Réessayer ») ; un envoi validé APRÈS ce refus est retenté une fois.
     const echec = d.agendaLieuEchec;
     if (echec && echec.message && (!echec.envois || envoisCouverts(d, echec.envois))) return false;
-    return !mentionDejaDansAgenda(d);
+    return !(mentionDejaDansAgenda(d) && confrereDansLieuAgenda(d));
+  }
+
+  // Pure : le lieu du rendez-vous relevé dans l'agenda porte-t-il le nom du confrère de la fiche (« Me DURAND en 2nd ») ? Vrai quand il n'y a
+  // pas de confrère ou quand le lieu relevé n'est pas celui de la date de la fiche (inconnu : rien à reprocher). Étude 15/10 : un rendez-vous
+  // décalé ou recréé dans Outlook perd son lieu — le nom du notaire se remet avec la mention d'envoi.
+  function confrereDansLieuAgenda(d) {
+    const confrere = confrereLieuAgenda(d);
+    if (!confrere) return true;
+    const rep = (d && d.detectionsAgenda) || {};
+    if (!d.rendezVousSignatureLieu || rep.rendezVousSignature !== d.rendezVousSignature) return true;
+    const famille = confrere.replace(/^Me\s+/i, '').replace(/\s+en\s+(1er|2nd)$/i, '');
+    const lieu = normaliserPourRecherche(d.rendezVousSignatureLieu).replace(/[^a-z0-9]+/g, ' ');
+    return !famille || lieu.includes(normaliserPourRecherche(famille).replace(/[^a-z0-9]+/g, ' ').trim());
   }
 
   // Pure : envois validés aujourd'hui sur le dossier (ce que la mention du lieu doit dire).
@@ -1324,6 +1337,12 @@
   // la note de l'appel de fonds suffisait à arrêter le rattrapage.) Note d'avant ce relevé : le lieu lu dans l'agenda tranche.
   function noteAgendaCouvreEnvois(d) {
     if (!d || !d.agendaLieuNoteLe) return false;
+    // Le lieu RELEVÉ dans l'agenda pour la date de la fiche fait foi, plus que la note gardée (étude 15/10 : rendez-vous décalé, supprimé
+    // puis recréé dans Outlook = lieu vide de mention et du nom du notaire, alors que CLAIRE croyait l'avoir noté).
+    const releve = d.detectionsAgenda || {};
+    // Une note de moins de 15 minutes peut ne pas encore être dans la lecture de l'agenda (tour toutes les 2 min) : elle reste crue.
+    const noteRecente = Date.now() - Date.parse(d.agendaLieuNoteLe) < 15 * 60 * 1000;
+    if (!noteRecente && d.rendezVousSignatureLieu && releve.rendezVousSignature === d.rendezVousSignature) return mentionDejaDansAgenda(d) && confrereDansLieuAgenda(d);
     if (d.agendaLieuNoteEnvois && typeof d.agendaLieuNoteEnvois === 'object') return envoisCouverts(d, d.agendaLieuNoteEnvois);
     const rep = d.detectionsAgenda || {};
     if (d.rendezVousSignatureLieu && rep.rendezVousSignature === d.rendezVousSignature) return mentionDejaDansAgenda(d);
@@ -1336,8 +1355,10 @@
     if (!exchangeAgendaPret()) return;
     const aujourdhui = isoAujourdhuiLocal();
     for (const d of (dossiers || []).slice()) {
-      if (notesAgendaTentees.has(d.id) || !envoiAgendaARattraper(d, aujourdhui)) continue;
-      notesAgendaTentees.add(d.id);
+      // Une tentative par dossier, par date ET par heure de rendez-vous : un rendez-vous décalé en cours de session est repris.
+      const cleTentative = `${d.id}|${d.rendezVousSignature}|${d.rendezVousSignatureHeure || ''}`;
+      if (notesAgendaTentees.has(cleTentative) || !envoiAgendaARattraper(d, aujourdhui)) continue;
+      notesAgendaTentees.add(cleTentative);
       // Identifiants refusés : arrêt au premier refus (audit 12/10 — chaque dossier retentait, au risque de verrouiller le compte).
       if (await noterEnvoiDansAgenda(d.id, true, true, true) === 'auth') break;
       await new Promise(ok => setTimeout(ok, 3000));
