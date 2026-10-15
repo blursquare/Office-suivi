@@ -2081,7 +2081,8 @@
   // ceux cochés AUJOURD'HUI, barrés, pour voir ce qui a été fait dans la journée.
   function rappelsAffiches(rappels, aujourdhuiIso) {
     const l = Array.isArray(rappels) ? rappels : [];
-    const aFaire = l.filter(r => !r.fait).sort((a, b) => (a.echeance || '9999').localeCompare(b.echeance || '9999') || String(a.creeLe).localeCompare(String(b.creeLe)));
+    // Les tâches demandées par un collègue passent en tête (étude 15/10), puis par échéance.
+    const aFaire = l.filter(r => !r.fait).sort((a, b) => (b.demandePar ? 1 : 0) - (a.demandePar ? 1 : 0) || (a.echeance || '9999').localeCompare(b.echeance || '9999') || String(a.creeLe).localeCompare(String(b.creeLe)));
     const faits = l.filter(r => r.fait && String(r.faitLe || '').slice(0, 10) === aujourdhuiIso);
     return aFaire.concat(faits);
   }
@@ -2098,8 +2099,19 @@
       const reponse = await fetchAvecAuth('/api/rappels-perso?auteur=' + encodeURIComponent(utilisateurPoste));
       if (reponse.ok) rappelsPerso = (await reponse.json()).rappels || [];
     } catch (e) { console.warn('Rappels indisponibles :', e.message); }
+    annoncerDemandesRecues(rappelsPerso, rappelsPersoCharges);
     rappelsPersoCharges = true;
     renderAlertesDashboard(dossiersPerimetreDashboard());
+  }
+
+  // Tâches demandées par un collègue (« Demander à CLAIRE ») : annoncées une fois à leur arrivée (pas au premier chargement).
+  var demandesAnnoncees = new Set();
+  function annoncerDemandesRecues(rappels, dejaCharges) {
+    for (const r of rappels || []) {
+      if (!r || !r.demandePar || r.fait || demandesAnnoncees.has(r.id)) continue;
+      demandesAnnoncees.add(r.id);
+      if (dejaCharges) afficherToast(`${prenomCollaborateur(r.demandePar)} vous demande : ${String(r.texte || '').replace(/\s*\(demandé par [^)]*\)$/, '')} — dans « Aujourd'hui ».`, 'OK', null);
+    }
   }
 
   async function enregistrerRappelPerso(rappel) {

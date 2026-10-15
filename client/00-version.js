@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.233.1';
+  const VERSION_APP = '0.233.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.233.2', date: '2026-10-15 11:41', resume: "Une tâche demandée à un collègue par « Demander à CLAIRE » arrive dans son « Aujourd'hui » en tête de liste, même pour une date à venir (sa date est dite sur la ligne), et une carte l'annonce à son arrivée. Les tâches sont relues toutes les 30 s sur n'importe quel écran (2 min sur le tableau de bord seulement avant)." },
     { version: '0.233.1', date: '2026-10-15 11:21', resume: "Un rendez-vous retiré de la fiche puis recréé dans Outlook à la même date est repris par la fiche (il restait « À placer » : le repère du retrait bloquait la date pour toujours)." },
     { version: '0.233.0', date: '2026-10-15 10:44', resume: "Mémoire de CLAIRE : les dossiers DECENNALES ENTREPRISES, FAUSSES MINUTES, MODELES - OUTILS et RAPPEL DE PROCEDURES du NAS sont parcourus (toutes les 6 h) et leurs documents lus — Word et textes par le serveur, PDF et scans (OCR) par ce poste — puis indexés sur le serveur du bureau. « Demander à CLAIRE » y cherche des extraits (rubrique et page, jamais un nom de fichier ; texte masqué avant l'IA). Réglages › Mémoire de CLAIRE : état par dossier, « Parcourir », « Lire les PDF ». Une tâche cochée dans « Aujourd'hui » puis décochée dans la fiche du dossier redevient à faire dans « Aujourd'hui ». Plan de situation du cadastre : le plan passe en niveaux de gris, seul le surlignage jaune fluo reste en couleur. DPU renforcé de Blois : le secteur Coty est un secteur (rues Jean Perrin, Buffon, avenue de la Somme, Michel Bégon, Pierre et Marie Curie, Monge reconnues « probable, à vérifier »), pas la seule parcelle AL 839." },
     { version: '0.232.1', date: '2026-10-15 10:37', resume: "Emails adaptés au lieu du rendez-vous lu dans l'agenda (office, visio, chez le confrère) : lieu nommé, pièces d'identité et RIB à envoyer par email en visio ; l'email du projet rappelle désormais RIB et pièce d'identité après le rendez-vous. Modèles : conditions « si visio », « si pas visio », « si chez le confrère ». Plan de situation du cadastre : parcelles proches réunies sur un seul plan (lisible dès 4 mm). Où déposer la DIA : Blois et Agglopolys → guichet GNAU indiqué par l'étude." },

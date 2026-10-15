@@ -1128,10 +1128,12 @@
   }
   function rappelsDuJour(rappels, aujourdhuiIso) {
     const l = Array.isArray(rappels) ? rappels : [];
-    const aFaire = rappelsAffiches(l.filter(r => !r.fait && (dateRappelJour(r) || aujourdhuiIso) <= aujourdhuiIso), aujourdhuiIso);
+    // Une tâche DEMANDÉE par un collègue (« Demander à CLAIRE ») est dans « Aujourd'hui » dès qu'elle arrive, même pour une date à venir
+    // (étude 15/10 : « faire remonter la tâche dans Aujourd'hui »), en tête de liste, sa date dite sur la ligne.
+    const aFaire = rappelsAffiches(l.filter(r => !r.fait && (r.demandePar || (dateRappelJour(r) || aujourdhuiIso) <= aujourdhuiIso)), aujourdhuiIso);
     const faits = l.filter(r => r.fait && String(r.faitLe || '').slice(0, 10) === aujourdhuiIso);
     // À venir : échéance datée après aujourd'hui (étude, 05/10 : « mes rappels dans la même liste que les tâches du jour »).
-    const aVenir = rappelsAffiches(l.filter(r => !r.fait && /^\d{4}-\d{2}-\d{2}$/.test(String(r.echeance || '')) && r.echeance > aujourdhuiIso), aujourdhuiIso);
+    const aVenir = rappelsAffiches(l.filter(r => !r.fait && !r.demandePar && /^\d{4}-\d{2}-\d{2}$/.test(String(r.echeance || '')) && r.echeance > aujourdhuiIso), aujourdhuiIso);
     return { aFaire, faits, aVenir };
   }
 
@@ -1145,12 +1147,13 @@
       const d = dossierDe(r);
       const date = dateRappelJour(r);
       const retard = date && date < aujourdhuiIso ? libelleEcheanceRappel(date, aujourdhuiIso) : '';
+      const pourLe = r.demandePar && r.echeance && r.echeance > aujourdhuiIso ? `Pour ${libelleEcheanceRappel(r.echeance, aujourdhuiIso).toLowerCase()}` : '';
       const quand = partie === 'avenir' ? libelleEcheanceRappel(r.echeance, aujourdhuiIso) : '';
       return renderLigneAction({
         categorie: 'neutre', categorieLabel: 'Rappel',
         titre: r.texte,
         titreHtml: retard ? `<span class="ja-non-faite">${escapeHtml(retard)}</span>` : '',
-        sousHtml: [quand,d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', r.agendaItemId ? 'Tâche de l’agenda' : 'Mon rappel'].filter(Boolean).join(' · '),
+        sousHtml: [quand, pourLe, d ? `<button type="button" class="lien-discret" onclick="executerFicheDossierJour('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>` : '', r.agendaItemId ? 'Tâche de l’agenda' : 'Mon rappel'].filter(Boolean).join(' · '),
         caseRonde: { onclick: `basculerRappelPerso('${escapeOnclickArg(r.id)}')`, libelle: 'Fait' },
         bouton: rappelParleEmail(r.texte) ? { libelle: 'Email', icone: icone('mail'), onclick: `ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')`, titre: "Préparer un email vierge avec la signature de l'office" } : null,
         classe: fixe ? 'ja-rappel w-fixe' : 'ja-rappel',

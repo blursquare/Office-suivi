@@ -19838,3 +19838,6 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
 
 ### 0.233.1 — 15/10/2026 (étude : « pourquoi le rdv n'est pas indiqué dans la fiche dossier ? », CHEYMOL / QUEVA & ROY)
 - Cause probable : rendez-vous du 18/11 retiré dans CLAIRE le 07/10 à 18 h 46 (repère `detectionsAgenda.rendezVousRetire`), recréé dans Outlook le 08/10 à la même date → le repère, levé seulement par une AUTRE date, bloquait la reprise. `retraitAgendaReussiAvant` (agendaWatch.js) : si l'historique dit que le retrait de l'agenda a réussi il y a plus de 10 min, un rendez-vous de cette date est un nouveau et la fiche le reprend. Non vérifié sur les données du bureau (diagnostic d'après la capture de l'historique).
+
+### 0.233.2 — 15/10/2026 (étude : « quand je demande une tâche à Julie via Demander à CLAIRE, la faire remonter dans Aujourd'hui »)
+- `rappelsDuJour` : un rappel `demandePar` est « à faire » dès son arrivée (même échéance à venir), en tête (`rappelsAffiches`), jamais en « À venir » ; ligne « Pour {date} » ; `chargerRappelsPerso` toutes les 30 s sur tout écran et `annoncerDemandesRecues` (toast une fois à l'arrivée, pas au premier chargement). Cause probable du « ne remonte pas » : relecture toutes les 2 min seulement sur le tableau de bord, et date à venir classée « À venir ».

@@ -500,3 +500,13 @@ test('tâche cochée dans « Aujourd’hui » puis décochée dans la fiche : el
   assert.equal(app.traitesDecochesDansFiche(traites, [d1, d2]).join(','), 'd1:appelFonds');
   assert.equal(app.traitesDecochesDansFiche(traites, []).length, 0);
 });
+
+test('tâche demandée par un collègue : dans « Aujourd’hui » dès son arrivée, même pour une date à venir, en tête (15/10)', () => {
+  const r = app.rappelsDuJour([
+    { id: 'a', texte: 'Mon rappel', echeance: '2026-09-28', fait: false, creeLe: '2026-09-20T08:00:00Z' },
+    { id: 'b', texte: 'Appeler la mairie (demandé par Bastien)', echeance: '2026-10-02', fait: false, creeLe: '2026-09-28T09:00:00Z', demandePar: 'Bastien ANGLUMENT' },
+    { id: 'c', texte: 'Plus tard', echeance: '2026-10-05', fait: false, creeLe: '2026-09-21T08:00:00Z' }
+  ], AUJ);
+  assert.equal(r.aFaire.map(x => x.id).join(','), 'b,a', 'la demande passe en tête, la date à venir ne la cache pas');
+  assert.equal(r.aVenir.map(x => x.id).join(','), 'c', 'elle n’est pas aussi dans « À venir »');
+});

@@ -1277,7 +1277,8 @@
     setInterval(() => { if (ongletActuel === 'agenda' && !agendaModale) chargerAgendaSemaine(); }, 2 * 60 * 1000);
     setInterval(() => { if (ongletActuel === 'dashboard') chargerAgendaWidget(true); }, 2 * 60 * 1000);
     // Tâches relevées dans l'agenda (rendez-vous rouges « JV - … ») : arrivent dans « Mes rappels » sans recharger.
-    setInterval(() => { if (ongletActuel === 'dashboard' && !ajoutRappelOuvert && !rappelEnEdition) chargerRappelsPerso(); }, 2 * 60 * 1000);
+    // Relus toutes les 30 s sur n'importe quel écran : une tâche demandée par un collègue arrive en « Aujourd'hui » sans attendre (étude 15/10).
+    setInterval(() => { if (!ajoutRappelOuvert && !rappelEnEdition) chargerRappelsPerso(); }, 30 * 1000);
     setInterval(majTraitHeureAgenda, 30 * 1000);
     await chargerEtatNas();
     // Avant toute relecture du NAS : un parcours lancé sans elles reconnaîtrait des fichiers que
