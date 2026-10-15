@@ -167,7 +167,10 @@
       if (e.fait) { ajouter('fait', Object.assign(base, { fait: true, auto: !cochable })); return; }
       if (e.type === 'ouvertureSuccession' && !e.iso) { ajouter('faire', Object.assign(base, { titre: 'Fixer le rendez-vous d’ouverture avec Sophie', sous: 'Les délais (1, 2 et 6 mois) partent de lui' })); return; }
       if (!e.active) { ajouter('attente', Object.assign(base, { iso: '', sous: e.type === 'receptionFonds' ? 'Après le déblocage des fonds' : 'Après l’acte de notoriété' })); return; }
-      if (e.type === 'notoriete' && attentes.length) base.sous = 'À réunir : ' + attentes.join(', ');
+      // Date butoir (étude 15/10) : confirmée par le rendez-vous placé dans l'agenda.
+      if (e.butoir) base.sous = e.fenetreDebut ? `Entre le ${formatDateFr(e.fenetreDebut)} et le ${formatDateFr(e.iso)} — date butoir, à confirmer par le rendez-vous` : 'Date butoir — à confirmer par le rendez-vous';
+      else if (e.rdvPlace) base.sous = 'Rendez-vous placé';
+      if (e.type === 'notoriete' && attentes.length) base.sous = [base.sous, 'À réunir : ' + attentes.join(', ')].filter(Boolean).join(' · ');
       if (e.type === 'controleDroits') base.sous = [s.droitsDus ? `droits dus : ${s.droitsDus}` : 'droits à vérifier', s.inventaireNecessaire ? `inventaire : ${s.inventaireNecessaire}` : 'inventaire à vérifier'].join(' · ');
       ajouter(e.attente ? 'attente' : 'faire', base);
     });
@@ -182,7 +185,7 @@
     if (rdv && rdv >= String(aujourdhuiIso || '').slice(0, 10)) {
       return { etat: 'placee', iso: rdv, jours: ecartJours(aujourdhuiIso, rdv), heure: d.rendezVousSignatureHeure || '', texte: '', proba: null, eyebrow: prochain.label };
     }
-    return { etat: 'aplacer', iso: prochain.iso || '', jours: null, heure: '', texte: '', proba: null, eyebrow: 'Prochain acte', acte: prochain.label };
+    return { etat: 'aplacer', iso: prochain.iso || '', debut: prochain.fenetreDebut || '', jours: null, heure: '', texte: '', proba: null, eyebrow: 'Prochain acte', acte: prochain.label };
   }
 
   // ---- FCDDV (étude 15/10 : « que CLAIRE lise le FCDDV pour voir s'il y a des inscriptions et chez quel notaire, et pouvoir envoyer

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.246.0';
+  const VERSION_APP = '0.246.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.246.1', date: '2026-10-15 22:08', resume: "Successions : la signature de l'acte de notoriété à 1 mois est une date butoir, dite comme telle, que le rendez-vous placé dans l'agenda vient confirmer. Notoriété + déclaration de succession : les deux actes sont signés ensemble, entre 4 et 6 mois après l'ouverture (une seule étape, plus de notoriété à 1 mois)." },
     { version: '0.246.0', date: '2026-10-15 22:04', resume: "Successions : CLAIRE lit la réponse du FCDDV trouvée dans le dossier du NAS — aucune inscription, ou chaque inscription (testament, donation entre époux…) avec sa date et le notaire dépositaire, plusieurs notaires possibles ; testament et donation entre époux se répondent seuls sur la fiche. Pour chaque confrère, « Écrire au confrère » prépare l'email qui lui demande la nature de l'acte et son coût (adresse tirée de l'annuaire, modifiable ; rien ne part sans « Envoyer »). Inscriptions corrigeables et ajoutables à la main." },
     { version: '0.245.0', date: '2026-10-15 21:59', resume: "Fiches succession : même présentation qu'une vente, avec le déroulé d'une succession — rendez-vous d'ouverture avec Sophie, acte de notoriété dans le mois (actes de naissance, acte de décès, FCDDV, donation entre époux et testament vérifiés), contrôle des droits et de l'inventaire à 2 mois, déblocage puis réception des fonds (ou transfert des comptes au conjoint survivant), attestation immobilière et déclaration de succession à 6 mois. Type de succession proposé (notoriété seule ; notoriété + déclaration ; classique) et actes en plus relevés dans Authentic (délivrance de legs…). Onglet Dossier : défunt, date de décès, régime matrimonial, conjoint, héritiers. Pièces suivies sur le NAS : acte de décès, livret de famille, actes de naissance et de mariage, FCDDV, titre, EHF, estimations, carte grise. Courriers : plus de soulignement bleu (variables d'Authentic)." },
     { version: '0.244.0', date: '2026-10-15 21:39', resume: "Constitution de dossier : les courriers sortent exactement comme les modèles de l'étude — mêmes retours à la ligne, mêmes lignes vides, même tableau des parcelles (en-tête grisé, filets), même questionnaire d'assainissement (bandeaux rouges, cases), en Word comme en PDF, et l'aperçu suit. Courrier vierge à un « autre organisme » (vente et succession), texte à saisir. Dans le répertoire, une succession voit d'abord les services successions, la banque des prêts en dernier." },

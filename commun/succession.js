@@ -22,7 +22,10 @@
     { cle: 'classique', libelle: 'Notoriété, déclaration de succession et attestation immobilière', actes: ['notoriete', 'declaration', 'attestation'] }
   ];
   var ACTES_SUCCESSION = { notoriete: 'Acte de notoriété', declaration: 'Déclaration de succession', attestation: 'Attestation immobilière' };
+  // Acte de notoriété : date BUTOIR à 1 mois de l'ouverture, confirmée ensuite par le rendez-vous placé dans l'agenda (étude 15/10).
   var MOIS_NOTORIETE = 1;
+  // Notoriété + déclaration de succession (sans immobilier) : les deux actes signés ENSEMBLE, entre 4 et 6 mois (étude 15/10).
+  var MOIS_NOTORIETE_DS_DEBUT = 4;
   var MOIS_CONTROLE_DROITS = 2;
   var MOIS_DECLARATION_SUCCESSION = 6;
   // Au-delà de cet actif, sans immobilier, une déclaration de succession est due (étude 15/10).
@@ -156,10 +159,19 @@
     const etapes = [];
     const ouvertureFaite = cocheeSuccession(d, 'ouvertureSuccession') || !!(ouverture && auj && ouverture <= auj);
     etapes.push({ type: 'ouvertureSuccession', label: 'Rendez-vous d’ouverture avec Sophie', iso: ouverture, fait: ouvertureFaite, attente: false, active: true });
-    const noto = acteSigneSuccession(d, 'notoriete');
-    // Rendez-vous de signature placé (agenda) : la date de l'acte à venir.
+    // Notoriété + déclaration de succession : un seul rendez-vous pour les deux actes, entre 4 et 6 mois (étude 15/10).
+    const ensemble = type.cle === 'notoriete-ds';
+    const notoSeule = acteSigneSuccession(d, 'notoriete');
+    const dsEnsemble = ensemble ? acteSigneSuccession(d, 'declaration') : { fait: false, iso: '' };
+    const noto = { fait: notoSeule.fait || dsEnsemble.fait, iso: notoSeule.iso || dsEnsemble.iso };
+    // Rendez-vous de signature placé (agenda) : la date de l'acte à venir ; sans lui, la date butoir (`butoir`), à confirmer.
     const rdv = String(d.rendezVousSignature || '').slice(0, 10);
-    etapes.push({ type: 'notoriete', label: 'Signature de l’acte de notoriété', iso: noto.fait ? noto.iso : (rdv || plus(MOIS_NOTORIETE)), fait: noto.fait, attente: false, active: true });
+    const butoirNoto = plus(ensemble ? MOIS_DECLARATION_SUCCESSION : MOIS_NOTORIETE);
+    etapes.push({
+      type: 'notoriete', label: ensemble ? 'Signature de l’acte de notoriété et de la déclaration de succession' : 'Signature de l’acte de notoriété',
+      iso: noto.fait ? noto.iso : (rdv || butoirNoto), fait: noto.fait, attente: false, active: true,
+      butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? plus(MOIS_NOTORIETE_DS_DEBUT) : ''
+    });
     etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true });
     const apresNoto = noto.fait ? (noto.iso || '') : '';
     if (conjointSurvivant(d)) {
@@ -169,11 +181,13 @@
       etapes.push({ type: 'deblocageFonds', label: 'Déblocage des fonds auprès des banques', iso: apresNoto, fait: debloque, attente: false, active: noto.fait });
       etapes.push({ type: 'receptionFonds', label: 'Réception des fonds', iso: '', fait: cocheeSuccession(d, 'receptionFonds'), attente: true, active: noto.fait && debloque });
     }
-    if (type.actes.includes('declaration')) {
+    // Succession classique : attestation immobilière et déclaration de succession, après la notoriété, au plus tard à 6 mois.
+    if (type.actes.includes('declaration') && !ensemble) {
       const ds = acteSigneSuccession(d, 'declaration');
       const label = type.actes.includes('attestation') ? 'Signature de l’attestation immobilière et de la déclaration de succession' : 'Signature de la déclaration de succession';
       const placee = rdv && noto.fait && (!noto.iso || rdv > noto.iso) ? rdv : '';
-      etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || plus(MOIS_DECLARATION_SUCCESSION)), fait: ds.fait, attente: false, active: true });
+      const butoir = plus(MOIS_DECLARATION_SUCCESSION);
+      etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || butoir), fait: ds.fait, attente: false, active: true, butoir: !ds.fait && !placee && !!butoir, rdvPlace: !ds.fait && !!placee });
     }
     // Actes ajoutés dans Authentic (délivrance de legs, quasi-usufruit…) : suivis par leur état, sans date propre.
     actesSuccession(d).filter(a => !a.base).forEach(a => {
@@ -214,7 +228,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

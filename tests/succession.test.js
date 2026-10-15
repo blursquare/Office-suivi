@@ -47,6 +47,23 @@ test('déroulé : ouverture, notoriété à 1 mois, contrôle à 2 mois, déclar
   assert.ok(S.etapesSuccession(d, '2026-10-21')[0].fait);
 });
 
+test('notoriété : date butoir à 1 mois, remplacée par le rendez-vous placé ; notoriété + DS : les deux actes ensemble, entre 4 et 6 mois', () => {
+  const seule = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' } }), '2026-10-15').find(x => x.type === 'notoriete');
+  assert.deepEqual([seule.iso, seule.butoir, seule.rdvPlace], ['2026-11-20', true, false]);
+  const placee = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' }, rendezVousSignature: '2026-11-12' }), '2026-10-15').find(x => x.type === 'notoriete');
+  assert.deepEqual([placee.iso, placee.butoir, placee.rdvPlace], ['2026-11-12', false, true]);
+  const ds = base({ succession: { ouvertureLe: '2026-10-20', actifSuperieurSeuil: true } });
+  const e = S.etapesSuccession(ds, '2026-10-15');
+  const n = e.find(x => x.type === 'notoriete');
+  assert.match(n.label, /notoriété et de la déclaration de succession/);
+  assert.deepEqual([n.iso, n.fenetreDebut, n.butoir], ['2027-04-20', '2027-02-20', true]);
+  assert.ok(!e.some(x => x.type === 'declarationSuccession'));
+  const c = app.cartesTableauFiche(Object.assign({ id: 'sd' }, ds), '2026-10-15', []);
+  assert.match(c.faire.find(x => x.cle === 'succession:notoriete').sous, /^Entre le .+ et le .+ — date butoir, à confirmer par le rendez-vous/);
+  // Déclaration signée dans Authentic : les deux actes sont faits.
+  assert.ok(S.etapesSuccession(Object.assign({}, ds, { authentic: { actesSuccession: [{ intitule: 'Déclaration de succession', etat: 'signe', signeLe: '2027-03-01' }] } }), '2027-03-02').find(x => x.type === 'notoriete').fait);
+});
+
 test('après la notoriété signée : déblocage des fonds puis réception ; avec un conjoint survivant, transfert des comptes', () => {
   const d = base({ succession: { ouvertureLe: '2026-10-01', notorieteSigneeLe: '2026-11-04' }, echeancesValidees: { notoriete: true } });
   const e = S.etapesSuccession(d, '2026-11-10');

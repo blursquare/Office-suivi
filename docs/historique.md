@@ -20002,3 +20002,14 @@ email au confrère pour lui demander la nature de l'acte et le coût de son acte
   formules du confrère posées par la fenêtre) ; « Demandé le … » une fois l'email préparé. Inscriptions retirables, ajoutables à la main.
 - **Non vérifié** : aucune réponse réelle du FCDDV reçue — la forme lue est supposée ; point terrain `fcddv-lu`. Un exemple anonymisé
   permettra de caler la lecture.
+
+### 15/10/2026 — Successions : dates butoir de la notoriété (0.246.1)
+
+Étude : « La date de signature de l'acte de notoriété doit être faite au bout d'un mois. C'est une date butoir à confirmer ensuite sur
+l'agenda lorsque le RDV est placé. Pour les notoriété + DS ce n'est pas le même délai car les deux actes sont signés en même temps au
+bout de 4 à 6 mois. »
+- `etapesSuccession` : l'étape porte `butoir` (date calculée, à confirmer) ou `rdvPlace` (rendez-vous de l'agenda) ; carte « Date
+  butoir — à confirmer par le rendez-vous » / « Rendez-vous placé », bandeau « Date butoir : … · rendez-vous à placer ».
+- Type notoriété + DS : une seule étape « Signature de l'acte de notoriété et de la déclaration de succession », butoir à 6 mois,
+  fenêtre affichée « entre le (4 mois) et le (6 mois) » ; faite quand l'un des deux actes est signé (coche ou Authentic) ; plus d'étape
+  séparée de déclaration. Classique inchangé (notoriété à 1 mois, AI + DS à 6 mois).

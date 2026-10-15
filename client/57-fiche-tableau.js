@@ -366,7 +366,7 @@ function renderBandeauFiche(d, actions) {
     sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="basculerEcheance('${escapeOnclickArg(d.id)}', 'rendezVousSignature')">${icone('check')} Marquer signée</wa-button>`;
   }
-  else if (s.acte) sigCorps = `<strong class="fb-grand">${escapeHtml(s.acte.replace(/^Signature (?:de l’|de la )/, '').replace(/^./, x => x.toUpperCase()))}</strong><span class="fb-petit">${s.iso ? 'À signer avant le ' + escapeHtml(formatDateFr(s.iso)) : 'Pas encore de date : fixez le rendez-vous d’ouverture'}</span>`;
+  else if (s.acte) sigCorps = `<strong class="fb-grand">${escapeHtml(s.acte.replace(/^Signature (?:de l’|de la )/, '').replace(/^./, x => x.toUpperCase()))}</strong><span class="fb-petit">${s.iso ? (s.debut ? 'Entre le ' + escapeHtml(formatDateFr(s.debut)) + ' et le ' : 'Date butoir : ') + escapeHtml(formatDateFr(s.iso)) + ' · rendez-vous à placer' : 'Pas encore de date : fixez le rendez-vous d’ouverture'}</span>`;
   else sigCorps = `<strong class="fb-grand">À placer</strong><span class="fb-petit">${s.iso ? 'Au plus tôt le ' + escapeHtml(formatDateFr(s.iso)) : 'Pas encore de date'}</span>`;
   const carteSignature = `<div class="fb-carte fb-signature"><span class="section-eyebrow">${escapeHtml(s.eyebrow || 'Signature')}</span>${sigCorps}</div>`;
   const m = b.maintenant;
