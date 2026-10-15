@@ -1232,6 +1232,8 @@
     if (d) retrouverCompromisSilencieux(id);
     // Droits de préemption : lus à l'ajout, relus si la commune, les parcelles ou la nature du bien ont changé depuis.
     if (preemptionAutoAFaire(d)) analyserPreemptionDossier(id);
+    // Succession : la réponse du FCDDV trouvée sur le NAS est lue seule (client/74).
+    lireFcddvSiNouveau(d);
   }
 
   // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.

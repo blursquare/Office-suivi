@@ -19984,3 +19984,21 @@ depuis l'OUVERTURE ; type choisi sur la fiche, CLAIRE propose ; FCDDV = PDF dans
   Signé le …) → `d.authentic.actesSuccession` ; **forme supposée d'après la structure gardée le 15/10, non vérifiée sur une vraie page**.
 - Courriers : `__par la défunte__` et le soulignement de « Succession de : … » retirés (variables d'Authentic).
 - Non vérifié : lecture réelle des actes dans Authentic ; noms réels des fichiers de succession sur le NAS (FCDDV, EHF, estimations).
+
+### 15/10/2026 22 h 04 — Successions : lecture du FCDDV et email au confrère dépositaire (0.246.0)
+
+Demande de l'étude : « que CLAIRE lise le FCDDV pour voir s'il y a des inscriptions et chez quel notaire, et la possibilité d'envoyer un
+email au confrère pour lui demander la nature de l'acte et le coût de son acte. Parfois il peut y avoir différents notaires. »
+
+- `client/74-fiche-succession.js` : `analyseFcddv` (texte « à plat » de pdf.js, OCR compris) — chaque inscription commence à sa nature
+  (testament olographe/authentique/mystique/international, donation entre époux / au dernier vivant, institution contractuelle,
+  révocation, codicille) ; notaire (« Maître / Me … »), date, CRPCEN, ville cherchés jusqu'à la nature suivante ; l'en-tête (office
+  demandeur, Gossart) jamais pris ; « aucune disposition / inscription », « néant »… = aucune inscription. `lireFcddvSiNouveau` à
+  l'ouverture de la fiche (une fois par fichier et par session), bouton « Lire la réponse / Relire ».
+- `appliquerFcddvSurDossier` : `d.succession.fcddv` ; testament et donation entre époux répondus seulement s'ils sont vides (oui si une
+  inscription de cette nature, non si « aucune inscription »).
+- Un bloc par notaire dépositaire (`confreresFcddv`), adresse tirée de l'annuaire (`emailNotaireFcddv` : nom + ville, sinon le CRPCEN
+  dans l'adresse de l'office) et modifiable, « Écrire au confrère » → fenêtre d'email (`emailConfrereFcddv`, premier jet de CLAIRE,
+  formules du confrère posées par la fenêtre) ; « Demandé le … » une fois l'email préparé. Inscriptions retirables, ajoutables à la main.
+- **Non vérifié** : aucune réponse réelle du FCDDV reçue — la forme lue est supposée ; point terrain `fcddv-lu`. Un exemple anonymisé
+  permettra de caler la lecture.

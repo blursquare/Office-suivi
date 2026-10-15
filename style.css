@@ -9572,6 +9572,14 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .succ-identite .prop-champ { flex: 1 1 140px; min-width: 0; }
 .succ-identite .succ-civilite { flex: 0 0 auto; }
 .cst-actif { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; font-size: var(--texte-s); }
+.fcddv-bloc { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 12px; }
+.fcddv-etat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fcddv-notaire { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.fcddv-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.fcddv-insc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fcddv-email, .fcddv-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fcddv-email .prop-champ, .fcddv-ajout input.prop-champ { flex: 1 1 200px; min-width: 0; }
+.fcddv-ajout select.prop-champ { flex: 0 1 220px; min-width: 0; }
 .cst-apercu { display: flex; justify-content: center; }
 /* @papier : aperçu du courrier, identité papier de l'étude (mêmes règles que .af-lettre) */
 .cst-lettre { max-width: 720px; padding: 26px 32px 32px; font-size: 10pt; }

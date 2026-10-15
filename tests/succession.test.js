@@ -136,3 +136,51 @@ test('fiche Dossier : défunt, héritiers, donation, testament, type proposé ; 
   assert.match(html, /Acte de notoriété seul \(proposé\)/);
   assert.match(html, /value="2026-09-14"/);
 });
+
+// Réponses du FCDDV inventées, reprenant la forme d'une réponse du fichier central (en-tête de l'office demandeur, puis une
+// rubrique par inscription : nature, date, notaire dépositaire, CRPCEN). Texte « à plat » comme le donne pdf.js.
+const FCDDV_DEUX = 'FICHIER CENTRAL DES DISPOSITIONS DE DERNIÈRES VOLONTÉS Réponse à l\'interrogation Demandeur : Maître Sophie GOSSART 41000 BLOIS '
+  + 'Défunt : DURAND Jeanne née le 01/02/1930 Nature de la disposition : Testament olographe Date de la disposition : 12/03/2010 '
+  + 'Notaire dépositaire : Maître Paul LEROUX 37000 TOURS CRPCEN : 37001 Nature de la disposition : Donation entre époux Date : 05/06/1995 '
+  + 'Notaire : Me Anne MOREAU 41200 ROMORANTIN-LANTHENAY CRPCEN : 41099';
+
+test('FCDDV : chaque inscription avec sa nature, sa date, le notaire dépositaire et son CRPCEN ; jamais l’office demandeur', () => {
+  const a = app.analyseFcddv(FCDDV_DEUX);
+  assert.equal(a.aucune, false);
+  assert.equal(a.inscriptions.map(i => `${i.nature}|${i.date}|${i.notaire}|${i.ville}|${i.crpcen}`).join(' ; '),
+    'Testament olographe|2010-03-12|Paul LEROUX|TOURS|37001 ; Donation entre époux|1995-06-05|Anne MOREAU|ROMORANTIN-LANTHENAY|41099');
+  const vide = app.analyseFcddv('FICHIER CENTRAL ... Demandeur : Maître Sophie GOSSART. Aucune disposition de dernières volontés n\'a été enregistrée au nom de DURAND Jeanne.');
+  assert.deepEqual([vide.aucune, vide.inscriptions.length], [true, 0]);
+  assert.deepEqual([app.analyseFcddv('texte illisible').aucune, app.analyseFcddv('texte illisible').inscriptions.length], [false, 0]);
+});
+
+test('FCDDV : email du notaire par l’annuaire, sinon par le CRPCEN de l’adresse ; testament et donation répondus sur la fiche', () => {
+  const carnet = [{ id: 'o1', notaires: ['Paul LEROUX'], ville: 'Tours', email: 'leroux@notaires.fr' }, { id: 'o2', notaires: ['Luc PETIT'], ville: 'Romorantin', email: 'office.41099@notaires.fr' }];
+  assert.equal(app.emailNotaireFcddv({ notaire: 'Paul LEROUX', ville: 'TOURS' }, carnet), 'leroux@notaires.fr');
+  assert.equal(app.emailNotaireFcddv({ notaire: 'Inconnu ZZZ', crpcen: '41099' }, carnet), 'office.41099@notaires.fr');
+  const d = base({ succession: { testament: 'non' } });
+  const textes = app.appliquerFcddvSurDossier(d, app.analyseFcddv(FCDDV_DEUX), 'X/FCDDV.pdf', '2026-10-15T10:00:00Z');
+  assert.equal(d.succession.testament, 'non', 'une réponse déjà donnée sur la fiche reste');
+  assert.equal(d.succession.donationEpoux, 'oui');
+  assert.equal(textes.join(','), 'donation entre époux : oui');
+  assert.equal(d.succession.fcddv.inscriptions.length, 2);
+  const aucune = base();
+  app.appliquerFcddvSurDossier(aucune, { aucune: true, inscriptions: [] }, 'X', '2026-10-15T10:00:00Z');
+  assert.deepEqual([aucune.succession.testament, aucune.succession.donationEpoux, aucune.succession.fcddv.aucune], ['non', 'non', true]);
+});
+
+test('FCDDV : un email par notaire dépositaire, la nature et le coût de l’acte demandés', () => {
+  const d = base({ referenceAuthentic: 'A 2026 00398', defunt: { civilite: 'Madame', prenoms: 'Jeanne Marie', nom: 'DURAND', decesDate: '2026-09-14', decesLieu: 'BLOIS (41000)' },
+    succession: { fcddv: { inscriptions: [
+      { nature: 'Testament olographe', date: '2010-03-12', notaire: 'Paul LEROUX', email: 'a@n.fr' },
+      { nature: 'Codicille', date: '', notaire: 'Paul LEROUX', email: '' },
+      { nature: 'Donation entre époux', date: '1995-06-05', notaire: 'Anne MOREAU', email: 'b@n.fr' }] } } });
+  const groupes = app.confreresFcddv(d.succession.fcddv);
+  assert.equal(groupes.map(g => `${g.notaire}:${g.inscriptions.length}:${g.email}`).join('|'), 'Paul LEROUX:2:a@n.fr|Anne MOREAU:1:b@n.fr');
+  const e = app.emailConfrereFcddv(d, groupes[0]);
+  assert.equal(e.sujet, 'Succession de Madame Jeanne DURAND — FCDDV — Réf. A 2026 00398');
+  assert.match(e.corps, /succession de Madame Jeanne DURAND, décédée le 14 septembre 2026 à BLOIS \(41000\)\./);
+  assert.match(e.corps, /les inscriptions suivantes en votre office :\n- Testament olographe du 12 mars 2010\n- Codicille/);
+  assert.match(e.corps, /la nature exacte de ces actes et le coût de vos actes/);
+  assert.doesNotMatch(e.corps, /Mon Cher Maître|Sauf erreur/);
+});

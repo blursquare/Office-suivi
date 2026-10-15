@@ -1203,6 +1203,10 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   (`PIECES_SUCCESSION`, par le nom du fichier) ; notoriété retenue par acte de décès, actes de naissance, FCDDV, donation entre époux et testament tranchés. Étapes cochées
   dans `d.echeancesValidees` (`echeanceValidee` délègue à `etapeSuccessionValidee`). Défunt = `defuntConstitution` (Authentic, corrections dans `d.defunt`, régime compris).
   **Courriers : jamais de soulignement repris des modèles** (le bleu souligné marquait les variables d'Authentic).
+  **FCDDV** (étude 15/10, 0.246.0) : la réponse (pièce `fcddv` trouvée sur le NAS) est lue sur le poste à l'ouverture de la fiche (`analyseFcddv` :
+  une inscription par nature — testament, donation entre époux… —, notaire dépositaire, date, CRPCEN, ville ; « aucune inscription » ; jamais l'office demandeur) →
+  `d.succession.fcddv` ; testament / donation entre époux répondus s'ils sont vides ; un email par notaire dépositaire (`emailConfrereFcddv`, premier jet de CLAIRE :
+  nature de l'acte et coût ; adresse par l'annuaire, sinon le CRPCEN dans l'adresse de l'office). **Forme de la réponse supposée, aucun exemple réel reçu** (point `fcddv-lu`).
 - **Successions** : créées depuis Authentic (voir « Successions » plus haut), « SUCC - NOM »
   (`libelleDossierAffiche`, `PREFIXES_TYPE_AFFAIRE`, miroir serveur `libelleDossier`). Reste à définir avec l'étude :
   échéances (déclaration de succession…), checklist de pièces, emails, qualité des parties (défunt, héritiers) — la

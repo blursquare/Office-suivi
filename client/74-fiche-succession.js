@@ -134,6 +134,7 @@
         ${ligne('file-text', 'Donation époux', choixOuiNon('donationEpoux', s.donationEpoux, 'Donation entre époux'), null)}
         ${ligne('file-text', 'Testament', choixOuiNon('testament', s.testament, 'Testament'), null)}
       </dl>
+      ${renderFcddvSuccession(d)}
       <div class="section-eyebrow fiche-sous-titre">Contrôle à 2 mois ${infoBulle('Deux mois après l’ouverture : vérifier si des droits de succession sont dus et si un inventaire est nécessaire, puis cocher l’étape.')}</div>
       <dl class="fiche-proprietes">
         ${ligne('banknote', 'Droits dus', choixOuiNon('droitsDus', s.droitsDus, 'Droits de succession dus'), null)}
@@ -182,4 +183,244 @@
       return { etat: 'placee', iso: rdv, jours: ecartJours(aujourdhuiIso, rdv), heure: d.rendezVousSignatureHeure || '', texte: '', proba: null, eyebrow: prochain.label };
     }
     return { etat: 'aplacer', iso: prochain.iso || '', jours: null, heure: '', texte: '', proba: null, eyebrow: 'Prochain acte', acte: prochain.label };
+  }
+
+  // ---- FCDDV (étude 15/10 : « que CLAIRE lise le FCDDV pour voir s'il y a des inscriptions et chez quel notaire, et pouvoir envoyer
+  // un email au confrère pour lui demander la nature de l'acte et le coût de son acte ; parfois il peut y avoir différents notaires ») ----
+  // La réponse du fichier central (PDF du dossier du NAS, pièce `fcddv`) est lue sur le poste ; ce qui est trouvé est gardé sur la
+  // fiche (`d.succession.fcddv` : { luLe, fichier, aucune, inscriptions: [{ nature, date, notaire, ville, crpcen, email, demandeLe }] }),
+  // se corrige à la main, et chaque notaire dépositaire reçoit, sur un clic, un email (premier jet de CLAIRE) via la fenêtre d'email.
+
+  var RE_NATURE_FCDDV = /(testament(?:\s+(?:olographe|authentique|mystique|international|par\s+acte\s+public))?|donation\s+entre\s+[ée]poux|donation\s+au\s+dernier\s+vivant|institution\s+contractuelle|r[ée]vocation(?:\s+de\s+(?:testament|donation))?|codicille)/gi;
+  var RE_NOTAIRE_FCDDV = /(?:Ma[îi]tre|Me|M[eE]\.)\s+((?:[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]+\s+){0,3}[A-ZÀ-Ý][A-Za-zÀ-ÿ'’-]+)/;
+
+  // Pure : ce que dit une réponse du FCDDV — { aucune, inscriptions: [{ nature, date, notaire, ville, crpcen }] }. Chaque inscription
+  // commence à sa nature (testament, donation entre époux…) ; le notaire dépositaire, la date, le CRPCEN et la ville sont cherchés
+  // dans la suite, jusqu'à la nature suivante. L'en-tête (notre office, demandeur) précède la première nature : jamais pris.
+  function analyseFcddv(texte) {
+    const plat = String(texte || '').replace(/\s+/g, ' ').trim();
+    const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
+    const debuts = [];
+    let m;
+    RE_NATURE_FCDDV.lastIndex = 0;
+    while ((m = RE_NATURE_FCDDV.exec(plat))) debuts.push({ index: m.index, nature: m[1] });
+    const inscriptions = [];
+    debuts.forEach((dbt, i) => {
+      const segment = plat.slice(dbt.index, i + 1 < debuts.length ? debuts[i + 1].index : dbt.index + 600);
+      const n = RE_NOTAIRE_FCDDV.exec(segment);
+      if (!n) return;
+      const notaire = n[1].replace(/\s+(?:notaire|à|a|au|en|office|CRPCEN).*$/i, '').trim();
+      if (/gossart/i.test(notaire)) return;
+      const date = /(\d{1,2}[\/.]\d{1,2}[\/.]\d{4})/.exec(segment);
+      const crpcen = /crpcen\s*(?:n°|:)?\s*(\d{5})/i.exec(segment);
+      const ville = /(?:^|[^\d])\d{5}\s+([A-ZÀ-Ý][A-ZÀ-Ý'’ -]{2,40}?)(?=\s+(?:CRPCEN|T[ée]l|Date|Nature|$)|[,.;]|$)/.exec(segment.slice(n.index));
+      const nature = dbt.nature.replace(/\s+/g, ' ');
+      const ins = { nature: nature.charAt(0).toUpperCase() + nature.slice(1).toLowerCase(), date: date ? dateIsoDepuisFr(date[1]) || '' : '', notaire, ville: ville ? ville[1].trim() : '', crpcen: crpcen ? crpcen[1] : '' };
+      if (!inscriptions.some(x => x.nature === ins.nature && x.notaire === ins.notaire && x.date === ins.date)) inscriptions.push(ins);
+    });
+    return { aucune: !inscriptions.length && aucuneEcrite, inscriptions };
+  }
+
+  // Pure : l'email de l'office d'un notaire dépositaire — l'annuaire (nom, ville), sinon le CRPCEN dans l'adresse (« ….41001@notaires.fr »).
+  function emailNotaireFcddv(ins, carnet) {
+    if (!ins || !Array.isArray(carnet) || !carnet.length) return '';
+    const t = ins.notaire ? notaireAnnuaireLePlusProche(`Maître ${ins.notaire}${ins.ville ? ` (${ins.ville})` : ''}`, carnet) : null;
+    if (t && t.office && t.office.email) return t.office.email;
+    if (ins.crpcen) {
+      const o = carnet.find(x => x && x.email && new RegExp('[.\\-_]' + ins.crpcen + '@').test(x.email));
+      if (o) return o.email;
+    }
+    return '';
+  }
+
+  // Pure : les inscriptions regroupées par notaire dépositaire (un email par confrère) — [{ cle, notaire, ville, email, inscriptions }].
+  function confreresFcddv(fcddv) {
+    const groupes = [];
+    ((fcddv && fcddv.inscriptions) || []).forEach((ins, index) => {
+      const cle = normaliserPourRecherche(ins.notaire || '').replace(/[^a-z0-9]+/g, ' ').trim() || ('n' + index);
+      let g = groupes.find(x => x.cle === cle);
+      if (!g) { g = { cle, notaire: ins.notaire, ville: ins.ville || '', email: ins.email || '', inscriptions: [] }; groupes.push(g); }
+      if (!g.email && ins.email) g.email = ins.email;
+      g.inscriptions.push(Object.assign({ index }, ins));
+    });
+    return groupes;
+  }
+
+  // Pure : l'email au confrère (premier jet de CLAIRE, à remplacer par le texte de l'étude) — { sujet, corps }. Sans formule d'appel ni
+  // de politesse : la fenêtre d'email pose « Mon Cher Maître, » et « Votre bien dévoué. » (confrère).
+  function emailConfrereFcddv(d, groupe) {
+    const c = defuntConstitution(d).champs;
+    const qui = [c.civilite, (c.prenoms || '').split(/\s+/)[0], c.nom].filter(Boolean).join(' ') || 'la personne décédée';
+    const decede = /^madame/i.test(c.civilite || '') ? 'décédée' : 'décédé';
+    const deces = c.decesDate ? `, ${decede} le ${dateCourrierSuccession(c.decesDate)}${c.decesLieu ? ' à ' + c.decesLieu : ''}` : '';
+    const lignes = groupe.inscriptions.map(i => `- ${i.nature}${i.date ? ` du ${formatDateFr(i.date)}` : ''}`);
+    const une = groupe.inscriptions.length === 1;
+    const corps = [
+      `Notre office est chargé du règlement de la succession de ${qui}${deces}.`,
+      `L’interrogation du Fichier central des dispositions de dernières volontés révèle ${une ? 'l’inscription suivante' : 'les inscriptions suivantes'} en votre office :\n${lignes.join('\n')}`,
+      `Pourriez-vous nous indiquer la nature exacte de ${une ? 'cet acte' : 'ces actes'} et le coût de ${une ? 'votre acte' : 'vos actes'} ?`,
+      'Vous en remerciant par avance,'
+    ].join('\n\n');
+    return { sujet: `Succession de ${qui} — FCDDV${d.referenceAuthentic ? ' — Réf. ' + d.referenceAuthentic : ''}`, corps };
+  }
+
+  // Pose ce que la lecture a trouvé : testament / donation entre époux répondus quand la fiche ne dit encore rien. Pure sur `d`.
+  function appliquerFcddvSurDossier(d, analyse, fichier, maintenantIso) {
+    const s = Object.assign({}, d.succession);
+    const anciennes = (s.fcddv && s.fcddv.inscriptions) || [];
+    const carnet = typeof carnetConfreres !== 'undefined' ? carnetConfreres : [];
+    const inscriptions = analyse.inscriptions.map(i => {
+      const deja = anciennes.find(a => a.notaire === i.notaire && a.nature === i.nature && a.date === i.date);
+      return Object.assign({}, i, { email: (deja && deja.email) || emailNotaireFcddv(i, carnet), demandeLe: (deja && deja.demandeLe) || '' });
+    });
+    // Les inscriptions ajoutées à la main restent.
+    anciennes.filter(a => a.saisie).forEach(a => inscriptions.push(a));
+    s.fcddv = { luLe: maintenantIso, fichier: fichier || '', aucune: analyse.aucune && !inscriptions.length, inscriptions };
+    const textes = [];
+    const testament = inscriptions.some(i => /testament|codicille/i.test(i.nature));
+    const donation = inscriptions.some(i => /donation/i.test(i.nature));
+    if (!s.testament && (testament || s.fcddv.aucune)) { s.testament = testament ? 'oui' : 'non'; textes.push(`testament : ${s.testament}`); }
+    if (!s.donationEpoux && (donation || s.fcddv.aucune)) { s.donationEpoux = donation ? 'oui' : 'non'; textes.push(`donation entre époux : ${s.donationEpoux}`); }
+    d.succession = s;
+    return textes;
+  }
+
+  var lecturesFcddvEnCours = new Set();
+  var lecturesFcddvFaites = new Set();
+
+  // Lit la réponse du FCDDV trouvée sur le NAS. `silencieux` : à l'ouverture de la fiche, une fois par fichier et par session.
+  async function lireFcddvDossier(dossierId, silencieux) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !estSuccession(d) || lecturesFcddvEnCours.has(dossierId)) return;
+    const chemin = fichierTrouve(d, 'fcddv');
+    if (!chemin) { if (!silencieux) afficherToast('Réponse du FCDDV pas encore trouvée dans le dossier du NAS (« FCDDV » dans le nom du fichier).'); return; }
+    lecturesFcddvEnCours.add(dossierId);
+    lecturesFcddvFaites.add(dossierId + '|' + chemin);
+    render();
+    try {
+      const pdf = await ouvrirPdfNas(chemin);
+      const { texte } = await lireTextePdfParPage(pdf);
+      const analyse = analyseFcddv(texte);
+      const actuel = dossiers.find(x => x.id === dossierId);
+      if (!actuel) return;
+      if (!analyse.aucune && !analyse.inscriptions.length) {
+        noterVerificationPoste('fcddv-lu', { ok: false, detail: 'réponse sans inscription ni mention « aucune » reconnue' });
+        if (!silencieux) afficherToast('FCDDV lu, mais rien de reconnu : saisissez les inscriptions à la main.');
+        actuel.succession = Object.assign({}, actuel.succession, { fcddv: Object.assign({}, (actuel.succession || {}).fcddv, { luLe: new Date().toISOString(), fichier: chemin, illisible: true }) });
+      } else {
+        const reponses = appliquerFcddvSurDossier(actuel, analyse, chemin, new Date().toISOString());
+        noterVerificationPoste('fcddv-lu', { detail: analyse.aucune ? 'aucune inscription' : `${analyse.inscriptions.length} inscription(s)` });
+        ajouterHistorique(actuel, `FCDDV lu : ${analyse.aucune ? 'aucune inscription' : analyse.inscriptions.map(i => `${i.nature} chez Maître ${i.notaire}`).join(' ; ')}${reponses.length ? ` (${reponses.join(', ')})` : ''}`, { auto: silencieux });
+        if (!silencieux) afficherToast(analyse.aucune ? 'FCDDV : aucune inscription.' : `FCDDV : ${analyse.inscriptions.length} inscription${analyse.inscriptions.length > 1 ? 's' : ''}.`);
+      }
+      await sauvegarder(actuel);
+    } catch (e) {
+      console.error('FCDDV illisible', e);
+      if (!silencieux) afficherToast('Réponse du FCDDV illisible.');
+    } finally {
+      lecturesFcddvEnCours.delete(dossierId);
+      render();
+    }
+  }
+
+  // À l'ouverture de la fiche : la réponse trouvée sur le NAS et jamais lue (ou un autre fichier) est lue seule.
+  function lireFcddvSiNouveau(d) {
+    if (!d || !estSuccession(d) || d.archive) return;
+    const chemin = fichierTrouve(d, 'fcddv');
+    const f = (d.succession || {}).fcddv;
+    if (!chemin || (f && f.fichier === chemin) || lecturesFcddvFaites.has(d.id + '|' + chemin)) return;
+    lireFcddvDossier(d.id, true);
+  }
+
+  function modifierInscriptionFcddv(dossierId, index, champ, valeur) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const f = d && d.succession && d.succession.fcddv;
+    if (!f || !f.inscriptions[index] || !['nature', 'notaire', 'email', 'date'].includes(champ)) return;
+    const v = String(valeur == null ? '' : valeur).trim();
+    if (f.inscriptions[index][champ] === v) return;
+    f.inscriptions[index][champ] = v;
+    if (champ === 'notaire' && !f.inscriptions[index].email) f.inscriptions[index].email = emailNotaireFcddv(f.inscriptions[index], typeof carnetConfreres !== 'undefined' ? carnetConfreres : []);
+    sauvegarder(d);
+    render();
+  }
+
+  function ajouterInscriptionFcddv(dossierId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !estSuccession(d)) return;
+    const nature = String((document.getElementById('fcddv-nature-' + dossierId) || {}).value || '').trim();
+    const notaire = String((document.getElementById('fcddv-notaire-' + dossierId) || {}).value || '').trim().replace(/^(?:Ma[îi]tre|Me)\s+/i, '');
+    if (!notaire) { afficherToast('Nom du notaire dépositaire à saisir.'); return; }
+    const s = Object.assign({}, d.succession);
+    const f = Object.assign({ inscriptions: [] }, s.fcddv);
+    const ins = { nature: nature || 'Testament', date: '', notaire, ville: '', crpcen: '', saisie: true, demandeLe: '' };
+    ins.email = emailNotaireFcddv(ins, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []);
+    f.inscriptions = f.inscriptions.concat(ins);
+    f.aucune = false;
+    s.fcddv = f;
+    d.succession = s;
+    ajouterHistorique(d, `FCDDV : inscription ajoutée à la main — ${ins.nature} chez Maître ${notaire}`);
+    sauvegarder(d);
+    render();
+  }
+
+  function retirerInscriptionFcddv(dossierId, index) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const f = d && d.succession && d.succession.fcddv;
+    if (!f || !f.inscriptions[index]) return;
+    const ins = f.inscriptions.splice(index, 1)[0];
+    ajouterHistorique(d, `FCDDV : inscription retirée — ${ins.nature} chez Maître ${ins.notaire}`);
+    sauvegarder(d);
+    render();
+  }
+
+  // L'email au confrère dépositaire : la fenêtre d'email s'ouvre, rien ne part sans « Envoyer ».
+  async function ecrireConfrereFcddv(dossierId, cleGroupe) {
+    const d = dossiers.find(x => x.id === dossierId);
+    const f = d && d.succession && d.succession.fcddv;
+    const groupe = f ? confreresFcddv(f).find(g => g.cle === cleGroupe) : null;
+    if (!groupe) return;
+    if (!groupe.email) { afficherToast(`Adresse email de Maître ${groupe.notaire} à saisir (introuvable dans l’annuaire).`); return; }
+    const { sujet, corps } = emailConfrereFcddv(d, groupe);
+    const r = await livrerEmailDossier({ destinataire: groupe.email, sujet, corps, confrere: true, responsableSignature: d.responsable, dossierId: d.id, geste: 'fcddv' });
+    if (r && r.ok) {
+      const actuel = dossiers.find(x => x.id === dossierId);
+      const fa = actuel && actuel.succession && actuel.succession.fcddv;
+      if (fa) groupe.inscriptions.forEach(i => { if (fa.inscriptions[i.index]) fa.inscriptions[i.index].demandeLe = isoAujourdhuiLocal(); });
+      ajouterHistorique(actuel, `FCDDV : email préparé pour Maître ${groupe.notaire} (nature et coût de l’acte)`);
+      sauvegarder(actuel);
+      render();
+    }
+  }
+
+  // Le bloc « FCDDV » de l'onglet Dossier.
+  function renderFcddvSuccession(d) {
+    const idJs = escapeOnclickArg(d.id);
+    const f = (d.succession || {}).fcddv;
+    const chemin = fichierTrouve(d, 'fcddv');
+    const enCours = lecturesFcddvEnCours.has(d.id);
+    const bouton = chemin ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireFcddvDossier('${idJs}', false)"${enCours ? ' disabled' : ''}>${enCours ? 'Lecture…' : (f && f.luLe ? 'Relire' : 'Lire la réponse')}</wa-button>` : '';
+    let etat;
+    if (!f || !f.luLe) etat = `<span class="prop-texte vide">${chemin ? 'Réponse trouvée sur le NAS, pas encore lue' : 'Réponse pas encore trouvée sur le NAS'}</span>`;
+    else if (f.aucune) etat = `<span class="dot-label dl-success"><span class="dot"></span>Aucune inscription</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;
+    else if (f.illisible && !(f.inscriptions || []).length) etat = '<span class="dot-label dl-urgent"><span class="dot"></span>Rien de reconnu dans la réponse</span> <span class="hint">saisissez les inscriptions ci-dessous</span>';
+    else etat = `<span class="dot-label dl-urgent"><span class="dot"></span>${f.inscriptions.length} inscription${f.inscriptions.length > 1 ? 's' : ''}</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;
+    const groupes = f ? confreresFcddv(f) : [];
+    const lignes = groupes.map(g => {
+      const cleJs = escapeOnclickArg(g.cle);
+      const insc = g.inscriptions.map(i => `<li class="fcddv-insc"><span class="prop-texte">${escapeHtml(i.nature)}${i.date ? ` <span class="hint">du ${escapeHtml(formatDateFr(i.date))}</span>` : ''}</span>
+          ${i.demandeLe ? `<span class="dot-label dl-success"><span class="dot"></span>Demandé le ${escapeHtml(formatDateFr(i.demandeLe))}</span>` : ''}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer cette inscription" onclick="retirerInscriptionFcddv('${idJs}', ${Number(i.index)})">${icone('x')}</wa-button></li>`).join('');
+      const premier = g.inscriptions[0];
+      return `<div class="fcddv-notaire">
+        <div class="fcddv-tete"><strong>Maître ${escapeHtml(g.notaire)}</strong>${g.ville ? ` <span class="hint">${escapeHtml(g.ville)}</span>` : ''}${premier.crpcen ? ` <span class="hint">· CRPCEN ${escapeHtml(premier.crpcen)}</span>` : ''}</div>
+        <ul class="fcddv-liste">${insc}</ul>
+        <div class="fcddv-email"><input type="email" class="prop-champ" value="${escapeAttr(g.email)}" placeholder="adresse@notaires.fr" aria-label="Email de Maître ${escapeAttr(g.notaire)}" onchange="modifierInscriptionFcddv('${idJs}', ${Number(premier.index)}, 'email', this.value)">
+          <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ecrireConfrereFcddv('${idJs}', '${cleJs}')" title="Demander au confrère la nature de l’acte et son coût (fenêtre d’email, rien ne part sans « Envoyer »)">${icone('mail')} Écrire au confrère</wa-button></div>
+      </div>`;
+    }).join('');
+    const ajout = `<div class="fcddv-ajout"><select class="prop-champ" id="fcddv-nature-${escapeAttr(d.id)}" aria-label="Nature de l’inscription">${['Testament olographe', 'Testament authentique', 'Donation entre époux', 'Institution contractuelle', 'Révocation'].map(n => `<option>${n}</option>`).join('')}</select>
+      <input type="text" class="prop-champ" id="fcddv-notaire-${escapeAttr(d.id)}" placeholder="Notaire dépositaire (Prénom NOM)" aria-label="Notaire dépositaire">
+      <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ajouterInscriptionFcddv('${idJs}')">+ Inscription</wa-button></div>`;
+    return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
+      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}</div>${lignes}${ajout}</div>`;
   }

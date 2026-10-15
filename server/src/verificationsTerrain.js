@@ -70,6 +70,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier document rangé (bouton « Ranger dans le dossier du NAS ») ; en échec si le serveur refuse l’écriture. Ouvrir le .docx une fois dans Word pour vérifier sa mise en page.' },
   { id: 'constitution-courriers', depuis: '0.240.0', source: 'poste', titre: 'Constitution de dossier : les courriers d’une vente ou d’une succession sont préparés d’après la fiche',
     comment: 'Coché à la première génération réussie (outil « Constitution de dossier »). Relire un courrier : parcelles, vendeurs et domiciles (vente) ou défunt, date de décès et destinataires (succession) doivent être ceux d’Authentic.' },
+  { id: 'fcddv-lu', depuis: '0.246.0', source: 'poste', titre: 'Successions : la réponse du FCDDV est lue (inscriptions et notaire dépositaire, ou « aucune inscription »)',
+    comment: 'Coché à la première réponse reconnue ; en échec si la réponse lue ne montre ni inscription ni « aucune ». Comparer ce qui est affiché sur la fiche avec le PDF du FCDDV, et l’email du confrère proposé.' },
   { id: 'constitution-pdf', depuis: '0.240.0', source: 'poste', titre: 'Constitution de dossier : un courrier sort en PDF/A sur le papier de l’office, avec tampon et signature',
     comment: 'Coché au premier PDF créé. Ouvrir un PDF : en-tête, adresse, texte de l’étude, tampon et signature « p/o » à vérifier ; le contrôler dans Authentic si le courrier y est déposé.' },
   { id: 'constitution-commune', depuis: '0.240.0', source: 'serveur', titre: 'Constitution de dossier : la commune du bien est retrouvée (INSEE, intercommunalité, fiche de la mairie)',
