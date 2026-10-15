@@ -134,7 +134,9 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       cle: 'echeance:' + cle, titre: it.label, iso: it.iso || '', categorie: it.type === 'autre' ? 'autre' : it.type,
       sous: it.iso ? formatDateFr(it.iso) : '', onglet: it.type === 'safer' || it.type === 'dia' ? 'pieces' : '',
       date: dateModifiableCarteFiche(d, it.type, it.index, false),
-      coche: it.type === 'autre' || TYPES_ECHEANCE_COCHABLES_FICHE.includes(it.type) ? { onclick: `basculerEcheance('${escapeOnclickArg(id)}', '${escapeOnclickArg(cle)}')`, libelle: 'Marquer fait' } : null
+      coche: it.type === 'autre' || TYPES_ECHEANCE_COCHABLES_FICHE.includes(it.type) ? { onclick: `basculerEcheance('${escapeOnclickArg(id)}', '${escapeOnclickArg(cle)}')`, libelle: 'Marquer fait' } : null,
+      // Agenda relié à la fiche (étude 15/10) : le rendez-vous de signature se place d'ici, prérempli (client/77).
+      bouton: it.type === 'fixerRdv' && rdvAgendaVente(d, aujourdhuiIso) ? { onclick: `placerRdvVenteAgenda('${escapeOnclickArg(id)}')`, libelle: 'Placer dans l’agenda', icone: icone('calendar'), titre: 'Nouveau rendez-vous de signature, prérempli' } : null
     });
   });
 

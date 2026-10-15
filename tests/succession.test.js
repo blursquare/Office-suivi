@@ -368,3 +368,19 @@ test('agenda et arbitrage reliés à la fiche succession : rendez-vous proposé 
   assert.deepEqual([a.verdict, a.net, a.le, a.saisie.droitsSans], ['favorable', 1560, '2026-10-15', '8000']);
   assert.match(app.ligneArbitrageFiche(Object.assign({}, d, { succession: { arbitrage: a } })), /Intéressant pour le client.*Revoir l’arbitrage/);
 });
+
+test('vente : agenda et outils reliés à la fiche (placer le rendez-vous, provision, prorata, quotités…)', () => {
+  const v = { id: 'v9', nom: 'MOREAU / LAMBERT', typeAffaire: 'vente', typeVente: 'copropriete', prixVente: 245000, prixMobilier: 5000, adresseBien: 'BLOIS (41000), 12 rue des Lices',
+    parties: [{ role: 'VENDEUR', nom: 'Paul MOREAU' }, { role: 'ACQUEREUR', nom: 'Claire LAMBERT' }, { role: 'ACQUEREUR', nom: 'Marc LAMBERT' }], pieces: {} };
+  const r = app.rdvAgendaVente(v, '2026-10-15');
+  assert.equal(r.titre, 'VTE - MOREAU / LAMBERT');
+  assert.ok(r.date >= '2026-10-15');
+  assert.equal(app.rdvAgendaVente(Object.assign({}, v, { rendezVousSignature: '2026-11-20' }), '2026-10-15'), null);
+  assert.equal(app.rdvAgendaVente(Object.assign({}, v, { roleNotaire: 'participant' }), '2026-10-15'), null);
+  assert.deepEqual(Object.values(app.saisieProvisionDossier(v)).join('|'), '245000|5000|condo|41');
+  assert.equal(app.outilsVenteFiche(v).map(o => o.cle).join(','), 'agenda,appel-fonds,calculateur,prorata,quotites,preemption');
+  const place = app.outilsVenteFiche(Object.assign({}, v, { rendezVousSignature: '2026-11-20', parties: v.parties.slice(0, 2) }));
+  assert.equal(place[0].libelle, 'Voir dans l’agenda');
+  assert.ok(!place.some(o => o.cle === 'quotites'), 'un seul acquéreur : pas de quotités');
+  assert.equal(app.outilsVenteFiche(base()).length, 0);
+});

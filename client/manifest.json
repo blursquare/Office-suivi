@@ -75,5 +75,6 @@
   "73-courrier-fidele.js",
   "74-fiche-succession.js",
   "75-factures-succession.js",
-  "76-succession-agenda-arbitrage.js"
+  "76-succession-agenda-arbitrage.js",
+  "77-vente-outils-fiche.js"
 ]

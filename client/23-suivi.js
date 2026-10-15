@@ -760,6 +760,7 @@
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${d.archive || d.roleNotaire === 'participant' ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers à la mairie (numérotage, alignement, péril, assainissement) : toutes les parcelles et tous les vendeurs d’Authentic">Constitution de dossier</wa-button>`, null, 'prop-pleine')}
+        ${ligne('settings', 'Outils', renderOutilsVenteFiche(d), null, 'prop-pleine')}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
