@@ -12,6 +12,12 @@
     return ((g && g.parcelles) || []).filter(p => p && p.actif && p.section && p.numero).slice(0, 12).map(p => `${String(p.section).toUpperCase()} ${p.numero}`).join(', ');
   }
 
+  // Pure : les plans SURLIGNÉS d'une tâche (étude 15/10 : « un seul plan ») — le serveur rend aussi, pour chaque plan, l'extrait officiel
+  // sans surlignage (`officiel…`), qui n'accompagne jamais un courrier.
+  function plansSurlignesConstitution(plan) {
+    return ((plan && plan.documents) || []).filter(doc => doc && /^plan\d*$/.test(String(doc.id || '')));
+  }
+
   // Pure : où en est le plan d'une commune → { etat: 'sans-commune' | 'sans-parcelle' | 'a-tirer' | 'perime' | 'attente' | 'en-cours' | 'fini' | 'erreur', texte }.
   function etatPlanConstitution(g) {
     const info = (g && g.info) || {};
@@ -21,7 +27,7 @@
     const p = g.plan;
     if (!p) return { etat: 'a-tirer', texte: 'Plan cadastral à tirer' };
     if (p.parcelles !== parcelles) return { etat: 'perime', texte: 'Parcelles changées : plan à refaire' };
-    if (p.etat === 'fini') { const n = (p.documents || []).length; return { etat: 'fini', texte: n > 1 ? `${n} plans cadastraux prêts` : 'Plan cadastral prêt' }; }
+    if (p.etat === 'fini') { const n = plansSurlignesConstitution(p).length; return { etat: 'fini', texte: n > 1 ? `${n} plans cadastraux prêts` : 'Plan cadastral prêt' }; }
     if (p.etat === 'erreur' || p.etat === 'annule') return { etat: 'erreur', texte: `Plan non tiré : ${p.erreur || 'arrêté'}` };
     return { etat: p.etat === 'en-cours' ? 'en-cours' : 'attente', texte: p.etat === 'en-cours' ? 'Plan cadastral en cours sur cadastre.gouv.fr…' : 'Plan cadastral en attente…' };
   }
@@ -62,7 +68,7 @@
         const t = await r.json();
         Object.assign(plan, { etat: t.etat, documents: t.documents || [], erreur: t.erreur || '' });
       } catch (_) { /* relecture manquée : la suivante */ }
-      if (plan.etat === 'fini') noterVerificationPoste('constitution-plan-cadastral', { detail: `${plan.documents.length} plan(s)` });
+      if (plan.etat === 'fini') noterVerificationPoste('constitution-plan-cadastral', { detail: `${plansSurlignesConstitution(plan).length} plan(s)` });
       majItemConstitution();
       const zone = document.getElementById(`cst-plan-${g.cle}`);
       if (zone) zone.outerHTML = renderPlanCommuneConstitution(g);
@@ -82,8 +88,9 @@
     if (!g.plan || g.plan.etat !== 'fini') return [];
     if (g.plan.pdf) return g.plan.pdf;
     const pdf = [];
-    const plusieurs = (g.plan.documents || []).length > 1;
-    for (const [i, doc] of (g.plan.documents || []).entries()) {
+    const surlignes = plansSurlignesConstitution(g.plan);
+    const plusieurs = surlignes.length > 1;
+    for (const [i, doc] of surlignes.entries()) {
       const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(g.plan.id)}/documents/${encodeURIComponent(doc.id)}`);
       if (!r.ok) continue;
       pdf.push({ nom: `Plan cadastral - ${g.commune}${plusieurs ? ` (${i + 1})` : ''}.pdf`.replace(/[\\/:*?"<>|]+/g, ' '), blob: await r.blob() });
@@ -116,7 +123,8 @@
     const k = escapeOnclickArg(g.cle);
     const dl = s.etat === 'fini' ? 'dl-success' : (s.etat === 'erreur' || s.etat === 'perime' || s.etat === 'sans-commune' ? 'dl-urgent' : 'dl-neutre');
     const tourne = s.etat === 'attente' || s.etat === 'en-cours';
-    const docs = s.etat === 'fini' ? (g.plan.documents || []).map((doc, i) => `<button type="button" class="lien-action" onclick="ouvrirDocumentSite('${escapeOnclickArg(g.plan.id)}', '${escapeOnclickArg(doc.id)}')">Voir${(g.plan.documents || []).length > 1 ? ' ' + (i + 1) : ''}</button>`).join(' ') : '';
+    const surlignes = s.etat === 'fini' ? plansSurlignesConstitution(g.plan) : [];
+    const docs = surlignes.map((doc, i) => `<button type="button" class="lien-action" onclick="ouvrirDocumentSite('${escapeOnclickArg(g.plan.id)}', '${escapeOnclickArg(doc.id)}')">Voir${surlignes.length > 1 ? ' ' + (i + 1) : ''}</button>`).join(' ');
     const bouton = ['a-tirer', 'perime', 'erreur', 'fini'].includes(s.etat)
       ? `<button type="button" class="lien-action" onclick="lancerPlanConstitution('${k}', true)">${s.etat === 'fini' ? 'Refaire' : 'Tirer le plan'}</button>` : '';
     return `<div class="cst-plan" id="cst-plan-${escapeAttr(g.cle)}">${icone(tourne ? 'spinner' : 'map-pin', null, tourne)} <span class="dot-label ${dl}"><span class="dot"></span>${escapeHtml(s.texte)}</span> ${docs} ${bouton}

@@ -20087,3 +20087,11 @@ trouvé sur le NAS, et garder le résultat de la provision sur la fiche comme l'
   ligne « Provision » de l'onglet Dossier et bloc « Provision » de l'onglet Fonds (`ligneProvisionFiche`, `renderProvisionFondsFiche`,
   « Refaire »), « Prix changé depuis » si le prix de la fiche n'est plus celui de la simulation ; primo-accédant et destination
   repris de la dernière simulation gardée.
+
+### 15/10/2026 23 h 37 — 0.252.1 : un seul plan cadastral par commune
+
+Étude : « Téléchargé qu'un plan si on télécharge plusieurs courriers. » Cause : la tâche de plan du serveur rend, pour chaque plan, le plan
+surligné (`plan`, `plan2`…) ET l'extrait officiel sans surlignage (`officiel`, `officiel2`…) ; `plansPdfConstitution` prenait tous les
+documents, d'où deux PDF par commune dans l'archive, l'impression, les emails et « Constitution ». `plansSurlignesConstitution` ne garde
+que les plans surlignés (comptage, « Voir », fichiers joints). Plusieurs plans restent possibles seulement quand les parcelles d'une
+commune sont trop éloignées pour tenir sur un plan.

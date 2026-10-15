@@ -243,7 +243,11 @@ test('plan cadastral surligné de chaque commune joint aux courriers de vente : 
   assert.equal(app.etatPlanConstitution(g).etat, 'a-tirer');
   assert.equal(app.etatPlanConstitution(Object.assign({}, g, { info: { etat: 'introuvable' } })).etat, 'sans-commune');
   assert.equal(app.etatPlanConstitution(Object.assign({}, g, { parcelles: [] })).etat, 'sans-parcelle');
-  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'fini', parcelles: 'AB 12, CK 4', documents: [{ id: 'd1' }, { id: 'd2' }] } })).texte, '2 plans cadastraux prêts');
+  // Le serveur rend, pour chaque plan, le plan surligné ET l'extrait officiel : seul le surligné compte (un seul plan par courrier).
+  const unPlan = { etat: 'fini', parcelles: 'AB 12, CK 4', documents: [{ id: 'plan' }, { id: 'officiel' }] };
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: unPlan })).texte, 'Plan cadastral prêt');
+  assert.equal(app.plansSurlignesConstitution(unPlan).map(x => x.id).join(','), 'plan');
+  assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'fini', parcelles: 'AB 12, CK 4', documents: [{ id: 'plan' }, { id: 'officiel' }, { id: 'plan2' }, { id: 'officiel2' }] } })).texte, '2 plans cadastraux prêts');
   assert.equal(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'fini', parcelles: 'AB 12', documents: [{ id: 'd1' }] } })).etat, 'perime');
   assert.match(app.etatPlanConstitution(Object.assign({}, g, { plan: { etat: 'erreur', parcelles: 'AB 12, CK 4', erreur: 'Cadastre injoignable' } })).texte, /Plan non tiré : Cadastre injoignable/);
   // 12 parcelles au plus (limite du serveur).

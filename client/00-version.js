@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.252.0';
+  const VERSION_APP = '0.252.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.252.1', date: '2026-10-15 23:37', resume: "Constitution de dossier : un seul plan cadastral par commune avec les courriers — l'extrait officiel sans surlignage que cadastre.gouv.fr rend à côté n'est plus joint (archive téléchargée, impression, emails, « Constitution »)." },
     { version: '0.252.0', date: '2026-10-15 23:34', resume: "Ventes : le Prorata ouvert depuis la fiche lit seul l’avis de taxe foncière du dossier du NAS (montant et année civile posés) ; le résultat du simulateur de provision s’enregistre sur la fiche (« Enregistrer sur la fiche »), montré dans les onglets Dossier et Fonds, avec « Prix changé depuis » si le prix a bougé." },
     { version: '0.251.0', date: '2026-10-15 23:29', resume: "Constitution de dossier : chaque courrier de vente part avec le plan cadastral surligné de sa commune — tiré seul de cadastre.gouv.fr dès que la commune et les parcelles sont connues (parcelles cochées en jaune fluo), imprimé juste derrière le courrier, joint à l'email, enregistré dans « Constitution » et mis dans l'archive téléchargée ; état du plan et « Voir » / « Refaire » sous les parcelles de chaque commune." },
     { version: '0.250.0', date: '2026-10-15 23:25', resume: "Fiche de vente reliée à l'agenda et aux outils : « Placer dans l'agenda » sur la carte « Fixer le rendez-vous » (Nouveau rendez-vous prérempli, case signature cochée) ; ligne « Outils » de l'onglet Dossier — Placer / Voir dans l'agenda, Appel de fonds, Provision (prix, mobilier, nature du bien, département repris), Prorata (date de l'acte reprise), Quotités (dès deux acquéreurs), Contrôle de l'urbanisme." },
