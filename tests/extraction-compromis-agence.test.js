@@ -136,3 +136,17 @@ test('compromis d’agence scanné : prix avant sa reprise en lettres, adresse s
   assert.match(a.adresseComplete || '', /Chauchy/i);
   assert.match(a.adresseComplete || '', /41320/);
 });
+
+test('diagnostic de lecture : passages utiles anonymisés (emails, téléphones, noms en forme), montants gardés (15/10)', () => {
+  const t = "Le Mandataire\nVILLEFRANCHE IMMOBILIER contact jean.dupont@exemple.fr 06 12 34 56 78\nLa vente aura lieu moyennant le prix principal de\n120 000,00 € (cent vingt mille euros) vendeur Madame Durand";
+  const d = app.diagnosticTexteLuAnonymise(t);
+  assert.ok(!/VILLEFRANCHE|dupont|Durand|06 12/.test(d), d);
+  assert.match(d, /Le Mandataire/);
+  assert.match(d, /120 000,00 €/);
+  assert.equal(app.diagnosticTexteLuAnonymise('  '), '');
+});
+
+test('prix : un premier motif sur un faux positif (< 1000 €) ne bloque pas le second (15/10)', () => {
+  const t = "le prix de la prestation (50 €) payé. La vente aura lieu moyennant le prix principal de\n\n120 000,00 € (cent vingt mille euros)";
+  assert.equal(app.detecterPrixVente(t), 120000);
+});

@@ -19866,3 +19866,7 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
 - OCR : `¬` → `€` à la sortie de `ocrPage`. `detecterPrixVente` : second motif `RE_PRIX_MONTANT_AVANT` (« aura lieu moyennant le prix [principal] de MONTANT € »). `adresseDesBiensEtiquetee` : repli « Localisation … CP COMMUNE ». `detecterNomAgence` : repli « Le Mandataire » + ligne en capitales.
 - Agent : `faire_geste` email sans dossier mais avec destinataire valide ouvre `livrerEmailDossier` directement ; consigne : jamais d'action annoncée sans appel d'outil (Mistral affirmait « la fenêtre va s'ouvrir » sans appeler l'outil, observé 15/10).
 - Non traité : date d'obtention du prêt (15/08 proposée, fiche au 17/10 — passage du texte non vu) ; titre d'option « avec Pose » (le verbe pris pour un nom) ; durée de lecture (4 min pour 120 pages).
+
+### 0.237.0 — 15/10/2026 (retour du build 777 : prix et agence toujours vides sur le vrai compromis scanné)
+- Le correctif 0.236.1 (testé sur du texte inventé) ne suffit pas sur le vrai document : cause non vue sans le texte. Ajout de `client/72-diagnostic-lecture.js` (`diagnosticTexteLuAnonymise`, bouton de l'étape Vérifier) pour obtenir les passages utiles anonymisés ; `detecterPrixVente` essaie le second motif même si le premier tombe sur une somme < 1000 € ; motif « Le Mandataire » plus tolérant.
+- Non corrigé : l'agent a mis « TEST » en majuscules alors que le texte tapé disait « test » ; « lecture de l'image page 17 » pour la date de signature (repli OCR de la dernière page, ~30 s).

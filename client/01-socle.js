@@ -574,7 +574,7 @@
       if (nom && !/^(?:le|la|les|l['’])\s*(?:mandataire|r[ée]mun[ée]ration)|r[ée]mun[ée]ration|\bmandataire\b|\bmandant\b/i.test(nom)) return nom;
     }
     // Trame d'agence scannée : le nom suit le titre « Le Mandataire », seul sur sa ligne et en capitales (15/10).
-    const titre = /(?:^|\n)\s*Le\s+Mandataire\s*\n+\s*([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9&'’ .-]{2,60}?)\s*(?=\n)/.exec(texte);
+    const titre = /(?:^|\n)\s*(?:[Ll]e\s+[Mm]andataire|LE\s+MANDATAIRE)\s*:?\s*\n+\s*([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9&'’ .-]{2,60}?)\s*(?=\n|[-–,(]|\s[A-Z][a-zà-ÿ]|$)/.exec(texte);
     if (titre && !/MANDATAIRE|REMUN/.test(titre[1])) return titre[1].replace(/\s+/g, ' ').trim();
     return null;
   }
@@ -768,13 +768,16 @@
   function detecterPrixVente(texte) {
     // Montant AVANT sa reprise en lettres (« aura lieu moyennant le prix principal de 120 000,00 € (cent vingt mille euros) »,
     // trame d'agence scannée du 15/10) : seulement derrière « aura lieu », jamais le prix d'une vente précédente.
-    const m = PRIX_VENTE_RE.exec(texte) || RE_PRIX_MONTANT_AVANT.exec(texte);
-    if (!m) return null;
-    const partieEntiere = m[1].split(',')[0].replace(/[\s.]/g, '');
-    const valeur = parseInt(partieEntiere, 10);
     // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
-    // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix").
-    return Number.isFinite(valeur) && valeur >= 1000 ? valeur : null;
+    // (un numéro d'article, une référence de loi capturée par erreur près du mot "prix"). Un premier motif qui tombe sur un faux
+    // positif ne ferme pas la porte au second (compromis scanné du 15/10 : prix toujours vide).
+    for (const re of [PRIX_VENTE_RE, RE_PRIX_MONTANT_AVANT]) {
+      const m = re.exec(texte);
+      if (!m) continue;
+      const valeur = parseInt(m[1].split(',')[0].replace(/[\s.]/g, ''), 10);
+      if (Number.isFinite(valeur) && valeur >= 1000) return valeur;
+    }
+    return null;
   }
 
   // ---- Prix contradictoires ------------------------------------------------------------------

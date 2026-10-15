@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.236.1';
+  const VERSION_APP = '0.237.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.237.0', date: '2026-10-15 19:18', resume: "Nouveau dossier › Vérifier : bouton « Copier le texte lu (anonymisé) » — copie les passages utiles du compromis lu (prix, mandataire, localisation, signature, prêt), emails, téléphones et noms remplacés par leur forme, pour comprendre pourquoi une donnée n'est pas trouvée. Compromis scanné : le prix est cherché par le second motif même si le premier tombe sur une somme trop petite ; le nom de l'agence sous « Le Mandataire » tolère une fin de ligne." },
     { version: '0.236.1', date: '2026-10-15 18:55', resume: "Compromis scanné (retour du test BOURNOUVEAU / BECHET) : le prix écrit avant sa reprise en lettres (« aura lieu moyennant le prix principal de 120 000,00 € (…) ») est lu, le « ¬ » de l'OCR redevient « € », l'adresse du bien est lue sous « Localisation » (et non plus celle du garant de l'agence), l'agence est lue sous le titre « Le Mandataire ». « Demander à CLAIRE » : un email libre sans dossier (destinataire, objet, texte) ouvre la fenêtre d'envoi, et l'agent ne doit plus annoncer une action sans avoir appelé l'outil." },
     { version: '0.236.0', date: '2026-10-15 18:44', resume: "Mémoire de CLAIRE : la lecture des fausses minutes devient une option (Réglages › Mémoire de CLAIRE, éteinte par défaut). Allumée, chaque acte n'est lu que jusqu'au tableau de signature : les annexes qui suivent ne sont pas lues (ni passées à l'OCR). Éteinte, ces documents ne sont ni parcourus, ni lus, ni cherchés par l'agent." },
     { version: '0.235.0', date: '2026-10-15 18:29', resume: "« Demander à CLAIRE » (retour de test) : l'agent sait poser plusieurs options de rendez-vous dans l'agenda sans email (il ouvrait un seul rendez-vous ferme), remplit l'email libre avec le destinataire, l'objet et le texte demandés, et ne dit plus qu'une chose est faite quand une fenêtre ou une confirmation attend encore l'utilisateur. Compromis : le compteur de lecture ne dépasse plus le total (« page 120 sur 60 »), l'adresse du garant financier de l'agence n'est plus prise pour l'adresse du bien, une clause (« le MANDATAIRE La rémunération… ») n'est plus prise pour le nom de l'agence. Sitadel : trois requêtes à la fois et reprise sur la limite de débit (429)." },
