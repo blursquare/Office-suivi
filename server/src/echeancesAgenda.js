@@ -24,7 +24,7 @@
 
 const { echeanceValidee } = require('./jobs/rappels');
 const { momentParisDepuisIso, formatDateFr } = require('./agendaOffice');
-const { creerEcheanceExchange } = require('./exchange/ews');
+const { creerEcheanceExchange, supprimerEcheanceExchange } = require('./exchange/ews');
 
 const LIBELLES_ECHEANCE_AGENDA = { pret: 'Obtention du prêt', ventebien: 'Vente préalable' };
 const CORPS_ECHEANCE_AGENDA = {
@@ -134,7 +134,57 @@ async function poserEcheancesManquantes(depot, reglagesExchange, evenementsEws, 
   return resultat;
 }
 
+// Pure : pourquoi l'événement d'une date butoir n'a plus lieu d'être, dit dans l'historique ('' : il doit rester).
+function raisonRetraitEcheance(d, type) {
+  if (!d) return '';
+  if (d.archive) return 'dossier archivé';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d[type] || ''))) return 'date effacée';
+  if (type === 'pret' && d.sansPret) return 'pas de prêt';
+  if (type === 'pret' && d.offrePretStatut === 'recue') return 'offre de prêt reçue';
+  if (echeanceValidee(d, type)) return type === 'pret' ? 'offre de prêt reçue' : 'vente préalable réalisée';
+  return '';
+}
+
+// L'événement posé par CLAIRE (identifiant gardé sur le dossier) est RETIRÉ de l'agenda dès que la condition est levée — offre de prêt
+// reçue (relevée par le NAS, un email, Authentic… sans geste d'un poste), vente préalable réalisée, date effacée, dossier archivé
+// (étude 15/10 : « si prêt reçu : retirer le rappel sur l'agenda »). Avant, seul un poste en marche le retirait, à son démarrage ou à son
+// geste. Jamais d'événement deviné d'après son titre ; MoveToDeletedItems (SoftDelete en repli), un événement déjà effacé à la main vaut
+// retrait fait ; un dossier modifié depuis moins de 5 minutes est laissé au poste qui vient d'agir ; arrêt au premier échec.
+// Rend { retirees: [{ dossierId, dossierNom, type, raison }], erreur, identifiantsRefuses }.
+async function retirerEcheancesLevees(depot, reglagesExchange, injections, maintenantMs) {
+  const r = reglagesExchange || {};
+  const maintenant = maintenantMs == null ? Date.now() : maintenantMs;
+  const resultat = { retirees: [], erreur: null, identifiantsRefuses: false };
+  let essais = 0;
+  for (const d0 of depot.tousActifs()) {
+    for (const type of Object.keys(LIBELLES_ECHEANCE_AGENDA)) {
+      const pose = d0.agendaEcheances && d0.agendaEcheances[type];
+      if (!pose || !pose.itemId || !raisonRetraitEcheance(d0, type)) continue;
+      const majLe = Number(d0.updatedAt);
+      if (Number.isFinite(majLe) && maintenant - majLe < DELAI_APRES_MODIFICATION_MS) continue;
+      if (essais >= MAX_CREATIONS_PAR_TOUR) return resultat;
+      essais++;
+      const sup = await supprimerEcheanceExchange({ url: r.url, email: r.email, motDePasse: r.motDePasse, itemId: pose.itemId, changeKey: pose.changeKey || '' }, injections);
+      if (!sup.ok) {
+        resultat.erreur = sup.message || "L'événement n'a pas pu être retiré de l'agenda.";
+        resultat.identifiantsRefuses = sup.raison === 'auth';
+        return resultat;
+      }
+      // Relu après l'appel réseau : un poste a pu changer le dossier entre-temps.
+      const d = depot.trouverParId(d0.id);
+      if (!d || !d.agendaEcheances || !d.agendaEcheances[type] || d.agendaEcheances[type].itemId !== pose.itemId) continue;
+      const raison = raisonRetraitEcheance(d, type) || raisonRetraitEcheance(d0, type);
+      delete d.agendaEcheances[type];
+      d.historique = Array.isArray(d.historique) ? d.historique : [];
+      d.historique.push({ date: new Date().toISOString(), texte: `« ${LIBELLES_ECHEANCE_AGENDA[type]} » retirée de l’agenda Outlook (${raison})` });
+      depot.remplacer(d.id, d);
+      resultat.retirees.push({ dossierId: d.id, dossierNom: d.nom, type, raison });
+    }
+  }
+  return resultat;
+}
+
 module.exports = {
   LIBELLES_ECHEANCE_AGENDA, CORPS_ECHEANCE_AGENDA, DELAI_APRES_MODIFICATION_MS, MAX_CREATIONS_PAR_TOUR,
-  extraireNomAcquereur, sujetEcheanceAgenda, echeanceAgendaSouhaitee, planPoseEcheances, poserEcheancesManquantes
+  extraireNomAcquereur, sujetEcheanceAgenda, echeanceAgendaSouhaitee, planPoseEcheances, poserEcheancesManquantes, retirerEcheancesLevees, raisonRetraitEcheance
 };

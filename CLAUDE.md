@@ -202,7 +202,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    note « Appel de fonds (et projet) envoyé » dans le Lieu, dates butoir prêt / vente préalable en
    journée entière — seule voie depuis le 29/09 (plus de flux `.ics` publié) : le poste les pose au
    geste, le serveur pose ce qui manque à chaque tour de lecture (`echeancesAgenda.js`) en adoptant
-   d'abord un événement de même titre et même date (jamais de doublon) ; depuis la **page Agenda**
+   d'abord un événement de même titre et même date (jamais de doublon) **et retire ce qui n'a plus lieu d'être** (étude 15/10, `retirerEcheancesLevees` : offre de prêt reçue, vente préalable réalisée, date effacée, dossier archivé — sur l'identifiant gardé seulement, jamais d'après un titre ; point terrain `echeance-agenda-retiree-serveur`) ; depuis la **page Agenda**
    (30/09), création de tout rendez-vous et **suppression de n'importe lequel après confirmation**
    (`POST /exchange/evenement/supprimer`, `MoveToDeletedItems`) — **touche Suppr** sur le rendez-vous sélectionné (05/10, même confirmation, jamais dans un champ de saisie ni pendant une fenêtre ouverte ; `evenementSupprimableAgenda`) ; **copier-coller** (07/10, `client/53-agenda-copier-coller.js` : Ctrl+C ou « Copier » du détail, clic sur une case puis Ctrl+V ou « Coller » → créé aussitôt comme Outlook, « Annuler » ; une signature se colle « ? », à confirmer) ; **modification** (01/10, titre + Start/End
    seulement, `POST /exchange/evenement/modifier`) par le crayon du détail ou en **glissant** le rendez-vous

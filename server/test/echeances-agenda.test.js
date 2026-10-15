@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  planPoseEcheances, poserEcheancesManquantes, sujetEcheanceAgenda, DELAI_APRES_MODIFICATION_MS
+  planPoseEcheances, poserEcheancesManquantes, retirerEcheancesLevees, sujetEcheanceAgenda, DELAI_APRES_MODIFICATION_MS
 } = require('../src/echeancesAgenda');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
@@ -116,5 +116,48 @@ test('poserEcheancesManquantes : adoption sans aucune écriture dans l’agenda'
   assert.equal(n, 0);
   assert.equal(r.posees[0].adoptee, true);
   assert.equal(depot.trouverParId('d1').agendaEcheances.pret.itemId, 'EXISTANT');
+  db.close();
+});
+
+test('retirerEcheancesLevees : offre de prêt reçue → événement retiré de l’agenda par le serveur, journalisé, jamais deviné (15/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const pose = { itemId: 'EV1', changeKey: 'CK1', date: '2099-10-20' };
+  depot.creer({ id: 'recu', nom: 'DUPONT / MARTIN', pret: '2099-10-20', offrePretStatut: 'recue', agendaEcheances: { pret: pose } });
+  depot.creer({ id: 'attendu', nom: 'DURAND / LEROY', pret: '2099-10-20', agendaEcheances: { pret: { itemId: 'EV2', changeKey: 'CK2', date: '2099-10-20' } } });
+  depot.creer({ id: 'sanspose', nom: 'ROUX / FAURE', pret: '2099-10-20', offrePretStatut: 'recue' });
+  depot.creer({ id: 'archive', nom: 'GARNIER / PETIT', pret: '2099-10-20', archive: true, agendaEcheances: { pret: { itemId: 'EV3', changeKey: 'CK3', date: '2099-10-20' } } });
+  const appels = [];
+  const poster = (o, cb) => { appels.push(o.body); setImmediate(() => cb(null, { statusCode: 200, body: '<m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage>' })); };
+  const reglages = { url: 'https://x.test/EWS/Exchange.asmx', email: 'b@etude.test', motDePasse: 'm' };
+  const r = await retirerEcheancesLevees(depot, reglages, { poster }, Date.now() + DELAI_APRES_MODIFICATION_MS + 1000);
+  assert.equal(r.erreur, null);
+  assert.deepEqual(r.retirees.map((x) => `${x.dossierId}:${x.raison}`).sort(), ['archive:dossier archivé', 'recu:offre de prêt reçue']);
+  assert.equal(appels.length, 2, 'un seul retrait par événement posé par CLAIRE, rien pour un dossier sans identifiant');
+  assert.ok(appels.some((b) => /Id="EV1"/.test(b) && /DeleteType="MoveToDeletedItems"/.test(b)));
+  const d = depot.trouverParId('recu');
+  assert.equal(d.agendaEcheances.pret, undefined);
+  assert.match(d.historique[d.historique.length - 1].texte, /« Obtention du prêt » retirée de l’agenda Outlook \(offre de prêt reçue\)/);
+  assert.ok(depot.trouverParId('attendu').agendaEcheances.pret, 'offre encore attendue : l’événement reste');
+  // Tour suivant : plus rien à retirer.
+  await retirerEcheancesLevees(depot, reglages, { poster }, Date.now() + DELAI_APRES_MODIFICATION_MS + 1000);
+  assert.equal(appels.length, 2);
+  db.close();
+});
+
+test('retirerEcheancesLevees : dossier modifié il y a moins de 5 min laissé au poste ; refus d’identifiants → arrêt, signalé', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 'd1', nom: 'DUPONT / MARTIN', pret: '2099-10-20', offrePretStatut: 'recue', agendaEcheances: { pret: { itemId: 'EV1', changeKey: 'CK1', date: '2099-10-20' } } });
+  depot.creer({ id: 'd2', nom: 'DURAND / LEROY', pret: '2099-10-20', offrePretStatut: 'recue', agendaEcheances: { pret: { itemId: 'EV2', changeKey: 'CK2', date: '2099-10-20' } } });
+  let n = 0;
+  const poster = (o, cb) => { n++; setImmediate(() => cb(null, { statusCode: 401, body: '' })); };
+  const frais = await retirerEcheancesLevees(depot, {}, { poster }, Date.now());
+  assert.equal(n, 0, 'modifié à l’instant : le poste s’en occupe');
+  const r = await retirerEcheancesLevees(depot, { url: 'https://x', email: 'e', motDePasse: 'm' }, { poster }, Date.now() + DELAI_APRES_MODIFICATION_MS + 1000);
+  assert.equal(frais.retirees.length, 0);
+  assert.equal(n, 1);
+  assert.equal(r.identifiantsRefuses, true);
+  assert.ok(depot.trouverParId('d1').agendaEcheances.pret, 'rien d’effacé sur un échec');
   db.close();
 });

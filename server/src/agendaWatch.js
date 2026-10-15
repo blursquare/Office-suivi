@@ -24,7 +24,7 @@ const {
   agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice, detecteProjetEnvoye, detecteAppelDeFonds
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
-const { poserEcheancesManquantes } = require('./echeancesAgenda');
+const { poserEcheancesManquantes, retirerEcheancesLevees } = require('./echeancesAgenda');
 const { envoyerEmail, envoiConfigure } = require('./envoiEmail');
 const { texteRendezVousAgenda, envoyerAuResponsable } = require('./routes/notifications');
 const { libelleDossier } = require('./jobs/rappels');
@@ -388,6 +388,13 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     resultat.echeancesPosees = poses.posees;
     resultat.erreurEcheances = poses.erreur;
     if (poses.identifiantsRefuses) resultat.identifiantsRefuses = true;
+    // Condition levée (offre de prêt reçue…) : l'événement posé par CLAIRE est retiré, sans attendre un poste.
+    if (!poses.identifiantsRefuses) {
+      const retraits = await retirerEcheancesLevees(depot, r, injections);
+      resultat.echeancesRetirees = retraits.retirees;
+      if (retraits.erreur && !resultat.erreurEcheances) resultat.erreurEcheances = retraits.erreur;
+      if (retraits.identifiantsRefuses) resultat.identifiantsRefuses = true;
+    }
   } catch (e) {
     resultat.erreur = e.message;
   }
@@ -413,6 +420,8 @@ async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections
   else if (resultat.ok) empreinteRefusee = null;
   // Les absences remplacent la liste précédente à chaque tour réussi (l'agenda fait foi) ; un tour en
   // échec ne les efface pas — la dernière liste connue reste affichée.
+  if (Array.isArray(resultat.echeancesRetirees) && resultat.echeancesRetirees.length) noterVerification(parametresRepo, 'echeance-agenda-retiree-serveur', { detail: resultat.echeancesRetirees.length + ' date(s) butoir retirée(s)' });
+  else if (resultat.erreurEcheances && /retiré|supprim/i.test(String(resultat.erreurEcheances))) noterVerification(parametresRepo, 'echeance-agenda-retiree-serveur', { ok: false, message: 'retrait de la date butoir refusé' });
   if (resultat.ok && resultat.evenementsLus > 0) noterVerification(parametresRepo, 'lecture-xml-exchange', { detail: resultat.evenementsLus + ' rendez-vous lus' });
   if (resultat.ok) parametresRepo.ecrireAbsencesAgenda(resultat.absences || []);
   if (resultat.ok && typeof parametresRepo.ecrireCategoriesAgenda === 'function') {

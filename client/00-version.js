@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.233.3';
+  const VERSION_APP = '0.234.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.234.0', date: '2026-10-15 16:38', resume: "Agenda : dès que l'offre de prêt est reçue (ou la vente préalable réalisée, la date effacée, le dossier archivé), le serveur retire lui-même la date butoir posée dans l'agenda Outlook, à son tour de lecture suivant — sans attendre le démarrage d'un poste. Elle reste récupérable dans les éléments supprimés d'Outlook." },
     { version: '0.233.3', date: '2026-10-15 14:57', resume: "Offre de prêt : la caution est reconnue quand le paragraphe s'intitule « Garanties (constatées par acte(s) séparé(s)) : » (offre Société Générale — la ligne « Obtention du prêt » affichait « Garantie non identifiée »). Pour un dossier existant : « Revérifier » sur la fiche." },
     { version: '0.233.2', date: '2026-10-15 11:41', resume: "Une tâche demandée à un collègue par « Demander à CLAIRE » arrive dans son « Aujourd'hui » en tête de liste, même pour une date à venir (sa date est dite sur la ligne), et une carte l'annonce à son arrivée. Les tâches sont relues toutes les 30 s sur n'importe quel écran (2 min sur le tableau de bord seulement avant)." },
     { version: '0.233.1', date: '2026-10-15 11:21', resume: "Un rendez-vous retiré de la fiche puis recréé dans Outlook à la même date est repris par la fiche (il restait « À placer » : le repère du retrait bloquait la date pour toujours)." },
