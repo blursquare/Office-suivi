@@ -831,7 +831,7 @@
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
-      let texteBrut = content.items.map(it => it.str).join(' ');
+      let texteBrut = normaliserEurosOcr(content.items.map(it => it.str).join(' '));
 
       // Page sans texte extractible : on la lit en OCR. La boucle s'arrête d'elle-même au bloc de
       // signature des parties (voir plus bas), donc un compromis scanné est passé à l'OCR « jusqu'à

@@ -573,8 +573,9 @@
       const nom = m[1].replace(/\s+/g, ' ').trim().replace(/[,\s]+$/, '');
       if (nom && !/^(?:le|la|les|l['’])\s*(?:mandataire|r[ée]mun[ée]ration)|r[ée]mun[ée]ration|\bmandataire\b|\bmandant\b/i.test(nom)) return nom;
     }
-    // Trame d'agence scannée : le nom suit le titre « Le Mandataire », seul sur sa ligne et en capitales (15/10).
-    const titre = /(?:^|\n)\s*(?:[Ll]e\s+[Mm]andataire|LE\s+MANDATAIRE)\s*:?\s*\n+\s*([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9&'’ .-]{2,60}?)\s*(?=\n|[-–,(]|\s[A-Z][a-zà-ÿ]|$)/.exec(texte);
+    // Trame d'agence scannée : le nom suit le titre « Le Mandataire », en capitales, et ferme sur une virgule (« Le Mandataire
+    // VILLEFRANCHE IMMOBILIER, SARL au capital de … ») — sur une ligne (texte d'un PDF) ou sur la suivante (OCR). 15/10.
+    const titre = /(?:^|[\s.:;])(?:[Ll]e\s+[Mm]andataire|LE\s+MANDATAIRE)\s*:?\s+([A-ZÀ-Ü0-9][A-ZÀ-Ü0-9&'’ .-]{2,60}?)\s*(?:,|\n)/.exec(texte);
     if (titre && !/MANDATAIRE|REMUN/.test(titre[1])) return titre[1].replace(/\s+/g, ' ').trim();
     return null;
   }
@@ -765,7 +766,12 @@
 
   const RE_PRIX_MONTANT_AVANT = /aura\s+lieu\s+moyennant\s+le\s+prix\s+(?:principal\s+)?de\s+([\d](?:[\d\s.]{0,14})?(?:,\d{2})?)\s*(?:€|eur(?:os?)?(?![a-zà-ÿ]))/i;
 
-  function detecterPrixVente(texte) {
+  // Un texte de scan (couche de texte de l'OCR du copieur, ou OCR du poste) lit parfois « € » comme « ¬ » (compromis scanné BOURNOUVEAU,
+  // 15/10 : la couche de texte du PDF elle-même portait « ¬ », l'OCR du poste n'y est donc jamais passé) : « ¬ » n'a aucun autre emploi.
+  function normaliserEurosOcr(texte) { return String(texte || '').replace(/[¬￢]/g, '€'); }
+
+  function detecterPrixVente(texteBrut) {
+    const texte = normaliserEurosOcr(texteBrut);
     // Montant AVANT sa reprise en lettres (« aura lieu moyennant le prix principal de 120 000,00 € (cent vingt mille euros) »,
     // trame d'agence scannée du 15/10) : seulement derrière « aura lieu », jamais le prix d'une vente précédente.
     // Un prix de vente immobilier réel ne descend jamais sous 1000 € : filtre les faux positifs
@@ -868,6 +874,8 @@
     new RegExp('(?:minor[ée]e?|diminu[ée]e?)\\s+de\\s+l[\'’][ée]valuation\\s+des\\s+(?:meubles|biens\\s+mobiliers|objets\\s+mobiliers)[^(.]{0,160}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
     new RegExp('(?:prix|valeur)\\s+(?:du|des)\\s+(?:mobilier|meubles|biens\\s+mobiliers)[^(.]{0,160}\\(\\s*' + MONTANT_MOBILIER + '\\s*\\.?\\s*\\)', 'i'),
     new RegExp('\\bdont\\s+' + MONTANT_MOBILIER + '\\s+(?:de|du|pour\\s+le|au\\s+titre\\s+du|correspondant\\s+au)\\s+(?:mobilier|meubles|biens\\s+mobiliers)', 'i'),
+    // Montant AVANT sa reprise en lettres (compromis d'agence scanné, 15/10 : « Aux biens mobiliers à concurrence de 4 000,00 € (quatre mille euros) »).
+    new RegExp('(?:MEUBLES|mobilier|biens\\s+mobiliers|objets\\s+mobiliers)\\s+(?:à|a)\\s+concurrence\\s+de\\s+' + MONTANT_MOBILIER, 'i'),
     new RegExp('(?:prix|valeur)\\s+(?:du|des)\\s+(?:mobilier|meubles|biens\\s+mobiliers)\\s*(?:est\\s+(?:fix[ée]|[ée]valu[ée])\\s+[àa]|:)\\s*(?:la\\s+somme\\s+de\\s+)?' + MONTANT_MOBILIER, 'i')
   ];
 

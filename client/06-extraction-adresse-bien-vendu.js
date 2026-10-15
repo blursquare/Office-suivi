@@ -350,7 +350,7 @@
   }
 
   function construireExtractionRegex(texte, dateCompromis, detectedDatesFournies, nomFichier) {
-    const source = String(texte || '');
+    const source = normaliserEurosOcr(texte);
     const typeActe = detecterTypeActe(source);
     const detectedDates = Array.isArray(detectedDatesFournies)
       ? detectedDatesFournies

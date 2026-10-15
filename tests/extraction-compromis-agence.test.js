@@ -150,3 +150,17 @@ test('prix : un premier motif sur un faux positif (< 1000 €) ne bloque pas le 
   const t = "le prix de la prestation (50 €) payé. La vente aura lieu moyennant le prix principal de\n\n120 000,00 € (cent vingt mille euros)";
   assert.equal(app.detecterPrixVente(t), 120000);
 });
+
+test('texte d’un scan (couche de texte avec « ¬ » pour « € », tout sur une ligne) : prix et agence trouvés (15/10, texte réel du compromis)', () => {
+  const t = "Le Mandataire  VILLEFRANCHE IMMOBILIER, SARL au capital de 7 500,00 ¬ ayant son siège social au 27 Rue de Vaux, 41200 VILLEFRANCHE SUR CHER, Prix de vente  La vente, si elle se réalise, aura lieu moyennant le prix principal de   120 000,00 ¬ (cent vingt mille euros)  Ce prix s'applique : 4   Aux biens mobiliers à concurrence de   4 000,00 ¬ (quatre mille euros)";
+  assert.equal(app.detecterPrixVente(t), 120000);
+  assert.equal(app.detecterNomAgence(t), 'VILLEFRANCHE IMMOBILIER');
+  const x = app.construireExtractionRegex(t, '');
+  assert.equal(x.champs.prixVente.valeur, 120000);
+  assert.equal(x.champs.nomAgence.valeur, 'VILLEFRANCHE IMMOBILIER');
+});
+
+test('mobilier : montant écrit avant sa reprise en lettres (15/10)', () => {
+  const t = "aura lieu moyennant le prix principal de 120 000,00 € (cent vingt mille euros) Ce prix s'applique : Aux biens mobiliers à concurrence de   4 000,00 € (quatre mille euros) Aux biens immobiliers à concurrence de 116 000,00 € (cent seize mille euros)";
+  assert.equal(app.detecterPrixMobilier(t), 4000);
+});
