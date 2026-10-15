@@ -119,10 +119,10 @@ const OUTILS_AGENT = [
   },
   {
     name: 'outil_claire',
-    description: 'Les outils de CLAIRE. Mode « lire » : le résultat te revient — aide_redaction (valeurs de l’acte reprises de la fiche et des pièces), controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — aide_redaction, controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, relecture_actes, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
+    description: 'Les outils de CLAIRE. Mode « lire » : le résultat te revient — controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, relecture_actes, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
     input_schema: { type: 'object', additionalProperties: false, required: ['outil', 'mode', 'dossier_id', 'texte'],
       properties: {
-        outil: { type: 'string', enum: ['aide_redaction', 'controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'relecture_actes', 'repertoire', 'claire_scan', 'nouveau_dossier'] },
+        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'relecture_actes', 'repertoire', 'claire_scan', 'nouveau_dossier'] },
         mode: { type: 'string', enum: ['lire', 'ouvrir'] },
         dossier_id: chaine('id du dossier, ou ""'), texte: chaine('recherche dans le répertoire, ou ""')
       } }

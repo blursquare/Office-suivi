@@ -1,14 +1,13 @@
   // ---- « Demander à CLAIRE » : tous les outils de CLAIRE (étude 13/10 : « Claire doit pouvoir utiliser tous les outils que l'on a
   // créés ») ----
   // Les calculs déjà branchés passent par faire_geste (provision, prorata, quotités, appel de fonds, contrôle de l'urbanisme). Cet outil
-  // ajoute le reste — Aide à la rédaction, Contrôle de l'urbanisme (résultat lu sur la fiche), Quotités (ce que la fiche donne),
+  // ajoute le reste — Contrôle de l'urbanisme (résultat lu sur la fiche), Quotités (ce que la fiche donne),
   // Répertoire et annuaire des notaires, Relecture d'actes, Forfait mobilier, Claire Scan, Nouveau dossier — en deux modes :
   //   - « lire » : le résultat rendu à l'agent (données de la fiche ou du répertoire, MASQUÉES par le serveur comme tout résultat) ;
   //   - « ouvrir » : un bouton dans la conversation qui ouvre l'outil, pré-rempli du dossier — jamais d'écran changé sous les yeux
   //     de l'utilisateur pendant qu'il lit la réponse. Ouvrir ou lire ne modifie rien : pas de carte d'autorisation.
 
   var OUTILS_CLAIRE_AGENT = {
-    aide_redaction: { libelle: 'Aide à la rédaction', onglet: 'redaction' },
     controle_urbanisme: { libelle: 'Contrôle de l’urbanisme', onglet: 'preemption' },
     quotites: { libelle: 'Quotités', onglet: 'quotites' },
     appel_fonds: { libelle: 'Appel de fonds', onglet: 'appel-fonds' },
@@ -21,7 +20,6 @@
     nouveau_dossier: { libelle: 'Nouveau dossier', onglet: 'nouveau' }
   };
   var MAX_RESULTATS_REPERTOIRE_AGENT = 15;
-  var RE_CHAMP_ACTE_NOMINATIF = /(notaire|banque|operateur|nom|prenom|vendeur|acquereur|adresse|ville|agence|syndic|geometre|commune|lieu|partie|personne|societe|representant|certification|numero|diag_)/;
 
   // Pure : l'outil porte-t-il déjà un travail sur un AUTRE dossier (quotités saisies, relecture lancée, appel de fonds) ? Le
   // pré-remplir le perdrait (relecture 13/10) : on le demande d'abord. Même dossier : l'outil est seulement affiché, tel quel.
@@ -58,7 +56,6 @@
     definirOnglet(o.onglet);
     if (!d) return;
     if (outil === 'quotites') choisirDossierQuotites(d.id);
-    else if (outil === 'aide_redaction') choisirDossierAideActe(d.id);
     else if (outil === 'relecture_actes' && typeof choisirDossierAudit === 'function') choisirDossierAudit(d.id);
   }
 
@@ -66,14 +63,6 @@
   function lectureOutilClaireAgent(outil, d, texte) {
     if (outil === 'repertoire') return chercherRepertoireAgent(texte);
     if (!d) return { erreur: 'dossier_id attendu pour lire cet outil' };
-    if (outil === 'aide_redaction') {
-      const v = valeursActeDossier(d);
-      // Un champ qui porte un nom (banque, notaire, opérateur de diagnostic, partie, adresse) part sous la clé « nom » : masqué en
-      // ENTIER par le serveur (relecture 13/10 : un nom propre hors des fiches passait).
-      return { champs_de_l_acte: Object.entries(v).map(([cle, x]) => ({ champ: (CHAMPS_ACTE.find(c => c.cle === cle) || {}).libelle || cle,
-        ...(RE_CHAMP_ACTE_NOMINATIF.test(cle) ? { nom: x.valeur } : { valeur: x.valeur }), source: x.source || '' })),
-        note: 'valeurs reprises de la fiche et des pièces lues ; ce qui manque est à compléter dans l’outil' };
-    }
     if (outil === 'controle_urbanisme') {
       const p = d.preemption;
       if (!p) return { analyse: 'aucune analyse enregistrée sur la fiche : ouvre l’outil (mode ouvrir) pour la lancer' };

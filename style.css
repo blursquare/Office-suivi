@@ -9434,7 +9434,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-eyebrow { display: flex; align-items: center; gap: 6px; margin: 20px 0 8px; }
 .pr-vide { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--success); font-size: var(--texte-m); }
 .pr-travaux { display: flex; flex-direction: column; gap: 8px; }
-/* ==== Sites consultés par CLAIRE (étude 14/10, client/69-sites-claire.js) : plan de situation de cadastre.gouv.fr,
+/* ==== Sites consultés par CLAIRE (étude 14/10, client/68-sites-claire.js) : plan de situation de cadastre.gouv.fr,
    suivi en direct (étapes + capture de l'écran du navigateur du serveur) ==== */
 .sites-carte { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; margin-bottom: 12px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
 .sites-carte-tete { display: flex; align-items: center; gap: 6px; }
@@ -9503,29 +9503,3 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-photo-etiquette.dossier { font-size: var(--texte-s); font-weight: 600; }
 .pr-photo-vide { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 16px; color: var(--muted); font-size: var(--texte-s); }
 @media (max-width: 700px) { .pr-photos { grid-template-columns: 1fr; } }
-
-/* ---- Aide à la rédaction de l'acte (étude 12/10, client/64-aide-redaction.js) ---- */
-.red-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.red-grille > * { min-width: 0; }
-@media (max-width: 1100px) { .red-grille { grid-template-columns: minmax(0, 1fr); } }
-.dash-header-actions select.red-dossier { min-width: 260px; max-width: 100%; }
-.red-carte { display: flex; flex-direction: column; gap: 12px; }
-.red-carte textarea.red-passage { width: 100%; min-height: 140px; resize: vertical; font-size: var(--texte-m); line-height: 1.45; }
-.red-resultat, #red-donnees { display: flex; flex-direction: column; gap: 8px; }
-.red-clause { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font-size: var(--texte-base); }
-.red-note { color: var(--muted); font-size: var(--texte-s); }
-.red-macro-box { max-width: 560px; }
-.red-macro-etapes { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
-textarea.red-macro-code { width: 100%; font-family: ui-monospace, monospace; font-size: var(--texte-xs); resize: vertical; }
-.red-word { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 24px; margin-bottom: 8px; }
-.red-groupe { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); }
-.red-compte { color: var(--muted); font-weight: 400; letter-spacing: 0; }
-.red-ligne { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
-.red-ligne-tete { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: var(--texte-s); }
-.red-libelle { color: var(--muted); font-weight: 500; }
-.red-source { color: var(--muted); }
-.red-ligne-valeur { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.red-valeur { font-size: var(--texte-base); color: var(--ink); overflow-wrap: anywhere; }
-.red-vide { color: var(--muted); font-size: var(--texte-s); margin: 0; }
-.red-alerte { margin: 4px 0 0; color: var(--urgent); font-size: var(--texte-s); font-weight: 600; }
-.red-etat { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: var(--texte-s); }

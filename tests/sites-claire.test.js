@@ -1,4 +1,4 @@
-// Plan de situation de cadastre.gouv.fr (client/69-sites-claire.js, étude 14/10) : ce qui manque pour le lancer, commune de l'outil,
+// Plan de situation de cadastre.gouv.fr (client/68-sites-claire.js, étude 14/10) : ce qui manque pour le lancer, commune de l'outil,
 // parcelles envoyées au serveur, lignes de résultat. Cas inventés.
 const test = require('node:test');
 const assert = require('node:assert');

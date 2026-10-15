@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.238.1';
+  const VERSION_APP = '0.239.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.239.0', date: '2026-10-15 19:54', resume: "Outil « Aide à la rédaction » supprimé (demande de l'étude) : écran, entrée du menu Outils, aide de « Demander à CLAIRE » et macro Word retirés. Le relais CLAIRE du poste reste en place pour les appels 3CX." },
     { version: '0.238.1', date: '2026-10-15 19:46', resume: "Compromis scanné (texte réel copié par l'étude) : la couche de texte du PDF portait elle-même « ¬ » à la place de « € », et le prix n'était jamais reconnu — le symbole est maintenant corrigé dès la lecture du texte, avant toute détection. L'agence est lue après le titre « Le Mandataire », sur la même ligne (« VILLEFRANCHE IMMOBILIER, SARL au capital… »)." },
     { version: '0.238.0', date: '2026-10-15 19:41', resume: "Successions : courriers d'interrogation de l'étude (étude 15/10). Sur la fiche d'une succession, « Courriers d'interrogation » : banque, assurance-vie, CPAM, caisse de retraite (AGIRC-ARRCO), CARSAT, MSA, mutuelle, EHPAD, impôts — les neuf textes de l'étude repris mot pour mot, sur le papier à en-tête de l'office. Le défunt (identité, domicile, naissance, décès, conjoint) se saisit une fois et reste sur la fiche ; la défunte / le défunt s'accorde selon la civilité ; Word à télécharger ou à ranger dans le dossier du NAS." },
     { version: '0.237.0', date: '2026-10-15 19:18', resume: "Nouveau dossier › Vérifier : bouton « Copier le texte lu (anonymisé) » — copie les passages utiles du compromis lu (prix, mandataire, localisation, signature, prêt), emails, téléphones et noms remplacés par leur forme, pour comprendre pourquoi une donnée n'est pas trouvée. Compromis scanné : le prix est cherché par le second motif même si le premier tombe sur une somme trop petite ; le nom de l'agence sous « Le Mandataire » tolère une fin de ligne." },

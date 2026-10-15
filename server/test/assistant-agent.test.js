@@ -345,22 +345,6 @@ test('documents_recents (étude 12/10) : rien de nominatif ne part, les document
   assert.ok(OUTILS_AGENT.some((t) => t.name === 'documents_recents') && OUTILS_AGENT.some((t) => t.name === 'ouvrir_documents'));
 });
 
-test('aide à la rédaction (étude 12/10) : passage numéroté, rien de nominatif ni de montant ne part, seules des clés de la liste reviennent', async () => {
-  const { passageNumerote, promptCorrespondanceActe, validateurCorrespondanceActe } = require('../src/aideRedaction');
-  const { pseudonymiserDemande, masquerMontants } = require('../src/assistantMistral');
-  const p = passageNumerote('Monsieur Paul FOURNIER vend au prix de CENT MILLE EUROS (100.000,00 €). Cet état a été établi, le ---, par la société ---. --- OPTION 2');
-  assert.equal(p.nombre, 2);
-  const ps = pseudonymiserDemande(p.texte, {}, D);
-  const prompt = promptCorrespondanceActe(masquerMontants(ps.texte, ps.table), p.nombre);
-  assert.doesNotMatch(prompt, SECRETS);
-  assert.doesNotMatch(prompt, /100\.000/);
-  assert.match(prompt, /\[blanc 1\].*\[blanc 2\]/s);
-  const valider = validateurCorrespondanceActe(2);
-  assert.equal(valider({ blancs: ['gaz_date', 'diag_societe'] }), null);
-  assert.ok(valider({ blancs: ['gaz_date'] }));
-  assert.ok(valider({ blancs: ['gaz_date', '18 mai 2026'] }), 'une valeur au lieu d’une clé est refusée');
-});
-
 test('documents du dossier (étude 13/10) : le texte d’un PDF lu part masqué, tiers compris ; le rendu revient avec les vrais noms', async () => {
   const client = fauxClient([
     { stop_reason: 'tool_use', usage, content: [outil('t1', 'documents_du_dossier', { dossier_id: 'd1' })] },

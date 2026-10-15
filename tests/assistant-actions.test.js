@@ -89,9 +89,7 @@ test('outils de CLAIRE : répertoire cherché sur tous les mots, lecture d’un 
   const n = app.chercherRepertoireAgent('notaire blois', contacts, offices);
   assert.equal(n.resultats[0].sorte, 'notaire');
   assert.ok(app.chercherRepertoireAgent('', contacts, offices).erreur);
-  assert.ok(app.lectureOutilClaireAgent('aide_redaction', null, '').erreur, 'dossier exigé');
   assert.match(app.lectureOutilClaireAgent('controle_urbanisme', dossier(), '').analyse, /aucune analyse/);
-  assert.ok(Array.isArray(app.lectureOutilClaireAgent('aide_redaction', dossier({ rendezVousSignature: '2026-12-10' }), '').champs_de_l_acte));
   assert.ok(app.lectureOutilClaireAgent('forfait_mobilier', dossier(), '').erreur, 'se lit pas : à ouvrir');
 });
 

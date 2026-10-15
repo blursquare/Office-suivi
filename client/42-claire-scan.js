@@ -1020,7 +1020,6 @@
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',
       'icon-nav-quotites': 'users',
-      'icon-nav-redaction': 'pencil',
       'icon-nav-preemption': 'shield',
       'icon-nav-confreres': 'book',
       'icon-calc-warning': 'alert-triangle',

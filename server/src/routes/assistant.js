@@ -11,8 +11,6 @@ const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssi
 const { tourAgent } = require('../assistantAgent');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
-const { passageNumerote, promptCorrespondanceActe, schemaCorrespondanceActe, validateurCorrespondanceActe } = require('../aideRedaction');
-const { pseudonymiserDemande, masquerMontants } = require('../assistantMistral');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -157,27 +155,6 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       const raison = err && err.message ? String(err.message).slice(0, 160) : 'réponse illisible';
       noterVerification(parametresRepo, 'assistant-conversation', { ok: false, message: raison.slice(0, 120) });
       res.json({ reponse: '', raison });
-    }
-  }));
-
-  // Aide à la rédaction (étude 12/10, voir ../aideRedaction.js) : le champ de chaque blanc « --- » d'un passage de la trame. Ne part
-  // vers l'IA que le passage (noms et montants masqués) et la liste des champs ; la réponse ne contient que des clés de cette liste.
-  routeur.post('/assistant/correspondance-acte', routeAsync(async (req, res) => {
-    const corps = req.body && typeof req.body === 'object' ? req.body : {};
-    const { texte, nombre } = passageNumerote(typeof corps.passage === 'string' ? corps.passage : '');
-    if (!nombre) { res.json({ blancs: [] }); return; }
-    const m = moteurCourant();
-    let passage = texte;
-    if (m.pseudonymiser) { const ps = pseudonymiserDemande(texte, {}, dossiersDuCorps(corps)); passage = masquerMontants(ps.texte, ps.table); }
-    try {
-      const o = await m.client.genererJson(promptCorrespondanceActe(passage, nombre), validateurCorrespondanceActe(nombre),
-        { schema: schemaCorrespondanceActe(nombre), longueurMax: 400 });
-      noterVerification(parametresRepo, 'aide-redaction-ia', { detail: m.moteur });
-      res.json({ blancs: o.blancs, moteur: m.moteur });
-    } catch (err) {
-      const raison = err && err.message ? String(err.message).slice(0, 160) : 'réponse illisible';
-      noterVerification(parametresRepo, 'aide-redaction-ia', { ok: false, message: raison.slice(0, 120) });
-      res.status(502).json({ erreur: 'IA indisponible : ' + raison });
     }
   }));
 

@@ -9,13 +9,10 @@
 //  - GET /api/relais-word/programme : CLAIRE-relais.exe, le même pour tous les postes ;
 //  - POST /api/relais-word/code { poste } : le code d'installation de ce poste (nouveau jeton à chaque demande, seule son
 //    empreinte est gardée — clé `relais-word`). Le code est la seule réponse qui porte un jeton : il ne repasse jamais par une route.
-//  - POST /api/relais-word/macro { poste } : la macro Word de ce poste (macroWordRelais.js), même jeton en attente que le code.
 
 const express = require('express');
 const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
-const { noterVerification } = require('../verificationsTerrain');
-const { moduleVbaRelais, reponseTexteRelais } = require('../macroWordRelais');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
   appliquerReleveWord, demanderInsertionWord, etatPosteWord
@@ -58,20 +55,10 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat) {
   routeur.post('/relais-word/releve', (req, res) => {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
-    // La macro Word a son propre jeton (« poste:macro ») : relier Word ne coupe jamais le programme du poste (appels 3CX).
-    if (!poste || !jetonAccepte(parametresRepo, poste + (corps.format === 'texte' ? ':macro' : ''), corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
+    if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
     if (corps.verifier === true) { res.json({ ok: true }); return; }
-    const avant = (etat.postes.get(poste) || {}).n || 0;
     const { commandes, appels, renvoyer } = appliquerReleveWord(etat, poste, corps);
-    const p = etat.postes.get(poste);
-    if (p.n !== avant && p.paragraphe) noterVerification(parametresRepo, 'relais-word-suivi');
-    if (p.n !== avant && p.paragraphe && corps.format === 'texte') noterVerification(parametresRepo, 'relais-word-macro');
-    for (const r of Array.isArray(corps.resultats) ? corps.resultats : []) {
-      if (r && typeof r.id === 'string') noterVerification(parametresRepo, 'relais-word-insertion', r.ok === true ? { ok: true } : { ok: false, message: String(r.message || 'refus').slice(0, 80) });
-    }
-    // La macro Word (macroWordRelais.js) lit une réponse en lignes, sans analyseur JSON.
-    if (corps.format === 'texte') { res.type('text/plain; charset=utf-8').send(reponseTexteRelais(commandes, renvoyer)); return; }
     const rep = { commandes };
     if (appels.length) rep.appels = appels;
     if (renvoyer) rep.renvoyer = true;
@@ -86,7 +73,7 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     const poste = clePoste(req.query.poste);
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
     // « Installé » : un jeton en service (programme ou macro) ; un code demandé mais jamais présenté ne compte pas.
-    res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste) || !!empreintePoste(parametresRepo, poste + ':macro')));
+    res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste)));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};
@@ -126,11 +113,6 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
   routeur.post('/relais-word/code', (req, res) => {
     const cfg = nouveauJetonPoste(req, res);
     if (cfg) res.json({ code: codeInstallationRelais(cfg) });
-  });
-  // La macro Word du collaborateur de ce poste (étude 12/10 : le programme est mis en quarantaine par l'antivirus).
-  routeur.post('/relais-word/macro', (req, res) => {
-    const cfg = nouveauJetonPoste(req, res, ':macro');
-    if (cfg) res.json({ macro: moduleVbaRelais(cfg) });
   });
   return routeur;
 }

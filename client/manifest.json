@@ -63,14 +63,13 @@
   "61-assistant-agent.js",
   "62-assistant-documents.js",
   "63-assistant-conversations.js",
-  "64-aide-redaction.js",
-  "65-assistant-documents-rendus.js",
-  "66-assistant-pieces-jointes.js",
-  "67-assistant-actions.js",
-  "68-assistant-outils.js",
-  "69-sites-claire.js",
-  "70-depot-dia.js",
-  "71-memoire.js",
-  "72-diagnostic-lecture.js",
-  "73-courriers-succession.js"
+  "64-assistant-documents-rendus.js",
+  "65-assistant-pieces-jointes.js",
+  "66-assistant-actions.js",
+  "67-assistant-outils.js",
+  "68-sites-claire.js",
+  "69-depot-dia.js",
+  "70-memoire.js",
+  "71-diagnostic-lecture.js",
+  "72-courriers-succession.js"
 ]
