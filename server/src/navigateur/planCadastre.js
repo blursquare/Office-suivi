@@ -71,9 +71,10 @@ async function attendreCarte(s, maxMs = 20000) {
 }
 
 // Lisibilité (étude 14/10 : « idem si pas lisible ou trop petite ») : sur le papier, le plus grand côté de chaque parcelle mesure au
-// moins 12 mm ; sinon elle part sur un plan à elle, plus rapproché. Au 1/500 (l'échelle la plus fine retenue) une parcelle plus
-// petite reste sur ce plan : on ne peut pas faire mieux.
-const LISIBLE_MM = 12;
+// moins 4 mm (12 mm jusqu'au 15/10 : dix parcelles de 17 à 113 m de Blois, sur 415 × 330 m, étaient coupées en trois plans alors qu'un
+// seul au 1/4000 convenait — « en dézoomant un peu ») ; sinon elle part sur un plan à elle, plus rapproché. Au 1/500 (l'échelle la
+// plus fine retenue) une parcelle plus petite reste sur ce plan : on ne peut pas faire mieux.
+const LISIBLE_MM = 4;
 const MAX_PLANS = 8;
 
 /**

@@ -169,20 +169,6 @@
  },
  {
   "portee": "commune",
-  "code": "41018",
-  "nom": "Blois",
-  "mode": "inconnu",
-  "plateforme": "",
-  "url": "https://www.blois.fr/pratique/demarches/declaration-intention-aliener",
-  "courriel": "",
-  "notairesSeulement": false,
-  "perimetre": "",
-  "note": "Page lue : la DIA est signée par le notaire ; elle ne dit pas comment la transmettre (ni guichet ni courriel). Service de l'Urbanisme réglementaire, 34 rue de la Villette, tél. 02 54 56 51 55, formulaire de contact de la Ville. Cerfa 10072*04.",
-  "source": "https://www.blois.fr/pratique/demarches/declaration-intention-aliener",
-  "verifieLe": "2026-10-15"
- },
- {
-  "portee": "commune",
   "code": "41194",
   "nom": "Romorantin-Lanthenay",
   "mode": "inconnu",

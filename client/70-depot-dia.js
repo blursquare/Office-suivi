@@ -147,7 +147,7 @@
     const m = j.mairie;
     const origine = j.origine === 'etude' ? `Corrigé par l’étude${j.modifieLe ? ` le ${formatDateFr(String(j.modifieLe).slice(0, 10))}` : ''}`
       : j.origine === 'commune' ? 'Procédure propre à la commune' : j.origine === 'epci-partiel' ? `Intercommunalité${j.epci ? ` (${j.epci.nom})` : ''} : guichet pour certaines communes seulement` : j.origine === 'epci' ? `Procédure de l’intercommunalité${j.epci ? ` (${j.epci.nom})` : ''}` : 'Rien de relevé';
-    const verifie = d.verifieLe && j.origine !== 'etude' ? `Page lue le ${formatDateFr(d.verifieLe)}` : '';
+    const verifie = d.verifieLe && j.origine !== 'etude' ? `${d.indiquePar ? `Indiqué par ${d.indiquePar}` : 'Page lue'} le ${formatDateFr(d.verifieLe)}` : '';
     zone.innerHTML = `<div class="sites-carte">
         <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('map-pin')} ${escapeHtml(j.commune)}</span>
           <span class="dot-label ${d.mode === 'inconnu' ? 'dl-neutre' : 'dl-success'}"><span class="dot"></span>${escapeHtml(libelleModeDepotDia(d.mode))}</span></div>
@@ -156,7 +156,7 @@
           ${url ? `<a class="lien-action" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')} ${d.mode === 'guichet' ? 'Ouvrir le guichet' : 'Ouvrir la page'}</a>` : ''}
           ${d.courriel ? `<wa-button appearance="outlined" size="s" onclick="copierCourrielDepotDia('${escapeOnclickArg(d.courriel)}')">${icone('mail')} Copier ${escapeHtml(d.courriel)}</wa-button>` : ''}
         </div>
-        <p class="hint">${escapeHtml([origine, verifie].filter(Boolean).join(' · '))}${source ? ` · <a href="${escapeAttr(source)}" target="_blank" rel="noopener">page lue</a>` : ''}</p>
+        <p class="hint">${escapeHtml([origine, verifie].filter(Boolean).join(' · '))}${source && !d.indiquePar ? ` · <a href="${escapeAttr(source)}" target="_blank" rel="noopener">page lue</a>` : ''}</p>
         ${m ? `<div class="depot-dia-mairie"><span class="section-eyebrow">Mairie</span>
             <span>${escapeHtml(m.nom)}${m.adresse ? ` — ${escapeHtml(m.adresse)}` : ''}</span>
             <span>${m.telephone ? `Tél. ${escapeHtml(m.telephone)}` : ''}${m.courriel ? ` ${icone('mail')} <a href="mailto:${escapeAttr(m.courriel)}">${escapeHtml(m.courriel)}</a>` : ''}${lienDepotDiaSur(m.site) ? ` <a href="${escapeAttr(lienDepotDiaSur(m.site))}" target="_blank" rel="noopener">${icone('link')} site</a>` : ''}</span></div>`

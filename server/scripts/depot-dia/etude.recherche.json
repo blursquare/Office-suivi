@@ -1,0 +1,17 @@
+[
+ {
+  "portee": "epci",
+  "code": "200030385",
+  "nom": "CA de Blois Agglopolys",
+  "mode": "guichet",
+  "plateforme": "GNAU Operis",
+  "url": "https://demande-urbanisme.agglopolys.fr/#/",
+  "courriel": "",
+  "notairesSeulement": false,
+  "perimetre": "",
+  "note": "Indiqué par l'étude le 15/10/2026. Blois : la page de la Ville renvoie aussi au Service de l'Urbanisme réglementaire, 34 rue de la Villette, tél. 02 54 56 51 55.",
+  "source": "https://demande-urbanisme.agglopolys.fr/#/",
+  "indiquePar": "l'étude",
+  "verifieLe": "2026-10-15"
+ }
+]

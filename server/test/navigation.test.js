@@ -304,3 +304,13 @@ test('parcours réel cadastre.gouv.fr (CLAIRE_TEST_NAVIGATEUR=1)', { skip: !proc
     assert.ok(sortie.length > plans[0].pdf.length);
   } finally { await s.fermer(); }
 });
+
+test('plans (étude 15/10) : dix parcelles de 17 à 113 m sur 415 × 330 m tiennent sur UN plan au 1/4000, en dézoomant', () => {
+  const tailles = [58, 41, 113, 39, 45, 99, 33, 32, 33, 17];
+  const g = groupesPlans(tailles.map((t, i) => carre((i % 5) * 80, Math.floor(i / 5) * 250, t)));
+  assert.equal(g.length, 1);
+  assert.equal(g[0].echelle, 4000);
+  // Une parcelle de 6 m, à 540 m d'une autre : au 1/4000 elle ferait 1,5 mm sur le papier (invisible) — plan à part, plus rapproché.
+  const deux = groupesPlans([carre(0, 0, 60), carre(540, 0, 6)]);
+  assert.equal(deux.length, 2);
+});

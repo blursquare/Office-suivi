@@ -19820,3 +19820,9 @@ d'intention d'aliéner » ; réponse : aucune liste nationale (ni data.gouv.fr n
   `scripts/depot-dia/ajustements.json`), communes dites hors guichet par la page, Blois (mode non étayé), correction de l'étude qui perdait le
   périmètre (et ne s'affiche plus « page lue »), doublon d'intercommunalité entre départements, cache négatif de l'annuaire (5 min),
   double clic sur « Enregistrer », apostrophes doublées d'un nom d'EPCI.
+
+### 0.232.1 — 15/10/2026 (étude : GNAU d'Agglopolys, plan en un seul plan, emails selon le lieu du rendez-vous)
+- Agglopolys (200030385, Blois comprise) : guichet GNAU `https://demande-urbanisme.agglopolys.fr/#/`, `indiquePar: "l'étude"` (affiché « Indiqué par l'étude le … »).
+- Plan de situation cadastre : `LISIBLE_MM` 12 → 4 (dix parcelles AL/HE de Blois tiennent sur un plan au 1/4000).
+- Emails : `typeRdvEmail(d)` (agenda/fiche), `lieuRdvEmail` nomme l'office du confrère, variantes visio (pièce d'identité et RIB par email), conditions de modèle `si visio` / `si pas visio` / `si chez le confrère` ; projet d'acte client : après le rappel du rendez-vous, « Je vous remercie de vous munir de votre RIB et de votre pièce d'identité pour le rendez-vous. » (texte de l'étude).
+- Mémoire de CLAIRE (4 dossiers du NAS) : noyau serveur écrit (`memoire.js`, mis de côté, non publié), reste routes, lecture PDF/OCR par le poste, outil de l'agent.

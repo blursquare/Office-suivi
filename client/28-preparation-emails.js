@@ -1031,7 +1031,9 @@
     return {
       sujet: `RIB et pièce d'identité pour le rendez-vous de signature — ${libelleDossierAffiche(d)}`,
       corps: ['Bonjour,',
-        'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.',
+        typeRdvEmail(d) === 'visio'
+          ? 'En prévision du rendez-vous de signature en visioconférence, je vous remercie de nous adresser votre RIB et une copie de votre pièce d’identité en cours de validité.'
+          : 'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.',
         'Bien cordialement,'].join('\n\n')
     };
   }
@@ -1125,9 +1127,11 @@
   function construireEmailReceptionFonds(d) {
     const heure = heureEmail(d.rendezVousSignatureHeure);
     const rdv = d.rendezVousSignature
-      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
-        // Au confrère, pas de pièces d'identité ni de RIB à réclamer (demandé par l'étude le 29/09).
-        + (notaireParticipantRepresenteAcquereur(d) ? '' : '\n\nJe vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.')
+      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, ${lieuRdvEmail(d, false)}.`
+        // Au confrère, pas de pièces d'identité ni de RIB à réclamer (demandé par l'étude le 29/09). En visioconférence : à nous adresser par email.
+        + (notaireParticipantRepresenteAcquereur(d) ? '' : (typeRdvEmail(d) === 'visio'
+          ? '\n\nLe rendez-vous se tenant en visioconférence, je vous remercie de nous adresser par email vos pièces d’identité et votre RIB.'
+          : '\n\nJe vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.'))
       : '';
     return {
       sujet: `Réception des fonds — ${libelleDossierAffiche(d)}`,
@@ -1154,7 +1158,11 @@
       };
     }
     const rdv = d.rendezVousSignature
-      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, en notre office.`
+      ? `\n\nNous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, ${lieuRdvEmail(d, false)}.`
+      // Texte de l'étude (15/10) : après le rappel du rendez-vous, RIB et pièce d'identité (par email si le rendez-vous est en visio).
+        + (typeRdvEmail(d) === 'visio'
+          ? '\n\nLe rendez-vous se tenant en visioconférence, je vous remercie de nous adresser par email votre RIB et votre pièce d’identité.'
+          : '\n\nJe vous remercie de vous munir de votre RIB et de votre pièce d\'identité pour le rendez-vous.')
       : '';
     return {
       sujet: `Projet d'acte de vente — ${libelleDossierAffiche(d)}`,
@@ -1191,8 +1199,19 @@
   function lieuRdvEmail(d, auConfrere) {
     const t = typeRendezVous(d, categoriesRdvReglees());
     if (t === 'visio') return 'en visioconférence (le lien de connexion vous sera communiqué)';
-    if (t === 'confrere') return auConfrere ? 'en votre office' : 'en l’office du notaire de l’acquéreur';
+    if (t === 'confrere') {
+      if (auConfrere) return 'en votre office';
+      // Chez le confrère de l'acquéreur ou du vendeur : son nom quand la fiche le donne (étude 15/10 : le lieu se lit dans l'agenda).
+      const nom = notaireParticipantRepresenteAcquereur(d) ? d.notaireAcquereur : (confrereRepresenteVendeur(d) ? d.notaireVendeur : '');
+      return nom ? `en l’office de ${String(nom).trim()}` : 'en l’office de notre confrère';
+    }
     return 'en notre office';
+  }
+  // Pure : où se tient le rendez-vous d'après l'agenda (catégorie de couleur du rendez-vous, ou type choisi sur la fiche) :
+  // 'office', 'visio', 'confrere' ; 'office' par défaut, comme les textes d'avant.
+  function typeRdvEmail(d) {
+    const t = typeRendezVous(d, categoriesRdvReglees());
+    return t === 'visio' || t === 'confrere' ? t : 'office';
   }
   function quandRdvEmail(d) {
     return `${MARQUE_FORT_DEBUT}le ${dateAvecJourFr(d.rendezVousSignature)}${d.rendezVousSignatureHeure ? ' à ' + heureEmail(d.rendezVousSignatureHeure) : ''}${MARQUE_FORT_FIN}`;
@@ -1209,7 +1228,9 @@
     }
     return { sujet, corps: ['Bonjour,',
       `Nous vous confirmons le rendez-vous de signature de l’acte de vente ${quandRdvEmail(d)}, ${lieuRdvEmail(d, false)}.`,
-      'Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
+      typeRdvEmail(d) === 'visio'
+        ? 'Merci de nous adresser par email une copie de votre pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.'
+        : 'Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
       'Nous restons à votre disposition pour toute question.',
       'Bien cordialement,'].join('\n\n') };
   }
@@ -1253,6 +1274,9 @@
     { nom: 'si confrère', aide: 'au confrère seulement' },
     { nom: 'si rendez-vous', aide: 'seulement si le rendez-vous de signature est fixé' },
     { nom: 'si sans rendez-vous', aide: 'seulement si le rendez-vous de signature n’est pas encore fixé' },
+    { nom: 'si visio', aide: 'seulement si le rendez-vous est en visioconférence (lu dans l’agenda)' },
+    { nom: 'si pas visio', aide: 'seulement si le rendez-vous n’est pas en visioconférence' },
+    { nom: 'si chez le confrère', aide: 'seulement si le rendez-vous a lieu chez le confrère' },
     { nom: 'si prêt attendu', aide: 'seulement si une offre de prêt est encore attendue' }
   ];
 
@@ -1295,6 +1319,9 @@
     if (n === 'si client') return !confrere;
     if (n === 'si confrère') return confrere;
     if (n === 'si rendez-vous') return !!d.rendezVousSignature;
+    if (n === 'si visio') return typeRdvEmail(d) === 'visio';
+    if (n === 'si pas visio') return typeRdvEmail(d) !== 'visio';
+    if (n === 'si chez le confrère') return typeRdvEmail(d) === 'confrere';
     if (n === 'si prêt attendu') return !d.sansPret && d.offrePretStatut !== 'recue';
     return true;
   }
@@ -1345,7 +1372,7 @@
           "L'échéance d'obtention du prêt {échéance du prêt}.", 'Merci de nous transmettre cette offre dès réception, ou de nous indiquer où en est votre demande de financement.'].join('\n\n') },
       { cle: 'rib', nom: 'RIB et pièce d’identité', construire: construireEmailRelanceRib,
         sujet: 'RIB et pièce d\'identité pour le rendez-vous de signature — {dossier}',
-        corps: ['Bonjour,', 'En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.', 'Bien cordialement,'].join('\n\n') },
+        corps: ['Bonjour,', '{si pas visio}En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.', '{si visio}En prévision du rendez-vous de signature en visioconférence, je vous remercie de nous adresser votre RIB et une copie de votre pièce d’identité en cours de validité.', 'Bien cordialement,'].join('\n\n') },
       { cle: 'ventePrealable', nom: 'Vente préalable (au client)', construire: construireEmailRelanceVentePrealable,
         sujet: 'Vente préalable de votre bien — {dossier}',
         corps: ['Bonjour,', 'Votre acquisition est conclue sous la condition de la vente préalable de votre bien, qui {échéance de la vente préalable}.',
@@ -1357,12 +1384,15 @@
       { cle: 'fonds', nom: 'Réception des fonds', construire: construireEmailReceptionFonds,
         sujet: 'Réception des fonds — {dossier}',
         corps: ['Bonjour,', 'Nous vous confirmons que les fonds destinés à votre acquisition ont bien été reçus en notre comptabilité.',
-          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, en notre office.",
-          '{si client}{si rendez-vous}Je vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.', 'Nous restons à votre disposition pour toute question.'].join('\n\n') },
+          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, {lieu du rendez-vous}.",
+          '{si client}{si rendez-vous}{si pas visio}Je vous remercie de vous munir de vos pièces d’identité et de votre RIB pour le rendez-vous.',
+          '{si client}{si rendez-vous}{si visio}Le rendez-vous se tenant en visioconférence, je vous remercie de nous adresser par email vos pièces d’identité et votre RIB.', 'Nous restons à votre disposition pour toute question.'].join('\n\n') },
       { cle: 'projet', nom: 'Projet d’acte', construire: construireEmailProjetActe,
         sujet: 'Projet d\'acte de vente — {dossier}',
         corps: ['Bonjour,', "Veuillez trouver ci-joint le projet de l'acte de vente, pour lecture avant la signature.",
-          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, en notre office.",
+          "Nous vous rappelons que le rendez-vous de signature de l'acte authentique est fixé au {date et heure du rendez-vous}, {lieu du rendez-vous}.",
+          "{si rendez-vous}{si pas visio}Je vous remercie de vous munir de votre RIB et de votre pièce d'identité pour le rendez-vous.",
+          '{si rendez-vous}{si visio}Le rendez-vous se tenant en visioconférence, je vous remercie de nous adresser par email votre RIB et votre pièce d’identité.',
           'Nous restons à votre disposition pour toute question ou remarque sur ce projet.'].join('\n\n') },
       { cle: 'projetConfrere', nom: 'Projet d’acte (au confrère)', construire: construireEmailProjetActe,
         sujet: 'Projet d\'acte de vente — {dossier}',
@@ -1371,7 +1401,8 @@
       { cle: 'confirmationRdv', nom: 'Confirmation du rendez-vous (au client)', construire: construireEmailConfirmationRdv,
         sujet: 'Confirmation du rendez-vous de signature — {dossier}',
         corps: ['Bonjour,', 'Nous vous confirmons le rendez-vous de signature de l’acte de vente le {date et heure du rendez-vous}, {lieu du rendez-vous}.',
-          'Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
+          '{si pas visio}Merci de vous munir d’une pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
+          '{si visio}Merci de nous adresser par email une copie de votre pièce d’identité en cours de validité. Les fonds nécessaires à l’acquisition devront nous parvenir par virement quelques jours avant le rendez-vous.',
           'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
       { cle: 'confirmationRdvConfrere', nom: 'Confirmation du rendez-vous (au confrère)', construire: construireEmailConfirmationRdv,
         sujet: 'Confirmation du rendez-vous de signature — {dossier}',

@@ -14,7 +14,10 @@ const CAS = [
   { ...BASE, nomAgence: 'ORPI Blois', pret: dans(20), ventebien: dans(10), rendezVousSignature: dans(30), rendezVousSignatureHeure: '10:30' },
   { ...BASE, pret: dans(-5), ventebien: dans(-3), rendezVousSignature: dans(5), sansPret: false, offrePretStatut: 'recue' },
   { ...BASE, ...CONFRERE, rendezVousSignature: dans(12), rendezVousSignatureHeure: '14:00', ventebien: dans(8) },
-  { ...BASE, sansPret: true, rendezVousSignature: dans(3), rendezVousSignatureHeure: '09:00' }
+  { ...BASE, sansPret: true, rendezVousSignature: dans(3), rendezVousSignatureHeure: '09:00' },
+  // Lieu lu dans l'agenda / sur la fiche (15/10) : visio, chez le confrère du vendeur.
+  { ...BASE, rendezVousSignature: dans(9), rendezVousSignatureHeure: '15:00', rendezVousType: 'visio' },
+  { ...BASE, notaireVendeur: 'Maître Paul DUPUIS (Tours)', roleNotaire: 'participant', rendezVousSignature: dans(9), rendezVousSignatureHeure: '15:00', rendezVousType: 'confrere' }
 ];
 const sansMarques = (t) => app.texteSansMarques(t);
 
@@ -114,4 +117,15 @@ test('projet d’acte au confrère : texte de l’étude mot pour mot (08/10), a
   const sans = app.emailDepuisModele('projet', { ...BASE, ...CONFRERE }, { modifies: {}, perso: [] });
   assert.equal(sansMarques(sans.corps), "Mon Cher Maître,\n\nVeuillez trouver ci-joint le projet de l'acte de vente.\n\nVous en souhaitant bonne réception.\n\nVotre bien dévoué.");
   assert.match(app.emailDepuisModele('projet', { ...BASE, rendezVousSignature: '2026-10-14' }, { modifies: {}, perso: [] }).corps, /^Bonjour,/);
+});
+
+test('lieu du rendez-vous lu dans l’agenda : le projet rappelle RIB et pièce d’identité, adaptés à la visio', () => {
+  const office = { ...BASE, rendezVousSignature: dans(9), rendezVousSignatureHeure: '15:00' };
+  assert.match(sansMarques(app.construireEmailProjetActe(office).corps), /en notre office\.\n\nJe vous remercie de vous munir de votre RIB et de votre pièce d'identité pour le rendez-vous\.\n\nNous restons/);
+  const visio = { ...office, rendezVousType: 'visio' };
+  const c = sansMarques(app.construireEmailProjetActe(visio).corps);
+  assert.match(c, /en visioconférence/);
+  assert.match(c, /adresser par email votre RIB et votre pièce d’identité/);
+  assert.match(sansMarques(app.construireEmailConfirmationRdv(visio).corps), /adresser par email une copie de votre pièce d’identité/);
+  assert.doesNotMatch(sansMarques(app.construireEmailProjetActe({ ...BASE }).corps), /RIB/);
 });

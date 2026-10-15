@@ -16,7 +16,7 @@ const DELAI_MS = 15000;
 const CLE_CORRECTIONS = 'depot-dia';
 const MODES = ['guichet', 'courriel', 'courrier', 'inconnu'];
 
-/** @typedef {{ mode: string, plateforme: string, url: string, courriel: string, notairesSeulement: boolean, perimetre: string, note: string, source: string, verifieLe: string }} DepotDia */
+/** @typedef {{ mode: string, plateforme: string, url: string, courriel: string, notairesSeulement: boolean, perimetre: string, note: string, source: string, verifieLe: string, indiquePar: string }} DepotDia */
 
 let baseChargee = /** @type {any} */ (null);
 /** La base livrée (chargée une fois ; `require` au chemin littéral pour que le .exe l'embarque). */
@@ -51,6 +51,7 @@ function assainirDepot(e) {
     perimetre: texte(x.perimetre, 160),
     note: texte(x.note, 240),
     source: urlSure(x.source),
+    indiquePar: texte(x.indiquePar, 40),
     verifieLe: /^\d{4}-\d{2}-\d{2}$/.test(String(x.verifieLe || '')) ? String(x.verifieLe) : ''
   };
 }
