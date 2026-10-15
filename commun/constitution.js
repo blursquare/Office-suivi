@@ -96,83 +96,97 @@
     return `${identite} demeurant à ${domicile || '[adresse à compléter]'}.`;
   }
 
-  /** Pure : le tableau des références cadastrales (format de courrierRenduAgent). @param {ParcelleCourrier[]} parcelles */
-  function tableauParcelles(parcelles) {
-    const cellule = (t) => String(t == null ? '' : t).replace(/\|/g, '/').trim();
-    const lignes = ['| Préfixe | Section | N° | Adresse ou lieudit | Contenance |'];
-    (parcelles || []).forEach((p) => lignes.push(`| ${cellule(p.prefixe)} | ${cellule(p.section)} | ${cellule(p.numero)} | ${cellule(p.lieuDit)} | ${cellule(/^\s*\d+\s*$/.test(String(p.surface || '')) ? contenanceDepuisCentiares(Number(p.surface)) : p.surface)} |`));
+  /** Pure : une contenance d'Authentic (nombre seul = m²) écrite « 5 a 12 ca ». @param {string} [surface] */
+  function contenanceEcrite(surface) {
+    const s = String(surface == null ? '' : surface).trim();
+    return /^\d+$/.test(s) ? contenanceDepuisCentiares(Number(s)) : s;
+  }
+
+  // Le tableau des références cadastrales des courriers de l'étude, tel que dans ses modèles Word : cinq colonnes (en twips),
+  // en-tête grisé (E6E6E6), « Contenance » centrée, contenances à droite, ligne « Contenance totale » sur les quatre premières colonnes.
+  const GRILLE_PARCELLES = [862, 924, 909, 3808, 1769];
+
+  /**
+   * @typedef {{ texte: string, fond?: string, jc?: 'left'|'center'|'right', span?: number }} CelluleCourrier
+   * @typedef {{ type: 'tableau', grille: number[], ind: number, lignes: Array<{ cellules: CelluleCourrier[] }> }} TableauCourrier
+   * @typedef {{ adresse: string[], adresseDebut: number, date: string, lignes: Array<string|TableauCourrier>, signature: string, blancsSignature: number,
+   *   questionnaire?: { references: string, adresseImmeuble: string } }} DocumentCourrier
+   */
+
+  /** Pure : le tableau des parcelles d'un courrier. @param {ParcelleCourrier[]} parcelles @returns {TableauCourrier} */
+  function tableauParcellesCourrier(parcelles) {
+    const gris = 'E6E6E6';
+    /** @type {CelluleCourrier[]} */
+    const entete = ['Préfixe', 'Section', 'N°', 'Adresse ou lieudit'].map((t) => ({ texte: t, fond: gris }));
+    entete.push({ texte: 'Contenance', fond: gris, jc: 'center' });
+    /** @type {Array<{ cellules: CelluleCourrier[] }>} */
+    const lignes = [{ cellules: entete }];
+    (parcelles || []).forEach((p) => lignes.push({ cellules: [
+      { texte: String(p.prefixe || '').trim() }, { texte: String(p.section || '').trim() }, { texte: String(p.numero || '').trim() },
+      { texte: String(p.lieuDit || '').trim() }, { texte: contenanceEcrite(p.surface), jc: 'right' }] }));
     const total = contenanceTotale(parcelles);
-    if (total) lignes.push(`| | | | Contenance totale | ${total} |`);
-    return lignes.join('\n');
+    if (total) lignes.push({ cellules: [{ texte: 'Contenance totale', span: 4, jc: 'right' }, { texte: total, jc: 'right' }] });
+    return { type: 'tableau', grille: GRILLE_PARCELLES.slice(), ind: 113, lignes };
   }
 
-  /** Pure : la page du questionnaire d'assainissement que la mairie complète (reprise du modèle de l'étude). */
-  function questionnaireAssainissement(o) {
-    const ref = [String(o.reference || '').trim(), String(o.nomDossier || '').trim()].filter(Boolean).join(' - ');
-    const oui = (q) => `| ${q} | [  ] | [  ] |`;
-    return [
-      '<<saut de page>>',
-      '**A retourner à :**',
-      'Maître Sophie GOSSART\n3 rue du Bout des Haies\n41000 BLOIS',
-      `**Références dossier :** ${ref}\n**Adresse de l'immeuble :** ${String(o.adresseImmeuble || '').trim()}`,
-      '**Contrôle et conformité de l\'immeuble en application de la loi n° 92-3 du 3 janvier 1992**',
-      '**Nature du dispositif de traitement des eaux usées**\nIndividuel [  ]     Collectif [  ]',
-      '**Service chargé du contrôle d\'assainissement**\nLa commune [  ]     Autre [  ] ______________________',
-      '**En cas de traitement collectif**',
-      ['| | OUI | NON |', '| --- | --- | --- |',
-        oui('L\'immeuble est-il bien raccordé au réseau collectif ?'),
-        oui('Si OUI, le contrôle de ce raccordement a-t-il été effectué ?'),
-        '| - à quelle date ? ______________ | | |',
-        oui('- est-il conforme à la législation ?'),
-        '| Si NON, quelles sont les sources de dysfonctionnement ou obligations de remise en état ? ______________ | | |',
-        oui('Le délai de 2 ans de l\'article L.1331-1 Code de la santé publique est-il expiré ?')].join('\n'),
-      '**En cas de traitement individuel**',
-      ['| | OUI | NON |', '| --- | --- | --- |',
-        oui('La commune a-t-elle mis en place un dispositif de contrôle anticipé ?'),
-        oui('Si OUI, le contrôle de l\'installation a-t-il été effectué ?'),
-        '| - à quelle date ? ______________ | | |',
-        oui('- est-il conforme à la législation ?'),
-        '| Nature du dispositif autonome : ______________ | | |',
-        '| Si NON, quelles sont les sources de dysfonctionnement ou obligations de remise en état ? ______________ | | |'].join('\n'),
-      'Le ______________\n(signature et cachet de la Mairie)'
-    ].join('\n\n');
-  }
-
-  const SALUT = 'Madame, Monsieur,';
   const FORMULE_FINALE = 'Je vous prie d\'agréer, Madame, Monsieur, mes salutations distinguées.';
 
   /**
-   * Pure : le contenu d'un courrier de vente (format de courrierRenduAgent) ; '' si le courrier est inconnu.
+   * Pure : un courrier de vente LIGNE À LIGNE comme le modèle Word de l'étude (étude 15/10 : « exactement la même disposition, à la ligne
+   * près ») — chaque chaîne est un paragraphe, '' une ligne vide ; **gras**, __souligné__. null si le courrier est inconnu.
    * @param {string} cle
-   * @param {{ destinataire: string[], dateIso: string, adresseImmeuble: string, parcelles: ParcelleCourrier[], proprietaires: ProprietaireCourrier[],
-   *   reference?: string, nomDossier?: string, dateLettre?: string }} o  `dateLettre` : « 12 octobre 2026 », déjà écrite par l'appelant.
+   * @param {{ destinataire: string[], adresseImmeuble: string, parcelles: ParcelleCourrier[], proprietaires: ProprietaireCourrier[],
+   *   reference?: string, nomDossier?: string, dateLettre?: string, texteLibre?: string }} o
+   * @returns {DocumentCourrier|null}
    */
-  function contenuCourrierVente(cle, o) {
-    if (!COURRIERS_VENTE.some((c) => c.cle === cle)) return '';
+  function documentCourrierVente(cle, o) {
+    if (!COURRIERS_VENTE.some((c) => c.cle === cle) && cle !== 'autre') return null;
     const adresse = (o.destinataire || []).map((l) => String(l).trim()).filter(Boolean);
-    if (adresse.length < 2) adresse.push(...(adresse.length ? [' '] : ['À compléter', ' ']));
+    if (!adresse.length) adresse.push('À compléter');
     const immeuble = String(o.adresseImmeuble || '').trim();
-    const proprietaires = (o.proprietaires || []).map(lignePersonneProprietaire);
-    const appartenant = ['Ledit immeuble appartenant à :'].concat(proprietaires).join('\n');
-    const blocs = [adresse.join('\n'), `Blois, le ${o.dateLettre || '…'}`];
+    const tableau = tableauParcellesCourrier(o.parcelles);
+    const appartenant = ['Ledit immeuble appartenant à :'].concat((o.proprietaires || []).map(lignePersonneProprietaire));
+    /** @type {Array<string|TableauCourrier>} */
+    let lignes;
     if (cle === 'assainissement') {
-      blocs.push('Objet : Contrôle et conformité assainissement', SALUT,
-        `Je vous remercie de me préciser la situation au regard de l'assainissement de l'immeuble situé à ${immeuble}, et cadastré :`,
-        tableauParcelles(o.parcelles), appartenant, 'Vous en remerciant par avance,', FORMULE_FINALE, 'Me Sophie GOSSART', questionnaireAssainissement(o));
+      lignes = ['', '', '', '**Objet : Contrôle et conformité assainissement**', '', 'Madame, Monsieur,', '',
+        `Je vous remercie de me préciser la situation au regard de l’assainissement de l’immeuble situé à ${immeuble}, et cadastré :`,
+        tableau, ...appartenant, 'Vous en remerciant par avance,', '', FORMULE_FINALE];
     } else if (cle === 'alignement') {
-      blocs.push(SALUT,
-        `Je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble} :`,
-        '- Un certificat de numérotage,\n- Un certificat d\'alignement.',
-        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableauParcelles(o.parcelles), appartenant,
-        'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', FORMULE_FINALE, 'Me Sophie GOSSART');
+      lignes = ['', '', '', 'Madame, Monsieur,', '',
+        `Je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble} :`, '',
+        '- **Un certificat de numérotage,**', '**- Un certificat d\'alignement.**', '',
+        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+        'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
+    } else if (cle === 'peril') {
+      lignes = ['', '', '', 'Madame, Monsieur,', '',
+        `Je vous serais très obligé de bien vouloir me préciser dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble}, si :`, '',
+        '- L\'immeuble est frappé d\'un **arrêté de péril,**', '- L\'immeuble est frappé d\'un **arrêté de mise en sécurité,**', '- L\'immeuble est frappé d\'un **arrêté d\'insalubrité.**', '',
+        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+        'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     } else {
-      blocs.push(SALUT,
-        `Je vous serais très obligé de bien vouloir me préciser dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble}, si :`,
-        '- L\'immeuble est frappé d\'un arrêté de péril,\n- L\'immeuble est frappé d\'un arrêté de mise en sécurité,\n- L\'immeuble est frappé d\'un arrêté d\'insalubrité.',
-        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableauParcelles(o.parcelles), appartenant,
-        'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', FORMULE_FINALE, 'Me Sophie GOSSART');
+      // Courrier vierge (étude 15/10 : « autre organisme ») : le texte saisi, puis les références et les propriétaires comme les autres.
+      const libre = String(o.texteLibre || '').replace(/\r/g, '').split('\n');
+      lignes = ['', '', '', 'Madame, Monsieur,', '', ...libre, '', 'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+        'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     }
-    return blocs.join('\n\n');
+    /** @type {DocumentCourrier} */
+    // « Me  Sophie » : deux espaces, comme dans les modèles de vente de l'étude (la signature à droite tombe au même endroit).
+    const doc = { adresse, adresseDebut: 1, date: `Blois, le ${o.dateLettre || '…'}`, lignes, signature: 'Me  Sophie GOSSART', blancsSignature: 0 };
+    if (cle === 'assainissement') {
+      doc.questionnaire = { references: [String(o.reference || '').trim(), String(o.nomDossier || '').trim()].filter(Boolean).join(' - '), adresseImmeuble: immeuble };
+    }
+    return doc;
+  }
+
+  /** Pure : le texte brut d'un courrier (une ligne par paragraphe ; tableau en lignes « AB — 123 — … »), sans destinataire ni date ni signature. @param {DocumentCourrier} doc */
+  function texteCorpsDocument(doc) {
+    const sortie = [];
+    (doc && doc.lignes || []).forEach((l) => {
+      if (typeof l === 'string') { sortie.push(l.replace(/\*\*|__/g, '')); return; }
+      l.lignes.slice(1).forEach((r) => sortie.push(r.cellules.map((c) => c.texte).filter(Boolean).join(' — ')));
+    });
+    return sortie.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
 
   /** Pure : le nom de fichier d'un courrier de vente : « Alignement et numérotage - SAINT SULPICE DE POMMERAY - VTE X ». @param {string} cle @param {string} commune @param {string} nomDossier */
@@ -216,9 +230,9 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT,
-    circuitCourrierVente, noteGuichetCommune, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, lignePersonneProprietaire, tableauParcelles,
-    questionnaireAssainissement, contenuCourrierVente, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt });
+  exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+    circuitCourrierVente, noteGuichetCommune, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
+    tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

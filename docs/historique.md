@@ -19927,3 +19927,32 @@ Reçues de l'étude sur un dossier de succession (intitulé « A AAAA NNNNN SUCC
 - Corps de l'email = `corpsEmailCourrierConstitution` : le courrier sans le bloc du destinataire, sans « Blois, le … », sans « Me … » (la signature de l'email la remplace), tableau des parcelles en lignes ; ce qui suit un saut de page (questionnaire d'assainissement) n'est pas repris et le PDF du courrier est joint. Objet « Succession de Madame … — Réf. … » ou « Courrier — adresse de l'immeuble — Réf. … ». Fenêtre d'email habituelle (rien ne part sans « Envoyer »), historique du dossier.
 - « Envoyer les emails (n) » : une fenêtre par courrier, l'un après l'autre ; « Annuler » arrête la série. « Imprimer (n) » ne prend plus que les courriers papier.
 - Corrigé : département d'une adresse lu sur le DERNIER nombre de cinq chiffres (« CS 72301, 41023 BLOIS » donnait 72) ; un seul organisme de ce genre dans le répertoire (CARSAT Centre, régionale) est retenu quel que soit le département (sauf les impôts). Fenêtre d'email : « Bien cordialement » n'est plus ajouté après « mes salutations distinguées ».
+
+### 15/10/2026 21 h 39 — Constitution de dossier : courriers fidèles aux modèles, courrier vierge, répertoire des successions (0.244.0)
+
+Demande de l'étude : « permettre de mettre des courriers vierges, c'est-à-dire juste autre organisme, et proposer, lorsqu'on fait une
+recherche dans le répertoire pour les successions, de présenter en priorité les services successions, et pas par exemple la banque pour
+le prêt. Il faut que les courriers de sortie reprennent exactement la même disposition à la ligne près, l'espacement près, les tableaux
+aussi, il faut qu'ils soient vraiment les mêmes, les couleurs, les espacements. »
+
+- **Courriers décrits ligne à ligne** (`documentCourrierVente`, `documentCourrierSuccession` dans `commun/`) : chaque chaîne = un
+  paragraphe Times 11 sans espacement, '' = une ligne vide, `**gras**`, `__souligné__`, tableaux décrits (grille en twips du modèle,
+  fond E6E6E6, alignements, fusion « Contenance totale »). Lignes vides, gras, soulignés et « Me  Sophie » (deux espaces dans les
+  modèles de vente) relevés sur les originaux .doc/.pdf de l'étude.
+- **`client/73-courrier-fidele.js`** compose le même document en Word (modèle de l'appel de fonds, corps refait paragraphe par
+  paragraphe, contrôle des veuves et orphelines coupé comme dans les modèles, « Nos Réf » de l'en-tête sur plusieurs lignes : intitulé,
+  référence, « Dossier suivi par », responsable, email et téléphone de l'office), en PDF/A (positions des originaux : première ligne à
+  139,6 pt, interligne 12,65 pt, colonne de droite à 300,1 pt jusqu'à 309 pt) et en aperçu (page aux mesures du papier, réduite).
+  Le questionnaire d'assainissement est la page 2 du Word de l'étude reprise telle quelle (espaces insécables et blancs d'alignement
+  gardés ; tableau en largeur fixe 9 184 twips, retrait −231, au lieu de 108 % centré que LibreOffice n'appliquait pas) ; dans le PDF,
+  ses textes, filets, bandeaux et cases aux positions mesurées.
+- **Contrôle** : PDF et Word (converti par LibreOffice) comparés ligne par ligne (pdfplumber) aux originaux alignement, assainissement
+  (2 pages) et banque : mêmes hauteurs de ligne au point près, même coupure de page (banque : « héritiers. » en tête de page 2), cases
+  du questionnaire à 0,3 pt de l'encre d'origine. Non vérifié : le rendu dans Microsoft Word au bureau.
+- **Courrier vierge** : modèle `autre` (« Autre organisme ») — succession : dans la liste « Ajouter », texte proposé à reprendre ;
+  vente : « + Courrier à un autre organisme » sous chaque commune (texte saisi, puis références cadastrales et propriétaires). Champ
+  « Texte du courrier » dans l'éditeur ; adresse jamais « retenue » pour un courrier vierge.
+- **Répertoire** : pour une succession, `rechercheRepertoireConstitution` classe un service « successions » d'abord, puis les thèmes
+  des successions (banques — successions, assurances, social, impôts), les autres, et les banques « prêts et mainlevées » en dernier.
+- Lieux de naissance et de décès d'Authentic « 67000 STRASBOURG » écrits « STRASBOURG (67000) » comme dans les courriers.
+- Retirés : `contenuCourrierVente`, `contenuCourrierSuccession`, `tableauParcelles`, `blocsPdfDepuisContenu`, `apercuHtmlConstitution`.

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.243.0';
+  const VERSION_APP = '0.244.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.244.0', date: '2026-10-15 21:39', resume: "Constitution de dossier : les courriers sortent exactement comme les modèles de l'étude — mêmes retours à la ligne, mêmes lignes vides, même tableau des parcelles (en-tête grisé, filets), même questionnaire d'assainissement (bandeaux rouges, cases), en Word comme en PDF, et l'aperçu suit. Courrier vierge à un « autre organisme » (vente et succession), texte à saisir. Dans le répertoire, une succession voit d'abord les services successions, la banque des prêts en dernier." },
     { version: '0.243.0', date: '2026-10-15 21:12', resume: "Constitution de dossier : chaque courrier part en papier ou par email. Par email, le texte du courrier (sans l'en-tête) devient le corps du message, adressé à l'organisme d'après le répertoire (banques, CARSAT, MSA, CPAM…) ; « Envoyer les emails » les ouvre l'un après l'autre pour relecture." },
     { version: '0.242.0', date: '2026-10-15 21:06', resume: "Constitution de dossier : « Enregistrer dans Constitution » range d'un clic tous les courriers cochés dans un dossier « Constitution » du dossier client sur le NAS (créé s'il n'existe pas). Au choix : PDF et/ou Word, signés (tampon et signature) ou non signés." },
     { version: '0.241.0', date: '2026-10-15 21:02', resume: "Constitution de dossier en deux colonnes : à gauche les données (repliées) et la liste compacte des courriers, à droite le courrier choisi avec son aperçu sur le papier de l'office. Un « + » crée un second courrier du même genre (deux banques, deux mutuelles) et une recherche par nom dans le répertoire remplit le destinataire." },

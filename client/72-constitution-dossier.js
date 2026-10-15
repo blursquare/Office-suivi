@@ -178,8 +178,10 @@
     const conj = conjointDefunt(sm, civilite);
     const prenoms = saisi.prenoms != null ? saisi.prenoms : (fiche ? [fiche.prenom, fiche.autresPrenoms].filter(Boolean).join(' ') : '');
     const v = (cle, depuis) => (saisi[cle] != null ? String(saisi[cle]) : String(depuis || ''));
-    const lieuNaissance = fiche ? [fiche.lieuNaissance, fiche.paysNaissance && !/^france$/i.test(fiche.paysNaissance) ? fiche.paysNaissance : ''].filter(Boolean).join(', ') : '';
-    const lieuDeces = fiche && fiche.deces ? [fiche.deces.lieu, fiche.deces.pays && !/^france$/i.test(fiche.deces.pays) ? fiche.deces.pays : ''].filter(Boolean).join(', ') : '';
+    // « 67000 STRASBOURG » (Authentic) s'écrit « STRASBOURG (67000) », comme dans les courriers de l'étude.
+    const lieu = (t) => String(t || '').replace(/^\s*(\d{5})\s+(.+?)\s*$/, '$2 ($1)');
+    const lieuNaissance = fiche ? [lieu(fiche.lieuNaissance), fiche.paysNaissance && !/^france$/i.test(fiche.paysNaissance) ? fiche.paysNaissance : ''].filter(Boolean).join(', ') : '';
+    const lieuDeces = fiche && fiche.deces ? [lieu(fiche.deces.lieu), fiche.deces.pays && !/^france$/i.test(fiche.deces.pays) ? fiche.deces.pays : ''].filter(Boolean).join(', ') : '';
     const champs = {
       civilite, prenoms, nom: v('nom', fiche && fiche.nomFamille),
       domicile: v('domicile', fiche && fiche.domicile ? normaliserAdresse(fiche.domicile) : ''),
@@ -306,6 +308,8 @@
             actif: circuit.mode === 'en-ligne' ? false : (ancien ? ancien.actif : true),
             lignes: ancien && ancien.modifie ? ancien.lignes : lignes, modifie: !!(ancien && ancien.modifie), modeleRetenu: circuit.destinataire !== 'mairie' && circuit.destinataire !== 'blois-en-ligne' });
         });
+        // Les courriers vierges ajoutés à cette commune restent, à la suite de ses courriers.
+        e.documents.filter(x => x.ajoute && x.groupe === g.cle).forEach(x => docs.push(Object.assign({}, x)));
       });
       e.documents = docs;
       return;
@@ -349,22 +353,29 @@
 
   function groupeDuDocumentConstitution(doc) { return cstEtat.groupes.find(g => g.cle === doc.groupe) || null; }
 
-  function contenuDocumentConstitution(doc) {
+  // Le courrier décrit ligne à ligne comme le modèle de l'étude (commun/constitution.js, commun/courriers-succession.js) : il donne le
+  // Word, le PDF, l'aperçu et le texte de l'email (client/73-courrier-fidele.js).
+  function documentFideleConstitution(doc) {
     const d = dossierConstitution();
     const dateIso = isoAujourdhuiLocal();
     if (doc.genre === 'vente') {
-      const g = groupeDuDocumentConstitution(doc);
+      const g = groupeDuDocumentConstitution(doc) || { parcelles: [], adresseImmeuble: '' };
       const parcelles = g.parcelles.filter(p => p.actif).map(p => ({ prefixe: p.prefixe, section: p.section, numero: p.numero, lieuDit: p.lieuDit, surface: p.surface }));
-      return contenuCourrierVente(doc.modele, { destinataire: doc.lignes, dateLettre: dateCourrierSuccession(dateIso), adresseImmeuble: g.adresseImmeuble, parcelles,
+      return documentCourrierVente(doc.modele, { destinataire: doc.lignes, dateLettre: dateCourrierSuccession(dateIso), adresseImmeuble: g.adresseImmeuble, parcelles, texteLibre: doc.texteLibre || '',
         proprietaires: cstEtat.proprietaires.map(p => ({ civilite: p.civilite, nom: p.nom, domicile: p.domicile, morale: p.morale })), reference: d.referenceAuthentic || '', nomDossier: libelleDossierAffiche(d) });
     }
-    return contenuCourrierSuccession(doc.modele, { destinataire: doc.lignes, envoiParMail: false, dateIso, defunt: cstEtat.defunt.champs, suiviPar: d.responsable || '', referenceAuthentic: d.referenceAuthentic || '' });
+    return documentCourrierSuccession(doc.modele, { destinataire: doc.lignes, envoiParMail: false, dateIso, defunt: cstEtat.defunt.champs, texteLibre: doc.texteLibre || '' });
   }
 
   function nomFichierDocumentConstitution(doc) {
     const d = dossierConstitution();
-    if (doc.genre === 'vente') return nomFichierCourrierVente(doc.modele, (groupeDuDocumentConstitution(doc) || {}).commune || '', libelleDossierAffiche(d));
-    const memes = cstEtat.documents.filter(x => x.modele === doc.modele);
+    const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
+    if (doc.genre === 'vente') {
+      const commune = (groupeDuDocumentConstitution(doc) || {}).commune || '';
+      const base = doc.modele === 'autre' ? [`Courrier ${doc.libelle}`, commune, libelleDossierAffiche(d)].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
+        : nomFichierCourrierVente(doc.modele, commune, libelleDossierAffiche(d));
+      return base + (memes.length > 1 ? ` (${memes.indexOf(doc) + 1})` : '');
+    }
     const rang = memes.indexOf(doc) + 1;
     return nomFichierCourrierSuccession(doc.modele, libelleDossierAffiche(d)) + (memes.length > 1 ? ` (${rang})` : '');
   }
@@ -373,15 +384,14 @@
   async function genererDocumentConstitution(doc, format) {
     const d = dossierConstitution();
     const nom = nomFichierDocumentConstitution(doc);
-    const contenu = contenuDocumentConstitution(doc);
+    const fidele = documentFideleConstitution(doc);
     // Signé : tampon de l'office et signature « p/o » ; non signé : le même courrier sans eux (étude 15/10 : « signé ou non signé »).
     const signe = !cstEtat || cstEtat.signe !== false;
     if (format === 'pdf') {
-      const blocs = blocsPdfDepuisContenu(contenu).filter(b => signe || b.type !== 'tampon');
-      const { blob } = await genererPdfAAppelFonds(null, nom + '.docx', { blocs, ref: d.nom || '' });
+      const { blob } = await genererPdfAAppelFonds(null, nom + '.docx', { fidele, refLignes: refLignesCourrier(d), ref: d.nom || '', signe });
       return { blob, nom: nom + '.pdf', format };
     }
-    const blob = await courrierRenduAgent(contenu, d, { signe });
+    const blob = await docxCourrierFidele(fidele, d, { signe });
     return { blob, nom: nom + '.docx', format };
   }
 
@@ -483,7 +493,8 @@
     if (!m) return null;
     cstEtat.compteur = (cstEtat.compteur || 0) + 1;
     const doc = { id: `s:${modele}:a${cstEtat.compteur}`, genre: 'succession', modele, libelle: m.libelle, mode: 'papier', courriel: '', emails: [], note: '', destinataire: modele, actif: true,
-      lignes: vide ? [] : m.destinataire.slice(), origine: !vide && m.destinataire.length ? 'Adresse type du modèle' : '', modifie: !!vide, ajoute: true, contactId: '' };
+      lignes: vide ? [] : m.destinataire.slice(), origine: !vide && m.destinataire.length ? 'Adresse type du modèle' : '', modifie: !!vide, ajoute: true, contactId: '',
+      texteLibre: modele === 'autre' ? TEXTE_LIBRE_PAR_DEFAUT : '' };
     const dernier = cstEtat.documents.map(x => x.modele).lastIndexOf(modele);
     cstEtat.documents.splice(dernier >= 0 ? dernier + 1 : cstEtat.documents.length, 0, doc);
     cstEtat.selection = doc.id;
@@ -498,6 +509,25 @@
     const x = documentConstitution(id);
     if (!x || x.genre !== 'succession') return;
     if (ajouterDocSuccessionConstitution(x.modele, true)) { renderConstitution(); const q = document.getElementById('cst-rep-q'); if (q) q.focus(); }
+  }
+  // Un courrier vierge à un autre organisme pour une commune d'une vente (étude 15/10 : « des courriers vierges, juste autre organisme »).
+  function cstAjouterViergeVente(cleGroupe) {
+    if (!cstEtat || cstEtat.type !== 'vente' || !cstEtat.groupes.some(g => g.cle === cleGroupe)) return;
+    cstEtat.compteur = (cstEtat.compteur || 0) + 1;
+    const doc = { id: `v:${cleGroupe}:autre:a${cstEtat.compteur}`, genre: 'vente', modele: 'autre', groupe: cleGroupe, libelle: 'Autre organisme', mode: 'papier', modeChoisi: false, courriel: '', emails: [],
+      note: '', destinataire: 'autre', actif: true, lignes: [], modifie: true, modeleRetenu: false, ajoute: true, texteLibre: '' };
+    const dernier = cstEtat.documents.map(x => x.groupe).lastIndexOf(cleGroupe);
+    cstEtat.documents.splice(dernier >= 0 ? dernier + 1 : cstEtat.documents.length, 0, doc);
+    cstEtat.selection = doc.id;
+    renderConstitution();
+    const q = document.getElementById('cst-rep-q');
+    if (q) q.focus();
+  }
+  function cstTexteLibre(id, valeur) {
+    const x = documentConstitution(id);
+    if (!x || x.modele !== 'autre') return;
+    x.texteLibre = String(valeur == null ? '' : valeur);
+    majApercuConstitution();
   }
   function cstRetirerDoc(id) {
     if (!cstEtat) return;
@@ -624,31 +654,10 @@
   }
 
   // Pure : le texte d'un courrier pour le corps d'un email (étude 15/10 : « reprendre le contenu du courrier, juste le contenu texte, sans
-  // l'en-tête ») — sans le bloc du destinataire, ni « Blois, le … », ni la signature « Me … » (la signature de l'email la remplace) ; un
-  // tableau en lignes ; ce qui suit un saut de page (questionnaire) n'est pas repris : `suite` le dit, le PDF est alors joint.
-  function corpsEmailCourrierConstitution(contenu) {
-    const blocs = blocsDocumentAgent(contenu, true);
-    const sortie = [];
-    let suite = false;
-    for (let i = 0; i < blocs.length; i++) {
-      const b = blocs[i];
-      if (b.type === 'saut') { suite = blocs.slice(i + 1).length > 0; break; }
-      if (i === 0 && b.type === 'para') continue;
-      const texte = String(b.texte || '').replace(/\*\*/g, '');
-      if (b.type === 'para' && RE_LIEU_DATE_COURRIER.test(texte) && texte.length < 80) continue;
-      if (b.type === 'para' && /^Me\s/.test(texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) continue;
-      if (b.type === 'tableau') {
-        // La ligne d'en-tête (Préfixe, Section…) ne sert qu'au tableau : chaque parcelle s'écrit « AB — 123 — Les Vignes — 5 a 12 ca ».
-        sortie.push(b.lignes.slice(1).map(l => l.filter(Boolean).join(' — ')).filter(Boolean).join('\n'));
-        continue;
-      }
-      if (b.type === 'puce') { sortie.push('- ' + texte); continue; }
-      if (b.type === 'numero') { sortie.push(b.numero + '. ' + texte); continue; }
-      sortie.push(texte);
-    }
-    // Les puces qui se suivent restent groupées (une ligne chacune), le reste en paragraphes.
-    const texte = sortie.reduce((acc, t, k) => acc + (k === 0 ? '' : (/^- /.test(t) && /^- /.test(sortie[k - 1]) ? '\n' : '\n\n')) + t, '');
-    return { texte, suite };
+  // l'en-tête ») — sans destinataire, ni « Blois, le … », ni « Me … » (la signature de l'email la remplace) ; le tableau des parcelles en
+  // lignes ; le questionnaire d'assainissement n'est pas repris : `suite` le dit, le PDF est alors joint.
+  function corpsEmailCourrierConstitution(fidele) {
+    return { texte: texteCorpsDocument(fidele), suite: !!(fidele && fidele.questionnaire) };
   }
 
   // Pure : l'objet de l'email d'un courrier.
@@ -658,7 +667,7 @@
       const qui = [defunt.civilite, defunt.prenoms, defunt.nom].filter(Boolean).join(' ');
       return `Succession de ${qui || 'à compléter'}${ref}`;
     }
-    return `${doc.libelle}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${ref}`;
+    return `${doc.modele === 'autre' ? 'Demande de renseignements' : doc.libelle}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${ref}`;
   }
 
   // Un courrier par email : le texte du courrier dans le corps, la fenêtre d'email s'ouvre pour relire et envoyer (rien ne part seul).
@@ -669,7 +678,7 @@
     if (!doc.courriel) { afficherToast('Adresse email du destinataire à saisir.'); return { ok: false }; }
     try {
       retenirDefuntSaisiConstitution();
-      const { texte, suite } = corpsEmailCourrierConstitution(contenuDocumentConstitution(doc));
+      const { texte, suite } = corpsEmailCourrierConstitution(documentFideleConstitution(doc));
       const pieces = [];
       if (suite || cstEtat.joindrePdf) {
         const s = await genererDocumentConstitution(doc, 'pdf');
@@ -840,7 +849,8 @@
   function renderListeCourriersConstitution() {
     const e = cstEtat;
     if (e.type === 'vente') {
-      const parCommune = e.groupes.map(g => `<div class="cst-liste-titre">${escapeHtml(g.commune)}</div>${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}`).join('');
+      const parCommune = e.groupes.map(g => `<div class="cst-liste-titre">${escapeHtml(g.commune)}</div>${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
+        <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')"><span slot="start" class="bouton-ajout-plus">+</span>Courrier à un autre organisme</wa-button></div>`).join('');
       const gnau = e.groupes.map(g => {
         const info = g.info || {};
         const depot = info.depot || {};
@@ -883,14 +893,26 @@
   }
   function cstSigne(oui) { if (cstEtat) { cstEtat.signe = !!oui; renderConstitution(); } }
 
-  // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus.
-  function rechercheRepertoireConstitution(q, contacts) {
+  // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus. Pour une succession
+  // (étude 15/10 : « présenter en priorité les services successions, et pas la banque pour le prêt ») : un service « successions » et
+  // les thèmes des successions d'abord, les banques « prêts et mainlevées » en dernier ; à égalité, l'ordre du répertoire.
+  var THEMES_SUCCESSION_REPERTOIRE = ['banquesSuccessions', 'assurances', 'social', 'impots'];
+  function rechercheRepertoireConstitution(q, contacts, genre) {
     const mots = normaliserPourRecherche(String(q || '')).split(/[^a-z0-9]+/).filter(m => m.length >= 2);
     if (!mots.length) return [];
-    return (contacts || []).filter(c => {
+    const trouves = (contacts || []).filter(c => {
       const t = normaliserPourRecherche([c.organisme, c.service, (c.personnes || []).join(' '), c.adresse, c.theme].filter(Boolean).join(' '));
       return mots.every(m => t.includes(m));
-    }).slice(0, 8);
+    });
+    if (genre !== 'succession') return trouves.slice(0, 8);
+    const rang = (c) => {
+      const t = normaliserPourRecherche([c.organisme, c.service].filter(Boolean).join(' '));
+      if (/succession/.test(t)) return 0;
+      if (THEMES_SUCCESSION_REPERTOIRE.includes(c.theme)) return 1;
+      if (c.theme === 'banquesPrets') return 3;
+      return 2;
+    };
+    return trouves.map((c, i) => ({ c, i, r: rang(c) })).sort((a, b) => a.r - b.r || a.i - b.i).map(x => x.c).slice(0, 8);
   }
 
   function lignesContactsConstitution(liste, idDoc) {
@@ -905,7 +927,7 @@
     if (!doc || !boite) return;
     const contacts = typeof repertoireContacts !== 'undefined' ? repertoireContacts : [];
     const q = String(valeur || '').trim();
-    const liste = q ? rechercheRepertoireConstitution(q, contacts) : candidatsRepertoireConstitution(doc.modele, contacts).slice(0, 6);
+    const liste = q ? rechercheRepertoireConstitution(q, contacts, doc.genre) : candidatsRepertoireConstitution(doc.modele, contacts).slice(0, 6);
     boite.innerHTML = liste.length ? lignesContactsConstitution(liste, escapeOnclickArg(doc.id)) : `<div class="dash-recherche-vide">${q ? 'Rien dans le répertoire pour cette recherche.' : 'Tapez un nom pour chercher dans le répertoire.'}</div>`;
   }
 
@@ -913,7 +935,7 @@
     if (!doc) return '<p class="hint">Choisissez un courrier dans la liste.</p>';
     const idDoc = escapeOnclickArg(doc.id);
     if (doc.mode === 'en-ligne') return `<div class="cst-edition"><strong>${escapeHtml(doc.libelle)}</strong><p class="hint">${escapeHtml(doc.note)}</p></div>`;
-    const retenir = doc.genre === 'vente' ? doc.modeleRetenu : true;
+    const retenir = doc.modele !== 'autre' && (doc.genre === 'vente' ? doc.modeleRetenu : true);
     const g = doc.genre === 'vente' ? groupeDuDocumentConstitution(doc) : null;
     return `<div class="cst-edition">
       <div class="cst-edition-tete"><strong>${escapeHtml(doc.libelle)}${g ? ' — ' + escapeHtml(g.commune) : ''}</strong>${doc.origine ? ` <span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
@@ -927,7 +949,7 @@
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
-          <span class="hint">Le texte du courrier, sans l’en-tête${corpsEmailCourrierConstitution(contenuDocumentConstitution(doc)).suite ? ', avec le questionnaire joint en PDF' : ''}.</span>` : ''}
+          <span class="hint">Le texte du courrier, sans l’en-tête${corpsEmailCourrierConstitution(documentFideleConstitution(doc)).suite ? ', avec le questionnaire joint en PDF' : ''}.</span>` : ''}
       </div>
       <div class="cst-edition-corps">
         <div class="calc-champ"><label>Destinataire</label>
@@ -936,41 +958,10 @@
         <div class="calc-champ cst-rep"><label>Chercher dans le répertoire</label>
           <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom, ville… (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
           <div id="cst-rep-resultats" class="cst-rep-resultats"></div></div>
-      </div></div>`;
-  }
-
-  // Pure : l'aperçu HTML d'un courrier sur le papier de l'office (en-tête, colonne de gauche, corps, tampon) — le contenu est le même
-  // que celui du Word et du PDF (blocsDocumentAgent). Tout texte est échappé.
-  function apercuHtmlConstitution(contenu, ref, assets) {
-    const a = assets || {};
-    const img = (src, cls, alt) => src ? `<img class="${cls}" src="${escapeAttr(src)}" alt="${escapeAttr(alt)}">` : '';
-    const gras = (t) => morceauxGrasAgent(t).map(m => m.gras ? `<b>${escapeHtml(m.texte)}</b>` : escapeHtml(m.texte)).join('').replace(/\n/g, '<br>');
-    const blocs = blocsDocumentAgent(contenu, true);
-    let html = '';
-    let page = 0;
-    blocs.forEach((b, i) => {
-      if (b.type === 'saut') { page++; html += '<div class="cst-saut">Page suivante</div>'; return; }
-      if (b.type === 'tableau') {
-        html += `<table class="cst-apercu-table">${b.lignes.map((l, k) => `<tr>${l.map(c => k === 0 ? `<th>${escapeHtml(c)}</th>` : `<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</table>`;
-        return;
-      }
-      if (b.type === 'puce' || b.type === 'numero') { html += `<p class="cst-apercu-puce">${b.type === 'puce' ? '- ' : escapeHtml(b.numero) + '. '}${gras(b.texte)}</p>`; return; }
-      if (b.type === 'titre1' || b.type === 'titre2') { html += `<p><b>${escapeHtml(b.texte)}</b></p>`; return; }
-      if (i === 0 && page === 0) { html += `<div class="af-entete-droite cst-apercu-dest">${gras(b.texte)}</div>`; return; }
-      if (RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { html += `<div class="af-entete-droite cst-apercu-date">${escapeHtml(b.texte)}</div>`; return; }
-      if (/^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
-        html += `<div class="af-signature">${escapeHtml(b.texte)}</div><div class="af-tampon-signature">${img(a.tampon, 'af-tampon', '')}${img(a.signature, 'af-signature-image', '')}</div>`;
-        return;
-      }
-      html += `<p>${gras(b.texte)}</p>`;
-    });
-    return `<div class="af-lettre cst-lettre">
-      <div class="af-topbar">${img(a.logoNotaires, 'af-logo-notaires', 'Notaires de France')}<div class="af-office-id">${img(a.logoOffice, 'af-logo-office', 'Me Sophie GOSSART')}<div class="af-office-addr">3 RUE DU BOUT DES HAIES – 41000 BLOIS</div></div></div>
-      <div class="af-lettre-grid"><aside class="af-lettre-aside">
-          <div class="af-aside-bloc"><div class="af-aside-titre">NOUS CONTACTER</div><div class="af-aside-ligne">02 54 78 61 70</div><div class="af-aside-ligne"><span class="af-aside-lien">office.gossart@notaires.fr</span></div><div class="af-aside-ligne">3 rue du Bout des Haies<br>41000 BLOIS</div></div>
-          <div class="af-aside-bloc"><div class="af-aside-ligne">Nos Réf : ${escapeHtml(ref || '')}</div></div>
-          <div class="af-aside-bloc"><div class="af-aside-titre">HORAIRES</div><div class="af-aside-ligne">Du lundi au vendredi</div><div class="af-aside-ligne">9 h – 12 h, 14 h – 18 h</div></div>
-        </aside><div class="af-lettre-corps">${html}</div></div></div>`;
+      </div>
+      ${doc.modele === 'autre' ? `<div class="calc-champ cst-texte-libre"><label>Texte du courrier ${infoBulle(doc.genre === 'vente' ? 'Votre demande, entre « Madame, Monsieur, » et les références cadastrales. **mot** = gras, __mot__ = souligné.' : 'Votre demande, entre « Madame, Monsieur, » et la formule finale. **mot** = gras, __mot__ = souligné.')}</label>
+        <textarea class="prop-champ" id="cst-texte-libre" rows="6" oninput="cstTexteLibre('${idDoc}', this.value)" placeholder="Je vous serais très obligé de bien vouloir…">${escapeHtml(doc.texteLibre || '')}</textarea></div>` : ''}
+      </div>`;
   }
 
   function majApercuConstitution() {
@@ -980,9 +971,12 @@
     if (!zone) return;
     if (!doc || !d || doc.mode === 'en-ligne') { zone.innerHTML = '<p class="hint cst-vide">Pas de courrier à montrer.</p>'; return; }
     try {
-      const tous = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
-      const assets = cstEtat.signe === false ? Object.assign({}, tous, { tampon: '', signature: '' }) : tous;
-      zone.innerHTML = apercuHtmlConstitution(contenuDocumentConstitution(doc), d.nom || '', assets);
+      const assets = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
+      zone.innerHTML = htmlCourrierFidele(documentFideleConstitution(doc), refLignesCourrier(d), assets, cstEtat.signe !== false);
+      // La page est aux mesures du papier (595 pt) : réduite pour tenir dans la colonne, sans rien changer à ses retours à la ligne.
+      const lettre = zone.querySelector('.cstf');
+      const r = lettre && lettre.offsetWidth ? zone.clientWidth / lettre.offsetWidth : 1;
+      if (lettre && r > 0 && r < 1) lettre.style.zoom = String(Math.floor(r * 100) / 100);
     } catch (e) { zone.innerHTML = '<p class="hint">Aperçu impossible.</p>'; console.error(e); }
   }
 

@@ -147,13 +147,6 @@ test('retenirImmeublesAuthentic : tous les articles du dossier Authentic gardés
   assert.equal(app.retenirImmeublesAuthentic({}, { immeubles: [] }), false);
 });
 
-test('blocsPdfDepuisContenu : un « Me … » en fin de courrier porte le tampon, un saut de page est gardé', () => {
-  const blocs = app.blocsPdfDepuisContenu('Objet : test\n\nMe Sophie GOSSART\n\n<<saut de page>>\n\nSuite');
-  const types = Array.from(blocs, b => b.type).join(',');
-  assert.ok(types.includes('tampon'));
-  assert.ok(types.includes('saut'));
-});
-
 test('rechercheRepertoireConstitution : tous les mots, dans le nom, le service ou la ville', () => {
   const contacts = [
     { id: 'a', organisme: 'Crédit Agricole Val de France', service: 'Successions', adresse: '41000 BLOIS' },
@@ -165,14 +158,6 @@ test('rechercheRepertoireConstitution : tous les mots, dans le nom, le service o
   assert.equal(app.rechercheRepertoireConstitution('', contacts).length, 0);
 });
 
-test('apercuHtmlConstitution : destinataire en tête, tableau, tampon après « Me … », texte échappé', () => {
-  const html = app.apercuHtmlConstitution('MAIRIE\n41000 <BLOIS>\n\nBlois, le 15 octobre 2026\n\n| Section | N° |\n| AB | 12 |\n\nMe Sophie GOSSART', 'REF', { tampon: 'data:image/png;base64,AA' });
-  assert.match(html, /cst-apercu-dest">MAIRIE<br>41000 &lt;BLOIS&gt;/);
-  assert.match(html, /<th>Section<\/th>/);
-  assert.match(html, /af-tampon-signature"><img class="af-tampon"/);
-  assert.ok(!/<BLOIS>/.test(html));
-});
-
 test('resumeDonneesConstitution et resumeDestinataireConstitution', () => {
   const e = { type: 'vente', proprietaires: [{}, {}], groupes: [{ parcelles: [{ actif: true }, { actif: false }] }] };
   assert.equal(app.resumeDonneesConstitution(e), '2 vendeurs · 1 parcelle · 1 commune');
@@ -181,12 +166,58 @@ test('resumeDonneesConstitution et resumeDestinataireConstitution', () => {
 });
 
 test('corpsEmailCourrierConstitution : le texte du courrier sans destinataire, date ni signature ; questionnaire signalé', () => {
-  const contenu = 'MAIRIE\n41000 BLOIS\n\nBlois, le 15 octobre 2026\n\n**Objet : Contrôle**\n\nMadame, Monsieur,\n\n| Préfixe | Section | N° |\n|  | AB | 12 |\n\n- Un certificat\n- Un autre\n\nMe Sophie GOSSART\n\n<<saut de page>>\n\nQuestionnaire';
-  const r = app.corpsEmailCourrierConstitution(contenu);
-  assert.ok(!/MAIRIE|Blois, le|Me Sophie|Questionnaire|\*\*|Préfixe/.test(r.texte));
-  assert.match(r.texte, /^Objet : Contrôle\n\nMadame, Monsieur,\n\nAB — 12\n\n- Un certificat\n- Un autre$/);
+  const doc = app.documentCourrierVente('assainissement', { destinataire: ['AGGLOPOLYS'], adresseImmeuble: 'X', parcelles: [{ section: 'AB', numero: '12' }], proprietaires: [], dateLettre: '1 octobre 2026' });
+  const r = app.corpsEmailCourrierConstitution(doc);
+  assert.ok(!/AGGLOPOLYS|Blois, le|Me Sophie|Questionnaire|\*\*|Préfixe/.test(r.texte));
+  assert.match(r.texte, /^Objet : Contrôle et conformité assainissement\n\nMadame, Monsieur,/);
   assert.equal(r.suite, true);
-  assert.equal(app.corpsEmailCourrierConstitution('X\n\nBonjour\n\nMe A').suite, false);
+  assert.equal(app.corpsEmailCourrierConstitution(app.documentCourrierSuccession('cpam', { dateIso: '2026-10-01', defunt: { civilite: 'Madame', nom: 'X' } })).suite, false);
+});
+
+test('rechercheRepertoireConstitution : pour une succession, les services successions d’abord, la banque des prêts en dernier', () => {
+  const contacts = [
+    { id: 'pret', theme: 'banquesPrets', organisme: 'Crédit Agricole Val de France', service: 'Service prêt de Blois' },
+    { id: 'divers', theme: 'divers', organisme: 'Crédit Agricole Assurances' },
+    { id: 'succ', theme: 'banquesSuccessions', organisme: 'Crédit Agricole Val de France', service: 'Successions' }
+  ];
+  assert.equal(Array.from(app.rechercheRepertoireConstitution('credit agricole', contacts, 'succession'), c => c.id).join(','), 'succ,divers,pret');
+  assert.equal(Array.from(app.rechercheRepertoireConstitution('credit agricole', contacts, 'vente'), c => c.id).join(','), 'pret,divers,succ');
+});
+
+test('runsLigneCourrier et refLignesCourrier : gras et souligné ; colonne « Nos Réf » de l’en-tête', () => {
+  assert.equal(Array.from(app.runsLigneCourrier('A **b __c__** d'), r => `${r.t}:${r.b ? 'b' : ''}${r.u ? 'u' : ''}`).join('|'), 'A :|b :b|c:bu| d:');
+  assert.equal(app.refLignesCourrier({ nom: 'DUPONT', referenceAuthentic: 'A 2026 00299', responsable: 'Julie VASSELIN' }).join('|'),
+    'Nos Réf : VTE DUPONT|A 2026 00299|Dossier suivi par :|Julie VASSELIN|office.gossart@notaires.fr|0254786170');
+});
+
+test('xmlCorpsCourrierFidele : une ligne = un paragraphe Times 11 sans espacement, adresse puis date à la 10e ligne, tableau grisé, questionnaire rempli', () => {
+  const doc = app.documentCourrierVente('assainissement', { destinataire: ['AGGLOPOLYS', 'Service <assainissement>'], adresseImmeuble: 'X & Y', parcelles: [{ section: 'AB', numero: '12', surface: '512' }],
+    proprietaires: [{ civilite: 'Madame', nom: 'Léa DUPONT', domicile: 'BLOIS (41000), 1 rue Z' }], dateLettre: '1 octobre 2026', reference: 'A 2026 00299', nomDossier: 'VTE - DUPONT' });
+  const xml = app.xmlCorpsCourrierFidele(doc, '');
+  const paras = xml.split('<w:p>');
+  assert.match(paras[2], /AGGLOPOLYS/);
+  assert.match(paras[10], /Blois, le 1 octobre 2026/);
+  assert.match(xml, /Service &lt;assainissement&gt;/);
+  assert.ok(!xml.includes('<assainissement>'));
+  assert.match(xml, /<w:b\/><w:sz w:val="22"\/><w:szCs w:val="22"\/><\/w:rPr><w:t xml:space="preserve">Objet : Contrôle et conformité assainissement/);
+  assert.match(xml, /<w:shd w:val="clear" w:color="auto" w:fill="E6E6E6"\/>/);
+  assert.match(xml, /<w:gridCol w:w="862"\/><w:gridCol w:w="924"\/>/);
+  assert.match(xml, /5 a 12 ca/);
+  assert.match(xml, /<w:pageBreakBefore\/>/);
+  assert.match(xml, /A 2026 00299 - VTE - DUPONT/);
+  assert.match(xml, /X &amp; Y/);
+  assert.ok(!/\{QREF\}|\{QADR\}/.test(xml));
+  assert.match(xml, /C00000/);
+});
+
+test('htmlCourrierFidele : texte échappé, tampon seulement signé, colonne « Nos Réf »', () => {
+  const doc = app.documentCourrierSuccession('cpam', { destinataire: ['CPAM <41>'], dateIso: '2026-10-01', defunt: { civilite: 'Madame', nom: 'X' } });
+  const signe = app.htmlCourrierFidele(doc, ['Nos Réf : SUCC X'], { tampon: 'data:image/png;base64,AA' }, true);
+  assert.match(signe, /CPAM &lt;41&gt;/);
+  assert.match(signe, /af-tampon-signature/);
+  assert.match(signe, /Nos Réf : SUCC X/);
+  assert.match(signe, /<u>Succession de : Madame X<\/u>/);
+  assert.ok(!app.htmlCourrierFidele(doc, [], { tampon: 'data:image/png;base64,AA' }, false).includes('af-tampon-signature'));
 });
 
 test('emailsContactConstitution : « Libellé : adresse » et adresses invalides écartées', () => {

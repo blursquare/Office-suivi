@@ -85,42 +85,6 @@
     return blocs;
   }
 
-  // Pure : les blocs du PDF d'un courrier écrit au format de `courrierRenduAgent` (bloc d'adresse, « Blois, le … », paragraphes, listes, tableaux,
-  // « Me … » suivi du tampon et de la signature, sauts de page) — même mise en page que le courrier d'appel de fonds. Les tableaux s'écrivent en
-  // lignes (cellules séparées), la ligne d'en-tête en gras.
-  function blocsPdfDepuisContenu(contenu) {
-    const blocs = blocsDocumentAgent(contenu, true);
-    const t = (texte, style) => Object.assign({ t: String(texte == null ? '' : texte) }, style || {});
-    const runsGras = (texte) => morceauxGrasAgent(texte).map(m => t(m.texte, m.gras ? { b: true } : {}));
-    const sortie = [{ type: 'para', runs: [], avant: 0, apres: 0 }];
-    blocs.forEach((b, i) => {
-      if (b.type === 'saut') { sortie.push({ type: 'saut' }); return; }
-      if (b.type === 'tableau') {
-        b.lignes.forEach((l, k) => {
-          const texte = l.map(c => String(c || '').trim()).filter(Boolean).join('   ');
-          if (texte) sortie.push({ type: 'para', runs: [t(texte, k === 0 ? { b: true } : {})], apres: k === b.lignes.length - 1 ? 10 : 2 });
-        });
-        return;
-      }
-      if (b.type === 'puce' || b.type === 'numero') {
-        const fin = !(blocs[i + 1] && blocs[i + 1].type === b.type);
-        sortie.push({ type: 'para', runs: runsGras((b.type === 'puce' ? '- ' : b.numero + '. ') + b.texte), apres: fin ? 10 : 4, jc: 'both' });
-        return;
-      }
-      if (b.type === 'titre1' || b.type === 'titre2') { sortie.push({ type: 'para', runs: [t(b.texte, { b: true })], avant: 6, apres: 6 }); return; }
-      if (i === 0 && b.type !== 'tableau') { sortie.push({ type: 'para', runs: [t(b.texte), t('\n\n\n\n\n')], avant: 10, apres: 4, habillage: true }); return; }
-      if (RE_LIEU_DATE_COURRIER.test(b.texte) && b.texte.length < 80) { sortie.push({ type: 'para', runs: [t(b.texte + '\n\n')], avant: 15, apres: 15, habillage: true }); return; }
-      if (/^Me\s/.test(b.texte) && (i === blocs.length - 1 || (blocs[i + 1] && blocs[i + 1].type === 'saut'))) {
-        sortie.push({ type: 'para', runs: [t(b.texte)], avant: 20, apres: 0, jc: 'right', avecSuivant: true });
-        sortie.push({ type: 'tampon' });
-        return;
-      }
-      if (/\n/.test(b.texte)) { sortie.push({ type: 'para', runs: runsGras(b.texte), apres: 10 }); return; }
-      sortie.push({ type: 'para', runs: runsGras(b.texte), jc: 'both', apres: 10 });
-    });
-    return sortie;
-  }
-
   // Pure : découpe des segments de texte (gras / italique / souligné) en mots et espaces, puis en lignes d'au plus `largeur`
   // points ; `mesurer(texte, style)` rend la largeur d'un texte. Un « \n » force la ligne. Chaque ligne dit si elle est la
   // dernière de son paragraphe ou finie par un retour forcé : celles-là ne sont jamais justifiées.
@@ -227,7 +191,7 @@
   }
 
   // Génère le PDF/A-2U du courrier et renvoie { blob, nom, donnees } — même contrat que genererBlobAppelFonds.
-  // `generique` (étude 15/10, « Constitution de dossier ») : { blocs, ref } — n'importe quel courrier de l'office sur le même papier
+  // `generique` (étude 15/10, « Constitution de dossier ») : { blocs, ref } ou { fidele, refLignes, signe } — n'importe quel courrier de l'office sur le même papier
   // (en-tête, polices embarquées, tampon et signature, PDF/A-2U) ; sans lui, le courrier d'appel de fonds.
   async function genererPdfAAppelFonds(donneesGardees, nomGarde, generique) {
     const octetsPolices = await chargerOutilsPdfA();
@@ -294,7 +258,9 @@
       puce(175.4); ecrire('3 rue du Bout des Haies - 41000 BLOIS', 34, 175.4, 'sans', 10, noir, 9.52);
       image('iconFacebook', 21, 187, 10.5, 10.5); ecrire('@bloisnotaire', 34, 187.5, 'sans', 10, noir, 9.52);
       image('iconInstagram', 21, 200.6, 10.5, 10.5); ecrire('@bloisnotairegossart', 34, 200.1, 'sans', 10, noir, 9.52);
-      ecrire('Nos Réf : ' + (donnees.ref || ''), 21.6, 224.9, 'sans', 10, noir, 9.52);
+      // Un courrier de la Constitution de dossier porte la colonne entière (intitulé, référence, responsable), six lignes au plus avant « HORAIRES ».
+      const refLignes = generique && generique.refLignes && generique.refLignes.length ? generique.refLignes.slice(0, 6) : ['Nos Réf : ' + (donnees.ref || '')];
+      refLignes.forEach((ligne, i) => ecrire(ligne, 21.6, 224.9 + i * 12.1, 'sans', 10, noir, 9.52));
       titre('HORAIRES', 19.4, 309.7);
       ['Ouvert au public', 'du LUNDI au', 'VENDREDI', 'de 9 h à 12 h', 'et de 14 h à 18 h.', 'SAMEDI matin :', 'sur rendez-vous.', 'PARKING']
         .forEach((ligne, i) => ecrire(ligne, 19.4, 321.8 + i * 12.1, 'sans', 10, noir, 9.52));
@@ -339,8 +305,12 @@
     };
 
     let apresPrecedent = 0;
-    const blocs = generique ? generique.blocs : blocsCourrierPdfA(donnees);
+    const blocs = generique ? (generique.blocs || []) : blocsCourrierPdfA(donnees);
     nouvellePage();
+    // Courrier fidèle au modèle de l'étude (client/73) : dessiné ligne à ligne aux positions des originaux.
+    if (generique && generique.fidele) {
+      composerPdfCourrierFidele(generique.fidele, { numero: () => numero, nouvellePage, mesurer, dessinerLigne, image, trait, ecrire, page: () => page, H, hex, signe: !!generique.signe });
+    }
     for (let n = 0; n < blocs.length; n++) {
       const b = blocs[n];
       if (b.type === 'para') {

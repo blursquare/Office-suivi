@@ -9572,11 +9572,21 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-lettre .af-logo-notaires { width: 260px; }
 .cst-lettre .af-logo-office { width: 190px; }
 .cst-lettre .af-lettre-grid { grid-template-columns: 120px 1fr; gap: 16px; }
-.cst-apercu-dest { margin-bottom: 18px; }
-.cst-apercu-date { margin-bottom: 22px; }
-.cst-apercu-puce { margin: 0 0 4px 12px; }
-.cst-apercu-table { border-collapse: collapse; margin: 0 0 12px; width: 100%; }
-.cst-apercu-table th, .cst-apercu-table td { border: 1px solid #26201a; padding: 2px 6px; text-align: left; font-size: 9.5pt; }
+.cst-apercu .cstf { flex: none; }
+/* Courrier fidèle (client/73) : les mesures du modèle Word de l'étude, en points — page de 595 pt, marge gauche de 141,75 pt (la
+   colonne de l'en-tête), corps de 425,2 pt, Times 11 sur 12,65 pt, colonne de droite (adresse, date) à 158,35 pt du corps. */
+.cstf.af-lettre { width: 595pt; max-width: none; box-sizing: border-box; padding: 18pt 28.35pt 32pt 0; }
+.cstf .af-lettre-grid { grid-template-columns: 141.75pt 425.2pt; gap: 0; }
+.cstf .af-lettre-aside { padding: 0 8pt 0 20pt; }
+.cstf-corps { font-family: 'Times New Roman', 'Liberation Serif', Times, serif; font-size: 11pt; line-height: 12.65pt; }
+.cstf-l { min-height: 12.65pt; text-align: justify; white-space: pre-wrap; }
+.cstf-droite { margin-left: 158.35pt; text-align: left; }
+.cstf-signature { text-align: right; }
+.cstf-retour { margin-left: 234pt; }
+.cstf-tableau { border-collapse: collapse; table-layout: fixed; margin-left: 0.35pt; }
+.cstf-tableau td { border: 0.5pt solid #000; padding: 1.7pt 5.4pt 1.15pt; font-size: 11pt; line-height: 12.65pt; vertical-align: top; overflow-wrap: normal; }
+.cstf-questionnaire { width: 459.2pt; margin: 8pt 0 8pt -17pt; }
+.cstf-questionnaire td.cstf-bandeau, .cstf-questionnaire tr.cstf-bandeau td { background: #C00000; text-align: center; }
 .cst-saut { margin: 24px -32px; padding: 4px; border-top: 2px dashed #b9b2a6; text-align: center; font-family: 'Inter', sans-serif; font-size: 9px; color: #8a8273; }
 /* @fin-papier */
 @media (max-width: 1100px) {
