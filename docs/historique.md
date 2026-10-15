@@ -19906,3 +19906,6 @@ Reçues de l'étude sur un dossier de succession (intitulé « A AAAA NNNNN SUCC
 
 ### 0.240.2 — 15/10/2026 (étude : portail de Chailles)
 - Guichet unique de Chailles : https://portail-usager.sirap.com/041032/connexion (fourni par l'étude), lien « ouvrir » dans Constitution de dossier (`URL_GNAU_CHAILLES`).
+
+### 0.240.3 — 15/10/2026 (étude : capture de l'expéditeur)
+- Blois, alignement/numérotage : le courriel est `geometres.notaires@blois.fr` (capture d'un email reçu de ce service par l'étude) ; la dictée « geomètre@blois.fr » était fausse.

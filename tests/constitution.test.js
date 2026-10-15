@@ -10,7 +10,7 @@ test('circuits : Blois = pas de péril (site des notaires), numérotage par cour
   const blois = { insee: '41018', epci: '200030385' };
   assert.deepEqual([K.circuitCourrierVente('peril', blois).mode, K.circuitCourrierVente('peril', blois).destinataire], ['en-ligne', 'blois-en-ligne']);
   const a = K.circuitCourrierVente('alignement', blois);
-  assert.deepEqual([a.mode, a.destinataire, a.courriel], ['courriel', 'blois-geometre', 'geometre@blois.fr']);
+  assert.deepEqual([a.mode, a.destinataire, a.courriel], ['courriel', 'blois-geometre', 'geometres.notaires@blois.fr']);
   assert.equal(K.circuitCourrierVente('assainissement', blois).destinataire, 'agglopolys');
 });
 

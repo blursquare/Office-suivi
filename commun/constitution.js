@@ -13,7 +13,7 @@
   const INSEE_CHAILLES = '41032';
   const URL_GNAU_CHAILLES = 'https://portail-usager.sirap.com/041032/connexion';
   /** Courriel du service qui reçoit, pour les notaires, les demandes de numérotage et d'alignement à Blois (dicté par l'étude, à confirmer). */
-  const COURRIEL_GEOMETRE_BLOIS = 'geometre@blois.fr';
+  const COURRIEL_GEOMETRE_BLOIS = 'geometres.notaires@blois.fr';
 
   /** Les trois courriers papier d'une vente (le CU et la DIA passent par les guichets uniques, GNAU : jamais un courrier). */
   const COURRIERS_VENTE = [
