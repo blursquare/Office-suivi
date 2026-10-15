@@ -1228,6 +1228,29 @@
     return etat;
   }
 
+  // Pure : les actes d'une SUCCESSION relevés dans le tableau « Rédaction » de la page du dossier (étude 15/10 : « des actes peuvent
+  // venir se rajouter, tu les auras dans le dossier Authentic : délivrance de legs, convention de quasi-usufruit ») —
+  // [{ intitule, etat: 'a_rediger' | 'redaction' | 'signe' | '', signeLe }]. Ni courrier, ni demande, ni procuration.
+  function actesSuccessionAuthentic(capture) {
+    const actes = [];
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const titre = [t.titre, ...(t.entete || [])].join(' ');
+      if (!/r[ée]daction/i.test(titre)) return;
+      (t.lignes || []).forEach(l => {
+        const cellules = (l || []).map(x => String(x == null ? '' : x).replace(/\s+/g, ' ').trim()).filter(x => x && !/^⟦icône⟧/.test(x));
+        const textes = cellules.filter(x => !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}$/.test(x));
+        if (!textes.length) return;
+        const intitule = textes[0];
+        if (/courrier|e-?mail|lettre|demande|procuration|convocation|mandat/i.test(intitule) || actes.some(a => a.intitule === intitule)) return;
+        const signe = cellules.map(x => RE_SIGNE_LE_AUTHENTIC.exec(x)).find(Boolean);
+        const etatTexte = textes.length > 1 ? textes[textes.length - 1] : '';
+        const etat = signe || /^sign[ée]/i.test(etatTexte) ? 'signe' : (/^en\s+cours/i.test(etatTexte) ? 'redaction' : (/^(?:non|pas\s+encore)\s+r[ée]dig/i.test(etatTexte) ? 'a_rediger' : ''));
+        actes.push({ intitule, etat, signeLe: signe ? dateIsoDepuisFr(signe[1]) : '' });
+      });
+    });
+    return actes;
+  }
+
   // Pure : le prix de vente — champ « Capital » (Informations financières).
   function prixAuthentic(capture) {
     const c = capture || {};
@@ -2245,7 +2268,22 @@
       noter(`Demande envoyée${dm.date ? ` le ${formatDateFr(dm.date)}` : ''} : « ${dm.titre} » (Authentic)`);
     });
 
-    if (Object.keys(infos).length || pieces.length || etatsChanges || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
+    // Succession (étude 15/10) : les actes du tableau « Rédaction » (notoriété, déclaration, attestation, délivrance de legs…) et leur état.
+    let actesChanges = false;
+    if (estSuccession(d) && type === 'gestion') {
+      const actes = actesSuccessionAuthentic(capture);
+      if (actes.length && JSON.stringify(actes) !== JSON.stringify(avant.actesSuccession || [])) {
+        const anciens = new Map((avant.actesSuccession || []).map(a => [a.intitule, a]));
+        actes.forEach(a => {
+          const ancien = anciens.get(a.intitule);
+          if (!ancien) noter(`Acte relevé dans Authentic : « ${a.intitule} »${a.etat === 'signe' ? ' — signé' + (a.signeLe ? ' le ' + formatDateFr(a.signeLe) : '') : ''}`);
+          else if (ancien.etat !== a.etat && a.etat === 'signe') noter(`« ${a.intitule} » signé dans Authentic${a.signeLe ? ' le ' + formatDateFr(a.signeLe) : ''}`);
+        });
+        apres.actesSuccession = actes;
+        actesChanges = true;
+      }
+    }
+    if (Object.keys(infos).length || pieces.length || etatsChanges || actesChanges || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;

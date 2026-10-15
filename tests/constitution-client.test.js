@@ -216,7 +216,8 @@ test('htmlCourrierFidele : texte échappé, tampon seulement signé, colonne « 
   assert.match(signe, /CPAM &lt;41&gt;/);
   assert.match(signe, /af-tampon-signature/);
   assert.match(signe, /Nos Réf : SUCC X/);
-  assert.match(signe, /<u>Succession de : Madame X<\/u>/);
+  assert.match(signe, /Succession de : Madame X/);
+  assert.ok(!signe.includes('<u>'));
   assert.ok(!app.htmlCourrierFidele(doc, [], { tampon: 'data:image/png;base64,AA' }, false).includes('af-tampon-signature'));
 });
 

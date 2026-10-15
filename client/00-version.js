@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.244.0';
+  const VERSION_APP = '0.245.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.245.0', date: '2026-10-15 21:59', resume: "Fiches succession : même présentation qu'une vente, avec le déroulé d'une succession — rendez-vous d'ouverture avec Sophie, acte de notoriété dans le mois (actes de naissance, acte de décès, FCDDV, donation entre époux et testament vérifiés), contrôle des droits et de l'inventaire à 2 mois, déblocage puis réception des fonds (ou transfert des comptes au conjoint survivant), attestation immobilière et déclaration de succession à 6 mois. Type de succession proposé (notoriété seule ; notoriété + déclaration ; classique) et actes en plus relevés dans Authentic (délivrance de legs…). Onglet Dossier : défunt, date de décès, régime matrimonial, conjoint, héritiers. Pièces suivies sur le NAS : acte de décès, livret de famille, actes de naissance et de mariage, FCDDV, titre, EHF, estimations, carte grise. Courriers : plus de soulignement bleu (variables d'Authentic)." },
     { version: '0.244.0', date: '2026-10-15 21:39', resume: "Constitution de dossier : les courriers sortent exactement comme les modèles de l'étude — mêmes retours à la ligne, mêmes lignes vides, même tableau des parcelles (en-tête grisé, filets), même questionnaire d'assainissement (bandeaux rouges, cases), en Word comme en PDF, et l'aperçu suit. Courrier vierge à un « autre organisme » (vente et succession), texte à saisir. Dans le répertoire, une succession voit d'abord les services successions, la banque des prêts en dernier." },
     { version: '0.243.0', date: '2026-10-15 21:12', resume: "Constitution de dossier : chaque courrier part en papier ou par email. Par email, le texte du courrier (sans l'en-tête) devient le corps du message, adressé à l'organisme d'après le répertoire (banques, CARSAT, MSA, CPAM…) ; « Envoyer les emails » les ouvre l'un après l'autre pour relecture." },
     { version: '0.242.0', date: '2026-10-15 21:06', resume: "Constitution de dossier : « Enregistrer dans Constitution » range d'un clic tous les courriers cochés dans un dossier « Constitution » du dossier client sur le NAS (créé s'il n'existe pas). Au choix : PDF et/ou Word, signés (tampon et signature) ou non signés." },

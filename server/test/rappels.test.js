@@ -732,11 +732,16 @@ test('SAFER en attente (miroir de echeancesPlanning) : « Délai SAFER » daté,
   assert.equal(toutesEcheances(levee).map(e => e.type).join(','), 'fixerRdv');
 });
 
-test('succession (miroir de echeancesPlanning) : seulement la signature placée et les échéances ajoutées', () => {
+test('succession (miroir de echeancesPlanning) : son déroulé daté depuis l’ouverture (étude 15/10) et les échéances ajoutées', () => {
   const { toutesEcheances } = require('../src/jobs/rappels');
-  const d = { id: 's', nom: 'DUPONT Jean', typeAffaire: 'succession', sansPret: true, acte: '2026-12-01', autres: [{ label: 'Déclaration de succession', date: '2027-01-15' }] };
+  const d = { id: 's', nom: 'DUPONT Jean', typeAffaire: 'succession', sansPret: true, acte: '2026-12-01', autres: [{ label: 'Rendez-vous banque', date: '2027-01-15' }] };
+  // Sans rendez-vous d'ouverture, rien n'est daté : seule l'échéance ajoutée.
   assert.equal(toutesEcheances(d).map(e => `${e.type}:${e.iso}`).join(','), 'autre-0:2027-01-15');
-  assert.equal(toutesEcheances(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(e => e.type).join(','), 'rendezVousSignature,autre-0');
+  // Ouverture le 10/11/2099 : notoriété à 1 mois, contrôle à 2 mois, déclaration à 6 mois (immobilier : succession classique).
+  const ouverte = Object.assign({}, d, { biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2099-11-10' } });
+  assert.equal(toutesEcheances(ouverte).map(e => `${e.type}:${e.iso}`).join(','), 'ouvertureSuccession:2099-11-10,notoriete:2099-12-10,controleDroits:2100-01-10,declarationSuccession:2100-05-10,autre-0:2027-01-15');
+  // Le rendez-vous de signature placé dans l'agenda date l'acte de notoriété.
+  assert.equal(toutesEcheances(Object.assign({}, ouverte, { rendezVousSignature: '2099-11-30' })).find(e => e.type === 'notoriete').iso, '2099-11-30');
 });
 
 test('prêt ancré sur la date butoir : son rappel n’empêche pas celui de la vraie date saisie ensuite (relecture 14/10)', () => {

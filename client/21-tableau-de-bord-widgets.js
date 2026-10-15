@@ -672,8 +672,9 @@
   // `iso` est la date à afficher en regard de l'étape, jamais une date inventée : vide si le
   // dossier n'en porte pas.
   function etapesAvancement(d, aujourdhuiIso) {
+    // Succession (étude 15/10) : son propre déroulé (commun/succession.js).
+    if (estSuccession(d)) return etapesSuccession(d, aujourdhuiIso).map(e => ({ type: e.type, label: e.label, fait: e.fait, iso: e.iso || '' }));
     return ETAPES_AVANCEMENT.filter(e => {
-      if (estSuccession(d)) return e.type === 'signature';
       if (e.type === 'ventebien') return !!d.ventebien;
       if (e.type === 'pret') return !d.sansPret;
       return true;

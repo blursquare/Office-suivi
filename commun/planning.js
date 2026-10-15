@@ -4,7 +4,7 @@
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-/** @param {typeof import('./dates') & typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
+/** @param {typeof import('./dates') & typeof import('./dossier') & typeof import('./succession')} C — les autres fichiers de commun/ dont celui-ci dépend */
 (function (C) {
   // Date limite de l'envoi de l'appel de fonds : 10 jours avant le rendez-vous de signature (étude 05/10 : « c'est dix jours
   // avant pour l'appel de fonds » — 1 jour le même soir, corrigé) ; le rappel Teams part ce jour-là (seuil 0, jobs/rappels.js).
@@ -19,6 +19,8 @@
   }
 
   function echeanceValidee(d, type) {
+    // Étapes d'une succession : cochées sur la fiche, ou actes signés dans Authentic (commun/succession.js).
+    if (C.estSuccession(d) && C.TYPES_ETAPES_SUCCESSION.includes(type)) return C.etapeSuccessionValidee(d, type);
     if (type === 'fixerRdv') return !!d.rendezVousSignature;
     if (type === 'pret') return d.offrePretStatut === 'recue' || !!(d.echeancesValidees && d.echeancesValidees.pret);
     if (type === 'acte') return !!d.rendezVousSignature || !!(d.echeancesValidees && d.echeancesValidees.acte);
@@ -251,8 +253,9 @@
     /** @type {Echeance[]} */
     const items = [];
     if (C.estSuccession(d)) {
-      // Succession : la signature (si placée) et les échéances ajoutées à la main, rien d'autre.
-      if (d.rendezVousSignature && !echeanceValidee(d, 'rendezVousSignature')) items.push({ type: 'rendezVousSignature', label: 'Signature de l’acte', iso: d.rendezVousSignature });
+      // Succession (étude 15/10) : les étapes datées et pas encore faites de son déroulé (ouverture, notoriété, contrôle des droits,
+      // fonds, déclaration de succession — commun/succession.js), puis les échéances ajoutées à la main.
+      C.etapesSuccession(d).forEach(e => { if (!e.fait && e.iso && e.active && !e.authentic) items.push({ type: e.type, label: e.label, iso: e.iso }); });
       (d.autres || []).forEach((a, i) => {
         if (!echeanceValidee(d, 'autre-' + i) && a.date) items.push({ type: 'autre', label: a.label, iso: a.date, index: i });
       });
@@ -332,5 +335,5 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)
+  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier'), require('./succession')) : /** @type {any} */ (globalThis)
 );

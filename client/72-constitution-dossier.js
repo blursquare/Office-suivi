@@ -187,7 +187,9 @@
       domicile: v('domicile', fiche && fiche.domicile ? normaliserAdresse(fiche.domicile) : ''),
       naissanceDate: v('naissanceDate', fiche && fiche.dateNaissance), naissanceLieu: v('naissanceLieu', lieuNaissance),
       decesDate: v('decesDate', fiche && fiche.deces && fiche.deces.date), decesLieu: v('decesLieu', lieuDeces),
-      conjointLien: v('conjointLien', conj.lien), conjointNom: v('conjointNom', conj.nom)
+      conjointLien: v('conjointLien', conj.lien), conjointNom: v('conjointNom', conj.nom),
+      // Régime matrimonial (étude 15/10 : fiche succession) : celui de la fiche d'Authentic, sinon saisi.
+      regime: v('regime', sm ? [sm.regime, sm.contrat && !/^sans/i.test(sm.contrat) && sm.contrat !== sm.regime ? sm.contrat : ''].filter(Boolean).join(' — ') : '')
     };
     const avertissements = [];
     if (!fiche) avertissements.push('Aucune fiche de défunt n’a été lue dans Authentic (la fiche de la personne décédée, avec sa date de décès) : saisissez-le ci-dessous ou ouvrez sa fiche dans Authentic.');

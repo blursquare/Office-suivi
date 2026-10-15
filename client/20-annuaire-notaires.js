@@ -1819,6 +1819,8 @@
     if (!d) return;
     d.echeancesValidees = d.echeancesValidees || {};
     d.echeancesValidees[type] = true;
+    // Succession : l'acte signé garde sa date (les fonds se débloquent à partir d'elle — client/74-fiche-succession.js).
+    if (estSuccession(d)) dateEtapeSuccession(d, type, true);
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} marquée réalisée`);
     notifierTacheFaite(d, libelleEcheancePourHistorique(d, type), 'marquée réalisée');
     sauvegarder(d);
@@ -1894,6 +1896,7 @@
       d.echeancesValidees.redaction = false;
     } else {
       delete d.echeancesValidees[type];
+      if (estSuccession(d)) dateEtapeSuccession(d, type, false);
     }
     ajouterHistorique(d, `${libelleEcheancePourHistorique(d, type)} : validation annulée`);
     sauvegarder(d);
@@ -1959,7 +1962,11 @@
     pret: 'Obtention du prêt', acte: 'Date butoir', ventebien: 'Vente préalable',
     fixerRdv: 'Fixer le rendez-vous', preemption: 'Renonciation préemption attendue', safer: 'Délai SAFER',
     appelFonds: 'Envoi appel de fonds', redaction: 'Rédaction de l’acte', projetEnvoye: 'Envoi projet',
-    rendezVousSignature: 'Rendez-vous de signature'
+    rendezVousSignature: 'Rendez-vous de signature',
+    // Succession (étude 15/10, commun/succession.js).
+    ouvertureSuccession: 'Rendez-vous d’ouverture de la succession', notoriete: 'Signature de l’acte de notoriété',
+    controleDroits: 'Contrôle des droits et de l’inventaire', transfertComptes: 'Transfert des comptes au conjoint survivant',
+    deblocageFonds: 'Déblocage des fonds', receptionFonds: 'Réception des fonds', declarationSuccession: 'Signature de la déclaration de succession'
   };
 
   // Résout le libellé d'une échéance pour un message d'historique — les trois/cinq types fixes

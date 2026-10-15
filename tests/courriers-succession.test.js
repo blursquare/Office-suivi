@@ -26,9 +26,9 @@ test('date : « 01 octobre 2026 », vide si elle n’existe pas', () => {
   assert.equal(C.dateCourrierSuccession(''), '');
 });
 
-test('bloc du défunt : « Succession de » souligné, lignes absentes omises', () => {
+test('bloc du défunt : sans soulignement (variables d’Authentic), lignes absentes omises', () => {
   const l = C.lignesBlocDefunt(defunt);
-  assert.equal(l[0], '__Succession de : Madame Jeanne Marie DURAND__');
+  assert.equal(l[0], 'Succession de : Madame Jeanne Marie DURAND');
   assert.equal(l[1], 'Domicile : BLOIS (41000), 3 rue des Lilas');
   assert.equal(l[2], 'Date et lieu de naissance : le 17 novembre 1930 à TOURS (37000)');
   assert.equal(l[3], 'Date et lieu de décès : le 14 septembre 2026 à BLOIS (41000)');
@@ -42,7 +42,7 @@ test('disposition : adresse à la 2e ligne (à la 1re dès quatre lignes), quatr
   assert.equal(d.adresseDebut, 2);
   assert.equal(d.date, 'Blois, le 01 octobre 2026');
   assert.equal(d.lignes.slice(0, 4).join('|'), '|||');
-  assert.equal(d.lignes[4], '__Succession de : Madame Jeanne Marie DURAND__');
+  assert.equal(d.lignes[4], 'Succession de : Madame Jeanne Marie DURAND');
   assert.equal(d.lignes.slice(9, 13).join('|'), '||Madame, Monsieur,|');
   assert.equal(d.signature, 'Me Sophie GOSSART');
   assert.equal(C.documentCourrierSuccession('banque', { dateIso: '2026-10-01', defunt, destinataire: ['A', 'B', 'C', 'D'] }).adresseDebut, 1);
@@ -57,7 +57,7 @@ test('banque : les cinq points mot pour mot, gras et souligné de l’original, 
   const d = C.documentCourrierSuccession('banque', { dateIso: '2026-10-01', defunt, destinataire: ['CAISSE X', 'Service successions'] });
   const t = texte(d);
   assert.match(t, /\n- la situation du ou des comptes, en capital et intérêts[^\n]+\n- la liste et l'évaluation des valeurs mobilières[^\n]+\n- le cas échéant, si un coffre-fort y était ouvert\.\n\n2°\) Me communiquer/);
-  assert.match(t, /\*\*contrats d'assurance-vie\*\* ou assimilés souscrits __par la défunte__, quelle que soit la date de souscription\./);
+  assert.match(t, /\*\*contrats d'assurance-vie\*\* ou assimilés souscrits par la défunte, quelle que soit la date de souscription\./);
   assert.match(t, /5°\) Et m'indiquer également les \*\*formalités\*\* à respecter/);
   assert.match(t, /Madame la Directrice, Monsieur le Directeur, mes salutations distinguées\.$/);
   assert.equal(d.blancsSignature, 1);

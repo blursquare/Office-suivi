@@ -1,0 +1,138 @@
+'use strict';
+
+// Fiches succession (étude 15/10) : types, actes, déroulé et pièces d'une succession (commun/succession.js), cartes du Tableau,
+// bandeau, lecture des actes dans Authentic. Données inventées.
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const S = require('../commun/succession');
+const P = require('../commun/planning');
+const { checklistPiecesBase } = require('../commun/pieces');
+const { chargerApplication } = require('./helpers/load-app.js');
+const app = chargerApplication();
+
+const base = (plus) => Object.assign({ id: 's1', nom: 'SUCC DURAND', typeAffaire: 'succession', sansPret: true, parties: [], pieces: {} }, plus || {});
+
+test('type proposé : immobilier → classique ; sans immobilier, plus de 50 000 € → notoriété + déclaration ; sinon notoriété seule', () => {
+  assert.equal(S.typeSuccessionPropose(base({ biens: [{ adresse: 'BLOIS (41000), 1 rue X' }] })), 'classique');
+  assert.equal(S.typeSuccessionPropose(base({ authentic: { immeubles: [{ parcelles: [] }] } })), 'classique');
+  assert.equal(S.typeSuccessionPropose(base({ succession: { actifSuperieurSeuil: true } })), 'notoriete-ds');
+  assert.equal(S.typeSuccessionPropose(base()), 'notoriete');
+  // Le type choisi sur la fiche l'emporte ; un type inconnu est ignoré.
+  assert.equal(S.typeSuccession(base({ biens: [{ adresse: 'X' }], succession: { type: 'notoriete' } })), 'notoriete');
+  assert.equal(S.typeSuccession(base({ succession: { type: 'inconnu' } })), 'notoriete');
+});
+
+test('actes : ceux du type, plus ceux qu’Authentic ajoute (délivrance de legs…), avec leur état', () => {
+  const d = base({ biens: [{ adresse: 'X' }], authentic: { actesSuccession: [
+    { intitule: 'Acte de notoriété', etat: 'signe', signeLe: '2026-11-03' },
+    { intitule: 'Délivrance de legs', etat: 'a_rediger', signeLe: '' },
+    { intitule: 'Convention de quasi-usufruit', etat: '', signeLe: '' }
+  ] } });
+  const actes = S.actesSuccession(d);
+  assert.equal(actes.map(a => `${a.libelle}:${a.etat}:${a.base ? 'base' : 'authentic'}`).join('|'),
+    'Acte de notoriété:signe:base|Déclaration de succession::base|Attestation immobilière::base|Délivrance de legs:a_rediger:authentic|Convention de quasi-usufruit::authentic');
+  assert.equal(S.acteBaseDepuisIntitule('Attestation immobilière après décès'), 'attestation');
+  assert.equal(S.acteBaseDepuisIntitule('Déclaration de succession'), 'declaration');
+});
+
+test('déroulé : ouverture, notoriété à 1 mois, contrôle à 2 mois, déclaration à 6 mois — depuis le rendez-vous d’ouverture', () => {
+  const d = base({ biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-20' } });
+  const e = S.etapesSuccession(d, '2026-10-15');
+  assert.equal(e.map(x => `${x.type}:${x.iso}:${x.fait ? 'fait' : ''}:${x.active ? 'actif' : ''}`).join('|'),
+    'ouvertureSuccession:2026-10-20::actif|notoriete:2026-11-20::actif|controleDroits:2026-12-20::actif|deblocageFonds:::|receptionFonds:::|declarationSuccession:2027-04-20::actif');
+  assert.match(e.find(x => x.type === 'declarationSuccession').label, /attestation immobilière et de la déclaration de succession/);
+  // Notoriété seule : pas de déclaration de succession.
+  assert.ok(!S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' } }), '2026-10-15').some(x => x.type === 'declarationSuccession'));
+  // Ouverture passée : faite.
+  assert.ok(S.etapesSuccession(d, '2026-10-21')[0].fait);
+});
+
+test('après la notoriété signée : déblocage des fonds puis réception ; avec un conjoint survivant, transfert des comptes', () => {
+  const d = base({ succession: { ouvertureLe: '2026-10-01', notorieteSigneeLe: '2026-11-04' }, echeancesValidees: { notoriete: true } });
+  const e = S.etapesSuccession(d, '2026-11-10');
+  const deb = e.find(x => x.type === 'deblocageFonds');
+  assert.deepEqual([deb.iso, deb.active, deb.fait], ['2026-11-04', true, false]);
+  assert.equal(e.find(x => x.type === 'receptionFonds').active, false);
+  // Conjoint survivant : déduit de « Épouse de » sur le défunt, ou coché.
+  const c = S.etapesSuccession(base({ defunt: { conjointLien: 'Époux de' }, echeancesValidees: { notoriete: true } }), '2026-11-10');
+  assert.ok(c.some(x => x.type === 'transfertComptes') && !c.some(x => x.type === 'deblocageFonds'));
+  assert.ok(!S.conjointSurvivant(base({ defunt: { conjointLien: 'Veuve de' } })));
+  assert.ok(S.conjointSurvivant(base({ succession: { conjointSurvivant: true } })));
+});
+
+test('acte de notoriété signé dans Authentic : fait, sans coche ; planning et echeanceValidee le suivent', () => {
+  const d = base({ succession: { ouvertureLe: '2026-10-01' }, authentic: { actesSuccession: [{ intitule: 'Notoriété', etat: 'signe', signeLe: '2026-10-28' }] } });
+  assert.ok(P.echeanceValidee(d, 'notoriete'));
+  assert.ok(!P.echeancesPlanning(d).some(x => x.type === 'notoriete'));
+  assert.equal(P.echeancesPlanning(d).find(x => x.type === 'deblocageFonds').iso, '2026-10-28');
+});
+
+test('pièces : celles d’une succession, l’immobilier seulement s’il y en a ; reconnues par le nom du fichier', () => {
+  const sans = checklistPiecesBase('maison', base()).map(p => p.cle).join(',');
+  assert.equal(sans, 'acteDeces,livretFamille,actesNaissance,acteMariage,fcddv,estimationVehicules,carteGrise');
+  const avec = checklistPiecesBase('maison', base({ biens: [{ adresse: 'X' }], piecesRetirees: ['carteGrise'] })).map(p => p.cle).join(',');
+  assert.equal(avec, 'acteDeces,livretFamille,actesNaissance,acteMariage,fcddv,titrePropriete,ehf,estimationImmobilier,estimationVehicules');
+  const motif = (cle) => S.PIECES_SUCCESSION.find(p => p.cle === cle).motifNom;
+  assert.ok(motif('fcddv').test('Reponse FCDDV DURAND'));
+  assert.ok(motif('fcddv').test('Fichier central des dernieres volontes'));
+  assert.ok(motif('ehf').test('EHF DURAND'));
+  assert.ok(motif('estimationVehicules').test('Estimation vehicule Clio'));
+  assert.ok(!motif('estimationImmobilier').test('Estimation vehicule Clio'));
+  assert.ok(motif('estimationImmobilier').test('Avis de valeur maison'));
+  assert.ok(motif('carteGrise').test('Carte grise Clio'));
+  assert.ok(motif('acteDeces').test('Acte de deces DURAND'));
+  assert.ok(!motif('acteDeces').test('Declaration de succession'));
+});
+
+test('notoriété : actes de naissance, acte de décès, FCDDV reçus, donation et testament tranchés', () => {
+  assert.equal(S.attentesNotoriete(base()).join(' | '), 'Acte de décès | Actes de naissance | Interrogation du FCDDV (fichier central des dernières volontés) | Donation entre époux à vérifier | Testament à vérifier');
+  assert.equal(S.attentesNotoriete(base({ pieces: { acteDeces: 'recue', actesNaissance: 'recue', fcddv: 'recue' }, succession: { donationEpoux: 'non', testament: 'oui' } })).length, 0);
+});
+
+test('Tableau de la fiche : rendez-vous d’ouverture à fixer, puis les étapes en colonnes ; aucune carte d’une vente', () => {
+  const d = base({ id: 's2', biens: [{ adresse: 'X' }] });
+  const c = app.cartesTableauFiche(d, '2026-10-15', []);
+  assert.ok(c.faire.some(x => /Fixer le rendez-vous d’ouverture/.test(x.titre)));
+  assert.ok(!['faire', 'attente', 'fait'].some(col => c[col].some(x => /appel de fonds|projet|prêt/i.test(x.titre))));
+  const ouverte = base({ id: 's3', biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-01' } });
+  const c2 = app.cartesTableauFiche(ouverte, '2026-10-15', []);
+  assert.ok(c2.fait.some(x => x.cle === 'succession:ouvertureSuccession'));
+  const noto = c2.faire.find(x => x.cle === 'succession:notoriete');
+  assert.match(noto.sous, /À réunir : Acte de décès/);
+  assert.ok(c2.attente.some(x => x.cle === 'succession:deblocageFonds'));
+  assert.ok(c2.obtenir.some(x => x.cle === 'piece:fcddv'));
+});
+
+test('bandeau : le prochain acte à signer, avant sa date', () => {
+  const d = base({ succession: { ouvertureLe: '2026-10-01' } });
+  const s = app.signatureBandeauSuccession(d, '2026-10-15');
+  assert.equal(s.etat, 'aplacer');
+  assert.equal(s.iso, '2026-11-01');
+  assert.match(s.acte, /acte de notoriété/);
+  assert.equal(app.signatureBandeauSuccession(base({ echeancesValidees: { notoriete: true } }), '2026-10-15').etat, 'signe');
+});
+
+test('Authentic : actes d’une succession lus dans le tableau « Rédaction » (ni courrier ni demande)', () => {
+  const capture = { tableaux: [{ titre: 'Rédaction', entete: ['Intitulé', 'Date', 'État'], lignes: [
+    ['Acte de notoriété', '', 'Signé le 03/11/2026'],
+    ['Déclaration de succession', '', 'En cours'],
+    ['Délivrance de legs', '', 'Non rédigé'],
+    ['Courrier banque', '12/10/2026', 'Envoyé']
+  ] }] };
+  const actes = app.actesSuccessionAuthentic(capture);
+  assert.equal(actes.map(a => `${a.intitule}:${a.etat}:${a.signeLe}`).join('|'), 'Acte de notoriété:signe:2026-11-03|Déclaration de succession:redaction:|Délivrance de legs:a_rediger:');
+});
+
+test('fiche Dossier : défunt, héritiers, donation, testament, type proposé ; texte échappé', () => {
+  const d = base({ id: 's4', parties: [{ nom: 'Jeanne DURAND', role: 'PARTIE' }, { nom: 'Paul <MARTIN>', role: 'PARTIE', emails: ['p@x.fr'] }],
+    defunt: { civilite: 'Madame', prenoms: 'Jeanne', nom: 'DURAND', decesDate: '2026-09-14', regime: 'Communauté légale' } });
+  const ligne = (ic, libelle, valeur) => `<div>${libelle}:${valeur}</div>`;
+  const html = app.renderDossierSuccession(d, ligne, '<select></select>', 'NAS');
+  assert.match(html, /Héritiers <span class="hint">· 1<\/span>/);
+  assert.match(html, /Paul &lt;MARTIN&gt;/);
+  assert.match(html, /Donation entre époux/);
+  assert.match(html, /Testament/);
+  assert.match(html, /Communauté légale/);
+  assert.match(html, /Acte de notoriété seul \(proposé\)/);
+  assert.match(html, /value="2026-09-14"/);
+});

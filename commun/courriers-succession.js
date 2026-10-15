@@ -25,7 +25,8 @@
    */
 
   // Les courriers de l'étude, LIGNE À LIGNE comme ses originaux (étude 15/10 : « la même disposition, à la ligne près, l'espacement près ») :
-  // chaque chaîne est un paragraphe, '' une ligne vide ; **gras**, __souligné__ comme dans les courriers reçus le 15/10. `lignes` va de
+  // chaque chaîne est un paragraphe, '' une ligne vide ; **gras** comme dans les courriers reçus le 15/10 (le bleu souligné des modèles marquait les variables
+  // d'Authentic : jamais repris, étude 15/10). `lignes` va de
   // la première phrase après la formule d'appel jusqu'à la formule de politesse ; `blancsSignature` = lignes vides avant « Me … ».
   /** @type {ModeleCourrierSuccession[]} */
   const MODELES_COURRIER_SUCCESSION = [
@@ -37,7 +38,7 @@
         '- la situation du ou des comptes, en capital et intérêts, dont le défunt et/ou son conjoint étaient titulaires en votre établissement. Si un compte était débiteur au jour du décès, veuillez joindre à votre réponse une attestation de créancier, pour justifier du passif dans la déclaration de succession que je serai appelé à dresser.',
         '- la liste et l\'évaluation des valeurs mobilières (cours moyen du jour du décès d\'une part et moyenne des trente derniers cours ayant précédé le décès conformément à l\'article 759 du Code général des impôts d\'autre part),',
         '- le cas échéant, si un coffre-fort y était ouvert.', '',
-        `2°) Me communiquer les caractéristiques des **contrats d'assurance-vie** ou assimilés souscrits __${v.f ? 'par la défunte' : 'par le défunt'}__, quelle que soit la date de souscription.`, '',
+        `2°) Me communiquer les caractéristiques des **contrats d'assurance-vie** ou assimilés souscrits ${v.f ? 'par la défunte' : 'par le défunt'}, quelle que soit la date de souscription.`, '',
         '3°) M\'informer si le défunt et/ou son conjoint s\'étaient ou non portés **caution** dans un ou plusieurs prêts. A défaut de réponse de votre part sur ce point, je considérerai votre silence comme valant réponse négative.', '',
         '4°) M\'adresser les renseignements nécessaires pour établir la **déclaration des revenus** du 1er janvier au jour du décès, laquelle en vertu de l\'article 204-2° du Code général des impôts, doit être déposée dans les six mois du décès.', '',
         '5°) Et m\'indiquer également les **formalités** à respecter pour mettre les fonds à disposition des héritiers.', '',
@@ -159,7 +160,8 @@
       const l = String(lieu || '').trim();
       return date ? `le ${date}${l ? ' à ' + l : ''}` : l;
     };
-    const lignes = [`__Succession de : ${identite}__`];
+    // Sans soulignement (étude 15/10 : le bleu souligné des modèles marque les variables d'Authentic, pas une mise en forme).
+    const lignes = [`Succession de : ${identite}`];
     if (String(d.domicile || '').trim()) lignes.push(`Domicile : ${String(d.domicile).trim()}`);
     const naissance = lieuDate(d.naissanceDate, d.naissanceLieu);
     if (naissance) lignes.push(`Date et lieu de naissance : ${naissance}`);

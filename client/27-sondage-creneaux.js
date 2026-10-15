@@ -1410,7 +1410,7 @@
     const total = checklist.length;
     const complet = total > 0 && nbRecues === total;
     const pct = total ? Math.round(nbRecues / total * 100) : 0;
-    const libelleType = d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : d.typeVente === 'terre' ? 'terre agricole / terrain non bâti' : 'maison';
+    const libelleType = estSuccession(d) ? 'succession' : d.typeVente === 'copropriete' ? 'copropriété' : d.typeVente === 'terrain' ? 'terrain à bâtir' : d.typeVente === 'terre' ? 'terre agricole / terrain non bâti' : 'maison';
     const notifs = d.piecesNotifications || [];
     // Ordre de la checklist conservé : une pièce ne change jamais de place quand on la coche.
     // Repliée, la liste ne cache que des pièces DÉJÀ REÇUES (et pas nouvelles) au-delà des
@@ -2056,7 +2056,7 @@
       const ongletsFiche = [
         { cle: 'tableau', libelle: 'Tableau', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
         // Pièces et analyse de l'avant-contrat dans le même onglet (étude 05/10) ; sans checklist (participation), l'analyse seule.
-        { cle: 'pieces', libelle: avecPieces ? 'Pièces et analyse' : 'Analyse',
+        { cle: 'pieces', libelle: estSuccession(d) ? 'Pièces' : (avecPieces ? 'Pièces et analyse' : 'Analyse'),
           compteur: avecPieces ? `${nbPiecesRecues}/${checklist.length}` : (avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : ''),
           titre: (avecPieces ? `${nbPiecesRecues} pièce(s) reçue(s) sur ${checklist.length}` : '') + (avAnalyse.total ? `${avecPieces ? ' · ' : ''}${avAnalyse.faits} engagement(s) ou document(s) de l’avant-contrat sur ${avAnalyse.total}` : ''),
           complet: avecPieces ? checklist.length > 0 && nbPiecesRecues === checklist.length : avAnalyse.total > 0 && avAnalyse.faits === avAnalyse.total, nouveau: avecPieces && notifPieces },
@@ -2142,7 +2142,7 @@
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
               ${avecPieces ? `${renderPiecesDossier(d)}
               ${renderPreemptionFiche(d)}` : ''}
-              <div class="fiche-sous-partie">
+              <div class="fiche-sous-partie"${estSuccession(d) ? ' hidden' : ''}>
               ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
               <div class="analyse-juridique">

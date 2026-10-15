@@ -22,7 +22,7 @@ var TYPES_ECHEANCE_ATTENTE_FICHE = ['ventebien', 'pret', 'preemption', 'safer', 
 var LIBELLES_CATEGORIE_FICHE = {
   pret: 'Prêt', ventebien: 'Vente préalable', safer: 'SAFER', dia: 'Préemption', preemption: 'Préemption', rendezVousSignature: 'Signature', signature: 'Signature',
   fixerRdv: 'Signature', appelFonds: 'Appel de fonds', projetEnvoye: 'Projet d’acte', redaction: 'Rédaction', autre: 'Autre', piece: 'Pièce',
-  engagement: 'Engagement', acte: 'Signature'
+  engagement: 'Engagement', acte: 'Signature', succession: 'Succession'
 };
 var RE_PIECE_D_UN_TIERS = /pr[ée]emption|safer|\bdia\b|offre/i;
 // Dates posées sur la fiche qu'une carte peut corriger ou effacer (étude 13/10 : « modifier les dates d'échéances dans les cartes ou
@@ -121,9 +121,12 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     });
   });
 
+  // --- Succession (étude 15/10) : son déroulé à elle (ouverture, notoriété, contrôle à 2 mois, fonds, déclaration) — client/74.
+  if (succession) cartesEtapesSuccessionFiche(d, aujourdhuiIso, ajouter);
+
   // --- Échéances du planning encore ouvertes : celles qu'on attend d'un tiers vont en attente, les autres à faire — sauf si un geste
   // du jour les couvre déjà (même étape), pour ne jamais les montrer deux fois.
-  echeancesPlanning(d).forEach(it => {
+  echeancesPlanning(d).filter(it => !succession || it.type === 'autre').forEach(it => {
     const cle = it.type === 'autre' ? 'autre-' + it.index : it.type;
     const attente = TYPES_ECHEANCE_ATTENTE_FICHE.includes(it.type);
     if (!attente && it.type !== 'autre' && gestes.some(a => actionLieeEtape(a, it.type))) return;
@@ -148,7 +151,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   }
 
   // --- Fait : les étapes déjà passées (on peut décocher celles qui se cochent), puis les échéances ajoutées à la main et cochées.
-  etapes.filter(e => e.fait).forEach(e => {
+  etapes.filter(e => e.fait && !succession).forEach(e => {
     // Prêt levé par l'offre reçue : « Rouvrir » ne changerait rien (audit 12/10) — étape faite d'elle-même.
     const cochable = ['ventebien', 'pret', 'appelFonds', 'projetEnvoye'].includes(e.type) && !(e.type === 'pret' && d.offrePretStatut === 'recue');
     ajouter('fait', {
@@ -189,7 +192,9 @@ function bandeauFiche(d, aujourdhuiIso, actions, probabilite) {
     : { recues: 0, total: 0, pct: av.pct, libelle: 'Avancement' };
   const signe = signatureFaiteSuivi(d);
   let signature;
-  if (signe) signature = { etat: 'signe', iso: signe.iso || d.rendezVousSignature || '', jours: null, heure: '', texte: texteSigneSuivi(signe), proba: null };
+  // Succession : le prochain acte à signer (notoriété, déclaration de succession…), client/74.
+  if (estSuccession(d)) signature = signatureBandeauSuccession(d, aujourdhuiIso);
+  else if (signe) signature = { etat: 'signe', iso: signe.iso || d.rendezVousSignature || '', jours: null, heure: '', texte: texteSigneSuivi(signe), proba: null };
   else if (d.rendezVousSignature) {
     const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
     signature = { etat: j !== null && j < 0 ? 'passee' : 'placee', iso: d.rendezVousSignature, jours: j, heure: d.rendezVousSignatureHeure || '', texte: '', proba: probabilite || null };
@@ -265,12 +270,15 @@ function validerDateCarteFiche(dossierId, cle) {
   const champ = document.getElementById('tf-date-saisie');
   const nouvelleDate = champ ? champ.value || '' : '';
   dateCarteEnEditionFiche = '';
+  // Dates d'une succession (rendez-vous d'ouverture, actes signés) : sur `d.succession` (client/74).
+  if (cle.indexOf('succession:') === 0) { changerSuccession(dossierId, cle.slice(11), nouvelleDate); return; }
   enregistrerDateEcheanceSaisie(dossierId, cle, nouvelleDate);
 }
 
 // Même confirmation que la croix de la liste : une échéance ajoutée est retirée, une date de la fiche est vidée.
 function supprimerDateCarteFiche(dossierId, cle) {
   dateCarteEnEditionFiche = '';
+  if (cle.indexOf('succession:') === 0) { changerSuccession(dossierId, cle.slice(11), ''); return; }
   if (cle.indexOf('autre-') === 0) supprimerEcheanceAutre(dossierId, parseInt(cle.slice(6), 10));
   else supprimerDateEcheance(dossierId, cle);
 }
@@ -342,7 +350,7 @@ function renderMajAuthenticTableauFiche(d) {
 // Le bandeau du haut : les pièces, la signature, le geste du moment.
 function renderBandeauFiche(d, actions) {
   const auj = isoAujourdhuiLocal();
-  const proba = d.rendezVousSignature ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
+  const proba = d.rendezVousSignature && !estSuccession(d) ? probabiliteTenueSignature(d, auj, absencesOffice) : null;
   const b = bandeauFiche(d, auj, actions, proba);
   const p = b.pieces;
   const anneau = `<div class="fb-anneau" role="img" aria-label="${escapeAttr(p.libelle + ' : ' + p.pct + ' %')}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="fb-fond" cx="60" cy="60" r="50" pathLength="100"></circle><circle class="fb-val" cx="60" cy="60" r="50" pathLength="100" style="stroke-dasharray:${p.pct} 100"></circle></svg><span class="fb-pct">${p.pct}%</span></div>`;
@@ -358,8 +366,9 @@ function renderBandeauFiche(d, actions) {
     sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="basculerEcheance('${escapeOnclickArg(d.id)}', 'rendezVousSignature')">${icone('check')} Marquer signée</wa-button>`;
   }
+  else if (s.acte) sigCorps = `<strong class="fb-grand">${escapeHtml(s.acte.replace(/^Signature (?:de l’|de la )/, '').replace(/^./, x => x.toUpperCase()))}</strong><span class="fb-petit">${s.iso ? 'À signer avant le ' + escapeHtml(formatDateFr(s.iso)) : 'Pas encore de date : fixez le rendez-vous d’ouverture'}</span>`;
   else sigCorps = `<strong class="fb-grand">À placer</strong><span class="fb-petit">${s.iso ? 'Au plus tôt le ' + escapeHtml(formatDateFr(s.iso)) : 'Pas encore de date'}</span>`;
-  const carteSignature = `<div class="fb-carte fb-signature"><span class="section-eyebrow">Signature</span>${sigCorps}</div>`;
+  const carteSignature = `<div class="fb-carte fb-signature"><span class="section-eyebrow">${escapeHtml(s.eyebrow || 'Signature')}</span>${sigCorps}</div>`;
   const m = b.maintenant;
   let corpsMaintenant;
   if (m.type === 'action') {

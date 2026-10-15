@@ -72,5 +72,6 @@
   "70-memoire.js",
   "71-diagnostic-lecture.js",
   "72-constitution-dossier.js",
-  "73-courrier-fidele.js"
+  "73-courrier-fidele.js",
+  "74-fiche-succession.js"
 ]

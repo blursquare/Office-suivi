@@ -751,26 +751,8 @@
     const telConfrereVendeur = confrereRepresenteVendeur(d) ? telConfrere('vendeur', deuxConfreres ? 'Confrère du vendeur' : 'Confrère') : '';
     const telParticipant = notaireParticipantRepresenteAcquereur(d) ? telConfrere('acquereur', deuxConfreres ? 'Confrère de l’acquéreur' : 'Confrère') : '';
 
-    // Succession : responsable, dossier du NAS, parties (coordonnées reprises d'Authentic) et biens.
-    if (estSuccession(d)) {
-      const parties = (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom);
-      const coordonnees = (p) => [...(p.telephones || []), ...(p.emails || [])].map(escapeHtml).join(' · ');
-      const biens = Array.isArray(d.biens) ? d.biens : [];
-      return `<div class="fiche-proprietes-bloc">
-      <dl class="fiche-proprietes">
-        ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
-        ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
-        ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers d’interrogation (banque, assurance-vie, impôts, caisses, EHPAD…) d’après la fiche du défunt dans Authentic">Constitution de dossier</wa-button>`, null, 'prop-pleine')}
-      </dl>
-      <dl class="fiche-proprietes fiche-coordonnees">
-        ${parties.length ? parties.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Parties', `<span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}`, null, 'prop-pleine')).join('')
-          : ligne('users', 'Parties', '<span class="prop-texte vide">Aucune — ouvrez les fiches client dans Authentic</span>', null, 'prop-pleine')}
-      </dl>
-      <dl class="fiche-proprietes">
-        ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.parcelles ? ` <span class="hint">· ${escapeHtml(b.parcelles)}</span>` : ''}`, null, 'prop-pleine')).join('')
-          : ligne('map-pin', 'Bien', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien', '', 'Aucun bien relevé'), `adresse-${d.id}`, 'prop-pleine')}
-      </dl></div>`;
-    }
+    // Succession (étude 15/10) : défunt, héritiers, régime, donation, testament, type et actes — client/74-fiche-succession.js.
+    if (estSuccession(d)) return renderDossierSuccession(d, ligne, responsable, nas);
 
     const blocBien = `
       <dl class="fiche-proprietes">

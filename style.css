@@ -4557,7 +4557,7 @@
      incolore dans le tableau du Suivi et la vue Échéances (voir `dl-${e.type}`), contrairement
      aux trois autres catégories. */
   .dot-label.dl-appelFonds { color: var(--appelfonds); }
-  .dot-label.dl-redaction, .dot-label.dl-piece, .dot-label.dl-engagement { color: var(--acte); }
+  .dot-label.dl-redaction, .dot-label.dl-piece, .dot-label.dl-engagement, .dot-label.dl-succession { color: var(--acte); }
   .dot-label.dl-rendezVousSignature { color: var(--success); }
   .dot-label.dl-success { color: var(--success); }
   /* « Complet » (etatDossier) : toutes les pièces reçues, rendez-vous pas encore placé — bleu fixe
@@ -9566,6 +9566,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
 .cst-rep-resultats { display: flex; flex-direction: column; max-height: 132px; overflow: auto; margin-top: 4px; }
 .cst-rep-resultats .dash-recherche-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.succ-actes { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.succ-acte { display: inline-flex; align-items: center; gap: 6px; }
+.succ-identite { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; width: 100%; }
+.succ-identite .prop-champ { flex: 1 1 140px; min-width: 0; }
+.succ-identite .succ-civilite { flex: 0 0 auto; }
+.cst-actif { display: inline-flex; align-items: center; gap: 6px; margin-left: 12px; font-size: var(--texte-s); }
 .cst-apercu { display: flex; justify-content: center; }
 /* @papier : aperçu du courrier, identité papier de l'étude (mêmes règles que .af-lettre) */
 .cst-lettre { max-width: 720px; padding: 26px 32px 32px; font-size: 10pt; }

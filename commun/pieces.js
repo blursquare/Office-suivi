@@ -4,7 +4,7 @@
 // Code COMMUN au poste (navigateur, <script> classique chargé avant client/) et au serveur (require) — écrit une fois,
 // jamais en miroir (étude, 04/10). Dans le navigateur, les noms exportés deviennent des globaux (comme les fonctions de
 // client/) ; côté Node, module.exports. Pas de syntaxe réservée à l'un des deux mondes.
-/** @param {typeof import('./dossier')} C — les autres fichiers de commun/ dont celui-ci dépend */
+/** @param {typeof import('./dossier') & typeof import('./succession')} C — les autres fichiers de commun/ dont celui-ci dépend */
 (function (C) {
   // ---- suivi des pièces du dossier (checklist de constitution, selon le type de vente) ----
   //
@@ -168,7 +168,7 @@
 
   // La checklist d'un dossier : pièces standard selon le type de vente (moins celles retirées), pièces d'engagement
   // détectées dans l'avant-contrat (`d.piecesEngagementsDetectees` + `clesEnPlus`, fournies par le poste depuis les
-  // documents de l'analyse), pièces personnalisées. Succession : les pièces personnalisées seules.
+  // documents de l'analyse), pièces personnalisées. Succession : ses pièces (acte de décès, FCDDV…) et les pièces personnalisées.
   function checklistPiecesBase(typeVente, d, clesEnPlus) {
     const base = typeVente === 'copropriete'
       ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
@@ -178,7 +178,8 @@
           ? [...PIECES_URBANISME, ...PIECES_TERRE_AUTRES]
         : [...PIECES_URBANISME, ...PIECES_AUTRES];
     if (!d) return base;
-    if (C.estSuccession(d)) return (d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }));
+    // Succession (étude 15/10) : les pièces d'une succession (commun/succession.js), puis les pièces personnalisées.
+    if (C.estSuccession(d)) return [...C.piecesSuccessionDossier(d), ...(d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }))];
     const retirees = new Set(d.piecesRetirees || []);
     // DPU « non » dans l'analyse de l'urbanisme (seule une SAFER est à purger, par exemple) : pas de « Renonciation au droit de préemption »
     // dans la checklist — sauf si elle est déjà reçue. Revient seule si l'analyse change (étude 09/10).
@@ -200,5 +201,5 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   // Les autres fichiers de commun/ dont celui-ci dépend : require côté Node, globaux déjà chargés côté navigateur.
-  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dossier')) : /** @type {any} */ (globalThis)
+  typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dossier'), require('./succession')) : /** @type {any} */ (globalThis)
 );

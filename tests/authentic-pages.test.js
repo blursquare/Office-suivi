@@ -665,11 +665,11 @@ test('succession depuis Authentic : intitulé reconnu, parties sans qualité dev
   assert.match(biens[0].adresse, /VINEUIL \(41350\), 3 chemin des Vignes/);
   const e = app.completerExtractionDepuisAuthentic(app.construireExtractionRegex('', '', [], ''), g);
   assert.equal(e.champs.nom.valeur, 'DUPONT Jean');
-  // Le dossier de succession : rien du planning, de la checklist ni des emails d'une vente.
+  // Le dossier de succession : son propre déroulé (étude 15/10) et ses pièces, rien des emails d'une vente.
   const d = { id: 's', nom: 'DUPONT Jean', typeAffaire: 'succession', sansPret: true, parties, biens, pieces: {}, piecesPersonnalisees: [{ cle: 'perso-deces', label: 'Acte de décès de M. DUPONT Jean' }] };
   assert.equal(app.echeancesPlanning(d).length, 0);
-  assert.equal(app.echeancesPlanning(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(x => x.type).join(','), 'rendezVousSignature');
-  assert.equal(app.checklistPieces('maison', d).map(p => p.cle).join(','), 'perso-deces');
+  assert.equal(app.echeancesPlanning(Object.assign({}, d, { rendezVousSignature: '2026-11-05' })).map(x => x.type).join(','), 'notoriete');
+  assert.equal(app.checklistPieces('maison', d).map(p => p.cle).join(','), 'acteDeces,livretFamille,actesNaissance,acteMariage,fcddv,titrePropriete,ehf,estimationImmobilier,estimationVehicules,carteGrise,perso-deces');
   assert.equal(app.echangesSelonStade(d, '2026-10-02').utiles.length + app.echangesSelonStade(d, '2026-10-02').autres.length, 0);
   assert.equal(app.dossiersAPlacer([d]).length, 0);
   assert.equal(app.libelleDossierAffiche(d), 'SUCC - DUPONT Jean');

@@ -19956,3 +19956,31 @@ aussi, il faut qu'ils soient vraiment les mêmes, les couleurs, les espacements.
   des successions (banques — successions, assurances, social, impôts), les autres, et les banques « prêts et mainlevées » en dernier.
 - Lieux de naissance et de décès d'Authentic « 67000 STRASBOURG » écrits « STRASBOURG (67000) » comme dans les courriers.
 - Retirés : `contenuCourrierVente`, `contenuCourrierSuccession`, `tableauParcelles`, `blocsPdfDepuisContenu`, `apercuHtmlConstitution`.
+
+### 15/10/2026 21 h 59 — Fiches succession (0.245.0)
+
+Demande de l'étude : fiches de succession avec la même présentation que les ventes, un déroulé propre. Types : notoriété seule ;
+notoriété + déclaration de succession (pas d'immobilier, actif > 50 000 €) ; classique (notoriété + DS + attestation immobilière) ;
+actes en plus dans Authentic (délivrance de legs, convention de quasi-usufruit). Échéances : ouverture avec Sophie, notoriété dans le
+mois (actes de naissance, donation entre époux, testament — FCDDV), déblocage et réception des fonds après la notoriété (conjoint
+survivant : transfert des comptes), attestation immobilière et DS à 6 mois, à 2 mois contrôle des droits et de l'inventaire. Fiche :
+défunt, héritiers, date du décès, régime matrimonial, donation entre époux, testament ; pièces suivies (estimations maison et
+véhicules, livret de famille, actes de naissance et de mariage, carte grise, EHF, acte de décès, titre de propriété, FCDDV). Courriers :
+retirer le bleu souligné du corps (variables d'Authentic). Emails envoyés depuis CLAIRE.
+
+Réponses de l'étude (AskUserQuestion) : le premier type dicté « une auto toute seule » = acte de notoriété seul ; délais de 2 et 6 mois
+depuis l'OUVERTURE ; type choisi sur la fiche, CLAIRE propose ; FCDDV = PDF dans le dossier client du NAS.
+
+- `commun/succession.js` (`// @ts-check`) : `TYPES_SUCCESSION`, `typeSuccessionPropose` (immobilier → classique ; case « actif de plus
+  de 50 000 € » → notoriété + DS ; sinon notoriété seule), `actesSuccession`, `etapesSuccession` (dates : ouverture + 1 / 2 / 6 mois ;
+  rendez-vous de signature placé = date de l'acte suivant), `attentesNotoriete`, `PIECES_SUCCESSION` (motifs de nom), `conjointSurvivant`
+  (case, sinon « Époux / Épouse de » sur le défunt). Planning (`echeancesPlanning`), checklist (`checklistPiecesBase`) et
+  `echeanceValidee` s'y branchent : rappels Teams du serveur sur les étapes datées.
+- `client/74-fiche-succession.js` : onglet Dossier (type proposé, actes et leur état, ouverture, défunt modifiable — ce qui diffère
+  d'Authentic va dans `d.defunt`, régime compris —, conjoint survivant, donation entre époux, testament, contrôle à 2 mois, héritiers =
+  parties sans le défunt, biens, courriers → Constitution de dossier, papier ou email envoyé depuis CLAIRE) ; cartes du Tableau ;
+  bandeau « Prochain acte ». Onglet « Pièces » sans l'analyse de l'avant-contrat.
+- Authentic : `actesSuccessionAuthentic` lit le tableau « Rédaction » d'une page de succession (intitulé, Non rédigé / En cours /
+  Signé le …) → `d.authentic.actesSuccession` ; **forme supposée d'après la structure gardée le 15/10, non vérifiée sur une vraie page**.
+- Courriers : `__par la défunte__` et le soulignement de « Succession de : … » retirés (variables d'Authentic).
+- Non vérifié : lecture réelle des actes dans Authentic ; noms réels des fichiers de succession sur le NAS (FCDDV, EHF, estimations).
