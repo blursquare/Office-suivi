@@ -11,7 +11,8 @@
 // NE PART QUE : le code INSEE de la commune, la section et le numéro de parcelle, ou l'emprise (coordonnées) de la parcelle —
 // jamais un nom, une adresse ni un dossier. Les noms des demandeurs que Sitadel publie (personnes morales) ne sont pas demandés.
 
-const { parcelleCadastre, normaliserParcelle } = require('./urbanisme');
+const { parcelleCadastre, normaliserParcelle, parcellesDansPolygone } = require('./urbanisme');
+const { centreInterieur } = require('./planAerien');
 
 const WMS = 'https://data.geopf.fr/wms-r';
 const DIDO = 'https://data.statistiques.developpement-durable.gouv.fr/dido/api/v1';
@@ -98,17 +99,56 @@ function empriseValide(texte) {
   return v;
 }
 
-/** Contours et emprise des parcelles d'une commune. @param {string} insee @param {string} parcelles @param {any} [injections] */
+/** Pure : le point le plus intérieur du plus grand anneau d'une géométrie, [lon, lat], et la taille de cet anneau (degrés). @param {any} g */
+function etiquetteGeometrie(g) {
+  const anneaux = anneauxGeometrie(g).filter((a) => a.length > 2);
+  if (!anneaux.length) return null;
+  const taille = (a) => (Math.max(...a.map((p) => p[0])) - Math.min(...a.map((p) => p[0]))) * (Math.max(...a.map((p) => p[1])) - Math.min(...a.map((p) => p[1])));
+  const a = anneaux.sort((x, y) => taille(y) - taille(x))[0];
+  const c = centreInterieur(a);
+  return { x: Math.round(c[0] * 1e6) / 1e6, y: Math.round(c[1] * 1e6) / 1e6,
+    l: Math.max(...a.map((p) => p[0])) - Math.min(...a.map((p) => p[0])), h: Math.max(...a.map((p) => p[1])) - Math.min(...a.map((p) => p[1])) };
+}
+
+/** Contours, numéros et emprise des parcelles d'une commune (étude 15/10 : numéros de parcelle sur les photos à comparer, pour les
+ * constructions) : les parcelles du dossier avec leur numéro, et les voisines du cadastre (contour et numéro) quand elles ne sont pas
+ * des centaines. @param {string} insee @param {string} parcelles @param {any} [injections] */
 async function vueParcelles(insee, parcelles, injections) {
   const liste = parcellesDepuisListe(parcelles);
   if (!liste.length) return { erreur: 'Aucune parcelle.' };
-  const features = await Promise.all(liste.map((p) => parcelleCadastre(insee, p.section, p.numero, injections).catch(() => null)));
-  const contours = features.filter(Boolean).flatMap((f) => anneauxGeometrie(f.geometry));
+  const features = (await Promise.all(liste.map((p) => parcelleCadastre(insee, p.section, p.numero, injections).catch(() => null)))).filter(Boolean);
+  const contours = features.flatMap((f) => anneauxGeometrie(f.geometry));
   const emprise = empriseContours(contours);
   if (!emprise) return { erreur: 'Parcelle introuvable au cadastre de cette commune.' };
+  const arrondi = (a) => a.map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]);
+  const [a, b, c, d] = emprise;
+  const largeur = c - a; const hauteur = d - b;
+  const etiquette = (e, texte, dossier) => ({ texte, dossier, x: e.x, y: e.y, l: Math.round(e.l / largeur * 1000) / 1000, h: Math.round(e.h / hauteur * 1000) / 1000 });
+  const etiquettes = [];
+  for (const f of features) {
+    const e = etiquetteGeometrie(f.geometry);
+    if (e) etiquettes.push(etiquette(e, `${f.properties.section || ''} ${Number(f.properties.numero) || f.properties.numero || ''}`.trim(), true));
+  }
+  // Les voisines : contour et numéro (jamais si le cadre en contient des centaines : illisible).
+  let voisines = { contours: /** @type {any[]} */ ([]), etiquettes: /** @type {any[]} */ ([]) };
+  try {
+    const v = await parcellesDansPolygone({ type: 'Polygon', coordinates: [[[a, b], [c, b], [c, d], [a, d], [a, b]]] }, injections);
+    if (v.length < 300) {
+      const dossier = new Set(features.map((f) => f.properties && f.properties.idu).filter(Boolean));
+      for (const f of v) {
+        if (f.properties && dossier.has(f.properties.idu)) continue;
+        voisines.contours.push(...anneauxGeometrie(f.geometry).map(arrondi));
+        const e = etiquetteGeometrie(f.geometry);
+        // Un numéro n'est écrit que si la parcelle est assez grande sur la photo (au moins 7 % de sa largeur).
+        if (e && e.l / largeur >= 0.07 && e.h / hauteur >= 0.04) etiquettes.push(etiquette(e, String(Number(f.properties.numero) || f.properties.numero || ''), false));
+      }
+    }
+  } catch (_) { voisines = { contours: [], etiquettes: [] }; }
   return {
     emprise,
-    contours: contours.map((a) => a.map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6])),
+    contours: contours.map(arrondi),
+    voisines: voisines.contours,
+    etiquettes,
     couches: COUCHES_ORTHO.map((c) => ({ cle: c.cle, libelle: c.libelle, fin: c.fin }))
   };
 }

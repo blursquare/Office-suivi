@@ -142,18 +142,26 @@ async function parcelleCadastre(insee, section, numero, injections) {
   });
 }
 
+/** @type {Map<string, { le: number, valeur: any }>} */
+const cacheZones = new Map();
+const DUREE_CACHE_ZONES_MS = 10 * 60 * 1000;
+
 /** Zones du document d'urbanisme (Géoportail de l'urbanisme) qui touchent une géométrie, AVEC leur contour — pour mesurer la part de
  * chaque zone dans une parcelle (plan aérien, étude 15/10). @param {any} geometrie GeoJSON en degrés @param {any} [injections] */
 async function zonesAvecGeometrie(geometrie, injections) {
   const geom = encodeURIComponent(JSON.stringify(geometrie));
-  const cle = `zg:${geom.length}:${geom.slice(0, 160)}:${geom.slice(-160)}`;
-  return enCache(cle, async () => {
-    const r = await lireJson(`${BASE}/gpu/zone-urba?geom=${geom}`, injections);
-    return (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry).map((f) => ({
-      libelle: String((f.properties && f.properties.libelle) || ''), libelong: String((f.properties && f.properties.libelong) || ''),
-      typezone: String((f.properties && f.properties.typezone) || ''), geometry: f.geometry
-    }));
-  });
+  // Cache à part (les contours de zone sont lourds) : clé = empreinte de la géométrie, peu d'entrées, quelques minutes.
+  const cle = require('node:crypto').createHash('sha1').update(geom).digest('hex');
+  const c = cacheZones.get(cle);
+  if (c && Date.now() - c.le < DUREE_CACHE_ZONES_MS) return c.valeur;
+  const r = await lireJson(`${BASE}/gpu/zone-urba?geom=${geom}`, injections);
+  const valeur = (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry).map((f) => ({
+    libelle: String((f.properties && f.properties.libelle) || ''), libelong: String((f.properties && f.properties.libelong) || ''),
+    typezone: String((f.properties && f.properties.typezone) || ''), geometry: f.geometry
+  }));
+  cacheZones.set(cle, { le: Date.now(), valeur });
+  if (cacheZones.size > 30) cacheZones.delete(/** @type {string} */ (cacheZones.keys().next().value));
+  return valeur;
 }
 
 /** Les parcelles du cadastre dans un polygone (le cadre d'un plan), 600 au plus. @param {any} polygone GeoJSON @param {any} [injections] */
@@ -163,6 +171,6 @@ async function parcellesDansPolygone(polygone, injections) {
   return (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry);
 }
 
-function viderCacheUrbanisme() { cache.clear(); }
+function viderCacheUrbanisme() { cache.clear(); cacheZones.clear(); }
 
 module.exports = { zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };

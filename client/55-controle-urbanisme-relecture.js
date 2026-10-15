@@ -502,6 +502,13 @@
     return (contours || []).map(anneau => anneau.map(([x, y]) => `${(((x - a) / (c - a)) * 100).toFixed(2)},${(((d - y) / (d - b)) * 100).toFixed(2)}`).join(' '));
   }
 
+  // Pure : la place d'une étiquette de parcelle sur la photo, en % de l'image (même emprise que les contours).
+  function etiquettesImage(etiquettes, emprise) {
+    const [a, b, c, d] = emprise;
+    return (etiquettes || []).map(e => ({ texte: e.texte, dossier: !!e.dossier, x: ((e.x - a) / (c - a)) * 100, y: ((d - e.y) / (d - b)) * 100 }))
+      .filter(e => e.texte && e.x > 2 && e.x < 98 && e.y > 2 && e.y < 98);
+  }
+
   function cleHistoriquePreemption() { return prEtat ? `${prEtat.insee}|${prEtat.parcelles}` : ''; }
 
   // Lancé au rendu : une seule fois par commune + parcelles (photos : contour et emprise ; Sitadel : autorisations).
@@ -558,11 +565,13 @@
 
   function renderPhotosPreemption() {
     const h = prEtat.historique;
-    const tete = `<div class="section-eyebrow pr-eyebrow">Photos aériennes${infoBulle('Photos de l’IGN, contour du cadastre en orange. Une année seule n’a souvent pas de photo (le Loir-et-Cher est photographié environ tous les trois ans) : préférer les périodes. À comparer à l’œil.')}</div>`;
+    const tete = `<div class="section-eyebrow pr-eyebrow">Photos aériennes${infoBulle('Photos de l’IGN, contour du cadastre en orange, numéros des parcelles (celles du dossier en gras) pour repérer les constructions d’une date à l’autre. Une année seule n’a souvent pas de photo (le Loir-et-Cher est photographié environ tous les trois ans) : préférer les périodes. À comparer à l’œil.')}</div>`;
     if (!h) return tete + `<p class="hint">${prEtat.insee && prEtat.parcelles ? 'Pas encore chargées.' : 'Commune et parcelles d’abord.'}</p>`;
     if (h.lecture) return tete + '<p class="hint">Contour de la parcelle…</p>';
     if (h.erreur) return tete + `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(h.erreur)}</p>`;
     const polygones = contoursImage(h.vue.contours, h.vue.emprise);
+    const voisines = contoursImage(h.vue.voisines, h.vue.emprise);
+    const etiquettes = etiquettesImage(h.vue.etiquettes, h.vue.emprise);
     const vue = (cote) => {
       const couche = h[cote];
       const img = h.images[couche] || {};
@@ -572,7 +581,8 @@
       return `<figure class="pr-photo">
           <select id="pr-photo-${cote}" aria-label="Prise de vue" onchange="choisirPhotoPreemption('${cote}', this.value)">${options}</select>
           <div class="pr-photo-cadre">${fond}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${polygones.map(pts => `<polygon points="${pts}"></polygon>`).join('')}</svg>
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${voisines.map(pts => `<polygon class="voisine" points="${pts}"></polygon>`).join('')}${polygones.map(pts => `<polygon points="${pts}"></polygon>`).join('')}</svg>
+            ${etiquettes.map(e => `<span class="pr-photo-etiquette${e.dossier ? ' dossier' : ''}" style="left:${e.x.toFixed(2)}%;top:${e.y.toFixed(2)}%">${escapeHtml(e.texte)}</span>`).join('')}
           </div>
         </figure>`;
     };

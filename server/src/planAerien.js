@@ -52,22 +52,39 @@ function pointsDe(g) {
   return polygonesDe(g).flat(2).filter((p) => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]));
 }
 
-/** Intervalles [x1, x2] de la ligne horizontale y qui sont dans le polygone (règle pair-impair : trous compris). Pure.
- * @param {Array<Array<[number, number]>>} anneaux en mètres @param {number} y */
-function intervallesLigne(anneaux, y) {
-  /** @type {number[]} */
-  const xs = [];
+/** Pure : les arêtes d'anneaux (en mètres) dont l'étendue verticale touche la bande [yMin, yMax] — un grand polygone de zone n'est
+ * parcouru qu'une fois, pas à chaque ligne. @param {Array<Array<[number, number]>>} anneaux @param {number} yMin @param {number} yMax */
+function aretesDansBande(anneaux, yMin, yMax) {
+  /** @type {number[][]} */
+  const out = [];
   for (const a of anneaux) {
     for (let i = 0, n = a.length; i < n; i++) {
       const p = a[i]; const q = a[(i + 1) % n];
-      if ((p[1] <= y) !== (q[1] <= y)) xs.push(p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]));
+      if (p[1] === q[1]) continue;
+      if (Math.max(p[1], q[1]) < yMin || Math.min(p[1], q[1]) > yMax) continue;
+      out.push([p[0], p[1], q[0], q[1]]);
     }
   }
+  return out;
+}
+
+/** Pure : intervalles [x1, x2] de la ligne horizontale y dans un polygone donné par ses arêtes (pair-impair : trous compris).
+ * @param {number[][]} aretes @param {number} y */
+function intervallesAretes(aretes, y) {
+  /** @type {number[]} */
+  const xs = [];
+  for (const [px, py, qx, qy] of aretes) if ((py <= y) !== (qy <= y)) xs.push(px + (y - py) * (qx - px) / (qy - py));
   xs.sort((a, b) => a - b);
   /** @type {Array<[number, number]>} */
   const out = [];
   for (let i = 0; i + 1 < xs.length; i += 2) out.push([xs[i], xs[i + 1]]);
   return out;
+}
+
+/** Intervalles [x1, x2] de la ligne horizontale y qui sont dans le polygone (règle pair-impair : trous compris). Pure.
+ * @param {Array<Array<[number, number]>>} anneaux en mètres @param {number} y */
+function intervallesLigne(anneaux, y) {
+  return intervallesAretes(aretesDansBande(anneaux, y, y), y);
 }
 
 /** Pure : réunit des intervalles (plusieurs polygones d'un même multi-polygone). @param {Array<[number, number]>} l */
@@ -93,9 +110,22 @@ function longueurCommune(a, b) {
   return somme;
 }
 
+/** Pure : mètres par degré de longitude et de latitude à une latitude donnée (formules de l'ellipsoïde WGS84). @param {number} lat */
+function metresParDegre(lat) {
+  const f = lat * Math.PI / 180;
+  return { kx: 111412.84 * Math.cos(f) - 93.5 * Math.cos(3 * f), ky: 111132.92 - 559.82 * Math.cos(2 * f) + 1.175 * Math.cos(4 * f) };
+}
+
+/** Pure : plus petite et plus grande valeur, sans étaler le tableau en arguments (un grand anneau ferait déborder la pile). @param {number[]} t */
+function bornes(t) {
+  let mn = Infinity; let mx = -Infinity;
+  for (const v of t) { if (v < mn) mn = v; if (v > mx) mx = v; }
+  return [mn, mx];
+}
+
 /** Pure : un polygone GeoJSON → anneaux en mètres autour d'une origine. @param {any} g @param {[number, number]} ref [lon, lat] */
 function enMetres(g, ref) {
-  const kx = 111320 * Math.cos(ref[1] * Math.PI / 180); const ky = 110574;
+  const { kx, ky } = metresParDegre(ref[1]);
   return polygonesDe(g).map((poly) => poly.map((a) => a.map((p) => /** @type {[number, number]} */ ([(p[0] - ref[0]) * kx, (p[1] - ref[1]) * ky]))));
 }
 
@@ -110,27 +140,35 @@ function repartitionZonage(geometrieParcelle, zones) {
   if (!pts.length) return { surface: 0, zones: [], horsZone: 1 };
   const ref = /** @type {[number, number]} */ ([(Math.min(...pts.map((p) => p[0])) + Math.max(...pts.map((p) => p[0]))) / 2, (Math.min(...pts.map((p) => p[1])) + Math.max(...pts.map((p) => p[1]))) / 2]);
   const parcelle = enMetres(geometrieParcelle, ref);
-  const ys = parcelle.flat(2).map((p) => p[1]);
-  const yMin = Math.min(...ys); const yMax = Math.max(...ys);
+  const [yMin, yMax] = bornes(parcelle.flat(2).map((p) => p[1]));
   const lignes = Math.min(1500, Math.max(200, Math.round((yMax - yMin) / 0.25)));
   const dy = (yMax - yMin) / lignes;
-  const lesZones = zones.map((z) => ({ z, poly: enMetres(z.geometry, ref) }));
+  const aretesParcelle = parcelle.map((anneaux) => aretesDansBande(anneaux, yMin, yMax));
+  const lesZones = zones.map((z) => ({ z, poly: enMetres(z.geometry, ref).map((anneaux) => aretesDansBande(anneaux, yMin, yMax)) }));
   let surface = 0;
   const parts = lesZones.map(() => 0);
   for (let k = 0; k < lignes; k++) {
     const y = yMin + (k + 0.5) * dy;
-    const dansParcelle = reunir(parcelle.flatMap((anneaux) => intervallesLigne(anneaux, y)));
+    const dansParcelle = reunir(aretesParcelle.flatMap((ar) => intervallesAretes(ar, y)));
     const longueur = dansParcelle.reduce((s, iv) => s + iv[1] - iv[0], 0);
     if (!longueur) continue;
     surface += longueur * dy;
     lesZones.forEach((lz, i) => {
-      const dansZone = reunir(lz.poly.flatMap((anneaux) => intervallesLigne(anneaux, y)));
+      const dansZone = reunir(lz.poly.flatMap((ar) => intervallesAretes(ar, y)));
       parts[i] += longueurCommune(dansParcelle, dansZone) * dy;
     });
   }
   if (!(surface > 0)) return { surface: 0, zones: [], horsZone: 1 };
-  const out = lesZones.map((lz, i) => ({ libelle: lz.z.libelle, libelong: lz.z.libelong || '', typezone: lz.z.typezone || '', part: Math.min(1, parts[i] / surface), surface: parts[i] }))
-    .filter((x) => x.part >= 0.0005).sort((a, b) => b.part - a.part);
+  // Une même zone découpée en plusieurs entités du Géoportail n'est qu'une ligne.
+  /** @type {Map<string, { libelle: string, libelong: string, typezone: string, part: number, surface: number }>} */
+  const fusion = new Map();
+  lesZones.forEach((lz, i) => {
+    const cle = `${lz.z.libelle}|${lz.z.typezone || ''}|${lz.z.libelong || ''}`;
+    const x = fusion.get(cle) || { libelle: lz.z.libelle, libelong: lz.z.libelong || '', typezone: lz.z.typezone || '', part: 0, surface: 0 };
+    x.part += parts[i] / surface; x.surface += parts[i];
+    fusion.set(cle, x);
+  });
+  const out = [...fusion.values()].map((x) => Object.assign(x, { part: Math.min(1, x.part) })).filter((x) => x.part >= 0.0005).sort((a, b) => b.part - a.part);
   const dedans = out.reduce((s, x) => s + x.part, 0);
   return { surface, zones: out, horsZone: Math.max(0, 1 - dedans) };
 }
@@ -140,8 +178,9 @@ function etendueSolM(parcelles) {
   const pts = parcelles.flatMap((f) => pointsDe(f.geometry));
   if (!pts.length) return { x: 0, y: 0 };
   const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-  return { x: (Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0]))) * 111320 * Math.cos(lat * Math.PI / 180),
-    y: (Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1]))) * 110574 };
+  const { kx, ky } = metresParDegre(lat);
+  const [x0, x1] = bornes(pts.map((p) => p[0])); const [y0, y1] = bornes(pts.map((p) => p[1]));
+  return { x: (x1 - x0) * kx, y: (y1 - y0) * ky };
 }
 
 /** Pure : répartit les parcelles en plans — des proches sur un même plan, des éloignées sur des plans à part (étude 14/10, même
@@ -159,11 +198,11 @@ function groupesPlansAeriens(parcelles) {
 
 /** Pure : un point à l'intérieur d'un anneau, le plus loin possible des bords (placer un numéro). @param {Array<[number, number]>} anneau */
 function centreInterieur(anneau) {
-  const xs = anneau.map((p) => p[0]); const ys = anneau.map((p) => p[1]);
+  const [bx0, bx1] = bornes(anneau.map((p) => p[0])); const [by0, by1] = bornes(anneau.map((p) => p[1]));
   const dedans = (x, y) => { let c = false; for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) { const a = anneau[i]; const b = anneau[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
   const distance = (x, y) => { let m = Infinity; for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) { const a = anneau[i]; const b = anneau[j]; const dx = b[0] - a[0]; const dy = b[1] - a[1]; const l2 = dx * dx + dy * dy; const t = l2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2)) : 0; m = Math.min(m, Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy)); } return m; };
-  let meilleur = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2]; let dMax = -1;
-  let [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  let meilleur = [(bx0 + bx1) / 2, (by0 + by1) / 2]; let dMax = -1;
+  let [x0, x1, y0, y1] = [bx0, bx1, by0, by1];
   for (let tour = 0; tour < 3; tour++) {
     const N = 16;
     for (let i = 0; i <= N; i++) for (let j = 0; j <= N; j++) {
@@ -176,6 +215,28 @@ function centreInterieur(anneau) {
     [x0, x1, y0, y1] = [meilleur[0] - lx, meilleur[0] + lx, meilleur[1] - ly, meilleur[1] + ly];
   }
   return /** @type {[number, number]} */ (meilleur);
+}
+
+/** Pure : un anneau coupé par un rectangle [x0, y0, x1, y1] (Sutherland-Hodgman). @param {Array<[number, number]>} anneau @param {number[]} r */
+function couperAuRectangle(anneau, r) {
+  /** @type {Array<[number, number]>} */
+  let pts = anneau.slice();
+  /** @type {Array<[(p: number[]) => boolean, (a: number[], b: number[]) => [number, number]]>} */
+  const bords = [
+    [(p) => p[0] >= r[0], (a, b) => [r[0], a[1] + (b[1] - a[1]) * (r[0] - a[0]) / (b[0] - a[0])]],
+    [(p) => p[0] <= r[2], (a, b) => [r[2], a[1] + (b[1] - a[1]) * (r[2] - a[0]) / (b[0] - a[0])]],
+    [(p) => p[1] >= r[1], (a, b) => [a[0] + (b[0] - a[0]) * (r[1] - a[1]) / (b[1] - a[1]), r[1]]],
+    [(p) => p[1] <= r[3], (a, b) => [a[0] + (b[0] - a[0]) * (r[3] - a[1]) / (b[1] - a[1]), r[3]]]
+  ];
+  for (const [dedans, coupe] of bords) {
+    const entree = pts; pts = [];
+    for (let i = 0; i < entree.length; i++) {
+      const a = entree[i]; const b = entree[(i + 1) % entree.length];
+      if (dedans(b)) { if (!dedans(a)) pts.push(coupe(a, b)); pts.push(b); } else if (dedans(a)) pts.push(coupe(a, b));
+    }
+    if (!pts.length) break;
+  }
+  return pts;
 }
 
 /** Pure : longueur « ronde » de la barre d'échelle (mètres) pour une largeur sol visée. @param {number} metres */
@@ -213,8 +274,8 @@ async function lireDonnees(insee, listeParcelles, injections) {
     if (!f) return { erreur: `Parcelle ${p.section} ${Number(p.numero)} introuvable au cadastre de cette commune.`, statut: 404 };
     features.push(f);
   }
-  const zonages = [];
-  for (const f of features) {
+  // Trois parcelles à la fois : plusieurs services de l'IGN par parcelle, jamais une rafale.
+  const lire = async (f) => {
     let zones = [];
     let lu = true;
     try { zones = await zonesAvecGeometrie(f.geometry, injections); } catch (_) { lu = false; }
@@ -223,8 +284,11 @@ async function lireDonnees(insee, listeParcelles, injections) {
       const z = await zonageParcelle(insee, f.properties.section, f.properties.numero, injections);
       if (!z.erreur) { patrimoine = z.patrimoine; document = z.document; rnu = !!z.rnu; }
     } catch (_) { /* servitudes non lues : dit sur le plan */ }
-    zonages.push({ lu, zones, repartition: lu ? repartitionZonage(f.geometry, zones) : null, patrimoine, document, rnu });
-  }
+    return { lu, zones, repartition: lu ? repartitionZonage(f.geometry, zones) : null, patrimoine, document, rnu };
+  };
+  /** @type {any[]} */
+  const zonages = [];
+  for (let i = 0; i < features.length; i += 3) zonages.push(...await Promise.all(features.slice(i, i + 3).map(lire)));
   return { features, zonages };
 }
 
@@ -299,7 +363,12 @@ async function planAerien(o) {
     page.pushOperators(pushGraphicsState(), moveTo(CADRE.x, CADRE.haut - CADRE.h), lineTo(CADRE.x + CADRE.l, CADRE.haut - CADRE.h), lineTo(CADRE.x + CADRE.l, CADRE.haut), lineTo(CADRE.x, CADRE.haut), closePath(), clip(), endPath());
     const tracerAnneau = (anneau, epaisseur, couleur, opacite, tirets) => {
       const a = anneau.map((p) => versPage(p));
-      for (let i = 0; i < a.length - 1; i++) page.drawLine({ start: { x: a[i][0], y: a[i][1] }, end: { x: a[i + 1][0], y: a[i + 1][1] }, thickness: epaisseur, color: couleur, opacity: opacite, ...(tirets ? { dashArray: tirets } : {}) });
+      const bas = CADRE.haut - CADRE.h; const droite = CADRE.x + CADRE.l;
+      for (let i = 0; i < a.length - 1; i++) {
+        const p = a[i]; const q = a[i + 1];
+        if ((p[0] < CADRE.x && q[0] < CADRE.x) || (p[0] > droite && q[0] > droite) || (p[1] < bas && q[1] < bas) || (p[1] > CADRE.haut && q[1] > CADRE.haut)) continue;
+        page.drawLine({ start: { x: a[i][0], y: a[i][1] }, end: { x: a[i + 1][0], y: a[i + 1][1] }, thickness: epaisseur, color: couleur, opacity: opacite, ...(tirets ? { dashArray: tirets } : {}) });
+      }
     };
     const texteHalo = (texte, x, y, taille, f, couleur, halo) => {
       const t = sur(texte); const l = f.widthOfTextAtSize(t, taille);
@@ -328,7 +397,8 @@ async function planAerien(o) {
     const dejaDessinees = new Set();
     for (const it of items) {
       for (const z of (it ? it.z.zones : [])) {
-        const cle = z.libelle + '|' + JSON.stringify(z.geometry).length;
+        const p0 = pointsDe(z.geometry)[0] || [0, 0];
+        const cle = `${z.libelle}|${z.typezone}|${z.libelong}|${p0[0]}|${p0[1]}`;
         if (dejaDessinees.has(cle)) continue;
         dejaDessinees.add(cle);
         const c = couleursZones.get(z.libelle);
@@ -362,9 +432,12 @@ async function planAerien(o) {
       const it = items.find((x) => x && x.z.zones.some((z) => z.libelle === lib));
       const z = it && it.z.zones.find((x) => x.libelle === lib);
       if (!z) continue;
-      const anneaux = polygonesDe(z.geometry).map((p) => p[0].map((q) => versPage(q))).filter((a) => a.some((p) => p[0] > CADRE.x && p[0] < CADRE.x + CADRE.l && p[1] > CADRE.haut - CADRE.h && p[1] < CADRE.haut));
+      // L'anneau est d'abord coupé au cadre : le centre de la zone entière serait souvent hors de la photo.
+      const cadreRect = [CADRE.x, CADRE.haut - CADRE.h, CADRE.x + CADRE.l, CADRE.haut];
+      const anneaux = polygonesDe(z.geometry).map((p) => couperAuRectangle(p[0].map((q) => versPage(q)), cadreRect)).filter((a) => a.length > 2);
       if (!anneaux.length) continue;
-      const plusGrand = anneaux.sort((a, b) => b.length - a.length)[0];
+      const aire = (a) => { let t = 0; for (let i = 0; i < a.length; i++) { const q = a[(i + 1) % a.length]; t += a[i][0] * q[1] - q[0] * a[i][1]; } return Math.abs(t / 2); };
+      const plusGrand = anneaux.sort((a, b) => aire(b) - aire(a))[0];
       const c2 = centreInterieur(plusGrand);
       if (c2[0] > CADRE.x + 14 && c2[0] < CADRE.x + CADRE.l - 14 && c2[1] > CADRE.haut - CADRE.h + 10 && c2[1] < CADRE.haut - 10) texteHalo(lib, c2[0], c2[1], 11, gras, rgb(c[0], c[1], c[2]), rgb(1, 1, 1));
     }
@@ -445,4 +518,4 @@ async function planAerien(o) {
   return { commune, plans, pdf: octets, nom: sur(`Plan aérien ${commune} ${features.map(libelleParcelle).join(' ')}`).replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 110) };
 }
 
-module.exports = { planAerien, repartitionZonage, groupesPlansAeriens, centreInterieur, mercator, demercator, intervallesLigne, longueurBarre, MAX_PARCELLES };
+module.exports = { planAerien, couperAuRectangle, repartitionZonage, groupesPlansAeriens, centreInterieur, mercator, demercator, intervallesLigne, longueurBarre, MAX_PARCELLES };

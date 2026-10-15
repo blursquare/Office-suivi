@@ -30,6 +30,9 @@ function creerRouteurPlanAerien(config, parametresRepo, depot, injections = {}) 
     while (plans.size > MAX_EN_MEMOIRE) plans.delete(/** @type {string} */ (plans.keys().next().value));
   };
 
+  /** Le plan s'il existe et n'a pas plus de 2 h. @param {string} id */
+  const plan = (id) => { const p = plans.get(String(id)); if (p && Date.now() - p.cree > DUREE_MS) { plans.delete(String(id)); return null; } return p || null; };
+
   routeur.post('/urbanisme/plan-aerien', routeAsync(async (req, res) => {
     const b = req.body || {};
     // Un tirage à la fois : chaque plan lit plusieurs services de l'IGN (jamais de rafale).
@@ -44,27 +47,31 @@ function creerRouteurPlanAerien(config, parametresRepo, depot, injections = {}) 
       noterVerification(parametresRepo, 'plan-aerien-ign', { detail: `${r.plans.length} plan(s), ${r.plans.reduce((s, p) => s + p.parcelles.length, 0)} parcelle(s)` });
       res.json({ id, commune: r.commune, nom: `${r.nom}.pdf`, taille: r.pdf.length, plans: r.plans });
     } catch (e) {
-      noterVerification(parametresRepo, 'plan-aerien-ign', { ok: false, message: e && e.statut ? `IGN : réponse ${e.statut}` : e && e.name === 'TimeoutError' ? 'IGN : délai dépassé' : 'IGN injoignable' });
+      // Un défaut du code n'est pas une panne de l'IGN : il ne fausse pas le point terrain.
+      const reseau = e && (e.statut || e.name === 'TimeoutError' || (e instanceof TypeError && /fetch failed/i.test(String(e.message))));
+      if (!reseau) { console.error('[plan-aerien]', e && e.message ? e.message : e); res.status(500).json({ erreur: 'Erreur interne.' }); return; }
+      noterVerification(parametresRepo, 'plan-aerien-ign', { ok: false, message: e.statut ? `IGN : réponse ${e.statut}` : e.name === 'TimeoutError' ? 'IGN : délai dépassé' : 'IGN injoignable' });
       res.status(502).json({ erreur: 'Services de l’IGN injoignables (photographie aérienne, cadastre ou urbanisme) : réessayer dans un moment.' });
     } finally { enCours--; }
   }));
 
   routeur.get('/urbanisme/plan-aerien/:id', (req, res) => {
-    const p = plans.get(String(req.params.id));
+    const p = plan(req.params.id);
     if (!p) { res.status(404).json({ erreur: 'Plan inconnu ou expiré : le relancer.' }); return; }
     res.set('Content-Type', 'application/pdf').set('X-Content-Type-Options', 'nosniff')
-      .set('Content-Disposition', `${req.query.telecharger ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(p.nom + '.pdf')}`).send(Buffer.from(p.pdf));
+      .set('Content-Disposition', `${req.query.telecharger ? 'attachment' : 'inline'}; filename*=UTF-8''${encodeURIComponent(p.nom + '.pdf').replace(/'/g, '%27')}`).send(Buffer.from(p.pdf));
   });
 
   // Ranger dans le dossier du NAS relié à la fiche (sur clic) : une COPIE à la racine du dossier client, « Nom (2).pdf » plutôt qu'écraser.
   routeur.post('/urbanisme/plan-aerien/:id/ranger', routeAsync(async (req, res) => {
     if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return; }
-    const p = plans.get(String(req.params.id));
+    const p = plan(req.params.id);
     if (!p) { res.status(404).json({ erreur: 'Plan inconnu ou expiré : le relancer.' }); return; }
     const b = req.body || {};
     const d = depot && typeof b.dossierId === 'string' ? depot.trouverParId(b.dossierId) : null;
     if (!d || !d.nasDossier) { res.status(400).json({ erreur: 'Dossier inconnu ou non relié au NAS.' }); return; }
-    if (p.dossierId && p.dossierId !== d.id) { res.status(400).json({ erreur: 'Ce plan a été tiré pour un autre dossier.' }); return; }
+    // Un plan tiré pour aucun dossier ne se range dans aucun : le ranger depuis la fiche, où il est tiré pour elle.
+    if (!p.dossierId || p.dossierId !== d.id) { res.status(400).json({ erreur: 'Ce plan a été tiré pour un autre dossier.' }); return; }
     const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier), rubriques: [], nomCible: p.nom, extension: 'pdf', contenu: Buffer.from(p.pdf) });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
     res.json({ ok: true, chemin: r.chemin });

@@ -145,6 +145,7 @@
     if (manque) { afficherToast(manque); return; }
     const st = etatSitesPreemption();
     st.aerien = { etat: 'envoi' };
+    st.aerienCle = `${e.insee}|${parcellesNormaliseesSites(e.parcelles)}`;
     renderSitesPreemption();
     try {
       const r = await fetchAvecAuth(`/api/urbanisme/plan-aerien`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -165,7 +166,7 @@
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `réponse ${r.status}`);
       const url = URL.createObjectURL(await r.blob());
       if (fenetre) fenetre.location = url; else window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
+      setTimeout(() => URL.revokeObjectURL(url), 60 * 60 * 1000);
     } catch (err) {
       if (fenetre) fenetre.close();
       afficherToast(`Plan indisponible : ${err.message}`);
@@ -251,6 +252,9 @@
     if (!zone) return;
     const e = prEtat || etatPreemptionVierge();
     const st = etatSitesPreemption();
+    // Un plan aérien tiré pour d'autres parcelles ne reste pas affiché (ni rangeable) quand la commune ou les parcelles changent.
+    const cleAerien = `${e.insee}|${parcellesNormaliseesSites(e.parcelles)}`;
+    if (st.aerien && st.aerienCle && st.aerienCle !== cleAerien && st.aerien.etat !== 'envoi') st.aerien = null;
     const manque = manqueConsultationSites(e);
     const plan = st.plan;
     const aerien = st.aerien;

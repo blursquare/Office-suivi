@@ -6,13 +6,14 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { repartitionZonage, groupesPlansAeriens, centreInterieur, mercator, demercator, intervallesLigne, longueurBarre, planAerien } = require('../src/planAerien');
+const { couperAuRectangle, repartitionZonage, groupesPlansAeriens, centreInterieur, mercator, demercator, intervallesLigne, longueurBarre, planAerien } = require('../src/planAerien');
 const { creerRouteurPlanAerien } = require('../src/routes/planAerien');
 const { viderCacheUrbanisme } = require('../src/urbanisme');
 
 // Un rectangle en degrés autour de (1,47), côté e-o de `l` mètres et nord-sud de `h` mètres.
 const LON = 1; const LAT = 47;
-const kx = 111320 * Math.cos(LAT * Math.PI / 180); const ky = 110574;
+const f = LAT * Math.PI / 180;
+const kx = 111412.84 * Math.cos(f) - 93.5 * Math.cos(3 * f); const ky = 111132.92 - 559.82 * Math.cos(2 * f) + 1.175 * Math.cos(4 * f);
 const rect = (x0, y0, x1, y1) => ({ type: 'Polygon', coordinates: [[[LON + x0 / kx, LAT + y0 / ky], [LON + x1 / kx, LAT + y0 / ky], [LON + x1 / kx, LAT + y1 / ky], [LON + x0 / kx, LAT + y1 / ky], [LON + x0 / kx, LAT + y0 / ky]]] });
 
 test('parts de zone : une parcelle coupée en deux zones 30/70 donne 30 % et 70 %, sans « hors zone »', () => {
@@ -140,4 +141,22 @@ test('route : tirer, relire le PDF, ranger dans le dossier du NAS seulement pour
     assert.equal((await poster(`/urbanisme/plan-aerien/${j.id}/ranger`, { dossierId: 'd1' })).status, 503);
     assert.equal((await poster('/urbanisme/plan-aerien', { insee: '', parcelles: 'AL 694' })).status, 400);
   } finally { serveur.close(); }
+});
+
+test('zones : une zone découpée en deux entités n’est qu’une ligne ; un grand polygone de zone ne fige pas le serveur ; anneau coupé au cadre', () => {
+  const parcelle = rect(0, 0, 40, 25);
+  const r = repartitionZonage(parcelle, [{ libelle: 'UA', typezone: 'U', geometry: rect(-5, -5, 10, 40) }, { libelle: 'UA', typezone: 'U', geometry: rect(10, -5, 20, 40) }]);
+  assert.equal(r.zones.length, 1);
+  assert.ok(Math.abs(r.zones[0].part - 0.5) < 0.006, String(r.zones[0].part));
+  // Une zone de 150 000 sommets : le balayage reste rapide.
+  const N = 150000; const grand = [];
+  for (let i = 0; i < N; i++) { const a = 2 * Math.PI * i / N; const rayon = 2000 + 50 * Math.sin(40 * a); grand.push([LON + rayon * Math.cos(a) / kx, LAT + rayon * Math.sin(a) / ky]); }
+  grand.push(grand[0]);
+  const t = Date.now();
+  const g = repartitionZonage(parcelle, [{ libelle: 'N', geometry: { type: 'Polygon', coordinates: [grand] } }]);
+  assert.ok(Date.now() - t < 1500, `${Date.now() - t} ms`);
+  assert.ok(g.zones[0].part > 0.99);
+  assert.ok(centreInterieur(grand.map((p) => [p[0], p[1]])).length === 2, 'un grand anneau ne fait pas déborder la pile');
+  const coupe = couperAuRectangle([[-10, -10], [30, -10], [30, 30], [-10, 30]], [0, 0, 20, 20]);
+  assert.deepEqual(coupe.map((p) => p.join(',')).sort(), ['0,0', '0,20', '20,0', '20,20']);
 });

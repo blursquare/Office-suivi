@@ -34,6 +34,21 @@ test('vueParcelles : contours du cadastre, emprise et prises de vue proposées',
   assert.ok(v.couches.some(c => c.cle === '1950-1965') && v.couches.some(c => c.cle === 'actuelle'));
 });
 
+test('vueParcelles : numéros des parcelles du dossier et des voisines (photos à comparer pour les constructions)', async () => {
+  const f = (idu, numero, dx) => ({ properties: { idu, section: 'AL', numero }, geometry: { type: 'Polygon', coordinates: [[[1 + dx, 47], [1.0004 + dx, 47], [1.0004 + dx, 47.0003], [1 + dx, 47.0003], [1 + dx, 47]]] } });
+  const fetch = async (url) => {
+    if (!url.includes('/cadastre/parcelle')) return json({}, 404);
+    return url.includes('geom=') ? json({ features: [f('41018000AL0839', '0839', 0), f('41018000AL0840', '0840', 0.0004)] }) : json({ features: [f('41018000AL0839', '0839', 0)] });
+  };
+  const v = await H.vueParcelles('41018', 'AL 839', { fetch });
+  const dossier = v.etiquettes.filter(e => e.dossier);
+  assert.equal(dossier.length, 1);
+  assert.equal(dossier[0].texte, 'AL 839');
+  assert.ok(dossier[0].x > 1 && dossier[0].x < 1.0004 && dossier[0].y > 47 && dossier[0].y < 47.0003);
+  assert.equal(v.voisines.length, 1, 'la parcelle du dossier n’est pas comptée parmi les voisines');
+  assert.ok(v.etiquettes.every(e => e.texte));
+});
+
 test('photoAerienne : image reçue ; année sans prise de vue (image blanche) → vide ; couche inconnue refusée', async () => {
   const urls = [];
   const fetch = async (url) => { urls.push(url); return url.includes('ORTHOPHOTOS2001') ? image(3127) : url.includes('1950') ? image(280000, 'image/png') : image(40000); };

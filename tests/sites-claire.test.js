@@ -44,3 +44,11 @@ test('plan aérien : parts de zone en « 66,6 % », une ligne par parcelle et pa
   assert.strictEqual(l.join(' // '), ['AL 694|UA — Centre|70 %', 'AL 694|N|29,6 %', 'AL 887|N — Naturelle|90 %', 'AL 887|Hors zone du document|10 %',
     'AL 1|Règlement national d’urbanisme (pas de document)|', 'AL 2|Zonage non lu (Géoportail de l’urbanisme injoignable)|'].join(' // '));
 });
+
+test('photos à comparer : les numéros de parcelles sont placés en % de l’image, ceux hors cadre écartés', () => {
+  const l = app.etiquettesImage([{ texte: 'AL 839', dossier: true, x: 1.5, y: 47.5 }, { texte: '840', dossier: false, x: 1.9, y: 47.1 }, { texte: '12', dossier: false, x: 5, y: 47.5 }, { texte: '', dossier: false, x: 1.5, y: 47.5 }], [1, 47, 2, 48]);
+  assert.strictEqual(l.length, 2);
+  assert.strictEqual(l[0].texte, 'AL 839');
+  assert.ok(l[0].dossier && Math.abs(l[0].x - 50) < 0.01 && Math.abs(l[0].y - 50) < 0.01);
+  assert.ok(!l[1].dossier && Math.abs(l[1].x - 90) < 0.01 && Math.abs(l[1].y - 90) < 0.01);
+});

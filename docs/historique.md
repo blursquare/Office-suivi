@@ -19784,4 +19784,11 @@ comparer et créer le pourcentage ».
 - Vérifié ici : services réels de l'IGN joignables (WMS, API Carto, zone-urba), PDF rendu et regardé sur Blois (DR 597 / DR 596) ; tests
   `server/test/plan-aerien.test.js` avec de faux services. **Non vérifié** : une parcelle à cheval sur deux zones sur de vraies données
   (aucune trouvée dans les essais ; vérifié sur géométrie inventée), communes sans document d'urbanisme (RNU), qualité du rendu à l'impression.
+- Même jour, suite : numéros de parcelles aussi sur les **photos aériennes à comparer** du Contrôle de l'urbanisme (« pour les
+  constructions ») — `vueParcelles` rend `etiquettes` (parcelles du dossier en gras, voisines assez grandes) et `voisines` (contours en filet
+  blanc, jamais si le cadre en contient 300 ou plus), `etiquettesImage` et `.pr-photo-etiquette` côté poste. Relecture et audit indépendants
+  de la 0.231.0 : voir `docs/audits/2026-10-15-0.231.0.md` (aucun Haut ; quatre Moyen et neuf Bas corrigés).
+- **Recherche demandée : guichets uniques (GNAU) des communes pour déposer les DIA** — voir la réponse faite à l'étude : aucune liste nationale
+  publiée (ni data.gouv.fr, ni ministère) ; chaque commune ou intercommunalité a le sien (Cart@DS de l'ATIP, GNAU d'agglomération, portails
+  « DIA » réservés aux notaires à Toulouse, Aix-Marseille, Paris via FranceConnect…), souvent limité aux périmètres DPU/DPUR/ZAD. Rien n'est construit.
 
