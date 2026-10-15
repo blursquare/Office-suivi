@@ -760,6 +760,7 @@
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
+        ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCourriersSuccession('${escapeOnclickArg(d.id)}')" title="Interroger la banque, l’assurance-vie, les caisses, l’EHPAD, les impôts… : courriers de l’étude sur son papier à en-tête">Courriers d’interrogation</wa-button>`, null, 'prop-pleine')}
       </dl>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${parties.length ? parties.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Parties', `<span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}`, null, 'prop-pleine')).join('')

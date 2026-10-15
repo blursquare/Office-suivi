@@ -1193,6 +1193,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   fiche imprimée ; apprentissage des recatégorisations faites après enregistrement
   (`changerCategorie`) ; mémoriser le compte client (`compte : N`) des reçus comptables ; resserrer
   les motifs d'après les erreurs fréquentes du journal (phase 3 de l'extraction).
+- **Courriers d'interrogation d'une succession** (étude 15/10, 0.238.0, `commun/courriers-succession.js`, `client/73-courriers-succession.js`) : neuf textes de l'étude **mot pour mot** (banque, assurance-vie, CPAM, caisse de retraite, CARSAT, MSA, mutuelle, EHPAD, impôts), papier à en-tête de l'office (`courrierRenduAgent`), défunt gardé sur la fiche (`d.defunt`) ; un nouveau modèle = une entrée de `MODELES_COURRIER_SUCCESSION` + son test, texte fourni par l'étude, jamais reformulé.
 - **Successions** : créées depuis Authentic (voir « Successions » plus haut), « SUCC - NOM »
   (`libelleDossierAffiche`, `PREFIXES_TYPE_AFFAIRE`, miroir serveur `libelleDossier`). Reste à définir avec l'étude :
   échéances (déclaration de succession…), checklist de pièces, emails, qualité des parties (défunt, héritiers) — la

@@ -80,6 +80,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première lecture réussie d’un document par l’agent ; en échec si le PDF ne s’ouvre pas. Comparer la première fois ce que l’agent dit du document au document lui-même.' },
   { id: 'agent-document-nas', depuis: '0.226.0', source: 'poste', titre: '« Demander à CLAIRE » : un document Word produit par l’agent rangé à la racine du dossier client',
     comment: 'Coché au premier document rangé (bouton « Ranger dans le dossier du NAS ») ; en échec si le serveur refuse l’écriture. Ouvrir le .docx une fois dans Word pour vérifier sa mise en page.' },
+  { id: 'courrier-succession-word', depuis: '0.238.0', source: 'poste', titre: 'Courriers d’interrogation d’une succession : le Word sort sur le papier à en-tête de l’office',
+    comment: 'Coché au premier courrier créé ; en échec si le modèle Word ne se fabrique pas sur le poste. Ouvrir un courrier dans Word : adresse, date, bloc du défunt, texte de l’étude et signature « Me … » à vérifier.' },
   { id: 'assistant-agent', depuis: '0.213.0', source: 'serveur', titre: '« Demander à CLAIRE » en agent : Claude lit les dossiers (masqués) avec ses outils et répond',
     comment: 'Coché à la première réponse de l’agent ; en échec si la clé est refusée, si le modèle choisi n’est pas accessible avec cette clé, ou si Claude ne répond pas à temps (le poste revient alors à la compréhension d’une phrase).' },
   { id: 'assistant-conversation', depuis: '0.209.0', source: 'serveur', titre: '« Demander à CLAIRE » : un échange libre rédigé par l’IA en ligne (noms masqués, aucune donnée de dossier)',
