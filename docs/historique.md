@@ -20328,3 +20328,7 @@ automatique d'un dossier existant ne l'ajoutait pas par une seconde voie sans ce
 Étude : « dans l'agenda autour de AF et P ou D mettre un fond noir », « les pourcentages en gris plus foncé ». Sur une carte de rendez-vous, les
 pastilles `.ag-mini` ont un fond `--noir-fixe` (vert et rouge éclaircis pour se lire dessus, tirets gardés pour « pas encore fait ») ; le pourcentage
 de maintien est en gris foncé fixe (72 % de noir), le même dans les deux thèmes (carte de la couleur pleine d'Outlook).
+
+### 16/10/2026 18:35 — Agenda : « Probable » lisible en thème sombre (0.266.2)
+
+Capture de l'étude (« ça en blanc ») : les cartes fantômes de la ligne Journée (« ✦ 35 % - VTE - … », bord vert en tirets) prenaient le texte noir des rendez-vous pleins (0.265.0) sur le fond de la page. `.ag-journee-evt.ag-fantome` et `.ag-vm-evt.ag-fantome` rejoignent les options : texte `--ink` (blanc en sombre, encre en clair).

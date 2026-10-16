@@ -7889,7 +7889,9 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 /* Le liseré de gauche un ton plus clair que le fond, comme Outlook. */
 .ag-evt[class], .ag-journee-evt[class], .ag-vm-evt[class] { border-left-color: color-mix(in srgb, var(--ag-teinte, var(--line)) 65%, var(--blanc-fixe)); }
 .ag-evt.ag-option[class], .ag-journee-evt.ag-option[class], .ag-vm-evt.ag-option[class], .ag-evt.ag-fantome[class], .ag-evt.ag-hors-agenda[class], .ag-journee-evt.ag-hors-agenda[class], .ag-vm-evt.ag-hors-agenda[class] { border-left-color: var(--ag-teinte, var(--line)); }
-.ag-evt.ag-option, .ag-journee-evt.ag-option, .ag-vm-evt.ag-option, .ag-evt.ag-fantome, .ag-evt.ag-hors-agenda,
+/* Option, signature probable (fantôme) et hors agenda : sur le fond de la page, texte de l'encre du thème (blanc en sombre — étude 16/10 :
+   « ça en blanc » pour les « Probable » de la ligne Journée, restés en noir sur fond sombre). */
+.ag-evt.ag-option, .ag-journee-evt.ag-option, .ag-vm-evt.ag-option, .ag-evt.ag-fantome, .ag-journee-evt.ag-fantome, .ag-vm-evt.ag-fantome, .ag-evt.ag-hors-agenda,
 .ag-journee-evt.ag-hors-agenda, .ag-vm-evt.ag-hors-agenda { --ag-texte: var(--ink); }
 .ag-evt .ag-evt-titre, .ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-evt-duree, .ag-evt .ag-proba, .ag-evt .ag-evt-debut, .ag-evt .ag-evt-fin { color: var(--ag-texte); }
 .ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-proba { opacity: 0.9; }
