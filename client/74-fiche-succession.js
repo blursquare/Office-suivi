@@ -216,7 +216,7 @@
     const s = infoSuccession(d);
     etapesSuccession(d, aujourdhuiIso).forEach(e => {
       const cochable = !e.authentic && !(e.type === 'ouvertureSuccession' && e.iso)
-        && !((e.type === 'notoriete' || e.type === 'declarationSuccession') && e.fait && !(d.echeancesValidees || {})[e.type]);
+        && !((e.type === 'notoriete' || e.type === 'declarationSuccession' || e.avantRdv) && e.fait && !(d.echeancesValidees || {})[e.type]);
       const coche = cochable ? { onclick: `basculerEcheance('${idJs}', '${escapeOnclickArg(e.type)}')`, libelle: e.fait ? 'Rouvrir' : 'Marquer fait' } : null;
       const champDate = e.type === 'ouvertureSuccession' ? 'ouvertureLe' : (e.fait && e.type === 'notoriete' ? 'notorieteSigneeLe' : (e.fait && e.type === 'declarationSuccession' ? 'declarationSigneeLe' : ''));
       const date = champDate && !e.authentic ? { cle: 'succession:' + champDate, iso: s[champDate] || '', supprimable: !!s[champDate], envoi: false } : null;
@@ -234,12 +234,14 @@
       if (e.type === 'notoriete' && attentes.length) base.sous = [base.sous, 'À réunir : ' + attentes.join(', ')].filter(Boolean).join(' · ');
       // Décompte et appel de fonds : 10 jours avant le dernier rendez-vous (étude 16/10).
       if (e.avantRdv && !e.iso) base.sous = '10 jours avant le dernier rendez-vous, une fois placé';
+      const attenteRdv = e.avantRdv && !e.iso;
       if (e.type === 'appelFondsSuccession') {
         base.sous = [base.sous, conjointSurvivant(d) ? 'Comptes transférés au conjoint survivant : l’étude ne reçoit aucun fonds' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
         base.bouton = { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier', icone: icone('x'), libelle: 'Pas nécessaire' };
       }
       if (e.type === 'controleDroits') base.sous = [s.droitsDus ? `droits dus : ${s.droitsDus}` : 'droits à vérifier', s.inventaireNecessaire ? `inventaire : ${s.inventaireNecessaire}` : 'inventaire à vérifier'].join(' · ');
-      ajouter(e.attente ? 'attente' : 'faire', base);
+      // Décompte et appel de fonds sans rendez-vous placé : en attente, pas « à faire » pendant des mois (relecture 16/10).
+      ajouter(e.attente || attenteRdv ? 'attente' : 'faire', base);
     });
     // Appel de fonds dit « pas nécessaire » : une carte discrète pour le rétablir.
     const dernierActe = etapesSuccession(d, aujourdhuiIso).filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
@@ -584,16 +586,19 @@
   // « Mails-courriers » de la page du dossier (étude 16/10 : « valider l'envoi de la clôture ou transfert des comptes à la banque en croisant
   // dans Authentic la création du courrier de clôture et l'e-mail d'envoi à la banque ») —
   // [{ intitule, date (création, AAAA-MM-JJ), etat, mailLe, nature: 'cloture' | 'transfert' }]. Le serveur les croise avec les emails envoyés.
-  var RE_COURRIER_CLOTURE_SUCCESSION = /cl[ôo]tur|d[ée]blocage|liquidation|solde\s+(?:des?\s+)?comptes?/i;
-  var RE_COURRIER_TRANSFERT_SUCCESSION = /transfert|mutation\s+des?\s+comptes?|changement\s+de\s+titulaire/i;
+  // Un courrier sur les COMPTES (ou à la banque) qui dit clôture, déblocage ou transfert (relecture 16/10 : ni « liquidation du régime
+  // matrimonial », ni « transfert du dossier », ni la lettre d'interrogation « solde des comptes au jour du décès », ni « frais funéraires »).
+  var RE_COURRIER_CLOTURE_SUCCESSION = /cl[ôo]tur|d[ée]blocage/i;
+  var RE_COURRIER_TRANSFERT_SUCCESSION = /transfert|changement\s+de\s+titulaire/i;
+  var RE_COURRIER_COMPTES_SUCCESSION = /comptes?|avoirs|banque|bancaire/i;
+  var RE_COURRIER_PAS_CLOTURE_SUCCESSION = /dossier|r[ée]gime|interrogation|fun[ée]raire|acompte|au\s+jour\s+du\s+d[ée]c[èe]s/i;
   function courriersBanqueSuccessionAuthentic(capture) {
     const r = [];
     lignesDocumentsAuthentic(capture).forEach(l => {
       const titre = String(l.titre || '');
+      if (!RE_COURRIER_COMPTES_SUCCESSION.test(titre) || RE_COURRIER_PAS_CLOTURE_SUCCESSION.test(titre)) return;
       const nature = RE_COURRIER_TRANSFERT_SUCCESSION.test(titre) ? 'transfert' : (RE_COURRIER_CLOTURE_SUCCESSION.test(titre) ? 'cloture' : '');
       if (!nature) return;
-      // Un courrier ou un email à une banque : tableau Banque / Courrier / Mails, ou un intitulé qui le dit.
-      if (!/banque|courrier|mail|lettre/i.test(l.tableau || '') && !/banque|compte|lettre|courrier/i.test(titre)) return;
       const mail = /mail\s+le\s+(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i.exec(l.texte || '');
       if (r.some(x => x.intitule === titre && x.date === l.date)) return;
       r.push({ intitule: titre.slice(0, 160), date: l.date || '', etat: String(l.etat || '').slice(0, 80), mailLe: mail ? dateIsoDepuisFr(mail[1]) : '', nature });

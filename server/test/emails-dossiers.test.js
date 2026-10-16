@@ -453,3 +453,33 @@ test('tour : les emails rattachés avant le 07/10 hors des adresses de la fiche 
     assert.equal(E.lireEtat(repo).emails.map((e) => e.id).join(), 'a2');
   } finally { db.close(); }
 });
+
+test('clôture des comptes d\'une succession : envoi gardé puis recoupé au tour suivant, une fois le courrier relevé dans Authentic (étude 16/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
+  const dossier = { id: 's7', nom: 'SUCC LEFEBVRE', typeAffaire: 'succession', echeancesValidees: { notoriete: true }, parties: [], historique: [] };
+  const remplaces = [];
+  const depot = { tousActifs: () => [dossier], trouverParId: () => dossier, remplacer: (id, x) => remplaces.push([id, x]) };
+  let envoyes = [msgFind('B1', 'Succession LEFEBVRE - clôture des comptes', '2026-10-11T09:00:00Z', 'Bastien', 'bastien@office.fr', true),
+    msgFind('B2', 'Réunion du lundi', '2026-10-11T10:00:00Z', 'Bastien', 'bastien@office.fr', false)];
+  const poster = (o, cb) => {
+    const b = o.body;
+    if (/FindItem/.test(b) && /Id="sentitems"/.test(b)) { const l = envoyes; envoyes = []; return cb(null, { statusCode: 200, body: find(l) }); }
+    if (/GetItem/.test(b)) return cb(null, { statusCode: 200, body: getItems([{ id: 'B1', a: ['successions@banque-exemple.fr'] }, { id: 'B2', a: ['ami@exemple.fr'] }]) });
+    if (/FindItem/.test(b)) return cb(null, { statusCode: 200, body: find([]) });
+    cb(null, { statusCode: 500, body: '' });
+  };
+  try {
+    // Premier tour : pas encore de courrier relevé — l'envoi qui nomme la succession est gardé, l'autre non.
+    await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-12T08:00:00Z' }, true);
+    assert.equal(remplaces.length, 0);
+    assert.equal(E.lireEtat(repo).envoisNonRattaches.map((x) => x.objet).join('|'), 'Succession LEFEBVRE - clôture des comptes');
+    // La page d'Authentic est relue : le courrier de clôture apparaît ; le tour suivant coche le déblocage.
+    dossier.authentic = { courriersBanque: [{ intitule: 'Lettre banque clôture des comptes', date: '2026-10-10', nature: 'cloture' }] };
+    const r = await E.executerTourEmailsDossiers(depot, repo, { poster, maintenant: '2026-10-12T08:05:00Z' }, true);
+    assert.equal(r.cloturesCochees, 1);
+    assert.equal(dossier.echeancesValidees.deblocageFonds, true);
+    assert.equal(E.lireEtat(repo).envoisNonRattaches.length, 0, 'l’envoi qui a servi n’est plus gardé');
+  } finally { db.close(); }
+});

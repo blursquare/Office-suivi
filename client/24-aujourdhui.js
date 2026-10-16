@@ -317,6 +317,21 @@
         });
       }
 
+      // 3 quater. Succession (étude 16/10, « comme pour les ventes ») : décompte à faire valider et appel de fonds, dès leur échéance
+      //    (10 jours avant le dernier rendez-vous) ; la case ronde les coche.
+      if (succession) {
+        etapesSuccession(d, aujourdhuiIso).filter(e => (e.type === 'decompteSuccession' || e.type === 'appelFondsSuccession') && !e.fait && e.iso && e.iso <= aujourdhuiIso).forEach(e => {
+          const j = ecartJours(aujourdhuiIso, addDays(e.iso, JOURS_AVANT_DERNIER_RDV_SUCCESSION));
+          ajouter({
+            type: e.type, categorie: e.type, categorieLabel: e.label,
+            titre: e.type === 'decompteSuccession' ? 'Envoyer le décompte à faire valider' : 'Envoyer l’appel de fonds',
+            contexte: `Dernier rendez-vous ${j === 0 ? 'aujourd’hui' : j > 0 ? 'dans ' + j + ' jour' + (j > 1 ? 's' : '') : 'passé'}.${e.type === 'appelFondsSuccession' ? ' Seulement si la comptabilité ne couvre pas nos frais.' : ''}`,
+            jours: j, gravite: j <= 2 ? 'critique' : 'vigilance',
+            geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+          });
+        });
+      }
+
       // 4. Le reste des points qui demandent une décision (vente préalable, date butoir, pièces…) :
       //    pas de geste tout prêt, la fiche s'ouvre.
       const points = alertesImportantes([d], aujourdhuiIso).concat(pointsEtatDossier(d));
@@ -743,7 +758,9 @@
   // au lieu de ne laisser qu'une trace dans le journal — la tâche revenait chaque jour tant que l'échéance restait ouverte.
   var ECHEANCE_FAIT_MAIN_PAR_TYPE = {
     'point-confirmer-la-vente-prealable': { champ: 'ventebien', fait: 'Vente préalable notée réalisée' },
-    redaction: { champ: 'redaction', fait: 'Rédaction de l’acte notée commencée' }
+    redaction: { champ: 'redaction', fait: 'Rédaction de l’acte notée commencée' },
+    decompteSuccession: { champ: 'decompteSuccession', fait: 'Décompte noté envoyé' },
+    appelFondsSuccession: { champ: 'appelFondsSuccession', fait: 'Appel de fonds noté envoyé' }
   };
 
   // `silencieux` : appelé pour chaque tâche d'un groupe (marquerFaitGroupeJour) — ni rendu ni notification, le groupe s'en charge.

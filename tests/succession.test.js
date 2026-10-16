@@ -577,4 +577,10 @@ test('succession : décompte et appel de fonds 10 jours avant le dernier rendez-
     ['Courrier transfert des comptes au conjoint', '12/10/2099', '']] }] };
   const c = app.courriersBanqueSuccessionAuthentic(capture);
   assert.equal(c.map(x => `${x.nature}:${x.date}:${x.mailLe}`).join('|'), 'cloture:2099-10-10:2099-10-11|transfert:2099-10-12:');
+  // Pas des courriers de clôture des comptes (relecture 16/10).
+  const voisins = { tableaux: [{ titre: 'Courrier', entete: ['Intitulé', 'Date', 'État'], lignes: [
+    ['Liquidation du régime matrimonial', '02/10/2099', ''], ['Transfert du dossier à Me X', '02/10/2099', ''],
+    ['Demande de solde des comptes au jour du décès', '02/10/2099', ''], ['Demande de déblocage frais funéraires', '02/10/2099', ''],
+    ['Clôture du dossier', '02/10/2099', '']] }] };
+  assert.equal(app.courriersBanqueSuccessionAuthentic(voisins).length, 0);
 });

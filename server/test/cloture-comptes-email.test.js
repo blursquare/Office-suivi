@@ -3,26 +3,35 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../src/clotureComptesEmail');
 
-const succession = (o) => Object.assign({ id: 's1', nom: 'SUCC LEFEBVRE', typeAffaire: 'succession', parties: [{ nom: 'Anne LEFEBVRE', role: 'PARTIE', emails: ['anne.lefebvre@exemple.fr'] }],
-  authentic: { courriersBanque: [{ intitule: 'Lettre banque clôture des comptes', date: '2026-10-10', nature: 'cloture' }] }, historique: [] }, o);
+// Notoriété signée : l'étape des comptes peut se faire.
+const succession = (o) => Object.assign({ id: 's1', nom: 'Mme Marie LEFEBVRE veuve de M. Jean LEFEBVRE', typeAffaire: 'succession', echeancesValidees: { notoriete: true },
+  parties: [{ nom: 'Anne LEFEBVRE', role: 'PARTIE', emails: ['anne.lefebvre@exemple.fr'] }],
+  authentic: { courriersBanque: [{ intitule: 'Lettre banque clôture des comptes', date: '2026-10-10', mailLe: '2026-10-11', nature: 'cloture' }] }, historique: [] }, o);
 const etude = (a) => a.endsWith('@office-exemple.fr');
+const envoye = { objet: 'Succession LEFEBVRE - clôture des comptes', a: ['successions@banque-exemple.fr'], date: '2026-10-11T09:00:00Z' };
 
 test('clôture des comptes : courrier d\'Authentic + email envoyé à la banque (étude 16/10)', () => {
   const d = succession();
-  const envoye = { objet: 'Succession LEFEBVRE - clôture des comptes', a: ['successions@banque-exemple.fr'], date: '2026-10-11T09:00:00Z' };
   assert.ok(C.courrierEnvoyeParEmail(d, envoye, etude));
-  // Avant la création du courrier, ou plus de 30 jours après : rien.
-  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, date: '2026-10-09T09:00:00Z' }, etude), null);
+  // La veille de la création du courrier : accepté ; avant, ou plus de 30 jours après : rien.
+  assert.ok(C.courrierEnvoyeParEmail(d, { ...envoye, date: '2026-10-09T09:00:00Z' }, etude));
+  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, date: '2026-10-07T09:00:00Z' }, etude), null);
   assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, date: '2026-11-15T09:00:00Z' }, etude), null);
-  // À un héritier ou à l'étude : pas l'envoi à la banque.
-  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, a: ['anne.lefebvre@exemple.fr'] }, etude), null);
-  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, a: ['successions@banque-exemple.fr', 'office@office-exemple.fr'] }, etude), null);
-  // L'objet ne nomme pas la succession : rien.
-  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, objet: 'Clôture des comptes' }, etude), null);
-  // Sans courrier relevé dans Authentic : rien (jamais un seul signal).
+  // À un héritier seul : pas l'envoi à la banque ; un héritier ou l'étude en copie ne gêne pas.
+  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, a: ['anne.lefebvre@exemple.fr', 'office@office-exemple.fr'] }, etude), null);
+  assert.ok(C.courrierEnvoyeParEmail(d, { ...envoye, a: ['successions@banque-exemple.fr', 'office@office-exemple.fr', 'anne.lefebvre@exemple.fr'] }, etude));
+  // Un autre organisme, objet sans rapport avec les comptes, pas le jour du « Mail le » : rien (relecture 16/10).
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet: 'LEFEBVRE : déclaration', a: ['sie@impots-exemple.fr'], date: '2026-10-14T09:00:00Z' }, etude), null);
+  // … mais le jour où Authentic note le courrier envoyé par mail, l'objet peut être muet.
+  assert.ok(C.courrierEnvoyeParEmail(d, { objet: 'LEFEBVRE', a: ['agence@banque-exemple.fr'], date: '2026-10-11T15:00:00Z' }, etude));
+  // Un prénom ne désigne pas la succession.
+  assert.deepEqual(C.motsSuccession(d), ['LEFEBVRE']);
+  assert.equal(C.courrierEnvoyeParEmail(d, { ...envoye, objet: 'Succession Jean LEROY - clôture des comptes' }, etude), null);
+  // Sans courrier relevé dans Authentic : rien (jamais un seul signal) ; notoriété pas signée : rien.
   assert.equal(C.courrierEnvoyeParEmail(succession({ authentic: {} }), envoye, etude), null);
-  // Deux successions du même nom : rien.
-  assert.equal(C.successionDeEnvoiBanque([d, succession({ id: 's2' })], envoye, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(succession({ echeancesValidees: {} }), envoye, etude), null);
+  // Deux successions LEFEBVRE en cours, même si l'autre n'a pas de courrier relevé : rien.
+  assert.equal(C.successionDeEnvoiBanque([d, succession({ id: 's2', authentic: {} })], envoye, etude), null);
   const t = C.successionDeEnvoiBanque([d, succession({ id: 's3', nom: 'SUCC MARTIN' })], envoye, etude);
   assert.equal(t.d.id, 's1');
   // Cochée : déblocage des fonds (pas de conjoint survivant), une seule fois.
@@ -37,8 +46,10 @@ test('clôture des comptes : courrier d\'Authentic + email envoyé à la banque 
   assert.equal(C.etapeClotureComptes(c), 'transfertComptes');
   assert.equal(C.cocherClotureComptes(c, t.courrier, envoye), true);
   assert.equal(c.echeancesValidees.transfertComptes, true);
-  // Une vente n'est jamais concernée.
+  // Une vente n'est jamais concernée ; un envoi qui ne nomme aucune succession n'est pas gardé.
   assert.equal(C.successionACocher(succession({ typeAffaire: 'vente' })), false);
+  assert.equal(C.envoiAGarderPourCloture({ objet: 'Réunion du lundi' }, [d]), false);
+  assert.equal(C.envoiAGarderPourCloture(envoye, [d]), true);
 });
 
 test('envois gardés pour un recoupement plus tard : 45 jours, sans doublon', () => {
@@ -47,4 +58,5 @@ test('envois gardés pour un recoupement plus tard : 45 jours, sans doublon', ()
     [{ id: 'b', date: '2026-10-10T10:00:00Z', objet: 'y' }, { id: 'c', date: '2026-10-15T10:00:00Z', objet: 'z', a: [] }], maintenant);
   assert.equal(r.map((e) => e.id).join(','), 'b,c');
   assert.equal(r[0].a[0], 'b@c.fr');
+  assert.equal(C.envoisAGarder([{ id: 'a', date: '2020-01-01T10:00:00Z' }], [], null).length, 1, 'sans date du jour : rien n\'est trié');
 });

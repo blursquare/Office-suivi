@@ -25,7 +25,7 @@ const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
 const { cocherProjetEnvoye, corpsALirePourProjet } = require('./projetEnvoyeEmail');
-const { successionDeEnvoiBanque, cocherClotureComptes, envoisAGarder } = require('./clotureComptesEmail');
+const { successionDeEnvoiBanque, cocherClotureComptes, envoisAGarder, envoiAGarderPourCloture } = require('./clotureComptesEmail');
 
 // Coche le projet sur la copie du dossier relue À L'INSTANT (audit 13/10) : la liste du début du tour est périmée après les
 // lectures Exchange — l'écrire effaçait ce qu'un poste avait enregistré entre-temps. Synchrone entre la relecture et l'écriture.
@@ -125,9 +125,9 @@ function assainirEmailsDossiers(brut) {
     emails: (Array.isArray(b.emails) ? b.emails : []).map(assainirEmail).filter(Boolean)
       .sort((x, y) => x.date.localeCompare(y.date)).slice(-MAX_EMAILS),
     prepares: (Array.isArray(b.prepares) ? b.prepares : []).map(assainirPrepare).filter(Boolean).slice(-MAX_PREPARES),
-    // Envois rattachés à aucun dossier (objet, destinataires, date ; 45 jours) : recoupés avec les courriers de clôture des comptes d'une
-    // succession relevés dans Authentic (clotureComptesEmail.js), même relevés après l'envoi.
-    envoisNonRattaches: envoisAGarder(Array.isArray(b.envoisNonRattaches) ? b.envoisNonRattaches : [], [], new Date())
+    // Envois dont l'objet nomme une succession en cours (objet, destinataires, date ; 45 jours) : recoupés avec les courriers de clôture
+    // des comptes relevés dans Authentic (clotureComptesEmail.js), même relevés après l'envoi.
+    envoisNonRattaches: envoisAGarder(Array.isArray(b.envoisNonRattaches) ? b.envoisNonRattaches : [], [], null)
   };
 }
 
@@ -388,6 +388,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   const aResumer = [];
   /** @type {any[]} */
   const nonRattaches = [];
+  const successionsEnCours = dossiers.filter((x) => x && !x.archive && x.typeAffaire === 'succession');
 
   // 1. Boîte de réception du compte relié.
   const r = await poster(corpsFind('inbox', null, etat.etat.recus.dernier || depuisDefaut, 'item:DateTimeReceived'));
@@ -516,7 +517,9 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       const envoye = { objet: e.objet, a, date: e.date, pj: e.pj, boite: b.adresse, collaborateur: b.collaborateur };
       const prepare = etat.prepares.find((p) => correspondAuPrepare(p, envoye));
       const d = prepare ? dossiers.find((x) => x.id === prepare.dossierId) || dossierDeEmailEnvoye(envoye, ctx) : dossierDeEmailEnvoye(envoye, ctx);
-      if (!d && !prepare) { nonRattaches.push({ id: idCourt(e.itemId), date: e.date, objet: e.objet, a }); continue; }
+      // Candidat au recoupement de la clôture des comptes : rattaché à aucun dossier, ou à une succession (envoi préparé dans CLAIRE).
+      if ((!d || d.typeAffaire === 'succession') && envoiAGarderPourCloture(envoye, successionsEnCours)) nonRattaches.push({ id: idCourt(e.itemId), date: e.date, objet: e.objet, a });
+      if (!d && !prepare) continue;
       const email = assainirEmail({ id: idCourt(e.itemId), itemId: e.itemId, dossierId: d ? d.id : (prepare && prepare.dossierId) || '', sens: 'envoye',
         date: e.date, de: { nom: b.collaborateur, adresse: b.adresse }, a, objet: e.objet, sujets: sujetsDe(e.objet, ''),
         boite: b.adresse, collaborateur: b.collaborateur, prepareId: prepare ? prepare.id : null });
