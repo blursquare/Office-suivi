@@ -288,6 +288,8 @@
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
       cstEtat.groupes.forEach(g => chargerCommuneConstitution(g));
+      // Zonage et droits de préemption (client/81) : lus seuls si le dossier n'a pas encore d'analyse.
+      lireZonageConstitution(false);
     } else {
       cstEtat.defunt = defuntConstitution(d);
     }
@@ -1117,6 +1119,7 @@
             <span slot="summary" class="cst-donnees-resume"><strong>${cstEtat.type === 'vente' ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
             ${cstEtat.type === 'vente' ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}
           </wa-details>
+          ${renderZonageConstitution(d)}
           <div class="calc-card cst-courriers"><div class="cst-bloc-titre">Courriers <span class="hint">${documentsAGenererConstitution().length} à préparer</span></div>${renderListeCourriersConstitution()}</div>
           <div class="calc-card cst-sortie">${renderSortieConstitution(d)}</div>
         </div>

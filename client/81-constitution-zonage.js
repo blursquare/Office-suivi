@@ -1,0 +1,64 @@
+  // ==== CONSTITUTION DE DOSSIER : ZONAGE ET DROITS DE PRÉEMPTION (étude 16/10) ====
+  // « Rajouter une section. Détecter le zonage pour savoir si la DIA urbaine ou la SAFER est nécessaire. »
+  // Aucune règle nouvelle : la même analyse que le Contrôle de l'urbanisme et la fiche (client/45, 46, 54 — zonage de chaque parcelle lu sur le
+  // Géoportail de l'urbanisme, DPU d'après le tableau Cheuvreux et Agglopolys, SAFER d'après le CRIDON, zone A ou N = SAFER à notifier).
+  // Lancée seule à l'ouverture d'un dossier de vente qui n'a pas encore d'analyse ; une analyse faite dans l'outil est lue telle quelle.
+
+  // Pure : ce que la section montre d'une analyse → { zones: [{ parcelle, zone }], dia: { statut, texte, motif }, safer: {…}, autres: [...] } ou null.
+  function zonageConstitution(p) {
+    if (!p || !Array.isArray(p.droits)) return null;
+    const droits = droitsPreemptionFiche(p);
+    const zones = (Array.isArray(p.lignes) && p.lignes.length ? p.lignes : (p.parcelles || [])).map(l => ({
+      parcelle: l.libelle || l.parcelle || '',
+      zone: l.zone ? `${l.zone}${l.typezone ? ' (' + l.typezone + ')' : ''}` : (l.famille || 'zone non lue')
+    }));
+    const texte = (dr, oui, non) => {
+      if (!dr) return { statut: 'verifier', texte: 'À vérifier', motif: 'droit non analysé' };
+      if (dr.statut === 'oui') return { statut: 'oui', texte: oui, motif: dr.motif || '' };
+      if (dr.statut === 'probable') return { statut: 'probable', texte: `${oui} (probable)`, motif: dr.motif || '' };
+      if (dr.statut === 'non') return { statut: 'non', texte: non, motif: dr.motif || '' };
+      return { statut: 'verifier', texte: 'À vérifier', motif: dr.motif || '' };
+    };
+    const dpu = droits.find(dr => dr.cle === 'dpu');
+    const safer = droits.find(dr => dr.cle === 'safer');
+    const autres = droits.filter(dr => dr.cle !== 'dpu' && dr.cle !== 'safer' && (dr.statut === 'oui' || dr.statut === 'probable')).map(dr => dr.titre);
+    return { zones, dia: texte(dpu, 'DIA à déposer', 'Pas de DIA'), safer: texte(safer, 'SAFER à notifier', 'Pas de SAFER'), autres, incomplet: !!p.incomplet, le: p.le || '' };
+  }
+
+  // Le zonage du dossier ouvert dans la Constitution : lu seul s'il n'y a pas encore d'analyse (même lecture que l'ajout d'un dossier).
+  async function lireZonageConstitution(force) {
+    const e = cstEtat;
+    const d = dossierConstitution();
+    if (!e || !d || e.type !== 'vente' || e.zonageEnCours) return;
+    if (d.preemption && Array.isArray(d.preemption.droits) && !force) return;
+    if (d.roleNotaire === 'participant') return;
+    if (force && d.preemption && !d.preemption.auto) { ouvrirPreemptionDepuisFiche(d.id); return; }
+    d.preemptionAuto = true;
+    if (force && d.preemption) d.preemption.signature = '';
+    e.zonageEnCours = true;
+    renderConstitution();
+    try { await analyserPreemptionDossier(d.id); } finally {
+      if (cstEtat === e) { e.zonageEnCours = false; renderConstitution(); }
+    }
+  }
+
+  // La section, entre les données de la vente et les courriers.
+  function renderZonageConstitution(d) {
+    const e = cstEtat;
+    if (!e || e.type !== 'vente' || !d) return '';
+    if (d.roleNotaire === 'participant') return '';
+    const z = zonageConstitution(d.preemption);
+    const tete = `<div class="cst-bloc-titre">Zonage et droits de préemption ${infoBulle('Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme. Le détail et les questions restantes : « Contrôle de l’urbanisme ».')}</div>`;
+    const outil = `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">Contrôle de l’urbanisme</wa-button>`;
+    if (e.zonageEnCours) return `<div class="calc-card cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
+    if (!z) return `<div class="calc-card cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
+      <div class="cst-zonage-actions"><wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">Lire le zonage</wa-button>${outil}</div></div>`;
+    const dl = s => s === 'oui' || s === 'probable' ? 'dl-urgent' : s === 'non' ? 'dl-success' : 'dl-pret';
+    const ligne = (titre, r) => `<div class="cst-zonage-droit"><span class="cst-zonage-titre">${escapeHtml(titre)}</span><span class="dot-label ${dl(r.statut)}"><span class="dot"></span>${escapeHtml(r.texte)}</span>${r.motif ? `<span class="hint">${escapeHtml(r.motif)}</span>` : ''}</div>`;
+    const zones = z.zones.length ? `<div class="cst-zonage-zones">${z.zones.map(x => `<span class="cst-zonage-zone"><b>${escapeHtml(x.parcelle)}</b> ${escapeHtml(x.zone)}</span>`).join('')}</div>` : '';
+    return `<div class="calc-card cst-zonage">${tete}${zones}
+      ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
+      ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
+      ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
+      <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
+  }

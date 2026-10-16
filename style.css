@@ -9634,6 +9634,13 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-item-actions .cst-actif-email { color: var(--acte); }
 .cst-item-actions .cst-fait { color: var(--success); }
 .cst-item-edition { margin: 2px 0 8px 40px; padding: 8px 10px; border-left: 2px solid color-mix(in srgb, var(--focus) 40%, transparent); }
+.cst-zonage { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
+.cst-zonage-zones { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--texte-s); }
+.cst-zonage-zone b { font-weight: 600; }
+.cst-zonage-droit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: var(--texte-m); }
+.cst-zonage-titre { min-width: 170px; font-weight: 500; }
+.cst-zonage-droit .hint { flex: 1 1 100%; margin: 0; font-size: var(--texte-s); }
+.cst-zonage-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .cst-commune-courriers { display: flex; flex-direction: column; gap: 2px; }
 .cst-commune-courriers + .cst-commune-courriers { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .cst-liste-titre .cst-gnau-lien { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }

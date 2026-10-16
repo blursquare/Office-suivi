@@ -20382,3 +20382,13 @@ le dossier du NAS. Pour l'impression mettre un plan du cadastre après chaque co
 - Impression : la fenêtre est ouverte au clic puis remplie quand le PDF est prêt (après l'attente des plans, une fenêtre ouverte plus tard est
   bloquée par le navigateur) ; sans fenêtre, le PDF est téléchargé.
 Vérifié dans Chromium avec un dossier inventé (commune et plan simulés) ; impression et plan réels non rejoués ici.
+
+### 16/10/2026 21:44 — Constitution de dossier : zonage et droits de préemption (0.268.0)
+
+Étude : « Rajouter une section. Détecter le zonage pour savoir si la DIA urbaine ou SAFER nécessaire. » `client/81-constitution-zonage.js` :
+aucune règle nouvelle — la même analyse que le Contrôle de l'urbanisme et la fiche (`analyserPreemptionDossier`, `droitsPreemptionFiche`).
+`zonageConstitution(p)` (pure) : zone de chaque parcelle, « DIA à déposer / Pas de DIA / À vérifier » d'après le droit `dpu`, « SAFER à
+notifier / Pas de SAFER / À vérifier » d'après `safer` (un droit absent = « À vérifier », jamais « non »), autres droits à purger (bois et
+forêts) cités. Section entre les données et les courriers ; lue seule à l'ouverture d'une vente sans analyse (`lireZonageConstitution`,
+`d.preemptionAuto`) ; « Relire le zonage » pour une analyse automatique ; une analyse faite dans l'outil est lue telle quelle (« Contrôle de
+l'urbanisme » pour la refaire) ; rien en participation. Zonage réel non relu ici (Géoportail injoignable).

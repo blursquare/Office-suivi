@@ -79,5 +79,6 @@
   "77-vente-outils-fiche.js",
   "78-constitution-plan-cadastral.js",
   "79-nouveau-dossier-succession.js",
-  "80-clients-biens.js"
+  "80-clients-biens.js",
+  "81-constitution-zonage.js"
 ]
