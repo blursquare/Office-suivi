@@ -250,7 +250,7 @@ function render() {
       const shown = f.encoded ? preview(getByPath(data, f.source)) : r.value; // valeur lisible, pas le code envoyé au site
       v.textContent = r.missing ? "—" : r.invalid ? "valeur inexploitable" : typeof shown === "boolean" ? (shown ? "Oui" : "Non") : shown;
       body.append(l, v);
-      const detail = (st && st.detail && state !== "manuel" && state !== "absent" ? st.detail : "") || (r.invalid && r.error) || DETAIL[state];
+      const detail = (st && st.detail && state !== "absent" ? st.detail : "") || (r.invalid && r.error) || DETAIL[state];
       if (detail && ["missing", "notfound", "mismatch", "manuel", "absent"].includes(state)) {
         const d = document.createElement("div");
         d.className = "d";

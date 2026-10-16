@@ -61,7 +61,8 @@ function creerRouteurGnau(depot, parametresRepo, config) {
       noterVerification(parametresRepo, 'gnau-plan-cadastral', { detail: 'plan du NAS servi à l’extension' });
       res.set('Content-Type', 'application/pdf');
       res.set('X-Claire-Nom', encodeURIComponent('Plan cadastral.pdf'));
-      res.set('X-Claire-Source', encodeURIComponent(path.basename(path.dirname(cible)) === path.basename(absolu) ? 'racine du dossier' : 'sous-dossier ' + path.basename(path.dirname(cible))));
+      // Où il a été trouvé, sans nom de sous-dossier (il peut porter le nom d'un client).
+      res.set('X-Claire-Source', encodeURIComponent(path.dirname(cible) === absolu ? 'racine du dossier' : 'sous-dossier du dossier'));
       res.send(contenu);
     } catch (e) {
       console.error('[gnau] plan cadastral :', e && e.code ? e.code : 'erreur');

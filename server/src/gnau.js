@@ -265,7 +265,7 @@ function choisirPlanCadastral(fichiers) {
   const n = (/** @type {string} */ t) => sansAccents(t).toLowerCase().replace(/[_-]+/g, ' ');
   const rang = (/** @type {any} */ f) => {
     const nom = n(f.nom);
-    if (/^(demande|courrier|lettre|mail|re |tr )|matrice|releve de propriete/.test(nom)) return 0;
+    if (/^(demande|courrier|lettre|mail|re |tr )|matrice|releve de propriete|masse|financement|prevention|\berp\b|diagnostic/.test(nom)) return 0;
     if (/^plan de situation/.test(nom)) return 3;
     if (/plan.{0,15}cadastr|extrait.{0,15}cadastr|cadastr.{0,15}plan/.test(nom)) return 2;
     if (/plan de situation|^cadastre\b/.test(nom)) return 1;

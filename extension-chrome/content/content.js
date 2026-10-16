@@ -538,8 +538,11 @@
     if (!f.famille) return f.code;
     const m = await modeleGuichet();
     if (!m) return null; // pas de modèle lisible : le code prévu et son rang parmi les champs de ce code
-    const codes = m.filter((x) => x.code.startsWith(f.famille) && !x.lecture && !JAMAIS_ECRIRE.test(x.code))
-      .sort((a, b) => a.page - b.page || a.tabindex - b.tabindex || a.code.localeCompare(b.code));
+    // Code d'une ligne de la famille seulement : « BI3S » + code de ligne (« A1 », « B5 »), « T2S » ou « T2S2 » — jamais un autre champ qui
+    // commence pareil (« T2Ttotal »…), qui décalerait les lignes.
+    const motif = new RegExp("^" + f.famille + "(?:[A-Z]?\\d+)?$");
+    const codes = m.filter((x) => motif.test(x.code) && !x.lecture && !JAMAIS_ECRIRE.test(x.code))
+      .sort((a, b) => a.page - b.page || a.tabindex - b.tabindex || a.code.localeCompare(b.code, undefined, { numeric: true }));
     const x = codes[Number(f.rang) || 0];
     return x ? x.code : "";
   }
@@ -547,9 +550,21 @@
   // Pièce jointe : le plan cadastral du dossier du NAS, posé dans le champ de fichier du guichet dont la ligne parle du plan.
   async function joindrePlan(run, f, key, sp) {
     const res = (f.piece || []).map((m) => new RegExp(m, "i"));
-    const zone = (el) => norm(((el.closest("tr, li, .row, .form-group, .piece, .ligne, fieldset, div") || el.parentElement || el).innerText || "").slice(0, 400));
-    const el = [...document.querySelectorAll('input[type=file]')].find((x) => res.some((r) => r.test(zone(x)) || r.test(libelleChamp(x))));
-    if (!el) return false;
+    const autre = /plan de masse|financement|plan de coupe|facade|photo/;
+    // La ligne propre à CE champ : le plus proche bloc qui ne contient aucun autre champ de fichier.
+    const zone = (el) => {
+      for (let n = el.parentElement, k = 0; n && k < 6; n = n.parentElement, k++) {
+        if (n.querySelectorAll('input[type=file]').length > 1) return "";
+        const t = norm((n.innerText || "").slice(0, 300));
+        if (t) return t;
+      }
+      return "";
+    };
+    const vise = (x) => { const t = libelleChamp(x) || zone(x); return !!t && !autre.test(t) && res.some((r) => r.test(t)); };
+    const trouves = [...document.querySelectorAll('input[type=file]')].filter(vise);
+    if (!trouves.length) return false;
+    if (trouves.length > 1) { if (((run.fields || {})[key] || {}).state !== "manuel") await noter(run, key, "manuel", "plusieurs champs de pièce parlent du plan : joignez-le vous-même"); return false; }
+    const el = trouves[0];
     if (el.files && el.files.length) { await noter(run, key, "done", "pièce déjà jointe dans le guichet, laissée telle quelle"); return true; }
     await noter(run, key, "filling");
     const r = await send({ type: "content.plan" });
@@ -639,6 +654,11 @@
       if (!el) { await noter(run, key, "manuel", "plusieurs champs portent ce code : à saisir à la main"); return false; }
     }
     else el = cands.find((x) => !String(x.value || "").trim()) || cands.find((x) => String(x.value) === String(r.value)) || null;
+    if (!el && f.rang !== undefined && f.rang !== null && f.rang !== "") {
+      // Rang au-delà des lignes du formulaire (parcelle de trop) : jamais « fait » — l'annexe se remplit à la main.
+      if (deja !== "manuel") await noter(run, key, cands.length ? "manuel" : "absent", cands.length ? "plus de ligne de parcelle dans le formulaire : annexe à saisir (Copier « Toutes les parcelles »)" : "");
+      return false;
+    }
     if (!el) {
       if (cands.length) { await noter(run, key, "done", "déjà rempli dans le guichet"); return true; }
       if (deja !== "done") await noter(run, key, "absent");
