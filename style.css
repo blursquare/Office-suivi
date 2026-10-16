@@ -8163,12 +8163,12 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-mini.fait { color: var(--success); background: color-mix(in srgb, var(--success) 14%, transparent); }
 .ag-mini.afaire { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 8%, transparent); border: 1px dashed color-mix(in srgb, var(--urgent) 60%, transparent); padding: 0 2px; }
 /* Sur une carte de l'agenda : pastilles sur fond blanc, vert foncé = envoyé, rouge foncé en tirets = pas encore (étude 16/10, choix « 2 · Blanc »
-   parmi cinq propositions, après le fond noir puis un bandeau en bas essayés le même jour) ; le pourcentage en gris foncé (« les pourcentages en gris plus foncé »), le même dans les deux thèmes (la carte est
+   parmi cinq propositions, après le fond noir puis un bandeau en bas essayés le même jour) ; le pourcentage en blanc (étude 16/10 : « en gris plus foncé », puis « met le pourcentage en blanc »), le même dans les deux thèmes (la carte est
    de la couleur pleine d'Outlook). */
 .ag-evt .ag-mini.fait, .ag-evt .ag-mini.afaire { background: var(--blanc-fixe); }
 .ag-evt .ag-mini.fait { color: color-mix(in srgb, var(--success) 80%, var(--noir-fixe)); }
 .ag-evt .ag-mini.afaire { color: color-mix(in srgb, var(--urgent) 85%, var(--noir-fixe)); border-color: color-mix(in srgb, var(--urgent) 85%, var(--noir-fixe)); }
-.ag-evt .ag-proba, .ag-evt .ag-etats-mini .ag-proba { color: color-mix(in srgb, var(--noir-fixe) 72%, var(--blanc-fixe)); opacity: 1; }
+.ag-evt .ag-proba, .ag-evt .ag-etats-mini .ag-proba { color: var(--blanc-fixe); opacity: 1; }
 .ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 1px; padding-bottom: 1px; }
 .ag-evt-court .ag-evt-titre { flex: 1 1 auto; min-width: 0; }
 /* Comme Outlook : le titre passe sur deux lignes quand la carte a la place (1 h 30 et plus). */

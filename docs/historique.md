@@ -20360,3 +20360,7 @@ bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune c
 ### 16/10/2026 21:19 — Agenda : pastilles d'avant, sur fond blanc (0.266.7)
 
 Étude : « reviens comme avant en termes de forme mais propose d'autres couleurs ». Bandeau du bas retiré (client/25 rendu comme en 0.266.4, `renderBandeEtatsRendezVous` supprimée, règles `.ag-etats-bande` retirées) ; cinq jeux de couleurs proposés en maquette (fond noir actuel, blanc, pleines vert/rouge, seul le « à faire » en rouge, bleu nuit/ambre) — choix : **blanc** (`.ag-evt .ag-mini` fond `--blanc-fixe`, vert foncé fait, rouge foncé en tirets à faire).
+
+### 16/10/2026 21:22 — Agenda : pourcentage en blanc (0.266.8)
+
+Étude : « mets le pourcentage en blanc ». `.ag-evt .ag-proba` en `--blanc-fixe` (gris foncé depuis 0.266.1).
