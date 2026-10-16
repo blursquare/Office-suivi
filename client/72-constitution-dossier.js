@@ -973,21 +973,10 @@
   function renderListeCourriersConstitution() {
     const e = cstEtat;
     if (e.type === 'vente') {
-      // Par commune : en tête, le plan cadastral (tiré seul, joint à chaque courrier) et le guichet unique du CU et de la DIA.
-      return e.groupes.map(g => {
-        const info = g.info || {};
-        const depot = info.depot || {};
-        const chailles = String(info.insee || '') === INSEE_CHAILLES;
-        const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
-        const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : ''));
-        const gnau = lien ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(`CU et DIA de ${g.commune} : ${nom || 'guichet unique'}`)}">${icone('link')}GNAU — CU et DIA</a>`
-          : `<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet CU / DIA non relevé</span>`;
-        return `<div class="cst-commune-courriers">
-          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${gnau}</div>
-          ${renderPlanCommuneConstitution(g)}
+      return e.groupes.map(g => `<div class="cst-commune-courriers">
+          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span></div>
           ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
-          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button></div></div>`;
-      }).join('');
+          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button></div></div>`).join('');
     }
     const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
     return `${e.documents.map(renderItemConstitution).join('')}
@@ -1131,16 +1120,24 @@
     if (volet && volet.dataset.dossier === cstEtat.dossierId) cstEtat.donneesOuvertes = !!volet.open;
     const ouvert = cstEtat.donneesOuvertes !== undefined ? cstEtat.donneesOuvertes : manquesConstitution(cstEtat).some(m => !/parcelle/i.test(m));
     const doc = documentConstitution(cstEtat.selection);
+    // Par étapes (étude 16/10 : « 1 dossier, 2 plan, 3 DIA et SAFER, 4 courrier, 5 imprimer ») ; une succession n'a ni plan ni DIA.
+    const vente = cstEtat.type === 'vente';
+    const etapes = [
+      { titre: vente ? 'Dossier' : 'Dossier — le défunt', html: `<wa-details class="cst-donnees" data-dossier="${escapeAttr(cstEtat.dossierId)}"${ouvert ? ' open' : ''}>
+            <span slot="summary" class="cst-donnees-resume"><strong>${vente ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
+            ${vente ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}
+          </wa-details>` },
+      vente ? { titre: 'Plan cadastral', info: 'Tiré seul de cadastre.gouv.fr dès la commune connue, refait quand les parcelles changent ; joint à chaque courrier de la commune (imprimé derrière lui, joint à l’email, enregistré).', html: cstEtat.groupes.map(g => `<div class="cst-plan-commune"><strong>${escapeHtml(g.commune)}</strong>${renderPlanCommuneConstitution(g)}</div>`).join('') || '<p class="hint">Aucune commune.</p>' } : null,
+      vente ? { titre: 'DIA et SAFER', info: 'Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme.', html: renderZonageConstitution(d) + renderGnauConstitution() } : null,
+      { titre: 'Courriers', compte: `${documentsAGenererConstitution().length} à préparer`, html: renderListeCourriersConstitution() },
+      { titre: 'Imprimer et enregistrer', html: renderSortieConstitution(d) }
+    ].filter(Boolean);
     zone.innerHTML = `${renderDossierConstitution(d)}
       <div class="cst-mise-en-page">
         <div class="cst-gauche">
-          <wa-details class="cst-donnees" data-dossier="${escapeAttr(cstEtat.dossierId)}"${ouvert ? ' open' : ''}>
-            <span slot="summary" class="cst-donnees-resume"><strong>${cstEtat.type === 'vente' ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
-            ${cstEtat.type === 'vente' ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}
-          </wa-details>
-          ${renderZonageConstitution(d)}
-          <div class="calc-card cst-courriers"><div class="cst-bloc-titre">Courriers <span class="hint">${documentsAGenererConstitution().length} à préparer</span></div>${renderListeCourriersConstitution()}</div>
-          <div class="calc-card cst-sortie">${renderSortieConstitution(d)}</div>
+          ${etapes.map((x, i) => `<section class="calc-card cst-etape">
+            <h2 class="outil-section-tete cst-etape-tete"><span class="outil-num">${i + 1}</span>${escapeHtml(x.titre)}${x.compte ? ` <span class="hint">${escapeHtml(x.compte)}</span>` : ''}${x.info ? ' ' + infoBulle(x.info) : ''}</h2>
+            ${x.html}</section>`).join('')}
         </div>
         <div class="cst-droite">
           <div class="cst-apercu" id="cst-apercu"></div>

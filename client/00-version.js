@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.268.1';
+  const VERSION_APP = '0.268.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.268.2', date: '2026-10-16 22:00', resume: "Constitution de dossier par étapes numérotées : 1 Dossier, 2 Plan cadastral, 3 DIA et SAFER (zonage et lien vers le GNAU), 4 Courriers, 5 Imprimer et enregistrer ; une succession : Dossier, Courriers, Imprimer." },
     { version: '0.268.1', date: '2026-10-16 21:49', resume: "Constitution de dossier : corrections de la relecture — le plan et le zonage se mettent à jour sans effacer une saisie en cours ; « Email » ne peut plus ouvrir deux fenêtres et ne fait passer le courrier par email qu’une fois la fenêtre acceptée ; « Imprimer tout » ne prépare que les courriers papier et dit exactement lesquels ont leur plan." },
     { version: '0.268.0', date: '2026-10-16 21:44', resume: "Constitution de dossier : nouvelle section « Zonage et droits de préemption » — zone de chaque parcelle (Géoportail de l’urbanisme), DIA à déposer ou non, SAFER à notifier ou non, avec le motif ; lue seule à l’ouverture d’une vente qui n’a pas encore d’analyse, « Relire le zonage », lien vers le Contrôle de l’urbanisme." },
     { version: '0.267.0', date: '2026-10-16 21:37', resume: "Constitution de dossier revue : l’aperçu du courrier à droite ; à gauche, une ligne compacte par courrier avec Email, Imprimer (suivi du plan cadastral) et PDF, l’édition dépliée sous le courrier choisi ; par commune, le plan cadastral tiré seul (refait seul quand les parcelles changent) et le lien vers le GNAU pour le CU et la DIA ; en bas, « Imprimer tout » (chaque courrier suivi de son plan) et « Enregistrer tout dans le dossier du NAS »." },

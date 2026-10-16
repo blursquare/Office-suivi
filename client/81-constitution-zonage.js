@@ -53,19 +53,35 @@
   function renderZonageConstitution(d) {
     const e = cstEtat;
     if (!e || e.type !== 'vente' || !d) return '';
-    if (d.roleNotaire === 'participant') return '';
+    if (d.roleNotaire === 'participant') return '<div class="cst-zonage" id="cst-zonage"><p class="hint">Participation : la DIA et la SAFER sont l’affaire du notaire qui reçoit l’acte.</p></div>';
     const z = zonageConstitution(d.preemption);
-    const tete = `<div class="cst-bloc-titre">Zonage et droits de préemption ${infoBulle('Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme. Le détail et les questions restantes : « Contrôle de l’urbanisme ».')}</div>`;
+    const tete = '';
     const outil = `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">Contrôle de l’urbanisme</wa-button>`;
-    if (e.zonageEnCours) return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
-    if (!z) return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
+    if (e.zonageEnCours) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
+    if (!z) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
       <div class="cst-zonage-actions"><wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">Lire le zonage</wa-button>${outil}</div></div>`;
     const dl = s => s === 'oui' || s === 'probable' ? 'dl-urgent' : s === 'non' ? 'dl-success' : 'dl-pret';
     const ligne = (titre, r) => `<div class="cst-zonage-droit"><span class="cst-zonage-titre">${escapeHtml(titre)}</span><span class="dot-label ${dl(r.statut)}"><span class="dot"></span>${escapeHtml(r.texte)}</span>${r.motif ? `<span class="hint">${escapeHtml(r.motif)}</span>` : ''}</div>`;
     const zones = z.zones.length ? `<div class="cst-zonage-zones">${z.zones.map(x => `<span class="cst-zonage-zone"><b>${escapeHtml(x.parcelle)}</b> ${escapeHtml(x.zone)}</span>`).join('')}</div>` : '';
-    return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}${zones}
+    return `<div class="cst-zonage" id="cst-zonage">${tete}${zones}
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
       <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
+  }
+
+  // Étape « DIA et SAFER » : le guichet unique (GNAU) de chaque commune, où se déposent la DIA et le certificat d'urbanisme.
+  function renderGnauConstitution() {
+    const e = cstEtat;
+    if (!e || e.type !== 'vente') return '';
+    return `<div class="cst-gnau-liste">${e.groupes.map(g => {
+      const info = g.info || {};
+      const depot = info.depot || {};
+      const chailles = String(info.insee || '') === INSEE_CHAILLES;
+      const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
+      const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : ''));
+      return `<div class="cst-gnau-ligne"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${lien
+        ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
+        : '<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet non relevé</span>'}</div>`;
+    }).join('')}</div>`;
   }

@@ -20402,3 +20402,7 @@ Relecture indépendante, huit points corrigés : (1) plan relancé après un cha
 qu'une fois la fenêtre d'email acceptée (adresse prise du répertoire si le champ est vide) ; (5) « Imprimer tout » ne prépare que les
 courriers papier (ni PDF ni plan ni historique pour un courrier par email) ; (6) message fidèle aux plans réellement joints ; (7) branches
 « Télécharger » / archive et règles CSS inutilisées retirées ; (8) défunt retenu dans le `try`, URL du PDF libérée après 5 min.
+
+### 16/10/2026 22:00 — Constitution de dossier par étapes (0.268.2)
+
+Étude : « mets-moi les choses par étapes : 1 dossier, 2 plan, 3 DIA et SAFER, 4 courrier, 5 imprimer ». La colonne de gauche est une suite de cartes numérotées (`.cst-etape`, titres `outil-section-tete` + `outil-num` comme les autres outils) : Dossier (vendeurs et parcelles), Plan cadastral (ligne du plan de chaque commune, sortie de l'en-tête des courriers), DIA et SAFER (zonage, puis le lien GNAU de chaque commune — `renderGnauConstitution`, client/81), Courriers, Imprimer et enregistrer. Succession : Dossier, Courriers, Imprimer et enregistrer (numérotés 1 à 3).

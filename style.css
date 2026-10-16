@@ -9634,7 +9634,15 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-item-actions .cst-actif-email { color: var(--acte); }
 .cst-item-actions .cst-fait { color: var(--success); }
 .cst-item-edition { margin: 2px 0 8px 40px; padding: 8px 10px; border-left: 2px solid color-mix(in srgb, var(--focus) 40%, transparent); }
-.cst-zonage { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
+.cst-zonage { gap: 6px; display: flex; flex-direction: column; }
+.cst-etape { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
+.calc-card > .cst-etape-tete:first-child { margin: 0 0 4px; }
+.cst-plan-commune { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-m); }
+.cst-plan-commune .cst-plan { margin: 0; }
+.cst-gnau-liste { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.cst-gnau-ligne { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--texte-m); }
+.cst-gnau-ligne .cst-gnau-lien { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }
+.cst-gnau-ligne .cst-gnau-lien:hover { text-decoration: underline; }
 .cst-zonage-zones { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--texte-s); }
 .cst-zonage-zone b { font-weight: 600; }
 .cst-zonage-droit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: var(--texte-m); }
@@ -9643,9 +9651,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-zonage-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .cst-commune-courriers { display: flex; flex-direction: column; gap: 2px; }
 .cst-commune-courriers + .cst-commune-courriers { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
-.cst-liste-titre .cst-gnau-lien { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }
-.cst-liste-titre .cst-gnau-lien:hover { text-decoration: underline; }
-.cst-liste-titre .hint { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .cst-item:hover { background: var(--paper-sunk); }
 .cst-item.choisi { background: color-mix(in srgb, var(--focus) 10%, transparent); border-color: color-mix(in srgb, var(--focus) 40%, transparent); }
 .cst-item-texte { display: flex; flex-direction: column; min-width: 0; }
