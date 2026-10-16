@@ -20303,3 +20303,15 @@ il n'est lu par aucun outil de l'agent ni par le rapport technique. Le « Tablea
 n'est pas connu. Non vérifié sur une vraie page : formes exactes des valeurs (« Oui »/« Non » des listes), place des « Pays » et « CP, Ville ».
 
 Agenda (même version) : texte des rendez-vous en noir sur la couleur pleine (étude 16/10 : « le texte titre de rdv en noir ») — `--ag-texte-plein` = `--noir-fixe` dans les deux thèmes. Sur les couleurs les plus sombres (rouge, olive, marron, bleu) le contraste est faible : à éclaircir si l’étude le trouve peu lisible.
+
+### 16/10/2026 17:37 — Aperçu de l'immeuble du sous-dossier d'Authentic (0.266.0)
+
+Demande de l'étude : « Juste avant d'ouvrir la fiche bien il y a un aperçu où tu peux récupérer le type de bien et les surfaces des parcelles », « notamment en
+copropriété les numéros de lot et le type de bien » (structure de la page copiée). `apercuImmeubleAuthentic(capture)` (client/77) lit sur la page du
+sous-dossier le tableau « Lots de l'immeuble » (Numéro | Type | Ordre d'apparition dans la rédaction) et « Références cadastrales » (Commune | Volume(s) |
+Préfixe | Section | Numéro | Adresse | Nature | ha | a | ca) ; surface « H ha AA a CC ca » (ou « AA a CC ca »). Lots → type copropriété ; sans lots, aucun
+type n'est posé (la fiche du bien reste la source du type). Appliqué à chaque page de gestion relevée (`appliquerReleveSurDossierBrut` : même voie que la
+fiche bien, `appliquerBienAuthentic` — parcelles ajoutées ou complétées, jamais retirées, rien si l'aperçu contredit le dossier ; succession :
+`appliquerBienSuccession`) et à la création (`avecApercuImmeubleAuthentic` : complète le seul bien relevé, ou devient le bien). Les champs « Cave : 1 »,
+« Appartement : 1 » de la page (filtre des lots, semble-t-il) ne sont pas lus. Non vérifié sur une vraie page : écriture exacte des en-têtes « ha / a / ca »
+et des numéros de lot.

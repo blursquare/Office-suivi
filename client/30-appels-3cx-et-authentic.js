@@ -1533,13 +1533,14 @@
       if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], g.succession || /succ/i.test(intitule) ? 'succession' : 'vente')
         .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
+      if (type === 'gestion') g.apercu = apercuImmeubleAuthentic(cap) || g.apercu;
     });
     return [...groupes.values()].map(g => {
       // Conjoint vu dans le volet d'une fiche : repris seulement s'il est comparant du dossier (jamais l'époux d'un bien propre).
       (g.conjoints || []).filter(pc => conjointComparantAuthentic(g.infos, pc) && ![...g.personnes.values()].some(p => p.nom === pc.nom && p.prenom === pc.prenom))
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
-      const immeubles = [...g.immeubles.values()];
+      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()], g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
@@ -2168,6 +2169,8 @@
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
     if (type === 'bien') return estSuccession(d) ? appliquerBienSuccession(d, bienDepuisFicheAuthentic(capture), noter, resultat) : appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
+    // Aperçu de l'immeuble sur la page du sous-dossier (16/10) : lots (copropriété) et parcelles avec leur surface, comme la fiche du bien.
+    if (type === 'gestion' && apercuImmeubleAuthentic(capture)) (estSuccession(d) ? appliquerBienSuccession : appliquerBienAuthentic)(d, apercuImmeubleAuthentic(capture), noter, resultat);
 
     // Pièces reçues (page de gestion). Succession : actes de naissance et EHF suivent leur propre règle (plus bas), jamais une ligne seule.
     const pieces = (type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [])

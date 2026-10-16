@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.265.0';
+  const VERSION_APP = '0.266.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.266.0', date: '2026-10-16 17:37', resume: "Authentic : l’aperçu de l’immeuble sur la page du sous-dossier (avant d’ouvrir la fiche du bien) est lu — numéros et type des lots d’une copropriété (le type de vente passe en copropriété), parcelles des « Références cadastrales » avec commune, préfixe, adresse cadastrale et surface (ha / a / ca). Ajoutées ou complétées sur la fiche, jamais retirées ; aussi à la création depuis Authentic." },
     { version: '0.265.0', date: '2026-10-16 17:14', resume: "Clients et biens : la fiche d’une personne reprend tout le contenu de sa fiche client d’Authentic — autres prénoms, alias, capacité, mandat de protection future, secteur d’activité, SIREN, client de l’étude, adresse (pays, imposition, correspondance), coordonnées principales et secondaires avec leurs commentaires, mariage (date, lieu, uniques noces, divorce en cours, séparation de corps), contrat et ancien contrat (régime, date, notaire), situation dans l’acte et historique des relations. Lu à chaque fiche client relevée. Agenda : titre et heure des rendez-vous en noir sur la couleur d’Outlook." },
     { version: '0.264.2', date: '2026-10-16 16:57', resume: "Agenda : couleurs exactes de l'agenda Outlook de l'office (texte blanc, noir sur le jaune). Fiche du bien d'Authentic : surfaces des parcelles lues dans les champs hectare / are / centiare. Clients et biens : réunions plus sûres (jamais deux dates de naissance différentes, ni par un téléphone commun ; lots d'un immeuble distincts ; conjoints d'un même dossier) et calcul plus rapide." },
     { version: '0.264.1', date: '2026-10-16 16:50', resume: "Agenda : texte des rendez-vous en noir, couleurs éclaircies pour rester lisibles (mêmes teintes)." },

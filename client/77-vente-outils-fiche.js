@@ -262,3 +262,64 @@
       return p;
     }).filter(Boolean);
   }
+
+  // Pure : l'aperçu de l'immeuble sur la page du sous-dossier d'Authentic, avant d'ouvrir la fiche du bien (structure reçue le 16/10) —
+  // tableau « Lots de l'immeuble » (Numéro | Type | Ordre d'apparition dans la rédaction) et tableau « Références cadastrales » (Commune |
+  // Volume(s) | Préfixe | Section | Numéro | Adresse | Nature | ha | a | ca). → bien au format de la fiche bien (sans adresse : la colonne
+  // « Adresse » est celle du cadastre), ou null. Des lots = une copropriété (étude 16/10 : « en copropriété les numéros de lot et le type de
+  // bien ») ; sans lots, le type reste celui de la fiche du bien (jamais deviné des natures ici, pour ne pas contredire la fiche bien).
+  function apercuImmeubleAuthentic(capture) {
+    const tableaux = (capture && Array.isArray(capture.tableaux)) ? capture.tableaux : [];
+    const cellule = (l, i) => (i >= 0 ? String((l || [])[i] == null ? '' : l[i]).replace(/\s+/g, ' ').trim() : '');
+    const parcelles = [];
+    const lots = [];
+    tableaux.forEach(t => {
+      const entete = (t.entete || []).map(e => libelleNetAuthentic(e));
+      const iNum = entete.findIndex(e => /^num/.test(e));
+      const iSection = entete.indexOf('section');
+      if (iSection >= 0 && iNum >= 0) {
+        const iHa = entete.indexOf('ha'), iA = entete.indexOf('a'), iCa = entete.indexOf('ca');
+        const iCommune = entete.indexOf('commune'), iPrefixe = entete.findIndex(e => /^prefixe/.test(e));
+        const iAdresse = entete.indexOf('adresse'), iNature = entete.indexOf('nature'), iVolume = entete.findIndex(e => /^volume/.test(e));
+        (t.lignes || []).forEach(l => {
+          const section = cellule(l, iSection).toUpperCase();
+          const numero = cellule(l, iNum).replace(/^0+(?=\d)/, '');
+          if (!/^[A-Z0-9]{1,3}$/.test(section) || !/^\d+[A-Za-z]?$/.test(numero) || parcelles.some(p => p.section === section && p.numero === numero)) return;
+          const p = { section, numero };
+          const [ha, a, ca] = [iHa, iA, iCa].map(i => cellule(l, i));
+          if ([ha, a, ca].every(x => /^\d{0,4}$/.test(x)) && (a || ca)) p.surface = ha && Number(ha) ? `${Number(ha)} ha ${a || '0'} a ${ca || '0'} ca` : `${a || '0'} a ${ca || '0'} ca`;
+          if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
+          if (cellule(l, iPrefixe) && !/^0*$/.test(cellule(l, iPrefixe))) p.prefixe = cellule(l, iPrefixe);
+          if (cellule(l, iNature)) p.nature = cellule(l, iNature);
+          if (cellule(l, iAdresse)) p.adresseCadastre = cellule(l, iAdresse).slice(0, 80);
+          if (cellule(l, iVolume)) p.volume = cellule(l, iVolume).slice(0, 40);
+          parcelles.push(p);
+        });
+        return;
+      }
+      const iType = entete.findIndex(e => /^type/.test(e));
+      if (iNum >= 0 && iType >= 0 && entete.some(e => /ordre d.apparition/.test(e))) {
+        (t.lignes || []).forEach(l => {
+          const numero = cellule(l, iNum);
+          if (!/^\d+$/.test(numero) || lots.some(x => x.numero === numero)) return;
+          lots.push({ numero, type: cellule(l, iType) || null, batiment: null, etage: null, entree: null, tantiemes: null, designation: null, surface: null, surfaceCarrez: null });
+        });
+      }
+    });
+    if (!parcelles.length && !lots.length) return null;
+    return { id: 'authentic-apercu', adresse: null, type: lots.length ? 'copropriete' : null, parcelles: parcelles.slice(0, 40), lots: lots.slice(0, 40), tantiemesTotal: null, surface: null, description: '', bois: null, apercu: true };
+  }
+
+  // Pure : à la création depuis Authentic, l'aperçu de l'immeuble complète le seul bien relevé (lots, parcelles et leurs surfaces
+  // manquantes) ; sans fiche bien relevée, il devient le bien ; avec plusieurs biens, il ne complète que les parcelles qu'ils portent.
+  function avecApercuImmeubleAuthentic(immeubles, apercu) {
+    const liste = (immeubles || []).slice();
+    if (!apercu) return liste;
+    if (!liste.length) return [apercu];
+    const completer = (im) => Object.assign({}, im, { parcelles: (im.parcelles || []).map(p => {
+      const q = apercu.parcelles.find(x => cleParcelle(x.section, x.numero) === cleParcelle(p.section, p.numero));
+      return q ? Object.assign({}, q, Object.fromEntries(Object.entries(p).filter(([, v]) => v != null && v !== ''))) : p;
+    }) });
+    if (liste.length === 1) return [completer(fusionnerBienAuthentic(liste[0], apercu))];
+    return liste.map(completer);
+  }

@@ -463,7 +463,7 @@
       : '<p class="activite-vide">Rien pour l’instant : les actions des collaborateurs et les changements de l’agenda s’afficheront ici.</p>';
     // En petit, la dernière action de l'étude occupe le bas de la tuile.
     const derniere = entrees[0];
-    const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${derniere.dossierId}')">
+    const derniereHtml = derniere ? `<div class="w-bas" data-ajuster="2"><button type="button" class="w-prochaine" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(derniere.dossierId)}')">
         <span class="w-prochaine-sous">${escapeHtml(derniere.auteur ? prenomCollaborateur(derniere.auteur) : derniere.source === 'claire' ? 'CLAIRE' : 'Agenda')} · ${escapeHtml(ilYaActivite(derniere.date, maintenant))}</span>
         <span class="w-prochaine-titre">${escapeHtml(derniere.texte)}</span></button></div>` : '';
     return { resume, puces, fil, derniereHtml, filtreCourant };
