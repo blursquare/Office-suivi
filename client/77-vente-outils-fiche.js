@@ -227,3 +227,38 @@
     const aide = p.manquantes ? infoBulle('Surface lue dans la fiche du bien d’Authentic : ouvrez-la dans Authentic pour compléter les parcelles sans surface.') : '';
     return `<span class="parcelles-fiche">${lignes}${total}</span>${aide}`;
   }
+
+  // Pure : les parcelles des champs « dataTableCadastre:N:… » de la fiche du bien d'Authentic — numéro (`…Numero`), section (`…Section`, sinon
+  // une ou deux capitales seules dans la ligne avant le numéro), préfixe (`…Prefixe`), adresse cadastrale, puis la surface : les trois champs
+  // chiffrés qui suivent le numéro dans la même ligne (hectare, are, centiare — sans identifiant de ligne, ils portent le nom du SPF).
+  function parcellesChampsCadastreAuthentic(champs) {
+    const lignes = [];
+    let courant = null;
+    for (const c of champs || []) {
+      const lib = String((c && c.libelle) || '');
+      const v = String((c && c.valeur) == null ? '' : c.valeur).replace(/\s+/g, ' ').trim();
+      const m = /dataTableCadastre:(\d+):([A-Za-z0-9_]+)/.exec(lib);
+      if (m) {
+        if (!courant || courant.rang !== m[1]) { courant = { rang: m[1], chiffres: [], avant: [] }; lignes.push(courant); }
+        const nom = m[2];
+        if (/Numero$/i.test(nom)) courant.numero = v.replace(/^0+(?=\d)/, '');
+        else if (/Section$/i.test(nom)) courant.section = v.toUpperCase();
+        else if (/Prefixe$/i.test(nom)) courant.prefixe = v;
+        else if (!courant.numero && /^[A-Z]{1,2}$/.test(v)) courant.avant.push(v);
+        else if (/[A-Za-z]/.test(v) && v !== '—' && !/_focus$|_input$/i.test(nom) && !courant.adresseCadastre) courant.adresseCadastre = v;
+        continue;
+      }
+      if (courant && courant.numero && courant.chiffres.length < 3 && /^\d{1,4}$/.test(v)) courant.chiffres.push(v);
+    }
+    return lignes.map(l => {
+      const section = l.section || (l.avant.length === 1 ? l.avant[0] : '');
+      if (!section || !l.numero || !/^\d+[A-Za-z]?$/.test(l.numero)) return null;
+      const p = { section, numero: l.numero };
+      if (l.prefixe && !/^0*$/.test(l.prefixe)) p.prefixe = l.prefixe;
+      const [x, y, z] = l.chiffres;
+      if (l.chiffres.length === 3) p.surface = `${Number(x)} ha ${y} a ${z} ca`;
+      else if (l.chiffres.length === 2) p.surface = `${x} a ${y} ca`;
+      if (l.adresseCadastre) p.adresseCadastre = l.adresseCadastre.slice(0, 80);
+      return p;
+    }).filter(Boolean);
+  }

@@ -1469,6 +1469,13 @@
       });
     });
     const designationNorm = normaliserPourRecherche(designation || '').replace(/\s+/g, ' ').trim();
+    // Cadastre saisi dans la fiche du bien (structure reçue le 16/10) : pas un tableau à en-têtes mais des champs par ligne
+    // (« …dataTableCadastre:0:cadastreHorsVolumeNumero »), la surface dans les trois champs hectare / are / centiare qui suivent le SPF.
+    parcellesChampsCadastreAuthentic(champs).forEach(q => {
+      const deja = parcelles.find(p => p.section === q.section && p.numero === q.numero);
+      if (deja) { ['surface', 'prefixe', 'nature', 'adresseCadastre'].forEach(k => { if (!deja[k] && q[k]) deja[k] = q[k]; }); }
+      else parcelles.push(q);
+    });
     const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, parcelles, lots.length > 0);
     // Parcelles en bois (préemption des bois et forêts, SAFER) : seulement pour une terre ; sinon inconnu.
     const bois = boisFicheBienAuthentic(type, typeBrut, designationNorm, parcelles);

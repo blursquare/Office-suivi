@@ -32,7 +32,9 @@ const CHAMPS_PERSONNE = ['civilite', 'nomFamille', 'prenom', 'nomUsage', 'dateNa
 
 /** Pure : « Paul MOREAU » → { nomFamille: 'MOREAU', prenom: 'Paul' } (mots en capitales = nom), sinon tout en nom. @param {string} complet */
 function decouperNom(complet) {
-  const mots = texte(complet).split(' ').filter(Boolean);
+  // « Marie DUPONT épouse MARTIN », « … veuve de … », « … née … » : la personne s'arrête avant le lien (relecture 16/10).
+  const avantLien = texte(complet).split(/\s+(?:[ée]pouse|[ée]poux|veuve?|n[ée]e?|divorc[ée]e?)\b/i)[0];
+  const mots = texte(avantLien).split(' ').filter(Boolean);
   const caps = mots.filter((m) => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m));
   if (!caps.length) return { nomFamille: texte(complet).toUpperCase(), prenom: '' };
   return { nomFamille: caps.join(' '), prenom: mots.filter((m) => !caps.includes(m)).join(' ') };
@@ -62,6 +64,16 @@ function occurrencesPersonnes(dossiers) {
     const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {}).filter(Boolean);
     const comparants = (d.authentic && Array.isArray(d.authentic.comparants)) ? d.authentic.comparants : [];
     const vues = new Set();
+    const ids = new Set();
+    // Identifiant d'occurrence unique dans le dossier : deux « Jean MARTIN » (le père défunt, le fils héritier) restent deux personnes.
+    const idUnique = (/** @type {string} */ base, /** @type {string} */ distinctif) => {
+      let id = base;
+      if (ids.has(id)) id = `${base}~${norm(distinctif).replace(/ /g, '') || ids.size}`;
+      while (ids.has(id)) id += '~';
+      ids.add(id);
+      return id;
+    };
+    const fichesNoms = [];
     const roleDe = (/** @type {string} */ nomFamille, /** @type {string} */ prenom, /** @type {any} */ fiche) => {
       const c = comparants.find((x) => memeNom(x, nomFamille, prenom));
       if (c && c.role) return c.role;
@@ -75,8 +87,9 @@ function occurrencesPersonnes(dossiers) {
       if (!nomFamille) continue;
       const cle = norm(nomFamille) + '|' + norm(prenom);
       vues.add(cle);
+      fichesNoms.push({ nomFamille, prenom });
       occ.push({
-        id: `${d.id}:${cle}`, dossier: d, cle, source: 'Authentic', vuLe: texte(f.vuLe),
+        id: idUnique(`${d.id}:${cle}`, texte(f.dateNaissance) || texte(f.nom)), dossier: d, cle, source: 'Authentic', vuLe: texte(f.vuLe),
         role: roleDe(nomFamille, prenom, f),
         champs: {
           civilite: texte(f.civilite), nomFamille: nomFamille.toUpperCase(), prenom, nomUsage: texte(f.nomUsage).toUpperCase(),
@@ -96,10 +109,11 @@ function occurrencesPersonnes(dossiers) {
       if (!p || !texte(p.nom) || p.qualitePersonne === 'morale') continue;
       const { nomFamille, prenom } = decouperNom(p.nom);
       const cle = norm(nomFamille) + '|' + norm(prenom);
-      if (!norm(nomFamille) || vues.has(cle)) continue;
+      // Une partie déjà décrite par une fiche d'Authentic du dossier (même nom, même prénom, quelle que soit l'écriture) n'est pas reprise.
+      if (!norm(nomFamille) || vues.has(cle) || fichesNoms.some((x) => memeNom(p, x.nomFamille, x.prenom) && (!prenom || norm(x.prenom).split(' ')[0] === norm(prenom).split(' ')[0]))) continue;
       vues.add(cle);
       occ.push({
-        id: `${d.id}:${cle}`, dossier: d, cle, source: 'Fiche', vuLe: '', role: p.role && p.role !== 'PARTIE' ? p.role : roleDe(nomFamille, prenom, null),
+        id: idUnique(`${d.id}:${cle}`, p.role || ''), dossier: d, cle, source: 'Fiche', vuLe: '', role: p.role && p.role !== 'PARTIE' ? p.role : roleDe(nomFamille, prenom, null),
         champs: { civilite: texte(p.civilite), nomFamille, prenom, nomUsage: texte(p.nomUsage).toUpperCase(), dateNaissance: texte(p.dateNaissance).slice(0, 10),
           lieuNaissance: '', nationalite: '', profession: '', domicile: '', emails: [], telephones: [] },
         situation: null, deces: null
@@ -118,49 +132,82 @@ function unionFind(ids) {
   return { trouver, unir };
 }
 
-/** @param {string[]} a @param {string[]} b */
-const communs = (a, b) => a.some((x) => b.map((y) => norm(y)).includes(norm(x)));
-/** @param {any} occ */
-const telephones9 = (occ) => occ.champs.telephones.map((/** @type {string} */ t) => t.replace(/\D/g, '').slice(-9)).filter((/** @type {string} */ t) => t.length === 9);
 
 /**
  * Pure : la base des personnes. `reglages` = { liaisons: { 'occA#occB': 'meme' | 'distinct' }, corrections: [{ occ, champ, valeur, authentic }] }.
  * @param {any[]} dossiers @param {any} [reglages]
  */
 function construirePersonnes(dossiers, reglages) {
-  const r = reglages || {};
+  const r = Object.assign({}, reglages || {});
   const liaisons = (r.liaisons && typeof r.liaisons === 'object') ? r.liaisons : {};
-  const occ = occurrencesPersonnes(dossiers);
+  const occ = reattacherReglages(occurrencesPersonnes(dossiers), r);
+  const liaisons2 = r._liaisons || liaisons;
   const uf = unionFind(occ.map((o) => o.id));
-  const decision = (/** @type {string} */ a, /** @type {string} */ b) => liaisons[a + '#' + b] || liaisons[b + '#' + a] || '';
+  const parId0 = new Map(occ.map((o) => [o.id, o]));
+  const decision = (/** @type {string} */ a, /** @type {string} */ b) => liaisons2[a + '#' + b] || liaisons2[b + '#' + a] || '';
+  // Garde de la réunion (relecture 16/10) : deux groupes ne se réunissent jamais s'ils portent deux dates de naissance différentes, ou si
+  // l'étude a dit « différentes » pour une paire de l'un et de l'autre — même par une troisième occurrence (pas de réunion de proche en
+  // proche).
+  /** @type {Map<string, Set<string>>} */
+  const datesDe = new Map(occ.map((o) => [o.id, new Set(o.champs.dateNaissance ? [o.champs.dateNaissance] : [])]));
+  /** @type {Map<string, Set<string>>} */
+  const membres = new Map(occ.map((o) => [o.id, new Set([o.id])]));
+  /** @type {Map<string, Set<string>>} */
+  const distinctDe = new Map();
+  for (const [k, v] of Object.entries(liaisons2)) {
+    if (v !== 'distinct') continue;
+    const [a, b] = k.split('#');
+    if (!distinctDe.has(a)) distinctDe.set(a, new Set()); /** @type {Set<string>} */ (distinctDe.get(a)).add(b);
+    if (!distinctDe.has(b)) distinctDe.set(b, new Set()); /** @type {Set<string>} */ (distinctDe.get(b)).add(a);
+  }
+  const peutUnir = (/** @type {string} */ a, /** @type {string} */ b) => {
+    const ra = uf.trouver(a); const rb = uf.trouver(b);
+    if (ra === rb) return false;
+    const dates = new Set([.../** @type {Set<string>} */ (datesDe.get(ra)), .../** @type {Set<string>} */ (datesDe.get(rb))]);
+    if (dates.size > 1) return false;
+    const mb = /** @type {Set<string>} */ (membres.get(rb));
+    for (const x of /** @type {Set<string>} */ (membres.get(ra))) { const dx = distinctDe.get(x); if (dx) for (const y of dx) if (mb.has(y)) return false; }
+    return true;
+  };
+  const unir = (/** @type {string} */ a, /** @type {string} */ b) => {
+    if (!peutUnir(a, b)) return;
+    const ra = uf.trouver(a); const rb = uf.trouver(b);
+    uf.unir(a, b);
+    const r2 = uf.trouver(a); const autre = r2 === ra ? rb : ra;
+    for (const x of /** @type {Set<string>} */ (datesDe.get(autre))) /** @type {Set<string>} */ (datesDe.get(r2)).add(x);
+    for (const x of /** @type {Set<string>} */ (membres.get(autre))) /** @type {Set<string>} */ (membres.get(r2)).add(x);
+  };
   const parCle = new Map();
   for (const o of occ) { if (!parCle.has(o.cle)) parCle.set(o.cle, []); parCle.get(o.cle).push(o); }
   /** @type {[string, string][]} */
   const aProposer = [];
+  // Sûr : même nom, prénom ET date de naissance, ou confirmé par l'étude. Un email ou un téléphone commun ne suffit pas (le père et le
+  // fils du même nom partagent la ligne de la maison) : la paire est proposée.
   for (const groupe of parCle.values()) {
     for (let i = 0; i < groupe.length; i++) {
       for (let j = i + 1; j < groupe.length; j++) {
         const a = groupe[i]; const b = groupe[j];
         const dA = a.champs.dateNaissance; const dB = b.champs.dateNaissance;
-        if (dA && dB && dA !== dB) continue; // deux naissances différentes : jamais la même personne
+        if (dA && dB && dA !== dB) continue;
         const dec = decision(a.id, b.id);
         if (dec === 'distinct') continue;
-        const sur = dec === 'meme' || a.dossier.id === b.dossier.id || (dA && dA === dB)
-          || communs(a.champs.emails, b.champs.emails) || communs(telephones9(a), telephones9(b));
-        if (sur) uf.unir(a.id, b.id); else aProposer.push([a.id, b.id]);
+        if (dec === 'meme' || (dA && dA === dB)) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
       }
     }
   }
-  // Une liaison confirmée entre deux noms différents (nom d'usage, faute de frappe) : réunie aussi.
-  for (const [k, v] of Object.entries(liaisons)) {
+  // Une liaison confirmée entre deux noms différents (nom d'usage, faute de frappe) : réunie aussi, sous la même garde.
+  for (const [k, v] of Object.entries(liaisons2)) {
     if (v !== 'meme') continue;
     const [a, b] = k.split('#');
-    if (a && b && occ.some((o) => o.id === a) && occ.some((o) => o.id === b)) uf.unir(a, b);
+    if (a && b && parId0.has(a) && parId0.has(b)) unir(a, b);
   }
   /** @type {Map<string, any[]>} */
   const groupes = new Map();
   for (const o of occ) { const g = uf.trouver(o.id); if (!groupes.has(g)) groupes.set(g, []); /** @type {any[]} */ (groupes.get(g)).push(o); }
-  const corrections = Array.isArray(r.corrections) ? r.corrections : [];
+  const corrections = Array.isArray(r._corrections) ? r._corrections : (Array.isArray(r.corrections) ? r.corrections : []);
+  /** @type {Map<string, any[]>} */
+  const correctionsParOcc = new Map();
+  for (const c of corrections) { if (!c || !c.occ) continue; if (!correctionsParOcc.has(c.occ)) correctionsParOcc.set(c.occ, []); /** @type {any[]} */ (correctionsParOcc.get(c.occ)).push(c); }
   /** @type {any[]} */
   const personnes = [];
   /** @type {Map<string, string>} */
@@ -178,8 +225,8 @@ function construirePersonnes(dossiers, reglages) {
     const authentic = Object.assign({}, champs);
     /** @type {any[]} */
     const aRevoir = [];
-    for (const c of corrections) {
-      if (!c || !CHAMPS_PERSONNE.includes(c.champ) || !liste.some((o) => o.id === c.occ)) continue;
+    for (const c of liste.flatMap((o) => correctionsParOcc.get(o.id) || [])) {
+      if (!c || !CHAMPS_PERSONNE.includes(c.champ)) continue;
       const actuel = JSON.stringify(authentic[c.champ]);
       if (c.authentic !== undefined && JSON.stringify(c.authentic) !== actuel && actuel !== JSON.stringify(c.valeur)) {
         // Authentic a changé depuis la correction : proposé, rien d'écrasé.
@@ -204,23 +251,35 @@ function construirePersonnes(dossiers, reglages) {
   // Homonymes à confirmer : un lien de chaque fiche vers l'autre, avec la paire d'occurrences à décider.
   for (const [a, b] of aProposer) {
     const pa = parId.get(ficheDeOcc.get(a)); const pb = parId.get(ficheDeOcc.get(b));
-    if (!pa || !pb || pa === pb) continue;
+    if (!pa || !pb || pa === pb || !peutUnir(a, b)) continue;
     if (!pa.peutEtre.some((/** @type {any} */ x) => x.id === pb.id)) pa.peutEtre.push({ id: pb.id, nom: pb.nomComplet, dossiers: pb.dossiers.map((/** @type {any} */ x) => x.libelle), occA: a, occB: b });
     if (!pb.peutEtre.some((/** @type {any} */ x) => x.id === pa.id)) pb.peutEtre.push({ id: pa.id, nom: pa.nomComplet, dossiers: pa.dossiers.map((/** @type {any} */ x) => x.libelle), occA: b, occB: a });
   }
-  // Conjoint (marié, pacsé, veuf, divorcé… comme dans Authentic) : le nom cité sur la fiche, retrouvé parmi les personnes qui partagent un
-  // dossier, sinon une seule personne de ce nom dans toute la base.
+  // Conjoint (marié, pacsé, veuf, divorcé… comme dans Authentic) : le nom cité sur la fiche, retrouvé parmi les personnes d'un MÊME dossier
+  // (prénom exigé) ; ailleurs, seulement si c'est réciproque (sa fiche nomme aussi celle-ci). Index par nom de famille : jamais tout comparé
+  // à tout (relecture 16/10 : 30 s pour 5 000 personnes).
   for (const p of personnes) {
-    const nomConjoint = p.situation && p.situation.conjoint;
-    if (!nomConjoint) continue;
-    const mots = ' ' + norm(nomConjoint) + ' ';
-    const correspond = (/** @type {any} */ q) => q !== p && !!norm(q.champs.nomFamille) && mots.includes(' ' + norm(q.champs.nomFamille) + ' ')
-      && (!q.champs.prenom || mots.includes(' ' + norm(q.champs.prenom).split(' ')[0] + ' '));
-    const memeDossier = personnes.filter((q) => correspond(q) && q.dossiers.some((/** @type {any} */ x) => p.dossiers.some((/** @type {any} */ y) => y.id === x.id)));
-    const partout = personnes.filter(correspond);
-    const q = memeDossier.length === 1 ? memeDossier[0] : partout.length === 1 ? partout[0] : null;
-    p.conjoint = { nom: nomConjoint, situation: p.situation.situation, id: q ? q.id : null };
+    p._nom = norm(p.champs.nomFamille); p._prenom = norm(p.champs.prenom).split(' ')[0] || '';
+    p._dossiers = new Set(p.dossiers.map((/** @type {any} */ x) => x.id));
+    p._conj = p.situation && p.situation.conjoint ? ' ' + norm(p.situation.conjoint) + ' ' : '';
   }
+  /** @type {Map<string, any[]>} */
+  const parNom = new Map();
+  for (const p of personnes) { if (!p._nom) continue; if (!parNom.has(p._nom)) parNom.set(p._nom, []); /** @type {any[]} */ (parNom.get(p._nom)).push(p); }
+  const nomme = (/** @type {any} */ x, /** @type {any} */ y) => !!x._conj && !!y._nom && !!y._prenom && x._conj.includes(' ' + y._nom + ' ') && x._conj.includes(' ' + y._prenom + ' ');
+  for (const p of personnes) {
+    if (!p._conj) continue;
+    const mots = p._conj.trim().split(' ');
+    /** @type {any[]} */
+    const candidats = [];
+    for (let k = 1; k <= Math.min(3, mots.length); k++) for (let i = 0; i + k <= mots.length; i++) for (const q of parNom.get(mots.slice(i, i + k).join(' ')) || []) if (q !== p && !candidats.includes(q)) candidats.push(q);
+    const vrais = candidats.filter((q) => nomme(p, q));
+    const memeDossier = vrais.filter((q) => [...q._dossiers].some((x) => p._dossiers.has(x)));
+    const reciproques = vrais.filter((q) => nomme(q, p));
+    const q = memeDossier.length === 1 ? memeDossier[0] : (!memeDossier.length && reciproques.length === 1 ? reciproques[0] : null);
+    p.conjoint = { nom: p.situation.conjoint, situation: p.situation.situation, id: q ? q.id : null };
+  }
+  for (const p of personnes) { delete p._nom; delete p._prenom; delete p._dossiers; delete p._conj; }
   personnes.sort((x, y) => x.champs.nomFamille.localeCompare(y.champs.nomFamille, 'fr') || x.champs.prenom.localeCompare(y.champs.prenom, 'fr'));
   return personnes;
 }
@@ -268,12 +327,21 @@ function construireBiens(dossiers) {
   const occ = occurrencesBiens(dossiers);
   const uf = unionFind(occ.map((o) => o.id));
   const cleParcelle = (/** @type {any} */ p) => [norm(p.commune), p.prefixe, p.section, p.numero].join('|');
+  // Copropriété : les lots d'un même immeuble partagent la parcelle — un bien = un lot (au moins un lot commun), jamais l'immeuble entier.
+  const numerosLots = (/** @type {any} */ o) => (o.lots || []).map((/** @type {any} */ l) => texte(l && (l.numero || l.lot))).filter(Boolean);
   const parParcelle = new Map();
   const parAdresse = new Map();
   for (const o of occ) {
-    for (const p of o.parcelles) { const k = cleParcelle(p); if (parParcelle.has(k)) uf.unir(parParcelle.get(k), o.id); else parParcelle.set(k, o.id); }
-    if (!o.parcelles.length && o.adresse) {
-      const k = norm(o.adresse);
+    const lots = numerosLots(o);
+    // Sans commune, une parcelle « AB 12 » ne désigne rien de sûr : pas de réunion par la parcelle (relecture 16/10).
+    for (const p of o.parcelles) {
+      if (!norm(p.commune)) continue;
+      for (const k of lots.length ? lots.map((l) => cleParcelle(p) + '|lot ' + l) : [cleParcelle(p)]) {
+        if (parParcelle.has(k)) uf.unir(parParcelle.get(k), o.id); else parParcelle.set(k, o.id);
+      }
+    }
+    if (!o.parcelles.some((/** @type {any} */ p) => norm(p.commune)) && o.adresse && norm(o.commune)) {
+      const k = norm(o.adresse) + (lots.length ? '|lots ' + lots.sort().join(',') : '');
       if (parAdresse.has(k)) uf.unir(parAdresse.get(k), o.id); else parAdresse.set(k, o.id);
     }
   }
@@ -297,7 +365,7 @@ function construireBiens(dossiers) {
     biens.push({
       id: 'b' + idCourt(racine), adresse: principal.adresse, commune: principal.commune, codePostal: principal.codePostal,
       type: (liste.find((o) => o.type) || {}).type || '', parcelles: ps, surfaceTotale: total,
-      lots: liste.flatMap((o) => o.lots || []).slice(0, 40),
+      lots: liste.flatMap((o) => o.lots || []).filter((/** @type {any} */ l, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((x) => texte(x && (x.numero || x.lot)) === texte(l && (l.numero || l.lot))) === i).slice(0, 40),
       dossiers: liste.map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),
       occurrences: liste.map((o) => o.id)
@@ -348,7 +416,7 @@ function assainirReglagesClientsBiens(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   /** @type {Record<string, string>} */
   const liaisons = {};
-  for (const [k, v] of Object.entries(b.liaisons || {}).slice(0, 5000)) {
+  for (const [k, v] of Object.entries(b.liaisons || {}).slice(-5000)) {
     if (/^[^#]{1,200}#[^#]{1,200}$/.test(k) && (v === 'meme' || v === 'distinct')) liaisons[k] = v;
   }
   const corrections = (Array.isArray(b.corrections) ? b.corrections : []).filter((c) => c && typeof c.occ === 'string' && c.occ.length <= 200 && CHAMPS_PERSONNE.includes(c.champ))
@@ -359,8 +427,52 @@ function assainirReglagesClientsBiens(brut) {
 /** @param {string} champ @param {any} v */
 function valeurCorrection(champ, v) {
   if (champ === 'emails' || champ === 'telephones') return (Array.isArray(v) ? v : String(v || '').split(/[;,]/)).map(texte).filter(Boolean).slice(0, 6).map((/** @type {string} */ x) => x.slice(0, 120));
+  if (champ === 'dateNaissance') { const t = texte(v); return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : ''; }
+  if (champ === 'civilite') { const t = texte(v); return t === 'M' || t === 'Mme' ? t : ''; }
   return texte(v).slice(0, 200);
 }
 
-module.exports = { CHAMPS_PERSONNE, decouperNom, occurrencesPersonnes, construirePersonnes, construireBiens, construireBase, chercherClientsBiens, fichesDuDossier,
+/**
+ * Pure : les réglages rattachés aux occurrences d'aujourd'hui. Une occurrence dont l'identifiant a changé (prénom ajouté par une fiche
+ * d'Authentic : « v1:moreau| » → « v1:moreau|paul ») garde ses corrections et ses liaisons — reprises par la seule occurrence du même
+ * dossier et du même nom de famille. Rend les occurrences ; les réglages rattachés sont posés sur `r._liaisons` / `r._corrections`.
+ * @param {any[]} occ @param {any} r
+ */
+function reattacherReglages(occ, r) {
+  const ids = new Set(occ.map((o) => o.id));
+  /** @param {string} ancien */
+  const nouvel = (ancien) => {
+    if (ids.has(ancien)) return ancien;
+    const m = /^([^:]+):([^|]*)\|/.exec(ancien);
+    if (!m) return '';
+    const memes = occ.filter((o) => o.dossier.id === m[1] && o.cle.split('|')[0] === m[2]);
+    return memes.length === 1 ? memes[0].id : '';
+  };
+  /** @type {Record<string, string>} */
+  const liaisons = {};
+  for (const [k, v] of Object.entries((r && r.liaisons) || {})) {
+    const [a, b] = k.split('#'); const na = nouvel(a); const nb = nouvel(b);
+    if (na && nb && na !== nb) liaisons[na + '#' + nb] = /** @type {string} */ (v);
+  }
+  const corrections = ((r && r.corrections) || []).map((/** @type {any} */ c) => Object.assign({}, c, { occ: nouvel(c.occ) })).filter((/** @type {any} */ c) => c.occ);
+  if (r) { r._liaisons = liaisons; r._corrections = corrections; }
+  return occ;
+}
+
+/**
+ * Pure : les paires d'occurrences à noter pour décider de deux FICHES entières (relecture 16/10 : « différentes » ne reposait que sur une
+ * paire, la question revenait pour la suivante). 400 paires au plus.
+ * @param {any[]} personnes @param {string} occA @param {string} occB
+ */
+function pairesEntreFiches(personnes, occA, occB) {
+  const pa = personnes.find((p) => p.occurrences.includes(occA));
+  const pb = personnes.find((p) => p.occurrences.includes(occB));
+  if (!pa || !pb || pa === pb) return [[occA, occB]];
+  /** @type {[string, string][]} */
+  const r = [];
+  for (const a of pa.occurrences) for (const b of pb.occurrences) if (r.length < 400) r.push([a, b]);
+  return r;
+}
+
+module.exports = { pairesEntreFiches, reattacherReglages, CHAMPS_PERSONNE, decouperNom, occurrencesPersonnes, construirePersonnes, construireBiens, construireBase, chercherClientsBiens, fichesDuDossier,
   resumePersonne, resumeBien, assainirReglagesClientsBiens, valeurCorrection };

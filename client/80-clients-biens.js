@@ -176,20 +176,17 @@
   }
 
   async function decideHomonymeCb(occA, occB, decision) {
+    let j = {};
     try {
       const r = await fetchAvecAuth('/api/clients-biens/liaison', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ occA, occB, decision }) });
-      if (!r.ok) { afficherToast('Choix refusé.', 'OK', null); return; }
+      j = await r.json().catch(() => ({}));
+      if (!r.ok) { afficherToast(j.erreur || 'Choix refusé.', 'OK', null); return; }
     } catch (_) { afficherToast('Serveur injoignable.', 'OK', null); return; }
     cbParDossier.clear();
-    // Réunies, la fiche a pu changer d'identifiant : retrouvée par la personne de l'autre côté.
-    if (decision === 'meme') {
-      const r = await fetchAvecAuth('/api/clients-biens?q=' + encodeURIComponent(cbOuvert.fiche.nomComplet));
-      const j = await r.json().catch(() => ({}));
-      const p = (j.personnes || []).find(x => x.nom === cbOuvert.fiche.nomComplet && x.dossiers >= cbOuvert.fiche.dossiers.length);
-      if (p) cbOuvert.id = p.id;
-    }
-    await rechargerFicheClientBien();
-    if (ongletActuel === 'clients-biens') chercherClientsBiens(cbRecherche);
+    // Réunies, la fiche prend l'identifiant que le serveur rend (la fenêtre a pu être fermée entre-temps).
+    if (cbOuvert && j.id) cbOuvert.id = j.id;
+    if (cbOuvert) await rechargerFicheClientBien();
+    if (ecranAffiche('clients-biens')) chercherClientsBiens(cbRecherche);
   }
 
   function ouvrirDossierDepuisFicheCb(id) {

@@ -138,3 +138,66 @@ test('route : liste, fiche, liaison et correction gardées', async () => {
     serveur.close(); db.close();
   }
 });
+
+test('relecture : jamais deux naissances différentes réunies de proche en proche, ni le père et le fils par la ligne de la maison', () => {
+  const ds = [
+    { id: 'a', nom: 'MARTIN / X', parties: [{ role: 'VENDEUR', nom: 'Jean MARTIN' }], authentic: { fichesClients: { f: fiche({ nom: 'Jean MARTIN', nomFamille: 'MARTIN', prenom: 'Jean', dateNaissance: '1950-01-01', telephones: ['02 54 00 00 00'], emails: ['famille@exemple.fr'] }) } } },
+    { id: 'b', nom: 'MARTIN / Y', parties: [{ role: 'VENDEUR', nom: 'Jean MARTIN' }], authentic: { fichesClients: { f: fiche({ nom: 'Jean MARTIN', nomFamille: 'MARTIN', prenom: 'Jean', telephones: ['02 54 00 00 00'], emails: ['famille@exemple.fr'] }) } } },
+    { id: 'c', nom: 'MARTIN / Z', parties: [{ role: 'VENDEUR', nom: 'Jean MARTIN' }], authentic: { fichesClients: { f: fiche({ nom: 'Jean MARTIN', nomFamille: 'MARTIN', prenom: 'Jean', dateNaissance: '1980-01-01', emails: ['famille@exemple.fr'] }) } } }
+  ];
+  const sans = construireBase(ds).personnes.filter((p) => p.nomComplet === 'Jean MARTIN');
+  assert.equal(sans.length, 3, 'un contact commun ne réunit pas');
+  // « Même personne » pour a-b puis b-c : b rejoint a, mais c (né en 1980) ne peut plus rejoindre le groupe de a (né en 1950).
+  const occ = (id) => sans.find((p) => p.dossiers[0].id === id).occurrences[0];
+  const r = assainirReglagesClientsBiens({ liaisons: { [`${occ('a')}#${occ('b')}`]: 'meme', [`${occ('b')}#${occ('c')}`]: 'meme' } });
+  const avec = construireBase(ds, r).personnes.filter((p) => p.nomComplet === 'Jean MARTIN');
+  assert.equal(avec.length, 2);
+  assert.ok(avec.every((p) => new Set(p.dossiers.map((x) => x.id)).size <= 2));
+});
+
+test('relecture : pas de bien réuni sans commune, ni deux lots d’un même immeuble', () => {
+  const ds = [
+    { id: 'a', nom: 'A', adresseBien: '', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } } },
+    { id: 'b', nom: 'B', adresseBien: '', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } } },
+    { id: 'c', nom: 'C', adresseBien: 'BLOIS (41000), 5 rue Haute', typeVente: 'copropriete', bien: { cadastre: { parcelles: [{ section: 'CD', numero: '9' }] }, lots: [{ numero: '3' }] } },
+    { id: 'd', nom: 'D', adresseBien: 'BLOIS (41000), 5 rue Haute', typeVente: 'copropriete', bien: { cadastre: { parcelles: [{ section: 'CD', numero: '9' }] }, lots: [{ numero: '7' }] } },
+    { id: 'e', nom: 'E', adresseBien: 'BLOIS (41000), 5 rue Haute', typeVente: 'copropriete', bien: { cadastre: { parcelles: [{ section: 'CD', numero: '9' }] }, lots: [{ numero: '3' }] } }
+  ];
+  const biens = construireBase(ds).biens;
+  assert.ok(!biens.some((b) => b.dossiers.length > 1 && b.dossiers.some((x) => x.id === 'a')), 'sans commune : jamais réunis');
+  const lot3 = biens.find((b) => b.dossiers.some((x) => x.id === 'c'));
+  assert.deepEqual(lot3.dossiers.map((x) => x.id).sort(), ['c', 'e']);
+  assert.ok(!lot3.dossiers.some((x) => x.id === 'd'));
+});
+
+test('relecture : conjoint seulement dans un même dossier ou réciproque ; « épouse de » n’est pas un nom', () => {
+  const ds = [
+    { id: 'a', nom: 'DURAND / X', parties: [{ role: 'VENDEUR', nom: 'Marie DURAND' }], authentic: { fichesClients: { f: fiche({ nom: 'Marie DURAND', nomFamille: 'DURAND', prenom: 'Marie', situationMatrimoniale: { situation: 'Mariée', conjoint: 'Monsieur Paul MOREAU' } }) } } },
+    { id: 'b', nom: 'MOREAU / Y', parties: [{ role: 'VENDEUR', nom: 'Paul MOREAU' }], authentic: { fichesClients: { f: fiche({ nom: 'Paul MOREAU', nomFamille: 'MOREAU', prenom: 'Paul', dateNaissance: '1990-01-01' }) } } },
+    { id: 'c', nom: 'DUPONT', parties: [{ role: 'VENDEUR', nom: 'Marie DUPONT épouse MARTIN' }] }
+  ];
+  const ps = construireBase(ds).personnes;
+  assert.equal(ps.find((p) => p.nomComplet === 'Marie DURAND').conjoint.id, null);
+  assert.ok(ps.some((p) => p.nomComplet === 'Marie DUPONT'));
+});
+
+test('relecture : une correction suit l’occurrence quand Authentic ajoute le prénom', () => {
+  const ds = (prenom) => [{ id: 'a', nom: 'MOREAU', parties: [{ role: 'VENDEUR', nom: prenom ? `${prenom} MOREAU` : 'MOREAU' }] }];
+  const occ = construireBase(ds('')).personnes[0].occurrences[0];
+  const r = assainirReglagesClientsBiens({ corrections: [{ occ, champ: 'profession', valeur: 'Retraité', authentic: '' }] });
+  assert.equal(construireBase(ds('Paul'), r).personnes[0].champs.profession, 'Retraité');
+});
+
+test('relecture : la base de 3 000 dossiers avec conjoints se calcule vite', () => {
+  const ds = [];
+  for (let i = 0; i < 3000; i++) {
+    const n = 'NOM' + String.fromCharCode(65 + (i % 26)) + (i % 400);
+    ds.push({ id: 'd' + i, nom: n, adresseBien: `BLOIS (41000), ${i} rue Haute`, bien: { cadastre: { parcelles: [{ section: 'AB', numero: String(i) }] } },
+      parties: [{ role: 'VENDEUR', nom: `Paul ${n}` }, { role: 'VENDEUR', nom: `Léa ${n}` }],
+      authentic: { fichesClients: { a: fiche({ nom: `Paul ${n}`, nomFamille: n, prenom: 'Paul', dateNaissance: `19${50 + (i % 40)}-01-01`, situationMatrimoniale: { situation: 'Marié', conjoint: `Mme ${n} Léa` } }),
+        b: fiche({ nom: `Léa ${n}`, nomFamille: n, prenom: 'Léa', dateNaissance: `19${51 + (i % 40)}-02-02`, situationMatrimoniale: { situation: 'Mariée', conjoint: `M. ${n} Paul` } }) } } });
+  }
+  const t0 = Date.now();
+  construireBase(ds);
+  assert.ok(Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
+});
