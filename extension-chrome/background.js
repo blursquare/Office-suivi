@@ -155,7 +155,12 @@ async function handle(msg, sender) {
       });
       return { ok: true };
     case "content.formulaire":
-      await mutate((r) => { r.formulaireOuvert = true; });
+      await mutate((r) => {
+        r.formulaireOuvert = true;
+        // Adresse du brouillon (#/saisie/<id>) : reprise après un rechargement qui le referme. Même onglet, même site seulement.
+        const u = String(msg.url || "");
+        if (u && sender.tab && sender.tab.url && new URL(u).origin === new URL(sender.tab.url).origin && /#\/saisie\/[\w-]+$/.test(u)) r.urlSaisie = u;
+      });
       return { ok: true };
     case "content.advance":
       await mutate((r) => {

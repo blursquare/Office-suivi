@@ -14,6 +14,8 @@
 const C = Object.assign({}, require('../../commun/constitution'), require('../../commun/dossier'));
 var NOTAIRE_SIGNATAIRE = 'Maître Sophie GOSSART';
 var LIEU_SIGNATURE = 'BLOIS';
+var NOTAIRE_NOM = 'GOSSART';
+var NOTAIRE_PRENOM = 'Sophie';
 
 /** @param {any} v */
 const texte = (v) => (v === undefined || v === null ? '' : String(v)).replace(/\s+/g, ' ').trim();
@@ -206,6 +208,12 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
     copropriete: lots.length > 0 || d && d.typeVente === 'copropriete',
     lots,
     signature: { lieu: LIEU_SIGNATURE, date: String(aujourdhuiIso || '').slice(0, 10), signataire: NOTAIRE_SIGNATAIRE },
+    // Le demandeur du CU et le mandataire de la DIA : le notaire de l'office (le guichet garde ce qu'il a déjà pré-rempli).
+    notaire: { nom: NOTAIRE_NOM, prenom: NOTAIRE_PRENOM, qualite: 'Notaire' },
+    // Nature du bien pour les cases du CERFA de la DIA : non bâti (terrain, terre) ou bâti sur terrain propre (maison, copropriété) ;
+    // '' quand le type de vente n'est pas connu (jamais deviné).
+    nonBati: d && (d.typeVente === 'terrain' || d.typeVente === 'terre') ? true : null,
+    batiTerrainPropre: d && (d.typeVente === 'maison' || d.typeVente === 'copropriete') ? true : null,
     /** @type {string[]} */
     manques: []
   };

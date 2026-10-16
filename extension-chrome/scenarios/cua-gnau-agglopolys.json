@@ -1,0 +1,139 @@
+{
+ "id": "cua-gnau-agglopolys",
+ "name": "CUa — guichet d'Agglopolys",
+ "version": 1,
+ "auto": true,
+ "pagesMax": 7,
+ "saisieDirecte": true,
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits.",
+ "entree": {
+  "commune": {
+   "source": "terrain.commune",
+   "selecteur": ".modal select",
+   "valider": [
+    "^valider la commune( de depot)?$"
+   ]
+  },
+  "fenetresNon": [
+   "recuperer.*(donnees|saisie)",
+   "non sauvegard",
+   "deconnect"
+  ],
+  "sessionExpiree": "me connecter a mon compte",
+  "urlSaisie": "#/saisie/",
+  "bouton": [
+   "certificat d.urbanisme.*information",
+   "^cu ?a$",
+   "\\(cu ?a\\)",
+   "^certificat d.urbanisme a$"
+  ]
+ },
+ "suivantSelecteur": "[ng-click=\"vm.nextPage()\"]",
+ "pages": [
+  {
+   "title": "Toutes les pages du brouillon",
+   "waitFor": "body",
+   "fields": [
+    {
+     "label": "Demandeur — nom (D1N)",
+     "source": "notaire.nom",
+     "code": "D1N_nom",
+     "optional": true
+    },
+    {
+     "label": "Demandeur — prénom (D1P)",
+     "source": "notaire.prenom",
+     "code": "D1P_prenom",
+     "optional": true
+    },
+    {
+     "label": "Terrain — numéro (T2Q)",
+     "source": "terrain.numero",
+     "code": "T2Q_numero",
+     "optional": true
+    },
+    {
+     "label": "Terrain — voie (T2V)",
+     "source": "terrain.voie",
+     "code": "T2V_voie",
+     "optional": true
+    },
+    {
+     "label": "Terrain — lieu-dit (T2W)",
+     "source": "terrain.lieuDit",
+     "code": "T2W_lieudit",
+     "optional": true
+    },
+    {
+     "label": "Terrain — localité (T2L)",
+     "source": "terrain.commune",
+     "code": "T2L_localite"
+    },
+    {
+     "label": "Terrain — code postal (T2C)",
+     "source": "terrain.codePostal",
+     "code": "T2C_code"
+    },
+    {
+     "forEach": "parcelles",
+     "max": 3,
+     "fields": [
+      {
+       "label": "Parcelle {n} — préfixe (T2F)",
+       "source": "{list}.{i}.prefixe",
+       "code": "T2F",
+       "rang": "{i}",
+       "optional": true
+      },
+      {
+       "label": "Parcelle {n} — section (T2S)",
+       "source": "{list}.{i}.section",
+       "code": "T2S",
+       "rang": "{i}",
+       "transform": "upper"
+      },
+      {
+       "label": "Parcelle {n} — numéro (T2N)",
+       "source": "{list}.{i}.numero",
+       "code": "T2N",
+       "rang": "{i}"
+      },
+      {
+       "label": "Parcelle {n} — superficie, m² (T2T)",
+       "source": "{list}.{i}.surface",
+       "code": "T2T",
+       "rang": "{i}",
+       "transform": "surface",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Parcelles au-delà de 3 (annexe du guichet : à saisir à la main)",
+     "source": "parcelles",
+     "transform": "parcelles_cua",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Superficie totale, m² (D5T)",
+     "source": "superficie",
+     "code": "D5T_total",
+     "transform": "surface",
+     "optional": true
+    },
+    {
+     "label": "Fait à (E1L)",
+     "source": "signature.lieu",
+     "code": "E1L_lieu"
+    },
+    {
+     "label": "Le (E1D)",
+     "source": "signature.date",
+     "code": "E1D_date",
+     "transform": "date_jjmmaaaa"
+    }
+   ]
+  }
+ ]
+}

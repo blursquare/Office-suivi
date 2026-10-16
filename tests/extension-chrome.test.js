@@ -103,3 +103,38 @@ test('CLAIRE pilote le guichet : ouverture de la démarche par le texte, champs 
   assert.ok(scenario('dia-gnau.json').etapes.some((e) => e.textes.some((t) => new RegExp(t).test("declaration d'intention d'aliener (dia)"))));
   assert.ok(scenario('cua-gnau.json').etapes.some((e) => e.textes.some((t) => new RegExp(t).test("certificat d'urbanisme"))));
 });
+
+test('guichet d’Agglopolys : scénarios par les codes du CERFA, entrée par la commune de dépôt, jamais un champ calculé par le site', () => {
+  const index = JSON.parse(fs.readFileSync(path.join(racine, 'scenarios', 'index.json'), 'utf8'));
+  const content = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
+  const FORBIDDEN = forbiddenDuContent();
+  const JAMAIS = new RegExp(/const JAMAIS_ECRIRE = \/(.+)\/i;/.exec(content)[1], 'i');
+  for (const t of ['OPLSTPARCELLE', 'OPLSTCOPRO', 'COMMISSION', 'FI1C', 'GI1DA1', 'GI5AA1', 'GI6AA1']) assert.ok(JAMAIS.test(t), t);
+  assert.ok(!JAMAIS.test('FI1B') && !JAMAIS.test('FI2MB2'));
+  // « Transmettre ma demande » (ng-click transmettreSaisie) : refusé par son texte comme par son attribut.
+  assert.ok(FORBIDDEN.test('transmettre ma demande') && FORBIDDEN.test('vm.transmettresaisie()'));
+  assert.ok(!FORBIDDEN.test('vm.nextpage()'));
+  for (const proc of ['cua', 'dia']) {
+    const e = index.find((x) => x.procedure === proc && (x.hotes || []).includes('demande-urbanisme.agglopolys.fr'));
+    assert.ok(e, proc);
+    const sc = scenario(e.file);
+    assert.equal(sc.suivantSelecteur, '[ng-click="vm.nextPage()"]');
+    assert.ok(sc.entree.commune.valider.some((m) => new RegExp(m).test('valider la commune de depot')));
+    assert.ok(new RegExp(sc.entree.sessionExpiree).test('me connecter a mon compte'));
+    assert.ok(sc.entree.fenetresNon.some((m) => new RegExp(m).test('voulez-vous recuperer les donnees non sauvegardees ?')));
+    const champs = sc.pages[0].fields.flatMap((c) => (c.forEach ? c.fields : [c]));
+    for (const c of champs) if (c.code) assert.ok(!JAMAIS.test(c.code.replace(/\{.*\}/, '')), c.code);
+    assert.equal(sc.pagesMax, proc === 'cua' ? 7 : 10);
+  }
+  // Une ligne de parcelle DIA par code de ligne (A1, B5, B6, puis A2…) ; codes CUa réels (T2L = localité, T2C = code postal).
+  const fiche = { parcelles: [{ section: 'AB', numero: '1' }, { section: 'AB', numero: '2' }, { section: 'AB', numero: '3' }, { section: 'AB', numero: '4' }] };
+  const dia = scenario('dia-gnau-agglopolys.json');
+  const codes = ctx.ClaireFiche.expandFields(dia.pages[0], fiche).map((f) => f.code).filter((c) => /^BI3S/.test(c)).join(',');
+  assert.equal(codes, 'BI3SA1,BI3SB5,BI3SB6,BI3SA2');
+  const cua = scenario('cua-gnau-agglopolys.json').pages[0].fields;
+  assert.equal(cua.find((f) => f.code === 'T2L_localite').source, 'terrain.commune');
+  assert.equal(cua.find((f) => f.code === 'T2C_code').source, 'terrain.codePostal');
+  // Une case du CERFA vaut oui seulement quand la fiche dit vrai.
+  assert.equal(ctx.ClaireFiche.resolveField({ type: 'case', source: 'x' }, { x: true }).value, true);
+  assert.equal(ctx.ClaireFiche.resolveField({ type: 'case', source: 'x' }, { x: null }).missing, true);
+});

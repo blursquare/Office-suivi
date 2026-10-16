@@ -105,8 +105,19 @@ async function choisirDossier(d) {
   await chargerFiche();
 }
 
+// Le guichet affiché choisit sa variante : celui d'Agglopolys a son propre scénario (codes du CERFA relevés, entrée par la commune de dépôt).
+async function hoteOnglet() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    return tab && tab.url ? new URL(tab.url).hostname : "";
+  } catch (_) { return ""; }
+}
+
 async function chargerScenario() {
-  const s = scenarios.find((x) => x.procedure === $("#procedure").value) || scenarios[0];
+  const proc = $("#procedure").value;
+  const hote = await hoteOnglet();
+  const s = scenarios.find((x) => x.procedure === proc && (x.hotes || []).includes(hote))
+    || scenarios.find((x) => x.procedure === proc && !x.hotes) || scenarios[0];
   scenario = s ? await (await fetch(`../scenarios/${s.file}`)).json() : null;
 }
 
@@ -136,7 +147,7 @@ async function chargerFiche() {
 async function init() {
   scenarios = await (await fetch("../scenarios/index.json")).json();
   const sel = $("#procedure");
-  for (const s of scenarios) sel.add(new Option(s.name, s.procedure));
+  for (const s of scenarios.filter((x) => !x.hotes)) sel.add(new Option(s.name, s.procedure));
   sel.addEventListener("change", chargerFiche);
 
   const st0 = await chrome.storage.local.get(["serveur"]);

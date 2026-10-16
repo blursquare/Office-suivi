@@ -41,6 +41,24 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
 
 **Remplir seulement la page affichée** : même remplissage, sans ouvrir de démarche ni cliquer « Suivant ».
 
+### Guichet d'Agglopolys (https://demande-urbanisme.agglopolys.fr)
+
+Sur ce guichet, CLAIRE suit le parcours relevé par l'étude (16/10) :
+1. accueil `#/` : bouton CUa ou DIA de la zone « Formuler » ;
+2. fenêtre « Sélectionner une commune de dépôt » : la commune du bien (fiche CLAIRE) choisie dans la liste, puis « Valider la commune de
+   dépôt » — commune absente ou ambiguë : CLAIRE s'arrête et vous la choisissez ;
+3. « Récupérer les données non sauvegardées ? » ou fenêtre de déconnexion : toujours **NON** ;
+4. brouillon `#/saisie/<n°>` (CUa 7 pages, DIA 10) : chaque champ par son code CERFA (`#AI1NP1`, `#T2L_localite`…), valeur posée d'un
+   coup (le guichet applique lui-même majuscules et masques), puis « page suivante » (`vm.nextPage()`) ;
+5. dernière page : arrêt. Relire, **joindre les pièces (à la main)**, « Vérifier ma saisie », puis « Transmettre ma demande » **vous-même**.
+
+Jamais : « Transmettre ma demande » (texte ou `transmettreSaisie`), un identifiant (fenêtre « Me connecter à mon compte » = arrêt, vous vous
+reconnectez puis relancez : le brouillon est rouvert par son adresse), les listes recalculées par le site (`OPLSTPARCELLE`, `OPLSTCOPRO`,
+`COMMISSION`), le prix en lettres `FI1C` (écrit par le site depuis `FI1B`), les cases de déclaration `GI1DA1`, `GI5AA1`, `GI6AA1`. Cases
+cochées par un vrai clic seulement quand la fiche le dit : nature du bien (non bâti / bâti sur terrain propre, d'après le type de vente),
+copropriété, commission TTC et à la charge de qui. À vérifier sur un vrai brouillon : suffixes des parcelles 2 et 3 du CUa, codes des lignes
+de parcelles de la DIA (`BI3S` + `A1`, `B5`…), annexes au-delà de 3 (CUa) et 14 parcelles (DIA).
+
 ## Faire progresser l'extension
 
 Les champs sont trouvés par leur code CERFA quand il est connu (vendeur `AI1NP1`/`AI1PP1`, 2ᵉ propriétaire `AI1NP2`/`AI1PP2`, superficie

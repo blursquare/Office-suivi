@@ -1,0 +1,380 @@
+{
+ "id": "dia-gnau-agglopolys",
+ "name": "DIA — guichet d'Agglopolys",
+ "version": 1,
+ "auto": true,
+ "pagesMax": 10,
+ "saisieDirecte": true,
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE.",
+ "entree": {
+  "commune": {
+   "source": "terrain.commune",
+   "selecteur": ".modal select",
+   "valider": [
+    "^valider la commune( de depot)?$"
+   ]
+  },
+  "fenetresNon": [
+   "recuperer.*(donnees|saisie)",
+   "non sauvegard",
+   "deconnect"
+  ],
+  "sessionExpiree": "me connecter a mon compte",
+  "urlSaisie": "#/saisie/",
+  "bouton": [
+   "intention d.aliener",
+   "^dia$",
+   "\\(dia\\)"
+  ]
+ },
+ "suivantSelecteur": "[ng-click=\"vm.nextPage()\"]",
+ "pages": [
+  {
+   "title": "Toutes les pages du brouillon",
+   "waitFor": "body",
+   "fields": [
+    {
+     "forEach": "vendeurs.tous",
+     "max": 2,
+     "fields": [
+      {
+       "label": "Propriétaire {n} — nom (AI1NP{n})",
+       "source": "{list}.{i}.nom",
+       "code": "AI1NP{n}",
+       "optional": true
+      },
+      {
+       "label": "Propriétaire {n} — prénom (AI1PP{n})",
+       "source": "{list}.{i}.prenom",
+       "code": "AI1PP{n}",
+       "optional": true
+      },
+      {
+       "label": "Propriétaire {n} — nom d'usage (AI1MP{n})",
+       "source": "{list}.{i}.nomUsage",
+       "code": "AI1MP{n}",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Propriétaire — société, dénomination (AI2D)",
+     "source": "vendeur.raisonSociale",
+     "code": "AI2D",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — adresse, n° (AI3N)",
+     "source": "vendeur.adresse.numero",
+     "code": "AI3N",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — adresse, voie (AI3V)",
+     "source": "vendeur.adresse.voie",
+     "code": "AI3V",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — lieu-dit (AI3W)",
+     "source": "vendeur.adresse.lieuDit",
+     "code": "AI3W",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — localité (AI3L)",
+     "source": "vendeur.adresse.commune",
+     "code": "AI3L",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — code postal (AI3C)",
+     "source": "vendeur.adresse.codePostal",
+     "code": "AI3C",
+     "optional": true
+    },
+    {
+     "label": "Bien — n° (BI1N)",
+     "source": "terrain.numero",
+     "code": "BI1N",
+     "optional": true
+    },
+    {
+     "label": "Bien — voie (BI1V)",
+     "source": "terrain.voie",
+     "code": "BI1V",
+     "optional": true
+    },
+    {
+     "label": "Bien — lieu-dit (BI1W)",
+     "source": "terrain.lieuDit",
+     "code": "BI1W",
+     "optional": true
+    },
+    {
+     "label": "Bien — localité (BI1L)",
+     "source": "terrain.commune",
+     "code": "BI1L"
+    },
+    {
+     "label": "Bien — code postal (BI1C)",
+     "source": "terrain.codePostal",
+     "code": "BI1C"
+    },
+    {
+     "label": "Superficie totale, m² (BI2T)",
+     "source": "superficie",
+     "code": "BI2T",
+     "transform": "surface",
+     "optional": true
+    },
+    {
+     "forEach": "parcelles",
+     "max": 14,
+     "lignes": [
+      "A1",
+      "B5",
+      "B6",
+      "A2",
+      "A3",
+      "A4",
+      "A5",
+      "A6",
+      "A7",
+      "A8",
+      "A9",
+      "B1",
+      "B2",
+      "B3"
+     ],
+     "fields": [
+      {
+       "label": "Parcelle {n} — préfixe (BI3F{ligne})",
+       "source": "{list}.{i}.prefixe",
+       "code": "BI3F{ligne}",
+       "optional": true
+      },
+      {
+       "label": "Parcelle {n} — section (BI3S{ligne})",
+       "source": "{list}.{i}.section",
+       "code": "BI3S{ligne}",
+       "transform": "upper"
+      },
+      {
+       "label": "Parcelle {n} — numéro (BI3N{ligne})",
+       "source": "{list}.{i}.numero",
+       "code": "BI3N{ligne}"
+      },
+      {
+       "label": "Parcelle {n} — localité (BI3L{ligne})",
+       "source": "{list}.{i}.commune",
+       "code": "BI3L{ligne}",
+       "optional": true
+      },
+      {
+       "label": "Parcelle {n} — superficie, m² (BI3T{ligne})",
+       "source": "{list}.{i}.surface",
+       "code": "BI3T{ligne}",
+       "transform": "surface",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Parcelles au-delà de 14 (annexe : à saisir à la main)",
+     "source": "parcelles",
+     "transform": "parcelles_dia",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Nature : non bâti (case CI1IA1)",
+     "source": "nonBati",
+     "code": "CI1IA1",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Nature : bâti sur terrain propre (case CI1IA2)",
+     "source": "batiTerrainPropre",
+     "code": "CI1IA2",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Copropriété (case CI6CA1)",
+     "source": "copropriete",
+     "code": "CI6CA1",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "forEach": "lots",
+     "max": 7,
+     "fields": [
+      {
+       "label": "Lot {n} — n° (CI6LL{n})",
+       "source": "{list}.{i}.lot",
+       "code": "CI6LL{n}",
+       "optional": true
+      },
+      {
+       "label": "Lot {n} — bâtiment (CI6BL{n})",
+       "source": "{list}.{i}.batiment",
+       "code": "CI6BL{n}",
+       "optional": true
+      },
+      {
+       "label": "Lot {n} — étage (CI6EL{n})",
+       "source": "{list}.{i}.etage",
+       "code": "CI6EL{n}",
+       "optional": true
+      },
+      {
+       "label": "Lot {n} — quote-part (CI6QL{n})",
+       "source": "{list}.{i}.quotePart",
+       "code": "CI6QL{n}",
+       "optional": true
+      },
+      {
+       "label": "Lot {n} — nature (CI6NL{n})",
+       "source": "{list}.{i}.nature",
+       "code": "CI6NL{n}",
+       "optional": true
+      },
+      {
+       "label": "Lot {n} — surface (CI6SL{n})",
+       "source": "{list}.{i}.surface",
+       "code": "CI6SL{n}",
+       "transform": "surface",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Prix (FI1B) — le prix en lettres est écrit par le guichet",
+     "source": "prix",
+     "code": "FI1B",
+     "transform": "entier"
+    },
+    {
+     "label": "Dont mobilier (FI1M)",
+     "source": "mobilier",
+     "code": "FI1M",
+     "transform": "entier",
+     "optional": true
+    },
+    {
+     "label": "Commission — montant (FI2MB2)",
+     "source": "commission.total",
+     "code": "FI2MB2",
+     "transform": "entier",
+     "optional": true
+    },
+    {
+     "label": "Commission TTC (case FI2MB3)",
+     "source": "commission.ttc",
+     "code": "FI2MB3",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Commission à la charge de l'acquéreur (case FI2MB5)",
+     "source": "commission.chargeAcquereur",
+     "code": "FI2MB5",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Commission à la charge du vendeur (case FI2MB6)",
+     "source": "commission.chargeVendeur",
+     "code": "FI2MB6",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — nom (GI2PA2)",
+     "source": "acquereur.nom",
+     "code": "GI2PA2",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — prénom (GI2PA1)",
+     "source": "acquereur.prenom",
+     "code": "GI2PA1",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — profession (GI2PA3)",
+     "source": "acquereur.profession",
+     "code": "GI2PA3",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — société (GI3MA1)",
+     "source": "acquereur.raisonSociale",
+     "code": "GI3MA1",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — adresse, n° (GI4AA3)",
+     "source": "acquereur.adresse.numero",
+     "code": "GI4AA3",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — adresse, voie (GI4AA5)",
+     "source": "acquereur.adresse.voie",
+     "code": "GI4AA5",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — code postal (GI4AA8)",
+     "source": "acquereur.adresse.codePostal",
+     "code": "GI4AA8",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — localité (GI4AB1)",
+     "source": "acquereur.adresse.commune",
+     "code": "GI4AB1",
+     "optional": true
+    },
+    {
+     "label": "Fait à (GI7L)",
+     "source": "signature.lieu",
+     "code": "GI7L"
+    },
+    {
+     "label": "Le (GI7D)",
+     "source": "signature.date",
+     "code": "GI7D",
+     "transform": "date_jjmmaaaa"
+    },
+    {
+     "label": "Signataire (GI7S)",
+     "source": "signature.signataire",
+     "code": "GI7S"
+    },
+    {
+     "label": "Mandataire — nom (HI1N)",
+     "source": "notaire.nom",
+     "code": "HI1N",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — prénom (HI1P)",
+     "source": "notaire.prenom",
+     "code": "HI1P",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — qualité (HI1Q)",
+     "source": "notaire.qualite",
+     "code": "HI1Q",
+     "optional": true
+    }
+   ]
+  }
+ ]
+}

@@ -88,3 +88,14 @@ test('relecture 16/10 : pays et département de naissance jamais devinés, nom s
   assert.deepEqual([f.acquereur.nom, f.acquereur.prenom], ['', '']);
   assert.ok(f.manques.some((m) => /Nom de famille d’une partie/.test(m)));
 });
+
+test('guichet d’Agglopolys : notaire de l’office (demandeur du CU, mandataire de la DIA) et nature du bien pour les cases du CERFA, jamais devinée', () => {
+  const f = ficheGnau(dossier(), 'dia', '2026-10-16');
+  assert.deepEqual(f.notaire, { nom: 'GOSSART', prenom: 'Sophie', qualite: 'Notaire' });
+  assert.equal(f.batiTerrainPropre, true);
+  assert.equal(f.nonBati, null);
+  const t = ficheGnau(Object.assign(dossier(), { typeVente: 'terre' }), 'dia', '2026-10-16');
+  assert.deepEqual([t.nonBati, t.batiTerrainPropre], [true, null]);
+  const inconnu = ficheGnau(Object.assign(dossier(), { typeVente: '' }), 'dia', '2026-10-16');
+  assert.deepEqual([inconnu.nonBati, inconnu.batiTerrainPropre], [null, null]);
+});

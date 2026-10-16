@@ -9,6 +9,11 @@
   // Boutons que CLAIRE ne cliquera JAMAIS, quel que soit le scénario. Liste volontairement en dur.
   const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier|deposer|déposer|depot|dépôt)/i;
 
+  // Champs que CLAIRE n'écrit JAMAIS (étude 16/10, guichet d'Agglopolys) : listes recalculées par le site depuis les cases du CERFA, prix en
+  // lettres écrit par le site, cases de déclaration du déclarant. Identifiant ou nom exact.
+  const JAMAIS_ECRIRE = /^(OPLSTPARCELLE|OPLSTCOPRO|COMMISSION|FI1C|GI1DA1|GI5AA1|GI6AA1)(_.*)?$/i;
+  let saisieDirecte = false; // valeur posée d'un coup (setter natif, input, change, blur) : technique validée sur le guichet d'Agglopolys
+
   const SPEEDS = {
     slow: { type: 90, move: 900, pause: 500 },
     normal: { type: 35, move: 450, pause: 250 },
@@ -183,7 +188,7 @@
     setNativeValue(el, "");
     fire(el, "input", { inputType: "deleteContentBackward" });
     // Les champs date/nombre n'acceptent pas la frappe partielle : valeur posée d'un coup.
-    if (["date", "number", "datetime-local", "month", "time"].includes(el.type)) {
+    if (saisieDirecte || ["date", "number", "datetime-local", "month", "time"].includes(el.type)) {
       setNativeValue(el, text);
       fire(el, "input", { inputType: "insertText", data: text });
     } else {
@@ -210,6 +215,7 @@
   async function fillElement(el, type0, value, sp, direct) {
     // Une liste trouvée par un code prévu « texte » se remplit comme une liste (le setter d'un input y lève une erreur).
     const type = el instanceof HTMLSelectElement ? "select" : type0;
+    if (JAMAIS_ECRIRE.test(el.id || "") || JAMAIS_ECRIRE.test(el.getAttribute("name") || "")) return { ok: false, detail: "champ calculé par le guichet : jamais écrit par CLAIRE" };
     // Champ caché (valeur encodée calculée par CLAIRE) : posé d'un coup, sans curseur ni frappe.
     if (direct && !["checkbox", "radio", "select"].includes(type)) {
       setNativeValue(el, String(value));
@@ -239,7 +245,9 @@
       ripple(pos.x, pos.y);
       await typeInto(el, String(value), sp);
       await wait(sp.pause);
-      return el.value === String(value)
+      // Le guichet applique lui-même la casse et ses masques (« 92 500 ») : même valeur aux espaces, points et majuscules près.
+      const pareil = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s.\u00a0\u202f]/g, "").toLowerCase();
+      return el.value === String(value) || pareil(el.value) === pareil(value)
         ? { ok: true }
         : { ok: false, detail: `le portail affiche « ${el.value} »` };
     } finally {
@@ -255,7 +263,9 @@
   function selecteurCode(code) {
     const c = String(code || "");
     if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(c)) return "";
-    return [`[name="${c}"]`, `#${c}`, `[name$=".${c}"]`, `[name$="_${c}"]`, `[name$="[${c}]"]`, `[id$="_${c}"]`, `[id$="-${c}"]`].join(", ");
+    // Guichet d'Agglopolys : <input id="<nomLong>"> — « D1N_nom » pour le code D1N (un code sans « _ » trouve aussi « CODE_… »).
+    const prefixe = c.includes("_") ? [] : [`[id^="${c}_"]`];
+    return [`[name="${c}"]`, `#${c}`, `[name$=".${c}"]`, `[name$="_${c}"]`, `[name$="[${c}]"]`, `[id$="_${c}"]`, `[id$="-${c}"]`, ...prefixe].join(", ");
   }
 
   // Clé d'un champ : son libellé (stable quand la fiche relue gagne ou perd un codemandeur — relecture 16/10), l'index en secours.
@@ -497,6 +507,14 @@
     return s;
   }
 
+  // L'état d'un champ est gardé aussi dans la copie locale de la saisie : un champ rempli sur une page n'est plus repris (ni dit « absent »)
+  // sur les pages suivantes.
+  function noter(run, key, state, detail) {
+    run.fields = run.fields || {};
+    run.fields[key] = { state, detail: detail || "" };
+    return report(key, state, detail);
+  }
+
   async function remplirAuto(run, f, sp) {
     const key = cleChamp(0, f.label, f);
     const deja = run.fields && run.fields[key] && run.fields[key].state;
@@ -504,8 +522,22 @@
     // propriétaire » ou un récapitulatif aux mêmes libellés ne reçoit pas la valeur une seconde fois).
     if (deja === "done" && !run.scenario.uneSeulePage) return false;
     const r = resolveField(f, run.fiche);
-    if (r.missing) { if (deja !== "done") await report(key, f.optional ? "skipped" : "missing"); return false; }
-    if (r.invalid) { await report(key, "mismatch", r.error); return false; }
+    if (r.missing) { if (deja !== "done") await noter(run, key, f.optional ? "skipped" : "missing"); return false; }
+    if (r.invalid) { await noter(run, key, "mismatch", r.error); return false; }
+    if (f.type === "case") {
+      // Case du CERFA (étude 16/10) : un vrai clic quand la fiche dit oui ; jamais décochée, jamais devinée.
+      if (r.value !== true) { if (deja !== "done") await noter(run, key, "skipped"); return false; }
+      const sel = selecteurCode(f.code);
+      const el = sel ? [...document.querySelectorAll(sel)].find((x) => (x.type === "checkbox" || x.type === "radio") && (visible(x) || (x.labels && [...x.labels].some(visible)))) : null;
+      if (!el) { if (deja !== "done") await noter(run, key, "absent"); return false; }
+      if (el.checked) { await noter(run, key, "done"); return true; }
+      if (JAMAIS_ECRIRE.test(el.id || "") || JAMAIS_ECRIRE.test(el.getAttribute("name") || "")) { await noter(run, key, "manuel", "case de déclaration : jamais cochée par CLAIRE"); return false; }
+      await noter(run, key, "filling");
+      const cible = (el.labels && [...el.labels].find(visible)) || el;
+      const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause);
+      await noter(run, key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
+      return true;
+    }
     if (f.type === "choix") {
       // Bouton radio / case dont le libellé dit la valeur (« Personne morale ») : un vrai clic.
       const motif = f.choix && f.choix[String(r.value)];
@@ -515,34 +547,34 @@
       const horsSec = f.horsRubrique ? new RegExp(f.horsRubrique, "i") : null;
       const el = [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].filter((x) => visible(x) || (x.labels && [...x.labels].some(visible)))
         .find((x) => re.test(libelleChamp(x)) && (!sec || sec.test(rubriqueChamp(x))) && !(horsSec && horsSec.test(rubriqueChamp(x))));
-      if (!el) { if (deja !== "done") await report(key, "absent"); return false; }
-      if (!el.checked) { await report(key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
-      await report(key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
+      if (!el) { if (deja !== "done") await noter(run, key, "absent"); return false; }
+      if (!el.checked) { await noter(run, key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
+      await noter(run, key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
       return true;
     }
     // Emplacement pas encore connu (ni code ni libellé) : la valeur se copie depuis le panneau.
-    if (!f.code && !(f.libelles && f.libelles.length)) { if (deja !== "manuel") await report(key, "manuel", "à coller à la main (bouton Copier du panneau)"); return false; }
+    if (!f.code && !(f.libelles && f.libelles.length)) { if (deja !== "manuel") await noter(run, key, "manuel", "à coller à la main (bouton Copier du panneau)"); return false; }
     const cands = candidatsChamp(f);
     let el = null;
     if (typeof f.rang === "number" || /^\d+$/.test(String(f.rang || ""))) el = cands[Number(f.rang)] || null;
     else el = cands.find((x) => !String(x.value || "").trim()) || cands.find((x) => String(x.value) === String(r.value)) || null;
     if (!el) {
-      if (cands.length) { await report(key, "done", "déjà rempli dans le guichet"); return true; }
-      if (deja !== "done") await report(key, "absent");
+      if (cands.length) { await noter(run, key, "done", "déjà rempli dans le guichet"); return true; }
+      if (deja !== "done") await noter(run, key, "absent");
       return false;
     }
     const valeur = valeurPourChamp(el, r.value);
-    if (String(el.value || "").trim() && String(el.value) !== valeur) { await report(key, "done", "déjà rempli dans le guichet, laissé tel quel"); return true; }
-    if (String(el.value) === valeur) { await report(key, "done"); return true; }
-    await report(key, "filling");
+    if (String(el.value || "").trim() && String(el.value) !== valeur) { await noter(run, key, "done", "déjà rempli dans le guichet, laissé tel quel"); return true; }
+    if (String(el.value) === valeur) { await noter(run, key, "done"); return true; }
+    await noter(run, key, "filling");
     const res = await fillElement(el, f.type || "text", valeur, sp, false);
-    await report(key, res.ok ? "done" : "mismatch", res.detail);
+    await noter(run, key, res.ok ? "done" : "mismatch", res.detail);
     return true;
   }
 
   // Ce qui rend un bouton interdit : son texte, mais aussi son identifiant, son nom et l'adresse où il envoie le formulaire
   // (« Suivant » d'identifiant btnValider, nom « transmettre »…).
-  const attributsBouton = (el) => [el.id, el.getAttribute("name"), el.getAttribute("formaction")].filter(Boolean).join(" ");
+  const attributsBouton = (el) => [el.id, el.getAttribute("name"), el.getAttribute("formaction"), el.getAttribute("ng-click"), el.getAttribute("data-ng-click")].filter(Boolean).join(" ");
   const texteBouton = (el) => norm(el.innerText || el.value || el.getAttribute("aria-label") || el.title || "");
 
   // Un bouton ou un lien dont le texte répond à l'un des motifs, le plus court d'abord. `lienSeul` : seulement un lien de
@@ -599,6 +631,95 @@
     return change;
   }
 
+  // ---------- Guichet d'Agglopolys : entrée dans la démarche (étude 16/10) ----------
+  const FENETRES = ".modal, [role=dialog], .modal-dialog, .ngdialog, .popup";
+  const fenetresVisibles = () => [...document.querySelectorAll(FENETRES)].filter(visible);
+  // « Valider », « Déposer »… sont dans la liste noire ; seule exception ici, nommée : « Valider la commune de dépôt » DANS sa fenêtre.
+  function boutonDansFenetre(fen, motifs) {
+    const res = motifs.map((m) => new RegExp(m, "i"));
+    return [...fen.querySelectorAll('button, a, [role=button], input[type=button], input[type=submit], [ng-click]')].filter(visible)
+      .find((b) => res.some((r) => r.test(texteBouton(b))) && !/transmettre|signer|envoyer|payer|supprimer/.test(norm(texteBouton(b) + " " + attributsBouton(b)))) || null;
+  }
+  function memeCommune(a, b) {
+    const n = (x) => norm(x).replace(/[-']/g, " ").replace(/\(.*?\)/g, " ").replace(/\bst\b/g, "saint").replace(/\bste\b/g, "sainte").replace(/\s+/g, " ").trim();
+    return n(a) && n(a) === n(b);
+  }
+
+  // Une étape de l'entrée : rend « fait » quand elle a agi (la boucle relit la page), « rien » sinon. Lève une erreur si la session a expiré.
+  async function entreeAgglopolys(run, sp, ouvert) {
+    const e = run.scenario.entree;
+    const fens = fenetresVisibles();
+    const txt = (el) => norm(el.innerText || el.textContent || "");
+    if (e.sessionExpiree && (fens.some((f) => new RegExp(e.sessionExpiree, "i").test(txt(f))) || [...document.querySelectorAll("h1, h2, h3, h4, .modal-title")].filter(visible).some((t) => new RegExp(e.sessionExpiree, "i").test(txt(t))))) {
+      throw new Error("Session du guichet expirée : reconnectez-vous vous-même (CLAIRE ne saisit jamais d’identifiant), puis relancez CLAIRE — le brouillon est repris.");
+    }
+    // Fenêtres « récupérer les données non sauvegardées ? », « déconnexion » : toujours NON.
+    for (const f of fens) {
+      if ((e.fenetresNon || []).some((m) => new RegExp(m, "i").test(txt(f)))) {
+        const non = boutonDansFenetre(f, ["^non$"]);
+        if (non) { await cliquerPuisAttendre(non, sp, run.pageIndex || 0); return "fait"; }
+      }
+    }
+    if (ouvert) {
+      // Brouillon refermé par un rechargement : il est rouvert par son adresse.
+      if (run.urlSaisie && !location.hash.startsWith(e.urlSaisie) && run.urlSaisie.startsWith(location.origin + "/")) {
+        location.href = run.urlSaisie;
+        await attendreStable(8000);
+        return "fait";
+      }
+      return "rien";
+    }
+    if (location.hash.startsWith(e.urlSaisie)) return "rien";
+    // Fenêtre « Sélectionner une commune de dépôt ».
+    const select = document.querySelector(e.commune.selecteur);
+    if (select && visible(select)) {
+      const commune = getByPathLocal(run.fiche, e.commune.source);
+      const opts = [...select.options].filter((o) => memeCommune(o.text, commune));
+      if (!commune || opts.length !== 1) {
+        await finish("awaiting_human", `Choisissez vous-même la commune de dépôt${commune ? ` (${commune})` : ""}, validez, puis relancez CLAIRE.`);
+        return "fin";
+      }
+      const pos = await moveTo(select, sp); ripple(pos.x, pos.y);
+      setNativeSelect(select, opts[0].value);
+      await wait(sp.pause);
+      const fen = select.closest(FENETRES) || document;
+      const valider = boutonDansFenetre(fen, e.commune.valider);
+      if (!valider) { await finish("awaiting_human", "Commune choisie : cliquez vous-même « Valider la commune de dépôt », puis relancez CLAIRE."); return "fin"; }
+      await send({ type: "content.etape", label: "Commune de dépôt" });
+      await cliquerPuisAttendre(valider, sp, run.pageIndex || 0);
+      return "fait";
+    }
+    // Accueil : le bouton de la démarche, dans la zone « Formuler » s'il y en a une.
+    const zones = [...document.querySelectorAll("section, .panel, .card, div")].filter((z) => visible(z) && /^formuler\b/.test(norm((z.querySelector("h1, h2, h3, h4, .titre, .title") || {}).textContent || "")));
+    const res = e.bouton.map((m) => new RegExp(m, "i"));
+    const cadres = zones.length ? zones : [document];
+    for (const cadre of cadres) {
+      const b = [...cadre.querySelectorAll('button, a[href], [role=button], [ng-click]')].filter(visible)
+        .find((x) => { const t = texteBouton(x); return t && t.length <= 140 && res.some((r) => r.test(t)) && !/transmettre|valider|signer|envoyer|payer|supprimer/.test(norm(t + " " + attributsBouton(x))); });
+      if (b) {
+        await send({ type: "content.etape", label: run.scenario.name });
+        await cliquerPuisAttendre(b, sp, run.pageIndex || 0);
+        return "fait";
+      }
+    }
+    await finish("awaiting_human", "CLAIRE ne trouve pas la démarche sur cette page : ouvrez l’accueil du guichet (« Formuler ») ou le brouillon, puis relancez CLAIRE.");
+    return "fin";
+  }
+  // Le bouton « page suivante » du guichet par son sélecteur (Agglopolys : [ng-click="vm.nextPage()"]) — visible, actif, et jamais un
+  // bouton de la liste noire par son texte ou ses attributs (« Transmettre ma demande », ng-click transmettreSaisie).
+  function boutonSuivantSelecteur(sel) {
+    return [...document.querySelectorAll(sel)].filter(visible)
+      .find((b) => !b.disabled && b.getAttribute("aria-disabled") !== "true" && !b.classList.contains("disabled")
+        && !FORBIDDEN.test(texteBouton(b)) && !FORBIDDEN.test(norm(attributsBouton(b)))) || null;
+  }
+  const getByPathLocal = (o, chemin) => String(chemin || "").split(".").reduce((x, k) => (x == null ? x : x[k]), o);
+  function setNativeSelect(el, value) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setter.call(el, value);
+    fire(el, "input");
+    fire(el, "change");
+  }
+
   async function boucleAuto(run) {
     const sc = run.scenario;
     const sp = SPEEDS[run.speed] || SPEEDS.normal;
@@ -607,6 +728,11 @@
     const champs = sc.pages.flatMap((p) => expandFields(p, run.fiche));
     const maxPages = sc.pagesMax || 30;
     let formulaireOuvert = !!run.formulaireOuvert;
+    saisieDirecte = !!sc.saisieDirecte;
+    let toursEntree = 0;
+    const finGuichet = sc.entree
+      ? "Dernière page atteinte : relisez chaque page, joignez les pièces (étape manuelle), cliquez « Vérifier ma saisie », puis transmettez vous-même."
+      : "CLAIRE a rempli ce qu’elle connaît. Relisez chaque page, cochez les cases, puis validez et transmettez vous-même.";
     while (pi < maxPages) {
       setBanner(`CLAIRE pilote le guichet — page ${pi + 1}`, "running");
       setBlocking(true);
@@ -622,8 +748,22 @@
       // (1) Le formulaire n'est pas encore ouvert (aucun champ du scénario sur la page) : étape suivante de l'ouverture.
       // Dès qu'une page porte un champ du scénario, le formulaire est ouvert pour de bon : plus aucune étape d'ouverture n'est
       // cliquée ensuite (un « Nouvelle demande » de l'en-tête abandonnerait le brouillon ; un « Déposer » final transmettrait).
-      const presents = champs.filter((f) => f.type !== "choix" && candidatsChamp(f).length).length;
-      if (presents >= 1 && !formulaireOuvert) { formulaireOuvert = true; await send({ type: "content.formulaire" }); }
+      if (sc.entree && !sc.uneSeulePage) {
+        const etat = await entreeAgglopolys(run, sp, formulaireOuvert);
+        if (etat === "fin") return;
+        if (etat === "fait") {
+          if (++toursEntree > 10) { await finish("awaiting_human", "Entrée dans la démarche inachevée : ouvrez le brouillon vous-même, puis relancez CLAIRE."); return; }
+          continue;
+        }
+      }
+      const presents = champs.filter((f) => f.type !== "choix" && f.type !== "case" && candidatsChamp(f).length).length;
+      const brouillon = sc.entree && location.hash.startsWith(sc.entree.urlSaisie);
+      if ((presents >= 1 || brouillon) && !formulaireOuvert) {
+        formulaireOuvert = true;
+        run = { ...run, formulaireOuvert: true, urlSaisie: brouillon ? location.href : run.urlSaisie };
+        await send({ type: "content.formulaire", url: brouillon ? location.href : "" });
+      }
+      if (sc.entree && !formulaireOuvert) continue;
       if (!formulaireOuvert && !sc.uneSeulePage) {
         // Les étapes dans leur ordre : la suivante seulement ; celle d'avant pas encore vue est passée si la suivante est déjà là
         // (accueil qui mène directement au choix de la démarche).
@@ -652,9 +792,9 @@
         await finish("awaiting_human", "Page remplie. Relisez ; passez à la page suivante du guichet puis cliquez de nouveau. Vous validez vous-même.");
         return;
       }
-      const suivant = cliquableParTexte(sc.suivant || ["^(suivant|etape suivante|page suivante|continuer)\\b"]);
-      if (!suivant) {
-        await finish("awaiting_human", "CLAIRE a rempli ce qu’elle connaît. Relisez chaque page, cochez les cases, puis validez et transmettez vous-même.");
+      const suivant = sc.suivantSelecteur ? boutonSuivantSelecteur(sc.suivantSelecteur) : cliquableParTexte(sc.suivant || ["^(suivant|etape suivante|page suivante|continuer)\\b"]);
+      if (!suivant || (sc.entree && pi + 1 >= maxPages)) {
+        await finish("awaiting_human", finGuichet);
         return;
       }
       const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
