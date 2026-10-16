@@ -93,24 +93,58 @@
   // renforcé), bien (celles d'une copropriété seulement pour une copropriété), rural, bois et forêts. Celles de la nature de la mutation
   // (donation, adjudication, parts de société, bail) ne concernent pas une vente : elles restent dans l'outil. Les questions dont l'analyse a
   // besoin sont en tête, marquées « À répondre » ; les autres se répondent aussi, pour être sûr.
-  var GROUPES_QUESTIONS_CONSTITUTION = [
-    { titre: 'La commune', cles: ['dpuInstitue', 'dpur'] },
-    { titre: 'Le bien', section: 'bien' },
-    { titre: 'Rural, bois et forêts', section: 'rural' }
-  ];
+  // Les questions suivent la zone de chaque parcelle (étude 16/10 : « les questions s'adaptent en fonction du type de zonage de la parcelle
+  // et si les parcelles sont mixtes ») : un groupe par famille de zone lue — urbaine ou à urbaniser (DPU : la commune, le bien), agricole ou
+  // naturelle (SAFER, bois et forêts), zone non lue (toutes) —, chacun nommant ses parcelles. Une question y figure si l'analyse de CETTE
+  // zone en a besoin (« À répondre ») ou si elle relève de cette zone ; une question utile à plusieurs zones n'est posée qu'une fois, dans
+  // le groupe de la première zone qui en a besoin, avec les parcelles qu'elle concerne.
+  var QUESTIONS_COMMUNE_CONSTITUTION = ['dpuInstitue', 'dpur'];
+  var FAMILLES_URBAINES_CONSTITUTION = ['U', 'AU'];
+  var FAMILLES_RURALES_CONSTITUTION = ['A', 'N'];
+  var NOMS_ZONES_CONSTITUTION = { U: 'Zone urbaine', AU: 'Zone à urbaniser', A: 'Zone agricole', N: 'Zone naturelle' };
 
-  // Pure : les questions à montrer, par groupe → [{ titre, questions: [{ cle, libelle, aide, valeurs, due, reponse }] }].
+  // Pure : les questions de la zone `f` qui relèvent d'elle (sans compter celles que l'analyse demande).
+  function questionsDeZoneConstitution(f, typeVente) {
+    const bien = QUESTIONS_PREEMPTION.filter(q => q.section === 'bien' && (!q.copro || typeVente === 'copropriete')).map(q => q.cle);
+    const rural = QUESTIONS_PREEMPTION.filter(q => q.section === 'rural').map(q => q.cle);
+    if (FAMILLES_URBAINES_CONSTITUTION.includes(f)) return QUESTIONS_COMMUNE_CONSTITUTION.concat(bien);
+    if (FAMILLES_RURALES_CONSTITUTION.includes(f)) return rural;
+    return QUESTIONS_COMMUNE_CONSTITUTION.concat(bien, rural);
+  }
+
+  // Pure : les questions à montrer, par zone → [{ titre, parcelles, questions: [{ cle, libelle, aide, valeurs, due, reponse, concerne }] }].
   function questionsUrbanismeConstitution(p, typeVente) {
     if (!p || !Array.isArray(p.droits)) return [];
-    const dues = new Set(analysePreemptionFiche(p).manques);
     const rep = Object.assign({}, p.deduites || {}, p.reponses || {});
-    return GROUPES_QUESTIONS_CONSTITUTION.map(g => {
-      const liste = (g.cles ? g.cles.map(questionPreemptionParCle) : QUESTIONS_PREEMPTION.filter(q => q.section === g.section))
-        .filter(q => q && (!q.copro || typeVente === 'copropriete'))
-        .map(q => ({ cle: q.cle, libelle: q.libelle, aide: q.aide || '', valeurs: q.valeurs, due: dues.has(q.cle), reponse: rep[q.cle] }));
-      liste.sort((a, b) => Number(b.due) - Number(a.due));
-      return { titre: g.titre, questions: liste };
-    }).filter(g => g.questions.length);
+    const repAnalyse = Object.assign({}, rep);
+    if (repAnalyse.dpur === 'oui' && p.insee === DPUR_BLOIS.insee && !repAnalyse.dpurDelegataire) repAnalyse.dpurDelegataire = DPUR_BLOIS.delegataire;
+    const parCle = new Map();
+    ((p.lignes) || []).forEach(l => { if (l && l.statut !== 'lecture') parCle.set(l.cle || l.libelle, l); });
+    const parFamille = new Map();
+    [...parCle.values()].forEach(l => { const f = l.famille || ''; if (!parFamille.has(f)) parFamille.set(f, []); parFamille.get(f).push(l.libelle); });
+    if (!parFamille.size) parFamille.set('', []);
+    const ordre = ['U', 'AU', 'A', 'N', ''];
+    const zones = [...parFamille.entries()].sort((a, b) => ordre.indexOf(a[0]) - ordre.indexOf(b[0])).map(([f, parcelles]) => {
+      const dues = new Set(analyserPreemption(Object.assign({}, repAnalyse, { zone: f || repAnalyse.zone || undefined })).manques);
+      return { f, parcelles, dues, propres: new Set(questionsDeZoneConstitution(f, typeVente)) };
+    });
+    const plusieurs = zones.length > 1;
+    const groupes = zones.map(z => ({
+      titre: z.f ? `${NOMS_ZONES_CONSTITUTION[z.f] || 'Zone ' + z.f} (${z.f})` : (plusieurs ? 'Zone non lue' : 'Toutes les parcelles'),
+      parcelles: z.parcelles, questions: [] }));
+    const toutes = QUESTIONS_COMMUNE_CONSTITUTION.map(questionPreemptionParCle).concat(QUESTIONS_PREEMPTION.filter(q => q.section === 'bien' || q.section === 'rural')).filter(Boolean)
+      .filter(q => !q.copro || typeVente === 'copropriete');
+    toutes.forEach(q => {
+      const dues = zones.map((z, i) => z.dues.has(q.cle) ? i : -1).filter(i => i >= 0);
+      const propres = zones.map((z, i) => z.propres.has(q.cle) ? i : -1).filter(i => i >= 0);
+      const ou = dues.length ? dues[0] : propres.length ? propres[0] : -1;
+      if (ou < 0) return;
+      const concerne = [...new Set((dues.length ? dues : propres).flatMap(i => zones[i].parcelles))];
+      groupes[ou].questions.push({ cle: q.cle, libelle: q.libelle, aide: q.aide || '', valeurs: q.valeurs, due: dues.length > 0, reponse: rep[q.cle],
+        concerne: plusieurs && (dues.length > 1 || propres.length > 1) ? concerne : [] });
+    });
+    groupes.forEach(g => g.questions.sort((a, b) => Number(b.due) - Number(a.due)));
+    return groupes.filter(g => g.questions.length);
   }
 
   function renderQuestionsUrbanismeConstitution(d) {
@@ -120,10 +154,18 @@
     const dues = groupes.reduce((n, g) => n + g.questions.filter(q => q.due).length, 0);
     const reste = resteAPreciserPreemptionFiche(p);
     const id = escapeOnclickArg(d.id);
-    const bloc = groupes.map(g => `<div class="cst-questions-groupe"><div class="cst-liste-titre">${escapeHtml(g.titre)}</div>${g.questions.map(q => `<div class="pr-question${q.due ? ' pr-question-due' : ''}">
-        <span class="pr-question-texte">${q.due ? '<span class="dot-label dl-urgent cst-a-repondre"><span class="dot"></span>À répondre</span> ' : ''}${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
+    const ligne = q => `<div class="pr-question${q.due ? ' pr-question-due' : ''}">
+        <span class="pr-question-texte">${q.due ? '<span class="dot-label dl-urgent cst-a-repondre"><span class="dot"></span>À répondre</span> ' : ''}${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}${q.concerne.length ? `<span class="hint cst-concerne"> — concerne ${escapeHtml(q.concerne.join(', '))}</span>` : ''}</span>
         ${boutonsReponsePreemption(v => `cstRepondreUrbanisme('${id}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, q.reponse, q.valeurs)}
-      </div>`).join('')}</div>`).join('');
+      </div>`;
+    // Par zone : les questions à répondre et celles déjà répondues ; les autres de la zone repliées (on peut toujours y répondre).
+    const bloc = groupes.map(g => {
+      const visibles = g.questions.filter(q => q.due || q.reponse != null);
+      const autres = g.questions.filter(q => !q.due && q.reponse == null);
+      return `<div class="cst-questions-groupe"><div class="cst-liste-titre">${escapeHtml(g.titre)}${g.parcelles.length ? ` <span class="cst-questions-parcelles">${escapeHtml(g.parcelles.join(', '))}</span>` : ''}</div>
+        ${visibles.map(ligne).join('') || '<p class="hint">Rien à répondre pour cette zone.</p>'}
+        ${autres.length ? `<details class="cst-questions-autres"><summary>Autres questions de cette zone (${autres.length})</summary>${autres.map(ligne).join('')}</details>` : ''}</div>`;
+    }).join('');
     return `<details class="cst-questions" id="cst-questions"${dues ? ' open' : ''}>
         <summary>Questions du Contrôle de l’urbanisme ${dues ? `<span class="dot-label dl-urgent"><span class="dot"></span>${dues} à répondre</span>` : '<span class="hint">toutes répondues ou sans effet</span>'}</summary>
         ${bloc}
