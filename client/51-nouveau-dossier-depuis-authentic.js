@@ -116,7 +116,7 @@
   // Pure : le dossier d'Authentic à proposer pour le compromis lu — le mieux classé s'il correspond aux noms lus, qu'il n'est
   // pas déjà suivi dans CLAIRE, n'est pas une succession, et qu'aucun autre ne correspond aussi bien. Sinon null.
   function dossierAuthenticPourCompromis(tries, correspond, existantDe) {
-    const candidats = (tries || []).filter(x => x && x.g && correspond(x.g) && !existantDe(x.g) && !RE_INTITULE_SUCCESSION_AUTHENTIC.test(x.g.intitule || ''));
+    const candidats = (tries || []).filter(x => x && x.g && correspond(x.g) && !existantDe(x.g) && !RE_INTITULE_SUCCESSION_AUTHENTIC.test(x.g.intitule || '') && !(x.g.export && x.g.export.type === 'succession'));
     if (!candidats.length) return null;
     if (candidats.length > 1 && candidats[1].s === candidats[0].s) return null;
     return candidats[0];
@@ -161,7 +161,7 @@
     const restants = tries.filter(x => !aCreer.includes(x)).slice(0, 6);
     const ligneGroupe = ({ g, i }) => {
       const existant = existantDe(g);
-      const succ = RE_INTITULE_SUCCESSION_AUTHENTIC.test(g.intitule);
+      const succ = RE_INTITULE_SUCCESSION_AUTHENTIC.test(g.intitule) || !!(g.export && g.export.type === 'succession');
       const nom = g.intitule.replace(/^\s*(?:vente|vte|succession|succ)\.?\s+/i, '');
       const estRepris = repris && repris === g.intitule;
       return renderLigneAction({

@@ -559,6 +559,8 @@
     return resultat;
   }
 
+  // Mots d'un intitulé ou d'un nom de succession qui ne désignent personne (scoreDossierAuthentic, client/30).
+  var MOTS_LIEN_SUCCESSION_AUTHENTIC = new Set(['succ', 'veuve', 'veuf', 'epouse', 'epoux', 'divorce', 'divorcee', 'nee', 'ne', 'autres', 'autre', 'feu', 'defunt', 'defunte']);
   // Pure : page d'une SUCCESSION d'Authentic ? Intitulé « Succession / SUCC NOM », sous-dossier « N - Succession … », ou intitulé
   // réel « N - Mme X veuve de M. Y » (le défunt en tête, structure reçue le 05/10) avec des comparants Défunt / Héritier — jamais
   // une page de vente, de promesse ou d'avenant.

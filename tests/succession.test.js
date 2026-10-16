@@ -603,6 +603,13 @@ test('Authentic : une page de succession sans dossier dans CLAIRE est proposée 
   const d = base({ id: 's95', nom: 'Mme DURAND Jeanne veuve de M. DURAND Pierre' });
   assert.ok(app.scoreDossierAuthentic(intitule, '', d).score >= 6);
   assert.equal(app.scoreDossierAuthentic(intitule, '', base({ id: 's96', nom: 'SUCC LEROY' })).score, 0);
+  // Nom raccourci ou « SUCC NOM » : retrouvé quand même (relecture 16/10).
+  assert.equal(app.scoreDossierAuthentic(intitule, '', base({ id: 's97', nom: 'SUCC DURAND' })).score, 6);
+  assert.equal(app.scoreDossierAuthentic(intitule, '', base({ id: 's98', nom: 'DURAND Pierre' })).score, 6);
+  // Une page de vente ou de promesse au nom du défunt ne va jamais à la succession (un héritier qui vend la maison).
+  assert.equal(app.scoreDossierAuthentic('Vente DURAND', '', base({ id: 's99', nom: 'DURAND' })).score, 0);
+  assert.equal(app.scoreDossierAuthentic('DURAND Promesse', '', base({ id: 's99', nom: 'DURAND' })).score, 0);
+  assert.equal(app.scoreDossierAuthentic('VTE DURAND - MARTIN', '', base({ id: 's99', nom: 'DURAND' })).score, 0);
   // Une vente au même nom n'est jamais retenue pour la page de succession.
   assert.equal(app.scoreDossierAuthentic(intitule, '', { id: 'v1', nom: 'DURAND / MARTIN', parties: [] }).score, 0);
 });

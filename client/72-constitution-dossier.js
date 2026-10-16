@@ -260,8 +260,11 @@
   }
 
   // Le champ quitté : la liste se ferme (après le clic sur une ligne, qui passe avant).
-  function masquerResultatsConstitution() {
-    setTimeout(() => { const b = document.getElementById('cst-resultats'); if (b) b.style.display = 'none'; }, 200);
+  // (Un appui sur la liste ne fait pas perdre le champ : `onmousedown` l'en empêche ; au clavier, Tab vers une ligne la garde ouverte.)
+  function masquerResultatsConstitution(event) {
+    const b = document.getElementById('cst-resultats');
+    if (!b || (event && event.relatedTarget && b.contains(event.relatedTarget))) return;
+    setTimeout(() => { if (!b.contains(document.activeElement)) b.style.display = 'none'; }, 200);
   }
 
   function ouvrirConstitutionDepuisFiche(id) {
@@ -791,7 +794,7 @@
   }
 
   function renderDossierConstitution(d) {
-    const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution()" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;"></div></div>`;
+    const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>`;
     if (!d) return `<div class="cst-barre">${recherche}</div><p class="hint cst-vide">Rattachez un dossier : ses parties, son bien et ses références viennent de sa fiche, qui tient les données d’Authentic.</p>`;
     const typeTexte = cstEtat.type === 'succession' ? 'Succession' : 'Vente';
     return `<div class="cst-barre">

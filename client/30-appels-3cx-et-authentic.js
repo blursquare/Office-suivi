@@ -584,17 +584,19 @@
     if (!d) return r;
     const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
     const parties = Array.isArray(d.parties) ? d.parties : [];
-    // Succession à l'intitulé réel (« Mme Marie DUPONT veuve de M. Jean DUPONT ») face à un dossier de succession : les mots du nom du
-    // dossier tous dans l'intitulé — identique 6, l'un dans l'autre 4 (comme « SUCC NOM »).
-    if (!m && !ms && d.typeAffaire === 'succession') {
-      const motsPage = motsNomAuthentic(intitule).filter(x => !MOTS_NATURE_ACTE_AUTHENTIC.has(x));
-      const dossierMots = motsNomAuthentic(d.nom);
-      const pts = egal(motsPage, dossierMots) ? 6 : (dossierMots.length && dossierMots.every(x => motsPage.includes(x))) ? 4 : 0;
-      if (pts) { r.score += pts; r.nomsTrouves++; r.details.push(`nom ${pts === 6 ? 'identique' : 'proche'} (+${pts})`); }
+    // Succession à l'intitulé réel (« Mme X veuve de M. Y ») : tous les mots du nom du dossier (« SUCC », « veuve »… ignorés) dans
+    // l'intitulé — 6 ; jamais pour un intitulé qui dit une vente, une promesse ou une donation (relecture 16/10).
+    const motsBruts = motsNomAuthentic(intitule);
+    if (!m && !ms && d.typeAffaire === 'succession' && !motsBruts.some(x => MOTS_NATURE_ACTE_AUTHENTIC.has(x) || x === 'donation')) {
+      const sansLiens = (l) => l.filter(x => !MOTS_LIEN_SUCCESSION_AUTHENTIC.has(x));
+      const motsPage = sansLiens(motsBruts);
+      const dossierMots = sansLiens(motsNomAuthentic(d.nom));
+      if (dossierMots.length && dossierMots.every(x => motsPage.includes(x))) { r.score += 6; r.nomsTrouves++; r.details.push(`nom ${egal(motsPage, dossierMots) ? 'identique' : 'trouvé'} (+6)`); }
       return r;
     }
+    if (!m && !ms && d.typeAffaire === 'succession') return r;
     // Intitulé d'une succession (« … veuve de M. … ») : jamais celui d'une vente.
-    if (!m && /(?:veuve|veuf|[ée]pou(?:x|se)|divorc[ée]e?)\s+de\s/i.test(intitule || '')) return r;
+    if (!m && /(?:veuve|veuf)\s+de\s/i.test(intitule || '')) return r;
     // Intitulé d'une autre forme (« MARTEL Promesse », « VTE MARTEL - FOURNIER »…) : chaque côté du
     // dossier dont tous les mots du nom figurent dans l'intitulé — 3 points (nom du dossier), 2 (partie).
     if (!m && !ms) {
