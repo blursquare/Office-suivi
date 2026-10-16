@@ -23,6 +23,15 @@
   /** Pure : la commune est Paris (75056 ou un arrondissement 75101 à 75120). @param {string} insee */
   function estParis(insee) { return /^75(056|1(0[1-9]|1\d|20))$/.test(String(insee || '')); }
 
+  /** Pure : le code INSEE de l'arrondissement de Paris d'un code postal (75001-75020, 75116 = 16e), sinon ''. @param {string} cp */
+  function inseeArrondissementParis(cp) {
+    const c = String(cp || '').trim();
+    const n = c === '75116' ? 16 : /^750(0[1-9]|1\d|20)$/.test(c) ? Number(c.slice(3)) : 0;
+    return n ? '751' + String(n).padStart(2, '0') : '';
+  }
+  /** Le téléservice des certificats d'urbanisme de la Ville de Paris (le CU ne passe pas par le téléservice de la DIA). */
+  const URL_CU_PARIS = 'https://teleservices.paris.fr/demarchesurbanisme';
+
   /** Les trois courriers papier d'une vente (le CU et la DIA passent par les guichets uniques, GNAU : jamais un courrier). */
   const COURRIERS_VENTE = [
     { cle: 'alignement', libelle: 'Alignement et numérotage', court: 'Alignement / numérotage' },
@@ -43,7 +52,7 @@
    * Assainissement : à Agglopolys pour ses communes (Blois comprise), à la communauté de communes pour Grand Chambord, sinon à la
    * mairie ; toujours en papier. Autres communes : papier à la mairie.
    * @param {string} cle @param {{ insee?: string, epci?: string }} commune
-   * @returns {{ mode: 'papier' | 'courriel' | 'en-ligne', destinataire: string, courriel: string, note: string, url?: string }}
+   * @returns {{ mode: 'papier' | 'courriel' | 'en-ligne', destinataire: string, courriel: string, note: string, url?: string, lien?: string }}
    */
   function circuitCourrierVente(cle, commune) {
     const insee = String((commune && commune.insee) || '');
@@ -55,11 +64,11 @@
       return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service des géomètres dédié aux notaires.' };
     }
     if (estParis(insee)) {
-      if (cle === 'alignement') return { mode: 'courriel', destinataire: 'paris-numerotage', courriel: COURRIEL_NUMEROTAGE_PARIS, url: URL_RENSEIGNEMENTS_URBANISME_PARIS,
+      if (cle === 'alignement') return { mode: 'courriel', destinataire: 'paris-numerotage', courriel: COURRIEL_NUMEROTAGE_PARIS, url: URL_RENSEIGNEMENTS_URBANISME_PARIS, lien: 'Renseignements d’urbanisme',
         note: 'À Paris, le certificat de numérotage se demande par courriel à la Direction de l’Urbanisme ; pas de certificat d’alignement : l’alignement figure dans la notice de renseignements d’urbanisme (en ligne).' };
       if (cle === 'peril') return { mode: 'papier', destinataire: 'mairie', courriel: '',
         note: 'À Paris : la Ville (mairie d’arrondissement) pour un immeuble surtout d’habitation ; sinon la Préfecture de Police, 1 bis rue de Lutèce, 75004 Paris.' };
-      if (cle === 'assainissement') return { mode: 'en-ligne', destinataire: 'paris-assainissement', courriel: '', url: URL_CONTROLE_ASSAINISSEMENT_PARIS,
+      if (cle === 'assainissement') return { mode: 'en-ligne', destinataire: 'paris-assainissement', courriel: '', url: URL_CONTROLE_ASSAINISSEMENT_PARIS, lien: 'Formulaire du contrôle (secteur séparatif)',
         note: 'À Paris, pas de courrier : certificat d’assainissement sur la carte en ligne de la Ville ; en secteur séparatif, contrôle payant (formulaire, RIB et plan à eau-assainissement@paris.fr).' };
     }
     if (cle === 'assainissement') {
@@ -332,7 +341,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {

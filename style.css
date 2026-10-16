@@ -9645,6 +9645,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-gnau-ligne { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--texte-m); }
 .cst-gnau-ligne .cst-gnau-lien { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }
 .cst-gnau-ligne .cst-gnau-lien:hover { text-decoration: underline; }
+.cst-gnau-liens { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }
+.cst-item .cst-gnau-lien { display: inline-flex; align-items: center; gap: 4px; margin-top: 2px; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }
+.cst-item .cst-gnau-lien:hover { text-decoration: underline; }
 .cst-zonage-zones { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--texte-s); }
 .cst-zonage-zone b { font-weight: 600; }
 .cst-zonage-droit { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: var(--texte-m); }

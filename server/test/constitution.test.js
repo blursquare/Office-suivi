@@ -68,3 +68,21 @@ test('route commune : INSEE, intercommunalité, guichet et mairie (annuaire simu
     assert.equal((await fetch(base)).status, 400);
   } finally { serveur.close(); }
 });
+
+test('route commune, Paris : dépôt de Paris, fiche de la mairie de l’arrondissement du code postal (courrier de péril)', async () => {
+  const db = ouvrirDb(':memory:');
+  const repo = creerRepoParametres(db);
+  const app = express();
+  const demandes = [];
+  const annuaire = async (url) => { demandes.push(String(url)); return { ok: true, json: async () => ({ results: [] }) }; };
+  app.use('/api', creerRouteurConstitution(repo, { fetch: annuaire }));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const j = await (await fetch(`http://127.0.0.1:${serveur.address().port}/api/constitution/commune?nom=PARIS&cp=75008`)).json();
+    assert.equal(j.trouvee, true);
+    assert.equal(j.insee, '75056');
+    assert.match(j.depot.url, /^https:\/\/dia\.paris\.fr\//);
+    assert.ok(demandes.some((u) => u.includes('75108')), 'mairie du 8e demandée');
+    assert.ok(!demandes.some((u) => u.includes('75056')));
+  } finally { serveur.close(); }
+});

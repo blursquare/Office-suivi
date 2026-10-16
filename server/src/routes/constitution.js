@@ -8,6 +8,7 @@ const express = require('express');
 const { baseDepotDia, depotPourCommune, ficheMairie, lireCorrections } = require('../depotDia');
 const { communesDuCodePostal } = require('../urbanisme');
 const { noterVerification } = require('../verificationsTerrain');
+const Constitution = require('../../../commun/constitution');
 
 const CLE = 'constitution-adresses';
 const MAX_ADRESSES = 300;
@@ -66,7 +67,9 @@ function creerRouteurConstitution(parametresRepo, injections = {}) {
     const insee = candidats[0].insee;
     const r = depotPourCommune(base, lireCorrections(parametresRepo), insee);
     let mairie = null; let mairieLue = true;
-    try { mairie = await ficheMairie(insee, injections); } catch (_) { mairieLue = false; }
+    // Paris : la fiche de la MAIRIE D'ARRONDISSEMENT (courrier de péril), lue d'après le code postal ; le dépôt reste celui de Paris.
+    const inseeMairie = (Constitution.estParis(insee) && Constitution.inseeArrondissementParis(cp)) || insee;
+    try { mairie = await ficheMairie(inseeMairie, injections); } catch (_) { mairieLue = false; }
     noterVerification(parametresRepo, 'constitution-commune', mairieLue ? { detail: mairie ? 'mairie lue' : 'mairie absente de l’annuaire' } : { ok: false, message: 'annuaire injoignable' });
     res.json({ trouvee: true, insee, commune: r.connue ? r.commune : candidats[0].nom, epci: r.epci, depot: r.depot, mairie, mairieLue });
   });

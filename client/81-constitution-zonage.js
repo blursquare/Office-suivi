@@ -103,7 +103,13 @@
       const chailles = String(info.insee || '') === INSEE_CHAILLES;
       const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
       const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : ''));
-      return `<div class="cst-gnau-ligne"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${lien
+      const nomCommune = `<span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>`;
+      // Paris : la DIA a son téléservice, le CU un autre (commun/constitution.js).
+      if (estParis(info.insee)) {
+        const lienParis = (url, texte) => `<a class="cst-gnau-lien" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')}${texte}</a>`;
+        return `<div class="cst-gnau-ligne">${nomCommune}<span class="cst-gnau-liens">${lien ? lienParis(lien, 'Déposer la DIA') : ''}${lienParis(URL_CU_PARIS, 'Demander le CU')}</span></div>`;
+      }
+      return `<div class="cst-gnau-ligne">${nomCommune}${lien
         ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
         : '<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet non relevé</span>'}</div>`;
     }).join('')}</div>`;

@@ -26,6 +26,7 @@ test('circuits : Paris (et ses arrondissements) = numérotage par courriel à la
   }
   assert.equal(K.estParis('75121'), false);
   assert.equal(K.estParis('77056'), false);
+  assert.deepEqual(['75001', '75016', '75116', '75020', '75021', '41000'].map(K.inseeArrondissementParis).join(','), '75101,75116,75116,75120,,');
   assert.equal(K.DESTINATAIRES_CONNUS['paris-numerotage'].lignes.at(-1), '75013 PARIS');
 });
 

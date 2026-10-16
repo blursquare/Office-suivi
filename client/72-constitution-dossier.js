@@ -337,7 +337,7 @@
           const courrielDefaut = circuit.courriel || (retenueV && retenueV.courriel) || '';
           const modeDefaut = circuit.mode === 'en-ligne' ? 'en-ligne' : (ancien && ancien.modeChoisi ? ancien.mode : circuit.mode);
           docs.push({ id, genre: 'vente', modele: c.cle, groupe: g.cle, libelle: c.libelle, mode: modeDefaut, modeChoisi: !!(ancien && ancien.modeChoisi),
-            courriel: ancien && ancien.modeChoisi ? ancien.courriel : courrielDefaut, emails: courrielDefaut ? [{ libelle: '', adresse: courrielDefaut }] : [], note: circuit.note, url: circuit.url || '', destinataire: circuit.destinataire,
+            courriel: ancien && ancien.modeChoisi ? ancien.courriel : courrielDefaut, emails: courrielDefaut ? [{ libelle: '', adresse: courrielDefaut }] : [], note: circuit.note, url: circuit.url || '', lien: circuit.lien || '', destinataire: circuit.destinataire,
             actif: circuit.mode === 'en-ligne' ? false : (ancien ? ancien.actif : true),
             lignes: ancien && ancien.modifie ? ancien.lignes : lignes, modifie: !!(ancien && ancien.modifie), modeleRetenu: circuit.destinataire !== 'mairie' && circuit.destinataire !== 'blois-en-ligne' });
         });
@@ -951,7 +951,7 @@
     const choisi = cstEtat.selection === doc.id;
     const dest = resumeDestinataireConstitution(doc);
     if (doc.mode === 'en-ligne') {
-      return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span>${doc.url && /^https:\/\//.test(doc.url) ? `<a class="cst-gnau-lien" href="${escapeAttr(doc.url)}" target="_blank" rel="noopener">${icone('link')}Ouvrir la démarche</a>` : ''}</span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
+      return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span>${doc.url && /^https:\/\//.test(doc.url) ? `<a class="cst-gnau-lien" href="${escapeAttr(doc.url)}" target="_blank" rel="noopener">${icone('link')}${escapeHtml(doc.lien || 'Ouvrir la démarche')}</a>` : ''}</span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
     }
     const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
     const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';

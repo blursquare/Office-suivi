@@ -20459,8 +20459,9 @@ Grand Paris) ajouté au découpage, entrée `75.recherche.json` (téléservice h
 arrondissement 75101-75120 (code rendu par la base des codes postaux d'apicarto) est ramené à Paris par `codeCommuneBase` (lecture et
 corrections de l'étude). Constitution (`commun/constitution.js`, `estParis`) : alignement/numérotage → courriel à du-dtdf-numerotage@paris.fr
 (destinataire « Ville de Paris, Direction de l'Urbanisme, DTDF, 121 avenue de France »), l'alignement figurant dans la NRU en ligne ; péril →
-papier à la mairie (fiche de la mairie d'arrondissement de l'annuaire), note Préfecture de Police pour un immeuble qui n'est pas surtout
-d'habitation ; assainissement → « en ligne » avec le lien du formulaire de contrôle en secteur séparatif (`url` d'un circuit, « Ouvrir la
-démarche » sur la ligne). Répertoire : lot `paris-services-urbanisme-2026-10-16` (thème mairies, seuls emails et liens de paris.fr). Non trouvé :
+papier à la mairie d'arrondissement (fiche de l'annuaire lue d'après le code postal, `inseeArrondissementParis` ; dépôt DIA toujours celui de Paris), note Préfecture de Police pour un immeuble qui n'est pas surtout
+d'habitation ; assainissement → « en ligne » avec le lien du formulaire de contrôle en secteur séparatif (`url` et `lien` d'un circuit,
+lien « Formulaire du contrôle (secteur séparatif) » sur la ligne) ; lien GNAU de Paris dédoublé : « Déposer la DIA » (dia.paris.fr) et « Demander le CU »
+(teleservices.paris.fr). Répertoire : lot `paris-services-urbanisme-2026-10-16` (thème mairies, seuls emails et liens de paris.fr). Non trouvé :
 adresse postale du service de la Ville qui répond pour le péril (la mairie d'arrondissement est prise), adresse exacte de la carte
 d'assainissement.
