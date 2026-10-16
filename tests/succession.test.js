@@ -502,3 +502,47 @@ test('succession dans l\'agenda : pas de confrère ni de probabilité, lien visi
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - ROBIN - Déclaration de succession ?'), 'autre');
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC ROBIN - attestation immobilière'), 'acte');
 });
+
+test('agenda des successions : croix, « ? » retiré, journée entière, jaune, fiche d\'avant, doublons, lecture concurrente (relecture 16/10)', () => {
+  const evt = (o) => Object.assign({ itemId: 'E1', date: '2099-06-10', heure: '10:00', sujet: 'SUCC - ROBIN - Notoriété', dossierId: 's80' }, o);
+  // Croix : un rendez-vous écarté n'est jamais relevé de nouveau.
+  const ecarte = base({ id: 's80', succession: { rendezVous: [], rendezVousEcartes: ['E1'] } });
+  assert.equal(S.rendezVousSuccessionDepuisAgenda(ecarte, [evt()], '2099-06-01', '2099-12-01').ajoutes.length, 0);
+  // « ? » retiré dans Outlook : l'étape lue dans le titre est relue.
+  const prov = base({ id: 's80', succession: {} });
+  const r1 = S.rendezVousSuccessionDepuisAgenda(prov, [evt({ sujet: 'SUCC - ROBIN - Notoriété ?' })], '2099-06-01', '2099-12-01');
+  assert.equal(r1.liste[0].etape, 'autre');
+  prov.succession.rendezVous = r1.liste;
+  const r2 = S.rendezVousSuccessionDepuisAgenda(prov, [evt()], '2099-06-01', '2099-12-01');
+  assert.equal(r2.liste[0].etape, 'notoriete');
+  assert.equal(S.signatureSuccessionDepuisRendezVous(r2.liste, '2099-06-01').date, '2099-06-10');
+  // Une étape choisie sur le poste (sans etapeAuto) n'est pas relue.
+  const poste = base({ id: 's80', succession: { rendezVous: [{ id: 'p', etape: 'declarationSuccession', date: '2099-06-10', heure: '10:00', itemId: 'E1' }] } });
+  assert.equal(S.rendezVousSuccessionDepuisAgenda(poste, [evt({ sujet: 'SUCC - ROBIN' })], '2099-06-01', '2099-12-01').liste[0].etape, 'declarationSuccession');
+  // Journée entière et « ? » dans le lieu : jamais un acte.
+  assert.equal(S.etapeEvenementSuccession(evt({ journeeEntiere: true, sujet: 'SUCC - ROBIN - butoir notoriété' })), 'autre');
+  assert.equal(S.etapeEvenementSuccession(evt({ lieu: '?' })), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - ROBIN - ouverture du testament'), 'autre');
+  // Jaune « Annulé / à replacer » : gardé mais plus la date de signature.
+  const r3 = S.rendezVousSuccessionDepuisAgenda(prov, [evt({ annule: true })], '2099-06-01', '2099-12-01');
+  assert.equal(r3.liste[0].annule, true);
+  assert.equal(S.signatureSuccessionDepuisRendezVous(r3.liste, '2099-06-01'), null);
+  // Fiche d'avant (date seule) : le rendez-vous du même jour est adopté, pas doublé.
+  const ancien = base({ id: 's80', rendezVousSignature: '2099-06-10' });
+  const r4 = S.rendezVousSuccessionDepuisAgenda(ancien, [evt()], '2099-06-01', '2099-12-01');
+  assert.equal(r4.liste.length, 1);
+  assert.equal(r4.adoptes.length, 1);
+  assert.equal(r4.liste[0].itemId, 'E1');
+  // Même identifiant deux fois (fusion) : une seule entrée.
+  const doublon = base({ id: 's80', succession: { rendezVous: [{ id: 'a', etape: 'acte', date: '2099-06-10', itemId: 'E1' }, { id: 'b', etape: 'acte', date: '2099-06-11', itemId: 'E1' }] } });
+  assert.equal(S.rendezVousSuccession(doublon).length, 1);
+  // Lecture plus ancienne qu'un geste du poste : ni retrait, ni retour à l'ancienne date, ni re-ajout d'un rendez-vous retiré.
+  const fiche = base({ id: 's80', succession: { rendezVous: [{ id: 'n', etape: 'notoriete', date: '2099-06-12', heure: '11:00', itemId: 'NEUF' }] } });
+  const r5 = S.rendezVousSuccessionDepuisAgenda(fiche, [], '2099-06-01', '2099-12-01', new Map());
+  assert.equal(r5.retires.length, 0);
+  const deplace = base({ id: 's80', succession: { rendezVous: [{ id: 'n', etape: 'notoriete', date: '2099-06-15', heure: '11:00', itemId: 'E1' }] } });
+  const avant = new Map([['E1', S.empreinteRendezVousSuccession({ date: '2099-06-10', heure: '10:00', etape: 'notoriete', itemId: 'E1' })]]);
+  assert.equal(S.rendezVousSuccessionDepuisAgenda(deplace, [evt()], '2099-06-01', '2099-12-01', avant).liste[0].date, '2099-06-15');
+  const retire = base({ id: 's80', succession: { rendezVous: [] } });
+  assert.equal(S.rendezVousSuccessionDepuisAgenda(retire, [evt()], '2099-06-01', '2099-12-01', avant).ajoutes.length, 0);
+});

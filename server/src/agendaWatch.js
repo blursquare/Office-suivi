@@ -29,7 +29,7 @@ const { envoyerEmail, envoiConfigure } = require('./envoiEmail');
 const { texteRendezVousAgenda, envoyerAuResponsable } = require('./routes/notifications');
 const { libelleDossier } = require('./jobs/rappels');
 const { estSuccession } = require('../../commun/dossier');
-const { rendezVousSuccessionDepuisAgenda, signatureSuccessionDepuisRendezVous } = require('../../commun/succession');
+const { rendezVousSuccession, rendezVousSuccessionDepuisAgenda, signatureSuccessionDepuisRendezVous, instantaneRendezVousSuccession } = require('../../commun/succession');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -273,14 +273,19 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
 // disparu de la période lue (commun/succession.js `rendezVousSuccessionDepuisAgenda`) ; la date de signature de la fiche suit (prochain
 // rendez-vous d'acte). Rien n'est écrit sur un dossier archivé. La période lue va du lundi de la semaine précédente à cinq mois et demi
 // (la lecture en couvre six) : un rendez-vous plus lointain n'est jamais retiré. Rend le nombre de fiches mises à jour.
-function synchroniserRendezVousSuccessions(depot, evenements, debut, jour) {
-  const liste = Array.isArray(evenements) ? evenements : [];
+function synchroniserRendezVousSuccessions(depot, evenements, debut, jour, categoriesRdv, instantane) {
+  const liste = (Array.isArray(evenements) ? evenements : [])
+    // Catégorie jaune « Annulé / à replacer » (relecture 16/10, comme une vente) : le rendez-vous n'est plus un acte.
+    .map((e) => (e && rendezVousMarqueAnnule(e, categoriesRdv) ? Object.assign({}, e, { annule: true }) : e));
   const fin = debut ? decalerJours(debut, 168) : '';
   let misesAJour = 0;
   for (const d of (typeof depot.tousActifs === 'function' ? depot.tousActifs() : [])) {
     if (!d || d.archive || !estSuccession(d)) continue;
-    const r = rendezVousSuccessionDepuisAgenda(d, liste.filter((e) => e && e.dossierId === d.id), debut, fin);
-    if (!r.ajoutes.length && !r.retires.length && !r.deplaces.length) continue;
+    const avant = instantane instanceof Map ? (instantane.get(d.id) || new Map()) : undefined;
+    const r = rendezVousSuccessionDepuisAgenda(d, liste.filter((e) => e && e.dossierId === d.id), debut, fin, avant);
+    const empreinte = (l) => JSON.stringify(l.map((x) => [x.itemId, x.etape, x.annule === true, x.titre]));
+    const autreChangement = empreinte(r.liste) !== empreinte(rendezVousSuccession(d));
+    if (!r.ajoutes.length && !r.retires.length && !r.deplaces.length && !r.adoptes.length && !autreChangement) continue;
     d.succession = Object.assign({}, d.succession, { rendezVous: r.liste });
     // Ouverture lue dans l'agenda : la date d'ouverture de la fiche (qui porte tous les délais) la suit si elle était vide ou était la sienne.
     const ouverture = r.liste.find((x) => x.etape === 'ouvertureSuccession');
@@ -293,6 +298,7 @@ function synchroniserRendezVousSuccessions(depot, evenements, debut, jour) {
     const maintenant = new Date().toISOString();
     for (const x of r.ajoutes) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${x.titre} » du ${formatDateFr(x.date)}${x.heure ? ' à ' + x.heure : ''} relevé dans l’agenda de l’office` });
     for (const x of r.deplaces) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${String(x.titre || '').slice(0, 120)} » déplacé dans l’agenda : ${formatDateFr(x.avant)} → ${formatDateFr(x.apres)}` });
+    for (const x of r.adoptes) d.historique.push({ date: maintenant, texte: `Rendez-vous du ${formatDateFr(x.date)} retrouvé dans l’agenda de l’office — désormais suivi` });
     for (const x of r.retires) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${x.titre || 'de la succession'} » du ${formatDateFr(x.date)} n’est plus dans l’agenda de l’office — retiré de la fiche` });
     depot.remplacer(d.id, d);
     misesAJour++;
@@ -386,6 +392,9 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
   }
   try {
     const jour = dateDuJourParis();
+    // Rendez-vous des successions AVANT la lecture (relecture 16/10) : ce qu'un poste change pendant la lecture n'est pas défait par elle.
+    const instantaneSuccessions = new Map((typeof depot.tousActifs === 'function' ? depot.tousActifs() : [])
+      .filter((d) => d && !d.archive && estSuccession(d)).map((d) => [d.id, instantaneRendezVousSuccession(d)]));
     const lu = await lireCalendrierExchange({
       // Depuis le lundi de la semaine précédente (page Agenda) ; les détections, elles, ne
       // retiennent que les rendez-vous d'aujourd'hui ou postérieurs.
@@ -417,7 +426,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     resultat.agendaDuJour = { jour, evenements: agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) };
     resultat.agendaOffice = { debut: lundiSemainePrecedente(jour), evenements: evenementsAgendaOffice(evenements, dossiersActifs) };
     resultat.corrections = corrigerRendezVousEcritsParAgenda(depot, resultat.agendaOffice.evenements, jour);
-    resultat.rendezVousSuccessions = synchroniserRendezVousSuccessions(depot, resultat.agendaOffice.evenements, resultat.agendaOffice.debut, jour);
+    resultat.rendezVousSuccessions = synchroniserRendezVousSuccessions(depot, resultat.agendaOffice.evenements, resultat.agendaOffice.debut, jour, r.categoriesRdv, instantaneSuccessions);
     // Dates butoir (prêt, vente préalable) pas encore dans l'agenda : posées ou retrouvées, avec
     // la lecture qu'on vient de faire pour ne jamais créer de doublon (voir echeancesAgenda.js).
     const poses = await poserEcheancesManquantes(depot, r, lu.evenements, jour, injections);

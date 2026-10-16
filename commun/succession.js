@@ -127,7 +127,7 @@
   /**
    * Pure : les rendez-vous d'une succession, triés par date et heure. Une fiche d'avant (date de signature seule) en rend un, « acte ».
    * @param {any} d
-   * @returns {{ id: string, etape: string, titre: string, date: string, heure: string, itemId: string, changeKey: string, ancien?: boolean }[]}
+   * @returns {{ id: string, etape: string, titre: string, date: string, heure: string, itemId: string, changeKey: string, ancien?: boolean, etapeAuto?: boolean, annule?: boolean }[]}
    */
   function rendezVousSuccession(d) {
     const brut = Array.isArray(infoSuccession(d).rendezVous) ? infoSuccession(d).rendezVous : null;
@@ -135,8 +135,16 @@
     let liste;
     if (brut) {
       liste = brut.filter((/** @type {any} */ r) => r && /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '')))
-        .map((/** @type {any} */ r) => ({ id: String(r.id || ''), etape: ETAPES_RDV_SUCCESSION.includes(r.etape) ? r.etape : 'autre', titre: String(r.titre || ''),
-          date: String(r.date).slice(0, 10), heure: /^\d{2}:\d{2}$/.test(String(r.heure || '')) ? r.heure : '', itemId: String(r.itemId || ''), changeKey: String(r.changeKey || '') }));
+        .map((/** @type {any} */ r) => {
+          const x = { id: String(r.id || ''), etape: ETAPES_RDV_SUCCESSION.includes(r.etape) ? r.etape : 'autre', titre: String(r.titre || ''),
+            date: String(r.date).slice(0, 10), heure: /^\d{2}:\d{2}$/.test(String(r.heure || '')) ? r.heure : '', itemId: String(r.itemId || ''), changeKey: String(r.changeKey || '') };
+          // `etapeAuto` : étape lue dans le titre de l'agenda (relue quand le titre change) ; `annule` : catégorie « Annulé / à replacer ».
+          if (r.etapeAuto === true) Object.assign(x, { etapeAuto: true });
+          if (r.annule === true) Object.assign(x, { annule: true });
+          return x;
+        })
+        // Un même rendez-vous d'Outlook n'est jamais deux fois sur la fiche (relecture 16/10 : fusion à trois voies).
+        .filter((/** @type {any} */ r, /** @type {number} */ i, /** @type {any[]} */ t) => !r.itemId || t.findIndex((y) => y.itemId === r.itemId) === i);
     } else {
       const date = String((d && d.rendezVousSignature) || '').slice(0, 10);
       liste = /^\d{4}-\d{2}-\d{2}$/.test(date) ? [{ id: 'signature', etape: 'acte', titre: '', date, heure: String((d && d.rendezVousSignatureHeure) || ''),
@@ -153,14 +161,16 @@
 
   /**
    * Pure : l'étape d'un rendez-vous d'après son titre dans l'agenda (« SUCC - DUPONT - Acte de notoriété »…) ; un titre provisoire
-   * (« ? ») n'est jamais un acte (étude 07/10).
-   * @param {string} titre
+   * (« ? » dans le titre ou le lieu) n'est jamais un acte (étude 07/10).
+   * @param {string} titre @param {string} [lieu]
    */
-  function etapeRendezVousSuccessionDepuisTitre(titre) {
+  function etapeRendezVousSuccessionDepuisTitre(titre, lieu) {
     const t = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
-    const provisoire = /\?/.test(t.replace(/\b(?:https?):\/\/\S+/gi, ' '));
+    // Un « ? » dans le titre ou dans le lieu (comme pour une vente) : provisoire.
+    const provisoire = /\?/.test((t + ' ' + String(lieu || '')).replace(/\b(?:https?):\/\/\S+/gi, ' '));
     let etape = 'autre';
-    if (/OUVERTURE/.test(t)) etape = 'ouvertureSuccession';
+    // « Ouverture du testament / du coffre » n'est pas le rendez-vous d'ouverture de la succession (relecture 16/10).
+    if (/OUVERTURE(?!\s+(?:DU|D'UN|DE\s+L'|DES?)\s+(?:TESTAMENT|COFFRE|COMPTE|PLI))/.test(t)) etape = 'ouvertureSuccession';
     else if (/NOTORIETE/.test(t)) etape = 'notoriete';
     else if (/DECLARATION/.test(t)) etape = 'declarationSuccession';
     else if (/ATTESTATION|SIGNATURE|(?<![A-Z])ACTE(?![A-Z])/.test(t)) etape = 'acte';
@@ -169,7 +179,18 @@
 
   /** Pure : le rendez-vous qui fait la date de signature de la fiche — le prochain d'acte, sinon le dernier ; null. @param {any[]} liste @param {string} auj */
   function signatureSuccessionDepuisRendezVous(liste, auj) {
-    return rendezVousRetenu((liste || []).filter((r) => r && (r.etape === 'notoriete' || r.etape === 'declarationSuccession' || r.etape === 'acte')), auj);
+    return rendezVousRetenu((liste || []).filter((r) => r && !r.annule && (r.etape === 'notoriete' || r.etape === 'declarationSuccession' || r.etape === 'acte')), auj);
+  }
+
+  /**
+   * Pure : l'étape d'un rendez-vous de l'agenda — une journée entière (note, date butoir) ou un rendez-vous jaune « Annulé / à replacer »
+   * n'est jamais un acte (relecture 16/10, comme pour une vente).
+   * @param {any} e
+   */
+  function etapeEvenementSuccession(e) {
+    if (!e) return 'autre';
+    const etape = etapeRendezVousSuccessionDepuisTitre(e.sujet, e.lieu);
+    return (e.journeeEntiere || e.annule) && etape !== 'ouvertureSuccession' ? 'autre' : etape;
   }
 
   /**
@@ -179,20 +200,32 @@
    *   - un rendez-vous nouveau : ajouté, étape lue dans son titre ;
    *   - un rendez-vous de la liste dont l'identifiant n'est plus dans l'agenda alors que sa date est dans la période lue [debut, fin] :
    *     retiré (supprimé ou déplacé hors de la période dans Outlook) ; un rendez-vous sans identifiant (saisi à la main) n'est jamais touché.
-   * @param {any} d @param {any[]} evenements @param {string} debut @param {string} fin
-   * @returns {{ liste: any[], ajoutes: any[], retires: any[], deplaces: any[] }}
+   * @param {any} d @param {any[]} evenements @param {string} debut @param {string} fin @param {Map<string, string>} [avantLecture]
+   * @returns {{ liste: any[], ajoutes: any[], retires: any[], deplaces: any[], adoptes: any[] }}
    */
-  function rendezVousSuccessionDepuisAgenda(d, evenements, debut, fin) {
+  function rendezVousSuccessionDepuisAgenda(d, evenements, debut, fin, avantLecture) {
     const avant = rendezVousSuccession(d).map((r) => { const c = Object.assign({}, r); delete c.ancien; return c; });
     const evts = (evenements || []).filter((e) => e && e.itemId && /^\d{4}-\d{2}-\d{2}$/.test(String(e.date || '')) && !e.option);
-    const ajoutes = [], retires = [], deplaces = [];
+    // Rendez-vous retirés de la fiche par la croix (relecture 16/10) : jamais relevés de nouveau.
+    const ecartes = new Set(Array.isArray(infoSuccession(d).rendezVousEcartes) ? infoSuccession(d).rendezVousEcartes : []);
+    // État de la fiche AVANT la lecture d'Exchange (relecture 16/10) : ce qu'un poste a changé pendant la lecture n'est pas défait par une
+    // lecture plus ancienne que lui. Map itemId → empreinte ; absent = pas de protection (tests, appel direct).
+    const proteger = avantLecture instanceof Map;
+    const touchePendantLecture = (/** @type {any} */ r) => proteger && avantLecture.get(r.itemId) !== empreinteRendezVousSuccession(r);
+    const ajoutes = [], retires = [], deplaces = [], adoptes = [];
     const liste = [];
     for (const r of avant) {
       const e = r.itemId ? evts.find((x) => x.itemId === r.itemId) : null;
+      if (r.itemId && touchePendantLecture(r)) { liste.push(r); continue; }
       if (e) {
         const heure = e.journeeEntiere ? '' : String(e.heure || '');
+        const titre = String(e.sujet || r.titre || '').slice(0, 200);
         if (e.date !== r.date || heure !== r.heure) deplaces.push({ avant: r.date, apres: e.date, titre: e.sujet || r.titre });
-        liste.push(Object.assign({}, r, { date: e.date, heure, titre: String(e.sujet || r.titre || '').slice(0, 200), changeKey: e.changeKey || r.changeKey || '' }));
+        const maj = Object.assign({}, r, { date: e.date, heure, titre, changeKey: e.changeKey || r.changeKey || '' });
+        // Étape lue dans l'agenda : relue à chaque tour (« ? » retiré, titre renommé) ; une étape choisie sur le poste reste.
+        if (r.etapeAuto) maj.etape = etapeEvenementSuccession(e);
+        if (e.annule) maj.annule = true; else delete maj.annule;
+        liste.push(maj);
       } else if (r.itemId && debut && fin && r.date >= debut && r.date <= fin) {
         retires.push(r);
       } else {
@@ -200,14 +233,35 @@
       }
     }
     for (const e of evts) {
-      if (liste.some((r) => r.itemId === e.itemId)) continue;
-      const r = { id: 'ag-' + String(e.itemId).slice(-12).replace(/[^A-Za-z0-9]/g, ''), etape: etapeRendezVousSuccessionDepuisTitre(e.sujet), titre: String(e.sujet || '').slice(0, 200),
-        date: e.date, heure: e.journeeEntiere ? '' : String(e.heure || ''), itemId: String(e.itemId), changeKey: String(e.changeKey || '') };
+      if (liste.some((r) => r.itemId === e.itemId) || ecartes.has(e.itemId)) continue;
+      // Retiré de la fiche par un poste pendant la lecture : pas remis.
+      if (proteger && avantLecture.has(e.itemId)) continue;
+      const heure = e.journeeEntiere ? '' : String(e.heure || '');
+      // Fiche d'avant (date de signature seule, sans identifiant) : le rendez-vous du même jour est le sien, il l'adopte.
+      const sansId = liste.find((r) => !r.itemId && r.date === e.date && (!r.heure || !heure || r.heure === heure));
+      if (sansId) {
+        Object.assign(sansId, { itemId: String(e.itemId), changeKey: String(e.changeKey || ''), heure: sansId.heure || heure, titre: sansId.titre || String(e.sujet || '').slice(0, 200) });
+        adoptes.push(sansId);
+        continue;
+      }
+      const r = { id: 'ag-' + String(e.itemId).slice(-12).replace(/[^A-Za-z0-9]/g, ''), etape: etapeEvenementSuccession(e), etapeAuto: true, titre: String(e.sujet || '').slice(0, 200),
+        date: e.date, heure, itemId: String(e.itemId), changeKey: String(e.changeKey || '') };
+      if (e.annule) Object.assign(r, { annule: true });
       ajoutes.push(r);
       liste.push(r);
     }
     liste.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
-    return { liste, ajoutes, retires, deplaces };
+    return { liste, ajoutes, retires, deplaces, adoptes };
+  }
+
+  /** Pure : l'empreinte d'un rendez-vous de la fiche (date, heure, étape) — pour savoir si un poste l'a changé pendant une lecture. @param {any} r */
+  function empreinteRendezVousSuccession(r) {
+    return r ? [r.date, r.heure || '', r.etape, r.itemId].join('|') : '';
+  }
+
+  /** Pure : Map itemId → empreinte des rendez-vous d'une fiche (avant une lecture de l'agenda). @param {any} d */
+  function instantaneRendezVousSuccession(d) {
+    return new Map(rendezVousSuccession(d).filter((r) => r.itemId).map((r) => [r.itemId, empreinteRendezVousSuccession(r)]));
   }
 
   /** Pure : conjoint survivant ? — la case de la fiche, sinon déduit du défunt (« Époux / Épouse de » = marié au décès). @param {any} d */
@@ -274,7 +328,7 @@
     // Rendez-vous placés (agenda) : la date de l'acte à venir ; sans lui, la date butoir (`butoir`), à confirmer. Un rendez-vous « acte »
     // (sans étape dite) va à la notoriété tant qu'elle n'est pas signée, puis à la déclaration s'il vient après elle (relecture 15/10 : un
     // rendez-vous passé est celui de la notoriété elle-même).
-    const rdvs = rendezVousSuccession(d);
+    const rdvs = rendezVousSuccession(d).filter((r) => !r.annule);
     const apresNotoriete = (/** @type {any} */ r) => noto.fait && (noto.iso ? r.date > noto.iso : r.date > auj);
     const rdvNotoriete = noto.fait ? null : rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' || r.etape === 'acte' || (ensemble && r.etape === 'declarationSuccession')), auj);
     const rdvDeclaration = rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession' || (r.etape === 'acte' && apresNotoriete(r))), auj);
@@ -341,7 +395,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

@@ -116,8 +116,10 @@
     const liste = rendezVousSuccession(d).map(x => { const c = Object.assign({}, x); delete c.ancien; return c; });
     const r = liste.find(x => x.id === rdvId);
     if (!r) return;
-    demanderConfirmation(`Retirer de la fiche le rendez-vous du ${dateAvecJourFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''} ? L’agenda de l’office n’est pas modifié.`, () => {
-      d.succession = Object.assign({}, d.succession, { rendezVous: liste.filter(x => x !== r) });
+    demanderConfirmation(`Retirer de la fiche le rendez-vous du ${dateAvecJourFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''} ? L’agenda de l’office n’est pas modifié, et CLAIRE ne le relèvera plus.`, () => {
+      // Retiré par la croix : jamais relevé de nouveau dans l'agenda (relecture 16/10, comme `rendezVousRetire` d'une vente).
+      const ecartes = Array.isArray((d.succession || {}).rendezVousEcartes) ? d.succession.rendezVousEcartes : [];
+      d.succession = Object.assign({}, d.succession, { rendezVous: liste.filter(x => x !== r), rendezVousEcartes: r.itemId ? ecartes.concat(r.itemId).slice(-100) : ecartes });
       synchroniserSignatureSuccession(d);
       ajouterHistorique(d, `Rendez-vous « ${r.titre || LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'de la succession'} » du ${formatDateFr(r.date)} retiré de la fiche.`);
       sauvegarder(d);
@@ -129,7 +131,7 @@
   var LIBELLES_ETAPE_RDV_SUCCESSION = { ouvertureSuccession: 'Ouverture', notoriete: 'Notoriété', declarationSuccession: 'Déclaration', acte: 'Signature', autre: 'Rendez-vous' };
   function ligneRendezVousSuccessionFiche(d) {
     const auj = isoAujourdhuiLocal();
-    const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.date < auj ? 'dl-neutre' : 'dl-pret'}"><span class="dot"></span>${escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
+    const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.annule ? 'dl-urgent' : (r.date < auj ? 'dl-neutre' : 'dl-pret')}"><span class="dot"></span>${r.annule ? 'Annulé / à replacer' : escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
       <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer de la fiche (l’agenda n’est pas modifié)" aria-label="Retirer ce rendez-vous de la fiche" onclick="retirerRendezVousSuccession('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button></span>`).join('');
     return `<span class="succ-rdvs">${lignes || '<span class="hint">Aucun rendez-vous placé</span>'}
