@@ -1,0 +1,4 @@
+[
+  { "procedure": "cua", "name": "Certificat d'urbanisme d'information (CUa)", "file": "cua-gnau.json" },
+  { "procedure": "dia", "name": "Déclaration d'intention d'aliéner (DIA)", "file": "dia-gnau.json" }
+]

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CLAIRE — CU et DIA</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header>
+    <h1>CLAIRE</h1>
+    <span id="link" class="link off" title="Serveur CLAIRE du bureau">● CLAIRE non réglé</span>
+  </header>
+
+  <section class="card" id="connexion">
+    <label>Adresse de CLAIRE (celle de la fenêtre CLAIRE)
+      <input type="text" id="serveur" placeholder="http://192.168.60.10:3000" autocomplete="off">
+    </label>
+    <button type="button" id="enregistrer">Enregistrer et tester</button>
+    <p id="connexion-msg" class="msg"></p>
+  </section>
+
+  <section class="card" id="setup">
+    <label>Dossier
+      <input type="search" id="recherche" placeholder="Nom, commune, référence…" autocomplete="off">
+    </label>
+    <div id="resultats" class="resultats"></div>
+    <p id="choisi" class="choisi"></p>
+    <label>Démarche
+      <select id="procedure"></select>
+    </label>
+    <label>Vitesse
+      <select id="speed">
+        <option value="slow">Lente (démonstration)</option>
+        <option value="normal" selected>Normale</option>
+        <option value="fast">Rapide</option>
+      </select>
+    </label>
+    <button id="start" disabled>Remplir la page affichée</button>
+    <button type="button" id="structure" class="link-btn">Copier la structure de la page (sans données)</button>
+    <p id="setup-msg" class="msg"></p>
+    <div id="manques" class="manques" hidden></div>
+  </section>
+
+  <section class="card" id="run" hidden>
+    <div id="status" class="status"></div>
+    <div class="bar"><div id="bar-fill"></div></div>
+    <div class="controls">
+      <button id="pause">Pause</button>
+      <button id="resume" hidden>Reprendre</button>
+      <button id="stop" class="danger">Stop</button>
+      <button id="reset" hidden>Effacer le suivi</button>
+    </div>
+  </section>
+
+  <section id="list"></section>
+
+  <script src="../lib/fiche.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

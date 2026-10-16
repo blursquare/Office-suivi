@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'gnau-fiche-extension', depuis: '0.260.0', source: 'serveur', titre: 'Extension Chrome : fiche d’un dossier lue pour un CU ou une DIA sur le guichet unique',
+    comment: 'Coché la première fois que l’extension « CLAIRE — Assistant de saisie » charge la fiche d’un dossier. Vérifier sur le guichet (brouillon) que chaque champ rempli porte la bonne donnée, et envoyer la structure de la page (« Copier la structure de la page ») pour les champs « introuvables ».' },
   { id: 'redaction-acte-authentic', depuis: '0.188.0', source: 'poste', titre: 'Rédaction de l’acte : état « Non rédigé » / « En cours » lu dans Authentic',
     comment: 'Coché à la première page d’un sous-dossier de vente dont le tableau « Rédaction » dit « Non rédigé » ou « En cours ». Vérifier sur la fiche la ligne « Rédaction de l’acte » et, pièces réunies, la tâche « Rédiger l’acte » dans « À faire » ; elle doit partir quand Authentic passe à « En cours ».' },
   { id: 'option-restante-placee', depuis: '0.187.0', source: 'serveur', titre: 'Options de rendez-vous : la dernière restée dans l’agenda devient le rendez-vous',

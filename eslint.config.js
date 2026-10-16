@@ -16,7 +16,7 @@ const GLOBAUX_CLIENT = {
 };
 
 module.exports = [
-  { ignores: ['node_modules/**', 'server/node_modules/**', 'server/build/**', 'scratchpad/**', 'appel-de-fonds-modele.js', 'questionnaire-satisfaction-pdf.js', 'docs/**', 'page-sondage/**', 'extension-firefox/**', 'vendor/**'] },
+  { ignores: ['node_modules/**', 'server/node_modules/**', 'server/build/**', 'scratchpad/**', 'appel-de-fonds-modele.js', 'questionnaire-satisfaction-pdf.js', 'docs/**', 'page-sondage/**', 'extension-firefox/**', 'extension-chrome/**', 'vendor/**'] },
   js.configs.recommended,
   { files: ['eslint.config.js'], languageOptions: { sourceType: 'commonjs', globals: { ...globals.node } } },
   {

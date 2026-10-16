@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "CLAIRE — Assistant de saisie",
+  "version": "0.3.0",
+  "description": "Remplit le CU et la DIA des guichets uniques d'urbanisme (GNAU) à partir des dossiers de CLAIRE, sous le contrôle du notaire.",
+  "minimum_chrome_version": "116",
+  "action": { "default_title": "CLAIRE — CU et DIA" },
+  "side_panel": { "default_path": "panel/panel.html" },
+  "background": { "service_worker": "background.js" },
+  "permissions": ["sidePanel", "storage", "scripting", "tabs"],
+  "host_permissions": [
+    "https://demande-urbanisme.agglopolys.fr/*",
+    "https://*.operis.fr/*",
+    "https://gnau.tours-metropole.fr/*",
+    "https://demarchesurbanisme.orleans-metropole.fr/*"
+  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://demande-urbanisme.agglopolys.fr/*",
+        "https://*.operis.fr/*",
+        "https://gnau.tours-metropole.fr/*",
+        "https://demarchesurbanisme.orleans-metropole.fr/*"
+      ],
+      "js": ["lib/fiche.js", "content/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

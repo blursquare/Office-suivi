@@ -1,0 +1,25 @@
+{
+  "id": "cua-gnau",
+  "name": "CUa — guichet unique (GNAU)",
+  "version": 1,
+  "pageAffichee": true,
+  "note": "Codes de champs du CERFA 13410 relevés par l'étude sur le GNAU d'Agglopolys (HANDOFF §10). Le demandeur (l'étude) est pré-rempli par le compte : jamais saisi. Les champs sans code se copient depuis le panneau tant que leur emplacement n'est pas relevé (« Copier la structure de la page »).",
+  "pages": [
+    {
+      "title": "Page affichée du guichet",
+      "waitFor": "form, body",
+      "fields": [
+        { "label": "Terrain — numéro (code T2Q, à confirmer)", "source": "terrain.numero", "code": "T2Q", "type": "text", "optional": true },
+        { "label": "Terrain — voie (code T2V)", "source": "terrain.voie", "code": "T2V", "type": "text", "optional": true },
+        { "label": "Terrain — lieu-dit (code T2L)", "source": "terrain.lieuDit", "code": "T2L", "type": "text", "optional": true },
+        { "label": "Terrain — commune (code T2C, à confirmer)", "source": "terrain.commune", "code": "T2C", "type": "text", "transform": "upper", "optional": true },
+        { "label": "Terrain — code postal", "source": "terrain.codePostal", "type": "text", "optional": true },
+        { "label": "Parcelles (format du guichet)", "source": "parcelles", "type": "text", "transform": "parcelles_cua", "encoded": true },
+        { "label": "Superficie totale du terrain, m² (code D5T)", "source": "superficie", "code": "D5T", "type": "text", "transform": "surface" },
+        { "label": "Fait à (code E1L)", "source": "signature.lieu", "code": "E1L", "type": "text" },
+        { "label": "Le (code E1D)", "source": "signature.date", "code": "E1D", "type": "text", "transform": "date_jjmmaaaa" },
+        { "label": "Signature (code E1S)", "source": "signature.signataire", "code": "E1S", "type": "text" }
+      ]
+    }
+  ]
+}
