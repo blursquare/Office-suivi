@@ -9610,9 +9610,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-gauche, .cst-droite { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .cst-droite { position: sticky; top: calc(12px + var(--decalage-onglets)); max-height: calc(100vh - 24px - var(--decalage-onglets)); overflow: auto; }
 .cst-gauche > .calc-card, .cst-droite > .calc-card { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
-.cst-donnees { background: var(--paper-card); border-radius: var(--rayon-carte); }
-.cst-donnees::part(content) { display: flex; flex-direction: column; gap: 8px; }
-.cst-donnees-resume { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
 .cst-bloc-titre { display: flex; align-items: baseline; gap: 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cst-liste-titre { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cst-ligne { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.4fr) 10px auto; gap: 6px; align-items: center; }
@@ -9636,6 +9633,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-item-edition { margin: 2px 0 8px 40px; padding: 8px 10px; border-left: 2px solid color-mix(in srgb, var(--focus) 40%, transparent); }
 .cst-zonage { gap: 6px; display: flex; flex-direction: column; }
 .cst-etape { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
+.cst-donnees-corps { display: flex; flex-direction: column; gap: 8px; }
+.cst-stepper { flex-wrap: wrap; margin: 12px 0 16px; padding-bottom: 12px; }
+.cst-etape .cst-nav { margin-top: 12px; padding-top: 12px; }
 .calc-card > .cst-etape-tete:first-child { margin: 0 0 4px; }
 .cst-plan-commune { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-m); }
 .cst-plan-commune .cst-plan { margin: 0; }

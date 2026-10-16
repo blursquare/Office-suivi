@@ -39,7 +39,7 @@
   function majPlanCommuneConstitution(g) {
     const zone = document.getElementById(`cst-plan-${g.cle}`);
     if (zone) zone.outerHTML = renderPlanCommuneConstitution(g);
-    else renderConstitution();
+    majStepperConstitution();
   }
 
   // Demande le plan d'une commune au serveur, puis le suit jusqu'au bout. `force` : refait un plan déjà tiré.
@@ -89,8 +89,7 @@
       } catch (_) { /* relecture manquée : la suivante */ }
       if (plan.etat === 'fini') noterVerificationPoste('constitution-plan-cadastral', { detail: `${plansSurlignesConstitution(plan).length} plan(s)` });
       majItemConstitution();
-      const zone = document.getElementById(`cst-plan-${g.cle}`);
-      if (zone) zone.outerHTML = renderPlanCommuneConstitution(g);
+      majPlanCommuneConstitution(g);
       if (plan.etat === 'attente' || plan.etat === 'en-cours') setTimeout(tour, 2000);
     };
     setTimeout(tour, 1500);

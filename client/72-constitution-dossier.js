@@ -285,7 +285,7 @@
     const type = estSuccession(d) ? 'succession' : 'vente';
     Object.keys(minuteriesPlanConstitution).forEach(k => clearTimeout(minuteriesPlanConstitution[k]));
     minuteriesPlanConstitution = {};
-    cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
+    cstEtat = { dossierId: id, type, etape: 0, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
     if (type === 'vente') {
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
@@ -1107,6 +1107,51 @@
     renderConstitution();
   }
 
+  // ---- Étapes (étude 16/10 : « par étapes, comme pour l'ajout d'un nouveau dossier de vente », succession comprise) ----
+  // Vente : Dossier · Plan · DIA et SAFER · Courriers · Imprimer. Succession : Défunt · Courriers · Imprimer. Une étape à la fois, la barre du
+  // haut (celle de « Nouveau dossier ») et « Précédent / Suivant » ; l'aperçu du courrier reste à droite.
+  function etapesConstitution(d) {
+    const e = cstEtat;
+    const vente = e.type === 'vente';
+    const n = documentsAGenererConstitution().length;
+    const plans = vente ? e.groupes.map(g => etatPlanConstitution(g).etat) : [];
+    const z = vente && typeof zonageConstitution === 'function' ? zonageConstitution(d.preemption) : null;
+    const manques = manquesConstitution(e).length;
+    return [
+      { cle: 'dossier', court: vente ? 'Dossier' : 'Défunt', titre: vente ? 'Vendeurs et parcelles' : 'Le défunt', sous: resumeDonneesConstitution(e) || (manques ? `${manques} à vérifier` : ''),
+        html: `<div class="cst-donnees-corps">${vente ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}</div>` },
+      vente ? { cle: 'plan', court: 'Plan', titre: 'Plan cadastral', info: 'Tiré seul de cadastre.gouv.fr dès la commune connue, refait quand les parcelles changent ; joint à chaque courrier de la commune (imprimé derrière lui, joint à l’email, enregistré).',
+        sous: !plans.length ? 'Aucune commune' : plans.every(p => p === 'fini') ? (plans.length > 1 ? 'Plans prêts' : 'Plan prêt') : plans.some(p => p === 'attente' || p === 'en-cours') ? 'En cours…' : 'À tirer',
+        html: e.groupes.map(g => `<div class="cst-plan-commune"><strong>${escapeHtml(g.commune)}</strong>${renderPlanCommuneConstitution(g)}</div>`).join('') || '<p class="hint">Aucune commune.</p>' } : null,
+      vente ? { cle: 'dia', court: 'DIA et SAFER', titre: 'DIA et SAFER', info: 'Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme.',
+        sous: e.zonageEnCours ? 'Lecture…' : z ? `DIA ${z.dia.statut === 'non' ? 'non' : z.dia.statut === 'verifier' ? '?' : 'oui'} · SAFER ${z.safer.statut === 'non' ? 'non' : z.safer.statut === 'verifier' ? '?' : 'oui'}` : 'Zonage à lire',
+        html: renderZonageConstitution(d) + renderGnauConstitution() } : null,
+      { cle: 'courriers', court: 'Courriers', titre: 'Courriers', compte: `${n} à préparer`, sous: `${n} à préparer`, html: renderListeCourriersConstitution() },
+      { cle: 'sortie', court: 'Imprimer', titre: 'Imprimer et enregistrer', sous: d.nasDossier ? 'NAS relié' : 'NAS non relié', html: renderSortieConstitution(d) }
+    ].filter(Boolean);
+  }
+
+  function renderStepperConstitution(etapes) {
+    const i = Math.min(Math.max(0, cstEtat.etape || 0), etapes.length - 1);
+    return `<div class="wizard-stepper cst-stepper" id="cst-stepper">${etapes.map((x, k) => `${k ? '<span class="wizard-step-trait"></span>' : ''}<button type="button" class="wizard-step-btn${k === i ? ' actif' : ''}${k < i ? ' fait' : ''}" onclick="cstEtape(${k})">
+        <span class="wizard-step-num">${k < i ? icone('check') : k + 1}</span><span class="wizard-step-texte"><span class="wizard-step-libelle">${escapeHtml(x.court)}</span><span class="wizard-step-sous">${escapeHtml(x.sous || '')}</span></span></button>`).join('')}</div>`;
+  }
+
+  // La barre des étapes redessinée seule (plan ou zonage qui avance sur une autre étape : la saisie en cours n'est pas effacée).
+  function majStepperConstitution() {
+    const zone = document.getElementById('cst-stepper');
+    const d = dossierConstitution();
+    if (zone && d && cstEtat) zone.outerHTML = renderStepperConstitution(etapesConstitution(d));
+  }
+
+  function cstEtape(i) {
+    if (!cstEtat) return;
+    cstEtat.etape = i;
+    renderConstitution();
+    const z = document.getElementById('cst-stepper');
+    if (z) z.scrollIntoView({ block: 'nearest' });
+  }
+
   function renderConstitution() {
     const zone = document.getElementById('cst-corps');
     if (!zone) return;
@@ -1116,28 +1161,25 @@
       const premier = cstEtat.documents.find(x => x.actif && x.mode !== 'en-ligne') || cstEtat.documents.find(x => x.mode !== 'en-ligne');
       cstEtat.selection = premier ? premier.id : '';
     }
-    const volet = zone.querySelector('.cst-donnees');
-    if (volet && volet.dataset.dossier === cstEtat.dossierId) cstEtat.donneesOuvertes = !!volet.open;
-    const ouvert = cstEtat.donneesOuvertes !== undefined ? cstEtat.donneesOuvertes : manquesConstitution(cstEtat).some(m => !/parcelle/i.test(m));
     const doc = documentConstitution(cstEtat.selection);
-    // Par étapes (étude 16/10 : « 1 dossier, 2 plan, 3 DIA et SAFER, 4 courrier, 5 imprimer ») ; une succession n'a ni plan ni DIA.
-    const vente = cstEtat.type === 'vente';
-    const etapes = [
-      { titre: vente ? 'Dossier' : 'Dossier — le défunt', html: `<wa-details class="cst-donnees" data-dossier="${escapeAttr(cstEtat.dossierId)}"${ouvert ? ' open' : ''}>
-            <span slot="summary" class="cst-donnees-resume"><strong>${vente ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
-            ${vente ? renderDonneesVenteConstitution(d) : renderDonneesSuccessionConstitution()}
-          </wa-details>` },
-      vente ? { titre: 'Plan cadastral', info: 'Tiré seul de cadastre.gouv.fr dès la commune connue, refait quand les parcelles changent ; joint à chaque courrier de la commune (imprimé derrière lui, joint à l’email, enregistré).', html: cstEtat.groupes.map(g => `<div class="cst-plan-commune"><strong>${escapeHtml(g.commune)}</strong>${renderPlanCommuneConstitution(g)}</div>`).join('') || '<p class="hint">Aucune commune.</p>' } : null,
-      vente ? { titre: 'DIA et SAFER', info: 'Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme.', html: renderZonageConstitution(d) + renderGnauConstitution() } : null,
-      { titre: 'Courriers', compte: `${documentsAGenererConstitution().length} à préparer`, html: renderListeCourriersConstitution() },
-      { titre: 'Imprimer et enregistrer', html: renderSortieConstitution(d) }
-    ].filter(Boolean);
+    const etapes = etapesConstitution(d);
+    cstEtat.etape = Math.min(Math.max(0, cstEtat.etape || 0), etapes.length - 1);
+    const i = cstEtat.etape;
+    const x = etapes[i];
+    const precedente = etapes[i - 1];
+    const suivante = etapes[i + 1];
     zone.innerHTML = `${renderDossierConstitution(d)}
+      ${renderStepperConstitution(etapes)}
       <div class="cst-mise-en-page">
         <div class="cst-gauche">
-          ${etapes.map((x, i) => `<section class="calc-card cst-etape">
-            <h2 class="outil-section-tete cst-etape-tete"><span class="outil-num">${i + 1}</span>${escapeHtml(x.titre)}${x.compte ? ` <span class="hint">${escapeHtml(x.compte)}</span>` : ''}${x.info ? ' ' + infoBulle(x.info) : ''}</h2>
-            ${x.html}</section>`).join('')}
+          <section class="calc-card cst-etape">
+            <h2 class="outil-section-tete cst-etape-tete">${escapeHtml(x.titre)}${x.compte ? ` <span class="hint">${escapeHtml(x.compte)}</span>` : ''}${x.info ? ' ' + infoBulle(x.info) : ''}</h2>
+            ${x.html}
+            <div class="wizard-nav cst-nav">
+              ${precedente ? `<wa-button appearance="outlined" type="button" onclick="cstEtape(${i - 1})">← Précédent</wa-button>` : '<span></span>'}
+              ${suivante ? `<wa-button variant="brand" type="button" onclick="cstEtape(${i + 1})">Suivant : ${escapeHtml(suivante.court)} →</wa-button>` : ''}
+            </div>
+          </section>
         </div>
         <div class="cst-droite">
           <div class="cst-apercu" id="cst-apercu"></div>

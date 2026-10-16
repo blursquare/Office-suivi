@@ -47,6 +47,7 @@
     const zone = document.getElementById('cst-zonage');
     const d = dossierConstitution();
     if (zone && d) zone.outerHTML = renderZonageConstitution(d) || '<div id="cst-zonage"></div>';
+    majStepperConstitution();
   }
 
   // La section, entre les données de la vente et les courriers.
