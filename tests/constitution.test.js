@@ -16,8 +16,11 @@ test('circuits : Blois = pas de péril (site des notaires), numérotage par cour
 
 test('circuits : Paris (et ses arrondissements) = numérotage par courriel à la Direction de l’Urbanisme, péril en mairie, assainissement en ligne', () => {
   for (const insee of ['75056', '75108', '75120']) {
-    const a = K.circuitCourrierVente('alignement', { insee, epci: '200054781' });
-    assert.deepEqual([a.mode, a.destinataire, a.courriel], ['courriel', 'paris-numerotage', 'du-dtdf-numerotage@paris.fr']);
+    assert.equal(K.courriersVenteCommune({ insee }).map((c) => c.cle).join(','), 'numerotage,alignementSeul,peril,assainissement');
+    const n = K.circuitCourrierVente('numerotage', { insee, epci: '200054781' });
+    assert.deepEqual([n.mode, n.destinataire, n.courriel], ['courriel', 'paris-numerotage', 'du-dtdf-numerotage@paris.fr']);
+    const a = K.circuitCourrierVente('alignementSeul', { insee });
+    assert.deepEqual([a.mode, a.destinataire], ['en-ligne', 'paris-renseignements']);
     assert.equal(K.circuitCourrierVente('peril', { insee }).destinataire, 'mairie');
     assert.match(K.circuitCourrierVente('peril', { insee }).note, /Préfecture de Police/);
     const s = K.circuitCourrierVente('assainissement', { insee });
@@ -28,6 +31,22 @@ test('circuits : Paris (et ses arrondissements) = numérotage par courriel à la
   assert.equal(K.estParis('77056'), false);
   assert.deepEqual(['75001', '75016', '75116', '75020', '75021', '41000'].map(K.inseeArrondissementParis).join(','), '75101,75116,75116,75120,,');
   assert.equal(K.DESTINATAIRES_CONNUS['paris-numerotage'].lignes.at(-1), '75013 PARIS');
+});
+
+test('services séparés : numérotage et alignement en deux courriers du même modèle, chacun avec sa seule demande ; au choix ailleurs', () => {
+  const sulpice = { insee: '41230', epci: '200030385' };
+  assert.equal(K.courriersVenteCommune(sulpice).map((c) => c.cle).join(','), 'alignement,peril,assainissement');
+  assert.equal(K.courriersVenteCommune(sulpice, true).map((c) => c.cle).join(','), 'numerotage,alignementSeul,peril,assainissement');
+  assert.equal(K.circuitCourrierVente('numerotage', sulpice).destinataire, 'mairie');
+  assert.equal(K.circuitCourrierVente('alignementSeul', { insee: '41018' }).courriel, 'geometres.notaires@blois.fr');
+  const o = { destinataire: ['MAIRIE'], adresseImmeuble: 'BLOIS (41000), 1 rue Exemple', parcelles: [{ section: 'AB', numero: '1', surface: '100' }], proprietaires: [{ civilite: 'Madame', nom: 'Léa EXEMPLE', domicile: 'BLOIS (41000)' }] };
+  const texte = (cle) => K.texteCorpsDocument(K.documentCourrierVente(cle, o));
+  assert.match(texte('alignement'), /certificat de numérotage,[\s\S]*certificat d'alignement\./);
+  assert.match(texte('numerotage'), /Un certificat de numérotage\./);
+  assert.doesNotMatch(texte('numerotage'), /alignement/);
+  assert.match(texte('alignementSeul'), /Un certificat d'alignement\./);
+  assert.doesNotMatch(texte('alignementSeul'), /numérotage/);
+  assert.equal(K.nomFichierCourrierVente('numerotage', 'PARIS', 'VTE - X'), 'Numérotage - PARIS - VTE - X');
 });
 
 test('circuits : autre commune d’Agglopolys = papier à la mairie sauf l’assainissement ; Grand Chambord = communauté de communes', () => {

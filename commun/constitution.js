@@ -39,6 +39,27 @@
     { cle: 'assainissement', libelle: 'Assainissement', court: 'Assainissement' }
   ];
 
+  /**
+   * Quand une commune a des services séparés pour le numérotage et l'alignement (étude 16/10 : « si une commune a des services séparés,
+   * faire deux courriers différents »), le courrier « Alignement et numérotage » devient deux courriers — le même modèle de l'étude, chacun
+   * ne gardant que la demande de son service. Paris : imposé (numérotage à la Direction de l'Urbanisme, alignement dans la notice de
+   * renseignements d'urbanisme) ; ailleurs, au choix sur l'écran.
+   */
+  const COURRIERS_ALIGNEMENT_SEPARES = [
+    { cle: 'numerotage', libelle: 'Numérotage', court: 'Numérotage' },
+    { cle: 'alignementSeul', libelle: 'Alignement', court: 'Alignement' }
+  ];
+
+  /** Pure : les services du numérotage et de l'alignement sont séparés dans cette commune (connu de CLAIRE). @param {{ insee?: string }} commune */
+  function servicesAlignementSepares(commune) { return estParis(String((commune && commune.insee) || '')); }
+
+  /** Pure : les courriers d'une vente pour cette commune ; `separer` = le choix de l'écran (deux courriers même sans règle connue).
+   * @param {{ insee?: string }} commune @param {boolean} [separer] */
+  function courriersVenteCommune(commune, separer) {
+    if (!separer && !servicesAlignementSepares(commune)) return COURRIERS_VENTE.slice();
+    return COURRIERS_VENTE.flatMap((c) => (c.cle === 'alignement' ? COURRIERS_ALIGNEMENT_SEPARES : [c]));
+  }
+
   /** Adresses des destinataires connus de l'étude (celles du modèle Word) ; le reste se saisit et se retient (clé `constitution-adresses`). */
   const DESTINATAIRES_CONNUS = {
     agglopolys: { libelle: 'Agglopolys — Service de l’Assainissement', lignes: ['AGGLOPOLYS', 'Service de l’Assainissement', '1 rue Honoré de Balzac', '41000 BLOIS'] },
@@ -57,6 +78,14 @@
   function circuitCourrierVente(cle, commune) {
     const insee = String((commune && commune.insee) || '');
     const epci = String((commune && commune.epci) || '');
+    // Courriers séparés du numérotage et de l'alignement : à Paris chacun son service ; ailleurs, le circuit du courrier réuni.
+    if (cle === 'numerotage' || cle === 'alignementSeul') {
+      if (estParis(insee) && cle === 'alignementSeul') return { mode: 'en-ligne', destinataire: 'paris-renseignements', courriel: '', url: URL_RENSEIGNEMENTS_URBANISME_PARIS, lien: 'Renseignements d’urbanisme',
+        note: 'À Paris, pas de certificat d’alignement : l’alignement figure dans la notice de renseignements d’urbanisme, à demander en ligne.' };
+      if (estParis(insee)) return { mode: 'courriel', destinataire: 'paris-numerotage', courriel: COURRIEL_NUMEROTAGE_PARIS,
+        note: 'À Paris, le certificat de numérotage se demande par courriel à la Direction de l’Urbanisme.' };
+      return circuitCourrierVente('alignement', commune);
+    }
     if (cle === 'peril' && insee === INSEE_BLOIS) {
       return { mode: 'en-ligne', destinataire: 'blois-en-ligne', courriel: '', note: 'À Blois, la demande se fait sur le site de la Ville dédié aux notaires : pas de courrier.' };
     }
@@ -64,8 +93,6 @@
       return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service des géomètres dédié aux notaires.' };
     }
     if (estParis(insee)) {
-      if (cle === 'alignement') return { mode: 'courriel', destinataire: 'paris-numerotage', courriel: COURRIEL_NUMEROTAGE_PARIS, url: URL_RENSEIGNEMENTS_URBANISME_PARIS, lien: 'Renseignements d’urbanisme',
-        note: 'À Paris, le certificat de numérotage se demande par courriel à la Direction de l’Urbanisme ; pas de certificat d’alignement : l’alignement figure dans la notice de renseignements d’urbanisme (en ligne).' };
       if (cle === 'peril') return { mode: 'papier', destinataire: 'mairie', courriel: '',
         note: 'À Paris : la Ville (mairie d’arrondissement) pour un immeuble surtout d’habitation ; sinon la Préfecture de Police, 1 bis rue de Lutèce, 75004 Paris.' };
       if (cle === 'assainissement') return { mode: 'en-ligne', destinataire: 'paris-assainissement', courriel: '', url: URL_CONTROLE_ASSAINISSEMENT_PARIS, lien: 'Formulaire du contrôle (secteur séparatif)',
@@ -168,7 +195,7 @@
    * @returns {DocumentCourrier|null}
    */
   function documentCourrierVente(cle, o) {
-    if (!COURRIERS_VENTE.some((c) => c.cle === cle) && cle !== 'autre') return null;
+    if (!COURRIERS_VENTE.concat(COURRIERS_ALIGNEMENT_SEPARES).some((c) => c.cle === cle) && cle !== 'autre') return null;
     const adresse = (o.destinataire || []).map((l) => String(l).trim()).filter(Boolean);
     if (!adresse.length) adresse.push('À compléter');
     const immeuble = String(o.adresseImmeuble || '').trim();
@@ -180,10 +207,13 @@
       lignes = ['', '', '', '**Objet : Contrôle et conformité assainissement**', '', 'Madame, Monsieur,', '',
         `Je vous remercie de me préciser la situation au regard de l’assainissement de l’immeuble situé à ${immeuble}, et cadastré :`,
         tableau, ...appartenant, 'Vous en remerciant par avance,', '', FORMULE_FINALE];
-    } else if (cle === 'alignement') {
+    } else if (cle === 'alignement' || cle === 'numerotage' || cle === 'alignementSeul') {
+      // Le modèle « Demande d'alignement et numérotage » ; séparé, chaque courrier ne garde que sa demande (ponctuation finale du numérotage).
+      const demandes = cle === 'numerotage' ? ['- **Un certificat de numérotage.**'] : cle === 'alignementSeul' ? ['**- Un certificat d\'alignement.**']
+        : ['- **Un certificat de numérotage,**', '**- Un certificat d\'alignement.**'];
       lignes = ['', '', '', 'Madame, Monsieur,', '',
         `Je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble} :`, '',
-        '- **Un certificat de numérotage,**', '**- Un certificat d\'alignement.**', '',
+        ...demandes, '',
         'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
         'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     } else if (cle === 'peril') {
@@ -219,7 +249,7 @@
 
   /** Pure : le nom de fichier d'un courrier de vente : « Alignement et numérotage - SAINT SULPICE DE POMMERAY - VTE X ». @param {string} cle @param {string} commune @param {string} nomDossier */
   function nomFichierCourrierVente(cle, commune, nomDossier) {
-    const c = COURRIERS_VENTE.find((x) => x.cle === cle);
+    const c = COURRIERS_VENTE.concat(COURRIERS_ALIGNEMENT_SEPARES).find((x) => x.cle === cle);
     return [c ? c.libelle : 'Courrier', commune, nomDossier].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
   }
 
@@ -341,7 +371,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, COURRIERS_ALIGNEMENT_SEPARES, servicesAlignementSepares, courriersVenteCommune, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {

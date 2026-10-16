@@ -286,7 +286,7 @@
     const type = estSuccession(d) ? 'succession' : 'vente';
     Object.keys(minuteriesPlanConstitution).forEach(k => clearTimeout(minuteriesPlanConstitution[k]));
     minuteriesPlanConstitution = {};
-    cstEtat = { dossierId: id, type, etape: 0, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
+    cstEtat = { dossierId: id, type, etape: 0, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0, separes: {} };
     if (type === 'vente') {
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
@@ -328,7 +328,7 @@
       const docs = [];
       e.groupes.forEach(g => {
         const info = g.info || {};
-        COURRIERS_VENTE.forEach(c => {
+        courriersVenteCommune({ insee: info.insee }, !!(e.separes && e.separes[g.cle])).forEach(c => {
           const circuit = circuitCourrierVente(c.cle, { insee: info.insee, epci: info.epci && info.epci.code });
           const id = `v:${g.cle}:${c.cle}`;
           const ancien = anciens.get(id);
@@ -511,6 +511,22 @@
     renderConstitution();
   }
 
+  // Numérotage et alignement en deux courriers (étude 16/10 : « si une commune a des services séparés, faire deux courriers différents ») :
+  // imposé quand CLAIRE connaît la commune (Paris), au choix ailleurs — pour ce dossier.
+  function renderSeparerAlignementConstitution(g) {
+    const info = g.info || {};
+    if (info.etat !== 'ok' || servicesAlignementSepares({ insee: info.insee })) return '';
+    const separe = !!(cstEtat.separes && cstEtat.separes[g.cle]);
+    return `<wa-button appearance="plain" size="s" class="bouton-discret" type="button" title="${separe ? 'Un seul courrier pour le numérotage et l’alignement' : 'Services séparés dans cette commune : un courrier pour le numérotage, un pour l’alignement'}" onclick="cstSeparerAlignement('${escapeOnclickArg(g.cle)}', ${separe ? 'false' : 'true'})">${separe ? 'Réunir numérotage et alignement' : 'Numérotage et alignement séparés'}</wa-button>`;
+  }
+  function cstSeparerAlignement(cleGroupe, separer) {
+    if (!cstEtat || cstEtat.type !== 'vente') return;
+    cstEtat.separes = Object.assign({}, cstEtat.separes, { [cleGroupe]: !!separer });
+    reconstruireDocumentsConstitution(false);
+    const sel = documentConstitution(cstEtat.selection);
+    if (!sel) cstEtat.selection = '';
+    renderConstitution();
+  }
   function cstBasculerDoc(id, actif) { const x = documentConstitution(id); if (x) { x.actif = !!actif; renderConstitution(); } }
   function cstLignesDoc(id, texte) {
     const x = documentConstitution(id);
@@ -978,7 +994,7 @@
       return e.groupes.map(g => `<div class="cst-commune-courriers">
           <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span></div>
           ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
-          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button></div></div>`).join('');
+          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button>${renderSeparerAlignementConstitution(g)}</div></div>`).join('');
     }
     const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
     return `${e.documents.map(renderItemConstitution).join('')}

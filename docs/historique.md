@@ -20465,3 +20465,13 @@ lien « Formulaire du contrôle (secteur séparatif) » sur la ligne) ; lien GNA
 (teleservices.paris.fr). Répertoire : lot `paris-services-urbanisme-2026-10-16` (thème mairies, seuls emails et liens de paris.fr). Non trouvé :
 adresse postale du service de la Ville qui répond pour le péril (la mairie d'arrondissement est prise), adresse exacte de la carte
 d'assainissement.
+
+### 16/10/2026 23 h 06 — Numérotage et alignement en deux courriers quand les services sont séparés (0.271.0)
+
+Demande : « Si une commune a des services séparés, oui, faire deux courriers différents. » `commun/constitution.js` :
+`COURRIERS_ALIGNEMENT_SEPARES` (`numerotage`, `alignementSeul`), `courriersVenteCommune(commune, separer)`, `servicesAlignementSepares`
+(Paris seulement pour l'instant). Le modèle « Demande d'alignement et numérotage » n'est pas réécrit : chaque courrier séparé garde la
+même phrase et sa seule ligne de demande (le numérotage seul finit par un point au lieu de la virgule). Circuits : Paris → numérotage
+par courriel (du-dtdf-numerotage@paris.fr), alignement « en ligne » (renseignements d'urbanisme, pas de certificat d'alignement à
+Paris) ; ailleurs, chacun suit le circuit du courrier réuni (mairie, ou courriel des géomètres à Blois). Écran : bouton « Numérotage et
+alignement séparés » / « Réunir numérotage et alignement » sous les courriers d'une commune (`cstEtat.separes`, pour ce dossier).
