@@ -42,7 +42,7 @@ function decouperNom(complet) {
 
 /**
  * Pure : le reste de la fiche client d'Authentic (capacité, coordonnées commentées, mariage, contrats, historique des relations — étude 16/10 :
- * « reprends tout le contenu de la fiche ») recopié tel quel, borné : chaînes de 400 caractères, listes de 12, deux niveaux.
+ * « reprends tout le contenu de la fiche ») recopié tel quel, borné : chaînes de 400 caractères, listes de 12, trois niveaux.
  * @param {any} v @param {number} [niveau]
  * @returns {any}
  */

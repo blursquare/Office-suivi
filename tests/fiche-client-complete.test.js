@@ -75,13 +75,13 @@ test('fiche client d’Authentic : tout le contenu est lu et retenu', () => {
   assert.match(x.mariage.situationActe, /communauté/);
   assert.strictEqual(x.historique.length, 1);
   assert.strictEqual(x.historique[0].conjoint, 'Mme Léa MOREAU');
-  assert.strictEqual(x.historique[0].detail, 'à BLOIS');
+  assert.strictEqual(x.historique[0].detail, '', 'colonne sans titre (icônes) écartée');
   const d = { id: 'd1', authentic: {} };
   assert.ok(app.retenirFicheClientAuthentic(d, p, '2026-10-16T10:00:00Z'));
   const fiche = Object.values(d.authentic.fichesClients)[0];
   assert.strictEqual(fiche.complement.mariage.regime, 'Communauté légale nouvelle');
   const html = app.renderComplementFicheCb({ complement: fiche.complement, autresPrenoms: fiche.autresPrenoms, paysNaissance: fiche.paysNaissance });
-  for (const t of ['Capacité', 'Majeur', 'Coordonnées secondaires', 'le soir', 'Mariage en uniques noces', 'Historique des relations', 'Mme Léa MOREAU', 'Jean Louis Marie', 'adresse de correspondance']) {
+  for (const t of ['Capacité', 'Majeur', 'Coordonnées secondaires', 'le soir', 'Mariage en uniques noces', 'Historique des relations', 'Mme Léa MOREAU', 'Jean Louis Marie', '06 12 34 56 78', 'adresse de correspondance']) {
     assert.ok(html.includes(t), t);
   }
 });
@@ -89,4 +89,16 @@ test('fiche client d’Authentic : tout le contenu est lu et retenu', () => {
 test('fiche client sans renseignement en plus : rien de plus', () => {
   const app = chargerApplication();
   assert.strictEqual(app.complementFicheClientAuthentic({ champs: [{ libelle: 'Nom de famille*', valeur: 'Martel' }] }), null);
+});
+
+test('fiche client : un champ absent n’est pas pris dans la rubrique suivante ; listes à « Non » sans mariage', () => {
+  const app = chargerApplication();
+  const x = app.complementFicheClientAuthentic({ champs: [
+    { libelle: 'CP - Ville', valeur: '41000 BLOIS' }, { libelle: 'Adresse d\'imposition', valeur: '' }, { libelle: 'Adresse de correspondance', valeur: 'oui' },
+    { libelle: 'Email', valeur: 'a@exemple.fr' }, { libelle: 'Commentaire', valeur: '' },
+    { libelle: 'Date de mariage', valeur: '' }, { libelle: 'Pays', valeur: 'Belgique' },
+    { libelle: 'ui:x:somInfoDivorceEnCoursId:selectonemenu_input', valeur: 'Non' }
+  ] });
+  assert.strictEqual(x.paysDomicile, '');
+  assert.strictEqual(x.mariage, null);
 });

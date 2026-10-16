@@ -35,7 +35,8 @@
     const apres = (test, l) => {
       const i = champs.findIndex(test);
       if (i < 0) return '';
-      return val(champs.slice(i + 1).find(c => net(c) === l));
+      // Dans les trois champs qui suivent seulement : un champ absent n'est jamais pris dans la rubrique suivante.
+      return val(champs.slice(i + 1, i + 4).find(c => net(c) === l));
     };
     const r = {
       clientEtude: oui(brut(/:etude_input$/)),
@@ -85,7 +86,10 @@
       lieuAncienContrat: apres(c => estAncienContrat(c) || net(c) === 'notaire', 'cp, ville'),
       situationActe: lib("situation dans l'acte")
     };
-    if (Object.values(mariage).some(Boolean)) r.mariage = mariage;
+    // Les listes d'Authentic valent « Non » par défaut : la rubrique n'existe que si quelque chose de réel est dit.
+    const reel = ['date', 'lieu', 'contrat', 'regime', 'ancienContrat', 'ancienRegime', 'dateAncienContrat', 'notaireAncienContrat', 'situationActe'].some(k => mariage[k])
+      || mariage.separeDeCorps || /^oui$/i.test(mariage.uniquesNoces) || /^oui$/i.test(mariage.divorceEnCours);
+    if (reel) r.mariage = mariage;
     // Historique des relations : toutes les lignes du tableau « Situation | Date | Conjoint | … ».
     ((capture && capture.tableaux) || []).forEach(t => {
       const entete = (t.entete || []).map(libelleNetAuthentic);
@@ -94,7 +98,8 @@
       const iDate = entete.indexOf('date'), iConj = entete.indexOf('conjoint');
       (t.lignes || []).forEach(l => {
         const ligne = { situation: String(l[iSit] || '').trim(), date: iDate >= 0 ? dateIsoDepuisFr(l[iDate]) : '', conjoint: iConj >= 0 ? String(l[iConj] || '').trim() : '',
-          detail: l.filter((x, i) => i !== iSit && i !== iDate && i !== iConj).map(x => String(x || '').trim()).filter(Boolean).join(' · ') };
+          // Colonnes titrées seulement : la colonne sans titre porte les icônes d'action du tableau (« edit », « delete »…).
+          detail: l.filter((x, i) => i !== iSit && i !== iDate && i !== iConj && entete[i]).map(x => String(x || '').trim()).filter(Boolean).join(' · ') };
         if (ligne.situation || ligne.conjoint) r.historique.push(ligne);
       });
     });
@@ -207,7 +212,7 @@
     ]);
     const coord = (x.coordonnees || []).length ? ['principales', 'secondaires'].map(b => {
       const l = x.coordonnees.filter(c => c.bloc === b);
-      return l.length ? `<div class="cb-bloc"><div class="hint">Coordonnées ${b}</div><dl class="cb-champs">${l.map(c => `<dt>${escapeHtml(c.type)}</dt><dd>${c.type === 'Email' || c.type === 'Commentaire' ? escapeHtml(c.valeur) : liensAppelTelephone(c.valeur)}${c.commentaire ? ` <span class="hint">· ${escapeHtml(c.commentaire)}</span>` : ''}</dd>`).join('')}</dl></div>` : '';
+      return l.length ? `<div class="cb-bloc"><div class="hint">Coordonnées ${b}</div><dl class="cb-champs">${l.map(c => `<dt>${escapeHtml(c.type)}</dt><dd>${c.type === 'Email' || c.type === 'Commentaire' ? escapeHtml(c.valeur) : `${escapeHtml(c.valeur)} ${liensAppelTelephone(c.valeur)}`}${c.commentaire ? ` <span class="hint">· ${escapeHtml(c.commentaire)}</span>` : ''}</dd>`).join('')}</dl></div>` : '';
     }).join('') : '';
     const m = x.mariage || {};
     const mariage = dl([
