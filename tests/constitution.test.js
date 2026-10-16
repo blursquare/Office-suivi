@@ -47,6 +47,9 @@ test('services séparés : numérotage et alignement en deux courriers du même 
   assert.match(texte('alignementSeul'), /Un certificat d'alignement\./);
   assert.doesNotMatch(texte('alignementSeul'), /numérotage/);
   assert.equal(K.nomFichierCourrierVente('numerotage', 'PARIS', 'VTE - X'), 'Numérotage - PARIS - VTE - X');
+  assert.equal(K.homologuesCourrierVente('alignement').join(','), 'numerotage,alignementSeul');
+  assert.equal(K.homologuesCourrierVente('numerotage').join(','), 'alignement');
+  assert.equal(K.homologuesCourrierVente('peril').length, 0);
 });
 
 test('circuits : autre commune d’Agglopolys = papier à la mairie sauf l’assainissement ; Grand Chambord = communauté de communes', () => {

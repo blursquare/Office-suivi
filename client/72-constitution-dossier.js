@@ -331,7 +331,8 @@
         courriersVenteCommune({ insee: info.insee }, !!(e.separes && e.separes[g.cle])).forEach(c => {
           const circuit = circuitCourrierVente(c.cle, { insee: info.insee, epci: info.epci && info.epci.code });
           const id = `v:${g.cle}:${c.cle}`;
-          const ancien = anciens.get(id);
+          // Séparé ou réuni : le courrier reprend la saisie de celui qu'il remplace (jamais celle d'un courrier « en ligne »).
+          const ancien = anciens.get(id) || homologuesCourrierVente(c.cle).map(k => anciens.get(`v:${g.cle}:${k}`)).find(x => x && x.mode !== 'en-ligne');
           const lignes = lignesDestinataireVente(circuit, g, info.mairie, cstAdressesRetenues);
           const retenueV = cstAdressesRetenues[circuit.destinataire];
           const courrielDefaut = circuit.courriel || (retenueV && retenueV.courriel) || '';
@@ -523,8 +524,11 @@
     if (!cstEtat || cstEtat.type !== 'vente') return;
     cstEtat.separes = Object.assign({}, cstEtat.separes, { [cleGroupe]: !!separer });
     reconstruireDocumentsConstitution(false);
-    const sel = documentConstitution(cstEtat.selection);
-    if (!sel) cstEtat.selection = '';
+    // Le courrier choisi disparaît : on montre celui qui le remplace (numérotage, ou le courrier réuni).
+    if (!documentConstitution(cstEtat.selection)) {
+      const suite = [`v:${cleGroupe}:numerotage`, `v:${cleGroupe}:alignement`].find(id => documentConstitution(id));
+      cstEtat.selection = suite || '';
+    }
     renderConstitution();
   }
   function cstBasculerDoc(id, actif) { const x = documentConstitution(id); if (x) { x.actif = !!actif; renderConstitution(); } }

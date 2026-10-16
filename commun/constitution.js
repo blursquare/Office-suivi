@@ -60,6 +60,14 @@
     return COURRIERS_VENTE.flatMap((c) => (c.cle === 'alignement' ? COURRIERS_ALIGNEMENT_SEPARES : [c]));
   }
 
+  /** Pure : les courriers dont celui-ci prend la suite quand on sépare ou réunit numérotage et alignement (pour garder l'adresse
+   * corrigée, le choix papier/email, la case décochée). @param {string} cle */
+  function homologuesCourrierVente(cle) {
+    if (cle === 'alignement') return ['numerotage', 'alignementSeul'];
+    if (cle === 'numerotage' || cle === 'alignementSeul') return ['alignement'];
+    return [];
+  }
+
   /** Adresses des destinataires connus de l'étude (celles du modèle Word) ; le reste se saisit et se retient (clé `constitution-adresses`). */
   const DESTINATAIRES_CONNUS = {
     agglopolys: { libelle: 'Agglopolys — Service de l’Assainissement', lignes: ['AGGLOPOLYS', 'Service de l’Assainissement', '1 rue Honoré de Balzac', '41000 BLOIS'] },
@@ -371,7 +379,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, COURRIERS_ALIGNEMENT_SEPARES, servicesAlignementSepares, courriersVenteCommune, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, COURRIERS_ALIGNEMENT_SEPARES, servicesAlignementSepares, courriersVenteCommune, homologuesCourrierVente, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {

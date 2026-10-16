@@ -20475,3 +20475,4 @@ même phrase et sa seule ligne de demande (le numérotage seul finit par un poin
 par courriel (du-dtdf-numerotage@paris.fr), alignement « en ligne » (renseignements d'urbanisme, pas de certificat d'alignement à
 Paris) ; ailleurs, chacun suit le circuit du courrier réuni (mairie, ou courriel des géomètres à Blois). Écran : bouton « Numérotage et
 alignement séparés » / « Réunir numérotage et alignement » sous les courriers d'une commune (`cstEtat.separes`, pour ce dossier).
+La bascule reprend la saisie du courrier remplacé (`homologuesCourrierVente` : adresse corrigée, papier/email, case décochée — jamais d'un courrier « en ligne ») et montre le courrier qui prend la suite (relecture).
