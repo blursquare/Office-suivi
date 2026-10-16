@@ -125,7 +125,7 @@ function groupesPlans(parcellesCC) {
  * @param {Array<{ value: string, text: string }>} options @param {string} commune @param {string} [codePostal]
  */
 function communeDansListeCadastre(options, commune, codePostal) {
-  const net = (/** @type {string} */ t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()
+  const net = (/** @type {string} */ t) => String(t || '').replace(/Œ/g, 'OE').replace(/œ/g, 'oe').replace(/Æ/g, 'AE').replace(/æ/g, 'ae').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()
     .replace(/\bSTE\b/g, 'SAINTE').replace(/\bST\b/g, 'SAINT');
   const voulu = net(commune);
   const cp = /^\d{5}$/.test(String(codePostal || '')) ? String(codePostal) : '';
@@ -155,7 +155,7 @@ async function ouvrirCarteParcelle(s, demande, p, etape) {
     if (f.prefixeParcelle && !f.prefixeParcelle.value) f.prefixeParcelle.value = '000';
     f.sectionLibelle.value = ${JSON.stringify(p.section)}; f.numeroParcelle.value = ${JSON.stringify(String(Number(p.numero) || p.numero))};`;
   const rempli = await s.evaluer(`(() => { const f = document.getElementById('rech'); if (!f || !f.ville) return 'formulaire';
-    f.ville.value = ${JSON.stringify(String(demande.commune || ''))};
+    f.ville.value = ${JSON.stringify(String(demande.commune || '').replace(/Œ/g, 'OE').replace(/œ/g, 'oe').replace(/Æ/g, 'AE').replace(/æ/g, 'ae'))};
     if (f.codePostal) f.codePostal.value = ${JSON.stringify(cp)};
     const o = [...f.codeDepartement.options].find((x) => x.text.trim().startsWith(${JSON.stringify(dep + ' -')}));
     if (!o) return 'département'; f.codeDepartement.value = o.value;
@@ -168,7 +168,8 @@ async function ouvrirCarteParcelle(s, demande, p, etape) {
   const liste = await s.evaluer(`(() => { const sel = document.getElementById('codeCommune'); return sel ? [...sel.options].map((o) => ({ value: o.value, text: o.text })) : null; })()`);
   if (Array.isArray(liste)) {
     const valeur = communeDansListeCadastre(liste, demande.commune, cp);
-    if (!valeur) throw new Error(`cadastre.gouv.fr : la commune ${demande.commune}${cp ? ` (${cp})` : ''} n’est pas dans la liste proposée par le site.`);
+    // Commune entre parenthèses seulement : le rapport technique les retire (routes/navigation.js, surFin).
+    if (!valeur) throw new Error(`cadastre.gouv.fr : commune absente de la liste proposée par le site (${demande.commune}${cp ? ' ' + cp : ''}).`);
     etape(`Choisit la commune ${demande.commune}${cp ? ` (${cp})` : ''} dans la liste du site`);
     const choisi = await s.evaluer(`(() => { const f = document.getElementById('rech'); const sel = document.getElementById('codeCommune'); if (!f || !sel) return 'formulaire';
       sel.value = ${JSON.stringify(valeur)}; if (sel.value !== ${JSON.stringify(valeur)}) return 'commune';

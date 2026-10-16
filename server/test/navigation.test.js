@@ -353,4 +353,5 @@ test('commune choisie dans la liste du site (essai du 16/10, Chaumont-sur-Tharon
   assert.equal(communeDansListeCadastre(homonymes, 'Saint-Denis', '41220'), 'A2');
   assert.equal(communeDansListeCadastre(homonymes, 'Saint-Denis', ''), '', 'deux du même nom sans code postal : rien');
   assert.equal(communeDansListeCadastre([{ value: 'B1', text: 'VILLEFRANCHE SUR CHER - 41200' }], 'Villefranche-sur-Cher', '41200'), 'B1');
+  assert.equal(communeDansListeCadastre([{ value: 'C1', text: 'COEUVRES ET VALSERY - 02600' }], 'Cœuvres-et-Valsery', ''), 'C1');
 });
