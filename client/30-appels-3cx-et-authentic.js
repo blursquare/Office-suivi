@@ -969,7 +969,10 @@
     return { date, lieu: valeurChampAuthentic(champs, n => n === 'cp, ville (deces)'), pays: valeurChampAuthentic(champs, n => n === 'pays (deces)') };
   }
 
-  function clientDepuisFicheAuthentic(capture) {
+  function clientDepuisFicheAuthentic(capture0) {
+    // Fiche ouverte avec le volet du conjoint (étude 16/10) : la personne de la fiche seulement — le conjoint est lu à part.
+    const partage = partagerFicheConjointAuthentic(capture0);
+    const capture = partage ? partage.principale : capture0;
     const champs = (capture && capture.champs) || [];
     const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
     if (!nom) return null;
@@ -998,43 +1001,9 @@
       deces: decesFicheAuthentic(champs),
       emails, telephones,
       profession: valeurChampAuthentic(champs, n => n === 'profession'),
-      situationMatrimoniale: situationMatrimonialeAuthentic(capture),
+      situationMatrimoniale: (capture && capture.situationConjoint) || situationMatrimonialeAuthentic(capture),
       documents: []
     };
-  }
-
-  // Pure : situation matrimoniale d'une fiche client (étude, 02/10 : voir s'il faut faire intervenir le
-  // conjoint — bien propre et résidence de la famille, marié ou pacsé). Tableau « Situation | Date |
-  // Conjoint » et rubrique du contrat (type, régime, date, notaire). null si rien n'est renseigné.
-  function situationMatrimonialeAuthentic(capture) {
-    const c = capture || {};
-    const champs = c.champs || [];
-    const r = { situation: '', date: '', conjoint: '', contrat: '', regime: '', dateMariage: '' };
-    (c.tableaux || []).forEach(t => {
-      const entete = (t.entete || []).map(libelleNetAuthentic);
-      const iSit = entete.indexOf('situation');
-      if (iSit < 0 || r.situation) return;
-      const l = (t.lignes || [])[0] || [];
-      const iDate = entete.indexOf('date');
-      const iConj = entete.indexOf('conjoint');
-      r.situation = String(l[iSit] || '').trim();
-      r.date = iDate >= 0 ? dateIsoDepuisFr(l[iDate]) : '';
-      r.conjoint = iConj >= 0 ? String(l[iConj] || '').trim() : '';
-    });
-    r.contrat = valeurChampAuthentic(champs, (n, b) => /somContratTypeId/.test(b));
-    r.regime = valeurChampAuthentic(champs, (n, b) => /somContratRegimeId/.test(b));
-    r.dateMariage = dateIsoDepuisFr(valeurChampAuthentic(champs, n => n === 'date de mariage'));
-    return Object.values(r).some(Boolean) ? r : null;
-  }
-
-  // Pure : « Marié(e) le 12 juin 2010 — communauté réduite aux acquêts — conjoint : Paul MARTEL ».
-  function libelleSituationMatrimoniale(sm) {
-    if (!sm) return '';
-    return [
-      [sm.situation, sm.date || sm.dateMariage ? `le ${formatDateFr(sm.date || sm.dateMariage)}` : ''].filter(Boolean).join(' '),
-      sm.regime || (sm.contrat && !/^sans/i.test(sm.contrat) ? sm.contrat : ''),
-      sm.conjoint ? `conjoint : ${sm.conjoint}` : ''
-    ].filter(Boolean).join(' — ');
   }
 
   // Pure : vendeurs mariés ou pacsés dont le conjoint n'est pas partie à la vente → à vérifier (le
@@ -1541,7 +1510,7 @@
       if (intituleDossierAuthentic(cap) && pageSuccessionAuthentic(cap, intitule)) g.succession = true;
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
-      if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
+      if (type === 'client') [cap, (partagerFicheConjointAuthentic(cap) || {}).conjoint].filter(Boolean).forEach(c => { const p = clientDepuisFicheAuthentic(c); if (p) g.personnes.set(p.id, p); });
       if (type === 'bien') {
         const b = bienDepuisFicheAuthentic(cap);
         if (b) {
@@ -2647,6 +2616,13 @@
   // applique, sans-changement, sans-dossier, a-choisir. `rel.revu` : page revue, sans message « rien
   // de neuf ».
   async function appliquerReleveAuthentic(capture, rel) {
+    // Fiche client ouverte avec le volet du conjoint : la fiche, puis le conjoint comme une seconde fiche client du même dossier.
+    const partage = partagerFicheConjointAuthentic(capture);
+    if (partage) {
+      const r = await appliquerReleveAuthentic(partage.principale, rel);
+      try { await appliquerReleveAuthentic(partage.conjoint, Object.assign({}, rel, { revu: true })); } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: 'Authentic : volet du conjoint non appliqué — ' + String(e && e.message || e).slice(0, 120) }); }
+      return r;
+    }
     let d = null;
     const revu = !!(rel && rel.revu);
     const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;

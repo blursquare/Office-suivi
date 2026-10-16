@@ -1562,3 +1562,63 @@ test('Authentic : DIA auprès de la SAFER, envoyée le 10/08 et non-préemption 
   assert.equal(pec.envoyeeLe, '2026-08-10');
   assert.equal(pec.creeeLe, '2026-08-01');
 });
+
+test('fiche client ouverte avec le volet du conjoint : la personne de la fiche lue seule, le conjoint lu à part (structure du 16/10)', () => {
+  const id = (s) => 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:' + s;
+  const capture = {
+    champs: [
+      { libelle: 'Rechercher', valeur: '' },
+      { libelle: id('conjointComponent:ficheClientPhysiqueIdentite:etude_input'), valeur: 'oui' },
+      { libelle: id('conjointComponent:ficheClientPhysiqueIdentite:civilite:selectOneRadio'), valeur: 'Madame' },
+      { libelle: 'Nom de famille*', valeur: 'MARTEL' }, { libelle: 'Prénom*', valeur: 'Léa' },
+      { libelle: id('conjointComponent:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate'), valeur: '02/03/1980' },
+      { libelle: 'CP, Ville (naissance)', valeur: '41000 BLOIS' }, { libelle: 'Profession', valeur: 'Infirmière' },
+      { libelle: id('conjointComponent:contact:Telephone:inputTelephone'), valeur: '06 11 22 33 44' }, { libelle: 'Email', valeur: 'lea.martel@exemple.fr' },
+      { libelle: id('tabView:ficheClientPhysiqueIdentite:etude_input'), valeur: 'oui' },
+      { libelle: id('tabView:ficheClientPhysiqueIdentite:civilite:selectOneRadio'), valeur: 'Monsieur' },
+      { libelle: 'Nom de famille*', valeur: 'MARTEL' }, { libelle: 'Prénom*', valeur: 'Paul' },
+      { libelle: id('tabView:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate'), valeur: '05/06/1978' },
+      { libelle: 'CP, Ville (naissance)', valeur: '37000 TOURS' }, { libelle: 'Profession', valeur: 'Artisan' },
+      { libelle: id('tabView:ficheClientPhysiqueAdresseContainer:coordooneesPrincipale:coordonneePrincipaleW99:Telephone:inputTelephone'), valeur: '06 55 66 77 88' },
+      { libelle: 'Email', valeur: 'paul.martel@exemple.fr' },
+      { libelle: 'Date de mariage', valeur: '12/06/2010' },
+      { libelle: id('tabView:ficheClientDetailRelation:somContratRegimeId:selectonemenu_input'), valeur: 'Communauté réduite aux acquêts' }
+    ],
+    tableaux: [{ titre: 'Historique des relations', entete: ['Situation', 'Date', 'Conjoint', ''], lignes: [['Marié(e)', '12/06/2010', 'Mme Léa MARTEL', '']] }],
+    texte: ''
+  };
+  assert.equal(app.typePageAuthentic(capture), 'client');
+  const p = app.clientDepuisFicheAuthentic(capture);
+  assert.equal(`${p.prenom} ${p.nom} ${p.dateNaissance} ${p.profession}`, 'Paul MARTEL 1978-06-05 Artisan');
+  assert.equal(p.emails.join(','), 'paul.martel@exemple.fr', 'pas l’email du conjoint');
+  assert.equal(p.telephones.join(','), '06 55 66 77 88');
+  const partage = app.partagerFicheConjointAuthentic(capture);
+  assert.equal(app.typePageAuthentic(partage.conjoint), 'client');
+  const c = app.clientDepuisFicheAuthentic(partage.conjoint);
+  assert.equal(`${c.civilite} ${c.prenom} ${c.nom} ${c.dateNaissance} ${c.lieuNaissance} ${c.profession}`, 'Madame Léa MARTEL 1980-03-02 41000 BLOIS Infirmière');
+  assert.equal(c.emails.join(','), 'lea.martel@exemple.fr');
+  assert.equal(c.situationMatrimoniale.conjoint, 'Paul MARTEL');
+  assert.equal(c.situationMatrimoniale.regime, 'Communauté réduite aux acquêts');
+  // Les deux personnes entrent dans « Nouveau dossier › Depuis Authentic ».
+  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-16T09:00:00Z', capture: Object.assign({ texte: '12 - VTE MARTEL / ROY\nComparants' }, { tableaux: [{ entete: ['Intitulé', 'Date', 'État'], lignes: [['Titre', '01/01/2026', 'Reçu']] }] }) },
+    { recueLe: '2026-10-16T09:01:00Z', capture }]);
+  const noms = g.flatMap(x => x.export.personnes.map(q => q.prenom)).sort().join(',');
+  assert.ok(/Léa/.test(noms) && /Paul/.test(noms), noms);
+  // Sans volet du conjoint : rien ne change.
+  assert.equal(app.partagerFicheConjointAuthentic({ champs: capture.champs.slice(10) }), null);
+});
+
+test('volet du conjoint : l’état civil de l’autre vendeur est complété sur la fiche (étude 16/10)', () => {
+  const id = (s) => 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:' + s;
+  const conjoint = { volet: 'conjoint', tableaux: [], texte: '', champs: [
+    { libelle: id('conjointComponent:ficheClientPhysiqueIdentite:civilite:selectOneRadio'), valeur: 'Madame' },
+    { libelle: 'Nom de famille*', valeur: 'MARTEL' }, { libelle: 'Prénom*', valeur: 'Léa' },
+    { libelle: id('conjointComponent:ficheClientPhysiqueIdentite:naissanceDate:naissanceDate'), valeur: '02/03/1980' },
+    { libelle: 'Email', valeur: 'lea.martel@exemple.fr' }] };
+  const d = { id: 'v7', nom: 'MARTEL / ROY', parties: [{ role: 'VENDEUR', nom: 'Paul MARTEL' }, { role: 'VENDEUR', nom: 'Léa MARTEL' }, { role: 'ACQUEREUR', nom: 'ROY' }], pieces: {}, historique: [] };
+  const r = app.appliquerReleveSurDossier(d, conjoint, '2026-10-16T09:00:00Z', [d]);
+  assert.equal(r.modifie, true);
+  const lea = d.parties.find(p => /Léa/.test(p.nom));
+  assert.equal(lea.dateNaissance, '1980-03-02');
+  assert.equal(lea.civilite, 'Mme');
+});

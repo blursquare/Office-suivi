@@ -663,3 +663,65 @@
           <button type="button" class="lien-action" onclick="accepterMajAuthentic('${escapeOnclickArg(id)}', '${escapeOnclickArg(m.cle)}')" title="Écrire la valeur d’Authentic sur la fiche">Mettre à jour</button>
           <button type="button" class="lien-action" onclick="ignorerMajAuthenticFiche('${escapeOnclickArg(id)}', '${escapeOnclickArg(m.cle)}')" title="Garder la fiche telle quelle : Authentic ne le proposera plus tant qu’il ne change pas encore">Ignorer</button></span>`).join('')}</span>`, null, 'prop-pleine');
   }
+
+  // Pure : situation matrimoniale d'une fiche client (étude, 02/10 : voir s'il faut faire intervenir le
+  // conjoint — bien propre et résidence de la famille, marié ou pacsé). Tableau « Situation | Date |
+  // Conjoint » et rubrique du contrat (type, régime, date, notaire). null si rien n'est renseigné.
+  function situationMatrimonialeAuthentic(capture) {
+    const c = capture || {};
+    const champs = c.champs || [];
+    const r = { situation: '', date: '', conjoint: '', contrat: '', regime: '', dateMariage: '' };
+    (c.tableaux || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      const iSit = entete.indexOf('situation');
+      if (iSit < 0 || r.situation) return;
+      const l = (t.lignes || [])[0] || [];
+      const iDate = entete.indexOf('date');
+      const iConj = entete.indexOf('conjoint');
+      r.situation = String(l[iSit] || '').trim();
+      r.date = iDate >= 0 ? dateIsoDepuisFr(l[iDate]) : '';
+      r.conjoint = iConj >= 0 ? String(l[iConj] || '').trim() : '';
+    });
+    r.contrat = valeurChampAuthentic(champs, (n, b) => /somContratTypeId/.test(b));
+    r.regime = valeurChampAuthentic(champs, (n, b) => /somContratRegimeId/.test(b));
+    r.dateMariage = dateIsoDepuisFr(valeurChampAuthentic(champs, n => n === 'date de mariage'));
+    return Object.values(r).some(Boolean) ? r : null;
+  }
+
+  // Pure : « Marié(e) le 12 juin 2010 — communauté réduite aux acquêts — conjoint : Paul MARTEL ».
+  function libelleSituationMatrimoniale(sm) {
+    if (!sm) return '';
+    return [
+      [sm.situation, sm.date || sm.dateMariage ? `le ${formatDateFr(sm.date || sm.dateMariage)}` : ''].filter(Boolean).join(' '),
+      sm.regime || (sm.contrat && !/^sans/i.test(sm.contrat) ? sm.contrat : ''),
+      sm.conjoint ? `conjoint : ${sm.conjoint}` : ''
+    ].filter(Boolean).join(' — ');
+  }
+
+  // Pure : une fiche client ouverte avec le volet de l'époux ou du partenaire pacsé (structure reçue le 16/10 : « quand je clique dessus
+  // dans la fiche de l'autre époux ») porte DEUX identités dans la même page — d'abord le conjoint (champs `…:conjointComponent:…`), puis
+  // la personne de la fiche (`…:tabView:…`, adresse, relation). → { principale, conjoint } (deux captures de fiche client), ou null sans
+  // volet. Les champs sans identifiant (« Nom de famille* »…) suivent le dernier identifiant vu. Le conjoint reçoit la situation du couple
+  // lue sur la fiche, son conjoint étant la personne de la fiche.
+  function partagerFicheConjointAuthentic(capture) {
+    const c = capture || {};
+    const champs = Array.isArray(c.champs) ? c.champs : [];
+    if (c.volet === 'conjoint' || c.volet === 'principale' || !champs.some(ch => /conjointComponent/.test(String(ch && ch.libelle || '')))) return null;
+    const principaux = [], conjoint = [];
+    let section = 'principale';
+    champs.forEach(ch => {
+      const lib = String(ch && ch.libelle || '');
+      if (/conjointComponent/.test(lib)) section = 'conjoint';
+      else if (/:tabView:|ficheClientDetailRelation|ficheClientPhysiqueAdresseContainer/.test(lib)) section = 'principale';
+      (section === 'conjoint' ? conjoint : principaux).push(ch);
+    });
+    const principale = Object.assign({}, c, { champs: principaux, volet: 'principale' });
+    if (!conjoint.some(ch => libelleNetAuthentic(ch.libelle) === 'nom de famille')) return null;
+    const sm = situationMatrimonialeAuthentic(principale);
+    const nomFiche = [valeurChampAuthentic(principaux, n => n === 'prenom'), valeurChampAuthentic(principaux, n => n === 'nom de famille').toUpperCase()].filter(Boolean).join(' ');
+    return {
+      principale,
+      conjoint: { champs: conjoint, tableaux: [], texte: c.texte || '', onglets: c.onglets || [], volet: 'conjoint',
+        situationConjoint: sm ? Object.assign({}, sm, { conjoint: nomFiche || sm.conjoint }) : null }
+    };
+  }
