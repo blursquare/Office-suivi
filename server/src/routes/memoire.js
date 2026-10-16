@@ -4,7 +4,7 @@
 // Jamais un chemin reçu du réseau : un document se désigne par son identifiant en base, le fichier est retrouvé et confiné à son dossier.
 
 const express = require('express');
-const { creerMemoire, parcourirMemoire, trouverDossiersMemoire, cheminDocumentMemoire, RUBRIQUES_MEMOIRE, titreSectionRegles } = require('../memoire');
+const { creerMemoire, parcourirMemoire, trouverDossiersMemoire, cheminDocumentMemoire, RUBRIQUES_MEMOIRE, titreSectionRegles, indexerRegles } = require('../memoire');
 const { envoyerFlux } = require('./nas');
 const { noterVerification } = require('../verificationsTerrain');
 
@@ -38,6 +38,8 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
   };
   const appliquerReglages = () => { if (memoire) memoire.definirExclues(lireReglages().fausseMinutes ? [] : ['fausses-minutes']); };
   appliquerReglages();
+  // Les règles de l'étude sont indexées dès le démarrage (une nouvelle version les change), sans attendre le premier parcours du NAS.
+  if (memoire) indexerRegles({ memoire, config }).catch((e) => console.error('[memoire] règles :', e && e.message ? e.message : e));
 
   async function lancerParcours() {
     if (etat.enCours) return false;
@@ -92,7 +94,9 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
   routeur.post('/memoire/document/:id/texte', routeAsync(async (req, res) => {
     const id = Number(req.params.id);
     const corps = req.body || {};
-    if (!memoire.document(id)) { res.status(404).json({ erreur: 'Document inconnu.' }); return; }
+    // Le poste ne rend que le texte d'un PDF qu'il a lu : jamais celui d'un Word, d'un texte ni des règles de l'étude (lus par le serveur).
+    const docPoste = memoire.document(id);
+    if (!docPoste || docPoste.ext !== 'pdf') { res.status(404).json({ erreur: 'Document inconnu.' }); return; }
     if (!Array.isArray(corps.pages) || corps.pages.length > MAX_PAGES_DOCUMENT) { res.status(400).json({ erreur: 'Pages invalides.' }); return; }
     let total = 0;
     const pages = [];
@@ -108,7 +112,9 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
 
   routeur.post('/memoire/document/:id/erreur', routeAsync(async (req, res) => {
     const id = Number(req.params.id);
-    if (!memoire.document(id)) { res.status(404).json({ erreur: 'Document inconnu.' }); return; }
+    // Le poste ne rend que le texte d'un PDF qu'il a lu : jamais celui d'un Word, d'un texte ni des règles de l'étude (lus par le serveur).
+    const docPoste = memoire.document(id);
+    if (!docPoste || docPoste.ext !== 'pdf') { res.status(404).json({ erreur: 'Document inconnu.' }); return; }
     memoire.marquerErreur(id, String((req.body && req.body.message) || 'illisible'));
     res.json({ ok: true });
   }));
@@ -124,7 +130,7 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
       // Règles et décisions de l'étude : la section (titre de l'entrée d'historique, de la règle), pas une page.
       if (p.rubrique === 'regles-etude') {
         const doc = memoire.document(p.doc);
-        Object.assign(sortie, { page: 0, section: doc ? await titreSectionRegles(doc.chemin, p.page, config) : '' });
+        Object.assign(sortie, { page: 0, section: doc ? await titreSectionRegles(doc, p.page, config) : '' });
       }
       passages.push(sortie);
     }

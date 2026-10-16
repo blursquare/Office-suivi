@@ -1,0 +1,52 @@
+name: Vérifier CLAIRE
+
+# Étude 16/10 : « les tests automatiques pour toutes les modifications de CLAIRE ». Toute branche autre que main (sessions de
+# travail, rapports techniques, demandes de fusion) passe les mêmes contrôles que la construction du .exe — règles de code, types,
+# les deux suites de tests, test de fumée dans Chromium — sans rien construire ni publier. main a les siens dans build-exe.yml.
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.2'
+
+      - name: Installer l'outillage racine
+        run: npm ci
+
+      - name: Installer les dépendances serveur
+        working-directory: server
+        run: npm ci
+
+      - name: Règles de code
+        run: npm run lint
+
+      - name: Vérification des types
+        run: npm run types
+
+      - name: Tests côté client
+        run: npm test
+
+      - name: Tests côté serveur
+        working-directory: server
+        run: npm test
+
+      - name: Installer Chromium (test de fumée)
+        run: npx playwright install --with-deps chromium
+
+      - name: Test de fumée dans Chromium
+        run: npm run fumee

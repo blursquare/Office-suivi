@@ -311,6 +311,9 @@ test('seconde relecture : tête de phrase, téléphones étrangers, IBAN, mots d
   // Les champs d'identité d'un résultat d'outil sont masqués en entier, quel que soit leur format.
   const m = masquerValeur({ coordonnees: { telephone_vendeur: '0612 345 678', email_acquereur: 'x@y.fr' }, nom: 'de La Tour', agence: 'Immo du Centre' }, S, new Map());
   assert.equal(JSON.stringify(m), '{"coordonnees":{"telephone_vendeur":"[TEL1]","email_acquereur":"[EMAIL1]"},"nom":"[NOM1]","agence":"[NOM2]"}');
+  // Mémoire, rubrique « Règles et décisions de l'étude » (16/10) : le titre de section d'un extrait est masqué comme le reste.
+  const mem = JSON.stringify(masquerValeur({ passages: [{ rubrique: 'Règles et décisions de l’étude', section: '05/10/2026 — Dossier DURAND, Monsieur Paul Martin', extrait: 'Échéance de l’appel de fonds.' }] }, S, new Map()));
+  assert.doesNotMatch(mem, /DURAND|Paul|Martin/);
   // Changement de fournisseur : la conversation repart de zéro, la clé ne part jamais chez l'autre.
   const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('Claude.')] }]);
   const r1 = await tourAgent({ texte: 'Bonjour', dossiers: D }, { cle: 'cle-claude', client });

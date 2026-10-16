@@ -21,7 +21,7 @@ description: Procédure complète avant d'envoyer un changement de CLAIRE sur ma
 
 ## 3. Relecture indépendante
 
-Lance la procédure de `/relire` (second agent, lecture seule). Corrige les défauts confirmés, relance `npm run verifier`. Un changement d'une ligne de libellé peut s'en passer ; tout ce qui touche un calcul, une règle métier, un envoi d'email, l'agenda, le NAS, Authentic, les secrets ou le serveur ne s'en passe jamais.
+Lance la procédure de `/relire` (second agent, lecture seule). Corrige les défauts confirmés, relance `npm run verifier`, puis `npm run relu`. **Toujours, pour toute modification, même une ligne de libellé** (étude 16/10) : la garde de publication refuse l'envoi sur `main` sans les marques « verifie » (posée par `npm run verifier`) et « relu » du contenu exact envoyé.
 
 ## 3 bis. Audit de la version (étude 13/10 : « voici la marche à suivre à chaque nouvelle version de CLAIRE »)
 
@@ -63,7 +63,7 @@ raison ; les « Bas » sont listés. Le verdict et les points restants vont dans
 
 ## 5. Envoyer et contrôler
 
-1. `npm run verifier` **en dernier**, après la toute dernière modification.
+1. `npm run verifier` **en dernier**, après la toute dernière modification, et `npm run relu` une fois la relecture faite (le commit qui suit ne change pas le contenu : les marques restent valables ; toute retouche les efface).
 2. Commit (message clair, attribution demandée), `git fetch origin main`, fusion si besoin, `git push origin HEAD:main` ; fusionner aussi `main` dans la branche de la session et la pousser.
 3. Regarder sur GitHub que la construction du `.exe` a démarré **et** qu'elle est verte (environ 4 minutes). Rouge : corriger tout de suite, jamais un push vide pour la relancer.
 4. Compte rendu à l'étude, en français simple : ce qui change, ce qui a été vérifié (tests, relecture, audit et son verdict, scénarios, captures), **ce qui ne l'a pas été** (NAS, Exchange, Authentic, 3CX, vrai poste Windows, IA en ligne), et la version affichée dans « À propos » pour confirmer le déploiement.

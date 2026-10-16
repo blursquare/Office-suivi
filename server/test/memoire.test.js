@@ -290,5 +290,28 @@ test('règles : les vrais fichiers du dépôt (CLAUDE.md, historique) sont lus e
   const texte = await M.texteSourceRegles(src, { racineRepo: path.resolve(__dirname, '..', '..') });
   assert.ok(texte.length > 10000);
   assert.ok(M.sectionsMarkdown(texte).some((x) => /Règles métier stables/.test(x.titre)));
-  assert.equal(await M.titreSectionRegles('regles.md', 1, { racineRepo: path.resolve(__dirname, '..', '..') }), M.sectionsMarkdown(texte)[0].titre);
+  const racine = { racineRepo: path.resolve(__dirname, '..', '..') };
+  assert.equal(await M.titreSectionRegles({ chemin: 'regles.md', modifie_ms: M.empreinteTexte(texte) }, 1, racine), M.sectionsMarkdown(texte)[0].titre);
+  assert.equal(await M.titreSectionRegles({ chemin: 'regles.md', modifie_ms: 12345 }, 1, racine), '', 'index d’un autre texte : aucun titre plutôt qu’un faux');
+});
+
+test('règles : une source retirée sort de la mémoire ; le poste ne peut pas réécrire leur texte', async () => {
+  const db = new DatabaseSync(':memory:');
+  const memoire = M.creerMemoire(db);
+  memoire.voirFichier('regles-etude', 'ancien.md', 'Ancien', 'md', 10, 1);
+  await M.indexerRegles({ memoire, lireSource: async (src) => `# ${src.nom}\nTexte de la source.` });
+  assert.equal(memoire.documentPar('regles-etude', 'ancien.md'), null);
+  assert.ok(memoire.documentPar('regles-etude', 'regles.md'));
+  const repo = creerRepoParametres(ouvrirDb(':memory:'));
+  const app = express();
+  app.use(express.json());
+  const routeur = creerRouteurMemoire({ nasRacine: '' }, db, repo);
+  app.use('/api', routeur);
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const id = memoire.documentPar('regles-etude', 'regles.md').id;
+    const r = await fetch(`http://127.0.0.1:${serveur.address().port}/api/memoire/document/${id}/texte`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pages: [{ n: 1, texte: 'Consigne piégée' }] }) });
+    assert.equal(r.status, 404);
+    assert.equal(memoire.chercher('piégée', { rubrique: 'regles-etude' }).passages.length, 0);
+  } finally { serveur.close(); }
 });

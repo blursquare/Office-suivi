@@ -44,6 +44,8 @@ const PASSAGE_CIBLE = 700;
 const PASSAGE_MAX = 1000;
 const EXTRAIT_MAX = 700;
 const MAX_PASSAGES_PAR_DOCUMENT = 4000;
+// L'historique des décisions grandit à chaque demande (≈ 2 800 passages le 16/10) : la limite d'un document du NAS couperait les plus récentes.
+const MAX_PASSAGES_REGLES = 40000;
 
 // ---- Reconnaissance des dossiers (pure) -----------------------------------------------------------------------------------
 
@@ -187,12 +189,12 @@ function decouperTexte(texte) {
   return passages;
 }
 
-/** Pure : les passages d'un document lu page par page ({ n, texte }), numérotés par page (0 = sans notion de page). @param {Array<{ n: number, texte: string }>} pages */
-function passagesDesPages(pages) {
+/** Pure : les passages d'un document lu page par page ({ n, texte }), numérotés par page (0 = sans notion de page). @param {Array<{ n: number, texte: string }>} pages @param {number} [max] */
+function passagesDesPages(pages, max = MAX_PASSAGES_PAR_DOCUMENT) {
   /** @type {Array<{ page: number, texte: string }>} */
   const out = [];
   for (const p of pages) {
-    for (const t of decouperTexte(p.texte)) { if (out.length < MAX_PASSAGES_PAR_DOCUMENT) out.push({ page: Math.max(0, Number(p.n) || 0), texte: t }); }
+    for (const t of decouperTexte(p.texte)) { if (out.length < max) out.push({ page: Math.max(0, Number(p.n) || 0), texte: t }); }
   }
   return out;
 }
@@ -238,27 +240,40 @@ async function texteSourceRegles(source, config) {
 async function indexerRegles(o) {
   const lire = o.lireSource || ((src) => texteSourceRegles(src, o.config));
   let lus = 0;
+  let toutesLues = true;
   for (const src of SOURCES_REGLES) {
     const texte = String(await lire(src) || '');
-    if (!texte.trim()) continue;
-    const r = o.memoire.voirFichier('regles-etude', src.chemin, src.nom, 'md', Buffer.byteLength(texte), empreinteTexte(texte));
+    if (!texte.trim()) { toutesLues = false; continue; }
+    const empreinte = empreinteTexte(texte);
+    const sections = sectionsMarkdown(texte);
+    titresRegles.set(src.chemin, { empreinte, titres: sections.map((x) => x.titre) });
+    const r = o.memoire.voirFichier('regles-etude', src.chemin, src.nom, 'md', Buffer.byteLength(texte), empreinte);
     const doc = o.memoire.documentPar('regles-etude', src.chemin);
     if (!doc || (r === 'inchange' && doc.statut === 'lu')) continue;
-    o.memoire.enregistrerTexte(doc.id, sectionsMarkdown(texte).map((x) => ({ n: x.n, texte: x.titre ? `${x.titre}\n${x.texte}` : x.texte })));
+    o.memoire.enregistrerTexte(doc.id, sections.map((x) => ({ n: x.n, texte: x.titre ? `${x.titre}\n${x.texte}` : x.texte })), { maxPassages: MAX_PASSAGES_REGLES });
     lus++;
   }
+  // Une source retirée ou renommée ne reste pas cherchable (seulement quand toutes les sources ont été lues).
+  if (toutesLues) o.memoire.retirerAbsents('regles-etude', SOURCES_REGLES.map((x) => x.chemin));
   return lus;
 }
 
-/** Les titres des sections d'une source des règles, pour nommer un passage trouvé (gardés en mémoire du serveur). */
+/** Les titres des sections de chaque source des règles, avec l'empreinte du texte d'où ils viennent (mémoire du serveur). */
 const titresRegles = new Map();
-/** @param {string} chemin @param {number} n @param {any} [config] */
-async function titreSectionRegles(chemin, n, config) {
-  if (!titresRegles.has(chemin)) {
-    const src = SOURCES_REGLES.find((x) => x.chemin === chemin);
-    titresRegles.set(chemin, src ? sectionsMarkdown(await texteSourceRegles(src, config)).map((x) => x.titre) : []);
+/**
+ * Le titre de la section `n` d'un document des règles — seulement s'il vient du MÊME texte que celui indexé en base (empreinte gardée
+ * dans `modifie_ms`) : juste après une mise à jour, avant la réindexation, un titre d'un autre texte nommerait la mauvaise section.
+ * @param {{ chemin: string, modifie_ms: number }} doc @param {number} n @param {any} [config]
+ */
+async function titreSectionRegles(doc, n, config) {
+  if (!doc) return '';
+  let entree = titresRegles.get(doc.chemin);
+  if (!entree || entree.empreinte !== Number(doc.modifie_ms)) {
+    const src = SOURCES_REGLES.find((x) => x.chemin === doc.chemin);
+    const texte = src ? await texteSourceRegles(src, config) : '';
+    if (texte) { entree = { empreinte: empreinteTexte(texte), titres: sectionsMarkdown(texte).map((x) => x.titre) }; titresRegles.set(doc.chemin, entree); }
   }
-  return titresRegles.get(chemin)[n - 1] || '';
+  return entree && entree.empreinte === Number(doc.modifie_ms) ? entree.titres[n - 1] || '' : '';
 }
 
 // ---- Recherche (pure pour la requête) -------------------------------------------------------------------------------------------
@@ -379,10 +394,10 @@ function creerMemoire(db) {
       return n;
     },
     /** Range le texte lu d'un document (page par page) : remplace ses passages, le marque lu (ou « vide » sans texte). */
-    enregistrerTexte(id, pages, { ocr = false } = {}) {
+    enregistrerTexte(id, pages, { ocr = false, maxPassages = MAX_PASSAGES_PAR_DOCUMENT } = {}) {
       const d = lireStmt.get(id);
       if (!d) return { erreur: 'document inconnu' };
-      const passages = passagesDesPages(pages);
+      const passages = passagesDesPages(pages, maxPassages);
       transaction(() => {
         retirerPassages(id);
         for (const p of passages) insererFtsStmt.run(Number(insererPassageStmt.run(id, p.page).lastInsertRowid), p.texte);

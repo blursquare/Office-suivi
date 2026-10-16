@@ -27,6 +27,9 @@ on:
       - 'appel-de-fonds-modele.js'
       - 'questionnaire-satisfaction-pdf.js'
       - '.github/workflows/build-exe.yml'
+      # Mémoire de CLAIRE, « Règles et décisions de l'étude » : embarquées dans le .exe.
+      - 'CLAUDE.md'
+      - 'docs/historique.md'
   workflow_dispatch:
 
 permissions:

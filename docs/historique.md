@@ -20487,3 +20487,17 @@ mémoire, avant le NAS (donc même sans NAS), relu seulement si le texte change 
 (`sectionsMarkdown`), le numéro de section tient lieu de page et la recherche rend le titre de la section (`titreSectionRegles`).
 Agent : rubrique ajoutée à l'outil `chercher_dans_la_memoire` et consigne « pour une règle ou un choix de l'étude, cherche dans regles-etude
 et cite la section ». Extraits masqués comme tout résultat d'outil ; rien ne quitte le bureau hors des extraits trouvés.
+
+### 16/10/2026 23 h 25 — Tests et relecture indépendante automatiques pour toute modification
+
+Demande : « J'aimerais aussi que les tests et la relecture indépendante soient automatiques pour toutes les modifications de CLAIRE
+maintenant. » Garde de publication `scripts/garde-publication.js` branchée en crochet PreToolUse de Claude Code (`.claude/settings.json`,
+versionné : toute session sur ce dépôt l'a) : un `git push` vers `main` (toutes formes : `origin main`, `HEAD:main`, `--all`, `git push`
+depuis main…) est refusé tant que le contenu exact de HEAD (arbre git) n'a pas la marque « verifie », posée par `npm run verifier` réussi,
+ET la marque « relu », posée par `npm run relu` après la relecture d'un second agent et ses corrections. Marques dans `.git/claire/` (jamais
+commitées) ; un commit qui ne change pas le contenu les garde, toute retouche les efface. GitHub : `.github/workflows/verifier.yml` passe les
+mêmes contrôles (lint, types, deux suites, fumée) sur toute branche autre que main et sur toute demande de fusion — dont les branches des
+sessions programmées de relecture des rapports. Règle « relecture pour tout, même une ligne de libellé » dans CLAUDE.md, `/publier`, `/relire`.
+Limite : la relecture reste faite par un agent que la session lance ; la garde l'impose sans la faire elle-même (une relecture sur GitHub
+par l'API demanderait une clé et coûterait des jetons à chaque envoi).
+Relecture : titres de section contrôlés par l'empreinte du texte indexé (`titreSectionRegles(doc, n)`, jamais un titre d'un autre texte juste après une mise à jour), règles indexées dès le démarrage du serveur, `POST /memoire/document/:id/texte|erreur` réservés aux PDF (le poste ne peut plus réécrire les règles ni un Word), source retirée sortie de la mémoire, limite de passages relevée pour l'historique (`MAX_PASSAGES_REGLES`), `.exe` reconstruit quand seuls CLAUDE.md ou l'historique changent, test « rien de nominatif » étendu au titre de section.

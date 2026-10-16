@@ -1,11 +1,11 @@
 ---
 name: relire
-description: Relecture indépendante des changements en cours de CLAIRE par un second agent, avant publication. À lancer quand le code est prêt et que npm run verifier est vert ; rend une liste de défauts vérifiés, classés, que l'agent principal corrige ou justifie.
+description: Relecture indépendante des changements en cours de CLAIRE par un second agent, avant publication — obligatoire pour TOUTE modification (étude 16/10), imposée par la garde de publication. À lancer quand le code est prêt et que npm run verifier est vert ; rend une liste de défauts vérifiés, que l'agent principal corrige ou justifie.
 ---
 
 # Relecture indépendante (CLAIRE)
 
-But : un regard qui n'a pas écrit le code. L'agent qui a fait le changement ne se relit pas lui-même.
+But : un regard qui n'a pas écrit le code. L'agent qui a fait le changement ne se relit pas lui-même. **Pour toute modification de CLAIRE, sans exception** (étude 16/10 : « les tests et la relecture indépendante automatiques pour toutes les modifications ») : un envoi sur `main` est refusé par la garde de publication (`scripts/garde-publication.js`, crochet de `.claude/settings.json`) tant que le contenu envoyé n'a pas sa marque « relu ».
 
 ## Procédure
 
@@ -23,7 +23,7 @@ But : un regard qui n'a pas écrit le code. L'agent qui a fait le changement ne 
    - un nouveau chemin qui coche une échéance passe par `cocherEcheance` / `devaliderEcheance` ; tout bilan des fonds par `bilanFondsDossier` ; tout nom de dossier affiché par `libelleDossierAffiche` ;
    - gestionnaire en ligne sur un composant Web Awesome : `window.render()`, jamais `render()` ;
    - échelle de style (tailles, arrondis, ombres, espacements, aucune couleur `#…` hors jetons), boutons `wa-button`.
-4. Relis toi-même chaque défaut rapporté : un défaut non reproduit n'est pas corrigé « au cas où ». Corrige les défauts confirmés, relance `npm run verifier`, et dis dans le compte rendu à l'étude ce que la relecture a trouvé (même si c'est « rien »).
+4. Relis toi-même chaque défaut rapporté : un défaut non reproduit n'est pas corrigé « au cas où ». Corrige les défauts confirmés, relance `npm run verifier`, puis **`npm run relu`** (marque « relu » de ce contenu ; une modification ensuite l'efface : relire ce qui a changé et remarquer), et dis dans le compte rendu à l'étude ce que la relecture a trouvé (même si c'est « rien »).
 
 ## Ce que cette relecture ne remplace pas
 
