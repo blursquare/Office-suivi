@@ -1286,7 +1286,8 @@
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
       etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
-      avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture)
+      avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture),
+      premierComparant: premierComparantAuthentic(capture), premierImmeuble: premierImmeubleAuthentic(capture)
     };
     Object.keys(r).forEach(k => { if (!r[k] || (typeof r[k] === 'object' && !Object.keys(r[k]).length)) delete r[k]; });
     return r;
@@ -1297,7 +1298,8 @@
   function fusionnerInfosAuthentic(ancien, nouveau) {
     const r = Object.assign({}, ancien || {});
     Object.entries(nouveau || {}).forEach(([k, v]) => {
-      if (v && typeof v === 'object' && !Array.isArray(v)) {
+      if (k === 'premierComparant' && v) r[k] = v; // remplacé en entier : le lien d'une ancienne page ne reste pas collé
+      else if (v && typeof v === 'object' && !Array.isArray(v)) {
         const base = Object.assign({}, r[k] || {});
         Object.entries(v).forEach(([kk, vv]) => { if (vv) base[kk] = vv; });
         r[k] = base;

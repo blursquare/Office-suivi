@@ -649,3 +649,90 @@ test('Nouveau dossier d’une succession : défunt, héritiers, conjoint et type
   assert.equal(recap[1].libelle, 'Défunt');
   assert.ok(!recap.some(l => /Vendeur|Prix|Notaires/.test(l.libelle)));
 });
+
+test('Nouveau dossier de succession : défunt = premier comparant recoupé avec le nom du dossier, bien principal = premier bien (étude 16/10)', () => {
+  const texte = 'A 2026 00247 SUCC Jeanne DURAND veuve MARTIN\n1 - Succession Jeanne DURAND veuve MARTIN Importer\nComparants (2)\nMme DURAND Jeanne veuve de M. MARTIN Paul\nM. MARTIN Luc\nImmeubles (2)\n3 rue des Lilas 41000 BLOIS\nImmeuble propre\n8 route de Paris 41350 VINEUIL\nImmeuble commun\nTiers (0)';
+  const premier = app.premierComparantAuthentic({ texte });
+  assert.equal(premier.nom, 'DURAND Jeanne');
+  assert.equal(premier.lien, 'Veuve de');
+  assert.equal(app.premierImmeubleAuthentic({ texte }), '3 rue des Lilas 41000 BLOIS');
+  const d = (nom, c) => ({ nom, authentic: { premierComparant: c } });
+  assert.equal(app.premierComparantDefunt(d('Jeanne DURAND veuve MARTIN', premier)).nom, 'DURAND Jeanne');
+  assert.equal(app.premierComparantDefunt(d('SUCC DURAND', premier)).role, 'DEFUNT', 'nom de famille seul dans le nom du dossier');
+  // Le premier comparant n'est pas celui que le nom du dossier désigne : personne.
+  assert.equal(app.premierComparantDefunt(d('Jeanne DURAND veuve MARTIN', { nom: 'MARTIN Luc', civilite: 'M' })), null, 'autre prénom');
+  assert.equal(app.premierComparantDefunt(d('Paul LEROY', premier)), null, 'autre nom');
+  // Proposition de l'assistant : défunt et bien principal.
+  const p = app.propositionWizardSuccession({ intitule: 'SUCC Jeanne DURAND veuve MARTIN', type: 'succession', personnes: [], immeubles: [],
+    infosAuthentic: { premierComparant: premier, premierImmeuble: '3 rue des Lilas 41000 BLOIS' } });
+  assert.equal(p.nom, 'DURAND');
+  assert.equal(p.prenoms, 'Jeanne');
+  assert.equal(p.bienPrincipal, '3 rue des Lilas 41000 BLOIS');
+  // Une qualité « Défunt » lue passe avant le premier de la liste.
+  const p2 = app.propositionWizardSuccession({ intitule: 'SUCC Jeanne DURAND veuve MARTIN', type: 'succession', personnes: [], immeubles: [],
+    infosAuthentic: { premierComparant: premier, comparants: [{ nom: 'MARTIN Paul', civilite: 'M', role: 'DEFUNT', qualite: 'Défunt' }] } });
+  assert.equal(p2.nom, 'MARTIN');
+});
+
+test('Comparants collés dans un seul champ (page réelle, 16/10 ; noms inventés) : icônes retirées, qualité collée, rubrique coupée', () => {
+  const lib = '4 - Succession Gérard PRADEL Importer avec 6e SENSSuccession Gérard PRADELComparants (3) personM. PRADEL Gérard veuf de Mme KOVAC ILIEVA MilenaDéfunt euro_symbol keyboard_arrow_up keyboard_arrow_down personMme PRADEL Sylvie épouse de M. BO';
+  const cap = { champs: [{ groupe: '', libelle: lib, valeur: '' }], tableaux: [], texte: '' };
+  const comps = app.comparantsAuthentic(cap);
+  assert.equal(comps.map(c => c.role + ':' + c.nom).join('|'), 'DEFUNT:PRADEL Gérard|HERITIER:PRADEL Sylvie');
+  assert.equal(comps[0].lien, 'Veuf de');
+  assert.equal(comps[1].conjoint, undefined, 'conjoint coupé : pas gardé');
+  assert.equal(app.premierComparantAuthentic(cap).nom, 'PRADEL Gérard');
+  assert.equal(app.pageSuccessionAuthentic(cap, app.intituleDossierAuthentic(cap)), true);
+  // Même rubrique dans le texte de la page, une cellule par ligne : entière.
+  const texte = 'Succession Gérard PRADEL\nComparants (3)\npersonM. PRADEL Gérard veuf de Mme KOVAC ILIEVA Milena\nDéfunt\neuro_symbol\nkeyboard_arrow_up\nkeyboard_arrow_down\npersonMme PRADEL Sylvie épouse de M. BOREL Marc\nHéritier\npersonM. PRADEL Louis\nHéritier\nImmeubles (1)';
+  assert.equal(app.comparantsAuthentic({ champs: [], texte }).map(c => c.role + ':' + c.nom).join('|'), 'DEFUNT:PRADEL Gérard|HERITIER:PRADEL Sylvie|HERITIER:PRADEL Louis');
+  // Une vente au même format : vendeur / acquéreur lus.
+  const vente = 'Comparants (2)\npersonM. MOREAU Paul\nVendeur\neuro_symbol\npersonMme LAMBERT Claire\nAcquéreur\nImmeubles (1)';
+  assert.equal(app.comparantsAuthentic({ champs: [], texte: vente }).map(c => c.role + ':' + c.nom).join('|'), 'VENDEUR:MOREAU Paul|ACQUEREUR:LAMBERT Claire');
+});
+
+test('délais d’une succession : 1 et 2 mois depuis l’ouverture, 6 mois depuis le décès (étude 16/10)', () => {
+  const base = { id: 's', nom: 'SUCC PRADEL', typeAffaire: 'succession', sansPret: true, parties: [], succession: { ouvertureLe: '2026-11-10', type: 'classique' } };
+  const iso = (d, t) => (app.etapesSuccession(d, '2026-10-16').find(e => e.type === t) || {}).iso;
+  const avecDeces = Object.assign({}, base, { defunt: { decesDate: '2026-08-20' } });
+  assert.equal(iso(avecDeces, 'notoriete'), '2026-12-10', 'notoriété : 1 mois après l’ouverture');
+  assert.equal(iso(avecDeces, 'controleDroits'), '2027-01-10', 'contrôle : 2 mois après l’ouverture');
+  assert.equal(iso(avecDeces, 'declarationSuccession'), '2027-02-20', 'déclaration : 6 mois après le décès');
+  // Décès lu sur la fiche client d'Authentic.
+  const authentic = Object.assign({}, base, { authentic: { fichesClients: { a: { nom: 'Gérard PRADEL', deces: { date: '2026-07-31' } } } } });
+  assert.equal(app.decesSuccession(authentic), '2026-07-31');
+  assert.equal(iso(authentic, 'declarationSuccession'), '2027-01-31');
+  // Sans date du décès : depuis l'ouverture, comme avant.
+  assert.equal(iso(base, 'declarationSuccession'), '2027-05-10');
+  // Notoriété + déclaration ensemble : entre 4 et 6 mois du décès.
+  const ensemble = Object.assign({}, avecDeces, { succession: { ouvertureLe: '2026-11-10', type: 'notoriete-ds' } });
+  const e = app.etapesSuccession(ensemble, '2026-10-16').find(x => x.type === 'notoriete');
+  assert.equal(e.fenetreDebut + '|' + e.iso, '2026-12-20|2027-02-20');
+});
+
+test('une succession n’est pas une vente : alertes, statistiques, échanges (étude 16/10)', () => {
+  const auj = '2026-10-16';
+  const s = { id: 's', nom: 'Gérard PRADEL', typeAffaire: 'succession', sansPret: true, parties: [], pieces: {},
+    defunt: { decesDate: '2026-04-20' }, succession: { ouvertureLe: '2026-09-26', type: 'classique', rendezVous: [{ id: 'r', etape: 'notoriete', date: '2026-10-21', heure: '10:00' }] },
+    rendezVousSignature: '2026-10-21', rendezVousSignatureHeure: '10:00' };
+  const titres = app.alertesImportantes([s], auj).map(a => a.titre + ' · ' + a.detail).join(' | ');
+  assert.ok(!/appel de fonds et le projet|offre de prêt|préemption|SAFER/i.test(titres), titres);
+  // Déclaration de succession à 6 mois du décès (20/10/2026) : date butoir dans 4 jours, rendez-vous à placer.
+  assert.ok(/Placer le rendez-vous · Signature de l’attestation immobilière et de la déclaration de succession · date butoir/.test(titres), titres);
+  // Statistiques des ventes : la succession n'y entre pas.
+  assert.equal(app.statistiquesDelaisDossiers([Object.assign({ dateAvantContrat: '2026-09-01' }, s)], auj).signature.n, 0);
+  assert.equal(app.comparaisonDossiersOuverts([Object.assign({ dateAvantContrat: '2026-10-01' }, s)], auj).mois.n, 0);
+});
+
+test('relecture 16/10 : icônes jamais coupées dans un mot, fiche décédée prioritaire, premier comparant remplacé en entier', () => {
+  const vente = 'Comparants (2)\nM. MOREAU Paul\nVendeur\nSARL Credit Immobilier Acquéreur\nM. X Benedit\nAcquéreur\nImmeubles (1)';
+  assert.equal(app.comparantsAuthentic({ champs: [], texte: vente }).map(c => c.role + ':' + c.nom).join('|'), 'VENDEUR:MOREAU Paul|ACQUEREUR:SARL Credit Immobilier|ACQUEREUR:X Benedit');
+  // Le premier comparant (la veuve) ne passe pas devant la fiche décédée de son mari.
+  const d = { nom: 'SUCC DURAND', typeAffaire: 'succession', authentic: { premierComparant: { nom: 'DURAND Jeanne', civilite: 'Mme', lien: 'Veuve de', conjoint: 'Monsieur DURAND Paul' },
+    fichesClients: { p: { nom: 'Paul DURAND', prenom: 'Paul', nomFamille: 'DURAND', deces: { date: '2026-03-01' } } } } };
+  const r = app.defuntDepuisFiches(d);
+  assert.equal(r.fiche && r.fiche.nom, 'Paul DURAND');
+  assert.equal(r.comparant, null);
+  const f = app.fusionnerInfosAuthentic({ premierComparant: { nom: 'DURAND Jeanne', lien: 'Veuve de', conjoint: 'Monsieur MARTIN Paul' } }, { premierComparant: { nom: 'MARTIN Paul', civilite: 'M' } });
+  assert.equal(JSON.stringify(f.premierComparant), JSON.stringify({ nom: 'MARTIN Paul', civilite: 'M' }));
+});

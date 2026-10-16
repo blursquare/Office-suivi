@@ -531,13 +531,17 @@
   // représente l'acquéreur), puis ce qui sert À CE STADE du dossier en lignes d'action (même forme
   // que « À faire »), puis le reste replié. Les gestes d'argent sont dans l'onglet Fonds.
   function renderEchangesDossier(d) {
-    const notaireParticipant = notaireParticipantRepresenteAcquereur(d);
+    const succession = estSuccession(d);
+    const notaireParticipant = !succession && notaireParticipantRepresenteAcquereur(d);
     const { stade, utiles, autres } = lignesEchangesOnglet(d, false);
-    const hint = texteDestinataireEchanges(d);
+    // Succession (étude 16/10) : ni acquéreur ni stade de vente — l'étape en cours de la succession.
+    const hint = succession ? '' : texteDestinataireEchanges(d);
+    const etapeSucc = succession ? (etapesSuccession(d, isoAujourdhuiLocal()).find(e => !e.fait && e.active && (e.iso || !e.avantRdv)) || null) : null;
+    const libelleStade = succession ? (etapeSucc ? etapeSucc.label : 'Succession réglée') : STADES_DOSSIER[stade];
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="section-eyebrow">${notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client'}</span>
-          <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
+          <span class="section-eyebrow">${succession ? 'Échanges avec les héritiers' : (notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client')}</span>
+          <span class="echanges-stade" title="${succession ? 'Étape en cours de la succession' : 'Stade du dossier, lu dans ses dates'}">${escapeHtml(libelleStade)}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
         ${renderAppelsDossier(d)}

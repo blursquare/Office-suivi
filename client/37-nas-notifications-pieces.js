@@ -1563,13 +1563,14 @@
     }
     if (!doitNotifierDossierComplet(d)) return;
     d.completNotifieLe = new Date().toISOString();
-    ajouterHistorique(d, 'Dossier complet (offre de prêt et pièces reçues) : responsable prévenu', { auto: true });
+    const succession = estSuccession(d);
+    ajouterHistorique(d, succession ? 'Pièces de la succession toutes reçues : responsable prévenu' : 'Dossier complet (offre de prêt et pièces reçues) : responsable prévenu', { auto: true });
     // Fire-and-forget, comme la notification de pièces : un envoi impossible ne doit jamais faire
     // échouer ce qui vient d'être fait sur le dossier.
     fetchAvecAuth('/api/notifications/dossier-complet', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null })
+      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, succession })
     }).catch(e => console.warn('Notification « dossier complet » impossible :', e.message));
   }
 

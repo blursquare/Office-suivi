@@ -210,12 +210,39 @@
     const decedes = fiches.filter((f) => f.deces && f.deces.date);
     // Étude 15/10 : la rubrique « Comparants » d'Authentic dit qui est le défunt (qualité « Défunt ») — elle passe avant la date de
     // décès d'une fiche : la fiche qui porte son nom est celle du défunt, même lue avant que la date de décès n'y soit.
-    const comparant = comparantsSuccession(d).find((c) => c.role === 'DEFUNT') || null;
+    const lu = comparantsSuccession(d).find((c) => c.role === 'DEFUNT') || null;
+    // Le premier comparant ne passe jamais devant une fiche décédée qui n'est pas la sienne (relecture 16/10 : « Mme DURAND Jeanne veuve
+    // de M. DURAND Paul » premier de la liste, la fiche de Paul DURAND porte la date du décès).
+    const premier = lu ? null : premierComparantDefunt(d);
+    const premierDecede = premier && (!decedes.length || decedes.some((f) => [f.nom, [f.prenom, f.nomUsage].filter(Boolean).join(' ')].some((n) => memePersonneNommee(n, premier.nom))));
+    const comparant = lu || (premierDecede ? premier : null);
     if (comparant) {
       const fiche = fiches.find((f) => [f.nom, [f.prenom, f.nomUsage].filter(Boolean).join(' ')].some((n) => memePersonneNommee(n, comparant.nom))) || null;
       return { fiche, autres: fiche ? decedes.filter((f) => f !== fiche) : decedes, comparant };
     }
     return { fiche: decedes[0] || null, autres: decedes.slice(1), comparant: null };
+  }
+
+  /**
+   * Pure : sans qualité « Défunt » lue, le PREMIER comparant de la rubrique d'Authentic (`d.authentic.premierComparant`) quand le nom
+   * du dossier le désigne (étude 16/10 : « défunt : recouper nom du dossier et premier dans la liste des comparants ») — son nom de
+   * famille dans le nom du dossier, et son prénom aussi quand le nom du dossier porte un prénom. Sinon null : jamais deviné.
+   * @param {any} d
+   */
+  function premierComparantDefunt(d) {
+    const c = d && d.authentic && d.authentic.premierComparant;
+    if (!c || !c.nom) return null;
+    const np = nomPrenomsComparant(c.nom);
+    const motsDossier = motsPersonne(String((d && d.nom) || '').replace(/^\s*(?:succ(?:ession)?)\.?\s+/i, ''));
+    const familles = motsPersonne(np.nom);
+    if (!familles.length || !familles.every((m) => motsDossier.includes(m))) return null;
+    // Mots du nom du dossier qui ne sont ni un nom de famille en capitales ni un lien (« veuve ») : des prénoms.
+    const capitales = motsPersonne(String((d && d.nom) || '').split(/\s+/).filter((m) => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m)).join(' '));
+    const liens = ['veuve', 'veuf', 'epouse', 'epoux', 'nee', 'ne', 'divorce', 'divorcee', 'de', 'et', 'succ', 'succession'];
+    const prenomsDossier = motsDossier.filter((m) => !capitales.includes(m) && !liens.includes(m));
+    const prenom = motsPersonne(np.prenoms)[0] || '';
+    if (prenomsDossier.length && prenom && !prenomsDossier.includes(prenom)) return null;
+    return Object.assign({}, c, { role: 'DEFUNT', deduit: true });
   }
 
   /**
@@ -287,7 +314,7 @@
   }
 
   exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
-    circuitCourrierVente, noteGuichetCommune, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
+    circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

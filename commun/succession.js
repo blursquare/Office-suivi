@@ -10,8 +10,9 @@
 // Déroulé (étude 15/10) : rendez-vous d'ouverture avec Sophie → acte de notoriété dans le mois (actes de naissance reçus, FCDDV
 // interrogé, donation entre époux et testament vérifiés) → à 2 mois, contrôle des droits et de l'inventaire → après la notoriété,
 // déblocage des fonds auprès des banques puis réception (avec un conjoint survivant : transfert des comptes à son profit) →
-// attestation immobilière et déclaration de succession au plus tard 6 mois. Délais de 1, 2 et 6 mois comptés depuis le rendez-vous
-// d'ouverture (choix de l'étude du 15/10).
+// attestation immobilière et déclaration de succession au plus tard 6 mois. Délais de 1 et 2 mois comptés depuis le rendez-vous
+// d'ouverture (choix de l'étude du 15/10) ; le délai de 6 mois pour régler la succession court depuis la DATE DU DÉCÈS (étude 16/10),
+// depuis l'ouverture seulement tant que la date du décès n'est pas connue.
 /** @param {typeof import('./dates') & typeof import('./dossier')} C */
 (function (C) {
   /** @typedef {{ cle: string, libelle: string, actes: string[] }} TypeSuccession */
@@ -110,6 +111,26 @@
     const autres = actes.filter(a => a && a.intitule && !acteBaseDepuisIntitule(a.intitule))
       .map((a, i) => ({ cle: 'authentic-' + i, libelle: String(a.intitule), base: false, etat: a.etat || '', signeLe: a.signeLe || '' }));
     return base.concat(autres);
+  }
+
+  /**
+   * Pure : la date du décès (AAAA-MM-JJ) ou '' — saisie sur la fiche (`d.defunt.decesDate`), sinon la fiche client d'Authentic portant
+   * une date de décès : la seule, ou celle du comparant « Défunt » quand plusieurs en portent une. Jamais devinée.
+   * @param {any} d
+   */
+  function decesSuccession(d) {
+    const iso = (/** @type {any} */ v) => { const t = String(v || '').slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : ''; };
+    const saisie = iso(d && d.defunt && d.defunt.decesDate);
+    if (saisie) return saisie;
+    const a = (d && d.authentic) || {};
+    const fiches = Object.values(a.fichesClients || {}).filter((/** @type {any} */ f) => f && f.deces && iso(f.deces.date));
+    if (fiches.length === 1) return iso(/** @type {any} */ (fiches[0]).deces.date);
+    const comp = (Array.isArray(a.comparants) ? a.comparants : []).find((/** @type {any} */ c) => c && c.role === 'DEFUNT');
+    if (!comp || !fiches.length) return '';
+    const mots = (/** @type {any} */ t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((m) => m.length >= 2);
+    const mc = mots(comp.nom);
+    const trouvees = fiches.filter((/** @type {any} */ f) => { const mf = mots(f.nom); return mc.length >= 2 && mc.every((m) => mf.includes(m)); });
+    return trouvees.length === 1 ? iso(/** @type {any} */ (trouvees[0]).deces.date) : '';
   }
 
   /** Pure : la date du rendez-vous d'ouverture (AAAA-MM-JJ) ou ''. @param {any} d */
@@ -315,6 +336,9 @@
     // Sans date du jour fournie (echeanceValidee), celle de l'horloge : un rendez-vous d'ouverture passé est fait.
     const auj = String(aujourdhuiIso || new Date().toISOString()).slice(0, 10);
     const plus = (mois) => (ouverture ? (C.ajouterMois(ouverture, mois) || '') : '');
+    // 6 mois (et la fenêtre de 4 à 6 mois de la notoriété + déclaration) : depuis le décès (étude 16/10), sinon depuis l'ouverture.
+    const deces = decesSuccession(d);
+    const depuisDeces = (mois) => (deces ? (C.ajouterMois(deces, mois) || '') : plus(mois));
     const type = typeSuccessionDef(typeSuccession(d));
     /** @type {any[]} */
     const etapes = [];
@@ -333,11 +357,11 @@
     const rdvNotoriete = noto.fait ? null : rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' || r.etape === 'acte' || (ensemble && r.etape === 'declarationSuccession')), auj);
     const rdvDeclaration = rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession' || (r.etape === 'acte' && apresNotoriete(r))), auj);
     const rdv = rdvNotoriete ? rdvNotoriete.date : '';
-    const butoirNoto = plus(ensemble ? MOIS_DECLARATION_SUCCESSION : MOIS_NOTORIETE);
+    const butoirNoto = ensemble ? depuisDeces(MOIS_DECLARATION_SUCCESSION) : plus(MOIS_NOTORIETE);
     etapes.push({
       type: 'notoriete', label: ensemble ? 'Signature de l’acte de notoriété et de la déclaration de succession' : 'Signature de l’acte de notoriété',
       iso: noto.fait ? noto.iso : (rdv || butoirNoto), fait: noto.fait, attente: false, active: true,
-      butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? plus(MOIS_NOTORIETE_DS_DEBUT) : ''
+      butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? depuisDeces(MOIS_NOTORIETE_DS_DEBUT) : '', depuisDeces: ensemble && !!deces
     });
     etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true });
     const apresNoto = noto.fait ? (noto.iso || '') : '';
@@ -353,8 +377,8 @@
       const ds = acteSigneSuccession(d, 'declaration');
       const label = type.actes.includes('attestation') ? 'Signature de l’attestation immobilière et de la déclaration de succession' : 'Signature de la déclaration de succession';
       const placee = rdvDeclaration ? rdvDeclaration.date : '';
-      const butoir = plus(MOIS_DECLARATION_SUCCESSION);
-      etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || butoir), fait: ds.fait, attente: false, active: true, butoir: !ds.fait && !placee && !!butoir, rdvPlace: !ds.fait && !!placee });
+      const butoir = depuisDeces(MOIS_DECLARATION_SUCCESSION);
+      etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || butoir), fait: ds.fait, attente: false, active: true, butoir: !ds.fait && !placee && !!butoir, rdvPlace: !ds.fait && !!placee, depuisDeces: !!deces });
     }
     // Avant le DERNIER rendez-vous (attestation immobilière / déclaration de succession, sinon notoriété) — étude 16/10 : « l'envoi du
     // décompte à faire valider » et, parfois, « un appel de fonds pour régler nos fonds si on n'a pas assez en comptabilité », « un peu
@@ -414,7 +438,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

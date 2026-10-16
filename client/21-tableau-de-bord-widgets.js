@@ -51,8 +51,10 @@
   // Pure : { pret, preemption, signature } → { moyenne, mediane, n, min, max } en jours depuis
   // l'ouverture, sur TOUS les dossiers mesurables (étude, 02/10 : « la moyenne sur tous les dossiers,
   // pas le mois en cours » — archivés compris, sans fenêtre de dates) ; moyenne null sans aucun dossier.
-  function statistiquesDelaisDossiers(liste, aujourdhuiIso) {
+  function statistiquesDelaisDossiers(liste0, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    // Ventes seulement (étude 16/10 : une succession n'a ni avant-contrat, ni prêt, ni préemption).
+    const liste = (liste0 || []).filter(d => !estSuccession(d));
     const mesurer = (dateDe) => {
       const ecarts = [];
       let parAvantContrat = 0;
@@ -79,8 +81,9 @@
   // Pure : dossiers ouverts dans CLAIRE ce mois-ci, le mois précédent et le même mois de l'année
   // précédente. `disponible` = false quand CLAIRE ne suivait encore aucun dossier ce mois-là (aucune
   // ouverture notée avant sa fin) : on affiche alors « — », pas un zéro trompeur.
-  function comparaisonDossiersOuverts(liste, aujourdhuiIso) {
+  function comparaisonDossiersOuverts(liste0, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const liste = (liste0 || []).filter(d => !estSuccession(d)); // avant-contrats : ventes seulement (étude 16/10)
     // Compté au mois de signature de l'avant-contrat (à défaut d'ouverture) ; « — » pour un mois
     // d'avant le premier dossier ouvert dans CLAIRE (un avant-contrat plus ancien n'y change rien).
     const ouvertures = (liste || []).map(d => { const x = debutDossierStatistiques(d); return x && x.date; }).filter(Boolean).sort();

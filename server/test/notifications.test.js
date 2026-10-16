@@ -257,3 +257,10 @@ test('« Demander à CLAIRE » (13/10) : demande à un collaborateur sur Teams, 
   assert.match(envois[0].texte, /Julie VASSELIN a fait ce que vous lui aviez demandé : Appeler la banque/);
   assert.equal((await appeler('/api/notifications/demande-collaborateur', { method: 'POST', body: JSON.stringify({ collaborateur: 'Julie VASSELIN' }) })).status, 400);
 });
+
+test('dossier complet : une succession n’a pas d’offre de prêt (étude 16/10)', () => {
+  const { texteDossierComplet } = require('../src/routes/notifications');
+  assert.match(texteDossierComplet('SUCC - PRADEL', true), /Succession SUCC - PRADEL : toutes les pièces sont reçues/);
+  assert.doesNotMatch(texteDossierComplet('SUCC - PRADEL', true), /prêt/);
+  assert.match(texteDossierComplet('VTE - MOREAU'), /offre de prêt et pièces reçues/);
+});

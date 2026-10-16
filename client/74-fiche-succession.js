@@ -226,10 +226,11 @@
       // Arbitrage du forfait mobilier relié au contrôle à 2 mois (étude 15/10).
       if (e.type === 'controleDroits' && !e.fait) base.bouton = { onclick: `ouvrirArbitrageDepuisFiche('${idJs}')`, titre: 'Comparer le forfait mobilier de 5 % au coût d’un inventaire avec prisée', icone: icone('scale'), libelle: s.arbitrage ? 'Revoir l’arbitrage' : 'Arbitrage forfait mobilier' };
       if (e.fait) { ajouter('fait', Object.assign(base, { fait: true, auto: !cochable })); return; }
-      if (e.type === 'ouvertureSuccession' && !e.iso) { ajouter('faire', Object.assign(base, { titre: 'Fixer le rendez-vous d’ouverture avec Sophie', sous: 'Les délais (1, 2 et 6 mois) partent de lui' })); return; }
+      if (e.type === 'ouvertureSuccession' && !e.iso) { ajouter('faire', Object.assign(base, { titre: 'Fixer le rendez-vous d’ouverture avec Sophie', sous: 'Les délais d’1 et 2 mois partent de lui (6 mois : depuis le décès)' })); return; }
       if (!e.active) { ajouter('attente', Object.assign(base, { iso: '', sous: e.type === 'receptionFonds' ? 'Après le déblocage des fonds' : 'Après l’acte de notoriété' })); return; }
       // Date butoir (étude 15/10) : confirmée par le rendez-vous placé dans l'agenda.
-      if (e.butoir) base.sous = e.fenetreDebut ? `Entre le ${formatDateFr(e.fenetreDebut)} et le ${formatDateFr(e.iso)} — date butoir, à confirmer par le rendez-vous` : 'Date butoir — à confirmer par le rendez-vous';
+      if (e.butoir) base.sous = (e.fenetreDebut ? `Entre le ${formatDateFr(e.fenetreDebut)} et le ${formatDateFr(e.iso)} — date butoir, à confirmer par le rendez-vous` : 'Date butoir — à confirmer par le rendez-vous')
+        + (e.depuisDeces ? ' (6 mois après le décès)' : (e.type === 'declarationSuccession' || e.fenetreDebut ? ' (date du décès inconnue : comptée depuis l’ouverture)' : ''));
       else if (e.rdvPlace) base.sous = 'Rendez-vous placé';
       if (e.type === 'notoriete' && attentes.length) base.sous = [base.sous, 'À réunir : ' + attentes.join(', ')].filter(Boolean).join(' · ');
       // Décompte et appel de fonds : 10 jours avant le dernier rendez-vous (étude 16/10).
@@ -260,6 +261,21 @@
     ajouterHistorique(d, inutile ? 'Appel de fonds : pas nécessaire (fonds suffisants en comptabilité)' : 'Appel de fonds de nouveau prévu avant le dernier rendez-vous');
     sauvegarder(d);
     render();
+  }
+
+  // Pure : les alertes d'une succession pour la carte « Alertes importantes » (étude 16/10) — un acte dont la date butoir approche sans
+  // rendez-vous placé, le décompte (et l'appel de fonds) à envoyer avant le dernier rendez-vous. → [{ gravite, titre, detail, jours }].
+  function alertesSuccession(d, aujourdhuiIso) {
+    const r = [];
+    const court = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+    etapesSuccession(d, aujourdhuiIso).forEach(e => {
+      if (e.fait || !e.active || !e.iso) return;
+      const j = ecartJours(aujourdhuiIso, e.iso);
+      if (j === null) return;
+      if (e.butoir && j <= 15) r.push({ gravite: j <= 5 ? 'critique' : 'vigilance', titre: 'Placer le rendez-vous', detail: `${e.label} · date butoir le ${court(e.iso)}${j < 0 ? ' (dépassée)' : ''}`, jours: j });
+      else if (e.avantRdv && j <= 3) r.push({ gravite: j <= 0 ? 'critique' : 'vigilance', titre: e.type === 'appelFondsSuccession' ? 'Envoyer l’appel de fonds' : 'Envoyer le décompte à faire valider', detail: `Avant le rendez-vous · le ${court(e.iso)}${j < 0 ? ' (en retard)' : ''}`, jours: j });
+    });
+    return r;
   }
 
   // Pure : la carte « signature » du bandeau d'une succession — le prochain acte à signer.
@@ -581,6 +597,32 @@
     // Le volet du conjoint mis à part (relecture 16/10 : la date de décès d'un mari ouvert dans la fiche de sa veuve).
     const fiche = (partagerFicheConjointAuthentic(capture) || {}).principale || capture;
     return sansCotes && !!decesFicheAuthentic((fiche && fiche.champs) || []);
+  }
+
+  // Pure : la PREMIÈRE personne de la rubrique « Comparants » de la page, quelle que soit sa qualité (étude 16/10 : le défunt est le
+  // premier de la liste, recoupé avec le nom du dossier — `premierComparantDefunt` de commun/constitution.js) → { nom, civilite, lien?,
+  // conjoint? } ou null.
+  function premierComparantAuthentic(capture) {
+    const { lignes } = lignesComparantsAuthentic(capture);
+    for (const l0 of lignes.slice(0, 5)) {
+      if (RE_FIN_COMPARANTS.test(l0)) return null;
+      if (RE_QUALITE_COMPARANT.test(l0) || /^\(?\d+\)?$/.test(l0)) continue;
+      const fin = new RegExp('^(.*\\S)\\s+(' + QUALITES_COMPARANT + ')$', 'i').exec(l0);
+      const p = personneComparantSuccession((fin ? fin[1] : l0).split(/\s+et\s+/i)[0]);
+      if (p) return p;
+    }
+    return null;
+  }
+
+  // Pure : le PREMIER bien de la rubrique « Immeubles (n) » de la page (étude 16/10 : « bien principal : le premier bien de la liste »)
+  // — sa ligne d'adresse, sans « Immeuble propre / commun », '' sinon.
+  function premierImmeubleAuthentic(capture) {
+    const lignes = String((capture && capture.texte) || '').split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+    const debut = lignes.findIndex(l => /^immeubles?\s*\(\d+\)/i.test(l));
+    if (debut < 0) return '';
+    const l = lignes[debut + 1] || '';
+    if (/^(?:tiers|documents?|parties|informations|comparants|notes?|formalit|immeuble\s+(?:propre|commun))/i.test(l)) return '';
+    return l.replace(/\s+immeuble\s+(?:propre|commun)\s*$/i, '').trim().slice(0, 200);
   }
 
   // Pure : le bandeau du dossier dit-il « A 2026 00247 SUCC … » / « … Succession … » (référence suivie de SUCC) ? Onglets inactifs

@@ -1953,6 +1953,9 @@
     const court = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
     for (const d of dossiersActifs || []) {
       if (!d || d.archive) continue;
+      // Succession (étude 16/10 : « les successions ne sont pas des ventes ») : ni prêt, ni appel de fonds et projet, ni préemption —
+      // ses propres étapes (alertesSuccession, client/74).
+      if (estSuccession(d)) { alertesSuccession(d, aujourdhuiIso).forEach(a => ajouter(d, a.gravite, a.titre, a.detail, a.jours)); continue; }
       // Offre de prêt pas encore reçue à l'approche (ou au-delà) de la date butoir du prêt.
       if (!d.sansPret && d.pret && !echeanceValidee(d, 'pret')) {
         const j = ecartJours(aujourdhuiIso, d.pret);

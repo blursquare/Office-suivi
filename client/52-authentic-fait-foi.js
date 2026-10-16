@@ -392,13 +392,42 @@
 
   // Pure : [{ nom, role }] des comparants vendeurs et acquéreurs (et, d'une succession, défunt et héritiers : { nom, role, qualite,
   // civilite, lien?, conjoint? }), [] si la rubrique n'est pas sur la page.
+  // Pure : la rubrique « Comparants » telle que la page réelle la rend parfois, collée dans UN champ (étude 16/10 : « Succession
+  // Christian VIELComparants (3) personM. VIEL Christian veuf de Mme IVANOVA SPASSOVA SnéjanaDéfunt euro_symbol keyboard_arrow_up
+  // keyboard_arrow_down personMme VIEL Nathalie épouse de M. BA ») → des lignes : noms d'icônes retirés, « person » devant une
+  // civilité = une personne, qualité collée au prénom remise sur sa ligne.
+  var RE_ICONES_COMPARANTS = /(?<![A-Za-zÀ-ÿ0-9_])(?:euro_symbol|keyboard_arrow_up|keyboard_arrow_down|more_vert|more_horiz|edit|delete|open_in_new|visibility)(?![A-Za-z_])/g;
+  var QUALITES_COLLEES = 'D[ée]funte?|H[ée]riti[eè]re?s?|L[ée]gataire(?:\\s+universel(?:le)?)?|Conjoint(?:e)?\\s+survivante?|Vendeur|Acqu[ée]reur|Promettant|B[ée]n[ée]ficiaire|Autre\\s+intervenant|Intervenant';
+  function texteComparantsNormalise(src) {
+    return String(src || '')
+      .replace(/([A-Za-zÀ-ÿ0-9)\]])(Comparants?\s*\(\d+\))/g, '$1\n$2')
+      .replace(RE_ICONES_COMPARANTS, '\n')
+      .replace(/person(?=\s*(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s)/g, '\n')
+      .replace(new RegExp('([a-zà-ÿ.])(' + QUALITES_COLLEES + ')(?=\\s|$)', 'gm'), '$1\n$2');
+  }
+
+  // Pure : les lignes de la rubrique « Comparants » (après son titre) — dans le texte de la page, sinon dans le champ qui la porte
+  // collée ; [] si elle n'est nulle part. `tronque` : lue dans un champ (la fin peut être coupée).
+  function lignesComparantsAuthentic(capture) {
+    const c = capture || {};
+    const sources = [{ t: c.texte, tronque: false }].concat((c.champs || []).map(ch => ({ t: [ch.libelle, ch.valeur].filter(Boolean).join('\n'), tronque: true })));
+    for (const src of sources) {
+      const lignes = texteComparantsNormalise(src.t).split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      const debut = lignes.findIndex(l => /^comparants?\b/i.test(l));
+      if (debut >= 0 && lignes.length > debut + 1) return { lignes: lignes.slice(debut + 1), tronque: src.tronque };
+    }
+    return { lignes: [], tronque: false };
+  }
+
   function comparantsAuthentic(capture) {
-    const lignes = String((capture && capture.texte) || '').split(/\n+/).map(l => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
-    const debut = lignes.findIndex(l => /^comparants?\b/i.test(l));
-    if (debut < 0) return [];
+    const { lignes, tronque } = lignesComparantsAuthentic(capture);
+    if (!lignes.length) return [];
+    // Rubrique lue dans un champ (coupé à 200 caractères) : seulement pour une succession — une liste de vendeurs / acquéreurs coupée
+    // ferait retirer de la fiche une partie absente de la fin (retirerPartiesHorsComparants ; relecture 16/10).
+    if (tronque && !lignes.some(l => /^(?:d[ée]funte?|h[ée]riti)/i.test(l))) return [];
     const r = [];
     let noms = [];
-    for (const l0 of lignes.slice(debut + 1)) {
+    for (const l0 of lignes) {
       if (RE_FIN_COMPARANTS.test(l0)) break;
       // La qualité est seule sur sa ligne, ou en fin de ligne (cellule suivante d'un tableau : « M. X et Mme Y   Vendeur »).
       let l = l0;
@@ -424,6 +453,15 @@
       noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, '')).map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())
         .filter(n => n.length > 1).forEach(nom => r.push({ nom: nom.slice(0, 120), role }));
       noms = [];
+    }
+    // Rubrique coupée en fin de champ (« personMme VIEL Nathalie épouse de M. BA ») : dans une succession dont le défunt est lu, la
+    // personne commencée est un héritier (étude 16/10 : « le début du premier héritier ») — seulement si son nom est entier (le lien
+    // « épouse de » qui suit le prouve).
+    if (tronque && noms.length && r.some(x => x.role === 'DEFUNT')) {
+      noms.join(' et ').split(/\s+et\s+/i).filter(n => /^(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s/i.test(n) && RE_LIEN_CONJOINT_COMPARANT.test(' ' + n.replace(/^\S+\s+/, '')))
+        .map(n => personneComparantSuccession(n)).filter(Boolean)
+        // Le conjoint cité après « épouse de » peut être coupé (« M. BA… ») : il n'est pas gardé.
+        .forEach(p => { delete p.conjoint; r.push(Object.assign({ role: 'HERITIER', qualite: '', tronque: true }, p)); });
     }
     return r.slice(0, 12);
   }

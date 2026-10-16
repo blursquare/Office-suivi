@@ -75,7 +75,9 @@ function htmlNotificationPieces(dossierNom, pieces, liens) {
 
 // Demandé par l'étude : prévenir le responsable dès qu'un dossier a tout reçu (offre de prêt et
 // pièces), pour qu'il sache qu'il peut commencer la rédaction de l'acte.
-function texteDossierComplet(dossierNom) {
+function texteDossierComplet(dossierNom, succession) {
+  // Succession (étude 16/10 : « les successions ne sont pas des ventes ») : ni offre de prêt, les pièces de la succession.
+  if (succession) return `✅ CLAIRE — Succession ${dossierNom} : toutes les pièces sont reçues.`;
   return `✅ CLAIRE — Dossier ${dossierNom} complet : offre de prêt et pièces reçues.`;
 }
 
@@ -256,7 +258,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!dossierNom) return res.status(400).json({ erreur: 'dossierNom manquant.' });
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texteDossierComplet(dossierNom)));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texteDossierComplet(dossierNom, req.body && req.body.succession === true)));
   });
 
   router.post('/notifications/date-ajoutee', async (req, res) => {

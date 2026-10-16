@@ -28,7 +28,10 @@ function propositionWizardSuccession(donnees) {
   return {
     defunt: [df.prenoms, df.nom].filter(Boolean).join(' '), prenoms: df.prenoms || '', nom: df.nom || '', decesDate: df.decesDate || '', decesLieu: df.decesLieu || '',
     conjoint: conjointSurvivant(d), type: typeSuccessionPropose(d),
-    heritiers: personnesSuccession(d).heritiers, biens: d.biens || []
+    heritiers: personnesSuccession(d).heritiers, biens: d.biens || [],
+    // Bien principal (étude 16/10) : le premier bien de la liste — fiche bien d'Authentic lue, sinon la première ligne de la rubrique
+    // « Immeubles » de la page du dossier.
+    bienPrincipal: ((d.biens || [])[0] && d.biens[0].adresse) || String((d.authentic && d.authentic.premierImmeuble) || '')
   };
 }
 
@@ -55,10 +58,11 @@ function renderWizardSuccession() {
     : '<li class="hint">Aucun héritier relevé : ouvrez la page du dossier dans Authentic (rubrique « Comparants »).</li>';
   const biens = p.biens.length
     ? p.biens.map(b => `<li><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.parcelles ? ` <span class="hint">${escapeHtml(b.parcelles)}</span>` : ''}</li>`).join('')
-    : '<li class="hint">Aucun bien immobilier relevé dans Authentic.</li>';
+    : p.bienPrincipal ? `<li><span class="prop-texte">${escapeHtml(p.bienPrincipal)}</span> <span class="hint">rubrique « Immeubles » ; fiche du bien pas encore ouverte</span></li>`
+      : '<li class="hint">Aucun bien immobilier relevé dans Authentic.</li>';
   bloc.innerHTML = `<div class="wizard-bloc-titre">Succession</div>
     <div class="field-row">
-      <div><label for="f-succ-prenoms">Prénoms du défunt ${infoBulle('Tels qu’ils s’écrivent dans les courriers. Repris d’Authentic (comparant « Défunt » ou fiche portant une date de décès).')}</label>
+      <div><label for="f-succ-prenoms">Prénoms du défunt ${infoBulle('Tels qu’ils s’écrivent dans les courriers. Repris d’Authentic : comparant « Défunt », sinon le premier comparant quand le nom du dossier le désigne, sinon la fiche portant une date de décès.')}</label>
         <input type="text" id="f-succ-prenoms" value="${escapeAttr(v('f-succ-prenoms', p.prenoms))}" placeholder="Ex. Jeanne Marie"></div>
       <div><label for="f-succ-nom">Nom du défunt</label><input type="text" id="f-succ-nom" value="${escapeAttr(v('f-succ-nom', p.nom))}" placeholder="Ex. DURAND"></div>
     </div>
@@ -77,13 +81,16 @@ function renderWizardSuccession() {
     <div class="field-row">
       <div><label for="f-succ-type">Type de succession ${infoBulle('Proposé par CLAIRE : avec un bien immobilier, notoriété, déclaration et attestation immobilière ; sinon l’acte de notoriété, et la déclaration au-delà de 50 000 € d’actif.')}</label>
         <select id="f-succ-type">${TYPES_SUCCESSION.map(t => `<option value="${t.cle}"${t.cle === typeChoisi ? ' selected' : ''}>${escapeHtml(t.libelle)}${t.cle === p.type ? ' (proposé)' : ''}</option>`).join('')}</select></div>
-      <div><label for="f-succ-ouverture">Date d’ouverture (rendez-vous avec Sophie) ${infoBulle('Les délais partent d’elle : acte de notoriété à 1 mois, contrôle des droits à 2 mois, déclaration de succession à 6 mois. À placer plus tard dans l’agenda si la date n’est pas encore connue.')}</label>
+      <div><label for="f-succ-ouverture">Date d’ouverture (rendez-vous avec Sophie) ${infoBulle('Acte de notoriété à 1 mois et contrôle des droits à 2 mois depuis elle ; la succession se règle dans les 6 mois du décès. À placer plus tard dans l’agenda si la date n’est pas encore connue.')}</label>
         <input type="date" id="f-succ-ouverture" value="${escapeAttr(ouverture)}"></div>
     </div>
     <div class="wizard-succ-listes">
       <div><div class="analyse-sous-titre">Héritiers <span class="analyse-compteur">${p.heritiers.length || ''}</span></div><ul class="wizard-succ-liste">${heritiers}</ul></div>
       <div><div class="analyse-sous-titre">Biens</div><ul class="wizard-succ-liste">${biens}</ul></div>
     </div>`;
+  // Bien principal pré-rempli une fois par dossier d'Authentic, jamais par-dessus une saisie.
+  const champBien = document.getElementById('f-adresse-bien');
+  if (!garder && champBien && !champBien.value.trim() && p.bienPrincipal) champBien.value = p.bienPrincipal;
   wizardSuccessionCle = cle;
   wizardSuccessionProposition = p;
 }

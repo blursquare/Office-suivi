@@ -28,7 +28,7 @@ const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 // fonds, le format des montants et le libellé d'un dossier ne sont plus recopiés ici — une seule écriture pour les deux.
 const { echeanceValidee, echeanceSaferDossier, echeancesPlanning, JOURS_RELANCE_FONDS } = require('../../../commun/planning');
 const { bilanFondsRecus: bilanFonds, bilanFondsDossier, formaterMontantEuros: formaterEuros } = require('../../../commun/montants');
-const { libelleDossierAffiche: libelleDossier } = require('../../../commun/dossier');
+const { libelleDossierAffiche: libelleDossier, estSuccession } = require('../../../commun/dossier');
 
 // Les échéances d'un dossier pour les rappels : celles du planning du poste (echeancesPlanning), une échéance
 // personnalisée étant désignée par `autre-<index>` — c'est cette clé que portent les seuils (seuilsPourType) et le journal
@@ -145,7 +145,8 @@ function alertesFondsDues(dossiers, aujourdHui, dejaEnvoyes) {
   const deja = (d, cle) => !!(dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${cle}`));
   const jourAuj = jourSemaine(aujourdHui);
   for (const d of dossiers || []) {
-    if (!d || d.archive || !d.responsable || d.receptionFondsConfirmeeLe) continue;
+    // Succession (étude 16/10) : ni appel de fonds de vente ni fonds de l'acquéreur — rien de ces alertes.
+    if (!d || d.archive || !d.responsable || d.receptionFondsConfirmeeLe || estSuccession(d)) continue;
     const j = d.rendezVousSignature ? joursRestants(d.rendezVousSignature, aujourdHui) : null;
     if (j !== null && j < 0) continue;
     const f = d.fondsRecus && typeof d.fondsRecus === 'object' ? d.fondsRecus : null;
