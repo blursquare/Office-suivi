@@ -94,9 +94,9 @@
     --appelfonds: #7C5CBF;
     /* Couleurs des catégories Outlook, reprises telles que l'agenda de l'office les montre (page
        Agenda, fenêtre du matin — étude, 30/09 : « reprends le code couleur des rendez-vous »). */
-    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), les mêmes en clair et en sombre. */
-    --cat-rouge: #A8121F; --cat-orange: #C13F0C; --cat-jaune: #D6C000; --cat-vert: #0E8A45; --cat-olive: #3E5C10;
-    --cat-bleu: #0F65B4; --cat-violet: #6C5DBA; --cat-gris: #6B7280; --cat-rose: #B83F78; --cat-marron: #7E4A26;
+    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), puis adoucies (« un peu trop fluo », « plus doux mais visible ») : même teinte, moins saturées, texte noir lisible ; les mêmes en clair et en sombre. */
+    --cat-rouge: #CC5B66; --cat-orange: #DB8556; --cat-jaune: #E0CF57; --cat-vert: #5AAA7D; --cat-olive: #84985C;
+    --cat-bleu: #6596CC; --cat-violet: #978DCF; --cat-gris: #979DA8; --cat-rose: #D086A6; --cat-marron: #A98066;
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
@@ -143,9 +143,9 @@
     --acte-bg: #232736;
     --ventebien: #6FAEDB;
     --appelfonds: #A48BE0;
-    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), les mêmes en clair et en sombre. */
-    --cat-rouge: #A8121F; --cat-orange: #C13F0C; --cat-jaune: #D6C000; --cat-vert: #0E8A45; --cat-olive: #3E5C10;
-    --cat-bleu: #0F65B4; --cat-violet: #6C5DBA; --cat-gris: #6B7280; --cat-rose: #B83F78; --cat-marron: #7E4A26;
+    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), puis adoucies (« un peu trop fluo », « plus doux mais visible ») : même teinte, moins saturées, texte noir lisible ; les mêmes en clair et en sombre. */
+    --cat-rouge: #CC5B66; --cat-orange: #DB8556; --cat-jaune: #E0CF57; --cat-vert: #5AAA7D; --cat-olive: #84985C;
+    --cat-bleu: #6596CC; --cat-violet: #978DCF; --cat-gris: #979DA8; --cat-rose: #D086A6; --cat-marron: #A98066;
     --ag-texte-plein: var(--noir-fixe);
     --projet: #E58AB5;
     --ventebien-bg: #263238;

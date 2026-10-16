@@ -20344,3 +20344,7 @@ Chaumont-sur-Tharonne 41600 ». Relevé sur le site (16/10) : le formulaire `rec
 erreur « n'est pas dans la liste proposée par le site ») et renvoie la recherche. Code postal transmis par les postes (`codePostal` de
 POST /api/navigation/plan-cadastre : Contrôle de l'urbanisme `e.cp`, agent, Constitution de dossier `g.cp`), contrôlé (5 chiffres). Joué de bout en
 bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune choisie, carte de la parcelle ouverte).
+
+### 16/10/2026 19:36 — Agenda : couleurs adoucies (0.266.4)
+
+Étude : « un peu trop fluo les couleurs des rdv », « fais quelque chose de plus doux mais visible ». `--cat-*` (clair et sombre) : même teinte, saturation baissée, un ton plus clair — rouge #CC5B66, orange #DB8556, jaune #E0CF57, vert #5AAA7D, olive #84985C, bleu #6596CC, violet #978DCF, gris #979DA8, rose #D086A6, marron #A98066 ; texte noir (contraste ≥ 5 sur chacune).
