@@ -20348,3 +20348,7 @@ bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune c
 ### 16/10/2026 19:36 — Agenda : couleurs adoucies (0.266.4)
 
 Étude : « un peu trop fluo les couleurs des rdv », « fais quelque chose de plus doux mais visible ». `--cat-*` (clair et sombre) : même teinte, saturation baissée, un ton plus clair — rouge #CC5B66, orange #DB8556, jaune #E0CF57, vert #5AAA7D, olive #84985C, bleu #6596CC, violet #978DCF, gris #979DA8, rose #D086A6, marron #A98066 ; texte noir (contraste ≥ 5 sur chacune).
+
+### 16/10/2026 20:36 — Agenda : bandeau des envois sur les signatures (0.266.5)
+
+Étude : « propose-moi autre chose pour voir si l'appel de fonds, projet et décompte ont été envoyés en un coup d'œil » ; quatre maquettes (jauge, bandeau ✓/✗, pastille unique « 2/3 », liseré de couleur) — choix : **B, bandeau**. `renderBandeEtatsRendezVous` (client/25) : ligne blanche en bas de la carte (`.ag-etats-bande`, `.ag-evt-avec-bande` réserve 18 px), « ✓ AF » vert / « ✗ P » rouge, détail en bulle ; vues Semaine et Jour, signatures d'un dossier seulement ; une carte de moins de 40 min garde les pastilles `renderEtatsMiniRendezVous`. Le pourcentage de maintien reste en haut à droite (vue Jour) ou sur la ligne de l'heure (vue Semaine).

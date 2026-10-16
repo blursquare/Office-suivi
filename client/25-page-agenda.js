@@ -682,6 +682,13 @@
     return `<span class="ag-etats-mini" aria-hidden="true">${infos.etats.map(x => `<span class="ag-mini ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}${proba ? renderPastilleProbabilite(proba) : ''}</span>`;
   }
 
+  // Bandeau en bas d'une carte de signature (étude 16/10, proposition B choisie : « voir si l'appel de fonds, le projet et le décompte ont
+  // été envoyés en un coup d'œil ») : « ✓ AF  ✗ P  ✗ D » sur une ligne blanche — vert = parti, rouge = pas encore. Le pourcentage reste en
+  // haut à droite. Une carte trop courte (moins de 40 min) garde les pastilles d'avant.
+  function renderBandeEtatsRendezVous(infos) {
+    return `<span class="ag-etats-bande" aria-hidden="true">${infos.etats.map(x => `<span class="ag-bande-etat ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'envoyé' : 'pas encore envoyé'}`)}">${x.fait ? '✓' : '✗'} ${escapeHtml(ABREGES_ETATS_RENDEZ_VOUS[x.cle] || x.libelle)}</span>`).join('')}</span>`;
+  }
+
   function renderEtatsRendezVous(infos) {
     return infos.etats.map(x => `<span class="ag-etat ${x.fait ? 'fait' : 'afaire'}" title="${escapeAttr(`${x.libelle} ${x.fait ? 'fait' : 'pas encore fait'}`)}">${icone(x.fait ? 'check' : 'x')}${escapeHtml(x.libelle)}</span>`).join('');
   }
@@ -713,7 +720,8 @@
     const minutes = place.hauteur * (AGENDA_HEURE_FIN - AGENDA_HEURE_DEBUT) * 60 / 100;
     const court = minutes < 40;
     const mini = infos && e.signature && !e.option;
-    const lignes = lignesTitreEvenement(minutes);
+    const bande = mini && !court;
+    const lignes = Math.max(1, lignesTitreEvenement(minutes) - (bande ? 1 : 0));
     const initiales = d && d.responsable ? initialesResponsable(d) : '';
     const meta = [initiales, infos && infos.confrere ? infos.confrere.replace(/\s+en 2nd$/, '') : ''].filter(Boolean);
     const cle = cleEvenementAgenda(e);
@@ -722,12 +730,13 @@
       infos ? [infos.responsable, infos.confrere].filter(Boolean).join(' · ') : '',
       proba ? `${proba.pourcent} % de chances que le rendez-vous soit maintenu` : ''].filter(Boolean).join(' · ');
     const heure = `<b class="ag-evt-debut">${escapeHtml(e.heure)}</b>`;
-    return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${mini ? ' ag-evt-avec-mini' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
+    return `<button type="button" class="ag-evt ag-evt-compact ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${mini && court ? ' ag-evt-avec-mini' : ''}${bande ? ' ag-evt-avec-bande' : ''}${agendaSelection === cle ? ' selection' : ''}" style="${style}"
         data-cle="${escapeAttr(cle)}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cle)}')" title="${escapeAttr(bulle)}">
         ${e.option && !court ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span>` : ''}
-        <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${mini && !court ? renderEtatsMiniRendezVous(infos) : ''}${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
+        <span class="ag-evt-titre" style="--lignes:${e.option && !court ? Math.max(1, lignes - 1) : lignes}">${court ? heure + ' ' : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         ${court ? '' : `<span class="ag-evt-meta"><span class="ag-evt-meta-texte">${heure}${meta.length ? ` · ${escapeHtml(meta.join(' · '))}` : (e.lieu && !d ? ` · ${escapeHtml(e.lieu)}` : '')}</span>${proba ? renderPastilleProbabilite(proba) : ''}</span>`}
         ${mini && court ? renderEtatsMiniRendezVous(infos) : ''}
+        ${bande ? renderBandeEtatsRendezVous(infos) : ''}
         ${poigneesAgenda(e)}
       </button>`;
   }
@@ -751,15 +760,17 @@
     const selection = agendaSelection === cleEvenementAgenda(e);
     const qui = infos ? [infos.responsable, infos.confrere].filter(Boolean).join(' · ') : '';
     const mini = infos && e.signature && !e.option;
+    const bande = mini && !court;
     const bulle = [`${heures}${duree ? ' (' + duree + ')' : ''}`, e.sujet, e.lieu, qui,
       infos ? infos.etats.map(x => `${x.libelle} ${x.fait ? 'fait' : 'à faire'}`).join(', ') : '',
       proba ? `${proba.pourcent} % de chances que la signature se tienne` : ''].filter(Boolean).join(' · ');
-    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}${mini ? ' ag-evt-avec-mini' : ''}" style="${style}"
+    return `<button type="button" class="ag-evt ajd-${teinte}${e.horsAgenda ? ' ag-hors-agenda' : ''}${e.option ? ' ag-option' : ''}${court ? ' ag-evt-court' : ''}${haut ? ' ag-evt-haut' : ''}${etroit ? ' ag-evt-etroit' : ''}${selection ? ' selection' : ''}${proba ? ' ag-evt-avec-proba' : ''}${mini ? ' ag-evt-avec-mini' : ''}${bande ? ' ag-evt-avec-bande' : ''}" style="${style}"
         data-cle="${escapeAttr(cleEvenementAgenda(e))}"${attributGlisseAgenda(e)} onclick="ouvrirDetailAgenda('${escapeOnclickArg(cleEvenementAgenda(e))}')" title="${escapeAttr(bulle)}">
         <span class="ag-evt-titre">${e.option ? `<span class="ag-fantome-tete ag-option-tete">Option ${escapeHtml(libelleOptionSondage(e.sujet).rang)}</span> ` : ''}${escapeHtml(e.option ? libelleOptionSondage(e.sujet).titre : (e.sujet || '(sans titre)'))}</span>
         <span class="ag-evt-heure"><span>${escapeHtml(e.heure)}</span>${e.heureFin ? `<span class="ag-evt-fin">– ${escapeHtml(e.heureFin)}</span>` : ''}${duree ? `<span class="ag-evt-duree">${escapeHtml(duree)}</span>` : ''}</span>
         ${qui ? `<span class="ag-evt-qui">${escapeHtml(qui)}</span>` : (e.lieu ? `<span class="ag-evt-qui">${escapeHtml(e.lieu)}</span>` : '')}
-        ${mini ? renderEtatsMiniRendezVous(infos, proba) : ''}
+        ${mini ? renderEtatsMiniRendezVous(bande ? { etats: [] } : infos, proba) : ''}
+        ${bande ? renderBandeEtatsRendezVous(infos) : ''}
         ${proba && !mini ? renderPastilleProbabilite(proba) : ''}
         ${poigneesAgenda(e)}
       </button>`;
