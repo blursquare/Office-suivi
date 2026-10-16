@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.263.1';
+  const VERSION_APP = '0.263.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.263.2', date: '2026-10-16 16:23', resume: "Fiche d'une vente : ligne « Parcelles » dans l'onglet Dossier — chaque parcelle avec sa surface (lue dans la fiche du bien d'Authentic), sa nature et son lieu-dit, puis le total ; une colonne « Superficie » d'Authentic est aussi lue." },
     { version: '0.263.1', date: '2026-10-16 16:14', resume: "Agenda : les rendez-vous en couleur pleine, aux couleurs de l'agenda Outlook de l'office (vert, vert olive, rouge, jaune, bleu, violet, orange), texte blanc — noir sur le jaune ; options, rendez-vous hors Outlook et semaine probable inchangés. Corrigé : la catégorie « Violet » n'apparaissait jamais en violet." },
     { version: '0.263.0', date: '2026-10-16 15:24', resume: "Guichet d'Agglopolys : toutes les parcelles de la fiche sont saisies, chacune avec sa superficie (lignes lues dans le formulaire du guichet ; « 1 206 », « 00ha 06a 06ca »… compris), et le plan cadastral du dossier du NAS est joint seul à la demande." },
     { version: '0.262.0', date: '2026-10-16 14:00', resume: "Extension Chrome : le guichet d'Agglopolys rempli de bout en bout — CLAIRE clique la démarche (CUa ou DIA), choisit la commune de dépôt, répond NON aux fenêtres de récupération, puis remplit chaque page du brouillon par les codes du CERFA relevés par l'étude et passe à la suivante ; arrêt à la dernière page (pièces jointes, « Vérifier ma saisie » et transmission par le notaire). Session expirée : arrêt, aucun identifiant saisi ; listes calculées par le site et prix en lettres jamais écrits." },

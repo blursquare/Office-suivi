@@ -1449,7 +1449,7 @@
       const iNumero = entete.findIndex(e => /^num/.test(e));
       if (iSection < 0 || iNumero < 0) return;
       const iNature = entete.indexOf('nature');
-      const iSurface = entete.findIndex(e => /^(surface|contenance)/.test(e));
+      const iSurface = entete.findIndex(e => /^(surface|superficie|contenance)/.test(e));
       const iLieu = entete.findIndex(e => /lieu-dit|lieu dit/.test(e));
       const iCommune = entete.indexOf('commune');
       const iPrefixe = entete.findIndex(e => /^pr[ée]fixe/.test(e) || /^prefixe/.test(e));

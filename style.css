@@ -7895,6 +7895,10 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-proba { opacity: 0.9; }
 /* Pastilles « AF » « P » sur un fond plein : posées sur une pastille blanche pour rester lisibles. */
 .ag-evt .ag-mini { background: var(--paper-card); }
+/* Parcelles sur la fiche (étude 16/10) : une par ligne, référence en gras, surface, nature et lieu-dit en discret. */
+.parcelles-fiche { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-m); }
+.parcelle-fiche b { font-weight: 600; }
+.parcelle-total { color: var(--ink-soft); padding-top: 2px; border-top: 1px solid var(--line-soft); }
 .ag-page { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 /* Mot du jour (étude, 01/10, d'après « Wed. » puis « en français, pas de fond de couleur ») : « Jeudi »

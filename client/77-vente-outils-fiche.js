@@ -203,3 +203,27 @@
   function renderOutilsVenteFiche(d) {
     return `<span class="succ-actes">${outilsVenteFiche(d).map(o => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${o.onclick}" title="${escapeAttr(o.titre)}">${icone(o.icone)}${escapeHtml(o.libelle)}</wa-button>`).join('')}</span>`;
   }
+
+  // Pure : les parcelles d'une vente telles que la fiche les montre (étude 16/10 : « les surfaces des parcelles ne remontent pas dans la
+  // fiche dossier ») — une par parcelle, « AB 12 · 6 a 06 ca », suivie de sa nature et de son lieu-dit, puis le total quand toutes ont leur
+  // surface. Surface de la fiche bien d'Authentic (« 606 », « 1 206 », « 00ha 06a 06ca »…), sinon rien (jamais devinée).
+  function parcellesAfficheesFiche(d) {
+    const cad = d && d.bien && d.bien.cadastre;
+    const liste = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [cad] : [])) : [];
+    const lignes = liste.filter(p => p && p.section && p.numero).map(p => {
+      const m2 = p.surface != null && p.surface !== '' ? centiaresDepuisContenance(String(p.surface)) : null;
+      const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
+      return { ref, m2, surface: m2 != null ? formaterContenance(m2) : '', detail: [p.nature, p.lieuDit, p.commune].filter(Boolean).join(' · ') };
+    });
+    const total = lignes.length > 1 && lignes.every(l => l.m2 != null) ? lignes.reduce((s, l) => s + l.m2, 0) : null;
+    return { lignes, total: total != null ? formaterContenance(total) : '', manquantes: lignes.filter(l => l.m2 == null).length };
+  }
+
+  function renderParcellesFiche(d) {
+    const p = parcellesAfficheesFiche(d);
+    if (!p.lignes.length) return '';
+    const lignes = p.lignes.map(l => `<span class="parcelle-fiche"><b>${escapeHtml(l.ref)}</b>${l.surface ? ` · ${escapeHtml(l.surface)}` : ' · <span class="hint">surface inconnue</span>'}${l.detail ? ` <span class="hint">${escapeHtml(l.detail)}</span>` : ''}</span>`).join('');
+    const total = p.total ? `<span class="parcelle-fiche parcelle-total">Total · ${escapeHtml(p.total)}</span>` : '';
+    const aide = p.manquantes ? infoBulle('Surface lue dans la fiche du bien d’Authentic : ouvrez-la dans Authentic pour compléter les parcelles sans surface.') : '';
+    return `<span class="parcelles-fiche">${lignes}${total}</span>${aide}`;
+  }
