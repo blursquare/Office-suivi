@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.253.0';
+  const VERSION_APP = '0.254.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.254.0', date: '2026-10-16 08:07', resume: "Agenda des successions comme pour les ventes : un rendez-vous « SUCC - NOM … » posé dans Outlook est reconnu (bon dossier, étape lue dans le titre — ouverture, notoriété, déclaration…), ajouté à la fiche, suivi s'il est déplacé, retiré s'il est supprimé ; un « VTE » ne va plus jamais à une succession. Pas de confrère ni de probabilité sur un rendez-vous de succession ; « Envoyer le lien » de la visio propose les héritiers et leur email." },
     { version: '0.253.0', date: '2026-10-16 07:19', resume: "Successions : plusieurs rendez-vous par dossier — ouverture, notoriété, déclaration, rendez-vous avec les héritiers… chacun gardé sur la fiche (ligne « Rendez-vous » de l'onglet Dossier, « Ajouter un rendez-vous ») au lieu d'une seule date de signature qui s'écrasait ; déplacé ou supprimé dans l'agenda de CLAIRE, il suit ; chaque carte du déroulé lit son propre rendez-vous." },
     { version: '0.252.2', date: '2026-10-15 23:50', resume: "Relecture indépendante des nouveautés du 15/10 : Constitution — plus de changement de dossier pendant la préparation des courriers (ils ne peuvent plus partir dans le dossier d'un autre client), plan cadastral gardé d'un choix de dossier à l'autre ; successions — un fils « Jean-Pierre » n'est plus pris pour son père défunt « Jean », héritière « veuve de » reconnue conjoint survivant, rendez-vous de la déclaration de succession noté sur la fiche, réponse du FCDDV scannée nommée pour cocher sa pièce, centimes gardés sur une facture ; provision et arbitrage ouverts hors fiche jamais enregistrés sur le dernier dossier ; l'adresse de Sophie (Teams) n'est plus lue comme une boîte d'envois." },
     { version: '0.252.1', date: '2026-10-15 23:37', resume: "Constitution de dossier : un seul plan cadastral par commune avec les courriers — l'extrait officiel sans surlignage que cadastre.gouv.fr rend à côté n'est plus joint (archive téléchargée, impression, emails, « Constitution »)." },

@@ -489,3 +489,16 @@ test('succession : rendez-vous suivis dans l\'agenda, titre « ? », signature d
   assert.equal(app.signaturesHorsAgenda([s], [{ itemId: 'X1', date: '2099-04-01', dossierId: null }], ['2099-04-01']).length, 0);
   assert.equal(app.signaturesHorsAgenda([s], [], ['2099-04-01']).length, 1);
 });
+
+test('succession dans l\'agenda : pas de confrère ni de probabilité, lien visio aux héritiers (étude 16/10)', () => {
+  const d = base({ id: 's70', nom: 'SUCC ROBIN', rendezVousSignature: '2099-05-04', parties: [
+    { nom: 'Claire ROBIN', role: 'PARTIE', emails: ['claire.robin@exemple.fr'] }, { nom: 'Paul ROBIN', role: 'PARTIE' }] });
+  const dest = app.destinatairesVisio(d, []);
+  assert.equal(dest.map(p => `${p.role}:${p.email}:${p.coche}`).join('|'), 'heritier:claire.robin@exemple.fr:true|heritier::false|autre::false');
+  assert.ok(!dest.some(p => p.confrere), 'jamais de confrère pour une succession');
+  assert.equal(app.probabiliteEvenementAgenda(d, { signature: true, date: '2099-05-04' }, '2099-04-01', []), null);
+  assert.equal(app.infosRendezVousDossier(d).confrere, '');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - ROBIN - Ouverture du dossier'), 'ouvertureSuccession');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - ROBIN - Déclaration de succession ?'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC ROBIN - attestation immobilière'), 'acte');
+});

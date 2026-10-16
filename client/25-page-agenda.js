@@ -628,7 +628,8 @@
   // pour un rendez-vous en attente de confirmation (« ?? ») d'un dossier sans signature fixée, celle
   // de la semaine probable posée à cette date (étude, 02/10). null pour tout autre rendez-vous.
   function probabiliteEvenementAgenda(d, e, aujourdhuiIso, absences) {
-    if (!d || !e) return null;
+    // Une succession n'a ni prêt, ni préemption, ni fonds d'acquéreur : pas de probabilité de maintien.
+    if (!d || !e || estSuccession(d)) return null;
     if (e.signature) return probabiliteTenueSignature(d, aujourdhuiIso, absences);
     const p = semaineProbableSignature(d, aujourdhuiIso, absences, [e]);
     return p && p.aConfirmer ? Object.assign({}, p, { lundi: null }) : null;
@@ -655,7 +656,8 @@
     if (!d) return null;
     return {
       responsable: d.responsable ? prenomCollaborateur(d.responsable) : '',
-      confrere: confrereLieuAgenda(d),
+      // Pas de participation pour une succession (étude 16/10) : jamais de confrère.
+      confrere: estSuccession(d) ? '' : confrereLieuAgenda(d),
       // Étude 05/10 : « le décompte, c'est à noter dans les dossiers de successions. Pour les ventes, on a l'appel de fonds si on
       // représente l'acquéreur et un décompte acquéreur si c'est un confrère, mais on marque appel de fonds envoyé » — une vente
       // montre donc l'appel de fonds seul, une succession le décompte.
@@ -1802,6 +1804,15 @@
   // partie), plus une ligne « confrère » libre, décochée, s'il n'y en a pas ; sans dossier, un client et
   // un confrère libres.
   function destinatairesVisio(d, carnet) {
+    // Succession (étude 16/10 : « pas de participation, mais parfois envoi d'un lien visio ») : les héritiers, chacun avec son email, et
+    // une ligne libre ; jamais de confrère.
+    if (d && estSuccession(d)) {
+      const heritiers = personnesSuccession(d).heritiers.map(h => {
+        const email = [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : []).filter(Boolean).join(', ');
+        return { role: 'heritier', nom: h.nom || '', email, confrere: false, coche: !!email };
+      });
+      return heritiers.concat([{ role: 'autre', nom: '', email: '', confrere: false, coche: !heritiers.some(h => h.coche) }]);
+    }
     const base = d ? participantsSondage(d, carnet).map(p => Object.assign({}, p, { coche: true }))
       : [{ role: 'autre', nom: '', email: '', confrere: false, coche: true }];
     if (!base.some(p => p.confrere)) base.push({ role: 'confrere-libre', nom: '', email: '', confrere: true, coche: false });
@@ -1956,7 +1967,7 @@
   function renderEnvoiVisio(m) {
     const e = evenementsAffichesAgenda().find(x => cleEvenementAgenda(x) === m.cle);
     if (!e) return '';
-    const libelleRole = (p) => p.role === 'confrere-libre' ? 'Confrère' : p.role === 'autre' ? 'Client' : (LIBELLES_ROLE_SONDAGE[p.role] || '');
+    const libelleRole = (p) => p.role === 'confrere-libre' ? 'Confrère' : p.role === 'autre' ? 'Client' : p.role === 'heritier' ? 'Héritier' : (LIBELLES_ROLE_SONDAGE[p.role] || '');
     return `<header class="ag-modale-tete" id="agenda-visio-envoi">
         <div><h2 class="ag-modale-titre" id="agenda-modale-titre">Envoyer le lien de la visio</h2>
         <div class="ag-modale-quand">${escapeHtml(e.sujet || '')} · ${escapeHtml(libelleCreneauSondage({ date: e.date, heure: e.heure }))} ${infoBulle('Les clients reçoivent un email ensemble, chaque confrère le sien (formule d’usage). L’email porte un bouton vers la visio et les informations de connexion de la note du rendez-vous. Texte : premier jet de CLAIRE.')}</div></div>

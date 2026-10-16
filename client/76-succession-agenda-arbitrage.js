@@ -63,8 +63,7 @@
 
   // La date de signature de la fiche = le prochain rendez-vous d'acte (notoriété, déclaration, acte) ; sinon le dernier ; sinon rien.
   function synchroniserSignatureSuccession(d) {
-    const actes = rendezVousSuccession(d).filter(r => r.etape === 'notoriete' || r.etape === 'declarationSuccession' || r.etape === 'acte');
-    const r = rendezVousRetenu(actes, isoAujourdhuiLocal());
+    const r = signatureSuccessionDepuisRendezVous(rendezVousSuccession(d), isoAujourdhuiLocal());
     d.rendezVousSignature = r ? r.date : null;
     d.rendezVousSignatureHeure = r ? r.heure : '';
     d.rdvAgendaItem = r && r.itemId ? { itemId: r.itemId, changeKey: r.changeKey || '', date: r.date } : null;

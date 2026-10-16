@@ -21,13 +21,15 @@ const { noterVerification } = require('./verificationsTerrain');
 const crypto = require('node:crypto');
 const {
   actionsDetecteesDepuisEvenements, absencesDepuisEvenements, categoriesDistinctes, evenementsDepuisEws, formatDateFr,
-  agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice, detecteProjetEnvoye, detecteAppelDeFonds
+  agendaDuJourDepuisEvenements, lundiSemainePrecedente, evenementsAgendaOffice, detecteProjetEnvoye, detecteAppelDeFonds, decalerJours
 } = require('./agendaOffice');
 const { lireCalendrierExchange } = require('./exchange/ews');
 const { poserEcheancesManquantes, retirerEcheancesLevees } = require('./echeancesAgenda');
 const { envoyerEmail, envoiConfigure } = require('./envoiEmail');
 const { texteRendezVousAgenda, envoyerAuResponsable } = require('./routes/notifications');
 const { libelleDossier } = require('./jobs/rappels');
+const { estSuccession } = require('../../commun/dossier');
+const { rendezVousSuccessionDepuisAgenda, signatureSuccessionDepuisRendezVous } = require('../../commun/succession');
 
 const CHAMP_PAR_ACTION = { appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye' };
 const LIBELLE_PAR_ACTION = { appelFonds: 'Envoi appel de fonds', projetEnvoye: 'Envoi projet' };
@@ -266,6 +268,39 @@ function appliquerRendezVousAgenda(depot, detections, resultat, categoriesRdv) {
   }
 }
 
+// Rendez-vous des successions (étude 16/10 : « que l'agenda fonctionne comme pour les ventes ») : chaque rendez-vous « SUCC - … » de
+// l'agenda (ou dont l'identifiant est déjà sur la fiche) tient à jour la liste `d.succession.rendezVous` — ajouté, déplacé, retiré s'il a
+// disparu de la période lue (commun/succession.js `rendezVousSuccessionDepuisAgenda`) ; la date de signature de la fiche suit (prochain
+// rendez-vous d'acte). Rien n'est écrit sur un dossier archivé. La période lue va du lundi de la semaine précédente à cinq mois et demi
+// (la lecture en couvre six) : un rendez-vous plus lointain n'est jamais retiré. Rend le nombre de fiches mises à jour.
+function synchroniserRendezVousSuccessions(depot, evenements, debut, jour) {
+  const liste = Array.isArray(evenements) ? evenements : [];
+  const fin = debut ? decalerJours(debut, 168) : '';
+  let misesAJour = 0;
+  for (const d of (typeof depot.tousActifs === 'function' ? depot.tousActifs() : [])) {
+    if (!d || d.archive || !estSuccession(d)) continue;
+    const r = rendezVousSuccessionDepuisAgenda(d, liste.filter((e) => e && e.dossierId === d.id), debut, fin);
+    if (!r.ajoutes.length && !r.retires.length && !r.deplaces.length) continue;
+    d.succession = Object.assign({}, d.succession, { rendezVous: r.liste });
+    // Ouverture lue dans l'agenda : la date d'ouverture de la fiche (qui porte tous les délais) la suit si elle était vide ou était la sienne.
+    const ouverture = r.liste.find((x) => x.etape === 'ouvertureSuccession');
+    if (ouverture && (!d.succession.ouvertureLe || r.deplaces.some((x) => x.avant === d.succession.ouvertureLe))) d.succession.ouvertureLe = ouverture.date;
+    const s = signatureSuccessionDepuisRendezVous(r.liste, jour);
+    d.rendezVousSignature = s ? s.date : null;
+    d.rendezVousSignatureHeure = s ? s.heure : '';
+    d.rdvAgendaItem = s && s.itemId ? { itemId: s.itemId, changeKey: s.changeKey || '', date: s.date } : null;
+    d.historique = d.historique || [];
+    const maintenant = new Date().toISOString();
+    for (const x of r.ajoutes) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${x.titre} » du ${formatDateFr(x.date)}${x.heure ? ' à ' + x.heure : ''} relevé dans l’agenda de l’office` });
+    for (const x of r.deplaces) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${String(x.titre || '').slice(0, 120)} » déplacé dans l’agenda : ${formatDateFr(x.avant)} → ${formatDateFr(x.apres)}` });
+    for (const x of r.retires) d.historique.push({ date: maintenant, texte: `Rendez-vous « ${x.titre || 'de la succession'} » du ${formatDateFr(x.date)} n’est plus dans l’agenda de l’office — retiré de la fiche` });
+    depot.remplacer(d.id, d);
+    misesAJour++;
+    if (r.ajoutes.length) noterVerification('agenda-succession-relu', { detail: `${r.ajoutes.length} rendez-vous relevé(s)` });
+  }
+  return misesAJour;
+}
+
 // Remet en ordre les dates de signature que l'agenda a écrites sur la MAUVAISE fiche ou trop tôt (étude
 // 07/10, deux dossiers ROY) — d'après le stock de l'agenda (`evenements` d'evenementsAgendaOffice, dossiers
 // archivés compris, depuis le lundi de la semaine précédente). Seule une date ÉCRITE PAR L'AGENDA
@@ -382,6 +417,7 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
     resultat.agendaDuJour = { jour, evenements: agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) };
     resultat.agendaOffice = { debut: lundiSemainePrecedente(jour), evenements: evenementsAgendaOffice(evenements, dossiersActifs) };
     resultat.corrections = corrigerRendezVousEcritsParAgenda(depot, resultat.agendaOffice.evenements, jour);
+    resultat.rendezVousSuccessions = synchroniserRendezVousSuccessions(depot, resultat.agendaOffice.evenements, resultat.agendaOffice.debut, jour);
     // Dates butoir (prêt, vente préalable) pas encore dans l'agenda : posées ou retrouvées, avec
     // la lecture qu'on vient de faire pour ne jamais créer de doublon (voir echeancesAgenda.js).
     const poses = await poserEcheancesManquantes(depot, r, lu.evenements, jour, injections);
@@ -515,7 +551,7 @@ function demarrerSurveillanceAgenda(depot, parametresRepo, injections, intervall
 }
 
 module.exports = {
-  appliquerDetectionsAgenda, texteHistoriqueEnvoiAgenda, appliquerRendezVousAgenda, corrigerRendezVousEcritsParAgenda, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
+  appliquerDetectionsAgenda, texteHistoriqueEnvoiAgenda, appliquerRendezVousAgenda, corrigerRendezVousEcritsParAgenda, synchroniserRendezVousSuccessions, rendezVousMarqueAnnule, marquerSignatureAReplacer, dateDuJourParis, executerTourSurveillanceAgenda,
   executerEtEnregistrerTourAgenda, notifierRendezVousRelevesAgenda, demarrerSurveillanceAgenda, INTERVALLE_SURVEILLANCE_AGENDA_MS,
   connexionAgendaConfiguree, lectureAgendaSuspendue, reinitialiserDisjoncteurAgenda, signalerIdentifiantsRefuses
 };

@@ -20141,3 +20141,22 @@ Relecture indépendante (avant publication) — 6 défauts, tous corrigés : un 
 l'identifiant Outlook) ; croix « Retirer de la fiche » sur chaque rendez-vous (`retirerRendezVousSuccession`, l'agenda n'est pas touché —
 pour un rendez-vous déplacé ou supprimé dans Outlook, ou créé sans identifiant) ; case « signature » offerte pour un second acte depuis
 l'agenda ; notification « rendez-vous de signature » seulement pour un acte ; historique écrit une seule fois et titre suivi au déplacement.
+
+### 16/10/2026 08 h 07 — 0.254.0 : l'agenda des successions fonctionne comme pour les ventes
+
+Étude : « Oui, il faut que l'agenda fonctionne comme pour les ventes. Pas de participation pour les successions, mais parfois envoi d'un
+lien visio. »
+- Serveur (`agendaOffice.js`) : référence « SUCC - … » / « Succession … » (`extraireReferenceSuccession`, jamais « succès », jamais quand le
+  titre est une vente) ; dossier reconnu par l'identifiant Outlook déjà sur la fiche, sinon par les noms parmi les successions seulement
+  (`dossierSuccessionPourEvenement`, mêmes règles anti-homonymes que les ventes) ; `dossierDeRendezVousAgenda` : une référence « VTE » ne
+  cherche plus que parmi les ventes (détections, agenda du jour, stock de la page Agenda). Mots des titres de succession ignorés au
+  rapprochement (SUCC, NOTORIETE, DECLARATION, OUVERTURE, HERITIERS…). Un rendez-vous de succession porte `succession`, `etapeSuccession`
+  et `signature` seulement pour un acte confirmé.
+- `agendaWatch.synchroniserRendezVousSuccessions` à chaque tour : `rendezVousSuccessionDepuisAgenda` (commun/succession.js) ajoute les
+  nouveaux (étape lue dans le titre, `etapeRendezVousSuccessionDepuisTitre`), suit les déplacés (étape gardée), retire ceux dont
+  l'identifiant a disparu alors que leur date est dans la période lue (lundi précédent + 168 jours) ; un rendez-vous sans identifiant
+  n'est jamais touché ; date de signature = prochain rendez-vous d'acte (`signatureSuccessionDepuisRendezVous`, partagé avec le poste) ;
+  date d'ouverture suivie si elle était vide ou était celle du rendez-vous déplacé ; rien sur un archivé. Point terrain
+  `agenda-succession-relu`.
+- Poste : ni confrère ni probabilité de maintien sur un rendez-vous de succession ; « Envoyer le lien » de la visio propose les héritiers
+  (email de leur fiche, cochés s'ils en ont un) et une ligne libre, jamais de confrère.

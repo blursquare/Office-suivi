@@ -30,6 +30,8 @@
 // est pire qu'une date non relevée).
 
 const { normaliserNomRapprochement, motsSignificatifs } = require('./nas');
+const { estSuccession } = require('../../commun/dossier');
+const { rendezVousSuccession, etapeRendezVousSuccessionDepuisTitre } = require('../../commun/succession');
 
 // Date (AAAA-MM-JJ) et heure (HH:MM) à Paris d'un instant ISO renvoyé par Exchange (en UTC,
 // « 2026-10-02T12:00:00Z »). Indépendant du fuseau du serveur.
@@ -118,6 +120,45 @@ function extraireReferenceVte(texte) {
 // Cherchée dans le titre du rendez-vous, support de la référence décrit par l'étude.
 function referenceDossierEvenement(evenement) {
   return extraireReferenceVte(evenement.sujet);
+}
+
+// ---- Rendez-vous d'une succession (étude 16/10 : « que l'agenda fonctionne comme pour les ventes ») ----
+// « SUCC - DUPONT », « SUCC DUPONT - Acte de notoriété », « Succession DUPONT » : la référence est la suite du titre après le mot SUCC
+// (jamais « succès »). Seulement quand le titre ne porte pas de référence de vente.
+const RE_REFERENCE_SUCC = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])\.?\s*[-–:]?\s*(.+)/i;
+function extraireReferenceSuccession(texte) {
+  const source = String(texte || '');
+  if (extraireReferenceVte(source)) return '';
+  const m = RE_REFERENCE_SUCC.exec(source);
+  return m ? m[1].trim() : '';
+}
+
+// Le dossier de succession d'un rendez-vous : d'abord par l'identifiant Outlook déjà connu (créé par CLAIRE ou déjà relu), puis par
+// les noms de la référence « SUCC - … », parmi les successions seulement (mêmes règles que pour une vente : jamais deviné entre deux
+// homonymes). Pure.
+function dossierSuccessionPourEvenement(evt, dossiers) {
+  const successions = (dossiers || []).filter((d) => d && typeof d.nom === 'string' && estSuccession(d));
+  if (!successions.length || !evt) return null;
+  const itemId = evt.itemId ? String(evt.itemId) : '';
+  if (itemId) {
+    const ancre = successions.find((d) => rendezVousSuccession(d).some((r) => r.itemId === itemId));
+    if (ancre) return ancre;
+  }
+  const reference = extraireReferenceSuccession(evt.sujet);
+  return reference ? dossierPourReferenceAgenda(reference, successions, evt) : null;
+}
+
+// Pure : le dossier d'un rendez-vous de l'agenda — une vente par « VTE - … » (parmi les ventes), sinon une succession.
+// Rend { dossier, succession, etape }.
+function dossierDeRendezVousAgenda(evt, dossiers) {
+  const reference = referenceDossierEvenement(evt);
+  if (reference) return { dossier: dossierPourReferenceAgenda(reference, (dossiers || []).filter((d) => d && !estSuccession(d)), evt), succession: false, etape: '' };
+  const d = dossierSuccessionPourEvenement(evt, dossiers);
+  return d ? { dossier: d, succession: true, etape: etapeRendezVousSuccessionDepuisTitre(evt.sujet) } : { dossier: null, succession: false, etape: '' };
+}
+// Un rendez-vous de succession compte comme une signature (pastilles, détail) quand c'est un acte confirmé (notoriété, déclaration…).
+function signatureSuccessionAgenda(evt, etape) {
+  return ['notoriete', 'declarationSuccession', 'acte'].includes(etape) && estRendezVousSignature(evt);
 }
 
 // Le déclencheur donné par l'étude est un ENVOI FAIT : « Appel de fonds envoyé », « Appel de fonds
@@ -263,7 +304,9 @@ function motsVoisins(a, b) {
 // dossier dont un nom commencerait par l'un d'eux.
 const MOTS_AGENDA_IGNORES = new Set([
   'VTE', 'RDV', 'SIGNATURE', 'ACTE', 'PROMESSE', 'COMPROMIS', 'APPEL', 'FONDS', 'PROJET', 'ENVOYE',
-  'ENVOI', 'VISIO', 'OFFICE', 'CONFRERE', 'SCI', 'SARL', 'SAS', 'CONSORTS', 'SUCCESSION'
+  'ENVOI', 'VISIO', 'OFFICE', 'CONFRERE', 'SCI', 'SARL', 'SAS', 'CONSORTS', 'SUCCESSION',
+  // Rendez-vous d'une succession (« SUCC - DUPONT - Acte de notoriété », étude 16/10).
+  'SUCC', 'NOTORIETE', 'DECLARATION', 'OUVERTURE', 'HERITIERS', 'INVENTAIRE', 'ATTESTATION', 'IMMOBILIERE', 'RENDEZ', 'VOUS'
 ]);
 
 function motsNomsDeFamille(texte) {
@@ -425,7 +468,8 @@ function actionsDetecteesDepuisEvenements(evenements, dossiersActifs, aujourdHui
     const actions = detecterActionsEvenement(evt);
     const rendezVous = estRendezVousSignature(evt);
     if (!actions.appelFonds && !actions.projetEnvoye && !rendezVous) continue;
-    const dossier = dossierPourReferenceAgenda(reference, dossiersActifs, evt);
+    // Une référence « VTE » ne désigne jamais une succession (étude 16/10 : leurs rendez-vous sont suivis à part).
+    const dossier = dossierPourReferenceAgenda(reference, (dossiersActifs || []).filter((d) => d && !estSuccession(d)), evt);
     resultats.push({
       reference,
       dateIso,
@@ -544,7 +588,7 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
     if (evt.date > jour || fin < jour) continue;
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure || evt.date < jour || fin > jour;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
+    const { dossier, succession, etape } = dossierDeRendezVousAgenda(evt, dossiersActifs);
     const titre = String(evt.sujet || '');
     liste.push({
       sujet: titre.slice(0, 200),
@@ -553,11 +597,12 @@ function agendaDuJourDepuisEvenements(evenements, jour, dossiersActifs) {
       heureFin: journeeEntiere ? null : (evt.heureFin || null),
       journeeEntiere,
       categories: (evt.categories || []).slice(0, 5),
-      signature: !!reference && estRendezVousSignature(evt),
+      signature: succession ? signatureSuccessionAgenda(evt, etape) : (!!reference && estRendezVousSignature(evt)),
       absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
       option: RE_OPTION_SONDAGE.test(titre),
       dossierId: dossier ? dossier.id : null,
-      dossierNom: dossier ? dossier.nom : null
+      dossierNom: dossier ? dossier.nom : null,
+      succession: succession || undefined
     });
   }
   liste.sort((a, b) => (a.journeeEntiere === b.journeeEntiere ? 0 : a.journeeEntiere ? -1 : 1)
@@ -729,7 +774,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
   for (const evt of evenements || []) {
     if (!evt || evt.annule || !evt.date) continue;
     const reference = referenceDossierEvenement(evt);
-    const dossier = reference ? dossierPourReferenceAgenda(reference, dossiersActifs, evt) : null;
+    const { dossier, succession, etape } = dossierDeRendezVousAgenda(evt, dossiersActifs);
     const titre = String(evt.sujet || '');
     const journeeEntiere = !!evt.journeeEntiere || !evt.heure;
     liste.push({
@@ -743,11 +788,15 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
       heureFin: journeeEntiere ? null : (evt.heureFin || null),
       journeeEntiere,
       categories: (evt.categories || []).slice(0, 5),
-      signature: !!reference && estRendezVousSignature(evt),
+      signature: succession ? signatureSuccessionAgenda(evt, etape) : (!!reference && estRendezVousSignature(evt)),
       absence: !!evt.journeeEntiere && RE_MOT_ABSENCE.test(normaliserNomRapprochement(titre)),
       option: RE_OPTION_SONDAGE.test(titre),
       dossierId: dossier ? dossier.id : null,
-      dossierNom: dossier ? dossier.nom : null
+      dossierNom: dossier ? dossier.nom : null,
+      // Rendez-vous d'une succession : suivi dans la liste de la fiche (agendaWatch.synchroniserRendezVousSuccessions), jamais par la date
+      // de signature d'une vente.
+      succession: succession || undefined,
+      etapeSuccession: succession ? etape : undefined
     });
   }
   liste.sort((a, b) => a.date.localeCompare(b.date)
@@ -758,7 +807,7 @@ function evenementsAgendaOffice(evenements, dossiersActifs) {
 
 module.exports = {
   momentParisDepuisIso, veilleDe, formatDateFr, evenementDepuisEws, evenementsDepuisEws,
-  extraireReferenceVte, referenceDossierEvenement, detecteAppelDeFonds, detecteProjetEnvoye,
+  extraireReferenceVte, referenceDossierEvenement, extraireReferenceSuccession, dossierSuccessionPourEvenement, dossierDeRendezVousAgenda, detecteAppelDeFonds, detecteProjetEnvoye,
   detecterActionsEvenement, dossierPourReferenceAgenda, actionsDetecteesDepuisEvenements, motsVoisins,
   estRendezVousSignature, composerLieuAgenda, compterRendezVousPeriode, natureActeAgenda, compterActesAgendaPeriode, periodesActesAnnee, dureeRendezVousMinutes, REGLE_COMPTAGE_RENDEZ_VOUS, lundiAnneePrecedente, decalerJours, ecartRendezVous, moisDePeriode, archiveAgendaARelire, evenementsAgendaOffice,
   absencesDepuisEvenements, estEvenementJourneeEntiere, collaborateursDansTexte, COLLABORATEURS_ABSENCE,

@@ -596,3 +596,41 @@ test('rendez-vous retiré dans CLAIRE et de l’agenda, puis recréé dans Outlo
   assert.equal(depot.trouverParId('d1').rendezVousSignature, '2099-11-18');
   db.close();
 });
+
+test('successions : rendez-vous « SUCC - … » de l\'agenda reconnus et suivis sur la fiche comme pour une vente (étude 16/10)', () => {
+  const { synchroniserRendezVousSuccessions } = require('../src/agendaWatch');
+  const { evenementsAgendaOffice, dossierDeRendezVousAgenda, extraireReferenceSuccession } = require('../src/agendaOffice');
+  // Référence : SUCC / Succession, jamais « succès », jamais quand le titre est une vente.
+  assert.equal(extraireReferenceSuccession('SUCC - LEFEBVRE - Acte de notoriété'), 'LEFEBVRE - Acte de notoriété');
+  assert.equal(extraireReferenceSuccession('Un succès LEFEBVRE'), '');
+  assert.equal(extraireReferenceSuccession('VTE - SUCC LEFEBVRE / MARTIN'), '');
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  depot.creer({ id: 's1', nom: 'LEFEBVRE', typeAffaire: 'succession', sansPret: true, succession: { ouvertureLe: '2026-09-01' } });
+  depot.creer({ id: 'v1', nom: 'LEFEBVRE / MARTIN' });
+  depot.creer({ id: 's2', nom: 'GIRAUD', typeAffaire: 'succession', archive: true });
+  // Une vente « VTE - LEFEBVRE / MARTIN » reste à la vente ; un « SUCC - LEFEBVRE » va à la succession, jamais à la vente.
+  assert.equal(dossierDeRendezVousAgenda({ sujet: 'VTE - LEFEBVRE / MARTIN', date: '2026-11-02', heure: '10:00' }, depot.tousActifs()).dossier.id, 'v1');
+  const evts = [
+    { itemId: 'N1', sujet: 'SUCC - LEFEBVRE - Acte de notoriété', date: '2026-11-05', heure: '10:00' },
+    { itemId: 'H1', sujet: 'SUCC - LEFEBVRE - héritiers', date: '2026-10-28', heure: '15:00' },
+    { itemId: 'P1', sujet: 'SUCC - LEFEBVRE - Déclaration ?', date: '2026-12-01', heure: '11:00' }
+  ];
+  const stock = evenementsAgendaOffice(evts, depot.tousActifs());
+  assert.equal(stock.map((e) => `${e.dossierId}:${e.etapeSuccession}:${e.signature}`).join(','), 's1:autre:false,s1:notoriete:true,s1:autre:false');
+  assert.equal(synchroniserRendezVousSuccessions(depot, stock, '2026-10-05', '2026-10-16'), 1);
+  let d = depot.trouverParId('s1');
+  assert.equal(d.succession.rendezVous.map((r) => `${r.etape}:${r.date}`).join(','), 'autre:2026-10-28,notoriete:2026-11-05,autre:2026-12-01');
+  assert.deepEqual([d.rendezVousSignature, d.rdvAgendaItem.itemId], ['2026-11-05', 'N1']);
+  assert.match(d.historique.at(-1).texte, /relevé dans l’agenda/);
+  // Rien de changé : pas de nouvelle écriture.
+  assert.equal(synchroniserRendezVousSuccessions(depot, evenementsAgendaOffice(evts, depot.tousActifs()), '2026-10-05', '2026-10-16'), 0);
+  // Notoriété déplacée et rendez-vous des héritiers supprimé dans Outlook : la fiche suit (l'étape de la notoriété reste).
+  const evts2 = [{ itemId: 'N1', sujet: 'SUCC - LEFEBVRE - Acte de notoriété', date: '2026-11-12', heure: '09:30' }, evts[2]];
+  assert.equal(synchroniserRendezVousSuccessions(depot, evenementsAgendaOffice(evts2, depot.tousActifs()), '2026-10-05', '2026-10-16'), 1);
+  d = depot.trouverParId('s1');
+  assert.equal(d.succession.rendezVous.map((r) => `${r.etape}:${r.date}`).join(','), 'notoriete:2026-11-12,autre:2026-12-01');
+  assert.deepEqual([d.rendezVousSignature, d.rendezVousSignatureHeure], ['2026-11-12', '09:30']);
+  // Un rendez-vous hors de la période lue n'est jamais retiré ; une succession archivée n'est jamais écrite.
+  assert.equal(depot.trouverParId('s2').succession, undefined);
+});
