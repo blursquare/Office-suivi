@@ -8,5 +8,6 @@
   "planning.js",
   "assistant.js",
   "courriers-succession.js",
-  "constitution.js"
+  "constitution.js",
+  "donnees-dossier.js"
 ]
