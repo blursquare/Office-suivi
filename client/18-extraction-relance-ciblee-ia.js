@@ -865,8 +865,8 @@
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
     }
 
-    // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
-    if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;
+    // Succession (étude 16/10) : défunt, conjoint survivant, type et ouverture saisis dans le bloc « Succession » (client/79).
+    if (successionAuthentic) appliquerWizardSuccessionSurDossier(dossier);
 
     // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
     if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;

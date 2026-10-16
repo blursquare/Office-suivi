@@ -8760,8 +8760,14 @@ tcxspan { cursor: pointer; }
 #panel.wizard-succession .vente-seul,
 #panel.wizard-succession #panneau-revision,
 #panel.wizard-succession details.wizard-plus { display: none; }
-#panel.wizard-succession .revision-double { display: grid; }
+#panel.wizard-succession .revision-double:not(.vente-seul) { display: grid; }
 #panel.wizard-succession .pieces-authentic { margin-top: 12px; }
+/* Bloc « Succession » de l'assistant (étude 16/10) : visible seulement pour une succession. */
+.succession-seul { display: none; }
+#panel.wizard-succession .succession-seul { display: block; }
+.wizard-succ-listes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 12px; }
+.wizard-succ-listes > * { min-width: 0; }
+.wizard-succ-liste { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
 
 /* ---- Réglages › Authentic : journal des pages lues (étude, 02/10) ---- */
 .authentic-fenetres { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 4px 0 10px; font-size: var(--texte-m); }

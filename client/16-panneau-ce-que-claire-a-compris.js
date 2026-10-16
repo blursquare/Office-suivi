@@ -471,7 +471,10 @@
     const panneau = document.getElementById('panneau-revision');
     const rappel = document.getElementById('alertes-finalisation');
     if (!panneau) return;
-    if (!extraction) {
+    // Succession (étude 16/10) : rien d'une vente à vérifier — son bloc « Succession » (client/79) tient lieu de panneau.
+    const succession = typeof successionEnCoursWizard === 'function' && successionEnCoursWizard();
+    if (succession) etatRevision = { aValider: 0, validees: 0, vides: 0 };
+    if (!extraction || succession) {
       panneau.style.display = 'none';
       panneau.innerHTML = '';
       const carte = document.getElementById('panel');

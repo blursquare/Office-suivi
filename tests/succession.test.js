@@ -613,3 +613,36 @@ test('Authentic : une page de succession sans dossier dans CLAIRE est proposée 
   // Une vente au même nom n'est jamais retenue pour la page de succession.
   assert.equal(app.scoreDossierAuthentic(intitule, '', { id: 'v1', nom: 'DURAND / MARTIN', parties: [] }).score, 0);
 });
+
+test('Nouveau dossier d’une succession : défunt, héritiers, conjoint et type proposés d’Authentic ; la saisie gardée sur la fiche (étude 16/10)', () => {
+  const donnees = { intitule: 'Mme DURAND Jeanne veuve de M. DURAND Pierre', type: 'succession', personnes: [
+      { id: 'p1', nom: 'DURAND', prenom: 'Jeanne', civilite: 'Madame', deces: { date: '2026-09-01', lieu: '41000 BLOIS', pays: 'France' } },
+      { id: 'p2', nom: 'DURAND', prenom: 'Marc', civilite: 'Monsieur', emails: ['marc.durand@exemple.fr'] }],
+    immeubles: [{ id: 'i1', adresse: { texte: '1 rue des Lices 41000 Blois' }, parcelles: [{ section: 'AB', numero: '12' }] }],
+    infosAuthentic: { comparants: [{ role: 'DEFUNT', nom: 'DURAND Jeanne', qualite: 'Défunt', lien: 'Veuve de' }, { role: 'HERITIER', nom: 'DURAND Marc', qualite: 'Héritier' }] } };
+  const p = app.propositionWizardSuccession(donnees);
+  assert.equal(p.defunt, 'Jeanne DURAND');
+  assert.equal(p.decesDate, '2026-09-01');
+  assert.equal(p.type, 'classique', 'bien immobilier : classique');
+  assert.equal(p.conjoint, false, 'veuve : pas de conjoint survivant');
+  assert.equal(p.heritiers.map(h => h.nom).join(','), 'Marc DURAND');
+  assert.equal(app.nomPrenomsSaisisSuccession('Jeanne Marie DURAND').nom, 'DURAND');
+  assert.equal(app.nomPrenomsSaisisSuccession('Jeanne Marie DURAND').prenoms, 'Jeanne Marie');
+  // Rien de changé : aucune correction sur la fiche, seulement l'ouverture.
+  const d = { id: 'n1' };
+  app.appliquerSaisieWizardSuccession(d, { defunt: p.defunt, decesDate: p.decesDate, decesLieu: p.decesLieu, conjoint: '', type: p.type, ouverture: '2026-10-20' }, p);
+  assert.equal(d.defunt, undefined);
+  assert.equal(JSON.stringify(d.succession), '{"ouvertureLe":"2026-10-20"}');
+  // Corrections : gardées comme sur la fiche.
+  const d2 = { id: 'n2' };
+  app.appliquerSaisieWizardSuccession(d2, { defunt: 'Jeanne Louise DURAND', decesDate: '2026-09-02', decesLieu: '', conjoint: 'oui', type: 'notoriete', ouverture: '' }, p);
+  assert.equal(JSON.stringify(d2.defunt), '{"prenoms":"Jeanne Louise","nom":"DURAND","decesDate":"2026-09-02"}');
+  assert.equal(d2.succession.conjointSurvivant, true);
+  assert.equal(d2.succession.type, 'notoriete');
+  // Récapitulatif.
+  const lignes = app.lignesRecapSuccession({ defunt: 'Jeanne DURAND', decesDate: '2026-09-01', decesLieu: 'BLOIS (41000)', conjoint: '', type: 'classique', ouverture: '' }, p);
+  assert.equal(lignes.map(l => l.libelle).join('|'), 'Défunt|Décès|Héritiers|Conjoint survivant|Type de succession|Biens');
+  const recap = app.lignesRecapWizard({ nom: 'SUCC DURAND', responsable: 'Julie VASSELIN', succession: true, lignesSuccession: lignes });
+  assert.equal(recap[1].libelle, 'Défunt');
+  assert.ok(!recap.some(l => /Vendeur|Prix|Notaires/.test(l.libelle)));
+});

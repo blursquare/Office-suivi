@@ -830,6 +830,7 @@
     etapeWizardActuelle = n;
     const panneau = document.getElementById('panel');
     if (panneau) panneau.classList.toggle('wizard-succession', successionEnCoursWizard());
+    adapterChampsWizardSuccession(successionEnCoursWizard());
     if (n === 1) { renderChoixImport(); chargerRelevesAuthenticRecents(); }
     // Ce qui a nourri le dossier se lit sous chaque étape du haut : plus de lignes de sources ici.
     // Trois étapes (étude, 02/10 au soir) : Importer · Vérifier (données, dossier, avant-contrat) · Valider.
@@ -872,7 +873,9 @@
       { libelle: 'Engagements du vendeur', valeur: x.nbEngagements ? String(x.nbEngagements) : '', vente: true, facultatif: true },
       { libelle: 'Pièces d’Authentic', valeur: x.piecesAuthentic ? `${x.piecesAuthentic} marquée${x.piecesAuthentic > 1 ? 's' : ''} reçue${x.piecesAuthentic > 1 ? 's' : ''}` : '', facultatif: true }
     ];
-    return lignes.filter(l => !(x.succession && l.vente)).filter(l => l.valeur || !l.facultatif);
+    // Succession (étude 16/10) : ses propres lignes (défunt, décès, héritiers…) après le nom du dossier.
+    if (x.succession && Array.isArray(x.lignesSuccession)) lignes.splice(1, 0, ...x.lignesSuccession);
+    return lignes.filter(l => !(x.succession && (l.vente || (x.lignesSuccession && l.libelle === 'Bien')))).filter(l => l.valeur || !l.facultatif);
   }
 
   function renderRecapWizard() {
@@ -887,14 +890,15 @@
     const toggleVente = document.getElementById('toggle-ventebien');
     const lignes = lignesRecapWizard({
       nom: val('f-nom'), vendeurs: parties('VENDEUR'), acquereurs: parties('ACQUEREUR'),
-      adresse: val('f-adresse-bien'), typeVente: texteOption('f-type-vente'), prix: eurosDepuisSaisie(val('f-prix-vente')),
+      adresse: val('f-adresse-bien'), typeVente: successionEnCoursWizard() ? '' : texteOption('f-type-vente'), prix: eurosDepuisSaisie(val('f-prix-vente')),
       responsable: val('f-responsable'), notaireVendeur: val('f-notaire-vendeur'), notaireAcquereur: val('f-notaire-acquereur'),
       sansPret: togglePret ? !togglePret.checked : false, pret: val('f-pret'), acte: val('f-acte'),
       ventebien: toggleVente && toggleVente.checked ? val('f-ventebien') : '',
       nbEngagements: (analyseJuridiqueActuelle.engagements || []).length, piecesAuthentic: nbAuthentic,
-      succession: successionEnCoursWizard()
+      succession: successionEnCoursWizard(),
+      lignesSuccession: successionEnCoursWizard() ? lignesRecapSuccession(saisieWizardSuccession(), propositionWizardSuccession(exportAuthenticActuel)) : null
     });
-    const reste = etatRevision && extractionActuelle ? etatRevision.aValider : 0;
+    const reste = etatRevision && extractionActuelle && !successionEnCoursWizard() ? etatRevision.aValider : 0;
     const etat = reste
       ? `<div class="recap-etat"><span class="dot-label dl-pret"><span class="dot"></span>${reste} donnée${reste > 1 ? 's' : ''} pas encore validée${reste > 1 ? 's' : ''}</span><button type="button" class="lien-action" onclick="definirEtapeWizard(2)">Revenir à Vérifier</button></div>`
       : '';
