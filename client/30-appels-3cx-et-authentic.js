@@ -1510,7 +1510,7 @@
       if (intituleDossierAuthentic(cap) && pageSuccessionAuthentic(cap, intitule)) g.succession = true;
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
-      if (type === 'client') [cap, (partagerFicheConjointAuthentic(cap) || {}).conjoint].filter(Boolean).forEach(c => { const p = clientDepuisFicheAuthentic(c); if (p) g.personnes.set(p.id, p); });
+      if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); const pc = clientDepuisFicheAuthentic((partagerFicheConjointAuthentic(cap) || {}).conjoint); if (pc) (g.conjoints = g.conjoints || []).push(pc); }
       if (type === 'bien') {
         const b = bienDepuisFicheAuthentic(cap);
         if (b) {
@@ -1526,6 +1526,9 @@
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
     });
     return [...groupes.values()].map(g => {
+      // Conjoint vu dans le volet d'une fiche : repris seulement s'il est comparant du dossier (jamais l'époux d'un bien propre).
+      (g.conjoints || []).filter(pc => conjointComparantAuthentic(g.infos, pc) && ![...g.personnes.values()].some(p => p.nom === pc.nom && p.prenom === pc.prenom))
+        .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       const immeubles = [...g.immeubles.values()];
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
@@ -1749,7 +1752,10 @@
     const complet = [prenom, nomFamille].filter(Boolean).join(' ');
     const duCote = parties.filter(x => x && String(x.role || '').toUpperCase() === role && x.qualitePersonne !== 'morale');
     const memeNom = duCote.filter(x => contient(x.nom, nomFamille) || (personne.nomUsage && contient(x.nom, personne.nomUsage)) || (x.nomUsage && contient(x.nomUsage, nomFamille)));
-    let p = memeNom.find(x => premierPrenom && contient(x.nom, premierPrenom)) || (memeNom.length === 1 ? memeNom[0] : null);
+    // Une partie seule de ce nom n'est prise pour cette personne que si elle ne porte pas un AUTRE prénom (relecture 16/10 : la fiche de
+    // Léa MARTEL renommait le vendeur Paul MARTEL).
+    const autrePrenom = (x) => premierPrenom && mots(x.nom).trim().split(' ').some(m => m.length > 1 && !mots(nomFamille + ' ' + (personne.nomUsage || '') + ' ' + (x.nomUsage || '')).includes(' ' + m + ' '));
+    let p = memeNom.find(x => premierPrenom && contient(x.nom, premierPrenom)) || (memeNom.length === 1 && !autrePrenom(memeNom[0]) ? memeNom[0] : null);
     const qui = role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur';
     let creee = false;
     if (!p) {
@@ -2617,10 +2623,15 @@
   // de neuf ».
   async function appliquerReleveAuthentic(capture, rel) {
     // Fiche client ouverte avec le volet du conjoint : la fiche, puis le conjoint comme une seconde fiche client du même dossier.
+    // Le conjoint ne fait que COMPLÉTER une partie déjà sur ce dossier, reconnue par prénom et nom (relecture 16/10) : ni choix, ni
+    // nouvelle partie, ni dossier en consultation changé.
     const partage = partagerFicheConjointAuthentic(capture);
     if (partage) {
       const r = await appliquerReleveAuthentic(partage.principale, rel);
-      try { await appliquerReleveAuthentic(partage.conjoint, Object.assign({}, rel, { revu: true })); } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: 'Authentic : volet du conjoint non appliqué — ' + String(e && e.message || e).slice(0, 120) }); }
+      try {
+        const dp = r && r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
+        if (dp && conjointPartieDuDossierAuthentic(dp, clientDepuisFicheAuthentic(partage.conjoint)) && appliquerReleveSurDossier(dp, partage.conjoint, undefined, dossiers).modifie) await sauvegarder(dp);
+      } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: 'Authentic : volet du conjoint non appliqué — ' + String(e && e.message || e).slice(0, 120) }); }
       return r;
     }
     let d = null;

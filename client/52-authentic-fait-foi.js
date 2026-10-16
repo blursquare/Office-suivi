@@ -716,7 +716,7 @@
       (section === 'conjoint' ? conjoint : principaux).push(ch);
     });
     const principale = Object.assign({}, c, { champs: principaux, volet: 'principale' });
-    if (!conjoint.some(ch => libelleNetAuthentic(ch.libelle) === 'nom de famille')) return null;
+    if (!conjoint.some(ch => libelleNetAuthentic(ch.libelle) === 'nom de famille' && String(ch.valeur || '').trim())) return null;
     const sm = situationMatrimonialeAuthentic(principale);
     const nomFiche = [valeurChampAuthentic(principaux, n => n === 'prenom'), valeurChampAuthentic(principaux, n => n === 'nom de famille').toUpperCase()].filter(Boolean).join(' ');
     return {
@@ -724,4 +724,19 @@
       conjoint: { champs: conjoint, tableaux: [], texte: c.texte || '', onglets: c.onglets || [], volet: 'conjoint',
         situationConjoint: sm ? Object.assign({}, sm, { conjoint: nomFiche || sm.conjoint }) : null }
     };
+  }
+
+  // Pure : le conjoint lu dans le volet est-il une partie de CE dossier, reconnue par prénom ET nom (une vente ; jamais une succession) ?
+  function conjointPartieDuDossierAuthentic(d, personne) {
+    if (!d || !personne || !personne.prenom || estSuccession(d)) return false;
+    const nom = [personne.prenom, personne.nom].join(' ');
+    return (Array.isArray(d.parties) ? d.parties : []).some(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR')
+      && [p.nom, [p.prenom, p.nom].filter(Boolean).join(' ')].some(n => memePersonneNommee(n, nom)));
+  }
+
+  // Pure : le conjoint d'un volet est-il cité parmi les comparants relevés du dossier (prénom et nom) ?
+  function conjointComparantAuthentic(infos, personne) {
+    const comps = (infos && Array.isArray(infos.comparants)) ? infos.comparants : [];
+    const nom = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : '';
+    return !!(personne && personne.prenom) && comps.some(c => c && c.nom && memePersonneNommee(c.nom, nom));
   }

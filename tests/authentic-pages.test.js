@@ -1599,11 +1599,12 @@ test('fiche client ouverte avec le volet du conjoint : la personne de la fiche l
   assert.equal(c.emails.join(','), 'lea.martel@exemple.fr');
   assert.equal(c.situationMatrimoniale.conjoint, 'Paul MARTEL');
   assert.equal(c.situationMatrimoniale.regime, 'Communauté réduite aux acquêts');
-  // Les deux personnes entrent dans « Nouveau dossier › Depuis Authentic ».
-  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-16T09:00:00Z', capture: Object.assign({ texte: '12 - VTE MARTEL / ROY\nComparants' }, { tableaux: [{ entete: ['Intitulé', 'Date', 'État'], lignes: [['Titre', '01/01/2026', 'Reçu']] }] }) },
-    { recueLe: '2026-10-16T09:01:00Z', capture }]);
-  const noms = g.flatMap(x => x.export.personnes.map(q => q.prenom)).sort().join(',');
-  assert.ok(/Léa/.test(noms) && /Paul/.test(noms), noms);
+  // « Nouveau dossier › Depuis Authentic » : le conjoint n'entre que s'il est comparant (jamais l'époux d'un bien propre).
+  const page = (comparants) => ({ texte: '12 - VTE MARTEL / ROY\n' + comparants + '\nImmeubles', tableaux: [{ entete: ['Intitulé', 'Date', 'État'], lignes: [['Titre', '01/01/2026', 'Reçu']] }] });
+  const prenoms = (txt) => app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-16T09:00:00Z', capture: page(txt) }, { recueLe: '2026-10-16T09:01:00Z', capture }])
+    .flatMap(x => x.export.personnes.map(q => q.prenom)).sort().join(',');
+  assert.equal(prenoms('Comparants (1)\nM. MARTEL Paul\nVendeur'), 'Paul');
+  assert.equal(prenoms('Comparants (2)\nM. MARTEL Paul et Mme MARTEL Léa\nVendeur'), 'Léa,Paul');
   // Sans volet du conjoint : rien ne change.
   assert.equal(app.partagerFicheConjointAuthentic({ champs: capture.champs.slice(10) }), null);
 });
@@ -1621,4 +1622,14 @@ test('volet du conjoint : l’état civil de l’autre vendeur est complété su
   const lea = d.parties.find(p => /Léa/.test(p.nom));
   assert.equal(lea.dateNaissance, '1980-03-02');
   assert.equal(lea.civilite, 'Mme');
+});
+
+test('volet du conjoint : un conjoint qui n’est pas partie ne remplace ni n’ajoute personne (relecture 16/10)', () => {
+  const seul = { id: 'v8', nom: 'MARTEL / ROY', parties: [{ role: 'VENDEUR', nom: 'Paul MARTEL' }, { role: 'ACQUEREUR', nom: 'ROY' }] };
+  assert.equal(app.conjointPartieDuDossierAuthentic(seul, { prenom: 'Léa', nom: 'MARTEL' }), false);
+  assert.equal(app.conjointPartieDuDossierAuthentic({ parties: seul.parties.concat({ role: 'VENDEUR', nom: 'Léa MARTEL' }) }, { prenom: 'Léa', nom: 'MARTEL' }), true);
+  // Fiche de Léa lue seule : Paul n'est jamais renommé Léa.
+  const d = { id: 'v9', nom: 'MARTEL / ROY', parties: [{ role: 'VENDEUR', nom: 'Paul MARTEL' }, { role: 'ACQUEREUR', nom: 'ROY' }], pieces: {}, historique: [] };
+  app.alignerIdentitePartieAuthentic(d, { nom: 'MARTEL', prenom: 'Léa', civilite: 'Madame' }, 'VENDEUR', {});
+  assert.ok(d.parties.some(p => p.nom === 'Paul MARTEL'), d.parties.map(p => p.nom).join(','));
 });
