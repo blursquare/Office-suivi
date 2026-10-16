@@ -290,7 +290,8 @@
       cstEtat.proprietaires = proprietairesConstitution(d);
       cstEtat.groupes = groupesParcellesConstitution(d).map(g => Object.assign(g, { info: { etat: 'chargement' } }));
       cstEtat.groupes.forEach(g => chargerCommuneConstitution(g));
-      // Zonage et droits de préemption (client/81) : lus seuls si le dossier n'a pas encore d'analyse.
+      // Zonage et droits de préemption (client/81) : lus seuls si le dossier n'a pas encore d'analyse ; contenances de l'IGN si Authentic n'en a pas.
+      completerContenancesConstitution();
       lireZonageConstitution(false);
     } else {
       cstEtat.defunt = defuntConstitution(d);
@@ -957,7 +958,7 @@
     const etatEmail = doc.envoyeLe ? 'Email préparé' : doc.mode === 'courriel' ? (doc.courriel ? `Par email : ${doc.courriel}` : 'Par email : adresse à saisir') : 'Envoyer par email';
     const action = (ic, titre, geste, classe) => `<wa-button appearance="plain" size="s" type="button" class="bouton-icone${classe ? ' ' + classe : ''}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}" onclick="event.stopPropagation(); ${geste}"${occupe}>${icone(ic)}</wa-button>`;
     return `<div class="cst-item${choisi ? ' choisi' : ''}${doc.actif ? '' : ' cst-off'}" onclick="cstChoisirDoc('${idDoc}')">
-        <span class="cst-item-switch" onclick="event.stopPropagation()"><wa-switch size="small"${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)" aria-label="Préparer ce courrier"></wa-switch></span>
+        <span class="cst-item-switch" onclick="event.stopPropagation()"><wa-switch size="s"${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)" aria-label="Préparer ce courrier"></wa-switch></span>
         <span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}${rang}</span>
           <span class="cst-item-dest${dest ? '' : ' manque'}">${escapeHtml(dest || 'Destinataire à compléter')}</span></span>
         <span class="cst-item-actions">

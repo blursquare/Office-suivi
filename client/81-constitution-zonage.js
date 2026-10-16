@@ -44,10 +44,28 @@
     }
   }
 
+  // Contenance d'une parcelle qu'Authentic ne donne pas : celle du cadastre de l'IGN, lue avec le zonage (test du 16/10 à Chaumont-sur-Tharonne :
+  // la colonne « Contenance » du courrier restait vide). Jamais par-dessus une contenance d'Authentic ou saisie. → vrai si une a été posée.
+  function completerContenancesConstitution() {
+    const e = cstEtat;
+    const d = dossierConstitution();
+    const lignes = d && d.preemption && Array.isArray(d.preemption.lignes) ? d.preemption.lignes : [];
+    if (!e || e.type !== 'vente' || !lignes.length) return false;
+    let pose = false;
+    e.groupes.forEach(g => g.parcelles.forEach(p => {
+      if (String(p.surface || '').trim()) return;
+      const l = lignes.find(x => x && x.cle === cleParcelle(p.section, p.numero));
+      const m2 = l && Number(l.contenance);
+      if (m2 > 0) { p.surface = String(Math.round(m2)); p.surfaceIgn = true; pose = true; }
+    }));
+    return pose;
+  }
+
   // La section redessinée seule (une saisie en cours ailleurs dans l'écran n'est pas effacée).
   function majZonageConstitution() {
     const zone = document.getElementById('cst-zonage');
     const d = dossierConstitution();
+    if (completerContenancesConstitution()) majApercuConstitution();
     if (zone && d) zone.outerHTML = renderZonageConstitution(d) || '<div id="cst-zonage"></div>';
     majStepperConstitution();
   }

@@ -20426,3 +20426,15 @@ courriers papier (ni PDF ni plan ni historique pour un courrier par email) ; (6)
 ### 16/10/2026 22:25 — Contrôle de l'urbanisme : questions par zone (0.269.3)
 
 Étude : « à mettre à jour pour contrôle de l'urbanisme aussi ». `renderQuestionsZonesPreemption(section, rep, manques, lignes)` (client/46) : sections « Bien vendu » et « Agricole et forestier » groupées par zone avec les mêmes groupes que la Constitution (`questionsUrbanismeConstitution`, client/81 ; copropriété d'après « Nature du bien »), à répondre et répondues visibles, les autres de la zone repliées ; une seule zone et aucune parcelle à cheval → la liste d'avant (`renderQuestionsPreemption`). Nature de la mutation inchangée. « concerne » cite une parcelle à cheval une seule fois.
+
+### 16/10/2026 22:34 — Constitution : essai réel à Chaumont-sur-Tharonne (0.269.4)
+
+Étude : « teste la constitution de dossier avec Chaumont-sur-Tharonne ». Joué dans Chromium avec le vrai serveur et les vrais services (dossier
+inventé, AB 100, 41600) : commune retrouvée (INSEE 41046, CC Cœur de Sologne, mairie de Chaumont-sur-Tharonne, 10 rue de Romorantin) ;
+plan cadastral tiré de cadastre.gouv.fr par le navigateur du serveur en 20 à 25 s (commune choisie dans la liste du site, 0.266.3), AB 100
+surlignée, imprimé derrière le courrier ; zonage lu sur le Géoportail : zone N → SAFER à notifier, DIA à vérifier (questions : DPU institué,
+achèvement de moins de 4 ans) ; trois courriers à la mairie (alignement-numérotage, péril, assainissement). Corrigé : contenance vide dans le
+tableau du courrier quand Authentic n'en donne pas → reprise de la contenance de l'IGN lue avec le zonage (`completerContenancesConstitution`,
+jamais par-dessus une contenance d'Authentic ou saisie ; AB 100 = 38 a 45 ca) ; `wa-switch size="small"` (déprécié) → `size="s"`.
+Constaté, non corrigé (données) : aucun guichet unique relevé pour Chaumont-sur-Tharonne dans « Où déposer la DIA » (« Guichet non relevé ») ;
+assainissement adressé à la mairie (aucune règle pour la CC Cœur de Sologne).
