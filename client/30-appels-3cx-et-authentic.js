@@ -1500,7 +1500,7 @@
   // Pure : les pages relevées (dans l'ordre où elles ont été vues) regroupées par dossier, au format
   // de l'export ZIP — une fiche client ou bien sans intitulé appartient au dernier dossier vu.
   // [{ intitule, export, derniere }] du plus récent au plus ancien.
-  function dossiersDepuisRelevesAuthentic(releves) {
+  function dossiersDepuisRelevesAuthentic(releves, o) {
     const groupes = new Map();
     let courant = '';
     (releves || []).slice().sort((a, b) => String(a.recueLe || '').localeCompare(String(b.recueLe || ''))).forEach(r => {
@@ -1533,7 +1533,7 @@
       if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], g.succession || /succ/i.test(intitule) ? 'succession' : 'vente')
         .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
-      if (type === 'gestion') g.apercu = apercuImmeubleAuthentic(cap) || g.apercu;
+      if (type === 'gestion' && o && o.apercu && !(g.succession || /succ/i.test(intitule))) g.apercu = apercuImmeubleAuthentic(cap) || g.apercu;
     });
     return [...groupes.values()].map(g => {
       // Conjoint vu dans le volet d'une fiche : repris seulement s'il est comparant du dossier (jamais l'époux d'un bien propre).
@@ -2067,7 +2067,7 @@
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
     const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
-    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
     const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
     let complete = false;
     const anciennes = deja.map(p => {
@@ -2113,7 +2113,7 @@
     if (!change) return resultat;
     d.bien = Object.assign({}, d.bien || {}, { lots: fusion.lots.slice(0, 40), tantiemesTotal: fusion.tantiemesTotal != null ? fusion.tantiemesTotal : null });
     if (nouveaux.length) noter(`Lot${nouveaux.length > 1 ? 's' : ''} de copropriété relevé${nouveaux.length > 1 ? 's' : ''} dans Authentic : ${nouveaux.map(l => `n° ${l.numero}${l.type ? ' (' + l.type + ')' : ''}`).join(', ')}`);
-    if (!estSuccession(d)) {
+    if (!estSuccession(d) && !(o && o.garderType)) {
       const r = poserChampAuthentic(d, { cle: 'typeVente', champ: 'typeVente', libelle: 'Type de vente', valeur: 'copropriete', maintenant: o && o.maintenant, forcer: o && o.forcer, formater: v => LIBELLES_TYPE_VENTE_AUTHENTIC[v] || String(v) });
       if (r.etat === 'pose') noter(`Type de vente passé en copropriété (lots relevés dans Authentic ; avant : ${r.avant || 'non renseigné'})`);
     }
@@ -2170,7 +2170,7 @@
     }
     if (type === 'bien') return estSuccession(d) ? appliquerBienSuccession(d, bienDepuisFicheAuthentic(capture), noter, resultat) : appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
     // Aperçu de l'immeuble sur la page du sous-dossier (16/10) : lots (copropriété) et parcelles avec leur surface, comme la fiche du bien.
-    if (type === 'gestion' && apercuImmeubleAuthentic(capture)) (estSuccession(d) ? appliquerBienSuccession : appliquerBienAuthentic)(d, apercuImmeubleAuthentic(capture), noter, resultat);
+    if (type === 'gestion') appliquerApercuImmeubleAuthentic(d, capture, noter, resultat);
 
     // Pièces reçues (page de gestion). Succession : actes de naissance et EHF suivent leur propre règle (plus bas), jamais une ligne seule.
     const pieces = (type === 'gestion' ? piecesAuthenticAAppliquer(d, capture) : [])
@@ -2617,7 +2617,7 @@
     } catch (e) { /* la page seule suffit */ }
     const tous = releves.filter(x => x && x.capture && x.id !== attente.releveId)
       .concat([{ id: attente.releveId || 'page', capture: attente.capture, recueLe: new Date().toISOString() }]);
-    groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(tous);
+    groupesAuthenticRecents = dossiersDepuisRelevesAuthentic(tous, { apercu: true });
     const i = groupesAuthenticRecents.findIndex(g => g.intitule === intitule);
     if (i < 0) { afficherToast('Page d’Authentic illisible : dossier à créer à la main.', 'OK', null); return; }
     definirOnglet('nouveau');

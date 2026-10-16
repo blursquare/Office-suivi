@@ -45,3 +45,22 @@ test('création : l’aperçu complète la fiche bien relevée', () => {
   assert.equal(r[0].parcelles.map(p => p.numero + ':' + (p.surface || '')).join(','), '123:07 a 95 ca,124:1 ha 00 a 06 ca');
   assert.equal(r[0].lots.length, 2);
 });
+
+test('relecture : jamais en succession, autre commune refusée, type déjà repris gardé, surface nulle ignorée, adresse cadastrale gardée', () => {
+  const succ = { id: 's', nom: 'Succession X', typeAffaire: 'succession', parties: [], historique: [], authentic: { immeubles: [] } };
+  app.appliquerReleveSurDossier(succ, page(), '2026-10-16T10:00:00Z', [succ]);
+  assert.equal((succ.authentic.immeubles || []).length, 0);
+  const ailleurs = { id: 't', nom: 'MARTEL / FOURNIER', typeVente: 'maison', adresseBien: 'TOURS (37000), 3 rue Basse', parties: [], historique: [] };
+  app.appliquerReleveSurDossier(ailleurs, page(), '2026-10-16T10:00:00Z', [ailleurs]);
+  assert.ok(!(ailleurs.bien && ailleurs.bien.cadastre));
+  const d = { id: 'm', nom: 'MARTEL / FOURNIER', typeVente: 'maison', adresseBien: 'BLOIS (41000), 12 rue des Lilas', parties: [], historique: [],
+    authentic: { valeurs: { typeVente: 'maison' } } };
+  app.appliquerReleveSurDossier(d, page(), '2026-10-16T10:00:00Z', [d]);
+  assert.equal(d.typeVente, 'maison');
+  assert.equal(d.bien.lots.length, 2);
+  assert.equal(d.bien.cadastre.parcelles[0].adresseCadastre, '12 RUE DES LILAS');
+  const zero = page(); zero.tableaux[2].lignes[0] = ['BLOIS', '', '', 'AB', '7', '', '', '0', '00', '00'];
+  assert.equal(app.apercuImmeubleAuthentic(zero).parcelles[0].surface, undefined);
+  const unHa = page(); unHa.tableaux[2].lignes[0] = ['BLOIS', '', '', 'AB', '8', '', '', '1', '', ''];
+  assert.equal(app.apercuImmeubleAuthentic(unHa).parcelles[0].surface, '1 ha 0 a 0 ca');
+});

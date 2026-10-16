@@ -20315,3 +20315,16 @@ fiche bien, `appliquerBienAuthentic` — parcelles ajoutées ou complétées, ja
 `appliquerBienSuccession`) et à la création (`avecApercuImmeubleAuthentic` : complète le seul bien relevé, ou devient le bien). Les champs « Cave : 1 »,
 « Appartement : 1 » de la page (filtre des lots, semble-t-il) ne sont pas lus. Non vérifié sur une vraie page : écriture exacte des en-têtes « ha / a / ca »
 et des numéros de lot.
+
+Relecture de 0.266.0 (même soir) : l'aperçu n'est jamais appliqué à une succession (plusieurs biens dans un tableau seraient réunis) ; refusé si
+aucune parcelle n'est dans la commune du dossier (`appliquerApercuImmeubleAuthentic`, raison dite) ; un type de vente déjà repris d'Authentic n'est
+pas changé par les lots (`garderType` dans `appliquerLotsAuthentic` — évite le va-et-vient maison / copropriété avec la fiche du bien) ; surface
+nulle (0 / 00 / 00) jamais retenue ; adresse cadastrale gardée sur la parcelle (`adresseCadastre`) ; l'aperçu n'entre dans les groupes
+d'Authentic que pour la création (`dossiersDepuisRelevesAuthentic(…, { apercu: true })` : liste « Nouveau dossier » et « Créer ») — la reprise
+automatique d'un dossier existant ne l'ajoutait pas par une seconde voie sans ces contrôles.
+
+### 16/10/2026 17:46 — Agenda : pastilles sur fond noir, pourcentage en gris foncé (0.266.1)
+
+Étude : « dans l'agenda autour de AF et P ou D mettre un fond noir », « les pourcentages en gris plus foncé ». Sur une carte de rendez-vous, les
+pastilles `.ag-mini` ont un fond `--noir-fixe` (vert et rouge éclaircis pour se lire dessus, tirets gardés pour « pas encore fait ») ; le pourcentage
+de maintien est en gris foncé fixe (72 % de noir), le même dans les deux thèmes (carte de la couleur pleine d'Outlook).

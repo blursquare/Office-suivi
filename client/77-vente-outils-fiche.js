@@ -287,7 +287,7 @@
           if (!/^[A-Z0-9]{1,3}$/.test(section) || !/^\d+[A-Za-z]?$/.test(numero) || parcelles.some(p => p.section === section && p.numero === numero)) return;
           const p = { section, numero };
           const [ha, a, ca] = [iHa, iA, iCa].map(i => cellule(l, i));
-          if ([ha, a, ca].every(x => /^\d{0,4}$/.test(x)) && (a || ca)) p.surface = ha && Number(ha) ? `${Number(ha)} ha ${a || '0'} a ${ca || '0'} ca` : `${a || '0'} a ${ca || '0'} ca`;
+          if ([ha, a, ca].every(x => /^\d{0,4}$/.test(x)) && Number(ha || 0) + Number(a || 0) + Number(ca || 0) > 0) p.surface = Number(ha || 0) ? `${Number(ha)} ha ${a || '0'} a ${ca || '0'} ca` : `${a || '0'} a ${ca || '0'} ca`;
           if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
           if (cellule(l, iPrefixe) && !/^0*$/.test(cellule(l, iPrefixe))) p.prefixe = cellule(l, iPrefixe);
           if (cellule(l, iNature)) p.nature = cellule(l, iNature);
@@ -322,4 +322,24 @@
     }) });
     if (liste.length === 1) return [completer(fusionnerBienAuthentic(liste[0], apercu))];
     return liste.map(completer);
+  }
+
+  // Modifie d : l'aperçu de l'immeuble d'une page de sous-dossier appliqué comme une fiche bien (relecture 16/10) —
+  // jamais pour une succession (plusieurs biens dans un seul tableau : ils seraient réunis) ; rien si aucune parcelle n'est dans la commune
+  // du dossier (page rattachée au mauvais dossier) ; un type de vente déjà repris d'Authentic n'est pas remis en cause par les lots (la fiche
+  // du bien dit le type ; sans elle, des lots font une copropriété).
+  function appliquerApercuImmeubleAuthentic(d, capture, noter, resultat) {
+    if (!d || estSuccession(d)) return resultat;
+    const apercu = apercuImmeubleAuthentic(capture);
+    if (!apercu) return resultat;
+    const net = t => normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const a = (d.bien && d.bien.adresse) || {};
+    const communeDossier = net(a.commune || (/^([^(,]+)\s*\(\d{5}\)/.exec(String(d.adresseBien || '')) || [])[1] || '');
+    const communes = apercu.parcelles.map(p => net(p.commune)).filter(Boolean);
+    if (communeDossier && communes.length && !communes.some(c => c === communeDossier || c.includes(communeDossier) || communeDossier.includes(c))) {
+      resultat.raison = 'aperçu de l’immeuble d’une autre commune que le dossier';
+      return resultat;
+    }
+    const retenu = !!(d.authentic && d.authentic.valeurs && d.authentic.valeurs.typeVente);
+    return appliquerBienAuthentic(d, apercu, noter, resultat, { garderType: retenu });
   }

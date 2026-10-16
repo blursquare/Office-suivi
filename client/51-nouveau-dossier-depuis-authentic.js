@@ -21,7 +21,7 @@
       const r = await fetchAvecAuth('/api/authentic/releves/recents');
       if (!r.ok) return;
       const { releves } = await r.json();
-      groupesAuthenticRecents = groupesAvecRetenu(dossiersDepuisRelevesAuthentic(releves || []), groupeAuthenticRetenu);
+      groupesAuthenticRecents = groupesAvecRetenu(dossiersDepuisRelevesAuthentic(releves || [], { apercu: true }), groupeAuthenticRetenu);
     } catch (e) { return; }
     renderRelevesAuthenticWizard();
   }
