@@ -20262,3 +20262,7 @@ Demande de l'étude (relevé du guichet https://demande-urbanisme.agglopolys.fr/
 ### 0.263.2 — 16/10/2026 16 h 23 — Fiche : les parcelles et leurs surfaces
 
 Étude : « les surfaces des parcelles ne remontent pas dans la fiche dossier ». L'onglet Dossier d'une vente n'affichait aucune parcelle (seul le bloc de l'analyse donnait la contenance lue dans le compromis). Ligne « Parcelles » (`renderParcellesFiche`, `parcellesAfficheesFiche`, client/77) : une ligne par parcelle de `d.bien.cadastre` — « EV 10 · 6 a 6 ca », nature, lieu-dit, commune —, total quand toutes ont leur surface, « surface inconnue » sinon (jamais devinée, info-bulle : ouvrir la fiche du bien dans Authentic). Surfaces lues par `centiaresDepuisContenance` (formes tolérées depuis 0.263.0) ; l'en-tête « Superficie » du tableau cadastral d'Authentic est reconnu comme « Surface » / « Contenance ». Test `tests/fiche-parcelles.test.js`.
+
+### 0.263.3 — 16/10/2026 — Agenda : couleurs adoucies
+
+Étude : « les couleurs de l'agenda sont trop vives ». `--cat-*` désaturées (mêmes teintes qu'Outlook, moins vives : vert #357A55, olive #56683A, rouge #9A3A42, jaune #CDBE5A, bleu #3A6A99, violet #6B63A3, orange #AE5A33, rose #A35A80, marron #7A5A43), texte toujours blanc sauf sur le jaune. Vérifié en capture.
