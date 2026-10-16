@@ -20392,3 +20392,13 @@ notifier / Pas de SAFER / À vérifier » d'après `safer` (un droit absent = «
 forêts) cités. Section entre les données et les courriers ; lue seule à l'ouverture d'une vente sans analyse (`lireZonageConstitution`,
 `d.preemptionAuto`) ; « Relire le zonage » pour une analyse automatique ; une analyse faite dans l'outil est lue telle quelle (« Contrôle de
 l'urbanisme » pour la refaire) ; rien en participation. Zonage réel non relu ici (Géoportail injoignable).
+
+### 16/10/2026 21:49 — Constitution de dossier : relecture de 0.267.0 (0.268.1)
+
+Relecture indépendante, huit points corrigés : (1) plan relancé après un changement de parcelles → seule la ligne du plan est redessinée
+(`majPlanCommuneConstitution`), plus tout l'écran qui effaçait la saisie en cours ; idem pour la section du zonage (`majZonageConstitution`) ;
+(2) minuterie du plan liée au dossier ouvert (un autre dossier de la même commune n'est plus relancé), vidée au changement de dossier ;
+(3) « Email » d'une ligne : écran occupé pendant la préparation (plus deux fenêtres pour un courrier) ; (4) le courrier ne passe « par email »
+qu'une fois la fenêtre d'email acceptée (adresse prise du répertoire si le champ est vide) ; (5) « Imprimer tout » ne prépare que les
+courriers papier (ni PDF ni plan ni historique pour un courrier par email) ; (6) message fidèle aux plans réellement joints ; (7) branches
+« Télécharger » / archive et règles CSS inutilisées retirées ; (8) défunt retenu dans le `try`, URL du PDF libérée après 5 min.

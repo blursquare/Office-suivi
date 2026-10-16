@@ -283,6 +283,8 @@
       return;
     }
     const type = estSuccession(d) ? 'succession' : 'vente';
+    Object.keys(minuteriesPlanConstitution).forEach(k => clearTimeout(minuteriesPlanConstitution[k]));
+    minuteriesPlanConstitution = {};
     cstEtat = { dossierId: id, type, message: '', formats: { pdf: true, docx: false }, signe: true, sorties: {}, enCours: false, documents: [], proprietaires: [], groupes: [], defunt: null, selection: '', compteur: 0 };
     if (type === 'vente') {
       cstEtat.proprietaires = proprietairesConstitution(d);
@@ -472,9 +474,12 @@
   // pause pour ne pas relancer cadastre.gouv.fr à chaque case cochée.
   var minuteriesPlanConstitution = {};
   function replanifierPlanConstitution(g) {
-    if (!g) return;
+    const e = cstEtat;
+    if (!g || !e) return;
     clearTimeout(minuteriesPlanConstitution[g.cle]);
     minuteriesPlanConstitution[g.cle] = setTimeout(() => {
+      // Un autre dossier ouvert entre-temps (même commune, même clé) : rien n'est relancé pour lui.
+      if (cstEtat !== e || !e.groupes.includes(g)) return;
       const etat = etatPlanConstitution(g).etat;
       if (['a-tirer', 'perime'].includes(etat)) lancerPlanConstitution(g.cle, true);
     }, 2500);
@@ -614,9 +619,10 @@
     return w;
   }
   function montrerPdfImpressionConstitution(w, blob, nom) {
+    if (!w || w.closed) { telechargerFichier(blob, nom); return; }
     const url = URL.createObjectURL(blob);
-    if (w && !w.closed) w.location.href = url;
-    else telechargerFichier(blob, nom);
+    w.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 5 * 60 * 1000);
   }
 
   async function genererConstitution(action) {
@@ -624,14 +630,15 @@
     const d = dossierConstitution();
     if (!e || !d || e.enCours) return;
     const fenetre = action === 'imprimer' ? ouvrirFenetreImpressionConstitution() : null;
-    const docs = documentsAGenererConstitution();
+    // « Imprimer tout » : les courriers papier seuls (un courrier par email n'est ni préparé ni imprimé — relecture 16/10).
+    const docs = documentsAGenererConstitution().filter(x => action !== 'imprimer' || x.mode !== 'courriel');
     const formats = action === 'imprimer' ? ['pdf'] : formatsChoisisConstitution();
-    if (!docs.length || !formats.length) { if (fenetre) fenetre.close(); afficherToast(!docs.length ? 'Aucun courrier coché.' : 'Choisissez PDF ou Word.'); return; }
+    if (!docs.length || !formats.length) { if (fenetre) fenetre.close(); afficherToast(!docs.length ? (action === 'imprimer' ? 'Aucun courrier papier coché.' : 'Aucun courrier coché.') : 'Choisissez PDF ou Word.'); return; }
     e.enCours = true;
     renderConstitution();
-    retenirDefuntSaisiConstitution();
     const fichiers = [];
     try {
+      retenirDefuntSaisiConstitution();
       // Plan cadastral surligné de chaque commune (client/78), joint à ses courriers.
       const plans = await plansDesCourriersConstitution(docs);
       for (const doc of docs) {
@@ -646,27 +653,26 @@
       if (formats.includes('pdf')) noterVerificationPoste('constitution-pdf', { detail: 'PDF/A signé' });
       ajouterHistorique(d, `Courriers de constitution de dossier préparés : ${docs.map(x => x.libelle + (x.groupe ? ' (' + ((groupeDuDocumentConstitution(x) || {}).commune || '') + ')' : '')).join(', ')}`);
       sauvegarder(d);
-      // Le plan d'une commune une fois dans les fichiers (enregistrés, téléchargés).
+      // Le plan d'une commune une fois dans les fichiers enregistrés.
       plans.forEach(liste => liste.forEach(p => fichiers.push({ blob: p.blob, nom: p.nom, format: 'pdf' })));
       if (action === 'imprimer') {
         // Chaque courrier suivi du plan cadastral de sa commune.
-        const pdfs = docs.filter(x => x.mode !== 'courriel').flatMap(x => {
+        let avecPlan = 0;
+        const pdfs = docs.flatMap(x => {
           const courrier = e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob;
-          return courrier ? [courrier].concat((plans.get(x.groupe) || []).map(p => p.blob)) : [];
+          const sesPlans = (plans.get(x.groupe) || []).map(p => p.blob);
+          if (courrier && sesPlans.length) avecPlan++;
+          return courrier ? [courrier].concat(sesPlans) : [];
         });
-        const nCourriers = docs.filter(x => x.mode !== 'courriel').length;
         if (!pdfs.length) { if (fenetre) fenetre.close(); majMessageConstitution('Aucun courrier papier à imprimer.'); }
-        else { montrerPdfImpressionConstitution(fenetre, await fusionnerPdfConstitution(pdfs), `Constitution - ${libelleDossierAffiche(d)}.pdf`.replace(/[\\/:*?"<>|]+/g, ' ')); majMessageConstitution(`${nCourriers} courrier${nCourriers > 1 ? 's' : ''}, chacun suivi de son plan cadastral, dans un seul PDF ouvert pour l’impression.`); }
-      } else if (action === 'ranger') {
-        await rangerConstitution(fichiers);
-      } else if (fichiers.length === 1) {
-        telechargerFichier(fichiers[0].blob, fichiers[0].nom);
-        majMessageConstitution('Fichier téléchargé.');
+        else {
+          montrerPdfImpressionConstitution(fenetre, await fusionnerPdfConstitution(pdfs), `Constitution - ${libelleDossierAffiche(d)}.pdf`.replace(/[\\/:*?"<>|]+/g, ' '));
+          const n = docs.length;
+          const suite = !avecPlan ? '' : avecPlan === n ? (n > 1 ? ', chacun suivi de son plan cadastral' : ', suivi du plan cadastral') : `, ${avecPlan} suivi${avecPlan > 1 ? 's' : ''} du plan cadastral`;
+          majMessageConstitution(`${n} courrier${n > 1 ? 's' : ''}${suite}, dans un seul PDF ouvert pour l’impression.`);
+        }
       } else {
-        const zip = new window.PizZip();
-        for (const s of fichiers) zip.file(s.nom, await s.blob.arrayBuffer());
-        telechargerFichier(zip.generate({ type: 'blob', mimeType: 'application/zip' }), `Constitution - ${libelleDossierAffiche(d)}.zip`.replace(/[\\/:*?"<>|]+/g, ' '));
-        majMessageConstitution(`${fichiers.length} fichiers dans une archive téléchargée.`);
+        await rangerConstitution(fichiers);
       }
     } catch (err) {
       if (fenetre) fenetre.close();
@@ -721,19 +727,32 @@
   }
 
   // « Email » sur la ligne d'un courrier : la fenêtre d'email s'il a une adresse, sinon le courrier passe par email et l'adresse est demandée.
-  function emailDepuisLigneConstitution(id) {
+  // Le courrier ne passe « par email » qu'une fois la fenêtre d'email acceptée (relecture 16/10 : un clic pour voir ne le retire plus de l'impression).
+  async function emailDepuisLigneConstitution(id) {
+    const e = cstEtat;
     const doc = documentConstitution(id);
-    if (!doc || !cstEtat || cstEtat.enCours) return;
-    if (doc.mode !== 'courriel') cstModeEnvoi(id, 'courriel');
-    if (!doc.courriel) {
-      cstEtat.selection = id;
+    if (!doc || !e || e.enCours) return;
+    const adresse = doc.courriel || ((doc.emails || [])[0] || {}).adresse || '';
+    if (!adresse) {
+      cstModeEnvoi(id, 'courriel');
+      e.selection = id;
       renderConstitution();
       const champ = document.querySelector('.cst-courriel');
       if (champ) champ.focus();
       afficherToast('Adresse email du destinataire à saisir, puis « Email » à nouveau.');
       return;
     }
-    emailDocumentConstitution(id);
+    e.enCours = true;
+    renderConstitution();
+    majMessageConstitution(`Préparation de l’email « ${doc.libelle} »…`);
+    let r = { ok: false };
+    try { r = await emailDocumentConstitution(id, adresse); } finally {
+      e.enCours = false;
+      if (r && r.ok && !doc.courriel) doc.courriel = adresse;
+      if (r && r.ok && doc.mode !== 'courriel') { doc.mode = 'courriel'; doc.modeChoisi = true; }
+      majMessageConstitution('');
+      if (cstEtat === e) renderConstitution();
+    }
   }
 
   async function telechargerDocumentConstitution(id, format) {
@@ -775,12 +794,13 @@
   }
 
   // Un courrier par email : le texte du courrier dans le corps, la fenêtre d'email s'ouvre pour relire et envoyer (rien ne part seul).
-  async function emailDocumentConstitution(id) {
+  async function emailDocumentConstitution(id, adresseChoisie) {
     const e = cstEtat;
     const doc = documentConstitution(id);
     const d = dossierConstitution();
     if (!doc || !d) return { ok: false };
-    if (!doc.courriel) { afficherToast('Adresse email du destinataire à saisir.'); return { ok: false }; }
+    const destinataire = adresseChoisie || doc.courriel;
+    if (!destinataire) { afficherToast('Adresse email du destinataire à saisir.'); return { ok: false }; }
     try {
       retenirDefuntSaisiConstitution();
       const { texte, suite } = corpsEmailCourrierConstitution(documentFideleConstitution(doc));
@@ -797,13 +817,12 @@
       }
       // Un autre dossier choisi pendant l'attente : rien n'est préparé avec un mélange des deux.
       if (cstEtat !== e) return { ok: false };
-      const r = await livrerEmailDossier({ destinataire: doc.courriel, sujet: objetEmailConstitution(doc, d, cstEtat.defunt && cstEtat.defunt.champs, groupeDuDocumentConstitution(doc)),
+      const r = await livrerEmailDossier({ destinataire, sujet: objetEmailConstitution(doc, d, cstEtat.defunt && cstEtat.defunt.champs, groupeDuDocumentConstitution(doc)),
         corps: texte + (suite ? '\n\nVous trouverez ci-joint le questionnaire à nous retourner.' : ''), pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' });
       if (r && r.ok) {
         doc.envoyeLe = new Date().toISOString();
-        ajouterHistorique(d, `Courrier « ${doc.libelle} » préparé par email pour ${doc.courriel}`);
+        ajouterHistorique(d, `Courrier « ${doc.libelle} » préparé par email pour ${destinataire}`);
         sauvegarder(d);
-        renderConstitution();
       }
       return r || { ok: false };
     } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); return { ok: false }; }

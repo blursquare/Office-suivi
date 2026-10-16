@@ -36,10 +36,17 @@
     d.preemptionAuto = true;
     if (force && d.preemption) d.preemption.signature = '';
     e.zonageEnCours = true;
-    renderConstitution();
+    majZonageConstitution();
     try { await analyserPreemptionDossier(d.id); } finally {
-      if (cstEtat === e) { e.zonageEnCours = false; renderConstitution(); }
+      if (cstEtat === e) { e.zonageEnCours = false; majZonageConstitution(); }
     }
+  }
+
+  // La section redessinée seule (une saisie en cours ailleurs dans l'écran n'est pas effacée).
+  function majZonageConstitution() {
+    const zone = document.getElementById('cst-zonage');
+    const d = dossierConstitution();
+    if (zone && d) zone.outerHTML = renderZonageConstitution(d) || '<div id="cst-zonage"></div>';
   }
 
   // La section, entre les données de la vente et les courriers.
@@ -50,13 +57,13 @@
     const z = zonageConstitution(d.preemption);
     const tete = `<div class="cst-bloc-titre">Zonage et droits de préemption ${infoBulle('Zonage de chaque parcelle lu sur le Géoportail de l’urbanisme ; DIA (droit de préemption urbain) et SAFER déduits comme dans le Contrôle de l’urbanisme. Le détail et les questions restantes : « Contrôle de l’urbanisme ».')}</div>`;
     const outil = `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">Contrôle de l’urbanisme</wa-button>`;
-    if (e.zonageEnCours) return `<div class="calc-card cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
-    if (!z) return `<div class="calc-card cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
+    if (e.zonageEnCours) return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
+    if (!z) return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
       <div class="cst-zonage-actions"><wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">Lire le zonage</wa-button>${outil}</div></div>`;
     const dl = s => s === 'oui' || s === 'probable' ? 'dl-urgent' : s === 'non' ? 'dl-success' : 'dl-pret';
     const ligne = (titre, r) => `<div class="cst-zonage-droit"><span class="cst-zonage-titre">${escapeHtml(titre)}</span><span class="dot-label ${dl(r.statut)}"><span class="dot"></span>${escapeHtml(r.texte)}</span>${r.motif ? `<span class="hint">${escapeHtml(r.motif)}</span>` : ''}</div>`;
     const zones = z.zones.length ? `<div class="cst-zonage-zones">${z.zones.map(x => `<span class="cst-zonage-zone"><b>${escapeHtml(x.parcelle)}</b> ${escapeHtml(x.zone)}</span>`).join('')}</div>` : '';
-    return `<div class="calc-card cst-zonage">${tete}${zones}
+    return `<div class="calc-card cst-zonage" id="cst-zonage">${tete}${zones}
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}

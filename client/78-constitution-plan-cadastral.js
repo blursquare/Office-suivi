@@ -34,6 +34,14 @@
     return { etat: p.etat === 'en-cours' ? 'en-cours' : 'attente', texte: p.etat === 'en-cours' ? 'Plan cadastral en cours sur cadastre.gouv.fr…' : 'Plan cadastral en attente…' };
   }
 
+  // La ligne du plan d'une commune redessinée seule (relecture 16/10 : redessiner tout l'écran effaçait une saisie en cours) ; l'écran entier
+  // seulement si la ligne n'est pas affichée.
+  function majPlanCommuneConstitution(g) {
+    const zone = document.getElementById(`cst-plan-${g.cle}`);
+    if (zone) zone.outerHTML = renderPlanCommuneConstitution(g);
+    else renderConstitution();
+  }
+
   // Demande le plan d'une commune au serveur, puis le suit jusqu'au bout. `force` : refait un plan déjà tiré.
   async function lancerPlanConstitution(cle, force) {
     const e = cstEtat;
@@ -48,13 +56,13 @@
     const garde = plansConstitutionGardes[cleGarde];
     if (!force && garde && garde.id && garde.parcelles === parcelles && ['attente', 'en-cours', 'fini'].includes(garde.etat)) {
       g.plan = garde;
-      renderConstitution();
+      majPlanCommuneConstitution(g);
       if (garde.etat !== 'fini') suivrePlanConstitution(e, g);
       return;
     }
     g.plan = { id: '', etat: 'attente', parcelles, documents: [] };
     plansConstitutionGardes[cleGarde] = g.plan;
-    renderConstitution();
+    majPlanCommuneConstitution(g);
     try {
       const r = await fetchAvecAuth('/api/navigation/plan-cadastre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ insee: g.info.insee, codePostal: g.cp || '', parcelles, echelle: 0, dossierId: d.id }) });
@@ -65,7 +73,7 @@
     } catch (err) {
       g.plan = { id: '', etat: 'erreur', parcelles, documents: [], erreur: err.message };
       noterVerificationPoste('constitution-plan-cadastral', { ok: false, detail: 'demande refusée' });
-      renderConstitution();
+      majPlanCommuneConstitution(g);
     }
   }
 

@@ -9665,8 +9665,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-grille .cst-large { grid-column: 1 / -1; }
 .cst-source-ligne { margin: 0; }
 .cst-edition { display: flex; flex-direction: column; gap: 6px; }
-.cst-edition-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.cst-edition-actions { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .cst-edition-corps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .cst-envoi { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cst-envoi .cst-courriel { flex: 1 1 220px; min-width: 0; }
