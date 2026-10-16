@@ -25,18 +25,27 @@ const ETAPES = ['verifie', 'relu'];
 const LIBELLES = { verifie: 'npm run verifier', relu: 'la relecture indépendante (/relire), puis npm run relu' };
 const OPTIONS_GIT_AVEC_VALEUR = ['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--config-env'];
 const OPTIONS_PUSH_AVEC_VALEUR = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
+/** Les alias git de la configuration qui lancent un push (lus par le crochet). */
+const aliasVersPush = new Set();
 
 /** Pure : la commande sans le corps de ses documents en ligne (`<<'EOF' … EOF`) : du texte écrit dans un fichier n'est pas exécuté. @param {string} commande */
 function sansDocumentsEnLigne(commande) {
-  const lignes = String(commande || '').split('\n');
+  // Une ligne continuée par « \ » est une seule commande.
+  const lignes = String(commande || '').replace(/\\\r?\n/g, ' ').split('\n');
   const sortie = [];
   /** @type {string[]} */
   let fins = [];
+  let execute = false; // le corps est donné à un shell (bash <<EOF) : il est exécuté, donc gardé
   for (const ligne of lignes) {
-    if (fins.length) { if (ligne.replace(/^\t+/, '').trim() === fins[0]) fins.shift(); continue; }
+    if (fins.length) {
+      if (ligne.replace(/^\t+/, '').trim() === fins[0]) { fins.shift(); continue; }
+      if (execute) sortie.push(ligne);
+      continue;
+    }
     sortie.push(ligne);
     const re = /<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/g;
     for (let m = re.exec(ligne); m; m = re.exec(ligne)) fins.push(m[2]);
+    if (fins.length) execute = /(^|[\s;&|(])(bash|sh|zsh|dash|eval|source|\.)\s*(-[a-z]+\s*)*<</.test(ligne);
   }
   return sortie.join('\n');
 }
@@ -84,7 +93,7 @@ function commandesImbriquees(mots) {
   const out = [];
   for (let i = 0; i < mots.length; i++) {
     const m = mots[i].replace(/^.*\//, '');
-    if (['bash', 'sh', 'zsh', 'dash'].includes(m)) { const j = mots.indexOf('-c', i + 1); if (j > 0 && mots[j + 1]) out.push(mots[j + 1]); }
+    if (['bash', 'sh', 'zsh', 'dash'].includes(m)) { const j = mots.findIndex((x, k) => k > i && /^-[a-z]*c[a-z]*$/.test(x)); if (j > 0 && mots[j + 1]) out.push(mots[j + 1]); }
     if (m === 'eval' && mots[i + 1]) out.push(mots.slice(i + 1).join(' '));
   }
   return out;
@@ -107,7 +116,8 @@ function sourcesVersMain(segment, brancheCourante, amontCourant = '') {
     if (mots[i] === '-c' && /^alias\.[^=]+=.*\bpush\b/.test(mots[i + 1] || '')) aliasPush = true;
     i += OPTIONS_GIT_AVEC_VALEUR.includes(mots[i]) ? 2 : 1;
   }
-  if (mots[i] !== 'push') return aliasPush ? ['*'] : imbriquees;
+  if (aliasPush || /^\$/.test(mots[i] || '') || (mots[i] && aliasVersPush.has(mots[i]))) return ['*'];
+  if (mots[i] !== 'push') return imbriquees;
   const apres = mots.slice(i + 1);
   if (apres.some((o) => o === '--all' || o === '--mirror' || o === '--branches')) return ['*'];
   const positionnels = [];
@@ -129,7 +139,7 @@ function sourcesVersMain(segment, brancheCourante, amontCourant = '') {
     const dst = avecDeux ? sansPlus.slice(sansPlus.indexOf(':') + 1) : sansPlus;
     if (dst.includes('*')) { sources.push('*'); continue; }
     const versMain = dst === 'main' || dst === 'refs/heads/main' || (dst === 'HEAD' && brancheCourante === 'main');
-    if (versMain) sources.push(src || 'HEAD');
+    if (versMain) sources.push(avecDeux && !src ? '*' : (src || 'HEAD')); // « :main » supprime main : jamais permis
   }
   return sources.concat(imbriquees);
 }
@@ -145,8 +155,11 @@ function commandeChangeMainSurGithub(commande) {
     const mots = motsSegment(s);
     const iGh = mots.findIndex((m) => /(^|\/)gh$/.test(m));
     if (iGh >= 0 && mots[iGh + 1] === 'pr' && mots[iGh + 2] === 'merge') return true;
-    if (iGh >= 0 && mots[iGh + 1] === 'api' && mots.some((m) => /refs\/heads\/main\b|\/merges?\b|\/pulls\/\d+\/merge\b/.test(m))) return true;
-    if (mots.some((m) => /(^|\/)curl$/.test(m)) && mots.some((m) => /api\.github\.com\/.*(refs\/heads\/main|\/merges?\b|\/merge\b|\/contents\/)/.test(m))) return true;
+    // Une écriture seulement (méthode autre que GET, ou des champs envoyés) : une lecture de l'API passe.
+    const ecrit = (/** @type {string[]} */ ms) => ms.some((m, k) => ((m === '-X' || m === '--method' || m === '--request') && !/^get$/i.test(ms[k + 1] || '')) || /^-X(?!GET)[A-Z]+$/.test(m)
+      || ['-f', '-F', '--field', '--raw-field', '--input', '-d', '--data', '--data-raw', '--data-binary'].includes(m));
+    if (iGh >= 0 && mots[iGh + 1] === 'api' && ecrit(mots) && mots.some((m) => /refs\/heads\/main\b|\/merges?\b|\/merge\b|\/contents\/|mergePullRequest|branch=main/.test(m))) return true;
+    if (mots.some((m) => /(^|\/)curl$/.test(m)) && ecrit(mots) && mots.some((m) => /api\.github\.com\/.*(refs\/heads\/main|\/merges?\b|\/merge\b|\/contents\/|graphql)/.test(m))) return true;
     return false;
   });
 }
@@ -155,7 +168,7 @@ function commandeChangeMainSurGithub(commande) {
 function outilGithubChangeMain(outil, entree) {
   const nom = String(outil || '');
   if (!/^mcp__github__/.test(nom)) return false;
-  if (/(merge_pull_request|update_pull_request_branch)$/.test(nom)) return true;
+  if (/(merge_pull_request|enable_pr_auto_merge)$/.test(nom)) return true;
   if (/(push_files|create_or_update_file|delete_file|create_branch)$/.test(nom)) {
     const branche = String((entree && (entree.branch || entree.ref)) || '');
     return branche === 'main' || branche === 'refs/heads/main';
@@ -215,18 +228,26 @@ function crochet() {
   // Les outils GitHub écrivent sur GitHub sans passer par le contenu vérifié ici : jamais vers main (c'est l'étude qui fusionne).
   if (outilGithubChangeMain(outil, params)) return refuser('écrire sur main ou fusionner une demande par les outils GitHub n’est pas permis ici — envoyer le contenu vérifié et relu par git push, ou laisser l’étude fusionner.');
   const commande = typeof params.command === 'string' ? params.command : '';
-  if (!commande || !/\b(push|merge|api|curl)\b/.test(commande)) return 0;
+  if (!commande || !/\b(push|merge|api|curl|git)\b/.test(commande)) return 0;
   if (commandeChangeMainSurGithub(commande)) return refuser('fusion ou écriture sur main par gh / l’API GitHub — envoyer le contenu vérifié et relu par git push.');
   let branche = '';
   let amont = '';
   try { branche = git(['rev-parse', '--abbrev-ref', 'HEAD']); } catch (_) { return 0; }
   try { amont = git(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']); } catch (_) { amont = ''; }
+  try {
+    git(['config', '--get-regexp', '^alias\\.']).split('\n').forEach((l) => { const m = /^alias\.(\S+)\s+(.*)$/.exec(l); if (m && /\bpush\b/.test(m[2])) aliasVersPush.add(m[1]); });
+  } catch (_) { /* aucun alias */ }
   const sources = [...new Set(segmentsCommande(commande).flatMap((s) => sourcesVersMain(s, branche, amont)))];
   if (!sources.length) return 0;
   if (sources.includes('*')) return refuser('envoi qui ne désigne pas une seule source (--all, *, alias) — pousser explicitement HEAD:main.');
   for (const src of sources) {
     const manque = etapesManquantes(src);
-    if (manque.length) return refuser(`le contenu de ${src} n'a pas passé ${manque.map((e) => LIBELLES[e]).join(' ni ')}. Lancer ce qui manque APRÈS la dernière modification (une modification qui change le contenu efface les marques), puis renvoyer.`);
+    if (manque.length) {
+      let nonSuivis = '';
+      try { nonSuivis = git(['ls-files', '--others', '--exclude-standard']); } catch (_) { nonSuivis = ''; }
+      return refuser(`le contenu de ${src} n'a pas passé ${manque.map((e) => LIBELLES[e]).join(' ni ')}. Lancer ce qui manque APRÈS la dernière modification (une modification qui change le contenu efface les marques), puis renvoyer.`
+        + (nonSuivis ? ` Attention : des fichiers non suivis (git status) entrent dans le contenu testé et le séparent de ${src} — les commiter ou les déplacer, puis relancer.` : ''));
+    }
   }
   return 0;
 }

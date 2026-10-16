@@ -15,7 +15,7 @@ permissions:
 
 # Un envoi sur une branche qui a une demande de fusion ouverte déclenche push ET pull_request : un seul passage à la fois par branche.
 concurrency:
-  group: verifier-${{ github.head_ref || github.ref }}
+  group: verifier-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:

@@ -30,6 +30,11 @@ test('garde : reconnaît un envoi vers main sous toutes ses formes, avec la sour
   assert.equal(sources('git push', 'main'), 'HEAD', 'sans destination depuis main');
   assert.equal(sources('git push origin HEAD', 'main'), 'HEAD');
   assert.equal(sources('git push', 'ma-branche', 'origin/main'), 'HEAD', 'branche qui suit origin/main');
+  assert.equal(sources('git push origin \\\n  HEAD:main'), 'HEAD', 'ligne continuée');
+  assert.equal(sources('bash -lc "git push origin HEAD:main"'), 'HEAD');
+  assert.equal(sources("bash <<'EOF'\ngit push origin HEAD:main\nEOF"), 'HEAD', 'document en ligne donné à un shell : exécuté');
+  assert.equal(sources('X=push; git $X origin HEAD:main'), '*');
+  assert.equal(sources('git push origin :main'), '*', 'suppression de main');
 });
 
 test('garde : laisse passer les autres envois et ce qui n’est pas un envoi', () => {
@@ -47,7 +52,12 @@ test('garde : fusions et écritures sur main par GitHub refusées, le reste perm
   assert.equal(G.commandeChangeMainSurGithub('gh api -X PATCH repos/a/b/git/refs/heads/main -f sha=x'), true);
   assert.equal(G.commandeChangeMainSurGithub('curl -X PUT https://api.github.com/repos/a/b/pulls/3/merge'), true);
   assert.equal(G.commandeChangeMainSurGithub('gh pr view 12'), false);
+  assert.equal(G.commandeChangeMainSurGithub('gh api repos/o/r/git/refs/heads/main'), false, 'une lecture passe');
+  assert.equal(G.commandeChangeMainSurGithub('gh api -X PUT repos/o/r/contents/f -f branch=main'), true);
+  assert.equal(G.commandeChangeMainSurGithub('gh api graphql -f query=mutation{mergePullRequest}'), true);
   assert.equal(G.outilGithubChangeMain('mcp__github__merge_pull_request', {}), true);
+  assert.equal(G.outilGithubChangeMain('mcp__github__enable_pr_auto_merge', {}), true);
+  assert.equal(G.outilGithubChangeMain('mcp__github__update_pull_request_branch', {}), false);
   assert.equal(G.outilGithubChangeMain('mcp__github__push_files', { branch: 'main' }), true);
   assert.equal(G.outilGithubChangeMain('mcp__github__create_or_update_file', { branch: 'claude/x' }), false);
   assert.equal(G.outilGithubChangeMain('mcp__github__actions_list', {}), false);
