@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.264.0';
+  const VERSION_APP = '0.264.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.264.1', date: '2026-10-16 16:50', resume: "Agenda : texte des rendez-vous en noir, couleurs éclaircies pour rester lisibles (mêmes teintes)." },
     { version: '0.264.0', date: '2026-10-16 16:43', resume: "Clients et biens : une fiche par personne et par bien, reprise des fiches d'Authentic de tous les dossiers (ventes et successions, archivés compris) — page « Clients et biens » (recherche par nom, commune, adresse ou parcelle), fenêtre d'une fiche depuis la ligne « Fiches » du dossier, conjoints reliés (marié, pacsé…), autres dossiers de la personne ou du bien ; même personne retrouvée par nom, prénom et date de naissance, homonyme sans date proposé à confirmer ; correction à la main possible, un changement d'Authentic ensuite est proposé." },
     { version: '0.263.3', date: '2026-10-16 16:30', resume: "Agenda : couleurs des rendez-vous adoucies (trop vives), mêmes teintes qu'Outlook." },
     { version: '0.263.2', date: '2026-10-16 16:23', resume: "Fiche d'une vente : ligne « Parcelles » dans l'onglet Dossier — chaque parcelle avec sa surface (lue dans la fiche du bien d'Authentic), sa nature et son lieu-dit, puis le total ; une colonne « Superficie » d'Authentic est aussi lue." },

@@ -20275,3 +20275,7 @@ Demande de l'étude (relevé du guichet https://demande-urbanisme.agglopolys.fr/
 - Poste (`client/80-clients-biens.js`) : page « Clients et biens » (barre latérale, sous le Répertoire ; onglet de travail), fenêtre d'une fiche (identité, coordonnées, situation et conjoint cliquable, régime, décès, dossiers liés → fiche du dossier, homonyme « Oui, la même / Non, différentes », correction au crayon), ligne « Fiches » sur la fiche d'une vente et d'une succession (puces client et bien, « +n » = autres dossiers).
 - Tests : `server/test/clients-biens.test.js` (réunion, homonymes, conjoints, défunt/héritier, biens par parcelle, corrections, route). Essai Chromium avec dossiers inventés.
 - Reste (deuxième temps) : proposer un client ou un bien connu à la lecture d'un compromis (« Nouveau dossier », Constitution de dossier), comme pour les notaires.
+
+### 0.264.1 — 16/10/2026 — Agenda : texte noir
+
+Étude : « mets le texte en noir dans les rdv de l'agenda ». `--ag-texte-plein` noir en clair et en sombre ; `--cat-*` éclaircies pour que le noir reste lisible (vert #82BF98, olive #A9B983, rouge #DE8A8F, jaune #E8D97E, bleu #8DB3DB, violet #AFA8DC, orange #E6A27A, rose #DDA4C2, marron #C7A68F, gris #B4B9C3). Vérifié en capture (clair et sombre).
