@@ -1633,3 +1633,23 @@ test('volet du conjoint : un conjoint qui n’est pas partie ne remplace ni n’
   app.alignerIdentitePartieAuthentic(d, { nom: 'MARTEL', prenom: 'Léa', civilite: 'Madame' }, 'VENDEUR', {});
   assert.ok(d.parties.some(p => p.nom === 'Paul MARTEL'), d.parties.map(p => p.nom).join(','));
 });
+
+test('succession sans « Succession » dans l’en-tête : bandeau SUCC, veuve/veuf dans l’intitulé, fiche d’un défunt (étude 16/10)', () => {
+  const page = (texte, extra) => Object.assign({ champs: [], tableaux: [], texte }, extra || {});
+  // Bandeau du dossier « A 2026 00247 SUCC … », en-tête du sous-dossier aux seuls noms, comparants sans qualité lue.
+  assert.equal(app.pageSuccessionAuthentic(page('A 2026 00247 SUCC Jean DURAND\n1 - Jean DURAND Importer'), 'Jean DURAND'), true, 'bandeau SUCC');
+  // Fiche d'un héritier ouverte dans l'onglet « 1 - Jeanne DURAND veuve MARTIN ».
+  assert.equal(app.pageSuccessionAuthentic(page('Fiche client', { onglets: [{ titre: '1 - Jeanne DURAND veuve MARTIN', actif: true }] }), 'Jeanne DURAND veuve MARTIN'), true, 'veuve dans l’intitulé');
+  // Fiche du défunt (date de décès) dans un onglet aux seuls noms.
+  const defunt = page('Fiche client', { champs: [{ groupe: '', libelle: 'f:tabView:ficheClientPhysiqueIdentite:nom:nom', valeur: 'DURAND' }, { groupe: '', libelle: 'f:tabView:ficheClientPhysiqueIdentite:dateDeces:dateDeces', valeur: '02/09/2026' }] });
+  assert.equal(app.pageSuccessionAuthentic(defunt, 'Jean DURAND'), true, 'personne décédée');
+  // Jamais une vente : deux côtés, ou en-tête « VTE », ou bandeau SUCC d'un AUTRE onglet.
+  assert.equal(app.pageSuccessionAuthentic(page('2 - VTE DURAND veuve MARTIN / PETIT Importer'), 'VTE DURAND veuve MARTIN / PETIT'), false);
+  assert.equal(app.pageSuccessionAuthentic(defunt, 'DURAND / PETIT'), false, 'une vente nomme ses deux côtés');
+  const autreOnglet = page('A 2026 00247 SUCC Jean DURAND\n2 - Vente d’immeuble Importer', { onglets: [{ titre: 'A 2026 00247 SUCC Jean DURAND', actif: false }, { titre: 'A 2026 00300 VTE MOREAU / PETIT', actif: true }] });
+  assert.equal(app.pageSuccessionAuthentic(autreOnglet, 'VTE MOREAU / PETIT'), false, 'onglet inactif');
+  // Le regroupement en fait une succession à créer.
+  const g = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-16T09:00:00Z', capture: page('A 2026 00247 SUCC Jean DURAND\n1 - Jean DURAND Importer\nComparants (1)', { champs: [{ groupe: '', libelle: 'Statut', valeur: 'Demande de pièces' }] }) }])[0];
+  assert.equal(app.typeAffaireAuthentic(g.export), 'succession');
+  assert.equal(g.aCreer, true);
+});

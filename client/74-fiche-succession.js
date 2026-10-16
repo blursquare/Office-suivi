@@ -570,7 +570,27 @@
     if (sous === 'succession') return true;
     if (sous === 'vente' || sous === 'promesse' || sous === 'avenant') return false;
     if (/^\s*(?:vte|vente)(?![a-z])/i.test(intitule || '')) return false;
-    return comparantsAuthentic(capture).some(c => c.role === 'DEFUNT' || c.role === 'HERITIER');
+    if (comparantsAuthentic(capture).some(c => c.role === 'DEFUNT' || c.role === 'HERITIER')) return true;
+    // Étude 16/10 (« le lien renvoie vers un nouveau dossier de vente ») : une page qui ne dit pas « Succession » dans son en-tête —
+    // fiche d'un héritier ou du défunt ouverte dans l'onglet du dossier, intitulé « N - Jeanne DURAND veuve MARTIN » — est aussi
+    // celle d'une succession quand : le bandeau du dossier porte « A 2026 00247 SUCC … », ou l'intitulé (sans « / » : une vente nomme
+    // toujours ses deux côtés) cite une veuve / un veuf, ou la fiche ouverte est celle d'une personne décédée.
+    if (bandeauSuccessionAuthentic(capture)) return true;
+    const sansCotes = !!intitule && !/\//.test(intitule);
+    if (sansCotes && /(?:^|[^a-zà-ÿ])(?:veuve|veuf)(?![a-zà-ÿ])/i.test(intitule)) return true;
+    // Le volet du conjoint mis à part (relecture 16/10 : la date de décès d'un mari ouvert dans la fiche de sa veuve).
+    const fiche = (partagerFicheConjointAuthentic(capture) || {}).principale || capture;
+    return sansCotes && !!decesFicheAuthentic((fiche && fiche.champs) || []);
+  }
+
+  // Pure : le bandeau du dossier dit-il « A 2026 00247 SUCC … » / « … Succession … » (référence suivie de SUCC) ? Onglets inactifs
+  // retirés : un autre dossier ouvert ne compte pas.
+  function bandeauSuccessionAuthentic(capture) {
+    const c = capture || {};
+    const re = new RegExp(RE_REFERENCE_AUTHENTIC.source + '[^\\S\\n]+(?:SUCC|Succession)\\.?(?![A-Za-zÀ-ÿ])', 'i');
+    const actif = (Array.isArray(c.onglets) ? c.onglets : []).find(o => o && o.actif);
+    if (actif && re.test(String(actif.titre || ''))) return true;
+    return [texteSansOngletsInactifsAuthentic(c), ...(c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''))].some(t => re.test(t));
   }
 
   // Pure : les actes d'une SUCCESSION relevés dans le tableau « Rédaction » de la page du dossier (étude 15/10 : « des actes peuvent

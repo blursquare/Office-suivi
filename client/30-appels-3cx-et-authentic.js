@@ -2612,9 +2612,10 @@
     reinitialiserFormulaire();
     // Étude 06/10 : « Créer » mène à l'import AVEC PDF — le compromis déposé, le dossier d'Authentic retenu le complète de
     // lui-même (voir renderRelevesAuthenticWizard). Une succession n'a pas de compromis : reprise seule, comme avant.
-    if (typeAffaireAuthentic(groupesAuthenticRecents[i].export) === 'succession') creerDepuisAuthentic(i);
+    // Seule une VENTE reconnue part vers le compromis (étude 16/10 : une succession mal reconnue ouvrait la création d'une vente).
+    if (typeAffaireAuthentic(groupesAuthenticRecents[i].export) !== 'vente') creerDepuisAuthentic(i);
     else { authenticRetenuPourPdf = intitule; groupeAuthenticRetenu = groupesAuthenticRecents[i]; choisirModeImport('pdf'); }
-    noterVerificationPoste('authentic-creer-dossier', { detail: 'création ouverte depuis une page de vente' });
+    noterVerificationPoste('authentic-creer-dossier', { detail: 'création ouverte depuis une page du dossier' });
     if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'a-creer', texte: 'création du dossier ouverte depuis la page' }]);
   }
 

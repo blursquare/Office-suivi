@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.258.0';
+  const VERSION_APP = '0.258.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.258.1', date: '2026-10-16 10:12', resume: "Authentic : « Créer » sur une succession ouvrait la création d'une vente quand la page ne disait pas « Succession » dans son en-tête (fiche d'un héritier ou du défunt, intitulé « Jeanne DURAND veuve MARTIN »). La page est maintenant reconnue par le bandeau « A 2026 … SUCC … », une veuve / un veuf dans l'intitulé ou la fiche d'une personne décédée, et seule une vente reconnue mène au compromis." },
     { version: '0.258.0', date: '2026-10-16 09:53', resume: "Nouveau dossier d'une succession : ses propres champs à la place de ceux d'une vente — défunt (nom, date et lieu du décès), conjoint survivant, type de succession proposé par CLAIRE, rendez-vous d'ouverture avec Sophie (point de départ des délais), et en lecture les héritiers et les biens repris d'Authentic. Plus aucun champ de vente (prix, agence, notaires, emails vendeur / acquéreur, données à valider) ; le récapitulatif reprend défunt, décès, héritiers, conjoint, type et ouverture. Ce qui est corrigé est gardé sur la fiche." },
     { version: '0.257.0', date: '2026-10-16 09:40', resume: "Authentic : la fiche de l'époux ou du partenaire pacsé ouverte depuis la fiche de l'autre (volet du conjoint) complète aussi l'état civil de ce conjoint quand il est vendeur ou acquéreur — civilité, prénom, date et lieu de naissance, profession, téléphone, email, situation du couple ; la personne de la fiche n'est plus lue avec les champs du conjoint." },
     { version: '0.256.0', date: '2026-10-16 09:24', resume: "Successions : une page de succession ouverte dans Authentic qu'aucun dossier de CLAIRE ne porte est proposée « à créer », comme une vente — message « n'est pas dans CLAIRE » avec « Créer », et section « À créer » de Nouveau dossier › Depuis Authentic. Reconnue par son intitulé réel (« Mme X veuve de M. Y ») et ses comparants Défunt / Héritier ; jamais une succession dont tous les actes sont signés ; un dossier de succession déjà créé est retrouvé par son nom, jamais une vente au même nom. Constitution de dossier : la recherche d'un dossier montre de nouveau ses résultats (la liste s'affichait sous l'écran) et propose les dossiers en cours dès qu'on clique dans le champ." },
