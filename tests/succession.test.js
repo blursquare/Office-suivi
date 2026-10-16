@@ -626,21 +626,24 @@ test('Nouveau dossier d’une succession : défunt, héritiers, conjoint et type
   assert.equal(p.type, 'classique', 'bien immobilier : classique');
   assert.equal(p.conjoint, false, 'veuve : pas de conjoint survivant');
   assert.equal(p.heritiers.map(h => h.nom).join(','), 'Marc DURAND');
-  assert.equal(app.nomPrenomsSaisisSuccession('Jeanne Marie DURAND').nom, 'DURAND');
-  assert.equal(app.nomPrenomsSaisisSuccession('Jeanne Marie DURAND').prenoms, 'Jeanne Marie');
+  assert.equal(`${p.prenoms}|${p.nom}`, 'Jeanne|DURAND');
   // Rien de changé : aucune correction sur la fiche, seulement l'ouverture.
   const d = { id: 'n1' };
-  app.appliquerSaisieWizardSuccession(d, { defunt: p.defunt, decesDate: p.decesDate, decesLieu: p.decesLieu, conjoint: '', type: p.type, ouverture: '2026-10-20' }, p);
+  app.appliquerSaisieWizardSuccession(d, { prenoms: p.prenoms, nom: p.nom, decesDate: p.decesDate, decesLieu: p.decesLieu, conjoint: '', type: p.type, ouverture: '2026-10-20' }, p);
   assert.equal(d.defunt, undefined);
   assert.equal(JSON.stringify(d.succession), '{"ouvertureLe":"2026-10-20"}');
   // Corrections : gardées comme sur la fiche.
   const d2 = { id: 'n2' };
-  app.appliquerSaisieWizardSuccession(d2, { defunt: 'Jeanne Louise DURAND', decesDate: '2026-09-02', decesLieu: '', conjoint: 'oui', type: 'notoriete', ouverture: '' }, p);
-  assert.equal(JSON.stringify(d2.defunt), '{"prenoms":"Jeanne Louise","nom":"DURAND","decesDate":"2026-09-02"}');
+  app.appliquerSaisieWizardSuccession(d2, { prenoms: 'Jeanne Louise', nom: 'DURAND', decesDate: '2026-09-02', decesLieu: '', conjoint: 'oui', type: 'notoriete', ouverture: '' }, p);
+  assert.equal(JSON.stringify(d2.defunt), '{"prenoms":"Jeanne Louise","decesDate":"2026-09-02"}');
+  // Un champ vidé n'efface rien de ce qu'Authentic donne.
+  const d3 = { id: 'n3' };
+  app.appliquerSaisieWizardSuccession(d3, { prenoms: '', nom: 'DURAND', decesDate: p.decesDate, decesLieu: p.decesLieu, conjoint: '', type: p.type, ouverture: '' }, p);
+  assert.equal(d3.defunt, undefined);
   assert.equal(d2.succession.conjointSurvivant, true);
   assert.equal(d2.succession.type, 'notoriete');
   // Récapitulatif.
-  const lignes = app.lignesRecapSuccession({ defunt: 'Jeanne DURAND', decesDate: '2026-09-01', decesLieu: 'BLOIS (41000)', conjoint: '', type: 'classique', ouverture: '' }, p);
+  const lignes = app.lignesRecapSuccession({ prenoms: 'Jeanne', nom: 'DURAND', decesDate: '2026-09-01', decesLieu: 'BLOIS (41000)', conjoint: '', type: 'classique', ouverture: '' }, p);
   assert.equal(lignes.map(l => l.libelle).join('|'), 'Défunt|Décès|Héritiers|Conjoint survivant|Type de succession|Biens');
   const recap = app.lignesRecapWizard({ nom: 'SUCC DURAND', responsable: 'Julie VASSELIN', succession: true, lignesSuccession: lignes });
   assert.equal(recap[1].libelle, 'Défunt');

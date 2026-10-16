@@ -64,6 +64,7 @@
 
   function reinitialiserFormulaire() {
     masquerErreurFormulaire();
+    oublierWizardSuccession();
     // Retour au choix « avec ou sans PDF » (étude 08/10) ; le complément d'un dossier repose « pdf » juste après.
     modeImport = '';
     exportAuthenticActuel = null;
