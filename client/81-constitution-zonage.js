@@ -10,7 +10,8 @@
     const droits = droitsPreemptionFiche(p);
     const zones = (Array.isArray(p.lignes) && p.lignes.length ? p.lignes : (p.parcelles || [])).map(l => ({
       parcelle: l.libelle || l.parcelle || '',
-      zone: l.zone ? `${l.zone}${l.typezone ? ' (' + l.typezone + ')' : ''}` : (l.famille || 'zone non lue')
+      zone: (l.zone ? `${l.zone}${l.typezone ? ' (' + l.typezone + ')' : ''}` : (l.famille || 'zone non lue'))
+        + (!l.choisie && Array.isArray(l.autresFamilles) && l.autresFamilles.length ? ` + en partie ${l.autresFamilles.join(', ')}` : '')
     }));
     const texte = (dr, oui, non) => {
       if (!dr) return { statut: 'verifier', texte: 'À vérifier', motif: 'droit non analysé' };
@@ -22,7 +23,8 @@
     const dpu = droits.find(dr => dr.cle === 'dpu');
     const safer = droits.find(dr => dr.cle === 'safer');
     const autres = droits.filter(dr => dr.cle !== 'dpu' && dr.cle !== 'safer' && (dr.statut === 'oui' || dr.statut === 'probable')).map(dr => dr.titre);
-    return { zones, dia: texte(dpu, 'DIA à déposer', 'Pas de DIA'), safer: texte(safer, 'SAFER à notifier', 'Pas de SAFER'), autres, incomplet: !!p.incomplet, le: p.le || '' };
+    const aCheval = (Array.isArray(p.lignes) ? p.lignes : []).filter(l => l && !l.choisie && Array.isArray(l.autresFamilles) && l.autresFamilles.length).map(l => l.libelle);
+    return { aCheval, zones, dia: texte(dpu, 'DIA à déposer', 'Pas de DIA'), safer: texte(safer, 'SAFER à notifier', 'Pas de SAFER'), autres, incomplet: !!p.incomplet, le: p.le || '' };
   }
 
   // Le zonage du dossier ouvert dans la Constitution : lu seul s'il n'y a pas encore d'analyse (même lecture que l'ajout d'un dossier).
@@ -67,6 +69,7 @@
     return `<div class="cst-zonage" id="cst-zonage">${tete}${zones}
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
+      ${z.aCheval.length ? `<p class="cst-alerte">${escapeHtml(z.aCheval.join(', '))} à cheval sur deux zones : les deux sont analysées ; choisir la zone retenue dans le Contrôle de l’urbanisme si l’une ne touche la parcelle que d’un filet.</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
       ${renderQuestionsUrbanismeConstitution(d)}
       <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
@@ -121,7 +124,13 @@
     const parCle = new Map();
     ((p.lignes) || []).forEach(l => { if (l && l.statut !== 'lecture') parCle.set(l.cle || l.libelle, l); });
     const parFamille = new Map();
-    [...parCle.values()].forEach(l => { const f = l.famille || ''; if (!parFamille.has(f)) parFamille.set(f, []); parFamille.get(f).push(l.libelle); });
+    // Une parcelle à cheval sur deux zones (le Géoportail rend toutes celles qui la touchent, `autresFamilles`) compte dans chacune, « en
+    // partie » pour l'autre — sauf si l'étude a choisi sa zone dans le Contrôle de l'urbanisme (`choisie`).
+    const ajouter = (f, libelle) => { if (!parFamille.has(f)) parFamille.set(f, []); if (!parFamille.get(f).includes(libelle)) parFamille.get(f).push(libelle); };
+    [...parCle.values()].forEach(l => {
+      ajouter(l.famille || '', l.libelle);
+      (!l.choisie && Array.isArray(l.autresFamilles) ? l.autresFamilles : []).forEach(f => { if (f && f !== (l.famille || '')) ajouter(f, `${l.libelle} (en partie)`); });
+    });
     if (!parFamille.size) parFamille.set('', []);
     const ordre = ['U', 'AU', 'A', 'N', ''];
     const zones = [...parFamille.entries()].sort((a, b) => ordre.indexOf(a[0]) - ordre.indexOf(b[0])).map(([f, parcelles]) => {

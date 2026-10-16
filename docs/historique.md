@@ -20418,3 +20418,7 @@ courriers papier (ni PDF ni plan ni historique pour un courrier par email) ; (6)
 ### 16/10/2026 22:13 — Constitution : questions selon le zonage des parcelles (0.269.1)
 
 Étude : « les questions s'adaptent en fonction du type de zonage de la parcelle et si les parcelles sont mixtes ». `questionsUrbanismeConstitution` (client/81) : un groupe par famille de zone lue (U, AU, A, N, non lue), titre « Zone urbaine (U) — AB 100 » ; dans chaque groupe, les questions que l'analyse de CETTE zone demande (`analyserPreemption` avec `zone: f`, comme `analyserPreemptionParcelles`) et celles qui relèvent de la zone (`questionsDeZoneConstitution` : U/AU → commune + bien ; A/N → rural, bois et forêts ; non lue → toutes) ; une question utile à plusieurs zones posée une fois (première zone qui la demande), « concerne AB 100, AB 101 ». Affichage : à répondre et déjà répondues visibles, les autres repliées sous « Autres questions de cette zone ». Aucune règle de préemption changée.
+
+### 16/10/2026 22:21 — Constitution : parcelle à cheval sur deux zones (0.269.2)
+
+Étude : « parfois une même parcelle peut être mixte ». Les lignes gardées portent `autresFamilles` (autres zones rendues par le Géoportail) : la parcelle compte dans le groupe de chacune (« AB 100 (en partie) »), sauf zone choisie par l'étude dans l'outil (`choisie`) ; zonage affiché « UB (U) + en partie A » ; alerte « à cheval sur deux zones » (l'analyse les traite déjà : droit de la zone voisine « à vérifier », `analyserPreemptionParcelles`).

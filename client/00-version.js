@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.269.1';
+  const VERSION_APP = '0.269.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.269.2', date: '2026-10-16 22:21', resume: "Constitution de dossier, DIA et SAFER : une parcelle à cheval sur deux zones figure dans les deux groupes de questions (« en partie » pour l’autre zone), son zonage l’indique (« UB (U) + en partie A ») et une alerte invite à choisir la zone retenue dans le Contrôle de l’urbanisme si l’une ne la touche que d’un filet." },
     { version: '0.269.1', date: '2026-10-16 22:13', resume: "Constitution de dossier, DIA et SAFER : les questions suivent la zone de chaque parcelle — zone urbaine ou à urbaniser : DPU (commune, bien) ; zone agricole ou naturelle : SAFER, bois et forêts ; parcelles mixtes : un groupe par zone avec ses parcelles, chaque question posée une fois. Visibles : celles à répondre et celles répondues ; les autres de la zone repliées." },
     { version: '0.269.0', date: '2026-10-16 22:08', resume: "Constitution de dossier, étape DIA et SAFER : les questions du Contrôle de l’urbanisme se répondent sur place (la commune, le bien, rural, bois et forêts ; copropriété seulement pour une copropriété), celles dont l’analyse a besoin en tête « À répondre » ; chaque réponse refait l’analyse et les pièces comme sur la fiche." },
     { version: '0.268.3', date: '2026-10-16 22:04', resume: "Constitution de dossier présentée comme « Nouveau dossier » : barre d’étapes en haut (numéro, nom, état en une ligne, coche une fois passée), une étape à la fois, « Précédent / Suivant » ; vente : Dossier · Plan · DIA et SAFER · Courriers · Imprimer ; succession : Défunt · Courriers · Imprimer. L’aperçu reste à droite." },

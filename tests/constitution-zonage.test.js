@@ -52,3 +52,14 @@ test('parcelles mixtes : un groupe par zone, chacun nomme ses parcelles ; une qu
   g.forEach(x => { const due = x.questions.map(q => q.due); assert.equal(due.join(), due.slice().sort((a, b) => Number(b) - Number(a)).join()); });
   assert.equal(app.questionsUrbanismeConstitution(null, 'maison').length, 0);
 });
+
+test('une même parcelle à cheval sur deux zones : dans les deux groupes, « en partie » pour l’autre ; zone choisie par l’étude → un seul groupe', () => {
+  const l = Object.assign(ligne('AB 100', 'U'), { autresFamilles: ['A'] });
+  const g = app.questionsUrbanismeConstitution({ droits: [], lignes: [l], reponses: { mutation: 'vente', bien: 'maison' } }, 'maison');
+  assert.equal(g.map(x => x.titre + ':' + x.parcelles.join(',')).join(' | '), 'Zone urbaine (U):AB 100 | Zone agricole (A):AB 100 (en partie)');
+  assert.ok(cles(g).includes('seuilSafer') || g[1].questions.length > 0, 'questions de la zone agricole posées');
+  const choisie = app.questionsUrbanismeConstitution({ droits: [], lignes: [Object.assign({}, l, { choisie: true })], reponses: { mutation: 'vente', bien: 'maison' } }, 'maison');
+  assert.equal(choisie.length, 1);
+  const z = app.zonageConstitution({ droits: [], lignes: [l] });
+  assert.match(z.zones[0].zone, /en partie A/);
+});
