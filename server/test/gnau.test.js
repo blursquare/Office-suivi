@@ -2,7 +2,7 @@
 // Fiche d'un dossier pour le CU et la DIA sur les guichets uniques (gnau.js) — noms, adresses, parcelles et montants inventés.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { ficheGnau, dossiersGnau, adresseDecomposee, parcellesGnau } = require('../src/gnau');
+const { choisirPlanCadastral, ficheGnau, dossiersGnau, adresseDecomposee, parcellesGnau } = require('../src/gnau');
 
 const dossier = () => ({
   id: 'v1', nom: 'MOREAU / LAMBERT', typeVente: 'maison', adresseBien: 'VINEUIL (41350), 12 rue des Vignes', prixVente: 209000, prixMobilier: 5000,
@@ -98,4 +98,49 @@ test('guichet d’Agglopolys : notaire de l’office (demandeur du CU, mandatair
   assert.deepEqual([t.nonBati, t.batiTerrainPropre], [true, null]);
   const inconnu = ficheGnau(Object.assign(dossier(), { typeVente: '' }), 'dia', '2026-10-16');
   assert.deepEqual([inconnu.nonBati, inconnu.batiTerrainPropre], [null, null]);
+});
+
+test('plan cadastral du NAS : plan de situation de CLAIRE d’abord, puis plan ou extrait cadastral ; jamais un courrier ni une matrice', () => {
+  const choix = choisirPlanCadastral([
+    { nom: 'Demande de plan cadastral.pdf', chemin: 'a' }, { nom: 'Plan cadastral.pdf', chemin: 'b', modifieLe: '2026-01-01' },
+    { nom: 'Plan de situation VINEUIL EV 10.pdf', chemin: 'c' }, { nom: 'matrice cadastrale.pdf', chemin: 'd' },
+    { nom: 'Extrait_cadastral 2026.pdf', chemin: 'e', modifieLe: '2026-05-01' }, { nom: 'compromis.pdf', chemin: 'f' }]);
+  assert.deepEqual(choix.map((f) => f.chemin), ['c', 'e', 'b']);
+});
+
+test('surfaces des parcelles : toutes les formes de la fiche bien d’Authentic (étude 16/10 : surfaces absentes au guichet)', () => {
+  const d = dossier();
+  d.authentic = {};
+  d.bien = { cadastre: { parcelles: [
+    { section: 'EV', numero: '10', surface: '00ha 06a 06ca' }, { section: 'EV', numero: '11', surface: '1 206' },
+    { section: 'EV', numero: '12', surface: '606 m²' }, { section: 'EV', numero: '13', surface: '598,00' }] } };
+  assert.deepEqual(ficheGnau(d, 'dia', '2026-10-16').parcelles.map((p) => p.surface), [606, 1206, 606, 598]);
+});
+
+test('route du plan cadastral : PDF du dossier relié au NAS, nom neutre, jamais un chemin venu de l’extension', async () => {
+  const os = require('os'); const fs = require('fs'); const path = require('path');
+  const { ouvrirDb } = require('../src/db');
+  const { creerApp } = require('../src/app');
+  const nas = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-gnau-'));
+  fs.mkdirSync(path.join(nas, 'VTE MOREAU', 'Urbanisme'), { recursive: true });
+  fs.writeFileSync(path.join(nas, 'VTE MOREAU', 'Urbanisme', 'Plan de situation VINEUIL EV 10.pdf'), '%PDF-1.4 plan');
+  fs.writeFileSync(path.join(nas, 'VTE MOREAU', 'Demande de plan cadastral.pdf'), '%PDF-1.4 courrier');
+  const db = ouvrirDb(':memory:');
+  const { app, depot } = creerApp({ db, config: { racineRepo: os.tmpdir(), port: 0, authActive: false, nasRacine: nas } });
+  depot.creer(Object.assign(dossier(), { nasDossier: 'VTE MOREAU' }));
+  depot.creer(Object.assign(dossier(), { id: 'v2', nom: 'AUTRE' }));
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  try {
+    const base = `http://127.0.0.1:${serveur.address().port}`;
+    const r = await fetch(`${base}/api/gnau/plan/v1`);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get('content-type'), 'application/pdf');
+    assert.equal(decodeURIComponent(r.headers.get('x-claire-nom')), 'Plan cadastral.pdf');
+    assert.equal(await r.text(), '%PDF-1.4 plan');
+    assert.equal((await fetch(`${base}/api/gnau/plan/v2`)).status, 404); // non relié au NAS
+    assert.equal((await fetch(`${base}/api/gnau/plan/..%2F..`)).status, 400);
+  } finally {
+    serveur.close(); db.close(); fs.rmSync(nas, { recursive: true, force: true });
+  }
 });

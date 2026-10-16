@@ -523,12 +523,70 @@
     return report(key, state, detail);
   }
 
-  async function remplirAuto(run, f, sp) {
+  // Modèle du formulaire (Agglopolys), relu une fois par page : { code, page, tabindex, libelle }.
+  let modelePage = undefined;
+  async function modeleGuichet() {
+    if (modelePage === undefined) {
+      const r = await send({ type: "content.modele" });
+      modelePage = r && Array.isArray(r.modele) ? r.modele : null;
+    }
+    return modelePage;
+  }
+  // Le code du n-ième champ d'une famille (« BI3S » : section de chaque ligne de parcelle) dans l'ordre du formulaire — page puis ordre de
+  // tabulation (étude 16/10 : « autant de parcelles qu'il y en a dans la fiche », chacune à sa ligne). Sans modèle : le code prévu.
+  async function codeDeFamille(f) {
+    if (!f.famille) return f.code;
+    const m = await modeleGuichet();
+    if (!m) return null; // pas de modèle lisible : le code prévu et son rang parmi les champs de ce code
+    const codes = m.filter((x) => x.code.startsWith(f.famille) && !x.lecture && !JAMAIS_ECRIRE.test(x.code))
+      .sort((a, b) => a.page - b.page || a.tabindex - b.tabindex || a.code.localeCompare(b.code));
+    const x = codes[Number(f.rang) || 0];
+    return x ? x.code : "";
+  }
+
+  // Pièce jointe : le plan cadastral du dossier du NAS, posé dans le champ de fichier du guichet dont la ligne parle du plan.
+  async function joindrePlan(run, f, key, sp) {
+    const res = (f.piece || []).map((m) => new RegExp(m, "i"));
+    const zone = (el) => norm(((el.closest("tr, li, .row, .form-group, .piece, .ligne, fieldset, div") || el.parentElement || el).innerText || "").slice(0, 400));
+    const el = [...document.querySelectorAll('input[type=file]')].find((x) => res.some((r) => r.test(zone(x)) || r.test(libelleChamp(x))));
+    if (!el) return false;
+    if (el.files && el.files.length) { await noter(run, key, "done", "pièce déjà jointe dans le guichet, laissée telle quelle"); return true; }
+    await noter(run, key, "filling");
+    const r = await send({ type: "content.plan" });
+    if (!r || r.erreur || !r.b64) { await noter(run, key, "manuel", (r && r.erreur) || "plan introuvable : joignez-le vous-même"); return false; }
+    const bin = atob(r.b64);
+    const octets = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+    const fichier = new File([octets], r.nom || "Plan cadastral.pdf", { type: "application/pdf" });
+    const dt = new DataTransfer();
+    dt.items.add(fichier);
+    const cible = visible(el) ? el : (el.closest("label, .btn, button, div") || el);
+    try { const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); } catch (_) { /* champ caché : pas de curseur */ }
+    el.files = dt.files;
+    fire(el, "input");
+    fire(el, "change");
+    await wait(sp.pause);
+    await noter(run, key, el.files && el.files.length ? "done" : "mismatch", el.files && el.files.length ? `Plan cadastral.pdf joint${r.source ? " (" + r.source + ")" : ""}` : "le guichet n’a pas pris le fichier");
+    return true;
+  }
+
+  async function remplirAuto(run, f0, sp) {
+    // Champ d'une famille (lignes de parcelles) : son code est relu dans le modèle du formulaire.
+    const codeFamille = f0.famille ? await codeDeFamille(f0) : null;
+    // Sans modèle : un code de ligne déjà précis (« BI3SA2 ») se prend seul ; un code de famille (« T2S ») garde son rang parmi ses champs.
+    const f = f0.famille && codeFamille !== null ? Object.assign({}, f0, { code: codeFamille, rang: undefined })
+      : f0.famille && f0.code !== f0.famille ? Object.assign({}, f0, { rang: undefined }) : f0;
     const key = cleChamp(0, f.label, f);
     const deja = run.fields && run.fields[key] && run.fields[key].state;
     // Plusieurs pages : un champ rempli sur une page précédente ne l'est jamais une seconde fois sur une autre (un bloc « second
     // propriétaire » ou un récapitulatif aux mêmes libellés ne reçoit pas la valeur une seconde fois).
     if (deja === "done" && !run.scenario.uneSeulePage) return false;
+    if (f.type === "fichier") return joindrePlan(run, f, key, sp);
+    if (f0.famille && codeFamille === "") {
+      // Le formulaire n'a plus de ligne pour cette parcelle (CUa : 3, DIA : 14) : l'annexe du guichet se remplit à la main.
+      if (deja !== "done" && deja !== "manuel") await noter(run, key, "manuel", "plus de ligne de parcelle dans le formulaire : annexe à saisir (Copier « Toutes les parcelles »)");
+      return false;
+    }
     const r = resolveField(f, run.fiche);
     if (r.missing) { if (deja !== "done") await noter(run, key, f.optional ? "skipped" : "missing"); return false; }
     if (r.invalid) { await noter(run, key, "mismatch", r.error); return false; }
@@ -776,6 +834,7 @@
       setBlocking(true);
       await attendreStable(8000);
       memo = new Map();
+      modelePage = undefined;
       if (sc.refuserSiNoms) {
         const noms = [...document.querySelectorAll("input, select, textarea")].map((el) => (el.name || el.id || "").split(/[.\[\]_-]/).pop());
         const actuel = sc.attendreNoms ? new RegExp(sc.attendreNoms) : null;

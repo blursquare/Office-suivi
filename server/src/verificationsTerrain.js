@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'gnau-plan-cadastral', depuis: '0.263.0', source: 'serveur', titre: 'Extension Chrome : plan cadastral du dossier du NAS joint à la demande sur le guichet',
+    comment: 'Coché la première fois que l’extension reçoit le plan cadastral d’un dossier. Vérifier sur le brouillon que la pièce « plan » est bien jointe (nom « Plan cadastral.pdf ») et lisible.' },
   { id: 'gnau-fiche-extension', depuis: '0.260.0', source: 'serveur', titre: 'Extension Chrome : fiche d’un dossier lue pour un CU ou une DIA sur le guichet unique',
     comment: 'Coché la première fois que l’extension « CLAIRE — Assistant de saisie » charge la fiche d’un dossier. Vérifier sur le guichet (brouillon) que chaque champ rempli porte la bonne donnée, et envoyer la structure de la page (« Copier la structure de la page ») pour les champs « introuvables ».' },
   { id: 'redaction-acte-authentic', depuis: '0.188.0', source: 'poste', titre: 'Rédaction de l’acte : état « Non rédigé » / « En cours » lu dans Authentic',

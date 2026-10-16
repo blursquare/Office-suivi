@@ -149,7 +149,7 @@
         continue;
       }
       const list = getByPath(fiche, f.forEach);
-      const n = Math.min(Array.isArray(list) ? list.length : 0, f.max || Infinity, Array.isArray(f.lignes) ? f.lignes.length : Infinity);
+      const n = Math.min(Array.isArray(list) ? list.length : 0, f.max || Infinity);
       for (let i = 0; i < n; i++) {
         for (const child of f.fields || []) {
           const txt = JSON.stringify(child).split("{list}").join(f.forEach).split("{i}").join(String(i)).split("{n}").join(String(i + 1)).split("{ligne}").join(Array.isArray(f.lignes) ? String(f.lignes[i] || "") : "");

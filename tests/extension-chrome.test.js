@@ -145,3 +145,16 @@ test('guichet d’Agglopolys : scénarios par les codes du CERFA, entrée par la
   assert.equal(ctx.ClaireFiche.resolveField({ type: 'case', source: 'x' }, { x: true }).value, true);
   assert.equal(ctx.ClaireFiche.resolveField({ type: 'case', source: 'x' }, { x: null }).missing, true);
 });
+
+test('guichet d’Agglopolys : toutes les parcelles de la fiche (lignes lues dans le modèle du formulaire) et plan cadastral joint', () => {
+  const fiche = { parcelles: Array.from({ length: 20 }, (_, i) => ({ section: 'AB', numero: String(i + 1), surface: 100 + i })) };
+  for (const f of ['cua-gnau-agglopolys.json', 'dia-gnau-agglopolys.json']) {
+    const sc = scenario(f);
+    const champs = ctx.ClaireFiche.expandFields(sc.pages[0], fiche);
+    // Autant de parcelles que la fiche en porte (20 ici), chacune avec sa superficie.
+    assert.equal(champs.filter((c) => /superficie/.test(c.label) && c.famille).length, 20, f);
+    assert.ok(champs.filter((c) => c.famille).every((c) => /^\d+$/.test(c.rang)), f);
+    const plan = sc.pages[0].fields.find((c) => c.type === 'fichier');
+    assert.ok(plan && plan.piece.some((m) => new RegExp(m).test('dia1 - plan cadastral')) && plan.piece.some((m) => new RegExp(m).test('cu1 - un plan de situation du terrain')), f);
+  }
+});

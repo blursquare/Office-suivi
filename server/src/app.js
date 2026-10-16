@@ -236,7 +236,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
   // CU et DIA sur les guichets uniques : fiche d'un dossier lue par l'extension Chrome (extension-chrome/, voir gnau.js).
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurGnau(depot, parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurGnau(depot, parametresRepo, config));
   // Constitution de dossier : adresses de destinataires saisies par l'étude, retenues pour la fois suivante (voir routes/constitution.js).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConstitution(parametresRepo, urbanisme || {}));
   // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.

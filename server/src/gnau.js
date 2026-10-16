@@ -255,4 +255,24 @@ function dossiersGnau(dossiers, q) {
     .slice(0, 20).map(resumeDossierGnau);
 }
 
-module.exports = { NOTAIRE_SIGNATAIRE, adresseDecomposee, parcellesGnau, personneGnau, lotsGnau, commissionGnau, ficheGnau, dossiersGnau };
+/**
+ * Pure : les plans cadastraux d'une liste de PDF du NAS ({ nom, chemin, modifieLe? }), le meilleur d'abord — le plan de situation tiré
+ * par CLAIRE de cadastre.gouv.fr (« Plan de situation … »), puis un plan / extrait cadastral, le plus récent d'abord. Jamais un courrier
+ * qui cite le cadastre (« Demande de … »), ni une matrice cadastrale (relevé de propriété).
+ * @param {{ nom: string, chemin: string, modifieLe?: string }[]} fichiers
+ */
+function choisirPlanCadastral(fichiers) {
+  const n = (/** @type {string} */ t) => sansAccents(t).toLowerCase().replace(/[_-]+/g, ' ');
+  const rang = (/** @type {any} */ f) => {
+    const nom = n(f.nom);
+    if (/^(demande|courrier|lettre|mail|re |tr )|matrice|releve de propriete/.test(nom)) return 0;
+    if (/^plan de situation/.test(nom)) return 3;
+    if (/plan.{0,15}cadastr|extrait.{0,15}cadastr|cadastr.{0,15}plan/.test(nom)) return 2;
+    if (/plan de situation|^cadastre\b/.test(nom)) return 1;
+    return 0;
+  };
+  return (fichiers || []).filter((f) => f && rang(f) > 0)
+    .sort((a, b) => rang(b) - rang(a) || String(b.modifieLe || '').localeCompare(String(a.modifieLe || '')));
+}
+
+module.exports = { choisirPlanCadastral, NOTAIRE_SIGNATAIRE, adresseDecomposee, parcellesGnau, personneGnau, lotsGnau, commissionGnau, ficheGnau, dossiersGnau };

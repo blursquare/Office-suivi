@@ -56,7 +56,16 @@ Jamais : « Transmettre ma demande » (texte ou `transmettreSaisie`), un identif
 reconnectez puis relancez : le brouillon est rouvert par son adresse), les listes recalculées par le site (`OPLSTPARCELLE`, `OPLSTCOPRO`,
 `COMMISSION`), le prix en lettres `FI1C` (écrit par le site depuis `FI1B`), les cases de déclaration `GI1DA1`, `GI5AA1`, `GI6AA1`. Cases
 cochées par un vrai clic seulement quand la fiche le dit : nature du bien (non bâti / bâti sur terrain propre, d'après le type de vente),
-copropriété, commission TTC et à la charge de qui. À vérifier sur un vrai brouillon : suffixes des parcelles 2 et 3 du CUa, codes des lignes
+copropriété, commission TTC et à la charge de qui.
+
+**Parcelles** : toutes celles de la fiche, chacune avec sa superficie (fiche bien d'Authentic : « 606 », « 1 206 », « 00ha 06a 06ca »…).
+Les lignes du formulaire sont lues dans le modèle du guichet (page puis ordre de saisie) : CUa 3 lignes, DIA 14 (A1, B5, B6 en page 2,
+puis A2…B3 en page 8). Au-delà, la ligne dit « annexe à saisir » et « Toutes les parcelles » se copie au format de l'annexe.
+
+**Plan cadastral** : sur la page des pièces, le champ dont la ligne parle du plan (« plan cadastral », « plan de situation », CU1) reçoit
+le plan trouvé dans le dossier du NAS (plan de situation tiré par CLAIRE d'abord, sinon « plan cadastral » / « extrait cadastral » — jamais un
+courrier ni une matrice), sous le nom « Plan cadastral.pdf ». Dossier non relié au NAS ou aucun plan : à joindre vous-même. Les autres
+pièces restent à joindre à la main. À vérifier sur un vrai brouillon : suffixes des parcelles 2 et 3 du CUa, codes des lignes
 de parcelles de la DIA (`BI3S` + `A1`, `B5`…), annexes au-delà de 3 (CUa) et 14 parcelles (DIA).
 
 ## Faire progresser l'extension

@@ -78,40 +78,44 @@
     },
     {
      "forEach": "parcelles",
-     "max": 3,
+     "max": 40,
      "fields": [
       {
        "label": "Parcelle {n} — préfixe (T2F)",
        "source": "{list}.{i}.prefixe",
-       "code": "T2F",
        "rang": "{i}",
-       "optional": true
+       "optional": true,
+       "famille": "T2F",
+       "code": "T2F"
       },
       {
        "label": "Parcelle {n} — section (T2S)",
        "source": "{list}.{i}.section",
-       "code": "T2S",
        "rang": "{i}",
-       "transform": "upper"
+       "transform": "upper",
+       "famille": "T2S",
+       "code": "T2S"
       },
       {
        "label": "Parcelle {n} — numéro (T2N)",
        "source": "{list}.{i}.numero",
-       "code": "T2N",
-       "rang": "{i}"
+       "rang": "{i}",
+       "famille": "T2N",
+       "code": "T2N"
       },
       {
        "label": "Parcelle {n} — superficie, m² (T2T)",
        "source": "{list}.{i}.surface",
-       "code": "T2T",
        "rang": "{i}",
        "transform": "surface",
-       "optional": true
+       "optional": true,
+       "famille": "T2T",
+       "code": "T2T"
       }
      ]
     },
     {
-     "label": "Parcelles au-delà de 3 (annexe du guichet : à saisir à la main)",
+     "label": "Toutes les parcelles (format de l'annexe du guichet, à coller si une ligne manque)",
      "source": "parcelles",
      "transform": "parcelles_cua",
      "encoded": true,
@@ -134,6 +138,18 @@
      "source": "signature.date",
      "code": "E1D_date",
      "transform": "date_jjmmaaaa"
+    },
+    {
+     "label": "Plan cadastral (pièce jointe, dossier du NAS)",
+     "source": "dossier.id",
+     "type": "fichier",
+     "piece": [
+      "plan.{0,20}(cadastr|situation)",
+      "extrait.{0,15}cadastr",
+      "\\bcu ?1\\b",
+      "situation du terrain"
+     ],
+     "optional": true
     }
    ]
   }

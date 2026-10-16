@@ -133,7 +133,7 @@
     },
     {
      "forEach": "parcelles",
-     "max": 14,
+     "max": 40,
      "lignes": [
       "A1",
       "B5",
@@ -155,36 +155,46 @@
        "label": "Parcelle {n} — préfixe (BI3F{ligne})",
        "source": "{list}.{i}.prefixe",
        "code": "BI3F{ligne}",
-       "optional": true
+       "optional": true,
+       "famille": "BI3F",
+       "rang": "{i}"
       },
       {
        "label": "Parcelle {n} — section (BI3S{ligne})",
        "source": "{list}.{i}.section",
        "code": "BI3S{ligne}",
-       "transform": "upper"
+       "transform": "upper",
+       "famille": "BI3S",
+       "rang": "{i}"
       },
       {
        "label": "Parcelle {n} — numéro (BI3N{ligne})",
        "source": "{list}.{i}.numero",
-       "code": "BI3N{ligne}"
+       "code": "BI3N{ligne}",
+       "famille": "BI3N",
+       "rang": "{i}"
       },
       {
        "label": "Parcelle {n} — localité (BI3L{ligne})",
        "source": "{list}.{i}.commune",
        "code": "BI3L{ligne}",
-       "optional": true
+       "optional": true,
+       "famille": "BI3L",
+       "rang": "{i}"
       },
       {
        "label": "Parcelle {n} — superficie, m² (BI3T{ligne})",
        "source": "{list}.{i}.surface",
        "code": "BI3T{ligne}",
        "transform": "surface",
-       "optional": true
+       "optional": true,
+       "famille": "BI3T",
+       "rang": "{i}"
       }
      ]
     },
     {
-     "label": "Parcelles au-delà de 14 (annexe : à saisir à la main)",
+     "label": "Toutes les parcelles (format de l'annexe du guichet, à coller si une ligne manque)",
      "source": "parcelles",
      "transform": "parcelles_dia",
      "encoded": true,
@@ -375,6 +385,18 @@
      "label": "Mandataire — qualité (HI1Q)",
      "source": "notaire.qualite",
      "code": "HI1Q",
+     "optional": true
+    },
+    {
+     "label": "Plan cadastral (pièce jointe, dossier du NAS)",
+     "source": "dossier.id",
+     "type": "fichier",
+     "piece": [
+      "plan.{0,20}(cadastr|situation)",
+      "extrait.{0,15}cadastr",
+      "\\bcu ?1\\b",
+      "situation du terrain"
+     ],
      "optional": true
     }
    ]

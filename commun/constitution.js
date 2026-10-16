@@ -60,10 +60,12 @@
 
   /** Pure : « 18 a 22 ca » / « 1 ha 05 a 10 ca » → centiares, ou null. @param {string} t */
   function centiaresDepuisContenance(t) {
-    const s = String(t || '').toLowerCase().replace(/\s+/g, ' ').trim();
-    // Colonne « surface » du cadastre d'Authentic : un nombre seul, en m² (= centiares).
-    if (/^\d+$/.test(s)) return Number(s);
-    const m = /^(?:(\d+)\s*ha)?\s*(?:(\d+)\s*a)?\s*(?:(\d+)\s*ca)?$/.exec(s);
+    const s = String(t || '').toLowerCase().replace(/[\s\u00a0\u202f]+/g, ' ').trim();
+    // Colonne « surface » du cadastre d'Authentic : un nombre seul, en m² (= centiares) — « 606 », « 1 206 », « 1.206 », « 606 m² »,
+    // « 606,00 » (étude 16/10 : les surfaces n'étaient pas reprises au guichet).
+    const m2 = /^(\d{1,3}(?:[ .]\d{3})+|\d+)(?:,0+)?\s*(?:m2|m²|m\s*2|ca)?$/.exec(s);
+    if (m2) return Number(m2[1].replace(/[ .]/g, ''));
+    const m = /^(?:(\d+)\s*ha)?[\s,]*(?:(\d+)\s*a(?:res?)?)?[\s,]*(?:(\d+)\s*(?:ca|centiares?))?$/.exec(s);
     if (!m || (!m[1] && !m[2] && !m[3])) return null;
     return (Number(m[1] || 0) * 10000) + (Number(m[2] || 0) * 100) + Number(m[3] || 0);
   }

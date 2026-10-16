@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.262.0';
+  const VERSION_APP = '0.263.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.263.0', date: '2026-10-16 15:24', resume: "Guichet d'Agglopolys : toutes les parcelles de la fiche sont saisies, chacune avec sa superficie (lignes lues dans le formulaire du guichet ; « 1 206 », « 00ha 06a 06ca »… compris), et le plan cadastral du dossier du NAS est joint seul à la demande." },
     { version: '0.262.0', date: '2026-10-16 14:00', resume: "Extension Chrome : le guichet d'Agglopolys rempli de bout en bout — CLAIRE clique la démarche (CUa ou DIA), choisit la commune de dépôt, répond NON aux fenêtres de récupération, puis remplit chaque page du brouillon par les codes du CERFA relevés par l'étude et passe à la suivante ; arrêt à la dernière page (pièces jointes, « Vérifier ma saisie » et transmission par le notaire). Session expirée : arrêt, aucun identifiant saisi ; listes calculées par le site et prix en lettres jamais écrits." },
     { version: '0.261.0', date: '2026-10-16 11:44', resume: "Extension Chrome CU/DIA : « CLAIRE prend la main » — sur le guichet unique, CLAIRE ouvre elle-même la démarche (Nouvelle demande › Certificat d'urbanisme d'information ou Déclaration d'intention d'aliéner), remplit chaque page (code CERFA, sinon libellé dans sa rubrique, jamais par-dessus une valeur déjà là), clique « Suivant » et s'arrête avant toute validation ; « Remplir seulement la page affichée » reste." },
     { version: '0.260.0', date: '2026-10-16 10:47', resume: "CU et DIA sur les guichets uniques : l'extension Chrome « CLAIRE — Assistant de saisie » se relie au serveur CLAIRE du bureau (adresse réglée une fois) ; on y choisit le dossier et la démarche, CLAIRE prépare la fiche (parcelles et surfaces d'Authentic, vendeurs avec naissance, domicile et profession de leur fiche client, codemandeurs, prix et prix en lettres, mobilier, commission, lots, signature de l'office) et remplit la page affichée du guichet sans jamais valider ; chaque valeur se copie au format du guichet, ce qui manque dans CLAIRE est dit." },

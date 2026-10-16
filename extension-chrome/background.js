@@ -175,6 +175,56 @@ async function handle(msg, sender) {
         addLog(r, `Étape : ${msg.label}`);
       });
       return { ok: true };
+    case "content.modele": {
+      // Modèle du formulaire du guichet d'Agglopolys (Angular : scope().data.formulaire.modele) — codes, page, ordre, libellé, type ;
+      // jamais une valeur saisie. Lu dans le monde de la page (le script de l'extension ne voit pas `angular`).
+      if (!sender.tab) return { modele: null };
+      try {
+        const [res] = await chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id }, world: "MAIN",
+          func: () => {
+            const ng = window.angular;
+            if (!ng) return null;
+            for (const el of document.querySelectorAll("input[id], select[id], textarea[id]")) {
+              let sc = null;
+              try { sc = ng.element(el).scope(); } catch (_) { sc = null; }
+              for (let k = 0; sc && k < 8; k++, sc = sc.$parent) {
+                const m = sc.data && sc.data.formulaire && sc.data.formulaire.modele;
+                if (m && typeof m === "object") {
+                  return Object.keys(m).slice(0, 3000).map((code) => {
+                    const v = m[code] || {};
+                    return { code, page: Number(v.page) || 0, tabindex: Number(v.tabindex) || 0, type: String(v.type || "").slice(0, 20),
+                      libelle: String(v.libelle || "").slice(0, 120), lecture: !!v.estlectureseule };
+                  });
+                }
+              }
+            }
+            return null;
+          }
+        });
+        return { modele: res && Array.isArray(res.result) ? res.result : null };
+      } catch (_) {
+        return { modele: null };
+      }
+    }
+    case "content.plan": {
+      // Plan cadastral du dossier du NAS, lu par le serveur CLAIRE (jamais un chemin venu de la page) ; rendu en base64 au script de la page.
+      const r = await getRun();
+      const id = r && r.fiche && r.fiche.dossier && r.fiche.dossier.id;
+      const { serveur } = await chrome.storage.local.get(["serveur"]);
+      if (!id || !serveur) return { erreur: "Dossier ou adresse de CLAIRE inconnus." };
+      try {
+        const rep = await fetch(`${serveur}/api/gnau/plan/${encodeURIComponent(id)}`, { credentials: "omit" });
+        if (!rep.ok) { const j = await rep.json().catch(() => null); return { erreur: (j && j.erreur) || `CLAIRE répond ${rep.status}.` }; }
+        const octets = new Uint8Array(await rep.arrayBuffer());
+        if (octets.length > 15 * 1024 * 1024) return { erreur: "Plan trop lourd." };
+        let bin = "";
+        for (let i = 0; i < octets.length; i += 0x8000) bin += String.fromCharCode.apply(null, octets.subarray(i, i + 0x8000));
+        return { nom: decodeURIComponent(rep.headers.get("X-Claire-Nom") || "Plan%20cadastral.pdf"), source: decodeURIComponent(rep.headers.get("X-Claire-Source") || ""), b64: btoa(bin) };
+      } catch (_) {
+        return { erreur: "CLAIRE injoignable." };
+      }
+    }
     case "content.oublierBrouillon": {
       // Brouillon introuvable : oublié, la prochaine saisie de ce dossier ouvre une nouvelle demande.
       const r = await getRun();
