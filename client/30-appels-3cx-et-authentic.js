@@ -584,6 +584,17 @@
     if (!d) return r;
     const n = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
     const parties = Array.isArray(d.parties) ? d.parties : [];
+    // Succession à l'intitulé réel (« Mme Marie DUPONT veuve de M. Jean DUPONT ») face à un dossier de succession : les mots du nom du
+    // dossier tous dans l'intitulé — identique 6, l'un dans l'autre 4 (comme « SUCC NOM »).
+    if (!m && !ms && d.typeAffaire === 'succession') {
+      const motsPage = motsNomAuthentic(intitule).filter(x => !MOTS_NATURE_ACTE_AUTHENTIC.has(x));
+      const dossierMots = motsNomAuthentic(d.nom);
+      const pts = egal(motsPage, dossierMots) ? 6 : (dossierMots.length && dossierMots.every(x => motsPage.includes(x))) ? 4 : 0;
+      if (pts) { r.score += pts; r.nomsTrouves++; r.details.push(`nom ${pts === 6 ? 'identique' : 'proche'} (+${pts})`); }
+      return r;
+    }
+    // Intitulé d'une succession (« … veuve de M. … ») : jamais celui d'une vente.
+    if (!m && /(?:veuve|veuf|[ée]pou(?:x|se)|divorc[ée]e?)\s+de\s/i.test(intitule || '')) return r;
     // Intitulé d'une autre forme (« MARTEL Promesse », « VTE MARTEL - FOURNIER »…) : chaque côté du
     // dossier dont tous les mots du nom figurent dans l'intitulé — 3 points (nom du dossier), 2 (partie).
     if (!m && !ms) {
@@ -725,12 +736,18 @@
       .some(x => x.s.nomsTrouves && !autreReferenceAuthentic(x.d, ref));
   }
 
-  // Pure : page de VENTE d'Authentic sans dossier dans CLAIRE — en proposer la création ? (Étude, 03/10 :
-  // bandeau « Créer », jamais d'office, ventes seulement.) Non pour une succession, un acte déjà signé (un
+  // Pure : page de VENTE (ou de SUCCESSION, étude 16/10) d'Authentic sans dossier dans CLAIRE — en proposer la création ? (Étude, 03/10 :
+  // bandeau « Créer », jamais d'office.) Non pour un acte déjà signé (un
   // ancien dossier qu'on consulte) ou un sous-dossier autre que la vente. Le badge d'Authentic (vert signé,
   // orange demande de pièces, rouge pas constitué) n'est pas relevé : ses textes restent à lire sur une vraie page.
   function proposerCreationDossierAuthentic(capture, intitule) {
-    if (!intitule || RE_INTITULE_SUCCESSION_AUTHENTIC.test(intitule)) return false;
+    if (!intitule) return false;
+    // Succession (étude 16/10 : « que la détection des nouveaux dossiers à créer fonctionne comme pour les ventes ») : proposée aussi,
+    // sauf quand tous les actes du tableau « Rédaction » sont signés (une succession terminée qu'on consulte).
+    if (pageSuccessionAuthentic(capture, intitule)) {
+      const actes = actesSuccessionAuthentic(capture);
+      return !(actes.length && actes.every(a => a.etat === 'signe'));
+    }
     const sous = sousDossierAuthentic(capture);
     if (sous && sous !== 'vente') return false;
     const acte = etatActeAuthentic(capture);
@@ -1519,6 +1536,7 @@
       if (referencePage) g.reference = referencePage;
       // Page de vente en cours (ni signée, ni promesse/avenant) : le dossier est « à créer » s'il manque dans CLAIRE.
       if (intituleDossierAuthentic(cap)) g.aCreer = proposerCreationDossierAuthentic(cap, intitule);
+      if (intituleDossierAuthentic(cap) && pageSuccessionAuthentic(cap, intitule)) g.succession = true;
       if (intituleDossierAuthentic(cap) && adresseBienPageAuthentic(cap)) g.adresse = adresseBienPageAuthentic(cap);
       g.derniere = r.recueLe || g.derniere;
       if (type === 'client') { const p = clientDepuisFicheAuthentic(cap); if (p) g.personnes.set(p.id, p); }
@@ -1532,7 +1550,7 @@
           else g.immeubles.set(b.id, g.immeubles.has(b.id) ? fusionnerBienAuthentic(g.immeubles.get(b.id), b) : b);
         }
       }
-      if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], /succ/i.test(intitule) ? 'succession' : 'vente')
+      if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], g.succession || /succ/i.test(intitule) ? 'succession' : 'vente')
         .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
     });
@@ -1543,7 +1561,7 @@
       return {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
         export: {
-          intitule: g.intitule, reference: g.reference || '', type: '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
+          intitule: g.intitule, reference: g.reference || '', type: g.succession ? 'succession' : '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
           biens: immeubles.map(im => im.id), documents: [...g.documents.values()], documentsPersonnes: [], acte: null, notaireRedacteur: null,
           origine: 'pages', infosAuthentic: g.infos
         }

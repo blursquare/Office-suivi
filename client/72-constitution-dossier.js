@@ -247,13 +247,21 @@
     const boite = document.getElementById('cst-resultats');
     if (!boite) return;
     const q = normaliserPourRecherche(String(valeur || '').trim());
-    if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
-    const trouves = dossiers.filter(d => d && !d.deleted && (normaliserPourRecherche(libelleDossierAffiche(d)).includes(q) || normaliserPourRecherche(d.responsable || '').includes(q))).slice(0, 8);
+    // Champ vide (au clic) : les dossiers en cours, pour choisir sans rien taper (étude 16/10 : « un champ de recherche qui ne
+    // recherche rien »).
+    const trouves = (q
+      ? dossiers.filter(d => d && !d.deleted && (normaliserPourRecherche(libelleDossierAffiche(d)).includes(q) || normaliserPourRecherche(d.responsable || '').includes(q)))
+      : dossiers.filter(d => d && !d.deleted && !d.archive).sort((a, b) => libelleDossierAffiche(a).localeCompare(libelleDossierAffiche(b), 'fr'))).slice(0, q ? 8 : 12);
     boite.innerHTML = trouves.length
       ? trouves.map(d => `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierConstitution('${escapeOnclickArg(d.id)}')">
           <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span><span class="dash-recherche-resp">${escapeHtml(estSuccession(d) ? 'Succession' : 'Vente')}${d.archive ? ' · archivé' : ''}</span></button>`).join('')
       : '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>';
     boite.style.display = 'block';
+  }
+
+  // Le champ quitté : la liste se ferme (après le clic sur une ligne, qui passe avant).
+  function masquerResultatsConstitution() {
+    setTimeout(() => { const b = document.getElementById('cst-resultats'); if (b) b.style.display = 'none'; }, 200);
   }
 
   function ouvrirConstitutionDepuisFiche(id) {
@@ -783,7 +791,7 @@
   }
 
   function renderDossierConstitution(d) {
-    const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;"></div></div>`;
+    const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution()" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;"></div></div>`;
     if (!d) return `<div class="cst-barre">${recherche}</div><p class="hint cst-vide">Rattachez un dossier : ses parties, son bien et ses références viennent de sa fiche, qui tient les données d’Authentic.</p>`;
     const typeTexte = cstEtat.type === 'succession' ? 'Succession' : 'Vente';
     return `<div class="cst-barre">

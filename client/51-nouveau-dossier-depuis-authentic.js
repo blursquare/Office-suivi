@@ -193,7 +193,7 @@
     const lignes = autres.map(ligneGroupe).join('');
     bloc.innerHTML = `
       ${blocTrouve}
-      ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
+      ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ou de succession ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
       <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer || trouve ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
       ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
   }

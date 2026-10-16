@@ -559,6 +559,18 @@
     return resultat;
   }
 
+  // Pure : page d'une SUCCESSION d'Authentic ? Intitulé « Succession / SUCC NOM », sous-dossier « N - Succession … », ou intitulé
+  // réel « N - Mme X veuve de M. Y » (le défunt en tête, structure reçue le 05/10) avec des comparants Défunt / Héritier — jamais
+  // une page de vente, de promesse ou d'avenant.
+  function pageSuccessionAuthentic(capture, intitule) {
+    if (RE_INTITULE_SUCCESSION_AUTHENTIC.test(intitule || '')) return true;
+    const sous = sousDossierAuthentic(capture);
+    if (sous === 'succession') return true;
+    if (sous === 'vente' || sous === 'promesse' || sous === 'avenant') return false;
+    if (/^\s*(?:vte|vente)(?![a-z])/i.test(intitule || '')) return false;
+    return comparantsAuthentic(capture).some(c => c.role === 'DEFUNT' || c.role === 'HERITIER');
+  }
+
   // Pure : les actes d'une SUCCESSION relevés dans le tableau « Rédaction » de la page du dossier (étude 15/10 : « des actes peuvent
   // venir se rajouter, tu les auras dans le dossier Authentic : délivrance de legs, convention de quasi-usufruit ») —
   // [{ intitule, etat: 'a_rediger' | 'redaction' | 'signe' | '', signeLe }]. Ni courrier, ni demande, ni procuration.

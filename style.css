@@ -9515,7 +9515,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-corps { display: flex; flex-direction: column; gap: 12px; }
 .cst-vide { margin: 0; }
 .cst-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; border-radius: var(--rayon-carte); background: var(--paper-card); border: var(--bord-carte); }
-.cst-recherche { flex: 0 1 280px; min-width: 200px; margin-left: auto; }
+/* Parent positionné de la liste des résultats (`.dash-recherche-resultats` en absolu) : sans lui, la liste se calait sur la page,
+   sous l'écran — « un champ de recherche qui ne recherche rien » (étude 16/10). */
+.cst-recherche { position: relative; flex: 0 1 280px; min-width: 200px; margin-left: auto; }
 .cst-barre > .cst-recherche:only-child { flex: 1 1 auto; margin-left: 0; }
 .cst-dossier { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; flex: 1 1 auto; }
 .cst-dossier-titre { font-size: var(--texte-l); font-weight: 500; }

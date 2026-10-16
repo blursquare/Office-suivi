@@ -584,3 +584,25 @@ test('succession : décompte et appel de fonds 10 jours avant le dernier rendez-
     ['Clôture du dossier', '02/10/2099', '']] }] };
   assert.equal(app.courriersBanqueSuccessionAuthentic(voisins).length, 0);
 });
+
+test('Authentic : une page de succession sans dossier dans CLAIRE est proposée « à créer », comme une vente (étude 16/10)', () => {
+  const page = (redaction) => ({ texte: [
+    '1 - Mme DURAND Jeanne veuve de M. DURAND Pierre', 'Importer', 'Comparants (2)',
+    'Mme DURAND Jeanne veuve de M. DURAND Pierre', 'Défunt', 'M. DURAND Marc', 'Héritier', 'Immeubles (0)'
+  ].join('\n'), tableaux: redaction ? [{ titre: 'Rédaction', entete: ['Intitulé', 'Date', 'État'], lignes: redaction }] : [] });
+  const intitule = 'Mme DURAND Jeanne veuve de M. DURAND Pierre';
+  assert.equal(app.pageSuccessionAuthentic(page(), intitule), true);
+  assert.equal(app.proposerCreationDossierAuthentic(page(), intitule), true);
+  assert.equal(app.proposerCreationDossierAuthentic({ texte: '' }, 'SUCC DURAND'), true);
+  // Tous les actes signés : une succession terminée qu'on consulte, rien à créer.
+  assert.equal(app.proposerCreationDossierAuthentic(page([['Acte de notoriété', '01/02/2026', 'Signé le 01/02/2026']]), intitule), false);
+  assert.equal(app.proposerCreationDossierAuthentic(page([['Acte de notoriété', '01/02/2026', 'Signé le 01/02/2026'], ['Déclaration de succession', '', 'Non rédigé']]), intitule), true);
+  // Une page de vente reste une vente.
+  assert.equal(app.pageSuccessionAuthentic({ texte: 'Comparants\nM. MARTEL Alexandre\nVendeur' }, 'VTE MARTEL / ROY'), false);
+  // Le dossier de succession déjà créé est retrouvé par son nom (pas re-proposé).
+  const d = base({ id: 's95', nom: 'Mme DURAND Jeanne veuve de M. DURAND Pierre' });
+  assert.ok(app.scoreDossierAuthentic(intitule, '', d).score >= 6);
+  assert.equal(app.scoreDossierAuthentic(intitule, '', base({ id: 's96', nom: 'SUCC LEROY' })).score, 0);
+  // Une vente au même nom n'est jamais retenue pour la page de succession.
+  assert.equal(app.scoreDossierAuthentic(intitule, '', { id: 'v1', nom: 'DURAND / MARTIN', parties: [] }).score, 0);
+});

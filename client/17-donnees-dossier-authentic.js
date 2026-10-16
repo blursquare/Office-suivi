@@ -18,6 +18,8 @@
   // Vente, succession ou autre, d'après l'intitulé et les qualités des parties. Pure.
   function typeAffaireAuthentic(donnees) {
     const d = donnees || {};
+    // Page de succession reconnue au relevé (comparants Défunt / Héritier, étude 16/10).
+    if (d.type === 'succession') return 'succession';
     const intitule = normaliserPourRecherche([d.intitule, d.acte && d.acte.intitule].filter(Boolean).join(' '));
     const types = (d.parties || []).map(p => motCleAuthentic(p.type));
     if (/(^|[^a-z])succ|succession|notoriete|declaration de succession/.test(intitule) || types.some(t => TYPES_PARTIE_SUCCESSION.includes(t))) return 'succession';

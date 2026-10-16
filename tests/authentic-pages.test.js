@@ -1136,11 +1136,11 @@ test('sous-dossier ouvert : seul celui de la vente compte (étude, 03/10 — pro
   assert.equal(app.sousDossierAuthentic({ texte: 'Fiche client\nNom MARTEL' }), '');
 });
 
-test('page de vente sans dossier dans CLAIRE : création proposée, sauf succession, acte signé ou sous-dossier promesse (étude, 03/10)', () => {
+test('page de vente sans dossier dans CLAIRE : création proposée, sauf acte signé ou sous-dossier promesse (étude, 03/10) ; succession aussi (16/10)', () => {
   const vente = { texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n2 - VTE MARTEL / FOURNIER Importer avec 6e SENS\nComparants (2)' };
   assert.equal(app.proposerCreationDossierAuthentic(vente, 'VTE MARTEL / FOURNIER'), true);
   assert.equal(app.proposerCreationDossierAuthentic(gestion, '12 - Vente MARTEL/FOURNIER'), true, 'sans en-tête de sous-dossier : vente');
-  assert.equal(app.proposerCreationDossierAuthentic(vente, 'Succession MARTEL'), false, 'ventes seulement');
+  assert.equal(app.proposerCreationDossierAuthentic(vente, 'Succession MARTEL'), true, 'succession aussi (étude 16/10)');
   assert.equal(app.proposerCreationDossierAuthentic(vente, ''), false);
   const promesse = { texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS\nComparants (2)' };
   assert.equal(app.proposerCreationDossierAuthentic(promesse, 'VTE MARTEL / FOURNIER'), false, 'sous-dossier promesse');
@@ -1148,14 +1148,15 @@ test('page de vente sans dossier dans CLAIRE : création proposée, sauf success
   assert.equal(app.proposerCreationDossierAuthentic(signe, 'VTE MARTEL / FOURNIER'), false, 'acte signé : ancien dossier');
 });
 
-test('dossiersDepuisRelevesAuthentic : « à créer » sur une page de vente en cours, pas sur un acte signé ni une succession', () => {
+test('dossiersDepuisRelevesAuthentic : « à créer » sur une page de vente ou de succession en cours, pas sur un acte signé', () => {
   const g1 = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: gestion }])[0];
   assert.equal(g1.aCreer, true);
   const signe = Object.assign({}, gestion, { champs: gestion.champs.concat([{ groupe: 'Acte', libelle: 'État', valeur: 'Signé le 30/09/2026' }]) });
   assert.equal(app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: signe }])[0].aCreer, false);
   const succ = { champs: [{ groupe: '', libelle: '4 - Succession MARTEL Importer avec 2e SENSComparants (1) personM. MARTEL Alexandre', valeur: '' }], tableaux: [], texte: '4 - Succession MARTEL\nComparants' };
   const gs = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-03T09:00:00Z', capture: succ }])[0];
-  assert.ok(!gs || gs.aCreer === false);
+  assert.equal(gs.aCreer, true, 'succession à créer, comme une vente (étude 16/10)');
+  assert.equal(app.typeAffaireAuthentic(gs.export), 'succession');
 });
 
 // Parcelles d'Authentic sur la fiche (étude 06/10 : « mets en place le 1 2 3 »).
