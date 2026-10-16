@@ -713,6 +713,7 @@
         if (!corps.ok) { afficherToast(corps.message || 'La suppression a échoué.', 'OK', null); return; }
         agendaEvenements = agendaEvenements.filter(x => x.itemId !== e.itemId);
         if (d) {
+          if (estSuccession(d)) majRendezVousSuccessionAgenda(d, e.itemId, null);
           if (d.rdvAgendaItem && d.rdvAgendaItem.itemId === e.itemId) { d.rdvAgendaItem = null; d.rdvAgendaCreeLe = null; }
           ajouterHistorique(d, `Rendez-vous « ${e.sujet} » ${quand} supprimé de l’agenda de l’office depuis CLAIRE.`);
           sauvegarder(d);

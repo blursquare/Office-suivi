@@ -428,7 +428,33 @@ test('relecture 15/10 : prénom composé, veuve héritière, montant de facture,
   // Déclaration de succession après la notoriété signée : la case « signature » est cochée (la fiche apprend le rendez-vous).
   const ds = base({ id: 's41', succession: { ouvertureLe: '2026-06-01', type: 'classique' }, echeancesValidees: { notoriete: true }, rendezVousSignature: '2026-07-10' });
   const r = app.rdvAgendaSuccession(ds, 'declarationSuccession', '2026-10-15');
-  assert.equal(r.apresNotoriete, true);
+  assert.equal(r.signature, true);
   // Le rendez-vous de la déclaration placé (après aujourd'hui) : plus rien à placer.
   assert.equal(app.rdvAgendaSuccession(Object.assign({}, ds, { rendezVousSignature: '2026-11-20' }), 'declarationSuccession', '2026-10-15'), null);
+});
+
+test('succession : plusieurs rendez-vous par dossier (étude 16/10), chacun à son étape, rien ne s\'écrase', () => {
+  const d = base({ id: 's50', nom: 'SUCC LEFEBVRE', succession: { ouvertureLe: '2026-09-01', type: 'classique' } });
+  // Une fiche d'avant : la date de signature seule devient un rendez-vous « acte », compté pour la notoriété.
+  const ancien = Object.assign({}, d, { rendezVousSignature: '2026-10-20', rendezVousSignatureHeure: '10:00' });
+  assert.equal(S.rendezVousSuccession(ancien).map(r => r.etape + ':' + r.date).join(','), 'acte:2026-10-20');
+  assert.equal(S.etapesSuccession(ancien, '2026-10-16').find(e => e.type === 'notoriete').rdvPlace, true);
+
+  // Ouverture, notoriété, un rendez-vous avec les héritiers et la déclaration : tous gardés, chacun à sa place.
+  let x = d;
+  [['ouvertureSuccession', '2026-09-01', '14:00'], ['notoriete', '2026-10-05', '10:00'], ['autre', '2026-10-28', '15:00'], ['declarationSuccession', '2026-12-10', '11:00']]
+    .forEach(([etape, date, heure], i) => { x = Object.assign({}, x, { succession: Object.assign({}, x.succession, { rendezVous: app.rendezVousSuccessionAvecAjout(x, { id: 'r' + i, etape, titre: etape, date, heure, itemId: 'it' + i }) }) }); });
+  assert.equal(S.rendezVousSuccession(x).length, 4);
+  // Notoriété signée le 05/10 : la déclaration du 10/12 est le rendez-vous placé de sa carte, plus rien à placer.
+  x.echeancesValidees = { notoriete: true };
+  x.succession.notorieteSigneeLe = '2026-10-05';
+  const decl = S.etapesSuccession(x, '2026-10-16').find(e => e.type === 'declarationSuccession');
+  assert.deepEqual([decl.rdvPlace, decl.iso], [true, '2026-12-10']);
+  assert.equal(app.rdvAgendaSuccession(x, 'declarationSuccession', '2026-10-16'), null);
+  // Un rendez-vous « autre » se propose toujours (on peut en ajouter autant qu'il faut).
+  assert.match(app.rdvAgendaSuccession(x, 'autre', '2026-10-16').titre, /SUCC - .* - Rendez-vous/);
+  // La ligne de la fiche les montre tous, avec « Ajouter un rendez-vous ».
+  const ligne = app.ligneRendezVousSuccessionFiche(x);
+  assert.equal((ligne.match(/succ-rdv[ "]/g) || []).length, 4);
+  assert.match(ligne, /placerRdvSuccessionAgenda\('s50', 'autre'\)/);
 });

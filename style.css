@@ -9645,3 +9645,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 /* Simulateur de provision ouvert depuis une fiche : « Enregistrer sur la fiche » (0.252.0) */
 .calc-card .calc-enregistrer { margin-top: 16px; }
 .fonds-provision { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Rendez-vous d'une succession (étude 16/10 : plusieurs par dossier) */
+.succ-rdvs { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.succ-rdv { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.succ-rdv.passe .prop-texte { color: var(--muted); }

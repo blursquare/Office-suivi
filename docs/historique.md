@@ -20115,3 +20115,23 @@ commune sont trop éloignées pour tenir sur un plan.
 - `conjointSurvivant` : héritier « Veuve / Veuf de », ou « Époux / Épouse de » le défunt.
 - Agenda : la date d'ouverture n'est notée que si le rendez-vous reste celui de la succession ouverte depuis sa fiche.
 - Plan cadastral gardé par dossier + commune (`plansConstitutionGardes`) : revenir sur un dossier ne relance plus le navigateur du serveur.
+
+### 16/10/2026 07 h 19 — 0.253.0 : plusieurs rendez-vous par succession
+
+Étude : « Pour une succession il peut y avoir plusieurs rendez-vous par dossier. » Avant, une succession n'avait que la date de signature
+d'une vente (`rendezVousSignature`, `rdvAgendaItem`) : placer la déclaration effaçait le rendez-vous de la notoriété sur la fiche, un
+rendez-vous avec les héritiers n'était noté nulle part. Désormais :
+- `d.succession.rendezVous` (commun/succession.js `rendezVousSuccession`, `rendezVousRetenu`, `ETAPES_RDV_SUCCESSION`) : chaque rendez-vous
+  avec son étape (ouverture, notoriété, déclaration, acte sans étape, autre), sa date, son heure et son identifiant Outlook ; une fiche d'avant
+  se lit comme un rendez-vous « acte » ;
+- `etapesSuccession` : la notoriété lit ses rendez-vous (et les « acte » tant qu'elle n'est pas signée), la déclaration les siens (et les
+  « acte » postérieurs à la notoriété) ;
+- `posterEvenementAgenda` : pour une succession, `noterRendezVousSuccession` ajoute le rendez-vous (étape venue de la carte de la fiche, sinon
+  « acte » si la case signature est cochée, sinon « autre ») ; `rendezVousSignature` = le prochain rendez-vous d'acte
+  (`synchroniserSignatureSuccession`) ;
+- agenda de CLAIRE : un rendez-vous de succession est reconnu par son identifiant (`successionDuRendezVous` dans `dossierDeEvenement`) ;
+  déplacé ou supprimé, la liste suit (`majRendezVousSuccessionAgenda`) ; la date d'ouverture suit un déplacement, jamais une suppression ;
+- fiche (onglet Dossier) : ligne « Rendez-vous » (`ligneRendezVousSuccessionFiche`), passés en gris, et « Ajouter un rendez-vous »
+  (étape `autre`, titre « SUCC - NOM - Rendez-vous », date proposée à 7 jours).
+Limite : un rendez-vous de succession posé directement dans Outlook (hors CLAIRE) n'est pas relu — la lecture de l'agenda ne reconnaît que
+les « VTE - … ».

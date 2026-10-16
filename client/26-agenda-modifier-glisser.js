@@ -48,7 +48,8 @@
 
   // Pure : le rendez-vous est la signature fixée sur la fiche du dossier — elle suivra la modification.
   function signatureSuitAgenda(d, e) {
-    return !!(d && e && e.signature && !d.archive && d.rendezVousSignature === e.date);
+    // Une succession suit ses rendez-vous dans sa liste (client/76), jamais par la seule date de signature.
+    return !!(d && e && e.signature && !d.archive && !estSuccession(d) && d.rendezVousSignature === e.date);
   }
 
   async function ouvrirModificationAgenda(cle) {
@@ -185,8 +186,10 @@
       if (nouveau.journeeEntiere) e.dateFin = nouveau.dateFin || nouveau.date;
       else { e.dateFin = nouveau.dateFin || nouveau.date; e.heure = nouveau.heure; e.heureFin = nouveau.heureFin; }
       if (Array.isArray(nouveau.categories)) e.categories = nouveau.categories.slice();
+      const ancienItem = e.itemId;
       if (corps.itemId) e.itemId = corps.itemId;
       if (corps.changeKey) e.changeKey = corps.changeKey;
+      if (d && estSuccession(d) && majRendezVousSuccessionAgenda(d, ancienItem, { date: e.date, heure: nouveau.journeeEntiere ? '' : e.heure, itemId: e.itemId, changeKey: e.changeKey })) render();
       // La note relue garde son ChangeKey : il a changé avec l'écriture.
       if (notesAgenda[e.itemId] && corps.changeKey) notesAgenda[e.itemId].changeKey = corps.changeKey;
       if (agendaSelection === ancienneCle) agendaSelection = cleEvenementAgenda(e);

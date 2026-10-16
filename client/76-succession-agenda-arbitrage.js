@@ -9,7 +9,9 @@
   var ETAPES_AGENDA_SUCCESSION = {
     ouvertureSuccession: { suffixe: 'Ouverture avec Sophie', signature: false },
     notoriete: { suffixe: 'Acte de notoriété', signature: true },
-    declarationSuccession: { suffixe: 'Déclaration de succession', signature: true }
+    declarationSuccession: { suffixe: 'Déclaration de succession', signature: true },
+    // Tout autre rendez-vous du dossier (étude 16/10 : « il peut y avoir plusieurs rendez-vous par dossier ») : héritiers, inventaire…
+    autre: { suffixe: 'Rendez-vous', signature: false }
   };
 
   // Pure : le rendez-vous proposé pour une étape d'une succession → { titre, date, signature } ou null (étape sans rendez-vous).
@@ -18,13 +20,13 @@
     const def = ETAPES_AGENDA_SUCCESSION[etape];
     if (!d || !def) return null;
     const auj = String(aujIso || '').slice(0, 10);
+    if (etape === 'autre') return { titre: `${libelleDossierAffiche(d)} - ${def.suffixe}`, date: auj ? addDays(auj, 7) : auj, signature: false };
     const e = etapesSuccession(d, auj).find(x => x.type === etape);
     if (!e || e.fait || e.rdvPlace || (etape === 'ouvertureSuccession' && e.iso)) return null;
     let date = etape === 'ouvertureSuccession' ? (auj ? addDays(auj, 7) : auj) : (e.fenetreDebut || e.iso || auj);
     if (date < auj) date = auj;
     const suffixe = etape === 'notoriete' && /declaration/i.test(normaliserPourRecherche(e.label)) ? 'Notoriété et déclaration de succession' : def.suffixe;
-    const noto = etapesSuccession(d, auj).find(x => x.type === 'notoriete');
-    return { titre: `${libelleDossierAffiche(d)} - ${suffixe}`, date, signature: def.signature, apresNotoriete: etape === 'declarationSuccession' && !!(noto && noto.fait) };
+    return { titre: `${libelleDossierAffiche(d)} - ${suffixe}`, date, signature: def.signature };
   }
 
   // Ouvre l'Agenda sur « Nouveau rendez-vous » prérempli pour cette étape (dossier, titre, date, case « signature »).
@@ -42,19 +44,75 @@
     if (titre) titre.value = r.titre;
     majCaseSignatureCreationAgenda();
     const sig = document.getElementById('agenda-creation-signature');
-    // La notoriété signée, la date de signature de la fiche est la sienne : le rendez-vous de la déclaration la remplace.
-    if (sig) sig.checked = r.signature && (!d.rendezVousSignature || r.apresNotoriete);
+    // Chaque rendez-vous d'une succession est gardé à part sur la fiche (`d.succession.rendezVous`) : la case suit l'étape.
+    if (sig) sig.checked = !!r.signature;
   }
 
-  // Après la création d'un rendez-vous ouvert depuis la fiche : la date de l'ouverture notée sur la succession (l'acte, lui, passe
-  // par la case « signature »).
-  function noterRdvAgendaSuccession(lien, date) {
-    if (!lien || lien.etape !== 'ouvertureSuccession') return;
-    const d = dossiers.find(x => x.id === lien.dossierId);
-    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
-    d.succession = Object.assign({}, d.succession, { ouvertureLe: date });
-    ajouterHistorique(d, `Rendez-vous d’ouverture avec Sophie fixé depuis l’agenda : ${formatDateFr(date)}`);
+  // ---- Les rendez-vous d'une succession (étude 16/10 : « plusieurs rendez-vous par dossier ») ----
+  // Chaque rendez-vous créé pour une succession, depuis sa fiche ou l'agenda, s'ajoute à `d.succession.rendezVous` au lieu de remplacer
+  // une seule date de signature ; déplacé ou supprimé dans l'agenda de CLAIRE, il suit. La date de signature de la fiche
+  // (`rendezVousSignature`, lue par le bandeau, le Suivi, l'agenda) devient le prochain rendez-vous d'acte.
+
+  // Pure : la liste après l'ajout d'un rendez-vous (la date de signature d'avant reprise une fois, comme un « acte »).
+  function rendezVousSuccessionAvecAjout(d, r) {
+    const liste = rendezVousSuccession(d).map(x => { const c = Object.assign({}, x); delete c.ancien; return c; });
+    liste.push({ id: r.id || `rdv-${Date.now().toString(36)}`, etape: ETAPES_RDV_SUCCESSION.includes(r.etape) ? r.etape : 'autre', titre: String(r.titre || '').slice(0, 200),
+      date: r.date, heure: r.heure || '', itemId: r.itemId || '', changeKey: r.changeKey || '' });
+    return liste.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
+  }
+
+  // La date de signature de la fiche = le prochain rendez-vous d'acte (notoriété, déclaration, acte) ; sinon le dernier ; sinon rien.
+  function synchroniserSignatureSuccession(d) {
+    const actes = rendezVousSuccession(d).filter(r => r.etape === 'notoriete' || r.etape === 'declarationSuccession' || r.etape === 'acte');
+    const r = rendezVousRetenu(actes, isoAujourdhuiLocal());
+    d.rendezVousSignature = r ? r.date : null;
+    d.rendezVousSignatureHeure = r ? r.heure : '';
+    d.rdvAgendaItem = r && r.itemId ? { itemId: r.itemId, changeKey: r.changeKey || '', date: r.date } : null;
+    if (r) { d.confiance = d.confiance || {}; d.confiance.rendezVousSignature = 'manuel'; }
+  }
+
+  function noterRendezVousSuccession(d, r) {
+    if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) return;
+    d.succession = Object.assign({}, d.succession, { rendezVous: rendezVousSuccessionAvecAjout(d, r) });
+    if (r.etape === 'ouvertureSuccession') d.succession.ouvertureLe = r.date;
+    synchroniserSignatureSuccession(d);
+    const libelle = { ouvertureSuccession: 'd’ouverture avec Sophie', notoriete: 'de l’acte de notoriété', declarationSuccession: 'de la déclaration de succession', acte: 'de signature' }[r.etape];
+    ajouterHistorique(d, `Rendez-vous ${libelle || `« ${r.titre} »`} fixé depuis l’agenda : ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure : ''} (créé dans l’agenda Outlook).`);
     sauvegarder(d);
+  }
+
+  // Le dossier de succession qui porte ce rendez-vous de l'agenda (par son identifiant Outlook), ou null.
+  function successionDuRendezVous(itemId) {
+    if (!itemId) return null;
+    return dossiers.find(d => d && estSuccession(d) && rendezVousSuccession(d).some(r => r.itemId === itemId)) || null;
+  }
+
+  // Rendez-vous déplacé (`nouveau` = { date, heure, itemId, changeKey }) ou supprimé (`nouveau` = null) dans l'agenda de CLAIRE.
+  function majRendezVousSuccessionAgenda(d, itemId, nouveau) {
+    if (!d || !itemId || !estSuccession(d)) return false;
+    const liste = rendezVousSuccession(d).map(x => { const c = Object.assign({}, x); delete c.ancien; return c; });
+    const r = liste.find(x => x.itemId === itemId);
+    if (!r) return false;
+    const garde = nouveau ? liste : liste.filter(x => x !== r);
+    if (nouveau) Object.assign(r, { date: nouveau.date, heure: nouveau.heure || '', itemId: nouveau.itemId || r.itemId, changeKey: nouveau.changeKey || '' });
+    d.succession = Object.assign({}, d.succession, { rendezVous: garde.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure)) });
+    // Ouverture déplacée : les délais suivent ; supprimée, la date d'ouverture reste (elle porte tous les délais).
+    if (r.etape === 'ouvertureSuccession' && nouveau) d.succession.ouvertureLe = nouveau.date;
+    synchroniserSignatureSuccession(d);
+    ajouterHistorique(d, nouveau ? `Rendez-vous « ${r.titre || 'de la succession'} » déplacé dans l’agenda : ${formatDateFr(nouveau.date)}${nouveau.heure ? ' à ' + nouveau.heure : ''}.`
+      : `Rendez-vous « ${r.titre || 'de la succession'} » du ${formatDateFr(r.date)} supprimé de l’agenda.`);
+    sauvegarder(d);
+    return true;
+  }
+
+  // Ligne « Rendez-vous » de la fiche d'une succession : tous les rendez-vous, et « Ajouter un rendez-vous ».
+  var LIBELLES_ETAPE_RDV_SUCCESSION = { ouvertureSuccession: 'Ouverture', notoriete: 'Notoriété', declarationSuccession: 'Déclaration', acte: 'Signature', autre: 'Rendez-vous' };
+  function ligneRendezVousSuccessionFiche(d) {
+    const auj = isoAujourdhuiLocal();
+    const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.date < auj ? 'dl-neutre' : 'dl-pret'}"><span class="dot"></span>${escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
+      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}</span>`).join('');
+    return `<span class="succ-rdvs">${lignes || '<span class="hint">Aucun rendez-vous placé</span>'}
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="placerRdvSuccessionAgenda('${escapeOnclickArg(d.id)}', 'autre')">${icone('calendar')}Ajouter un rendez-vous</wa-button></span>`;
   }
 
   // ---- Arbitrage du forfait mobilier ----

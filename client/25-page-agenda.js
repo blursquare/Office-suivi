@@ -618,7 +618,9 @@
   }
 
   function dossierDeEvenement(e) {
-    return e && e.dossierId ? dossiers.find(d => d.id === e.dossierId) || null : null;
+    const d = e && e.dossierId ? dossiers.find(x => x.id === e.dossierId) || null : null;
+    // Une succession reconnaît ses rendez-vous par leur identifiant Outlook (client/76) : l'agenda ne lit que les « VTE - … ».
+    return d || (e && e.itemId ? successionDuRendezVous(e.itemId) : null);
   }
 
   // Pure : la probabilité affichée sur un rendez-vous de l'agenda — celle de la signature fixée, ou,
@@ -2240,9 +2242,9 @@
     const creer = async () => {
       const bouton = document.getElementById('agenda-creation-ok');
       if (bouton) { bouton.disabled = true; bouton.textContent = 'Création…'; }
-      const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature, notes });
+      const ok = await posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier: d, signature, notes, etapeSuccession: lienFiche ? lienFiche.etape : '' });
       if (bouton) { bouton.disabled = false; }
-      if (ok) { if (lienFiche) noterRdvAgendaSuccession(lienFiche, date); agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
+      if (ok) { agendaModale = null; renderPageAgenda(); chargerAgendaSemaine(); }
     };
     // Règles de l'étude (9 h, 12 h – 14 h, après 18 h, 6 rendez-vous par jour) : une exception reste
     // possible, mais elle se confirme.
@@ -2260,7 +2262,7 @@
   // Écrit un rendez-vous dans l'agenda de l'office (un seul essai). Rendez-vous de signature d'un
   // dossier : la date et l'heure sont notées sur la fiche, comme depuis la fiche elle-même — jamais pour un titre « ? »
   // (étude 07/10 : deux dates « ?? » proposées par le confrère, la première était devenue la signature de la fiche).
-  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature: signatureDemandee, notes }) {
+  async function posterEvenementAgenda({ sujet, date, heure, dureeMinutes, lieu, typeRdv, dossier, signature: signatureDemandee, notes, etapeSuccession }) {
     const signature = !!signatureDemandee && !titreRendezVousProvisoire(sujet);
     const categorie = typeRdv ? (categoriesRdvReglees()[typeRdv] || '') : '';
     try {
@@ -2276,7 +2278,12 @@
       });
       const corps = await reponse.json();
       if (!corps.ok) { afficherToast(corps.message || 'La création du rendez-vous a échoué.', 'OK', null); return false; }
-      if (dossier && signature) {
+      if (dossier && estSuccession(dossier)) {
+        // Succession (étude 16/10) : chaque rendez-vous s'ajoute à sa liste, rien n'est remplacé.
+        if (signature && TYPES_RDV[typeRdv]) dossier.rendezVousType = typeRdv;
+        noterRendezVousSuccession(dossier, { etape: etapeSuccession || (signature ? 'acte' : 'autre'), titre: sujet, date, heure, itemId: corps.itemId || '', changeKey: corps.changeKey || '' });
+        if (signature) notifierDateAjoutee(dossier, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', date, '');
+      } else if (dossier && signature) {
         dossier.rendezVousSignature = date;
         dossier.rendezVousSignatureHeure = heure;
         if (typeRdv) dossier.rendezVousType = typeRdv;
