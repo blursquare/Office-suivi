@@ -7895,6 +7895,43 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-proba { opacity: 0.9; }
 /* Pastilles « AF » « P » sur un fond plein : posées sur une pastille blanche pour rester lisibles. */
 .ag-evt .ag-mini { background: var(--paper-card); }
+/* Clients et biens (étude 16/10) : page de recherche, fenêtre d'une fiche, puces sur la fiche d'un dossier. */
+.cb-barre { margin: 0 0 16px; }
+.cb-recherche { width: 100%; max-width: 560px; }
+.cb-colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.cb-colonnes > * { min-width: 0; }
+.cb-colonne { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+.cb-colonne .w-titre { margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+.cb-ligne { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; font-family: inherit; background: none; border: none; border-radius: var(--rayon-m); padding: 8px 10px; cursor: pointer; color: var(--ink); }
+.cb-ligne:hover { background: var(--paper-sunk); }
+.cb-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cb-ligne-titre { font-size: var(--texte-base); font-weight: 500; }
+.cb-ligne-detail { grid-column: 1; font-size: var(--texte-s); color: var(--muted); }
+.cb-ligne-badges { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.cb-badge { font-size: var(--texte-xxs); font-weight: 700; padding: 1px 6px; border-radius: var(--rayon-pilule); background: var(--paper-sunk); color: var(--ink-soft); white-space: nowrap; }
+.cb-badge-question { background: var(--pret-bg); color: var(--pret); }
+.cb-box { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; position: relative; text-align: left; }
+.cb-fermer { position: absolute; top: 8px; right: 8px; }
+.cb-titre { font-size: var(--texte-xl); font-weight: 500; margin: 0 32px 12px 0; }
+.cb-sous-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
+.cb-champs { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; font-size: var(--texte-m); }
+.cb-champs dt { color: var(--muted); }
+.cb-champs dd { margin: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; overflow-wrap: anywhere; }
+.cb-champs dd > div { width: 100%; }
+.cb-crayon { opacity: 0.4; }
+.cb-champs dd:hover .cb-crayon, .cb-crayon:focus-visible { opacity: 1; }
+.cb-edition input { flex: 1 1 200px; min-width: 0; }
+.cb-alerte { border: 1px solid var(--line); background: var(--paper-sunk); border-radius: var(--rayon-m); padding: 8px 10px; margin-bottom: 8px; font-size: var(--texte-m); }
+.cb-alerte-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.cb-dossiers { display: flex; flex-direction: column; gap: 2px; }
+.cb-dossier { display: flex; gap: 8px; align-items: baseline; text-align: left; font-family: inherit; font-size: var(--texte-m); background: none; border: none; border-radius: var(--rayon-s); padding: 4px 6px; cursor: pointer; color: var(--ink); }
+.cb-dossier:hover { background: var(--paper-sunk); color: var(--focus); }
+.cb-fiches-dossier { display: flex; flex-wrap: wrap; gap: 4px; }
+.cb-puce { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-size: var(--texte-s); padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); cursor: pointer; }
+.cb-puce:hover { border-color: var(--focus); color: var(--focus); }
+.cb-puce .icone { width: 14px; height: 14px; }
+.cb-puce-plus { font-size: var(--texte-xxs); font-weight: 700; color: var(--muted); }
+@media (max-width: 600px) { .cb-champs { grid-template-columns: 1fr; } .cb-champs dt { margin-top: 4px; } }
 /* Parcelles sur la fiche (étude 16/10) : une par ligne, référence en gras, surface, nature et lieu-dit en discret. */
 .parcelles-fiche { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-m); }
 .parcelle-fiche b { font-weight: 600; }

@@ -71,6 +71,8 @@ server/                              Serveur (son propre package.json ; le packa
                                      relectureClaude, relectures, offrePret, appelsFonds,
                                      signatureImages — images de la signature des emails, assistant, …)
   src/assistant.js                   « Demander à CLAIRE » : compréhension d'une phrase (mots-clés, puis IA locale)
+  src/clientsBiens.js, routes/clientsBiens.js  Clients et biens (16/10) : base des personnes et des biens CALCULÉE depuis les dossiers (fiches d'Authentic),
+                                     jamais recopiée ; choix de l'étude seuls gardés (clé `clients-biens` : liaisons, corrections) ; poste : client/80-clients-biens.js
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)

@@ -169,6 +169,7 @@
         ${ligne('user', 'Responsable', responsable, null)}
         ${ligne('calendar', 'Ouverture', date('ouvertureLe', s.ouvertureLe, 'Rendez-vous d’ouverture avec Sophie', 'changerSuccession') + ' <span class="hint">avec Sophie, en rendez-vous</span>', null)}
         ${ligne('clock', 'Rendez-vous', ligneRendezVousSuccessionFiche(d), null, 'prop-pleine')}
+        ${ligne('users', 'Fiches', renderFichesClientsBiensDossier(d), null, 'prop-pleine')}
         ${ligne('file-text', 'Type', selectType + actif, null, 'prop-pleine')}
         ${ligne('list-check', 'Actes', `<span class="succ-actes">${actes}</span>`, null, 'prop-pleine')}
         ${attentes.length && !acteSigneSuccession(d, 'notoriete').fait ? ligne('clock', 'Notoriété', `<span class="hint">À réunir avant de la rédiger : ${escapeHtml(attentes.join(', '))}</span>`, null, 'prop-pleine') : ''}

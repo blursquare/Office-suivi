@@ -150,6 +150,10 @@
       <button type="button" id="tab-confreres" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('confreres')">
         <span class="sidebar-link-icone" id="icon-nav-confreres" aria-hidden="true"></span>Répertoire
       </button>
+      <!-- Clients et biens (étude 16/10) : fiches des personnes et des biens de tous les dossiers, reprises d'Authentic (client/80-clients-biens.js). -->
+      <button type="button" id="tab-clients-biens" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('clients-biens')">
+        <span class="sidebar-link-icone" id="icon-nav-clients-biens" aria-hidden="true"></span>Clients et biens
+      </button>
       <!-- Réglages de l'étude (URL du flux Power Automate + adresse email de chaque collaborateur) :
            une donnée métier que l'étude doit pouvoir modifier elle-même, sans passer par un fichier
            de configuration ni redemander à Claude Code — voir server/src/parametresRepo.js. -->
@@ -1651,6 +1655,19 @@
   </div>
 </div>
 
+<div class="onglet-panel" id="onglet-clients-biens" style="display:none;">
+  <div class="dash-header">
+    <div>
+      <div class="dash-eyebrow">Base de l'étude</div>
+      <div class="dash-titre-ligne">
+        <h1 class="dash-titre">Clients et biens <span class="info-i" tabindex="0" data-info="Les personnes et les biens de tous les dossiers, ventes et successions, archivés compris — repris des fiches client et des fiches bien d'Authentic. Une même personne est retrouvée par son nom, son prénom et sa date de naissance ; sans date, CLAIRE propose et vous confirmez."></span></h1>
+      </div>
+    </div>
+  </div>
+  <div class="cb-barre"><input type="search" id="cb-recherche" class="cb-recherche" placeholder="Nom, commune, adresse ou parcelle (AB 12)" autocomplete="off" oninput="saisirRechercheClientsBiens(this.value)"></div>
+  <div id="cb-resultats"></div>
+</div>
+
 <div class="onglet-panel" id="onglet-confreres" style="display:none;">
   <div class="dash-header">
     <div>
@@ -2431,6 +2448,14 @@
      navigateur à redemander). Même patron .confirm-overlay que les autres fenêtres de l'outil. -->
 <!-- Fiche client d'Authentic dont la personne est partie de plusieurs dossiers en cours (étude, 02/10 :
      « comment lui dire lequel est le bon ») : un clic range la fiche dans le dossier choisi. -->
+<!-- Fiche d'un client ou d'un bien (client/80-clients-biens.js) : ouverte depuis la page « Clients et biens » ou la fiche d'un dossier. -->
+<div class="confirm-overlay" id="cb-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerFicheClientBien(); this.dataset.fond = ''" onkeydown="if (event.key === 'Escape') fermerFicheClientBien()">
+  <div class="confirm-box cb-box" role="dialog" aria-modal="true" aria-label="Fiche">
+    <wa-button appearance="plain" class="bouton-icone cb-fermer" onclick="fermerFicheClientBien()" title="Fermer"><span id="cb-icone-fermer"></span></wa-button>
+    <div id="cb-contenu"></div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="authentic-choix-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerChoixFicheClientAuthentic(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box" role="dialog" aria-modal="true" aria-labelledby="authentic-choix-intro">
     <p id="authentic-choix-intro"></p>
@@ -2787,5 +2812,6 @@
 <script src="client/77-vente-outils-fiche.js"></script>
 <script src="client/78-constitution-plan-cadastral.js"></script>
 <script src="client/79-nouveau-dossier-succession.js"></script>
+<script src="client/80-clients-biens.js"></script>
 </body>
 </html>

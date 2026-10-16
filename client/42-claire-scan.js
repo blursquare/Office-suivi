@@ -1032,6 +1032,8 @@
       'icon-nav-quotites': 'users',
       'icon-nav-preemption': 'shield',
       'icon-nav-confreres': 'book',
+      'icon-nav-clients-biens': 'users',
+      'cb-icone-fermer': 'x',
       'icon-calc-warning': 'alert-triangle',
       'icon-inv-warning': 'alert-triangle',
       'icon-nav-analyse-ia': 'eye',

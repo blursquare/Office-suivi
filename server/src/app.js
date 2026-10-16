@@ -24,6 +24,7 @@ const { creerRouteurNavigation } = require('./routes/navigation');
 const { creerRouteurPlanAerien } = require('./routes/planAerien');
 const { creerRouteurDepotDia } = require('./routes/depotDia');
 const { creerRouteurGnau } = require('./routes/gnau');
+const { creerRouteurClientsBiens } = require('./routes/clientsBiens');
 const { creerRouteurMemoire } = require('./routes/memoire');
 const { creerRouteurConstitution } = require('./routes/constitution');
 const { creerRouteurNotifications } = require('./routes/notifications');
@@ -237,6 +238,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
   // CU et DIA sur les guichets uniques : fiche d'un dossier lue par l'extension Chrome (extension-chrome/, voir gnau.js).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurGnau(depot, parametresRepo, config));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurClientsBiens(depot, parametresRepo));
   // Constitution de dossier : adresses de destinataires saisies par l'étude, retenues pour la fois suivante (voir routes/constitution.js).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConstitution(parametresRepo, urbanisme || {}));
   // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.

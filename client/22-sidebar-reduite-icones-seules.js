@@ -158,7 +158,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'clients-biens': 'Clients et biens', 'analyse-ia': "Relecture d'actes",
     reglages: 'Réglages', assistant: 'Demander à CLAIRE', agenda: 'Agenda', constitution: 'Constitution de dossier'
   };
 
@@ -208,6 +208,7 @@
     document.getElementById('onglet-quotites').style.display = nom === 'quotites' ? '' : 'none';
     document.getElementById('onglet-preemption').style.display = nom === 'preemption' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
+    document.getElementById('onglet-clients-biens').style.display = nom === 'clients-biens' ? '' : 'none';
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
@@ -226,6 +227,7 @@
     document.getElementById('tab-quotites').setAttribute('aria-selected', String(nom === 'quotites'));
     document.getElementById('tab-preemption').setAttribute('aria-selected', String(nom === 'preemption'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
+    document.getElementById('tab-clients-biens').setAttribute('aria-selected', String(nom === 'clients-biens'));
     document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
@@ -240,6 +242,8 @@
     document.getElementById('tab-quotites').classList.toggle('actif', nom === 'quotites');
     document.getElementById('tab-preemption').classList.toggle('actif', nom === 'preemption');
     document.getElementById('tab-confreres').classList.toggle('actif', nom === 'confreres');
+    document.getElementById('tab-clients-biens').classList.toggle('actif', nom === 'clients-biens');
+    if (nom === 'clients-biens') initClientsBiens();
     // Ctrl+P depuis cet onglet doit sortir la FEUILLE, pas l'application autour (voir @media
     // print dans style.css) — un onglet n'ayant pas de classe sur <body>, on la pose ici.
     majClassesImpressionEcran();
