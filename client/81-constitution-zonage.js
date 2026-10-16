@@ -148,7 +148,9 @@
       const propres = zones.map((z, i) => z.propres.has(q.cle) ? i : -1).filter(i => i >= 0);
       const ou = dues.length ? dues[0] : propres.length ? propres[0] : -1;
       if (ou < 0) return;
-      const concerne = [...new Set((dues.length ? dues : propres).flatMap(i => zones[i].parcelles))];
+      const brutes = [...new Set((dues.length ? dues : propres).flatMap(i => zones[i].parcelles))];
+      // « AB 100 » et « AB 100 (en partie) » : la parcelle une fois.
+      const concerne = brutes.filter(x => !(/ \(en partie\)$/.test(x) && brutes.includes(x.replace(/ \(en partie\)$/, ''))));
       groupes[ou].questions.push({ cle: q.cle, libelle: q.libelle, aide: q.aide || '', valeurs: q.valeurs, due: dues.length > 0, reponse: rep[q.cle],
         concerne: plusieurs && (dues.length > 1 || propres.length > 1) ? concerne : [] });
     });

@@ -63,3 +63,8 @@ test('une même parcelle à cheval sur deux zones : dans les deux groupes, « en
   const z = app.zonageConstitution({ droits: [], lignes: [l] });
   assert.match(z.zones[0].zone, /en partie A/);
 });
+
+test('« concerne » : une parcelle à cheval n’est citée qu’une fois', () => {
+  const g = app.questionsUrbanismeConstitution({ droits: [], lignes: [Object.assign(ligne('AB 100', 'U'), { autresFamilles: ['A'] }), ligne('AB 101', 'N')], reponses: { mutation: 'vente', bien: 'bati' } }, 'maison');
+  g.forEach(x => x.questions.forEach(q => assert.ok(!(q.concerne.includes('AB 100') && q.concerne.includes('AB 100 (en partie)')), q.cle)));
+});

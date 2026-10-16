@@ -20422,3 +20422,7 @@ courriers papier (ni PDF ni plan ni historique pour un courrier par email) ; (6)
 ### 16/10/2026 22:21 — Constitution : parcelle à cheval sur deux zones (0.269.2)
 
 Étude : « parfois une même parcelle peut être mixte ». Les lignes gardées portent `autresFamilles` (autres zones rendues par le Géoportail) : la parcelle compte dans le groupe de chacune (« AB 100 (en partie) »), sauf zone choisie par l'étude dans l'outil (`choisie`) ; zonage affiché « UB (U) + en partie A » ; alerte « à cheval sur deux zones » (l'analyse les traite déjà : droit de la zone voisine « à vérifier », `analyserPreemptionParcelles`).
+
+### 16/10/2026 22:25 — Contrôle de l'urbanisme : questions par zone (0.269.3)
+
+Étude : « à mettre à jour pour contrôle de l'urbanisme aussi ». `renderQuestionsZonesPreemption(section, rep, manques, lignes)` (client/46) : sections « Bien vendu » et « Agricole et forestier » groupées par zone avec les mêmes groupes que la Constitution (`questionsUrbanismeConstitution`, client/81 ; copropriété d'après « Nature du bien »), à répondre et répondues visibles, les autres de la zone repliées ; une seule zone et aucune parcelle à cheval → la liste d'avant (`renderQuestionsPreemption`). Nature de la mutation inchangée. « concerne » cite une parcelle à cheval une seule fois.

@@ -322,6 +322,28 @@
         </div>`).join('');
   }
 
+  // Questions du bien et du rural selon la zone de chaque parcelle (étude 16/10 : « les questions s'adaptent au zonage de la parcelle, aux
+  // parcelles mixtes et à une même parcelle à cheval » — « à mettre à jour pour le Contrôle de l'urbanisme aussi ») : mêmes groupes que la
+  // Constitution de dossier (`questionsUrbanismeConstitution`, client/81). Une seule zone lue (ou aucune) : la liste d'avant.
+  function renderQuestionsZonesPreemption(section, rep, manques, lignes) {
+    const groupes = typeof questionsUrbanismeConstitution === 'function'
+      ? questionsUrbanismeConstitution({ droits: [], lignes, reponses: rep, insee: prEtat && prEtat.insee }, rep.bien === 'lot-copro' ? 'copropriete' : '') : [];
+    const deSection = (q) => { const d = QUESTIONS_PREEMPTION.find(x => x.cle === q.cle); return d && d.section === section; };
+    const parZone = groupes.map(g => Object.assign({}, g, { questions: g.questions.filter(deSection) })).filter(g => g.questions.length);
+    if (parZone.length <= 1 && !(lignes || []).some(l => !l.choisie && Array.isArray(l.autresFamilles) && l.autresFamilles.length)) return renderQuestionsPreemption(section, rep, manques);
+    const ligne = q => `<div class="pr-question${q.due ? ' pr-question-due' : ''}">
+        <span class="pr-question-texte">${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}${q.concerne.length ? `<span class="hint"> — concerne ${escapeHtml(q.concerne.join(', '))}</span>` : ''}</span>
+        ${boutonOuiNonPreemption(q.cle, rep[q.cle])}
+      </div>`;
+    return parZone.map(g => {
+      const visibles = g.questions.filter(q => q.due || q.reponse != null);
+      const autres = g.questions.filter(q => !q.due && q.reponse == null);
+      return `<div class="pr-questions-zone"><div class="section-eyebrow">${escapeHtml(g.titre)}${g.parcelles.length ? ` <span class="hint">${escapeHtml(g.parcelles.join(', '))}</span>` : ''}</div>
+        ${visibles.map(ligne).join('') || '<p class="hint">Rien à répondre pour cette zone.</p>'}
+        ${autres.length ? `<details class="cst-questions-autres"><summary>Autres questions de cette zone (${autres.length})</summary>${autres.map(ligne).join('')}</details>` : ''}</div>`;
+    }).join('');
+  }
+
   function selectPreemption(cle, liste, valeur, vide) {
     return `<select id="pr-${cle}" onchange="repondrePreemption('${cle}', this.value)">
       ${vide ? `<option value="">${escapeHtml(vide)}</option>` : ''}
@@ -423,6 +445,7 @@
       if (actif) { const el = document.getElementById(actif); if (el && el.focus) el.focus(); }
     }
 
+    const lignesQ = lignesZonageParcelles(e.zonages || [], rep.zonesParcelles);
     const mutation = document.getElementById('pr-mutation-zone');
     if (mutation) mutation.innerHTML = `<div class="calc-champ"><label for="pr-mutation">Nature de la mutation</label>${selectPreemption('mutation', MUTATIONS_PREEMPTION, rep.mutation || '', 'Choisir…')}</div>
       ${renderQuestionsPreemption('mutation', rep, analyse.manques)}`;
@@ -434,12 +457,12 @@
           <div class="calc-champ"><label for="pr-bien">Nature du bien</label>${selectPreemption('bien', BIENS_PREEMPTION, rep.bien || '', 'Choisir…')}</div>
           ${avecCas ? `<div class="calc-champ"><label for="pr-casBati">Cas particulier</label>${selectPreemption('casBati', CAS_BATI_PREEMPTION, rep.casBati || 'standard')}</div>` : ''}
         </div>
-        ${renderQuestionsPreemption('bien', rep, analyse.manques)}`;
+        ${renderQuestionsZonesPreemption('bien', rep, analyse.manques, lignesQ)}`;
     }
 
     const rural = document.getElementById('pr-rural-zone');
     if (rural) {
-      const questions = renderQuestionsPreemption('rural', rep, analyse.manques);
+      const questions = renderQuestionsZonesPreemption('rural', rep, analyse.manques, lignesQ);
       rural.innerHTML = questions || '<p class="hint">Rien à préciser : ni la SAFER ni le code forestier ne demandent d’autre réponse.</p>';
     }
 

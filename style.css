@@ -9308,6 +9308,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-question { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: var(--texte-m); }
 .pr-question-texte { min-width: 0; }
 .pr-question-due .pr-question-texte { font-weight: 500; }
+.pr-questions-zone { margin-top: 12px; }
+.pr-questions-zone .section-eyebrow .hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .pr-question wa-button-group { flex-shrink: 0; }
 .pr-droits { display: flex; flex-direction: column; gap: 12px; }
 .pr-droit { padding: 12px 16px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
