@@ -56,10 +56,17 @@ function assainirDepot(e) {
   };
 }
 
+/** Pure : le code de la commune dans la base — un arrondissement de Paris (75101 à 75120, donné par la base des codes postaux) est
+ * Paris (75056), où la DIA se dépose pour toute la ville. @param {unknown} insee */
+function codeCommuneBase(insee) {
+  const code = String(insee || '').toUpperCase();
+  return /^751(0[1-9]|1\d|20)$/.test(code) ? '75056' : code;
+}
+
 /** Pure : le dépôt d'une commune — correction de l'étude, sinon exception de la commune, sinon son intercommunalité, sinon « à vérifier ».
  * @param {any} base @param {any} corrections { [insee]: entrée } @param {string} insee */
 function depotPourCommune(base, corrections, insee) {
-  const code = String(insee || '').toUpperCase();
+  const code = codeCommuneBase(insee);
   const c = base && base.communes && base.communes[code];
   if (!c) return { insee: code, connue: false, commune: '', epci: null, origine: 'aucun', depot: assainirDepot({}) };
   const epci = c.epci && base.epci && base.epci[c.epci] ? { code: c.epci, nom: String(base.epci[c.epci].nom || '') } : null;
@@ -141,4 +148,5 @@ function ecrireCorrection(parametresRepo, insee, entree, par) {
 
 function viderCacheDepotDia() { cacheMairies.clear(); baseChargee = null; }
 
-module.exports = { baseDepotDia, assainirDepot, depotPourCommune, ficheMairieDepuisAnnuaire, ficheMairie, lireCorrections, ecrireCorrection, urlSure, courrielSur, viderCacheDepotDia, MODES };
+module.exports = {
+  codeCommuneBase, baseDepotDia, assainirDepot, depotPourCommune, ficheMairieDepuisAnnuaire, ficheMairie, lireCorrections, ecrireCorrection, urlSure, courrielSur, viderCacheDepotDia, MODES };

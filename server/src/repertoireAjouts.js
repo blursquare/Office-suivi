@@ -6,7 +6,7 @@
 // Un lot s'applique UNE fois à un répertoire déjà enregistré (parametresRepo.lireRepertoire) : un contact que l'étude retire ensuite
 // ne revient jamais, un contact qu'elle a déjà modifié (même id) n'est pas touché. Un nouveau lot = une nouvelle entrée de LOTS_REPERTOIRE.
 
-/** @typedef {{ id: string, theme: string, organisme: string, service: string, personnes?: string[], adresse?: string }} ContactLot */
+/** @typedef {{ id: string, theme: string, organisme: string, service: string, personnes?: string[], adresse?: string, emails?: string[], liens?: string[], notes?: string }} ContactLot */
 /** @type {{ lot: string, source: string, contacts: ContactLot[] }[]} */
 const LOTS_REPERTOIRE = [
   {
@@ -115,6 +115,26 @@ const LOTS_REPERTOIRE = [
       { id: "rep-syndic-agence-centrale", theme: "syndics", organisme: "Agence centrale", service: '', adresse: "POITIERS (86000)" },
       { id: "rep-syndic-agence-centrale-immobiliere-de-la-foucha", theme: "syndics", organisme: "Agence Centrale Immobilière de la Fouchardière", service: '', adresse: "POITIERS (86000)" },
       { id: "rep-syndic-balma-gestion", theme: "syndics", organisme: "BALMA GESTION", service: '', adresse: "PARIS 3ème arrondissement (75003)" }
+    ]
+  },
+  {
+    // Étude 16/10 : « recherche aussi les différents services pour la ville de Paris » — pages de la Ville lues le 16/10/2026.
+    lot: 'paris-services-urbanisme-2026-10-16',
+    source: 'Pages de la Ville de Paris, 16/10/2026',
+    contacts: [
+      { id: 'rep-paris-dia', theme: 'mairies', organisme: 'Ville de Paris', service: 'Déclarations d’intention d’aliéner (DIA)',
+        liens: ['https://dia.paris.fr/dia/jsp/site/Portal.jsp?page=accueil'], notes: 'Dépôt en ligne (compte paris.fr ou FranceConnect) ; papier possible, cerfa 10072*04.' },
+      { id: 'rep-paris-basu', theme: 'mairies', organisme: 'Ville de Paris', service: 'Certificats d’urbanisme — BASU', adresse: '6 promenade Claude Lévi-Strauss, CS 51388, 75639 PARIS CEDEX 13',
+        liens: ['https://teleservices.paris.fr/demarchesurbanisme'], notes: 'CU d’information (CUa) en ligne ; sinon en deux exemplaires par lettre recommandée. CU opérationnel (CUb) : réponse en deux mois.' },
+      { id: 'rep-paris-renseignements-urbanisme', theme: 'mairies', organisme: 'Ville de Paris', service: 'Notice de renseignements d’urbanisme (NRU)',
+        liens: ['https://www.paris.fr/pages/les-renseignements-d-urbanisme-ru-2345'], notes: 'En ligne ; porte l’alignement et le droit de préemption (pas de certificat d’alignement à part).' },
+      { id: 'rep-paris-numerotage', theme: 'mairies', organisme: 'Ville de Paris', service: 'Direction de l’Urbanisme — Topographie et Documentation Foncière (numérotage)',
+        adresse: '121 avenue de France, 75013 PARIS', emails: ['DU-DTDF-Numerotage@paris.fr'] },
+      { id: 'rep-paris-peril-prefecture', theme: 'mairies', organisme: 'Préfecture de Police', service: 'Péril des immeubles qui ne sont pas surtout d’habitation', adresse: '1 bis rue de Lutèce, 75004 PARIS',
+        notes: 'Immeuble surtout d’habitation : la Ville de Paris (mairie d’arrondissement).' },
+      { id: 'rep-paris-assainissement', theme: 'mairies', organisme: 'Ville de Paris', service: 'Service technique de l’eau et de l’assainissement — pôle usagers',
+        emails: ['eau-assainissement@paris.fr'], liens: ['https://cdn.paris.fr/paris/2025/01/02/formulairecontrolesecteurseparatif2025-OjTc.pdf'],
+        notes: 'Certificat d’assainissement sur la carte en ligne de la Ville ; en secteur séparatif, contrôle payant avant une vente (formulaire, RIB et plan).' }
     ]
   }
 ];

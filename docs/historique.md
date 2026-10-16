@@ -20451,3 +20451,16 @@ DIA non citée → « à vérifier » avec le lien ; Chaon au RNU. Romorantinais
 hors portail (page « en construction »). Perche et Haut Vendômois : pas de guichet (annoncé) → dépôt en mairie. Collines du Perche, Sologne
 des Étangs : aucun guichet trouvé, coordonnées notées. Portails SIRAP non lisibles depuis l'environnement (CloudFront). Services de la Ville de
 Paris (DIA en ligne dia.paris.fr, CU, NRU, numérotage, péril, assainissement) recherchés, non intégrés (Paris hors des départements de la base).
+
+### 16/10/2026 22 h 56 — Paris : DIA, courriers de la Constitution, Répertoire (0.270.0)
+
+Demande : « Oui » (ajouter les services de la Ville de Paris trouvés le 16/10). Base « Où déposer la DIA » : Paris (75056, Métropole du
+Grand Paris) ajouté au découpage, entrée `75.recherche.json` (téléservice https://dia.paris.fr, papier possible cerfa 10072*04) ; un
+arrondissement 75101-75120 (code rendu par la base des codes postaux d'apicarto) est ramené à Paris par `codeCommuneBase` (lecture et
+corrections de l'étude). Constitution (`commun/constitution.js`, `estParis`) : alignement/numérotage → courriel à du-dtdf-numerotage@paris.fr
+(destinataire « Ville de Paris, Direction de l'Urbanisme, DTDF, 121 avenue de France »), l'alignement figurant dans la NRU en ligne ; péril →
+papier à la mairie (fiche de la mairie d'arrondissement de l'annuaire), note Préfecture de Police pour un immeuble qui n'est pas surtout
+d'habitation ; assainissement → « en ligne » avec le lien du formulaire de contrôle en secteur séparatif (`url` d'un circuit, « Ouvrir la
+démarche » sur la ligne). Répertoire : lot `paris-services-urbanisme-2026-10-16` (thème mairies, seuls emails et liens de paris.fr). Non trouvé :
+adresse postale du service de la Ville qui répond pour le péril (la mairie d'arrondissement est prise), adresse exacte de la carte
+d'assainissement.

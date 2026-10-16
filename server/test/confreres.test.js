@@ -213,7 +213,13 @@ test('lots du répertoire : identifiants uniques, thèmes connus, aucune coordon
   const ids = tous.concat(REPERTOIRE_INITIAL).map((c) => c.id);
   assert.equal(new Set(ids).size, ids.length, 'identifiant en double');
   assert.ok(tous.every((c) => themes.has(c.theme) && (c.organisme || (c.personnes || []).length) && assainirContact({ ...c, source: 'x' })));
-  assert.ok(tous.every((c) => !c.telephones && !c.emails), 'le relevé n\'a ni téléphone ni email : rien n\'est inventé');
+  const authentic = LOTS_REPERTOIRE.find((l) => l.lot === 'authentic-agences-syndics-2026-10-05').contacts;
+  assert.ok(authentic.every((c) => !c.telephones && !c.emails), 'le relevé d\'Authentic n\'a ni téléphone ni email : rien n\'est inventé');
+  // Services de la Ville de Paris (16/10) : adresses et liens des seules pages officielles lues.
+  const paris = LOTS_REPERTOIRE.find((l) => l.lot === 'paris-services-urbanisme-2026-10-16').contacts;
+  assert.ok(paris.every((c) => c.theme === 'mairies' && !c.telephones));
+  assert.ok(paris.flatMap((c) => c.emails || []).every((e) => /@paris\.fr$/i.test(e)));
+  assert.ok(paris.flatMap((c) => c.liens || []).every((l) => /^https:\/\/([a-z.]+\.)?paris\.fr\//.test(l)));
   assert.ok(tous.some((c) => c.theme === 'syndics') && tous.some((c) => c.theme === 'immobilier'));
 });
 

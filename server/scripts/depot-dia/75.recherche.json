@@ -1,0 +1,16 @@
+[
+ {
+  "portee": "commune",
+  "code": "75056",
+  "nom": "Paris",
+  "mode": "guichet",
+  "plateforme": "Téléservice DIA de la Ville de Paris",
+  "url": "https://dia.paris.fr/dia/jsp/site/Portal.jsp?page=accueil",
+  "courriel": "",
+  "notairesSeulement": false,
+  "perimetre": "",
+  "note": "Dépôt en ligne avec un compte paris.fr ou FranceConnect ; le papier reste possible (cerfa 10072*04). La Métropole du Grand Paris ne reçoit pas la DIA de Paris.",
+  "source": "https://dia.paris.fr/dia/jsp/site/Portal.jsp?page=accueil",
+  "verifieLe": "2026-10-16"
+ }
+]

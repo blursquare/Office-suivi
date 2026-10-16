@@ -14,6 +14,21 @@ test('circuits : Blois = pas de péril (site des notaires), numérotage par cour
   assert.equal(K.circuitCourrierVente('assainissement', blois).destinataire, 'agglopolys');
 });
 
+test('circuits : Paris (et ses arrondissements) = numérotage par courriel à la Direction de l’Urbanisme, péril en mairie, assainissement en ligne', () => {
+  for (const insee of ['75056', '75108', '75120']) {
+    const a = K.circuitCourrierVente('alignement', { insee, epci: '200054781' });
+    assert.deepEqual([a.mode, a.destinataire, a.courriel], ['courriel', 'paris-numerotage', 'du-dtdf-numerotage@paris.fr']);
+    assert.equal(K.circuitCourrierVente('peril', { insee }).destinataire, 'mairie');
+    assert.match(K.circuitCourrierVente('peril', { insee }).note, /Préfecture de Police/);
+    const s = K.circuitCourrierVente('assainissement', { insee });
+    assert.deepEqual([s.mode, s.destinataire], ['en-ligne', 'paris-assainissement']);
+    assert.match(s.url, /^https:\/\/cdn\.paris\.fr\//);
+  }
+  assert.equal(K.estParis('75121'), false);
+  assert.equal(K.estParis('77056'), false);
+  assert.equal(K.DESTINATAIRES_CONNUS['paris-numerotage'].lignes.at(-1), '75013 PARIS');
+});
+
 test('circuits : autre commune d’Agglopolys = papier à la mairie sauf l’assainissement ; Grand Chambord = communauté de communes', () => {
   const sulpice = { insee: '41230', epci: '200030385' };
   assert.equal(K.circuitCourrierVente('alignement', sulpice).destinataire, 'mairie');

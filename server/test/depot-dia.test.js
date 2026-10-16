@@ -6,7 +6,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
-const { assainirDepot, depotPourCommune, ficheMairieDepuisAnnuaire, ficheMairie, urlSure, courrielSur, viderCacheDepotDia, baseDepotDia } = require('../src/depotDia');
+const { codeCommuneBase, assainirDepot, depotPourCommune, ficheMairieDepuisAnnuaire, ficheMairie, urlSure, courrielSur, viderCacheDepotDia, baseDepotDia } = require('../src/depotDia');
 const { creerRouteurDepotDia } = require('../src/routes/depotDia');
 const { assembler, entreeRetenue } = require('../scripts/assembler-depot-dia');
 
@@ -71,6 +71,19 @@ test('base livrée, Loir-et-Cher (recherche du 16/10) : GNAU de Grand Chambord e
   assert.equal(chaumont.depot.mode, 'inconnu');
   assert.equal(chaumont.depot.url, 'https://portail-usager.sirap.com/041046/connexion');
   assert.equal(depotPourCommune(b, {}, '41194').depot.courriel, 'urbanisme@romorantin.fr');
+});
+
+test('base livrée, Paris : DIA en ligne sur le téléservice de la Ville, arrondissements ramenés à Paris, correction rangée sous Paris', () => {
+  viderCacheDepotDia();
+  const b = baseDepotDia();
+  for (const insee of ['75056', '75108', '75120']) {
+    const r = depotPourCommune(b, {}, insee);
+    assert.equal(r.commune, 'Paris');
+    assert.equal(r.depot.mode, 'guichet');
+    assert.match(r.depot.url, /^https:\/\/dia\.paris\.fr\//);
+  }
+  assert.equal(codeCommuneBase('75121'), '75121');
+  assert.equal(depotPourCommune(b, { '75056': { mode: 'courrier', note: 'Papier' } }, '75108').origine, 'etude');
 });
 
 test('base livrée : chaque commune connue pointe une intercommunalité connue, aucun mode sans page lue, adresses sûres', () => {

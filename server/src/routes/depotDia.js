@@ -3,7 +3,7 @@
 
 const express = require('express');
 const { noterVerification } = require('../verificationsTerrain');
-const { baseDepotDia, depotPourCommune, ficheMairie, lireCorrections, ecrireCorrection, assainirDepot } = require('../depotDia');
+const { codeCommuneBase, baseDepotDia, depotPourCommune, ficheMairie, lireCorrections, ecrireCorrection, assainirDepot } = require('../depotDia');
 
 const routeAsync = (fn) => (req, res) => {
   Promise.resolve(fn(req, res)).catch((err) => {
@@ -30,7 +30,7 @@ function creerRouteurDepotDia(parametresRepo, injections = {}) {
 
   // L'étude corrige ce qu'elle constate : le dépôt de CETTE commune, par-dessus la base.
   routeur.put('/urbanisme/depot-dia/:insee', routeAsync(async (req, res) => {
-    const insee = String(req.params.insee || '').toUpperCase();
+    const insee = codeCommuneBase(req.params.insee);
     if (!INSEE.test(insee) || !baseDepotDia().communes[insee]) { res.status(404).json({ erreur: 'Commune inconnue de la base.' }); return; }
     // La correction garde ce que le formulaire ne montre pas (réservé aux notaires, périmètre) ; elle ne vient d'aucune page lue : pas de source.
     const courant = depotPourCommune(baseDepotDia(), lireCorrections(parametresRepo), insee).depot;
@@ -47,7 +47,7 @@ function creerRouteurDepotDia(parametresRepo, injections = {}) {
   }));
 
   routeur.delete('/urbanisme/depot-dia/:insee', routeAsync(async (req, res) => {
-    const insee = String(req.params.insee || '').toUpperCase();
+    const insee = codeCommuneBase(req.params.insee);
     if (!INSEE.test(insee)) { res.status(400).json({ erreur: 'Code INSEE invalide.' }); return; }
     ecrireCorrection(parametresRepo, insee, null, '');
     res.json({ ok: true });

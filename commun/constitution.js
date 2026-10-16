@@ -14,6 +14,14 @@
   const URL_GNAU_CHAILLES = 'https://portail-usager.sirap.com/041032/connexion';
   /** Courriel du service qui reçoit, pour les notaires, les demandes de numérotage et d'alignement à Blois (dicté par l'étude, à confirmer). */
   const COURRIEL_GEOMETRE_BLOIS = 'geometres.notaires@blois.fr';
+  // Paris (recherche du 16/10, pages de la Ville) : numérotage par courriel à la Direction de l'Urbanisme (l'alignement figure dans la
+  // notice de renseignements d'urbanisme, en ligne) ; assainissement : certificat de la Ville, contrôle payant en secteur séparatif.
+  const COURRIEL_NUMEROTAGE_PARIS = 'du-dtdf-numerotage@paris.fr';
+  const URL_RENSEIGNEMENTS_URBANISME_PARIS = 'https://www.paris.fr/pages/les-renseignements-d-urbanisme-ru-2345';
+  const URL_CONTROLE_ASSAINISSEMENT_PARIS = 'https://cdn.paris.fr/paris/2025/01/02/formulairecontrolesecteurseparatif2025-OjTc.pdf';
+
+  /** Pure : la commune est Paris (75056 ou un arrondissement 75101 à 75120). @param {string} insee */
+  function estParis(insee) { return /^75(056|1(0[1-9]|1\d|20))$/.test(String(insee || '')); }
 
   /** Les trois courriers papier d'une vente (le CU et la DIA passent par les guichets uniques, GNAU : jamais un courrier). */
   const COURRIERS_VENTE = [
@@ -25,7 +33,8 @@
   /** Adresses des destinataires connus de l'étude (celles du modèle Word) ; le reste se saisit et se retient (clé `constitution-adresses`). */
   const DESTINATAIRES_CONNUS = {
     agglopolys: { libelle: 'Agglopolys — Service de l’Assainissement', lignes: ['AGGLOPOLYS', 'Service de l’Assainissement', '1 rue Honoré de Balzac', '41000 BLOIS'] },
-    'grand-chambord': { libelle: 'Communauté de communes du Grand Chambord', lignes: ['COMMUNAUTÉ DE COMMUNES DU GRAND CHAMBORD', 'Service Eau et Assainissement', '22 avenue de la Sablière', '41250 BRACIEUX'] }
+    'grand-chambord': { libelle: 'Communauté de communes du Grand Chambord', lignes: ['COMMUNAUTÉ DE COMMUNES DU GRAND CHAMBORD', 'Service Eau et Assainissement', '22 avenue de la Sablière', '41250 BRACIEUX'] },
+    'paris-numerotage': { libelle: 'Ville de Paris — Direction de l’Urbanisme (numérotage)', lignes: ['VILLE DE PARIS', 'Direction de l’Urbanisme', 'Département de la Topographie et de la Documentation Foncière', '121 avenue de France', '75013 PARIS'] }
   };
 
   /**
@@ -34,7 +43,7 @@
    * Assainissement : à Agglopolys pour ses communes (Blois comprise), à la communauté de communes pour Grand Chambord, sinon à la
    * mairie ; toujours en papier. Autres communes : papier à la mairie.
    * @param {string} cle @param {{ insee?: string, epci?: string }} commune
-   * @returns {{ mode: 'papier' | 'courriel' | 'en-ligne', destinataire: string, courriel: string, note: string }}
+   * @returns {{ mode: 'papier' | 'courriel' | 'en-ligne', destinataire: string, courriel: string, note: string, url?: string }}
    */
   function circuitCourrierVente(cle, commune) {
     const insee = String((commune && commune.insee) || '');
@@ -44,6 +53,14 @@
     }
     if (cle === 'alignement' && insee === INSEE_BLOIS) {
       return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service des géomètres dédié aux notaires.' };
+    }
+    if (estParis(insee)) {
+      if (cle === 'alignement') return { mode: 'courriel', destinataire: 'paris-numerotage', courriel: COURRIEL_NUMEROTAGE_PARIS, url: URL_RENSEIGNEMENTS_URBANISME_PARIS,
+        note: 'À Paris, le certificat de numérotage se demande par courriel à la Direction de l’Urbanisme ; pas de certificat d’alignement : l’alignement figure dans la notice de renseignements d’urbanisme (en ligne).' };
+      if (cle === 'peril') return { mode: 'papier', destinataire: 'mairie', courriel: '',
+        note: 'À Paris : la Ville (mairie d’arrondissement) pour un immeuble surtout d’habitation ; sinon la Préfecture de Police, 1 bis rue de Lutèce, 75004 Paris.' };
+      if (cle === 'assainissement') return { mode: 'en-ligne', destinataire: 'paris-assainissement', courriel: '', url: URL_CONTROLE_ASSAINISSEMENT_PARIS,
+        note: 'À Paris, pas de courrier : certificat d’assainissement sur la carte en ligne de la Ville ; en secteur séparatif, contrôle payant (formulaire, RIB et plan à eau-assainissement@paris.fr).' };
     }
     if (cle === 'assainissement') {
       if (epci === EPCI_AGGLOPOLYS) return { mode: 'papier', destinataire: 'agglopolys', courriel: '', note: 'Commune d’Agglopolys : le courrier d’assainissement part à Agglopolys.' };
@@ -315,7 +332,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {
