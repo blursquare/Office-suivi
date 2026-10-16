@@ -26,22 +26,26 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
 
 1. Dans CLAIRE, vérifier le dossier : **fiche du bien ouverte dans Authentic** (parcelles et surfaces), **fiche client de chaque
    vendeur** ouverte dans Authentic (naissance, domicile, profession), prix, honoraires et **à la charge de qui**.
-2. Dans Chrome, se connecter au guichet unique de la commune et **ouvrir le brouillon** de la DIA ou du CU (formulaire CERFA
-   actuel ; l'ancien formulaire, codes « DI… », est refusé).
+2. Dans Chrome, se connecter au guichet unique de la commune (page d'accueil, ou un brouillon déjà commencé).
 3. Dans le panneau : taper le nom du dossier, la commune ou la référence → cliquer le dossier ; choisir la **démarche** (CUa ou DIA).
-   Ce qui manque dans CLAIRE s'affiche en orange (« À compléter… ») : compléter dans CLAIRE puis recliquer le dossier, ou saisir
-   ces champs à la main.
-4. **Remplir la page affichée**. CLAIRE remplit les champs de cette page (✓) ; Échap ou « Reprendre la main » met en pause.
-5. Relire. Cocher vous-même les cases du CERFA (le guichet recalcule ses listes à partir de vos clics).
-6. Passer à la page suivante du guichet (bouton du guichet), puis **Remplir la page affichée** de nouveau, et ainsi de suite.
-7. Les lignes **⧉ « emplacement pas encore relevé »** : bouton **Copier** → coller dans le champ du guichet. La valeur est déjà au
-   format du guichet (date `JJMMAAAA`, prix `209000`, prix en lettres, parcelles `¢EV¢10¢606¢`…).
-8. Dernière page : relire tout, puis valider et transmettre **vous-même**.
+   Ce qui manque dans CLAIRE s'affiche en orange (« À compléter… »).
+4. **CLAIRE prend la main** : sur la page d'accueil, CLAIRE clique « Nouvelle demande / Déposer une demande », puis « Certificat
+   d'urbanisme » › « d'information » ou « Déclaration d'intention d'aliéner » ; sur chaque page du formulaire elle remplit les champs
+   qu'elle reconnaît (code CERFA, sinon libellé dans sa rubrique : « Nom » sous « Propriétaire »), **jamais par-dessus une valeur déjà
+   là** (le demandeur pré-rempli reste), puis clique « Suivant ». Elle s'arrête quand il n'y a plus de « Suivant » — devant
+   « Valider », « Déposer », « Transmettre », « Signer »…, qu'elle ne clique jamais. Échap ou « Reprendre la main » : pause.
+5. Relire chaque page (bouton « Précédent » du guichet), cocher les cases du CERFA, compléter ce qui reste.
+6. Les lignes **⧉ « à coller à la main »** et les champs « pas sur cette page » : bouton **Copier** → coller dans le guichet. La valeur
+   est déjà au format du guichet (date `JJMMAAAA`, prix `209000`, prix en lettres, parcelles `¢EV¢10¢606¢`…).
+7. Valider et transmettre **vous-même**.
+
+**Remplir seulement la page affichée** : même remplissage, sans ouvrir de démarche ni cliquer « Suivant ».
 
 ## Faire progresser l'extension
 
-Les champs remplis seuls sont ceux dont le code CERFA est connu (vendeur `AI1NP1`/`AI1PP1`, 2ᵉ propriétaire `AI1NP2`/`AI1PP2`,
-superficie `D5T`, signature `E1L`/`E1D`/`E1S`, terrain du CUa `T2Q`/`T2V`/`T2L`/`T2C`). Pour les autres, sur chaque page du guichet :
+Les champs sont trouvés par leur code CERFA quand il est connu (vendeur `AI1NP1`/`AI1PP1`, 2ᵉ propriétaire `AI1NP2`/`AI1PP2`, superficie
+`D5T`, signature `E1L`/`E1D`/`E1S`, terrain du CUa `T2Q`/`T2V`/`T2L`/`T2C`), sinon par leur libellé et leur rubrique — à éprouver sur le
+vrai guichet, qui n'a pas encore été vu. Si un champ n'est pas trouvé ou si une étape ne se clique pas, sur la page concernée :
 **Copier la structure de la page (sans données)** (lien sous le bouton) et coller le résultat dans la conversation avec Claude : il
 contient les noms, identifiants, libellés et options des champs, **jamais une valeur saisie**. Les scénarios
 (`scenarios/cua-gnau.json`, `scenarios/dia-gnau.json`) reçoivent alors les vrais emplacements.

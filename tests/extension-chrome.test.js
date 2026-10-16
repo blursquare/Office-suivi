@@ -33,10 +33,10 @@ test('CUa : terrain, parcelles au format du guichet, superficie, signature', () 
   const v = valeurs(scenario('cua-gnau.json'), ficheGnau(dossier, 'cua', '2026-10-16'));
   assert.equal(v['Terrain — voie (code T2V)'], 'rue des Vignes');
   assert.equal(v['Terrain — numéro (code T2Q, à confirmer)'], '12');
-  assert.equal(v['Parcelles (format du guichet)'], '¢EV¢10¢606¢¡¢EV¢11¢598¢');
+  assert.equal(v['Parcelles (format du guichet, à coller si besoin)'], '¢EV¢10¢606¢¡¢EV¢11¢598¢');
   assert.equal(v['Superficie totale du terrain, m² (code D5T)'], '1204');
   assert.equal(v['Le (code E1D)'], '16102026');
-  assert.equal(v['Signature (code E1S)'], 'Maître Sophie GOSSART');
+  assert.equal(v['Signataire (code E1S)'], 'Maître Sophie GOSSART');
 });
 
 test('DIA : vendeur, codemandeur, naissance JJMMAAAA, prix en lettres, lots, commission', () => {
@@ -50,9 +50,9 @@ test('DIA : vendeur, codemandeur, naissance JJMMAAAA, prix en lettres, lots, com
   assert.equal(v['Prix, en chiffres'], '92500');
   assert.equal(v['Prix, en lettres'], 'quatre-vingt-douze-mille-cinq-cents euros');
   assert.equal(v['Mobilier, en chiffres'], '3000');
-  assert.equal(v['Parcelles (format du guichet)'], '¢EV¢10¢¢12 RUE DES VIGNES¢VINEUIL¢606¢¡¢EV¢11¢¢12 RUE DES VIGNES¢VINEUIL¢598¢');
-  assert.equal(v['Lots de copropriété (format du guichet)'], '4¢B¢1¢128/1000¢Un appartement¢44');
-  assert.equal(v['Commission (format du guichet)'], '0¢false¢true¢4500¢4500¢false¢true¢');
+  assert.equal(v['Parcelles (format du guichet, à coller si besoin)'], '¢EV¢10¢¢12 RUE DES VIGNES¢VINEUIL¢606¢¡¢EV¢11¢¢12 RUE DES VIGNES¢VINEUIL¢598¢');
+  assert.equal(v['Lots de copropriété (format du guichet, à coller si besoin)'], '4¢B¢1¢128/1000¢Un appartement¢44');
+  assert.equal(v['Commission (format du guichet, à coller si besoin)'], '0¢false¢true¢4500¢4500¢false¢true¢');
   // Pas de fiche client lue pour Léa : sa date de naissance reste vide, jamais devinée.
   assert.equal(v['Codemandeur 1 — date de naissance'], null);
 });
@@ -76,4 +76,20 @@ test('prix en lettres : millions au pluriel et « d’euros » pour un nombre ro
   assert.equal(t(1250000), 'un-million-deux-cent-cinquante-mille euros');
   assert.equal(t(80), 'quatre-vingts euros');
   assert.equal(t(81000), 'quatre-vingt-un-mille euros');
+});
+
+test('CLAIRE pilote le guichet : ouverture de la démarche par le texte, champs par code puis libellé, jamais un bouton de validation', () => {
+  for (const f of ['cua-gnau.json', 'dia-gnau.json']) {
+    const sc = scenario(f);
+    assert.equal(sc.auto, true);
+    assert.ok(sc.etapes.length >= 2 && sc.etapes.every((e) => e.label && e.textes.length));
+    const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier)/i;
+    // Aucune étape ni « Suivant » ne vise un bouton de la liste noire.
+    for (const motif of [...sc.etapes.flatMap((e) => e.textes), ...sc.suivant]) assert.ok(!FORBIDDEN.test(motif.replace(/\\./g, '')), motif);
+    const champs = sc.pages.flatMap((p) => p.fields);
+    // Tout champ a un code CERFA, un libellé, ou se copie (format du guichet) — jamais rien.
+    for (const c of champs.flatMap((c) => c.forEach ? c.fields : [c])) assert.ok(c.code || (c.libelles && c.libelles.length) || c.choix || c.encoded || /Codemandeur|propriétaire/.test(c.label), c.label);
+  }
+  assert.ok(scenario('dia-gnau.json').etapes.some((e) => e.textes.some((t) => new RegExp(t).test("declaration d'intention d'aliener (dia)"))));
+  assert.ok(scenario('cua-gnau.json').etapes.some((e) => e.textes.some((t) => new RegExp(t).test("certificat d'urbanisme"))));
 });

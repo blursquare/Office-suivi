@@ -148,6 +148,12 @@ async function handle(msg, sender) {
         r.fields[msg.key] = { state: msg.state, detail: msg.detail || "" };
       });
       return { ok: true };
+    case "content.etape":
+      await mutate((r) => {
+        r.etapesFaites = (r.etapesFaites || []).concat(String(msg.label || "")).slice(-20);
+        addLog(r, `Étape : ${msg.label}`);
+      });
+      return { ok: true };
     case "content.advance":
       await mutate((r) => {
         r.pageIndex = msg.pageIndex;

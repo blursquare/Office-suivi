@@ -1,56 +1,512 @@
 {
-  "id": "dia-gnau",
-  "name": "DIA — guichet unique (GNAU)",
-  "version": 1,
-  "pageAffichee": true,
-  "refuserSiNoms": "^DI[0-9A-Z]",
-  "attendreNoms": "^AI1",
-  "note": "Codes de champs du CERFA actuel relevés par l'étude sur le GNAU d'Agglopolys (HANDOFF §10). Ancien CERFA (codes DI…) : arrêt. Les cases du CERFA se cochent à la main (le guichet recalcule ses listes cachées). Les champs sans code se copient depuis le panneau tant que leur emplacement n'est pas relevé.",
-  "pages": [
+ "id": "dia-gnau",
+ "name": "DIA — guichet unique (GNAU)",
+ "version": 2,
+ "auto": true,
+ "pagesMax": 30,
+ "refuserSiNoms": "^DI[0-9A-Z]",
+ "attendreNoms": "^AI1",
+ "note": "CLAIRE ouvre la démarche (Nouvelle demande › Déclaration d'intention d'aliéner), remplit chaque page puis clique « Suivant », et s'arrête avant la validation. Ancien CERFA (codes DI…) refusé. Les cases du CERFA à cocher selon l'acte restent à l'étude (le guichet recalcule ses listes cachées).",
+ "etapes": [
+  {
+   "label": "Nouvelle demande",
+   "textes": [
+    "^(nouvelle demande|deposer une( nouvelle)? demande|creer une( nouvelle)? demande|nouveau dossier|deposer un dossier|faire une demande|nouvelle demarche|deposer une demarche)$"
+   ]
+  },
+  {
+   "label": "Déclaration d'intention d'aliéner",
+   "textes": [
+    "intention d.aliener",
+    "^dia\\b"
+   ]
+  }
+ ],
+ "suivant": [
+  "^(suivant|etape suivante|page suivante|continuer|aller a l.etape suivante)( ?[>›»])?$"
+ ],
+ "pages": [
+  {
+   "title": "Toutes les pages du guichet",
+   "waitFor": "body",
+   "fields": [
     {
-      "title": "Page affichée du guichet",
-      "waitFor": "form, body",
-      "fields": [
-        { "label": "Vendeur — nom (code AI1NP1)", "source": "vendeur.nom", "code": "AI1NP1", "type": "text", "transform": "upper" },
-        { "label": "Vendeur — prénom (code AI1PP1)", "source": "vendeur.prenom", "code": "AI1PP1", "type": "text" },
-        { "label": "Vendeur — société (raison sociale)", "source": "vendeur.raisonSociale", "type": "text", "optional": true },
-        { "label": "Vendeur — date de naissance", "source": "vendeur.dateNaissance", "type": "text", "transform": "date_jjmmaaaa", "optional": true },
-        { "label": "Vendeur — commune de naissance", "source": "vendeur.lieuNaissance", "type": "text", "optional": true },
-        { "label": "Vendeur — département de naissance", "source": "vendeur.departementNaissance", "type": "text", "optional": true },
-        { "label": "Vendeur — profession", "source": "vendeur.profession", "type": "text", "optional": true },
-        { "label": "Vendeur — adresse (numéro)", "source": "vendeur.adresse.numero", "type": "text", "optional": true },
-        { "label": "Vendeur — adresse (voie)", "source": "vendeur.adresse.voie", "type": "text", "optional": true },
-        { "label": "Vendeur — code postal", "source": "vendeur.adresse.codePostal", "type": "text", "optional": true },
-        { "label": "Vendeur — commune", "source": "vendeur.adresse.commune", "type": "text", "optional": true },
-        { "label": "2ᵉ propriétaire — nom (code AI1NP2)", "source": "vendeurs.codemandeurs.0.nom", "code": "AI1NP2", "type": "text", "transform": "upper", "optional": true },
-        { "label": "2ᵉ propriétaire — prénom (code AI1PP2)", "source": "vendeurs.codemandeurs.0.prenom", "code": "AI1PP2", "type": "text", "optional": true },
-        {
-          "forEach": "vendeurs.codemandeurs", "max": 4,
-          "fields": [
-            { "label": "Codemandeur {n} — nom", "source": "{list}.{i}.nom", "type": "text", "optional": true },
-            { "label": "Codemandeur {n} — prénom", "source": "{list}.{i}.prenom", "type": "text", "optional": true },
-            { "label": "Codemandeur {n} — date de naissance", "source": "{list}.{i}.dateNaissance", "type": "text", "transform": "date_jjmmaaaa", "optional": true },
-            { "label": "Codemandeur {n} — commune de naissance", "source": "{list}.{i}.lieuNaissance", "type": "text", "optional": true },
-            { "label": "Codemandeur {n} — adresse", "source": "{list}.{i}.adresse.complete", "type": "text", "optional": true },
-            { "label": "Codemandeur {n} — profession", "source": "{list}.{i}.profession", "type": "text", "optional": true }
-          ]
-        },
-        { "label": "Parcelles (format du guichet)", "source": "parcelles", "type": "text", "transform": "parcelles_dia", "encoded": true },
-        { "label": "Superficie totale, m² (code D5T)", "source": "superficie", "code": "D5T", "type": "text", "transform": "surface", "optional": true },
-        { "label": "Lots de copropriété (format du guichet)", "source": "lots", "type": "text", "transform": "lots_copro", "encoded": true, "optional": true },
-        { "label": "Prix, en chiffres", "source": "prix", "type": "text", "transform": "entier" },
-        { "label": "Prix, en lettres", "source": "prix", "type": "text", "transform": "prix_lettres" },
-        { "label": "Mobilier, en chiffres", "source": "mobilier", "type": "text", "transform": "entier", "optional": true },
-        { "label": "Commission (format du guichet)", "source": "commission", "type": "text", "transform": "commission", "encoded": true, "optional": true },
-        { "label": "Acquéreur — nom", "source": "acquereur.nom", "type": "text", "transform": "upper", "optional": true },
-        { "label": "Acquéreur — prénom", "source": "acquereur.prenom", "type": "text", "optional": true },
-        { "label": "Acquéreur — société", "source": "acquereur.raisonSociale", "type": "text", "optional": true },
-        { "label": "Acquéreur — adresse", "source": "acquereur.adresse.complete", "type": "text", "optional": true },
-        { "label": "Acquéreur — profession", "source": "acquereur.profession", "type": "text", "optional": true },
-        { "label": "Fait à (code E1L)", "source": "signature.lieu", "code": "E1L", "type": "text" },
-        { "label": "Le (code E1D)", "source": "signature.date", "code": "E1D", "type": "text", "transform": "date_jjmmaaaa" },
-        { "label": "Signature (code E1S)", "source": "signature.signataire", "code": "E1S", "type": "text" }
-      ]
+     "label": "Vendeur — personne physique ou morale",
+     "source": "vendeur.morale",
+     "type": "choix",
+     "choix": {
+      "true": "personne morale|societe",
+      "false": "personne physique|particulier"
+     },
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — nom (code AI1NP1)",
+     "source": "vendeur.nom",
+     "code": "AI1NP1",
+     "libelles": [
+      "^nom( de naissance| de famille| patronymique)?$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "transform": "upper"
+    },
+    {
+     "label": "Vendeur — prénom (code AI1PP1)",
+     "source": "vendeur.prenom",
+     "code": "AI1PP1",
+     "libelles": [
+      "^prenoms?$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature"
+    },
+    {
+     "label": "Vendeur — société (raison sociale)",
+     "source": "vendeur.raisonSociale",
+     "libelles": [
+      "denomination|raison sociale"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — date de naissance",
+     "source": "vendeur.dateNaissance",
+     "libelles": [
+      "^date de naissance$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "transform": "date_jjmmaaaa",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — commune de naissance",
+     "source": "vendeur.lieuNaissance",
+     "libelles": [
+      "^(commune|lieu|ville) de naissance$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — département de naissance",
+     "source": "vendeur.departementNaissance",
+     "libelles": [
+      "^departement de naissance$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — pays de naissance",
+     "source": "vendeur.paysNaissance",
+     "libelles": [
+      "^pays de naissance$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — profession",
+     "source": "vendeur.profession",
+     "libelles": [
+      "^profession|categorie socio"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — adresse (numéro)",
+     "source": "vendeur.adresse.numero",
+     "libelles": [
+      "^(n[°o]|numero)( de (la )?voie)?$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — adresse (voie)",
+     "source": "vendeur.adresse.voie",
+     "libelles": [
+      "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — lieu-dit",
+     "source": "vendeur.adresse.lieuDit",
+     "libelles": [
+      "^lieu[- ]dit$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — code postal",
+     "source": "vendeur.adresse.codePostal",
+     "libelles": [
+      "^code postal$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "optional": true
+    },
+    {
+     "label": "Vendeur — commune",
+     "source": "vendeur.adresse.commune",
+     "libelles": [
+      "^(localite|commune|ville)$"
+     ],
+     "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "label": "2ᵉ propriétaire — nom (code AI1NP2)",
+     "source": "vendeurs.codemandeurs.0.nom",
+     "code": "AI1NP2",
+     "type": "text",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "label": "2ᵉ propriétaire — prénom (code AI1PP2)",
+     "source": "vendeurs.codemandeurs.0.prenom",
+     "code": "AI1PP2",
+     "type": "text",
+     "optional": true
+    },
+    {
+     "forEach": "vendeurs.codemandeurs",
+     "max": 4,
+     "fields": [
+      {
+       "label": "Codemandeur {n} — nom",
+       "source": "{list}.{i}.nom",
+       "optional": true
+      },
+      {
+       "label": "Codemandeur {n} — prénom",
+       "source": "{list}.{i}.prenom",
+       "optional": true
+      },
+      {
+       "label": "Codemandeur {n} — date de naissance",
+       "source": "{list}.{i}.dateNaissance",
+       "transform": "date_jjmmaaaa",
+       "optional": true
+      },
+      {
+       "label": "Codemandeur {n} — adresse",
+       "source": "{list}.{i}.adresse.complete",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Bien — adresse (numéro)",
+     "source": "terrain.numero",
+     "libelles": [
+      "^(n[°o]|numero)( de (la )?voie)?$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Bien — adresse (voie)",
+     "source": "terrain.voie",
+     "libelles": [
+      "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Bien — lieu-dit",
+     "source": "terrain.lieuDit",
+     "libelles": [
+      "^lieu[- ]dit$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Bien — code postal",
+     "source": "terrain.codePostal",
+     "libelles": [
+      "^code postal$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Bien — commune",
+     "source": "terrain.commune",
+     "libelles": [
+      "^(localite|commune|ville)$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "forEach": "parcelles",
+     "max": 14,
+     "fields": [
+      {
+       "label": "Parcelle {n} — préfixe",
+       "source": "{list}.{i}.prefixe",
+       "libelles": [
+        "^prefixe$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "optional": true
+      },
+      {
+       "label": "Parcelle {n} — section",
+       "source": "{list}.{i}.section",
+       "libelles": [
+        "^section$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "transform": "upper"
+      },
+      {
+       "label": "Parcelle {n} — numéro",
+       "source": "{list}.{i}.numero",
+       "libelles": [
+        "^(n[°o]|numero)( de (la )?parcelle)?$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}"
+      },
+      {
+       "label": "Parcelle {n} — superficie (m²)",
+       "source": "{list}.{i}.surface",
+       "libelles": [
+        "^(superficie|contenance|surface)( de la parcelle)?( \\(m2\\)| en m2)?$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "transform": "surface",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Parcelles (format du guichet, à coller si besoin)",
+     "source": "parcelles",
+     "type": "text",
+     "transform": "parcelles_dia",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Superficie totale, m² (code D5T)",
+     "source": "superficie",
+     "code": "D5T",
+     "libelles": [
+      "superficie (totale|du terrain)",
+      "^superficie totale"
+     ],
+     "transform": "surface",
+     "optional": true
+    },
+    {
+     "label": "Lots de copropriété (format du guichet, à coller si besoin)",
+     "source": "lots",
+     "transform": "lots_copro",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Prix, en chiffres",
+     "source": "prix",
+     "libelles": [
+      "^prix( de vente| principal| de cession)?( en chiffres| \\(en chiffres\\)| en euros| \\(euros?\\))?$",
+      "^montant (du prix|de la vente)"
+     ],
+     "rubrique": "prix|modalites|conditions|alienation|vente",
+     "transform": "entier"
+    },
+    {
+     "label": "Prix, en lettres",
+     "source": "prix",
+     "libelles": [
+      "en lettres"
+     ],
+     "rubrique": "prix|modalites|conditions|alienation|vente",
+     "transform": "prix_lettres"
+    },
+    {
+     "label": "Mobilier, en chiffres",
+     "source": "mobilier",
+     "libelles": [
+      "mobilier"
+     ],
+     "rubrique": "prix|modalites|conditions|alienation|vente|mobilier",
+     "transform": "entier",
+     "optional": true
+    },
+    {
+     "label": "Commission, montant",
+     "source": "commission.total",
+     "libelles": [
+      "^(montant de la )?commission|honoraires"
+     ],
+     "rubrique": "commission|honoraires|prix|modalites",
+     "transform": "entier",
+     "optional": true
+    },
+    {
+     "label": "Commission (format du guichet, à coller si besoin)",
+     "source": "commission",
+     "transform": "commission",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — nom",
+     "source": "acquereur.nom",
+     "libelles": [
+      "^nom( de naissance| de famille)?$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — prénom",
+     "source": "acquereur.prenom",
+     "libelles": [
+      "^prenoms?$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — société",
+     "source": "acquereur.raisonSociale",
+     "libelles": [
+      "denomination|raison sociale"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — profession",
+     "source": "acquereur.profession",
+     "libelles": [
+      "^profession|categorie socio"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — adresse (numéro)",
+     "source": "acquereur.adresse.numero",
+     "libelles": [
+      "^(n[°o]|numero)( de (la )?voie)?$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — adresse (voie)",
+     "source": "acquereur.adresse.voie",
+     "libelles": [
+      "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — lieu-dit",
+     "source": "acquereur.adresse.lieuDit",
+     "libelles": [
+      "^lieu[- ]dit$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — code postal",
+     "source": "acquereur.adresse.codePostal",
+     "libelles": [
+      "^code postal$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "optional": true
+    },
+    {
+     "label": "Acquéreur — commune",
+     "source": "acquereur.adresse.commune",
+     "libelles": [
+      "^(localite|commune|ville)$"
+     ],
+     "rubrique": "acquereur|cessionnaire|beneficiaire",
+     "horsRubrique": "mandataire|notaire",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "label": "Fait à (code E1L)",
+     "source": "signature.lieu",
+     "code": "E1L",
+     "libelles": [
+      "^(fait )?a$",
+      "^lieu( de signature)?$",
+      "^fait a$"
+     ],
+     "rubrique": "signature|engagement|date et signature"
+    },
+    {
+     "label": "Le (code E1D)",
+     "source": "signature.date",
+     "code": "E1D",
+     "libelles": [
+      "^le$",
+      "^date( de signature)?$"
+     ],
+     "rubrique": "signature|engagement|date et signature",
+     "transform": "date_jjmmaaaa"
+    },
+    {
+     "label": "Signataire (code E1S)",
+     "source": "signature.signataire",
+     "code": "E1S",
+     "libelles": [
+      "^(signature|nom du signataire|signataire|nom et qualite du signataire)$"
+     ],
+     "rubrique": "signature|engagement|date et signature"
     }
-  ]
+   ]
+  }
+ ]
 }

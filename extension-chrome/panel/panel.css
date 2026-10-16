@@ -13,7 +13,9 @@ label { display:block; font-size:12px; color:var(--mute); margin-bottom:8px; }
 select, input[type=file] { display:block; width:100%; margin-top:4px; font:inherit; color:var(--ink); }
 select { padding:6px; background:var(--bg); border:1px solid var(--line); border-radius:8px; }
 button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:8px; padding:7px 12px; cursor:pointer; }
-button#start { width:100%; background:var(--blue); color:#fff; border-color:var(--blue); margin-top:4px; }
+button#auto { width:100%; background:var(--blue); color:#fff; border-color:var(--blue); margin-top:4px; }
+button#start { width:100%; margin-top:6px; }
+.aide { font-size:12px; color:var(--mute); margin:6px 0 0; }
 button:disabled { opacity:.45; cursor:not-allowed; }
 button.danger { color:var(--err); border-color:var(--err); }
 .link-btn { border:0; background:none; color:var(--blue); padding:0 0 10px; font-size:12px; text-decoration:underline; }

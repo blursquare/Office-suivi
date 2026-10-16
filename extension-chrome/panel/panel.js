@@ -20,9 +20,9 @@ const DETAIL = {
   manuel: "emplacement pas encore relevé : Copier, puis coller dans le guichet"
 };
 const STATUS = {
-  running: ["CLAIRE remplit la page…", ""],
+  running: ["CLAIRE pilote le guichet… (Échap ou « Reprendre la main » pour l’arrêter)", ""],
   paused: ["En pause", "pause"],
-  awaiting_human: ["Page remplie — relisez ; page suivante du guichet : « Remplir la page affichée ».", "ok"],
+  awaiting_human: ["Terminé — relisez chaque page, cochez les cases, puis validez vous-même.", "ok"],
   error: ["Arrêt sur erreur", "err"],
   stopped: ["Arrêté", ""]
 };
@@ -147,14 +147,18 @@ async function init() {
   $("#enregistrer").addEventListener("click", enregistrerServeur);
   $("#recherche").addEventListener("input", () => { clearTimeout(minuterie); minuterie = setTimeout(rechercher, 250); });
 
-  $("#start").addEventListener("click", async () => {
+  // Deux façons de lancer : CLAIRE pilote tout le guichet (ouverture de la démarche, chaque page, « Suivant ») ou la page affichée seule.
+  const lancer = async (pilote) => {
     msg("#setup-msg", "");
-    // Une fiche relue à chaque page : ce qui a été corrigé dans CLAIRE entre deux pages est pris.
+    // Fiche relue à chaque lancement : ce qui a été corrigé dans CLAIRE entre-temps est pris.
     await chargerFiche();
     if (!fiche) return;
-    const r = await send({ type: "start", scenario, fiche, speed: $("#speed").value, continuer: true });
+    const sc = Object.assign({}, scenario, { auto: true, uneSeulePage: !pilote });
+    const r = await send({ type: "start", scenario: sc, fiche, speed: $("#speed").value, continuer: !pilote });
     if (r && r.error) msg("#setup-msg", r.error);
-  });
+  };
+  $("#auto").addEventListener("click", () => lancer(true));
+  $("#start").addEventListener("click", () => lancer(false));
   $("#structure").addEventListener("click", async () => {
     const r = await send({ type: "structure" });
     if (!r || r.error) { msg("#setup-msg", (r && r.error) || "Page illisible."); return; }
@@ -185,6 +189,7 @@ function render() {
   const data = fiche;
 
   $("#start").disabled = !(scenario && dossier && serveur) || !!active;
+  $("#auto").disabled = $("#start").disabled;
   $("#procedure").disabled = !!active;
 
   $("#run").hidden = !run;

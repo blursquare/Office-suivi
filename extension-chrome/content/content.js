@@ -386,6 +386,224 @@
     }
   }
 
+  // ---------- CLAIRE pilote le guichet (étude 16/10 : « que l'add-on prenne la main sur le site, choisisse CU a ou DIA et remplisse
+  // seul les champs ») ----------
+  // Sur chaque page affichée : (1) tant que le formulaire n'est pas ouvert, les étapes du scénario (« Nouvelle demande », « Certificat
+  // d'urbanisme », « information »…) sont cliquées par leur TEXTE ; (2) chaque champ est cherché par son code CERFA, sinon par son
+  // libellé dans sa rubrique (« Nom » sous « Propriétaire »), et rempli s'il est vide — jamais par-dessus une valeur déjà là ;
+  // (3) le bouton « Suivant » est cliqué ; arrêt quand il n'y en a plus, ou devant un bouton de la liste noire (valider, envoyer,
+  // signer…). L'ancien CERFA est refusé. Rien n'est jamais validé ni transmis.
+
+  const norm = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[*:]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const CHAMPS_SAISIE = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=file]):not([type=password]):not([type=image]), select, textarea';
+  const TITRES = "h1, h2, h3, h4, h5, h6, legend, caption, [role=heading], .titre, .title, .panel-title, .card-title, .card-header, .section-title";
+  const CLIQUABLES = 'a, button, [role=button], [role=link], [role=tab], [role=menuitem], [role=option], [role=radio], label, input[type=button], input[type=submit]';
+
+  function texteSansChampsNoeud(n) {
+    const c = n.cloneNode(true);
+    c.querySelectorAll("input, select, textarea, option").forEach((x) => x.remove());
+    return c.textContent || "";
+  }
+
+  // Le libellé d'un champ : <label for>, label englobant, aria-label(ledby), placeholder, titre, sinon le texte juste avant lui.
+  function libelleChamp(el) {
+    const parts = [];
+    if (el.id) [...document.querySelectorAll("label[for]")].filter((l) => l.htmlFor === el.id).forEach((l) => parts.push(texteSansChampsNoeud(l)));
+    const englobant = el.closest("label");
+    if (englobant) parts.push(texteSansChampsNoeud(englobant));
+    if (el.getAttribute("aria-labelledby")) el.getAttribute("aria-labelledby").split(/\s+/).forEach((id) => { const n = document.getElementById(id); if (n) parts.push(n.textContent); });
+    parts.push(el.getAttribute("aria-label") || "", el.getAttribute("placeholder") || "", el.title || "");
+    if (!parts.some((p) => norm(p))) {
+      let prec = el.previousElementSibling;
+      for (let i = 0; prec && i < 3 && !norm(prec.textContent); i++) prec = prec.previousElementSibling;
+      if (prec) parts.push(texteSansChampsNoeud(prec));
+      else if (el.parentElement) {
+        const cellule = el.closest("td, .col, [class*=col-], .form-group, .field, .champ");
+        const avant = cellule && cellule.previousElementSibling;
+        if (avant) parts.push(texteSansChampsNoeud(avant));
+        else if (el.parentElement.previousElementSibling) parts.push(texteSansChampsNoeud(el.parentElement.previousElementSibling));
+      }
+    }
+    return norm(parts.filter(Boolean).join(" ")).slice(0, 160);
+  }
+
+  // La rubrique d'un champ : légende du fieldset, puis le dernier titre placé avant lui dans la page.
+  function rubriqueChamp(el) {
+    const parts = [];
+    const fs = el.closest("fieldset");
+    const lg = fs && fs.querySelector("legend");
+    if (lg) parts.push(lg.textContent);
+    // Le dernier titre de CHAQUE niveau avant le champ : « Identité du propriétaire » puis « Adresse » (une sous-rubrique ne cache pas
+    // la rubrique qui la contient).
+    const parNiveau = new Map();
+    for (const t of document.querySelectorAll(TITRES)) {
+      if (t.contains(el)) continue;
+      if (!(t.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
+      const niveau = /^H[1-6]$/.test(t.tagName) ? t.tagName : (t.tagName === "LEGEND" ? "LEGEND" : "AUTRE");
+      parNiveau.set(niveau, t);
+      // Un titre de niveau supérieur efface les sous-titres d'avant lui.
+      if (/^H[1-6]$/.test(niveau)) for (const k of [...parNiveau.keys()]) if (/^H[1-6]$/.test(k) && k > niveau) parNiveau.delete(k);
+    }
+    [...parNiveau.values()].forEach((t) => parts.push(t.textContent));
+    return norm(parts.join(" "));
+  }
+
+  function candidatsChamp(f) {
+    const tous = [...document.querySelectorAll(CHAMPS_SAISIE)].filter(visible);
+    const parCode = f.code ? (() => { const sel = selecteurCode(f.code); return sel ? tous.filter((el) => el.matches(sel)) : []; })() : [];
+    if (parCode.length) return parCode;
+    if (!f.libelles || !f.libelles.length) return [];
+    const res = f.libelles.map((x) => new RegExp(x, "i"));
+    const sec = f.rubrique ? new RegExp(f.rubrique, "i") : null;
+    const horsSec = f.horsRubrique ? new RegExp(f.horsRubrique, "i") : null;
+    return tous.filter((el) => {
+      if (f.type === "choix" ? !(el.type === "radio" || el.type === "checkbox") : (el.type === "radio" || el.type === "checkbox")) return false;
+      const l = libelleChamp(el);
+      if (!l || !res.some((r) => r.test(l))) return false;
+      const r = rubriqueChamp(el);
+      return (!sec || sec.test(r)) && !(horsSec && horsSec.test(r));
+    });
+  }
+
+  // Une valeur au format d'un <input type=date> quand le guichet en a un.
+  function valeurPourChamp(el, v) {
+    const s = String(v);
+    if (el.type === "date") {
+      let m = /^(\d{2})(\d{2})(\d{4})$/.exec(s) || /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);
+      if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+    }
+    return s;
+  }
+
+  async function remplirAuto(run, f, sp) {
+    const key = cleChamp(0, f.label, f);
+    const deja = run.fields && run.fields[key] && run.fields[key].state;
+    const r = resolveField(f, run.fiche);
+    if (r.missing) { if (deja !== "done") await report(key, f.optional ? "skipped" : "missing"); return false; }
+    if (r.invalid) { await report(key, "mismatch", r.error); return false; }
+    if (f.type === "choix") {
+      // Bouton radio / case dont le libellé dit la valeur (« Personne morale ») : un vrai clic.
+      const motif = f.choix && f.choix[String(r.value)];
+      if (!motif) return false;
+      const re = new RegExp(motif, "i");
+      const sec = f.rubrique ? new RegExp(f.rubrique, "i") : null;
+      const el = [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].filter((x) => visible(x) || (x.labels && [...x.labels].some(visible)))
+        .find((x) => re.test(libelleChamp(x)) && (!sec || sec.test(rubriqueChamp(x))));
+      if (!el) { if (deja !== "done") await report(key, "absent"); return false; }
+      if (!el.checked) { await report(key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
+      await report(key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
+      return true;
+    }
+    // Emplacement pas encore connu (ni code ni libellé) : la valeur se copie depuis le panneau.
+    if (!f.code && !(f.libelles && f.libelles.length)) { await report(key, "manuel", "à coller à la main (bouton Copier du panneau)"); return false; }
+    const cands = candidatsChamp(f);
+    let el = null;
+    if (typeof f.rang === "number" || /^\d+$/.test(String(f.rang || ""))) el = cands[Number(f.rang)] || null;
+    else el = cands.find((x) => !String(x.value || "").trim()) || cands.find((x) => String(x.value) === String(r.value)) || null;
+    if (!el) {
+      if (cands.length) { await report(key, "done", "déjà rempli dans le guichet"); return true; }
+      if (deja !== "done") await report(key, "absent");
+      return false;
+    }
+    const valeur = valeurPourChamp(el, r.value);
+    if (String(el.value || "").trim() && String(el.value) !== valeur) { await report(key, "done", "déjà rempli dans le guichet, laissé tel quel"); return true; }
+    if (String(el.value) === valeur) { await report(key, "done"); return true; }
+    await report(key, "filling");
+    const res = await fillElement(el, f.type || "text", valeur, sp, false);
+    await report(key, res.ok ? "done" : "mismatch", res.detail);
+    return true;
+  }
+
+  function cliquableParTexte(motifs) {
+    const res = (motifs || []).map((m) => new RegExp(m, "i"));
+    const els = [...document.querySelectorAll(CLIQUABLES)].filter(visible);
+    const trouves = els.map((el) => ({ el, t: norm(el.innerText || el.value || el.getAttribute("aria-label") || el.title || "") }))
+      .filter((x) => x.t && x.t.length <= 140 && res.some((r) => r.test(x.t)) && !FORBIDDEN.test(x.t));
+    trouves.sort((a, b) => a.t.length - b.t.length);
+    return trouves.length ? trouves[0].el : null;
+  }
+
+  const empreintePage = () => location.href + "|" + [...document.querySelectorAll(CHAMPS_SAISIE)].filter(visible).map((e) => e.name || e.id || e.type).join(",")
+    + "|" + [...document.querySelectorAll(TITRES)].filter(visible).slice(0, 4).map((t) => norm(t.textContent)).join("/");
+
+  async function attendreStable(max) {
+    const fin = Date.now() + (max || 8000);
+    let avant = empreintePage();
+    let stable = 0;
+    while (Date.now() < fin && stable < 3) {
+      await wait(300);
+      const e = empreintePage();
+      stable = e === avant ? stable + 1 : 0;
+      avant = e;
+    }
+  }
+
+  async function cliquerPuisAttendre(el, sp, pi) {
+    const avant = empreintePage();
+    const pos = await moveTo(el, sp);
+    mark(el, true);
+    ripple(pos.x, pos.y);
+    await wait(sp.pause);
+    await send({ type: "content.advance", pageIndex: pi }); // gardé AVANT le clic : la page peut se recharger
+    await gate();
+    el.click();
+    const fin = Date.now() + 20000;
+    while (Date.now() < fin) {
+      await wait(250);
+      if (empreintePage() !== avant) break;
+    }
+    mark(el, false);
+    await attendreStable(6000);
+  }
+
+  async function boucleAuto(run) {
+    const sc = run.scenario;
+    const sp = SPEEDS[run.speed] || SPEEDS.normal;
+    let pi = run.pageIndex || 0;
+    const faites = new Set(run.etapesFaites || []);
+    const champs = sc.pages.flatMap((p) => expandFields(p, run.fiche));
+    const maxPages = sc.pagesMax || 30;
+    while (pi < maxPages) {
+      setBanner(`CLAIRE pilote le guichet — page ${pi + 1}`, "running");
+      setBlocking(true);
+      await attendreStable(8000);
+      if (sc.refuserSiNoms) {
+        const noms = [...document.querySelectorAll("input, select, textarea")].map((el) => (el.name || el.id || "").split(/[.\[\]_-]/).pop());
+        const actuel = sc.attendreNoms ? new RegExp(sc.attendreNoms) : null;
+        if (noms.some((n) => new RegExp(sc.refuserSiNoms).test(n)) && !(actuel && noms.some((n) => actuel.test(n)))) {
+          throw new Error("Ancien formulaire CERFA affiché : CLAIRE ne le remplit pas. Recommencez la demande sur le formulaire actuel.");
+        }
+      }
+      // (1) Le formulaire n'est pas encore ouvert (aucun champ du scénario sur la page) : étape suivante de l'ouverture.
+      const presents = champs.filter((f) => f.type !== "choix" && candidatsChamp(f).length).length;
+      if (presents < 2 && !sc.uneSeulePage) {
+        const etape = (sc.etapes || []).find((e) => !faites.has(e.label) && cliquableParTexte(e.textes));
+        if (etape) {
+          faites.add(etape.label);
+          await send({ type: "content.etape", label: etape.label });
+          await cliquerPuisAttendre(cliquableParTexte(etape.textes), sp, pi + 1);
+          pi += 1;
+          continue;
+        }
+      }
+      // (2) Les champs de cette page.
+      for (const f of champs) await remplirAuto(run, f, sp);
+      // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.
+      if (sc.uneSeulePage) {
+        await finish("awaiting_human", "Page remplie. Relisez ; passez à la page suivante du guichet puis cliquez de nouveau. Vous validez vous-même.");
+        return;
+      }
+      const suivant = cliquableParTexte(sc.suivant || ["^(suivant|etape suivante|page suivante|continuer)\\b"]);
+      if (!suivant) {
+        await finish("awaiting_human", "CLAIRE a rempli ce qu’elle connaît. Relisez chaque page, cochez les cases, puis validez et transmettez vous-même.");
+        return;
+      }
+      await cliquerPuisAttendre(suivant, sp, pi + 1);
+      pi += 1;
+    }
+    await finish("awaiting_human", "Arrêt après " + maxPages + " pages : relisez et continuez vous-même.");
+  }
+
   async function start() {
     if (loopActive) return;
     const run = await send({ type: "content.hello" });
@@ -397,7 +615,7 @@
         setBanner("CLAIRE en pause", "paused");
         setBlocking(false);
       }
-      await loop(run);
+      await (run.scenario && run.scenario.auto ? boucleAuto(run) : loop(run));
     } catch (e) {
       if (e instanceof Stop) teardown();
       else await finish("error", e && e.message ? e.message : "Erreur inconnue");

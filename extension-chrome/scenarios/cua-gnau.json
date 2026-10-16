@@ -1,25 +1,192 @@
 {
-  "id": "cua-gnau",
-  "name": "CUa — guichet unique (GNAU)",
-  "version": 1,
-  "pageAffichee": true,
-  "note": "Codes de champs du CERFA 13410 relevés par l'étude sur le GNAU d'Agglopolys (HANDOFF §10). Le demandeur (l'étude) est pré-rempli par le compte : jamais saisi. Les champs sans code se copient depuis le panneau tant que leur emplacement n'est pas relevé (« Copier la structure de la page »).",
-  "pages": [
+ "id": "cua-gnau",
+ "name": "CUa — guichet unique (GNAU)",
+ "version": 2,
+ "auto": true,
+ "pagesMax": 25,
+ "note": "CLAIRE ouvre la démarche (Nouvelle demande › Certificat d'urbanisme › d'information), remplit chaque page puis clique « Suivant », et s'arrête avant la validation. Champs cherchés par code CERFA 13410 (relevés par l'étude), sinon par libellé dans leur rubrique. Le demandeur (l'étude) est pré-rempli par le compte : jamais saisi.",
+ "etapes": [
+  {
+   "label": "Nouvelle demande",
+   "textes": [
+    "^(nouvelle demande|deposer une( nouvelle)? demande|creer une( nouvelle)? demande|nouveau dossier|deposer un dossier|faire une demande|nouvelle demarche|deposer une demarche)$"
+   ]
+  },
+  {
+   "label": "Certificat d'urbanisme",
+   "textes": [
+    "^(demande de )?certificat d.urbanisme( \\(cu\\))?$",
+    "^certificat d.urbanisme\\b(?!.*operationnel)"
+   ]
+  },
+  {
+   "label": "CU d'information (a)",
+   "textes": [
+    "d.information\\b",
+    "^cu ?a\\b",
+    "\\(cua\\)"
+   ]
+  }
+ ],
+ "suivant": [
+  "^(suivant|etape suivante|page suivante|continuer|aller a l.etape suivante)( ?[>›»])?$"
+ ],
+ "pages": [
+  {
+   "title": "Toutes les pages du guichet",
+   "waitFor": "body",
+   "fields": [
     {
-      "title": "Page affichée du guichet",
-      "waitFor": "form, body",
-      "fields": [
-        { "label": "Terrain — numéro (code T2Q, à confirmer)", "source": "terrain.numero", "code": "T2Q", "type": "text", "optional": true },
-        { "label": "Terrain — voie (code T2V)", "source": "terrain.voie", "code": "T2V", "type": "text", "optional": true },
-        { "label": "Terrain — lieu-dit (code T2L)", "source": "terrain.lieuDit", "code": "T2L", "type": "text", "optional": true },
-        { "label": "Terrain — commune (code T2C, à confirmer)", "source": "terrain.commune", "code": "T2C", "type": "text", "transform": "upper", "optional": true },
-        { "label": "Terrain — code postal", "source": "terrain.codePostal", "type": "text", "optional": true },
-        { "label": "Parcelles (format du guichet)", "source": "parcelles", "type": "text", "transform": "parcelles_cua", "encoded": true },
-        { "label": "Superficie totale du terrain, m² (code D5T)", "source": "superficie", "code": "D5T", "type": "text", "transform": "surface" },
-        { "label": "Fait à (code E1L)", "source": "signature.lieu", "code": "E1L", "type": "text" },
-        { "label": "Le (code E1D)", "source": "signature.date", "code": "E1D", "type": "text", "transform": "date_jjmmaaaa" },
-        { "label": "Signature (code E1S)", "source": "signature.signataire", "code": "E1S", "type": "text" }
-      ]
+     "label": "Terrain — numéro (code T2Q, à confirmer)",
+     "source": "terrain.numero",
+     "code": "T2Q",
+     "libelles": [
+      "^(n[°o]|numero)( de (la )?voie)?$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Terrain — voie (code T2V)",
+     "source": "terrain.voie",
+     "code": "T2V",
+     "libelles": [
+      "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Terrain — lieu-dit (code T2L)",
+     "source": "terrain.lieuDit",
+     "code": "T2L",
+     "libelles": [
+      "^lieu[- ]dit$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "label": "Terrain — commune (code T2C, à confirmer)",
+     "source": "terrain.commune",
+     "code": "T2C",
+     "libelles": [
+      "^(localite|commune|ville)$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "transform": "upper",
+     "optional": true
+    },
+    {
+     "label": "Terrain — code postal",
+     "source": "terrain.codePostal",
+     "libelles": [
+      "^code postal$"
+     ],
+     "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "optional": true
+    },
+    {
+     "forEach": "parcelles",
+     "max": 14,
+     "fields": [
+      {
+       "label": "Parcelle {n} — préfixe",
+       "source": "{list}.{i}.prefixe",
+       "libelles": [
+        "^prefixe$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "optional": true
+      },
+      {
+       "label": "Parcelle {n} — section",
+       "source": "{list}.{i}.section",
+       "libelles": [
+        "^section$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "transform": "upper"
+      },
+      {
+       "label": "Parcelle {n} — numéro",
+       "source": "{list}.{i}.numero",
+       "libelles": [
+        "^(n[°o]|numero)( de (la )?parcelle)?$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}"
+      },
+      {
+       "label": "Parcelle {n} — superficie (m²)",
+       "source": "{list}.{i}.surface",
+       "libelles": [
+        "^(superficie|contenance|surface)( de la parcelle)?( \\(m2\\)| en m2)?$"
+       ],
+       "rubrique": "cadastr|parcelle|references? cadastrales?",
+       "rang": "{i}",
+       "transform": "surface",
+       "optional": true
+      }
+     ]
+    },
+    {
+     "label": "Parcelles (format du guichet, à coller si besoin)",
+     "source": "parcelles",
+     "type": "text",
+     "transform": "parcelles_cua",
+     "encoded": true,
+     "optional": true
+    },
+    {
+     "label": "Superficie totale du terrain, m² (code D5T)",
+     "source": "superficie",
+     "code": "D5T",
+     "libelles": [
+      "superficie (totale|du terrain)",
+      "^superficie totale"
+     ],
+     "transform": "surface"
+    },
+    {
+     "label": "Fait à (code E1L)",
+     "source": "signature.lieu",
+     "code": "E1L",
+     "libelles": [
+      "^(fait )?a$",
+      "^lieu( de signature)?$",
+      "^fait a$"
+     ],
+     "rubrique": "signature|engagement|date et signature"
+    },
+    {
+     "label": "Le (code E1D)",
+     "source": "signature.date",
+     "code": "E1D",
+     "libelles": [
+      "^le$",
+      "^date( de signature)?$"
+     ],
+     "rubrique": "signature|engagement|date et signature",
+     "transform": "date_jjmmaaaa"
+    },
+    {
+     "label": "Signataire (code E1S)",
+     "source": "signature.signataire",
+     "code": "E1S",
+     "libelles": [
+      "^(signature|nom du signataire|signataire|nom et qualite du signataire)$"
+     ],
+     "rubrique": "signature|engagement|date et signature"
     }
-  ]
+   ]
+  }
+ ]
 }
