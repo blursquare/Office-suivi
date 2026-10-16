@@ -20438,3 +20438,16 @@ tableau du courrier quand Authentic n'en donne pas → reprise de la contenance 
 jamais par-dessus une contenance d'Authentic ou saisie ; AB 100 = 38 a 45 ca) ; `wa-switch size="small"` (déprécié) → `size="s"`.
 Constaté, non corrigé (données) : aucun guichet unique relevé pour Chaumont-sur-Tharonne dans « Où déposer la DIA » (« Guichet non relevé ») ;
 assainissement adressé à la mairie (aucune règle pour la CC Cœur de Sologne).
+
+
+### 16/10/2026 22 h 44 — Guichets uniques des intercommunalités du Loir-et-Cher (0.269.5)
+
+Demande : « Essai de retrouver l'ensemble des guichets uniques des communautés de communes dans le Loir-et-Cher. » Pages officielles
+relues le 16/10 (portails rendus par Playwright), reportées dans `server/scripts/depot-dia/41.recherche.json` puis base réassemblée :
+GNAU Operis de Grand Chambord (et `?ref=Beauce` pour Beauce Val de Loire) — DIA, CUa, CUb, DPA, DPC, PA, PC, PCMI, PD proposés, liste des
+communes visible après connexion seulement → « guichet » ; Huisseau-sur-Cosson instruit seule (`ajustements.horsGuichet`). Cœur de Sologne :
+portail SIRAP par commune (Chaumont-sur-Tharonne, Lamotte-Beuvron, Nouan-le-Fuzelier, Souvigny-en-Sologne, Vouzon) pour les autorisations,
+DIA non citée → « à vérifier » avec le lien ; Chaon au RNU. Romorantinais et Monestois : portail SIRAP (DIA non citée), Romorantin-Lanthenay
+hors portail (page « en construction »). Perche et Haut Vendômois : pas de guichet (annoncé) → dépôt en mairie. Collines du Perche, Sologne
+des Étangs : aucun guichet trouvé, coordonnées notées. Portails SIRAP non lisibles depuis l'environnement (CloudFront). Services de la Ville de
+Paris (DIA en ligne dia.paris.fr, CU, NRU, numérotage, péril, assainissement) recherchés, non intégrés (Paris hors des départements de la base).

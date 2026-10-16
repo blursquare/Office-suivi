@@ -60,6 +60,19 @@ test('assemblage : un mode annoncé sans page lue, ou un guichet sans adresse, r
   assert.equal(base.communes['41002'].depot.courriel, 'dia@beta.fr');
 });
 
+test('base livrée, Loir-et-Cher (recherche du 16/10) : GNAU de Grand Chambord et Beauce Val de Loire, portails SIRAP de Cœur de Sologne, Romorantin à part', () => {
+  viderCacheDepotDia();
+  const b = baseDepotDia();
+  assert.equal(depotPourCommune(b, {}, '41150').depot.mode, 'guichet');
+  assert.match(depotPourCommune(b, {}, '41150').depot.url, /gnau42\.operis\.fr\/grandchambord/);
+  assert.equal(depotPourCommune(b, {}, '41104').origine, 'commune');
+  const chaumont = depotPourCommune(b, {}, '41046');
+  assert.equal(chaumont.origine, 'commune');
+  assert.equal(chaumont.depot.mode, 'inconnu');
+  assert.equal(chaumont.depot.url, 'https://portail-usager.sirap.com/041046/connexion');
+  assert.equal(depotPourCommune(b, {}, '41194').depot.courriel, 'urbanisme@romorantin.fr');
+});
+
 test('base livrée : chaque commune connue pointe une intercommunalité connue, aucun mode sans page lue, adresses sûres', () => {
   viderCacheDepotDia();
   const b = baseDepotDia();

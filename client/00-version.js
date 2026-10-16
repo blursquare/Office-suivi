@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.269.4';
+  const VERSION_APP = '0.269.5';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.269.5', date: '2026-10-16 22:44', resume: "Où déposer la DIA (Loir-et-Cher) : guichets relus le 16/10 — GNAU de Grand Chambord et de Beauce Val de Loire (DIA proposée), portails SIRAP des communes de Cœur de Sologne et du Romorantinais (DIA non citée, à vérifier), dépôt en mairie pour le Perche et Haut Vendômois, coordonnées des services pour les autres." },
     { version: '0.269.4', date: '2026-10-16 22:34', resume: "Constitution de dossier : la contenance d’une parcelle qu’Authentic ne donne pas est reprise du cadastre de l’IGN (lu avec le zonage) dans le tableau des courriers." },
     { version: '0.269.3', date: '2026-10-16 22:25', resume: "Contrôle de l’urbanisme : les questions du bien et du rural suivent aussi la zone de chaque parcelle — un groupe par zone (urbaine, à urbaniser, agricole, naturelle), parcelles mixtes et parcelle à cheval sur deux zones comprises, comme dans la Constitution de dossier." },
     { version: '0.269.2', date: '2026-10-16 22:21', resume: "Constitution de dossier, DIA et SAFER : une parcelle à cheval sur deux zones figure dans les deux groupes de questions (« en partie » pour l’autre zone), son zonage l’indique (« UB (U) + en partie A ») et une alerte invite à choisir la zone retenue dans le Contrôle de l’urbanisme si l’une ne la touche que d’un filet." },
