@@ -20285,3 +20285,21 @@ Demande de l'étude (relevé du guichet https://demande-urbanisme.agglopolys.fr/
 - Étude : « reprends les couleurs exactes de la copie d'écran de l'agenda Outlook » : `--cat-*` = valeurs relevées sur la capture (vert #0E8A45, olive #3E5C10, rouge #A8121F, jaune #D6C000, bleu #0F65B4, violet #6C5DBA, orange #C13F0C), texte blanc comme Outlook (noir sur le jaune) — le noir demandé juste avant ne se lisait pas sur ces teintes. Valeurs relevées à l'œil : l'image n'a pas été reçue en fichier.
 - Étude (structure de la fiche du bien) : le cadastre est en champs par ligne (`…dataTableCadastre:N:cadastreHorsVolumeNumero`, adresse cadastrale `j_idt…`), la contenance dans trois champs hectare / are / centiare portant le nom du SPF (« BLOIS 1 ») — `parcellesChampsCadastreAuthentic` (client/30), fusionné avec les parcelles des tableaux ; test `tests/authentic-cadastre-champs.test.js`. Le champ de la section n'a pas été vu dans la structure reçue : `…Section` attendu, sinon une ou deux capitales seules avant le numéro ; sans section, rien n'est inventé.
 - Relecture indépendante de 0.264.0, corrigée : garde de réunion (jamais deux naissances différentes ni une paire dite « différentes », même par une troisième occurrence) ; un email ou un téléphone commun ne réunit plus (père et fils) — proposé ; décision « même / différentes » notée pour toutes les paires des deux fiches, identifiant de la fiche réunie rendu ; « épouse / veuve / née … » retiré du nom ; deux homonymes d'un même dossier (père défunt, fils héritier) restent deux ; partie déjà décrite par une fiche d'Authentic non doublée ; corrections et liaisons rattachées à l'occurrence quand Authentic ajoute le prénom ; conjoint seulement dans un même dossier ou réciproque, prénom exigé, index par nom (5 000 personnes : de 30 s à moins d'une seconde) ; base en cache 10 s, recalculée après chaque choix ; biens : pas de réunion par parcelle sans commune, un lot de copropriété = un bien ; date et civilité d'une correction contrôlées ; liaisons gardées des plus récentes.
+
+### 16/10/2026 17 h 14 — Fiche client complète dans Clients et biens (0.265.0)
+
+Demande de l'étude : « Pour la fiche client reprend tout le contenu de la fiche Authentic » (structure de la page copiée, sans données).
+`complementFicheClientAuthentic(capture)` (client/80) lit tout ce qui n'était pas gardé : client de l'étude (`etude_input`), autres prénoms,
+alias pour l'acte, capacité / mandat de protection future / secteur d'activité (listes `…:selectonemenu_input`), SIREN, adresse suite, pays du
+domicile (le « Pays » qui suit « CP - Ville »), cases adresse d'imposition / de correspondance, coordonnées principales et secondaires (bloc suivi
+par l'identifiant `coordonneePrincipale`/`coordonneeSecondaire`, chaque « Commentaire » rattaché au téléphone ou à l'email qui le précède,
+« Commentaire général »), mariage (date, puis « Pays » et « CP, Ville » qui la suivent, uniques noces, divorce en cours, séparé de corps, contrat,
+régime, ancien contrat et ancien régime, date de l'ancien contrat, notaire et sa ville qui la suivent, situation dans l'acte), historique des
+relations (toutes les lignes du tableau Situation | Date | Conjoint, colonne sans titre en détail). Gardé dans `fichesClients[…].complement`
+(`clientDepuisFicheAuthentic` → `retenirFicheClientAuthentic`) ; le serveur le reprend de la fiche d'Authentic la plus récente (`complementSur` :
+chaînes de 400 car., listes de 12, clés alphabétiques seules) ; la fiche « Clients et biens » l'affiche par rubriques (Identité, Adresse,
+Coordonnées, Situation matrimoniale, Historique des relations), renseignements vides omis. Le complément reste sur le serveur et le poste :
+il n'est lu par aucun outil de l'agent ni par le rapport technique. Le « Tableau 1 » (oui / non / non, sans en-tête) n'est pas lu : son sens
+n'est pas connu. Non vérifié sur une vraie page : formes exactes des valeurs (« Oui »/« Non » des listes), place des « Pays » et « CP, Ville ».
+
+Agenda (même version) : texte des rendez-vous en noir sur la couleur pleine (étude 16/10 : « le texte titre de rdv en noir ») — `--ag-texte-plein` = `--noir-fixe` dans les deux thèmes. Sur les couleurs les plus sombres (rouge, olive, marron, bleu) le contraste est faible : à éclaircir si l’étude le trouve peu lisible.

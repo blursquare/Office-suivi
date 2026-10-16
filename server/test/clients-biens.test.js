@@ -201,3 +201,20 @@ test('relecture : la base de 3 000 dossiers avec conjoints se calcule vite', () 
   construireBase(ds);
   assert.ok(Date.now() - t0 < 5000, `${Date.now() - t0} ms`);
 });
+
+test('fiche client : le reste de la fiche d’Authentic suit, celui de la plus récente, borné', () => {
+  const ds = [
+    { id: 'c1', nom: 'MARTIN / X', parties: [{ role: 'VENDEUR', nom: 'Hugo MARTIN' }],
+      authentic: { fichesClients: { a: fiche({ nom: 'Hugo MARTIN', nomFamille: 'MARTIN', prenom: 'Hugo', dateNaissance: '1975-05-05', vuLe: '2026-10-01T10:00:00Z',
+        autresPrenoms: 'Paul', complement: { capacite: 'Majeur', mariage: { regime: 'Ancien régime' } } }) } } },
+    { id: 'c2', nom: 'MARTIN / Y', parties: [{ role: 'VENDEUR', nom: 'Hugo MARTIN' }],
+      authentic: { fichesClients: { a: fiche({ nom: 'Hugo MARTIN', nomFamille: 'MARTIN', prenom: 'Hugo', dateNaissance: '1975-05-05', vuLe: '2026-10-12T10:00:00Z',
+        complement: { capacite: 'Majeur', mariage: { regime: 'Communauté légale nouvelle', situationActe: 'x'.repeat(900) }, '<script>': 'non', historique: Array(30).fill({ situation: 'Marié' }) } }) } } }
+  ];
+  const p = construireBase(ds, {}).personnes.find((x) => x.nomComplet === 'Hugo MARTIN');
+  assert.equal(p.complement.mariage.regime, 'Communauté légale nouvelle');
+  assert.equal(p.complement.mariage.situationActe.length, 400);
+  assert.equal(p.complement.historique.length, 12);
+  assert.equal(p.complement['<script>'], undefined);
+  assert.equal(p.autresPrenoms, 'Paul');
+});

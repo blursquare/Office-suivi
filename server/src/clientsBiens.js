@@ -40,6 +40,26 @@ function decouperNom(complet) {
   return { nomFamille: caps.join(' '), prenom: mots.filter((m) => !caps.includes(m)).join(' ') };
 }
 
+/**
+ * Pure : le reste de la fiche client d'Authentic (capacité, coordonnées commentées, mariage, contrats, historique des relations — étude 16/10 :
+ * « reprends tout le contenu de la fiche ») recopié tel quel, borné : chaînes de 400 caractères, listes de 12, deux niveaux.
+ * @param {any} v @param {number} [niveau]
+ * @returns {any}
+ */
+function complementSur(v, niveau = 0) {
+  if (v == null || niveau > 3) return null;
+  if (typeof v === 'boolean') return v;
+  if (typeof v === 'string' || typeof v === 'number') return String(v).slice(0, 400);
+  if (Array.isArray(v)) return v.slice(0, 12).map((x) => complementSur(x, niveau + 1)).filter((x) => x != null);
+  if (typeof v === 'object') {
+    /** @type {Record<string, any>} */
+    const r = {};
+    for (const [k, x] of Object.entries(v).slice(0, 40)) { if (/^[A-Za-z]{1,40}$/.test(k)) r[k] = complementSur(x, niveau + 1); }
+    return r;
+  }
+  return null;
+}
+
 /** @param {any} d */
 const libelleDossier = (d) => (d && d.typeAffaire === 'succession' ? 'SUCC - ' : 'VTE - ') + texte(d && d.nom);
 
@@ -102,7 +122,9 @@ function occurrencesPersonnes(dossiers) {
           situation: texte(f.situationMatrimoniale.situation), conjoint: texte(f.situationMatrimoniale.conjoint),
           regime: texte(f.situationMatrimoniale.regime || f.situationMatrimoniale.contrat), date: texte(f.situationMatrimoniale.dateMariage || f.situationMatrimoniale.date)
         } : null,
-        deces: f.deces && typeof f.deces === 'object' ? { date: texte(f.deces.date), lieu: texte(f.deces.lieu) } : null
+        deces: f.deces && typeof f.deces === 'object' ? { date: texte(f.deces.date), lieu: texte(f.deces.lieu) } : null,
+        complement: f.complement && typeof f.complement === 'object' ? complementSur(f.complement) : null,
+        autresPrenoms: texte(f.autresPrenoms), paysNaissance: texte(f.paysNaissance)
       });
     }
     for (const p of parties) {
@@ -236,11 +258,14 @@ function construirePersonnes(dossiers, reglages) {
     }
     const sit = (tries.find((o) => o.situation && o.situation.situation) || {}).situation || null;
     const deces = (tries.find((o) => o.deces && o.deces.date) || {}).deces || null;
+    // Le reste de la fiche : celui de la fiche d'Authentic la plus récente qui en porte un.
+    const complement = (tries.find((o) => o.complement) || {}).complement || null;
+    const autres = { autresPrenoms: (tries.find((o) => o.autresPrenoms) || {}).autresPrenoms || '', paysNaissance: (tries.find((o) => o.paysNaissance) || {}).paysNaissance || '' };
     const dossiersLies = liste.map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), role: o.role, roleLibelle: ROLES[o.role] || 'Partie',
       archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }));
     const vus = new Set();
     personnes.push({
-      id, champs, authentic, aRevoir, situation: sit, deces, source: tries[0].source,
+      id, champs, authentic, aRevoir, situation: sit, deces, complement, autresPrenoms: autres.autresPrenoms, paysNaissance: autres.paysNaissance, source: tries[0].source,
       nomComplet: [champs.prenom, champs.nomFamille].filter(Boolean).join(' '),
       dossiers: dossiersLies.filter((x) => (vus.has(x.id + x.role) ? false : (vus.add(x.id + x.role), true))),
       occurrences: liste.map((o) => o.id), conjoint: null, peutEtre: []

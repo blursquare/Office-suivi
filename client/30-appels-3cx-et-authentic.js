@@ -1002,7 +1002,7 @@
       emails, telephones,
       profession: valeurChampAuthentic(champs, n => n === 'profession'),
       situationMatrimoniale: (capture && capture.situationConjoint) || situationMatrimonialeAuthentic(capture),
-      documents: []
+      complement: complementFicheClientAuthentic(capture), documents: []
     };
   }
 
@@ -1653,7 +1653,7 @@
       deces: personne.deces || null, situationMatrimoniale: personne.situationMatrimoniale || null,
       // Tout l'état civil de la fiche (étude 15/10 : « stocker toutes les données d'état civil »).
       nationalite: personne.nationalite || '', profession: personne.profession || '',
-      emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3)
+      emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3), complement: personne.complement || null
     };
     const avant = d.authentic || {};
     const reg = Object.assign({}, avant.fichesClients || {});

@@ -31,8 +31,8 @@
     /* Blanc qui le reste dans les deux thèmes : fond d'un document ou d'une image (page de PDF, scan, signature), pouce
        d'un interrupteur, texte d'une bulle toujours sombre. */
     --blanc-fixe: #FFFFFF;
-    /* Texte posé sur la couleur pleine d’un rendez-vous : blanc comme dans Outlook (noir sur le jaune, règle .ajd-jaune). */
-    --ag-texte-plein: var(--blanc-fixe);
+    /* Texte posé sur la couleur pleine d’un rendez-vous : noir (étude 16/10 : « le texte titre de rdv en noir »). */
+    --ag-texte-plein: var(--noir-fixe);
     /* Noir qui le reste dans les deux thèmes : halo du texte posé sur une photo. */
     --noir-fixe: #000000;
   }
@@ -146,7 +146,7 @@
     /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), les mêmes en clair et en sombre. */
     --cat-rouge: #A8121F; --cat-orange: #C13F0C; --cat-jaune: #D6C000; --cat-vert: #0E8A45; --cat-olive: #3E5C10;
     --cat-bleu: #0F65B4; --cat-violet: #6C5DBA; --cat-gris: #6B7280; --cat-rose: #B83F78; --cat-marron: #7E4A26;
-    --ag-texte-plein: var(--blanc-fixe);
+    --ag-texte-plein: var(--noir-fixe);
     --projet: #E58AB5;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
@@ -7918,6 +7918,11 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .cb-champs dt { color: var(--muted); }
 .cb-champs dd { margin: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; overflow-wrap: anywhere; }
 .cb-champs dd > div { width: 100%; }
+.cb-bloc + .cb-bloc { margin-top: 8px; }
+.cb-bloc > .hint { margin-bottom: 4px; }
+.cb-historique { width: 100%; border-collapse: collapse; font-size: var(--texte-m); }
+.cb-historique th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+.cb-historique td { padding: 6px 8px 6px 0; vertical-align: top; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
 .cb-crayon { opacity: 0.4; }
 .cb-champs dd:hover .cb-crayon, .cb-crayon:focus-visible { opacity: 1; }
 .cb-edition input { flex: 1 1 200px; min-width: 0; }

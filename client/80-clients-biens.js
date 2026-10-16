@@ -20,6 +20,90 @@
     return v || '';
   }
 
+  // Pure : tout ce que la fiche client d'Authentic porte en plus de l'identité de base (étude 16/10 : « reprends tout le contenu de la fiche
+  // Authentic ») — capacité, mandat de protection, activité, adresse (imposition, correspondance), coordonnées principales et secondaires
+  // avec leurs commentaires, mariage (date, lieu, uniques noces, divorce, séparation de corps), contrat et ancien contrat, situation dans
+  // l'acte, historique des relations. Lu sur la page de la personne (volet du conjoint déjà retiré). null si rien de plus n'est renseigné.
+  function complementFicheClientAuthentic(capture) {
+    const champs = ((capture && capture.champs) || []).filter(Boolean);
+    const net = c => libelleNetAuthentic(c.libelle).replace(/[’‘]/g, "'");
+    const val = c => String(c && c.valeur != null ? c.valeur : '').replace(/\s+/g, ' ').trim();
+    const brut = re => val(champs.find(c => re.test(String(c.libelle || ''))));
+    const lib = l => val(champs.find(c => net(c) === l));
+    const oui = v => /^(oui|true|on)$/i.test(v);
+    // Champ qui suit un autre dans la page (« Pays », « CP, Ville » du mariage ; « CP, Ville » du notaire du contrat).
+    const apres = (test, l) => {
+      const i = champs.findIndex(test);
+      if (i < 0) return '';
+      return val(champs.slice(i + 1).find(c => net(c) === l));
+    };
+    const r = {
+      clientEtude: oui(brut(/:etude_input$/)),
+      autresPrenoms: lib('autre(s) prenom(s)'),
+      alias: lib("alias pour l'acte"),
+      capacite: brut(/:capacite:selectonemenu_input/i),
+      mandatProtection: brut(/:mandat:selectonemenu_input/i),
+      secteurActivite: brut(/:secteurActivite:selectonemenu_input/i),
+      siren: lib('siren (autoentrepreneur)'),
+      adresseImposition: oui(lib("adresse d'imposition")),
+      adresseCorrespondance: oui(lib('adresse de correspondance')),
+      adresseSuite: lib('adresse suite'),
+      paysDomicile: apres(c => net(c) === 'cp - ville', 'pays'),
+      coordonnees: [],
+      mariage: null,
+      historique: []
+    };
+    // Coordonnées : chaque téléphone ou email, son bloc (principales / secondaires) et le commentaire qui le suit.
+    let bloc = 'principales';
+    let dernier = null;
+    champs.forEach(c => {
+      const b = String(c.libelle || '');
+      if (/coordonneeSecondaire/i.test(b)) bloc = 'secondaires';
+      else if (/coordonneePrincipale/i.test(b)) bloc = 'principales';
+      const m = /:(Portable|Telephone|Fax):inputTelephone/i.exec(b);
+      if (m || net(c) === 'email') {
+        dernier = { bloc, type: m ? (/portable/i.test(m[1]) ? 'Portable' : /fax/i.test(m[1]) ? 'Fax' : 'Téléphone') : 'Email', valeur: val(c), commentaire: '' };
+        if (dernier.valeur) r.coordonnees.push(dernier); else dernier = null;
+      } else if (net(c) === 'commentaire' && dernier && val(c)) dernier.commentaire = val(c);
+      else if (net(c) === 'commentaire general' && val(c)) r.coordonnees.push({ bloc, type: 'Commentaire', valeur: val(c), commentaire: '' });
+    });
+    const estDateMariage = c => net(c) === 'date de mariage';
+    const estAncienContrat = c => net(c) === "date de l'ancien contrat";
+    const mariage = {
+      date: dateIsoDepuisFr(lib('date de mariage')),
+      pays: apres(estDateMariage, 'pays'),
+      lieu: apres(estDateMariage, 'cp, ville'),
+      uniquesNoces: brut(/somInfoMariageUniquesNocesId/i),
+      divorceEnCours: brut(/somInfoDivorceEnCoursId/i),
+      separeDeCorps: oui(brut(/separeDeCorps_input/i)),
+      contrat: brut(/somContratTypeId/i),
+      regime: brut(/somContratRegimeId/i),
+      ancienContrat: brut(/somAncienContratTypeId/i),
+      ancienRegime: brut(/somAncienContratRegimeId/i),
+      dateAncienContrat: dateIsoDepuisFr(lib("date de l'ancien contrat")),
+      notaireAncienContrat: apres(estAncienContrat, 'notaire'),
+      lieuAncienContrat: apres(c => estAncienContrat(c) || net(c) === 'notaire', 'cp, ville'),
+      situationActe: lib("situation dans l'acte")
+    };
+    if (Object.values(mariage).some(Boolean)) r.mariage = mariage;
+    // Historique des relations : toutes les lignes du tableau « Situation | Date | Conjoint | … ».
+    ((capture && capture.tableaux) || []).forEach(t => {
+      const entete = (t.entete || []).map(libelleNetAuthentic);
+      const iSit = entete.indexOf('situation');
+      if (iSit < 0) return;
+      const iDate = entete.indexOf('date'), iConj = entete.indexOf('conjoint');
+      (t.lignes || []).forEach(l => {
+        const ligne = { situation: String(l[iSit] || '').trim(), date: iDate >= 0 ? dateIsoDepuisFr(l[iDate]) : '', conjoint: iConj >= 0 ? String(l[iConj] || '').trim() : '',
+          detail: l.filter((x, i) => i !== iSit && i !== iDate && i !== iConj).map(x => String(x || '').trim()).filter(Boolean).join(' · ') };
+        if (ligne.situation || ligne.conjoint) r.historique.push(ligne);
+      });
+    });
+    r.coordonnees = r.coordonnees.slice(0, 12);
+    r.historique = r.historique.slice(0, 10);
+    const utile = Object.entries(r).some(([k, v]) => (Array.isArray(v) ? v.length : !!v) && k !== 'clientEtude');
+    return utile || r.clientEtude ? r : null;
+  }
+
   // Pure : une parcelle d'un bien, « EV 10 · 6 a 6 ca · Sol ».
   function libelleParcelleCb(p) {
     return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit].filter(Boolean).join(' · ');
@@ -102,6 +186,40 @@
       <span>${escapeHtml(x.libelle)}</span>${x.roleLibelle ? `<span class="hint">${escapeHtml(x.roleLibelle)}</span>` : ''}${x.archive ? '<span class="hint">archivé</span>' : ''}</button>`).join('')}</div>`;
   }
 
+  // Pure : les rubriques de la fiche client d'Authentic au-delà de l'identité de base, comme dans Authentic (une ligne par renseignement
+  // rempli ; un renseignement vide n'est pas montré). → HTML.
+  function renderComplementFicheCb(f) {
+    const x = f.complement || {};
+    const date = v => valeurAfficheeCb('dateNaissance', v || '');
+    const dl = lignes => {
+      const h = lignes.filter(([, v]) => v).map(([l, v]) => `<dt>${escapeHtml(l)}</dt><dd>${escapeHtml(v)}</dd>`).join('');
+      return h ? `<dl class="cb-champs">${h}</dl>` : '';
+    };
+    const rubrique = (titre, corps) => corps ? `<h3 class="cb-sous-titre">${escapeHtml(titre)}</h3>${corps}` : '';
+    const identite = dl([
+      ['Autre(s) prénom(s)', f.autresPrenoms || x.autresPrenoms], ['Alias pour l’acte', x.alias], ['Pays de naissance', f.paysNaissance],
+      ['Capacité', x.capacite], ['Mandat de protection future', x.mandatProtection], ['Secteur d’activité', x.secteurActivite],
+      ['SIREN', x.siren], ['Client de l’étude', x.clientEtude ? 'Oui' : '']
+    ]);
+    const adresse = dl([
+      ['Adresse suite', x.adresseSuite], ['Pays', x.paysDomicile],
+      ['Usage', [x.adresseImposition ? 'adresse d’imposition' : '', x.adresseCorrespondance ? 'adresse de correspondance' : ''].filter(Boolean).join(', ')]
+    ]);
+    const coord = (x.coordonnees || []).length ? ['principales', 'secondaires'].map(b => {
+      const l = x.coordonnees.filter(c => c.bloc === b);
+      return l.length ? `<div class="cb-bloc"><div class="hint">Coordonnées ${b}</div><dl class="cb-champs">${l.map(c => `<dt>${escapeHtml(c.type)}</dt><dd>${c.type === 'Email' || c.type === 'Commentaire' ? escapeHtml(c.valeur) : liensAppelTelephone(c.valeur)}${c.commentaire ? ` <span class="hint">· ${escapeHtml(c.commentaire)}</span>` : ''}</dd>`).join('')}</dl></div>` : '';
+    }).join('') : '';
+    const m = x.mariage || {};
+    const mariage = dl([
+      ['Date de mariage', date(m.date)], ['Lieu', [m.lieu, m.pays].filter(Boolean).join(', ')], ['Mariage en uniques noces', m.uniquesNoces],
+      ['Divorce en cours', m.divorceEnCours], ['Séparé de corps', m.separeDeCorps ? 'Oui' : ''], ['Contrat de mariage', m.contrat], ['Régime', m.regime],
+      ['Ancien contrat', m.ancienContrat], ['Ancien régime', m.ancienRegime], ['Date de l’ancien contrat', date(m.dateAncienContrat)],
+      ['Notaire', [m.notaireAncienContrat, m.lieuAncienContrat].filter(Boolean).join(', ')], ['Situation dans l’acte', m.situationActe]
+    ]);
+    const histo = (x.historique || []).length ? `<table class="cb-historique"><thead><tr><th>Situation</th><th>Date</th><th>Conjoint</th></tr></thead><tbody>${x.historique.map(h => `<tr><td>${escapeHtml(h.situation)}</td><td>${escapeHtml(date(h.date))}</td><td>${escapeHtml(h.conjoint)}${h.detail ? `<div class="hint">${escapeHtml(h.detail)}</div>` : ''}</td></tr>`).join('')}</tbody></table>` : '';
+    return rubrique('Identité', identite) + rubrique('Adresse', adresse) + rubrique('Coordonnées', coord) + rubrique('Situation matrimoniale', mariage) + rubrique('Historique des relations', histo);
+  }
+
   function renderFicheClientBien() {
     const zone = document.getElementById('cb-contenu');
     if (!zone || !cbOuvert || !cbOuvert.fiche) return;
@@ -145,6 +263,7 @@
     zone.innerHTML = `<h2 class="cb-titre">${escapeHtml(titre)} ${infoBulle(f.source === 'Authentic' ? 'Repris des fiches client d’Authentic (la plus récente d’abord). Une correction faite ici reste ; si Authentic change ensuite, CLAIRE le propose.' : 'Repris de la fiche du dossier : ouvrez la fiche client dans Authentic pour compléter (naissance, domicile, profession).')}</h2>
       ${revoir}${homonymes}
       <dl class="cb-champs">${['nomUsage', 'dateNaissance', 'lieuNaissance', 'nationalite', 'profession', 'domicile', 'emails', 'telephones'].map(ligneChamp).join('')}${situation}${regime}${deces}</dl>
+      ${renderComplementFicheCb(f)}
       <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers)}`;
     if (cbEdition) { const s = document.getElementById('cb-champ-saisie'); if (s) s.focus(); }
   }
