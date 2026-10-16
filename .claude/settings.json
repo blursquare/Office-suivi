@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|mcp__github__.*",
         "hooks": [
           { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/scripts/garde-publication.js\"", "timeout": 30 }
         ]

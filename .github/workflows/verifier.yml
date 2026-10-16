@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
 
+# Un envoi sur une branche qui a une demande de fusion ouverte déclenche push ET pull_request : un seul passage à la fois par branche.
+concurrency:
+  group: verifier-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verifier:
     runs-on: ubuntu-latest
