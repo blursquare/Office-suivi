@@ -256,3 +256,39 @@ test('option « fausses minutes » éteinte : ni à lire, ni cherchée, ni parco
   memoire.definirExclues([]);
   assert.equal(memoire.chercher('servitude passage').passages.length, 1);
 });
+
+// ---- Règles et décisions de l'étude (16/10) -----------------------------------------------------------------------------------
+
+test('règles : sections Markdown par titre, empreinte stable, rubrique interne jamais cherchée sur le NAS', () => {
+  const s = M.sectionsMarkdown('Intro\n# CLAIRE\nTexte.\n## Planning\n- Appel de fonds à J-10.\n### 05/10/2026 — Appel de fonds\nLa veille était une erreur.');
+  assert.deepEqual(s.map((x) => x.titre), ['', 'CLAIRE', 'Planning', '05/10/2026 — Appel de fonds']);
+  assert.equal(s[3].n, 4);
+  assert.equal(M.empreinteTexte('abc'), M.empreinteTexte('abc'));
+  assert.notEqual(M.empreinteTexte('abc'), M.empreinteTexte('abd'));
+  assert.equal(M.rubriqueDuNom('REGLES ET DECISIONS DE L ETUDE'), null);
+  assert.ok(M.RUBRIQUES_MEMOIRE.some((r) => r.cle === 'regles-etude' && r.interne));
+});
+
+test('règles : indexées sans NAS, relues seulement si elles changent, retrouvées avec le titre de leur section', async () => {
+  const db = new DatabaseSync(':memory:');
+  const memoire = M.creerMemoire(db);
+  let historique = '# Historique\n### 05/10/2026 — Appel de fonds\nÉchéance de l’appel de fonds dix jours avant le rendez-vous de signature.';
+  const lireSource = async (src) => (src.chemin === 'regles.md' ? '# Règles\n## Planning\nLa relance du prêt part à J-15.' : historique);
+  assert.equal(await M.indexerRegles({ memoire, lireSource }), 2);
+  assert.equal(await M.indexerRegles({ memoire, lireSource }), 0, 'inchangées : pas relues');
+  historique += '\n### 16/10/2026 — Paris\nDIA en ligne sur le téléservice de la Ville.';
+  assert.equal(await M.indexerRegles({ memoire, lireSource }), 1);
+  const r = memoire.chercher('appel de fonds rendez-vous', { rubrique: 'regles-etude' });
+  assert.ok(r.passages.length >= 1);
+  assert.equal(r.passages[0].rubrique, 'regles-etude');
+  assert.equal(r.passages[0].page, 1, 'numéro de section (les titres sans texte ne comptent pas)');
+  assert.ok(memoire.chercher('téléservice', { rubrique: 'regles-etude' }).passages.length === 1);
+});
+
+test('règles : les vrais fichiers du dépôt (CLAUDE.md, historique) sont lus et découpés', async () => {
+  const src = M.SOURCES_REGLES.find((x) => x.chemin === 'regles.md');
+  const texte = await M.texteSourceRegles(src, { racineRepo: path.resolve(__dirname, '..', '..') });
+  assert.ok(texte.length > 10000);
+  assert.ok(M.sectionsMarkdown(texte).some((x) => /Règles métier stables/.test(x.titre)));
+  assert.equal(await M.titreSectionRegles('regles.md', 1, { racineRepo: path.resolve(__dirname, '..', '..') }), M.sectionsMarkdown(texte)[0].titre);
+});

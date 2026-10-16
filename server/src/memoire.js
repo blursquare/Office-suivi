@@ -23,7 +23,16 @@ const RUBRIQUES_MEMOIRE = [
   { cle: 'decennales', libelle: 'Décennales des entreprises', nom: 'DECENNALES ENTREPRISES', re: /^decennales? entreprises?$/ },
   { cle: 'fausses-minutes', libelle: 'Fausses minutes', nom: 'FAUSSES MINUTES', re: /^fausses? minutes?$/ },
   { cle: 'modeles-outils', libelle: 'Modèles et outils', nom: 'MODELES - OUTILS', re: /^modeles? outils?$/ },
-  { cle: 'rappel-procedures', libelle: 'Rappel de procédures', nom: 'RAPPEL DE PROCEDURES', re: /^rappels? de procedures?$/ }
+  { cle: 'rappel-procedures', libelle: 'Rappel de procédures', nom: 'RAPPEL DE PROCEDURES', re: /^rappels? de procedures?$/ },
+  // Pas un dossier du NAS (étude 16/10 : « ok pour le 1 ») : les règles durables de CLAIRE (CLAUDE.md) et l'historique des décisions
+  // (docs/historique.md), embarqués dans le serveur. Aucune donnée client (règle du dépôt).
+  { cle: 'regles-etude', libelle: 'Règles et décisions de l’étude', nom: 'RÈGLES ET DÉCISIONS DE L’ÉTUDE', re: null, interne: true }
+];
+
+/** Les textes de la rubrique « Règles et décisions de l'étude » : chemin en base, nom affiché, asset du .exe, fichier du dépôt. */
+const SOURCES_REGLES = [
+  { chemin: 'regles.md', nom: 'Règles durables de CLAIRE', asset: 'memoire/CLAUDE.md', repo: 'CLAUDE.md' },
+  { chemin: 'historique.md', nom: 'Historique des décisions', asset: 'memoire/historique.md', repo: 'docs/historique.md' }
 ];
 
 const EXTENSIONS_LUES = ['pdf', 'docx', 'txt', 'md'];
@@ -46,7 +55,7 @@ function normaliserNom(nom) {
 /** Pure : la rubrique que désigne le nom d'un dossier, ou null. @param {string} nom */
 function rubriqueDuNom(nom) {
   const n = normaliserNom(nom);
-  return RUBRIQUES_MEMOIRE.find((r) => r.re.test(n)) || null;
+  return RUBRIQUES_MEMOIRE.find((r) => r.re && r.re.test(n)) || null;
 }
 
 /** Pure : l'extension (sans point, en minuscules) d'un nom de fichier si elle est lue, sinon ''. @param {string} nom */
@@ -64,6 +73,7 @@ async function trouverDossiersMemoire(config, fsImpl = fsp) {
   const trouves = [];
   const forces = (config && config.memoireDossiers && typeof config.memoireDossiers === 'object') ? config.memoireDossiers : {};
   for (const r of RUBRIQUES_MEMOIRE) {
+    if (r.interne) continue;
     const chemin = typeof forces[r.cle] === 'string' ? forces[r.cle] : '';
     if (!chemin) continue;
     try { if ((await fsImpl.stat(chemin)).isDirectory()) trouves.push({ cle: r.cle, libelle: r.libelle, nom: r.nom, chemin: path.resolve(chemin) }); } catch (_) { /* absent */ }
@@ -185,6 +195,70 @@ function passagesDesPages(pages) {
     for (const t of decouperTexte(p.texte)) { if (out.length < MAX_PASSAGES_PAR_DOCUMENT) out.push({ page: Math.max(0, Number(p.n) || 0), texte: t }); }
   }
   return out;
+}
+
+// ---- Règles et décisions de l'étude (CLAUDE.md, historique) ------------------------------------------------------------------
+
+/** Pure : un texte Markdown coupé en sections à chaque titre (« # », « ## », « ### », « #### ») — { n (1, 2…), titre, texte }.
+ * Le passage garde le numéro de sa section : la recherche rend le titre de la section, pas une page. @param {string} texte */
+function sectionsMarkdown(texte) {
+  /** @type {Array<{ n: number, titre: string, texte: string }>} */
+  const sections = [];
+  let courante = { n: 1, titre: '', lignes: /** @type {string[]} */ ([]) };
+  const pousser = () => { const t = courante.lignes.join('\n').trim(); if (t) sections.push({ n: sections.length + 1, titre: courante.titre, texte: t }); };
+  for (const ligne of String(texte || '').replace(/\r/g, '').split('\n')) {
+    const m = /^#{1,4}\s+(.+?)\s*#*\s*$/.exec(ligne);
+    if (m) { pousser(); courante = { n: sections.length + 1, titre: m[1].replace(/[*`_]/g, '').trim().slice(0, 160), lignes: [] }; continue; }
+    courante.lignes.push(ligne);
+  }
+  pousser();
+  return sections;
+}
+
+/** Pure : une empreinte numérique stable d'un texte (FNV-1a 32 bits) — sert de « date de modification » d'une source embarquée. @param {string} texte */
+function empreinteTexte(texte) {
+  let h = 0x811c9dc5;
+  const t = String(texte || '');
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h;
+}
+
+/** Le texte d'une source des règles : asset du .exe, sinon le fichier du dépôt ; '' s'il est absent. @param {{ asset: string, repo: string }} source @param {{ racineRepo?: string }} [config] */
+async function texteSourceRegles(source, config) {
+  try {
+    const sea = require('node:sea');
+    if (sea.isSea()) return sea.getAsset(source.asset, 'utf8');
+  } catch (_) { /* hors exécutable */ }
+  // Hors exécutable : le dépôt de la configuration (`config.racineRepo`, toujours posé par config.js) ; sans lui, rien.
+  if (!config || !config.racineRepo) return '';
+  try { return await fsp.readFile(path.join(String(config.racineRepo), source.repo), 'utf8'); } catch (_) { return ''; }
+}
+
+/** Indexe les règles et l'historique (relus seulement s'ils ont changé). @param {{ memoire: any, config?: any, lireSource?: (s: any) => Promise<string> }} o */
+async function indexerRegles(o) {
+  const lire = o.lireSource || ((src) => texteSourceRegles(src, o.config));
+  let lus = 0;
+  for (const src of SOURCES_REGLES) {
+    const texte = String(await lire(src) || '');
+    if (!texte.trim()) continue;
+    const r = o.memoire.voirFichier('regles-etude', src.chemin, src.nom, 'md', Buffer.byteLength(texte), empreinteTexte(texte));
+    const doc = o.memoire.documentPar('regles-etude', src.chemin);
+    if (!doc || (r === 'inchange' && doc.statut === 'lu')) continue;
+    o.memoire.enregistrerTexte(doc.id, sectionsMarkdown(texte).map((x) => ({ n: x.n, texte: x.titre ? `${x.titre}\n${x.texte}` : x.texte })));
+    lus++;
+  }
+  return lus;
+}
+
+/** Les titres des sections d'une source des règles, pour nommer un passage trouvé (gardés en mémoire du serveur). */
+const titresRegles = new Map();
+/** @param {string} chemin @param {number} n @param {any} [config] */
+async function titreSectionRegles(chemin, n, config) {
+  if (!titresRegles.has(chemin)) {
+    const src = SOURCES_REGLES.find((x) => x.chemin === chemin);
+    titresRegles.set(chemin, src ? sectionsMarkdown(await texteSourceRegles(src, config)).map((x) => x.titre) : []);
+  }
+  return titresRegles.get(chemin)[n - 1] || '';
 }
 
 // ---- Recherche (pure pour la requête) -------------------------------------------------------------------------------------------
@@ -321,6 +395,7 @@ function creerMemoire(db) {
       db.prepare('UPDATE memoire_documents SET statut = ?, erreur = ?, lu_le = ? WHERE id = ?').run(statut, String(message || '').slice(0, 160), Date.now(), id);
     },
     document(id) { return lireStmt.get(id) || null; },
+    documentPar(rubrique, chemin) { return trouverStmt.get(rubrique, chemin) || null; },
     /** Les documents à lire (statut « a_lire »), du type demandé ('pdf' pour le poste, 'serveur' pour Word et texte). */
     definirExclues(liste) { exclues = (Array.isArray(liste) ? liste : []).filter((x) => typeof x === 'string'); },
     aLire(type, limite) {
@@ -424,6 +499,8 @@ async function parcourirMemoire(o) {
   const etat = o.etat;
   Object.assign(etat, { enCours: true, debut: Date.now(), fin: 0, dossiers: [], vus: 0, nouveaux: 0, changes: 0, retires: 0, luServeur: 0, erreurs: 0, erreur: '' });
   try {
+    // Règles et décisions de l'étude : embarquées dans le serveur, indexées même sans NAS.
+    try { etat.regles = await indexerRegles({ memoire: o.memoire, config: o.config }); } catch (e) { console.error('[memoire] règles :', e && e.message ? e.message : e); }
     const dossiers = await trouverDossiersMemoire(o.config, fsImpl);
     etat.dossiers = dossiers.map((d) => ({ cle: d.cle, libelle: d.libelle }));
     for (const d of dossiers) {
@@ -477,6 +554,7 @@ function expurgerExtrait(texte) {
 }
 
 module.exports = {
+  SOURCES_REGLES, sectionsMarkdown, empreinteTexte, indexerRegles, titreSectionRegles, texteSourceRegles,
   expurgerExtrait, RUBRIQUES_MEMOIRE, normaliserNom, rubriqueDuNom, extensionLue, trouverDossiersMemoire, entreesZip, contenuZip, texteDocumentXml, texteDocx,
   decouperTexte, passagesDesPages, motsDeRecherche, requeteFts, extraitAutour, creerMemoire, listerFichiersMemoire, cheminDocumentMemoire, parcourirMemoire
 };

@@ -4,7 +4,7 @@
 // Jamais un chemin reçu du réseau : un document se désigne par son identifiant en base, le fichier est retrouvé et confiné à son dossier.
 
 const express = require('express');
-const { creerMemoire, parcourirMemoire, trouverDossiersMemoire, cheminDocumentMemoire, RUBRIQUES_MEMOIRE } = require('../memoire');
+const { creerMemoire, parcourirMemoire, trouverDossiersMemoire, cheminDocumentMemoire, RUBRIQUES_MEMOIRE, titreSectionRegles } = require('../memoire');
 const { envoyerFlux } = require('./nas');
 const { noterVerification } = require('../verificationsTerrain');
 
@@ -54,7 +54,7 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
     const rubriques = RUBRIQUES_MEMOIRE.map((r) => {
       const l = lignes.filter((x) => x.rubrique === r.cle);
       const n = (statut) => l.filter((x) => x.statut === statut).reduce((s, x) => s + x.n, 0);
-      return { cle: r.cle, libelle: r.libelle, nom: r.nom, trouve: dossiers.some((d) => d.cle === r.cle),
+      return { cle: r.cle, libelle: r.libelle, nom: r.nom, interne: !!r.interne, trouve: !!r.interne || dossiers.some((d) => d.cle === r.cle),
         fichiers: l.reduce((s, x) => s + x.n, 0), lus: n('lu'), aLire: n('a_lire'), vides: n('vide'), erreurs: n('erreur'), tropGros: n('trop_gros'),
         ocr: l.reduce((s, x) => s + x.ocr, 0) };
     });
@@ -118,7 +118,17 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
     const q = String(req.query.q || '').slice(0, 300);
     const rubrique = RUBRIQUES_MEMOIRE.some((r) => r.cle === req.query.rubrique) ? String(req.query.rubrique) : '';
     const r = memoire.chercher(q, { rubrique, limite: Number(req.query.limite) || 8 });
-    res.json({ passages: r.passages.map((p) => ({ document: p.doc, rubrique: p.rubrique, libelle: (RUBRIQUES_MEMOIRE.find((x) => x.cle === p.rubrique) || { libelle: '' }).libelle, page: p.page, extrait: p.extrait })) });
+    const passages = [];
+    for (const p of r.passages) {
+      const sortie = { document: p.doc, rubrique: p.rubrique, libelle: (RUBRIQUES_MEMOIRE.find((x) => x.cle === p.rubrique) || { libelle: '' }).libelle, page: p.page, extrait: p.extrait };
+      // Règles et décisions de l'étude : la section (titre de l'entrée d'historique, de la règle), pas une page.
+      if (p.rubrique === 'regles-etude') {
+        const doc = memoire.document(p.doc);
+        Object.assign(sortie, { page: 0, section: doc ? await titreSectionRegles(doc.chemin, p.page, config) : '' });
+      }
+      passages.push(sortie);
+    }
+    res.json({ passages });
   }));
 
   // Le nom du document, pour le bouton « Ouvrir la source » du poste seulement (jamais envoyé à l'IA).

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.271.0';
+  const VERSION_APP = '0.272.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.272.0', date: '2026-10-16 23:16', resume: "Mémoire de CLAIRE : nouvelle rubrique « Règles et décisions de l'étude » — les règles de CLAIRE et l'historique daté des demandes de l'étude, mis à jour à chaque version ; « Demander à CLAIRE » y cherche pour répondre à « pourquoi… », « depuis quand… », un délai ou un choix de l'étude, et cite la section." },
     { version: '0.271.0', date: '2026-10-16 23:06', resume: "Constitution de dossier : quand une commune a des services séparés, numérotage et alignement en deux courriers (même modèle de l'étude, chacun avec sa seule demande) — d'office à Paris (numérotage par courriel à la Direction de l'Urbanisme, alignement dans les renseignements d'urbanisme en ligne), d'un clic « Numérotage et alignement séparés » pour toute autre commune (adresse corrigée, choix papier/email et case décochée gardés à la bascule)." },
     { version: '0.270.0', date: '2026-10-16 22:56', resume: "Paris dans CLAIRE : « Où déposer la DIA » renvoie au téléservice dia.paris.fr (arrondissements compris) ; Constitution de dossier d'un bien parisien — numérotage par courriel à la Direction de l'Urbanisme, péril à la mairie d'arrondissement (Préfecture de Police sinon), assainissement en ligne avec le lien du formulaire, liens « Déposer la DIA » et « Demander le CU » ; Répertoire › Mairies et urbanisme : services de la Ville (DIA, CU/BASU, renseignements d'urbanisme, numérotage, assainissement) et Préfecture de Police." },
     { version: '0.269.5', date: '2026-10-16 22:44', resume: "Où déposer la DIA (Loir-et-Cher) : guichets relus le 16/10 — GNAU de Grand Chambord et de Beauce Val de Loire (DIA proposée), portails SIRAP des communes de Cœur de Sologne et du Romorantinais (DIA non citée, à vérifier), dépôt en mairie pour le Perche et Haut Vendômois, coordonnées des services pour les autres." },

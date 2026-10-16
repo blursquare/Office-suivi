@@ -122,7 +122,7 @@
     const e = memoireEtat;
     const fmActif = !!(e && e.reglages && e.reglages.fausseMinutes);
     const lignes = e ? e.rubriques.map(r => {
-      const etat = r.cle === 'fausses-minutes' && !fmActif ? '<span class="hint">lecture éteinte (option ci-dessous)</span>' : !r.trouve ? '<span class="hint">dossier introuvable sur le NAS</span>'
+      const etat = r.interne ? `<span class="hint">${r.lus ? 'à jour à chaque version de CLAIRE' : 'lu au prochain parcours'} · règles de CLAIRE et historique des décisions</span>` : r.cle === 'fausses-minutes' && !fmActif ? '<span class="hint">lecture éteinte (option ci-dessous)</span>' : !r.trouve ? '<span class="hint">dossier introuvable sur le NAS</span>'
         : `${r.lus} lu${r.lus > 1 ? 's' : ''} sur ${r.fichiers}${r.aLire ? ` · <strong>${r.aLire} à lire</strong>` : ''}${r.ocr ? ` · ${r.ocr} par OCR` : ''}${r.vides ? ` · ${r.vides} sans texte` : ''}${r.erreurs ? ` · ${r.erreurs} en erreur` : ''}${r.tropGros ? ` · ${r.tropGros} trop gros` : ''}`;
       return `<div class="reglages-option"><div><strong>${escapeHtml(r.nom)}</strong><div class="hint">${etat}</div></div></div>`;
     }).join('') : '';
@@ -146,13 +146,13 @@
   async function chercherDansLaMemoireAgent(e) {
     const recherche = typeof e.recherche === 'string' ? e.recherche.trim() : '';
     if (!recherche) return { erreur: 'recherche vide' };
-    const rubrique = ['decennales', 'fausses-minutes', 'modeles-outils', 'rappel-procedures'].includes(e.rubrique) ? e.rubrique : '';
+    const rubrique = ['decennales', 'fausses-minutes', 'modeles-outils', 'rappel-procedures', 'regles-etude'].includes(e.rubrique) ? e.rubrique : '';
     let r;
     try { r = await fetchAvecAuth('/api/memoire/chercher?q=' + encodeURIComponent(recherche) + (rubrique ? '&rubrique=' + rubrique : '') + '&limite=8'); }
     catch (err) { return { erreur: 'mémoire injoignable depuis le poste' }; }
     if (!r.ok) return { erreur: 'recherche impossible (' + r.status + ')' };
     const json = await r.json();
-    const passages = (json.passages || []).map(p => ({ rubrique: p.libelle, page: p.page || undefined, extrait: p.extrait }));
+    const passages = (json.passages || []).map(p => ({ rubrique: p.libelle, page: p.page || undefined, section: p.section || undefined, extrait: p.extrait }));
     return passages.length ? { nombre: passages.length, passages }
       : { nombre: 0, passages: [], remarque: 'Rien de correspondant dans la mémoire (documents pas encore tous lus, ou autres mots à essayer).' };
   }

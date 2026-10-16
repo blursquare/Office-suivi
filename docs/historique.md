@@ -20476,3 +20476,14 @@ par courriel (du-dtdf-numerotage@paris.fr), alignement « en ligne » (renseigne
 Paris) ; ailleurs, chacun suit le circuit du courrier réuni (mairie, ou courriel des géomètres à Blois). Écran : bouton « Numérotage et
 alignement séparés » / « Réunir numérotage et alignement » sous les courriers d'une commune (`cstEtat.separes`, pour ce dossier).
 La bascule reprend la saisie du courrier remplacé (`homologuesCourrierVente` : adresse corrigée, papier/email, case décochée — jamais d'un courrier « en ligne ») et montre le courrier qui prend la suite (relecture).
+
+### 16/10/2026 23 h 16 — Mémoire : « Règles et décisions de l'étude » (0.272.0)
+
+Demande : « Comment CLAIRE peut se connecter à ta mémoire ? », puis « Ok pour le 1 » (CLAUDE.md et l'historique dans la mémoire de CLAIRE).
+`server/src/memoire.js` : rubrique interne `regles-etude` (pas un dossier du NAS, `interne: true`, jamais cherchée par nom), sources
+`SOURCES_REGLES` — CLAUDE.md et docs/historique.md, embarqués dans le .exe (`memoire/CLAUDE.md`, `memoire/historique.md`, assets du
+blob SEA, jamais servis par HTTP), lus depuis le dépôt (`config.racineRepo`) hors exécutable. `indexerRegles` à chaque parcours de la
+mémoire, avant le NAS (donc même sans NAS), relu seulement si le texte change (`empreinteTexte`) ; découpé par titre Markdown
+(`sectionsMarkdown`), le numéro de section tient lieu de page et la recherche rend le titre de la section (`titreSectionRegles`).
+Agent : rubrique ajoutée à l'outil `chercher_dans_la_memoire` et consigne « pour une règle ou un choix de l'étude, cherche dans regles-etude
+et cite la section ». Extraits masqués comme tout résultat d'outil ; rien ne quitte le bureau hors des extraits trouvés.

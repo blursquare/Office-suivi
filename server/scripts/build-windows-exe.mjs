@@ -210,7 +210,10 @@ async function main() {
       'icone.svg': '../icone.svg',
       'build-info.json': 'build/build-info.json',
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
-      'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe'
+      'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe',
+      // Mémoire de CLAIRE, rubrique « Règles et décisions de l'étude » (src/memoire.js) : lus par le serveur, jamais servis.
+      'memoire/CLAUDE.md': '../CLAUDE.md',
+      'memoire/historique.md': '../docs/historique.md'
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');
