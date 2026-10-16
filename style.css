@@ -8159,11 +8159,11 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt-avec-mini.ag-evt-avec-proba:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 88px; }
 .ag-evt-court.ag-evt-avec-mini { padding-right: 48px; }
 .ag-evt-court.ag-evt-avec-mini.ag-evt-avec-proba { padding-right: 88px; }
-/* Bandeau des envois en bas d'une carte de signature (étude 16/10, proposition B) : ligne blanche, ✓ vert = parti, ✗ rouge = pas encore. */
+/* Bandeau des envois en bas d'une carte de signature (étude 16/10, proposition B) : ligne blanche, ✓ vert = parti, ✗ rouge = pas encore,
+   calés en bas à droite avec le pourcentage de maintien. */
+.ag-evt .ag-etats-bande .ag-proba { margin: 0 0 0 4px; align-self: center; }
 .ag-evt.ag-evt-avec-bande { padding-bottom: 16px; }
-.ag-evt-avec-bande.ag-evt-avec-mini:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 0; }
-.ag-evt-avec-bande.ag-evt-avec-mini.ag-evt-avec-proba:not(.ag-evt-compact) > .ag-evt-titre { padding-right: 48px; }
-.ag-etats-bande { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 1px 6px; background: color-mix(in srgb, var(--blanc-fixe) 88%, transparent); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; white-space: nowrap; overflow: hidden; pointer-events: none; }
+.ag-etats-bande { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 1px 6px; background: color-mix(in srgb, var(--blanc-fixe) 88%, transparent); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; white-space: nowrap; overflow: hidden; pointer-events: none; }
 .ag-bande-etat.fait { color: color-mix(in srgb, var(--success) 75%, var(--noir-fixe)); }
 .ag-bande-etat.afaire { color: color-mix(in srgb, var(--urgent) 85%, var(--noir-fixe)); }
 .ag-mini { display: inline-flex; align-items: center; padding: 0 4px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; line-height: 14px; letter-spacing: 0; }

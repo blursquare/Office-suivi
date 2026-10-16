@@ -20352,3 +20352,7 @@ bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune c
 ### 16/10/2026 20:36 — Agenda : bandeau des envois sur les signatures (0.266.5)
 
 Étude : « propose-moi autre chose pour voir si l'appel de fonds, projet et décompte ont été envoyés en un coup d'œil » ; quatre maquettes (jauge, bandeau ✓/✗, pastille unique « 2/3 », liseré de couleur) — choix : **B, bandeau**. `renderBandeEtatsRendezVous` (client/25) : ligne blanche en bas de la carte (`.ag-etats-bande`, `.ag-evt-avec-bande` réserve 16 px), « ✓ AF » vert / « ✗ P » rouge, détail en bulle ; vues Semaine et Jour, signatures d'un dossier seulement ; une carte de moins de 40 min garde les pastilles `renderEtatsMiniRendezVous`. Le pourcentage de maintien reste en haut à droite (vue Jour) ou sur la ligne de l'heure (vue Semaine).
+
+### 16/10/2026 20:42 — Agenda : bandeau en bas à droite avec le pourcentage (0.266.6)
+
+Étude : « mais en bas à droite avec le pourcentage ». `renderBandeEtatsRendezVous(infos, proba)` : états calés à droite (`justify-content: flex-end`), pourcentage au bout ; il quitte la ligne de l'heure (vue Semaine) et le coin haut (vue Jour) quand le bandeau est montré.
