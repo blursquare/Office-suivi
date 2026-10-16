@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.266.6';
+  const VERSION_APP = '0.266.7';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.266.7', date: '2026-10-16 21:19', resume: "Agenda : retour aux pastilles AF / P / D en haut à droite des signatures (le bandeau du bas est retiré), sur fond blanc — vert foncé = envoyé, rouge foncé en tirets = pas encore." },
     { version: '0.266.6', date: '2026-10-16 20:42', resume: "Agenda : le bandeau des envois (✓ AF, ✗ P, ✗ D) est calé en bas à droite de la carte, avec le pourcentage de maintien au bout." },
     { version: '0.266.5', date: '2026-10-16 20:36', resume: "Agenda : sur une signature, un bandeau en bas de la carte dit d’un coup d’œil ce qui est parti — « ✓ AF  ✗ P  ✗ D » (vert = envoyé, rouge = pas encore) ; le pourcentage reste en haut à droite. Une carte de moins de 40 min garde les petites pastilles." },
     { version: '0.266.4', date: '2026-10-16 19:36', resume: "Agenda : couleurs des rendez-vous adoucies (même teinte qu’Outlook, moins vives), texte noir toujours lisible." },
