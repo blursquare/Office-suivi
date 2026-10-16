@@ -1494,9 +1494,11 @@
     { cle: 'rouge', re: /\b(rouge|red)\b/ },
     { cle: 'orange', re: /\borange\b/ },
     { cle: 'jaune', re: /\b(jaune|yellow)\b/ },
+    // Vert olive / vert foncé (Outlook : « Olive », « Dark Green ») avant le vert : agenda de l'office, étude 16/10.
+    { cle: 'olive', re: /\b(olive|vert fonce|dark green|kaki)\b/ },
     { cle: 'vert', re: /\b(verte?|green)\b/ },
     { cle: 'bleu', re: /\b(bleue?|blue)\b/ },
-    { cle: 'violet', re: /\b(violette?|pourpre|mauve|purple)\b/ },
+    { cle: 'violet', re: /\b(violet(?:te)?|pourpre|mauve|purple)\b/ },
     { cle: 'gris', re: /\b(grise?|gray|grey|noire?|black)\b/ },
     { cle: 'rose', re: /\b(rose|pink)\b/ },
     { cle: 'marron', re: /\b(marron|brune?|brown)\b/ }

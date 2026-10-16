@@ -29,6 +29,11 @@ test('teinteEvenementAgenda : absence et date butoir d’abord, puis la couleur 
 test('couleurCategorieOutlook : noms français et anglais, accents et casse ignorés', () => {
   assert.equal(app.couleurCategorieOutlook('Catégorie Bleue'), 'bleu');
   assert.equal(app.couleurCategorieOutlook('Purple category'), 'violet');
+  // « Violet » tout court (étude 16/10 : jamais affiché en violet) et vert olive / vert foncé à part du vert.
+  assert.equal(app.couleurCategorieOutlook('Violet'), 'violet');
+  assert.equal(app.couleurCategorieOutlook('Vert olive'), 'olive');
+  assert.equal(app.couleurCategorieOutlook('Dark Green category'), 'olive');
+  assert.equal(app.couleurCategorieOutlook('Catégorie Verte'), 'vert');
   assert.equal(app.couleurCategorieOutlook('Catégorie Grise'), 'gris');
   assert.equal(app.couleurCategorieOutlook('Vertical'), '', 'jamais au milieu d’un mot');
   assert.equal(app.couleurCategorieOutlook('Rendez-vous client'), '');

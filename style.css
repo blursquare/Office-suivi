@@ -31,6 +31,8 @@
     /* Blanc qui le reste dans les deux thèmes : fond d'un document ou d'une image (page de PDF, scan, signature), pouce
        d'un interrupteur, texte d'une bulle toujours sombre. */
     --blanc-fixe: #FFFFFF;
+    /* Texte posé sur la couleur pleine d'un rendez-vous de l'agenda (étude 16/10 : « retire la transparence ») : blanc en clair. */
+    --ag-texte-plein: var(--blanc-fixe);
     /* Noir qui le reste dans les deux thèmes : halo du texte posé sur une photo. */
     --noir-fixe: #000000;
   }
@@ -92,8 +94,9 @@
     --appelfonds: #7C5CBF;
     /* Couleurs des catégories Outlook, reprises telles que l'agenda de l'office les montre (page
        Agenda, fenêtre du matin — étude, 30/09 : « reprends le code couleur des rendez-vous »). */
-    --cat-rouge: #C8323A; --cat-orange: #D9711C; --cat-jaune: #C29A0A; --cat-vert: #2F8F5B;
-    --cat-bleu: #2F6FD0; --cat-violet: #7C5CBF; --cat-gris: #7E879B; --cat-rose: #C94F86; --cat-marron: #8E562E;
+    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), les mêmes en clair et en sombre. */
+    --cat-rouge: #A8121F; --cat-orange: #C13F0C; --cat-jaune: #D6C000; --cat-vert: #0E8A45; --cat-olive: #3E5C10;
+    --cat-bleu: #0F65B4; --cat-violet: #6C5DBA; --cat-gris: #6B7280; --cat-rose: #B83F78; --cat-marron: #7E4A26;
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
@@ -140,8 +143,10 @@
     --acte-bg: #232736;
     --ventebien: #6FAEDB;
     --appelfonds: #A48BE0;
-    --cat-rouge: #F0706F; --cat-orange: #F09A4E; --cat-jaune: #E6C04A; --cat-vert: #5FBF87;
-    --cat-bleu: #6FA0EE; --cat-violet: #A48BE0; --cat-gris: #9AA0A8; --cat-rose: #EE8AB5; --cat-marron: #C28A62;
+    /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), les mêmes en clair et en sombre. */
+    --cat-rouge: #A8121F; --cat-orange: #C13F0C; --cat-jaune: #D6C000; --cat-vert: #0E8A45; --cat-olive: #3E5C10;
+    --cat-bleu: #0F65B4; --cat-violet: #6C5DBA; --cat-gris: #6B7280; --cat-rose: #B83F78; --cat-marron: #7E4A26;
+    --ag-texte-plein: var(--blanc-fixe);
     --projet: #E58AB5;
     --ventebien-bg: #263238;
     --urgent: #F08C4B;
@@ -7856,6 +7861,7 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
    couleur de sa catégorie Outlook, texte foncé. */
 /* Teinte de chaque rendez-vous : couleur de catégorie Outlook, sinon type. */
 .ajd-office, .ajd-vert { --ag-teinte: var(--cat-vert); }
+.ajd-olive { --ag-teinte: var(--cat-olive); }
 .ajd-visio, .ajd-violet { --ag-teinte: var(--cat-violet); }
 .ajd-confrere, .ajd-orange { --ag-teinte: var(--cat-orange); }
 .ajd-rouge { --ag-teinte: var(--cat-rouge); }
@@ -7864,16 +7870,31 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .ajd-gris { --ag-teinte: var(--cat-gris); }
 .ajd-rose { --ag-teinte: var(--cat-rose); }
 .ajd-marron { --ag-teinte: var(--cat-marron); }
-.ajd-signature { --ag-teinte: var(--acte); }
+.ajd-signature { --ag-teinte: var(--cat-vert); }
 /* Absences et dates butoir en rose (étude, 01/10 : les distinguer des rendez-vous ; le violet est aux
    visios) ; les absences rayées en plus, pour les séparer des butoirs. Annulé / à replacer : jaune. */
 .ajd-absence, .ajd-butoir { --ag-teinte: var(--cat-rose); }
 .ajd-annule { --ag-teinte: var(--cat-jaune); }
 .ag-journee-evt.ajd-absence, .ag-evt.ajd-absence, .ag-vm-evt.ajd-absence {
-  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--cat-rose) 14%, transparent) 6px 8px);
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--blanc-fixe) 30%, transparent) 6px 8px);
 }
 .ech-a-replacer { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.ajd-autre { --ag-teinte: var(--ventebien); }
+.ajd-autre { --ag-teinte: var(--cat-bleu); }
+/* Rendez-vous en couleur PLEINE (étude 16/10 : « retire la transparence des rendez-vous pour avoir des couleurs plus visibles ») : le texte
+   passe en blanc ; sur le jaune, trop clair pour du blanc, en noir — comme Outlook (couleurs de l'office, étude 16/10). Les
+   options (hachurées), les rendez-vous hors Outlook (tirets) et la semaine probable (fantôme) gardent leur fond clair et le texte normal. */
+.ag-evt, .ag-journee-evt, .ag-vm-evt { --ag-texte: var(--ag-texte-plein); }
+.ag-evt.ajd-jaune, .ag-evt.ajd-annule, .ag-journee-evt.ajd-jaune, .ag-journee-evt.ajd-annule,
+.ag-vm-evt.ajd-jaune, .ag-vm-evt.ajd-annule { --ag-texte: var(--noir-fixe); }
+/* Le liseré de gauche un ton plus clair que le fond, comme Outlook. */
+.ag-evt[class], .ag-journee-evt[class], .ag-vm-evt[class] { border-left-color: color-mix(in srgb, var(--ag-teinte, var(--line)) 65%, var(--blanc-fixe)); }
+.ag-evt.ag-option[class], .ag-journee-evt.ag-option[class], .ag-vm-evt.ag-option[class], .ag-evt.ag-fantome[class], .ag-evt.ag-hors-agenda[class], .ag-journee-evt.ag-hors-agenda[class], .ag-vm-evt.ag-hors-agenda[class] { border-left-color: var(--ag-teinte, var(--line)); }
+.ag-evt.ag-option, .ag-journee-evt.ag-option, .ag-vm-evt.ag-option, .ag-evt.ag-fantome, .ag-evt.ag-hors-agenda,
+.ag-journee-evt.ag-hors-agenda, .ag-vm-evt.ag-hors-agenda { --ag-texte: var(--ink); }
+.ag-evt .ag-evt-titre, .ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-evt-duree, .ag-evt .ag-proba, .ag-evt .ag-evt-debut, .ag-evt .ag-evt-fin { color: var(--ag-texte); }
+.ag-evt .ag-evt-heure, .ag-evt .ag-evt-qui, .ag-evt .ag-evt-meta, .ag-evt .ag-proba { opacity: 0.9; }
+/* Pastilles « AF » « P » sur un fond plein : posées sur une pastille blanche pour rester lisibles. */
+.ag-evt .ag-mini { background: var(--paper-card); }
 .ag-page { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); overflow: hidden; }
 .ag-tete-page { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
 /* Mot du jour (étude, 01/10, d'après « Wed. » puis « en français, pas de fond de couleur ») : « Jeudi »
@@ -8003,9 +8024,9 @@ wa-button.ag-ajout svg { width: 14px; height: 14px; }
 .ag-journee { min-width: 0; padding: 4px 4px; border-left: 1px solid var(--line-soft); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
 .ag-journee.aujourdhui { background: color-mix(in srgb, var(--focus) 6%, var(--paper-card)); }
 .ag-journee-evt {
-  font-family: inherit; font-size: var(--texte-s); font-weight: 600; text-align: left; color: var(--ink); cursor: pointer;
+  font-family: inherit; font-size: var(--texte-s); font-weight: 600; text-align: left; cursor: pointer;
   border: none; border-left: 3px solid var(--ag-teinte, var(--line)); border-radius: var(--rayon-xs); padding: 4px 6px;
-  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card));
+  background: var(--ag-teinte, var(--line)); color: var(--ag-texte);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ag-heures { display: flex; flex-direction: column; }
@@ -8037,10 +8058,10 @@ wa-button.ag-ajout svg { width: 14px; height: 14px; }
   position: absolute; z-index: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px; min-height: 0;
   font-family: inherit; text-align: left; cursor: pointer; padding: 4px 6px 4px 8px; box-sizing: border-box;
   border: none; border-left: 4px solid var(--ag-teinte, var(--line)); border-radius: var(--rayon-xs);
-  background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card));
+  background: var(--ag-teinte, var(--line)); color: var(--ag-texte);
   box-shadow: var(--shadow-card);
 }
-.ag-evt:hover { background: color-mix(in srgb, var(--ag-teinte, var(--line)) 24%, var(--paper-card)); z-index: 2; }
+.ag-evt:hover { filter: brightness(1.06); z-index: 2; }
 .ag-evt.selection, .ag-journee-evt.selection { box-shadow: 0 0 0 2px var(--ink); z-index: 2; }
 /* Glisser-déposer (étude, 01/10) : l'original s'estompe, une copie suit le pointeur avec le nouvel
    horaire ; rien n'est écrit avant la confirmation. */
@@ -8153,8 +8174,8 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-vm-num:hover { background: var(--line-soft); }
 .ag-vm-case.aujourdhui .ag-vm-num { background: var(--ink); color: var(--paper-card); }
 .ag-vm-evt {
-  font-family: inherit; font-size: var(--texte-xs); text-align: left; color: var(--ink); cursor: pointer; border: none; border-left: 3px solid var(--ag-teinte, var(--line));
-  border-radius: var(--rayon-xs); padding: 1px 6px; background: color-mix(in srgb, var(--ag-teinte, var(--line)) 16%, var(--paper-card)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: inherit; font-size: var(--texte-xs); text-align: left; cursor: pointer; border: none; border-left: 3px solid var(--ag-teinte, var(--line));
+  border-radius: var(--rayon-xs); padding: 1px 6px; background: var(--ag-teinte, var(--line)); color: var(--ag-texte); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .ag-vm-evt b { font-variant-numeric: tabular-nums; }
 .ag-vm-plus { font-family: inherit; font-size: var(--texte-xs); font-weight: 600; color: var(--ink-soft); background: none; border: none; cursor: pointer; text-align: left; padding: 0 6px; }
