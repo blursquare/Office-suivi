@@ -35,7 +35,8 @@
     if (n === 0) return "zéro";
     const parts = [];
     const mil = Math.floor(n / 1e6), th = Math.floor((n % 1e6) / 1000), r = n % 1000;
-    if (mil) parts.push(mil === 1 ? "un-million" : sous1000(mil, false) + "-millions");
+    // « million » est un nom : quatre-vingts et deux-cents y gardent leur s (quatre-vingts-millions).
+    if (mil) parts.push(mil === 1 ? "un-million" : sous1000(mil, true) + "-millions");
     if (th) parts.push(th === 1 ? "mille" : sous1000(th, false) + "-mille");
     if (r) parts.push(sous1000(r, true));
     return parts.join("-");
@@ -87,7 +88,8 @@
     // Prix en lettres : traits d'union + « euros ».
     prix_lettres: (v) => {
       const n = Math.round(Number(String(v).replace(/\s/g, "").replace(",", ".")));
-      return nombreEnLettres(n) + (n > 1 ? " euros" : " euro");
+      // Un nombre rond de millions : « un-million d'euros », « deux-millions d'euros ».
+      return nombreEnLettres(n) + (n >= 1e6 && n % 1e6 === 0 ? " d'euros" : n > 1 ? " euros" : " euro");
     },
     // Surface : entier, ou décimale avec virgule. (Deux décimales si non entière, comme « 98,00 » observé : à confirmer.)
     surface: (v) => {

@@ -70,6 +70,9 @@ async function startRun({ scenario, fiche, speed, continuer }) {
   validateScenario(scenario);
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab || !tab.id) throw new Error("Aucun onglet actif.");
+  // Jamais dans la fenêtre de CLAIRE elle-même (seule autre machine autorisée) : le guichet doit être l'onglet affiché.
+  const { serveur } = await chrome.storage.local.get(["serveur"]);
+  if (serveur && tab.url && tab.url.startsWith(serveur)) throw new Error("Affichez d’abord la page du guichet unique, puis cliquez « Remplir la page affichée ».");
 
   const run = {
     id: crypto.randomUUID(),
@@ -182,9 +185,11 @@ async function releverStructure() {
     target: { tabId: tab.id, allFrames: false },
     func: () => {
       const net = (t) => String(t || "").replace(/\s+/g, " ").trim().slice(0, 140);
+      // Texte d'un libellé SANS les champs qu'il contient (relecture 16/10 : un <textarea> rouvert dans un brouillon y mettait sa valeur).
+      const texteSansChamps = (n) => { const c = n.cloneNode(true); c.querySelectorAll("input, select, textarea, option").forEach((x) => x.remove()); return net(c.textContent); };
       const libelle = (el) => {
-        if (el.id) { const l = [...document.querySelectorAll("label[for]")].find((x) => x.htmlFor === el.id); if (l) return net(l.textContent); }
-        const parent = el.closest("label"); if (parent) return net(parent.textContent);
+        if (el.id) { const l = [...document.querySelectorAll("label[for]")].find((x) => x.htmlFor === el.id); if (l) return texteSansChamps(l); }
+        const parent = el.closest("label"); if (parent) return texteSansChamps(parent);
         return net(el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.title);
       };
       const champs = [...document.querySelectorAll("input, select, textarea")].filter((el) => el.type !== "password").map((el) => ({
@@ -195,8 +200,8 @@ async function releverStructure() {
       }));
       const boutons = [...document.querySelectorAll("button, input[type=submit], input[type=button], a.btn, a.button")]
         .map((b) => ({ texte: net(b.innerText || b.value || b.getAttribute("aria-label")), id: b.id || "", name: b.name || "" })).filter((b) => b.texte).slice(0, 60);
-      const titres = [...document.querySelectorAll("h1, h2, h3, legend")].map((h) => net(h.textContent)).filter(Boolean).slice(0, 60);
-      return { url: location.origin + location.pathname, titre: net(document.title), titres, champs, boutons, cadres: document.querySelectorAll("iframe").length };
+      // Ni titre de page ni intitulés de rubrique : le guichet peut y afficher le nom du demandeur ou du dossier (relecture 16/10).
+      return { url: location.origin + location.pathname, champs, boutons, cadres: document.querySelectorAll("iframe").length };
     }
   });
   return res && res.result;

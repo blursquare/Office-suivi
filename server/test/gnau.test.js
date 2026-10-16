@@ -72,3 +72,19 @@ test('liste des dossiers : ventes en cours seulement, recherche sur le nom, les 
   assert.deepEqual(dossiersGnau(liste, 'vine lamb').map((x) => x.id), ['v1']);
   assert.deepEqual(dossiersGnau(liste, 'dupont').map((x) => x.id), []);
 });
+
+test('relecture 16/10 : pays et département de naissance jamais devinés, nom sans capitales non découpé', () => {
+  const d = dossier();
+  d.authentic.fichesClients.a.lieuNaissance = '20000 AJACCIO';
+  let f = ficheGnau(d, 'dia', '2026-10-16');
+  assert.equal(f.vendeur.departementNaissance, '');
+  assert.equal(f.vendeur.paysNaissance, '', 'pas de pays sur la fiche : vide, jamais « FRANCE »');
+  d.authentic.fichesClients.a.paysNaissance = 'Maroc';
+  d.authentic.fichesClients.a.lieuNaissance = 'CASABLANCA';
+  f = ficheGnau(d, 'dia', '2026-10-16');
+  assert.equal(f.vendeur.paysNaissance, 'MAROC');
+  d.parties[2] = { role: 'ACQUEREUR', nom: 'Claire Lambert' };
+  f = ficheGnau(d, 'dia', '2026-10-16');
+  assert.deepEqual([f.acquereur.nom, f.acquereur.prenom], ['', '']);
+  assert.ok(f.manques.some((m) => /Nom de famille d’une partie/.test(m)));
+});

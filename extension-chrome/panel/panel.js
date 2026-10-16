@@ -214,7 +214,7 @@ function render() {
 
     expandFields(page, data).forEach((f, fi) => {
       const r = resolveField(f, data);
-      const st = memeDossier && run.fields[`${pi}.${fi}`];
+      const st = memeDossier && run.fields[`${pi}:${f.label || f.source || fi}`];
       let state = st ? st.state : r.missing ? (f.optional ? "skipped" : "missing") : r.invalid ? "mismatch" : "pending";
       if (r.missing && f.optional && !st) state = "skipped";
       total += 1;

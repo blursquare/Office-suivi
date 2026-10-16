@@ -207,7 +207,9 @@
     return true;
   }
 
-  async function fillElement(el, type, value, sp, direct) {
+  async function fillElement(el, type0, value, sp, direct) {
+    // Une liste trouvée par un code prévu « texte » se remplit comme une liste (le setter d'un input y lève une erreur).
+    const type = el instanceof HTMLSelectElement ? "select" : type0;
     // Champ caché (valeur encodée calculée par CLAIRE) : posé d'un coup, sans curseur ni frappe.
     if (direct && !["checkbox", "radio", "select"].includes(type)) {
       setNativeValue(el, String(value));
@@ -256,9 +258,23 @@
     return [`[name="${c}"]`, `#${c}`, `[name$=".${c}"]`, `[name$="_${c}"]`, `[name$="[${c}]"]`, `[id$="_${c}"]`, `[id$="-${c}"]`].join(", ");
   }
 
+  // Clé d'un champ : son libellé (stable quand la fiche relue gagne ou perd un codemandeur — relecture 16/10), l'index en secours.
+  const cleChamp = (pi, fi, f) => `${pi}:${f.label || f.source || fi}`;
+
+  // Le premier élément VISIBLE qui répond au sélecteur ; un champ caché (type=hidden ou masqué) seulement si le scénario le dit
+  // (`direct`) — un guichet qui place un champ caché du même nom avant le champ visible ne le reçoit jamais (relecture 16/10).
+  function elementCible(sel, f) {
+    const tous = [...document.querySelectorAll(sel)];
+    return tous.find((el) => el.type !== "hidden" && visible(el)) || (f.direct ? tous[0] || null : null);
+  }
+
   async function fillOne(run, pi, fi, f, sp) {
-    const key = `${pi}.${fi}`;
-    if (run.fields && run.fields[key] && run.fields[key].state === "done") return; // reprise après rechargement
+    const key = cleChamp(pi, fi, f);
+    const pageAffichee = !!(run.scenario && run.scenario.pageAffichee);
+    const dejaFait = !!(run.fields && run.fields[key] && run.fields[key].state === "done");
+    // Reprise après rechargement (scénario à plusieurs pages) ; en « page affichée », un champ présent sur la page est toujours
+    // rempli de nouveau (même valeur : sans risque) — un brouillon rouvert ou une seconde demande ne restent pas vides.
+    if (dejaFait && !pageAffichee) return;
     await gate();
     const r = resolveField(f, run.fiche);
     if (r.missing) return void (await report(key, f.optional ? "skipped" : "missing"));
@@ -268,10 +284,11 @@
     // Champ dont l'emplacement sur le guichet n'est pas encore relevé : la valeur se copie depuis le panneau.
     if (!sel) return void (await report(key, "manuel", "à coller à la main (bouton Copier du panneau)"));
     // « Page affichée » : seuls les champs présents sur CETTE page sont remplis, sans attendre les autres.
-    const pageAffichee = !!(run.scenario && run.scenario.pageAffichee);
-    const el = pageAffichee ? document.querySelector(sel) : await waitForSelector(sel, 5000);
-    if (!el) return void (await report(key, pageAffichee ? "absent" : "notfound", sel));
-    const direct = !!f.direct || !visible(el);
+    if (!pageAffichee) await waitForSelector(sel, 5000);
+    const el = elementCible(sel, f);
+    // Absent de cette page : un champ rempli sur une page précédente reste coché.
+    if (!el) return void (await report(key, pageAffichee ? (dejaFait ? "done" : "absent") : "notfound", sel));
+    const direct = !!f.direct;
     const res = await fillElement(el, f.type || "text", r.value, sp, direct);
     await report(key, res.ok ? "done" : "mismatch", res.detail);
   }

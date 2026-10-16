@@ -118,19 +118,33 @@ function personneGnau(d, p) {
   }
   const f = ficheClient(d, nomComplet);
   const capitales = nomComplet.split(/\s+/).filter((m) => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m));
-  const nom = texte(f && f.nomFamille) || capitales.join(' ') || nomComplet;
-  const prenom = texte(f && f.prenom) || texte(p && p.prenom) || nomComplet.split(/\s+/).filter((m) => !capitales.includes(m)).join(' ');
+  // Nom de famille : la fiche client, sinon les mots en capitales ; un nom sans capitales (« Jean Dupont ») ne se découpe pas —
+  // nom et prénom restent vides, cités dans `manques` (relecture 16/10 : jamais deviné).
+  const nom = texte(f && f.nomFamille) || capitales.join(' ');
+  const prenom = texte(f && f.prenom) || texte(p && p.prenom) || (capitales.length ? nomComplet.split(/\s+/).filter((m) => !capitales.includes(m)).join(' ') : '');
   const lieu = texte((f && f.lieuNaissance) || (p && p.lieuNaissance));
   return {
     morale: false, civilite: civiliteCourte((p && p.civilite) || (f && f.civilite)), nom: nom.toUpperCase(), prenom,
     nomUsage: texte((f && f.nomUsage) || (p && p.nomUsage)).toUpperCase(), raisonSociale: '',
     dateNaissance: texte((f && f.dateNaissance) || (p && p.dateNaissance)).slice(0, 10),
     // « 41000 BLOIS » (Authentic) → « BLOIS » : le guichet demande la commune, le département à part.
-    lieuNaissance: lieu.replace(/^\s*\d{5}\s+/, '').toUpperCase(), departementNaissance: (/^\s*(\d{2})\d{3}\b/.exec(lieu) || [])[1] || '',
-    paysNaissance: texte(f && f.paysNaissance).toUpperCase() || (lieu ? 'FRANCE' : ''),
+    lieuNaissance: lieu.replace(/^\s*\d{5}\s+/, '').toUpperCase(), departementNaissance: departementDuCodePostal(lieu),
+    // Le pays tel que la fiche client le donne, jamais déduit (relecture 16/10 : une naissance à l'étranger sortait « FRANCE »).
+    paysNaissance: texte(f && f.paysNaissance).toUpperCase(),
     adresse: adresseDecomposee(texte(f && f.domicile), f && f.adresse ? f.adresse : undefined),
     profession: texte(f && f.profession), source: f ? 'Authentic' : ''
   };
+}
+
+/**
+ * Pure : le département d'un code postal en tête (« 41000 BLOIS » → « 41 »), '' quand il ne se lit pas sûrement : Corse (20…, 2A/2B selon
+ * la commune) et outre-mer (97…, trois chiffres) ne sont pas devinés.
+ * @param {string} lieu
+ */
+function departementDuCodePostal(lieu) {
+  const m = /^\s*(\d{2})\d{3}(?!\d)/.exec(String(lieu || ''));
+  if (!m || m[1] === '20' || m[1] === '00' || Number(m[1]) > 95) return '';
+  return m[1];
 }
 
 /** Pure : les parties d'un côté. @param {any} d @param {string} role */
@@ -201,7 +215,8 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
   manque(!fiche.terrain.commune, 'Commune du terrain');
   if (proc === 'dia') {
     manque(!vendeurs.length, 'Vendeur');
-    vendeurs.filter((v) => !v.morale && !v.source).forEach((v) => manque(true, `Fiche client d’Authentic de ${[v.prenom, v.nom].filter(Boolean).join(' ')} (naissance, domicile, profession)`));
+    vendeurs.filter((v) => !v.morale && !v.source).forEach((v) => manque(true, `Fiche client d’Authentic de ${[v.prenom, v.nom].filter(Boolean).join(' ') || 'un vendeur'} (naissance, domicile, profession)`));
+    if ([...vendeurs, ...acquereurs].some((v) => !v.morale && !v.nom)) manque(true, 'Nom de famille d’une partie (écrivez-le en capitales sur la fiche, ou ouvrez sa fiche client dans Authentic)');
     manque(prix === null, 'Prix de vente');
     manque(!acquereurs.length, 'Acquéreur');
     manque(!!(d && d.honoraires && !d.honoraires.direct && Number(d.honoraires.montantTTC) > 0) && !fiche.commission, 'Commission : à la charge de qui ?');

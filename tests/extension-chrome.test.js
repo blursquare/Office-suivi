@@ -67,3 +67,13 @@ test('manifeste : les guichets connus, CLAIRE sur autorisation, jamais localhost
   const content = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
   assert.match(content, /const FORBIDDEN = \/\(valider\|validation\|envoyer\|signer\|signature\|soumettre\|confirmer\|transmettre\|payer\|paiement\|supprimer\|finaliser\|certifier\)\/i/);
 });
+
+test('prix en lettres : millions au pluriel et « d’euros » pour un nombre rond de millions (relecture 16/10)', () => {
+  const t = ctx.ClaireFiche.TRANSFORMS.prix_lettres;
+  assert.equal(t(80000000), 'quatre-vingts-millions d\'euros');
+  assert.equal(t(200000000), 'deux-cents-millions d\'euros');
+  assert.equal(t(1000000), 'un-million d\'euros');
+  assert.equal(t(1250000), 'un-million-deux-cent-cinquante-mille euros');
+  assert.equal(t(80), 'quatre-vingts euros');
+  assert.equal(t(81000), 'quatre-vingt-un-mille euros');
+});

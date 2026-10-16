@@ -7,7 +7,7 @@
   "action": { "default_title": "CLAIRE — CU et DIA" },
   "side_panel": { "default_path": "panel/panel.html" },
   "background": { "service_worker": "background.js" },
-  "permissions": ["sidePanel", "storage", "scripting", "tabs"],
+  "permissions": ["sidePanel", "storage", "scripting"],
   "host_permissions": [
     "https://demande-urbanisme.agglopolys.fr/*",
     "https://*.operis.fr/*",
