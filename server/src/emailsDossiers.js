@@ -25,6 +25,7 @@ const crypto = require('node:crypto');
 const { noterVerification } = require('./verificationsTerrain');
 const { accesCollaborateur, marquerRefus, leverRefus } = require('./comptesCollaborateurs');
 const { cocherProjetEnvoye, corpsALirePourProjet } = require('./projetEnvoyeEmail');
+const { successionDeEnvoiBanque, cocherClotureComptes, envoisAGarder } = require('./clotureComptesEmail');
 
 // Coche le projet sur la copie du dossier relue À L'INSTANT (audit 13/10) : la liste du début du tour est périmée après les
 // lectures Exchange — l'écrire effaçait ce qu'un poste avait enregistré entre-temps. Synchrone entre la relecture et l'écriture.
@@ -123,7 +124,10 @@ function assainirEmailsDossiers(brut) {
       dossiersVus: Array.isArray(etat.dossiersVus) ? [...new Set(etat.dossiersVus.filter((x) => typeof x === 'string' && x).map((x) => x.slice(0, 100)))].slice(-MAX_DOSSIERS_VUS) : null },
     emails: (Array.isArray(b.emails) ? b.emails : []).map(assainirEmail).filter(Boolean)
       .sort((x, y) => x.date.localeCompare(y.date)).slice(-MAX_EMAILS),
-    prepares: (Array.isArray(b.prepares) ? b.prepares : []).map(assainirPrepare).filter(Boolean).slice(-MAX_PREPARES)
+    prepares: (Array.isArray(b.prepares) ? b.prepares : []).map(assainirPrepare).filter(Boolean).slice(-MAX_PREPARES),
+    // Envois rattachés à aucun dossier (objet, destinataires, date ; 45 jours) : recoupés avec les courriers de clôture des comptes d'une
+    // succession relevés dans Authentic (clotureComptesEmail.js), même relevés après l'envoi.
+    envoisNonRattaches: envoisAGarder(Array.isArray(b.envoisNonRattaches) ? b.envoisNonRattaches : [], [], new Date())
   };
 }
 
@@ -382,6 +386,8 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
   if (etat.emails.length < avantTri) resultat.retires = avantTri - etat.emails.length;
   const connus = new Set(etat.emails.map((e) => e.id));
   const aResumer = [];
+  /** @type {any[]} */
+  const nonRattaches = [];
 
   // 1. Boîte de réception du compte relié.
   const r = await poster(corpsFind('inbox', null, etat.etat.recus.dernier || depuisDefaut, 'item:DateTimeReceived'));
@@ -510,7 +516,7 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       const envoye = { objet: e.objet, a, date: e.date, pj: e.pj, boite: b.adresse, collaborateur: b.collaborateur };
       const prepare = etat.prepares.find((p) => correspondAuPrepare(p, envoye));
       const d = prepare ? dossiers.find((x) => x.id === prepare.dossierId) || dossierDeEmailEnvoye(envoye, ctx) : dossierDeEmailEnvoye(envoye, ctx);
-      if (!d && !prepare) continue;
+      if (!d && !prepare) { nonRattaches.push({ id: idCourt(e.itemId), date: e.date, objet: e.objet, a }); continue; }
       const email = assainirEmail({ id: idCourt(e.itemId), itemId: e.itemId, dossierId: d ? d.id : (prepare && prepare.dossierId) || '', sens: 'envoye',
         date: e.date, de: { nom: b.collaborateur, adresse: b.adresse }, a, objet: e.objet, sujets: sujetsDe(e.objet, ''),
         boite: b.adresse, collaborateur: b.collaborateur, prepareId: prepare ? prepare.id : null });
@@ -544,6 +550,26 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
     if (acces) leverRefus(parametresRepo, b.collaborateur);
     etat.etat.envoyes[b.adresse] = { collaborateur: b.collaborateur, statut: 'ok', message: '', luLe: maintenant.toISOString(),
       lus: (prec.lus || 0) + lot.length, dernier: dateIso(dernier) || prec.dernier || depuisDefaut };
+  }
+
+  // Clôture / transfert des comptes d'une succession (étude 16/10) : un courrier créé dans Authentic + son envoi par email à la banque.
+  // Chaque dossier est relu juste avant d'être écrit (audit 13/10) ; un envoi qui a servi n'est plus gardé.
+  etat.envoisNonRattaches = envoisAGarder(etat.envoisNonRattaches, nonRattaches, maintenant);
+  if (typeof depot.remplacer === 'function' && etat.envoisNonRattaches.length) {
+    const successions = depot.tousActifs().filter((x) => x && !x.archive && x.typeAffaire === 'succession');
+    const servis = new Set();
+    for (const envoye of successions.length ? etat.envoisNonRattaches : []) {
+      const trouve = successionDeEnvoiBanque(successions, envoye, ctx.adresseEtude);
+      if (!trouve) continue;
+      const frais = typeof depot.trouverParId === 'function' ? depot.trouverParId(trouve.d.id) : trouve.d;
+      if (!frais || !cocherClotureComptes(frais, trouve.courrier, envoye)) continue;
+      depot.remplacer(frais.id, frais);
+      Object.assign(trouve.d, frais);
+      servis.add(envoye.id);
+      resultat.cloturesCochees = (resultat.cloturesCochees || 0) + 1;
+      noterVerification(parametresRepo, 'succession-cloture-comptes-email');
+    }
+    etat.envoisNonRattaches = etat.envoisNonRattaches.filter((e) => !servis.has(e.id));
   }
 
   // Les boîtes retirées des Réglages ne sont plus listées.

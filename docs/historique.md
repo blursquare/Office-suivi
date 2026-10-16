@@ -20160,3 +20160,10 @@ lien visio. »
   `agenda-succession-relu`.
 - Poste : ni confrère ni probabilité de maintien sur un rendez-vous de succession ; « Envoyer le lien » de la visio propose les héritiers
   (email de leur fiche, cochés s'ils en ont un) et une ligne libre, jamais de confrère.
+
+### 16/10/2026 — 0.255.0 : successions, décompte, appel de fonds, clôture des comptes
+
+Demande de l'étude : « Lorsqu'il y a une succession avec un conjoint survivant, les fonds ne sont donc pas clôturés auprès de la banque et récupérés à l'étude, ils sont juste transférés au nom du conjoint, donc nous on ne reçoit aucune somme. Parfois il peut aussi y avoir dans des dossiers, lors du dernier rendez-vous pour la signature de l'attestation immobilière ou de la déclaration de succession, un appel de fonds à faire pour régler nos fonds si on n'a pas assez en comptabilité. Donc il faut prévoir une échéance aussi, un peu comme pour les ventes, appel de fonds. Souviens-toi, on avait gardé aussi le décompte, envoi du décompte à faire valider dans l'agenda. Et puis pareil, il faut que ce soit une échéance. Tu pourras valider l'envoi de la clôture ou transfert des compte à la banque en croisant dans authentic la création du courrier de clôture et l'e-mail d'envoi à la banque en lisant les emails envoyé »
+
+Choix faits sans nouvelle question : délai de 10 jours avant le dernier rendez-vous (celui des ventes) pour les deux échéances, sans date tant que le rendez-vous n'est pas placé ; l'appel de fonds est proposé dans chaque succession, « Pas nécessaire » d'un clic (rétablissable) ; la clôture est cochée seulement quand les deux signaux concordent (courrier d'Authentic dont l'intitulé dit clôture / déblocage / transfert, email envoyé à une adresse hors fiche et hors étude, objet nommant le défunt, entre le jour du courrier et 30 jours après). À confirmer au bureau : intitulés réels des courriers de clôture dans Authentic, objet habituel de l'email à la banque.
+Même jour, 0.254.0 publiée avec les corrections de la relecture indépendante (croix retenue, étape relue, journée entière / jaune, fiche d'avant adoptée, doublons, lecture concurrente).

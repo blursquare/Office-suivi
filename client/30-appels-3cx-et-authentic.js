@@ -2294,7 +2294,18 @@
         actesChanges = true;
       }
     }
-    if (Object.keys(infos).length || pieces.length || etatsChanges || actesChanges || piecesSuccessionChangees || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
+    // Succession (étude 16/10) : courriers de clôture / transfert des comptes — croisés par le serveur avec les emails envoyés à la banque.
+    let courriersChanges = false;
+    if (estSuccession(d) && type === 'gestion') {
+      const courriers = courriersBanqueSuccessionAuthentic(capture);
+      if (courriers.length && JSON.stringify(courriers) !== JSON.stringify(avant.courriersBanque || [])) {
+        const connus = new Set((avant.courriersBanque || []).map(c => c.intitule + '|' + c.date));
+        courriers.filter(c => !connus.has(c.intitule + '|' + c.date)).forEach(c => noter(`Courrier ${c.nature === 'transfert' ? 'de transfert' : 'de clôture'} des comptes relevé dans Authentic : « ${c.intitule} »${c.date ? ' du ' + formatDateFr(c.date) : ''}`));
+        apres.courriersBanque = courriers;
+        courriersChanges = true;
+      }
+    }
+    if (Object.keys(infos).length || pieces.length || etatsChanges || actesChanges || courriersChanges || piecesSuccessionChangees || apres.saferPieceAjoutee !== avant.saferPieceAjoutee) {
       apres.releveLe = maintenant;
       d.authentic = apres;
       resultat.modifie = true;

@@ -58,7 +58,10 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   // rendez-vous — le même jour que la tâche « Envoyer le projet » d'« À faire ». J-15 est déjà celui de la signature.
   projetEnvoye: [7],
   // Rédaction de l'acte (étude 07/10) : une tâche d'« À faire », sans rappel Teams.
-  redaction: []
+  redaction: [],
+  // Succession (étude 16/10) : décompte à faire valider et appel de fonds, le jour de leur échéance (10 jours avant le dernier rendez-vous).
+  decompteSuccession: [0],
+  appelFondsSuccession: [0]
 };
 
 // Échéance personnalisée (`autre-0`, `autre-1`…) : l'étude n'a pas de seuil à donner pour une date

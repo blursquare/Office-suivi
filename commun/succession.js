@@ -356,6 +356,24 @@
       const butoir = plus(MOIS_DECLARATION_SUCCESSION);
       etapes.push({ type: 'declarationSuccession', label, iso: ds.fait ? ds.iso : (placee || butoir), fait: ds.fait, attente: false, active: true, butoir: !ds.fait && !placee && !!butoir, rdvPlace: !ds.fait && !!placee });
     }
+    // Avant le DERNIER rendez-vous (attestation immobilière / déclaration de succession, sinon notoriété) — étude 16/10 : « l'envoi du
+    // décompte à faire valider » et, parfois, « un appel de fonds pour régler nos fonds si on n'a pas assez en comptabilité », « un peu
+    // comme pour les ventes » : 10 jours avant le rendez-vous placé (JOURS_AVANT_DERNIER_RDV_SUCCESSION, même délai que l'appel de fonds
+    // d'une vente). Faits d'eux-mêmes une fois ce dernier acte signé. L'appel de fonds se dit « pas nécessaire » d'un clic
+    // (`d.succession.appelFondsInutile`) ; avec un conjoint survivant les comptes lui sont transférés, l'étude ne reçoit rien.
+    const iDernier = etapes.map((e) => e.type).lastIndexOf(etapes.some((e) => e.type === 'declarationSuccession') ? 'declarationSuccession' : 'notoriete');
+    const dernier = etapes[iDernier];
+    if (dernier) {
+      const avantRdv = dernier.rdvPlace && dernier.iso ? (C.addDays(dernier.iso, -JOURS_AVANT_DERNIER_RDV_SUCCESSION) || '') : '';
+      const s = infoSuccession(d);
+      const avant = [{ type: 'decompteSuccession', label: 'Envoi du décompte à faire valider', iso: dernier.fait ? '' : avantRdv,
+        fait: dernier.fait || cocheeSuccession(d, 'decompteSuccession'), attente: false, active: true, avantRdv: true }];
+      if (s.appelFondsInutile !== true) {
+        avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
+          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
+      }
+      etapes.splice(iDernier, 0, ...avant);
+    }
     // Actes ajoutés dans Authentic (délivrance de legs, quasi-usufruit…) : suivis par leur état, sans date propre.
     actesSuccession(d).filter(a => !a.base).forEach(a => {
       etapes.push({ type: 'acte:' + a.cle, label: a.libelle, iso: a.signeLe || '', fait: a.etat === 'signe', attente: false, active: true, authentic: true });
@@ -370,7 +388,8 @@
     return cocheeSuccession(d, type);
   }
 
-  var TYPES_ETAPES_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds', 'declarationSuccession'];
+  var TYPES_ETAPES_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds', 'decompteSuccession', 'appelFondsSuccession', 'declarationSuccession'];
+  var JOURS_AVANT_DERNIER_RDV_SUCCESSION = 10;
 
   /**
    * Pure : ce qui retient l'acte de notoriété — pièces non reçues (acte de décès, actes de naissance, FCDDV) et questions non
@@ -395,7 +414,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

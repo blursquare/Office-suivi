@@ -663,7 +663,7 @@
       // montre donc l'appel de fonds seul, une succession le décompte.
       etats: [
         estSuccession(d)
-          ? { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) }
+          ? { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) || echeanceValidee(d, 'decompteSuccession') }
           : { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
         // Projet d'acte envoyé (étude, 30/09 : la probabilité se lit « sous projet envoyé »).
         { cle: 'projet', libelle: 'Projet', fait: echeanceValidee(d, 'projetEnvoye') }

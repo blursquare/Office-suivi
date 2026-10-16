@@ -39,7 +39,7 @@ test('déroulé : ouverture, notoriété à 1 mois, contrôle à 2 mois, déclar
   const d = base({ biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-20' } });
   const e = S.etapesSuccession(d, '2026-10-15');
   assert.equal(e.map(x => `${x.type}:${x.iso}:${x.fait ? 'fait' : ''}:${x.active ? 'actif' : ''}`).join('|'),
-    'ouvertureSuccession:2026-10-20::actif|notoriete:2026-11-20::actif|controleDroits:2026-12-20::actif|deblocageFonds:::|receptionFonds:::|declarationSuccession:2027-04-20::actif');
+    'ouvertureSuccession:2026-10-20::actif|notoriete:2026-11-20::actif|controleDroits:2026-12-20::actif|deblocageFonds:::|receptionFonds:::|decompteSuccession:::actif|appelFondsSuccession:::actif|declarationSuccession:2027-04-20::actif');
   assert.match(e.find(x => x.type === 'declarationSuccession').label, /attestation immobilière et de la déclaration de succession/);
   // Notoriété seule : pas de déclaration de succession.
   assert.ok(!S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' } }), '2026-10-15').some(x => x.type === 'declarationSuccession'));
@@ -110,7 +110,7 @@ test('Tableau de la fiche : rendez-vous d’ouverture à fixer, puis les étapes
   const d = base({ id: 's2', biens: [{ adresse: 'X' }] });
   const c = app.cartesTableauFiche(d, '2026-10-15', []);
   assert.ok(c.faire.some(x => /Fixer le rendez-vous d’ouverture/.test(x.titre)));
-  assert.ok(!['faire', 'attente', 'fait'].some(col => c[col].some(x => /appel de fonds|projet|prêt/i.test(x.titre))));
+  assert.ok(!['faire', 'attente', 'fait'].some(col => c[col].some(x => !/^succession:/.test(x.cle || '') && /appel de fonds|projet|prêt/i.test(x.titre))));
   const ouverte = base({ id: 's3', biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-01' } });
   const c2 = app.cartesTableauFiche(ouverte, '2026-10-15', []);
   assert.ok(c2.fait.some(x => x.cle === 'succession:ouvertureSuccession'));
@@ -545,4 +545,36 @@ test('agenda des successions : croix, « ? » retiré, journée entière, jaune,
   assert.equal(S.rendezVousSuccessionDepuisAgenda(deplace, [evt()], '2099-06-01', '2099-12-01', avant).liste[0].date, '2099-06-15');
   const retire = base({ id: 's80', succession: { rendezVous: [] } });
   assert.equal(S.rendezVousSuccessionDepuisAgenda(retire, [evt()], '2099-06-01', '2099-12-01', avant).ajoutes.length, 0);
+});
+
+test('succession : décompte et appel de fonds 10 jours avant le dernier rendez-vous ; courriers de clôture d\'Authentic (étude 16/10)', () => {
+  const auj = '2099-01-15';
+  const d = base({ id: 's90', typeAffaire: 'succession', succession: { type: 'classique', ouvertureLe: '2099-01-02',
+    rendezVous: [{ id: 'r', etape: 'declarationSuccession', date: '2099-06-20', heure: '10:00' }] }, echeancesValidees: { notoriete: true } });
+  const types = S.etapesSuccession(d, auj).map(e => e.type);
+  assert.ok(types.indexOf('decompteSuccession') < types.indexOf('declarationSuccession'));
+  assert.ok(types.indexOf('appelFondsSuccession') === types.indexOf('declarationSuccession') - 1);
+  const dec = S.etapesSuccession(d, auj).find(e => e.type === 'decompteSuccession');
+  assert.equal(dec.iso, '2099-06-10');
+  assert.ok(P.echeancesPlanning(d).some(e => e.type === 'appelFondsSuccession' && e.iso === '2099-06-10'));
+  // Pas de rendez-vous placé : sans date.
+  const sansRdv = base({ id: 's91', typeAffaire: 'succession', succession: { type: 'classique', ouvertureLe: '2099-01-02' } });
+  assert.equal(S.etapesSuccession(sansRdv, auj).find(e => e.type === 'decompteSuccession').iso, '');
+  // « Pas nécessaire » : plus d'appel de fonds.
+  d.succession.appelFondsInutile = true;
+  assert.ok(!S.etapesSuccession(d, auj).some(e => e.type === 'appelFondsSuccession'));
+  // Coche : echeanceValidee suit.
+  d.echeancesValidees.decompteSuccession = true;
+  assert.equal(P.echeanceValidee(d, 'decompteSuccession'), true);
+  // Notoriété seule : avant la notoriété.
+  const noto = base({ id: 's92', typeAffaire: 'succession', succession: { type: 'notoriete' } });
+  const tn = S.etapesSuccession(noto, auj).map(e => e.type);
+  assert.ok(tn.indexOf('decompteSuccession') < tn.indexOf('notoriete'));
+  // Courriers de clôture / transfert lus dans le tableau Banque d'Authentic.
+  const capture = { tableaux: [{ titre: 'Banque', entete: ['Intitulé', 'Date', 'État'], lignes: [
+    ['Lettre banque demande d’acompte', '02/10/2099', 'Mail le 03/10/2099'],
+    ['Lettre banque clôture des comptes', '10/10/2099', 'Mail le 11/10/2099'],
+    ['Courrier transfert des comptes au conjoint', '12/10/2099', '']] }] };
+  const c = app.courriersBanqueSuccessionAuthentic(capture);
+  assert.equal(c.map(x => `${x.nature}:${x.date}:${x.mailLe}`).join('|'), 'cloture:2099-10-10:2099-10-11|transfert:2099-10-12:');
 });
