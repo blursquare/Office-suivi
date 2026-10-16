@@ -590,7 +590,8 @@
   // en pointillé à leur jour, pour que la semaine soit complète. Pure.
   function signaturesHorsAgenda(liste, evenements, jours) {
     return (liste || []).filter(d => d && !d.archive && d.rendezVousSignature && jours.indexOf(d.rendezVousSignature) !== -1
-      && !(evenements || []).some(e => e.dossierId === d.id && e.date === d.rendezVousSignature))
+      // Un rendez-vous « SUCC … » n'a pas de dossierId (l'agenda ne lit que les « VTE ») : reconnu par son identifiant Outlook.
+      && !(evenements || []).some(e => e.date === d.rendezVousSignature && (e.dossierId === d.id || (e.itemId && d.rdvAgendaItem && e.itemId === d.rdvAgendaItem.itemId))))
       .map(d => ({
         sujet: libelleDossierAffiche(d), lieu: '', date: d.rendezVousSignature, dateFin: d.rendezVousSignature,
         heure: d.rendezVousSignatureHeure || null, heureFin: d.rendezVousSignatureHeureFin || null,
@@ -2193,9 +2194,11 @@
     const titre = document.getElementById('agenda-creation-titre');
     const provisoire = !!titre && titreRendezVousProvisoire(titre.value);
     const bloc = document.getElementById('agenda-creation-signature-bloc');
-    if (bloc) bloc.style.display = d && !d.rendezVousSignature && !provisoire ? '' : 'none';
+    // Une succession a plusieurs actes (notoriété, déclaration…) : la case reste offerte même quand un acte est déjà placé.
+    const offerte = d && !provisoire && (!d.rendezVousSignature || estSuccession(d));
+    if (bloc) bloc.style.display = offerte ? '' : 'none';
     const sig = document.getElementById('agenda-creation-signature');
-    if (sig && (!d || d.rendezVousSignature || provisoire)) sig.checked = false;
+    if (sig && !offerte) sig.checked = false;
   }
 
   // Étude, 01/10 : « lors de l'ajout d'un rendez-vous, proposer l'option pour proposer plusieurs
@@ -2280,9 +2283,11 @@
       if (!corps.ok) { afficherToast(corps.message || 'La création du rendez-vous a échoué.', 'OK', null); return false; }
       if (dossier && estSuccession(dossier)) {
         // Succession (étude 16/10) : chaque rendez-vous s'ajoute à sa liste, rien n'est remplacé.
+        // Un titre « ? » n'est jamais une date de signature (étude 07/10) : noté « autre », jamais un acte.
+        const etape = etapeRendezVousSuccessionCree(etapeSuccession, signature, titreRendezVousProvisoire(sujet));
         if (signature && TYPES_RDV[typeRdv]) dossier.rendezVousType = typeRdv;
-        noterRendezVousSuccession(dossier, { etape: etapeSuccession || (signature ? 'acte' : 'autre'), titre: sujet, date, heure, itemId: corps.itemId || '', changeKey: corps.changeKey || '' });
-        if (signature) notifierDateAjoutee(dossier, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', date, '');
+        noterRendezVousSuccession(dossier, { etape, titre: sujet, date, heure, itemId: corps.itemId || '', changeKey: corps.changeKey || '' });
+        if (['notoriete', 'declarationSuccession', 'acte'].includes(etape)) notifierDateAjoutee(dossier, LIBELLES_CATEGORIE.rendezVousSignature || 'Rendez-vous de signature', date, '');
       } else if (dossier && signature) {
         dossier.rendezVousSignature = date;
         dossier.rendezVousSignatureHeure = heure;

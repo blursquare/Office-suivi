@@ -189,7 +189,7 @@
       const ancienItem = e.itemId;
       if (corps.itemId) e.itemId = corps.itemId;
       if (corps.changeKey) e.changeKey = corps.changeKey;
-      if (d && estSuccession(d) && majRendezVousSuccessionAgenda(d, ancienItem, { date: e.date, heure: nouveau.journeeEntiere ? '' : e.heure, itemId: e.itemId, changeKey: e.changeKey })) render();
+      if (d && estSuccession(d)) majRendezVousSuccessionAgenda(d, ancienItem, { date: e.date, heure: nouveau.journeeEntiere ? '' : e.heure, itemId: e.itemId, changeKey: e.changeKey, titre: e.sujet });
       // La note relue garde son ChangeKey : il a changé avec l'écriture.
       if (notesAgenda[e.itemId] && corps.changeKey) notesAgenda[e.itemId].changeKey = corps.changeKey;
       if (agendaSelection === ancienneCle) agendaSelection = cleEvenementAgenda(e);

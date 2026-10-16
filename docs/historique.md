@@ -20135,3 +20135,9 @@ rendez-vous avec les héritiers n'était noté nulle part. Désormais :
   (étape `autre`, titre « SUCC - NOM - Rendez-vous », date proposée à 7 jours).
 Limite : un rendez-vous de succession posé directement dans Outlook (hors CLAIRE) n'est pas relu — la lecture de l'agenda ne reconnaît que
 les « VTE - … ».
+
+Relecture indépendante (avant publication) — 6 défauts, tous corrigés : un titre « ? » ouvert depuis une carte n'est jamais un acte
+(`etapeRendezVousSuccessionCree`) ; carte en pointillé en double d'un rendez-vous « SUCC … » (`signaturesHorsAgenda` reconnaît aussi
+l'identifiant Outlook) ; croix « Retirer de la fiche » sur chaque rendez-vous (`retirerRendezVousSuccession`, l'agenda n'est pas touché —
+pour un rendez-vous déplacé ou supprimé dans Outlook, ou créé sans identifiant) ; case « signature » offerte pour un second acte depuis
+l'agenda ; notification « rendez-vous de signature » seulement pour un acte ; historique écrit une seule fois et titre suivi au déplacement.

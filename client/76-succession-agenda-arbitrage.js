@@ -71,6 +71,13 @@
     if (r) { d.confiance = d.confiance || {}; d.confiance.rendezVousSignature = 'manuel'; }
   }
 
+  // Pure : l'étape d'un rendez-vous créé pour une succession — celle de la carte de la fiche, sinon « acte » si la case signature est
+  // cochée, sinon « autre » ; un titre provisoire (« ? ») n'est jamais un acte.
+  function etapeRendezVousSuccessionCree(etapeFiche, signature, provisoire) {
+    const etape = etapeFiche || (signature ? 'acte' : 'autre');
+    return provisoire && ['notoriete', 'declarationSuccession', 'acte'].includes(etape) ? 'autre' : etape;
+  }
+
   function noterRendezVousSuccession(d, r) {
     if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(r.date || '')) return;
     d.succession = Object.assign({}, d.succession, { rendezVous: rendezVousSuccessionAvecAjout(d, r) });
@@ -94,15 +101,29 @@
     const r = liste.find(x => x.itemId === itemId);
     if (!r) return false;
     const garde = nouveau ? liste : liste.filter(x => x !== r);
-    if (nouveau) Object.assign(r, { date: nouveau.date, heure: nouveau.heure || '', itemId: nouveau.itemId || r.itemId, changeKey: nouveau.changeKey || '' });
+    if (nouveau) Object.assign(r, { date: nouveau.date, heure: nouveau.heure || '', itemId: nouveau.itemId || r.itemId, changeKey: nouveau.changeKey || '', titre: nouveau.titre != null ? String(nouveau.titre).slice(0, 200) : r.titre });
     d.succession = Object.assign({}, d.succession, { rendezVous: garde.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure)) });
     // Ouverture déplacée : les délais suivent ; supprimée, la date d'ouverture reste (elle porte tous les délais).
     if (r.etape === 'ouvertureSuccession' && nouveau) d.succession.ouvertureLe = nouveau.date;
     synchroniserSignatureSuccession(d);
-    ajouterHistorique(d, nouveau ? `Rendez-vous « ${r.titre || 'de la succession'} » déplacé dans l’agenda : ${formatDateFr(nouveau.date)}${nouveau.heure ? ' à ' + nouveau.heure : ''}.`
-      : `Rendez-vous « ${r.titre || 'de la succession'} » du ${formatDateFr(r.date)} supprimé de l’agenda.`);
-    sauvegarder(d);
-    return true;
+    return true; // l'appelant (agenda de CLAIRE) note l'historique et enregistre
+  }
+
+  // Croix d'un rendez-vous de la ligne « Rendez-vous » : retiré de la fiche seulement (déplacé ou supprimé dans Outlook, créé sans
+  // identifiant) — l'agenda de l'office n'est pas touché.
+  function retirerRendezVousSuccession(dossierId, rdvId) {
+    const d = dossiers.find(x => x.id === dossierId);
+    if (!d || !estSuccession(d)) return;
+    const liste = rendezVousSuccession(d).map(x => { const c = Object.assign({}, x); delete c.ancien; return c; });
+    const r = liste.find(x => x.id === rdvId);
+    if (!r) return;
+    demanderConfirmation(`Retirer de la fiche le rendez-vous du ${dateAvecJourFr(r.date)}${r.heure ? ' à ' + r.heure.replace(':', ' h ') : ''} ? L’agenda de l’office n’est pas modifié.`, () => {
+      d.succession = Object.assign({}, d.succession, { rendezVous: liste.filter(x => x !== r) });
+      synchroniserSignatureSuccession(d);
+      ajouterHistorique(d, `Rendez-vous « ${r.titre || LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'de la succession'} » du ${formatDateFr(r.date)} retiré de la fiche.`);
+      sauvegarder(d);
+      render();
+    }, { bouton: 'Retirer' });
   }
 
   // Ligne « Rendez-vous » de la fiche d'une succession : tous les rendez-vous, et « Ajouter un rendez-vous ».
@@ -110,7 +131,8 @@
   function ligneRendezVousSuccessionFiche(d) {
     const auj = isoAujourdhuiLocal();
     const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.date < auj ? 'dl-neutre' : 'dl-pret'}"><span class="dot"></span>${escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
-      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}</span>`).join('');
+      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}
+      <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer de la fiche (l’agenda n’est pas modifié)" aria-label="Retirer ce rendez-vous de la fiche" onclick="retirerRendezVousSuccession('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button></span>`).join('');
     return `<span class="succ-rdvs">${lignes || '<span class="hint">Aucun rendez-vous placé</span>'}
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="placerRdvSuccessionAgenda('${escapeOnclickArg(d.id)}', 'autre')">${icone('calendar')}Ajouter un rendez-vous</wa-button></span>`;
   }

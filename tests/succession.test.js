@@ -458,3 +458,34 @@ test('succession : plusieurs rendez-vous par dossier (étude 16/10), chacun à s
   assert.equal((ligne.match(/succ-rdv[ "]/g) || []).length, 4);
   assert.match(ligne, /placerRdvSuccessionAgenda\('s50', 'autre'\)/);
 });
+
+test('succession : rendez-vous suivis dans l\'agenda, titre « ? », signature de la fiche, carte en pointillé (relecture 16/10)', () => {
+  const rdvs = [{ id: 'o', etape: 'ouvertureSuccession', date: '2026-09-01', heure: '14:00', itemId: 'IO' }, { id: 'n', etape: 'notoriete', date: '2099-01-10', heure: '10:00', itemId: 'IN' }];
+  const d = base({ id: 's60', nom: 'SUCC PERRIN', succession: { ouvertureLe: '2026-09-01', rendezVous: rdvs } });
+  // La date de signature = le prochain rendez-vous d'acte ; une ouverture seule n'en donne aucune.
+  app.synchroniserSignatureSuccession(d);
+  assert.deepEqual([d.rendezVousSignature, d.rdvAgendaItem.itemId], ['2099-01-10', 'IN']);
+  const ouvSeule = base({ succession: { rendezVous: [rdvs[0]] } });
+  app.synchroniserSignatureSuccession(ouvSeule);
+  assert.equal(ouvSeule.rendezVousSignature, null);
+  // Déplacé dans l'agenda (nouvel identifiant, nouveau titre) : la liste et la signature suivent.
+  assert.equal(app.majRendezVousSuccessionAgenda(d, 'IN', { date: '2099-02-03', heure: '11:00', itemId: 'IN2', titre: 'SUCC - PERRIN - Notoriété' }), true);
+  const n = S.rendezVousSuccession(d).find(r => r.id === 'n');
+  assert.deepEqual([n.date, n.itemId, n.titre, d.rendezVousSignature, d.rdvAgendaItem.itemId], ['2099-02-03', 'IN2', 'SUCC - PERRIN - Notoriété', '2099-02-03', 'IN2']);
+  // Supprimé (dernier acte) : plus de date de signature ; l'ouverture reste, sa date aussi.
+  app.majRendezVousSuccessionAgenda(d, 'IN2', null);
+  assert.deepEqual([S.rendezVousSuccession(d).length, d.rendezVousSignature, d.rdvAgendaItem, d.succession.ouvertureLe], [1, null, null, '2026-09-01']);
+  // Fiche d'avant (date seule) : supprimée dans l'agenda, elle quitte la fiche.
+  const ancien = base({ rendezVousSignature: '2099-03-01', rdvAgendaItem: { itemId: 'IA' } });
+  app.majRendezVousSuccessionAgenda(ancien, 'IA', null);
+  assert.equal(ancien.rendezVousSignature, null);
+  // Un titre « ? » n'est jamais un acte (étude 07/10), même ouvert depuis la carte de la notoriété.
+  assert.equal(app.etapeRendezVousSuccessionCree('notoriete', true, true), 'autre');
+  assert.equal(app.etapeRendezVousSuccessionCree('', true, false), 'acte');
+  assert.equal(app.etapeRendezVousSuccessionCree('', false, false), 'autre');
+  assert.equal(app.etapeRendezVousSuccessionCree('ouvertureSuccession', false, true), 'ouvertureSuccession');
+  // Carte en pointillé : pas de doublon d'un rendez-vous « SUCC … » d'Outlook (sans dossierId), reconnu par son identifiant.
+  const s = base({ id: 's61', rendezVousSignature: '2099-04-01', rendezVousSignatureHeure: '10:00', rdvAgendaItem: { itemId: 'X1' } });
+  assert.equal(app.signaturesHorsAgenda([s], [{ itemId: 'X1', date: '2099-04-01', dossierId: null }], ['2099-04-01']).length, 0);
+  assert.equal(app.signaturesHorsAgenda([s], [], ['2099-04-01']).length, 1);
+});
