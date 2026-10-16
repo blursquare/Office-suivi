@@ -11,7 +11,9 @@
 
   // Champs que CLAIRE n'écrit JAMAIS (étude 16/10, guichet d'Agglopolys) : listes recalculées par le site depuis les cases du CERFA, prix en
   // lettres écrit par le site, cases de déclaration du déclarant. Identifiant ou nom exact.
-  const JAMAIS_ECRIRE = /^(OPLSTPARCELLE|OPLSTCOPRO|COMMISSION|FI1C|GI1DA1|GI5AA1|GI6AA1)(_.*)?$/i;
+  // Le code est cherché aussi au bout d'un nom Angular (« vm.saisie.GI1DA1 », « x_FI1C », « …[COMMISSION] »).
+  const JAMAIS_ECRIRE = /(^|[._\-\[])(OPLSTPARCELLE|OPLSTCOPRO|COMMISSION|FI1C|GI1DA1|GI5AA1|GI6AA1)($|[_\]\-])/i;
+  const interditEcrire = (el) => JAMAIS_ECRIRE.test(el.id || "") || JAMAIS_ECRIRE.test(el.getAttribute("name") || "");
   let saisieDirecte = false; // valeur posée d'un coup (setter natif, input, change, blur) : technique validée sur le guichet d'Agglopolys
 
   const SPEEDS = {
@@ -215,7 +217,7 @@
   async function fillElement(el, type0, value, sp, direct) {
     // Une liste trouvée par un code prévu « texte » se remplit comme une liste (le setter d'un input y lève une erreur).
     const type = el instanceof HTMLSelectElement ? "select" : type0;
-    if (JAMAIS_ECRIRE.test(el.id || "") || JAMAIS_ECRIRE.test(el.getAttribute("name") || "")) return { ok: false, detail: "champ calculé par le guichet : jamais écrit par CLAIRE" };
+    if (interditEcrire(el)) return { ok: false, detail: "champ calculé par le guichet : jamais écrit par CLAIRE" };
     // Champ caché (valeur encodée calculée par CLAIRE) : posé d'un coup, sans curseur ni frappe.
     if (direct && !["checkbox", "radio", "select"].includes(type)) {
       setNativeValue(el, String(value));
@@ -246,7 +248,7 @@
       await typeInto(el, String(value), sp);
       await wait(sp.pause);
       // Le guichet applique lui-même la casse et ses masques (« 92 500 ») : même valeur aux espaces, points et majuscules près.
-      const pareil = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s.\u00a0\u202f]/g, "").toLowerCase();
+      const pareil = (x) => String(x).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s\u00a0\u202f]/g, "").toLowerCase();
       return el.value === String(value) || pareil(el.value) === pareil(value)
         ? { ok: true }
         : { ok: false, detail: `le portail affiche « ${el.value} »` };
@@ -479,9 +481,15 @@
     return norm((dessus ? dessus.textContent + " " : "") + proche.textContent);
   }
 
+  function candidatsParCode(f) {
+    if (!f.code) return [];
+    const sel = selecteurCode(f.code);
+    return sel ? [...document.querySelectorAll(CHAMPS_SAISIE)].filter(visible).filter((el) => el.matches(sel)) : [];
+  }
+
   function candidatsChamp(f) {
     const tous = [...document.querySelectorAll(CHAMPS_SAISIE)].filter(visible);
-    const parCode = f.code ? (() => { const sel = selecteurCode(f.code); return sel ? tous.filter((el) => el.matches(sel)) : []; })() : [];
+    const parCode = candidatsParCode(f);
     if (parCode.length) return parCode;
     if (!f.libelles || !f.libelles.length) return [];
     const res = f.libelles.map((x) => new RegExp(x, "i"));
@@ -531,7 +539,11 @@
       const el = sel ? [...document.querySelectorAll(sel)].find((x) => (x.type === "checkbox" || x.type === "radio") && (visible(x) || (x.labels && [...x.labels].some(visible)))) : null;
       if (!el) { if (deja !== "done") await noter(run, key, "absent"); return false; }
       if (el.checked) { await noter(run, key, "done"); return true; }
-      if (JAMAIS_ECRIRE.test(el.id || "") || JAMAIS_ECRIRE.test(el.getAttribute("name") || "")) { await noter(run, key, "manuel", "case de déclaration : jamais cochée par CLAIRE"); return false; }
+      if (interditEcrire(el)) { await noter(run, key, "manuel", "case de déclaration : jamais cochée par CLAIRE"); return false; }
+      // Bouton radio : un choix déjà fait dans le même groupe (par vous ou par le guichet) n'est jamais remplacé.
+      if (el.type === "radio" && el.name && [...document.querySelectorAll('input[type=radio]')].some((x) => x.name === el.name && x.checked)) {
+        await noter(run, key, "done", "choix déjà fait dans le guichet, laissé tel quel"); return true;
+      }
       await noter(run, key, "filling");
       const cible = (el.labels && [...el.labels].find(visible)) || el;
       const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause);
@@ -548,6 +560,10 @@
       const el = [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].filter((x) => visible(x) || (x.labels && [...x.labels].some(visible)))
         .find((x) => re.test(libelleChamp(x)) && (!sec || sec.test(rubriqueChamp(x))) && !(horsSec && horsSec.test(rubriqueChamp(x))));
       if (!el) { if (deja !== "done") await noter(run, key, "absent"); return false; }
+      if (interditEcrire(el)) { await noter(run, key, "manuel", "case de déclaration : jamais cochée par CLAIRE"); return false; }
+      if (!el.checked && el.type === "radio" && el.name && [...document.querySelectorAll('input[type=radio]')].some((x) => x.name === el.name && x.checked)) {
+        await noter(run, key, "done", "choix déjà fait dans le guichet, laissé tel quel"); return true;
+      }
       if (!el.checked) { await noter(run, key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
       await noter(run, key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
       return true;
@@ -557,6 +573,13 @@
     const cands = candidatsChamp(f);
     let el = null;
     if (typeof f.rang === "number" || /^\d+$/.test(String(f.rang || ""))) el = cands[Number(f.rang)] || null;
+    else if (f.code && cands.length && candidatsParCode(f).length) {
+      // Par code : le champ de CE code (identifiant ou nom exact), sinon le seul champ qui commence par lui — jamais « le premier vide »
+      // parmi plusieurs (un champ voisin du même préfixe recevrait la valeur).
+      const exact = cands.find((x) => x.id === f.code || x.getAttribute("name") === f.code);
+      el = exact || (cands.length === 1 ? cands[0] : null);
+      if (!el) { await noter(run, key, "manuel", "plusieurs champs portent ce code : à saisir à la main"); return false; }
+    }
     else el = cands.find((x) => !String(x.value || "").trim()) || cands.find((x) => String(x.value) === String(r.value)) || null;
     if (!el) {
       if (cands.length) { await noter(run, key, "done", "déjà rempli dans le guichet"); return true; }
@@ -610,7 +633,7 @@
     }
   }
 
-  async function cliquerPuisAttendre(el, sp, pi) {
+  async function cliquerPuisAttendre(el, sp, pi, attenteMax) {
     const avant = empreintePage();
     const pos = await moveTo(el, sp);
     mark(el, true);
@@ -619,7 +642,7 @@
     await send({ type: "content.advance", pageIndex: pi }); // gardé AVANT le clic : la page peut se recharger
     await gate();
     el.click();
-    const fin = Date.now() + 20000;
+    const fin = Date.now() + (attenteMax || 20000);
     let change = false;
     while (Date.now() < fin) {
       await wait(250);
@@ -638,7 +661,7 @@
   function boutonDansFenetre(fen, motifs) {
     const res = motifs.map((m) => new RegExp(m, "i"));
     return [...fen.querySelectorAll('button, a, [role=button], input[type=button], input[type=submit], [ng-click]')].filter(visible)
-      .find((b) => res.some((r) => r.test(texteBouton(b))) && !/transmettre|signer|envoyer|payer|supprimer/.test(norm(texteBouton(b) + " " + attributsBouton(b)))) || null;
+      .find((b) => res.some((r) => r.test(texteBouton(b))) && !/transmet|sign|envoy|pay|supprim|soumet/.test(norm(texteBouton(b) + " " + attributsBouton(b)))) || null;
   }
   function memeCommune(a, b) {
     const n = (x) => norm(x).replace(/[-']/g, " ").replace(/\(.*?\)/g, " ").replace(/\bst\b/g, "saint").replace(/\bste\b/g, "sainte").replace(/\s+/g, " ").trim();
@@ -646,23 +669,38 @@
   }
 
   // Une étape de l'entrée : rend « fait » quand elle a agi (la boucle relit la page), « rien » sinon. Lève une erreur si la session a expiré.
-  async function entreeAgglopolys(run, sp, ouvert) {
+  // Mots qui interdisent un bouton d'entrée : toute la liste noire sauf « déposer / dépôt » (« Déposer une demande » de l'accueil) ; « certificat »
+  // reste permis (« certifier » non).
+  const INTERDIT_ENTREE = /(valid|envoy|sign|soumet|confirm|transmet|payer|paiement|supprim|finalis|certifi(?!cat))/;
+  const boutonEntreeInterdit = (b) => INTERDIT_ENTREE.test(norm(texteBouton(b) + " " + attributsBouton(b)));
+
+  async function entreeAgglopolys(run, sp, ouvert, pi) {
     const e = run.scenario.entree;
     const fens = fenetresVisibles();
     const txt = (el) => norm(el.innerText || el.textContent || "");
     if (e.sessionExpiree && (fens.some((f) => new RegExp(e.sessionExpiree, "i").test(txt(f))) || [...document.querySelectorAll("h1, h2, h3, h4, .modal-title")].filter(visible).some((t) => new RegExp(e.sessionExpiree, "i").test(txt(t))))) {
       throw new Error("Session du guichet expirée : reconnectez-vous vous-même (CLAIRE ne saisit jamais d’identifiant), puis relancez CLAIRE — le brouillon est repris.");
     }
-    // Fenêtres « récupérer les données non sauvegardées ? », « déconnexion » : toujours NON.
+    // « Voulez-vous vous déconnecter ? » : toujours NON ; « récupérer les données non sauvegardées ? » : NON à l'entrée seulement (une fois le
+    // brouillon ouvert, la fenêtre est laissée à l'étude — elle pourrait reprendre une saisie faite à la main).
+    const motifsNon = (e.fenetresNon || []).concat(ouvert ? [] : (e.fenetresNonEntree || []));
     for (const f of fens) {
-      if ((e.fenetresNon || []).some((m) => new RegExp(m, "i").test(txt(f)))) {
+      if (motifsNon.some((m) => new RegExp(m, "i").test(txt(f)))) {
         const non = boutonDansFenetre(f, ["^non$"]);
-        if (non) { await cliquerPuisAttendre(non, sp, run.pageIndex || 0); return "fait"; }
+        if (non) { await cliquerPuisAttendre(non, sp, pi, 3000); return "fait"; }
       }
     }
     if (ouvert) {
       // Brouillon refermé par un rechargement : il est rouvert par son adresse.
-      if (run.urlSaisie && !location.hash.startsWith(e.urlSaisie) && run.urlSaisie.startsWith(location.origin + "/")) {
+      if (run.urlSaisie && !location.hash.startsWith(e.urlSaisie) && run.urlSaisie.startsWith(location.origin + "/") && !(run.urlSaisie === location.href)) {
+        // Deux essais au plus par saisie (le brouillon a pu être transmis ou supprimé : le guichet renverrait à l'accueil sans fin).
+        let essais = 0;
+        try { essais = Number(sessionStorage.getItem("claire-brouillon-" + run.id) || 0); sessionStorage.setItem("claire-brouillon-" + run.id, String(essais + 1)); } catch (_) { essais = 0; }
+        if (essais >= 2) {
+          await send({ type: "content.oublierBrouillon" });
+          await finish("awaiting_human", "Le brouillon connu de ce dossier ne s’ouvre plus (transmis ou supprimé ?) : ouvrez-le vous-même, ou commencez une nouvelle demande, puis relancez CLAIRE.");
+          return "fin";
+        }
         location.href = run.urlSaisie;
         await attendreStable(8000);
         return "fait";
@@ -686,23 +724,23 @@
       const valider = boutonDansFenetre(fen, e.commune.valider);
       if (!valider) { await finish("awaiting_human", "Commune choisie : cliquez vous-même « Valider la commune de dépôt », puis relancez CLAIRE."); return "fin"; }
       await send({ type: "content.etape", label: "Commune de dépôt" });
-      await cliquerPuisAttendre(valider, sp, run.pageIndex || 0);
+      await cliquerPuisAttendre(valider, sp, pi);
       return "fait";
     }
-    // Accueil : le bouton de la démarche, dans la zone « Formuler » s'il y en a une.
-    const zones = [...document.querySelectorAll("section, .panel, .card, div")].filter((z) => visible(z) && /^formuler\b/.test(norm((z.querySelector("h1, h2, h3, h4, .titre, .title") || {}).textContent || "")));
+    // Accueil : le bouton de la démarche, dans la zone « Formuler » seulement — le plus petit bloc dont un titre ENFANT dit « Formuler »
+    // (jamais toute la page, jamais une liste « Mes demandes » : un brouillon d'un autre dossier serait ouvert).
+    const titreEnfant = (z) => [...z.children].find((c) => c.matches("h1, h2, h3, h4, h5, .titre, .title, header"));
+    const zones = [...document.querySelectorAll("section, .panel, .card, div")].filter((z) => visible(z) && titreEnfant(z) && /^formuler\b/.test(norm(titreEnfant(z).textContent)));
+    const zone = zones.find((z) => !zones.some((y) => y !== z && z.contains(y)));
     const res = e.bouton.map((m) => new RegExp(m, "i"));
-    const cadres = zones.length ? zones : [document];
-    for (const cadre of cadres) {
-      const b = [...cadre.querySelectorAll('button, a[href], [role=button], [ng-click]')].filter(visible)
-        .find((x) => { const t = texteBouton(x); return t && t.length <= 140 && res.some((r) => r.test(t)) && !/transmettre|valider|signer|envoyer|payer|supprimer/.test(norm(t + " " + attributsBouton(x))); });
-      if (b) {
-        await send({ type: "content.etape", label: run.scenario.name });
-        await cliquerPuisAttendre(b, sp, run.pageIndex || 0);
-        return "fait";
-      }
+    const b = zone && [...zone.querySelectorAll('button, a[href], [role=button], [ng-click]')].filter(visible)
+      .find((x) => { const t = texteBouton(x); return t && t.length <= 90 && res.some((r) => r.test(t)) && !boutonEntreeInterdit(x); });
+    if (b) {
+      await send({ type: "content.etape", label: run.scenario.name });
+      await cliquerPuisAttendre(b, sp, pi);
+      return "fait";
     }
-    await finish("awaiting_human", "CLAIRE ne trouve pas la démarche sur cette page : ouvrez l’accueil du guichet (« Formuler ») ou le brouillon, puis relancez CLAIRE.");
+    await finish("awaiting_human", "CLAIRE ne trouve pas la démarche dans la zone « Formuler » : ouvrez l’accueil du guichet ou le brouillon, puis relancez CLAIRE.");
     return "fin";
   }
   // Le bouton « page suivante » du guichet par son sélecteur (Agglopolys : [ng-click="vm.nextPage()"]) — visible, actif, et jamais un
@@ -749,10 +787,10 @@
       // Dès qu'une page porte un champ du scénario, le formulaire est ouvert pour de bon : plus aucune étape d'ouverture n'est
       // cliquée ensuite (un « Nouvelle demande » de l'en-tête abandonnerait le brouillon ; un « Déposer » final transmettrait).
       if (sc.entree && !sc.uneSeulePage) {
-        const etat = await entreeAgglopolys(run, sp, formulaireOuvert);
+        const etat = await entreeAgglopolys(run, sp, formulaireOuvert, pi);
         if (etat === "fin") return;
         if (etat === "fait") {
-          if (++toursEntree > 10) { await finish("awaiting_human", "Entrée dans la démarche inachevée : ouvrez le brouillon vous-même, puis relancez CLAIRE."); return; }
+          if (!formulaireOuvert && ++toursEntree > 10) { await finish("awaiting_human", "Entrée dans la démarche inachevée : ouvrez le brouillon vous-même, puis relancez CLAIRE."); return; }
           continue;
         }
       }
@@ -793,13 +831,18 @@
         return;
       }
       const suivant = sc.suivantSelecteur ? boutonSuivantSelecteur(sc.suivantSelecteur) : cliquableParTexte(sc.suivant || ["^(suivant|etape suivante|page suivante|continuer)\\b"]);
+      // Dernière page du brouillon : plus de bouton « page suivante » actif. « Vérifier ma saisie » et « Transmettre » peuvent être affichés
+      // sur toutes les pages : ils ne disent rien. Relancée au milieu du brouillon, CLAIRE s'arrête aussi quand « page suivante » ne
+      // change plus rien (ci-dessous).
       if (!suivant || (sc.entree && pi + 1 >= maxPages)) {
         await finish("awaiting_human", finGuichet);
         return;
       }
       const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
       if (!change) {
-        await finish("awaiting_human", "Le guichet n’a pas changé de page après « Suivant » (champ obligatoire ou erreur affichée ?) : complétez puis relancez CLAIRE.");
+        await finish("awaiting_human", sc.entree
+          ? "La page suivante ne s’ouvre plus (dernière page, ou champ obligatoire signalé par le guichet). " + finGuichet
+          : "Le guichet n’a pas changé de page après « Suivant » (champ obligatoire ou erreur affichée ?) : complétez puis relancez CLAIRE.");
         return;
       }
       pi += 1;

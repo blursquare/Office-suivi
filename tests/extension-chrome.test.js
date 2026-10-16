@@ -110,7 +110,8 @@ test('guichet d’Agglopolys : scénarios par les codes du CERFA, entrée par la
   const FORBIDDEN = forbiddenDuContent();
   const JAMAIS = new RegExp(/const JAMAIS_ECRIRE = \/(.+)\/i;/.exec(content)[1], 'i');
   for (const t of ['OPLSTPARCELLE', 'OPLSTCOPRO', 'COMMISSION', 'FI1C', 'GI1DA1', 'GI5AA1', 'GI6AA1']) assert.ok(JAMAIS.test(t), t);
-  assert.ok(!JAMAIS.test('FI1B') && !JAMAIS.test('FI2MB2'));
+  assert.ok(!JAMAIS.test('FI1B') && !JAMAIS.test('FI2MB2') && !JAMAIS.test('FI1CA'));
+  for (const t of ['vm.saisie.GI1DA1', 'x_FI1C', 'liste[COMMISSION]', 'OPLSTPARCELLE_1']) assert.ok(JAMAIS.test(t), t);
   // « Transmettre ma demande » (ng-click transmettreSaisie) : refusé par son texte comme par son attribut.
   assert.ok(FORBIDDEN.test('transmettre ma demande') && FORBIDDEN.test('vm.transmettresaisie()'));
   assert.ok(!FORBIDDEN.test('vm.nextpage()'));
@@ -121,7 +122,13 @@ test('guichet d’Agglopolys : scénarios par les codes du CERFA, entrée par la
     assert.equal(sc.suivantSelecteur, '[ng-click="vm.nextPage()"]');
     assert.ok(sc.entree.commune.valider.some((m) => new RegExp(m).test('valider la commune de depot')));
     assert.ok(new RegExp(sc.entree.sessionExpiree).test('me connecter a mon compte'));
-    assert.ok(sc.entree.fenetresNon.some((m) => new RegExp(m).test('voulez-vous recuperer les donnees non sauvegardees ?')));
+    assert.ok(sc.entree.fenetresNonEntree.some((m) => new RegExp(m).test('voulez-vous recuperer les donnees non sauvegardees ?')));
+    assert.ok(sc.entree.fenetresNon.some((m) => new RegExp(m).test('voulez-vous vous deconnecter ?')));
+    // NON jamais sur « rester connecté ? » ni « enregistrer avant de quitter ? » (relecture 16/10).
+    for (const t of ['vous allez etre deconnecte. voulez-vous rester connecte ?', 'enregistrer les donnees non sauvegardees avant de quitter ?'])
+      assert.ok(![...sc.entree.fenetresNon, ...sc.entree.fenetresNonEntree].some((m) => new RegExp(m).test(t)), t);
+    // Boutons d'entrée ancrés : un lien d'aide qui cite la démarche n'est pas la démarche.
+    assert.ok(!sc.entree.bouton.some((m) => new RegExp(m).test("notice du certificat d'urbanisme d'information et formulaire")), proc);
     const champs = sc.pages[0].fields.flatMap((c) => (c.forEach ? c.fields : [c]));
     for (const c of champs) if (c.code) assert.ok(!JAMAIS.test(c.code.replace(/\{.*\}/, '')), c.code);
     assert.equal(sc.pagesMax, proc === 'cua' ? 7 : 10);

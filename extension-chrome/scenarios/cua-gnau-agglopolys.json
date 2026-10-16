@@ -15,17 +15,19 @@
    ]
   },
   "fenetresNon": [
-   "recuperer.*(donnees|saisie)",
-   "non sauvegard",
-   "deconnect"
+   "(voulez|souhaitez)-vous (vraiment )?vous deconnecter",
+   "confirmez-vous la deconnexion"
   ],
   "sessionExpiree": "me connecter a mon compte",
   "urlSaisie": "#/saisie/",
   "bouton": [
-   "certificat d.urbanisme.*information",
+   "^(demande de )?certificat d.urbanisme d.information( \\(cu ?a\\))?$",
    "^cu ?a$",
-   "\\(cu ?a\\)",
-   "^certificat d.urbanisme a$"
+   "^.{0,60} \\(cu ?a\\)$"
+  ],
+  "fenetresNonEntree": [
+   "voulez-vous recuperer les donnees non sauvegardees",
+   "recuperer les donnees non sauvegardees \\?"
   ]
  },
  "suivantSelecteur": "[ng-click=\"vm.nextPage()\"]",

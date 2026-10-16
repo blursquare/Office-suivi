@@ -59,6 +59,26 @@ async function ensureContent(tabId) {
   }
 }
 
+// Brouillon du guichet par dossier et démarche (adresse #/saisie/<n°> seulement, 30 jours) : relancée après une reconnexion, CLAIRE rouvre le
+// MÊME brouillon au lieu d'en créer un second.
+const DUREE_BROUILLON_MS = 30 * 24 * 3600 * 1000;
+const cleBrouillon = (sc, fiche) => (sc && sc.id && fiche && fiche.dossier && fiche.dossier.id ? `${fiche.dossier.id}|${sc.id}` : "");
+async function retenirBrouillon(r) {
+  const cle = r && r.urlSaisie ? cleBrouillon(r.scenario, r.fiche) : "";
+  if (!cle) return;
+  const { brouillons = {} } = await chrome.storage.local.get(["brouillons"]);
+  for (const [k, v] of Object.entries(brouillons)) if (!v || Date.now() - v.le > DUREE_BROUILLON_MS) delete brouillons[k];
+  brouillons[cle] = { url: r.urlSaisie, le: Date.now() };
+  await chrome.storage.local.set({ brouillons });
+}
+async function brouillonConnu(sc, fiche) {
+  const cle = sc && sc.entree ? cleBrouillon(sc, fiche) : "";
+  if (!cle) return "";
+  const { brouillons = {} } = await chrome.storage.local.get(["brouillons"]);
+  const b = brouillons[cle];
+  return b && Date.now() - b.le <= DUREE_BROUILLON_MS ? String(b.url || "") : "";
+}
+
 async function startRun({ scenario, fiche, speed, continuer }) {
   const current = await getRun();
   if (current && ACTIVE.includes(current.status)) throw new Error("Une exécution est déjà en cours.");
@@ -84,6 +104,7 @@ async function startRun({ scenario, fiche, speed, continuer }) {
     pageIndex: 0,
     fields: garder,
     log: [],
+    ...(await (async () => { const u = await brouillonConnu(scenario, fiche); return u ? { urlSaisie: u, formulaireOuvert: true } : {}; })()),
     startedAt: Date.now(),
   };
   addLog(run, "Démarrage");
@@ -154,13 +175,25 @@ async function handle(msg, sender) {
         addLog(r, `Étape : ${msg.label}`);
       });
       return { ok: true };
+    case "content.oublierBrouillon": {
+      // Brouillon introuvable : oublié, la prochaine saisie de ce dossier ouvre une nouvelle demande.
+      const r = await getRun();
+      const cle = r ? cleBrouillon(r.scenario, r.fiche) : "";
+      if (cle) {
+        const { brouillons = {} } = await chrome.storage.local.get(["brouillons"]);
+        delete brouillons[cle];
+        await chrome.storage.local.set({ brouillons });
+      }
+      return { ok: true };
+    }
     case "content.formulaire":
       await mutate((r) => {
         r.formulaireOuvert = true;
         // Adresse du brouillon (#/saisie/<id>) : reprise après un rechargement qui le referme. Même onglet, même site seulement.
         const u = String(msg.url || "");
-        if (u && sender.tab && sender.tab.url && new URL(u).origin === new URL(sender.tab.url).origin && /#\/saisie\/[\w-]+$/.test(u)) r.urlSaisie = u;
+        if (u && sender.tab && sender.tab.url && new URL(u).origin === new URL(sender.tab.url).origin && /#\/saisie\/[\w-]+([?&].*)?$/.test(u)) r.urlSaisie = u;
       });
+      await retenirBrouillon(await getRun());
       return { ok: true };
     case "content.advance":
       await mutate((r) => {

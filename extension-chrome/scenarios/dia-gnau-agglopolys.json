@@ -15,16 +15,19 @@
    ]
   },
   "fenetresNon": [
-   "recuperer.*(donnees|saisie)",
-   "non sauvegard",
-   "deconnect"
+   "(voulez|souhaitez)-vous (vraiment )?vous deconnecter",
+   "confirmez-vous la deconnexion"
   ],
   "sessionExpiree": "me connecter a mon compte",
   "urlSaisie": "#/saisie/",
   "bouton": [
-   "intention d.aliener",
+   "^(declaration d.)?intention d.aliener( \\(dia\\))?$",
    "^dia$",
-   "\\(dia\\)"
+   "^.{0,60} \\(dia\\)$"
+  ],
+  "fenetresNonEntree": [
+   "voulez-vous recuperer les donnees non sauvegardees",
+   "recuperer les donnees non sauvegardees \\?"
   ]
  },
  "suivantSelecteur": "[ng-click=\"vm.nextPage()\"]",

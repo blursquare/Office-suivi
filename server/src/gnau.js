@@ -211,7 +211,7 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
     // Le demandeur du CU et le mandataire de la DIA : le notaire de l'office (le guichet garde ce qu'il a déjà pré-rempli).
     notaire: { nom: NOTAIRE_NOM, prenom: NOTAIRE_PRENOM, qualite: 'Notaire' },
     // Nature du bien pour les cases du CERFA de la DIA : non bâti (terrain, terre) ou bâti sur terrain propre (maison, copropriété) ;
-    // '' quand le type de vente n'est pas connu (jamais deviné).
+    // null quand le type de vente n'est pas connu (jamais deviné).
     nonBati: d && (d.typeVente === 'terrain' || d.typeVente === 'terre') ? true : null,
     batiTerrainPropre: d && (d.typeVente === 'maison' || d.typeVente === 'copropriete') ? true : null,
     /** @type {string[]} */
