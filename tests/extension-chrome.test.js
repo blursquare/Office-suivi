@@ -57,6 +57,12 @@ test('DIA : vendeur, codemandeur, naissance JJMMAAAA, prix en lettres, lots, com
   assert.equal(v['Codemandeur 1 — date de naissance'], null);
 });
 
+function forbiddenDuContent() {
+  const content = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
+  const m = /const FORBIDDEN = \/(.+)\/i;/.exec(content);
+  return new RegExp(m[1], 'i');
+}
+
 test('manifeste : les guichets connus, CLAIRE sur autorisation, jamais localhost', () => {
   const m = JSON.parse(fs.readFileSync(path.join(racine, 'manifest.json'), 'utf8'));
   assert.ok(m.host_permissions.includes('https://demande-urbanisme.agglopolys.fr/*'));
@@ -64,8 +70,9 @@ test('manifeste : les guichets connus, CLAIRE sur autorisation, jamais localhost
   assert.deepEqual(m.content_scripts[0].matches, m.host_permissions);
   assert.ok(m.optional_host_permissions.includes('http://*/*'));
   // Les boutons de validation restent interdits, quel que soit le scénario.
-  const content = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
-  assert.match(content, /const FORBIDDEN = \/\(valider\|validation\|envoyer\|signer\|signature\|soumettre\|confirmer\|transmettre\|payer\|paiement\|supprimer\|finaliser\|certifier\)\/i/);
+  const FORBIDDEN = forbiddenDuContent();
+  for (const t of ['valider', 'envoyer', 'signer', 'transmettre', 'deposer une demande', 'Déposer', 'depot du dossier', 'confirmer']) assert.ok(FORBIDDEN.test(t), t);
+  assert.ok(!FORBIDDEN.test('suivant'));
 });
 
 test('prix en lettres : millions au pluriel et « d’euros » pour un nombre rond de millions (relecture 16/10)', () => {
@@ -83,9 +90,12 @@ test('CLAIRE pilote le guichet : ouverture de la démarche par le texte, champs 
     const sc = scenario(f);
     assert.equal(sc.auto, true);
     assert.ok(sc.etapes.length >= 2 && sc.etapes.every((e) => e.label && e.textes.length));
-    const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier)/i;
-    // Aucune étape ni « Suivant » ne vise un bouton de la liste noire.
-    for (const motif of [...sc.etapes.flatMap((e) => e.textes), ...sc.suivant]) assert.ok(!FORBIDDEN.test(motif.replace(/\\./g, '')), motif);
+    const FORBIDDEN = forbiddenDuContent();
+    // « Suivant » ne vise jamais un bouton de la liste noire ; seule l'étape d'ouverture (lien de l'accueil) peut dire « Déposer une demande ».
+    for (const motif of sc.suivant) assert.ok(!FORBIDDEN.test(motif.replace(/\\./g, '')), motif);
+    for (const motif of sc.etapes.slice(1).flatMap((e) => e.textes)) assert.ok(!FORBIDDEN.test(motif.replace(/\\./g, '')), motif);
+    // Étapes ancrées : un libellé de case ou un lien d'aide qui CONTIENT « information » n'est pas une étape.
+    for (const motif of sc.etapes.flatMap((e) => e.textes)) assert.ok(motif.startsWith('^'), motif);
     const champs = sc.pages.flatMap((p) => p.fields);
     // Tout champ a un code CERFA, un libellé, ou se copie (format du guichet) — jamais rien.
     for (const c of champs.flatMap((c) => c.forEach ? c.fields : [c])) assert.ok(c.code || (c.libelles && c.libelles.length) || c.choix || c.encoded || /Codemandeur|propriétaire/.test(c.label), c.label);

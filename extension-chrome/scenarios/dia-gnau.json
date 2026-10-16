@@ -17,8 +17,8 @@
   {
    "label": "Déclaration d'intention d'aliéner",
    "textes": [
-    "intention d.aliener",
-    "^dia\\b"
+    "^(declaration d.)?intention d.aliener( (ou|et) de ceder)?( \\(dia\\))?$",
+    "^dia$"
    ]
   }
  ],
@@ -130,7 +130,7 @@
       "^(n[°o]|numero)( de (la )?voie)?$"
      ],
      "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
-     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble|cadastr|parcelle",
      "optional": true
     },
     {
@@ -140,7 +140,7 @@
       "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
      ],
      "rubrique": "propriet|vendeur|cedant|declarant|alienateur",
-     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble",
+     "horsRubrique": "acquereur|cessionnaire|mandataire|notaire|signature|bien|terrain|immeuble|cadastr|parcelle",
      "optional": true
     },
     {
@@ -212,7 +212,8 @@
       {
        "label": "Codemandeur {n} — adresse",
        "source": "{list}.{i}.adresse.complete",
-       "optional": true
+       "optional": true,
+       "horsRubrique": "cadastr|parcelle"
       }
      ]
     },
@@ -223,7 +224,7 @@
       "^(n[°o]|numero)( de (la )?voie)?$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -233,7 +234,7 @@
       "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -243,7 +244,7 @@
       "^lieu[- ]dit$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -253,7 +254,7 @@
       "^code postal$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -263,7 +264,7 @@
       "^(localite|commune|ville)$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "transform": "upper",
      "optional": true
     },
@@ -298,7 +299,8 @@
         "^(n[°o]|numero)( de (la )?parcelle)?$"
        ],
        "rubrique": "cadastr|parcelle|references? cadastrales?",
-       "rang": "{i}"
+       "rang": "{i}",
+       "horsLibelles": "voie|rue|adresse"
       },
       {
        "label": "Parcelle {n} — superficie (m²)",
@@ -392,7 +394,7 @@
       "^nom( de naissance| de famille)?$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur",
      "transform": "upper",
      "optional": true
     },
@@ -403,7 +405,7 @@
       "^prenoms?$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur",
      "optional": true
     },
     {
@@ -413,7 +415,8 @@
       "denomination|raison sociale"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "optional": true
+     "optional": true,
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur"
     },
     {
      "label": "Acquéreur — profession",
@@ -422,7 +425,8 @@
       "^profession|categorie socio"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "optional": true
+     "optional": true,
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur"
     },
     {
      "label": "Acquéreur — adresse (numéro)",
@@ -431,7 +435,7 @@
       "^(n[°o]|numero)( de (la )?voie)?$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -441,7 +445,7 @@
       "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -451,7 +455,7 @@
       "^lieu[- ]dit$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur",
      "optional": true
     },
     {
@@ -461,7 +465,7 @@
       "^code postal$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur",
      "optional": true
     },
     {
@@ -471,7 +475,7 @@
       "^(localite|commune|ville)$"
      ],
      "rubrique": "acquereur|cessionnaire|beneficiaire",
-     "horsRubrique": "mandataire|notaire",
+     "horsRubrique": "mandataire|notaire|propriet|vendeur|cedant|declarant|alienateur",
      "transform": "upper",
      "optional": true
     },

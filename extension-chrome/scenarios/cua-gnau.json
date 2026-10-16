@@ -22,9 +22,9 @@
   {
    "label": "CU d'information (a)",
    "textes": [
-    "d.information\\b",
-    "^cu ?a\\b",
-    "\\(cua\\)"
+    "^(certificat d.urbanisme )?d.information( \\(cu ?a\\))?$",
+    "^cu ?a$",
+    "^\\(cua\\)$"
    ]
   }
  ],
@@ -44,7 +44,7 @@
       "^(n[°o]|numero)( de (la )?voie)?$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -55,7 +55,7 @@
       "^(voie|rue|libelle de la voie|nom de la voie|adresse)$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -66,7 +66,7 @@
       "^lieu[- ]dit$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -77,7 +77,7 @@
       "^(localite|commune|ville)$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "transform": "upper",
      "optional": true
     },
@@ -88,7 +88,7 @@
       "^code postal$"
      ],
      "rubrique": "bien|terrain|immeuble|situation|localisation|adresse du bien",
-     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur",
+     "horsRubrique": "propriet|vendeur|cedant|declarant|acquereur|mandataire|demandeur|cadastr|parcelle",
      "optional": true
     },
     {
@@ -122,7 +122,8 @@
         "^(n[°o]|numero)( de (la )?parcelle)?$"
        ],
        "rubrique": "cadastr|parcelle|references? cadastrales?",
-       "rang": "{i}"
+       "rang": "{i}",
+       "horsLibelles": "voie|rue|adresse"
       },
       {
        "label": "Parcelle {n} — superficie (m²)",

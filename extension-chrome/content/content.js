@@ -7,7 +7,7 @@
   const { resolveField, expandFields } = globalThis.ClaireFiche;
 
   // Boutons que CLAIRE ne cliquera JAMAIS, quel que soit le scénario. Liste volontairement en dur.
-  const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier)/i;
+  const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier|deposer|déposer|depot|dépôt)/i;
 
   const SPEEDS = {
     slow: { type: 90, move: 900, pause: 500 },
@@ -397,7 +397,18 @@
   const norm = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[*:]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
   const CHAMPS_SAISIE = 'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=file]):not([type=password]):not([type=image]), select, textarea';
   const TITRES = "h1, h2, h3, h4, h5, h6, legend, caption, [role=heading], .titre, .title, .panel-title, .card-title, .card-header, .section-title";
-  const CLIQUABLES = 'a, button, [role=button], [role=link], [role=tab], [role=menuitem], [role=option], [role=radio], label, input[type=button], input[type=submit]';
+  // Étapes d'ouverture et « Suivant » : de vrais boutons et liens seulement — jamais un libellé, une case ou une option du formulaire.
+  const CLIQUABLES = 'a[href], button, [role=button], [role=link], [role=tab], [role=menuitem], input[type=button], input[type=submit]';
+  // Libellé et rubrique relus une seule fois par page (vidé à chaque nouvelle page).
+  let memo = new Map();
+  const memoiser = (genre, el, calcul) => {
+    let m = memo.get(el);
+    if (!m) { m = {}; memo.set(el, m); }
+    if (!(genre in m)) m[genre] = calcul(el);
+    return m[genre];
+  };
+  // Un nœud qui appartient à la navigation (menu, fil d'Ariane, frise des étapes) ne fait pas la rubrique d'un champ.
+  const HORS_RUBRIQUE = "nav, [role=navigation], header, footer, .breadcrumb, .stepper, .steps, .wizard-steps, .progress, [class*=stepper], [class*=etapes], [class*=breadcrumb]";
 
   function texteSansChampsNoeud(n) {
     const c = n.cloneNode(true);
@@ -406,7 +417,8 @@
   }
 
   // Le libellé d'un champ : <label for>, label englobant, aria-label(ledby), placeholder, titre, sinon le texte juste avant lui.
-  function libelleChamp(el) {
+  function libelleChamp(el) { return memoiser("l", el, libelleChampCalcul); }
+  function libelleChampCalcul(el) {
     const parts = [];
     if (el.id) [...document.querySelectorAll("label[for]")].filter((l) => l.htmlFor === el.id).forEach((l) => parts.push(texteSansChampsNoeud(l)));
     const englobant = el.closest("label");
@@ -416,7 +428,10 @@
     if (!parts.some((p) => norm(p))) {
       let prec = el.previousElementSibling;
       for (let i = 0; prec && i < 3 && !norm(prec.textContent); i++) prec = prec.previousElementSibling;
-      if (prec) parts.push(texteSansChampsNoeud(prec));
+      // Le libellé d'un AUTRE champ (<label for> d'un autre, ou bloc qui contient déjà son champ) n'est pas celui-ci.
+      const autre = prec && ((prec.tagName === "LABEL" && prec.htmlFor && prec.htmlFor !== el.id) || prec.matches(CHAMPS_SAISIE) || prec.querySelector(CHAMPS_SAISIE));
+      if (prec && !autre) parts.push(texteSansChampsNoeud(prec));
+      else if (prec) { /* rien : libellé inconnu plutôt qu'emprunté */ }
       else if (el.parentElement) {
         const cellule = el.closest("td, .col, [class*=col-], .form-group, .field, .champ");
         const avant = cellule && cellule.previousElementSibling;
@@ -427,25 +442,31 @@
     return norm(parts.filter(Boolean).join(" ")).slice(0, 160);
   }
 
-  // La rubrique d'un champ : légende du fieldset, puis le dernier titre placé avant lui dans la page.
-  function rubriqueChamp(el) {
-    const parts = [];
+  // La rubrique d'un champ : la légende de son fieldset le plus proche, sinon le titre le plus proche avant lui dans le même formulaire
+  // (hors menus et frise des étapes), accompagné du titre de niveau supérieur qui le contient (« Adresse » sous « Propriétaire »).
+  // Jamais un titre d'une rubrique déjà refermée, ni l'empilement de tous les titres de la page.
+  function rubriqueChamp(el) { return memoiser("r", el, rubriqueChampCalcul); }
+  function rubriqueChampCalcul(el) {
     const fs = el.closest("fieldset");
-    const lg = fs && fs.querySelector("legend");
-    if (lg) parts.push(lg.textContent);
-    // Le dernier titre de CHAQUE niveau avant le champ : « Identité du propriétaire » puis « Adresse » (une sous-rubrique ne cache pas
-    // la rubrique qui la contient).
-    const parNiveau = new Map();
-    for (const t of document.querySelectorAll(TITRES)) {
-      if (t.contains(el)) continue;
-      if (!(t.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) break;
-      const niveau = /^H[1-6]$/.test(t.tagName) ? t.tagName : (t.tagName === "LEGEND" ? "LEGEND" : "AUTRE");
-      parNiveau.set(niveau, t);
-      // Un titre de niveau supérieur efface les sous-titres d'avant lui.
-      if (/^H[1-6]$/.test(niveau)) for (const k of [...parNiveau.keys()]) if (/^H[1-6]$/.test(k) && k > niveau) parNiveau.delete(k);
+    const lg = fs && [...fs.children].find((c) => c.tagName === "LEGEND");
+    if (lg) {
+      const parent = fs.parentElement && fs.parentElement.closest("fieldset");
+      const lgp = parent && [...parent.children].find((c) => c.tagName === "LEGEND");
+      return norm((lgp ? lgp.textContent + " " : "") + lg.textContent);
     }
-    [...parNiveau.values()].forEach((t) => parts.push(t.textContent));
-    return norm(parts.join(" "));
+    const cadre = el.closest("form, main, [role=main]") || document.body;
+    const niveau = (t) => (/^H[1-6]$/.test(t.tagName) ? Number(t.tagName[1]) : t.getAttribute("aria-level") ? Number(t.getAttribute("aria-level")) : 7);
+    const avant = [...cadre.querySelectorAll(TITRES)].filter((t) => t.tagName !== "LEGEND" && t.tagName !== "CAPTION" && !t.contains(el)
+      && !t.closest(HORS_RUBRIQUE) && (t.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
+    if (!avant.length) {
+      const cap = el.closest("table") && el.closest("table").querySelector("caption");
+      return norm(cap ? cap.textContent : "");
+    }
+    const proche = avant[avant.length - 1];
+    const nv = niveau(proche);
+    let dessus = null;
+    for (let i = avant.length - 2; i >= 0; i--) if (niveau(avant[i]) < nv) { dessus = avant[i]; break; }
+    return norm((dessus ? dessus.textContent + " " : "") + proche.textContent);
   }
 
   function candidatsChamp(f) {
@@ -460,6 +481,7 @@
       if (f.type === "choix" ? !(el.type === "radio" || el.type === "checkbox") : (el.type === "radio" || el.type === "checkbox")) return false;
       const l = libelleChamp(el);
       if (!l || !res.some((r) => r.test(l))) return false;
+      if (f.horsLibelles && new RegExp(f.horsLibelles, "i").test(l)) return false;
       const r = rubriqueChamp(el);
       return (!sec || sec.test(r)) && !(horsSec && horsSec.test(r));
     });
@@ -478,6 +500,9 @@
   async function remplirAuto(run, f, sp) {
     const key = cleChamp(0, f.label, f);
     const deja = run.fields && run.fields[key] && run.fields[key].state;
+    // Plusieurs pages : un champ rempli sur une page précédente ne l'est jamais une seconde fois sur une autre (un bloc « second
+    // propriétaire » ou un récapitulatif aux mêmes libellés ne reçoit pas la valeur une seconde fois).
+    if (deja === "done" && !run.scenario.uneSeulePage) return false;
     const r = resolveField(f, run.fiche);
     if (r.missing) { if (deja !== "done") await report(key, f.optional ? "skipped" : "missing"); return false; }
     if (r.invalid) { await report(key, "mismatch", r.error); return false; }
@@ -487,15 +512,16 @@
       if (!motif) return false;
       const re = new RegExp(motif, "i");
       const sec = f.rubrique ? new RegExp(f.rubrique, "i") : null;
+      const horsSec = f.horsRubrique ? new RegExp(f.horsRubrique, "i") : null;
       const el = [...document.querySelectorAll('input[type=radio], input[type=checkbox]')].filter((x) => visible(x) || (x.labels && [...x.labels].some(visible)))
-        .find((x) => re.test(libelleChamp(x)) && (!sec || sec.test(rubriqueChamp(x))));
+        .find((x) => re.test(libelleChamp(x)) && (!sec || sec.test(rubriqueChamp(x))) && !(horsSec && horsSec.test(rubriqueChamp(x))));
       if (!el) { if (deja !== "done") await report(key, "absent"); return false; }
       if (!el.checked) { await report(key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
       await report(key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
       return true;
     }
     // Emplacement pas encore connu (ni code ni libellé) : la valeur se copie depuis le panneau.
-    if (!f.code && !(f.libelles && f.libelles.length)) { await report(key, "manuel", "à coller à la main (bouton Copier du panneau)"); return false; }
+    if (!f.code && !(f.libelles && f.libelles.length)) { if (deja !== "manuel") await report(key, "manuel", "à coller à la main (bouton Copier du panneau)"); return false; }
     const cands = candidatsChamp(f);
     let el = null;
     if (typeof f.rang === "number" || /^\d+$/.test(String(f.rang || ""))) el = cands[Number(f.rang)] || null;
@@ -514,11 +540,25 @@
     return true;
   }
 
-  function cliquableParTexte(motifs) {
+  // Ce qui rend un bouton interdit : son texte, mais aussi son identifiant, son nom et l'adresse où il envoie le formulaire
+  // (« Suivant » d'identifiant btnValider, nom « transmettre »…).
+  const attributsBouton = (el) => [el.id, el.getAttribute("name"), el.getAttribute("formaction")].filter(Boolean).join(" ");
+  const texteBouton = (el) => norm(el.innerText || el.value || el.getAttribute("aria-label") || el.title || "");
+
+  // Un bouton ou un lien dont le texte répond à l'un des motifs, le plus court d'abord. `lienSeul` : seulement un lien de
+  // navigation (<a href>) — pour une étape dont le texte contient un mot de la liste noire (« Déposer une demande » de l'accueil).
+  function cliquableParTexte(motifs, options) {
+    const o = options || {};
     const res = (motifs || []).map((m) => new RegExp(m, "i"));
-    const els = [...document.querySelectorAll(CLIQUABLES)].filter(visible);
-    const trouves = els.map((el) => ({ el, t: norm(el.innerText || el.value || el.getAttribute("aria-label") || el.title || "") }))
-      .filter((x) => x.t && x.t.length <= 140 && res.some((r) => r.test(x.t)) && !FORBIDDEN.test(x.t));
+    const els = [...document.querySelectorAll(CLIQUABLES)].filter(visible).filter((el) => !el.closest(HORS_RUBRIQUE) || o.navigation);
+    const trouves = els.map((el) => ({ el, t: texteBouton(el) }))
+      .filter((x) => x.t && x.t.length <= 140 && res.some((r) => r.test(x.t)))
+      .filter((x) => !FORBIDDEN.test(norm(attributsBouton(x.el))))
+      .filter((x) => {
+        if (!FORBIDDEN.test(x.t)) return true;
+        // Seule exception : une étape d'ouverture, sur un vrai lien de navigation, avant que le formulaire soit ouvert.
+        return !!o.lienSeul && x.el.tagName === "A" && !!x.el.getAttribute("href") && !/^javascript:/i.test(x.el.getAttribute("href"));
+      });
     trouves.sort((a, b) => a.t.length - b.t.length);
     return trouves.length ? trouves[0].el : null;
   }
@@ -548,12 +588,15 @@
     await gate();
     el.click();
     const fin = Date.now() + 20000;
+    let change = false;
     while (Date.now() < fin) {
       await wait(250);
-      if (empreintePage() !== avant) break;
+      if (empreintePage() !== avant) { change = true; break; }
     }
     mark(el, false);
     await attendreStable(6000);
+    memo = new Map();
+    return change;
   }
 
   async function boucleAuto(run) {
@@ -563,10 +606,12 @@
     const faites = new Set(run.etapesFaites || []);
     const champs = sc.pages.flatMap((p) => expandFields(p, run.fiche));
     const maxPages = sc.pagesMax || 30;
+    let formulaireOuvert = !!run.formulaireOuvert;
     while (pi < maxPages) {
       setBanner(`CLAIRE pilote le guichet — page ${pi + 1}`, "running");
       setBlocking(true);
       await attendreStable(8000);
+      memo = new Map();
       if (sc.refuserSiNoms) {
         const noms = [...document.querySelectorAll("input, select, textarea")].map((el) => (el.name || el.id || "").split(/[.\[\]_-]/).pop());
         const actuel = sc.attendreNoms ? new RegExp(sc.attendreNoms) : null;
@@ -575,16 +620,30 @@
         }
       }
       // (1) Le formulaire n'est pas encore ouvert (aucun champ du scénario sur la page) : étape suivante de l'ouverture.
+      // Dès qu'une page porte un champ du scénario, le formulaire est ouvert pour de bon : plus aucune étape d'ouverture n'est
+      // cliquée ensuite (un « Nouvelle demande » de l'en-tête abandonnerait le brouillon ; un « Déposer » final transmettrait).
       const presents = champs.filter((f) => f.type !== "choix" && candidatsChamp(f).length).length;
-      if (presents < 2 && !sc.uneSeulePage) {
-        const etape = (sc.etapes || []).find((e) => !faites.has(e.label) && cliquableParTexte(e.textes));
-        if (etape) {
-          faites.add(etape.label);
-          await send({ type: "content.etape", label: etape.label });
-          await cliquerPuisAttendre(cliquableParTexte(etape.textes), sp, pi + 1);
+      if (presents >= 1 && !formulaireOuvert) { formulaireOuvert = true; await send({ type: "content.formulaire" }); }
+      if (!formulaireOuvert && !sc.uneSeulePage) {
+        // Les étapes dans leur ordre : la suivante seulement ; celle d'avant pas encore vue est passée si la suivante est déjà là
+        // (accueil qui mène directement au choix de la démarche).
+        const etapes = sc.etapes || [];
+        let idx = etapes.findIndex((e) => !faites.has(e.label));
+        let cible = null;
+        for (let k = idx; k >= 0 && k < etapes.length && !cible; k++) {
+          cible = cliquableParTexte(etapes[k].textes, { lienSeul: true, navigation: k === 0 });
+          if (cible) idx = k;
+          if (!cible && k > idx) break;
+        }
+        if (cible) {
+          for (let k = 0; k <= idx; k++) faites.add(etapes[k].label);
+          await send({ type: "content.etape", label: etapes[idx].label });
+          const change = await cliquerPuisAttendre(cible, sp, pi + 1);
+          if (!change) { await finish("awaiting_human", `« ${etapes[idx].label} » n'a rien ouvert : ouvrez la démarche vous-même puis relancez CLAIRE.`); return; }
           pi += 1;
           continue;
         }
+        if (idx >= 0) { await finish("awaiting_human", `CLAIRE ne trouve pas « ${etapes[idx].label} » sur cette page : ouvrez la démarche vous-même puis relancez CLAIRE.`); return; }
       }
       // (2) Les champs de cette page.
       for (const f of champs) await remplirAuto(run, f, sp);
@@ -598,7 +657,11 @@
         await finish("awaiting_human", "CLAIRE a rempli ce qu’elle connaît. Relisez chaque page, cochez les cases, puis validez et transmettez vous-même.");
         return;
       }
-      await cliquerPuisAttendre(suivant, sp, pi + 1);
+      const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
+      if (!change) {
+        await finish("awaiting_human", "Le guichet n’a pas changé de page après « Suivant » (champ obligatoire ou erreur affichée ?) : complétez puis relancez CLAIRE.");
+        return;
+      }
       pi += 1;
     }
     await finish("awaiting_human", "Arrêt après " + maxPages + " pages : relisez et continuez vous-même.");

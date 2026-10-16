@@ -154,6 +154,9 @@ async function handle(msg, sender) {
         addLog(r, `Étape : ${msg.label}`);
       });
       return { ok: true };
+    case "content.formulaire":
+      await mutate((r) => { r.formulaireOuvert = true; });
+      return { ok: true };
     case "content.advance":
       await mutate((r) => {
         r.pageIndex = msg.pageIndex;
@@ -212,3 +215,12 @@ async function releverStructure() {
   });
   return res && res.result;
 }
+
+// CLAIRE pilote le guichet et change de page elle-même : sur un guichet autorisé hors de la liste du manifeste, le script de saisie
+// est remis à chaque chargement de l'onglet suivi (sinon la saisie resterait « en cours » sans personne pour la mener).
+chrome.tabs.onUpdated.addListener(async (tabId, info) => {
+  if (info.status !== "complete") return;
+  const r = await getRun();
+  if (!r || r.tabId !== tabId || !ACTIVE.includes(r.status)) return;
+  try { await ensureContent(tabId); } catch (_) { /* adresse non autorisée : la saisie reste en pause côté panneau */ }
+});
