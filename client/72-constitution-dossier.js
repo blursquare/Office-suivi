@@ -464,7 +464,18 @@
   }
   function cstParcelleActive(cle, i, actif) {
     const g = cstEtat && cstEtat.groupes.find(x => x.cle === cle);
-    if (g && g.parcelles[i]) { g.parcelles[i].actif = !!actif; renderConstitution(); }
+    if (g && g.parcelles[i]) { g.parcelles[i].actif = !!actif; renderConstitution(); replanifierPlanConstitution(g); }
+  }
+  // Parcelles changées : le plan de la commune est retiré tout seul (étude 16/10 : « sortir le plan automatiquement »), après une courte
+  // pause pour ne pas relancer cadastre.gouv.fr à chaque case cochée.
+  var minuteriesPlanConstitution = {};
+  function replanifierPlanConstitution(g) {
+    if (!g) return;
+    clearTimeout(minuteriesPlanConstitution[g.cle]);
+    minuteriesPlanConstitution[g.cle] = setTimeout(() => {
+      const etat = etatPlanConstitution(g).etat;
+      if (['a-tirer', 'perime'].includes(etat)) lancerPlanConstitution(g.cle, true);
+    }, 2500);
   }
   function cstAjouterParcelle(cle) {
     const g = cstEtat && cstEtat.groupes.find(x => x.cle === cle);
@@ -476,6 +487,7 @@
     if (g.parcelles.some(p => p.section === section && p.numero === numero)) { afficherToast('Cette parcelle est déjà dans la liste.'); return; }
     g.parcelles.push({ prefixe: '', section, numero, lieuDit: val('lieudit'), surface: val('surface'), actif: true, origine: 'Saisie' });
     renderConstitution();
+    replanifierPlanConstitution(g);
   }
   function cstAjouterCommune() {
     if (!cstEtat || cstEtat.type !== 'vente') return;
@@ -593,14 +605,26 @@
     if (JSON.stringify(saisi) !== JSON.stringify(d.defunt || {})) { if (Object.keys(saisi).length) d.defunt = saisi; else delete d.defunt; sauvegarder(d); }
   }
 
+  // Fenêtre d'impression ouverte AU CLIC (après une attente, le navigateur bloquerait la fenêtre surgissante), remplie quand le PDF est prêt.
+  function ouvrirFenetreImpressionConstitution() {
+    const w = window.open('', '_blank');
+    if (w) { try { w.document.title = 'Préparation de l’impression…'; w.document.body.textContent = 'Préparation des courriers et des plans cadastraux…'; } catch (_) { /* fenêtre d'un autre contexte */ } }
+    return w;
+  }
+  function montrerPdfImpressionConstitution(w, blob, nom) {
+    const url = URL.createObjectURL(blob);
+    if (w && !w.closed) w.location.href = url;
+    else telechargerFichier(blob, nom);
+  }
+
   async function genererConstitution(action) {
     const e = cstEtat;
     const d = dossierConstitution();
     if (!e || !d || e.enCours) return;
+    const fenetre = action === 'imprimer' ? ouvrirFenetreImpressionConstitution() : null;
     const docs = documentsAGenererConstitution();
     const formats = action === 'imprimer' ? ['pdf'] : formatsChoisisConstitution();
-    if (!docs.length) { afficherToast('Aucun courrier coché.'); return; }
-    if (!formats.length) { afficherToast('Choisissez PDF ou Word.'); return; }
+    if (!docs.length || !formats.length) { if (fenetre) fenetre.close(); afficherToast(!docs.length ? 'Aucun courrier coché.' : 'Choisissez PDF ou Word.'); return; }
     e.enCours = true;
     renderConstitution();
     retenirDefuntSaisiConstitution();
@@ -628,8 +652,9 @@
           const courrier = e.sorties[x.id] && e.sorties[x.id].pdf && e.sorties[x.id].pdf.blob;
           return courrier ? [courrier].concat((plans.get(x.groupe) || []).map(p => p.blob)) : [];
         });
-        if (!pdfs.length) { majMessageConstitution('Cochez « PDF » pour imprimer.'); }
-        else { const fusion = await fusionnerPdfConstitution(pdfs); window.open(URL.createObjectURL(fusion), '_blank'); majMessageConstitution(`${pdfs.length} courrier${pdfs.length > 1 ? 's' : ''} dans un seul PDF, ouvert pour l’impression.`); }
+        const nCourriers = docs.filter(x => x.mode !== 'courriel').length;
+        if (!pdfs.length) { if (fenetre) fenetre.close(); majMessageConstitution('Aucun courrier papier à imprimer.'); }
+        else { montrerPdfImpressionConstitution(fenetre, await fusionnerPdfConstitution(pdfs), `Constitution - ${libelleDossierAffiche(d)}.pdf`.replace(/[\\/:*?"<>|]+/g, ' ')); majMessageConstitution(`${nCourriers} courrier${nCourriers > 1 ? 's' : ''}, chacun suivi de son plan cadastral, dans un seul PDF ouvert pour l’impression.`); }
       } else if (action === 'ranger') {
         await rangerConstitution(fichiers);
       } else if (fichiers.length === 1) {
@@ -642,6 +667,7 @@
         majMessageConstitution(`${fichiers.length} fichiers dans une archive téléchargée.`);
       }
     } catch (err) {
+      if (fenetre) fenetre.close();
       console.error('Constitution de dossier :', err);
       noterVerificationPoste('constitution-courriers', { ok: false, message: 'génération impossible' });
       majMessageConstitution('Génération impossible : ' + (err && err.message ? err.message : 'erreur') + ' (la première fois, le poste doit pouvoir télécharger les bibliothèques PDF et Word).');
@@ -665,6 +691,47 @@
     sauvegarder(d);
     majMessageConstitution(`${ranges} fichier${ranges > 1 ? 's' : ''} enregistré${ranges > 1 ? 's' : ''} dans « Constitution », dans le dossier du NAS.`);
     afficherToast(`${ranges} courrier${ranges > 1 ? 's' : ''} dans le dossier « Constitution » du NAS.`);
+  }
+
+  // Un courrier imprimé seul, suivi du plan cadastral de sa commune (étude 16/10).
+  async function imprimerDocumentConstitution(id) {
+    const e = cstEtat;
+    const doc = documentConstitution(id);
+    if (!doc || !e || e.enCours) return;
+    const fenetre = ouvrirFenetreImpressionConstitution();
+    e.enCours = true;
+    renderConstitution();
+    try {
+      retenirDefuntSaisiConstitution();
+      majMessageConstitution(`Préparation de « ${doc.libelle} »…`);
+      const s = await genererDocumentConstitution(doc, 'pdf');
+      e.sorties[id] = Object.assign({}, e.sorties[id], { pdf: s });
+      const plans = doc.genre === 'vente' ? await plansPdfConstitution(groupeDuDocumentConstitution(doc)) : [];
+      montrerPdfImpressionConstitution(fenetre, await fusionnerPdfConstitution([s.blob].concat(plans.map(p => p.blob))), s.nom);
+      majMessageConstitution(plans.length || doc.genre !== 'vente' ? `« ${doc.libelle} » ouvert pour l’impression${plans.length ? ', suivi du plan cadastral' : ''}.` : `« ${doc.libelle} » ouvert pour l’impression, sans plan cadastral (${etatPlanConstitution(groupeDuDocumentConstitution(doc)).texte}).`);
+    } catch (err) {
+      if (fenetre) fenetre.close();
+      console.error(err);
+      afficherToast('Courrier impossible à préparer : ' + (err && err.message ? err.message : 'erreur'));
+    }
+    e.enCours = false;
+    renderConstitution();
+  }
+
+  // « Email » sur la ligne d'un courrier : la fenêtre d'email s'il a une adresse, sinon le courrier passe par email et l'adresse est demandée.
+  function emailDepuisLigneConstitution(id) {
+    const doc = documentConstitution(id);
+    if (!doc || !cstEtat || cstEtat.enCours) return;
+    if (doc.mode !== 'courriel') cstModeEnvoi(id, 'courriel');
+    if (!doc.courriel) {
+      cstEtat.selection = id;
+      renderConstitution();
+      const champ = document.querySelector('.cst-courriel');
+      if (champ) champ.focus();
+      afficherToast('Adresse email du destinataire à saisir, puis « Email » à nouveau.');
+      return;
+    }
+    emailDocumentConstitution(id);
   }
 
   async function telechargerDocumentConstitution(id, format) {
@@ -738,27 +805,6 @@
       }
       return r || { ok: false };
     } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); return { ok: false }; }
-  }
-
-  // Tous les courriers cochés « par email », l'un après l'autre (chaque fenêtre se relit et s'envoie ; « Annuler » arrête la série).
-  async function emailsConstitution() {
-    if (!cstEtat || cstEtat.enCours) return;
-    const docs = documentsAGenererConstitution().filter(x => x.mode === 'courriel');
-    if (!docs.length) { afficherToast('Aucun courrier coché par email.'); return; }
-    const e = cstEtat;
-    let faits = 0;
-    e.enCours = true;
-    try {
-      for (const doc of docs) {
-        e.selection = doc.id;
-        renderConstitution();
-        const r = await emailDocumentConstitution(doc.id);
-        if (!r || !r.ok) break;
-        faits++;
-      }
-    } finally { e.enCours = false; }
-    renderConstitution();
-    majMessageConstitution(`${faits} email${faits > 1 ? 's' : ''} sur ${docs.length} préparé${faits > 1 ? 's' : ''}.`);
   }
 
   function cstModeEnvoi(id, mode) {
@@ -840,7 +886,6 @@
       return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong> ${etat}</div>
         <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
         <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic : ajoutez-la.</p>'}</div>
-        ${renderPlanCommuneConstitution(g)}
         <div class="cst-ajout cst-ajout-parcelle"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Sect." maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
           <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="5 a 12 ca" aria-label="Contenance">
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Ajouter la parcelle" onclick="cstAjouterParcelle('${k}')">+</wa-button></div></div>`;
@@ -875,6 +920,9 @@
     return (doc.lignes || []).filter(Boolean).slice(0, 2).join(', ');
   }
 
+  // Une ligne par courrier (étude 16/10 : « plus compact ; à chaque courrier possibilité de l'envoyer par email, de l'imprimer ou de le
+  // sortir en PDF ») : case, titre et destinataire, puis Email · Imprimer · PDF. Le courrier choisi déplie son édition sous sa ligne ;
+  // l'aperçu est à droite.
   function renderItemConstitution(doc) {
     const idDoc = escapeOnclickArg(doc.id);
     const choisi = cstEtat.selection === doc.id;
@@ -882,34 +930,43 @@
     if (doc.mode === 'en-ligne') {
       return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span></span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
     }
-    const mode = doc.envoyeLe ? '<span class="dot-label dl-success"><span class="dot"></span>Email préparé</span>'
-      : doc.mode === 'courriel' ? `<span class="dot-label ${doc.courriel ? 'dl-acte' : 'dl-urgent'}"><span class="dot"></span>Email</span>` : '<span class="dot-label dl-neutre"><span class="dot"></span>Papier</span>';
     const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
     const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';
+    const occupe = cstEtat.enCours ? ' disabled' : '';
+    const etatEmail = doc.envoyeLe ? 'Email préparé' : doc.mode === 'courriel' ? (doc.courriel ? `Par email : ${doc.courriel}` : 'Par email : adresse à saisir') : 'Envoyer par email';
+    const action = (ic, titre, geste, classe) => `<wa-button appearance="plain" size="s" type="button" class="bouton-icone${classe ? ' ' + classe : ''}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}" onclick="event.stopPropagation(); ${geste}"${occupe}>${icone(ic)}</wa-button>`;
     return `<div class="cst-item${choisi ? ' choisi' : ''}${doc.actif ? '' : ' cst-off'}" onclick="cstChoisirDoc('${idDoc}')">
         <span class="cst-item-switch" onclick="event.stopPropagation()"><wa-switch size="small"${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)" aria-label="Préparer ce courrier"></wa-switch></span>
         <span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}${rang}</span>
           <span class="cst-item-dest${dest ? '' : ' manque'}">${escapeHtml(dest || 'Destinataire à compléter')}</span></span>
-        ${mode}
-        ${doc.genre === 'succession' ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Un autre courrier du même genre (une seconde banque…)" onclick="event.stopPropagation(); cstDupliquerDoc('${idDoc}')">+</wa-button>` : ''}
-        ${doc.ajoute ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce courrier" onclick="event.stopPropagation(); cstRetirerDoc('${idDoc}')">${icone('x')}</wa-button>` : ''}
-      </div>`;
+        <span class="cst-item-actions">
+          ${action('mail', etatEmail, `emailDepuisLigneConstitution('${idDoc}')`, doc.envoyeLe ? 'cst-fait' : doc.mode === 'courriel' ? 'cst-actif-email' : '')}
+          ${action('printer', doc.genre === 'vente' ? 'Imprimer (suivi du plan cadastral)' : 'Imprimer', `imprimerDocumentConstitution('${idDoc}')`)}
+          ${action('download', 'Télécharger en PDF', `telechargerDocumentConstitution('${idDoc}', 'pdf')`)}
+          ${doc.genre === 'succession' ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Un autre courrier du même genre (une seconde banque…)" onclick="event.stopPropagation(); cstDupliquerDoc('${idDoc}')">${icone('plus')}</wa-button>` : ''}
+          ${doc.ajoute ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce courrier" onclick="event.stopPropagation(); cstRetirerDoc('${idDoc}')">${icone('x')}</wa-button>` : ''}
+        </span>
+      </div>${choisi ? `<div class="cst-item-edition">${renderEditeurConstitution(doc)}</div>` : ''}`;
   }
 
   function renderListeCourriersConstitution() {
     const e = cstEtat;
     if (e.type === 'vente') {
-      const parCommune = e.groupes.map(g => `<div class="cst-liste-titre">${escapeHtml(g.commune)}</div>${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
-        <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')"><span slot="start" class="bouton-ajout-plus">+</span>Courrier à un autre organisme</wa-button></div>`).join('');
-      const gnau = e.groupes.map(g => {
+      // Par commune : en tête, le plan cadastral (tiré seul, joint à chaque courrier) et le guichet unique du CU et de la DIA.
+      return e.groupes.map(g => {
         const info = g.info || {};
         const depot = info.depot || {};
         const chailles = String(info.insee || '') === INSEE_CHAILLES;
         const lien = chailles ? URL_GNAU_CHAILLES : lienDepotDiaSur(depot.url);
-        const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : 'Guichet non relevé'));
-        return `<div class="cst-gnau"><span>CU et DIA — ${escapeHtml(g.commune)} : ${escapeHtml(nom)}</span>${lien ? `<a href="${escapeAttr(lien)}" target="_blank" rel="noopener">Ouvrir</a>` : ''}</div>`;
+        const nom = chailles ? 'Guichet de Chailles (SIRAP)' : (depot.plateforme || (depot.mode === 'guichet' ? 'Guichet unique' : ''));
+        const gnau = lien ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(`CU et DIA de ${g.commune} : ${nom || 'guichet unique'}`)}">${icone('link')}GNAU — CU et DIA</a>`
+          : `<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet CU / DIA non relevé</span>`;
+        return `<div class="cst-commune-courriers">
+          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${gnau}</div>
+          ${renderPlanCommuneConstitution(g)}
+          ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
+          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button></div></div>`;
       }).join('');
-      return parCommune + `<div class="cst-liste-titre">Guichets uniques ${infoBulle('Le certificat d’urbanisme et la DIA ne sont pas des courriers : ils se déposent sur le guichet de la commune.')}</div>${gnau}`;
     }
     const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
     return `${e.documents.map(renderItemConstitution).join('')}
@@ -917,26 +974,25 @@
         <wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterDoc()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter</wa-button></div>`;
   }
 
+  // En bas (étude 16/10) : deux gestes pour toute la série — « Imprimer tout » (chaque courrier papier suivi du plan cadastral de sa
+  // commune, un seul PDF) et « Enregistrer tout dans le dossier du NAS » (sous-dossier « Constitution », au format choisi).
   function renderSortieConstitution(d) {
     const e = cstEtat;
     const manques = manquesConstitution(e);
     const n = documentsAGenererConstitution().length;
-    const nEmail = documentsAGenererConstitution().filter(x => x.mode === 'courriel').length;
-    const nPapier = n - nEmail;
+    const nPapier = documentsAGenererConstitution().filter(x => x.mode !== 'courriel').length;
     const pdfOk = typeof genererPdfAAppelFonds === 'function';
     const nas = !!d.nasDossier;
     const bascule = (actif, geste, libelle) => `<wa-button size="s" appearance="outlined" class="vue-bascule-btn${actif ? ' actif' : ''}" type="button" onclick="${geste}">${libelle}</wa-button>`;
     const bloque = e.enCours || !n || !pdfOk || !formatsChoisisConstitution().length;
     return `${manques.length ? `<details class="cst-manques"><summary>${manques.length} point${manques.length > 1 ? 's' : ''} à vérifier</summary>${manques.map(m => `<p class="cst-alerte">${escapeHtml(m)}</p>`).join('')}</details>` : ''}
       <div class="cst-choix">
-        <wa-button-group label="Format">${bascule(e.formats.pdf, "cstFormat('pdf', !cstEtat.formats.pdf)", 'PDF')}${bascule(e.formats.docx, "cstFormat('docx', !cstEtat.formats.docx)", 'Word')}</wa-button-group>
         <wa-button-group label="Signature">${bascule(e.signe !== false, 'cstSigne(true)', 'Signé')}${bascule(e.signe === false, 'cstSigne(false)', 'Non signé')}</wa-button-group>
+        <wa-button-group label="Format enregistré">${bascule(e.formats.pdf, "cstFormat('pdf', !cstEtat.formats.pdf)", 'PDF')}${bascule(e.formats.docx, "cstFormat('docx', !cstEtat.formats.docx)", 'Word')}</wa-button-group>
       </div>
       <div class="cst-actions">
-        <wa-button variant="brand" pill type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé' : 'Dossier non relié au NAS : utilisez « Télécharger »'}">${e.enCours ? 'Préparation…' : `Enregistrer dans « Constitution » (${n})`}</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${bloque ? 'disabled ' : ''}onclick="genererConstitution('telecharger')">Télécharger</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier en un seul PDF, ouvert pour l’impression">Imprimer (${nPapier})</wa-button>
-        <wa-button appearance="outlined" pill type="button" ${e.enCours || !nEmail ? 'disabled ' : ''}onclick="emailsConstitution()" title="Une fenêtre d’email par courrier, à relire et envoyer">Envoyer les emails (${nEmail})</wa-button>
+        <wa-button appearance="outlined" type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier cochés, chacun suivi du plan cadastral de sa commune, dans un seul PDF ouvert pour l’impression">${icone('printer')} Imprimer tout (${nPapier})</wa-button>
+        <wa-button variant="brand" type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune' : 'Dossier non relié au NAS : reliez-le sur la fiche'}">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>
       </div>
       ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
@@ -986,17 +1042,12 @@
     const idDoc = escapeOnclickArg(doc.id);
     if (doc.mode === 'en-ligne') return `<div class="cst-edition"><strong>${escapeHtml(doc.libelle)}</strong><p class="hint">${escapeHtml(doc.note)}</p></div>`;
     const retenir = doc.modele !== 'autre' && (doc.genre === 'vente' ? doc.modeleRetenu : true);
-    const g = doc.genre === 'vente' ? groupeDuDocumentConstitution(doc) : null;
     return `<div class="cst-edition">
-      <div class="cst-edition-tete"><strong>${escapeHtml(doc.libelle)}${g ? ' — ' + escapeHtml(g.commune) : ''}</strong>${doc.origine ? ` <span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
-        <span class="cst-edition-actions">
-          ${doc.mode === 'courriel' ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="emailDocumentConstitution('${idDoc}')">Préparer l’email</wa-button>` : ''}
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'pdf')">PDF</wa-button>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')">Word</wa-button>
-        </span></div>
       ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
+        ${doc.origine ? `<span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
+        <wa-button appearance="plain" size="s" type="button" class="bouton-discret cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Le courrier en Word">Word</wa-button>
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
           <span class="hint">Le texte du courrier, sans l’en-tête${corpsEmailCourrierConstitution(documentFideleConstitution(doc)).suite ? ', avec le questionnaire joint en PDF' : ''}.</span>` : ''}
@@ -1060,7 +1111,7 @@
     const ouvert = cstEtat.donneesOuvertes !== undefined ? cstEtat.donneesOuvertes : manquesConstitution(cstEtat).some(m => !/parcelle/i.test(m));
     const doc = documentConstitution(cstEtat.selection);
     zone.innerHTML = `${renderDossierConstitution(d)}
-      <div class="cst-plan">
+      <div class="cst-mise-en-page">
         <div class="cst-gauche">
           <wa-details class="cst-donnees" data-dossier="${escapeAttr(cstEtat.dossierId)}"${ouvert ? ' open' : ''}>
             <span slot="summary" class="cst-donnees-resume"><strong>${cstEtat.type === 'vente' ? 'Vendeurs et parcelles' : 'Le défunt'}</strong> <span class="hint">${escapeHtml(resumeDonneesConstitution(cstEtat))}</span></span>
@@ -1070,7 +1121,6 @@
           <div class="calc-card cst-sortie">${renderSortieConstitution(d)}</div>
         </div>
         <div class="cst-droite">
-          <div class="calc-card cst-editeur">${renderEditeurConstitution(doc)}</div>
           <div class="cst-apercu" id="cst-apercu"></div>
         </div>
       </div>`;

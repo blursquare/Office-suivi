@@ -20364,3 +20364,21 @@ bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune c
 ### 16/10/2026 21:22 — Agenda : pourcentage en blanc (0.266.8)
 
 Étude : « mets le pourcentage en blanc ». `.ag-evt .ag-proba` en `--blanc-fixe` (gris foncé depuis 0.266.1).
+
+### 16/10/2026 21:37 — Constitution de dossier revue (0.267.0)
+
+Étude : « Vente : 1 sortir le plan automatiquement ; 2 l'aperçu se place sur la droite, à gauche plus compact, à chaque courrier possibilité de
+l'envoyer par email, de l'imprimer ou de le sortir en PDF ; 3 lien vers le GNAU ; 4 en bas deux boutons imprimer tout ou enregistrer tout dans
+le dossier du NAS. Pour l'impression mettre un plan du cadastre après chaque courrier. »
+- **Aperçu à droite** : la grille des deux colonnes et la ligne du plan cadastral portaient le même nom (`.cst-plan`) ; la seconde règle écrasait
+  la grille (colonnes empilées). Grille renommée `.cst-mise-en-page` ; colonne droite = l'aperçu seul (collé au défilement).
+- **Ligne d'un courrier** (`renderItemConstitution`) : case, titre et destinataire, puis Email (`emailDepuisLigneConstitution` : fenêtre d'email
+  s'il a une adresse, sinon passage en « Email » et adresse demandée), Imprimer (`imprimerDocumentConstitution` : courrier + plan(s) de sa
+  commune, un PDF), PDF ; l'édition (envoi Papier/Email, Word, destinataire, répertoire) dépliée sous le courrier choisi.
+- **Par commune** : en tête, le lien « GNAU — CU et DIA » (guichet relevé par « Où déposer la DIA », Chailles = SIRAP) et la ligne du plan
+  cadastral (tiré dès la commune connue, comme avant ; **refait seul** 2,5 s après un changement de parcelles, `replanifierPlanConstitution`).
+- **En bas** : Signé / Non signé, format enregistré (PDF / Word), « Imprimer tout (n) » (courriers papier cochés, chacun suivi du plan de sa
+  commune) et « Enregistrer tout dans le dossier du NAS (n) ». « Télécharger » et « Envoyer les emails » en série retirés (chaque ligne a ses gestes).
+- Impression : la fenêtre est ouverte au clic puis remplie quand le PDF est prêt (après l'attente des plans, une fenêtre ouverte plus tard est
+  bloquée par le navigateur) ; sans fenêtre, le PDF est téléchargé.
+Vérifié dans Chromium avec un dossier inventé (commune et plan simulés) ; impression et plan réels non rejoués ici.

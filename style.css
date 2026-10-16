@@ -9605,7 +9605,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-dossier-titre { font-size: var(--texte-l); font-weight: 500; }
 .cst-dossier-info { font-size: var(--texte-s); color: var(--muted); }
 .cst-dossier-info strong { color: var(--ink); font-weight: 600; }
-.cst-plan { display: grid; grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); gap: 16px; align-items: start; }
+/* Deux colonnes (étude 16/10 : « l'aperçu se place sur la droite ») ; nom propre — « .cst-plan » est la ligne du plan cadastral et écrasait la grille. */
+.cst-mise-en-page { display: grid; grid-template-columns: minmax(380px, 500px) minmax(0, 1fr); gap: 16px; align-items: start; }
 .cst-gauche, .cst-droite { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .cst-droite { position: sticky; top: calc(12px + var(--decalage-onglets)); max-height: calc(100vh - 24px - var(--decalage-onglets)); overflow: auto; }
 .cst-gauche > .calc-card, .cst-droite > .calc-card { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
@@ -9628,20 +9629,29 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .cst-ajout .prop-champ { flex: 1 1 80px; min-width: 0; }
 .cst-ajout .cst-cp { flex: 0 1 72px; }
-.cst-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto auto; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--rayon-m); cursor: pointer; border: 1px solid transparent; }
+.cst-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 4px 6px; border-radius: var(--rayon-m); cursor: pointer; border: 1px solid transparent; }
+.cst-item-actions { display: inline-flex; align-items: center; gap: 0; }
+.cst-item-actions .cst-actif-email { color: var(--acte); }
+.cst-item-actions .cst-fait { color: var(--success); }
+.cst-item-edition { margin: 2px 0 8px 40px; padding: 8px 10px; border-left: 2px solid color-mix(in srgb, var(--focus) 40%, transparent); }
+.cst-commune-courriers { display: flex; flex-direction: column; gap: 2px; }
+.cst-commune-courriers + .cst-commune-courriers { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.cst-liste-titre .cst-gnau-lien { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; text-transform: none; letter-spacing: 0; font-size: var(--texte-s); font-weight: 500; color: var(--focus); text-decoration: none; }
+.cst-liste-titre .cst-gnau-lien:hover { text-decoration: underline; }
+.cst-liste-titre .hint { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 400; }
 .cst-item:hover { background: var(--paper-sunk); }
 .cst-item.choisi { background: color-mix(in srgb, var(--focus) 10%, transparent); border-color: color-mix(in srgb, var(--focus) 40%, transparent); }
 .cst-item-texte { display: flex; flex-direction: column; min-width: 0; }
 .cst-item-titre { font-size: var(--texte-m); font-weight: 500; }
 .cst-item-dest { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cst-item-dest.manque { color: var(--urgent); }
-.cst-gnau { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; font-size: var(--texte-s); color: var(--muted); }
 .cst-ajout-courrier { margin-top: 6px; flex-wrap: nowrap; }
 .cst-ajout-courrier wa-button { flex: none; width: auto; }
 .cst-manques summary { cursor: pointer; color: var(--urgent); font-size: var(--texte-s); font-weight: 600; }
 .cst-alerte { margin: 0; color: var(--urgent); font-size: var(--texte-s); }
 .cst-choix { display: flex; flex-wrap: wrap; gap: 8px; }
-.cst-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cst-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.cst-actions wa-button { flex: 1 1 200px; }
 .cst-sortie #cst-message:empty { display: none; }
 .cst-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .cst-grille > * { min-width: 0; }
@@ -9653,6 +9663,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-edition-corps { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
 .cst-envoi { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .cst-envoi .cst-courriel { flex: 1 1 220px; min-width: 0; }
+.cst-envoi .cst-word { margin-left: auto; }
 .cst-envoi .hint { flex: 1 1 100%; margin: 0; }
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
 .cst-rep-resultats { display: flex; flex-direction: column; max-height: 132px; overflow: auto; margin-top: 4px; }
@@ -9715,7 +9726,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-saut { margin: 24px -32px; padding: 4px; border-top: 2px dashed #b9b2a6; text-align: center; font-family: 'Inter', sans-serif; font-size: 9px; color: #8a8273; }
 /* @fin-papier */
 @media (max-width: 1100px) {
-  .cst-plan { grid-template-columns: minmax(0, 1fr); }
+  .cst-mise-en-page { grid-template-columns: minmax(0, 1fr); }
   .cst-droite { position: static; max-height: none; }
 }
 @media (max-width: 700px) {
