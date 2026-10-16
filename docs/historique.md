@@ -20332,3 +20332,15 @@ de maintien est en gris foncé fixe (72 % de noir), le même dans les deux thèm
 ### 16/10/2026 18:35 — Agenda : « Probable » lisible en thème sombre (0.266.2)
 
 Capture de l'étude (« ça en blanc ») : les cartes fantômes de la ligne Journée (« ✦ 35 % - VTE - … », bord vert en tirets) prenaient le texte noir des rendez-vous pleins (0.265.0) sur le fond de la page. `.ag-journee-evt.ag-fantome` et `.ag-vm-evt.ag-fantome` rejoignent les options : texte `--ink` (blanc en sombre, encre en clair).
+
+### 16/10/2026 19:03 — Plan cadastral : commune et code postal, bonne commune choisie dans la liste du site (0.266.3)
+
+Étude : « pour le plan du cadastre bien rentrer le nom de la commune et le code postal. S'il y a plusieurs communes choisir la bonne », « essai
+Chaumont-sur-Tharonne 41600 ». Relevé sur le site (16/10) : le formulaire `rech` a un champ `codePostal` (5 caractères) ; « Chaumont-sur-Tharonne »
++ département 041, même avec le code postal, rend « Veuillez préciser la ville/commune » et une liste `select#codeCommune` (« CHAUMONT SUR THARONNE -
+41600 » HL046, « CHAUMONT SUR LOIRE - 41150 », « SEUR - 41120 ») ; un second envoi avec `codeCommune` rend la parcelle. `ouvrirCarteParcelle`
+(server/src/navigateur/planCadastre.js) remplit le code postal (et le préfixe 000 s'il est vide), puis, si la liste paraît, choisit l'option par
+`communeDansListeCadastre` (même nom — accents, tirets, ST/SAINT ignorés —, puis le code postal s'il en reste plusieurs ; rien de deviné : sinon
+erreur « n'est pas dans la liste proposée par le site ») et renvoie la recherche. Code postal transmis par les postes (`codePostal` de
+POST /api/navigation/plan-cadastre : Contrôle de l'urbanisme `e.cp`, agent, Constitution de dossier `g.cp`), contrôlé (5 chiffres). Joué de bout en
+bout sur le vrai site dans Chromium (AB 100 à Chaumont-sur-Tharonne : commune choisie, carte de la parcelle ouverte).

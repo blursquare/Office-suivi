@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.266.2';
+  const VERSION_APP = '0.266.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.266.3', date: '2026-10-16 19:03', resume: "Plan cadastral (cadastre.gouv.fr) : le nom de la commune ET son code postal sont saisis ; quand le site propose plusieurs communes (il le fait même pour un nom complet), CLAIRE choisit celle qui porte ce nom et ce code postal, puis relance la recherche. Essayé sur le site avec Chaumont-sur-Tharonne (41600)." },
     { version: '0.266.2', date: '2026-10-16 18:35', resume: "Agenda : les signatures « Probable » de la ligne Journée (pourcentage et dossier) s’écrivent en blanc en thème sombre — elles restaient en noir sur le fond sombre." },
     { version: '0.266.1', date: '2026-10-16 17:46', resume: "Agenda : pastilles AF / D / P sur fond noir et pourcentage de maintien en gris foncé sur les rendez-vous." },
     { version: '0.266.0', date: '2026-10-16 17:37', resume: "Authentic : l’aperçu de l’immeuble sur la page du sous-dossier (avant d’ouvrir la fiche du bien) est lu — numéros et type des lots d’une copropriété (le type de vente passe en copropriété), parcelles des « Références cadastrales » avec commune, préfixe, adresse cadastrale et surface (ha / a / ca). Ajoutées ou complétées sur la fiche, jamais retirées (rien si la commune diffère du dossier ; un type de vente déjà repris d’Authentic n’est pas changé ; pas pour une succession) ; aussi à la création depuis Authentic." },

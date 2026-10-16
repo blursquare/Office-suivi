@@ -48,7 +48,7 @@
     renderSitesPreemption();
     try {
       const r = await fetchAvecAuth(`/api/navigation/plan-cadastre`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ insee: e.insee, parcelles: parcellesNormaliseesSites(e.parcelles), echelle: st.echelle, dossierId: e.dossierId || '' }) });
+        body: JSON.stringify({ insee: e.insee, codePostal: e.cp || '', parcelles: parcellesNormaliseesSites(e.parcelles), echelle: st.echelle, dossierId: e.dossierId || '' }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
       st.plan = { id: j.id, etat: 'attente', etapes: [], documents: [] };
@@ -299,7 +299,7 @@
     const erreur = await lireCommunesEtatPreemption(e);
     if (erreur) return { erreur };
     if (!e.insee) return { erreur: 'commune du bien non reconnue (code postal ou adresse de la fiche) : ouvrir le Contrôle de l’urbanisme' };
-    return { insee: e.insee, commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles) };
+    return { insee: e.insee, codePostal: e.cp || '', commune: communeOutilSites(e), parcelles: parcellesNormaliseesSites(e.parcelles) };
   }
 
   // Tire le plan de situation, attend qu'il soit prêt, propose les PDF dans la conversation, rend ce qui a été fait.
@@ -310,7 +310,7 @@
     const p = await parametresSitesDossier(d);
     if (p.erreur) return { erreur: p.erreur };
     const r = await fetchAvecAuth('/api/navigation/plan-cadastre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ insee: p.insee, parcelles: p.parcelles, echelle: 0, dossierId: d.id }) });
+      body: JSON.stringify({ insee: p.insee, codePostal: p.codePostal, parcelles: p.parcelles, echelle: 0, dossierId: d.id }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.id) return { erreur: j.erreur || `le serveur a répondu ${r.status}` };
     // La file passe un plan après l'autre : l'attente couvre deux ou trois demandes devant.

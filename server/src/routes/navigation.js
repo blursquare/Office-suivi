@@ -77,7 +77,7 @@ function creerRouteurNavigation(config, parametresRepo, depot, o = {}) {
     const { commune, parcelles, demandees } = lues;
     if (!demandees) { res.status(400).json({ erreur: 'Aucune parcelle (section et numéro).' }); return; }
     if (parcelles.length < demandees) { res.status(404).json({ erreur: `${demandees - parcelles.length} parcelle(s) introuvable(s) au cadastre de cette commune.` }); return; }
-    const id = lancerOu429(res, () => gestion.lancerPlanCadastre({ commune, insee, parcelles, echelle: Number(b.echelle) || 0, dossierId: typeof b.dossierId === 'string' ? b.dossierId : '' }));
+    const id = lancerOu429(res, () => gestion.lancerPlanCadastre({ commune, insee, codePostal: /^\d{5}$/.test(String(b.codePostal || '')) ? String(b.codePostal) : '', parcelles, echelle: Number(b.echelle) || 0, dossierId: typeof b.dossierId === 'string' ? b.dossierId : '' }));
     if (id) res.json({ id });
   }));
 

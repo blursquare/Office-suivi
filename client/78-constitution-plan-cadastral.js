@@ -57,7 +57,7 @@
     renderConstitution();
     try {
       const r = await fetchAvecAuth('/api/navigation/plan-cadastre', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ insee: g.info.insee, parcelles, echelle: 0, dossierId: d.id }) });
+        body: JSON.stringify({ insee: g.info.insee, codePostal: g.cp || '', parcelles, echelle: 0, dossierId: d.id }) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || !j.id) throw new Error(j.erreur || `réponse ${r.status}`);
       g.plan.id = j.id;

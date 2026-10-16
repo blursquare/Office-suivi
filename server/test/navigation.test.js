@@ -11,7 +11,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const { versCC, zoneCCDepuisSrs, emprisePoints } = require('../src/navigateur/lambert');
-const { echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, groupesPlans } = require('../src/navigateur/planCadastre');
+const { echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, groupesPlans, communeDansListeCadastre } = require('../src/navigateur/planCadastre');
 const { pointPage, passesSurligneur, surlignerParcelles, aleatoire } = require('../src/navigateur/surlignage');
 const { adresseAutorisee, adresseAchat, nomFichierReponse } = require('../src/navigateur/session');
 const { cheminsNavigateur, argumentsLancement, ConnexionCdp } = require('../src/navigateur/chrome');
@@ -226,9 +226,10 @@ test('route : validation, état du navigateur, documents servis sans détour, ra
     assert.equal((await poster('/navigation/plan-cadastre', { insee: '41018', parcelles: '' })).status, 400);
     const trop = await poster('/navigation/plan-cadastre', { insee: '41018', parcelles: Array.from({ length: 13 }, (_, i) => `AL ${i + 1}`).join(', ') });
     assert.equal(trop.status, 400);
-    const ok = await poster('/navigation/plan-cadastre', { insee: '41018', parcelles: 'AL 694', echelle: 1000, dossierId: 'u1' });
+    const ok = await poster('/navigation/plan-cadastre', { insee: '41018', codePostal: '41000', parcelles: 'AL 694', echelle: 1000, dossierId: 'u1' });
     assert.deepEqual(await ok.json(), { id: 'T1' });
     assert.equal(lances[0].commune, 'Blois');
+    assert.equal(lances[0].codePostal, '41000');
     assert.equal(lances[0].parcelles[0].anneaux.length, 1, 'contour de l’IGN transmis');
     assert.equal(lances[0].parcelles[0].trous.length, 1, 'trou de la parcelle transmis');
     assert.equal(lances[0].echelle, 1000);
@@ -340,4 +341,16 @@ test('plan en niveaux de gris : le PDF surligné n’a plus les couleurs d’ori
   assert.doesNotMatch(texte, /0\.9 0\.5 0\.1|0\.8 0 0 RG/);
   assert.match(texte, /0\.574 g/);           // l'orange, en gris de même clarté
   assert.match(texte, /1 0\.95 0\.05 RG|1 0\.95 0\.05 rg/);   // le jaune fluo, lui, reste en couleur
+});
+
+test('commune choisie dans la liste du site (essai du 16/10, Chaumont-sur-Tharonne) : par le nom puis le code postal, jamais devinée', () => {
+  const liste = [{ value: '', text: 'Choisir' }, { value: 'HL046', text: 'CHAUMONT SUR THARONNE - 41600' }, { value: 'HK045', text: 'CHAUMONT SUR LOIRE - 41150' }, { value: 'HK246', text: 'SEUR - 41120' }];
+  assert.equal(communeDansListeCadastre(liste, 'Chaumont-sur-Tharonne', '41600'), 'HL046');
+  assert.equal(communeDansListeCadastre(liste, 'Chaumont-sur-Tharonne', ''), 'HL046');
+  assert.equal(communeDansListeCadastre(liste, 'Chaumont-sur-Loire', '41150'), 'HK045');
+  assert.equal(communeDansListeCadastre(liste, 'Chaumont', '41600'), '', 'nom différent : rien');
+  const homonymes = [{ value: 'A1', text: 'SAINT DENIS - 41000' }, { value: 'A2', text: 'ST DENIS - 41220' }];
+  assert.equal(communeDansListeCadastre(homonymes, 'Saint-Denis', '41220'), 'A2');
+  assert.equal(communeDansListeCadastre(homonymes, 'Saint-Denis', ''), '', 'deux du même nom sans code postal : rien');
+  assert.equal(communeDansListeCadastre([{ value: 'B1', text: 'VILLEFRANCHE SUR CHER - 41200' }], 'Villefranche-sur-Cher', '41200'), 'B1');
 });

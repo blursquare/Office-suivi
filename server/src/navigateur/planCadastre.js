@@ -9,7 +9,8 @@
 //   « Extrait de plan » (l'outil « Plan de situation » du site entoure la sélection d'un grand cercle : écarté), A4, portrait, échelle,
 //   rotation 0°, sans drapeau → clic sur la carte au centre des parcelles (la zone d'impression s'y place) → « Aperçu et édition (PDF) ».
 // Le PDF officiel de la DGFiP revient avec l'emprise imprimée (MAPBBOX, envoyée par le site) : le surlignage se pose dessus (surlignage.js).
-// NE PART vers le site : la commune, le département, la section et le numéro des parcelles — jamais un nom, une adresse ni un dossier.
+// NE PART vers le site : la commune, son code postal, le département, la section et le numéro des parcelles — jamais un nom, une adresse ni un
+// dossier. Quand le site propose plusieurs communes pour le nom tapé, la bonne est choisie par son nom et son code postal (16/10).
 
 const { versCC, zoneCCDepuisSrs, emprisePoints } = require('./lambert');
 
@@ -117,25 +118,65 @@ function groupesPlans(parcellesCC) {
   return groupes;
 }
 
-/** Ouvre la carte du site sur une parcelle (recherche par références cadastrales). @param {any} s @param {{ commune: string, insee: string }} demande
+/**
+ * Pure : la commune à choisir dans la liste que le site propose quand le nom tapé en désigne plusieurs (essai du 16/10 : « Chaumont-sur-Tharonne »
+ * rend « CHAUMONT SUR THARONNE - 41600 », « CHAUMONT SUR LOIRE - 41150 », « SEUR - 41120 »). Même nom (accents, tirets, « ST » / « SAINT »
+ * ignorés), puis le code postal s'il en reste plusieurs. Rend la valeur de l'option, ou '' (jamais deviné : une autre commune serait un autre plan).
+ * @param {Array<{ value: string, text: string }>} options @param {string} commune @param {string} [codePostal]
+ */
+function communeDansListeCadastre(options, commune, codePostal) {
+  const net = (/** @type {string} */ t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim()
+    .replace(/\bSTE\b/g, 'SAINTE').replace(/\bST\b/g, 'SAINT');
+  const voulu = net(commune);
+  const cp = /^\d{5}$/.test(String(codePostal || '')) ? String(codePostal) : '';
+  const lues = (options || []).filter((o) => o && o.value).map((o) => {
+    const m = /^(.*?)\s*-\s*(\d{5})\s*$/.exec(String(o.text || '').trim());
+    return { value: String(o.value), nom: net(m ? m[1] : o.text), cp: m ? m[2] : '' };
+  });
+  let memes = voulu ? lues.filter((o) => o.nom === voulu) : [];
+  if (memes.length > 1 && cp) memes = memes.filter((o) => o.cp === cp);
+  if (!memes.length && cp && !voulu) memes = lues.filter((o) => o.cp === cp);
+  return memes.length === 1 ? memes[0].value : '';
+}
+
+/** Ouvre la carte du site sur une parcelle (recherche par références cadastrales). @param {any} s @param {{ commune: string, insee: string, codePostal?: string }} demande
  * @param {{ section: string, numero: string }} p @param {(t: string) => void} etape */
 async function ouvrirCarteParcelle(s, demande, p, etape) {
   const dep = departementDepuisInsee(demande.insee);
+  const cp = /^\d{5}$/.test(String(demande.codePostal || '')) ? String(demande.codePostal) : '';
   etape('Ouvre cadastre.gouv.fr');
   await s.aller(ACCUEIL);
   const lienRecherche = await s.evaluer(`(() => { const a = document.querySelector('a[href*="afficherRechercherPlanCad"]'); return a ? a.getAttribute('href') : ''; })()`);
   if (!lienRecherche) throw new Error('Le site du cadastre a changé : recherche par références cadastrales introuvable.');
   await s.aller(new URL(lienRecherche, ACCUEIL).href);
-  etape(`Cherche la parcelle ${p.section} ${Number(p.numero) || p.numero} à ${demande.commune}`);
+  etape(`Cherche la parcelle ${p.section} ${Number(p.numero) || p.numero} à ${demande.commune}${cp ? ` (${cp})` : ''}`);
+  // Section, numéro et préfixe (000 par défaut, sinon le site refuse) : reposés aussi au second envoi, après le choix de la commune.
+  const parcelleJs = `const rp = [...f.querySelectorAll('input[name=rechercheType]')][0]; if (rp) rp.checked = true;
+    if (f.prefixeParcelle && !f.prefixeParcelle.value) f.prefixeParcelle.value = '000';
+    f.sectionLibelle.value = ${JSON.stringify(p.section)}; f.numeroParcelle.value = ${JSON.stringify(String(Number(p.numero) || p.numero))};`;
   const rempli = await s.evaluer(`(() => { const f = document.getElementById('rech'); if (!f || !f.ville) return 'formulaire';
     f.ville.value = ${JSON.stringify(String(demande.commune || ''))};
+    if (f.codePostal) f.codePostal.value = ${JSON.stringify(cp)};
     const o = [...f.codeDepartement.options].find((x) => x.text.trim().startsWith(${JSON.stringify(dep + ' -')}));
     if (!o) return 'département'; f.codeDepartement.value = o.value;
-    const rp = [...f.querySelectorAll('input[name=rechercheType]')][0]; if (rp) rp.checked = true;
-    f.sectionLibelle.value = ${JSON.stringify(p.section)}; f.numeroParcelle.value = ${JSON.stringify(String(Number(p.numero) || p.numero))};
+    ${parcelleJs}
     f.submit(); return ''; })()`);
   if (rempli) throw new Error(`Le site du cadastre a changé : ${rempli} de la recherche introuvable.`);
   await s.attendreStable();
+  // Plusieurs communes répondent au nom (le site le fait même pour un nom complet) : la liste « Ville, Commune » est proposée — la bonne
+  // est choisie par son nom et son code postal, puis la recherche est relancée.
+  const liste = await s.evaluer(`(() => { const sel = document.getElementById('codeCommune'); return sel ? [...sel.options].map((o) => ({ value: o.value, text: o.text })) : null; })()`);
+  if (Array.isArray(liste)) {
+    const valeur = communeDansListeCadastre(liste, demande.commune, cp);
+    if (!valeur) throw new Error(`cadastre.gouv.fr : la commune ${demande.commune}${cp ? ` (${cp})` : ''} n’est pas dans la liste proposée par le site.`);
+    etape(`Choisit la commune ${demande.commune}${cp ? ` (${cp})` : ''} dans la liste du site`);
+    const choisi = await s.evaluer(`(() => { const f = document.getElementById('rech'); const sel = document.getElementById('codeCommune'); if (!f || !sel) return 'formulaire';
+      sel.value = ${JSON.stringify(valeur)}; if (sel.value !== ${JSON.stringify(valeur)}) return 'commune';
+      ${parcelleJs}
+      f.submit(); return ''; })()`);
+    if (choisi) throw new Error(`Le site du cadastre a changé : ${choisi} de la recherche introuvable.`);
+    await s.attendreStable();
+  }
   const lienCarte = await s.evaluer(`(() => { const a = document.querySelector('a[onclick*="afficherCarteParcelle"]'); return a ? a.getAttribute('onclick') : ''; })()`);
   const m = /'(afficherCarteParcelle[^']+)'/.exec(String(lienCarte || ''));
   if (!m) {
@@ -213,7 +254,7 @@ async function extraitSurCarte(s, emprise, echelle, etape) {
  * Les plans (PDF officiels) des parcelles : un par groupe de parcelles proches et lisibles ensemble (groupesPlans).
  * Rend { zone, plans: [{ pdf, emprisePlan, echelle, relevee, centre, parcelles: [{ section, numero, anneaux (CC) }] }] }.
  * @param {any} s SessionNavigation ouverte sur les domaines du cadastre
- * @param {{ commune: string, insee: string, parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>>, trous?: Array<Array<[number, number]>> }>, echelle?: number }} demande
+ * @param {{ commune: string, insee: string, codePostal?: string, parcelles: Array<{ section: string, numero: string, anneaux: Array<Array<[number, number]>>, trous?: Array<Array<[number, number]>> }>, echelle?: number }} demande
  * @param {(texte: string) => void} [etape] ce que CLAIRE fait, pour l'écran
  */
 async function planCadastre(s, demande, etape = () => {}) {
@@ -242,4 +283,4 @@ async function planCadastre(s, demande, etape = () => {}) {
   return { zone, plans };
 }
 
-module.exports = { planCadastre, groupesPlans, echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, DOMAINES_CADASTRE, ECHELLES_EXTRAIT, CADRE_A4_PORTRAIT_MM, LISIBLE_MM };
+module.exports = { planCadastre, groupesPlans, communeDansListeCadastre, echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, DOMAINES_CADASTRE, ECHELLES_EXTRAIT, CADRE_A4_PORTRAIT_MM, LISIBLE_MM };
