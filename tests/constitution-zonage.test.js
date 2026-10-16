@@ -24,3 +24,18 @@ test('zonage : droit absent ou à vérifier → « À vérifier », jamais « no
   assert.equal(app.zonageConstitution(null), null);
   assert.equal(app.zonageConstitution({ zone: 'UA' }), null);
 });
+
+test('questions du Contrôle de l’urbanisme : commune, bien, rural ; copropriété seulement en copropriété ; les dues en tête', () => {
+  const p = { droits: [{ cle: 'dpu', titre: 'Droit de préemption urbain', statut: 'verifier' }],
+    lignes: [{ cle: 'AB 1', libelle: 'AB 1', statut: 'ok', zone: 'A', typezone: 'A', lue: true, famille: 'A' }], reponses: { bien: 'terrain_nu', mutation: 'vente' } };
+  const maison = app.questionsUrbanismeConstitution(p, 'maison');
+  assert.equal(maison.map(g => g.titre).join(','), 'La commune,Le bien,Rural, bois et forêts');
+  const cles = maison.flatMap(g => g.questions.map(q => q.cle));
+  assert.ok(!cles.includes('reglementPlusDe10ans'), 'question de copropriété absente pour une maison');
+  assert.ok(cles.includes('bois') && cles.includes('seuilSafer') && cles.includes('dpuInstitue'));
+  assert.ok(!cles.includes('donationEntreParents'), 'nature de la mutation : pas pour une vente');
+  const copro = app.questionsUrbanismeConstitution(p, 'copropriete').flatMap(g => g.questions.map(q => q.cle));
+  assert.ok(copro.includes('reglementPlusDe10ans'));
+  maison.forEach(g => { const due = g.questions.map(q => q.due); assert.equal(due.join(), due.slice().sort((a, b) => Number(b) - Number(a)).join()); });
+  assert.equal(app.questionsUrbanismeConstitution(null, 'maison').length, 0);
+});

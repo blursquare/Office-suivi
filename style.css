@@ -9649,6 +9649,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-zonage-titre { min-width: 170px; font-weight: 500; }
 .cst-zonage-droit .hint { flex: 1 1 100%; margin: 0; font-size: var(--texte-s); }
 .cst-zonage-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.cst-questions { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+.cst-questions > summary { cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: var(--texte-m); font-weight: 500; }
+.cst-questions-groupe { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.cst-questions .pr-question { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--texte-m); }
+.cst-questions .pr-question-texte { flex: 1 1 auto; min-width: 0; }
+.cst-a-repondre { margin-right: 4px; }
 .cst-commune-courriers { display: flex; flex-direction: column; gap: 2px; }
 .cst-commune-courriers + .cst-commune-courriers { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .cst-item:hover { background: var(--paper-sunk); }

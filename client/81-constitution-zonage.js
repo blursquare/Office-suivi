@@ -68,6 +68,7 @@
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
+      ${renderQuestionsUrbanismeConstitution(d)}
       <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
   }
 
@@ -85,4 +86,56 @@
         ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
         : '<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet non relevé</span>'}</div>`;
     }).join('')}</div>`;
+  }
+
+  // Les questions du Contrôle de l'urbanisme (étude 16/10 : « reprends pour la partie DIA toutes les questions du contrôle de l'urbanisme »),
+  // répondues sur place comme sur la fiche (`repondrePreemptionFiche` : analyse refaite, pièces mises à jour). Commune (DPU institué, DPU
+  // renforcé), bien (celles d'une copropriété seulement pour une copropriété), rural, bois et forêts. Celles de la nature de la mutation
+  // (donation, adjudication, parts de société, bail) ne concernent pas une vente : elles restent dans l'outil. Les questions dont l'analyse a
+  // besoin sont en tête, marquées « À répondre » ; les autres se répondent aussi, pour être sûr.
+  var GROUPES_QUESTIONS_CONSTITUTION = [
+    { titre: 'La commune', cles: ['dpuInstitue', 'dpur'] },
+    { titre: 'Le bien', section: 'bien' },
+    { titre: 'Rural, bois et forêts', section: 'rural' }
+  ];
+
+  // Pure : les questions à montrer, par groupe → [{ titre, questions: [{ cle, libelle, aide, valeurs, due, reponse }] }].
+  function questionsUrbanismeConstitution(p, typeVente) {
+    if (!p || !Array.isArray(p.droits)) return [];
+    const dues = new Set(analysePreemptionFiche(p).manques);
+    const rep = Object.assign({}, p.deduites || {}, p.reponses || {});
+    return GROUPES_QUESTIONS_CONSTITUTION.map(g => {
+      const liste = (g.cles ? g.cles.map(questionPreemptionParCle) : QUESTIONS_PREEMPTION.filter(q => q.section === g.section))
+        .filter(q => q && (!q.copro || typeVente === 'copropriete'))
+        .map(q => ({ cle: q.cle, libelle: q.libelle, aide: q.aide || '', valeurs: q.valeurs, due: dues.has(q.cle), reponse: rep[q.cle] }));
+      liste.sort((a, b) => Number(b.due) - Number(a.due));
+      return { titre: g.titre, questions: liste };
+    }).filter(g => g.questions.length);
+  }
+
+  function renderQuestionsUrbanismeConstitution(d) {
+    const p = d && d.preemption;
+    if (!p || !Array.isArray(p.droits)) return '';
+    const groupes = questionsUrbanismeConstitution(p, d.typeVente);
+    const dues = groupes.reduce((n, g) => n + g.questions.filter(q => q.due).length, 0);
+    const reste = resteAPreciserPreemptionFiche(p);
+    const id = escapeOnclickArg(d.id);
+    const bloc = groupes.map(g => `<div class="cst-questions-groupe"><div class="cst-liste-titre">${escapeHtml(g.titre)}</div>${g.questions.map(q => `<div class="pr-question${q.due ? ' pr-question-due' : ''}">
+        <span class="pr-question-texte">${q.due ? '<span class="dot-label dl-urgent cst-a-repondre"><span class="dot"></span>À répondre</span> ' : ''}${escapeHtml(q.libelle)}${q.aide ? infoBulle(q.aide) : ''}</span>
+        ${boutonsReponsePreemption(v => `cstRepondreUrbanisme('${id}', '${q.cle}', ${JSON.stringify(v).replace(/"/g, '&quot;')})`, q.reponse, q.valeurs)}
+      </div>`).join('')}</div>`).join('');
+    return `<details class="cst-questions" id="cst-questions"${dues ? ' open' : ''}>
+        <summary>Questions du Contrôle de l’urbanisme ${dues ? `<span class="dot-label dl-urgent"><span class="dot"></span>${dues} à répondre</span>` : '<span class="hint">toutes répondues ou sans effet</span>'}</summary>
+        ${bloc}
+        ${reste.length ? `<p class="hint">À préciser dans l’outil : ${escapeHtml(reste.join(', '))}.</p>` : ''}
+      </details>`;
+  }
+
+  // Une réponse : analyse et pièces refaites (même voie que la fiche), puis la section et la barre des étapes redessinées.
+  function cstRepondreUrbanisme(id, cle, valeur) {
+    const ouvert = !!(document.getElementById('cst-questions') || {}).open;
+    repondrePreemptionFiche(id, cle, valeur);
+    majZonageConstitution();
+    const q = document.getElementById('cst-questions');
+    if (q && ouvert) q.open = true;
   }
