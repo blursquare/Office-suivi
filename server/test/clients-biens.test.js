@@ -249,3 +249,11 @@ test('deux communes homonymes de départements différents (SAINT-CYR 41000 / 86
   assert.equal(construireBase([d('v1', '41000'), d('v2', '86130')]).biens.length, 2);
   assert.equal(construireBase([d('v1', '41000'), d('v2', '41000')]).biens.length, 1);
 });
+
+test('fiches du dossier : une personne du même nom sans preuve montre ses autres dossiers « peut-être »', () => {
+  const v = { id: 'v1', nom: 'MOREAU / LAMBERT', parties: [{ role: 'VENDEUR', nom: 'Paul MOREAU' }, { role: 'ACQUEREUR', nom: 'Claire LAMBERT' }] };
+  const s = { id: 's1', nom: 'MOREAU', typeAffaire: 'succession', parties: [{ role: 'PARTIE', nom: 'Paul MOREAU' }] };
+  const f = fichesDuDossier(construireBase([v, s]), 'v1');
+  const paul = f.personnes.find((p) => p.nom === 'Paul MOREAU');
+  assert.ok(paul.autresDossiers === 1 || (paul.peutEtreAutres || []).some((x) => x.id === 's1'));
+});

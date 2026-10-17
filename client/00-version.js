@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.274.0';
+  const VERSION_APP = '0.274.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.274.1', date: '2026-10-17 09:40', resume: "Onglet Dossier : la carte d'un client du même nom qu'un client d'un autre dossier (sans date de naissance, email ni téléphone en commun) dit « Peut-être aussi dans » avec ce dossier ; dans une succession, les cartes disent « Défunt » ou « Héritier » au lieu de « Partie » ; un bien de succession n'affiche plus « [object Object] »." },
     { version: '0.274.0', date: '2026-10-17 08:46', resume: "Onglet Dossier présenté comme Authentic : à gauche les parties et les biens (chacun une fiche unique, avec les autres dossiers où il figure — vente ou succession, son rôle, les autres parties), à droite tout le reste ; ventes et successions. Rendez-vous : le détail dit le contexte (« Vente — X (vendeur) avec Y (acquéreur) », « Succession de Z ») et les mêmes clients dans un autre dossier avec leur prochain rendez-vous. Clients et biens : le même bien dans une vente et une succession n'a plus qu'une fiche, même quand la commune est écrite autrement (« ST AIGNAN » / « SAINT-AIGNAN-SUR-CHER ») ; la fiche bien garde tout ce que dit Authentic (désignation, rubriques de chaque onglet, zone et SPF des parcelles), rubrique « Dans Authentic ». Pages gardées (relecture) : une promesse ou un avenant ne remplace plus la page de la vente, « Relire depuis Authentic » ne rejoue que les pages qui désignent ce dossier, « Oublier ce qui vient d'Authentic » efface aussi les pages gardées, pages refusées pour un dossier inconnu ou au-delà de 1,5 Mo, retirées d'un dossier supprimé ou archivé depuis un an." },
     { version: '0.273.0', date: '2026-10-17 08:37', resume: "Authentic : chaque page lue (page du dossier, fiches client, fiches bien) est gardée pour son dossier sur le serveur du bureau ; sur la fiche, ligne « Authentic » : ce qui a été reçu et quand, ce qui reste à ouvrir dans Authentic, et « Relire depuis Authentic » pour tout reprendre sans y retourner." },
     { version: '0.272.1', date: '2026-10-17 07:40', resume: "Authentic : tous les outils lisent maintenant les mêmes biens, parcelles et fiches client — la fiche, le contrôle de l'urbanisme, Claire Scan, la Constitution, l'extension GNAU, Clients et biens et « Demander à CLAIRE » voient aussi le second bien d'une vente ; une fiche bien lue dans Authentic après la création du dossier n'est plus perdue." },

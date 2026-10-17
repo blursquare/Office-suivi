@@ -450,12 +450,16 @@ function fichesDuDossier(base, dossierId) {
     .map((q) => ({ nom: q.nom, role: q.role }));
   const autre = (/** @type {any} */ x, /** @type {string} */ sauf) => ({ id: x.id, libelle: x.libelle, succession: !!x.succession, archive: !!x.archive,
     role: x.roleLibelle || '', avec: avec(x.id, sauf) });
+  const parId = new Map(base.personnes.map((p) => [p.id, p]));
   return {
     personnes: base.personnes.filter((p) => p.dossiers.some((/** @type {any} */ x) => x.id === dossierId))
       .map((p) => {
         const autres = p.dossiers.filter((/** @type {any} */ x) => x.id !== dossierId).filter((/** @type {any} */ x, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((y) => y.id === x.id) === i);
         return { id: p.id, nom: p.nomComplet, role: (p.dossiers.find((/** @type {any} */ x) => x.id === dossierId) || {}).roleLibelle || 'Partie',
-          decede: !!p.deces, autresDossiers: autres.length, autres: autres.slice(0, 12).map((/** @type {any} */ x) => autre(x, p.id)), peutEtre: p.peutEtre.length };
+          decede: !!p.deces, autresDossiers: autres.length, autres: autres.slice(0, 12).map((/** @type {any} */ x) => autre(x, p.id)), peutEtre: p.peutEtre.length,
+          // Même nom sans preuve (ni date de naissance, ni email, ni téléphone en commun) : ses dossiers sont montrés « peut-être », jamais réunis.
+          peutEtreAutres: p.peutEtre.flatMap((/** @type {any} */ q) => ((parId.get(q.id) || {}).dossiers || []).filter((/** @type {any} */ x) => x.id !== dossierId)
+            .map((/** @type {any} */ x) => autre(x, q.id))).filter((/** @type {any} */ x, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((y) => y.id === x.id) === i).slice(0, 8) };
       }),
     biens: base.biens.filter((b) => b.dossiers.some((/** @type {any} */ x) => x.id === dossierId))
       .map((b) => {

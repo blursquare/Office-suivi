@@ -162,7 +162,7 @@
     const ficheDefunt = nomDefunt ? ficheClientPourPersonneConstitution(d, nomDefunt) : null;
     const immeubles = (d.authentic && d.authentic.immeubles) || [];
     const biens = immeubles.length ? immeubles.map(im => ({ adresse: im.adresse, detail: detailBienSuccession(im) }))
-      : (Array.isArray(d.biens) ? d.biens : []).map(b => ({ adresse: b.adresse, detail: [b.type, b.parcelles].filter(Boolean).join(' · ') }));
+      : (Array.isArray(d.biens) ? d.biens : []).map(b => ({ adresse: b.adresse, detail: [b.type, Array.isArray(b.parcelles) ? b.parcelles.map(p => p && [p.prefixe, p.section, p.numero].filter(Boolean).join(' ')).filter(Boolean).join(', ') : b.parcelles].filter(Boolean).join(' · ') }));
 
     // Présentation façon Authentic (étude 17/10) : à gauche le défunt, les héritiers et les biens — fiches uniques, avec les autres dossiers
     // où chacun figure —, à droite le dossier, le contrôle à 2 mois et le FCDDV.

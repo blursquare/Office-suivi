@@ -342,11 +342,11 @@
     if (!d || !d.id) return '';
     const e = cbParDossier.get(d.id);
     if (!e || (!e.enCours && Date.now() - e.t > 60000)) chargerFichesClientsBiensDossier(d.id);
-    const contenu = e && e.fiches ? htmlCartesFichesDossier(e.fiches, genre) : '<span class="hint">…</span>';
+    const contenu = e && e.fiches ? htmlCartesFichesDossier(e.fiches, genre, d.id) : '<span class="hint">…</span>';
     return `<div class="pb-cartes" data-pb-dossier="${escapeAttr(d.id)}" data-pb-genre="${escapeAttr(genre)}">${contenu}</div>`;
   }
 
-  function htmlCartesFichesDossier(f, genre) {
+  function htmlCartesFichesDossier(f, genre, dossierIdCartes) {
     const autres = (liste) => (liste || []).length ? `<ul class="pb-autres">${liste.map(x => `<li><button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.id)}')">${escapeHtml(x.libelle || 'Dossier')}</button>${x.archive ? ' <span class="hint">archivé</span>' : ''}<span class="pb-contexte">${escapeHtml(texteContexteDossierCb(x))}</span></li>`).join('')}</ul>` : '';
     if (genre === 'biens') {
       const biens = f.biens || [];
@@ -359,10 +359,15 @@
     }
     const pers = f.personnes || [];
     if (!pers.length) return '<span class="hint">Aucune fiche client</span>';
+    // Succession : le serveur ne connaît que « Partie » ; le défunt et les héritiers se lisent comme sur la fiche (client/25, client/74).
+    const d = dossiers.find(x => x.id === dossierIdCartes);
+    const rolesLus = d && estSuccession(d) ? personnesContexteAgenda(d) : [];
+    const role = (p) => (p.role === 'Partie' && (rolesLus.find(q => memePersonneNommee(q.nom, p.nom)) || {}).role) || p.role;
     return pers.map(p => `<div class="pb-carte">
         <button type="button" class="pb-carte-titre" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')">${icone('user')}<span>${escapeHtml(p.nom)}</span></button>
-        <div class="pb-carte-detail">${escapeHtml(p.role)}${p.decede ? ' · décédé(e)' : ''}${p.peutEtre ? ' · <span class="hint">peut-être déjà connu</span>' : ''}</div>
+        <div class="pb-carte-detail">${escapeHtml(role(p))}${p.decede ? ' · décédé(e)' : ''}</div>
         ${p.autresDossiers ? `<div class="pb-carte-sous">Aussi dans ${p.autresDossiers} autre${p.autresDossiers > 1 ? 's' : ''} dossier${p.autresDossiers > 1 ? 's' : ''}</div>${autres(p.autres)}` : ''}
+        ${(p.peutEtreAutres || []).length ? `<div class="pb-carte-sous">Peut-être aussi dans ${infoBulle('Même prénom et même nom, sans date de naissance, email ni téléphone en commun : à confirmer sur la fiche client (« C’est la même personne »).')}</div>${autres(p.peutEtreAutres)}` : ''}
       </div>`).join('');
   }
 
@@ -376,5 +381,5 @@
     } catch (_) { /* hors ligne : l'emplacement reste « … » */ }
     e.t = Date.now();
     e.enCours = false;
-    document.querySelectorAll('.pb-cartes').forEach(el => { if (el.dataset.pbDossier === id && e.fiches) el.innerHTML = htmlCartesFichesDossier(e.fiches, el.dataset.pbGenre); });
+    document.querySelectorAll('.pb-cartes').forEach(el => { if (el.dataset.pbDossier === id && e.fiches) el.innerHTML = htmlCartesFichesDossier(e.fiches, el.dataset.pbGenre, id); });
   }
