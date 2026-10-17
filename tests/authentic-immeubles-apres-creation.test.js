@@ -42,3 +42,39 @@ test('fiche bien inconnue qui contredit le dossier : toujours écartée (page d�
   assert.ok(r.raison);
   assert.equal(d.authentic.immeubles.length, 2);
 });
+
+// Relecture du 17/10 : la même parcelle dans deux communes, la page d'un autre dossier, une commune écrite autrement, un immeuble abîmé.
+test('page d’un AUTRE dossier qui partage « AB 12 » dans une autre commune : écartée, le dossier ne change pas', () => {
+  const d = dossier();
+  const avant = JSON.stringify(d.authentic.immeubles);
+  const r = app.appliquerBienAuthentic(d, { adresse: { texte: '9 route Fictive 41300 SALBRIS', codePostal: '41300' }, parcelles: [{ section: 'AB', numero: '12' }, { section: 'C', numero: '400' }] }, noter, { modifie: false });
+  assert.ok(r.raison);
+  assert.equal(JSON.stringify(d.authentic.immeubles), avant);
+  assert.equal(app.groupesParcellesConstitution(d).map((g) => g.commune).join(','), 'BLOIS,VINEUIL');
+});
+
+test('même parcelle dans deux communes : deux biens, chacun sa commune', () => {
+  const D = require('../commun/donnees-dossier');
+  const d = { authentic: { immeubles: [
+    { adresse: 'BLOIS (41000), 1 rue Fictive', codePostal: '41000', commune: 'BLOIS', parcelles: [{ section: 'AB', numero: '12' }] },
+    { adresse: 'VINEUIL (41350), Les Prés', codePostal: '41350', commune: 'VINEUIL', parcelles: [{ section: 'AB', numero: '12' }, { section: 'ZC', numero: '7' }] }] } };
+  assert.equal(D.biensDossier(d).length, 2);
+  assert.equal(D.parcellesDossier(d).map((p) => `${p.commune} ${p.section}${p.numero}`).join(','), 'BLOIS AB12,VINEUIL AB12,VINEUIL ZC7');
+  assert.equal(D.memeCommune({ commune: 'ST AIGNAN' }, { commune: 'SAINT-AIGNAN-SUR-CHER', codePostal: '41110' }), true);
+  assert.equal(D.memeCommune({ codePostal: '41000' }, { codePostal: '41350' }), false);
+});
+
+test('contrôle de l’urbanisme : parcelles du bien principal toujours, commune écrite autrement comprise, autre commune ou commune inconnue exclue', () => {
+  const d = { adresseBien: 'SAINT-AIGNAN (41110), 2 rue des Essais', typeVente: 'maison',
+    bien: { adresse: { codePostal: '41110', commune: 'SAINT-AIGNAN' }, cadastre: { parcelles: [{ section: 'AB', numero: '12', commune: 'ST AIGNAN' }, { section: 'AB', numero: '13', commune: 'SAINT AIGNAN SUR CHER' }] } },
+    authentic: { immeubles: [{ adresse: 'Les Prés', parcelles: [{ section: 'ZC', numero: '45' }] }, { adresse: 'NOYERS-SUR-CHER (41140), 1 rue Fictive', codePostal: '41140', commune: 'NOYERS-SUR-CHER', parcelles: [{ section: 'B', numero: '2' }] }] } };
+  assert.equal(app.prefillPreemption(d).parcelles, 'AB 12, AB 13');
+});
+
+test('lots de la fiche (tenus à jour) avant ceux d’un immeuble retenu ; immeuble abîmé sans erreur', () => {
+  const D = require('../commun/donnees-dossier');
+  const d = { adresseBien: 'BLOIS (41000), 1 rue Fictive', bien: { lots: [{ numero: '1' }, { numero: '7' }], cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } },
+    authentic: { immeubles: [{ adresse: 'BLOIS (41000), 1 rue Fictive', lots: [{ numero: '1' }], parcelles: {} }, 'abîmé', null] } };
+  assert.equal(D.biensDossier(d)[0].lots.map((l) => l.numero).join(','), '1,7');
+  assert.equal(D.personneDossier({}, { nom: 'Léa ESSAI', emails: 'a@x.fr; b@y.fr' }).emails.join(','), 'a@x.fr,b@y.fr');
+});

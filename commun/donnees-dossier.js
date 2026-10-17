@@ -28,6 +28,27 @@
   /** Pure : la clé d'une parcelle sans sa commune (pour reconnaître la même parcelle quand une source ne donne pas la commune). @param {any} p */
   function cleParcelleSansCommune(p) { const c = cleParcelleDossier(p, '-'); return c ? c.slice(c.indexOf('|') + 1) : ''; }
 
+  /** Pure : un nom de commune réduit pour comparer (« SAINT-AIGNAN » = « st aignan »). @param {unknown} c */
+  function communeNette(c) { return net(c).replace(/\bsaint(e?)\b/g, 'st$1').replace(/\bsur\b/g, 's'); }
+
+  /**
+   * Pure : deux lieux sont-ils la même commune ? true / false / null (inconnu : une des deux sans code postal ni commune). Deux codes
+   * postaux différents = deux communes ; sinon le nom, « ST AIGNAN » = « SAINT-AIGNAN », et un nom qui commence l'autre au mot près
+   * (« SAINT-AIGNAN » / « SAINT-AIGNAN-SUR-CHER »).
+   * @param {{ commune?: string, codePostal?: string }} a @param {{ commune?: string, codePostal?: string }} b
+   */
+  function memeCommune(a, b) {
+    const cpa = texte(a && a.codePostal); const cpb = texte(b && b.codePostal);
+    const na = communeNette(a && a.commune); const nb = communeNette(b && b.commune);
+    if (cpa && cpb && cpa !== cpb) return false;
+    if (na && nb) return na === nb || (na + ' ').startsWith(nb + ' ') || (nb + ' ').startsWith(na + ' ');
+    if (cpa && cpb) return true;
+    return null;
+  }
+
+  /** @param {unknown} v */
+  function liste(v) { return Array.isArray(v) ? v : []; }
+
   /** Pure : les parcelles d'un cadastre de fiche (`d.bien.cadastre` : { parcelles } ou l'ancienne forme { section, numero }). @param {any} cad */
   function parcellesCadastre(cad) {
     if (!cad || typeof cad !== 'object') return [];
@@ -45,29 +66,43 @@
   }
 
   /**
-   * Pure : une fiche bien d'Authentic fondue dans la liste des immeubles retenus — même adresse ou une parcelle commune = le même
-   * immeuble (complété : ce qui manque, parcelles ajoutées, détails des parcelles), sinon ajouté. Rend la nouvelle liste, ou null si rien
-   * ne change. 12 immeubles et 40 parcelles par immeuble au plus.
+   * Pure : une fiche bien d'Authentic fondue dans la liste des immeubles retenus — le même immeuble = la même adresse, ou une parcelle
+   * commune DANS LA MÊME COMMUNE (« AB 12 » existe presque partout : deux communes différentes ne sont jamais réunies) ; il est complété
+   * (ce qui lui manque, parcelles ajoutées, détails des parcelles), sinon la fiche est ajoutée. `seulementCompleter` : l'adresse, la
+   * commune et le code postal de l'immeuble retenu ne sont jamais remplacés (seuls les vides sont remplis). Rend la nouvelle liste, ou
+   * null si rien ne change. 12 immeubles et 40 parcelles par immeuble au plus.
    * @param {any[]} immeubles @param {{ adresse?: string, codePostal?: string, commune?: string, type?: string, description?: string, parcelles?: any[], lots?: any[], tantiemesTotal?: any }} fiche
+   * @param {{ seulementCompleter?: boolean }} [o]
    */
-  function fusionnerImmeubleAuthentic(immeubles, fiche) {
-    const liste = (Array.isArray(immeubles) ? immeubles : []).slice();
-    const nouv = Object.assign({}, fiche, { parcelles: (fiche.parcelles || []).filter((p) => cleParcelleSansCommune(p)).slice(0, 40) });
-    const cles = (/** @type {any} */ im) => new Set((im.parcelles || []).map(cleParcelleSansCommune).filter(Boolean));
+  function fusionnerImmeubleAuthentic(immeubles, fiche, o) {
+    const liste_ = liste(immeubles).filter((im) => im && typeof im === 'object').slice();
+    const lieu = (/** @type {any} */ im) => { const l = communeDeLAdresse(texte(im.adresse)); return { commune: texte(im.commune) || l.commune, codePostal: texte(im.codePostal) || l.codePostal }; };
+    const nouv = Object.assign({}, fiche, { parcelles: liste(fiche && fiche.parcelles).filter((p) => cleParcelleSansCommune(p)).slice(0, 40) });
+    const lieuNouv = lieu(nouv);
+    const cles = (/** @type {any} */ im) => new Set(liste(im.parcelles).map(cleParcelleSansCommune).filter(Boolean));
     const clesNouv = cles(nouv);
-    const i = liste.findIndex((im) => (texte(nouv.adresse) && net(im.adresse) === net(nouv.adresse)) || [...cles(im)].some((c) => clesNouv.has(c)));
+    const i = liste_.findIndex((im) => {
+      const meme = memeCommune(lieu(im), lieuNouv);
+      if (meme === false) return false;
+      // Commune inconnue d'un côté : la parcelle commune suffit, sauf pour compléter un « autre bien » (il faut la même commune connue).
+      const lieuSur = meme === true || (meme === null && !(o && o.seulementCompleter));
+      return (texte(nouv.adresse) && net(im.adresse) === net(nouv.adresse)) || (lieuSur && [...cles(im)].some((c) => clesNouv.has(c)));
+    });
     if (i < 0) {
-      if (!texte(nouv.adresse) && !nouv.parcelles.length && !(nouv.lots || []).length) return null;
-      liste.push(nouv);
-      return liste.slice(0, 12);
+      if (!texte(nouv.adresse) && !nouv.parcelles.length && !liste(nouv.lots).length) return null;
+      liste_.push(nouv);
+      return liste_.slice(0, 12);
     }
-    const ancien = liste[i];
-    const parcelles = (ancien.parcelles || []).map((/** @type {any} */ p) => completerParcelle(p, nouv.parcelles.find((q) => cleParcelleSansCommune(q) === cleParcelleSansCommune(p))));
+    const ancien = liste_[i];
+    const parcelles = liste(ancien.parcelles).map((/** @type {any} */ p) => completerParcelle(p, nouv.parcelles.find((q) => cleParcelleSansCommune(q) === cleParcelleSansCommune(p))));
     nouv.parcelles.forEach((q) => { if (!parcelles.some((/** @type {any} */ p) => cleParcelleSansCommune(p) === cleParcelleSansCommune(q))) parcelles.push(q); });
-    const fusion = Object.assign({}, ancien, Object.fromEntries(Object.entries(nouv).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))), { parcelles: parcelles.slice(0, 40) });
+    const proteges = (o && o.seulementCompleter) ? ['adresse', 'commune', 'codePostal'] : [];
+    const apports = Object.fromEntries(Object.entries(nouv).filter(([k, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length)
+      && !(proteges.includes(k) && texte(ancien[k]))));
+    const fusion = Object.assign({}, ancien, apports, { parcelles: parcelles.slice(0, 40) });
     if (JSON.stringify(fusion) === JSON.stringify(ancien)) return null;
-    liste[i] = fusion;
-    return liste;
+    liste_[i] = fusion;
+    return liste_;
   }
 
   /** Pure : { commune, codePostal } d'une adresse au format de CLAIRE (« COMMUNE (41000), 9 rue… ») ou postal (« 41000 COMMUNE »). @param {string} adresse */
@@ -90,19 +125,22 @@
     if (!d || typeof d !== 'object') return [];
     /** @type {any[]} */
     const biens = [];
-    const vues = new Map(); // clé sans commune → bien qui porte la parcelle
+    // clé sans commune → [{ bien, commune, codePostal }] : la même parcelle n'est réunie que dans la même commune (ou commune inconnue).
+    const vues = new Map();
+    const trouver = (/** @type {string} */ cle, /** @type {any} */ lieu) => (vues.get(cle) || []).find((/** @type {any} */ v) => memeCommune(v, lieu) !== false) || null;
     const ajouterBien = (/** @type {any} */ src, /** @type {string} */ source, /** @type {boolean} */ principal) => {
       const adresse = texte(src.adresse);
       const loc = communeDeLAdresse(adresse);
       const commune = texte(src.commune) || loc.commune;
       const codePostal = texte(src.codePostal) || loc.codePostal;
-      const parcelles = (src.parcelles || []).filter((/** @type {any} */ p) => cleParcelleSansCommune(p));
-      // Le même bien : une parcelle commune, sinon la même adresse.
+      const parcelles = liste(src.parcelles).filter((/** @type {any} */ p) => p && typeof p === 'object' && cleParcelleSansCommune(p));
+      const lieuDe = (/** @type {any} */ p) => ({ commune: texte(p.commune) || commune, codePostal: texte(p.commune) ? '' : codePostal });
+      // Le même bien : une parcelle commune dans la même commune, sinon la même adresse.
       let cible = null;
-      for (const p of parcelles) { const b = vues.get(cleParcelleSansCommune(p)); if (b) { cible = b; break; } }
+      for (const p of parcelles) { const v = trouver(cleParcelleSansCommune(p), lieuDe(p)); if (v) { cible = v.bien; break; } }
       if (!cible && adresse) cible = biens.find((b) => b.adresse && net(b.adresse) === net(adresse)) || null;
       if (!cible) {
-        if (!adresse && !parcelles.length && !(src.lots || []).length) return;
+        if (!adresse && !parcelles.length && !liste(src.lots).length) return;
         cible = { adresse, codePostal, commune, type: texte(src.type), lots: [], principal, sources: [], parcelles: [] };
         biens.push(cible);
       }
@@ -112,16 +150,18 @@
       if (!cible.commune && commune) cible.commune = commune;
       if (!cible.codePostal && codePostal) cible.codePostal = codePostal;
       if (!cible.type && texte(src.type)) cible.type = texte(src.type);
-      if (!cible.lots.length && Array.isArray(src.lots) && src.lots.length) cible.lots = src.lots.slice();
+      // Les lots : ceux de la fiche (tenus à jour par chaque page « Lots » d'Authentic) l'emportent sur ceux d'un immeuble retenu.
+      if (liste(src.lots).length && (!cible.lots.length || source === 'fiche')) cible.lots = src.lots.slice();
       parcelles.forEach((/** @type {any} */ p) => {
         const cle = cleParcelleSansCommune(p);
-        const deja = vues.get(cle);
-        if (deja) {
-          const i = deja.parcelles.findIndex((/** @type {any} */ x) => cleParcelleSansCommune(x) === cle);
-          if (i >= 0) deja.parcelles[i] = completerParcelle(deja.parcelles[i], p);
+        const v = trouver(cle, lieuDe(p));
+        if (v) {
+          const i = v.bien.parcelles.findIndex((/** @type {any} */ x) => cleParcelleSansCommune(x) === cle && memeCommune({ commune: x.commune || v.bien.commune }, lieuDe(p)) !== false);
+          if (i >= 0) v.bien.parcelles[i] = completerParcelle(v.bien.parcelles[i], p);
           return;
         }
-        vues.set(cle, cible);
+        if (!vues.has(cle)) vues.set(cle, []);
+        vues.get(cle).push(Object.assign({ bien: cible }, lieuDe(p)));
         const propre = { section: texte(p.section).toUpperCase(), numero: texte(p.numero).replace(/^0+(?=\d)/, ''), origine: source };
         DETAILS_PARCELLE.forEach((k) => { if (p[k] != null && p[k] !== '') /** @type {any} */ (propre)[k] = String(p[k]); });
         cible.parcelles.push(propre);
@@ -130,13 +170,13 @@
     const succession = d.typeAffaire === 'succession';
     // Authentic d'abord (son ordre des parcelles, ses adresses), puis le bien principal d'une vente (la fiche : adresse, cadastre, lots),
     // puis les biens d'une succession.
-    ((d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : []).forEach((/** @type {any} */ im) => { if (im) ajouterBien(im, 'authentic', false); });
+    liste(d.authentic && d.authentic.immeubles).forEach((/** @type {any} */ im) => { if (im && typeof im === 'object') ajouterBien(im, 'authentic', false); });
     if (!succession) {
       const a = (d.bien && d.bien.adresse) || {};
       ajouterBien({ adresse: d.adresseBien, codePostal: a.codePostal, commune: a.commune, type: d.typeVente,
         parcelles: parcellesCadastre(d.bien && d.bien.cadastre), lots: d.bien && d.bien.lots }, 'fiche', true);
     }
-    (Array.isArray(d.biens) ? d.biens : []).forEach((/** @type {any} */ b) => {
+    liste(d.biens).forEach((/** @type {any} */ b) => {
       if (!b || typeof b !== 'object') return;
       // Un bien d'une succession porte ses parcelles en texte (« AB 12, AB 13 ») : lues comme telles.
       const parcelles = Array.isArray(b.parcelles) ? b.parcelles
@@ -189,6 +229,7 @@
     const morale = p.qualitePersonne === 'morale';
     const f = morale ? null : /** @type {any} */ (ficheClientDe(d, p.nom));
     const uniques = (/** @type {any[]} */ a) => [...new Map(a.map((x) => texte(x)).filter(Boolean).map((x) => [net(x), x])).values()];
+    const enListe = (/** @type {any} */ v) => (Array.isArray(v) ? v : (typeof v === 'string' && v.trim() ? v.split(/[;,]/) : []));
     const g = (/** @type {string} */ k) => texte(p[k]) || texte(f && f[k]);
     return {
       role: texte(p.role).toUpperCase(), nom: texte(p.nom), morale, civilite: texte(p.civilite) || texte(f && f.civilite),
@@ -196,7 +237,7 @@
       lieuNaissance: g('lieuNaissance'), paysNaissance: texte(f && f.paysNaissance), domicile: texte(f && f.domicile) || texte(p.domicile),
       nationalite: texte(f && f.nationalite), profession: texte(f && f.profession) || texte(p.profession),
       situationMatrimoniale: (f && f.situationMatrimoniale) || null, deces: (f && f.deces) || null,
-      emails: uniques([...(p.emails || []), ...((f && f.emails) || [])]), telephones: uniques([...(p.telephones || []), ...((f && f.telephones) || [])]),
+      emails: uniques([...enListe(p.emails), ...enListe(f && f.emails)]), telephones: uniques([...enListe(p.telephones), ...enListe(f && f.telephones)]),
       fiche: f || null
     };
   }
@@ -207,7 +248,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ texteNetDossier: net, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
+  exporter({ memeCommune, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

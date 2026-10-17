@@ -76,7 +76,7 @@
       parties: (d.parties || []).filter(Boolean).map(p => ({ role: p.role || '', civilite: p.civilite || '', prenom: p.prenom || '', nom: p.nom || '', nom_usage: p.nomUsage || '', societe: p.qualitePersonne === 'morale' })),
       situation_vendeurs: d.situationVendeur || '', situation_acquereurs: d.situationAcquereur || '',
       coordonnees: { email_vendeur: d.emailVendeur || '', telephone_vendeur: d.telephoneVendeur || '', email_acquereur: d.emailAcquereur || '', telephone_acquereur: d.telephoneAcquereur || '' },
-      bien: { adresse: d.adresseBien || '', prix: d.prixVente || null, prix_mobilier: d.prixMobilier || null, cadastre: sur(() => parcellesDossier(d).map(p => ({ prefixe: p.prefixe || '', section: p.section, numero: p.numero, commune: p.commune || '', surface: p.surface || '', nature: p.nature || '' })), []), lots: sur(() => (d.bien && d.bien.lots) || [], []) },
+      bien: { adresse: d.adresseBien || '', prix: d.prixVente || null, prix_mobilier: d.prixMobilier || null, cadastre: sur(() => parcellesDossier(d).map(p => ({ prefixe: p.prefixe || '', section: p.section, numero: p.numero, surface: p.surface || '', nature: p.nature || '' })), []), lots: sur(() => (d.bien && d.bien.lots) || [], []) },
       notaire_vendeur: d.notaireVendeur || '', notaire_acquereur: d.notaireAcquereur || '', agence: d.nomAgence || '',
       honoraires_agence_ttc: sur(() => (d.honoraires && (d.honoraires.montantTTC || d.honoraires.montant)) || null, null),
       dates: { obtention_pret: d.pret || '', vente_prealable: d.ventebien || '', appel_de_fonds_envoye: d.appelFonds || '', projet_envoye: d.projetEnvoye || '', date_butoir: d.acte || '' },

@@ -536,7 +536,7 @@
     };
     if ((bien.lots || []).length) fiche.lots = bien.lots.slice(0, 40);
     const avant = (d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : [];
-    const liste = fusionnerImmeubleAuthentic(avant, fiche);
+    const liste = fusionnerImmeubleAuthentic(avant, fiche, { seulementCompleter: !!seulementConnu });
     if (!liste || (seulementConnu && liste.length > avant.length)) return false;
     d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });
     return true;

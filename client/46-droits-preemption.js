@@ -127,12 +127,14 @@
     return boisDesParcelles(parcellesCommunePrincipaleDossier(d));
   }
 
-  // Pure : les parcelles du dossier situées dans la commune de son bien principal (une parcelle sans commune connue y est comptée).
+  // Pure : les parcelles à analyser pour le dossier — celles du bien principal (toujours), puis celles d'un autre bien SÛREMENT dans la
+  // même commune (même code postal et nom concordant : « ST AIGNAN » = « SAINT-AIGNAN ») ; un bien d'une autre commune ou de commune
+  // inconnue s'analyse dans l'outil ouvert sur sa commune, jamais avec le code INSEE du bien principal.
   function parcellesCommunePrincipaleDossier(d) {
-    const toutes = parcellesDossier(d);
-    const principal = biensDossier(d).find(b => b.principal) || null;
-    const commune = texteNetDossier((principal && principal.commune) || '');
-    return toutes.filter(p => p && p.section && p.numero && (!commune || !p.commune || texteNetDossier(p.commune) === commune));
+    const biens = biensDossier(d);
+    const principal = biens.find(b => b.principal) || null;
+    const retenus = principal ? biens.filter(b => b === principal || memeCommune(b, principal) === true) : biens.slice(0, 1);
+    return retenus.flatMap(b => b.parcelles).filter(p => p && p.section && p.numero);
   }
 
   function prefillPreemption(d) {

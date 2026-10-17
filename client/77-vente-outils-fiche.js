@@ -211,7 +211,8 @@
     // Toutes les parcelles du dossier (fiche ET immeubles d'Authentic, commun/donnees-dossier.js) ; la commune n'est dite que si elles ne
     // sont pas toutes dans la même.
     const liste = parcellesDossier(d);
-    const plusieursCommunes = new Set(liste.map(p => texteNetDossier(p.commune || ''))).size > 1;
+    const biens = biensDossier(d);
+    const plusieursCommunes = biens.some((x, i) => biens.some((y, j) => j > i && memeCommune(x, y) === false));
     const lignes = liste.filter(p => p && p.section && p.numero).map(p => {
       const m2 = p.surface != null && p.surface !== '' ? centiaresDepuisContenance(String(p.surface)) : null;
       const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
