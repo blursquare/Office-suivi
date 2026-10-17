@@ -353,7 +353,10 @@
     const roleLu = (idDossier, nom, role) => {
       if (role !== 'Partie' || !nom) return role;
       const autre = dossiers.find(x => x.id === idDossier);
-      return (autre && estSuccession(autre) && (personnesContexteAgenda(autre).find(q => memePersonneNommee(q.nom, nom)) || {}).role) || role;
+      // Mêmes mots des deux côtés (« Jean MARTIN » n'est pas l'héritier « Jean Paul MARTIN ») ; sinon « Partie », jamais deviné.
+      const cle = (n) => motsNomPersonneAgenda(n).sort().join(' ');
+      const memes = autre && estSuccession(autre) ? personnesContexteAgenda(autre).filter(q => cle(q.nom) && cle(q.nom) === cle(nom)) : [];
+      return memes.length === 1 ? memes[0].role : role;
     };
     const autres = (liste, peutEtre, nom) => (liste || []).map(x => {
       const ctx = texteContexteDossierCb(Object.assign({}, x, { role: roleLu(x.id, nom, x.role), avec: (x.avec || []).map(q => Object.assign({}, q, { role: roleLu(x.id, q.nom, q.role) })) }));

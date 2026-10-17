@@ -255,5 +255,6 @@ test('fiches du dossier : une personne du même nom sans preuve montre ses autre
   const s = { id: 's1', nom: 'MOREAU', typeAffaire: 'succession', parties: [{ role: 'PARTIE', nom: 'Paul MOREAU' }] };
   const f = fichesDuDossier(construireBase([v, s]), 'v1');
   const paul = f.personnes.find((p) => p.nom === 'Paul MOREAU');
-  assert.ok(paul.autresDossiers === 1 || (paul.peutEtreAutres || []).some((x) => x.id === 's1'));
+  assert.equal(paul.autresDossiers, 0);
+  assert.ok(paul.peutEtreAutres.some((x) => x.id === 's1'));
 });
