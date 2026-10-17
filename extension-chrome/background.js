@@ -169,6 +169,14 @@ async function handle(msg, sender) {
         r.fields[msg.key] = { state: msg.state, detail: msg.detail || "" };
       });
       return { ok: true };
+    case "content.assistant":
+      // Assistant du guichet (adresse, parcelles) fait pour cette saisie : retenu, pour ne pas le rejouer après un rechargement.
+      await mutate((r) => {
+        r.assistants = r.assistants || {};
+        r.assistants[String(msg.assistant || "")] = { etat: String(msg.etat || ""), detail: String(msg.detail || "").slice(0, 300) };
+        addLog(r, `Assistant ${msg.assistant} : ${msg.detail || msg.etat}`);
+      });
+      return { ok: true };
     case "content.etape":
       await mutate((r) => {
         r.etapesFaites = (r.etapesFaites || []).concat(String(msg.label || "")).slice(-20);
