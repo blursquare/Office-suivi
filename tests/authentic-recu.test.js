@@ -79,3 +79,14 @@ test('rendez-vous d’une succession : le titre ne redit ni le dossier ni l’é
   assert.equal(app.complementTitreRdvSuccession(d, { etape: 'autre', titre: 'SUCC - MOREAU - Visite de la maison' }), 'Visite de la maison');
   assert.equal(app.complementTitreRdvSuccession(d, { etape: 'notoriete', titre: '' }), '');
 });
+
+test('cartes de l’onglet Dossier : chaque fiche une fois, homonymes par le rôle, prénom à part, société sans lien', () => {
+  const d = { id: 'v1', nom: 'MARTIN / MARTIN', parties: [{ role: 'VENDEUR', nom: 'Jean MARTIN' }, { role: 'ACQUEREUR', nom: 'Jean MARTIN' },
+    { role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Léa' }, { role: 'ACQUEREUR', nom: 'SCI DU TEST', qualitePersonne: 'morale' }] };
+  const f = { personnes: [{ id: 'pA', nom: 'Jean MARTIN', role: 'Acquéreur' }, { id: 'pV', nom: 'Jean MARTIN', role: 'Vendeur' }, { id: 'pD', nom: 'DURAND', role: 'Acquéreur' }], biens: [] };
+  const html = app.htmlCartesClientsBiensDossier(d, f);
+  const ids = [...html.matchAll(/ouvrirFicheClientBien\('personne', '([^']+)'\)/g)].map((m) => m[1]);
+  assert.equal(ids.join(','), 'pV,pA,pD', 'vendeur puis acquéreur, chacun sa fiche ; Léa DURAND reliée à « DURAND »');
+  assert.match(html, /pb-carte pb-carte-simple[^]*SCI DU TEST/, 'une société : carte simple, sans lien');
+  assert.doesNotMatch(html, /en cours de lecture/, 'fiches lues : jamais « en cours de lecture »');
+});

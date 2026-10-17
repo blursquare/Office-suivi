@@ -9799,3 +9799,5 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 /* Dans les deux colonnes de l'onglet Dossier, un champ par ligne (deux par ligne y serraient libellé et valeur). */
 .fiche-dossier-colonnes .fiche-proprietes { grid-template-columns: minmax(0, 1fr); }
 .pb-ailleurs-ligne b { font-weight: 600; color: var(--ink); }
+.pb-carte-simple { cursor: default; }
+.pb-carte-simple:hover { border-color: var(--line); }

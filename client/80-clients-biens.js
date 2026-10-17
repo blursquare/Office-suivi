@@ -348,11 +348,13 @@
     if (!d) return [];
     if (estSuccession(d)) return personnesContexteAgenda(d);
     const civ = (p) => (p.qualitePersonne === 'morale' ? '' : civiliteDepuisTexte(p.civilite) === 'Mme' ? 'Madame ' : civiliteDepuisTexte(p.civilite) === 'M' ? 'Monsieur ' : '');
-    return (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom && /^(VENDEUR|ACQUEREUR)$/i.test(p.role || ''))
-      .sort((a, b) => (/^VENDEUR$/i.test(a.role) ? 0 : 1) - (/^VENDEUR$/i.test(b.role) ? 0 : 1))
+    const rang = (r) => (/^VENDEUR$/i.test(r) ? 0 : /^ACQUEREUR$/i.test(r) ? 1 : 2);
+    return (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom)
+      .sort((a, b) => rang(a.role || '') - rang(b.role || ''))
       .map(p => {
-        const nom = String(p.nom).includes(String(p.prenom || '').trim()) ? String(p.nom) : [p.prenom, p.nom].filter(Boolean).join(' ');
-        return { nom, affiche: civ(p) + nom, role: /^VENDEUR$/i.test(p.role) ? 'Vendeur' : 'Acquéreur' };
+        const prenom = String(p.prenom || '').trim();
+        const nom = !prenom || normaliserPourRecherche(String(p.nom)).includes(normaliserPourRecherche(prenom)) ? String(p.nom) : [prenom, p.nom].join(' ');
+        return { nom, affiche: civ(p) + nom, morale: p.qualitePersonne === 'morale', role: rang(p.role || '') === 0 ? 'Vendeur' : rang(p.role || '') === 1 ? 'Acquéreur' : 'Partie' };
       });
   }
 
@@ -380,15 +382,34 @@
       return memes.length === 1 ? memes[0].role : role;
     };
     const ailleurs = (liste, peutEtre, nom) => (liste || []).map(x => `<span class="pb-ailleurs-ligne">${peutEtre ? 'Peut-être aussi : ' : 'Aussi : '}<b>${escapeHtml(x.libelle || 'Dossier')}</b> · ${escapeHtml(texteContexteDossierCb(Object.assign({}, x, { role: roleLu(x.id, nom, x.role), avec: (x.avec || []).map(q => Object.assign({}, q, { role: roleLu(x.id, q.nom, q.role) })) })))}</span>`).join('');
-    const carte = (icone_, titre, sous, fiche, genre, ligneAilleurs) => {
-      const action = fiche ? `ouvrirFicheClientBien('${genre}', '${escapeOnclickArg(fiche.id)}')` : `afficherToast('Fiche en cours de lecture : réessayez dans un instant.', 'OK', null)`;
-      return `<button type="button" class="pb-carte" onclick="${action}" title="Ouvrir la fiche ${genre === 'bien' ? 'du bien' : 'client'}">
-        <span class="pb-carte-tete">${icone(icone_)}<span class="pb-carte-titre">${escapeHtml(titre)}</span>${icone('chevron-right')}</span>
-        ${sous ? `<span class="pb-carte-sous">${escapeHtml(sous)}</span>` : ''}${ligneAilleurs}</button>`;
+    // Carte reliée à sa fiche : un bouton qui l'ouvre ; fiches pas encore lues : « en cours de lecture » ; lues sans fiche pour elle (société,
+    // nom introuvable) : une carte simple, jamais un message faux (relecture du 17/10).
+    const carte = (icone_, titre, sous, fiche, genre, ligneAilleurs, sansFiche) => {
+      const corps = `<span class="pb-carte-tete">${icone(icone_)}<span class="pb-carte-titre">${escapeHtml(titre)}</span>${fiche || !f ? icone('chevron-right') : ''}</span>
+        ${sous ? `<span class="pb-carte-sous">${escapeHtml(sous)}</span>` : ''}${ligneAilleurs}`;
+      if (fiche) return `<button type="button" class="pb-carte" onclick="ouvrirFicheClientBien('${genre}', '${escapeOnclickArg(fiche.id)}')" title="Ouvrir la fiche ${genre === 'bien' ? 'du bien' : 'client'}">${corps}</button>`;
+      if (!f && !sansFiche) return `<button type="button" class="pb-carte" onclick="afficherToast('Fiche en cours de lecture : réessayez dans un instant.', 'OK', null)">${corps}</button>`;
+      return `<div class="pb-carte pb-carte-simple">${corps}</div>`;
+    };
+    // Chaque fiche ne sert qu'une fois : même nom ET même rôle d'abord (homonymes vendeur / acquéreur, père et fils), puis même nom, puis
+    // un nom contenu dans l'autre (prénom à part, prénom composé) s'il ne désigne qu'une fiche.
+    const prises = new Set();
+    const ficheDe = (p) => {
+      if (p.morale) return null;
+      const k = cle(p.nom);
+      if (!k) return null;
+      const libres = fichesP.filter(x => !prises.has(x.id));
+      const mots = k.split(' ');
+      const inclus = (x) => { const m = cle(x.nom).split(' ').filter(Boolean); return m.length && (m.every(w => mots.includes(w)) || mots.every(w => m.includes(w))); };
+      const choix = libres.find(x => cle(x.nom) === k && x.role === p.role) || libres.find(x => cle(x.nom) === k)
+        || (libres.filter(x => inclus(x) && x.role === p.role).length === 1 ? libres.find(x => inclus(x) && x.role === p.role) : null)
+        || (libres.filter(inclus).length === 1 ? libres.find(inclus) : null);
+      if (choix) prises.add(choix.id);
+      return choix || null;
     };
     const personnes = personnesCartesDossier(d).map(p => {
-      const fiche = fichesP.find(x => cle(x.nom) && cle(x.nom) === cle(p.nom)) || null;
-      return carte('user', p.affiche || p.nom, p.role, fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '');
+      const fiche = ficheDe(p);
+      return carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.role, fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale);
     });
     const fichesB = (f && f.biens) || [];
     const biens = biensDossier(d).map(b => {
