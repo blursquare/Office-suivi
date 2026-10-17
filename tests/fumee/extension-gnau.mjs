@@ -62,6 +62,11 @@ const e = await jouer(base, () => { window.__cfg = { parcellesInit: [{ pre: '', 
 verifier(e.etat.lignes === 4, 'parcelle déjà au tableau (« BA 0021 ») jamais rajoutée : ' + e.etat.lignes);
 const f = await jouer(base, () => { window.__cfg = { boutonsTard: true, titreSuivi: 'MES DOSSIERS' }; });
 verifier(f.etat.hash === '#/saisie/19333' && !f.etat.carteSuivi, 'boutons de « Formuler » attendus, jamais une carte du suivi');
+const h = await jouer(base, () => { window.__cfg = { boutonsTard: true, suiviSection: true }; });
+verifier(!h.etat.carteSuivi, '« Suivre » d’une autre forme que « Formuler » et boutons en retard : jamais une carte du suivi');
+const i = await jouer(Object.assign({}, base, { terrain: { numero: '51', voie: 'Av. Racine', commune: 'BLOIS', codePostal: '41000' } }),
+  () => { window.__cfg = { adresses: ['51 Avenue Racine 41000 Blois'] }; });
+verifier(i.valeurs.T2V_voie === 'AVENUE RACINE', 'abréviation de la fiche (« Av. ») reconnue : ' + i.valeurs.T2V_voie);
 const g = await jouer(base, () => { window.__cfg = { chargement: 25000 }; });
 verifier(g.etat.hash !== '#/saisie/19333' || !g.etat.carteSuivi, 'chargement long : jamais une carte du suivi');
 

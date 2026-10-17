@@ -64,6 +64,9 @@ globalThis.CLAIRE_ESSAI = ${JSON.stringify({ dossiers: liste, fiches }, null, 1)
 })();
 `);
 let html = fs.readFileSync(path.join(cible, 'panel', 'panel.html'), 'utf8');
+for (const repere of ['<script src="panel.js"></script>', '<section class="card" id="connexion">']) {
+  if (!html.includes(repere)) throw new Error('panel.html a changé (' + repere + ') : adapter la construction de l’essai.');
+}
 html = html.replace('<script src="panel.js"></script>', '<script src="../lib/essai.js"></script>\n  <script src="panel.js"></script>')
   .replace('<section class="card" id="connexion">', '<p class="essai">ESSAI — dossier inventé, sans serveur CLAIRE. CLAIRE s’arrête avant « Transmettre » : supprimez ensuite le brouillon dans le guichet.</p>\n  <section class="card" id="connexion" hidden>');
 fs.writeFileSync(path.join(cible, 'panel', 'panel.html'), html);

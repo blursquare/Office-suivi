@@ -835,15 +835,19 @@
   function boutonFormuler(res) {
     const okTexte = (t) => t && t.length <= 90 && res.some((r) => r.test(t));
     const apres = (a, b2) => !!(a.compareDocumentPosition(b2) & Node.DOCUMENT_POSITION_FOLLOWING);
-    // Les éléments courts dont le texte commence par « formuler » ; le bandeau = le plus haut d'entre eux (« FORMULER une demande… »).
-    const courts = [...document.querySelectorAll("body *")].filter((el) => el.children.length <= 4 && !el.closest("#claire-overlay")
-      && (el.textContent || "").length <= 120 && /^formuler\b/.test(norm(el.textContent)) && visible(el));
-    for (const bandeau of courts.filter((x) => !courts.some((y) => y !== x && y.contains(x)))) {
-      // Les autres bandeaux de la page (« S'INFORMER », « SUIVRE ») : même balise et même classe, ou même classe du parent.
+    const courts = [...document.querySelectorAll("body *")].filter((el) => el.children.length <= 4 && (el.textContent || "").length <= 120
+      && !el.closest("#claire-overlay") && /^\s*\S/.test(el.textContent || "") && visible(el));
+    // Les frontières de « Formuler » par leur TEXTE (relecture du 17/10 : « Suivre » peut avoir une autre forme que « Formuler ») : aucun
+    // bouton n'est pris au-delà d'un intitulé « Suivre », « Mes demandes », « Mes dossiers », « S'informer ».
+    const frontieres = courts.filter((el) => /^(suivre|mes demandes|mes dossiers|s ?informer)\b/.test(norm(el.textContent).replace(/'/g, " ")));
+    const formulers = courts.filter((el) => /^formuler\b/.test(norm(el.textContent)));
+    for (const bandeau of formulers.filter((x) => !formulers.some((y) => y !== x && y.contains(x)))) {
+      // Les autres bandeaux (« S'INFORMER », « SUIVRE ») : même balise et même classe — jamais un élément du bandeau lui-même.
       const signe = (el) => el.tagName + "." + (el.className || ("^" + (el.parentElement && el.parentElement.className)));
-      const autres = [...document.querySelectorAll(bandeau.tagName)].filter((x) => x !== bandeau && signe(x) === signe(bandeau) && visible(x));
-      const suivant = autres.filter((x) => apres(bandeau, x)).sort((a, b2) => (apres(a, b2) ? -1 : 1))[0] || null;
-      // Le bouton : après le bandeau « Formuler » et avant le bandeau suivant dans l'ordre de la page — jamais une carte de « Suivre ».
+      const autres = [...document.querySelectorAll(bandeau.tagName)].filter((x) => x !== bandeau && !bandeau.contains(x) && !x.contains(bandeau) && signe(x) === signe(bandeau) && visible(x));
+      const limites = autres.concat(frontieres.filter((x) => !bandeau.contains(x) && !x.contains(bandeau))).filter((x) => apres(bandeau, x));
+      const suivant = limites.sort((a, b2) => (apres(a, b2) ? -1 : 1))[0] || null;
+      // Le bouton : après le bandeau « Formuler » et avant la première limite qui le suit, dans l'ordre de la page.
       const entre = (x) => apres(bandeau, x) && (!suivant || apres(x, suivant));
       for (let z = bandeau.parentElement, k = 0; z && z !== document.body && k < 8; z = z.parentElement, k++) {
         const cands = [...z.querySelectorAll(CLIQUABLES_ENTREE)].filter(visible).filter((x) => entre(x) && okTexte(texteBouton(x)) && !boutonEntreeInterdit(x));
@@ -852,7 +856,8 @@
           .filter((x) => entre(x) && x.children.length <= 2 && okTexte(norm(x.innerText || x.getAttribute("alt") || x.title || "")) && !boutonEntreeInterdit(x));
         const nu = nus.find((x) => !nus.some((y) => y !== x && x.contains(y)));
         if (nu) return nu;
-        if (autres.some((x) => z.contains(x)) && !suivant) break; // bandeau suivant inconnu : jamais au-delà du bloc qui contient un autre bandeau
+        // Sans limite connue après « Formuler » (dernier bloc) : jamais au-delà du bloc qui contient le bandeau et un autre bandeau.
+        if (!suivant && autres.concat(frontieres).some((x) => z.contains(x) && !bandeau.contains(x))) break;
       }
     }
     return null;
@@ -903,7 +908,7 @@
     if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
     const recherche = champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
     if (!recherche) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant d’adresse : champ de recherche introuvable" }; }
-    const requete = [t.numero, voie, t.codePostal, t.commune].filter(Boolean).join(" ");
+    const requete = [t.numero, voie || t.lieuDit, t.codePostal, t.commune].filter(Boolean).join(" ");
     const lent = saisieDirecte; saisieDirecte = false; // la liste du guichet ne se déroule qu'à la frappe
     try {
       const pos = await moveTo(recherche, sp); ripple(pos.x, pos.y);
@@ -913,13 +918,18 @@
     // La proposition qui porte le numéro, les mots de la voie et le code postal (ou la commune) de la fiche — jamais « la première ».
     // Proposition conforme (relecture du 17/10 : « Rue Jean Racine » n'est pas « Rue Racine », Saint-Claude-de-Diray n'est pas Vineuil) :
     // « numéro voie code-postal commune », chaque partie ÉGALE à celle de la fiche — la voie mot pour mot, la commune quand la fiche la connaît.
-    const net = (x) => norm(x).replace(/[-'’,]/g, " ").replace(/\bst\b/g, "saint").replace(/\bste\b/g, "sainte").replace(/\s+/g, " ").trim();
-    const numeroFiche = net(t.numero).replace(/\s+/g, "");
+    // Abréviations de la fiche développées des deux côtés (« Av. » = « Avenue ») ; « 4B » = « 4 bis ».
+    const ABREV = { av: "avenue", ave: "avenue", bd: "boulevard", bld: "boulevard", ch: "chemin", che: "chemin", rte: "route", pl: "place", imp: "impasse", all: "allee", sq: "square", fg: "faubourg", fbg: "faubourg", res: "residence", lot: "lotissement", qu: "quai", crs: "cours", pas: "passage", sen: "sentier", st: "saint", ste: "sainte" };
+    const net = (x) => norm(x).replace(/[-'’,.]/g, " ").split(/\s+/).filter(Boolean).map((w) => ABREV[w] || w).join(" ");
+    const numeroNet = (x) => String(x || "").replace(/\s+/g, "").replace(/^(\d+)b$/, "$1bis").replace(/^(\d+)t$/, "$1ter").replace(/^(\d+)q$/, "$1quater");
+    const numeroFiche = numeroNet(net(t.numero));
+    const voieFiche = net(voie || t.lieuDit);
     const conforme = (txt) => {
-      const m = /^(\d+\s*(?:bis|ter|quater|[a-d])?)\s+(.+?)\s+(\d{5})\s+(.+)$/.exec(net(txt));
+      // Numéro facultatif (terrain sans numéro, lieu-dit) : quand la fiche n'en a pas, la proposition n'en a pas non plus.
+      const m = /^(?:(\d+\s*(?:bis|ter|quater|[a-d])?)\s+)?(.+?)\s+(\d{5})\s+(.+)$/.exec(net(txt));
       if (!m) return false;
-      if (numeroFiche && m[1].replace(/\s+/g, "") !== numeroFiche) return false;
-      if (m[2] !== net(voie)) return false;
+      if (numeroNet(m[1]) !== numeroFiche) return false;
+      if (m[2] !== voieFiche) return false;
       if (t.codePostal && m[3] !== String(t.codePostal).trim()) return false;
       if (t.commune && m[4] !== net(t.commune)) return false;
       return !!(t.codePostal || t.commune);
@@ -965,9 +975,9 @@
       const m = l.split(/[\s|]+/).filter(Boolean);
       for (let i = 0; i + 1 < m.length; i++) {
         if (sansZero(m[i]) !== sansZero(sec) || sansZero(m[i + 1]) !== sansZero(num)) continue;
+        // Le préfixe : le seul jeton de trois chiffres JUSTE avant la section (jamais une superficie plus loin dans la ligne).
         const avant = i > 0 && /^\d{3}$/.test(m[i - 1]) ? m[i - 1] : "";
         if (pre && avant && sansZero(avant) !== sansZero(pre)) continue;
-        if (pre && !avant && m.some((x) => /^\d{3}$/.test(x) && sansZero(x) !== sansZero(pre))) continue;
         return true;
       }
       return false;

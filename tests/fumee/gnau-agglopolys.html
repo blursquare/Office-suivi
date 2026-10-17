@@ -9,6 +9,7 @@ const accueil = () => `
  <div class="bloc"><div class="ruban"><span class="t">S'INFORMER</span><span>sur le règlement</span></div><div class="rond">Zonage</div></div>
  <div class="bloc"><div class="ruban"><span class="t"><b>FORMULER</b></span><span> une demande d'urbanisme numérique...</span></div>
    <div><div class="rond" ng-click="vm.formuler('CUa')" onclick="ouvrirCommune()">CUa</div><div class="rond" ng-click="vm.formuler('CUb')">CUb</div><div class="rond" ng-click="vm.formuler('DIA')" onclick="ouvrirCommune()">DIA</div></div></div>
+ ${(window.__cfg || {}).suiviSection ? '<section><h2>SUIVRE</h2><div class="carte"><span ng-click="vm.ouvrir(2)" onclick="window.__carteSuivi = true">CUa</span></div></section>' : ''}
  <div class="bloc"><div class="ruban"><span class="t">${(window.__cfg || {}).titreSuivi || 'SUIVRE'}</span><span>${(window.__cfg || {}).titreSuivi ? '' : "mes demandes d'urbanisme"}</span></div>
    <div class="carte"><span ng-click="vm.ouvrir(1)" onclick="window.__carteSuivi = true">CUA</span> BLOIS <button>Consulter</button></div></div>`;
 const cfg = () => window.__cfg || {};
