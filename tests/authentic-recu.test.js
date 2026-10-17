@@ -109,3 +109,20 @@ test('civilité d’une succession : jamais inventée pour le défunt, jamais po
   assert.doesNotMatch(html, /Monsieur SCI/);
   assert.match(html, /Monsieur Paul ESSAI/);
 });
+
+test('succession : le défunt reconnu parmi les parties sans faire disparaître un héritier au nom proche', () => {
+  assert.equal(app.memeDefunt('Jean ESSAI', 'ESSAI', 'Jean Paul'), true, 'premier prénom seul');
+  assert.equal(app.memeDefunt('ESSAI Jean Paul', 'ESSAI', 'Jean Paul'), true, 'ordre inversé');
+  assert.equal(app.memeDefunt('Paul ESSAI', 'ESSAI', 'Jean Paul'), false, 'l’héritier « Paul ESSAI »');
+  assert.equal(app.memeDefunt('ESSAI', 'ESSAI', 'Jean'), false, 'nom seul');
+  assert.equal(app.memeDefunt('Marie ESSAI', 'ESSAI', 'Jean'), false);
+  const d = { id: 's1', nom: 'ESSAI', typeAffaire: 'succession', defunt: { prenoms: 'Jean Paul', nom: 'ESSAI' },
+    parties: [{ role: 'PARTIE', nom: 'Jean ESSAI' }, { role: 'PARTIE', nom: 'Paul ESSAI' }] };
+  assert.equal(app.personnesSuccession(d).heritiers.map((p) => p.nom).join(','), 'Paul ESSAI');
+});
+
+test('succession : un prénom composé n’est pas le prénom simple du défunt', () => {
+  assert.equal(app.memeDefunt('Jean-Pierre ESSAI', 'ESSAI', 'Jean'), false);
+  assert.equal(app.memeDefunt('Jean-Pierre ESSAI', 'ESSAI', 'Jean-Pierre'), true);
+  assert.equal(app.memeDefunt('Mme ESSAI Marie', 'ESSAI', 'Marie Louise'), true);
+});

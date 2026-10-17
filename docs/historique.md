@@ -20565,3 +20565,7 @@ Vues en captures pour l'étude : la carte d'un client « peut-être le même » 
 
 Étude : « pour les successions je ne vois pas la civilité ; mets un titre pour vendeurs, acquéreurs, bien ». `personnesCartesDossier` : défunt avec la civilité de la fiche, héritiers avec celle des comparants, de la partie ou de la fiche client d'Authentic ; `htmlCartesClientsBiensDossier` : cartes groupées par rôle sous un titre (singulier ou pluriel), le rôle n'est plus répété sur la carte.
 - Relecture de 0.274.3 (corrigée) : le défunt sans civilité lue s'affichait « Madame » (valeur par défaut des courriers de `defuntConstitution`) — désormais seulement la civilité saisie, de la fiche ou des comparants ; une société héritière ne prend plus la civilité d'une fiche client dont le nom est contenu dans le sien ; la civilité d'un comparant héritier est reprise quand il est aussi partie (`personnesSuccession`). Laissé (antérieur, à traiter à part) : un héritier dont le nom est contenu dans celui du défunt (« Paul ESSAI » / défunt « Jean Paul ESSAI ») est écarté par `estDefunt`.
+
+### 17/10/2026 — 0.274.4 : héritier au nom proche du défunt
+
+Étude : « oui » (corriger l'héritier écarté). `personnesSuccession` (client/74) : `memeDefunt` remplace « un nom contenu dans l'autre » — même nom de famille et même PREMIER prénom écrit, les autres prénoms de l'un chez l'autre ; prénom composé gardé en un mot ; un nom de famille seul ne désigne personne ; un libellé identique à un comparant « Héritier » d'Authentic n'est jamais le défunt.

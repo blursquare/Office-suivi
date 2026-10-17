@@ -71,13 +71,39 @@
   // « Héritier ») → { heritiers, autres }. Un héritier comparant sans fiche sur le dossier est montré quand même (`comparant: true`) ;
   // `autres` = personnes du dossier qu'Authentic ne range pas parmi les comparants. Sans comparants relevés : toutes les parties
   // hors défunt sont les héritiers (comme avant).
+  // Pure : les mots d'un nom de personne (sans civilité ni particule), triés — deux libellés de la même personne en n'importe quel ordre.
+  function cleMotsPersonne(nom) { return motsNomPersonneAgenda(nom).sort().join(' '); }
+
+  // Pure : le libellé `n` désigne-t-il le défunt (nom de famille `nomFamille`, prénoms `prenoms`) ? Mêmes mots, ou même nom de famille et
+  // même PREMIER prénom avec les autres prénoms de l'un contenus dans ceux de l'autre. Un nom de famille seul ne désigne personne.
+  function memeDefunt(n, nomFamille, prenoms) {
+    // Un prénom composé reste UN mot (« Jean-Pierre » n'est pas « Jean » : le fils pris pour le père, relecture du 15/10).
+    const motsDe = (t) => normaliserPourRecherche(String(t || '')).split(/[\s,;.]+/).map(m => m.replace(/[^a-z0-9-]/g, ''))
+      .filter(m => m.length >= 2 && !/^(?:m|mr|mme|mlle|monsieur|madame|mademoiselle|de|du|des|la|le|les|epouse|veuve|ne|nee)$/.test(m));
+    const mots = motsDe(n);
+    const famille = motsDe(nomFamille);
+    const pDef = motsDe(prenoms);
+    if (!mots.length || !famille.length || !famille.every(m => mots.includes(m))) return false;
+    const pN = mots.filter(m => !famille.includes(m));
+    if (!pN.length || !pDef.length) return false;
+    // Le premier prénom écrit est celui du défunt (« Paul ESSAI » n'est pas « Jean Paul ESSAI »), et les autres prénoms de l'un sont chez
+    // l'autre (« Jean ESSAI » = « Jean Paul ESSAI »).
+    return pN[0] === pDef[0] && (pN.every(m => pDef.includes(m)) || pDef.every(m => pN.includes(m)));
+  }
+
   function personnesSuccession(d) {
     const df = defuntConstitution(d).champs;
     const nomDefunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
     const comps = comparantsSuccession(d);
     const defComp = comps.find(c => c.role === 'DEFUNT');
-    const estDefunt = (n) => (nomDefunt && (memePersonneParNom(n, nomDefunt) || memePersonneNommee(n, nomDefunt) || normaliserPourRecherche(n) === normaliserPourRecherche(nomDefunt)))
-      || (defComp && memePersonneNommee(n, defComp.nom));
+    // Le défunt parmi les parties (étude 17/10) : « Jean ESSAI » est bien le défunt « Jean Paul ESSAI » (premier prénom commun), mais l'héritier
+    // « Paul ESSAI » ne l'est pas — avant, un nom contenu dans l'autre suffisait et l'héritier disparaissait. Un héritier nommé ainsi
+    // dans les comparants d'Authentic n'est jamais le défunt.
+    const heritiersComps = comps.filter(c => c.role === 'HERITIER');
+    const estDefunt = (n) => {
+      if (heritiersComps.some(c => cleMotsPersonne(c.nom) === cleMotsPersonne(n))) return false;
+      return (nomDefunt && memeDefunt(n, df.nom, df.prenoms)) || (defComp && memeDefunt(n, nomPrenomsComparant(defComp.nom).nom, nomPrenomsComparant(defComp.nom).prenoms));
+    };
     const parties = (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
     const her = comps.filter(c => c.role === 'HERITIER');
     if (!her.length) return { heritiers: parties, autres: [] };

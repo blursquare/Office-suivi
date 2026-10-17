@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.274.3';
+  const VERSION_APP = '0.274.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.274.4', date: '2026-10-17 12:51', resume: "Succession : un héritier dont le nom est proche de celui du défunt (« Paul ESSAI », défunt « Jean Paul ESSAI ») n'est plus pris pour le défunt et réapparaît parmi les héritiers ; le défunt reste reconnu sous son premier prénom seul (« Jean ESSAI »), jamais sous un prénom composé différent (« Jean-Pierre »)." },
     { version: '0.274.3', date: '2026-10-17 12:15', resume: "Onglet Dossier : un titre par groupe de cartes (Vendeur(s), Acquéreur(s), Bien(s) ; Défunt, Héritier(s) pour une succession) ; la civilité s'affiche aussi pour le défunt et les héritiers d'une succession." },
     { version: '0.274.2', date: '2026-10-17 10:14', resume: "Onglet Dossier : à gauche une carte par client et par bien, qui ouvre sa fiche (avec, sous la carte, l'autre dossier où il figure) ; les lignes à modifier (parties, coordonnées, bien ; défunt, héritiers, biens) sont repliées sous « Modifier… » ; à droite, « Reçu d'Authentic » en bas, dans un tiroir." },
     { version: '0.274.1', date: '2026-10-17 09:40', resume: "Onglet Dossier épuré (étude : « plein de doublons ») : plus de cartes qui répétaient les parties, les héritiers, le défunt et le bien ; une seule ligne « Aussi dans un autre dossier », seulement quand un client ou le bien figure ailleurs, avec le contexte (vente ou succession, rôle, autres parties) ; le titre d'un rendez-vous de succession n'est plus répété à côté de son étape. La ligne d'un client du même nom qu'un client d'un autre dossier (sans date de naissance, email ni téléphone en commun) dit « Peut-être aussi dans » avec ce dossier ; dans une succession, les cartes disent « Défunt » ou « Héritier » au lieu de « Partie » ; un bien de succession n'affiche plus « [object Object] »." },
