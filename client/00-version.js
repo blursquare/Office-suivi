@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.277.0';
+  const VERSION_APP = '0.278.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.278.0', date: '2026-10-17 19:43', resume: "Extension Chrome (0.10.0) : vrais clics et vraies frappes, comme une personne (mode débogage de Chrome, bandeau de Chrome pendant le remplissage) — la vraie liste des communes se déroule, l'adresse est tapée au clavier ; commune posée comme un vrai choix (ng-change du guichet) ; brouillon jamais rechargé ni ouvert par son adresse : retour à l'accueil puis le brouillon rouvert ; page restée en {{TITLE}} attendue." },
     { version: '0.277.0', date: '2026-10-17 18:19', resume: "Extension Chrome (0.9.0) : suivi du remplissage étape par étape (commune, adresses, parcelles, signature, plan, Vérifier, Sauvegarder) dans le panneau et sur le bandeau du guichet ; logo et icône de CLAIRE ; thème noir, clair ou sombre selon Chrome." },
     { version: '0.276.1', date: '2026-10-17 18:01', resume: "Construction du serveur rétablie : le test de l'extension Chrome cherchait Chromium à un emplacement propre à l'environnement de développement ; il prend désormais le Chromium de Playwright, comme le test de fumée (la construction échouait depuis la 0.275.0)." },
     { version: '0.276.0', date: '2026-10-17 15:28', resume: "Extension Chrome (0.8.0) : panneau en trois étapes aux couleurs de CLAIRE (Dossier, Démarche CU / DIA, Lancer ; « Remplir seulement la page affichée » retiré) ; la commune de dépôt est choisie à l'écran dans la liste, en un seul clic sur la démarche ; toutes les adresses (bien, propriétaire, acquéreur, office) et les parcelles ne sont plus jamais tapées dans les cases — seulement par les assistants du guichet (ouverts comme une vraie souris ; s'ils ne s'ouvrent pas, la case est laissée à l'étude) ; à la fin, CLAIRE clique « Sauvegarder » puis « Vérifier ma saisie » (jamais « Transmettre ») ; signature « P/O » du collaborateur chargé du dossier ; CU : le demandeur « personne physique » n'est plus rempli (l'office est pré-rempli en personne morale) ; DIA : cases DIA, DPU (d'après Contrôle de l'urbanisme), pleine propriété, usage d'habitation, prix comptant, plan cadastral joint, téléphone et email du propriétaire, email de l'acquéreur, email, adresse et téléphone de l'office." },

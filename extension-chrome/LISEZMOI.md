@@ -45,6 +45,10 @@ sous « Options », le détail des champs est replié. « Remplir seulement la p
 
 ### Guichet d'Agglopolys (https://demande-urbanisme.agglopolys.fr)
 
+**Vrais clics** (0.10.0) : CLAIRE clique et tape comme une personne par le mode débogage de Chrome — Chrome affiche « CLAIRE a commencé à
+déboguer ce navigateur » pendant le remplissage (normal, retiré à la fin). Le brouillon n'est jamais rechargé ni ouvert par son adresse :
+CLAIRE revient à l'accueil puis rouvre la demande (sinon le guichet n'affiche que des {{TITLE}}).
+
 Sur ce guichet, CLAIRE suit le parcours relevé par l'étude (16/10) :
 1. accueil `#/` : bouton CUa ou DIA de la zone « Formuler » (bandeau « FORMULER », boutons ronds) — CLAIRE attend la fin de « Traitements en cours » (20 s au plus) avant de le chercher ;
 2. fenêtre « Sélectionner une commune de dépôt » : la commune du bien (fiche CLAIRE) choisie dans la liste, puis « Valider la commune de

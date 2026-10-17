@@ -88,6 +88,7 @@ async function startRun({ scenario, fiche, speed, continuer }) {
     ? Object.fromEntries(Object.entries(current.fields || {}).filter(([, v]) => v && v.state === "done"))
     : {};
   validateScenario(scenario);
+  await detacher(); // une saisie précédente ne garde jamais le débogueur
   const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
   if (!tab || !tab.id) throw new Error("Aucun onglet actif.");
   // Jamais dans la fenêtre de CLAIRE elle-même (seule autre machine autorisée) : le guichet doit être l'onglet affiché.
@@ -138,6 +139,41 @@ async function control(action) {
 
 // ---------- Messages ----------
 
+// ---------- Vrais clics et vraies frappes (étude 17/10 : « utilise la souris comme un humain : clique, attends, laisse la vraie liste se
+// dérouler ») : par le protocole de débogage de Chrome, sur l'onglet du guichet seulement. Les événements sont de vrais événements du
+// navigateur (la liste native s'ouvre, les propositions d'adresse réagissent au clavier). Chrome affiche son bandeau « a commencé à
+// déboguer » tant que CLAIRE est attachée ; détachée à la fin de la saisie, à l'arrêt, ou si l'onglet se ferme.
+const attaches = new Set();
+async function attacher(tabId) {
+  if (attaches.has(tabId)) return;
+  try { await chrome.debugger.attach({ tabId }, "1.3"); } catch (e) {
+    // Service worker redémarré pendant la saisie : l'onglet est déjà attaché par CLAIRE.
+    if (!/already attached/i.test(String(e && e.message || e))) throw e;
+  }
+  attaches.add(tabId);
+}
+async function detacher(tabId) {
+  if (tabId === undefined) {
+    // Tous les onglets que CLAIRE débogue, y compris ceux d'avant un redémarrage du service worker.
+    const cibles = await chrome.debugger.getTargets().catch(() => []);
+    const ids = new Set([...attaches, ...cibles.filter((c) => c.attached && c.tabId !== undefined && c.extensionId === undefined).map((c) => c.tabId)]);
+    for (const t of ids) await detacher(t);
+    return;
+  }
+  attaches.delete(tabId);
+  try { await chrome.debugger.detach({ tabId }); } catch (_) { /* pas attaché par CLAIRE, ou déjà détaché */ }
+}
+// Les vrais gestes ne valent que pour l'onglet de la saisie EN COURS (jamais après l'arrêt, jamais un autre onglet).
+async function gesteAutorise(sender) {
+  const r = await getRun();
+  return !!(sender.tab && r && ACTIVE.includes(r.status) && r.tabId === sender.tab.id);
+}
+chrome.debugger.onDetach.addListener((source) => { if (source && source.tabId !== undefined) attaches.delete(source.tabId); });
+chrome.tabs.onRemoved.addListener((tabId) => { attaches.delete(tabId); });
+const cdp = (tabId, methode, params) => chrome.debugger.sendCommand({ tabId }, methode, params || {});
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+const TOUCHES = { Enter: [13, "Enter", "\r"], Escape: [27, "Escape", ""], Tab: [9, "Tab", ""], ArrowDown: [40, "ArrowDown", ""], Backspace: [8, "Backspace", ""] };
+
 async function handle(msg, sender) {
   switch (msg.type) {
     // Depuis le panneau
@@ -147,6 +183,7 @@ async function handle(msg, sender) {
       await startRun(msg);
       return { ok: true };
     case "control":
+      if (msg.action === "stop") await detacher();
       await control(msg.action);
       return { ok: true };
     case "structure":
@@ -204,7 +241,15 @@ async function handle(msg, sender) {
             if (!vm || !Array.isArray(vm.listeVille)) return { ok: false, raison: "liste des villes illisible" };
             const villes = vm.listeVille.filter((v) => v && n(v.communeNom) === n(commune));
             if (villes.length !== 1) return { ok: false, raison: villes.length ? "plusieurs villes de ce nom" : "ville absente de la liste" };
-            sc.$apply(() => { vm.choixVilleInsee = villes[0].inseeCode; });
+            // Comme un vrai choix dans la liste (essai de l'étude, 17/10 : le modèle posé seul laissait le brouillon à moitié dessiné — le
+            // `ng-change` du guichet n'était pas joué) : la valeur passe par le contrôleur du modèle, qui joue `ng-change`, puis la liste
+            // est redessinée.
+            const ctrl = ng.element(sel).controller("ngModel");
+            sc.$apply(() => {
+              if (ctrl && ctrl.$setViewValue) ctrl.$setViewValue(villes[0].inseeCode);
+              vm.choixVilleInsee = villes[0].inseeCode;
+              if (ctrl && ctrl.$render) ctrl.$render();
+            });
             return { ok: true, nom: String(villes[0].communeNom || "") };
           }
         });
@@ -352,7 +397,51 @@ async function handle(msg, sender) {
         addLog(r, `Étape ${msg.pageIndex + 1}`);
       });
       return { ok: true };
+    case "content.vraiClic": {
+      if (!(await gesteAutorise(sender))) return { ok: false };
+      const x = Number(msg.x), y = Number(msg.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false };
+      try {
+        // Zoom du navigateur différent de 100 % : les coordonnées ne correspondraient plus sûrement — jamais un vrai clic à côté ; le script
+        // de la page se replie alors sur son clic simulé.
+        const zoom = await chrome.tabs.getZoom(sender.tab.id).catch(() => 0);
+        if (Math.abs(zoom - 1) > 0.001) return { ok: false, raison: "zoom" };
+        await attacher(sender.tab.id);
+        await cdp(sender.tab.id, "Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+        await pause(80);
+        await cdp(sender.tab.id, "Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+        await pause(70);
+        await cdp(sender.tab.id, "Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+        return { ok: true };
+      } catch (e) { return { ok: false, erreur: String(e && e.message || e) }; }
+    }
+    case "content.vraiTexte": {
+      if (!(await gesteAutorise(sender))) return { ok: false };
+      const texte = String(msg.texte || "").slice(0, 300), delai = Math.min(400, Math.max(20, Number(msg.delai) || 60));
+      try {
+        await attacher(sender.tab.id);
+        for (const ch of texte) {
+          await cdp(sender.tab.id, "Input.dispatchKeyEvent", { type: "keyDown", key: ch, text: ch, unmodifiedText: ch });
+          await cdp(sender.tab.id, "Input.dispatchKeyEvent", { type: "keyUp", key: ch });
+          await pause(delai);
+        }
+        return { ok: true };
+      } catch (e) { return { ok: false, erreur: String(e && e.message || e) }; }
+    }
+    case "content.vraieTouche": {
+      if (!(await gesteAutorise(sender))) return { ok: false };
+      const t = TOUCHES[msg.touche];
+      if (!t) return { ok: false };
+      try {
+        await attacher(sender.tab.id);
+        await cdp(sender.tab.id, "Input.dispatchKeyEvent", { type: "rawKeyDown", key: t[1], code: t[1], windowsVirtualKeyCode: t[0], nativeVirtualKeyCode: t[0] });
+        if (t[2]) await cdp(sender.tab.id, "Input.dispatchKeyEvent", { type: "char", key: t[1], text: t[2], unmodifiedText: t[2] });
+        await cdp(sender.tab.id, "Input.dispatchKeyEvent", { type: "keyUp", key: t[1], code: t[1], windowsVirtualKeyCode: t[0], nativeVirtualKeyCode: t[0] });
+        return { ok: true };
+      } catch (e) { return { ok: false, erreur: String(e && e.message || e) }; }
+    }
     case "content.finish":
+      if (sender.tab) await detacher(sender.tab.id);
       await mutate((r) => {
         if (!ACTIVE.includes(r.status)) return r; // déjà arrêté par l'utilisateur
         r.status = msg.status;

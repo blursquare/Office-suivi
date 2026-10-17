@@ -130,6 +130,62 @@
     if (runSuivi) setProgression(runSuivi.scenario.etapesSuivi, label);
   }
 
+  // ---------- Vrai clic, vraie frappe (étude 17/10 : « utilise la souris comme un humain ») ----------
+  // Par le protocole de débogage de Chrome (background.js) : de vrais événements, au centre de l'élément visible ; le bandeau et le
+  // voile de CLAIRE laissent passer le temps du geste. Repli sur le clic simulé si Chrome refuse (débogage non autorisé).
+  let vraiEnCours = false;
+  async function sansVoile(fn) {
+    const voile = root && root.querySelector(".blocker");
+    const bandeau = root && root.querySelector(".banner");
+    vraiEnCours = true;
+    if (voile) voile.hidden = true;
+    if (bandeau) bandeau.style.pointerEvents = "none";
+    try { return await fn(); } finally {
+      vraiEnCours = false;
+      if (voile) voile.hidden = !blocking; // l'état du moment (une pause a pu le changer pendant le geste)
+      if (bandeau) bandeau.style.pointerEvents = "";
+    }
+  }
+  async function cliquerVrai(el) {
+    if (!el || !el.isConnected) return false;
+    el.scrollIntoView({ block: "center", inline: "center" });
+    await wait(150);
+    const r = el.getBoundingClientRect();
+    const x = r.left + Math.min(r.width / 2, Math.max(4, r.width - 4)), y = r.top + r.height / 2;
+    const ok = await sansVoile(async () => {
+      const dessus = document.elementFromPoint(x, y);
+      // Ce qui est sous le pointeur doit être l'élément visé (ou dedans, ou son libellé) : jamais un clic sur autre chose.
+      if (!dessus || !(dessus === el || el.contains(dessus) || dessus.contains(el) || (el.labels && [...el.labels].some((l) => l.contains(dessus))))) return false;
+      const res = await send({ type: "content.vraiClic", x, y });
+      return !!(res && res.ok);
+    });
+    if (!ok) clicSimule(el, x, y);
+    return true;
+  }
+  // Repli : la séquence d'un clic (appui, focus, relâchement, clic), pour les éléments qui réagissent à l'appui de la souris.
+  function clicSimule(el, x, y) {
+    const o = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, button: 0 };
+    try { el.dispatchEvent(new PointerEvent("pointerdown", o)); } catch (_) { /* PointerEvent absent */ }
+    el.dispatchEvent(new MouseEvent("mousedown", o));
+    el.focus();
+    try { el.dispatchEvent(new PointerEvent("pointerup", o)); } catch (_) { /* PointerEvent absent */ }
+    el.dispatchEvent(new MouseEvent("mouseup", o));
+    el.click();
+  }
+  async function taperVrai(el, texte, sp) {
+    await cliquerVrai(el);
+    await wait(150);
+    if (document.activeElement !== el) el.focus();
+    // Champ vidé avant la frappe (relecture du 17/10 : « BA » tapé derrière « BA » donnait « BABA ») ; la valeur doit être ÉGALE au texte.
+    setNativeValue(el, ""); fire(el, "input", { inputType: "deleteContentBackward" });
+    const res = await sansVoile(() => send({ type: "content.vraiTexte", texte, delai: Math.max((sp && sp.type) || 0, 60) }));
+    const egal = (a) => String(a || "").replace(/\s+/g, " ").trim().toLowerCase() === String(texte).replace(/\s+/g, " ").trim().toLowerCase();
+    if (res && res.ok && egal(el.value)) return true;
+    await typeInto(el, texte, sp || SPEEDS.normal); // repli : frappe simulée
+    return false;
+  }
+  const vraieTouche = (touche) => sansVoile(() => send({ type: "content.vraieTouche", touche }));
+
   function setBlocking(b) {
     blocking = b;
     if (root) root.querySelector(".blocker").hidden = !b;
@@ -146,7 +202,7 @@
     window.addEventListener(
       t,
       (e) => {
-        if (!blocking || !e.isTrusted) return;
+        if (!blocking || !e.isTrusted || vraiEnCours) return; // les vraies frappes de CLAIRE passent
         e.stopImmediatePropagation();
         e.preventDefault();
         if (t === "keydown" && e.key === "Escape") send({ type: "control", action: "pause" });
@@ -679,7 +735,7 @@
       }
       await noter(run, key, "filling");
       const cible = (el.labels && [...el.labels].find(visible)) || el;
-      const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause);
+      const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); await cliquerVrai(visible(el) ? el : cible); await wait(sp.pause);
       await noter(run, key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
       return true;
     }
@@ -697,7 +753,7 @@
       if (!el.checked && el.type === "radio" && el.name && [...document.querySelectorAll('input[type=radio]')].some((x) => x.name === el.name && x.checked)) {
         await noter(run, key, "done", "choix déjà fait dans le guichet, laissé tel quel"); return true;
       }
-      if (!el.checked) { await noter(run, key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); el.click(); await wait(sp.pause); }
+      if (!el.checked) { await noter(run, key, "filling"); const cible = (el.labels && [...el.labels].find(visible)) || el; const pos = await moveTo(cible, sp); ripple(pos.x, pos.y); await cliquerVrai(visible(el) ? el : cible); await wait(sp.pause); }
       await noter(run, key, el.checked ? "done" : "mismatch", el.checked ? "" : "case non cochée");
       return true;
     }
@@ -790,7 +846,7 @@
     if (!el.isConnected || !visible(el)) { mark(el, false); return null; } // null = pas cliqué (≠ false : cliqué, page inchangée)
     await send({ type: "content.advance", pageIndex: pi }); // gardé AVANT le clic : la page peut se recharger
     await gate();
-    el.click();
+    await cliquerVrai(el);
     const fin = Date.now() + (attenteMax || 20000);
     let change = false;
     while (Date.now() < fin) {
@@ -823,6 +879,21 @@
   const INTERDIT_ENTREE = /(valid|envoy|sign|soumet|confirm|transmet|payer|paiement|supprim|finalis|certifi(?!cat))/;
   const boutonEntreeInterdit = (b) => INTERDIT_ENTREE.test(norm(texteBouton(b) + " " + attributsBouton(b)));
 
+  // Rouvrir un brouillon (relevé de l'étude, 17/10) : JAMAIS par son adresse chargée d'un coup ni par un rechargement — le GNAU perd le
+  // contexte du CERFA (« reading 'ID_CERFA' ») et n'affiche que des gabarits {{TITLE}}. Toujours : accueil, attendre qu'il soit dessiné
+  // (liste des demandes, zone « Formuler »), puis changer seulement le hash vers #/saisie/<id>.
+  async function rouvrirParAccueil(run, e) {
+    const accueil = location.origin + "/#/";
+    if (location.hash !== "#/" && location.hash !== "") location.hash = "#/";
+    const pret = () => !/\{\{/.test(document.body ? document.body.innerText || "" : "")
+      && (!!boutonFormuler((e.bouton || []).map((m) => new RegExp(m, "i"))) || /mes demandes|consulter/i.test(norm(document.body.innerText || "")));
+    for (const fin = Date.now() + 30000; !pret() && Date.now() < fin;) await wait(500);
+    if (!pret()) throw new Error("L’accueil du guichet ne s’est pas affiché : ouvrez " + accueil + " vous-même, puis relancez CLAIRE — le brouillon est repris.");
+    await wait(800);
+    location.hash = new URL(run.urlSaisie).hash;
+    await attendreStable(8000);
+  }
+
   async function entreeAgglopolys(run, sp, ouvert, pi) {
     const e = run.scenario.entree;
     const fens = fenetresVisibles();
@@ -850,8 +921,7 @@
           await finish("awaiting_human", "Le brouillon connu de ce dossier ne s’ouvre plus (transmis ou supprimé ?) : ouvrez-le vous-même, ou commencez une nouvelle demande, puis relancez CLAIRE.");
           return "fin";
         }
-        location.href = run.urlSaisie;
-        await attendreStable(8000);
+        await rouvrirParAccueil(run, e);
         return "fait";
       }
       return "rien";
@@ -896,34 +966,38 @@
       const pos = await moveTo(select, sp); ripple(pos.x, pos.y);
       mark(select, true);
       select.focus();
-      // Le choix se VOIT (étude 17/10 : « je veux le voir choisir dans la liste ») : la liste est dépliée sur place, CLAIRE la parcourt
-      // jusqu'à la commune du dossier, puis la referme sur ce choix (une liste native ne s'ouvre pas autrement depuis une extension).
-      const tailleAvant = select.getAttribute("size");
+      // Comme une personne (étude 17/10 : « clique, attends, laisse la vraie liste se dérouler ») : vrai clic sur la liste — la vraie liste
+      // s'ouvre —, le nom de la commune tapé au clavier, Entrée. Le guichet reçoit un vrai choix (son `ng-change` joue).
+      const nomCommune = opts[0].text.trim();
+      mark(select, false);
+      // Filet : aucun envoi du formulaire de la commune pendant ce geste (Entrée ne doit jamais valider la demande avant les contrôles).
+      const bloquerEnvoi = (ev) => { if (ev.target && ev.target.contains && ev.target.contains(select)) { ev.preventDefault(); ev.stopImmediatePropagation(); } };
+      window.addEventListener("submit", bloquerEnvoi, true);
       try {
-        select.size = Math.min(10, select.options.length);
-        for (let k = Math.max(0, opts[0].index - 6); k <= opts[0].index; k++) {
-          select.selectedIndex = k;
-          select.options[k].scrollIntoView({ block: "nearest" });
-          await wait(Math.max(60, Math.min(sp.type * 3, 180)));
-        }
-        await wait(Math.max(sp.pause, 600));
-      } finally {
-        if (tailleAvant === null) select.removeAttribute("size"); else select.setAttribute("size", tailleAvant);
+        await cliquerVrai(select);
+        await wait(Math.max(sp.pause, 900));
+        await sansVoile(() => send({ type: "content.vraiTexte", texte: nomCommune, delai: 90 }));
+        await wait(400);
+        await vraieTouche("Enter");
+        await wait(Math.max(sp.pause, 800));
+      } finally { window.removeEventListener("submit", bloquerEnvoi, true); }
+      const vraiOk = select.selectedIndex >= 0 && select.options[select.selectedIndex] === opts[0];
+      // Repli (débogage refusé, liste native fermée sans choix) : la ville posée par le contrôleur du modèle d'Angular, comme un choix.
+      let parModele = null;
+      if (!vraiOk) {
+        // Jamais Échap (relecture du 17/10 : il fermerait la fenêtre de la commune du guichet).
+        parModele = await send({ type: "content.communeChoisirAngular", commune });
+        if (parModele && parModele.ok) { await wait(300); run.communeParModele = true; }
+        else if (parModele && parModele.raison && parModele.raison !== "sans-angular") {
+          await finish("awaiting_human", `CLAIRE n’a pas pu choisir ${nomCommune} dans la liste du guichet (${parModele.raison}) : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
+          return "fin";
+        } else setNativeSelect(select, opts[0].value);
       }
-      // Le choix lui-même : dans le modèle d'Angular par le nom de la ville (voir content.communeChoisirAngular) ; à défaut (Angular non
-      // lisible), par l'option de la liste.
-      const parModele = await send({ type: "content.communeChoisirAngular", commune });
-      if (parModele && parModele.ok) { await wait(300); run.communeParModele = true; }
-      else if (parModele && parModele.raison && parModele.raison !== "sans-angular") {
-        mark(select, false);
-        await finish("awaiting_human", `CLAIRE n’a pas pu choisir ${opts[0].text.trim()} dans la liste du guichet (${parModele.raison}) : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
-        return "fin";
-      } else setNativeSelect(select, opts[0].value);
       // Liste d'Angular (relevé de l'étude, 17/10 : `ng-options`, valeurs = rangs, pas le code INSEE) : la commune doit être prise par le
       // modèle — sinon l'option est reprise par son rang, puis un nouveau « change ».
       // L'option elle-même, jamais son rang (Angular retire son option « ? » dès qu'un choix est fait : les rangs reculent).
       const priseCommune = () => select.selectedIndex >= 0 && memeCommune(select.options[select.selectedIndex].text, commune) && !select.classList.contains("ng-invalid");
-      if (!priseCommune() && !(parModele && parModele.ok)) { opts[0].selected = true; fire(select, "input"); fire(select, "change"); }
+      if (!vraiOk && !priseCommune() && !(parModele && parModele.ok)) { opts[0].selected = true; fire(select, "input"); fire(select, "change"); }
       await wait(Math.max(sp.pause, 1000));
       // Ce qu'Angular a réellement retenu (essai de l'étude, 17/10 : Candé-sur-Beuvron au lieu de Blois) : relu dans la page, jamais validé
       // sur une autre commune que celle du dossier.
@@ -1064,22 +1138,6 @@
     const fermer = boutonDansFenetre(fen, ["^fermer$", "^annuler$"]);
     if (fermer) await cliquerPuisAttendre(fermer, sp, 0, 3000);
   }
-  // Le clic d'une personne, événement par événement : certains guichets ouvrent leur assistant au mousedown ou au focus, et un focus()
-  // seul ne déclenche rien quand la page n'a pas la main (panneau de l'extension au premier plan).
-  function clicComplet(el) {
-    const r = el.getBoundingClientRect();
-    const o = { bubbles: true, cancelable: true, composed: true, view: window, clientX: r.left + Math.min(r.width / 2, 20), clientY: r.top + r.height / 2, button: 0 };
-    try { el.dispatchEvent(new PointerEvent("pointerdown", o)); } catch (_) { /* PointerEvent absent */ }
-    el.dispatchEvent(new MouseEvent("mousedown", o));
-    el.focus();
-    if (document.activeElement !== el || !document.hasFocus()) {
-      el.dispatchEvent(new FocusEvent("focus", { relatedTarget: null }));
-      el.dispatchEvent(new FocusEvent("focusin", { bubbles: true, relatedTarget: null }));
-    }
-    try { el.dispatchEvent(new PointerEvent("pointerup", o)); } catch (_) { /* PointerEvent absent */ }
-    el.dispatchEvent(new MouseEvent("mouseup", o));
-    el.click();
-  }
   // La fenêtre de l'assistant : par un champ qui lui est propre quand il est connu (« #saisieAdresseAuto »), sinon par son titre.
   async function fenetreAssistant(as, max) {
     const exclure = (as.declencheur || []).map(selecteurCode).filter(Boolean).flatMap((sel) => [...document.querySelectorAll(sel)]);
@@ -1108,7 +1166,7 @@
       if (!el) continue;
       el.scrollIntoView({ block: "center" });
       const pos = await moveTo(el, sp); ripple(pos.x, pos.y);
-      clicComplet(el);
+      await cliquerVrai(el);
       const fen = await fenetreAssistant(as, 3500);
       if (fen) return fen;
       // Une fenêtre lente à venir : jamais un second déclencheur par-dessus.
@@ -1138,8 +1196,6 @@
       recherche.focus(); setNativeValue(recherche, ""); fire(recherche, "input");
       // Comme un vrai clavier (étude 17/10 : « l'assistant n'a pas l'impression que c'est tapé ») : champ cliqué, puis pour chaque lettre
       // keydown / keypress / input / keyup avec leur code, que lisent les listes de propositions jQuery et Angular.
-      clicComplet(recherche);
-      await wait(Math.max(sp.pause, 600));
       const touche = (type, ch) => {
         const code = /^[a-z0-9]$/i.test(ch) ? ch.toUpperCase().charCodeAt(0) : ch === " " ? 32 : 0;
         const ev = new KeyboardEvent(type, { key: ch, code: /\d/.test(ch) ? "Digit" + ch : "Key" + ch.toUpperCase(), bubbles: true, cancelable: true, composed: true });
@@ -1153,7 +1209,10 @@
       // Le champ visé par un jeton unique (l'identifiant « saisieAdresseAuto » peut exister dans plusieurs fenêtres d'adresse).
       const jeton = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       recherche.setAttribute("data-claire-frappe", jeton);
-      const tape = await send({ type: "content.taper", jeton, texte: requete, delai: Math.max(sp.type, 60) });
+      // Vraie frappe d'abord (clavier de Chrome) ; sinon frappe dans la page ; sinon frappe simulée.
+      let tape = null;
+      if (await taperVrai(recherche, requete, sp)) tape = { ok: true };
+      else { setNativeValue(recherche, ""); fire(recherche, "input"); tape = await send({ type: "content.taper", jeton, texte: requete, delai: Math.max(sp.type, 60) }); }
       recherche.removeAttribute("data-claire-frappe");
       if (!(tape && tape.ok)) {
         setNativeValue(recherche, ""); fire(recherche, "input");
@@ -1207,13 +1266,13 @@
       return { etat: "manuel", detail: `aucune adresse proposée ne correspond à « ${requete} » : saisissez-la vous-même dans l’assistant${commune}` };
     }
     const cible = choix.querySelector("a") || choix;
-    let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); mark(cible, true); await wait(Math.max(sp.pause, 500)); mark(cible, false); clicComplet(cible);
+    let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); mark(cible, true); await wait(Math.max(sp.pause, 500)); mark(cible, false); await cliquerVrai(cible);
     await wait(Math.max(sp.pause, 600));
     if (t.lieuDit && voie) { const ld = [...fen.querySelectorAll("#complement")].find(visible) || champParLibelle(fen, "^lieu-?dit"); if (ld && !String(ld.value || "").trim()) await typeInto(ld, String(t.lieuDit), sp); }
     const valider = boutonDansFenetre(fen, ["^je valide mon adresse$"]);
     if (!valider) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "« Je valide mon adresse » introuvable : saisissez l’adresse vous-même dans l’assistant" }; }
     pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
-    valider.click();
+    await cliquerVrai(valider);
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
     const apres = valeurChampCode(as.voieCode);
@@ -1261,13 +1320,13 @@
       const cSec = champ("^section"), cNum = champ("^numero"), cSurf = champ("^superficie"), cPre = champ("^prefixe");
       if (!cSec || !cNum || !cSurf) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant des parcelles : champs Section / Numéro / Superficie introuvables" }; }
       const avant = lignes().length;
-      if (cPre && pre) await typeInto(cPre, pre, sp);
-      await typeInto(cSec, sec, sp);
-      await typeInto(cNum, num, sp);
-      await typeInto(cSurf, surf, sp);
+      if (cPre && pre) await taperVrai(cPre, pre, sp);
+      await taperVrai(cSec, sec, sp);
+      await taperVrai(cNum, num, sp);
+      await taperVrai(cSurf, surf, sp);
       const ajouter = boutonDansFenetre(fen, ["^ajouter la parcelle"]);
       if (!ajouter) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "bouton « Ajouter la parcelle » introuvable" }; }
-      const pos = await moveTo(ajouter, sp); ripple(pos.x, pos.y); ajouter.click();
+      const pos = await moveTo(ajouter, sp); ripple(pos.x, pos.y); await cliquerVrai(ajouter);
       let ok = false;
       for (const fin = Date.now() + 4000; !ok && Date.now() < fin;) { await wait(200); ok = lignes().length > avant; }
       if (!ok) { manquees.push(`${sec} ${num}`); continue; }
@@ -1277,7 +1336,7 @@
     const valider = boutonDansFenetre(fen, ["^valider$"]);
     if (!valider) return { etat: "manuel", detail: "parcelles ajoutées : cliquez vous-même « Valider » dans l’assistant" };
     const pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
-    valider.click();
+    await cliquerVrai(valider);
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
     // L'assistant doit s'être refermé ET avoir posé les parcelles dans le CERFA (une confirmation ouverte par-dessus n'est jamais cliquée).
@@ -1353,7 +1412,7 @@
       await suivi(label);
       const p = await moveTo(el, sp); mark(el, true); ripple(p.x, p.y);
       await wait(sp.pause); await gate();
-      if (el.isConnected) el.click();
+      if (el.isConnected) await cliquerVrai(el);
       await attendreStable(5000); mark(el, false); memo = new Map();
     };
     // Ordre de l'étude (17/10) : « d'abord Vérifier ma saisie, ensuite Sauvegarder » — boutons pris par leur identifiant ET leur texte exact,
@@ -1388,6 +1447,20 @@
       setBanner(`CLAIRE pilote le guichet — page ${pi + 1}`, "running");
       setBlocking(true);
       await attendreStable(8000);
+      // Page du guichet pas encore dessinée par Angular (« {{TITLE}} », « {{data.libelle}} » à l'écran, essai de l'étude, 17/10) : CLAIRE
+      // attend (30 s au plus) au lieu de tout sauter ; toujours brute, elle s'arrête.
+      const brute = () => /\{\{\s*(title|data\.)/i.test(document.body ? document.body.innerText || "" : "");
+      if (brute()) {
+        for (const fin = Date.now() + 30000; brute() && Date.now() < fin;) await wait(500);
+        if (brute()) {
+          // Une fois : retour à l'accueil puis le brouillon rouvert par son hash (jamais F5).
+          if (sc.entree && !run.urlSaisie && location.hash.startsWith(sc.entree.urlSaisie)) run = { ...run, urlSaisie: location.href };
+          if (sc.entree && run.urlSaisie && !run.rouvertParAccueil) { run.rouvertParAccueil = true; await rouvrirParAccueil(run, sc.entree); continue; }
+          await finish("awaiting_human", "La page du guichet ne s’est pas affichée : revenez à l’accueil du guichet (sans recharger la page), ouvrez la demande par « Consulter », puis relancez CLAIRE.");
+          return;
+        }
+        await attendreStable(4000);
+      }
       memo = new Map();
       modelePage = undefined;
       if (sc.refuserSiNoms) {

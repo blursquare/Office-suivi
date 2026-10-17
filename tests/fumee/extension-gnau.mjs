@@ -104,5 +104,9 @@ verifier(r4.valeurs.T2V_voie === 'RUE RACINE', 'proposition d’adresse en ligne
 const r5 = await jouer(base, () => { window.__cfg = { doubleCommune: true }; });
 verifier(r5.etat.demandes === 1 && r5.etat.commune === 'Blois' && r5.valeurs.T2V_voie === 'RUE RACINE', 'deux fenêtres de commune : une seule demande, Blois, puis l’adresse : ' + r5.etat.demandes + ' / ' + r5.etat.commune);
 
+// Essai de l'étude, 17/10 : brouillon d'abord affiché brut (« {{TITLE}} ») — CLAIRE attend qu'il soit dessiné.
+const r6 = await jouer(base, () => { window.__cfg = { brut: true }; });
+verifier(r6.valeurs.T2V_voie === 'RUE RACINE' && r6.valeurs.T2S_section === 'BA', 'brouillon d’abord brut : CLAIRE attend puis remplit : ' + r6.valeurs.T2V_voie);
+
 console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
 process.exit(erreurs.length ? 1 : 0);
