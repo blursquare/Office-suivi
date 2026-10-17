@@ -109,9 +109,11 @@ test('guichet d’Agglopolys : scénarios par les codes du CERFA, entrée par la
   const content = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
   const FORBIDDEN = forbiddenDuContent();
   const JAMAIS = new RegExp(/const JAMAIS_ECRIRE = \/(.+)\/i;/.exec(content)[1], 'i');
-  for (const t of ['OPLSTPARCELLE', 'OPLSTCOPRO', 'COMMISSION', 'FI1C', 'GI1DA1', 'GI5AA1', 'GI6AA1']) assert.ok(JAMAIS.test(t), t);
+  for (const t of ['OPLSTPARCELLE', 'OPLSTCOPRO', 'COMMISSION', 'FI1C', 'GI5AA1', 'GI6AA1']) assert.ok(JAMAIS.test(t), t);
+  // « 1) A (ont) recherché un acquéreur disposé… » : toujours cochée (étude 17/10), plus interdite.
+  assert.ok(!JAMAIS.test('GI1DA1'));
   assert.ok(!JAMAIS.test('FI1B') && !JAMAIS.test('FI2MB2') && !JAMAIS.test('FI1CA'));
-  for (const t of ['vm.saisie.GI1DA1', 'x_FI1C', 'liste[COMMISSION]', 'OPLSTPARCELLE_1']) assert.ok(JAMAIS.test(t), t);
+  for (const t of ['vm.saisie.GI5AA1', 'x_FI1C', 'liste[COMMISSION]', 'OPLSTPARCELLE_1']) assert.ok(JAMAIS.test(t), t);
   // « Transmettre ma demande » (ng-click transmettreSaisie) : refusé par son texte comme par son attribut.
   assert.ok(FORBIDDEN.test('transmettre ma demande') && FORBIDDEN.test('vm.transmettresaisie()'));
   assert.ok(!FORBIDDEN.test('vm.nextpage()'));

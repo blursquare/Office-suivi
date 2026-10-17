@@ -93,6 +93,15 @@
       <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
   }
 
+  // Lien du guichet cliqué (étude 17/10 : « ouvrir Chrome avec l'add-on ouvert ») : le dossier est retenu par le serveur, l'extension
+  // « CLAIRE — Assistant de saisie » le propose sur la page du guichet et le choisit d'avance dans son panneau. Sans attendre la réponse :
+  // le lien s'ouvre de toute façon.
+  function noterOuvertureGnau() {
+    const d = dossierConstitution();
+    if (!d) return;
+    fetchAvecAuth('/api/gnau/ouverture', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dossierId: d.id }) }).catch(() => {});
+  }
+
   // Étape « DIA et SAFER » : le guichet unique (GNAU) de chaque commune, où se déposent la DIA et le certificat d'urbanisme.
   function renderGnauConstitution() {
     const e = cstEtat;
@@ -110,7 +119,7 @@
         return `<div class="cst-gnau-ligne">${nomCommune}<span class="cst-gnau-liens">${lien ? lienParis(lien, 'Déposer la DIA') : ''}${lienParis(URL_CU_PARIS, 'Demander le CU')}</span></div>`;
       }
       return `<div class="cst-gnau-ligne">${nomCommune}${lien
-        ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
+        ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" onclick="noterOuvertureGnau()" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
         : '<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet non relevé</span>'}</div>`;
     }).join('')}</div>`;
   }

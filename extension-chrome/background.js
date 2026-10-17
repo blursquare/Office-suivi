@@ -105,7 +105,7 @@ async function startRun({ scenario, fiche, speed, continuer }) {
     pageIndex: 0,
     fields: garder,
     log: [],
-    ...(await (async () => { const u = await brouillonConnu(scenario, fiche); return u ? { urlSaisie: u, formulaireOuvert: true } : {}; })()),
+    ...(await (async () => { const u = await brouillonConnu(scenario, fiche); return u ? { urlSaisie: u, formulaireOuvert: true, brouillonRepris: true } : {}; })()),
     startedAt: Date.now(),
   };
   addLog(run, "Démarrage");
@@ -186,16 +186,47 @@ async function handle(msg, sender) {
       if (msg.action === "stop") await detacher();
       await control(msg.action);
       return { ok: true };
+    case "oublierBrouillons": {
+      // Panneau (essai de l'étude, 17/10 : CLAIRE rouvrait sans fin un brouillon que le guichet n'affiche plus) : plus aucun brouillon repris.
+      const r = await getRun();
+      if (r && ACTIVE.includes(r.status)) throw new Error("Arrêtez d'abord l'exécution en cours.");
+      await chrome.storage.local.remove("brouillons");
+      return { ok: true };
+    }
     case "structure":
       return { structure: await releverStructure() };
     case "reset": {
       const r = await getRun();
       if (r && ACTIVE.includes(r.status)) throw new Error("Arrêtez d'abord l'exécution en cours.");
       await chrome.storage.session.remove("run");
+      // « Effacer » oublie aussi les brouillons gardés (étude 17/10) : la saisie suivante part d'une nouvelle demande.
+      await chrome.storage.local.remove("brouillons");
       chrome.runtime.sendMessage({ type: "state", run: null, linked }).catch(() => {});
       return { ok: true };
     }
     // Depuis le content script
+    // Lien du guichet cliqué dans CLAIRE (étude 17/10 : « ouvrir Chrome avec l'add-on ouvert ») : le dossier retenu par le serveur (10 min)
+    // est proposé une fois sur la page du guichet et choisi d'avance dans le panneau.
+    case "content.ouvertureClaire": {
+      const { serveur } = await chrome.storage.local.get(["serveur"]);
+      if (!serveur || !sender.tab) return { proposer: false };
+      try {
+        const rep = await fetch(`${serveur}/api/gnau/ouverture`, { credentials: "omit" });
+        const j = rep.ok ? await rep.json() : null;
+        if (!j || !j.dossier || !j.dossier.id) return { proposer: false };
+        const cle = `${j.dossier.id}:${j.le}`;
+        const { ouvertureVue } = await chrome.storage.session.get(["ouvertureVue"]);
+        if (ouvertureVue === cle) return { proposer: false };
+        await chrome.storage.session.set({ ouvertureVue: cle, dossierPropose: { id: String(j.dossier.id), libelle: String(j.dossier.libelle || ""), commune: String(j.dossier.commune || "") } });
+        return { proposer: true };
+      } catch (_) { return { proposer: false }; }
+    }
+    case "content.ouvrirPanneau": {
+      // Chrome n'ouvre le panneau que dans le geste de l'utilisateur (clic sur le bouton de la page) : appelé avant toute attente.
+      if (!sender.tab || !sender.tab.id) return { ok: false };
+      await chrome.sidePanel.open({ tabId: sender.tab.id });
+      return { ok: true };
+    }
     case "content.hello": {
       const r = await getRun();
       if (r && sender.tab && r.tabId === sender.tab.id && ACTIVE.includes(r.status)) return r;
@@ -380,6 +411,8 @@ async function handle(msg, sender) {
         delete brouillons[cle];
         await chrome.storage.local.set({ brouillons });
       }
+      // La saisie en cours ne le reprend plus non plus (une page rechargée ne le rouvrirait pas).
+      await mutate((x) => { x.urlSaisie = ""; x.formulaireOuvert = false; x.brouillonRepris = false; });
       return { ok: true };
     }
     case "content.formulaire":
@@ -390,6 +423,9 @@ async function handle(msg, sender) {
         if (u && sender.tab && sender.tab.url && new URL(u).origin === new URL(sender.tab.url).origin && /#\/saisie\/[\w-]+([?&].*)?$/.test(u)) r.urlSaisie = u;
       });
       await retenirBrouillon(await getRun());
+      return { ok: true };
+    case "content.brouillonCharge":
+      await mutate((r) => { r.brouillonRepris = false; });
       return { ok: true };
     case "content.advance":
       await mutate((r) => {

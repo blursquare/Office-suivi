@@ -140,6 +140,15 @@ test('route du plan cadastral : PDF du dossier relié au NAS, nom neutre, jamais
     assert.equal(await r.text(), '%PDF-1.4 plan');
     assert.equal((await fetch(`${base}/api/gnau/plan/v2`)).status, 404); // non relié au NAS
     assert.equal((await fetch(`${base}/api/gnau/plan/..%2F..`)).status, 400);
+    // Lien du guichet cliqué dans CLAIRE : dossier retenu, rendu à l'extension (étude 17/10).
+    assert.equal((await (await fetch(`${base}/api/gnau/ouverture`)).json()).dossier, null);
+    const poster = (corps) => fetch(`${base}/api/gnau/ouverture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+    assert.equal((await poster({ dossierId: '../x' })).status, 400);
+    assert.equal((await poster({ dossierId: 'inconnu' })).status, 404);
+    assert.equal((await poster({ dossierId: 'v1' })).status, 200);
+    const o = await (await fetch(`${base}/api/gnau/ouverture`)).json();
+    assert.equal(o.dossier.id, 'v1');
+    assert.ok(o.le > 0);
   } finally {
     serveur.close(); db.close(); fs.rmSync(nas, { recursive: true, force: true });
   }
@@ -155,6 +164,7 @@ test('fiche DIA : cases du CERFA, coordonnées d’Authentic et de l’office (�
   assert.equal(f.vendeurs.codemandeurs[0].email, '', 'jamais l’email d’une autre personne du même côté');
   assert.deepEqual([f.dia.declaration, f.dia.pleinePropriete, f.dia.comptant, f.dia.habitation], [true, true, true, true]);
   assert.equal(f.dia.dpu, true, 'DPU coché d’office (étude 17/10)');
+  assert.equal(f.dia.rechercheAcquereur, true, '1) A « recherché un acquéreur disposé… » toujours cochée (étude 17/10)');
   assert.equal(f.dia.batimentTotalite, true, 'maison : bâtiment vendu en totalité');
   assert.deepEqual([f.office.email, f.office.numero, f.office.voie, f.office.codePostal, f.office.commune], ['office.gossart@notaires.fr', '3', 'rue Bout des Haies', '41000', 'BLOIS']);
   d.typeVente = 'terrain';

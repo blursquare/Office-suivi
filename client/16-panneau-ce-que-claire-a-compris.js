@@ -59,6 +59,9 @@
     { cle: 'emailVendeur', libelle: 'Email du vendeur', type: 'texte', champId: 'f-email-vendeur' },
     { cle: 'nomAgence', libelle: 'Agence immobilière', type: 'texte', champId: 'f-nom-agence' },
     { cle: 'honorairesAgence', libelle: 'Honoraires d’agence TTC', type: 'nombre', champId: 'f-honoraires-agence' },
+    // Qui paie la commission (étude 17/10 : « prévoir dans l'ajout d'un nouveau dossier de choisir qui a la charge de la commission
+    // d'agence ») : lue dans le compromis quand la clause le dit, sinon à choisir — reprise par l'appel de fonds et la DIA.
+    { cle: 'chargeHonoraires', libelle: 'Commission d’agence à la charge de', type: 'select', champId: 'f-honoraires-charge', formulaire: true },
     { cle: 'depotGarantie', libelle: 'Dépôt de garantie / acompte', type: 'nombre', champId: 'f-depot-garantie' },
     { cle: 'sequestreDepot', libelle: 'Dépôt versé à', type: 'texte', champId: 'f-sequestre-depot' },
     { cle: 'notaireVendeur', libelle: 'Notaire du vendeur', type: 'texte', champId: 'f-notaire-vendeur', formulaire: true, liste: 'f-notaires-liste' },

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.278.0';
+  const VERSION_APP = '0.279.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.279.0', date: '2026-10-17 20:49', resume: "Nouveau dossier : choix « Commission d'agence à la charge de » (acquéreur ou vendeur), lu dans le compromis quand la clause le dit. Extension Chrome 1.0.0 (« CU a) et DIA automatique ») : DIA — commission saisie par l'assistant du guichet (montant TTC du côté qui paie), case « 1) A recherché un acquéreur disposé… » toujours cochée, profession plus remplie ; adresse unique proposée enfin choisie ; CLAIRE attend que le CERFA soit chargé après la commune ; le lien du guichet dans Constitution de dossier propose d'ouvrir l'extension avec le dossier déjà choisi." },
     { version: '0.278.0', date: '2026-10-17 19:43', resume: "Extension Chrome (0.10.0) : vrais clics et vraies frappes, comme une personne (mode débogage de Chrome, bandeau de Chrome pendant le remplissage) — la vraie liste des communes se déroule, l'adresse est tapée au clavier ; commune posée comme un vrai choix (ng-change du guichet) ; brouillon jamais rechargé ni ouvert par son adresse : retour à l'accueil puis le brouillon rouvert ; page restée en {{TITLE}} attendue." },
     { version: '0.277.0', date: '2026-10-17 18:19', resume: "Extension Chrome (0.9.0) : suivi du remplissage étape par étape (commune, adresses, parcelles, signature, plan, Vérifier, Sauvegarder) dans le panneau et sur le bandeau du guichet ; logo et icône de CLAIRE ; thème noir, clair ou sombre selon Chrome." },
     { version: '0.276.1', date: '2026-10-17 18:01', resume: "Construction du serveur rétablie : le test de l'extension Chrome cherchait Chromium à un emplacement propre à l'environnement de développement ; il prend désormais le Chromium de Playwright, comme le test de fumée (la construction échouait depuis la 0.275.0)." },

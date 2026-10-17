@@ -262,7 +262,7 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
     office: officeGnau(),
     // Cases de la DIA (relevé de l'étude, 17/10) : la déclaration elle-même, le DPU coché d'office (« cocher de base soumis au droit de
     // préemption urbain », étude 17/10 — le GNAU reçoit les DIA du DPU), la vente en pleine propriété et le prix payé comptant (une vente ordinaire de l'étude), l'usage d'habitation.
-    dia: { declaration: true, dpu: true, pleinePropriete: true, comptant: true, nonIndissociable: true, habitation: habitationGnau(d, lots), planJoint: true,
+    dia: { declaration: true, rechercheAcquereur: true, dpu: true, pleinePropriete: true, comptant: true, nonIndissociable: true, habitation: habitationGnau(d, lots), planJoint: true,
       // Maison : « bâtiment vendu en totalité » (CI4BA1) ; copropriété : « locaux dans un bâtiment en copropriété » (CI6CA1, `copropriete`).
       batimentTotalite: d && d.typeVente === 'maison' ? true : null },
     // Nature du bien pour les cases du CERFA de la DIA : non bâti (terrain, terre) ou bâti sur terrain propre (maison, copropriété) ;

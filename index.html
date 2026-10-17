@@ -349,6 +349,14 @@
             <label for="f-honoraires-agence">Honoraires d'agence TTC</label>
             <input type="text" id="f-honoraires-agence" inputmode="numeric" placeholder="Laisser vide s'il n'y en a pas" title="Montant TTC des honoraires de négociation de l'agence, lu dans le compromis.">
           </div>
+          <div>
+            <label for="f-honoraires-charge">Commission d'agence à la charge de</label>
+            <select id="f-honoraires-charge" onchange="noterOrigineDossierWizard('f-honoraires-charge', 'manuel')">
+              <option value="">— À préciser —</option>
+              <option value="ACQUEREUR">L'acquéreur</option>
+              <option value="VENDEUR">Le vendeur</option>
+            </select>
+          </div>
         </div>
 
         <div class="field-row vente-seul revision-double">

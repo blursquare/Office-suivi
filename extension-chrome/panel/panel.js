@@ -180,6 +180,10 @@ async function init() {
     const r = await send({ type: "start", scenario: Object.assign({}, scenario, { auto: true }), fiche, speed: $("#speed").value });
     if (r && r.error) msg("#setup-msg", r.error);
   });
+  $("#oublier-brouillons").addEventListener("click", async () => {
+    const r = await send({ type: "oublierBrouillons" });
+    msg("#setup-msg", r && r.error ? r.error : "Brouillons oubliés : CLAIRE commencera une nouvelle demande depuis l’accueil du guichet.", !(r && r.error));
+  });
   $("#structure").addEventListener("click", async () => {
     const r = await send({ type: "structure" });
     if (!r || r.error) { msg("#setup-msg", (r && r.error) || "Page illisible."); return; }
@@ -199,6 +203,17 @@ async function init() {
   run = st && st.run;
   await chargerScenario();
   render();
+  // Dossier dont le lien du guichet a été cliqué dans CLAIRE (étude 17/10) : choisi d'avance, jamais pendant une saisie en cours.
+  await prendreDossierPropose();
+  chrome.storage.onChanged.addListener((ch, zone) => { if (zone === "session" && ch.dossierPropose && ch.dossierPropose.newValue) prendreDossierPropose(); });
+}
+
+async function prendreDossierPropose() {
+  const { dossierPropose } = await chrome.storage.session.get(["dossierPropose"]);
+  // Jamais par-dessus un dossier déjà choisi dans le panneau (relecture du 17/10) : la proposition attend le prochain panneau ouvert.
+  if (!dossierPropose || !dossierPropose.id || dossier || (run && ACTIVE.includes(run.status))) return;
+  await chrome.storage.session.remove("dossierPropose");
+  if (serveur) await choisirDossier(dossierPropose);
 }
 
 // ---------- Rendu ----------
@@ -252,7 +267,6 @@ function render() {
   box.textContent = "";
   $("#detail").hidden = !(sc && data);
   if (!sc || !data) { $("#compte").textContent = ""; return; }
-  let manuels = 0;
 
   let doneCount = 0;
   let total = 0;
@@ -270,7 +284,6 @@ function render() {
       if (r.missing && f.optional && !st) state = "skipped";
       total += 1;
       if (state === "done") doneCount += 1;
-      if (["manuel", "missing", "notfound", "mismatch"].includes(state)) manuels += 1;
 
       const row = document.createElement("div");
       row.className = "row s-" + state;
@@ -310,7 +323,9 @@ function render() {
   });
 
   $("#bar-fill").style.width = total ? `${Math.round((doneCount / total) * 100)}%` : "0";
-  $("#compte").textContent = run ? `${doneCount} rempli${doneCount > 1 ? "s" : ""}${manuels ? ` · ${manuels} à faire vous-même` : ""}` : "";
+  // Le nombre de cases remplies seulement (étude 17/10 : « retirer l'affichage de ce qui reste à faire ») ; le détail reste dans
+  // « Détail des champs ».
+  $("#compte").textContent = run ? `${doneCount} rempli${doneCount > 1 ? "s" : ""}` : "";
 }
 
 init();

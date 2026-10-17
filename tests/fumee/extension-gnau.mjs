@@ -20,7 +20,7 @@ async function jouer(fiche, avant) {
     const journal = [];
     await page.exposeFunction('__envoi', (m) => { journal.push(m); return null; });
     await page.addInitScript((r) => {
-      window.chrome = { runtime: { sendMessage: async (m) => { await window.__envoi(m); if (m.type === 'content.hello') return r; if (m.type === 'content.plan') return { nom: 'Plan cadastral.pdf', b64: btoa('%PDF-1.4 essai') }; return {}; }, onMessage: { addListener() {} } } };
+      window.chrome = { runtime: { id: "essai", sendMessage: async (m) => { await window.__envoi(m); if (m.type === 'content.hello') return r; if (m.type === 'content.plan') return { nom: 'Plan cadastral.pdf', b64: btoa('%PDF-1.4 essai') }; return {}; }, onMessage: { addListener() {} } } };
       window.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[ng-click]'); if (t && /transmettre/i.test(t.getAttribute('ng-click'))) window.__transmis = true; }, true);
     }, run);
     page.on('pageerror', (e) => erreurs.push('erreur de page : ' + e.message));
@@ -107,6 +107,14 @@ verifier(r5.etat.demandes === 1 && r5.etat.commune === 'Blois' && r5.valeurs.T2V
 // Essai de l'étude, 17/10 : brouillon d'abord affiché brut (« {{TITLE}} ») — CLAIRE attend qu'il soit dessiné.
 const r6 = await jouer(base, () => { window.__cfg = { brut: true }; });
 verifier(r6.valeurs.T2V_voie === 'RUE RACINE' && r6.valeurs.T2S_section === 'BA', 'brouillon d’abord brut : CLAIRE attend puis remplit : ' + r6.valeurs.T2V_voie);
+
+// Essai de l'étude, 17/10 : le CERFA met du temps à se charger après la commune — CLAIRE attend, puis fait les étapes dans l'ordre.
+const r7 = await jouer(base, () => { window.__cfg = { cerfaLent: true }; });
+verifier(r7.valeurs.T2V_voie === 'RUE RACINE' && r7.valeurs.T2S_section === 'BA' && r7.etat.piece === 'Plan cadastral.pdf' && r7.etat.verifie, 'CERFA lent : adresse, parcelles, plan puis Vérifier, dans l’ordre : ' + r7.valeurs.T2V_voie + ' / ' + r7.etat.piece);
+
+// Essai de l'étude, 17/10 : une seule adresse proposée (code INSEE entre parenthèses après la commune), jamais choisie.
+const r8 = await jouer(base, () => { window.__cfg = { adresses: ['51 Rue Racine 41000 Blois (41018)'] }; });
+verifier(r8.valeurs.T2V_voie === 'RUE RACINE', 'une seule adresse proposée, suivie du code INSEE : choisie : ' + r8.valeurs.T2V_voie);
 
 console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
 process.exit(erreurs.length ? 1 : 0);

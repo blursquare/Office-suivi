@@ -49,6 +49,13 @@
     }
     if (champs.nomAgence) appliquerValeurChamp('f-nom-agence', champs.nomAgence.valeur);
     if (champs.honorairesAgence) appliquerValeurChamp('f-honoraires-agence', champs.honorairesAgence.valeur);
+    // À la charge de qui, d'après la clause lue (detecterHonorairesNegociation) — jamais par-dessus un choix fait à la main.
+    const chargeLue = extraction.honoraires && !extraction.honoraires.direct ? extraction.honoraires.charge : null;
+    const selectCharge = document.getElementById('f-honoraires-charge');
+    if (selectCharge && (chargeLue === 'ACQUEREUR' || chargeLue === 'VENDEUR') && !choixManuelDossierWizard('f-honoraires-charge')) {
+      selectCharge.value = chargeLue;
+      noterOrigineDossierWizard('f-honoraires-charge', 'acte');
+    }
     if (champs.depotGarantie) appliquerValeurChamp('f-depot-garantie', champs.depotGarantie.valeur);
     if (champs.sequestreDepot) appliquerValeurChamp('f-sequestre-depot', champs.sequestreDepot.valeur);
     const adresse = extraction.bien && extraction.bien.adresse;

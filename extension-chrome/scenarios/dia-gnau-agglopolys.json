@@ -5,7 +5,7 @@
  "auto": true,
  "pagesMax": 10,
  "saisieDirecte": true,
- "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10). Champs ajoutés le 17/10 d'après une DIA remplie par l'étude : cases DIA et DPU (d'après Contrôle de l'urbanisme), pleine propriété, usage d'habitation (maison, logement en copropriété), prix comptant, plan cadastral joint (BI3IA1), coordonnées du propriétaire et de l'acquéreur (fiche client d'Authentic) et de l'office. À la dernière page, CLAIRE clique « Vérifier ma saisie » (jamais « Transmettre »).",
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration GI5AA1 et GI6AA1 ne sont jamais cochées par CLAIRE ; GI1DA1 (« 1) A (ont) recherché un acquéreur disposé… ») l'est toujours (étude 17/10). Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10). Champs ajoutés le 17/10 d'après une DIA remplie par l'étude : cases DIA et DPU (d'après Contrôle de l'urbanisme), pleine propriété, usage d'habitation (maison, logement en copropriété), prix comptant, plan cadastral joint (BI3IA1), coordonnées du propriétaire et de l'acquéreur (fiche client d'Authentic) et de l'office. À la dernière page, CLAIRE clique « Vérifier ma saisie » (jamais « Transmettre »). Profession (catégorie de l'INSEE) jamais remplie (étude 17/10). Commission d'agence : par l'« Assistant de saisie du montant de la commission » du guichet, montant TTC du côté qui paie (fiche), puis « Valider le montant de la commission » dans sa fenêtre ; les cases FI2MB ne sont jamais écrites directement.",
  "entree": {
   "commune": {
    "source": "terrain.commune",
@@ -51,6 +51,13 @@
      "optional": true
     },
     {
+     "label": "1) A (ont) recherché un acquéreur disposé à acquérir — toujours cochée (case GI1DA1)",
+     "source": "dia.rechercheAcquereur",
+     "code": "GI1DA1",
+     "type": "case",
+     "optional": true
+    },
+    {
      "forEach": "vendeurs.tous",
      "max": 2,
      "fields": [
@@ -64,12 +71,6 @@
        "label": "Propriétaire {n} — prénom (AI1PP{n})",
        "source": "{list}.{i}.prenom",
        "code": "AI1PP{n}",
-       "optional": true
-      },
-      {
-       "label": "Propriétaire {n} — profession, catégorie de l'INSEE (AI1MP{n})",
-       "source": "{list}.{i}.categorie",
-       "code": "AI1MP{n}",
        "optional": true
       }
      ]
@@ -355,34 +356,6 @@
      "optional": true
     },
     {
-     "label": "Commission — montant (FI2MB2)",
-     "source": "commission.total",
-     "code": "FI2MB2",
-     "transform": "entier",
-     "optional": true
-    },
-    {
-     "label": "Commission TTC (case FI2MB3)",
-     "source": "commission.ttc",
-     "code": "FI2MB3",
-     "type": "case",
-     "optional": true
-    },
-    {
-     "label": "Commission à la charge de l'acquéreur (case FI2MB5)",
-     "source": "commission.chargeAcquereur",
-     "code": "FI2MB5",
-     "type": "case",
-     "optional": true
-    },
-    {
-     "label": "Commission à la charge du vendeur (case FI2MB6)",
-     "source": "commission.chargeVendeur",
-     "code": "FI2MB6",
-     "type": "case",
-     "optional": true
-    },
-    {
      "label": "Acquéreur — nom (GI2PA2)",
      "source": "acquereur.nom",
      "code": "GI2PA2",
@@ -392,12 +365,6 @@
      "label": "Acquéreur — prénom (GI2PA1)",
      "source": "acquereur.prenom",
      "code": "GI2PA1",
-     "optional": true
-    },
-    {
-     "label": "Acquéreur — profession, catégorie de l'INSEE (GI2PA3)",
-     "source": "acquereur.categorie",
-     "code": "GI2PA3",
      "optional": true
     },
     {
@@ -609,6 +576,21 @@
    ]
   },
   {
+   "type": "commission",
+   "id": "commission",
+   "titre": "assistant de saisie du montant de la commission",
+   "source": "commission",
+   "declencheur": [
+    "FI2MB2"
+   ],
+   "montantCode": "FI2MB2",
+   "codes": [
+    "FI2MB"
+   ],
+   "suivi": "Commission",
+   "fermer": "^(fermer|annuler)$"
+  },
+  {
    "type": "adresse",
    "id": "adresseAcquereur",
    "titre": "assistant de saisie d.adresse",
@@ -661,6 +643,7 @@
   "Adresse du propriétaire",
   "Adresse",
   "Parcelles",
+  "Commission",
   "Adresse de l'acquéreur",
   "Signature",
   "Adresse de l'office",
@@ -668,5 +651,6 @@
   "Vérifier ma saisie",
   "Sauvegarder"
  ],
- "codeSignature": "GI7L"
+ "codeSignature": "GI7L",
+ "pageFin": 8
 }

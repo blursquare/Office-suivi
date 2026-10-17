@@ -42,6 +42,11 @@ test('le champ du formulaire fait foi pour le montant des honoraires du dossier'
   const cree = app.honorairesAvecMontantFormulaire(null, 9000, 'CENTURY 21');
   assert.equal(`${cree.negociateur}|${cree.nom}|${cree.montantTTC}|${cree.charge}`, 'agence|CENTURY 21|9000|null');
   assert.equal(app.honorairesAvecMontantFormulaire(null, '', 'X'), null);
+  // « Commission d'agence à la charge de » du formulaire (étude 17/10) : le choix remplace la charge lue ; vide, plus personne.
+  assert.equal(app.honorairesAvecMontantFormulaire(lu, 15000, 'X', 'VENDEUR').charge, 'VENDEUR');
+  assert.equal(app.honorairesAvecMontantFormulaire(lu, 15000, 'X', '').charge, null);
+  assert.equal(app.honorairesAvecMontantFormulaire(null, 9000, 'X', 'ACQUEREUR').charge, 'ACQUEREUR');
+  assert.equal(app.honorairesAvecMontantFormulaire(null, 9000, 'X', 'n’importe quoi').charge, null);
   assert.equal(app.honorairesAvecMontantFormulaire({ direct: true }, '', 'X').direct, true, 'négociation directe gardée');
   assert.equal(app.honorairesAvecMontantFormulaire({ direct: true }, 7000, 'X').montantTTC, 7000, 'un montant saisi remplace « directe »');
 });

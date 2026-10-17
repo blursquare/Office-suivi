@@ -15,6 +15,7 @@ body { margin: 0; padding: 12px; background: var(--paper); color: var(--ink); fo
 header { display: flex; justify-content: space-between; align-items: center; margin: 2px 2px 12px; }
 h1.marque { display: flex; align-items: center; gap: 8px; margin: 0; font: 500 22px/1 'Montserrat', system-ui, sans-serif; color: var(--ink); }
 h1.marque svg { flex: 0 0 auto; }
+h1.marque .sous-titre { font: 500 12px/1.2 system-ui, sans-serif; color: var(--muted, #8A93A9); margin-left: 2px; white-space: nowrap; }
 .link { cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .link::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .link.on { color: var(--ok); }
@@ -82,3 +83,4 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .etapes li.courante { color: var(--ink); font-weight: 600; }
 .etapes li.courante::before { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 .etapes li.passee { color: var(--muted); text-decoration: line-through; }
+

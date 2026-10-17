@@ -88,7 +88,7 @@ vente amiable/adjudication et modalités autres que le comptant : à remplir vou
 
 Jamais : « Transmettre ma demande » (texte ou `transmettreSaisie`), un identifiant (fenêtre « Me connecter à mon compte » = arrêt, vous vous
 reconnectez puis relancez : le brouillon est rouvert par son adresse), les listes recalculées par le site (`OPLSTPARCELLE`, `OPLSTCOPRO`,
-`COMMISSION`), le prix en lettres `FI1C` (écrit par le site depuis `FI1B`), les cases de déclaration `GI1DA1`, `GI5AA1`, `GI6AA1`. Cases
+`COMMISSION`), le prix en lettres `FI1C` (écrit par le site depuis `FI1B`), les cases de déclaration `GI5AA1`, `GI6AA1` (la case `GI1DA1`, « 1) A (ont) recherché un acquéreur disposé… », est toujours cochée — étude 17/10). Cases
 cochées par un vrai clic seulement quand la fiche le dit : nature du bien (non bâti / bâti sur terrain propre, d'après le type de vente),
 copropriété, commission TTC et à la charge de qui.
 

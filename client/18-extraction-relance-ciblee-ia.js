@@ -97,6 +97,7 @@
     document.getElementById('f-prix-vente').value = '';
     document.getElementById('f-prix-mobilier').value = '';
     document.getElementById('f-honoraires-agence').value = '';
+    document.getElementById('f-honoraires-charge').value = '';
     document.getElementById('f-depot-garantie').value = '';
     document.getElementById('f-sequestre-depot').value = '';
     document.getElementById('f-pret').value = '';
@@ -321,7 +322,10 @@
     pose('emailAcquereur', v => { d.emailAcquereur = v || ''; });
     pose('emailVendeur', v => { d.emailVendeur = v || ''; });
     pose('nomAgence', v => { d.nomAgence = v || ''; });
-    pose('honorairesAgence', v => { d.honoraires = honorairesAvecMontantFormulaire(d.honoraires || (e.instantane && e.instantane.honoraires) || null, v ? Number(v) : null, d.nomAgence); });
+    // La charge choisie dans le formulaire (étude 17/10) fait foi sur la clause lue ; vide, la charge lue ou celle de la fiche est gardée.
+    const chargeChoisie = e.chargeHonoraires === 'ACQUEREUR' || e.chargeHonoraires === 'VENDEUR' ? e.chargeHonoraires : undefined;
+    const chargeAvant = d.honoraires && !d.honoraires.direct ? d.honoraires.charge : null;
+    pose('honorairesAgence', v => { d.honoraires = honorairesAvecMontantFormulaire(d.honoraires || (e.instantane && e.instantane.honoraires) || null, v ? Number(v) : null, d.nomAgence, chargeAvant ? undefined : chargeChoisie); });
     pose('depotGarantie', v => { d.depotGarantie = v ? Number(v) : null; });
     pose('sequestreDepot', v => { d.sequestreDepot = v || ''; });
     pose('notaireVendeur', v => { d.notaireVendeur = v || ''; });
@@ -357,6 +361,11 @@
       if (!d.extraction && inst.extraction) d.extraction = inst.extraction;
       if (!d.honoraires && inst.honoraires) { d.honoraires = inst.honoraires; textes.push('honoraires de négociation'); }
       if (!d.fondsTravaux && inst.fondsTravaux) { d.fondsTravaux = inst.fondsTravaux; textes.push('fonds de travaux'); }
+    }
+    // Commission : le choix du formulaire complète une fiche qui ne disait pas qui paie (la fiche gagne sinon, comme le reste).
+    if (chargeChoisie && !chargeAvant && d.honoraires && !d.honoraires.direct && d.honoraires.charge !== chargeChoisie) {
+      d.honoraires = Object.assign({}, d.honoraires, { charge: chargeChoisie });
+      textes.push(chargeChoisie === 'ACQUEREUR' ? 'commission d’agence à la charge de l’acquéreur' : 'commission d’agence à la charge du vendeur');
     }
     const detectes = (e.notairesDetectes || []).filter(n => n && n.nom && !(d.notairesDetectes || []).some(x => x && x.nom === n.nom));
     if (detectes.length) d.notairesDetectes = (d.notairesDetectes || []).concat(detectes);
@@ -405,7 +414,8 @@
       notairesDetectes: notairesDetectesAnnuaire(cotes.detectes),
       telephones: { acquereur: (ch.telephoneAcquereur && ch.telephoneAcquereur.valeur) || '', vendeur: (ch.telephoneVendeur && ch.telephoneVendeur.valeur) || '' },
       compromisNomFichier: compromisNomFichierImporte || '', pdfNumPages: pdfDernierePageUtile,
-      sansPret: !echeanceActive.pret, reminderDays: getSelectedReminderDays()
+      sansPret: !echeanceActive.pret, reminderDays: getSelectedReminderDays(),
+      chargeHonoraires: (document.getElementById('f-honoraires-charge') || {}).value || ''
     };
   }
 
@@ -806,7 +816,7 @@
       },
       typeActe: instantane ? instantane.typeActe : null,
       parties: instantane ? instantane.parties : [],
-      honoraires: honorairesAvecMontantFormulaire(instantane ? instantane.honoraires : null, honorairesAgence, nomAgence),
+      honoraires: honorairesAvecMontantFormulaire(instantane ? instantane.honoraires : null, honorairesAgence, nomAgence, document.getElementById('f-honoraires-charge').value),
       fondsTravaux: instantane ? instantane.fondsTravaux : null,
       notaires: instantane ? instantane.notaires : null,
       bien: instantane ? instantane.bien : null,

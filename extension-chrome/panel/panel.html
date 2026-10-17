@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CLAIRE — CU et DIA</title>
+  <title>CLAIRE — CU a) et DIA automatique</title>
   <link rel="icon" href="../icons/claire-32.png">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="panel.css">
@@ -17,6 +17,7 @@
         <path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
       <span>Claire</span>
+      <small class="sous-titre">CU a) et DIA automatique</small>
     </h1>
     <span id="link" class="link off" title="Serveur CLAIRE du bureau">CLAIRE non réglé</span>
   </header>
@@ -52,10 +53,11 @@
       <label>Vitesse
         <select id="speed">
           <option value="slow">Lente</option>
-          <option value="normal" selected>Normale</option>
-          <option value="fast">Rapide</option>
+          <option value="normal">Normale</option>
+          <option value="fast" selected>Rapide</option>
         </select>
       </label>
+      <button type="button" id="oublier-brouillons" class="lien">Oublier les brouillons gardés (repartir d’une nouvelle demande)</button>
       <button type="button" id="structure" class="lien">Copier la structure de la page (sans données)</button>
     </details>
   </section>

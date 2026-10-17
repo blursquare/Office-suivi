@@ -9,19 +9,45 @@ const path = require('path');
 const { ficheGnau, dossiersGnau, choisirPlanCadastral } = require('../gnau');
 const { listerPdfRecursif, resoudreCheminNas, fichiersLesPlusRecents } = require('../nas');
 const { noterVerification } = require('../verificationsTerrain');
+const { origineRequete } = require('./authentic');
+const { adressesLan } = require('../reseau');
 
 const RE_ID = /^[A-Za-z0-9_-]{1,80}$/;
 const aujourdhuiParis = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
 
 const TAILLE_MAX_PLAN = 15 * 1024 * 1024;
+const DUREE_OUVERTURE_MS = 10 * 60 * 1000;
 
 /** @param {any} depot @param {any} parametresRepo @param {any} [config] */
 function creerRouteurGnau(depot, parametresRepo, config) {
   const routeur = express.Router();
+  /** @type {Map<string, { id: string, le: number }>} */
+  const ouvertures = new Map();
+  const posteDe = (req) => origineRequete(req, adressesLan);
 
   routeur.get('/gnau/dossiers', (req, res) => {
     const q = String(req.query.q || '').slice(0, 80);
     res.json({ dossiers: dossiersGnau(depot.tousActifs(), q) });
+  });
+
+  // Lien du guichet cliqué dans CLAIRE (Constitution de dossier, étude 17/10 : « ouvrir Chrome avec l'add-on ouvert ») : le dossier est
+  // retenu 10 minutes en mémoire du serveur, l'extension le propose (bouton sur la page du guichet, dossier choisi d'avance dans le
+  // panneau). Un par poste (adresse réseau : la fenêtre CLAIRE et l'extension d'un même poste, « local » pour le poste serveur).
+  routeur.post('/gnau/ouverture', (req, res) => {
+    const id = String((req.body && req.body.dossierId) || '');
+    if (!RE_ID.test(id)) { res.status(400).json({ erreur: 'Identifiant de dossier invalide.' }); return; }
+    const d = depot.trouverParId(id);
+    if (!d || d.deleted || d.typeAffaire === 'succession') { res.status(404).json({ erreur: 'Dossier introuvable.' }); return; }
+    ouvertures.set(posteDe(req), { id, le: Date.now() });
+    if (ouvertures.size > 50) ouvertures.delete(ouvertures.keys().next().value);
+    res.json({ ok: true });
+  });
+  routeur.get('/gnau/ouverture', (req, res) => {
+    const ouverture = ouvertures.get(posteDe(req));
+    if (!ouverture || Date.now() - ouverture.le > DUREE_OUVERTURE_MS) { res.json({ dossier: null }); return; }
+    const d = depot.trouverParId(ouverture.id);
+    const dossier = d && !d.deleted ? dossiersGnau([d], '')[0] || null : null;
+    res.json({ dossier, le: ouverture.le });
   });
 
   routeur.get('/gnau/fiche/:id', (req, res) => {

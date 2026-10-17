@@ -723,12 +723,15 @@
   // (étude, 03/10) — le champ fait foi pour le MONTANT : vidé, le montant lu s'efface ; rempli sans clause lue,
   // une agence est créée (à la charge de personne tant que l'étude ne l'a pas dit : aucune ligne d'appel de
   // fonds n'est ajoutée sans qui paie). « Négociation directe » n'est remplacée que par un montant saisi.
-  function honorairesAvecMontantFormulaire(honoraires, montant, nomAgence) {
+  // `charge` (facultatif) : le choix « Commission d'agence à la charge de » du formulaire (étude 17/10) — 'ACQUEREUR', 'VENDEUR', ou
+  // '' quand rien n'est choisi ; absent (undefined), la charge lue est gardée.
+  function honorairesAvecMontantFormulaire(honoraires, montant, nomAgence, charge) {
     const m = Number(montant);
     const h = honoraires && typeof honoraires === 'object' ? honoraires : null;
     if (!(m > 0)) return h && !h.direct ? honorairesPersistables(Object.assign({}, h, { montantTTC: null })) : h;
     const base = h && !h.direct ? h : { negociateur: 'agence', nom: '', charge: null };
-    return honorairesPersistables(Object.assign({}, base, { montantTTC: m, nom: base.nom || nomAgence || '' }));
+    const qui = charge === undefined ? base.charge : (charge === 'ACQUEREUR' || charge === 'VENDEUR' ? charge : null);
+    return honorairesPersistables(Object.assign({}, base, { montantTTC: m, nom: base.nom || nomAgence || '', charge: qui }));
   }
   function fondsTravauxPersistable(f) {
     if (!f || typeof f !== 'object' || typeof f.rembourse !== 'boolean') return null;
