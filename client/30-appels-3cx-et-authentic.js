@@ -2045,49 +2045,6 @@
     return `Type de vente : ${LIBELLES_TYPE_VENTE_AUTHENTIC[type]} (fiche bien Authentic ; avant : ${r.avant || 'non renseigné'})`;
   }
 
-  // Fiche bien lue après la création (étude 06/10) : ses parcelles absentes de la fiche du dossier y sont ajoutées — jamais à la
-  // place de celles déjà là (saisies à la main ou lues dans le compromis). Rien si la fiche contredit le dossier (resultat.raison).
-  function appliquerBienAuthentic(d, bien, noter, resultat, o) {
-    if (!bien) return resultat;
-    // Page « Lots » (ni adresse ni cadastre) : rien à contredire, les lots complètent la fiche.
-    if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat, o);
-    if (!(bien.parcelles || []).length) return resultat;
-    const raison = bienAuthenticContreditDossier(d, bien);
-    if (raison) { resultat.raison = raison; return resultat; }
-    if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat, o);
-    else {
-      const texteType = appliquerTypeBienAuthentic(d, bien.type, o);
-      if (texteType) { noter(texteType); resultat.modifie = true; }
-      // Terre ou bois (12/10) : la pièce « Réponse SAFER » d'office, comme au passage à ce type sur la fiche.
-      if (texteType && d.typeVente === 'terre' && ajouterPieceSaferTerre(d)) noter('« Réponse SAFER » ajoutée aux pièces (terre agricole / terrain non bâti)');
-    }
-    appliquerBoisAuthentic(d, bien, noter, resultat);
-    const cad = (d.bien && d.bien.cadastre) || null;
-    const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
-    const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
-    const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
-    // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
-    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
-    const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
-    let complete = false;
-    const anciennes = deja.map(p => {
-      // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
-      const sienne = Object.assign({}, p);
-      const a = parBien.get(cleParcelle(p.section, p.numero));
-      Object.entries(details(a)).forEach(([k, v]) => { if (!sienne[k]) { sienne[k] = v; complete = true; } });
-      return sienne;
-    });
-    if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
-    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, 40);
-    d.bien = Object.assign({}, d.bien || {});
-    d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
-    if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
-    else noter('Nature, surface ou lieu-dit des parcelles complétés depuis Authentic');
-    appliquerBoisAuthentic(d, bien, noter, resultat);
-    resultat.modifie = true;
-    return resultat;
-  }
-
   // Parcelles en bois d'après Authentic (réponse de départ de l'analyse des droits de préemption ; une réponse de l'étude
   // l'emporte, voir prefillPreemption) : sur TOUTES les parcelles de la fiche, puis la fiche bien d'un dossier d'une seule
   // parcelle ; seulement pour une terre ; rien d'écrit si rien ne change (un dossier à plusieurs biens n'oscille plus).

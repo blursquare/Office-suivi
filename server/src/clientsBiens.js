@@ -16,6 +16,7 @@
 const crypto = require('crypto');
 const { adresseDecomposee } = require('./gnau');
 const C = require('../../commun/constitution');
+const DD = require('../../commun/donnees-dossier');
 
 /** @param {any} v */
 const texte = (v) => (v === undefined || v === null ? '' : String(v)).replace(/\s+/g, ' ').trim();
@@ -319,30 +320,22 @@ function parcelleNette(p, commune) {
   return { prefixe, section, numero, surface: m2, nature: texte(p.nature), lieuDit: texte(p.lieuDit), commune: texte(p.commune || commune).toUpperCase() };
 }
 
-/** Pure : les occurrences de biens (ventes : adresse + cadastre + lots ; successions : immeubles d'Authentic). @param {any[]} dossiers */
+/** Pure : les occurrences de biens — tous les biens de chaque dossier, lus comme partout ailleurs (commun/donnees-dossier.js : bien de la
+ * fiche, immeubles d'Authentic, biens d'une succession ; avant le 17/10, une vente ne montrait que son bien principal). @param {any[]} dossiers */
 function occurrencesBiens(dossiers) {
   /** @type {any[]} */
   const occ = [];
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
-    if (d.typeAffaire === 'succession') {
-      const ims = (d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : [];
-      ims.forEach((/** @type {any} */ im, /** @type {number} */ i) => {
-        const adr = adresseDecomposee(texte(im && im.adresse), { codePostal: im && im.codePostal, commune: im && im.commune });
-        const parcelles = ((im && im.parcelles) || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
-        if (!parcelles.length && !adr.voie && !adr.lieuDit) return;
-        occ.push({ id: `${d.id}:im${i}`, dossier: d, adresse: texte(im.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles,
-          lots: Array.isArray(im.lots) ? im.lots : [], type: texte(im.type) });
-      });
-      continue;
-    }
-    const adr = adresseDecomposee(texte(d.adresseBien));
-    const cad = d.bien && d.bien.cadastre;
-    const brutes = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [cad] : [])) : [];
-    const parcelles = brutes.map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
-    if (!parcelles.length && !texte(d.adresseBien)) continue;
-    occ.push({ id: `${d.id}:bien`, dossier: d, adresse: texte(d.adresseBien), commune: adr.commune, codePostal: adr.codePostal, parcelles,
-      lots: d.bien && Array.isArray(d.bien.lots) ? d.bien.lots : [], type: texte(d.typeVente) });
+    DD.biensDossier(d).forEach((/** @type {any} */ b, /** @type {number} */ i) => {
+      const adr = adresseDecomposee(texte(b.adresse), { codePostal: b.codePostal, commune: b.commune });
+      const parcelles = (b.parcelles || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
+      if (!parcelles.length && !adr.voie && !adr.lieuDit && !texte(b.adresse)) return;
+      // Le bien principal d'une vente garde son identifiant d'avant (`:bien`) : les liaisons et corrections de l'étude y restent attachées.
+      const id = b.principal ? `${d.id}:bien` : `${d.id}:im${i}`;
+      occ.push({ id, dossier: d, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles,
+        lots: Array.isArray(b.lots) ? b.lots : [], type: texte(b.type) || (b.principal ? texte(d.typeVente) : '') });
+    });
   }
   return occ;
 }

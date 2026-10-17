@@ -124,8 +124,15 @@
   // (`d.bien.natureBois`, posé seulement pour une terre) ou la nature de chaque parcelle.
   function boisDepuisFicheDossier(d) {
     if (d && d.bien && typeof d.bien.natureBois === 'boolean') return d.bien.natureBois;
-    const cad = d && d.bien && d.bien.cadastre;
-    return boisDesParcelles(cad && Array.isArray(cad.parcelles) ? cad.parcelles : []);
+    return boisDesParcelles(parcellesCommunePrincipaleDossier(d));
+  }
+
+  // Pure : les parcelles du dossier situées dans la commune de son bien principal (une parcelle sans commune connue y est comptée).
+  function parcellesCommunePrincipaleDossier(d) {
+    const toutes = parcellesDossier(d);
+    const principal = biensDossier(d).find(b => b.principal) || null;
+    const commune = texteNetDossier((principal && principal.commune) || '');
+    return toutes.filter(p => p && p.section && p.numero && (!commune || !p.commune || texteNetDossier(p.commune) === commune));
   }
 
   function prefillPreemption(d) {
@@ -136,9 +143,9 @@
     const cp = a.codePostal || (/\((\d{5})\)/.exec(d.adresseBien || '') || [])[1] || (/\b(\d{5})\b/.exec(d.adresseBien || '') || [])[1] || '';
     e.cp = cp;
     e.adresse = d.adresseBien || a.adresseComplete || '';
-    const cad = d.bien && d.bien.cadastre;
-    const parcelles = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : [cad]) : [];
-    e.parcelles = parcelles.filter(p => p && p.section && p.numero).map(p => `${p.section} ${p.numero}`).join(', ');
+    // Les parcelles de la commune du bien, toutes sources réunies (commun/donnees-dossier.js : fiche ET immeubles d'Authentic) ;
+    // celles d'une autre commune s'analysent dans l'outil ouvert sur cette commune.
+    e.parcelles = parcellesCommunePrincipaleDossier(d).map(p => `${p.section} ${p.numero}`).join(', ');
     const type = String(d.typeVente || '').toLowerCase();
     if (/copro/.test(type)) e.reponses.bien = 'lot-copro';
     else if (/terrain|terre/.test(type)) e.reponses.bien = 'terrain';

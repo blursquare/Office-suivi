@@ -80,7 +80,7 @@
   }
 
   /**
-   * Pure : les biens du dossier, toutes sources réunies — immeubles d'Authentic, bien principal de la fiche (adresse, cadastre, lots),
+   * Pure : les biens du dossier, toutes sources réunies — immeubles d'Authentic d'abord, bien principal de la fiche (adresse, cadastre, lots),
    * biens d'une succession —, sans doublon (même adresse ou une parcelle commune = le même bien), le bien principal d'abord.
    * Chaque bien : { adresse, codePostal, commune, type, lots, principal, sources: ['authentic'|'fiche'|'succession'],
    * parcelles: [{ prefixe, section, numero, commune, lieuDit, nature, surface, origine }] } ; une parcelle n'appartient qu'à un bien.
@@ -128,13 +128,14 @@
       });
     };
     const succession = d.typeAffaire === 'succession';
-    // Le bien principal d'une vente (la fiche : adresse, cadastre, lots), puis tous les immeubles d'Authentic, puis les biens d'une succession.
+    // Authentic d'abord (son ordre des parcelles, ses adresses), puis le bien principal d'une vente (la fiche : adresse, cadastre, lots),
+    // puis les biens d'une succession.
+    ((d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : []).forEach((/** @type {any} */ im) => { if (im) ajouterBien(im, 'authentic', false); });
     if (!succession) {
       const a = (d.bien && d.bien.adresse) || {};
       ajouterBien({ adresse: d.adresseBien, codePostal: a.codePostal, commune: a.commune, type: d.typeVente,
         parcelles: parcellesCadastre(d.bien && d.bien.cadastre), lots: d.bien && d.bien.lots }, 'fiche', true);
     }
-    ((d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : []).forEach((/** @type {any} */ im) => { if (im) ajouterBien(im, 'authentic', false); });
     (Array.isArray(d.biens) ? d.biens : []).forEach((/** @type {any} */ b) => {
       if (!b || typeof b !== 'object') return;
       // Un bien d'une succession porte ses parcelles en texte (« AB 12, AB 13 ») : lues comme telles.
@@ -206,7 +207,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ net, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
+  exporter({ texteNetDossier: net, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

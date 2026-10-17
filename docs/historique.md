@@ -20503,3 +20503,20 @@ par l'API demanderait une clé et coûterait des jetons à chaque envoi).
 Relecture : titres de section contrôlés par l'empreinte du texte indexé (`titreSectionRegles(doc, n)`, jamais un titre d'un autre texte juste après une mise à jour), règles indexées dès le démarrage du serveur, `POST /memoire/document/:id/texte|erreur` réservés aux PDF (le poste ne peut plus réécrire les règles ni un Word), source retirée sortie de la mémoire, limite de passages relevée pour l'historique (`MAX_PASSAGES_REGLES`), `.exe` reconstruit quand seuls CLAUDE.md ou l'historique changent, test « rien de nominatif » étendu au titre de section.
 Relecture de la garde : source réellement envoyée contrôlée (`feature:main`, `main` local), formes cachées reconnues (bash -c, eval, sous-shell, redirections, alias, *, amont origin/main), push exigé comme sous-commande, corps des documents en ligne ignorés, gh pr merge / API / outils GitHub vers main refusés, empreinte prise au début de `npm run verifier` (rien de noté si le contenu change pendant les tests), un seul passage du workflow par branche.
 Seconde relecture de la garde : lignes continuées, `bash -lc`, documents en ligne donnés à un shell, sous-commande en variable et alias de la configuration, suppression de main (`:main`), fusion automatique d'une demande (`enable_pr_auto_merge`) refusées ; lectures de l'API GitHub permises, écritures (contents, graphql) refusées ; un refus signale les fichiers non suivis qui séparent le contenu testé de HEAD ; workflow verifier.yml dans un seul groupe par branche (`ref_name`). Reste hors de portée (dit dans CLAUDE.md) : une modification faite à la main sur GitHub, un envoi depuis un autre clone.
+
+### 17/10/2026 07 h 40 — Authentic : une seule lecture des données pour tous les outils (0.272.1)
+
+Demande (16/10) : « Je trouve que la connexion entre Authentic et CLAIRE est bancale. Il manque souvent des données. Parfois tout le
+contenu est dans un outil mais pas dans un autre », puis « Les trois, dans l'ordre » (lecture unique, pages gardées par dossier, encadré
+« Reçu d'Authentic »). Étape 1 : `commun/donnees-dossier.js` (pur, poste et serveur) — `biensDossier` réunit les immeubles d'Authentic
+(`d.authentic.immeubles`, d'abord), le bien principal de la fiche (`d.adresseBien`, `d.bien.cadastre`, `d.bien.lots`) et les biens d'une
+succession (`d.biens`), sans doublon (une parcelle commune ou la même adresse = le même bien, détails des parcelles complétés) ;
+`parcellesDossier`, `ficheClientDe` (même nom dans n'importe quel ordre, sinon une seule fiche incluse — jamais deux candidates),
+`personneDossier`/`personnesDossier`, `fusionnerImmeubleAuthentic`. Branchés : Constitution (parcelles et domicile des vendeurs),
+extension GNAU (`server/src/gnau.js`), Clients et biens (tous les biens d'une vente, identifiant `:bien` du principal gardé pour les
+liaisons de l'étude), contrôle de l'urbanisme (parcelles de la commune du bien principal, nature « bois »), fiche (« parcelles » avec la
+commune quand elles sont dans plusieurs), Claire Scan (score par parcelle), agent « Demander à CLAIRE » (cadastre : section, numéro,
+commune, surface, nature). Perte à la source corrigée : une fiche bien lue APRÈS la création rejoint `d.authentic.immeubles`
+(`retenirImmeubleVenteAuthentic`, client/52 — `appliquerBienAuthentic` y est déplacé, client/30 étant à la limite des 3 000 lignes) ;
+la fiche bien d'un autre bien du même dossier (autre commune, déjà retenu par une parcelle ou l'adresse) complète cet immeuble au lieu
+d'être écartée ; un bien inconnu qui contredit la fiche reste écarté.

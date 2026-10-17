@@ -36,12 +36,8 @@
   }
 
   // Pure : la fiche client d'Authentic retenue sur le dossier pour cette personne (nom complet), ou null.
-  function ficheClientPourPersonneConstitution(d, nom) {
-    const fiches = Object.values((d && d.authentic && d.authentic.fichesClients) || {});
-    const cle = normaliserPourRecherche(nom || '').replace(/[^a-z0-9]+/g, ' ').trim();
-    return fiches.find(f => normaliserPourRecherche(f.nom || '').replace(/[^a-z0-9]+/g, ' ').trim() === cle)
-      || fiches.find(f => memePersonneParNom(f.nom, nom)) || null;
-  }
+  // (La même recherche pour tous les outils : commun/donnees-dossier.js.)
+  function ficheClientPourPersonneConstitution(d, nom) { return ficheClientDe(d, nom); }
 
   // Pure : { nom, cp } de la commune du bien d'après la fiche (« COMMUNE (41000), 9 rue… »), sinon l'adresse du bien d'Authentic.
   function communeDuDossierConstitution(d) {
@@ -94,10 +90,8 @@
       vues.add(cle);
       groupe(nomCommune, cpImmeuble, adresseImmeuble).parcelles.push({ prefixe, section, numero, lieuDit: String(p.lieuDit || ''), surface: String(p.surface || ''), actif: true, origine });
     };
-    ((d && d.authentic && d.authentic.immeubles) || []).forEach(im => (im.parcelles || []).forEach(p => ajouter(p, 'Authentic', im.commune, im.adresse ? normaliserAdresse(im.adresse) : '', im.codePostal)));
-    const cad = d && d.bien && d.bien.cadastre;
-    const fiche = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [cad] : [])) : [];
-    fiche.forEach(p => ajouter(p, 'Fiche', '', '', ''));
+    // Toutes les parcelles du dossier, lues comme partout ailleurs (commun/donnees-dossier.js) : bien de la fiche et immeubles d'Authentic.
+    parcellesDossier(d).forEach(p => ajouter(p, p.origine === 'authentic' ? 'Authentic' : 'Fiche', p.commune, p.adresseBien ? normaliserAdresse(p.adresseBien) : '', p.codePostal));
     if (!groupes.length && principale.nom) groupe(principale.nom, principale.cp, '');
     groupes.forEach(g => {
       if (!g.adresseImmeuble) {

@@ -12,6 +12,7 @@
 // garde des valeurs simples (dates ISO, nombres, textes).
 
 const C = Object.assign({}, require('../../commun/constitution'), require('../../commun/dossier'));
+const DD = require('../../commun/donnees-dossier');
 var NOTAIRE_SIGNATAIRE = 'Maître Sophie GOSSART';
 var LIEU_SIGNATURE = 'BLOIS';
 var NOTAIRE_NOM = 'GOSSART';
@@ -80,23 +81,13 @@ function parcellesGnau(d) {
     r.push({ prefixe, section, numero, surface: surfaceM2(p.surface), lieuDit: texte(p.lieuDit), adresse, commune,
       codePostal: (adrIm && adrIm.codePostal) || texte(im && im.codePostal) || bien.codePostal });
   };
-  ((d && d.authentic && d.authentic.immeubles) || []).forEach((/** @type {any} */ im) => ((im && im.parcelles) || []).forEach((/** @type {any} */ p) => ajouter(p, im)));
-  const cad = d && d.bien && d.bien.cadastre;
-  const fiche = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [cad] : [])) : [];
-  fiche.forEach((/** @type {any} */ p) => ajouter(p, null));
+  // Toutes les parcelles du dossier, lues comme partout ailleurs (commun/donnees-dossier.js) ; le bien principal garde l'adresse de la fiche.
+  DD.parcellesDossier(d).forEach((/** @type {any} */ p) => ajouter(p, p.principal ? null : { adresse: p.adresseBien, codePostal: p.codePostal, commune: p.commune }));
   return r;
 }
 
 /** Pure : la fiche client d'Authentic de cette personne (nom complet), ou null. @param {any} d @param {string} nom */
-function ficheClient(d, nom) {
-  const fiches = Object.values((d && d.authentic && d.authentic.fichesClients) || {}).filter(Boolean);
-  const m = motsDe(nom);
-  if (!m.length) return null;
-  const egal = fiches.find((/** @type {any} */ f) => motsDe(f.nom).join(' ') === m.join(' '));
-  if (egal) return egal;
-  const inclus = fiches.filter((/** @type {any} */ f) => { const mf = motsDe(f.nom); const [a, b] = mf.length <= m.length ? [mf, m] : [m, mf]; return a.length >= 2 && a.every((x) => b.includes(x)); });
-  return inclus.length === 1 ? inclus[0] : null;
-}
+function ficheClient(d, nom) { return DD.ficheClientDe(d, nom); }
 
 /** @param {any} c */
 function civiliteCourte(c) {

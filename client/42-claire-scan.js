@@ -143,13 +143,11 @@
     return voie.length >= 8 && /[a-z]{3}/.test(voie) ? voie : '';
   }
 
-  // Parcelles du dossier : [{ section: 'ab', numero: '123' }]. Pure.
+  // Parcelles du dossier : [{ section: 'ab', numero: '123' }] — toutes, fiche et immeubles d'Authentic (commun/donnees-dossier.js). Pure.
   function parcellesScan(d) {
-    const cad = d && d.bien && d.bien.cadastre;
-    return (typeof clesParcelles === 'function' ? clesParcelles(cad) : []).map(c => {
-      const [section, numero] = c.split(' ');
-      return { section: String(section || '').toLowerCase(), numero: String(numero || '') };
-    }).filter(p => /^[a-z]{1,2}$/.test(p.section) && /^\d{1,4}$/.test(p.numero));
+    const vues = new Set();
+    return parcellesDossier(d).map(p => ({ section: String(p.section || '').toLowerCase(), numero: String(p.numero || '').replace(/^0+(?=\d)/, '') }))
+      .filter(p => /^[a-z]{1,2}$/.test(p.section) && /^\d{1,4}$/.test(p.numero) && !vues.has(p.section + p.numero) && vues.add(p.section + p.numero));
   }
 
   // Personnes du dossier à chercher dans le scan : les parties (et leur nom d'usage), à défaut les

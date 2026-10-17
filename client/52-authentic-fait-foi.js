@@ -521,6 +521,77 @@
   // un côté resté vide. Ce qu'Authentic a donné est retenu (personnes, coordonnées, identité, adresse, prix, type de vente) : la
   // première page relevée après la création ne repose rien, et une valeur corrigée à la main dans « Vérifier » reste.
   // → les textes d'historique.
+  // Modifie d : la fiche bien lue rejoint les immeubles d'Authentic du dossier (`d.authentic.immeubles`, fusion par adresse ou parcelle
+  // commune — commun/donnees-dossier.js), comme à la création : avant le 17/10, une fiche bien lue APRÈS la création n'y entrait jamais
+  // et la Constitution, l'extension GNAU ou Clients et biens ne la voyaient pas. `seulementConnu` : n'accepte que la fusion avec un
+  // immeuble déjà retenu (jamais un nouvel immeuble). Rend true si la liste a changé.
+  function retenirImmeubleVenteAuthentic(d, bien, seulementConnu) {
+    if (!d || !bien || !(bien.parcelles || []).length) return false;
+    const a = bien.adresse || {};
+    const fiche = {
+      adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
+      type: bien.type || '', description: String(bien.description || '').slice(0, 160),
+      parcelles: bien.parcelles.slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
+        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
+    };
+    if ((bien.lots || []).length) fiche.lots = bien.lots.slice(0, 40);
+    const avant = (d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : [];
+    const liste = fusionnerImmeubleAuthentic(avant, fiche);
+    if (!liste || (seulementConnu && liste.length > avant.length)) return false;
+    d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });
+    return true;
+  }
+
+  // Fiche bien lue après la création (étude 06/10) : ses parcelles absentes de la fiche du dossier y sont ajoutées — jamais à la
+  // place de celles déjà là (saisies à la main ou lues dans le compromis). Rien si la fiche contredit le dossier (resultat.raison).
+  function appliquerBienAuthentic(d, bien, noter, resultat, o) {
+    if (!bien) return resultat;
+    // Page « Lots » (ni adresse ni cadastre) : rien à contredire, les lots complètent la fiche.
+    if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat, o);
+    if (!(bien.parcelles || []).length) return resultat;
+    const raison = bienAuthenticContreditDossier(d, bien);
+    if (raison) {
+      // Un autre bien du MÊME dossier (déjà retenu parmi ses immeubles, par une parcelle ou l'adresse) : il est complété, la fiche ne
+      // change pas. Un bien inconnu qui contredit la fiche reste écarté (page d'un autre dossier rangée ici par erreur).
+      if (retenirImmeubleVenteAuthentic(d, bien, true)) { noter('Fiche d’un autre bien du dossier lue dans Authentic : parcelles complétées'); resultat.modifie = true; }
+      else resultat.raison = raison;
+      return resultat;
+    }
+    if (retenirImmeubleVenteAuthentic(d, bien, false)) resultat.modifie = true;
+    if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat, o);
+    else {
+      const texteType = appliquerTypeBienAuthentic(d, bien.type, o);
+      if (texteType) { noter(texteType); resultat.modifie = true; }
+      // Terre ou bois (12/10) : la pièce « Réponse SAFER » d'office, comme au passage à ce type sur la fiche.
+      if (texteType && d.typeVente === 'terre' && ajouterPieceSaferTerre(d)) noter('« Réponse SAFER » ajoutée aux pièces (terre agricole / terrain non bâti)');
+    }
+    appliquerBoisAuthentic(d, bien, noter, resultat);
+    const cad = (d.bien && d.bien.cadastre) || null;
+    const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
+    const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
+    const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
+    // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
+    let complete = false;
+    const anciennes = deja.map(p => {
+      // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
+      const sienne = Object.assign({}, p);
+      const a = parBien.get(cleParcelle(p.section, p.numero));
+      Object.entries(details(a)).forEach(([k, v]) => { if (!sienne[k]) { sienne[k] = v; complete = true; } });
+      return sienne;
+    });
+    if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
+    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, 40);
+    d.bien = Object.assign({}, d.bien || {});
+    d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
+    if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+    else noter('Nature, surface ou lieu-dit des parcelles complétés depuis Authentic');
+    appliquerBoisAuthentic(d, bien, noter, resultat);
+    resultat.modifie = true;
+    return resultat;
+  }
+
   // Modifie d : TOUS les immeubles du dossier Authentic (adresse, type, parcelles avec leur commune) retenus à la création — un
   // dossier à plusieurs articles ne perd aucune parcelle (étude 15/10). d.authentic.immeubles, 12 au plus.
   function retenirImmeublesAuthentic(d, donnees) {
