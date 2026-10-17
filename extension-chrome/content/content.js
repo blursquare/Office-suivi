@@ -552,15 +552,18 @@
     const res = (f.piece || []).map((m) => new RegExp(m, "i"));
     const autre = /plan de masse|financement|plan de coupe|facade|photo/;
     // La ligne propre à CE champ : le plus proche bloc qui ne contient aucun autre champ de fichier.
+    // Le texte de la ligne de CE champ : en remontant tant que le bloc ne contient aucun autre champ de fichier (relevé de l'étude, 17/10 : le
+    // champ ne s'appelle que « Ajouter », l'intitulé « CU1. Un plan de situation » est plus haut dans sa ligne).
     const zone = (el) => {
-      for (let n = el.parentElement, k = 0; n && k < 6; n = n.parentElement, k++) {
-        if (n.querySelectorAll('input[type=file]').length > 1) return "";
-        const t = norm((n.innerText || "").slice(0, 300));
-        if (t) return t;
+      let t = "";
+      for (let n = el.parentElement, k = 0; n && k < 8; n = n.parentElement, k++) {
+        if (n.querySelectorAll('input[type=file]').length > 1) break;
+        t = norm((n.innerText || "").slice(0, 400));
+        if (res.some((r) => r.test(t))) return t;
       }
-      return "";
+      return t;
     };
-    const vise = (x) => { const t = libelleChamp(x) || zone(x); return !!t && !autre.test(t) && res.some((r) => r.test(t)); };
+    const vise = (x) => { const l = libelleChamp(x); const t = l && res.some((r) => r.test(l)) ? l : zone(x); return !!t && !autre.test(t) && res.some((r) => r.test(t)); };
     const trouves = [...document.querySelectorAll('input[type=file]')].filter(vise);
     if (!trouves.length) return false;
     if (trouves.length > 1) { if (((run.fields || {})[key] || {}).state !== "manuel") await noter(run, key, "manuel", "plusieurs champs de pièce parlent du plan : joignez-le vous-même"); return false; }
@@ -787,7 +790,9 @@
     }
     if (location.hash.startsWith(e.urlSaisie)) return "rien";
     // Fenêtre « Sélectionner une commune de dépôt ».
-    const select = document.querySelector(e.commune.selecteur);
+    // La liste des communes : par son sélecteur, sinon toute liste visible dont le bloc parle de la « commune de dépôt ».
+    const select = [...document.querySelectorAll(e.commune.selecteur)].find(visible)
+      || [...document.querySelectorAll("select")].filter(visible).find((x) => { for (let z = x.parentElement, k = 0; z && k < 6; z = z.parentElement, k++) if (/commune de depot/.test(norm(z.innerText || "").slice(0, 300))) return true; return false; });
     if (select && visible(select)) {
       const commune = getByPathLocal(run.fiche, e.commune.source);
       const opts = [...select.options].filter((o) => memeCommune(o.text, commune));
@@ -795,9 +800,14 @@
         await finish("awaiting_human", `Choisissez vous-même la commune de dépôt${commune ? ` (${commune})` : ""}, validez, puis relancez CLAIRE.`);
         return "fin";
       }
+      // Le choix se voit : bandeau, curseur sur la liste, la liste encadrée, pause d'une seconde avant « Valider la commune de dépôt ».
+      setBanner(`CLAIRE choisit la commune de dépôt : ${opts[0].text.trim()}`, "running");
       const pos = await moveTo(select, sp); ripple(pos.x, pos.y);
+      mark(select, true);
+      select.focus();
       setNativeSelect(select, opts[0].value);
-      await wait(sp.pause);
+      await wait(Math.max(sp.pause, 1000));
+      mark(select, false);
       const fen = select.closest(FENETRES) || document;
       const valider = boutonDansFenetre(fen, e.commune.valider);
       if (!valider) { await finish("awaiting_human", "Commune choisie : cliquez vous-même « Valider la commune de dépôt », puis relancez CLAIRE."); return "fin"; }
@@ -869,11 +879,20 @@
   // cadastrales » (Préfixe, Section, Numéro, Superficie → « Ajouter la parcelle », une par une → « Valider »). CLAIRE les remplit comme
   // l'étude : jamais par-dessus une adresse ou des parcelles déjà là ; « Valider » et « Je valide mon adresse » cliqués DANS leur assistant
   // seulement (seules exceptions nommées à la liste noire, comme la commune de dépôt).
+  // La fenêtre d'un assistant : par son TITRE, quelle que soit la façon dont le guichet dessine ses fenêtres (relevé de l'étude, 17/10 :
+  // le vrai guichet n'utilise pas la classe « modal ») — le bloc qui contient le titre, au moins un champ de saisie et un bouton « Fermer ».
   async function fenetreTitree(titre, max) {
     const re = new RegExp(titre, "i");
     for (const fin = Date.now() + (max || 5000); Date.now() < fin;) {
       const f = fenetresVisibles().find((x) => re.test(norm(x.innerText || "").slice(0, 200)));
       if (f) return f.closest(".modal") || f;
+      const titres = [...document.querySelectorAll("h1, h2, h3, h4, h5, h6, .modal-title, [class*=title], [class*=titre], div, span, p")]
+        .filter((t) => t.children.length <= 2 && (t.textContent || "").length <= 80 && re.test(norm(t.textContent)) && visible(t) && !t.closest("#claire-overlay"));
+      for (const t of titres) {
+        for (let z = t.parentElement, k = 0; z && z !== document.body && k < 8; z = z.parentElement, k++) {
+          if (champsVisibles(z).length && [...z.querySelectorAll("button, a, [role=button], input[type=button]")].some((b) => visible(b) && /^fermer$/.test(texteBouton(b)))) return z;
+        }
+      }
       await wait(200);
     }
     return null;
@@ -906,7 +925,7 @@
     if (deja) return { etat: "done", deja: true, detail: "adresse déjà saisie dans le guichet, laissée telle quelle" };
     const fen = await ouvrirAssistant(as, sp);
     if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
-    const recherche = champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
+    const recherche = [...fen.querySelectorAll("#saisieAdresseAuto")].find(visible) || champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
     if (!recherche) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant d’adresse : champ de recherche introuvable" }; }
     const requete = [t.numero, voie || t.lieuDit, t.codePostal, t.commune].filter(Boolean).join(" ");
     const lent = saisieDirecte; saisieDirecte = false; // la liste du guichet ne se déroule qu'à la frappe
@@ -946,7 +965,7 @@
     const cible = choix.querySelector("a") || choix;
     let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); cible.click();
     await wait(Math.max(sp.pause, 600));
-    if (t.lieuDit) { const ld = champParLibelle(fen, "^lieu-?dit"); if (ld && !String(ld.value || "").trim()) await typeInto(ld, String(t.lieuDit), sp); }
+    if (t.lieuDit && voie) { const ld = [...fen.querySelectorAll("#complement")].find(visible) || champParLibelle(fen, "^lieu-?dit"); if (ld && !String(ld.value || "").trim()) await typeInto(ld, String(t.lieuDit), sp); }
     const valider = boutonDansFenetre(fen, ["^je valide mon adresse$"]);
     if (!valider) { return { etat: "manuel", detail: "adresse choisie : cliquez vous-même « Je valide mon adresse »" }; }
     pos = await moveTo(valider, sp); ripple(pos.x, pos.y);

@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Guichet (copie d'essai)</title>
 <!-- Copie d'essai du guichet d'Agglopolys pour tests/fumee/extension-gnau.mjs : structure vue dans la vidéo de l'étude (17/10), données inventées. -->
-<style>.modal{position:fixed;top:40px;left:40px;background:#fff;border:1px solid #888;padding:10px;z-index:10;width:600px}.rond{display:inline-block;width:40px;height:40px;border-radius:50%;background:#035;color:#fff;text-align:center;line-height:40px;cursor:pointer;margin:4px}
+<style>.modal,.fenetre{position:fixed;top:40px;left:40px;background:#fff;border:1px solid #888;padding:10px;z-index:10;width:600px}.rond{display:inline-block;width:40px;height:40px;border-radius:50%;background:#035;color:#fff;text-align:center;line-height:40px;cursor:pointer;margin:4px}
 input[readonly]{background:#eef}</style></head><body>
 <div id="app"><div class="modal" id="spin">Traitements en cours</div></div>
 <script>
@@ -15,25 +15,26 @@ const accueil = () => `
 const cfg = () => window.__cfg || {};
 setTimeout(() => { app.innerHTML = accueil(); if (cfg().boutonsTard) { const z = app.querySelectorAll('.bloc')[1].lastElementChild; const h = z.innerHTML; z.innerHTML = ''; setTimeout(() => { z.innerHTML = h; }, 3500); } }, cfg().chargement || 2500);
 window.ouvrirCommune = () => { app.insertAdjacentHTML('beforeend', `<div class="modal" id="mc"><h4>Sélectionner une commune de dépôt de la demande</h4><select><option></option><option value="1">Averdon</option><option value="2">Blois</option><option value="3">Vineuil</option></select><button onclick="saisie()">Valider la commune de dépôt</button></div>`); };
-window.saisie = () => { location.hash = '#/saisie/19333'; app.innerHTML = `<h3>4.1 Adresse du (ou des) terrain(s)</h3>
+window.saisie = () => { const sc = document.querySelector('#mc select'); window.__commune = sc && sc.selectedIndex > 0 ? sc.options[sc.selectedIndex].text : ''; if (!window.__commune) return; location.hash = '#/saisie/19333'; app.innerHTML = `<h3>4.1 Adresse du (ou des) terrain(s)</h3>
  Numéro <input id="T2Q_numero" readonly onclick="assAdr()"> Voie <input id="T2V_voie" readonly onclick="assAdr()"> Lieu-dit <input id="T2W_lieudit" readonly onclick="assAdr()"> Localité <input id="T2L_localite" readonly onclick="assAdr()"> CP <input id="T2C_code" readonly onclick="assAdr()">
  <h3>4.2 Références cadastrales</h3>
- ${[1,2,3].map(i=>`Préfixe <input id="T2F_prefixe${i}" readonly onclick="assCad()"> Section <input id="T2S_section${i}" readonly onclick="assCad()"> Numéro <input id="T2N_numero${i}" readonly onclick="assCad()"> Sup <input id="T2T_superficie${i}" readonly onclick="assCad()"><br>`).join('')}
+ ${[1,2,3].map(i=>{ const p = i === 1 ? '' : 'P' + i; return `Préfixe <input id="T2F${p}_prefixe" readonly onclick="assCad()"> Section <input id="T2S${p}_section" readonly onclick="assCad()"> Numéro <input id="T2N${p}_numero" readonly onclick="assCad()"> Sup <input id="T2T${p}_superficie" readonly onclick="assCad()"><br>`; }).join('')}
  Total <input id="D5T_total" readonly> Fait à <input id="E1L_lieu"> Le <input id="E1D_date">
+ <div class="pieces"><div class="piece"><div>CU1. Un plan de situation</div><div><label class="btn">Ajouter <input type="file" id="file_input_P2UU1" onchange="window.__piece = this.files[0] && this.files[0].name"></label></div></div></div>
  <button ng-click="vm.transmettreSaisie()">Transmettre ma demande</button>`; };
-window.assAdr = () => { if (document.getElementById('ma')) return; app.insertAdjacentHTML('beforeend', `<div class="modal" id="ma"><h4>Assistant de saisie d'adresse</h4>
- <label for="rech">Rechercher une adresse</label><input id="rech" autocomplete="off"><ul id="sug" class="dropdown-menu"></ul>
- <label for="ld">Lieu-dit</label><input id="ld"><button onclick="validAdr()">Je valide mon adresse</button><button onclick="this.closest('.modal').remove()">Fermer</button></div>`);
- const r = document.getElementById('rech'); r.addEventListener('input', () => { const v = r.value.toLowerCase(); const s = document.getElementById('sug');
+window.assAdr = () => { if (document.getElementById('ma')) return; app.insertAdjacentHTML('beforeend', `<div class="fenetre" id="ma"><div class="entete"><span>Assistant de saisie d'adresse</span></div>
+ <label for="saisieAdresseAuto">Rechercher une adresse</label><input id="saisieAdresseAuto" autocomplete="off"><ul id="sug" class="dropdown-menu"></ul>
+ <label for="complement">Lieu-dit</label><input id="complement"><button onclick="validAdr()">Je valide mon adresse</button><button onclick="this.closest('.fenetre').remove()">Fermer</button></div>`);
+ const r = document.getElementById('saisieAdresseAuto'); r.addEventListener('input', () => { const v = r.value.toLowerCase(); const s = document.getElementById('sug');
    s.innerHTML = v.length < 5 ? '' : (cfg().adresses || ['51 Rue Racine 41000 Blois','51 Rue du Foix 41000 Blois','51 Rue Gallieni 41000 Blois']).filter(x => x.toLowerCase().includes(v.split(' ').slice(0,2).join(' ')) || v.includes('racine') && x.includes('Racine')).map(x => `<li><a href="#" onclick="event.preventDefault();choix('${x}')">${x}</a></li>`).join(''); }); };
 let adr = null;
-window.choix = (x) => { adr = x; document.getElementById('rech').value = x; document.getElementById('sug').innerHTML = ''; };
-window.validAdr = () => { if (!adr) return; const m = /^(\d+) (.*) (\d{5}) (.*)$/.exec(adr); T2Q_numero.value = m[1]; T2V_voie.value = m[2].toUpperCase(); T2L_localite.value = m[4]; T2C_code.value = m[3]; T2W_lieudit.value = document.getElementById('ld').value; document.getElementById('ma').remove(); };
+window.choix = (x) => { adr = x; document.getElementById('saisieAdresseAuto').value = x; document.getElementById('sug').innerHTML = ''; };
+window.validAdr = () => { if (!adr) return; const m = /^(\d+) (.*) (\d{5}) (.*)$/.exec(adr); T2Q_numero.value = m[1]; T2V_voie.value = m[2].toUpperCase(); T2L_localite.value = m[4]; T2C_code.value = m[3]; T2W_lieudit.value = document.getElementById('complement').value; document.getElementById('ma').remove(); };
 let parc = null;
-window.assCad = () => { if (document.getElementById('mcad')) return; if (!parc) { parc = (cfg().parcellesInit || []).slice(); window.__parcelles = parc; } app.insertAdjacentHTML('beforeend', `<div class="modal" id="mcad"><h4>Assistant de saisie des références cadastrales</h4>
+window.assCad = () => { if (document.getElementById('mcad')) return; if (!parc) { parc = (cfg().parcellesInit || []).slice(); window.__parcelles = parc; } app.insertAdjacentHTML('beforeend', `<div class="fenetre" id="mcad"><div class="entete"><span>Assistant de saisie des références cadastrales</span></div>
  <label for="cp">Préfixe</label><input id="cp"><label for="cs">Section *</label><input id="cs"><label for="cn">Numéro *</label><input id="cn" type="number"><label for="cu">Superficie *</label><input id="cu" type="number">
- <button onclick="ajout()">Ajouter la parcelle +</button><table><tbody id="tb"></tbody></table><button onclick="validCad()">Valider</button><button onclick="this.closest('.modal').remove()">Fermer</button></div>`); dessine(); };
+ <button onclick="ajout()">Ajouter la parcelle +</button><table><tbody id="tb"></tbody></table><button onclick="validCad()">Valider</button><button onclick="this.closest('.fenetre').remove()">Fermer</button></div>`); dessine(); };
 const dessine = () => { tb.innerHTML = parc.map(p => `<tr><td>${p.pre}</td><td>${p.s}</td><td>${p.n}</td><td>${p.u} m²</td></tr>`).join(''); };
 window.ajout = () => { if (!cs.value || !cn.value || !cu.value) return; window.__parcelles = parc; parc.push({ pre: cp.value, s: cs.value.toUpperCase(), n: cn.value, u: cu.value }); cp.value = cs.value = cn.value = cu.value = ''; dessine(); };
-window.validCad = () => { parc.slice(0,3).forEach((p,i) => { document.getElementById('T2S_section'+(i+1)).value = p.s; document.getElementById('T2N_numero'+(i+1)).value = p.n; document.getElementById('T2T_superficie'+(i+1)).value = p.u; }); D5T_total.value = parc.reduce((a,p)=>a+Number(p.u),0); mcad.remove(); };
+window.validCad = () => { parc.slice(0,3).forEach((p,i) => { const q = i ? 'P' + (i+1) : ''; document.getElementById('T2S'+q+'_section').value = p.s; document.getElementById('T2N'+q+'_numero').value = p.n; document.getElementById('T2T'+q+'_superficie').value = p.u; }); D5T_total.value = parc.reduce((a,p)=>a+Number(p.u),0); mcad.remove(); };
 </script></body></html>

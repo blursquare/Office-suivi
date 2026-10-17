@@ -161,7 +161,7 @@ test('guichet d’Agglopolys : toutes les parcelles de la fiche (lignes lues dan
 
 // Vidéo de l'étude (17/10) : adresse et parcelles par les assistants du guichet d'Agglopolys, CU et DIA.
 test('guichet d’Agglopolys : adresse et parcelles par les assistants du guichet (CU et DIA)', () => {
-  for (const [nom, voie, section] of [['cua-gnau-agglopolys.json', 'T2V_voie', 'T2S'], ['dia-gnau-agglopolys.json', 'BI1V', 'BI3S']]) {
+  for (const [nom, voie, section, famille] of [['cua-gnau-agglopolys.json', 'T2V_voie', 'T2S', 'T2S'], ['dia-gnau-agglopolys.json', 'BI1V', 'BI3SA1', 'BI3S']]) {
     const sc = scenario(nom);
     const adr = sc.assistants.find((a) => a.type === 'adresse');
     const cad = sc.assistants.find((a) => a.type === 'parcelles');
@@ -172,11 +172,13 @@ test('guichet d’Agglopolys : adresse et parcelles par les assistants du guiche
     assert.ok(new RegExp(cad.titre).test('assistant de saisie des references cadastrales'));
     // Chaque champ d'adresse et de parcelle du scénario est couvert par son assistant (jamais écrit directement).
     const champs = sc.pages[0].fields.flatMap((c) => (c.forEach ? c.fields : [c]));
-    for (const c of champs.filter((c) => c.code && (c.code.startsWith(voie.slice(0, 3)) || c.famille === section))) {
+    for (const c of champs.filter((c) => c.code && (c.code.startsWith(voie.slice(0, 3)) || c.famille === famille))) {
       const code = String(c.famille || c.code);
       assert.ok([...adr.codes, ...cad.codes].some((x) => code.startsWith(x)), `${nom} : ${code}`);
     }
   }
+  // Relevé de l'étude (17/10, DIA) : les lignes de parcelles s'appellent BI3SA1, BI3SB5… — sans « _ », le code de famille seul ne les trouve pas.
+  assert.equal(scenario('dia-gnau-agglopolys.json').assistants.find((a) => a.type === 'parcelles').declencheur[0], 'BI3SA1');
   const src = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
   // « Valider » et « Je valide mon adresse » : seulement dans leur assistant (boutonDansFenetre), jamais par cliquableParTexte.
   assert.ok(/boutonDansFenetre\(fen, \["\^je valide mon adresse\$"\]\)/.test(src));

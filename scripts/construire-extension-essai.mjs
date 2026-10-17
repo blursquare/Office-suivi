@@ -63,6 +63,26 @@ globalThis.CLAIRE_ESSAI = ${JSON.stringify({ dossiers: liste, fiches }, null, 1)
   };
 })();
 `);
+// Plan cadastral de l'essai : un PDF inventé d'une page (« PLAN CADASTRAL — ESSAI »), joint à la pièce CU1 comme le plan du NAS au bureau.
+const pdf = (() => {
+  const texte = 'BT /F1 28 Tf 72 720 Td (PLAN CADASTRAL - ESSAI) Tj 0 -40 Td /F1 14 Tf (Donnees inventees - ne pas transmettre) Tj ET';
+  const objets = ['<< /Type /Catalog /Pages 2 0 R >>', '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${texte.length} >>\nstream\n${texte}\nendstream`, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+  let corps = '%PDF-1.4\n';
+  const positions = objets.map((o, i) => { const pos = corps.length; corps += `${i + 1} 0 obj\n${o}\nendobj\n`; return pos; });
+  const xref = corps.length;
+  corps += `xref\n0 ${objets.length + 1}\n0000000000 65535 f \n` + positions.map((p) => String(p).padStart(10, '0') + ' 00000 n \n').join('')
+    + `trailer\n<< /Size ${objets.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(corps, 'latin1').toString('base64');
+})();
+fs.writeFileSync(path.join(cible, 'lib', 'plan-essai.js'), `// Plan inventé de l'extension d'essai.\nglobalThis.CLAIRE_PLAN_ESSAI = ${JSON.stringify(pdf)};\n`);
+let bg = fs.readFileSync(path.join(cible, 'background.js'), 'utf8');
+const repereBg = 'case "content.plan": {';
+if (!bg.includes(repereBg)) throw new Error('background.js a changé (' + repereBg + ') : adapter la construction de l’essai.');
+bg = 'importScripts("lib/plan-essai.js");\n' + bg.replace(repereBg, repereBg + '\n      if (globalThis.CLAIRE_PLAN_ESSAI) return { nom: "Plan cadastral (essai).pdf", source: "essai", b64: globalThis.CLAIRE_PLAN_ESSAI };');
+fs.writeFileSync(path.join(cible, 'background.js'), bg);
+
 let html = fs.readFileSync(path.join(cible, 'panel', 'panel.html'), 'utf8');
 for (const repere of ['<script src="panel.js"></script>', '<section class="card" id="connexion">']) {
   if (!html.includes(repere)) throw new Error('panel.html a changé (' + repere + ') : adapter la construction de l’essai.');

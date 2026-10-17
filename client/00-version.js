@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.275.0';
+  const VERSION_APP = '0.275.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.275.1', date: '2026-10-17 15:13', resume: "Extension Chrome (0.7.1), d'après les relevés de l'étude sur le vrai guichet d'Agglopolys : l'assistant d'adresse et celui des parcelles sont reconnus quelle que soit leur fenêtre ; recherche d'adresse et lieu-dit par leurs vrais champs ; plan joint à « CU1. Un plan de situation » ; parcelles de la DIA trouvées (BI3SA1…) ; choix de la commune de dépôt affiché. Extension d'essai : un plan cadastral inventé est joint." },
     { version: '0.275.0', date: '2026-10-17 13:27', resume: "Extension Chrome (0.7.0) sur le guichet d'Agglopolys : la démarche est trouvée dans « Formuler » même quand l'accueil met du temps à s'afficher ; l'adresse du bien et les parcelles sont saisies par les assistants du guichet, comme dans la vidéo de l'étude — recherche de l'adresse et choix de la bonne proposition, chaque parcelle avec sa superficie puis « Valider » ; CU et DIA. Adresse sans proposition conforme : laissée à l'étude." },
     { version: '0.274.4', date: '2026-10-17 12:51', resume: "Succession : un héritier dont le nom est proche de celui du défunt (« Paul ESSAI », défunt « Jean Paul ESSAI ») n'est plus pris pour le défunt et réapparaît parmi les héritiers ; le défunt reste reconnu sous son premier prénom seul (« Jean ESSAI »), jamais sous un prénom composé différent (« Jean-Pierre »)." },
     { version: '0.274.3', date: '2026-10-17 12:15', resume: "Onglet Dossier : un titre par groupe de cartes (Vendeur(s), Acquéreur(s), Bien(s) ; Défunt, Héritier(s) pour une succession) ; la civilité s'affiche aussi pour le défunt et les héritiers d'une succession." },

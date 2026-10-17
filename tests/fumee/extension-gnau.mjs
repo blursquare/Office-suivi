@@ -20,7 +20,7 @@ async function jouer(fiche, avant) {
     const journal = [];
     await page.exposeFunction('__envoi', (m) => { journal.push(m); return null; });
     await page.addInitScript((r) => {
-      window.chrome = { runtime: { sendMessage: async (m) => { await window.__envoi(m); return m.type === 'content.hello' ? r : {}; }, onMessage: { addListener() {} } } };
+      window.chrome = { runtime: { sendMessage: async (m) => { await window.__envoi(m); if (m.type === 'content.hello') return r; if (m.type === 'content.plan') return { nom: 'Plan cadastral.pdf', b64: btoa('%PDF-1.4 essai') }; return {}; }, onMessage: { addListener() {} } } };
       window.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[ng-click]'); if (t && /transmettre/i.test(t.getAttribute('ng-click'))) window.__transmis = true; }, true);
     }, run);
     page.on('pageerror', (e) => erreurs.push('erreur de page : ' + e.message));
@@ -29,7 +29,7 @@ async function jouer(fiche, avant) {
     for (const f of ['lib/fiche.js', 'content/content.js']) await page.addScriptTag({ path: path.join(ext, f) });
     for (let i = 0; i < 400 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
     const valeurs = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('input[id]')].map((i) => [i.id, i.value])));
-    const etat = await page.evaluate(() => ({ hash: location.hash, transmis: !!window.__transmis, carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
+    const etat = await page.evaluate(() => ({ commune: window.__commune || '', piece: window.__piece || '', hash: location.hash, transmis: !!window.__transmis, carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
     return { journal, valeurs, etat, assistants: Object.fromEntries(journal.filter((m) => m.type === 'content.assistant').map((m) => [m.assistant, m])) };
   } finally { await browser.close(); }
 }
@@ -40,16 +40,18 @@ const base = { terrain: { numero: '51', voie: 'Rue Racine', commune: 'BLOIS', co
 
 const a = await jouer(base);
 verifier(a.etat.hash === '#/saisie/19333', 'la démarche de « Formuler » est ouverte après le chargement');
+verifier(a.etat.commune === 'Blois', 'commune de dépôt = celle du dossier (Blois) : ' + a.etat.commune);
 verifier(a.valeurs.T2V_voie === 'RUE RACINE' && a.valeurs.T2Q_numero === '51' && a.valeurs.T2C_code === '41000', 'adresse posée par l’assistant');
-verifier(a.valeurs.T2S_section1 === 'BA' && a.valeurs.T2N_numero3 === '23' && a.valeurs.D5T_total === '2989', 'parcelles posées par l’assistant (4, la dernière en annexe)');
+verifier(a.valeurs.T2S_section === 'BA' && a.valeurs.T2NP3_numero === '23' && a.valeurs.D5T_total === '2989', 'parcelles posées par l’assistant (4, la dernière en annexe)');
 verifier(a.etat.lignes === 4, 'quatre parcelles, aucune deux fois');
 verifier(!a.etat.transmis, '« Transmettre ma demande » jamais cliqué');
+verifier(a.etat.piece === 'Plan cadastral.pdf', 'plan joint à « CU1. Un plan de situation » (champ nommé « Ajouter ») : ' + a.etat.piece);
 verifier((a.assistants.parcelles || {}).etat === 'done' && (a.assistants.adresse || {}).etat === 'done', 'assistants faits');
 
 const b = await jouer(Object.assign({}, base, { terrain: { numero: '9', voie: 'Chemin Inconnu', commune: 'BLOIS', codePostal: '41000' } }));
 verifier((b.assistants.adresse || {}).etat === 'manuel', 'adresse sans proposition conforme : laissée à l’étude');
 verifier(!b.valeurs.T2V_voie, 'aucune adresse proposée par erreur');
-verifier(b.valeurs.T2S_section1 === 'BA', 'les parcelles restent saisies');
+verifier(b.valeurs.T2S_section === 'BA', 'les parcelles restent saisies');
 
 // Relecture du 17/10 : voie proche, autre numéro, autre commune ; parcelle déjà au tableau (zéros en tête) ; boutons « Formuler » dessinés après
 // le reste avec un bloc « Mes dossiers » ; chargement de 25 s.
@@ -58,6 +60,7 @@ verifier((c.assistants.adresse || {}).etat === 'manuel' && !c.valeurs.T2V_voie, 
 const d = await jouer(Object.assign({}, base, { terrain: { numero: '51', voie: 'Rue Racine', commune: 'VINEUIL', codePostal: '41350' } }),
   () => { window.__cfg = { adresses: ['51 Rue Racine 41350 Saint-Claude-de-Diray'] }; });
 verifier((d.assistants.adresse || {}).etat === 'manuel' && !d.valeurs.T2V_voie, 'même voie dans une autre commune refusée');
+verifier(d.etat.commune === 'Vineuil', 'commune de dépôt = celle du dossier (Vineuil) : ' + d.etat.commune);
 const e = await jouer(base, () => { window.__cfg = { parcellesInit: [{ pre: '', s: 'BA', n: '0021', u: '234' }] }; });
 verifier(e.etat.lignes === 4, 'parcelle déjà au tableau (« BA 0021 ») jamais rajoutée : ' + e.etat.lignes);
 const f = await jouer(base, () => { window.__cfg = { boutonsTard: true, titreSuivi: 'MES DOSSIERS' }; });

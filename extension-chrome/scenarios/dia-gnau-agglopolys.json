@@ -1,7 +1,7 @@
 {
  "id": "dia-gnau-agglopolys",
  "name": "DIA — guichet d'Agglopolys",
- "version": 2,
+ "version": 3,
  "auto": true,
  "pagesMax": 10,
  "saisieDirecte": true,
@@ -426,12 +426,12 @@
    "titre": "assistant de saisie des references cadastrales",
    "source": "parcelles",
    "declencheur": [
-    "BI3S",
-    "BI3N",
-    "BI3F",
-    "BI3T"
+    "BI3SA1",
+    "BI3NA1",
+    "BI3FA1",
+    "BI3TA1"
    ],
-   "sectionCode": "BI3S",
+   "sectionCode": "BI3SA1",
    "codes": [
     "BI3F",
     "BI3S",
