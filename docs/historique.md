@@ -20635,3 +20635,5 @@ Blois (l'assistant ne propose que des adresses existantes : l'adresse fictive du
 le modèle d'Angular par le nom de la ville (`content.communeChoisirAngular`) : la liste affichait Blois, Angular retenait Candé-sur-Beuvron.
 Frappe de la recherche d'adresse dans le monde de la page (`content.taper`). CU : après la page de la signature, directement le plan,
 « Vérifier ma saisie » puis « Sauvegarder » (`finApresCode`).
+
+0.276.1 (17/10) : la construction du .exe échouait depuis la 0.275.0 — `tests/fumee/extension-gnau.mjs` lançait Chromium par `/opt/pw-browsers/chromium` (chemin du conteneur de développement) quand `PLAYWRIGHT_BROWSERS_PATH` n'était pas posé, ce qui est le cas sur GitHub. Il appelle désormais `chromium.launch()` comme `fumee.mjs`.

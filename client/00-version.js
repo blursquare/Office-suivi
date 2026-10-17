@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.276.0';
+  const VERSION_APP = '0.276.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.276.1', date: '2026-10-17 18:01', resume: "Construction du serveur rétablie : le test de l'extension Chrome cherchait Chromium à un emplacement propre à l'environnement de développement ; il prend désormais le Chromium de Playwright, comme le test de fumée (la construction échouait depuis la 0.275.0)." },
     { version: '0.276.0', date: '2026-10-17 15:28', resume: "Extension Chrome (0.8.0) : panneau en trois étapes aux couleurs de CLAIRE (Dossier, Démarche CU / DIA, Lancer ; « Remplir seulement la page affichée » retiré) ; la commune de dépôt est choisie à l'écran dans la liste, en un seul clic sur la démarche ; toutes les adresses (bien, propriétaire, acquéreur, office) et les parcelles ne sont plus jamais tapées dans les cases — seulement par les assistants du guichet (ouverts comme une vraie souris ; s'ils ne s'ouvrent pas, la case est laissée à l'étude) ; à la fin, CLAIRE clique « Sauvegarder » puis « Vérifier ma saisie » (jamais « Transmettre ») ; signature « P/O » du collaborateur chargé du dossier ; CU : le demandeur « personne physique » n'est plus rempli (l'office est pré-rempli en personne morale) ; DIA : cases DIA, DPU (d'après Contrôle de l'urbanisme), pleine propriété, usage d'habitation, prix comptant, plan cadastral joint, téléphone et email du propriétaire, email de l'acquéreur, email, adresse et téléphone de l'office." },
     { version: '0.275.1', date: '2026-10-17 15:13', resume: "Extension Chrome (0.7.1), d'après les relevés de l'étude sur le vrai guichet d'Agglopolys : l'assistant d'adresse et celui des parcelles sont reconnus quelle que soit leur fenêtre ; recherche d'adresse et lieu-dit par leurs vrais champs ; plan joint à « CU1. Un plan de situation » ; parcelles de la DIA trouvées (BI3SA1…) ; choix de la commune de dépôt affiché. Extension d'essai : un plan cadastral inventé est joint." },
     { version: '0.275.0', date: '2026-10-17 13:27', resume: "Extension Chrome (0.7.0) sur le guichet d'Agglopolys : la démarche est trouvée dans « Formuler » même quand l'accueil met du temps à s'afficher ; l'adresse du bien et les parcelles sont saisies par les assistants du guichet, comme dans la vidéo de l'étude — recherche de l'adresse et choix de la bonne proposition, chaque parcelle avec sa superficie puis « Valider » ; CU et DIA. Adresse sans proposition conforme : laissée à l'étude." },

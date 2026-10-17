@@ -14,7 +14,7 @@ const erreurs = [];
 
 async function jouer(fiche, avant) {
   const run = { id: 'r1', scenario, fiche, speed: 'fast', status: 'running', fields: {} };
-  const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH ? {} : { executablePath: '/opt/pw-browsers/chromium' });
+  const browser = await chromium.launch(); // comme fumee.mjs : le Chromium de Playwright (conteneur : PLAYWRIGHT_BROWSERS_PATH ; GitHub : téléchargé par la construction)
   try {
     const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     const journal = [];
