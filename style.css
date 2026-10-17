@@ -7934,6 +7934,12 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .cb-dossier { display: flex; gap: 8px; align-items: baseline; text-align: left; font-family: inherit; font-size: var(--texte-m); background: none; border: none; border-radius: var(--rayon-s); padding: 4px 6px; cursor: pointer; color: var(--ink); }
 .cb-dossier:hover { background: var(--paper-sunk); color: var(--focus); }
 .cb-fiches-dossier { display: flex; flex-wrap: wrap; gap: 4px; }
+.recu-authentic { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.recu-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-s); }
+.recu-liste li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.recu-liste .recu-manque { justify-content: flex-start; gap: 6px; color: var(--ink-soft); }
+.recu-sous-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.recu-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .cb-puce { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-size: var(--texte-s); padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); cursor: pointer; }
 .cb-puce:hover { border-color: var(--focus); color: var(--focus); }
 .cb-puce .icone { width: 14px; height: 14px; }

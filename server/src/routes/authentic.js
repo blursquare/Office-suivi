@@ -81,6 +81,8 @@ var DUREE_DOUBLON_MS = 15 * 1000;
 var DUREE_JOURNAL_MS = 24 * 60 * 60 * 1000;
 var MAX_JOURNAL = 100;
 var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-creer', 'erreur', 'rattache'];
+// Les résultats où la page a été rangée dans un dossier (gardée pour lui).
+var ETATS_RANGES = ['applique', 'sans-changement', 'rattache'];
 
 // Le poste d'une requête : son adresse réseau, « local » pour le poste serveur (en local ou par l'une
 // de ses propres adresses — l'extension du poste serveur peut viser son adresse réseau).
@@ -102,6 +104,8 @@ function naturePageAuthentic(capture) {
 
 function creerRouteurAuthentic(options) {
   const maintenant = (options && options.maintenant) || (() => Date.now());
+  // Magasin des pages gardées par dossier (pagesAuthentic.js) ; sans lui, rien n'est gardé au-delà des 24 h en mémoire.
+  const pages = (options && options.pages) || null;
   const dureeAttente = (options && options.dureeAttenteMs) || DUREE_ATTENTE_RELEVES_MS;
   const adresses = (options && options.adressesLan) || adressesLan;
   const origineDe = (req) => (options && options.origine) ? options.origine(req) : origineRequete(req, adresses);
@@ -258,8 +262,25 @@ function creerRouteurAuthentic(options) {
         texte: chaine(r.texte, 300),
         traiteLe: new Date(maintenant()).toISOString()
       });
+      // Page rangée dans un dossier : gardée pour lui dans la base du bureau (voir pagesAuthentic.js) — relue plus tard sur la fiche.
+      const dossierId = chaine(r.dossierId, 80);
+      if (pages && dossierId && ETATS_RANGES.includes(r.etat)) {
+        const rel = recents.find(x => x.id === String(r.id || ''));
+        if (rel && rel.capture) {
+          try { pages.garder(dossierId, { capture: rel.capture, nature: naturePageAuthentic(rel.capture), intitule: intitulePageAuthentic(rel.capture), recueLe: rel.recueLe, cle: chaine(r.cle, 200) }); }
+          catch (e) { console.error('[authentic] page non gardée :', e && e.message ? e.message : e); }
+        }
+      }
     }
     res.json({ ok: true });
+  });
+  // Ce qui a été reçu d'Authentic pour un dossier (sans le contenu) et les pages entières pour « Relire depuis Authentic ».
+  routeur.get('/authentic/dossier/:id/pages', (req, res) => {
+    const id = String(req.params.id || '');
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) { res.status(400).json({ error: 'Identifiant invalide.' }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    if (!pages) { res.json({ pages: [] }); return; }
+    res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
   });
   routeur.get('/authentic/journal', (req, res) => {
     purgerReleves();

@@ -52,6 +52,7 @@ const { creerRouteurEmailsDossiers } = require('./routes/emailsDossiers');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
 const { creerRouteurAuthentic } = require('./routes/authentic');
+const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
 const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
@@ -212,8 +213,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, relaisWord || {}));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
-  // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire 30 min.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic());
+  // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire (30 min / 24 h) et par dossier.
+  // Pages rangées dans un dossier : gardées dans la base du bureau (pagesAuthentic.js) ; un magasin indisponible ne bloque jamais CLAIRE.
+  let pagesAuthentic = null;
+  try { pagesAuthentic = creerPagesAuthentic(db); } catch (e) { console.error('[authentic] pages gardées indisponibles :', e && e.message ? e.message : e); }
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic({ pages: pagesAuthentic }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.

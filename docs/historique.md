@@ -20522,3 +20522,18 @@ la fiche bien d'un autre bien du même dossier (autre commune, déjà retenu par
 d'être écartée ; un bien inconnu qui contredit la fiche reste écarté.
 Relecture (17/10) : une parcelle ne désigne le même bien que dans la même commune (`memeCommune` : code postal, nom « ST AIGNAN » = « SAINT-AIGNAN », nom qui commence l'autre ; « AB 12 » existe presque partout) — la page d'un autre dossier qui partageait « AB 12 » remplaçait l'immeuble du dossier, et une même parcelle dans deux communes faisait perdre un bien ; la fusion d'un « autre bien déjà connu » ne remplace jamais adresse, commune ni code postal (`seulementCompleter`) ; contrôle de l'urbanisme : parcelles du bien principal toujours, celles d'un autre bien seulement s'il est sûrement dans la même commune (jamais une commune inconnue analysée avec le code INSEE du bien principal) ; lots de la fiche avant ceux d'un immeuble retenu ; immeuble abîmé sans erreur ; la commune des parcelles ne part plus à l'agent.
 Seconde relecture : même code postal mais autre commune (41000 : Blois, Villebarou…) = contradiction dans `bienAuthenticContreditDossier` avant toute parcelle commune ; un immeuble retenu sans adresse ni commune (terres, bois) reste complétable par la fiche de cet autre bien, sa commune lue aussi sur ses parcelles ; un nom plus long n'est la même commune que par un « -sur-… » ajouté.
+
+### 17/10/2026 08 h 37 — Authentic : pages gardées par dossier, « Reçu d'Authentic », « Relire depuis Authentic » (0.273.0)
+
+Demande : « Va y pour 2 et 3 » (étapes 2 et 3 du chantier Authentic), avec d'autres demandes du même message (fiches uniques des clients
+et des biens, onglet Dossier façon Authentic, contexte des rendez-vous, tout récupérer d'Authentic pour les fiches) traitées ensuite.
+Serveur : `server/src/pagesAuthentic.js` — table `authentic_pages` (dossier, clé, nature, intitulé, reçue le, page entière) ; quand le
+poste rapporte une page rangée dans un dossier (`applique`, `sans-changement`, `rattache`, `POST /authentic/releves/resultats`), la page
+encore en mémoire est gardée pour ce dossier, dernière version par clé (`dossier`, `client:prénom nom`, `bien:adresse` — clé donnée par
+le poste, `clePageReleveAuthentic`, sinon tirée des champs), 40 pages par dossier ; `GET /authentic/dossier/:id/pages` (résumé, ou
+`?contenu=1` pour les pages entières). Poste : `client/82-authentic-recu.js` — ligne « Authentic » de l'onglet Dossier (vente et
+succession) : pages reçues avec leur date, ce qui manque (page du dossier, fiche client de chaque personne — jamais une société —, fiche
+bien quand aucune parcelle n'est connue), « Relire depuis Authentic » : toutes les pages rejouées de la plus ancienne à la plus récente
+avec les règles du jour (`appliquerReleveSurDossier`, volet du conjoint compris ; une valeur déjà reprise qui a changé reste PROPOSÉE),
+historique « Relu depuis Authentic ». Les pages vues avant cette version ne sont pas gardées : elles le seront à la prochaine ouverture
+dans Authentic.

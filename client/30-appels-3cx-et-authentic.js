@@ -2485,7 +2485,7 @@
       : attente.nature === 'dossier' ? 'dossier rattaché, rien de neuf sur la page' : raisonFicheClientSansChangement(attente.capture);
     afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${texte}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     notifierMajAuthentic(d, r.majEnAttente);
-    if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte }]);
+    if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte, cle: clePageReleveAuthentic(attente.capture) }]);
   }
 
   // Depuis le journal (Réglages › Authentic) : la page, encore en mémoire du serveur, est rangée à la main.
@@ -2885,7 +2885,7 @@
         if (rel && rel.navigation) { suivreNavigationAuthentic(rel.navigation); continue; }
         try {
           const res = await appliquerReleveAuthentic(rel.capture, rel);
-          if (res && rel.id) resultats.push(Object.assign({ id: rel.id }, res));
+          if (res && rel.id) resultats.push(Object.assign({ id: rel.id, cle: clePageReleveAuthentic(rel.capture) }, res));
         } catch (e) {
           console.error('Relevé Authentic non appliqué', e && e.message);
           if (rel && rel.id) resultats.push({ id: rel.id, etat: 'erreur', texte: 'erreur dans CLAIRE : ' + String((e && e.message) || e).slice(0, 120) });
