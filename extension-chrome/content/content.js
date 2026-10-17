@@ -194,7 +194,8 @@
       attendu += ch;
       await wait(delai);
       // Seulement un caractère EN TROP (la casse et les masques du guichet sont laissés tels quels).
-      if (String(el.value || "").length > attendu.length && norm(el.value) !== norm(attendu)) { setNativeValue(el, attendu); fire(el, "input", { inputType: "insertText", data: ch }); }
+      const nu = (x) => norm(x).replace(/[\s.,'\u00a0\u202f-]/g, "");
+      if (nu(el.value).length > nu(attendu).length) { setNativeValue(el, attendu); fire(el, "input", { inputType: "insertText", data: ch }); }
     }
     const egal = (a) => String(a || "").replace(/\s+/g, " ").trim().toLowerCase() === String(texte).replace(/\s+/g, " ").trim().toLowerCase();
     if (res && res.ok && egal(el.value)) return true;
@@ -715,7 +716,7 @@
     const erreurGuichet = () => fenetresVisibles().filter((x) => !fenetresAvant.has(x)).find((x) => /\b50[0-4]\b|service unavailable|bad gateway|gateway time|erreur|echec|impossible/.test(norm(x.innerText || "").slice(0, 600)));
     let erreur = null;
     for (const fin = Date.now() + 8000; !erreur && Date.now() < fin;) { await wait(500); erreur = erreurGuichet(); }
-    if (erreur) { await noter(run, key, "mismatch", "le guichet a refusé l’envoi du plan (erreur de son serveur) : fermez son message, puis joignez le plan vous-même plus tard"); return true; }
+    if (erreur) { await defaireCase(); run.planRefuse = true; await noter(run, key, "mismatch", "le guichet a refusé l’envoi du plan (erreur de son serveur) : fermez son message, puis joignez le plan vous-même plus tard"); return true; }
     await noter(run, key, "done", `Plan cadastral.pdf envoyé au guichet${r.source ? " (" + r.source + ")" : ""} — vérifiez qu’il apparaît dans les pièces`);
     return true;
   }
@@ -1510,6 +1511,8 @@
     const m = /\bpage\s+(\d{1,2})\s*\/\s*(\d{1,2})\b/i.exec(document.body ? document.body.innerText || "" : "");
     return m ? { n: Number(m[1]), total: Number(m[2]) } : null;
   }
+  // Plan refusé par le serveur du guichet : ni « Vérifier ma saisie » ni « Sauvegarder » sous sa fenêtre d'erreur (relecture du 17/10).
+  const PLAN_REFUSE = "Le guichet a refusé le plan (erreur de son serveur) : fermez son message, joignez le plan vous-même, puis cliquez « Vérifier ma saisie » et « Sauvegarder ».";
   async function piecesALaFin(run, champs, sp) {
     const pieces = champs.filter((f) => f.type === "fichier" && !f.case);
     if (pieces.length) await suivi("Plan cadastral");
@@ -1563,7 +1566,9 @@
       const notres = champs.some((f) => f.type !== "choix" && f.type !== "case" && f.type !== "fichier" && candidatsChamp(f).length);
       const dessine = !/\{\{/.test(document.body ? document.body.innerText || "" : "")
         && [...document.querySelectorAll("input:not([type=hidden]), select, textarea")].filter((el) => visible(el) && !el.closest(FENETRES) && !el.closest("#claire-overlay")).length >= 3;
-      return dessine && !notres;
+      // Première page d'une demande (CU : demandeur pré-rempli, aucun champ du scénario) : la demande en cours, jamais « une autre ».
+      const page = numeroPageGuichet();
+      return dessine && !notres && !(page && page.n === 1);
     };
     // Démarche lancée depuis la page d'une AUTRE demande (essai de l'étude, 17/10 : un CU lancé sur la page de la DIA qui venait d'être faite —
     // CLAIRE prenait la DIA pour le CU) : retour à l'accueil par le hash seul (jamais de rechargement), puis l'entrée habituelle ; brouillon
@@ -1710,7 +1715,7 @@
       // directement le plan, « Vérifier ma saisie » et « Sauvegarder ».
       if (sc.finApresCode && [...document.querySelectorAll(selecteurCode(sc.finApresCode) || "#__aucun")].some((x) => visible(x) && String(x.value || "").trim())) {
         await piecesALaFin(run, champs, sp);
-        await finish("awaiting_human", await verifierSaisie(sc, sp) || finGuichet);
+        await finish("awaiting_human", run.planRefuse ? PLAN_REFUSE : (await verifierSaisie(sc, sp) || finGuichet));
         return;
       }
       // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.
@@ -1732,7 +1737,7 @@
         && ((compteur.total > 0 && compteur.n >= compteur.total) || (sc.pageFin > 0 && compteur.n >= sc.pageFin));
       if (!suivant || derniere || (sc.entree && pi + 1 >= maxPages)) {
         await piecesALaFin(run, champs, sp);
-        await finish("awaiting_human", await verifierSaisie(sc, sp) || finGuichet);
+        await finish("awaiting_human", run.planRefuse ? PLAN_REFUSE : (await verifierSaisie(sc, sp) || finGuichet));
         return;
       }
       const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
@@ -1743,7 +1748,7 @@
       run.nonCliques = 0;
       if (!change) {
         if (sc.entree) await piecesALaFin(run, champs, sp);
-        const verifie = sc.entree ? await verifierSaisie(sc, sp) : "";
+        const verifie = sc.entree ? (run.planRefuse ? PLAN_REFUSE : await verifierSaisie(sc, sp)) : "";
         if (verifie) { await finish("awaiting_human", verifie); return; }
         await finish("awaiting_human", sc.entree
           ? "La page suivante ne s’ouvre plus (dernière page, ou champ obligatoire signalé par le guichet). " + finGuichet
