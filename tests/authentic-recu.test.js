@@ -126,3 +126,16 @@ test('succession : un prénom composé n’est pas le prénom simple du défunt'
   assert.equal(app.memeDefunt('Jean-Pierre ESSAI', 'ESSAI', 'Jean-Pierre'), true);
   assert.equal(app.memeDefunt('Mme ESSAI Marie', 'ESSAI', 'Marie Louise'), true);
 });
+
+test('succession : tirets, apostrophes et fiche sans nom de famille (relecture du 17/10)', () => {
+  assert.equal(app.memeDefunt('Jean MARTIN ESSAI', 'MARTIN-ESSAI', 'Jean'), true);
+  assert.equal(app.memeDefunt('Jean MARTIN-ESSAI', 'MARTIN ESSAI', 'Jean'), true);
+  assert.equal(app.memeDefunt('Jeanne D ARC', 'D\'ARC', 'Jeanne'), true);
+  assert.equal(app.memeDefunt('Jean-Pierre ESSAI', 'ESSAI', 'Jean Pierre'), true);
+  assert.equal(app.memeDefunt('Jean Pierre ESSAI', 'ESSAI', 'Jean-Pierre'), true);
+  assert.equal(app.memeDefunt('Jean-Pierre ESSAI', 'ESSAI', 'Jean'), false);
+  assert.equal(app.memeDefunt('Me Jean ESSAI', 'ESSAI', 'Jean'), true);
+  assert.equal(app.memeDefunt('Jean Paul ESSAI', '', 'Jean Paul', 'Jean Paul ESSAI'), true, 'fiche sans nom de famille');
+  assert.equal(app.memeDefunt('Paul ESSAI', '', 'Jean Paul', 'Jean Paul ESSAI'), false);
+  assert.equal(app.memeDefunt('Essai Jean', '', 'Essai Jean', 'Essai Jean'), true, 'comparant sans capitales');
+});

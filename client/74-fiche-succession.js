@@ -76,19 +76,29 @@
 
   // Pure : le libellé `n` désigne-t-il le défunt (nom de famille `nomFamille`, prénoms `prenoms`) ? Mêmes mots, ou même nom de famille et
   // même PREMIER prénom avec les autres prénoms de l'un contenus dans ceux de l'autre. Un nom de famille seul ne désigne personne.
-  function memeDefunt(n, nomFamille, prenoms) {
-    // Un prénom composé reste UN mot (« Jean-Pierre » n'est pas « Jean » : le fils pris pour le père, relecture du 15/10).
-    const motsDe = (t) => normaliserPourRecherche(String(t || '')).split(/[\s,;.]+/).map(m => m.replace(/[^a-z0-9-]/g, ''))
-      .filter(m => m.length >= 2 && !/^(?:m|mr|mme|mlle|monsieur|madame|mademoiselle|de|du|des|la|le|les|epouse|veuve|ne|nee)$/.test(m));
-    const mots = motsDe(n);
-    const famille = motsDe(nomFamille);
-    const pDef = motsDe(prenoms);
-    if (!mots.length || !famille.length || !famille.every(m => mots.includes(m))) return false;
-    const pN = mots.filter(m => !famille.includes(m));
-    if (!pN.length || !pDef.length) return false;
-    // Le premier prénom écrit est celui du défunt (« Paul ESSAI » n'est pas « Jean Paul ESSAI »), et les autres prénoms de l'un sont chez
-    // l'autre (« Jean ESSAI » = « Jean Paul ESSAI »).
-    return pN[0] === pDef[0] && (pN.every(m => pDef.includes(m)) || pDef.every(m => pN.includes(m)));
+  function memeDefunt(n, nomFamille, prenoms, libelle) {
+    const IGNORES = /^(?:m|mr|mme|mlle|me|maitre|monsieur|madame|mademoiselle|de|du|des|la|le|les|epouse|veuve|ne|nee)$/;
+    // Mots « bruts » (un prénom composé reste un mot, « jean-pierre ») et mots « simples » (tirets et apostrophes coupés) : le nom de
+    // famille se compare en mots simples (« MARTIN-ESSAI » = « MARTIN ESSAI », « D'ARC » = « D ARC »), le premier prénom en mots bruts
+    // pour que « Jean-Pierre » ne soit pas « Jean » mais soit « Jean Pierre » (relecture du 17/10).
+    const bruts = (t) => normaliserPourRecherche(String(t || '')).replace(/['’]/g, ' ').split(/[\s,;.]+/).map(m => m.replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, ''))
+      .filter(m => m.length >= 2 && !IGNORES.test(m));
+    const simples = (t) => bruts(t).flatMap(m => m.split('-')).filter(m => m.length >= 2 && !IGNORES.test(m));
+    const famille = simples(nomFamille);
+    // Nom de famille inconnu (fiche ancienne, comparant sans capitales) : mêmes mots, dans n'importe quel ordre.
+    if (!famille.length) { const k = cleMotsPersonne(libelle || [prenoms, nomFamille].filter(Boolean).join(' ')); return !!k && k.includes(' ') && cleMotsPersonne(n) === k; }
+    const motsN = simples(n);
+    if (!motsN.length || !famille.every(m => motsN.includes(m))) return false;
+    const prenomsN = bruts(n).filter(m => !m.split('-').every(x => famille.includes(x)));
+    const prenomsD = bruts(prenoms);
+    if (!prenomsN.length || !prenomsD.length) return false;
+    const etale = (l) => l.flatMap(m => m.split('-'));
+    // Le premier prénom écrit est celui du défunt (« Paul ESSAI » n'est pas « Jean Paul ESSAI ») ; composé d'un côté : toutes ses parties en tête
+    // de l'autre (« Jean-Pierre » = « Jean Pierre », jamais « Jean »).
+    const tete = (a, b) => { const pa = a[0].split('-'); return pa.join(' ') === etale(b).slice(0, pa.length).join(' '); };
+    if (!(prenomsN[0].includes('-') || prenomsD[0].includes('-') ? tete(prenomsN, prenomsD) && tete(prenomsD, prenomsN) : prenomsN[0] === prenomsD[0])) return false;
+    const eN = etale(prenomsN), eD = etale(prenomsD);
+    return eN.every(m => eD.includes(m)) || eD.every(m => eN.includes(m));
   }
 
   function personnesSuccession(d) {
@@ -102,7 +112,9 @@
     const heritiersComps = comps.filter(c => c.role === 'HERITIER');
     const estDefunt = (n) => {
       if (heritiersComps.some(c => cleMotsPersonne(c.nom) === cleMotsPersonne(n))) return false;
-      return (nomDefunt && memeDefunt(n, df.nom, df.prenoms)) || (defComp && memeDefunt(n, nomPrenomsComparant(defComp.nom).nom, nomPrenomsComparant(defComp.nom).prenoms));
+      const ficheDefunt = defuntDepuisFiches(d).fiche;
+      return (nomDefunt && memeDefunt(n, df.nom, df.prenoms, (!df.nom && ficheDefunt && ficheDefunt.nom) || nomDefunt))
+        || (defComp && memeDefunt(n, nomPrenomsComparant(defComp.nom).nom, nomPrenomsComparant(defComp.nom).prenoms, defComp.nom));
     };
     const parties = (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
     const her = comps.filter(c => c.role === 'HERITIER');
