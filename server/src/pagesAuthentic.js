@@ -12,6 +12,10 @@
 const crypto = require('node:crypto');
 
 const MAX_PAGES_PAR_DOSSIER = 40;
+// Une page gardée au plus (relecture du 17/10 : la base et sa sauvegarde quotidienne grossissaient sans limite).
+const MAX_OCTETS_PAGE = 1500000;
+// Pages d'un dossier archivé depuis plus d'un an : retirées au démarrage.
+const DUREE_ARCHIVE_MS = 365 * 24 * 3600 * 1000;
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS authentic_pages (
     dossier_id TEXT NOT NULL,
@@ -36,9 +40,12 @@ function clePageAuthentic(nature, capture) {
   const champs = Array.isArray(capture && capture.champs) ? capture.champs : [];
   const val = (/** @type {RegExp} */ re) => chaine((champs.find((c) => c && re.test(String(c.libelle || ''))) || {}).valeur, 120).toLowerCase();
   if (nature === 'client') {
+    // Le volet du conjoint (champs « conjointComponent », lus AVANT ceux de la personne) n'identifie pas la fiche.
+    const propres = champs.filter((c) => c && !/conjoint/i.test(String(c.libelle || '') + ' ' + String(c.id || c.nom || '')));
+    const val = (/** @type {RegExp} */ re) => chaine((propres.find((c) => re.test(String(c.libelle || ''))) || {}).valeur, 120).toLowerCase();
     const nom = val(/(?:^|[:\s])nom(?:\s|$|naissance|Famille)/i) || val(/nom/i);
     const prenom = val(/pr[ée]nom/i);
-    const ident = [nom, prenom].filter(Boolean).join(' ');
+    const ident = [prenom, nom].filter(Boolean).join(' ');
     if (ident) return 'client:' + ident;
   }
   if (nature === 'bien') {
@@ -50,9 +57,14 @@ function clePageAuthentic(nature, capture) {
   return nature + ':' + crypto.createHash('sha1').update(JSON.stringify([champs.slice(0, 20)])).digest('hex').slice(0, 16);
 }
 
-/** Le magasin des pages, sur la base du serveur. @param {any} db base node:sqlite */
-function creerPagesAuthentic(db) {
+/** Le magasin des pages, sur la base du serveur. @param {any} db base node:sqlite @param {{ maintenant?: () => number }} [options] */
+function creerPagesAuthentic(db, options = {}) {
   db.exec(SCHEMA);
+  const maintenant = options.maintenant || Date.now;
+  // Dossier supprimé, inconnu ou archivé depuis plus d'un an : ses pages ne servent plus.
+  db.prepare(`DELETE FROM authentic_pages WHERE dossier_id NOT IN (SELECT id FROM dossiers WHERE deleted_at IS NULL)
+    OR dossier_id IN (SELECT id FROM dossiers WHERE archive = 1 AND updated_at < ?)`).run(maintenant() - DUREE_ARCHIVE_MS);
+  const existe = db.prepare('SELECT 1 AS ok FROM dossiers WHERE id = ? AND deleted_at IS NULL');
   const ecrire = db.prepare(`INSERT INTO authentic_pages (dossier_id, cle, nature, intitule, recue_le, capture) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(dossier_id, cle) DO UPDATE SET nature = excluded.nature, intitule = excluded.intitule, recue_le = excluded.recue_le, capture = excluded.capture`);
   const lister = db.prepare('SELECT cle, nature, intitule, recue_le FROM authentic_pages WHERE dossier_id = ? ORDER BY recue_le DESC');
@@ -66,11 +78,14 @@ function creerPagesAuthentic(db) {
       const id = chaine(dossierId, 80);
       const capture = releve && releve.capture;
       if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || !capture || typeof capture !== 'object') return false;
+      const clePoste = chaine(releve.cle, 200);
+      if (clePoste === 'ignorer' || !existe.get(id)) return false; // promesse, avenant… ; dossier inconnu
+      const json = JSON.stringify(capture);
+      if (json.length > MAX_OCTETS_PAGE) return false;
       const nature = chaine(releve.nature, 20) || 'dossier';
       // La clé donnée par le poste (qui lit la page : « client:léa exemple »), sinon celle tirée ici des champs.
-      const clePoste = chaine(releve.cle, 200);
       const cle = /^(dossier|client:|bien:)/.test(clePoste) ? clePoste : clePageAuthentic(nature, capture);
-      ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date().toISOString(), JSON.stringify(capture));
+      ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
       const cles = compter.all(id).map((/** @type {any} */ l) => l.cle);
       for (const c of cles.slice(MAX_PAGES_PAR_DOSSIER)) retirer.run(id, c);
       return true;
@@ -91,4 +106,4 @@ function creerPagesAuthentic(db) {
   };
 }
 
-module.exports = { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER };
+module.exports = { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE };

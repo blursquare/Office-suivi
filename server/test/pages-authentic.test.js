@@ -6,13 +6,20 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const { DatabaseSync } = require('node:sqlite');
-const { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER } = require('../src/pagesAuthentic');
+const { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE } = require('../src/pagesAuthentic');
 const { creerRouteurAuthentic } = require('../src/routes/authentic');
 
+// Base avec les dossiers v1, v2 (et ceux demandés) : une page n'est gardée que pour un dossier qui existe.
+function baseDossiers(ids = ['v1', 'v2'], archives = []) {
+  const db = new DatabaseSync(':memory:');
+  db.exec('CREATE TABLE dossiers (id TEXT PRIMARY KEY, data TEXT NOT NULL, responsable TEXT, archive INTEGER NOT NULL DEFAULT 0, pret TEXT, acte TEXT, ventebien TEXT, updated_at INTEGER NOT NULL, deleted_at INTEGER)');
+  for (const id of ids) db.prepare('INSERT INTO dossiers (id, data, archive, updated_at) VALUES (?, ?, ?, ?)').run(id, '{}', archives.includes(id) ? 1 : 0, archives.includes(id) ? 0 : Date.now());
+  return db;
+}
 const capture = (n) => ({ titre: 'x', champs: [{ libelle: 'form:ficheClientPhysique:nom', valeur: 'ESSAI' }, { libelle: 'form:ficheClientPhysique:prenom', valeur: 'Léa ' + n }], tableaux: [], texte: '' });
 
 test('magasin : dernière version par clé, 40 pages au plus, résumé sans contenu, identifiant contrôlé', () => {
-  const p = creerPagesAuthentic(new DatabaseSync(':memory:'));
+  const p = creerPagesAuthentic(baseDossiers());
   assert.equal(p.garder('v1', { capture: capture(1), nature: 'client', recueLe: '2026-10-17T08:00:00Z', cle: 'client:lea essai' }), true);
   p.garder('v1', { capture: capture(2), nature: 'client', recueLe: '2026-10-17T09:00:00Z', cle: 'client:lea essai' });
   assert.equal(p.resume('v1').length, 1, 'la page revue remplace la précédente');
@@ -26,7 +33,7 @@ test('magasin : dernière version par clé, 40 pages au plus, résumé sans cont
 });
 
 test('route : une page rangée (applique) est gardée pour son dossier, une page sans dossier jamais', async () => {
-  const pages = creerPagesAuthentic(new DatabaseSync(':memory:'));
+  const pages = creerPagesAuthentic(baseDossiers());
   const app = express();
   app.use(express.json({ limit: '5mb' }));
   app.use('/api', creerRouteurAuthentic({ pages, origine: () => 'local' }));
@@ -44,5 +51,45 @@ test('route : une page rangée (applique) est gardée pour son dossier, une page
     const plein = await (await fetch(base + '/authentic/dossier/v1/pages?contenu=1')).json();
     assert.equal(plein.pages[0].capture.champs[0].valeur, 'ESSAI');
     assert.equal((await fetch(base + '/authentic/dossier/..%2Fx/pages')).status, 400);
+  } finally { serveur.close(); }
+});
+
+// Relecture du 17/10 : promesse jamais gardée, dossier inconnu refusé, page trop lourde refusée, « Oublier » purge, volet du conjoint ignoré.
+test('magasin : promesse (clé « ignorer »), dossier inconnu, page trop lourde refusés ; dossiers supprimés ou archivés depuis un an purgés', () => {
+  const db = baseDossiers(['v1', 'v2', 'v3'], ['v3']);
+  const p = creerPagesAuthentic(db);
+  p.garder('v1', { capture: capture(1), nature: 'dossier', recueLe: '2026-10-17T08:00:00Z', cle: 'dossier' });
+  assert.equal(p.garder('v1', { capture: capture(2), nature: 'dossier', recueLe: '2026-10-17T09:00:00Z', cle: 'ignorer' }), false);
+  assert.equal(p.pages('v1')[0].capture.champs[1].valeur, 'Léa 1', 'la page de la vente reste');
+  assert.equal(p.garder('inconnu0', { capture: capture(1), cle: 'dossier' }), false);
+  assert.equal(p.garder('v2', { capture: { champs: [], texte: 'x'.repeat(MAX_OCTETS_PAGE) }, cle: 'dossier' }), false);
+  p.garder('v2', { capture: capture(1), cle: 'dossier' });
+  p.garder('v3', { capture: capture(1), cle: 'dossier' });
+  db.prepare('UPDATE dossiers SET deleted_at = 1 WHERE id = ?').run('v2');
+  const p2 = creerPagesAuthentic(db);
+  assert.equal(p2.resume('v1').length, 1);
+  assert.equal(p2.resume('v2').length, 0, 'dossier supprimé');
+  assert.equal(p2.resume('v3').length, 0, 'archivé depuis plus d’un an');
+  p2.oublier('v1');
+  assert.equal(p2.resume('v1').length, 0);
+});
+
+test('clé de repli d’une fiche client : le volet du conjoint (lu avant) n’identifie pas la fiche', () => {
+  const c = { champs: [
+    { libelle: 'form:conjointComponent:nom', valeur: 'MARTEL' }, { libelle: 'form:conjointComponent:prenom', valeur: 'Paul' },
+    { libelle: 'form:tabView:nom', valeur: 'MARTEL' }, { libelle: 'form:tabView:prenom', valeur: 'Léa' }] };
+  assert.equal(clePageAuthentic('client', c), 'client:léa martel');
+});
+
+test('route DELETE : les pages d’un dossier sont oubliées', async () => {
+  const pages = creerPagesAuthentic(baseDossiers());
+  pages.garder('v1', { capture: capture(1), cle: 'dossier' });
+  const app = express();
+  app.use('/api', creerRouteurAuthentic({ pages, origine: () => 'local' }));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const r = await fetch(`http://127.0.0.1:${serveur.address().port}/api/authentic/dossier/v1/pages`, { method: 'DELETE' });
+    assert.equal(r.status, 200);
+    assert.equal(pages.resume('v1').length, 0);
   } finally { serveur.close(); }
 });

@@ -57,7 +57,7 @@
     return cad.section ? [cad] : [];
   }
 
-  const DETAILS_PARCELLE = ['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'adresseCadastre'];
+  const DETAILS_PARCELLE = ['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'adresseCadastre', 'zone', 'spf'];
 
   /** Pure : une parcelle complétée par une autre (ce qui lui manque seulement). @param {any} a @param {any} b */
   function completerParcelle(a, b) {
@@ -149,7 +149,7 @@
       if (!cible && adresse) cible = biens.find((b) => b.adresse && net(b.adresse) === net(adresse)) || null;
       if (!cible) {
         if (!adresse && !parcelles.length && !liste(src.lots).length) return;
-        cible = { adresse, codePostal, commune, type: texte(src.type), lots: [], principal, sources: [], parcelles: [] };
+        cible = { adresse, codePostal, commune, type: texte(src.type), description: '', details: [], lots: [], principal, sources: [], parcelles: [] };
         biens.push(cible);
       }
       if (!cible.sources.includes(source)) cible.sources.push(source);
@@ -158,6 +158,9 @@
       if (!cible.commune && commune) cible.commune = commune;
       if (!cible.codePostal && codePostal) cible.codePostal = codePostal;
       if (!cible.type && texte(src.type)) cible.type = texte(src.type);
+      // Tout ce que la fiche bien d'Authentic dit d'autre (désignation, lotissement, surfaces… — étude 17/10).
+      if (!cible.description && texte(src.description)) cible.description = texte(src.description);
+      if (!cible.details.length && liste(src.details).length) cible.details = liste(src.details).filter((/** @type {any} */ x) => x && texte(x.libelle) && texte(x.valeur)).slice(0, 30);
       // Les lots : ceux de la fiche (tenus à jour par chaque page « Lots » d'Authentic) l'emportent sur ceux d'un immeuble retenu.
       if (liste(src.lots).length && (!cible.lots.length || source === 'fiche')) cible.lots = src.lots.slice();
       parcelles.forEach((/** @type {any} */ p) => {
@@ -189,7 +192,7 @@
       // Un bien d'une succession porte ses parcelles en texte (« AB 12, AB 13 ») : lues comme telles.
       const parcelles = Array.isArray(b.parcelles) ? b.parcelles
         : String(b.parcelles || '').split(/[,;]/).map((x) => /^\s*(?:(\d{3})\s+)?([A-Z]{1,2})\s*0*(\d{1,4})\s*$/i.exec(x)).filter(Boolean).map((m) => ({ prefixe: m && m[1] || '', section: m ? m[2] : '', numero: m ? m[3] : '' }));
-      ajouterBien({ adresse: b.adresse, type: b.type, parcelles }, 'succession', false);
+      ajouterBien({ adresse: b.adresse, type: b.type, parcelles, description: b.description, details: b.details, lots: b.lots }, 'succession', false);
     });
     // La commune de chaque parcelle : la sienne, sinon celle de son bien.
     biens.forEach((b) => b.parcelles.forEach((/** @type {any} */ p) => { if (!p.commune && b.commune) p.commune = b.commune; }));
@@ -256,7 +259,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ memeCommune, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
+  exporter({ memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

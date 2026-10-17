@@ -218,3 +218,20 @@ test('fiche client : le reste de la fiche d’Authentic suit, celui de la plus r
   assert.equal(p.complement['<script>'], undefined);
   assert.equal(p.autresPrenoms, 'Paul');
 });
+
+// Étude 17/10 : « les biens des successions et des ventes, s'ils sont les mêmes, rattachés à la même fiche » ; tout ce que dit Authentic.
+test('même bien dans une vente et une succession, commune écrite autrement : une seule fiche, détails d’Authentic réunis', () => {
+  const vente = { id: 'v1', nom: 'ESSAI / EXEMPLE', adresseBien: 'SAINT-AIGNAN (41110), 2 rue des Essais',
+    bien: { adresse: { codePostal: '41110', commune: 'SAINT-AIGNAN' }, cadastre: { parcelles: [{ section: 'AB', numero: '12', zone: 'UA' }] } },
+    authentic: { immeubles: [{ adresse: 'SAINT-AIGNAN (41110), 2 rue des Essais', codePostal: '41110', commune: 'SAINT-AIGNAN', description: 'Une maison',
+      details: [{ libelle: 'Type de bien', valeur: 'Maison' }], parcelles: [{ section: 'AB', numero: '12', zone: 'UA' }] }] } };
+  const succ = { id: 's1', nom: 'ESSAI', typeAffaire: 'succession',
+    biens: [{ adresse: 'ST AIGNAN SUR CHER (41110), 2 rue des Essais', parcelles: [{ section: 'AB', numero: '12', commune: 'ST AIGNAN SUR CHER' }],
+      details: [{ libelle: 'Usage', valeur: 'Habitation' }] }] };
+  const { biens } = construireBase([vente, succ]);
+  assert.equal(biens.length, 1);
+  assert.equal(biens[0].dossiers.map((x) => x.id).sort().join(','), 's1,v1');
+  assert.equal(biens[0].details.map((x) => x.libelle).sort().join(','), 'Type de bien,Usage');
+  assert.equal(biens[0].description, 'Une maison');
+  assert.equal(biens[0].parcelles[0].zone, 'UA');
+});

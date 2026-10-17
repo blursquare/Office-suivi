@@ -1453,6 +1453,8 @@
       const iLieu = entete.findIndex(e => /lieu-dit|lieu dit/.test(e));
       const iCommune = entete.indexOf('commune');
       const iPrefixe = entete.findIndex(e => /^pr[ée]fixe/.test(e) || /^prefixe/.test(e));
+      const iZone = entete.findIndex(e => /^zone/.test(e));
+      const iSpf = entete.findIndex(e => /^spf\b|service de (la )?publicit/.test(e));
       const cellule = (l, i) => (i >= 0 ? String(l[i] == null ? '' : l[i]).replace(/\s+/g, ' ').trim() : '');
       (t.lignes || []).forEach(l => {
         const section = String(l[iSection] || '').trim().toUpperCase();
@@ -1465,6 +1467,9 @@
         // Commune et préfixe de la parcelle (étude 15/10 : toutes les parcelles, chacune à la bonne mairie).
         if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
         if (cellule(l, iPrefixe)) p.prefixe = cellule(l, iPrefixe);
+        // Zone d'urbanisme et service de publicité foncière de la parcelle (« tout récupérer d'Authentic », étude 17/10).
+        if (cellule(l, iZone)) p.zone = cellule(l, iZone);
+        if (cellule(l, iSpf)) p.spf = cellule(l, iSpf);
         parcelles.push(p);
       });
     });
@@ -1482,7 +1487,7 @@
     if (!adresse && !parcelles.length && !lots.length) return null;
     return {
       id: 'authentic-bien-' + normaliserPourRecherche((adresse && adresse.texte) || parcelles.map(p => p.section + p.numero).join('') || 'lots' + lots.map(l => l.numero).join('-')).replace(/[^a-z0-9]+/g, '').slice(0, 40),
-      adresse, type, parcelles, lots, tantiemesTotal, surface: null, description: designation, bois
+      adresse, type, parcelles, lots, tantiemesTotal, surface: null, description: designation, bois, details: detailsFicheBienAuthentic(champsBien.length ? champsBien : champs)
     };
   }
 
@@ -1493,7 +1498,9 @@
     (nouveau.lots || []).forEach(l => { const i = lots.findIndex(x => x.numero === l.numero); if (i < 0) lots.push(l); else lots[i] = Object.assign({}, lots[i], Object.fromEntries(Object.entries(l).filter(([, v]) => v !== null && v !== ''))); });
     return Object.assign({}, existant, {
       type: existant.type || nouveau.type, lots, tantiemesTotal: nouveau.tantiemesTotal != null ? nouveau.tantiemesTotal : (existant.tantiemesTotal != null ? existant.tantiemesTotal : null),
-      parcelles: (existant.parcelles || []).concat((nouveau.parcelles || []).filter(p => !(existant.parcelles || []).some(q => q.section === p.section && q.numero === p.numero)))
+      parcelles: (existant.parcelles || []).concat((nouveau.parcelles || []).filter(p => !(existant.parcelles || []).some(q => q.section === p.section && q.numero === p.numero))),
+      // Tout ce que dit chaque onglet de la fiche bien (17/10) : réunis par libellé, l'onglet vu en dernier l'emporte.
+      details: Object.values(Object.fromEntries((existant.details || []).concat(nouveau.details || []).filter(x => x && x.libelle).map(x => [x.libelle, x]))).slice(0, 30)
     });
   }
 
@@ -2803,6 +2810,9 @@
     if (!d) return;
     demanderConfirmation(`Oublier ce qui vient d’Authentic sur ${libelleDossierAffiche(d)} ? Pièces cochées « dans Authentic », réquisition, SAFER, état de l’acte et rattachement au dossier Authentic sont retirés ; tout revient à la prochaine ouverture du bon dossier dans Authentic.`, async () => {
       const retire = oublierDonneesAuthentic(d);
+      // Les pages gardées sur le serveur aussi : sinon « Relire depuis Authentic » remettrait ce qui vient d'être oublié.
+      try { await fetchAvecAuth(`/api/authentic/dossier/${encodeURIComponent(d.id)}/pages`, { method: 'DELETE' }); } catch (_) { /* rien gardé ou serveur absent */ }
+      recuAuthenticParDossier.delete(d.id);
       if (!retire.length) return;
       await sauvegarder(d);
       render();

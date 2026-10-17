@@ -282,6 +282,13 @@ function creerRouteurAuthentic(options) {
     if (!pages) { res.json({ pages: [] }); return; }
     res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
   });
+  // « Oublier ce qui vient d'Authentic » : les pages gardées partent aussi (sinon la relecture les remettrait).
+  routeur.delete('/authentic/dossier/:id/pages', (req, res) => {
+    const id = String(req.params.id || '');
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) { res.status(400).json({ error: 'Identifiant invalide.' }); return; }
+    if (pages) pages.oublier(id);
+    res.json({ ok: true });
+  });
   routeur.get('/authentic/journal', (req, res) => {
     purgerReleves();
     res.setHeader('Cache-Control', 'no-store');

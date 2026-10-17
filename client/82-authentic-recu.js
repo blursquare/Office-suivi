@@ -25,6 +25,10 @@
       const parcelles = b ? (b.parcelles || []).map(p => net(`${p.section} ${p.numero}`)).join(' ') : '';
       return (adresse || parcelles) ? 'bien:' + (adresse || parcelles).slice(0, 180) : '';
     }
+    // Promesse, avenant… : jamais gardée (relecture du 17/10 — elle remplaçait la page de la VENTE gardée sous la même clé, que le serveur
+    // lui donne aussi quand le poste ne la reconnaît pas).
+    const sous = sousDossierAuthentic(capture);
+    if (sous && sous !== 'vente' && sous !== 'succession') return 'ignorer';
     return type === 'dossier' || type === 'gestion' ? 'dossier' : '';
   }
 
@@ -52,6 +56,7 @@
     let modifie = false;
     try {
       for (const page of pages) {
+        if (!pageRelisibleAuthentic(d, page.capture)) continue;
         const partage = partagerFicheConjointAuthentic(page.capture);
         const r = appliquerReleveSurDossier(d, partage ? partage.principale : page.capture, undefined, dossiers);
         if (r.modifie) modifie = true;
@@ -80,6 +85,26 @@
       recuAuthenticParDossier.delete(id);
       majRecuAuthenticFiche(id);
     }
+  }
+
+  // Pure : une page gardée se relit-elle sur ce dossier ? Les mêmes garde-fous qu'à l'arrivée d'une page (appliquerReleveAuthentic) :
+  // jamais la page d'un sous-dossier autre que la vente (promesse, avenant — son « Signé le » et ses pièces ne sont pas ceux de la
+  // vente), jamais celle d'un ancien dossier des mêmes clients (acte signé avant ce dossier) sauf intitulé ou référence rattachés.
+  function pageRelisibleAuthentic(d, capture) {
+    if (!d || !capture) return false;
+    const type = typePageAuthentic(capture);
+    if (type === 'client' || type === 'bien') return true;
+    const sous = sousDossierAuthentic(capture);
+    if (sous && sous !== 'vente' && sous !== 'succession') return false;
+    const lu = intituleDossierAuthentic(capture);
+    const reference = referenceDossierAuthentic(capture);
+    const rattache = (reference && d.referenceAuthentic === reference) || (lu && (d.intitulesAuthentic || []).includes(cleIntituleAuthentic(lu)));
+    if (rattache) return true;
+    if (ancienDossierAuthentic(capture, d)) return false;
+    // La page doit désigner CE dossier (relecture du 17/10 : une page d'un autre dossier rangée par erreur revenait à la relecture).
+    if (autreReferenceAuthentic(d, referenceAuthenticValide(reference) ? reference : '')) return false;
+    if (!lu && !referenceAuthenticValide(reference)) return true;
+    return dossierPourIntituleAuthentic(lu, dossiers, adresseBienPageAuthentic(capture), reference) === d;
   }
 
   // ---------- Encadré « Reçu d'Authentic » ----------
@@ -150,4 +175,26 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     document.querySelectorAll('.recu-authentic').forEach(el => { if (el.dataset.recuAuthentic === id) el.innerHTML = htmlRecuAuthentic(d, recuAuthenticParDossier.get(id)); });
+  }
+
+  // ---------- Fiche bien : tout ce qu'Authentic en dit ----------
+
+  // Pure : tous les champs renseignés de la fiche bien d'Authentic (étude 17/10 : « il faut bien tout récupérer d'Authentic pour les fiches,
+  // toutes les données utiles ») — type, désignation, lotissement, surfaces, usage, servitudes… —, libellé lisible et valeur, sans les champs
+  // techniques ni l'adresse et le cadastre déjà lus à part. 30 au plus, 200 caractères par valeur.
+  function detailsFicheBienAuthentic(champs) {
+    const vus = new Set();
+    const details = [];
+    (champs || []).forEach(c => {
+      if (!c || details.length >= 30) return;
+      const brut = String(c.libelle || '').replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+      const valeur = String(c.valeur == null ? '' : c.valeur).replace(/\s+/g, ' ').trim();
+      if (!brut || !valeur || brut.length > 60 || /[:_]|^j_id|^form|^ui-/i.test(brut) || /^(true|false|off|on)$/i.test(valeur) && !/lotissement|copropri/i.test(brut)) return;
+      const net = libelleNetAuthentic(brut);
+      if (/^(adresse|numero|n°|voie|type de voie|nom de (la )?voie|complement|code postal|cp|ville|commune|pays|section|prefixe|numero de parcelle|lieu-dit|lieu dit)$/.test(net)) return;
+      if (vus.has(net)) return;
+      vus.add(net);
+      details.push({ libelle: brut.slice(0, 60), valeur: valeur.slice(0, 200) });
+    });
+    return details;
   }

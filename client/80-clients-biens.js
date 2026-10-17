@@ -111,7 +111,7 @@
 
   // Pure : une parcelle d'un bien, « EV 10 · 6 a 6 ca · Sol ».
   function libelleParcelleCb(p) {
-    return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit].filter(Boolean).join(' · ');
+    return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit, p.zone ? `zone ${p.zone}` : ''].filter(Boolean).join(' · ');
   }
 
   function initClientsBiens() {
@@ -235,7 +235,9 @@
           ${f.type ? `<dt>Type</dt><dd>${escapeHtml(f.type)}</dd>` : ''}
           <dt>Parcelles</dt><dd>${f.parcelles.length ? f.parcelles.map(p => `<div>${escapeHtml(libelleParcelleCb(p))}</div>`).join('') : '—'}${typeof f.surfaceTotale === 'number' && f.parcelles.length > 1 ? `<div class="hint">Total · ${escapeHtml(formaterContenance(f.surfaceTotale))}</div>` : ''}</dd>
           ${f.lots && f.lots.length ? `<dt>Lots</dt><dd>${f.lots.map(l => `<div>${escapeHtml(libelleLotCopropriete(l, null))}</div>`).join('')}</dd>` : ''}
+          ${f.description ? `<dt>Désignation</dt><dd>${escapeHtml(f.description)}</dd>` : ''}
         </dl>
+        ${(f.details || []).length ? `<h3 class="cb-sous-titre">Dans Authentic</h3><dl class="cb-champs">${f.details.map(x => `<dt>${escapeHtml(x.libelle)}</dt><dd>${escapeHtml(x.valeur)}</dd>`).join('')}</dl>` : ''}
         <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers)}`;
       return;
     }

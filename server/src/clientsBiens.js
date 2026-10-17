@@ -317,7 +317,7 @@ function parcelleNette(p, commune) {
   if (!section || !numero) return null;
   const prefixe = /^0*$/.test(texte(p.prefixe)) ? '' : texte(p.prefixe);
   const m2 = p.surface !== undefined && p.surface !== null && p.surface !== '' ? C.centiaresDepuisContenance(texte(p.surface)) : null;
-  return { prefixe, section, numero, surface: m2, nature: texte(p.nature), lieuDit: texte(p.lieuDit), commune: texte(p.commune || commune).toUpperCase() };
+  return { prefixe, section, numero, surface: m2, nature: texte(p.nature), lieuDit: texte(p.lieuDit), zone: texte(p.zone), spf: texte(p.spf), commune: texte(p.commune || commune).toUpperCase() };
 }
 
 /** Pure : les occurrences de biens — tous les biens de chaque dossier, lus comme partout ailleurs (commun/donnees-dossier.js : bien de la
@@ -334,7 +334,8 @@ function occurrencesBiens(dossiers) {
       // Le bien principal d'une vente garde son identifiant d'avant (`:bien`) : les liaisons et corrections de l'étude y restent attachées.
       const id = b.principal ? `${d.id}:bien` : `${d.id}:im${i}`;
       occ.push({ id, dossier: d, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles,
-        lots: Array.isArray(b.lots) ? b.lots : [], type: texte(b.type) || (b.principal ? texte(d.typeVente) : '') });
+        lots: Array.isArray(b.lots) ? b.lots : [], type: texte(b.type) || (b.principal ? texte(d.typeVente) : ''),
+        description: texte(b.description), details: Array.isArray(b.details) ? b.details : [] });
     });
   }
   return occ;
@@ -344,7 +345,10 @@ function occurrencesBiens(dossiers) {
 function construireBiens(dossiers) {
   const occ = occurrencesBiens(dossiers);
   const uf = unionFind(occ.map((o) => o.id));
-  const cleParcelle = (/** @type {any} */ p) => [norm(p.commune), p.prefixe, p.section, p.numero].join('|');
+  // Commune écrite autrement d'un dossier à l'autre (« ST AIGNAN » / « SAINT-AIGNAN-SUR-CHER ») : une seule clé, pour que le bien d'une
+  // vente et celui d'une succession soient la même fiche (étude 17/10 : « une fiche bien doit être unique dans CLAIRE comme dans Authentic »).
+  const cleCommune = (/** @type {string} */ c) => DD.communeNette(c).replace(/ s .*$/, '');
+  const cleParcelle = (/** @type {any} */ p) => [cleCommune(p.commune), p.prefixe, p.section, p.numero].join('|');
   // Copropriété : les lots d'un même immeuble partagent la parcelle — un bien = un lot (au moins un lot commun), jamais l'immeuble entier.
   const numerosLots = (/** @type {any} */ o) => (o.lots || []).map((/** @type {any} */ l) => texte(l && (l.numero || l.lot))).filter(Boolean);
   const parParcelle = new Map();
@@ -383,6 +387,10 @@ function construireBiens(dossiers) {
     biens.push({
       id: 'b' + idCourt(racine), adresse: principal.adresse, commune: principal.commune, codePostal: principal.codePostal,
       type: (liste.find((o) => o.type) || {}).type || '', parcelles: ps, surfaceTotale: total,
+      description: (liste.find((o) => o.description) || {}).description || '',
+      // Tout ce que dit la fiche bien d'Authentic, réuni d'un dossier à l'autre par libellé (le premier renseigné l'emporte).
+      details: Object.values(Object.fromEntries(liste.flatMap((o) => o.details).filter((/** @type {any} */ x) => x && texte(x.libelle) && texte(x.valeur)).reverse()
+        .map((/** @type {any} */ x) => [texte(x.libelle), { libelle: texte(x.libelle).slice(0, 80), valeur: texte(x.valeur).slice(0, 200) }]))).slice(0, 30),
       lots: liste.flatMap((o) => o.lots || []).filter((/** @type {any} */ l, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((x) => texte(x && (x.numero || x.lot)) === texte(l && (l.numero || l.lot))) === i).slice(0, 40),
       dossiers: liste.map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),

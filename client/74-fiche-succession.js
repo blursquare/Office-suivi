@@ -542,13 +542,14 @@
     if (!bien) return resultat;
     const a = bien.adresse || {};
     const details = (p) => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
-      Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)])));
+      Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)])));
     const fiche = {
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
       type: bien.type || '', description: String(bien.description || '').slice(0, 160),
       parcelles: (bien.parcelles || []).slice(0, 40).map(details)
     };
     if ((bien.lots || []).length) { fiche.lots = bien.lots.slice(0, 40); if (bien.tantiemesTotal != null) fiche.tantiemesTotal = bien.tantiemesTotal; }
+    if ((bien.details || []).length) fiche.details = bien.details.slice(0, 30);
     const avant = d.authentic || {};
     const immeubles = (avant.immeubles || []).slice();
     const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();

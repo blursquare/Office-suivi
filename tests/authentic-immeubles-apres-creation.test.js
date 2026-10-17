@@ -62,6 +62,7 @@ test('même parcelle dans deux communes : deux biens, chacun sa commune', () => 
   assert.equal(D.parcellesDossier(d).map((p) => `${p.commune} ${p.section}${p.numero}`).join(','), 'BLOIS AB12,VINEUIL AB12,VINEUIL ZC7');
   assert.equal(D.memeCommune({ commune: 'ST AIGNAN' }, { commune: 'SAINT-AIGNAN-SUR-CHER', codePostal: '41110' }), true);
   assert.equal(D.memeCommune({ codePostal: '41000' }, { codePostal: '41350' }), false);
+  assert.equal(D.communeNette('Saint-Aignan-sur-Cher'), 'st aignan s cher');
 });
 
 test('contrôle de l’urbanisme : parcelles du bien principal toujours, commune écrite autrement comprise, autre commune ou commune inconnue exclue', () => {

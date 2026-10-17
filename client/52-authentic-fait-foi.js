@@ -532,9 +532,10 @@
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
       type: bien.type || '', description: String(bien.description || '').slice(0, 160),
       parcelles: bien.parcelles.slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
-        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
+        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
     };
     if ((bien.lots || []).length) fiche.lots = bien.lots.slice(0, 40);
+    if ((bien.details || []).length) fiche.details = bien.details.slice(0, 30);
     const avant = (d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : [];
     const liste = fusionnerImmeubleAuthentic(avant, fiche, { seulementCompleter: !!seulementConnu });
     if (!liste || (seulementConnu && liste.length > avant.length)) return false;
@@ -571,7 +572,7 @@
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
     const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
-    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre', 'zone', 'spf'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
     const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
     let complete = false;
     const anciennes = deja.map(p => {
@@ -600,9 +601,9 @@
     const liste = (donnees.immeubles || []).filter(im => !ids.length || ids.includes(im.id)).slice(0, 12).map(im => ({
       adresse: im.adresse && im.adresse.texte ? normaliserAdresse(im.adresse.texte) : '',
       codePostal: (im.adresse && im.adresse.codePostal) || '', commune: (im.adresse && im.adresse.commune) || '',
-      type: im.type || '', description: String(im.description || '').slice(0, 160),
+      type: im.type || '', description: String(im.description || '').slice(0, 160), details: (im.details || []).slice(0, 30),
       parcelles: (im.parcelles || []).slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
-        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
+        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
     })).filter(im => im.adresse || im.parcelles.length);
     if (!liste.length) return false;
     d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });

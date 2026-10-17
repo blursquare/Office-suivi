@@ -20537,3 +20537,11 @@ bien quand aucune parcelle n'est connue), « Relire depuis Authentic » : toutes
 avec les règles du jour (`appliquerReleveSurDossier`, volet du conjoint compris ; une valeur déjà reprise qui a changé reste PROPOSÉE),
 historique « Relu depuis Authentic ». Les pages vues avant cette version ne sont pas gardées : elles le seront à la prochaine ouverture
 dans Authentic.
+
+
+### 17/10/2026 — 0.274.0 : fiches bien uniques entre ventes et successions, tout Authentic sur la fiche bien ; relecture des pages gardées
+
+Demande de l'étude : « les biens des successions et des ventes, s'ils sont les mêmes, rattachés à la même fiche ; une fiche bien ou client doit être unique dans CLAIRE comme dans Authentic ; bien tout récupérer d'Authentic pour les fiches, toutes les données utiles ».
+- `server/src/clientsBiens.js` : clé de parcelle par commune normalisée (`DD.communeNette`, suffixe « -sur-… » retiré) — le bien d'une vente et celui d'une succession ne font plus qu'une fiche ; désignation, détails (réunis par libellé) et zone/SPF des parcelles portés sur la fiche bien (client/80, rubrique « Dans Authentic »).
+- Fiche bien d'Authentic : `detailsFicheBienAuthentic` (client/82) relève tous les champs étiquetés hors adresse et cadastre (30 au plus), réunis d'un onglet à l'autre par `fusionnerBienAuthentic` ; zone et SPF des parcelles lus ; `commun/donnees-dossier.js` les passe aussi pour les biens d'une succession.
+- Relecture indépendante de 0.273.0 (quatre défauts, corrigés) : une page de promesse/avenant écrasait la page de la vente gardée (clé « ignorer », jamais gardée) ; la relecture rejouait la page d'un autre dossier (`pageRelisibleAuthentic` exige désormais que la page désigne ce dossier) et « Oublier » ne purgeait pas (route `DELETE /api/authentic/dossier/:id/pages`) ; base sans limite (dossier inconnu refusé, 1,5 Mo par page, purge au démarrage des dossiers supprimés ou archivés depuis un an) ; clé de repli d'une fiche client prise sur le volet du conjoint (ignoré, ordre « prénom nom »).
