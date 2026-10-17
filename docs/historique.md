@@ -20587,3 +20587,25 @@ Essai de l'étude sur son Mac (extension d'essai) : « on ne le voit pas choisir
 - CU : champs `T2Q_numero`, `T2V_voie`, `T2W_lieudit`, `T2L_localite`, `T2C_code`, parcelles `T2F_prefixe`/`T2S_section`/`T2N_numero`/`T2T_superficie`, puis `T2FP2_…`, `T2SP2_…` (parcelle 2) et `…P3_…`, `D5T_total` ; pièce `file_input_P2UU1` (libellé « Ajouter ») ; assistant d'adresse : `saisieAdresseAuto`, `complement` (lieu-dit), `boitePostale`, `cedex`, boutons « Je ne trouve pas mon adresse », « Je valide mon adresse », « Fermer ». Les 7 pages sont dans la page en même temps.
 - DIA : propriétaires `AI1NP1`/`AI1PP1`/`AI1MP1`…, société `AI2D`…, adresse du propriétaire `AI3N`/`AI3V`/`AI3W`/`AI3L`/`AI3C`, bien `BI1N`/`BI1V`/`BI1W`/`BI1L`/`BI1C`, `BI2T`, parcelles `BI3FA1`/`BI3SA1`/`BI3NA1`/`BI3LA1`/`BI3TA1`, `…B5`, `…B6` (page 2) puis `A2`…`A9`, `B1`…`B3` (page 8), nature `CI1IA1`/`CI1IA2`, lots `CI6LL1`…, prix `FI1B`/`FI1C`/`FI1M`, commission `FI2MB2`/`FI2MB3`/`FI2MB5`/`FI2MB6`, acquéreur `GI2PA2`/`GI2PA1`/`GI2PA3`, `GI3MA1`, `GI4AA3`/`GI4AA5`/`GI4AA8`/`GI4AB1`, signature `GI7L`/`GI7D`/`GI7S`, notaire `HI1N`/`HI1P`/`HI1Q`, adresse du notaire `HI2…`.
 Causes et corrections : la fenêtre des assistants n'a pas la classe « modal » → `fenetreTitree` la retrouve par son titre (bloc qui contient le titre, un champ et « Fermer ») ; recherche et lieu-dit par `#saisieAdresseAuto` et `#complement` ; la pièce ne s'appelle que « Ajouter » → `joindrePlan` remonte la ligne jusqu'à « CU1. Un plan de situation » ; DIA : `[id^="BI3S_"]` ne trouvait pas `BI3SA1` → déclencheur et contrôle par `BI3SA1` ; commune : liste trouvée aussi hors fenêtre « modal » (bloc qui parle de la commune de dépôt), choix montré (bandeau, liste encadrée, une seconde). Extension d'essai : plan cadastral inventé (PDF d'une page) joint par le service worker. Copie d'essai du guichet alignée sur ces identifiants ; commune et pièce vérifiées par le test. Non vu : la fenêtre de l'assistant des références cadastrales (relevé à faire assistant ouvert), l'adresse du propriétaire et de l'acquéreur de la DIA (saisie directe : à confirmer).
+
+### 17/10/2026 — Extension Chrome 0.8.0 (0.276.0) : assistants seulement, DIA complétée, « Vérifier ma saisie »
+
+Étude : « Il faut utiliser le système qui permet de choisir l'adresse, ne pas copier-coller dans le champ directement, pareil pour les
+parcelles. Pour la DIA il manque des champs à remplir importants. À la fin faire Vérifier ma saisie. » Puis, structure de toutes les pages
+d'une DIA remplie et signée (maison ; « les champs choisis sont à adapter si c'est un terrain, maison, copropriété »), et : « pour les CU la
+partie personne morale est déjà pré-remplie avec nos coordonnées, ne pas remplir la partie personne physique ».
+
+- `champDeAssistant` : un code couvert par un assistant n'est plus jamais écrit directement, même quand l'assistant ne s'est pas ouvert
+  (avant : repli sur la saisie directe — c'est ce que l'étude a vu). La case reste vide, le panneau dit « à saisir par l'assistant du guichet ».
+- `ouvrirAssistant` : chaque déclencheur à son tour, clic complet (pointerdown, mousedown, focus/focusin, pointerup, mouseup, click — un
+  `focus()` seul ne déclenche rien quand la page n'a pas la main) ; fenêtre retrouvée par un champ propre (`champFenetre` :
+  `#saisieAdresseAuto`) puis par son titre.
+- `verifierSaisie` : à la dernière page (plus de « page suivante », ou elle ne change plus rien), clic sur `#id__btnVerifierSaisie` au texte
+  exact « Vérifier ma saisie » (`verifierSelecteur` des deux scénarios) ; « Transmettre ma demande » jamais.
+- CU : `D1N_nom` / `D1P_prenom` retirés du scénario.
+- DIA (`ficheGnau` : `dia`, `office`, `email`/`telephone` des parties d'après leur fiche client d'Authentic ; transformations
+  `email_local`/`email_domaine`) : PI1A, PI1AA1 (DPU retenu par Contrôle de l'urbanisme — `dpuGnau`, jamais deviné, cité dans `manques`
+  sinon), CI2NA1, DI1UA1 (`habitationGnau` : maison, ou lot de copropriété logement), FI2MA1, BI3IA1 (cochée quand le plan est obtenu, puis
+  `file_input_BI3IA1`), AI3T, AI3EM1/2, GI4AM1/2, HI1EM1/2, HI2N/V/C/L/T (coordonnées de l'office du carnet). Laissés à l'étude faute de
+  donnée sur la fiche : occupation (DI2OA*), droits réels (EI1*), modalités autres que le comptant. Sens des codes déduits du CERFA et des
+  codes voisins, à vérifier sur un vrai brouillon (point terrain `gnau-dia-champs-verifier`).

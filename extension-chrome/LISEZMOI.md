@@ -54,10 +54,21 @@ Sur ce guichet, CLAIRE suit le parcours relevé par l'étude (16/10) :
    est refermé et l'adresse vous est laissée. Un clic sur les parcelles ouvre l'« Assistant de saisie des références cadastrales » — chaque
    parcelle de la fiche (préfixe, section, numéro, superficie) puis « Ajouter la parcelle », jamais deux fois la même, puis « Valider » (au-delà
    de 3 parcelles en CUa, le guichet les met lui-même en annexe). Une parcelle sans superficie connue n'est pas ajoutée : elle est nommée dans
-   le panneau. Adresse ou parcelles déjà saisies dans le guichet : laissées telles quelles. CU et DIA ;
+   le panneau. Adresse ou parcelles déjà saisies dans le guichet : laissées telles quelles. **Jamais tapées directement dans les cases** (étude 17/10) :
+   si l'assistant ne s'ouvre pas, les cases restent vides et le panneau dit « à saisir par l'assistant du guichet ». CU et DIA ;
 5. brouillon `#/saisie/<n°>` (CUa 7 pages, DIA 10) : chaque champ par son code CERFA (`#AI1NP1`, `#T2L_localite`…), valeur posée d'un
    coup (le guichet applique lui-même majuscules et masques), puis « page suivante » (`vm.nextPage()`) ;
-6. dernière page : arrêt. Relire, **joindre les pièces (à la main)**, « Vérifier ma saisie », puis « Transmettre ma demande » **vous-même**.
+6. dernière page : CLAIRE clique **« Vérifier ma saisie »** (le contrôle du guichet, qui ne transmet rien) et s'arrête. Corriger ce que le
+   guichet signale, relire, joindre les autres pièces, puis « Transmettre ma demande » **vous-même**.
+
+**CU** : le demandeur « personne physique » n'est jamais rempli — le guichet pré-remplit l'office en personne morale (étude 17/10).
+
+**DIA** (champs relevés sur une DIA remplie par l'étude, 17/10) : cases « déclaration d'intention d'aliéner » (PI1A), « droit de préemption
+urbain » (PI1AA1, seulement quand Contrôle de l'urbanisme le retient), « pleine propriété » (CI2NA1), « usage d'habitation » (DI1UA1 : maison,
+ou copropriété dont un lot est un logement), « prix comptant » (FI2MA1), « plan cadastral joint » (BI3IA1, cochée quand le plan est joint) ;
+téléphone et email du propriétaire (AI3T, AI3EM1/AI3EM2) et email de l'acquéreur (GI4AM1/GI4AM2) d'après leur fiche client d'Authentic ;
+email, adresse et téléphone de l'office pour le mandataire (HI1EM1/HI1EM2, HI2N, HI2V, HI2C, HI2L, HI2T). Occupation du bien, droits réels,
+vente amiable/adjudication et modalités autres que le comptant : à remplir vous-même (pas encore sur la fiche).
 
 Jamais : « Transmettre ma demande » (texte ou `transmettreSaisie`), un identifiant (fenêtre « Me connecter à mon compte » = arrêt, vous vous
 reconnectez puis relancez : le brouillon est rouvert par son adresse), les listes recalculées par le site (`OPLSTPARCELLE`, `OPLSTCOPRO`,

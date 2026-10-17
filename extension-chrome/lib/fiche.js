@@ -98,6 +98,9 @@
       return Number.isInteger(n) ? String(n) : n.toFixed(2).replace(".", ",");
     },
     yesno: (v) => (isTrue(v) ? "oui" : "non"),
+    // Adresse électronique en deux cases autour de « @ » (CERFA : « ____ @ ____ »).
+    email_local: (v) => { const m = /^([^@\s]+)@([^@\s]+\.[^@\s]+)$/.exec(s(v).trim()); if (!m) throw new Error("Email illisible"); return m[1]; },
+    email_domaine: (v) => { const m = /^([^@\s]+)@([^@\s]+\.[^@\s]+)$/.exec(s(v).trim()); if (!m) throw new Error("Email illisible"); return m[2]; },
 
     // ----- Listes encodées attendues par le GNAU (voir HANDOFF.md §11) -----
     // CUa : ¢section¢numéro¢surface¢ séparés par ¡

@@ -29,7 +29,7 @@ async function jouer(fiche, avant) {
     for (const f of ['lib/fiche.js', 'content/content.js']) await page.addScriptTag({ path: path.join(ext, f) });
     for (let i = 0; i < 400 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
     const valeurs = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('input[id]')].map((i) => [i.id, i.value])));
-    const etat = await page.evaluate(() => ({ commune: window.__commune || '', piece: window.__piece || '', hash: location.hash, transmis: !!window.__transmis, carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
+    const etat = await page.evaluate(() => ({ commune: window.__commune || '', piece: window.__piece || '', hash: location.hash, transmis: !!window.__transmis, verifie: !!window.__verifie, valPage: !!window.__valPage, annPage: !!window.__annPage, filtre: window.__filtre || '', carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
     return { journal, valeurs, etat, assistants: Object.fromEntries(journal.filter((m) => m.type === 'content.assistant').map((m) => [m.assistant, m])) };
   } finally { await browser.close(); }
 }
@@ -46,6 +46,8 @@ verifier(a.valeurs.T2S_section === 'BA' && a.valeurs.T2NP3_numero === '23' && a.
 verifier(a.etat.lignes === 4, 'quatre parcelles, aucune deux fois');
 verifier(!a.etat.transmis, '« Transmettre ma demande » jamais cliqué');
 verifier(a.etat.piece === 'Plan cadastral.pdf', 'plan joint à « CU1. Un plan de situation » (champ nommé « Ajouter ») : ' + a.etat.piece);
+verifier(a.etat.verifie, '« Vérifier ma saisie » cliqué à la fin');
+verifier(!a.valeurs.D1N_nom && !a.valeurs.D1P_prenom, 'demandeur « personne physique » jamais rempli (l’office est pré-rempli en personne morale)');
 verifier((a.assistants.parcelles || {}).etat === 'done' && (a.assistants.adresse || {}).etat === 'done', 'assistants faits');
 
 const b = await jouer(Object.assign({}, base, { terrain: { numero: '9', voie: 'Chemin Inconnu', commune: 'BLOIS', codePostal: '41000' } }));
@@ -72,6 +74,20 @@ const i = await jouer(Object.assign({}, base, { terrain: { numero: '51', voie: '
 verifier(i.valeurs.T2V_voie === 'AVENUE RACINE', 'abréviation de la fiche (« Av. ») reconnue : ' + i.valeurs.T2V_voie);
 const g = await jouer(base, () => { window.__cfg = { chargement: 25000 }; });
 verifier(g.etat.hash !== '#/saisie/19333' || !g.etat.carteSuivi, 'chargement long : jamais une carte du suivi');
+
+// Étude 17/10 : adresse et parcelles TOUJOURS par l'assistant — ouvert à l'appui de la souris, ou jamais ouvert (rien n'est tapé dans les cases).
+const m = await jouer(base, () => { window.__cfg = { ouvertureMousedown: true }; });
+verifier(m.valeurs.T2V_voie === 'RUE RACINE' && m.valeurs.T2S_section === 'BA', 'assistants ouverts à l’appui de la souris');
+const n = await jouer(base, () => { window.__cfg = { assistantMort: true }; });
+verifier(!n.valeurs.T2V_voie && !n.valeurs.T2Q_numero && !n.valeurs.T2S_section && !n.valeurs.T2N_numero && !n.valeurs.D5T_total, 'assistant fermé : adresse et parcelles jamais tapées directement');
+verifier((n.assistants.adresse || {}).etat === 'absent' && n.etat.verifie, 'assistant fermé : laissé à l’étude, « Vérifier ma saisie » quand même');
+
+// Relecture du 17/10 : une aide de la page cite le titre des assistants, un « Valider » / « Annuler » dans la page ; un filtre par commune à l'accueil.
+const o = await jouer(base, () => { window.__cfg = { aideTitre: true }; });
+verifier(!o.etat.valPage && !o.etat.annPage, '« Valider » / « Annuler » de la page jamais cliqués à la place de ceux de l’assistant');
+verifier(o.valeurs.T2S_section === 'BA' && o.valeurs.T2V_voie === 'RUE RACINE', 'assistants retrouvés malgré l’aide qui cite leur titre');
+const q = await jouer(base, () => { window.__cfg = { filtreCommune: true }; });
+verifier(!q.etat.filtre && q.etat.commune === 'Blois', 'filtre « par commune de dépôt » de l’accueil jamais pris pour la commune de dépôt : ' + q.etat.filtre);
 
 console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
 process.exit(erreurs.length ? 1 : 0);

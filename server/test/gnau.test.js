@@ -144,3 +144,29 @@ test('route du plan cadastral : PDF du dossier relié au NAS, nom neutre, jamais
     serveur.close(); db.close(); fs.rmSync(nas, { recursive: true, force: true });
   }
 });
+
+test('fiche DIA : cases du CERFA, coordonnées d’Authentic et de l’office (étude 17/10)', () => {
+  const d = dossier();
+  d.authentic.fichesClients.a.emails = ['paul.moreau@exemple.fr; autre@exemple.fr'];
+  d.authentic.fichesClients.a.telephones = ['+33 6 11 22 33 44'];
+  let f = ficheGnau(d, 'dia', '2026-10-17');
+  assert.equal(f.vendeur.email, 'paul.moreau@exemple.fr');
+  assert.equal(f.vendeur.telephone, '0611223344');
+  assert.equal(f.vendeurs.codemandeurs[0].email, '', 'jamais l’email d’une autre personne du même côté');
+  assert.deepEqual([f.dia.declaration, f.dia.pleinePropriete, f.dia.comptant, f.dia.habitation], [true, true, true, true]);
+  assert.equal(f.dia.dpu, null, 'DPU pas analysé : jamais deviné');
+  assert.ok(f.manques.some((m) => /préemption urbain/.test(m)));
+  assert.deepEqual([f.office.email, f.office.numero, f.office.voie, f.office.codePostal, f.office.commune], ['office.gossart@notaires.fr', '3', 'rue Bout des Haies', '41000', 'BLOIS']);
+  d.preemption = { droits: [{ cle: 'dpu', statut: 'probable' }] };
+  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dpu, undefined);
+  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.dpu, true);
+  d.preemption = { droits: [{ cle: 'dpu', statut: 'non' }] };
+  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.dpu, false);
+  d.typeVente = 'terrain';
+  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.habitation, null);
+  d.typeVente = 'copropriete'; d.bien.lots = [{ numero: '12', designation: 'Cave' }];
+  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.habitation, null, 'une cave seule n’est pas un logement');
+  d.bien.lots.push({ numero: '3', designation: 'Appartement T3' });
+  f = ficheGnau(d, 'dia', '2026-10-17');
+  assert.equal(f.dia.habitation, true);
+});

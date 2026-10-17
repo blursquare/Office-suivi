@@ -1,15 +1,15 @@
 {
  "id": "dia-gnau-agglopolys",
  "name": "DIA — guichet d'Agglopolys",
- "version": 3,
+ "version": 4,
  "auto": true,
  "pagesMax": 10,
  "saisieDirecte": true,
- "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10).",
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10). Champs ajoutés le 17/10 d'après une DIA remplie par l'étude : cases DIA et DPU (d'après Contrôle de l'urbanisme), pleine propriété, usage d'habitation (maison, logement en copropriété), prix comptant, plan cadastral joint (BI3IA1), coordonnées du propriétaire et de l'acquéreur (fiche client d'Authentic) et de l'office. À la dernière page, CLAIRE clique « Vérifier ma saisie » (jamais « Transmettre »).",
  "entree": {
   "commune": {
    "source": "terrain.commune",
-   "selecteur": ".modal select",
+   "selecteur": "form[name=\"formSelectionCommune\"] select, select[ng-model=\"vm.choixVilleInsee\"], .modal select",
    "valider": [
     "^valider la commune( de depot)?$"
    ]
@@ -36,6 +36,20 @@
    "title": "Toutes les pages du brouillon",
    "waitFor": "body",
    "fields": [
+    {
+     "label": "Déclaration d'intention d'aliéner (case PI1A)",
+     "source": "dia.declaration",
+     "code": "PI1A",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Droit de préemption urbain — d'après Contrôle de l'urbanisme (case PI1AA1)",
+     "source": "dia.dpu",
+     "code": "PI1AA1",
+     "type": "case",
+     "optional": true
+    },
     {
      "forEach": "vendeurs.tous",
      "max": 2,
@@ -95,6 +109,26 @@
      "source": "vendeur.adresse.codePostal",
      "code": "AI3C",
      "optional": true
+    },
+    {
+     "label": "Propriétaire — téléphone (AI3T)",
+     "source": "vendeur.telephone",
+     "code": "AI3T",
+     "optional": true
+    },
+    {
+     "label": "Propriétaire — email, avant @ (AI3EM1)",
+     "source": "vendeur.email",
+     "code": "AI3EM1",
+     "optional": true,
+     "transform": "email_local"
+    },
+    {
+     "label": "Propriétaire — email, après @ (AI3EM2)",
+     "source": "vendeur.email",
+     "code": "AI3EM2",
+     "optional": true,
+     "transform": "email_domaine"
     },
     {
      "label": "Bien — n° (BI1N)",
@@ -215,6 +249,20 @@
      "optional": true
     },
     {
+     "label": "Vente en pleine propriété — par défaut pour une vente, à vérifier (case CI2NA1)",
+     "source": "dia.pleinePropriete",
+     "code": "CI2NA1",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Usage d'habitation (case DI1UA1)",
+     "source": "dia.habitation",
+     "code": "DI1UA1",
+     "type": "case",
+     "optional": true
+    },
+    {
      "label": "Copropriété (case CI6CA1)",
      "source": "copropriete",
      "code": "CI6CA1",
@@ -275,6 +323,13 @@
      "source": "mobilier",
      "code": "FI1M",
      "transform": "entier",
+     "optional": true
+    },
+    {
+     "label": "Prix payé comptant à la signature — par défaut, à vérifier (case FI2MA1)",
+     "source": "dia.comptant",
+     "code": "FI2MA1",
+     "type": "case",
      "optional": true
     },
     {
@@ -354,6 +409,20 @@
      "optional": true
     },
     {
+     "label": "Acquéreur — email, avant @ (GI4AM1)",
+     "source": "acquereur.email",
+     "code": "GI4AM1",
+     "optional": true,
+     "transform": "email_local"
+    },
+    {
+     "label": "Acquéreur — email, après @ (GI4AM2)",
+     "source": "acquereur.email",
+     "code": "GI4AM2",
+     "optional": true,
+     "transform": "email_domaine"
+    },
+    {
      "label": "Fait à (GI7L)",
      "source": "signature.lieu",
      "code": "GI7L"
@@ -388,7 +457,51 @@
      "optional": true
     },
     {
-     "label": "Plan cadastral (pièce jointe, dossier du NAS)",
+     "label": "Mandataire — email, avant @ (HI1EM1)",
+     "source": "office.email",
+     "code": "HI1EM1",
+     "optional": true,
+     "transform": "email_local"
+    },
+    {
+     "label": "Mandataire — email, après @ (HI1EM2)",
+     "source": "office.email",
+     "code": "HI1EM2",
+     "optional": true,
+     "transform": "email_domaine"
+    },
+    {
+     "label": "Mandataire — adresse, n° (HI2N)",
+     "source": "office.numero",
+     "code": "HI2N",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — adresse, voie (HI2V)",
+     "source": "office.voie",
+     "code": "HI2V",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — code postal (HI2C)",
+     "source": "office.codePostal",
+     "code": "HI2C",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — localité (HI2L)",
+     "source": "office.commune",
+     "code": "HI2L",
+     "optional": true
+    },
+    {
+     "label": "Mandataire — téléphone (HI2T)",
+     "source": "office.telephone",
+     "code": "HI2T",
+     "optional": true
+    },
+    {
+     "label": "Plan cadastral joint (case BI3IA1 + pièce, dossier du NAS)",
      "source": "dossier.id",
      "type": "fichier",
      "piece": [
@@ -397,7 +510,9 @@
       "\\bcu ?1\\b",
       "situation du terrain"
      ],
-     "optional": true
+     "optional": true,
+     "case": "BI3IA1",
+     "inputId": "file_input_BI3IA1"
     }
    ]
   }
@@ -419,7 +534,8 @@
     "BI1W",
     "BI1L",
     "BI1C"
-   ]
+   ],
+   "champFenetre": "#saisieAdresseAuto"
   },
   {
    "type": "parcelles",
@@ -436,9 +552,11 @@
     "BI3F",
     "BI3S",
     "BI3N",
+    "BI3L",
     "BI3T",
     "BI2T"
    ]
   }
- ]
+ ],
+ "verifierSelecteur": "#id__btnVerifierSaisie"
 }

@@ -1,15 +1,15 @@
 {
  "id": "cua-gnau-agglopolys",
  "name": "CUa — guichet d'Agglopolys",
- "version": 2,
+ "version": 3,
  "auto": true,
  "pagesMax": 7,
  "saisieDirecte": true,
- "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10).",
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page (jamais le demandeur « personne physique » : le guichet pré-remplit l'office en personne morale, étude 17/10) par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10). À la dernière page, CLAIRE clique « Vérifier ma saisie » (jamais « Transmettre »).",
  "entree": {
   "commune": {
    "source": "terrain.commune",
-   "selecteur": ".modal select",
+   "selecteur": "form[name=\"formSelectionCommune\"] select, select[ng-model=\"vm.choixVilleInsee\"], .modal select",
    "valider": [
     "^valider la commune( de depot)?$"
    ]
@@ -36,18 +36,6 @@
    "title": "Toutes les pages du brouillon",
    "waitFor": "body",
    "fields": [
-    {
-     "label": "Demandeur — nom (D1N)",
-     "source": "notaire.nom",
-     "code": "D1N_nom",
-     "optional": true
-    },
-    {
-     "label": "Demandeur — prénom (D1P)",
-     "source": "notaire.prenom",
-     "code": "D1P_prenom",
-     "optional": true
-    },
     {
      "label": "Terrain — numéro (T2Q)",
      "source": "terrain.numero",
@@ -149,7 +137,8 @@
       "\\bcu ?1\\b",
       "situation du terrain"
      ],
-     "optional": true
+     "optional": true,
+     "inputId": "file_input_P2UU1"
     }
    ]
   }
@@ -171,7 +160,8 @@
     "T2W",
     "T2L",
     "T2C"
-   ]
+   ],
+   "champFenetre": "#saisieAdresseAuto"
   },
   {
    "type": "parcelles",
@@ -192,5 +182,6 @@
     "D5T"
    ]
   }
- ]
+ ],
+ "verifierSelecteur": "#id__btnVerifierSaisie"
 }

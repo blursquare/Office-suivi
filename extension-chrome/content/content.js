@@ -564,14 +564,35 @@
       return t;
     };
     const vise = (x) => { const l = libelleChamp(x); const t = l && res.some((r) => r.test(l)) ? l : zone(x); return !!t && !autre.test(t) && res.some((r) => r.test(t)); };
-    const trouves = [...document.querySelectorAll('input[type=file]')].filter(vise);
-    if (!trouves.length) return false;
+    // Champ connu par son identifiant (relevé de l'étude, 17/10 : « file_input_BI3IA1 » de la DIA, caché tant que la case « plan
+    // cadastral joint » n'est pas cochée ; « file_input_P2UU1 » du CU) ; sinon par l'intitulé de sa ligne.
+    const parId = () => (f.inputId ? document.getElementById(f.inputId) : null);
+    // La case qui annonce la pièce : trouvée comme les autres cases (identifiant, nom, « CODE_… »), visible elle ou son libellé.
+    const trouverCase = () => {
+      const sel = f.case ? selecteurCode(f.case) : "";
+      return sel ? [...document.querySelectorAll(sel)].find((x) => x.type === "checkbox" && (visible(x) || (x.labels && [...x.labels].some(visible)))) || null : null;
+    };
+    let trouves = parId() ? [parId()] : [...document.querySelectorAll('input[type=file]')].filter(vise);
+    if (!trouves.length && !trouverCase()) return false;
     if (trouves.length > 1) { if (((run.fields || {})[key] || {}).state !== "manuel") await noter(run, key, "manuel", "plusieurs champs de pièce parlent du plan : joignez-le vous-même"); return false; }
-    const el = trouves[0];
-    if (el.files && el.files.length) { await noter(run, key, "done", "pièce déjà jointe dans le guichet, laissée telle quelle"); return true; }
+    if (trouves[0] && trouves[0].files && trouves[0].files.length) { await noter(run, key, "done", "pièce déjà jointe dans le guichet, laissée telle quelle"); return true; }
     await noter(run, key, "filling");
     const r = await send({ type: "content.plan" });
     if (!r || r.erreur || !r.b64) { await noter(run, key, "manuel", (r && r.erreur) || "plan introuvable : joignez-le vous-même"); return false; }
+    // La case qui annonce la pièce (« plan cadastral joint : oui ») : cochée seulement quand le plan est là, puis le champ relu.
+    const caseAvant = trouverCase();
+    let caseCochee = false;
+    const defaireCase = async () => { if (caseCochee && caseAvant.checked) { caseAvant.click(); await wait(sp.pause); } };
+    if (caseAvant && !caseAvant.checked) {
+      caseCochee = true;
+      const c = (caseAvant.labels && [...caseAvant.labels].find(visible)) || caseAvant;
+      try { const pos = await moveTo(c, sp); ripple(pos.x, pos.y); } catch (_) { /* case cachée */ }
+      caseAvant.click();
+      await wait(Math.max(sp.pause, 500));
+      trouves = parId() ? [parId()] : [...document.querySelectorAll('input[type=file]')].filter(vise);
+    }
+    const el = trouves[0];
+    if (!el) { await defaireCase(); await noter(run, key, "manuel", "champ de la pièce introuvable : joignez le plan vous-même"); return false; }
     const bin = atob(r.b64);
     const octets = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
@@ -584,6 +605,7 @@
     fire(el, "input");
     fire(el, "change");
     await wait(sp.pause);
+    if (!(el.files && el.files.length)) await defaireCase();
     await noter(run, key, el.files && el.files.length ? "done" : "mismatch", el.files && el.files.length ? `Plan cadastral.pdf joint${r.source ? " (" + r.source + ")" : ""}` : "le guichet n’a pas pris le fichier");
     return true;
   }
@@ -670,6 +692,8 @@
     const valeur = valeurPourChamp(el, r.value);
     if (String(el.value || "").trim() && String(el.value) !== valeur) { await noter(run, key, "done", "déjà rempli dans le guichet, laissé tel quel"); return true; }
     if (String(el.value) === valeur) { await noter(run, key, "done"); return true; }
+    // Un champ en lecture seule est, sur ces guichets, réservé à un assistant ou calculé par le site : jamais écrit par-dessus.
+    if (el.readOnly || el.getAttribute("aria-readonly") === "true") { await noter(run, key, "manuel", "case en lecture seule : à saisir par l’assistant du guichet"); return false; }
     await noter(run, key, "filling");
     const res = await fillElement(el, f.type || "text", valeur, sp, false);
     await noter(run, key, res.ok ? "done" : "mismatch", res.detail);
@@ -791,8 +815,16 @@
     if (location.hash.startsWith(e.urlSaisie)) return "rien";
     // Fenêtre « Sélectionner une commune de dépôt ».
     // La liste des communes : par son sélecteur, sinon toute liste visible dont le bloc parle de la « commune de dépôt ».
+    // Hors fenêtre « modal » (relecture du 17/10) : seulement une liste dont le bloc porte AUSSI le bouton « Valider la commune de
+    // dépôt » — jamais un filtre « par commune de dépôt » de l'accueil.
+    let fenCommune = null;
     const select = [...document.querySelectorAll(e.commune.selecteur)].find(visible)
-      || [...document.querySelectorAll("select")].filter(visible).find((x) => { for (let z = x.parentElement, k = 0; z && k < 6; z = z.parentElement, k++) if (/commune de depot/.test(norm(z.innerText || "").slice(0, 300))) return true; return false; });
+      || [...document.querySelectorAll("select")].filter(visible).find((x) => {
+        for (let z = x.parentElement, k = 0; z && k < 6; z = z.parentElement, k++) {
+          if (/commune de depot/.test(norm(z.innerText || "").slice(0, 300)) && boutonDansFenetre(z, e.commune.valider)) { fenCommune = z; return true; }
+        }
+        return false;
+      });
     if (select && visible(select)) {
       const commune = getByPathLocal(run.fiche, e.commune.source);
       const opts = [...select.options].filter((o) => memeCommune(o.text, commune));
@@ -806,12 +838,21 @@
       mark(select, true);
       select.focus();
       setNativeSelect(select, opts[0].value);
+      // Liste d'Angular (relevé de l'étude, 17/10 : `ng-options`, valeurs = rangs, pas le code INSEE) : la commune doit être prise par le
+      // modèle — sinon l'option est reprise par son rang, puis un nouveau « change ».
+      if (select.value !== opts[0].value || select.classList.contains("ng-invalid")) { select.selectedIndex = opts[0].index; fire(select, "input"); fire(select, "change"); }
       await wait(Math.max(sp.pause, 1000));
+      if (select.selectedIndex !== opts[0].index || select.classList.contains("ng-invalid")) {
+        mark(select, false);
+        await finish("awaiting_human", `Le guichet n’a pas pris la commune ${opts[0].text.trim()} : choisissez-la vous-même, validez, puis relancez CLAIRE.`);
+        return "fin";
+      }
       mark(select, false);
-      const fen = select.closest(FENETRES) || document;
-      const valider = boutonDansFenetre(fen, e.commune.valider);
+      const fen = select.closest(FENETRES) || fenCommune;
+      const valider = fen ? boutonDansFenetre(fen, e.commune.valider) : null;
       if (!valider) { await finish("awaiting_human", "Commune choisie : cliquez vous-même « Valider la commune de dépôt », puis relancez CLAIRE."); return "fin"; }
       await send({ type: "content.etape", label: "Commune de dépôt" });
+      run.communeChoisie = opts[0].text.trim();
       await cliquerPuisAttendre(valider, sp, pi);
       return "fait";
     }
@@ -881,15 +922,22 @@
   // seulement (seules exceptions nommées à la liste noire, comme la commune de dépôt).
   // La fenêtre d'un assistant : par son TITRE, quelle que soit la façon dont le guichet dessine ses fenêtres (relevé de l'étude, 17/10 :
   // le vrai guichet n'utilise pas la classe « modal ») — le bloc qui contient le titre, au moins un champ de saisie et un bouton « Fermer ».
-  async function fenetreTitree(titre, max) {
-    const re = new RegExp(titre, "i");
+  async function fenetreTitree(titre, max, exclure) {
+    const re = new RegExp("^" + titre, "i");
+    // Un bloc qui contient le formulaire n'est jamais la fenêtre (relecture du 17/10 : une aide de la page qui citait le titre faisait
+    // prendre toute la page, et cliquer son « Valider ») : ni le champ qui ouvre l'assistant, ni un bouton du guichet.
+    const tropGrand = (z) => (exclure || []).some((x) => z.contains(x))
+      || [...z.querySelectorAll("button, a, [role=button], input[type=button], input[type=submit]")].some((b) => /^(verifier ma saisie|transmettre|sauvegarder|page suivante|retour)/.test(texteBouton(b)));
     for (const fin = Date.now() + (max || 5000); Date.now() < fin;) {
-      const f = fenetresVisibles().find((x) => re.test(norm(x.innerText || "").slice(0, 200)));
-      if (f) return f.closest(".modal") || f;
+      const f = fenetresVisibles().find((x) => re.test(norm(x.innerText || "").trim().slice(0, 200)) && !tropGrand(x));
+      if (f) return f;
+      // Les titres qui COMMENCENT par le titre, du dernier au premier (une fenêtre s'ajoute en fin de page) ; le plus petit bloc qui
+      // contient un champ et un bouton « Fermer ».
       const titres = [...document.querySelectorAll("h1, h2, h3, h4, h5, h6, .modal-title, [class*=title], [class*=titre], div, span, p")]
-        .filter((t) => t.children.length <= 2 && (t.textContent || "").length <= 80 && re.test(norm(t.textContent)) && visible(t) && !t.closest("#claire-overlay"));
+        .filter((t) => t.children.length <= 2 && (t.textContent || "").length <= 80 && re.test(norm(t.textContent).trim()) && visible(t) && !t.closest("#claire-overlay")).reverse();
       for (const t of titres) {
         for (let z = t.parentElement, k = 0; z && z !== document.body && k < 8; z = z.parentElement, k++) {
+          if (tropGrand(z)) break;
           if (champsVisibles(z).length && [...z.querySelectorAll("button, a, [role=button], input[type=button]")].some((b) => visible(b) && /^fermer$/.test(texteBouton(b)))) return z;
         }
       }
@@ -907,13 +955,56 @@
     const fermer = boutonDansFenetre(fen, ["^fermer$", "^annuler$"]);
     if (fermer) await cliquerPuisAttendre(fermer, sp, 0, 3000);
   }
+  // Le clic d'une personne, événement par événement : certains guichets ouvrent leur assistant au mousedown ou au focus, et un focus()
+  // seul ne déclenche rien quand la page n'a pas la main (panneau de l'extension au premier plan).
+  function clicComplet(el) {
+    const r = el.getBoundingClientRect();
+    const o = { bubbles: true, cancelable: true, composed: true, view: window, clientX: r.left + Math.min(r.width / 2, 20), clientY: r.top + r.height / 2, button: 0 };
+    try { el.dispatchEvent(new PointerEvent("pointerdown", o)); } catch (_) { /* PointerEvent absent */ }
+    el.dispatchEvent(new MouseEvent("mousedown", o));
+    el.focus();
+    if (document.activeElement !== el || !document.hasFocus()) {
+      el.dispatchEvent(new FocusEvent("focus", { relatedTarget: null }));
+      el.dispatchEvent(new FocusEvent("focusin", { bubbles: true, relatedTarget: null }));
+    }
+    try { el.dispatchEvent(new PointerEvent("pointerup", o)); } catch (_) { /* PointerEvent absent */ }
+    el.dispatchEvent(new MouseEvent("mouseup", o));
+    el.click();
+  }
+  // La fenêtre de l'assistant : par un champ qui lui est propre quand il est connu (« #saisieAdresseAuto »), sinon par son titre.
+  async function fenetreAssistant(as, max) {
+    const exclure = (as.declencheur || []).map(selecteurCode).filter(Boolean).flatMap((sel) => [...document.querySelectorAll(sel)]);
+    for (const fin = Date.now() + (max || 4000); Date.now() < fin;) {
+      const propre = as.champFenetre ? [...document.querySelectorAll(as.champFenetre)].find(visible) : null;
+      if (propre) {
+        for (let z = propre.parentElement, k = 0; z && z !== document.body && k < 10; z = z.parentElement, k++) {
+          if (exclure.some((x) => z.contains(x)) || [...z.querySelectorAll("button, a, [role=button]")].some((b) => /^(verifier ma saisie|transmettre)/.test(texteBouton(b)))) break;
+          if ([...z.querySelectorAll("button, a, [role=button], input[type=button]")].some((b) => visible(b) && /^fermer$/.test(texteBouton(b)))) return z;
+        }
+      }
+      const f = await fenetreTitree(as.titre, 250, exclure);
+      if (f) return f;
+    }
+    return null;
+  }
   async function ouvrirAssistant(as, sp) {
-    const sel = (as.declencheur || []).map(selecteurCode).filter(Boolean).join(", ");
-    const el = sel ? [...document.querySelectorAll(sel)].find(visible) : null;
-    if (!el) return null;
-    const pos = await moveTo(el, sp); ripple(pos.x, pos.y);
-    el.focus(); el.click();
-    return fenetreTitree(as.titre, 5000);
+    const deja = await fenetreAssistant(as, 300);
+    if (deja) return deja;
+    // Chaque déclencheur à son tour (le champ de la voie, puis le numéro, la localité…), jusqu'à ce que la fenêtre s'ouvre.
+    for (const code of as.declencheur || []) {
+      const sel = selecteurCode(code);
+      const el = sel ? [...document.querySelectorAll(sel)].find(visible) : null;
+      if (!el) continue;
+      el.scrollIntoView({ block: "center" });
+      const pos = await moveTo(el, sp); ripple(pos.x, pos.y);
+      clicComplet(el);
+      const fen = await fenetreAssistant(as, 3500);
+      if (fen) return fen;
+      // Une fenêtre lente à venir : jamais un second déclencheur par-dessus.
+      const tard = await fenetreAssistant(as, 1500);
+      if (tard) return tard;
+    }
+    return null;
   }
 
   async function assistantAdresse(run, as, sp) {
@@ -961,7 +1052,13 @@
       if (props.length === 1 || (props.length > 1 && props.every((x) => norm(x.innerText) === norm(props[0].innerText)))) choix = props[0];
       else if (props.length > 1) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "plusieurs adresses proposées par le guichet : choisissez-la vous-même" }; }
     }
-    if (!choix) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: `aucune adresse proposée ne correspond à « ${requete} » : saisissez-la vous-même dans l’assistant` }; }
+    if (!choix) {
+      await fermerFenetre(fen, sp);
+      // Brouillon ouvert sans que CLAIRE ait choisi la commune (repris, ou commune choisie à la main) : l'assistant ne propose que les
+      // adresses de la commune de dépôt du brouillon (essai de l'étude, 17/10 : brouillon de Candé-sur-Beuvron, dossier à Blois).
+      const commune = run.communeChoisie ? "" : ` — vérifiez aussi que la commune de dépôt du brouillon est bien ${t.commune || "celle du dossier"} : l’assistant ne propose que les adresses de cette commune`;
+      return { etat: "manuel", detail: `aucune adresse proposée ne correspond à « ${requete} » : saisissez-la vous-même dans l’assistant${commune}` };
+    }
     const cible = choix.querySelector("a") || choix;
     let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); cible.click();
     await wait(Math.max(sp.pause, 600));
@@ -1057,15 +1154,20 @@
       await noter(run, `assistant:${as.type}`, r.etat, r.detail);
     }
   }
-  // Un champ rempli par un assistant (adresse ou parcelles) n'est jamais écrit directement.
+  // Un champ rempli par un assistant (adresse ou parcelles) n'est JAMAIS écrit directement (étude 17/10 : « utiliser le système qui
+  // permet de choisir l'adresse, ne pas copier-coller dans le champ, pareil pour les parcelles ») — même quand l'assistant ne s'est pas
+  // ouvert : la case reste à saisir par l'assistant du guichet.
   function champDeAssistant(run, f) {
     for (const as of run.scenario.assistants || []) {
-      const r = (run.assistants || {})[as.type];
-      if (!r || r.etat === "absent" || r.etat === "skipped") continue;
       const code = String(f.famille || f.code || "");
-      if ((as.codes || []).some((c) => code === c || code.startsWith(c))) return r;
-      // « Toutes les parcelles » (format de l'annexe, à coller) : l'assistant place lui-même les parcelles au-delà des lignes du CERFA.
-      if (as.type === "parcelles" && f.encoded && f.source === as.source && r.etat === "done") return r;
+      const couvert = (as.codes || []).some((c) => code === c || code.startsWith(c))
+        // « Toutes les parcelles » (format de l'annexe, à coller) : jamais à la place de l'assistant.
+        || (as.type === "parcelles" && f.encoded && f.source === as.source);
+      if (!couvert) continue;
+      const r = (run.assistants || {})[as.type];
+      if (r && r.etat === "skipped") return { etat: "skipped", detail: r.detail };
+      if (r && r.etat !== "absent") return r;
+      return { etat: "manuel", detail: (r && r.detail ? r.detail + " : " : "") + "à saisir par l’assistant du guichet (jamais tapé directement dans la case)" };
     }
     return null;
   }
@@ -1083,6 +1185,22 @@
     setter.call(el, value);
     fire(el, "input");
     fire(el, "change");
+  }
+
+  // Fin du brouillon (étude 17/10 : « à la fin faire Vérifier ma saisie ») : CLAIRE clique « Vérifier ma saisie » — le contrôle du
+  // guichet, qui ne transmet rien — et laisse la main. Le bouton est pris par son identifiant ET son texte exact ; « Transmettre ma
+  // demande », à côté, n'est jamais cliqué.
+  async function verifierSaisie(sc, sp) {
+    if (!sc.verifierSelecteur) return "";
+    const b = [...document.querySelectorAll(sc.verifierSelecteur)].filter(visible)
+      .find((x) => /^verifier ma saisie$/.test(texteBouton(x)) && !/transmet|envoy|sign|depos|valid/.test(norm(attributsBouton(x))) && !x.disabled);
+    if (!b) return "";
+    await send({ type: "content.etape", label: "Vérifier ma saisie" });
+    const pos = await moveTo(b, sp); mark(b, true); ripple(pos.x, pos.y);
+    await wait(sp.pause); await gate();
+    b.click();
+    await attendreStable(5000); mark(b, false); memo = new Map();
+    return "CLAIRE a cliqué « Vérifier ma saisie » : corrigez ce que le guichet signale, relisez chaque page et les pièces, puis transmettez vous-même.";
   }
 
   async function boucleAuto(run) {
@@ -1155,7 +1273,12 @@
       if (sc.assistants) await assistantsPage(run, sp);
       for (const f of champs) {
         const parAssistant = sc.assistants ? champDeAssistant(run, f) : null;
-        if (parAssistant) { const key = cleChamp(0, f.label, f); if (((run.fields || {})[key] || {}).state !== "done") await noter(run, key, parAssistant.etat === "done" ? "done" : "manuel", parAssistant.etat === "done" && !parAssistant.deja ? "par l’assistant du guichet" : parAssistant.detail); continue; }
+        if (parAssistant) {
+          const key = cleChamp(0, f.label, f);
+          const etat = parAssistant.etat === "done" ? "done" : parAssistant.etat === "skipped" ? "skipped" : "manuel";
+          if (((run.fields || {})[key] || {}).state !== "done") await noter(run, key, etat, parAssistant.etat === "done" && !parAssistant.deja ? "par l’assistant du guichet" : parAssistant.detail);
+          continue;
+        }
         await remplirAuto(run, f, sp);
       }
       // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.
@@ -1168,11 +1291,13 @@
       // sur toutes les pages : ils ne disent rien. Relancée au milieu du brouillon, CLAIRE s'arrête aussi quand « page suivante » ne
       // change plus rien (ci-dessous).
       if (!suivant || (sc.entree && pi + 1 >= maxPages)) {
-        await finish("awaiting_human", finGuichet);
+        await finish("awaiting_human", await verifierSaisie(sc, sp) || finGuichet);
         return;
       }
       const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
       if (!change) {
+        const verifie = sc.entree ? await verifierSaisie(sc, sp) : "";
+        if (verifie) { await finish("awaiting_human", verifie); return; }
         await finish("awaiting_human", sc.entree
           ? "La page suivante ne s’ouvre plus (dernière page, ou champ obligatoire signalé par le guichet). " + finGuichet
           : "Le guichet n’a pas changé de page après « Suivant » (champ obligatoire ou erreur affichée ?) : complétez puis relancez CLAIRE.");

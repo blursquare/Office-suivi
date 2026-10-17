@@ -13,6 +13,7 @@
 
 const C = Object.assign({}, require('../../commun/constitution'), require('../../commun/dossier'));
 const DD = require('../../commun/donnees-dossier');
+const CARNET = require('./carnetConfreres');
 var NOTAIRE_SIGNATAIRE = 'Maître Sophie GOSSART';
 var LIEU_SIGNATURE = 'BLOIS';
 var NOTAIRE_NOM = 'GOSSART';
@@ -125,8 +126,43 @@ function personneGnau(d, p) {
     // Le pays tel que la fiche client le donne, jamais déduit (relecture 16/10 : une naissance à l'étranger sortait « FRANCE »).
     paysNaissance: texte(f && f.paysNaissance).toUpperCase(),
     adresse: adresseDecomposee(texte(f && f.domicile), f && f.adresse ? f.adresse : undefined),
-    profession: texte(f && f.profession), source: f ? 'Authentic' : ''
+    profession: texte(f && f.profession), source: f ? 'Authentic' : '',
+    // Coordonnées : la fiche client d'Authentic seule (la première adresse et le premier numéro), jamais celles d'un autre du même côté.
+    email: premierEmail(f && f.emails), telephone: premierTelephone(f && f.telephones)
   };
+}
+
+/** Pure : la première adresse email valable d'une liste (« a@b.fr ; c@d.fr » compris), '' sinon. @param {any} liste */
+function premierEmail(liste) {
+  for (const x of Array.isArray(liste) ? liste : [liste]) {
+    const m = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.exec(texte(x));
+    if (m) return m[0];
+  }
+  return '';
+}
+/** Pure : le premier numéro de téléphone (10 chiffres, ou +33…), chiffres seuls, '' sinon. @param {any} liste */
+function premierTelephone(liste) {
+  for (const x of Array.isArray(liste) ? liste : [liste]) {
+    const ch = texte(x).replace(/^\+33\s*(\(0\))?/, '0').replace(/[^0-9]/g, '');
+    if (/^0\d{9}$/.test(ch)) return ch;
+  }
+  return '';
+}
+
+/** Pure : le droit de préemption urbain à purger d'après l'analyse de la fiche — true (oui ou probable), false (non), null (pas analysé ou à vérifier). @param {any} d */
+function dpuGnau(d) {
+  const droits = d && d.preemption && Array.isArray(d.preemption.droits) ? d.preemption.droits : [];
+  const dr = droits.find((/** @type {any} */ x) => x && x.cle === 'dpu');
+  if (!dr) return null;
+  if (dr.statut === 'oui' || dr.statut === 'probable') return true;
+  return dr.statut === 'non' ? false : null;
+}
+
+/** Pure : le bien est-il à usage d'habitation ? Maison : oui ; copropriété : seulement quand un lot dit logement / appartement ; sinon null. @param {any} d @param {any[]} lots */
+function habitationGnau(d, lots) {
+  if (d && d.typeVente === 'maison') return true;
+  if (d && d.typeVente === 'copropriete' && lots.some((l) => /appartement|logement|habitation|studio|maison/i.test(String(l.nature || '')) && !/autre que|non habit|hors habit|sans habit/i.test(String(l.nature || '')))) return true;
+  return null;
 }
 
 /**
@@ -201,6 +237,12 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
     signature: { lieu: LIEU_SIGNATURE, date: String(aujourdhuiIso || '').slice(0, 10), signataire: NOTAIRE_SIGNATAIRE },
     // Le demandeur du CU et le mandataire de la DIA : le notaire de l'office (le guichet garde ce qu'il a déjà pré-rempli).
     notaire: { nom: NOTAIRE_NOM, prenom: NOTAIRE_PRENOM, qualite: 'Notaire' },
+    // Les coordonnées de l'office (mandataire de la DIA) : celles de notre office écrites dans carnetConfreres.js (signature des
+    // emails) — une correction faite dans le Répertoire n'est pas reprise ici.
+    office: officeGnau(),
+    // Cases de la DIA (relevé de l'étude, 17/10) : la déclaration elle-même, le DPU d'après l'analyse de la fiche (Contrôle de
+    // l'urbanisme), la vente en pleine propriété et le prix payé comptant (une vente ordinaire de l'étude), l'usage d'habitation.
+    dia: { declaration: true, dpu: dpuGnau(d), pleinePropriete: true, comptant: true, habitation: habitationGnau(d, lots) },
     // Nature du bien pour les cases du CERFA de la DIA : non bâti (terrain, terre) ou bâti sur terrain propre (maison, copropriété) ;
     // null quand le type de vente n'est pas connu (jamais deviné).
     nonBati: d && (d.typeVente === 'terrain' || d.typeVente === 'terre') ? true : null,
@@ -218,9 +260,17 @@ function ficheGnau(d, procedure, aujourdhuiIso) {
     if ([...vendeurs, ...acquereurs].some((v) => !v.morale && !v.nom)) manque(true, 'Nom de famille d’une partie (écrivez-le en capitales sur la fiche, ou ouvrez sa fiche client dans Authentic)');
     manque(prix === null, 'Prix de vente');
     manque(!acquereurs.length, 'Acquéreur');
+    manque(dpuGnau(d) === null, 'Droit de préemption urbain : analysez-le dans Contrôle de l’urbanisme (case DPU de la DIA)');
     manque(!!(d && d.honoraires && !d.honoraires.direct && Number(d.honoraires.montantTTC) > 0) && !fiche.commission, 'Commission : à la charge de qui ?');
   }
   return fiche;
+}
+
+/** Pure : l'office du notaire tel que le guichet le demande. */
+function officeGnau() {
+  const o = CARNET.OFFICE_ETUDE;
+  const a = adresseDecomposee(`${texte(o.adresse)} ${texte(o.codePostal)} ${texte(o.ville)}`);
+  return { email: premierEmail(o.email), telephone: premierTelephone(o.telephone), numero: a.numero, voie: a.voie, codePostal: texte(o.codePostal), commune: texte(o.ville).toUpperCase() };
 }
 
 /** Pure : le résumé d'un dossier pour la liste de l'extension. @param {any} d */
@@ -266,4 +316,4 @@ function choisirPlanCadastral(fichiers) {
     .sort((a, b) => rang(b) - rang(a) || String(b.modifieLe || '').localeCompare(String(a.modifieLe || '')));
 }
 
-module.exports = { choisirPlanCadastral, NOTAIRE_SIGNATAIRE, adresseDecomposee, parcellesGnau, personneGnau, lotsGnau, commissionGnau, ficheGnau, dossiersGnau };
+module.exports = { premierEmail, premierTelephone, dpuGnau, habitationGnau, officeGnau, choisirPlanCadastral, NOTAIRE_SIGNATAIRE, adresseDecomposee, parcellesGnau, personneGnau, lotsGnau, commissionGnau, ficheGnau, dossiersGnau };
