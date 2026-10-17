@@ -759,20 +759,21 @@
     const blocBien = `
       <div class="fiche-dossier-colonnes">
         <div class="fiche-dossier-gauche">
+          ${renderCartesClientsBiensDossier(d)}
+          ${(renderClientsAPlacer(d, ligne) + renderPersonnesConnues(d, ligne)).trim() ? `<dl class="fiche-proprietes">${renderClientsAPlacer(d, ligne)}${renderPersonnesConnues(d, ligne)}</dl>` : ''}
+          <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${escapeOnclickArg(d.id)}', this.open)">
+            <summary>${icone('pencil')}Modifier les parties, les coordonnées et le bien</summary>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
         ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
-        ${renderClientsAPlacer(d, ligne)}
-        ${renderPersonnesConnues(d, ligne)}
       </dl>
-          ${renderAilleursDossier(d, 'personnes')}
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${renderParcellesFiche(d) ? ligne('layout', 'Parcelles', renderParcellesFiche(d), null, 'prop-pleine') : ''}
         ${d.bien && Array.isArray(d.bien.lots) && d.bien.lots.length ? ligne('home', d.bien.lots.length > 1 ? 'Lots' : 'Lot', `<span class="prop-texte">${d.bien.lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span>`, null, 'prop-pleine') : ''}
       </dl>
-          ${renderAilleursDossier(d, 'biens')}
+                  </details>
         </div>
         <div class="fiche-dossier-droite">
       <dl class="fiche-proprietes">
@@ -786,7 +787,6 @@
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
       <dl class="fiche-proprietes">
-        ${ligne('rotate-ccw', 'Authentic', renderRecuAuthenticFiche(d), null, 'prop-pleine')}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
         ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`, siVide(!d.prixMobilier).trim())}
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`, siVide(!d.depotGarantie).trim())}
@@ -808,6 +808,7 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
+          ${renderTiroirAuthenticFiche(d)}
         </div>
       </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;

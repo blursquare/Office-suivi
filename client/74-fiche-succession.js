@@ -169,8 +169,11 @@
     return `<div class="fiche-proprietes-bloc">
       <div class="fiche-dossier-colonnes">
         <div class="fiche-dossier-gauche">
-      <div class="section-eyebrow fiche-sous-titre">Le défunt ${df.source ? `<span class="hint">· ${escapeHtml(df.source)}</span>` : ''}</div>
+          ${renderCartesClientsBiensDossier(d)}
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
+          <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${idJs}', this.open)">
+            <summary>${icone('pencil')}Modifier le défunt, les héritiers et les biens</summary>
+      <div class="section-eyebrow fiche-sous-titre">Le défunt ${df.source ? `<span class="hint">· ${escapeHtml(df.source)}</span>` : ''}</div>
       <dl class="fiche-proprietes">
         ${ligne('user', 'Défunt', `<span class="succ-identite">${civilite}${texte('prenoms', c.prenoms, 'Prénoms', 'Prénoms du défunt')}${texte('nom', c.nom, 'NOM', 'Nom du défunt')}</span>`, null, 'prop-pleine')}
         ${ligne('calendar', 'Décès', `<span class="succ-identite">${date('decesDate', c.decesDate, 'Date du décès', 'changerDefuntFiche')}${texte('decesLieu', c.decesLieu, 'Lieu du décès', 'Lieu du décès')}</span>`, null, 'prop-pleine')}
@@ -189,19 +192,17 @@
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
         ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
-          ${renderAilleursDossier(d, 'personnes')}
       <dl class="fiche-proprietes">
         ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span>`, null, 'prop-pleine')).join('')
           : ligne('map-pin', 'Bien', `<span class="prop-texte vide">${immobilier ? 'Bien immobilier noté' : 'Aucun bien immobilier relevé'}</span>`, null, 'prop-pleine')}
       </dl>
-          ${renderAilleursDossier(d, 'biens')}
+                  </details>
         </div>
         <div class="fiche-dossier-droite">
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, null)}
         ${ligne('calendar', 'Ouverture', date('ouvertureLe', s.ouvertureLe, 'Rendez-vous d’ouverture avec Sophie', 'changerSuccession') + ' <span class="hint">avec Sophie, en rendez-vous</span>', null)}
         ${ligne('clock', 'Rendez-vous', ligneRendezVousSuccessionFiche(d), null, 'prop-pleine')}
-        ${ligne('rotate-ccw', 'Authentic', renderRecuAuthenticFiche(d), null, 'prop-pleine')}
         ${ligne('file-text', 'Type', selectType + actif, null, 'prop-pleine')}
         ${ligne('list-check', 'Actes', `<span class="succ-actes">${actes}</span>`, null, 'prop-pleine')}
         ${attentes.length && !acteSigneSuccession(d, 'notoriete').fait ? ligne('clock', 'Notoriété', `<span class="hint">À réunir avant de la rédiger : ${escapeHtml(attentes.join(', '))}</span>`, null, 'prop-pleine') : ''}
@@ -215,6 +216,7 @@
         ${ligne('scale', 'Forfait mobilier', ligneArbitrageFiche(d), null, 'prop-pleine')}
       </dl>
       ${renderFcddvSuccession(d)}
+          ${renderTiroirAuthenticFiche(d)}
         </div>
       </div>
     </div>`;

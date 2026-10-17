@@ -335,44 +335,70 @@
     return [x.succession ? 'Succession' : 'Vente', x.role].filter(Boolean).join(' · ') + (autres ? ` — ${x.succession ? '' : 'avec '}${autres}` : '');
   }
 
-  // Une seule ligne par personne ou bien qui figure AILLEURS (étude 17/10 : « un sacré bazar, plein de doublons, épure ») : les parties
-  // et le bien restent dans leurs lignes modifiables ; ici seulement ce qu'elles ne disent pas — l'autre dossier, son contexte. Rien sinon.
-  function renderAilleursDossier(d, genre) {
+  // Onglet Dossier, colonne de gauche (étude 17/10 : « juste une carte par client et par bien à gauche, on ouvre la carte pour voir la fiche
+  // client et bien ») : les personnes et les biens du dossier, chacun une carte qui ouvre sa FICHE unique (Clients et biens). Les cartes se
+  // dessinent tout de suite d'après le dossier ; la fiche (et les autres dossiers où chacun figure) arrive du serveur.
+  var modifPartiesOuverts = new Set();
+  var tiroirAuthenticOuverts = new Set();
+  function basculerModifierPartiesFiche(id, ouvert) { if (ouvert) modifPartiesOuverts.add(id); else modifPartiesOuverts.delete(id); }
+  function basculerTiroirAuthenticFiche(id, ouvert) { if (ouvert) tiroirAuthenticOuverts.add(id); else tiroirAuthenticOuverts.delete(id); }
+
+  // Pure : les personnes du dossier, dans l'ordre de la fiche — vente : vendeurs puis acquéreurs ; succession : défunt puis héritiers.
+  function personnesCartesDossier(d) {
+    if (!d) return [];
+    if (estSuccession(d)) return personnesContexteAgenda(d);
+    const civ = (p) => (p.qualitePersonne === 'morale' ? '' : civiliteDepuisTexte(p.civilite) === 'Mme' ? 'Madame ' : civiliteDepuisTexte(p.civilite) === 'M' ? 'Monsieur ' : '');
+    return (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom && /^(VENDEUR|ACQUEREUR)$/i.test(p.role || ''))
+      .sort((a, b) => (/^VENDEUR$/i.test(a.role) ? 0 : 1) - (/^VENDEUR$/i.test(b.role) ? 0 : 1))
+      .map(p => {
+        const nom = String(p.nom).includes(String(p.prenom || '').trim()) ? String(p.nom) : [p.prenom, p.nom].filter(Boolean).join(' ');
+        return { nom, affiche: civ(p) + nom, role: /^VENDEUR$/i.test(p.role) ? 'Vendeur' : 'Acquéreur' };
+      });
+  }
+
+  // « Reçu d'Authentic » en bas de la colonne de droite, dans un tiroir (étude 17/10).
+  function renderTiroirAuthenticFiche(d) {
+    return `<details class="pb-tiroir"${tiroirAuthenticOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerTiroirAuthenticFiche('${escapeOnclickArg(d.id)}', this.open)">
+      <summary>${icone('rotate-ccw')}Reçu d’Authentic</summary>
+      <div class="pb-tiroir-corps">${renderRecuAuthenticFiche(d)}</div></details>`;
+  }
+
+  function renderCartesClientsBiensDossier(d) {
     if (!d || !d.id) return '';
     const e = cbParDossier.get(d.id);
     if (!e || (!e.enCours && Date.now() - e.t > 60000)) chargerFichesClientsBiensDossier(d.id);
-    const contenu = e && e.fiches ? htmlAilleursDossier(e.fiches, genre, d.id) : '';
-    return `<div class="pb-ailleurs" data-pb-dossier="${escapeAttr(d.id)}" data-pb-genre="${escapeAttr(genre)}">${contenu}</div>`;
+    return `<div class="pb-cartes" data-pb-dossier="${escapeAttr(d.id)}">${htmlCartesClientsBiensDossier(d, e && e.fiches)}</div>`;
   }
 
-  function htmlAilleursDossier(f, genre, dossierId) {
-    // Dans une succession, le serveur ne connaît que « Partie » : le défunt et les héritiers se relisent sur ce dossier (client/25).
+  function htmlCartesClientsBiensDossier(d, f) {
+    const cle = (n) => motsNomPersonneAgenda(n).sort().join(' ');
+    const fichesP = (f && f.personnes) || [];
     const roleLu = (idDossier, nom, role) => {
       if (role !== 'Partie' || !nom) return role;
       const autre = dossiers.find(x => x.id === idDossier);
-      // Mêmes mots des deux côtés (« Jean MARTIN » n'est pas l'héritier « Jean Paul MARTIN ») ; sinon « Partie », jamais deviné.
-      const cle = (n) => motsNomPersonneAgenda(n).sort().join(' ');
       const memes = autre && estSuccession(autre) ? personnesContexteAgenda(autre).filter(q => cle(q.nom) && cle(q.nom) === cle(nom)) : [];
       return memes.length === 1 ? memes[0].role : role;
     };
-    const autres = (liste, peutEtre, nom) => (liste || []).map(x => {
-      const ctx = texteContexteDossierCb(Object.assign({}, x, { role: roleLu(x.id, nom, x.role), avec: (x.avec || []).map(q => Object.assign({}, q, { role: roleLu(x.id, q.nom, q.role) })) }));
-      return `<span class="pb-autre"><button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.id)}')">${escapeHtml(x.libelle || 'Dossier')}</button><span class="pb-contexte">${escapeHtml(ctx)}${peutEtre ? ' · peut-être' : ''}${x.archive ? ' · archivé' : ''}</span></span>`;
-    }).join('');
-    // Un seul bien : son adresse est juste au-dessus, la ligne ne dit que l'autre dossier (lien « Fiche du bien » dans le titre).
-    const seulBien = genre === 'biens' && (f.biens || []).length === 1 ? f.biens[0] : null;
-    if (seulBien) {
-      return (seulBien.autres || []).length ? `<div class="pb-ailleurs-titre">Bien aussi dans un autre dossier <button type="button" class="lien-action" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(seulBien.id)}')">Fiche du bien</button></div>
-        <span class="pb-autres">${autres(seulBien.autres, false, '')}</span>` : '';
-    }
-    const lignes = genre === 'biens'
-      ? (f.biens || []).filter(b => (b.autres || []).length).map(b => `<div class="pb-ailleurs-ligne">
-          <button type="button" class="pb-nom" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(b.id)}')" title="Ouvrir la fiche du bien">${icone('home')}${escapeHtml(b.libelle ? normaliserAdresse(b.libelle) : b.commune || 'Bien')}</button>
-          <span class="pb-autres">${autres(b.autres, false, '')}</span></div>`)
-      : (f.personnes || []).filter(p => (p.autres || []).length || (p.peutEtreAutres || []).length).map(p => `<div class="pb-ailleurs-ligne">
-          <button type="button" class="pb-nom" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')" title="Ouvrir la fiche client">${icone('user')}${escapeHtml(p.nom)}</button>
-          <span class="pb-autres">${autres(p.autres, false, p.nom)}${autres(p.peutEtreAutres, true, p.nom)}</span></div>`);
-    return lignes.length ? `<div class="pb-ailleurs-titre">Aussi dans un autre dossier ${infoBulle(genre === 'biens' ? 'Le même bien (même parcelle dans la même commune) dans un autre dossier : un clic sur l’adresse ouvre sa fiche unique.' : 'Le même client dans un autre dossier, vente ou succession, avec son rôle et les autres parties ; « peut-être » : même prénom et même nom, à confirmer sur la fiche client.')}</div>${lignes.join('')}` : '';
+    const ailleurs = (liste, peutEtre, nom) => (liste || []).map(x => `<span class="pb-ailleurs-ligne">${peutEtre ? 'Peut-être aussi : ' : 'Aussi : '}<b>${escapeHtml(x.libelle || 'Dossier')}</b> · ${escapeHtml(texteContexteDossierCb(Object.assign({}, x, { role: roleLu(x.id, nom, x.role), avec: (x.avec || []).map(q => Object.assign({}, q, { role: roleLu(x.id, q.nom, q.role) })) })))}</span>`).join('');
+    const carte = (icone_, titre, sous, fiche, genre, ligneAilleurs) => {
+      const action = fiche ? `ouvrirFicheClientBien('${genre}', '${escapeOnclickArg(fiche.id)}')` : `afficherToast('Fiche en cours de lecture : réessayez dans un instant.', 'OK', null)`;
+      return `<button type="button" class="pb-carte" onclick="${action}" title="Ouvrir la fiche ${genre === 'bien' ? 'du bien' : 'client'}">
+        <span class="pb-carte-tete">${icone(icone_)}<span class="pb-carte-titre">${escapeHtml(titre)}</span>${icone('chevron-right')}</span>
+        ${sous ? `<span class="pb-carte-sous">${escapeHtml(sous)}</span>` : ''}${ligneAilleurs}</button>`;
+    };
+    const personnes = personnesCartesDossier(d).map(p => {
+      const fiche = fichesP.find(x => cle(x.nom) && cle(x.nom) === cle(p.nom)) || null;
+      return carte('user', p.affiche || p.nom, p.role, fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '');
+    });
+    const fichesB = (f && f.biens) || [];
+    const biens = biensDossier(d).map(b => {
+      const parcelles = (b.parcelles || []).map(q => [q.prefixe, q.section, q.numero].filter(Boolean).join(' '));
+      const fiche = fichesB.find(x => (x.libelle && b.adresse && normaliserPourRecherche(normaliserAdresse(x.libelle)) === normaliserPourRecherche(normaliserAdresse(b.adresse)))
+        || (x.parcelles || []).some(q => parcelles.includes(q))) || (fichesB.length === 1 && biensDossier(d).length === 1 ? fichesB[0] : null);
+      return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [parcelles.slice(0, 6).join(', '), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '');
+    });
+    return `${personnes.length ? `<div class="pb-groupe">${personnes.join('')}</div>` : '<span class="hint">Aucune partie</span>'}
+      <div class="pb-groupe">${biens.join('') || '<span class="hint">Aucun bien relevé</span>'}</div>`;
   }
 
   async function chargerFichesClientsBiensDossier(id) {
@@ -385,5 +411,6 @@
     } catch (_) { /* hors ligne : l'emplacement reste vide (masqué) */ }
     e.t = Date.now();
     e.enCours = false;
-    document.querySelectorAll('.pb-ailleurs').forEach(el => { if (el.dataset.pbDossier === id && e.fiches) el.innerHTML = htmlAilleursDossier(e.fiches, el.dataset.pbGenre, id); });
+    const dossierCartes = dossiers.find(x => x.id === id);
+    document.querySelectorAll('.pb-cartes').forEach(el => { if (el.dataset.pbDossier === id && e.fiches && dossierCartes) el.innerHTML = htmlCartesClientsBiensDossier(dossierCartes, e.fiches); });
   }
