@@ -9801,3 +9801,4 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .pb-ailleurs-ligne b { font-weight: 600; color: var(--ink); }
 .pb-carte-simple { cursor: default; }
 .pb-carte-simple:hover { border-color: var(--line); }
+.pb-groupe-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }

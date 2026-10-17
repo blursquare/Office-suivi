@@ -346,8 +346,16 @@
   // Pure : les personnes du dossier, dans l'ordre de la fiche — vente : vendeurs puis acquéreurs ; succession : défunt puis héritiers.
   function personnesCartesDossier(d) {
     if (!d) return [];
-    if (estSuccession(d)) return personnesContexteAgenda(d);
     const civ = (p) => (p.qualitePersonne === 'morale' ? '' : civiliteDepuisTexte(p.civilite) === 'Mme' ? 'Madame ' : civiliteDepuisTexte(p.civilite) === 'M' ? 'Monsieur ' : '');
+    if (estSuccession(d)) {
+      // Civilité (étude 17/10 : « pour les successions je ne vois pas la civilité ») : celle du défunt sur la fiche ; d'un héritier, celle
+      // des comparants ou de la partie, sinon de sa fiche client d'Authentic.
+      const df = defuntConstitution(d).champs;
+      const nomDefunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
+      const civHeritier = (h) => civ(h) || civ({ civilite: (ficheClientDe(d, h.nom) || {}).civilite });
+      return (nomDefunt ? [{ nom: nomDefunt, affiche: civ({ civilite: df.civilite }) + nomDefunt, role: 'Défunt' }] : [])
+        .concat(personnesSuccession(d).heritiers.map(h => ({ nom: h.nom, affiche: civHeritier(h) + h.nom, morale: h.qualitePersonne === 'morale', role: 'Héritier' })));
+    }
     const rang = (r) => (/^VENDEUR$/i.test(r) ? 0 : /^ACQUEREUR$/i.test(r) ? 1 : 2);
     return (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.nom)
       .sort((a, b) => rang(a.role || '') - rang(b.role || ''))
@@ -407,10 +415,16 @@
       if (choix) prises.add(choix.id);
       return choix || null;
     };
-    const personnes = personnesCartesDossier(d).map(p => {
+    // Un titre par groupe (étude 17/10 : « mets un titre pour vendeurs, acquéreurs, bien ») : le rôle n'est plus répété sur chaque carte.
+    const parRole = new Map();
+    personnesCartesDossier(d).forEach(p => {
       const fiche = ficheDe(p);
-      return carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.role, fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale);
+      if (!parRole.has(p.role)) parRole.set(p.role, []);
+      parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale));
     });
+    const TITRES = { Vendeur: ['Vendeur', 'Vendeurs'], 'Acquéreur': ['Acquéreur', 'Acquéreurs'], 'Défunt': ['Défunt', 'Défunt'], 'Héritier': ['Héritier', 'Héritiers'], Partie: ['Autre partie', 'Autres parties'] };
+    const groupe = (titre, cartes) => `<div class="pb-groupe"><div class="pb-groupe-titre">${escapeHtml(titre)}</div>${cartes.join('')}</div>`;
+    const personnes = [...parRole].map(([role, cartes]) => groupe((TITRES[role] || [role, role])[cartes.length > 1 ? 1 : 0], cartes));
     const fichesB = (f && f.biens) || [];
     const biens = biensDossier(d).map(b => {
       const parcelles = (b.parcelles || []).map(q => [q.prefixe, q.section, q.numero].filter(Boolean).join(' '));
@@ -418,8 +432,8 @@
         || (x.parcelles || []).some(q => parcelles.includes(q))) || (fichesB.length === 1 && biensDossier(d).length === 1 ? fichesB[0] : null);
       return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [parcelles.slice(0, 6).join(', '), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '');
     });
-    return `${personnes.length ? `<div class="pb-groupe">${personnes.join('')}</div>` : '<span class="hint">Aucune partie</span>'}
-      <div class="pb-groupe">${biens.join('') || '<span class="hint">Aucun bien relevé</span>'}</div>`;
+    return `${personnes.join('') || '<span class="hint">Aucune partie</span>'}
+      ${biens.length ? groupe(biens.length > 1 ? 'Biens' : 'Bien', biens) : groupe('Bien', ['<span class="hint">Aucun bien relevé</span>'])}`;
   }
 
   async function chargerFichesClientsBiensDossier(id) {
