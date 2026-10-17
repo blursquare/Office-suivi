@@ -812,7 +812,13 @@
     let b = null;
     for (const fin = Date.now() + 20000; !b && Date.now() < fin;) {
       b = boutonFormuler(res);
-      if (!b) { await wait(500); if (location.hash.startsWith(e.urlSaisie) || fenetresVisibles().length) return "fait"; }
+      if (!b) {
+        await wait(500);
+        // Sortie seulement pour une fenêtre utile (commune de dépôt, questions « non ») — jamais pour « Traitements en cours ».
+        const sel = document.querySelector(e.commune.selecteur);
+        const utile = (sel && visible(sel)) || fenetresVisibles().some((f) => motifsNon.some((m) => new RegExp(m, "i").test(txt(f))) || new RegExp(e.sessionExpiree || "^$", "i").test(txt(f)));
+        if (location.hash.startsWith(e.urlSaisie) || utile) return "fait";
+      }
     }
     if (b) {
       await send({ type: "content.etape", label: run.scenario.name });
@@ -828,21 +834,25 @@
   const CLIQUABLES_ENTREE = 'button, a, [role=button], [ng-click], [data-ng-click], [onclick]';
   function boutonFormuler(res) {
     const okTexte = (t) => t && t.length <= 90 && res.some((r) => r.test(t));
-    const dansZone = (z) => {
-      const cands = [...z.querySelectorAll(CLIQUABLES_ENTREE)].filter(visible).filter((x) => okTexte(texteBouton(x)) && !boutonEntreeInterdit(x));
-      if (cands.length) return cands.sort((a, b2) => texteBouton(a).length - texteBouton(b2).length)[0];
-      // Bouton dessiné sans balise de bouton (cercle cliquable) : le plus petit élément dont le texte est exactement la démarche.
-      const nus = [...z.querySelectorAll("div, span, p, li, img")].filter(visible)
-        .filter((x) => x.children.length <= 2 && okTexte(norm(x.innerText || x.getAttribute("alt") || x.title || "")) && !boutonEntreeInterdit(x));
-      return nus.find((x) => !nus.some((y) => y !== x && x.contains(y))) || null;
-    };
-    const bandeaux = [...document.querySelectorAll("body *")].filter((el) => el.children.length <= 4 && visible(el) && !el.closest("#claire-overlay")
-      && /^formuler\b/.test(norm(el.textContent)) && norm(el.textContent).length <= 90);
-    for (const bandeau of bandeaux.filter((x) => !bandeaux.some((y) => y !== x && x.contains(y)))) {
+    const apres = (a, b2) => !!(a.compareDocumentPosition(b2) & Node.DOCUMENT_POSITION_FOLLOWING);
+    // Les éléments courts dont le texte commence par « formuler » ; le bandeau = le plus haut d'entre eux (« FORMULER une demande… »).
+    const courts = [...document.querySelectorAll("body *")].filter((el) => el.children.length <= 4 && !el.closest("#claire-overlay")
+      && (el.textContent || "").length <= 120 && /^formuler\b/.test(norm(el.textContent)) && visible(el));
+    for (const bandeau of courts.filter((x) => !courts.some((y) => y !== x && y.contains(x)))) {
+      // Les autres bandeaux de la page (« S'INFORMER », « SUIVRE ») : même balise et même classe, ou même classe du parent.
+      const signe = (el) => el.tagName + "." + (el.className || ("^" + (el.parentElement && el.parentElement.className)));
+      const autres = [...document.querySelectorAll(bandeau.tagName)].filter((x) => x !== bandeau && signe(x) === signe(bandeau) && visible(x));
+      const suivant = autres.filter((x) => apres(bandeau, x)).sort((a, b2) => (apres(a, b2) ? -1 : 1))[0] || null;
+      // Le bouton : après le bandeau « Formuler » et avant le bandeau suivant dans l'ordre de la page — jamais une carte de « Suivre ».
+      const entre = (x) => apres(bandeau, x) && (!suivant || apres(x, suivant));
       for (let z = bandeau.parentElement, k = 0; z && z !== document.body && k < 8; z = z.parentElement, k++) {
-        if (/\b(suivre|mes demandes)\b/.test(norm([...z.querySelectorAll("*")].filter((x) => x.children.length <= 4).map((x) => x.textContent).filter((t) => norm(t).length <= 60).join(" | ")))) break;
-        const btn = dansZone(z);
-        if (btn) return btn;
+        const cands = [...z.querySelectorAll(CLIQUABLES_ENTREE)].filter(visible).filter((x) => entre(x) && okTexte(texteBouton(x)) && !boutonEntreeInterdit(x));
+        if (cands.length) return cands.sort((a, b2) => texteBouton(a).length - texteBouton(b2).length)[0];
+        const nus = [...z.querySelectorAll("div, span, p, li, img")].filter(visible)
+          .filter((x) => entre(x) && x.children.length <= 2 && okTexte(norm(x.innerText || x.getAttribute("alt") || x.title || "")) && !boutonEntreeInterdit(x));
+        const nu = nus.find((x) => !nus.some((y) => y !== x && x.contains(y)));
+        if (nu) return nu;
+        if (autres.some((x) => z.contains(x)) && !suivant) break; // bandeau suivant inconnu : jamais au-delà du bloc qui contient un autre bandeau
       }
     }
     return null;
@@ -888,7 +898,7 @@
     if (!voie && !t.lieuDit) return { etat: "skipped", detail: "pas d’adresse sur la fiche" };
     const deja = valeurChampCode(as.voieCode);
     if (deja === null) return null; // pas sur cette page
-    if (deja) return { etat: "done", detail: "adresse déjà saisie dans le guichet, laissée telle quelle" };
+    if (deja) return { etat: "done", deja: true, detail: "adresse déjà saisie dans le guichet, laissée telle quelle" };
     const fen = await ouvrirAssistant(as, sp);
     if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
     const recherche = champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
@@ -901,9 +911,19 @@
       for (const ch of requete) { setNativeValue(recherche, recherche.value + ch); fire(recherche, "input", { inputType: "insertText", data: ch }); fire(recherche, "keyup"); await wait(Math.max(sp.type, 25)); }
     } finally { saisieDirecte = lent; }
     // La proposition qui porte le numéro, les mots de la voie et le code postal (ou la commune) de la fiche — jamais « la première ».
-    const mots = norm(voie).split(" ").filter((m) => m.length > 2);
-    const conforme = (txt) => { const x = norm(txt); return mots.every((m) => x.includes(m)) && (!t.numero || new RegExp("(^|\\D)" + String(t.numero).replace(/\D/g, "") + "(\\D|$)").test(x))
-      && ((t.codePostal && x.includes(String(t.codePostal))) || (t.commune && x.includes(norm(t.commune)))); };
+    // Proposition conforme (relecture du 17/10 : « Rue Jean Racine » n'est pas « Rue Racine », Saint-Claude-de-Diray n'est pas Vineuil) :
+    // « numéro voie code-postal commune », chaque partie ÉGALE à celle de la fiche — la voie mot pour mot, la commune quand la fiche la connaît.
+    const net = (x) => norm(x).replace(/[-'’,]/g, " ").replace(/\bst\b/g, "saint").replace(/\bste\b/g, "sainte").replace(/\s+/g, " ").trim();
+    const numeroFiche = net(t.numero).replace(/\s+/g, "");
+    const conforme = (txt) => {
+      const m = /^(\d+\s*(?:bis|ter|quater|[a-d])?)\s+(.+?)\s+(\d{5})\s+(.+)$/.exec(net(txt));
+      if (!m) return false;
+      if (numeroFiche && m[1].replace(/\s+/g, "") !== numeroFiche) return false;
+      if (m[2] !== net(voie)) return false;
+      if (t.codePostal && m[3] !== String(t.codePostal).trim()) return false;
+      if (t.commune && m[4] !== net(t.commune)) return false;
+      return !!(t.codePostal || t.commune);
+    };
     let choix = null;
     for (const fin = Date.now() + 8000; !choix && Date.now() < fin;) {
       await wait(300);
@@ -925,7 +945,7 @@
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
     const apres = valeurChampCode(as.voieCode);
-    return apres ? { etat: "done", detail: "adresse saisie par l’assistant du guichet" } : { etat: "mismatch", detail: "l’assistant n’a pas rempli l’adresse : vérifiez-la" };
+    return apres && !visible(fen) ? { etat: "done", detail: "adresse saisie par l’assistant du guichet" } : { etat: "manuel", detail: "l’assistant d’adresse ne s’est pas refermé sur le formulaire : terminez-le vous-même" };
   }
 
   async function assistantParcelles(run, as, sp) {
@@ -933,26 +953,41 @@
     if (!parcelles.length) return { etat: "skipped", detail: "pas de parcelle sur la fiche" };
     const deja = valeurChampCode(as.sectionCode);
     if (deja === null) return null;
-    if (deja) return { etat: "done", detail: "parcelles déjà saisies dans le guichet, laissées telles quelles" };
+    if (deja) return { etat: "done", deja: true, detail: "parcelles déjà saisies dans le guichet, laissées telles quelles" };
     const fen = await ouvrirAssistant(as, sp);
     if (!fen) return { etat: "absent", detail: "l’assistant des références cadastrales ne s’est pas ouvert" };
     const champ = (m) => champParLibelle(fen, m);
     const lignes = () => [...fen.querySelectorAll("table tbody tr, table tr")].filter(visible).map((tr) => norm(tr.innerText)).filter((x) => /\d/.test(x));
+    // Une ligne du tableau est-elle CETTE parcelle ? Zéros en tête tolérés (« BA 0021 », « 0A »), préfixe comparé quand il est connu
+    // (communes nouvelles : BA 21 du préfixe 123 n'est pas BA 21 du préfixe 456).
+    const sansZero = (x) => String(x || "").toLowerCase().replace(/^0+(?=[a-z0-9])/, "");
+    const estLigne = (l, sec, num, pre) => {
+      const m = l.split(/[\s|]+/).filter(Boolean);
+      for (let i = 0; i + 1 < m.length; i++) {
+        if (sansZero(m[i]) !== sansZero(sec) || sansZero(m[i + 1]) !== sansZero(num)) continue;
+        const avant = i > 0 && /^\d{3}$/.test(m[i - 1]) ? m[i - 1] : "";
+        if (pre && avant && sansZero(avant) !== sansZero(pre)) continue;
+        if (pre && !avant && m.some((x) => /^\d{3}$/.test(x) && sansZero(x) !== sansZero(pre))) continue;
+        return true;
+      }
+      return false;
+    };
     const surfaceDe = (p) => { try { return p.surface === undefined || p.surface === "" ? "" : TRANSFORMS.surface(p.surface); } catch (_) { return ""; } };
-    let ajoutees = 0;
+    let ajoutees = 0, presentes = 0;
     const manquees = [];
     for (const p of parcelles) {
       await gate();
       const sec = String(p.section).toUpperCase().trim();
       const num = String(p.numero).replace(/^0+(?=\d)/, "").trim();
       // Déjà dans le tableau de l'assistant : jamais deux fois.
-      if (lignes().some((l) => new RegExp("(^| )" + sec.toLowerCase() + " " + num + "( |$)").test(l))) continue;
+      const pre = p.prefixe && !/^0*$/.test(String(p.prefixe)) ? String(p.prefixe).trim() : "";
+      if (lignes().some((l) => estLigne(l, sec, num, pre))) { presentes++; continue; }
       const surf = surfaceDe(p);
       if (!surf) { manquees.push(`${sec} ${num} (superficie inconnue)`); continue; }
       const cSec = champ("^section"), cNum = champ("^numero"), cSurf = champ("^superficie"), cPre = champ("^prefixe");
       if (!cSec || !cNum || !cSurf) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant des parcelles : champs Section / Numéro / Superficie introuvables" }; }
       const avant = lignes().length;
-      if (cPre && p.prefixe && !/^0*$/.test(String(p.prefixe))) await typeInto(cPre, String(p.prefixe), sp);
+      if (cPre && pre) await typeInto(cPre, pre, sp);
       await typeInto(cSec, sec, sp);
       await typeInto(cNum, num, sp);
       await typeInto(cSurf, surf, sp);
@@ -972,9 +1007,11 @@
     valider.click();
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
-    const n = parcelles.length - manquees.length;
+    // L'assistant doit s'être refermé ET avoir posé les parcelles dans le CERFA (une confirmation ouverte par-dessus n'est jamais cliquée).
+    if (visible(fen) || !valeurChampCode(as.sectionCode)) return { etat: "manuel", detail: "l’assistant des parcelles ne s’est pas refermé sur le formulaire : terminez-le vous-même" };
+    const n = ajoutees + presentes;
     return manquees.length
-      ? { etat: "mismatch", detail: `${n} parcelle(s) saisie(s) par l’assistant ; à ajouter vous-même : ${manquees.join(", ")}` }
+      ? { etat: "mismatch", detail: `${n} parcelle(s) dans l’assistant ; à ajouter vous-même : ${manquees.join(", ")}` }
       : { etat: "done", detail: `${n} parcelle(s) saisie(s) par l’assistant du guichet${n > 3 ? " (au-delà de 3 : annexe du guichet)" : ""}` };
   }
 
@@ -1089,7 +1126,7 @@
       if (sc.assistants) await assistantsPage(run, sp);
       for (const f of champs) {
         const parAssistant = sc.assistants ? champDeAssistant(run, f) : null;
-        if (parAssistant) { const key = cleChamp(0, f.label, f); if (((run.fields || {})[key] || {}).state !== "done") await noter(run, key, parAssistant.etat === "done" ? "done" : "manuel", parAssistant.etat === "done" ? "par l’assistant du guichet" : parAssistant.detail); continue; }
+        if (parAssistant) { const key = cleChamp(0, f.label, f); if (((run.fields || {})[key] || {}).state !== "done") await noter(run, key, parAssistant.etat === "done" ? "done" : "manuel", parAssistant.etat === "done" && !parAssistant.deja ? "par l’assistant du guichet" : parAssistant.detail); continue; }
         await remplirAuto(run, f, sp);
       }
       // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.

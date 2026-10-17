@@ -17,3 +17,4 @@ banc-essai/
 
 # Fichiers de vérification jetables (captures Playwright, scripts de bac à sable)
 scratchpad/
+dist-essai/

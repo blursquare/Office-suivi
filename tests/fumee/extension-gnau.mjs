@@ -27,9 +27,9 @@ async function jouer(fiche, avant) {
     await page.goto('file://' + path.join(ici, 'gnau-agglopolys.html'));
     if (avant) await page.evaluate(avant);
     for (const f of ['lib/fiche.js', 'content/content.js']) await page.addScriptTag({ path: path.join(ext, f) });
-    for (let i = 0; i < 240 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
+    for (let i = 0; i < 400 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
     const valeurs = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('input[id]')].map((i) => [i.id, i.value])));
-    const etat = await page.evaluate(() => ({ hash: location.hash, transmis: !!window.__transmis, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
+    const etat = await page.evaluate(() => ({ hash: location.hash, transmis: !!window.__transmis, carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
     return { journal, valeurs, etat, assistants: Object.fromEntries(journal.filter((m) => m.type === 'content.assistant').map((m) => [m.assistant, m])) };
   } finally { await browser.close(); }
 }
@@ -50,6 +50,20 @@ const b = await jouer(Object.assign({}, base, { terrain: { numero: '9', voie: 'C
 verifier((b.assistants.adresse || {}).etat === 'manuel', 'adresse sans proposition conforme : laissée à l’étude');
 verifier(!b.valeurs.T2V_voie, 'aucune adresse proposée par erreur');
 verifier(b.valeurs.T2S_section1 === 'BA', 'les parcelles restent saisies');
+
+// Relecture du 17/10 : voie proche, autre numéro, autre commune ; parcelle déjà au tableau (zéros en tête) ; boutons « Formuler » dessinés après
+// le reste avec un bloc « Mes dossiers » ; chargement de 25 s.
+const c = await jouer(base, () => { window.__cfg = { adresses: ['51 Rue Jean Racine 41000 Blois', '151 Rue Racine 41000 Blois'] }; });
+verifier((c.assistants.adresse || {}).etat === 'manuel' && !c.valeurs.T2V_voie, '« Rue Jean Racine » et « 151 » refusés pour « 51 Rue Racine »');
+const d = await jouer(Object.assign({}, base, { terrain: { numero: '51', voie: 'Rue Racine', commune: 'VINEUIL', codePostal: '41350' } }),
+  () => { window.__cfg = { adresses: ['51 Rue Racine 41350 Saint-Claude-de-Diray'] }; });
+verifier((d.assistants.adresse || {}).etat === 'manuel' && !d.valeurs.T2V_voie, 'même voie dans une autre commune refusée');
+const e = await jouer(base, () => { window.__cfg = { parcellesInit: [{ pre: '', s: 'BA', n: '0021', u: '234' }] }; });
+verifier(e.etat.lignes === 4, 'parcelle déjà au tableau (« BA 0021 ») jamais rajoutée : ' + e.etat.lignes);
+const f = await jouer(base, () => { window.__cfg = { boutonsTard: true, titreSuivi: 'MES DOSSIERS' }; });
+verifier(f.etat.hash === '#/saisie/19333' && !f.etat.carteSuivi, 'boutons de « Formuler » attendus, jamais une carte du suivi');
+const g = await jouer(base, () => { window.__cfg = { chargement: 25000 }; });
+verifier(g.etat.hash !== '#/saisie/19333' || !g.etat.carteSuivi, 'chargement long : jamais une carte du suivi');
 
 console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
 process.exit(erreurs.length ? 1 : 0);

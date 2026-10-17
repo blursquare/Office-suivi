@@ -1,0 +1,80 @@
+// Extension d'essai (étude 17/10 : « fais-moi un add-on test avec de fausses données pré-remplies que je teste sur mon Mac ») : la même
+// extension Chrome que celle du bureau, sans serveur CLAIRE — un dossier INVENTÉ est intégré (fiche construite par server/src/gnau.js, comme
+// au bureau). Usage : node scripts/construire-extension-essai.mjs <dossier de sortie> → <sortie>/CLAIRE-essai/ et CLAIRE-extension-essai.zip.
+// Rien n'est jamais transmis : liste noire des boutons et arrêt avant « Transmettre ma demande », comme l'extension du bureau.
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const { ficheGnau } = require(path.join(racine, 'server', 'src', 'gnau.js'));
+const sortie = path.resolve(process.argv[2] || path.join(racine, 'dist-essai'));
+const cible = path.join(sortie, 'CLAIRE-essai');
+
+// Données inventées — l'adresse est une adresse publique de Blois (pour que l'assistant du guichet la propose), les personnes et les
+// parcelles sont fictives.
+const dossiers = [{
+  id: 'essai1', nom: 'ESSAI / EXEMPLE', typeVente: 'maison', adresseBien: 'BLOIS (41000), 9 place Saint-Louis', prixVente: 185000, prixMobilier: 3000,
+  referenceAuthentic: 'A 2026 99999',
+  honoraires: { negociateur: 'agence', nom: 'AGENCE FICTIVE', montantTTC: 8000, charge: 'ACQUEREUR' },
+  parties: [{ role: 'VENDEUR', nom: 'Jean ESSAI', civilite: 'M' }, { role: 'ACQUEREUR', nom: 'Marie EXEMPLE', civilite: 'Mme' }],
+  authentic: {
+    immeubles: [{ commune: 'BLOIS', codePostal: '41000', adresse: '9 place Saint-Louis 41000 BLOIS', parcelles: [
+      { section: 'BA', numero: '21', surface: '234' }, { section: 'BA', numero: '22', surface: '333' },
+      { section: 'BA', numero: '23', surface: '2311' }, { section: 'RE', numero: '432', surface: '111' }] }],
+    fichesClients: {
+      a: { nom: 'Jean ESSAI', nomFamille: 'ESSAI', prenom: 'Jean', civilite: 'M', dateNaissance: '1960-01-01', lieuNaissance: '41000 BLOIS', domicile: '1 rue Fictive 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Retraité' },
+      b: { nom: 'Marie EXEMPLE', nomFamille: 'EXEMPLE', prenom: 'Marie', civilite: 'Mme', dateNaissance: '1985-06-15', lieuNaissance: '37000 TOURS', domicile: '2 rue Imaginaire 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Professeure' }
+    }
+  }
+}];
+const aujourdhui = new Date().toISOString().slice(0, 10);
+const fiches = {};
+for (const d of dossiers) for (const p of ['cua', 'dia']) fiches[`${d.id}|${p}`] = ficheGnau(d, p, aujourdhui);
+const liste = dossiers.map((d) => ({ id: d.id, libelle: 'VTE - ' + d.nom + ' (ESSAI)', commune: 'BLOIS', reference: d.referenceAuthentic }));
+
+fs.rmSync(cible, { recursive: true, force: true });
+fs.cpSync(path.join(racine, 'extension-chrome'), cible, { recursive: true });
+
+// Manifeste : autre nom, pour ne jamais la confondre avec celle du bureau.
+const man = JSON.parse(fs.readFileSync(path.join(cible, 'manifest.json'), 'utf8'));
+man.name = 'CLAIRE — ESSAI (données inventées)';
+man.description = 'Extension d’essai : un dossier inventé, sans serveur CLAIRE. Ne transmet jamais rien.';
+man.action.default_title = 'CLAIRE — ESSAI';
+fs.writeFileSync(path.join(cible, 'manifest.json'), JSON.stringify(man, null, 2) + '\n');
+
+// Panneau : réponses du « serveur » données par le dossier inventé.
+fs.writeFileSync(path.join(cible, 'lib', 'essai.js'), `// Données inventées de l'extension d'essai (construite par scripts/construire-extension-essai.mjs).
+globalThis.CLAIRE_ESSAI = ${JSON.stringify({ dossiers: liste, fiches }, null, 1)};
+(() => {
+  const vrai = globalThis.fetch.bind(globalThis);
+  const reponse = (j) => new Response(JSON.stringify(j), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  globalThis.fetch = async (url, o) => {
+    const u = String(url);
+    if (!u.startsWith('essai:')) return vrai(url, o);
+    if (u.includes('/api/health')) return reponse({ ok: true });
+    if (u.includes('/api/gnau/dossiers')) return reponse({ dossiers: globalThis.CLAIRE_ESSAI.dossiers });
+    const m = /\\/api\\/gnau\\/fiche\\/([^?]+)\\?procedure=(\\w+)/.exec(u);
+    if (m) return reponse({ fiche: globalThis.CLAIRE_ESSAI.fiches[decodeURIComponent(m[1]) + '|' + m[2]] });
+    return new Response(JSON.stringify({ erreur: 'Pas dans l’essai.' }), { status: 404 });
+  };
+})();
+`);
+let html = fs.readFileSync(path.join(cible, 'panel', 'panel.html'), 'utf8');
+html = html.replace('<script src="panel.js"></script>', '<script src="../lib/essai.js"></script>\n  <script src="panel.js"></script>')
+  .replace('<section class="card" id="connexion">', '<p class="essai">ESSAI — dossier inventé, sans serveur CLAIRE. CLAIRE s’arrête avant « Transmettre » : supprimez ensuite le brouillon dans le guichet.</p>\n  <section class="card" id="connexion" hidden>');
+fs.writeFileSync(path.join(cible, 'panel', 'panel.html'), html);
+fs.appendFileSync(path.join(cible, 'panel', 'panel.css'), '\n.essai{margin:8px 12px;padding:8px 10px;border-radius:8px;background:#fff3cd;color:#6b4e00;font-size:12px}\n');
+let panel = fs.readFileSync(path.join(cible, 'panel', 'panel.js'), 'utf8');
+const avant = panel;
+panel = panel.replace('serveur = st0.serveur || "";', 'serveur = "essai:";');
+if (panel === avant) throw new Error('panel.js a changé : adapter la construction de l’essai.');
+fs.writeFileSync(path.join(cible, 'panel', 'panel.js'), panel);
+
+const zip = path.join(sortie, 'CLAIRE-extension-essai.zip');
+fs.rmSync(zip, { force: true });
+execFileSync('zip', ['-qr', zip, 'CLAIRE-essai'], { cwd: sortie });
+console.log('Extension d’essai : ' + cible + '\n' + zip);
