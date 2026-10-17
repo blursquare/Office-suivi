@@ -20637,3 +20637,5 @@ Frappe de la recherche d'adresse dans le monde de la page (`content.taper`). CU 
 « Vérifier ma saisie » puis « Sauvegarder » (`finApresCode`).
 
 0.276.1 (17/10) : la construction du .exe échouait depuis la 0.275.0 — `tests/fumee/extension-gnau.mjs` lançait Chromium par `/opt/pw-browsers/chromium` (chemin du conteneur de développement) quand `PLAYWRIGHT_BROWSERS_PATH` n'était pas posé, ce qui est le cas sur GitHub. Il appelle désormais `chromium.launch()` comme `fumee.mjs`.
+
+0.277.0 (17/10) : extension Chrome 0.9.0 — étude : « détecter si Chrome est en mode sombre », « voir où en est le remplissage », « remettre le bon logo, le bon favicon, choisir le thème noir ». Suivi par étapes (`etapesSuivi` des scénarios, `suivi()` du script de contenu, liste du panneau, étape n/total et barre sur le bandeau du guichet), icônes tirées de icone.svg (`extension-chrome/icons/`), logo de la barre latérale + « Claire » en Montserrat, accent noir de CLAIRE (#262626 / #D4D4D4), bandeau du guichet clair ou sombre (`prefers-color-scheme`).

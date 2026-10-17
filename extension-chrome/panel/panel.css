@@ -1,18 +1,20 @@
-/* Aux couleurs de CLAIRE (style.css) : fond gris-bleu, cartes blanches, encre bleu nuit, accent bordeaux de l'étude. */
+/* Aux couleurs de CLAIRE (style.css) : fond gris-bleu, cartes blanches, encre bleu nuit, thème NOIR (étude 17/10, accent « noir »
+   de CLAIRE : #262626 en clair, #D4D4D4 en sombre). Clair ou sombre selon Chrome. */
 :root {
   --paper: #E9EDF2; --card: #FFFFFF; --sunk: #F7F9FB; --ink: #16233C; --muted: #647089; --line: #DCE2E9;
-  --accent: #6D2332; --accent-hover: #551A26; --on-accent: #FFFFFF;
+  --accent: #262626; --accent-hover: #0D0D0D; --on-accent: #FFFFFF;
   --ok: #2F8F5B; --warn: #B8641F; --err: #B83A45;
 }
 @media (prefers-color-scheme: dark) {
   :root { --paper: #14161A; --card: #1B1E23; --sunk: #20232A; --ink: #EDEEF0; --muted: #9AA0A8; --line: #2F343C;
-    --accent: #D9A3AE; --accent-hover: #E8BCC5; --on-accent: #14161A; --ok: #5AAA7D; --warn: #DB8556; --err: #CC5B66; }
+    --accent: #D4D4D4; --accent-hover: #EAEAEA; --on-accent: #14161A; --ok: #5AAA7D; --warn: #DB8556; --err: #CC5B66; }
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; padding: 12px; background: var(--paper); color: var(--ink); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 header { display: flex; justify-content: space-between; align-items: center; margin: 2px 2px 12px; }
-h1 { font-size: 20px; font-weight: 500; letter-spacing: -0.02em; margin: 0; color: var(--accent); }
+h1.marque { display: flex; align-items: center; gap: 8px; margin: 0; font: 500 22px/1 'Montserrat', system-ui, sans-serif; color: var(--ink); }
+h1.marque svg { flex: 0 0 auto; }
 .link { cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .link::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .link.on { color: var(--ok); }
@@ -71,3 +73,12 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .s-missing .ico, .s-notfound .ico, .s-mismatch .ico { color: var(--warn); }
 .s-skipped .v { color: var(--muted); }
 .copier { align-self: start; height: 24px; padding: 0 8px; font-size: 11px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.etapes { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.etapes:empty { display: none; }
+.etapes li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 3px 0; }
+.etapes li::before { content: ""; flex: 0 0 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; }
+.etapes li.fait { color: var(--ink); }
+.etapes li.fait::before { background: var(--ok); border-color: var(--ok); }
+.etapes li.courante { color: var(--ink); font-weight: 600; }
+.etapes li.courante::before { border-color: var(--accent); background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+.etapes li.passee { color: var(--muted); text-decoration: line-through; }

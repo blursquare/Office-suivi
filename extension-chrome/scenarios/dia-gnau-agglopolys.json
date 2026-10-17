@@ -542,6 +542,33 @@
  "assistants": [
   {
    "type": "adresse",
+   "id": "adresseProprietaire",
+   "titre": "assistant de saisie d.adresse",
+   "champFenetre": "#saisieAdresseAuto",
+   "source": "vendeur.adresse",
+   "declencheur": [
+    "AI3V",
+    "AI3N",
+    "AI3L"
+   ],
+   "voieCode": "AI3V",
+   "codes": [
+    "AI3A",
+    "AI3F",
+    "AI3N",
+    "AI3V",
+    "AI3W",
+    "AI3L",
+    "AI3P",
+    "AI3D",
+    "AI3C",
+    "AI3B",
+    "AI3X"
+   ],
+   "suivi": "Adresse du propriétaire"
+  },
+  {
+   "type": "adresse",
    "titre": "assistant de saisie d.adresse",
    "source": "terrain",
    "declencheur": [
@@ -558,7 +585,8 @@
     "BI1C"
    ],
    "champFenetre": "#saisieAdresseAuto",
-   "id": "adresse"
+   "id": "adresse",
+   "suivi": "Adresse"
   },
   {
    "type": "parcelles",
@@ -582,32 +610,6 @@
   },
   {
    "type": "adresse",
-   "id": "adresseProprietaire",
-   "titre": "assistant de saisie d.adresse",
-   "champFenetre": "#saisieAdresseAuto",
-   "source": "vendeur.adresse",
-   "declencheur": [
-    "AI3V",
-    "AI3N",
-    "AI3L"
-   ],
-   "voieCode": "AI3V",
-   "codes": [
-    "AI3A",
-    "AI3F",
-    "AI3N",
-    "AI3V",
-    "AI3W",
-    "AI3L",
-    "AI3P",
-    "AI3D",
-    "AI3C",
-    "AI3B",
-    "AI3X"
-   ]
-  },
-  {
-   "type": "adresse",
    "id": "adresseAcquereur",
    "titre": "assistant de saisie d.adresse",
    "champFenetre": "#saisieAdresseAuto",
@@ -623,7 +625,8 @@
     "GI4AB1",
     "GI4AB2",
     "GI4AB3"
-   ]
+   ],
+   "suivi": "Adresse de l'acquéreur"
   },
   {
    "type": "adresse",
@@ -648,8 +651,22 @@
     "HI2P",
     "HI2X",
     "HI2B"
-   ]
+   ],
+   "suivi": "Adresse de l'office"
   }
  ],
- "verifierSelecteur": "#id__btnVerifierSaisie"
+ "verifierSelecteur": "#id__btnVerifierSaisie",
+ "etapesSuivi": [
+  "Commune de dépôt",
+  "Adresse du propriétaire",
+  "Adresse",
+  "Parcelles",
+  "Adresse de l'acquéreur",
+  "Signature",
+  "Adresse de l'office",
+  "Plan cadastral",
+  "Vérifier ma saisie",
+  "Sauvegarder"
+ ],
+ "codeSignature": "GI7L"
 }

@@ -226,6 +226,22 @@ function render() {
     const el = $("#status");
     el.className = "status " + cls;
     el.textContent = run.status === "error" && run.message ? `Arrêt : ${run.message}` : run.status === "awaiting_human" && run.message ? run.message : txt;
+    // Où en est le remplissage : les étapes du scénario, faites / en cours / à venir (étude 17/10).
+    const liste = $("#etapes");
+    liste.textContent = "";
+    const etapes = (run.scenario && run.scenario.etapesSuivi) || [];
+    const vues = run.etapesFaites || [];
+    const derniere = [...vues].reverse().find((e) => etapes.includes(e));
+    const iCourante = derniere ? etapes.indexOf(derniere) : -1;
+    const fini = run.status === "awaiting_human" && vues.includes("Sauvegarder");
+    etapes.forEach((e, i) => {
+      const li = document.createElement("li");
+      li.textContent = e;
+      // « fait » seulement pour une étape réellement vue ; une étape passée sans avoir eu lieu (assistant non ouvert, champ vide) reste
+      // neutre, barrée d'un tiret — jamais en vert.
+      li.className = i === iCourante ? (active ? "courante" : "fait") : vues.includes(e) ? "fait" : i < iCourante || fini ? "passee" : "";
+      liste.appendChild(li);
+    });
     $("#pause").hidden = run.status !== "running";
     $("#resume").hidden = run.status !== "paused";
     $("#stop").hidden = !active;

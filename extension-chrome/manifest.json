@@ -1,20 +1,37 @@
 {
   "manifest_version": 3,
   "name": "CLAIRE — Assistant de saisie",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Remplit le CU et la DIA des guichets uniques d'urbanisme (GNAU) à partir des dossiers de CLAIRE, sous le contrôle du notaire.",
   "minimum_chrome_version": "116",
-  "action": { "default_title": "CLAIRE — CU et DIA" },
-  "side_panel": { "default_path": "panel/panel.html" },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["sidePanel", "storage", "scripting"],
+  "action": {
+    "default_title": "CLAIRE — CU et DIA",
+    "default_icon": {
+      "16": "icons/claire-16.png",
+      "32": "icons/claire-32.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "panel/panel.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "scripting"
+  ],
   "host_permissions": [
     "https://demande-urbanisme.agglopolys.fr/*",
     "https://*.operis.fr/*",
     "https://gnau.tours-metropole.fr/*",
     "https://demarchesurbanisme.orleans-metropole.fr/*"
   ],
-  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "content_scripts": [
     {
       "matches": [
@@ -23,8 +40,17 @@
         "https://gnau.tours-metropole.fr/*",
         "https://demarchesurbanisme.orleans-metropole.fr/*"
       ],
-      "js": ["lib/fiche.js", "content/content.js"],
+      "js": [
+        "lib/fiche.js",
+        "content/content.js"
+      ],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "icons": {
+    "16": "icons/claire-16.png",
+    "32": "icons/claire-32.png",
+    "48": "icons/claire-48.png",
+    "128": "icons/claire-128.png"
+  }
 }

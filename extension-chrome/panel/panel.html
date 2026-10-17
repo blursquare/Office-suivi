@@ -4,11 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CLAIRE — CU et DIA</title>
+  <link rel="icon" href="../icons/claire-32.png">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
   <header>
-    <h1>Claire</h1>
+    <h1 class="marque">
+      <svg width="28" height="28" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#fff" stroke="#D5D8DD"/>
+        <path d="M33 12a15 15 0 1 0 0 24" stroke="#111418" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Claire</span>
+    </h1>
     <span id="link" class="link off" title="Serveur CLAIRE du bureau">CLAIRE non réglé</span>
   </header>
 
@@ -55,6 +64,7 @@
     <div id="status" class="status"></div>
     <div class="bar"><div id="bar-fill"></div></div>
     <p id="compte" class="compte"></p>
+    <ol id="etapes" class="etapes" aria-label="Avancement du remplissage"></ol>
     <div class="controls">
       <button id="pause" class="secondaire">Pause</button>
       <button id="resume" class="secondaire" hidden>Reprendre</button>

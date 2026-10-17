@@ -39,7 +39,8 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
    est déjà au format du guichet (date `JJMMAAAA`, prix `209000`, prix en lettres, parcelles `¢EV¢10¢606¢`…).
 7. Valider et transmettre **vous-même**.
 
-**Panneau en trois étapes** (17/10) : 1 Dossier, 2 Démarche (CU / DIA), 3 « Lancer CLAIRE » ; la vitesse et la copie de structure sont
+**Panneau en trois étapes** (17/10, logo et thème noir de CLAIRE, clair ou sombre selon Chrome ; pendant le remplissage, la liste des
+étapes — commune, adresses, parcelles, signature, plan, Vérifier, Sauvegarder — montre où en est CLAIRE, comme le bandeau du guichet) : 1 Dossier, 2 Démarche (CU / DIA), 3 « Lancer CLAIRE » ; la vitesse et la copie de structure sont
 sous « Options », le détail des champs est replié. « Remplir seulement la page affichée » est retiré.
 
 ### Guichet d'Agglopolys (https://demande-urbanisme.agglopolys.fr)

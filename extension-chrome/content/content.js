@@ -56,21 +56,31 @@
   let root = null;
   let cursorEl = null;
 
+  // Aux couleurs de CLAIRE, thème noir (étude 17/10), clair ou sombre selon Chrome.
   const CSS = `
     :host{all:initial}
-    .frame{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 4px var(--c,#2f6fed);transition:box-shadow .3s}
+    .frame{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 4px var(--c,#262626);transition:box-shadow .3s}
     .blocker{position:fixed;inset:0;pointer-events:auto;background:transparent;cursor:progress}
     .cursor{position:fixed;left:0;top:0;width:24px;height:24px;pointer-events:none;transform:translate(24px,90px);filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
     .banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);pointer-events:auto;display:flex;gap:10px;align-items:center;
-      background:#1b2a4a;color:#fff;padding:8px 8px 8px 16px;border-radius:999px;font:14px/1.2 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:90vw}
+      background:#16233C;color:#fff;padding:8px 8px 8px 16px;border-radius:16px;font:13px/1.3 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:90vw}
+    .banner .corps{display:flex;flex-direction:column;gap:5px;min-width:0}
     .banner .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .banner button{font:inherit;border:0;border-radius:999px;padding:6px 12px;cursor:pointer;background:#fff;color:#1b2a4a}
-    .banner button.stop{background:#d64545;color:#fff}
-    .ripple{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid var(--c,#2f6fed);pointer-events:none;animation:rip .5s ease-out forwards}
+    .banner .etape{font-size:11px;opacity:.8;white-space:nowrap}
+    .banner .etape:empty,.banner .prog[hidden]{display:none}
+    .banner .prog{display:block;height:4px;border-radius:999px;background:rgba(255,255,255,.2);overflow:hidden;min-width:180px}
+    .banner .prog i{display:block;height:100%;width:0;background:#D4D4D4;transition:width .3s}
+    .banner button{font:inherit;border:0;border-radius:10px;padding:6px 12px;cursor:pointer;background:#fff;color:#16233C}
+    .banner button.stop{background:#B83A45;color:#fff}
+    .ripple{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid var(--c,#262626);pointer-events:none;animation:rip .5s ease-out forwards}
     @keyframes rip{from{transform:scale(.3);opacity:1}to{transform:scale(1.8);opacity:0}}
+    @media (prefers-color-scheme: dark){
+      .banner{background:#1B1E23;color:#EDEEF0;box-shadow:0 4px 16px rgba(0,0,0,.6),0 0 0 1px #2F343C}
+      .banner button{background:#EDEEF0;color:#14161A}
+    }
   `;
 
-  const COLORS = { running: "#2f6fed", paused: "#e0922f", attention: "#2f9e5b", error: "#d64545" };
+  const COLORS = { running: "#262626", paused: "#DB8556", attention: "#2F8F5B", error: "#B83A45" };
 
   function buildOverlay() {
     if (host) return;
@@ -81,7 +91,7 @@
       <div class="frame"></div>
       <div class="blocker" hidden></div>
       <svg class="cursor" viewBox="0 0 24 24"><path d="M3 2l7 19 2.8-7.7L21 10.5z" fill="#fff" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      <div class="banner"><span class="txt"></span><span class="btns"></span></div>`;
+      <div class="banner"><span class="corps"><span class="txt"></span><span class="etape"></span><span class="prog" hidden><i></i></span></span><span class="btns"></span></div>`;
     cursorEl = root.querySelector(".cursor");
     root.addEventListener("click", (e) => {
       const a = e.target && e.target.dataset && e.target.dataset.a;
@@ -103,6 +113,21 @@
         : mode === "paused"
         ? `<button data-a="resume">Reprendre CLAIRE</button><button class="stop" data-a="stop">Stop</button>`
         : `<button data-a="close">Fermer</button>`;
+  }
+
+  // Où en est le remplissage (étude 17/10 : « voir où en est le remplissage du document ») : étape n / total du scénario, sur le bandeau.
+  function setProgression(etapes, courante) {
+    if (!root || !Array.isArray(etapes) || !etapes.length) return;
+    const i = etapes.indexOf(courante);
+    root.querySelector(".etape").textContent = i >= 0 ? `Étape ${i + 1}/${etapes.length} · ${courante}` : "";
+    const prog = root.querySelector(".prog");
+    prog.hidden = i < 0;
+    prog.querySelector("i").style.width = i >= 0 ? `${Math.round(((i + 1) / etapes.length) * 100)}%` : "0";
+  }
+  let runSuivi = null;
+  async function suivi(label) {
+    await send({ type: "content.etape", label });
+    if (runSuivi) setProgression(runSuivi.scenario.etapesSuivi, label);
   }
 
   function setBlocking(b) {
@@ -710,6 +735,7 @@
       await noter(run, key, "manuel", "case reliée à l’assistant du guichet : jamais tapée directement"); return false;
     }
     await noter(run, key, "filling");
+    if (run.scenario.codeSignature && f.code === run.scenario.codeSignature && !run.signatureVue) { run.signatureVue = true; await suivi("Signature"); }
     const res = await fillElement(el, f.type || "text", valeur, sp, false);
     await noter(run, key, res.ok ? "done" : "mismatch", res.detail);
     return true;
@@ -921,7 +947,7 @@
         await finish("awaiting_human", `Le guichet a retenu ${relue.commune} au lieu de ${opts[0].text.trim()} : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
         return "fin";
       }
-      await send({ type: "content.etape", label: "Commune de dépôt" });
+      await suivi("Commune de dépôt");
       run.communeChoisie = opts[0].text.trim();
       await cliquerPuisAttendre(valider, sp, pi);
       return "fait";
@@ -1102,6 +1128,7 @@
     const fen = await ouvrirAssistant(as, sp, run);
     if (fen === "occupee") return { etat: "manuel", detail: "une fenêtre d’assistant est déjà ouverte (autre bloc ?) : terminez-la ou fermez-la, puis relancez CLAIRE" };
     if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
+    await suivi(as.suivi || "Adresse");
     const recherche = [...fen.querySelectorAll("#saisieAdresseAuto")].find(visible) || champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
     if (!recherche) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant d’adresse : champ de recherche introuvable" }; }
     const requete = [t.numero, voie || t.lieuDit, t.codePostal, t.commune].filter(Boolean).join(" ");
@@ -1186,7 +1213,6 @@
     const valider = boutonDansFenetre(fen, ["^je valide mon adresse$"]);
     if (!valider) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "« Je valide mon adresse » introuvable : saisissez l’adresse vous-même dans l’assistant" }; }
     pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
-    await send({ type: "content.etape", label: "Assistant d’adresse" });
     valider.click();
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
@@ -1203,6 +1229,7 @@
     const fen = await ouvrirAssistant(as, sp, run);
     if (fen === "occupee") return { etat: "manuel", detail: "une fenêtre d’assistant est déjà ouverte (autre bloc ?) : terminez-la ou fermez-la, puis relancez CLAIRE" };
     if (!fen) return { etat: "absent", detail: "l’assistant des références cadastrales ne s’est pas ouvert" };
+    await suivi("Parcelles");
     const champ = (m) => champParLibelle(fen, m);
     const lignes = () => [...fen.querySelectorAll("table tbody tr, table tr")].filter(visible).map((tr) => norm(tr.innerText)).filter((x) => /\d/.test(x));
     // Une ligne du tableau est-elle CETTE parcelle ? Zéros en tête tolérés (« BA 0021 », « 0A »), préfixe comparé quand il est connu
@@ -1250,7 +1277,6 @@
     const valider = boutonDansFenetre(fen, ["^valider$"]);
     if (!valider) return { etat: "manuel", detail: "parcelles ajoutées : cliquez vous-même « Valider » dans l’assistant" };
     const pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
-    await send({ type: "content.etape", label: "Assistant des références cadastrales" });
     valider.click();
     for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
     await attendreStable(3000); memo = new Map();
@@ -1314,7 +1340,9 @@
   // guichet, qui ne transmet rien — et laisse la main. Le bouton est pris par son identifiant ET son texte exact ; « Transmettre ma
   // demande », à côté, n'est jamais cliqué.
   async function piecesALaFin(run, champs, sp) {
-    for (const f of champs) if (f.type === "fichier" && !f.case) await remplirAuto(run, f, sp);
+    const pieces = champs.filter((f) => f.type === "fichier" && !f.case);
+    if (pieces.length) await suivi("Plan cadastral");
+    for (const f of pieces) await remplirAuto(run, f, sp);
   }
   async function verifierSaisie(sc, sp) {
     if (!sc.verifierSelecteur) return "";
@@ -1322,7 +1350,7 @@
     const trouverVerifier = () => [...document.querySelectorAll(sc.verifierSelecteur)].filter(visible).find((x) => okBouton(x, /^verifier ma saisie$/));
     const trouverSauver = () => [...document.querySelectorAll("#id__btnEnregistrerSaisie")].filter(visible).find((x) => okBouton(x, /^sauvegarder$/));
     const cliquer = async (el, label) => {
-      await send({ type: "content.etape", label });
+      await suivi(label);
       const p = await moveTo(el, sp); mark(el, true); ripple(p.x, p.y);
       await wait(sp.pause); await gate();
       if (el.isConnected) el.click();
@@ -1342,6 +1370,9 @@
 
   async function boucleAuto(run) {
     const sc = run.scenario;
+    runSuivi = { scenario: sc };
+    buildOverlay();
+    setProgression(sc.etapesSuivi, null); // étape de l'exécution précédente effacée
     const sp = SPEEDS[run.speed] || SPEEDS.normal;
     let pi = run.pageIndex || 0;
     const faites = new Set(run.etapesFaites || []);

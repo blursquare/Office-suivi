@@ -163,7 +163,7 @@ test('guichet d’Agglopolys : toutes les parcelles de la fiche (lignes lues dan
 test('guichet d’Agglopolys : adresse et parcelles par les assistants du guichet (CU et DIA)', () => {
   for (const [nom, voie, section, famille] of [['cua-gnau-agglopolys.json', 'T2V_voie', 'T2S', 'T2S'], ['dia-gnau-agglopolys.json', 'BI1V', 'BI3SA1', 'BI3S']]) {
     const sc = scenario(nom);
-    const adr = sc.assistants.find((a) => a.type === 'adresse');
+    const adr = sc.assistants.find((a) => a.type === 'adresse' && (a.id || 'adresse') === 'adresse'); // l'adresse du bien (la DIA en a aussi pour le propriétaire, l'acquéreur, l'office)
     const cad = sc.assistants.find((a) => a.type === 'parcelles');
     assert.ok(adr && cad, nom);
     assert.equal(adr.voieCode, voie);

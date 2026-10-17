@@ -168,7 +168,8 @@
     "T2C"
    ],
    "champFenetre": "#saisieAdresseAuto",
-   "id": "adresse"
+   "id": "adresse",
+   "suivi": "Adresse"
   },
   {
    "type": "parcelles",
@@ -191,5 +192,15 @@
   }
  ],
  "verifierSelecteur": "#id__btnVerifierSaisie",
- "finApresCode": "E1D_date"
+ "finApresCode": "E1D_date",
+ "etapesSuivi": [
+  "Commune de dépôt",
+  "Adresse",
+  "Parcelles",
+  "Signature",
+  "Plan cadastral",
+  "Vérifier ma saisie",
+  "Sauvegarder"
+ ],
+ "codeSignature": "E1L_lieu"
 }
