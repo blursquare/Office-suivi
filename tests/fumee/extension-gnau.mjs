@@ -29,14 +29,14 @@ async function jouer(fiche, avant) {
     for (const f of ['lib/fiche.js', 'content/content.js']) await page.addScriptTag({ path: path.join(ext, f) });
     for (let i = 0; i < 400 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
     const valeurs = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('input[id]')].map((i) => [i.id, i.value])));
-    const etat = await page.evaluate(() => ({ commune: window.__commune || '', piece: window.__piece || '', hash: location.hash, transmis: !!window.__transmis, verifie: !!window.__verifie, valPage: !!window.__valPage, annPage: !!window.__annPage, filtre: window.__filtre || '', carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
+    const etat = await page.evaluate(() => ({ commune: window.__commune || '', piece: window.__piece || '', hash: location.hash, transmis: !!window.__transmis, verifie: !!window.__verifie, ouvertures: window.__ouvertures || 0, demandes: window.__demandes || 0, valPage: !!window.__valPage, annPage: !!window.__annPage, filtre: window.__filtre || '', carteSuivi: !!window.__carteSuivi, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
     return { journal, valeurs, etat, assistants: Object.fromEntries(journal.filter((m) => m.type === 'content.assistant').map((m) => [m.assistant, m])) };
   } finally { await browser.close(); }
 }
 const verifier = (ok, texte) => { if (!ok) erreurs.push(texte); };
 const base = { terrain: { numero: '51', voie: 'Rue Racine', commune: 'BLOIS', codePostal: '41000' }, superficie: '2989',
   parcelles: [{ section: 'BA', numero: '21', surface: '234' }, { section: 'BA', numero: '22', surface: '333' }, { section: 'BA', numero: '23', surface: '2311' }, { section: 'RE', numero: '432', surface: '111' }],
-  signature: { lieu: 'BLOIS', date: '2026-10-17' }, notaire: {}, dossier: { id: 'x' } };
+  signature: { lieu: 'BLOIS', date: '2026-10-17', signataire: 'P/O Bastien ANGLUMENT' }, notaire: {}, dossier: { id: 'x' } };
 
 const a = await jouer(base);
 verifier(a.etat.hash === '#/saisie/19333', 'la démarche de « Formuler » est ouverte après le chargement');
@@ -46,6 +46,7 @@ verifier(a.valeurs.T2S_section === 'BA' && a.valeurs.T2NP3_numero === '23' && a.
 verifier(a.etat.lignes === 4, 'quatre parcelles, aucune deux fois');
 verifier(!a.etat.transmis, '« Transmettre ma demande » jamais cliqué');
 verifier(a.etat.piece === 'Plan cadastral.pdf', 'plan joint à « CU1. Un plan de situation » (champ nommé « Ajouter ») : ' + a.etat.piece);
+verifier(a.valeurs.E1S_signataire === 'P/O Bastien ANGLUMENT', 'signature « P/O » du collaborateur : ' + a.valeurs.E1S_signataire);
 verifier(a.etat.verifie, '« Vérifier ma saisie » cliqué à la fin');
 verifier(!a.valeurs.D1N_nom && !a.valeurs.D1P_prenom, 'demandeur « personne physique » jamais rempli (l’office est pré-rempli en personne morale)');
 verifier((a.assistants.parcelles || {}).etat === 'done' && (a.assistants.adresse || {}).etat === 'done', 'assistants faits');
@@ -88,6 +89,20 @@ verifier(!o.etat.valPage && !o.etat.annPage, '« Valider » / « Annuler » de l
 verifier(o.valeurs.T2S_section === 'BA' && o.valeurs.T2V_voie === 'RUE RACINE', 'assistants retrouvés malgré l’aide qui cite leur titre');
 const q = await jouer(base, () => { window.__cfg = { filtreCommune: true }; });
 verifier(!q.etat.filtre && q.etat.commune === 'Blois', 'filtre « par commune de dépôt » de l’accueil jamais pris pour la commune de dépôt : ' + q.etat.filtre);
+
+// Essai de l'étude, 17/10 : la fenêtre de la commune met du temps à s'ouvrir — jamais un second clic sur la démarche.
+const r2 = await jouer(base, () => { window.__cfg = { communeLente: 4000 }; });
+verifier(r2.etat.ouvertures === 1 && r2.etat.commune === 'Blois', 'fenêtre de commune lente : un seul clic sur la démarche, Blois choisie : ' + r2.etat.ouvertures + ' / ' + r2.etat.commune);
+
+// Étude 17/10 : liste des communes remplie après coup ; propositions d'adresse dessinées en lignes hors de l'assistant.
+const r3 = await jouer(base, () => { window.__cfg = { optionsLentes: true }; });
+verifier(r3.etat.commune === 'Blois', 'liste des communes remplie après coup : Blois choisie : ' + r3.etat.commune);
+const r4 = await jouer(base, () => { window.__cfg = { propositionsDiv: true }; });
+verifier(r4.valeurs.T2V_voie === 'RUE RACINE', 'proposition d’adresse en ligne hors de l’assistant choisie : ' + r4.valeurs.T2V_voie);
+
+// Essai de l'étude, 17/10 : le guichet ouvre parfois deux fenêtres de commune — une seule demande, Blois.
+const r5 = await jouer(base, () => { window.__cfg = { doubleCommune: true }; });
+verifier(r5.etat.demandes === 1 && r5.etat.commune === 'Blois' && r5.valeurs.T2V_voie === 'RUE RACINE', 'deux fenêtres de commune : une seule demande, Blois, puis l’adresse : ' + r5.etat.demandes + ' / ' + r5.etat.commune);
 
 console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
 process.exit(erreurs.length ? 1 : 0);

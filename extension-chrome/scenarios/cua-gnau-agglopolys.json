@@ -128,6 +128,12 @@
      "transform": "date_jjmmaaaa"
     },
     {
+     "label": "Signataire — P/O du collaborateur chargé du dossier (E1S)",
+     "source": "signature.signataire",
+     "code": "E1S",
+     "optional": true
+    },
+    {
      "label": "Plan cadastral (pièce jointe, dossier du NAS)",
      "source": "dossier.id",
      "type": "fichier",
@@ -161,7 +167,8 @@
     "T2L",
     "T2C"
    ],
-   "champFenetre": "#saisieAdresseAuto"
+   "champFenetre": "#saisieAdresseAuto",
+   "id": "adresse"
   },
   {
    "type": "parcelles",
@@ -183,5 +190,6 @@
    ]
   }
  ],
- "verifierSelecteur": "#id__btnVerifierSaisie"
+ "verifierSelecteur": "#id__btnVerifierSaisie",
+ "finApresCode": "E1D_date"
 }

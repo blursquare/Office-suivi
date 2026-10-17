@@ -8,54 +8,65 @@
 </head>
 <body>
   <header>
-    <h1>CLAIRE</h1>
-    <span id="link" class="link off" title="Serveur CLAIRE du bureau">● CLAIRE non réglé</span>
+    <h1>Claire</h1>
+    <span id="link" class="link off" title="Serveur CLAIRE du bureau">CLAIRE non réglé</span>
   </header>
 
   <section class="card" id="connexion">
-    <label>Adresse de CLAIRE (celle de la fenêtre CLAIRE)
-      <input type="text" id="serveur" placeholder="http://192.168.60.10:3000" autocomplete="off">
-    </label>
-    <button type="button" id="enregistrer">Enregistrer et tester</button>
+    <h2>Connexion</h2>
+    <input type="text" id="serveur" placeholder="http://192.168.60.10:3000" autocomplete="off" aria-label="Adresse de CLAIRE">
+    <button type="button" id="enregistrer" class="secondaire">Enregistrer</button>
     <p id="connexion-msg" class="msg"></p>
   </section>
 
-  <section class="card" id="setup">
-    <label>Dossier
-      <input type="search" id="recherche" placeholder="Nom, commune, référence…" autocomplete="off">
-    </label>
+  <section class="card etape" id="etape-dossier">
+    <h2><span class="num">1</span>Dossier</h2>
+    <input type="search" id="recherche" placeholder="Nom, commune, référence…" autocomplete="off" aria-label="Chercher un dossier">
     <div id="resultats" class="resultats"></div>
     <p id="choisi" class="choisi"></p>
-    <label>Démarche
-      <select id="procedure"></select>
-    </label>
-    <label>Vitesse
-      <select id="speed">
-        <option value="slow">Lente (démonstration)</option>
-        <option value="normal" selected>Normale</option>
-        <option value="fast">Rapide</option>
-      </select>
-    </label>
-    <button id="auto" disabled>CLAIRE prend la main</button>
-    <p class="aide">Ouvrez le guichet (accueil ou brouillon) dans l’onglet affiché : CLAIRE ouvre la démarche, remplit chaque page, passe à la suivante et s’arrête avant la validation.</p>
-    <button id="start" class="secondaire" disabled>Remplir seulement la page affichée</button>
-    <button type="button" id="structure" class="link-btn">Copier la structure de la page (sans données)</button>
+  </section>
+
+  <section class="card etape" id="etape-demarche">
+    <h2><span class="num">2</span>Démarche</h2>
+    <div class="choix" id="procedures" role="radiogroup" aria-label="Démarche"></div>
+    <select id="procedure" hidden aria-hidden="true"></select>
+    <details id="manques" class="manques" hidden><summary></summary><ul></ul></details>
+  </section>
+
+  <section class="card etape" id="etape-lancer">
+    <h2><span class="num">3</span>Remplir le guichet</h2>
+    <button id="auto" class="principal" disabled>Lancer CLAIRE</button>
+    <p class="aide">Onglet du guichet ouvert sur l’accueil. CLAIRE s’arrête avant « Transmettre ».</p>
     <p id="setup-msg" class="msg"></p>
-    <div id="manques" class="manques" hidden></div>
+    <details class="options">
+      <summary>Options</summary>
+      <label>Vitesse
+        <select id="speed">
+          <option value="slow">Lente</option>
+          <option value="normal" selected>Normale</option>
+          <option value="fast">Rapide</option>
+        </select>
+      </label>
+      <button type="button" id="structure" class="lien">Copier la structure de la page (sans données)</button>
+    </details>
   </section>
 
   <section class="card" id="run" hidden>
     <div id="status" class="status"></div>
     <div class="bar"><div id="bar-fill"></div></div>
+    <p id="compte" class="compte"></p>
     <div class="controls">
-      <button id="pause">Pause</button>
-      <button id="resume" hidden>Reprendre</button>
-      <button id="stop" class="danger">Stop</button>
-      <button id="reset" hidden>Effacer le suivi</button>
+      <button id="pause" class="secondaire">Pause</button>
+      <button id="resume" class="secondaire" hidden>Reprendre</button>
+      <button id="stop" class="danger">Arrêter</button>
+      <button id="reset" class="secondaire" hidden>Effacer</button>
     </div>
   </section>
 
-  <section id="list"></section>
+  <details id="detail" class="detail" hidden>
+    <summary>Détail des champs</summary>
+    <section id="list"></section>
+  </details>
 
   <script src="../lib/fiche.js"></script>
   <script src="panel.js"></script>

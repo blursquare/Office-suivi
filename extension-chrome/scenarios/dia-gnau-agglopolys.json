@@ -44,7 +44,7 @@
      "optional": true
     },
     {
-     "label": "Droit de préemption urbain — d'après Contrôle de l'urbanisme (case PI1AA1)",
+     "label": "Soumis au droit de préemption urbain — coché d'office (case PI1AA1)",
      "source": "dia.dpu",
      "code": "PI1AA1",
      "type": "case",
@@ -67,8 +67,8 @@
        "optional": true
       },
       {
-       "label": "Propriétaire {n} — nom d'usage (AI1MP{n})",
-       "source": "{list}.{i}.nomUsage",
+       "label": "Propriétaire {n} — profession, catégorie de l'INSEE (AI1MP{n})",
+       "source": "{list}.{i}.categorie",
        "code": "AI1MP{n}",
        "optional": true
       }
@@ -249,6 +249,14 @@
      "optional": true
     },
     {
+     "label": "Plan cadastral joint (case BI3IA1)",
+     "source": "dia.planJoint",
+     "code": "BI3IA1",
+     "type": "case",
+     "optional": true,
+     "siPlan": true
+    },
+    {
      "label": "Vente en pleine propriété — par défaut pour une vente, à vérifier (case CI2NA1)",
      "source": "dia.pleinePropriete",
      "code": "CI2NA1",
@@ -263,7 +271,14 @@
      "optional": true
     },
     {
-     "label": "Copropriété (case CI6CA1)",
+     "label": "Bâtiment vendu en totalité — maison (case CI4BA1)",
+     "source": "dia.batimentTotalite",
+     "code": "CI4BA1",
+     "type": "case",
+     "optional": true
+    },
+    {
+     "label": "Locaux dans un bâtiment en copropriété (case CI6CA1)",
      "source": "copropriete",
      "code": "CI6CA1",
      "type": "case",
@@ -333,6 +348,13 @@
      "optional": true
     },
     {
+     "label": "Vente non indissociable d'autres biens — par défaut, à vérifier (case FI1VA2)",
+     "source": "dia.nonIndissociable",
+     "code": "FI1VA2",
+     "type": "case",
+     "optional": true
+    },
+    {
      "label": "Commission — montant (FI2MB2)",
      "source": "commission.total",
      "code": "FI2MB2",
@@ -373,8 +395,8 @@
      "optional": true
     },
     {
-     "label": "Acquéreur — profession (GI2PA3)",
-     "source": "acquereur.profession",
+     "label": "Acquéreur — profession, catégorie de l'INSEE (GI2PA3)",
+     "source": "acquereur.categorie",
      "code": "GI2PA3",
      "optional": true
     },
@@ -434,9 +456,10 @@
      "transform": "date_jjmmaaaa"
     },
     {
-     "label": "Signataire (GI7S)",
+     "label": "Signataire — P/O du collaborateur chargé du dossier (GI7S)",
      "source": "signature.signataire",
-     "code": "GI7S"
+     "code": "GI7S",
+     "optional": true
     },
     {
      "label": "Mandataire — nom (HI1N)",
@@ -501,7 +524,7 @@
      "optional": true
     },
     {
-     "label": "Plan cadastral joint (case BI3IA1 + pièce, dossier du NAS)",
+     "label": "Plan cadastral (pièce jointe à la fin, dossier du NAS)",
      "source": "dossier.id",
      "type": "fichier",
      "piece": [
@@ -511,7 +534,6 @@
       "situation du terrain"
      ],
      "optional": true,
-     "case": "BI3IA1",
      "inputId": "file_input_BI3IA1"
     }
    ]
@@ -535,7 +557,8 @@
     "BI1L",
     "BI1C"
    ],
-   "champFenetre": "#saisieAdresseAuto"
+   "champFenetre": "#saisieAdresseAuto",
+   "id": "adresse"
   },
   {
    "type": "parcelles",
@@ -555,6 +578,76 @@
     "BI3L",
     "BI3T",
     "BI2T"
+   ]
+  },
+  {
+   "type": "adresse",
+   "id": "adresseProprietaire",
+   "titre": "assistant de saisie d.adresse",
+   "champFenetre": "#saisieAdresseAuto",
+   "source": "vendeur.adresse",
+   "declencheur": [
+    "AI3V",
+    "AI3N",
+    "AI3L"
+   ],
+   "voieCode": "AI3V",
+   "codes": [
+    "AI3A",
+    "AI3F",
+    "AI3N",
+    "AI3V",
+    "AI3W",
+    "AI3L",
+    "AI3P",
+    "AI3D",
+    "AI3C",
+    "AI3B",
+    "AI3X"
+   ]
+  },
+  {
+   "type": "adresse",
+   "id": "adresseAcquereur",
+   "titre": "assistant de saisie d.adresse",
+   "champFenetre": "#saisieAdresseAuto",
+   "source": "acquereur.adresse",
+   "declencheur": [
+    "GI4AA5",
+    "GI4AA3",
+    "GI4AB1"
+   ],
+   "voieCode": "GI4AA5",
+   "codes": [
+    "GI4AA",
+    "GI4AB1",
+    "GI4AB2",
+    "GI4AB3"
+   ]
+  },
+  {
+   "type": "adresse",
+   "id": "adresseOffice",
+   "titre": "assistant de saisie d.adresse",
+   "champFenetre": "#saisieAdresseAuto",
+   "source": "office",
+   "declencheur": [
+    "HI2V",
+    "HI2N",
+    "HI2L"
+   ],
+   "voieCode": "HI2V",
+   "codes": [
+    "HI2A",
+    "HI2F",
+    "HI2V",
+    "HI2N",
+    "HI2W",
+    "HI2L",
+    "HI2C",
+    "HI2P",
+    "HI2X",
+    "HI2B"
    ]
   }
  ],

@@ -15,7 +15,7 @@ const { resolveField, expandFields } = ctx.ClaireFiche;
 const scenario = (f) => JSON.parse(fs.readFileSync(path.join(racine, 'scenarios', f), 'utf8'));
 
 const dossier = {
-  id: 'v1', nom: 'MOREAU / LAMBERT', adresseBien: 'VINEUIL (41350), 12 rue des Vignes', prixVente: 92500, prixMobilier: 3000,
+  id: 'v1', nom: 'MOREAU / LAMBERT', responsable: 'Julie VASSELIN', adresseBien: 'VINEUIL (41350), 12 rue des Vignes', prixVente: 92500, prixMobilier: 3000,
   honoraires: { montantTTC: 4500, charge: 'VENDEUR', nom: 'AGENCE' },
   parties: [{ role: 'VENDEUR', nom: 'Paul MOREAU', civilite: 'M' }, { role: 'VENDEUR', nom: 'Léa MOREAU', civilite: 'Mme' }, { role: 'ACQUEREUR', nom: 'Claire LAMBERT' }],
   bien: { lots: [{ numero: '4', batiment: 'B', etage: '1', tantiemes: 128, designation: 'Un appartement', surfaceCarrez: 44 }], tantiemesTotal: 1000 },
@@ -36,7 +36,7 @@ test('CUa : terrain, parcelles au format du guichet, superficie, signature', () 
   assert.equal(v['Parcelles (format du guichet, à coller si besoin)'], '¢EV¢10¢606¢¡¢EV¢11¢598¢');
   assert.equal(v['Superficie totale du terrain, m² (code D5T)'], '1204');
   assert.equal(v['Le (code E1D)'], '16102026');
-  assert.equal(v['Signataire (code E1S)'], 'Maître Sophie GOSSART');
+  assert.equal(v['Signataire (code E1S)'], 'P/O Julie VASSELIN');
 });
 
 test('DIA : vendeur, codemandeur, naissance JJMMAAAA, prix en lettres, lots, commission', () => {

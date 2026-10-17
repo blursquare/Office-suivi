@@ -205,8 +205,10 @@
   }
 
   function setSelect(el, value) {
-    const v = String(value).trim().toLowerCase();
-    const opt = [...el.options].find((o) => o.value.toLowerCase() === v || o.text.trim().toLowerCase() === v);
+    // Accents, apostrophes et espaces unifiés (« chefs d’entreprise » = « chefs d'entreprise »).
+    const n = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’‘`]/g, "'").replace(/\s+/g, " ").trim().toLowerCase();
+    const v = n(value);
+    const opt = [...el.options].find((o) => n(o.value) === v || n(o.text) === v);
     if (!opt) return false;
     el.value = opt.value;
     fire(el, "input");
@@ -572,6 +574,9 @@
       const sel = f.case ? selecteurCode(f.case) : "";
       return sel ? [...document.querySelectorAll(sel)].find((x) => x.type === "checkbox" && (visible(x) || (x.labels && [...x.labels].some(visible)))) || null : null;
     };
+    // Pièce annoncée par une case (DIA : BI3IA1, page 2) : rien tant que cette case n'est pas affichée — toutes les pages sont dans le
+    // DOM ; un plan sans case (joint à la fin, étude 17/10) va, lui, dans le champ désigné par son identifiant, même sur une page masquée.
+    if (f.case && !trouverCase()) return false;
     let trouves = parId() ? [parId()] : [...document.querySelectorAll('input[type=file]')].filter(vise);
     if (!trouves.length && !trouverCase()) return false;
     if (trouves.length > 1) { if (((run.fields || {})[key] || {}).state !== "manuel") await noter(run, key, "manuel", "plusieurs champs de pièce parlent du plan : joignez-le vous-même"); return false; }
@@ -633,6 +638,11 @@
     if (f.type === "case") {
       // Case du CERFA (étude 16/10) : un vrai clic quand la fiche dit oui ; jamais décochée, jamais devinée.
       if (r.value !== true) { if (deja !== "done") await noter(run, key, "skipped"); return false; }
+      // Case « plan cadastral joint » : cochée seulement quand le dossier a un plan (relecture du 17/10 : jamais « joint » sans pièce).
+      if (f.siPlan) {
+        if (run.planDispo === undefined) { const pl = await send({ type: "content.plan" }); run.planDispo = !!(pl && pl.b64 && !pl.erreur); }
+        if (!run.planDispo) { if (deja !== "manuel") await noter(run, key, "manuel", "aucun plan cadastral trouvé dans le dossier du NAS : case laissée à cocher vous-même"); return false; }
+      }
       const sel = selecteurCode(f.code);
       const el = sel ? [...document.querySelectorAll(sel)].find((x) => (x.type === "checkbox" || x.type === "radio") && (visible(x) || (x.labels && [...x.labels].some(visible)))) : null;
       if (!el) { if (deja !== "done") await noter(run, key, "absent"); return false; }
@@ -694,6 +704,11 @@
     if (String(el.value) === valeur) { await noter(run, key, "done"); return true; }
     // Un champ en lecture seule est, sur ces guichets, réservé à un assistant ou calculé par le site : jamais écrit par-dessus.
     if (el.readOnly || el.getAttribute("aria-readonly") === "true") { await noter(run, key, "manuel", "case en lecture seule : à saisir par l’assistant du guichet"); return false; }
+    // Un champ qui ouvre l'assistant d'adresse dès qu'il a le curseur (Agglopolys : onfocus « rempliAdresse(this) », relevé de l'étude,
+    // 17/10) n'est jamais tapé : la frappe partirait dans la fenêtre ou serait perdue.
+    if (/rempliAdresse/i.test(el.getAttribute("onfocus") || "") || /cadastral|rempliAdresse/i.test(el.getAttribute("ng-focus") || "")) {
+      await noter(run, key, "manuel", "case reliée à l’assistant du guichet : jamais tapée directement"); return false;
+    }
     await noter(run, key, "filling");
     const res = await fillElement(el, f.type || "text", valeur, sp, false);
     await noter(run, key, res.ok ? "done" : "mismatch", res.detail);
@@ -744,6 +759,9 @@
     mark(el, true);
     ripple(pos.x, pos.y);
     await wait(sp.pause);
+    // Bouton retiré de la page pendant la pause (fenêtre refermée par le guichet) : jamais un clic dans le vide — Chrome annule alors l'envoi
+    // (« Form submission canceled because the form is not connected », essai de l'étude, 17/10) ; la boucle relit la page.
+    if (!el.isConnected || !visible(el)) { mark(el, false); return null; } // null = pas cliqué (≠ false : cliqué, page inchangée)
     await send({ type: "content.advance", pageIndex: pi }); // gardé AVANT le clic : la page peut se recharger
     await gate();
     el.click();
@@ -818,7 +836,8 @@
     // Hors fenêtre « modal » (relecture du 17/10) : seulement une liste dont le bloc porte AUSSI le bouton « Valider la commune de
     // dépôt » — jamais un filtre « par commune de dépôt » de l'accueil.
     let fenCommune = null;
-    const select = [...document.querySelectorAll(e.commune.selecteur)].find(visible)
+    // Deux fenêtres empilées (un second clic sur la démarche) : toujours la DERNIÈRE ouverte, celle qui est au-dessus.
+    const select = [...document.querySelectorAll(e.commune.selecteur)].filter(visible).pop()
       || [...document.querySelectorAll("select")].filter(visible).find((x) => {
         for (let z = x.parentElement, k = 0; z && k < 6; z = z.parentElement, k++) {
           if (/commune de depot/.test(norm(z.innerText || "").slice(0, 300)) && boutonDansFenetre(z, e.commune.valider)) { fenCommune = z; return true; }
@@ -826,8 +845,22 @@
         return false;
       });
     if (select && visible(select)) {
+      // Fenêtres de commune en double (le guichet en ouvre parfois deux, essai de l'étude, 17/10) : celles du dessous sont refermées par
+      // leur « Annuler » (aucune demande n'est créée tant que la commune n'est pas validée).
+      const doubles = [...document.querySelectorAll('select[ng-model="vm.choixVilleInsee"]')].filter(visible).filter((x) => x !== select);
+      for (const x of doubles) {
+        const f = x.closest(FENETRES) || x.closest("form");
+        if (!f || f.contains(select)) continue; // jamais la fenêtre en cours
+        const annuler = f ? boutonDansFenetre(f, ["^annuler$"]) : null;
+        if (annuler) { annuler.click(); await wait(400); }
+      }
       const commune = getByPathLocal(run.fiche, e.commune.source);
-      const opts = [...select.options].filter((o) => memeCommune(o.text, commune));
+      // La liste se remplit après coup (Angular, `ng-options`) : CLAIRE attend que la commune du dossier y soit (15 s au plus).
+      let opts = [];
+      for (const fin = Date.now() + 15000; Date.now() < fin; await wait(300)) {
+        opts = [...select.options].filter((o) => memeCommune(o.text, commune));
+        if (opts.length || (commune && select.options.length > 3)) break;
+      }
       if (!commune || opts.length !== 1) {
         await finish("awaiting_human", `Choisissez vous-même la commune de dépôt${commune ? ` (${commune})` : ""}, validez, puis relancez CLAIRE.`);
         return "fin";
@@ -837,20 +870,57 @@
       const pos = await moveTo(select, sp); ripple(pos.x, pos.y);
       mark(select, true);
       select.focus();
-      setNativeSelect(select, opts[0].value);
+      // Le choix se VOIT (étude 17/10 : « je veux le voir choisir dans la liste ») : la liste est dépliée sur place, CLAIRE la parcourt
+      // jusqu'à la commune du dossier, puis la referme sur ce choix (une liste native ne s'ouvre pas autrement depuis une extension).
+      const tailleAvant = select.getAttribute("size");
+      try {
+        select.size = Math.min(10, select.options.length);
+        for (let k = Math.max(0, opts[0].index - 6); k <= opts[0].index; k++) {
+          select.selectedIndex = k;
+          select.options[k].scrollIntoView({ block: "nearest" });
+          await wait(Math.max(60, Math.min(sp.type * 3, 180)));
+        }
+        await wait(Math.max(sp.pause, 600));
+      } finally {
+        if (tailleAvant === null) select.removeAttribute("size"); else select.setAttribute("size", tailleAvant);
+      }
+      // Le choix lui-même : dans le modèle d'Angular par le nom de la ville (voir content.communeChoisirAngular) ; à défaut (Angular non
+      // lisible), par l'option de la liste.
+      const parModele = await send({ type: "content.communeChoisirAngular", commune });
+      if (parModele && parModele.ok) { await wait(300); run.communeParModele = true; }
+      else if (parModele && parModele.raison && parModele.raison !== "sans-angular") {
+        mark(select, false);
+        await finish("awaiting_human", `CLAIRE n’a pas pu choisir ${opts[0].text.trim()} dans la liste du guichet (${parModele.raison}) : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
+        return "fin";
+      } else setNativeSelect(select, opts[0].value);
       // Liste d'Angular (relevé de l'étude, 17/10 : `ng-options`, valeurs = rangs, pas le code INSEE) : la commune doit être prise par le
       // modèle — sinon l'option est reprise par son rang, puis un nouveau « change ».
-      if (select.value !== opts[0].value || select.classList.contains("ng-invalid")) { select.selectedIndex = opts[0].index; fire(select, "input"); fire(select, "change"); }
+      // L'option elle-même, jamais son rang (Angular retire son option « ? » dès qu'un choix est fait : les rangs reculent).
+      const priseCommune = () => select.selectedIndex >= 0 && memeCommune(select.options[select.selectedIndex].text, commune) && !select.classList.contains("ng-invalid");
+      if (!priseCommune() && !(parModele && parModele.ok)) { opts[0].selected = true; fire(select, "input"); fire(select, "change"); }
       await wait(Math.max(sp.pause, 1000));
-      if (select.selectedIndex !== opts[0].index || select.classList.contains("ng-invalid")) {
+      // Ce qu'Angular a réellement retenu (essai de l'étude, 17/10 : Candé-sur-Beuvron au lieu de Blois) : relu dans la page, jamais validé
+      // sur une autre commune que celle du dossier.
+      const lue = await send({ type: "content.communeAngular" });
+      if (lue && typeof lue.commune === "string" && lue.commune && !memeCommune(lue.commune, commune)) {
+        mark(select, false);
+        await finish("awaiting_human", `Le guichet a retenu ${lue.commune} au lieu de ${opts[0].text.trim()} : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
+        return "fin";
+      }
+      if (!priseCommune()) {
         mark(select, false);
         await finish("awaiting_human", `Le guichet n’a pas pris la commune ${opts[0].text.trim()} : choisissez-la vous-même, validez, puis relancez CLAIRE.`);
         return "fin";
       }
       mark(select, false);
-      const fen = select.closest(FENETRES) || fenCommune;
+      const fen = select.closest(FENETRES) || select.closest('form[name="formSelectionCommune"]') || fenCommune;
       const valider = fen ? boutonDansFenetre(fen, e.commune.valider) : null;
       if (!valider) { await finish("awaiting_human", "Commune choisie : cliquez vous-même « Valider la commune de dépôt », puis relancez CLAIRE."); return "fin"; }
+      const relue = await send({ type: "content.communeAngular" });
+      if (relue && typeof relue.commune === "string" && relue.commune && !memeCommune(relue.commune, commune)) {
+        await finish("awaiting_human", `Le guichet a retenu ${relue.commune} au lieu de ${opts[0].text.trim()} : choisissez la commune vous-même, validez, puis relancez CLAIRE.`);
+        return "fin";
+      }
       await send({ type: "content.etape", label: "Commune de dépôt" });
       run.communeChoisie = opts[0].text.trim();
       await cliquerPuisAttendre(valider, sp, pi);
@@ -872,8 +942,21 @@
       }
     }
     if (b) {
+      // Jamais deux clics sur la démarche (essai de l'étude, 17/10 : deux fenêtres « commune de dépôt » empilées, la commune choisie dans
+      // celle du dessous) : la fenêtre s'ouvre après le chargement de la liste des communes, CLAIRE l'attend au lieu de recliquer.
+      const fenetreOuverte = () => !!([...document.querySelectorAll(e.commune.selecteur)].find(visible) || location.hash.startsWith(e.urlSaisie)
+        || fenetresVisibles().some((f) => motifsNon.some((m) => new RegExp(m, "i").test(txt(f)))));
+      if (run.demarcheCliqueeLe && Date.now() - run.demarcheCliqueeLe < 120000) {
+        for (const fin = Date.now() + 15000; Date.now() < fin && !fenetreOuverte();) await wait(300);
+        if (fenetreOuverte()) return "fait";
+        await finish("awaiting_human", "La démarche est cliquée mais la fenêtre « commune de dépôt » ne s’est pas ouverte : choisissez la commune vous-même, validez, puis relancez CLAIRE.");
+        return "fin";
+      }
       await send({ type: "content.etape", label: run.scenario.name });
-      await cliquerPuisAttendre(b, sp, pi);
+      run.demarcheCliqueeLe = Date.now();
+      const clic = await cliquerPuisAttendre(b, sp, pi);
+      if (clic === null) run.demarcheCliqueeLe = 0; // bouton redessiné ou caché avant le clic : rien n'a été cliqué
+      for (const fin = Date.now() + 15000; Date.now() < fin && !fenetreOuverte();) await wait(300);
       return "fait";
     }
     await finish("awaiting_human", "CLAIRE ne trouve pas la démarche dans la zone « Formuler » : ouvrez l’accueil du guichet ou le brouillon, puis relancez CLAIRE.");
@@ -987,9 +1070,11 @@
     }
     return null;
   }
-  async function ouvrirAssistant(as, sp) {
+  async function ouvrirAssistant(as, sp, run) {
     const deja = await fenetreAssistant(as, 300);
-    if (deja) return deja;
+    // Plusieurs assistants du même genre (DIA : bien, propriétaire, acquéreur, office) : une fenêtre déjà ouverte est celle d'un AUTRE bloc
+    // (relecture du 17/10 : l'adresse du propriétaire partait dans le bloc du bien) — jamais reprise.
+    if (deja) return (run.scenario.assistants || []).filter((x) => x.type === as.type).length > 1 ? "occupee" : deja;
     // Chaque déclencheur à son tour (le champ de la voie, puis le numéro, la localité…), jusqu'à ce que la fenêtre s'ouvre.
     for (const code of as.declencheur || []) {
       const sel = selecteurCode(code);
@@ -1014,7 +1099,8 @@
     const deja = valeurChampCode(as.voieCode);
     if (deja === null) return null; // pas sur cette page
     if (deja) return { etat: "done", deja: true, detail: "adresse déjà saisie dans le guichet, laissée telle quelle" };
-    const fen = await ouvrirAssistant(as, sp);
+    const fen = await ouvrirAssistant(as, sp, run);
+    if (fen === "occupee") return { etat: "manuel", detail: "une fenêtre d’assistant est déjà ouverte (autre bloc ?) : terminez-la ou fermez-la, puis relancez CLAIRE" };
     if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
     const recherche = [...fen.querySelectorAll("#saisieAdresseAuto")].find(visible) || champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
     if (!recherche) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant d’adresse : champ de recherche introuvable" }; }
@@ -1023,7 +1109,35 @@
     try {
       const pos = await moveTo(recherche, sp); ripple(pos.x, pos.y);
       recherche.focus(); setNativeValue(recherche, ""); fire(recherche, "input");
-      for (const ch of requete) { setNativeValue(recherche, recherche.value + ch); fire(recherche, "input", { inputType: "insertText", data: ch }); fire(recherche, "keyup"); await wait(Math.max(sp.type, 25)); }
+      // Comme un vrai clavier (étude 17/10 : « l'assistant n'a pas l'impression que c'est tapé ») : champ cliqué, puis pour chaque lettre
+      // keydown / keypress / input / keyup avec leur code, que lisent les listes de propositions jQuery et Angular.
+      clicComplet(recherche);
+      await wait(Math.max(sp.pause, 600));
+      const touche = (type, ch) => {
+        const code = /^[a-z0-9]$/i.test(ch) ? ch.toUpperCase().charCodeAt(0) : ch === " " ? 32 : 0;
+        const ev = new KeyboardEvent(type, { key: ch, code: /\d/.test(ch) ? "Digit" + ch : "Key" + ch.toUpperCase(), bubbles: true, cancelable: true, composed: true });
+        for (const [k, v] of [["keyCode", type === "keypress" ? ch.charCodeAt(0) : code], ["which", type === "keypress" ? ch.charCodeAt(0) : code], ["charCode", type === "keypress" ? ch.charCodeAt(0) : 0]]) {
+          try { Object.defineProperty(ev, k, { get: () => v }); } catch (_) { /* propriété figée */ }
+        }
+        return recherche.dispatchEvent(ev);
+      };
+      // La frappe se fait DANS LA PAGE (relecture du 17/10 : les codes de touche posés par l'extension ne sont pas vus par les scripts du
+      // guichet, qui tournent dans un autre monde) ; repli sur la frappe de l'extension si la page ne la prend pas.
+      // Le champ visé par un jeton unique (l'identifiant « saisieAdresseAuto » peut exister dans plusieurs fenêtres d'adresse).
+      const jeton = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      recherche.setAttribute("data-claire-frappe", jeton);
+      const tape = await send({ type: "content.taper", jeton, texte: requete, delai: Math.max(sp.type, 60) });
+      recherche.removeAttribute("data-claire-frappe");
+      if (!(tape && tape.ok)) {
+        setNativeValue(recherche, ""); fire(recherche, "input");
+        for (const ch of requete) {
+          touche("keydown", ch); touche("keypress", ch);
+          setNativeValue(recherche, recherche.value + ch); fire(recherche, "input", { inputType: "insertText", data: ch });
+          touche("keyup", ch);
+          await wait(Math.max(sp.type, 60));
+        }
+        fire(recherche, "change");
+      }
     } finally { saisieDirecte = lent; }
     // La proposition qui porte le numéro, les mots de la voie et le code postal (ou la commune) de la fiche — jamais « la première ».
     // Proposition conforme (relecture du 17/10 : « Rue Jean Racine » n'est pas « Rue Racine », Saint-Claude-de-Diray n'est pas Vineuil) :
@@ -1047,8 +1161,14 @@
     let choix = null;
     for (const fin = Date.now() + 8000; !choix && Date.now() < fin;) {
       await wait(300);
-      const props = [...document.querySelectorAll('[role=option], .dropdown-menu li, .uib-typeahead-match, ul.typeahead li, .ui-menu-item, .autocomplete li, ul li a')]
-        .filter(visible).filter((x) => !x.closest("#claire-overlay") && (fen.contains(x) || x.closest(".dropdown-menu, [role=listbox]")) && conforme(x.innerText || ""));
+      // Les propositions affichées sous le champ, quelle que soit leur forme (liste, lignes, boutons) : les plus petits éléments visibles
+      // dont le texte est une adresse conforme — dans l'assistant, ou dans une liste posée par-dessus la page.
+      const candidats = [...document.querySelectorAll('[role=option], li, a, button, div, span, td, p')]
+        .filter((x) => x !== recherche && x.children.length <= 4
+          && (fen.contains(x) || x.closest('.dropdown-menu, [role=listbox], [class*=typeahead], [class*=autocomplete], [class*=suggest], [class*=propos]'))
+          && !x.closest("#claire-overlay") && visible(x) && (x.innerText || "").length <= 160)
+        .filter((x) => conforme(x.innerText || ""));
+      const props = candidats.filter((x) => !candidats.some((y) => y !== x && x.contains(y)));
       if (props.length === 1 || (props.length > 1 && props.every((x) => norm(x.innerText) === norm(props[0].innerText)))) choix = props[0];
       else if (props.length > 1) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "plusieurs adresses proposées par le guichet : choisissez-la vous-même" }; }
     }
@@ -1060,11 +1180,11 @@
       return { etat: "manuel", detail: `aucune adresse proposée ne correspond à « ${requete} » : saisissez-la vous-même dans l’assistant${commune}` };
     }
     const cible = choix.querySelector("a") || choix;
-    let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); cible.click();
+    let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); mark(cible, true); await wait(Math.max(sp.pause, 500)); mark(cible, false); clicComplet(cible);
     await wait(Math.max(sp.pause, 600));
     if (t.lieuDit && voie) { const ld = [...fen.querySelectorAll("#complement")].find(visible) || champParLibelle(fen, "^lieu-?dit"); if (ld && !String(ld.value || "").trim()) await typeInto(ld, String(t.lieuDit), sp); }
     const valider = boutonDansFenetre(fen, ["^je valide mon adresse$"]);
-    if (!valider) { return { etat: "manuel", detail: "adresse choisie : cliquez vous-même « Je valide mon adresse »" }; }
+    if (!valider) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "« Je valide mon adresse » introuvable : saisissez l’adresse vous-même dans l’assistant" }; }
     pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
     await send({ type: "content.etape", label: "Assistant d’adresse" });
     valider.click();
@@ -1080,7 +1200,8 @@
     const deja = valeurChampCode(as.sectionCode);
     if (deja === null) return null;
     if (deja) return { etat: "done", deja: true, detail: "parcelles déjà saisies dans le guichet, laissées telles quelles" };
-    const fen = await ouvrirAssistant(as, sp);
+    const fen = await ouvrirAssistant(as, sp, run);
+    if (fen === "occupee") return { etat: "manuel", detail: "une fenêtre d’assistant est déjà ouverte (autre bloc ?) : terminez-la ou fermez-la, puis relancez CLAIRE" };
     if (!fen) return { etat: "absent", detail: "l’assistant des références cadastrales ne s’est pas ouvert" };
     const champ = (m) => champParLibelle(fen, m);
     const lignes = () => [...fen.querySelectorAll("table tbody tr, table tr")].filter(visible).map((tr) => norm(tr.innerText)).filter((x) => /\d/.test(x));
@@ -1146,12 +1267,14 @@
   async function assistantsPage(run, sp) {
     const faits = run.assistants || (run.assistants = {});
     for (const as of run.scenario.assistants || []) {
-      if (faits[as.type] && faits[as.type].etat !== "absent") continue;
+      // Un assistant par bloc d'adresse (bien, propriétaire, acquéreur, office) : chacun suivi sous son nom.
+      const nom = as.id || as.type;
+      if (faits[nom] && faits[nom].etat !== "absent") continue;
       const r = as.type === "adresse" ? await assistantAdresse(run, as, sp) : as.type === "parcelles" ? await assistantParcelles(run, as, sp) : null;
       if (!r) continue;
-      faits[as.type] = r;
-      await send({ type: "content.assistant", assistant: as.type, etat: r.etat, detail: r.detail });
-      await noter(run, `assistant:${as.type}`, r.etat, r.detail);
+      faits[nom] = r;
+      await send({ type: "content.assistant", assistant: nom, etat: r.etat, detail: r.detail });
+      await noter(run, `assistant:${nom}`, r.etat, r.detail);
     }
   }
   // Un champ rempli par un assistant (adresse ou parcelles) n'est JAMAIS écrit directement (étude 17/10 : « utiliser le système qui
@@ -1164,7 +1287,7 @@
         // « Toutes les parcelles » (format de l'annexe, à coller) : jamais à la place de l'assistant.
         || (as.type === "parcelles" && f.encoded && f.source === as.source);
       if (!couvert) continue;
-      const r = (run.assistants || {})[as.type];
+      const r = (run.assistants || {})[as.id || as.type];
       if (r && r.etat === "skipped") return { etat: "skipped", detail: r.detail };
       if (r && r.etat !== "absent") return r;
       return { etat: "manuel", detail: (r && r.detail ? r.detail + " : " : "") + "à saisir par l’assistant du guichet (jamais tapé directement dans la case)" };
@@ -1190,17 +1313,31 @@
   // Fin du brouillon (étude 17/10 : « à la fin faire Vérifier ma saisie ») : CLAIRE clique « Vérifier ma saisie » — le contrôle du
   // guichet, qui ne transmet rien — et laisse la main. Le bouton est pris par son identifiant ET son texte exact ; « Transmettre ma
   // demande », à côté, n'est jamais cliqué.
+  async function piecesALaFin(run, champs, sp) {
+    for (const f of champs) if (f.type === "fichier" && !f.case) await remplirAuto(run, f, sp);
+  }
   async function verifierSaisie(sc, sp) {
     if (!sc.verifierSelecteur) return "";
-    const b = [...document.querySelectorAll(sc.verifierSelecteur)].filter(visible)
-      .find((x) => /^verifier ma saisie$/.test(texteBouton(x)) && !/transmet|envoy|sign|depos|valid/.test(norm(attributsBouton(x))) && !x.disabled);
-    if (!b) return "";
-    await send({ type: "content.etape", label: "Vérifier ma saisie" });
-    const pos = await moveTo(b, sp); mark(b, true); ripple(pos.x, pos.y);
-    await wait(sp.pause); await gate();
-    b.click();
-    await attendreStable(5000); mark(b, false); memo = new Map();
-    return "CLAIRE a cliqué « Vérifier ma saisie » : corrigez ce que le guichet signale, relisez chaque page et les pièces, puis transmettez vous-même.";
+    const okBouton = (x, re) => re.test(texteBouton(x)) && !/transmet|envoy|sign|depos|valid/.test(norm(attributsBouton(x))) && !x.disabled;
+    const trouverVerifier = () => [...document.querySelectorAll(sc.verifierSelecteur)].filter(visible).find((x) => okBouton(x, /^verifier ma saisie$/));
+    const trouverSauver = () => [...document.querySelectorAll("#id__btnEnregistrerSaisie")].filter(visible).find((x) => okBouton(x, /^sauvegarder$/));
+    const cliquer = async (el, label) => {
+      await send({ type: "content.etape", label });
+      const p = await moveTo(el, sp); mark(el, true); ripple(p.x, p.y);
+      await wait(sp.pause); await gate();
+      if (el.isConnected) el.click();
+      await attendreStable(5000); mark(el, false); memo = new Map();
+    };
+    // Ordre de l'étude (17/10) : « d'abord Vérifier ma saisie, ensuite Sauvegarder » — boutons pris par leur identifiant ET leur texte exact,
+    // relevés de nouveau entre les deux (le guichet peut redessiner ses boutons).
+    const verifier = trouverVerifier();
+    if (!verifier) return "";
+    await cliquer(verifier, "Vérifier ma saisie");
+    const sauver = trouverSauver();
+    if (sauver) await cliquer(sauver, "Sauvegarder");
+    return sauver
+      ? "CLAIRE a cliqué « Vérifier ma saisie » puis « Sauvegarder » : corrigez ce que le guichet signale, relisez chaque page et les pièces, puis transmettez vous-même."
+      : "CLAIRE a cliqué « Vérifier ma saisie » ; « Sauvegarder » n’est pas affiché : sauvegardez vous-même, puis transmettez vous-même.";
   }
 
   async function boucleAuto(run) {
@@ -1263,6 +1400,11 @@
           for (let k = 0; k <= idx; k++) faites.add(etapes[k].label);
           await send({ type: "content.etape", label: etapes[idx].label });
           const change = await cliquerPuisAttendre(cible, sp, pi + 1);
+          if (change === null) { // bouton redessiné avant le clic : la page est relue, trois fois au plus
+            if ((run.nonCliques = (run.nonCliques || 0) + 1) > 3) { await finish("awaiting_human", "Le bouton du guichet change sans cesse : continuez vous-même, puis relancez CLAIRE."); return; }
+            continue;
+          }
+          run.nonCliques = 0;
           if (!change) { await finish("awaiting_human", `« ${etapes[idx].label} » n'a rien ouvert : ouvrez la démarche vous-même puis relancez CLAIRE.`); return; }
           pi += 1;
           continue;
@@ -1272,6 +1414,8 @@
       // (2) Les assistants du guichet (adresse, parcelles), puis les champs de cette page.
       if (sc.assistants) await assistantsPage(run, sp);
       for (const f of champs) {
+        // Pièces jointes (hors plan annoncé par une case de la DIA) : à la fin, juste avant « Vérifier ma saisie » (étude 17/10).
+        if (sc.entree && f.type === "fichier" && !f.case) continue;
         const parAssistant = sc.assistants ? champDeAssistant(run, f) : null;
         if (parAssistant) {
           const key = cleChamp(0, f.label, f);
@@ -1280,6 +1424,13 @@
           continue;
         }
         await remplirAuto(run, f, sp);
+      }
+      // (2 bis) Page de la signature remplie (CU, étude 17/10 : « après la page 3 et la signature mise, ne pas lire les pages suivantes ») :
+      // directement le plan, « Vérifier ma saisie » et « Sauvegarder ».
+      if (sc.finApresCode && [...document.querySelectorAll(selecteurCode(sc.finApresCode) || "#__aucun")].some((x) => visible(x) && String(x.value || "").trim())) {
+        await piecesALaFin(run, champs, sp);
+        await finish("awaiting_human", await verifierSaisie(sc, sp) || finGuichet);
+        return;
       }
       // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.
       if (sc.uneSeulePage) {
@@ -1291,11 +1442,18 @@
       // sur toutes les pages : ils ne disent rien. Relancée au milieu du brouillon, CLAIRE s'arrête aussi quand « page suivante » ne
       // change plus rien (ci-dessous).
       if (!suivant || (sc.entree && pi + 1 >= maxPages)) {
+        await piecesALaFin(run, champs, sp);
         await finish("awaiting_human", await verifierSaisie(sc, sp) || finGuichet);
         return;
       }
       const change = await cliquerPuisAttendre(suivant, sp, pi + 1);
+      if (change === null) { // bouton redessiné avant le clic : la page est relue, trois fois au plus
+        if ((run.nonCliques = (run.nonCliques || 0) + 1) > 3) { await finish("awaiting_human", "Le bouton du guichet change sans cesse : continuez vous-même, puis relancez CLAIRE."); return; }
+        continue;
+      }
+      run.nonCliques = 0;
       if (!change) {
+        if (sc.entree) await piecesALaFin(run, champs, sp);
         const verifie = sc.entree ? await verifierSaisie(sc, sp) : "";
         if (verifie) { await finish("awaiting_human", verifie); return; }
         await finish("awaiting_human", sc.entree

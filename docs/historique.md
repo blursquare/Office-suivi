@@ -20609,3 +20609,29 @@ partie personne morale est déjà pré-remplie avec nos coordonnées, ne pas rem
   `file_input_BI3IA1`), AI3T, AI3EM1/2, GI4AM1/2, HI1EM1/2, HI2N/V/C/L/T (coordonnées de l'office du carnet). Laissés à l'étude faute de
   donnée sur la fiche : occupation (DI2OA*), droits réels (EI1*), modalités autres que le comptant. Sens des codes déduits du CERFA et des
   codes voisins, à vérifier sur un vrai brouillon (point terrain `gnau-dia-champs-verifier`).
+
+Suite du 17/10 (essais de l'étude sur le vrai guichet) : deux fenêtres « commune de dépôt » empilées — la démarche était recliquée avant que
+la fenêtre s'ouvre (« Form submission canceled because the form is not connected » : le « Valider » cliqué était celui de la fenêtre
+retirée) ; valider la commune CRÉE la demande (brouillons vides n° 18095 et 18096). Corrigé : un seul clic sur la démarche
+(`run.demarcheCliqueeLe`, attente de 15 s), choix dans la fenêtre du dessus, jamais un clic sur un élément retiré (`cliquerPuisAttendre`),
+liste des communes attendue puis dépliée et parcourue à l'écran (« je veux le voir choisir dans la liste »), prise par Angular vérifiée par
+l'option elle-même. Relevé de l'étude (par Claude dans Chrome) : tout champ d'adresse a `onfocus="rempliAdresse(this)"` (le curseur ouvre
+l'assistant), les parcelles `ng-focus="openCadastralReferencesADSPopup()"`, les valeurs des options de la commune sont des rangs. D'où :
+un assistant d'adresse par bloc (bien, propriétaire AI3, acquéreur GI4AA, office HI2, `id` de chaque assistant), aucun champ relié à
+l'assistant tapé directement, propositions d'adresse lues quelle que soit leur forme, « Vérifier ma saisie » puis « Sauvegarder » (ordre de l'étude),
+signataire « P/O Prénom NOM » du responsable du dossier (E1S du CU, GI7S de la DIA).
+
+Document de l'étude « Remplir la DIA sur le GNAU d'Agglopolys » (rédigé avec Claude dans Chrome, 17/10) : il propose d'écrire dans le modèle
+d'Angular (`data.formulaire.modele`) sans ouvrir les assistants et de signer « P/O Me Sophie GOSSART » ; l'étude a tranché : **assistants
+visibles** et **« P/O » du collaborateur chargé du dossier**. Repris : AI1MP = profession (catégorie de l'INSEE, liste fermée — c'était le nom
+d'usage par erreur), GI2PA3 idem (`categorieInsee`), FI1VA2 par défaut. Non repris : GI1DA1 (case de déclaration, jamais cochée par CLAIRE,
+règle de l'étude), écriture dans le modèle, règles CSV du guichet (`chargementRegle`), codemandeurs du bloc « partage », arrêt ENS (aucune
+analyse ENS dans CLAIRE) — à faire sur demande.
+
+Essai de l'étude sur une DIA (17/10) : DPU coché d'office (« cocher de base soumis au droit de préemption urbain »), case du plan cochée
+sur sa page et plan joint à la fin comme pour le CU (la case était cochée puis décochée faute de champ de fichier visible), maison →
+CI4BA1 « bâtiment vendu en totalité », copropriété → CI6CA1 et les lots ; adresses du dossier d'essai remplacées par de vraies rues de
+Blois (l'assistant ne propose que des adresses existantes : l'adresse fictive du propriétaire restait vide). Commune de dépôt choisie dans
+le modèle d'Angular par le nom de la ville (`content.communeChoisirAngular`) : la liste affichait Blois, Angular retenait Candé-sur-Beuvron.
+Frappe de la recherche d'adresse dans le monde de la page (`content.taper`). CU : après la page de la signature, directement le plan,
+« Vérifier ma saisie » puis « Sauvegarder » (`finApresCode`).

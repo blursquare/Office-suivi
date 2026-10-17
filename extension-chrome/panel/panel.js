@@ -1,5 +1,5 @@
-// Panneau latéral : connexion au serveur CLAIRE du bureau, choix du dossier et de la démarche (CUa / DIA), remplissage de la page
-// affichée du guichet, suivi champ par champ et bouton « Copier » sur chaque valeur.
+// Panneau latéral en trois étapes (étude 17/10 : « simplifie avec des étapes 1 2 3, pas trop de texte, aux couleurs de CLAIRE ») :
+// 1 dossier, 2 démarche (CU / DIA), 3 lancer ; suivi replié champ par champ avec « Copier » sur chaque valeur.
 const { resolveField, expandFields, preview, getByPath } = globalThis.ClaireFiche;
 const $ = (s) => document.querySelector(s);
 
@@ -20,9 +20,9 @@ const DETAIL = {
   manuel: "emplacement pas encore relevé : Copier, puis coller dans le guichet"
 };
 const STATUS = {
-  running: ["CLAIRE pilote le guichet… (Échap ou « Reprendre la main » pour l’arrêter)", ""],
+  running: ["CLAIRE remplit le guichet…", ""],
   paused: ["En pause", "pause"],
-  awaiting_human: ["Terminé — relisez chaque page, cochez les cases, puis validez vous-même.", "ok"],
+  awaiting_human: ["Terminé : relisez, puis transmettez vous-même.", "ok"],
   error: ["Arrêt sur erreur", "err"],
   stopped: ["Arrêté", ""]
 };
@@ -43,7 +43,9 @@ async function api(chemin) {
 function setLink(on, texte) {
   const el = $("#link");
   el.className = "link " + (on ? "on" : "off");
-  el.textContent = texte || (on ? "● CLAIRE connecté" : "● CLAIRE injoignable");
+  el.textContent = texte || (on ? "Connecté" : "CLAIRE injoignable");
+  // La connexion ne s'affiche que tant que CLAIRE ne répond pas.
+  $("#connexion").hidden = !!on;
 }
 
 async function tester() {
@@ -100,7 +102,7 @@ async function rechercher() {
 
 async function choisirDossier(d) {
   dossier = d;
-  $("#choisi").textContent = d.libelle;
+  $("#choisi").textContent = d.libelle + (d.commune ? " · " + d.commune : "");
   $("#resultats").textContent = "";
   await chargerFiche();
 }
@@ -131,14 +133,12 @@ async function chargerFiche() {
     } catch (e) { msg("#setup-msg", e.message); }
   }
   const m = $("#manques");
-  m.hidden = !(fiche && fiche.manques && fiche.manques.length);
-  m.textContent = "";
-  if (!m.hidden) {
-    m.append("À compléter dans CLAIRE (ou à saisir dans le guichet) :");
-    const ul = document.createElement("ul");
-    fiche.manques.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
-    m.appendChild(ul);
-  }
+  const manques = (fiche && fiche.manques) || [];
+  m.hidden = !manques.length;
+  m.querySelector("summary").textContent = manques.length > 1 ? `${manques.length} informations manquent dans CLAIRE` : "1 information manque dans CLAIRE";
+  const ul = m.querySelector("ul");
+  ul.textContent = "";
+  manques.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
   render();
 }
 
@@ -147,29 +147,39 @@ async function chargerFiche() {
 async function init() {
   scenarios = await (await fetch("../scenarios/index.json")).json();
   const sel = $("#procedure");
-  for (const s of scenarios.filter((x) => !x.hotes)) sel.add(new Option(s.name, s.procedure));
-  sel.addEventListener("change", chargerFiche);
+  const COURT = { cua: "CU", dia: "DIA" };
+  for (const s of scenarios.filter((x) => !x.hotes)) {
+    sel.add(new Option(s.name, s.procedure));
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = COURT[s.procedure] || s.name;
+    b.title = s.name;
+    b.setAttribute("role", "radio");
+    b.dataset.procedure = s.procedure;
+    b.addEventListener("click", () => { if (sel.disabled) return; sel.value = s.procedure; chargerFiche(); });
+    $("#procedures").appendChild(b);
+  }
 
   const st0 = await chrome.storage.local.get(["serveur"]);
   serveur = st0.serveur || "";
   $("#serveur").value = serveur;
-  if (serveur) { if (await tester()) rechercher(); } else setLink(false, "● CLAIRE non réglé");
+  if (serveur) { if (await tester()) rechercher(); } else setLink(false, "CLAIRE non réglé");
 
   $("#enregistrer").addEventListener("click", enregistrerServeur);
+  // Un clic sur le témoin rouvre la connexion (changer l'adresse de CLAIRE).
+  $("#link").addEventListener("click", () => { $("#connexion").hidden = !$("#connexion").hidden; });
   $("#recherche").addEventListener("input", () => { clearTimeout(minuterie); minuterie = setTimeout(rechercher, 250); });
 
-  // Deux façons de lancer : CLAIRE pilote tout le guichet (ouverture de la démarche, chaque page, « Suivant ») ou la page affichée seule.
-  const lancer = async (pilote) => {
+  // CLAIRE pilote tout le guichet : ouverture de la démarche, chaque page, « page suivante » (« Remplir seulement la page affichée » retiré,
+  // étude 17/10).
+  $("#auto").addEventListener("click", async () => {
     msg("#setup-msg", "");
     // Fiche relue à chaque lancement : ce qui a été corrigé dans CLAIRE entre-temps est pris.
     await chargerFiche();
     if (!fiche) return;
-    const sc = Object.assign({}, scenario, { auto: true, uneSeulePage: !pilote });
-    const r = await send({ type: "start", scenario: sc, fiche, speed: $("#speed").value, continuer: !pilote });
+    const r = await send({ type: "start", scenario: Object.assign({}, scenario, { auto: true }), fiche, speed: $("#speed").value });
     if (r && r.error) msg("#setup-msg", r.error);
-  };
-  $("#auto").addEventListener("click", () => lancer(true));
-  $("#start").addEventListener("click", () => lancer(false));
+  });
   $("#structure").addEventListener("click", async () => {
     const r = await send({ type: "structure" });
     if (!r || r.error) { msg("#setup-msg", (r && r.error) || "Page illisible."); return; }
@@ -199,16 +209,23 @@ function render() {
   const sc = scenario;
   const data = fiche;
 
-  $("#start").disabled = !(scenario && dossier && serveur) || !!active;
-  $("#auto").disabled = $("#start").disabled;
+  $("#auto").disabled = !(scenario && dossier && serveur) || !!active;
   $("#procedure").disabled = !!active;
+  for (const b of document.querySelectorAll("#procedures button")) {
+    const actif = b.dataset.procedure === $("#procedure").value;
+    b.classList.toggle("actif", actif);
+    b.setAttribute("aria-checked", String(actif));
+    b.disabled = !!active;
+  }
+  $("#etape-dossier").classList.toggle("fait", !!dossier);
+  $("#etape-demarche").classList.toggle("fait", !!(dossier && fiche));
 
   $("#run").hidden = !run;
   if (run) {
     const [txt, cls] = STATUS[run.status] || ["", ""];
     const el = $("#status");
     el.className = "status " + cls;
-    el.textContent = run.status === "error" && run.message ? `Arrêt : ${run.message}` : txt;
+    el.textContent = run.status === "error" && run.message ? `Arrêt : ${run.message}` : run.status === "awaiting_human" && run.message ? run.message : txt;
     $("#pause").hidden = run.status !== "running";
     $("#resume").hidden = run.status !== "paused";
     $("#stop").hidden = !active;
@@ -217,7 +234,9 @@ function render() {
 
   const box = $("#list");
   box.textContent = "";
-  if (!sc || !data) return;
+  $("#detail").hidden = !(sc && data);
+  if (!sc || !data) { $("#compte").textContent = ""; return; }
+  let manuels = 0;
 
   let doneCount = 0;
   let total = 0;
@@ -235,6 +254,7 @@ function render() {
       if (r.missing && f.optional && !st) state = "skipped";
       total += 1;
       if (state === "done") doneCount += 1;
+      if (["manuel", "missing", "notfound", "mismatch"].includes(state)) manuels += 1;
 
       const row = document.createElement("div");
       row.className = "row s-" + state;
@@ -274,6 +294,7 @@ function render() {
   });
 
   $("#bar-fill").style.width = total ? `${Math.round((doneCount / total) * 100)}%` : "0";
+  $("#compte").textContent = run ? `${doneCount} rempli${doneCount > 1 ? "s" : ""}${manuels ? ` · ${manuels} à faire vous-même` : ""}` : "";
 }
 
 init();

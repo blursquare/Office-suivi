@@ -39,7 +39,8 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
    est déjà au format du guichet (date `JJMMAAAA`, prix `209000`, prix en lettres, parcelles `¢EV¢10¢606¢`…).
 7. Valider et transmettre **vous-même**.
 
-**Remplir seulement la page affichée** : même remplissage, sans ouvrir de démarche ni cliquer « Suivant ».
+**Panneau en trois étapes** (17/10) : 1 Dossier, 2 Démarche (CU / DIA), 3 « Lancer CLAIRE » ; la vitesse et la copie de structure sont
+sous « Options », le détail des champs est replié. « Remplir seulement la page affichée » est retiré.
 
 ### Guichet d'Agglopolys (https://demande-urbanisme.agglopolys.fr)
 
@@ -58,14 +59,24 @@ Sur ce guichet, CLAIRE suit le parcours relevé par l'étude (16/10) :
    si l'assistant ne s'ouvre pas, les cases restent vides et le panneau dit « à saisir par l'assistant du guichet ». CU et DIA ;
 5. brouillon `#/saisie/<n°>` (CUa 7 pages, DIA 10) : chaque champ par son code CERFA (`#AI1NP1`, `#T2L_localite`…), valeur posée d'un
    coup (le guichet applique lui-même majuscules et masques), puis « page suivante » (`vm.nextPage()`) ;
-6. dernière page : CLAIRE clique **« Vérifier ma saisie »** (le contrôle du guichet, qui ne transmet rien) et s'arrête. Corriger ce que le
+6. dernière page : CLAIRE clique **« Vérifier ma saisie »** puis **« Sauvegarder »** (ordre demandé par l'étude) (le contrôle du guichet, qui ne transmet rien) et s'arrête. Corriger ce que le
    guichet signale, relire, joindre les autres pièces, puis « Transmettre ma demande » **vous-même**.
+
+**Commune de dépôt** : la liste est dépliée à l'écran et parcourue jusqu'à la commune du dossier (attendue jusqu'à 15 s le temps que le
+guichet la remplisse) ; un seul clic sur la démarche — valider la commune crée la demande, un second clic créerait un brouillon vide.
+
+**Toutes les adresses par l'assistant** (relevé de l'étude, 17/10 : chaque champ d'adresse ouvre l'assistant dès qu'il a le curseur) :
+bien (T2 / BI1), propriétaire (AI3), acquéreur (GI4AA…), office (HI2). Un champ relié à l'assistant n'est jamais tapé directement.
+
+**Signature** : « P/O Prénom NOM » du collaborateur chargé du dossier (E1S, GI7S) ; sans responsable sur la fiche, laissée vide.
 
 **CU** : le demandeur « personne physique » n'est jamais rempli — le guichet pré-remplit l'office en personne morale (étude 17/10).
 
 **DIA** (champs relevés sur une DIA remplie par l'étude, 17/10) : cases « déclaration d'intention d'aliéner » (PI1A), « droit de préemption
-urbain » (PI1AA1, seulement quand Contrôle de l'urbanisme le retient), « pleine propriété » (CI2NA1), « usage d'habitation » (DI1UA1 : maison,
-ou copropriété dont un lot est un logement), « prix comptant » (FI2MA1), « plan cadastral joint » (BI3IA1, cochée quand le plan est joint) ;
+urbain » (PI1AA1, cochée d'office), « pleine propriété » (CI2NA1), « usage d'habitation » (DI1UA1 : maison,
+ou copropriété dont un lot est un logement), « prix comptant » (FI2MA1) et « vente non indissociable » (FI1VA2) — ces trois-là par défaut pour une vente, à vérifier —, « plan cadastral joint » (BI3IA1, le plan lui-même joint à la fin comme pour le CU), « bâtiment vendu en totalité » (CI4BA1, maison),
+« locaux dans un bâtiment en copropriété » (CI6CA1) et les lots ;
+profession en catégorie de l'INSEE (AI1MP, GI2PA3 : seulement quand la profession de la fiche client la dit sans ambiguïté) ;
 téléphone et email du propriétaire (AI3T, AI3EM1/AI3EM2) et email de l'acquéreur (GI4AM1/GI4AM2) d'après leur fiche client d'Authentic ;
 email, adresse et téléphone de l'office pour le mandataire (HI1EM1/HI1EM2, HI2N, HI2V, HI2C, HI2L, HI2T). Occupation du bien, droits réels,
 vente amiable/adjudication et modalités autres que le comptant : à remplir vous-même (pas encore sur la fiche).

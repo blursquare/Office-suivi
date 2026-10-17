@@ -183,6 +183,99 @@ async function handle(msg, sender) {
         addLog(r, `Étape : ${msg.label}`);
       });
       return { ok: true };
+    case "content.communeChoisirAngular": {
+      // Commune de dépôt choisie DANS LE MODÈLE d'Angular (étude 17/10 : la liste affichait Blois, Angular retenait Candé-sur-Beuvron, la
+      // ville suivante — la liste interne du guichet ne suit pas les lignes affichées). La ville est cherchée par son NOM dans `vm.listeVille`
+      // (une seule, jamais devinée) et son code INSEE posé dans `vm.choixVilleInsee` ; rien d'autre n'est écrit.
+      if (!sender.tab) return { ok: false };
+      try {
+        const [res] = await chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id }, world: "MAIN", args: [String(msg.commune || "")],
+          func: (commune) => {
+            const n = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\(.*?\)/g, " ")
+              .replace(/[-'’]/g, " ").replace(/\bste\b/g, "sainte").replace(/\bst\b/g, "saint").replace(/\s+/g, " ").trim();
+            const ng = window.angular;
+            const sels = [...document.querySelectorAll('select[ng-model="vm.choixVilleInsee"]')].filter((x) => x.offsetWidth || x.offsetHeight);
+            const sel = sels[sels.length - 1];
+            if (!ng) return { ok: false, raison: "sans-angular" };
+            if (!sel || !n(commune)) return { ok: false, raison: "liste introuvable" };
+            const sc = ng.element(sel).scope();
+            const vm = sc && sc.vm;
+            if (!vm || !Array.isArray(vm.listeVille)) return { ok: false, raison: "liste des villes illisible" };
+            const villes = vm.listeVille.filter((v) => v && n(v.communeNom) === n(commune));
+            if (villes.length !== 1) return { ok: false, raison: villes.length ? "plusieurs villes de ce nom" : "ville absente de la liste" };
+            sc.$apply(() => { vm.choixVilleInsee = villes[0].inseeCode; });
+            return { ok: true, nom: String(villes[0].communeNom || "") };
+          }
+        });
+        return res && res.result ? res.result : { ok: false };
+      } catch (_) {
+        return { ok: false };
+      }
+    }
+    case "content.taper": {
+      // Frappe d'une recherche d'adresse dans le monde de la page : pour chaque lettre keydown / keypress / input / keyup avec leurs codes,
+      // comme un clavier (les écouteurs jQuery / Angular du guichet lisent keyCode et which). Seul le champ désigné par son identifiant.
+      if (!sender.tab) return { ok: false };
+      try {
+        const [res] = await chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id }, world: "MAIN", args: [String(msg.jeton || ""), String(msg.texte || "").slice(0, 200), Number(msg.delai) || 60],
+          func: async (jeton, texte, delai) => {
+            const els = /^[a-z0-9]{6,24}$/.test(jeton) ? [...document.querySelectorAll(`input[data-claire-frappe="${jeton}"]`)] : [];
+            const el = els.length === 1 ? els[0] : null;
+            if (!el || !(el.offsetWidth || el.offsetHeight)) return { ok: false };
+            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+            const ev = (type, ch) => {
+              const code = /^[a-z0-9]$/i.test(ch) ? ch.toUpperCase().charCodeAt(0) : ch === " " ? 32 : 0;
+              const e = new KeyboardEvent(type, { key: ch, bubbles: true, cancelable: true, composed: true });
+              const kc = type === "keypress" ? ch.charCodeAt(0) : code;
+              for (const [k, v] of [["keyCode", kc], ["which", kc], ["charCode", type === "keypress" ? ch.charCodeAt(0) : 0]]) {
+                try { Object.defineProperty(e, k, { get: () => v }); } catch (_) { /* figé */ }
+              }
+              el.dispatchEvent(e);
+            };
+            el.focus();
+            setter.call(el, "");
+            el.dispatchEvent(new Event("input", { bubbles: true }));
+            for (const ch of texte) {
+              ev("keydown", ch); ev("keypress", ch);
+              setter.call(el, el.value + ch);
+              el.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: ch }));
+              ev("keyup", ch);
+              await new Promise((r) => setTimeout(r, delai));
+            }
+            el.dispatchEvent(new Event("change", { bubbles: true }));
+            return { ok: true };
+          }
+        });
+        return res && res.result ? res.result : { ok: false };
+      } catch (_) {
+        return { ok: false };
+      }
+    }
+    case "content.communeAngular": {
+      // Commune de dépôt réellement retenue par Angular (lecture seule, monde de la page) : le nom de la ville dont le code INSEE est dans
+      // `vm.choixVilleInsee` de la fenêtre la plus haute. null quand Angular n'est pas lisible.
+      if (!sender.tab) return { commune: null };
+      try {
+        const [res] = await chrome.scripting.executeScript({
+          target: { tabId: sender.tab.id }, world: "MAIN",
+          func: () => {
+            const ng = window.angular;
+            const sels = [...document.querySelectorAll('select[ng-model="vm.choixVilleInsee"]')].filter((x) => x.offsetWidth || x.offsetHeight);
+            const sel = sels[sels.length - 1];
+            if (!ng || !sel) return null;
+            const vm = (ng.element(sel).scope() || {}).vm;
+            if (!vm || !Array.isArray(vm.listeVille)) return null;
+            const v = vm.listeVille.find((x) => x && x.inseeCode === vm.choixVilleInsee);
+            return v ? String(v.communeNom || "") : "";
+          }
+        });
+        return { commune: res && typeof res.result === "string" ? res.result : null };
+      } catch (_) {
+        return { commune: null };
+      }
+    }
     case "content.modele": {
       // Modèle du formulaire du guichet d'Agglopolys (Angular : scope().data.formulaire.modele) — codes, page, ordre, libellé, type ;
       // jamais une valeur saisie. Lu dans le monde de la page (le script de l'extension ne voit pas `angular`).

@@ -15,9 +15,9 @@ const sortie = path.resolve(process.argv[2] || path.join(racine, 'dist-essai'));
 const cible = path.join(sortie, 'CLAIRE-essai');
 
 // Données inventées — l'adresse est une adresse publique de Blois (pour que l'assistant du guichet la propose), les personnes et les
-// parcelles sont fictives.
+// parcelles sont fictives ; les adresses sont de vraies rues de Blois (l'assistant d'adresse du guichet ne propose que des adresses qui existent).
 const dossiers = [{
-  id: 'essai1', nom: 'ESSAI / EXEMPLE', typeVente: 'maison', adresseBien: 'BLOIS (41000), 9 place Saint-Louis', prixVente: 185000, prixMobilier: 3000,
+  id: 'essai1', nom: 'ESSAI / EXEMPLE', typeVente: 'maison', responsable: 'Bastien ANGLUMENT', adresseBien: 'BLOIS (41000), 9 place Saint-Louis', prixVente: 185000, prixMobilier: 3000,
   referenceAuthentic: 'A 2026 99999',
   honoraires: { negociateur: 'agence', nom: 'AGENCE FICTIVE', montantTTC: 8000, charge: 'ACQUEREUR' },
   parties: [{ role: 'VENDEUR', nom: 'Jean ESSAI', civilite: 'M' }, { role: 'ACQUEREUR', nom: 'Marie EXEMPLE', civilite: 'Mme' }],
@@ -26,8 +26,8 @@ const dossiers = [{
       { section: 'BA', numero: '21', surface: '234' }, { section: 'BA', numero: '22', surface: '333' },
       { section: 'BA', numero: '23', surface: '2311' }, { section: 'RE', numero: '432', surface: '111' }] }],
     fichesClients: {
-      a: { nom: 'Jean ESSAI', nomFamille: 'ESSAI', prenom: 'Jean', civilite: 'M', dateNaissance: '1960-01-01', lieuNaissance: '41000 BLOIS', domicile: '1 rue Fictive 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Retraité' },
-      b: { nom: 'Marie EXEMPLE', nomFamille: 'EXEMPLE', prenom: 'Marie', civilite: 'Mme', dateNaissance: '1985-06-15', lieuNaissance: '37000 TOURS', domicile: '2 rue Imaginaire 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Professeure' }
+      a: { nom: 'Jean ESSAI', nomFamille: 'ESSAI', prenom: 'Jean', civilite: 'M', dateNaissance: '1960-01-01', lieuNaissance: '41000 BLOIS', domicile: '2 rue Denis Papin 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Retraité' },
+      b: { nom: 'Marie EXEMPLE', nomFamille: 'EXEMPLE', prenom: 'Marie', civilite: 'Mme', dateNaissance: '1985-06-15', lieuNaissance: '37000 TOURS', domicile: '10 rue du Commerce 41000 BLOIS', adresse: { codePostal: '41000', commune: 'BLOIS' }, profession: 'Professeure' }
     }
   }
 }];

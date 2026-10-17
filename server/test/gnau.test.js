@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { choisirPlanCadastral, ficheGnau, dossiersGnau, adresseDecomposee, parcellesGnau } = require('../src/gnau');
 
 const dossier = () => ({
-  id: 'v1', nom: 'MOREAU / LAMBERT', typeVente: 'maison', adresseBien: 'VINEUIL (41350), 12 rue des Vignes', prixVente: 209000, prixMobilier: 5000,
+  id: 'v1', nom: 'MOREAU / LAMBERT', typeVente: 'maison', responsable: 'Julie VASSELIN', adresseBien: 'VINEUIL (41350), 12 rue des Vignes', prixVente: 209000, prixMobilier: 5000,
   referenceAuthentic: 'A 2026 00042',
   honoraires: { negociateur: 'agence', nom: 'AGENCE DU CHÂTEAU', montantTTC: 9000, charge: 'ACQUEREUR' },
   parties: [
@@ -51,7 +51,7 @@ test('fiche DIA : vendeur principal et codemandeur, naissance et domicile d’Au
   assert.equal(f.prix, 209000);
   assert.equal(f.prixHorsMobilier, 204000);
   assert.deepEqual([f.commission.montantAcquereur, f.commission.chargeAcquereur, f.commission.chargeVendeur, f.commission.total], [9000, true, false, 9000]);
-  assert.deepEqual(f.signature, { lieu: 'BLOIS', date: '2026-10-16', signataire: 'Maître Sophie GOSSART' });
+  assert.deepEqual(f.signature, { lieu: 'BLOIS', date: '2026-10-16', signataire: 'P/O Julie VASSELIN' });
   // Léa MOREAU n'a pas de fiche client lue : dit, jamais deviné.
   assert.ok(f.manques.some((m) => /Léa MOREAU/.test(m)), f.manques.join(' | '));
   assert.equal(f.vendeurs.codemandeurs[0].dateNaissance, '');
@@ -154,14 +154,9 @@ test('fiche DIA : cases du CERFA, coordonnées d’Authentic et de l’office (�
   assert.equal(f.vendeur.telephone, '0611223344');
   assert.equal(f.vendeurs.codemandeurs[0].email, '', 'jamais l’email d’une autre personne du même côté');
   assert.deepEqual([f.dia.declaration, f.dia.pleinePropriete, f.dia.comptant, f.dia.habitation], [true, true, true, true]);
-  assert.equal(f.dia.dpu, null, 'DPU pas analysé : jamais deviné');
-  assert.ok(f.manques.some((m) => /préemption urbain/.test(m)));
+  assert.equal(f.dia.dpu, true, 'DPU coché d’office (étude 17/10)');
+  assert.equal(f.dia.batimentTotalite, true, 'maison : bâtiment vendu en totalité');
   assert.deepEqual([f.office.email, f.office.numero, f.office.voie, f.office.codePostal, f.office.commune], ['office.gossart@notaires.fr', '3', 'rue Bout des Haies', '41000', 'BLOIS']);
-  d.preemption = { droits: [{ cle: 'dpu', statut: 'probable' }] };
-  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dpu, undefined);
-  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.dpu, true);
-  d.preemption = { droits: [{ cle: 'dpu', statut: 'non' }] };
-  assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.dpu, false);
   d.typeVente = 'terrain';
   assert.equal(ficheGnau(d, 'dia', '2026-10-17').dia.habitation, null);
   d.typeVente = 'copropriete'; d.bien.lots = [{ numero: '12', designation: 'Cave' }];
@@ -169,4 +164,16 @@ test('fiche DIA : cases du CERFA, coordonnées d’Authentic et de l’office (�
   d.bien.lots.push({ numero: '3', designation: 'Appartement T3' });
   f = ficheGnau(d, 'dia', '2026-10-17');
   assert.equal(f.dia.habitation, true);
+});
+
+test('profession : catégorie de l’INSEE seulement quand un mot la dit sans ambiguïté', () => {
+  const { categorieInsee } = require('../src/gnau');
+  assert.equal(categorieInsee('Retraitée'), 'Retraités');
+  assert.equal(categorieInsee('Ingénieur'), 'Cadres et professions intellectuelles supérieures');
+  assert.equal(categorieInsee('Infirmière'), 'Professions intermédiaires');
+  assert.equal(categorieInsee('Cadre commercial retraité'), '', 'deux catégories possibles : jamais devinée');
+  assert.equal(categorieInsee('Astronaute'), '');
+  assert.equal(categorieInsee('Clerc de notaire'), '');
+  assert.equal(categorieInsee('Plombier'), '', 'artisan ou salarié : jamais deviné');
+  assert.equal(ficheGnau(dossier(), 'dia', '2026-10-17').vendeur.categorie, 'Retraités');
 });
