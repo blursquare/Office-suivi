@@ -347,8 +347,13 @@ function construireBiens(dossiers) {
   const uf = unionFind(occ.map((o) => o.id));
   // Commune écrite autrement d'un dossier à l'autre (« ST AIGNAN » / « SAINT-AIGNAN-SUR-CHER ») : une seule clé, pour que le bien d'une
   // vente et celui d'une succession soient la même fiche (étude 17/10 : « une fiche bien doit être unique dans CLAIRE comme dans Authentic »).
-  const cleCommune = (/** @type {string} */ c) => DD.communeNette(c).replace(/ s .*$/, '');
+  // Le nom entier d'abord ; le nom sans son « -sur-… » ne réunit deux biens que s'ils ont le MÊME code postal (relecture du 17/10 :
+  // Chaumont-sur-Loire 41150 et Chaumont-sur-Tharonne 41600 ne sont pas la même commune).
+  const cleCommune = (/** @type {string} */ c) => DD.communeNette(c);
+  const cleCourte = (/** @type {string} */ c) => DD.communeNette(c).replace(/ s .*$/, '');
   const cleParcelle = (/** @type {any} */ p) => [cleCommune(p.commune), p.prefixe, p.section, p.numero].join('|');
+  const cleParcelleCourte = (/** @type {any} */ p, /** @type {string} */ cp) => [cleCourte(p.commune), cp, p.prefixe, p.section, p.numero].join('|');
+  const parParcelleCourte = new Map();
   // Copropriété : les lots d'un même immeuble partagent la parcelle — un bien = un lot (au moins un lot commun), jamais l'immeuble entier.
   const numerosLots = (/** @type {any} */ o) => (o.lots || []).map((/** @type {any} */ l) => texte(l && (l.numero || l.lot))).filter(Boolean);
   const parParcelle = new Map();
@@ -360,6 +365,10 @@ function construireBiens(dossiers) {
       if (!norm(p.commune)) continue;
       for (const k of lots.length ? lots.map((l) => cleParcelle(p) + '|lot ' + l) : [cleParcelle(p)]) {
         if (parParcelle.has(k)) uf.unir(parParcelle.get(k), o.id); else parParcelle.set(k, o.id);
+      }
+      const cp = texte(o.codePostal);
+      if (/^\d{5}$/.test(cp)) for (const k of lots.length ? lots.map((l) => cleParcelleCourte(p, cp) + '|lot ' + l) : [cleParcelleCourte(p, cp)]) {
+        if (parParcelleCourte.has(k)) uf.unir(parParcelleCourte.get(k), o.id); else parParcelleCourte.set(k, o.id);
       }
     }
     if (!o.parcelles.some((/** @type {any} */ p) => norm(p.commune)) && o.adresse && norm(o.commune)) {
@@ -376,7 +385,7 @@ function construireBiens(dossiers) {
     /** @type {Map<string, any>} */
     const parcelles = new Map();
     for (const o of liste) for (const p of o.parcelles) {
-      const k = cleParcelle(p);
+      const k = [cleCourte(p.commune), p.prefixe, p.section, p.numero].join('|');
       const avant = parcelles.get(k);
       parcelles.set(k, avant ? Object.assign({}, p, Object.fromEntries(Object.entries(avant).filter(([, v]) => v !== '' && v !== null))) : p);
     }
@@ -421,14 +430,35 @@ function chercherClientsBiens(base, q) {
   return { personnes: personnes.slice(0, 80).map(resumePersonne), biens: biens.slice(0, 80).map(resumeBien), total: { personnes: personnes.length, biens: biens.length } };
 }
 
-/** Pure : les fiches d'un dossier (pour les liens de sa fiche). @param {{ personnes: any[], biens: any[] }} base @param {string} dossierId */
+/** Pure : les fiches d'un dossier (pour les liens de sa fiche). Chaque personne et chaque bien porte les AUTRES dossiers où il figure, avec
+ * leur contexte (étude 17/10 : « un client peut se retrouver dans un autre dossier ; bien distinguer vente ou succession et avec quel autre
+ * client il traite ») : vente ou succession, son rôle, et les autres parties de ce dossier. @param {{ personnes: any[], biens: any[] }} base
+ * @param {string} dossierId */
 function fichesDuDossier(base, dossierId) {
+  /** @type {Map<string, any[]>} parties de chaque dossier : [{ id, nom, role }] */
+  const parDossier = new Map();
+  for (const p of base.personnes) for (const x of p.dossiers) {
+    if (!parDossier.has(x.id)) parDossier.set(x.id, []);
+    /** @type {any[]} */ (parDossier.get(x.id)).push({ id: p.id, nom: p.nomComplet, role: x.roleLibelle || 'Partie' });
+  }
+  const avec = (/** @type {string} */ id, /** @type {string} */ sauf) => (parDossier.get(id) || []).filter((q) => q.id !== sauf).slice(0, 8)
+    .map((q) => ({ nom: q.nom, role: q.role }));
+  const autre = (/** @type {any} */ x, /** @type {string} */ sauf) => ({ id: x.id, libelle: x.libelle, succession: !!x.succession, archive: !!x.archive,
+    role: x.roleLibelle || '', avec: avec(x.id, sauf) });
   return {
     personnes: base.personnes.filter((p) => p.dossiers.some((/** @type {any} */ x) => x.id === dossierId))
-      .map((p) => ({ id: p.id, nom: p.nomComplet, role: (p.dossiers.find((/** @type {any} */ x) => x.id === dossierId) || {}).roleLibelle || 'Partie',
-        autresDossiers: p.dossiers.filter((/** @type {any} */ x) => x.id !== dossierId).length, peutEtre: p.peutEtre.length })),
+      .map((p) => {
+        const autres = p.dossiers.filter((/** @type {any} */ x) => x.id !== dossierId).filter((/** @type {any} */ x, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((y) => y.id === x.id) === i);
+        return { id: p.id, nom: p.nomComplet, role: (p.dossiers.find((/** @type {any} */ x) => x.id === dossierId) || {}).roleLibelle || 'Partie',
+          decede: !!p.deces, autresDossiers: autres.length, autres: autres.slice(0, 12).map((/** @type {any} */ x) => autre(x, p.id)), peutEtre: p.peutEtre.length };
+      }),
     biens: base.biens.filter((b) => b.dossiers.some((/** @type {any} */ x) => x.id === dossierId))
-      .map((b) => ({ id: b.id, libelle: b.adresse || b.parcelles.map((/** @type {any} */ p) => `${p.section} ${p.numero}`).join(', '), autresDossiers: b.dossiers.filter((/** @type {any} */ x) => x.id !== dossierId).length }))
+      .map((b) => {
+        const autres = b.dossiers.filter((/** @type {any} */ x) => x.id !== dossierId);
+        return { id: b.id, libelle: b.adresse || b.parcelles.map((/** @type {any} */ p) => `${p.section} ${p.numero}`).join(', '), commune: b.commune || '',
+          parcelles: b.parcelles.slice(0, 12).map((/** @type {any} */ p) => [p.prefixe, p.section, p.numero].filter(Boolean).join(' ')), lots: (b.lots || []).length,
+          autresDossiers: autres.length, autres: autres.slice(0, 12).map((/** @type {any} */ x) => autre(x, '')) };
+      })
   };
 }
 

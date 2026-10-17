@@ -57,13 +57,26 @@ function clePageAuthentic(nature, capture) {
   return nature + ':' + crypto.createHash('sha1').update(JSON.stringify([champs.slice(0, 20)])).digest('hex').slice(0, 16);
 }
 
+/**
+ * Pure : la page est-elle celle d'une promesse ou d'un avenant (le sous-dossier dont l'en-tête précède « Importer avec 6e SENS ») ? Jamais
+ * gardée : elle remplacerait la page de la VENTE, même si le poste n'a pas su le dire (relecture du 17/10).
+ * @param {any} capture
+ */
+function pageHorsVenteAuthentic(capture) {
+  const t = String((capture && capture.texte) || '').slice(0, 20000);
+  const m = /(?:^|\n)[ \t]*\d{1,3}[ \t]*-[ \t]*([^\n]{1,120}?)[ \t]*Importer avec 6e SENS/i.exec(t);
+  return !!m && /^(?:promesse|compromis|avenant|avant[\s-]*contrat)/i.test(m[1].trim());
+}
+
 /** Le magasin des pages, sur la base du serveur. @param {any} db base node:sqlite @param {{ maintenant?: () => number }} [options] */
 function creerPagesAuthentic(db, options = {}) {
   db.exec(SCHEMA);
   const maintenant = options.maintenant || Date.now;
   // Dossier supprimé, inconnu ou archivé depuis plus d'un an : ses pages ne servent plus.
-  db.prepare(`DELETE FROM authentic_pages WHERE dossier_id NOT IN (SELECT id FROM dossiers WHERE deleted_at IS NULL)
-    OR dossier_id IN (SELECT id FROM dossiers WHERE archive = 1 AND updated_at < ?)`).run(maintenant() - DUREE_ARCHIVE_MS);
+  // Un dossier supprimé garde ses pages 30 jours (il peut être restauré).
+  db.prepare(`DELETE FROM authentic_pages WHERE dossier_id NOT IN (SELECT id FROM dossiers)
+    OR dossier_id IN (SELECT id FROM dossiers WHERE deleted_at IS NOT NULL AND deleted_at < ?)
+    OR dossier_id IN (SELECT id FROM dossiers WHERE archive = 1 AND updated_at < ?)`).run(maintenant() - 30 * 24 * 3600 * 1000, maintenant() - DUREE_ARCHIVE_MS);
   const existe = db.prepare('SELECT 1 AS ok FROM dossiers WHERE id = ? AND deleted_at IS NULL');
   const ecrire = db.prepare(`INSERT INTO authentic_pages (dossier_id, cle, nature, intitule, recue_le, capture) VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(dossier_id, cle) DO UPDATE SET nature = excluded.nature, intitule = excluded.intitule, recue_le = excluded.recue_le, capture = excluded.capture`);
@@ -79,7 +92,7 @@ function creerPagesAuthentic(db, options = {}) {
       const capture = releve && releve.capture;
       if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || !capture || typeof capture !== 'object') return false;
       const clePoste = chaine(releve.cle, 200);
-      if (clePoste === 'ignorer' || !existe.get(id)) return false; // promesse, avenant… ; dossier inconnu
+      if (clePoste === 'ignorer' || pageHorsVenteAuthentic(capture) || !existe.get(id)) return false; // promesse, avenant… ; dossier inconnu
       const json = JSON.stringify(capture);
       if (json.length > MAX_OCTETS_PAGE) return false;
       const nature = chaine(releve.nature, 20) || 'dossier';
@@ -106,4 +119,4 @@ function creerPagesAuthentic(db, options = {}) {
   };
 }
 
-module.exports = { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE };
+module.exports = { creerPagesAuthentic, clePageAuthentic, pageHorsVenteAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE };

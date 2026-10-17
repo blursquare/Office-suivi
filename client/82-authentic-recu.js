@@ -27,9 +27,17 @@
     }
     // Promesse, avenant… : jamais gardée (relecture du 17/10 — elle remplaçait la page de la VENTE gardée sous la même clé, que le serveur
     // lui donne aussi quand le poste ne la reconnaît pas).
-    const sous = sousDossierAuthentic(capture);
+    const sous = sousDossierLuAuthentic(capture);
     if (sous && sous !== 'vente' && sous !== 'succession') return 'ignorer';
     return type === 'dossier' || type === 'gestion' ? 'dossier' : '';
+  }
+
+  // Le sous-dossier de la page, une succession comprise même quand son intitulé ne le dit pas (« 1 - Mme X veuve de M. Y » avec ses comparants
+  // Défunt / Héritier : relecture du 17/10).
+  function sousDossierLuAuthentic(capture) {
+    const sous = sousDossierAuthentic(capture);
+    if (sous === 'autre' && pageSuccessionAuthentic(capture, intituleDossierAuthentic(capture))) return 'succession';
+    return sous;
   }
 
   // ---------- Relire depuis Authentic ----------
@@ -94,7 +102,7 @@
     if (!d || !capture) return false;
     const type = typePageAuthentic(capture);
     if (type === 'client' || type === 'bien') return true;
-    const sous = sousDossierAuthentic(capture);
+    const sous = sousDossierLuAuthentic(capture);
     if (sous && sous !== 'vente' && sous !== 'succession') return false;
     const lu = intituleDossierAuthentic(capture);
     const reference = referenceDossierAuthentic(capture);

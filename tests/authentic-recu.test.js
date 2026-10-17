@@ -39,3 +39,24 @@ test('fiche bien : tout ce que dit chaque onglet est gardé, réuni par libellé
   const d = app.detailsFicheBienAuthentic([{ libelle: 'Type de bien', valeur: 'Maison' }, { libelle: 'Adresse', valeur: '2 rue des Essais' }]);
   assert.equal(d.map((x) => x.libelle).join(','), 'Type de bien');
 });
+
+test('page réelle d’une succession (« … veuve de … », comparants Défunt / Héritier) : gardée et relue', () => {
+  const page = { texte: ['1 - Mme DURAND Jeanne veuve de M. DURAND Pierre', 'Importer', 'Comparants (2)',
+    'Mme DURAND Jeanne veuve de M. DURAND Pierre', 'Défunt', 'M. DURAND Marc', 'Héritier', 'Immeubles (0)'].join('\n'), tableaux: [], champs: [] };
+  assert.notEqual(app.clePageReleveAuthentic(page), 'ignorer');
+  assert.equal(app.sousDossierLuAuthentic(page), 'succession');
+});
+
+// Rendez-vous (étude 17/10) : contexte vente / succession, et le même client dans un autre dossier.
+test('rendez-vous : contexte vente ou succession, mêmes clients ailleurs identifiés par prénom et nom', () => {
+  const vente = { id: 'v1', nom: 'ESSAI / EXEMPLE', parties: [{ role: 'VENDEUR', nom: 'Léa ESSAI' }, { role: 'ACQUEREUR', nom: 'Paul EXEMPLE' }] };
+  assert.equal(app.contexteRendezVousDossier(vente), 'Vente — Léa ESSAI (vendeur) avec Paul EXEMPLE (acquéreur)');
+  const succ = { id: 's1', nom: 'ESSAI', typeAffaire: 'succession', defunt: { prenoms: 'Jean', nom: 'ESSAI' },
+    parties: [{ role: 'PARTIE', nom: 'Jean ESSAI' }, { role: 'PARTIE', nom: 'Léa ESSAI' }], succession: { rendezVous: [{ id: 'r1', etape: 'notoriete', date: '2099-01-05' }] } };
+  assert.match(app.contexteRendezVousDossier(succ), /^Succession de Jean ESSAI — héritier : Léa ESSAI$/);
+  const autres = app.autresDossiersMemesClients(vente, [vente, succ, { id: 'v2', parties: [{ role: 'VENDEUR', nom: 'ESSAI' }] }], '2026-10-17');
+  assert.equal(autres.length, 1, 'un nom de famille seul ne désigne personne');
+  assert.equal(autres[0].dossier.id, 's1');
+  assert.equal(autres[0].personnes[0].role, 'Héritier');
+  assert.equal(autres[0].prochainRdv, '2099-01-05');
+});

@@ -7933,17 +7933,12 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .cb-dossiers { display: flex; flex-direction: column; gap: 2px; }
 .cb-dossier { display: flex; gap: 8px; align-items: baseline; text-align: left; font-family: inherit; font-size: var(--texte-m); background: none; border: none; border-radius: var(--rayon-s); padding: 4px 6px; cursor: pointer; color: var(--ink); }
 .cb-dossier:hover { background: var(--paper-sunk); color: var(--focus); }
-.cb-fiches-dossier { display: flex; flex-wrap: wrap; gap: 4px; }
 .recu-authentic { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .recu-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-s); }
 .recu-liste li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
 .recu-liste .recu-manque { justify-content: flex-start; gap: 6px; color: var(--ink-soft); }
 .recu-sous-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .recu-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.cb-puce { display: inline-flex; align-items: center; gap: 4px; font-family: inherit; font-size: var(--texte-s); padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); cursor: pointer; }
-.cb-puce:hover { border-color: var(--focus); color: var(--focus); }
-.cb-puce .icone { width: 14px; height: 14px; }
-.cb-puce-plus { font-size: var(--texte-xxs); font-weight: 700; color: var(--muted); }
 @media (max-width: 600px) { .cb-champs { grid-template-columns: 1fr; } .cb-champs dt { margin-top: 4px; } }
 /* Parcelles sur la fiche (étude 16/10) : une par ligne, référence en gras, surface, nature et lieu-dit en discret. */
 .parcelles-fiche { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-m); }
@@ -9775,3 +9770,27 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .succ-rdvs { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .succ-rdv { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .succ-rdv.passe .prop-texte { color: var(--muted); }
+
+/* Onglet Dossier façon Authentic (17/10) : à gauche parties et biens, à droite le reste. */
+.fiche-dossier-colonnes { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 24px; align-items: start; }
+.fiche-dossier-colonnes > * { min-width: 0; }
+.fiche-dossier-gauche, .fiche-dossier-droite { display: flex; flex-direction: column; gap: 8px; }
+.fiche-dossier-titre { margin: 8px 0 0; font-size: var(--texte-l); font-weight: 500; color: var(--ink); }
+.fiche-dossier-gauche > .fiche-dossier-titre:first-child { margin-top: 0; }
+@media (max-width: 1100px) { .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr); } }
+body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr); }
+.pb-cartes { display: flex; flex-direction: column; gap: 6px; }
+.pb-carte { border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+.pb-carte-titre { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--texte-base); font-weight: 500; color: var(--ink); cursor: pointer; text-align: left; }
+.pb-carte-titre:hover { color: var(--focus); }
+.pb-carte-detail { font-size: var(--texte-s); color: var(--muted); }
+.pb-carte-sous { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.pb-autres { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-s); }
+.pb-autres li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.pb-contexte { color: var(--ink-soft); }
+
+/* Détail d'un rendez-vous : mêmes clients dans un autre dossier (17/10). */
+.ag-autre-dossier { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
+.ag-autre-contexte { font-size: var(--texte-s); color: var(--ink-soft); }
+/* Dans les deux colonnes de l'onglet Dossier, un champ par ligne (deux par ligne y serraient libellé et valeur). */
+.fiche-dossier-colonnes .fiche-proprietes { grid-template-columns: minmax(0, 1fr); }

@@ -652,6 +652,63 @@
   }
 
   // Pure : { responsable, confrere, etats: [{ cle, libelle, fait }] } pour un dossier.
+  // ---------- Contexte d'un rendez-vous (étude 17/10) ----------
+  // « Si deux rendez-vous pour deux dossiers avec le même client, bien distinguer le contexte vente ou succession et avec quel autre client il
+  // traite. » Les personnes sont identifiées par prénom ET nom (un nom de famille seul ne désigne personne : règle du 07/10).
+
+  // Pure : les personnes d'un dossier avec leur rôle — vente : vendeurs, acquéreurs ; succession : défunt, héritiers.
+  function personnesContexteAgenda(d) {
+    if (!d) return [];
+    if (estSuccession(d)) {
+      const df = defuntConstitution(d).champs;
+      const defunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
+      return (defunt ? [{ nom: defunt, role: 'Défunt' }] : []).concat(personnesSuccession(d).heritiers.map(p => ({ nom: p.nom, role: 'Héritier' })));
+    }
+    return (d.parties || []).filter(p => p && p.nom && /^(VENDEUR|ACQUEREUR)$/i.test(p.role || ''))
+      .map(p => ({ nom: p.nom, role: /^VENDEUR$/i.test(p.role) ? 'Vendeur' : 'Acquéreur' }));
+  }
+
+  // Pure : « Vente — Léa ESSAI (vendeuse… ) avec Paul EXEMPLE (acquéreur) », « Succession de Jean ESSAI — héritiers : … ».
+  function contexteRendezVousDossier(d) {
+    const pers = personnesContexteAgenda(d);
+    const noms = (role) => pers.filter(p => p.role === role).map(p => p.nom);
+    if (d && estSuccession(d)) {
+      const defunt = noms('Défunt')[0];
+      const her = noms('Héritier');
+      return `Succession${defunt ? ` de ${defunt}` : ''}${her.length ? ` — ${her.length > 1 ? 'héritiers' : 'héritier'} : ${her.slice(0, 4).join(', ')}${her.length > 4 ? '…' : ''}` : ''}`;
+    }
+    const v = noms('Vendeur'); const a = noms('Acquéreur');
+    if (!v.length && !a.length) return d ? 'Vente' : '';
+    const cote = (liste, mot) => liste.length ? `${liste.slice(0, 3).join(', ')} (${mot}${liste.length > 1 ? 's' : ''})` : '';
+    return `Vente — ${[cote(v, 'vendeur'), cote(a, 'acquéreur')].filter(Boolean).join(' avec ')}`;
+  }
+
+  // Pure : les autres dossiers en cours où une personne de ce dossier figure aussi — son rôle là-bas, le contexte et le prochain rendez-vous.
+  function autresDossiersMemesClients(d, liste, aujourdhuiIso) {
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    const miennes = personnesContexteAgenda(d).filter(p => normaliserPourRecherche(p.nom).split(/[^a-z0-9]+/).filter(m => m.length >= 2).length >= 2);
+    if (!miennes.length) return [];
+    const res = [];
+    (liste || []).forEach(x => {
+      if (!x || x === d || x.id === d.id || x.deleted || x.archive) return;
+      const communes = personnesContexteAgenda(x).filter(q => miennes.some(p => memePersonneNommee(p.nom, q.nom)));
+      if (!communes.length) return;
+      const prochains = estSuccession(x) ? rendezVousSuccession(x).map(r => r.date).filter(t => t && t >= auj).sort()
+        : (x.rendezVousSignature && x.rendezVousSignature >= auj ? [x.rendezVousSignature] : []);
+      res.push({ dossier: x, personnes: communes, contexte: contexteRendezVousDossier(x), prochainRdv: prochains[0] || '' });
+    });
+    return res.slice(0, 6);
+  }
+
+  function renderAutresDossiersMemesClients(d) {
+    const autres = autresDossiersMemesClients(d, dossiers);
+    if (!autres.length) return '';
+    return `<div class="ag-detail-ligne">${icone('users')}<span><b>Mêmes clients ailleurs</b>${autres.map(o => `<span class="ag-autre-dossier">
+        <button type="button" class="lien-action" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(o.dossier.id)}')">${escapeHtml(libelleDossierAffiche(o.dossier))}</button>
+        <span class="hint">${escapeHtml(o.personnes.map(p => `${p.nom} (${p.role.toLowerCase()})`).join(', '))}${o.prochainRdv ? ` · rendez-vous le ${escapeHtml(dateAvecJourFr(o.prochainRdv))}` : ''}</span>
+        <span class="ag-autre-contexte">${escapeHtml(o.contexte)}</span></span>`).join('')}</span></div>`;
+  }
+
   function infosRendezVousDossier(d) {
     if (!d) return null;
     return {
@@ -1605,9 +1662,11 @@
         ${ligne('clock', escapeHtml(horaire))}
         ${/* Rendez-vous relié à un dossier de CLAIRE : pas de ligne « lieu » (étude, 01/10) — le Lieu Outlook n'y porte que les initiales et la note d'envoi, déjà dits par le responsable et les états. */ ''}
         ${e.lieu && !d ? ligne('map-pin', escapeHtml(e.lieu)) : ''}
+        ${d && !e.option ? ligne(estSuccession(d) ? 'scale' : 'home', escapeHtml(contexteRendezVousDossier(d))) : ''}
         ${infos && infos.responsable ? ligne('user', `Responsable : <b>${escapeHtml(infos.responsable)}</b>`) : ''}
         ${infos && infos.confrere ? ligne('users', `Confrère : <b>${escapeHtml(infos.confrere)}</b>`) : ''}
         ${infos && !e.option ? `<div class="ag-detail-etats">${renderEtatsRendezVous(infos)}</div>` : ''}
+        ${d && !e.option ? renderAutresDossiersMemesClients(d) : ''}
         ${e.option ? renderOptionSondageAgenda(e) : ''}
         ${peutSupprimer && !e.option ? renderVisioRendezVous(e) : ''}
         ${d ? `<wa-button ${e.option ? 'appearance="plain"' : 'variant="brand"'} class="${e.option ? 'lien-bouton' : 'primary'} ag-ouvrir-fiche" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${icone('folder')} Ouvrir la fiche</wa-button>` : ''}

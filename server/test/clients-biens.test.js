@@ -235,3 +235,11 @@ test('même bien dans une vente et une succession, commune écrite autrement : u
   assert.equal(biens[0].description, 'Une maison');
   assert.equal(biens[0].parcelles[0].zone, 'UA');
 });
+
+test('deux communes « -sur-… » différentes (Chaumont-sur-Loire 41150 / Chaumont-sur-Tharonne 41600) : deux fiches', () => {
+  const d = (id, adr, cp, commune) => ({ id, nom: id, adresseBien: adr, bien: { adresse: { codePostal: cp, commune }, cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } } });
+  const { biens } = construireBase([d('v1', 'CHAUMONT-SUR-LOIRE (41150), 1 rue Fictive', '41150', 'CHAUMONT-SUR-LOIRE'), d('v2', 'CHAUMONT-SUR-THARONNE (41600), 1 rue Fictive', '41600', 'CHAUMONT-SUR-THARONNE')]);
+  assert.equal(biens.length, 2);
+  const autres = fichesDuDossier(construireBase([d('v1', 'BLOIS (41000), 1 rue Fictive', '41000', 'BLOIS'), d('v2', 'BLOIS (41000), 1 rue Fictive', '41000', 'BLOIS')]), 'v1');
+  assert.equal(autres.biens[0].autres[0].id, 'v2', 'le même bien : l’autre dossier est nommé sur sa fiche');
+});

@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const express = require('express');
 const { DatabaseSync } = require('node:sqlite');
-const { creerPagesAuthentic, clePageAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE } = require('../src/pagesAuthentic');
+const { creerPagesAuthentic, clePageAuthentic, pageHorsVenteAuthentic, MAX_PAGES_PAR_DOSSIER, MAX_OCTETS_PAGE } = require('../src/pagesAuthentic');
 const { creerRouteurAuthentic } = require('../src/routes/authentic');
 
 // Base avec les dossiers v1, v2 (et ceux demandés) : une page n'est gardée que pour un dossier qui existe.
@@ -92,4 +92,14 @@ test('route DELETE : les pages d’un dossier sont oubliées', async () => {
     assert.equal(r.status, 200);
     assert.equal(pages.resume('v1').length, 0);
   } finally { serveur.close(); }
+});
+
+test('serveur : une promesse n’est jamais gardée, même avec la clé « dossier » d’une fenêtre ancienne', () => {
+  const promesse = { champs: [], texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS\nComparants (2)' };
+  const vente = { champs: [], texte: 'A 2026 00017 VTE MARTEL / FOURNIER\n2 - VTE MARTEL / FOURNIER Importer avec 6e SENS\nComparants (2)\n1 - Promesse VTE MARTEL/FOURNIER' };
+  assert.equal(pageHorsVenteAuthentic(promesse), true);
+  assert.equal(pageHorsVenteAuthentic(vente), false);
+  const p = creerPagesAuthentic(baseDossiers());
+  assert.equal(p.garder('v1', { capture: vente, cle: 'dossier' }), true);
+  assert.equal(p.garder('v1', { capture: promesse, cle: 'dossier' }), false);
 });

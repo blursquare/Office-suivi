@@ -324,18 +324,46 @@
   // ---------- Ligne « Fiches » sur la fiche d'un dossier ----------
 
   // Les fiches client et bien d'un dossier (60 s de cache) : rendues tout de suite si connues, sinon un emplacement rempli à l'arrivée.
-  function renderFichesClientsBiensDossier(d) {
+  // ---------- Onglet Dossier, colonne de gauche : parties et biens (étude 17/10, « une présentation comme Authentic ») ----------
+  // Chaque personne et chaque bien du dossier est une FICHE unique (la même dans tous les dossiers où il figure) : une carte qui l'ouvre et
+  // dit dans quels autres dossiers il se trouve, vente ou succession, avec son rôle et les autres parties.
+
+  // Pure : « Vente · Vendeur — avec Paul EXEMPLE (Acquéreur) », « Succession · Héritier — défunt Jean ESSAI ».
+  function texteContexteDossierCb(x) {
+    if (!x) return '';
+    const avec = (x.avec || []);
+    const defunt = avec.find(q => q.role === 'Défunt');
+    const autres = x.succession ? (defunt ? `défunt ${defunt.nom}` : '')
+      : avec.filter(q => q.role !== x.role).map(q => `${q.nom} (${q.role})`).slice(0, 4).join(', ');
+    return [x.succession ? 'Succession' : 'Vente', x.role].filter(Boolean).join(' · ') + (autres ? ` — ${x.succession ? '' : 'avec '}${autres}` : '');
+  }
+
+  function renderCartesFichesDossier(d, genre) {
     if (!d || !d.id) return '';
     const e = cbParDossier.get(d.id);
     if (!e || (!e.enCours && Date.now() - e.t > 60000)) chargerFichesClientsBiensDossier(d.id);
-    const contenu = e && e.fiches ? htmlFichesDossierCb(e.fiches) : '<span class="hint">…</span>';
-    return `<span class="cb-fiches-dossier" data-cb-dossier="${escapeAttr(d.id)}">${contenu}</span>`;
+    const contenu = e && e.fiches ? htmlCartesFichesDossier(e.fiches, genre) : '<span class="hint">…</span>';
+    return `<div class="pb-cartes" data-pb-dossier="${escapeAttr(d.id)}" data-pb-genre="${escapeAttr(genre)}">${contenu}</div>`;
   }
 
-  function htmlFichesDossierCb(f) {
-    const pers = (f.personnes || []).map(p => `<button type="button" class="cb-puce" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')" title="${escapeAttr(p.role)}${p.autresDossiers ? ` · ${p.autresDossiers} autre(s) dossier(s)` : ''}">${icone('user')}${escapeHtml(p.nom)}${p.autresDossiers ? ` <span class="cb-puce-plus">+${p.autresDossiers}</span>` : ''}${p.peutEtre ? ' <span class="cb-puce-plus">?</span>' : ''}</button>`);
-    const biens = (f.biens || []).map(b => `<button type="button" class="cb-puce" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(b.id)}')">${icone('home')}${escapeHtml(b.libelle ? normaliserAdresse(b.libelle) : 'Bien')}${b.autresDossiers ? ` <span class="cb-puce-plus">+${b.autresDossiers}</span>` : ''}</button>`);
-    return pers.concat(biens).join('') || '<span class="hint">Aucune fiche</span>';
+  function htmlCartesFichesDossier(f, genre) {
+    const autres = (liste) => (liste || []).length ? `<ul class="pb-autres">${liste.map(x => `<li><button type="button" class="lien-action" onclick="ouvrirDossierDrawer('${escapeOnclickArg(x.id)}')">${escapeHtml(x.libelle || 'Dossier')}</button>${x.archive ? ' <span class="hint">archivé</span>' : ''}<span class="pb-contexte">${escapeHtml(texteContexteDossierCb(x))}</span></li>`).join('')}</ul>` : '';
+    if (genre === 'biens') {
+      const biens = f.biens || [];
+      if (!biens.length) return '<span class="hint">Aucun bien reconnu</span>';
+      return biens.map(b => `<div class="pb-carte">
+          <button type="button" class="pb-carte-titre" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(b.id)}')">${icone('home')}<span>${escapeHtml(b.libelle ? normaliserAdresse(b.libelle) : b.commune || 'Bien')}</span></button>
+          ${(b.parcelles || []).length ? `<div class="pb-carte-detail">${escapeHtml(b.parcelles.join(', '))}${b.lots ? ` · ${b.lots} lot${b.lots > 1 ? 's' : ''}` : ''}</div>` : ''}
+          ${b.autresDossiers ? `<div class="pb-carte-sous">Aussi dans ${b.autresDossiers} autre${b.autresDossiers > 1 ? 's' : ''} dossier${b.autresDossiers > 1 ? 's' : ''}</div>${autres(b.autres)}` : ''}
+        </div>`).join('');
+    }
+    const pers = f.personnes || [];
+    if (!pers.length) return '<span class="hint">Aucune fiche client</span>';
+    return pers.map(p => `<div class="pb-carte">
+        <button type="button" class="pb-carte-titre" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')">${icone('user')}<span>${escapeHtml(p.nom)}</span></button>
+        <div class="pb-carte-detail">${escapeHtml(p.role)}${p.decede ? ' · décédé(e)' : ''}${p.peutEtre ? ' · <span class="hint">peut-être déjà connu</span>' : ''}</div>
+        ${p.autresDossiers ? `<div class="pb-carte-sous">Aussi dans ${p.autresDossiers} autre${p.autresDossiers > 1 ? 's' : ''} dossier${p.autresDossiers > 1 ? 's' : ''}</div>${autres(p.autres)}` : ''}
+      </div>`).join('');
   }
 
   async function chargerFichesClientsBiensDossier(id) {
@@ -348,5 +376,5 @@
     } catch (_) { /* hors ligne : l'emplacement reste « … » */ }
     e.t = Date.now();
     e.enCours = false;
-    document.querySelectorAll('.cb-fiches-dossier').forEach(el => { if (el.dataset.cbDossier === id && e.fiches) el.innerHTML = htmlFichesDossierCb(e.fiches); });
+    document.querySelectorAll('.pb-cartes').forEach(el => { if (el.dataset.pbDossier === id && e.fiches) el.innerHTML = htmlCartesFichesDossier(e.fiches, el.dataset.pbGenre); });
   }

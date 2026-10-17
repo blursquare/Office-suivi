@@ -754,7 +754,29 @@
     // Succession (étude 15/10) : défunt, héritiers, régime, donation, testament, type et actes — client/74-fiche-succession.js.
     if (estSuccession(d)) return renderDossierSuccession(d, ligne, responsable, nas);
 
+    // Présentation façon Authentic (étude 17/10) : à gauche les parties et les biens — chacun une fiche unique, avec les autres dossiers où
+    // il figure —, à droite tout le reste.
     const blocBien = `
+      <div class="fiche-dossier-colonnes">
+        <div class="fiche-dossier-gauche">
+          <h3 class="fiche-dossier-titre">Parties</h3>
+      <dl class="fiche-proprietes fiche-coordonnees">
+        ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
+        ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
+        ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
+        ${renderClientsAPlacer(d, ligne)}
+        ${renderPersonnesConnues(d, ligne)}
+      </dl>
+          ${renderCartesFichesDossier(d, 'personnes')}
+          <h3 class="fiche-dossier-titre">Biens</h3>
+      <dl class="fiche-proprietes">
+        ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
+        ${renderParcellesFiche(d) ? ligne('layout', 'Parcelles', renderParcellesFiche(d), null, 'prop-pleine') : ''}
+        ${d.bien && Array.isArray(d.bien.lots) && d.bien.lots.length ? ligne('home', d.bien.lots.length > 1 ? 'Lots' : 'Lot', `<span class="prop-texte">${d.bien.lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span>`, null, 'prop-pleine') : ''}
+      </dl>
+          ${renderCartesFichesDossier(d, 'biens')}
+        </div>
+        <div class="fiche-dossier-droite">
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
@@ -765,19 +787,8 @@
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
       </dl>
-      <dl class="fiche-proprietes fiche-coordonnees">
-        ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
-        ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
-        ${coordonneesPartiesDossier(d).map(c => ligne(c.partie === 'vendeur' ? 'user' : 'users', c.libelle, champsCoordonneesPartie(d, c, 'fiche'), c.parNotaire ? `fiche-tel-${c.partie}-${d.id}` : `fiche-email-${c.partie}-${d.id}`, 'prop-pleine')).join('')}
-        ${renderClientsAPlacer(d, ligne)}
-        ${renderPersonnesConnues(d, ligne)}
-      </dl>
       <dl class="fiche-proprietes">
-        ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
-        ${ligne('users', 'Fiches', renderFichesClientsBiensDossier(d), null, 'prop-pleine')}
         ${ligne('rotate-ccw', 'Authentic', renderRecuAuthenticFiche(d), null, 'prop-pleine')}
-        ${renderParcellesFiche(d) ? ligne('layout', 'Parcelles', renderParcellesFiche(d), null, 'prop-pleine') : ''}
-        ${d.bien && Array.isArray(d.bien.lots) && d.bien.lots.length ? ligne('home', d.bien.lots.length > 1 ? 'Lots' : 'Lot', `<span class="prop-texte">${d.bien.lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span>`, null, 'prop-pleine') : ''}
         ${ligne('banknote', 'Prix', saisie('prix', d.prixVente ? formaterPrix(d.prixVente) : '', 'changerPrixVente', ' inputmode="numeric"'), `prix-${d.id}`)}
         ${ligne('package', 'Dont mobilier', saisie('mobilier', d.prixMobilier ? formaterPrix(d.prixMobilier) : '', 'changerPrixMobilier', ' inputmode="numeric" title="Part du prix qui porte sur des meubles : elle sort de l\'assiette des droits de mutation (frais d\'acte)."', 'Aucun') + boutonLireMobilier, `mobilier-${d.id}`, siVide(!d.prixMobilier).trim())}
         ${ligne('lock', 'Séquestre', saisie('depot', d.depotGarantie ? formaterPrix(d.depotGarantie) : '', 'changerDepotGarantie', ' inputmode="numeric" title="Montant séquestré (dépôt de garantie)"'), `depot-${d.id}`, siVide(!d.depotGarantie).trim())}
@@ -799,6 +810,8 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
+        </div>
+      </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);
     const bascule = nbVides
