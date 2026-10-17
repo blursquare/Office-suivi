@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'gnau-assistants-agglopolys', depuis: '0.275.0', source: 'manuel', titre: 'Extension Chrome : « Formuler » trouvé, adresse et parcelles saisies par les assistants du guichet d’Agglopolys (CU et DIA)',
+    comment: 'Sur un vrai CUa puis une vraie DIA : CLAIRE ouvre la démarche depuis « Formuler » même pendant « Traitements en cours », remplit l’« Assistant de saisie d’adresse » (bonne proposition, « Je valide mon adresse ») et l’« Assistant de saisie des références cadastrales » (chaque parcelle avec sa superficie, « Valider »). Vérifier les lignes du CERFA et l’annexe au-delà de 3 parcelles.' },
   { id: 'gnau-plan-cadastral', depuis: '0.263.0', source: 'serveur', titre: 'Extension Chrome : plan cadastral du dossier du NAS joint à la demande sur le guichet',
     comment: 'Coché la première fois que l’extension reçoit le plan cadastral d’un dossier. Vérifier sur le brouillon que la pièce « plan » est bien jointe (nom « Plan cadastral.pdf ») et lisible.' },
   { id: 'gnau-fiche-extension', depuis: '0.260.0', source: 'serveur', titre: 'Extension Chrome : fiche d’un dossier lue pour un CU ou une DIA sur le guichet unique',

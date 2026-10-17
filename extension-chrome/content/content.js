@@ -4,7 +4,7 @@
   if (window.__claireLoaded) return;
   window.__claireLoaded = true;
 
-  const { resolveField, expandFields } = globalThis.ClaireFiche;
+  const { resolveField, expandFields, TRANSFORMS } = globalThis.ClaireFiche;
 
   // Boutons que CLAIRE ne cliquera JAMAIS, quel que soit le scénario. Liste volontairement en dur.
   const FORBIDDEN = /(valider|validation|envoyer|signer|signature|soumettre|confirmer|transmettre|payer|paiement|supprimer|finaliser|certifier|deposer|déposer|depot|dépôt)/i;
@@ -805,14 +805,15 @@
       await cliquerPuisAttendre(valider, sp, pi);
       return "fait";
     }
-    // Accueil : le bouton de la démarche, dans la zone « Formuler » seulement — le plus petit bloc dont un titre ENFANT dit « Formuler »
-    // (jamais toute la page, jamais une liste « Mes demandes » : un brouillon d'un autre dossier serait ouvert).
-    const titreEnfant = (z) => [...z.children].find((c) => c.matches("h1, h2, h3, h4, h5, .titre, .title, header"));
-    const zones = [...document.querySelectorAll("section, .panel, .card, div")].filter((z) => visible(z) && titreEnfant(z) && /^formuler\b/.test(norm(titreEnfant(z).textContent)));
-    const zone = zones.find((z) => !zones.some((y) => y !== z && z.contains(y)));
+    // Accueil : le bouton de la démarche, dans la zone « Formuler » seulement (jamais toute la page, jamais une liste « Mes demandes » : un
+    // brouillon d'un autre dossier serait ouvert). L'accueil se dessine après « Traitements en cours » : CLAIRE l'attend (20 s au plus) au
+    // lieu d'abandonner au premier regard (vidéo de l'étude, 17/10 : « il ne trouve pas la partie Formuler à chaque fois »).
     const res = e.bouton.map((m) => new RegExp(m, "i"));
-    const b = zone && [...zone.querySelectorAll('button, a[href], [role=button], [ng-click]')].filter(visible)
-      .find((x) => { const t = texteBouton(x); return t && t.length <= 90 && res.some((r) => r.test(t)) && !boutonEntreeInterdit(x); });
+    let b = null;
+    for (const fin = Date.now() + 20000; !b && Date.now() < fin;) {
+      b = boutonFormuler(res);
+      if (!b) { await wait(500); if (location.hash.startsWith(e.urlSaisie) || fenetresVisibles().length) return "fait"; }
+    }
     if (b) {
       await send({ type: "content.etape", label: run.scenario.name });
       await cliquerPuisAttendre(b, sp, pi);
@@ -821,6 +822,188 @@
     await finish("awaiting_human", "CLAIRE ne trouve pas la démarche dans la zone « Formuler » : ouvrez l’accueil du guichet ou le brouillon, puis relancez CLAIRE.");
     return "fin";
   }
+  // Le bouton de la démarche (« CUa », « DIA ») dans la zone « Formuler ». Sur le guichet d'Agglopolys, « FORMULER » est un bandeau (pas un
+  // titre) suivi de boutons ronds : la zone est le plus petit bloc qui contient ce bandeau ET un bouton de la démarche, sans contenir la zone
+  // « Suivre » (« Mes demandes d'urbanisme », dont les cartes « CUA » ouvriraient le brouillon d'un autre dossier).
+  const CLIQUABLES_ENTREE = 'button, a, [role=button], [ng-click], [data-ng-click], [onclick]';
+  function boutonFormuler(res) {
+    const okTexte = (t) => t && t.length <= 90 && res.some((r) => r.test(t));
+    const dansZone = (z) => {
+      const cands = [...z.querySelectorAll(CLIQUABLES_ENTREE)].filter(visible).filter((x) => okTexte(texteBouton(x)) && !boutonEntreeInterdit(x));
+      if (cands.length) return cands.sort((a, b2) => texteBouton(a).length - texteBouton(b2).length)[0];
+      // Bouton dessiné sans balise de bouton (cercle cliquable) : le plus petit élément dont le texte est exactement la démarche.
+      const nus = [...z.querySelectorAll("div, span, p, li, img")].filter(visible)
+        .filter((x) => x.children.length <= 2 && okTexte(norm(x.innerText || x.getAttribute("alt") || x.title || "")) && !boutonEntreeInterdit(x));
+      return nus.find((x) => !nus.some((y) => y !== x && x.contains(y))) || null;
+    };
+    const bandeaux = [...document.querySelectorAll("body *")].filter((el) => el.children.length <= 4 && visible(el) && !el.closest("#claire-overlay")
+      && /^formuler\b/.test(norm(el.textContent)) && norm(el.textContent).length <= 90);
+    for (const bandeau of bandeaux.filter((x) => !bandeaux.some((y) => y !== x && x.contains(y)))) {
+      for (let z = bandeau.parentElement, k = 0; z && z !== document.body && k < 8; z = z.parentElement, k++) {
+        if (/\b(suivre|mes demandes)\b/.test(norm([...z.querySelectorAll("*")].filter((x) => x.children.length <= 4).map((x) => x.textContent).filter((t) => norm(t).length <= 60).join(" | ")))) break;
+        const btn = dansZone(z);
+        if (btn) return btn;
+      }
+    }
+    return null;
+  }
+
+  // ---------- Assistants du guichet : adresse et références cadastrales (vidéo de l'étude, 17/10) ----------
+  // Sur le guichet d'Agglopolys, l'adresse du terrain et les parcelles ne se tapent pas dans le CERFA : un clic sur le champ ouvre
+  // l'« Assistant de saisie d'adresse » (recherche → proposition → « Je valide mon adresse ») ou l'« Assistant de saisie des références
+  // cadastrales » (Préfixe, Section, Numéro, Superficie → « Ajouter la parcelle », une par une → « Valider »). CLAIRE les remplit comme
+  // l'étude : jamais par-dessus une adresse ou des parcelles déjà là ; « Valider » et « Je valide mon adresse » cliqués DANS leur assistant
+  // seulement (seules exceptions nommées à la liste noire, comme la commune de dépôt).
+  async function fenetreTitree(titre, max) {
+    const re = new RegExp(titre, "i");
+    for (const fin = Date.now() + (max || 5000); Date.now() < fin;) {
+      const f = fenetresVisibles().find((x) => re.test(norm(x.innerText || "").slice(0, 200)));
+      if (f) return f.closest(".modal") || f;
+      await wait(200);
+    }
+    return null;
+  }
+  const champsVisibles = (fen) => [...fen.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), textarea')].filter(visible);
+  function champParLibelle(fen, motif) {
+    const re = new RegExp(motif, "i");
+    return champsVisibles(fen).find((el) => re.test(libelleChamp(el) || el.getAttribute("placeholder") || "")) || null;
+  }
+  const valeurChampCode = (code) => { const sel = selecteurCode(code); const el = sel ? elementCible(sel, {}) : null; return el ? String(el.value || "").trim() : null; };
+  async function fermerFenetre(fen, sp) {
+    const fermer = boutonDansFenetre(fen, ["^fermer$", "^annuler$"]);
+    if (fermer) await cliquerPuisAttendre(fermer, sp, 0, 3000);
+  }
+  async function ouvrirAssistant(as, sp) {
+    const sel = (as.declencheur || []).map(selecteurCode).filter(Boolean).join(", ");
+    const el = sel ? [...document.querySelectorAll(sel)].find(visible) : null;
+    if (!el) return null;
+    const pos = await moveTo(el, sp); ripple(pos.x, pos.y);
+    el.focus(); el.click();
+    return fenetreTitree(as.titre, 5000);
+  }
+
+  async function assistantAdresse(run, as, sp) {
+    const t = getByPathLocal(run.fiche, as.source) || {};
+    const voie = String(t.voie || "").trim();
+    if (!voie && !t.lieuDit) return { etat: "skipped", detail: "pas d’adresse sur la fiche" };
+    const deja = valeurChampCode(as.voieCode);
+    if (deja === null) return null; // pas sur cette page
+    if (deja) return { etat: "done", detail: "adresse déjà saisie dans le guichet, laissée telle quelle" };
+    const fen = await ouvrirAssistant(as, sp);
+    if (!fen) return { etat: "absent", detail: "l’assistant d’adresse ne s’est pas ouvert" };
+    const recherche = champParLibelle(fen, "rechercher une adresse") || champsVisibles(fen)[0];
+    if (!recherche) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant d’adresse : champ de recherche introuvable" }; }
+    const requete = [t.numero, voie, t.codePostal, t.commune].filter(Boolean).join(" ");
+    const lent = saisieDirecte; saisieDirecte = false; // la liste du guichet ne se déroule qu'à la frappe
+    try {
+      const pos = await moveTo(recherche, sp); ripple(pos.x, pos.y);
+      recherche.focus(); setNativeValue(recherche, ""); fire(recherche, "input");
+      for (const ch of requete) { setNativeValue(recherche, recherche.value + ch); fire(recherche, "input", { inputType: "insertText", data: ch }); fire(recherche, "keyup"); await wait(Math.max(sp.type, 25)); }
+    } finally { saisieDirecte = lent; }
+    // La proposition qui porte le numéro, les mots de la voie et le code postal (ou la commune) de la fiche — jamais « la première ».
+    const mots = norm(voie).split(" ").filter((m) => m.length > 2);
+    const conforme = (txt) => { const x = norm(txt); return mots.every((m) => x.includes(m)) && (!t.numero || new RegExp("(^|\\D)" + String(t.numero).replace(/\D/g, "") + "(\\D|$)").test(x))
+      && ((t.codePostal && x.includes(String(t.codePostal))) || (t.commune && x.includes(norm(t.commune)))); };
+    let choix = null;
+    for (const fin = Date.now() + 8000; !choix && Date.now() < fin;) {
+      await wait(300);
+      const props = [...document.querySelectorAll('[role=option], .dropdown-menu li, .uib-typeahead-match, ul.typeahead li, .ui-menu-item, .autocomplete li, ul li a')]
+        .filter(visible).filter((x) => !x.closest("#claire-overlay") && (fen.contains(x) || x.closest(".dropdown-menu, [role=listbox]")) && conforme(x.innerText || ""));
+      if (props.length === 1 || (props.length > 1 && props.every((x) => norm(x.innerText) === norm(props[0].innerText)))) choix = props[0];
+      else if (props.length > 1) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "plusieurs adresses proposées par le guichet : choisissez-la vous-même" }; }
+    }
+    if (!choix) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: `aucune adresse proposée ne correspond à « ${requete} » : saisissez-la vous-même dans l’assistant` }; }
+    const cible = choix.querySelector("a") || choix;
+    let pos = await moveTo(cible, sp); ripple(pos.x, pos.y); cible.click();
+    await wait(Math.max(sp.pause, 600));
+    if (t.lieuDit) { const ld = champParLibelle(fen, "^lieu-?dit"); if (ld && !String(ld.value || "").trim()) await typeInto(ld, String(t.lieuDit), sp); }
+    const valider = boutonDansFenetre(fen, ["^je valide mon adresse$"]);
+    if (!valider) { return { etat: "manuel", detail: "adresse choisie : cliquez vous-même « Je valide mon adresse »" }; }
+    pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
+    await send({ type: "content.etape", label: "Assistant d’adresse" });
+    valider.click();
+    for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
+    await attendreStable(3000); memo = new Map();
+    const apres = valeurChampCode(as.voieCode);
+    return apres ? { etat: "done", detail: "adresse saisie par l’assistant du guichet" } : { etat: "mismatch", detail: "l’assistant n’a pas rempli l’adresse : vérifiez-la" };
+  }
+
+  async function assistantParcelles(run, as, sp) {
+    const parcelles = (getByPathLocal(run.fiche, as.source) || []).filter((p) => p && p.section && p.numero);
+    if (!parcelles.length) return { etat: "skipped", detail: "pas de parcelle sur la fiche" };
+    const deja = valeurChampCode(as.sectionCode);
+    if (deja === null) return null;
+    if (deja) return { etat: "done", detail: "parcelles déjà saisies dans le guichet, laissées telles quelles" };
+    const fen = await ouvrirAssistant(as, sp);
+    if (!fen) return { etat: "absent", detail: "l’assistant des références cadastrales ne s’est pas ouvert" };
+    const champ = (m) => champParLibelle(fen, m);
+    const lignes = () => [...fen.querySelectorAll("table tbody tr, table tr")].filter(visible).map((tr) => norm(tr.innerText)).filter((x) => /\d/.test(x));
+    const surfaceDe = (p) => { try { return p.surface === undefined || p.surface === "" ? "" : TRANSFORMS.surface(p.surface); } catch (_) { return ""; } };
+    let ajoutees = 0;
+    const manquees = [];
+    for (const p of parcelles) {
+      await gate();
+      const sec = String(p.section).toUpperCase().trim();
+      const num = String(p.numero).replace(/^0+(?=\d)/, "").trim();
+      // Déjà dans le tableau de l'assistant : jamais deux fois.
+      if (lignes().some((l) => new RegExp("(^| )" + sec.toLowerCase() + " " + num + "( |$)").test(l))) continue;
+      const surf = surfaceDe(p);
+      if (!surf) { manquees.push(`${sec} ${num} (superficie inconnue)`); continue; }
+      const cSec = champ("^section"), cNum = champ("^numero"), cSurf = champ("^superficie"), cPre = champ("^prefixe");
+      if (!cSec || !cNum || !cSurf) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "assistant des parcelles : champs Section / Numéro / Superficie introuvables" }; }
+      const avant = lignes().length;
+      if (cPre && p.prefixe && !/^0*$/.test(String(p.prefixe))) await typeInto(cPre, String(p.prefixe), sp);
+      await typeInto(cSec, sec, sp);
+      await typeInto(cNum, num, sp);
+      await typeInto(cSurf, surf, sp);
+      const ajouter = boutonDansFenetre(fen, ["^ajouter la parcelle"]);
+      if (!ajouter) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "bouton « Ajouter la parcelle » introuvable" }; }
+      const pos = await moveTo(ajouter, sp); ripple(pos.x, pos.y); ajouter.click();
+      let ok = false;
+      for (const fin = Date.now() + 4000; !ok && Date.now() < fin;) { await wait(200); ok = lignes().length > avant; }
+      if (!ok) { manquees.push(`${sec} ${num}`); continue; }
+      ajoutees++;
+    }
+    if (!ajoutees && !lignes().length) { await fermerFenetre(fen, sp); return { etat: "manuel", detail: "aucune parcelle ajoutée : " + manquees.join(", ") }; }
+    const valider = boutonDansFenetre(fen, ["^valider$"]);
+    if (!valider) return { etat: "manuel", detail: "parcelles ajoutées : cliquez vous-même « Valider » dans l’assistant" };
+    const pos = await moveTo(valider, sp); ripple(pos.x, pos.y);
+    await send({ type: "content.etape", label: "Assistant des références cadastrales" });
+    valider.click();
+    for (const fin = Date.now() + 5000; visible(fen) && Date.now() < fin;) await wait(200);
+    await attendreStable(3000); memo = new Map();
+    const n = parcelles.length - manquees.length;
+    return manquees.length
+      ? { etat: "mismatch", detail: `${n} parcelle(s) saisie(s) par l’assistant ; à ajouter vous-même : ${manquees.join(", ")}` }
+      : { etat: "done", detail: `${n} parcelle(s) saisie(s) par l’assistant du guichet${n > 3 ? " (au-delà de 3 : annexe du guichet)" : ""}` };
+  }
+
+  // Les assistants de la page affichée, une fois chacun par saisie. Rend les codes que l'assistant a remplis (ignorés ensuite par le
+  // remplissage champ par champ).
+  async function assistantsPage(run, sp) {
+    const faits = run.assistants || (run.assistants = {});
+    for (const as of run.scenario.assistants || []) {
+      if (faits[as.type] && faits[as.type].etat !== "absent") continue;
+      const r = as.type === "adresse" ? await assistantAdresse(run, as, sp) : as.type === "parcelles" ? await assistantParcelles(run, as, sp) : null;
+      if (!r) continue;
+      faits[as.type] = r;
+      await send({ type: "content.assistant", assistant: as.type, etat: r.etat, detail: r.detail });
+      await noter(run, `assistant:${as.type}`, r.etat, r.detail);
+    }
+  }
+  // Un champ rempli par un assistant (adresse ou parcelles) n'est jamais écrit directement.
+  function champDeAssistant(run, f) {
+    for (const as of run.scenario.assistants || []) {
+      const r = (run.assistants || {})[as.type];
+      if (!r || r.etat === "absent" || r.etat === "skipped") continue;
+      const code = String(f.famille || f.code || "");
+      if ((as.codes || []).some((c) => code === c || code.startsWith(c))) return r;
+      // « Toutes les parcelles » (format de l'annexe, à coller) : l'assistant place lui-même les parcelles au-delà des lignes du CERFA.
+      if (as.type === "parcelles" && f.encoded && f.source === as.source && r.etat === "done") return r;
+    }
+    return null;
+  }
+
   // Le bouton « page suivante » du guichet par son sélecteur (Agglopolys : [ng-click="vm.nextPage()"]) — visible, actif, et jamais un
   // bouton de la liste noire par son texte ou ses attributs (« Transmettre ma demande », ng-click transmettreSaisie).
   function boutonSuivantSelecteur(sel) {
@@ -902,8 +1085,13 @@
         }
         if (idx >= 0) { await finish("awaiting_human", `CLAIRE ne trouve pas « ${etapes[idx].label} » sur cette page : ouvrez la démarche vous-même puis relancez CLAIRE.`); return; }
       }
-      // (2) Les champs de cette page.
-      for (const f of champs) await remplirAuto(run, f, sp);
+      // (2) Les assistants du guichet (adresse, parcelles), puis les champs de cette page.
+      if (sc.assistants) await assistantsPage(run, sp);
+      for (const f of champs) {
+        const parAssistant = sc.assistants ? champDeAssistant(run, f) : null;
+        if (parAssistant) { const key = cleChamp(0, f.label, f); if (((run.fields || {})[key] || {}).state !== "done") await noter(run, key, parAssistant.etat === "done" ? "done" : "manuel", parAssistant.etat === "done" ? "par l’assistant du guichet" : parAssistant.detail); continue; }
+        await remplirAuto(run, f, sp);
+      }
       // (3) Page suivante, ou fin. « Remplir la page affichée » s'arrête ici.
       if (sc.uneSeulePage) {
         await finish("awaiting_human", "Page remplie. Relisez ; passez à la page suivante du guichet puis cliquez de nouveau. Vous validez vous-même.");

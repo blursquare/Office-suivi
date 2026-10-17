@@ -158,3 +158,28 @@ test('guichet d’Agglopolys : toutes les parcelles de la fiche (lignes lues dan
     assert.ok(plan && plan.piece.some((m) => new RegExp(m).test('dia1 - plan cadastral')) && plan.piece.some((m) => new RegExp(m).test('cu1 - un plan de situation du terrain')), f);
   }
 });
+
+// Vidéo de l'étude (17/10) : adresse et parcelles par les assistants du guichet d'Agglopolys, CU et DIA.
+test('guichet d’Agglopolys : adresse et parcelles par les assistants du guichet (CU et DIA)', () => {
+  for (const [nom, voie, section] of [['cua-gnau-agglopolys.json', 'T2V_voie', 'T2S'], ['dia-gnau-agglopolys.json', 'BI1V', 'BI3S']]) {
+    const sc = scenario(nom);
+    const adr = sc.assistants.find((a) => a.type === 'adresse');
+    const cad = sc.assistants.find((a) => a.type === 'parcelles');
+    assert.ok(adr && cad, nom);
+    assert.equal(adr.voieCode, voie);
+    assert.equal(cad.sectionCode, section);
+    assert.ok(new RegExp(adr.titre).test("assistant de saisie d'adresse"));
+    assert.ok(new RegExp(cad.titre).test('assistant de saisie des references cadastrales'));
+    // Chaque champ d'adresse et de parcelle du scénario est couvert par son assistant (jamais écrit directement).
+    const champs = sc.pages[0].fields.flatMap((c) => (c.forEach ? c.fields : [c]));
+    for (const c of champs.filter((c) => c.code && (c.code.startsWith(voie.slice(0, 3)) || c.famille === section))) {
+      const code = String(c.famille || c.code);
+      assert.ok([...adr.codes, ...cad.codes].some((x) => code.startsWith(x)), `${nom} : ${code}`);
+    }
+  }
+  const src = fs.readFileSync(path.join(racine, 'content', 'content.js'), 'utf8');
+  // « Valider » et « Je valide mon adresse » : seulement dans leur assistant (boutonDansFenetre), jamais par cliquableParTexte.
+  assert.ok(/boutonDansFenetre\(fen, \["\^je valide mon adresse\$"\]\)/.test(src));
+  assert.ok(/boutonDansFenetre\(fen, \["\^valider\$"\]\)/.test(src));
+  assert.ok(!/cliquableParTexte\(\[[^\]]*valid/.test(src));
+});

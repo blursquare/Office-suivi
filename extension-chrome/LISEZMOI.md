@@ -44,13 +44,20 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
 ### Guichet d'Agglopolys (https://demande-urbanisme.agglopolys.fr)
 
 Sur ce guichet, CLAIRE suit le parcours relevé par l'étude (16/10) :
-1. accueil `#/` : bouton CUa ou DIA de la zone « Formuler » ;
+1. accueil `#/` : bouton CUa ou DIA de la zone « Formuler » (bandeau « FORMULER », boutons ronds) — CLAIRE attend la fin de « Traitements en cours » (20 s au plus) avant de le chercher ;
 2. fenêtre « Sélectionner une commune de dépôt » : la commune du bien (fiche CLAIRE) choisie dans la liste, puis « Valider la commune de
    dépôt » — commune absente ou ambiguë : CLAIRE s'arrête et vous la choisissez ;
 3. « Récupérer les données non sauvegardées ? » ou fenêtre de déconnexion : toujours **NON** ;
-4. brouillon `#/saisie/<n°>` (CUa 7 pages, DIA 10) : chaque champ par son code CERFA (`#AI1NP1`, `#T2L_localite`…), valeur posée d'un
+4. **adresse du bien et parcelles par les assistants du guichet** (vidéo de l'étude, 17/10) : un clic sur l'adresse du terrain ouvre
+   l'« Assistant de saisie d'adresse » — CLAIRE tape l'adresse de la fiche, choisit la proposition qui porte le même numéro, la même voie et le
+   même code postal (une seule, jamais « la première »), puis « Je valide mon adresse » ; aucune proposition conforme ou plusieurs : l'assistant
+   est refermé et l'adresse vous est laissée. Un clic sur les parcelles ouvre l'« Assistant de saisie des références cadastrales » — chaque
+   parcelle de la fiche (préfixe, section, numéro, superficie) puis « Ajouter la parcelle », jamais deux fois la même, puis « Valider » (au-delà
+   de 3 parcelles en CUa, le guichet les met lui-même en annexe). Une parcelle sans superficie connue n'est pas ajoutée : elle est nommée dans
+   le panneau. Adresse ou parcelles déjà saisies dans le guichet : laissées telles quelles. CU et DIA ;
+5. brouillon `#/saisie/<n°>` (CUa 7 pages, DIA 10) : chaque champ par son code CERFA (`#AI1NP1`, `#T2L_localite`…), valeur posée d'un
    coup (le guichet applique lui-même majuscules et masques), puis « page suivante » (`vm.nextPage()`) ;
-5. dernière page : arrêt. Relire, **joindre les pièces (à la main)**, « Vérifier ma saisie », puis « Transmettre ma demande » **vous-même**.
+6. dernière page : arrêt. Relire, **joindre les pièces (à la main)**, « Vérifier ma saisie », puis « Transmettre ma demande » **vous-même**.
 
 Jamais : « Transmettre ma demande » (texte ou `transmettreSaisie`), un identifiant (fenêtre « Me connecter à mon compte » = arrêt, vous vous
 reconnectez puis relancez : le brouillon est rouvert par son adresse), les listes recalculées par le site (`OPLSTPARCELLE`, `OPLSTCOPRO`,

@@ -1,11 +1,11 @@
 {
  "id": "dia-gnau-agglopolys",
  "name": "DIA — guichet d'Agglopolys",
- "version": 1,
+ "version": 2,
  "auto": true,
  "pagesMax": 10,
  "saisieDirecte": true,
- "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE.",
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Les cases de déclaration (GI1DA1, GI5AA1, GI6AA1) ne sont jamais cochées par CLAIRE. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10).",
  "entree": {
   "commune": {
    "source": "terrain.commune",
@@ -399,6 +399,45 @@
      ],
      "optional": true
     }
+   ]
+  }
+ ],
+ "assistants": [
+  {
+   "type": "adresse",
+   "titre": "assistant de saisie d.adresse",
+   "source": "terrain",
+   "declencheur": [
+    "BI1V",
+    "BI1N",
+    "BI1L"
+   ],
+   "voieCode": "BI1V",
+   "codes": [
+    "BI1N",
+    "BI1V",
+    "BI1W",
+    "BI1L",
+    "BI1C"
+   ]
+  },
+  {
+   "type": "parcelles",
+   "titre": "assistant de saisie des references cadastrales",
+   "source": "parcelles",
+   "declencheur": [
+    "BI3S",
+    "BI3N",
+    "BI3F",
+    "BI3T"
+   ],
+   "sectionCode": "BI3S",
+   "codes": [
+    "BI3F",
+    "BI3S",
+    "BI3N",
+    "BI3T",
+    "BI2T"
    ]
   }
  ]

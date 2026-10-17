@@ -1,11 +1,11 @@
 {
  "id": "cua-gnau-agglopolys",
  "name": "CUa — guichet d'Agglopolys",
- "version": 1,
+ "version": 2,
  "auto": true,
  "pagesMax": 7,
  "saisieDirecte": true,
- "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits.",
+ "note": "Guichet d'Agglopolys (relevé de l'étude, 16/10) : CLAIRE clique la démarche dans « Formuler », choisit la commune de dépôt, répond NON aux fenêtres de récupération et de déconnexion, puis remplit chaque page par les codes du CERFA (#code) et passe à la suivante. Elle s'arrête à la dernière page : relire, joindre les pièces (étape manuelle), « Vérifier ma saisie », puis transmettre soi-même. « Transmettre ma demande » n'est jamais cliqué ; les listes calculées par le site (OPLSTPARCELLE, OPLSTCOPRO, COMMISSION) et le prix en lettres (FI1C) ne sont jamais écrits. Adresse du bien et parcelles : par les assistants du guichet (« Assistant de saisie d'adresse », « Assistant de saisie des références cadastrales »), comme l'étude les remplit (vidéo du 17/10).",
  "entree": {
   "commune": {
    "source": "terrain.commune",
@@ -151,6 +151,45 @@
      ],
      "optional": true
     }
+   ]
+  }
+ ],
+ "assistants": [
+  {
+   "type": "adresse",
+   "titre": "assistant de saisie d.adresse",
+   "source": "terrain",
+   "declencheur": [
+    "T2V_voie",
+    "T2Q_numero",
+    "T2L_localite"
+   ],
+   "voieCode": "T2V_voie",
+   "codes": [
+    "T2Q",
+    "T2V",
+    "T2W",
+    "T2L",
+    "T2C"
+   ]
+  },
+  {
+   "type": "parcelles",
+   "titre": "assistant de saisie des references cadastrales",
+   "source": "parcelles",
+   "declencheur": [
+    "T2S",
+    "T2N",
+    "T2F",
+    "T2T"
+   ],
+   "sectionCode": "T2S",
+   "codes": [
+    "T2F",
+    "T2S",
+    "T2N",
+    "T2T",
+    "D5T"
    ]
   }
  ]

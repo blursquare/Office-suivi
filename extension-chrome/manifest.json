@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CLAIRE — Assistant de saisie",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Remplit le CU et la DIA des guichets uniques d'urbanisme (GNAU) à partir des dossiers de CLAIRE, sous le contrôle du notaire.",
   "minimum_chrome_version": "116",
   "action": { "default_title": "CLAIRE — CU et DIA" },

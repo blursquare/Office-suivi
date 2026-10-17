@@ -1,0 +1,55 @@
+// Extension Chrome sur une copie du guichet d'Agglopolys (17/10, d'après la vidéo de l'étude) : accueil dessiné après « Traitements en cours »,
+// bandeau « FORMULER » avec boutons ronds, commune de dépôt, assistant d'adresse et assistant des références cadastrales. Vérifie que CLAIRE
+// clique la démarche de « Formuler » (jamais une carte de « Suivre »), remplit les deux assistants, n'ajoute aucune parcelle deux fois, laisse
+// une adresse qui ne correspond pas à l'étude, et ne clique jamais « Transmettre ma demande ». Données inventées.
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ici = path.dirname(fileURLToPath(import.meta.url));
+const ext = path.resolve(ici, '..', '..', 'extension-chrome');
+const scenario = JSON.parse(fs.readFileSync(path.join(ext, 'scenarios', 'cua-gnau-agglopolys.json'), 'utf8'));
+const erreurs = [];
+
+async function jouer(fiche, avant) {
+  const run = { id: 'r1', scenario, fiche, speed: 'fast', status: 'running', fields: {} };
+  const browser = await chromium.launch(process.env.PLAYWRIGHT_BROWSERS_PATH ? {} : { executablePath: '/opt/pw-browsers/chromium' });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    const journal = [];
+    await page.exposeFunction('__envoi', (m) => { journal.push(m); return null; });
+    await page.addInitScript((r) => {
+      window.chrome = { runtime: { sendMessage: async (m) => { await window.__envoi(m); return m.type === 'content.hello' ? r : {}; }, onMessage: { addListener() {} } } };
+      window.addEventListener('click', (e) => { const t = e.target.closest && e.target.closest('[ng-click]'); if (t && /transmettre/i.test(t.getAttribute('ng-click'))) window.__transmis = true; }, true);
+    }, run);
+    page.on('pageerror', (e) => erreurs.push('erreur de page : ' + e.message));
+    await page.goto('file://' + path.join(ici, 'gnau-agglopolys.html'));
+    if (avant) await page.evaluate(avant);
+    for (const f of ['lib/fiche.js', 'content/content.js']) await page.addScriptTag({ path: path.join(ext, f) });
+    for (let i = 0; i < 240 && !journal.some((m) => m.type === 'content.finish'); i++) await new Promise((r) => setTimeout(r, 250));
+    const valeurs = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('input[id]')].map((i) => [i.id, i.value])));
+    const etat = await page.evaluate(() => ({ hash: location.hash, transmis: !!window.__transmis, lignes: (window.__parcelles || []).length, modales: document.querySelectorAll('.modal').length }));
+    return { journal, valeurs, etat, assistants: Object.fromEntries(journal.filter((m) => m.type === 'content.assistant').map((m) => [m.assistant, m])) };
+  } finally { await browser.close(); }
+}
+const verifier = (ok, texte) => { if (!ok) erreurs.push(texte); };
+const base = { terrain: { numero: '51', voie: 'Rue Racine', commune: 'BLOIS', codePostal: '41000' }, superficie: '2989',
+  parcelles: [{ section: 'BA', numero: '21', surface: '234' }, { section: 'BA', numero: '22', surface: '333' }, { section: 'BA', numero: '23', surface: '2311' }, { section: 'RE', numero: '432', surface: '111' }],
+  signature: { lieu: 'BLOIS', date: '2026-10-17' }, notaire: {}, dossier: { id: 'x' } };
+
+const a = await jouer(base);
+verifier(a.etat.hash === '#/saisie/19333', 'la démarche de « Formuler » est ouverte après le chargement');
+verifier(a.valeurs.T2V_voie === 'RUE RACINE' && a.valeurs.T2Q_numero === '51' && a.valeurs.T2C_code === '41000', 'adresse posée par l’assistant');
+verifier(a.valeurs.T2S_section1 === 'BA' && a.valeurs.T2N_numero3 === '23' && a.valeurs.D5T_total === '2989', 'parcelles posées par l’assistant (4, la dernière en annexe)');
+verifier(a.etat.lignes === 4, 'quatre parcelles, aucune deux fois');
+verifier(!a.etat.transmis, '« Transmettre ma demande » jamais cliqué');
+verifier((a.assistants.parcelles || {}).etat === 'done' && (a.assistants.adresse || {}).etat === 'done', 'assistants faits');
+
+const b = await jouer(Object.assign({}, base, { terrain: { numero: '9', voie: 'Chemin Inconnu', commune: 'BLOIS', codePostal: '41000' } }));
+verifier((b.assistants.adresse || {}).etat === 'manuel', 'adresse sans proposition conforme : laissée à l’étude');
+verifier(!b.valeurs.T2V_voie, 'aucune adresse proposée par erreur');
+verifier(b.valeurs.T2S_section1 === 'BA', 'les parcelles restent saisies');
+
+console.log(erreurs.length ? 'Extension GNAU : ' + erreurs.length + ' échec(s)\n' + erreurs.join('\n') : 'Extension GNAU : parcours d’Agglopolys joué sans erreur.');
+process.exit(erreurs.length ? 1 : 0);

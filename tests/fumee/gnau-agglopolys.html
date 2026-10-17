@@ -1,0 +1,37 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Guichet (copie d'essai)</title>
+<!-- Copie d'essai du guichet d'Agglopolys pour tests/fumee/extension-gnau.mjs : structure vue dans la vidéo de l'étude (17/10), données inventées. -->
+<style>.modal{position:fixed;top:40px;left:40px;background:#fff;border:1px solid #888;padding:10px;z-index:10;width:600px}.rond{display:inline-block;width:40px;height:40px;border-radius:50%;background:#035;color:#fff;text-align:center;line-height:40px;cursor:pointer;margin:4px}
+input[readonly]{background:#eef}</style></head><body>
+<div id="app"><div class="modal" id="spin">Traitements en cours</div></div>
+<script>
+const app = document.getElementById('app');
+const accueil = () => `
+ <div class="bloc"><div class="ruban"><span class="t">S'INFORMER</span><span>sur le règlement</span></div><div class="rond">Zonage</div></div>
+ <div class="bloc"><div class="ruban"><span class="t"><b>FORMULER</b></span><span> une demande d'urbanisme numérique...</span></div>
+   <div><div class="rond" ng-click="vm.formuler('CUa')" onclick="ouvrirCommune()">CUa</div><div class="rond" ng-click="vm.formuler('CUb')">CUb</div><div class="rond" ng-click="vm.formuler('DIA')" onclick="ouvrirCommune()">DIA</div></div></div>
+ <div class="bloc"><div class="ruban"><span class="t">SUIVRE</span><span>mes demandes d'urbanisme</span></div>
+   <div class="carte"><span ng-click="vm.ouvrir(1)">CUA</span> BLOIS <button>Consulter</button></div></div>`;
+setTimeout(() => { app.innerHTML = accueil(); }, 2500);
+window.ouvrirCommune = () => { app.insertAdjacentHTML('beforeend', `<div class="modal" id="mc"><h4>Sélectionner une commune de dépôt de la demande</h4><select><option></option><option value="1">Averdon</option><option value="2">Blois</option></select><button onclick="saisie()">Valider la commune de dépôt</button></div>`); };
+window.saisie = () => { location.hash = '#/saisie/19333'; app.innerHTML = `<h3>4.1 Adresse du (ou des) terrain(s)</h3>
+ Numéro <input id="T2Q_numero" readonly onclick="assAdr()"> Voie <input id="T2V_voie" readonly onclick="assAdr()"> Lieu-dit <input id="T2W_lieudit" readonly onclick="assAdr()"> Localité <input id="T2L_localite" readonly onclick="assAdr()"> CP <input id="T2C_code" readonly onclick="assAdr()">
+ <h3>4.2 Références cadastrales</h3>
+ ${[1,2,3].map(i=>`Préfixe <input id="T2F_prefixe${i}" readonly onclick="assCad()"> Section <input id="T2S_section${i}" readonly onclick="assCad()"> Numéro <input id="T2N_numero${i}" readonly onclick="assCad()"> Sup <input id="T2T_superficie${i}" readonly onclick="assCad()"><br>`).join('')}
+ Total <input id="D5T_total" readonly> Fait à <input id="E1L_lieu"> Le <input id="E1D_date">
+ <button ng-click="vm.transmettreSaisie()">Transmettre ma demande</button>`; };
+window.assAdr = () => { if (document.getElementById('ma')) return; app.insertAdjacentHTML('beforeend', `<div class="modal" id="ma"><h4>Assistant de saisie d'adresse</h4>
+ <label for="rech">Rechercher une adresse</label><input id="rech" autocomplete="off"><ul id="sug" class="dropdown-menu"></ul>
+ <label for="ld">Lieu-dit</label><input id="ld"><button onclick="validAdr()">Je valide mon adresse</button><button onclick="this.closest('.modal').remove()">Fermer</button></div>`);
+ const r = document.getElementById('rech'); r.addEventListener('input', () => { const v = r.value.toLowerCase(); const s = document.getElementById('sug');
+   s.innerHTML = v.length < 5 ? '' : ['51 Rue Racine 41000 Blois','51 Rue du Foix 41000 Blois','51 Rue Gallieni 41000 Blois'].filter(x => x.toLowerCase().includes(v.split(' ').slice(0,2).join(' ')) || v.includes('racine') && x.includes('Racine')).map(x => `<li><a href="#" onclick="event.preventDefault();choix('${x}')">${x}</a></li>`).join(''); }); };
+let adr = null;
+window.choix = (x) => { adr = x; document.getElementById('rech').value = x; document.getElementById('sug').innerHTML = ''; };
+window.validAdr = () => { if (!adr) return; const m = /^(\d+) (.*) (\d{5}) (.*)$/.exec(adr); T2Q_numero.value = m[1]; T2V_voie.value = m[2].toUpperCase(); T2L_localite.value = m[4]; T2C_code.value = m[3]; T2W_lieudit.value = document.getElementById('ld').value; document.getElementById('ma').remove(); };
+let parc = [];
+window.assCad = () => { if (document.getElementById('mcad')) return; app.insertAdjacentHTML('beforeend', `<div class="modal" id="mcad"><h4>Assistant de saisie des références cadastrales</h4>
+ <label for="cp">Préfixe</label><input id="cp"><label for="cs">Section *</label><input id="cs"><label for="cn">Numéro *</label><input id="cn" type="number"><label for="cu">Superficie *</label><input id="cu" type="number">
+ <button onclick="ajout()">Ajouter la parcelle +</button><table><tbody id="tb"></tbody></table><button onclick="validCad()">Valider</button><button onclick="this.closest('.modal').remove()">Fermer</button></div>`); dessine(); };
+const dessine = () => { tb.innerHTML = parc.map(p => `<tr><td>${p.pre}</td><td>${p.s}</td><td>${p.n}</td><td>${p.u} m²</td></tr>`).join(''); };
+window.ajout = () => { if (!cs.value || !cn.value || !cu.value) return; window.__parcelles = parc; parc.push({ pre: cp.value, s: cs.value.toUpperCase(), n: cn.value, u: cu.value }); cp.value = cs.value = cn.value = cu.value = ''; dessine(); };
+window.validCad = () => { parc.slice(0,3).forEach((p,i) => { document.getElementById('T2S_section'+(i+1)).value = p.s; document.getElementById('T2N_numero'+(i+1)).value = p.n; document.getElementById('T2T_superficie'+(i+1)).value = p.u; }); D5T_total.value = parc.reduce((a,p)=>a+Number(p.u),0); mcad.remove(); };
+</script></body></html>
