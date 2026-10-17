@@ -63,9 +63,14 @@ function clePageAuthentic(nature, capture) {
  * @param {any} capture
  */
 function pageHorsVenteAuthentic(capture) {
-  const t = String((capture && capture.texte) || '').slice(0, 20000);
-  const m = /(?:^|\n)[ \t]*\d{1,3}[ \t]*-[ \t]*([^\n]{1,120}?)[ \t]*Importer avec 6e SENS/i.exec(t);
-  return !!m && /^(?:promesse|compromis|avenant|avant[\s-]*contrat)/i.test(m[1].trim());
+  // Même lecture que le poste (sousDossierAuthentic) : titres des onglets inactifs retirés, en-tête « N - … » suivi de Importer, Comparants
+  // ou Immeubles, retours à la ligne compris (relecture du 17/10).
+  const c = capture || {};
+  const net = (/** @type {any} */ x) => String(x || '').replace(/\s+/g, ' ').trim();
+  const inactifs = new Set((Array.isArray(c.onglets) ? c.onglets : []).filter((/** @type {any} */ o) => o && !o.actif).map((/** @type {any} */ o) => net(o.titre)).filter(Boolean));
+  const t = String(c.texte || '').slice(0, 20000).split('\n').filter((l) => !inactifs.has(net(l))).join('\n');
+  const m = /(?:^|[^\w])(\d{1,6})\s*-\s*([A-Za-zÀ-ÿ][^\n]{0,150}?\S)(?=\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ]))/i.exec(t);
+  return !!m && /^(?:promesse|compromis|avenant|avant[\s-]*contrat|pv|puv)(?![a-zà-ÿ])/i.test(m[2].trim());
 }
 
 /** Le magasin des pages, sur la base du serveur. @param {any} db base node:sqlite @param {{ maintenant?: () => number }} [options] */

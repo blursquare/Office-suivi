@@ -103,3 +103,10 @@ test('serveur : une promesse n’est jamais gardée, même avec la clé « dossi
   assert.equal(p.garder('v1', { capture: vente, cle: 'dossier' }), true);
   assert.equal(p.garder('v1', { capture: promesse, cle: 'dossier' }), false);
 });
+
+test('serveur : promesse lue comme le poste (en-tête sur sa ligne, onglets inactifs retirés)', () => {
+  assert.equal(pageHorsVenteAuthentic({ texte: '1 - Promesse VTE A/B\nImporter avec 6e SENS\nComparants' }), true);
+  const vente = { texte: '1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS\n2 - VTE MARTEL / FOURNIER\nImporter avec 6e SENS\nComparants (2)',
+    onglets: [{ titre: '1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS', actif: false }, { titre: '2 - VTE MARTEL / FOURNIER', actif: true }] };
+  assert.equal(pageHorsVenteAuthentic(vente), false);
+});

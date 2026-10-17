@@ -60,3 +60,14 @@ test('rendez-vous : contexte vente ou succession, mêmes clients ailleurs identi
   assert.equal(autres[0].personnes[0].role, 'Héritier');
   assert.equal(autres[0].prochainRdv, '2099-01-05');
 });
+
+test('mêmes clients ailleurs : ni civilité, ni particule, ni prénom en plus ne font une même personne', () => {
+  const v = (id, nom) => ({ id, parties: [{ role: 'VENDEUR', nom }] });
+  const d = v('a', 'Mme DURAND');
+  assert.equal(app.autresDossiersMemesClients(d, [d, v('b', 'DURAND')], '2026-10-17').length, 0);
+  const f = v('c', 'DE LA FONTAINE');
+  assert.equal(app.autresDossiersMemesClients(f, [f, v('d', 'DE LA FONTAINE')], '2026-10-17').length, 0);
+  const j = v('e', 'Jean MARTIN');
+  assert.equal(app.autresDossiersMemesClients(j, [j, v('f', 'Jean Paul MARTIN')], '2026-10-17').length, 0);
+  assert.equal(app.autresDossiersMemesClients(j, [j, v('g', 'MARTIN Jean')], '2026-10-17').length, 1);
+});

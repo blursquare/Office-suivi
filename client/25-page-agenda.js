@@ -683,15 +683,24 @@
     return `Vente — ${[cote(v, 'vendeur'), cote(a, 'acquéreur')].filter(Boolean).join(' avec ')}`;
   }
 
+  // Pure : les mots d'un nom de personne, sans civilité ni particule.
+  function motsNomPersonneAgenda(nom) {
+    return normaliserPourRecherche(String(nom || '')).split(/[^a-z0-9]+/)
+      .filter(m => m.length >= 2 && !/^(?:m|mr|mme|mlle|monsieur|madame|mademoiselle|me|maitre|de|du|des|la|le|les|d|l|epouse|veuve|ne|nee)$/.test(m));
+  }
+
   // Pure : les autres dossiers en cours où une personne de ce dossier figure aussi — son rôle là-bas, le contexte et le prochain rendez-vous.
   function autresDossiersMemesClients(d, liste, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    const miennes = personnesContexteAgenda(d).filter(p => normaliserPourRecherche(p.nom).split(/[^a-z0-9]+/).filter(m => m.length >= 2).length >= 2);
+    // Prénom ET nom des deux côtés, mêmes mots (dans n'importe quel ordre) : ni civilité, ni particule, ni nom seul ; « Jean MARTIN » n'est
+    // pas « Jean Paul MARTIN » (relecture du 17/10).
+    const cle = (nom) => { const m = motsNomPersonneAgenda(nom); return m.length >= 2 ? m.sort().join(' ') : ''; };
+    const miennes = personnesContexteAgenda(d).map(p => Object.assign({ cle: cle(p.nom) }, p)).filter(p => p.cle);
     if (!miennes.length) return [];
     const res = [];
     (liste || []).forEach(x => {
       if (!x || x === d || x.id === d.id || x.deleted || x.archive) return;
-      const communes = personnesContexteAgenda(x).filter(q => miennes.some(p => memePersonneNommee(p.nom, q.nom)));
+      const communes = personnesContexteAgenda(x).filter(q => { const k = cle(q.nom); return k && miennes.some(p => p.cle === k); });
       if (!communes.length) return;
       const prochains = estSuccession(x) ? rendezVousSuccession(x).map(r => r.date).filter(t => t && t >= auj).sort()
         : (x.rendezVousSignature && x.rendezVousSignature >= auj ? [x.rendezVousSignature] : []);

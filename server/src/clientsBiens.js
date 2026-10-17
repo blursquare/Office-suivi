@@ -354,6 +354,7 @@ function construireBiens(dossiers) {
   const cleParcelle = (/** @type {any} */ p) => [cleCommune(p.commune), p.prefixe, p.section, p.numero].join('|');
   const cleParcelleCourte = (/** @type {any} */ p, /** @type {string} */ cp) => [cleCourte(p.commune), cp, p.prefixe, p.section, p.numero].join('|');
   const parParcelleCourte = new Map();
+  const occParId = new Map(occ.map((o) => [o.id, o]));
   // Copropriété : les lots d'un même immeuble partagent la parcelle — un bien = un lot (au moins un lot commun), jamais l'immeuble entier.
   const numerosLots = (/** @type {any} */ o) => (o.lots || []).map((/** @type {any} */ l) => texte(l && (l.numero || l.lot))).filter(Boolean);
   const parParcelle = new Map();
@@ -363,8 +364,12 @@ function construireBiens(dossiers) {
     // Sans commune, une parcelle « AB 12 » ne désigne rien de sûr : pas de réunion par la parcelle (relecture 16/10).
     for (const p of o.parcelles) {
       if (!norm(p.commune)) continue;
+      // Deux communes du même nom dans deux départements (SAINT-CYR 41000 / 86130) : jamais réunies quand les deux codes postaux sont connus.
       for (const k of lots.length ? lots.map((l) => cleParcelle(p) + '|lot ' + l) : [cleParcelle(p)]) {
-        if (parParcelle.has(k)) uf.unir(parParcelle.get(k), o.id); else parParcelle.set(k, o.id);
+        const deja = parParcelle.get(k);
+        if (!deja) { parParcelle.set(k, o.id); continue; }
+        const autre = occParId.get(deja);
+        if (DD.memeCommune({ commune: p.commune, codePostal: o.codePostal }, { commune: p.commune, codePostal: autre && autre.codePostal }) !== false) uf.unir(deja, o.id);
       }
       const cp = texte(o.codePostal);
       if (/^\d{5}$/.test(cp)) for (const k of lots.length ? lots.map((l) => cleParcelleCourte(p, cp) + '|lot ' + l) : [cleParcelleCourte(p, cp)]) {

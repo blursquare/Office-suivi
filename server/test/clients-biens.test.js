@@ -243,3 +243,9 @@ test('deux communes « -sur-… » différentes (Chaumont-sur-Loire 41150 / Chau
   const autres = fichesDuDossier(construireBase([d('v1', 'BLOIS (41000), 1 rue Fictive', '41000', 'BLOIS'), d('v2', 'BLOIS (41000), 1 rue Fictive', '41000', 'BLOIS')]), 'v1');
   assert.equal(autres.biens[0].autres[0].id, 'v2', 'le même bien : l’autre dossier est nommé sur sa fiche');
 });
+
+test('deux communes homonymes de départements différents (SAINT-CYR 41000 / 86130) : deux fiches', () => {
+  const d = (id, cp) => ({ id, nom: id, adresseBien: `SAINT-CYR (${cp}), 1 rue Fictive`, bien: { adresse: { codePostal: cp, commune: 'SAINT-CYR' }, cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } } });
+  assert.equal(construireBase([d('v1', '41000'), d('v2', '86130')]).biens.length, 2);
+  assert.equal(construireBase([d('v1', '41000'), d('v2', '41000')]).biens.length, 1);
+});
