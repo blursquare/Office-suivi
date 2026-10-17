@@ -352,8 +352,12 @@
       // des comparants ou de la partie, sinon de sa fiche client d'Authentic.
       const df = defuntConstitution(d).champs;
       const nomDefunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
-      const civHeritier = (h) => civ(h) || civ({ civilite: (ficheClientDe(d, h.nom) || {}).civilite });
-      return (nomDefunt ? [{ nom: nomDefunt, affiche: civ({ civilite: df.civilite }) + nomDefunt, role: 'Défunt' }] : [])
+      // Jamais la civilité par défaut des courriers (« Madame » quand rien n'est lu) : seulement celle saisie, lue sur la fiche ou chez les
+      // comparants (relecture du 17/10).
+      const lu = defuntDepuisFiches(d);
+      const civDefunt = civ({ civilite: (d.defunt && d.defunt.civilite) || (lu.fiche && lu.fiche.civilite) || (lu.comparant && lu.comparant.civilite) || '' });
+      const civHeritier = (h) => (h.qualitePersonne === 'morale' ? '' : civ(h) || civ({ civilite: (ficheClientDe(d, h.nom) || {}).civilite }));
+      return (nomDefunt ? [{ nom: nomDefunt, affiche: civDefunt + nomDefunt, role: 'Défunt' }] : [])
         .concat(personnesSuccession(d).heritiers.map(h => ({ nom: h.nom, affiche: civHeritier(h) + h.nom, morale: h.qualitePersonne === 'morale', role: 'Héritier' })));
     }
     const rang = (r) => (/^VENDEUR$/i.test(r) ? 0 : /^ACQUEREUR$/i.test(r) ? 1 : 2);

@@ -85,7 +85,7 @@
     her.forEach(c => {
       const p = parties.find(x => !vus.has(x) && (memePersonneNommee(x.nom, c.nom) || (x.nomUsage && memePersonneNommee([x.nom, x.nomUsage].join(' '), c.nom))));
       const qualite = /^h[ée]riti/i.test(c.qualite || '') ? '' : (c.qualite || '');
-      if (p) { vus.add(p); heritiers.push(Object.assign({}, p, { qualite })); return; }
+      if (p) { vus.add(p); heritiers.push(Object.assign({}, p, { qualite, civilite: p.civilite || c.civilite || '' })); return; }
       const np = nomPrenomsComparant(c.nom);
       heritiers.push({ nom: [np.prenoms, np.nom].filter(Boolean).join(' ') || c.nom, civilite: c.civilite || '', qualite, comparant: true });
     });

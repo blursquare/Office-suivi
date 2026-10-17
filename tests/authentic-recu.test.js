@@ -100,3 +100,12 @@ test('cartes d’une succession : civilité du défunt et des héritiers, titres
   assert.match(html, /Défunt<\/div>[^]*Monsieur Jean ESSAI/);
   assert.match(html, /Héritiers<\/div>[^]*Madame Léa ESSAI[^]*Monsieur Paul ESSAI/);
 });
+
+test('civilité d’une succession : jamais inventée pour le défunt, jamais pour une société, reprise des comparants', () => {
+  const html = app.htmlCartesClientsBiensDossier({ id: 's2', nom: 'ESSAI', typeAffaire: 'succession', defunt: { prenoms: 'Jean', nom: 'ESSAI' },
+    parties: [{ role: 'PARTIE', nom: 'Jean ESSAI' }, { role: 'PARTIE', nom: 'SCI PAUL ESSAI', qualitePersonne: 'morale' }, { role: 'PARTIE', nom: 'Paul ESSAI' }],
+    authentic: { fichesClients: { 'paul essai': { nom: 'Paul ESSAI', nomFamille: 'ESSAI', prenom: 'Paul', civilite: 'M' } } } }, null);
+  assert.doesNotMatch(html, /Madame Jean ESSAI/);
+  assert.doesNotMatch(html, /Monsieur SCI/);
+  assert.match(html, /Monsieur Paul ESSAI/);
+});
