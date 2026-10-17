@@ -9792,3 +9792,4 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .ag-autre-contexte { font-size: var(--texte-s); color: var(--ink-soft); }
 /* Dans les deux colonnes de l'onglet Dossier, un champ par ligne (deux par ligne y serraient libellé et valeur). */
 .fiche-dossier-colonnes .fiche-proprietes { grid-template-columns: minmax(0, 1fr); }
+.pb-ailleurs-titre .lien-action { font-size: var(--texte-s); font-weight: 500; letter-spacing: 0; text-transform: none; margin-left: 6px; }

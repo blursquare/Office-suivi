@@ -321,12 +321,9 @@
     ouvrirDossierDrawer(id);
   }
 
-  // ---------- Ligne « Fiches » sur la fiche d'un dossier ----------
-
-  // Les fiches client et bien d'un dossier (60 s de cache) : rendues tout de suite si connues, sinon un emplacement rempli à l'arrivée.
-  // ---------- Onglet Dossier, colonne de gauche : parties et biens (étude 17/10, « une présentation comme Authentic ») ----------
-  // Chaque personne et chaque bien du dossier est une FICHE unique (la même dans tous les dossiers où il figure) : une carte qui l'ouvre et
-  // dit dans quels autres dossiers il se trouve, vente ou succession, avec son rôle et les autres parties.
+  // ---------- Onglet Dossier : « Aussi dans un autre dossier » ----------
+  // Chaque personne et chaque bien est une FICHE unique (la même dans tous les dossiers où il figure). Les fiches d'un dossier sont lues
+  // sur le serveur (60 s de cache) : rendues tout de suite si connues, sinon l'emplacement (vide, masqué) est rempli à l'arrivée.
 
   // Pure : « Vente · Vendeur — avec Paul EXEMPLE (Acquéreur) », « Succession · Héritier — défunt Jean ESSAI ».
   function texteContexteDossierCb(x) {
@@ -385,7 +382,7 @@
     try {
       const r = await fetchAvecAuth('/api/clients-biens/dossier/' + encodeURIComponent(id));
       if (r.ok) e.fiches = await r.json();
-    } catch (_) { /* hors ligne : l'emplacement reste « … » */ }
+    } catch (_) { /* hors ligne : l'emplacement reste vide (masqué) */ }
     e.t = Date.now();
     e.enCours = false;
     document.querySelectorAll('.pb-ailleurs').forEach(el => { if (el.dataset.pbDossier === id && e.fiches) el.innerHTML = htmlAilleursDossier(e.fiches, el.dataset.pbGenre, id); });

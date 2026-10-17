@@ -129,10 +129,22 @@
 
   // Ligne « Rendez-vous » de la fiche d'une succession : tous les rendez-vous, et « Ajouter un rendez-vous ».
   var LIBELLES_ETAPE_RDV_SUCCESSION = { ouvertureSuccession: 'Ouverture', notoriete: 'Notoriété', declarationSuccession: 'Déclaration', acte: 'Signature', autre: 'Rendez-vous' };
+  // Pure : ce que le titre d'un rendez-vous ajoute à son étape sur la fiche — sans le nom du dossier (« SUCC - MOREAU - … »), et rien quand
+  // il redit l'étape (« Acte de notoriété » sous « Notoriété ») : relecture du 17/10, la répétition restait.
+  function complementTitreRdvSuccession(d, r) {
+    const n = (t) => normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    let reste = String((r && r.titre) || '').trim();
+    const prefixes = [libelleDossierAffiche(d), d && d.nom ? 'SUCC - ' + d.nom : '', d && d.nom].filter(Boolean);
+    for (const p of prefixes) if (n(reste).startsWith(n(p)) && n(p)) { reste = reste.slice(Math.min(reste.length, String(p).length)).replace(/^[\s\-–—:·]+/, ''); break; }
+    const etape = n(LIBELLES_ETAPE_RDV_SUCCESSION[r && r.etape] || '');
+    if (!n(reste) || (etape && r.etape !== 'autre' && n(reste).includes(etape))) return '';
+    return reste;
+  }
+
   function ligneRendezVousSuccessionFiche(d) {
     const auj = isoAujourdhuiLocal();
     const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.annule ? 'dl-urgent' : (r.date < auj ? 'dl-neutre' : 'dl-pret')}"><span class="dot"></span>${r.annule ? 'Annulé / à replacer' : escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
-      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre && normaliserPourRecherche(r.titre) !== normaliserPourRecherche(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || '') ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}
+      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${complementTitreRdvSuccession(d, r) ? ` <span class="hint">${escapeHtml(complementTitreRdvSuccession(d, r))}</span>` : ''}
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer de la fiche (l’agenda n’est pas modifié)" aria-label="Retirer ce rendez-vous de la fiche" onclick="retirerRendezVousSuccession('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button></span>`).join('');
     return `<span class="succ-rdvs">${lignes || '<span class="hint">Aucun rendez-vous placé</span>'}
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="placerRdvSuccessionAgenda('${escapeOnclickArg(d.id)}', 'autre')">${icone('calendar')}Ajouter un rendez-vous</wa-button></span>`;

@@ -71,3 +71,11 @@ test('mêmes clients ailleurs : ni civilité, ni particule, ni prénom en plus n
   assert.equal(app.autresDossiersMemesClients(j, [j, v('f', 'Jean Paul MARTIN')], '2026-10-17').length, 0);
   assert.equal(app.autresDossiersMemesClients(j, [j, v('g', 'MARTIN Jean')], '2026-10-17').length, 1);
 });
+
+test('rendez-vous d’une succession : le titre ne redit ni le dossier ni l’étape', () => {
+  const d = { id: 's1', nom: 'MOREAU', typeAffaire: 'succession' };
+  assert.equal(app.complementTitreRdvSuccession(d, { etape: 'notoriete', titre: 'SUCC - MOREAU - Acte de notoriété' }), '');
+  assert.equal(app.complementTitreRdvSuccession(d, { etape: 'ouvertureSuccession', titre: 'SUCC - MOREAU - Ouverture avec Sophie' }), '');
+  assert.equal(app.complementTitreRdvSuccession(d, { etape: 'autre', titre: 'SUCC - MOREAU - Visite de la maison' }), 'Visite de la maison');
+  assert.equal(app.complementTitreRdvSuccession(d, { etape: 'notoriete', titre: '' }), '');
+});
