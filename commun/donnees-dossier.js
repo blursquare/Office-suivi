@@ -33,7 +33,7 @@
 
   /**
    * Pure : deux lieux sont-ils la même commune ? true / false / null (inconnu : une des deux sans code postal ni commune). Deux codes
-   * postaux différents = deux communes ; sinon le nom, « ST AIGNAN » = « SAINT-AIGNAN », et un nom qui commence l'autre au mot près
+   * postaux différents = deux communes ; sinon le nom, « ST AIGNAN » = « SAINT-AIGNAN », et un nom suivi de « -sur-… »
    * (« SAINT-AIGNAN » / « SAINT-AIGNAN-SUR-CHER »).
    * @param {{ commune?: string, codePostal?: string }} a @param {{ commune?: string, codePostal?: string }} b
    */
@@ -41,7 +41,8 @@
     const cpa = texte(a && a.codePostal); const cpb = texte(b && b.codePostal);
     const na = communeNette(a && a.commune); const nb = communeNette(b && b.commune);
     if (cpa && cpb && cpa !== cpb) return false;
-    if (na && nb) return na === nb || (na + ' ').startsWith(nb + ' ') || (nb + ' ').startsWith(na + ' ');
+    // Un nom plus long n'est la même commune que par un « -sur-… » ajouté (« SAINT-AIGNAN » / « SAINT-AIGNAN-SUR-CHER »).
+    if (na && nb) return na === nb || na.startsWith(nb + ' s ') || nb.startsWith(na + ' s ');
     if (cpa && cpb) return true;
     return null;
   }
@@ -76,7 +77,12 @@
    */
   function fusionnerImmeubleAuthentic(immeubles, fiche, o) {
     const liste_ = liste(immeubles).filter((im) => im && typeof im === 'object').slice();
-    const lieu = (/** @type {any} */ im) => { const l = communeDeLAdresse(texte(im.adresse)); return { commune: texte(im.commune) || l.commune, codePostal: texte(im.codePostal) || l.codePostal }; };
+    // Le lieu d'un immeuble : sa commune, sinon celle de son adresse, sinon celle portée par ses parcelles (terres, bois sans adresse).
+    const lieu = (/** @type {any} */ im) => {
+      const l = communeDeLAdresse(texte(im.adresse));
+      const deParcelle = (liste(im.parcelles).find((/** @type {any} */ p) => p && texte(p.commune)) || {}).commune;
+      return { commune: texte(im.commune) || l.commune || texte(deParcelle), codePostal: texte(im.codePostal) || l.codePostal };
+    };
     const nouv = Object.assign({}, fiche, { parcelles: liste(fiche && fiche.parcelles).filter((p) => cleParcelleSansCommune(p)).slice(0, 40) });
     const lieuNouv = lieu(nouv);
     const cles = (/** @type {any} */ im) => new Set(liste(im.parcelles).map(cleParcelleSansCommune).filter(Boolean));
@@ -85,7 +91,9 @@
       const meme = memeCommune(lieu(im), lieuNouv);
       if (meme === false) return false;
       // Commune inconnue d'un côté : la parcelle commune suffit, sauf pour compléter un « autre bien » (il faut la même commune connue).
-      const lieuSur = meme === true || (meme === null && !(o && o.seulementCompleter));
+      // (un immeuble retenu sans aucun lieu n'a rien à contredire : sa parcelle commune suffit aussi pour le compléter).
+      const lieuIm = lieu(im);
+      const lieuSur = meme === true || (meme === null && (!(o && o.seulementCompleter) || (!lieuIm.commune && !lieuIm.codePostal)));
       return (texte(nouv.adresse) && net(im.adresse) === net(nouv.adresse)) || (lieuSur && [...cles(im)].some((c) => clesNouv.has(c)));
     });
     if (i < 0) {

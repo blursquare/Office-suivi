@@ -78,3 +78,22 @@ test('lots de la fiche (tenus à jour) avant ceux d’un immeuble retenu ; immeu
   assert.equal(D.biensDossier(d)[0].lots.map((l) => l.numero).join(','), '1,7');
   assert.equal(D.personneDossier({}, { nom: 'Léa ESSAI', emails: 'a@x.fr; b@y.fr' }).emails.join(','), 'a@x.fr,b@y.fr');
 });
+
+// Seconde relecture (17/10) : même code postal, autre commune ; immeuble retenu sans lieu ; « -sur-… » seulement.
+test('page d’un autre dossier au MÊME code postal (Villebarou / Blois, 41000) : écartée', () => {
+  const d = dossier();
+  const r = app.appliquerBienAuthentic(d, { adresse: { texte: '9 route Fictive 41000 VILLEBAROU', codePostal: '41000', commune: 'VILLEBAROU' }, parcelles: [{ section: 'AB', numero: '12' }, { section: 'C', numero: '400' }] }, noter, { modifie: false });
+  assert.ok(r.raison);
+  assert.equal(d.bien.cadastre.parcelles.length, 1);
+  assert.equal(d.authentic.immeubles.length, 2);
+});
+
+test('immeuble retenu sans adresse ni commune : la fiche de cet autre bien le complète encore', () => {
+  const D = require('../commun/donnees-dossier');
+  const l = D.fusionnerImmeubleAuthentic([{ adresse: 'Les Prés', parcelles: [{ section: 'ZC', numero: '45' }] }],
+    { adresse: 'VINEUIL (41350), Les Prés', codePostal: '41350', parcelles: [{ section: 'ZC', numero: '45', surface: '5000' }] }, { seulementCompleter: true });
+  assert.equal(l.length, 1);
+  assert.equal(l[0].parcelles[0].surface, '5000');
+  assert.equal(D.memeCommune({ commune: 'SAINT-DENIS', codePostal: '41000' }, { commune: 'SAINT-DENIS-SUR-LOIRE', codePostal: '41000' }), true, '« -sur-… » ajouté');
+  assert.equal(D.memeCommune({ commune: 'SAINT-LAURENT', codePostal: '41220' }, { commune: 'SAINT-LAURENT-NOUAN', codePostal: '41220' }), false);
+});

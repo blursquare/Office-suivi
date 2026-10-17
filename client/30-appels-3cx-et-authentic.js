@@ -2017,6 +2017,10 @@
     const a = bien.adresse || {};
     const cpBien = a.codePostal || (/\b(\d{5})\b/.exec(a.texte || '') || [])[1] || '';
     if (cpDossier && cpBien && cpDossier !== cpBien) return `fiche bien d'une autre commune (${cpBien}) que le dossier`;
+    // Même code postal, autre commune (41000 : Blois, Villebarou, Saint-Denis-sur-Loire…) : une parcelle « AB 12 » commune ne prouve rien.
+    const communeBien = a.commune || communeDeLAdresse(a.texte || '').commune;
+    const communeDossier = adresseDossier.commune || communeDeLAdresse(texteDossier).commune;
+    if (memeCommune({ commune: communeBien, codePostal: cpBien }, { commune: communeDossier, codePostal: cpDossier }) === false) return `fiche bien d'une autre commune (${communeBien}) que le dossier`;
     const cad = d.bien && d.bien.cadastre;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : [cad]) : [];
     const clesDeja = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
