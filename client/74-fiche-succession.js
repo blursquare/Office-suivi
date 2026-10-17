@@ -189,13 +189,12 @@
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
         ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
-          ${renderCartesFichesDossier(d, 'personnes')}
-          <h3 class="fiche-dossier-titre">Biens</h3>
+          ${renderAilleursDossier(d, 'personnes')}
       <dl class="fiche-proprietes">
         ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span>`, null, 'prop-pleine')).join('')
           : ligne('map-pin', 'Bien', `<span class="prop-texte vide">${immobilier ? 'Bien immobilier noté' : 'Aucun bien immobilier relevé'}</span>`, null, 'prop-pleine')}
       </dl>
-          ${renderCartesFichesDossier(d, 'biens')}
+          ${renderAilleursDossier(d, 'biens')}
         </div>
         <div class="fiche-dossier-droite">
       <dl class="fiche-proprietes">

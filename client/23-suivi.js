@@ -759,7 +759,6 @@
     const blocBien = `
       <div class="fiche-dossier-colonnes">
         <div class="fiche-dossier-gauche">
-          <h3 class="fiche-dossier-titre">Parties</h3>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
@@ -767,14 +766,13 @@
         ${renderClientsAPlacer(d, ligne)}
         ${renderPersonnesConnues(d, ligne)}
       </dl>
-          ${renderCartesFichesDossier(d, 'personnes')}
-          <h3 class="fiche-dossier-titre">Biens</h3>
+          ${renderAilleursDossier(d, 'personnes')}
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${renderParcellesFiche(d) ? ligne('layout', 'Parcelles', renderParcellesFiche(d), null, 'prop-pleine') : ''}
         ${d.bien && Array.isArray(d.bien.lots) && d.bien.lots.length ? ligne('home', d.bien.lots.length > 1 ? 'Lots' : 'Lot', `<span class="prop-texte">${d.bien.lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span>`, null, 'prop-pleine') : ''}
       </dl>
-          ${renderCartesFichesDossier(d, 'biens')}
+          ${renderAilleursDossier(d, 'biens')}
         </div>
         <div class="fiche-dossier-droite">
       <dl class="fiche-proprietes">

@@ -132,7 +132,7 @@
   function ligneRendezVousSuccessionFiche(d) {
     const auj = isoAujourdhuiLocal();
     const lignes = rendezVousSuccession(d).map(r => `<span class="succ-rdv${r.date < auj ? ' passe' : ''}"><span class="dot-label ${r.annule ? 'dl-urgent' : (r.date < auj ? 'dl-neutre' : 'dl-pret')}"><span class="dot"></span>${r.annule ? 'Annulé / à replacer' : escapeHtml(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || 'Rendez-vous')}</span>
-      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}
+      <span class="prop-texte">${escapeHtml(dateAvecJourFr(r.date))}${r.heure ? ' à ' + escapeHtml(r.heure.replace(':', ' h ')) : ''}</span>${r.titre && normaliserPourRecherche(r.titre) !== normaliserPourRecherche(LIBELLES_ETAPE_RDV_SUCCESSION[r.etape] || '') ? ` <span class="hint">${escapeHtml(r.titre)}</span>` : ''}
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer de la fiche (l’agenda n’est pas modifié)" aria-label="Retirer ce rendez-vous de la fiche" onclick="retirerRendezVousSuccession('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button></span>`).join('');
     return `<span class="succ-rdvs">${lignes || '<span class="hint">Aucun rendez-vous placé</span>'}
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="placerRdvSuccessionAgenda('${escapeOnclickArg(d.id)}', 'autre')">${icone('calendar')}Ajouter un rendez-vous</wa-button></span>`;
