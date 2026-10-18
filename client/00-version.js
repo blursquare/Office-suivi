@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.280.0';
+  const VERSION_APP = '0.281.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.281.0', date: '2026-10-18 09:59', resume: "Sources juridiques officielles dans « Demander à CLAIRE » par OpenLegi : CLAIRE cherche un article de loi, une décision, le Journal officiel ou un texte consolidé (Légifrance), la doctrine fiscale (BOFiP) ou une société (registre national des entreprises) et cite la référence au lieu de répondre de mémoire. Jeton à coller dans Réglages › IA et relecture d'actes › Sources juridiques, avec « Tester la connexion ». Vers Légifrance et le BOFiP ne partent que des mots de droit, jamais un nom de client." },
     { version: '0.280.0', date: '2026-10-18 09:11', resume: "Consignes de CLAIRE (CLAIRE.md) : un carnet en Markdown pour toute l'étude, comme un CLAUDE.md — ton, vocabulaire, règles, corrections — lu par « Demander à CLAIRE » avant chaque conversation. Réglages › Consignes de CLAIRE pour l'écrire, l'importer, le télécharger ou revenir à la version précédente ; bouton « Corriger » sous chaque réponse de CLAIRE pour y ajouter une consigne datée. Un texte qui cite un client ou un dossier est refusé. CLAIRE essaie aussi d'autres voies avant de répondre qu'elle ne trouve pas." },
     { version: '0.279.2', date: '2026-10-18 08:44', resume: "Barre latérale : « Demander à CLAIRE » devient un champ en haut de la barre, sous le logo — on tape sa demande, Entrée l'envoie et ouvre la conversation (barre repliée : l'icône ouvre la page)." },
     { version: '0.279.1', date: '2026-10-18 07:37', resume: "Barre latérale : le tiroir des outils est replié au démarrage (un clic sur « Outils » l'ouvre) ; nouvelle icône pour Constitution de dossier (deux courriers), qui ressemblait trop à celle de l'agenda." },

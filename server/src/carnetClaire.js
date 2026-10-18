@@ -94,10 +94,11 @@ function motsNominatifs(texte, dossiers) {
 /**
  * Pure : le carnet tel que l'agent le reçoit — commentaires HTML retirés, borné ; emails, téléphones et mots des fiches remplacés par
  * des codes de la conversation (même table que le reste : rétablis au retour).
- * @param {string} texte @param {Set<string>} sensibles @param {Map<string, string>} table
+ * @param {string} texte @param {Set<string>} sensibles @param {Map<string, string>} table @param {number} [max]
+ * @param {{ nombres?: boolean }} [options] `nombres: false` : les longs nombres restent (identifiants Légifrance, numéros de pourvoi).
  */
-function masquerCarnet(texte, sensibles, table) {
-  let t = String(texte || '').replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, MAX_CARNET_AGENT);
+function masquerCarnet(texte, sensibles, table, max, options) {
+  let t = String(texte || '').replace(/<!--[\s\S]*?-->/g, '').replace(/\n{3,}/g, '\n\n').trim().slice(0, max || MAX_CARNET_AGENT);
   const parOrigine = new Map([...table].map(([jeton, origine]) => [origine.toLowerCase(), jeton]));
   const jeton = (prefixe, origine) => {
     const deja = parOrigine.get(origine.toLowerCase());
@@ -111,7 +112,7 @@ function masquerCarnet(texte, sensibles, table) {
   t = t.replace(/\b[A-Za-z]{2}\d{2}(?:\s?[A-Za-z0-9]{4}){3,7}(?:\s?[A-Za-z0-9]{1,3})?\b/g, (m) => jeton('REF', m));
   t = t.replace(/\bA\s?20\d{2}\s?\d{5}\b/g, (m) => jeton('REF', m));
   t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
-  t = t.replace(/\d(?:[\s.]?\d){5,}/g, (m) => (/^\d{4}$/.test(m.replace(/\D/g, '')) ? m : jeton('NUM', m)));
+  if (!options || options.nombres !== false) t = t.replace(/\d(?:[\s.]?\d){5,}/g, (m) => (/^\d{4}$/.test(m.replace(/\D/g, '')) ? m : jeton('NUM', m)));
   // Un mot après une civilité (« Monsieur Zorglub », « Mme Durand ») : un tiers absent des fiches ; jamais un nom de l'étude.
   // Jusqu'à trois mots à majuscule (« Monsieur Jean DURAND »), un confrère (« Maître X ») compris.
   t = t.replace(/(^|[^\p{L}])(Monsieur|Madame|Mademoiselle|Ma[iî]tre|Me|M\.|Mme|Mlle|Messieurs|Mesdames)((?:[ \t]+\p{Lu}[\p{L}\p{M}'’-]*){1,3})/gu, (m, avant, civ, noms) =>

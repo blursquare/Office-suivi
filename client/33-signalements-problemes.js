@@ -342,6 +342,7 @@
     if (cle === 'noms-nas') initNomsNas();
     if (cle === 'memoire') ouvrirReglagesMemoire();
     if (cle === 'consignes') ouvrirCarnetClaire();
+    if (cle === 'relecture') chargerReglagesOpenlegi();
     if (cle === 'modeles') ouvrirReglagesModelesEmails();
   }
 

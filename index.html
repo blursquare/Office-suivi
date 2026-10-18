@@ -2143,6 +2143,26 @@
         <span id="reglages-assistant-resultat"></span>
       </div>
     </div>
+    <!-- Sources juridiques officielles par OpenLegi (étude 18/10) — server/src/openlegi.js, client/84-openlegi.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sources juridiques (OpenLegi) <span class="info-i" tabindex="0" data-info="Légifrance (codes, jurisprudence, Journal officiel, textes consolidés), BOFiP et registre national des entreprises, par OpenLegi (hébergé en France). L'agent de « Demander à CLAIRE » y cherche un article, une décision ou une société. Pour Légifrance et le BOFiP, seuls des mots de droit partent, jamais un nom de client ; pour le registre des entreprises, le nom de la société cherchée part. Le jeton reste sur le serveur du bureau."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-openlegi-jeton">Jeton OpenLegi</label><span class="info-i" tabindex="0" data-info="Sur auth.openlegi.fr, tableau de bord. Laisser vide conserve celui en place."></span></div>
+          <input type="password" id="reglages-openlegi-jeton" autocomplete="off" placeholder="Jeton personnel">
+        </div>
+        <label class="reglages-option" for="reglages-openlegi-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte les sources juridiques</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-openlegi-actif"></wa-switch>
+        </label>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesOpenlegi()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="testerOpenlegi()">Tester la connexion</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="effacerJetonOpenlegi()">Effacer le jeton</wa-button>
+        <span id="reglages-openlegi-resultat"></span>
+      </div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Relecture d'actes : modèle d'IA</h3>
       <div class="reglages-liste">
@@ -2849,5 +2869,6 @@
 <script src="client/81-constitution-zonage.js"></script>
 <script src="client/82-authentic-recu.js"></script>
 <script src="client/83-carnet-claire.js"></script>
+<script src="client/84-openlegi.js"></script>
 </body>
 </html>

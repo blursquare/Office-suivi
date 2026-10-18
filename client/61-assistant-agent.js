@@ -242,6 +242,7 @@
     if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     if (nom === 'consulter_site') return consulterSiteAgent(e);
+    if (/^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(nom)) return appelOpenlegiAgent(nom, e);
     return { erreur: 'outil inconnu' };
   }
 
@@ -281,7 +282,7 @@
         assistantAgentConversation = rep.conversation || assistantAgentConversation;
         const resultats = [];
         for (const appel of rep.appels) {
-          assistantEtapeAgent = LIBELLES_OUTILS_AGENT[appel.nom] || 'Je réfléchis…';
+          assistantEtapeAgent = LIBELLES_OUTILS_AGENT[appel.nom] || libelleOutilOpenlegi(appel.nom) || 'Je réfléchis…';
           renderAssistant();
           try { resultats.push({ id: appel.id, contenu: await executerOutilAgent(appel.nom, appel.entree) }); }
           catch (e) { resultats.push({ id: appel.id, contenu: { erreur: String(e && e.message || e).slice(0, 200) }, erreur: true }); }

@@ -149,7 +149,7 @@ test('page : suggestions avec les noms des dossiers du poste, titre d’un rende
   // Toutes les données de la fiche qui désignent un dossier (étude 07/10) — lues par le code du serveur, jamais par l'IA.
   const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', civilite: 'M', telephones: ['06'] }],
     emailAcquereur: 'acq@x.fr', bien: { adresse: 'BLOIS (41000), 2 rue des Lices' }, nomAgence: 'Agence du Château', referenceAuthentic: 'A 2026 00247' }]);
-  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","prenom":"P","nomUsage":"","civilite":"M"}],'
+  assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","prenom":"P","nomUsage":"","civilite":"M","societe":false}],'
     + '"autres":["BLOIS (41000), 2 rue des Lices","Agence du Château"],"reference":"A 2026 00247","contacts":["acq@x.fr","06"]}]');
 });
 

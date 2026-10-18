@@ -308,7 +308,7 @@
       return {
         id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
         parties: parties.map(p => ({ nom: String((p && p.nom) || ''), prenom: texte(p && p.prenom), nomUsage: texte(p && p.nomUsage),
-          civilite: String((p && p.civilite) || '') })).filter(p => p.nom),
+          civilite: String((p && p.civilite) || ''), societe: !!(p && p.qualitePersonne === 'morale') })).filter(p => p.nom),
         autres: [d.adresseBien, d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
           d.notaireVendeur, d.notaireAcquereur].map(texte).filter(Boolean),
         reference: texte(d.referenceAuthentic),

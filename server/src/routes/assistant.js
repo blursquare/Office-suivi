@@ -10,6 +10,7 @@ const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELES_AGENT, MODELES_AGENT_MISTRAL } = require('../assistantMistral');
 const { tourAgent } = require('../assistantAgent');
 const { lireCarnet } = require('../carnetClaire');
+const { lireReglagesOpenlegi } = require('./openlegi');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
@@ -27,7 +28,7 @@ function dossiersDuCorps(corps) {
     return Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
       id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
       parties: Array.isArray(d.parties) ? d.parties.filter((p) => p && typeof p.nom === 'string').slice(0, 20).map((p) => ({
-        nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12)
+        nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12), societe: p.societe === true
       })) : [],
       autres: listeChaines(d.autres, 10, 300),
       reference: chaine(d.reference, 40),
@@ -168,6 +169,11 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     if (!a) { const r = lireReglages(); res.json({ repli: true, raison: !r.agent ? 'Agent coupé dans les Réglages.' : r.moteur === 'locale' ? 'IA locale choisie : pas d’agent.' : 'Aucune clé Claude ni Mistral enregistrée.' }); return; }
     const resultats = Array.isArray(corps.resultats) ? corps.resultats.slice(0, 20).filter((r) => r && typeof r.id === 'string')
       .map((r) => ({ id: r.id.slice(0, 120), contenu: r.contenu, erreur: r.erreur === true })) : undefined;
+    // Outils d'OpenLegi : lus par l'agent seulement quand une conversation naît (ceux d'une conversation en cours sont fixés).
+    const chargerOutilsExternes = async () => {
+      const ol = lireReglagesOpenlegi(parametresRepo);
+      return ol.jeton && ol.actif && injections && injections.openlegi ? injections.openlegi.outilsAgent() : [];
+    };
     const sortie = await tourAgent({
       conversation: chaine(corps.conversation, 80),
       texte: chaine(corps.texte, 2000),
@@ -177,7 +183,8 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       // Carnet de consignes de l'étude (CLAIRE.md) : pris par l'agent au premier tour de chaque conversation (reprise comprise).
       carnet: lireCarnet(parametresRepo).texte
     }, { cle: a.cle, fournisseur: a.fournisseur, modele: a.modele, region: a.region, client: injections && injections.clientAgent,
-      fetchMistral: injections && injections.fetchMistral, parametresRepo });
+      fetchMistral: injections && injections.fetchMistral, parametresRepo, chargerOutilsExternes,
+      surRefusOutilsExternes: () => { if (injections && injections.openlegi) injections.openlegi.suspendre(); } });
     if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });
     else if (sortie.reponse) noterVerification(parametresRepo, 'assistant-agent', { detail: String(sortie.modele || '') });
     res.json(sortie);
