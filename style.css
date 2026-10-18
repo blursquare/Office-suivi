@@ -10103,3 +10103,11 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .import-choix-icone { grid-row: auto; width: 40px; height: 40px; justify-content: center; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); color: var(--focus); margin-bottom: 8px; }
 .import-choix-titre { font-size: var(--texte-l); font-weight: 500; }
 .import-choix-sous { font-size: var(--texte-m); }
+/* Widget « Nouveautés » (étude 18/10) : version et date en tête, flèches pour remonter le temps, texte qui défile dans la carte. */
+.nouveautes .w-corps { overflow-y: auto; }
+.nv-texte { margin: 0; font-size: var(--texte-m); line-height: 1.45; color: var(--ink-soft); }
+.w-petit.nouveautes .nv-texte { font-size: var(--texte-s); }
+.nv-version { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.nv-derniere { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); }
+.nv-nav { display: inline-flex; align-items: center; gap: 2px; }
+.nv-rang { font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }

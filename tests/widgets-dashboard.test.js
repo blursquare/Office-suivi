@@ -13,9 +13,9 @@ const ids = (dispo) => dispo.map(w => w.id).join(',');
 
 test('sans préférence : tous les widgets, dans l’ordre et aux tailles par défaut', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(d), 'assistant,aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
-  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'grand1,moyen2,moyen1,petit1,petit1,moyen2,moyen2,grand1');
-  assert.ok(d.every(w => w.masque === false));
+  assert.equal(ids(d), 'assistant,aujourdhui,agenda,nouveautes,portefeuille,pieces,avancement,activite,statistiques');
+  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'grand1,moyen2,moyen1,petit1,petit1,petit1,moyen2,moyen2,grand1');
+  assert.equal(d.filter(w => w.masque).map(w => w.id).join(','), 'portefeuille', 'Dossiers ouverts retiré par défaut : Nouveautés le remplace (étude 18/10)');
 });
 
 test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une taille permise, manquants ajoutés à la fin', () => {
@@ -26,7 +26,7 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
     { id: 'agenda', taille: 'petit' }             // doublon ignoré
   ]);
   // « Demander à CLAIRE », ajouté après coup, se place en tête ; les autres manquants à la fin.
-  assert.equal(ids(d), 'assistant,agenda,avancement,aujourdhui,portefeuille,pieces,activite,statistiques');
+  assert.equal(ids(d), 'assistant,agenda,avancement,aujourdhui,nouveautes,portefeuille,pieces,activite,statistiques');
   d.shift();
   assert.equal(d[0].taille + d[0].hauteur, 'moyen1');
   // Préférence d'avant la hauteur réglable : « grand » (2 × 2) devient moyen sur 2 rangées.
@@ -36,16 +36,16 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
 
 test('déplacer : à une position donnée, bornée', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,assistant,aujourdhui,agenda,portefeuille,avancement,activite,statistiques');
-  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'assistant,agenda,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,assistant,aujourdhui,agenda,nouveautes,portefeuille,avancement,activite,statistiques');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'assistant,agenda,nouveautes,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
   assert.equal(ids(app.deplacerWidgetDans(d, 'inconnu', 0)), ids(d));
 });
 
 test('flèches : un pas parmi les widgets visibles, les masqués sont sautés', () => {
   let d = app.dispositionWidgetsDepuis(null);
   d = d.map(w => w.id === 'agenda' ? Object.assign({}, w, { masque: true }) : w);
-  // portefeuille avance d'un cran « visible » : il passe devant aujourdhui (agenda masqué est sauté).
-  assert.equal(ids(app.decalerWidgetDans(d, 'portefeuille', -1)), 'assistant,portefeuille,aujourdhui,agenda,pieces,avancement,activite,statistiques');
+  // nouveautes avance d'un cran « visible » : il passe devant aujourdhui (agenda masqué est sauté).
+  assert.equal(ids(app.decalerWidgetDans(d, 'nouveautes', -1)), 'assistant,nouveautes,aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
   assert.equal(ids(app.decalerWidgetDans(d, 'assistant', -1)), ids(d), 'déjà premier');
   assert.equal(ids(app.decalerWidgetDans(d, 'statistiques', 1)), ids(d), 'déjà dernier');
 });
@@ -53,7 +53,7 @@ test('flèches : un pas parmi les widgets visibles, les masqués sont sautés', 
 test('glisser-déposer : la disposition suit l’ordre du DOM, tailles et masquage gardés', () => {
   const d = app.dispositionWidgetsDepuis([{ id: 'pieces', taille: 'grand', hauteur: 3, masque: true }]);
   const n = app.dispositionDansOrdre(d, ['activite', 'inconnu', 'aujourdhui', 'pieces']);
-  assert.equal(ids(n), 'activite,aujourdhui,pieces,assistant,agenda,portefeuille,avancement,statistiques');
+  assert.equal(ids(n), 'activite,aujourdhui,pieces,assistant,agenda,nouveautes,portefeuille,avancement,statistiques');
   const p = n.find(w => w.id === 'pieces');
   assert.equal(p.taille + p.hauteur + ':' + p.masque, 'grand3:true');
 });
@@ -110,4 +110,10 @@ test('activité : les relevés de CLAIRE (sans auteur, hors agenda) servent d’
     { date: '2026-09-29T10:00:00Z', auteur: 'Julie VASSELIN', texte: 'Email préparé' }
   ] }]);
   assert.equal(l.map(e => e.source + ':' + e.texte).join('|'), 'claire:Pièce trouvée sur le NAS : Diagnostics');
+});
+
+test('Nouveautés : seulement les versions où le MINEUR augmente, la plus récente d’abord, date lisible', () => {
+  const liste = app.nouveautesClaire([{ version: '0.12.0', date: '2026-10-18 19:10', resume: 'B' }, { version: '0.11.3', date: '2026-10-17', resume: 'x' }, { version: '0.11.0', date: '2026-10-16', resume: 'A' }, { version: '0.10.0', resume: '' }]);
+  assert.equal(liste.map(n => n.version).join(','), '0.12.0,0.11.0');
+  assert.equal(app.dateNouveaute('2026-10-18 19:10'), '18 oct. 2026');
 });

@@ -186,7 +186,7 @@ const SIDEBAR_PREFERENCES = ['ouverte', 'fermee'];
 // Widgets du tableau de bord (29/09) : ordre, taille et visibilité propres à chaque collaborateur.
 // Liste blanche des identifiants et des tailles : tout le reste est écarté ; un doublon garde sa
 // première position. Le client complète avec les widgets absents (nouveaux widgets d'une mise à jour).
-const WIDGETS_PREFERENCES = ['assistant', 'aujourdhui', 'avancement', 'agenda', 'portefeuille', 'activite', 'pieces', 'statistiques'];
+const WIDGETS_PREFERENCES = ['assistant', 'aujourdhui', 'avancement', 'agenda', 'nouveautes', 'portefeuille', 'activite', 'pieces', 'statistiques'];
 const TAILLES_WIDGETS = ['petit', 'moyen', 'grand'];
 const HAUTEURS_WIDGETS = [1, 2, 3];
 

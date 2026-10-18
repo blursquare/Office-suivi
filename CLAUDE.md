@@ -1075,6 +1075,7 @@ sont plus appelées par le poste.
   par défaut = rectangle plein (4 × 4, 2 × 8 sur téléphone, vérifié par `placementWidgets` dans les
   tests), les plus utiles d'abord ; la changer = incrémenter `VERSION_DISPOSITION_WIDGETS` (chaque
   collaborateur y est ramené une fois).
+  **Widget « Nouveautés »** (étude 18/10, 0.288.0, `client/87-widget-nouveautes.js`) : dernière nouveauté (version `M.m.0` de `HISTORIQUE_VERSIONS`), version et date, flèches pour remonter le temps ; petit par défaut à la place de « Dossiers ouverts », qui est retiré de la disposition par défaut (`masqueDefaut`). Le résumé d'une nouveauté est lu par l'étude : il s'écrit pour elle.
   **Widget « Statistiques »** (étude, 02/10, `renderStatistiquesDashboard`, grand × 1 rangée en fin de grille) : délais
   moyens (« N j en moyenne » sur chaque délai, même en petit — étude 03/10) depuis la **signature de l'avant-contrat** (étude 02/10 : `d.dateAvantContrat` — gardée à la création (date validée à l'import, jamais remplacée), reprise d'Authentic si vide, saisissable sur la fiche ; **plus jamais relue automatiquement dans un PDF du NAS** (étude 02/10, `retirerDateAvantContratLueNas` a retiré celles posées ainsi) — à défaut l'ouverture, `debutDossierStatistiques`) ; ouverture = `dateOuvertureDossier` (entrée « Dossier créé ») jusqu'au prêt (`dateObtentionPret`,
   historique), à la renonciation de préemption (`dateRenonciationPreemption` : `piecesTrouveesLe` puis historique) et

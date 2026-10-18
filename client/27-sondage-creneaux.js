@@ -785,6 +785,7 @@
     rendreBloc('avancement', () => renderAvancementDossiers(perimetreActifs));
     rendreBloc('kpis', () => renderKpisDashboard(perimetreActifs, perimetreTous));
     rendreBloc('statistiques', () => renderStatistiquesDashboard(perimetreTous));
+    rendreBloc('nouveautes', () => renderWidgetNouveautes());
     rendreBloc('assistant', () => renderWidgetAssistant(perimetreActifs));
     rendreBloc('accueil', () => renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs)));
     rendreBloc('rendez-vous', () => renderRendezVousDashboard(perimetreActifs));

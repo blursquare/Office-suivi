@@ -1228,7 +1228,7 @@
   // 4 colonnes × 4 rangées sans un trou — et 2 × 8 sur téléphone (voir placementWidgets, testé).
   // Changer cette disposition = incrémenter VERSION_DISPOSITION_WIDGETS : chaque collaborateur y est
   // ramené une fois, puis garde ses réglages.
-  var VERSION_DISPOSITION_WIDGETS = 2;
+  var VERSION_DISPOSITION_WIDGETS = 3;
   var TAILLES_WIDGET = ['petit', 'moyen', 'grand'];
   var HAUTEURS_WIDGET = [1, 2, 3];
   // enTete : un widget ajouté après coup, placé en tête (et non à la fin) chez qui avait déjà sa disposition.
@@ -1236,7 +1236,9 @@
     { id: 'assistant', titre: 'Demander à CLAIRE', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'sparkle', enTete: true, description: 'Une question ou un geste en une phrase : la réponse s’affiche sur la page « Demander à CLAIRE ».' },
     { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'sun', description: 'Ce qui est à faire aujourd’hui sur vos dossiers, et vos rappels.' },
     { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1, icone: 'calendar', description: 'La semaine de l’office et les prochaines signatures.' },
-    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
+    { id: 'nouveautes', titre: 'Nouveautés', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'sparkle', description: 'La dernière nouveauté de CLAIRE, sa version et sa date ; les flèches remontent le temps.' },
+    // Retiré de la disposition par défaut (étude 18/10 : « Nouveautés » le remplace) ; il se rajoute depuis « Widgets ».
+    { id: 'portefeuille', titre: 'Dossiers ouverts', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, masqueDefaut: true, icone: 'folder', description: 'Les dossiers en cours, par statut, et les signatures du mois.' },
     { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
     { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
     { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' },
@@ -1272,7 +1274,7 @@
     const enTete = [];
     WIDGETS_DASHBOARD.forEach(def => {
       if (vus.has(def.id)) return;
-      const w = { id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: false };
+      const w = { id: def.id, taille: def.defaut, hauteur: def.hauteur, masque: !!def.masqueDefaut };
       if (def.enTete && out.length) enTete.push(w); else out.push(w);
     });
     return enTete.concat(out);
