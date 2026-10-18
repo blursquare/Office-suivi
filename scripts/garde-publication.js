@@ -22,6 +22,9 @@ const os = require('node:os');
 const path = require('node:path');
 
 const ETAPES = ['verifie', 'relu'];
+/** Heures de bureau de l'étude (heure de Paris) : une nouveauté n'est envoyée sur main qu'entre les deux (étude 18/10). */
+const HEURE_DEBUT_BUREAU = 8;
+const HEURE_FIN_BUREAU = 19;
 const LIBELLES = { verifie: 'npm run verifier', relu: 'la relecture indépendante (/relire), puis npm run relu' };
 const OPTIONS_GIT_AVEC_VALEUR = ['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path', '--config-env'];
 const OPTIONS_PUSH_AVEC_VALEUR = ['-o', '--push-option', '--repo', '--receive-pack', '--exec'];
@@ -176,6 +179,33 @@ function outilGithubChangeMain(outil, entree) {
   return false;
 }
 
+/** Pure : l'heure de Paris (0-23) d'un instant. @param {Date} date */
+function heureParis(date) {
+  const parties = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: 'numeric', hourCycle: 'h23' }).formatToParts(date);
+  return Number((parties.find((p) => p.type === 'hour') || { value: '0' }).value) % 24;
+}
+
+/** Pure : hors des heures de bureau de l'étude — de 19 h à 8 h (heure de Paris), personne pour essayer une nouveauté (étude 18/10). @param {Date} date */
+function horsHeuresBureau(date) {
+  const h = heureParis(date);
+  return h >= HEURE_FIN_BUREAU || h < HEURE_DEBUT_BUREAU;
+}
+
+/** Pure : le numéro de version (VERSION_APP) écrit dans le texte de client/00-version.js, '' s'il n'y est pas. @param {string} texte */
+function versionDansTexte(texte) {
+  const m = /VERSION_APP\s*=\s*['"](\d+\.\d+\.\d+)['"]/.exec(String(texte || ''));
+  return m ? m[1] : '';
+}
+
+/** Pure : la version envoyée apporte-t-elle une nouveauté par rapport à celle de main (MAJEUR ou MINEUR plus grand) ? @param {string} envoyee @param {string} surMain */
+function apporteNouveaute(envoyee, surMain) {
+  const a = String(envoyee || '').split('.').map(Number);
+  const b = String(surMain || '').split('.').map(Number);
+  if (a.length !== 3 || a.some(Number.isNaN)) return false;
+  if (b.length !== 3 || b.some(Number.isNaN)) return a[2] === 0; // main illisible : une version en .0 est une nouveauté
+  return a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]);
+}
+
 function git(args, opts = {}) { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], ...opts }).trim(); }
 
 /** L'empreinte du contenu de l'arbre de travail (index temporaire : HEAD + toutes les modifications, nouveaux fichiers compris). */
@@ -249,6 +279,17 @@ function crochet() {
         + (nonSuivis ? ` Attention : des fichiers non suivis (git status) entrent dans le contenu testé et le séparent de ${src} — les commiter ou les déplacer, puis relancer.` : ''));
     }
   }
+  // Étude 18/10 : « entre 19 h et 8 h le lendemain tu n'envoies plus les nouveautés sur main, je ne suis pas au bureau pour tester ».
+  if (horsHeuresBureau(new Date())) {
+    const lire = (/** @type {string} */ ref) => { try { return versionDansTexte(git(['show', `${ref}:client/00-version.js`])); } catch (_) { return ''; } };
+    const surMain = lire('origin/main');
+    for (const src of sources) {
+      const envoyee = lire(src);
+      if (apporteNouveaute(envoyee, surMain)) {
+        return refuser(`la version ${envoyee} est une nouveauté et il est ${heureParis(new Date())} h à Paris : entre ${HEURE_FIN_BUREAU} h et ${HEURE_DEBUT_BUREAU} h, l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main à partir de ${HEURE_DEBUT_BUREAU} h (une correction seule passe).`);
+      }
+    }
+  }
   return 0;
 }
 
@@ -260,4 +301,4 @@ if (require.main === module) {
   process.exit(code);
 }
 
-module.exports = { sansDocumentsEnLigne, segmentsCommande, motsSegment, sourcesVersMain, commandePousseVersMain, commandeChangeMainSurGithub, outilGithubChangeMain };
+module.exports = { heureParis, horsHeuresBureau, versionDansTexte, apporteNouveaute, sansDocumentsEnLigne, segmentsCommande, motsSegment, sourcesVersMain, commandePousseVersMain, commandeChangeMainSurGithub, outilGithubChangeMain };
