@@ -69,7 +69,7 @@ test('garde : découpe une ligne de commande sans couper dans les guillemets', (
   assert.equal(G.segmentsCommande('git commit -m "x && y" && git push').length, 2);
 });
 
-test('garde : une nouveauté ne part pas sur main entre 19 h et 8 h (heure de Paris, étude 18/10)', () => {
+test('garde : rien ne part sur main entre 19 h et 8 h (heure de Paris, étude 18/10)', () => {
   // Octobre = heure d'été (UTC+2), décembre = heure d'hiver (UTC+1).
   assert.equal(G.heureParis(new Date('2026-10-18T16:59:00Z')), 18);
   assert.equal(G.horsHeuresBureau(new Date('2026-10-18T16:59:00Z')), false);
@@ -78,13 +78,4 @@ test('garde : une nouveauté ne part pas sur main entre 19 h et 8 h (heure de Pa
   assert.equal(G.horsHeuresBureau(new Date('2026-10-19T06:00:00Z')), false); // 8 h
   assert.equal(G.horsHeuresBureau(new Date('2026-12-15T17:30:00Z')), false); // 18 h 30 l'hiver
   assert.equal(G.horsHeuresBureau(new Date('2026-12-15T18:00:00Z')), true); // 19 h l'hiver
-  assert.equal(G.versionDansTexte("const VERSION_APP = '0.288.1';"), '0.288.1');
-  assert.equal(G.versionDansTexte('rien'), '');
-  assert.equal(G.apporteNouveaute('0.289.0', '0.288.1'), true);
-  assert.equal(G.apporteNouveaute('0.289.2', '0.288.1'), true); // une nouveauté suivie de corrections
-  assert.equal(G.apporteNouveaute('1.0.0', '0.300.4'), true);
-  assert.equal(G.apporteNouveaute('0.288.2', '0.288.1'), false); // correction seule : passe
-  assert.equal(G.apporteNouveaute('0.288.1', '0.288.1'), false);
-  assert.equal(G.apporteNouveaute('', '0.288.1'), false);
-  assert.equal(G.apporteNouveaute('0.289.0', ''), true);
 });
