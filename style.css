@@ -10103,21 +10103,27 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .import-choix-icone { grid-row: auto; width: 40px; height: 40px; justify-content: center; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); color: var(--focus); margin-bottom: 8px; }
 .import-choix-titre { font-size: var(--texte-l); font-weight: 500; }
 .import-choix-sous { font-size: var(--texte-m); }
-/* Widget « Nouveautés » (étude 18/10) : version et date en tête, flèches pour remonter le temps, texte qui défile dans la carte. */
-.nouveautes .w-corps { overflow-y: auto; }
-.nv-texte { margin: 0; font-size: var(--texte-m); line-height: 1.45; color: var(--ink-soft); }
-.w-petit.nouveautes .nv-texte { font-size: var(--texte-s); }
-.nv-version { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
-.nv-derniere { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); }
-.nv-nav { display: inline-flex; align-items: center; gap: 2px; }
-.nv-rang { font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 40px; text-align: center; }
-/* « Nouveau dossier » : écran de départ centré, comme l'accueil de la Constitution (étude 18/10). */
-.nd-accueil-tete { display: none; }
-#onglet-nouveau.nd-accueil .nd-accueil-tete { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; margin: 24px 0 20px; }
-#onglet-nouveau.nd-accueil .panel { background: transparent; border: none; box-shadow: none; }
-#onglet-nouveau.nd-accueil .panel > summary, #onglet-nouveau.nd-accueil .wizard-stepper, #onglet-nouveau.nd-accueil #wizard-step-1 > .wizard-nav { display: none; }
-#onglet-nouveau.nd-accueil .import-choix { gap: 16px; }
-#onglet-nouveau.nd-accueil .import-choix-carte { min-height: 180px; padding: 24px; box-shadow: var(--shadow-card); border-color: var(--bord-carte); }
-#onglet-nouveau.nd-accueil .import-choix-icone { width: 48px; height: 48px; }
-#onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
+/* Widget « Nouveautés » (étude 18/10 : « liste synthétique, les 10 dernières, plus sympa ») : version en pastille, points courts à puce
+   de l'accent, pastilles des 10 dernières en bas pour y aller d'un clic. */
+.nouveautes .w-corps { overflow: hidden; gap: 8px; }
+.nv-titre-icone { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; margin-right: 6px; border-radius: var(--rayon-s); vertical-align: -4px; color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); }
+.nv-titre-icone .icone { width: 14px; height: 14px; }
+.nouveautes .w-sous { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.nv-version { padding: 0 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xs); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--paper-sunk); }
+.nv-date { font-size: var(--texte-s); color: var(--muted); }
+.nv-derniere { padding: 0 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--on-accent); background: var(--focus); }
+.nv-nav { display: inline-flex; align-items: center; gap: 0; }
+.nv-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.nv-points li { position: relative; padding-left: 14px; font-size: var(--texte-m); line-height: 1.4; color: var(--ink-soft); }
+.nv-points li::before { content: ''; position: absolute; left: 2px; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--focus); }
+.nv-points strong { font-weight: 600; color: var(--ink); }
+.w-petit.nouveautes .nv-points li { font-size: var(--texte-s); }
+.w-petit.nouveautes .nv-points li::before { top: 6px; }
+.nv-reste { font-size: var(--texte-s); color: var(--muted); }
+.nv-pastilles { flex: none; display: flex; justify-content: center; gap: 4px; padding-top: 4px; }
+.nv-pastille { width: 8px; height: 8px; padding: 0; border: none; border-radius: 50%; background: var(--line); cursor: pointer; transition: background-color 150ms ease; }
+.nv-pastille:hover { background: color-mix(in srgb, var(--focus) 50%, var(--line)); }
+.nv-pastille.actif { background: var(--focus); }
+.nv-pastille:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .w-petit.nouveautes .w-titre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-petit.nouveautes .nv-derniere { display: none; }

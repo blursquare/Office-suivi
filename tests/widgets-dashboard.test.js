@@ -117,3 +117,12 @@ test('Nouveautés : seulement les versions où le MINEUR augmente, la plus réce
   assert.equal(liste.map(n => n.version).join(','), '0.12.0,0.11.0');
   assert.equal(app.dateNouveaute('2026-10-18 19:10'), '18 oct. 2026');
 });
+
+test('Nouveautés : les 10 dernières, résumé en points courts (sujet en tête, coupés, reste compté)', () => {
+  const h = Array.from({ length: 14 }, (_, i) => ({ version: `0.${30 - i}.0`, date: '2026-10-01', resume: 'R' }));
+  assert.equal(app.nouveautesClaire(h, 10).length, 10);
+  const r = app.pointsNouveaute('Nouveau dossier : la création passe par Authentic. Constitution : accueil central ; bouton « Effacer ». Suivi : liste Ventes / Successions.', 3, 40);
+  assert.equal(r.points.map(p => (p.sujet ? p.sujet + '|' : '') + p.texte).join(' / '), 'Nouveau dossier|La création passe par Authentic / Constitution|Accueil central / Bouton « Effacer »');
+  assert.equal(r.reste, 1);
+  assert.ok(app.pointsNouveaute('Un texte très long '.repeat(20), 1, 50).points[0].texte.endsWith('…'));
+});
