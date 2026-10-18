@@ -47,8 +47,8 @@
   //    vendeur, acquéreur, bien) repris d'un clic, puis « Vérifier » (une succession : « Finaliser »).
   // L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée.
   var MODES_IMPORT = [
-    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Déposez le compromis signé : il apporte dates butoir et engagements, le dossier d’Authentic apporte le reste' },
-    { cle: 'seul', icone: 'link', titre: 'Depuis Authentic', sous: 'Sans PDF : le dossier ouvert dans Authentic, vente ou succession, repris d’un clic' }
+    { cle: 'pdf', icone: 'file-text', titre: 'Vente : depuis l’avant-contrat', sous: 'Déposez le compromis ou la promesse signé (PDF) : dates butoir et engagements, puis le dossier d’Authentic apporte le reste' },
+    { cle: 'seul', icone: 'link', titre: 'Succession ou autres : depuis Authentic', sous: 'Sans PDF : le dossier ouvert dans Authentic, repris d’un clic' }
   ];
   // Aucune entrée choisie au départ (étude 08/10 : « il ne propose pas tout de suite avec ou sans PDF ») : les deux cartes
   // seules, sans zone de dépôt ni « Suivant », jusqu'au choix.

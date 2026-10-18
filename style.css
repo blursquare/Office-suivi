@@ -10127,3 +10127,17 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .nv-pastille:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .w-petit.nouveautes .w-titre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .w-petit.nouveautes .nv-derniere { display: none; }
+/* Cartes de « Nouveau dossier » : l'icône et le titre sur une ligne, la phrase dessous (étude 18/10). */
+.import-choix-carte { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; align-items: center; }
+.import-choix-carte .import-choix-icone { grid-column: 1; grid-row: 1; margin-bottom: 0; }
+.import-choix-carte .import-choix-titre { grid-column: 2; grid-row: 1; }
+.import-choix-carte .import-choix-sous { grid-column: 1 / -1; grid-row: 2; margin-top: 8px; }
+/* « Nouveau dossier » : écran de départ centré, comme l'accueil de la Constitution (étude 18/10). */
+.nd-accueil-tete { display: none; }
+#onglet-nouveau.nd-accueil .nd-accueil-tete { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; margin: 24px 0 20px; }
+#onglet-nouveau.nd-accueil .panel { background: transparent; border: none; box-shadow: none; }
+#onglet-nouveau.nd-accueil .panel > summary, #onglet-nouveau.nd-accueil .wizard-stepper, #onglet-nouveau.nd-accueil #wizard-step-1 > .wizard-nav { display: none; }
+#onglet-nouveau.nd-accueil .import-choix { gap: 16px; }
+#onglet-nouveau.nd-accueil .import-choix-carte { min-height: 150px; padding: 24px; box-shadow: var(--shadow-card); border-color: var(--bord-carte); align-content: start; }
+#onglet-nouveau.nd-accueil .import-choix-icone { width: 48px; height: 48px; }
+#onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
