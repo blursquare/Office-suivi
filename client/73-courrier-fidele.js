@@ -69,7 +69,7 @@
     const vide = () => p.push(xmlParagrapheFidele(''));
     for (let i = 0; i < doc.adresseDebut; i++) vide();
     doc.adresse.forEach(l => p.push(xmlParagrapheFidele(l)));
-    const blancs = Math.max(1, LIGNES_FIDELE.ligneDate - doc.adresseDebut - doc.adresse.length);
+    const blancs = Math.max(1, (doc.ligneDate || LIGNES_FIDELE.ligneDate) - doc.adresseDebut - doc.adresse.length);
     for (let i = 0; i < blancs; i++) vide();
     p.push(xmlParagrapheFidele(doc.date));
     doc.lignes.forEach(l => { if (typeof l === 'string') p.push(xmlParagrapheFidele(l)); else p.push(xmlTableauFidele(l)); });
@@ -130,7 +130,7 @@
     // Adresse et date : colonne de droite, positions fixes.
     y = L.depart + doc.adresseDebut * L.pas;
     doc.adresse.forEach(l => ligneSimple(l, L.colonneDroite));
-    y = Math.max(y + L.pas, L.depart + L.ligneDate * L.pas);
+    y = Math.max(y + L.pas, L.depart + (doc.ligneDate || L.ligneDate) * L.pas);
     ligneSimple(doc.date, L.colonneDroite);
     doc.lignes.forEach(l => { if (typeof l === 'string') paragraphe(l); else tableauPdfFidele(l, o, () => y, (v) => { y = v; }, bas, saut); });
     y += (doc.blancsSignature || 0) * L.pas;
@@ -297,7 +297,7 @@
     doc.adresse.forEach((l, i) => ligne(runsHtml(l), true, edit ? 'cstf-modifiable' : '', editableAttrs('data-dest', i)));
     // Une ligne de plus, vide, pour ajouter une ligne au destinataire.
     if (edit && doc.adresse.length < 7) ligne('', true, 'cstf-modifiable cstf-ajout-ligne', editableAttrs('data-dest', doc.adresse.length));
-    while (index < L.ligneDate) ligne('', true);
+    while (index < (doc.ligneDate || L.ligneDate)) ligne('', true);
     ligne(escapeHtml(doc.date), true);
     const retouchees = new Set((options && options.retouchees) || []);
     doc.lignes.forEach((l, i) => {

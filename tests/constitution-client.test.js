@@ -190,13 +190,13 @@ test('runsLigneCourrier et refLignesCourrier : gras et souligné ; colonne « No
     'Nos Réf : VTE DUPONT|A 2026 00299|Dossier suivi par :|Julie VASSELIN|office.gossart@notaires.fr|0254786170');
 });
 
-test('xmlCorpsCourrierFidele : une ligne = un paragraphe Times 11 sans espacement, adresse puis date à la 10e ligne, tableau grisé, questionnaire rempli', () => {
+test('xmlCorpsCourrierFidele : une ligne = un paragraphe Times 11 sans espacement, adresse puis date à la 11e ligne (ligne vide ajoutée, étude 18/10), tableau grisé, questionnaire rempli', () => {
   const doc = app.documentCourrierVente('assainissement', { destinataire: ['AGGLOPOLYS', 'Service <assainissement>'], adresseImmeuble: 'X & Y', parcelles: [{ section: 'AB', numero: '12', surface: '512' }],
     proprietaires: [{ civilite: 'Madame', nom: 'Léa DUPONT', domicile: 'BLOIS (41000), 1 rue Z' }], dateLettre: '1 octobre 2026', reference: 'A 2026 00299', nomDossier: 'VTE - DUPONT' });
   const xml = app.xmlCorpsCourrierFidele(doc, '');
   const paras = xml.split('<w:p>');
   assert.match(paras[2], /AGGLOPOLYS/);
-  assert.match(paras[10], /Blois, le 1 octobre 2026/);
+  assert.match(paras[11], /Blois, le 1 octobre 2026/);
   assert.match(xml, /Service &lt;assainissement&gt;/);
   assert.ok(!xml.includes('<assainissement>'));
   assert.match(xml, /<w:b\/><w:sz w:val="22"\/><w:szCs w:val="22"\/><\/w:rPr><w:t xml:space="preserve">Objet : Contrôle et conformité assainissement/);

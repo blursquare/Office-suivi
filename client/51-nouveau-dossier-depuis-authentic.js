@@ -41,14 +41,14 @@
 
   // ---- « Nouveau dossier » : deux façons de commencer (étude, 02/10 au soir : « deux entrées ») ----
   //  - « Compromis (PDF) » : dates butoir, engagements du vendeur, parties lues dans l'acte ; l'import
-  //    fait, on reste sur l'étape 1 : « Compléter depuis Authentic » (facultatif, dossiers ouverts dans
-  //    Authentic, celui du compromis d'abord) ou « Continuer sans Authentic » ;
+  //    fait, on reste sur l'étape 1 : le dossier d'Authentic (dossiers ouverts dans
+  //    Authentic, celui du compromis d'abord), obligatoire (plus de « Continuer sans Authentic », étude 18/10) ;
   //  - « Depuis Authentic » : sans PDF — un dossier ouvert dans Authentic (page du dossier, fiches
   //    vendeur, acquéreur, bien) repris d'un clic, puis « Vérifier » (une succession : « Finaliser »).
   // L'ancienne entrée « Dossier Authentic » (Authentic puis le compromis) est retirée.
   var MODES_IMPORT = [
-    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Puis Authentic pour compléter, si besoin' },
-    { cle: 'seul', icone: 'link', titre: 'Depuis Authentic', sous: 'Sans PDF : vente ou succession' }
+    { cle: 'pdf', icone: 'file-text', titre: 'Compromis (PDF)', sous: 'Déposez le compromis signé : il apporte dates butoir et engagements, le dossier d’Authentic apporte le reste' },
+    { cle: 'seul', icone: 'link', titre: 'Depuis Authentic', sous: 'Sans PDF : le dossier ouvert dans Authentic, vente ou succession, repris d’un clic' }
   ];
   // Aucune entrée choisie au départ (étude 08/10 : « il ne propose pas tout de suite avec ou sans PDF ») : les deux cartes
   // seules, sans zone de dépôt ni « Suivant », jusqu'au choix.
@@ -100,9 +100,10 @@
   function majBoutonSuivantEtape1() {
     const bouton = document.getElementById('wizard-suivant-1');
     if (!bouton) return;
-    bouton.style.display = modeImport || complementDossierId ? '' : 'none';
-    bouton.textContent = modeImport === 'pdf' && dernierTexteTraite && !exportAuthenticActuel && !complementDossierId
-      ? 'Continuer sans Authentic →' : 'Suivant : Vérifier →';
+    // Plus de « Continuer sans Authentic » (étude 18/10 : un nouveau dossier passe obligatoirement par Authentic) : sans dossier
+    // d'Authentic repris, pas de « Suivant » — le compromis lu attend son dossier d'Authentic.
+    bouton.style.display = complementDossierId || exportAuthenticActuel ? '' : 'none';
+    bouton.textContent = 'Suivant : Vérifier →';
   }
 
   // Pure : les dossiers ouverts dans Authentic classés pour un compromis déjà lu — les plus proches
@@ -150,7 +151,7 @@
     bloc.style.display = '';
     const nomLu = (document.getElementById('f-nom') || {}).value || '';
     const tries = groupesAuthenticPourCompromis(groupesAuthenticRecents, avecPdf ? nomLu : '');
-    const titre = modeImport === 'pdf' ? 'Compléter depuis Authentic (facultatif)' : 'Dossiers ouverts dans Authentic';
+    const titre = modeImport === 'pdf' ? 'Choisir le dossier d’Authentic' : 'Dossiers ouverts dans Authentic';
     // Le dossier Authentic du compromis lu (mêmes noms) est signalé.
     const correspond = (g) => avecPdf && nomLu && scoreDossierAuthentic(g.intitule, '', { nom: nomLu }).score >= SEUIL_DOSSIER_AUTHENTIC;
     const aide = 'Dossiers ouverts dans Authentic aujourd’hui (extension « CLAIRE pour Authentic ») : ouvrez la page du dossier, puis les fiches vendeur, acquéreur et bien — CLAIRE les rassemble. Parties, état civil, bien, cadastre, prix et pièces reçues viennent d’Authentic ; dates butoir et engagements du vendeur, du compromis.';
@@ -195,7 +196,7 @@
       ${blocTrouve}
       ${lignesACreer ? `<h3 class="authentic-releves-titre">À créer <span class="sidebar-compteur">${aCreer.length}</span> ${infoBulle('Dossiers de vente ou de succession ouverts dans Authentic aujourd’hui qu’aucun dossier de CLAIRE ne porte. « Créer » ouvre le dossier pré-rempli.')}</h3><ul class="ja-liste">${lignesACreer}</ul>` : ''}
       <h3 class="authentic-releves-titre">${escapeHtml(lignesACreer || trouve ? 'Autres dossiers ouverts dans Authentic' : titre)} ${infoBulle(aide)}</h3>
-      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici${modeImport === 'pdf' ? ' — ou continuez sans Authentic' : ''}.</p>`}`;
+      ${lignes ? `<ul class="ja-liste">${lignes}</ul>` : `<p class="authentic-releves-vide">Aucun ${lignesACreer ? 'autre ' : ''}dossier ouvert dans Authentic aujourd’hui. Ouvrez-y la page du dossier, puis les fiches vendeur, acquéreur et bien : il apparaîtra ici. Un nouveau dossier se crée toujours depuis Authentic.</p>`}`;
   }
 
   function creerDepuisAuthentic(i, confirme) {

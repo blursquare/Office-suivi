@@ -10,13 +10,17 @@ const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
 test('Suivi : le bouton « Plus de filtres » compte les filtres cachés qui agissent', () => {
-  assert.equal(app.filtresCachesActifsSuivi({ offre: '', role: '', archives: false, etat: '' }), 0);
-  assert.equal(app.filtresCachesActifsSuivi({ offre: 'recue', role: 'participant', archives: true, etat: 'urgent' }), 4);
+  assert.equal(app.filtresCachesActifsSuivi({ offre: '', role: '', echeance: '', archives: false }), 0);
+  assert.equal(app.filtresCachesActifsSuivi({ offre: 'recue', role: 'participant', echeance: 'pret', archives: true }), 4);
   const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
   const ligne = html.slice(html.indexOf('suivi-barre-recherche'), html.indexOf('id="suivi-filtres-plus"'));
   assert.match(ligne, /id="filtre-responsable"/);
-  assert.match(ligne, /id="filtre-type"/);
-  assert.doesNotMatch(ligne, /id="filtre-offre"|id="filtre-role"|id="voir-archives"|id="suivi-statuts"/);
+  assert.match(ligne, /id="filtre-affaire"/);
+  assert.doesNotMatch(ligne, /id="filtre-offre"|id="filtre-role"|id="voir-archives"|id="filtre-type"/);
+  // Étude 18/10 : les statuts (Urgent…) restent visibles, hors du panneau « Plus de filtres ».
+  const panneau = html.slice(html.indexOf('id="suivi-filtres-plus"'), html.indexOf('id="suivi-statuts"'));
+  assert.match(panneau, /id="filtre-type"/);
+  assert.ok(html.indexOf('id="suivi-statuts"') > html.indexOf('id="suivi-filtres-plus"'));
 });
 
 test('Vérifications de terrain : chaque point a un domaine', () => {

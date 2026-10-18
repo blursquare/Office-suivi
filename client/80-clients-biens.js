@@ -6,6 +6,8 @@
   let cbRecherche = '';
   let cbResultats = null;
   let cbMinuterie = null;
+  // Nombre de lignes demandées par colonne (80, puis + 80 par « Afficher plus »), remis à 80 à chaque recherche.
+  let cbLimites = { personnes: 80, biens: 80 };
   let cbOuvert = null;              // { type: 'personne' | 'bien', id }
   let cbEdition = '';               // champ en cours de correction
   const cbParDossier = new Map();   // dossierId → { t, fiches, enCours }
@@ -109,6 +111,29 @@
     return utile || r.clientEtude ? r : null;
   }
 
+  // Pure (étude 18/10 : « récupérer toutes les informations sur le régime matrimonial, date, lieu du mariage depuis Authentic ») : la ligne
+  // d'état civil d'une fiche client gardée — « Marié(e) le 12 juin 2010 à BLOIS — Communauté réduite aux acquêts — conjoint : … » ; '' sans rien.
+  function etatCivilMariageAuthentic(fiche) {
+    if (!fiche) return '';
+    const sm = fiche.situationMatrimoniale || {};
+    const m = (fiche.complement && fiche.complement.mariage) || {};
+    const date = m.date || sm.dateMariage || sm.date || '';
+    const situation = sm.situation || (date ? 'Marié(e)' : '');
+    const lieu = m.lieu ? `à ${m.lieu}${m.pays && !/^france$/i.test(m.pays) ? ` (${m.pays})` : ''}` : '';
+    const contrat = m.contrat || sm.contrat || '';
+    const ancien = m.ancienRegime || m.ancienContrat ? `ancien régime : ${m.ancienRegime || m.ancienContrat}${m.dateAncienContrat ? ` du ${formatDateFr(m.dateAncienContrat)}` : ''}`
+      + `${m.notaireAncienContrat ? `, ${m.notaireAncienContrat}${m.lieuAncienContrat ? ` (${m.lieuAncienContrat})` : ''}` : ''}` : '';
+    return [
+      [situation, date ? `le ${formatDateFr(date)}` : '', lieu].filter(Boolean).join(' '),
+      m.regime || sm.regime || '',
+      contrat ? (/^sans/i.test(contrat) ? 'sans contrat de mariage' : `contrat : ${contrat}`) : '',
+      ancien,
+      /^oui$/i.test(m.divorceEnCours || '') ? 'divorce en cours' : '',
+      m.separeDeCorps ? 'séparé(e) de corps' : '',
+      sm.conjoint ? `conjoint : ${sm.conjoint}` : ''
+    ].filter(Boolean).join(' — ');
+  }
+
   // Pure : une parcelle d'un bien, « EV 10 · 6 a 6 ca · Sol ».
   function libelleParcelleCb(p) {
     return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit, p.zone ? `zone ${p.zone}` : ''].filter(Boolean).join(' · ');
@@ -122,13 +147,14 @@
 
   function saisirRechercheClientsBiens(v) {
     cbRecherche = String(v || '');
+    cbLimites = { personnes: 80, biens: 80 };
     clearTimeout(cbMinuterie);
     cbMinuterie = setTimeout(() => chercherClientsBiens(cbRecherche), 200);
   }
 
   async function chercherClientsBiens(q) {
     try {
-      const r = await fetchAvecAuth('/api/clients-biens?q=' + encodeURIComponent(q || ''));
+      const r = await fetchAvecAuth('/api/clients-biens?q=' + encodeURIComponent(q || '') + '&np=' + cbLimites.personnes + '&nb=' + cbLimites.biens);
       cbResultats = r.ok ? await r.json() : { erreur: 'Lecture impossible.' };
     } catch (_) { cbResultats = { erreur: 'Serveur injoignable.' }; }
     renderPageClientsBiens();
@@ -150,11 +176,22 @@
         <span class="cb-ligne-detail">${escapeHtml(b.parcelles.join(', '))}</span>
         <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}</span>
       </button>`).join('');
-    const plus = (n, total) => total > n ? `<p class="hint">${total - n} de plus : précisez la recherche.</p>` : '';
+    const plus = (n, total, cle) => total > n ? `<div class="cb-plus"><span class="hint">${n} sur ${total}</span>${n < 1000 ? `<wa-button appearance="outlined" size="s" type="button" onclick="afficherPlusClientsBiens('${cle}')">Afficher ${Math.min(80, total - n)} de plus</wa-button>` : '<span class="hint">précisez la recherche</span>'}</div>` : '';
     zone.innerHTML = `<div class="cb-colonnes">
-      <section class="cb-colonne"><h2 class="w-titre">Clients <span class="hint">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0)}</section>
-      <section class="cb-colonne"><h2 class="w-titre">Biens <span class="hint">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0)}</section>
+      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre">Clients <span class="hint">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
+      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre">Biens <span class="hint">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
     </div>`;
+  }
+
+  // Centaines de fiches (étude 18/10) : chaque colonne défile seule, 80 lignes de plus à la demande, défilement gardé.
+  async function afficherPlusClientsBiens(cle) {
+    if (cle !== 'personnes' && cle !== 'biens') return;
+    const colonne = document.getElementById('cb-colonne-' + cle);
+    const haut = colonne ? colonne.scrollTop : 0;
+    cbLimites[cle] = Math.min(1000, cbLimites[cle] + 80);
+    await chercherClientsBiens(cbRecherche);
+    const apres = document.getElementById('cb-colonne-' + cle);
+    if (apres) apres.scrollTop = haut;
   }
 
   // ---------- Fenêtre d'une fiche ----------
@@ -357,7 +394,10 @@
       const lu = defuntDepuisFiches(d);
       const civDefunt = civ({ civilite: (d.defunt && d.defunt.civilite) || (lu.fiche && lu.fiche.civilite) || (lu.comparant && lu.comparant.civilite) || '' });
       const civHeritier = (h) => (h.qualitePersonne === 'morale' ? '' : civ(h) || civ({ civilite: (ficheClientDe(d, h.nom) || {}).civilite }));
-      return (nomDefunt ? [{ nom: nomDefunt, affiche: civDefunt + nomDefunt, role: 'Défunt' }] : [])
+      // Carte du défunt comme celles des héritiers (étude 18/10), avec le décès, le domicile et le régime en dessous.
+      const decede = /^madame/i.test(civDefunt) ? 'Décédée' : 'Décédé';
+      const sousDefunt = [df.decesDate ? `${decede} le ${formatDateFr(df.decesDate)}${df.decesLieu ? ` à ${df.decesLieu}` : ''}` : '', df.domicile ? `domicile : ${df.domicile}` : '', df.regime || ''].filter(Boolean).join(' · ');
+      return [nomDefunt ? { nom: nomDefunt, affiche: civDefunt + nomDefunt, role: 'Défunt', sous: sousDefunt } : { nom: '', affiche: 'Défunt à compléter', role: 'Défunt', sous: 'Ouvrez la page du dossier dans Authentic, ou « Modifier » ci-dessous', vide: true }]
         .concat(personnesSuccession(d).heritiers.map(h => ({ nom: h.nom, affiche: civHeritier(h) + h.nom, morale: h.qualitePersonne === 'morale', role: 'Héritier' })));
     }
     const rang = (r) => (/^VENDEUR$/i.test(r) ? 0 : /^ACQUEREUR$/i.test(r) ? 1 : 2);
@@ -422,9 +462,9 @@
     // Un titre par groupe (étude 17/10 : « mets un titre pour vendeurs, acquéreurs, bien ») : le rôle n'est plus répété sur chaque carte.
     const parRole = new Map();
     personnesCartesDossier(d).forEach(p => {
-      const fiche = ficheDe(p);
+      const fiche = p.vide ? null : ficheDe(p);
       if (!parRole.has(p.role)) parRole.set(p.role, []);
-      parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale));
+      parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.sous || '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale || p.vide));
     });
     const TITRES = { Vendeur: ['Vendeur', 'Vendeurs'], 'Acquéreur': ['Acquéreur', 'Acquéreurs'], 'Défunt': ['Défunt', 'Défunt'], 'Héritier': ['Héritier', 'Héritiers'], Partie: ['Autre partie', 'Autres parties'] };
     const groupe = (titre, cartes) => `<div class="pb-groupe"><div class="pb-groupe-titre">${escapeHtml(titre)}</div>${cartes.join('')}</div>`;

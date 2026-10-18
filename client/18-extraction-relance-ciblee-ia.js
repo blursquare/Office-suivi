@@ -657,6 +657,13 @@
     if (creationDossierEnCours) return;
     // Mode complément (Ctrl+S, ancien bouton) : c'est le dossier visé qui est complété, rien n'est créé.
     if (complementDossierId) return completerDossierDepuisWizard();
+    // Création toujours depuis Authentic (étude 18/10 : « pour les ajouts sans dossier passer obligatoirement par Authentic pour
+    // créer le dossier, pas de formulaire à remplir à la main ») : sans dossier d'Authentic repris, rien n'est créé.
+    if (!exportAuthenticActuel) {
+      afficherToast('Un nouveau dossier se crée depuis Authentic : ouvrez-y la page du dossier, puis choisissez-le à l’étape « Importer ».', 'OK', null);
+      definirEtapeWizard(1);
+      return;
+    }
     const nom = document.getElementById('f-nom').value.trim();
     const typeVente = document.getElementById('f-type-vente').value;
     const roleNotaire = document.getElementById('f-role-notaire').value;

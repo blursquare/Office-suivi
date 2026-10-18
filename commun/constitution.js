@@ -172,7 +172,7 @@
   /**
    * @typedef {{ texte: string, fond?: string, jc?: 'left'|'center'|'right', span?: number }} CelluleCourrier
    * @typedef {{ type: 'tableau', grille: number[], ind: number, lignes: Array<{ cellules: CelluleCourrier[] }> }} TableauCourrier
-   * @typedef {{ adresse: string[], adresseDebut: number, date: string, lignes: Array<string|TableauCourrier>, signature: string, blancsSignature: number,
+   * @typedef {{ adresse: string[], adresseDebut: number, ligneDate?: number, date: string, lignes: Array<string|TableauCourrier>, signature: string, blancsSignature: number,
    *   questionnaire?: { references: string, adresseImmeuble: string } }} DocumentCourrier
    */
 
@@ -240,7 +240,8 @@
     }
     /** @type {DocumentCourrier} */
     // « Me  Sophie » : deux espaces, comme dans les modèles de vente de l'étude (la signature à droite tombe au même endroit).
-    const doc = { adresse, adresseDebut: 1, date: `Blois, le ${o.dateLettre || '…'}`, lignes, signature: 'Me  Sophie GOSSART', blancsSignature: 0 };
+    // Une ligne de plus au-dessus de la date (étude 18/10) : « Madame, Monsieur, » passe sous le bandeau de gauche, aligné à gauche comme le texte.
+    const doc = { adresse, adresseDebut: 1, ligneDate: 10, date: `Blois, le ${o.dateLettre || '…'}`, lignes, signature: 'Me  Sophie GOSSART', blancsSignature: 0 };
     if (cle === 'assainissement') {
       doc.questionnaire = { references: [String(o.reference || '').trim(), String(o.nomDossier || '').trim()].filter(Boolean).join(' - '), adresseImmeuble: immeuble };
     }

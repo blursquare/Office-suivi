@@ -305,6 +305,22 @@
     cartesFacturesSuccessionFiche(d, ajouter);
   }
 
+  // Questionnaire de satisfaction d'une succession (étude 18/10 : « comme pour les ventes, en second, pour les parties que l'on
+  // représente ») : date du DERNIER acte signé (déclaration de succession, sinon notoriété) — '' tant qu'il ne l'est pas.
+  function dateDernierActeSuccession(d, aujourdhuiIso) {
+    if (!d || !estSuccession(d)) return '';
+    const dernier = etapesSuccession(d, aujourdhuiIso).filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
+    return dernier && dernier.fait && dernier.iso && dernier.iso <= aujourdhuiIso ? dernier.iso : '';
+  }
+
+  // Les emails des héritiers (fiche d'Authentic gardée sur la partie), sans doublon : « a, b ».
+  function emailsHeritiersSuccession(d) {
+    const vus = new Set();
+    personnesSuccession(d).heritiers.forEach(h => [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : [])
+      .forEach(e => destinatairesEmail(e).forEach(x => vus.add(x))));
+    return Array.from(vus).join(', ');
+  }
+
   // « Pas nécessaire » / « Rétablir » de l'appel de fonds d'une succession (étude 16/10 : « parfois » seulement).
   function marquerAppelFondsSuccessionInutile(dossierId, inutile) {
     const d = dossiers.find(x => x.id === dossierId);
@@ -356,7 +372,8 @@
   // dans la suite, jusqu'à la nature suivante. L'en-tête (notre office, demandeur) précède la première nature : jamais pris.
   function analyseFcddv(texte) {
     const plat = String(texte || '').replace(/\s+/g, ' ').trim();
-    const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
+    // « Il peut aussi ne rien y avoir comme inscription » (étude 18/10) : formes courantes d'une réponse vide, et le geste « Aucune inscription » à la main.
+    const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament|donation|mention)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|ne\s+(?:figure|comporte)\s+aucun|aucun\s+(?:acte|enregistrement)|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
     const debuts = [];
     let m;
     RE_NATURE_FCDDV.lastIndex = 0;
@@ -559,7 +576,7 @@
     let etat;
     if (!f || !f.luLe) etat = `<span class="prop-texte vide">${chemin ? 'Réponse trouvée sur le NAS, pas encore lue' : 'Réponse pas encore trouvée sur le NAS'}</span>`;
     else if (f.aucune) etat = `<span class="dot-label dl-success"><span class="dot"></span>Aucune inscription</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;
-    else if (f.illisible && !(f.inscriptions || []).length) etat = '<span class="dot-label dl-urgent"><span class="dot"></span>Rien de reconnu dans la réponse</span> <span class="hint">saisissez les inscriptions ci-dessous</span>';
+    else if (f.illisible && !(f.inscriptions || []).length) etat = '<span class="dot-label dl-pret"><span class="dot"></span>Rien de reconnu dans la réponse</span> <span class="hint">aucune inscription, ou à saisir ci-dessous</span>';
     else etat = `<span class="dot-label dl-urgent"><span class="dot"></span>${f.inscriptions.length} inscription${f.inscriptions.length > 1 ? 's' : ''}</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;
     const groupes = f ? confreresFcddv(f) : [];
     const lignes = groupes.map(g => {
@@ -577,9 +594,23 @@
     }).join('');
     const ajout = `<div class="fcddv-ajout"><select class="prop-champ" id="fcddv-nature-${escapeAttr(d.id)}" aria-label="Nature de l’inscription">${['Testament olographe', 'Testament authentique', 'Donation entre époux', 'Institution contractuelle', 'Révocation'].map(n => `<option>${n}</option>`).join('')}</select>
       <input type="text" class="prop-champ" id="fcddv-notaire-${escapeAttr(d.id)}" placeholder="Notaire dépositaire (Prénom NOM)" aria-label="Notaire dépositaire">
-      <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ajouterInscriptionFcddv('${idJs}')">+ Inscription</wa-button></div>`;
+      <wa-button appearance="outlined" size="s" type="button" class="bouton-ajout" onclick="ajouterInscriptionFcddv('${idJs}')"><span slot="start" class="bouton-ajout-plus">+</span>Inscription</wa-button></div>`;
+    // Réponse sans inscription notée à la main (aussi quand la lecture n'a rien reconnu, ou sans réponse sur le NAS).
+    const aucuneMain = !(f && f.aucune) && !((f && f.inscriptions) || []).length
+      ? `<wa-button appearance="outlined" size="s" type="button" onclick="marquerFcddvAucune('${idJs}')" title="La réponse du FCDDV ne mentionne aucune inscription : testament et donation entre époux passent à « non » s'ils ne sont pas encore répondus">${icone('check')} Aucune inscription</wa-button>` : '';
     return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
-      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}</div>${lignes}${ajout}</div>`;
+      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}</div>${lignes}${ajout}</div>`;
+  }
+
+  function marquerFcddvAucune(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const f = (d.succession || {}).fcddv || {};
+    const textes = appliquerFcddvSurDossier(d, { aucune: true, inscriptions: [] }, f.fichier || fichierTrouve(d, 'fcddv') || '', new Date().toISOString());
+    d.succession.fcddv.manuel = true;
+    ajouterHistorique(d, `FCDDV : aucune inscription (noté à la main)${textes.length ? ` — ${textes.join(', ')}` : ''}`);
+    sauvegarder(d);
+    render();
   }
 
   // ---- Lecture d'Authentic propre aux successions (appelée par appliquerReleveSurDossierBrut, client/30) ----

@@ -10,6 +10,11 @@
     const droits = droitsPreemptionFiche(p);
     const zones = (Array.isArray(p.lignes) && p.lignes.length ? p.lignes : (p.parcelles || [])).map(l => ({
       parcelle: l.libelle || l.parcelle || '',
+      cle: l.cle || '',
+      code: l.zone || '',
+      famille: l.typezone || l.famille || '',
+      libelong: l.libelong || '',
+      contenance: Number(l.contenance) > 0 ? Number(l.contenance) : 0,
       zone: (l.zone ? `${l.zone}${l.typezone ? ' (' + l.typezone + ')' : ''}` : (l.famille || 'zone non lue'))
         + (!l.choisie && Array.isArray(l.autresFamilles) && l.autresFamilles.length ? ` + en partie ${l.autresFamilles.join(', ')}` : '')
     }));
@@ -113,13 +118,13 @@
     if (d.roleNotaire === 'participant') return '<div class="cst-zonage" id="cst-zonage"><p class="hint">Participation : la DIA et la SAFER sont l’affaire du notaire qui reçoit l’acte.</p></div>';
     const z = zonageConstitution(d.preemption);
     const tete = '';
-    const outil = `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">Contrôle de l’urbanisme</wa-button>`;
+    const outil = `<wa-button appearance="outlined" size="s" type="button" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">${icone('map-pin')} Ouvrir le Contrôle de l’urbanisme</wa-button>`;
     if (e.zonageEnCours) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
     if (!z) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
       <div class="cst-zonage-actions"><wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">Lire le zonage</wa-button>${outil}</div></div>`;
     const dl = s => s === 'oui' || s === 'probable' ? 'dl-urgent' : s === 'non' ? 'dl-success' : 'dl-pret';
     const ligne = (titre, r) => `<div class="cst-zonage-droit"><span class="cst-zonage-titre">${escapeHtml(titre)}</span><span class="dot-label ${dl(r.statut)}"><span class="dot"></span>${escapeHtml(r.texte)}</span>${r.motif ? `<span class="hint">${escapeHtml(r.motif)}</span>` : ''}</div>`;
-    const zones = z.zones.length ? `<div class="cst-zonage-zones">${z.zones.map(x => `<span class="cst-zonage-zone"><b>${escapeHtml(x.parcelle)}</b> ${escapeHtml(x.zone)}</span>`).join('')}</div>` : '';
+    const zones = renderParcellesZonage(z.zones, naturesParcellesConstitution());
     return `<div class="cst-zonage" id="cst-zonage">${tete}${zones}
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
@@ -127,7 +132,32 @@
       ${zonageParcellesDepassees(d) ? `<p class="cst-alerte">${d.preemption.auto ? (preemptionAutoAFaire(Object.assign({}, d, { preemptionAuto: true })) ? 'Parcelles changées : le zonage va être relu.' : 'Parcelles changées : relisez le zonage.') : 'Parcelles changées depuis l’analyse du Contrôle de l’urbanisme : refaites-la dans l’outil.'}</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
       ${renderQuestionsUrbanismeConstitution(d)}
-      <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
+      <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">${icone('rotate-ccw')} Relire le zonage</wa-button>` : ''}${outil}</div></div>`;
+  }
+
+  // Pure (étude 18/10 : « mieux identifier les parcelles et la nature pour le voir d'un coup d'œil », ici et dans le Contrôle de l'urbanisme) :
+  // une carte par parcelle — section et numéro en gros, contenance, nature du cadastre (Authentic), zone du PLU avec sa famille en couleur
+  // (U / AU urbaines, A agricole, N naturelle) et son nom long en bulle. `natures` : Map clé de parcelle → nature.
+  var NOMS_FAMILLES_ZONE = { U: 'Urbaine', AU: 'À urbaniser', A: 'Agricole', N: 'Naturelle' };
+  function renderParcellesZonage(zones, natures) {
+    if (!zones || !zones.length) return '';
+    return `<div class="parcelles-zonage">${zones.map(x => {
+      const fam = String(x.famille || '').toUpperCase().replace(/^AU.*/, 'AU').replace(/^([UAN]).*/, '$1');
+      const nature = natures && x.cle ? natures.get(x.cle) || '' : '';
+      return `<div class="pz-carte pz-${escapeAttr(fam ? fam.toLowerCase() : 'inconnue')}">
+          <div class="pz-ref">${escapeHtml(x.parcelle)}</div>
+          <div class="pz-infos">${x.contenance ? `<span>${escapeHtml(formaterContenance(x.contenance))}</span>` : ''}${nature ? `<span>${escapeHtml(nature)}</span>` : ''}</div>
+          <div class="pz-zone"${x.libelong ? ` title="${escapeAttr(x.libelong)}"` : ''}><b>${escapeHtml(x.code || 'Zone non lue')}</b>${fam ? `<span class="pz-famille">${escapeHtml(NOMS_FAMILLES_ZONE[fam] || fam)}</span>` : ''}</div>
+          ${/en partie/.test(x.zone) ? `<div class="pz-cheval">${escapeHtml(x.zone.replace(/^[^+]*\+\s*/, '+ '))}</div>` : ''}
+        </div>`;
+    }).join('')}</div>`;
+  }
+
+  // Les natures du cadastre des parcelles de l'écran (Authentic), par clé de parcelle.
+  function naturesParcellesConstitution() {
+    const m = new Map();
+    ((cstEtat && cstEtat.groupes) || []).forEach(g => (g.parcelles || []).forEach(p => { if (p.nature) m.set(cleParcelle(p.section, p.numero), p.nature); }));
+    return m;
   }
 
   // Lien du guichet cliqué (étude 17/10 : « ouvrir Chrome avec l'add-on ouvert ») : le dossier est retenu par le serveur, l'extension
@@ -152,11 +182,15 @@
       const nomCommune = `<span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>`;
       // Paris : la DIA a son téléservice, le CU un autre (commun/constitution.js).
       if (estParis(info.insee)) {
-        const lienParis = (url, texte) => `<a class="cst-gnau-lien" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')}${texte}</a>`;
+        const lienParis = (url, texte) => `<a class="cst-gnau-bouton" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')}<span>${texte}</span></a>`;
         return `<div class="cst-gnau-ligne">${nomCommune}<span class="cst-gnau-liens">${lien ? lienParis(lien, 'Déposer la DIA') : ''}${lienParis(URL_CU_PARIS, 'Demander le CU')}</span></div>`;
       }
-      return `<div class="cst-gnau-ligne">${nomCommune}${lien
-        ? `<a class="cst-gnau-lien" href="${escapeAttr(lien)}" target="_blank" rel="noopener" onclick="noterOuvertureGnau()" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}GNAU — déposer la DIA, le CU</a>`
+      // Étude 18/10 : « à la fin un gros bouton pour ouvrir le GNAU s'il y a un droit de préemption urbain ».
+      const d = dossierConstitution();
+      const z = d ? zonageConstitution(d.preemption) : null;
+      const dpu = !!(z && (z.dia.statut === 'oui' || z.dia.statut === 'probable'));
+      return `<div class="cst-gnau-ligne${dpu ? ' cst-gnau-dpu' : ''}">${nomCommune}${lien
+        ? `<a class="cst-gnau-bouton${dpu ? ' principal' : ''}" href="${escapeAttr(lien)}" target="_blank" rel="noopener" onclick="noterOuvertureGnau()" title="${escapeAttr(nom || 'Guichet unique')}">${icone('link')}<span>${dpu ? 'Ouvrir le guichet (GNAU) pour déposer la DIA' : 'Ouvrir le guichet (GNAU)'}</span></a>`
         : '<span class="hint" title="Aucun guichet relevé pour cette commune (outil « Où déposer la DIA »)">Guichet non relevé</span>'}</div>`;
     }).join('')}</div>`;
   }

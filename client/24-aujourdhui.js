@@ -271,6 +271,26 @@
       //    « mettre dans les tâches aussi le questionnaire de satisfaction au vendeur ») ; le dossier n'est archivé qu'une fois
       //    les deux envoyés. Sans email du côté, la tâche demande de le renseigner (étude 07/10 : « s'il n'y a pas de mail,
       //    demander à remplir le mail ») — le côté reste attendu pour l'archivage.
+      // Succession (étude 18/10) : le questionnaire aux héritiers, une fois le dernier acte signé, même fenêtre de 30 jours.
+      if (succession && !d.questionnaireSuccessionEnvoyeLe) {
+        const dateActe = dateDernierActeSuccession(d, aujourdhuiIso);
+        const jActe = dateActe ? ecartJours(aujourdhuiIso, dateActe) : null;
+        if (jActe !== null && jActe <= 0 && jActe >= -JOURS_QUESTIONNAIRE) {
+          const emails = emailsHeritiersSuccession(d);
+          ajouter(Object.assign({
+            type: 'questionnaireSuccession', categorie: 'neutre', categorieLabel: 'Acte signé',
+            jours: jActe, delaiTexte: `signé ${quandJour(dateActe, aujourdhuiIso)}`, gravite: 'normal'
+          }, emails ? {
+            titre: 'Envoyer le questionnaire de satisfaction aux héritiers',
+            contexte: `Dernier acte signé le ${formatDateFr(dateActe)}.`,
+            geste: { type: 'questionnaire', partie: 'heritiers' }, bouton: 'Préparer le questionnaire'
+          } : {
+            titre: 'Renseigner l’email des héritiers pour le questionnaire de satisfaction',
+            contexte: `Dernier acte signé le ${formatDateFr(dateActe)}. Aucun email d’héritier sur la fiche.`,
+            geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+          }));
+        }
+      }
       for (const q of [
         { type: 'questionnaire', partie: 'acquereur', fait: d.questionnaireEnvoyeLe, exclu: notaireParticipantRepresenteAcquereur(d),
           email: d.emailAcquereur, de: 'de l’acquéreur', a: 'à l’acquéreur' },
@@ -402,7 +422,8 @@
     }
     if (action.geste.type === 'questionnaire') {
       const { sujet, corps } = construireEmailQuestionnaireSatisfaction(d);
-      return { a: (action.geste.partie === 'vendeur' ? d.emailVendeur : d.emailAcquereur) || '', objet: sujet, corps: adapterCorpsEmail(corps, false) };
+      const a = action.geste.partie === 'heritiers' ? emailsHeritiersSuccession(d) : action.geste.partie === 'vendeur' ? d.emailVendeur : d.emailAcquereur;
+      return { a: a || '', objet: sujet, corps: adapterCorpsEmail(corps, false) };
     }
     return null;
   }
@@ -749,7 +770,7 @@
   // lendemain alors qu'elle est faite. Les valeurs d'avant sont gardées pour « Annuler ».
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
-    questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
+    questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', questionnaireSuccession: 'questionnaireSuccessionEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
     ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe',
     copieActe: 'copieActeEnvoyeeLe'
   };
@@ -982,7 +1003,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';

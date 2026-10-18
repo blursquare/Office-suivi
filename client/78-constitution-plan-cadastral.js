@@ -21,7 +21,21 @@
   }
 
   // Pure : où en est le plan d'une commune → { etat: 'sans-commune' | 'sans-parcelle' | 'a-tirer' | 'perime' | 'attente' | 'en-cours' | 'fini' | 'erreur', texte }.
+  // Étude 18/10 : « si un plan est déjà rattaché au dossier sur le NAS, le prendre en priorité au lieu de le redemander ». Le plan reconnu par
+  // la checklist (pièce « Plan cadastral », par le nom du fichier) ; avec plusieurs communes, seulement celui dont le nom cite la commune.
+  function cheminPlanNasConstitution(g) {
+    const d = typeof dossierConstitution === 'function' ? dossierConstitution() : null;
+    if (!d || !g) return '';
+    const chemin = (d.fichiersTrouves || {})['piece::planCadastral'] || '';
+    if (!chemin) return '';
+    const plusieurs = cstEtat && cstEtat.groupes && cstEtat.groupes.length > 1;
+    if (plusieurs && !normaliserPourRecherche(chemin).includes(normaliserPourRecherche(g.commune || '-'))) return '';
+    return chemin;
+  }
+
   function etatPlanConstitution(g) {
+    const nas = cheminPlanNasConstitution(g);
+    if (nas && !(g && g.plan && g.plan.force)) return { etat: 'fini', nas, texte: `Plan du dossier repris du NAS : ${nas.split(/[\\/]/).pop()}` };
     const info = (g && g.info) || {};
     const parcelles = parcellesPlanConstitution(g);
     if (info.etat !== 'ok' || !info.insee) return { etat: 'sans-commune', texte: 'Commune non retrouvée : pas de plan' };
@@ -51,6 +65,7 @@
     const etat = etatPlanConstitution(g);
     if (['sans-commune', 'sans-parcelle'].includes(etat.etat)) return;
     if (!force && ['attente', 'en-cours', 'fini'].includes(etat.etat)) return;
+    // Plan repris du NAS : jamais redemandé seul ; « Tirer le plan » le remplace par celui de cadastre.gouv.fr.
     const parcelles = parcellesPlanConstitution(g);
     const cleGarde = `${d.id}|${g.cle}`;
     const garde = plansConstitutionGardes[cleGarde];
@@ -60,7 +75,7 @@
       if (garde.etat !== 'fini') suivrePlanConstitution(e, g);
       return;
     }
-    g.plan = { id: '', etat: 'attente', parcelles, documents: [] };
+    g.plan = { id: '', etat: 'attente', parcelles, documents: [], force: !!etat.nas };
     plansConstitutionGardes[cleGarde] = g.plan;
     majPlanCommuneConstitution(g);
     try {
@@ -98,7 +113,17 @@
   // Attend le plan d'une commune (au plus 6 minutes) ; le lance s'il n'a pas été tiré. Rend les PDF [{ nom, blob }] ou [] (raison dans g.plan).
   async function plansPdfConstitution(g) {
     if (!g) return [];
-    const etat = etatPlanConstitution(g).etat;
+    const etatComplet = etatPlanConstitution(g);
+    if (etatComplet.nas) {
+      if (g.planNasPdf && g.planNasPdf.chemin === etatComplet.nas) return g.planNasPdf.pdf;
+      const r = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(etatComplet.nas));
+      if (r.ok) {
+        const pdf = [{ nom: `Plan cadastral - ${g.commune}.pdf`.replace(/[\\/:*?"<>|]+/g, ' '), blob: await r.blob() }];
+        g.planNasPdf = { chemin: etatComplet.nas, pdf };
+        return pdf;
+      }
+    }
+    const etat = etatComplet.etat;
     if (etat === 'sans-commune' || etat === 'sans-parcelle') return [];
     if (etat === 'a-tirer' || etat === 'perime' || etat === 'erreur') await lancerPlanConstitution(g.cle, true);
     const fin = Date.now() + DELAI_ATTENTE_PLAN_CONSTITUTION_MS;
@@ -142,9 +167,11 @@
     const dl = s.etat === 'fini' ? 'dl-success' : (s.etat === 'erreur' || s.etat === 'perime' || s.etat === 'sans-commune' ? 'dl-urgent' : 'dl-neutre');
     const tourne = s.etat === 'attente' || s.etat === 'en-cours';
     const surlignes = s.etat === 'fini' ? plansSurlignesConstitution(g.plan) : [];
-    const docs = surlignes.map((doc, i) => `<button type="button" class="lien-action" onclick="ouvrirDocumentSite('${escapeOnclickArg(g.plan.id)}', '${escapeOnclickArg(doc.id)}')">Voir${surlignes.length > 1 ? ' ' + (i + 1) : ''}</button>`).join(' ');
+    // De vrais boutons (étude 18/10 : « tu as tendance à juste mettre des liens cliquables, ce n'est pas lisible »).
+    const docs = surlignes.map((doc, i) => `<wa-button appearance="outlined" size="s" type="button" onclick="ouvrirDocumentSite('${escapeOnclickArg(g.plan.id)}', '${escapeOnclickArg(doc.id)}')">${icone('eye')} Voir${surlignes.length > 1 ? ' ' + (i + 1) : ''}</wa-button>`).join(' ');
+    const voirNas = s.nas ? `<wa-button appearance="outlined" size="s" type="button" onclick="ouvrirFichierNas('${escapeOnclickArg(s.nas)}')">${icone('eye')} Voir</wa-button>` : '';
     const bouton = ['a-tirer', 'perime', 'erreur', 'fini'].includes(s.etat)
-      ? `<button type="button" class="lien-action" onclick="lancerPlanConstitution('${k}', true)">${s.etat === 'fini' ? 'Refaire' : 'Tirer le plan'}</button>` : '';
-    return `<div class="cst-plan" id="cst-plan-${escapeAttr(g.cle)}">${icone(tourne ? 'spinner' : 'map-pin', null, tourne)} <span class="dot-label ${dl}"><span class="dot"></span>${escapeHtml(s.texte)}</span> ${docs} ${bouton}
+      ? `<wa-button appearance="outlined" size="s" type="button" onclick="lancerPlanConstitution('${k}', true)">${icone(s.etat === 'fini' ? 'rotate-ccw' : 'map-pin')} ${s.nas ? 'Tirer de cadastre.gouv.fr' : s.etat === 'fini' ? 'Refaire' : 'Tirer le plan'}</wa-button>` : '';
+    return `<div class="cst-plan" id="cst-plan-${escapeAttr(g.cle)}">${icone(tourne ? 'spinner' : 'map-pin', null, tourne)} <span class="dot-label ${dl}"><span class="dot"></span>${escapeHtml(s.texte)}</span> ${voirNas}${docs} ${bouton}
       ${infoBulle('Joint à chaque courrier de cette commune : imprimé juste derrière lui, joint à l’email, enregistré dans « Constitution ». Tiré de cadastre.gouv.fr par le serveur, parcelles cochées surlignées en jaune.')}</div>`;
   }

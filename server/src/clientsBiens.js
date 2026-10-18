@@ -424,15 +424,18 @@ const resumeBien = (b) => ({ id: b.id, adresse: b.adresse, commune: b.commune, p
 
 /**
  * Pure : la recherche — tous les mots dans le nom, la commune, l'adresse, la parcelle (« AB 12 ») ou les dossiers liés.
- * @param {{ personnes: any[], biens: any[] }} base @param {string} q
+ * Par 80 au plus pour chaque colonne, plus sur demande (« Afficher plus » du poste, 1 000 au plus : centaines de fiches).
+ * @param {{ personnes: any[], biens: any[] }} base @param {string} q @param {{ personnes?: number, biens?: number }} [limites]
  */
-function chercherClientsBiens(base, q) {
+function chercherClientsBiens(base, q, limites) {
+  const borne = (/** @type {any} */ n) => Math.min(1000, Math.max(80, Math.floor(Number(n)) || 80));
+  const lp = borne((limites || {}).personnes), lb = borne((limites || {}).biens);
   const mots = norm(q).split(' ').filter(Boolean);
   const ok = (/** @type {string} */ t) => !mots.length || mots.every((m) => (' ' + norm(t) + ' ').includes(' ' + m) );
   // Une personne par son nom (et son nom d'usage) seulement : chercher « PETIT » ne liste pas tous ceux d'un dossier « PETIT / ROUX ».
   const personnes = base.personnes.filter((p) => ok([p.nomComplet, p.champs.nomUsage].join(' ')));
   const biens = base.biens.filter((b) => ok([b.adresse, b.commune, ...b.parcelles.map((/** @type {any} */ p) => `${p.section} ${p.numero} ${p.section}${p.numero} ${p.lieuDit}`), ...b.dossiers.map((/** @type {any} */ x) => x.libelle)].join(' ')));
-  return { personnes: personnes.slice(0, 80).map(resumePersonne), biens: biens.slice(0, 80).map(resumeBien), total: { personnes: personnes.length, biens: biens.length } };
+  return { personnes: personnes.slice(0, lp).map(resumePersonne), biens: biens.slice(0, lb).map(resumeBien), total: { personnes: personnes.length, biens: biens.length } };
 }
 
 /** Pure : les fiches d'un dossier (pour les liens de sa fiche). Chaque personne et chaque bien porte les AUTRES dossiers où il figure, avec

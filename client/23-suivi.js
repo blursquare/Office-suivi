@@ -368,7 +368,7 @@
   // et statuts dans un panneau replié ; le bouton compte les filtres cachés qui agissent, pour qu'un filtre oublié ne vide pas la liste en silence.
   // Pure : le nombre de filtres du panneau qui agissent.
   function filtresCachesActifsSuivi(f) {
-    return [f.offre, f.role, f.archives, f.etat].filter(Boolean).length;
+    return [f.offre, f.role, f.echeance, f.archives].filter(Boolean).length;
   }
 
   function majPlusFiltresSuivi() {
@@ -376,7 +376,7 @@
     if (!compte) return;
     const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
     const archives = document.getElementById('voir-archives');
-    const n = filtresCachesActifsSuivi({ offre: val('filtre-offre'), role: val('filtre-role'), archives: !!(archives && archives.checked), etat: filtreEtatSuivi });
+    const n = filtresCachesActifsSuivi({ offre: val('filtre-offre'), role: val('filtre-role'), echeance: val('filtre-type'), archives: !!(archives && archives.checked) });
     compte.textContent = n ? String(n) : '';
     compte.setAttribute('aria-hidden', 'true');
     compte.hidden = !n;

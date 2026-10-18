@@ -2090,6 +2090,7 @@
   // d'un confrère. Le dossier est archivé quand TOUS les côtés attendus l'ont reçu (étude 07/10), plus au premier envoi.
   async function envoyerQuestionnaireSatisfaction(id, discret, partie) {
     const d = dossiers.find(x => x.id === id);
+    if (partie === 'heritiers') return envoyerQuestionnaireSuccession(d, discret);
     const vendeur = partie === 'vendeur';
     if (!d || (vendeur ? confrereRepresenteVendeur(d) : notaireParticipantRepresenteAcquereur(d))) return;
     const destinataire = (vendeur ? d.emailVendeur : d.emailAcquereur) || '';
@@ -2126,6 +2127,30 @@
     if (r.mode === 'eml' && !pdfDispo) detail += ' Le PDF du questionnaire n’a pas pu être joint.';
     if (r.mode === 'mailto') detail += pdfTelecharge ? ' Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : ' Le PDF du questionnaire n’a pas pu être téléchargé.';
     annoncerEmailPret(r, discret, detail.trim());
+    return true;
+  }
+
+  // Succession (étude 18/10) : le même questionnaire, mot pour mot, aux héritiers ; rien n'est archivé (les successions ne s'archivent
+  // pas sur le questionnaire).
+  async function envoyerQuestionnaireSuccession(d, discret) {
+    if (!d || !estSuccession(d)) return false;
+    const destinataire = emailsHeritiersSuccession(d);
+    if (!destinataire) { afficherToast('Aucun email d’héritier sur la fiche — impossible de préparer le questionnaire.', 'OK', null); return false; }
+    const { sujet, corps } = emailDepuisModele('questionnaire', d);
+    const pdfDispo = typeof QUESTIONNAIRE_SATISFACTION_PDF_BASE64 === 'string' && QUESTIONNAIRE_SATISFACTION_PDF_BASE64;
+    const pieces = pdfDispo ? [{ nom: 'Enquete_satisfaction.pdf', type: 'application/pdf', contenuBase64: QUESTIONNAIRE_SATISFACTION_PDF_BASE64 }] : [];
+    const r = await livrerEmailDossier({ destinataire, sujet, corps, pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'questionnaire' });
+    if (!r.ok) { if (!r.annule) afficherToast(r.message || "L'email n'a pas pu être préparé.", 'OK', null); return false; }
+    const pdfTelecharge = r.mode === 'mailto' ? telechargerPdfQuestionnaire() : false;
+    d.questionnaireSuccessionEnvoyeLe = isoAujourdhuiLocal();
+    ajouterHistorique(d, 'Questionnaire de satisfaction envoyé aux héritiers');
+    notifierTacheFaite(d, 'Envoyer le questionnaire de satisfaction aux héritiers', '');
+    sauvegarder(d);
+    render();
+    let detail = '';
+    if (r.mode === 'eml' && !pdfDispo) detail = 'Le PDF du questionnaire n’a pas pu être joint.';
+    if (r.mode === 'mailto') detail = pdfTelecharge ? 'Joignez le PDF du questionnaire, qui vient d’être téléchargé.' : 'Le PDF du questionnaire n’a pas pu être téléchargé.';
+    annoncerEmailPret(r, discret, detail);
     return true;
   }
 

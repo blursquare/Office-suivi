@@ -651,7 +651,26 @@
           <option>Jérémy SAUJOT</option>
         </select>
       </label>
+      <!-- Étude 18/10 : « mettre Échéances dans Plus de filtres et rajouter à la place une liste Vente ou succession ». -->
       <label class="toolbar-item suivi-filtre-visible">
+        <select id="filtre-affaire" aria-label="Vente ou succession" onchange="render()">
+          <option value="">Ventes et successions</option>
+          <option value="vente">Ventes</option>
+          <option value="succession">Successions</option>
+        </select>
+      </label>
+      <!-- Étude 18/10 : « la recherche et deux filtres visibles, le reste dans un bouton Plus de filtres ». -->
+      <wa-button appearance="outlined" size="s" type="button" class="suivi-plus-filtres" id="suivi-plus-filtres" aria-expanded="false" aria-controls="suivi-filtres-plus" onclick="basculerPlusFiltresSuivi()">Plus de filtres<span class="suivi-plus-compte" id="suivi-plus-compte" hidden></span><span class="suivi-plus-annonce" id="suivi-plus-annonce"></span></wa-button>
+      <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
+           regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
+      <wa-button-group class="vue-bascule" label="Mode d'affichage de la liste">
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</wa-button>
+      </wa-button-group>
+    </div>
+    <div class="suivi-filtres-plus" id="suivi-filtres-plus" style="display:none;">
+    <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
+      <label class="toolbar-item">
         <select id="filtre-type" aria-label="Échéance" onchange="render()">
           <option value="">Échéance</option>
           <option value="ventebien">Vente préalable</option>
@@ -667,17 +686,6 @@
           <option value="autre">Échéance ajoutée</option>
         </select>
       </label>
-      <!-- Étude 18/10 : « la recherche et deux filtres visibles, le reste dans un bouton Plus de filtres ». -->
-      <wa-button appearance="outlined" size="s" type="button" class="suivi-plus-filtres" id="suivi-plus-filtres" aria-expanded="false" aria-controls="suivi-filtres-plus" onclick="basculerPlusFiltresSuivi()">Plus de filtres<span class="suivi-plus-compte" id="suivi-plus-compte" hidden></span><span class="suivi-plus-annonce" id="suivi-plus-annonce"></span></wa-button>
-      <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
-           regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
-      <wa-button-group class="vue-bascule" label="Mode d'affichage de la liste">
-        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</wa-button>
-        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</wa-button>
-      </wa-button-group>
-    </div>
-    <div class="suivi-filtres-plus" id="suivi-filtres-plus" style="display:none;">
-    <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
       <label class="toolbar-item">
         <select id="filtre-offre" aria-label="Offre de prêt" onchange="render()">
           <option value="">Offre de prêt</option>
@@ -710,8 +718,9 @@
         Archivés
       </label>
     </div>
-    <div class="suivi-statuts" id="suivi-statuts" role="group" aria-label="Filtrer par statut"></div>
     </div>
+    <!-- Les statuts restent visibles sous la barre (étude 18/10 : « réafficher en dessous les catégories Urgent… »). -->
+    <div class="suivi-statuts" id="suivi-statuts" role="group" aria-label="Filtrer par statut"></div>
   </div>
 
   <div id="dossier-list"></div>

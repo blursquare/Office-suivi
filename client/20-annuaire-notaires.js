@@ -488,14 +488,14 @@
     const notaires = memeNomOfficeNotaire(o) ? '' : (o.notaires || []).map((n, i) => plusieurs && aAdresseCourrierOffice(o)
       ? `<button type="button" class="lien-action rep-copier-notaire" onclick="copierAdresseOffice('${escapeOnclickArg(o.id)}', ${i})" title="Copier l’adresse au nom de Maître ${escapeAttr(n)}">Me ${escapeHtml(n)}</button>`
       : 'Me ' + escapeHtml(n)).join(', ');
-    const lieu = normaliserAdresse([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join(', '));
     const enCours = dossiersOffice.length
       ? `<div class="rep-ligne-dossiers">${dossiersOffice.slice(0, 4).map(d => `<button type="button" class="carnet-dossier" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(d.id)}')">${escapeHtml(libelleDossierAffiche(d))}</button>`).join('')}${dossiersOffice.length > 4 ? `<span>+${dossiersOffice.length - 4}</span>` : ''}</div>` : '';
     return `<div class="annuaire-ligne rep-ligne${o.etude ? ' rep-ligne-etude' : ''}">
         <div class="annuaire-ligne-qui">
           <div class="annuaire-ligne-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}${o.etude ? ' <span class="dot-label dl-success"><span class="dot"></span>Notre office</span>' : avecMarque && o.modifie ? ' <span class="dot-label dl-neutre" title="Corrigé par l’étude"><span class="dot"></span>Modifié</span>' : avecMarque && o.annuaire === false ? ' <span class="dot-label dl-neutre" title="Saisi par l’étude"><span class="dot"></span>Ajouté</span>' : ''}</div>
           ${notaires ? `<div class="annuaire-ligne-notaires">${notaires}</div>` : ''}
-          ${lieu || (o.bureaux || []).length ? `<div class="annuaire-ligne-lieu">${escapeHtml(lieu)}${(o.bureaux || []).length ? `${lieu ? ' · ' : ''}bureaux : ${escapeHtml(o.bureaux.join(' ; '))}` : ''}</div>` : ''}
+          ${aAdresseCourrierOffice(o) ? renderAdresseApercuRepertoire(adresseCourrierOffice(o).slice(1)) : ''}
+          ${(o.bureaux || []).length ? `<div class="annuaire-ligne-lieu">Bureaux : ${escapeHtml(o.bureaux.join(' ; '))}</div>` : ''}
           ${o.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(o.notes)}</div>` : ''}
           ${enCours}
         </div>
@@ -511,6 +511,13 @@
       </div>`;
   }
 
+  // Aperçu de l'adresse au format d'un en-tête de courrier (étude 18/10 : « CARSAT Centre / 30 boulevard Jean Jaurès /
+  // 45033 ORLÉANS CEDEX ») : une ligne par ligne postale, sous le nom affiché au-dessus.
+  function renderAdresseApercuRepertoire(lignes) {
+    const l = (lignes || []).filter(Boolean);
+    return l.length ? `<div class="rep-adresse">${l.map(x => `<span>${escapeHtml(x)}</span>`).join('')}</div>` : '';
+  }
+
   // Une ligne d'interlocuteur : organisme et service, personnes, adresse, notes ; téléphones (avec leur
   // libellé), emails et liens ; crayon et ×.
   function renderLigneContactRepertoire(c) {
@@ -523,7 +530,7 @@
         <div class="annuaire-ligne-qui">
           <div class="annuaire-ligne-nom">${escapeHtml(c.organisme || (c.personnes || [])[0] || '')}</div>
           ${sous ? `<div class="annuaire-ligne-notaires">${escapeHtml(sous)}</div>` : ''}
-          ${c.adresse ? `<div class="annuaire-ligne-lieu">${escapeHtml(c.adresse)}</div>` : ''}
+          ${c.adresse ? renderAdresseApercuRepertoire(adressePostaleCourrier(c.adresse)) : ''}
           ${c.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(c.notes)}</div>` : ''}
         </div>
         <div class="annuaire-ligne-contact">${tels.concat(mails, liens).join('') || '<span class="carnet-manque">Aucune coordonnée</span>'}</div>
@@ -1583,12 +1590,13 @@
     const ligneDe = (type) => (lignes.find(l => l.html.indexOf(`ech-${type}`) !== -1) || {}).html || '';
     const etat = (libelle, texte, cls) => `<li class="ech tf-preemption-etat"><span class="ech-nom-cell"><span class="ech-nom">${escapeHtml(libelle)}</span></span><span class="ech-etat ${cls || 'neutre'}">${escapeHtml(texte)}</span></li>`;
     const sa = d.authentic && d.authentic.safer;
-    const dpu = ligneDe('dia') || (droitNonApplicable(d, 'dpu') ? etat('Droit de préemption urbain', 'Non applicable')
+    // Couleurs (étude 18/10, « partout où un droit s'affiche ») : rouge = à notifier, orange = à vérifier, vert = pas besoin ou réglé.
+    const dpu = ligneDe('dia') || (droitNonApplicable(d, 'dpu') ? etat('Droit de préemption urbain', 'Non applicable', 'ok')
       : preemptionLevee(d) ? etat('Droit de préemption urbain', '✓ Renonciation reçue', 'ok')
-        : etat('Droit de préemption urbain', 'DIA pas encore envoyée'));
-    const safer = ligneDe('safer') || (saferNonApplicable(d) ? etat('SAFER', 'Non applicable')
-      : saferLevee(d) ? etat('SAFER', sa || (d.piecesPersonnalisees || []).some(p => p && /safer/i.test(p.label || '')) ? '✓ Non-préemption' : 'Pas de notification', sa ? 'ok' : 'neutre')
-        : etat('SAFER', 'Notifiée, date d’envoi non relevée'));
+        : etat('Droit de préemption urbain', 'DIA pas encore envoyée', 'urgent'));
+    const safer = ligneDe('safer') || (saferNonApplicable(d) ? etat('SAFER', 'Non applicable', 'ok')
+      : saferLevee(d) ? etat('SAFER', sa || (d.piecesPersonnalisees || []).some(p => p && /safer/i.test(p.label || '')) ? '✓ Non-préemption' : 'Pas de notification', 'ok')
+        : etat('SAFER', 'Notifiée, date d’envoi non relevée', 'a-verifier'));
     return `<aside class="tf-preemption" aria-label="Droits de préemption">
       <div class="section-eyebrow tf-preemption-titre">Préemption</div>
       <ul class="ech-liste">${dpu}${safer}</ul>

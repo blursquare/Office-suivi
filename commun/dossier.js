@@ -33,13 +33,28 @@
   function prefixeTypeAffaire(d) {
     return PREFIXES_TYPE_AFFAIRE[d && d.typeAffaire] || PREFIXES_TYPE_AFFAIRE.vente;
   }
+  // Pure (étude 18/10 : « pour le titre des successions, rajouter le prénom du défunt ») : le premier prénom du défunt — saisi sur la fiche,
+  // sinon celui de la seule fiche client d'Authentic qui porte une date de décès ; '' sinon (jamais deviné).
+  /** @param {any} d */
+  function prenomDefuntDossier(d) {
+    if (!estSuccession(d)) return '';
+    const saisi = String((d.defunt && d.defunt.prenoms) || '').trim();
+    if (saisi) return saisi.split(/\s+/)[0];
+    const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {}).filter((f) => f && f.deces && f.deces.date && f.prenom);
+    return fiches.length === 1 ? String(fiches[0].prenom).trim().split(/\s+/)[0] : '';
+  }
+  /** @param {string} t */
+  const motsNormalises = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   function libelleDossierAffiche(d) {
     const nom = String((d && d.nom) || '').trim();
-    if (RE_NOM_DEJA_PREFIXE.test(nom)) return nom;
-    return prefixeTypeAffaire(d) + ' - ' + nom;
+    const prenom = prenomDefuntDossier(d);
+    // « SUCC - DURAND Marie » : le prénom seulement s'il n'est pas déjà dans le nom.
+    const avecPrenom = (n) => (prenom && !motsNormalises(n).includes(motsNormalises(prenom)[0]) ? `${n} ${prenom}` : n);
+    if (RE_NOM_DEJA_PREFIXE.test(nom)) return avecPrenom(nom);
+    return prefixeTypeAffaire(d) + ' - ' + avecPrenom(nom);
   }
 
-  const exportes = { PREFIXES_TYPE_AFFAIRE, estSuccession, droitNonApplicable, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche };
+  const exportes = { PREFIXES_TYPE_AFFAIRE, estSuccession, droitNonApplicable, RE_NOM_DEJA_PREFIXE, prefixeTypeAffaire, libelleDossierAffiche, prenomDefuntDossier };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

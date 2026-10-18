@@ -586,7 +586,7 @@
     const info = g.info || {};
     if (info.etat !== 'ok' || servicesAlignementSepares({ insee: info.insee })) return '';
     const separe = !!(cstEtat.separes && cstEtat.separes[g.cle]);
-    return `<wa-button appearance="plain" size="s" class="bouton-discret" type="button" title="${separe ? 'Un seul courrier pour le numérotage et l’alignement' : 'Services séparés dans cette commune : un courrier pour le numérotage, un pour l’alignement'}" onclick="cstSeparerAlignement('${escapeOnclickArg(g.cle)}', ${separe ? 'false' : 'true'})">${separe ? 'Réunir numérotage et alignement' : 'Numérotage et alignement séparés'}</wa-button>`;
+    return `<wa-button appearance="outlined" size="s" type="button" title="${separe ? 'Un seul courrier pour le numérotage et l’alignement' : 'Services séparés dans cette commune : un courrier pour le numérotage, un pour l’alignement'}" onclick="cstSeparerAlignement('${escapeOnclickArg(g.cle)}', ${separe ? 'false' : 'true'})">${separe ? 'Réunir numérotage et alignement' : 'Numérotage et alignement séparés'}</wa-button>`;
   }
   function cstSeparerAlignement(cleGroupe, separer) {
     if (!cstEtat || cstEtat.type !== 'vente') return;
@@ -1086,7 +1086,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
 
   function renderDossierConstitution(d) {
     const recherche = `<div class="pr-dossier-recherche-bloc cst-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="${d ? 'Changer de dossier…' : 'Rechercher un dossier de vente ou de succession…'}" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>`;
-    if (!d) return `<div class="cst-barre">${recherche}</div><p class="hint cst-vide">Rattachez un dossier : ses parties, son bien et ses références viennent de sa fiche, qui tient les données d’Authentic.</p>`;
+    if (!d) return renderAccueilConstitution();
     const typeTexte = cstEtat.type === 'succession' ? 'Succession' : 'Vente';
     return `<div class="cst-barre">
         <div class="cst-dossier">
@@ -1095,8 +1095,43 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
           <span class="cst-dossier-info">Réf. <strong>${escapeHtml(d.referenceAuthentic || '—')}</strong></span>
           <span class="cst-dossier-info">${escapeHtml(d.responsable || '—')}</span>
           <span class="cst-dossier-info">NAS <strong>${d.nasDossier ? 'relié' : 'non relié'}</strong></span>
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">Ouvrir la fiche</wa-button>
+          <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">${icone('file-text')} Ouvrir la fiche</wa-button>
+          <wa-button appearance="outlined" size="s" type="button" onclick="effacerConstitution()" title="Tout remettre à zéro et revenir au choix du dossier">${icone('rotate-ccw')} Effacer</wa-button>
         </div>${recherche}</div>`;
+  }
+
+  // Page d'accueil (étude 18/10 : « rendre plus attractive la première page pour choisir le dossier », « une première page centrale ») :
+  // au centre, la recherche, puis les derniers dossiers ouverts par le collaborateur (sinon les dossiers en cours), d'un clic.
+  function dossiersAccueilConstitution() {
+    const actifs = (dossiers || []).filter(x => x && !x.deleted && !x.archive);
+    const recents = dossiersConsultesRecents(lireDossiersConsultes(), actifs).map(x => x.dossier);
+    return recents.concat(actifs.filter(x => !recents.includes(x))).slice(0, 6);
+  }
+  function renderAccueilConstitution() {
+    const cartes = dossiersAccueilConstitution().map(x => {
+      const succ = estSuccession(x);
+      return `<button type="button" class="cst-accueil-carte" onclick="choisirDossierConstitution('${escapeOnclickArg(x.id)}')">
+          <span class="cst-accueil-carte-icone ${succ ? 'succ' : 'vente'}" aria-hidden="true">${icone(succ ? 'users' : 'home')}</span>
+          <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
+          <span class="cst-accueil-carte-sous">${escapeHtml([succ ? 'Succession' : 'Vente', x.referenceAuthentic, x.responsable].filter(Boolean).join(' · '))}</span></span>
+        </button>`;
+    }).join('');
+    return `<div class="cst-accueil">
+        <span class="cst-accueil-icone" aria-hidden="true">${icone('file-text')}</span>
+        <h2 class="cst-accueil-titre">Quel dossier constituer ?</h2>
+        <p class="cst-accueil-sous">Les courriers de l’office se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
+        <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher un dossier de vente ou de succession…" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>
+        ${cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">Derniers dossiers</div><div class="cst-accueil-grille">${cartes}</div>` : ''}
+      </div>`;
+  }
+
+  // « Effacer » (étude 18/10 : « permettre une remise à zéro ») : tout ce qui a été préparé est oublié, retour au choix du dossier.
+  function effacerConstitution(confirme) {
+    if (!cstEtat) return;
+    if (cstEtat.enCours) { afficherToast('Courriers en préparation : attendez la fin pour effacer.'); return; }
+    if (!confirme) { demanderConfirmation('Effacer la constitution en cours ? Les courriers préparés et les corrections faites ici sont oubliés (la fiche du dossier ne change pas).', () => effacerConstitution(true)); return; }
+    cstEtat = null;
+    renderConstitution();
   }
 
   // Pure : le résumé d'une ligne des données (le volet replié) — « 2 vendeurs · 3 parcelles · 2 communes ».
@@ -1198,10 +1233,9 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const e = cstEtat;
     if (e.type === 'vente') {
       return e.groupes.map(g => `<div class="cst-commune-courriers">
-          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${courriersMairieGroupeConstitution(e.documents, g.cle).length > 1
-            ? `<wa-button appearance="outlined" size="s" type="button" class="cst-email-groupe"${e.enCours ? ' disabled' : ''} onclick="emailGroupeMairieConstitution('${escapeOnclickArg(g.cle)}')" title="Les courriers cochés pour la mairie en PDF et un seul plan cadastral, dans un email">${icone('mail')} Un seul email à la mairie (${courriersMairieGroupeConstitution(e.documents, g.cle).length})</wa-button>` : ''}</div>
+          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span></div>
           ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
-          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button>${renderSeparerAlignementConstitution(g)}</div></div>`).join('');
+          <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')"><span slot="start" class="bouton-ajout-plus">+</span>Courrier à un autre organisme</wa-button>${renderSeparerAlignementConstitution(g)}</div></div>`).join('');
     }
     const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
     return `${e.documents.map(renderItemConstitution).join('')}
@@ -1226,6 +1260,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
         <wa-button-group label="Signature">${bascule(e.signe !== false, 'cstSigne(true)', 'Signé')}${bascule(e.signe === false, 'cstSigne(false)', 'Non signé')}</wa-button-group>
         <wa-button-group label="Format enregistré">${bascule(e.formats.pdf && !e.formats.docx, "cstFormat('pdf')", 'PDF')}${bascule(e.formats.docx && !e.formats.pdf, "cstFormat('docx')", 'Word')}</wa-button-group>
       </div>
+      ${renderEmailsMairieSortieConstitution()}
       <div class="cst-actions">
         ${nEmail ? `<wa-button appearance="outlined" type="button" ${e.enCours ? 'disabled ' : ''}onclick="envoyerEmailsConstitution()" title="Une fenêtre d’email par courrier à envoyer par email : rien ne part sans « Envoyer »">${icone('mail')} Envoyer les emails (${nEmail})</wa-button>` : ''}
         <wa-button appearance="outlined" type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier cochés, chacun suivi du plan cadastral de sa commune, dans un seul PDF ouvert pour l’impression">${icone('printer')} Imprimer tout (${nPapier})</wa-button>
@@ -1234,6 +1269,23 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
   }
+  // Étape 5 (étude 18/10 : « mettre le bouton un seul mail à la mairie en étape 5 et rajouter un plan cadastral ») : par commune, les courriers
+  // de la mairie dans un seul email, avec l'état du plan cadastral joint (le tirer d'ici s'il manque).
+  function renderEmailsMairieSortieConstitution() {
+    const e = cstEtat;
+    if (!e || e.type !== 'vente') return '';
+    const blocs = e.groupes.map(g => {
+      const docs = courriersMairieGroupeConstitution(e.documents, g.cle);
+      if (!docs.length) return '';
+      return `<div class="cst-mairie-envoi">
+          <div class="cst-mairie-tete"><strong>Mairie de ${escapeHtml(g.commune)}</strong><span class="hint">${docs.map(x => escapeHtml(x.libelle)).join(' · ')}</span></div>
+          ${renderPlanCommuneConstitution(g)}
+          <wa-button appearance="outlined" type="button" class="cst-email-groupe"${e.enCours ? ' disabled' : ''} onclick="emailGroupeMairieConstitution('${escapeOnclickArg(g.cle)}')" title="Les courriers cochés pour la mairie en PDF et le plan cadastral, dans un email : rien ne part sans « Envoyer »">${icone('mail')} Un seul email à la mairie (${docs.length} courrier${docs.length > 1 ? 's' : ''} + plan)</wa-button>
+        </div>`;
+    }).filter(Boolean);
+    return blocs.length ? `<div class="cst-mairies">${blocs.join('')}</div>` : '';
+  }
+
   function cstSigne(oui) { if (cstEtat) { cstEtat.signe = !!oui; renderConstitution(); } }
 
   // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus. Pour une succession

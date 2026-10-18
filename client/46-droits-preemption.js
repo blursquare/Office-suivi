@@ -385,7 +385,13 @@
         </select></td>
         <td class="pr-zt-surface">${l.contenance ? escapeHtml(formaterContenance(l.contenance)) : ''}</td>
       </tr>`;
-    return `<div class="pr-zonage">
+    // Étude 18/10 : les parcelles et leur nature d'un coup d'œil (mêmes cartes que la Constitution de dossier), le tableau dessous pour choisir.
+    const dossier = e.dossierId ? dossiers.find(x => x.id === e.dossierId) : null;
+    const natures = new Map();
+    (((dossier && dossier.bien && dossier.bien.cadastre && dossier.bien.cadastre.parcelles) || [])).forEach(p => { if (p && p.nature) natures.set(cleParcelle(p.section, p.numero), p.nature); });
+    const cartes = renderParcellesZonage(lignes.filter(l => l.statut !== 'lecture').map(l => ({ parcelle: l.libelle, cle: l.cle, code: l.zone || '', famille: l.choisie ? l.famille : (l.typezone || l.famille || ''),
+      libelong: l.libelong || '', contenance: l.contenance || 0, zone: (l.autresZones || []).length && !l.choisie ? `+ en partie ${l.autresZones.map(z => z.libelle).join(', ')}` : '' })), natures);
+    return `<div class="pr-zonage">${cartes}
         <div class="pr-zt-cadre"><table class="pr-zt">
           <thead><tr><th>Parcelle</th><th>Zone lue</th><th>Zone retenue</th><th class="pr-zt-surface">Contenance</th></tr></thead>
           <tbody>${lignes.map(ligne).join('')}</tbody>
@@ -400,7 +406,8 @@
   }
 
   var LIBELLES_STATUT_PREEMPTION = { oui: 'À purger', non: 'Non applicable', verifier: 'À vérifier' };
-  var CLASSES_STATUT_PREEMPTION = { oui: 'dl-pret', non: 'dl-success', verifier: 'dl-neutre' };
+  // Étude 18/10 : rouge = droit à purger (à notifier), orange = à vérifier, vert = pas besoin.
+  var CLASSES_STATUT_PREEMPTION = { oui: 'dl-urgent', probable: 'dl-urgent', non: 'dl-success', verifier: 'dl-pret' };
 
   function renderPreemption() {
     if (!prEtat) prEtat = etatPreemptionVierge();
@@ -499,7 +506,7 @@
   function renderPatrimoineOutil(patrimoine) {
     const l = lignePatrimoinePreemption(patrimoine);
     if (!l) return '';
-    return `<div class="pr-droits"><div class="pr-droit pr-droit-${l.statut === 'oui' ? 'oui' : l.statut === 'non' ? 'non' : 'verifier'}">
+    return `<div class="pr-droits"><div class="pr-droit pr-patrimoine">
         <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
           <span class="dot-label ${CLASSES_PATRIMOINE[l.statut]}"><span class="dot"></span>${LIBELLES_PATRIMOINE[l.statut]}</span></div>
         <div class="pr-droit-motif">${escapeHtml(l.motif)}</div>

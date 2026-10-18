@@ -6953,6 +6953,7 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
 .ech-etat.ok { color: var(--success); }
 .ech-etat.neutre { color: var(--muted); font-weight: 500; }
 .ech-etat.urgent, .ech-etat.alerte { color: var(--urgent); }
+.ech-etat.a-verifier { color: var(--pret); }
 /* Geste en un clic à la place de l'état (« Projet envoyé ») : toujours visible, pas seulement au survol. */
 .ech-etat .ech-action { margin-left: 0; white-space: nowrap; }
 /* Gestes d'édition : au survol ou au clavier ; toujours visibles sur écran tactile. */
@@ -9368,7 +9369,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-question wa-button-group { flex-shrink: 0; }
 .pr-droits { display: flex; flex-direction: column; gap: 12px; }
 .pr-droit { padding: 12px 16px; border-radius: var(--rayon-m); border: 1px solid var(--line); background: var(--paper-card); }
-.pr-droit-oui { border-color: color-mix(in srgb, var(--pret) 45%, var(--line)); }
+.pr-droit-oui { border-color: color-mix(in srgb, var(--urgent) 45%, var(--line)); }
+.pr-droit-verifier { border-color: color-mix(in srgb, var(--pret) 45%, var(--line)); }
+.pr-droit-non { border-color: color-mix(in srgb, var(--success) 35%, var(--line)); }
 .pr-droit-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pr-droit-titre { font-weight: 500; }
 .pr-droit-motif { color: var(--muted); font-size: var(--texte-m); margin-top: 4px; }
@@ -9967,6 +9970,7 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 /* 4. Tâche cochée dans « Aujourd'hui » : le cercle se remplit, la ligne se barre d'un trait, le compteur change en glissant. */
 .ja.fait.vient-de-finir .ja-coche { animation: anim-remplit 220ms var(--anim-courbe); }
 @keyframes anim-remplit { from { transform: scale(0.4); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.ja.fait .ja-titre { width: fit-content; max-width: 100%; } /* le trait ne barre que le texte, jamais toute la ligne (étude 18/10 : « grand trait ») */
 .ja.fait.vient-de-finir .ja-titre { text-decoration: none; background: linear-gradient(var(--muted), var(--muted)) no-repeat 0 55% / 100% 1px; animation: anim-barre 250ms var(--anim-courbe) both; }
 @keyframes anim-barre { from { background-size: 0% 1px; } to { background-size: 100% 1px; } }
 .jour-anneau.vient-de-compter .jour-anneau-plein { animation: anim-anneau 250ms var(--anim-courbe); }
@@ -10020,3 +10024,82 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
   .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }
   .pieces-depot, .pdf-dropzone { transition: background-color var(--anim-duree); }
 }
+/* État civil d'Authentic sous une personne de la fiche (étude 18/10 : régime, date et lieu du mariage). */
+.personne-etat-civil { display: block; margin: 0 0 6px 120px; font-size: var(--texte-s); line-height: 1.35; }
+@media (max-width: 700px) { .personne-etat-civil { margin-left: 0; } }
+/* Parcelles d'un coup d'œil (étude 18/10, Constitution › DIA et SAFER et Contrôle de l'urbanisme) : une carte par parcelle, la famille de zone en couleur. */
+.parcelles-zonage { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.pz-carte { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: var(--rayon-m); background: var(--paper-card); min-width: 0; }
+.pz-carte.pz-u, .pz-carte.pz-au { border-left-color: var(--acte); }
+.pz-carte.pz-a { border-left-color: var(--pret); }
+.pz-carte.pz-n { border-left-color: var(--success); }
+.pz-ref { font-size: var(--texte-l); font-weight: 500; font-variant-numeric: tabular-nums; }
+.pz-infos { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: var(--texte-s); color: var(--muted); }
+.pz-zone { display: flex; align-items: baseline; gap: 6px; font-size: var(--texte-m); }
+.pz-famille { font-size: var(--texte-xs); color: var(--ink-soft); }
+.pz-cheval { font-size: var(--texte-xs); color: var(--pret); }
+/* Guichet (GNAU) : un vrai bouton, gros quand une DIA est à déposer. */
+.cst-gnau-bouton { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font-size: var(--texte-m); font-weight: 500; text-decoration: none; }
+.cst-gnau-bouton:hover { border-color: var(--focus); color: var(--focus); }
+.cst-gnau-bouton.principal { padding: 12px 20px; background: var(--focus); border-color: var(--focus); color: var(--on-accent); font-size: var(--texte-base); }
+.cst-gnau-bouton.principal:hover { background: var(--focus-hover, var(--focus)); color: var(--on-accent); }
+.cst-gnau-ligne.cst-gnau-dpu { flex-wrap: wrap; gap: 12px; }
+.cst-mairies { display: flex; flex-direction: column; gap: 12px; margin: 4px 0 16px; }
+.cst-mairie-envoi { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
+.cst-mairie-tete { display: flex; flex-direction: column; gap: 2px; }
+.cst-mairie-envoi > wa-button { align-self: flex-start; }
+/* Barre du Suivi (étude 18/10 : « gérer les alignements », « flèche trop collée ») : tous les contrôles de la ligne à 40 px comme la recherche,
+   listes dessinées par CLAIRE avec leur chevron à 14 px du bord (dégradés aux couleurs du thème, sans image). */
+.suivi-barre-recherche { align-items: center; }
+.suivi-barre .suivi-filtre-visible select, .suivi-barre .suivi-barre-filtres .toolbar-item select {
+  -webkit-appearance: none; appearance: none; min-height: 40px; padding: 0 40px 0 12px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 15px) 50%; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+}
+.suivi-barre .suivi-barre-filtres .toolbar-item select { min-height: 36px; }
+.suivi-barre-recherche .suivi-plus-filtres::part(base), .suivi-barre-recherche .vue-bascule wa-button::part(base) { min-height: 40px; }
+/* Répertoire : adresse en aperçu de courrier, une ligne postale par ligne (étude 18/10). */
+.rep-adresse { display: flex; flex-direction: column; margin-top: 2px; font-size: var(--texte-m); line-height: 1.4; color: var(--ink-soft); }
+/* Clients et biens : chaque colonne défile seule (centaines de fiches, étude 18/10), titre collé en haut. */
+.cb-colonne { max-height: calc(100vh - 220px); overflow-y: auto; overscroll-behavior: contain; }
+.cb-colonne .w-titre { position: sticky; top: -16px; z-index: 1; background: var(--paper-card); padding: 16px 0 8px; margin-top: -16px; }
+.cb-plus { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px 0; }
+@media (max-width: 760px) { .cb-colonne { max-height: none; overflow: visible; } }
+/* Constitution : page d'accueil centrale (étude 18/10 : « première page plus attractive », « une première page centrale »). */
+.cst-accueil { max-width: 720px; margin: 40px auto 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.cst-accueil-icone { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--rayon-carte); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); color: var(--focus); }
+.cst-accueil-icone .icone { width: 28px; height: 28px; }
+.cst-accueil-titre { margin: 8px 0 0; font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
+.cst-accueil-sous { margin: 0 0 16px; font-size: var(--texte-base); color: var(--muted); }
+.cst-accueil .cst-accueil-recherche { width: 100%; position: relative; flex: none; margin-left: 0; }
+.cst-accueil-recherche input { width: 100%; box-sizing: border-box; min-height: 48px; font-size: var(--texte-l); padding: 0 16px; border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); }
+.cst-accueil-liste-titre { margin-top: 24px; align-self: flex-start; }
+.cst-accueil-grille { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.cst-accueil-carte { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; font: inherit; color: var(--ink); background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); cursor: pointer; min-width: 0; transition: border-color 150ms ease, transform 150ms ease; }
+.cst-accueil-carte:hover { border-color: var(--focus); }
+@media (prefers-reduced-motion: no-preference) { .cst-accueil-carte:hover { transform: translateY(-1px); } }
+.cst-accueil-carte:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cst-accueil-carte-icone { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--rayon-m); background: var(--paper-sunk); color: var(--ink-soft); }
+.cst-accueil-carte-icone.vente { color: var(--acte); background: color-mix(in srgb, var(--acte) 12%, var(--paper-card)); }
+.cst-accueil-carte-icone.succ { color: var(--focus); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); }
+.cst-accueil-carte-icone .icone { width: 20px; height: 20px; }
+.cst-accueil-carte-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cst-accueil-carte-titre { font-size: var(--texte-base); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cst-accueil-carte-sous { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 640px) { .cst-accueil { margin-top: 16px; } .cst-accueil-grille { grid-template-columns: 1fr; } }
+/* Barre des étapes de la Constitution posée dans une carte, traits continus d'une étape à l'autre (étude 18/10 : « la ligne flotte »). */
+.wizard-stepper.cst-stepper { flex-wrap: nowrap; align-items: center; background: var(--paper-card); border: 1px solid var(--bord-carte); border-bottom: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); padding: 12px 16px; margin: 12px 0 16px; }
+.wizard-stepper.cst-stepper .wizard-step-trait { flex: 1 1 16px; max-width: none; min-width: 12px; }
+.wizard-stepper.cst-stepper .wizard-step-btn.fait + .wizard-step-trait { background: var(--focus); }
+.wizard-stepper.cst-stepper .wizard-step-btn { flex: none; }
+@media (max-width: 1200px) { .wizard-stepper.cst-stepper .wizard-step-sous { display: none; } }
+/* « Nouveau dossier » (étude 18/10 : « plus attractif, supprimer ce que CLAIRE fait ») : plus d'encadré « Ce que CLAIRE repère » ;
+   tant qu'aucun PDF n'est affiché, le formulaire est seul, au centre. */
+#nouveau-intro { display: none !important; }
+#onglet-nouveau:not(:has(#pdf-viewer[style*="flex"])) > .wrap { margin: 0 auto; max-width: 760px; }
+.import-choix { gap: 12px; }
+.import-choix-carte { grid-template-columns: 1fr; grid-template-rows: auto auto auto; row-gap: 4px; padding: 20px; border-radius: var(--rayon-carte); min-height: 132px; align-content: start; transition: border-color 150ms ease, transform 150ms ease; }
+@media (prefers-reduced-motion: no-preference) { .import-choix-carte:hover { transform: translateY(-1px); } }
+.import-choix-icone { grid-row: auto; width: 40px; height: 40px; justify-content: center; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--focus) 10%, var(--paper-card)); color: var(--focus); margin-bottom: 8px; }
+.import-choix-titre { font-size: var(--texte-l); font-weight: 500; }
+.import-choix-sous { font-size: var(--texte-m); }

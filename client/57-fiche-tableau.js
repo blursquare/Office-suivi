@@ -121,6 +121,13 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     });
   });
 
+  // --- Emails de la procédure encore à envoyer (étude 18/10 : « mettre dans À faire de la fiche les envois d'email liés à la procédure
+  // du dossier ») : ceux qu'Échanges et Fonds disent utiles maintenant, pas encore partis et qu'aucune tâche du jour ne porte déjà.
+  emailsDusFiche(d, aujourdhuiIso, gestes).forEach(e => ajouter('faire', {
+    cle: 'email:' + e.cle, titre: e.titre, sous: e.sous || 'Email à envoyer', categorie: e.categorie || '', onglet: e.onglet || '',
+    bouton: { onclick: e.onclick, libelle: e.verbe || 'Envoyer', icone: icone('mail'), titre: e.titre }
+  }));
+
   // --- Succession (étude 15/10) : son déroulé à elle (ouverture, notoriété, contrôle à 2 mois, fonds, déclaration) — client/74.
   if (succession) cartesEtapesSuccessionFiche(d, aujourdhuiIso, ajouter);
 
@@ -180,6 +187,31 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   colonnes.faire = colonnes.faire.filter(c => c.cle.startsWith('action:')).concat(colonnes.faire.filter(c => !c.cle.startsWith('action:')).sort(parDate));
   colonnes.fait.sort((a, b) => (b.jours === null) - (a.jours === null) || (b.jours || 0) - (a.jours || 0));
   return colonnes;
+}
+
+// Les emails dus de la fiche (cartesTableauFiche) : vente — gestes d'Échanges et de Fonds utiles maintenant (echangesSelonStade),
+// jamais partis et sans tâche du jour du même motif ; succession — un email par confrère dépositaire du FCDDV pas encore écrit.
+// Le prêt, la vente préalable, le projet et l'appel de fonds ont déjà leur échéance ou leur tâche : jamais ici.
+var MOTIFS_EMAILS_DUS_FICHE = ['provision', 'rib', 'relanceFonds', 'relanceDecompteConfrere'];
+function emailsDusFiche(d, aujourdhuiIso, gestes) {
+  if (!d || d.archive) return [];
+  const id = d.id;
+  if (estSuccession(d)) {
+    const f = (d.succession || {}).fcddv;
+    if (!f || !f.luLe || f.aucune) return [];
+    return confreresFcddv(f).filter(g => g.email && !g.inscriptions.every(i => (f.inscriptions[i.index] || {}).demandeLe)).map(g => ({
+      cle: 'fcddv:' + g.cle, titre: `Écrire à Maître ${g.notaire} (FCDDV)`, sous: 'Nature et coût de l’acte', verbe: 'Écrire', categorie: 'succession', onglet: 'dossier',
+      onclick: `ecrireConfrereFcddv('${escapeOnclickArg(id)}', '${escapeOnclickArg(g.cle)}')`
+    }));
+  }
+  const utiles = echangesSelonStade(d, aujourdhuiIso).utiles;
+  const couverts = new Set((gestes || []).map(a => (a.geste && a.geste.motif) || a.type));
+  return MOTIFS_EMAILS_DUS_FICHE.filter(m => utiles.includes(m) && !couverts.has(m) && !dateDernierEmail(d, m)
+    && (m === 'relanceDecompteConfrere' ? !!emailConfrereVendeurDossier(d) : !!emailDestinataireRelance(d))).map(m => {
+    const a = ACTIONS_EMAIL_DOSSIER[m];
+    return { cle: m, titre: a.titre, verbe: a.verbe, categorie: a.categorie, onglet: CLES_ECHANGES_FONDS.includes(m) ? 'fonds' : 'echanges',
+      onclick: `envoyerRelanceCiblee('${escapeOnclickArg(id)}', '${m}')` };
+  });
 }
 
 // Pure : de quoi dessiner le bandeau du haut — { pieces, signature, maintenant, archive }.

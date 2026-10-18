@@ -770,6 +770,8 @@
     const filtreOffre = document.getElementById('filtre-offre').value;
     const filtreType = document.getElementById('filtre-type').value;
     const filtreRole = document.getElementById('filtre-role').value;
+    const champAffaire = document.getElementById('filtre-affaire');
+    const filtreAffaire = champAffaire ? champAffaire.value : '';
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
     // Le tableau de bord ne montre que les dossiers du collaborateur du poste (sauf vue globale,
@@ -825,6 +827,7 @@
         if (!prochaine || prochaine.type !== filtreType) return false;
       }
       if (filtreRole && (d.roleNotaire || 'instrumentaire') !== filtreRole) return false;
+      if (filtreAffaire && (estSuccession(d) ? 'succession' : 'vente') !== filtreAffaire) return false;
       return true;
     };
     const avantEtat = dossiersVisibles.filter(passeFiltresSuivi);

@@ -25,7 +25,7 @@ function creerRouteurClientsBiens(depot, parametresRepo) {
   const oublier = () => { cache = { t: 0, base: null }; };
 
   routeur.get('/clients-biens', (req, res) => {
-    res.json(chercherClientsBiens(base(), String(req.query.q || '').slice(0, 80)));
+    res.json(chercherClientsBiens(base(), String(req.query.q || '').slice(0, 80), { personnes: Number(req.query.np), biens: Number(req.query.nb) }));
   });
 
   routeur.get('/clients-biens/personne/:id', (req, res) => {
