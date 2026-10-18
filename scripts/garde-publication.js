@@ -255,6 +255,13 @@ function crochet() {
   const sources = [...new Set(segmentsCommande(commande).flatMap((s) => sourcesVersMain(s, branche, amont)))];
   if (!sources.length) return 0;
   if (sources.includes('*')) return refuser('envoi qui ne désigne pas une seule source (--all, *, alias) — pousser explicitement HEAD:main.');
+  // Avant les marques : inutile de lancer les tests la nuit pour apprendre ensuite que l'heure bloque.
+  // Étude 18/10 : « entre 19 h et 8 h le lendemain tu n'envoies plus les nouveautés sur main, je ne suis pas au bureau pour tester »,
+  // puis « bloque aussi les corrections la nuit » : un .exe s'installe seul au bureau, personne n'est là pour l'essayer.
+  const maintenant = new Date();
+  if (horsHeuresBureau(maintenant)) {
+    return refuser(`il est ${heureParis(maintenant)} h à Paris : entre ${HEURE_FIN_BUREAU} h et ${HEURE_DEBUT_BUREAU} h, rien ne part sur main (nouveauté ni correction), l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main à partir de ${HEURE_DEBUT_BUREAU} h.`);
+  }
   for (const src of sources) {
     const manque = etapesManquantes(src);
     if (manque.length) {
@@ -263,11 +270,6 @@ function crochet() {
       return refuser(`le contenu de ${src} n'a pas passé ${manque.map((e) => LIBELLES[e]).join(' ni ')}. Lancer ce qui manque APRÈS la dernière modification (une modification qui change le contenu efface les marques), puis renvoyer.`
         + (nonSuivis ? ` Attention : des fichiers non suivis (git status) entrent dans le contenu testé et le séparent de ${src} — les commiter ou les déplacer, puis relancer.` : ''));
     }
-  }
-  // Étude 18/10 : « entre 19 h et 8 h le lendemain tu n'envoies plus les nouveautés sur main, je ne suis pas au bureau pour tester »,
-  // puis « bloque aussi les corrections la nuit » : un .exe s'installe seul au bureau, personne n'est là pour l'essayer.
-  if (horsHeuresBureau(new Date())) {
-    return refuser(`il est ${heureParis(new Date())} h à Paris : entre ${HEURE_FIN_BUREAU} h et ${HEURE_DEBUT_BUREAU} h, rien ne part sur main (nouveauté ni correction), l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main à partir de ${HEURE_DEBUT_BUREAU} h.`);
   }
   return 0;
 }

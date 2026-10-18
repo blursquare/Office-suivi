@@ -7,6 +7,8 @@ description: Procédure complète avant d'envoyer un changement de CLAIRE sur ma
 
 `main` = production : un push construit un `.exe` installé seul sur le serveur du bureau dans les dix minutes. **Jamais depuis la session programmée « relecture des rapports techniques »** (voir CLAUDE.md : branche + demande de fusion, c'est l'étude qui fusionne).
 
+**Jamais entre 19 h et 8 h, heure de Paris** (étude 18/10 : l'étude n'est pas au bureau pour essayer — nouveauté ni correction) : la garde refuse l'envoi sur `main`. Le soir, pousser la branche et publier à partir de 8 h (`node scripts/prochaine-version.js` donne l'heure de Paris).
+
 ## 1. Cadrer
 
 - Relis la demande de l'étude mot pour mot. Si elle admet plusieurs lectures et qu'elle écrit dans un agenda, une boîte ou une base partagés : pose la question avant (`AskUserQuestion`).
