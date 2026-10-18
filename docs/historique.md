@@ -20876,3 +20876,4 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
 - Même version : « Dernière mise à jour » à la place de « Nouveau » sur la plus récente (étude) ; découpe des points sans couper après « M. », « p. » ni sur un « ; » entre parenthèses (`decouperResumeNouveaute`), pastilles cliquables sur 20 px (relecture).
 - 0.288.1 : notifications en bas de la barre latérale, sur fond blanc (étude : « mettre les notifications en bas de la sidebar sur fond blanc ») — `.toast` retiré des jetons sombres de la barre, placé à gauche au-dessus de « Signaler un problème » au-delà de 900 px.
 - 0.288.1 (relecture) : bandeau d'appel 3CX et carte « Email envoyé » à droite de la barre (ils recouvraient la notification), message fixe sans la marge gauche de 32 px. En thème sombre la notification prend la carte sombre du thème, pas un blanc fixe.
+- 0.288.1 : fond blanc aussi en thème sombre (étude) — jetons du thème clair redéclarés sur `.toast`.

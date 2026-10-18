@@ -10143,6 +10143,11 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 #onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
 /* Notifications en bas de la barre latérale, sur fond blanc (étude 18/10) : au-dessus de « Signaler un problème », alignées sur la
    barre ; sur téléphone, en bas au centre comme avant. Texte foncé, filet de durée et « Annuler » à l'accent. */
+/* Toujours sur fond blanc, même en thème sombre (étude 18/10) : les jetons du thème clair redéclarés pour la notification seule. */
+.toast {
+  --paper-card: #FFFFFF; --paper-sunk: #F7F9FB; --ink: #16233C; --ink-soft: #57607A; --line: #DCE2E9; --muted: #647089;
+  --focus: var(--accent-clair); --focus-hover: var(--accent-clair-hover); --on-accent: #fff;
+}
 .toast { background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); text-align: left; }
 .toast-undo { align-self: flex-start; color: var(--focus); }
 .toast-undo:focus-visible { outline-color: var(--focus); }
