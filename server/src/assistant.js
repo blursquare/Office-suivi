@@ -59,7 +59,7 @@ ${intentions}
 inconnu = hors liste ou trop vague
 ${proches ? `Exemples proches :\n${proches}\n` : ''}${c.dossierLibelle ? `Dossier en consultation : ${c.dossierLibelle} (« ce dossier », « lui »).\n` : ''}${echanges ? `Avant :\n${echanges}\n` : ''}Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')}.
 Phrase : « ${String(texte || '').replace(/\s+/g, ' ').trim()} »
-JSON seul : {"intention":"<clé>","parametres":{"dossier":"<nom cité>","date":"<AAAA-MM-JJ>","heure":"<HH:MM>","texte":"","modele":"<pret|rib|provision|ventePrealable|fonds|relanceFonds|projet|confirmationRdv|questionnaire|copieActe|accuseReception>","echeance":"<appelFonds|projetEnvoye|pret|ventebien|rendezVousSignature>","champ":"<appelFonds|projetEnvoye|pret|ventebien|acte>","partie":"<vendeur|acquereur|confrere|agence>","ecran":"<dashboard|agenda|suivi|scans|outils|reglages|nouveau|confreres|analyse-ia>","montant":null,"collaborateur":"<Bastien|Julie|Jérémy>","titre":""}}`;
+JSON seul : {"intention":"<clé>","parametres":{"dossier":"<nom cité>","date":"<AAAA-MM-JJ>","heure":"<HH:MM>","texte":"","modele":"<pret|rib|provision|ventePrealable|fonds|relanceFonds|projet|confirmationRdv|questionnaire|copieActe|accuseReception>","echeance":"<appelFonds|projetEnvoye|pret|ventebien|rendezVousSignature>","champ":"<appelFonds|projetEnvoye|pret|ventebien|acte>","partie":"<vendeur|acquereur|confrere|agence>","ecran":"<dashboard|agenda|suivi|scans|outils|reglages|nouveau|confreres>","montant":null,"collaborateur":"<Bastien|Julie|Jérémy>","titre":""}}`;
 }
 
 /** Paramètres de l'IA ramenés à des chaînes propres, valeurs hors liste écartées. @param {any} brut */

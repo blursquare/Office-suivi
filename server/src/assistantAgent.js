@@ -97,6 +97,14 @@ const OUTILS_AGENT = [
       properties: { documents: { type: 'array', items: { type: 'string' }, description: 'les document_id à proposer' } } }
   },
   {
+    name: 'controles_relecture',
+    description: 'Relecture d’un acte (avant-contrat — compromis ou promesse — ou projet d’acte de vente) : le poste lit le document ENTIER et rend les contrôles de CLAIRE sans IA (constats classés par gravité avec leur page), la grille de relecture de l’étude (points à vérifier selon le mode et le type de bien) et les consignes que l’étude a laissées sur ses relectures passées. Ensuite, vérifie toi-même chaque point de la grille dans le texte (lire_document) avant de conclure. Projet d’acte : l’avant-contrat sert de référence (document_reference, sinon celui du dossier).',
+    input_schema: { type: 'object', additionalProperties: false, required: ['document_id', 'mode', 'dossier_id', 'document_reference', 'type_bien'],
+      properties: { document_id: chaine('document à relire (document_id ou pj1…)'), mode: { type: 'string', enum: ['compromis', 'acte'], description: 'compromis = avant-contrat (compromis ou promesse) ; acte = projet d’acte de vente' },
+        dossier_id: chaine('"" si aucun dossier'), document_reference: chaine('projet d’acte : l’avant-contrat à comparer ("" = celui du dossier)'),
+        type_bien: { type: 'string', enum: ['', 'maison', 'copropriete', 'terrain'], description: '"" = déduit du dossier ou du texte' } } }
+  },
+  {
     name: 'plan_de_travail',
     description: 'Affiche à l’utilisateur, dans la colonne de droite, le plan de ce que tu fais pour une demande en plusieurs temps (relire un acte, analyser un dossier, comparer des documents, chercher un texte de loi) : 3 à 8 étapes courtes. Appelle-le au début, puis à nouveau pour mettre à jour l’état des étapes au fil du travail. Ne rien dire de nominatif : les codes [NOM…] sont rétablis à l’affichage.',
     input_schema: { type: 'object', additionalProperties: false, required: ['etapes'],
@@ -131,10 +139,10 @@ const OUTILS_AGENT = [
   },
   {
     name: 'outil_claire',
-    description: 'Les outils de CLAIRE. Mode « lire » : le résultat te revient — controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, relecture_actes, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
+    description: 'Les outils de CLAIRE. Mode « lire » : le résultat te revient — controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
     input_schema: { type: 'object', additionalProperties: false, required: ['outil', 'mode', 'dossier_id', 'texte'],
       properties: {
-        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'relecture_actes', 'repertoire', 'claire_scan', 'nouveau_dossier'] },
+        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'repertoire', 'claire_scan', 'nouveau_dossier'] },
         mode: { type: 'string', enum: ['lire', 'ouvrir'] },
         dossier_id: chaine('id du dossier, ou ""'), texte: chaine('recherche dans le répertoire, ou ""')
       } }
@@ -200,6 +208,7 @@ Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
 - Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Pour une question sur une règle de CLAIRE ou un choix de l'étude (« pourquoi… », « depuis quand… », un délai, une échéance, un courrier), cherche dans la rubrique regles-etude et cite la section (sa date quand elle en porte une). Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
+- Relecture d'un acte (étude 18/10 : la relecture d'actes se fait ici) : appelle controles_relecture, puis lis le document (lire_document, par tranches de 30 pages) pour vérifier chaque point de la grille de l'étude et chaque constat de CLAIRE, en tenant compte des consignes de l'étude. Rends un compte rendu en texte, dans cet ordre : **Synthèse** (deux phrases) ; **À régler avant la signature** (le bloquant seulement) ; **À vérifier** ; **Conforme** (une ligne par thème, bref) ; **Contradictions** entre les documents ; **Pièces ou informations manquantes**. Chaque point cite sa page [document_id p. N] et, quand c'est possible, le passage exact « … ». Jamais « conforme » pour un point que tu n'as pas trouvé dans le texte : dis « non trouvé dans le document ». Peu de bruit : l'étude se plaint du bruit, pas des oublis — ne signale pas l'anodin, regroupe, n'invente aucune règle de droit (vérifie dans les sources juridiques en cas de doute). Propose ensuite « Imprimer » ou rediger_document pour une note Word.
 - Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
 - Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
 - Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
@@ -511,7 +520,7 @@ async function tourAgent(entree, o) {
         conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
         conv.externesUtilises = true;
       }
-      if ((conv.nomsAppels || {})[id] === 'lire_document' && !r.erreur) {
+      if (['lire_document', 'controles_relecture'].includes((conv.nomsAppels || {})[id]) && !r.erreur) {
         if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
         }

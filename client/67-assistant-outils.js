@@ -14,7 +14,6 @@
     provision: { libelle: 'Provision sur frais', onglet: 'calculateur' },
     prorata: { libelle: 'Prorata', onglet: 'prorata' },
     forfait_mobilier: { libelle: 'Forfait mobilier', onglet: 'inventaire' },
-    relecture_actes: { libelle: 'Relecture d’actes', onglet: 'analyse-ia' },
     repertoire: { libelle: 'Répertoire', onglet: 'confreres' },
     claire_scan: { libelle: 'Claire Scan', onglet: 'scans' },
     nouveau_dossier: { libelle: 'Nouveau dossier', onglet: 'nouveau' }
@@ -27,7 +26,6 @@
     const e = etat || {};
     const autre = (id) => !!id && (!d || id !== d.id);
     if (outil === 'quotites') return autre(e.quotites);
-    if (outil === 'relecture_actes') return autre(e.relecture) || (!!e.relectureLancee && !(d && e.relecture === d.id));
     if (outil === 'appel_fonds') return autre(e.appelFonds);
     if (outil === 'controle_urbanisme') return autre(e.urbanisme);
     return false;
@@ -35,7 +33,7 @@
 
   function dossierDejaDansOutilAgent(outil, d, etat) {
     const e = etat || {};
-    const id = outil === 'quotites' ? e.quotites : outil === 'relecture_actes' ? e.relecture : outil === 'appel_fonds' ? e.appelFonds : outil === 'controle_urbanisme' ? e.urbanisme : '';
+    const id = outil === 'quotites' ? e.quotites : outil === 'appel_fonds' ? e.appelFonds : outil === 'controle_urbanisme' ? e.urbanisme : '';
     return !!(d && id && id === d.id);
   }
 
@@ -43,7 +41,7 @@
   function ouvrirOutilClaireAgent(outil, d, confirme) {
     const o = OUTILS_CLAIRE_AGENT[outil];
     if (!o) return;
-    const etat = { quotites: qtDossierLie || '', relecture: auditDossierLie ? auditDossierLie.id : '', relectureLancee: !!analyseClaudeRelecture, appelFonds: afDossierLie || '',
+    const etat = { quotites: qtDossierLie || '', appelFonds: afDossierLie || '',
       urbanisme: prEtat && prEtat.dossierId ? prEtat.dossierId : '' };
     if (!confirme && travailEnCoursOutilAgent(outil, d, etat)) {
       demanderConfirmation(`Remplacer le travail en cours dans l’outil ${o.libelle} ? Il porte sur un autre dossier et sera perdu.`, () => ouvrirOutilClaireAgent(outil, d, true));
@@ -56,7 +54,6 @@
     definirOnglet(o.onglet);
     if (!d) return;
     if (outil === 'quotites') choisirDossierQuotites(d.id);
-    else if (outil === 'relecture_actes' && typeof choisirDossierAudit === 'function') choisirDossierAudit(d.id);
   }
 
   // Pure : ce que l'outil donne à lire pour un dossier (ou le répertoire pour un texte) — un objet, ou { erreur }.

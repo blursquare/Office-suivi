@@ -117,9 +117,14 @@
     });
   }
 
+  // Un commentaire de relecture retiré (Réglages › Ce que CLAIRE a appris) : il ne sera plus une consigne de l'agent (client/50-relecture-agent.js).
   function oublierRetourAudit(id) {
     demanderConfirmation('Retirer ce commentaire de relecture ? Le point concerné ressortira normalement aux prochaines relectures.', async () => {
-      await supprimerRetourAudit(id);
+      try {
+        const reponse = await fetchAvecAuth('/api/audit-retours/' + encodeURIComponent(id), { method: 'DELETE' });
+        if (!reponse.ok && reponse.status !== 404) throw new Error('statut ' + reponse.status);
+        retoursAudit = retoursAudit.filter(r => r.id !== id);
+      } catch (e) { afficherToast('Suppression impossible : ' + e.message, 'OK', null); }
       renderPageApprentissage();
     });
   }

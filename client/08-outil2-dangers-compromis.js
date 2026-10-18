@@ -745,24 +745,6 @@
     return { nom: doc.nom, travaux };
   }
 
-  // --- Type de bien : déduit, affiché, corrigeable ---------------------------------------------
-  //
-  // Jusqu'ici la copropriété et le terrain à bâtir étaient déduits en silence, chacun de son côté.
-  // L'étude a demandé que le type soit DIT et corrigeable : c'est lui qui décide des contrôles
-  // propres à chaque type (assemblées générales, état daté et carnet d'entretien en copropriété ;
-  // permis de construire et purge des délais sur un terrain à bâtir ; rien de spécifique sur une
-  // maison). Un type déduit de travers rendait donc muette toute une partie du rapport, sans que
-  // rien ne l'explique.
-  //
-  // L'ordre des essais est celui de la fiabilité : le dossier CLAIRE lié (l'étude l'a choisi
-  // elle-même), puis le texte, puis « maison » par défaut — c'est le cas majoritaire, et le seul
-  // qui n'ajoute aucun contrôle, donc le repli le moins coûteux quand rien ne tranche.
-  var TYPES_BIEN_AUDIT = [
-    { valeur: 'maison', libelle: 'Maison / immeuble' },
-    { valeur: 'copropriete', libelle: 'Copropriété' },
-    { valeur: 'terrain', libelle: 'Terrain à bâtir' }
-  ];
-
   function deduireTypeBienOutil2(entree) {
     const dossierLie = (entree && entree.dossierLie) || null;
     if (dossierLie && (dossierLie.typeVente === 'copropriete' || dossierLie.typeVente === 'terrain' || dossierLie.typeVente === 'maison')) {

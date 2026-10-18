@@ -523,14 +523,6 @@
   const MAX_CONSTATS_MEMORISES = 500;
   let memoireAuditConstats = [];
 
-  async function sauvegarderMemoireAudit() {
-    const contenu = JSON.stringify(memoireAuditConstats);
-    try {
-      if (window.storage) { await window.storage.set(CLE_MEMOIRE_AUDIT, contenu, false); return; }
-    } catch (e) { console.warn('window.storage indisponible pour la mémoire d’audit, repli sur localStorage.', e); }
-    try { localStorage.setItem(CLE_MEMOIRE_AUDIT, contenu); } catch (e) { console.warn('Sauvegarde de la mémoire d’audit impossible.', e); }
-  }
-
   async function chargerMemoireAudit() {
     let brut = null;
     try {
@@ -611,16 +603,6 @@
     return liste;
   }
 
-  function memoriserDecisionConstat(constat, decision) {
-    memoireAuditConstats = memoriserDecisionDans(memoireAuditConstats, constat, decision);
-    sauvegarderMemoireAudit();
-  }
-
-  function oublierDecisionConstat(idMemoire) {
-    memoireAuditConstats = memoireAuditConstats.filter(m => m.id !== idMemoire);
-    sauvegarderMemoireAudit();
-  }
-
   // --- Rubriques du rapport d'Outil 2 masquées par l'étude ------------------------------------
   // Réponse directe à un retour de l'étude : le défaut d'Outil 2 n'est pas ce qu'il rate, c'est
   // qu'il « signale trop de choses sans intérêt ». Sans acte réel sous la main, deviner lesquelles
@@ -637,14 +619,6 @@
   // constat critique sans que rien ne le dise.
   const CLE_RUBRIQUES_MASQUEES = 'audit-rubriques-masquees';
   let rubriquesMasqueesAudit = [];
-
-  async function sauvegarderRubriquesMasquees() {
-    const contenu = JSON.stringify(rubriquesMasqueesAudit);
-    try {
-      if (window.storage) { await window.storage.set(CLE_RUBRIQUES_MASQUEES, contenu, false); return; }
-    } catch (e) { console.warn('window.storage indisponible pour les rubriques masquées, repli sur localStorage.', e); }
-    try { localStorage.setItem(CLE_RUBRIQUES_MASQUEES, contenu); } catch (e) { console.warn('Sauvegarde des rubriques masquées impossible.', e); }
-  }
 
   async function chargerRubriquesMasquees() {
     let brut = null;
@@ -663,10 +637,6 @@
     rubriquesMasqueesAudit = Array.isArray(brut) ? brut.filter(c => typeof c === 'string') : [];
   }
 
-  function rubriqueMasqueeAudit(cle) {
-    return rubriquesMasqueesAudit.indexOf(String(cle)) !== -1;
-  }
-
   // Fonction pure (la liste est passée et rendue), testable : l'état de la page l'appelle avec
   // rubriquesMasqueesAudit. Une clé inconnue de SOUS_SECTIONS_RAPPORT_OUTIL2 n'est jamais ajoutée
   // — sans ce garde-fou, une rubrique renommée laisserait une entrée morte que plus aucun bouton
@@ -677,17 +647,6 @@
     const actuelle = Array.isArray(liste) ? liste.filter(x => clesConnues.indexOf(x) !== -1) : [];
     if (clesConnues.indexOf(k) === -1) return actuelle;
     return actuelle.indexOf(k) !== -1 ? actuelle.filter(x => x !== k) : actuelle.concat([k]);
-  }
-
-  function basculerRubriqueAudit(cle) {
-    const masquee = rubriqueMasqueeAudit(cle);
-    rubriquesMasqueesAudit = basculerRubriqueDans(rubriquesMasqueesAudit, cle);
-    sauvegarderRubriquesMasquees();
-    if (dernierRapportAudit) renderRapportAuditActe(dernierRapportAudit);
-    const titre = (SOUS_SECTIONS_RAPPORT_OUTIL2.find(s => s.cle === String(cle)) || {}).titre || 'Rubrique';
-    afficherToast(masquee
-      ? `« ${titre} » est de nouveau affichée.`
-      : `« ${titre} » ne sera plus affichée. Réafficher en bas du rapport.`, 'OK', null);
   }
 
   // ---- export / import (sauvegarde JSON complète du registre) ----

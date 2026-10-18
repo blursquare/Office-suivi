@@ -750,7 +750,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
   complément.
 - **Aide à la rédaction de l'acte : outil SUPPRIMÉ le 15/10 (0.239.0, demande de l'étude : « Supprime l'outil d'aide à la rédaction »)** — écran, catalogue de clauses (`commun/redaction.js`), correspondance par l'IA, macro Word et lecture des rapports de diagnostic retirés ; ne pas le remettre sans nouvelle demande (l'historique des versions 0.218.0 à 0.223.1 dans `docs/historique.md` dit comment il était fait). **Le relais CLAIRE du poste (`relaisWord.js`, `server/relais/CLAIRE-relais.exe`) reste** : il sert aux appels 3CX (fenêtre CLAIRE au premier plan).
-- **Espace de travail de « Demander à CLAIRE »** (étude 18/10, 0.282.0, `client/85-assistant-colonne.js`) : colonne de droite comme Claude — étapes (`plan_de_travail`), documents de la conversation, aperçu du PDF à la page citée (citation « … » [docN p. X] surlignée, retrouvée ou non), dossier rattaché, modèle et réflexion ; résumé automatique du début des longues conversations (Opus 5.5), reprise d'une conversation oubliée par le serveur avec les échanges du poste. Prochaines étapes convenues : relecture d'actes fusionnée dans la conversation (outil retiré), recherche web limitée aux sites officiels, résumés des conversations sur le serveur.
+- **Espace de travail de « Demander à CLAIRE »** (étude 18/10, 0.282.0, `client/85-assistant-colonne.js`) : colonne de droite comme Claude — étapes (`plan_de_travail`), documents de la conversation, aperçu du PDF à la page citée (citation « … » [docN p. X] surlignée, retrouvée ou non), dossier rattaché, modèle et réflexion ; résumé automatique du début des longues conversations (Opus 5.5), reprise d'une conversation oubliée par le serveur avec les échanges du poste. Relecture d'actes fusionnée dans la conversation en 0.284.0 (voir « Relecture d'actes ») ; prochaines étapes convenues : recherche web limitée aux sites officiels, résumés des conversations sur le serveur.
 - **Consignes de CLAIRE — `CLAIRE.md`** (étude 18/10, 0.280.0, `server/src/carnetClaire.js`, `routes/carnetClaire.js`, `client/83-carnet-claire.js`) : carnet Markdown unique pour toute l'étude (clé `carnet-claire`, 20 versions), Réglages › Consignes de CLAIRE et bouton « Corriger » sous une réponse de l'agent ; lu par l'agent au premier tour de chaque conversation (second bloc système en cache pour Claude, premier message pour Mistral), MASQUÉ par `masquerCarnet` ; un texte qui cite un client ou un dossier est refusé (`motsNominatifs`). Les consignes passent avant les habitudes de l'agent, jamais avant ses règles de sécurité.
 - **Jamais « Sauf erreur de ma part / de notre part »** (étude 12/10) : ni dans un texte de CLAIRE, ni dans une réponse de « Demander à CLAIRE », ni dans un premier jet d'email par l'IA — consigne dans chaque prompt et filtre `sansSaufErreur` (commun/assistant.js) sur toute réponse écrite par une IA.
 - **Textes d'emails fournis par l'étude** (provision, prêt manquant, RIB, réception des fonds,
@@ -865,40 +865,22 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `assistant-ia-locale`. **Présentation façon Slack** (étude 11/10, 0.210.0) : page pleine hauteur, fil continu (messages groupés par auteur, avatar carré, nom et heure), « @ » cite un dossier — **le dossier choisi est imposé à l'envoi** tant que son nom reste dans la phrase (`dossierMentionneAssistant`), jamais laissé à la lecture du nom. **Widget « Demander à CLAIRE »** du tableau de bord (étude 07/10, `renderWidgetAssistant`, en tête par `enTete`) : la question tapée ou l'exemple cliqué part sur la page (`envoyerDepuisWidgetAssistant`) ; le champ n'est écrit qu'une fois (la saisie survit aux redessins). **Sur une rangée, demi-hauteur** (étude 07/10 : « moins haut, une ligne ») : la grille des widgets est en demi-rangées (`--w-demi`, chaque widget couvre 2/4/6 demi-rangées), « Demander à CLAIRE » 1/3/5 — forme compacte `w-asst-compact` (titre, champ et bouton sur une ligne, exemples sur une ligne). Une nouvelle intention = une entrée d'`INTENTIONS_ASSISTANT` (motifs, exemples — chaque exemple doit être
   compris sans IA, test `tests/assistant.test.js`) + son exécutant dans `executerDemandeAssistant`.
 
-## Relecture d'actes (Outil 2) — état actuel
+## Relecture d'actes — dans « Demander à CLAIRE » (depuis 0.284.0)
 
-**Contrôle de l'urbanisme dans la relecture** (étude 08/10, « dans un second temps à l'outil relecture d'actes » ;
-`client/55-controle-urbanisme-relecture.js`, `constatsControleUrbanisme`, catégorie `CONTROLE_URBANISME`) : seulement quand la
-relecture est liée à un dossier qui porte une analyse (`d.preemption`) — droit retenu (`oui`/`probable`, `droitsPreemptionFiche`)
-que le texte ne cite pas (`MENTIONS_DROITS_URBANISME` : DPU/DIA, SAFER, préférence bois et forêts ; IMPORTANT dans un projet
-de vente, À vérifier dans un avant-contrat) ; zone protégée (`lignePatrimoinePreemption` « oui ») non signalée
-(`RE_PATRIMOINE_DANS_ACTE`, À vérifier) ; travaux extérieurs/gros œuvre déclarés (avant-contrat + projet) sans mention de
-l'architecte des bâtiments de France — un seul point (IMPORTANT). Mode avant-contrat : `dossierLie` passé aussi. Rangés dans la
-carte « Urbanisme » du bilan (`themeCle: 'urbanisme'`, titre « Contrôle de l'urbanisme »). Sans dossier lié ou sans analyse : rien.
-
-Quatre étapes : documents (dépôt ou dossier NAS complet) → pseudonymisation (vérifiable) →
-analyse par API → bilan (carte de santé, grille de points par thème, clauses contradictoires,
-aperçu PDF à la page citée, coût). La grille (`GRILLE_RELECTURE_OUTIL2`) vit côté client et dépend
-du mode (avant-contrat / projet de vente) et du **type de bien** (maison, copropriété, terrain),
-choisi avant l'analyse. Chaque citation est **vérifiée mot pour mot** côté serveur ; un point omis
-ressort « à vérifier », jamais « validé ». Les commentaires de l'étude (mode commentaires) sont
-renvoyés au modèle comme consignes, après pseudonymisation. Les analyses sont enregistrées en clair
-sur le serveur (table `relectures`), la requête pseudonymisée dans `analyses_claude`. Les contrôles
-déterministes de CLAIRE (sans IA) complètent l'analyse et fonctionnent sans clé API.
-Plainte principale de l'étude : **le bruit**, pas les oublis — ne pas élargir de motif sans acte réel.
-**Compte rendu succinct** (étude 06/10, `client/50-relecture-compte-rendu.js`) : carte de santé avec résumé en deux phrases,
-tuiles par thème, puis **Alertes** / **À surveiller** en lignes compactes (pastille, thème, intitulé, première phrase du
-commentaire, pages) et **Validé** en fin, borné à un quart de page ; au-delà de 30 lignes détaillées, intitulés seuls ; détail des
-contrôles CLAIRE, synthèse complète, coût et diagnostic repliés. `planCompteRenduRelecture` (pure) sert à l'écran et au papier ;
-**« Imprimer (A4) »** / Ctrl+P sortent `#relecture-cr-print` seul (une page recto verso au plus, mesuré). Une nouvelle sorte de
-point du bilan passe par le plan, jamais par un bloc à part.
-**À l'écran, par catégorie** (étude 08/10 : « imbuvable ; catégories plus visibles et identifiables, plus ludique ; voir ce qui
-est important au premier coup d'œil ») : `renderCompteRenduEcranRelecture` remplace les tuiles et les listes Alertes / À
-surveiller / Validé de l'écran — en tête **« À régler avant la signature »** (points critiques seuls, chip de leur catégorie, clic
-→ `allerPointRelecture`), sinon « Aucun point bloquant » ; puis une carte par catégorie (`categoriesCompteRenduRelecture`, pure :
-icône et couleur `--cat-*` de `CATEGORIES_COMPTE_RENDU_RELECTURE`, pastilles critique/à surveiller/validé, barre d'avancement,
-alertes et points à surveiller détaillés, validés repliés ; ordre : alerte d'abord, puis à surveiller, puis tout validé). Le plan
-garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRenduRelecture(plan, true)`.
+**L'outil « Relecture d'actes » (quatre étapes, pseudonymisation, envoi à l'API, bilan) est RETIRÉ** (étude 18/10 : « on va fusionner
+Relectures d'acte dans Demander à CLAIRE qui sera l'interface ; on lui enverra les données et elle fera un compte rendu comme Claude le
+ferait, sous format texte » ; choix : outil retiré, Bastien seulement comme l'agent). La relecture se demande à l'agent : outil
+`controles_relecture` (`client/50-relecture-agent.js`, `server/src/assistantAgent.js`) — le POSTE lit le document entier (pdf.js, OCR des
+pages sans texte, NAS ou pièce jointe), passe les contrôles de CLAIRE sans IA (`analyserCompromisOutil2` / `analyserProjetVenteOutil2`,
+client/06 à 13 et 55 : dangers de l'avant-contrat, comparaison projet ↔ avant-contrat, AG, état daté, urbanisme), rend la grille de l'étude
+(`grillePourModeOutil2`, mode et type de bien) et les consignes tirées des commentaires de l'étude sur ses relectures (`consignesDepuisRetours`,
+`/api/audit-retours`, retirables dans Réglages › Ce que CLAIRE a appris) ; résultat MASQUÉ par le serveur comme tout résultat d'outil
+(test « rien de nominatif ne part »), compté dans la limite de lecture. L'agent lit ensuite le document (`lire_document`) et rédige le
+compte rendu en texte (Synthèse ; À régler avant la signature ; À vérifier ; Conforme ; Contradictions ; Pièces manquantes ; jamais
+« conforme » pour un point non trouvé ; peu de bruit — la plainte de l'étude est le bruit, pas les oublis) ; « Imprimer » sous une longue
+réponse (`imprimerReponseAssistant`). Les contrôles déterministes restent la base : ne pas élargir un motif sans acte réel. Réglages › IA
+et relecture d'actes garde les clés (Claude, Mistral) utilisées par l'agent ; les routes `relectureClaude` / `relectures` du serveur ne
+sont plus appelées par le poste.
 
 ## Pièges techniques déjà payés
 
@@ -1038,7 +1020,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
   leurs zones) ; tout « Ajouter … » est un
   `button.bouton-ajout` ; l'édition d'une donnée passe par des icônes (crayon, ✓, ×) ; seuls les
   formulaires gardent des boutons classiques.
-  **Barre latérale** (01/10 ; **collée en haut, en bas et à gauche, angles droits** depuis le 11/10) : pas de titres de section, des liens seulement ; **ordre depuis le 15/10 (0.249.0)** : Tableau de bord, Suivi des dossiers, Constitution de dossier, Agenda, Outils, « Demander à CLAIRE », Répertoire, Réglages ; **tiroir Outils en deux catégories titrées « Vente » et « Succession »** (étude 15/10, `.sidebar-sousmenu-titre`, masquées barre repliée), ordre alphabétique dans chacune ; **« Demander à CLAIRE » (lien, page, widget du tableau de bord) et « Relecture d'actes » réservés à l'administrateur** (étude 09/10 : « que pour Bastien » — `ONGLETS_ADMINISTRATEUR`, `ongletReserve`, `majSidebarReservee` dans client/23 ; `definirOnglet` renvoie les autres au tableau de bord) ; « Relecture d'actes » est un outil (étude 05/10, dans le tiroir) ; **« Outils » n'est plus une page** (étude 06/10 : « supprime la page avec tous les outils et ouvre le tiroir en cliquant sur Outils ») — un clic déplie ou replie le tiroir (`toggleGroupeSidebar`, chevron sur la ligne, `ouvrirTiroirOutils` pour l'assistant et un ancien lien `definirOnglet('outils')`) ; tout nouvel outil s'ajoute au tiroir (`#sidebar-sousmenu-outils`) ; compteurs en carré arrondi rouge. **Tiroir des outils replié au démarrage** (étude 18/10). **Barre repliée** (étude 06/10, sur un exemple) : une fois ouvert, le tiroir reste déplié sous l'icône Outils, en icônes seules dans un bloc arrondi ; un clic sur l'icône le replie ; pas de volet flottant. **lien actif = trait de l'accent sur le bord de la barre + fond très léger** (étude 10/10, choix 1 des maquettes `docs/maquettes-sidebar/` ; avant : contour et point) ; **Fond plus sombre que la barre derrière « Outils » et son tiroir déplié** (`.sidebar-outils-groupe`, étude 06/10) ; **outils du tiroir par ordre alphabétique dans leur catégorie** (un nouvel outil s'y range à sa place, sous « Vente » ou « Succession »).
+  **Barre latérale** (01/10 ; **collée en haut, en bas et à gauche, angles droits** depuis le 11/10) : pas de titres de section, des liens seulement ; **ordre depuis le 15/10 (0.249.0)** : Tableau de bord, Suivi des dossiers, Constitution de dossier, Agenda, Outils, « Demander à CLAIRE », Répertoire, Réglages ; **tiroir Outils en deux catégories titrées « Vente » et « Succession »** (étude 15/10, `.sidebar-sousmenu-titre`, masquées barre repliée), ordre alphabétique dans chacune ; **« Demander à CLAIRE » (lien, page, widget du tableau de bord) réservé à l'administrateur** (étude 09/10 : « que pour Bastien » — `ONGLETS_ADMINISTRATEUR`, `ongletReserve`, `majSidebarReservee` dans client/23 ; `definirOnglet` renvoie les autres au tableau de bord) ; « Relecture d'actes » retirée le 18/10 (dans « Demander à CLAIRE ») ; **« Outils » n'est plus une page** (étude 06/10 : « supprime la page avec tous les outils et ouvre le tiroir en cliquant sur Outils ») — un clic déplie ou replie le tiroir (`toggleGroupeSidebar`, chevron sur la ligne, `ouvrirTiroirOutils` pour l'assistant et un ancien lien `definirOnglet('outils')`) ; tout nouvel outil s'ajoute au tiroir (`#sidebar-sousmenu-outils`) ; compteurs en carré arrondi rouge. **Tiroir des outils replié au démarrage** (étude 18/10). **Barre repliée** (étude 06/10, sur un exemple) : une fois ouvert, le tiroir reste déplié sous l'icône Outils, en icônes seules dans un bloc arrondi ; un clic sur l'icône le replie ; pas de volet flottant. **lien actif = trait de l'accent sur le bord de la barre + fond très léger** (étude 10/10, choix 1 des maquettes `docs/maquettes-sidebar/` ; avant : contour et point) ; **Fond plus sombre que la barre derrière « Outils » et son tiroir déplié** (`.sidebar-outils-groupe`, étude 06/10) ; **outils du tiroir par ordre alphabétique dans leur catégorie** (un nouvel outil s'y range à sa place, sous « Vente » ou « Succession »).
 - **Nom d'un dossier cité (étude, 30/09)** : partout (écrans, cartes, toasts, journaux, Teams), toujours
   par `libelleDossierAffiche(d)` — « VTE - NOM », « SUCC - NOM » pour une succession — ou
   `libelleDossierParNom(nom, id)` quand seul le nom a été gardé ; jamais `d.nom` brut à l'écran.

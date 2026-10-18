@@ -160,8 +160,7 @@ test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés
 test('ongletReserve : Relecture d’actes et Demander à CLAIRE réservés à l’administrateur', () => {
   const app = chargerApplication();
   assert.equal(app.ongletReserve('assistant', 'Julie VASSELIN'), true);
-  assert.equal(app.ongletReserve('analyse-ia', ''), true);
-  assert.equal(app.ongletReserve('analyse-ia', 'Bastien ANGLUMENT'), false);
+  assert.equal(app.ongletReserve('analyse-ia', ''), false, 'relecture d’actes retirée (18/10) : dans « Demander à CLAIRE »');
   assert.equal(app.ongletReserve('suivi', 'Julie VASSELIN'), false);
 });
 

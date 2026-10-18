@@ -158,7 +158,7 @@
   var LIBELLES_ONGLETS = {
     dashboard: 'Tableau de bord', nouveau: 'Nouveau dossier', suivi: 'Suivi des dossiers',
     calculateur: 'Simulateur de provision', prorata: 'Prorata & répartitions', 'appel-fonds': 'Appel de fonds',
-    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'clients-biens': 'Clients et biens', 'analyse-ia': "Relecture d'actes",
+    scans: 'Claire Scan', inventaire: 'Arbitrage forfait mobilier', quotites: "Quotités d'acquisition", preemption: 'Contrôle de l’urbanisme', confreres: 'Répertoire', 'clients-biens': 'Clients et biens',
     reglages: 'Réglages', assistant: 'Demander à CLAIRE', agenda: 'Agenda', constitution: 'Constitution de dossier'
   };
 
@@ -173,7 +173,7 @@
   // sinon Ctrl+P sortirait l'écran caché (ou une page blanche) au lieu de la fiche.
   function majClassesImpressionEcran() {
     const pageFiche = document.body.classList.contains('fiche-en-page');
-    ['appel-fonds', 'inventaire', 'analyse-ia'].forEach(n => document.body.classList.toggle('onglet-' + n + '-actif', ongletActuel === n && !pageFiche));
+    ['appel-fonds', 'inventaire'].forEach(n => document.body.classList.toggle('onglet-' + n + '-actif', ongletActuel === n && !pageFiche));
   }
 
   function definirOnglet(nom) {
@@ -181,6 +181,8 @@
     if (nom === 'outils') { ouvrirTiroirOutils(); nom = 'dashboard'; }
     // Page « Aujourd'hui » retirée (étude, 30/09) : un ancien lien mène au tableau de bord.
     if (nom === 'aujourdhui') nom = 'dashboard';
+    // L'ancien outil « Relecture d'actes » (retiré le 18/10) : la relecture se demande à CLAIRE.
+    if (nom === 'analyse-ia') nom = 'assistant';
     // « Noms de fichiers du NAS » est une rubrique des Réglages depuis le 03/10 (étude) : un ancien lien y mène.
     if (nom === 'noms-nas') { definirOnglet('reglages'); definirSousOngletReglages('noms-nas'); return; }
     // Écrans réservés à l'administrateur (client/23-suivi.js) : tout autre collaborateur revient au tableau de bord.
@@ -209,7 +211,6 @@
     document.getElementById('onglet-preemption').style.display = nom === 'preemption' ? '' : 'none';
     document.getElementById('onglet-confreres').style.display = nom === 'confreres' ? '' : 'none';
     document.getElementById('onglet-clients-biens').style.display = nom === 'clients-biens' ? '' : 'none';
-    document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
     document.getElementById('tab-assistant').classList.toggle('actif', nom === 'assistant');
@@ -227,7 +228,6 @@
     document.getElementById('tab-preemption').setAttribute('aria-selected', String(nom === 'preemption'));
     document.getElementById('tab-confreres').setAttribute('aria-selected', String(nom === 'confreres'));
     document.getElementById('tab-clients-biens').setAttribute('aria-selected', String(nom === 'clients-biens'));
-    document.getElementById('tab-analyse-ia').setAttribute('aria-selected', String(nom === 'analyse-ia'));
     document.getElementById('tab-reglages').setAttribute('aria-selected', String(nom === 'reglages'));
     document.getElementById('tab-dashboard').classList.toggle('actif', nom === 'dashboard');
     document.getElementById('tab-suivi').classList.toggle('actif', nom === 'suivi');
@@ -249,7 +249,6 @@
     // Même raison pour l'arbitrage du forfait mobilier : Ctrl+P doit sortir la note de calcul,
     // pas les cartes de saisie autour (voir @media print dans style.css).
     // Relecture d'actes : Ctrl+P sort le compte rendu A4 (#relecture-cr-print), pas l'écran (étude 06/10).
-    document.getElementById('tab-analyse-ia').classList.toggle('actif', nom === 'analyse-ia');
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
     if (nom === 'suivi') { appliquerFiltreSuiviCollaborateur(); initBarreSuiviCollee(); }
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
@@ -263,7 +262,6 @@
     // Réglages relus à chaque ouverture (un collègue a pu les modifier depuis un autre poste,
     // même principe que la disponibilité d'Ollama ci-dessus).
     if (nom === 'reglages') { renderReglagesScans(); chargerScans(); definirSousOngletReglages(sousOngletReglagesRetenu()); chargerReglages(); chargerReglagesClaude(); chargerReglagesAssistant(); chargerReglagesExchange(); chargerSignalements(); renderReglagesSignatureImages(true); }
-    if (nom === 'analyse-ia') initRelecture();
     // Date du jour et bornes de période posées au premier affichage seulement (voir initProrata).
     if (nom === 'prorata') initProrata();
     if (nom === 'scans') initScans();

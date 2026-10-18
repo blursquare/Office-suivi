@@ -114,9 +114,12 @@
     });
   }
 
-  // Les boutons d'une réponse de l'agent : « Corriger » ouvre, dans la conversation, une case pour écrire la consigne.
-  function boutonsReponseAgentAssistant() {
-    return [{ libelle: 'Corriger', action: () => ouvrirConsigneAssistant() }];
+  // Les boutons d'une réponse de l'agent : « Corriger » ouvre, dans la conversation, une case pour écrire la consigne ; « Imprimer » pour un
+  // compte rendu (une réponse longue : relecture d'acte, analyse ; client/50-relecture-agent.js).
+  function boutonsReponseAgentAssistant(html, texte) {
+    const boutons = [{ libelle: 'Corriger', action: () => ouvrirConsigneAssistant() }];
+    if (html && String(texte || '').length > 700) boutons.push({ libelle: 'Imprimer', action: () => imprimerReponseAssistant(html) });
+    return boutons;
   }
 
   function ouvrirConsigneAssistant() {

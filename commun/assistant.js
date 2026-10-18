@@ -76,7 +76,7 @@
     { cle: 'ouvrir_dossier', libelle: 'Ouvrir une fiche', description: 'ouvrir la fiche d’un dossier',
       dossier: true, exemples: ['Ouvre le dossier MARTIN', 'Montre-moi la fiche de LEROY'], motifs: [/\bouvr/, /\bmontre[rz]?\b/, /\baffiche[rz]?\b/, /\bla fiche\b/, /\bva (sur|dans|au)\b/] },
     { cle: 'ouvrir_ecran', libelle: 'Ouvrir un écran', description: 'aller sur un écran de CLAIRE : tableau de bord, agenda, suivi, Claire Scan, outils, réglages, nouveau dossier, répertoire',
-      parametres: ['ecran'], exemples: ['Ouvre l’agenda'], motifs: [/\b(ouvr|va (sur|dans|au|a)|affiche|montre)[a-z]* (le |la |les |l.)?(tableau de bord|agenda|suivi|claire scan|scans?|outils|reglages|parametres|nouveau dossier|repertoire|annuaire|relecture)\b/] },
+      parametres: ['ecran'], exemples: ['Ouvre l’agenda'], motifs: [/\b(ouvr|va (sur|dans|au|a)|affiche|montre)[a-z]* (le |la |les |l.)?(tableau de bord|agenda|suivi|claire scan|scans?|outils|reglages|parametres|nouveau dossier|repertoire|annuaire)\b/] },
     { cle: 'rechercher', libelle: 'Chercher un dossier', description: 'retrouver un dossier par un nom, une adresse ou un mot',
       parametres: ['texte'], exemples: ['Quel dossier est rue des Lices à Blois ?', 'Cherche le dossier rue Nationale'], motifs: [/\bcherch/, /\btrouve[rz]? le dossier\b/, /\bquel dossier\b/, /\bqui (habite|vend|achete)\b/, /\bdossiers? (de|avec|a) \b/, /\bretrouve/] },
     { cle: 'archiver', libelle: 'Archiver un dossier', description: 'archiver un dossier (annulable)',
@@ -141,8 +141,7 @@
     { cle: 'outils', libelle: 'Outils', re: /\boutils\b/ },
     { cle: 'reglages', libelle: 'Réglages', re: /\breglages?\b|\bparametres\b/ },
     { cle: 'nouveau', libelle: 'Nouveau dossier', re: /\bnouveau dossier\b/ },
-    { cle: 'confreres', libelle: 'Répertoire', re: /\brepertoire\b|\bannuaire\b/ },
-    { cle: 'analyse-ia', libelle: 'Relecture d’actes', re: /\brelecture\b/ }
+    { cle: 'confreres', libelle: 'Répertoire', re: /\brepertoire\b|\bannuaire\b/ }
   ];
   var MOTS_VIDES_ASSISTANT = new Set(('le la les un une des du de et ou pour avec dans sur par que qui quoi est sont son sa ses mon ma mes ton ta tes ' +
     'ce cet cette ces aux au vers chez pas plus moins tout tous toute toutes dossier dossiers fiche vte succ vente succession ' +

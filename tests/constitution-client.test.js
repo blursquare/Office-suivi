@@ -337,3 +337,18 @@ test('relecture 0.283.0 : courriers envoyés jamais pris pour une pièce reçue 
   assert.equal(r.retouchesParLigne[4], 3);
   assert.equal(app.appliquerRetouchesConstitution(fidele, { 2: { de: '', en: 'x' } }).lignes[2], '', 'jamais une retouche sans texte d’origine');
 });
+
+test('relecture dans « Demander à CLAIRE » (18/10) : constats bornés, du plus grave au moins grave ; page imprimable échappée', () => {
+  const longs = Array.from({ length: 70 }, (_, i) => ({ gravite: i === 50 ? 'CRITIQUE' : 'INFORMATION', categorie: 'X', titre: 'Point ' + i, description: 'd'.repeat(900), phrase: 'p'.repeat(400), page: i }));
+  const c = app.constatsRelectureAgent(longs);
+  assert.equal(c.length, 40);
+  assert.equal(c[0].titre, 'Point 50', 'le critique en tête');
+  assert.equal(c[0].detail.length, 300);
+  // Une rubrique masquée par l'étude ne revient pas.
+  assert.equal(app.constatsRelectureAgent([{ gravite: 'CRITIQUE', categorie: 'DIAGNOSTICS', titre: 'x' }, { gravite: 'IMPORTANT', categorie: 'ACTE', titre: 'y' }], [], ['DIAGNOSTICS']).map(x => x.titre).join(), 'y');
+  assert.equal(c[0].passage.length, 300);
+  const page = app.htmlImpressionReponseAssistant('<p>Synthèse</p>', 'Compte <rendu>', '18 octobre 2026');
+  assert.match(page, /<p>Synthèse<\/p>/);
+  assert.match(page, /Compte &lt;rendu&gt;/);
+  assert.match(page, /@page \{ size: A4/);
+});

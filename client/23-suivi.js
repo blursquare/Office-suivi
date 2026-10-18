@@ -850,7 +850,7 @@
   function estAdministrateur(nom) { return ADMINISTRATEURS.indexOf(nom) !== -1; }
 
   // Écrans réservés à l'administrateur (étude 09/10 : « Relecture d'actes et Demander à CLAIRE que pour Bastien »).
-  var ONGLETS_ADMINISTRATEUR = ['assistant', 'analyse-ia'];
+  var ONGLETS_ADMINISTRATEUR = ['assistant'];
   function ongletReserve(nom, utilisateur) { return ONGLETS_ADMINISTRATEUR.indexOf(nom) !== -1 && !estAdministrateur(utilisateur); }
   // Liens de la barre latérale réservés, montrés ou cachés selon le collaborateur du poste ; un écran réservé resté ouvert repart au tableau de bord.
   function majSidebarReservee() {

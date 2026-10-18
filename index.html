@@ -39,7 +39,7 @@
       <span class="brand-word">Claire</span>
       <!-- Déplacé ici (petit, à côté du logo) depuis un bloc séparé en haut à droite de la sidebar,
            demandé par l'étude. -->
-      <span class="sidebar-alpha-badge" title="Version bêta : les fonctions principales sont stables et en usage au bureau ; seules des corrections et des retouches sont encore apportées. La relecture d'actes, plus récente, reste en alpha.">Bêta</span>
+      <span class="sidebar-alpha-badge" title="Version bêta : les fonctions principales sont stables et en usage au bureau ; seules des corrections et des retouches sont encore apportées.">Bêta</span>
     </div>
 
     <!-- Réduction en icônes seules (un clic) + épingle (garder la sidebar toujours grande ouverte,
@@ -129,11 +129,6 @@
              l'étude (structure et textes des clauses), aux jetons de CLAIRE — voir CLAUDE.md. -->
         <button type="button" id="tab-quotites" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('quotites')">
           <span class="sidebar-link-icone" id="icon-nav-quotites" aria-hidden="true"></span>Quotités d'acquisition
-        </button>
-        <!-- Outil 2, relecture d'un acte : rangée parmi les outils (étude 05/10 : « passe Relecture d'actes sous les outils »).
-             Distinct du wizard « Nouveau dossier » — on dépose l'acte ET ses annexes pour une relecture croisée, sans créer de dossier. -->
-        <button type="button" id="tab-analyse-ia" class="sidebar-link sidebar-sousmenu-item" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('analyse-ia')">
-          <span class="sidebar-link-icone" id="icon-nav-analyse-ia" aria-hidden="true"></span>Relecture d'actes<span class="stade-badge stade-badge-nav" title="Alpha : outil encore en test, à utiliser avec le mode commentaires.">Alpha</span>
         </button>
         <button type="button" id="tab-calculateur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="ouvrirProvisionSansDossier()">
           <span class="sidebar-link-icone" id="icon-nav-calculateur" aria-hidden="true"></span>Simulateur de provision
@@ -1461,118 +1456,6 @@
   </div>
 </div>
 
-<!-- Outil 2 — Relecture d'un acte (voir CLAUDE.md, entrées « Outil 2 »). Entièrement
-     déterministe et calculé dans le navigateur : aucun appel au modèle local depuis le 23/09/2026
-     (l'étude a jugé son apport nul). Sélecteur de MODE explicite (projet de compromis/promesse,
-     ou projet d'acte de vente — jamais deviné). -->
-<div class="onglet-panel" id="onglet-analyse-ia" style="display:none;">
-  <div class="dash-header">
-    <div>
-      <div class="dash-eyebrow">Lecture de projet</div>
-      <div class="dash-titre-ligne">
-        <h1 class="dash-titre">Relecture d'un acte</h1>
-        <span class="stade-badge" title="Version alpha : outil encore en test. Relisez chaque point, et signalez les erreurs avec le mode commentaires pour qu'elles soient corrigées.">Alpha</span>
-        <span class="calc-warning-label" title="Chaque point relevé est une proposition, citée page à l'appui, que le notaire vérifie et tranche : la relecture ne remplace pas son contrôle.">
-          <span id="icon-analyse-ia-warning" aria-hidden="true"></span>
-          Aide à la relecture
-        </span>
-      </div>
-    </div>
-  </div>
-
-  <nav class="relecture-stepper" id="relecture-stepper" aria-label="Étapes de la relecture"></nav>
-
-  <!-- Étape 1 : documents -->
-  <section class="relecture-etape" id="relecture-etape-1">
-    <div class="dash-grid relecture-docs-grid">
-      <div class="calc-card">
-        <div class="dash-section-titre">Ce que vous relisez</div>
-        <label for="audit-mode">Nature du projet</label>
-        <select id="audit-mode" onchange="changerAuditMode(this.value)">
-          <option value="compromis">Projet de compromis / promesse de vente</option>
-          <option value="acte">Projet d'acte de vente</option>
-        </select>
-        <p class="hint" id="audit-aide-mode"></p>
-
-        <label for="audit-dossier-recherche" style="margin-top:14px;">Dossier CLAIRE <span class="hint">(facultatif)</span> <span class="info-i" tabindex="0" data-info="Lié à un dossier, la relecture a accès à tout son dossier du NAS : pièces à choisir rubrique par rubrique, et avant-contrat repris tout seul pour un projet de vente."></span></label>
-        <div class="dash-recherche" style="width:100%;">
-          <input type="search" id="audit-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierAudit(this.value)" autocomplete="off">
-          <div id="audit-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
-        </div>
-        <div id="audit-dossier-pill"></div>
-        <div id="relecture-nas" class="relecture-nas" style="display:none;"></div>
-      </div>
-
-      <div class="calc-card">
-        <div class="dash-section-titre">Documents</div>
-        <div class="pdf-dropzone" id="analyse-ia-dropzone" ondragover="gererSurvolDepotAnalyseIa(event)" ondragleave="gererQuitteDepotAnalyseIa(event)" ondrop="gererDepotAnalyseIa(event)">
-          <span class="pdf-dropzone-icone" id="icon-analyse-ia-dropzone" aria-hidden="true"></span>
-          <label for="analyse-ia-fichiers" class="file-btn">Choisir un ou plusieurs PDF</label>
-          <input type="file" id="analyse-ia-fichiers" accept="application/pdf" multiple onchange="ajouterFichiersAnalyseIa(this.files); this.value='';">
-          <span class="pdf-dropzone-hint">le projet, puis ses annexes — ou glissez-déposez</span>
-        </div>
-        <div id="analyse-ia-liste-fichiers" class="analyse-ia-liste-fichiers"></div>
-        <div class="relecture-actions">
-          <wa-button appearance="outlined" class="secondary" id="analyse-ia-vider-btn" onclick="viderAnalyseIa()" style="display:none;">Tout retirer</wa-button>
-          <wa-button variant="brand" class="primary" id="relecture-suivant-1" onclick="allerEtapePseudonymisationRelecture()" disabled>Continuer</wa-button>
-        </div>
-      </div>
-    </div>
-
-    <div class="calc-card relecture-historique">
-      <div class="relecture-historique-tete">
-        <div class="dash-section-titre">Analyses enregistrées</div>
-        <input type="search" id="relecture-historique-recherche" placeholder="Rechercher par dossier ou document…" oninput="renderHistoriqueRelectures()" autocomplete="off" aria-label="Rechercher une analyse enregistrée">
-      </div>
-      <div id="relecture-historique-liste"><p class="hint">Chargement…</p></div>
-    </div>
-  </section>
-
-  <!-- Étape 2 : pseudonymisation locale, avant tout envoi -->
-  <section class="relecture-etape" id="relecture-etape-2" style="display:none;">
-    <div class="calc-card relecture-cadre-carte">
-      <div class="relecture-cadre-icone" id="icon-relecture-cadre" aria-hidden="true"></div>
-      <div>
-        <strong>Rien d'identifiant ne quitte l'étude. <span class="info-i" tabindex="0" data-info="Noms, adresses, naissances, contacts, références cadastrales et identifiants sont remplacés ici, dans votre navigateur, par des jetons (⟦PERSONNE_1⟧…). Seul le texte ainsi masqué est envoyé au modèle d&#x27;IA choisi dans les Réglages (Mistral, traité dans l&#x27;Union européenne, par défaut) ; la correspondance reste sur ce poste et sert à rétablir les noms dans le bilan. Un même élément porte le même jeton dans tous les documents, ce qui laisse repérer une incohérence d&#x27;un acte à l&#x27;autre. Relisez l&#x27;aperçu : un nom resté en clair se masque en un clic."></span></strong>
-      </div>
-    </div>
-    <div class="dash-grid relecture-anon-grid">
-      <div class="calc-card">
-        <div class="dash-section-titre">Données masquées</div>
-        <div id="relecture-anonymisation"></div>
-      </div>
-      <div class="calc-card">
-        <div class="dash-section-titre">Ce qui sera envoyé</div>
-        <div id="relecture-apercu-anon" class="relecture-apercu-anon"></div>
-      </div>
-    </div>
-    <div class="relecture-actions">
-      <wa-button appearance="outlined" class="secondary" onclick="definirEtapeRelecture(1)">Retour</wa-button>
-      <wa-button variant="brand" class="primary" onclick="definirEtapeRelecture(3)">Valider et continuer</wa-button>
-    </div>
-  </section>
-
-  <!-- Étape 3 : analyse -->
-  <section class="relecture-etape" id="relecture-etape-3" style="display:none;">
-    <div class="calc-card">
-      <div class="dash-section-titre">Analyse</div>
-      <div id="relecture-analyse"></div>
-    </div>
-  </section>
-
-  <!-- Étape 4 : bilan -->
-  <section class="relecture-etape" id="relecture-etape-4" style="display:none;">
-    <div id="relecture-bilan"></div>
-    <div class="relecture-actions">
-      <wa-button appearance="outlined" class="secondary" onclick="definirEtapeRelecture(1)">Modifier les documents</wa-button>
-      <wa-button appearance="outlined" class="secondary" onclick="viderAnalyseIa()">Nouvelle relecture</wa-button>
-    </div>
-  </section>
-  <!-- Compte rendu A4 (étude 06/10) : rempli par imprimerCompteRenduRelecture, seul imprimé depuis cet onglet (hors des
-       sections d'étape, dont l'affichage est réglé par un style en ligne). -->
-  <div id="relecture-cr-print" class="cr-print"></div>
-</div>
-
 <!-- « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — messages au centre, champ en bas. Le rendu des
      messages est en JS (renderAssistant) ; le champ de saisie reste en HTML pour ne pas perdre la frappe au rendu. -->
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
@@ -1975,7 +1858,7 @@
       <div id="apprentissage-exclusions"></div>
     </div>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Relecture d'actes : vos commentaires <span class="info-i" tabindex="0" data-info="Les avis donnés en mode commentaires : un faux positif est replié aux relectures suivantes (pour ce dossier ou pour tous), les autres servent de consignes à l'analyse."></span></h3>
+      <h3 class="reglages-section-titre">Relecture d'actes : vos commentaires <span class="info-i" tabindex="0" data-info="Les avis donnés sur les anciennes relectures : « Demander à CLAIRE » les lit comme consignes quand elle relit un acte. Pour en ajouter une, « Corriger » sous une réponse de CLAIRE (elle va dans CLAIRE.md)."></span></h3>
       <div id="apprentissage-relecture"></div>
     </div>
   </section>
@@ -2167,7 +2050,7 @@
       </div>
     </div>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Relecture d'actes : modèle d'IA</h3>
+      <h3 class="reglages-section-titre">IA en ligne de « Demander à CLAIRE » (relecture d'actes comprise)</h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-ia-fournisseur">Fournisseur</label></div>
@@ -2838,7 +2721,7 @@
 <script src="client/47-redaction-mise-en-forme.js"></script>
 <script src="client/48-surlignage-pdf.js"></script>
 <script src="client/49-assistant.js"></script>
-<script src="client/50-relecture-compte-rendu.js"></script>
+<script src="client/50-relecture-agent.js"></script>
 <script src="client/51-nouveau-dossier-depuis-authentic.js"></script>
 <script src="client/52-authentic-fait-foi.js"></script>
 <script src="client/53-agenda-copier-coller.js"></script>

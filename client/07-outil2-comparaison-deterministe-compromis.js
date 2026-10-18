@@ -217,15 +217,6 @@
     return constats;
   }
 
-  // ==== OUTIL 2 : vocabulaire commun aux obligations du vendeur ====
-  //
-  // La vérification elle-même vit plus bas (verifierEngagementsTenus) : elle part du TEXTE de
-  // l'avant-contrat et des justificatifs déposés, comme l'étude l'a demandé, plutôt que de l'état
-  // du dossier Outil 1. Un dossier CLAIRE lié reste malgré tout une source de preuve utile —
-  // l'attestation de ramonage peut déjà être rangée sur le NAS et reconnue par le parcours
-  // habituel, auquel cas la redéposer ici n'aurait aucun sens.
-  var LIBELLES_CAT_OBLIGATION = { entretien: 'Entretien', travaux: 'Travaux', justificatif: 'Justificatif', document: 'Document', autre: 'Autre' };
-
   // Les clés de DOCUMENTS_VALIDITE_OUTIL2 (ramonage, entretienChaudiere, entretienPac) sont
   // volontairement les MÊMES que celles de PIECES_ENGAGEMENTS_AUTO : aucune table de
   // correspondance à tenir à jour, et une clé sans équivalent dans la checklist ne trouve

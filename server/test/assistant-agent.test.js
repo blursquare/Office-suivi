@@ -457,3 +457,24 @@ test('relecture 0.282.0 : pas de « reprise » sur une première question ; chan
   const r2 = await tourAgent({ conversation: r1.conversation, resultats: [{ id: 'x1', contenu: { taches: [] } }] }, { cle: 'k', client: c2, modele: 'claude-opus-5-5' });
   assert.equal(r2.reponse, 'Fini.', 'la boucle continue sur le modèle de la conversation');
 });
+
+test('controles_relecture (18/10) : rien de nominatif ne part des constats, passages, grille et consignes ; lecture comptée', async () => {
+  assert.ok(OUTILS_AGENT.find((t) => t.name === 'controles_relecture'), 'outil proposé');
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'controles_relecture', { document_id: 'doc1', mode: 'compromis', dossier_id: 'd1', document_reference: '', type_bien: '' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Synthèse.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Relis le compromis', dossiers: D, contexte: {} }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: {
+    mode: 'avant-contrat', type_bien: 'maison', pages_total: 24, resume_claire: 'Vente FOURNIER / GAUTHIER, 2 points',
+    constats_claire: [{ gravite: 'CRITIQUE', categorie: 'FINANCEMENT', titre: 'Condition suspensive de prêt sans date', detail: 'Monsieur Xavier Moreau-Lantier, acquéreur', passage: 'Paul FOURNIER, demeurant 2 rue des Tanneurs à BLOIS', page: 4 }],
+    grille_de_l_etude: [{ id: 'pret', section: 'Financement', point: 'Condition suspensive de prêt', quand: 'Toujours', consigne: 'Vérifier le montant' }],
+    consignes_de_l_etude: ['Ne signale pas comme un problème « Agence Dubreuil Immobilier » : déjà vu']
+  } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom de la fiche : ' + envoye.slice(-600));
+  assert.doesNotMatch(envoye, /Xavier|Moreau/, 'nom après une civilité masqué');
+  assert.match(envoye, /Condition suspensive de prêt sans date/);
+  assert.equal(r.reponse, 'Synthèse.');
+});

@@ -64,17 +64,6 @@ test('relecture d’un projet de vente lié à un dossier : le contrôle de l’
   assert.equal(urbanisme.length, 3);
 });
 
-test('compte rendu : les points du contrôle de l’urbanisme vont dans la catégorie Urbanisme', () => {
-  const app = chargerApplication();
-  const plan = app.planCompteRenduRelecture({ sections: [], claire: [
-    { uid: 'k1', categorie: 'CONTROLE_URBANISME', titre: 'Bien en zone protégée', description: 'x', niveau: 'surveiller' },
-    { uid: 'k2', categorie: 'ACTE', titre: 'Autre', description: 'y', niveau: 'surveiller' }
-  ] });
-  const cles = app.categoriesCompteRenduRelecture(plan).map(c => c.cle + ':' + c.titre).join(',');
-  assert.match(cles, /urbanisme:Contrôle de l’urbanisme/);
-  assert.match(cles, /claire:Contrôle CLAIRE/);
-});
-
 // --- Travaux déclarés dans le compromis : autorisations demandées ? (outil Contrôle de l'urbanisme) ---------------------
 
 function travauxDe(app, texte) {

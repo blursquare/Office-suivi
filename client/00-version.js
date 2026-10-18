@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.283.0';
+  const VERSION_APP = '0.284.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.284.0', date: '2026-10-18 13:14', resume: "La relecture d'actes passe dans « Demander à CLAIRE » : demandez « relis ce compromis » (document du dossier ou PDF joint) — CLAIRE lit le document en entier, passe ses contrôles et la grille de l'étude, tient compte de vos commentaires passés, puis rend un compte rendu en texte (synthèse, à régler avant la signature, à vérifier, conforme, contradictions, pièces manquantes) avec les pages citées ; « Imprimer » sous le compte rendu. L'outil « Relecture d'actes » est retiré." },
     { version: '0.283.0', date: '2026-10-18 12:14', resume: "Constitution de dossier : aperçu à droite comme le vrai courrier (page A4 du PDF, en-tête, pages) et modifiable en cliquant sur un paragraphe ou l'adresse ; « Un seul email à la mairie » (tous ses courriers en PDF et un seul plan) ; le courrier toujours joint aux emails, sans le bloc « Ledit immeuble appartenant à » dans le texte, objet « Demande - … » ; « Envoyer les emails » ; une ligne vide autour du tableau des parcelles et sous les propriétaires ; icônes de la colonne « Nous contacter » et adresse sous le logo affinée sur les PDF ; page d'attente de l'impression aux couleurs de CLAIRE ; PDF ou Word (un seul format) ; étape « Envoyer ou enregistrer ». Nouvelle pièce « Non péril, non insalubrité » (maison, copropriété). Successions : impôts au SPFE de Blois, CARSAT par notaires.premieredemande@carsat-centre.fr (41, 45). Répertoire : notaires parmi les interlocuteurs, la recherche cherche dans tout le répertoire." },
     { version: '0.282.1', date: '2026-10-18 11:31', resume: "Constitution de dossier : une parcelle ajoutée ou décochée est gardée sur le dossier et le contrôle de l'urbanisme porte sur elle (il restait sur la parcelle d'origine retirée) ; zonage relu seul, ou signalé à refaire si l'analyse vient de l'outil." },
     { version: '0.282.0', date: '2026-10-18 10:21', resume: "« Demander à CLAIRE » prend un espace de travail à droite, comme Claude : le plan et les étapes de CLAIRE pendant qu'elle travaille, les documents de la conversation, l'aperçu du PDF à la page citée avec le passage surligné et dit « retrouvé mot pour mot » ou non, le dossier rattaché et ses pièces du NAS, le modèle et la réflexion (rapide, normale, approfondie). Les citations des réponses se cliquent. Les longues conversations se résument d'elles-mêmes au lieu de couper (un acte entier se relit), et une conversation oubliée par le serveur reprend le fil." },

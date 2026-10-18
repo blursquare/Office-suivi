@@ -20734,3 +20734,13 @@ Relecture du lot : un courrier rangé par CLAIRE dans « Constitution » cochait
 le plan cadastral (`cheminCourrierEnvoyeNas`) ; « mise en sécurité » seule (piscine) n'est plus « Non péril » ; un dossier ouvert avant le
 18/10 dont la signature est déjà placée (ou archivé) ne réclame pas la nouvelle pièce (`migrerPieceNonPeril`, retirée une fois, historique) ;
 les pictogrammes et l'adresse sous le logo valent aussi pour le PDF/A du courrier d'appel de fonds (même en-tête).
+
+### 18/10/2026 — Relecture d'actes fusionnée dans « Demander à CLAIRE » (0.284.0)
+
+Étape 2 du plan convenu avec l'étude (« on va fusionner Relectures d'acte dans Demander à CLAIRE qui sera l'interface ; elle fera un compte
+rendu comme Claude le ferait, sous format texte ») : outil de l'agent `controles_relecture` (client/50-relecture-agent.js) qui lit le
+document entier sur le poste, passe les contrôles déterministes de CLAIRE (inchangés), rend la grille de l'étude et ses consignes ; méthode
+et forme du compte rendu dans le prompt système ; « Imprimer » sous une longue réponse. L'ancien outil (index.html, client/38, 39, 50 —
+quatre étapes, pseudonymisation, envoi à l'API, bilan, visionneuse, commentaires sur les constats, historique des relectures) est retiré ;
+le code mort a été supprimé jusqu'au point où ni ESLint ni le test du code mort ne relèvent plus rien ; la logique d'analyse (client/06 à
+13, 55) et les Réglages des clés restent. Le fichier client/50 porte désormais l'outil de l'agent (numérotation du manifeste continue).
