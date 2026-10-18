@@ -570,6 +570,12 @@
   function majResultatsQuotites() {
     if (!qtEtat) return;
     const r = calculerQuotites(qtEtat);
+    // Étude 18/10 : « Télécharger l'annexe » grisé tant que le formulaire est vide (aucun financement saisi).
+    const telecharger = document.getElementById('qt-telecharger');
+    if (telecharger && !qtTelechargementEnCours) {
+      telecharger.disabled = !r.totalFinancement;
+      telecharger.title = r.totalFinancement ? '' : 'Saisissez l’origine du financement pour télécharger l’annexe';
+    }
     document.getElementById('qt-total-operation').textContent = formaterPrixCentimes(r.totalOperation);
     document.getElementById('qt-total-financement').textContent = formaterPrixCentimes(r.totalFinancement);
     qtEtat.sources.forEach(src => {
@@ -778,7 +784,9 @@
   // cdn.jsdelivr.net comme pizzip/docxtemplater pour l'appel de fonds : rien n'est chargé tant que
   // personne ne télécharge d'annexe. Mise en page de l'artefact conservée à l'identique (Times New
   // Roman 11, marges 2,5 cm, points de conduite vers le montant).
+  var qtTelechargementEnCours = false;
   async function telechargerQuotitesDocx(btn, confirme) {
+    if (qtTelechargementEnCours) return;
     if (!qtEtat) return;
     const r = calculerQuotites(qtEtat);
     if (!r.totalFinancement) {
@@ -792,6 +800,7 @@
       return;
     }
     const libelle = btn ? btn.textContent : '';
+    qtTelechargementEnCours = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
     try {
       if (!window.docx) await afChargerScript('https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.min.js');
@@ -851,7 +860,9 @@
       console.error(e);
       afficherToast('Génération impossible : la bibliothèque Word n’a pas pu être chargée (accès internet requis).', 'OK', null);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = libelle; }
+      qtTelechargementEnCours = false;
+      // Le financement a pu être vidé pendant la préparation : le bouton suit le formulaire, pas la fin du téléchargement.
+      if (btn) { btn.disabled = !(qtEtat && calculerQuotites(qtEtat).totalFinancement); btn.textContent = libelle; }
     }
   }
 

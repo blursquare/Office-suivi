@@ -364,12 +364,67 @@
     render();
   }
 
+  // « Plus de filtres » (étude 18/10 : « la recherche et deux filtres visibles, le reste dans un bouton ») : offre de prêt, rôle, tri, archivés
+  // et statuts dans un panneau replié ; le bouton compte les filtres cachés qui agissent, pour qu'un filtre oublié ne vide pas la liste en silence.
+  // Pure : le nombre de filtres du panneau qui agissent.
+  function filtresCachesActifsSuivi(f) {
+    return [f.offre, f.role, f.archives, f.etat].filter(Boolean).length;
+  }
+
+  function majPlusFiltresSuivi() {
+    const compte = document.getElementById('suivi-plus-compte');
+    if (!compte) return;
+    const val = id => { const e = document.getElementById(id); return e ? e.value : ''; };
+    const archives = document.getElementById('voir-archives');
+    const n = filtresCachesActifsSuivi({ offre: val('filtre-offre'), role: val('filtre-role'), archives: !!(archives && archives.checked), etat: filtreEtatSuivi });
+    compte.textContent = n ? String(n) : '';
+    compte.setAttribute('aria-hidden', 'true');
+    compte.hidden = !n;
+    annoncePlusFiltresSuivi(n);
+  }
+
+  // Le nom lu par un lecteur d'écran : un aria-label ou aria-expanded posé sur le composant wa-button n'atteint pas son bouton intérieur (vérifié dans
+  // Chromium) ; le nombre de filtres actifs et l'état du panneau passent donc par un texte caché dans le libellé.
+  function annoncePlusFiltresSuivi(n) {
+    const annonce = document.getElementById('suivi-plus-annonce');
+    const panneau = document.getElementById('suivi-filtres-plus');
+    if (!annonce) return;
+    if (n === undefined) { const c = document.getElementById('suivi-plus-compte'); n = c && c.textContent ? Number(c.textContent) : 0; }
+    annonce.textContent = `${n ? `, ${n} filtre${n > 1 ? 's' : ''} actif${n > 1 ? 's' : ''}` : ''}, ${panneau && panneau.style.display !== 'none' ? 'ouvert' : 'fermé'}`;
+  }
+
+  function basculerPlusFiltresSuivi(ouvrir) {
+    const panneau = document.getElementById('suivi-filtres-plus');
+    const bouton = document.getElementById('suivi-plus-filtres');
+    if (!panneau) return;
+    const ouvert = typeof ouvrir === 'boolean' ? ouvrir : panneau.style.display === 'none';
+    panneau.style.display = ouvert ? '' : 'none';
+    if (bouton) { bouton.setAttribute('aria-expanded', String(ouvert)); bouton.classList.toggle('actif', ouvert); }
+    const barre = document.getElementById('suivi-barre');
+    if (barre) {
+      barre.classList.toggle('plus-ouvert', ouvert);
+      // Barre collée : la marge qui compense le repli suit la nouvelle hauteur du panneau.
+      if (barre.classList.contains('collee')) { barre.classList.remove('collee'); barre.style.marginBottom = ''; majBarreSuiviCollee(); }
+    }
+    annoncePlusFiltresSuivi();
+    ecrireLocal('claire-suivi-plus-filtres', ouvert ? '1' : '');
+  }
+
+  // Panneau rouvert au démarrage s'il l'était sur ce poste.
+  var plusFiltresSuiviRestaure = false;
+  function restaurerPlusFiltresSuivi() {
+    let ouvert = false;
+    try { ouvert = localStorage.getItem('claire-suivi-plus-filtres') === '1'; } catch (e) { ouvert = false; }
+    if (ouvert) basculerPlusFiltresSuivi(true);
+  }
+
   // Statuts en pastilles de filtre dans la barre d'outils du Suivi (étude, 30/09 : la grande bande
   // des statuts retirée) : « Urgent 2 · À relier 1 · … », un clic filtre, un second retire le filtre.
   function renderEtatsSuivi(synthese) {
     const zone = document.getElementById('suivi-statuts');
     if (!zone) return;
     const total = synthese.reduce((t, e) => t + e.nombre, 0);
+    majPlusFiltresSuivi();
     if (!total && !filtreEtatSuivi) { zone.innerHTML = ''; return; }
     zone.innerHTML = synthese.map(e => {
       const actif = filtreEtatSuivi === e.cle;
@@ -1087,14 +1142,14 @@
     f.value = filtreSuiviParDefaut(utilisateurPoste);
   }
 
-  // Barre du Suivi collée en haut (étude 06/10) : une fois collée, les filtres se replient (la recherche et les statuts restent)
+  // Barre du Suivi collée en haut (étude 06/10) : une fois collée, le panneau « Plus de filtres » s'il est ouvert se replie (la recherche et les deux filtres restent)
   // et se rouvrent au survol ou au focus de la barre — voir `.suivi-barre.collee` dans style.css. Le repli retire de la hauteur
   // de la barre : `margin-bottom` la rend à la liste, qui ne bouge donc pas sous les yeux.
   var barreSuiviColleeInitialisee = false;
   function majBarreSuiviCollee() {
     const barre = document.getElementById('suivi-barre');
     const sentinelle = document.getElementById('suivi-barre-sentinelle');
-    const filtres = barre ? barre.querySelector('.suivi-barre-filtres') : null;
+    const filtres = document.getElementById('suivi-filtres-plus');
     if (!barre || !sentinelle || !filtres || !barre.offsetParent) return;
     const colleePossible = getComputedStyle(barre).position === 'sticky';
     const collee = colleePossible && sentinelle.getBoundingClientRect().top < (parseFloat(getComputedStyle(barre).top) || 12);

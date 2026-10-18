@@ -7660,6 +7660,12 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 /* Statuts en pastilles (barre d'outils). */
 .suivi-statuts { display: flex; flex-wrap: wrap; gap: 6px; }
 .suivi-statuts:empty { display: none; }
+.reglages-verif-filtres { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.reglages-verif-filtres:empty { display: none; }
+.reglages-verif-filtres button.reglages-verif-filtre { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink-soft); font: inherit; font-size: var(--texte-m); cursor: pointer; box-shadow: none; }
+.reglages-verif-filtres button.reglages-verif-filtre:hover { border-color: var(--ink-soft); color: var(--ink); }
+.reglages-verif-filtres button.reglages-verif-filtre.actif { border-color: var(--ink); color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--paper-card)); font-weight: 500; }
+.reglages-verif-filtre-n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .suivi-statuts button.suivi-statut { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink-soft); font: inherit; font-size: var(--texte-m); cursor: pointer; box-shadow: none; }
 .suivi-statuts button.suivi-statut:hover { border-color: var(--ink-soft); color: var(--ink); }
 .suivi-statuts button.suivi-statut.actif { border-color: var(--ink); color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, var(--paper-card)); font-weight: 500; }
@@ -7855,22 +7861,43 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-barre-recherche .vue-bascule { flex: none; }
 .suivi-barre-filtres { flex-wrap: nowrap; gap: 8px; }
 .suivi-barre-filtres .toolbar-item { flex: none; font-size: var(--texte-m); color: var(--muted); }
-.suivi-barre .suivi-barre-filtres .toolbar-item select { width: auto; min-width: 0; max-width: 190px; font-size: var(--texte-m); padding: 4px 8px; border-radius: var(--rayon-m); }
+.suivi-barre .suivi-barre-filtres .toolbar-item select,
+.suivi-barre .suivi-filtre-visible select { width: auto; min-width: 0; max-width: 190px; font-size: var(--texte-m); padding: 4px 8px; border-radius: var(--rayon-m); }
+.suivi-filtre-visible { flex: none; font-size: var(--texte-m); color: var(--muted); }
+/* « Plus de filtres » (étude 18/10) : le reste des filtres et les statuts dans un panneau replié ; le bouton compte les filtres cachés actifs. */
+.suivi-plus-filtres { flex: none; }
+.suivi-plus-filtres.actif::part(base),
+.suivi-plus-filtres.actif:hover::part(base) { border-color: var(--focus); color: var(--focus); }
+/* Panneau fermé : la ligne de recherche est la dernière visible de la carte. */
+.suivi-barre:not(.plus-ouvert) > .suivi-barre-recherche { padding-bottom: 0; }
+.suivi-plus-compte { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 6px; border-radius: var(--rayon-pilule); background: var(--focus); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; }
+.suivi-plus-compte[hidden] { display: none; }
+.suivi-plus-annonce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.suivi-filtres-plus { display: flex; flex-direction: column; gap: 12px; }
 /* Le titre du filtre est le texte de son choix « vide » (« Échéance », « Responsable »…) : en gris tant qu'aucun filtre n'est choisi, en encre dès qu'il l'est (étude 06/10). */
-.suivi-barre .suivi-barre-filtres .toolbar-item select:has(option[value=""]:checked) { color: var(--muted); }
+.suivi-barre .suivi-barre-filtres .toolbar-item select:has(option[value=""]:checked),
+.suivi-barre .suivi-filtre-visible select:has(option[value=""]:checked) { color: var(--muted); }
 /* Barre collée (étude 06/10) : les filtres se replient, la recherche et les statuts restent ; ils réapparaissent au survol de la
    barre ou quand l'un d'eux a le focus, posés sur la liste sans la déplacer. Classe posée par initBarreSuiviCollee. */
 .suivi-barre.collee { position: sticky; }
-.suivi-barre.collee .suivi-barre-filtres {
+.suivi-barre.collee .suivi-filtres-plus {
   position: absolute; left: 0; right: 0; top: 100%; z-index: 4; display: none;
   padding: 12px 16px; border: 1px solid var(--bord-carte); border-top: 1px solid var(--line); border-radius: 0 0 var(--rayon-carte) var(--rayon-carte);
   background: var(--paper-card); box-shadow: var(--shadow-float);
 }
-.suivi-barre.collee:hover .suivi-barre-filtres,
-.suivi-barre.collee:focus-within .suivi-barre-filtres { display: flex; }
+.suivi-barre.collee:hover .suivi-filtres-plus,
+.suivi-barre.collee:focus-within .suivi-filtres-plus { display: flex; }
 .suivi-barre.collee .suivi-barre-filtres { flex-wrap: wrap; }
 @media (max-width: 1180px) {
   .suivi-barre-filtres { flex-wrap: wrap; }
+}
+/* Pas la place pour tout sur une ligne (colonne de gauche affichée, écran étroit) : la recherche seule en tête, les deux filtres,
+   « Plus de filtres » et la vue dessous. Sur la largeur de la barre, pas de la fenêtre. */
+.suivi-barre-recherche { flex-wrap: wrap; }
+.suivi-barre { container-type: inline-size; }
+@container (max-width: 1000px) {
+  .suivi-barre-recherche .suivi-recherche { flex-basis: 100%; }
+  .suivi-barre-recherche .vue-bascule { margin-left: auto; }
 }
 @media (max-width: 600px) {
   .suivi-barre-recherche { flex-wrap: wrap; }

@@ -643,15 +643,7 @@
         <span class="suivi-recherche-icone" id="icon-recherche-suivi" aria-hidden="true"></span>
         <input type="search" id="recherche-dossiers" placeholder="Rechercher un dossier (vendeur, acquéreur)…" aria-label="Rechercher un dossier" oninput="render()">
       </label>
-      <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
-           regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
-      <wa-button-group class="vue-bascule" label="Mode d'affichage de la liste">
-        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</wa-button>
-        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</wa-button>
-      </wa-button-group>
-    </div>
-    <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
-      <label class="toolbar-item">
+      <label class="toolbar-item suivi-filtre-visible">
         <select id="filtre-responsable" aria-label="Responsable" onchange="render()">
           <option value="">Responsable</option>
           <option>Bastien ANGLUMENT</option>
@@ -659,7 +651,7 @@
           <option>Jérémy SAUJOT</option>
         </select>
       </label>
-      <label class="toolbar-item">
+      <label class="toolbar-item suivi-filtre-visible">
         <select id="filtre-type" aria-label="Échéance" onchange="render()">
           <option value="">Échéance</option>
           <option value="ventebien">Vente préalable</option>
@@ -675,6 +667,17 @@
           <option value="autre">Échéance ajoutée</option>
         </select>
       </label>
+      <!-- Étude 18/10 : « la recherche et deux filtres visibles, le reste dans un bouton Plus de filtres ». -->
+      <wa-button appearance="outlined" size="s" type="button" class="suivi-plus-filtres" id="suivi-plus-filtres" aria-expanded="false" aria-controls="suivi-filtres-plus" onclick="basculerPlusFiltresSuivi()">Plus de filtres<span class="suivi-plus-compte" id="suivi-plus-compte" hidden></span><span class="suivi-plus-annonce" id="suivi-plus-annonce"></span></wa-button>
+      <!-- Bascule d'affichage de la MÊME liste (mêmes filtres, même recherche) : les dossiers
+           regroupés par semaine d'échéance, ou le tableau. Voir definirVueSuivi(). -->
+      <wa-button-group class="vue-bascule" label="Mode d'affichage de la liste">
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn actif" id="vue-btn-semaines" onclick="definirVueSuivi('semaines')">Échéances</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn" id="vue-btn-tableau" onclick="definirVueSuivi('tableau')">Tableau</wa-button>
+      </wa-button-group>
+    </div>
+    <div class="suivi-filtres-plus" id="suivi-filtres-plus" style="display:none;">
+    <div class="suivi-barre-ligne suivi-barre-filtres" role="group" aria-label="Affiner la recherche">
       <label class="toolbar-item">
         <select id="filtre-offre" aria-label="Offre de prêt" onchange="render()">
           <option value="">Offre de prêt</option>
@@ -708,6 +711,7 @@
       </label>
     </div>
     <div class="suivi-statuts" id="suivi-statuts" role="group" aria-label="Filtrer par statut"></div>
+    </div>
   </div>
 
   <div id="dossier-list"></div>
@@ -1396,7 +1400,7 @@
     </div>
     <div class="dash-header-actions">
       <wa-button appearance="outlined" class="secondary" onclick="reinitialiserQuotites()">Effacer</wa-button>
-      <wa-button variant="brand" class="primary" id="qt-telecharger" onclick="telechargerQuotitesDocx(this)">Télécharger l'annexe (.docx)</wa-button>
+      <wa-button variant="brand" class="primary" id="qt-telecharger" disabled title="Saisissez l’origine du financement pour télécharger l’annexe" onclick="telechargerQuotitesDocx(this)">Télécharger l'annexe (.docx)</wa-button>
     </div>
   </div>
 
@@ -2266,6 +2270,7 @@
          bureau, coché seul quand le geste réussit ou confirmé ici ; repris par le rapport technique. -->
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Vérifications sur le terrain <span class="info-i" tabindex="0" data-info="Ce que CLAIRE ne peut pas essayer avant d'arriver au bureau (Outlook, Windows, 3CX, IA locale, NAS…). Chaque point se coche tout seul la première fois que le geste réussit ; ceux qui ne se voient qu'à l'œil se confirment ici. L'état part dans le rapport technique de 12 h et 17 h."></span> <span class="hint" id="reglages-verifications-compte"></span></h3>
+      <div id="reglages-verifications-filtres" class="reglages-verif-filtres" role="group" aria-label="Filtrer par domaine"></div>
       <div id="reglages-verifications" class="reglages-liste"></div>
     </div>
 

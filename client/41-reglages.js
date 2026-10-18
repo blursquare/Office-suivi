@@ -1152,6 +1152,30 @@
     }).join('');
   }
 
+  // Domaines des vérifications (étude 18/10 : « des filtres par domaine (Authentic, 3CX, Exchange, NAS) ») : lus dans le titre, le premier qui
+  // correspond l'emporte. Pure.
+  var DOMAINES_VERIFICATIONS = [
+    { cle: 'authentic', libelle: 'Authentic', motif: /authentic/i },
+    { cle: '3cx', libelle: '3CX', motif: /3cx|numéro (?:cliquable|écrit)/i },
+    { cle: 'extension', libelle: 'Extension Chrome', motif: /extension chrome|guichet/i },
+    { cle: 'ia', libelle: 'IA', motif: /demander à claire|\bia\b|ollama|openlegi|mistral|claude/i },
+    { cle: 'nas', libelle: 'NAS', motif: /\bnas\b|claire scan|fausses minutes|sauvegarde|pièce jointe|forme de nom|fcddv/i },
+    { cle: 'exchange', libelle: 'Exchange', motif: /exchange|outlook|e-?mail|agenda|rendez-vous|sondage|visio|boîte/i },
+    { cle: 'poste', libelle: 'Windows et poste', motif: /windows|poste|mise à jour|fenêtre claire|notification|word|pdf\/a/i },
+    { cle: 'services', libelle: 'Services publics', motif: /ign|géoportail|cadastr|sitadel|annuaire|urbanisme|préemption|commune/i }
+  ];
+  function domaineVerificationTerrain(v) {
+    const texte = `${(v && v.titre) || ''} ${(v && v.id) || ''}`;
+    const d = DOMAINES_VERIFICATIONS.find(x => x.motif.test(texte));
+    return d ? d.cle : 'autres';
+  }
+
+  var filtreDomaineVerifications = '';
+  function filtrerDomaineVerifications(cle) {
+    filtreDomaineVerifications = filtreDomaineVerifications === cle ? '' : cle;
+    renderVerificationsTerrain();
+  }
+
   function renderVerificationsTerrain() {
     const bloc = document.getElementById('reglages-verifications');
     if (!bloc) return;
@@ -1161,7 +1185,19 @@
     const restants = verificationsTerrain.filter(v => v.statut !== 'verifie');
     const compte = document.getElementById('reglages-verifications-compte');
     if (compte) compte.textContent = verificationsTerrain.length ? `${restants.length} à vérifier · ${n} vérifié${n > 1 ? 's' : ''}` : '';
-    bloc.innerHTML = restants.length ? lignesVerificationsTerrain(restants)
+    const filtres = document.getElementById('reglages-verifications-filtres');
+    const parDomaine = {};
+    restants.forEach(v => { const c = domaineVerificationTerrain(v); parDomaine[c] = (parDomaine[c] || 0) + 1; });
+    const domaines = [...DOMAINES_VERIFICATIONS, { cle: 'autres', libelle: 'Autres' }].filter(d => parDomaine[d.cle]);
+    if (filtreDomaineVerifications && !parDomaine[filtreDomaineVerifications]) filtreDomaineVerifications = '';
+    if (filtres) {
+      filtres.innerHTML = domaines.length > 1 ? domaines.map(d => {
+        const actif = filtreDomaineVerifications === d.cle;
+        return `<button type="button" class="reglages-verif-filtre${actif ? ' actif' : ''}" aria-pressed="${actif}" onclick="filtrerDomaineVerifications('${escapeOnclickArg(d.cle)}')">${escapeHtml(d.libelle)}<span class="reglages-verif-filtre-n">${parDomaine[d.cle]}</span></button>`;
+      }).join('') : '';
+    }
+    const affiches = filtreDomaineVerifications ? restants.filter(v => domaineVerificationTerrain(v) === filtreDomaineVerifications) : restants;
+    bloc.innerHTML = affiches.length ? lignesVerificationsTerrain(affiches)
       : `<p class="hint">${verificationsTerrain.length ? 'Tout est vérifié.' : 'Aucune vérification en cours.'}</p>`;
   }
 

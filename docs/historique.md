@@ -20787,3 +20787,20 @@ refuse ; l'échec était silencieux (« tous les contrôles tournent »), donc c
 illisibles ») : ≈ 17 min × 2 par publication, en plus de la construction. Corrigé : fetch authentifié comme actions/checkout (`basic x-access-token`) dans
 `refs/remotes/origin/main` (le faux guichet compare enfin à main), secours par l'API `compare/main...<commit>` (`identical`/`behind` = déjà contrôlé). Les sessions
 ne poussent plus que leur branche désignée après une publication (plus `claude/fiche-prod`).
+
+### 18/10/2026 — 0.285.2 : barre du Suivi allégée, annexe des quotités grisée, filtres des vérifications de terrain
+
+- **Suivi** (étude : « quatre listes, un interrupteur, des pastilles et deux vues avant le premier dossier ; je garderais la recherche et deux filtres
+  visibles, et le reste dans un bouton Plus de filtres ») : ligne de tête = recherche, Responsable, Échéance, « Plus de filtres », vue Échéances/Tableau ;
+  panneau replié `#suivi-filtres-plus` = offre de prêt, rôle, tri (vue Tableau), Archivés et pastilles de statut. Le bouton porte le nombre de filtres cachés
+  actifs (`filtresCachesActifsSuivi`, `majPlusFiltresSuivi` appelé par `renderEtatsSuivi`) ; ouvert/fermé retenu par poste (`claire-suivi-plus-filtres`).
+  Barre trop étroite (colonne de gauche, téléphone) : la recherche seule en tête (requête de conteneur sur `.suivi-barre`, 1000 px). Barre collée : c'est le
+  panneau, s'il est ouvert, qui se replie et revient au survol (`majBarreSuiviCollee` mesure `#suivi-filtres-plus`). La vue Échéances/Tableau reste visible :
+  ce n'est pas un filtre.
+- **Quotités** : « Télécharger l'annexe (.docx) » désactivé tant qu'aucun financement n'est saisi (`majResultatsQuotites`), bulle qui dit ce qui manque.
+- **Vérifications de terrain** (Réglages › Mise à jour) : pastilles de filtre par domaine (`DOMAINES_VERIFICATIONS`, `domaineVerificationTerrain` — lu dans le
+  titre : Authentic, 3CX, Extension Chrome, IA, Exchange, NAS, Windows et poste, Services publics, Autres), avec le nombre de points restants par domaine.
+- Relecture : marge du bas retirée quand le panneau est fermé (`plus-ouvert`), marge de la barre collée recalculée à l'ouverture du panneau, annexe des quotités
+  jamais réactivée pendant ni après une préparation si le financement a été vidé (`qtTelechargementEnCours`), message « tous archivés » qui renvoie à « Plus de
+  filtres », domaine NAS testé avant Exchange. Lecteurs d'écran : `aria-label`/`aria-expanded` posés sur un `<wa-button>` n'atteignent pas son bouton intérieur
+  (vérifié dans Chromium) — le nombre de filtres actifs et « ouvert/fermé » passent par un texte caché dans le libellé (`#suivi-plus-annonce`).

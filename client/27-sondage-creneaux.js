@@ -807,7 +807,7 @@
     }
     if (dossiersVisibles.length === 0) {
       count.textContent = '';
-      list.innerHTML = '<div class="empty-state">Aucun dossier actif — tous vos dossiers sont archivés. Cochez « Archivés » pour les revoir.</div>';
+      list.innerHTML = '<div class="empty-state">Aucun dossier actif — tous vos dossiers sont archivés. Allumez « Archivés » dans « Plus de filtres » pour les revoir.</div>';
       return;
     }
 

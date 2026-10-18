@@ -250,7 +250,7 @@
     // pas les cartes de saisie autour (voir @media print dans style.css).
     // Relecture d'actes : Ctrl+P sort le compte rendu A4 (#relecture-cr-print), pas l'écran (étude 06/10).
     document.getElementById('tab-reglages').classList.toggle('actif', nom === 'reglages');
-    if (nom === 'suivi') { appliquerFiltreSuiviCollaborateur(); initBarreSuiviCollee(); }
+    if (nom === 'suivi') { appliquerFiltreSuiviCollaborateur(); initBarreSuiviCollee(); if (!plusFiltresSuiviRestaure) { plusFiltresSuiviRestaure = true; restaurerPlusFiltresSuivi(); } }
     // Relu à chaque retour sur le tableau de bord : un rappel ajouté depuis un autre poste.
     if (nom === 'dashboard' && typeof chargerRappelsPerso === 'function' && authToken) chargerRappelsPerso();
     if (nom === 'dashboard' && authToken) chargerAbsencesOffice();
