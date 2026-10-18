@@ -234,6 +234,8 @@
     preemptionsAutoEnCours.add(id);
     try {
       const etat = prefillPreemption(d0);
+      // Signature des parcelles LUES, prise avant les attentes : un changement pendant la lecture laisse l'analyse à refaire.
+      const signatureLue = signaturePreemptionDossier(d0);
       let incomplet = false;
       if (etat.cp) {
         const erreur = await lireCommunesEtatPreemption(etat);
@@ -245,7 +247,7 @@
       const d = dossiers.find(x => x.id === id);
       if (!preemptionAutoAFaire(d)) return;
       const avant = d.preemption && Array.isArray(d.preemption.droits) ? d.preemption : null;
-      d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signaturePreemptionDossier(d) },
+      d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signatureLue },
         etat.boisDeduit ? { boisDeduit: true } : {},
         incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {},
         avant && avant.travaux ? { travaux: avant.travaux } : {}, avant && avant.sitadel ? { sitadel: avant.sitadel } : {});

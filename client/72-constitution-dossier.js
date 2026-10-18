@@ -92,6 +92,11 @@
     };
     // Toutes les parcelles du dossier, lues comme partout ailleurs (commun/donnees-dossier.js) : bien de la fiche et immeubles d'Authentic.
     parcellesDossier(d).forEach(p => ajouter(p, p.origine === 'authentic' ? 'Authentic' : 'Fiche', p.commune, p.adresseBien ? normaliserAdresse(p.adresseBien) : '', p.codePostal));
+    // Parcelles ajoutées et décochées dans cet écran (`d.constitutionParcelles`, gardées sur le dossier : le Contrôle de l'urbanisme les suit).
+    const choix = (d && d.constitutionParcelles) || {};
+    (Array.isArray(choix.ajoutees) ? choix.ajoutees : []).forEach(p => ajouter(p, 'Saisie', p.commune, '', p.cp));
+    const retirees = new Set(Array.isArray(choix.retirees) ? choix.retirees : []);
+    groupes.forEach(g => g.parcelles.forEach(p => { if (retirees.has(cleChoixParcelleConstitution(g, p))) p.actif = false; }));
     if (!groupes.length && principale.nom) groupe(principale.nom, principale.cp, '');
     groupes.forEach(g => {
       if (!g.adresseImmeuble) {
@@ -100,6 +105,31 @@
       }
     });
     return groupes.sort((a, b) => (b.principale ? 1 : 0) - (a.principale ? 1 : 0));
+  }
+
+  // Pure : la clé d'une parcelle d'un groupe, pour retenir qu'elle est décochée.
+  function cleChoixParcelleConstitution(g, p) { return [g.cle, p.prefixe || '', p.section, p.numero].join('|'); }
+
+  // Pure : ce que l'écran a changé aux parcelles du dossier → { ajoutees, retirees } ou null s'il n'a rien changé.
+  function choixParcellesConstitution(groupes) {
+    const ajoutees = [];
+    const retirees = [];
+    (groupes || []).forEach(g => (g.parcelles || []).forEach(p => {
+      if (p.origine === 'Saisie') ajoutees.push({ commune: g.commune, cp: g.cp || '', prefixe: p.prefixe || '', section: p.section, numero: p.numero, lieuDit: p.lieuDit || '', surface: p.surfaceIgn ? '' : (p.surface || '') });
+      if (!p.actif) retirees.push(cleChoixParcelleConstitution(g, p));
+    }));
+    return ajoutees.length || retirees.length ? { ajoutees, retirees } : null;
+  }
+
+  // Pure : les parcelles retenues pour le Contrôle de l'urbanisme quand la Constitution les a changées — celles cochées de la commune du
+  // bien ; null sinon (les parcelles de la fiche valent alors).
+  function parcellesUrbanismeConstitution(d) {
+    // Commune du bien inconnue (chaque groupe se dit « principal »), ou aucune parcelle cochée : les parcelles de la fiche valent, jamais
+    // une analyse sur une liste vide (décocher l'ancienne avant d'ajouter la nouvelle retirait la pièce « Réponse SAFER »).
+    if (!d || !d.constitutionParcelles || !communeDuDossierConstitution(d).nom) return null;
+    const g = groupesParcellesConstitution(d).find(x => x.principale);
+    const cochees = g ? g.parcelles.filter(p => p.actif) : [];
+    return cochees.length ? cochees : null;
   }
 
   // Pure : les lignes d'adresse de la mairie (service urbanisme) d'après l'annuaire du service public, sinon code postal et commune.
@@ -465,7 +495,7 @@
   }
   function cstParcelleActive(cle, i, actif) {
     const g = cstEtat && cstEtat.groupes.find(x => x.cle === cle);
-    if (g && g.parcelles[i]) { g.parcelles[i].actif = !!actif; renderConstitution(); replanifierPlanConstitution(g); }
+    if (g && g.parcelles[i]) { g.parcelles[i].actif = !!actif; renderConstitution(); replanifierPlanConstitution(g); memoriserParcellesConstitution(g); }
   }
   // Parcelles changées : le plan de la commune est retiré tout seul (étude 16/10 : « sortir le plan automatiquement »), après une courte
   // pause pour ne pas relancer cadastre.gouv.fr à chaque case cochée.
@@ -492,6 +522,7 @@
     g.parcelles.push({ prefixe: '', section, numero, lieuDit: val('lieudit'), surface: val('surface'), actif: true, origine: 'Saisie' });
     renderConstitution();
     replanifierPlanConstitution(g);
+    memoriserParcellesConstitution(g);
   }
   function cstAjouterCommune() {
     if (!cstEtat || cstEtat.type !== 'vente') return;

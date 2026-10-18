@@ -254,3 +254,33 @@ test('plan cadastral surligné de chaque commune joint aux courriers de vente : 
   const beaucoup = Object.assign({}, g, { parcelles: Array.from({ length: 15 }, (_, i) => ({ section: 'A', numero: String(i + 1), actif: true })) });
   assert.equal(app.parcellesPlanConstitution(beaucoup).split(', ').length, 12);
 });
+
+test('parcelles changées dans la Constitution : gardées sur le dossier, reprises à l’ouverture, suivies par le Contrôle de l’urbanisme', () => {
+  const d = { id: 'd1', adresseBien: 'BLOIS (41000), 3 rue Haute', typeVente: 'maison', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } } };
+  assert.equal(app.prefillPreemption(d).parcelles, 'AB 12');
+  assert.equal(app.parcellesUrbanismeConstitution(d), null, 'rien de changé : les parcelles de la fiche valent');
+  const g = app.groupesParcellesConstitution(d);
+  g[0].parcelles[0].actif = false;
+  g[0].parcelles.push({ prefixe: '', section: 'AC', numero: '40', lieuDit: '', surface: '', actif: true, origine: 'Saisie' });
+  d.constitutionParcelles = app.choixParcellesConstitution(g);
+  assert.equal(JSON.stringify(d.constitutionParcelles.retirees), '["blois||AB|12"]');
+  assert.equal(app.prefillPreemption(d).parcelles, 'AC 40', 'la parcelle ajoutée est analysée, celle décochée ne l’est plus');
+  const sig = app.signaturePreemptionDossier(d);
+  assert.match(sig, /AC 40/, 'la signature change : l’analyse automatique est refaite');
+  const relu = app.groupesParcellesConstitution(d);
+  assert.equal(relu[0].parcelles.map(p => `${p.section}${p.numero}:${p.actif}`).join(','), 'AB12:false,AC40:true');
+  // Une analyse sur l'ancienne parcelle est signalée dans l'écran.
+  d.preemption = { auto: false, droits: [], lignes: [{ cle: app.cleParcelle('AB', '12'), libelle: 'AB 12' }] };
+  assert.equal(app.zonageParcellesDepassees(d), true);
+  d.preemption.lignes = [{ cle: app.cleParcelle('AC', '40'), libelle: 'AC 40' }];
+  assert.equal(app.zonageParcellesDepassees(d), false);
+  // Toutes décochées : jamais une analyse sur une liste vide, les parcelles de la fiche valent.
+  const toutes = app.groupesParcellesConstitution(d);
+  toutes[0].parcelles.forEach(p => { p.actif = false; });
+  const d2 = Object.assign({}, d, { constitutionParcelles: app.choixParcellesConstitution(toutes) });
+  assert.equal(app.parcellesUrbanismeConstitution(d2), null);
+  assert.equal(app.prefillPreemption(d2).parcelles, 'AB 12');
+  // Tout remis comme avant : plus de choix gardé.
+  relu[0].parcelles[0].actif = true;
+  assert.equal(app.choixParcellesConstitution([{ cle: relu[0].cle, commune: 'BLOIS', parcelles: [relu[0].parcelles[0]] }]), null);
+});

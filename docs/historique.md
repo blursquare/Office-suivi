@@ -20700,3 +20700,13 @@ Frappe de la recherche d'adresse dans le monde de la page (`content.taper`). CU 
 - Relecture 0.282.0 corrigée : `maxItems` retiré de `plan_de_travail` (outils stricts) ; citations en un seul passage (une référence dans un passage cité ne casse plus le bouton), gras retiré du passage cherché ; reprise seulement quand le serveur a oublié la conversation (`repris`), sans la question en cours (`sansQuestionEnCours`) — plus de fausse « reprise » à la première question ; modèle, réflexion et historique envoyés seulement avec une nouvelle question, et un changement de modèle ne casse plus une boucle d'outils ; message « Je reprends le fil » ; texte Mistral corrigé ; colonne : état replié des blocs gardé, rien redessiné colonne fermée ni pendant un choix dans une liste, Échap la ferme sous 1 280 px, `aria-expanded` ; aperçu : l'erreur d'un document remplacé ne s'affiche plus sur le suivant ; « Pièces du NAS » réutilise les identifiants déjà donnés ; 20 conversations en mémoire au plus.
 - Seconde relecture 0.282.0 corrigée : changer de conversation ou de collaborateur remet la colonne à zéro (`oublierDocumentsAgent` → `reinitialiserColonneAssistant`, plus jamais l'ancien PDF sous un même « doc1 ») ; aperçu : promesse du PDF gardée par document, chaque demande est un objet comparé après chaque attente (deux clics rapides, deux documents, double clic) ; choix du dossier dans la colonne sans perdre le clic suivant ; le dossier rattaché passe avant la fiche ouverte à côté ; Échap n'agit pas quand une fenêtre est posée par-dessus ; numérotation des documents récents sans collision.
 
+
+### 18/10/2026 — Constitution de dossier : parcelles changées et contrôle de l'urbanisme (0.282.1)
+
+Signalé par l'étude : « Si je modifie et rajoute une parcelle et supprime celle initiale : le contrôle de l'urbanisme est fait sur la parcelle
+initialement mise et retirée, pas sur la nouvelle. » Cause : les parcelles ajoutées ou décochées dans l'écran ne vivaient que dans l'état de
+l'écran (`cstEtat`) ; l'analyse (`prefillPreemption` → `parcellesCommunePrincipaleDossier`) lisait celles de la fiche. Correction : le choix est
+gardé sur le dossier (`d.constitutionParcelles` = { ajoutees, retirees }, `choixParcellesConstitution`, `memoriserParcellesConstitution`), repris
+à la réouverture par `groupesParcellesConstitution`, et `prefillPreemption` analyse les parcelles cochées de la commune du bien
+(`parcellesUrbanismeConstitution`) — la signature change, l'analyse automatique est refaite (2,5 s après le dernier geste) ; une analyse faite
+à la main dans l'outil n'est pas refaite seule, la section dit « refaites-la dans l'outil » (`zonageParcellesDepassees`).

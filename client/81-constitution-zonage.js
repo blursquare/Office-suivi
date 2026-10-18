@@ -44,6 +44,42 @@
     }
   }
 
+  // Parcelles ajoutées ou décochées dans l'écran (bug signalé le 18/10 : le contrôle de l'urbanisme restait sur la parcelle retirée) : le choix
+  // est gardé sur le dossier (`d.constitutionParcelles`, lu par prefillPreemption), puis le zonage est relu après une courte pause — une analyse
+  // faite à la main dans le Contrôle de l'urbanisme n'est jamais refaite seule : la section dit qu'elle porte sur d'autres parcelles.
+  var minuterieZonageConstitution = null;
+  function memoriserParcellesConstitution(g) {
+    const e = cstEtat;
+    const d = dossierConstitution();
+    if (!e || !d || e.type !== 'vente') return;
+    const choix = choixParcellesConstitution(e.groupes);
+    if (JSON.stringify(choix) === JSON.stringify(d.constitutionParcelles || null)) return;
+    if (choix) d.constitutionParcelles = choix; else delete d.constitutionParcelles;
+    sauvegarder(d);
+    if (!g || !g.principale) return;
+    clearTimeout(minuterieZonageConstitution);
+    majZonageConstitution();
+    const relire = () => {
+      const d2 = dossierConstitution();
+      if (cstEtat !== e || !d2 || (d2.preemption && !d2.preemption.auto) || !parcellesUrbanismeConstitution(d2) && d2.constitutionParcelles) return;
+      // Une lecture encore en cours (sur les parcelles d'avant) : on attend qu'elle finisse, puis on relit.
+      if (e.zonageEnCours) { minuterieZonageConstitution = setTimeout(relire, 2500); return; }
+      lireZonageConstitution(true);
+    };
+    minuterieZonageConstitution = setTimeout(relire, 2500);
+  }
+
+  // Pure : l'analyse porte-t-elle sur d'autres parcelles que celles retenues dans cet écran ? (comparées par section et numéro)
+  function zonageParcellesDepassees(d) {
+    const p = d && d.preemption;
+    // Seulement quand cet écran a changé les parcelles : une analyse faite dans l'outil sur une liste tapée à la main n'est pas signalée.
+    if (!p || !parcellesUrbanismeConstitution(d) || !Array.isArray(p.lignes) || !p.lignes.length) return false;
+    const etat = prefillPreemption(Object.assign({}, d, { preemption: null }));
+    const voulues = parcellesDepuisTexte(etat.parcelles).map(x => cleParcelle(x.section, x.numero)).filter(Boolean).sort().join(',');
+    const lues = [...new Set(p.lignes.map(l => l && l.cle).filter(Boolean))].sort().join(',');
+    return voulues !== lues;
+  }
+
   // Contenance d'une parcelle qu'Authentic ne donne pas : celle du cadastre de l'IGN, lue avec le zonage (test du 16/10 à Chaumont-sur-Tharonne :
   // la colonne « Contenance » du courrier restait vide). Jamais par-dessus une contenance d'Authentic ou saisie. → vrai si une a été posée.
   function completerContenancesConstitution() {
@@ -88,6 +124,7 @@
       ${ligne('DIA (préemption urbaine)', z.dia)}${ligne('SAFER', z.safer)}
       ${z.autres.length ? `<p class="cst-alerte">Aussi : ${escapeHtml(z.autres.join(', '))}</p>` : ''}
       ${z.aCheval.length ? `<p class="cst-alerte">${escapeHtml(z.aCheval.join(', '))} à cheval sur deux zones : les deux sont analysées ; choisir la zone retenue dans le Contrôle de l’urbanisme si l’une ne touche la parcelle que d’un filet.</p>` : ''}
+      ${zonageParcellesDepassees(d) ? `<p class="cst-alerte">${d.preemption.auto ? (preemptionAutoAFaire(Object.assign({}, d, { preemptionAuto: true })) ? 'Parcelles changées : le zonage va être relu.' : 'Parcelles changées : relisez le zonage.') : 'Parcelles changées depuis l’analyse du Contrôle de l’urbanisme : refaites-la dans l’outil.'}</p>` : ''}
       ${z.incomplet ? '<p class="hint">Zonage lu en partie (Géoportail injoignable pour une parcelle) : relu plus tard.</p>' : ''}
       ${renderQuestionsUrbanismeConstitution(d)}
       <div class="cst-zonage-actions">${d.preemption.auto ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="lireZonageConstitution(true)">Relire le zonage</wa-button>` : ''}${outil}</div></div>`;

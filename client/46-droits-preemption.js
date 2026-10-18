@@ -147,7 +147,9 @@
     e.adresse = d.adresseBien || a.adresseComplete || '';
     // Les parcelles de la commune du bien, toutes sources réunies (commun/donnees-dossier.js : fiche ET immeubles d'Authentic) ;
     // celles d'une autre commune s'analysent dans l'outil ouvert sur cette commune.
-    e.parcelles = parcellesCommunePrincipaleDossier(d).map(p => `${p.section} ${p.numero}`).join(', ');
+    // Parcelles changées dans la Constitution de dossier (ajoutées, décochées) : ce sont elles qu'on analyse.
+    const choisies = parcellesUrbanismeConstitution(d);
+    e.parcelles = (choisies || parcellesCommunePrincipaleDossier(d)).map(p => `${p.section} ${p.numero}`).join(', ');
     const type = String(d.typeVente || '').toLowerCase();
     if (/copro/.test(type)) e.reponses.bien = 'lot-copro';
     else if (/terrain|terre/.test(type)) e.reponses.bien = 'terrain';
