@@ -126,7 +126,8 @@
     const r = await chargerDocumentsRecentsAssistant(d);
     let n = Object.keys(documentsAgentConnus).length;
     const vers = (doc, champs) => {
-      const id = 'doc' + (++n);
+      let id;
+      do { id = 'doc' + (++n); } while (documentsAgentConnus[id]);
       documentsAgentConnus[id] = doc;
       return { document_id: id, document: doc.libelle, recu_le: doc.le || '', ...(doc.dossier ? { dossier_id: doc.dossier.id, dossier: libelleDossierAffiche(doc.dossier) } : {}),
         ouvrable: documentOuvrableAssistant(doc), ...(champs || {}) };
@@ -187,4 +188,6 @@
     return { fait: true, boutons_affiches: docs.length };
   }
 
-  function oublierDocumentsAgent() { documentsAgentConnus = {}; }
+  // Changer de conversation (ou de collaborateur) : les identifiants ne valent plus — la colonne de droite repart de zéro aussi
+  // (seconde relecture 0.282.0 : « doc1 » d'une autre conversation ouvrait l'ancien PDF).
+  function oublierDocumentsAgent() { documentsAgentConnus = {}; reinitialiserColonneAssistant(); }

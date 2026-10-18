@@ -8,7 +8,8 @@ const express = require('express');
 const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELES_AGENT, MODELES_AGENT_MISTRAL } = require('../assistantMistral');
-const { tourAgent } = require('../assistantAgent');
+const { tourAgent, EFFORTS_AGENT } = require('../assistantAgent');
+
 const { lireCarnet } = require('../carnetClaire');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
@@ -22,8 +23,14 @@ function routeAsync(fn) {
   return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
+// Modèle choisi pour la conversation dans la colonne de droite (Claude seulement), sinon celui des Réglages.
+function modeleConversation(a, corps) {
+  return a.fournisseur !== 'mistral' && typeof corps.modele === 'string' && MODELES_AGENT[corps.modele] ? corps.modele : a.modele;
+}
+
 // Les dossiers reçus du poste, ramenés aux seuls champs qui servent à reconnaître un dossier cité (jamais une donnée de fiche utile
 // à l'IA) : sert à masquer les noms avant tout envoi en ligne.
+
 function dossiersDuCorps(corps) {
     return Array.isArray(corps.dossiers) ? corps.dossiers.filter((d) => d && typeof d.id === 'string').map((d) => ({
       id: d.id, nom: typeof d.nom === 'string' ? d.nom : '', archive: !!d.archive,
@@ -181,8 +188,10 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       dossiers: dossiersDuCorps(corps),
       contexte: corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {},
       // Carnet de consignes de l'étude (CLAIRE.md) : pris par l'agent au premier tour de chaque conversation (reprise comprise).
-      carnet: lireCarnet(parametresRepo).texte
-    }, { cle: a.cle, fournisseur: a.fournisseur, modele: a.modele, region: a.region, client: injections && injections.clientAgent,
+      carnet: lireCarnet(parametresRepo).texte,
+      // Échanges gardés par le poste : relus seulement si le serveur a oublié la conversation (reprise).
+      historique: Array.isArray(corps.historique) ? corps.historique.slice(-12).map((h) => ({ role: h && h.role === 'moi' ? 'moi' : 'claire', texte: chaine(h && h.texte, 1500) })) : []
+    }, { cle: a.cle, fournisseur: a.fournisseur, modele: modeleConversation(a, corps), effort: EFFORTS_AGENT.includes(corps.effort) ? corps.effort : undefined, region: a.region, client: injections && injections.clientAgent,
       fetchMistral: injections && injections.fetchMistral, parametresRepo, chargerOutilsExternes,
       surRefusOutilsExternes: () => { if (injections && injections.openlegi) injections.openlegi.suspendre(); } });
     if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });

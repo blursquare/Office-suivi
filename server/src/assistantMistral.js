@@ -36,7 +36,7 @@ const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 // dans les Réglages, Opus par défaut) — assistantAgent.js. Tarif en dollars par million de jetons (lecture du cache : 0,1 × l'entrée,
 // écriture : 1,25 ×). `secours` : le serveur d'Anthropic relance seul une demande refusée par ses filtres sur un autre modèle.
 const MODELES_AGENT = {
-  'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, lectureCache: 0.2, secours: true },
+  'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, lectureCache: 0.2, secours: true, compaction: true },
   'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, lectureCache: 0.2, secours: true },
   'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, lectureCache: 0.01, secours: false }
 };

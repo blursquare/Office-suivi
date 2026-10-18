@@ -26,12 +26,16 @@ const DELAI_AGENT_MS = 180 * 1000;
 const MAX_JETONS_AGENT_MISTRAL = 16000;
 const MAX_JETONS_AGENT = 16000;
 const MAX_TOURS_OUTILS = 25;              // appels d'outils enchaînés pour UNE question, au-delà l'IA doit conclure
-const DUREE_CONVERSATION_MS = 30 * 60 * 1000;
-const MAX_CONVERSATIONS = 60;
+const DUREE_CONVERSATION_MS = 2 * 3600 * 1000;
+const MAX_CONVERSATIONS = 20;   // 2 h chacune, documents lus compris : la mémoire du serveur du bureau reste bornée
+// Réflexion choisie dans la colonne de droite (étude 18/10 : « Modèle et réflexion ») : rapide, normale, approfondie.
+const EFFORTS_AGENT = ['low', 'medium', 'high'];
 const MAX_CARACTERES_RESULTAT = 60000;    // un résultat d'outil plus long est coupé (une liste de 400 dossiers)
 // Texte de documents lu dans UNE conversation (relecture 13/10) : tout l'historique repart à chaque tour — au-delà, le contexte de
 // Mistral (128 000 jetons) déborde, l'appel échoue et la conversation est perdue. ≈ 50 000 jetons de documents au plus.
 const MAX_CARACTERES_DOCUMENTS_CONVERSATION = 180000;
+// Avec le résumé automatique du début de conversation (Opus 5.5) : un acte entier et ses annexes se lisent.
+const MAX_CARACTERES_DOCUMENTS_COMPACTION = 900000;
 const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy'];
 
 // Gestes que l'agent peut demander : les intentions de « Demander à CLAIRE » qui écrivent ou ouvrent quelque chose, faites par le
@@ -91,6 +95,13 @@ const OUTILS_AGENT = [
     description: 'Propose à l’utilisateur d’ouvrir des documents rendus par documents_recents : un bouton « Ouvrir » par document s’affiche dans la conversation (le navigateur n’ouvre un document que sur un clic). 6 documents au plus.',
     input_schema: { type: 'object', additionalProperties: false, required: ['documents'],
       properties: { documents: { type: 'array', items: { type: 'string' }, description: 'les document_id à proposer' } } }
+  },
+  {
+    name: 'plan_de_travail',
+    description: 'Affiche à l’utilisateur, dans la colonne de droite, le plan de ce que tu fais pour une demande en plusieurs temps (relire un acte, analyser un dossier, comparer des documents, chercher un texte de loi) : 3 à 8 étapes courtes. Appelle-le au début, puis à nouveau pour mettre à jour l’état des étapes au fil du travail. Ne rien dire de nominatif : les codes [NOM…] sont rétablis à l’affichage.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['etapes'],
+      properties: { etapes: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['texte', 'etat'],
+        properties: { texte: chaine('l’étape, en quelques mots'), etat: { type: 'string', enum: ['a_faire', 'en_cours', 'fait'] } } } } } }
   },
   {
     name: 'documents_du_dossier',
@@ -188,6 +199,8 @@ const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suiv
 Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
 - Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Pour une question sur une règle de CLAIRE ou un choix de l'étude (« pourquoi… », « depuis quand… », un délai, une échéance, un courrier), cherche dans la rubrique regles-etude et cite la section (sa date quand elle en porte une). Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
+- Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
+- Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
 - Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
 - Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour une synthèse, un tableau, une note ou un courrier demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
@@ -320,6 +333,29 @@ function nettoyerReponseAgent(texte, table) {
   return A.sansSaufErreur(retablirTexte(String(texte || ''), table).replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '…')).trim();
 }
 
+/** Caractères de documents lisibles dans une conversation (plus avec le résumé automatique du début). @param {any} conv */
+function limiteLectureConversation(conv) {
+  const fiche = conv && conv.fournisseur !== 'mistral' ? MODELES_AGENT[conv.modele] : null;
+  return fiche && fiche.compaction ? MAX_CARACTERES_DOCUMENTS_COMPACTION : MAX_CARACTERES_DOCUMENTS_CONVERSATION;
+}
+
+/** Les échanges d'une conversation que le serveur a oubliée (2 h, redémarrage), renvoyés par le poste : masqués, en tête de la
+ * nouvelle question pour que CLAIRE reprenne le fil. Pure. @param {any[]} historique @param {Set<string>} sensibles @param {Map<string, string>} table */
+function resumeHistoriqueReprise(historique, sensibles, table) {
+  const lignes = (Array.isArray(historique) ? historique : []).slice(-12)
+    .filter((h) => h && typeof h.texte === 'string' && h.texte.trim() && (h.role === 'moi' || h.role === 'claire'))
+    .map((h) => `${h.role === 'moi' ? 'Utilisateur' : 'CLAIRE'} : ${masquer(h.texte.replace(/\s+/g, ' ').trim().slice(0, 1200), sensibles, table)}`);
+  return lignes.length ? `(Suite d'une conversation reprise — échanges précédents, à titre de contexte :\n${lignes.join('\n')}\n)\n\n` : '';
+}
+
+/** Pure : l'historique du poste sans son dernier échange s'il est la question en cours (le poste la note avant l'envoi). */
+function sansQuestionEnCours(historique, texte) {
+  const h = Array.isArray(historique) ? historique : [];
+  const dernier = h[h.length - 1];
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  return dernier && dernier.role === 'moi' && norm(texte).startsWith(norm(dernier.texte).slice(0, 300)) ? h.slice(0, -1) : h;
+}
+
 /** Le contexte du moment, en tête de la première question (jamais dans le prompt système : il resterait en cache). Pure. */
 function enteteContexte(c) {
   const lignes = [`Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')} (${c.aujourdhui || ''}).`];
@@ -341,7 +377,7 @@ function blocCarnet(carnet) {
   return carnet ? `Consignes de l'étude (CLAIRE.md, rédigées par l'étude — à suivre) :\n\n${carnet}` : '';
 }
 
-/** La requête envoyée à Claude. Pure. @param {string} modele @param {any[]} messages @param {{ conclure?: boolean, carnet?: string, outilsExternes?: any[] }} [o] */
+/** La requête envoyée à Claude. Pure. @param {string} modele @param {any[]} messages @param {{ conclure?: boolean, carnet?: string, outilsExternes?: any[], effort?: string }} [o] */
 function requeteAgent(modele, messages, o) {
   const fiche = MODELES_AGENT[modele] || MODELES_AGENT[MODELE_AGENT_DEFAUT];
   /** @type {any} */
@@ -349,7 +385,7 @@ function requeteAgent(modele, messages, o) {
     model: modele,
     max_tokens: MAX_JETONS_AGENT,
     // Réflexion adaptative (par défaut sur ces modèles) ; effort moyen : la réponse arrive en quelques secondes.
-    output_config: { effort: 'medium' },
+    output_config: { effort: o && EFFORTS_AGENT.includes(o.effort) ? o.effort : 'medium' },
     // Le carnet de l'étude suit le prompt système, dans son propre bloc en cache (il change rarement).
     system: [{ type: 'text', text: SYSTEME_AGENT, cache_control: { type: 'ephemeral' } },
       ...(o && o.carnet ? [{ type: 'text', text: blocCarnet(o.carnet), cache_control: { type: 'ephemeral' } }] : [])],
@@ -360,6 +396,9 @@ function requeteAgent(modele, messages, o) {
   };
   if (o && o.conclure) requete.tool_choice = { type: 'none' };
   if (fiche.secours) { requete.betas = ['server-side-fallback-2026-07-01']; requete.fallbacks = 'default'; }
+  // Longue conversation (relecture d'un acte entier, plusieurs documents) : le début est résumé par Claude quand le contexte se
+  // remplit, au lieu de couper (modèles qui le permettent).
+  if (fiche.compaction) { requete.betas = [...(requete.betas || []), 'compact-2026-01-12']; requete.context_management = { edits: [{ type: 'compact_20260112' }] }; }
   return requete;
 }
 
@@ -378,9 +417,9 @@ function messageErreurAgent(err) {
  * Un tour de l'agent. Entrée : la phrase (nouvelle question) OU les résultats des outils demandés au tour précédent.
  * Rend { conversation, appels: [{ id, nom, entree }] } (outils à exécuter par le poste) ou { conversation, reponse, coutUsd }.
  * @param {{ conversation?: string, texte?: string, resultats?: Array<{ id: string, contenu?: any, erreur?: boolean }>,
- *   dossiers?: any[], contexte?: any, carnet?: string }} entree
+ *   dossiers?: any[], contexte?: any, carnet?: string, historique?: Array<{ role: string, texte: string }> }} entree
  * @param {{ cle: string, modele?: string, fournisseur?: string, region?: string, client?: any, fetchMistral?: Function,
- *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, surRefusOutilsExternes?: Function }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
+ *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, surRefusOutilsExternes?: Function, effort?: string }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
  */
 async function tourAgent(entree, o) {
   const maintenant = o.maintenant || Date.now();
@@ -390,7 +429,9 @@ async function tourAgent(entree, o) {
   // Fournisseur ou modèle changé dans les Réglages pendant la conversation : on repart de zéro (relecture : la clé d'un fournisseur
   // serait partie chez l'autre ; la réflexion d'un modèle ne vaut pas pour un autre).
   const voulu = o.fournisseur === 'mistral' ? 'mistral' : 'claude';
-  if (conv && (conv.fournisseur !== voulu || (o.modele && conv.modele !== o.modele))) { conversations.delete(conv.id); conv = null; }
+  // Un changement de modèle ne compte qu'à une nouvelle question (relecture 0.282.0 : pendant une boucle d'outils, il cassait la conversation).
+  const nouvelleQuestion = typeof e.texte === 'string' && !!e.texte.trim();
+  if (conv && (conv.fournisseur !== voulu || (nouvelleQuestion && o.modele && conv.modele !== o.modele))) { conversations.delete(conv.id); conv = null; }
   const texte = typeof e.texte === 'string' ? e.texte.replace(/\s+/g, ' ').trim().slice(0, 2000) : '';
   // Une conversation connue du poste mais oubliée ici (30 min, redémarrage) : on repart de zéro et on le dit.
   const repris = !!e.conversation && !conv && !!texte;
@@ -410,6 +451,7 @@ async function tourAgent(entree, o) {
     conversations.set(conv.id, conv);
   }
   conv.maj = maintenant;
+  if (EFFORTS_AGENT.includes(o.effort)) conv.effort = o.effort;
   // Les mots à masquer sont relus à chaque question (un dossier ajouté entre-temps) ; la table, elle, ne change que par ajouts.
   if (Array.isArray(e.dossiers) && e.dossiers.length) { conv.sensibles = motsSensiblesDossiers(e.dossiers); conv.societes = motsSocietesDossiers(e.dossiers); }
   // Carnet de l'étude (CLAIRE.md) : masqué une fois, au premier tour, avec la table de la conversation ; Mistral le lit dans le
@@ -436,7 +478,9 @@ async function tourAgent(entree, o) {
       conv.attendus = [];
     }
     const phrase = masquer(texte, conv.sensibles, conv.table);
-    const tete = !conv.contexteDit || contexte.dossierId ? enteteContexte(contexte) + '\n\n' : '';
+    const tete = (!conv.contexteDit || contexte.dossierId ? enteteContexte(contexte) + '\n\n' : '')
+      // Les échanges du poste ne servent qu'à une REPRISE (conversation oubliée ici ou changée de modèle), sans la question en cours.
+      + (!conv.contexteDit && repris ? resumeHistoriqueReprise(sansQuestionEnCours(e.historique, texte), conv.sensibles, conv.table) : '');
     conv.contexteDit = true;
     conv.messages.push({ role: 'user', content: tete + phrase });
     conv.tours = 0;
@@ -461,14 +505,14 @@ async function tourAgent(entree, o) {
       // Sources juridiques : 12 000 caractères par résultat, comptés dans la limite de lecture de la conversation.
       if (/^(legifrance|bofip|rne)__/.test(nomAppel) && !r.erreur) {
         if (contenu.length > 12000) contenu = contenu.slice(0, 12000) + ' … (coupé : affine la recherche)';
-        if ((conv.caracteresLus || 0) + contenu.length > MAX_CARACTERES_DOCUMENTS_CONVERSATION) {
+        if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà trouvé.', erreur: true };
         }
         conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
         conv.externesUtilises = true;
       }
       if ((conv.nomsAppels || {})[id] === 'lire_document' && !r.erreur) {
-        if ((conv.caracteresLus || 0) + contenu.length > MAX_CARACTERES_DOCUMENTS_CONVERSATION) {
+        if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
         }
         conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
@@ -554,7 +598,7 @@ function pousserResultats(conv, blocs) {
 /** Un appel à Claude. Le contenu rendu est gardé TEL QUEL (réflexion, appels, bascule de secours). @param {any} conv @param {any} o */
 async function tourClaude(conv, o) {
   const sdk = o.client || creerClientAgent(o.cle);
-  const message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes }));
+  const message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort }));
   conv.messages.push({ role: 'assistant', content: message.content });
   const u = message.usage || {};
   const appels = (message.content || []).filter((b) => b && b.type === 'tool_use').map((b) => ({ id: b.id, nom: b.name, entree: b.input }));
@@ -659,5 +703,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, retablirValeur, nettoyerReponseAgent,
+module.exports = { EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS };

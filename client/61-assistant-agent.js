@@ -24,7 +24,7 @@
     const blocs = [];
     let liste = null;
     let para = [];
-    const enLigne = (t) => escapeHtml(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    const enLigne = (t) => citationsCliquablesAssistant(escapeHtml(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'));
     const finPara = () => { if (para.length) { blocs.push(`<p>${para.map(enLigne).join('<br>')}</p>`); para = []; } };
     const finListe = () => { if (liste) { blocs.push(`<ul class="asst-liste">${liste.map(l => `<li>${enLigne(l)}</li>`).join('')}</ul>`); liste = null; } };
     lignes.forEach(l => {
@@ -242,6 +242,7 @@
     if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     if (nom === 'consulter_site') return consulterSiteAgent(e);
+    if (nom === 'plan_de_travail') return planTravailAgent(e);
     if (/^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(nom)) return appelOpenlegiAgent(nom, e);
     return { erreur: 'outil inconnu' };
   }
@@ -249,7 +250,7 @@
   // ---- La boucle : question → outils → … → réponse ----
 
   async function appelAgentAssistant(corps) {
-    const r = await fetchAvecAuth('/api/assistant/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+    const r = await fetchAvecAuth('/api/assistant/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps.texte ? { ...reglagesColonneAgent(), ...corps } : corps) });
     const json = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(json.erreur || `le serveur a répondu ${r.status}`);
     return json;
@@ -258,7 +259,8 @@
   // Rend vrai quand l'agent a répondu (ou dit pourquoi il n'a pas pu), faux pour revenir à la compréhension d'une phrase.
   async function envoyerAgentAssistant(texte, dossierImpose) {
     const contexte = () => {
-      const id = dossierImpose || dossierOuvert || assistantContexte.dossierId || '';
+      // Le dossier rattaché dans la colonne de droite passe avant la fiche ouverte à côté.
+      const id = dossierImpose || assistantContexte.dossierId || dossierOuvert || '';
       return { aujourdhui: isoAujourdhuiLocal(), prenom: prenomPosteAssistant(), dossierId: id, dossierLibelle: libelleDossierAssistant(id) };
     };
     assistantEnCours = true;
@@ -276,7 +278,7 @@
       let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) });
       if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) }); }
       if (rep.repli) { assistantEnCours = false; assistantEtapeAgent = ''; return false; }
-      if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Notre échange précédent était trop ancien : je repars de zéro.</p>');
+      if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Je reprends le fil de notre échange.</p>');
       while (rep && Array.isArray(rep.appels) && rep.appels.length) {
         engage = true;
         assistantAgentConversation = rep.conversation || assistantAgentConversation;
@@ -284,8 +286,10 @@
         for (const appel of rep.appels) {
           assistantEtapeAgent = LIBELLES_OUTILS_AGENT[appel.nom] || libelleOutilOpenlegi(appel.nom) || 'Je réfléchis…';
           renderAssistant();
+          if (appel.nom !== 'plan_de_travail') noterOutilColonneAssistant(appel.id, assistantEtapeAgent, false);
           try { resultats.push({ id: appel.id, contenu: await executerOutilAgent(appel.nom, appel.entree) }); }
           catch (e) { resultats.push({ id: appel.id, contenu: { erreur: String(e && e.message || e).slice(0, 200) }, erreur: true }); }
+          if (appel.nom !== 'plan_de_travail') noterOutilColonneAssistant(appel.id, '', true);
         }
         assistantEtapeAgent = 'Je réfléchis…';
         renderAssistant();

@@ -31,8 +31,11 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       fichiers = (await r.json()).fichiers || [];
     } catch (e) { return { erreur: 'NAS injoignable depuis le serveur' }; }
     let n = Object.keys(documentsAgentConnus).length;
+    // Un fichier déjà listé garde son identifiant (relecture 0.282.0 : « Pièces du NAS » en recréait à chaque clic).
+    const parChemin = new Map(Object.entries(documentsAgentConnus).filter(([, x]) => x && x.chemin).map(([cle, x]) => [x.chemin, cle]));
     const documents = fichiers.map(f => {
-      const id = 'doc' + (++n);
+      let id = parChemin.get(cheminNasComplet(d, f.chemin));
+      if (!id) { do { id = 'doc' + (++n); } while (documentsAgentConnus[id]); }
       const nom = String(f.nom || '').replace(/\.pdf$/i, '');
       documentsAgentConnus[id] = { sorte: 'fichier', libelle: nom, dossier: d, le: f.modifieLe || '', chemin: cheminNasComplet(d, f.chemin) };
       return { document_id: id, document: pieceFichierNasAssistant(d, nom), sous_dossier: sousDossierFichierAssistant(d, cheminNasComplet(d, f.chemin)), modifie_le: String(f.modifieLe || '').slice(0, 10) };
@@ -98,6 +101,7 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       try { pdf.destroy(); } catch (e) { /* déjà libéré */ }
     }
     noterVerificationPoste('agent-lecture-document', { detail: ocr ? 'avec OCR' : 'texte du PDF' });
+    if (pages.length) noterDocumentLuAssistant(documentId, `${pages[0].page}-${pages[pages.length - 1].page}`);
     return { pages_total: pdf.numPages, ...(horsDocument ? { attention: `le document n’a que ${pdf.numPages} page(s)` } : {}),
       pages_lues: pages.length ? `${pages[0].page}-${pages[pages.length - 1].page}` : '', ...(suite ? { suite } : {}),
       ...(!suite && pages.length && pages[pages.length - 1].page < pdf.numPages ? { suite: `pages ${pages[pages.length - 1].page + 1} à ${pdf.numPages} non lues` } : {}), pages };

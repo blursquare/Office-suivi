@@ -72,7 +72,11 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.equal(req.system[0].cache_control.type, 'ephemeral');
   assert.equal(req.cache_control.type, 'ephemeral');
   assert.equal(req.fallbacks, 'default');
-  assert.deepEqual(req.betas, ['server-side-fallback-2026-07-01']);
+  assert.deepEqual(req.betas, ['server-side-fallback-2026-07-01', 'compact-2026-01-12'], 'Opus 5.5 : résumé automatique des longues conversations');
+  assert.deepEqual(req.context_management, { edits: [{ type: 'compact_20260112' }] });
+  assert.equal(requeteAgent('claude-sonnet-5-5', []).context_management, undefined);
+  assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'high' }).output_config.effort, 'high');
+  assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'max!' }).output_config.effort, 'medium');
   assert.ok(OUTILS_AGENT.every((t) => t.strict === true && t.input_schema.additionalProperties === false));
   const haiku = requeteAgent('claude-haiku-5-5', []);
   assert.equal(haiku.fallbacks, undefined);
@@ -384,7 +388,8 @@ test('relecture 13/10 : la lecture de documents est plafonnée par conversation 
   for (let i = 0; i < 6; i++) reponses.push({ stop_reason: 'tool_use', usage, content: [outil('l' + i, 'lire_document', { document_id: 'doc1', page_debut: 1 + 30 * i, page_fin: 0 })] });
   reponses.push({ stop_reason: 'end_turn', usage, content: [texte('Fini.')] });
   const client = fauxClient(reponses);
-  const o = { cle: 'k', client };
+  // Sonnet : sans résumé automatique, la limite de 180 000 caractères s'applique.
+  const o = { cle: 'k', client, modele: 'claude-sonnet-5-5' };
   let r = await tourAgent({ texte: 'Lis tout le compromis', dossiers: D, contexte: {} }, o);
   const page = 'Clause '.repeat(6000);
   while (r.appels) r = await tourAgent({ conversation: r.conversation, resultats: r.appels.map((a) => ({ id: a.id, contenu: { pages: [{ page: 1, texte: page }] } })) }, o);
@@ -427,4 +432,28 @@ test('faire_geste : options de rendez-vous et email libre gardent créneaux, des
   assert.deepEqual(e.parametres.creneaux, [{ date: '2026-11-03', heure: '10:00' }]);
   assert.equal(e.parametres.destinataire, 'a@b.fr');
   assert.equal(e.parametres.corps, 'Bonjour [à compléter]');
+});
+
+test('18/10 : conversation reprise avec les échanges gardés par le poste, masqués ; plan de travail parmi les outils', async () => {
+  const { resumeHistoriqueReprise } = require('../src/assistantAgent');
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('Oui.')] }]);
+  await tourAgent({ conversation: 'oubliee-par-le-serveur', texte: 'Et la suite ?', dossiers: D, contexte: {}, historique: [{ role: 'moi', texte: 'Où en est Fournier ?' }, { role: 'claire', texte: 'Le dossier FOURNIER attend l’offre.' }] }, { cle: 'k', client });
+  const envoye = JSON.stringify(client.requetes[0].messages);
+  assert.match(envoye, /Suite d'une conversation reprise/);
+  assert.doesNotMatch(envoye, SECRETS);
+  assert.equal(resumeHistoriqueReprise([], new Set(), new Map()), '');
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'plan_de_travail'));
+});
+
+test('relecture 0.282.0 : pas de « reprise » sur une première question ; changement de modèle sans casser une boucle d’outils', async () => {
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('Oui.')] }]);
+  await tourAgent({ texte: 'Où en est Fournier ?', dossiers: D, contexte: {}, historique: [{ role: 'moi', texte: 'Où en est Fournier ?' }] }, { cle: 'k', client });
+  assert.doesNotMatch(JSON.stringify(client.requetes[0].messages), /conversation reprise/);
+  const c2 = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('x1', 'taches_du_jour', {})] },
+    { stop_reason: 'end_turn', usage, content: [texte('Fini.')] }
+  ]);
+  const r1 = await tourAgent({ texte: 'Mes tâches', contexte: {} }, { cle: 'k', client: c2, modele: 'claude-sonnet-5-5' });
+  const r2 = await tourAgent({ conversation: r1.conversation, resultats: [{ id: 'x1', contenu: { taches: [] } }] }, { cle: 'k', client: c2, modele: 'claude-opus-5-5' });
+  assert.equal(r2.reponse, 'Fini.', 'la boucle continue sur le modèle de la conversation');
 });

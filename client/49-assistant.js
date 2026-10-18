@@ -96,6 +96,7 @@
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
     renderFilsAssistant();
+    renderColonneAssistant();
     assistantActions = {};
     const relances = document.getElementById('assistant-relances');
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
@@ -277,6 +278,7 @@
     oublierConversationAgent();
     mentionsChoisiesAssistant = [];
     assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
+    reinitialiserColonneAssistant();
     renderAssistant();
     const champ = document.getElementById('assistant-saisie');
     if (champ) { champ.value = ''; champ.focus(); }

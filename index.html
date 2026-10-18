@@ -1590,6 +1590,7 @@
       <div class="asst-etat" id="assistant-etat"></div>
       <span class="asst-tete-espace"></span>
       <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
+      <wa-button appearance="plain" size="s" class="bouton-icone asst-colonne-bouton" id="assistant-colonne-bouton" aria-controls="assistant-droite" aria-expanded="false" type="button" onclick="basculerColonneAssistant()" title="Espace de travail : documents, aperçu, dossier, étapes" aria-label="Espace de travail"><span id="icon-assistant-colonne" aria-hidden="true"></span></wa-button>
     </div>
     <div class="asst-messages" id="assistant-messages" aria-live="polite"></div>
     <div class="asst-bas">
@@ -1609,6 +1610,8 @@
       <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; toute autre action qui modifie un dossier attend votre autorisation. Avec une IA en ligne, seuls la phrase et le texte lu des documents partent, les noms masqués.</p>
     </div>
     </div>
+    <!-- Espace de travail (étude 18/10 : « une sidebar à droite comme un Claude ») — client/85-assistant-colonne.js. -->
+    <aside class="asst-droite" id="assistant-droite" aria-label="Espace de travail"></aside>
   </div>
 </div>
 
@@ -2870,5 +2873,6 @@
 <script src="client/82-authentic-recu.js"></script>
 <script src="client/83-carnet-claire.js"></script>
 <script src="client/84-openlegi.js"></script>
+<script src="client/85-assistant-colonne.js"></script>
 </body>
 </html>
