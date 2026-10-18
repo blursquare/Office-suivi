@@ -694,7 +694,7 @@
      ce sous-arbre sans dupliquer une seule règle de rendu. Partagés avec le bouton burger (mobile),
      qui ouvre ce panneau et doit donc lui ressembler. Panneau plat bordé, sans flou ni dégradé :
      l'effet « verre » a été retiré avec le passage au mode sombre de l'artefact de présentation. */
-  .sidebar, .sidebar-burger, .toast, .sidebar-infobulle {
+  .sidebar, .sidebar-burger, .sidebar-infobulle {
     --paper: #14161A; --paper-card: #1B1E23; --paper-sunk: #20232A;
     --ink: #EDEEF0; --ink-soft: #C3C7CD; --line: #2F343C; --line-soft: #24272D; --muted: #9AA0A8;
     --pret: #E0A93E; --pret-bg: #332B18; --acte: #8A9FD4; --acte-bg: #232736; --ventebien: #6FAEDB;
@@ -10141,3 +10141,18 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 #onglet-nouveau.nd-accueil .import-choix-carte { min-height: 150px; padding: 24px; box-shadow: var(--shadow-card); border-color: var(--bord-carte); align-content: start; }
 #onglet-nouveau.nd-accueil .import-choix-icone { width: 48px; height: 48px; }
 #onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
+/* Notifications en bas de la barre latérale, sur fond blanc (étude 18/10) : au-dessus de « Signaler un problème », alignées sur la
+   barre ; sur téléphone, en bas au centre comme avant. Texte foncé, filet de durée et « Annuler » à l'accent. */
+.toast { background: var(--paper-card); color: var(--ink); border: 1px solid var(--line); text-align: left; }
+.toast-undo { align-self: flex-start; color: var(--focus); }
+.toast-undo:focus-visible { outline-color: var(--focus); }
+.toast-duree { background: var(--focus); opacity: 0.6; }
+.toast-fermer { color: var(--ink-soft); }
+.toast-fermer:hover { background: var(--paper-sunk); }
+.toast-fermer:focus-visible { outline-color: var(--focus); }
+@media (min-width: 901px) {
+  /* De la largeur de la barre (étude 18/10 : « de la taille de la sidebar ») : 252 px moins ses 12 px de marge de chaque côté. Barre
+     repliée (72 px) : trop étroite pour un message, la notification garde 320 px. */
+  .toast { left: 12px; right: auto; bottom: 64px; margin: 0; width: 228px; min-width: 0; max-width: calc(100vw - 32px); padding: 12px 12px 14px; font-size: var(--texte-s); }
+  body:has(.sidebar.repliee) .toast { width: 320px; font-size: var(--texte-m); }
+}
