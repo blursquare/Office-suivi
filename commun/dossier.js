@@ -41,7 +41,12 @@
     const saisi = String((d.defunt && d.defunt.prenoms) || '').trim();
     if (saisi) return saisi.split(/\s+/)[0];
     const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {}).filter((f) => f && f.deces && f.deces.date && f.prenom);
-    return fiches.length === 1 ? String(fiches[0].prenom).trim().split(/\s+/)[0] : '';
+    if (fiches.length === 1) return String(fiches[0].prenom).trim().split(/\s+/)[0];
+    // Le comparant « Défunt » d'Authentic (« DURAND Marie Jeanne ») : le premier mot qui n'est pas en capitales.
+    const comp = (Array.isArray(d.authentic && d.authentic.comparants) ? d.authentic.comparants : []).filter((c) => c && c.role === 'DEFUNT');
+    if (comp.length !== 1) return '';
+    const mot = String(comp[0].nom || '').split(/\s+/).find((m) => /[a-zà-ÿ]/.test(m));
+    return mot || '';
   }
   /** @param {string} t */
   const motsNormalises = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);

@@ -310,13 +310,16 @@
   function dateDernierActeSuccession(d, aujourdhuiIso) {
     if (!d || !estSuccession(d)) return '';
     const dernier = etapesSuccession(d, aujourdhuiIso).filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
-    return dernier && dernier.fait && dernier.iso && dernier.iso <= aujourdhuiIso ? dernier.iso : '';
+    if (!dernier || !dernier.fait) return '';
+    // Cochée à la main sans date : le dernier rendez-vous passé de la succession, sinon rien (jamais deviné).
+    const iso = dernier.iso || (rendezVousSuccession(d).filter(r => r && r.date && r.date <= aujourdhuiIso).map(r => r.date).sort().pop() || '');
+    return iso && iso <= aujourdhuiIso ? iso : '';
   }
 
   // Les emails des héritiers (fiche d'Authentic gardée sur la partie), sans doublon : « a, b ».
   function emailsHeritiersSuccession(d) {
     const vus = new Set();
-    personnesSuccession(d).heritiers.forEach(h => [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : [])
+    personnesSuccession(d).heritiers.forEach(h => [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : [], ((ficheClientDe(d, h.nom) || {}).emails) || [])
       .forEach(e => destinatairesEmail(e).forEach(x => vus.add(x))));
     return Array.from(vus).join(', ');
   }
@@ -373,7 +376,7 @@
   function analyseFcddv(texte) {
     const plat = String(texte || '').replace(/\s+/g, ' ').trim();
     // « Il peut aussi ne rien y avoir comme inscription » (étude 18/10) : formes courantes d'une réponse vide, et le geste « Aucune inscription » à la main.
-    const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament|donation|mention)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|ne\s+(?:figure|comporte)\s+aucun|aucun\s+(?:acte|enregistrement)|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
+    const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament|donation|mention)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
     const debuts = [];
     let m;
     RE_NATURE_FCDDV.lastIndex = 0;

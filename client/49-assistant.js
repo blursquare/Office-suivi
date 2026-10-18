@@ -312,7 +312,7 @@
         parties: parties.map(p => ({ nom: String((p && p.nom) || ''), prenom: texte(p && p.prenom), nomUsage: texte(p && p.nomUsage),
           civilite: String((p && p.civilite) || ''), societe: !!(p && p.qualitePersonne === 'morale') })).filter(p => p.nom),
         autres: [d.adresseBien, d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
-          d.notaireVendeur, d.notaireAcquereur].map(texte).filter(Boolean),
+          d.notaireVendeur, d.notaireAcquereur, d.defunt && d.defunt.prenoms, d.defunt && d.defunt.nom, prenomDefuntDossier(d)].map(texte).filter(Boolean),
         reference: texte(d.referenceAuthentic),
         contacts: [d.emailVendeur, d.emailAcquereur, d.telephoneVendeur, d.telephoneAcquereur,
           ...parties.flatMap(p => [p && p.email, ...((p && p.emails) || []), ...((p && p.telephones) || [])])].map(texte).filter(Boolean)

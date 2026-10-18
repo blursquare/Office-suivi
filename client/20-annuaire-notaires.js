@@ -494,7 +494,7 @@
         <div class="annuaire-ligne-qui">
           <div class="annuaire-ligne-nom">${escapeHtml(o.office || (o.notaires || [])[0] || '')}${o.etude ? ' <span class="dot-label dl-success"><span class="dot"></span>Notre office</span>' : avecMarque && o.modifie ? ' <span class="dot-label dl-neutre" title="Corrigé par l’étude"><span class="dot"></span>Modifié</span>' : avecMarque && o.annuaire === false ? ' <span class="dot-label dl-neutre" title="Saisi par l’étude"><span class="dot"></span>Ajouté</span>' : ''}</div>
           ${notaires ? `<div class="annuaire-ligne-notaires">${notaires}</div>` : ''}
-          ${aAdresseCourrierOffice(o) ? renderAdresseApercuRepertoire(adresseCourrierOffice(o).slice(1)) : ''}
+          ${aAdresseCourrierOffice(o) ? renderAdresseApercuRepertoire(adressePostaleCourrier([o.adresse, [o.codePostal, o.ville].filter(Boolean).join(' ')].filter(Boolean).join('\n'))) : ''}
           ${(o.bureaux || []).length ? `<div class="annuaire-ligne-lieu">Bureaux : ${escapeHtml(o.bureaux.join(' ; '))}</div>` : ''}
           ${o.notes ? `<div class="annuaire-ligne-lieu rep-ligne-notes">${escapeHtml(o.notes)}</div>` : ''}
           ${enCours}

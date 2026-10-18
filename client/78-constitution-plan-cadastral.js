@@ -122,6 +122,8 @@
         g.planNasPdf = { chemin: etatComplet.nas, pdf };
         return pdf;
       }
+      // Plan du NAS illisible : repli sur cadastre.gouv.fr (relecture 0.287.0 : sinon aucun plan joint).
+      await lancerPlanConstitution(g.cle, true);
     }
     const etat = etatComplet.etat;
     if (etat === 'sans-commune' || etat === 'sans-parcelle') return [];

@@ -125,6 +125,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   // du dossier ») : ceux qu'Échanges et Fonds disent utiles maintenant, pas encore partis et qu'aucune tâche du jour ne porte déjà.
   emailsDusFiche(d, aujourdhuiIso, gestes).forEach(e => ajouter('faire', {
     cle: 'email:' + e.cle, titre: e.titre, sous: e.sous || 'Email à envoyer', categorie: e.categorie || '', onglet: e.onglet || '',
+    coche: e.motif ? { onclick: `marquerEmailDuFaitFiche('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(e.motif)}')`, libelle: 'Déjà fait — envoyé hors de CLAIRE' } : null,
     bouton: { onclick: e.onclick, libelle: e.verbe || 'Envoyer', icone: icone('mail'), titre: e.titre }
   }));
 
@@ -209,9 +210,23 @@ function emailsDusFiche(d, aujourdhuiIso, gestes) {
   return MOTIFS_EMAILS_DUS_FICHE.filter(m => utiles.includes(m) && !couverts.has(m) && !dateDernierEmail(d, m)
     && (m === 'relanceDecompteConfrere' ? !!emailConfrereVendeurDossier(d) : !!emailDestinataireRelance(d))).map(m => {
     const a = ACTIONS_EMAIL_DOSSIER[m];
-    return { cle: m, titre: a.titre, verbe: a.verbe, categorie: a.categorie, onglet: CLES_ECHANGES_FONDS.includes(m) ? 'fonds' : 'echanges',
+    return { cle: m, motif: m, titre: a.titre, verbe: a.verbe, categorie: a.categorie, onglet: CLES_ECHANGES_FONDS.includes(m) ? 'fonds' : 'echanges',
       onclick: `envoyerRelanceCiblee('${escapeOnclickArg(id)}', '${m}')` };
   });
+}
+
+// « Déjà fait » d'un email dû (relecture 0.287.0 : une provision demandée hors de CLAIRE laissait la carte pour toujours) : la date
+// d'envoi du modèle est posée comme à l'envoi, l'email n'est plus dû.
+function marquerEmailDuFaitFiche(dossierId, motif) {
+  const d = dossiers.find(x => x.id === dossierId);
+  const m = MODELES_EMAIL_RELANCE[motif];
+  if (!d || !m || !m.date || !MOTIFS_EMAILS_DUS_FICHE.includes(motif)) return;
+  d[m.date] = isoAujourdhuiLocal();
+  if (motif === 'relanceFonds') d.relanceFondsPour = d.rendezVousSignature || '';
+  if (motif === 'relanceDecompteConfrere') d.relanceDecompteConfrerePour = d.rendezVousSignature || '';
+  ajouterHistorique(d, `${ACTIONS_EMAIL_DOSSIER[motif].titre} : noté fait (hors de CLAIRE)`);
+  sauvegarder(d);
+  render();
 }
 
 // Pure : de quoi dessiner le bandeau du haut — { pieces, signature, maintenant, archive }.
