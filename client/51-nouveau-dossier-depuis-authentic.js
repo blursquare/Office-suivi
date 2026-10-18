@@ -91,6 +91,11 @@
     const boite = document.getElementById('import-boite');
     if (boite) boite.style.display = modeImport === 'pdf' ? '' : 'none';
     if (boite) boite.classList.toggle('import-boite-lu', compromisLu);
+    // Écran de départ centré tant qu'aucune entrée n'est choisie (étude 18/10).
+    const onglet = document.getElementById('onglet-nouveau');
+    if (onglet) onglet.classList.toggle('nd-accueil', !modeImport && !complementDossierId && etapeWizardActuelle === 1);
+    const iconeAccueil = document.getElementById('icon-nd-accueil');
+    if (iconeAccueil && !iconeAccueil.innerHTML) iconeAccueil.innerHTML = icone('folder');
     renderRelevesAuthenticWizard();
     majBoutonSuivantEtape1();
     majStepperWizard();

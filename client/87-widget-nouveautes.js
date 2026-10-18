@@ -26,9 +26,9 @@
     const n = liste[nouveauteAffichee];
     const presentation = presentationWidget('nouveautes');
     const nav = `<span class="nv-nav">
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="naviguerNouveautes(1)"${nouveauteAffichee >= liste.length - 1 ? ' disabled' : ''} title="Nouveauté précédente" aria-label="Nouveauté précédente">${icone('chevron-left')}</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" data-pas="1" onclick="naviguerNouveautes(1)"${nouveauteAffichee >= liste.length - 1 ? ' disabled' : ''} title="Nouveauté précédente" aria-label="Nouveauté précédente">${icone('chevron-left')}</wa-button>
         <span class="nv-rang" aria-live="polite">${nouveauteAffichee + 1}/${liste.length}</span>
-        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="naviguerNouveautes(-1)"${nouveauteAffichee === 0 ? ' disabled' : ''} title="Nouveauté suivante" aria-label="Nouveauté suivante">${icone('chevron-right')}</wa-button>
+        <wa-button appearance="plain" size="s" type="button" class="bouton-icone" data-pas="-1" onclick="naviguerNouveautes(-1)"${nouveauteAffichee === 0 ? ' disabled' : ''} title="Nouveauté suivante" aria-label="Nouveauté suivante">${icone('chevron-right')}</wa-button>
       </span>`;
     bloc.innerHTML = carteWidget({
       presentation, classe: 'nouveautes',
@@ -39,7 +39,14 @@
     });
   }
 
+  // Le focus reste sur la flèche (relecture 0.288.0 : le bloc est redessiné, il retombait sur la page) — sur l'autre si celle-ci
+  // est devenue inactive au bout de la liste.
   function naviguerNouveautes(pas) {
     nouveauteAffichee += pas;
     renderWidgetNouveautes();
+    const bloc = document.getElementById('kpi-nouveautes');
+    const meme = bloc && bloc.querySelector(`[data-pas="${pas > 0 ? 1 : -1}"]`);
+    const autre = bloc && bloc.querySelector(`[data-pas="${pas > 0 ? -1 : 1}"]`);
+    const cible = meme && !meme.hasAttribute('disabled') ? meme : autre;
+    if (cible) Promise.resolve(cible.updateComplete).then(() => cible.focus());
   }

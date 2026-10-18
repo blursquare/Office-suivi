@@ -1225,7 +1225,7 @@
   // Disposition par défaut (étude, 29/09 au soir : « les widgets importants en premier, en un beau
   // rectangle ») : Aujourd'hui (le travail du jour) en grand carré à gauche, l'Agenda à côté, les deux
   // chiffres clés (dossiers ouverts, pièces arrivées) dessous, puis Avancement et Activité côte à côte.
-  // 4 colonnes × 4 rangées sans un trou — et 2 × 8 sur téléphone (voir placementWidgets, testé).
+  // 4 colonnes × 4 rangées sans un trou — et 2 × 8 sur téléphone (grille en « row dense » ; aucun test de placement).
   // Changer cette disposition = incrémenter VERSION_DISPOSITION_WIDGETS : chaque collaborateur y est
   // ramené une fois, puis garde ses réglages.
   var VERSION_DISPOSITION_WIDGETS = 3;

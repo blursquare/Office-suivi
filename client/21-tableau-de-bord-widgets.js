@@ -844,6 +844,7 @@
     majStepperWizard();
     // L'encadré « Ce que CLAIRE repère » ne sert qu'avant l'import : retiré dès l'étape 2.
     document.body.classList.toggle('wizard-avance', n > 1);
+    if (n > 1) { const onglet = document.getElementById('onglet-nouveau'); if (onglet) onglet.classList.remove('nd-accueil'); }
     if (n === 2) {
       majMarquesPreRemplies();
       remplirListeNotairesWizard(notairesProposesWizard().map(x => x.nom));
