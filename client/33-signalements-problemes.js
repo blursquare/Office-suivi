@@ -312,7 +312,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'sites', 'pieces', 'noms-nas', 'memoire', 'relecture', 'apprentissage', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'sites', 'pieces', 'noms-nas', 'memoire', 'consignes', 'relecture', 'apprentissage', 'signalements', 'systeme'];
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -341,6 +341,7 @@
     if (cle === 'pieces') renderNomsReconnus();
     if (cle === 'noms-nas') initNomsNas();
     if (cle === 'memoire') ouvrirReglagesMemoire();
+    if (cle === 'consignes') ouvrirCarnetClaire();
     if (cle === 'modeles') ouvrirReglagesModelesEmails();
   }
 

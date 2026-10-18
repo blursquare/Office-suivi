@@ -1745,6 +1745,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-consignes" aria-controls="reglages-panneau-consignes" aria-selected="false" onclick="definirSousOngletReglages('consignes')">Consignes de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
       <div class="reglages-nav-groupe" role="presentation">Maintenance</div>
@@ -2246,6 +2247,25 @@
   <section class="reglages-panneau" id="reglages-panneau-memoire" role="tabpanel" aria-labelledby="reglages-onglet-memoire" hidden>
     <h2 class="reglages-titre">Mémoire de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE lit les dossiers DECENNALES ENTREPRISES, FAUSSES MINUTES, MODELES - OUTILS et RAPPEL DE PROCEDURES du NAS (Word par le serveur, PDF et scans par ce poste) et les garde sur le serveur du bureau. « Demander à CLAIRE » y cherche des extraits : le texte est masqué avant d'être envoyé à l'IA, jamais un nom de fichier."></span></h2>
     <div class="reglages-section" id="memoire-corps"></div>
+  </section>
+
+  <!-- ===== Consignes de CLAIRE (CLAIRE.md, étude 18/10) : un carnet Markdown pour toute l'étude, lu par « Demander à CLAIRE »
+       avant chaque conversation. Voir client/83-carnet-claire.js et server/src/carnetClaire.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-consignes" role="tabpanel" aria-labelledby="reglages-onglet-consignes" hidden>
+    <div class="reglages-titre-ligne">
+      <h2 class="reglages-titre">Consignes de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE.md : le carnet de l'étude, lu par « Demander à CLAIRE » avant chaque conversation — ton, vocabulaire, règles, corrections. Écrit en Markdown, comme un CLAUDE.md. Jamais le nom d'un client ni d'un dossier : un texte qui en cite un est refusé. Le bouton « Corriger » sous une réponse de CLAIRE ajoute une consigne ici."></span></h2>
+      <wa-button appearance="outlined" size="s" type="button" id="consignes-telecharger" onclick="telechargerCarnetClaire()">Télécharger CLAIRE.md</wa-button>
+    </div>
+    <div class="reglages-section">
+      <p class="hint" id="consignes-etat">Chargement…</p>
+      <textarea id="consignes-texte" class="consignes-texte" spellcheck="true" aria-label="Contenu de CLAIRE.md" oninput="majEtatCarnetClaire()"></textarea>
+      <div class="consignes-actions">
+        <wa-button variant="brand" type="button" id="consignes-enregistrer" onclick="enregistrerCarnetClaire()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" type="button" id="consignes-importer" onclick="document.getElementById('consignes-fichier').click()">Importer un fichier .md</wa-button>
+        <input type="file" id="consignes-fichier" accept=".md,.txt,text/markdown,text/plain" hidden onchange="importerCarnetClaire(this)">
+        <wa-button appearance="plain" type="button" id="consignes-precedente" onclick="revenirCarnetClairePrecedent()">Revenir à la version précédente</wa-button>
+      </div>
+    </div>
   </section>
 
   <!-- ===== Signalements des collaborateurs (bouton « Signaler un problème ») : l'étude les trie ici
@@ -2828,5 +2848,6 @@
 <script src="client/80-clients-biens.js"></script>
 <script src="client/81-constitution-zonage.js"></script>
 <script src="client/82-authentic-recu.js"></script>
+<script src="client/83-carnet-claire.js"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ const { creerClientOllama } = require('../llm');
 const { comprendreDemande, creerCacheDisponibilite } = require('../assistant');
 const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssistant, creerClientMistralAssistant, lireUsageAssistant, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELES_AGENT, MODELES_AGENT_MISTRAL } = require('../assistantMistral');
 const { tourAgent } = require('../assistantAgent');
+const { lireCarnet } = require('../carnetClaire');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
@@ -172,7 +173,9 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       texte: chaine(corps.texte, 2000),
       resultats,
       dossiers: dossiersDuCorps(corps),
-      contexte: corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {}
+      contexte: corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {},
+      // Carnet de consignes de l'étude (CLAIRE.md) : pris par l'agent au premier tour de chaque conversation (reprise comprise).
+      carnet: lireCarnet(parametresRepo).texte
     }, { cle: a.cle, fournisseur: a.fournisseur, modele: a.modele, region: a.region, client: injections && injections.clientAgent,
       fetchMistral: injections && injections.fetchMistral, parametresRepo });
     if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });

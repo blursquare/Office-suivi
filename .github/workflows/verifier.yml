@@ -20,38 +20,69 @@ concurrency:
 
 jobs:
   verifier:
+    # La branche main a ses contrôles dans build-exe.yml : une demande de fusion qui part de main (resynchronisation de « sauvegarde »)
+    # ne les refait pas (étude 18/10 : minutes GitHub consommées en double).
+    if: github.event_name != 'pull_request' || github.head_ref != 'main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
+      # Une branche alignée sur main (branches de travail des sessions, poussées après chaque publication) : son code a déjà passé
+      # tous les contrôles de la construction du .exe — rien n'est refait.
+      - name: Déjà sur main ?
+        id: main
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          # Dépôt privé et checkout sans identifiants gardés : fetch authentifié pour cette seule commande. Un échec ne coupe rien :
+          # tous les contrôles tournent.
+          git -c http.extraheader="AUTHORIZATION: bearer $JETON" fetch --no-tags --depth=500 origin main || { echo "main illisible : tous les contrôles tournent."; exit 0; }
+          if [ "${{ github.event_name }}" = "push" ] && git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Commit déjà sur main : contrôles faits par la construction du .exe."
+          fi
+
       - uses: actions/setup-node@v4
+        if: steps.main.outputs.deja != 'true'
         with:
           node-version: '22.22.2'
 
       - name: Installer l'outillage racine
+        if: steps.main.outputs.deja != 'true'
         run: npm ci
 
       - name: Installer les dépendances serveur
+        if: steps.main.outputs.deja != 'true'
         working-directory: server
         run: npm ci
 
       - name: Règles de code
+        if: steps.main.outputs.deja != 'true'
         run: npm run lint
 
       - name: Vérification des types
+        if: steps.main.outputs.deja != 'true'
         run: npm run types
 
       - name: Tests côté client
+        if: steps.main.outputs.deja != 'true'
         run: npm test
 
       - name: Tests côté serveur
+        if: steps.main.outputs.deja != 'true'
         working-directory: server
         run: npm test
 
       - name: Installer Chromium (test de fumée)
+        if: steps.main.outputs.deja != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Test de fumée dans Chromium
-        run: npm run fumee
+        if: steps.main.outputs.deja != 'true'
+        run: node tests/fumee/fumee.mjs
+
+      - name: Faux guichet de l'extension
+        # ≈ 10 min : seulement si l'extension ou ce dont elle dépend a changé par rapport à main (scripts/fumee-extension-si-besoin.js).
+        if: steps.main.outputs.deja != 'true'
+        run: node scripts/fumee-extension-si-besoin.js

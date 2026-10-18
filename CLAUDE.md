@@ -750,6 +750,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
 - **Prorata** : jours réels, jour de l'acte à la charge de l'acquéreur, arrondi du vendeur par
   complément.
 - **Aide à la rédaction de l'acte : outil SUPPRIMÉ le 15/10 (0.239.0, demande de l'étude : « Supprime l'outil d'aide à la rédaction »)** — écran, catalogue de clauses (`commun/redaction.js`), correspondance par l'IA, macro Word et lecture des rapports de diagnostic retirés ; ne pas le remettre sans nouvelle demande (l'historique des versions 0.218.0 à 0.223.1 dans `docs/historique.md` dit comment il était fait). **Le relais CLAIRE du poste (`relaisWord.js`, `server/relais/CLAIRE-relais.exe`) reste** : il sert aux appels 3CX (fenêtre CLAIRE au premier plan).
+- **Consignes de CLAIRE — `CLAIRE.md`** (étude 18/10, 0.280.0, `server/src/carnetClaire.js`, `routes/carnetClaire.js`, `client/83-carnet-claire.js`) : carnet Markdown unique pour toute l'étude (clé `carnet-claire`, 20 versions), Réglages › Consignes de CLAIRE et bouton « Corriger » sous une réponse de l'agent ; lu par l'agent au premier tour de chaque conversation (second bloc système en cache pour Claude, premier message pour Mistral), MASQUÉ par `masquerCarnet` ; un texte qui cite un client ou un dossier est refusé (`motsNominatifs`). Les consignes passent avant les habitudes de l'agent, jamais avant ses règles de sécurité.
 - **Jamais « Sauf erreur de ma part / de notre part »** (étude 12/10) : ni dans un texte de CLAIRE, ni dans une réponse de « Demander à CLAIRE », ni dans un premier jet d'email par l'IA — consigne dans chaque prompt et filtre `sansSaufErreur` (commun/assistant.js) sur toute réponse écrite par une IA.
 - **Textes d'emails fournis par l'étude** (provision, prêt manquant, RIB, réception des fonds,
   questionnaire, vente préalable au confrère) : repris **mot pour mot**, à ne pas reformuler — l'étude peut désormais
@@ -1137,7 +1138,7 @@ garde tous les validés (`tousValides`) ; l'impression A4 garde `renderCompteRen
 - **`npm run fumee`** (04/10, `tests/fumee/fumee.mjs`, Playwright + Chromium, ≈ 15 s) : la page servie par le vrai serveur
   (base en mémoire, quatre dossiers inventés dont un abîmé, une succession, un archivé), CDN coupés, bureau et téléphone :
   tableau de bord, chaque écran de la barre latérale, une fiche de chaque sorte et ses onglets — **aucune erreur de page ni de
-  console**. Lancé par la construction du `.exe` après les deux suites : c'est le seul filet contre une erreur d'exécution (ordre
+  console**. Le faux guichet de l'extension (`tests/fumee/extension-gnau.mjs`, ≈ 10 min) n'est joué que si l'extension ou ce qu'elle lit a changé (`scripts/fumee-extension-si-besoin.js`, étude 18/10 ; `--forcer` sinon). Lancé par la construction du `.exe` après les deux suites : c'est le seul filet contre une erreur d'exécution (ordre
   de chargement, `undefined.x` au rendu). Un nouvel écran de la barre latérale s'ajoute à `ONGLETS`. `npm run verifier` l'inclut.
 - `tests/helpers/load-app.js` charge les fichiers de `client/manifest.json`, dans l'ordre, dans un `vm.Context` avec un faux DOM. Deux
   limites : seules les `function` et `var` de premier niveau y sont visibles (un `const`/`let` est

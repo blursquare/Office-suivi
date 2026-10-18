@@ -299,7 +299,7 @@
       assistantEnCours = false;
       assistantEtapeAgent = '';
       assistantAgentConversation = rep.conversation || '';
-      poserMessageAssistant('claire', htmlReponseAgentAssistant(rep.reponse || ''));
+      poserMessageAssistant('claire', htmlReponseAgentAssistant(rep.reponse || ''), boutonsReponseAgentAssistant());
       noterEchangeAssistant('claire', rep.reponse || '');
       return true;
     } catch (e) {

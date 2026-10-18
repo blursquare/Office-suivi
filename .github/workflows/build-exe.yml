@@ -10,6 +10,8 @@ on:
     branches: [main]
     paths:
       - 'server/**'
+      # L'extension Chrome n'est pas dans l'exécutable, mais son faux guichet ne tourne qu'ici pour main (relecture 0.280.0).
+      - 'extension-chrome/**'
       - 'index.html'
       - 'style.css'
       - 'client/**'
@@ -42,6 +44,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # Assez d'historique pour comparer au commit d'avant l'envoi (scripts/fumee-extension-si-besoin.js : le faux guichet de
+          # l'extension ne tourne que si elle a changé).
+          fetch-depth: 50
 
       - uses: actions/setup-node@v4
         with:

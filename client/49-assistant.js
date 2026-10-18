@@ -136,6 +136,7 @@
           <span class="asst-avatar asst-av-claire" aria-hidden="true">${icone('sparkle')}</span>
           <div class="asst-corps"><div class="asst-qui"><b>CLAIRE</b><span class="asst-etiquette">Assistante</span></div>
           <div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+    restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
   }
 

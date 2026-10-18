@@ -9825,3 +9825,8 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .pb-carte-simple { cursor: default; }
 .pb-carte-simple:hover { border-color: var(--line); }
 .pb-groupe-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+
+/* Consignes de CLAIRE (CLAIRE.md, étude 18/10) : le carnet en Markdown dans Réglages, la case « Corriger » de la conversation. */
+.reglages-panneau textarea.consignes-texte { width: 100%; min-height: 420px; padding: 12px; font-size: var(--texte-m); line-height: 1.55; border-radius: var(--rayon-m); }
+.consignes-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.asst-message textarea.asst-consigne-saisie { width: 100%; max-width: 560px; min-height: 72px; margin-top: 8px; font: inherit; border-radius: var(--rayon-m); }

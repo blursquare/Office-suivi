@@ -54,6 +54,7 @@ const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('.
 const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
+const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
 const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
@@ -222,6 +223,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, assistant || {}, parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNomsFichiersNas(config, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurScans(config, parametresRepo));
