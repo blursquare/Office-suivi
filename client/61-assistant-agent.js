@@ -15,7 +15,7 @@
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', rediger_document: 'Je rédige le document…',
     outil_claire: 'J’utilise l’outil…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
-    faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…'
+    faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…', chercher_conversations: 'Je cherche dans nos conversations passées…'
   };
 
   // Pure : la réponse de l'agent (texte avec « - » en liste et **gras**) en HTML échappé.
@@ -244,6 +244,7 @@
     if (nom === 'consulter_site') return consulterSiteAgent(e);
     if (nom === 'plan_de_travail') return planTravailAgent(e);
     if (nom === 'controles_relecture') return controlesRelectureAgent(e);
+    if (nom === 'chercher_conversations') return chercherConversationsAgent(e);
     if (/^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(nom)) return appelOpenlegiAgent(nom, e);
     return { erreur: 'outil inconnu' };
   }

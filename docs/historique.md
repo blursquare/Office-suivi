@@ -20744,3 +20744,12 @@ et forme du compte rendu dans le prompt système ; « Imprimer » sous une longu
 quatre étapes, pseudonymisation, envoi à l'API, bilan, visionneuse, commentaires sur les constats, historique des relectures) est retiré ;
 le code mort a été supprimé jusqu'au point où ni ESLint ni le test du code mort ne relèvent plus rien ; la logique d'analyse (client/06 à
 13, 55) et les Réglages des clés restent. Le fichier client/50 porte désormais l'outil de l'agent (numérotation du manifeste continue).
+
+### 18/10/2026 — Recherche web officielle et mémoire des conversations (0.285.0)
+
+Étape 3 du plan convenu (choix de l'étude : « web : sites officiels seulement », « mémoire : oui, résumés sur le serveur ») : l'agent Claude
+reçoit l'outil serveur `web_search` limité aux domaines autorisés (clé `recherche-web`, Réglages › IA et relecture d'actes, liste par défaut
+de sites publics : Légifrance, service-public, BOFiP, impots.gouv, Cour de cassation, Conseil d'État, Géorisques, Géoportail de
+l'urbanisme, ANIL, notaires.fr…), filtrage dynamique sauf Haiku, relance d'un tour mis en pause ; Mistral n'a pas de recherche web. Chaque
+réponse de l'agent note la conversation sur le serveur (`noterConversation` : sujet, cinq dernières questions, dernière réponse, auteur,
+dossier — en clair, 90 jours) ; l'outil `chercher_conversations` la retrouve (mots ou dossier), résultat masqué avant l'IA.

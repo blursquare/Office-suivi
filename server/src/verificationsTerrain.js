@@ -84,6 +84,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première demande où la tâche est enregistrée et le message parti ; en échec sinon. Vérifier une fois que le message arrive bien dans Teams chez le collaborateur, et que celui qui demande est prévenu quand la tâche est cochée.' },
   { id: 'agent-lecture-document', depuis: '0.226.0', source: 'poste', titre: '« Demander à CLAIRE » : un PDF du dossier du NAS lu par l’agent (texte masqué, OCR des scans)',
     comment: 'Coché à la première lecture réussie d’un document par l’agent ; en échec si le PDF ne s’ouvre pas. Comparer la première fois ce que l’agent dit du document au document lui-même.' },
+  { id: 'agent-recherche-web', depuis: '0.285.0', source: 'serveur', titre: '« Demander à CLAIRE » : une recherche web sur les sites officiels autorisés',
+    comment: 'Coché quand des résultats de recherche web reviennent ; en échec si la requête est refusée avec la recherche web (non autorisée pour la clé Anthropic de l’étude, ou un site refusé) — l’agent répond alors sans elle.' },
   { id: 'agent-relecture', depuis: '0.284.0', source: 'poste', titre: '« Demander à CLAIRE » : un acte relu avec les contrôles de CLAIRE (outil controles_relecture)',
     comment: 'Coché à la première relecture demandée à l’agent. Comparer le compte rendu à une relecture faite par l’étude (points justes, bruit, pages citées).' },
   { id: 'agent-document-nas', depuis: '0.226.0', source: 'poste', titre: '« Demander à CLAIRE » : un document Word produit par l’agent rangé à la racine du dossier client',

@@ -38,7 +38,7 @@ const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 const MODELES_AGENT = {
   'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, lectureCache: 0.2, secours: true, compaction: true },
   'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, lectureCache: 0.2, secours: true },
-  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, lectureCache: 0.01, secours: false }
+  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, lectureCache: 0.01, secours: false, rechercheBasique: true }
 };
 const MODELE_AGENT_DEFAUT = 'claude-opus-5-5';
 // Agent par Mistral (étude 11/10 : « idem pour Mistral ») : mêmes outils, même masquage. Tarif indicatif relevé le 11/10 (dollars par

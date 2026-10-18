@@ -2049,6 +2049,24 @@
         <span id="reglages-openlegi-resultat"></span>
       </div>
     </div>
+    <!-- Recherche web de l'agent, sites officiels seulement (étude 18/10) — server/src/conversationsAgent.js, client/84-openlegi.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Recherche web (sites officiels) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » (Claude) peut chercher sur ces sites seulement, pour vérifier un texte, une règle ou une procédure publique. La recherche est écrite par l'IA, qui ne voit les noms des clients que sous forme de codes (masqués par le serveur) ; elle peut contenir un montant ou une date. Un site par ligne."></span></h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-web-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE cherche sur les sites officiels</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-web-actif"></wa-switch>
+        </label>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-web-domaines">Sites autorisés</label></div>
+          <textarea id="reglages-web-domaines" rows="6" spellcheck="false" placeholder="legifrance.gouv.fr"></textarea>
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerRechercheWeb()">Enregistrer</wa-button>
+        <span id="reglages-web-resultat"></span>
+      </div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">IA en ligne de « Demander à CLAIRE » (relecture d'actes comprise)</h3>
       <div class="reglages-liste">

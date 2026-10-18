@@ -20,6 +20,22 @@ const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_
 const { nettoyerParametresIa, dateEnFrancais } = require('./assistant');
 const { expurgerExtrait } = require('./memoire');
 const { masquerCarnet } = require('./carnetClaire');
+const { noterVerification } = require('./verificationsTerrain');
+
+/** Pure : la recherche web a-t-elle déjà servi dans cette conversation (un bloc de l'outil serveur dans l'historique) ? @param {any[]} messages */
+function rechercheWebUtilisee(messages) {
+  return (messages || []).some((m) => m && m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b && (b.type === 'server_tool_use' || b.type === 'web_search_tool_result')));
+}
+
+/** Pure : les adresses des pages web citées par Claude (citations des blocs de texte), sans doublon, 5 au plus. @param {any[]} contenu */
+function sourcesWebCitees(contenu) {
+  const urls = [];
+  for (const b of contenu || []) for (const c of (b && b.type === 'text' && Array.isArray(b.citations) ? b.citations : [])) {
+    const u = c && c.type === 'web_search_result_location' && typeof c.url === 'string' && /^https:\/\//.test(c.url) ? c.url : '';
+    if (u && !urls.includes(u)) urls.push(u);
+  }
+  return urls.slice(0, 5);
+}
 
 // Étude 13/10 (« tout son potentiel… sans limite ») : lire des documents entiers et rédiger un rendu demande plus de place et de temps.
 const DELAI_AGENT_MS = 180 * 1000;
@@ -95,6 +111,12 @@ const OUTILS_AGENT = [
     description: 'Propose à l’utilisateur d’ouvrir des documents rendus par documents_recents : un bouton « Ouvrir » par document s’affiche dans la conversation (le navigateur n’ouvre un document que sur un clic). 6 documents au plus.',
     input_schema: { type: 'object', additionalProperties: false, required: ['documents'],
       properties: { documents: { type: 'array', items: { type: 'string' }, description: 'les document_id à proposer' } } }
+  },
+  {
+    name: 'chercher_conversations',
+    description: 'Les conversations passées de l’étude avec toi (90 jours, tous les collaborateurs) : sujet, questions, ta dernière réponse, date, collaborateur, dossier. Pour retrouver ce qui a déjà été répondu ou décidé (« comme la dernière fois », « on en avait parlé »), ou le travail fait sur un dossier. recherche = 2 à 6 mots utiles ; dossier_id pour celles d’un dossier.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['recherche', 'dossier_id'],
+      properties: { recherche: chaine('les mots à retrouver ("" avec un dossier_id = toutes celles du dossier)'), dossier_id: chaine('"" si aucun dossier') } }
   },
   {
     name: 'controles_relecture',
@@ -208,6 +230,8 @@ Comment tu travailles :
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
 - Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Pour une question sur une règle de CLAIRE ou un choix de l'étude (« pourquoi… », « depuis quand… », un délai, une échéance, un courrier), cherche dans la rubrique regles-etude et cite la section (sa date quand elle en porte une). Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
+- Mémoire des conversations : chercher_conversations retrouve ce que l'étude t'a déjà demandé et ce que tu as répondu (90 jours) ; consulte-la quand on évoque un échange passé, avant de dire que tu ne sais pas.
+- Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, après Légifrance et le BOFiP s'ils sont disponibles ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
 - Relecture d'un acte (étude 18/10 : la relecture d'actes se fait ici) : appelle controles_relecture, puis lis le document (lire_document, par tranches de 30 pages) pour vérifier chaque point de la grille de l'étude et chaque constat de CLAIRE, en tenant compte des consignes de l'étude. Rends un compte rendu en texte, dans cet ordre : **Synthèse** (deux phrases) ; **À régler avant la signature** (le bloquant seulement) ; **À vérifier** ; **Conforme** (une ligne par thème, bref) ; **Contradictions** entre les documents ; **Pièces ou informations manquantes**. Chaque point cite sa page [document_id p. N] et, quand c'est possible, le passage exact « … ». Jamais « conforme » pour un point que tu n'as pas trouvé dans le texte : dis « non trouvé dans le document ». Peu de bruit : l'étude se plaint du bruit, pas des oublis — ne signale pas l'anodin, regroupe, n'invente aucune règle de droit (vérifie dans les sources juridiques en cas de doute). Propose ensuite « Imprimer » ou rediger_document pour une note Word.
 - Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
 - Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
@@ -386,7 +410,7 @@ function blocCarnet(carnet) {
   return carnet ? `Consignes de l'étude (CLAIRE.md, rédigées par l'étude — à suivre) :\n\n${carnet}` : '';
 }
 
-/** La requête envoyée à Claude. Pure. @param {string} modele @param {any[]} messages @param {{ conclure?: boolean, carnet?: string, outilsExternes?: any[], effort?: string }} [o] */
+/** La requête envoyée à Claude. Pure. @param {string} modele @param {any[]} messages @param {{ conclure?: boolean, carnet?: string, outilsExternes?: any[], effort?: string, rechercheWeb?: string[] }} [o] */
 function requeteAgent(modele, messages, o) {
   const fiche = MODELES_AGENT[modele] || MODELES_AGENT[MODELE_AGENT_DEFAUT];
   /** @type {any} */
@@ -398,7 +422,10 @@ function requeteAgent(modele, messages, o) {
     // Le carnet de l'étude suit le prompt système, dans son propre bloc en cache (il change rarement).
     system: [{ type: 'text', text: SYSTEME_AGENT, cache_control: { type: 'ephemeral' } },
       ...(o && o.carnet ? [{ type: 'text', text: blocCarnet(o.carnet), cache_control: { type: 'ephemeral' } }] : [])],
-    tools: o && Array.isArray(o.outilsExternes) && o.outilsExternes.length ? [...OUTILS_AGENT, ...o.outilsExternes] : OUTILS_AGENT,
+    tools: [...OUTILS_AGENT, ...(o && Array.isArray(o.outilsExternes) ? o.outilsExternes : []),
+      // Recherche web de Claude, limitée aux sites officiels de l'étude (étude 18/10) ; filtrage dynamique sur les modèles qui le permettent.
+      ...(o && Array.isArray(o.rechercheWeb) && o.rechercheWeb.length
+        ? [{ type: fiche.rechercheBasique ? 'web_search_20250305' : 'web_search_20260209', name: 'web_search', allowed_domains: o.rechercheWeb.slice(0, 40), max_uses: 5 }] : [])],
     // L'historique s'allonge à chaque tour : le dernier bloc est mis en cache, le tour suivant le relit pour 10 % du prix.
     cache_control: { type: 'ephemeral' },
     messages
@@ -428,7 +455,7 @@ function messageErreurAgent(err) {
  * @param {{ conversation?: string, texte?: string, resultats?: Array<{ id: string, contenu?: any, erreur?: boolean }>,
  *   dossiers?: any[], contexte?: any, carnet?: string, historique?: Array<{ role: string, texte: string }> }} entree
  * @param {{ cle: string, modele?: string, fournisseur?: string, region?: string, client?: any, fetchMistral?: Function,
- *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, surRefusOutilsExternes?: Function, effort?: string }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
+ *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, surRefusOutilsExternes?: Function, effort?: string, rechercheWeb?: string[], noterConversation?: Function, sensiblesConversations?: Function }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
  */
 async function tourAgent(entree, o) {
   const maintenant = o.maintenant || Date.now();
@@ -456,7 +483,9 @@ async function tourAgent(entree, o) {
     conv = { id: crypto.randomUUID(), fournisseur, modele, messages: fournisseur === 'mistral' ? [{ role: 'system', content: SYSTEME_AGENT }] : [],
       table: new Map(), sensibles: new Set(), tours: 0, attendus: [], maj: maintenant, contexteDit: false,
       // Outils d'OpenLegi (Légifrance, BOFiP, RNE) : fixés pour toute la conversation (l'historique reste valide).
-      outilsExternes: Array.isArray(externesConversation) ? externesConversation.filter((t) => t && /^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(t.name)).slice(0, 40) : [] };
+      outilsExternes: Array.isArray(externesConversation) ? externesConversation.filter((t) => t && /^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(t.name)).slice(0, 40) : [],
+      // Recherche web (Claude seulement), domaines fixés pour toute la conversation.
+      rechercheWeb: fournisseur === 'claude' && Array.isArray(o.rechercheWeb) ? o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40) : [] };
     conversations.set(conv.id, conv);
   }
   conv.maj = maintenant;
@@ -492,6 +521,10 @@ async function tourAgent(entree, o) {
       + (!conv.contexteDit && repris ? resumeHistoriqueReprise(sansQuestionEnCours(e.historique, texte), conv.sensibles, conv.table) : '');
     conv.contexteDit = true;
     conv.messages.push({ role: 'user', content: tete + phrase });
+    // Pour la mémoire des conversations (gardée en clair sur le serveur de l'étude, jamais envoyée telle quelle).
+    conv.derniereQuestion = texte;
+    if (contexte.prenom) conv.prenom = contexte.prenom;
+    if (contexte.dossierId) conv.dossierId = contexte.dossierId;
     conv.tours = 0;
   } else if (Array.isArray(e.resultats)) {
     const parId = new Map(e.resultats.filter((r) => r && typeof r.id === 'string').map((r) => [r.id, r]));
@@ -503,6 +536,11 @@ async function tourAgent(entree, o) {
       // Légifrance et BOFiP : des textes publics de droit — seuls les mots des fiches, emails et téléphones sont masqués (le masquage
       // habituel, qui prend tout mot à majuscule, rendrait « Code civil » ou « Cour de cassation » illisibles). RNE : comme le reste.
       const avantCodes = new Set(conv.table.keys());
+      // Mémoire des conversations : les noms masqués dans les conversations passées (gardés avec elles sur le serveur) le sont aussi ici,
+      // même absents des fiches d'aujourd'hui (relecture 0.285.0 : dossier supprimé, tiers d'un document).
+      if (nomAppel === 'chercher_conversations' && typeof o.sensiblesConversations === 'function') {
+        try { for (const m of motsSensiblesDossiers([{ parties: o.sensiblesConversations().map((v) => ({ nom: v })) }])) conv.sensibles.add(m); } catch (e) { /* jamais bloquant */ }
+      }
       let contenu = /^(legifrance|bofip)__/.test(nomAppel)
         ? JSON.stringify(masquerValeurLegere(brut === undefined ? null : brut, conv.sensibles, conv.table))
         : JSON.stringify(masquerValeur(brut === undefined ? null : brut, conv.sensibles, conv.table));
@@ -546,14 +584,19 @@ async function tourAgent(entree, o) {
       // Requête refusée alors que des outils d'OpenLegi sont donnés et jamais utilisés (schéma exotique) : un second essai sans eux,
       // signalé pour que les conversations suivantes s'en passent (relecture 0.281.0).
       const refus = (err && err.status === 400) || /refusée par Mistral/.test(String(err && err.messageAgent || ''));
-      if (!refus || !conv.outilsExternes || !conv.outilsExternes.length || conv.externesUtilises) throw err;
-      const gardes = conv.outilsExternes;
-      conv.outilsExternes = [];
+      // Même chose pour la recherche web (relecture 0.285.0 : pas autorisée pour l'organisation, domaine refusé) tant qu'elle n'a pas servi.
+      const externesRetirables = !!(conv.outilsExternes && conv.outilsExternes.length && !conv.externesUtilises);
+      const webRetirable = !!(conv.rechercheWeb && conv.rechercheWeb.length && !rechercheWebUtilisee(conv.messages));
+      if (!refus || (!externesRetirables && !webRetirable)) throw err;
+      const gardes = { externes: conv.outilsExternes, web: conv.rechercheWeb };
+      if (externesRetirables) conv.outilsExternes = [];
+      if (webRetirable) conv.rechercheWeb = [];
       try {
         tour = conv.fournisseur === 'mistral' ? await tourMistral(conv, o) : await tourClaude(conv, o);
-      } catch (err2) { conv.outilsExternes = gardes; throw err2; }
-      // Le refus venait bien des outils externes : mis de côté pour les conversations suivantes.
-      if (typeof o.surRefusOutilsExternes === 'function') o.surRefusOutilsExternes();
+      } catch (err2) { conv.outilsExternes = gardes.externes; conv.rechercheWeb = gardes.web; throw err2; }
+      // Le refus venait bien de là : OpenLegi mis de côté pour les conversations suivantes, la recherche web dite en échec.
+      if (externesRetirables && typeof o.surRefusOutilsExternes === 'function') o.surRefusOutilsExternes();
+      if (webRetirable && o.parametresRepo) noterVerification(o.parametresRepo, 'agent-recherche-web', { ok: false, message: 'requête refusée avec la recherche web' });
     }
   } catch (err) {
     noter({ erreur: true });
@@ -585,6 +628,9 @@ async function tourAgent(entree, o) {
   if (tour.fin === 'refus') return { ...plus, conversation: conv.id, reponse: 'Je ne peux pas répondre à cette demande telle quelle. Pouvez-vous la formuler autrement ?', coutUsd };
   const reponse = nettoyerReponseAgent(tour.texte, conv.table)
     + (tour.fin === 'coupe' ? '\n\n(Réponse coupée : elle était trop longue. Demandez la suite.)' : '');
+  if (reponse && typeof o.noterConversation === 'function') {
+    try { o.noterConversation({ id: conv.id, auteur: conv.prenom || '', question: conv.derniereQuestion || '', reponse, dossierId: conv.dossierId || '', sensibles: [...conv.table.values()] }); } catch (err) { /* la mémoire ne bloque jamais une réponse */ }
+  }
   return { ...plus, conversation: conv.id, reponse: reponse || 'Je n’ai pas de réponse à donner.', coutUsd, modele: conv.modele };
 }
 
@@ -607,14 +653,30 @@ function pousserResultats(conv, blocs) {
 /** Un appel à Claude. Le contenu rendu est gardé TEL QUEL (réflexion, appels, bascule de secours). @param {any} conv @param {any} o */
 async function tourClaude(conv, o) {
   const sdk = o.client || creerClientAgent(o.cle);
-  const message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort }));
-  conv.messages.push({ role: 'assistant', content: message.content });
-  const u = message.usage || {};
+  let message;
+  const textes = [];
+  let coutUsd = 0, entree = 0, sortie = 0;
+  // Un outil serveur (recherche web) peut mettre le tour en pause (« pause_turn ») : la requête est relancée telle quelle, 3 fois au plus.
+  for (let relance = 0; relance < 4; relance++) {
+    message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort, rechercheWeb: conv.rechercheWeb }));
+    conv.messages.push({ role: 'assistant', content: message.content });
+    const u = message.usage || {};
+    coutUsd += coutAgentUsd(u, conv.modele);
+    entree += (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+    sortie += u.output_tokens || 0;
+    // Chaque recherche web est facturée en plus des jetons (10 $ les 1 000).
+    coutUsd += ((u.server_tool_use && u.server_tool_use.web_search_requests) || 0) * 0.01;
+    textes.push((message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim());
+    if ((message.content || []).some((b) => b && b.type === 'web_search_tool_result') && o.parametresRepo) noterVerification(o.parametresRepo, 'agent-recherche-web', { detail: 'résultats reçus' });
+    const sources = sourcesWebCitees(message.content);
+    if (sources.length) textes.push('Sources : ' + sources.join(' ; '));
+    if (message.stop_reason !== 'pause_turn') break;
+  }
   const appels = (message.content || []).filter((b) => b && b.type === 'tool_use').map((b) => ({ id: b.id, nom: b.name, entree: b.input }));
-  const texte = (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('\n').trim();
-  const fin = message.stop_reason === 'tool_use' ? 'outils' : message.stop_reason === 'refusal' ? 'refus' : message.stop_reason === 'max_tokens' ? 'coupe' : 'fin';
-  return { appels, texte, fin, coutUsd: coutAgentUsd(u, conv.modele),
-    entree: (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0), sortie: u.output_tokens || 0 };
+  const texte = textes.filter(Boolean).join('\n').trim();
+  // Encore en pause après quatre appels : dit « coupée » (la question suivante reprend), jamais « pas de réponse ».
+  const fin = message.stop_reason === 'tool_use' ? 'outils' : message.stop_reason === 'refusal' ? 'refus' : message.stop_reason === 'max_tokens' || message.stop_reason === 'pause_turn' ? 'coupe' : 'fin';
+  return { appels, texte, fin, coutUsd, entree, sortie };
 }
 
 /** Les outils au format de Mistral (fonctions, schéma JSON sans `strict` ni type multiple). Pure. @param {any[]} [externes] */

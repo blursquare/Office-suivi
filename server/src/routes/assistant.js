@@ -11,6 +11,7 @@ const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssi
 const { tourAgent, EFFORTS_AGENT } = require('../assistantAgent');
 
 const { lireCarnet } = require('../carnetClaire');
+const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
@@ -193,11 +194,28 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       historique: Array.isArray(corps.historique) ? corps.historique.slice(-12).map((h) => ({ role: h && h.role === 'moi' ? 'moi' : 'claire', texte: chaine(h && h.texte, 1500) })) : []
     }, { cle: a.cle, fournisseur: a.fournisseur, modele: modeleConversation(a, corps), effort: EFFORTS_AGENT.includes(corps.effort) ? corps.effort : undefined, region: a.region, client: injections && injections.clientAgent,
       fetchMistral: injections && injections.fetchMistral, parametresRepo, chargerOutilsExternes,
+      rechercheWeb: (() => { const w = lireRechercheWeb(parametresRepo); return w.actif ? w.domaines : []; })(),
+      noterConversation: (info) => noterConversation(parametresRepo, info),
+      sensiblesConversations: () => sensiblesConversations(parametresRepo),
       surRefusOutilsExternes: () => { if (injections && injections.openlegi) injections.openlegi.suspendre(); } });
     if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });
     else if (sortie.reponse) noterVerification(parametresRepo, 'assistant-agent', { detail: String(sortie.modele || '') });
     res.json(sortie);
   }));
+
+  // Mémoire des conversations (étude 18/10) : l'outil chercher_conversations de l'agent, exécuté par le poste ; résultat masqué par le serveur
+  // au retour comme tout résultat d'outil.
+  routeur.get('/assistant/conversations/recherche', (req, res) => {
+    res.json({ resultats: rechercherConversations(lireConversations(parametresRepo), chaine(req.query.q, 200), chaine(req.query.dossier, 80)) });
+  });
+
+  // Recherche web de l'agent : sites autorisés (Réglages › IA et relecture d'actes).
+  routeur.get('/assistant/recherche-web', (req, res) => { res.json(lireRechercheWeb(parametresRepo)); });
+  routeur.put('/assistant/recherche-web', (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    if (corps.domaines !== undefined && !Array.isArray(corps.domaines)) { res.status(400).json({ erreur: 'Liste de sites attendue.' }); return; }
+    res.json(ecrireRechercheWeb(parametresRepo, { actif: corps.actif !== false, domaines: Array.isArray(corps.domaines) ? corps.domaines : lireRechercheWeb(parametresRepo).domaines }));
+  });
 
   return routeur;
 }

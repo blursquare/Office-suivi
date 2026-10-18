@@ -1,6 +1,7 @@
   // Sources juridiques officielles par OpenLegi (étude 18/10 : « on va connecter openlegi à CLAIRE » ; Légifrance, BOFiP, registre
   // national des entreprises ; agent seulement). Le serveur est le client MCP (server/src/openlegi.js) : ce poste n'appelle que
-  // POST /api/openlegi/appel quand l'agent le demande, et règle le jeton dans Réglages › IA et relecture d'actes.
+  // POST /api/openlegi/appel quand l'agent le demande, et règle le jeton dans Réglages › IA et relecture d'actes. Aussi : la recherche web
+  // de l'agent (sites officiels) et la mémoire des conversations passées (server/src/conversationsAgent.js).
 
   var LIBELLES_SOURCES_OPENLEGI_POSTE = { legifrance: 'Légifrance', bofip: 'le BOFiP', rne: 'le registre des entreprises' };
 
@@ -73,4 +74,46 @@
       if (json.message) { resultatOpenlegi(json.message); return; }
       resultatOpenlegi((json.sources || []).map(s => `${s.libelle} : ${s.erreur ? s.erreur : `${s.outils} outil${s.outils > 1 ? 's' : ''}`}`).join(' · ') || 'Aucune réponse.');
     } catch (e) { resultatOpenlegi('Serveur injoignable.'); }
+  }
+
+  // ---- Recherche web de l'agent, sites officiels seulement (étude 18/10) ----
+
+  async function chargerRechercheWeb() {
+    const sortie = document.getElementById('reglages-web-resultat');
+    try {
+      const json = await (await fetchAvecAuth('/api/assistant/recherche-web')).json();
+      const inter = document.getElementById('reglages-web-actif');
+      const zone = document.getElementById('reglages-web-domaines');
+      if (inter) inter.checked = json.actif !== false;
+      if (zone) zone.value = (json.domaines || []).join('\n');
+      if (sortie) sortie.textContent = '';
+    } catch (e) { if (sortie) sortie.textContent = 'Réglages illisibles.'; }
+  }
+
+  async function enregistrerRechercheWeb() {
+    const sortie = document.getElementById('reglages-web-resultat');
+    const inter = document.getElementById('reglages-web-actif');
+    const zone = document.getElementById('reglages-web-domaines');
+    const domaines = String(zone ? zone.value : '').split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+    try {
+      const r = await fetchAvecAuth('/api/assistant/recherche-web', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actif: !!(inter && inter.checked), domaines }) });
+      const json = await r.json().catch(() => ({}));
+      if (!r.ok) { if (sortie) sortie.textContent = json.erreur || 'Non enregistré.'; return; }
+      if (zone) zone.value = (json.domaines || []).join('\n');
+      const ecartes = domaines.length - (json.domaines || []).length;
+      if (sortie) sortie.textContent = `Enregistré${ecartes > 0 ? ` (${ecartes} ligne${ecartes > 1 ? 's' : ''} écartée${ecartes > 1 ? 's' : ''} : pas un nom de site)` : ''}. Vaut dès la prochaine conversation.`;
+    } catch (e) { if (sortie) sortie.textContent = 'Serveur injoignable.'; }
+  }
+
+  // Outil de l'agent : les conversations passées (mémoire gardée sur le serveur de l'étude, 90 jours).
+  async function chercherConversationsAgent(e) {
+    const q = String((e && e.recherche) || '').slice(0, 200);
+    const dossier = String((e && e.dossier_id) || '').slice(0, 80);
+    try {
+      const r = await fetchAvecAuth(`/api/assistant/conversations/recherche?q=${encodeURIComponent(q)}&dossier=${encodeURIComponent(dossier)}`);
+      if (!r.ok) return { erreur: `le serveur a répondu ${r.status}` };
+      const json = await r.json();
+      return { conversations: json.resultats || [], ...(json.resultats && json.resultats.length ? {} : { aucune: 'aucune conversation passée ne correspond : essaie d’autres mots' }) };
+    } catch (err) { return { erreur: 'serveur injoignable' }; }
   }
