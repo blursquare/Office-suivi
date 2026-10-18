@@ -1128,3 +1128,16 @@
     }
     envoyerDemandeAssistant(texte);
   }
+  // Champ « Demander à CLAIRE » en haut de la barre latérale (étude 18/10) : la demande part sur la page, comme depuis le widget.
+  function envoyerDepuisSidebarAssistant() {
+    const champ = document.getElementById('sidebar-assistant-saisie');
+    const texte = champ ? String(champ.value || '').trim() : '';
+    if (champ) { champ.value = ''; champ.blur(); }
+    envoyerDepuisWidgetAssistant(texte || ' ');
+  }
+  // L'icône du champ : la page de conversation (barre repliée, où le champ est masqué) ; barre dépliée, le curseur dans le champ.
+  function ouvrirAssistantDepuisSidebar() {
+    const champ = document.getElementById('sidebar-assistant-saisie');
+    if (champ && champ.offsetParent) { champ.focus(); return; }
+    definirOnglet('assistant');
+  }

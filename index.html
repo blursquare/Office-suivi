@@ -61,6 +61,15 @@
       </button>
     </div>
 
+    <!-- « Demander à CLAIRE » en champ, en haut de la barre (étude 18/10 : « déplace de la sidebar Demander à CLAIRE et place-le en tête,
+         sous forme de champ où l'on peut taper une requête ») ; réservé à Bastien comme avant (`majSidebarReservee`, id `tab-assistant`).
+         Entrée : la page de conversation s'ouvre et la demande part ; barre repliée : l'icône ouvre la page. -->
+    <form id="tab-assistant" class="sidebar-demander" style="display:none;" role="search" aria-label="Demander à CLAIRE" onsubmit="event.preventDefault(); envoyerDepuisSidebarAssistant();">
+      <button type="button" class="sidebar-demander-icone" id="icon-nav-assistant" aria-label="Ouvrir Demander à CLAIRE" title="Demander à CLAIRE" onclick="ouvrirAssistantDepuisSidebar()"></button>
+      <input type="text" id="sidebar-assistant-saisie" class="sidebar-demander-saisie" placeholder="Demander à CLAIRE…" autocomplete="off" aria-label="Votre demande à CLAIRE">
+      <button type="submit" class="sidebar-demander-envoyer" id="icon-sidebar-assistant-envoyer" aria-label="Envoyer la demande" title="Envoyer"></button>
+    </form>
+
     <!-- Liens groupés par catégorie (demandé par l'étude) : "Tableau de bord" reste seul, sans
          titre, en tête — c'est la vue d'ensemble, elle n'appartient à aucune catégorie particulière.
          definirOnglet() ne dépend d'aucun ordre/imbrication structurelle de ces boutons (uniquement
@@ -139,11 +148,6 @@
       </div>
       </div>
 
-      <!-- « Demander à CLAIRE » (étude 06/10, au-dessus des Réglages et réservé à Bastien depuis le 09/10, `majSidebarReservee`) : page de conversation — une phrase, CLAIRE répond ou fait le geste
-           (client/49-assistant.js, commun/assistant.js, IA locale côté serveur). -->
-      <button type="button" id="tab-assistant" class="sidebar-link" style="display:none;" role="tab" aria-selected="false" onclick="definirOnglet('assistant')">
-        <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Demander à CLAIRE
-      </button>
 
       <!-- Répertoire (au-dessus des Réglages depuis 0.249.0, étude 15/10) : offices notariaux (carnet des confrères, server/src/carnetConfreres.js) et
            autres interlocuteurs de l'étude par thème (server/src/repertoire.js), partagés en base. -->

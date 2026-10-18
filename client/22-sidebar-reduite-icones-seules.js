@@ -212,7 +212,6 @@
     document.getElementById('onglet-analyse-ia').style.display = nom === 'analyse-ia' ? '' : 'none';
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
-    document.getElementById('tab-assistant').setAttribute('aria-selected', String(nom === 'assistant'));
     document.getElementById('tab-assistant').classList.toggle('actif', nom === 'assistant');
     if (nom === 'assistant') initAssistant();
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
