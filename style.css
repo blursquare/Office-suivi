@@ -3301,7 +3301,7 @@
   .toolbar-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
   .toolbar-btn-label { display: inline-flex; align-items: center; }
 
-  /* ---- toast : bulle noire centrée en bas de l'écran ----
+  /* ---- toast : bulle en bas de la barre latérale, sur fond blanc depuis le 18/10 (bloc « Notifications » en fin de fichier) ; avant, noire et centrée ----
      Étude, 30/09 au soir (sur un exemple de carte sombre) : « bien la centrer et la remettre en
      noir », et « quand la fiche dossier est ouverte, mettre la notification au premier plan, elle
      passe sous le film transparent » — elle se place donc AU-DESSUS des voiles (tiroir de fiche
@@ -10152,7 +10152,12 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .toast-fermer:focus-visible { outline-color: var(--focus); }
 @media (min-width: 901px) {
   /* De la largeur de la barre (étude 18/10 : « de la taille de la sidebar ») : 252 px moins ses 12 px de marge de chaque côté. Barre
-     repliée (72 px) : trop étroite pour un message, la notification garde 320 px. */
+     repliée (76 px) : trop étroite pour un message, la notification garde 320 px. */
   .toast { left: 12px; right: auto; bottom: 64px; margin: 0; width: 228px; min-width: 0; max-width: calc(100vw - 32px); padding: 12px 12px 14px; font-size: var(--texte-s); }
+  .toast.fixe { padding-left: 12px; padding-right: 40px; }
   body:has(.sidebar.repliee) .toast { width: 320px; font-size: var(--texte-m); }
+  /* Le bandeau d'appel 3CX et la carte « Email envoyé » passent à droite de la barre (relecture 0.288.1) : à gauche, ils
+     recouvraient la notification et son « Annuler ». */
+  .appel-entrant, .notif-envoi { left: calc(252px + 16px); }
+  body:has(.sidebar.repliee) .appel-entrant, body:has(.sidebar.repliee) .notif-envoi { left: calc(76px + 16px); }
 }

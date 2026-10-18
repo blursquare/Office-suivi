@@ -1051,7 +1051,7 @@
   let toastRestantMs = DUREE_TOAST_MS;
   let toastDemarreA = 0;
 
-  // Bulle noire centrée en bas de l'écran, au-dessus des voiles (voir .toast dans style.css). Elle reste 6 s, se met en
+  // Bulle blanche en bas de la barre latérale (centrée en bas sur téléphone), au-dessus des voiles (voir .toast dans style.css). Elle reste 6 s, se met en
   // pause tant que la souris est dessus (le temps de lire un nom de fichier long ou de viser
   // « Annuler »), puis s'efface en fondu avant d'être retirée du flux.
   // Message fixe (étude, 02/10 : « quand on a le choix du dossier, laisse la notif fixe sans temps
