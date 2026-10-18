@@ -93,8 +93,8 @@ test('alignement et numérotage : ligne à ligne comme le modèle, TOUTES les pa
     '', '', '', 'Madame, Monsieur,', '',
     'Je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles, concernant un immeuble situé à SAINT SULPICE (41000), 9 rue du Haut Bourg :', '',
     '- **Un certificat de numérotage,**', '**- Un certificat d\'alignement.**', '',
-    'A toutes fins utiles, voici les références cadastrales de cet immeuble :', '[tableau]', 'Ledit immeuble appartenant à :',
-    'Madame Monique DUPONT demeurant à VILLEFRANC (41000), 25 rue de la Gare.', 'Monsieur Michel DUPONT demeurant à [adresse à compléter].',
+    'A toutes fins utiles, voici les références cadastrales de cet immeuble :', '', '[tableau]', '', 'Ledit immeuble appartenant à :',
+    'Madame Monique DUPONT demeurant à VILLEFRANC (41000), 25 rue de la Gare.', 'Monsieur Michel DUPONT demeurant à [adresse à compléter].', '',
     'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', 'Je vous prie d\'agréer, Madame, Monsieur, mes salutations distinguées.'].join('\n'));
   assert.equal(d.signature, 'Me  Sophie GOSSART');
   assert.equal(d.questionnaire, undefined);
@@ -108,7 +108,7 @@ test('péril : les trois arrêtés de l’étude, en gras comme l’original', (
 
 test('assainissement : objet en gras, texte de l’étude, questionnaire avec les références du dossier', () => {
   const d = K.documentCourrierVente('assainissement', { destinataire: ['AGGLOPOLYS'], adresseImmeuble: 'X (41000), 1 rue Y', parcelles, proprietaires, dateLettre: '12 octobre 2026', reference: 'A 2026 00299', nomDossier: 'VTE - DUPONT' });
-  assert.match(texte(d), /^\n\n\n\*\*Objet : Contrôle et conformité assainissement\*\*\n\nMadame, Monsieur,\n\nJe vous remercie de me préciser la situation au regard de l’assainissement de l’immeuble situé à X \(41000\), 1 rue Y, et cadastré :\n\[tableau\]\nLedit immeuble/);
+  assert.match(texte(d), /^\n\n\n\*\*Objet : Contrôle et conformité assainissement\*\*\n\nMadame, Monsieur,\n\nJe vous remercie de me préciser la situation au regard de l’assainissement de l’immeuble situé à X \(41000\), 1 rue Y, et cadastré :\n\n\[tableau\]\n\nLedit immeuble/);
   assert.match(texte(d), /Vous en remerciant par avance,\n\nJe vous prie d'agréer, Madame, Monsieur, mes salutations distinguées\.$/);
   assert.deepEqual(d.questionnaire, { references: 'A 2026 00299 - VTE - DUPONT', adresseImmeuble: 'X (41000), 1 rue Y' });
   assert.equal(K.documentCourrierVente('inconnu', {}), null);
@@ -116,7 +116,10 @@ test('assainissement : objet en gras, texte de l’étude, questionnaire avec le
 
 test('courrier vierge d’une vente : le texte saisi, puis les références cadastrales et les propriétaires', () => {
   const t = texte(K.documentCourrierVente('autre', { destinataire: ['SYNDICAT X'], adresseImmeuble: 'X (41000), 1 rue Y', parcelles, proprietaires, dateLettre: '12 octobre 2026', texteLibre: 'Ma demande.' }));
-  assert.match(t, /Madame, Monsieur,\n\nMa demande\.\n\nA toutes fins utiles, voici les références cadastrales de cet immeuble :\n\[tableau\]/);
+  assert.match(t, /Madame, Monsieur,\n\nMa demande\.\n\nA toutes fins utiles, voici les références cadastrales de cet immeuble :\n\n\[tableau\]\n/);
+  // Par email : sans le bloc des propriétaires (étude 18/10).
+  const e = texte(K.documentCourrierVente('peril', { destinataire: ['MAIRIE'], adresseImmeuble: 'X (41000), 1 rue Y', parcelles, proprietaires, pourEmail: true }));
+  assert.doesNotMatch(e, /Ledit immeuble|demeurant/);
   assert.equal(K.documentCourrierVente('autre', { destinataire: [], parcelles: [], proprietaires: [] }).adresse.join(), 'À compléter');
 });
 
@@ -134,7 +137,7 @@ test('texteCorpsDocument : le texte sans marques, le tableau en lignes, sans la 
   const t = K.texteCorpsDocument(d);
   assert.match(t, /^Madame, Monsieur,\n\nJe vous serais/);
   assert.match(t, /- Un certificat de numérotage,\n- Un certificat d'alignement\./);
-  assert.match(t, /cet immeuble :\nAB — 12 — 2 a 00 ca\nContenance totale — 2 a 00 ca\nLedit/);
+  assert.match(t, /cet immeuble :\n\nAB — 12 — 2 a 00 ca\nContenance totale — 2 a 00 ca\n\nLedit/);
   assert.doesNotMatch(t, /Préfixe|\*\*|MAIRIE|Blois, le|Me Sophie/);
 });
 

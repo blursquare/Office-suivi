@@ -243,3 +243,18 @@ test('lots du répertoire : appliqués une seule fois à un répertoire existant
     assert.equal(liste.length, TOTAL_INITIAL - 1);
   } finally { base.close(); }
 });
+
+test('lot de corrections (étude 18/10) : le S.I.E.P.F. de Blois devient le SPFE de Blois, sauf contact déjà modifié par l’étude', () => {
+  const base = ouvrirDb(':memory:');
+  try {
+    const repo = creerRepoParametres(base);
+    assert.equal(repo.lireRepertoire().find((c) => c.id === 'rep-siepf-blois').organisme, 'SPFE de Blois', 'répertoire neuf');
+    // Répertoire existant d'avant le lot, puis un second où l'étude avait déjà renommé le contact.
+    repo.ecrireRepertoire(repertoireInitial());
+    base.prepare("DELETE FROM parametres WHERE cle = 'repertoire-lots'").run();
+    assert.equal(repo.lireRepertoire().find((c) => c.id === 'rep-siepf-blois').organisme, 'SPFE de Blois');
+    repo.ecrireRepertoire(repertoireInitial().map((c) => c.id === 'rep-siepf-blois' ? { ...c, organisme: 'Service des impôts de Blois' } : c));
+    base.prepare("DELETE FROM parametres WHERE cle = 'repertoire-lots'").run();
+    assert.equal(repo.lireRepertoire().find((c) => c.id === 'rep-siepf-blois').organisme, 'Service des impôts de Blois');
+  } finally { base.close(); }
+});

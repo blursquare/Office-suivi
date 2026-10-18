@@ -64,7 +64,7 @@ test('checklistPieces("maison") ne contient pas les pièces propres à la coprop
   const cles = [...app.checklistPieces('maison').map(p => p.cle)];
   assert.deepEqual(cles, [
     'certificatUrbanisme', 'certificatAlignement', 'certificatNumerotage',
-    'reponseAssainissement', 'renonciationPreemption',
+    'reponseAssainissement', 'renonciationPreemption', 'nonPeril',
     'diagnosticsTechniques', 'erp', 'avisTaxeFonciere', 'titrePropriete', 'planCadastral'
   ]);
 });
@@ -83,11 +83,13 @@ test('checklistPieces("terrain") reprend la liste "maison" en remplaçant les di
   const app = chargerApplication();
   const clesMaison = app.checklistPieces('maison').map(p => p.cle);
   const clesTerrain = app.checklistPieces('terrain').map(p => p.cle);
-  assert.equal(clesTerrain.length, clesMaison.length, 'même nombre de pièces que pour une maison');
+  // Pas de « Non péril, non insalubrité » pour un terrain nu (étude 18/10 : maison et copropriété seulement).
+  assert.equal(clesTerrain.length, clesMaison.length - 1, 'les pièces d’une maison, sans le non-péril');
+  assert.ok(!clesTerrain.includes('nonPeril'));
   assert.ok(!clesTerrain.includes('diagnosticsTechniques'), 'pas de diagnostics techniques pour un terrain nu');
   assert.ok(clesTerrain.includes('etudeSol'), 'une étude de sol à la place');
   // Toutes les autres pièces (urbanisme, ERP, taxe foncière, titre...) restent identiques.
-  const communes = clesMaison.filter(c => c !== 'diagnosticsTechniques');
+  const communes = clesMaison.filter(c => c !== 'diagnosticsTechniques' && c !== 'nonPeril');
   communes.forEach(c => assert.ok(clesTerrain.includes(c), `${c} devrait rester présent pour un terrain`));
 });
 

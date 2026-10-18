@@ -98,6 +98,11 @@
     // propriété, une matrice cadastrale ne sont pas le plan.
     { cle: 'planCadastral', label: 'Plan cadastral', motifNom: /plan\s+(?:de\s+|du\s+)?cadastr|extraits?\s+(?:du\s+|de\s+)?(?:plan\s+)?cadastr|plan\s+de\s+situation|cadastre\.gouv/i }
   ];
+  // Maison et copropriété (étude 18/10 : « Non péril, non insalubrité » dans les courriers à recevoir) : la réponse de la mairie au courrier
+  // « Péril, mise en sécurité, insalubrité » de la Constitution de dossier (à Blois, l'attestation du site de la Ville). Reconnue par le nom :
+  // « péril », « insalubrité », « mise en sécurité » (« Non péril non insalubrité.pdf », « Réponse péril - Claire Scan.pdf »).
+  // « Mise en sécurité » seulement après « arrêté », « non » ou « réponse » : une « Attestation mise en sécurité piscine » n'en est pas une.
+  var PIECE_NON_PERIL = { cle: 'nonPeril', label: 'Non péril, non insalubrité', motifNom: /(?<![a-zà-ÿ])p[ée]\s?ril(?![a-zà-ÿ])|insalubrit|(?<![a-zà-ÿ])(?:arr[êe]t[ée]s?|non|r[ée]ponse)(?![a-zà-ÿ])[^.]{0,25}?mise\s+en\s+s[ée]curit/i };
   var PIECES_COPROPRIETE = [
     // Un pré-état daté n'est pas un état daté (voir RE_PRE_ETAT_DATE) : « Pré-état daté.pdf » ne
     // doit pas faire passer l'état daté « reçu » (corrigé le 30/09 avec le classeur des scans).
@@ -171,12 +176,12 @@
   // documents de l'analyse), pièces personnalisées. Succession : ses pièces (acte de décès, FCDDV…) et les pièces personnalisées.
   function checklistPiecesBase(typeVente, d, clesEnPlus) {
     const base = typeVente === 'copropriete'
-      ? [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
+      ? [...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_COPROPRIETE, ...PIECES_AUTRES]
       : typeVente === 'terrain'
         ? [...PIECES_URBANISME, ...PIECES_TERRAIN_AUTRES]
         : typeVente === 'terre'
           ? [...PIECES_URBANISME, ...PIECES_TERRE_AUTRES]
-        : [...PIECES_URBANISME, ...PIECES_AUTRES];
+        : [...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_AUTRES];
     if (!d) return base;
     // Succession (étude 15/10) : les pièces d'une succession (commun/succession.js), puis les pièces personnalisées.
     if (C.estSuccession(d)) return [...C.piecesSuccessionDossier(d), ...(d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }))];
@@ -196,7 +201,7 @@
     return [...standard, ...auto, ...perso];
   }
 
-  const exportes = { PIECES_URBANISME, PIECES_AUTRES, PIECES_COPROPRIETE, PIECES_TERRAIN_AUTRES, PIECES_ENGAGEMENTS_AUTO, checklistPiecesBase };
+  const exportes = { PIECES_URBANISME, PIECE_NON_PERIL, PIECES_AUTRES, PIECES_COPROPRIETE, PIECES_TERRAIN_AUTRES, PIECES_ENGAGEMENTS_AUTO, checklistPiecesBase };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

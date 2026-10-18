@@ -182,6 +182,7 @@
     { cle: 'certificatAlignement', noms: ["Certificat d'alignement", 'Arrêté d’alignement', 'Courriel alignement', 'Alignement et numérotage', 'Numérotage alignement'] },
     { cle: 'certificatNumerotage', noms: ['Certificat de numérotage', 'Numérotage', 'Numerotage'] },
     { cle: 'reponseAssainissement', noms: ['Assainissement', 'Réponse assainissement', 'Asainissement', 'SPANC', 'Contrôle SPANC'] },
+    { cle: 'nonPeril', noms: ['Non péril non insalubrité', 'Péril', 'Réponse péril', 'Insalubrité', 'Arrêté de mise en sécurité'], pas: ['Attestation mise en sécurité piscine'] },
     { cle: 'renonciationPreemption', noms: ['Renonciation préemption', 'Préemption', 'DPU', 'DIA', 'Renonciation DIA', 'Réponse DIA'] },
     { cle: 'diagnosticsTechniques', noms: ['Diagnostics', 'Diagnostic', 'Diagnostique', 'DDT', 'Dossier de diagnostics techniques'] },
     { cle: 'erp', noms: ['ERP', 'État des risques', 'Etat des risques et pollutions'] },
@@ -223,7 +224,7 @@
   // l'ordre des pièces, plus l'avant-contrat (choisirAvantContratNas).
   function lignesNomsReconnus() {
     const libelles = {};
-    [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].forEach(p => { if (!libelles[p.cle]) libelles[p.cle] = p.label; });
+    [...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].forEach(p => { if (!libelles[p.cle]) libelles[p.cle] = p.label; });
     libelles.offrePret = 'Offre de prêt';
     return [
       ...EXEMPLES_NOMS_PIECES.map(e => ({ label: libelles[e.cle] || e.cle, noms: e.noms, pas: e.pas || [] })),

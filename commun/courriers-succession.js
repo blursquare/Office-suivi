@@ -124,7 +124,7 @@
       ]
     },
     {
-      cle: 'impots', libelle: 'Impôts (centre des finances publiques)', destinataire: ['CENTRE DES FINANCES PUBLIQUES DE BLOIS'], salutation: 'Madame la Trésorière, Monsieur le Trésorier,', blancsSignature: 2,
+      cle: 'impots', libelle: 'Impôts (SPFE de Blois)', destinataire: ['SPFE DE BLOIS', '10 rue Louis Bodin', '41000 BLOIS'], salutation: 'Madame la Trésorière, Monsieur le Trésorier,', blancsSignature: 2,
       lignes: (v) => [
         'En ma qualité de notaire chargé du règlement de la succession de la personne ci-dessus visée :', '',
         `1°) Je vous serais très obligé de bien vouloir me faire connaître, au moyen d'un bordereau, la situation fiscale de ${v.nomUsuel} au regard de l'impôt sur le revenu, de la C.S.G. et de la C.R.D.S., ainsi que les montants des taxes d'habitation et foncière.`, '',

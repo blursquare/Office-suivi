@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app');
 
 const app = chargerApplication();
-const toutesPieces = [...app.PIECES_URBANISME, ...app.PIECES_COPROPRIETE, ...app.PIECES_AUTRES, ...app.PIECES_TERRAIN_AUTRES, ...app.PIECES_ENGAGEMENTS_AUTO];
+const toutesPieces = [...app.PIECES_URBANISME, app.PIECE_NON_PERIL, ...app.PIECES_COPROPRIETE, ...app.PIECES_AUTRES, ...app.PIECES_TERRAIN_AUTRES, ...app.PIECES_ENGAGEMENTS_AUTO];
 const piece = (cle) => toutesPieces.find(p => p.cle === cle);
 const reconnu = (cle, nom) => {
   const nn = app.normaliserNomPourMotif(nom + '.pdf');

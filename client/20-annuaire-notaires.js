@@ -417,7 +417,10 @@
     if (!zone) return;
     const champ = document.getElementById('carnet-recherche');
     if (champ && champ.value !== carnetRecherche && document.activeElement !== champ) champ.value = carnetRecherche;
-    const offices = String(carnetRecherche || '').trim().length >= 2 ? filtrerCarnet(carnetConfreres, carnetRecherche).slice(0, 50) : [];
+    // Notaires trouvés : notre office, puis le Loir-et-Cher et ses voisins, puis le reste de la France ; 50 au plus (dit dans le compte).
+    const rangDep = (o) => { const i = DEPARTEMENTS_PROCHES_ANNUAIRE.indexOf(o.departement || departementDepuisCodePostal(o.codePostal) || ''); return o.etude ? -1 : i < 0 ? 99 : i; };
+    const tousOffices = String(carnetRecherche || '').trim().length >= 2 ? filtrerCarnet(carnetConfreres, carnetRecherche).map((o, k) => ({ o, k })).sort((a, b) => rangDep(a.o) - rangDep(b.o) || a.k - b.k).map(x => x.o) : [];
+    const offices = tousOffices.slice(0, 50);
     const contacts = filtrerRepertoire(repertoireContacts, carnetRecherche);
     const parOffice = dossiersParOfficeConfrere(dossiers, carnetConfreres);
     const parTheme = {};
@@ -425,14 +428,16 @@
     const nombre = (cle) => (parTheme[cle] || []).length + (cle === 'confreres' ? offices.length : 0);
     const total = offices.length + contacts.length;
     const totalTout = carnetConfreres.length + repertoireContacts.length;
-    const annuaire = repertoireTheme === 'annuaire';
+    // Une recherche (deux lettres au moins) cherche dans TOUT le répertoire, notaires compris, quel que soit le thème choisi (étude 18/10).
+    const rechercheGlobale = String(carnetRecherche || '').trim().length >= 2;
+    const annuaire = repertoireTheme === 'annuaire' && !rechercheGlobale;
     const compte = document.getElementById('carnet-compte');
-    if (compte) compte.textContent = annuaire ? '' : carnetRecherche ? `${nombre(repertoireTheme)} sur ${repertoireContacts.filter(c => c.theme === repertoireTheme).length}` : '';
+    if (compte) compte.textContent = rechercheGlobale ? `${total} résultat${total > 1 ? 's' : ''} dans tout le répertoire${tousOffices.length > offices.length ? ` (50 premiers notaires sur ${tousOffices.length})` : ''}` : '';
     const bouton = document.getElementById('repertoire-ajouter');
     // Seul le texte change : le « + » du bouton (wa-button.bouton-ajout) est un élément à part.
     const texteBouton = bouton && [...bouton.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
     if (texteBouton) texteBouton.textContent = repertoireTheme === 'confreres' || annuaire ? 'Ajouter un office' : 'Ajouter un contact';
-    if (champ) champ.placeholder = annuaire ? 'Rechercher un notaire, un office, une ville…' : 'Rechercher un organisme, un nom, une ville, un email…';
+    if (champ) champ.placeholder = 'Rechercher dans tout le répertoire : notaire, organisme, nom, ville, email…';
     renderNavRepertoire(nombre, total);
     if (annuaire) {
       zone.innerHTML = renderAnnuaireNotaires();
@@ -441,7 +446,7 @@
 
     const formNouveau = carnetEdition === 'nouveau' ? renderFormOfficeCarnet(carnetBrouillon || {})
       : repertoireEdition === 'nouveau' ? renderFormContactRepertoire(repertoireBrouillon || {}) : '';
-    const sections = repertoireThemes.filter(t => !repertoireTheme || t.cle === repertoireTheme).map(t => {
+    const sections = repertoireThemes.filter(t => rechercheGlobale || !repertoireTheme || t.cle === repertoireTheme).map(t => {
       const lignes = (t.cle === 'confreres'
         ? offices.map(o => carnetEdition === o.id ? `<div class="rep-ligne-form">${renderFormOfficeCarnet(o)}</div>` : renderLigneOfficeCarnet(o, parOffice[o.id] || []))
         : []).concat(parTheme[t.cle].map(c => repertoireEdition === c.id ? `<div class="rep-ligne-form">${renderFormContactRepertoire(c)}</div>` : renderLigneContactRepertoire(c)));
@@ -469,8 +474,10 @@
     if (!nav) return;
     const lien = (cle, libelle, n, ic) => `<button type="button" class="rep-nav-lien${repertoireTheme === cle ? ' actif' : ''}${n === 0 ? ' vide' : ''}" aria-pressed="${repertoireTheme === cle}" onclick="choisirThemeRepertoire('${cle}')">${ic ? icone(ic) : ''}<span class="rep-nav-libelle">${escapeHtml(libelle)}</span><span class="rep-nav-n">${n}</span></button>`;
     const france = annuaireInfos && annuaireInfos.offices ? Number(annuaireInfos.offices).toLocaleString('fr-FR') : '';
-    nav.innerHTML = lien('annuaire', 'Notaires', france || nombre('confreres'), 'users')
-      + '<div class="rep-nav-groupe">Interlocuteurs</div>'
+    // Les notaires sont un thème des interlocuteurs comme les autres (étude 18/10), en tête de la liste.
+    const rechercheGlobale = String(carnetRecherche || '').trim().length >= 2;
+    nav.innerHTML = '<div class="rep-nav-groupe">Interlocuteurs</div>'
+      + lien('annuaire', 'Notaires', rechercheGlobale ? nombre('confreres') : (france || nombre('confreres')), '')
       + repertoireThemes.filter(t => t.cle !== 'confreres').map(t => lien(t.cle, t.libelle, nombre(t.cle), '')).join('');
   }
 
@@ -826,6 +833,8 @@
     if (cle === 'confreres') cle = 'annuaire';
     if (cle === 'annuaire' && repertoireTheme !== 'annuaire') carnetEdition = null;
     repertoireTheme = cle || 'annuaire';
+    // Un thème choisi pendant une recherche : la recherche (dans tout le répertoire) s'efface, le thème s'affiche en entier.
+    if (String(carnetRecherche || '').trim()) { carnetRecherche = ''; const champ = document.getElementById('carnet-recherche'); if (champ) champ.value = ''; }
     renderCarnetConfreres();
   }
 

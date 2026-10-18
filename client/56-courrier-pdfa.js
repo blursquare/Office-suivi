@@ -34,6 +34,13 @@
   // habillage) ; sous lui, le texte reprend toute la largeur.
   var HABILLAGE_PREMIERE_PDFA = { gauche: 300.1, jusqua: 309, depart: 139.6 };
   var TABLEAU_PDFA = { gauche: 136.35, largeur: 425.2, colonnes: [0.6, 0.2, 0.2], marge: 5.4, ligne: 13.15 };
+  // Pictogrammes de la colonne « Nous contacter » (grille de 24, comme les icônes du modèle) : téléphone, enveloppe, souris (site), repère.
+  var PICTOGRAMMES_PDFA = {
+    telephone: 'M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z',
+    email: 'M2 6.5C2 5.1 3.1 4 4.5 4h15C20.9 4 22 5.1 22 6.5v11c0 1.4-1.1 2.5-2.5 2.5h-15C3.1 20 2 18.9 2 17.5v-11zM4.6 6.4l7.4 5.4 7.4-5.4H4.6zM4 8.3v9.2c0 .3.2.5.5.5h15c.3 0 .5-.2.5-.5V8.3l-8 5.8-8-5.8z',
+    site: 'M13 1.1V9h7c0-4.1-3.1-7.4-7-7.9zM4 15c0 4.4 3.6 8 8 8s8-3.6 8-8v-4H4v4zm7-13.9C7.1 1.6 4 4.9 4 9h7V1.1z',
+    adresse: 'M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5S10.6 6.5 12 6.5s2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z'
+  };
   var TAMPON_PDFA = { x: 413.4, largeur: 141.73, hauteur: 82.88, decalage: 4.72, bloc: 87.6, signatureLargeur: 125.98, signatureHauteur: 75.11 };
 
   // Pure : les paragraphes et le tableau du courrier, dans l'ordre du modèle Word (word/document.xml d'appel-de-fonds-modele.js).
@@ -236,9 +243,11 @@
       const gris = hex('999999');
       image('logoNotaires', 6.4, 1.8, 224, 115.2);
       image('logoOffice', 290.6, -6.7, 218.2, 127.6);
+      // Sous le logo de l'office, détachée de « Office notarial de la Salamandre » et plus fine (étude 18/10 : « un peu collée et un peu
+      // grosse » ; le modèle l'écrit en Calibri Light, que Carlito n'a pas : un corps plus petit compense).
       const adr = '3 RUE DU BOUT DES HAIES – 41000 BLOIS';
-      const lAdr = polices.sans.widthOfTextAtSize(propre(adr, 'sans'), 10);
-      ecrire(adr, 399.7 - lAdr / 2, 89.6, 'sans', 10, hex('A6A6A6'));
+      const lAdr = polices.sans.widthOfTextAtSize(propre(adr, 'sans'), 8.5);
+      ecrire(adr, 399.7 - lAdr / 2, 97.5, 'sans', 8.5, hex('A6A6A6'));
       // Coins du cadre du destinataire.
       [[262.8, 131.3, 1, 1], [550.8, 131.3, -1, 1], [262.8, 232.9, 1, -1], [550.8, 232.9, -1, -1]].forEach(([cx, cy, sx, sy]) => {
         trait(cx, cy, cx + 6 * sx, cy, 0.6, gris);
@@ -249,13 +258,15 @@
       const lien = hex('0000EE');
       const titre = (texte, x, yHaut) => { const l = ecrire(texte, x, yHaut, 'sansGras', 10, rouge, 9.52); trait(x, yHaut + 11, x + l, yHaut + 11, 0.6, rouge); };
       titre('NOUS CONTACTER', 21.6, 127);
-      const puce = (yHaut) => page.drawCircle({ x: 25.5, y: H - yHaut - 6.2, size: 2.2, color: or });
-      puce(139.1); ecrire('02 54 78 61 70', 34, 139.1, 'sans', 10, noir, 9.52);
-      puce(151.2);
+      // Les icônes du modèle Word devant chaque ligne (✆, enveloppe, souris, repère — en or), dessinées en tracés vectoriels (étude 18/10 :
+      // « il n'y a pas les icônes devant les numéro, adresse »).
+      const pictogramme = (cle, yHaut) => page.drawSvgPath(PICTOGRAMMES_PDFA[cle], { x: 21.2, y: H - yHaut - 0.6, scale: 9 / 24, color: or });
+      pictogramme('telephone', 139.1); ecrire('02 54 78 61 70', 34, 139.1, 'sans', 10, noir, 9.52);
+      pictogramme('email', 151.2);
       let l = ecrire('office.gossart@notaires.fr', 34, 151.2, 'sans', 10, lien, 9.52); trait(34, 162.2, 34 + l, 162.2, 0.5, lien);
-      puce(163.3);
+      pictogramme('site', 163.3);
       l = ecrire('sophie-gossart-blois.notaires.fr', 34, 163.3, 'sans', 10, lien, 9.52); trait(34, 174.3, 34 + l, 174.3, 0.5, lien);
-      puce(175.4); ecrire('3 rue du Bout des Haies - 41000 BLOIS', 34, 175.4, 'sans', 10, noir, 9.52);
+      pictogramme('adresse', 175.4); ecrire('3 rue du Bout des Haies - 41000 BLOIS', 34, 175.4, 'sans', 10, noir, 9.52);
       image('iconFacebook', 21, 187, 10.5, 10.5); ecrire('@bloisnotaire', 34, 187.5, 'sans', 10, noir, 9.52);
       image('iconInstagram', 21, 200.6, 10.5, 10.5); ecrire('@bloisnotairegossart', 34, 200.1, 'sans', 10, noir, 9.52);
       // Un courrier de la Constitution de dossier porte la colonne entière (intitulé, référence, responsable), six lignes au plus avant « HORAIRES ».

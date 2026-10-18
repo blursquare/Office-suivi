@@ -64,7 +64,7 @@ test('type : pièces d’urbanisme et combinée alignement + numérotage', () =>
 
 test('copie nommée d’après la checklist : la pièce passe « reçue » au parcours suivant du NAS', () => {
   const app = chargerApplication();
-  const toutes = app.PIECES_URBANISME.concat(app.PIECES_AUTRES, app.PIECES_COPROPRIETE, app.PIECES_TERRAIN_AUTRES, app.PIECES_ENGAGEMENTS_AUTO);
+  const toutes = app.PIECES_URBANISME.concat([app.PIECE_NON_PERIL], app.PIECES_AUTRES, app.PIECES_COPROPRIETE, app.PIECES_TERRAIN_AUTRES, app.PIECES_ENGAGEMENTS_AUTO);
   const echecs = [];
   for (const ty of app.TYPES_SCAN.filter(t => t.piece)) {
     const nom = app.normaliserNomPourMotif(app.nomCibleScan(ty, { date: '2026-10-01' }) + '.pdf');

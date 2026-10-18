@@ -11,6 +11,7 @@
   //    retrouvé dans le répertoire selon le domicile du défunt, une liste à cocher et des champs à saisir quand une donnée manque.
   // Authentic est la base : jamais une parcelle, un nom ou une date pris ailleurs sans le dire. Ce qui manque est montré, jamais deviné.
 
+  var COURRIEL_CARSAT_PREMIERE_DEMANDE = 'notaires.premieredemande@carsat-centre.fr';
   var cstEtat = null;
   var cstAdressesRetenues = {};
   var CST_MODELES_REPERTOIRE = {
@@ -180,6 +181,8 @@
   function contactPreferePourDefuntConstitution(cle, contacts, defunt) {
     const candidats = candidatsRepertoireConstitution(cle, contacts);
     if (!candidats.length || cle === 'banque' || cle === 'assurance-vie') return null;
+    // Impôts : toujours le SPFE de Blois (étude 18/10 : « changer pour les successions en SPFE de BLOIS »), quel que soit le domicile.
+    if (cle === 'impots') return candidats.find(c => /\bspfe\b|s\.?\s*i\.?\s*e\.?\s*p\.?\s*f\b/i.test(String(c.organisme || '')) || c.id === 'rep-siepf-blois') || null;
     const dep = departementDeTexteConstitution(defunt && defunt.domicile);
     const nomCommune = normaliserPourRecherche(String((/^(.+?)\s*\(\d{5}\)/.exec(String((defunt && defunt.domicile) || '')) || [])[1] || '')).replace(/[^a-z0-9]+/g, ' ').trim();
     if (cle === 'impots' && nomCommune) {
@@ -359,12 +362,15 @@
           const ancien = anciens.get(id) || homologuesCourrierVente(c.cle).map(k => anciens.get(`v:${g.cle}:${k}`)).find(x => x && x.mode !== 'en-ligne');
           const lignes = lignesDestinataireVente(circuit, g, info.mairie, cstAdressesRetenues);
           const retenueV = cstAdressesRetenues[circuit.destinataire];
-          const courrielDefaut = circuit.courriel || (retenueV && retenueV.courriel) || '';
+          // La mairie : l'adresse email de sa fiche de l'annuaire du service public, à défaut d'une adresse retenue par l'étude.
+          const courrielMairie = circuit.destinataire === 'mairie' && info.mairie && info.mairie.courriel ? String(info.mairie.courriel) : '';
+          const courrielDefaut = circuit.courriel || (retenueV && retenueV.courriel) || courrielMairie || '';
           const modeDefaut = circuit.mode === 'en-ligne' ? 'en-ligne' : (ancien && ancien.modeChoisi ? ancien.mode : circuit.mode);
           docs.push({ id, genre: 'vente', modele: c.cle, groupe: g.cle, libelle: c.libelle, mode: modeDefaut, modeChoisi: !!(ancien && ancien.modeChoisi),
             courriel: ancien && ancien.modeChoisi ? ancien.courriel : courrielDefaut, emails: courrielDefaut ? [{ libelle: '', adresse: courrielDefaut }] : [], note: circuit.note, url: circuit.url || '', lien: circuit.lien || '', destinataire: circuit.destinataire,
             actif: circuit.mode === 'en-ligne' ? false : (ancien ? ancien.actif : true),
-            lignes: ancien && ancien.modifie ? ancien.lignes : lignes, modifie: !!(ancien && ancien.modifie), modeleRetenu: circuit.destinataire !== 'mairie' && circuit.destinataire !== 'blois-en-ligne' });
+            lignes: ancien && ancien.modifie ? ancien.lignes : lignes, modifie: !!(ancien && ancien.modifie), modeleRetenu: circuit.destinataire !== 'mairie' && circuit.destinataire !== 'blois-en-ligne',
+            retouches: ancien && ancien.retouches ? ancien.retouches : undefined });
         });
         // Les courriers vierges ajoutés à cette commune restent, à la suite de ses courriers.
         e.documents.filter(x => x.ajoute && x.groupe === g.cle).forEach(x => docs.push(Object.assign({}, x)));
@@ -391,11 +397,15 @@
       const horsDep = !contact && m && m.destinataire.length && dep && dep !== '41' && ['impots', 'cpam', 'msa', 'carsat'].includes(modele);
       // Par email dès qu'une adresse est connue (étude 15/10 : banques, impôts, CARSAT, MSA « quasiment que par mail ») ; sinon papier.
       const contactRetenu = ancien && ancien.contactId ? contacts.find(c => c && c.id === ancien.contactId) : contact;
-      const emails = contactRetenu ? emailsContactConstitution(contactRetenu) : (retenue && retenue.courriel ? [{ libelle: '', adresse: retenue.courriel }] : []);
+      let emails = contactRetenu ? emailsContactConstitution(contactRetenu) : (retenue && retenue.courriel ? [{ libelle: '', adresse: retenue.courriel }] : []);
+      // CARSAT, défunt du Loir-et-Cher ou du Loiret (ou domicile inconnu) : l'adresse des premières demandes des notaires (étude 18/10).
+      if (modele === 'carsat' && (!dep || dep === '41' || dep === '45')) {
+        emails = [{ libelle: 'Première demande', adresse: COURRIEL_CARSAT_PREMIERE_DEMANDE }].concat(emails.filter(x => x.adresse !== COURRIEL_CARSAT_PREMIERE_DEMANDE));
+      }
       const envoi = ancien && ancien.modeChoisi ? { mode: ancien.mode, courriel: ancien.courriel } : { mode: emails.length ? 'courriel' : 'papier', courriel: emails.length ? emails[0].adresse : '' };
       return { id, genre: 'succession', modele, libelle: m ? m.libelle : modele, mode: envoi.mode, courriel: envoi.courriel, emails, modeChoisi: !!(ancien && ancien.modeChoisi), note: horsDep ? 'Adresse type du Loir-et-Cher : à vérifier pour un défunt domicilié ailleurs.' : '', destinataire: modele,
         actif: ancien ? ancien.actif : ORDRE_SUCCESSION_PAR_DEFAUT.includes(modele), lignes: ancien && ancien.modifie ? ancien.lignes : lignes, origine: ancien && ancien.modifie ? 'Saisi à la main' : origine,
-        modifie: !!(ancien && ancien.modifie), contactId: ancien && ancien.contactId ? ancien.contactId : (contact ? contact.id : '') };
+        modifie: !!(ancien && ancien.modifie), contactId: ancien && ancien.contactId ? ancien.contactId : (contact ? contact.id : ''), retouches: ancien && ancien.retouches ? ancien.retouches : undefined };
     };
     const docs = [];
     ORDRE_SUCCESSION_PAR_DEFAUT.forEach(modele => docs.push(construire(modele, 1)));
@@ -413,14 +423,44 @@
 
   // Le courrier décrit ligne à ligne comme le modèle de l'étude (commun/constitution.js, commun/courriers-succession.js) : il donne le
   // Word, le PDF, l'aperçu et le texte de l'email (client/73-courrier-fidele.js).
-  function documentFideleConstitution(doc) {
+  function documentFideleConstitution(doc, options) {
+    return appliquerRetouchesConstitution(documentFideleBrutConstitution(doc, options), doc.retouches);
+  }
+
+  // Pure : les paragraphes corrigés sur l'aperçu (étude 18/10 : « aperçu éditable ») reportés sur le courrier — chaque retouche retient le
+  // texte d'origine (`de`) : elle s'applique à la même ligne si elle n'a pas bougé, sinon à la première ligne restée identique ; un texte
+  // d'origine disparu (parcelles changées, courrier par email) laisse la retouche sans effet.
+  // Un texte répété (« Madame, Monsieur, ») se retrouve par la ligne de texte qui le précède (`avant`). Rend aussi `retouchesParLigne`
+  // (ligne touchée → clé de la retouche) pour qu'une nouvelle correction de la même ligne remplace la sienne.
+  function appliquerRetouchesConstitution(fidele, retouches) {
+    if (!fidele || !retouches || !Object.keys(retouches).length) return fidele;
+    const lignes = fidele.lignes.slice();
+    const precedente = (k) => { for (let x = k - 1; x >= 0; x--) if (typeof fidele.lignes[x] === 'string' && fidele.lignes[x].trim()) return fidele.lignes[x]; return ''; };
+    const prises = new Set();
+    const parLigne = {};
+    Object.keys(retouches).map(Number).sort((a, b) => a - b).forEach(i => {
+      const r = retouches[i];
+      if (!r || typeof r.de !== 'string' || !r.de.trim()) return;
+      const libre = (k) => typeof fidele.lignes[k] === 'string' && fidele.lignes[k] === r.de && !prises.has(k);
+      let j = libre(i) && (r.avant === undefined || precedente(i) === r.avant) ? i : -1;
+      if (j < 0) j = fidele.lignes.findIndex((l, k) => libre(k) && (r.avant === undefined || precedente(k) === r.avant));
+      if (j < 0) return;
+      lignes[j] = String(r.en || '');
+      prises.add(j);
+      parLigne[j] = i;
+    });
+    return Object.assign({}, fidele, { lignes, retouchees: [...prises], retouchesParLigne: parLigne });
+  }
+
+  function documentFideleBrutConstitution(doc, options) {
     const d = dossierConstitution();
     const dateIso = isoAujourdhuiLocal();
     if (doc.genre === 'vente') {
       const g = groupeDuDocumentConstitution(doc) || { parcelles: [], adresseImmeuble: '' };
       const parcelles = g.parcelles.filter(p => p.actif).map(p => ({ prefixe: p.prefixe, section: p.section, numero: p.numero, lieuDit: p.lieuDit, surface: p.surface }));
       return documentCourrierVente(doc.modele, { destinataire: doc.lignes, dateLettre: dateCourrierSuccession(dateIso), adresseImmeuble: g.adresseImmeuble, parcelles, texteLibre: doc.texteLibre || '',
-        proprietaires: cstEtat.proprietaires.map(p => ({ civilite: p.civilite, nom: p.nom, domicile: p.domicile, morale: p.morale })), reference: d.referenceAuthentic || '', nomDossier: libelleDossierAffiche(d) });
+        proprietaires: cstEtat.proprietaires.map(p => ({ civilite: p.civilite, nom: p.nom, domicile: p.domicile, morale: p.morale })), reference: d.referenceAuthentic || '', nomDossier: libelleDossierAffiche(d),
+        pourEmail: !!(options && options.pourEmail) });
     }
     return documentCourrierSuccession(doc.modele, { destinataire: doc.lignes, envoiParMail: false, dateIso, defunt: cstEtat.defunt.champs, texteLibre: doc.texteLibre || '' });
   }
@@ -471,6 +511,9 @@
     cstEtat.message = texte;
     const m = document.getElementById('cst-message');
     if (m) m.textContent = texte;
+    // La page d'attente de l'impression suit l'avancement.
+    const w = fenetreImpressionConstitution;
+    if (texte && w && !w.closed) { try { const el = w.document.getElementById('etape'); if (el) el.textContent = texte; } catch (_) { /* fenêtre déjà sur le PDF */ } }
   }
 
   function cstDefunt(champ, valeur) {
@@ -628,7 +671,8 @@
     if (cstEtat.selection === id) cstEtat.selection = '';
     renderConstitution();
   }
-  function cstFormat(format, actif) { if (cstEtat && cstEtat.formats[format] !== undefined) { cstEtat.formats[format] = !!actif; renderConstitution(); } }
+  // PDF OU Word (étude 18/10 : « le téléchargement en .docx sort aussi des PDF ») : un seul format enregistré à la fois ; le plan cadastral reste un PDF.
+  function cstFormat(format) { if (cstEtat && cstEtat.formats[format] !== undefined) { cstEtat.formats = { pdf: format === 'pdf', docx: format === 'docx' }; renderConstitution(); } }
 
   // Retient l'adresse saisie d'un destinataire (organisme) pour la prochaine fois — jamais une adresse de client.
   async function cstRetenirAdresse(id) {
@@ -660,10 +704,45 @@
   }
 
   // Fenêtre d'impression ouverte AU CLIC (après une attente, le navigateur bloquerait la fenêtre surgissante), remplie quand le PDF est prêt.
+  // En attendant, une page d'attente aux couleurs de CLAIRE (étude 18/10), qui suit l'avancement (majMessageConstitution).
+  var fenetreImpressionConstitution = null;
   function ouvrirFenetreImpressionConstitution() {
     const w = window.open('', '_blank');
-    if (w) { try { w.document.title = 'Préparation de l’impression…'; w.document.body.textContent = 'Préparation des courriers et des plans cadastraux…'; } catch (_) { /* fenêtre d'un autre contexte */ } }
+    if (w) {
+      try { w.document.open(); w.document.write(htmlAttenteImpressionConstitution(location.origin)); w.document.close(); } catch (_) { /* fenêtre d'un autre contexte */ }
+      fenetreImpressionConstitution = w;
+    }
     return w;
+  }
+
+  // Pure : la page d'attente (autonome : la fenêtre n'a pas la feuille de style de CLAIRE). Thème clair et sombre, police Geist servie par CLAIRE.
+  function htmlAttenteImpressionConstitution(origine) {
+    const o = /^https?:\/\/[^/"'<>\s]+$/.test(String(origine || '')) ? origine : '';
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CLAIRE — Préparation de l’impression</title>
+<link rel="icon" href="${o}/icone.svg">
+<style>
+@font-face { font-family: 'Geist'; font-weight: 100 900; src: url('${o}/vendor/polices/geist-latin-wght-normal.woff2') format('woff2'); }
+:root { --fond: #F4F5F7; --carte: #FFFFFF; --encre: #111418; --doux: #647089; --filet: #E3E6EB; --accent: #6D2332; }
+@media (prefers-color-scheme: dark) { :root { --fond: #0F1115; --carte: #181B21; --encre: #ECEEF2; --doux: #9AA3B5; --filet: #2A2F38; --accent: #D08A97; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--fond); color: var(--encre); font-family: 'Geist', -apple-system, 'Segoe UI', sans-serif; padding: 16px; }
+.carte { width: min(440px, 100%); background: var(--carte); border: 1px solid var(--filet); border-radius: 16px; padding: 32px 28px; text-align: center; box-shadow: 0 8px 32px rgba(17, 20, 24, 0.08); }
+.marque { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 24px; }
+.marque img { width: 32px; height: 32px; }
+.marque span { font-size: 20px; font-weight: 600; letter-spacing: 0.02em; }
+.roue { width: 40px; height: 40px; margin: 0 auto 20px; border-radius: 50%; border: 3px solid var(--filet); border-top-color: var(--accent); animation: tour 0.9s linear infinite; }
+@keyframes tour { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .roue { animation-duration: 3s; } }
+h1 { font-size: 18px; font-weight: 500; margin: 0 0 8px; }
+p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
+#etape { margin-top: 16px; min-height: 20px; font-size: 12px; }
+</style></head><body><main class="carte" role="status" aria-live="polite">
+<div class="marque"><img src="${o}/icone.svg" alt=""><span>CLAIRE</span></div>
+<div class="roue" aria-hidden="true"></div>
+<h1>Préparation de l’impression</h1>
+<p>Les courriers et les plans cadastraux sont mis en page. Le PDF s’ouvrira ici dans un instant.</p>
+<p id="etape"></p>
+</main></body></html>`;
   }
   function montrerPdfImpressionConstitution(w, blob, nom) {
     if (!w || w.closed) { telechargerFichier(blob, nom); return; }
@@ -831,13 +910,14 @@
   }
 
   // Pure : l'objet de l'email d'un courrier.
+  // « Demande - » en tête (étude 18/10).
   function objetEmailConstitution(doc, d, defunt, groupe) {
     const ref = d && d.referenceAuthentic ? ` — Réf. ${d.referenceAuthentic}` : '';
     if (doc.genre === 'succession' && defunt) {
       const qui = [defunt.civilite, defunt.prenoms, defunt.nom].filter(Boolean).join(' ');
-      return `Succession de ${qui || 'à compléter'}${ref}`;
+      return `Demande - Succession de ${qui || 'à compléter'}${ref}`;
     }
-    return `${doc.modele === 'autre' ? 'Demande de renseignements' : doc.libelle}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${ref}`;
+    return `Demande - ${doc.modele === 'autre' ? 'Renseignements' : doc.libelle}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${ref}`;
   }
 
   // Un courrier par email : le texte du courrier dans le corps, la fenêtre d'email s'ouvre pour relire et envoyer (rien ne part seul).
@@ -850,12 +930,11 @@
     if (!destinataire) { afficherToast('Adresse email du destinataire à saisir.'); return { ok: false }; }
     try {
       retenirDefuntSaisiConstitution();
-      const { texte, suite } = corpsEmailCourrierConstitution(documentFideleConstitution(doc));
+      const { texte, suite } = corpsEmailCourrierConstitution(documentFideleConstitution(doc, { pourEmail: true }));
+      // Le courrier toujours joint en PDF (étude 18/10 : « parfois il manque le courrier en pièce jointe »).
       const pieces = [];
-      if (suite || cstEtat.joindrePdf) {
-        const s = await genererDocumentConstitution(doc, 'pdf');
-        pieces.push({ nom: s.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(s.blob) });
-      }
+      const s = await genererDocumentConstitution(doc, 'pdf');
+      pieces.push({ nom: s.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(s.blob) });
       // Courrier de vente : le plan cadastral surligné de la commune joint (étude 15/10).
       if (doc.genre === 'vente') {
         const g = groupeDuDocumentConstitution(doc);
@@ -873,6 +952,104 @@
       }
       return r || { ok: false };
     } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); return { ok: false }; }
+  }
+
+  // ---- Un seul email à la mairie (étude 18/10 : « permettre un envoi groupé des PDF dans un seul email à la mairie avec un seul plan ») ----
+
+  // Pure : les courriers cochés d'une commune adressés à sa mairie (une démarche en ligne n'en est pas un).
+  function courriersMairieGroupeConstitution(documents, cleGroupe) {
+    return (documents || []).filter(x => x && x.genre === 'vente' && x.groupe === cleGroupe && x.destinataire === 'mairie' && x.actif && x.mode !== 'en-ligne');
+  }
+
+  var DEMANDES_GROUPEES_MAIRIE = {
+    alignement: 'un certificat de numérotage et un certificat d’alignement,',
+    numerotage: 'un certificat de numérotage,',
+    alignementSeul: 'un certificat d’alignement,',
+    peril: 'votre réponse sur l’existence d’un arrêté de péril, de mise en sécurité ou d’insalubrité,',
+    assainissement: 'votre réponse sur la situation de l’immeuble au regard de l’assainissement (questionnaire joint, à nous retourner),'
+  };
+
+  // Pure : le texte de l'email groupé (premier jet de CLAIRE) — l'immeuble, ses parcelles, une ligne par demande ; les courriers et le plan joints.
+  function corpsEmailGroupeMairieConstitution(docs, groupe) {
+    const parcelles = ((groupe && groupe.parcelles) || []).filter(p => p.actif).map(p => [p.prefixe, p.section, p.numero].filter(Boolean).join(' '));
+    const demandes = docs.map(x => `- ${DEMANDES_GROUPEES_MAIRIE[x.modele] || (x.libelle + ',')}`);
+    if (demandes.length) demandes[demandes.length - 1] = demandes[demandes.length - 1].replace(/,$/, '.');
+    const immeuble = String((groupe && groupe.adresseImmeuble) || '').trim();
+    return ['Madame, Monsieur,', '',
+      `Concernant un immeuble situé à ${immeuble || '[adresse à compléter]'}${parcelles.length ? `, cadastré ${parcelles.join(', ')}` : ''}, je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles :`, '',
+      ...demandes, '',
+      `Vous trouverez ci-joint${docs.length > 1 ? ' nos courriers' : ' notre courrier'} et le plan cadastral de l’immeuble.`, '',
+      'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '',
+      'Je vous prie d\'agréer, Madame, Monsieur, mes salutations distinguées.'].join('\n');
+  }
+
+  // Pure : l'objet de l'email groupé.
+  function objetEmailGroupeMairieConstitution(docs, groupe, d) {
+    const quoi = docs.map(x => (COURRIERS_VENTE.concat(COURRIERS_ALIGNEMENT_SEPARES).find(c => c.cle === x.modele) || {}).court || x.libelle).join(', ');
+    return `Demande - ${quoi}${groupe && groupe.adresseImmeuble ? ' — ' + groupe.adresseImmeuble : ''}${d && d.referenceAuthentic ? ' — Réf. ' + d.referenceAuthentic : ''}`;
+  }
+
+  async function emailGroupeMairieConstitution(cleGroupe) {
+    const e = cstEtat;
+    const d = dossierConstitution();
+    if (!e || !d || e.enCours) return;
+    const g = e.groupes.find(x => x.cle === cleGroupe);
+    const docs = courriersMairieGroupeConstitution(e.documents, cleGroupe);
+    if (!g || !docs.length) { afficherToast('Aucun courrier coché pour cette mairie.'); return; }
+    const adresse = docs.map(x => x.courriel || ((x.emails || [])[0] || {}).adresse || '').find(Boolean) || '';
+    if (!adresse) {
+      cstModeEnvoi(docs[0].id, 'courriel');
+      e.selection = docs[0].id;
+      renderConstitution();
+      const champ = document.querySelector('.cst-courriel');
+      if (champ) champ.focus();
+      afficherToast('Adresse email de la mairie à saisir, puis « Un seul email à la mairie » à nouveau.');
+      return;
+    }
+    e.enCours = true;
+    renderConstitution();
+    let r = { ok: false };
+    try {
+      retenirDefuntSaisiConstitution();
+      const pieces = [];
+      for (const x of docs) {
+        majMessageConstitution(`Préparation de « ${x.libelle} »…`);
+        const sortie = await genererDocumentConstitution(x, 'pdf');
+        pieces.push({ nom: sortie.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(sortie.blob) });
+      }
+      if (g.plan && g.plan.etat !== 'fini') majMessageConstitution(`Plan cadastral de ${g.commune} : attente de cadastre.gouv.fr…`);
+      for (const p of await plansPdfConstitution(g)) pieces.push({ nom: p.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(p.blob) });
+      if (cstEtat !== e) return;
+      r = await livrerEmailDossier({ destinataire: adresse, sujet: objetEmailGroupeMairieConstitution(docs, g, d), corps: corpsEmailGroupeMairieConstitution(docs, g),
+        pieces, responsableSignature: d.responsable, dossierId: d.id, geste: 'constitution' }) || { ok: false };
+      if (r.ok) {
+        const quand = new Date().toISOString();
+        docs.forEach(x => { x.envoyeLe = quand; x.mode = 'courriel'; x.modeChoisi = true; if (!x.courriel) x.courriel = adresse; });
+        ajouterHistorique(d, `Courriers à la mairie de ${g.commune} préparés dans un seul email pour ${adresse} : ${docs.map(x => x.libelle).join(', ')}`);
+        sauvegarder(d);
+      }
+    } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur')); }
+    finally {
+      e.enCours = false;
+      majMessageConstitution('');
+      if (cstEtat === e) renderConstitution();
+    }
+  }
+
+  // « Envoyer les emails » : les courriers cochés à envoyer par email, l'un après l'autre (une fenêtre d'email chacun) ; s'arrête à la
+  // première fenêtre fermée sans envoi.
+  async function envoyerEmailsConstitution() {
+    const e = cstEtat;
+    if (!e || e.enCours) return;
+    const ids = documentsAGenererConstitution().filter(x => x.mode === 'courriel' && !x.envoyeLe).map(x => x.id);
+    for (const id of ids) {
+      if (cstEtat !== e) return;
+      const doc = documentConstitution(id);
+      if (!doc) continue;
+      if (!(doc.courriel || ((doc.emails || [])[0] || {}).adresse)) { await emailDepuisLigneConstitution(id); return; }
+      await emailDepuisLigneConstitution(id);
+      if (!doc.envoyeLe) return;
+    }
   }
 
   function cstModeEnvoi(id, mode) {
@@ -1021,7 +1198,8 @@
     const e = cstEtat;
     if (e.type === 'vente') {
       return e.groupes.map(g => `<div class="cst-commune-courriers">
-          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span></div>
+          <div class="cst-liste-titre"><span>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</span>${courriersMairieGroupeConstitution(e.documents, g.cle).length > 1
+            ? `<wa-button appearance="outlined" size="s" type="button" class="cst-email-groupe"${e.enCours ? ' disabled' : ''} onclick="emailGroupeMairieConstitution('${escapeOnclickArg(g.cle)}')" title="Les courriers cochés pour la mairie en PDF et un seul plan cadastral, dans un email">${icone('mail')} Un seul email à la mairie (${courriersMairieGroupeConstitution(e.documents, g.cle).length})</wa-button>` : ''}</div>
           ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
           <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')">+ Courrier à un autre organisme</wa-button>${renderSeparerAlignementConstitution(g)}</div></div>`).join('');
     }
@@ -1038,6 +1216,7 @@
     const manques = manquesConstitution(e);
     const n = documentsAGenererConstitution().length;
     const nPapier = documentsAGenererConstitution().filter(x => x.mode !== 'courriel').length;
+    const nEmail = documentsAGenererConstitution().filter(x => x.mode === 'courriel' && !x.envoyeLe).length;
     const pdfOk = typeof genererPdfAAppelFonds === 'function';
     const nas = !!d.nasDossier;
     const bascule = (actif, geste, libelle) => `<wa-button size="s" appearance="outlined" class="vue-bascule-btn${actif ? ' actif' : ''}" type="button" onclick="${geste}">${libelle}</wa-button>`;
@@ -1045,9 +1224,10 @@
     return `${manques.length ? `<details class="cst-manques"><summary>${manques.length} point${manques.length > 1 ? 's' : ''} à vérifier</summary>${manques.map(m => `<p class="cst-alerte">${escapeHtml(m)}</p>`).join('')}</details>` : ''}
       <div class="cst-choix">
         <wa-button-group label="Signature">${bascule(e.signe !== false, 'cstSigne(true)', 'Signé')}${bascule(e.signe === false, 'cstSigne(false)', 'Non signé')}</wa-button-group>
-        <wa-button-group label="Format enregistré">${bascule(e.formats.pdf, "cstFormat('pdf', !cstEtat.formats.pdf)", 'PDF')}${bascule(e.formats.docx, "cstFormat('docx', !cstEtat.formats.docx)", 'Word')}</wa-button-group>
+        <wa-button-group label="Format enregistré">${bascule(e.formats.pdf && !e.formats.docx, "cstFormat('pdf')", 'PDF')}${bascule(e.formats.docx && !e.formats.pdf, "cstFormat('docx')", 'Word')}</wa-button-group>
       </div>
       <div class="cst-actions">
+        ${nEmail ? `<wa-button appearance="outlined" type="button" ${e.enCours ? 'disabled ' : ''}onclick="envoyerEmailsConstitution()" title="Une fenêtre d’email par courrier à envoyer par email : rien ne part sans « Envoyer »">${icone('mail')} Envoyer les emails (${nEmail})</wa-button>` : ''}
         <wa-button appearance="outlined" type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier cochés, chacun suivi du plan cadastral de sa commune, dans un seul PDF ouvert pour l’impression">${icone('printer')} Imprimer tout (${nPapier})</wa-button>
         <wa-button variant="brand" type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune' : 'Dossier non relié au NAS : reliez-le sur la fiche'}">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>
       </div>
@@ -1104,10 +1284,10 @@
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
         ${doc.origine ? `<span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
-        <wa-button appearance="plain" size="s" type="button" class="bouton-discret cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Le courrier en Word">Word</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" class="cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Télécharger le courrier en Word (.docx)">Word</wa-button>
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
-          <span class="hint">Le texte du courrier, sans l’en-tête${corpsEmailCourrierConstitution(documentFideleConstitution(doc)).suite ? ', avec le questionnaire joint en PDF' : ''}.</span>` : ''}
+          <span class="hint">Le texte du courrier dans l’email, le courrier joint en PDF${doc.genre === 'vente' ? ' avec le plan cadastral' : ''}.</span>` : ''}
       </div>
       <div class="cst-edition-corps">
         <div class="calc-champ"><label>Destinataire</label>
@@ -1128,14 +1308,82 @@
     const d = dossierConstitution();
     if (!zone) return;
     if (!doc || !d || doc.mode === 'en-ligne') { zone.innerHTML = '<p class="hint cst-vide">Pas de courrier à montrer.</p>'; return; }
+    retenirSaisieApercuConstitution();
     try {
       const assets = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
-      zone.innerHTML = htmlCourrierFidele(documentFideleConstitution(doc), refLignesCourrier(d), assets, cstEtat.signe !== false);
-      // La page est aux mesures du papier (595 pt) : réduite pour tenir dans la colonne, sans rien changer à ses retours à la ligne.
-      const lettre = zone.querySelector('.cstf');
+      const fidele = documentFideleConstitution(doc);
+      zone.innerHTML = htmlCourrierFidele(fidele, refLignesCourrier(d), assets, cstEtat.signe !== false, { editable: true, retouchees: fidele.retouchees || [] })
+        + (doc.retouches && Object.keys(doc.retouches).length ? `<div class="cst-apercu-retouches"><span class="hint">Texte corrigé sur l’aperçu.</span><wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstAnnulerRetouches()">Revenir au texte du modèle</wa-button></div>` : '');
+      // Coupée en pages comme le papier, puis réduite pour tenir dans la colonne (595 pt), sans rien changer à ses retours à la ligne.
+      const lettre = zone.querySelector('.cstp');
+      if (lettre) paginerApercuCourrier(lettre);
       const r = lettre && lettre.offsetWidth ? zone.clientWidth / lettre.offsetWidth : 1;
       if (lettre && r > 0 && r < 1) lettre.style.zoom = String(Math.floor(r * 100) / 100);
+      if (!zone.dataset.edition) {
+        zone.dataset.edition = '1';
+        zone.addEventListener('focusout', cstRetoucheApercu);
+        zone.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target && ev.target.isContentEditable) { ev.preventDefault(); ev.target.blur(); } });
+      }
     } catch (e) { zone.innerHTML = '<p class="hint">Aperçu impossible.</p>'; console.error(e); }
+  }
+
+  // Un paragraphe ou une ligne du destinataire corrigé sur l'aperçu : retenu sur le courrier (Word, PDF, email), l'aperçu redessiné.
+  function cstRetoucheApercu(ev) {
+    const el = ev.target;
+    const doc = documentConstitution(cstEtat && cstEtat.selection);
+    if (!doc || !el || !el.isContentEditable) return;
+    const texte = texteBaliseDepuisElement(el);
+    if (el.dataset.dest !== undefined) {
+      // Les lignes affichées sont celles du destinataire sans ligne vide (« À compléter » quand il n'y en a aucune).
+      const i = Number(el.dataset.dest);
+      // Partir des lignes AFFICHÉES (l'adresse type du modèle quand le courrier n'a pas encore de destinataire), jamais de doc.lignes seul.
+      const lignes = (documentFideleBrutConstitution(doc).adresse || []).map(l => String(l).trim()).filter(l => l && l !== 'À compléter');
+      const affichee = i < lignes.length ? lignes[i] : '';
+      if (texte === affichee || texte === 'À compléter') return;
+      if (i < lignes.length) { if (texte) lignes[i] = texte; else lignes.splice(i, 1); } else if (texte) lignes.push(texte); else return;
+      cstLignesDoc(doc.id, lignes.join('\n'));
+      const champ = document.getElementById('cst-dest');
+      if (champ) champ.value = doc.lignes.join('\n');
+      majItemConstitution();
+    } else if (el.dataset.ligne !== undefined) {
+      const i = Number(el.dataset.ligne);
+      const brut = documentFideleBrutConstitution(doc);
+      const applique = documentFideleConstitution(doc);
+      const avant = applique.lignes[i];
+      if (typeof avant !== 'string') return;
+      // Comparé à la forme que la page aurait relue (l'ordre gras/souligné et les espaces ne font pas une correction).
+      const relu = document.createElement('div');
+      relu.innerHTML = htmlRunsCourrier(avant);
+      if (texte === texteBaliseDepuisElement(relu)) return;
+      const r = Object.assign({}, doc.retouches);
+      const cle = applique.retouchesParLigne && applique.retouchesParLigne[i] !== undefined ? applique.retouchesParLigne[i] : i;
+      const origine = typeof brut.lignes[i] === 'string' ? brut.lignes[i] : avant;
+      const de = r[cle] ? r[cle].de : origine;
+      if (!String(de).trim()) return;
+      let avantTexte = '';
+      for (let x = i - 1; x >= 0; x--) if (typeof brut.lignes[x] === 'string' && brut.lignes[x].trim()) { avantTexte = brut.lignes[x]; break; }
+      if (texte === de) delete r[cle]; else r[cle] = { de, en: texte, avant: r[cle] && r[cle].avant !== undefined ? r[cle].avant : avantTexte };
+      doc.retouches = r;
+    } else return;
+    // Redessiné après le changement de focus : le paragraphe cliqué ensuite garde le curseur.
+    setTimeout(() => {
+      const a = document.activeElement;
+      const cible = a && a.isContentEditable && a.closest('#cst-apercu') ? (a.dataset.dest !== undefined ? `[data-dest="${a.dataset.dest}"]` : `[data-ligne="${a.dataset.ligne}"]`) : '';
+      majApercuConstitution();
+      const n = cible ? document.querySelector('#cst-apercu ' + cible) : null;
+      if (n) n.focus();
+    }, 0);
+  }
+  // Un paragraphe en cours de correction quand l'écran se redessine (plan prêt, zonage lu…) : la saisie est retenue avant d'être effacée.
+  function retenirSaisieApercuConstitution() {
+    const actif = document.activeElement;
+    if (actif && actif.isContentEditable && actif.closest && actif.closest('#cst-apercu')) cstRetoucheApercu({ target: actif });
+  }
+  function cstAnnulerRetouches() {
+    const doc = documentConstitution(cstEtat && cstEtat.selection);
+    if (!doc) return;
+    delete doc.retouches;
+    majApercuConstitution();
   }
 
   // La ligne du courrier choisi dans la liste suit la saisie du destinataire, sans redessiner l'écran (la saisie garde le curseur).
@@ -1174,7 +1422,7 @@
         sous: e.zonageEnCours ? 'Lecture…' : z ? `DIA ${z.dia.statut === 'non' ? 'non' : z.dia.statut === 'verifier' ? '?' : 'oui'} · SAFER ${z.safer.statut === 'non' ? 'non' : z.safer.statut === 'verifier' ? '?' : 'oui'}` : 'Zonage à lire',
         html: renderZonageConstitution(d) + renderGnauConstitution() } : null,
       { cle: 'courriers', court: 'Courriers', titre: 'Courriers', compte: `${n} à préparer`, sous: `${n} à préparer`, html: renderListeCourriersConstitution() },
-      { cle: 'sortie', court: 'Imprimer', titre: 'Imprimer et enregistrer', sous: d.nasDossier ? 'NAS relié' : 'NAS non relié', html: renderSortieConstitution(d) }
+      { cle: 'sortie', court: 'Envoyer ou enregistrer', titre: 'Envoyer ou enregistrer', sous: d.nasDossier ? 'NAS relié' : 'NAS non relié', html: renderSortieConstitution(d) }
     ].filter(Boolean);
   }
 
@@ -1202,6 +1450,7 @@
   function renderConstitution() {
     const zone = document.getElementById('cst-corps');
     if (!zone) return;
+    retenirSaisieApercuConstitution();
     const d = dossierConstitution();
     if (!cstEtat || !d) { zone.innerHTML = renderDossierConstitution(null); return; }
     if (!documentConstitution(cstEtat.selection)) {

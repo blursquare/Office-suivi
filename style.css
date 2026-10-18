@@ -9638,6 +9638,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-gauche > .calc-card, .cst-droite > .calc-card { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
 .cst-bloc-titre { display: flex; align-items: baseline; gap: 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cst-liste-titre { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.cst-liste-titre .cst-email-groupe { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
 .cst-ligne { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.4fr) 10px auto; gap: 6px; align-items: center; }
 .cst-ligne > * { min-width: 0; }
 .cst-pastille { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
@@ -9750,19 +9751,36 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .fcddv-email, .fcddv-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .fcddv-email .prop-champ, .fcddv-ajout input.prop-champ { flex: 1 1 200px; min-width: 0; }
 .fcddv-ajout select.prop-champ { flex: 0 1 220px; min-width: 0; }
-.cst-apercu { display: flex; justify-content: center; }
-/* @papier : aperçu du courrier, identité papier de l'étude (mêmes règles que .af-lettre) */
-.cst-lettre { max-width: 720px; padding: 26px 32px 32px; font-size: 10pt; }
-.cst-lettre .af-logo-notaires { width: 260px; }
-.cst-lettre .af-logo-office { width: 190px; }
-.cst-lettre .af-lettre-grid { grid-template-columns: 120px 1fr; gap: 16px; }
-.cst-apercu .cstf { flex: none; }
-/* Courrier fidèle (client/73) : les mesures du modèle Word de l'étude, en points — page de 595 pt, marge gauche de 141,75 pt (la
-   colonne de l'en-tête), corps de 425,2 pt, Times 11 sur 12,65 pt, colonne de droite (adresse, date) à 158,35 pt du corps. */
-.cstf.af-lettre { width: 595pt; max-width: none; box-sizing: border-box; padding: 18pt 28.35pt 32pt 0; }
-.cstf .af-lettre-grid { grid-template-columns: 141.75pt 425.2pt; gap: 0; }
-.cstf .af-lettre-aside { padding: 0 8pt 0 20pt; }
-.cstf-corps { font-family: 'Times New Roman', 'Liberation Serif', Times, serif; font-size: 11pt; line-height: 12.65pt; }
+.cst-apercu { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.cst-apercu-retouches { display: flex; align-items: center; gap: 8px; }
+/* @papier : aperçu du courrier de la Constitution de dossier (client/73), identité papier de l'étude — la page A4 aux mesures du PDF, en
+   points : en-tête positionné comme genererPdfAAppelFonds, corps à 141,75 pt du bord, Liberation Serif 11 sur 12,65 pt (= Times du modèle),
+   colonne de droite (adresse, date) à 158,35 pt du corps. Polices du PDF servies par CLAIRE. */
+@font-face { font-family: 'Courrier Serif'; font-weight: 400; font-style: normal; src: url('vendor/polices/courrier/LiberationSerif-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Courrier Serif'; font-weight: 700; font-style: normal; src: url('vendor/polices/courrier/LiberationSerif-Bold.ttf') format('truetype'); }
+@font-face { font-family: 'Courrier Serif'; font-weight: 400; font-style: italic; src: url('vendor/polices/courrier/LiberationSerif-Italic.ttf') format('truetype'); }
+@font-face { font-family: 'Courrier Sans'; font-weight: 400; src: url('vendor/polices/courrier/Carlito-Regular.ttf') format('truetype'); }
+@font-face { font-family: 'Courrier Sans'; font-weight: 700; src: url('vendor/polices/courrier/Carlito-Bold.ttf') format('truetype'); }
+.cstp { display: flex; flex-direction: column; align-items: center; gap: 16px; flex: none; }
+.cstp-page { position: relative; width: 595.28pt; height: 841.89pt; flex: none; overflow: hidden; background: #fff; color: #000; box-shadow: 0 1px 3px rgba(17, 20, 24, 0.18), 0 8px 24px rgba(17, 20, 24, 0.12); }
+.cstp-abs { position: absolute; white-space: nowrap; }
+.cstp-sans { font-family: 'Courrier Sans', Calibri, Carlito, sans-serif; font-size: 10pt; line-height: 10pt; color: #000; }
+.cstp-petit { font-size: 8pt; line-height: 8pt; }
+.cstp-titre { font-weight: 700; color: #C00000; text-decoration: underline; text-underline-offset: 1.5pt; }
+.cstp-lien { color: #0000EE; text-decoration: underline; }
+.cstp-or { color: #BF8F00; }
+.cstp-souligne { text-decoration: underline; }
+.cstp-adresse-office { text-align: center; font-size: 8.5pt; color: #A6A6A6; }
+.cstp-pied { text-align: center; line-height: 12.1pt; white-space: normal; }
+.cstp-picto { display: block; width: 100%; height: 100%; fill: #BF8F00; }
+.cstp-coin { width: 6pt; height: 6pt; border: 0 solid #999; }
+.cstp-coin-tl { border-top-width: 0.6pt; border-left-width: 0.6pt; }
+.cstp-coin-tr { border-top-width: 0.6pt; border-right-width: 0.6pt; }
+.cstp-coin-bl { border-bottom-width: 0.6pt; border-left-width: 0.6pt; }
+.cstp-coin-br { border-bottom-width: 0.6pt; border-right-width: 0.6pt; }
+.cstp-corps { position: absolute; left: 141.75pt; top: 139.6pt; width: 425.18pt; }
+.cstp-corps-suite { top: 28.35pt; }
+.cstf-corps { font-family: 'Courrier Serif', 'Times New Roman', Times, serif; font-size: 11pt; line-height: 12.65pt; }
 .cstf-l { min-height: 12.65pt; text-align: justify; white-space: pre-wrap; }
 .cstf-droite { margin-left: 158.35pt; text-align: left; }
 .cstf-signature { text-align: right; }
@@ -9771,7 +9789,13 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cstf-tableau td { border: 0.5pt solid #000; padding: 1.7pt 5.4pt 1.15pt; font-size: 11pt; line-height: 12.65pt; vertical-align: top; overflow-wrap: normal; }
 .cstf-questionnaire { width: 459.2pt; margin: 8pt 0 8pt -17pt; }
 .cstf-questionnaire td.cstf-bandeau, .cstf-questionnaire tr.cstf-bandeau td { background: #C00000; text-align: center; }
-.cst-saut { margin: 24px -32px; padding: 4px; border-top: 2px dashed #b9b2a6; text-align: center; font-family: 'Inter', sans-serif; font-size: 9px; color: #8a8273; }
+.cstp .cstp-tampon { position: relative; width: auto; height: 87.6pt; margin: 0; aspect-ratio: auto; }
+.cstp .cstp-tampon .af-tampon { right: auto; bottom: auto; left: 271.65pt; top: 4.72pt; width: 141.73pt; height: 82.88pt; }
+.cstp .cstp-tampon .af-signature-image { left: 279.53pt; top: 8.6pt; width: 125.98pt; height: 75.11pt; }
+.cstp-editable .cstf-modifiable { border-radius: 2pt; outline: 1px solid transparent; outline-offset: 1pt; cursor: text; }
+.cstp-editable .cstf-modifiable:hover { outline-color: #D9C3C8; background: #FBF6F7; }
+.cstp-editable .cstf-modifiable:focus { outline: 1.5px solid #6D2332; background: #FFFDF5; }
+.cstp-editable .cstf-retouche { background: #FFF8DB; }
 /* @fin-papier */
 @media (max-width: 1100px) {
   .cst-mise-en-page { grid-template-columns: minmax(0, 1fr); }

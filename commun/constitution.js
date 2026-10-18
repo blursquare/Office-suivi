@@ -199,7 +199,7 @@
    * près ») — chaque chaîne est un paragraphe, '' une ligne vide ; **gras**, __souligné__. null si le courrier est inconnu.
    * @param {string} cle
    * @param {{ destinataire: string[], adresseImmeuble: string, parcelles: ParcelleCourrier[], proprietaires: ProprietaireCourrier[],
-   *   reference?: string, nomDossier?: string, dateLettre?: string, texteLibre?: string }} o
+   *   reference?: string, nomDossier?: string, dateLettre?: string, texteLibre?: string, pourEmail?: boolean }} o
    * @returns {DocumentCourrier|null}
    */
   function documentCourrierVente(cle, o) {
@@ -207,14 +207,16 @@
     const adresse = (o.destinataire || []).map((l) => String(l).trim()).filter(Boolean);
     if (!adresse.length) adresse.push('À compléter');
     const immeuble = String(o.adresseImmeuble || '').trim();
-    const tableau = tableauParcellesCourrier(o.parcelles);
-    const appartenant = ['Ledit immeuble appartenant à :'].concat((o.proprietaires || []).map(lignePersonneProprietaire));
+    // Une ligne vide avant et après le tableau des parcelles, et sous l'adresse des propriétaires (étude 18/10).
+    const tableau = ['', tableauParcellesCourrier(o.parcelles), ''];
+    // Par email, le bloc « Ledit immeuble appartenant à : … demeurant à … » n'est pas repris (étude 18/10) : il reste dans le courrier joint.
+    const appartenant = o.pourEmail ? [] : ['Ledit immeuble appartenant à :'].concat((o.proprietaires || []).map(lignePersonneProprietaire), ['']);
     /** @type {Array<string|TableauCourrier>} */
     let lignes;
     if (cle === 'assainissement') {
       lignes = ['', '', '', '**Objet : Contrôle et conformité assainissement**', '', 'Madame, Monsieur,', '',
         `Je vous remercie de me préciser la situation au regard de l’assainissement de l’immeuble situé à ${immeuble}, et cadastré :`,
-        tableau, ...appartenant, 'Vous en remerciant par avance,', '', FORMULE_FINALE];
+        ...tableau, ...appartenant, 'Vous en remerciant par avance,', '', FORMULE_FINALE];
     } else if (cle === 'alignement' || cle === 'numerotage' || cle === 'alignementSeul') {
       // Le modèle « Demande d'alignement et numérotage » ; séparé, chaque courrier ne garde que sa demande (ponctuation finale du numérotage).
       const demandes = cle === 'numerotage' ? ['- **Un certificat de numérotage.**'] : cle === 'alignementSeul' ? ['**- Un certificat d\'alignement.**']
@@ -222,18 +224,18 @@
       lignes = ['', '', '', 'Madame, Monsieur,', '',
         `Je vous serais très obligé de bien vouloir me faire parvenir dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble} :`, '',
         ...demandes, '',
-        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', ...tableau, ...appartenant,
         'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     } else if (cle === 'peril') {
       lignes = ['', '', '', 'Madame, Monsieur,', '',
         `Je vous serais très obligé de bien vouloir me préciser dans les meilleurs délais possibles, concernant un immeuble situé à ${immeuble}, si :`, '',
         '- L\'immeuble est frappé d\'un **arrêté de péril,**', '- L\'immeuble est frappé d\'un **arrêté de mise en sécurité,**', '- L\'immeuble est frappé d\'un **arrêté d\'insalubrité.**', '',
-        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+        'A toutes fins utiles, voici les références cadastrales de cet immeuble :', ...tableau, ...appartenant,
         'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     } else {
       // Courrier vierge (étude 15/10 : « autre organisme ») : le texte saisi, puis les références et les propriétaires comme les autres.
       const libre = String(o.texteLibre || '').replace(/\r/g, '').split('\n');
-      lignes = ['', '', '', 'Madame, Monsieur,', '', ...libre, '', 'A toutes fins utiles, voici les références cadastrales de cet immeuble :', tableau, ...appartenant,
+      lignes = ['', '', '', 'Madame, Monsieur,', '', ...libre, '', 'A toutes fins utiles, voici les références cadastrales de cet immeuble :', ...tableau, ...appartenant,
         'Dans l\'attente de vous lire, et avec mes remerciements anticipés,', '', FORMULE_FINALE];
     }
     /** @type {DocumentCourrier} */

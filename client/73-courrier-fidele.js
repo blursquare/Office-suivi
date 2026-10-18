@@ -246,30 +246,70 @@
   }
 
   // ---- Aperçu à l'écran ----
+  // Étude 18/10 : « un aperçu du courrier à droite plus réaliste et éditable ». La page A4 aux mesures du PDF (en points) : en-tête, logos,
+  // colonne « Nous contacter » avec ses pictogrammes, pied de page — aux positions de composerPdfCourrierFidele / genererPdfAAppelFonds ;
+  // le corps en Liberation Serif (= Times) comme le PDF, coupé en pages par paginerApercuCourrier. `editable` : le destinataire et chaque
+  // paragraphe se corrigent sur la page (data-dest, data-ligne), le tableau, la date et la signature non.
 
-  // Pure : l'aperçu HTML du courrier (même découpage en lignes : la colonne de droite pour les premières lignes, comme sur le papier).
-  function htmlCourrierFidele(doc, refLignes, assets, signe) {
+  // Pure : un pictogramme de la colonne de l'en-tête en SVG (mêmes tracés que le PDF).
+  function svgPictogrammeCourrier(cle) {
+    return `<svg class="cstp-picto" viewBox="0 0 24 24" aria-hidden="true"><path d="${PICTOGRAMMES_PDFA[cle]}"/></svg>`;
+  }
+
+  // Pure : l'en-tête et le pied de la première page, positionnés en points comme dans le PDF.
+  function htmlEnTeteCourrier(refLignes, a) {
+    const pos = (x, y, extra) => `style="left:${x}pt;top:${y}pt;${extra || ''}"`;
+    const img = (src, x, y, w, h) => src ? `<img class="cstp-abs" src="${escapeAttr(src)}" alt="" ${pos(x, y, `width:${w}pt;height:${h}pt`)}>` : '';
+    const texte = (t, x, y, cls) => `<div class="cstp-abs ${cls || 'cstp-sans'}" ${pos(x, y)}>${t}</div>`;
+    const coins = [[262.8, 131.3, 'tl'], [544.8, 131.3, 'tr'], [262.8, 226.9, 'bl'], [544.8, 226.9, 'br']].map(([x, y, c]) => `<span class="cstp-abs cstp-coin cstp-coin-${c}" ${pos(x, y)}></span>`).join('');
+    const contact = [['telephone', '02 54 78 61 70', 139.1], ['email', '<span class="cstp-lien">office.gossart@notaires.fr</span>', 151.2],
+      ['site', '<span class="cstp-lien">sophie-gossart-blois.notaires.fr</span>', 163.3], ['adresse', '3 rue du Bout des Haies - 41000 BLOIS', 175.4]]
+      .map(([k, t, y]) => `<span class="cstp-abs" ${pos(21.2, y + 0.6, 'width:9pt;height:9pt')}>${svgPictogrammeCourrier(k)}</span>${texte(t, 34, y)}`).join('');
+    const horaires = ['Ouvert au public', 'du LUNDI au', 'VENDREDI', 'de 9 h à 12 h', 'et de 14 h à 18 h.', 'SAMEDI matin :', 'sur rendez-vous.', 'PARKING'].map((l, i) => texte(l, 19.4, 321.8 + i * 12.1)).join('');
+    const visio = ['OFFICE EQUIPE', 'DE LA', 'VISIOCONFERENCE', 'DE LA PROFESSION'].map((l, i) => texte(l, 19.4, 624.3 + i * 9.7, 'cstp-sans cstp-petit')).join('');
+    const refs = (refLignes || []).slice(0, 6).map((l, i) => texte(escapeHtml(l), 21.6, 224.9 + i * 12.1)).join('');
+    return img(a.logoNotaires, 6.4, 1.8, 224, 115.2) + img(a.logoOffice, 290.6, -6.7, 218.2, 127.6)
+      + `<div class="cstp-abs cstp-sans cstp-adresse-office" ${pos(250, 97.5, 'width:299.4pt')}>3 RUE DU BOUT DES HAIES – 41000 BLOIS</div>`
+      + coins + texte('NOUS CONTACTER', 21.6, 127, 'cstp-sans cstp-titre') + contact
+      + img(a.iconFacebook, 21, 187, 10.5, 10.5) + texte('@bloisnotaire', 34, 187.5) + img(a.iconInstagram, 21, 200.6, 10.5, 10.5) + texte('@bloisnotairegossart', 34, 200.1)
+      + refs + texte('HORAIRES', 19.4, 309.7, 'cstp-sans cstp-titre') + horaires + visio + img(a.iconVisio, 21, 674, 64.7, 57.2)
+      + `<div class="cstp-abs cstp-sans cstp-pied" ${pos(0, 791.4, 'width:591.8pt')}>Toute somme supérieure à 3.000 € qui nous est versée en vue d’un acte destiné à la publicité foncière doit<br>nous parvenir <span class="cstp-souligne">obligatoirement</span> par <span class="cstp-souligne">virement anticipé</span>. (Article L 112-6-1 du code monétaire et financier)<br><span class="cstp-or">Membre d’une association agréé – Le règlement des honoraires par chèque est accepté</span></div>`;
+  }
+
+  // Pure : « **gras** __souligné__ » en HTML échappé.
+  function htmlRunsCourrier(t) {
+    return runsLigneCourrier(t).map(r => { let h = escapeHtml(r.t); if (r.u) h = `<u>${h}</u>`; if (r.b) h = `<b>${h}</b>`; return h; }).join('');
+  }
+
+  // Pure : l'aperçu HTML du courrier (pages A4 ; le corps sur la première, coupé ensuite à l'écran par paginerApercuCourrier).
+  function htmlCourrierFidele(doc, refLignes, assets, signe, options) {
     const a = assets || {};
     const L = LIGNES_FIDELE;
+    const edit = !!(options && options.editable);
     const img = (src, cls, alt) => src ? `<img class="${cls}" src="${escapeAttr(src)}" alt="${escapeAttr(alt)}">` : '';
-    const runsHtml = (t) => runsLigneCourrier(t).map(r => { let h = escapeHtml(r.t); if (r.u) h = `<u>${h}</u>`; if (r.b) h = `<b>${h}</b>`; return h; }).join('');
+    const runsHtml = htmlRunsCourrier;
     const lignes = [];
     let index = 0;
-    const ligne = (html, droite, cls) => { lignes.push(`<div class="cstf-l${droite ? ' cstf-droite' : ''}${cls ? ' ' + cls : ''}">${html || '&nbsp;'}</div>`); index++; };
+    const ligne = (html, droite, cls, attrs) => { lignes.push(`<div class="cstf-l${droite ? ' cstf-droite' : ''}${cls ? ' ' + cls : ''}"${attrs || ''}>${html || '&nbsp;'}</div>`); index++; };
+    const editableAttrs = (attr, i) => edit ? ` contenteditable="true" spellcheck="true" ${attr}="${i}"` : '';
     const dansColonne = () => L.depart + index * L.pas < L.finColonneDroite;
     for (let i = 0; i < doc.adresseDebut; i++) ligne('', true);
-    doc.adresse.forEach(l => ligne(runsHtml(l), true));
+    doc.adresse.forEach((l, i) => ligne(runsHtml(l), true, edit ? 'cstf-modifiable' : '', editableAttrs('data-dest', i)));
+    // Une ligne de plus, vide, pour ajouter une ligne au destinataire.
+    if (edit && doc.adresse.length < 7) ligne('', true, 'cstf-modifiable cstf-ajout-ligne', editableAttrs('data-dest', doc.adresse.length));
     while (index < L.ligneDate) ligne('', true);
     ligne(escapeHtml(doc.date), true);
-    doc.lignes.forEach(l => {
-      if (typeof l === 'string') { ligne(runsHtml(l), dansColonne()); return; }
-      lignes.push(`<table class="cstf-tableau" style="width:${(l.grille.reduce((t, w) => t + w, 0) / 20).toFixed(1)}pt"><colgroup>${l.grille.map(w => `<col style="width:${(w / 20).toFixed(1)}pt">`).join('')}</colgroup>${l.lignes.map(r => `<tr>${r.cellules.map(c => `<td${c.span ? ` colspan="${c.span}"` : ''} style="${c.fond ? 'background:#' + escapeAttr(c.fond) + ';' : ''}${c.jc === 'right' ? 'text-align:right;' : c.jc === 'center' ? 'text-align:center;' : ''}">${runsHtml(c.texte) || '&nbsp;'}</td>`).join('')}</tr>`).join('')}</table>`);
+    const retouchees = new Set((options && options.retouchees) || []);
+    doc.lignes.forEach((l, i) => {
+      // Une ligne vide ne se corrige pas (une correction n'a de repère que dans un texte).
+      if (typeof l === 'string') { const m = edit && l.trim(); ligne(runsHtml(l), dansColonne(), [m ? 'cstf-modifiable' : '', retouchees.has(i) ? 'cstf-retouche' : ''].filter(Boolean).join(' '), m ? editableAttrs('data-ligne', i) : ''); return; }
+      lignes.push(`<table class="cstf-tableau" style="width:${(l.grille.reduce((t, w) => t + w, 0) / 20).toFixed(1)}pt"><colgroup>${l.grille.map(w => `<col style="width:${(w / 20).toFixed(1)}pt">`).join('')}</colgroup>${l.lignes.map(r => `<tr>${r.cellules.map(c => `<td${c.span > 1 ? ` colspan="${c.span}"` : ''} style="${c.fond ? `background:#${escapeAttr(c.fond)};` : ''}text-align:${c.jc === 'right' ? 'right' : c.jc === 'center' ? 'center' : 'left'}">${runsHtml(c.texte) || '&nbsp;'}</td>`).join('')}</tr>`).join('')}</table>`);
       index += l.lignes.length;
     });
     for (let i = 0; i < (doc.blancsSignature || 0); i++) ligne('');
     ligne(escapeHtml(doc.signature), false, 'cstf-signature');
-    if (signe) lignes.push(`<div class="af-tampon-signature">${img(a.tampon, 'af-tampon', '')}${img(a.signature, 'af-signature-image', '')}</div>`);
-    if (doc.questionnaire) lignes.push(`<div class="cst-saut">Page 2 : questionnaire à retourner par la mairie (tableau du modèle de l’étude)</div>
+    if (signe) lignes.push(`<div class="af-tampon-signature cstp-tampon">${img(a.tampon, 'af-tampon', '')}${img(a.signature, 'af-signature-image', '')}</div>`);
+    const questionnaire = doc.questionnaire ? `<div class="cstp-page cstp-questionnaire"><div class="cstp-corps cstp-corps-suite cstf-corps">
       <div class="cstf-l"><b>A retourner à :</b></div><div class="cstf-l">&nbsp;</div><div class="cstf-l">&nbsp;</div>
       <div class="cstf-l cstf-retour">Maître Sophie GOSSART</div><div class="cstf-l cstf-retour">3 rue du Bout des Haies</div><div class="cstf-l cstf-retour">41000 BLOIS</div>
       <div class="cstf-l">&nbsp;</div><div class="cstf-l">Références dossier : ${escapeHtml(doc.questionnaire.references)}</div><div class="cstf-l">Adresse de l'immeuble : ${escapeHtml(doc.questionnaire.adresseImmeuble)}</div>
@@ -277,17 +317,54 @@
         <tr><td><b>Nature du dispositif de traitement des eaux usées</b></td><td>Individuel ❑</td><td>Collectif ❑</td></tr>
         <tr><td><b>Service chargé du contrôle d’assainissement</b></td><td>La commune ❑</td><td>Autre ❑<br>_______________</td></tr>
         <tr class="cstf-bandeau"><td><b>En cas de traitement collectif</b></td><td><b>OUI</b></td><td><b>NON</b></td></tr>
-        <tr><td>…</td><td>❑</td><td>❑</td></tr>
+        <tr><td>L'immeuble est-il bien raccordé au réseau collectif ? …</td><td>❑</td><td>❑</td></tr>
         <tr class="cstf-bandeau"><td><b>En cas de traitement individuel</b></td><td><b>OUI</b></td><td><b>NON</b></td></tr>
-        <tr><td>…</td><td>❑</td><td>❑</td></tr></table>
-      <div class="cstf-l">&nbsp;</div><div class="cstf-l">Le</div><div class="cstf-l">(signature et cachet de la Mairie)</div>`);
-    return `<div class="af-lettre cst-lettre cstf">
-      <div class="af-topbar">${img(a.logoNotaires, 'af-logo-notaires', 'Notaires de France')}<div class="af-office-id">${img(a.logoOffice, 'af-logo-office', 'Me Sophie GOSSART')}<div class="af-office-addr">3 RUE DU BOUT DES HAIES – 41000 BLOIS</div></div></div>
-      <div class="af-lettre-grid"><aside class="af-lettre-aside">
-          <div class="af-aside-bloc"><div class="af-aside-titre">NOUS CONTACTER</div><div class="af-aside-ligne">02 54 78 61 70</div><div class="af-aside-ligne"><span class="af-aside-lien">office.gossart@notaires.fr</span></div><div class="af-aside-ligne">3 rue du Bout des Haies<br>41000 BLOIS</div></div>
-          <div class="af-aside-bloc">${(refLignes || []).map(l => `<div class="af-aside-ligne">${escapeHtml(l)}</div>`).join('')}</div>
-          <div class="af-aside-bloc"><div class="af-aside-titre">HORAIRES</div><div class="af-aside-ligne">Du lundi au vendredi</div><div class="af-aside-ligne">9 h – 12 h, 14 h – 18 h</div></div>
-        </aside><div class="af-lettre-corps cstf-corps">${lignes.join('')}</div></div></div>`;
+        <tr><td>La commune a-t-elle mis en place un dispositif de contrôle anticipé ? …</td><td>❑</td><td>❑</td></tr></table>
+      <div class="cstf-l">&nbsp;</div><div class="cstf-l">Le</div><div class="cstf-l">(signature et cachet de la Mairie)</div></div></div>` : '';
+    return `<div class="cstp${edit ? ' cstp-editable' : ''}"><div class="cstp-page cstp-premiere">${htmlEnTeteCourrier(refLignes, a)}
+      <div class="cstp-corps cstf-corps" data-bas="${L.basPremiere}">${lignes.join('')}</div></div>${questionnaire}</div>`;
+  }
+
+  // La page de l'aperçu coupée comme le papier : ce qui dépasse le bas de la page (771 pt sur la première, 787,9 pt ensuite) passe sur une
+  // page suivante, en haut à 28,35 pt. À appeler avant de réduire l'aperçu (les mesures sont en pixels non réduits : 1 pt = 4/3 px).
+  function paginerApercuCourrier(racine) {
+    const L = LIGNES_FIDELE;
+    const px = 4 / 3;
+    for (let garde = 0; garde < 12; garde++) {
+      const corpsListe = [...racine.querySelectorAll('.cstp-page:not(.cstp-questionnaire) > .cstp-corps')];
+      const corps = corpsListe[corpsListe.length - 1];
+      if (!corps) return;
+      const haut = corps.classList.contains('cstp-corps-suite') ? L.haut : L.depart;
+      const limite = ((corps.dataset.bas ? Number(corps.dataset.bas) : L.bas) - haut) * px;
+      const enfants = [...corps.children];
+      const i = enfants.findIndex(el => el.offsetTop + el.offsetHeight > limite + 1);
+      if (i < 0) return;
+      const deplaces = enfants.slice(Math.max(i, 1));
+      if (!deplaces.length) return;
+      const page = document.createElement('div');
+      page.className = 'cstp-page';
+      const suite = document.createElement('div');
+      suite.className = 'cstp-corps cstp-corps-suite cstf-corps';
+      deplaces.forEach(el => suite.appendChild(el));
+      page.appendChild(suite);
+      corps.parentElement.after(page);
+    }
+  }
+
+  // Pure (DOM) : le texte d'un paragraphe corrigé sur la page, avec son gras et son souligné écrits comme les modèles (**gras**, __souligné__).
+  function texteBaliseDepuisElement(el) {
+    const parcourir = (n, b, u) => [...n.childNodes].map(c => {
+      if (c.nodeType === 3) {
+        const t = c.textContent.replace(/ /g, ' ');
+        if (!t) return '';
+        return (b ? '**' : '') + (u ? '__' : '') + t + (u ? '__' : '') + (b ? '**' : '');
+      }
+      if (c.nodeType !== 1) return '';
+      const tag = c.tagName.toLowerCase();
+      if (tag === 'br') return ' ';
+      return parcourir(c, b || tag === 'b' || tag === 'strong', u || tag === 'u');
+    }).join('');
+    return parcourir(el, false, false).replace(/\*\*\*\*|____/g, '').replace(/\s+/g, ' ').trim();
   }
 
   // La page 2 du Word de l'étude (« Questionnaire assainissement ») telle quelle, nettoyée : {QREF} et {QADR} remplacés à la sortie.

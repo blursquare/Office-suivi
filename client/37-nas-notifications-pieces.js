@@ -793,6 +793,11 @@
     await Promise.all([chargerFormesNoms(), chargerExclusionsMotifNom()]);
   }
 
+  // Pure : le fichier est-il dans le sous-dossier « Constitution » (courriers de l'office préparés par CLAIRE) ?
+  function cheminCourrierEnvoyeNas(chemin) {
+    return String(chemin || '').split(/[\\/]/).slice(0, -1).some(seg => normaliserPourRecherche(seg).trim() === 'constitution');
+  }
+
   async function verifierDossierLocalUneFois(id, viaClicUtilisateur) {
     const d = dossiers.find(x => x.id === id);
     if (!d || !d.dossierLie || !d.nasDossier) return;
@@ -876,6 +881,10 @@
       // Nom normalisé (underscores/tirets → espaces, accents recomposés en NFC) avant tout test de
       // motif : un vrai nom de fichier de l'étude ne s'écrit pas comme une regex française.
       const nomNormalise = normaliserNomPourMotif(fichier.nom);
+      // Les courriers ENVOYÉS par l'étude (sous-dossier « Constitution », relecture 0.283.0) ne sont jamais une pièce reçue :
+      // « Péril, mise en sécurité, insalubrité - BLOIS - VTE - X.pdf » cochait « Non péril » dès la demande partie. Seul le plan
+      // cadastral qui y est rangé avec eux compte (c'est bien le plan).
+      const courrierEnvoye = cheminCourrierEnvoyeNas(fichier.chemin);
 
       // Offre de prêt : nombre de pages, puis TITRE de la page de garde, puis confirmation par le
       // modèle IA local — voir MIN_PAGES_OFFRE_PRET pour le pourquoi de chacun des trois filtres.
@@ -986,6 +995,7 @@
       // récent qui doit compter — voir choisirFichierPiece après la boucle. Demandé par l'étude.
       for (const piece of checklist) {
         if (!aChercher.has(piece.cle)) continue;
+        if (courrierEnvoye && piece.cle !== 'planCadastral') continue;
         // Pièce personnalisée (voir checklistPieces/ajouterPiecePersonnalisee) : pas de motifNom
         // (nom libre saisi par l'étude), retrouvée par sous-chaîne de son libellé — même logique
         // que chercherFichierParNom, appliquée ici pour qu'un "Revérifier" ultérieur la retrouve

@@ -224,7 +224,7 @@
   // au droit de préemption) : jamais reprises d'Authentic pour une vente (étude, 02/10 : « ne pas
   // prendre en compte les pièces d'urbanisme sauf la SAFER ») — elles se cochent par le NAS ou à la main.
   function pieceUrbanismeIgnoreeAuthentic(cle, typeAffaire) {
-    return typeAffaire !== 'succession' && PIECES_URBANISME.some(p => p.cle === cle);
+    return typeAffaire !== 'succession' && [...PIECES_URBANISME, PIECE_NON_PERIL].some(p => p.cle === cle);
   }
 
   function piecesExportAuthentic(donnees, checklist) {

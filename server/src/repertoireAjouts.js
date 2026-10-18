@@ -7,7 +7,7 @@
 // ne revient jamais, un contact qu'elle a déjà modifié (même id) n'est pas touché. Un nouveau lot = une nouvelle entrée de LOTS_REPERTOIRE.
 
 /** @typedef {{ id: string, theme: string, organisme: string, service: string, personnes?: string[], adresse?: string, emails?: string[], liens?: string[], notes?: string }} ContactLot */
-/** @type {{ lot: string, source: string, contacts: ContactLot[] }[]} */
+/** @type {{ lot: string, source: string, contacts: ContactLot[], corrections?: { id: string, si: Object<string, string>, champs: Object<string, string> }[] }[]} */
 const LOTS_REPERTOIRE = [
   {
     lot: 'authentic-agences-syndics-2026-10-05',
@@ -135,6 +135,17 @@ const LOTS_REPERTOIRE = [
       { id: 'rep-paris-assainissement', theme: 'mairies', organisme: 'Ville de Paris', service: 'Service technique de l’eau et de l’assainissement — pôle usagers',
         emails: ['eau-assainissement@paris.fr'], liens: ['https://cdn.paris.fr/paris/2025/01/02/formulairecontrolesecteurseparatif2025-OjTc.pdf'],
         notes: 'Certificat d’assainissement sur la carte en ligne de la Ville ; en secteur séparatif, contrôle payant avant une vente (formulaire, RIB et plan).' }
+    ]
+  },
+  {
+    // Étude 18/10 : les successions interrogent le SPFE de Blois (« modifier dans le répertoire : S.I.E.P.F. de Blois ») ; la CARSAT
+    // reçoit les premières demandes des notaires à une adresse dédiée. Une correction ne touche que la valeur d'origine : un contact déjà
+    // modifié par l'étude reste tel quel.
+    lot: 'corrections-spfe-carsat-2026-10-18',
+    source: 'Étude, 18/10/2026',
+    contacts: [],
+    corrections: [
+      { id: 'rep-siepf-blois', si: { organisme: 'S.I.E.P.F. de Blois', service: 'Pôle enregistrement — envoi des déclarations de succession' }, champs: { organisme: 'SPFE de Blois', service: 'Service de la publicité foncière et de l’enregistrement — successions' } }
     ]
   }
 ];

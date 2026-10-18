@@ -20710,3 +20710,27 @@ gardé sur le dossier (`d.constitutionParcelles` = { ajoutees, retirees }, `choi
 à la réouverture par `groupesParcellesConstitution`, et `prefillPreemption` analyse les parcelles cochées de la commune du bien
 (`parcellesUrbanismeConstitution`) — la signature change, l'analyse automatique est refaite (2,5 s après le dernier geste) ; une analyse faite
 à la main dans l'outil n'est pas refaite seule, la section dit « refaites-la dans l'outil » (`zonageParcellesDepassees`).
+
+### 18/10/2026 — Constitution de dossier, pièces, successions, répertoire (0.283.0)
+
+Demandes de l'étude, en une liste : saut de ligne sous l'adresse et autour du tableau des parcelles (lu : une ligne vide avant et après le
+tableau, et sous le bloc des propriétaires — `documentCourrierVente`) ; page d'attente de « Imprimer tout » aux couleurs de CLAIRE
+(`htmlAttenteImpressionConstitution`, suit l'avancement) ; PDF : pictogrammes de la colonne « Nous contacter » comme le modèle Word (✆,
+enveloppe Wingdings, souris, repère — tracés vectoriels `PICTOGRAMMES_PDFA`, veraPDF 2U toujours conforme) et adresse sous le logo plus petite
+(8,5 pt) et descendue (le modèle est en Calibri Light) ; « le .docx sort aussi des PDF » : les deux formats pouvaient être allumés ensemble,
+c'est désormais PDF OU Word (le Word produit bien un .docx, vérifié) ; bouton Word encadré ; objet des emails « Demande - … » ; étape
+« Envoyer ou enregistrer » (avec « Envoyer les emails ») ; « Un seul email à la mairie » par commune (courriers cochés adressés à la mairie,
+un plan, texte premier jet de CLAIRE — `corpsEmailGroupeMairieConstitution`) ; adresse email de la mairie reprise de l'annuaire du service
+public ; emails sans « Ledit immeuble appartenant à … » (`pourEmail`) ; le courrier toujours joint en PDF (il ne l'était qu'avec le
+questionnaire) ; aperçu réaliste et modifiable (page A4 aux positions du PDF, pages coupées à l'écran, paragraphes et destinataire corrigés
+sur la page — `retouches` du courrier, appliquées par texte d'origine, Word, PDF et email compris ; « Revenir au texte du modèle »).
+Pièce « Non péril, non insalubrité » (`nonPeril`, maison et copropriété, reconnue par le nom et par Claire Scan). Successions : impôts au
+SPFE de Blois (adresse du répertoire, « 10 rue Louis Bodin » ; le message disait « Bobin »), répertoire corrigé par un lot
+(`corrections` de `LOTS_REPERTOIRE`, seulement si la valeur d'origine est encore là) ; CARSAT : notaires.premieredemande@carsat-centre.fr
+pour un défunt du 41 ou du 45. Répertoire : « Notaires » sous « Interlocuteurs », une recherche de deux lettres cherche dans tout le
+répertoire, notaires compris.
+Relecture du lot : un courrier rangé par CLAIRE dans « Constitution » cochait la pièce qu'il demande (« Péril… » → « Non péril »,
+« Assainissement » → réponse assainissement, défaut plus ancien) — le parcours du NAS ignore désormais ce sous-dossier pour les pièces, sauf
+le plan cadastral (`cheminCourrierEnvoyeNas`) ; « mise en sécurité » seule (piscine) n'est plus « Non péril » ; un dossier ouvert avant le
+18/10 dont la signature est déjà placée (ou archivé) ne réclame pas la nouvelle pièce (`migrerPieceNonPeril`, retirée une fois, historique) ;
+les pictogrammes et l'adresse sous le logo valent aussi pour le PDF/A du courrier d'appel de fonds (même en-tête).

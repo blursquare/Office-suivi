@@ -227,7 +227,7 @@ test('emailsContactConstitution : « Libellé : adresse » et adresses invalides
 });
 
 test('objetEmailConstitution : défunt et référence', () => {
-  assert.equal(app.objetEmailConstitution({ genre: 'succession' }, { referenceAuthentic: 'A 2026 00398' }, { civilite: 'Madame', prenoms: 'Alice', nom: 'FISCHER' }),
+  assert.equal(app.objetEmailConstitution({ genre: 'succession' }, { referenceAuthentic: 'A 2026 00398' }, { civilite: 'Madame', prenoms: 'Alice', nom: 'FISCHER' }).replace(/^Demande - /, ''),
     'Succession de Madame Alice FISCHER — Réf. A 2026 00398');
 });
 
@@ -283,4 +283,57 @@ test('parcelles changées dans la Constitution : gardées sur le dossier, repris
   // Tout remis comme avant : plus de choix gardé.
   relu[0].parcelles[0].actif = true;
   assert.equal(app.choixParcellesConstitution([{ cle: relu[0].cle, commune: 'BLOIS', parcelles: [relu[0].parcelles[0]] }]), null);
+});
+
+test('étude 18/10 : un seul email à la mairie — courriers cochés de la commune, texte et objet', () => {
+  const docs = [
+    { id: 'a', genre: 'vente', groupe: 'vineuil', destinataire: 'mairie', actif: true, mode: 'papier', modele: 'alignement', libelle: 'Alignement et numérotage' },
+    { id: 'b', genre: 'vente', groupe: 'vineuil', destinataire: 'mairie', actif: true, mode: 'courriel', modele: 'peril', libelle: 'Péril, mise en sécurité, insalubrité' },
+    { id: 'c', genre: 'vente', groupe: 'vineuil', destinataire: 'agglopolys', actif: true, mode: 'papier', modele: 'assainissement', libelle: 'Assainissement' },
+    { id: 'd', genre: 'vente', groupe: 'vineuil', destinataire: 'mairie', actif: false, mode: 'papier', modele: 'autre', libelle: 'X' },
+    { id: 'e', genre: 'vente', groupe: 'blois', destinataire: 'mairie', actif: true, mode: 'papier', modele: 'peril', libelle: 'Péril' }];
+  const choisis = app.courriersMairieGroupeConstitution(docs, 'vineuil');
+  assert.equal(choisis.map(x => x.id).join(','), 'a,b');
+  const g = { adresseImmeuble: 'VINEUIL (41350), 12 rue des Lilas', parcelles: [{ section: 'AB', numero: '12', actif: true }, { section: 'AB', numero: '13', actif: false }] };
+  const corps = app.corpsEmailGroupeMairieConstitution(choisis, g);
+  assert.match(corps, /situé à VINEUIL \(41350\), 12 rue des Lilas, cadastré AB 12, je vous serais/);
+  assert.match(corps, /- un certificat de numérotage et un certificat d’alignement,\n- votre réponse sur l’existence d’un arrêté de péril, de mise en sécurité ou d’insalubrité\./);
+  assert.match(corps, /ci-joint nos courriers et le plan cadastral/);
+  assert.doesNotMatch(corps, /AB 13/);
+  assert.equal(app.objetEmailGroupeMairieConstitution(choisis, g, { referenceAuthentic: 'A 2026 00123' }), 'Demande - Alignement / numérotage, Non-péril — VINEUIL (41350), 12 rue des Lilas — Réf. A 2026 00123');
+});
+
+test('étude 18/10 : un paragraphe corrigé sur l’aperçu suit le courrier, même si les lignes bougent', () => {
+  const fidele = { lignes: ['Madame, Monsieur,', '', 'Texte A', { type: 'tableau' }, 'Texte B'] };
+  const r = app.appliquerRetouchesConstitution(fidele, { 2: { de: 'Texte A', en: 'Texte A corrigé' }, 9: { de: 'Texte B', en: 'Texte B corrigé' }, 1: { de: 'absent', en: 'x' } });
+  assert.equal(r.lignes[2], 'Texte A corrigé');
+  assert.equal(r.lignes[4], 'Texte B corrigé', 'retrouvé par son texte d’origine');
+  assert.equal(r.lignes[1], '', 'un texte d’origine disparu ne change rien');
+  assert.equal(fidele.lignes[2], 'Texte A', 'le document d’origine n’est pas modifié');
+  assert.equal(app.appliquerRetouchesConstitution(fidele, undefined), fidele);
+});
+
+test('étude 18/10 : impôts au SPFE de Blois, quel que soit le domicile ; page d’attente sans adresse étrangère', () => {
+  const contacts = [{ id: 'rep-siepf-blois', theme: 'impots', organisme: 'SPFE de Blois', adresse: '10 rue Louis Bodin, 41000 BLOIS' },
+    { id: 'rep-cfp-lamotte', theme: 'impots', organisme: 'Centre des finances publiques de Lamotte-Beuvron', adresse: '41600 LAMOTTE-BEUVRON' }];
+  assert.equal(app.contactPreferePourDefuntConstitution('impots', contacts, { domicile: 'LAMOTTE-BEUVRON (41600), 1 rue X' }).id, 'rep-siepf-blois');
+  assert.equal(app.contactPreferePourDefuntConstitution('impots', [Object.assign({}, contacts[0], { organisme: 'S.I.E.P.F. de Blois', id: 'autre' })], { domicile: '' }).id, 'autre');
+  assert.equal(app.modeleCourrierSuccession('impots').destinataire.join('|'), 'SPFE DE BLOIS|10 rue Louis Bodin|41000 BLOIS');
+  const page = app.htmlAttenteImpressionConstitution('http://192.168.60.10:3000');
+  assert.match(page, /Préparation de l’impression/);
+  assert.match(page, /http:\/\/192\.168\.60\.10:3000\/icone\.svg/);
+  assert.doesNotMatch(app.htmlAttenteImpressionConstitution('javascript:alert(1)"'), /javascript|alert/);
+});
+
+test('relecture 0.283.0 : courriers envoyés jamais pris pour une pièce reçue ; retouches d’un texte répété ou vide', () => {
+  assert.equal(app.cheminCourrierEnvoyeNas('Constitution/Péril, mise en sécurité, insalubrité - BLOIS - VTE - X.pdf'), true);
+  assert.equal(app.cheminCourrierEnvoyeNas('AAE/Réponse péril.pdf'), false);
+  assert.equal(app.cheminCourrierEnvoyeNas('Constitution.pdf'), false, 'un fichier, pas un sous-dossier');
+  const fidele = { lignes: ['Madame, Monsieur,', 'Texte A', '', 'Madame, Monsieur,', 'Texte B'] };
+  // Le second « Madame, Monsieur, » (après « Texte A ») retrouvé par sa ligne précédente, même déplacé.
+  const deplace = { lignes: ['Intro', 'Madame, Monsieur,', 'Texte A', '', 'Madame, Monsieur,', 'Texte B'] };
+  const r = app.appliquerRetouchesConstitution(deplace, { 3: { de: 'Madame, Monsieur,', en: 'Messieurs,', avant: 'Texte A' } });
+  assert.equal(r.lignes.join('|'), 'Intro|Madame, Monsieur,|Texte A||Messieurs,|Texte B');
+  assert.equal(r.retouchesParLigne[4], 3);
+  assert.equal(app.appliquerRetouchesConstitution(fidele, { 2: { de: '', en: 'x' } }).lignes[2], '', 'jamais une retouche sans texte d’origine');
 });

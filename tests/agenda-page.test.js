@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
-const TOUS_RECUS = { diagnosticsTechniques: 'recue', erp: 'recue', titrePropriete: 'recue', certificatUrbanisme: 'recue', renonciationPreemption: 'recue', avisTaxeFonciere: 'recue', certificatAlignement: 'recue', certificatNumerotage: 'recue', reponseAssainissement: 'recue', planCadastral: 'recue' };
+const TOUS_RECUS = { diagnosticsTechniques: 'recue', erp: 'recue', titrePropriete: 'recue', certificatUrbanisme: 'recue', renonciationPreemption: 'recue', avisTaxeFonciere: 'recue', certificatAlignement: 'recue', certificatNumerotage: 'recue', reponseAssainissement: 'recue', planCadastral: 'recue', nonPeril: 'recue' };
 
 test('joursSemaineAgenda : lundi → samedi', () => {
   assert.equal(app.joursSemaineAgenda('2026-09-28').join(','), '2026-09-28,2026-09-29,2026-09-30,2026-10-01,2026-10-02,2026-10-03');

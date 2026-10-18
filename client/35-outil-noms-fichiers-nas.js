@@ -192,7 +192,7 @@
 
   // Pure : ce que les motifs fixes disent aujourd'hui des noms d'un groupe (sans les formes apprises).
   function pieceParCleNomsNas(cle) {
-    return [...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].find(p => p.cle === cle) || null;
+    return [...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].find(p => p.cle === cle) || null;
   }
   function reconnaissanceGroupeNomsNas(g) {
     const piece = g.cle === 'offrePret' ? null : pieceParCleNomsNas(g.cle);
@@ -285,7 +285,7 @@
   // Pièces dans l'ordre de la checklist, celles qui ont des groupes seulement.
   function clesNomsNasOrdonnees() {
     if (!nomsNas.groupes) return [];
-    const ordre = [...new Set([...PIECES_URBANISME, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].map(p => p.cle)), 'offrePret'];
+    const ordre = [...new Set([...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_COPROPRIETE, ...PIECES_AUTRES, ...PIECES_TERRAIN_AUTRES, ...PIECES_ENGAGEMENTS_AUTO].map(p => p.cle)), 'offrePret'];
     return ordre.filter(c => nomsNas.groupes[c] && nomsNas.groupes[c].length);
   }
   function groupesADeciderNomsNas(cle) {

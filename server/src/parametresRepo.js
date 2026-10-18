@@ -428,9 +428,20 @@ function creerRepoParametres(db) {
     if (!nouveaux.length) return { contacts, change: false };
     const ids = new Set(contacts.map((c) => c.id));
     const ajoutes = [];
+    let corriges = 0;
+    // Corrections d'un lot : appliquées seulement si le contact porte encore la valeur d'origine (`si`).
+    const corrigesListe = contacts.map((c) => {
+      let r = c;
+      for (const lot of nouveaux) for (const k of lot.corrections || []) {
+        if (k.id !== r.id || !Object.entries(k.si || {}).every(([ch, v]) => r[ch] === v)) continue;
+        r = { ...r, ...k.champs };
+        corriges++;
+      }
+      return r;
+    });
     for (const lot of nouveaux) for (const c of lot.contacts) if (!ids.has(c.id)) { ids.add(c.id); ajoutes.push({ source: lot.source, ...c }); }
     ecrireJsonBrut(CLE_REPERTOIRE_LOTS, [...appliques, ...nouveaux.map((l) => l.lot)]);
-    return { contacts: contacts.concat(ajoutes), change: ajoutes.length > 0 };
+    return { contacts: corrigesListe.concat(ajoutes), change: ajoutes.length > 0 || corriges > 0 };
   }
 
   function lireRepertoire() {

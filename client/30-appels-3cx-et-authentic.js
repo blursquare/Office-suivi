@@ -887,7 +887,7 @@
       else if (estDemande) {
         const sansDemande = titre.replace(/^\s*(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?|mail|e-?mail)\s*(?:de|d['’]|du|pour)?\s*/i, '');
         const nom = normaliserNomPourMotif(sansDemande + '.pdf');
-        const piece = PIECES_URBANISME.find(p => correspondancePieceNom(p, nom) === 'exact');
+        const piece = [...PIECES_URBANISME, PIECE_NON_PERIL].find(p => correspondancePieceNom(p, nom) === 'exact');
         if (piece) cle = piece.cle;
       }
       if (cle && !r[cle]) r[cle] = { date: dateEnvoiLigneAuthentic(l), titre: titre.slice(0, 90) };
@@ -2855,6 +2855,23 @@
     return change;
   }
 
+  // Pièce « Non péril, non insalubrité » (0.283.0) : un dossier ouvert avant elle dont le rendez-vous de signature est déjà placé (ou
+  // archivé) ne la réclame pas d'un coup (relecture 0.283.0 : « Prêt » repassait « Attente de pièces ») — retirée une fois, comme une
+  // pièce retirée à la main (elle se rajoute sur la fiche) ; les autres dossiers la demandent.
+  var DATE_PIECE_NON_PERIL = '2026-10-18';
+  function migrerPieceNonPeril(d) {
+    if (!d || d.nonPerilVu || estSuccession(d) || !['maison', 'copropriete', ''].includes(String(d.typeVente || ''))) return false;
+    d.nonPerilVu = true;
+    const ouvert = dateOuvertureDossier(d);
+    const ancien = !ouvert || ouvert < DATE_PIECE_NON_PERIL;
+    const recue = d.pieces && d.pieces.nonPeril === 'recue';
+    if (ancien && !recue && (d.archive || d.rendezVousSignature) && !(d.piecesRetirees || []).includes('nonPeril')) {
+      d.piecesRetirees = (d.piecesRetirees || []).concat('nonPeril');
+      ajouterHistorique(d, 'Pièce « Non péril, non insalubrité » non réclamée : rendez-vous de signature déjà placé (si elle est demandée quand même, l’ajouter en pièce sur la fiche)');
+    }
+    return true;
+  }
+
   async function retirerDatesAvantContratLuesNas() {
     for (const d of dossiers || []) {
       const date = retirerDateAvantContratLueNas(d);
@@ -2862,10 +2879,11 @@
       const notaires = nettoyerCommunesNotairesDossier(d);
       const importer = retirerImporterAuthentic(d);
       const dia = migrerPieceDiaCopropriete(d);
+      const nonPeril = migrerPieceNonPeril(d);
       const doublons = dedoublonnerPartiesDossier(d);
       const droits = realignerDroitsPreemption(d);
       droits.forEach(t => ajouterHistorique(d, t));
-      if (date || numero || notaires || importer || dia || doublons || droits.length) await sauvegarder(d);
+      if (date || numero || notaires || importer || dia || nonPeril || doublons || droits.length) await sauvegarder(d);
     }
   }
 
