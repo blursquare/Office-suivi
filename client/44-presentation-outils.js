@@ -66,7 +66,8 @@
     const e = document.getElementById(id);
     return e ? [...e.querySelectorAll('input[type="text"], input:not([type])')].filter(i => String(i.value || '').trim()).length : 0;
   }
-  function totalOutilAffiche(id) { const t = (document.getElementById(id) || {}).textContent || ''; return /\d/.test(t) && !/^0(,00)?\s*€?$/.test(t.trim()); }
+  // Un montant qui défile (client/86) se lit à sa valeur d'arrivée.
+  function totalOutilAffiche(id) { const el = document.getElementById(id) || {}; const t = (el.__animFinal != null ? el.__animFinal : el.textContent) || ''; return /\d/.test(t) && !/^0(,00)?\s*€?$/.test(t.trim()); }
 
   // Pure : l'étape où l'on se trouve, d'après la position verticale des titres de section (dans l'ordre des étapes) : le
   // titre passé au-dessus de la ligne de lecture le plus près d'elle — un titre d'une colonne voisine, remonté depuis
@@ -105,7 +106,8 @@
       const titre = panneau.querySelector(`.outil-section-tete[data-etape="${ev.detail && ev.detail.name}"]`);
       // L'étape cliquée reste allumée pendant le défilement qui y mène (sinon le suivi du défilement la reprendrait).
       etapeChoisieOutil = { outil, jusqua: Date.now() + 1200 };
-      if (titre) titre.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const reduit = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (titre) titre.scrollIntoView({ behavior: reduit ? 'auto' : 'smooth', block: 'start' });
     });
     // Toute saisie ou tout clic dans l'outil peut remplir une section : la barre suit (au plus une fois par image).
     let attente = false;
@@ -122,7 +124,14 @@
       const step = stepper.querySelector(`wa-step[name="${e.cle}"]`);
       let fait = false;
       try { fait = !!(e.fait && e.fait()); } catch (err) { fait = false; }
-      if (step && step.completed !== fait) step.completed = fait;
+      if (step && step.completed !== fait) {
+        step.completed = fait;
+        // Étude 18/10 : la pastille de l'étape terminée se coche d'un petit tracé (seulement quand elle se termine sous les yeux).
+        const coche = step.querySelector('.anim-etape-coche');
+        if (fait && !coche) step.insertAdjacentHTML('beforeend', `<span slot="icon" class="anim-etape-coche${step.dataset.vu ? ' anim-trace' : ''}" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" pathLength="1"/></svg></span>`);
+        else if (!fait && coche) coche.remove();
+      }
+      if (step) step.dataset.vu = '1';
     });
     const positions = etapes.map(e => {
       const titre = panneau.querySelector(`.outil-section-tete[data-etape="${e.cle}"]`);
@@ -196,13 +205,17 @@
     return typeof afPieces !== 'undefined' ? afPieces[cle] || null : null;
   }
 
+  // État d'avant de chaque tuile : une pièce qui vient d'être lue « se pose » dans sa case (étude 18/10).
+  var etatsTuilesAvant = {};
   function renderTuilesPieces(outil) {
     const zone = document.getElementById(outil + '-pieces-tuiles');
     if (!zone) return;
     zone.innerHTML = (TUILES_PIECES_OUTILS[outil] || []).map(t => {
       const e = etatTuilePiece(t.cle, pieceLueOutil(outil, t.cle));
       const ico = e.etat === 'lu' ? 'check' : e.etat === 'erreur' ? 'alert-triangle' : 'file-text';
-      return `<label for="${t.champ}" class="piece-tuile piece-${e.etat}" data-piece="${t.cle}" title="${e.etat === 'vide' ? 'Choisir' : 'Remplacer'} : ${escapeAttr(t.titre)}">
+      const pose = e.etat === 'lu' && etatsTuilesAvant[outil + ':' + t.cle] !== undefined && etatsTuilesAvant[outil + ':' + t.cle] !== e.texte;
+      etatsTuilesAvant[outil + ':' + t.cle] = e.etat === 'lu' ? e.texte : '';
+      return `<label for="${t.champ}" class="piece-tuile piece-${e.etat}${pose ? ' anim-pose' : ''}" data-piece="${t.cle}" title="${e.etat === 'vide' ? 'Choisir' : 'Remplacer'} : ${escapeAttr(t.titre)}">
         <span class="piece-tuile-icone" aria-hidden="true">${icone(ico)}</span>
         <span class="piece-tuile-texte"><span class="piece-tuile-titre">${escapeHtml(t.titre)}</span><span class="piece-tuile-etat">${escapeHtml(e.texte)}</span></span>
       </label>`;

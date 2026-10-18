@@ -1081,6 +1081,8 @@
   function afficherToast(message, texteBouton, onUndo, options) {
     const toast = document.getElementById('toast');
     if (!toast) return;
+    // Étude 18/10 : « Enregistrer » qui passe à « Enregistré » avec une coche, plutôt qu'un message qui apparaît puis disparaît (client/86).
+    if (!(options && options.fixe) && typeof confirmerSurBoutonEnregistrer === 'function' && confirmerSurBoutonEnregistrer(message, texteBouton, onUndo)) return;
     const fixe = !!(options && options.fixe);
     if (fixe) toastFixe = { message, texteBouton, onUndo, cle: options.cle || '' };
     clearTimeout(toastMasquageTimeout);

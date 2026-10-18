@@ -9940,3 +9940,83 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 @media (max-width: 900px) {
   .asst-page.colonne-ouverte { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ==== Animations qui aident à comprendre (étude 18/10, client/86-animations.js) ====
+   150 à 250 ms, courbe douce, jamais d'attente avant la réaction à un clic ; seulement l'opacité, la position (transform) ou la couleur,
+   jamais la taille de la mise en page. « Réduire les animations » : aucun mouvement, seule la couleur change (bloc en fin de section). */
+:root { --anim-duree: 200ms; --anim-courbe: cubic-bezier(0.2, 0, 0, 1); }
+
+/* 1. Montants qui défilent : chiffres alignés, la ligne modifiée s'éclaire un instant. */
+#calc-emol, #calc-tre, #calc-total, #calc-total2, #prorata-part-acquereur, #prorata-part-vendeur, #qt-total-operation, #qt-total-financement,
+[id^="qt-source-total-"], .qt-quotite-montant, #inv-verdict-montant, #inv-l-droits-sans, #inv-l-droits-avec, #inv-l-brutes, #inv-l-cout, #inv-l-net { font-variant-numeric: tabular-nums; }
+.anim-eclaire { animation: anim-eclaire 900ms var(--anim-courbe); }
+@keyframes anim-eclaire { 0%, 25% { background-color: color-mix(in srgb, var(--focus) 12%, transparent); } 100% { background-color: transparent; } }
+
+/* 2. Courrier en direct : le passage qui vient de changer est surligné quelques secondes. */
+.anim-surligne { animation: anim-surligne 2600ms ease-out; border-radius: var(--rayon-xs); }
+@keyframes anim-surligne { 0%, 40% { background-color: color-mix(in srgb, var(--pret) 30%, transparent); } 100% { background-color: transparent; } }
+
+/* 3. Étapes : la pastille terminée se coche d'un petit tracé, la barre jusqu'à l'étape suivante se remplit. */
+.anim-etape-coche { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+.anim-etape-coche svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.anim-etape-coche.anim-trace path { stroke-dasharray: 1; animation: anim-trace 250ms var(--anim-courbe) both; }
+@keyframes anim-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+wa-stepper.outil-sommaire wa-step::part(connector) { background-image: linear-gradient(var(--focus), var(--focus)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size 250ms var(--anim-courbe); }
+wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size: 100% 100%; }
+
+/* 4. Tâche cochée dans « Aujourd'hui » : le cercle se remplit, la ligne se barre d'un trait, le compteur change en glissant. */
+.ja.fait.vient-de-finir .ja-coche { animation: anim-remplit 220ms var(--anim-courbe); }
+@keyframes anim-remplit { from { transform: scale(0.4); opacity: 0.4; } to { transform: none; opacity: 1; } }
+.ja.fait.vient-de-finir .ja-titre { text-decoration: none; background: linear-gradient(var(--muted), var(--muted)) no-repeat 0 55% / 100% 1px; animation: anim-barre 250ms var(--anim-courbe) both; }
+@keyframes anim-barre { from { background-size: 0% 1px; } to { background-size: 100% 1px; } }
+.jour-anneau.vient-de-compter .jour-anneau-plein { animation: anim-anneau 250ms var(--anim-courbe); }
+@keyframes anim-anneau { from { stroke-dashoffset: var(--anneau-avant); } }
+.jour-anneau.vient-de-compter:not(.fini) .jour-anneau-texte { animation: anim-compteur 200ms var(--anim-courbe); }
+@keyframes anim-compteur { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* 5. « Enregistré » avec une coche sur le bouton, à la place du message. */
+.anim-enregistre { display: inline-flex; align-items: center; gap: 6px; animation: anim-apparait 180ms var(--anim-courbe); }
+.anim-enregistre .icone { width: 14px; height: 14px; }
+@keyframes anim-apparait { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+
+/* 6. Changement d'écran : un léger fondu (opacité seule : une transformation gênerait les barres collées). */
+.app-main > .onglet-panel, .reglages-panneau:not([hidden]), .app-main > .drawer-overlay .drawer-panneau { animation: anim-fondu 180ms var(--anim-courbe); }
+@keyframes anim-fondu { from { opacity: 0; } to { opacity: 1; } }
+
+/* 7. Tableau de bord : cartes en cascade au démarrage, squelette gris tant que leurs données n'ont pas répondu. */
+body.anim-demarrage .widgets-grille > .widget { animation: anim-apparait 220ms var(--anim-courbe) both; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(2) { animation-delay: 30ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(3) { animation-delay: 60ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(4) { animation-delay: 90ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(5) { animation-delay: 120ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(6) { animation-delay: 150ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(7) { animation-delay: 180ms; }
+body.anim-demarrage .widgets-grille > .widget:nth-child(n+8) { animation-delay: 210ms; }
+body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none"]) {
+  min-height: 72px; border-radius: var(--rayon-m);
+  background: linear-gradient(90deg, var(--paper-sunk) 0%, color-mix(in srgb, var(--paper-sunk) 40%, var(--paper-card)) 50%, var(--paper-sunk) 100%) 0 0 / 200% 100%;
+  animation: anim-squelette 1200ms linear infinite;
+}
+@keyframes anim-squelette { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+/* 8. Tiroir des outils : les liens arrivent du haut en glissant (aucune hauteur animée). */
+.sidebar-sousmenu:not(.ferme) > * { animation: anim-glisse 200ms var(--anim-courbe) backwards; }
+@keyframes anim-glisse { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+/* 9. Dépôt d'un PDF : la zone se met en relief au survol, la pièce lue « se pose » dans sa case. */
+.pieces-depot, .pdf-dropzone { transition: box-shadow var(--anim-duree) var(--anim-courbe), transform var(--anim-duree) var(--anim-courbe), background-color var(--anim-duree) var(--anim-courbe); }
+.pieces-depot.survol, .pdf-dropzone.dragover { box-shadow: var(--shadow-float); transform: translateY(-2px); }
+.piece-tuile.anim-pose .piece-tuile-etat { animation: anim-pose 250ms var(--anim-courbe) backwards; }
+.piece-tuile.anim-pose .piece-tuile-icone { animation: anim-remplit 220ms var(--anim-courbe); }
+@keyframes anim-pose { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-etape-coche.anim-trace path, .ja.fait.vient-de-finir .ja-coche, .ja.fait.vient-de-finir .ja-titre, .jour-anneau.vient-de-compter .jour-anneau-plein,
+  .jour-anneau.vient-de-compter .jour-anneau-texte, .anim-enregistre, .app-main > .onglet-panel, .reglages-panneau:not([hidden]),
+  .app-main > .drawer-overlay .drawer-panneau, body.anim-demarrage .widgets-grille > .widget, .sidebar-sousmenu:not(.ferme) > *,
+  .piece-tuile.anim-pose .piece-tuile-etat, .piece-tuile.anim-pose .piece-tuile-icone, body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none"]) { animation: none; }
+  .ja.fait.vient-de-finir .ja-titre { text-decoration: line-through; text-decoration-color: var(--line); background: none; }
+  wa-stepper.outil-sommaire wa-step::part(connector) { transition: none; }
+  .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }
+  .pieces-depot, .pdf-dropzone { transition: background-color var(--anim-duree); }
+}

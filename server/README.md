@@ -546,6 +546,17 @@ d'abord là.
 
 ## Relecture d'actes par un modèle hébergé (Mistral par défaut, Claude en option)
 
+> **État au 18/10/2026.** L'écran « Relecture d'actes » décrit ci-dessous est **retiré** (0.284.0) : la relecture se demande à
+> « Demander à CLAIRE », qui passe **par défaut par l'API Claude (agent activé)**, sinon par Mistral (`api.eu.mistral.ai` par
+> défaut, `api.mistral.ai` si la région « globale » est choisie). Ce qui part chez le fournisseur : la phrase, la date et le prénom
+> du collaborateur, les consignes CLAIRE.md, et les résultats des outils de l'agent (fiches, agenda sans titre ni lieu, texte des
+> documents lus, contrôles de relecture, Légifrance/BOFiP/RNE…), **pseudonymisés par le serveur** — noms, emails, téléphones,
+> IBAN, références et mots des fiches remplacés par des codes `[NOM1]`…, table gardée sur le serveur. Masquage par règles, avec ses
+> limites (nom inconnu des fiches écrit en minuscules, noms lus seulement dans Authentic…) ; montants, dates, statuts et pièces
+> partent en clair (choix de l'étude) — seuls les montants sont masqués dans l'échange libre et retirés des recherches juridiques.
+> Les paragraphes suivants (pseudonymisation dans le navigateur, étape 2 de l'écran) décrivent l'ancien outil. Le détail à jour :
+> CLAUDE.md, contrainte n° 1.
+
 L'écran **Relecture d'actes** fait relire un projet d'avant-contrat ou un projet d'acte de vente
 point par point par un modèle d'IA hébergé, sur une grille d'environ 45 points (parties, bien,
 diagnostics, copropriété — y compris plusieurs copropriétés dans un même acte —, délais et clauses,
@@ -559,7 +570,7 @@ identiques pour les deux (`relecture/claude.js`) ; seul l'appel change (`relectu
 simple `fetch`, sans dépendance). Les chemins d'API gardent leur nom historique
 `/api/relecture-claude/…` ; c'est le réglage `fournisseur` qui décide.
 
-**Ce qui part chez le fournisseur, et ce qui n'y part jamais.** Les noms, adresses, dates et lieux
+**Ce qui partait chez le fournisseur avec l'ancien écran (retiré en 0.284.0).** Les noms, adresses, dates et lieux
 de naissance, emails, téléphones, IBAN, numéros de sécurité sociale, références cadastrales et
 sociétés sont remplacés par des jetons (`⟦PERSONNE_1⟧`…) **dans le navigateur**, avant tout envoi.
 La correspondance jeton → valeur reste sur le poste ; le serveur ne la reçoit jamais. L'étape 2 de
@@ -568,7 +579,7 @@ laisser en clair une valeur masquée à tort. Les noms de fichiers ne sont pas e
 (« Document 1 », « Annexe 2 »…). Cadre retenu : guide IEJ/CSN sur l'intelligence artificielle
 (secret professionnel, vérification humaine de chaque sortie, archivage des requêtes).
 
-**À demander à Mistral, par écrit, avant l'usage réel** : la **rétention zéro** (ZDR, sur demande
+**À demander à Mistral et à Anthropic, par écrit, avant l'usage réel** : la **rétention zéro** (ZDR, sur demande
 au support pour une offre payante ; elle couvre `/v1/chat/completions`, et apparaît ensuite dans
 Admin → API → Privacy), la confirmation de l'**absence d'entraînement** sur vos données (réglage
 séparé de la ZDR) et l'accord de sous-traitance RGPD.

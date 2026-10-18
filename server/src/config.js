@@ -156,9 +156,10 @@ const config = {
   // plutôt que configurables via .env pour la V1 : pas de besoin exprimé de les ajuster, une
   // valeur de plus à documenter/oublier pour rien.
   intervalleRappelsMs: 30 * 60 * 1000,
-  // IA locale (extraction du wizard, confirmation d’une offre de prêt — voir CLAUDE.md) : Ollama tourne EN
-  // LOCAL sur ce même serveur (jamais un service cloud — confidentialité des actes notariés), sur
-  // son port par défaut. Modèle par défaut choisi pour tourner raisonnablement sur un CPU de
+  // IA locale (premier jet et résumé d'email, confirmation d’une offre de prêt — voir CLAUDE.md) : Ollama tourne EN
+  // LOCAL sur ce même serveur, sur son port par défaut ; ce réglage ne concerne que lui. Les IA EN LIGNE (Claude, Mistral)
+  // de « Demander à CLAIRE » se règlent dans Réglages › IA et relecture d'actes et reçoivent des textes pseudonymisés par
+  // le serveur — voir CLAUDE.md, contrainte n° 1, « Ce qui part vers une IA en ligne ». Modèle par défaut choisi pour tourner raisonnablement sur un CPU de
   // bureau sans GPU dédié (8B paramètres, quantifié par défaut par Ollama) — voir server/README.md
   // pour l'installation et le choix éventuel d'un autre modèle. Les deux restent modifiables sans
   // toucher au code, comme le reste de la configuration de ce fichier.

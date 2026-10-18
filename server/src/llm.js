@@ -1,8 +1,14 @@
 'use strict';
 
 // Client HTTP minimal vers Ollama (https://ollama.com), qui tourne EN LOCAL sur le serveur de
-// l'étude — jamais un appel réseau externe (voir CLAUDE.md, décision "rester en local"/
-// confidentialité notariale : le texte d'un compromis/d'une promesse ne quitte jamais le LAN).
+// l'étude : CE client n'appelle jamais un service externe. Il sert l'IA locale (premier jet d'email,
+// résumé d'email, confirmation d'une offre de prêt, phrase ambiguë sans clé en ligne).
+// ATTENTION — ce n'est plus la seule IA de CLAIRE (mise au point du 18/10) : « Demander à CLAIRE »
+// passe par défaut par l'API Claude (agent activé), ou par Mistral (serveur européen) — textes
+// pseudonymisés par le SERVEUR (assistantMistral.masquer, assistantAgent.masquerValeur) avant
+// l'envoi, table des codes gardée sur le serveur. Masquage par règles : un nom absent des fiches
+// et écrit en minuscules peut passer ; montants et dates partent en clair (seuls les montants sont
+// masqués dans l'échange libre). Le détail : CLAUDE.md, contrainte n° 1, « Ce qui part vers une IA en ligne ».
 // Ollama expose une API HTTP simple sur localhost:11434 une fois installé et un modèle téléchargé
 // (`ollama pull <modele>`) — voir server/README.md pour l'installation, jamais automatisée ici
 // (nécessite de télécharger plusieurs Go, impossible depuis cet environnement de développement).

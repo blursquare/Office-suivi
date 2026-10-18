@@ -121,10 +121,28 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
 
 ## Contraintes fondamentales
 
-1. **Tout reste sur le réseau du bureau.** Pas d'hébergement en ligne. Exceptions voulues et
-   cadrées par l'étude : l'API de relecture d'actes (Mistral par défaut, Claude en option), qui ne
-   reçoit que du texte **pseudonymisé dans le navigateur** (la table de correspondance ne quitte
-   jamais le poste) ; l'autocomplétion d'adresse `api-adresse.data.gouv.fr` (seul le texte tapé part) ;
+1. **Tout reste sur le réseau du bureau.** Pas d'hébergement en ligne. **Ce qui part vers une IA en ligne** (mise au point de
+   l'étude, 18/10 — les commentaires « l'IA tourne en local, le texte des actes ne quitte jamais le réseau » ne valent plus que
+   pour Ollama) : « Demander à CLAIRE » passe **par défaut par l'API Claude, agent activé**, ou par Mistral (`api.eu.mistral.ai`
+   par défaut ; le réglage de région peut l'envoyer vers `api.mistral.ai`). Partent : la phrase ; l'en-tête de la conversation (date
+   du jour, prénom du collaborateur) ; les consignes `CLAIRE.md` ; les échanges du poste renvoyés à la reprise d'une conversation ;
+   et pour l'agent les **résultats de ses outils** — fiches, « À faire », agenda (nature, date, heures, catégories, dossier reconnu ;
+   jamais le titre ni le lieu), texte des documents lus (OCR compris), extraits de la mémoire, contrôles de relecture, conversations
+   passées, résultats OpenLegi/RNE. **Pseudonymisés par le serveur** (`masquer` / `masquerValeur` : emails, téléphones, IBAN,
+   SIREN/SIRET, références, longs numéros, mots des fiches — quelle que soit leur casse —, mots après une civilité, mots en
+   capitales hors sigles, mots à majuscule hors tête de phrase ; codes `[NOM1]`… rétablis au retour, table gardée sur le serveur,
+   jamais journalisée) ; masquage **plus léger** (`masquerCarnet` : sans les capitales ni les majuscules, longs nombres gardés pour
+   Légifrance/BOFiP) pour les consignes `CLAIRE.md` et les résultats Légifrance/BOFiP. **Limites à connaître** (règles, pas
+   compréhension) : passent en clair un nom absent des fiches écrit en minuscules, ou en tête de phrase d'un texte court ; un nom
+   lu seulement dans Authentic (comparants, fiches clients, défunt hors `d.parties`) n'est pas dans la liste des mots des fiches ;
+   une partie ou une rue qui porte un mot du métier retiré de cette liste (prêt, fonds, projet, signature…) ; les prénoms des
+   collaborateurs ; **montants, dates, statuts et pièces partent en clair** (choix de l'étude) — seuls les montants sont masqués
+   dans l'échange libre (`masquerMontants`) et retirés des recherches Légifrance/BOFiP (`argumentsDroitSansMontants`) ; la recherche
+   web part sur des sites officiels avec la requête écrite par l'IA. Aucun accord de sous-traitance ni rétention zéro n'est encore
+   attesté dans le dépôt pour Anthropic ou Mistral (à demander, voir « Ce qui reste ouvert ») ; le registre des traitements RGPD
+   de l'étude n'est pas dans le dépôt. Exceptions voulues et cadrées par l'étude :
+   la relecture d'actes, désormais faite par l'agent (0.284.0 : texte lu sur le poste puis **masqué par le serveur** comme tout
+   résultat d'outil — l'ancienne pseudonymisation dans le navigateur, avec table sur le poste, est retirée avec l'outil) ; l'autocomplétion d'adresse `api-adresse.data.gouv.fr` (seul le texte tapé part) ;
    **CU et DIA sur les guichets uniques** (étude 16/10, `extension-chrome/`) : la fiche d'un dossier (`server/src/gnau.js`) part du serveur vers l'extension du poste,
    puis dans le guichet de la commune, saisie dans la session du notaire, qui relit et valide lui-même (liste noire des boutons Valider/Envoyer/Signer… en dur,
    listes cachées du guichet jamais écrites, ancien CERFA « DI… » refusé) ; « Copier la structure de la page » ne relève que noms, identifiants, libellés et options,
@@ -965,6 +983,10 @@ sont plus appelées par le poste.
 - **Garder l'interface cohérente** : jetons CSS existants (`--focus` = accent du thème choisi,
   couleurs de catégorie fixes), icônes SVG du jeu `ICONES`, composant `.dot-label` pour les statuts,
   pas d'emoji comme icône, pas de couleur inventée. Mode clair et sombre, largeur téléphone.
+  **Animations** (étude 18/10, `client/86-animations.js` + bloc « Animations » de style.css) : seulement pour dire ce qui vient de se passer ; 150 à 250 ms,
+  courbe douce, aucune attente avant la réaction à un clic ; opacité, position (transform) ou couleur, **jamais la taille de la mise en page** ; tout mouvement
+  a son arrêt dans le bloc `prefers-reduced-motion` (couleur seule ; testé par `tests/animations.test.js`) ; un montant animé finit sur le texte exact de
+  l'outil, chiffres alignés. Un nouvel écran de calcul ajoute ses montants à `SELECTEUR_MONTANTS`, un nouvel aperçu de courrier son id à `APERCUS_COURRIER`.
   **Échelle commune** (étude 04/10 : « il faut une uniformité de l'interface ») : toute taille de texte = `var(--texte-…)`
   (micro 8 réservé aux badges collés à un libellé, xxs 10, xs 11, s 12, m 13, base 14, l 16, xl 18, 2xl 20, 3xl 24, 4xl 28,
   5xl 32, 6xl 40), tout arrondi = `var(--rayon-…)` (xs 4, s 6, m 10 boutons/champs/blocs intérieurs, carte 16 cartes et
@@ -1161,6 +1183,12 @@ sont plus appelées par le poste.
   — à juger par l'étude sur des actes déjà relus, avec le mode commentaires. Avant l'usage réel,
   demander à Mistral : rétention zéro, absence d'entraînement, accord de sous-traitance. Connecteur
   openlegi : construit le 18/10 (0.281.0), voir contrainte 1.
+- **RGPD — IA en ligne** (point de l'étude, 18/10) : « Demander à CLAIRE » envoie par défaut des textes pseudonymisés à
+  Anthropic (Claude), sinon à Mistral, plus la recherche web et OpenLegi. À faire par l'étude, hors du code : inscrire ces
+  traitements au registre (finalité, données envoyées après masquage — montants et dates en clair —, sous-traitants, pays,
+  durée de conservation chez eux), obtenir l'accord de sous-traitance (DPA) et la rétention zéro de chaque fournisseur, et
+  décider si le masquage par règles suffit (un nom inconnu des fiches écrit en minuscules passe). Le dépôt ne contient aucun
+  registre ; `server/README.md` (« Ce qui part chez le fournisseur ») décrit ce que le code envoie.
 - **Confirmé au bureau le 30/09** : la connexion EWS au calendrier partagé de Sophie fonctionne en
   lecture et en écriture (« la connexion et modification fonctionne pour l'agenda partagé ») ; au soir,
   testés par l'étude et déclarés fonctionnels : l'agenda, Claire Scan, les brouillons d'email (`.eml`

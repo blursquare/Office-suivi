@@ -64,9 +64,11 @@
   // Aux couleurs de CLAIRE, thème noir (étude 17/10), clair ou sombre selon Chrome.
   const CSS = `
     :host{all:initial}
-    .frame{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 4px var(--c,#262626);transition:box-shadow .3s}
+    .frame{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 0 3px var(--c,#6D2332),inset 0 0 28px 6px color-mix(in srgb,var(--c,#6D2332) 45%,transparent);transition:box-shadow .3s}
+    .frame.pilote{animation:respire 2.4s ease-in-out infinite}
+    @keyframes respire{0%,100%{opacity:.55}50%{opacity:1}}
     .blocker{position:fixed;inset:0;pointer-events:auto;background:transparent;cursor:progress}
-    .cursor{position:fixed;left:0;top:0;width:24px;height:24px;pointer-events:none;transform:translate(24px,90px);filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+    .cursor{position:fixed;left:0;top:0;width:26px;height:26px;margin:-3px 0 0 -3px;pointer-events:none;transform:translate(24px,90px);filter:drop-shadow(0 2px 4px rgba(0,0,0,.35))}
     .banner{position:fixed;top:12px;left:50%;transform:translateX(-50%);pointer-events:auto;display:flex;gap:10px;align-items:center;
       background:#16233C;color:#fff;padding:8px 8px 8px 16px;border-radius:16px;font:13px/1.3 system-ui,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.3);max-width:90vw}
     .banner .corps{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -77,15 +79,17 @@
     .banner .prog i{display:block;height:100%;width:0;background:#D4D4D4;transition:width .3s}
     .banner button{font:inherit;border:0;border-radius:10px;padding:6px 12px;cursor:pointer;background:#fff;color:#16233C}
     .banner button.stop{background:#B83A45;color:#fff}
-    .ripple{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid var(--c,#262626);pointer-events:none;animation:rip .5s ease-out forwards}
+    .ripple{position:fixed;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid var(--c,#6D2332);pointer-events:none;animation:rip .5s ease-out forwards}
     @keyframes rip{from{transform:scale(.3);opacity:1}to{transform:scale(1.8);opacity:0}}
+    @media (prefers-reduced-motion: reduce){.frame.pilote{animation:none;opacity:1}.ripple{display:none}}
     @media (prefers-color-scheme: dark){
       .banner{background:#1B1E23;color:#EDEEF0;box-shadow:0 4px 16px rgba(0,0,0,.6),0 0 0 1px #2F343C}
       .banner button{background:#EDEEF0;color:#14161A}
     }
   `;
 
-  const COLORS = { running: "#262626", paused: "#DB8556", attention: "#2F8F5B", error: "#B83A45" };
+  // Étude 18/10 : « quand elle prend la main, la même animation sur le bord de l'écran et le même curseur que Claude, au bordeaux de CLAIRE ».
+  const COLORS = { running: "#6D2332", paused: "#DB8556", attention: "#2F8F5B", error: "#B83A45" };
 
   function buildOverlay() {
     if (host) return;
@@ -95,7 +99,7 @@
     root.innerHTML = `<style>${CSS}</style>
       <div class="frame"></div>
       <div class="blocker" hidden></div>
-      <svg class="cursor" viewBox="0 0 24 24"><path d="M3 2l7 19 2.8-7.7L21 10.5z" fill="#fff" stroke="#1b2a4a" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <svg class="cursor" viewBox="0 0 24 24"><path d="M3 2l7 19 2.8-7.7L21 10.5z" fill="#6D2332" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg>
       <div class="banner"><span class="corps"><span class="txt"></span><span class="etape"></span><span class="prog" hidden><i></i></span></span><span class="btns"></span></div>`;
     cursorEl = root.querySelector(".cursor");
     root.addEventListener("click", (e) => {
@@ -109,7 +113,10 @@
 
   function setBanner(text, mode) {
     buildOverlay();
-    root.querySelector(".frame").style.setProperty("--c", COLORS[mode] || COLORS.running);
+    const cadre = root.querySelector(".frame");
+    cadre.style.setProperty("--c", COLORS[mode] || COLORS.running);
+    cadre.classList.toggle("pilote", mode === "running"); // le bord « respire » seulement pendant que CLAIRE a la main
+    if (cursorEl) cursorEl.style.display = mode === "running" || mode === "paused" ? "" : "none";
     root.querySelector(".txt").textContent = text;
     const btns = root.querySelector(".btns");
     btns.innerHTML =
@@ -155,17 +162,35 @@
     if (!el || !el.isConnected) return false;
     el.scrollIntoView({ block: "center", inline: "center" });
     await wait(150);
-    const r = el.getBoundingClientRect();
-    const x = r.left + Math.min(r.width / 2, Math.max(4, r.width - 4)), y = r.top + r.height / 2;
+    let r = el.getBoundingClientRect();
+    let x = r.left + Math.min(r.width / 2, Math.max(4, r.width - 4)), y = r.top + r.height / 2;
+    await pointerVers(x, y);
+    // La page a pu bouger pendant le glissement (ou une pause) : le point du clic est relu, le curseur recalé sans attente.
+    r = el.getBoundingClientRect();
+    const nx = r.left + Math.min(r.width / 2, Math.max(4, r.width - 4)), ny = r.top + r.height / 2;
+    if (Math.abs(nx - x) > 3 || Math.abs(ny - y) > 3) { x = nx; y = ny; await pointerVers(x, y, true); }
     const ok = await sansVoile(async () => {
       const dessus = document.elementFromPoint(x, y);
       // Ce qui est sous le pointeur doit être l'élément visé (ou dedans, ou son libellé) : jamais un clic sur autre chose.
       if (!dessus || !(dessus === el || el.contains(dessus) || dessus.contains(el) || (el.labels && [...el.labels].some((l) => l.contains(dessus))))) return false;
       const res = await send({ type: "content.vraiClic", x, y });
+      if (res && res.ok && root) ripple(x, y);
       return !!(res && res.ok);
     });
     if (!ok) clicSimule(el, x, y);
     return true;
+  }
+  // Le curseur de CLAIRE glisse jusqu'au point du vrai clic (comme celui de Claude quand il prend la main).
+  // Déjà tout près (l'appelant l'a amené par moveTo) ou recalage : pas d'attente, le parcours ne s'allonge pas.
+  let pointeur = { x: 24, y: 90 };
+  async function pointerVers(x, y, sec) {
+    if (!cursorEl) return;
+    const reduit = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const proche = Math.hypot(x - pointeur.x, y - pointeur.y) < 80;
+    cursorEl.style.transition = reduit || sec ? "none" : `transform ${proche ? 150 : 380}ms cubic-bezier(.22,.61,.36,1)`;
+    cursorEl.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
+    pointeur = { x, y };
+    if (!reduit && !sec) await wait(proche ? 150 : 400);
   }
   // Repli : la séquence d'un clic (appui, focus, relâchement, clic), pour les éléments qui réagissent à l'appui de la souris.
   function clicSimule(el, x, y) {
@@ -237,11 +262,16 @@
     const y = Math.round(r.top + r.height / 2);
     cursorEl.style.transition = `transform ${sp.move}ms cubic-bezier(.22,.61,.36,1)`;
     cursorEl.style.transform = `translate(${x}px,${y}px)`;
+    pointeur = { x, y };
     await wait(sp.move + 40);
     return { x, y };
   }
 
+  let derniereOnde = { x: -999, y: -999, t: 0 };
   function ripple(x, y) {
+    // Une seule onde par geste (l'appelant en pose parfois une juste avant le vrai clic).
+    if (Date.now() - derniereOnde.t < 1500 && Math.hypot(x - derniereOnde.x, y - derniereOnde.y) < 60) return;
+    derniereOnde = { x, y, t: Date.now() };
     const d = document.createElement("div");
     d.className = "ripple";
     d.style.left = x + "px";
@@ -253,7 +283,7 @@
   function mark(el, on) {
     if (on) {
       el.__claireOutline = el.style.outline;
-      el.style.outline = "3px solid #2f6fed";
+      el.style.outline = "3px solid #6D2332";
       el.style.outlineOffset = "2px";
     } else {
       el.style.outline = el.__claireOutline || "";

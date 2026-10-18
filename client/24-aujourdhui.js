@@ -1006,13 +1006,20 @@
   }
 
   // Anneau de progression : se remplit en vert à chaque action traitée, coche au centre à la fin.
+  var dernierAnneauJour = null;
   function renderAnneauJour(reste, faits) {
     const total = reste + faits;
     const r = 21, c = 2 * Math.PI * r;
     const part = total ? faits / total : 1;
     const fini = total > 0 && reste === 0;
+    // Étude 18/10 : le compteur passe de 0/2 à 1/2 en s'animant, l'anneau part de sa valeur d'avant (--anneau-avant) — celle du dernier
+    // rendu, et seulement si la part faite a avancé (une tâche reportée ou un redessin ne rejoue rien).
+    const offset = c * (1 - part);
+    const avant = dernierAnneauJour;
+    dernierAnneauJour = offset;
+    const vient = avant !== null && avant - offset > 0.05 && vientDEtreTraitee(derniereCleTraiteeJour);
     return `
-      <span class="jour-anneau${fini ? ' fini' : ''}${fini && vientDEtreTraitee(derniereCleTraiteeJour) ? ' vient-de-finir' : ''}" role="img" aria-label="${faits} sur ${total} traitée${faits > 1 ? 's' : ''}">
+      <span class="jour-anneau${fini ? ' fini' : ''}${fini && vient ? ' vient-de-finir' : ''}${vient ? ' vient-de-compter' : ''}" style="--anneau-avant:${(avant === null ? offset : avant).toFixed(1)}" role="img" aria-label="${faits} sur ${total} traitée${faits > 1 ? 's' : ''}">
         <svg viewBox="0 0 50 50" width="50" height="50" aria-hidden="true">
           <circle cx="25" cy="25" r="${r}" class="jour-anneau-fond"/>
           <circle cx="25" cy="25" r="${r}" class="jour-anneau-plein" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - part)).toFixed(1)}" transform="rotate(-90 25 25)"/>

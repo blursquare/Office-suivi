@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.285.2';
+  const VERSION_APP = '0.286.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.286.0', date: '2026-10-18 17:11', resume: "Animations qui aident à comprendre : les montants des calculs défilent et leur ligne s'éclaire (provision, prorata, quotités, arbitrage) ; le passage du courrier modifié est surligné quand un champ change à gauche ; les étapes se cochent d'un trait ; une tâche cochée se barre et le compteur glisse ; « Enregistrer » devient « Enregistré » avec une coche ; fondu entre les écrans ; cartes du tableau de bord en cascade au démarrage ; tiroir des outils qui glisse ; zone de dépôt en relief et pièce lue qui se pose. Extension Chrome : quand elle prend la main, bord de l'écran lumineux qui respire et curseur au bordeaux de CLAIRE, qui glisse jusqu'à chaque clic. Tout est coupé quand le système demande de réduire les animations." },
     { version: '0.285.2', date: '2026-10-18 16:55', resume: "Suivi : la recherche et deux filtres (responsable, échéance) restent visibles, le reste (offre de prêt, rôle, tri, archivés, statuts) passe dans « Plus de filtres », qui compte les filtres cachés actifs. Quotités : « Télécharger l'annexe » grisé tant qu'aucun financement n'est saisi. Vérifications de terrain : filtres par domaine (Authentic, 3CX, Exchange, NAS, IA…)." },
     { version: '0.285.1', date: '2026-10-18 15:38', resume: "Corrections du test sur Chrome : l'agenda et le prorata suivent le jour (une page ouverte la veille gardait la date de la veille) ; provision : libellé du total corrigé et détail de la ligne Trésor (DMTO, CSI, TVA, arrondi du barème) ; appel de fonds : « sans prêt » et « prêt hypothécaire » ne sont plus cochés ensemble, une ligne du décompte se supprime par une croix (plus par un double-clic) ; Claire Scan : message clair quand le NAS n'est pas indiqué ; champs sans nom pour les lecteurs d'écran nommés ; onglets de travail plus larges ; parcelle introuvable : les sections de la commune sont proposées." },
     { version: '0.285.0', date: '2026-10-18 13:29', resume: "« Demander à CLAIRE » : recherche web sur les sites officiels seulement (liste modifiable dans Réglages › IA et relecture d'actes ; Légifrance, service-public, BOFiP, impots.gouv…), et mémoire des conversations — CLAIRE retrouve ce qui a déjà été demandé et répondu ces 90 derniers jours (gardé sur le serveur du bureau)." },

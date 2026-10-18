@@ -20804,3 +20804,52 @@ ne poussent plus que leur branche désignée après une publication (plus `claud
   jamais réactivée pendant ni après une préparation si le financement a été vidé (`qtTelechargementEnCours`), message « tous archivés » qui renvoie à « Plus de
   filtres », domaine NAS testé avant Exchange. Lecteurs d'écran : `aria-label`/`aria-expanded` posés sur un `<wa-button>` n'atteignent pas son bouton intérieur
   (vérifié dans Chromium) — le nombre de filtres actifs et « ouvert/fermé » passent par un texte caché dans le libellé (`#suivi-plus-annonce`).
+
+### 18/10/2026 — 0.286.0 : animations qui aident à comprendre
+
+Demande de l'étude (« pour un outil de notaire, l'animation doit aider à comprendre ce qui vient de se passer », 150 à 300 ms, coupé par « réduire les
+animations » ; règles : 150 à 250 ms, courbe douce, opacité et position seulement, jamais la taille, montants lisibles et exacts à l'arrêt). `client/86-animations.js`
+et le bloc « Animations » à la fin de style.css :
+1. **Montants** : un MutationObserver sur les écrans provision, prorata, quotités et arbitrage (`SELECTEUR_MONTANTS`, répartition des quotités appariée par rang)
+   fait défiler l'ancienne valeur vers la nouvelle en 250 ms (`montantIntermediaire`, `formaterPrixCentimes`), puis remet le texte exact écrit par l'outil ; la ligne
+   s'éclaire (`anim-eclaire`, couleur seule). Réduit : pas de défilement, l'éclairage reste.
+2. **Courrier** : une saisie dans le formulaire (moins de 0,9 s avant) puis un changement dans l'aperçu (`af-lettre`, `cst-apercu`, `qt-feuille`) → les plus petits
+   éléments dont le texte a changé sont surlignés 2,6 s (`elementsModifies`, 12 au plus — au-delà c'est un autre courrier, rien n'est surligné) ; ce que l'on tape
+   dans le courrier lui-même ne l'est pas.
+3. **Étapes** (barre des outils) : coche tracée dans la pastille de l'étape qui se termine sous les yeux (`anim-etape-coche`, client/44), barre de liaison qui se
+   remplit, défilement doux vers la section (instantané si réduit).
+4. **« Aujourd'hui »** : la coche se remplit, le titre se barre d'un trait qui glisse, l'anneau part de sa valeur d'avant (`--anneau-avant`) et le compteur glisse.
+   Le repli de la ligne n'est pas fait : il animerait la hauteur (règle de l'étude), et les tâches faites restent barrées dans la liste (étude 07/10).
+5. **« Enregistré »** : après un clic sur un bouton « Enregistrer… », une confirmation simple (`messageEnregistrementSimple` : courte, ni erreur ni deux-points)
+   s'affiche sur le bouton avec une coche 1,8 s au lieu du message (`confirmerSurBoutonEnregistrer`, appelé par `afficherToast`) ; un message avec un bouton
+   d'action (« Ouvrir la fiche ») ou une erreur reste un message.
+6. **Écrans** : fondu de 180 ms (opacité seule — une transformation gênerait les barres collées) des écrans, des rubriques des Réglages et de la fiche en page.
+7. **Tableau de bord** : cartes en cascade (30 ms d'écart) au démarrage seulement (`anim-demarrage`, 2,5 s), squelette gris sur une carte encore vide.
+8. **Tiroir des outils** : les liens arrivent en glissant (pas de hauteur animée). Les Réglages n'ont pas de sections repliables : leurs rubriques ont le fondu.
+9. **Dépôt d'un PDF** : zone en relief au survol (ombre + 2 px), la pièce lue « se pose » dans sa tuile (`anim-pose`, `etatsTuilesAvant`).
+Vérifié dans Chromium (normal et `reducedMotion: 'reduce'`) : montant final exact, lignes éclairées, « Enregistré » sans message, passage du courrier surligné,
+aucune carte vide après chargement, aucune erreur de page.
+10. **Extension Chrome** (étude 18/10 : « quand elle prend la main, mets comme quand Claude prend la main la même animation sur le bord de l'écran et le
+    même curseur ; pour la couleur le bordeaux de CLAIRE ») : `extension-chrome/content/content.js`, version 1.0.1 — cadre de la page en #6D2332 avec un halo
+    intérieur qui « respire » (2,4 s) tant que CLAIRE pilote (`.frame.pilote`, fixe en pause, aux couleurs d'état sinon) ; curseur plein bordeaux à liseré blanc,
+    qui glisse jusqu'au point de chaque vrai clic (`pointerVers`, 380 ms) avec une onde au clic ; champ en cours souligné en bordeaux. Réduire les animations :
+    cadre fixe, curseur sans glissement, pas d'onde. **Non vu sur un vrai guichet** (rejoué par le faux guichet seulement).
+Relecture : toute écriture de l'outil arrête le défilement en cours (« — » écrit pendant un défilement était recouvert par l'ancien montant), sauf le même montant
+réécrit (l'outil écrit parfois deux fois : le défilement continue) ; « Enregistré » seulement pour un participe (« avant d'enregistrer » est un message à lire) ;
+page ajoutée par la mise en page du courrier jamais surlignée ; étapes lues à la valeur d'arrivée d'un montant qui défile (`__animFinal`) ; survol des liens du
+tiroir rétabli (`backwards` au lieu de `both`) ; signe « − » gardé pendant le défilement ; squelette limité au démarrage ; anneau animé seulement si la part faite
+avance ; confirmation lue par les lecteurs d'écran (`aria-live` sur le bouton).
+
+### 18/10/2026 — Données envoyées à l'IA : commentaires et consignes remis à jour
+
+Point de l'étude : les commentaires de `llm.js` et `config.js` affirmaient que l'IA tourne en local et que le texte des actes ne quitte jamais le réseau — faux
+depuis « Demander à CLAIRE » par Claude (défaut, agent activé) ou Mistral (serveur européen). Corrigé : `server/src/llm.js` et `server/src/config.js` ne parlent plus
+que d'Ollama et renvoient à la contrainte n° 1 ; CLAUDE.md, contrainte n° 1, « Ce qui part vers une IA en ligne » (phrase et résultats des outils de l'agent,
+pseudonymisés par le serveur ; limites : nom inconnu des fiches écrit en minuscules, montants et dates en clair — seuls les montants masqués dans l'échange libre ; aucun accord de
+sous-traitance ni rétention zéro attesté dans le dépôt ; ancienne pseudonymisation dans le navigateur retirée avec l'outil de relecture) ; « Ce qui reste ouvert »
+gagne « RGPD — IA en ligne » (registre, DPA, rétention zéro, décision sur le masquage par règles) ; `server/README.md` : état au 18/10 en tête de la section
+relecture, ancien fonctionnement signalé comme tel. Précision apportée à l'étude : un nom présent dans une fiche est masqué quelle que soit sa casse. Relecture des textes : dates en clair
+partout (seuls les montants sont masqués, dans l'échange libre, et retirés des recherches juridiques), région Mistral réglable (`api.mistral.ai`), masquage léger
+(`masquerCarnet`) pour CLAIRE.md et Légifrance/BOFiP, catégories envoyées ajoutées (date et prénom, consignes, reprise, agenda avec date/heures/catégories), autres
+cas qui passent (nom en tête de phrase d'un texte court, noms lus seulement dans Authentic, mots du métier retirés de la liste, prénoms des collaborateurs). Le
+registre des traitements RGPD de l'étude n'est pas dans le dépôt.
