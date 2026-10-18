@@ -22,9 +22,9 @@
   }
 
   let sidebarReplieeSeance = null;   // état de la séance (null : celui du réglage de démarrage)
-  // Tiroir des outils ouvert à chaque démarrage (étude, 04/10 : « remets le tiroir des outils ouvert de base ») ; le + / −
-  // ne change que la séance, rien n'est retenu.
-  let groupeOutilsOuvertSeance = true;
+  // Tiroir des outils REPLIÉ à chaque démarrage (étude 18/10 : « repli le tiroir outil de base » ; ouvert de base depuis le 04/10) ;
+  // un clic sur « Outils » ne change que la séance, rien n'est retenu.
+  let groupeOutilsOuvertSeance = false;
 
   function sidebarRepliee() {
     return sidebarReplieeSeance === null ? sidebarDemarrage() === 'fermee' : sidebarReplieeSeance;

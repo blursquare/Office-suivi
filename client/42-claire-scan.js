@@ -1023,7 +1023,7 @@
       'icon-nav-calculateur': 'banknote',
       'icon-nav-prorata': 'part-disque',
       'icon-nav-appel-fonds': 'mail',
-      'icon-nav-constitution': 'folder',
+      'icon-nav-constitution': 'courriers',
       'icon-nav-inventaire': 'scale',
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',
