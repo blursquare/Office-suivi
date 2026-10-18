@@ -23,19 +23,43 @@
   // `reste` = combien n'ont pas été montrées.
   function pointsNouveaute(resume, max, longueur) {
     const lim = longueur || 110;
-    const morceaux = String(resume || '').replace(/\s+/g, ' ')
-      .split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý«])|\s;\s/)
+    const morceaux = decouperResumeNouveaute(String(resume || '').replace(/\s+/g, ' '))
       .map(t => t.trim().replace(/[.;]\s*$/, '')).filter(t => t.length > 2);
     const points = morceaux.map(t => {
       const m = /^([^:«»()]{2,40}?)\s:\s(.+)$/.exec(t);
       let sujet = m ? m[1] : '';
       let texte = m ? m[2] : t;
-      if (texte.length > lim) texte = texte.slice(0, lim).replace(/\s+\S*$/, '') + '…';
+      if (texte.length > lim) {
+        texte = texte.slice(0, lim).replace(/\s+\S*$/, '');
+        // Jamais une parenthèse ou des guillemets ouverts sans fin (relecture 0.288.0) : la coupe recule avant eux.
+        const ouv = Math.max(texte.lastIndexOf('('), texte.lastIndexOf('«'));
+        if (ouv > 20 && ouv > Math.max(texte.lastIndexOf(')'), texte.lastIndexOf('»'))) texte = texte.slice(0, ouv).trim();
+        texte += '…';
+      }
       texte = texte.charAt(0).toUpperCase() + texte.slice(1);
       return { sujet, texte };
     });
     const n = max || points.length;
     return { points: points.slice(0, n), reste: Math.max(0, points.length - n) };
+  }
+
+  // Pure : les phrases d'un résumé, coupées après « . ! ? » suivi d'une majuscule, ou sur « ; » — jamais à l'intérieur d'une
+  // parenthèse ni de guillemets, ni après une lettre seule ou une abréviation (« M. », « p. », « n°. », « Mme. ») — relecture 0.288.0.
+  function decouperResumeNouveaute(t) {
+    const out = [];
+    let debut = 0, prof = 0;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (c === '(' || c === '«') prof++;
+      else if ((c === ')' || c === '»') && prof > 0) prof--;
+      if (prof) continue;
+      const finPhrase = /[.!?]/.test(c) && t[i + 1] === ' ' && /[A-ZÀ-Ý«]/.test(t[i + 2] || '')
+        && !/(?:^|[\s(«])(?:\p{L}|Mme|Me|M|n°|cf|etc)$/u.test(t.slice(Math.max(0, i - 4), i));
+      const pointVirgule = c === ';' && t[i - 1] === ' ' && t[i + 1] === ' ';
+      if (finPhrase || pointVirgule) { out.push(t.slice(debut, pointVirgule ? i - 1 : i + 1)); debut = i + 1; }
+    }
+    out.push(t.slice(debut));
+    return out;
   }
 
   var nouveauteAffichee = 0;   // 0 = la plus récente ; + 1 = remonter dans le temps
@@ -54,7 +78,7 @@
     bloc.innerHTML = carteWidget({
       presentation, classe: 'nouveautes',
       titre: `<span class="nv-titre-icone" aria-hidden="true">${icone('sparkle')}</span>Nouveautés`,
-      sous: `<span class="nv-version">v${escapeHtml(n.version)}</span><span class="nv-date">${escapeHtml(dateNouveaute(n.date))}</span>${nouveauteAffichee === 0 ? '<span class="nv-derniere">Nouveau</span>' : ''}`,
+      sous: `<span class="nv-version">v${escapeHtml(n.version)}</span><span class="nv-date">${escapeHtml(dateNouveaute(n.date))}</span>${nouveauteAffichee === 0 ? '<span class="nv-derniere">Dernière mise à jour</span>' : ''}`,
       droite: `<span class="nv-nav">${fleche(1, 'chevron-left', 'Nouveauté précédente', nouveauteAffichee >= liste.length - 1)}${fleche(-1, 'chevron-right', 'Nouveauté suivante', nouveauteAffichee === 0)}</span>`,
       corps: `<ul class="nv-points">${points.map(p => `<li>${p.sujet ? `<strong>${escapeHtml(p.sujet)}</strong> ` : ''}${escapeHtml(p.texte)}</li>`).join('')}</ul>
         ${reste ? `<div class="nv-reste w-fixe" title="${escapeAttr(n.resume)}">+ ${reste} autre${reste > 1 ? 's' : ''} point${reste > 1 ? 's' : ''}</div>` : ''}

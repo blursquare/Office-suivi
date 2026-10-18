@@ -126,3 +126,10 @@ test('Nouveautés : les 10 dernières, résumé en points courts (sujet en tête
   assert.equal(r.reste, 1);
   assert.ok(app.pointsNouveaute('Un texte très long '.repeat(20), 1, 50).points[0].texte.endsWith('…'));
 });
+
+test('Nouveautés : jamais coupé après « M. » ou « p. », ni sur un « ; » entre parenthèses ou guillemets', () => {
+  const t = (s) => app.decouperResumeNouveaute(s).map(x => x.trim()).join(' | ');
+  assert.equal(t('Veuve de M. Dupont reconnue. Suite ici'), 'Veuve de M. Dupont reconnue. | Suite ici');
+  assert.equal(t('Un clic sur « p. N » ouvre. Autre point'), 'Un clic sur « p. N » ouvre. | Autre point');
+  assert.equal(t('Liste (réglages ; sites officiels) gardée ; second point'), 'Liste (réglages ; sites officiels) gardée | second point');
+});
