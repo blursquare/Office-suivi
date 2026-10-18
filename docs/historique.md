@@ -20777,3 +20777,13 @@ Rapport de vérification dans Chrome (localhost) : huit points, corrigés dans l
    message d'avant. Ne part que le code INSEE. Forme de la réponse de `/cadastre/division` non vérifiée ici (réseau coupé).
 9. **Appel de fonds, suppression d'une ligne** (étude 18/10 : « mettre une croix pour supprimer une ligne et plus un double-clic ») : croix au bout de la ligne, à
    côté des flèches d'ordre (`af-supprimer-btn`, montrée au survol, toujours sur écran tactile, hors du texte du courrier) ; le double-clic sur la ligne est retiré.
+
+### 18/10/2026 — Minutes GitHub Actions quadruplées, constructions refusées
+
+L'étude : « depuis hier les actions minutes ont quadruplé ». Toutes les constructions (`.exe` 0.285.1) et vérifications s'arrêtent en 3-5 s sans journal :
+minutes du compte épuisées. Cause : `verifier.yml` (ajouté en 0.280.0) — le pas « Déjà sur main ? » récupérait main avec un en-tête `bearer` que le git de GitHub
+refuse ; l'échec était silencieux (« tous les contrôles tournent »), donc chaque branche recopiée de main après une publication (`claude/fiche-prod`,
+`claude/artefact-suivi-echeance-ztanc4`) refaisait tous les contrôles, et le faux guichet de l'extension (≈ 13 min, `origin/main` introuvable → « changements
+illisibles ») : ≈ 17 min × 2 par publication, en plus de la construction. Corrigé : fetch authentifié comme actions/checkout (`basic x-access-token`) dans
+`refs/remotes/origin/main` (le faux guichet compare enfin à main), secours par l'API `compare/main...<commit>` (`identical`/`behind` = déjà contrôlé). Les sessions
+ne poussent plus que leur branche désignée après une publication (plus `claude/fiche-prod`).

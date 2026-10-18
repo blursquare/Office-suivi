@@ -36,11 +36,27 @@ jobs:
         env:
           JETON: ${{ github.token }}
         run: |
-          # Dépôt privé et checkout sans identifiants gardés : fetch authentifié pour cette seule commande. Un échec ne coupe rien :
-          # tous les contrôles tournent.
-          git -c http.extraheader="AUTHORIZATION: bearer $JETON" fetch --no-tags --depth=500 origin main || { echo "main illisible : tous les contrôles tournent."; exit 0; }
-          if [ "${{ github.event_name }}" = "push" ] && git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
-            echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Commit déjà sur main : contrôles faits par la construction du .exe."
+          # Étude 18/10 (« les minutes Actions ont quadruplé ») : l'ancien fetch en « bearer » était refusé par GitHub — main jamais lue, chaque
+          # branche recopiée de main refaisait tout (≈ 17 min, faux guichet compris). Dépôt privé, checkout sans identifiants gardés : fetch
+          # authentifié comme le fait actions/checkout (basic x-access-token), dans origin/main pour que le faux guichet compare aussi à main.
+          B64=$(printf 'x-access-token:%s' "$JETON" | base64 -w0)
+          echo "::add-mask::$B64"
+          AUTH="AUTHORIZATION: basic $B64"
+          if git -c http.extraheader="$AUTH" fetch --no-tags --depth=500 origin +refs/heads/main:refs/remotes/origin/main; then
+            if [ "${{ github.event_name }}" = "push" ] && git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Commit déjà sur main : contrôles faits par la construction du .exe."; exit 0
+            fi
+          else
+            echo "main illisible par git."
+          fi
+          # Secours par l'API : commit identique à main ou en retard sur elle = déjà contrôlé. Un échec ne coupe rien : tous les contrôles tournent.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            ETAT=$(curl -fsS -H "Authorization: Bearer $JETON" -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}" | jq -r '.status' 2>/dev/null || true)
+            echo "Comparaison avec main : ${ETAT:-illisible}"
+            if [ "$ETAT" = "identical" ] || [ "$ETAT" = "behind" ]; then
+              echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Commit déjà sur main : contrôles faits par la construction du .exe."
+            fi
           fi
 
       - uses: actions/setup-node@v4
