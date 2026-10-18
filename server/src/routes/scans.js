@@ -52,7 +52,7 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     const reglages = parametresRepo.lireReglagesScans();
     const journal = parametresRepo.lireJournalScans().slice(0, 50);
     if (!config.nasRacine) {
-      res.json({ configure: false, raison: 'Aucun dossier NAS configuré (nasRacine).', reglages, scans: [], journal });
+      res.json({ configure: false, raison: 'Le serveur ne sait pas encore où sont les dossiers des clients sur le NAS : l’administrateur l’indique une fois dans la configuration du serveur, puis Claire Scan trouve seul le dossier « Scan » du copieur.', reglages, scans: [], journal });
       return;
     }
     const dossier = await trouverDossierScans(config);

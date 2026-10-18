@@ -57,3 +57,14 @@ test('copropriété : dernières lignes du Barème rapide A1 2025 (étude 12/10)
   const trois = app.estimerFraisActe(3000000, '41', 'condo', true);
   assert.equal(Math.round(trois.emoluments), 17450 + 4 * 2000);
 });
+
+test('provision : détail de la ligne Trésor, écart du barème dit (rapport du 18/10)', () => {
+  const e = app.estimerFraisActe(300000, '41', 'house', false);
+  const dt = app.detailTresorFraisActe(300000, e.tauxApplique, e.emoluments, e.tresor);
+  assert.equal(dt.dmto, 18955.5);
+  assert.equal(dt.csi, 300);
+  assert.equal(dt.tva, 748);
+  assert.equal(dt.somme, 20003.5);
+  assert.equal(dt.ecart, 2.05);
+  assert.equal(app.detailTresorFraisActe(5000, 0.045, 100, 0).csi, 15, 'CSI : 15 € au moins');
+});

@@ -1878,6 +1878,8 @@
   .calc-table td { padding: 10px 2px; border-bottom: 1px solid var(--line-soft); }
   .calc-table td:last-child { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .calc-table tr:last-child td { border-bottom: 0; padding-top: 14px; font-size: var(--texte-base); }
+  .calc-table tr.calc-detail td { padding: 0 2px 10px; text-align: left; font-weight: 400; white-space: normal; font-size: var(--texte-xs); color: var(--muted); }
+  .calc-table tr:has(+ tr.calc-detail) td { border-bottom: 0; }
   @media (max-width: 640px) {
     .calc-radios, .calc-ratebox { grid-template-columns: 1fr; }
   }
@@ -3692,7 +3694,7 @@
   .app-main > .drawer-overlay .drawer-panneau.large { width: 100%; }
   .app-main > .drawer-overlay .fiche-barre { border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
   .onglets-travail { position: sticky; top: 0; z-index: 30; display: flex; align-items: stretch; height: var(--hauteur-onglets); margin: -32px -32px 32px; background: var(--paper-sunk); border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
-  .ot-onglet { flex: 0 1 220px; min-width: 120px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--ink-soft); font-size: var(--texte-m); cursor: pointer; position: relative; user-select: none; }
+  .ot-onglet { flex: 0 1 220px; min-width: 168px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--ink-soft); font-size: var(--texte-m); cursor: pointer; position: relative; user-select: none; }
   .ot-onglet:hover { background: var(--paper); color: var(--ink); }
   .ot-onglet.actif { background: var(--paper-card); color: var(--ink); font-weight: 500; box-shadow: inset 0 2px 0 var(--focus); margin-bottom: -1px; }
   .ot-onglet:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -5205,6 +5207,8 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 }
 .af-ordre-btn:hover:not([disabled]) { color: #6d2332; border-color: #6d2332; }
 .af-ordre-btn[disabled] { opacity: 0.35; cursor: default; }
+.af-supprimer-btn { margin-left: 4px; }
+.af-supprimer-btn:hover { color: #b3261e; border-color: #b3261e; }
 
 @media (max-width: 640px) {
   .af-lettre { padding: 22px 16px 26px; }

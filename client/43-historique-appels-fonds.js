@@ -348,3 +348,20 @@
       }
     }, { bouton: 'Retirer', ton: 'danger' });
   }
+
+  // ---- Cases « sans prêt » / « prêt hypothécaire » de l'outil (sorties de 40-generateur-appel-fonds.js, plein) ----
+  // Les deux cases s'excluent : sans prêt, aucun acte de prêt ; un prêt hypothécaire n'est pas un achat sans prêt.
+  function basculerSansPretAppelFonds(sans) {
+    const casePret = afEl('af-pret-hypothecaire');
+    if (sans && casePret && casePret.checked) { casePret.checked = false; basculerPretHypothecaireAppelFonds(false); return; }
+    majApercuAppelFonds();
+  }
+
+  function basculerPretHypothecaireAppelFonds(avec) {
+    const caseSansPret = afEl('af-sans-pret');
+    if (avec && caseSansPret) caseSansPret.checked = false;
+    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
+    afLignes = lignesSelonPretHypothecaire(afLignes, !!avec, d && Number(d.montantPret) > 0 ? Number(d.montantPret) : 0);
+    renderTableAppelFonds();
+    majApercuAppelFonds();
+  }

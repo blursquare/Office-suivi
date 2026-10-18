@@ -151,7 +151,7 @@
     prorataDossierTf = d.id;
     const champ = id => document.getElementById(id);
     if (dateActe) {
-      if (champ('prorata-date')) champ('prorata-date').value = dateActe;
+      if (champ('prorata-date')) { champ('prorata-date').value = dateActe; prorataDateAuto = ''; }
       if (champ('prorata-debut')) champ('prorata-debut').value = `${dateActe.slice(0, 4)}-01-01`;
       if (champ('prorata-fin')) champ('prorata-fin').value = `${dateActe.slice(0, 4)}-12-31`;
       if (champ('prorata-periode')) champ('prorata-periode').value = 'annee';

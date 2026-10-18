@@ -106,16 +106,43 @@ function syntheseZonage(parcelle, gpu) {
   };
 }
 
+/** Les sections cadastrales d'une commune (feuilles du cadastre, API Carto), triées ; [] si l'API ne répond pas.
+ * @param {string} insee @param {any} [injections] @returns {Promise<string[]>} */
+async function sectionsDeLaCommune(insee, injections) {
+  try {
+    return await enCache(`s:${insee}`, async () => {
+      const r = await lireJson(`${BASE}/cadastre/division?code_insee=${insee}&_limit=1000`, injections);
+      const sections = (r && Array.isArray(r.features) ? r.features : []).map((f) => String((f && f.properties && f.properties.section) || '').trim().toUpperCase())
+        .filter((x) => /^[0-9A-Z]{1,2}$/.test(x)).map((x) => x.length === 1 ? '0' + x : x);
+      return [...new Set(sections)].sort();
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+/** Pure : le message d'une parcelle introuvable (rapport du 18/10 : « Chailles n'a pas de section ZD, seulement AB à BA ») — la section qui
+ * n'existe pas est dite avec celles de la commune. @param {{ section: string, numero: string }} p @param {string[]} sections */
+function parcelleIntrouvable(p, sections) {
+  const lisible = (x) => x.replace(/^0/, '');
+  const base = `Parcelle ${lisible(p.section)} ${Number(p.numero)} introuvable au cadastre de cette commune.`;
+  if (!sections.length) return { erreur: base };
+  if (sections.indexOf(p.section) !== -1) return { erreur: `${base} La section ${lisible(p.section)} existe : vérifiez le numéro.`, sections: sections.map(lisible) };
+  const liste = sections.length > 24 ? sections.slice(0, 24).map(lisible).join(', ') + '…' : sections.map(lisible).join(', ');
+  return { erreur: `${base} Pas de section ${lisible(p.section)} dans cette commune ; sections existantes : ${liste} (${sections.length}).`, sections: sections.map(lisible) };
+}
+
 /** Zonage d'une parcelle : géométrie au cadastre, puis le Géoportail de l'Urbanisme sur cette géométrie.
  * @param {string} insee @param {string} section @param {string} numero @param {any} [injections] */
 async function zonageParcelle(insee, section, numero, injections) {
   const code = String(insee || '').trim().toUpperCase();
   const p = normaliserParcelle(section, numero);
   if (!/^\d[0-9AB]\d{3}$/.test(code) || !p) return { erreur: 'Commune ou parcelle invalide.' };
-  return enCache(`z:${code}:${p.section}:${p.numero}`, async () => {
+  const cle = `z:${code}:${p.section}:${p.numero}`;
+  const resultat = await enCache(cle, async () => {
     const cad = await lireJson(`${BASE}/cadastre/parcelle?code_insee=${code}&section=${p.section}&numero=${p.numero}`, injections);
     const feature = cad && Array.isArray(cad.features) ? cad.features[0] : null;
-    if (!feature || !feature.geometry) return { erreur: `Parcelle ${p.section} ${Number(p.numero)} introuvable au cadastre de cette commune.` };
+    if (!feature || !feature.geometry) return parcelleIntrouvable(p, await sectionsDeLaCommune(code, injections));
     const geom = encodeURIComponent(JSON.stringify(feature.geometry));
     const [document, zones, infos, prescriptions, commune, sup] = await Promise.all([
       lireJson(`${BASE}/gpu/document?geom=${geom}`, injections),
@@ -127,6 +154,9 @@ async function zonageParcelle(insee, section, numero, injections) {
     ]);
     return syntheseZonage(feature, { document, zones, infos, prescriptions, commune, sup });
   });
+  // Introuvable sans la liste des sections (API muette) : pas gardé 24 h, la demande suivante relira les sections.
+  if (resultat && resultat.erreur && !resultat.sections) cache.delete(cle);
+  return resultat;
 }
 
 /** Géométrie d'une parcelle au cadastre (API Carto), gardée 24 h — pour les photos aériennes et Sitadel.
@@ -173,4 +203,4 @@ async function parcellesDansPolygone(polygone, injections) {
 
 function viderCacheUrbanisme() { cache.clear(); cacheZones.clear(); }
 
-module.exports = { zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
+module.exports = { parcelleIntrouvable, sectionsDeLaCommune, zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };

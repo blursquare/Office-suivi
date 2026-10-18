@@ -966,8 +966,9 @@
       departementFrais,
       typeBienFrais,
       fraisActe: fraisActe ? fraisActe.montant : null,
-      pretHypothecaire: hypo === true,
-      montantPret: hypo === true && d.montantPret > 0 ? d.montantPret : null,
+      // « Sans prêt » et « prêt hypothécaire » s'excluent (rapport du 18/10 : les deux cochés) : la fiche sans prêt l'emporte.
+      pretHypothecaire: hypo === true && !d.sansPret,
+      montantPret: hypo === true && !d.sansPret && d.montantPret > 0 ? d.montantPret : null,
       honoraires: honoraires ? { nom: honoraires.nom || '', negociateur: honoraires.negociateur, montantTTC: honoraires.montantTTC || null } : null,
       fondsTravaux: fondsTravaux ? { montant: fondsTravaux.montant || null } : null,
       // Décompte établi par l'office, ou repris de celui d'un confrère quand l'étude est en
@@ -1031,13 +1032,6 @@
       credit.splice(avantFrais < 0 ? credit.length : avantFrais, 0, { libelle: LIBELLE_MONTANT_PRET_HYPOTHECAIRE, montant: montantPret > 0 ? montantPret : 0, formule: null, id: afIdLigne() });
     }
     return { debit, credit };
-  }
-
-  function basculerPretHypothecaireAppelFonds(avec) {
-    const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    afLignes = lignesSelonPretHypothecaire(afLignes, !!avec, d && Number(d.montantPret) > 0 ? Number(d.montantPret) : 0);
-    renderTableAppelFonds();
-    majApercuAppelFonds();
   }
 
   // Pure : l'office établit le décompte, sauf quand l'étude est en participation (le décompte vient
@@ -1666,11 +1660,11 @@
     if (!cible) return;
     if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
     cible.innerHTML = afClients.map((c, i) => `<div class="af-client">
-      <select onchange="changerClientAppelFonds(${i}, 'civilite', this.value)">
+      <select aria-label="Civilité du client ${i + 1}" onchange="changerClientAppelFonds(${i}, 'civilite', this.value)">
         ${AF_CIVILITES.map(v => `<option value="${v}"${c.civilite === v ? ' selected' : ''}>${v}</option>`).join('')}
       </select>
-      <input type="text" placeholder="Prénom" value="${escapeAttr(c.prenom || '')}" oninput="changerClientAppelFonds(${i}, 'prenom', this.value)">
-      <input type="text" placeholder="Nom" value="${escapeAttr(c.nom || '')}" oninput="changerClientAppelFonds(${i}, 'nom', this.value)">
+      <input type="text" placeholder="Prénom" aria-label="Prénom du client ${i + 1}" value="${escapeAttr(c.prenom || '')}" oninput="changerClientAppelFonds(${i}, 'prenom', this.value)">
+      <input type="text" placeholder="Nom" aria-label="Nom du client ${i + 1}" value="${escapeAttr(c.nom || '')}" oninput="changerClientAppelFonds(${i}, 'nom', this.value)">
       <button type="button" class="af-client-suppr" title="Retirer ce client" onclick="supprimerClientAppelFonds(${i})">${icone('x')}</button>
     </div>`).join('');
   }
@@ -1756,10 +1750,12 @@
         // Flèches d'ordre (étude 08/10 : « faire remonter une ligne ou la descendre ») : hors du texte
         // du courrier (contenteditable="false", jamais lues par le .docx qui ne prend que les .af-champ).
         const n = afLignes[section].length;
-        const fleche = (sens, nom, titre, actif) => `<button type="button" class="af-ordre-btn" title="${titre}" aria-label="${titre}"${actif ? '' : ' disabled'} onclick="deplacerLigneAppelFonds('${section}', ${i}, ${sens})" ondblclick="event.stopPropagation()">${icone(nom)}</button>`;
-        const ordre = n > 1 ? `<span class="af-ordre" contenteditable="false">${fleche(-1, 'chevron-up', 'Remonter la ligne', i > 0)}${fleche(1, 'chevron-down', 'Descendre la ligne', i < n - 1)}</span>` : '';
+        const fleche = (sens, nom, titre, actif) => `<button type="button" class="af-ordre-btn" title="${titre}" aria-label="${titre}"${actif ? '' : ' disabled'} onclick="deplacerLigneAppelFonds('${section}', ${i}, ${sens})">${icone(nom)}</button>`;
+        // Croix de suppression (étude 18/10 : « une croix pour supprimer une ligne et plus un double-clic »).
+        const croix = `<button type="button" class="af-ordre-btn af-supprimer-btn" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="supprimerLigneAppelFonds('${section}', ${i})">${icone('x')}</button>`;
+        const ordre = `<span class="af-ordre" contenteditable="false">${n > 1 ? fleche(-1, 'chevron-up', 'Remonter la ligne', i > 0) + fleche(1, 'chevron-down', 'Descendre la ligne', i < n - 1) : ''}${croix}</span>`;
         const cellLibelle = `<td>${ordre}<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="libelle">${escapeHtml(l.libelle)}</span>${badge}${l.formule ? `<span class="af-formule">${escapeHtml(l.formule)}</span>` : ''}</td>`;
-        html += `<tr title="Double-cliquez pour supprimer cette ligne" ondblclick="supprimerLigneAppelFonds('${section}', ${i})">` + (section === 'debit'
+        html += '<tr>' + (section === 'debit'
           ? `${cellLibelle}<td class="af-montant"></td><td class="af-montant">${cellMontant}</td>`
           : `${cellLibelle}<td class="af-montant">${cellMontant}</td><td class="af-montant"></td>`) + '</tr>';
       });
@@ -1862,7 +1858,8 @@
     const tbody = afEl(section === 'debit' ? 'af-tbody-debit' : 'af-tbody-credit');
     const bouton = tbody && tbody.querySelector(`.af-champ[data-af-index="${i + sens}"]`);
     const tr = bouton && bouton.closest('tr');
-    const cible = tr && tr.querySelector(`.af-ordre-btn:${sens < 0 ? 'first-child' : 'last-child'}:not([disabled])`);
+    // La flèche du même sens, visée par son libellé : la croix de suppression est le dernier bouton de la ligne.
+    const cible = tr && tr.querySelector(`.af-ordre-btn[aria-label="${sens < 0 ? 'Remonter la ligne' : 'Descendre la ligne'}"]:not([disabled])`);
     if (cible) cible.focus();
   }
 

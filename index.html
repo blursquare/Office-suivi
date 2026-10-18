@@ -780,7 +780,7 @@
       <div class="calc-resultat">
         <div class="calc-tag" id="calc-tag"></div>
         <div class="calc-total" id="calc-total"></div>
-        <div class="calc-small">Total provisionnel, arrondi à l'euro près.</div>
+        <div class="calc-small">Total provisionnel, débours forfaitaires compris.</div>
         <div class="calc-lcbft">LCB-FT COMPRIS</div>
         <div class="calc-ratebox">
           <div class="calc-pill"><span>Taux départemental de droit commun</span><strong id="calc-base-rate"></strong></div>
@@ -793,6 +793,7 @@
         <tr><td>Émoluments issus du tableau</td><td id="calc-emol"></td></tr>
         <tr><td>Taxes : LCB-FT</td><td>200 €</td></tr>
         <tr><td>Trésor / droits et taxes</td><td id="calc-tre"></td></tr>
+        <tr class="calc-detail"><td colspan="2" id="calc-tre-detail"></td></tr>
         <tr><td>Débours (selon le tableau)</td><td>200 €</td></tr>
         <tr><td><strong>Total provisionnel</strong></td><td id="calc-total2"></td></tr>
       </table>
@@ -1119,7 +1120,7 @@
 
       <h2 class="outil-section-tete" data-etape="financement">Financement</h2>
       <div class="calc-champs">
-        <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="majApercuAppelFonds()"> Achat sans prêt (apport personnel seul)</label>
+        <label class="af-checkline"><input type="checkbox" id="af-sans-pret" onchange="basculerSansPretAppelFonds(this.checked)"> Achat sans prêt (apport personnel seul)</label>
         <label class="af-checkline"><input type="checkbox" id="af-pret-hypothecaire" onchange="basculerPretHypothecaireAppelFonds(this.checked)"> Prêt garanti par une hypothèque (acte de prêt à recevoir) <span class="info-i" tabindex="0" data-info="Un prêt cautionné (Crédit Logement…) ne donne lieu à aucun acte notarié, donc à aucun frais d&#x27;acte de prêt à appeler. CLAIRE coche cette case toute seule quand elle a lu une garantie hypothécaire dans l&#x27;offre de prêt du dossier."></span></label>
       </div>
 
@@ -1128,7 +1129,7 @@
     <!-- ---------- Colonne de droite : l'aperçu du courrier, identité papier de l'étude ---------- -->
     <div class="af-apercu">
       <div class="af-apercu-barre">
-        <h2 class="outil-section-tete" data-etape="courrier">Courrier <span class="info-i" tabindex="0" data-info="Aperçu modifiable : cliquez dans un texte ou un montant pour le corriger ; double-cliquez une ligne du tableau pour la supprimer. Le .docx téléchargé reprend l&#x27;en-tête réel de l&#x27;étude."></span></h2>
+        <h2 class="outil-section-tete" data-etape="courrier">Courrier <span class="info-i" tabindex="0" data-info="Aperçu modifiable : cliquez dans un texte ou un montant pour le corriger ; la croix au bout d&#x27;une ligne du tableau la supprime. Le .docx téléchargé reprend l&#x27;en-tête réel de l&#x27;étude."></span></h2>
       </div>
 
       <div class="af-lettre" id="af-lettre" contenteditable="true" spellcheck="false" oninput="saisieApercuAppelFonds()">
@@ -1562,7 +1563,7 @@
       </div>
     </div>
   </div>
-  <div class="cb-barre"><input type="search" id="cb-recherche" class="cb-recherche" placeholder="Nom, commune, adresse ou parcelle (AB 12)" autocomplete="off" oninput="saisirRechercheClientsBiens(this.value)"></div>
+  <div class="cb-barre"><input type="search" id="cb-recherche" class="cb-recherche" aria-label="Rechercher un client ou un bien" placeholder="Nom, commune, adresse ou parcelle (AB 12)" autocomplete="off" oninput="saisirRechercheClientsBiens(this.value)"></div>
   <div id="cb-resultats"></div>
 </div>
 

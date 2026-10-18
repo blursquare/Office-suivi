@@ -1965,6 +1965,18 @@
     return { emoluments, tresor, tauxApplique, total: emoluments + 200 + tresor + 200 };
   }
 
+  // Pure : le détail de la ligne « Trésor » (rapport du 18/10 : 20.005,55 € pour un détail recalculé à 20.003,50 €). Le montant reste celui du
+  // barème de l'étude (validé le 02/10), dont la colonne à 4,5 % est arrondie à la dizaine : l'écart est dit, jamais corrigé.
+  // DMTO = taux départemental + 2,37 % de frais d'assiette sur ce taux + 1,2 % communal ; CSI 0,1 % (15 € au moins) ; TVA 20 % des émoluments.
+  function detailTresorFraisActe(prix, tauxApplique, emoluments, tresor) {
+    const arrondi = x => Math.round(x * 100) / 100;
+    const dmto = arrondi(prix * (tauxApplique * 1.0237 + 0.012));
+    const csi = arrondi(Math.max(15, prix * 0.001));
+    const tva = arrondi(emoluments * 0.2);
+    const somme = arrondi(dmto + csi + tva);
+    return { dmto, csi, tva, somme, ecart: arrondi(tresor - somme) };
+  }
+
   function formaterPourcentageFraisActe(x) {
     return (x * 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 5 }) + ' %';
   }
@@ -1983,6 +1995,7 @@
     if (!prixEl.value.trim() || !Number.isFinite(prixSaisi) || prixSaisi <= 0) {
       document.getElementById('calc-tag').textContent = '';
       document.getElementById('calc-total').textContent = '—';
+      if (document.getElementById('calc-tre-detail')) document.getElementById('calc-tre-detail').textContent = '';
       for (const id of ['calc-emol', 'calc-tre', 'calc-total2', 'calc-base-rate', 'calc-applied-rate', 'calc-dmt-rate']) {
         document.getElementById(id).textContent = '—';
       }
@@ -2016,6 +2029,12 @@
       + (mobilierDeduit ? ' · assiette hors mobilier : ' + formaterPrix(prix) : '');
     document.getElementById('calc-emol').textContent = formaterPrix(emoluments);
     document.getElementById('calc-tre').textContent = formaterPrix(tresor);
+    const detailTre = document.getElementById('calc-tre-detail');
+    if (detailTre) {
+      const dt = detailTresorFraisActe(prix, tauxApplique, emoluments, tresor);
+      detailTre.textContent = `dont DMTO ${formaterPrix(dt.dmto)} + CSI ${formaterPrix(dt.csi)} + TVA sur émoluments ${formaterPrix(dt.tva)} = ${formaterPrix(dt.somme)}`
+        + (Math.abs(dt.ecart) >= 0.01 ? ` · arrondi du barème de l’étude : ${dt.ecart > 0 ? '+' : '−'}${formaterPrix(Math.abs(dt.ecart))}` : '');
+    }
     document.getElementById('calc-total2').textContent = formaterPrix(total);
     document.getElementById('calc-total').textContent = formaterPrix(total);
     document.getElementById('calc-base-rate').textContent = formaterPourcentageFraisActe(dept.base);
@@ -2173,11 +2192,20 @@
   }
 
   // Positionne la date du jour et la période par défaut au premier affichage, puis calcule.
+  // La date posée d'office suit le jour (rapport du 18/10 : l'outil ouvert la veille proposait encore la date de la veille) ;
+  // une date saisie ou reprise d'un dossier ne bouge pas.
   let prorataInitialise = false;
+  var prorataDateAuto = '';
   function initProrata() {
-    if (prorataInitialise) return;
-    prorataInitialise = true;
     const champDate = document.getElementById('prorata-date');
-    if (champDate && !champDate.value) champDate.value = isoAujourdHui();
+    const auj = isoAujourdHui();
+    const dateDuJour = champDate && (!champDate.value || (champDate.value === prorataDateAuto && prorataDateAuto !== auj));
+    if (dateDuJour) {
+      champDate.value = auj; prorataDateAuto = auj;
+      // Toute date saisie ou posée ensuite (fiche, assistant) n'est plus celle d'office, même égale au jour.
+      if (!champDate.dataset.suiviJour) { champDate.dataset.suiviJour = '1'; champDate.addEventListener('input', () => { prorataDateAuto = ''; }); }
+    }
+    if (prorataInitialise && !dateDuJour) return;
+    prorataInitialise = true;
     majPeriodeProrata();
   }

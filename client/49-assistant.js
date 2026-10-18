@@ -948,7 +948,7 @@
       if (champ('prorata-montant')) champ('prorata-montant').value = String(montant);
       if (champ('prorata-debut')) champ('prorata-debut').value = debut;
       if (champ('prorata-fin')) champ('prorata-fin').value = fin;
-      if (champ('prorata-date')) champ('prorata-date').value = dateActe;
+      if (champ('prorata-date')) { champ('prorata-date').value = dateActe; prorataDateAuto = ''; }
       // Période de la liste accordée aux bornes (une période trimestrielle choisie avant restait affichée sur une année).
       const anneeCivile = debut === `${dateActe.slice(0, 4)}-01-01` && fin === `${dateActe.slice(0, 4)}-12-31`;
       if (champ('prorata-periode') && anneeCivile) champ('prorata-periode').value = 'annee';

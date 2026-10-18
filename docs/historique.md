@@ -20753,3 +20753,27 @@ de sites publics : Légifrance, service-public, BOFiP, impots.gouv, Cour de cass
 l'urbanisme, ANIL, notaires.fr…), filtrage dynamique sauf Haiku, relance d'un tour mis en pause ; Mistral n'a pas de recherche web. Chaque
 réponse de l'agent note la conversation sur le serveur (`noterConversation` : sujet, cinq dernières questions, dernière réponse, auteur,
 dossier — en clair, 90 jours) ; l'outil `chercher_conversations` la retrouve (mots ou dossier), résultat masqué avant l'IA.
+
+### 18/10/2026 — 0.285.1 : corrections du test sur Chrome (rapport sur la 0.279.0)
+
+Rapport de vérification dans Chrome (localhost) : huit points, corrigés dans l'ordre demandé (1-4, 5-7, puis 8) ; vérifications de terrain des Réglages non touchées.
+1. **Date du jour figée** : `agendaJour` était posé une fois à l'ouverture de la page Agenda. `positionnerAgenda` retient le jour du positionnement et s'il était
+   « aujourd'hui » (`agendaAujourdhuiPose`, `agendaSuitAujourdhui`) ; `suivreJourAgenda` (rendu, tick de 30 s du trait de l'heure, retour sur l'onglet) passe un agenda
+   resté sur aujourd'hui au nouveau jour — un jour choisi à la main reste. Prorata : la date posée d'office (`prorataDateAuto`) suit le jour à chaque ouverture de l'outil ;
+   une date saisie ou reprise d'un dossier ne bouge pas.
+2. **Provision** : « arrondi à l'euro près » était faux (total en centimes, montant du barème validé le 02/10 non retouché) → « débours forfaitaires compris ».
+3. **Ligne Trésor** : l'écart de 2,05 € à 300 000 € vient du barème de l'étude, dont la colonne à 4,5 % est arrondie à la dizaine (18 470 pour 18 467,95). Montant
+   gardé ; détail affiché sous la ligne (`detailTresorFraisActe` : DMTO = taux × 1,0237 + 1,2 %, CSI 0,1 % min. 15 €, TVA 20 % des émoluments, « arrondi du barème »).
+4. **Appel de fonds** : les deux cases s'excluent (`basculerSansPretAppelFonds`, `basculerPretHypothecaireAppelFonds`) ; un dossier « sans prêt » ne coche plus le prêt
+   hypothécaire au préremplissage.
+5. **Claire Scan** : « Aucun dossier NAS configuré (nasRacine) » remplacé par une phrase sans nom technique (le dossier se règle dans la configuration du serveur, pas
+   dans les Réglages).
+6. **Accessibilité** : audit Playwright de chaque écran, des Réglages et des onglets d'une fiche (bureau et téléphone) : restaient sans nom la recherche de Clients et
+   biens, les champs client de l'appel de fonds et le sélecteur de date caché de l'agenda — nommés (`aria-label`). Aucune image sans `alt` ni bouton sans nom trouvés
+   sur cette version.
+7. **Onglets de travail** : largeur minimale 168 px (120 avant) ; le titre entier reste en bulle (`title`).
+8. **Zonage IGN** : parcelle introuvable → sections de la commune lues sur API Carto (`/cadastre/division`, gardées 24 h, `sectionsDeLaCommune`) et dites dans le
+   message (`parcelleIntrouvable` : « Pas de section ZD dans cette commune ; sections existantes : … », ou « la section existe : vérifiez le numéro ») ; API muette →
+   message d'avant. Ne part que le code INSEE. Forme de la réponse de `/cadastre/division` non vérifiée ici (réseau coupé).
+9. **Appel de fonds, suppression d'une ligne** (étude 18/10 : « mettre une croix pour supprimer une ligne et plus un double-clic ») : croix au bout de la ligne, à
+   côté des flèches d'ordre (`af-supprimer-btn`, montrée au survol, toujours sur écran tactile, hors du texte du courrier) ; le double-clic sur la ligne est retiré.

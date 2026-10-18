@@ -253,7 +253,12 @@ test('appel de fonds : une ligne du décompte se remonte ou se descend (flèches
   const fs = require('node:fs');
   const src = fs.readFileSync(require('node:path').join(__dirname, '..', 'client', '40-generateur-appel-fonds.js'), 'utf8');
   assert.match(src, /class="af-ordre" contenteditable="false"/);
-  assert.match(src, /ondblclick="event\.stopPropagation\(\)"/);
+  // Étude 18/10 : une croix supprime la ligne, plus le double-clic.
+  assert.match(src, /class="af-ordre-btn af-supprimer-btn"[^`]*onclick="supprimerLigneAppelFonds\(/);
+  assert.doesNotMatch(src, /ondblclick="supprimerLigneAppelFonds/);
+  // Après « Descendre la ligne », le focus revient sur la flèche, jamais sur la croix (Entrée suivante = suppression).
+  assert.doesNotMatch(src, /af-ordre-btn:\$\{sens < 0 \? 'first-child' : 'last-child'\}/);
+  assert.match(src, /af-ordre-btn\[aria-label="\$\{sens < 0 \? 'Remonter la ligne' : 'Descendre la ligne'\}"\]/);
 });
 
 test('onglet Fonds : rappel de l’offre de prêt — reçue ou non, date butoir, garanties', () => {

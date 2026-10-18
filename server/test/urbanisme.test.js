@@ -68,6 +68,26 @@ test('zonageParcelle : document, zone, informations ; une source en panne n’em
   assert.match((await U.zonageParcelle('BLOIS', 'AL', '1', injections)).erreur, /invalide/);
 });
 
+test('parcelle introuvable : les sections de la commune sont proposées (rapport du 18/10)', async () => {
+  const appels = [];
+  const faux = fauxApiCarto(appels);
+  const injections = { fetch: async (url) => url.includes('/cadastre/division')
+    ? reponse(fc([{ section: 'AB' }, { section: 'BA' }, { section: 'AB' }, { section: 'B' }]))
+    : url.includes('/cadastre/parcelle') ? reponse(fc([])) : faux(url) };
+  const z = await U.zonageParcelle('41034', 'ZD', '12', injections);
+  assert.match(z.erreur, /Pas de section ZD dans cette commune ; sections existantes : B, AB, BA \(3\)/);
+  assert.equal(z.sections.join(','), 'B,AB,BA');
+  const tous = [];
+  const espion = { fetch: async (url) => { tous.push(url); return injections.fetch(url); } };
+  U.viderCacheUrbanisme();
+  await U.zonageParcelle('41034', 'ZD', '12', espion);
+  assert.ok(tous.some((u) => u.includes('/cadastre/division?code_insee=41034')));
+  assert.ok(tous.every((u) => !/nom|adresse/i.test(u)), 'seul le code INSEE part');
+  U.viderCacheUrbanisme();
+  assert.match((await U.zonageParcelle('41034', 'AB', '999', injections)).erreur, /La section AB existe : vérifiez le numéro/);
+  assert.equal(U.parcelleIntrouvable({ section: 'ZD', numero: '0012' }, []).erreur, 'Parcelle ZD 12 introuvable au cadastre de cette commune.');
+});
+
 test('routes : communes d’un code postal, parcelle ; API injoignable → 502 avec un message', async () => {
   const { creerApp } = require('../src/app');
   const { ouvrirDb } = require('../src/db');

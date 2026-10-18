@@ -446,11 +446,29 @@
     return j;
   }
 
+  // Jour du positionnement, et l'agenda était-il sur aujourd'hui ? (rapport du 18/10 : une page ouverte la veille gardait « Sam 17 »).
+  let agendaAujourdhuiPose = '';
+  let agendaSuitAujourdhui = false;
   function positionnerAgenda(jourIso) {
     const auj = isoAujourdhuiLocal();
+    agendaAujourdhuiPose = auj;
+    agendaSuitAujourdhui = jourIso === auj;
     agendaJour = new Date(jourIso + 'T00:00:00').getDay() === 0 ? addDays(jourIso, 1) : jourIso;
     agendaLundi = debutSemaine(agendaJour);
     agendaMois = agendaVue === 'mois' ? agendaJour.slice(0, 7) : moisDeSemaineAgenda(agendaLundi, joursSemaineAgenda(agendaLundi).indexOf(agendaJour) !== -1 ? agendaJour : auj);
+  }
+
+  // Le jour a changé depuis le positionnement : un agenda resté sur « aujourd'hui » passe au nouveau jour (un jour choisi à la main reste).
+  // Rend vrai si l'affichage doit être redessiné.
+  function suivreJourAgenda() {
+    const auj = isoAujourdhuiLocal();
+    if (!agendaJour || !agendaAujourdhuiPose || auj === agendaAujourdhuiPose) return false;
+    if (agendaSuitAujourdhui) {
+      positionnerAgenda(auj);
+      // La nouvelle période (semaine suivante le dimanche, nouveau mois) n'est pas chargée : relue tout de suite, pas au relevé des 2 minutes.
+      setTimeout(chargerAgendaSemaine, 0);
+    } else agendaAujourdhuiPose = auj;
+    return true;
   }
 
   let popoverAgendaInit = false;
@@ -466,6 +484,9 @@
       renderPageAgenda();
     });
     window.addEventListener('resize', positionnerPopoverAgenda);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && suivreJourAgenda() && ongletActuel === 'agenda') renderPageAgenda();
+    });
   }
 
   function initAgenda() {
@@ -873,7 +894,9 @@
   // Toutes les 30 s, page Agenda ouverte : le trait suit l'heure sans redessiner la grille ; il
   // n'est redessiné que s'il doit apparaître ou disparaître (9 h, 19 h, minuit).
   function majTraitHeureAgenda() {
-    if (ongletActuel !== 'agenda' || agendaVue === 'mois') return;
+    if (ongletActuel !== 'agenda') return;
+    if (suivreJourAgenda()) { renderPageAgenda(); return; }
+    if (agendaVue === 'mois') return;
     const jours = agendaVue === 'jour' ? [agendaJour] : joursSemaineAgenda(agendaLundi);
     const t = traitHeureAgenda(new Date(), jours, isoAujourdhuiLocal());
     const el = document.querySelector('#agenda-contenu .ag-maintenant');
@@ -1486,6 +1509,7 @@
     const zone = document.getElementById('agenda-contenu');
     if (!zone) return;
     if (!agendaJour) positionnerAgenda(isoAujourdhuiLocal());
+    else suivreJourAgenda();
     const lu = agendaLu ? new Date(agendaLu).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }).replace(':', '\u00a0h\u00a0').replace(/ (\d)/, '\u00a0$1') : '';
     const source = agendaErreur ? `<span class="dot-label dl-alerte"><span class="dot"></span>${escapeHtml(agendaErreur)}</span>`
       : !agendaCharge ? 'Lecture de l’agenda…'
@@ -1528,7 +1552,7 @@
                 <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn" onclick="naviguerAgenda(1)" aria-label="Suivant">${icone('chevron-right')}</wa-button>
                 <span class="ag-aller-zone">
                   <wa-button appearance="outlined" size="s" type="button" class="ag-nav-btn ag-aller-btn" onclick="ouvrirAllerDateAgenda()" aria-label="Aller à une date" title="Aller à une date — l’historique est lu dans Outlook à la première consultation">${icone('calendar')}</wa-button>
-                  <input type="date" class="ag-aller" id="agenda-aller" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
+                  <input type="date" class="ag-aller" id="agenda-aller" aria-label="Aller à une date" value="${escapeAttr(agendaJour || '')}" min="2000-01-01" onchange="if (this.value) allerAuJourAgenda(this.value)" tabindex="-1" aria-hidden="true">
                 </span>
               </wa-button-group>
               <span class="ag-sous">${sous}</span>
