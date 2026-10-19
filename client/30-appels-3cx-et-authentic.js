@@ -1514,7 +1514,8 @@
       const cap = r && r.capture;
       if (!cap) return;
       const type = typePageAuthentic(cap);
-      const intitule = intituleDossierAuthentic(cap) || courant;
+      const onglet = !intituleDossierAuthentic(cap) && (type === 'bien' || type === 'client') ? intituleOngletActifAuthentic(cap) : '';
+      const intitule = intituleDossierAuthentic(cap) || (onglet && cleIntituleAuthentic(onglet) !== cleIntituleAuthentic(courant) ? onglet : courant);
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
@@ -1686,6 +1687,10 @@
       || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
     if (trouvee) return trouvee;
     if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.
+    const noms = [complet, personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : ''].filter(Boolean);
+    const comp = premier ? comparantsSuccession(d).find(c => noms.some(n => memePersonneNommee(n, c.nom))) : null;
+    if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
     return null;
   }
 
@@ -2136,7 +2141,14 @@
       if (!personneComparantAuthentic(d, personne, role)) return resultat;
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
-    if (type === 'bien') return estSuccession(d) ? appliquerBienSuccession(d, bienDepuisFicheAuthentic(capture), noter, resultat) : appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat);
+    if (type === 'bien') {
+      if (estSuccession(d)) return appliquerBienSuccession(d, bienDepuisFicheAuthentic(capture), noter, resultat);
+      // Fiche sûrement de CE dossier (son onglet, sa référence) : un bien à une autre adresse s'ajoute (étude 19/10).
+      const onglet = dossierOngletActifAuthentic(capture, liste || dossiers || []);
+      const reference = referenceDossierAuthentic(capture);
+      const dossierSur = (!!onglet && onglet.id === d.id) || (!!reference && d.referenceAuthentic === reference);
+      return appliquerBienAuthentic(d, bienDepuisFicheAuthentic(capture), noter, resultat, { dossierSur });
+    }
     // Aperçu de l'immeuble sur la page du sous-dossier (16/10) : lots (copropriété) et parcelles avec leur surface, comme la fiche du bien.
     if (type === 'gestion') appliquerApercuImmeubleAuthentic(d, capture, noter, resultat);
 
@@ -2374,14 +2386,6 @@
     //    Une fiche ouverte juste après un autre dossier n'y est jamais rangée (étude, 02/10 : « pourquoi
     //    proposer SIMOND pour ce dossier ? »).
     return courant && cites.includes(courant) ? courant : null;
-  }
-
-  // Pure : le dossier de CLAIRE désigné par l'onglet actif d'Authentic (« N - … » ou « VTE X / Y »), ou null.
-  function dossierOngletActifAuthentic(capture, liste) {
-    const o = ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(x.titre || '') || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(x.titre || '')));
-    if (!o) return null;
-    const lu = intituleNumeroteAuthentic({ onglets: [o], champs: [], tableaux: [], texte: '' });
-    return lu.intitule ? dossierPourIntituleAuthentic(lu.intitule, liste, '', referenceDossierAuthentic({ onglets: [o] })) : null;
   }
 
   // Pure : pourquoi une fiche client n'a été rangée dans aucun dossier — dit à l'étude, jamais en silence.
@@ -2685,6 +2689,10 @@
         d.intituleAuthentic = String(lu).slice(0, 150);
         referenceNotee = true;
       }
+    } else if (typePageAuthentic(capture) === 'bien' && intituleOngletActifAuthentic(capture)) {
+      // Fiche bien ouverte dans l'onglet d'un dossier : ce dossier, ou rien s'il n'est pas dans CLAIRE — jamais le dernier dossier vu.
+      d = dossierOngletActifAuthentic(capture, dossiers);
+      if (!d) return { etat: 'sans-dossier', texte: 'fiche bien d’un dossier d’Authentic absent de CLAIRE' };
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
     }

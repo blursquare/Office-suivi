@@ -1653,3 +1653,18 @@ test('succession sans « Succession » dans l’en-tête : bandeau SUCC, veuve/v
   assert.equal(app.typeAffaireAuthentic(g.export), 'succession');
   assert.equal(g.aCreer, true);
 });
+
+test('fiche bien ouverte dans l’onglet d’un AUTRE dossier : jamais rangée dans le dernier dossier vu (étude 19/10, succession VIEL)', () => {
+  const autre = Object.assign(JSON.parse(JSON.stringify(bien)), { onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: false }, { titre: 'VTE COLIN / DUPUIS', actif: true }] });
+  const groupes = app.dossiersDepuisRelevesAuthentic([
+    { recueLe: '2026-10-19T09:30:00Z', capture: gestion },
+    { recueLe: '2026-10-19T09:31:00Z', capture: autre }
+  ]);
+  const martel = groupes.find(g => /MARTEL/.test(g.intitule));
+  assert.equal(martel.export.immeubles.length, 0);
+  assert.ok(groupes.some(g => /COLIN/.test(g.intitule) && g.export.immeubles.length === 1));
+  assert.match(app.intituleOngletActifAuthentic(autre), /COLIN \/ DUPUIS/);
+  // Sans onglet de dossier actif : le dernier dossier vu, comme avant.
+  const seul = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-19T09:30:00Z', capture: gestion }, { recueLe: '2026-10-19T09:31:00Z', capture: bien }]);
+  assert.equal(seul[0].export.immeubles.length, 1);
+});

@@ -555,6 +555,14 @@
       // Un autre bien du MÊME dossier (déjà retenu parmi ses immeubles, par une parcelle ou l'adresse) : il est complété, la fiche ne
       // change pas. Un bien inconnu qui contredit la fiche reste écarté (page d'un autre dossier rangée ici par erreur).
       if (retenirImmeubleVenteAuthentic(d, bien, true)) { noter('Fiche d’un autre bien du dossier lue dans Authentic : parcelles complétées'); resultat.modifie = true; }
+      // Un dossier peut compter plusieurs biens (étude 19/10 : « un vendeur ou un défunt peut avoir plusieurs biens dans son dossier, ils
+      // s'ajoutent ») : une fiche ouverte DANS l'onglet de ce dossier d'Authentic (ou portant sa référence) est un bien de plus — ajouté
+      // aux biens du dossier, le bien principal de la fiche (adresse, parcelles) inchangé.
+      else if (o && o.dossierSur && retenirImmeubleVenteAuthentic(d, bien, false)) {
+        const a = bien.adresse || {};
+        noter(`Autre bien du dossier relevé dans Authentic : ${a.texte ? normaliserAdresse(a.texte) : bien.parcelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
+        resultat.modifie = true;
+      }
       else resultat.raison = raison;
       return resultat;
     }

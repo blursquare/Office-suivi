@@ -736,3 +736,20 @@ test('relecture 16/10 : icônes jamais coupées dans un mot, fiche décédée pr
   const f = app.fusionnerInfosAuthentic({ premierComparant: { nom: 'DURAND Jeanne', lien: 'Veuve de', conjoint: 'Monsieur MARTIN Paul' } }, { premierComparant: { nom: 'MARTIN Paul', civilite: 'M' } });
   assert.equal(JSON.stringify(f.premierComparant), JSON.stringify({ nom: 'MARTIN Paul', civilite: 'M' }));
 });
+
+test('fiche client d’un héritier nommé seulement dans les comparants : rattachée à la succession et ajoutée aux parties (étude 19/10)', () => {
+  const d = base({ id: 's12', nom: 'SUCC - TESTARD Lucien', parties: [],
+    authentic: { comparants: [{ role: 'DEFUNT', nom: 'TESTARD Lucien', qualite: 'Défunt' }, { role: 'HERITIER', nom: 'TESTARD Claire', qualite: 'Héritier' },
+      { role: 'HERITIER', nom: 'MOREAU Anne', qualite: 'Héritier' }] } });
+  // Fille sous son nom de naissance.
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Claire' }), 'PARTIE');
+  // Fille mariée : fiche au nom de naissance, comparant au nom d'usage.
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Anne', nomUsage: 'MOREAU' }), 'PARTIE');
+  // Personne étrangère au dossier, ou sans prénom : rien.
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Paul' }), '');
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD' }), '');
+  const r = app.appliquerClientSuccession(d, { nom: 'TESTARD', prenom: 'Claire', civilite: 'Madame', emails: ['claire@exemple.fr'], telephones: ['06 11 22 33 44'] }, () => {}, { modifie: false }, '2026-10-19T09:00:00Z');
+  assert.ok(r.modifie);
+  assert.equal(d.parties.map(p => p.nom).join('|'), 'Claire TESTARD');
+  assert.equal(d.parties[0].emails[0], 'claire@exemple.fr');
+});

@@ -98,3 +98,19 @@ test('immeuble retenu sans adresse ni commune : la fiche de cet autre bien le co
   assert.equal(D.memeCommune({ commune: 'SAINT-DENIS', codePostal: '41000' }, { commune: 'SAINT-DENIS-SUR-LOIRE', codePostal: '41000' }), true, '« -sur-… » ajouté');
   assert.equal(D.memeCommune({ commune: 'SAINT-LAURENT', codePostal: '41220' }, { commune: 'SAINT-LAURENT-NOUAN', codePostal: '41220' }), false);
 });
+
+test('fiche bien inconnue ouverte dans l’onglet du dossier : un bien de plus (étude 19/10 : plusieurs biens dans un dossier)', () => {
+  const d = dossier();
+  const bien = { adresse: { texte: '8 route des Bois 41120 CORMERAY', codePostal: '41120' }, type: 'Terrain', parcelles: [{ section: 'ZE', numero: '7', surface: '1200' }] };
+  // Rattachement incertain (dossier en consultation seulement) : écartée comme avant.
+  const r0 = app.appliquerBienAuthentic(dossier(), bien, noter, { modifie: false });
+  assert.ok(r0.raison);
+  // Ouverte dans l'onglet de CE dossier : ajoutée aux biens, le bien principal intact.
+  const r = app.appliquerBienAuthentic(d, bien, noter, { modifie: false }, { dossierSur: true });
+  assert.equal(r.modifie, true);
+  assert.equal(r.raison, undefined);
+  assert.equal(d.authentic.immeubles.length, 3);
+  assert.equal(d.bien.cadastre.parcelles.map((p) => p.numero).join(','), '12');
+  assert.equal(d.adresseBien, 'BLOIS (41000), 3 rue Imaginaire');
+  assert.equal(app.groupesParcellesConstitution(d).length, 3);
+});

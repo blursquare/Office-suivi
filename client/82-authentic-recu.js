@@ -206,3 +206,19 @@
     });
     return details;
   }
+
+  // Pure : le dossier de CLAIRE désigné par l'onglet actif d'Authentic (« N - … » ou « VTE X / Y »), ou null.
+  function dossierOngletActifAuthentic(capture, liste) {
+    const o = ongletDossierActifAuthentic(capture);
+    const intitule = intituleOngletActifAuthentic(capture);
+    return intitule ? dossierPourIntituleAuthentic(intitule, liste, '', referenceDossierAuthentic({ onglets: [o] })) : null;
+  }
+  function ongletDossierActifAuthentic(capture) {
+    return ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(x.titre || '') || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(x.titre || ''))) || null;
+  }
+  // Pure : l'intitulé du dossier de l'onglet actif d'Authentic (même absent de CLAIRE), '' sinon — une fiche ouverte dans l'onglet d'un AUTRE
+  // dossier n'est jamais celle du dernier dossier vu (étude 19/10 : fiche bien d'une vente rangée dans la succession VIEL).
+  function intituleOngletActifAuthentic(capture) {
+    const o = ongletDossierActifAuthentic(capture);
+    return o ? (intituleNumeroteAuthentic({ onglets: [o], champs: [], tableaux: [], texte: '' }).intitule || '') : '';
+  }
