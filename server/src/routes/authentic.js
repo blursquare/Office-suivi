@@ -194,7 +194,10 @@ function creerRouteurAuthentic(options) {
       if (t - e.t < DUREE_REPRISE_RELEVE_MS) continue;
       enCours.delete(id);
       if (e.essais >= ESSAIS_RELEVE_MAX || t - Date.parse(e.releve.recueLe) > DUREE_RELEVE_MS) { noter(e.releve, { etat: 'expire' }); continue; }
-      aTraiter.unshift(Object.assign({}, e.releve, { revu: true, essais: e.essais }));
+      // Une version plus récente de la même page est arrivée depuis (relecture 19/10) : l'ancienne n'est jamais rejouée par-dessus.
+      const cle = clePageServeurAuthentic(e.releve.capture);
+      if (cle && recents.some(r => r.id !== e.releve.id && r.recueLe > e.releve.recueLe && clePageServeurAuthentic(r.capture) === cle)) { noter(e.releve, { etat: 'remplace' }); continue; }
+      aTraiter.push(Object.assign({}, e.releve, { essais: e.essais }));
       noter(e.releve, { etat: 'en-file', reprise: e.essais });
     }
     const expires = aTraiter.filter(r => t - Date.parse(r.recueLe) > DUREE_RELEVE_MS);
@@ -374,6 +377,18 @@ function texteActifAuthentic(capture) {
 }
 
 // L'intitulé « N - … » de la page (onglet actif, puis en-tête du dossier, puis intitulé seul), ou ''.
+// Pure : ce qui désigne la même page d'Authentic (le même écran, peut-être modifié) — la nature et l'intitulé, plus le nom de la personne
+// d'une fiche client ou l'adresse d'une fiche bien. '' si rien ne la désigne.
+function clePageServeurAuthentic(capture) {
+  if (!capture) return '';
+  const nature = naturePageAuthentic(capture);
+  const champ = (re) => ((capture.champs || []).find(c => re.test(String(c.libelle || ''))) || {}).valeur || '';
+  const detail = nature === 'client' ? [champ(/^nom de famille/i), champ(/^pr[ée]nom/i)].join(' ')
+    : nature === 'bien' ? [champ(/^n° de voie/i), champ(/^nom de la voie/i), champ(/^cp - ville/i)].join(' ') : '';
+  const cle = [nature, intitulePageAuthentic(capture), detail].join('|').toLowerCase().replace(/\s+/g, ' ').trim();
+  return cle.replace(/\|/g, '').trim() ? cle : '';
+}
+
 function intitulePageAuthentic(capture) {
   const c = capture || {};
   const actif = (c.onglets || []).find(o => o.actif && RE_ONGLET_DOSSIER.test(o.titre));

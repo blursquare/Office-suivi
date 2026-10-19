@@ -450,8 +450,12 @@
       }
       const role = /^(vend|prom|c[ée]d)/i.test(q[1]) ? 'VENDEUR' : 'ACQUEREUR';
       // « M. X et Mme Y » = deux personnes du même côté (un couple qui vend ou achète à deux) ; « et » en début ou fin de ligne ignoré.
-      noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, '')).map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())
-        .filter(n => n.length > 1).forEach(nom => r.push({ nom: nom.slice(0, 120), role }));
+      // « M. et Mme MARTEL Paul » (relecture 19/10) : la civilité seule désigne l'époux du même nom — gardé sous le nom de famille seul.
+      const parts = noms.join(' et ').split(/\s+et\s+/i).map(n => n.replace(RE_LIEN_CONJOINT_COMPARANT, ''));
+      const famille = (n) => String(n || '').split(/\s+/).filter(m => m.length >= 2 && m === m.toUpperCase() && /[A-ZÀ-Þ]/.test(m)).join(' ');
+      parts.map((n, k) => (/^\s*(?:M\.?|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s*$/i.test(n) && parts[k + 1] ? famille(parts[k + 1]) : n))
+        .map(n => n.replace(/^(?:et\s+)?(?:M\.|Mme|Mlle|Monsieur|Madame|Mademoiselle|Mr)\s+/i, '').replace(/^et\s+/i, '').trim())
+        .filter(n => n.length > 1 && !/^(?:M\.?|Mme|Mlle|Mr)$/i.test(n)).forEach(nom => r.push({ nom: nom.slice(0, 120), role }));
       noms = [];
     }
     // Rubrique coupée en fin de champ (« personMme VIEL Nathalie épouse de M. BA ») : dans une succession dont le défunt est lu, la
@@ -481,9 +485,10 @@
   function personneDansComparantsAuthentic(comparants, personne, role) {
     const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
     const noms = [personne.nom, personne.nomUsage].filter(Boolean).map(n => mots(n).trim()).filter(Boolean);
-    const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
+    // Tous les prénoms de la fiche comptent (« Marie Sophie » est le comparant « MARTIN Sophie », relecture 19/10).
+    const prenoms = mots(personne.prenom).trim().split(' ').filter(x => x.length >= 2);
     return comparants.some(c => c.role === role && noms.some(n => mots(c.nom).includes(' ' + n + ' '))
-      && (!prenom || !/[a-z]{2,}\s+[a-z]{2,}/.test(mots(c.nom).trim()) || mots(c.nom).includes(' ' + prenom + ' ')));
+      && (!prenoms.length || !/[a-z]{2,}\s+[a-z]{2,}/.test(mots(c.nom).trim()) || prenoms.some(x => mots(c.nom).includes(' ' + x + ' '))));
   }
 
   // Modifie d : une personne reprise d'une fiche client d'Authentic (`origine: 'authentic'`) qui n'est pas comparante de son côté

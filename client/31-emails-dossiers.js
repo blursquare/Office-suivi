@@ -808,7 +808,8 @@
     'a-choisir': { classe: 'dl-pret', texte: 'Dossier à choisir' },
     'a-creer': { classe: 'dl-pret', texte: 'Dossier à créer' },
     erreur: { classe: 'dl-urgent', texte: 'Erreur' },
-    expire: { classe: 'dl-urgent', texte: 'Perdue : aucune fenêtre CLAIRE ouverte' }
+    expire: { classe: 'dl-urgent', texte: 'Perdue : aucune fenêtre CLAIRE ouverte' },
+    remplace: { classe: '', texte: 'Remplacée par une version plus récente de la même page' },
   };
 
   // Pure : le nom d'un poste du journal — prénom du collaborateur de sa fenêtre, sinon le poste serveur

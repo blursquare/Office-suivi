@@ -2915,15 +2915,16 @@
       const resultats = [];
       for (const rel of releves || []) {
         if (rel && rel.navigation) { suivreNavigationAuthentic(rel.navigation); continue; }
+        // Compte rendu page par page (relecture 19/10) : le serveur remet en file une page sans compte rendu après 90 s — un lot long
+        // ne doit pas faire rejouer ses premières pages.
         try {
           const res = await appliquerReleveAuthentic(rel.capture, rel);
-          if (res && rel.id) resultats.push(Object.assign({ id: rel.id, cle: clePageReleveAuthentic(rel.capture) }, res));
+          if (res && rel.id) { const x = Object.assign({ id: rel.id, cle: clePageReleveAuthentic(rel.capture) }, res); resultats.push(x); rapporterResultatsAuthentic([x]); }
         } catch (e) {
           console.error('Relevé Authentic non appliqué', e && e.message);
-          if (rel && rel.id) resultats.push({ id: rel.id, etat: 'erreur', texte: 'erreur dans CLAIRE : ' + String((e && e.message) || e).slice(0, 120) });
+          if (rel && rel.id) { const x = { id: rel.id, etat: 'erreur', texte: 'erreur dans CLAIRE : ' + String((e && e.message) || e).slice(0, 120) }; resultats.push(x); rapporterResultatsAuthentic([x]); }
         }
       }
-      if (resultats.length) rapporterResultatsAuthentic(resultats);
       // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
       const etape1 = document.getElementById('wizard-step-1');
       if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents(); else rafraichirWizardSuccessionAuthentic();
