@@ -514,6 +514,8 @@
   // avait déjà donné et changé depuis — sinon un changement d'Authentic sur une valeur déjà reprise est PROPOSÉ (client/52).
   function complementDossierDepuisAuthentic(d, donnees, liste, options) {
     if (!d || !donnees) return [];
+    // Jamais le bien d'un autre dossier, ni un bien absent des immeubles de la page du dossier (étude 19/10 : « il mélange les dossiers »).
+    donnees = donneesSansBiensEtrangersAuthentic(d, donnees, liste);
     const o = options || {};
     const maintenant = o.maintenant || new Date().toISOString();
     const textes = [];

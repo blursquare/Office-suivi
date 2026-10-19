@@ -83,3 +83,23 @@ test('import : numéros bornés, fichier immeubles à en-tête partiel (relectur
   assert.equal(e[0].commune, 'BLOIS');
   assert.equal(e[1].parcelles[0].section + e[1].parcelles[0].numero, 'ZN4');
 });
+
+test('import : export « Recherche d\'immeubles » lu par son en-tête — commune après le code postal, parcelles « | » (structure reçue le 19/10)', () => {
+  const lignes = [
+    ["Recherche d'immeubles - Maître Exemple", '', '', ''], ['', '', '', ''], ['3 résultats ', '', '', ''], ['', '', '', ''],
+    ['Immeuble', 'Adresse', 'Cadastre', 'Type'],
+    ['Maison bleue', '9  boulevard Exemple 45000 ORLEANS', 'HT 56  | HT 57  ', 'Maison individuelle'],
+    ['', '12  rue des Essais 41120 SAINT GERVAIS LA FORET', '000 ZN 4  ', 'Terrain'],
+    ['', ' 41000 BLOIS', '', 'Copropriété'],
+    ['', ' ', '', 'Maison individuelle']
+  ];
+  const l = app.lectureExportImport(lignes);
+  assert.equal(l.genre, 'biens');
+  assert.equal(l.colonnes.join(','), 'ignorer,adresse,cadastre,type');
+  const e = app.enregistrementsImport(l.donnees, l.colonnes, l.genre);
+  assert.equal(e.length, 3);
+  assert.equal(e.map(x => `${x.codePostal}|${x.commune}`).join(';'), '45000|ORLEANS;41120|SAINT GERVAIS LA FORET;41000|BLOIS');
+  assert.equal(e[0].parcelles.map(p => p.section + p.numero).join(','), 'HT56,HT57');
+  assert.equal(e[1].parcelles.map(p => `${p.prefixe}${p.section}${p.numero}`).join(','), 'ZN4');
+  assert.equal(e.map(x => x.type).join(','), 'Maison individuelle,Terrain,Copropriété');
+});

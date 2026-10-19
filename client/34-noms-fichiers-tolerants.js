@@ -117,6 +117,9 @@
     // Une DIA ENVOYÉE (déclaration, demande, notification, copie Claire Scan de la DIA) n'est pas la renonciation de la mairie
     // (audit 13/10 ; étude 07/10 : « on doit avoir le document de renonciation pour signer ») — sauf si le nom dit la réponse.
     if (piece.cle === 'renonciationPreemption' && RE_DEMANDE_DIA_NOM.test(nomNormalise) && !RE_REPONSE_DIA_NOM.test(nomNormalise)) return null;
+    // « DIA » avec « SAFER » dans le nom : la DIA envoyée à la SAFER ou sa réponse, jamais la renonciation au droit de préemption urbain
+    // (étude 19/10 : « s'il y a SAFER dans le nom, à ne pas prendre »).
+    if (piece.cle === 'renonciationPreemption' && /(?:^|[^a-z])safer(?:[^a-z]|$)/i.test(nomNormalise)) return null;
     if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
     // « Pré-état daté » contient les mots « état daté » : la forme tolérante le prendrait.
     if (piece.cle === 'etatDate' && RE_PRE_ETAT_DATE.test(nomNormalise)) return null;

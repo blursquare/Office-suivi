@@ -37,6 +37,10 @@ test('les sigles CU, « CU a » et DIA sont reconnus, même sans parenthèse et 
   assert.equal(pieces('Demande DPU commune.pdf'), '');
   assert.equal(pieces('Renonciation préemption suite DIA envoyée.pdf'), 'renonciationPreemption');
   assert.equal(pieces('Réponse DIA mairie.pdf'), 'renonciationPreemption');
+  // « SAFER » dans le nom : la DIA de la SAFER, jamais la renonciation au droit de préemption urbain (étude 19/10).
+  assert.equal(pieces('DIA SAFER.pdf'), '');
+  assert.equal(pieces('Réponse DIA SAFER non préemption.pdf'), '');
+  assert.equal(pieces('Renonciation préemption SAFER.pdf'), '');
 });
 
 test('un sigle doit être un mot entier et sans faute : aucune tolérance sur les mots courts', () => {

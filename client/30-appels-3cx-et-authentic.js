@@ -1288,7 +1288,8 @@
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
       etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
       avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture),
-      premierComparant: premierComparantAuthentic(capture), premierImmeuble: premierImmeubleAuthentic(capture)
+      premierComparant: premierComparantAuthentic(capture), premierImmeuble: premierImmeubleAuthentic(capture),
+      biensDossier: biensRubriqueAuthentic(capture)
     };
     Object.keys(r).forEach(k => { if (!r[k] || (typeof r[k] === 'object' && !Object.keys(r[k]).length)) delete r[k]; });
     return r;
@@ -1521,6 +1522,7 @@
       const intitule = intituleDossierAuthentic(cap) || (ongletActifAutreDossierAuthentic(cap, courant, (groupes.get(courant) || {}).reference) ? '' : courant);
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
+      if (type === 'bien' && !intituleDossierAuthentic(cap) && ongletActifHorsDossierAuthentic(cap)) return; // ouverte hors d'un dossier (19/10)
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
       if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '', aCreer: false });
       const g = groupes.get(intitule);
@@ -1551,7 +1553,8 @@
       (g.conjoints || []).filter(pc => (conjointComparantAuthentic(g.infos, pc) || conjointSurvivantAuthentic(g, pc)) && ![...g.personnes.values()].some(p => p.nom === pc.nom && p.prenom === pc.prenom))
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
-      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()], g.apercu);
+      // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
+      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
@@ -2671,6 +2674,9 @@
         d.intituleAuthentic = String(lu).slice(0, 150);
         referenceNotee = true;
       }
+    } else if (typePageAuthentic(capture) === 'bien' && ongletActifHorsDossierAuthentic(capture)) {
+      // Fiche bien ouverte hors de l'onglet d'un dossier (recherche d'immeubles…) : d'aucun dossier sûr, jamais le dernier vu (étude 19/10).
+      return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic : non rangée' };
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
       // Onglet actif d'un AUTRE dossier (titre coupé, référence différente) : ce dossier s'il est dans CLAIRE, sinon rien — jamais le dernier vu (étude 19/10).

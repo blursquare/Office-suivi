@@ -542,6 +542,9 @@
     const avant = (d.authentic && Array.isArray(d.authentic.immeubles)) ? d.authentic.immeubles : [];
     const liste = fusionnerImmeubleAuthentic(avant, fiche, { seulementCompleter: !!seulementConnu });
     if (!liste || (seulementConnu && liste.length > avant.length)) return false;
+    // Un bien DE PLUS que ceux que la page du dossier d'Authentic annonce, ou absent de sa rubrique « Immeubles » : pas de ce dossier
+    // (étude 19/10, le bien de MONNEREAU / BESSIN rangé dans GALLOYER / BORDAS).
+    if (liste.length > avant.length && !bienAttenduDansDossierAuthentic(d, bien, avant.length)) return false;
     d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });
     return true;
   }
@@ -955,23 +958,69 @@
     }) || null;
   }
 
+  // Pure : la clé d'une adresse (texte ou { texte }) pour comparer deux biens.
+  function cleAdresseBienAuthentic(a) {
+    const t = typeof a === 'string' ? a : (a && a.texte) || '';
+    return t ? normaliserPourRecherche(normaliserAdresse(t)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
+  }
+
+  // Pure : le bien est-il le bien principal de la fiche ? L'adresse décide quand les deux en ont une ; sinon une parcelle commune.
+  function bienPrincipalDuDossierAuthentic(d, bien) {
+    if (!d || !bien) return false;
+    const a = cleAdresseBienAuthentic(bien.adresse);
+    const principal = cleAdresseBienAuthentic(d.adresseBien);
+    if (a && principal) return a === principal;
+    return parcellesCadastre(d.bien && d.bien.cadastre).some(q => (bien.parcelles || []).some(p => p && String(p.section).toUpperCase() === String(q.section || '').toUpperCase()
+      && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')));
+  }
+
+  // Pure : un bien de plus peut-il rejoindre les biens de la vente ? La page du dossier d'Authentic dit combien il en compte et lesquels
+  // (« Immeubles (n) », étude 19/10 : « repérer dans la structure le nombre de biens du dossier et ne pas en rajouter d'autres ») : un bien
+  // absent de la rubrique, ou au-delà du nombre annoncé, n'en est pas. Sans page du dossier lue : rien n'est refusé ici.
+  function bienAttenduDansDossierAuthentic(d, bien, dejaRetenus) {
+    const r = d && d.authentic && d.authentic.biensDossier;
+    if (!r || !r.nombre || !bien || estSuccession(d)) return true;
+    const cite = bienDansRubriqueAuthentic(bien.adresse, r);
+    if (cite !== null) return cite;
+    return (dejaRetenus || 0) < r.nombre;
+  }
+
+  // Pure : les données d'un dossier d'Authentic sans les biens qui ne sont pas de cette vente — bien principal d'un autre dossier de CLAIRE,
+  // ou absent de la rubrique « Immeubles » de la page du dossier (étude 19/10) ; le bien principal de la fiche est toujours gardé.
+  function donneesSansBiensEtrangersAuthentic(d, donnees, liste) {
+    const ims = (donnees && Array.isArray(donnees.immeubles)) ? donnees.immeubles : [];
+    if (!d || !ims.length || estSuccession(d)) return donnees;
+    const rubrique = (donnees.infosAuthentic && donnees.infosAuthentic.biensDossier) || (d.authentic && d.authentic.biensDossier) || null;
+    const garder = ims.filter(im => bienPrincipalDuDossierAuthentic(d, im)
+      || (!bienPrincipalDUnAutreDossier(d, im, liste) && bienDansRubriqueAuthentic(im.adresse, rubrique) !== false));
+    if (garder.length === ims.length) return donnees;
+    const ids = new Set(garder.map(im => im.id));
+    const biens = (donnees.biens || []).filter(id => ids.has(id));
+    return Object.assign({}, donnees, { immeubles: garder, biens: biens.length ? biens : garder.map(im => im.id) });
+  }
+
   // Modifie d : les biens ajoutés à une vente qui sont le bien principal d'un autre dossier de CLAIRE retirés (étude 19/10, BAUDRY / ENCAOUA
   // portait le bien de MONNEREAU / BESSIN) — jamais le bien principal de la fiche elle-même. → true si retiré.
   function retirerBiensDAutresDossiers(d, liste) {
     if (!d || d.archive || estSuccession(d) || !d.authentic || !Array.isArray(d.authentic.immeubles) || d.authentic.immeubles.length < 2) return false;
-    const principal = d.adresseBien ? normaliserPourRecherche(normaliserAdresse(d.adresseBien)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
-    const retires = d.authentic.immeubles.filter(im => {
-      if (!im) return false;
-      const a = im.adresse ? normaliserPourRecherche(normaliserAdresse(im.adresse)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
-      if (a && a === principal) return false;
-      const memeParcelle = parcellesCadastre(d.bien && d.bien.cadastre).some(q => (im.parcelles || []).some(p => String(p.section).toUpperCase() === String(q.section || '').toUpperCase() && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')));
-      return !memeParcelle && !!bienPrincipalDUnAutreDossier(d, im, liste);
-    });
+    // Absent de la rubrique « Immeubles » de la page du dossier d'Authentic, ou bien principal d'un autre dossier (étude 19/10).
+    const rubrique = d.authentic.biensDossier || null;
+    const retires = d.authentic.immeubles.filter(im => im && !bienPrincipalDuDossierAuthentic(d, im)
+      && (!!bienPrincipalDUnAutreDossier(d, im, liste) || bienDansRubriqueAuthentic(im.adresse, rubrique) === false));
     if (!retires.length) return false;
-    d.authentic = Object.assign({}, d.authentic, { immeubles: d.authentic.immeubles.filter(im => !retires.includes(im)) });
+    const gardes = d.authentic.immeubles.filter(im => !retires.includes(im));
+    d.authentic = Object.assign({}, d.authentic, { immeubles: gardes });
+    // Leurs parcelles quittent aussi la fiche, sauf celles d'un bien gardé.
+    const clesGardees = new Set(gardes.flatMap(x => ((x && x.parcelles) || []).map(p => cleParcelle(p.section, p.numero))));
+    const aRetirer = new Set(retires.flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))).filter(k => !clesGardees.has(k)));
+    const cad = d.bien && d.bien.cadastre;
+    if (cad && Array.isArray(cad.parcelles) && aRetirer.size) {
+      const restantes = cad.parcelles.filter(p => p && !aRetirer.has(cleParcelle(p.section, p.numero)));
+      if (restantes.length && restantes.length < cad.parcelles.length) d.bien = Object.assign({}, d.bien, { cadastre: Object.assign({}, cad, { parcelles: restantes, section: restantes[0].section, numero: restantes[0].numero }) });
+    }
     retires.forEach(im => {
       const autre = bienPrincipalDUnAutreDossier(d, im, liste);
-      ajouterHistorique(d, `Bien retiré : ${im.adresse || (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ')} — c'est le bien du dossier ${autre ? libelleDossierAffiche(autre) : 'd’un autre dossier'}`);
+      ajouterHistorique(d, `Bien retiré : ${im.adresse || (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ')} — ${autre ? `c'est le bien du dossier ${libelleDossierAffiche(autre)}` : 'absent des immeubles du dossier dans Authentic'}`);
     });
     return true;
   }

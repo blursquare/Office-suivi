@@ -21026,3 +21026,26 @@ Téléphone parfois « 06… / 02… » ou étiqueté « M:06… Mme 06… » ; 
 colonnes par leur titre (`TITRES_COLONNES_IMPORT`, devinées seulement sans en-tête), `numerosImport` sépare les numéros ; décès, situation et
 conjoint gardés (`importClientsBiens.js`, occurrence « Import » de `clientsBiens.js`). Sur le fichier réel : 5 149 personnes, 4 337 dates de
 naissance, 461 décès, 3 091 avec téléphone, 2 630 avec email ; base calculée en 0,2 s.
+
+
+### 19/10/2026 — 0.291.3 : fiches bien mêlées entre dossiers, DIA de la SAFER
+
+Étude : « J'ai encore le problème avec les fiches biens. Il mélange les dossiers » (fiche bien de MONNEREAU / BESSIN, relevée à 17 h 42,
+dans GALLOYER / BORDAS — groupe « 2 biens », carte « Aussi : … ») ; « une fois un dossier rattaché par son numéro il reste et aucun autre
+dossier ne peut se rattacher ; repérer dans la structure le nombre de biens du dossier et ne pas en rajouter d'autres » ; « s'il y a DIA
+dans un nom de fichier ce n'est pas forcément pour le droit de préemption urbain ; seul oui, mais s'il y a SAFER dans le nom, à ne pas
+prendre ». Cause : une fiche bien sans intitulé rejoignait le dernier dossier vu (regroupement des pages et application), puis le
+complément depuis Authentic retenait tous les biens du groupe sans contrôle. Corrigé : `ongletActifHorsDossierAuthentic` (client/82) —
+fiche bien ouverte dans un onglet qui n'est pas un dossier : ni groupée ni rangée ; `biensRubriqueAuthentic` lit « Immeubles (n) » et son
+texte (gardé dans `d.authentic.biensDossier` par `infosDossierAuthentic`), `bienDansRubriqueAuthentic` ; `retenirImmeubleVenteAuthentic`
+refuse un bien de plus absent de la rubrique ou au-delà de n ; `donneesSansBiensEtrangersAuthentic` au début de
+`complementDossierDepuisAuthentic` ; `retirerBiensDAutresDossiers` (démarrage) retire aussi un bien absent de la rubrique, avec ses
+parcelles de la fiche, l'adresse décidant du bien principal (`bienPrincipalDuDossierAuthentic`). La référence rattachée tenait déjà
+(onglet à une autre référence = autre dossier). `correspondancePieceNomMotifs` : « SAFER » dans le nom → jamais `renonciationPreemption`.
+Export « Recherche d'immeubles » reçu le 19/10 (analysé en formes masquées, fichier supprimé) : titre, « N résultats », ligne
+vide, en-tête `Immeuble | Adresse | Cadastre | Type` ; Immeuble = nom donné au bien (14 % remplis, ignoré) ; Adresse en une cellule
+« 9  boulevard X 45000 ORLEANS » (commune en capitales après le code postal, parfois sans voie) ; Cadastre « HT 56  | HT 57 » (préfixe
+« 000 » parfois) ; Type parmi Maison individuelle, Terrain, Copropriété, Local, Immeuble entier, Terrain agricole nu/bâti, Garage
+individuel. Exactement 1 000 lignes : la recherche d'Authentic semble plafonnée à 1 000 résultats. `enregistrementsImport` tire
+désormais la commune et le code postal de la fin de l'adresse ; sur le fichier : 997 biens (3 lignes vides), 995 communes, 2 398
+parcelles.

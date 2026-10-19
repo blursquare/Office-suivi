@@ -207,6 +207,48 @@
     return details;
   }
 
+  // Pure : la rubrique « Immeubles (n) » de la page du dossier — combien de biens compte le dossier et le texte de la rubrique (étude 19/10 :
+  // « repérer dans la structure le nombre de biens du dossier et ne pas en rajouter d'autres »). Texte vide quand la rubrique est coupée
+  // (fin non trouvée) : seul le nombre compte alors. null sans rubrique.
+  function biensRubriqueAuthentic(capture) {
+    // Le texte de la page seulement (lignes) : un libellé de champ peut être coupé, et une adresse coupée écarterait le bon bien.
+    const c = capture || {};
+    const sources = [[c.texte || '', true]].concat((c.champs || []).map(ch => [(ch.libelle || '') + ' ' + (ch.valeur || ''), false]));
+    for (const [src, lignes] of sources) {
+      const m = /Immeubles?\s*\((\d{1,3})\)\s*/i.exec(String(src));
+      if (!m || !Number(m[1])) continue;
+      const suite = String(src).slice(m.index + m[0].length, m.index + m[0].length + 1500);
+      const fin = lignes ? /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces|Tiers)/i.exec(suite) : null;
+      return { nombre: Number(m[1]), texte: fin ? suite.slice(0, fin.index).replace(/\s+/g, ' ').trim() : '' };
+    }
+    return null;
+  }
+
+  // Pure : le bien (adresse en texte, ou { texte }) est-il cité dans la rubrique « Immeubles » du dossier ? true / false, null quand on ne
+  // peut pas le dire (pas de rubrique lue, pas d'adresse). Le code postal du bien doit y être, et la plupart des mots de son adresse.
+  function bienDansRubriqueAuthentic(adresse, rubrique) {
+    const a = typeof adresse === 'string' ? adresse : (adresse && adresse.texte) || '';
+    const texte = rubrique && rubrique.texte;
+    if (!a || !texte) return null;
+    const e = elementsAdresseAuthentic(a);
+    if (!e || (!e.codePostal && !e.mots.length)) return null;
+    const brut = ' ' + normaliserPourRecherche(texte).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    if (e.codePostal && !brut.includes(' ' + e.codePostal + ' ')) return false;
+    if (!e.mots.length) return true;
+    const trouves = e.mots.filter(m => brut.includes(' ' + m + ' ')).length;
+    return trouves >= Math.ceil(e.mots.length * 0.6);
+  }
+
+  // Pure : la page a-t-elle été ouverte hors de tout onglet de dossier d'Authentic (recherche d'immeubles, liste…) ? Une fiche bien ainsi
+  // ouverte n'est d'aucun dossier sûr : jamais rangée dans le dernier dossier vu (étude 19/10 : « il mélange les dossiers »). Sans onglets
+  // relevés, on ne sait pas : false.
+  function ongletActifHorsDossierAuthentic(capture) {
+    const o = ((capture && capture.onglets) || []).find(x => x && x.actif);
+    if (!o) return false;
+    const titre = sansReferenceAuthentic(o.titre);
+    return !referencesDansTexteAuthentic(o.titre).length && !/^\s*(?:\d{1,6}\s*-|vte\b|vente\b|succ\b|succession\b)/i.test(titre) && !RE_INTITULE_VTE_SEUL_AUTHENTIC.test(titre);
+  }
+
   // Pure : le dossier de CLAIRE désigné par l'onglet actif d'Authentic (« N - … » ou « VTE X / Y »), ou null.
   function dossierOngletActifAuthentic(capture, liste) {
     // La référence de l'onglet actif d'abord, quel que soit son titre (succession, titre coupé — relecture 19/10).

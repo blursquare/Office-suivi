@@ -177,7 +177,9 @@
       const complete = adresse && lieu && !normaliserPourRecherche(adresse).includes(normaliserPourRecherche(ville || '---')) ? `${adresse} ${lieu}` : (adresse || lieu);
       if (genre === 'personnes') return { nom: r.nom || '', prenom: r.prenom || '', civilite: r.civilite || '', dateNaissance: r.dateNaissance || '', telephones: [...new Set(r.telephones)], emails: r.emails, domicile: complete, profession: r.profession || '',
         deces: r.deces || null, situation: r.situation || '', conjoint: r.conjoint || '' };
-      return { adresse: complete, commune: ville, codePostal: parts.codePostal || ((/\b(\d{5})\b/.exec(adresse) || [])[1] || ''), type: r.type || '', parcelles: r.parcelles };
+      // Export « Recherche d'immeubles » (étude 19/10) : une seule colonne « 9 boulevard X 45000 ORLEANS » — commune après le code postal.
+      const fin = /(?<!\d)(\d{5})\s+([^\d\s].*)$/.exec(adresse);
+      return { adresse: complete, commune: ville || (fin ? fin[2].trim() : ''), codePostal: parts.codePostal || (fin ? fin[1] : ((/\b(\d{5})\b/.exec(adresse) || [])[1] || '')), type: r.type || '', parcelles: r.parcelles };
     }).filter(x => (genre === 'personnes' ? x.nom : (x.adresse || x.parcelles.length)));
   }
 
