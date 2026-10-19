@@ -123,3 +123,12 @@ test('vente de deux biens complétée depuis Authentic : deux biens distincts, c
   assert.equal(d.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB1,ZC7');
   assert.equal(D.biensDossier(d).map(b => b.adresse + ' : ' + b.parcelles.map(p => p.section + p.numero).join(',')).join(' | '), 'BLOIS (41000), 1 rue A : AB1 | VINEUIL (41350), 2 rue B : ZC7');
 });
+
+test('vente de deux biens dont la fiche porte l’adresse du second : aucune parcelle recollée au premier (relecture 0.290.1)', () => {
+  const D = require('../commun/donnees-dossier');
+  const d = { id: 'v10', nom: 'DUPONT / MARTIN', typeVente: 'maison', adresseBien: 'VINEUIL (41350), 2 rue B', parties: [], pieces: {}, bien: { adresse: { codePostal: '41350', commune: 'VINEUIL' } } };
+  const im = (id, cp, commune, voie, section, numero) => ({ id, adresse: { texte: `${voie} ${cp} ${commune}`, codePostal: cp, commune }, parcelles: [{ section, numero }] });
+  app.complementDossierDepuisAuthentic(d, { intitule: 'VTE DUPONT / MARTIN', personnes: [], immeubles: [im('a', '41000', 'BLOIS', '1 rue A', 'AB', '1'), im('b', '41350', 'VINEUIL', '2 rue B', 'ZC', '7')], biens: ['a', 'b'] }, [], { forcer: true });
+  assert.equal(d.authentic.immeubles.map(i => i.parcelles.map(p => p.section + p.numero).join('+')).join(' | '), 'AB1 | ZC7');
+  assert.equal(D.biensDossier(d).filter(b => b.parcelles.some(p => p.section + p.numero === 'ZC7')).length, 1);
+});

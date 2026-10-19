@@ -553,6 +553,9 @@
     if ((bien.lots || []).length && !bien.adresse && !(bien.parcelles || []).length) return appliquerLotsAuthentic(d, bien, noter, resultat, o);
     if (!(bien.parcelles || []).length) return resultat;
     const raison = bienAuthenticContreditDossier(d, bien);
+    // Biens d'Authentic déjà retenus un par un (`sansRetenir`, vente de plusieurs biens) : rien à compléter ni à écarter (relecture 0.290.1 :
+    // la parcelle d'un autre bien se recollait au bien principal).
+    if (raison && o && o.sansRetenir) { resultat.raison = raison; return resultat; }
     if (raison) {
       // Un autre bien du MÊME dossier (déjà retenu parmi ses immeubles, par une parcelle ou l'adresse) : il est complété, la fiche ne
       // change pas. Un bien inconnu qui contredit la fiche reste écarté (page d'un autre dossier rangée ici par erreur).
