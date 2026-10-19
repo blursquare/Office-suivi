@@ -1216,7 +1216,7 @@
     dossierOuvert = id;
     noterOngletDossier(id);   // un onglet par fiche ouverte (client/60-onglets-travail.js)
     noterDossierConsulte(id);
-    // Dossiers d'Authentic relevés récemment, pour la ligne « Authentic › Compléter » de la fiche (étude 06/10).
+    // Dossiers d'Authentic relevés récemment, pour « Tout reprendre d'Authentic » du panneau de la fiche (étude 06/10, 19/10).
     chargerGroupesAuthenticFiche();
     // La fiche s'ouvre sur ses échéances, sauf s'il y a du nouveau : on arrive alors directement
     // sur les pièces trouvées depuis le dernier passage.

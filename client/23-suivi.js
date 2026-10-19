@@ -815,10 +815,10 @@
       <div class="fiche-dossier-colonnes">
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
-          ${renderPanneauAuthentic(d)}
           ${(renderClientsAPlacer(d, ligne) + renderPersonnesConnues(d, ligne)).trim() ? `<dl class="fiche-proprietes">${renderClientsAPlacer(d, ligne)}${renderPersonnesConnues(d, ligne)}</dl>` : ''}
+          ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${escapeOnclickArg(d.id)}', this.open)">
-            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier les parties, les coordonnées et le bien</span>${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus ; s’il change ensuite, CLAIRE demande.')}${icone('chevron-down')}</summary>
+            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier les parties, les coordonnées et le bien</span><span onclick="event.preventDefault()">${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus ; s’il change ensuite, CLAIRE demande.')}</span>${icone('chevron-down')}</summary>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}

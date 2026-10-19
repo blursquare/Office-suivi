@@ -679,7 +679,7 @@
     }
   }
 
-  // Ligne « Authentic » de la fiche : les dossiers relevés récemment, celui qui correspond présélectionné, « Compléter ».
+  // « Tout reprendre d'Authentic » (panneau « Authentic » de la fiche) : les dossiers relevés récemment, celui qui correspond présélectionné.
   let groupesAuthenticFiche = { quand: 0, liste: [] };
   var DUREE_CACHE_GROUPES_AUTHENTIC_FICHE_MS = 60 * 1000;
 

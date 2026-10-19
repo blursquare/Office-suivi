@@ -215,7 +215,7 @@
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
           ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${idJs}', this.open)">
-            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier le défunt, les héritiers et les biens</span>${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus.')}${icone('chevron-down')}</summary>
+            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier le défunt, les héritiers et les biens</span><span onclick="event.preventDefault()">${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus.')}</span>${icone('chevron-down')}</summary>
       <div class="section-eyebrow fiche-sous-titre">Le défunt ${df.source ? `<span class="hint">· ${escapeHtml(df.source)}</span>` : ''}</div>
       <dl class="fiche-proprietes">
         ${ligne('user', 'Défunt', `<span class="succ-identite">${civilite}${texte('prenoms', c.prenoms, 'Prénoms', 'Prénoms du défunt')}${texte('nom', c.nom, 'NOM', 'Nom du défunt')}</span>`, null, 'prop-pleine')}
