@@ -593,7 +593,7 @@
       <ul class="emails-boites">
         ${(e.regles || []).map(x => `<li class="emails-boite"><span>${escapeHtml(x.libelle)}</span><span class="hint" style="margin:0;">${(e.ranges && e.ranges[x.id]) || 0} déplacé(s)</span></li>`).join('')}
       </ul>
-      <p class="hint"><span class="dot-label ${st[0]}"><span class="dot"></span>${escapeHtml(st[1])}</span>${e.echecs ? ` · ${e.echecs} refusé(s), réessai dans 6 h` : ''}</p>
+      <p class="hint"><span class="dot-label ${st[0]}"><span class="dot"></span>${escapeHtml(st[1])}</span>${e.depuis ? ` · emails reçus depuis le ${escapeHtml(formatDateHeureCourte(e.depuis))}` : ''}${e.echecs ? ` · ${e.echecs} refusé(s), réessai dans 6 h` : ''}</p>
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="rangerOutlookMaintenant(this)">Ranger maintenant</wa-button>`;
   }
 

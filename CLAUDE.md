@@ -290,7 +290,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    de chaque boîte, interrupteur, « Lire maintenant ». Clé `emails-dossiers` (3 000 emails, 500 préparés).
    **Rangement dans Outlook** (étude 19/10 : « placer dans Traiter à distance les e-mails du SPF avec l'objet Facture Dossier FIDJI, les emails de quarantaine@notaires.fr » ;
    `server/src/rangementOutlook.js`, Réglages › Agenda et Outlook › Rangement dans Outlook) : toutes les 5 min, objet et expéditeur des 300 derniers emails de la boîte
-   de réception du compte relié (jamais le texte) ; ceux d'une règle de `REGLES_RANGEMENT_OUTLOOK` sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier
+   de réception du compte relié (jamais le texte), **reçus depuis la mise en marche seulement** (étude : « que ma boîte et que les prochains » — repère `depuis`, posé au
+   premier tour et à la remise en marche) ; ceux d'une règle de `REGLES_RANGEMENT_OUTLOOK` sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier
    « Traiter à distance » de la même boîte, retrouvé par son nom (accents et casse ignorés ; absent ou en double → rien) ; même disjoncteur que l'agenda, un
    refus n'est pas retenté avant 6 h ; une nouvelle règle = une entrée + son test ; point terrain `rangement-outlook`.
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, **mots de passe Exchange des collaborateurs**

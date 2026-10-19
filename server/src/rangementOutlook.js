@@ -4,7 +4,9 @@
 // du SPF avec l'objet "Facture Dossier FIDJI", les emails de quarantaine@notaires.fr ») ----
 //
 // Toutes les 5 minutes, par EWS (mêmes identifiants et même disjoncteur que l'agenda, un seul essai par appel) : les
-// derniers emails de la BOÎTE DE RÉCEPTION du compte relié (objet et expéditeur seulement — jamais le texte) ; ceux qu'une
+// derniers emails de la BOÎTE DE RÉCEPTION du compte relié (objet et expéditeur seulement — jamais le texte), REÇUS DEPUIS LA MISE EN
+// PLACE seulement (étude 19/10 : « que ma boîte et que les prochains » — repère `depuis`, posé au premier tour et à chaque remise en
+// marche ; les emails déjà là ne bougent pas) ; ceux qu'une
 // règle désigne sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier « Traiter à distance » de la même boîte.
 // Le dossier est retrouvé par son nom (accents et casse ignorés) ; absent ou en double → rien n'est déplacé, l'état le dit
 // dans Réglages › Agenda et Outlook. Un déplacement refusé n'est pas retenté avant 6 h. Les règles sont écrites ici, à la
@@ -77,12 +79,16 @@ function parseFindFolders(corps) {
   return tous(lireXml(corps), 'Folder').map((f) => ({ id: attribut(premier(f, 'FolderId'), 'Id'), nom: texteDe(f, 'DisplayName').trim() }));
 }
 
-function corpsFindRecents(max = MAX_EMAILS_LUS) {
+/** @param {string} depuisUtc @param {number} [max] */
+function corpsFindRecents(depuisUtc, max = MAX_EMAILS_LUS) {
   return ENVELOPPE_DEBUT
     + '<m:FindItem Traversal="Shallow"><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
     + '<t:FieldURI FieldURI="item:Subject"/><t:FieldURI FieldURI="message:From"/>'
     + '</t:AdditionalProperties></m:ItemShape>'
     + `<m:IndexedPageItemView MaxEntriesReturned="${Number(max) || MAX_EMAILS_LUS}" Offset="0" BasePoint="Beginning"/>`
+    + '<m:Restriction><t:IsGreaterThanOrEqualTo><t:FieldURI FieldURI="item:DateTimeReceived"/>'
+    + `<t:FieldURIOrConstant><t:Constant Value="${echapperXml(depuisUtc)}"/></t:FieldURIOrConstant>`
+    + '</t:IsGreaterThanOrEqualTo></m:Restriction>'
     + '<m:SortOrder><t:FieldOrder Order="Descending"><t:FieldURI FieldURI="item:DateTimeReceived"/></t:FieldOrder></m:SortOrder>'
     + '<m:ParentFolderIds><t:DistinguishedFolderId Id="inbox"/></m:ParentFolderIds></m:FindItem>' + ENVELOPPE_FIN;
 }
@@ -131,6 +137,7 @@ function assainirRangementOutlook(brut) {
     message: String(b.message || '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 200),
     dernierTour: date(b.dernierTour),
     dernierRangement: date(b.dernierRangement),
+    depuis: date(b.depuis),
     ranges,
     echecs
   };
@@ -177,6 +184,9 @@ async function tourRangement(parametresRepo, injections, manuel) {
   };
   const erreurDe = (/** @type {any} */ r) => (r.echec ? r.echec.message : `Réponse d’Exchange inattendue (${analyseEws(r.corps).code || r.statut}).`);
 
+  // Premier tour : seuls les emails reçus à partir de maintenant seront rangés (étude 19/10).
+  if (!etat.depuis) { etat.depuis = maintenant.toISOString(); ecrireEtatRangement(parametresRepo, etat); }
+
   if (!dossierConnu) {
     const f = await poster(corpsFindFolders());
     if (refus(f)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
@@ -187,7 +197,7 @@ async function tourRangement(parametresRepo, injections, manuel) {
     dossierConnu = id;
   }
 
-  const r = await poster(corpsFindRecents());
+  const r = await poster(corpsFindRecents(etat.depuis || maintenant.toISOString()));
   if (refus(r)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
   if (r.echec || !analyseEws(r.corps).ok) return finir('erreur', erreurDe(r));
   const limite = maintenant.getTime() - DELAI_REESSAI_MS;

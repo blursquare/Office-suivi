@@ -92,7 +92,11 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   });
   routeur.post('/rangement-outlook/reglages', (req, res) => {
     const etat = lireEtatRangement(parametresRepo);
-    if (req.body && typeof req.body.actif === 'boolean') etat.actif = req.body.actif;
+    if (req.body && typeof req.body.actif === 'boolean') {
+      // Remis en marche : seuls les emails reçus à partir de maintenant (étude 19/10 : « que les prochains »).
+      if (req.body.actif && !etat.actif) etat.depuis = new Date().toISOString();
+      etat.actif = req.body.actif;
+    }
     res.json({ actif: ecrireEtatRangement(parametresRepo, etat).actif });
   });
   routeur.post('/rangement-outlook/ranger', routeAsync(async (req, res) => {

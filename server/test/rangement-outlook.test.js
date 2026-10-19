@@ -73,6 +73,9 @@ test('tour : seuls les emails des règles sont déplacés dans le dossier, compt
   assert.equal(etat.ranges['spf-facture-fidji'], 1);
   assert.equal(etat.ranges['quarantaine-notaires'], 1);
   assert.equal(etat.statut, 'ok');
+  // Seuls les emails reçus depuis la mise en place (étude 19/10 : « que les prochains »).
+  assert.ok(etat.depuis);
+  assert.match(t.corps.find((c) => /FindItem/.test(c)), new RegExp(`IsGreaterThanOrEqualTo><t:FieldURI FieldURI="item:DateTimeReceived"/><t:FieldURIOrConstant><t:Constant Value="${etat.depuis}"`));
 });
 
 test('tour : sans dossier « Traiter à distance », rien n’est déplacé et l’état le dit', async () => {
