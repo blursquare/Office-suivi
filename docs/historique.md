@@ -21080,3 +21080,19 @@ après 90 s sans compte rendu, 3 essais (`DUREE_REPRISE_RELEVE_MS`, `ESSAIS_RELE
 à part (`p.prenom`) n'était pas lu (`roleClientAuthenticParNom`) ; (4) reprise automatique des personnes d'un groupe sans les comparants : la
 conjointe du vendeur (même nom) devenait vendeuse — `partiesExportAuthentic` respecte les comparants lus (`personneDansComparantsAuthentic`) ;
 (5) fiche du défunt non rattachée quand le nom du dossier n'a pas son prénom — le comparant « Défunt » suffit (`partieSuccessionDeLaFiche`).
+
+### 19/10/2026 (nuit) — création sans second passage, cent scénarios
+
+Étude : « imagine aussi s'il existe déjà des fiches de tout type dans CLAIRE plus ou moins remplies ; en fonction du statut : marié, pacsé,
+veuf, célibataire… ; si on ajoute un nouveau dossier, pourquoi les données (date de décès, commune, héritiers, biens) ne sont pas déjà toutes
+remplies, je suis obligé de repasser une seconde fois après avoir créé le dossier ; tente une centaine de scénarios, comme si c'était moi ».
+Cause du second passage : la création ne reprenait qu'un résumé des pages (personnes, coordonnées, une partie de l'identité) ; le détail
+(fiches client entières, défunt et décès, conjoint survivant, biens, lots, SAFER) n'était appliqué que par une page relevée APRÈS. Corrigé :
+`dossiersDepuisRelevesAuthentic` garde les pages de chaque groupe (`export.releves`, non énumérable) et `ajouterDossier` les rejoue sur le
+nouveau dossier (`rejouerPagesCreationAuthentic`, client/82 : mêmes lecteurs qu'une page qui arrive, pages gardées pour lui sur le serveur).
+Banc `tests/fumee/authentic-cent-scenarios.mjs` (graine fixe) : premier passage 69/100. Défauts corrigés : prénom porté à part (`p.prenom`)
+ignoré par l'alignement de l'identité (`alignerIdentitePartieAuthentic`, déplacée dans client/52) et par la succession
+(`partieSuccessionDeLaFiche`, `personnesSuccession`) ; civilité de l'export gardée « Madame » (`civiliteDepuisTexte`) ; deux parties du même
+nom sans prénom d'un même côté complétées seulement quand les comparants comptent autant de personnes de ce nom ; fiche ouverte dans l'onglet
+d'un dossier d'Authentic absent de CLAIRE rangée dans un autre dossier par un nom voisin (« CLEMENT » dans « CLEMENT-ETIENNE ») — écartée
+quand l'onglet désigne un autre dossier. Second passage : 100/100.

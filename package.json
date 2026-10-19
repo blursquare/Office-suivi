@@ -9,6 +9,7 @@
     "relu": "node scripts/garde-publication.js marquer relu",
     "fumee": "node tests/fumee/fumee.mjs && node tests/fumee/authentic-scenarios.mjs && node scripts/fumee-extension-si-besoin.js",
     "scenarios-authentic": "node tests/fumee/authentic-scenarios.mjs",
+    "scenarios-authentic-cent": "node tests/fumee/authentic-cent-scenarios.mjs",
     "scenarios": "node --test tests/fiche-tableau.test.js tests/etat-dossier.test.js tests/echeances-cocher-decocher.test.js tests/preemption-situations.test.js tests/archives-echeances.test.js tests/inventaire-succession.test.js tests/audit-coherence.test.js tests/assistant-ton.test.js tests/assistant-slack.test.js tests/onglets-travail.test.js tests/assistant-agent.test.js tests/assistant.test.js",
     "types": "tsc -p tsconfig.json"
   },

@@ -1162,7 +1162,10 @@ sont plus appelées par le poste.
   de bout en bout — le vrai serveur, une vraie fenêtre CLAIRE dans Chromium, les pages d'Authentic envoyées par la route de l'extension au format de
   `releve.js` (31 scénarios : rattachement par noms puis par référence, fiches client et bien, onglets, recherche d'immeubles, deux dossiers ouverts,
   même nom des deux côtés, conjoint, promesse, ancien dossier, copropriété, deux biens, succession, création, page revue, fenêtre fermée, deux
-  fenêtres…). **Tout changement de la liaison avec Authentic ajoute ou adapte son scénario.**
+  fenêtres…). **Tout changement de la liaison avec Authentic ajoute ou adapte son scénario.** `npm run scenarios-authentic-cent` (≈ 12 min, sur
+  GitHub à chaque envoi) : cent cas tirés (graine fixe) — ventes et successions créées depuis Authentic ou déjà dans CLAIRE (vides, à moitié
+  remplies, complètes, fausses), marié / pacsé / veuf / divorcé / célibataire / concubins, conjoint absent des comparants, 0 à 3 biens, fiches
+  avant ou après la création ; tout ce qu'Authentic a montré doit être sur la fiche sans second passage (`CAS=n` pour un seul cas).
 - `tests/helpers/load-app.js` charge les fichiers de `client/manifest.json`, dans l'ordre, dans un `vm.Context` avec un faux DOM. Deux
   limites : seules les `function` et `var` de premier niveau y sont visibles (un `const`/`let` est
   invisible) ; un tableau venu du contexte `vm` fait échouer `assert.deepEqual` — comparer des
