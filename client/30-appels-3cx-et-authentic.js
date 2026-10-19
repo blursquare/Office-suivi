@@ -382,7 +382,8 @@
   function intituleVenteNormalise(intitule) {
     const t = sansImporterAuthentic(String(intitule || '').replace(/\s+/g, ' ').trim());
     if (!t || RE_INTITULE_SUCCESSION_AUTHENTIC.test(t)) return t;
-    const m = /^(?:(?:vente|vte|promesse|compromis|avant[\s-]*contrat|pv|puv|unilat[ée]rale|synallagmatique|achat|de|d'|d’)\.?\s*)*(.+?)\s*\/\s*(.+)$/i.exec(t);
+    // Mots entiers seulement (cent scénarios du 19/10 : le « DE » de « DELMAS-EVRARD » était retiré — « LMAS-EVRARD »).
+    const m = /^(?:(?:(?:vente|vte|promesse|compromis|avant[\s-]*contrat|pv|puv|unilat[ée]rale|synallagmatique|achat|de)(?![A-Za-zÀ-ÿ-])|d'|d’)\.?\s*)*(.+?)\s*\/\s*(.+)$/i.exec(t);
     return m ? `Vente ${m[1].trim()} / ${m[2].trim()}` : t;
   }
 

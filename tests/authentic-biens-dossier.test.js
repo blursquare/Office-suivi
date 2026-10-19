@@ -130,3 +130,10 @@ test('création depuis Authentic : seule la dernière version de chaque page est
   ];
   assert.equal(app.pagesARejouerCreationAuthentic(d, releves).map(r => r.id).join(','), '2');
 });
+
+test('intitulé d’Authentic : un nom qui commence par « DE », « PV », « ACHAT »… garde ses lettres (cent scénarios du 19/10)', () => {
+  assert.equal(app.intituleVenteNormalise('Vente DELMAS-EVRARD / PARIS-FLEURY'), 'Vente DELMAS-EVRARD / PARIS-FLEURY');
+  assert.equal(app.intituleVenteNormalise('VTE DEBRAY / ROUX'), 'Vente DEBRAY / ROUX');
+  assert.equal(app.intituleVenteNormalise('VTE ACHATIER / PVOLLE'), 'Vente ACHATIER / PVOLLE');
+  assert.equal(app.intituleVenteNormalise('Promesse de vente MARTEL/FOURNIER'), 'Vente MARTEL / FOURNIER');
+});

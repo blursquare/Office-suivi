@@ -21096,3 +21096,9 @@ ignoré par l'alignement de l'identité (`alignerIdentitePartieAuthentic`, dépl
 nom sans prénom d'un même côté complétées seulement quand les comparants comptent autant de personnes de ce nom ; fiche ouverte dans l'onglet
 d'un dossier d'Authentic absent de CLAIRE rangée dans un autre dossier par un nom voisin (« CLEMENT » dans « CLEMENT-ETIENNE ») — écartée
 quand l'onglet désigne un autre dossier. Second passage : 100/100.
+Relecture du rejeu à la création (19/10, nuit) — corrigé : seule la dernière version de chaque page est rejouée ; une fiche client seulement
+si sa personne est partie du dossier créé (une correction de « Vérifier » n'est jamais défaite, une personne étrangère n'entre pas) ; case
+« pièces d'Authentic » décochée respectée ; bouton bloqué pendant le rejeu ; clé de page du serveur limitée aux fiches client et bien (la
+personne = le dernier nom relevé, après le volet du conjoint) ; titre d'onglet coupé à 3 lettres reconnu. Troisième passage des cent
+scénarios : 99/100 — `intituleVenteNormalise` retirait « DE » au début d'un nom (« VTE DEBRAY / ROUX » → « BRAY », « DELMAS » → « LMAS »),
+défaut ancien : les mots retirés en tête de l'intitulé sont désormais des mots entiers.
