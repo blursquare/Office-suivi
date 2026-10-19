@@ -782,3 +782,10 @@ test('bien retiré : jamais remis par le complément depuis Authentic non plus (
   assert.equal(app.retenirImmeubleVenteAuthentic(d, { adresse: { texte: '1 rue X 41320 LA CHAPELLE' }, parcelles: [{ section: 'AE', numero: '171' }] }, false), false);
   assert.equal(d.authentic.immeubles.length, 0);
 });
+
+test('bien retiré depuis la liste aux parcelles en texte : clé gardée, Authentic ne le remet pas (relecture 19/10)', () => {
+  const k = app.clesBienSuccession({ adresse: '', parcelles: 'AE 171, AE 173' });
+  assert.equal(k.parcelles.join(','), 'AE0171,AE0173');
+  const d = base({ id: 's16', authentic: { biensRetires: [k] } });
+  assert.equal(app.bienRetireSuccession(d, { parcelles: [{ section: 'AE', numero: '171' }] }), true);
+});

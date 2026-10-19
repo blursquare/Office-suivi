@@ -96,6 +96,7 @@ function fichierRegRelaisAppel(o) {
     '@=' + valeurReg(commandeRelaisReg(o)),
     '',
     '; Le navigateur ouvre ce lien depuis ' + origine + ' sans demander a chaque appel (Chrome et Edge, a fermer puis rouvrir).',
+    '; Attention : remplace une valeur AutoLaunchProtocolsFromOrigins deja posee pour cette session (autre application).',
     ...politique('Google\\Chrome'),
     ...politique('Microsoft\\Edge')
   ].join('\r\n');

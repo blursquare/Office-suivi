@@ -795,8 +795,14 @@
   function clesBienSuccession(bien) {
     const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
     const a = bien && bien.adresse && typeof bien.adresse === 'object' ? bien.adresse.texte : bien && bien.adresse;
-    const parcelles = Array.isArray(bien && bien.parcelles) ? bien.parcelles.map(p => p && cleParcelle(p.section, p.numero)).filter(Boolean) : [];
+    // Parcelles en liste (immeubles d'Authentic) ou en texte (« AE 171, AE 173 », d.biens).
+    const parcelles = Array.isArray(bien && bien.parcelles) ? bien.parcelles.map(p => p && cleParcelle(p.section, p.numero)).filter(Boolean) : parcellesTexteSuccession(bien && bien.parcelles);
     return { adresse: net(a ? normaliserAdresse(a) : ''), parcelles };
+  }
+
+  // Pure : les clés des parcelles écrites en texte (« AE 171, AE 173 »).
+  function parcellesTexteSuccession(t) {
+    return Array.from(String(t || '').toUpperCase().matchAll(/(?<![A-Z0-9])([A-Z][A-Z0-9]?)\s*0*(\d{1,4})(?!\d)/g)).map(m => cleParcelle(m[1], m[2])).filter(Boolean);
   }
 
   // Pure : ce bien a-t-il été retiré à la main de la succession (même adresse, ou une parcelle commune) ?
@@ -819,10 +825,9 @@
       const k = clesBienSuccession(bien);
       const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
       d.authentic = Object.assign({}, d.authentic || {});
-      d.authentic.biensRetires = (d.authentic.biensRetires || []).concat(k).slice(-20);
+      if (k.adresse || k.parcelles.length) d.authentic.biensRetires = (d.authentic.biensRetires || []).concat(k).slice(-20);
       if (Array.isArray(d.authentic.immeubles)) d.authentic.immeubles = d.authentic.immeubles.filter((im, i) => !(source === 'immeuble' && i === index) && !bienRetireSuccession(d, im));
-      // Parcelles écrites en texte dans d.biens (« AE 171, AE 173 ») : relues pour retirer aussi un bien sans adresse.
-      const parcellesTexte = (t) => Array.from(String(t || '').toUpperCase().matchAll(/(?<![A-Z])([A-Z0-9]{1,2})\s*0*(\d{1,4})(?!\d)/g)).map(m => cleParcelle(m[1], m[2]));
+      const parcellesTexte = parcellesTexteSuccession;
       if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(k.adresse && net(b.adresse) === k.adresse)
         && !(k.parcelles.length && parcellesTexte(Array.isArray(b.parcelles) ? b.parcelles.map(p => p && `${p.section} ${p.numero}`).join(', ') : b.parcelles).some(c => k.parcelles.includes(c))));
       ajouterHistorique(d, `Bien retiré du dossier : ${bien.adresse || k.parcelles.join(', ')}`);
