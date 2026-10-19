@@ -9,6 +9,7 @@ const crypto = require('node:crypto');
 const {
   lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
 } = require('../emailsDossiers');
+const { lireEtatRangement, ecrireEtatRangement, executerTourRangement, REGLES_RANGEMENT_OUTLOOK, NOM_DOSSIER_OUTLOOK } = require('../rangementOutlook');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
 const { envoyerEmailExchange, promptPropositionReponse, validerProposition, LONGUEUR_MAX_PROPOSITION } = require('../envoiEmailsExchange');
 const { sansSaufErreur } = require('../../../commun/assistant');
@@ -82,6 +83,20 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
       tourEnCours = executerTourEmailsDossiers(depot, parametresRepo, { ...injections, config }, true).finally(() => { tourEnCours = null; });
     }
     res.json(await tourEnCours);
+  }));
+
+  // Rangement d'emails dans le dossier Outlook « Traiter à distance » (étude 19/10, voir src/rangementOutlook.js).
+  routeur.get('/rangement-outlook', (req, res) => {
+    const { echecs, ...etat } = lireEtatRangement(parametresRepo);
+    res.json({ ...etat, echecs: Object.keys(echecs).length, dossier: NOM_DOSSIER_OUTLOOK, regles: REGLES_RANGEMENT_OUTLOOK.map((r) => ({ id: r.id, libelle: r.libelle })) });
+  });
+  routeur.post('/rangement-outlook/reglages', (req, res) => {
+    const etat = lireEtatRangement(parametresRepo);
+    if (req.body && typeof req.body.actif === 'boolean') etat.actif = req.body.actif;
+    res.json({ actif: ecrireEtatRangement(parametresRepo, etat).actif });
+  });
+  routeur.post('/rangement-outlook/ranger', routeAsync(async (req, res) => {
+    res.json(await executerTourRangement(parametresRepo, { ...injections, config }, true));
   }));
 
   // Un email préparé par un poste (.eml ou brouillon) : confirmé dès qu'il apparaît dans les envois.

@@ -182,6 +182,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché la première fois qu’un email reçu avant la création d’un dossier lui est rattaché (par l’adresse ou par l’objet).' },
   { id: 'emails-adresse-rattrapage', depuis: '0.134.4', source: 'serveur', titre: 'Emails des dossiers : adresse ajoutée sur une fiche, ses emails des 30 derniers jours retrouvés',
     comment: 'Coché la première fois qu’un email reçu avant la saisie de l’adresse (client ou confrère) est rattaché au dossier.' },
+  { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traiter à distance »',
+    comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',
     comment: 'Coché au premier tour qui lit un email de la boîte de réception rattaché à un dossier.' },
   { id: 'emails-envoyes-collaborateur', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : « Éléments envoyés » d’un collaborateur lus (accès délégué)',

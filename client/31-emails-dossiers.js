@@ -573,6 +573,45 @@
     renderReglagesEmailsDossiers();
   }
 
+  // Réglages › Agenda et Outlook › Rangement dans Outlook (étude 19/10) : règles, état du dernier tour, emails déplacés.
+  async function renderReglagesRangementOutlook() {
+    const zone = document.getElementById('reglages-rangement-outlook');
+    if (!zone) return;
+    let e;
+    try {
+      const r = await fetchAvecAuth('/api/rangement-outlook');
+      if (!r.ok) throw new Error();
+      e = await r.json();
+    } catch (_) { zone.innerHTML = '<p class="hint">État indisponible.</p>'; return; }
+    const st = e.statut === 'ok' ? ['dl-success', `Dernier tour ${e.dernierTour ? ilYaActivite(e.dernierTour, Date.now()) : ''}`]
+      : e.statut === 'introuvable' || e.statut === 'erreur' ? ['dl-urgent', e.message || 'Erreur'] : ['dl-neutre', 'Pas encore lancé'];
+    zone.innerHTML = `
+      <label class="reglages-option" for="rangement-outlook-actif">
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Déplacer dans « ${escapeHtml(e.dossier)} »</span></span>
+        <wa-switch class="switch reglages-switch" id="rangement-outlook-actif" ${e.actif ? 'checked' : ''} onchange="basculerRangementOutlook(this.checked)"></wa-switch>
+      </label>
+      <ul class="emails-boites">
+        ${(e.regles || []).map(x => `<li class="emails-boite"><span>${escapeHtml(x.libelle)}</span><span class="hint" style="margin:0;">${(e.ranges && e.ranges[x.id]) || 0} déplacé(s)</span></li>`).join('')}
+      </ul>
+      <p class="hint"><span class="dot-label ${st[0]}"><span class="dot"></span>${escapeHtml(st[1])}</span>${e.echecs ? ` · ${e.echecs} refusé(s), réessai dans 6 h` : ''}</p>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="rangerOutlookMaintenant(this)">Ranger maintenant</wa-button>`;
+  }
+
+  async function basculerRangementOutlook(actif) {
+    await fetchAvecAuth('/api/rangement-outlook/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: !!actif }) }).catch(() => null);
+    renderReglagesRangementOutlook();
+  }
+
+  async function rangerOutlookMaintenant(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = 'Rangement…'; }
+    try {
+      const r = await fetchAvecAuth('/api/rangement-outlook/ranger', { method: 'POST' });
+      const x = await r.json().catch(() => ({}));
+      afficherToast(x.erreur ? 'Rangement dans Outlook : ' + x.erreur : `${x.ranges || 0} email(s) déplacé(s) dans Outlook.`, 'OK', null);
+    } catch (_) { afficherToast('Serveur injoignable.', 'OK', null); }
+    renderReglagesRangementOutlook();
+  }
+
   // Pure : l'adresse du serveur à donner à 3CX. Ouverte sur localhost (fenêtre du poste serveur),
   // l'adresse de la page ne mène au serveur que depuis ce poste : on prend son adresse sur le réseau
   // du bureau (192.168.… d'abord), même port.
