@@ -20930,3 +20930,10 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
 - Relecture : le volet de la fiche de la veuve montrait le défunt et remplaçait sa fiche complète → le volet n'entre que pour le conjoint
   survivant dont aucune fiche n'est encore retenue ; à la création, le défunt est le comparant « Défunt » (sinon le seul décédé) ; groupes
   réunis par les noms seulement si une seule référence porte ces noms, côtés d'une vente distincts, « à créer » dit par la page du dossier.
+
+### 19/10 12 h 35 — 0.290.2 : dossier « TRAITÉ A DISTANCE »
+
+- Rapport technique de 12 h : « Dossier "Traiter à distance" introuvable dans la boîte du compte relié » (3 fois). Étude : « TRAITÉ A
+  DISTANCE dans ma boîte, c'est un sous-dossier de la boîte de réception ». La recherche (profonde, accents et casse ignorés) comparait au
+  seul « traiter a distance » : « traite a distance » n'était pas pris. `NOMS_DOSSIER_OUTLOOK` accepte les deux écritures (et « à traiter à
+  distance ») ; libellé affiché « Traité à distance ».

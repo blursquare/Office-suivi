@@ -595,7 +595,7 @@
         ${(e.regles || []).map(x => `<li class="emails-boite"><span>${escapeHtml(x.libelle)}</span><span class="hint" style="margin:0;">${(e.ranges && e.ranges[x.id]) || 0} déplacé(s)</span></li>`).join('')}
       </ul>
       <div class="reglages-champ">
-        <div class="reglages-champ-libelle"><label for="rangement-outlook-adresse">Autres expéditeurs à ranger</label>${infoBulle('Les emails reçus de ces adresses vont aussi dans « Traiter à distance ».')}</div>
+        <div class="reglages-champ-libelle"><label for="rangement-outlook-adresse">Autres expéditeurs à ranger</label>${infoBulle('Les emails reçus de ces adresses vont aussi dans « Traité à distance ».')}</div>
         <div class="rangement-adresses">
           ${(e.expediteurs || []).map(a => `<span class="rangement-adresse">${escapeHtml(a)}<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette adresse" aria-label="Retirer ${escapeAttr(a)}" onclick="retirerAdresseRangementOutlook('${escapeOnclickArg(a)}')">${icone('x')}</wa-button></span>`).join('')}
           <input type="email" id="rangement-outlook-adresse" placeholder="facturation@exemple.fr" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterAdresseRangementOutlook();}">

@@ -52,6 +52,9 @@ test('pur : les deux règles de l’étude, rien d’autre', () => {
 test('pur : dossier « Traiter à distance » retrouvé sans tenir compte des accents ni de la casse ; absent ou double → rien', () => {
   assert.equal(R.dossierRangementParmi([{ id: 'a', nom: 'Boîte de réception' }, { id: 'b', nom: 'TRAITER A DISTANCE' }]), 'b');
   assert.equal(R.dossierRangementParmi([{ id: 'a', nom: 'Traiter' }]), '');
+  // Le nom réel du dossier de l'étude (19/10) : « TRAITÉ A DISTANCE », sous-dossier de la boîte de réception.
+  assert.equal(R.dossierRangementParmi([{ id: 'a', nom: 'Boîte de réception' }, { id: 'c', nom: 'TRAITÉ A DISTANCE' }]), 'c');
+  assert.equal(R.dossierRangementParmi([{ id: 'a', nom: 'Traité' }, { id: 'b', nom: 'Distance' }]), '');
   assert.equal(R.dossierRangementParmi([{ id: 'a', nom: 'Traiter à distance' }, { id: 'b', nom: 'traiter à  distance' }]), 'double');
   assert.equal(R.parseFindFolders(dossiers([['F1', 'Traiter à distance']]))[0].id, 'F1');
 });

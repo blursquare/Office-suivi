@@ -16,7 +16,10 @@ const { noterVerification } = require('./verificationsTerrain');
 const { lireXml, tous, premier, texteDe, attribut, identifiantElement, analyseEws } = require('./exchange/xml');
 
 const CLE_RANGEMENT_OUTLOOK = 'rangement-outlook';
-const NOM_DOSSIER_OUTLOOK = 'Traiter à distance';
+const NOM_DOSSIER_OUTLOOK = 'Traité à distance';
+// Les écritures du nom reconnues (étude 19/10 : le dossier s'appelle « TRAITÉ A DISTANCE », sous-dossier de la boîte de réception ;
+// la demande disait « Traiter à distance ») — accents, casse et espaces ignorés.
+const NOMS_DOSSIER_OUTLOOK = ['traite a distance', 'traiter a distance', 'traites a distance', 'a traiter a distance'];
 const INTERVALLE_RANGEMENT_MS = 5 * 60 * 1000;
 const MAX_EMAILS_LUS = 300;
 const MAX_DEPLACES_TOUR = 50;
@@ -70,8 +73,7 @@ function regleRangementPourEmail(e, expediteurs) {
 
 /** Pure : l'identifiant du dossier « Traiter à distance » parmi les dossiers de la boîte ; '' si absent, 'double' si plusieurs. @param {{ id: string, nom: string }[]} dossiers */
 function dossierRangementParmi(dossiers) {
-  const cible = normaliserTexte(NOM_DOSSIER_OUTLOOK);
-  const trouves = (dossiers || []).filter((d) => d && d.id && normaliserTexte(d.nom) === cible);
+  const trouves = (dossiers || []).filter((d) => d && d.id && NOMS_DOSSIER_OUTLOOK.includes(normaliserTexte(d.nom)));
   if (trouves.length > 1) return 'double';
   return trouves.length ? trouves[0].id : '';
 }
