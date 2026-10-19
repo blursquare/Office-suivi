@@ -1524,8 +1524,9 @@
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
       if (type === 'bien' && !intituleDossierAuthentic(cap) && ongletActifHorsDossierAuthentic(cap)) return; // ouverte hors d'un dossier (19/10)
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
-      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '', aCreer: false });
+      if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '', aCreer: false, releves: [] });
       const g = groupes.get(intitule);
+      g.releves.push({ id: r.id, recueLe: r.recueLe, capture: cap });
       if (referencePage) g.reference = referencePage;
       // Page de vente en cours (ni signée, ni promesse/avenant) : le dossier est « à créer » s'il manque dans CLAIRE.
       if (intituleDossierAuthentic(cap)) g.aCreer = proposerCreationDossierAuthentic(cap, intitule);
@@ -1556,7 +1557,7 @@
       // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
       const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
-      return {
+      const sortie = {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
         export: {
           intitule: g.intitule, reference: g.reference || '', type: g.succession ? 'succession' : '', dateCreation: '', personnes, immeubles, parties: [], intervenants: [],
@@ -1564,6 +1565,9 @@
           origine: 'pages', infosAuthentic: g.infos
         }
       };
+      // Les pages du groupe, rejouées sur le dossier à sa création (non énumérables : jamais enregistrées avec l'export).
+      Object.defineProperty(sortie.export, 'releves', { value: (g.releves || []).slice().sort((a, b) => String(a.recueLe || '').localeCompare(String(b.recueLe || ''))), enumerable: false });
+      return sortie;
     }).sort((a, b) => String(b.derniere).localeCompare(String(a.derniere)));
   }
 

@@ -885,6 +885,8 @@
 
     // Succession (étude 16/10) : défunt, conjoint survivant, type et ouverture saisis dans le bloc « Succession » (client/79).
     if (successionAuthentic) appliquerWizardSuccessionSurDossier(dossier);
+    // Gardé avant la remise à zéro du formulaire : ses pages sont rejouées après l'enregistrement.
+    const exportCree = exportAuthenticActuel;
 
     // Droits de préemption lus seuls après l'ajout (étude 07/10, client/54-preemption-dossier.js) : ventes dont l'étude reçoit l'acte.
     if (!estSuccession(dossier) && dossier.roleNotaire !== 'participant') dossier.preemptionAuto = true;
@@ -908,6 +910,13 @@
     }
     // La synchronisation a pu le recevoir pendant l'enregistrement : jamais deux fois dans la liste.
     if (!dossiers.some(x => x.id === dossier.id)) dossiers.push(dossier);
+    // Les pages d'Authentic déjà relevées pour ce dossier, rejouées tout de suite (étude 19/10 : plus de second passage dans Authentic).
+    const relevesCreation = exportCree && exportCree.releves;
+    if (relevesCreation && relevesCreation.length) {
+      const enListe = dossiers.find(x => x.id === dossier.id) || dossier;
+      try { await rejouerPagesCreationAuthentic(enListe, relevesCreation); } catch (e) { /* la fiche reste celle de la création */ }
+      completerDossierDepuisRelevesRecents(enListe);
+    }
     reinitialiserFormulaire();
     document.getElementById('panel').open = false;
     definirOnglet('suivi');

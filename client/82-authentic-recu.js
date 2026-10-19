@@ -95,6 +95,31 @@
     }
   }
 
+  // À la création d'un dossier depuis Authentic (étude 19/10 : « pourquoi les données — date de décès, commune, héritiers, biens — ne sont
+  // pas déjà toutes remplies, je suis obligé de repasser une seconde fois ») : les pages déjà relevées pour ce dossier d'Authentic sont
+  // rejouées une à une, avec les mêmes lecteurs qu'une page qui arrive — fiches client entières, défunt, situation, biens, lots, SAFER —, et
+  // gardées pour lui sur le serveur (« Reçu d'Authentic »). Une page qui ne le désigne pas (pageRelisibleAuthentic) est passée.
+  async function rejouerPagesCreationAuthentic(d, releves) {
+    if (!d || !Array.isArray(releves) || !releves.length) return 0;
+    let modifie = false;
+    const resultats = [];
+    for (const rel of releves) {
+      if (!rel || !rel.capture || !pageRelisibleAuthentic(d, rel.capture)) continue;
+      try {
+        const partage = partagerFicheConjointAuthentic(rel.capture);
+        const r = appliquerReleveSurDossier(d, partage ? partage.principale : rel.capture, undefined, dossiers);
+        if (r.modifie) modifie = true;
+        if (partage && conjointPartieDuDossierAuthentic(d, clientDepuisFicheAuthentic(partage.conjoint)) && appliquerReleveSurDossier(d, partage.conjoint, undefined, dossiers).modifie) modifie = true;
+        if (rel.id) resultats.push({ id: rel.id, etat: 'applique', dossierId: d.id, texte: 'reprise à la création du dossier', cle: clePageReleveAuthentic(rel.capture) });
+      } catch (e) {
+        noterJournalTechnique({ categorie: 'erreur-poste', message: 'Création depuis Authentic : une page non rejouée — ' + String((e && e.message) || e).slice(0, 120) });
+      }
+    }
+    if (modifie) await sauvegarder(d);
+    if (resultats.length) rapporterResultatsAuthentic(resultats);
+    return resultats.length;
+  }
+
   // Pure : une page gardée se relit-elle sur ce dossier ? Les mêmes garde-fous qu'à l'arrivée d'une page (appliquerReleveAuthentic) :
   // jamais la page d'un sous-dossier autre que la vente (promesse, avenant — son « Signé le » et ses pièces ne sont pas ceux de la
   // vente), jamais celle d'un ancien dossier des mêmes clients (acte signé avant ce dossier) sauf intitulé ou référence rattachés.
@@ -319,6 +344,7 @@
       autre.personnes.forEach((v, cle) => { if (!garde.personnes.has(cle)) garde.personnes.set(cle, v); });
       autre.immeubles.forEach((v, cle) => { if (!garde.immeubles.has(cle)) garde.immeubles.set(cle, v); });
       autre.documents.forEach((v, cle) => { if (!garde.documents.has(cle)) garde.documents.set(cle, v); });
+      garde.releves = (garde.releves || []).concat(autre.releves || []);
       if ((autre.conjoints || []).length) garde.conjoints = (garde.conjoints || []).concat(autre.conjoints);
       garde.reference = garde.reference || autre.reference;
       garde.adresse = garde.adresse || autre.adresse;
