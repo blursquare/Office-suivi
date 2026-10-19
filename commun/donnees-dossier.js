@@ -113,6 +113,34 @@
     return liste_;
   }
 
+  /**
+   * Pure : les immeubles d'Authentic sans les parcelles « égarées » — une parcelle portée par un immeuble d'une AUTRE commune dont la voie
+   * est celle que la parcelle désigne (lieu-dit ou adresse cadastrale). Succession VIEL (19/10) : la maison de Cour-Cheverny avait reçu
+   * « CJ 99 37 rue Dulong » du bien de Paris, et une parcelle commune réunissait les deux biens en un seul. Rend la même liste si rien n'est retiré.
+   * @param {any[]} immeubles
+   */
+  function immeublesSansParcellesEgarees(immeubles) {
+    const tous = liste(immeubles).filter((im) => im && typeof im === 'object');
+    const lieu = (/** @type {any} */ im) => { const l = communeDeLAdresse(texte(im.adresse)); return { commune: texte(im.commune) || l.commune, codePostal: texte(im.codePostal) || l.codePostal }; };
+    // La voie d'une adresse de CLAIRE (« PARIS (75017), 37 rue Dulong » → « 37 rue dulong »), ou d'une adresse postale avant le code postal.
+    const voie = (/** @type {any} */ im) => { const t = texte(im.adresse); const v = t.includes(',') ? t.slice(t.indexOf(',') + 1) : t.replace(/\b\d{5}\b.*$/, ''); return net(v); };
+    let change = false;
+    const resultat = tous.map((im) => {
+      const parcelles = liste(im.parcelles).filter((/** @type {any} */ p) => {
+        const cle = p && cleParcelleSansCommune(p);
+        const dit = net([p && p.lieuDit, p && p.adresseCadastre].filter(Boolean).join(' '));
+        if (!cle || !dit) return true;
+        const ailleurs = tous.some((autre) => autre !== im && memeCommune(lieu(autre), lieu(im)) === false
+          && liste(autre.parcelles).some((/** @type {any} */ q) => cleParcelleSansCommune(q) === cle)
+          && voie(autre).length >= 6 && dit.includes(voie(autre)));
+        if (ailleurs) change = true;
+        return !ailleurs;
+      });
+      return parcelles.length === liste(im.parcelles).length ? im : Object.assign({}, im, { parcelles });
+    });
+    return change ? resultat : immeubles;
+  }
+
   /** Pure : { commune, codePostal } d'une adresse au format de CLAIRE (« COMMUNE (41000), 9 rue… ») ou postal (« 41000 COMMUNE »). @param {string} adresse */
   function communeDeLAdresse(adresse) {
     const t = texte(adresse);
@@ -145,7 +173,8 @@
       const lieuDe = (/** @type {any} */ p) => ({ commune: texte(p.commune) || commune, codePostal: texte(p.commune) ? '' : codePostal });
       // Le même bien : une parcelle commune dans la même commune, sinon la même adresse.
       let cible = null;
-      for (const p of parcelles) { const v = trouver(cleParcelleSansCommune(p), lieuDe(p)); if (v) { cible = v.bien; break; } }
+      // Une parcelle commune ne réunit pas deux biens de communes différentes (« CJ 99 » à Paris et à Cour-Cheverny, 19/10).
+      for (const p of parcelles) { const v = trouver(cleParcelleSansCommune(p), lieuDe(p)); if (v && memeCommune({ commune: v.bien.commune, codePostal: v.bien.codePostal }, { commune, codePostal }) !== false) { cible = v.bien; break; } }
       if (!cible && adresse) cible = biens.find((b) => b.adresse && net(b.adresse) === net(adresse)) || null;
       if (!cible) {
         if (!adresse && !parcelles.length && !liste(src.lots).length) return;
@@ -181,7 +210,7 @@
     const succession = d.typeAffaire === 'succession';
     // Authentic d'abord (son ordre des parcelles, ses adresses), puis le bien principal d'une vente (la fiche : adresse, cadastre, lots),
     // puis les biens d'une succession.
-    liste(d.authentic && d.authentic.immeubles).forEach((/** @type {any} */ im) => { if (im && typeof im === 'object') ajouterBien(im, 'authentic', false); });
+    liste(immeublesSansParcellesEgarees(liste(d.authentic && d.authentic.immeubles))).forEach((/** @type {any} */ im) => { if (im && typeof im === 'object') ajouterBien(im, 'authentic', false); });
     if (!succession) {
       const a = (d.bien && d.bien.adresse) || {};
       ajouterBien({ adresse: d.adresseBien, codePostal: a.codePostal, commune: a.commune, type: d.typeVente,
@@ -259,7 +288,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, communeDeLAdresse,
+  exporter({ memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, immeublesSansParcellesEgarees, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -35,6 +35,26 @@ function propositionWizardSuccession(donnees) {
   };
 }
 
+// « Nouveau dossier » d'une succession ouvert à « Vérifier » : chaque page d'Authentic relevée (fiche du défunt, d'un héritier, d'un bien)
+// met à jour le dossier repris — même intitulé, même référence —, puis le bloc « Succession » (étude 19/10).
+async function rafraichirWizardSuccessionAuthentic() {
+  if (!exportAuthenticActuel || !successionEnCoursWizard()) return;
+  const bloc = document.getElementById('wizard-bloc-succession');
+  // Jamais pendant une saisie dans le bloc (il est redessiné).
+  if (!bloc || !bloc.offsetParent || bloc.contains(document.activeElement)) return;
+  const actuel = exportAuthenticActuel;
+  try {
+    const r = await fetchAvecAuth('/api/authentic/releves/recents');
+    if (!r.ok) return;
+    const { releves } = await r.json();
+    const g = dossiersDepuisRelevesAuthentic(releves || [], { apercu: true })
+      .find(x => x.intitule === actuel.intitule && (!actuel.reference || !x.reference || x.reference === actuel.reference));
+    if (!g || exportAuthenticActuel !== actuel || JSON.stringify(g.export) === JSON.stringify(actuel)) return;
+    exportAuthenticActuel = g.export;
+    renderWizardSuccession();
+  } catch (_) { /* hors ligne : le dossier repris reste tel quel */ }
+}
+
 function valeurChampWizardSuccession(id) {
   const el = document.getElementById(id);
   return el ? String(el.value || '').trim() : '';
@@ -47,7 +67,9 @@ function renderWizardSuccession() {
   if (!successionEnCoursWizard()) { bloc.innerHTML = ''; wizardSuccessionCle = ''; wizardSuccessionProposition = null; return; }
   const cle = String(exportAuthenticActuel.intitule || '') + '|' + String(exportAuthenticActuel.reference || '');
   const garder = wizardSuccessionCle === cle && !!wizardSuccessionProposition;
-  const p = garder ? wizardSuccessionProposition : propositionWizardSuccession(exportAuthenticActuel);
+  // Relu à chaque fois (étude 19/10 : date et lieu du décès vides) : une fiche du défunt ouverte dans Authentic pendant « Vérifier »
+  // complète les champs restés vides — une saisie n'est jamais remplacée.
+  const p = propositionWizardSuccession(exportAuthenticActuel);
   const v = (id, defaut) => (garder ? valeurChampWizardSuccession(id) : '') || defaut || '';
   const typeChoisi = v('f-succ-type', p.type);
   const conj = garder ? valeurChampWizardSuccession('f-succ-conjoint') : '';
@@ -67,7 +89,7 @@ function renderWizardSuccession() {
       <div><label for="f-succ-nom">Nom du défunt</label><input type="text" id="f-succ-nom" value="${escapeAttr(v('f-succ-nom', p.nom))}" placeholder="Ex. DURAND"></div>
     </div>
     <div class="field-row">
-      <div><label for="f-succ-deces-date">Date du décès</label><input type="date" id="f-succ-deces-date" value="${escapeAttr(v('f-succ-deces-date', p.decesDate))}"></div>
+      <div><label for="f-succ-deces-date">Date du décès ${infoBulle('Lue sur la fiche client du défunt dans Authentic (case « Personne décédée »). Vide : ouvrez cette fiche dans Authentic, la date et le lieu se remplissent ici.')}</label><input type="date" id="f-succ-deces-date" value="${escapeAttr(v('f-succ-deces-date', p.decesDate))}"></div>
       <div><label for="f-succ-deces-lieu">Lieu du décès</label><input type="text" id="f-succ-deces-lieu" value="${escapeAttr(v('f-succ-deces-lieu', p.decesLieu))}" placeholder="Ex. BLOIS (41000)"></div>
     </div>
     <div class="field-row">

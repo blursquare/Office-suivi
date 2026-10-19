@@ -2912,7 +2912,7 @@
       if (resultats.length) rapporterResultatsAuthentic(resultats);
       // « Nouveau dossier » ouvert à l'étape 1 : la liste « Depuis Authentic » suit les pages vues.
       const etape1 = document.getElementById('wizard-step-1');
-      if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents();
+      if (etape1 && etape1.classList.contains('actif') && etape1.offsetParent) chargerRelevesAuthenticRecents(); else rafraichirWizardSuccessionAuthentic();
     });
     return fileRelevesAuthentic;
   }

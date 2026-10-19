@@ -20891,3 +20891,22 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
 - 19/10, 0.290.0 (relecture) : `RE_REFERENCE_AUTHENTIC` (drapeau g) n'est plus testé directement (résultat qui alternait) ; la référence de l'onglet passe avant les noms (différente = autre dossier, ancien dossier des mêmes clients compris ; égale = même dossier) ; une page d'un onglet d'un autre dossier va à ce dossier s'il est dans CLAIRE, sinon message « non rangée » (jamais en silence) ; noms des parties ajoutés à la comparaison ; pourcentage de l'agenda en couleur du texte sur les cartes claires (hors Outlook, option, jaune).
 - 19/10, 0.290.0 (suite) : 3CX — « le fichier reg ouvre bien la fiche dossier dans CLAIRE sur mon app séparée mais demande encore à chaque fois la validation » : la stratégie AutoLaunchProtocolsFromOrigins du 14/10 était écrite en SOUS-CLÉ numérotée (« \\AutoLaunchProtocolsFromOrigins\\1 »), forme d'une stratégie liste ; c'est une stratégie dictionnaire — UNE chaîne JSON (liste de règles) sur la clé du navigateur. Corrigé dans le fichier administrateur (HKLM) et ajouté au fichier du poste (HKCU, sans administrateur) pour Chrome et Edge (`valeurPolitiqueLien`). Point terrain manuel `3cx-lien-sans-confirmation`. Non vérifié au bureau (HKCU honoré par Chrome hors domaine : à confirmer dans chrome://policy).
 - 19/10, 0.290.0 (relecture 2) : bien retiré jamais remis par le complément automatique (`retenirImmeubleVenteAuthentic`), pas d'« adresse du bien » proposée sur une succession ; dossier de l'onglet actif retrouvé d'abord par sa référence (succession, titre coupé) ; bien sans adresse retiré aussi de `d.biens` (parcelles en texte) ; adresse d'expéditeur retirée par sa valeur.
+
+### 19/10 10 h 43 — 0.290.1 : FCDDV dans « Etat civil », deux biens au même numéro de parcelle
+
+- Étude : « Le FCDDV n'a pas été trouvé sur le NAS » (dossier relié, fichier dans le dossier de la succession et dans « Etat civil »).
+  Cause : le parcours du NAS mémorise chaque pièce sous `piece::<clé>` (`NAS_CLE_PIECE`), la fiche lisait `fichiersTrouves.fcddv` —
+  jamais rempli. `fichierFcddv(d)` (client/74). Même défaut dans `fichierPieceNasAppelFonds` (taxe foncière / état daté retrouvés par la
+  checklist ignorés, repli sur le nom) : corrigé, son test figeait l'ancienne clé.
+- Étude (succession VIEL) : le bien de Paris (CJ 99) affiché dans la liste mais pas en carte ; la maison de Cour-Cheverny portait
+  « CJ 99 37 rue Dulong ». `biensDossier` réunissait deux biens sur une parcelle commune sans regarder la commune des biens ; la fiche bien
+  d'une succession était rapprochée sur le seul numéro de parcelle. Désormais : `appliquerBienSuccession` passe par
+  `fusionnerImmeubleAuthentic` (règle des ventes, même commune) ; `immeublesSansParcellesEgarees` (commun/donnees-dossier) retire d'un
+  immeuble une parcelle d'un autre immeuble d'une AUTRE commune dont la voie est celle de la parcelle (lieu-dit / adresse cadastrale).
+- Étude : « sur le tableau de bord, les animations clignotent vite plusieurs fois au début ». La cascade des cartes était posée par une classe
+  sur `<body>` pendant 2,5 s : chaque redessin du tableau de bord (données qui arrivent) recréait les cartes et relançait l'apparition depuis
+  l'opacité 0. Désormais `cascadeDemarrage` pose `anim-entree` sur les PREMIÈRES cartes affichées seulement (retirée après 700 ms).
+- Étude : « à l'ajout d'un nouveau dossier de succession, la date et le lieu du décès ne sont pas pré-remplis ». Ils viennent de la fiche
+  client du défunt (« Personne décédée ») ; « Nouveau dossier » gardait le dossier d'Authentic tel qu'au clic sur « Créer ». Désormais
+  chaque page relevée pendant « Vérifier » met à jour le dossier repris (`rafraichirWizardSuccessionAuthentic`, même intitulé et référence)
+  et le bloc « Succession » complète les champs restés vides (jamais pendant une saisie). Sans fiche du défunt ouverte, rien n'est deviné.

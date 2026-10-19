@@ -2527,7 +2527,7 @@
   var afRecherchePiecesNas = 0;
   // Pure : le fichier du dossier à lire pour la pièce `cle` — chemin depuis la racine du NAS, ou null.
   function fichierPieceNasAppelFonds(d, fichiers, cle, motif) {
-    const memorise = fichierTrouve(d, cle);
+    const memorise = fichierTrouve(d, 'piece::' + cle);
     if (memorise) return { chemin: memorise, nom: String(memorise).split(/[\\/]/).pop() };
     const candidats = (fichiers || []).filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || ''))
       && motif && motif.test(normaliserNomPourMotif(String(f.nom || ''))))

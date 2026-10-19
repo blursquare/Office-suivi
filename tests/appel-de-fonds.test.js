@@ -734,7 +734,7 @@ test('pièces du NAS pour le décompte : le fichier de la checklist d’abord, s
   const motif = /\bTF\b|taxes?\s+fonci[èe]\s?re/i;
   const r = app.fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motif);
   assert.strictEqual(`${r.chemin}|${r.nom}`, 'VTE DUPONT/TF 2025.pdf|TF 2025.pdf');
-  d.fichiersTrouves.avisTaxeFonciere = 'VTE DUPONT/Comptabilité/Avis 2025.pdf';
+  d.fichiersTrouves['piece::avisTaxeFonciere'] = 'VTE DUPONT/Comptabilité/Avis 2025.pdf';
   assert.strictEqual(app.fichierPieceNasAppelFonds(d, fichiers, 'avisTaxeFonciere', motif).nom, 'Avis 2025.pdf', 'fichier retrouvé par la checklist');
   assert.strictEqual(app.fichierPieceNasAppelFonds({ nasDossier: 'X' }, [{ nom: 'Titre.pdf', chemin: 'Titre.pdf' }], 'etatDate', /[ée]tat\s+dat[ée]/i), null);
 });

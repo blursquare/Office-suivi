@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.290.0';
+  const VERSION_APP = '0.290.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.290.1', date: '2026-10-19 10:43', resume: "Successions : la réponse du FCDDV rangée dans un sous-dossier (« Etat civil ») est trouvée et lue — elle était repérée sur le NAS mais la fiche la cherchait sous un autre nom. Deux biens de communes différentes qui portent le même numéro de parcelle (Paris et Cour-Cheverny) restent deux biens, chacun sa carte en haut de la fiche ; la parcelle de Paris ajoutée par erreur à la maison n'y est plus montrée. Appel de fonds : l'avis de taxe foncière déjà repéré par la checklist est repris en premier. Tableau de bord : l'apparition des cartes ne se joue plus qu'une fois au démarrage (elle clignotait à chaque redessin). Nouveau dossier d'une succession : la fiche du défunt ouverte dans Authentic pendant « Vérifier » remplit la date et le lieu du décès restés vides." },
     { version: '0.290.0', date: '2026-10-19 09:53', resume: "Rangement dans Outlook : un champ pour ajouter d'autres adresses d'expéditeurs dont les emails vont aussi dans « Traiter à distance » (Réglages › Agenda et Outlook). Successions : un bien peut être retiré à la main (croix sur la ligne du bien, dans « Modifier le défunt, les héritiers et les biens ») ; Authentic ne le remet plus. 3CX : le fichier .reg du poste autorise aussi le navigateur à ouvrir la fiche sans demander à chaque appel (à réimporter, puis rouvrir Chrome)." },
     { version: '0.289.2', date: '2026-10-19 09:36', resume: "Successions : la fiche client d'un héritier nommé seulement dans les comparants d'Authentic se rattache à la succession et l'héritier rejoint les parties (nom de naissance ou d'usage). Ventes : plusieurs biens dans un dossier — une fiche bien d'une autre adresse, ouverte dans l'onglet du dossier d'Authentic, s'ajoute aux biens au lieu d'être écartée. Authentic : une page ouverte dans l'onglet d'un autre dossier (titre coupé, référence en tête) n'est plus rangée dans le dernier dossier consulté ; le « N° de lot » d'un lotissement ne fait plus passer une maison en copropriété. Agenda : le pourcentage de maintien des rendez-vous de signature de nouveau en blanc." },
     { version: '0.289.1', date: '2026-10-19 09:29', resume: "Demander à CLAIRE : Légifrance et le BOFiP (OpenLegi) passent toujours avant la recherche web — la recherche web n'est proposée à l'agent qu'après avoir consulté l'un d'eux." },

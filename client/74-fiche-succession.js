@@ -198,7 +198,7 @@
     const etatCivil = (nom) => { const t = etatCivilFicheSuccession(ficheClientPourPersonneConstitution(d, nom)); return t ? `<span class="succ-etat-civil hint">${escapeHtml(t)}</span>` : ''; };
     const nomDefunt = [c.prenoms, c.nom].filter(Boolean).join(' ');
     const ficheDefunt = nomDefunt ? ficheClientPourPersonneConstitution(d, nomDefunt) : null;
-    const immeubles = (d.authentic && d.authentic.immeubles) || [];
+    const immeubles = immeublesSansParcellesEgarees((d.authentic && d.authentic.immeubles) || []);
     const biens = immeubles.length ? immeubles.map((im, i) => ({ adresse: im.adresse, detail: detailBienSuccession(im), source: 'immeuble', i }))
       : (Array.isArray(d.biens) ? d.biens : []).map((b, i) => ({ adresse: b.adresse, detail: [b.type, Array.isArray(b.parcelles) ? b.parcelles.map(p => p && [p.prefixe, p.section, p.numero].filter(Boolean).join(' ')).filter(Boolean).join(', ') : b.parcelles].filter(Boolean).join(' · '), source: 'bien', i }));
 
@@ -465,11 +465,17 @@
   var lecturesFcddvEnCours = new Set();
   var lecturesFcddvFaites = new Set();
 
+  // Le fichier de la réponse retrouvé par le parcours du NAS : mémorisé sous la clé des pièces (`piece::fcddv`), comme toute pièce
+  // de la checklist (19/10 : lu sous `fcddv`, il n'était jamais trouvé — « Réponse pas encore trouvée sur le NAS »).
+  function fichierFcddv(d) {
+    return fichierTrouve(d, 'piece::fcddv');
+  }
+
   // Lit la réponse du FCDDV trouvée sur le NAS. `silencieux` : à l'ouverture de la fiche, une fois par fichier et par session.
   async function lireFcddvDossier(dossierId, silencieux) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d || !estSuccession(d) || lecturesFcddvEnCours.has(dossierId)) return;
-    const chemin = fichierTrouve(d, 'fcddv');
+    const chemin = fichierFcddv(d);
     if (!chemin) { if (!silencieux) afficherToast('Réponse du FCDDV pas encore trouvée dans le dossier du NAS (« FCDDV » dans le nom du fichier).'); return; }
     lecturesFcddvEnCours.add(dossierId);
     lecturesFcddvFaites.add(dossierId + '|' + chemin);
@@ -503,7 +509,7 @@
   // À l'ouverture de la fiche : la réponse trouvée sur le NAS et jamais lue (ou un autre fichier) est lue seule.
   function lireFcddvSiNouveau(d) {
     if (!d || !estSuccession(d) || d.archive) return;
-    const chemin = fichierTrouve(d, 'fcddv');
+    const chemin = fichierFcddv(d);
     const f = (d.succession || {}).fcddv;
     if (!chemin || (f && f.fichier === chemin) || lecturesFcddvFaites.has(d.id + '|' + chemin)) return;
     lireFcddvDossier(d.id, true);
@@ -573,7 +579,7 @@
   function renderFcddvSuccession(d) {
     const idJs = escapeOnclickArg(d.id);
     const f = (d.succession || {}).fcddv;
-    const chemin = fichierTrouve(d, 'fcddv');
+    const chemin = fichierFcddv(d);
     const enCours = lecturesFcddvEnCours.has(d.id);
     const bouton = chemin ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireFcddvDossier('${idJs}', false)"${enCours ? ' disabled' : ''}>${enCours ? 'Lecture…' : (f && f.luLe ? 'Relire' : 'Lire la réponse')}</wa-button>` : '';
     let etat;
@@ -609,7 +615,7 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const f = (d.succession || {}).fcddv || {};
-    const textes = appliquerFcddvSurDossier(d, { aucune: true, inscriptions: [] }, f.fichier || fichierTrouve(d, 'fcddv') || '', new Date().toISOString());
+    const textes = appliquerFcddvSurDossier(d, { aucune: true, inscriptions: [] }, f.fichier || fichierFcddv(d) || '', new Date().toISOString());
     d.succession.fcddv.manuel = true;
     ajouterHistorique(d, `FCDDV : aucune inscription (noté à la main)${textes.length ? ` — ${textes.join(', ')}` : ''}`);
     sauvegarder(d);
@@ -637,29 +643,21 @@
     if ((bien.lots || []).length) { fiche.lots = bien.lots.slice(0, 40); if (bien.tantiemesTotal != null) fiche.tantiemesTotal = bien.tantiemesTotal; }
     if ((bien.details || []).length) fiche.details = bien.details.slice(0, 30);
     const avant = d.authentic || {};
-    const immeubles = (avant.immeubles || []).slice();
+    // Même rapprochement que pour une vente (`fusionnerImmeubleAuthentic`) : même adresse, ou une parcelle commune DANS LA MÊME COMMUNE —
+    // succession VIEL (19/10) : « CJ 99 » du bien de Paris rapprochée de la maison de Cour-Cheverny sur le seul numéro de parcelle.
+    const avantListe = (avant.immeubles || []).filter(im => im && typeof im === 'object');
+    const fusionnes = fusionnerImmeubleAuthentic(avantListe, fiche);
+    if (!fusionnes) return resultat;
+    const immeubles = immeublesSansParcellesEgarees(fusionnes);
     const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
-    const cles = (im) => new Set((im.parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
-    const clesFiche = cles(fiche);
-    const i = immeubles.findIndex(im => (fiche.adresse && net(im.adresse) === net(fiche.adresse)) || [...cles(im)].some(c => clesFiche.has(c)));
-    let fusion = fiche;
-    if (i >= 0) {
-      const ancien = immeubles[i];
-      const parcelles = (ancien.parcelles || []).map(p => Object.assign({}, p, (fiche.parcelles.find(q => cleParcelle(q.section, q.numero) === cleParcelle(p.section, p.numero)) || {})));
-      fiche.parcelles.forEach(q => { if (!parcelles.some(p => cleParcelle(p.section, p.numero) === cleParcelle(q.section, q.numero))) parcelles.push(q); });
-      fusion = Object.assign({}, ancien, Object.fromEntries(Object.entries(fiche).filter(([, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length))), { parcelles });
-      if (JSON.stringify(fusion) === JSON.stringify(ancien)) return resultat;
-      immeubles[i] = fusion;
-    } else {
-      if (!fiche.adresse && !fiche.parcelles.length && !(fiche.lots || []).length) return resultat;
-      immeubles.push(fiche);
-    }
+    const complete = immeubles.length === avantListe.length;
+    const fusion = immeubles.find(im => (fiche.adresse && net(im.adresse) === net(fiche.adresse))) || immeubles[immeubles.length - 1] || fiche;
     d.authentic = Object.assign({}, avant, { immeubles: immeubles.slice(0, 12) });
     // La liste affichée : un bien par immeuble, les biens notés autrement (anciens dossiers) gardés.
     const affiche = (im) => ({ adresse: im.adresse || '', type: im.type || '', parcelles: (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '), description: im.description || '' });
     const anciens = (Array.isArray(d.biens) ? d.biens : []).filter(b => !immeubles.some(im => (b.adresse && net(b.adresse) === net(im.adresse)) || (b.parcelles && (im.parcelles || []).some(p => net(b.parcelles).includes(net(p.section + ' ' + p.numero))))));
     d.biens = immeubles.map(affiche).concat(anciens).slice(0, 20);
-    noter(`Bien relevé dans Authentic${i >= 0 ? ' (complété)' : ''} : ${fusion.adresse || fusion.parcelles.map(p => p.section + ' ' + p.numero).join(', ')}${fusion.type ? ' — ' + fusion.type : ''}`);
+    noter(`Bien relevé dans Authentic${complete ? ' (complété)' : ''} : ${fusion.adresse || fusion.parcelles.map(p => p.section + ' ' + p.numero).join(', ')}${fusion.type ? ' — ' + fusion.type : ''}`);
     resultat.modifie = true;
     return resultat;
   }

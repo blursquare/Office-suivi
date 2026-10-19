@@ -789,3 +789,29 @@ test('bien retiré depuis la liste aux parcelles en texte : clé gardée, Authen
   const d = base({ id: 's16', authentic: { biensRetires: [k] } });
   assert.equal(app.bienRetireSuccession(d, { parcelles: [{ section: 'AE', numero: '171' }] }), true);
 });
+
+test('FCDDV : le fichier retrouvé par le parcours du NAS (clé des pièces) est celui que la fiche lit (étude 19/10)', () => {
+  const d = base({ id: 's17', fichiersTrouves: { 'piece::fcddv': 'SUCC DURAND/Etat civil/FCDDV DURAND Paul.pdf' } });
+  assert.equal(app.fichierFcddv(d), 'SUCC DURAND/Etat civil/FCDDV DURAND Paul.pdf');
+  assert.equal(app.fichierFcddv(base({ id: 's18' })), null);
+});
+
+test('deux biens de communes différentes qui portent le même numéro de parcelle restent deux biens (étude 19/10)', () => {
+  const D = require('../commun/donnees-dossier');
+  const paris = { adresse: 'PARIS 17E ARRONDISSEMENT (75017), 37 rue Dulong', codePostal: '75017', type: 'copropriete', parcelles: [{ section: 'CJ', numero: '99', lieuDit: '37 rue Dulong' }] };
+  // La maison avait reçu la parcelle du bien de Paris (adresse cadastrale : la rue de Paris).
+  const maison = { adresse: 'COUR CHEVERNY (41700), 5 rue nationale', codePostal: '41700', type: 'maison', parcelles: [{ section: 'AK', numero: '221', lieuDit: '5 RUE NATIONALE' }, { section: 'CJ', numero: '99', lieuDit: '37 rue Dulong' }] };
+  const d = base({ id: 's19', authentic: { immeubles: [paris, maison] } });
+  const biens = D.biensDossier(d);
+  assert.equal(biens.length, 2);
+  assert.equal(biens.map(b => b.adresse + ' : ' + b.parcelles.map(p => p.section + p.numero).join(',')).join(' | '),
+    'PARIS 17E ARRONDISSEMENT (75017), 37 rue Dulong : CJ99 | COUR CHEVERNY (41700), 5 rue nationale : AK221');
+  // Le même numéro de parcelle, sans adresse cadastrale contraire, reste sur son bien.
+  const autre = D.immeublesSansParcellesEgarees([paris, { adresse: 'BLOIS (41000), 2 rue X', parcelles: [{ section: 'CJ', numero: '99' }] }]);
+  assert.equal(autre[1].parcelles.length, 1);
+  // À la lecture d'une fiche bien : la parcelle de Paris ne rapproche pas la fiche de la maison.
+  const s = base({ id: 's20', authentic: { immeubles: [{ adresse: maison.adresse, codePostal: '41700', parcelles: [{ section: 'AK', numero: '221' }, { section: 'CJ', numero: '99', lieuDit: '37 rue Dulong' }] }] } });
+  app.appliquerBienSuccession(s, { adresse: { texte: '37 rue Dulong 75017 PARIS', codePostal: '75017', commune: 'PARIS' }, type: 'Appartement', parcelles: [{ section: 'CJ', numero: '99' }] }, () => {}, { modifie: false });
+  assert.equal(s.authentic.immeubles.length, 2);
+  assert.equal(s.authentic.immeubles[0].parcelles.map(p => p.section + p.numero).join(','), 'AK221');
+});
