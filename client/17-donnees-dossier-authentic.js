@@ -593,7 +593,12 @@
     } else if (parcelles.length || lots.lots.length) {
       const resultat = { modifie: false };
       const noter = () => {};
-      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien && (donnees.immeubles || []).length <= 1 ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer });
+      // Une vente de plusieurs biens (étude 19/10 : « pour les ventes aussi, il faut deux fiches distinctes ») : la fiche garde toutes les
+      // parcelles (outils, courriers), et chaque bien d'Authentic est retenu à part, avec ses seules parcelles — une carte par bien.
+      const ids = donnees.biens || [];
+      const biensVente = (donnees.immeubles || []).filter(im => !ids.length || ids.includes(im.id));
+      biensVente.forEach(im => { if (biensVente.length > 1 && retenirImmeubleVenteAuthentic(d, im, false)) resultat.modifie = true; });
+      appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien && (donnees.immeubles || []).length <= 1 ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer, sansRetenir: biensVente.length > 1 });
       if (resultat.modifie) textes.push(lots.lots.length ? 'parcelles et lots' : 'parcelles');
     }
     const prix = donnees.infosAuthentic && Number(donnees.infosAuthentic.prix);

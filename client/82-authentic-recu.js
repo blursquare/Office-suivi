@@ -256,14 +256,21 @@
     const cleNoms = (intitule) => {
       const mots = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split(/[^a-z0-9]+/).filter(m => m.length >= 2);
       const type = mots.map(m => TYPES[m]).find(Boolean) || '';
-      const noms = mots.filter(m => !TYPES[m] && !/^(veuve|veuf|epouse|epoux|nee|ne|de|du|et|consorts?)$/.test(m)).sort();
-      return noms.length ? type + ':' + noms.join(' ') : '';
+      const garder = (m) => !TYPES[m] && !/^(veuve|veuf|epouse|epoux|nee|ne|de|du|et|consorts?)$/.test(m);
+      // Les côtés d'une vente restent distincts (« MARTIN / DUPONT » n'est pas « DUPONT / MARTIN ») ; l'ordre des mots dans un côté ne compte pas.
+      const cotes = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split('/')
+        .map(c => c.split(/[^a-z0-9]+/).filter(m => m.length >= 2 && garder(m)).sort().join(' ')).filter(Boolean);
+      return mots.some(garder) ? type + ':' + cotes.join('/') : '';
     };
     const sortie = [];
     (groupes || []).forEach(g => {
       const k = cleNoms(g.intitule);
-      const cible = sortie.find(x => (g.reference && x.reference && g.reference === x.reference)
-        || (k && cleNoms(x.intitule) === k && !(g.reference && x.reference && g.reference !== x.reference)));
+      // Même référence ; sinon mêmes noms, seulement s'il n'y a qu'UN dossier candidat (un ancien dossier signé des mêmes clients et le
+      // nouveau : rien n'est réuni — relecture 0.290.1).
+      const parRef = sortie.find(x => g.reference && x.reference && g.reference === x.reference);
+      const parNoms = k ? sortie.filter(x => cleNoms(x.intitule) === k && !(g.reference && x.reference && g.reference !== x.reference)) : [];
+      const references = new Set((groupes || []).filter(x => k && cleNoms(x.intitule) === k && x.reference).map(x => x.reference));
+      const cible = parRef || (parNoms.length === 1 && references.size <= 1 ? parNoms[0] : null);
       if (!cible) { sortie.push(g); return; }
       const [garde, autre] = Object.keys(g.infos || {}).length > Object.keys(cible.infos || {}).length ? [g, cible] : [cible, g];
       autre.personnes.forEach((v, cle) => { if (!garde.personnes.has(cle)) garde.personnes.set(cle, v); });
@@ -274,7 +281,8 @@
       garde.adresse = garde.adresse || autre.adresse;
       garde.apercu = garde.apercu || autre.apercu;
       garde.succession = !!(garde.succession || autre.succession);
-      garde.aCreer = !!(garde.aCreer || autre.aCreer);
+      // « À créer » : ce que dit la page du dossier (le groupe gardé), jamais celui d'un onglet.
+      if (!Object.keys(garde.infos || {}).length) garde.aCreer = !!(garde.aCreer || autre.aCreer);
       if (String(autre.derniere || '') > String(garde.derniere || '')) garde.derniere = autre.derniere;
       if (garde !== cible) sortie[sortie.indexOf(cible)] = garde;
     });

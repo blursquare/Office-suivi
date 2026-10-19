@@ -568,7 +568,8 @@
       else resultat.raison = raison;
       return resultat;
     }
-    if (retenirImmeubleVenteAuthentic(d, bien, false)) resultat.modifie = true;
+    // `sansRetenir` : la fiche reçoit les parcelles de PLUSIEURS biens d'Authentic, retenus un par un par l'appelant (étude 19/10).
+    if (!(o && o.sansRetenir) && retenirImmeubleVenteAuthentic(d, bien, false)) resultat.modifie = true;
     if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat, o);
     else {
       const texteType = appliquerTypeBienAuthentic(d, bien.type, o);
@@ -850,7 +851,12 @@
   // était marié, le conjoint survivant ne ressort pas ») : le conjoint vivant du défunt, lu dans la fiche du défunt, y entre.
   function conjointPartieDuDossierAuthentic(d, personne) {
     if (!d || !personne || !personne.prenom) return false;
-    if (estSuccession(d)) return !personne.deces && !!partieSuccessionDeLaFiche(d, personne);
+    // Seulement le conjoint survivant — jamais le défunt vu dans le volet de la fiche de la veuve (relecture 0.290.1 : sa fiche complète
+    // était remplacée par le volet) — et seulement tant que sa propre fiche n'est pas retenue (le volet ne la remplace jamais).
+    if (estSuccession(d)) {
+      const retenue = ((d.authentic && d.authentic.fichesClients) || {})[cleFicheClientAuthentic(personne)];
+      return !personne.deces && !retenue && conjointSurvivantSuccession(d, personne);
+    }
     const nom = [personne.prenom, personne.nom].join(' ');
     return (Array.isArray(d.parties) ? d.parties : []).some(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR')
       && [p.nom, [p.prenom, p.nom].filter(Boolean).join(' ')].some(n => memePersonneNommee(n, nom)));
@@ -861,7 +867,11 @@
   function conjointSurvivantAuthentic(g, pc) {
     const sm = pc && pc.situationMatrimoniale;
     if (!g || !g.succession || !pc || !pc.prenom || pc.deces || !sm || !sm.conjoint || /divor|separ/i.test(normaliserPourRecherche(sm.situation || ''))) return false;
-    return [...(g.personnes ? g.personnes.values() : [])].some(p => p && p.deces && memePersonneNommee([p.prenom, p.nom].filter(Boolean).join(' '), sm.conjoint));
+    // Le défunt : le comparant « Défunt » s'il est lu, sinon la seule personne décédée du groupe (un enfant mort avant n'est pas le défunt).
+    const comp = ((g.infos && g.infos.comparants) || []).find(c => c && c.role === 'DEFUNT');
+    const decedes = [...(g.personnes ? g.personnes.values() : [])].filter(p => p && p.deces);
+    const defunt = comp ? comp.nom : (decedes.length === 1 ? [decedes[0].prenom, decedes[0].nom].filter(Boolean).join(' ') : '');
+    return !!defunt && memePersonneNommee(defunt, sm.conjoint);
   }
 
   // Pure : le conjoint d'un volet est-il cité parmi les comparants relevés du dossier (prénom et nom) ?

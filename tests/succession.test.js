@@ -881,3 +881,27 @@ test('complément depuis Authentic d’une succession : chaque bien reste un bie
   assert.equal(d.authentic.immeubles.length, 3);
   assert.equal(d.authentic.immeubles.map(i => i.parcelles.map(p => p.section + p.numero).join('+')).join(' | '), 'ZM96 | ZX113 | R340');
 });
+
+test('relecture 0.290.1 : volet du défunt dans la fiche de la veuve, groupes ambigus, côtés d’une vente', () => {
+  const d = base({ id: 's25', nom: 'SUCC Philippe BARON', parties: [{ nom: 'Philippe BARON', role: 'PARTIE' }],
+    authentic: { comparants: [{ nom: 'BARON Philippe', role: 'DEFUNT' }], fichesClients: {} } });
+  // Le défunt vu dans le volet de la fiche de la veuve : jamais repris par ce volet.
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, { nom: 'BARON', prenom: 'Philippe', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Zivka BARON' } }), false);
+  // Fiche de la veuve déjà retenue : le volet ne la remplace pas.
+  const veuve = { nom: 'BARON', prenom: 'Zivka', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Philippe BARON' } };
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, veuve), true);
+  d.authentic.fichesClients[app.cleFicheClientAuthentic(veuve)] = Object.assign({}, veuve, { domicile: 'X' });
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, veuve), false);
+  // Création : seul le défunt (comparant « Défunt »), pas un enfant mort avant.
+  const g = { succession: true, infos: { comparants: [{ nom: 'BARON Philippe', role: 'DEFUNT' }] },
+    personnes: new Map([['p1', { nom: 'BARON', prenom: 'Philippe', deces: {} }], ['p2', { nom: 'BARON', prenom: 'Luc', deces: {} }]]) };
+  assert.equal(app.conjointSurvivantAuthentic(g, { nom: 'DURAND', prenom: 'Anne', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Luc BARON' } }), false);
+  // Groupes : un onglet sans référence et deux dossiers des mêmes clients → rien n'est réuni ; côtés inversés → distincts.
+  const gr = (intitule, reference, plus) => Object.assign({ intitule, reference, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {} }, plus || {});
+  const r = app.fusionnerGroupesAuthentic([gr('VTE DUPONT / MARTIN', '', { aCreer: true }), gr('2 - Vente DUPONT / MARTIN', 'A 2020 00001', { infos: { a: 1 } }), gr('2 - Vente DUPONT / MARTIN', 'A 2026 00002', { infos: { a: 1 } })]);
+  assert.equal(r.length, 3);
+  assert.equal(app.fusionnerGroupesAuthentic([gr('2 - VTE MARTIN / DUPONT', '', { infos: { a: 1 } }), gr('VTE DUPONT / MARTIN', '')]).length, 2);
+  // Réunis : « à créer » dit par la page du dossier.
+  const r2 = app.fusionnerGroupesAuthentic([gr('VTE DUPONT / MARTIN', '', { aCreer: true }), gr('2 - Vente DUPONT / MARTIN', 'A 2020 00001', { infos: { a: 1 }, aCreer: false })]);
+  assert.deepEqual([r2.length, r2[0].aCreer], [1, false]);
+});

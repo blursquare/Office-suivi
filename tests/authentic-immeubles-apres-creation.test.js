@@ -114,3 +114,12 @@ test('fiche bien inconnue ouverte dans l’onglet du dossier : un bien de plus (
   assert.equal(d.adresseBien, 'BLOIS (41000), 3 rue Imaginaire');
   assert.equal(app.groupesParcellesConstitution(d).length, 3);
 });
+
+test('vente de deux biens complétée depuis Authentic : deux biens distincts, chacun ses parcelles (étude 19/10)', () => {
+  const D = require('../commun/donnees-dossier');
+  const d = { id: 'v9', nom: 'DUPONT / MARTIN', typeVente: 'maison', adresseBien: 'BLOIS (41000), 1 rue A', parties: [], pieces: {}, bien: { adresse: { codePostal: '41000', commune: 'BLOIS' } } };
+  const im = (id, cp, commune, voie, section, numero) => ({ id, adresse: { texte: `${voie} ${cp} ${commune}`, codePostal: cp, commune }, parcelles: [{ section, numero }] });
+  app.complementDossierDepuisAuthentic(d, { intitule: 'VTE DUPONT / MARTIN', personnes: [], immeubles: [im('a', '41000', 'BLOIS', '1 rue A', 'AB', '1'), im('b', '41350', 'VINEUIL', '2 rue B', 'ZC', '7')], biens: ['a', 'b'] }, [], { forcer: true });
+  assert.equal(d.bien.cadastre.parcelles.map(p => p.section + p.numero).join(','), 'AB1,ZC7');
+  assert.equal(D.biensDossier(d).map(b => b.adresse + ' : ' + b.parcelles.map(p => p.section + p.numero).join(',')).join(' | '), 'BLOIS (41000), 1 rue A : AB1 | VINEUIL (41350), 2 rue B : ZC7');
+});

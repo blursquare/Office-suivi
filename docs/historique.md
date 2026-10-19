@@ -20923,3 +20923,10 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
     d'une même référence, ou de mêmes noms et même type d'acte sans références contraires.
   - Biens : `complementDossierDepuisAuthentic` posait les parcelles de TOUS les immeubles sur un seul bien (règle d'une vente) ; pour une
     succession, chaque immeuble passe par `appliquerBienSuccession`. Le dossier BARON déjà créé garde son bien fusionné : le recréer.
+- Étude : « pour les biens, c'est aussi le cas pour les ventes, il faut deux fiches distinctes ». Le complément d'une vente retenait le bien
+  principal avec les parcelles de tous les biens. Désormais chaque immeuble d'Authentic est retenu avec ses seules parcelles
+  (`appliquerBienAuthentic(…, { sansRetenir })`), la fiche (`d.bien.cadastre`) garde toutes les parcelles pour les outils, et `biensDossier`
+  laisse à son bien une parcelle du bien principal déjà portée par un seul autre bien. Un dossier déjà enregistré avec le bien fusionné le reste.
+- Relecture : le volet de la fiche de la veuve montrait le défunt et remplaçait sa fiche complète → le volet n'entre que pour le conjoint
+  survivant dont aucune fiche n'est encore retenue ; à la création, le défunt est le comparant « Défunt » (sinon le seul décédé) ; groupes
+  réunis par les noms seulement si une seule référence porte ces noms, côtés d'une vente distincts, « à créer » dit par la page du dossier.

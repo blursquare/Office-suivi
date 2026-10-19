@@ -195,7 +195,10 @@
       if (liste(src.lots).length && (!cible.lots.length || source === 'fiche')) cible.lots = src.lots.slice();
       parcelles.forEach((/** @type {any} */ p) => {
         const cle = cleParcelleSansCommune(p);
-        const v = trouver(cle, lieuDe(p));
+        // Le bien principal d'une vente garde TOUTES les parcelles de ses biens (étude 19/10) : une parcelle sans commune propre déjà portée
+        // par un seul autre bien est la sienne, pas une parcelle de plus du bien principal.
+        const seul = (vues.get(cle) || []).length === 1 ? /** @type {any} */ (vues.get(cle))[0] : null;
+        const v = trouver(cle, lieuDe(p)) || (source === 'fiche' && !texte(p.commune) ? seul : null);
         if (v) {
           const i = v.bien.parcelles.findIndex((/** @type {any} */ x) => cleParcelleSansCommune(x) === cle && memeCommune({ commune: x.commune || v.bien.commune }, lieuDe(p)) !== false);
           if (i >= 0) v.bien.parcelles[i] = completerParcelle(v.bien.parcelles[i], p);
