@@ -647,11 +647,14 @@
     // succession VIEL (19/10) : « CJ 99 » du bien de Paris rapprochée de la maison de Cour-Cheverny sur le seul numéro de parcelle.
     const avantListe = (avant.immeubles || []).filter(im => im && typeof im === 'object');
     const fusionnes = fusionnerImmeubleAuthentic(avantListe, fiche);
-    if (!fusionnes) return resultat;
+    // Plus de place (12 biens) : rien n'est noté plutôt qu'un bien perdu par la coupe.
+    if (!fusionnes || fusionnes.length > 12) return resultat;
     const immeubles = immeublesSansParcellesEgarees(fusionnes);
     const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
     const complete = immeubles.length === avantListe.length;
-    const fusion = immeubles.find(im => (fiche.adresse && net(im.adresse) === net(fiche.adresse))) || immeubles[immeubles.length - 1] || fiche;
+    // Le bien complété ou ajouté : le seul qui a changé (relecture 0.290.1 : l'historique nommait le dernier bien de la liste).
+    const iChange = complete ? fusionnes.findIndex((im, i) => JSON.stringify(im) !== JSON.stringify(avantListe[i])) : fusionnes.length - 1;
+    const fusion = fusionnes[iChange] || fiche;
     d.authentic = Object.assign({}, avant, { immeubles: immeubles.slice(0, 12) });
     // La liste affichée : un bien par immeuble, les biens notés autrement (anciens dossiers) gardés.
     const affiche = (im) => ({ adresse: im.adresse || '', type: im.type || '', parcelles: (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '), description: im.description || '' });
@@ -795,7 +798,18 @@
     const a = bien && bien.adresse && typeof bien.adresse === 'object' ? bien.adresse.texte : bien && bien.adresse;
     // Parcelles en liste (immeubles d'Authentic) ou en texte (« AE 171, AE 173 », d.biens).
     const parcelles = Array.isArray(bien && bien.parcelles) ? bien.parcelles.map(p => p && cleParcelle(p.section, p.numero)).filter(Boolean) : parcellesTexteSuccession(bien && bien.parcelles);
-    return { adresse: net(a ? normaliserAdresse(a) : ''), parcelles };
+    // La commune du bien (relecture 0.290.1) : une parcelle de même numéro dans une autre commune n'est pas le bien retiré.
+    const lieu = communeDeLAdresse(a ? normaliserAdresse(a) : '');
+    const ad = bien && bien.adresse && typeof bien.adresse === 'object' ? bien.adresse : {};
+    return { adresse: net(a ? normaliserAdresse(a) : ''), parcelles, commune: String((bien && bien.commune) || ad.commune || lieu.commune || ''), codePostal: String((bien && bien.codePostal) || ad.codePostal || lieu.codePostal || '') };
+  }
+
+  // Pure : deux clés de bien (clesBienSuccession) désignent-elles le même bien ? Même adresse, ou une parcelle commune dans une commune
+  // qui ne contredit pas.
+  function memeBienSuccession(r, k) {
+    if (k.adresse && r.adresse === k.adresse) return true;
+    if (memeCommune({ commune: r.commune, codePostal: r.codePostal }, { commune: k.commune, codePostal: k.codePostal }) === false) return false;
+    return (r.parcelles || []).some(c => k.parcelles.includes(c));
   }
 
   // Pure : les clés des parcelles écrites en texte (« AE 171, AE 173 »).
@@ -808,7 +822,7 @@
     const retires = (d && d.authentic && Array.isArray(d.authentic.biensRetires)) ? d.authentic.biensRetires : [];
     if (!retires.length) return false;
     const k = clesBienSuccession(bien);
-    return retires.some(r => (k.adresse && r.adresse === k.adresse) || (r.parcelles || []).some(c => k.parcelles.includes(c)));
+    return retires.some(r => memeBienSuccession(r, k));
   }
 
   // Retire un bien de la succession (étude 19/10 : « permettre de retirer un bien à la main » — un bien d'une autre vente y était entré) ;
@@ -817,17 +831,15 @@
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
     const liste = source === 'immeuble' ? ((d.authentic && d.authentic.immeubles) || []) : (Array.isArray(d.biens) ? d.biens : []);
-    const bien = liste[index];
+    // Le bien tel qu'il est affiché (sans les parcelles égarées d'un autre bien).
+    const bien = (source === 'immeuble' ? immeublesSansParcellesEgarees(liste) : liste)[index];
     if (!bien) return;
     demanderConfirmation(`Retirer ce bien du dossier : ${bien.adresse || 'adresse non relevée'} ?`, async () => {
       const k = clesBienSuccession(bien);
-      const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
       d.authentic = Object.assign({}, d.authentic || {});
       if (k.adresse || k.parcelles.length) d.authentic.biensRetires = (d.authentic.biensRetires || []).concat(k).slice(-20);
       if (Array.isArray(d.authentic.immeubles)) d.authentic.immeubles = d.authentic.immeubles.filter((im, i) => !(source === 'immeuble' && i === index) && !bienRetireSuccession(d, im));
-      const parcellesTexte = parcellesTexteSuccession;
-      if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(k.adresse && net(b.adresse) === k.adresse)
-        && !(k.parcelles.length && parcellesTexte(Array.isArray(b.parcelles) ? b.parcelles.map(p => p && `${p.section} ${p.numero}`).join(', ') : b.parcelles).some(c => k.parcelles.includes(c))));
+      if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(b && memeBienSuccession(k, clesBienSuccession(b))));
       ajouterHistorique(d, `Bien retiré du dossier : ${bien.adresse || k.parcelles.join(', ')}`);
       await sauvegarder(d);
       render();

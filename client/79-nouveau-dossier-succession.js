@@ -69,9 +69,15 @@ function renderWizardSuccession() {
   const garder = wizardSuccessionCle === cle && !!wizardSuccessionProposition;
   // Relu à chaque fois (étude 19/10 : date et lieu du décès vides) : une fiche du défunt ouverte dans Authentic pendant « Vérifier »
   // complète les champs restés vides — une saisie n'est jamais remplacée.
+  // Un champ qui vaut encore ce qu'Authentic proposait n'est pas une saisie : il suit la nouvelle proposition (relecture 0.290.1 — sinon
+  // l'ancienne valeur d'Authentic devenait une correction à l'ajout et la fiche ne suivait plus Authentic).
   const p = propositionWizardSuccession(exportAuthenticActuel);
-  const v = (id, defaut) => (garder ? valeurChampWizardSuccession(id) : '') || defaut || '';
-  const typeChoisi = v('f-succ-type', p.type);
+  const ancienne = garder ? wizardSuccessionProposition : null;
+  const v = (id, cleP) => {
+    const champ = garder ? valeurChampWizardSuccession(id) : '';
+    return (champ && !(ancienne && champ === String(ancienne[cleP] || '')) ? champ : '') || p[cleP] || '';
+  };
+  const typeChoisi = v('f-succ-type', 'type');
   const conj = garder ? valeurChampWizardSuccession('f-succ-conjoint') : '';
   const ouverture = garder ? valeurChampWizardSuccession('f-succ-ouverture') : '';
   const contact = (h) => [(h.emails || [])[0], (h.telephones || [])[0]].filter(Boolean).join(' · ');
@@ -85,12 +91,12 @@ function renderWizardSuccession() {
   bloc.innerHTML = `<div class="wizard-bloc-titre">Succession</div>
     <div class="field-row">
       <div><label for="f-succ-prenoms">Prénoms du défunt ${infoBulle('Tels qu’ils s’écrivent dans les courriers. Repris d’Authentic : comparant « Défunt », sinon le premier comparant quand le nom du dossier le désigne, sinon la fiche portant une date de décès.')}</label>
-        <input type="text" id="f-succ-prenoms" value="${escapeAttr(v('f-succ-prenoms', p.prenoms))}" placeholder="Ex. Jeanne Marie"></div>
-      <div><label for="f-succ-nom">Nom du défunt</label><input type="text" id="f-succ-nom" value="${escapeAttr(v('f-succ-nom', p.nom))}" placeholder="Ex. DURAND"></div>
+        <input type="text" id="f-succ-prenoms" value="${escapeAttr(v('f-succ-prenoms', 'prenoms'))}" placeholder="Ex. Jeanne Marie"></div>
+      <div><label for="f-succ-nom">Nom du défunt</label><input type="text" id="f-succ-nom" value="${escapeAttr(v('f-succ-nom', 'nom'))}" placeholder="Ex. DURAND"></div>
     </div>
     <div class="field-row">
-      <div><label for="f-succ-deces-date">Date du décès ${infoBulle('Lue sur la fiche client du défunt dans Authentic (case « Personne décédée »). Vide : ouvrez cette fiche dans Authentic, la date et le lieu se remplissent ici.')}</label><input type="date" id="f-succ-deces-date" value="${escapeAttr(v('f-succ-deces-date', p.decesDate))}"></div>
-      <div><label for="f-succ-deces-lieu">Lieu du décès</label><input type="text" id="f-succ-deces-lieu" value="${escapeAttr(v('f-succ-deces-lieu', p.decesLieu))}" placeholder="Ex. BLOIS (41000)"></div>
+      <div><label for="f-succ-deces-date">Date du décès ${infoBulle('Lue sur la fiche client du défunt dans Authentic (case « Personne décédée »). Vide : ouvrez cette fiche dans Authentic, la date et le lieu se remplissent ici.')}</label><input type="date" id="f-succ-deces-date" value="${escapeAttr(v('f-succ-deces-date', 'decesDate'))}"></div>
+      <div><label for="f-succ-deces-lieu">Lieu du décès</label><input type="text" id="f-succ-deces-lieu" value="${escapeAttr(v('f-succ-deces-lieu', 'decesLieu'))}" placeholder="Ex. BLOIS (41000)"></div>
     </div>
     <div class="field-row">
       <div><label for="f-succ-conjoint">Conjoint survivant ${infoBulle('Avec un conjoint survivant, les comptes lui sont transférés : l’étude ne reçoit aucun fonds.')}</label>

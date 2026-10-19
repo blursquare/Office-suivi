@@ -173,8 +173,9 @@
       const lieuDe = (/** @type {any} */ p) => ({ commune: texte(p.commune) || commune, codePostal: texte(p.commune) ? '' : codePostal });
       // Le même bien : une parcelle commune dans la même commune, sinon la même adresse.
       let cible = null;
-      // Une parcelle commune ne réunit pas deux biens de communes différentes (« CJ 99 » à Paris et à Cour-Cheverny, 19/10).
-      for (const p of parcelles) { const v = trouver(cleParcelleSansCommune(p), lieuDe(p)); if (v && memeCommune({ commune: v.bien.commune, codePostal: v.bien.codePostal }, { commune, codePostal }) !== false) { cible = v.bien; break; } }
+      // Une parcelle commune ne réunit pas deux biens de communes différentes (« CJ 99 » à Paris et à Cour-Cheverny, 19/10) — sauf si la
+      // parcelle porte sa propre commune (elle a déjà été comparée par `trouver`).
+      for (const p of parcelles) { const v = trouver(cleParcelleSansCommune(p), lieuDe(p)); if (v && (texte(p.commune) || memeCommune({ commune: v.bien.commune, codePostal: v.bien.codePostal }, { commune, codePostal }) !== false)) { cible = v.bien; break; } }
       if (!cible && adresse) cible = biens.find((b) => b.adresse && net(b.adresse) === net(adresse)) || null;
       if (!cible) {
         if (!adresse && !parcelles.length && !liste(src.lots).length) return;

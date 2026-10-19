@@ -815,3 +815,21 @@ test('deux biens de communes différentes qui portent le même numéro de parcel
   assert.equal(s.authentic.immeubles.length, 2);
   assert.equal(s.authentic.immeubles[0].parcelles.map(p => p.section + p.numero).join(','), 'AK221');
 });
+
+test('bien retiré : une parcelle de même numéro dans une autre commune n’est pas le bien retiré (relecture 0.290.1)', () => {
+  const paris = { adresse: 'PARIS 17E ARRONDISSEMENT (75017), 37 rue Dulong', codePostal: '75017', parcelles: [{ section: 'CJ', numero: '99' }] };
+  const maison = { adresse: 'COUR CHEVERNY (41700), 5 rue nationale', codePostal: '41700', parcelles: [{ section: 'AK', numero: '221' }, { section: 'CJ', numero: '99' }] };
+  const d = base({ id: 's21', authentic: { biensRetires: [app.clesBienSuccession(paris)] } });
+  assert.equal(app.bienRetireSuccession(d, paris), true);
+  assert.equal(app.bienRetireSuccession(d, maison), false);
+});
+
+test('fiche bien qui complète un bien par une parcelle : l’historique nomme ce bien (relecture 0.290.1)', () => {
+  const d = base({ id: 's22', authentic: { immeubles: [
+    { adresse: 'BLOIS (41000), 1 rue A', codePostal: '41000', parcelles: [{ section: 'AB', numero: '1' }] },
+    { adresse: 'VINEUIL (41350), 2 rue B', codePostal: '41350', parcelles: [{ section: 'ZC', numero: '7' }] }] } });
+  const notes = [];
+  app.appliquerBienSuccession(d, { adresse: { texte: '', codePostal: '41000', commune: 'BLOIS' }, parcelles: [{ section: 'AB', numero: '1' }, { section: 'AB', numero: '3' }] }, (t) => notes.push(t), { modifie: false });
+  assert.equal(d.authentic.immeubles.length, 2);
+  assert.match(notes.join(' '), /complété\) : BLOIS/);
+});
