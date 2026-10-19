@@ -89,3 +89,15 @@ test('fonds reçus : un nom de famille porté par un autre dossier en cours est 
   const c = { id: 'c', nom: 'DURAND / LEROY', parties: [{ role: 'VENDEUR', nom: 'Paul DURAND' }] };
   assert.equal(app.motsPayeurDossier(a, [a, c]).join(','), 'roy');
 });
+
+test('partie du mauvais côté retirée : vendeur « nom seul » qui est le nom de l\'acquéreur (étude 19/10)', () => {
+  const d = { id: 'm', nom: 'EXEMPLE - ESSAI', historique: [], parties: [{ role: 'VENDEUR', nom: 'EXEMPLE' }, { role: 'VENDEUR', nom: 'ESSAI' }, { role: 'ACQUEREUR', nom: 'Paul ESSAI', civilite: 'M' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(d), true);
+  assert.equal(d.parties.map(p => p.role + ':' + p.nom).join('|'), 'VENDEUR:EXEMPLE|ACQUEREUR:Paul ESSAI');
+  assert.equal(app.retirerPartieDuMauvaisCote(d), false);
+  // Homonymes réels : le nom du dossier cite le nom des deux côtés, ou le vendeur a son prénom → jamais retiré.
+  const h = dossier();
+  assert.equal(app.retirerPartieDuMauvaisCote(h), false);
+  const p = { id: 'p', nom: 'EXEMPLE - ESSAI', historique: [], parties: [{ role: 'VENDEUR', nom: 'Marc ESSAI' }, { role: 'ACQUEREUR', nom: 'Paul ESSAI' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(p), false);
+});

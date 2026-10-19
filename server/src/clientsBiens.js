@@ -128,6 +128,18 @@ function occurrencesPersonnes(dossiers) {
         autresPrenoms: texte(f.autresPrenoms), paysNaissance: texte(f.paysNaissance)
       });
     }
+    // Coordonnées d'une partie sans fiche d'Authentic retenue (dossier d'avant le 15/10, étude 19/10 : « la fiche est remplie en dessous
+    // mais pas celle de la carte ») : les siennes, sinon celles de son côté — un couple les partage, comme sur la fiche.
+    const champCote = (/** @type {string} */ role, /** @type {string} */ nature) => texte(d[(nature === 'emails' ? 'email' : 'telephone') + (role === 'VENDEUR' ? 'Vendeur' : role === 'ACQUEREUR' ? 'Acquereur' : '')]);
+    const coordonnees = (/** @type {any} */ p, /** @type {string} */ nature) => {
+      const propres = (Array.isArray(p[nature]) ? p[nature] : []).map(texte).filter(Boolean);
+      if (propres.length) return propres.slice(0, 3);
+      const role = String(p.role || '').toUpperCase();
+      if (role !== 'VENDEUR' && role !== 'ACQUEREUR') return [];
+      const brut = champCote(role, nature);
+      return (nature === 'emails' ? brut.split(/[\s,;]+/).filter((x) => /@/.test(x)) : brut.split('/').map((x) => x.trim()).filter((x) => x.replace(/\D/g, '').length >= 9)).slice(0, 3);
+    };
+    const anciennes = (d.authentic && Array.isArray(d.authentic.personnes)) ? d.authentic.personnes : [];
     for (const p of parties) {
       if (!p || !texte(p.nom) || p.qualitePersonne === 'morale') continue;
       const { nomFamille, prenom } = decouperNom(p.nom);
@@ -138,8 +150,10 @@ function occurrencesPersonnes(dossiers) {
       occ.push({
         id: idUnique(`${d.id}:${cle}`, p.role || ''), dossier: d, cle, source: 'Fiche', vuLe: '', role: p.role && p.role !== 'PARTIE' ? p.role : roleDe(nomFamille, prenom, null),
         champs: { civilite: texte(p.civilite), nomFamille, prenom, nomUsage: texte(p.nomUsage).toUpperCase(), dateNaissance: texte(p.dateNaissance).slice(0, 10),
-          lieuNaissance: '', nationalite: '', profession: '', domicile: '', emails: [], telephones: [] },
-        situation: null, deces: null
+          lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: '', domicile: '', emails: coordonnees(p, 'emails'), telephones: coordonnees(p, 'telephones') },
+        situation: ((sm) => sm && typeof sm === 'object' && texte(sm.situation) ? { situation: texte(sm.situation), conjoint: texte(sm.conjoint), regime: texte(sm.regime || sm.contrat), date: texte(sm.dateMariage || sm.date) } : null)(
+          p.situationMatrimoniale || ((anciennes.find((a) => a && a.nom && memeNom(p, decouperNom(texte(a.nom)).nomFamille, decouperNom(texte(a.nom)).prenom)) || {}).situationMatrimoniale)),
+        deces: null
       });
     }
   }
@@ -251,7 +265,8 @@ function construirePersonnes(dossiers, reglages) {
     for (const c of liste.flatMap((o) => correctionsParOcc.get(o.id) || [])) {
       if (!c || !CHAMPS_PERSONNE.includes(c.champ)) continue;
       const actuel = JSON.stringify(authentic[c.champ]);
-      if (c.authentic !== undefined && JSON.stringify(c.authentic) !== actuel && actuel !== JSON.stringify(c.valeur)) {
+      // Seulement une valeur venue d'Authentic : la fiche du dossier (coordonnées du côté, 19/10) n'est pas « Authentic a changé ».
+      if (liste.some((o) => o.source === 'Authentic') && c.authentic !== undefined && JSON.stringify(c.authentic) !== actuel && actuel !== JSON.stringify(c.valeur)) {
         // Authentic a changé depuis la correction : proposé, rien d'écrasé.
         aRevoir.push({ champ: c.champ, correction: c.valeur, authentic: authentic[c.champ], occ: c.occ });
       }

@@ -20945,3 +20945,17 @@ simulateur de provision (la ligne « Débours (selon le tableau) », à 200 €,
 ajoute désormais `TAXE_LCBFT_FRAIS_ACTE` (300) et `DEBOURS_FRAIS_ACTE` (200) ; même total pour le simulateur, la ligne des frais et
 droits de l'acte du décompte (`fraisActeEstimesAppelFonds`), le contrôle du barème, l'outil Quotités, la provision gardée sur la fiche et
 « Demander à CLAIRE ». Une provision déjà enregistrée sur une fiche garde l'ancien montant tant qu'elle n'est pas recalculée.
+
+### 19/10/2026 — 0.290.4 : dossier déjà rentré, carte client vide et acquéreur en vendeur
+
+Étude (ARTHUR / BOUCHKAR) : « la fiche est remplie en dessous mais pas celle de la carte et l'acquéreur est en vendeur aussi ». Deux causes :
+- la carte ouvre la fiche unique calculée par le serveur (`server/src/clientsBiens.js`), qui ne lisait que les fiches client d'Authentic
+  retenues depuis le 15/10 (`d.authentic.fichesClients`) ; une partie sans fiche retenue restait sans coordonnées. Elle prend désormais ses
+  emails/téléphones propres, sinon ceux de son côté (`emailAcquereur`, `telephoneAcquereur` — un couple les partage, comme sur la fiche), et
+  la situation matrimoniale de la partie ou de l'ancien relevé `d.authentic.personnes` ;
+- une partie « BOUCHKAR » (nom seul, sans prénom ni coordonnées) portée côté vendeur alors que seul le côté acquéreur du nom du dossier le
+  cite et qu'un acquéreur le porte : retirée au chargement (`retirerPartieDuMauvaisCote`, client/52, historique « Vendeur « … » retiré »).
+  Origine non retrouvée (entrée antérieure à l'historique visible) ; un vrai homonyme (prénom, coordonnées, ou nom cité des deux côtés)
+  n'est jamais touché.
+La ligne « Authentic — 0 fiche client · 0 bien · 0 document » d'un dossier d'avant le 17/10 n'est pas un bug : les pages ne sont gardées
+par le serveur que depuis cette date ; rouvrir le dossier dans Authentic les remplit.

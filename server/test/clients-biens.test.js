@@ -258,3 +258,14 @@ test('fiches du dossier : une personne du même nom sans preuve montre ses autre
   assert.equal(paul.autresDossiers, 0);
   assert.ok(paul.peutEtreAutres.some((x) => x.id === 's1'));
 });
+
+test('partie sans fiche d\'Authentic retenue : coordonnées du côté et situation reprises (étude 19/10, carte vide)', () => {
+  const base = construireBase([{ id: 'v1', nom: 'EXEMPLE - ESSAI', typeAffaire: 'vente',
+    emailAcquereur: 'paul.essai@exemple.fr; direction@exemple.fr', telephoneAcquereur: '06 00 00 00 01',
+    parties: [{ nom: 'Jean EXEMPLE', role: 'VENDEUR' }, { nom: 'Paul ESSAI', role: 'ACQUEREUR', civilite: 'M' }],
+    authentic: { personnes: [{ nom: 'Paul ESSAI', role: 'ACQUEREUR', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Mme TEST Léa' } }] } }]);
+  const paul = base.personnes.find(p => p.champs.nomFamille === 'ESSAI');
+  assert.deepEqual(paul.champs.emails, ['paul.essai@exemple.fr', 'direction@exemple.fr']);
+  assert.deepEqual(paul.champs.telephones, ['06 00 00 00 01']);
+  assert.equal(base.personnes.find(p => p.champs.nomFamille === 'EXEMPLE').champs.emails.length, 0);
+});

@@ -883,3 +883,29 @@
     const nom = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : '';
     return !!(personne && personne.prenom) && comps.some(c => c && c.nom && memePersonneNommee(c.nom, nom));
   }
+
+  // Modifie d : une partie portée du MAUVAIS côté retirée (étude 19/10, ARTHUR / BOUCHKAR : « l'acquéreur est en vendeur aussi » — un
+  // vendeur « BOUCHKAR », nom seul, à côté de l'acquéreur Hamza BOUCHKAR). Seulement une vente au nom « VENDEUR - ACQUÉREUR » (ou « / »)
+  // dont l'autre côté seul cite ce nom, quand une partie de l'autre côté le porte, et pour une partie sans prénom, civilité, coordonnées ni
+  // date de naissance (un vrai vendeur homonyme, nommé par le nom du dossier ou avec son prénom, n'est jamais touché). → true si retirée.
+  function retirerPartieDuMauvaisCote(d) {
+    if (!d || estSuccession(d) || !Array.isArray(d.parties) || d.parties.length < 2) return false;
+    const m = /^\s*(?:vte\s*-\s*)?(.+?)\s+(?:-|\/)\s+(.+?)\s*$/i.exec(String(d.nom || ''));
+    if (!m) return false;
+    const mots = (t) => motsIdentitePersonne(t).filter(x => x.length >= 3);
+    const cotes = { VENDEUR: mots(m[1]), ACQUEREUR: mots(m[2]) };
+    const role = (p) => String((p && p.role) || '').toUpperCase();
+    const autre = (r) => (r === 'VENDEUR' ? 'ACQUEREUR' : 'VENDEUR');
+    const retirees = d.parties.filter(p => {
+      if (!p || (role(p) !== 'VENDEUR' && role(p) !== 'ACQUEREUR') || p.qualitePersonne === 'morale') return false;
+      const mp = mots([p.prenom, p.nom].filter(Boolean).join(' '));
+      if (mp.length !== 1 || p.prenom || p.civilite || p.dateNaissance || (p.emails || []).length || (p.telephones || []).length) return false;
+      const r = role(p), w = mp[0];
+      if (cotes[r].includes(w) || !cotes[autre(r)].includes(w)) return false;
+      return d.parties.some(q => q && q !== p && role(q) === autre(r) && mots([q.prenom, q.nom].filter(Boolean).join(' ')).includes(w));
+    });
+    if (!retirees.length) return false;
+    d.parties = d.parties.filter(p => !retirees.includes(p));
+    retirees.forEach(p => ajouterHistorique(d, `${role(p) === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} « ${p.nom} » retiré : c'est le nom de l'autre côté du dossier`));
+    return true;
+  }
