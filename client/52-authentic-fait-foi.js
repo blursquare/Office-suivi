@@ -942,6 +942,10 @@
     const parcelles = (bien.parcelles || []).filter(p => p && p.section && p.numero);
     return (liste || (typeof dossiers !== 'undefined' ? dossiers : [])).find(x => {
       if (!x || x === d || x.id === (d && d.id) || x.deleted || x.archive || estSuccession(x)) return false;
+      // Copropriété : deux lots différents du même immeuble ne sont pas le même bien (relecture 19/10).
+      const lotsBien = (bien.lots || []).map(l => String((l && (l.numero || l.lot)) || '')).filter(Boolean);
+      const lotsX = ((x.bien && x.bien.lots) || []).map(l => String((l && (l.numero || l.lot)) || '')).filter(Boolean);
+      if (lotsBien.length && lotsX.length && !lotsBien.some(n => lotsX.includes(n))) return false;
       const a = x.adresseBien ? normaliserPourRecherche(normaliserAdresse(x.adresseBien)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
       if (cleAdr && a && a === cleAdr) return true;
       const communeX = (x.bien && x.bien.adresse && x.bien.adresse.commune) || '';

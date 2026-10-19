@@ -368,33 +368,47 @@
 
   // Les biens d'Authentic d'une vente autres que le bien principal, chacun avec sa croix (étude 19/10 : « je ne peux même pas retirer le
   // bien » — un bien d'un autre dossier était entré). Index = rang dans immeublesSansParcellesEgarees, comme pour une succession.
+  // Pure : la signature d'un bien d'Authentic (adresse et parcelles) — désigne le bien cliqué même si la liste a bougé entre-temps.
+  function signatureBienVente(im) {
+    return [normaliserPourRecherche(normaliserAdresse((im && im.adresse) || '')).replace(/[^a-z0-9]+/g, ' ').trim(),
+      ((im && im.parcelles) || []).map(p => cleParcelle(p.section, p.numero)).sort().join(',')].join('|');
+  }
   function autresBiensVente(d) {
     if (!d || estSuccession(d)) return [];
     const liste = immeublesSansParcellesEgarees((d.authentic && d.authentic.immeubles) || []);
     const cle = (a) => normaliserPourRecherche(normaliserAdresse(a || '')).replace(/[^a-z0-9]+/g, ' ').trim();
     const principal = cle(d.adresseBien);
-    // Le bien principal : celui de l'adresse de la fiche, sinon le premier.
-    let iPrincipal = liste.findIndex(im => im && principal && cle(im.adresse) === principal);
-    if (iPrincipal < 0) iPrincipal = 0;
-    return liste.map((im, index) => ({ im, index })).filter(({ im, index }) => im && index !== iPrincipal);
+    // Le bien principal : celui de l'adresse de la fiche. Introuvable : aucune croix (jamais le bien principal proposé au retrait).
+    const iPrincipal = liste.findIndex(im => im && principal && cle(im.adresse) === principal);
+    if (iPrincipal < 0) return [];
+    const duPrincipal = liste[iPrincipal];
+    const parcellesPrincipal = new Set((duPrincipal.parcelles || []).map(p => cleParcelle(p.section, p.numero)));
+    // Un lot ou une dépendance du même immeuble (même adresse ou parcelle d'assise du bien principal) n'est pas un « autre bien » à retirer.
+    return liste.map((im, index) => ({ im, index, signature: signatureBienVente(im) })).filter(({ im, index }) => im && index !== iPrincipal
+      && cle(im.adresse) !== principal && !(im.parcelles || []).some(p => parcellesPrincipal.has(cleParcelle(p.section, p.numero))));
   }
   // Retire un bien d'une vente : de ses immeubles d'Authentic (gardé parmi les biens retirés, jamais remis) et ses parcelles de la fiche,
-  // sauf celles du bien principal.
-  function retirerBienVente(id, index) {
+  // sauf celles du bien principal et des biens gardés.
+  function retirerBienVente(id, signature) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const choix = autresBiensVente(d).find(x => x.index === index);
-    if (!choix) return;
+    const choix = autresBiensVente(d).find(x => x.signature === signature);
+    if (!choix) { afficherToast('Ce bien n’est plus dans la liste : la fiche a changé, rouvrez-la.', 'OK', null); return; }
     const im = choix.im;
     demanderConfirmation(`Retirer ce bien du dossier : ${im.adresse ? normaliserAdresse(im.adresse) : 'adresse non relevée'} ?`, async () => {
-      const liste = immeublesSansParcellesEgarees((d.authentic && d.authentic.immeubles) || []);
-      const gardes = liste.filter((x, i) => i !== index);
+      const brut = ((d.authentic && d.authentic.immeubles) || []).filter(x => x && typeof x === 'object');
+      const affiches = immeublesSansParcellesEgarees(brut);
+      const i = affiches.findIndex(x => signatureBienVente(x) === signature);
+      if (i < 0) return;
+      const gardes = affiches.filter((x, j) => j !== i);
       const clesGardees = new Set(gardes.flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))));
       const aRetirer = new Set((im.parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(k => !clesGardees.has(k)));
-      const k = clesBienSuccession(im);
+      // Parmi les biens retirés : seulement ce qui n'appartient à aucun bien gardé (jamais l'adresse ni une parcelle du bien principal).
+      const adresseGardee = gardes.some(x => normaliserAdresse(x.adresse || '') === normaliserAdresse(im.adresse || ''));
+      const k = clesBienSuccession({ adresse: adresseGardee ? '' : im.adresse, parcelles: (im.parcelles || []).filter(p => aRetirer.has(cleParcelle(p.section, p.numero))) });
       d.authentic = Object.assign({}, d.authentic || {}, {
-        immeubles: ((d.authentic && d.authentic.immeubles) || []).filter(x => x !== im && !(x && memeBienSuccession(k, clesBienSuccession(x)))),
-        biensRetires: ((d.authentic && d.authentic.biensRetires) || []).concat(k).slice(-20)
+        immeubles: brut.filter((x, j) => j !== i),
+        biensRetires: ((d.authentic && d.authentic.biensRetires) || []).concat(k.adresse || k.parcelles.length ? [k] : []).slice(-20)
       });
       const cad = d.bien && d.bien.cadastre;
       if (cad && Array.isArray(cad.parcelles) && aRetirer.size) {
@@ -409,7 +423,6 @@
   function renderAutresBiensVente(d) {
     const autres = autresBiensVente(d);
     if (!autres.length) return '';
-    const id = escapeOnclickArg(d.id);
-    return `<span class="parcelles-fiche">${autres.map(({ im, index }) => `<span class="parcelle-fiche">${escapeHtml(im.adresse ? normaliserAdresse(im.adresse) : (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '))}
-      <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer ce bien du dossier" onclick="retirerBienVente('${escapeOnclickArg(id)}', ${index})">${icone('x')}</wa-button></span>`).join('')}</span>`;
+    return `<span class="parcelles-fiche">${autres.map(({ im, signature }) => `<span class="parcelle-fiche">${escapeHtml(im.adresse ? normaliserAdresse(im.adresse) : (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '))}
+      <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer ce bien du dossier" onclick="retirerBienVente('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(signature)}')">${icone('x')}</wa-button></span>`).join('')}</span>`;
   }
