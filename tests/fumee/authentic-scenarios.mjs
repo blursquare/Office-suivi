@@ -21,6 +21,11 @@ const base = (o) => Object.assign({ responsable: 'Julie VASSELIN', typeVente: 'm
 
 // ---- Dossiers de CLAIRE (inventés) ----
 const DOSSIERS = [
+  base({ id: 'bournouville', nom: 'BOURNOUVILLE / NOEL', adresseBien: 'MER (41500), 3 rue Haute',
+    parties: [{ role: 'VENDEUR', nom: 'BOURNOUVILLE', prenom: 'Luc' }, { role: 'ACQUEREUR', nom: 'NOEL', prenom: 'Inès' }] }),
+  // Point 2 (19/10) : dossier sans référence ; la fiche client arrive AVANT la réponse à la question.
+  base({ id: 'perrin', nom: 'PERRIN / CHAUVEAU', adresseBien: 'MER (41500), 12 rue du Pont',
+    parties: [{ role: 'VENDEUR', nom: 'PERRIN', prenom: 'Odile' }, { role: 'ACQUEREUR', nom: 'CHAUVEAU', prenom: 'Rémi' }] }),
   base({ id: 'galloyer', nom: 'GALOIS / BORDIER', referenceAuthentic: 'A 2025 00281', adresseBien: 'VIEVY-LE-RAYE (41290), 4 Grande Rue',
     bien: { adresse: 'VIEVY-LE-RAYE (41290), 4 Grande Rue', cadastre: { section: 'B', numero: '234', parcelles: [{ section: 'B', numero: '234' }] } },
     parties: [{ role: 'VENDEUR', nom: 'GALOIS', prenom: 'Sébastien' }, { role: 'ACQUEREUR', nom: 'BORDIER', prenom: 'Edwige' }] }),
@@ -126,7 +131,7 @@ const navigateur = await chromium.launch(process.env.CHROMIUM ? { executablePath
 const ctx = await navigateur.newContext({ viewport: { width: 1400, height: 900 } });
 await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
 await ctx.addInitScript(() => { localStorage.setItem('claire-utilisateur-poste', 'Julie VASSELIN'); });
-const page = await ctx.newPage();
+let page = await ctx.newPage();
 const erreursPage = [];
 page.on('pageerror', (e) => erreursPage.push(e.message));
 await page.goto(B + '/');
@@ -442,6 +447,7 @@ try {
     const p2 = await ctx.newPage();
     p2.on('pageerror', (e) => erreursPage.push(e.message));
     await p2.goto(B + '/');
+    page = p2;
     let entree = null;
     for (let i = 0; i < 480 && !(entree && entree.etat !== 'en-file' && entree.etat !== 'pris'); i++) {
       await pause(250);
@@ -480,6 +486,31 @@ try {
     const e = await envoyer(pageDossier({ ref: 'A 2026 00700', intitule: 'SUCC DURAND Jean', sous: '1 - Succession Jean DURAND',
       comparants: [['M. DURAND Jean', 'Défunt'], ['Mme DURAND Léa', 'Héritier']], immeubles: [['41000 BLOIS', '3 rue Basse']] }));
     constat(S, e.etat === 'a-creer', `page : ${e.etat} (${e.texte || ''})`);
+  }
+  // 32. Point 2 : la page du dossier pose la question ; la fiche client ouverte ensuite attend avec elle ; « Oui » range les deux.
+  {
+    const S = '32. Question en attente, fiche client qui attend avec elle';
+    const tab = 'A 2026 00700 VTE PERRIN / CHAUVEAU';
+    const e1 = await envoyer(pageDossier({ ref: 'A 2026 00700', intitule: 'VTE PERRIN / CHAUVEAU', comparants: [['Mme PERRIN Odile', 'Vendeur'], ['M. CHAUVEAU Rémi', 'Acquéreur']], immeubles: [['41500 MER', '12 rue du Pont']] }));
+    const e2 = await envoyer(ficheClient({ civilite: 'Monsieur', nom: 'Chauveau', prenom: 'Rémi', email: 'remi.chauveau@exemple.fr', ongletActif: tab }));
+    const avant = await lire('perrin');
+    constat(S, e1.etat === 'a-confirmer' && e2.etat === 'a-confirmer' && !avant.referenceAuthentic && !/remi/.test(avant.emailAcquereur || ''), `avant le clic : ${e1.etat} / ${e2.etat}, rien d’appliqué`);
+    const toast = await page.textContent('#toast-message').catch(() => '');
+    constat(S, /PERRIN \/ CHAUVEAU/.test(toast || ''), 'une seule question, pour le dossier : ' + toast);
+    await page.click('#toast-undo-btn');
+    let d = avant;
+    for (let i = 0; i < 40 && !/remi/.test(d.emailAcquereur || ''); i++) { await pause(150); d = await lire('perrin'); }
+    constat(S, d.referenceAuthentic === 'A 2026 00700' && /remi\.chauveau/.test(d.emailAcquereur || ''), `après « Oui » : référence ${d.referenceAuthentic || '—'}, email acquéreur « ${d.emailAcquereur || ''} »`);
+    const e3 = await envoyer(ficheClient({ civilite: 'Madame', nom: 'Perrin', prenom: 'Odile', email: 'odile.perrin@exemple.fr', ongletActif: tab }));
+    constat(S, e3.dossierId === 'perrin', `fiche suivante sans question : ${e3.etat} → ${e3.dossierId || '—'}`);
+  }
+  // 33. Point 2 (relecture) : fiche client dans un onglet au titre coupé que le score ne désigne pas — question, jamais écartée en silence.
+  {
+    const S = '33. Onglet coupé : question plutôt que rien';
+    const e = await envoyer(ficheClient({ civilite: 'Monsieur', nom: 'Bournouville', prenom: 'Luc', email: 'luc.b@exemple.fr', ongletActif: 'A 2026 00702 VTE BOURNOU...' }));
+    const d = await lire('bournouville');
+    constat(S, e.etat === 'a-confirmer' && !/luc\.b@/.test(d.emailVendeur || ''), `${e.etat} → ${e.dossierId || '—'}, rien d’office (${e.texte || ''})`);
+    await page.evaluate(() => fermerToastFixe());
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
   {

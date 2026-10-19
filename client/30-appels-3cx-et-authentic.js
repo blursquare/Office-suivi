@@ -2421,16 +2421,19 @@
       const quittes = rattacherIntituleAuthentic(d, intitule, dossiers, attente.nature === 'dossier' ? referenceDossierAuthentic(attente.capture) : attente.referenceGroupe);
       for (const x of quittes) await sauvegarder(x);
     }
-    const r = appliquerReleveSurDossier(d, attente.capture, undefined, dossiers);
+    const partage = partagerFicheConjointAuthentic(attente.capture);
+    const r = appliquerReleveSurDossier(d, partage ? partage.principale : attente.capture, undefined, dossiers);
+    if (partage && conjointPartieDuDossierAuthentic(d, clientDepuisFicheAuthentic(partage.conjoint)) && appliquerReleveSurDossier(d, partage.conjoint, undefined, dossiers).modifie) r.modifie = true;
     completerDossierDepuisRelevesRecents(d); // ce qui manque encore, d'après toutes les pages relevées (asynchrone)
     await sauvegarder(d);
     render();
     const texte = r.modifie ? `${r.textes[0] || 'page reprise'}${r.textes.length > 1 ? ` (+${r.textes.length - 1})` : ''}`
-      : attente.nature === 'dossier' ? 'dossier rattaché, rien de neuf sur la page' : raisonFicheClientSansChangement(attente.capture);
+      : attente.nature === 'dossier' ? 'dossier rattaché, rien de neuf sur la page' : raisonFicheClientSansChangement(partage ? partage.principale : attente.capture) || 'page rangée, rien de neuf';
     afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${texte}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     notifierMajAuthentic(d, r.majEnAttente);
     if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte, cle: clePageReleveAuthentic(attente.capture) }]);
     await reprendreAttentesGroupeAuthentic(attente.groupe, cle);
+    reposerQuestionSuivanteAuthentic();
   }
 
   // Depuis le journal (Réglages › Authentic) : la page, encore en mémoire du serveur, est rangée à la main.
@@ -2445,7 +2448,7 @@
     const creation = nature === 'dossier' && proposerCreationDossierAuthentic(rel.capture, intituleDossierAuthentic(rel.capture));
     const cle = 'f' + (++numeroFicheEnAttente);
     fichesClientEnAttente.set(cle, { capture: rel.capture, releveId, nature, creation });
-    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    limiterAttentesAuthentic();
     if (creer && creation) { creerDossierDepuisPageAuthentic(cle); return; }
     ouvrirChoixFicheClientAuthentic(cle);
   }
@@ -2491,7 +2494,7 @@
     messagesDossierIntrouvable.set(cleMessage, Date.now());
     const cle = 'f' + (++numeroFicheEnAttente);
     fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier', creation: !!creation });
-    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    limiterAttentesAuthentic();
     afficherToast(`Authentic · « ${intitule} » : ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
   }
 
@@ -2504,7 +2507,7 @@
     messagesDossierIntrouvable.set(intitule, Date.now());
     const cle = 'f' + (++numeroFicheEnAttente);
     fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'dossier', creation: true });
-    while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    limiterAttentesAuthentic();
     afficherToast(`Authentic · « ${intitule} » n’est pas dans CLAIRE.`, 'Créer', () => creerDossierDepuisPageAuthentic(cle), { fixe: true, cle });
   }
 
@@ -2547,7 +2550,7 @@
     // nouvelle partie, ni dossier en consultation changé.
     const partage = partagerFicheConjointAuthentic(capture);
     if (partage) {
-      const r = await appliquerReleveAuthentic(partage.principale, rel);
+      const r = await appliquerReleveAuthentic(partage.principale, Object.assign({}, rel || {}, { captureEntiere: capture }));
       try {
         const dp = r && r.dossierId ? dossiers.find(x => x.id === r.dossierId) : null;
         if (dp && conjointPartieDuDossierAuthentic(dp, clientDepuisFicheAuthentic(partage.conjoint)) && appliquerReleveSurDossier(dp, partage.conjoint, undefined, dossiers).modifie) await sauvegarder(dp);
@@ -2561,7 +2564,8 @@
       // rangé à la main), et seulement si la personne y est partie ou que sa fiche le cite ; sinon la fiche attend un clic.
       const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());
       d = ctx.d ? dossierPourFicheClientAuthentic(capture, [ctx.d], ctx.d) : null;
-      if (!d && !ctx.d && ctx.groupe && !ctx.propose) return { etat: 'sans-changement', texte: 'fiche ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : gardée pour sa création' };
+      // Onglet d'un dossier d'Authentic que les noms ne désignent pas (titre coupé…) : la personne propose son dossier ; personne → création.
+      if (!d && !ctx.d && ctx.groupe && !ctx.propose && !dossierPourFicheClientAuthentic(capture, dossiers, null)) return { etat: 'sans-changement', texte: 'fiche ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : gardée pour sa création' };
       if (!d) {
         const guess = ctx.d ? null : (ctx.propose || dossierPourFicheClientAuthentic(capture, dossiers, null));
         if (!guess && !dossiersCandidatsFicheClient(capture, dossiers).length) {
@@ -2633,6 +2637,9 @@
       // Page sans intitulé (fiche bien, lots…) : le dossier SÛR de l'onglet actif, sinon la question (étude 19/10).
       const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());
       d = ctx.d;
+      // Onglet que le score ne désigne pas (titre coupé…) : le dossier en cours dont les noms s'y retrouvent, proposé — jamais pris.
+      const approche = !d && !ctx.propose && ctx.intitule ? candidatsDossierAuthentic(ctx.intitule, '', dossiers).filter(x => x.s.nomsTrouves) : [];
+      if (approche.length) ctx.propose = approche[0].d;
       if (!d && ctx.propose) return pageAConfirmerAuthentic(capture, rel, ctx, typePageAuthentic(capture) === 'bien' ? 'bien' : 'page');
       if (!d && ctx.groupe) { if (!revu) afficherToast('Authentic · page ouverte dans l’onglet d’un dossier absent de CLAIRE : non rangée.', 'OK', null); return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : non rangée' }; }
     }

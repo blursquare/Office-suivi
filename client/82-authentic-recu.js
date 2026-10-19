@@ -402,7 +402,8 @@
     const reference = actif ? (referencesDansTexteAuthentic(actif.titre)[0] || '') : '';
     const intitule = intituleOngletActifAuthentic(capture);
     if (reference || intitule) {
-      const d = parRef(reference) || (intitule ? vivants.find(x => dossierSurAuthentic(x, reference, intitule)) || null : null);
+      const surs = intitule ? vivants.filter(x => dossierSurAuthentic(x, reference, intitule)) : [];
+      const d = parRef(reference) || (surs.length === 1 ? surs[0] : null);
       const propose = d ? null : dossierPourIntituleAuthentic(intitule, vivants, '', reference);
       return { d, propose, groupe: reference || cleIntituleAuthentic(intitule), intitule, reference };
     }
@@ -417,26 +418,58 @@
   function pageAConfirmerAuthentic(capture, rel, ctx, nature) {
     const propose = ctx.propose || null;
     const groupe = ctx.groupe || '';
+    // La même page revue en attendant : elle remplace la précédente (jamais appliquée deux fois au clic).
+    const clePage = clePageReleveAuthentic(capture);
+    [...fichesClientEnAttente.keys()].forEach(k => {
+      const a = fichesClientEnAttente.get(k);
+      if (!groupe || a.groupe !== groupe || a.nature !== nature || !clePage || a.clePage !== clePage) return;
+      fichesClientEnAttente.delete(k);
+      if (a.principale) fermerToastFixe(k); // la question est reposée tout de suite pour la page revue
+    });
     const dejaCle = groupe ? [...fichesClientEnAttente.keys()].find(k => fichesClientEnAttente.get(k).groupe === groupe && fichesClientEnAttente.get(k).principale) : '';
     const cle = 'f' + (++numeroFicheEnAttente);
     const creation = nature === 'dossier' && !!ctx.intitule && proposerCreationDossierAuthentic(capture, ctx.intitule);
-    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature, creation, groupe, propose: propose ? propose.id : '', principale: !dejaCle,
-      rattacher: !ctx.d, intituleGroupe: ctx.intitule || '', referenceGroupe: ctx.reference || '' });
-    while (fichesClientEnAttente.size > 30) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
     const ou = ctx.intitule ? `« ${[ctx.reference, ctx.intitule].filter(Boolean).join(' ')} »` : ctx.reference || '';
     const quoi = nature === 'dossier' ? `dossier ${ou}`
       : nature === 'client' ? `fiche de ${(() => { const p = clientDepuisFicheAuthentic(capture); return p ? [p.prenom, p.nom].filter(Boolean).join(' ') : 'client'; })()}${ou ? ` (onglet ${ou})` : ''}`
         : `fiche ${nature === 'bien' ? 'du bien' : ''}${ou ? ` (onglet ${ou})` : ''}`;
+    // La capture ENTIÈRE est gardée (volet du conjoint compris) : au clic, la fiche et son conjoint sont repris ensemble.
+    fichesClientEnAttente.set(cle, { capture: (rel && rel.captureEntiere) || capture, clePage, releveId: rel && rel.id, nature, creation, groupe, propose: propose ? propose.id : '',
+      principale: !dejaCle, quoi, rattacher: !ctx.d, intituleGroupe: ctx.intitule || '', referenceGroupe: ctx.reference || '' });
+    limiterAttentesAuthentic();
     if (dejaCle && typeof toastFixe !== 'undefined' && toastFixe && toastFixe.cle === dejaCle) return { etat: 'a-confirmer', texte: `${quoi} : attend la réponse déjà demandée pour ce dossier` };
     if (dejaCle) fichesClientEnAttente.get(dejaCle).principale = false;
     fichesClientEnAttente.get(cle).principale = true;
-    if (propose) {
-      afficherToast(`Authentic · ${quoi} : est-ce ${libelleDossierAffiche(propose)} ?`, 'Oui', () => rangerFicheClientAuthentic(cle, propose.id),
-        { fixe: true, cle, autre: { texte: 'Autre dossier…', action: () => ouvrirChoixFicheClientAuthentic(cle) } });
-      return { etat: 'a-confirmer', texte: `${quoi} : ${libelleDossierAffiche(propose)} retrouvé par les noms seulement — à confirmer d’un clic` };
+    poserQuestionAuthentic(cle);
+    return propose ? { etat: 'a-confirmer', texte: `${quoi} : ${libelleDossierAffiche(propose)} retrouvé par les noms seulement — à confirmer d’un clic` }
+      : { etat: 'a-choisir', texte: `${quoi} : aucun dossier sûr (onglet sans référence rattachée) — à choisir` };
+  }
+
+  // Les pages en attente d'un choix : 30 au plus, jamais une question encore affichée.
+  function limiterAttentesAuthentic() {
+    for (const k of [...fichesClientEnAttente.keys()]) {
+      if (fichesClientEnAttente.size <= 30) break;
+      if (typeof toastFixe !== 'undefined' && toastFixe && toastFixe.cle === k) continue;
+      fichesClientEnAttente.delete(k);
     }
-    afficherToast(`Authentic · ${quoi} : à quel dossier ?`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
-    return { etat: 'a-choisir', texte: `${quoi} : aucun dossier sûr (onglet sans référence rattachée) — à choisir` };
+  }
+
+  // Le message fixe de la question d'une page en attente : « est-ce X ? » (Oui / Autre dossier…) ou « à quel dossier ? » (Choisir).
+  function poserQuestionAuthentic(cle) {
+    const a = fichesClientEnAttente.get(cle);
+    if (!a) return;
+    const propose = a.propose ? dossiers.find(x => x.id === a.propose) : null;
+    if (propose) {
+      afficherToast(`Authentic · ${a.quoi} : est-ce ${libelleDossierAffiche(propose)} ?`, 'Oui', () => rangerFicheClientAuthentic(cle, propose.id),
+        { fixe: true, cle, autre: { texte: 'Autre dossier…', action: () => ouvrirChoixFicheClientAuthentic(cle) } });
+    } else afficherToast(`Authentic · ${a.quoi} : à quel dossier ?`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
+  }
+
+  // Une seule question se voit à la fois : une fois répondue, la suivante encore en attente (un autre dossier d'Authentic) revient.
+  function reposerQuestionSuivanteAuthentic() {
+    if (typeof toastFixe !== 'undefined' && toastFixe) return;
+    const k = [...fichesClientEnAttente.keys()].reverse().find(x => fichesClientEnAttente.get(x).principale && fichesClientEnAttente.get(x).quoi);
+    if (k) poserQuestionAuthentic(k);
   }
 
   // Après un rattachement confirmé : les autres pages du même dossier d'Authentic qui attendaient sont reprises — elles vont désormais au

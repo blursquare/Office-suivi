@@ -21129,3 +21129,9 @@ peut modifier ; visuel, attractif et intelligent ».
   profession, domicile, situation, décès — et ce qu'Authentic n'a pas renseigné), suivi (`lignesAuthenticDossier`).
 - Bancs : scénario 1 joue la question et le clic « Oui » ; scénario 23 attend la question. 61/61 et 100/100.
 - Point terrain `authentic-rattachement-confirme`.
+- Relecture indépendante (même soir) : 5 défauts confirmés et corrigés — fiche client d'un onglet au titre coupé (référence pas encore
+  retenue, score insuffisant) écartée en silence → la personne propose son dossier, question posée (scénario 33) ; volet du conjoint perdu
+  quand la fiche attend → capture entière gardée, conjoint repris au clic ; une seule question visible → la suivante revient après la
+  réponse (`reposerQuestionSuivanteAuthentic`), attentes limitées à 30 sans jamais évincer la question affichée (`limiterAttentesAuthentic`) ;
+  intitulé rangé sur deux dossiers → aucun n'est sûr ; message vide après « Oui » sur une fiche bien. Scénario 32 (fiche qui attend la
+  réponse à la page du dossier, puis reprise au clic). Bancs 66/66.
