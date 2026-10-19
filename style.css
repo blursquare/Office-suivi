@@ -3693,7 +3693,7 @@
   .app-main > .drawer-overlay .drawer-panneau { width: 100%; max-width: 1680px; height: auto; overflow: visible; border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: none; }
   .app-main > .drawer-overlay .drawer-panneau.large { width: 100%; }
   .app-main > .drawer-overlay .fiche-barre { border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
-  .onglets-travail { position: sticky; top: 0; z-index: 30; display: flex; align-items: stretch; height: var(--hauteur-onglets); margin: -32px -32px 32px; background: var(--paper-sunk); border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
+  .onglets-travail { position: sticky; top: 0; z-index: 30; display: flex; align-items: stretch; height: var(--hauteur-onglets); margin: -32px -32px 32px; background: var(--paper-sunk); border-bottom: 1px solid var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   .ot-onglet { flex: 0 1 220px; min-width: 168px; display: flex; align-items: center; gap: 8px; padding: 0 6px 0 12px; border-right: 1px solid var(--line); color: var(--ink-soft); font-size: var(--texte-m); cursor: pointer; position: relative; user-select: none; }
   .ot-onglet:hover { background: var(--paper); color: var(--ink); }
   .ot-onglet.actif { background: var(--paper-card); color: var(--ink); font-weight: 500; box-shadow: inset 0 2px 0 var(--focus); margin-bottom: -1px; }
@@ -9757,7 +9757,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-envoi .hint { flex: 1 1 100%; margin: 0; }
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
 /* Propositions du répertoire (étude 19/10 : « pas très jolie ») : une liste en carte, nom puis ville sur deux lignes, sans défilement de côté. */
-.cst-rep-resultats { display: flex; flex-direction: column; max-height: 232px; overflow-x: hidden; overflow-y: auto; margin-top: 6px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); scrollbar-width: thin; }
+.cst-rep-resultats { display: flex; flex-direction: column; max-height: 232px; overflow-x: hidden; overflow-y: auto; margin-top: 6px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); scrollbar-width: none; }
 .cst-rep-resultats:empty { display: none; }
 .cst-rep-resultats .dash-recherche-ligne { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; min-width: 0; }
 .cst-rep-resultats .dash-recherche-nom, .cst-rep-resultats .dash-recherche-resp { display: block; width: 100%; min-width: 0; flex-shrink: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -10126,7 +10126,7 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .nv-date { font-size: var(--texte-s); color: var(--muted); }
 .nv-derniere { padding: 0 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xxs); font-weight: 700; color: var(--on-accent); background: var(--focus); white-space: nowrap; }
 .nv-nav { display: inline-flex; align-items: center; gap: 0; }
-.nv-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+.nv-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: none; }
 .nv-points li { position: relative; padding-left: 14px; font-size: var(--texte-m); line-height: 1.4; color: var(--ink-soft); }
 .nv-points li::before { content: ''; position: absolute; left: 2px; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--focus); }
 .nv-points strong { font-weight: 600; color: var(--ink); }
@@ -10184,3 +10184,8 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 .rangement-adresses { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .rangement-adresse { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 10px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); font-size: var(--texte-s); background: var(--paper-card); }
 .rangement-adresses input[type="email"] { flex: 1 1 220px; min-width: 0; }
+
+/* Barres de défilement masquées dans toute l'interface (étude 19/10 : « retire les barres de scroll de manière générale ») — le défilement
+   reste à la molette, au doigt et au clavier. */
+html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
+::-webkit-scrollbar { display: none; width: 0; height: 0; }

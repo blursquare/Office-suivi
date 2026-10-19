@@ -21049,3 +21049,5 @@ vide, en-tête `Immeuble | Adresse | Cadastre | Type` ; Immeuble = nom donné au
 individuel. Exactement 1 000 lignes : la recherche d'Authentic semble plafonnée à 1 000 résultats. `enregistrementsImport` tire
 désormais la commune et le code postal de la fin de l'adresse ; sur le fichier : 997 biens (3 lignes vides), 995 communes, 2 398
 parcelles.
+Étude 19/10 : « retire les barres de scroll de manière générale dans toute l'interface » — style.css : `scrollbar-width: none` et
+`::-webkit-scrollbar { display: none }` pour toute la page ; les anciens `scrollbar-width: thin` passés à `none`.
