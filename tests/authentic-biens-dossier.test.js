@@ -116,3 +116,17 @@ test('contre-relecture 19/10 : adresse écrite autrement, liste jamais vidée, b
   assert.equal(app.bienDansRubriqueAuthentic('Les Grands Champs 41190 SAINT LUBIN', { nombre: 2, texte: '4 Grande Rue 41290 VIEVY LE RAYE Les Grands Champs' }), null);
   assert.equal(app.bienDansRubriqueAuthentic('24 rue des Lilas 41190 SAINT LUBIN', { nombre: 1, texte: '4 Grande Rue 41290 VIEVY LE RAYE' }), false);
 });
+
+test('création depuis Authentic : seule la dernière version de chaque page est rejouée, jamais une personne étrangère ni une correction défaite', () => {
+  const ID = 'ui-ficho-tabs:mainTabPanel:tabForm2:tabContent:tabView:';
+  const fiche = (prenom, nom, email) => ({ onglets: [{ titre: 'A 2026 00500 VTE MARTEL / FOURNIER', actif: true }], tableaux: [], texte: '', champs: [
+    { libelle: ID + 'ficheClientPhysiqueIdentite:etude_input', valeur: 'oui' }, { libelle: 'Nom de famille*', valeur: nom }, { libelle: 'Prénom*', valeur: prenom }, { libelle: 'Email', valeur: email }] });
+  const d = { id: 'a', nom: 'MARTEL / FOURNIER', parties: [{ role: 'VENDEUR', nom: 'Alexandre MARTEL' }, { role: 'ACQUEREUR', nom: 'Camilla FOURNIER' }], pieces: {}, historique: [] };
+  const releves = [
+    { id: '1', recueLe: '2026-10-19T09:00:00Z', capture: fiche('Alexandre', 'Martel', 'ancien@exemple.fr') },
+    { id: '2', recueLe: '2026-10-19T09:05:00Z', capture: fiche('Alexandre', 'Martel', 'nouveau@exemple.fr') },
+    { id: '3', recueLe: '2026-10-19T09:06:00Z', capture: fiche('Camille', 'Fournier', 'camille@exemple.fr') },  // prénom corrigé en « Camilla » dans « Vérifier »
+    { id: '4', recueLe: '2026-10-19T09:07:00Z', capture: fiche('Paul', 'Durand', 'paul@exemple.fr') }          // personne étrangère au dossier
+  ];
+  assert.equal(app.pagesARejouerCreationAuthentic(d, releves).map(r => r.id).join(','), '2');
+});

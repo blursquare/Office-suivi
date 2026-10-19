@@ -198,6 +198,7 @@ function creerRouteurAuthentic(options) {
       const cle = clePageServeurAuthentic(e.releve.capture);
       if (cle && recents.some(r => r.id !== e.releve.id && r.recueLe > e.releve.recueLe && clePageServeurAuthentic(r.capture) === cle)) { noter(e.releve, { etat: 'remplace' }); continue; }
       aTraiter.push(Object.assign({}, e.releve, { essais: e.essais }));
+      // (`revu` d'origine gardé : une page jamais appliquée n'est pas « revue ».)
       noter(e.releve, { etat: 'en-file', reprise: e.essais });
     }
     const expires = aTraiter.filter(r => t - Date.parse(r.recueLe) > DUREE_RELEVE_MS);
@@ -376,19 +377,22 @@ function texteActifAuthentic(capture) {
   return String(c.texte || '').split('\n').filter(l => !inactifs.has(l.replace(/\s+/g, ' ').trim())).join('\n');
 }
 
-// L'intitulé « N - … » de la page (onglet actif, puis en-tête du dossier, puis intitulé seul), ou ''.
 // Pure : ce qui désigne la même page d'Authentic (le même écran, peut-être modifié) — la nature et l'intitulé, plus le nom de la personne
 // d'une fiche client ou l'adresse d'une fiche bien. '' si rien ne la désigne.
 function clePageServeurAuthentic(capture) {
   if (!capture) return '';
   const nature = naturePageAuthentic(capture);
-  const champ = (re) => ((capture.champs || []).find(c => re.test(String(c.libelle || ''))) || {}).valeur || '';
+  // Seules les fiches client et bien se reconnaissent (relecture 19/10 : les pages « dossier » d'un même intitulé ne sont pas une seule page) ;
+  // la personne de la fiche = le DERNIER nom relevé (le volet du conjoint vient en premier), un bien sans adresse (page « Lots ») : aucune clé.
+  if (nature !== 'client' && nature !== 'bien') return '';
+  const champ = (re) => { const l = (capture.champs || []).filter(c => re.test(String(c.libelle || ''))); return (l[l.length - 1] || {}).valeur || ''; };
   const detail = nature === 'client' ? [champ(/^nom de famille/i), champ(/^pr[ée]nom/i)].join(' ')
-    : nature === 'bien' ? [champ(/^n° de voie/i), champ(/^nom de la voie/i), champ(/^cp - ville/i)].join(' ') : '';
-  const cle = [nature, intitulePageAuthentic(capture), detail].join('|').toLowerCase().replace(/\s+/g, ' ').trim();
-  return cle.replace(/\|/g, '').trim() ? cle : '';
+    : [champ(/^n° de voie/i), champ(/^nom de la voie/i), champ(/^cp - ville/i)].join(' ');
+  if (!detail.trim()) return '';
+  return [nature, intitulePageAuthentic(capture), detail].join('|').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// L'intitulé « N - … » de la page (onglet actif, puis en-tête du dossier, puis intitulé seul), ou ''.
 function intitulePageAuthentic(capture) {
   const c = capture || {};
   const actif = (c.onglets || []).find(o => o.actif && RE_ONGLET_DOSSIER.test(o.titre));

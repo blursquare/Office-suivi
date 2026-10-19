@@ -176,6 +176,8 @@
   // Création en cours (étude, 02/10 : « il a créé deux dossiers ») : un second clic, ou Ctrl+S, pendant
   // que le serveur enregistre ne crée pas un second dossier.
   var creationDossierEnCours = false;
+  // La case « pièces d'Authentic » de la création (le rejeu des pages la respecte).
+  var piecesAuthenticCochees = true;
 
   // Pure : un dossier en cours déjà présent pour une création — même référence Authentic (« A 2026 00247 »),
   // ou même nom (sans accents ni casse). Jamais par le rang « 1 » de « 1 - Vente … » (étude, 03/10 : « Créer
@@ -858,6 +860,7 @@
     // NAS ne les repassera pas en manquantes — même règle que pour une pièce détenue ailleurs).
     if (exportAuthenticActuel) {
       const caseAuthentic = document.getElementById('f-pieces-authentic');
+      piecesAuthenticCochees = !!(caseAuthentic && caseAuthentic.checked) && roleNotaire !== 'participant';
       const reprises = caseAuthentic && caseAuthentic.checked && roleNotaire !== 'participant'
         ? piecesExportAuthentic(exportAuthenticActuel, checklistPieces(typeVente)) : [];
       reprises.forEach(pc => {
@@ -914,7 +917,11 @@
     const relevesCreation = exportCree && exportCree.releves;
     if (relevesCreation && relevesCreation.length) {
       const enListe = dossiers.find(x => x.id === dossier.id) || dossier;
+      // Case « pièces d'Authentic » décochée dans « Vérifier » : ces pièces sont tenues pour déjà vues, le rejeu ne les coche pas.
+      if (!piecesAuthenticCochees && exportCree) enListe.piecesAuthentic = Array.from(new Set([...(enListe.piecesAuthentic || []), ...piecesExportAuthentic(exportCree, checklistPieces(enListe.typeVente, enListe)).map(pc => pc.cle)]));
+      creationDossierEnCours = true;
       try { await rejouerPagesCreationAuthentic(enListe, relevesCreation); } catch (e) { /* la fiche reste celle de la création */ }
+      finally { creationDossierEnCours = false; }
       completerDossierDepuisRelevesRecents(enListe);
     }
     reinitialiserFormulaire();

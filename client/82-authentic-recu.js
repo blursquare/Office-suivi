@@ -103,8 +103,7 @@
     if (!d || !Array.isArray(releves) || !releves.length) return 0;
     let modifie = false;
     const resultats = [];
-    for (const rel of releves) {
-      if (!rel || !rel.capture || !pageRelisibleAuthentic(d, rel.capture)) continue;
+    for (const rel of pagesARejouerCreationAuthentic(d, releves)) {
       try {
         const partage = partagerFicheConjointAuthentic(rel.capture);
         const r = appliquerReleveSurDossier(d, partage ? partage.principale : rel.capture, undefined, dossiers);
@@ -118,6 +117,34 @@
     if (modifie) await sauvegarder(d);
     if (resultats.length) rapporterResultatsAuthentic(resultats);
     return resultats.length;
+  }
+
+  // Pure : les pages à rejouer sur un dossier qui vient d'être créé (relecture 19/10) — la DERNIÈRE version de chaque page seulement (une
+  // ancienne version rejouée après la récente faisait proposer « Authentic a changé » vers l'ancienne valeur) ; une fiche client seulement
+  // si sa personne est partie du dossier tel qu'il a été créé (une correction faite dans « Vérifier » — prénom, email — n'est jamais défaite,
+  // et une fiche d'une personne étrangère au dossier n'y entre pas) ; pour une succession, la règle des successions (défunt, héritiers,
+  // conjoint survivant).
+  function pagesARejouerCreationAuthentic(d, releves) {
+    const dernieres = new Map();
+    (releves || []).forEach((rel, i) => {
+      if (!rel || !rel.capture || !pageRelisibleAuthentic(d, rel.capture)) return;
+      const cle = clePageReleveAuthentic(rel.capture) || ('page-' + i);
+      if (cle === 'ignorer') return;
+      dernieres.set(cle, rel);
+    });
+    const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+    return [...dernieres.values()].filter(rel => {
+      if (typePageAuthentic(rel.capture) !== 'client') return true;
+      const partage = partagerFicheConjointAuthentic(rel.capture);
+      const p = clientDepuisFicheAuthentic(partage ? partage.principale : rel.capture);
+      if (!p) return false;
+      if (estSuccession(d)) return !!partieSuccessionDeLaFiche(d, p);
+      const nom = mots(p.nom), prenom = mots(p.prenom)[0] || '';
+      return (d.parties || []).some(x => {
+        const m = mots([x && x.prenom, x && x.nom, x && x.nomUsage].filter(Boolean).join(' '));
+        return nom.length && nom.every(w => m.includes(w)) && (!prenom || m.includes(prenom));
+      });
+    }).sort((a, b) => String(a.recueLe || '').localeCompare(String(b.recueLe || '')));
   }
 
   // Pure : une page gardée se relit-elle sur ce dossier ? Les mêmes garde-fous qu'à l'arrivée d'une page (appliquerReleveAuthentic) :
@@ -306,7 +333,9 @@
     if (!duTitre.length) return false;
     const duDossier = new Set(mots(noms));
     // Un mot coupé (« BOURNOUVE... ») compte s'il commence un nom du dossier.
-    return !duTitre.some(m => duDossier.has(m) || [...duDossier].some(x => x.startsWith(m) && m.length >= 4));
+    // Le dernier mot d'un titre coupé (« … FON... ») compte dès 3 lettres s'il commence un nom du dossier.
+    const coupe = /(?:\.{2,}|…)\s*$/.test(titre);
+    return !duTitre.some((m, i) => duDossier.has(m) || [...duDossier].some(x => x.startsWith(m) && (m.length >= 4 || (coupe && i === duTitre.length - 1 && m.length >= 3))));
   }
   // Pure : l'intitulé du dossier de l'onglet actif d'Authentic (même absent de CLAIRE), '' sinon — une fiche ouverte dans l'onglet d'un AUTRE
   // dossier n'est jamais celle du dernier dossier vu (étude 19/10 : fiche bien d'une vente rangée dans la succession VIEL).
