@@ -1846,6 +1846,10 @@
   <section class="reglages-panneau" id="reglages-panneau-authentic" role="tabpanel" aria-labelledby="reglages-onglet-authentic" hidden>
     <h2 class="reglages-titre">Authentic</h2>
     <div class="reglages-section">
+      <h3 class="reglages-section-titre">Fichier clients et immeubles <span class="info-i" tabindex="0" data-info="Export d'Authentic « Recherche de Personnes Physiques » ou « Recherche d'immeubles » (.xls). Le fichier est lu sur ce poste ; seules les colonnes choisies partent au serveur du bureau, jamais à une IA. Les fiches importées sont la base de « Clients et biens » : ce que les dossiers et les pages d'Authentic en disent les complète et passe devant. Un nouvel export remplace le précédent du même genre."></span></h3>
+      <div id="reglages-import-cb"></div>
+    </div>
+    <div class="reglages-section">
       <h3 class="reglages-section-titre">Pages lues dans Authentic <span class="info-i" tabindex="0" data-info="Chaque page d'Authentic relevée par l'extension Firefox : le poste qui l'a envoyée, la fenêtre CLAIRE qui l'a lue (celle du même poste d'abord) et ce qu'elle en a fait. « Aucun dossier » : ni le numéro ni les noms de l'intitulé n'ont désigné un dossier — « Choisir le dossier » la range à la main, et le numéro d'Authentic est retenu pour la suite. Une page n'est lue que si une fenêtre CLAIRE est ouverte (même réduite). Journal en mémoire du serveur : 12 heures, vidé au redémarrage."></span></h3>
       <div class="authentic-fenetres" id="reglages-authentic-fenetres"></div>
       <div id="reglages-authentic-journal"></div>
@@ -2803,5 +2807,6 @@
 <script src="client/85-assistant-colonne.js"></script>
 <script src="client/86-animations.js"></script>
 <script src="client/87-widget-nouveautes.js"></script>
+<script src="client/88-import-clients-biens.js"></script>
 </body>
 </html>

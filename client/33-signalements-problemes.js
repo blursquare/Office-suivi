@@ -334,7 +334,7 @@
       }
     }
     try { localStorage.setItem(CLE_SOUS_ONGLET_REGLAGES, cle); } catch (e) { /* confort seulement */ }
-    if (cle === 'authentic') renderReglagesAuthentic();
+    if (cle === 'authentic') { renderReglagesAuthentic(); renderImportClientsBiens(); }
     if (cle === 'sites') chargerReglagesSites();
     if (cle === 'agenda') { renderReglagesEmailsDossiers(); renderReglagesRangementOutlook(); }
     if (cle === 'apprentissage') ouvrirPageApprentissage();

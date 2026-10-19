@@ -166,7 +166,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Un email envoyé depuis CLAIRE porte ses pièces jointes (21 Mo au plus, en base64) et la signature.
   const jsonEmail = express.json({ limit: '40mb' });
   app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture
-    : req.path.startsWith('/api/relectures') ? jsonBilan
+    : req.path.startsWith('/api/relectures') || req.path === '/api/clients-biens/import' ? jsonBilan
       : req.path === '/api/emails/envoyer' ? jsonEmail : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt

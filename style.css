@@ -7981,6 +7981,9 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .cb-historique { width: 100%; border-collapse: collapse; font-size: var(--texte-m); }
 .cb-historique th { text-align: left; font-weight: 500; color: var(--muted); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
 .cb-historique td { padding: 6px 8px 6px 0; vertical-align: top; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.import-cb-tableau { overflow-x: auto; margin: 8px 0; }
+.import-cb-tableau .prop-champ { min-width: 140px; }
+.import-cb-tableau td { white-space: nowrap; }
 .cb-crayon { opacity: 0.4; }
 .cb-champs dd:hover .cb-crayon, .cb-crayon:focus-visible { opacity: 1; }
 .cb-edition input { flex: 1 1 200px; min-width: 0; }

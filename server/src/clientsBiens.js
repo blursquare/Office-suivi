@@ -74,11 +74,26 @@ function memeNom(p, nomFamille, prenom) {
 
 /**
  * Pure : les occurrences de personnes de tous les dossiers.
- * @param {any[]} dossiers
+ * @param {any[]} dossiers @param {any} [imp] fichier clients importé (importClientsBiens.js)
  */
-function occurrencesPersonnes(dossiers) {
+function occurrencesPersonnes(dossiers, imp) {
   /** @type {any[]} */
   const occ = [];
+  // Fichier clients d'Authentic importé (étude 19/10) : une occurrence par personne, sans dossier, source « Import » — la dernière servie.
+  const idsImport = new Set();
+  for (const p of (imp && Array.isArray(imp.personnes) ? imp.personnes : [])) {
+    const nf = p.prenom ? { nomFamille: texte(p.nom), prenom: texte(p.prenom) } : decouperNom(texte(p.nom));
+    if (!norm(nf.nomFamille)) continue;
+    const cle = norm(nf.nomFamille) + '|' + norm(nf.prenom);
+    let id = `import:${cle}`;
+    while (idsImport.has(id)) id += '~';
+    idsImport.add(id);
+    occ.push({ id, dossier: null, cle, source: 'Import', vuLe: '', role: 'PARTIE',
+      champs: { civilite: texte(p.civilite), nomFamille: nf.nomFamille.toUpperCase(), prenom: nf.prenom, nomUsage: '', dateNaissance: texte(p.dateNaissance).slice(0, 10),
+        lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: texte(p.profession), domicile: texte(p.domicile),
+        emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
+      situation: null, deces: null });
+  }
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
     const parties = Array.isArray(d.parties) ? d.parties : [];
@@ -172,12 +187,12 @@ function unionFind(ids) {
 
 /**
  * Pure : la base des personnes. `reglages` = { liaisons: { 'occA#occB': 'meme' | 'distinct' }, corrections: [{ occ, champ, valeur, authentic }] }.
- * @param {any[]} dossiers @param {any} [reglages]
+ * @param {any[]} dossiers @param {any} [reglages] @param {any} [imp]
  */
-function construirePersonnes(dossiers, reglages) {
+function construirePersonnes(dossiers, reglages, imp) {
   const r = Object.assign({}, reglages || {});
   const liaisons = (r.liaisons && typeof r.liaisons === 'object') ? r.liaisons : {};
-  const occ = reattacherReglages(occurrencesPersonnes(dossiers), r);
+  const occ = reattacherReglages(occurrencesPersonnes(dossiers, imp), r);
   const liaisons2 = r._liaisons || liaisons;
   const uf = unionFind(occ.map((o) => o.id));
   const parId0 = new Map(occ.map((o) => [o.id, o]));
@@ -221,11 +236,21 @@ function construirePersonnes(dossiers, reglages) {
   // Sûr : même nom, prénom ET date de naissance, ou confirmé par l'étude. Un email ou un téléphone commun ne suffit pas (le père et le
   // fils du même nom partagent la ligne de la maison) : la paire est proposée.
   for (const groupe of parCle.values()) {
+    // Fichier importé : deux personnes du fichier sont deux clients (jamais réunies ni proposées) ; une personne du fichier rejoint celle d'un
+    // dossier du même nom et prénom quand rien ne les sépare (dates de naissance) et qu'elle est la seule du fichier à porter ce nom.
+    const importees = groupe.filter((o) => o.source === 'Import');
     for (let i = 0; i < groupe.length; i++) {
       for (let j = i + 1; j < groupe.length; j++) {
         const a = groupe[i]; const b = groupe[j];
         const dA = a.champs.dateNaissance; const dB = b.champs.dateNaissance;
         if (dA && dB && dA !== dB) continue;
+        if (a.source === 'Import' || b.source === 'Import') {
+          if (a.source === 'Import' && b.source === 'Import') continue;
+          const dec0 = decision(a.id, b.id);
+          if (dec0 === 'distinct') continue;
+          if (dec0 === 'meme' || (dA && dA === dB) || importees.length === 1) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
+          continue;
+        }
         const dec = decision(a.id, b.id);
         if (dec === 'distinct') continue;
         if (dec === 'meme' || (dA && dA === dB)) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
@@ -252,7 +277,8 @@ function construirePersonnes(dossiers, reglages) {
   for (const [racine, liste] of groupes) {
     const id = 'p' + idCourt(racine);
     // Authentic d'abord, la plus récente, puis la fiche du dossier.
-    const tries = liste.slice().sort((x, y) => (x.source === y.source ? String(y.vuLe).localeCompare(String(x.vuLe)) : x.source === 'Authentic' ? -1 : 1));
+    const rang = (/** @type {any} */ o) => (o.source === 'Authentic' ? 0 : o.source === 'Fiche' ? 1 : 2);
+    const tries = liste.slice().sort((x, y) => (x.source === y.source ? String(y.vuLe).localeCompare(String(x.vuLe)) : rang(x) - rang(y)));
     /** @type {Record<string, any>} */
     const champs = {};
     for (const k of CHAMPS_PERSONNE) {
@@ -266,7 +292,7 @@ function construirePersonnes(dossiers, reglages) {
       if (!c || !CHAMPS_PERSONNE.includes(c.champ)) continue;
       const actuel = JSON.stringify(authentic[c.champ]);
       // Seulement une valeur venue d'Authentic : la fiche du dossier (coordonnées du côté, 19/10) n'est pas « Authentic a changé ».
-      if (liste.some((o) => o.source === 'Authentic') && c.authentic !== undefined && JSON.stringify(c.authentic) !== actuel && actuel !== JSON.stringify(c.valeur)) {
+      if (liste.some((o) => o.source === 'Authentic' || o.source === 'Import') && c.authentic !== undefined && JSON.stringify(c.authentic) !== actuel && actuel !== JSON.stringify(c.valeur)) {
         // Authentic a changé depuis la correction : proposé, rien d'écrasé.
         aRevoir.push({ champ: c.champ, correction: c.valeur, authentic: authentic[c.champ], occ: c.occ });
       }
@@ -277,7 +303,7 @@ function construirePersonnes(dossiers, reglages) {
     // Le reste de la fiche : celui de la fiche d'Authentic la plus récente qui en porte un.
     const complement = (tries.find((o) => o.complement) || {}).complement || null;
     const autres = { autresPrenoms: (tries.find((o) => o.autresPrenoms) || {}).autresPrenoms || '', paysNaissance: (tries.find((o) => o.paysNaissance) || {}).paysNaissance || '' };
-    const dossiersLies = liste.map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), role: o.role, roleLibelle: ROLES[o.role] || 'Partie',
+    const dossiersLies = liste.filter((o) => o.dossier).map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), role: o.role, roleLibelle: ROLES[o.role] || 'Partie',
       archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }));
     const vus = new Set();
     personnes.push({
@@ -336,10 +362,17 @@ function parcelleNette(p, commune) {
 }
 
 /** Pure : les occurrences de biens — tous les biens de chaque dossier, lus comme partout ailleurs (commun/donnees-dossier.js : bien de la
- * fiche, immeubles d'Authentic, biens d'une succession ; avant le 17/10, une vente ne montrait que son bien principal). @param {any[]} dossiers */
-function occurrencesBiens(dossiers) {
+ * fiche, immeubles d'Authentic, biens d'une succession ; avant le 17/10, une vente ne montrait que son bien principal). @param {any[]} dossiers @param {any} [imp] */
+function occurrencesBiens(dossiers, imp) {
   /** @type {any[]} */
   const occ = [];
+  // Fichier immeubles d'Authentic importé (étude 19/10) : un bien par ligne, sans dossier.
+  (imp && Array.isArray(imp.biens) ? imp.biens : []).forEach((/** @type {any} */ b, /** @type {number} */ i) => {
+    const adr = adresseDecomposee(texte(b.adresse), { codePostal: b.codePostal, commune: b.commune });
+    const parcelles = (b.parcelles || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
+    if (!parcelles.length && !adr.voie && !adr.lieuDit && !texte(b.adresse)) return;
+    occ.push({ id: `import:b${i}`, dossier: null, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles, lots: [], type: texte(b.type), description: '', details: [] });
+  });
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
     DD.biensDossier(d).forEach((/** @type {any} */ b, /** @type {number} */ i) => {
@@ -356,9 +389,9 @@ function occurrencesBiens(dossiers) {
   return occ;
 }
 
-/** Pure : la base des biens. @param {any[]} dossiers */
-function construireBiens(dossiers) {
-  const occ = occurrencesBiens(dossiers);
+/** Pure : la base des biens. @param {any[]} dossiers @param {any} [imp] */
+function construireBiens(dossiers, imp) {
+  const occ = occurrencesBiens(dossiers, imp);
   const uf = unionFind(occ.map((o) => o.id));
   // Commune écrite autrement d'un dossier à l'autre (« ST AIGNAN » / « SAINT-AIGNAN-SUR-CHER ») : une seule clé, pour que le bien d'une
   // vente et celui d'une succession soient la même fiche (étude 17/10 : « une fiche bien doit être unique dans CLAIRE comme dans Authentic »).
@@ -421,7 +454,7 @@ function construireBiens(dossiers) {
       details: Object.values(Object.fromEntries(liste.flatMap((o) => o.details).filter((/** @type {any} */ x) => x && texte(x.libelle) && texte(x.valeur)).reverse()
         .map((/** @type {any} */ x) => [texte(x.libelle), { libelle: texte(x.libelle).slice(0, 80), valeur: texte(x.valeur).slice(0, 200) }]))).slice(0, 30),
       lots: liste.flatMap((o) => o.lots || []).filter((/** @type {any} */ l, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((x) => texte(x && (x.numero || x.lot)) === texte(l && (l.numero || l.lot))) === i).slice(0, 40),
-      dossiers: liste.map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
+      dossiers: liste.filter((o) => o.dossier).map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),
       occurrences: liste.map((o) => o.id)
     });
@@ -489,9 +522,9 @@ function fichesDuDossier(base, dossierId) {
   };
 }
 
-/** Pure : la base entière. @param {any[]} dossiers @param {any} [reglages] */
-function construireBase(dossiers, reglages) {
-  return { personnes: construirePersonnes(dossiers, reglages), biens: construireBiens(dossiers) };
+/** Pure : la base entière. @param {any[]} dossiers @param {any} [reglages] @param {any} [imp] fichier importé */
+function construireBase(dossiers, reglages, imp) {
+  return { personnes: construirePersonnes(dossiers, reglages, imp), biens: construireBiens(dossiers, imp) };
 }
 
 /** Pure : les réglages gardés, assainis (liaisons et corrections seulement, bornés). @param {any} brut */
@@ -528,7 +561,7 @@ function reattacherReglages(occ, r) {
     if (ids.has(ancien)) return ancien;
     const m = /^([^:]+):([^|]*)\|/.exec(ancien);
     if (!m) return '';
-    const memes = occ.filter((o) => o.dossier.id === m[1] && o.cle.split('|')[0] === m[2]);
+    const memes = occ.filter((o) => o.dossier && o.dossier.id === m[1] && o.cle.split('|')[0] === m[2]);
     return memes.length === 1 ? memes[0].id : '';
   };
   /** @type {Record<string, string>} */

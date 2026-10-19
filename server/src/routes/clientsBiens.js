@@ -4,6 +4,7 @@
 // `clients-biens`). Rien n'est journalisé (noms des clients).
 
 const express = require('express');
+const { CLE_IMPORT, assainirImport, resumeImport } = require('../importClientsBiens');
 const { construireBase, chercherClientsBiens, fichesDuDossier, assainirReglagesClientsBiens, valeurCorrection, pairesEntreFiches, CHAMPS_PERSONNE } = require('../clientsBiens');
 
 const CLE = 'clients-biens';
@@ -16,10 +17,13 @@ const DUREE_CACHE_MS = 10000;
 function creerRouteurClientsBiens(depot, parametresRepo) {
   const routeur = express.Router();
   const reglages = () => assainirReglagesClientsBiens(parametresRepo.lireJsonBrut(CLE, {}));
+  // Fichier clients et immeubles d'Authentic importé dans les Réglages (étude 19/10), lu une fois puis gardé en mémoire jusqu'au suivant.
+  let importLu = null;
+  const lireImport = () => { if (!importLu) importLu = assainirImport(parametresRepo.lireJsonBrut(CLE_IMPORT, {})); return importLu; };
   // Tous les dossiers, archivés compris (un client d'un ancien dossier se retrouve), jamais les supprimés.
   let cache = { t: 0, base: null };
   const base = () => {
-    if (!cache.base || Date.now() - cache.t > DUREE_CACHE_MS) cache = { t: Date.now(), base: construireBase(depot.tousActifs(), reglages()) };
+    if (!cache.base || Date.now() - cache.t > DUREE_CACHE_MS) cache = { t: Date.now(), base: construireBase(depot.tousActifs(), reglages(), lireImport()) };
     return cache.base;
   };
   const oublier = () => { cache = { t: 0, base: null }; };
@@ -85,6 +89,32 @@ function creerRouteurClientsBiens(depot, parametresRepo) {
     parametresRepo.ecrireJsonBrut(CLE, assainirReglagesClientsBiens(r));
     oublier();
     res.json({ ok: true });
+  });
+
+  // Import d'un export d'Authentic (étude 19/10) : le poste envoie les lignes déjà rangées ; chaque fichier remplace le précédent du même
+  // genre (personnes ou immeubles). Rien n'est journalisé ; la réponse ne rend que des nombres.
+  routeur.get('/clients-biens/import', (req, res) => { res.json(resumeImport(lireImport())); });
+  routeur.post('/clients-biens/import', (req, res) => {
+    const b = req.body || {};
+    if (b.genre !== 'personnes' && b.genre !== 'biens') { res.status(400).json({ erreur: 'Genre d’import inconnu.' }); return; }
+    if (!Array.isArray(b.lignes)) { res.status(400).json({ erreur: 'Aucune ligne reçue.' }); return; }
+    const actuel = assainirImport(parametresRepo.lireJsonBrut(CLE_IMPORT, {}));
+    const etat = { le: new Date().toISOString(), par: String(b.par || '').slice(0, 80), fichier: String(b.fichier || '').slice(0, 120), lignes: b.lignes.length };
+    const suivant = assainirImport(Object.assign({}, actuel, b.genre === 'personnes' ? { personnes: b.lignes, personnesImport: etat } : { biens: b.lignes, biensImport: etat }));
+    parametresRepo.ecrireJsonBrut(CLE_IMPORT, suivant);
+    importLu = null;
+    oublier();
+    res.json(Object.assign({ ok: true }, resumeImport(suivant)));
+  });
+  routeur.delete('/clients-biens/import', (req, res) => {
+    const genre = String(req.query.genre || '');
+    if (genre !== 'personnes' && genre !== 'biens') { res.status(400).json({ erreur: 'Genre d’import inconnu.' }); return; }
+    const actuel = assainirImport(parametresRepo.lireJsonBrut(CLE_IMPORT, {}));
+    const suivant = assainirImport(Object.assign({}, actuel, genre === 'personnes' ? { personnes: [], personnesImport: null } : { biens: [], biensImport: null }));
+    parametresRepo.ecrireJsonBrut(CLE_IMPORT, suivant);
+    importLu = null;
+    oublier();
+    res.json(Object.assign({ ok: true }, resumeImport(suivant)));
   });
 
   return routeur;

@@ -20988,3 +20988,17 @@ Suite (même version, avant publication) :
   les hectares ; `surfaceLigneCadastreAuthentic` lit hectare / are / centiare, et la surface des champs de la fiche remplace un « 0 ».
 - Fiche client « illisible » : la fenêtre prenait la largeur d'une confirmation (360 px) ; 680 px, colonne des libellés plus large.
 - Relecture : jamais un côté vidé par deux déplacements, nom du dossier à un seul séparateur, déplacement fait une fois (`d.partiesReplacees`).
+
+### 19/10/2026 — 0.291.0 : import du fichier clients et immeubles d'Authentic
+
+Étude : « Voici l'ensemble de notre fichier client et de nos immeubles », puis « oui fais l'import dans les réglages ; il faudra compléter les
+fiches avec les données qui n'y sont pas, grâce aux données Authentic ». Les deux exports reçus (≈ 5 150 personnes sur 10 colonnes, ≈ 1 000
+immeubles sur 4 colonnes, sans ligne d'en-tête) ont été lus pour leur STRUCTURE seulement (forme des valeurs), puis supprimés ; rien n'en est
+dans le dépôt. Réglages › Authentic › « Fichier clients et immeubles » (client/88-import-clients-biens.js) : le poste lit le .xls (SheetJS
+0.18.5, cdnjs), devine chaque colonne d'après ses valeurs (`colonnesProposeesImport` : email, téléphone, date, code postal, adresse, nom et
+prénom, ville en capitales ; colonne mêlant téléphone et date = « selon la cellule »), montre trois lignes et une liste par colonne, puis envoie
+les lignes rangées (`POST /api/clients-biens/import`, une liste par genre, remplacée à chaque import ; `DELETE` pour retirer). Serveur :
+`server/src/importClientsBiens.js` (clé `clients-biens-import`, 20 000 personnes / 10 000 biens au plus, réponses sans nom) ; dans
+`clientsBiens.js` une occurrence « Import » par ligne, sans dossier, servie APRÈS Authentic et la fiche ; une personne importée rejoint celle
+d'un dossier de même nom et prénom sans dates contraires quand elle est la seule du fichier à porter ce nom (sinon proposée « même personne ? ») ;
+deux personnes du fichier ne sont jamais réunies. Point terrain `import-clients-biens`.

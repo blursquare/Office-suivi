@@ -184,6 +184,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché la première fois qu’un email reçu avant la saisie de l’adresse (client ou confrère) est rattaché au dossier.' },
   { id: '3cx-lien-sans-confirmation', depuis: '0.290.0', source: 'manuel', titre: '3CX : le navigateur ouvre le lien « claire-devant » sans demander à chaque appel (stratégie posée par le fichier .reg)',
     comment: 'À confirmer à l’œil après avoir réimporté le fichier .reg du poste et rouvert Chrome : plus de question au deuxième appel.' },
+  { id: 'import-clients-biens', depuis: '0.291.0', source: 'poste', titre: 'Réglages › Authentic : export clients ou immeubles d’Authentic (.xls) lu et importé',
+    comment: 'Coché au premier export lu sur un poste (SheetJS chargé, colonnes devinées) ; en échec si le fichier est illisible ou la bibliothèque injoignable.' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traité à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

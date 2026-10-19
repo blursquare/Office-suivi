@@ -269,3 +269,48 @@ test('partie sans fiche d\'Authentic retenue : coordonnées du côté et situati
   assert.deepEqual(paul.champs.telephones, ['06 00 00 00 01']);
   assert.equal(base.personnes.find(p => p.champs.nomFamille === 'EXEMPLE').champs.emails.length, 0);
 });
+
+test('import du fichier clients et immeubles d\'Authentic : fiches de base, complétées par les dossiers (étude 19/10)', () => {
+  const { assainirImport } = require('../src/importClientsBiens');
+  const imp = assainirImport({
+    personnes: [{ nom: 'ESSAI', prenom: 'Paul', civilite: 'M', dateNaissance: '12/03/1970', telephones: ['06 00 00 00 01'], emails: ['p.essai@exemple.fr'], domicile: '3 rue Exemple 41000 BLOIS' },
+      { nom: 'TEST', prenom: 'Léa', emails: ['pas un email'] }, { nom: '' }],
+    biens: [{ adresse: '24 rue des Exemples 41190 SAINT LUBIN EN VERGONNOIS', parcelles: [{ section: 'ZN', numero: '0004' }] }, { adresse: '', parcelles: [] }]
+  });
+  assert.equal(imp.personnes.length, 2);
+  assert.equal(imp.personnes[0].dateNaissance, '1970-03-12');
+  assert.equal(imp.personnes[1].emails.length, 0);
+  assert.equal(imp.biens.length, 1);
+  // Un dossier où Paul ESSAI est acquéreur (fiche du dossier, sans date) : une seule fiche, ses dossiers, et les coordonnées du fichier.
+  const base = construireBase([{ id: 'v1', nom: 'EXEMPLE - ESSAI', parties: [{ nom: 'Jean EXEMPLE', role: 'VENDEUR' }, { nom: 'Paul ESSAI', role: 'ACQUEREUR' }] }], {}, imp);
+  const paul = base.personnes.filter(p => p.champs.nomFamille === 'ESSAI');
+  assert.equal(paul.length, 1);
+  assert.equal(paul[0].dossiers.length, 1);
+  assert.deepEqual(paul[0].champs.emails, ['p.essai@exemple.fr']);
+  assert.equal(paul[0].champs.dateNaissance, '1970-03-12');
+  // Léa TEST, seulement dans le fichier : une fiche sans dossier.
+  assert.equal(base.personnes.find(p => p.champs.nomFamille === 'TEST').dossiers.length, 0);
+  assert.equal(base.biens.length >= 1, true);
+  assert.equal(base.biens.find(b => b.parcelles.some(p => p.section === 'ZN')).dossiers.length, 0);
+});
+
+test('route d\'import : remplace le fichier du même genre, ne rend que des nombres', async () => {
+  const os = require('os');
+  const { ouvrirDb } = require('../src/db');
+  const { creerApp } = require('../src/app');
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { racineRepo: os.tmpdir(), port: 0, authActive: false } });
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  try {
+    const url = `http://127.0.0.1:${serveur.address().port}/api/clients-biens/import`;
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ genre: 'personnes', fichier: 'export.xls', lignes: [{ nom: 'ESSAI', prenom: 'Paul' }] }) });
+    const j = await r.json();
+    assert.equal(j.personnes, 1);
+    assert.equal(JSON.stringify(j).includes('ESSAI'), false, 'aucun nom dans la réponse');
+    const liste = await (await fetch(`http://127.0.0.1:${serveur.address().port}/api/clients-biens?q=essai`)).json();
+    assert.equal(JSON.stringify(liste).includes('ESSAI'), true);
+    const d = await (await fetch(url + '?genre=personnes', { method: 'DELETE' })).json();
+    assert.equal(d.personnes, 0);
+  } finally { serveur.close(); db.close(); }
+});

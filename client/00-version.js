@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.290.6';
+  const VERSION_APP = '0.291.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.291.0', date: '2026-10-19 17:07', resume: "Réglages › Authentic : importez l'export « Recherche de Personnes Physiques » ou « Recherche d'immeubles » d'Authentic (.xls). Chaque colonne est devinée et se vérifie sur les trois premières lignes ; tous vos clients et immeubles entrent dans « Clients et biens », complétés par ce que les dossiers et Authentic en disent." },
     { version: '0.290.6', date: '2026-10-19 16:22', resume: "Contrôle de l'urbanisme : une zone voisine que la parcelle ne fait que toucher au bord (moins de 5 % et de 20 m²) n'est plus signalée « en partie A » ; parcelles à contenance « 0 » complétées par Authentic, sinon par le cadastre lu dans le contrôle de l'urbanisme ; un acquéreur rangé parmi les vendeurs (BARBIER / GONZALEZ et VANNIER) repasse du bon côté ; un bien d'un autre dossier (MONNEREAU dans BAUDRY) n'est plus ajouté et en est retiré ; surface des parcelles d'une fiche bien (hectare, are, centiare) bien lue ; fiche client plus large et lisible ; croix pour retirer un autre bien d'une vente (« Modifier les parties… », ligne « Autres biens »)." },
     { version: '0.290.5', date: '2026-10-19 16:09', resume: "Constitution de dossier (succession) : le régime matrimonial du défunt, lu sur sa fiche d'Authentic, s'écrit sous « Époux de » ou « Veuf de » dans les courriers (modifiable dans la Constitution) ; propositions du répertoire en liste nette (nom puis ville, sans défilement de côté)." },
     { version: '0.290.4', date: '2026-10-19 15:31', resume: "Fiche d'une vente déjà rentrée : la carte d'un client montre maintenant l'email, le téléphone et la situation déjà connus du dossier (elle restait vide sans fiche client relue dans Authentic) ; un vendeur « nom seul » qui est en fait le nom de l'acquéreur (ARTHUR / BOUCHKAR) est retiré, noté dans l'historique." },
