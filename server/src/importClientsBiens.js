@@ -36,7 +36,11 @@ function personneImport(p) {
     nom, prenom: texte(p.prenom, 80), civilite: civ === 'M' || civ === 'Mme' ? civ : '',
     dateNaissance: dateIso(p.dateNaissance), lieuNaissance: texte(p.lieuNaissance, 80),
     telephones: liste(p.telephones, /\d{2}.*\d{2}/), emails: liste(p.emails, /^[^@\s]+@[^@\s]+\.[^@\s]+$/),
-    domicile: texte(p.domicile, 200), profession: texte(p.profession, 80)
+    domicile: texte(p.domicile, 200), profession: texte(p.profession, 80),
+    // Décès (date, ou « date inconnue »), situation matrimoniale et conjoint du fichier clients (étude 19/10).
+    deces: p.deces && typeof p.deces === 'object' && (dateIso(p.deces.date) || /inconnu/i.test(texte(p.deces.lieu)))
+      ? { date: dateIso(p.deces.date), lieu: dateIso(p.deces.date) ? '' : 'date inconnue' } : null,
+    situation: texte(p.situation, 40), conjoint: texte(p.conjoint, 120)
   };
 }
 

@@ -44,3 +44,29 @@ test('import : immeubles et parcelles', () => {
   assert.equal(r[1].adresse, '24 rue des Essais SAINT LUBIN EN VERGONNOIS');
   assert.equal(r[1].parcelles[0].numero, '4');
 });
+
+test('import : export « Recherche de Personnes Physiques » lu par sa ligne d\'en-tête (structure reçue le 19/10)', () => {
+  const lignes = [
+    ['Recherche de Personnes Physiques - 41089', '', '', '', '', '', '', '', '', ''], [],
+    ['3 résultats'], [],
+    ['Nom', 'Naissance', 'Décès', 'Situation', 'Conjoint/Partenaire', 'Email', 'Téléphone', 'CP', 'Ville', 'Client'],
+    ['M. ESSAI Paul', '12/3/1950', '0', 'Marié', 'Mme TEST Léa', 'p.essai@exemple.fr', '0600000001 / 02.54.00.00.00', '41000', 'BLOIS', 'Oui'],
+    ['Mme TEST Léa', '0', 'Inconnue', 'Veuf', '', '', 'M:0600000002 Mme 0600000003', '41250', 'BRACIEUX', 'Oui'],
+    ['Mlle MODELE Anne', '1/10/1990', '4/5/2020', 'Célibataire', '', '', '', '', '', 'Oui']
+  ];
+  const r = app.lectureExportImport(lignes);
+  assert.equal(r.genre, 'personnes');
+  assert.equal(r.donnees.length, 3);
+  assert.equal(r.colonnes.join(), 'nomComplet,dateNaissance,deces,situation,conjoint,email,telephone,codePostal,ville,ignorer');
+  const e = app.enregistrementsImport(r.donnees, r.colonnes, 'personnes');
+  assert.equal([e[0].civilite, e[0].nom, e[0].prenom, e[0].dateNaissance].join('|'), 'M|ESSAI|Paul|1950-03-12');
+  assert.equal(e[0].telephones.join(' ; '), '06 00 00 00 01 ; 02 54 00 00 00');
+  assert.equal(e[0].situation + '|' + e[0].conjoint, 'Marié|Mme TEST Léa');
+  assert.equal(e[0].domicile, '41000 BLOIS');
+  assert.equal(e[0].deces, null, '« 0 » : pas de décès');
+  assert.equal(e[1].dateNaissance, '');
+  assert.equal(e[1].deces.lieu, 'date inconnue');
+  assert.equal(e[1].telephones.length, 2);
+  assert.equal(e[2].civilite, 'Mme');
+  assert.equal(e[2].deces.date, '2020-05-04');
+});

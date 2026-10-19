@@ -21015,3 +21015,14 @@ droite de la date, ex. « Absence de condamnation », c'est le statut de la dema
 (`RE_CASIER_AUTHENTIC`) `casier: true` et `statut` (dernière cellule de la ligne, `l.etat`) ; `etatAuthenticPiece` affiche « Casier judiciaire :
 <statut> » (en attente : ambre ; condamnation sans « absence/néant/aucune » ou erreur : rouge). Un relevé d'avant garde « reçu » jusqu'à la
 page suivante.
+
+### 19/10/2026 — 0.291.2 : import du fichier clients lu par son en-tête
+
+L'étude a renvoyé l'export « Recherche de Personnes Physiques » (« analyse le document et modifie l'import ») ; analysé pour sa structure
+seulement (formes masquées, comptes), puis supprimé. Lignes 1 à 4 : titre « Recherche de Personnes Physiques - 41089 », « N résultats » ;
+ligne 5 : en-tête Nom | Naissance | Décès | Situation | Conjoint/Partenaire | Email | Téléphone | CP | Ville | Client. Nom = « M. / Mme / Mlle
+NOM Prénom » ; dates J/M/AAAA, « 0 » = vide ; Décès « Inconnue » = décédé, date inconnue ; Situation Marié / Célibataire / Divorcé / Veuf ;
+Téléphone parfois « 06… / 02… » ou étiqueté « M:06… Mme 06… » ; Client toujours « Oui ». `enTeteImport` / `lectureExportImport` lisent les
+colonnes par leur titre (`TITRES_COLONNES_IMPORT`, devinées seulement sans en-tête), `numerosImport` sépare les numéros ; décès, situation et
+conjoint gardés (`importClientsBiens.js`, occurrence « Import » de `clientsBiens.js`). Sur le fichier réel : 5 149 personnes, 4 337 dates de
+naissance, 461 décès, 3 091 avec téléphone, 2 630 avec email ; base calculée en 0,2 s.

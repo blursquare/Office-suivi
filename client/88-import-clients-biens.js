@@ -10,11 +10,34 @@
   var URL_SHEETJS = 'vendor/xlsx/xlsx.full.min.js';
   var CHAMPS_IMPORT = {
     personnes: [['nomComplet', 'Nom et prénom'], ['nom', 'Nom'], ['prenom', 'Prénom'], ['civilite', 'Civilité'], ['dateNaissance', 'Date de naissance'],
+      ['deces', 'Décès'], ['situation', 'Situation matrimoniale'], ['conjoint', 'Conjoint / partenaire'],
       ['telephone', 'Téléphone'], ['email', 'Email'], ['adresse', 'Adresse'], ['codePostal', 'Code postal'], ['ville', 'Ville'], ['profession', 'Profession'],
       ['auto', 'Selon la cellule (téléphone, email ou date)'], ['ignorer', 'Ignorer']],
     biens: [['type', 'Type de bien'], ['adresse', 'Adresse'], ['cadastre', 'Cadastre'], ['commune', 'Commune'], ['codePostal', 'Code postal'], ['ignorer', 'Ignorer']]
   };
   var importCbEnCours = null;
+
+  // Pure : la ligne d'en-tête d'un export d'Authentic (étude 19/10, « Recherche de Personnes Physiques » : Nom | Naissance | Décès | Situation |
+  // Conjoint/Partenaire | Email | Téléphone | CP | Ville | Client) et le champ de chaque colonne d'après son titre ; null sans en-tête reconnu.
+  var TITRES_COLONNES_IMPORT = [
+    [/^(nom|nom et prenom|nom prenom|personne)$/, 'nomComplet', 'personnes'], [/^prenoms?$/, 'prenom', 'personnes'], [/^civilite$/, 'civilite', 'personnes'],
+    [/^(naissance|date de naissance|ne\(e\) le|ne le)$/, 'dateNaissance', 'personnes'], [/^(deces|date de deces)$/, 'deces', 'personnes'],
+    [/^(situation|situation matrimoniale|situation familiale)$/, 'situation', 'personnes'], [/^(conjoint|partenaire|conjoint\/partenaire|conjoint \/ partenaire)$/, 'conjoint', 'personnes'],
+    [/^(e-?mail|courriel|adresse e-?mail)$/, 'email', 'personnes'], [/^(telephone|tel\.?|portable|telephones)$/, 'telephone', 'personnes'],
+    [/^profession$/, 'profession', 'personnes'], [/^(cp|code postal)$/, 'codePostal', null], [/^(ville|commune|localite)$/, 'ville', null],
+    [/^(adresse|adresse du bien|voie)$/, 'adresse', null], [/^(cadastre|references? cadastrales?|parcelles?|section et numero)$/, 'cadastre', 'biens'],
+    [/^(type|type de bien|nature|nature du bien)$/, 'type', 'biens']
+  ];
+  function enTeteImport(lignes) {
+    const net = (c) => normaliserPourRecherche(String(c == null ? '' : c)).replace(/\s+/g, ' ').trim();
+    for (let i = 0; i < Math.min(15, (lignes || []).length); i++) {
+      const l = lignes[i];
+      if (!Array.isArray(l)) continue;
+      const champs = l.map(c => { const t = net(c); const r = TITRES_COLONNES_IMPORT.find(([re]) => re.test(t)); return r ? r : null; });
+      if (champs.filter(Boolean).length >= 3) return { index: i, champs: champs.map(r => (r ? r[1] : 'ignorer')), genres: champs.filter(Boolean).map(r => r[2]).filter(Boolean) };
+    }
+    return null;
+  }
 
   // Pure : la nature d'une cellule d'un export.
   function typeCelluleImport(v) {
@@ -98,6 +121,15 @@
     return { civilite, nom: caps.join(' '), prenom: mots.filter(x => !caps.includes(x)).join(' ') };
   }
 
+  // Pure : les numéros de téléphone d'une cellule (dix chiffres, espaces, points ou tirets permis ; « +33 » compris).
+  function numerosImport(t) {
+    const out = [];
+    const re = /(?:\+33\s?|0)[1-9](?:[\s.\-]?\d{2}){4}/g;
+    let m;
+    while ((m = re.exec(String(t || ''))) !== null) out.push(m[0].replace(/[^\d+]/g, '').replace(/^\+33/, '0').replace(/(\d{2})(?=\d)/g, '$1 '));
+    return out.slice(0, 4);
+  }
+
   // Pure : les parcelles d'une cellule de cadastre (« AB 12, AB 13 », « 000 ZN 4 »).
   function parcellesImport(t) {
     const out = [];
@@ -123,7 +155,8 @@
         else if (champ === 'prenom') r.prenom = v;
         else if (champ === 'civilite') r.civilite = /^(m\.?|mr|monsieur)$/i.test(v) ? 'M' : /^(mme|madame|mlle|mademoiselle)\.?$/i.test(v) ? 'Mme' : '';
         else if (champ === 'dateNaissance') r.dateNaissance = dateIsoDe(v);
-        else if (champ === 'telephone') { if (type === 'telephone') r.telephones.push(v); }
+        // Plusieurs numéros, parfois étiquetés (« M:06… / Mme 06… »), séparés ou non : chaque numéro de dix chiffres.
+        else if (champ === 'telephone') r.telephones.push(...numerosImport(v));
         else if (champ === 'email') { if (type === 'email') r.emails.push(v); }
         else if (champ === 'auto') { if (type === 'telephone') r.telephones.push(v); else if (type === 'email') r.emails.push(v); else if (type === 'date' && !r.dateNaissance) r.dateNaissance = dateIsoDe(v); }
         else if (champ === 'adresse') parts.adresse.push(v);
@@ -131,6 +164,9 @@
         else if (champ === 'ville') parts.ville = v;
         else if (champ === 'commune') parts.commune = v;
         else if (champ === 'profession') r.profession = v;
+        else if (champ === 'deces') { const dd = dateIsoDe(v); if (dd) r.deces = { date: dd }; else if (/inconnu/i.test(v)) r.deces = { date: '', lieu: 'date inconnue' }; }
+        else if (champ === 'situation') r.situation = v;
+        else if (champ === 'conjoint') r.conjoint = v;
         else if (champ === 'type') r.type = v;
         else if (champ === 'cadastre') r.parcelles = r.parcelles.concat(parcellesImport(v));
       });
@@ -138,7 +174,8 @@
       const ville = parts.ville || parts.commune;
       const lieu = [parts.codePostal, ville].filter(Boolean).join(' ');
       const complete = adresse && lieu && !normaliserPourRecherche(adresse).includes(normaliserPourRecherche(ville || '---')) ? `${adresse} ${lieu}` : (adresse || lieu);
-      if (genre === 'personnes') return { nom: r.nom || '', prenom: r.prenom || '', civilite: r.civilite || '', dateNaissance: r.dateNaissance || '', telephones: r.telephones, emails: r.emails, domicile: complete, profession: r.profession || '' };
+      if (genre === 'personnes') return { nom: r.nom || '', prenom: r.prenom || '', civilite: r.civilite || '', dateNaissance: r.dateNaissance || '', telephones: [...new Set(r.telephones)], emails: r.emails, domicile: complete, profession: r.profession || '',
+        deces: r.deces || null, situation: r.situation || '', conjoint: r.conjoint || '' };
       return { adresse: complete, commune: ville, codePostal: parts.codePostal || ((/\b(\d{5})\b/.exec(adresse) || [])[1] || ''), type: r.type || '', parcelles: r.parcelles };
     }).filter(x => (genre === 'personnes' ? x.nom : (x.adresse || x.parcelles.length)));
   }
@@ -155,6 +192,17 @@
       + `<div class="reglages-option"><input type="file" id="import-cb-fichier" accept=".xls,.xlsx,.csv" style="display:none" onchange="lireExportCb(this)"><wa-button appearance="outlined" size="s" onclick="document.getElementById('import-cb-fichier').click()">Importer un export d’Authentic (.xls)</wa-button></div>`;
   }
 
+  // Pure : le genre, les lignes de données et la colonne de chacune — par l'en-tête de l'export quand il y en a un, sinon devinées.
+  function lectureExportImport(lignes) {
+    const tete = enTeteImport(lignes);
+    let genre = genreImport(lignes);
+    if (tete && !/^recherche d/.test(normaliserPourRecherche(String(((lignes || [])[0] || [])[0] || '')))) genre = tete.genres.includes('biens') ? 'biens' : 'personnes';
+    const apres = tete ? lignes.slice(tete.index + 1) : lignes;
+    const donnees = lignesDonneesImport(apres).filter(l => !/^recherche (de|d')/i.test(String(l[0] || '')) && !/^\d+\s+resultats?$/i.test(normaliserPourRecherche(String(l[0] || '')).trim()));
+    const colonnes = tete ? tete.champs.map(c => (CHAMPS_IMPORT[genre].some(([k]) => k === c) ? c : 'ignorer')) : colonnesProposeesImport(donnees, genre);
+    return { genre, donnees, colonnes };
+  }
+
   async function lireExportCb(input) {
     const f = input && input.files && input.files[0];
     if (input) input.value = '';
@@ -164,10 +212,9 @@
       const classeur = window.XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: false, raw: false, dateNF: 'dd/mm/yyyy' });
       const feuille = classeur.Sheets[classeur.SheetNames[0]];
       const lignes = window.XLSX.utils.sheet_to_json(feuille, { header: 1, raw: false, defval: '', dateNF: 'dd/mm/yyyy' });
-      const genre = genreImport(lignes);
-      const donnees = lignesDonneesImport(lignes).filter(l => !/^recherche (de|d')/i.test(String(l[0] || '')));
+      const { genre, donnees, colonnes } = lectureExportImport(lignes);
       if (!donnees.length) { afficherToast('Aucune ligne lisible dans ce fichier.', 'OK', null); return; }
-      importCbEnCours = { genre, donnees, colonnes: colonnesProposeesImport(donnees, genre), fichier: f.name };
+      importCbEnCours = { genre, donnees, colonnes, fichier: f.name };
       noterVerificationPoste('import-clients-biens', { detail: `export ${genre === 'personnes' ? 'clients' : 'immeubles'} lu (${donnees.length} lignes)` });
       renderImportClientsBiens();
     } catch (e) {

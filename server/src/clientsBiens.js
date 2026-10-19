@@ -172,7 +172,8 @@ function occurrencesPersonnes(dossiers, imp) {
       champs: { civilite: texte(p.civilite), nomFamille: nf.nomFamille.toUpperCase(), prenom: nf.prenom, nomUsage: '', dateNaissance: texte(p.dateNaissance).slice(0, 10),
         lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: texte(p.profession), domicile: texte(p.domicile),
         emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
-      situation: null, deces: null });
+      situation: texte(p.situation) ? { situation: texte(p.situation), conjoint: texte(p.conjoint), regime: '', date: '' } : null,
+      deces: p.deces && typeof p.deces === 'object' ? { date: texte(p.deces.date), lieu: texte(p.deces.lieu) } : null });
   }
   return occ;
 }
@@ -311,7 +312,7 @@ function construirePersonnes(dossiers, reglages, imp) {
       champs[c.champ] = c.valeur;
     }
     const sit = (tries.find((o) => o.situation && o.situation.situation) || {}).situation || null;
-    const deces = (tries.find((o) => o.deces && o.deces.date) || {}).deces || null;
+    const deces = (tries.find((o) => o.deces && o.deces.date) || tries.find((o) => o.deces && o.deces.lieu) || {}).deces || null;
     // Le reste de la fiche : celui de la fiche d'Authentic la plus récente qui en porte un.
     const complement = (tries.find((o) => o.complement) || {}).complement || null;
     const autres = { autresPrenoms: (tries.find((o) => o.autresPrenoms) || {}).autresPrenoms || '', paysNaissance: (tries.find((o) => o.paysNaissance) || {}).paysNaissance || '' };

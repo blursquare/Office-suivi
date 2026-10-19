@@ -296,7 +296,7 @@
       ? `<button type="button" class="lien-action" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(f.conjoint.id)}')">${escapeHtml(f.conjoint.nom)}</button>`
       : escapeHtml(f.conjoint.nom)}</dd>` : (f.situation && f.situation.situation ? `<dt>Situation</dt><dd>${escapeHtml(f.situation.situation)}</dd>` : '');
     const regime = f.situation && f.situation.regime ? `<dt>Régime</dt><dd>${escapeHtml(f.situation.regime)}</dd>` : '';
-    const deces = f.deces && f.deces.date ? `<dt>Décès</dt><dd>${escapeHtml(valeurAfficheeCb('dateNaissance', f.deces.date))}${f.deces.lieu ? ' · ' + escapeHtml(f.deces.lieu) : ''}</dd>` : '';
+    const deces = f.deces && (f.deces.date || f.deces.lieu) ? `<dt>Décès</dt><dd>${[f.deces.date ? escapeHtml(valeurAfficheeCb('dateNaissance', f.deces.date)) : '', f.deces.lieu ? escapeHtml(f.deces.lieu) : ''].filter(Boolean).join(' · ')}</dd>` : '';
     const revoir = (f.aRevoir || []).map(a => `<div class="cb-alerte">${escapeHtml(LIBELLES_CHAMPS_CB[a.champ] || a.champ)} : Authentic dit « ${escapeHtml(valeurAfficheeCb(a.champ, a.authentic))} », corrigé dans CLAIRE en « ${escapeHtml(valeurAfficheeCb(a.champ, a.correction))} ».
       <span class="cb-alerte-actions"><wa-button appearance="outlined" size="s" onclick="revenirAuthenticCb('${escapeOnclickArg(a.occ)}', '${escapeOnclickArg(a.champ)}')">Prendre Authentic</wa-button>
       <wa-button appearance="plain" size="s" onclick="garderCorrectionCb('${escapeOnclickArg(a.occ)}', '${escapeOnclickArg(a.champ)}')">Garder</wa-button></span></div>`).join('');
