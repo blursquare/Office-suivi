@@ -91,3 +91,28 @@ test('relecture 19/10 : abréviations, rubrique sans code postal, bien principal
   const f = app.fusionnerInfosAuthentic({ biensDossier: { nombre: 1, texte: '8 rue des Lilas 41000 BLOIS' } }, { biensDossier: { nombre: 2, texte: '' } });
   assert.equal(`${f.biensDossier.nombre}|${f.biensDossier.texte}`, '2|');
 });
+
+test('contre-relecture 19/10 : adresse écrite autrement, liste jamais vidée, bien non annoncé jamais écrit, tantièmes', () => {
+  assert.equal(app.memeAdresseApprocheeAuthentic('3 Fbg St Jean 41000 BLOIS', 'BLOIS (41000), 3 Faubourg Saint-Jean'), true);
+  assert.equal(app.memeAdresseApprocheeAuthentic('12 rue Denis Papin 41000 BLOIS', 'BLOIS (41000), 12 rue Denis Papin Résidence Les Tilleuls bât. B'), true);
+  assert.equal(app.memeAdresseApprocheeAuthentic('4 bis Grande Rue 41290 VIEVY LE RAYE', '4B Grande Rue 41290 VIEVY LE RAYE'), true);
+  assert.equal(app.memeAdresseApprocheeAuthentic('24 rue des Lilas 41190 SAINT LUBIN', '4 Grande Rue 41290 VIEVY LE RAYE'), false);
+  assert.equal(app.memeAdresseApprocheeAuthentic('3 rue Neuve 41000 BLOIS', '12 rue Neuve 41000 BLOIS'), false);
+  // Copropriété : l'autre vente du même immeuble ne vide pas la fiche.
+  const d = { id: 'a', adresseBien: 'BLOIS (41000), 12 rue Denis Papin Résidence Les Tilleuls bât. B', historique: [], bien: { cadastre: { parcelles: [{ section: 'AB', numero: '100' }] } },
+    authentic: { immeubles: [{ adresse: '12 rue Denis Papin 41000 BLOIS', parcelles: [{ section: 'AB', numero: '100' }] }, { adresse: '12 rue Denis Papin 41000 BLOIS', parcelles: [{ section: 'AB', numero: '100' }] }] } };
+  const b = { id: 'b', nom: 'C / D', adresseBien: '12 rue Denis Papin 41000 BLOIS', bien: {} };
+  assert.equal(app.retirerBiensDAutresDossiers(d, [d, b]), false);
+  assert.equal(d.authentic.immeubles.length, 2);
+  // Fiche bien non annoncée par la rubrique : ni parcelles, ni type de vente posés.
+  const v = { id: 'v', typeVente: 'maison', adresseBien: '4 Grande Rue 41290 VIEVY LE RAYE', historique: [], pieces: {}, bien: { cadastre: { section: 'B', numero: '234', parcelles: [{ section: 'B', numero: '234' }] } },
+    authentic: { biensDossier: { nombre: 1, texte: '' }, immeubles: [{ adresse: '4 Grande Rue 41290 VIEVY LE RAYE', parcelles: [{ section: 'B', numero: '234' }] }] } };
+  const r = app.appliquerBienAuthentic(v, { adresse: null, type: 'terre', parcelles: [{ section: 'ZN', numero: '4' }] }, () => {}, { modifie: false }, {});
+  assert.match(r.raison || '', /absent des immeubles/);
+  assert.equal(v.typeVente, 'maison');
+  assert.equal(v.bien.cadastre.parcelles.length, 1);
+  // Tantièmes et numéros de lot ne sont pas des codes postaux ; un bien sans code postal dans la rubrique : on ne sait pas.
+  assert.equal(app.bienDansRubriqueAuthentic('Le Bourg 41290 VIEVY LE RAYE', { nombre: 2, texte: 'Le Bourg VIEVY LE RAYE Lot 12 - 125/10000' }), null);
+  assert.equal(app.bienDansRubriqueAuthentic('Les Grands Champs 41190 SAINT LUBIN', { nombre: 2, texte: '4 Grande Rue 41290 VIEVY LE RAYE Les Grands Champs' }), null);
+  assert.equal(app.bienDansRubriqueAuthentic('24 rue des Lilas 41190 SAINT LUBIN', { nombre: 1, texte: '4 Grande Rue 41290 VIEVY LE RAYE' }), false);
+});

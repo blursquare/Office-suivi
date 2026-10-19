@@ -577,6 +577,14 @@
       return resultat;
     }
     // `sansRetenir` : la fiche reçoit les parcelles de PLUSIEURS biens d'Authentic, retenus un par un par l'appelant (étude 19/10).
+    // Un bien que la page du dossier n'annonce pas (rubrique « Immeubles ») : rien n'est écrit sur la fiche — ni parcelles, ni type, ni
+    // pièce (contre-relecture 19/10 : ses parcelles posées en faisaient le « bien principal » au relevé suivant).
+    const nbRetenus = ((d.authentic && d.authentic.immeubles) || []).length;
+    if (!(o && o.sansRetenir) && !bienPrincipalDuDossierAuthentic(d, bien) && !bienAttenduDansDossierAuthentic(d, bien, nbRetenus)
+      && !(d.authentic && (d.authentic.immeubles || []).some(im => bienPrincipalDuDossierAuthentic({ adresseBien: im.adresse, bien: { cadastre: { parcelles: im.parcelles } } }, bien)))) {
+      resultat.raison = 'bien absent des immeubles du dossier dans Authentic';
+      return resultat;
+    }
     if (!(o && o.sansRetenir) && retenirImmeubleVenteAuthentic(d, bien, false)) resultat.modifie = true;
     if ((bien.lots || []).length) appliquerLotsAuthentic(d, bien, noter, resultat, o);
     else {
@@ -964,13 +972,33 @@
     return t ? normaliserPourRecherche(normaliserAdresse(t)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
   }
 
-  // Pure : le bien est-il le bien principal de la fiche ? Même adresse, ou une parcelle commune avec la fiche. `adresseDecide` (nettoyage
-  // au démarrage) : deux adresses différentes disent deux biens, même si la parcelle de l'autre a été recopiée à tort sur la fiche.
+  // Pure : deux adresses désignent-elles la même ? Même code postal (ou l'un absent), même numéro de voie, et les mots de la plus courte
+  // presque tous dans l'autre, abréviations dépliées (« Fbg St Jean » = « Faubourg Saint-Jean » ; une résidence ou un bâtiment en plus).
+  var ABREVIATIONS_ADRESSE = { fbg: 'faubourg', st: 'saint', ste: 'sainte', bd: 'boulevard', bld: 'boulevard', av: 'avenue', ave: 'avenue', ch: 'chemin', che: 'chemin', rte: 'route', pl: 'place', imp: 'impasse', all: 'allee', res: 'residence', bat: 'batiment', sq: 'square' };
+  function memeAdresseApprocheeAuthentic(a, b) {
+    const ea = elementsAdresseAuthentic(typeof a === 'string' ? a : (a && a.texte) || '');
+    const eb = elementsAdresseAuthentic(typeof b === 'string' ? b : (b && b.texte) || '');
+    if (!ea || !eb) return false;
+    if (ea.codePostal && eb.codePostal && ea.codePostal !== eb.codePostal) return false;
+    const num = (t) => (/(?:^|\s)(\d{1,4})(?:\s?(?:bis|ter|[a-z]))?(?=\s|$)/.exec(normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, ' ')) || [])[1] || '';
+    const na = num(typeof a === 'string' ? a : a && a.texte); const nb = num(typeof b === 'string' ? b : b && b.texte);
+    if (na && nb && na !== nb) return false;
+    const deplier = (mots) => mots.map(m => ABREVIATIONS_ADRESSE[m] || m).filter(m => !/^(residence|batiment|lot|lots|appartement|appt)$/.test(m));
+    const ma = deplier(ea.mots); const mb = deplier(eb.mots);
+    const [court, long] = ma.length <= mb.length ? [ma, mb] : [mb, ma];
+    if (!court.length) return false;
+    return court.filter(m => long.includes(m)).length >= Math.ceil(court.length * 0.6);
+  }
+
+  // Pure : le bien est-il le bien principal de la fiche ? Même adresse (même écrite autrement), ou une parcelle commune avec la fiche.
+  // `adresseDecide` (nettoyage au démarrage) : deux adresses vraiment différentes disent deux biens, même si la parcelle de l'autre a été
+  // recopiée à tort sur la fiche.
   function bienPrincipalDuDossierAuthentic(d, bien, adresseDecide) {
     if (!d || !bien) return false;
     const a = cleAdresseBienAuthentic(bien.adresse);
     const principal = cleAdresseBienAuthentic(d.adresseBien);
     if (a && a === principal) return true;
+    if (a && principal && memeAdresseApprocheeAuthentic(bien.adresse, d.adresseBien)) return true;
     if (adresseDecide && a && principal) return false;
     return parcellesCadastre(d.bien && d.bien.cadastre).some(q => (bien.parcelles || []).some(p => p && String(p.section).toUpperCase() === String(q.section || '').toUpperCase()
       && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')));
@@ -1007,7 +1035,8 @@
     if (!d || d.archive || estSuccession(d) || !d.authentic || !Array.isArray(d.authentic.immeubles) || d.authentic.immeubles.length < 2) return false;
     // Seulement le bien principal d'un autre dossier (relecture 19/10 : jamais sur la seule foi de la rubrique « Immeubles », au démarrage).
     const retires = d.authentic.immeubles.filter(im => im && !bienPrincipalDuDossierAuthentic(d, im, true) && !!bienPrincipalDUnAutreDossier(d, im, liste));
-    if (!retires.length) return false;
+    // Jamais tous : la fiche garde au moins un bien (contre-relecture 19/10).
+    if (!retires.length || retires.length === d.authentic.immeubles.length) return false;
     const gardes = d.authentic.immeubles.filter(im => !retires.includes(im));
     d.authentic = Object.assign({}, d.authentic, { immeubles: gardes });
     // Leurs parcelles quittent aussi la fiche, sauf celles d'un bien gardé.

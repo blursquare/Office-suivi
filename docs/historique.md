@@ -21060,3 +21060,9 @@ groupes ; filtre de l'export sans effet sur une succession ; « Formalit » marq
 `authentic-fiche-bien-hors-onglet` (risque : Authentic ouvrirait une fiche bien dans un onglet à elle).
 Étude 19/10 : « retire l'animation des widgets qui s'affiche au démarrage » — cascade des cartes (`cascadeDemarrage`, `.anim-entree`),
 squelette gris (`body.anim-demarrage`) et premier remplissage de l'anneau « Portefeuille » retirés ; les autres animations utiles restent.
+Contre-relecture de 0.291.3 — corrigé : `memeAdresseApprocheeAuthentic` (même code postal, même numéro de voie, mots de la plus courte
+presque tous dans l'autre, abréviations dépliées : Fbg, St, Bd…, résidence/bâtiment ignorés) fait reconnaître le bien principal écrit
+autrement ; `retirerBiensDAutresDossiers` ne vide jamais la liste ; une fiche bien que la rubrique n'annonce pas n'écrit rien sur la fiche
+(`appliquerBienAuthentic`, ni parcelles ni type ni pièce) ; seuls les codes postaux plausibles suivis d'un mot comptent (jamais un tantième
+« 125/10000 »), et moins de codes postaux que de biens annoncés = on ne sait pas ; fins de rubrique élargies (Mails, Courrier, Demande,
+Banque, Rédaction, État civil, Parties prenantes).

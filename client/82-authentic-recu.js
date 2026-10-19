@@ -218,7 +218,7 @@
       const m = /Immeubles?\s*\((\d{1,3})\)\s*/i.exec(String(src));
       if (!m || !Number(m[1])) continue;
       const suite = String(src).slice(m.index + m[0].length, m.index + m[0].length + 1500);
-      const fin = lignes ? /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces|Tiers|Formalit)/i.exec(suite) : null;
+      const fin = lignes ? /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces|Tiers|Formalit|Mails?|Courriers?|Demandes?|Banques?|R[ée]daction|[ÉE]tat civil|Parties prenantes)/i.exec(suite) : null;
       return { nombre: Number(m[1]), texte: fin ? suite.slice(0, fin.index).replace(/\s+/g, ' ').trim() : '' };
     }
     return null;
@@ -233,8 +233,10 @@
     const texte = rubrique && rubrique.texte;
     if (!a || !texte) return null;
     const e = elementsAdresseAuthentic(a);
-    const cps = String(texte).match(/(?<!\d)\d{5}(?!\d)/g) || [];
-    if (!e || !e.codePostal || !cps.length) return null;
+    // Codes postaux plausibles seulement (jamais « 125/10000 », un tantième ou un numéro de lot) ; moins de codes que de biens annoncés :
+    // un bien est cité sans code postal, on ne sait pas.
+    const cps = (String(texte).match(/(?<![\d/.,])(?:0[1-9]|[1-8]\d|9[0-8])\d{3}(?![\d/.,])(?=\s+[A-Za-zÀ-ÿ])/g) || []);
+    if (!e || !e.codePostal || !cps.length || cps.length < (Number(rubrique.nombre) || 1)) return null;
     return cps.includes(e.codePostal);
   }
 
