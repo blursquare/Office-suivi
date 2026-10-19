@@ -1712,4 +1712,6 @@ test('casier judiciaire : le statut écrit par Authentic à droite de la date, j
   assert.equal(e.classe, '');
   app.appliquerReleveSurDossier(d, page('Condamnation inscrite'), '2026-09-05T09:00:00Z');
   assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).classe, 'dl-urgent');
+  app.appliquerReleveSurDossier(d, page('Pas de condamnation'), '2026-09-06T09:00:00Z');
+  assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).classe, '', 'pas de condamnation : jamais en rouge');
 });

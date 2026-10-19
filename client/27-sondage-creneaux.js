@@ -1514,12 +1514,12 @@
       if (p.cle === 'ehf' && ps.ehf.envoyeeLe) return { texte: `Réquisition envoyée le ${formatDateFr(ps.ehf.envoyeeLe)}, pas encore revenue`, classe: 'dl-pret' };
     }
     const ec = (a.etatsCivils || {})[p.cle];
-    if (ec && ec.casier) {
+    if (ec && (ec.casier || RE_CASIER_AUTHENTIC.test(ec.label || ''))) {
       // Casier judiciaire : le statut d'Authentic (« Absence de condamnation »), jamais « Comedec » ; une condamnation signalée en rouge.
       const st = String(ec.statut || '').trim();
       const n = normaliserPourRecherche(st);
       if (ec.etat === 'attente') return { texte: `Casier judiciaire : ${st || 'demande en cours'}`, classe: 'dl-pret' };
-      return { texte: `Casier judiciaire : ${st || (ec.etat === 'negatif' ? 'non délivré' : 'reçu')}`, classe: ec.etat === 'negatif' || (/condamnation/.test(n) && !/absence|neant|aucune/.test(n)) ? 'dl-urgent' : '' };
+      return { texte: `Casier judiciaire : ${st || (ec.etat === 'negatif' ? 'non délivré' : 'reçu')}`, classe: ec.etat === 'negatif' || (/condamnation/.test(n) && !/absence|neant|aucune|pas de|sans|nul|vierge|negati/.test(n)) ? 'dl-urgent' : '' };
     }
     if (ec) {
       if (ec.etat === 'negatif') return { texte: 'Comedec : négatif — erreur, document non délivré', classe: 'dl-urgent' };

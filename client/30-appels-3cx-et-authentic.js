@@ -2220,7 +2220,7 @@
         if (!d.pieces[cle]) d.pieces[cle] = 'manquante';
         if (ancien !== ec.etat) {
           etatsChanges = true;
-          noter(ec.etat === 'negatif'
+          noter(ec.casier ? `« ${ec.label} » : casier judiciaire${ec.statut ? ` — ${ec.statut}` : ec.etat === 'negatif' ? ' non délivré' : ', demande en cours'} (Authentic)` : ec.etat === 'negatif'
             ? `« ${ec.label} » : Comedec négatif — erreur, le document n’a pas pu être délivré (Authentic)`
             : `« ${ec.label} » : demande Comedec prise en compte, en attente (Authentic)`);
         }
