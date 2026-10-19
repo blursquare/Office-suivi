@@ -30,6 +30,8 @@
     if (!p.auto) return false;
     // Lu avant que les monuments historiques le soient (08/10) : relu une fois pour les ajouter.
     if (!p.patrimoine) return true;
+    // Lu avant que la zone voisine seulement touchée au bord soit écartée (19/10) : relu une fois s'il signalait une autre zone.
+    if (!p.zonageBordures && (p.lignes || []).some(l => l && (l.autresFamilles || []).length)) return true;
     if (p.signature !== signaturePreemptionDossier(d)) return true;
     const t = (maintenant || new Date()).getTime();
     return !!p.incomplet && t - (Date.parse(p.le) || 0) > DELAI_RELECTURE_PREEMPTION_MS;
@@ -247,7 +249,7 @@
       const d = dossiers.find(x => x.id === id);
       if (!preemptionAutoAFaire(d)) return;
       const avant = d.preemption && Array.isArray(d.preemption.droits) ? d.preemption : null;
-      d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signatureLue },
+      d.preemption = Object.assign(preemptionPourFiche(etat), { auto: true, signature: signatureLue, zonageBordures: true },
         etat.boisDeduit ? { boisDeduit: true } : {},
         incomplet ? { incomplet: true } : {}, avant && avant.piecesAjoutees ? { piecesAjoutees: avant.piecesAjoutees } : {},
         avant && avant.travaux ? { travaux: avant.travaux } : {}, avant && avant.sitadel ? { sitadel: avant.sitadel } : {});

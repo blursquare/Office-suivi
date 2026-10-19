@@ -124,3 +124,21 @@ test('patrimoine : couche des servitudes en panne → « pas lu », jamais « au
   assert.equal(vide.patrimoine.lu, true);
   assert.equal(vide.patrimoine.servitudes.length, 0);
 });
+
+test('zone voisine seulement touchée au bord : écartée, dite en bordure (étude 19/10, parcelle « en partie A » à tort)', () => {
+  const { zonesSansBordure } = require('../src/urbanisme');
+  const m = 1 / 111320; // un mètre en degrés (latitude), à peu près ; la longitude suit la même échelle ici
+  const carre = (x0, y0, x1, y1) => ({ type: 'Polygon', coordinates: [[[1.3 + x0 * m, 47.6 + y0 * m], [1.3 + x1 * m, 47.6 + y0 * m], [1.3 + x1 * m, 47.6 + y1 * m], [1.3 + x0 * m, 47.6 + y1 * m], [1.3 + x0 * m, 47.6 + y0 * m]]] });
+  const parcelle = { geometry: carre(0, 0, 12, 12) };
+  const zones = [{ libelle: 'A', typezone: 'A', libelong: '' }, { libelle: 'Uv2', typezone: 'U', libelong: '' }];
+  // Bande de 0,3 m en zone A le long d'un bord (≈ 3,6 m², 2,5 %) : bordure.
+  const r = zonesSansBordure(parcelle, { features: [{ geometry: carre(11.7, -5, 30, 30) }, { geometry: carre(-5, -5, 11.7, 30) }] }, zones);
+  assert.deepEqual(r.zones.map(z => z.libelle), ['Uv2']);
+  assert.deepEqual(r.bordures.map(z => z.libelle), ['A']);
+  // La moitié en zone A : gardée, rangée par part.
+  const r2 = zonesSansBordure(parcelle, { features: [{ geometry: carre(6, -5, 30, 30) }, { geometry: carre(-5, -5, 6, 30) }] }, zones);
+  assert.equal(r2.zones.length, 2);
+  assert.equal(r2.bordures.length, 0);
+  // Sans contour : rien n'est retiré.
+  assert.equal(zonesSansBordure(parcelle, { features: [{}, {}] }, zones).zones.length, 2);
+});

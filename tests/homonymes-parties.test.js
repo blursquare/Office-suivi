@@ -101,3 +101,12 @@ test('partie du mauvais côté retirée : vendeur « nom seul » qui est le nom 
   const p = { id: 'p', nom: 'EXEMPLE - ESSAI', historique: [], parties: [{ role: 'VENDEUR', nom: 'Marc ESSAI' }, { role: 'ACQUEREUR', nom: 'Paul ESSAI' }] };
   assert.equal(app.retirerPartieDuMauvaisCote(p), false);
 });
+
+test('partie du mauvais côté : passée de l\'autre côté quand aucun acquéreur ne porte ce nom (étude 19/10)', () => {
+  const d = { id: 'b', nom: 'EXEMPLE & ESSAI / TEST & MODELE', historique: [], parties: [{ role: 'VENDEUR', nom: 'EXEMPLE' }, { role: 'VENDEUR', nom: 'ESSAI' }, { role: 'VENDEUR', nom: 'TEST' }, { role: 'ACQUEREUR', nom: 'MODELE' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(d), true);
+  assert.equal(d.parties.map(p => p.role + ':' + p.nom).join('|'), 'VENDEUR:EXEMPLE|VENDEUR:ESSAI|ACQUEREUR:TEST|ACQUEREUR:MODELE');
+  // Seul vendeur : jamais déplacé (le côté ne se vide pas).
+  const seul = { id: 's', nom: 'EXEMPLE / TEST', historique: [], parties: [{ role: 'VENDEUR', nom: 'TEST' }, { role: 'ACQUEREUR', nom: 'MODELE' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(seul), false);
+});

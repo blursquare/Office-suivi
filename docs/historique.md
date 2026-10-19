@@ -20966,3 +20966,16 @@ par le serveur que depuis cette date ; rouvrir le dossier dans Authentic les rem
 ajoute « Régime matrimonial : … » sous la ligne du conjoint quand `defuntConstitution` le donne (fiche d'Authentic, sinon saisi) ; ligne
 ajoutée aux modèles de l'étude à sa demande. « Pas très jolie pour les propositions » : la liste « Chercher dans le répertoire » de la
 Constitution est une carte, nom (sur deux lignes au besoin) puis ville, sans barre de défilement horizontale (`.cst-rep-resultats`).
+
+### 19/10/2026 — 0.290.6 : zone touchée au bord, contenances, acquéreur parmi les vendeurs
+
+- « J'ai une alerte pour une partie en zone A mais en vérifiant je ne trouve pas » (A 222, Saint-Denis-sur-Loire, « Touche aussi A ») : le
+  Géoportail rend toute zone qui TOUCHE la géométrie de la parcelle ; le contour du PLU et celui du cadastre ne coïncident jamais. La part de
+  chaque zone est mesurée (`zonesSansBordure`, server/src/urbanisme.js, même calcul que le plan aérien `repartitionZonage`) : moins de 5 % de la
+  parcelle ET moins de 20 m² = bordure (`bordures`), plus une zone de la parcelle ; zones rangées par part. Une analyse automatique d'avant qui
+  signalait une autre zone est relue une fois (`zonageBordures`).
+- « Quand la lecture d'Authentic a de nouvelles données, compléter les données déjà présentes : ici il n'y a pas les contenances » : une
+  contenance nulle (« 0 », « 00 ca ») compte pour absente (`detailParcelleVide`, commun/donnees-dossier.js) — Authentic la complète ; à défaut,
+  la fiche montre la contenance du cadastre lue par le Contrôle de l'urbanisme (`d.preemption.parcelles`).
+- BARBIER & MALLIER / GONZALEZ & VANNIER : GONZALEZ (nom seul) parmi les vendeurs, aucun acquéreur de ce nom → `retirerPartieDuMauvaisCote`
+  le fait passer aux acquéreurs (le côté de départ garde au moins une personne), historique « passé des vendeurs aux acquéreurs ».

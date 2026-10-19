@@ -213,8 +213,13 @@
     const liste = parcellesDossier(d);
     const biens = biensDossier(d);
     const plusieursCommunes = biens.some((x, i) => biens.some((y, j) => j > i && memeCommune(x, y) === false));
+    // Sans surface lue (ni fiche ni Authentic), la contenance du cadastre (IGN) lue par le Contrôle de l'urbanisme (étude 19/10 : « il n'y a
+    // pas les contenances, alors il faut les mettre »).
+    const igne = new Map(((d.preemption && d.preemption.parcelles) || []).filter(x => x && x.parcelle && Number(x.contenance) > 0)
+      .map(x => [String(x.parcelle).replace(/\s+/g, ' ').toUpperCase(), Number(x.contenance)]));
     const lignes = liste.filter(p => p && p.section && p.numero).map(p => {
-      const m2 = p.surface != null && p.surface !== '' ? centiaresDepuisContenance(String(p.surface)) : null;
+      const lu = !detailParcelleVide('surface', p.surface) ? centiaresDepuisContenance(String(p.surface)) : null;
+      const m2 = lu || igne.get(`${String(p.section).toUpperCase()} ${Number(p.numero) || p.numero}`) || null;
       const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
       return { ref, m2, surface: m2 != null ? formaterContenance(m2) : '', detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · ') };
     });

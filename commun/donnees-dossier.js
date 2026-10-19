@@ -59,10 +59,17 @@
 
   const DETAILS_PARCELLE = ['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'adresseCadastre', 'zone', 'spf'];
 
+  /** Pure : une valeur de parcelle absente — vide, ou une contenance nulle (« 0 », « 00 ca », « 0 ha 00 a 00 ca ») qui ne dit rien (étude 19/10 :
+   * « il n'y a pas les contenances, il faut les mettre » quand Authentic les donne). @param {string} k @param {any} v */
+  function detailParcelleVide(k, v) {
+    if (v == null || v === '') return true;
+    return k === 'surface' && /^[\s0.,]*(?:ha|a|ca|m²|m2|[\s0.,])*$/i.test(String(v)) && !/[1-9]/.test(String(v));
+  }
+
   /** Pure : une parcelle complétée par une autre (ce qui lui manque seulement). @param {any} a @param {any} b */
   function completerParcelle(a, b) {
     const r = Object.assign({}, a);
-    DETAILS_PARCELLE.forEach((k) => { if ((r[k] == null || r[k] === '') && b && b[k] != null && b[k] !== '') r[k] = b[k]; });
+    DETAILS_PARCELLE.forEach((k) => { if (detailParcelleVide(k, r[k]) && b && !detailParcelleVide(k, b[k])) r[k] = b[k]; });
     return r;
   }
 
@@ -207,7 +214,7 @@
         if (!vues.has(cle)) vues.set(cle, []);
         vues.get(cle).push(Object.assign({ bien: cible }, lieuDe(p)));
         const propre = { section: texte(p.section).toUpperCase(), numero: texte(p.numero).replace(/^0+(?=\d)/, ''), origine: source };
-        DETAILS_PARCELLE.forEach((k) => { if (p[k] != null && p[k] !== '') /** @type {any} */ (propre)[k] = String(p[k]); });
+        DETAILS_PARCELLE.forEach((k) => { if (!detailParcelleVide(k, p[k])) /** @type {any} */ (propre)[k] = String(p[k]); });
         cible.parcelles.push(propre);
       });
     };
@@ -292,7 +299,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, immeublesSansParcellesEgarees, communeDeLAdresse,
+  exporter({ detailParcelleVide, memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, immeublesSansParcellesEgarees, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

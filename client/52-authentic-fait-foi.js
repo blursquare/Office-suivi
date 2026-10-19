@@ -586,14 +586,14 @@
     const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
     const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
-    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre', 'zone', 'spf'].filter(k => p && p[k]).map(k => [k, String(p[k]).slice(0, 60)]));
+    const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre', 'zone', 'spf'].filter(k => p && !detailParcelleVide(k, p[k])).map(k => [k, String(p[k]).slice(0, 60)]));
     const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
     let complete = false;
     const anciennes = deja.map(p => {
       // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
       const sienne = Object.assign({}, p);
       const a = parBien.get(cleParcelle(p.section, p.numero));
-      Object.entries(details(a)).forEach(([k, v]) => { if (!sienne[k]) { sienne[k] = v; complete = true; } });
+      Object.entries(details(a)).forEach(([k, v]) => { if (detailParcelleVide(k, sienne[k])) { sienne[k] = v; complete = true; } });
       return sienne;
     });
     if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
@@ -885,9 +885,9 @@
   }
 
   // Modifie d : une partie portée du MAUVAIS côté retirée (étude 19/10, ARTHUR / BOUCHKAR : « l'acquéreur est en vendeur aussi » — un
-  // vendeur « BOUCHKAR », nom seul, à côté de l'acquéreur Hamza BOUCHKAR). Seulement une vente au nom « VENDEUR - ACQUÉREUR » (ou « / »)
-  // dont l'autre côté seul cite ce nom, quand une partie de l'autre côté le porte, et pour une partie sans prénom, civilité, coordonnées ni
-  // date de naissance (un vrai vendeur homonyme, nommé par le nom du dossier ou avec son prénom, n'est jamais touché). → true si retirée.
+  // vendeur « BOUCHKAR », nom seul, à côté de l'acquéreur Hamza BOUCHKAR) ou passée de l'autre côté. Seulement une vente au nom
+  // « VENDEUR - ACQUÉREUR » (ou « / ») dont l'autre côté seul cite ce nom, et pour une partie sans prénom, civilité, coordonnées ni date de
+  // naissance (un vrai vendeur homonyme, nommé par le nom du dossier ou avec son prénom, n'est jamais touché). → true si changée.
   function retirerPartieDuMauvaisCote(d) {
     if (!d || estSuccession(d) || !Array.isArray(d.parties) || d.parties.length < 2) return false;
     const m = /^\s*(?:vte\s*-\s*)?(.+?)\s+(?:-|\/)\s+(.+?)\s*$/i.exec(String(d.nom || ''));
@@ -902,10 +902,23 @@
       if (mp.length !== 1 || p.prenom || p.civilite || p.dateNaissance || (p.emails || []).length || (p.telephones || []).length) return false;
       const r = role(p), w = mp[0];
       if (cotes[r].includes(w) || !cotes[autre(r)].includes(w)) return false;
-      return d.parties.some(q => q && q !== p && role(q) === autre(r) && mots([q.prenom, q.nom].filter(Boolean).join(' ')).includes(w));
+      // Le côté garde au moins une autre personne (jamais un côté vidé).
+      return d.parties.some(q => q && q !== p && role(q) === r && String(q.nom || '').trim());
     });
     if (!retirees.length) return false;
-    d.parties = d.parties.filter(p => !retirees.includes(p));
-    retirees.forEach(p => ajouterHistorique(d, `${role(p) === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} « ${p.nom} » retiré : c'est le nom de l'autre côté du dossier`));
+    // L'autre côté porte déjà ce nom (Hamza BOUCHKAR) : la partie est retirée ; sinon (étude 19/10, BARBIER / GONZALEZ et VANNIER : GONZALEZ
+    // parmi les vendeurs, aucun acquéreur de ce nom) elle passe de l'autre côté.
+    retirees.forEach(p => {
+      const r = role(p), w = mots(p.nom)[0];
+      const porte = d.parties.some(q => q && q !== p && role(q) === autre(r) && mots([q.prenom, q.nom].filter(Boolean).join(' ')).includes(w));
+      if (porte) {
+        d.parties = d.parties.filter(x => x !== p);
+        ajouterHistorique(d, `${r === 'VENDEUR' ? 'Vendeur' : 'Acquéreur'} « ${p.nom} » retiré : c'est le nom de l'autre côté du dossier`);
+      } else {
+        p.role = autre(r);
+        if (p.qualiteActe) p.qualiteActe = autre(r) === 'VENDEUR' ? 'vendeur' : 'acquéreur';
+        ajouterHistorique(d, `« ${p.nom} » passé des ${r === 'VENDEUR' ? 'vendeurs aux acquéreurs' : 'acquéreurs aux vendeurs'} : le nom du dossier le place de ce côté`);
+      }
+    });
     return true;
   }

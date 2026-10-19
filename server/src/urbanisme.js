@@ -84,10 +84,35 @@ function patrimoineDepuisSup(sup) {
 }
 
 /** Pure : synthèse lue pour une parcelle. @param {any} parcelle @param {{ document: any, zones: any, infos: any, prescriptions: any, commune: any, sup?: any }} gpu */
+// Une zone voisine que la parcelle ne fait que toucher (étude 19/10 : « une alerte pour une parcelle en zone A, mais en vérifiant je ne
+// trouve pas » — le contour du PLU et celui du cadastre ne tombent jamais tout à fait l'un sur l'autre) : moins de 5 % de la parcelle et
+// moins de 20 m². Elle n'est plus une zone de la parcelle, seulement dite « en bordure » ; les zones restantes sont rangées par part.
+const PART_BORDURE = 0.05;
+const SURFACE_BORDURE_M2 = 20;
+/** Pure : { zones, bordures } d'après la part de chaque zone dans la parcelle ; sans contour lisible, les zones telles quelles.
+ * @param {any} parcelle @param {any} geoZones @param {any[]} zones */
+function zonesSansBordure(parcelle, geoZones, zones) {
+  const features = geoZones && Array.isArray(geoZones.features) ? geoZones.features : [];
+  if (!parcelle || !parcelle.geometry || zones.length < 2 || features.length !== zones.length || !features.every((f) => f && f.geometry)) return { zones, bordures: [] };
+  let rep;
+  try {
+    rep = require('./planAerien').repartitionZonage(parcelle.geometry, features.map((f, i) => Object.assign({}, zones[i], { geometry: f.geometry })));
+  } catch (_) { return { zones, bordures: [] }; }
+  if (!rep || !(rep.surface > 0)) return { zones, bordures: [] };
+  const partDe = (/** @type {any} */ z) => rep.zones.find((x) => x.libelle === z.libelle && x.typezone === z.typezone && x.libelong === z.libelong);
+  const avec = zones.map((z) => { const r = partDe(z); return Object.assign({}, z, { part: r ? Math.round(r.part * 1000) / 1000 : 0, surface: r ? Math.round(r.surface) : 0 }); });
+  const bord = (/** @type {any} */ z) => z.part < PART_BORDURE && z.surface < SURFACE_BORDURE_M2;
+  const gardees = avec.filter((z) => !bord(z)).sort((a, b) => b.part - a.part);
+  // Jamais aucune zone : la plus grande reste.
+  if (!gardees.length) return { zones: avec.sort((a, b) => b.part - a.part).slice(0, 1), bordures: [] };
+  return { zones: gardees, bordures: avec.filter(bord).map((z) => ({ libelle: z.libelle, typezone: z.typezone, part: z.part, surface: z.surface })) };
+}
+
 function syntheseZonage(parcelle, gpu) {
   const p = parcelle && parcelle.properties ? parcelle.properties : {};
   const docs = proprietes(gpu.document, (x) => ({ type: String(x.du_type || ''), titre: String(x.grid_title || ''), partition: String(x.partition || '') }));
-  const zones = proprietes(gpu.zones, (x) => ({ libelle: String(x.libelle || ''), libelong: String(x.libelong || ''), typezone: String(x.typezone || '') }));
+  const toutes = proprietes(gpu.zones, (x) => ({ libelle: String(x.libelle || ''), libelong: String(x.libelong || ''), typezone: String(x.typezone || '') }));
+  const { zones, bordures } = zonesSansBordure(parcelle, gpu.zones, toutes);
   const infos = proprietes(gpu.infos, (x) => String(x.libelle || '')).filter(Boolean);
   const prescriptions = proprietes(gpu.prescriptions, (x) => String(x.libelle || '')).filter(Boolean);
   const commune = proprietes(gpu.commune, (x) => ({ nom: String(x.name || ''), rnu: x.is_rnu === true }))[0] || null;
@@ -101,6 +126,7 @@ function syntheseZonage(parcelle, gpu) {
     // `lu` : la couche des servitudes a répondu ; sans réponse, « aucune servitude » ne veut rien dire.
     patrimoine: { lu: !!(gpu.sup && Array.isArray(gpu.sup.features)), servitudes: patrimoineDepuisSup(gpu.sup) },
     zones,
+    bordures,
     infos: [...new Set(infos)].slice(0, 30),
     prescriptions: [...new Set(prescriptions)].slice(0, 30)
   };
@@ -203,4 +229,4 @@ async function parcellesDansPolygone(polygone, injections) {
 
 function viderCacheUrbanisme() { cache.clear(); cacheZones.clear(); }
 
-module.exports = { parcelleIntrouvable, sectionsDeLaCommune, zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
+module.exports = { zonesSansBordure, parcelleIntrouvable, sectionsDeLaCommune, zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };

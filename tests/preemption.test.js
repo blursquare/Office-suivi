@@ -331,6 +331,11 @@ test('preemptionAutoAFaire : une lecture automatique d’avant les monuments his
   d.preemption.patrimoine = { lu: false, servitudes: [] };
   d.preemption.signature = app.signaturePreemptionDossier(d);
   assert.strictEqual(app.preemptionAutoAFaire(d), false, 'patrimoine gardé, même non lu → pas de boucle');
+  // Lecture d'avant le 19/10 qui signalait une zone voisine (peut-être seulement touchée au bord) : relue une fois.
+  d.preemption.lignes = [{ cle: 'A|222', autresFamilles: ['A'] }];
+  assert.strictEqual(app.preemptionAutoAFaire(d), true, 'autre zone signalée avant la règle des bordures → relue');
+  d.preemption.zonageBordures = true;
+  assert.strictEqual(app.preemptionAutoAFaire(d), false, 'relue : pas de boucle');
 });
 
 test('zonage : les autres zones touchées par une parcelle sont montrées avec leur famille (étude 14/10)', () => {

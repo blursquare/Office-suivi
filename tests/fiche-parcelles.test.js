@@ -20,3 +20,15 @@ test('fiche : les parcelles avec leur surface (étude 16/10 : « les surfaces de
   assert.equal(sans.manquantes, 1);
   assert.equal(app.renderParcellesFiche({}), '');
 });
+
+test('parcelles : contenance nulle = inconnue, complétée par le cadastre lu dans le contrôle de l\'urbanisme (étude 19/10)', () => {
+  const d = { bien: { cadastre: { parcelles: [{ section: 'A', numero: '221', surface: '0' }, { section: 'A', numero: '222', surface: '00 ca' }, { section: 'A', numero: '223' }] } },
+    preemption: { parcelles: [{ parcelle: 'A 221', contenance: 1038 }, { parcelle: 'A 222', contenance: 153 }] } };
+  const p = app.parcellesAfficheesFiche(d);
+  assert.equal(p.lignes.map(l => l.m2).join('|'), '1038|153|');
+  assert.equal(p.manquantes, 1);
+  // Authentic qui donne la contenance complète une parcelle à « 0 ».
+  const dd = { bien: { cadastre: { section: 'A', numero: '221', parcelles: [{ section: 'A', numero: '221', surface: '0' }] } } };
+  app.appliquerBienAuthentic(dd, { adresse: null, parcelles: [{ section: 'A', numero: '221', surface: '1038' }] }, () => {}, { modifie: false }, { sansRetenir: true });
+  assert.equal(dd.bien.cadastre.parcelles[0].surface, '1038');
+});
