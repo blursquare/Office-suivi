@@ -8232,8 +8232,9 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt-court .ag-evt-fin, .ag-evt-court .ag-evt-duree, .ag-evt-court .ag-evt-qui { display: none; }
 .ag-evt-etroit .ag-evt-heure, .ag-evt-etroit .ag-proba { display: none; }
 /* Probabilité de maintien (étude, 30/09) : discrète, en bas à droite de la carte, sous la ligne
-   appel de fonds / décompte / projet, sur sa propre ligne — un point de couleur et le chiffre en gris. */
-.ag-evt .ag-proba { position: static; align-self: flex-end; margin-top: auto; flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xxs); font-weight: 600; color: var(--muted); padding: 0; background: none; line-height: 1.2; }
+   appel de fonds / décompte / projet, sur sa propre ligne — un point de couleur et le chiffre en blanc (règle plus haut : cette ligne-ci,
+   placée après, la remettait en gris — étude 19/10 : « pourcentage en blanc »). */
+.ag-evt .ag-proba { position: static; align-self: flex-end; margin-top: auto; flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-xxs); font-weight: 600; padding: 0; background: none; line-height: 1.2; }
 .ag-evt .ag-proba .dot { width: 5px; height: 5px; }
 /* Vue Semaine : titre sur plusieurs lignes, puis « 10:00 · BA ». */
 .ag-evt.ag-evt-compact { gap: 2px; }

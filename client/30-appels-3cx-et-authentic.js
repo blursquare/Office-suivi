@@ -1352,7 +1352,9 @@
     // Détail du lot ouvert (volet « Informations générales » du lot).
     const v = (test) => valeurChampAuthentic(champs, test);
     const numDetail = v(n => /^(n°|no) de lot$/.test(n));
-    if (/^\d+$/.test(numDetail)) {
+    // Le « N° de lot » d'un LOTISSEMENT n'est pas un lot de copropriété (étude 19/10) : seul le volet d'un lot de copropriété compte.
+    const voletCopro = champs.some(ch => /lotDetailsComponent/i.test(ch.libelle || '')) || v(n => /^tantiemes? lot$/.test(n));
+    if (/^\d+$/.test(numDetail) && voletCopro) {
       let lot = lots.find(x => x.numero === numDetail);
       if (!lot) { lot = { numero: numDetail, type: null, batiment: null, etage: null, entree: null, tantiemes: null, designation: null, surface: null, surfaceCarrez: null }; lots.push(lot); }
       const typeDetail = v((n, b) => /lotDetailsComponent.*:type:selectonemenu_input/i.test(b));
@@ -1410,7 +1412,7 @@
   // terrain à bâtir reste souvent cadastré en terre tant qu'il n'est pas construit).
   function typeVenteFicheBienAuthentic(typeBrut, designation, parcelles, avecLots) {
     if (/maison|pavillon|villa/.test(typeBrut)) return 'maison';
-    if (/appartement|copropri|(?<![a-z])lot(?![a-z])/.test(typeBrut) || avecLots) return 'copropriete';
+    if (/appartement|copropri/.test(typeBrut) || (/(?<![a-z])lot(?![a-z])/.test(typeBrut) && !/lotissement/.test(typeBrut + ' ' + designation)) || avecLots) return 'copropriete';
     if (RE_TYPE_BATI.test(typeBrut)) return null;
     const terrain = /terrain/.test(typeBrut);
     if (/a batir|constructible|lotissement|viabilis/.test(typeBrut + ' ' + designation)) return terrain ? 'terrain' : null;
@@ -1514,8 +1516,8 @@
       const cap = r && r.capture;
       if (!cap) return;
       const type = typePageAuthentic(cap);
-      const onglet = !intituleDossierAuthentic(cap) && (type === 'bien' || type === 'client') ? intituleOngletActifAuthentic(cap) : '';
-      const intitule = intituleDossierAuthentic(cap) || (onglet && cleIntituleAuthentic(onglet) !== cleIntituleAuthentic(courant) ? onglet : courant);
+      // Une fiche sans intitulé va au dernier dossier vu — jamais si l'onglet actif est celui d'un autre dossier (étude 19/10).
+      const intitule = intituleDossierAuthentic(cap) || (ongletActifAutreDossierAuthentic(cap, courant) ? '' : courant);
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
@@ -1683,13 +1685,15 @@
     const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
     const premier = String(personne.prenom || '').trim().split(/\s+/)[0] || '';
     const parties = Array.isArray(d.parties) ? d.parties : [];
-    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet)
+    const usage = personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : '';
+    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet) || (usage && memePersonneParNom(p.nom, usage))
       || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
     if (trouvee) return trouvee;
     if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
     // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.
-    const noms = [complet, personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : ''].filter(Boolean);
-    const comp = premier ? comparantsSuccession(d).find(c => noms.some(n => memePersonneNommee(n, c.nom))) : null;
+    const noms = [complet, usage].filter(Boolean);
+    const premierDe = (c) => normaliserPourRecherche(nomPrenomsComparant(c.nom).prenoms.split(/\s+/)[0] || '');
+    const comp = premier ? comparantsSuccession(d).find(c => c.role === 'HERITIER' && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
     if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
     return null;
   }
@@ -2689,12 +2693,10 @@
         d.intituleAuthentic = String(lu).slice(0, 150);
         referenceNotee = true;
       }
-    } else if (typePageAuthentic(capture) === 'bien' && intituleOngletActifAuthentic(capture)) {
-      // Fiche bien ouverte dans l'onglet d'un dossier : ce dossier, ou rien s'il n'est pas dans CLAIRE — jamais le dernier dossier vu.
-      d = dossierOngletActifAuthentic(capture, dossiers);
-      if (!d) return { etat: 'sans-dossier', texte: 'fiche bien d’un dossier d’Authentic absent de CLAIRE' };
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
+      // Onglet actif d'un AUTRE dossier (titre coupé ou absent de CLAIRE) : rien n'est rangé dans le dernier dossier vu (étude 19/10).
+      if (d && ongletActifAutreDossierAuthentic(capture, [d.nom, d.intituleAuthentic].filter(Boolean).join(' '))) return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un autre dossier d’Authentic : non rangée' };
     }
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.

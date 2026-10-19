@@ -753,3 +753,14 @@ test('fiche client d’un héritier nommé seulement dans les comparants : ratta
   assert.equal(d.parties.map(p => p.nom).join('|'), 'Claire TESTARD');
   assert.equal(d.parties[0].emails[0], 'claire@exemple.fr');
 });
+
+test('héritier des comparants : pas de doublon sous le nom d’usage, premier prénom exigé, jamais le défunt (relecture 19/10)', () => {
+  const d = base({ id: 's13', nom: 'SUCC - TESTARD Lucien', parties: [{ nom: 'Nathalie BAZIN', role: 'PARTIE' }],
+    authentic: { comparants: [{ role: 'DEFUNT', nom: 'TESTARD Lucien' }, { role: 'HERITIER', nom: 'TESTARD Nathalie' }, { role: 'HERITIER', nom: 'TESTARD Claire Marie' }] } });
+  app.appliquerClientSuccession(d, { nom: 'TESTARD', prenom: 'Nathalie', nomUsage: 'BAZIN' }, () => {}, { modifie: false }, '2026-10-19T09:00:00Z');
+  assert.equal(d.parties.map(p => p.nom).join('|'), 'Nathalie BAZIN');
+  // « Marie TESTARD » n'est pas l'héritière « Claire Marie TESTARD » (premier prénom différent).
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Marie' }), '');
+  // Un homonyme vivant du défunt n'entre pas par les comparants.
+  assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Lucien' }), '');
+});

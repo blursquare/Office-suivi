@@ -214,7 +214,23 @@
     return intitule ? dossierPourIntituleAuthentic(intitule, liste, '', referenceDossierAuthentic({ onglets: [o] })) : null;
   }
   function ongletDossierActifAuthentic(capture) {
-    return ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(x.titre || '') || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(x.titre || ''))) || null;
+    // Titre réel : référence en tête (« A 2026 00106 VTE X / Y », relecture 19/10) — retirée avant de reconnaître le dossier.
+    return ((capture && capture.onglets) || []).find(x => x && x.actif && (/^\s*\d{1,6}\s*-/.test(sansReferenceAuthentic(x.titre)) || RE_INTITULE_VTE_SEUL_AUTHENTIC.test(sansReferenceAuthentic(x.titre)))) || null;
+  }
+  // Pure : l'onglet actif d'Authentic est celui d'un AUTRE dossier que `noms` (nom du dernier dossier vu) ? Un onglet de dossier (VTE,
+  // Vente, SUCC, Succession, « N - », référence) dont aucun nom ne se retrouve dans ce dossier — même coupé à l'affichage
+  // (« VTE BOURNOUVE... ») — n'est pas lui (étude 19/10 : fiche bien d'une autre vente rangée dans la succession VIEL). Sans onglet de
+  // dossier actif : on ne sait pas, `false`.
+  function ongletActifAutreDossierAuthentic(capture, noms) {
+    const o = ((capture && capture.onglets) || []).find(x => x && x.actif);
+    const titre = o ? sansReferenceAuthentic(o.titre) : '';
+    if (!titre || !(/^\s*(?:\d{1,6}\s*-|vte\b|vente\b|succ\b|succession\b)/i.test(titre) || RE_REFERENCE_AUTHENTIC.test(String(o.titre || '')))) return false;
+    const mots = (t) => normaliserPourRecherche(String(t || '')).replace(/\.{2,}|…/g, ' ').split(/[^a-z0-9]+/).filter(m => m.length >= 3 && !/^(vte|vente|succ|succession|veuve|epouse|epoux|consorts?)$/.test(m));
+    const duTitre = mots(titre);
+    if (!duTitre.length) return false;
+    const duDossier = new Set(mots(noms));
+    // Un mot coupé (« BOURNOUVE... ») compte s'il commence un nom du dossier.
+    return !duTitre.some(m => duDossier.has(m) || [...duDossier].some(x => x.startsWith(m) && m.length >= 4));
   }
   // Pure : l'intitulé du dossier de l'onglet actif d'Authentic (même absent de CLAIRE), '' sinon — une fiche ouverte dans l'onglet d'un AUTRE
   // dossier n'est jamais celle du dernier dossier vu (étude 19/10 : fiche bien d'une vente rangée dans la succession VIEL).

@@ -1654,17 +1654,34 @@ test('succession sans « Succession » dans l’en-tête : bandeau SUCC, veuve/v
   assert.equal(g.aCreer, true);
 });
 
-test('fiche bien ouverte dans l’onglet d’un AUTRE dossier : jamais rangée dans le dernier dossier vu (étude 19/10, succession VIEL)', () => {
-  const autre = Object.assign(JSON.parse(JSON.stringify(bien)), { onglets: [{ titre: 'VTE MARTEL / FOURNIER', actif: false }, { titre: 'VTE COLIN / DUPUIS', actif: true }] });
+test('fiche bien ouverte dans l’onglet d’un AUTRE dossier (titre coupé) : jamais rangée dans le dernier dossier vu (étude 19/10, succession VIEL)', () => {
+  const autre = Object.assign(JSON.parse(JSON.stringify(bien)), { onglets: [{ titre: 'A 2026 00100 VTE MARTEL / FOURNIER', actif: false }, { titre: 'VTE BOURNOU...', actif: true }] });
   const groupes = app.dossiersDepuisRelevesAuthentic([
     { recueLe: '2026-10-19T09:30:00Z', capture: gestion },
     { recueLe: '2026-10-19T09:31:00Z', capture: autre }
   ]);
-  const martel = groupes.find(g => /MARTEL/.test(g.intitule));
-  assert.equal(martel.export.immeubles.length, 0);
-  assert.ok(groupes.some(g => /COLIN/.test(g.intitule) && g.export.immeubles.length === 1));
-  assert.match(app.intituleOngletActifAuthentic(autre), /COLIN \/ DUPUIS/);
-  // Sans onglet de dossier actif : le dernier dossier vu, comme avant.
+  assert.equal(groupes.find(g => /MARTEL/.test(g.intitule)).export.immeubles.length, 0);
+  // Onglet du même dossier, même coupé, ou sans onglet de dossier : le dernier dossier vu, comme avant.
+  assert.equal(app.ongletActifAutreDossierAuthentic({ onglets: [{ titre: 'VTE MARTEL / FOURN...', actif: true }] }, 'Vente MARTEL / FOURNIER'), false);
+  assert.equal(app.ongletActifAutreDossierAuthentic({ onglets: [{ titre: 'Succ Christian TESTARD', actif: true }] }, 'SUCC - TESTARD Christian'), false);
+  assert.equal(app.ongletActifAutreDossierAuthentic({ onglets: [{ titre: 'Succ Christian TESTARD', actif: true }] }, 'Vente MARTEL / FOURNIER'), true);
+  assert.equal(app.ongletActifAutreDossierAuthentic({ onglets: [{ titre: 'Recherche Dossiers', actif: true }] }, 'Vente MARTEL / FOURNIER'), false);
   const seul = app.dossiersDepuisRelevesAuthentic([{ recueLe: '2026-10-19T09:30:00Z', capture: gestion }, { recueLe: '2026-10-19T09:31:00Z', capture: bien }]);
   assert.equal(seul[0].export.immeubles.length, 1);
+});
+
+test('onglet réel d’Authentic, référence en tête : reconnu (relecture 19/10)', () => {
+  const dossiers = [{ id: 'a', nom: 'COLIN / DUPUIS', referenceAuthentic: 'A 2026 00300' }];
+  const cap = { onglets: [{ titre: 'A 2026 00300 VTE COLIN / DUPUIS', actif: true }] };
+  assert.match(app.intituleOngletActifAuthentic(cap), /COLIN \/ DUPUIS/);
+  assert.equal(app.dossierOngletActifAuthentic(cap, dossiers).id, 'a');
+});
+
+test('lotissement : un « N° de lot » sans volet de copropriété n’est pas un lot (étude 19/10)', () => {
+  const lotiss = JSON.parse(JSON.stringify(bien));
+  lotiss.champs.push({ groupe: 'Informations du bien', libelle: 'Lotissement', valeur: 'true' }, { groupe: 'Informations du bien', libelle: 'N° de lot', valeur: '12' });
+  const b = app.bienDepuisFicheAuthentic(lotiss);
+  assert.equal(b.type, 'maison');
+  assert.equal(b.lots.length, 0);
+  assert.equal(app.lotsFicheAuthentic(lotiss).lots.length, 0);
 });
