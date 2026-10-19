@@ -9752,8 +9752,13 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-envoi .cst-word { margin-left: auto; }
 .cst-envoi .hint { flex: 1 1 100%; margin: 0; }
 .cst-edition-corps textarea { width: 100%; resize: vertical; }
-.cst-rep-resultats { display: flex; flex-direction: column; max-height: 132px; overflow: auto; margin-top: 4px; }
-.cst-rep-resultats .dash-recherche-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Propositions du répertoire (étude 19/10 : « pas très jolie ») : une liste en carte, nom puis ville sur deux lignes, sans défilement de côté. */
+.cst-rep-resultats { display: flex; flex-direction: column; max-height: 232px; overflow-x: hidden; overflow-y: auto; margin-top: 6px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); scrollbar-width: thin; }
+.cst-rep-resultats:empty { display: none; }
+.cst-rep-resultats .dash-recherche-ligne { flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 12px; min-width: 0; }
+.cst-rep-resultats .dash-recherche-nom, .cst-rep-resultats .dash-recherche-resp { display: block; width: 100%; min-width: 0; flex-shrink: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cst-rep-resultats .dash-recherche-nom { font-size: var(--texte-m); font-weight: 600; white-space: normal; overflow-wrap: anywhere; }
+.cst-rep-resultats .dash-recherche-resp { font-size: var(--texte-s); }
 .succ-personne { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .succ-actes { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .succ-acte { display: inline-flex; align-items: center; gap: 6px; }

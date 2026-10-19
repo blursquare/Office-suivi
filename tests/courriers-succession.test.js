@@ -34,6 +34,11 @@ test('bloc du défunt : sans soulignement (variables d’Authentic), lignes abse
   assert.equal(l[3], 'Date et lieu de décès : le 14 septembre 2026 à BLOIS (41000)');
   assert.equal(l[4], 'Veuve de : Monsieur Paul Henri MARTIN');
   assert.equal(C.lignesBlocDefunt({ civilite: 'Monsieur', nom: 'X' }).length, 1);
+  // Régime matrimonial de la fiche (étude 19/10), sous le conjoint.
+  const r = C.lignesBlocDefunt(Object.assign({}, defunt, { regime: 'Communauté légale nouvelle' }));
+  assert.equal(r[5], 'Régime matrimonial : Communauté légale nouvelle');
+  assert.equal(C.lignesBlocDefunt(Object.assign({}, defunt, { conjointLien: 'Divorcée de', regime: 'Séparation de biens' })).length, 5, 'divorcée : pas de régime');
+  assert.equal(C.lignesBlocDefunt(Object.assign({}, defunt, { conjointNom: '', regime: 'Séparation de biens' })).length, 4, 'sans conjoint nommé : pas de régime');
 });
 
 test('disposition : adresse à la 2e ligne (à la 1re dès quatre lignes), quatre lignes vides, le défunt, deux lignes vides, la formule d’appel', () => {

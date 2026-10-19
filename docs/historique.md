@@ -20959,3 +20959,10 @@ droits de l'acte du décompte (`fraisActeEstimesAppelFonds`), le contrôle du ba
   n'est jamais touché.
 La ligne « Authentic — 0 fiche client · 0 bien · 0 document » d'un dossier d'avant le 17/10 n'est pas un bug : les pages ne sont gardées
 par le serveur que depuis cette date ; rouvrir le dossier dans Authentic les remplit.
+
+### 19/10/2026 — 0.290.5 : régime du défunt dans les courriers, propositions du répertoire
+
+Étude (BARON) : « le régime matrimonial du défunt ne ressort pas alors qu'il est dans sa fiche » — `lignesBlocDefunt` (commun/courriers-succession.js)
+ajoute « Régime matrimonial : … » sous la ligne du conjoint quand `defuntConstitution` le donne (fiche d'Authentic, sinon saisi) ; ligne
+ajoutée aux modèles de l'étude à sa demande. « Pas très jolie pour les propositions » : la liste « Chercher dans le répertoire » de la
+Constitution est une carte, nom (sur deux lignes au besoin) puis ville, sans barre de défilement horizontale (`.cst-rep-resultats`).

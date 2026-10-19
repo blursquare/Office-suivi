@@ -1183,14 +1183,14 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const c = df.champs;
     const civ = `<div class="calc-champ"><label>Civilité</label><select class="prop-champ" onchange="cstDefunt('civilite', this.value); cstDefuntFin()"><option${c.civilite === 'Madame' ? ' selected' : ''}>Madame</option><option${c.civilite === 'Monsieur' ? ' selected' : ''}>Monsieur</option></select></div>`;
     const f = (champ, libelle, type, placeholder, large) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, fin: 'cstDefuntFin()' });
-    return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)}${df.regime || df.situation ? ` <span class="hint">${escapeHtml(df.situation || '')}${df.regime ? ' · régime : ' : ''}${df.regime ? `<strong>${escapeHtml(df.regime)}</strong>` : ''}</span>` : ' <span class="hint">Régime matrimonial non renseigné dans Authentic.</span>'}</p>
+    return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)}${(df.champs.regime || df.regime) || df.situation ? ` <span class="hint">${escapeHtml(df.situation || '')}${(df.champs.regime || df.regime) ? ' · régime : ' : ''}${(df.champs.regime || df.regime) ? `<strong>${escapeHtml((df.champs.regime || df.regime))}</strong>` : ''}</span>` : ' <span class="hint">Régime matrimonial non renseigné dans Authentic.</span>'}</p>
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
       <div class="calc-champs cst-grille">${civ}${f('prenoms', 'Prénoms', 'text', 'Alice Marcelle')}${f('nom', 'Nom', 'text', 'FRA')}
         ${f('domicile', 'Domicile', 'text', 'BRACIEUX (41250), 31 rue de Candy', true)}
         ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)')}
         ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)')}
         <div class="calc-champ"><label>Situation</label><select class="prop-champ" onchange="cstDefunt('conjointLien', this.value); majApercuConstitution()">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(l => `<option value="${escapeAttr(l)}"${c.conjointLien === l ? ' selected' : ''}>${l || '—'}</option>`).join('')}</select></div>
-        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}</div>`;
+        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}${f('regime', 'Régime matrimonial', 'text', 'Communauté légale')}</div>`;
   }
   function cstDefuntApercu(champ, valeur) { cstDefunt(champ, valeur); majApercuConstitution(); }
 
@@ -1311,7 +1311,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   }
 
   function lignesContactsConstitution(liste, idDoc) {
-    return liste.map(c => `<button type="button" class="dash-recherche-ligne" onclick="cstChoisirContact('${idDoc}', '${escapeOnclickArg(c.id)}')">
+    return liste.map(c => `<button type="button" class="dash-recherche-ligne" title="${escapeAttr([[c.organisme, c.service].filter(Boolean).join(' — '), c.adresse].filter(Boolean).join('\n'))}" onclick="cstChoisirContact('${idDoc}', '${escapeOnclickArg(c.id)}')">
         <span class="dash-recherche-nom">${escapeHtml([c.organisme, c.service].filter(Boolean).join(' — ') || (c.personnes || [])[0] || '')}</span>
         <span class="dash-recherche-resp">${escapeHtml(String(c.adresse || '').split(/\n|,/).slice(-1)[0] || '')}</span></button>`).join('');
   }

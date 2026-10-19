@@ -19,7 +19,7 @@
 
   /**
    * @typedef {{ civilite?: string, prenoms?: string, nom?: string, domicile?: string, naissanceDate?: string, naissanceLieu?: string,
-   *   decesDate?: string, decesLieu?: string, conjointLien?: string, conjointNom?: string }} DefuntCourrier
+   *   decesDate?: string, decesLieu?: string, conjointLien?: string, conjointNom?: string, regime?: string }} DefuntCourrier
    * @typedef {{ f: boolean, nomUsuel: string, texteLibre: string }} VariablesCourrier
    * @typedef {{ cle: string, libelle: string, destinataire: string[], salutation: string, blancsSignature: number, lignes: (v: VariablesCourrier) => string[] }} ModeleCourrierSuccession
    */
@@ -167,7 +167,12 @@
     if (naissance) lignes.push(`Date et lieu de naissance : ${naissance}`);
     const deces = lieuDate(d.decesDate, d.decesLieu);
     if (deces) lignes.push(`Date et lieu de décès : ${deces}`);
-    if (String(d.conjointLien || '').trim() && String(d.conjointNom || '').trim()) lignes.push(`${String(d.conjointLien).trim()} : ${String(d.conjointNom).trim()}`);
+    const avecConjoint = !!(String(d.conjointLien || '').trim() && String(d.conjointNom || '').trim());
+    if (avecConjoint) lignes.push(`${String(d.conjointLien).trim()} : ${String(d.conjointNom).trim()}`);
+    // Régime matrimonial (étude 19/10 : « il ne ressort pas alors qu'il est dans sa fiche ») : celui de la fiche d'Authentic ou saisi, sous
+    // « Époux de » ou « Veuf de » seulement (jamais le régime d'un mariage dissous par divorce), ni « Sans… ».
+    const regime = String(d.regime || '').trim();
+    if (avecConjoint && /^(?:[ée]pou|veu)/i.test(String(d.conjointLien).trim()) && regime && !/^(?:sans|aucun)/i.test(regime)) lignes.push(`Régime matrimonial : ${regime}`);
     return lignes;
   }
 
