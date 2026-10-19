@@ -209,32 +209,13 @@
     return true;
   }
 
-  // ---- Tableau de bord : cartes en cascade au démarrage seulement (pas à chaque retour sur l'écran), et UNE fois : la classe n'est posée
-  // que sur les premières cartes affichées. Le tableau de bord se redessine plusieurs fois pendant que les données arrivent ; une classe
-  // sur <body> relançait l'apparition à chaque redessin (étude 19/10 : « les animations clignotent vite plusieurs fois au début »).
-  function cascadeDemarrage() {
-    if (!document.body || !document.body.classList) return;
-    document.body.classList.add('anim-demarrage');
-    setTimeout(() => document.body.classList.remove('anim-demarrage'), 2500);
-    const debut = Date.now();
-    const poser = () => {
-      const cartes = document.querySelectorAll('.widgets-grille > .widget');
-      if (cartes.length) {
-        cartes.forEach(c => c.classList.add('anim-entree'));
-        setTimeout(() => cartes.forEach(c => c.classList.remove('anim-entree')), 700);
-        return;
-      }
-      if (Date.now() - debut < 3000) setTimeout(poser, 40);
-    };
-    poser();
-  }
+  // Tableau de bord : plus aucune animation au démarrage (étude 19/10 : « retire l'animation des widgets qui s'affiche au démarrage »).
 
   function initAnimations() {
     if (typeof document.addEventListener !== 'function') return;
     observerMontants();
     observerCourriers();
     document.addEventListener('click', noterClicEnregistrer, true);
-    cascadeDemarrage();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initAnimations);
   else initAnimations();

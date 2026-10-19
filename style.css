@@ -9999,23 +9999,6 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 .app-main > .onglet-panel, .reglages-panneau:not([hidden]), .app-main > .drawer-overlay .drawer-panneau { animation: anim-fondu 180ms var(--anim-courbe); }
 @keyframes anim-fondu { from { opacity: 0; } to { opacity: 1; } }
 
-/* 7. Tableau de bord : cartes en cascade une seule fois au démarrage (classe posée sur les premières cartes affichées, jamais sur celles
-   d'un redessin — étude 19/10 : « les animations clignotent vite plusieurs fois au début »), squelette gris tant que leurs données n'ont pas répondu. */
-.widgets-grille > .widget.anim-entree { animation: anim-apparait 220ms var(--anim-courbe) both; }
-.widgets-grille > .widget.anim-entree:nth-child(2) { animation-delay: 30ms; }
-.widgets-grille > .widget.anim-entree:nth-child(3) { animation-delay: 60ms; }
-.widgets-grille > .widget.anim-entree:nth-child(4) { animation-delay: 90ms; }
-.widgets-grille > .widget.anim-entree:nth-child(5) { animation-delay: 120ms; }
-.widgets-grille > .widget.anim-entree:nth-child(6) { animation-delay: 150ms; }
-.widgets-grille > .widget.anim-entree:nth-child(7) { animation-delay: 180ms; }
-.widgets-grille > .widget.anim-entree:nth-child(n+8) { animation-delay: 210ms; }
-body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none"]) {
-  min-height: 72px; border-radius: var(--rayon-m);
-  background: linear-gradient(90deg, var(--paper-sunk) 0%, color-mix(in srgb, var(--paper-sunk) 40%, var(--paper-card)) 50%, var(--paper-sunk) 100%) 0 0 / 200% 100%;
-  animation: anim-squelette 1200ms linear infinite;
-}
-@keyframes anim-squelette { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-
 /* 8. Tiroir des outils : les liens arrivent du haut en glissant (aucune hauteur animée). */
 .sidebar-sousmenu:not(.ferme) > * { animation: anim-glisse 200ms var(--anim-courbe) backwards; }
 @keyframes anim-glisse { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
@@ -10030,8 +10013,8 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
 @media (prefers-reduced-motion: reduce) {
   .anim-etape-coche.anim-trace path, .ja.fait.vient-de-finir .ja-coche, .ja.fait.vient-de-finir .ja-titre, .jour-anneau.vient-de-compter .jour-anneau-plein,
   .jour-anneau.vient-de-compter .jour-anneau-texte, .anim-enregistre, .app-main > .onglet-panel, .reglages-panneau:not([hidden]),
-  .app-main > .drawer-overlay .drawer-panneau, .widgets-grille > .widget.anim-entree, .sidebar-sousmenu:not(.ferme) > *,
-  .piece-tuile.anim-pose .piece-tuile-etat, .piece-tuile.anim-pose .piece-tuile-icone, body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none"]) { animation: none; }
+  .app-main > .drawer-overlay .drawer-panneau, .sidebar-sousmenu:not(.ferme) > *,
+  .piece-tuile.anim-pose .piece-tuile-etat, .piece-tuile.anim-pose .piece-tuile-icone { animation: none; }
   .ja.fait.vient-de-finir .ja-titre { text-decoration: line-through; text-decoration-color: var(--line); background: none; }
   wa-stepper.outil-sommaire wa-step::part(connector) { transition: none; }
   .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }

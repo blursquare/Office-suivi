@@ -2553,7 +2553,7 @@
     // un mois. La comparaison à l'année reste calculée mais n'est pas affichée (demande de l'étude).
     const evolution = calculerEvolutionPortefeuille(dossiersTousPerimetre || dossiers);
     const tMois = formaterTendance(evolution.ecartMois);
-    const anime = !portefeuilleDejaAnime && st.actifs > 0;
+    const anime = false; // étude 19/10 : aucune animation des widgets au démarrage
     if (st.actifs > 0) portefeuilleDejaAnime = true;
     const etats = presentation === 'petit' ? ETATS_DOSSIER.filter(g => st.parEtat[g.cle]) : ETATS_DOSSIER;
     const legende = etats.map(g => `

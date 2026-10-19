@@ -32,7 +32,7 @@ test('« réduire les animations » : tout mouvement de CLAIRE a sa règle d’a
   const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
   const bloc = css.slice(css.indexOf('/* ==== Animations qui aident à comprendre'));
   const reduit = bloc.slice(bloc.lastIndexOf('@media (prefers-reduced-motion: reduce)'));
-  for (const sel of ['.anim-etape-coche.anim-trace path', '.ja.fait.vient-de-finir .ja-coche', '.app-main > .onglet-panel', '.widgets-grille > .widget.anim-entree', '.sidebar-sousmenu:not(.ferme) > *', '.piece-tuile.anim-pose .piece-tuile-etat']) {
+  for (const sel of ['.anim-etape-coche.anim-trace path', '.ja.fait.vient-de-finir .ja-coche', '.app-main > .onglet-panel', '.sidebar-sousmenu:not(.ferme) > *', '.piece-tuile.anim-pose .piece-tuile-etat']) {
     assert.ok(reduit.includes(sel), `arrêt manquant pour ${sel}`);
   }
   // Jamais la taille de la mise en page : aucune animation de width, height, margin ou padding dans le bloc.

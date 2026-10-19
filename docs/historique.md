@@ -21058,3 +21058,5 @@ au démarrage `retirerBiensDAutresDossiers` ne retire QUE le bien principal d'un
 décidant quand les deux en ont une ; `biensDossier` remplacé en entier à la fusion des infos, le plus récent gardé à la réunion des
 groupes ; filtre de l'export sans effet sur une succession ; « Formalit » marque la fin de la rubrique ; point terrain
 `authentic-fiche-bien-hors-onglet` (risque : Authentic ouvrirait une fiche bien dans un onglet à elle).
+Étude 19/10 : « retire l'animation des widgets qui s'affiche au démarrage » — cascade des cartes (`cascadeDemarrage`, `.anim-entree`),
+squelette gris (`body.anim-demarrage`) et premier remplissage de l'anneau « Portefeuille » retirés ; les autres animations utiles restent.
