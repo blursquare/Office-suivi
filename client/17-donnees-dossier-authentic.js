@@ -84,7 +84,11 @@
       nom, role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur', qualitePersonne: 'morale', representant: null, origine: 'authentic',
       source: { extrait: 'Export Authentic', index: null, page: null }, emails: [], telephones: []
     }));
-    return personnes.filter(p => roles.has(p)).map(p => {
+    // Les comparants de la page du dossier disent qui est partie (étude 09/10, banc du 19/10 : la fiche de la conjointe du vendeur, du
+    // même nom, la faisait vendeuse) — seulement quand les deux côtés ont été lus.
+    const comparants = (d.infosAuthentic && Array.isArray(d.infosAuthentic.comparants)) ? d.infosAuthentic.comparants : [];
+    const lus = comparants.some(c => c.role === 'VENDEUR') && comparants.some(c => c.role === 'ACQUEREUR');
+    return personnes.filter(p => roles.has(p) && (!lus || personneDansComparantsAuthentic(comparants, p, roles.get(p)))).map(p => {
       const role = roles.get(p);
       return Object.assign({
         nom: [p.prenom, p.nom].filter(Boolean).join(' '),

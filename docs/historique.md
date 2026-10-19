@@ -21066,3 +21066,17 @@ autrement ; `retirerBiensDAutresDossiers` ne vide jamais la liste ; une fiche bi
 (`appliquerBienAuthentic`, ni parcelles ni type ni pièce) ; seuls les codes postaux plausibles suivis d'un mot comptent (jamais un tantième
 « 125/10000 »), et moins de codes postaux que de biens annoncés = on ne sait pas ; fins de rubrique élargies (Mails, Courrier, Demande,
 Banque, Rédaction, État civil, Parties prenantes).
+
+### 19/10/2026 (soir) — banc Authentic → CLAIRE de bout en bout
+
+Étude : « aujourd'hui le plus gros souci vient de la liaison Authentic / CLAIRE ; avec toutes les modifications je ne sais plus ce qui
+fonctionne ou non ; teste tous les scénarios possibles en sandbox ; corrige, il faut que demain ça fonctionne ». `tests/fumee/authentic-scenarios.mjs`
+(`npm run scenarios-authentic`, dans `npm run fumee` et `verifier.yml`) : vrai serveur en mémoire, vraie fenêtre CLAIRE (Chromium), pages envoyées
+par POST /api/authentic/releve au format de l'extension, fiche relue en base et journal du serveur. 31 scénarios, 59 constats. Défauts trouvés et
+corrigés : (1) page remise par le serveur à une fenêtre qui se fermait/rechargeait (F5, mise à jour) restée « prise » à jamais — remise en file
+après 90 s sans compte rendu, 3 essais (`DUREE_REPRISE_RELEVE_MS`, `ESSAIS_RELEVE_MAX`), et jamais remise à une connexion déjà fermée ;
+(2) empreinte anti-doublon du serveur = champs + tableaux seulement : deux dossiers sans pièce distincte ouverts l'un après l'autre → le second
+écarté — l'onglet actif et l'intitulé y entrent (extension 0.3.10 : même chose côté extension) ; (3) même nom des deux côtés : le prénom porté
+à part (`p.prenom`) n'était pas lu (`roleClientAuthenticParNom`) ; (4) reprise automatique des personnes d'un groupe sans les comparants : la
+conjointe du vendeur (même nom) devenait vendeuse — `partiesExportAuthentic` respecte les comparants lus (`personneDansComparantsAuthentic`) ;
+(5) fiche du défunt non rattachée quand le nom du dossier n'a pas son prénom — le comparant « Défunt » suffit (`partieSuccessionDeLaFiche`).

@@ -1158,6 +1158,11 @@ sont plus appelées par le poste.
   tableau de bord, chaque écran de la barre latérale, une fiche de chaque sorte et ses onglets — **aucune erreur de page ni de
   console**. Le faux guichet de l'extension (`tests/fumee/extension-gnau.mjs`, ≈ 10 min) n'est joué que si l'extension ou ce qu'elle lit a changé (`scripts/fumee-extension-si-besoin.js`, étude 18/10 ; `--forcer` sinon). Lancé par la construction du `.exe` après les deux suites : c'est le seul filet contre une erreur d'exécution (ordre
   de chargement, `undefined.x` au rendu). Un nouvel écran de la barre latérale s'ajoute à `ONGLETS`. `npm run verifier` l'inclut.
+- **`npm run scenarios-authentic`** (19/10, `tests/fumee/authentic-scenarios.mjs`, lancé par `npm run fumee` et sur GitHub) : banc Authentic → CLAIRE
+  de bout en bout — le vrai serveur, une vraie fenêtre CLAIRE dans Chromium, les pages d'Authentic envoyées par la route de l'extension au format de
+  `releve.js` (31 scénarios : rattachement par noms puis par référence, fiches client et bien, onglets, recherche d'immeubles, deux dossiers ouverts,
+  même nom des deux côtés, conjoint, promesse, ancien dossier, copropriété, deux biens, succession, création, page revue, fenêtre fermée, deux
+  fenêtres…). **Tout changement de la liaison avec Authentic ajoute ou adapte son scénario.**
 - `tests/helpers/load-app.js` charge les fichiers de `client/manifest.json`, dans l'ordre, dans un `vm.Context` avec un faux DOM. Deux
   limites : seules les `function` et `var` de premier niveau y sont visibles (un `const`/`let` est
   invisible) ; un tableau venu du contexte `vm` fait échouer `assert.deepEqual` — comparer des

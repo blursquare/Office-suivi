@@ -35,7 +35,8 @@
     }
     derniereNavigation = '';
     // Empreinte sans le texte libre (qui bouge avec l'horloge ou les notifications d'Authentic).
-    const empreinte = JSON.stringify([c.champs, c.tableaux]);
+    // L'onglet actif compte (0.3.10) : deux dossiers aux tableaux identiques ouverts l'un après l'autre partent tous les deux.
+    const empreinte = JSON.stringify([c.champs, c.tableaux, (c.onglets || []).filter(o => o.actif).map(o => o.titre)]);
     if (empreinte === derniere) return;
     derniere = empreinte;
     // Page non arrivée à CLAIRE (éteinte, réseau) : renvoyée dans 30 s si elle est toujours affichée

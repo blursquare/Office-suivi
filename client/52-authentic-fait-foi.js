@@ -473,6 +473,14 @@
     const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
     const noms = [personne.nom, personne.nomUsage].filter(Boolean).map(n => mots(n).trim()).filter(Boolean);
     if (!comparants.length) return noms.some(n => roleClientAuthenticParNom(d, n, personne.prenom) === role);
+    return personneDansComparantsAuthentic(comparants, personne, role);
+  }
+
+  // Pure : la personne (nom, nom d'usage, prénom) est-elle comparante de ce côté dans la liste des comparants d'Authentic ? Le prénom
+  // départage dès que le comparant en porte un (« MARTEL Alexandre » n'est pas Sophie MARTEL).
+  function personneDansComparantsAuthentic(comparants, personne, role) {
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const noms = [personne.nom, personne.nomUsage].filter(Boolean).map(n => mots(n).trim()).filter(Boolean);
     const prenom = mots(personne.prenom).trim().split(' ')[0] || '';
     return comparants.some(c => c.role === role && noms.some(n => mots(c.nom).includes(' ' + n + ' '))
       && (!prenom || !/[a-z]{2,}\s+[a-z]{2,}/.test(mots(c.nom).trim()) || mots(c.nom).includes(' ' + prenom + ' ')));

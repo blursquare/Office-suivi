@@ -80,6 +80,10 @@ var DUREE_FENETRE_VUE_MS = 90 * 1000;
 var DUREE_DOUBLON_MS = 15 * 1000;
 var DUREE_JOURNAL_MS = 24 * 60 * 60 * 1000;
 var MAX_JOURNAL = 100;
+// Page remise à une fenêtre qui n'en a jamais rendu compte (fenêtre fermée, rechargée ou mise à jour pendant l'attente — banc Authentic du
+// 19/10 : la page restait « prise » et n'était jamais appliquée) : remise en file après ce délai, trois fois au plus.
+var DUREE_REPRISE_RELEVE_MS = 90 * 1000;
+var ESSAIS_RELEVE_MAX = 3;
 var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-creer', 'erreur', 'rattache'];
 // Les résultats où la page a été rangée dans un dossier (gardée pour lui).
 var ETATS_RANGES = ['applique', 'sans-changement', 'rattache'];
@@ -133,6 +137,8 @@ function creerRouteurAuthentic(options) {
   let recents = [];
   // Fenêtres en attente d'un relevé (la plus ancienne servie la première : une seule prend la file).
   const attentes = [];
+  // Pages remises à une fenêtre, sans compte rendu encore : id → { releve, t, essais }.
+  const enCours = new Map();
   // Fenêtres CLAIRE vues, par poste : { vu, poste } (poste = collaborateur choisi sur la fenêtre).
   const fenetres = new Map();
   // Journal des pages reçues (mémoire seule).
@@ -156,7 +162,11 @@ function creerRouteurAuthentic(options) {
     }
     aTraiter = reste;
     const t = new Date(maintenant()).toISOString();
-    pris.forEach(r => { if (r.capture) noter(r, { etat: 'pris', prisLe: t, prisPar: poste || '' }); });
+    pris.forEach(r => {
+      if (!r.capture) return;
+      noter(r, { etat: 'pris', prisLe: t, prisPar: poste || '' });
+      enCours.set(r.id, { releve: r, t: maintenant(), essais: (r.essais || 0) + 1 });
+    });
     return pris;
   };
   const voir = (req) => {
@@ -179,6 +189,14 @@ function creerRouteurAuthentic(options) {
   const empreintes = new Map();
   const purgerReleves = () => {
     const t = maintenant();
+    // Remise en file d'une page prise sans compte rendu (la fenêtre a disparu entre-temps).
+    for (const [id, e] of enCours) {
+      if (t - e.t < DUREE_REPRISE_RELEVE_MS) continue;
+      enCours.delete(id);
+      if (e.essais >= ESSAIS_RELEVE_MAX || t - Date.parse(e.releve.recueLe) > DUREE_RELEVE_MS) { noter(e.releve, { etat: 'expire' }); continue; }
+      aTraiter.unshift(Object.assign({}, e.releve, { revu: true, essais: e.essais }));
+      noter(e.releve, { etat: 'en-file', reprise: e.essais });
+    }
     const expires = aTraiter.filter(r => t - Date.parse(r.recueLe) > DUREE_RELEVE_MS);
     expires.forEach(r => noter(r, { etat: 'expire' }));
     recents = recents.filter(r => t - Date.parse(r.recueLe) <= DUREE_RECENTS_MS).slice(-MAX_RECENTS);
@@ -193,7 +211,9 @@ function creerRouteurAuthentic(options) {
     // Seules les pages dont CLAIRE connaît la structure sont gardées (étude, 02/10 : « ne lire que les
     // pages dont tu as la structure, pour ne pas surcharger ») : page du dossier, fiche client, fiche bien.
     if (!pageAuthenticConnue(capture)) { res.json({ ok: true, ignore: true }); return; }
-    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux])).digest('hex');
+    // L'intitulé et l'onglet actif comptent (banc Authentic du 19/10) : deux dossiers aux tableaux identiques (vente toute neuve, succession
+    // sans pièce), ouverts l'un après l'autre, n'étaient qu'une page — la seconde était écartée comme doublon.
+    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture)])).digest('hex');
     const t = maintenant();
     const deja = empreintes.has(empreinte);
     if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) { res.json({ ok: true, deja: true }); return; }
@@ -232,7 +252,16 @@ function creerRouteurAuthentic(options) {
     const { origine, poste } = voir(req);
     const deja = prendrePour(origine, poste);
     if (deja.length) { res.json({ releves: deja }); return; }
-    const a = { origine, poste, repondre: (pris) => { if (!res.writableEnded) res.json({ releves: pris }); } };
+    const a = { origine, poste, repondre: (pris) => {
+      // Connexion déjà fermée (fenêtre fermée ou rechargée) : la page revient en tête de file au lieu d'être perdue.
+      if (res.writableEnded || res.destroyed || (req.socket && req.socket.destroyed)) {
+        pris.forEach(r => enCours.delete(r.id));
+        aTraiter = pris.filter(r => r.capture || r.navigation).concat(aTraiter);
+        pris.forEach(r => { if (r.capture) noter(r, { etat: 'en-file' }); });
+        return;
+      }
+      res.json({ releves: pris });
+    } };
     a.minuterie = setTimeout(() => {
       const i = attentes.indexOf(a);
       if (i >= 0) attentes.splice(i, 1);
@@ -256,6 +285,7 @@ function creerRouteurAuthentic(options) {
     const liste = Array.isArray(req.body && req.body.resultats) ? req.body.resultats.slice(0, 50) : [];
     for (const r of liste) {
       if (!r || !ETATS_RESULTAT.includes(r.etat)) continue;
+      enCours.delete(String(r.id || ''));
       noter({ id: String(r.id || '') }, {
         etat: r.etat,
         dossierId: chaine(r.dossierId, 80),
@@ -368,4 +398,4 @@ function pageAuthenticConnue(capture) {
   return libelles.some(l => res.some(re => re.test(l))) || res.some(re => re.test(texte));
 }
 
-module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_RECENTS_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS };
+module.exports = { creerRouteurAuthentic, pageAuthenticConnue, normaliserCaptureAuthentic, origineRequete, naturePageAuthentic, DUREE_CAPTURE_MS, MAX_CAPTURES, DUREE_RELEVE_MS, DUREE_RECENTS_MS, DUREE_ATTENTE_RELEVES_MS, DUREE_FENETRE_VUE_MS, DUREE_DOUBLON_MS, DUREE_REPRISE_RELEVE_MS, ESSAIS_RELEVE_MAX };

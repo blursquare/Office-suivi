@@ -1635,7 +1635,8 @@
     const nomDesDeuxCotes = !!m && nom.split(' ').every(x => contient(m[1], x)) && nom.split(' ').every(x => contient(m[2], x));
     const roles = new Set();
     (Array.isArray(d.parties) ? d.parties : []).forEach(p => {
-      if (p && contient(p.nom, nom) && (!prenom || contient(p.nom, prenom) || (!nomDesDeuxCotes && !(d.parties || []).some(q => q !== p && contient(q.nom, nom))))) roles.add(p.role);
+      // Le prénom peut être porté à part (`p.prenom`) ou dans le nom complet (« Marie ROY ») — banc Authentic du 19/10.
+      if (p && contient(p.nom, nom) && (!prenom || contient([p.prenom, p.nom].join(' '), prenom) || (!nomDesDeuxCotes && !(d.parties || []).some(q => q !== p && contient(q.nom, nom))))) roles.add(p.role);
     });
     if (roles.size === 1) return [...roles][0];
     if (roles.size > 1) return '';

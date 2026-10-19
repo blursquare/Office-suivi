@@ -211,12 +211,13 @@ test('page servie d\'abord à une fenêtre du même poste ; sans fenêtre de ce 
     const pourJulie = await post('releves/prendre', {}, '10.0.0.2');
     assert.equal(pourJulie.releves.length, 1);
     assert.equal(pourJulie.releves[0].capture.champs[1].valeur, 'MARTEL');
-    // Fenêtre de Julie fermée depuis plus de 90 s : sa page va à Jérémy plutôt que de se perdre.
+    // Fenêtre de Julie fermée depuis plus de 90 s : sa page va à Jérémy plutôt que de se perdre — et MARTEL, prise par Julie sans
+    // compte rendu, revient aussi (banc du 19/10 : une page remise à une fenêtre disparue n'était jamais appliquée).
     await post('releve', page('FOURNIER'), '10.0.0.2');
     t += DUREE_FENETRE_VUE_MS + 1;
-    const pourJeremy = await post('releves/prendre', {}, '10.0.0.3');
-    assert.equal(pourJeremy.releves.length, 1);
-    assert.equal(pourJeremy.releves[0].capture.champs[1].valeur, 'FOURNIER');
+    const tout = await post('releves/prendre', {}, '10.0.0.3');
+    assert.equal(tout.releves.map(r => r.capture.champs[1].valeur).sort().join(','), 'FOURNIER,MARTEL');
+    const pourJeremy = { releves: tout.releves.filter(r => r.capture.champs[1].valeur === 'FOURNIER') };
     // Journal : reçue de quel poste, prise par qui, résultat rapporté par la fenêtre.
     await post('releves/resultats', { resultats: [{ id: pourJeremy.releves[0].id, etat: 'sans-dossier', texte: 'aucun dossier ne porte ces noms' }, { id: 'x', etat: 'pirate' }] }, '10.0.0.3');
     const j = await fetch(b + '/api/authentic/journal').then(r => r.json());
@@ -227,6 +228,7 @@ test('page servie d\'abord à une fenêtre du même poste ; sans fenêtre de ce 
     assert.equal(j.entrees[0].nature, 'client');
     assert.equal(j.entrees[0].enMemoire, true);
     assert.equal(j.entrees[1].etat, 'pris');
+    assert.equal(j.entrees[1].prisPar, 'Jérémy SAUJOT');
     assert.ok(j.fenetres.some(f => f.poste === 'Julie VASSELIN'));
     // Une page encore en mémoire se relit par son identifiant (rangement à la main).
     const r = await fetch(b + '/api/authentic/releves/' + pourJeremy.releves[0].id).then(x => x.json());
@@ -305,6 +307,42 @@ test('pages récentes gardées 24 h (étude, 03/10 puis 06/10 : les dossiers vus
     t += DUREE_RECENTS_MS;
     recents = await fetch(b + '/api/authentic/releves/recents').then(r => r.json());
     assert.equal(recents.releves.length, 0);
+  } finally {
+    s.close();
+  }
+});
+
+test('page prise par une fenêtre qui n’en rend jamais compte (fermée, rechargée) : remise en file, trois fois au plus (banc du 19/10)', async () => {
+  const express = require('express');
+  const { creerRouteurAuthentic, DUREE_REPRISE_RELEVE_MS, ESSAIS_RELEVE_MAX } = require('../src/routes/authentic');
+  let t = 9_000_000;
+  const appli = express();
+  appli.use(express.json({ limit: '2mb' }));
+  appli.use('/api', creerRouteurAuthentic({ dureeAttenteMs: 200, maintenant: () => t }));
+  const s = appli.listen(0);
+  await new Promise(r => s.once('listening', r));
+  const b = 'http://127.0.0.1:' + s.address().port;
+  const post = (chemin, corps) => fetch(b + '/api/authentic/' + chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const prendre = () => post('releves/prendre', {}).then(r => r.json()).then(j => j.releves);
+  try {
+    await post('releve', { champs: [{ groupe: '', libelle: '12 - Vente PETIT/BOSQUET', valeur: '' }], tableaux: [], texte: '12 - Vente PETIT/BOSQUET' });
+    const premier = await prendre();
+    assert.equal(premier.length, 1);
+    assert.equal((await prendre()).length, 0, 'pas remise avant le délai');
+    for (let i = 1; i < ESSAIS_RELEVE_MAX; i++) {
+      t += DUREE_REPRISE_RELEVE_MS + 1;
+      const encore = await prendre();
+      assert.equal(encore.length, 1, `remise en file (essai ${i + 1})`);
+      assert.equal(encore[0].id, premier[0].id);
+    }
+    t += DUREE_REPRISE_RELEVE_MS + 1;
+    assert.equal((await prendre()).length, 0, 'abandonnée après trois essais');
+    // Compte rendu reçu : plus jamais remise.
+    await post('releve', { champs: [{ groupe: '', libelle: '13 - Vente MARTIN/DURAND', valeur: '' }], tableaux: [], texte: '13 - Vente MARTIN/DURAND' });
+    const autre = await prendre();
+    await post('releves/resultats', { resultats: [{ id: autre[0].id, etat: 'applique', dossierId: 'x' }] });
+    t += DUREE_REPRISE_RELEVE_MS + 1;
+    assert.equal((await prendre()).length, 0);
   } finally {
     s.close();
   }

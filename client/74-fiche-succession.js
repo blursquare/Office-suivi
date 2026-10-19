@@ -866,7 +866,8 @@
     // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.
     const noms = [complet, usage].filter(Boolean);
     const premierDe = (c) => normaliserPourRecherche(nomPrenomsComparant(c.nom).prenoms.split(/\s+/)[0] || '');
-    const comp = premier ? comparantsSuccession(d).find(c => c.role === 'HERITIER' && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
+    // Le défunt aussi, nommé comme tel dans les comparants (banc du 19/10 : un dossier « SUCC - BERNARD » sans prénom ne le reconnaissait pas).
+    const comp = premier ? comparantsSuccession(d).find(c => (c.role === 'HERITIER' || (c.role === 'DEFUNT' && personne.deces)) && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
     if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
     // Conjoint survivant (étude 19/10) : lu dans le volet de la fiche du défunt, sa situation nomme le défunt — marié ou pacsé, vivant.
     if (conjointSurvivantSuccession(d, personne)) return { nom: complet, role: 'PARTIE', nouvelle: true };

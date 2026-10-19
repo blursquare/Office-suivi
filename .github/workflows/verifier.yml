@@ -98,6 +98,10 @@ jobs:
         if: steps.main.outputs.deja != 'true'
         run: node tests/fumee/fumee.mjs
 
+      - name: Banc Authentic → CLAIRE (pages relevées, fenêtre réelle)
+        if: steps.main.outputs.deja != 'true'
+        run: node tests/fumee/authentic-scenarios.mjs
+
       - name: Faux guichet de l'extension
         # ≈ 10 min : seulement si l'extension ou ce dont elle dépend a changé par rapport à main (scripts/fumee-extension-si-besoin.js).
         if: steps.main.outputs.deja != 'true'
