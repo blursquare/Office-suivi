@@ -32,7 +32,11 @@ const VOIES = [['rue', 'des Lilas'], ['chemin', 'des Vignes'], ['avenue', 'Wilso
 const COMMUNES = ['41000 BLOIS', '41350 VINEUIL', '41290 VIEVY LE RAYE', '41190 SAINT LUBIN EN VERGONNOIS', '41100 VENDOME', '41120 CHAILLES', '41250 BRACIEUX', '41500 MER'];
 const SECTIONS = ['AB', 'AL', 'BK', 'CD', 'ZE', 'ZN', 'AH', 'DK'];
 const nomsPris = new Set();
-const nomLibre = () => { let n; do n = un(NOMS); while (nomsPris.has(n)); nomsPris.add(n); return n; };
+// Un nom jamais pris dans le tirage ; la liste épuisée, un nom double (« ARNAUD-BAILLY »), toujours distinct.
+const nomLibre = () => {
+  for (let k = 0; k < 30; k++) { const n = un(NOMS); if (!nomsPris.has(n)) { nomsPris.add(n); return n; } }
+  for (;;) { const n = un(NOMS) + '-' + un(NOMS); if (!nomsPris.has(n)) { nomsPris.add(n); return n; } }
+};
 const date = (j, m, a) => `${String(j).padStart(2, '0')}/${String(m).padStart(2, '0')}/${a}`;
 const iso = (fr) => fr.split('/').reverse().join('-');
 
@@ -188,9 +192,9 @@ async function envoyer(capture) {
   const j = await r.json();
   if (!j.id) return { etat: j.ignore ? 'ignoree' : j.deja ? 'doublon' : 'refusee' };
   for (let k = 0; k < 80; k++) {
-    await pause(120);
+    await pause(60);
     const e = ((await (await fetch(B + '/api/authentic/journal')).json()).entrees || []).find(x => x.id === j.id);
-    if (e && e.etat !== 'en-file' && e.etat !== 'pris') { await pause(250); return e; }
+    if (e && e.etat !== 'en-file' && e.etat !== 'pris') { await pause(80); return e; }
   }
   return { etat: 'sans-reponse' };
 }
@@ -301,6 +305,7 @@ for (const c of choisis) {
     }
   } catch (e) { note(false, 'arrêt : ' + String(e && e.message || e).split('\n')[0]); }
   resultats.push({ c, ecarts });
+  if (process.env.SUIVI) console.log(`${ecarts.length ? 'ÉCHEC' : 'ok   '} ${c.i}${ecarts.length ? ' · ' + ecarts.join(' · ') : ''}`);
 }
 await navigateur.close();
 serveur.close();
