@@ -116,7 +116,8 @@
       return (nomDefunt && memeDefunt(n, df.nom, df.prenoms, (!df.nom && ficheDefunt && ficheDefunt.nom) || nomDefunt))
         || (defComp && memeDefunt(n, nomPrenomsComparant(defComp.nom).nom, nomPrenomsComparant(defComp.nom).prenoms, defComp.nom));
     };
-    const parties = (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
+    // Un prénom porté à part (`p.prenom`) est lu avec le nom (cent scénarios du 19/10).
+    const parties = (Array.isArray(d && d.parties) ? d.parties : []).map(p => (p && p.prenom && p.nom && !String(p.nom).includes(p.prenom) ? Object.assign({}, p, { nom: p.prenom + ' ' + p.nom }) : p)).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
     const her = comps.filter(c => c.role === 'HERITIER');
     // Le conjoint survivant (étude 19/10) : avec les héritiers, qualité « Conjoint survivant », même absent des comparants.
     const conjoint = (p) => conjointSurvivantSuccession(d, Object.assign({}, ficheClientDe(d, p.nom) || {}, { nom: p.nom, prenom: '', deces: null }));
@@ -859,8 +860,10 @@
     const premier = String(personne.prenom || '').trim().split(/\s+/)[0] || '';
     const parties = Array.isArray(d.parties) ? d.parties : [];
     const usage = personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : '';
-    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet) || (usage && memePersonneParNom(p.nom, usage))
-      || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
+    // Le prénom peut être porté à part (`p.prenom`, cent scénarios du 19/10).
+    const entier = (p) => [p.prenom, p.nom].filter(Boolean).join(' ');
+    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(entier(p), complet) || (usage && memePersonneParNom(entier(p), usage))
+      || (contient(entier(p), personne.nom) && (!premier || contient(entier(p), premier)))));
     if (trouvee) return trouvee;
     if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
     // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.

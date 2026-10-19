@@ -40,7 +40,7 @@
         nom: [p.prenom, p.nom].filter(Boolean).join(' '), role: 'PARTIE', qualiteActe: '',
         qualitePersonne: 'physique', representant: null, origine: 'authentic',
         source: { extrait: 'Authentic', index: null, page: null },
-        emails: (p.emails || []).slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+        emails: (p.emails || []).slice(), telephones: (p.telephones || []).slice(), civilite: civiliteDepuisTexte(p.civilite) || '', dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
       }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {}));
     }
     const roles = new Map();
@@ -95,7 +95,7 @@
         role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur',
         qualitePersonne: 'physique', representant: null, origine: 'authentic',
         source: { extrait: 'Export Authentic', index: null, page: null },
-        emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: p.civilite, dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
+        emails: p.emails.slice(), telephones: (p.telephones || []).slice(), civilite: civiliteDepuisTexte(p.civilite) || '', dateNaissance: p.dateNaissance, lieuNaissance: p.lieuNaissance
       }, p.nomUsage ? { nomUsage: p.nomUsage } : {}, p.situationMatrimoniale ? { situationMatrimoniale: p.situationMatrimoniale } : {});
     }).concat(societes);
   }

@@ -228,6 +228,87 @@
 
   // ---- Identité d'une partie ----
 
+  // Pure (modifie d.parties) : la partie du côté `role` que décrit la fiche client d'Authentic prend son identité —
+  // « Prénom NOM » quand la fiche n'avait que le nom, civilité, nom d'usage, date de naissance ; une personne du côté
+  // qui n'est pas encore sur la fiche (conjoint sous son propre nom, fiche sans partie) y entre. Authentic d'abord (étude 06/10
+  // au soir) : la PREMIÈRE fois, son identité remplace celle de la fiche ; ensuite la fiche ne bouge plus, et ce qu'Authentic
+  // change est proposé (« Authentic a changé »), jamais écrit — `o.forcer` (bouton « Compléter ») écrit tout.
+  // → les textes d'historique.
+  function alignerIdentitePartieAuthentic(d, personne, role, o) {
+    const opts = o || {};
+    const textes = [];
+    if (!d || !personne || !personne.nom || !role) return textes;
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
+    const nomFamille = String(personne.nom || '').trim().toUpperCase();
+    const prenom = String(personne.prenom || '').trim();
+    const premierPrenom = prenom.split(/\s+/)[0] || '';
+    const complet = [prenom, nomFamille].filter(Boolean).join(' ');
+    const duCote = parties.filter(x => x && String(x.role || '').toUpperCase() === role && x.qualitePersonne !== 'morale');
+    // Le prénom peut être porté à part (`x.prenom`) : il compte comme s'il était dans le nom (cent scénarios du 19/10).
+    const nomEntier = (x) => [x.prenom, x.nom].filter(Boolean).join(' ');
+    const memeNom = duCote.filter(x => contient(x.nom, nomFamille) || (personne.nomUsage && contient(x.nom, personne.nomUsage)) || (x.nomUsage && contient(x.nomUsage, nomFamille)));
+    // Une partie seule de ce nom n'est prise pour cette personne que si elle ne porte pas un AUTRE prénom (relecture 16/10 : la fiche de
+    // Léa MARTEL renommait le vendeur Paul MARTEL).
+    const autrePrenom = (x) => premierPrenom && mots(nomEntier(x)).trim().split(' ').some(m => m.length > 1 && !mots(nomFamille + ' ' + (personne.nomUsage || '') + ' ' + (x.nomUsage || '')).includes(' ' + m + ' '));
+    // Plusieurs parties de ce nom, toutes sans prénom (« NOEL » et « NOEL » d'un couple saisi au nom seul) : seulement quand les comparants
+    // d'Authentic comptent autant de personnes de ce nom de ce côté — les lignes sont alors ces personnes, la première libre prend
+    // l'identité de la fiche, l'autre celle de la fiche suivante. Sans comparants, jamais deviné.
+    const sansPrenom = memeNom.filter(x => !autrePrenom(x));
+    const comparantsDuNom = ((d.authentic && d.authentic.comparants) || []).filter(c => c.role === role && contient(c.nom, nomFamille)).length;
+    const indiscernables = sansPrenom.length > 1 && sansPrenom.length === memeNom.length && comparantsDuNom >= memeNom.length;
+    let p = memeNom.find(x => premierPrenom && contient(nomEntier(x), premierPrenom)) || (sansPrenom.length === 1 || indiscernables ? sansPrenom[0] : null);
+    const qui = role === 'VENDEUR' ? 'Vendeur' : 'Acquéreur';
+    let creee = false;
+    if (!p) {
+      if (memeNom.length > 1) return textes; // deux homonymes sans prénom : jamais deviné
+      p = { nom: complet, role, qualitePersonne: 'physique', origine: 'authentic' };
+      d.parties = parties.concat(p);
+      textes.push(`${qui} ajouté d’après sa fiche Authentic : ${complet}`);
+      creee = true;
+    }
+    // L'identité qu'Authentic donne, et ce qui en diffère sur la fiche.
+    const cible = { nom: complet, civilite: civiliteDepuisTexte(personne.civilite), nomUsage: personne.nomUsage || '', dateNaissance: personne.dateNaissance || '' };
+    const ecarts = [];
+    if (premierPrenom && !contient(p.nom, premierPrenom)) ecarts.push('nom');
+    if (cible.civilite && civiliteDepuisTexte(p.civilite) !== cible.civilite) ecarts.push('civilite');
+    if (cible.nomUsage && p.nomUsage !== cible.nomUsage) ecarts.push('nomUsage');
+    if (cible.dateNaissance && p.dateNaissance !== cible.dateNaissance) ecarts.push('dateNaissance');
+    const { id, fiche } = ficheAuthenticPersonne(d, role, complet);
+    const connue = fiche && fiche.identite ? fiche.identite : null;
+    const cleMaj = 'identite:' + id;
+    // Déjà rempli par Authentic : seules les données qu'Authentic a CHANGÉES depuis sont proposées ; ce que la fiche a de différent
+    // sans changement d'Authentic (correction à la main) reste.
+    const aEcrire = connue && !creee && !opts.forcer ? [] : ecarts;
+    const aProposer = connue && !creee && !opts.forcer ? ecarts.filter(k => String(connue[k] || '') !== String(cible[k] || '')) : [];
+    const libelleChamp = (k) => CHAMPS_IDENTITE_AUTHENTIC[k];
+    const valeurFiche = (k) => k === 'nom' ? p.nom : k === 'civilite' ? (civiliteDepuisTexte(p.civilite) === 'M' ? 'Monsieur' : civiliteDepuisTexte(p.civilite) === 'Mme' ? 'Madame' : '') : (p[k] || '');
+    const valeurCible = (k) => k === 'civilite' ? (cible.civilite === 'M' ? 'Monsieur' : 'Madame') : cible[k];
+    aEcrire.forEach(k => {
+      const avantValeur = valeurFiche(k);
+      if (k === 'nom') textes.push(`${qui} : ${[p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')} → ${complet} (fiche Authentic)`);
+      else if (k === 'civilite') textes.push(`Civilité de ${complet} : ${valeurCible(k)} (fiche Authentic)`);
+      else if (k === 'nomUsage') textes.push(`Nom d’usage de ${complet} : ${cible.nomUsage} (fiche Authentic)`);
+      else if (avantValeur) textes.push(`Date de naissance de ${complet} : ${formatDateFr(avantValeur)} → ${formatDateFr(cible.dateNaissance)} (fiche Authentic)`);
+      appliquerChampIdentiteAuthentic(p, k, cible);
+    });
+    if (aProposer.length) {
+      mettreEnAttenteAuthentic(d, cleMaj, {
+        type: 'identite', libelle: `Identité de ${complet}`, fiche: id, role, nom: complet, partie: p.nom, champs: aProposer, cible,
+        avant: aProposer.map(k => `${libelleChamp(k)} ${valeurFiche(k) || 'vide'}`).join(' ; '),
+        apres: aProposer.map(k => `${libelleChamp(k)} ${k === 'dateNaissance' ? formatDateFr(cible[k]) : valeurCible(k)}`).join(' ; '),
+        le: opts.maintenant || new Date().toISOString()
+      });
+    } else {
+      retirerMajAuthentic(d, cleMaj);
+      // Authentic retenu tel qu'il est (rien de proposé) : un changement ultérieur sera comparé à cette identité.
+      majFicheAuthentic(d, id, role, complet, { identite: cible });
+    }
+    return textes;
+  }
+
+
   // Modifie la partie : un champ d'identité pris dans la cible d'Authentic.
   function appliquerChampIdentiteAuthentic(p, k, cible) {
     if (k === 'nom') { p.nom = cible.nom; delete p.prenom; }
