@@ -246,3 +246,37 @@
     const o = ongletDossierActifAuthentic(capture);
     return o ? (intituleNumeroteAuthentic({ onglets: [o], champs: [], tableaux: [], texte: '' }).intitule || '') : '';
   }
+
+  // Pure : les groupes de pages d'Authentic qui désignent le MÊME dossier réunis en un (étude 19/10, succession BARON : fiches client et
+  // fiches bien rangées sous l'intitulé de l'onglet — « SUCC BARON Philippe » —, la page du dossier sous son en-tête — « 1 - Succession
+  // Philippe BARON » — : la création ne recevait ni les fiches ni tous les biens). Même référence, ou mêmes noms et même type d'acte sans
+  // références contraires. Le groupe qui porte la page du dossier (informations relevées) reçoit les autres.
+  function fusionnerGroupesAuthentic(groupes) {
+    const TYPES = { vte: 'vente', vente: 'vente', succ: 'succession', succession: 'succession' };
+    const cleNoms = (intitule) => {
+      const mots = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split(/[^a-z0-9]+/).filter(m => m.length >= 2);
+      const type = mots.map(m => TYPES[m]).find(Boolean) || '';
+      const noms = mots.filter(m => !TYPES[m] && !/^(veuve|veuf|epouse|epoux|nee|ne|de|du|et|consorts?)$/.test(m)).sort();
+      return noms.length ? type + ':' + noms.join(' ') : '';
+    };
+    const sortie = [];
+    (groupes || []).forEach(g => {
+      const k = cleNoms(g.intitule);
+      const cible = sortie.find(x => (g.reference && x.reference && g.reference === x.reference)
+        || (k && cleNoms(x.intitule) === k && !(g.reference && x.reference && g.reference !== x.reference)));
+      if (!cible) { sortie.push(g); return; }
+      const [garde, autre] = Object.keys(g.infos || {}).length > Object.keys(cible.infos || {}).length ? [g, cible] : [cible, g];
+      autre.personnes.forEach((v, cle) => { if (!garde.personnes.has(cle)) garde.personnes.set(cle, v); });
+      autre.immeubles.forEach((v, cle) => { if (!garde.immeubles.has(cle)) garde.immeubles.set(cle, v); });
+      autre.documents.forEach((v, cle) => { if (!garde.documents.has(cle)) garde.documents.set(cle, v); });
+      if ((autre.conjoints || []).length) garde.conjoints = (garde.conjoints || []).concat(autre.conjoints);
+      garde.reference = garde.reference || autre.reference;
+      garde.adresse = garde.adresse || autre.adresse;
+      garde.apercu = garde.apercu || autre.apercu;
+      garde.succession = !!(garde.succession || autre.succession);
+      garde.aCreer = !!(garde.aCreer || autre.aCreer);
+      if (String(autre.derniere || '') > String(garde.derniere || '')) garde.derniere = autre.derniere;
+      if (garde !== cible) sortie[sortie.indexOf(cible)] = garde;
+    });
+    return sortie;
+  }

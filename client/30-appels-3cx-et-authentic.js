@@ -1544,9 +1544,9 @@
       if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
       if (type === 'gestion' && o && o.apercu && !(g.succession || /succ/i.test(intitule))) g.apercu = apercuImmeubleAuthentic(cap) || g.apercu;
     });
-    return [...groupes.values()].map(g => {
+    return fusionnerGroupesAuthentic([...groupes.values()]).map(g => {
       // Conjoint vu dans le volet d'une fiche : repris seulement s'il est comparant du dossier (jamais l'époux d'un bien propre).
-      (g.conjoints || []).filter(pc => conjointComparantAuthentic(g.infos, pc) && ![...g.personnes.values()].some(p => p.nom === pc.nom && p.prenom === pc.prenom))
+      (g.conjoints || []).filter(pc => (conjointComparantAuthentic(g.infos, pc) || conjointSurvivantAuthentic(g, pc)) && ![...g.personnes.values()].some(p => p.nom === pc.nom && p.prenom === pc.prenom))
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()], g.apercu);

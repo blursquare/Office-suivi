@@ -846,12 +846,22 @@
     };
   }
 
-  // Pure : le conjoint lu dans le volet est-il une partie de CE dossier, reconnue par prénom ET nom (une vente ; jamais une succession) ?
+  // Pure : le conjoint lu dans le volet est-il une partie de CE dossier, reconnue par prénom ET nom ? Succession (étude 19/10 : « le défunt
+  // était marié, le conjoint survivant ne ressort pas ») : le conjoint vivant du défunt, lu dans la fiche du défunt, y entre.
   function conjointPartieDuDossierAuthentic(d, personne) {
-    if (!d || !personne || !personne.prenom || estSuccession(d)) return false;
+    if (!d || !personne || !personne.prenom) return false;
+    if (estSuccession(d)) return !personne.deces && !!partieSuccessionDeLaFiche(d, personne);
     const nom = [personne.prenom, personne.nom].join(' ');
     return (Array.isArray(d.parties) ? d.parties : []).some(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR')
       && [p.nom, [p.prenom, p.nom].filter(Boolean).join(' ')].some(n => memePersonneNommee(n, nom)));
+  }
+
+  // Pure : à la création d'une succession, le conjoint lu dans le volet de la fiche du DÉFUNT (marié ou pacsé, vivant) est le conjoint
+  // survivant : repris avec les héritiers (étude 19/10). `g` = groupe de pages d'Authentic (personnes lues), `pc` = le conjoint du volet.
+  function conjointSurvivantAuthentic(g, pc) {
+    const sm = pc && pc.situationMatrimoniale;
+    if (!g || !g.succession || !pc || !pc.prenom || pc.deces || !sm || !sm.conjoint || /divor|separ/i.test(normaliserPourRecherche(sm.situation || ''))) return false;
+    return [...(g.personnes ? g.personnes.values() : [])].some(p => p && p.deces && memePersonneNommee([p.prenom, p.nom].filter(Boolean).join(' '), sm.conjoint));
   }
 
   // Pure : le conjoint d'un volet est-il cité parmi les comparants relevés du dossier (prénom et nom) ?

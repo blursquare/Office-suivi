@@ -20910,3 +20910,16 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
   client du défunt (« Personne décédée ») ; « Nouveau dossier » gardait le dossier d'Authentic tel qu'au clic sur « Créer ». Désormais
   chaque page relevée pendant « Vérifier » met à jour le dossier repris (`rafraichirWizardSuccessionAuthentic`, même intitulé et référence)
   et le bloc « Succession » complète les champs restés vides (jamais pendant une saisie). Sans fiche du défunt ouverte, rien n'est deviné.
+- Étude (succession BARON, créée à 10 h 57) : « le défunt était marié mais le conjoint survivant ne ressort pas, il n'y a que les héritiers
+  (enfants) » (structure de la fiche du défunt avec le volet de l'épouse fournie) ; « une fois le dossier créé, les fiches client ne sont pas
+  remplies, sinon on fait l'importation plusieurs fois » ; « 5 biens sur des communes différentes, deux sont ressortis » (une carte
+  « SELLES SUR CHER » portant ZM 96, ZX 113, R 340).
+  - Conjoint : le volet n'entrait que pour compléter une partie d'une vente (`conjointPartieDuDossierAuthentic` refusait toute succession) et
+    n'était repris à la création que s'il était comparant. Désormais le conjoint vivant (marié/pacsé, pas divorcé ni séparé) dont la
+    situation nomme le défunt entre au dossier (`conjointSurvivantSuccession`, création : `conjointSurvivantAuthentic`) et figure avec les
+    héritiers, qualité « Conjoint survivant ».
+  - Fiches et biens : hypothèse (non vérifiée sur la page réelle) — fiches et biens relevés sous l'intitulé de l'onglet, la page du dossier
+    sous son en-tête : deux groupes, la création ne recevait que celui de la page. `fusionnerGroupesAuthentic` (client/82) réunit les groupes
+    d'une même référence, ou de mêmes noms et même type d'acte sans références contraires.
+  - Biens : `complementDossierDepuisAuthentic` posait les parcelles de TOUS les immeubles sur un seul bien (règle d'une vente) ; pour une
+    succession, chaque immeuble passe par `appliquerBienSuccession`. Le dossier BARON déjà créé garde son bien fusionné : le recréer.

@@ -584,7 +584,13 @@
     }
     const parcelles = parcellesExportAuthentic(donnees);
     const lots = lotsExportAuthentic(donnees);
-    if (parcelles.length || lots.lots.length) {
+    // Succession (étude 19/10, BARON : 5 biens dans 5 communes, une seule carte portant leurs parcelles) : chaque bien d'Authentic reste
+    // un bien à part, jamais ses parcelles posées sur un seul.
+    if (estSuccession(d)) {
+      const resultat = { modifie: false };
+      (donnees.immeubles || []).forEach(im => appliquerBienSuccession(d, im, () => {}, resultat));
+      if (resultat.modifie) textes.push('biens');
+    } else if (parcelles.length || lots.lots.length) {
       const resultat = { modifie: false };
       const noter = () => {};
       appliquerBienAuthentic(d, { adresse: bien && bien.adresse ? bien.adresse : null, parcelles, lots: lots.lots, tantiemesTotal: lots.tantiemesTotal, bois: bien && (donnees.immeubles || []).length <= 1 ? bien.bois : null }, noter, resultat, { maintenant, forcer: o.forcer });

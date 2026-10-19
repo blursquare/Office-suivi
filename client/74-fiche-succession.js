@@ -118,7 +118,9 @@
     };
     const parties = (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
     const her = comps.filter(c => c.role === 'HERITIER');
-    if (!her.length) return { heritiers: parties, autres: [] };
+    // Le conjoint survivant (étude 19/10) : avec les héritiers, qualité « Conjoint survivant », même absent des comparants.
+    const conjoint = (p) => conjointSurvivantSuccession(d, Object.assign({}, ficheClientDe(d, p.nom) || {}, { nom: p.nom, prenom: '', deces: null }));
+    if (!her.length) return { heritiers: parties.map(p => (conjoint(p) && !p.qualite ? Object.assign({}, p, { qualite: 'Conjoint survivant' }) : p)), autres: [] };
     const heritiers = [], vus = new Set();
     her.forEach(c => {
       const p = parties.find(x => !vus.has(x) && (memePersonneNommee(x.nom, c.nom) || (x.nomUsage && memePersonneNommee([x.nom, x.nomUsage].join(' '), c.nom))));
@@ -127,6 +129,7 @@
       const np = nomPrenomsComparant(c.nom);
       heritiers.push({ nom: [np.prenoms, np.nom].filter(Boolean).join(' ') || c.nom, civilite: c.civilite || '', qualite, comparant: true });
     });
+    parties.filter(p => !vus.has(p) && conjoint(p)).forEach(p => { vus.add(p); heritiers.push(Object.assign({}, p, { qualite: 'Conjoint survivant' })); });
     return { heritiers, autres: parties.filter(p => !vus.has(p)) };
   }
 
@@ -865,5 +868,22 @@
     const premierDe = (c) => normaliserPourRecherche(nomPrenomsComparant(c.nom).prenoms.split(/\s+/)[0] || '');
     const comp = premier ? comparantsSuccession(d).find(c => c.role === 'HERITIER' && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
     if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    // Conjoint survivant (étude 19/10) : lu dans le volet de la fiche du défunt, sa situation nomme le défunt — marié ou pacsé, vivant.
+    if (conjointSurvivantSuccession(d, personne)) return { nom: complet, role: 'PARTIE', nouvelle: true };
     return null;
+  }
+
+  // Pure : cette personne (fiche client lue dans Authentic) est-elle le conjoint survivant du défunt de la succession ? Sa situation
+  // matrimoniale nomme le défunt, ou la fiche du défunt la nomme ; jamais divorcé ni séparé, jamais décédée.
+  function conjointSurvivantSuccession(d, personne) {
+    if (!d || !personne || !personne.nom || personne.deces) return false;
+    const df = defuntConstitution(d).champs;
+    const nomDefunt = [df.prenoms, df.nom].filter(Boolean).join(' ');
+    if (!nomDefunt) return false;
+    const rompu = (sm) => /divor|separ/i.test(normaliserPourRecherche((sm && sm.situation) || ''));
+    const sm = personne.situationMatrimoniale;
+    if (sm && sm.conjoint && !rompu(sm) && memePersonneNommee(sm.conjoint, nomDefunt)) return true;
+    const smDefunt = (defuntDepuisFiches(d).fiche || {}).situationMatrimoniale;
+    const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    return !!(smDefunt && smDefunt.conjoint && !rompu(smDefunt) && complet && memePersonneNommee(smDefunt.conjoint, complet));
   }

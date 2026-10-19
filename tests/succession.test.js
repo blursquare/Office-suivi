@@ -833,3 +833,51 @@ test('fiche bien qui complète un bien par une parcelle : l’historique nomme c
   assert.equal(d.authentic.immeubles.length, 2);
   assert.match(notes.join(' '), /complété\) : BLOIS/);
 });
+
+test('conjoint survivant lu dans le volet de la fiche du défunt : avec les héritiers (étude 19/10)', () => {
+  const d = base({ id: 's23', nom: 'SUCC Philippe BARON', parties: [{ nom: 'Arnaud BARON', role: 'PARTIE' }, { nom: 'Marie BARON', role: 'PARTIE' }],
+    authentic: { comparants: [{ nom: 'BARON Philippe', role: 'DEFUNT' }, { nom: 'BARON Arnaud', role: 'HERITIER' }, { nom: 'BARON Marie', role: 'HERITIER' }] } });
+  // Le volet de l'épouse dans la fiche du défunt : sa situation nomme le défunt.
+  const veuve = { nom: 'BARON', prenom: 'Zivka', civilite: 'Madame', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Philippe BARON' } };
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, veuve), true);
+  assert.equal(app.partieSuccessionDeLaFiche(d, veuve).nouvelle, true);
+  // Divorcée, ou décédée : non.
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, Object.assign({}, veuve, { situationMatrimoniale: { situation: 'Divorcé(e)', conjoint: 'Philippe BARON' } })), false);
+  assert.equal(app.conjointPartieDuDossierAuthentic(d, Object.assign({}, veuve, { deces: { date: '2020-01-01' } })), false);
+  // Une fois partie, sa fiche retenue : avec les héritiers, « Conjoint survivant ».
+  d.parties.push({ nom: 'Zivka BARON', role: 'PARTIE' });
+  d.authentic.fichesClients = { zb: Object.assign({}, veuve, { nom: 'Zivka BARON' }) };
+  const { heritiers, autres } = app.personnesSuccession(d);
+  assert.equal(heritiers.map(h => h.nom + (h.qualite ? ' (' + h.qualite + ')' : '')).join(', '), 'Arnaud BARON, Marie BARON, Zivka BARON (Conjoint survivant)');
+  assert.equal(autres.length, 0);
+});
+
+test('création d’une succession : le conjoint du volet de la fiche du défunt est repris (étude 19/10)', () => {
+  const g = { succession: true, personnes: new Map([['p1', { nom: 'BARON', prenom: 'Philippe', deces: { date: '2026-03-14' } }]]) };
+  assert.equal(app.conjointSurvivantAuthentic(g, { nom: 'BARON', prenom: 'Zivka', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Philippe BARON' } }), true);
+  assert.equal(app.conjointSurvivantAuthentic(Object.assign({}, g, { succession: false }), { nom: 'BARON', prenom: 'Zivka', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Philippe BARON' } }), false);
+  assert.equal(app.conjointSurvivantAuthentic(g, { nom: 'MARTIN', prenom: 'Léa', situationMatrimoniale: { situation: 'Marié(e)', conjoint: 'Paul MARTIN' } }), false);
+});
+
+test('pages d’Authentic : l’onglet et l’en-tête d’un même dossier forment un seul groupe (étude 19/10, BARON)', () => {
+  const g = (intitule, reference, plus) => Object.assign({ intitule, reference, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {} }, plus || {});
+  const page = g('1 - Succession Philippe BARON', '', { infos: { comparants: [1] }, succession: true });
+  const fiches = g('SUCC BARON Philippe', '', { personnes: new Map([['p1', { nom: 'BARON' }]]), immeubles: new Map([['b1', {}], ['b2', {}]]) });
+  const vente = g('VTE BARON / MARTIN', '');
+  const r = app.fusionnerGroupesAuthentic([page, fiches, vente]);
+  assert.equal(r.length, 2);
+  assert.equal(r[0].intitule, '1 - Succession Philippe BARON');
+  assert.deepEqual([r[0].personnes.size, r[0].immeubles.size, r[0].succession], [1, 2, true]);
+  // Même référence : réunis ; références différentes : jamais.
+  assert.equal(app.fusionnerGroupesAuthentic([g('X', 'A 2026 00001'), g('Y', 'A 2026 00001')]).length, 1);
+  assert.equal(app.fusionnerGroupesAuthentic([g('SUCC BARON', 'A 2026 00001'), g('Succession BARON', 'A 2026 00002')]).length, 2);
+});
+
+test('complément depuis Authentic d’une succession : chaque bien reste un bien (étude 19/10, BARON)', () => {
+  const d = base({ id: 's24', nom: 'SUCC Philippe BARON', authentic: { immeubles: [] } });
+  const im = (cp, commune, voie, section, numero) => ({ adresse: { texte: `${voie} ${cp} ${commune}`, codePostal: cp, commune }, parcelles: [{ section, numero }] });
+  app.complementDossierDepuisAuthentic(d, { intitule: 'SUCC BARON', type: 'succession', personnes: [], immeubles: [
+    im('41130', 'SELLES SUR CHER', 'Les Iles Bergues', 'ZM', '96'), im('41320', 'MENNETOU SUR CHER', 'Le Bourg', 'ZX', '113'), im('41200', 'ROMORANTIN LANTHENAY', '2 rue X', 'R', '340')] }, []);
+  assert.equal(d.authentic.immeubles.length, 3);
+  assert.equal(d.authentic.immeubles.map(i => i.parcelles.map(p => p.section + p.numero).join('+')).join(' | '), 'ZM96 | ZX113 | R340');
+});
