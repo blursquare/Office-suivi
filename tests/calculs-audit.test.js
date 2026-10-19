@@ -68,3 +68,8 @@ test('provision : détail de la ligne Trésor, écart du barème dit (rapport du
   assert.equal(dt.ecart, 2.05);
   assert.equal(app.detailTresorFraisActe(5000, 0.045, 100, 0).csi, 15, 'CSI : 15 € au moins');
 });
+
+test('provision : taxe LCB-FT à 300 € et débours à 200 € dans le total (étude 19/10)', () => {
+  const e = app.estimerFraisActe(300000, '41', 'house', false);
+  assert.equal(Math.round((e.total - e.emoluments - e.tresor) * 100) / 100, 500);
+});

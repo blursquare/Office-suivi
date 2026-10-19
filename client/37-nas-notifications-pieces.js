@@ -1952,6 +1952,9 @@
   // annoncé sur un décompte. Une seule formule pour les deux usages — deux copies divergeraient.
   // `eligiblePrimoAccedant` : primo-accédant ET résidence principale, seul cas où la hausse
   // départementale temporaire ne s'applique pas (voir la note affichée sous le simulateur).
+  // Forfaits ajoutés à toute provision : taxe LCB-FT (300 € depuis le 19/10/2026, étude : « met 300 euros au lieu de 200 ») et débours du tableau.
+  var TAXE_LCBFT_FRAIS_ACTE = 300;
+  var DEBOURS_FRAIS_ACTE = 200;
   function estimerFraisActe(prix, cleDepartement, typeBien, eligiblePrimoAccedant) {
     const dept = DEPARTEMENTS_FRAIS_ACTE[cleDepartement];
     const bareme = BAREME_FRAIS_ACTE[typeBien];
@@ -1962,7 +1965,7 @@
     const tresor45 = interpolerBaremeFraisActe(Object.fromEntries(Object.entries(bareme).map(([k, v]) => [k, v[1]])), montant);
     const tresor50 = tresor45 + montant * 0.0051185;
     const tresor = tresor45 + ((tauxApplique - 0.045) / 0.005) * (tresor50 - tresor45);
-    return { emoluments, tresor, tauxApplique, total: emoluments + 200 + tresor + 200 };
+    return { emoluments, tresor, tauxApplique, total: emoluments + TAXE_LCBFT_FRAIS_ACTE + tresor + DEBOURS_FRAIS_ACTE };
   }
 
   // Pure : le détail de la ligne « Trésor » (rapport du 18/10 : 20.005,55 € pour un détail recalculé à 20.003,50 €). Le montant reste celui du

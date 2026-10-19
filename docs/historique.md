@@ -20937,3 +20937,11 @@ registre des traitements RGPD de l'étude n'est pas dans le dépôt.
   DISTANCE dans ma boîte, c'est un sous-dossier de la boîte de réception ». La recherche (profonde, accents et casse ignorés) comparait au
   seul « traiter a distance » : « traite a distance » n'était pas pris. `NOMS_DOSSIER_OUTLOOK` accepte les deux écritures (et « à traiter à
   distance ») ; libellé affiché « Traité à distance ».
+
+### 19/10/2026 — 0.290.3 : taxe LCB-FT à 300 €
+
+Étude : « On a une augmentation du tarif pour le débours LCB-FT, mets 300 euros au lieu de 200. » Lu comme la ligne « Taxes : LCB-FT » du
+simulateur de provision (la ligne « Débours (selon le tableau) », à 200 €, est un autre forfait et ne change pas). `estimerFraisActe`
+ajoute désormais `TAXE_LCBFT_FRAIS_ACTE` (300) et `DEBOURS_FRAIS_ACTE` (200) ; même total pour le simulateur, la ligne des frais et
+droits de l'acte du décompte (`fraisActeEstimesAppelFonds`), le contrôle du barème, l'outil Quotités, la provision gardée sur la fiche et
+« Demander à CLAIRE ». Une provision déjà enregistrée sur une fiche garde l'ancien montant tant qu'elle n'est pas recalculée.

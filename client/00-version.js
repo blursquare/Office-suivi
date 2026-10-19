@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.290.2';
+  const VERSION_APP = '0.290.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.290.3', date: '2026-10-19 13:02', resume: "Simulateur de provision : la taxe LCB-FT passe de 200 € à 300 € (tarif augmenté) — total provisionnel, frais et droits de l'acte du décompte d'appel de fonds et provision enregistrée sur la fiche suivent ; les débours du tableau restent à 200 €." },
     { version: '0.290.2', date: '2026-10-19 12:35', resume: "Rangement dans Outlook : votre dossier « TRAITÉ A DISTANCE » (sous-dossier de la boîte de réception) est maintenant reconnu — CLAIRE cherchait « Traiter à distance » et ne déplaçait rien." },
     { version: '0.290.1', date: '2026-10-19 10:43', resume: "Successions : la réponse du FCDDV rangée dans un sous-dossier (« Etat civil ») est trouvée et lue — elle était repérée sur le NAS mais la fiche la cherchait sous un autre nom. Deux biens de communes différentes qui portent le même numéro de parcelle (Paris et Cour-Cheverny) restent deux biens, chacun sa carte en haut de la fiche ; la parcelle de Paris ajoutée par erreur à la maison n'y est plus montrée. Appel de fonds : l'avis de taxe foncière déjà repéré par la checklist est repris en premier. Tableau de bord : l'apparition des cartes ne se joue plus qu'une fois au démarrage (elle clignotait à chaque redessin). Nouveau dossier d'une succession : la fiche du défunt ouverte dans Authentic pendant « Vérifier » remplit la date et le lieu du décès restés vides. Successions : le conjoint survivant lu dans la fiche du défunt (volet de l'époux) est repris avec les héritiers, marqué « Conjoint survivant » ; les pages d'un même dossier relevées sous l'intitulé de l'onglet et sous celui de la page sont réunies (fiches client et biens n'étaient pas repris à la création) ; chaque bien d'Authentic reste un bien à part (leurs parcelles s'ajoutaient à un seul) — pour une vente de plusieurs biens aussi : une carte par bien, chacune avec ses parcelles." },
     { version: '0.290.0', date: '2026-10-19 09:53', resume: "Rangement dans Outlook : un champ pour ajouter d'autres adresses d'expéditeurs dont les emails vont aussi dans « Traiter à distance » (Réglages › Agenda et Outlook). Successions : un bien peut être retiré à la main (croix sur la ligne du bien, dans « Modifier le défunt, les héritiers et les biens ») ; Authentic ne le remet plus. 3CX : le fichier .reg du poste autorise aussi le navigateur à ouvrir la fiche sans demander à chaque appel (à réimporter, puis rouvrir Chrome)." },
