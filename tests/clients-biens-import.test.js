@@ -70,3 +70,16 @@ test('import : export « Recherche de Personnes Physiques » lu par sa ligne d\'
   assert.equal(e[2].civilite, 'Mme');
   assert.equal(e[2].deces.date, '2020-05-04');
 });
+
+test('import : numéros bornés, fichier immeubles à en-tête partiel (relecture 19/10)', () => {
+  assert.equal(app.numerosImport('0033 6 12 34 56 78').join(), '06 12 34 56 78');
+  assert.equal(app.numerosImport('+33 (0)6 12 34 56 78').join(), '06 12 34 56 78');
+  assert.equal(app.numerosImport('061234567890').length, 0, 'onze chiffres : rien');
+  const lignes = [['Adresse', 'CP', 'Ville', 'Section'], ['3 rue Exemple', '41000', 'BLOIS', 'AB 12'], ['5 chemin Essai', '41250', 'BRACIEUX', 'ZN 4']];
+  const r = app.lectureExportImport(lignes);
+  assert.equal(r.genre, 'biens');
+  assert.equal(r.colonnes.join(), 'adresse,codePostal,commune,cadastre');
+  const e = app.enregistrementsImport(r.donnees, r.colonnes, 'biens');
+  assert.equal(e[0].commune, 'BLOIS');
+  assert.equal(e[1].parcelles[0].section + e[1].parcelles[0].numero, 'ZN4');
+});

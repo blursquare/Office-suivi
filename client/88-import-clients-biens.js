@@ -124,9 +124,10 @@
   // Pure : les numéros de téléphone d'une cellule (dix chiffres, espaces, points ou tirets permis ; « +33 » compris).
   function numerosImport(t) {
     const out = [];
-    const re = /(?:\+33\s?|0)[1-9](?:[\s.\-]?\d{2}){4}/g;
+    // Bornés par des non-chiffres (jamais un morceau d'un numéro plus long) ; « +33 », « 0033 » et « +33 (0) » ramenés à 0.
+    const re = /(?<!\d)(?:(?:\+|00)33\s?(?:\(0\)\s?)?|0)[1-9](?:[\s.\-]?\d{2}){4}(?!\d)/g;
     let m;
-    while ((m = re.exec(String(t || ''))) !== null) out.push(m[0].replace(/[^\d+]/g, '').replace(/^\+33/, '0').replace(/(\d{2})(?=\d)/g, '$1 '));
+    while ((m = re.exec(String(t || ''))) !== null) out.push(m[0].replace(/\(0\)/, '').replace(/[^\d+]/g, '').replace(/^(?:\+|00)33/, '0').replace(/(\d{2})(?=\d)/g, '$1 '));
     return out.slice(0, 4);
   }
 
@@ -196,10 +197,17 @@
   function lectureExportImport(lignes) {
     const tete = enTeteImport(lignes);
     let genre = genreImport(lignes);
-    if (tete && !/^recherche d/.test(normaliserPourRecherche(String(((lignes || [])[0] || [])[0] || '')))) genre = tete.genres.includes('biens') ? 'biens' : 'personnes';
+    // Sans titre d'export, le genre vient des titres de colonnes qui en disent un (jamais « personnes » par défaut : CP, Ville, Adresse sont des deux).
+    if (tete && tete.genres.length && !/^recherche d/.test(normaliserPourRecherche(String(((lignes || []).find(l => Array.isArray(l) && l.some(c => String(c || '').trim())) || [])[0] || '')))) genre = tete.genres.includes('biens') ? 'biens' : 'personnes';
     const apres = tete ? lignes.slice(tete.index + 1) : lignes;
     const donnees = lignesDonneesImport(apres).filter(l => !/^recherche (de|d')/i.test(String(l[0] || '')) && !/^\d+\s+resultats?$/i.test(normaliserPourRecherche(String(l[0] || '')).trim()));
-    const colonnes = tete ? tete.champs.map(c => (CHAMPS_IMPORT[genre].some(([k]) => k === c) ? c : 'ignorer')) : colonnesProposeesImport(donnees, genre);
+    // Une colonne au titre inconnu garde le champ deviné d'après ses valeurs ; « Ville » d'un fichier immeubles = la commune.
+    const devinees = colonnesProposeesImport(donnees, genre);
+    const colonnes = tete ? tete.champs.map((c, i) => {
+      const k = genre === 'biens' && c === 'ville' ? 'commune' : c;
+      if (k === 'ignorer') return devinees[i] && !tete.champs.includes(devinees[i]) ? devinees[i] : 'ignorer';
+      return CHAMPS_IMPORT[genre].some(([x]) => x === k) ? k : 'ignorer';
+    }) : devinees;
     return { genre, donnees, colonnes };
   }
 

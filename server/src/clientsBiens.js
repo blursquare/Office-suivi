@@ -172,7 +172,7 @@ function occurrencesPersonnes(dossiers, imp) {
       champs: { civilite: texte(p.civilite), nomFamille: nf.nomFamille.toUpperCase(), prenom: nf.prenom, nomUsage: '', dateNaissance: texte(p.dateNaissance).slice(0, 10),
         lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: texte(p.profession), domicile: texte(p.domicile),
         emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
-      situation: texte(p.situation) ? { situation: texte(p.situation), conjoint: texte(p.conjoint), regime: '', date: '' } : null,
+      situation: texte(p.situation) || texte(p.conjoint) ? { situation: texte(p.situation), conjoint: texte(p.conjoint), regime: '', date: '' } : null,
       deces: p.deces && typeof p.deces === 'object' ? { date: texte(p.deces.date), lieu: texte(p.deces.lieu) } : null });
   }
   return occ;
