@@ -195,6 +195,7 @@ async function main() {
       'questionnaire-satisfaction-pdf.js': '../questionnaire-satisfaction-pdf.js',
       'appel-de-fonds-modele.js': '../appel-de-fonds-modele.js',
       'vendor/web-awesome/web-awesome.js': '../vendor/web-awesome/web-awesome.js',
+      'vendor/xlsx/xlsx.full.min.js': '../vendor/xlsx/xlsx.full.min.js',
       'vendor/web-awesome/web-awesome-theme.css': '../vendor/web-awesome/web-awesome-theme.css',
       'vendor/polices/geist-latin-wght-normal.woff2': '../vendor/polices/geist-latin-wght-normal.woff2',
       'vendor/polices/geist-latin-ext-wght-normal.woff2': '../vendor/polices/geist-latin-ext-wght-normal.woff2',

@@ -2,11 +2,12 @@
   //
   // Étude 19/10 : « fais l'import dans les réglages ; il faudra compléter les fiches avec les données qui n'y sont pas, grâce aux données
   // d'Authentic ». L'export d'Authentic (« Recherche de Personnes Physiques », « Recherche d'immeubles », .xls) est lu ICI, sur le poste
-  // (SheetJS) ; chaque colonne est devinée d'après ses valeurs, montrée sur les premières lignes et modifiable ; seules les lignes rangées
+  // (SheetJS 0.20.3, servi par CLAIRE) ; chaque colonne est devinée d'après ses valeurs, montrée sur les premières lignes et modifiable ; seules les lignes rangées
   // partent au serveur du bureau (POST /api/clients-biens/import). Les fiches importées sont la base de « Clients et biens » ; ce que les
   // dossiers et Authentic en disent passe devant (server/src/clientsBiens.js). Rien ne part à une IA ; rien n'est gardé dans le navigateur.
 
-  var URL_SHEETJS = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  // SheetJS 0.20.3 servi par CLAIRE (relecture 19/10 : la 0.18.5 des CDN a deux failles connues, CVE-2023-30533 et CVE-2024-22363).
+  var URL_SHEETJS = 'vendor/xlsx/xlsx.full.min.js';
   var CHAMPS_IMPORT = {
     personnes: [['nomComplet', 'Nom et prénom'], ['nom', 'Nom'], ['prenom', 'Prénom'], ['civilite', 'Civilité'], ['dateNaissance', 'Date de naissance'],
       ['telephone', 'Téléphone'], ['email', 'Email'], ['adresse', 'Adresse'], ['codePostal', 'Code postal'], ['ville', 'Ville'], ['profession', 'Profession'],
@@ -31,15 +32,15 @@
 
   // Pure : les lignes de données d'un export (titre et lignes vides retirés). `lignes` = tableau de tableaux (SheetJS, header: 1).
   function lignesDonneesImport(lignes) {
-    return (lignes || []).filter((l, i) => Array.isArray(l) && l.filter(c => String(c == null ? '' : c).trim()).length >= (i === 0 ? 3 : 2));
+    return (lignes || []).filter(l => Array.isArray(l) && l.filter(c => String(c == null ? '' : c).trim()).length >= 2);
   }
 
   // Pure : personnes ou immeubles, d'après le titre de l'export, sinon d'après les valeurs.
   function genreImport(lignes) {
-    const tete = (lignes || []).slice(0, 3).map(l => (Array.isArray(l) ? l.join(' ') : '')).join(' ');
-    const n = normaliserPourRecherche(tete);
-    if (/immeuble/.test(n)) return 'biens';
-    if (/personne/.test(n)) return 'personnes';
+    // Le titre de l'export seulement (« Recherche d'immeubles … », « Recherche de Personnes Physiques … ») : jamais une adresse « Immeuble … ».
+    const titre = normaliserPourRecherche(String(((lignes || []).find(l => Array.isArray(l) && l.some(c => String(c || '').trim())) || []).find(c => String(c || '').trim()) || ''));
+    if (/^recherche d.?immeubles?/.test(titre)) return 'biens';
+    if (/^recherche de personnes?/.test(titre)) return 'personnes';
     const types = lignesDonneesImport(lignes).slice(0, 50).flat().map(typeCelluleImport);
     return types.includes('email') || types.includes('telephone') ? 'personnes' : 'biens';
   }
@@ -160,9 +161,9 @@
     if (!f) return;
     try {
       if (!window.XLSX) await afChargerScript(URL_SHEETJS);
-      const classeur = window.XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: false, raw: false });
+      const classeur = window.XLSX.read(await f.arrayBuffer(), { type: 'array', cellDates: false, raw: false, dateNF: 'dd/mm/yyyy' });
       const feuille = classeur.Sheets[classeur.SheetNames[0]];
-      const lignes = window.XLSX.utils.sheet_to_json(feuille, { header: 1, raw: false, defval: '' });
+      const lignes = window.XLSX.utils.sheet_to_json(feuille, { header: 1, raw: false, defval: '', dateNF: 'dd/mm/yyyy' });
       const genre = genreImport(lignes);
       const donnees = lignesDonneesImport(lignes).filter(l => !/^recherche (de|d')/i.test(String(l[0] || '')));
       if (!donnees.length) { afficherToast('Aucune ligne lisible dans ce fichier.', 'OK', null); return; }

@@ -85,6 +85,8 @@ const ASSETS_STATIQUES = {
   '/appel-de-fonds-modele.js': { fichier: 'appel-de-fonds-modele.js', type: 'application/javascript; charset=utf-8' },
   // Composants Web Awesome (étude 04/10), paquet local : à déclarer ici ET dans les assets du .exe, comme le reste.
   '/vendor/web-awesome/web-awesome.js': { fichier: 'vendor/web-awesome/web-awesome.js', type: 'application/javascript; charset=utf-8' },
+  // SheetJS 0.20.3 (lecture des exports .xls d'Authentic, Réglages › Authentic — 19/10) : servi par CLAIRE, version corrigée des failles de 0.18.5.
+  '/vendor/xlsx/xlsx.full.min.js': { fichier: 'vendor/xlsx/xlsx.full.min.js', type: 'application/javascript; charset=utf-8' },
   '/vendor/web-awesome/web-awesome-theme.css': { fichier: 'vendor/web-awesome/web-awesome-theme.css', type: 'text/css; charset=utf-8' },
   // Police de l'interface (Geist, OFL — étude 04/10), embarquée : aucun appel extérieur. Binaire : lue sans encodage.
   '/vendor/polices/geist-latin-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-wght-normal.woff2', type: 'font/woff2', binaire: true },

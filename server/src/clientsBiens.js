@@ -79,21 +79,6 @@ function memeNom(p, nomFamille, prenom) {
 function occurrencesPersonnes(dossiers, imp) {
   /** @type {any[]} */
   const occ = [];
-  // Fichier clients d'Authentic importé (étude 19/10) : une occurrence par personne, sans dossier, source « Import » — la dernière servie.
-  const idsImport = new Set();
-  for (const p of (imp && Array.isArray(imp.personnes) ? imp.personnes : [])) {
-    const nf = p.prenom ? { nomFamille: texte(p.nom), prenom: texte(p.prenom) } : decouperNom(texte(p.nom));
-    if (!norm(nf.nomFamille)) continue;
-    const cle = norm(nf.nomFamille) + '|' + norm(nf.prenom);
-    let id = `import:${cle}`;
-    while (idsImport.has(id)) id += '~';
-    idsImport.add(id);
-    occ.push({ id, dossier: null, cle, source: 'Import', vuLe: '', role: 'PARTIE',
-      champs: { civilite: texte(p.civilite), nomFamille: nf.nomFamille.toUpperCase(), prenom: nf.prenom, nomUsage: '', dateNaissance: texte(p.dateNaissance).slice(0, 10),
-        lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: texte(p.profession), domicile: texte(p.domicile),
-        emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
-      situation: null, deces: null });
-  }
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
     const parties = Array.isArray(d.parties) ? d.parties : [];
@@ -172,6 +157,23 @@ function occurrencesPersonnes(dossiers, imp) {
       });
     }
   }
+  // Fichier clients d'Authentic importé (étude 19/10) : une occurrence par personne, sans dossier, source « Import » — la dernière servie, et APRÈS celles des dossiers (une correction se
+  // rattache à l'occurrence d'un dossier, jamais à celle du fichier qui change d'un import à l'autre).
+  const idsImport = new Set();
+  for (const p of (imp && Array.isArray(imp.personnes) ? imp.personnes : [])) {
+    const nf = p.prenom ? { nomFamille: texte(p.nom), prenom: texte(p.prenom) } : decouperNom(texte(p.nom));
+    if (!norm(nf.nomFamille)) continue;
+    const cle = norm(nf.nomFamille) + '|' + norm(nf.prenom);
+    // Identifiant stable d'un import à l'autre (relecture 19/10) : nom, prénom et date de naissance — jamais le rang dans le fichier.
+    let id = `import:${cle}${texte(p.dateNaissance) ? '~' + texte(p.dateNaissance).replace(/\D/g, '') : ''}`;
+    while (idsImport.has(id)) id += '~';
+    idsImport.add(id);
+    occ.push({ id, dossier: null, cle, source: 'Import', vuLe: '', role: 'PARTIE',
+      champs: { civilite: texte(p.civilite), nomFamille: nf.nomFamille.toUpperCase(), prenom: nf.prenom, nomUsage: '', dateNaissance: texte(p.dateNaissance).slice(0, 10),
+        lieuNaissance: texte(p.lieuNaissance), nationalite: '', profession: texte(p.profession), domicile: texte(p.domicile),
+        emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
+      situation: null, deces: null });
+  }
   return occ;
 }
 
@@ -236,24 +238,34 @@ function construirePersonnes(dossiers, reglages, imp) {
   // Sûr : même nom, prénom ET date de naissance, ou confirmé par l'étude. Un email ou un téléphone commun ne suffit pas (le père et le
   // fils du même nom partagent la ligne de la maison) : la paire est proposée.
   for (const groupe of parCle.values()) {
-    // Fichier importé : deux personnes du fichier sont deux clients (jamais réunies ni proposées) ; une personne du fichier rejoint celle d'un
-    // dossier du même nom et prénom quand rien ne les sépare (dates de naissance) et qu'elle est la seule du fichier à porter ce nom.
-    const importees = groupe.filter((o) => o.source === 'Import');
+    // Fichier importé : traité après les dossiers (plus bas) ; deux personnes du fichier sont deux clients, jamais réunies ni proposées.
     for (let i = 0; i < groupe.length; i++) {
       for (let j = i + 1; j < groupe.length; j++) {
         const a = groupe[i]; const b = groupe[j];
         const dA = a.champs.dateNaissance; const dB = b.champs.dateNaissance;
         if (dA && dB && dA !== dB) continue;
-        if (a.source === 'Import' || b.source === 'Import') {
-          if (a.source === 'Import' && b.source === 'Import') continue;
-          const dec0 = decision(a.id, b.id);
-          if (dec0 === 'distinct') continue;
-          if (dec0 === 'meme' || (dA && dA === dB) || importees.length === 1) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
-          continue;
-        }
+        if (a.source === 'Import' || b.source === 'Import') continue;
         const dec = decision(a.id, b.id);
         if (dec === 'distinct') continue;
         if (dec === 'meme' || (dA && dA === dB)) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
+      }
+    }
+  }
+  // Personne du fichier importé, après les dossiers (relecture 19/10) : jointe à celles des dossiers du même nom et prénom quand elle est la seule
+  // du fichier à porter ce nom ET que ces occurrences des dossiers ne font déjà qu'une fiche (jamais elle ne relie deux homonymes laissés à
+  // part) ; ou sur une date de naissance égale, ou la décision de l'étude. Jamais proposée « peut-être » (un fichier de milliers de noms).
+  for (const groupe of parCle.values()) {
+    const importees = groupe.filter((o) => o.source === 'Import');
+    const autres = groupe.filter((o) => o.source !== 'Import');
+    if (!importees.length || !autres.length) continue;
+    const uneFiche = new Set(autres.map((o) => uf.trouver(o.id))).size === 1;
+    for (const i of importees) {
+      for (const o of autres) {
+        const dec = decision(i.id, o.id);
+        if (dec === 'distinct') continue;
+        const dI = i.champs.dateNaissance; const dO = o.champs.dateNaissance;
+        if (dI && dO && dI !== dO) continue;
+        if (dec === 'meme' || (dI && dI === dO) || (importees.length === 1 && uneFiche)) unir(i.id, o.id);
       }
     }
   }
@@ -371,7 +383,7 @@ function occurrencesBiens(dossiers, imp) {
     const adr = adresseDecomposee(texte(b.adresse), { codePostal: b.codePostal, commune: b.commune });
     const parcelles = (b.parcelles || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
     if (!parcelles.length && !adr.voie && !adr.lieuDit && !texte(b.adresse)) return;
-    occ.push({ id: `import:b${i}`, dossier: null, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles, lots: [], type: texte(b.type), description: '', details: [] });
+    occ.push({ id: `import:b${i}`, dossier: null, importe: true, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles, lots: [], type: texte(b.type), description: '', details: [] });
   });
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
@@ -417,11 +429,14 @@ function construireBiens(dossiers, imp) {
         const deja = parParcelle.get(k);
         if (!deja) { parParcelle.set(k, o.id); continue; }
         const autre = occParId.get(deja);
+        // Deux lignes du fichier immeubles sur la même parcelle (appartements d'un immeuble) : deux biens, jamais réunis par la parcelle.
+        if (o.importe && autre && autre.importe) continue;
         if (DD.memeCommune({ commune: p.commune, codePostal: o.codePostal }, { commune: p.commune, codePostal: autre && autre.codePostal }) !== false) uf.unir(deja, o.id);
       }
       const cp = texte(o.codePostal);
       if (/^\d{5}$/.test(cp)) for (const k of lots.length ? lots.map((l) => cleParcelleCourte(p, cp) + '|lot ' + l) : [cleParcelleCourte(p, cp)]) {
-        if (parParcelleCourte.has(k)) uf.unir(parParcelleCourte.get(k), o.id); else parParcelleCourte.set(k, o.id);
+        if (!parParcelleCourte.has(k)) parParcelleCourte.set(k, o.id);
+        else if (!(o.importe && (occParId.get(parParcelleCourte.get(k)) || {}).importe)) uf.unir(parParcelleCourte.get(k), o.id);
       }
     }
     if (!o.parcelles.some((/** @type {any} */ p) => norm(p.commune)) && o.adresse && norm(o.commune)) {

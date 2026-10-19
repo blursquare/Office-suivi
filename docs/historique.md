@@ -21002,3 +21002,8 @@ les lignes rangées (`POST /api/clients-biens/import`, une liste par genre, remp
 `clientsBiens.js` une occurrence « Import » par ligne, sans dossier, servie APRÈS Authentic et la fiche ; une personne importée rejoint celle
 d'un dossier de même nom et prénom sans dates contraires quand elle est la seule du fichier à porter ce nom (sinon proposée « même personne ? ») ;
 deux personnes du fichier ne sont jamais réunies. Point terrain `import-clients-biens`.
+Relecture de 0.291.0 : SheetJS 0.20.3 servi par CLAIRE (`vendor/xlsx/`, dans les deux listes d'assets ; la 0.18.5 des CDN a deux failles,
+CVE-2023-30533 et CVE-2024-22363) ; une personne du fichier ne relie jamais deux homonymes des dossiers laissés à part (jointe seulement quand
+ces occurrences ne font déjà qu'une fiche), n'est jamais proposée « peut-être » ; occurrences du fichier APRÈS celles des dossiers et
+identifiant stable (nom, prénom, date de naissance) pour que corrections et liaisons ne glissent pas ; deux lignes du fichier immeubles sur la
+même parcelle restent deux biens ; genre lu sur le titre seul ; dates rendues en jj/mm/aaaa.

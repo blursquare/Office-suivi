@@ -314,3 +314,21 @@ test('route d\'import : remplace le fichier du même genre, ne rend que des nomb
     assert.equal(d.personnes, 0);
   } finally { serveur.close(); db.close(); }
 });
+
+test('import : jamais le lien entre deux homonymes des dossiers, identifiant stable, appartements distincts (relecture 19/10)', () => {
+  const { assainirImport } = require('../src/importClientsBiens');
+  const dossiersH = [
+    { id: 'a1', nom: 'EXEMPLE - ESSAI', parties: [{ nom: 'Jean ESSAI', role: 'ACQUEREUR' }] },
+    { id: 'b2', nom: 'ESSAI - TEST', parties: [{ nom: 'Jean ESSAI', role: 'VENDEUR' }] }
+  ];
+  const imp = assainirImport({ personnes: [{ nom: 'ESSAI', prenom: 'Jean', dateNaissance: '01/02/1950' }],
+    biens: [{ adresse: '3 rue Exemple 41000 BLOIS', parcelles: [{ section: 'AB', numero: '12' }] }, { adresse: '3 rue Exemple 41000 BLOIS', parcelles: [{ section: 'AB', numero: '12' }] }] });
+  const base = construireBase(dossiersH, {}, imp);
+  const jean = base.personnes.filter(p => p.champs.nomFamille === 'ESSAI');
+  assert.equal(jean.some(p => p.dossiers.length === 2), false, 'le père et le fils ne sont pas réunis par le fichier');
+  const idImport = jean.flatMap(p => p.occurrences).find(o => o.startsWith('import:'));
+  assert.equal(idImport, 'import:essai|jean~19500201');
+  // L'occurrence d'un dossier passe avant celle du fichier (les corrections s'y rattachent).
+  assert.equal(jean.every(p => !p.occurrences[0].startsWith('import:') || p.occurrences.length === 1), true);
+  assert.equal(base.biens.filter(b => b.parcelles.some(p => p.section === 'AB')).length, 2, 'deux lignes sur la même parcelle restent deux biens');
+});
