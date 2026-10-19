@@ -27,6 +27,22 @@ function rechercheWebUtilisee(messages) {
   return (messages || []).some((m) => m && m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b && (b.type === 'server_tool_use' || b.type === 'web_search_tool_result')));
 }
 
+/**
+ * Pure : la recherche web peut-elle être donnée à ce tour ? OpenLegi D'ABORD (étude 19/10 : « openlegi est à utiliser en priorité
+ * avant la recherche web ») : quand Légifrance ou le BOFiP sont branchés pour la conversation, la recherche web n'est ajoutée qu'une
+ * fois l'un d'eux appelé (même sans résultat) ; sans eux, elle est donnée tout de suite. Une fois donnée, elle le reste (l'historique
+ * qui la contient reste valide). @param {{ rechercheWeb?: string[], outilsExternes?: any[], messages?: any[] }} conv
+ */
+function rechercheWebPourTour(conv) {
+  const domaines = conv && Array.isArray(conv.rechercheWeb) ? conv.rechercheWeb : [];
+  if (!domaines.length) return [];
+  const droit = (/** @type {any} */ n) => /^(legifrance|bofip)__/i.test(String(n || ''));
+  if (!(conv.outilsExternes || []).some((t) => t && droit(t.name))) return domaines;
+  if (rechercheWebUtilisee(conv.messages)) return domaines;
+  const appele = (conv.messages || []).some((m) => m && m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b && b.type === 'tool_use' && droit(b.name)));
+  return appele ? domaines : [];
+}
+
 /** Pure : les adresses des pages web citées par Claude (citations des blocs de texte), sans doublon, 5 au plus. @param {any[]} contenu */
 function sourcesWebCitees(contenu) {
   const urls = [];
@@ -231,7 +247,7 @@ Comment tu travailles :
 - Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Pour une question sur une règle de CLAIRE ou un choix de l'étude (« pourquoi… », « depuis quand… », un délai, une échéance, un courrier), cherche dans la rubrique regles-etude et cite la section (sa date quand elle en porte une). Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
 - Mémoire des conversations : chercher_conversations retrouve ce que l'étude t'a déjà demandé et ce que tu as répondu (90 jours) ; consulte-la quand on évoque un échange passé, avant de dire que tu ne sais pas.
-- Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, après Légifrance et le BOFiP s'ils sont disponibles ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
+- Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, et TOUJOURS APRÈS Légifrance et le BOFiP quand ils te sont donnés (règle de l'étude : OpenLegi en priorité ; la recherche web ne t'est d'ailleurs donnée qu'après un appel à l'un d'eux) ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
 - Relecture d'un acte (étude 18/10 : la relecture d'actes se fait ici) : appelle controles_relecture, puis lis le document (lire_document, par tranches de 30 pages) pour vérifier chaque point de la grille de l'étude et chaque constat de CLAIRE, en tenant compte des consignes de l'étude. Rends un compte rendu en texte, dans cet ordre : **Synthèse** (deux phrases) ; **À régler avant la signature** (le bloquant seulement) ; **À vérifier** ; **Conforme** (une ligne par thème, bref) ; **Contradictions** entre les documents ; **Pièces ou informations manquantes**. Chaque point cite sa page [document_id p. N] et, quand c'est possible, le passage exact « … ». Jamais « conforme » pour un point que tu n'as pas trouvé dans le texte : dis « non trouvé dans le document ». Peu de bruit : l'étude se plaint du bruit, pas des oublis — ne signale pas l'anodin, regroupe, n'invente aucune règle de droit (vérifie dans les sources juridiques en cas de doute). Propose ensuite « Imprimer » ou rediger_document pour une note Word.
 - Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
 - Pièces jointes : quand le message cite « Pièces jointes à ce message » (pj1, pj2…), LIS-les avec lire_document avant de répondre.
@@ -658,7 +674,7 @@ async function tourClaude(conv, o) {
   let coutUsd = 0, entree = 0, sortie = 0;
   // Un outil serveur (recherche web) peut mettre le tour en pause (« pause_turn ») : la requête est relancée telle quelle, 3 fois au plus.
   for (let relance = 0; relance < 4; relance++) {
-    message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort, rechercheWeb: conv.rechercheWeb }));
+    message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort, rechercheWeb: rechercheWebPourTour(conv) }));
     conv.messages.push({ role: 'assistant', content: message.content });
     const u = message.usage || {};
     coutUsd += coutAgentUsd(u, conv.modele);
@@ -775,4 +791,4 @@ function viderConversationsAgent() { conversations.clear(); }
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
 module.exports = { EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, retablirValeur, nettoyerReponseAgent,
-  coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS };
+  coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };
