@@ -28,8 +28,9 @@ function transport(reponses) {
   const corps = [];
   const poster = (o, cb) => {
     corps.push(o.body);
-    const cle = /FindFolder/.test(o.body) ? 'dossiers' : /MoveItem/.test(o.body) ? 'deplace' : 'find';
-    cb(null, { statusCode: 200, body: reponses[cle] });
+    const cle = /Id="deleteditems"/.test(o.body) ? 'corbeille' : /FindFolder/.test(o.body) ? 'dossiers' : /MoveItem/.test(o.body) ? 'deplace' : 'find';
+    if (reponses.pendant) reponses.pendant(cle);
+    cb(null, { statusCode: 200, body: reponses[cle] || dossiers([]) });
   };
   return { poster, corps };
 }
@@ -38,7 +39,9 @@ beforeEach(() => { R.oublierDossierRangement(); reinitialiserDisjoncteurAgenda()
 
 test('pur : les deux règles de l’étude, rien d’autre', () => {
   assert.equal(R.regleRangementPourEmail({ objet: 'Facture Dossier FIDJI n° 2026-123', de: 'spf.blois@dgfip.finances.gouv.fr' }).id, 'spf-facture-fidji');
-  assert.equal(R.regleRangementPourEmail({ objet: 'TR: facture  dossier fidji', de: 'x@y.fr' }).id, 'spf-facture-fidji');
+  assert.equal(R.regleRangementPourEmail({ objet: 'facture  DOSSIER fidji 2026', de: 'spf@dgfip.finances.gouv.fr' }).id, 'spf-facture-fidji');
+  assert.equal(R.regleRangementPourEmail({ objet: 'TR: Facture Dossier FIDJI', de: 'julie@office.fr' }), null);
+  assert.equal(R.regleRangementPourEmail({ objet: 'RE : Facture Dossier FIDJI', de: 'confrere@notaires.fr' }), null);
   assert.equal(R.regleRangementPourEmail({ objet: 'Message mis en quarantaine', de: 'Quarantaine@Notaires.fr' }).id, 'quarantaine-notaires');
   assert.equal(R.regleRangementPourEmail({ objet: 'Facture', de: 'spf.blois@dgfip.finances.gouv.fr' }), null);
   assert.equal(R.regleRangementPourEmail({ objet: 'Dossier FIDJI', de: 'x@y.fr' }), null);
@@ -115,4 +118,44 @@ test('tour : identifiants refusés → disjoncteur de l’agenda, rien de dépla
   assert.equal(corps.some((c) => /MoveItem/.test(c)), false);
   const { lectureAgendaSuspendue } = require('../src/agendaWatch');
   assert.equal(lectureAgendaSuspendue(repo.lireReglagesExchange()), true);
+});
+
+test('tour : un dossier « Traiter à distance » de la corbeille n’est jamais la cible', async () => {
+  const repo = preparer();
+  const t = transport({
+    dossiers: dossiers([['INBOX', 'Boîte de réception'], ['SUPPR', 'Traiter à distance']]),
+    corbeille: dossiers([['SUPPR', 'Traiter à distance']]),
+    find: find([msg('m1', 'Facture Dossier FIDJI', 'spf@dgfip.finances.gouv.fr')]), deplace: deplace(['Success'])
+  });
+  await R.executerTourRangement(repo, { poster: t.poster }, true);
+  assert.equal(t.corps.some((c) => /MoveItem/.test(c)), false);
+  assert.equal(R.lireEtatRangement(repo).statut, 'introuvable');
+  // L'ancien dans la corbeille, le nouveau dans la boîte : le nouveau seul est la cible.
+  R.oublierDossierRangement();
+  const t2 = transport({
+    dossiers: dossiers([['SUPPR', 'Traiter à distance'], ['NEUF', 'Traiter à distance']]),
+    corbeille: dossiers([['SUPPR', 'Traiter à distance']]),
+    find: find([msg('m1', 'Facture Dossier FIDJI', 'spf@dgfip.finances.gouv.fr')]), deplace: deplace(['Success'])
+  });
+  const r = await R.executerTourRangement(repo, { poster: t2.poster }, true);
+  assert.equal(r.ranges, 1);
+  assert.match(t2.corps.find((c) => /MoveItem/.test(c)), /<t:FolderId Id="NEUF"\/>/);
+});
+
+test('tour : l’interrupteur coupé pendant un tour reste coupé ; lot en partie réussi compté juste', async () => {
+  const repo = preparer();
+  const reponses = {
+    dossiers: dossiers([['TAD', 'Traiter à distance']]),
+    find: find([msg('m1', 'Facture Dossier FIDJI', 'spf@dgfip.finances.gouv.fr'), msg('m2', 'Alerte', 'quarantaine@notaires.fr')]),
+    deplace: deplace(['Success', 'Error']),
+    pendant: (cle) => { if (cle === 'deplace') { const e = R.lireEtatRangement(repo); e.actif = false; R.ecrireEtatRangement(repo, e); } }
+  };
+  const t = transport(reponses);
+  const r = await R.executerTourRangement(repo, { poster: t.poster }, true);
+  assert.equal(r.ranges, 1);
+  const etat = R.lireEtatRangement(repo);
+  assert.equal(etat.actif, false);
+  assert.equal(etat.ranges['spf-facture-fidji'], 1);
+  assert.equal(etat.ranges['quarantaine-notaires'], 0);
+  assert.ok(etat.echecs.m2);
 });

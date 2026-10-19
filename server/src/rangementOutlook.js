@@ -51,8 +51,11 @@ function normaliserTexte(t) {
 function regleRangementPourEmail(e) {
   const objet = normaliserTexte(e && e.objet);
   const de = normaliserTexte(e && e.de);
+  // Une réponse ou un transfert (« RE: », « TR: »…) vient de quelqu'un d'autre que l'expéditeur visé (relecture 19/10) : jamais
+  // désigné par l'objet.
+  const reponse = /^(re|tr|fw|fwd)\s*:/.test(objet);
   for (const r of REGLES_RANGEMENT_OUTLOOK) {
-    if (r.objet && objet.includes(normaliserTexte(r.objet))) return r;
+    if (r.objet && !reponse && objet.includes(normaliserTexte(r.objet))) return r;
     if (r.expediteur && de === normaliserTexte(r.expediteur)) return r;
   }
   return null;
@@ -66,12 +69,13 @@ function dossierRangementParmi(dossiers) {
   return trouves.length ? trouves[0].id : '';
 }
 
-function corpsFindFolders() {
+/** Tous les dossiers sous `racine` (msgfolderroot, ou deleteditems pour les écarter). @param {string} [racine] */
+function corpsFindFolders(racine = 'msgfolderroot') {
   return ENVELOPPE_DEBUT
     + '<m:FindFolder Traversal="Deep"><m:FolderShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
     + '<t:FieldURI FieldURI="folder:DisplayName"/></t:AdditionalProperties></m:FolderShape>'
     + '<m:IndexedPageFolderView MaxEntriesReturned="1000" Offset="0" BasePoint="Beginning"/>'
-    + '<m:ParentFolderIds><t:DistinguishedFolderId Id="msgfolderroot"/></m:ParentFolderIds></m:FindFolder>' + ENVELOPPE_FIN;
+    + `<m:ParentFolderIds><t:DistinguishedFolderId Id="${racine === 'deleteditems' ? 'deleteditems' : 'msgfolderroot'}"/></m:ParentFolderIds></m:FindFolder>` + ENVELOPPE_FIN;
 }
 
 /** Pure : les dossiers d'une réponse FindFolder. @param {string} corps */
@@ -153,8 +157,11 @@ function connexionPrete(r) { return Boolean(r && r.actif && r.url && r.email && 
 
 /** @type {Promise<any>|null} */
 let tourCourant = null;
-// Identifiant du dossier Outlook, retrouvé une fois par démarrage (relu si un déplacement échoue en entier).
+// Identifiant du dossier Outlook, recherché à nouveau toutes les heures (dossier supprimé, renommé ou recréé) et dès qu'un
+// déplacement échoue en entier.
 let dossierConnu = '';
+let dossierConnuLe = 0;
+const DUREE_DOSSIER_CONNU_MS = 3600 * 1000;
 
 /** Un seul tour à la fois (relève et « Ranger maintenant » partagent le même). @param {any} parametresRepo @param {any} [injections] @param {boolean} [manuel] */
 function executerTourRangement(parametresRepo, injections = {}, manuel = false) {
@@ -176,9 +183,12 @@ async function tourRangement(parametresRepo, injections, manuel) {
   const poster = (/** @type {string} */ body) => posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body }, injections);
   const maintenant = injections.maintenant ? new Date(injections.maintenant) : new Date();
   const refus = (/** @type {any} */ r) => !r.echec && (r.statut === 401 || r.statut === 403);
+  // L'état est RELU avant d'écrire (relecture 19/10) : l'interrupteur coupé pendant un tour ne doit pas être rallumé par lui.
   const finir = (/** @type {string} */ statut, /** @type {string} */ message) => {
-    etat.statut = statut; etat.message = message; etat.dernierTour = maintenant.toISOString();
-    ecrireEtatRangement(parametresRepo, etat);
+    const frais = lireEtatRangement(parametresRepo);
+    Object.assign(frais, { statut, message, dernierTour: maintenant.toISOString(), ranges: etat.ranges, echecs: etat.echecs,
+      dernierRangement: etat.dernierRangement, depuis: frais.depuis || etat.depuis });
+    ecrireEtatRangement(parametresRepo, frais);
     if (message) resultat.erreur = message;
     return resultat;
   };
@@ -187,21 +197,37 @@ async function tourRangement(parametresRepo, injections, manuel) {
   // Premier tour : seuls les emails reçus à partir de maintenant seront rangés (étude 19/10).
   if (!etat.depuis) { etat.depuis = maintenant.toISOString(); ecrireEtatRangement(parametresRepo, etat); }
 
-  if (!dossierConnu) {
+  // Dossier introuvable au dernier tour : cherché de nouveau une fois par heure (ou sur « Ranger maintenant »), pas toutes les 5 min.
+  if (!manuel && etat.statut === 'introuvable' && etat.dernierTour && maintenant.getTime() - Date.parse(etat.dernierTour) < DUREE_DOSSIER_CONNU_MS) {
+    return { ...resultat, erreur: etat.message, attente: true };
+  }
+
+  if (!dossierConnu || maintenant.getTime() - dossierConnuLe > DUREE_DOSSIER_CONNU_MS) {
+    dossierConnu = '';
     const f = await poster(corpsFindFolders());
     if (refus(f)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
     if (f.echec || !analyseEws(f.corps).ok) return finir('erreur', erreurDe(f));
-    const id = dossierRangementParmi(parseFindFolders(f.corps));
+    // Les dossiers de la corbeille (« Éléments supprimés ») n'en sont jamais la cible : un email déplacé là serait purgé (relecture 19/10).
+    const c = await poster(corpsFindFolders('deleteditems'));
+    if (refus(c)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
+    if (c.echec || !analyseEws(c.corps).ok) return finir('erreur', erreurDe(c));
+    const corbeille = new Set(parseFindFolders(c.corps).map((x) => x.id));
+    const id = dossierRangementParmi(parseFindFolders(f.corps).filter((x) => !corbeille.has(x.id)));
     if (id === 'double') return finir('introuvable', `Plusieurs dossiers « ${NOM_DOSSIER_OUTLOOK} » dans la boîte : rien n’est déplacé.`);
     if (!id) return finir('introuvable', `Dossier « ${NOM_DOSSIER_OUTLOOK} » introuvable dans la boîte du compte relié : rien n’est déplacé.`);
     dossierConnu = id;
+    dossierConnuLe = maintenant.getTime();
   }
 
   const r = await poster(corpsFindRecents(etat.depuis || maintenant.toISOString()));
   if (refus(r)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
   if (r.echec || !analyseEws(r.corps).ok) return finir('erreur', erreurDe(r));
   const limite = maintenant.getTime() - DELAI_REESSAI_MS;
-  const aRanger = parseRecents(r.corps)
+  const lus = parseRecents(r.corps);
+  // Un refus vieux de plus de 6 h pour un email qui n'est plus dans la boîte de réception (déplacé ou supprimé à la main) est oublié.
+  const presents = new Set(lus.map((m) => m.itemId));
+  for (const [id, le] of Object.entries(etat.echecs)) if (!presents.has(id) && Date.parse(le) <= limite) delete etat.echecs[id];
+  const aRanger = lus
     .map((m) => ({ ...m, regle: regleRangementPourEmail(m) }))
     .filter((m) => m.regle && !(etat.echecs[m.itemId] && Date.parse(etat.echecs[m.itemId]) > limite))
     .slice(0, MAX_DEPLACES_TOUR);
@@ -233,7 +259,7 @@ function demarrerRangementOutlook(parametresRepo, config) {
     enCours = true;
     try {
       const r = await executerTourRangement(parametresRepo, { config });
-      if (r.erreur && !/n’est pas configurée|suspendue|désactivé/.test(r.erreur)) console.warn('[CLAIRE] Rangement dans Outlook :', r.erreur);
+      if (r.erreur && !r.attente && !/n’est pas configurée|suspendue|désactivé/.test(r.erreur)) console.warn('[CLAIRE] Rangement dans Outlook :', r.erreur);
     } catch (e) {
       console.warn('[CLAIRE] Rangement dans Outlook interrompu :', e && e.message);
     } finally { enCours = false; }
@@ -243,7 +269,7 @@ function demarrerRangementOutlook(parametresRepo, config) {
 }
 
 /** Tests seulement. */
-function oublierDossierRangement() { dossierConnu = ''; }
+function oublierDossierRangement() { dossierConnu = ''; dossierConnuLe = 0; }
 
 module.exports = {
   CLE_RANGEMENT_OUTLOOK, NOM_DOSSIER_OUTLOOK, REGLES_RANGEMENT_OUTLOOK, normaliserTexte, regleRangementPourEmail, dossierRangementParmi,
