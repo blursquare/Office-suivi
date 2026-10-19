@@ -84,7 +84,7 @@ var MAX_JOURNAL = 100;
 // 19/10 : la page restait « prise » et n'était jamais appliquée) : remise en file après ce délai, trois fois au plus.
 var DUREE_REPRISE_RELEVE_MS = 90 * 1000;
 var ESSAIS_RELEVE_MAX = 3;
-var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-creer', 'erreur', 'rattache'];
+var ETATS_RESULTAT = ['applique', 'sans-changement', 'sans-dossier', 'a-choisir', 'a-confirmer', 'a-creer', 'erreur', 'rattache'];
 // Les résultats où la page a été rangée dans un dossier (gardée pour lui).
 var ETATS_RANGES = ['applique', 'sans-changement', 'rattache'];
 

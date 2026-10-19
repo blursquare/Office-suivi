@@ -5,18 +5,31 @@ const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
-test('manques : page du dossier, fiche client de chaque personne (jamais une société), fiche bien sans parcelle', () => {
+test('pages attendues : page du dossier, fiche client de chaque personne (jamais une société), chaque bien annoncé', () => {
   const d = { parties: [{ role: 'VENDEUR', nom: 'Léa ESSAI' }, { role: 'VENDEUR', nom: 'SCI DU TEST', qualitePersonne: 'morale' }, { role: 'ACQUEREUR', nom: 'Paul EXEMPLE' }],
-    authentic: { fichesClients: { 'lea essai': { nom: 'Léa ESSAI' } } } };
-  const m = app.manquesAuthenticDossier(d, []).map((x) => x.texte).join(' | ');
-  assert.match(m, /Page du dossier/);
-  assert.match(m, /Fiche client de Paul EXEMPLE/);
-  assert.doesNotMatch(m, /Léa ESSAI|SCI/);
-  assert.match(m, /Fiche bien/);
-  const plein = app.manquesAuthenticDossier(Object.assign({}, d, { bien: { cadastre: { parcelles: [{ section: 'AB', numero: '1' }] } } }), [{ nature: 'dossier' }]).map((x) => x.texte).join(' | ');
-  assert.equal(plein, 'Fiche client de Paul EXEMPLE');
-  assert.equal(app.libellePageRecueAuthentic({ nature: 'client', cle: 'client:lea essai' }), 'Fiche client — LEA ESSAI');
+    authentic: { fichesClients: { 'lea essai': { nom: 'Léa ESSAI', vuLe: '2026-10-19T08:00:00Z' } }, biensDossier: { nombre: 2 } } };
+  const vide = app.pagesAttenduesAuthentic(d, []);
+  assert.equal(vide.map((p) => `${p.libelle}:${p.recue ? 'oui' : 'non'}`).join(' | '),
+    'Page du dossier:non | Fiche de Léa ESSAI:oui | Fiche de Paul EXEMPLE:non | Fiche du bien 1:non | Fiche du bien 2:non');
+  const plein = app.pagesAttenduesAuthentic(d, [{ nature: 'dossier', recueLe: '2026-10-19T09:00:00Z' }, { nature: 'bien' }, { nature: 'bien' }]);
+  assert.equal(plein.filter((p) => !p.recue).map((p) => p.libelle).join(','), 'Fiche de Paul EXEMPLE');
   assert.equal(app.formatDateHeureCourte('pas une date'), '');
+});
+
+test('panneau Authentic : lien, valeurs reprises corrigées à la main, état civil lu', () => {
+  const d = { id: 'p1', nom: 'ESSAI / EXEMPLE', referenceAuthentic: 'A 2026 00017', intituleAuthentic: 'VTE ESSAI / EXEMPLE', prixVente: 210000, adresseBien: 'BLOIS (41000), 2 rue Haute',
+    emailVendeur: 'lea@exemple.fr', parties: [{ role: 'VENDEUR', nom: 'Léa ESSAI' }],
+    authentic: { valeurs: { prixVente: 200000, adresseBien: 'BLOIS (41000), 2 rue Haute' }, fichesAuthentic: { v1: { role: 'VENDEUR', nom: 'Léa ESSAI', emails: ['lea@exemple.fr'] } },
+      fichesClients: { 'lea essai': { nom: 'Léa ESSAI', civilite: 'Mme', dateNaissance: '1985-02-14', lieuNaissance: 'TOURS', profession: 'Infirmière' } } } };
+  assert.equal(app.lienAuthenticDossier(d).etat, 'reference');
+  assert.equal(app.lienAuthenticDossier({ id: 'x' }).etat, 'aucun');
+  const champs = app.champsReprisAuthentic(d);
+  assert.equal(champs.map((c) => `${c.cle}:${c.etat}`).join(','), 'adresseBien:identique,prixVente:corrige,emails:v1:identique');
+  const p = app.personnesLuesAuthentic(d)[0];
+  assert.equal(p.nom, 'Madame Léa ESSAI');
+  assert.equal(p.role, 'Vendeur');
+  assert.match(p.lignes.map((l) => l.join(' ')).join(' | '), /Naissance née le 14 février 1985 à TOURS \| Profession Infirmière/);
+  assert.equal(p.manque.join(','), 'Domicile,Email,Téléphone');
 });
 
 // Relecture du 17/10 : une promesse n'est jamais gardée ; seule une page qui désigne CE dossier est relue.

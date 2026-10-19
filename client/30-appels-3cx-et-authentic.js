@@ -2249,7 +2249,12 @@
   // depuis ce dossier lui appartient — la fiche client n'est reprise que si la personne est l'une
   // de ses parties (roleClientAuthenticDansDossier).
   var DUREE_DOSSIER_COURANT_AUTHENTIC_MS = 30 * 60 * 1000;
-  let dossierCourantAuthentic = { id: '', t: 0 };
+  let dossierCourantAuthentic = { id: '', t: 0, sur: false };
+  // Le dernier dossier vu, seulement s'il a été reconnu SÛREMENT (référence, intitulé rangé à la main, choix) — étude 19/10.
+  function courantSurAuthentic() {
+    if (!dossierCourantAuthentic.sur || Date.now() - dossierCourantAuthentic.t >= DUREE_DOSSIER_COURANT_AUTHENTIC_MS) return null;
+    return dossiers.find(x => x && !x.deleted && x.id === dossierCourantAuthentic.id) || null;
+  }
 
   // Pure : [{ intitule, numero }] de tous les dossiers cités sur une page.
   function intitulesNumerotesAuthentic(capture) {
@@ -2348,6 +2353,9 @@
         const x = notes.find(n => n.d === d);
         return x && x.s.nomsTrouves ? x.s.details.filter(t => !/−/.test(t)).slice(0, 2).join(' · ').replace(/\s*\(\+\d+\)/g, '') : '';
       };
+    } else if (attente.nature !== 'client') {
+      if (intro) intro.textContent = `Page lue dans Authentic${attente.intituleGroupe ? ` (onglet « ${attente.intituleGroupe} »)` : ''} : dans quel dossier de CLAIRE la ranger ?`;
+      candidats = candidatsDossierAuthentic(attente.intituleGroupe || '', '', dossiers).map(x => x.d);
     } else {
       const personne = clientDepuisFicheAuthentic(attente.capture);
       const qui = personne ? [personne.prenom, personne.nom].filter(Boolean).join(' ') : 'cette personne';
@@ -2360,9 +2368,12 @@
       // Partie d'aucun dossier : tous les dossiers en cours (elle y sera « à rattacher »).
       if (!candidats.length) candidats = candidatsDossierAuthentic('', '', dossiers).map(x => x.d);
     }
+    // Le dossier proposé par les noms en tête (étude 19/10 : confirmé d'un clic, jamais rangé seul).
+    const propose = attente.propose ? dossiers.find(x => x.id === attente.propose) : null;
+    if (propose) candidats = [propose].concat(candidats.filter(x => x !== propose));
     liste.innerHTML = candidats.length ? candidats.map(d => {
-      const m = marque(d);
-      return `<button type="button" class="nas-choix-item" data-cherche="${escapeAttr(normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.nom || '')))}" onclick="rangerFicheClientAuthentic('${escapeOnclickArg(cle)}', '${escapeOnclickArg(d.id)}')">`
+      const m = d === propose ? 'proposé par CLAIRE' : marque(d);
+      return `<button type="button" class="nas-choix-item${d === propose ? ' propose' : ''}" data-cherche="${escapeAttr(normaliserPourRecherche(libelleDossierAffiche(d) + ' ' + (d.nom || '')))}" onclick="rangerFicheClientAuthentic('${escapeOnclickArg(cle)}', '${escapeOnclickArg(d.id)}')">`
         + `<span class="nas-choix-nom">${escapeHtml(libelleDossierAffiche(d))}</span>`
         + (m ? `<span class="nas-choix-marque">${escapeHtml(m)}</span>` : '')
         + `</button>`;
@@ -2402,9 +2413,12 @@
     const d = dossiers.find(x => x.id === id);
     if (!attente || !d) return;
     fichesClientEnAttente.delete(cle);
-    dossierCourantAuthentic = { id: d.id, t: Date.now() };
-    if (attente.nature === 'dossier') {
-      const quittes = rattacherIntituleAuthentic(d, intituleDossierAuthentic(attente.capture), dossiers, referenceDossierAuthentic(attente.capture));
+    dossierCourantAuthentic = { id: d.id, t: Date.now(), sur: true };
+    try { noterVerificationPoste('authentic-rattachement-confirme', { detail: attente.propose === d.id ? 'dossier proposé confirmé' : 'autre dossier choisi' }); } catch (e) { /* rapport facultatif */ }
+    if (attente.nature === 'dossier' || attente.rattacher) {
+      // L'onglet du dossier d'Authentic (référence, intitulé entier) est retenu pour ce dossier : la question n'est posée qu'une fois.
+      const intitule = attente.nature === 'dossier' ? intituleDossierAuthentic(attente.capture) : (/\.{2,}|…/.test(attente.intituleGroupe || '') ? '' : attente.intituleGroupe);
+      const quittes = rattacherIntituleAuthentic(d, intitule, dossiers, attente.nature === 'dossier' ? referenceDossierAuthentic(attente.capture) : attente.referenceGroupe);
       for (const x of quittes) await sauvegarder(x);
     }
     const r = appliquerReleveSurDossier(d, attente.capture, undefined, dossiers);
@@ -2416,6 +2430,7 @@
     afficherToast(`Authentic · ${libelleDossierAffiche(d)} : ${texte}.`, 'Voir', () => ouvrirDossierDrawer(d.id));
     notifierMajAuthentic(d, r.majEnAttente);
     if (attente.releveId) rapporterResultatsAuthentic([{ id: attente.releveId, etat: 'rattache', dossierId: d.id, texte, cle: clePageReleveAuthentic(attente.capture) }]);
+    await reprendreAttentesGroupeAuthentic(attente.groupe, cle);
   }
 
   // Depuis le journal (Réglages › Authentic) : la page, encore en mémoire du serveur, est rangée à la main.
@@ -2462,7 +2477,8 @@
   // consultation devient celui-là — ou aucun, s'il n'est pas suivi dans CLAIRE.
   function suivreNavigationAuthentic(intitule) {
     const d = dossierPourNavigationAuthentic(intitule, dossiers);
-    dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
+    const refs = referencesDansTexteAuthentic(intitule);
+    dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now(), sur: !!d && refs.length === 1 && d.referenceAuthentic === refs[0] };
   }
 
   // Un message « aucun dossier » par page et par fenêtre toutes les 30 min, pas à chaque retour sur la page.
@@ -2540,33 +2556,22 @@
     }
     let d = null;
     const revu = !!(rel && rel.revu);
-    const courantValide = Date.now() - dossierCourantAuthentic.t < DUREE_DOSSIER_COURANT_AUTHENTIC_MS;
     if (typePageAuthentic(capture) === 'client') {
-      // Fiche ouverte dans l'onglet d'un dossier (« VTE X / Y ») : c'est lui le dossier en consultation.
-      const ongletDossier = dossierOngletActifAuthentic(capture, dossiers);
-      const courant = ongletDossier || (courantValide ? dossiers.find(x => x.id === dossierCourantAuthentic.id) || null : null);
-      d = dossierPourFicheClientAuthentic(capture, dossiers, courant);
-      // Fiche ouverte dans l'onglet d'un dossier d'Authentic qui n'est pas celui retrouvé (dossier pas encore dans CLAIRE) : jamais rangée
-      // ailleurs par un nom voisin (cent scénarios du 19/10 : Paul CLEMENT rangé dans « CLEMENT-ETIENNE »).
-      if (d && !ongletDossier) {
-        const nomsD = [d.nom, d.intituleAuthentic, ...(d.parties || []).map(p => p && [p.prenom, p.nom, p.nomUsage].filter(Boolean).join(' '))].filter(Boolean).join(' ');
-        if (ongletActifAutreDossierAuthentic(capture, nomsD, d.referenceAuthentic)) return { etat: 'sans-changement', texte: 'fiche ouverte dans l’onglet d’un autre dossier d’Authentic (pas encore dans CLAIRE) : gardée pour sa création' };
-      }
-      if (d) dossierCourantAuthentic = { id: d.id, t: Date.now() };
+      // Étude 19/10 (« ne plus jamais deviner le dossier ») : seulement le dossier SÛR de l'onglet actif (référence rattachée, intitulé
+      // rangé à la main), et seulement si la personne y est partie ou que sa fiche le cite ; sinon la fiche attend un clic.
+      const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());
+      d = ctx.d ? dossierPourFicheClientAuthentic(capture, [ctx.d], ctx.d) : null;
+      if (!d && !ctx.d && ctx.groupe && !ctx.propose) return { etat: 'sans-changement', texte: 'fiche ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : gardée pour sa création' };
       if (!d) {
-        const raison = raisonFicheClientSansDossier(capture, dossiers);
-        if (dossiersCandidatsFicheClient(capture, dossiers).length > 1) {
-          // Plusieurs dossiers possibles (étude, 02/10 : « comment lui dire lequel est le bon ») : la fiche
-          // attend, le bouton du message ouvre le choix.
-          const cle = 'f' + (++numeroFicheEnAttente);
-          fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature: 'client' });
-          while (fichesClientEnAttente.size > 10) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
-          afficherToast(`Authentic · ${raison}.`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
-          return { etat: 'a-choisir', texte: raison };
+        const guess = ctx.d ? null : (ctx.propose || dossierPourFicheClientAuthentic(capture, dossiers, null));
+        if (!guess && !dossiersCandidatsFicheClient(capture, dossiers).length) {
+          const raison = raisonFicheClientSansDossier(capture, dossiers);
+          if (raison && !revu) afficherToast(`Authentic · ${raison}.`, 'OK', null);
+          return { etat: 'sans-dossier', texte: raison || 'fiche client illisible' };
         }
-        if (raison && !revu) afficherToast(`Authentic · ${raison}.`, 'OK', null);
-        return { etat: 'sans-dossier', texte: raison || 'fiche client illisible' };
+        return pageAConfirmerAuthentic(capture, rel, Object.assign({}, ctx, { propose: guess }), 'client');
       }
+      dossierCourantAuthentic = { id: d.id, t: Date.now(), sur: true };
       const r0 = appliquerReleveSurDossier(d, capture, undefined, dossiers);
       completerDossierDepuisRelevesRecents(d); // ce qui manque encore, d'après toutes les pages relevées (asynchrone)
       if (!r0.modifie) {
@@ -2588,8 +2593,9 @@
     // dossier reste celui en consultation (fiches client ouvertes ensuite) et la référence du dossier est retenue.
     const sous = sousDossierAuthentic(capture);
     if (lu && sous && sous !== 'vente' && sous !== 'succession') {
-      const dSous = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
-      dossierCourantAuthentic = { id: dSous ? dSous.id : '', t: Date.now() };
+      const dTrouve = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
+      const dSous = dossierSurAuthentic(dTrouve, reference, lu) ? dTrouve : null; // jamais une référence retenue par les noms seuls
+      dossierCourantAuthentic = { id: dSous ? dSous.id : '', t: Date.now(), sur: !!dSous };
       const libelleSous = sous === 'promesse' ? 'promesse' : sous === 'avenant' ? 'avenant' : 'autre que la vente';
       if (dSous && retenirReferenceAuthentic(dSous, reference, dossiers)) { await sauvegarder(dSous); render(); }
       return { etat: 'sans-changement', dossierId: dSous ? dSous.id : undefined, texte: `sous-dossier ${libelleSous} : seul le sous-dossier de vente est lu` };
@@ -2601,12 +2607,17 @@
       d = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
       // Retrouvé par les noms mais signé avant ce dossier : un ancien dossier des mêmes clients — jamais
       // appliqué, et sa référence n'est pas prise (sauf référence ou intitulé déjà rattachés à ce dossier).
-      const rattache = d && ((reference && d.referenceAuthentic === reference) || (d.intitulesAuthentic || []).includes(cleIntituleAuthentic(lu)));
+      const rattache = dossierSurAuthentic(d, reference, lu);
       if (d && !rattache && ancienDossierAuthentic(capture, d)) {
         raisonAncien = `ancien dossier des mêmes clients (acte signé le ${formatDateFr(etatActeAuthentic(capture).date)}), pas ${libelleDossierAffiche(d)}`;
         d = null;
       }
-      dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now() };
+      // Retrouvé par les noms seulement (étude 19/10) : « A 2025 00281 = VTE X / Y ? » — confirmé d'un clic, jamais appliqué seul.
+      if (d && !rattache) {
+        dossierCourantAuthentic = { id: '', t: Date.now(), sur: false };
+        return pageAConfirmerAuthentic(capture, rel, { d: null, propose: d, groupe: reference || cleIntituleAuthentic(lu), intitule: lu, reference }, 'dossier');
+      }
+      dossierCourantAuthentic = { id: d ? d.id : '', t: Date.now(), sur: !!d };
       comment = commentDossierRetrouveAuthentic(lu, adresse, d, reference);
       referenceNotee = !!d && retenirReferenceAuthentic(d, reference, dossiers);
       // L'intitulé du dossier Authentic rattaché, montré dans le « i » de la fiche.
@@ -2618,14 +2629,12 @@
       // Fiche bien ouverte hors de l'onglet d'un dossier (recherche d'immeubles…) : d'aucun dossier sûr, jamais le dernier vu (étude 19/10).
       noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
       return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic : non rangée' };
-    } else if (courantValide) {
-      d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
-      // Onglet actif d'un AUTRE dossier (titre coupé, référence différente) : ce dossier s'il est dans CLAIRE, sinon rien — jamais le dernier vu (étude 19/10).
-      const noms = d ? [d.nom, d.intituleAuthentic, ...(d.parties || []).map(p => p && [p.nom, p.nomUsage].join(' '))].filter(Boolean).join(' ') : '';
-      if (d && ongletActifAutreDossierAuthentic(capture, noms, d.referenceAuthentic)) {
-        d = dossierOngletActifAuthentic(capture, dossiers);
-        if (!d) { if (!revu) afficherToast('Authentic · page ouverte dans l’onglet d’un dossier absent de CLAIRE : non rangée.', 'OK', null); return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un autre dossier d’Authentic : non rangée' }; }
-      }
+    } else {
+      // Page sans intitulé (fiche bien, lots…) : le dossier SÛR de l'onglet actif, sinon la question (étude 19/10).
+      const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());
+      d = ctx.d;
+      if (!d && ctx.propose) return pageAConfirmerAuthentic(capture, rel, ctx, typePageAuthentic(capture) === 'bien' ? 'bien' : 'page');
+      if (!d && ctx.groupe) { if (!revu) afficherToast('Authentic · page ouverte dans l’onglet d’un dossier absent de CLAIRE : non rangée.', 'OK', null); return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : non rangée' }; }
     }
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.

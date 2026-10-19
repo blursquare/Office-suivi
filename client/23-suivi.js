@@ -832,6 +832,7 @@
                   </details>
         </div>
         <div class="fiche-dossier-droite">
+          ${renderPanneauAuthentic(d)}
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
@@ -864,7 +865,6 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
-          ${renderTiroirAuthenticFiche(d)}
         </div>
       </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
@@ -873,8 +873,8 @@
       ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${escapeOnclickArg(d.id)}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
     // Ligne « Authentic » (étude 06/10 au soir : « sous Compléter la fiche ») : le dossier d'Authentic à reprendre, juste sous le bouton.
-    // La ligne « À mettre à jour » (changements proposés par Authentic) y est aussi, au-dessus (étude 06/10 au soir : « oui aussi »).
-    const ligneAuthentic = renderMajAuthentic(d, ligne) + renderCompleterAuthenticFiche(d, ligne);
+    // Les changements proposés par Authentic sont dans le panneau « Authentic » de la colonne de droite (étude 19/10).
+    const ligneAuthentic = renderCompleterAuthenticFiche(d, ligne);
     return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}${ligneAuthentic ? `<dl class="fiche-proprietes fiche-authentic-completer">${ligneAuthentic}</dl>` : ''}</div>`;
   }
 

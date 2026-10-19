@@ -1429,9 +1429,12 @@ test('page de gestion (06/10) : la fiche se complète seule depuis Authentic —
   assert.equal(app.complementDossierDepuisAuthentic(d, g.export, [d]).length, 0, 'relu : rien');
   // Fiche rattachée à une AUTRE référence : jamais complétée depuis ce dossier d'Authentic, même aux mêmes noms.
   assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'x', nom: 'MARTEL / FOURNIER', referenceAuthentic: 'A 2025 00001' }, groupes, []), null);
-  // Sans référence : par les noms, sauf si la référence trouvée est déjà celle d'une autre fiche.
-  assert.ok(app.groupeAuthenticPourComplementAuto({ id: 'y', nom: 'MARTEL / FOURNIER' }, groupes, []));
-  assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'y', nom: 'MARTEL / FOURNIER' }, groupes, [{ id: 'z', referenceAuthentic: 'A 2026 00451' }]), null);
+  // Sans référence : jamais par les noms seuls (étude 19/10) ; l'intitulé rangé ici à la main, sauf si la référence trouvée est déjà
+  // celle d'une autre fiche.
+  assert.equal(app.groupeAuthenticPourComplementAuto({ id: 'y', nom: 'MARTEL / FOURNIER' }, groupes, []), null);
+  const range = { id: 'y', nom: 'MARTEL / FOURNIER', intitulesAuthentic: [app.cleIntituleAuthentic(groupes[0].intitule)] };
+  assert.ok(app.groupeAuthenticPourComplementAuto(range, groupes, []));
+  assert.equal(app.groupeAuthenticPourComplementAuto(range, groupes, [{ id: 'z', referenceAuthentic: 'A 2026 00451' }]), null);
   // Fiche déjà remplie : la main de l'étude gagne.
   const e = { id: 'g2', nom: 'MARTEL / FOURNIER', typeVente: 'copropriete', adresseBien: 'TOURS (37000), 1 rue Nationale', prixVente: 100, parties: [{ role: 'VENDEUR', nom: 'Alexandre MARTEL' }, { role: 'ACQUEREUR', nom: 'Camille FOURNIER' }], pieces: {}, historique: [] };
   app.appliquerReleveSurDossier(e, page, '2026-10-06T10:00:00Z', [e]);

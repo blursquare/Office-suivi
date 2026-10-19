@@ -637,14 +637,14 @@
 
   // Pure : le dossier d'Authentic d'où compléter la fiche SANS CLIC (étude 06/10 : « on prend toujours de base les données
   // d'Authentic ») — plus strict que la présélection de la ligne « Authentic » : une fiche rattachée à une référence ne prend
-  // que le dossier de cette référence ; sans référence, les noms, sauf si la référence du dossier trouvé est déjà celle
-  // d'une autre fiche. null sinon.
+  // que le dossier de cette référence ; sans référence, l'intitulé rangé ici (à la main ou à la création), sauf si la référence du
+  // dossier trouvé est déjà celle d'une autre fiche. null sinon.
   function groupeAuthenticPourComplementAuto(d, groupes, liste) {
     const tous = groupes || [];
     if (!d) return null;
     if (d.referenceAuthentic) return tous.find(g => g.reference && g.reference === d.referenceAuthentic) || null;
-    const i = indexGroupeAuthenticPourDossier(d, tous);
-    const g = i >= 0 ? tous[i] : null;
+    // Sans référence : seulement un intitulé rangé ici à la main ou à la création — jamais les noms seuls (étude 19/10).
+    const g = tous.find(x => (d.intitulesAuthentic || []).includes(cleIntituleAuthentic(x.intitule))) || null;
     if (!g) return null;
     if (g.reference && (liste || []).some(x => x && x !== d && !x.deleted && x.referenceAuthentic === g.reference)) return null;
     return g;

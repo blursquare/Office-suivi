@@ -87,5 +87,6 @@
   "85-assistant-colonne.js",
   "86-animations.js",
   "87-widget-nouveautes.js",
-  "88-import-clients-biens.js"
+  "88-import-clients-biens.js",
+  "89-panneau-authentic.js"
 ]

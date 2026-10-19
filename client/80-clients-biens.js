@@ -376,9 +376,7 @@
   // client et bien ») : les personnes et les biens du dossier, chacun une carte qui ouvre sa FICHE unique (Clients et biens). Les cartes se
   // dessinent tout de suite d'après le dossier ; la fiche (et les autres dossiers où chacun figure) arrive du serveur.
   var modifPartiesOuverts = new Set();
-  var tiroirAuthenticOuverts = new Set();
   function basculerModifierPartiesFiche(id, ouvert) { if (ouvert) modifPartiesOuverts.add(id); else modifPartiesOuverts.delete(id); }
-  function basculerTiroirAuthenticFiche(id, ouvert) { if (ouvert) tiroirAuthenticOuverts.add(id); else tiroirAuthenticOuverts.delete(id); }
 
   // Pure : les personnes du dossier, dans l'ordre de la fiche — vente : vendeurs puis acquéreurs ; succession : défunt puis héritiers.
   function personnesCartesDossier(d) {
@@ -408,13 +406,6 @@
         const nom = !prenom || normaliserPourRecherche(String(p.nom)).includes(normaliserPourRecherche(prenom)) ? String(p.nom) : [prenom, p.nom].join(' ');
         return { nom, affiche: civ(p) + nom, morale: p.qualitePersonne === 'morale', role: rang(p.role || '') === 0 ? 'Vendeur' : rang(p.role || '') === 1 ? 'Acquéreur' : 'Partie' };
       });
-  }
-
-  // « Reçu d'Authentic » en bas de la colonne de droite, dans un tiroir (étude 17/10).
-  function renderTiroirAuthenticFiche(d) {
-    return `<details class="pb-tiroir"${tiroirAuthenticOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerTiroirAuthenticFiche('${escapeOnclickArg(d.id)}', this.open)">
-      <summary>${icone('rotate-ccw')}Reçu d’Authentic</summary>
-      <div class="pb-tiroir-corps">${renderRecuAuthenticFiche(d)}</div></details>`;
   }
 
   function renderCartesClientsBiensDossier(d) {

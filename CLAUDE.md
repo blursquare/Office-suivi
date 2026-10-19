@@ -530,6 +530,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   illisible), clic = choisir le PDF, glisser sur une tuile = la lire comme cette pièce. Un nouvel outil de ce genre : ses étapes dans `ETAPES_OUTILS`, ses titres de section, la place
   de la barre. Composants Web Awesome embarqués : button, switch, button-group, stepper, step, details.
 - **Un nouveau dossier se crée TOUJOURS depuis Authentic** (étude 18/10 : « pas de formulaire à remplir à la main ») : plus de « Continuer sans Authentic » ; `ajouterDossier` refuse sans dossier d'Authentic repris (`exportAuthenticActuel`) — le compromis seul complète. Ce qui suit sur « Continuer sans Authentic » est l'histoire.
+- **Une page d'Authentic ne va jamais à un dossier deviné** (étude 19/10, 0.292.0) : appliquée seule seulement au dossier de sa référence
+  retenue ou d'un intitulé rangé là (à la main, ou à la création depuis Authentic) — `dossierSurAuthentic`, `contexteSurAuthentic` (onglet
+  actif) ; retrouvée par les noms seulement → « est-ce bien ce dossier ? » d'un clic (`pageAConfirmerAuthentic`, état `a-confirmer`), réponse
+  retenue. Ce qui suit plus bas sur le score par les noms décrit la PROPOSITION, plus le rangement. Tout ce qui vient d'Authentic se voit dans
+  le panneau « Authentic » de l'onglet Dossier (client/89).
 - **Couleur d'un droit de préemption, partout où il s'affiche** (étude 18/10) : rouge = à notifier/à purger, orange = à vérifier, vert = pas besoin. **Titre d'une succession = « SUCC - NOM Prénom du défunt »** (`prenomDefuntDossier`). **Plan cadastral de la Constitution : celui déjà rangé sur le NAS d'abord** (`cheminPlanNasConstitution`).
 - **« Nouveau dossier » : deux entrées** (étude, 02/10 au soir, `MODES_IMPORT`, `choisirModeImport`,
   `renderChoixImport`) — **aucune présélectionnée** (étude 08/10 : « il ne propose pas tout de suite avec ou sans PDF » : `modeImport` vide au départ, après « Annuler » et après chaque création — deux cartes seules, zone de dépôt et « Suivant » masqués jusqu'au choix) — **« Compromis (PDF) »** : le compromis lu, on reste sur l'étape 1 — le dossier d'Authentic qui correspond est proposé en tête (« Dossier trouvé dans Authentic », `dossierAuthenticPourCompromis`, étude 05/10 : Authentic pré-remplit, prix compris, le compromis complète) : « Compléter depuis Authentic

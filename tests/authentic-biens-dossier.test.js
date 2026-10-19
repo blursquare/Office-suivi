@@ -137,3 +137,25 @@ test('intitulé d’Authentic : un nom qui commence par « DE », « PV », « A
   assert.equal(app.intituleVenteNormalise('VTE ACHATIER / PVOLLE'), 'Vente ACHATIER / PVOLLE');
   assert.equal(app.intituleVenteNormalise('Promesse de vente MARTEL/FOURNIER'), 'Vente MARTEL / FOURNIER');
 });
+
+test('Point 2 (19/10) : un dossier n’est sûr que par sa référence ou un intitulé rangé ici ; sinon proposé, jamais pris', () => {
+  const galois = { id: 'g', nom: 'GALOIS / MERLE', referenceAuthentic: 'A 2026 00101', parties: [] };
+  const sansRef = { id: 's', nom: 'DUVAL / NOEL', parties: [{ role: 'VENDEUR', nom: 'DUVAL' }, { role: 'ACQUEREUR', nom: 'NOEL' }] };
+  const range = { id: 'r', nom: 'LEROY / BRUN', intitulesAuthentic: [app.cleIntituleAuthentic('VTE LEROY / BRUN')], parties: [] };
+  const liste = [galois, sansRef, range];
+  assert.equal(app.dossierSurAuthentic(galois, 'A 2026 00101', 'VTE GALOIS / MERLE'), true);
+  assert.equal(app.dossierSurAuthentic(sansRef, 'A 2026 00200', 'VTE DUVAL / NOEL'), false, 'les noms seuls ne suffisent pas');
+  assert.equal(app.dossierSurAuthentic(range, '', 'VTE LEROY / BRUN'), true, 'intitulé rangé à la main');
+  assert.equal(app.dossierSurAuthentic(galois, 'A 2026 00999', 'VTE GALOIS / MERLE'), false, 'autre référence');
+  const onglet = (titre) => ({ onglets: [{ titre, actif: true }], champs: [], tableaux: [], texte: '' });
+  const c1 = app.contexteSurAuthentic(onglet('A 2026 00101 VTE GALOIS / MERLE'), liste, null);
+  assert.equal(c1.d, galois);
+  const c2 = app.contexteSurAuthentic(onglet('A 2026 00200 VTE DUVAL / NOEL'), liste, null);
+  assert.equal(c2.d, null, 'jamais rangé par les noms de l’onglet');
+  assert.equal(c2.propose, sansRef, 'mais proposé pour un clic');
+  assert.equal(c2.groupe, 'A 2026 00200');
+  const c3 = app.contexteSurAuthentic(onglet('Recherche d’immeubles'), liste, galois);
+  assert.equal(c3.d, null, 'onglet sans dossier : pas le dernier vu');
+  const c4 = app.contexteSurAuthentic({ champs: [], tableaux: [], texte: '' }, liste, galois);
+  assert.equal(c4.d, galois, 'ancienne extension sans onglets : le dernier dossier SÛR vu');
+});

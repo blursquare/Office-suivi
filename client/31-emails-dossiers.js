@@ -806,6 +806,7 @@
     'sans-changement': { classe: 'dl-neutre', texte: 'Rien de neuf' },
     'sans-dossier': { classe: 'dl-urgent', texte: 'Aucun dossier' },
     'a-choisir': { classe: 'dl-pret', texte: 'Dossier à choisir' },
+    'a-confirmer': { classe: 'dl-pret', texte: 'Dossier à confirmer' },
     'a-creer': { classe: 'dl-pret', texte: 'Dossier à créer' },
     erreur: { classe: 'dl-urgent', texte: 'Erreur' },
     expire: { classe: 'dl-urgent', texte: 'Perdue : aucune fenêtre CLAIRE ouverte' },
@@ -834,7 +835,7 @@
       etat,
       detail: [d ? libelleDossierAffiche(d) : '', e.texte || ''].filter(Boolean).join(' : '),
       qui: qui.join(' · '),
-      choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'a-creer', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
+      choisir: !!e.enMemoire && ['sans-dossier', 'a-choisir', 'a-confirmer', 'a-creer', 'expire', 'pris', 'en-file'].includes(e.etat) && e.nature !== 'bien',
       creer: !!e.enMemoire && e.etat === 'a-creer',
       dossierId: d ? d.id : ''
     };

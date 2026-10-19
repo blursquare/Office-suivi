@@ -21102,3 +21102,30 @@ si sa personne est partie du dossier créé (une correction de « Vérifier » n
 personne = le dernier nom relevé, après le volet du conjoint) ; titre d'onglet coupé à 3 lettres reconnu. Troisième passage des cent
 scénarios : 99/100 — `intituleVenteNormalise` retirait « DE » au début d'un nom (« VTE DEBRAY / ROUX » → « BRAY », « DELMAS » → « LMAS »),
 défaut ancien : les mots retirés en tête de l'intitulé sont désormais des mots entiers.
+
+### 19/10/2026 au soir — 0.292.0 : ne plus jamais deviner le dossier d'une page d'Authentic ; panneau « Authentic » de la fiche
+
+Demande de l'étude : « Met en place le 2 » (proposition faite le même soir : « ne plus jamais deviner le dossier ») et « réfléchis
+comment réunir et améliorer dans les fiches ce qui vient d'Authentic, voir toutes les données qu'il manque et à ajouter, ce que l'on
+peut modifier ; visuel, attractif et intelligent ».
+
+- **Rattachement sûr seulement** (`dossierSurAuthentic`, `contexteSurAuthentic`, `pageAConfirmerAuthentic`, `reprendreAttentesGroupeAuthentic`
+  dans client/82 ; `appliquerReleveAuthentic` dans client/30) : une page d'Authentic n'est appliquée seule qu'au dossier de sa référence déjà
+  retenue, ou d'un intitulé rangé là à la main (ou à la création depuis Authentic, `intitulesAuthentic` posé par `ajouterDossier`). Page du
+  dossier retrouvée par les noms seulement → état `a-confirmer` au journal et message fixe à deux boutons (« Oui » / « Autre dossier… »,
+  second bouton du message `options.autre` d'`afficherToast`). Fiche client, fiche bien, lots : le dossier SÛR de l'onglet actif (référence de
+  l'onglet, intitulé rangé) ; sinon la question. Les pages d'un même dossier d'Authentic (`groupe` = référence de l'onglet, sinon intitulé)
+  attendent une seule réponse et sont reprises au clic. Le dernier dossier vu ne compte plus que s'il a été reconnu sûrement
+  (`dossierCourantAuthentic.sur`, `courantSurAuthentic`) — utile seulement à l'ancienne extension sans onglets. Sous-dossier promesse :
+  la référence n'est plus retenue par les noms. Complément automatique (`groupeAuthenticPourComplementAuto`) : sans référence, seulement
+  l'intitulé rangé ici, jamais les noms.
+- **Panneau « Authentic »** (client/89-panneau-authentic.js), en tête de la colonne de droite de l'onglet Dossier (vente et succession), à la
+  place du tiroir « Reçu d'Authentic » en bas : lien (`lienAuthenticDossier`), changements à décider (les mêmes `accepterMajAuthentic` /
+  `ignorerMajAuthenticFiche` ; la ligne « À mettre à jour » sous « Compléter la fiche » est retirée, doublon), pages attendues et reçues
+  (`pagesAttenduesAuthentic` : page du dossier, une fiche client par personne hors société, une fiche bien par bien annoncé dans « Immeubles
+  (n) » — remplace `manquesAuthenticDossier`), valeurs reprises face à la fiche (`champsReprisAuthentic` : identique / corrigé sur la fiche
+  / à décider ; « Remettre la valeur d'Authentic » pour adresse, prix, type, situations — `remettreValeurAuthentic`), fiches client lues
+  (`personnesLuesAuthentic` : tout l'état civil gardé depuis le 15/10 et jusque-là jamais montré sur une vente — naissance, nationalité,
+  profession, domicile, situation, décès — et ce qu'Authentic n'a pas renseigné), suivi (`lignesAuthenticDossier`).
+- Bancs : scénario 1 joue la question et le clic « Oui » ; scénario 23 attend la question. 61/61 et 100/100.
+- Point terrain `authentic-rattachement-confirme`.

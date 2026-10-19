@@ -881,6 +881,8 @@
         dossier.referenceAuthentic = exportAuthenticActuel.reference;
         if (exportAuthenticActuel.intitule) dossier.intituleAuthentic = String(exportAuthenticActuel.intitule).slice(0, 150);
       }
+      // Créé depuis ce dossier d'Authentic : le lien est sûr, ses pages suivantes y vont sans question (étude 19/10).
+      if (exportAuthenticActuel.intitule) dossier.intitulesAuthentic = [cleIntituleAuthentic(exportAuthenticActuel.intitule)];
       dossier.historique.push(Object.assign({ date: new Date().toISOString(),
         texte: `Créé depuis ${exportAuthenticActuel.origine === 'pages' ? 'les pages' : 'l’export'} Authentic « ${exportAuthenticActuel.intitule} »` + (reprises.length ? ` — pièces présentes dans Authentic marquées reçues : ${reprises.map(pc => pc.label).join(', ')}` : '') },
       utilisateurPoste ? { auteur: utilisateurPoste } : {}));
@@ -1082,7 +1084,7 @@
     clearTimeout(toastMasquageTimeout);
     toastMasquageTimeout = setTimeout(() => {
       toast.style.display = 'none';
-      if (toastFixe && !toast.classList.contains('fixe')) afficherToast(toastFixe.message, toastFixe.texteBouton, toastFixe.onUndo, { fixe: true, cle: toastFixe.cle });
+      if (toastFixe && !toast.classList.contains('fixe')) afficherToast(toastFixe.message, toastFixe.texteBouton, toastFixe.onUndo, { fixe: true, cle: toastFixe.cle, autre: toastFixe.autre });
     }, 200);
   }
 
@@ -1107,7 +1109,7 @@
     // Étude 18/10 : « Enregistrer » qui passe à « Enregistré » avec une coche, plutôt qu'un message qui apparaît puis disparaît (client/86).
     if (!(options && options.fixe) && typeof confirmerSurBoutonEnregistrer === 'function' && confirmerSurBoutonEnregistrer(message, texteBouton, onUndo)) return;
     const fixe = !!(options && options.fixe);
-    if (fixe) toastFixe = { message, texteBouton, onUndo, cle: options.cle || '' };
+    if (fixe) toastFixe = { message, texteBouton, onUndo, cle: options.cle || '', autre: options.autre || null };
     clearTimeout(toastMasquageTimeout);
     document.getElementById('toast-message').textContent = message;
     const btn = document.getElementById('toast-undo-btn');
@@ -1118,6 +1120,14 @@
       if (!fixe) masquerToast();
       if (onUndo) onUndo();
     };
+    // Second bouton facultatif (`options.autre` = { texte, action }) : « Oui » / « Autre dossier… » d'un rattachement à confirmer.
+    const autre = document.getElementById('toast-autre-btn');
+    if (autre) {
+      const a = options && options.autre;
+      autre.style.display = a ? '' : 'none';
+      autre.textContent = a ? a.texte : '';
+      autre.onclick = a ? () => { if (!fixe) masquerToast(); a.action(); } : null;
+    }
     const fermer = document.getElementById('toast-fermer-btn');
     if (fermer) {
       fermer.style.display = fixe ? '' : 'none';

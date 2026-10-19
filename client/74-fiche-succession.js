@@ -241,6 +241,7 @@
                   </details>
         </div>
         <div class="fiche-dossier-droite">
+          ${renderPanneauAuthentic(d)}
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, null)}
         ${ligne('calendar', 'Ouverture', date('ouvertureLe', s.ouvertureLe, 'Rendez-vous d’ouverture avec Sophie', 'changerSuccession') + ' <span class="hint">avec Sophie, en rendez-vous</span>', null)}
@@ -258,7 +259,6 @@
         ${ligne('scale', 'Forfait mobilier', ligneArbitrageFiche(d), null, 'prop-pleine')}
       </dl>
       ${renderFcddvSuccession(d)}
-          ${renderTiroirAuthenticFiche(d)}
         </div>
       </div>
     </div>`;

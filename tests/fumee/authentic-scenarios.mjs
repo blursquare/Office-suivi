@@ -140,8 +140,18 @@ try {
     const e = await envoyer(pageDossier({ ref: 'A 2026 00500', intitule: 'VTE MARTEL / FOURNIER', prix: '240 000,00 €',
       comparants: [['M. MARTEL Alexandre', 'Vendeur'], ['Mme FOURNIER Camille', 'Acquéreur']], immeubles: [['41350 VINEUIL', '3 chemin des Vignes']],
       documents: [['Acte de naissance de M. MARTEL Alexandre', '', '03/09/2026', '', 'Reçu'], ['Notification SAFER', '', '10/09/2026', '25/09/2026', 'Non préemption']] }));
-    const d = await lire('martel');
-    constat(S, e.dossierId === 'martel', `page rangée dans ${e.dossierId || '—'} (${e.etat} : ${e.texte || ''})`);
+    // Étude 19/10 (« ne plus jamais deviner le dossier ») : retrouvé par les noms seulement → rien d'appliqué, la question d'un clic.
+    const avant = await lire('martel');
+    const toast = await page.textContent('#toast-message').catch(() => '');
+    constat(S, e.etat === 'a-confirmer' && !avant.referenceAuthentic, `noms seuls : ${e.etat}, rien appliqué avant le clic (« ${toast} »)`);
+    constat(S, /est-ce VTE - MARTEL \/ FOURNIER/.test(toast || ''), 'question posée : ' + toast);
+    await page.click('#toast-undo-btn');
+    let d = avant;
+    for (let i = 0; i < 40 && !d.referenceAuthentic; i++) { await pause(150); d = await lire('martel'); }
+    await pause(600);
+    d = await lire('martel');
+    const jr = (await (await fetch(B + '/api/authentic/journal')).json()).entrees.find(x => x.id === e.id) || {};
+    constat(S, jr.dossierId === 'martel', `page rangée dans ${jr.dossierId || '—'} après « Oui » (${jr.etat || ''})`);
     constat(S, d.referenceAuthentic === 'A 2026 00500', `référence retenue : ${d.referenceAuthentic || '—'}`);
     constat(S, !!(d.authentic && d.authentic.biensDossier && d.authentic.biensDossier.nombre === 1), 'rubrique « Immeubles (1) » gardée : ' + JSON.stringify(d.authentic && d.authentic.biensDossier));
     constat(S, Object.keys(d.pieces || {}).some(k => d.pieces[k] === 'recue'), `pièces reçues : ${Object.keys(d.pieces || {}).filter(k => d.pieces[k] === 'recue').join(', ') || 'aucune'}`);
@@ -383,12 +393,12 @@ try {
     const d = await lire('martel');
     constat(S, (d.piecesPersonnalisees || []).length === (avant.piecesPersonnalisees || []).length && (d.historique || []).length - (avant.historique || []).length <= 1, `pièces ${ (avant.piecesPersonnalisees || []).length } → ${(d.piecesPersonnalisees || []).length}, historique +${(d.historique || []).length - (avant.historique || []).length} (${e.etat})`);
   }
-  // 23. Personne partie de deux dossiers en cours, sans onglet de dossier : choix demandé, rien d'office.
+  // 23. Fiche client ouverte hors d'un onglet de dossier : question posée, rien d'office.
   {
     const S = '23. Personne de deux dossiers en cours';
     const e = await envoyer(ficheClient({ civilite: 'Monsieur', nom: 'Petit', prenom: 'Luc', email: 'luc.petit@exemple.fr', ongletActif: 'Recherche clients' }));
     const n = await lire('nouveau');
-    constat(S, e.etat === 'a-choisir' || e.dossierId === 'nouveau', `${e.etat} → ${e.dossierId || '—'} (${e.texte || ''})`);
+    constat(S, (e.etat === 'a-choisir' || e.etat === 'a-confirmer') && !e.dossierId && !JSON.stringify(n).includes('luc.petit'), `${e.etat} → ${e.dossierId || '—'}, rien d’office (${e.texte || ''})`);
     constat(S, !JSON.stringify(await lire('ancien')).includes('luc.petit'), 'l’ancien dossier archivé ne reçoit rien');
     void n;
   }

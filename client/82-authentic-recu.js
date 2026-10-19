@@ -169,28 +169,6 @@
 
   // ---------- Encadré « Reçu d'Authentic » ----------
 
-  // Pure : ce qui manque d'après la fiche et les pages reçues — la page du dossier, la fiche client de chaque personne (jamais pour une
-  // société, qui n'en a pas), une fiche bien quand aucun bien n'a de parcelle. [{ texte }].
-  function manquesAuthenticDossier(d, pages) {
-    const liste = Array.isArray(pages) ? pages : [];
-    const manques = [];
-    if (!liste.some(p => p.nature === 'dossier')) manques.push({ texte: 'Page du dossier (comparants, pièces, rédaction)' });
-    (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.qualitePersonne !== 'morale' && String(p.nom || '').trim()).forEach(p => {
-      if (!ficheClientDe(d, p.nom)) manques.push({ texte: `Fiche client de ${p.nom}` });
-    });
-    if (!liste.some(p => p.nature === 'bien') && !parcellesDossier(d).length) manques.push({ texte: 'Fiche bien (adresse, parcelles, lots)' });
-    return manques;
-  }
-
-  // Pure : le libellé d'une page reçue.
-  function libellePageRecueAuthentic(p) {
-    const qui = String(p.cle || '').replace(/^(client|bien):/, '');
-    if (p.nature === 'dossier') return 'Page du dossier';
-    if (p.nature === 'client') return 'Fiche client' + (qui ? ' — ' + qui.toUpperCase() : '');
-    if (p.nature === 'bien') return 'Fiche bien' + (qui ? ' — ' + qui : '');
-    return 'Page';
-  }
-
   function renderRecuAuthenticFiche(d) {
     if (!d || !d.id) return '';
     const e = recuAuthenticParDossier.get(d.id);
@@ -203,10 +181,18 @@
     const relecture = relecturesAuthenticEnCours.has(d.id);
     const bouton = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" ${relecture || !pages || !pages.length ? 'disabled ' : ''}onclick="relireDepuisAuthentic('${escapeOnclickArg(d.id)}')" title="Relire toutes les pages d’Authentic gardées pour ce dossier avec les règles du jour">${relecture ? icone('spinner', null, true) + ' Relecture…' : icone('rotate-ccw') + ' Relire depuis Authentic'}</wa-button>`;
     if (!pages) return `<span class="hint">…</span>`;
-    const recues = pages.slice(0, 12).map(p => `<li><span>${escapeHtml(libellePageRecueAuthentic(p))}</span><span class="hint">${escapeHtml(p.recueLe ? formatDateHeureCourte(p.recueLe) : '')}</span></li>`).join('');
-    const manques = manquesAuthenticDossier(d, pages).map(m => `<li class="recu-manque">${icone('alert-triangle')}<span>${escapeHtml(m.texte)}</span></li>`).join('');
-    return `${pages.length ? `<ul class="recu-liste">${recues}</ul>` : '<p class="hint">Rien de reçu d’Authentic pour ce dossier depuis le 17/10.</p>'}
-      ${manques ? `<div class="recu-sous-titre">À ouvrir dans Authentic</div><ul class="recu-liste">${manques}</ul>` : ''}
+    // Une pastille par page attendue (étude 19/10 : « voir toutes les données qu'il manque ») : reçue (date au survol), ou à ouvrir.
+    const attendues = pagesAttenduesAuthentic(d, pages);
+    const recues = attendues.filter(p => p.recue).length;
+    const part = Math.round(100 * recues / attendues.length);
+    const derniere = pages.reduce((m, p) => (String(p.recueLe || '') > m ? String(p.recueLe) : m), '');
+    const pastilles = attendues.map(p => `<li class="pa-page ${p.recue ? 'recue' : 'manque'}"${p.le ? ` title="Reçue le ${escapeAttr(formatDateHeureCourte(p.le))}"` : ''}>${icone(p.recue ? 'check' : 'alert-triangle')}<span>${escapeHtml(p.libelle)}</span></li>`).join('');
+    return `<div class="pa-progres${recues === attendues.length ? ' complet' : ''}">
+        <span class="pa-barre" style="--pa-part: ${part}%"><span></span></span>
+        <span class="pa-progres-texte"><b>${recues}/${attendues.length}</b> pages reçues${derniere ? ` · dernière le ${escapeHtml(formatDateHeureCourte(derniere))}` : ''}</span>
+      </div>
+      <ul class="pa-pages">${pastilles}</ul>
+      ${recues < attendues.length ? `<p class="pa-aide">${icone('info')}Ouvrez dans Authentic les pages en orange : elles arrivent seules.</p>` : ''}
       <div class="recu-actions">${bouton}</div>`;
   }
 
@@ -387,4 +373,84 @@
       if (garde !== cible) sortie[sortie.indexOf(cible)] = garde;
     });
     return sortie;
+  }
+
+  // ---- Ne plus jamais deviner le dossier (étude 19/10 : « Met en place le 2 ») ----
+  // Une page d'Authentic n'est rangée seule que dans un dossier SÛR : celui de sa référence (« A 2025 00281 ») déjà rattachée, ou d'un
+  // intitulé rangé là à la main. Retrouvé par les noms seulement → « est-ce bien ce dossier ? », confirmé d'un clic, puis retenu : les
+  // pages suivantes de ce dossier d'Authentic y vont par la référence.
+
+  // Pure : ce dossier de CLAIRE est-il déjà rattaché à cette page d'Authentic (référence, ou intitulé rangé ici à la main) ?
+  function dossierSurAuthentic(d, reference, intitule) {
+    if (!d) return false;
+    const ref = referenceAuthenticValide(reference) ? reference : '';
+    if (ref && d.referenceAuthentic === ref) return true;
+    const cle = cleIntituleAuthentic(intitule);
+    return !!cle && (d.intitulesAuthentic || []).includes(cle) && !autreReferenceAuthentic(d, ref);
+  }
+
+  // Pure : le dossier d'une page sans intitulé (fiche client, fiche bien, lots…) d'après l'onglet ACTIF d'Authentic → { d, propose,
+  // groupe, intitule, reference } — `d` : le dossier SÛR (référence de l'onglet déjà rattachée, intitulé rangé à la main) ; `propose` :
+  // celui que les noms de l'onglet désignent, à confirmer ; `groupe` : la clé du dossier d'Authentic de l'onglet (référence, sinon
+  // intitulé) qui réunit les pages en attente d'une même réponse. Sans onglet relevé (ancienne extension) : la référence de la page, sinon
+  // le dernier dossier SÛR vu (`courantSur`).
+  function contexteSurAuthentic(capture, liste, courantSur) {
+    const vivants = (liste || []).filter(d => d && !d.deleted);
+    const parRef = (ref) => { const l = ref ? vivants.filter(d => d.referenceAuthentic === ref) : []; return l.length === 1 ? l[0] : null; };
+    const onglets = Array.isArray(capture && capture.onglets) ? capture.onglets : [];
+    const actif = onglets.find(x => x && x.actif);
+    const reference = actif ? (referencesDansTexteAuthentic(actif.titre)[0] || '') : '';
+    const intitule = intituleOngletActifAuthentic(capture);
+    if (reference || intitule) {
+      const d = parRef(reference) || (intitule ? vivants.find(x => dossierSurAuthentic(x, reference, intitule)) || null : null);
+      const propose = d ? null : dossierPourIntituleAuthentic(intitule, vivants, '', reference);
+      return { d, propose, groupe: reference || cleIntituleAuthentic(intitule), intitule, reference };
+    }
+    if (onglets.length) return { d: null, propose: null, groupe: '', intitule: '', reference: '' };
+    const refPage = referenceDossierAuthentic(capture);
+    return { d: parRef(refPage) || (refPage ? null : courantSur || null), propose: null, groupe: refPage, intitule: '', reference: refPage };
+  }
+
+  // Une page dont le dossier n'est pas sûr : jamais rangée seule. Elle attend un clic — « Oui » pour le dossier proposé par les noms,
+  // « Autre dossier… » pour en choisir un — et les pages du même dossier d'Authentic attendent avec elle : une seule question.
+  // → le résultat rapporté au journal.
+  function pageAConfirmerAuthentic(capture, rel, ctx, nature) {
+    const propose = ctx.propose || null;
+    const groupe = ctx.groupe || '';
+    const dejaCle = groupe ? [...fichesClientEnAttente.keys()].find(k => fichesClientEnAttente.get(k).groupe === groupe && fichesClientEnAttente.get(k).principale) : '';
+    const cle = 'f' + (++numeroFicheEnAttente);
+    const creation = nature === 'dossier' && !!ctx.intitule && proposerCreationDossierAuthentic(capture, ctx.intitule);
+    fichesClientEnAttente.set(cle, { capture, releveId: rel && rel.id, nature, creation, groupe, propose: propose ? propose.id : '', principale: !dejaCle,
+      rattacher: !ctx.d, intituleGroupe: ctx.intitule || '', referenceGroupe: ctx.reference || '' });
+    while (fichesClientEnAttente.size > 30) fichesClientEnAttente.delete(fichesClientEnAttente.keys().next().value);
+    const ou = ctx.intitule ? `« ${[ctx.reference, ctx.intitule].filter(Boolean).join(' ')} »` : ctx.reference || '';
+    const quoi = nature === 'dossier' ? `dossier ${ou}`
+      : nature === 'client' ? `fiche de ${(() => { const p = clientDepuisFicheAuthentic(capture); return p ? [p.prenom, p.nom].filter(Boolean).join(' ') : 'client'; })()}${ou ? ` (onglet ${ou})` : ''}`
+        : `fiche ${nature === 'bien' ? 'du bien' : ''}${ou ? ` (onglet ${ou})` : ''}`;
+    if (dejaCle && typeof toastFixe !== 'undefined' && toastFixe && toastFixe.cle === dejaCle) return { etat: 'a-confirmer', texte: `${quoi} : attend la réponse déjà demandée pour ce dossier` };
+    if (dejaCle) fichesClientEnAttente.get(dejaCle).principale = false;
+    fichesClientEnAttente.get(cle).principale = true;
+    if (propose) {
+      afficherToast(`Authentic · ${quoi} : est-ce ${libelleDossierAffiche(propose)} ?`, 'Oui', () => rangerFicheClientAuthentic(cle, propose.id),
+        { fixe: true, cle, autre: { texte: 'Autre dossier…', action: () => ouvrirChoixFicheClientAuthentic(cle) } });
+      return { etat: 'a-confirmer', texte: `${quoi} : ${libelleDossierAffiche(propose)} retrouvé par les noms seulement — à confirmer d’un clic` };
+    }
+    afficherToast(`Authentic · ${quoi} : à quel dossier ?`, 'Choisir', () => ouvrirChoixFicheClientAuthentic(cle), { fixe: true, cle });
+    return { etat: 'a-choisir', texte: `${quoi} : aucun dossier sûr (onglet sans référence rattachée) — à choisir` };
+  }
+
+  // Après un rattachement confirmé : les autres pages du même dossier d'Authentic qui attendaient sont reprises — elles vont désormais au
+  // dossier par la référence (ou l'intitulé) retenue.
+  async function reprendreAttentesGroupeAuthentic(groupe, sauf) {
+    if (!groupe) return;
+    const cles = [...fichesClientEnAttente.keys()].filter(k => k !== sauf && fichesClientEnAttente.get(k).groupe === groupe);
+    for (const k of cles) {
+      const a = fichesClientEnAttente.get(k);
+      fichesClientEnAttente.delete(k);
+      fermerToastFixe(k);
+      try {
+        const res = await appliquerReleveAuthentic(a.capture, { id: a.releveId, revu: true });
+        if (a.releveId) rapporterResultatsAuthentic([Object.assign({ id: a.releveId, cle: clePageReleveAuthentic(a.capture) }, res)]);
+      } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: 'Authentic : page en attente non reprise — ' + String(e && e.message || e).slice(0, 120) }); }
+    }
   }

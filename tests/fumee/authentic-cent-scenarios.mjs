@@ -198,7 +198,6 @@ async function envoyer(capture) {
   }
   return { etat: 'sans-reponse' };
 }
-const tous = async () => { const j = await (await fetch(B + '/api/dossiers')).json(); return j.dossiers || j; };
 
 const navigateur = await chromium.launch(process.env.CHROMIUM ? { executablePath: process.env.CHROMIUM } : {});
 const ctx = await navigateur.newContext({ viewport: { width: 1400, height: 900 } });
