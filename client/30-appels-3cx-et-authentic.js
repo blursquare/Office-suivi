@@ -1300,7 +1300,7 @@
   function fusionnerInfosAuthentic(ancien, nouveau) {
     const r = Object.assign({}, ancien || {});
     Object.entries(nouveau || {}).forEach(([k, v]) => {
-      if (k === 'premierComparant' && v) r[k] = v; // remplacé en entier : le lien d'une ancienne page ne reste pas collé
+      if ((k === 'premierComparant' || k === 'biensDossier') && v) r[k] = v; // remplacé en entier : le lien d'une ancienne page ne reste pas collé
       else if (v && typeof v === 'object' && !Array.isArray(v)) {
         const base = Object.assign({}, r[k] || {});
         Object.entries(v).forEach(([kk, vv]) => { if (vv) base[kk] = vv; });
@@ -1554,7 +1554,7 @@
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
-      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false), g.apercu);
+      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       return {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
@@ -2676,6 +2676,7 @@
       }
     } else if (typePageAuthentic(capture) === 'bien' && ongletActifHorsDossierAuthentic(capture)) {
       // Fiche bien ouverte hors de l'onglet d'un dossier (recherche d'immeubles…) : d'aucun dossier sûr, jamais le dernier vu (étude 19/10).
+      noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
       return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic : non rangée' };
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;

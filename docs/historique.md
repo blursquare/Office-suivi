@@ -21051,3 +21051,10 @@ désormais la commune et le code postal de la fin de l'adresse ; sur le fichier 
 parcelles.
 Étude 19/10 : « retire les barres de scroll de manière générale dans toute l'interface » — style.css : `scrollbar-width: none` et
 `::-webkit-scrollbar { display: none }` pour toute la page ; les anciens `scrollbar-width: thin` passés à `none`.
+Relecture indépendante de 0.291.3 (vrais biens écartés) — corrigé : `bienDansRubriqueAuthentic` ne juge plus que par le CODE POSTAL
+(false seulement quand la rubrique cite des codes postaux et pas celui du bien ; « Fbg St Jean », une résidence nommée, une rubrique sans
+code postal ou suivie d'autre chose → null) ; bien principal = même adresse OU parcelle commune, toujours retenu (le premier compris) ;
+au démarrage `retirerBiensDAutresDossiers` ne retire QUE le bien principal d'un autre dossier (jamais sur la seule rubrique), l'adresse
+décidant quand les deux en ont une ; `biensDossier` remplacé en entier à la fusion des infos, le plus récent gardé à la réunion des
+groupes ; filtre de l'export sans effet sur une succession ; « Formalit » marque la fin de la rubrique ; point terrain
+`authentic-fiche-bien-hors-onglet` (risque : Authentic ouvrirait une fiche bien dans un onglet à elle).

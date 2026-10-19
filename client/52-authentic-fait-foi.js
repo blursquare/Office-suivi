@@ -544,7 +544,7 @@
     if (!liste || (seulementConnu && liste.length > avant.length)) return false;
     // Un bien DE PLUS que ceux que la page du dossier d'Authentic annonce, ou absent de sa rubrique « Immeubles » : pas de ce dossier
     // (étude 19/10, le bien de MONNEREAU / BESSIN rangé dans GALLOYER / BORDAS).
-    if (liste.length > avant.length && !bienAttenduDansDossierAuthentic(d, bien, avant.length)) return false;
+    if (liste.length > avant.length && !bienPrincipalDuDossierAuthentic(d, bien) && !bienAttenduDansDossierAuthentic(d, bien, avant.length)) return false;
     d.authentic = Object.assign({}, d.authentic || {}, { immeubles: liste });
     return true;
   }
@@ -964,12 +964,14 @@
     return t ? normaliserPourRecherche(normaliserAdresse(t)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
   }
 
-  // Pure : le bien est-il le bien principal de la fiche ? L'adresse décide quand les deux en ont une ; sinon une parcelle commune.
-  function bienPrincipalDuDossierAuthentic(d, bien) {
+  // Pure : le bien est-il le bien principal de la fiche ? Même adresse, ou une parcelle commune avec la fiche. `adresseDecide` (nettoyage
+  // au démarrage) : deux adresses différentes disent deux biens, même si la parcelle de l'autre a été recopiée à tort sur la fiche.
+  function bienPrincipalDuDossierAuthentic(d, bien, adresseDecide) {
     if (!d || !bien) return false;
     const a = cleAdresseBienAuthentic(bien.adresse);
     const principal = cleAdresseBienAuthentic(d.adresseBien);
-    if (a && principal) return a === principal;
+    if (a && a === principal) return true;
+    if (adresseDecide && a && principal) return false;
     return parcellesCadastre(d.bien && d.bien.cadastre).some(q => (bien.parcelles || []).some(p => p && String(p.section).toUpperCase() === String(q.section || '').toUpperCase()
       && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')));
   }
@@ -1003,10 +1005,8 @@
   // portait le bien de MONNEREAU / BESSIN) — jamais le bien principal de la fiche elle-même. → true si retiré.
   function retirerBiensDAutresDossiers(d, liste) {
     if (!d || d.archive || estSuccession(d) || !d.authentic || !Array.isArray(d.authentic.immeubles) || d.authentic.immeubles.length < 2) return false;
-    // Absent de la rubrique « Immeubles » de la page du dossier d'Authentic, ou bien principal d'un autre dossier (étude 19/10).
-    const rubrique = d.authentic.biensDossier || null;
-    const retires = d.authentic.immeubles.filter(im => im && !bienPrincipalDuDossierAuthentic(d, im)
-      && (!!bienPrincipalDUnAutreDossier(d, im, liste) || bienDansRubriqueAuthentic(im.adresse, rubrique) === false));
+    // Seulement le bien principal d'un autre dossier (relecture 19/10 : jamais sur la seule foi de la rubrique « Immeubles », au démarrage).
+    const retires = d.authentic.immeubles.filter(im => im && !bienPrincipalDuDossierAuthentic(d, im, true) && !!bienPrincipalDUnAutreDossier(d, im, liste));
     if (!retires.length) return false;
     const gardes = d.authentic.immeubles.filter(im => !retires.includes(im));
     d.authentic = Object.assign({}, d.authentic, { immeubles: gardes });
@@ -1020,7 +1020,7 @@
     }
     retires.forEach(im => {
       const autre = bienPrincipalDUnAutreDossier(d, im, liste);
-      ajouterHistorique(d, `Bien retiré : ${im.adresse || (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ')} — ${autre ? `c'est le bien du dossier ${libelleDossierAffiche(autre)}` : 'absent des immeubles du dossier dans Authentic'}`);
+      ajouterHistorique(d, `Bien retiré : ${im.adresse || (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ')} — c'est le bien du dossier ${autre ? libelleDossierAffiche(autre) : 'd’un autre dossier'}`);
     });
     return true;
   }

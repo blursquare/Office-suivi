@@ -218,25 +218,24 @@
       const m = /Immeubles?\s*\((\d{1,3})\)\s*/i.exec(String(src));
       if (!m || !Number(m[1])) continue;
       const suite = String(src).slice(m.index + m[0].length, m.index + m[0].length + 1500);
-      const fin = lignes ? /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces|Tiers)/i.exec(suite) : null;
+      const fin = lignes ? /\n\s*(?:Documents?|Parties|Informations|Comparants|Notes?|Rechercher|Filtrer|Mod[eè]le|Importer|Pi[eè]ces|Tiers|Formalit)/i.exec(suite) : null;
       return { nombre: Number(m[1]), texte: fin ? suite.slice(0, fin.index).replace(/\s+/g, ' ').trim() : '' };
     }
     return null;
   }
 
-  // Pure : le bien (adresse en texte, ou { texte }) est-il cité dans la rubrique « Immeubles » du dossier ? true / false, null quand on ne
-  // peut pas le dire (pas de rubrique lue, pas d'adresse). Le code postal du bien doit y être, et la plupart des mots de son adresse.
+  // Pure : le bien (adresse en texte, ou { texte }) est-il de la rubrique « Immeubles » du dossier ? Par le CODE POSTAL seulement (relecture
+  // 19/10 : « Fbg St Jean » et « Faubourg Saint-Jean », une résidence nommée… écartaient le vrai bien) : false seulement quand la rubrique
+  // cite des codes postaux et pas celui du bien ; true quand elle le cite ; null sinon (pas de rubrique, pas de code postal d'un côté).
+  // Deux biens de la même commune ne se départagent pas ici (bien principal d'un autre dossier : bienPrincipalDUnAutreDossier).
   function bienDansRubriqueAuthentic(adresse, rubrique) {
     const a = typeof adresse === 'string' ? adresse : (adresse && adresse.texte) || '';
     const texte = rubrique && rubrique.texte;
     if (!a || !texte) return null;
     const e = elementsAdresseAuthentic(a);
-    if (!e || (!e.codePostal && !e.mots.length)) return null;
-    const brut = ' ' + normaliserPourRecherche(texte).replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
-    if (e.codePostal && !brut.includes(' ' + e.codePostal + ' ')) return false;
-    if (!e.mots.length) return true;
-    const trouves = e.mots.filter(m => brut.includes(' ' + m + ' ')).length;
-    return trouves >= Math.ceil(e.mots.length * 0.6);
+    const cps = String(texte).match(/(?<!\d)\d{5}(?!\d)/g) || [];
+    if (!e || !e.codePostal || !cps.length) return null;
+    return cps.includes(e.codePostal);
   }
 
   // Pure : la page a-t-elle été ouverte hors de tout onglet de dossier d'Authentic (recherche d'immeubles, liste…) ? Une fiche bien ainsi
@@ -325,6 +324,8 @@
       garde.succession = !!(garde.succession || autre.succession);
       // « À créer » : ce que dit la page du dossier (le groupe gardé), jamais celui d'un onglet.
       if (!Object.keys(garde.infos || {}).length) garde.aCreer = !!(garde.aCreer || autre.aCreer);
+      // La rubrique « Immeubles » la plus récente (relecture 19/10 : le groupe gardé n'est pas forcément le plus récent).
+      if (String(autre.derniere || '') > String(garde.derniere || '') && autre.infos && autre.infos.biensDossier) garde.infos = Object.assign({}, garde.infos, { biensDossier: autre.infos.biensDossier });
       if (String(autre.derniere || '') > String(garde.derniere || '')) garde.derniere = autre.derniere;
       if (garde !== cible) sortie[sortie.indexOf(cible)] = garde;
     });
