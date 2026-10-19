@@ -216,10 +216,10 @@
     // Sans surface lue (ni fiche ni Authentic), la contenance du cadastre (IGN) lue par le Contrôle de l'urbanisme (étude 19/10 : « il n'y a
     // pas les contenances, alors il faut les mettre »).
     const igne = new Map(((d.preemption && d.preemption.parcelles) || []).filter(x => x && x.parcelle && Number(x.contenance) > 0)
-      .map(x => [String(x.parcelle).replace(/\s+/g, ' ').toUpperCase(), Number(x.contenance)]));
+      .map(x => { const m = /^\s*([0-9A-Z]{1,2})\s*0*(\d+)\s*$/i.exec(String(x.parcelle)); return [m ? cleParcelle(m[1], m[2]) : '', Number(x.contenance)]; }));
     const lignes = liste.filter(p => p && p.section && p.numero).map(p => {
       const lu = !detailParcelleVide('surface', p.surface) ? centiaresDepuisContenance(String(p.surface)) : null;
-      const m2 = lu || igne.get(`${String(p.section).toUpperCase()} ${Number(p.numero) || p.numero}`) || null;
+      const m2 = lu || igne.get(cleParcelle(p.section, p.numero)) || null;
       const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
       return { ref, m2, surface: m2 != null ? formaterContenance(m2) : '', detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · ') };
     });
@@ -234,6 +234,20 @@
     const total = p.total ? `<span class="parcelle-fiche parcelle-total">Total · ${escapeHtml(p.total)}</span>` : '';
     const aide = p.manquantes ? infoBulle('Surface lue dans la fiche du bien d’Authentic : ouvrez-la dans Authentic pour compléter les parcelles sans surface.') : '';
     return `<span class="parcelles-fiche">${lignes}${total}</span>${aide}`;
+  }
+
+  // Pure : la surface d'une ligne du tableau du cadastre d'une fiche bien d'Authentic (étude 19/10 : « il ne prend pas la surface », ZN 4 à
+  // « 0 ca ») — colonnes « ha | a | ca », ou une colonne « Surface » qui couvre trois cellules (hectare, are, centiare : seule la première,
+  // les hectares, était lue). '' sans surface.
+  function surfaceLigneCadastreAuthentic(entete, ligne, iSurface) {
+    const c = (i) => (i >= 0 && ligne && ligne[i] != null ? String(ligne[i]).replace(/\s+/g, ' ').trim() : '');
+    const iHa = entete.indexOf('ha'), iA = entete.indexOf('a'), iCa = entete.indexOf('ca');
+    if (iHa >= 0 && iA >= 0 && iCa >= 0 && [c(iHa), c(iA), c(iCa)].every(x => /^\d{0,4}$/.test(x)) && (c(iHa) || c(iA) || c(iCa)))
+      return `${Number(c(iHa) || 0)} ha ${c(iA) || '0'} a ${c(iCa) || '0'} ca`;
+    const v = c(iSurface);
+    if (/^\d+$/.test(v) && ligne && ligne.length > entete.length && /^\d{1,2}$/.test(c(iSurface + 1)) && /^\d{1,2}$/.test(c(iSurface + 2)))
+      return `${Number(v)} ha ${c(iSurface + 1)} a ${c(iSurface + 2)} ca`;
+    return v;
   }
 
   // Pure : les parcelles des champs « dataTableCadastre:N:… » de la fiche du bien d'Authentic — numéro (`…Numero`), section (`…Section`, sinon
@@ -350,4 +364,52 @@
     }
     const retenu = !!(d.authentic && d.authentic.valeurs && d.authentic.valeurs.typeVente);
     return appliquerBienAuthentic(d, apercu, noter, resultat, { garderType: retenu });
+  }
+
+  // Les biens d'Authentic d'une vente autres que le bien principal, chacun avec sa croix (étude 19/10 : « je ne peux même pas retirer le
+  // bien » — un bien d'un autre dossier était entré). Index = rang dans immeublesSansParcellesEgarees, comme pour une succession.
+  function autresBiensVente(d) {
+    if (!d || estSuccession(d)) return [];
+    const liste = immeublesSansParcellesEgarees((d.authentic && d.authentic.immeubles) || []);
+    const cle = (a) => normaliserPourRecherche(normaliserAdresse(a || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const principal = cle(d.adresseBien);
+    // Le bien principal : celui de l'adresse de la fiche, sinon le premier.
+    let iPrincipal = liste.findIndex(im => im && principal && cle(im.adresse) === principal);
+    if (iPrincipal < 0) iPrincipal = 0;
+    return liste.map((im, index) => ({ im, index })).filter(({ im, index }) => im && index !== iPrincipal);
+  }
+  // Retire un bien d'une vente : de ses immeubles d'Authentic (gardé parmi les biens retirés, jamais remis) et ses parcelles de la fiche,
+  // sauf celles du bien principal.
+  function retirerBienVente(id, index) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const choix = autresBiensVente(d).find(x => x.index === index);
+    if (!choix) return;
+    const im = choix.im;
+    demanderConfirmation(`Retirer ce bien du dossier : ${im.adresse ? normaliserAdresse(im.adresse) : 'adresse non relevée'} ?`, async () => {
+      const liste = immeublesSansParcellesEgarees((d.authentic && d.authentic.immeubles) || []);
+      const gardes = liste.filter((x, i) => i !== index);
+      const clesGardees = new Set(gardes.flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))));
+      const aRetirer = new Set((im.parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(k => !clesGardees.has(k)));
+      const k = clesBienSuccession(im);
+      d.authentic = Object.assign({}, d.authentic || {}, {
+        immeubles: ((d.authentic && d.authentic.immeubles) || []).filter(x => x !== im && !(x && memeBienSuccession(k, clesBienSuccession(x)))),
+        biensRetires: ((d.authentic && d.authentic.biensRetires) || []).concat(k).slice(-20)
+      });
+      const cad = d.bien && d.bien.cadastre;
+      if (cad && Array.isArray(cad.parcelles) && aRetirer.size) {
+        const restantes = cad.parcelles.filter(p => !aRetirer.has(cleParcelle(p.section, p.numero)));
+        if (restantes.length) d.bien = Object.assign({}, d.bien, { cadastre: Object.assign({}, cad, { parcelles: restantes, section: restantes[0].section, numero: restantes[0].numero }) });
+      }
+      ajouterHistorique(d, `Bien retiré du dossier : ${im.adresse ? normaliserAdresse(im.adresse) : [...aRetirer].join(', ')}`);
+      await sauvegarder(d);
+      render();
+    }, { bouton: 'Retirer', ton: 'danger' });
+  }
+  function renderAutresBiensVente(d) {
+    const autres = autresBiensVente(d);
+    if (!autres.length) return '';
+    const id = escapeOnclickArg(d.id);
+    return `<span class="parcelles-fiche">${autres.map(({ im, index }) => `<span class="parcelle-fiche">${escapeHtml(im.adresse ? normaliserAdresse(im.adresse) : (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '))}
+      <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer ce bien du dossier" onclick="retirerBienVente('${escapeOnclickArg(id)}', ${index})">${icone('x')}</wa-button></span>`).join('')}</span>`;
   }

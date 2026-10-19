@@ -826,6 +826,7 @@
       <dl class="fiche-proprietes">
         ${ligne('map-pin', 'Adresse', saisie('adresse', normaliserAdresse(d.adresseBien), 'changerAdresseBien'), `adresse-${d.id}`, 'prop-pleine')}
         ${renderParcellesFiche(d) ? ligne('layout', 'Parcelles', renderParcellesFiche(d), null, 'prop-pleine') : ''}
+        ${renderAutresBiensVente(d) ? ligne('home', 'Autres biens', renderAutresBiensVente(d), null, 'prop-pleine') : ''}
         ${d.bien && Array.isArray(d.bien.lots) && d.bien.lots.length ? ligne('home', d.bien.lots.length > 1 ? 'Lots' : 'Lot', `<span class="prop-texte">${d.bien.lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span>`, null, 'prop-pleine') : ''}
       </dl>
                   </details>

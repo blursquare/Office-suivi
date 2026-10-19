@@ -110,3 +110,16 @@ test('partie du mauvais côté : passée de l\'autre côté quand aucun acquére
   const seul = { id: 's', nom: 'EXEMPLE / TEST', historique: [], parties: [{ role: 'VENDEUR', nom: 'TEST' }, { role: 'ACQUEREUR', nom: 'MODELE' }] };
   assert.equal(app.retirerPartieDuMauvaisCote(seul), false);
 });
+
+test('partie du mauvais côté : jamais un côté vidé, jamais un nom à deux séparateurs, une seule fois (relecture 19/10)', () => {
+  const deux = { id: 'v', nom: 'DUPONT / TEST & MODELE', historique: [], parties: [{ role: 'VENDEUR', nom: 'TEST' }, { role: 'VENDEUR', nom: 'MODELE' }, { role: 'ACQUEREUR', nom: 'ESSAI' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(deux), true);
+  assert.equal(deux.parties.filter(p => p.role === 'VENDEUR').length, 1, 'un vendeur reste');
+  const mal = { id: 'w', nom: 'DUPONT - MARTIN / LEROY', historique: [], parties: [{ role: 'VENDEUR', nom: 'DUPONT' }, { role: 'VENDEUR', nom: 'MARTIN' }, { role: 'ACQUEREUR', nom: 'LEROY' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(mal), false);
+  // Remis à la main du côté vendeur : plus jamais déplacé.
+  const d = { id: 'b', nom: 'EXEMPLE & ESSAI / TEST & MODELE', historique: [], parties: [{ role: 'VENDEUR', nom: 'EXEMPLE' }, { role: 'VENDEUR', nom: 'TEST' }, { role: 'ACQUEREUR', nom: 'MODELE' }] };
+  assert.equal(app.retirerPartieDuMauvaisCote(d), true);
+  d.parties[1].role = 'VENDEUR';
+  assert.equal(app.retirerPartieDuMauvaisCote(d), false);
+});

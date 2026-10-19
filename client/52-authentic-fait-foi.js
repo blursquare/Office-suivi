@@ -528,13 +528,14 @@
   function retenirImmeubleVenteAuthentic(d, bien, seulementConnu) {
     if (!d || !bien || !(bien.parcelles || []).length) return false;
     // Bien retiré à la main d'une succession (relecture 19/10) : jamais remis, par aucun chemin.
-    if (estSuccession(d) && bienRetireSuccession(d, bien)) return false;
+    // Vente aussi (étude 19/10 : un bien retiré à la main ne revient pas).
+    if (bienRetireSuccession(d, bien)) return false;
     const a = bien.adresse || {};
     const fiche = {
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
       type: bien.type || '', description: String(bien.description || '').slice(0, 160),
       parcelles: bien.parcelles.slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
-        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
+        Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => !detailParcelleVide(k, p[k])).map(k => [k, String(p[k]).slice(0, 60)]))))
     };
     if ((bien.lots || []).length) fiche.lots = bien.lots.slice(0, 40);
     if ((bien.details || []).length) fiche.details = bien.details.slice(0, 30);
@@ -563,7 +564,8 @@
       // Un dossier peut compter plusieurs biens (étude 19/10 : « un vendeur ou un défunt peut avoir plusieurs biens dans son dossier, ils
       // s'ajoutent ») : une fiche ouverte DANS l'onglet de ce dossier d'Authentic (ou portant sa référence) est un bien de plus — ajouté
       // aux biens du dossier, le bien principal de la fiche (adresse, parcelles) inchangé.
-      else if (o && o.dossierSur && retenirImmeubleVenteAuthentic(d, bien, false)) {
+      // Jamais le bien principal d'un AUTRE dossier de CLAIRE (étude 19/10 : le bien de MONNEREAU / BESSIN rangé dans BAUDRY / ENCAOUA).
+      else if (o && o.dossierSur && !bienPrincipalDUnAutreDossier(d, bien) && retenirImmeubleVenteAuthentic(d, bien, false)) {
         const a = bien.adresse || {};
         noter(`Autre bien du dossier relevé dans Authentic : ${a.texte ? normaliserAdresse(a.texte) : bien.parcelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
         resultat.modifie = true;
@@ -889,27 +891,31 @@
   // « VENDEUR - ACQUÉREUR » (ou « / ») dont l'autre côté seul cite ce nom, et pour une partie sans prénom, civilité, coordonnées ni date de
   // naissance (un vrai vendeur homonyme, nommé par le nom du dossier ou avec son prénom, n'est jamais touché). → true si changée.
   function retirerPartieDuMauvaisCote(d) {
-    if (!d || estSuccession(d) || !Array.isArray(d.parties) || d.parties.length < 2) return false;
-    const m = /^\s*(?:vte\s*-\s*)?(.+?)\s+(?:-|\/)\s+(.+?)\s*$/i.exec(String(d.nom || ''));
+    if (!d || d.archive || estSuccession(d) || !Array.isArray(d.parties) || d.parties.length < 2) return false;
+    // Un seul séparateur dans le nom (relecture : « DUPONT - MARTIN / LEROY » se couperait mal) : sinon rien.
+    const nom = String(d.nom || '').replace(/^\s*vte\s*-\s*/i, '');
+    const separateurs = nom.match(/\s+(?:-|\/)\s+/g) || [];
+    if (separateurs.length !== 1) return false;
+    const m = /^\s*(.+?)\s+(?:-|\/)\s+(.+?)\s*$/.exec(nom);
     if (!m) return false;
     const mots = (t) => motsIdentitePersonne(t).filter(x => x.length >= 3);
     const cotes = { VENDEUR: mots(m[1]), ACQUEREUR: mots(m[2]) };
+    if (!cotes.VENDEUR.length || !cotes.ACQUEREUR.length) return false;
     const role = (p) => String((p && p.role) || '').toUpperCase();
     const autre = (r) => (r === 'VENDEUR' ? 'ACQUEREUR' : 'VENDEUR');
-    const retirees = d.parties.filter(p => {
-      if (!p || (role(p) !== 'VENDEUR' && role(p) !== 'ACQUEREUR') || p.qualitePersonne === 'morale') return false;
+    // Une partie déjà replacée une fois n'est plus jamais touchée (une correction à la main est respectée).
+    const faits = Array.isArray(d.partiesReplacees) ? d.partiesReplacees : [];
+    let change = false;
+    // Une à une : le côté garde toujours au moins une autre personne (jamais un côté vidé, même par deux déplacements).
+    d.parties.slice().forEach(p => {
+      if (!p || (role(p) !== 'VENDEUR' && role(p) !== 'ACQUEREUR') || p.qualitePersonne === 'morale') return;
       const mp = mots([p.prenom, p.nom].filter(Boolean).join(' '));
-      if (mp.length !== 1 || p.prenom || p.civilite || p.dateNaissance || (p.emails || []).length || (p.telephones || []).length) return false;
+      if (mp.length !== 1 || p.prenom || p.civilite || p.dateNaissance || (p.emails || []).length || (p.telephones || []).length) return;
       const r = role(p), w = mp[0];
-      if (cotes[r].includes(w) || !cotes[autre(r)].includes(w)) return false;
-      // Le côté garde au moins une autre personne (jamais un côté vidé).
-      return d.parties.some(q => q && q !== p && role(q) === r && String(q.nom || '').trim());
-    });
-    if (!retirees.length) return false;
-    // L'autre côté porte déjà ce nom (Hamza BOUCHKAR) : la partie est retirée ; sinon (étude 19/10, BARBIER / GONZALEZ et VANNIER : GONZALEZ
-    // parmi les vendeurs, aucun acquéreur de ce nom) elle passe de l'autre côté.
-    retirees.forEach(p => {
-      const r = role(p), w = mots(p.nom)[0];
+      if (faits.includes(w) || cotes[r].includes(w) || !cotes[autre(r)].includes(w)) return;
+      if (!d.parties.some(q => q && q !== p && role(q) === r && String(q.nom || '').trim())) return;
+      // L'autre côté porte déjà ce nom (Hamza BOUCHKAR) : la partie est retirée ; sinon (étude 19/10, BARBIER / GONZALEZ et VANNIER :
+      // GONZALEZ parmi les vendeurs, aucun acquéreur de ce nom) elle passe de l'autre côté.
       const porte = d.parties.some(q => q && q !== p && role(q) === autre(r) && mots([q.prenom, q.nom].filter(Boolean).join(' ')).includes(w));
       if (porte) {
         d.parties = d.parties.filter(x => x !== p);
@@ -919,6 +925,49 @@
         if (p.qualiteActe) p.qualiteActe = autre(r) === 'VENDEUR' ? 'vendeur' : 'acquéreur';
         ajouterHistorique(d, `« ${p.nom} » passé des ${r === 'VENDEUR' ? 'vendeurs aux acquéreurs' : 'acquéreurs aux vendeurs'} : le nom du dossier le place de ce côté`);
       }
+      faits.push(w);
+      change = true;
+    });
+    if (change) d.partiesReplacees = faits.slice(-20);
+    return change;
+  }
+
+  // Pure : le bien d'Authentic (adresse, parcelles) est-il le bien principal d'un AUTRE dossier en cours ou archivé de CLAIRE — même adresse,
+  // ou une parcelle commune dans la même commune ? `bien` : { adresse: { texte, commune }, parcelles } ou un immeuble retenu { adresse, commune, parcelles }.
+  function bienPrincipalDUnAutreDossier(d, bien, liste) {
+    if (!bien) return null;
+    const adr = typeof bien.adresse === 'string' ? bien.adresse : (bien.adresse && bien.adresse.texte) || '';
+    const communeBien = bien.commune || (bien.adresse && bien.adresse.commune) || '';
+    const cleAdr = adr ? normaliserPourRecherche(normaliserAdresse(adr)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
+    const parcelles = (bien.parcelles || []).filter(p => p && p.section && p.numero);
+    return (liste || (typeof dossiers !== 'undefined' ? dossiers : [])).find(x => {
+      if (!x || x === d || x.id === (d && d.id) || x.deleted || x.archive || estSuccession(x)) return false;
+      const a = x.adresseBien ? normaliserPourRecherche(normaliserAdresse(x.adresseBien)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
+      if (cleAdr && a && a === cleAdr) return true;
+      const communeX = (x.bien && x.bien.adresse && x.bien.adresse.commune) || '';
+      return parcellesCadastre(x.bien && x.bien.cadastre).some(q => parcelles.some(p => String(p.section).toUpperCase() === String(q.section || '').toUpperCase()
+        && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')
+        && memeCommune({ commune: p.commune || communeBien }, { commune: q.commune || communeX }) === true));
+    }) || null;
+  }
+
+  // Modifie d : les biens ajoutés à une vente qui sont le bien principal d'un autre dossier de CLAIRE retirés (étude 19/10, BAUDRY / ENCAOUA
+  // portait le bien de MONNEREAU / BESSIN) — jamais le bien principal de la fiche elle-même. → true si retiré.
+  function retirerBiensDAutresDossiers(d, liste) {
+    if (!d || d.archive || estSuccession(d) || !d.authentic || !Array.isArray(d.authentic.immeubles) || d.authentic.immeubles.length < 2) return false;
+    const principal = d.adresseBien ? normaliserPourRecherche(normaliserAdresse(d.adresseBien)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
+    const retires = d.authentic.immeubles.filter(im => {
+      if (!im) return false;
+      const a = im.adresse ? normaliserPourRecherche(normaliserAdresse(im.adresse)).replace(/[^a-z0-9]+/g, ' ').trim() : '';
+      if (a && a === principal) return false;
+      const memeParcelle = parcellesCadastre(d.bien && d.bien.cadastre).some(q => (im.parcelles || []).some(p => String(p.section).toUpperCase() === String(q.section || '').toUpperCase() && String(p.numero).replace(/^0+/, '') === String(q.numero || '').replace(/^0+/, '')));
+      return !memeParcelle && !!bienPrincipalDUnAutreDossier(d, im, liste);
+    });
+    if (!retires.length) return false;
+    d.authentic = Object.assign({}, d.authentic, { immeubles: d.authentic.immeubles.filter(im => !retires.includes(im)) });
+    retires.forEach(im => {
+      const autre = bienPrincipalDUnAutreDossier(d, im, liste);
+      ajouterHistorique(d, `Bien retiré : ${im.adresse || (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ')} — c'est le bien du dossier ${autre ? libelleDossierAffiche(autre) : 'd’un autre dossier'}`);
     });
     return true;
   }

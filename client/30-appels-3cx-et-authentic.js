@@ -1464,7 +1464,7 @@
         if (!section || !numero || parcelles.some(p => p.section === section && p.numero === numero)) return;
         const p = { section, numero };
         if (cellule(l, iNature)) p.nature = cellule(l, iNature);
-        if (cellule(l, iSurface)) p.surface = cellule(l, iSurface);
+        { const s3 = surfaceLigneCadastreAuthentic(entete, l, iSurface); if (s3) p.surface = s3; }
         if (cellule(l, iLieu)) p.lieuDit = cellule(l, iLieu);
         // Commune et préfixe de la parcelle (étude 15/10 : toutes les parcelles, chacune à la bonne mairie).
         if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
@@ -1480,7 +1480,8 @@
     // (« …dataTableCadastre:0:cadastreHorsVolumeNumero »), la surface dans les trois champs hectare / are / centiare qui suivent le SPF.
     parcellesChampsCadastreAuthentic(champs).forEach(q => {
       const deja = parcelles.find(p => p.section === q.section && p.numero === q.numero);
-      if (deja) { ['surface', 'prefixe', 'nature', 'adresseCadastre'].forEach(k => { if (!deja[k] && q[k]) deja[k] = q[k]; }); }
+      // Une surface du tableau nulle ou réduite aux hectares (« 0 ») cède la place aux trois champs hectare / are / centiare (19/10).
+      if (deja) { ['surface', 'prefixe', 'nature', 'adresseCadastre'].forEach(k => { if ((detailParcelleVide(k, deja[k]) || (k === 'surface' && /^\d+$/.test(String(deja[k])))) && q[k]) deja[k] = q[k]; }); }
       else parcelles.push(q);
     });
     const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, parcelles, lots.length > 0);
@@ -2870,7 +2871,7 @@
       const importer = retirerImporterAuthentic(d);
       const dia = migrerPieceDiaCopropriete(d);
       const nonPeril = migrerPieceNonPeril(d);
-      const doublons = [dedoublonnerPartiesDossier(d), retirerPartieDuMauvaisCote(d)].some(Boolean);
+      const doublons = [dedoublonnerPartiesDossier(d), retirerPartieDuMauvaisCote(d), retirerBiensDAutresDossiers(d)].some(Boolean);
       const droits = realignerDroitsPreemption(d);
       droits.forEach(t => ajouterHistorique(d, t));
       if (date || numero || notaires || importer || dia || nonPeril || doublons || droits.length) await sauvegarder(d);

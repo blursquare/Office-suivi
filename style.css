@@ -7967,13 +7967,14 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .cb-ligne-badges { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .cb-badge { font-size: var(--texte-xxs); font-weight: 700; padding: 1px 6px; border-radius: var(--rayon-pilule); background: var(--paper-sunk); color: var(--ink-soft); white-space: nowrap; }
 .cb-badge-question { background: var(--pret-bg); color: var(--pret); }
-.cb-box { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 64px); overflow: auto; position: relative; text-align: left; }
+/* Fiche client / bien (étude 19/10 : « rendre cela lisible ») : la largeur du .confirm-box (360 px) la serrait — adresses et emails coupés. */
+.confirm-box.cb-box { width: min(680px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 64px); overflow: auto; position: relative; text-align: left; }
 .cb-fermer { position: absolute; top: 8px; right: 8px; }
 .cb-titre { font-size: var(--texte-xl); font-weight: 500; margin: 0 32px 12px 0; }
 .cb-sous-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; }
-.cb-champs { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; font-size: var(--texte-m); }
+.cb-champs { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 8px 16px; margin: 0; font-size: var(--texte-m); line-height: 1.45; }
 .cb-champs dt { color: var(--muted); }
-.cb-champs dd { margin: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; overflow-wrap: anywhere; }
+.cb-champs dd { margin: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; min-width: 0; overflow-wrap: break-word; }
 .cb-champs dd > div { width: 100%; }
 .cb-bloc + .cb-bloc { margin-top: 8px; }
 .cb-bloc > .hint { margin-bottom: 4px; }

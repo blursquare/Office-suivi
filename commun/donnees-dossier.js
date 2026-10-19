@@ -63,7 +63,7 @@
    * « il n'y a pas les contenances, il faut les mettre » quand Authentic les donne). @param {string} k @param {any} v */
   function detailParcelleVide(k, v) {
     if (v == null || v === '') return true;
-    return k === 'surface' && /^[\s0.,]*(?:ha|a|ca|m²|m2|[\s0.,])*$/i.test(String(v)) && !/[1-9]/.test(String(v));
+    return k === 'surface' && /^[\s0.,]*(?:ha|a|ca|m²|m2|[\s0.,])*$/i.test(String(v)) && !/[1-9]/.test(String(v).replace(/m[2²]/gi, ''));
   }
 
   /** Pure : une parcelle complétée par une autre (ce qui lui manque seulement). @param {any} a @param {any} b */

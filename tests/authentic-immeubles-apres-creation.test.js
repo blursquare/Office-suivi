@@ -132,3 +132,21 @@ test('vente de deux biens dont la fiche porte l’adresse du second : aucune par
   assert.equal(d.authentic.immeubles.map(i => i.parcelles.map(p => p.section + p.numero).join('+')).join(' | '), 'AB1 | ZC7');
   assert.equal(D.biensDossier(d).filter(b => b.parcelles.some(p => p.section + p.numero === 'ZC7')).length, 1);
 });
+
+test('bien du dossier d\'à côté : jamais ajouté, retiré s\'il y est (étude 19/10, BAUDRY / MONNEREAU)', () => {
+  const autre = { id: 'mon', nom: 'MODELE - ESSAI', adresseBien: 'SAINT LUBIN EN VERGONNOIS (41190), 24 rue des Cyclamens', bien: { cadastre: { parcelles: [{ section: 'ZN', numero: '4' }] } }, parties: [], historique: [] };
+  const d = { id: 'bau', nom: 'EXEMPLE - TEST', adresseBien: 'BLOIS (41000), 3 rue Exemple', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } }, parties: [], historique: [],
+    authentic: { immeubles: [{ adresse: 'BLOIS (41000), 3 rue Exemple', parcelles: [{ section: 'AB', numero: '12' }] }, { adresse: 'SAINT LUBIN EN VERGONNOIS (41190), 24 rue des Cyclamens', parcelles: [{ section: 'ZN', numero: '4' }] }] } };
+  const liste = [autre, d];
+  assert.equal(app.bienPrincipalDUnAutreDossier(d, { adresse: { texte: 'SAINT LUBIN EN VERGONNOIS (41190), 24 rue des Cyclamens' }, parcelles: [] }, liste) && true, true);
+  assert.equal(app.retirerBiensDAutresDossiers(d, liste), true);
+  assert.equal(d.authentic.immeubles.length, 1);
+  assert.equal(app.retirerBiensDAutresDossiers(d, liste), false);
+});
+
+test('vente : les biens autres que le principal ont leur croix (étude 19/10 : « je ne peux même pas retirer le bien »)', () => {
+  const d = { id: 'bau', nom: 'EXEMPLE - TEST', adresseBien: 'BLOIS (41000), 3 rue Exemple', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }, { section: 'ZN', numero: '4' }] } },
+    authentic: { immeubles: [{ adresse: 'SAINT LUBIN EN VERGONNOIS (41190), 24 rue des Cyclamens', parcelles: [{ section: 'ZN', numero: '4' }] }, { adresse: 'BLOIS (41000), 3 rue Exemple', parcelles: [{ section: 'AB', numero: '12' }] }] } };
+  assert.equal(app.autresBiensVente(d).map(x => x.index + ':' + x.im.adresse).join('|'), '0:SAINT LUBIN EN VERGONNOIS (41190), 24 rue des Cyclamens');
+  assert.equal(app.autresBiensVente({ id: 's', typeAffaire: 'succession', authentic: d.authentic }).length, 0);
+});

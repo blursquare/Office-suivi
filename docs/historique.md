@@ -20979,3 +20979,12 @@ Constitution est une carte, nom (sur deux lignes au besoin) puis ville, sans bar
   la fiche montre la contenance du cadastre lue par le Contrôle de l'urbanisme (`d.preemption.parcelles`).
 - BARBIER & MALLIER / GONZALEZ & VANNIER : GONZALEZ (nom seul) parmi les vendeurs, aucun acquéreur de ce nom → `retirerPartieDuMauvaisCote`
   le fait passer aux acquéreurs (le côté de départ garde au moins une personne), historique « passé des vendeurs aux acquéreurs ».
+
+Suite (même version, avant publication) :
+- BAUDRY / ENCAOUA portait le bien de MONNEREAU / BESSIN (« Aussi : … c'est pas lié ») : une fiche bien ajoutée comme « autre bien du dossier »
+  n'est jamais le bien principal d'un AUTRE dossier en cours (`bienPrincipalDUnAutreDossier`, même adresse ou même parcelle dans la même
+  commune) ; ceux déjà ajoutés sont retirés au chargement (`retirerBiensDAutresDossiers`, historique « Bien retiré : … c'est le bien du dossier … »).
+- « J'ai ajouté le bien à partir de 0, il ne prend pas la surface » (ZN 4 « 0 ca ») : la colonne « surface » du tableau du cadastre ne donnait que
+  les hectares ; `surfaceLigneCadastreAuthentic` lit hectare / are / centiare, et la surface des champs de la fiche remplace un « 0 ».
+- Fiche client « illisible » : la fenêtre prenait la largeur d'une confirmation (360 px) ; 680 px, colonne des libellés plus large.
+- Relecture : jamais un côté vidé par deux déplacements, nom du dossier à un seul séparateur, déplacement fait une fois (`d.partiesReplacees`).
