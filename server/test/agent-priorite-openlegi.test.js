@@ -29,3 +29,22 @@ test('BOFiP branché : pas de recherche web avant un appel à OpenLegi, puis ell
   const deja = { rechercheWeb: DOMAINES, outilsExternes: [BOFIP], messages: [{ role: 'assistant', content: [{ type: 'server_tool_use', id: 's1', name: 'web_search', input: {} }] }] };
   assert.equal(rechercheWebPourTour(deja).length, 2);
 });
+
+test('requête refusée au premier tour avec le BOFiP : OpenLegi retiré, la recherche web donnée au second essai et pas mise en cause', async () => {
+  const { tourAgent, viderConversationsAgent } = require('../src/assistantAgent');
+  viderConversationsAgent();
+  const requetes = [];
+  const reponses = [Object.assign(new Error('schéma refusé'), { status: 400 }),
+    { content: [{ type: 'text', text: 'Réponse.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } }];
+  const client = { beta: { messages: { create: async (req) => { requetes.push(JSON.parse(JSON.stringify(req))); const r = reponses.shift(); if (r instanceof Error) throw r; return r; } } } };
+  const notes = [];
+  const parametresRepo = { lireJsonBrut: (c, d) => d, ecrireJsonBrut: (c, v) => { notes.push(c); return v; } };
+  const r = await tourAgent({ texte: 'Quel abattement sur une plus-value ?', dossiers: [], contexte: {} },
+    { cle: 'k', client, outilsExternes: [BOFIP], rechercheWeb: DOMAINES, parametresRepo });
+  assert.equal(r.erreur, undefined);
+  assert.equal(requetes.length, 2);
+  assert.equal(requetes[0].tools.some((t) => t.name === 'web_search'), false);
+  assert.equal(requetes[0].tools.some((t) => t.name === 'bofip__rechercher_doctrine'), true);
+  assert.equal(requetes[1].tools.some((t) => t.name === 'bofip__rechercher_doctrine'), false);
+  assert.equal(requetes[1].tools.some((t) => t.name === 'web_search'), true);
+});

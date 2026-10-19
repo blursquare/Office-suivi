@@ -602,7 +602,8 @@ async function tourAgent(entree, o) {
       const refus = (err && err.status === 400) || /refusée par Mistral/.test(String(err && err.messageAgent || ''));
       // Même chose pour la recherche web (relecture 0.285.0 : pas autorisée pour l'organisation, domaine refusé) tant qu'elle n'a pas servi.
       const externesRetirables = !!(conv.outilsExternes && conv.outilsExternes.length && !conv.externesUtilises);
-      const webRetirable = !!(conv.rechercheWeb && conv.rechercheWeb.length && !rechercheWebUtilisee(conv.messages));
+      // Le web n'est en cause que s'il était dans la requête refusée (OpenLegi d'abord : souvent absent au premier tour).
+      const webRetirable = rechercheWebPourTour(conv).length > 0 && !rechercheWebUtilisee(conv.messages);
       if (!refus || (!externesRetirables && !webRetirable)) throw err;
       const gardes = { externes: conv.outilsExternes, web: conv.rechercheWeb };
       if (externesRetirables) conv.outilsExternes = [];
