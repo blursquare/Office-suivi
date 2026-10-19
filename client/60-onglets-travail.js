@@ -130,6 +130,17 @@
     renderOngletsTravail();
   }
 
+  // La croix de la fiche (et Échap) : la fiche se ferme ET son onglet disparaît (étude 19/10 : « quand on ferme la fiche dossier avec la
+  // croix, fermer l'onglet ») ; on retrouve l'écran d'où elle avait été ouverte.
+  function fermerFicheEtOnglet() {
+    const id = dossierOuvert;
+    if (!id) return;
+    const k = ongletsTravail.findIndex(o => o.type === 'dossier' && o.id === id);
+    if (k >= 0) { ongletsTravail.splice(k, 1); enregistrerOngletsTravail(); }
+    fermerDossierDrawer();
+    renderOngletsTravail();
+  }
+
   function libelleOngletTravail(o) {
     if (o.type === 'outil') return LIBELLES_ONGLETS[o.nom] || o.nom;
     const d = dossiers.find(x => x.id === o.id);

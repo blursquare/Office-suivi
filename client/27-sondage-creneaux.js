@@ -2100,7 +2100,7 @@
              intitulé en infobulle. Archiver/Supprimer ne se mêlent plus au titre. -->
         <div class="fiche-barre">
           <div class="fiche-barre-groupe">
-            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="fermerDossierDrawer()" aria-label="Fermer la fiche" title="Fermer (Échap)">${icone('x')}</wa-button>
+            <wa-button appearance="plain" type="button" class="bouton-icone fiche-btn" onclick="fermerFicheEtOnglet()" aria-label="Fermer la fiche" title="Fermer la fiche et son onglet (Échap)">${icone('x')}</wa-button>
             ${boutonsModeFiche()}
           </div>
           <div class="fiche-barre-groupe">

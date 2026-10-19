@@ -1857,7 +1857,7 @@
       } else if (dossierOuvert && (!ficheACoteActive() || focusDansFicheCote())) {
         // Fiche à côté : Échap tapé dans l'écran de gauche (recherche de l'agenda, champ d'un outil) ne la ferme pas.
         e.preventDefault();
-        fermerDossierDrawer();
+        fermerFicheEtOnglet();
       }
       return;
     }

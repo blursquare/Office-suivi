@@ -21140,3 +21140,6 @@ peut modifier ; visuel, attractif et intelligent ».
   dessin, avec un « i » qui dit que la correction reste ; « Compléter la fiche (n) » en tête de la colonne de droite ; la ligne « Authentic »
   (choix du dossier d'Authentic + Compléter) devient la section « Tout reprendre d'Authentic » du panneau (`htmlCompleterAuthenticFiche`,
   remplace `renderCompleterAuthenticFiche`) ; styles `.pb-tiroir` retirés.
+- Même soir (étude : « quand on ferme la fiche dossier avec la croix, fermer l'onglet ») : `fermerFicheEtOnglet` (client/60) pour la croix
+  de la fiche et Échap — la fiche se ferme, son onglet de travail disparaît, l'écran d'où elle avait été ouverte revient. Les autres
+  fermetures (changement d'écran, ouverture d'un outil depuis la fiche) gardent l'onglet, comme avant.
