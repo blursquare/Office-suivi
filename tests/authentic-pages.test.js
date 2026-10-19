@@ -1701,3 +1701,15 @@ test('dossier de l’onglet actif retrouvé par sa référence, quel que soit le
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'A 2026 00110 SUCC VIEL', actif: true }] }, dossiers).id, 's');
   assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'A 2026 00111 VTE BOURNOUVE...', actif: true }] }, dossiers).id, 'v');
 });
+
+test('casier judiciaire : le statut écrit par Authentic à droite de la date, jamais « Comedec » (étude 19/10)', () => {
+  const page = (etat) => ({ champs: [{ libelle: '12 - Vente MARTEL/FOURNIER', valeur: '' }], tableaux: [{ entete: [], lignes: [['CJN Vérification auprès du Casier Judiciaire National - MARTEL Alexandre', '', '03/09/2026', '', etat]] }], texte: '' });
+  const d = { id: 'c', nom: 'MARTEL / FOURNIER', typeVente: 'maison', pieces: {}, historique: [] };
+  app.appliquerReleveSurDossier(d, page('Absence de condamnation'), '2026-09-04T09:00:00Z');
+  const cle = Object.keys(d.authentic.etatsCivils)[0];
+  const e = app.etatAuthenticPiece(d, { cle, label: 'x' });
+  assert.equal(e.texte, 'Casier judiciaire : Absence de condamnation');
+  assert.equal(e.classe, '');
+  app.appliquerReleveSurDossier(d, page('Condamnation inscrite'), '2026-09-05T09:00:00Z');
+  assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).classe, 'dl-urgent');
+});

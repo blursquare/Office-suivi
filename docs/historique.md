@@ -21007,3 +21007,11 @@ CVE-2023-30533 et CVE-2024-22363) ; une personne du fichier ne relie jamais deux
 ces occurrences ne font déjà qu'une fiche), n'est jamais proposée « peut-être » ; occurrences du fichier APRÈS celles des dossiers et
 identifiant stable (nom, prénom, date de naissance) pour que corrections et liaisons ne glissent pas ; deux lignes du fichier immeubles sur la
 même parcelle restent deux biens ; genre lu sur le titre seul ; dates rendues en jj/mm/aaaa.
+
+### 19/10/2026 — 0.291.1 : casier judiciaire, statut d'Authentic
+
+Étude : « "CJN Vérification auprès du Casier Judiciaire National — Comedec : positif" : ce n'est pas un Comedec, il faut reprendre le texte à
+droite de la date, ex. « Absence de condamnation », c'est le statut de la demande ». `suiviEtatsCivilsAuthentic` garde pour une ligne de casier
+(`RE_CASIER_AUTHENTIC`) `casier: true` et `statut` (dernière cellule de la ligne, `l.etat`) ; `etatAuthenticPiece` affiche « Casier judiciaire :
+<statut> » (en attente : ambre ; condamnation sans « absence/néant/aucune » ou erreur : rouge). Un relevé d'avant garde « reçu » jusqu'à la
+page suivante.

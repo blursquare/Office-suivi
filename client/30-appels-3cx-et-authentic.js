@@ -860,7 +860,8 @@
       if (RE_DEMANDE_AUTHENTIC.test(normaliserPourRecherche(l.titre || ''))) return;
       if (!reEtatCivil.test(l.titre || '') && !RE_CASIER_AUTHENTIC.test(l.titre || '')) return;
       const label = labelPieceEtatCivilAuthentic(l.titre);
-      r[clePieceEtatCivilAuthentic(label)] = { label, etat: etatEtatCivilAuthentic(l), date: l.date || '' };
+      // Casier judiciaire (étude 19/10 : « ce n'est pas un Comedec, reprendre le texte à droite de la date ») : son statut tel qu'Authentic l'écrit.
+      r[clePieceEtatCivilAuthentic(label)] = Object.assign({ label, etat: etatEtatCivilAuthentic(l), date: l.date || '' }, RE_CASIER_AUTHENTIC.test(l.titre || '') ? { casier: true, statut: String(l.etat || '').replace(/\s+/g, ' ').trim().slice(0, 80) } : {});
     });
     return r;
   }
