@@ -21135,3 +21135,8 @@ peut modifier ; visuel, attractif et intelligent ».
   réponse (`reposerQuestionSuivanteAuthentic`), attentes limitées à 30 sans jamais évincer la question affichée (`limiterAttentesAuthentic`) ;
   intitulé rangé sur deux dossiers → aucun n'est sûr ; message vide après « Oui » sur une fiche bien. Scénario 32 (fiche qui attend la
   réponse à la page du dossier, puis reprise au clic). Bancs 66/66.
+- Même soir (étude : « place la partie Authentic sous les cartes des parties et du bien, et revois Modifier les parties et Compléter pour que
+  ce soit cohérent ») : panneau sous les cartes (colonne de gauche, vente et succession) ; « Modifier les parties… » en carte repliable du même
+  dessin, avec un « i » qui dit que la correction reste ; « Compléter la fiche (n) » en tête de la colonne de droite ; la ligne « Authentic »
+  (choix du dossier d'Authentic + Compléter) devient la section « Tout reprendre d'Authentic » du panneau (`htmlCompleterAuthenticFiche`,
+  remplace `renderCompleterAuthenticFiche`) ; styles `.pb-tiroir` retirés.

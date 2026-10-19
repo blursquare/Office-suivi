@@ -698,18 +698,17 @@
     } catch (e) { /* hors ligne : la ligne n'apparaît pas */ }
   }
 
-  function renderCompleterAuthenticFiche(d, ligne) {
+  // Le choix du dossier d'Authentic à reprendre en entier (geste explicite : Authentic fait foi) — dans le panneau « Authentic » de la fiche.
+  function htmlCompleterAuthenticFiche(d) {
     if (!d || d.archive) return '';
     const groupes = groupesAuthenticFiche.liste;
     if (!groupes.length) return '';
     const choisi = indexGroupeAuthenticPourDossier(d, groupes);
-    const id = escapeOnclickArg(d.id);
     // Valeur = la clé du dossier d'Authentic (référence, sinon intitulé), jamais sa position : la liste est relue toutes les
     // minutes et peut changer d'ordre entre l'affichage et le clic (audit 12/10 : le dossier d'un autre client était repris).
     const options = groupes.map((g, i) => `<option value="${escapeAttr(cleGroupeAuthenticFiche(g))}"${i === choisi ? ' selected' : ''}>${escapeHtml(g.intitule)}${g.reference ? ` (${escapeHtml(g.reference)})` : ''} — ${escapeHtml(resumeGroupeAuthentic(g))}</option>`).join('');
-    const html = `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
-      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${escapeOnclickArg(id)}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
-    return ligne('download', 'Authentic', html, `auth-comp-${d.id}`, 'prop-pleine');
+    return `<span class="auth-completer"><select id="auth-comp-${escapeAttr(d.id)}" class="prop-champ auth-completer-choix" aria-label="Dossier d’Authentic à reprendre">${choisi < 0 ? '<option value="" selected>Choisir le dossier d’Authentic…</option>' : ''}${options}</select>
+      <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="completerDossierDepuisAuthentic('${escapeOnclickArg(d.id)}')" title="Reprendre d’Authentic personnes, emails, téléphones, bien et prix : Authentic fait foi, l’ancienne valeur reste dans l’historique">${icone('download')} Compléter</wa-button></span>`;
   }
 
   function cleGroupeAuthenticFiche(g) {

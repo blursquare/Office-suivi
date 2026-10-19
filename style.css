@@ -9879,12 +9879,18 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .pb-carte-tete .icone:last-child { color: var(--muted); }
 .pb-carte-sous { font-size: var(--texte-s); color: var(--muted); padding-left: 24px; }
 .pb-ailleurs-ligne { display: block; font-size: var(--texte-s); color: var(--ink-soft); padding-left: 24px; }
-.pb-modifier, .pb-tiroir { border-top: 1px solid var(--line-soft); padding-top: 8px; }
-.pb-modifier > summary, .pb-tiroir > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: var(--texte-s); font-weight: 500; color: var(--ink-soft); list-style: none; padding: 4px 0; }
-.pb-modifier > summary::-webkit-details-marker, .pb-tiroir > summary::-webkit-details-marker { display: none; }
-.pb-modifier[open] > summary, .pb-tiroir[open] > summary { color: var(--ink); }
-.pb-tiroir { margin-top: 8px; }
-.pb-tiroir-corps { padding: 8px 0 0; }
+/* « Modifier les parties… » (étude 19/10 : cohérent avec le panneau « Authentic ») : une carte repliable du même dessin, sous le panneau. */
+.pb-modifier { border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); background: var(--paper-card); padding: 4px 16px; }
+.pb-modifier > summary { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--texte-m); font-weight: 500; color: var(--ink); list-style: none; padding: 10px 0; }
+.pb-modifier > summary > .icone:first-child { color: var(--muted); }
+.pb-modifier-titre { min-width: 0; }
+.pb-modifier > summary > .icone:last-child { margin-left: auto; color: var(--muted); transition: transform var(--anim-duree, 200ms) var(--anim-courbe, ease); }
+.pb-modifier[open] > summary > .icone:last-child { transform: rotate(180deg); }
+.pb-modifier[open] { padding-bottom: 12px; }
+/* « Compléter la fiche (n) » en tête de la colonne de droite, dont il montre les champs vides. */
+.fiche-droite-tete { display: flex; justify-content: flex-end; }
+.fiche-droite-tete > wa-button.bouton-ajout.fiche-completer { margin: 0; }
+.pb-modifier > summary::-webkit-details-marker { display: none; }
 
 /* Détail d'un rendez-vous : mêmes clients dans un autre dossier (17/10). */
 .ag-autre-dossier { display: flex; flex-direction: column; gap: 0; margin-top: 4px; }
@@ -10017,7 +10023,7 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
   .piece-tuile.anim-pose .piece-tuile-etat, .piece-tuile.anim-pose .piece-tuile-icone { animation: none; }
   .ja.fait.vient-de-finir .ja-titre { text-decoration: line-through; text-decoration-color: var(--line); background: none; }
   wa-stepper.outil-sommaire wa-step::part(connector) { transition: none; }
-  .pa-barre > span, .pa-section > summary > .icone:last-child { transition: none; }
+  .pa-barre > span, .pa-section > summary > .icone:last-child, .pb-modifier > summary > .icone:last-child { transition: none; }
   .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }
   .pieces-depot, .pdf-dropzone { transition: background-color var(--anim-duree); }
 }

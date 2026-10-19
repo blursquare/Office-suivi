@@ -181,6 +181,7 @@
       ${renderRecuAuthenticFiche(d)}
       ${champs.length ? section('champs', 'Repris sur la fiche', champs.length, corriges ? `<span class="dot-label dl-acte"><span class="dot"></span>${corriges} corrigé${corriges > 1 ? 's' : ''}</span>` : '', `<p class="pa-aide">${icone('pencil')}Tout se corrige sur la fiche : la correction reste, même quand Authentic est relu. Si Authentic change ensuite, CLAIRE demande.</p>${tableChamps}`) : ''}
       ${personnes.length ? section('personnes', 'Fiches client lues', personnes.length, '', cartesPersonnes) : ''}
+      ${(() => { const h = htmlCompleterAuthenticFiche(d); return h ? section('reprendre', 'Tout reprendre d’Authentic', 0, '', `<p class="pa-aide">${icone('info')}Reprend du dossier d’Authentic choisi les personnes, emails, téléphones, le bien et le prix, en remplaçant la fiche (l’ancienne valeur reste dans l’historique). À faire après une correction dans Authentic.</p>${h}`) : ''; })()}
       ${tuiles ? section('suivi', 'Suivi dans Authentic', suivi.length, '', `<div class="pa-tuiles">${tuiles}</div>`) : ''}
       ${lien.etat !== 'aucun' || d.authentic ? `<footer class="pa-pied"><wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)">${icone('x')} Oublier ce qui vient d’Authentic</wa-button></footer>` : ''}
     </section>`;

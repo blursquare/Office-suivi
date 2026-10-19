@@ -213,8 +213,9 @@
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
+          ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${idJs}', this.open)">
-            <summary>${icone('pencil')}Modifier le défunt, les héritiers et les biens</summary>
+            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier le défunt, les héritiers et les biens</span>${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus.')}${icone('chevron-down')}</summary>
       <div class="section-eyebrow fiche-sous-titre">Le défunt ${df.source ? `<span class="hint">· ${escapeHtml(df.source)}</span>` : ''}</div>
       <dl class="fiche-proprietes">
         ${ligne('user', 'Défunt', `<span class="succ-identite">${civilite}${texte('prenoms', c.prenoms, 'Prénoms', 'Prénoms du défunt')}${texte('nom', c.nom, 'NOM', 'Nom du défunt')}</span>`, null, 'prop-pleine')}
@@ -241,7 +242,6 @@
                   </details>
         </div>
         <div class="fiche-dossier-droite">
-          ${renderPanneauAuthentic(d)}
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, null)}
         ${ligne('calendar', 'Ouverture', date('ouvertureLe', s.ouvertureLe, 'Rendez-vous d’ouverture avec Sophie', 'changerSuccession') + ' <span class="hint">avec Sophie, en rendez-vous</span>', null)}

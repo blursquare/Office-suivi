@@ -815,9 +815,10 @@
       <div class="fiche-dossier-colonnes">
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
+          ${renderPanneauAuthentic(d)}
           ${(renderClientsAPlacer(d, ligne) + renderPersonnesConnues(d, ligne)).trim() ? `<dl class="fiche-proprietes">${renderClientsAPlacer(d, ligne)}${renderPersonnesConnues(d, ligne)}</dl>` : ''}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${escapeOnclickArg(d.id)}', this.open)">
-            <summary>${icone('pencil')}Modifier les parties, les coordonnées et le bien</summary>
+            <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier les parties, les coordonnées et le bien</span>${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus ; s’il change ensuite, CLAIRE demande.')}${icone('chevron-down')}</summary>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${ligne('user', 'Vendeurs', renderPersonnesCoteFiche(d, 'vendeur'), null, 'prop-pleine')}
         ${ligne('users', 'Acquéreurs', renderPersonnesCoteFiche(d, 'acquereur'), null, 'prop-pleine')}
@@ -832,7 +833,7 @@
                   </details>
         </div>
         <div class="fiche-dossier-droite">
-          ${renderPanneauAuthentic(d)}
+          <!--bascule-champs-vides-->
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
@@ -872,10 +873,9 @@
     const bascule = nbVides
       ? `<wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court fiche-completer${ouvert ? ' ouvert' : ''}" onclick="basculerChampsVidesFiche('${escapeOnclickArg(d.id)}')" aria-expanded="${ouvert}"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ouvert ? 'Masquer les champs vides' : `Compléter la fiche (${nbVides})`}</wa-button>`
       : '';
-    // Ligne « Authentic » (étude 06/10 au soir : « sous Compléter la fiche ») : le dossier d'Authentic à reprendre, juste sous le bouton.
-    // Les changements proposés par Authentic sont dans le panneau « Authentic » de la colonne de droite (étude 19/10).
-    const ligneAuthentic = renderCompleterAuthenticFiche(d, ligne);
-    return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien}${bascule}${ligneAuthentic ? `<dl class="fiche-proprietes fiche-authentic-completer">${ligneAuthentic}</dl>` : ''}</div>`;
+    // « Compléter la fiche » en tête de la colonne de droite, dont il montre les champs vides ; reprendre d'Authentic est dans le panneau
+    // « Authentic » (étude 19/10 : « que ce soit cohérent avec les nouveautés »).
+    return `<div class="fiche-proprietes-bloc${ouvert ? ' champs-vides-ouverts' : ''}">${blocBien.replace('<!--bascule-champs-vides-->', bascule ? `<div class="fiche-droite-tete">${bascule}</div>` : '')}</div>`;
   }
 
   // ---- Collaborateur du poste ----
