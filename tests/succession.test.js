@@ -776,3 +776,9 @@ test('bien retiré à la main d’une succession : Authentic ne le remet pas (é
   app.appliquerBienSuccession(d, { adresse: { texte: '5 rue Nationale 41700 COUR CHEVERNY' }, parcelles: [{ section: 'AB', numero: '12' }] }, () => {}, { modifie: false });
   assert.equal(d.authentic.immeubles.length, 1);
 });
+
+test('bien retiré : jamais remis par le complément depuis Authentic non plus (relecture 19/10)', () => {
+  const d = base({ id: 's15', authentic: { biensRetires: [{ adresse: '', parcelles: ['AE0171'] }], immeubles: [] } });
+  assert.equal(app.retenirImmeubleVenteAuthentic(d, { adresse: { texte: '1 rue X 41320 LA CHAPELLE' }, parcelles: [{ section: 'AE', numero: '171' }] }, false), false);
+  assert.equal(d.authentic.immeubles.length, 0);
+});

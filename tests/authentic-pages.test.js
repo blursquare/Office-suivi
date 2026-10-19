@@ -1695,3 +1695,9 @@ test('onglet d’un autre dossier : la référence décide, résultat stable d�
   const r = [1, 2, 3].map(() => app.ongletActifAutreDossierAuthentic(don, 'MARTIN / DURAND'));
   assert.equal(r.join(','), 'true,true,true');
 });
+
+test('dossier de l’onglet actif retrouvé par sa référence, quel que soit le titre (succession, titre coupé — relecture 19/10)', () => {
+  const dossiers = [{ id: 's', nom: 'SUCC - VIEL', referenceAuthentic: 'A 2026 00110' }, { id: 'v', nom: 'BOURNOUVEAU / X', referenceAuthentic: 'A 2026 00111' }];
+  assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'A 2026 00110 SUCC VIEL', actif: true }] }, dossiers).id, 's');
+  assert.equal(app.dossierOngletActifAuthentic({ onglets: [{ titre: 'A 2026 00111 VTE BOURNOUVE...', actif: true }] }, dossiers).id, 'v');
+});

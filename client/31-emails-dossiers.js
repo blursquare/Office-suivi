@@ -597,7 +597,7 @@
       <div class="reglages-champ">
         <div class="reglages-champ-libelle"><label for="rangement-outlook-adresse">Autres expéditeurs à ranger</label>${infoBulle('Les emails reçus de ces adresses vont aussi dans « Traiter à distance ».')}</div>
         <div class="rangement-adresses">
-          ${(e.expediteurs || []).map((a, i) => `<span class="rangement-adresse">${escapeHtml(a)}<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette adresse" aria-label="Retirer ${escapeAttr(a)}" onclick="retirerAdresseRangementOutlook(${i})">${icone('x')}</wa-button></span>`).join('')}
+          ${(e.expediteurs || []).map(a => `<span class="rangement-adresse">${escapeHtml(a)}<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette adresse" aria-label="Retirer ${escapeAttr(a)}" onclick="retirerAdresseRangementOutlook('${escapeOnclickArg(a)}')">${icone('x')}</wa-button></span>`).join('')}
           <input type="email" id="rangement-outlook-adresse" placeholder="facturation@exemple.fr" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterAdresseRangementOutlook();}">
           <wa-button appearance="outlined" size="s" type="button" onclick="ajouterAdresseRangementOutlook()">Ajouter</wa-button>
         </div>
@@ -620,8 +620,8 @@
     if (!/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(a)) { afficherToast('Adresse email invalide.', 'OK', null); return; }
     enregistrerAdressesRangementOutlook(adressesRangementOutlook.filter(x => x !== a).concat(a));
   }
-  function retirerAdresseRangementOutlook(i) {
-    enregistrerAdressesRangementOutlook(adressesRangementOutlook.filter((_, k) => k !== i));
+  function retirerAdresseRangementOutlook(adresse) {
+    enregistrerAdressesRangementOutlook(adressesRangementOutlook.filter(x => x !== adresse));
   }
 
   async function basculerRangementOutlook(actif) {
@@ -687,7 +687,7 @@
       lien.click();
       document.body.removeChild(lien);
       setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-      afficherInfoAction('Fichier téléchargé', 'Ouvrez CLAIRE-appels-3CX.reg (double-clic), puis « Oui » à l’Éditeur du Registre : aucun programme n’est installé. Au premier appel, le navigateur de 3CX demande s’il peut ouvrir le lien « claire-devant » : cochez « Toujours autoriser » s’il est proposé, puis « Ouvrir » (sans la case, la question revient à chaque appel : le dire, une stratégie de Chrome posée par Fichorga la supprime). Ensuite, à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée). Si Windows ou l’antivirus bloque le lien, la fiche s’ouvre dans l’onglet de 3CX, comme avant.');
+      afficherInfoAction('Fichier téléchargé', 'Ouvrez CLAIRE-appels-3CX.reg (double-clic), puis « Oui » à l’Éditeur du Registre : aucun programme n’est installé. Fermez ensuite Chrome et Edge entièrement, puis rouvrez-les : le fichier autorise aussi le navigateur à ouvrir le lien « claire-devant » depuis CLAIRE sans le demander à chaque appel (visible dans chrome://policy). Si la question revient malgré tout, le fichier « autorisation » (administrateur, Fichorga) la supprime pour tout le poste. Ensuite, à chaque sonnerie, l’onglet de 3CX se ferme et la fenêtre CLAIRE passe au premier plan sur l’appel (elle s’ouvre si elle était fermée). Si Windows ou l’antivirus bloque le lien, la fiche s’ouvre dans l’onglet de 3CX, comme avant.');
     } catch (e) {
       afficherToast('Téléchargement impossible : ' + e.message, 'OK', null);
     }

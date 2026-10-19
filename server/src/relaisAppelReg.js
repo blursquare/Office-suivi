@@ -67,10 +67,20 @@ function valeurReg(v) {
   return '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"';
 }
 
-// Pure : le fichier .reg (texte ; envoyé en UTF-16 avec BOM, la forme que l'Éditeur du Registre attend).
+// Pure : la valeur de la stratégie AutoLaunchProtocolsFromOrigins de Chrome et d'Edge — UNE chaîne JSON (liste de règles) posée
+// directement sur la clé du navigateur (étude 19/10 : la sous-clé numérotée du 14/10 n'était pas lue, la question revenait à chaque appel).
+/** @param {string} origine @returns {string} */
+function valeurPolitiqueLien(origine) {
+  return JSON.stringify([{ allowed_origins: [String(origine || '').replace(/\/+$/, '')], protocol: PROTOCOLE_RELAIS_REG }]);
+}
+
+// Pure : le fichier .reg (texte ; envoyé en UTF-16 avec BOM, la forme que l'Éditeur du Registre attend). Il pose aussi, pour la session
+// Windows (HKCU, sans droit d'administrateur), la stratégie qui laisse le navigateur ouvrir le lien depuis CLAIRE sans confirmation.
 /** @param {{ url: string, profil: string }} o @returns {string} */
 function fichierRegRelaisAppel(o) {
   const cle = 'HKEY_CURRENT_USER\\Software\\Classes\\' + PROTOCOLE_RELAIS_REG;
+  const origine = String(o.url || '').replace(/\/+$/, '');
+  const politique = (editeur) => ['[HKEY_CURRENT_USER\\Software\\Policies\\' + editeur + ']', '"AutoLaunchProtocolsFromOrigins"=' + valeurReg(valeurPolitiqueLien(origine)), ''];
   return [
     'Windows Registry Editor Version 5.00',
     '',
@@ -84,7 +94,10 @@ function fichierRegRelaisAppel(o) {
     '',
     '[' + cle + '\\shell\\open\\command]',
     '@=' + valeurReg(commandeRelaisReg(o)),
-    ''
+    '',
+    '; Le navigateur ouvre ce lien depuis ' + origine + ' sans demander a chaque appel (Chrome et Edge, a fermer puis rouvrir).',
+    ...politique('Google\\Chrome'),
+    ...politique('Microsoft\\Edge')
   ].join('\r\n');
 }
 
@@ -99,14 +112,13 @@ function octetsRegRelaisAppel(o) {
 /** @param {{ origine: string }} o @returns {string} */
 function fichierRegAutorisationLien({ origine }) {
   const o = String(origine || '').replace(/\/+$/, '');
-  const regle = JSON.stringify({ allowed_origins: [o], protocol: PROTOCOLE_RELAIS_REG });
-  const bloc = (editeur) => ['[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\' + editeur + '\\AutoLaunchProtocolsFromOrigins]', '"1"=' + valeurReg(regle), ''];
+  const bloc = (editeur) => ['[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\' + editeur + ']', '"AutoLaunchProtocolsFromOrigins"=' + valeurReg(valeurPolitiqueLien(o)), ''];
   return [
     'Windows Registry Editor Version 5.00',
     '',
     '; CLAIRE : le navigateur ouvre le lien « ' + PROTOCOLE_RELAIS_REG + ': » depuis ' + o + ' sans demander confirmation.',
-    '; A importer avec un compte administrateur. Pour le retirer : supprimer la valeur « 1 » de ces deux cles (puis redemarrer le navigateur).',
-    '; Si la cle existe deja avec d\'autres regles, ajouter la regle sous un autre numero au lieu d\'importer ce fichier.',
+    '; A importer avec un compte administrateur. Pour le retirer : supprimer la valeur AutoLaunchProtocolsFromOrigins de ces deux cles (puis redemarrer le navigateur).',
+    '; Si la valeur existe deja avec d\'autres regles, y ajouter celle-ci au lieu d\'importer ce fichier.',
     '',
     ...bloc('Google\\Chrome'),
     ...bloc('Microsoft\\Edge')
@@ -118,4 +130,4 @@ function octetsRegAutorisationLien(o) {
   return Buffer.from('\uFEFF' + fichierRegAutorisationLien(o), 'utf16le');
 }
 
-module.exports = { fichierRegAutorisationLien, octetsRegAutorisationLien, PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };
+module.exports = { valeurPolitiqueLien, fichierRegAutorisationLien, octetsRegAutorisationLien, PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };

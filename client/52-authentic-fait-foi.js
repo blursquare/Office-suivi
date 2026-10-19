@@ -527,6 +527,8 @@
   // immeuble déjà retenu (jamais un nouvel immeuble). Rend true si la liste a changé.
   function retenirImmeubleVenteAuthentic(d, bien, seulementConnu) {
     if (!d || !bien || !(bien.parcelles || []).length) return false;
+    // Bien retiré à la main d'une succession (relecture 19/10) : jamais remis, par aucun chemin.
+    if (estSuccession(d) && bienRetireSuccession(d, bien)) return false;
     const a = bien.adresse || {};
     const fiche = {
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',

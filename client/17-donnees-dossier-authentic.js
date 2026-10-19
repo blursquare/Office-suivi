@@ -568,7 +568,8 @@
     const bien = bienExportAuthentic(donnees);
     // Authentic fait foi (étude 06/10 : « on prend toujours de base les données d'Authentic ») : une adresse ou un prix différents
     // de ceux de la fiche les REMPLACENT la première fois, l'ancienne valeur restant dans l'historique ; ensuite la fiche ne bouge plus.
-    if (bien && bien.adresse && bien.adresse.texte) {
+    // Succession : plusieurs biens, pas d'« adresse du bien » à remplacer (étude 19/10 : adresse d'une autre vente proposée sur VIEL).
+    if (bien && bien.adresse && bien.adresse.texte && !estSuccession(d)) {
       const nouvelle = normaliserAdresse(bien.adresse.texte);
       if (nouvelle) {
         const r = poserChampAuthentic(d, { cle: 'adresseBien', champ: 'adresseBien', libelle: 'Adresse du bien', valeur: nouvelle, maintenant, forcer: o.forcer, egal: (a, b) => normaliserAdresse(a) === normaliserAdresse(b) });

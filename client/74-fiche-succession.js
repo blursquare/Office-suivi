@@ -821,7 +821,10 @@
       d.authentic = Object.assign({}, d.authentic || {});
       d.authentic.biensRetires = (d.authentic.biensRetires || []).concat(k).slice(-20);
       if (Array.isArray(d.authentic.immeubles)) d.authentic.immeubles = d.authentic.immeubles.filter((im, i) => !(source === 'immeuble' && i === index) && !bienRetireSuccession(d, im));
-      if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(k.adresse && net(b.adresse) === k.adresse));
+      // Parcelles écrites en texte dans d.biens (« AE 171, AE 173 ») : relues pour retirer aussi un bien sans adresse.
+      const parcellesTexte = (t) => Array.from(String(t || '').toUpperCase().matchAll(/(?<![A-Z])([A-Z0-9]{1,2})\s*0*(\d{1,4})(?!\d)/g)).map(m => cleParcelle(m[1], m[2]));
+      if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(k.adresse && net(b.adresse) === k.adresse)
+        && !(k.parcelles.length && parcellesTexte(Array.isArray(b.parcelles) ? b.parcelles.map(p => p && `${p.section} ${p.numero}`).join(', ') : b.parcelles).some(c => k.parcelles.includes(c))));
       ajouterHistorique(d, `Bien retiré du dossier : ${bien.adresse || k.parcelles.join(', ')}`);
       await sauvegarder(d);
       render();

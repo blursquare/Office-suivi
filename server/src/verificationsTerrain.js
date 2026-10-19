@@ -182,6 +182,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché la première fois qu’un email reçu avant la création d’un dossier lui est rattaché (par l’adresse ou par l’objet).' },
   { id: 'emails-adresse-rattrapage', depuis: '0.134.4', source: 'serveur', titre: 'Emails des dossiers : adresse ajoutée sur une fiche, ses emails des 30 derniers jours retrouvés',
     comment: 'Coché la première fois qu’un email reçu avant la saisie de l’adresse (client ou confrère) est rattaché au dossier.' },
+  { id: '3cx-lien-sans-confirmation', depuis: '0.290.0', source: 'manuel', titre: '3CX : le navigateur ouvre le lien « claire-devant » sans demander à chaque appel (stratégie posée par le fichier .reg)',
+    comment: 'À confirmer à l’œil après avoir réimporté le fichier .reg du poste et rouvert Chrome : plus de question au deuxième appel.' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traiter à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

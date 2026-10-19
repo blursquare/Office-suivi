@@ -264,8 +264,14 @@ test('reconnaitreAppelant : le téléphone d’un confrère saisi sur la fiche r
 test('autorisation du lien claire-devant : stratégie Chrome et Edge limitée à l’adresse du serveur', () => {
   const { fichierRegAutorisationLien, octetsRegAutorisationLien } = require('../src/relaisAppelReg');
   const t = fichierRegAutorisationLien({ origine: 'http://192.168.1.10:3000/' });
-  assert.match(t, /HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\\AutoLaunchProtocolsFromOrigins/);
-  assert.match(t, /HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\\AutoLaunchProtocolsFromOrigins/);
-  assert.match(t, /"1"="\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-devant\\"\}"/);
+  // Stratégie « dictionnaire » de Chrome : une chaîne JSON (liste de règles) posée sur la clé du navigateur, pas une sous-clé numérotée.
+  assert.match(t, /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"="\[\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-devant\\"\}\]"/);
+  assert.match(t, /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\]/);
+  assert.doesNotMatch(t, /"1"=/);
+  // Le fichier du poste la pose aussi pour la session Windows (sans administrateur).
+  const { fichierRegRelaisAppel } = require('../src/relaisAppelReg');
+  const u = fichierRegRelaisAppel({ url: 'http://192.168.1.10:3000/', profil: 'Claire' });
+  assert.match(u, /\[HKEY_CURRENT_USER\\Software\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"="\[\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\]/);
+  assert.match(u, /\[HKEY_CURRENT_USER\\Software\\Policies\\Microsoft\\Edge\]/);
   assert.equal(octetsRegAutorisationLien({ origine: 'http://x:1' }).readUInt16LE(0), 0xFEFF);
 });

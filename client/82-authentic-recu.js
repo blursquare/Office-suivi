@@ -209,6 +209,11 @@
 
   // Pure : le dossier de CLAIRE désigné par l'onglet actif d'Authentic (« N - … » ou « VTE X / Y »), ou null.
   function dossierOngletActifAuthentic(capture, liste) {
+    // La référence de l'onglet actif d'abord, quel que soit son titre (succession, titre coupé — relecture 19/10).
+    const actif = ((capture && capture.onglets) || []).find(x => x && x.actif);
+    const ref = actif ? (referencesDansTexteAuthentic(actif.titre)[0] || '') : '';
+    const parRef = ref ? (liste || []).filter(d => d && !d.deleted && d.referenceAuthentic === ref) : [];
+    if (parRef.length === 1) return parRef[0];
     const o = ongletDossierActifAuthentic(capture);
     const intitule = intituleOngletActifAuthentic(capture);
     return intitule ? dossierPourIntituleAuthentic(intitule, liste, '', referenceDossierAuthentic({ onglets: [o] })) : null;
