@@ -583,6 +583,7 @@
       if (!r.ok) throw new Error();
       e = await r.json();
     } catch (_) { zone.innerHTML = '<p class="hint">État indisponible.</p>'; return; }
+    adressesRangementOutlook = Array.isArray(e.expediteurs) ? e.expediteurs.slice() : [];
     const st = e.statut === 'ok' ? ['dl-success', `Dernier tour ${e.dernierTour ? ilYaActivite(e.dernierTour, Date.now()) : ''}`]
       : e.statut === 'introuvable' || e.statut === 'erreur' ? ['dl-urgent', e.message || 'Erreur'] : ['dl-neutre', 'Pas encore lancé'];
     zone.innerHTML = `
@@ -593,8 +594,34 @@
       <ul class="emails-boites">
         ${(e.regles || []).map(x => `<li class="emails-boite"><span>${escapeHtml(x.libelle)}</span><span class="hint" style="margin:0;">${(e.ranges && e.ranges[x.id]) || 0} déplacé(s)</span></li>`).join('')}
       </ul>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="rangement-outlook-adresse">Autres expéditeurs à ranger</label>${infoBulle('Les emails reçus de ces adresses vont aussi dans « Traiter à distance ».')}</div>
+        <div class="rangement-adresses">
+          ${(e.expediteurs || []).map((a, i) => `<span class="rangement-adresse">${escapeHtml(a)}<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette adresse" aria-label="Retirer ${escapeAttr(a)}" onclick="retirerAdresseRangementOutlook(${i})">${icone('x')}</wa-button></span>`).join('')}
+          <input type="email" id="rangement-outlook-adresse" placeholder="facturation@exemple.fr" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();ajouterAdresseRangementOutlook();}">
+          <wa-button appearance="outlined" size="s" type="button" onclick="ajouterAdresseRangementOutlook()">Ajouter</wa-button>
+        </div>
+      </div>
       <p class="hint"><span class="dot-label ${st[0]}"><span class="dot"></span>${escapeHtml(st[1])}</span>${e.depuis ? ` · emails reçus depuis le ${escapeHtml(formatDateHeureCourte(e.depuis))}` : ''}${e.echecs ? ` · ${e.echecs} refusé(s), réessai dans 6 h` : ''}</p>
       <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="rangerOutlookMaintenant(this)">Ranger maintenant</wa-button>`;
+  }
+
+  let adressesRangementOutlook = [];
+  async function enregistrerAdressesRangementOutlook(liste) {
+    try {
+      const r = await fetchAvecAuth('/api/rangement-outlook/reglages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expediteurs: liste }) });
+      if (!r.ok) throw new Error();
+    } catch (_) { afficherToast('Adresse non enregistrée : serveur injoignable.', 'OK', null); }
+    renderReglagesRangementOutlook();
+  }
+  function ajouterAdresseRangementOutlook() {
+    const champ = document.getElementById('rangement-outlook-adresse');
+    const a = String((champ && champ.value) || '').trim().toLowerCase();
+    if (!/^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(a)) { afficherToast('Adresse email invalide.', 'OK', null); return; }
+    enregistrerAdressesRangementOutlook(adressesRangementOutlook.filter(x => x !== a).concat(a));
+  }
+  function retirerAdresseRangementOutlook(i) {
+    enregistrerAdressesRangementOutlook(adressesRangementOutlook.filter((_, k) => k !== i));
   }
 
   async function basculerRangementOutlook(actif) {

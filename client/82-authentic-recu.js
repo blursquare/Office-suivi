@@ -221,10 +221,13 @@
   // Vente, SUCC, Succession, « N - », référence) dont aucun nom ne se retrouve dans ce dossier — même coupé à l'affichage
   // (« VTE BOURNOUVE... ») — n'est pas lui (étude 19/10 : fiche bien d'une autre vente rangée dans la succession VIEL). Sans onglet de
   // dossier actif : on ne sait pas, `false`.
-  function ongletActifAutreDossierAuthentic(capture, noms) {
+  function ongletActifAutreDossierAuthentic(capture, noms, reference) {
     const o = ((capture && capture.onglets) || []).find(x => x && x.actif);
     const titre = o ? sansReferenceAuthentic(o.titre) : '';
-    if (!titre || !(/^\s*(?:\d{1,6}\s*-|vte\b|vente\b|succ\b|succession\b)/i.test(titre) || RE_REFERENCE_AUTHENTIC.test(String(o.titre || '')))) return false;
+    const refOnglet = o ? (referencesDansTexteAuthentic(o.titre)[0] || '') : '';
+    // La référence d'abord (relecture 19/10) : différente = un autre dossier (ancien dossier des mêmes clients compris), égale = le même.
+    if (refOnglet && reference) return refOnglet !== reference;
+    if (!titre || !(/^\s*(?:\d{1,6}\s*-|vte\b|vente\b|succ\b|succession\b)/i.test(titre) || refOnglet)) return false;
     const mots = (t) => normaliserPourRecherche(String(t || '')).replace(/\.{2,}|…/g, ' ').split(/[^a-z0-9]+/).filter(m => m.length >= 3 && !/^(vte|vente|succ|succession|veuve|epouse|epoux|consorts?)$/.test(m));
     const duTitre = mots(titre);
     if (!duTitre.length) return false;

@@ -159,3 +159,15 @@ test('tour : l’interrupteur coupé pendant un tour reste coupé ; lot en parti
   assert.equal(etat.ranges['quarantaine-notaires'], 0);
   assert.ok(etat.echecs.m2);
 });
+
+test('adresses ajoutées par l’étude : rangées aussi, liste assainie (étude 19/10)', async () => {
+  assert.equal(R.assainirExpediteurs([' Facturation@Encom-Exemple.fr ', 'pas une adresse', 'facturation@encom-exemple.fr']).join('|'), 'facturation@encom-exemple.fr');
+  assert.equal(R.regleRangementPourEmail({ objet: 'Votre facture', de: 'facturation@encom-exemple.fr' }, ['facturation@encom-exemple.fr']).id, 'adresses-ajoutees');
+  assert.equal(R.regleRangementPourEmail({ objet: 'Votre facture', de: 'autre@encom-exemple.fr' }, ['facturation@encom-exemple.fr']), null);
+  const repo = preparer();
+  const e = R.lireEtatRangement(repo); e.expediteurs = ['facturation@encom-exemple.fr']; R.ecrireEtatRangement(repo, e);
+  const t = transport({ dossiers: dossiers([['TAD', 'Traiter à distance']]), find: find([msg('m1', 'Facture octobre', 'facturation@encom-exemple.fr')]), deplace: deplace(['Success']) });
+  const r = await R.executerTourRangement(repo, { poster: t.poster }, true);
+  assert.equal(r.ranges, 1);
+  assert.equal(R.lireEtatRangement(repo).ranges['adresses-ajoutees'], 1);
+});

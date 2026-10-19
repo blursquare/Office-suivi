@@ -199,8 +199,8 @@
     const nomDefunt = [c.prenoms, c.nom].filter(Boolean).join(' ');
     const ficheDefunt = nomDefunt ? ficheClientPourPersonneConstitution(d, nomDefunt) : null;
     const immeubles = (d.authentic && d.authentic.immeubles) || [];
-    const biens = immeubles.length ? immeubles.map(im => ({ adresse: im.adresse, detail: detailBienSuccession(im) }))
-      : (Array.isArray(d.biens) ? d.biens : []).map(b => ({ adresse: b.adresse, detail: [b.type, Array.isArray(b.parcelles) ? b.parcelles.map(p => p && [p.prefixe, p.section, p.numero].filter(Boolean).join(' ')).filter(Boolean).join(', ') : b.parcelles].filter(Boolean).join(' · ') }));
+    const biens = immeubles.length ? immeubles.map((im, i) => ({ adresse: im.adresse, detail: detailBienSuccession(im), source: 'immeuble', i }))
+      : (Array.isArray(d.biens) ? d.biens : []).map((b, i) => ({ adresse: b.adresse, detail: [b.type, Array.isArray(b.parcelles) ? b.parcelles.map(p => p && [p.prefixe, p.section, p.numero].filter(Boolean).join(' ')).filter(Boolean).join(', ') : b.parcelles].filter(Boolean).join(' · '), source: 'bien', i }));
 
     // Présentation façon Authentic (étude 17/10) : à gauche le défunt, les héritiers et les biens — fiches uniques, avec les autres dossiers
     // où chacun figure —, à droite le dossier, le contrôle à 2 mois et le FCDDV.
@@ -231,7 +231,7 @@
         ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
       <dl class="fiche-proprietes">
-        ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span>`, null, 'prop-pleine')).join('')
+        ${biens.length ? biens.map((b, i) => ligne('map-pin', i ? '' : (biens.length > 1 ? 'Biens' : 'Bien'), `<span class="succ-personne"><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.detail ? `<span class="hint">${escapeHtml(b.detail)}</span>` : ''}</span><wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer ce bien du dossier" aria-label="Retirer ce bien du dossier" onclick="retirerBienSuccession('${idJs}', '${b.source}', ${b.i})">${icone('x')}</wa-button>`, null, 'prop-pleine')).join('')
           : ligne('map-pin', 'Bien', `<span class="prop-texte vide">${immobilier ? 'Bien immobilier noté' : 'Aucun bien immobilier relevé'}</span>`, null, 'prop-pleine')}
       </dl>
                   </details>
@@ -624,6 +624,8 @@
   // biens de la fiche (`d.biens`) suit. Aucune adresse « du dossier » à contredire : une succession a souvent plusieurs biens.
   function appliquerBienSuccession(d, bien, noter, resultat) {
     if (!bien) return resultat;
+    // Un bien retiré à la main (étude 19/10) ne revient pas par une relecture d'Authentic.
+    if (bienRetireSuccession(d, bien)) return resultat;
     const a = bien.adresse || {};
     const details = (p) => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
       Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)])));
@@ -789,3 +791,61 @@
     };
   }
 
+  // Pure : la clé d'un bien pour la liste des biens retirés — adresse et parcelles normalisées.
+  function clesBienSuccession(bien) {
+    const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const a = bien && bien.adresse && typeof bien.adresse === 'object' ? bien.adresse.texte : bien && bien.adresse;
+    const parcelles = Array.isArray(bien && bien.parcelles) ? bien.parcelles.map(p => p && cleParcelle(p.section, p.numero)).filter(Boolean) : [];
+    return { adresse: net(a ? normaliserAdresse(a) : ''), parcelles };
+  }
+
+  // Pure : ce bien a-t-il été retiré à la main de la succession (même adresse, ou une parcelle commune) ?
+  function bienRetireSuccession(d, bien) {
+    const retires = (d && d.authentic && Array.isArray(d.authentic.biensRetires)) ? d.authentic.biensRetires : [];
+    if (!retires.length) return false;
+    const k = clesBienSuccession(bien);
+    return retires.some(r => (k.adresse && r.adresse === k.adresse) || (r.parcelles || []).some(c => k.parcelles.includes(c)));
+  }
+
+  // Retire un bien de la succession (étude 19/10 : « permettre de retirer un bien à la main » — un bien d'une autre vente y était entré) ;
+  // gardé dans la liste des biens retirés pour qu'Authentic ne le remette pas.
+  function retirerBienSuccession(id, source, index) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d) return;
+    const liste = source === 'immeuble' ? ((d.authentic && d.authentic.immeubles) || []) : (Array.isArray(d.biens) ? d.biens : []);
+    const bien = liste[index];
+    if (!bien) return;
+    demanderConfirmation(`Retirer ce bien du dossier : ${bien.adresse || 'adresse non relevée'} ?`, async () => {
+      const k = clesBienSuccession(bien);
+      const net = (t) => normaliserPourRecherche(t || '').replace(/[^a-z0-9]+/g, ' ').trim();
+      d.authentic = Object.assign({}, d.authentic || {});
+      d.authentic.biensRetires = (d.authentic.biensRetires || []).concat(k).slice(-20);
+      if (Array.isArray(d.authentic.immeubles)) d.authentic.immeubles = d.authentic.immeubles.filter((im, i) => !(source === 'immeuble' && i === index) && !bienRetireSuccession(d, im));
+      if (Array.isArray(d.biens)) d.biens = d.biens.filter((b, i) => !(source === 'bien' && i === index) && !(k.adresse && net(b.adresse) === k.adresse));
+      ajouterHistorique(d, `Bien retiré du dossier : ${bien.adresse || k.parcelles.join(', ')}`);
+      await sauvegarder(d);
+      render();
+    }, { bouton: 'Retirer', ton: 'danger' });
+  }
+
+  // Pure : la partie de la succession que désigne la fiche client — par le nom (et un prénom) parmi les parties, sinon, pour une personne
+  // DÉCÉDÉE, par le nom du défunt dans l'intitulé du dossier (« SUCC Alice FRA veuve FISCHER » : nom ET prénom cités). null sinon.
+  function partieSuccessionDeLaFiche(d, personne) {
+    if (!d || !personne || !personne.nom) return null;
+    const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
+    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+    const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
+    const premier = String(personne.prenom || '').trim().split(/\s+/)[0] || '';
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const usage = personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : '';
+    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet) || (usage && memePersonneParNom(p.nom, usage))
+      || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
+    if (trouvee) return trouvee;
+    if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.
+    const noms = [complet, usage].filter(Boolean);
+    const premierDe = (c) => normaliserPourRecherche(nomPrenomsComparant(c.nom).prenoms.split(/\s+/)[0] || '');
+    const comp = premier ? comparantsSuccession(d).find(c => c.role === 'HERITIER' && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
+    if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    return null;
+  }

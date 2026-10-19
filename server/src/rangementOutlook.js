@@ -24,6 +24,12 @@ const DELAI_REESSAI_MS = 6 * 3600 * 1000;
 const MAX_ECHECS_GARDES = 200;
 
 /** @typedef {{ id: string, libelle: string, objet?: string, expediteur?: string }} RegleRangement */
+/** Adresses d'expéditeurs ajoutées par l'étude dans les Réglages (étude 19/10 : « un champ pour rajouter des adresses, exemple
+ * facturation@… ») : une règle de plus, comptée à part. */
+const REGLE_ADRESSES_AJOUTEES = { id: 'adresses-ajoutees', libelle: 'Adresses ajoutées par l’étude' };
+const MAX_EXPEDITEURS = 50;
+const RE_ADRESSE_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i;
+
 /** @type {RegleRangement[]} */
 const REGLES_RANGEMENT_OUTLOOK = [
   { id: 'spf-facture-fidji', libelle: 'Objet « Facture Dossier FIDJI » (SPF)', objet: 'facture dossier fidji' },
@@ -47,8 +53,8 @@ function normaliserTexte(t) {
   return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-/** Pure : la règle qui désigne cet email, null sinon. @param {{ objet?: string, de?: string }} e */
-function regleRangementPourEmail(e) {
+/** Pure : la règle qui désigne cet email, null sinon ; `expediteurs` : adresses ajoutées par l'étude. @param {{ objet?: string, de?: string }} e @param {string[]} [expediteurs] */
+function regleRangementPourEmail(e, expediteurs) {
   const objet = normaliserTexte(e && e.objet);
   const de = normaliserTexte(e && e.de);
   // Une réponse ou un transfert (« RE: », « TR: »…) vient de quelqu'un d'autre que l'expéditeur visé (relecture 19/10) : jamais
@@ -58,6 +64,7 @@ function regleRangementPourEmail(e) {
     if (r.objet && !reponse && objet.includes(normaliserTexte(r.objet))) return r;
     if (r.expediteur && de === normaliserTexte(r.expediteur)) return r;
   }
+  if (de && (expediteurs || []).some((a) => normaliserTexte(a) === de)) return REGLE_ADRESSES_AJOUTEES;
   return null;
 }
 
@@ -125,7 +132,7 @@ function assainirRangementOutlook(brut) {
   const date = (/** @type {any} */ v) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
   /** @type {Record<string, number>} */
   const ranges = {};
-  for (const r of REGLES_RANGEMENT_OUTLOOK) {
+  for (const r of [...REGLES_RANGEMENT_OUTLOOK, REGLE_ADRESSES_AJOUTEES]) {
     const n = b.ranges && b.ranges[r.id];
     ranges[r.id] = Number.isInteger(n) && n > 0 ? n : 0;
   }
@@ -142,9 +149,17 @@ function assainirRangementOutlook(brut) {
     dernierTour: date(b.dernierTour),
     dernierRangement: date(b.dernierRangement),
     depuis: date(b.depuis),
+    expediteurs: assainirExpediteurs(b.expediteurs),
     ranges,
     echecs
   };
+}
+
+/** Pure : adresses d'expéditeurs valides, en minuscules, sans doublon, 50 au plus. @param {any} liste */
+function assainirExpediteurs(liste) {
+  const vues = new Set();
+  return (Array.isArray(liste) ? liste : []).map((a) => String(a || '').trim().toLowerCase())
+    .filter((a) => a.length <= 120 && RE_ADRESSE_EMAIL.test(a) && !vues.has(a) && vues.add(a)).slice(0, MAX_EXPEDITEURS);
 }
 
 /** @param {any} parametresRepo */
@@ -188,6 +203,7 @@ async function tourRangement(parametresRepo, injections, manuel) {
     const frais = lireEtatRangement(parametresRepo);
     Object.assign(frais, { statut, message, dernierTour: maintenant.toISOString(), ranges: etat.ranges, echecs: etat.echecs,
       dernierRangement: etat.dernierRangement, depuis: frais.depuis || etat.depuis });
+    // (expediteurs et actif : ceux de l'état relu — une adresse ajoutée pendant le tour reste.)
     ecrireEtatRangement(parametresRepo, frais);
     if (message) resultat.erreur = message;
     return resultat;
@@ -228,7 +244,7 @@ async function tourRangement(parametresRepo, injections, manuel) {
   const presents = new Set(lus.map((m) => m.itemId));
   for (const [id, le] of Object.entries(etat.echecs)) if (!presents.has(id) && Date.parse(le) <= limite) delete etat.echecs[id];
   const aRanger = lus
-    .map((m) => ({ ...m, regle: regleRangementPourEmail(m) }))
+    .map((m) => ({ ...m, regle: regleRangementPourEmail(m, etat.expediteurs) }))
     .filter((m) => m.regle && !(etat.echecs[m.itemId] && Date.parse(etat.echecs[m.itemId]) > limite))
     .slice(0, MAX_DEPLACES_TOUR);
   if (aRanger.length) {
@@ -272,7 +288,7 @@ function demarrerRangementOutlook(parametresRepo, config) {
 function oublierDossierRangement() { dossierConnu = ''; dossierConnuLe = 0; }
 
 module.exports = {
-  CLE_RANGEMENT_OUTLOOK, NOM_DOSSIER_OUTLOOK, REGLES_RANGEMENT_OUTLOOK, normaliserTexte, regleRangementPourEmail, dossierRangementParmi,
+  CLE_RANGEMENT_OUTLOOK, NOM_DOSSIER_OUTLOOK, REGLES_RANGEMENT_OUTLOOK, REGLE_ADRESSES_AJOUTEES, assainirExpediteurs, normaliserTexte, regleRangementPourEmail, dossierRangementParmi,
   corpsFindFolders, parseFindFolders, corpsFindRecents, parseRecents, corpsMoveItems, parseMoveItems, assainirRangementOutlook,
   lireEtatRangement, ecrireEtatRangement, executerTourRangement, demarrerRangementOutlook, oublierDossierRangement
 };

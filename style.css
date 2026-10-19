@@ -8225,6 +8225,8 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 .ag-evt .ag-mini.fait { color: color-mix(in srgb, var(--success) 80%, var(--noir-fixe)); }
 .ag-evt .ag-mini.afaire { color: color-mix(in srgb, var(--urgent) 85%, var(--noir-fixe)); border-color: color-mix(in srgb, var(--urgent) 85%, var(--noir-fixe)); }
 .ag-evt .ag-proba, .ag-evt .ag-etats-mini .ag-proba { color: var(--blanc-fixe); opacity: 1; }
+/* Cartes claires (signature hors Outlook en pointillé, option, jaune « à replacer ») : la couleur du texte de la carte (relecture 19/10). */
+.ag-evt.ag-hors-agenda .ag-proba, .ag-evt.ag-option .ag-proba, .ag-evt.ag-fantome .ag-proba, .ag-evt.ajd-jaune .ag-proba, .ag-evt.ajd-annule .ag-proba { color: var(--ag-texte); }
 .ag-evt-court { flex-direction: row; align-items: center; gap: 6px; padding-top: 1px; padding-bottom: 1px; }
 .ag-evt-court .ag-evt-titre { flex: 1 1 auto; min-width: 0; }
 /* Comme Outlook : le titre passe sur deux lignes quand la carte a la place (1 h 30 et plus). */
@@ -10167,3 +10169,8 @@ body.anim-demarrage .widgets-grille > .widget .dash-bloc:empty:not([style*="none
   .appel-entrant, .notif-envoi { left: calc(252px + 16px); }
   body:has(.sidebar.repliee) .appel-entrant, body:has(.sidebar.repliee) .notif-envoi { left: calc(76px + 16px); }
 }
+
+/* Rangement dans Outlook : adresses d'expéditeurs ajoutées par l'étude (19/10). */
+.rangement-adresses { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rangement-adresse { display: inline-flex; align-items: center; gap: 2px; padding: 0 2px 0 10px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); font-size: var(--texte-s); background: var(--paper-card); }
+.rangement-adresses input[type="email"] { flex: 1 1 220px; min-width: 0; }

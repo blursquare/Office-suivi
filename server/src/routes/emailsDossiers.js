@@ -9,7 +9,7 @@ const crypto = require('node:crypto');
 const {
   lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
 } = require('../emailsDossiers');
-const { lireEtatRangement, ecrireEtatRangement, executerTourRangement, REGLES_RANGEMENT_OUTLOOK, NOM_DOSSIER_OUTLOOK } = require('../rangementOutlook');
+const { lireEtatRangement, ecrireEtatRangement, executerTourRangement, REGLES_RANGEMENT_OUTLOOK, REGLE_ADRESSES_AJOUTEES, NOM_DOSSIER_OUTLOOK } = require('../rangementOutlook');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
 const { envoyerEmailExchange, promptPropositionReponse, validerProposition, LONGUEUR_MAX_PROPOSITION } = require('../envoiEmailsExchange');
 const { sansSaufErreur } = require('../../../commun/assistant');
@@ -88,7 +88,7 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
   // Rangement d'emails dans le dossier Outlook « Traiter à distance » (étude 19/10, voir src/rangementOutlook.js).
   routeur.get('/rangement-outlook', (req, res) => {
     const { echecs, ...etat } = lireEtatRangement(parametresRepo);
-    res.json({ ...etat, echecs: Object.keys(echecs).length, dossier: NOM_DOSSIER_OUTLOOK, regles: REGLES_RANGEMENT_OUTLOOK.map((r) => ({ id: r.id, libelle: r.libelle })) });
+    res.json({ ...etat, echecs: Object.keys(echecs).length, dossier: NOM_DOSSIER_OUTLOOK, regles: [...REGLES_RANGEMENT_OUTLOOK, REGLE_ADRESSES_AJOUTEES].map((r) => ({ id: r.id, libelle: r.libelle })) });
   });
   routeur.post('/rangement-outlook/reglages', (req, res) => {
     const etat = lireEtatRangement(parametresRepo);
@@ -97,7 +97,10 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
       if (req.body.actif && !etat.actif) etat.depuis = new Date().toISOString();
       etat.actif = req.body.actif;
     }
-    res.json({ actif: ecrireEtatRangement(parametresRepo, etat).actif });
+    // Adresses d'expéditeurs ajoutées par l'étude (étude 19/10) : la liste entière remplace la précédente, assainie.
+    if (req.body && Array.isArray(req.body.expediteurs)) etat.expediteurs = req.body.expediteurs;
+    const ecrit = ecrireEtatRangement(parametresRepo, etat);
+    res.json({ actif: ecrit.actif, expediteurs: ecrit.expediteurs });
   });
   routeur.post('/rangement-outlook/ranger', routeAsync(async (req, res) => {
     res.json(await executerTourRangement(parametresRepo, { ...injections, config }, true));

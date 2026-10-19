@@ -1685,3 +1685,13 @@ test('lotissement : un « N° de lot » sans volet de copropriété n’est pas 
   assert.equal(b.lots.length, 0);
   assert.equal(app.lotsFicheAuthentic(lotiss).lots.length, 0);
 });
+
+test('onglet d’un autre dossier : la référence décide, résultat stable d’un appel à l’autre (relecture 19/10)', () => {
+  const ancien = { onglets: [{ titre: 'A 2025 00050 VTE MARTIN / DURAND', actif: true }] };
+  assert.equal(app.ongletActifAutreDossierAuthentic(ancien, 'MARTIN / DURAND', 'A 2026 00106'), true);
+  const meme = { onglets: [{ titre: 'A 2026 00106 VTE PETIT / BOSQUET', actif: true }] };
+  assert.equal(app.ongletActifAutreDossierAuthentic(meme, 'Autre nom', 'A 2026 00106'), false);
+  const don = { onglets: [{ titre: 'A 2026 00107 DON SIMOND', actif: true }] };
+  const r = [1, 2, 3].map(() => app.ongletActifAutreDossierAuthentic(don, 'MARTIN / DURAND'));
+  assert.equal(r.join(','), 'true,true,true');
+});

@@ -764,3 +764,15 @@ test('héritier des comparants : pas de doublon sous le nom d’usage, premier p
   // Un homonyme vivant du défunt n'entre pas par les comparants.
   assert.equal(app.roleClientAuthenticDansDossier(d, { nom: 'TESTARD', prenom: 'Lucien' }), '');
 });
+
+test('bien retiré à la main d’une succession : Authentic ne le remet pas (étude 19/10)', () => {
+  const d = base({ id: 's14', authentic: { biensRetires: [{ adresse: '', parcelles: ['AE0171'] }] } });
+  const bien = { adresse: { texte: '1 rue de Chauchy 41320 LA CHAPELLE MONTMARTIN' }, parcelles: [{ section: 'AE', numero: '171' }, { section: 'AE', numero: '173' }] };
+  assert.equal(app.bienRetireSuccession(d, bien), true);
+  const r = app.appliquerBienSuccession(d, bien, () => {}, { modifie: false });
+  assert.equal(r.modifie, false);
+  assert.equal(((d.authentic && d.authentic.immeubles) || []).length, 0);
+  // Un autre bien entre toujours.
+  app.appliquerBienSuccession(d, { adresse: { texte: '5 rue Nationale 41700 COUR CHEVERNY' }, parcelles: [{ section: 'AB', numero: '12' }] }, () => {}, { modifie: false });
+  assert.equal(d.authentic.immeubles.length, 1);
+});

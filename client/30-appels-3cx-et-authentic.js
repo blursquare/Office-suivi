@@ -1516,8 +1516,7 @@
       const cap = r && r.capture;
       if (!cap) return;
       const type = typePageAuthentic(cap);
-      // Une fiche sans intitulé va au dernier dossier vu — jamais si l'onglet actif est celui d'un autre dossier (étude 19/10).
-      const intitule = intituleDossierAuthentic(cap) || (ongletActifAutreDossierAuthentic(cap, courant) ? '' : courant);
+      const intitule = intituleDossierAuthentic(cap) || (ongletActifAutreDossierAuthentic(cap, courant, (groupes.get(courant) || {}).reference) ? '' : courant);
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
@@ -1674,28 +1673,6 @@
     if (cles.length > 24) delete reg[cles[0]];
     d.authentic = Object.assign({}, avant, { fichesClients: reg });
     return true;
-  }
-
-  // Pure : la partie de la succession que désigne la fiche client — par le nom (et un prénom) parmi les parties, sinon, pour une personne
-  // DÉCÉDÉE, par le nom du défunt dans l'intitulé du dossier (« SUCC Alice FRA veuve FISCHER » : nom ET prénom cités). null sinon.
-  function partieSuccessionDeLaFiche(d, personne) {
-    if (!d || !personne || !personne.nom) return null;
-    const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
-    const mots = (x) => ' ' + normaliserPourRecherche(x || '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
-    const contient = (texte, m) => !!m && mots(m).trim() !== '' && mots(texte).includes(' ' + mots(m).trim() + ' ');
-    const premier = String(personne.prenom || '').trim().split(/\s+/)[0] || '';
-    const parties = Array.isArray(d.parties) ? d.parties : [];
-    const usage = personne.nomUsage ? [personne.prenom, personne.nomUsage].filter(Boolean).join(' ') : '';
-    const trouvee = parties.find(p => p && p.qualitePersonne !== 'morale' && (memePersonneParNom(p.nom, complet) || (usage && memePersonneParNom(p.nom, usage))
-      || (contient(p.nom, personne.nom) && (!premier || contient(p.nom, premier)))));
-    if (trouvee) return trouvee;
-    if (personne.deces && premier && (contient(d.nom, personne.nom) && contient(d.nom, premier))) return { nom: complet, role: 'PARTIE', nouvelle: true };
-    // Héritier nommé seulement dans les comparants d'Authentic (étude 19/10, succession VIEL) : ajouté. Nom de naissance ou d'usage, prénom exigé.
-    const noms = [complet, usage].filter(Boolean);
-    const premierDe = (c) => normaliserPourRecherche(nomPrenomsComparant(c.nom).prenoms.split(/\s+/)[0] || '');
-    const comp = premier ? comparantsSuccession(d).find(c => c.role === 'HERITIER' && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
-    if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
-    return null;
   }
 
   // Modifie d : une fiche client lue sur un dossier de SUCCESSION — la personne est une partie (le défunt, nommé par l'intitulé, y entre
@@ -2024,8 +2001,7 @@
   //    d.authentic ; le prix remplit la fiche s'il manque ;
   //  - fiche client : téléphones et email de la partie s'ils manquent, situation matrimoniale.
   // Chaque fait nouveau entre une fois dans l'historique. → { pieces, textes, modifie }
-  // Pure : une fiche bien relevée contredit-elle le dossier en consultation ? (code postal différent, ou voie sans aucun mot commun
-  // avec l'adresse du dossier quand aucune parcelle n'est déjà en commun) → le motif, sinon ''.
+  // Pure : une fiche bien contredit-elle le dossier (autre code postal, ou voie sans mot commun sans parcelle commune) ? → le motif, sinon ''.
   function bienAuthenticContreditDossier(d, bien) {
     const adresseDossier = (d.bien && d.bien.adresse) || {};
     const texteDossier = String(d.adresseBien || adresseDossier.adresseComplete || '');
@@ -2695,8 +2671,12 @@
       }
     } else if (courantValide) {
       d = dossiers.find(x => x.id === dossierCourantAuthentic.id) || null;
-      // Onglet actif d'un AUTRE dossier (titre coupé ou absent de CLAIRE) : rien n'est rangé dans le dernier dossier vu (étude 19/10).
-      if (d && ongletActifAutreDossierAuthentic(capture, [d.nom, d.intituleAuthentic].filter(Boolean).join(' '))) return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un autre dossier d’Authentic : non rangée' };
+      // Onglet actif d'un AUTRE dossier (titre coupé, référence différente) : ce dossier s'il est dans CLAIRE, sinon rien — jamais le dernier vu (étude 19/10).
+      const noms = d ? [d.nom, d.intituleAuthentic, ...(d.parties || []).map(p => p && [p.nom, p.nomUsage].join(' '))].filter(Boolean).join(' ') : '';
+      if (d && ongletActifAutreDossierAuthentic(capture, noms, d.referenceAuthentic)) {
+        d = dossierOngletActifAuthentic(capture, dossiers);
+        if (!d) { if (!revu) afficherToast('Authentic · page ouverte dans l’onglet d’un dossier absent de CLAIRE : non rangée.', 'OK', null); return { etat: 'sans-changement', texte: 'page ouverte dans l’onglet d’un autre dossier d’Authentic : non rangée' }; }
+      }
     }
     if (!d) {
       // Jamais en silence (étude, 02/10) : le motif, et le choix à la main.
