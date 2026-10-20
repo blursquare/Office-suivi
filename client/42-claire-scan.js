@@ -85,9 +85,10 @@
     { cle: 'facture', label: 'Facture', motif: /\bfacture\b/, rubriques: ['travaux', 'aae'], faible: true }
   ];
 
-  // Haut de la première page, normalisé. `texte` = texte de la page 1 (lignes jointes). Pure.
+  // Première page ENTIÈRE, normalisée (étude 20/10 : « lire la première page en entier pour déterminer le type de document »).
+  // `texte` = texte de la page 1 (lignes jointes). Pure.
   function enTeteScan(textePage1) {
-    return texteNormaliseScan(textePage1).slice(0, LONGUEUR_ENTETE_SCAN);
+    return texteNormaliseScan(textePage1);
   }
 
   // Un acte notarié s'ouvre sur « L'AN DEUX MILLE… » : c'est un avant-contrat s'il le dit
@@ -961,9 +962,30 @@
     </div></li>`;
   }
 
+  // Un clic est fait d'un appui puis d'un relâchement : redessiner la liste entre les deux (le champ qui perd le focus déclenche
+  // « change », qui redessine) remplace le bouton sous le doigt et le clic est perdu — d'où le second clic sur « Ranger » (étude 20/10).
+  // Tant que le bouton est enfoncé dans la zone, le dessin attend le relâchement.
+  var pointeurEnfonceScans = false;
+  var redessinerApresClicScans = false;
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('pointerdown', (ev) => {
+      const zone = document.getElementById('scans-contenu');
+      pointeurEnfonceScans = !!(zone && ev.target && zone.contains(ev.target));
+    }, true);
+    const fin = () => {
+      if (!pointeurEnfonceScans) return;
+      pointeurEnfonceScans = false;
+      if (redessinerApresClicScans) setTimeout(() => { if (redessinerApresClicScans) { redessinerApresClicScans = false; renderScans(true); } }, 0);
+    };
+    document.addEventListener('pointerup', fin, true);
+    document.addEventListener('pointercancel', fin, true);
+  }
+
   function renderScans(force) {
     const zone = document.getElementById('scans-contenu');
     if (!zone) return;
+    if (pointeurEnfonceScans) { redessinerApresClicScans = true; return; }
+    redessinerApresClicScans = false;
     // Ne pas redessiner sous les doigts de quelqu'un qui tape le nom de la copie (sauf après un
     // clic sur Ranger ou Laisser dans Scan : l'indicateur doit apparaître tout de suite).
     if (force !== true && document.activeElement && zone.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
@@ -979,18 +1001,18 @@
     const liste = scans.length
       ? `<ul class="scans-liste">${scans.map(renderLigneScan).join('')}</ul>`
       : `<p class="hint scans-rien">Aucun scan en attente dans le dossier du copieur.</p>`;
-    const journal = (e.journal || []).slice(0, 12);
-    const journalHtml = journal.length ? `<div class="calc-card scans-journal">
-        <div class="dash-section-titre">Derniers rangements</div>
-        <ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
+    const journal = (e.journal || []).slice(0, 30);
+    const historiqueHtml = `<div class="calc-card scans-journal">
+        <div class="dash-section-titre">Historique ${infoBulle('Les scans déjà rangés, à la main ou automatiquement par CLAIRE.')}</div>
+        ${journal.length ? `<ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
           <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier ? libelleDossierParNom(j.dossier, j.dossierId) : '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
-          <span class="hint">${j.auto ? 'automatique' : escapeHtml(j.auteur || '')}${j.score != null ? ' · score ' + noteScoreScan(j.score) : ''}</span></li>`).join('')}</ul>
-      </div>` : '';
+          <span class="scan-mode"><span class="dot-label ${j.auto ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${j.auto ? 'Automatique' : 'À la main'}</span>${j.auto ? '' : ` <span class="hint">${escapeHtml(j.auteur || '')}</span>`}${j.score != null ? ` <span class="hint">score ${noteScoreScan(j.score)}</span>` : ''}</span></li>`).join('')}</ul>` : '<p class="hint scans-rien">Aucun scan rangé pour l’instant.</p>'}
+      </div>`;
     const ecartes = (e.ecartes || []);
     const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>
         <ul>${ecartes.map(s => `<li><span>${escapeHtml(s.nom)}</span><button type="button" class="lien-action" onclick="retablirScan('${escapeOnclickArg(s.nom)}')">Reproposer</button></li>`).join('')}</ul>
       </details>` : '';
-    zone.innerHTML = `${renderFacturesAReglerScans()}<div class="calc-card">${liste}${ecartesHtml}</div>${journalHtml}`;
+    zone.innerHTML = `${renderFacturesAReglerScans()}<div class="calc-card"><div class="dash-section-titre">Non rangés${scans.length ? ` (${scans.length})` : ''}</div>${liste}${ecartesHtml}</div>${historiqueHtml}`;
   }
 
   function initScans() {

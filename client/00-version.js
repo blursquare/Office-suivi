@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.297.1';
+  const VERSION_APP = '0.297.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.297.2', date: '2026-10-20 21:56', resume: "Claire Scan : le type de pièce est lu sur toute la première page ; l'écran montre les scans « Non rangés » puis un « Historique » des scans déjà rangés, à la main ou automatiquement ; « Ranger » n'a plus besoin d'un second clic (la liste ne se redessine plus entre l'appui et le relâchement)." },
     { version: '0.297.1', date: '2026-10-20 21:07', resume: "Fiche d'une vente : les pièces sur trois colonnes ; onglet Dossier, le responsable et ce qui suit sur deux colonnes, et les outils et courriers dessous, en gros boutons. Les outils sur deux lignes, chacun avec son icône." },
     { version: '0.297.0', date: '2026-10-20 20:49', resume: "Barre latérale : un champ de recherche en tête pour trouver un dossier (nom, partie, adresse, référence) ou un outil, avec Ctrl+K ; « Demander à CLAIRE » devient un bouton à côté de Claire Scan." },
     { version: '0.296.0', date: '2026-10-20 20:19', resume: "Hypothèque : l'hypothèque légale ou conventionnelle est mise en avant près du prix en haut de la fiche. En participation, « Rédiger l'acte de prêt » et « Envoyer la DOD au notaire instrumentaire » arrivent dans À faire ; si un confrère représente l'acquéreur, c'est sa DOD qu'on réclame ; seul notaire, le prêt est rédigé dans l'acte de vente. Le sous-dossier « Prêt » d'Authentic dit si l'acte de prêt est en cours de rédaction ou signé." },

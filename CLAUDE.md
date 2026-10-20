@@ -614,7 +614,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   dossier n'est pas trouvé, puis toutes les 2 min ; le serveur retient le dernier dossier trouvé. **Seuls les nouveaux
   scans** : `depuis` = heure exacte de l'activation (les scans déjà présents ne sont jamais touchés),
   ou une date choisie dans les réglages. Lecture dans le navigateur (pdf.js, OCR tesseract.js des 2 premières pages d'un scan
-  sans texte). **Type de pièce lu sur le haut de la page 1 seulement** (1 500 caractères), la mention
+  sans texte). **Type de pièce lu sur la page 1 EN ENTIER** (étude 20/10), la mention
   la plus haute l'emporte ; un acte notarié (« L'AN DEUX MILLE… ») est une promesse/un compromis s'il
   le dit, sinon un titre de propriété — jamais compter les mots de tout le document (un compromis cite
   toutes les pièces : le script Python d'origine classait 5 états datés sur 5 en « règlement »).

@@ -300,3 +300,16 @@ test('Claire Scan : le dossier se choisit en tapant son nom (libellé exact, mot
   assert.ok(app.dossierScanDepuisSaisie('durand', candidats).aucun);
   assert.equal(app.dossierScanDepuisSaisie('  ', candidats), null);
 });
+
+test('le type d’une pièce est lu sur la première page en entier (étude 20/10)', () => {
+  const app = chargerApplication();
+  const long = 'Courrier\n' + 'lorem ipsum '.repeat(300) + '\nRELEVE D IDENTITE BANCAIRE IBAN FR76';
+  assert.equal(type(app, long), 'rib');
+});
+
+test('Claire Scan : le dessin attend le relâchement du bouton (second clic sur Ranger)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'client', '42-claire-scan.js'), 'utf8');
+  assert.match(src, /pointeurEnfonceScans\) \{ redessinerApresClicScans = true; return; \}/);
+  assert.match(src, /Non rangés/);
+  assert.match(src, /Historique/);
+});
