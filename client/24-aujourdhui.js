@@ -529,7 +529,7 @@
     copieActe: { titre: 'Envoyer la copie de l’acte / l’attestation de vente', categorie: 'neutre',
       re: /^Email (?:envoyé|préparé) — (?:copie de l’acte|attestation de vente)/ },
     actePret: { titre: 'Faire rédiger l’acte de prêt', categorie: 'pret',
-      re: /^(Acte de prêt (?:en cours de rédaction|signé) \(sous-dossier prêt d’Authentic\)|Faire rédiger l’acte de prêt : noté fait à la main)/ },
+      re: /^(Acte de prêt (?:en cours de rédaction|signé(?: le [^()]+)?) \(sous-dossier prêt d’Authentic\)|Faire rédiger l’acte de prêt : noté fait à la main)/ },
     dodEnvoi: { titre: 'Envoyer la DOD au notaire instrumentaire', categorie: 'pret',
       re: /^(Email envoyé — DOD au notaire instrumentaire|Envoyer la DOD au notaire instrumentaire : noté fait à la main)/ },
     dodAttendue: { titre: 'Réclamer la DOD au confrère', categorie: 'pret',

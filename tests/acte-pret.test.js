@@ -29,6 +29,8 @@ test('circuitActePret : seul notaire = dans l’acte de vente ; confrère de l�
   assert.equal(app.circuitActePret(base({ roleNotaire: 'participant', notaireVendeur: CONFRERE })).mode, 'redige');
   // Participation côté vendeur : l’acquéreur est celui du confrère qui reçoit l’acte, rien pour nous.
   assert.equal(app.circuitActePret(base({ roleNotaire: 'participant', notaireAcquereur: CONFRERE })), null);
+  // Participation, étude côté vendeur, acquéreur sans notaire renseigné : rien (jamais deviné).
+  assert.equal(app.circuitActePret(base({ roleNotaire: 'participant', notaireAcquereur: '' })), null);
   assert.equal(app.circuitActePret(base({ garantiesPret: ['caution'] })), null);
   assert.equal(app.circuitActePret(base({ typeAffaire: 'succession' })), null);
 });
@@ -58,6 +60,12 @@ test('tachesActePret : l’acte de prêt commencé (Authentic) ou noté fait ret
   assert.equal(types(pasRedige), 'actePret,dodEnvoi');
   assert.equal(types(Object.assign({}, enCours, { dodEnvoyeeLe: '2026-10-20' })), '');
   assert.equal(types(Object.assign({}, part, { archive: true })), '');
+});
+
+test('TACHES_JOUR_PAR_TYPE : « signé le … » est reconnu comme fait', () => {
+  const t = app.TACHES_JOUR_PAR_TYPE.actePret;
+  assert.ok(t.re.test('Acte de prêt signé le 12 octobre 2026 (sous-dossier prêt d’Authentic)'));
+  assert.ok(t.re.test('Acte de prêt en cours de rédaction (sous-dossier prêt d’Authentic)'));
 });
 
 test('actionsDuJour : les tâches de l’acte de prêt y figurent', () => {

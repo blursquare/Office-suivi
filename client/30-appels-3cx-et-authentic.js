@@ -2785,7 +2785,7 @@
       delete d.piecesAuthentic;
       retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
     }
-    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente'];
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente', 'pret'];
     if (champsDossier.some(k => a[k])) {
       const reste = Object.assign({}, a);
       champsDossier.forEach(k => { delete reste[k]; });

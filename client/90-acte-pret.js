@@ -25,7 +25,8 @@ function circuitActePret(d) {
   if (!d || d.deleted || estSuccession(d) || !hypothequesPret(d).length) return null;
   const confrereAcquereur = notaireParticipantRepresenteAcquereur(d);
   if (d.roleNotaire === 'participant') {
-    return confrereAcquereur ? null : { mode: 'redige', destinataire: emailConfrereVendeurDossier(d) };
+    // Notre client est l'acquéreur seulement si un confrère représente le vendeur (c'est lui qui reçoit l'acte) : sinon, rien.
+    return !confrereAcquereur && confrereRepresenteVendeur(d) ? { mode: 'redige', destinataire: emailConfrereVendeurDossier(d) } : null;
   }
   return confrereAcquereur ? { mode: 'attendu', destinataire: emailDestinataireRelance(d) } : { mode: 'dans-acte', destinataire: '' };
 }
