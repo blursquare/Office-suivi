@@ -1239,6 +1239,7 @@
     if (preemptionAutoAFaire(d)) analyserPreemptionDossier(id);
     // Succession : la réponse du FCDDV trouvée sur le NAS est lue seule (client/74).
     lireFcddvSiNouveau(d);
+    releverFacturesNasSuccession(d); // factures déposées à la main dans « Factures à régler » (étude 20/10)
   }
 
   // Un clic sur le fond grisé d'une fenêtre la ferme — seulement si l'appui A COMMENCÉ sur ce fond.

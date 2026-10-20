@@ -154,7 +154,11 @@
     ajouterHistorique(d, `Scan rangé ${auto ? 'automatiquement' : 'à la main'} dans « ${choix.sousDossier} » : ${libelle}${facture && facture.montant ? ' — ' + formaterPrixCentimes(facture.montant) : ''}`, { auto });
     await sauvegarder(d);
     render();
-    if (!facture) return;
+    if (facture) await annoncerFactureSuccession(d, facture, chemin);
+  }
+
+  // Teams à Sophie : une nouvelle facture d'une succession (dossier, organisme, montant, lien vers le fichier) — une fois par fichier (serveur).
+  async function annoncerFactureSuccession(d, facture, chemin) {
     try {
       const r = await fetchAvecAuth('/api/notifications/facture-succession', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dossierId: d.id, dossierNom: libelleDossierAffiche(d), organisme: facture.organisme, montant: facture.montant, chemin }) });
@@ -162,6 +166,60 @@
       noterVerificationPoste('facture-succession-teams', res && res.envoyeResponsable ? { detail: 'facture annoncée à Sophie sur Teams' }
         : { ok: false, detail: res && res.ignore ? 'envoi Teams non activé ou facture déjà annoncée' : 'adresse de Sophie GOSSART absente des Réglages ou envoi refusé' });
     } catch (e) { /* serveur injoignable : la facture reste sur la fiche */ }
+  }
+
+  // ---- Factures déposées à la main sur le NAS (étude 20/10 : « scanner seul le dossier du commun de la succession pour voir si des factures
+  // ont été déposées, reçues par email par exemple ») ----
+  // Les PDF du sous-dossier « Factures à régler » du dossier relié, pas encore notés : lus sur le poste (organisme, montant), notés sur la
+  // fiche et annoncés à Sophie comme ceux de Claire Scan. Relevé à l'ouverture de la fiche ; un fichier vu ne revient jamais, même
+  // retiré de la fiche (`d.succession.facturesNasVues`).
+  var facturesNasEnCours = new Set();
+  var MAX_FACTURES_NAS_PAR_RELEVE = 10;
+
+  function cleFichierFactureNas(c) {
+    return normaliserPourRecherche(String(c || '').replace(/\\/g, '/')).replace(/\s+/g, ' ').trim();
+  }
+  function dansFacturesARegler(chemin) {
+    return String(chemin || '').replace(/\\/g, '/').split('/').slice(0, -1)
+      .some(p => normaliserPourRecherche(p).replace(/[^a-z]+/g, ' ').trim() === normaliserPourRecherche(SOUS_DOSSIER_FACTURES_SUCCESSION).replace(/[^a-z]+/g, ' ').trim());
+  }
+  // Pure : les PDF de « Factures à régler » (chemins relatifs au dossier, comme les rend le serveur) pas encore notés ni vus → [{ nom, complet }].
+  function facturesNasANoter(d, fichiers) {
+    const vus = new Set(facturesSuccession(d).map(f => cleFichierFactureNas(f.fichier)).concat(((d && d.succession && d.succession.facturesNasVues) || []).map(cleFichierFactureNas)));
+    return (fichiers || []).filter(f => f && f.chemin && /\.pdf$/i.test(f.chemin) && dansFacturesARegler(f.chemin))
+      .map(f => ({ nom: f.nom || String(f.chemin).split(/[\\/]/).pop(), complet: cheminNasComplet(d, f.chemin) }))
+      .filter(f => !vus.has(cleFichierFactureNas(f.complet)));
+  }
+  // Pure : l'organisme tiré du nom du fichier quand la facture n'en dit rien (« Facture EDF mars.pdf » → « EDF mars »).
+  function organismeNomFichierFacture(nom) {
+    return String(nom || '').replace(/\.pdf$/i, '').replace(/\s*-\s*Claire Scan$/i, '').replace(/^\s*(?:facture|fact\.?)\s*[-_ ]*/i, '').replace(/[_]+/g, ' ').trim().slice(0, 80);
+  }
+
+  async function releverFacturesNasSuccession(d) {
+    if (!d || !estSuccession(d) || d.archive || !d.nasDossier || facturesNasEnCours.has(d.id)) return;
+    facturesNasEnCours.add(d.id);
+    try {
+      const nouvelles = facturesNasANoter(d, await listerFichiersNas(d)).slice(0, MAX_FACTURES_NAS_PAR_RELEVE);
+      for (const f of nouvelles) {
+        let texte = '';
+        try { texte = String((await lireTextePdfParPage(await ouvrirPdfNas(f.complet))).texte || ''); } catch (e) { /* PDF illisible : noté sans montant */ }
+        const actuel = dossiers.find(x => x.id === d.id);
+        if (!actuel) return;
+        const lu = texte.trim() ? { organisme: organismeFactureScan(texte, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []), montant: montantFactureScan(texte) } : { organisme: '', montant: null };
+        const facture = noterFactureSuccession(actuel, { organisme: lu.organisme || organismeNomFichierFacture(f.nom), montant: lu.montant }, f.complet, new Date().toISOString());
+        actuel.succession = Object.assign({}, actuel.succession, { facturesNasVues: (((actuel.succession || {}).facturesNasVues) || []).concat(f.complet).slice(-300) });
+        if (!facture) continue;
+        ajouterHistorique(actuel, `Facture trouvée dans « ${SOUS_DOSSIER_FACTURES_SUCCESSION} » sur le NAS : ${facture.organisme || f.nom}${facture.montant ? ' — ' + formaterPrixCentimes(facture.montant) : ''}`, { auto: true });
+        await sauvegarder(actuel);
+        render();
+        noterVerificationPoste('factures-succession-nas', { detail: 'facture déposée sur le NAS relevée' });
+        await annoncerFactureSuccession(actuel, facture, f.complet);
+      }
+    } catch (e) {
+      noterJournalTechnique({ categorie: 'erreur-poste', message: 'Factures du NAS (succession) non relevées — ' + String(e && e.message || e).slice(0, 120) });
+    } finally {
+      facturesNasEnCours.delete(d.id);
+    }
   }
 
   function factureSuccessionParId(d, id) { return facturesSuccession(d).find(f => f.id === id) || null; }

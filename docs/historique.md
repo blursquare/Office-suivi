@@ -21173,3 +21173,15 @@ pas à faire le lien ». Cause : Authentic ouvre chaque fiche client et chaque f
 - Seconde relecture : un lieu-dit sans numéro (« Lieu-dit Les Bordes ») acceptait le voisin « 8 Lieu-dit Les Bordes ». Une fiche bien d'un
   onglet à elle n'est le bien du dossier qu'avec le MÊME numéro des deux côtés et la même voie (`adresseSureAuthentic`), sinon une parcelle
   commune (`parcelleCommuneAuthentic`) ; à la création, même numéro et même voie que la page du dossier.
+
+### 20/10/2026 — 0.293.0 : factures d'une succession déposées à la main sur le NAS
+
+Étude : « pour les factures à régler, scanner seul le dossier du commun de la succession pour voir si des factures ont été déposées (reçues par
+email par exemple) ». `releverFacturesNasSuccession` (client/75), appelée à l'ouverture de la fiche d'une succession reliée au NAS (comme la
+lecture du FCDDV) : `listerFichiersNas`, PDF du sous-dossier « Factures à régler » (`dansFacturesARegler`, accents et casse ignorés) pas encore
+notés ni vus (`facturesNasANoter` : chemin complet `cheminNasComplet`, même forme que celui des copies de Claire Scan — jamais en double) ;
+texte lu sur le poste (`ouvrirPdfNas`, `lireTextePdfParPage`), organisme et montant par les lecteurs de Claire Scan (`organismeFactureScan`,
+`montantFactureScan`), sinon l'organisme tiré du nom du fichier (`organismeNomFichierFacture`) ; `noterFactureSuccession`, historique,
+`annoncerFactureSuccession` (Teams à Sophie, extrait d'`enregistrerScanSuccession`, une fois par fichier côté serveur). Vus gardés dans
+`d.succession.facturesNasVues` (300) : une facture retirée de la fiche ne revient pas. 10 au plus par ouverture. Un PDF scanné sans texte est
+noté sans montant (pas d'OCR ici). Point terrain `factures-succession-nas`.
