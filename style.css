@@ -4545,13 +4545,15 @@
     font-size: var(--texte-s);
     color: var(--muted);
   }
-  /* Étude 20/10 : les garanties « plus visibles » — une pastille par garantie, à la couleur des actes. */
+  /* Étude 20/10 : les garanties « plus visibles » — l'hypothèque légale de prêteur de deniers en pastille pleine, la caution
+     et les autres en pastilles discrètes. */
   .garanties-pastilles { display: inline-flex; flex-wrap: wrap; gap: 6px; }
   .garantie-pastille {
     display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--rayon-pilule);
-    background: var(--acte-bg); color: var(--acte); font-size: var(--texte-m); font-weight: 600;
+    background: var(--paper-sunk); color: var(--ink-soft); font-size: var(--texte-s); font-weight: 500;
   }
   .garantie-pastille .icone { flex: none; }
+  .garantie-pastille.garantie-forte { background: var(--acte); color: var(--blanc-fixe); font-size: var(--texte-m); font-weight: 600; padding: 4px 12px; }
   .garantie-pastille.garantie-inconnue { background: var(--pret-bg); color: var(--pret); }
 
   /* ---- .dot-label : langage unique de statut dans tout l'outil ----

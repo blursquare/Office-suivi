@@ -298,7 +298,10 @@ test('garantiesPretAffichees : « Garantie non identifiée » quand l’offre es
 test('pastillesGarantiesPret : une pastille par garantie (étude 20/10 : « le mettre plus visible »)', () => {
   const app = chargerApplication();
   const html = app.pastillesGarantiesPret(app.garantiesPretAffichees({ offrePretStatut: 'recue', garantiesPret: ['caution', 'hypothequeLegale'] }));
-  assert.equal((html.match(/class="garantie-pastille"/g) || []).length, 2);
+  assert.equal((html.match(/class="garantie-pastille[ "]/g) || []).length, 2);
+  const mixte = app.pastillesGarantiesPret(app.garantiesPretAffichees({ offrePretStatut: 'recue', garantiesPret: ['caution', 'hypothequeLegale'] }));
+  assert.equal((mixte.match(/garantie-forte/g) || []).length, 1, 'seule l’hypothèque légale est en pastille pleine');
+  assert.ok(mixte.indexOf('garantie-forte') < mixte.indexOf('Caution'), 'l’hypothèque légale passe avant la caution');
   const inconnue = app.pastillesGarantiesPret(app.garantiesPretAffichees({ offrePretStatut: 'recue', garantiesPret: [] }));
   assert.match(inconnue, /garantie-pastille garantie-inconnue/);
   assert.equal(app.pastillesGarantiesPret(null), '');

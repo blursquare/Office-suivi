@@ -21236,3 +21236,6 @@ Seconde relecture (même soir), corrigé : « CEDEX » suivi des noms (inscripti
 
 ### 20/10 soir — Garanties du prêt plus visibles (0.295.1)
 Étude : « Garanties / Hypothèque légale de prêteur de deniers : le mettre plus visible ». Une pastille par garantie (fond `--acte-bg`, texte `--acte`, 600), « Garantie non identifiée » en pastille ambre — carte « Obtention du prêt » (`tab-garanties`) et bloc « Offre de prêt » de l'onglet Fonds ; `pastillesGarantiesPret` (client/36), `garantiesPretAffichees` rend aussi `liste`.
+
+### 20/10 soir — Hypothèque légale plus visible que la caution (0.295.2)
+Étude : « Il faut que les hypothèques légales soient plus visibles que les cautions ». `pastillesGarantiesPret` : l'hypothèque légale de prêteur de deniers passe en tête, pastille pleine à `--acte` (texte `--blanc-fixe`, `--texte-m`, 600) ; la caution et les autres restent en pastilles discrètes (`--paper-sunk`, `--ink-soft`, 500). `garantiesPretAffichees` rend aussi `cles`. Publiée avec 0.295.1 à partir de 8 h le 21/10 (la 0.295.1 était prête à 18 h 15, GitHub vert, mais l'envoi est refusé après 19 h).

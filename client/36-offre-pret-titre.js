@@ -247,7 +247,7 @@
   function garantiesPretAffichees(d) {
     if (!d || d.sansPret) return null;
     const libelles = libellesGarantiesPret(d.garantiesPret);
-    if (libelles.length) return { texte: libelles.join(' · '), identifiee: true, liste: libelles };
+    if (libelles.length) return { texte: libelles.join(' · '), identifiee: true, liste: libelles, cles: (d.garantiesPret || []).filter(c => GARANTIES_PRET.some(g => g.cle === c)) };
     if (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer') return { texte: 'Garantie non identifiée', identifiee: false };
     return null;
   }
@@ -256,9 +256,15 @@
   // visible ») — une par garantie, carte « Obtention du prêt » et bloc « Offre de prêt » de l'onglet Fonds.
   function pastillesGarantiesPret(g) {
     if (!g) return '';
-    const liste = g.identifiee ? (g.liste || [g.texte]) : [g.texte];
-    return `<span class="garanties-pastilles">${liste.map(l =>
-      `<span class="garantie-pastille${g.identifiee ? '' : ' garantie-inconnue'}">${icone('key')}${escapeHtml(l)}</span>`).join('')}</span>`;
+    if (!g.identifiee) return `<span class="garanties-pastilles"><span class="garantie-pastille garantie-inconnue">${icone('key')}${escapeHtml(g.texte)}</span></span>`;
+    const liste = g.liste || [g.texte];
+    const cles = g.cles || [];
+    // Étude 20/10 : « les hypothèques légales plus visibles que les cautions » — l'hypothèque légale de prêteur de deniers
+    // en tête, pastille pleine ; la caution et les autres restent des pastilles discrètes.
+    const pastilles = liste.map((l, i) => ({ l, forte: cles[i] === 'hypothequeLegale' }))
+      .sort((a, b) => Number(b.forte) - Number(a.forte));
+    return `<span class="garanties-pastilles">${pastilles.map(p =>
+      `<span class="garantie-pastille${p.forte ? ' garantie-forte' : ''}">${icone('key')}${escapeHtml(p.l)}</span>`).join('')}</span>`;
   }
 
   function libellesGarantiesPret(cles) {

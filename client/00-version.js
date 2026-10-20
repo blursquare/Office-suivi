@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.295.1';
+  const VERSION_APP = '0.295.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.295.2', date: '2026-10-20 19:59', resume: "Offre de prêt : l'hypothèque légale de prêteur de deniers passe en tête, en pastille pleine, bien plus visible que la caution et les autres garanties." },
     { version: '0.295.1', date: '2026-10-20 18:07', resume: "Offre de prêt : les garanties (hypothèque légale de prêteur de deniers, caution…) bien visibles, une pastille par garantie, sur la carte « Obtention du prêt » et dans l'onglet Fonds." },
     { version: '0.295.0', date: '2026-10-20 17:38', resume: "« Nouveau dossier » d'une succession : à l'étape « Vérifier », CLAIRE liste les fiches à ouvrir dans Authentic — celle du défunt, de chaque héritier et de chaque bien. Chaque fiche ouverte se coche, complète l'écran et est gardée à l'ajout du dossier. FCDDV : lecture du compte rendu de l'ADSN rendue plus sûre (réponse de plusieurs pages, morceaux dans le désordre, associés d'une même étude réunis dans un seul email, nature corrigée à la main gardée quand la réponse est relue)." },
     { version: '0.294.1', date: '2026-10-20 16:09', resume: "Constitution de dossier d'une succession : le courrier à la caisse de retraite s'intitule « Caisse de retraite » (sans « AGIRC-ARRCO »). Répertoire : nouvelle catégorie « Maisons de retraite et EHPAD », proposée aussi dans la recherche des courriers d'une succession ; pour le courrier « EHPAD / maison de retraite », la maison du répertoire que cite le domicile du défunt (son nom, ou sa rue et son numéro) est retenue d'office, les autres restent proposées au choix. FCDDV : le compte rendu réel de l'ADSN est lu (chaque « Acte du … », l'étude dépositaire, sa ville) — une réponse à deux inscriptions donne deux actes et un seul email à l'étude. « Nouveau dossier » d'une succession : la fiche d'un héritier ouverte dans Authentic n'efface plus celle d'un autre héritier du même nom (téléphone, email, date et lieu du décès gardés)." },
