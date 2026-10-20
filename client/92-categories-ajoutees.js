@@ -18,7 +18,9 @@ function ouvrirFenetreSaisie(options) {
     document.body.appendChild(fond);
   }
   const champs = (options.champs || []).map(c => `<label class="fenetre-saisie-champ" for="fs-${escapeAttr(c.id)}"><span>${escapeHtml(c.label)}${c.aide ? ' ' + infoBulle(c.aide) : ''}</span>${
-    c.multiligne
+    c.options
+      ? `<select id="fs-${escapeAttr(c.id)}">${c.options.map(o => `<option value="${escapeAttr(o.valeur)}"${o.valeur === c.valeur ? ' selected' : ''}>${escapeHtml(o.libelle)}</option>`).join('')}</select>`
+      : c.multiligne
       ? `<textarea id="fs-${escapeAttr(c.id)}" rows="3" placeholder="${escapeAttr(c.exemple || '')}">${escapeHtml(c.valeur || '')}</textarea>`
       : `<input type="text" id="fs-${escapeAttr(c.id)}" value="${escapeAttr(c.valeur || '')}" placeholder="${escapeAttr(c.exemple || '')}" autocomplete="off">`}</label>`).join('');
   fond.innerHTML = `<form class="confirm-box fenetre-saisie" role="dialog" aria-modal="true" aria-labelledby="fs-titre">

@@ -1251,24 +1251,10 @@
     return win ? `${base}\\${rel.replace(/\//g, '\\')}` : `${base}/${rel}`;
   }
 
-  // « Ouvrir le dossier NAS » (étude 14/10) : une page web ne peut pas ouvrir l'Explorateur de Windows (les liens file:// sont
-  // bloqués) — l'emplacement réseau du dossier est copié dans le presse-papiers, à coller dans la barre d'adresse de l'Explorateur.
+  // « Ouvrir le NAS » (étude 20/10) : la fenêtre de l'explorateur du dossier client (client/93) ; l'emplacement réseau à coller
+  // dans l'Explorateur Windows (étude 14/10 : une page web ne peut pas ouvrir l'Explorateur) s'y copie d'un clic.
   var racineNasPoste = '';
-  async function ouvrirDossierNas(dossierId) {
-    const d = dossiers.find(x => x.id === dossierId);
-    if (!d || !d.dossierLie || !d.nasDossier) { afficherToast('Reliez d’abord un dossier du NAS.', 'OK', null); return; }
-    try {
-      if (!racineNasPoste) {
-        const r = await fetchAvecAuth('/api/nas/etat');
-        const j = r.ok ? await r.json() : {};
-        racineNasPoste = j && j.configure && j.racine ? String(j.racine) : '';
-      }
-    } catch (e) { /* message ci-dessous */ }
-    const chemin = cheminReseauDossierNas(racineNasPoste, d.nasDossier);
-    if (!chemin) { afficherToast('Emplacement du NAS inconnu : le serveur ne le donne pas.', 'OK', null); return; }
-    const copie = copierTexteSilencieux(chemin);
-    afficherInfoAction('Dossier du NAS', `${copie ? 'Emplacement copié. ' : ''}Dans l’Explorateur Windows (Win + E), cliquez la barre d’adresse (Ctrl + L), collez${copie ? ' (Ctrl + V)' : ' ce chemin'} et validez : ${chemin}`);
-  }
+  function ouvrirDossierNas(dossierId) { ouvrirExplorateurNas(dossierId); }
 
   async function ouvrirCompromisTrouve(dossierId, btn) {
     const d = dossiers.find(x => x.id === dossierId);

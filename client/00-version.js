@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.298.0';
+  const VERSION_APP = '0.299.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.299.0', date: '2026-10-20 23:14', resume: "Explorateur du NAS : « Dossier NAS » d'une fiche ouvre une fenêtre avec les sous-dossiers et les fichiers du dossier du client (PDF et images s'ouvrent, le reste se télécharge). On peut renommer une pièce (l'extension reste) et la déplacer vers un autre sous-dossier du même dossier, avec « Annuler » ; jamais de suppression ni d'écrasement." },
     { version: '0.298.0', date: '2026-10-20 22:10', resume: "Claire Scan : « + Nouvelle catégorie… » dans la liste « Pièce » d'un scan (nom, sous-dossier du dossier client où ranger, mots qui la reconnaissent) ; les catégories ajoutées se gèrent aussi dans Réglages › Pièces et Claire Scan. Répertoire : « + Nouveau thème » dans la colonne de gauche, thème renommable et supprimable une fois vide." },
     { version: '0.297.2', date: '2026-10-20 21:56', resume: "Claire Scan : le type de pièce est lu sur toute la première page ; l'écran montre les scans « Non rangés » puis un « Historique » des scans déjà rangés, à la main ou automatiquement ; « Ranger » n'a plus besoin d'un second clic (la liste ne se redessine plus entre l'appui et le relâchement)." },
     { version: '0.297.1', date: '2026-10-20 21:07', resume: "Fiche d'une vente : les pièces sur trois colonnes ; onglet Dossier, le responsable et ce qui suit sur deux colonnes, et les outils et courriers dessous, en gros boutons. Les outils sur deux lignes, chacun avec son icône." },
