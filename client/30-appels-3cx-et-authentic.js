@@ -1561,7 +1561,7 @@
       // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
       // Fiche ouverte dans un onglet à elle : seulement le bien de la page du dossier (même adresse, numéro compris), jamais par le code postal.
       const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => im.horsOnglet
-        ? !!g.adresse && memeAdresseApprocheeAuthentic(im.adresse, g.adresse)
+        ? !!g.adresse && adresseSureAuthentic(im.adresse, g.adresse)
         : g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false).map(im => { const c = Object.assign({}, im); delete c.horsOnglet; return c; }), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       const sortie = {

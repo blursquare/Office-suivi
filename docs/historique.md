@@ -21170,3 +21170,6 @@ pas à faire le lien ». Cause : Authentic ouvre chaque fiche client et chaque f
   page du dossier. Comparants : une partie absente des comparants n'est complétée que si la lecture de ce côté n'y retrouve AUCUNE personne
   de la fiche (`comparantsCoteIllisiblesAuthentic`) — des comparants lus qui écartent le conjoint posé à tort l'emportent (règle du 09/10).
   Fiche gardée seule marquée `horsComparants` : jamais une partie dans « Clients et biens » (server/src/clientsBiens.js).
+- Seconde relecture : un lieu-dit sans numéro (« Lieu-dit Les Bordes ») acceptait le voisin « 8 Lieu-dit Les Bordes ». Une fiche bien d'un
+  onglet à elle n'est le bien du dossier qu'avec le MÊME numéro des deux côtés et la même voie (`adresseSureAuthentic`), sinon une parcelle
+  commune (`parcelleCommuneAuthentic`) ; à la création, même numéro et même voie que la page du dossier.

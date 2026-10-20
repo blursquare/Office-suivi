@@ -495,12 +495,25 @@
     return conjointPartieDuDossierAuthentic(d, personne);
   }
 
-  // Pure : le bien d'une fiche bien est-il celui de ce dossier ? Même adresse (numéro compris), ou même parcelle quand l'une des deux adresses
-  // manque — jamais par le seul code postal de la rubrique « Immeubles » (relecture 0.292.1 : le voisin du 8 de la même rue entrait).
+  // Pure : le bien d'une fiche bien est-il celui de ce dossier ? Même adresse avec le même numéro des deux côtés, sinon une parcelle commune —
+  // jamais par le seul code postal de la rubrique « Immeubles » (relecture 0.292.1 : le voisin du 8 de la même rue entrait), ni par un
+  // lieu-dit sans numéro (relecture : « 8 Lieu-dit Les Bordes » pour « Lieu-dit Les Bordes »).
   function bienDuDossierSurAuthentic(d, bien) {
     if (!d || !bien) return false;
-    if (bienPrincipalDuDossierAuthentic(d, bien, true)) return true;
-    return (((d.authentic && d.authentic.immeubles) || [])).some(im => im && bienPrincipalDuDossierAuthentic({ adresseBien: im.adresse, bien: { cadastre: { parcelles: im.parcelles || [] } } }, bien, true));
+    const cibles = [{ adresse: d.adresseBien, parcelles: parcellesCadastre(d.bien && d.bien.cadastre) }]
+      .concat((((d.authentic && d.authentic.immeubles) || [])).filter(Boolean).map(im => ({ adresse: im.adresse, parcelles: im.parcelles || [] })));
+    return cibles.some(c => adresseSureAuthentic(bien.adresse, c.adresse) || parcelleCommuneAuthentic(bien.parcelles, c.parcelles));
+  }
+  // Pure : deux adresses du même bien — numéro présent des deux côtés et le même, même voie (adresse approchée, autre code postal refusé).
+  function adresseSureAuthentic(a, b) {
+    const texte = x => (typeof x === 'string' ? x : (x && x.texte) || '');
+    const num = t => (/(?:^|\s)(\d{1,4})(?=\s|[a-z]|$)/i.exec(normaliserPourRecherche(texte(t))) || [])[1] || '';
+    return !!num(a) && num(a) === num(b) && memeAdresseApprocheeAuthentic(texte(a), texte(b));
+  }
+  function parcelleCommuneAuthentic(p1, p2) {
+    const cle = p => p && p.section && p.numero ? String(p.section).toUpperCase() + ' ' + String(p.numero).replace(/^0+/, '') : '';
+    const deux = new Set((p2 || []).map(cle).filter(Boolean));
+    return (p1 || []).some(p => deux.has(cle(p)));
   }
 
   // Pure : la lecture des comparants de ce côté n'y retrouve aucune personne de la fiche (aucun mot de nom en commun) — lecture ratée.

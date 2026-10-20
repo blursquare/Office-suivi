@@ -188,6 +188,9 @@ test('Relecture 0.292.1 : le voisin de la même rue n’est pas le bien du dossi
   assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: { texte: '4 Grande Rue 41290 VIEVY LE RAYE' }, parcelles: [] }), true, 'son bien');
   assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: { texte: '8 Grande Rue 41290 VIEVY LE RAYE' }, parcelles: [{ section: 'B', numero: '240' }] }), false, 'le voisin');
   assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: null, parcelles: [{ section: 'B', numero: '234' }] }), true, 'sans adresse : la parcelle');
+  const rural = Object.assign({}, d, { adresseBien: 'VIEVY-LE-RAYE (41290), Lieu-dit Les Bordes', bien: { cadastre: { parcelles: [{ section: 'ZA', numero: '12' }] } }, authentic: {} });
+  assert.equal(app.bienDuDossierSurAuthentic(rural, { adresse: { texte: '8 Lieu-dit Les Bordes 41290 VIEVY LE RAYE' }, parcelles: [{ section: 'ZA', numero: '13' }] }), false, 'voisin du lieu-dit');
+  assert.equal(app.bienDuDossierSurAuthentic(rural, { adresse: { texte: 'Lieu-dit Les Bordes 41290 VIEVY LE RAYE' }, parcelles: [{ section: 'ZA', numero: '12' }] }), true, 'même parcelle');
   assert.equal(app.comparantsCoteIllisiblesAuthentic(d, 'VENDEUR'), false, 'Mme DUPONT est lue : Paul reste écarté');
   const rate = Object.assign({}, d, { authentic: { comparants: [{ nom: 'SCI LES TILLEULS', role: 'VENDEUR' }] } });
   assert.equal(app.comparantsCoteIllisiblesAuthentic(rate, 'VENDEUR'), true, 'personne de la fiche dans les comparants lus : lecture ratée');
