@@ -21254,3 +21254,4 @@ Relecture 0.297.0, corrigé : un clic dans la liste des résultats (barre de dé
 
 ### 20/10 nuit — Fiche d'une vente : pièces sur trois colonnes, Dossier sur deux colonnes, outils en avant (0.297.1)
 Étude : « Pour les ventes : mets les pièces sur trois colonnes. Dossier : mets responsable et ce qui suit sur deux colonnes. Sors les outils et le [courrier] en dessous de ces deux colonnes et mets-les plus en avant. » Lu ainsi : « le » = la ligne « Courriers » (Constitution de dossier), sortie avec les outils. `renderProprietesDossier` (client/23), `renderChecklistPieces` (client/27), CSS `.pieces-3col`, `.fiche-droite-colonnes`, `.fiche-outils-bloc`. Vérifié sur capture à 1 600 px : colonne des notaires un peu serrée (noms d'office abrégés par « … »).
+Réglage après capture à 1 366 px : les deux colonnes de droite de l'onglet Dossier ne s'appliquent qu'à partir de 1 440 px de fenêtre (noms de notaires coupés en dessous).
