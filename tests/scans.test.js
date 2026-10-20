@@ -307,32 +307,40 @@ test('le type d’une pièce est lu sur la première page en entier (étude 20/1
   assert.equal(type(app, long), 'rib');
 });
 
-test('Claire Scan : le dessin attend le relâchement du bouton (second clic sur Ranger)', () => {
+test('Claire Scan : le dessin attend le relâchement du bouton (second clic sur Ranger), jamais plus de 2 s', () => {
+  const app = chargerApplication();
+  app.pointeurEnfonceScans = true;
+  app.depuisPointeurScans = Date.now();
+  app.redessinerApresClicScans = false;
+  app.renderScans();
+  assert.equal(app.redessinerApresClicScans, true);
+  app.redessinerApresClicScans = false;
+  app.depuisPointeurScans = Date.now() - 5000;
+  app.renderScans();
+  assert.equal(app.redessinerApresClicScans, false);
   const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'client', '42-claire-scan.js'), 'utf8');
-  assert.match(src, /pointeurEnfonceScans\) \{ redessinerApresClicScans = true; return; \}/);
   assert.match(src, /Non rangés/);
   assert.match(src, /Historique/);
 });
 
-test('catégories ajoutées : leurs mots font reconnaître la pièce, elles se retirent proprement, sans mots = à la main', () => {
+test('page 1 entière : une facture dont le pied de page cite un IBAN ou une décennale reste une facture (relecture 20/10)', () => {
   const app = chargerApplication();
-  app.etatScans.categories = [
-    { id: 'c-maint-1', label: 'Contrat de maintenance', rubrique: 'AAE', mots: ['Contrat de maintenance'] },
-    { id: 'c-libre-2', label: 'Pièce libre', rubrique: '', mots: [] }
-  ];
-  app.appliquerCategoriesScan();
-  assert.equal(type(app, 'CONTRAT DE MAINTENANCE\nchaudière du bien'), 'perso-c-maint-1');
-  const t = app.TYPES_SCAN.find(x => x.cle === 'perso-c-maint-1');
-  assert.deepEqual(Array.from(t.rubriques), ['perso:AAE']);
-  assert.deepEqual(Array.from(app.TYPES_SCAN.find(x => x.cle === 'perso-c-libre-2').rubriques), []);
-  assert.equal(type(app, 'Pièce libre'), null);
-  app.etatScans.categories = [];
-  app.appliquerCategoriesScan();
-  assert.equal(app.TYPES_SCAN.some(x => x.perso), false);
-  assert.equal(type(app, 'CONTRAT DE MAINTENANCE'), null);
+  const corps = 'lorem ipsum '.repeat(200);
+  assert.equal(type(app, 'FACTURE n° 2026-14\nEntreprise Martin\n' + corps + '\nIBAN FR76 3000 1234'), 'facture');
+  assert.equal(type(app, 'FACTURE n° 2026-14\n' + corps + '\nGarantie décennale AXA'), 'facture');
+  assert.equal(type(app, 'Relevé d’identité bancaire\n' + corps + '\nfacture'), 'rib');
 });
 
-test('motsCategorieScanDepuisSaisie : virgules, points-virgules, trois lettres au moins', () => {
+test('catégorie supprimée : le scan qui l’avait choisie revient à « Autre pièce » ; modifiée : rubrique mise à jour', () => {
   const app = chargerApplication();
-  assert.deepEqual(Array.from(app.motsCategorieScanDepuisSaisie('a contrat, ab ;  entretien\nxyz')), ['a contrat', 'entretien', 'xyz']);
+  app.etatScans.categories = [{ id: 'c-a-1', label: 'Pièce A', rubrique: 'AAE', mots: [] }];
+  app.appliquerCategoriesScan();
+  app.lecturesScans.k1 = { choix: { type: 'perso-c-a-1', rubriques: ['perso:AAE'] } };
+  app.etatScans.categories = [{ id: 'c-a-1', label: 'Pièce A', rubrique: 'Travaux', mots: [] }];
+  app.appliquerCategoriesScan();
+  assert.deepEqual(Array.from(app.lecturesScans.k1.choix.rubriques), ['perso:Travaux']);
+  app.etatScans.categories = [];
+  app.appliquerCategoriesScan();
+  assert.equal(app.lecturesScans.k1.choix.type, '');
+  assert.deepEqual(Array.from(app.lecturesScans.k1.choix.rubriques), []);
 });

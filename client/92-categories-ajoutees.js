@@ -86,6 +86,14 @@ function typeScanDepuisCategorie(c) {
 function appliquerCategoriesScan() {
   for (let i = TYPES_SCAN.length - 1; i >= 0; i--) if (TYPES_SCAN[i].perso) TYPES_SCAN.splice(i, 1);
   (etatScans.categories || []).forEach(c => TYPES_SCAN.push(typeScanDepuisCategorie(c)));
+  // Les scans qui avaient choisi une catégorie supprimée ou modifiée : choix remis à « Autre pièce », ou rubrique mise à jour.
+  Object.keys(lecturesScans).forEach(k => {
+    const choix = lecturesScans[k] && lecturesScans[k].choix;
+    if (!choix || typeof choix.type !== 'string' || !choix.type.startsWith('perso-')) return;
+    const type = TYPES_SCAN.find(t => t.cle === choix.type);
+    choix.rubriques = type ? type.rubriques.slice() : [];
+    if (!type) choix.type = '';
+  });
 }
 
 async function enregistrerCategorieScan(valeurs, id) {

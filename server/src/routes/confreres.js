@@ -107,6 +107,8 @@ function creerRouteurConfreres(parametresRepo) {
 
   routeur.post('/repertoire', (req, res) => {
     const contact = assainirContact(req.body && req.body.contact);
+    // Un thème ajouté puis supprimé depuis un autre poste : le contact retombe dans « divers » plutôt que de disparaître.
+    if (contact && /^perso-/.test(contact.theme) && !parametresRepo.lireThemesRepertoire().some((t) => t.cle === contact.theme)) contact.theme = 'divers';
     if (!contact) return res.status(400).json({ erreur: 'Contact invalide : un organisme ou une personne est nécessaire.' });
     const contacts = parametresRepo.lireRepertoire();
     const existe = contacts.some((c) => c.id === contact.id);

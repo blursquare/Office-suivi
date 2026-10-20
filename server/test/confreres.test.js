@@ -277,4 +277,7 @@ test('thèmes du répertoire ajoutés : créés, renommés, jamais en double, su
   await appel('DELETE', '/api/repertoire/c-test-theme');
   assert.equal((await appel('DELETE', '/api/repertoire/themes/' + cle)).status, 200);
   assert.equal((await appel('DELETE', '/api/repertoire/themes/banquesPrets')).status, 404);
+  r = await appel('POST', '/api/repertoire', { contact: { id: 'c-orphelin', theme: 'perso-disparu', organisme: 'Cabinet Orphelin' } });
+  assert.equal((await r.json()).contacts.find((c) => c.id === 'c-orphelin').theme, 'divers');
+  await appel('DELETE', '/api/repertoire/c-orphelin');
 });

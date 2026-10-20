@@ -28,6 +28,7 @@
   // l'en-tête d'un courrier (« Objet : … ») ou le préambule d'un acte (« L'AN DEUX MILLE… Maître…
   // a reçu le présent acte… PROMESSE UNILATÉRALE DE VENTE »), pas assez pour atteindre le corps.
   var LONGUEUR_ENTETE_SCAN = 1500;
+  var LONGUEUR_ENTETE_FACTURE_SCAN = 600;
 
   // Types de pièces reconnus sur le haut de la première page, DANS L'ORDRE (le premier qui
   // correspond l'emporte : les plus spécifiques d'abord). `piece` = clé de la checklist quand la
@@ -113,11 +114,14 @@
     }
     let meilleur = null;
     let position = Infinity;
+    // Page entière lue (étude 20/10) : une facture dont le pied de page cite un IBAN ou une garantie décennale reste une facture —
+    // quand « facture » est dans l'en-tête, un autre type n'est retenu que s'il y figure aussi.
+    const limite = /\bfacture\b/.test(t.slice(0, LONGUEUR_ENTETE_FACTURE_SCAN)) ? LONGUEUR_ENTETE_FACTURE_SCAN : Infinity;
     for (const faible of [false, true]) {
       for (const ty of TYPES_SCAN) {
         if (!!ty.faible !== faible || (ty.exige && !ty.exige.test(t)) || (ty.refuse && ty.refuse.test(t))) continue;
         const m = ty.motif.exec(t);
-        if (m && m.index < position) { meilleur = ty; position = m.index; }
+        if (m && m.index < position && (faible || m.index < limite)) { meilleur = ty; position = m.index; }
       }
       if (meilleur) return meilleur;
     }
@@ -968,17 +972,20 @@
   // « change », qui redessine) remplace le bouton sous le doigt et le clic est perdu — d'où le second clic sur « Ranger » (étude 20/10).
   // Tant que le bouton est enfoncé dans la zone, le dessin attend le relâchement.
   var pointeurEnfonceScans = false;
+  var depuisPointeurScans = 0;
   var redessinerApresClicScans = false;
+  function rejouerDessinScans() {
+    if (!redessinerApresClicScans) return;
+    setTimeout(() => { if (redessinerApresClicScans && !pointeurEnfonceScans) { redessinerApresClicScans = false; renderScans(); } }, 0);
+  }
   if (typeof document !== 'undefined' && document.addEventListener) {
     document.addEventListener('pointerdown', (ev) => {
       const zone = document.getElementById('scans-contenu');
       pointeurEnfonceScans = !!(zone && ev.target && zone.contains(ev.target));
+      depuisPointeurScans = Date.now();
+      if (!pointeurEnfonceScans) rejouerDessinScans();
     }, true);
-    const fin = () => {
-      if (!pointeurEnfonceScans) return;
-      pointeurEnfonceScans = false;
-      if (redessinerApresClicScans) setTimeout(() => { if (redessinerApresClicScans) { redessinerApresClicScans = false; renderScans(true); } }, 0);
-    };
+    const fin = () => { pointeurEnfonceScans = false; rejouerDessinScans(); };
     document.addEventListener('pointerup', fin, true);
     document.addEventListener('pointercancel', fin, true);
   }
@@ -986,7 +993,8 @@
   function renderScans(force) {
     const zone = document.getElementById('scans-contenu');
     if (!zone) return;
-    if (pointeurEnfonceScans) { redessinerApresClicScans = true; return; }
+    // Un relâchement avalé (liste native d'un <select>, changement de fenêtre) ne fige pas l'écran : 2 s au plus.
+    if (pointeurEnfonceScans && Date.now() - depuisPointeurScans < 2000) { redessinerApresClicScans = true; return; }
     redessinerApresClicScans = false;
     // Ne pas redessiner sous les doigts de quelqu'un qui tape le nom de la copie (sauf après un
     // clic sur Ranger ou Laisser dans Scan : l'indicateur doit apparaître tout de suite).
