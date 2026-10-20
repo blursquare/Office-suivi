@@ -146,6 +146,14 @@ test('maison de retraite du répertoire : seulement celle que le domicile du dé
   assert.equal(app.contactPreferePourDefuntConstitution('ehpad', contacts, { domicile: 'BLOIS (41000), 8 rue des Lilas' }), null, 'domicile sans établissement : rien d’office');
   assert.equal(app.contactPreferePourDefuntConstitution('ehpad', [contacts[0]], { domicile: 'VINEUIL (41350), EHPAD Les Roses, 2 rue Haute' }), null, 'jamais la seule du répertoire par défaut');
   assert.equal(app.candidatsRepertoireConstitution('ehpad', contacts).map(c => c.id).join(','), 'm1,m2', 'proposées au choix');
+  // Relecture 20/10 : ni un nom seulement contenu dans celui cité, ni une autre commune, ni le nom d'une rue.
+  const vineuil = [{ id: 'v', theme: 'maisonsRetraite', organisme: 'EHPAD de Vineuil', adresse: '1 rue Haute, 41350 VINEUIL' }];
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', vineuil, { domicile: 'VINEUIL (41350), EHPAD Les Roses de Vineuil, 2 rue Haute' }), null);
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', contacts, { domicile: 'MER (41500), Résidence Les Tilleuls, Bât B, 10 rue Nationale' }), null, 'autre commune');
+  const mail = [{ id: 'l', theme: 'maisonsRetraite', organisme: 'EHPAD Le Mail', adresse: '2 rue de la Mairie, 41000 BLOIS' }];
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', mail, { domicile: 'MER (41500), Résidence Les Lilas, 2 rue de la Mairie' }), null, 'même voie, autre commune');
+  assert.equal(app.etablissementDansDomicileConstitution('ROMORANTIN (41200), 12 rue de la Clinique'), null, 'une rue n’est pas un établissement');
+  assert.equal(app.etablissementDansDomicileConstitution('BLOIS (41000), 3 avenue de l’Hôpital'), null);
 });
 
 test('retenirImmeublesAuthentic : tous les articles du dossier Authentic gardés', () => {

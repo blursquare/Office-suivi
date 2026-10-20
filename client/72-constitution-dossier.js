@@ -164,7 +164,8 @@
 
   // Pure : l'établissement cité dans le domicile du défunt (« EHPAD La Bonne Eure, 31 rue de Candy ») → { nom, lignes } ou null.
   function etablissementDansDomicileConstitution(domicile) {
-    const m = /((?:EHPAD|E\.H\.P\.A\.D\.?|R[ée]sidence|Maison de retraite|Foyer|Clinique|H[ôo]pital)[^,]*)(?:,\s*(.+))?$/i.exec(String(domicile || '').trim());
+    // Jamais le nom d'une voie (« 12 rue de la Clinique », « avenue de l'Hôpital ») : relecture 20/10.
+    const m = /(?<!(?:rue|avenue|av\.?|boulevard|bd|chemin|route|all[ée]e|place|impasse|quai)\s+(?:(?:de la|de l'|de l’|du|des|de)\s*)?)((?:EHPAD|E\.H\.P\.A\.D\.?|R[ée]sidence|Maison de retraite|Foyer|Clinique|H[ôo]pital)[^,]*)(?:,\s*(.+))?$/i.exec(String(domicile || '').trim());
     if (!m) return null;
     const reste = String(m[2] || '').trim();
     const avantEtablissement = String(domicile).slice(0, m.index).replace(/[,\s]+$/, '').trim();
@@ -208,8 +209,13 @@
     if (!etab) return null;
     const mots = (t) => normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, ' ').split(' ')
       .filter(m => m.length >= 3 && !/^(ehpad|residence|maison|retraite|foyer|clinique|hopital|les|des|del|aux)$/.test(m));
+    // Même code postal exigé (une « Résidence Les Tilleuls » de Mer n'est pas celle de Blois) ; nom aux MÊMES mots distinctifs.
+    const cp = (t) => ((String(t || '').match(/\b\d{5}\b/g) || []).slice(-1)[0] || '');
+    const cpDefunt = cp(domicile);
+    if (!cpDefunt) return null;
+    candidats = candidats.filter(c => cp(c.adresse) === cpDefunt);
     const cite = new Set(mots(etab.nom));
-    const parNom = candidats.filter(c => { const m = mots(c.organisme); return m.length && m.every(x => cite.has(x)); });
+    const parNom = candidats.filter(c => { const m = new Set(mots(c.organisme)); return m.size && m.size === cite.size && [...m].every(x => cite.has(x)); });
     if (parNom.length === 1) return parNom[0];
     if (parNom.length > 1) return null;
     const voie = (t) => { const x = /(\d{1,4})\s*(?:bis|ter)?\s*,?\s*((?:rue|avenue|av|bd|boulevard|chemin|route|allee|place|impasse|quai)\b[^,]*)/.exec(normaliserPourRecherche(String(t || ''))); return x ? x[1] + ' ' + x[2].trim() : ''; };
@@ -418,7 +424,8 @@
       if (!contact && retenue && retenue.lignes && retenue.lignes.length) { lignes = retenue.lignes.slice(); origine = 'Adresse retenue par l’étude'; }
       const horsDep = !contact && m && m.destinataire.length && dep && dep !== '41' && ['impots', 'cpam', 'msa', 'carsat'].includes(modele);
       // Par email dès qu'une adresse est connue (étude 15/10 : banques, impôts, CARSAT, MSA « quasiment que par mail ») ; sinon papier.
-      const contactRetenu = ancien && ancien.contactId ? contacts.find(c => c && c.id === ancien.contactId) : contact;
+      // Un contact repris d'un ancien calcul seulement s'il a été choisi à la main : posé d'office, il suit le domicile du défunt.
+      const contactRetenu = ancien && ancien.contactId && ancien.modifie ? contacts.find(c => c && c.id === ancien.contactId) : contact;
       let emails = contactRetenu ? emailsContactConstitution(contactRetenu) : (retenue && retenue.courriel ? [{ libelle: '', adresse: retenue.courriel }] : []);
       // CARSAT, défunt du Loir-et-Cher ou du Loiret (ou domicile inconnu) : l'adresse des premières demandes des notaires (étude 18/10).
       if (modele === 'carsat' && (!dep || dep === '41' || dep === '45')) {
@@ -427,7 +434,7 @@
       const envoi = ancien && ancien.modeChoisi ? { mode: ancien.mode, courriel: ancien.courriel } : { mode: emails.length ? 'courriel' : 'papier', courriel: emails.length ? emails[0].adresse : '' };
       return { id, genre: 'succession', modele, libelle: m ? m.libelle : modele, mode: envoi.mode, courriel: envoi.courriel, emails, modeChoisi: !!(ancien && ancien.modeChoisi), note: horsDep ? 'Adresse type du Loir-et-Cher : à vérifier pour un défunt domicilié ailleurs.' : '', destinataire: modele,
         actif: ancien ? ancien.actif : ORDRE_SUCCESSION_PAR_DEFAUT.includes(modele), lignes: ancien && ancien.modifie ? ancien.lignes : lignes, origine: ancien && ancien.modifie ? 'Saisi à la main' : origine,
-        modifie: !!(ancien && ancien.modifie), contactId: ancien && ancien.contactId ? ancien.contactId : (contact ? contact.id : ''), retouches: ancien && ancien.retouches ? ancien.retouches : undefined };
+        modifie: !!(ancien && ancien.modifie), contactId: ancien && ancien.contactId && ancien.modifie ? ancien.contactId : (contact ? contact.id : ''), retouches: ancien && ancien.retouches ? ancien.retouches : undefined };
     };
     const docs = [];
     ORDRE_SUCCESSION_PAR_DEFAUT.forEach(modele => docs.push(construire(modele, 1)));
