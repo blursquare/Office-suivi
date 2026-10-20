@@ -86,7 +86,7 @@ function tachesActePret(d, aujourdhuiIso) {
       const lu = etatActePretAuthentic(d);
       out.push({
         type: 'actePret', categorie: 'pret', categorieLabel: 'Acte de prêt',
-        titre: 'Faire rédiger l’acte de prêt',
+        titre: 'Rédiger l’acte de prêt',
         contexte: `Prêt garanti par ${hyp} : en participation, c’est notre office qui rédige l’acte de prêt. ${lu ? `Authentic (vu ${quandJour(lu.vuLe, aujourdhuiIso)}) : ${lu.libelle.toLowerCase()}.` : 'Rien lu dans le sous-dossier prêt d’Authentic.'}`,
         jours: j, gravite, geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche',
         second: { type: 'marquer', champ: 'actePret', libelle: 'Déjà fait' }
