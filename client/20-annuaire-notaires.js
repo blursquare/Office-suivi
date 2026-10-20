@@ -1166,6 +1166,7 @@
           // Rattaché au dossier dans le stock de l'agenda dès la création (audit 12/10 : sans eux, l'agenda des postes ne le
           // reconnaissait comme signature qu'au tour de lecture suivant).
           signature: true, dossierId: d.id, dossierNom: d.nom,
+          adresseConfrere: typeRdv === 'confrere' ? adresseOfficeConfrereDossier(d) : '',
           corps: 'Rendez-vous de signature créé depuis CLAIRE.'
         })
       });
@@ -1182,7 +1183,7 @@
         sauvegarder(d);
         rdvAgendaOuvert = false;
         render();
-        afficherToast(corps.message || 'Rendez-vous créé dans l\'agenda.', 'OK', null);
+        afficherToast(`${corps.message || 'Rendez-vous créé dans l\'agenda.'}${texteTrajetsPoses(corps.trajets)}`, 'OK', null);
       } else {
         afficherToast(corps.message || 'La création du rendez-vous a échoué.', 'OK', null);
       }

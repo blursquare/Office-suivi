@@ -737,7 +737,27 @@
   // celle de l'étude ; sans étude reconnue sur la fiche, seulement s'il n'y a qu'un nom possible.
   // Pure, testable. '' quand aucun autre office n'intervient.
   function confrereLieuAgenda(d) {
-    if (!d) return '';
+    const c = notaireConfrereDossier(d);
+    if (!c) return '';
+    const court = nomConfrereCourt(c.nom);
+    if (!court) return '';
+    const recoitActe = d.coteInstrumentaire ? d.coteInstrumentaire === c.cote : d.roleNotaire === 'participant';
+    return `${court} ${recoitActe ? 'en 1er' : 'en 2nd'}`;
+  }
+
+  // Adresse de l'office du confrère d'après l'annuaire (« 50 rue de Genève, 01800 Meximieux ») : la distance des trajets d'un
+  // rendez-vous chez lui (étude 20/10). '' quand l'annuaire ne désigne pas un seul office.
+  function adresseOfficeConfrereDossier(d) {
+    const c = notaireConfrereDossier(d);
+    const t = c ? trouverOfficeConfrere(c.nom, carnetConfreres) : null;
+    const o = t && t.office;
+    return o && o.adresse && /^\d{5}$/.test(String(o.codePostal || '')) ? `${o.adresse}, ${o.codePostal} ${o.ville || ''}`.trim() : '';
+  }
+
+  // Pure : le notaire confrère d'un dossier — nom et côté (« vendeur »/« acquereur ») — ou null : l'autre côté que l'étude, sinon le
+  // seul notaire qui n'est pas l'étude.
+  function notaireConfrereDossier(d) {
+    if (!d) return null;
     const cote = coteEtudeDossier(d);
     let coteConfrere = cote === 'vendeur' ? 'acquereur' : (cote === 'acquereur' ? 'vendeur' : null);
     if (!coteConfrere) {
@@ -745,15 +765,12 @@
         const n = c === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
         return n && !estEtude({ nom: n });
       });
-      if (autres.length !== 1) return '';
+      if (autres.length !== 1) return null;
       coteConfrere = autres[0];
     }
     const nom = coteConfrere === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur;
-    if (!nom || estEtude({ nom })) return '';
-    const court = nomConfrereCourt(nom);
-    if (!court) return '';
-    const recoitActe = d.coteInstrumentaire ? d.coteInstrumentaire === coteConfrere : d.roleNotaire === 'participant';
-    return `${court} ${recoitActe ? 'en 1er' : 'en 2nd'}`;
+    if (!nom || estEtude({ nom })) return null;
+    return { nom, cote: coteConfrere };
   }
 
   // Lieu d'un rendez-vous créé par CLAIRE : « BA - Me DURAND en 2nd - Appel de fonds envoyé » —

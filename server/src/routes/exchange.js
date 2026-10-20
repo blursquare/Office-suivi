@@ -25,6 +25,8 @@ const {
 const { extraireReferenceVte, dossierPourReferenceAgenda, composerLieuAgenda } = require('../agendaOffice');
 const { URL_EWS_DEFAUT } = require('../parametresRepo');
 const { noterVerification } = require('../verificationsTerrain');
+const { titreTrajet, estTitreTrajet, creneauxTrajet, DUREE_TRAJET_MINUTES } = require('../../../commun/trajets');
+const { adresseOffice, adresseValide, distanceRouteKm, lireLiensTrajets, ecrireLiensTrajets, horairesTrajetsAutour } = require('../trajetsAgenda');
 
 // Un événement « VTE - … » est-il celui du dossier ? Avec la liste des dossiers en cours
 // (`contexte.actifs`) et l'identifiant du dossier (`contexte.dossierId`), l'événement doit être
@@ -97,10 +99,26 @@ function reglagesExchangePublics(reglages) {
 
 // `injections.poster` : faux transport EWS pour les tests (notes et modification d'un rendez-vous).
 // Suppression avec suivi du repli « SoftDelete » (vérifications sur le terrain, verificationsTerrain.js).
-async function supprimerAvecSuiviRepli(parametresRepo, args) {
-  const r = await supprimerEcheanceExchange(args);
+async function supprimerAvecSuiviRepli(parametresRepo, args, injections) {
+  const r = await supprimerEcheanceExchange(args, injections);
   if (r && r.repli === 'SoftDelete') noterVerification(parametresRepo, 'agenda-soft-delete', r.ok ? {} : { ok: false, message: r.message });
   return r;
+}
+
+// Pure : « AAAA-MM-JJ » et « HH:MM » à Paris d'un instant EWS.
+function momentParisInstant(iso) {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return null;
+  const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, heure: `${p.hour}:${p.minute}` };
+}
+
+// Pure : la catégorie envoyée est-elle celle des rendez-vous chez un confrère (orange, réglable) ? Un trajet ne fait jamais de trajet.
+function rendezVousChezConfrere(reglages, categorie, sujet) {
+  const norm = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+  const confrere = norm(reglages && reglages.categoriesRdv && reglages.categoriesRdv.confrere);
+  return !!confrere && norm(categorie) === confrere && !estTitreTrajet(sujet);
 }
 
 function creerRouteurExchange(parametresRepo, injections = {}) {
@@ -209,10 +227,106 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         signature: b.signature === true, dossierId: b.dossierId || null, dossierNom: b.dossierNom || null, creeDansClaire: true
       });
     }
+    // Chez un confrère (étude 20/10) : une demi-heure de trajet avant et après, « Trajet - N km ».
+    const trajets = resultat.ok && resultat.itemId && rendezVousChezConfrere(reglages, b.categorie, sujet)
+      ? await poserTrajets(reglages, { itemId: resultat.itemId, dateStr, heureStr, dureeMinutes, categorie: categorieValide(b.categorie), adresseConfrere: adresseValide(b.adresseConfrere) })
+      : null;
     // L'identifiant de l'événement : le client le garde pour pouvoir le retirer ou le déplacer.
     res.json({ ok: !!resultat.ok, message: resultat.message, raison: resultat.raison || '',
-      itemId: resultat.itemId || '', changeKey: resultat.changeKey || '' });
+      itemId: resultat.itemId || '', changeKey: resultat.changeKey || '', ...(trajets ? { trajets } : {}) });
   });
+
+  // Les deux trajets d'un rendez-vous chez un confrère : distance par la route (IGN) entre notre office et le sien, puis deux
+  // rendez-vous d'une demi-heure, même couleur, sans rappel. Un seul essai chacun ; un échec n'empêche pas le rendez-vous.
+  async function poserTrajets(reglages, { itemId, dateStr, heureStr, dureeMinutes, categorie, adresseConfrere }) {
+    const creneaux = creneauxTrajet(heureStr, dureeMinutes);
+    if (!creneaux) return { poses: 0, km: null, message: 'trajets hors de la journée' };
+    let km = null;
+    let raisonKm = adresseConfrere ? '' : 'adresse de l’office du confrère inconnue';
+    if (adresseConfrere) {
+      const d = await distanceRouteKm(adresseOffice(), adresseConfrere, injections);
+      if (d.ok) km = d.km; else raisonKm = d.message;
+      noterVerification(parametresRepo, 'trajet-km-ign', d.ok ? { detail: 'distance par la route lue sur l’IGN' } : { ok: false, message: d.message });
+    }
+    const titre = titreTrajet(km);
+    const lies = [];
+    for (const sens of ['aller', 'retour']) {
+      const c = creneaux[sens];
+      const r = await creerRendezVousExchange({
+        url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse,
+        rendezVous: {
+          sujet: titre, dateStr, heureStr: c.heure, dureeMinutes: DUREE_TRAJET_MINUTES, lieu: '', categorie, mailbox: reglages.calendrierPartage, sansRappel: true,
+          corps: `Trajet ${sens === 'aller' ? 'aller vers' : 'retour depuis'} l’office du confrère${km ? ` (${km} km par la route depuis l’office)` : ''}, posé par CLAIRE avec le rendez-vous.`
+        }
+      }, injections);
+      if (!r.ok || !r.itemId) continue;
+      lies.push({ itemId: r.itemId, changeKey: r.changeKey || '', sens });
+      if (typeof parametresRepo.ajouterEvenementAgendaOffice === 'function') {
+        parametresRepo.ajouterEvenementAgendaOffice({
+          itemId: r.itemId, changeKey: r.changeKey || '', sujet: titre, lieu: '', date: dateStr, heure: c.heure, heureFin: c.heureFin,
+          categories: categorie ? [categorie] : [], signature: false, dossierId: null, dossierNom: null, creeDansClaire: true
+        });
+      }
+    }
+    if (lies.length) {
+      const liens = lireLiensTrajets(parametresRepo);
+      liens[itemId] = { trajets: lies, km, le: new Date().toISOString() };
+      ecrireLiensTrajets(parametresRepo, liens);
+    }
+    noterVerification(parametresRepo, 'trajets-confrere-poses', lies.length === 2 ? { detail: 'deux trajets posés autour du rendez-vous' } : { ok: false, message: 'trajet non créé dans l’agenda' });
+    return { poses: lies.length, km, ...(raisonKm ? { raisonKm } : {}) };
+  }
+
+  // Le rendez-vous est retiré : ses trajets aussi (éléments supprimés, récupérables). Rien n'est rendu : le geste principal a réussi.
+  async function retirerTrajetsLies(reglages, itemId) {
+    const liens = lireLiensTrajets(parametresRepo);
+    const lien = liens[itemId];
+    if (!lien) return 0;
+    let n = 0;
+    for (const t of lien.trajets) {
+      const r = await supprimerEcheanceExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: t.itemId, changeKey: t.changeKey }, injections);
+      if (r.ok) n++;
+      if ((r.ok || r.introuvable) && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(t.itemId);
+    }
+    delete liens[itemId];
+    ecrireLiensTrajets(parametresRepo, liens);
+    return n;
+  }
+
+  // Le rendez-vous est déplacé (nouveau début et nouvelle fin, instants EWS) : ses trajets le suivent, collés avant et après.
+  async function deplacerTrajetsLies(reglages, ancienId, nouvelId, debut, fin) {
+    const liens = lireLiensTrajets(parametresRepo);
+    const lien = liens[ancienId];
+    const horaires = lien ? horairesTrajetsAutour(debut, fin) : null;
+    if (!lien || !horaires) return 0;
+    let n = 0;
+    const restants = [];
+    for (const t of lien.trajets) {
+      const h = horaires[t.sens];
+      const r = await deplacerRendezVousExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: t.itemId, changeKey: t.changeKey, debut: h.debut, fin: h.fin }, injections);
+      if (!r.ok) {
+        // Trajet effacé à la main dans Outlook : oublié ; autre échec : gardé pour le prochain geste.
+        if (!r.introuvable) restants.push(t);
+        continue;
+      }
+      n++;
+      const nouveau = { itemId: r.itemId || t.itemId, changeKey: r.changeKey || '', sens: t.sens };
+      restants.push(nouveau);
+      const a = momentParisInstant(h.debut);
+      const z = momentParisInstant(h.fin);
+      if (a && z && typeof parametresRepo.lireAgendaOffice === 'function') {
+        const stocke = ((parametresRepo.lireAgendaOffice() || {}).evenements || []).find((e) => e.itemId === t.itemId);
+        if (stocke) {
+          parametresRepo.retirerEvenementAgendaOffice(t.itemId);
+          parametresRepo.ajouterEvenementAgendaOffice({ ...stocke, itemId: nouveau.itemId, changeKey: nouveau.changeKey, date: a.date, dateFin: a.date, heure: a.heure, heureFin: z.heure });
+        }
+      }
+    }
+    delete liens[ancienId];
+    if (restants.length) liens[nouvelId || ancienId] = { ...lien, trajets: restants };
+    ecrireLiensTrajets(parametresRepo, liens);
+    return n;
+  }
 
   // Retire de l'agenda le rendez-vous de signature d'un dossier, quand l'étude le supprime dans
   // CLAIRE (demandé par l'étude). MoveToDeletedItems : il se récupère dans les éléments supprimés.
@@ -248,8 +362,9 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (choix.plusieurs) {
       return res.json({ ok: false, message: 'Plusieurs rendez-vous correspondent à cette date : aucun retiré, faites-le à la main dans Outlook.' });
     }
-    const r = await supprimerAvecSuiviRepli(parametresRepo, { ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey });
+    const r = await supprimerAvecSuiviRepli(parametresRepo, { ...acces, itemId: choix.evt.itemId, changeKey: choix.evt.changeKey || changeKey }, injections);
     if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(choix.evt.itemId);
+    if (r.ok) await retirerTrajetsLies(reglages, choix.evt.itemId);
     res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous retiré de l'agenda de l'office." : r.message, raison: r.raison || '' });
   });
 
@@ -270,9 +385,10 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     if (!itemId) return res.status(400).json({ ok: false, message: 'Rendez-vous non désigné.' });
     const r = await supprimerAvecSuiviRepli(parametresRepo, {
       url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId, changeKey: String(b.changeKey || '').trim()
-    });
+    }, injections);
     if (r.ok && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(itemId);
-    res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous supprimé de l'agenda de l'office." : r.message, raison: r.raison || '' });
+    const trajetsRetires = r.ok ? await retirerTrajetsLies(reglages, itemId) : 0;
+    res.json({ ok: !!r.ok, message: r.ok ? "Rendez-vous supprimé de l'agenda de l'office." : r.message, raison: r.raison || '', trajetsRetires });
   });
 
   // Notes d'un rendez-vous = son corps dans Outlook (étude, 30/09). Lues à l'ouverture du rendez-vous
@@ -367,6 +483,13 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         });
       }
     }
+    // Trajets d'un rendez-vous chez un confrère : ils suivent l'horaire ; retirés s'il quitte la couleur du confrère ou devient
+    // une journée entière.
+    if (r.ok) {
+      const quitteConfrere = categories && !categories.some((c) => rendezVousChezConfrere(reglages, c, ''));
+      if (quitteConfrere || journeeEntiere) await retirerTrajetsLies(reglages, itemId.trim());
+      else await deplacerTrajetsLies(reglages, itemId.trim(), r.itemId || itemId.trim(), horaire.debut, horaire.fin);
+    }
     res.json({ ok: !!r.ok, message: r.message, raison: r.raison || '', introuvable: !!r.introuvable,
       itemId: r.itemId || itemId.trim(), changeKey: r.changeKey || '' });
   });
@@ -416,6 +539,7 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         parametresRepo.ajouterEvenementAgendaOffice({ ...stocke, itemId: r.itemId || stocke.itemId, changeKey: r.changeKey || '', date: nouvelleDate, dateFin: nouvelleDate });
       }
     }
+    if (r.ok) await deplacerTrajetsLies(reglages, choix.evt.itemId, r.itemId || choix.evt.itemId, horaire.debut, horaire.fin);
     res.json({
       ok: !!r.ok, message: r.message, raison: r.raison || '', heure: r.ok ? horaire.heure : '',
       itemId: r.itemId || choix.evt.itemId, changeKey: r.changeKey || ''
@@ -543,4 +667,5 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
   return routeur;
 }
 
-module.exports = { heureFinDepuisDuree, creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, evenementDuDossier, URL_EWS_DEFAUT };
+module.exports = {
+  rendezVousChezConfrere, momentParisInstant, heureFinDepuisDuree, creerRouteurExchange, reglagesExchangePublics, choisirRendezVousDossier, evenementDuDossier, URL_EWS_DEFAUT };

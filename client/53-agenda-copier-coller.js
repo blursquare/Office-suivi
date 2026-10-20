@@ -65,6 +65,7 @@
         body: JSON.stringify({
           sujet, date: c.date, heure: c.heure, dureeMinutes: copie.dureeMinutes, lieu: copie.lieu, categorie: copie.categorie,
           signature: false, dossierId: d ? d.id : null, dossierNom: d ? d.nom : null,
+          adresseConfrere: d ? adresseOfficeConfrereDossier(d) : '',
           corps: copie.notes || 'Copie d’un rendez-vous, collée depuis l’agenda de CLAIRE.'
         })
       });

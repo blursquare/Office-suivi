@@ -50,6 +50,9 @@ const DOSSIERS = [
   // Succession.
   base({ id: 'succ', nom: 'BERNARD', typeAffaire: 'succession', sansPret: true, referenceAuthentic: 'A 2026 00330', typeVente: '',
     parties: [{ role: 'PARTIE', nom: 'BERNARD', prenom: 'Lucie' }], biens: [] }),
+  // Le 20/10 (succession BARBOSA-ANTUNES) : succession rattachée par sa référence, aucun bien encore.
+  base({ id: 'barbosa', nom: 'BARBOSA-ANTUNES', typeAffaire: 'succession', sansPret: true, referenceAuthentic: 'A 2026 00900', typeVente: '',
+    parties: [{ role: 'PARTIE', nom: 'BARBOSA-ANTUNES', prenom: 'Maria' }], biens: [] }),
   // Ancien dossier signé des mêmes clients (archivé) et le nouveau.
   base({ id: 'ancien', nom: 'PETIT / BOSQUET', referenceAuthentic: 'A 2024 00050', archive: true, archiveLe: dans(-400), adresseBien: 'BLOIS (41000), 1 rue Ancienne',
     parties: [{ role: 'VENDEUR', nom: 'PETIT', prenom: 'Luc' }, { role: 'ACQUEREUR', nom: 'BOSQUET', prenom: 'Anne' }] }),
@@ -565,6 +568,23 @@ try {
     const fiche = Object.values((d.authentic && d.authentic.fichesClients) || {}).find(x => /TILLEULS/.test(x.nom)) || {};
     constat(S, e.dossierId === 'sci' && fiche.siren === '123456789', `fiche de la SCI : ${e.etat} → ${e.dossierId || '—'} ; SIREN ${fiche.siren || '—'} (${e.texte || ''})`);
     constat(S, (d.parties || []).some(p => /TILLEULS/.test(p.nom) && p.qualitePersonne === 'morale') && /sci-tilleuls/.test(d.emailVendeur || ''), `partie société, email vendeur « ${d.emailVendeur || ''} »`);
+  }
+  // 37. Le 20/10 (succession BARBOSA-ANTUNES) : la page de la succession (par sa référence) n'annonce pas l'adresse du bien ; la fiche du
+  // bien, ouverte dans son propre onglet, était « non rangée ». Elle demande désormais d'un clic si c'est le bien de cette succession.
+  {
+    const S = '37. Succession : fiche bien dans son onglet, bien pas encore connu';
+    await envoyer(pageDossier({ ref: 'A 2026 00900', intitule: 'SUCC BARBOSA-ANTUNES Maria', sous: '1 - Succession Maria BARBOSA-ANTUNES',
+      comparants: [['Mme BARBOSA-ANTUNES Maria', 'Défunt']], immeubles: [] }));
+    const e = await envoyer(ficheBien({ type: 'Maison individuelle', numero: '9', typeVoie: 'allée', voie: 'des Roses', cpVille: '41000 BLOIS', parcelles: [['AR', '120']], ongletActif: '9 allée des Roses' }));
+    constat(S, e.etat === 'a-confirmer', `fiche du bien : ${e.etat} (${e.texte || ''})`);
+    const toast = await page.textContent('#toast-message').catch(() => '');
+    constat(S, /BARBOSA/.test(toast || ''), 'question posée pour la succession : ' + toast);
+    await page.click('#toast-undo-btn').catch(() => {});
+    let d = await lire('barbosa');
+    for (let i = 0; i < 40 && !/AR120|AR 120/.test(JSON.stringify(d.biens || []) + JSON.stringify((d.authentic || {}).immeubles || [])); i++) { await pause(150); d = await lire('barbosa'); }
+    constat(S, /Roses/.test(JSON.stringify(d.biens || []) + JSON.stringify((d.authentic || {}).immeubles || [])), `après « Oui » : biens ${(d.biens || []).map(b => b.adresse).join(' | ') || 'aucun'}`);
+    const e2 = await envoyer(ficheBien({ type: 'Maison individuelle', numero: '9', typeVoie: 'allée', voie: 'des Roses', cpVille: '41000 BLOIS', parcelles: [['AR', '120'], ['AR', '121']], ongletActif: '9 allée des Roses' }));
+    constat(S, e2.dossierId === 'barbosa' || e2.etat === 'sans-changement', `revue ensuite sans question : ${e2.etat} → ${e2.dossierId || '—'}`);
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
   {

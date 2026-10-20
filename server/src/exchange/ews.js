@@ -86,7 +86,8 @@ function formatEwsUtc(date) {
 // UTC fourni, pour que l'affichage tombe sur la bonne heure locale dans Outlook.
 // `provisoire` : option d'un sondage de créneaux — « Provisoire » (Tentative) dans Outlook, sans
 // rappel.
-function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox, categorie, provisoire }) {
+// `sansRappel` : trajet autour d'un rendez-vous chez un confrère (étude 20/10) — le rappel est celui du rendez-vous.
+function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, corps, mailbox, categorie, provisoire, sansRappel }) {
   const debut = instantUtcDepuisParis(dateStr, heureStr);
   const fin = new Date(debut.getTime() + (dureeMinutes > 0 ? dureeMinutes : 60) * 60000);
   return '<?xml version="1.0" encoding="utf-8"?>'
@@ -104,8 +105,8 @@ function corpsCreateRendezVous({ sujet, dateStr, heureStr, dureeMinutes, lieu, c
     // vient de la liste des catégories de la boîte : un nom qu'elle ne connaît pas s'affiche sans
     // couleur, d'où des noms réglables dans CLAIRE.
     + (categorie ? '<t:Categories><t:String>' + echapperXml(categorie) + '</t:String></t:Categories>' : '')
-    + '<t:ReminderIsSet>' + (provisoire ? 'false' : 'true') + '</t:ReminderIsSet>'
-    + (provisoire ? '' : '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>')
+    + '<t:ReminderIsSet>' + (provisoire || sansRappel ? 'false' : 'true') + '</t:ReminderIsSet>'
+    + (provisoire || sansRappel ? '' : '<t:ReminderMinutesBeforeStart>1440</t:ReminderMinutesBeforeStart>')
     + '<t:Start>' + formatEwsUtc(debut) + '</t:Start>'
     + '<t:End>' + formatEwsUtc(fin) + '</t:End>'
     + '<t:IsAllDayEvent>false</t:IsAllDayEvent>'

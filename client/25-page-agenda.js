@@ -186,8 +186,14 @@
   // Le temps d'envoyer l'appel de fonds (dû 10 jours avant le rendez-vous) et le projet avant la signature.
   var DELAI_MIN_SIGNATURE_JOURS = 14;
 
-  // Pure : les rendez-vous horaires d'un jour (hors journées entières), comme le compte la règle des 6.
+  // Pure : les rendez-vous horaires d'un jour (hors journées entières), comme le compte la règle des 6 — sans les trajets d'un
+  // rendez-vous chez un confrère (étude 20/10 : « ne pas prendre en compte ces deux créneaux dans le nombre de rendez-vous »).
   function rendezVousHorairesJour(evenements, iso) {
+    return occupationsHorairesJour(evenements, iso).filter(e => !estTitreTrajet(e.sujet));
+  }
+
+  // Pure : tout ce qui occupe une heure du jour, trajets compris — un créneau proposé ne les chevauche jamais.
+  function occupationsHorairesJour(evenements, iso) {
     return evenementsJourAgenda(evenements, iso).filter(e => !e.journeeEntiere && e.heure && e.date === iso);
   }
 
@@ -245,7 +251,7 @@
     const libreLe = (iso, heures, exceptionnel) => {
       const horaires = rendezVousHorairesJour(evenements, iso);
       if (!exceptionnel && horaires.length >= MAX_RDV_JOUR) return null;
-      const pris = horaires.map(e => {
+      const pris = occupationsHorairesJour(evenements, iso).map(e => {
         const a = minutesHeure(e.heure);
         let b = minutesHeure(e.heureFin);
         if (b === null || b <= a) b = a + 30;
@@ -2359,6 +2365,14 @@
     else creer();
   }
 
+  // Pure : la suite du message après la création d'un rendez-vous chez un confrère — ce que sont devenus ses trajets (étude 20/10).
+  function texteTrajetsPoses(t) {
+    if (!t) return '';
+    if (!t.poses) return ' Trajets non posés dans l’agenda.';
+    const n = t.poses === 2 ? 'Trajets avant et après posés' : 'Un seul trajet posé';
+    return t.km ? ` ${n} (${t.km} km).` : ` ${n}, distance non lue${t.raisonKm ? ` : ${t.raisonKm}` : ''}.`;
+  }
+
   // Pure : un titre qui porte « ? » (hors adresse web) est un rendez-vous à confirmer — même règle que la lecture de l'agenda
   // par le serveur (estRendezVousSignature) : jamais une date de signature.
   function titreRendezVousProvisoire(sujet) {
@@ -2378,6 +2392,8 @@
         body: JSON.stringify({
           sujet, date, heure, dureeMinutes, lieu, categorie, signature,
           dossierId: dossier ? dossier.id : null, dossierNom: dossier ? dossier.nom : null,
+          // Chez un confrère : son adresse, pour les kilomètres des trajets que le serveur pose avant et après (étude 20/10).
+          adresseConfrere: typeRdv === 'confrere' && dossier ? adresseOfficeConfrereDossier(dossier) : '',
           // Les notes saisies deviennent le corps du rendez-vous dans Outlook.
           corps: notes || (signature ? 'Rendez-vous de signature créé depuis l’agenda de CLAIRE.' : 'Rendez-vous créé depuis l’agenda de CLAIRE.')
         })
@@ -2407,7 +2423,7 @@
         sauvegarder(dossier);
       }
       if (typeRdv === 'visio') afficherToast('Rendez-vous créé. Créez la visio sur le site ADNOV, puis déposez son invitation (.ics) sur l’agenda.', 'Créer la visio', ouvrirSiteVisio);
-      else afficherToast('Rendez-vous créé dans l’agenda de l’office.', 'OK', null);
+      else afficherToast(`Rendez-vous créé dans l’agenda de l’office.${texteTrajetsPoses(corps.trajets)}`, 'OK', null);
       render();
       return true;
     } catch (e) {

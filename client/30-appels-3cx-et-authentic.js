@@ -2661,6 +2661,11 @@
       // Fiche bien ouverte dans un onglet à elle (Authentic en ouvre une par fiche, 20/10) : le dernier dossier SÛR vu, seulement si le
       // bien est le sien (adresse, parcelle, ou cité dans sa rubrique « Immeubles ») ; sinon d'aucun dossier (recherche d'immeubles…).
       d = bienDuDossierSurAuthentic(courantSurAuthentic(), bienDepuisFicheAuthentic(capture)) ? courantSurAuthentic() : null;
+      // Bien que le dossier sûr ne connaît pas encore (étude 20/10, succession BARBOSA-ANTUNES : sa page n'annonçait pas l'adresse) :
+      // « est-ce le bien de ce dossier ? » d'un clic — jamais rangé seul, jamais écarté en silence.
+      if (!d && courantSurAuthentic() && !bienAutreDossierAuthentic(bienDepuisFicheAuthentic(capture), courantSurAuthentic(), dossiers)) {
+        return pageAConfirmerAuthentic(capture, rel, { d: courantSurAuthentic(), propose: courantSurAuthentic(), groupe: '' }, 'bien');
+      }
       if (!d) {
         noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
         return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic, d’aucun dossier sûr : non rangée' };

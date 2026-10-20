@@ -441,7 +441,7 @@
     if (dejaCle) fichesClientEnAttente.get(dejaCle).principale = false;
     fichesClientEnAttente.get(cle).principale = true;
     poserQuestionAuthentic(cle);
-    return propose ? { etat: 'a-confirmer', texte: `${quoi} : ${libelleDossierAffiche(propose)} retrouvé par les noms seulement — à confirmer d’un clic` }
+    return propose ? { etat: 'a-confirmer', texte: `${quoi} : ${libelleDossierAffiche(propose)} ${nature === 'bien' ? 'dernier dossier ouvert, bien pas encore sur sa fiche' : 'retrouvé par les noms seulement'} — à confirmer d’un clic` }
       : { etat: 'a-choisir', texte: `${quoi} : aucun dossier sûr (onglet sans référence rattachée) — à choisir` };
   }
 
@@ -508,8 +508,16 @@
   function bienDuDossierSurAuthentic(d, bien) {
     if (!d || !bien) return false;
     const cibles = [{ adresse: d.adresseBien, parcelles: parcellesCadastre(d.bien && d.bien.cadastre) }]
-      .concat((((d.authentic && d.authentic.immeubles) || [])).filter(Boolean).map(im => ({ adresse: im.adresse, parcelles: im.parcelles || [] })));
+      .concat((((d.authentic && d.authentic.immeubles) || [])).filter(Boolean).map(im => ({ adresse: im.adresse, parcelles: im.parcelles || [] })))
+      // Succession : ses biens (étude 20/10, BARBOSA-ANTUNES).
+      .concat((Array.isArray(d.biens) ? d.biens : []).filter(Boolean).map(b => ({ adresse: b.adresse, parcelles: Array.isArray(b.parcelles) ? b.parcelles
+        : typeof b.parcelles === 'string' ? [...b.parcelles.toUpperCase().matchAll(/(?<![A-Z])([A-Z]{1,2})\s*0*(\d{1,4})(?!\d)/g)].map(m => ({ section: m[1], numero: m[2] }))
+          : parcellesCadastre(b.cadastre) })));
     return cibles.some(c => adresseSureAuthentic(bien.adresse, c.adresse) || parcelleCommuneAuthentic(bien.parcelles, c.parcelles));
+  }
+  // Pure : ce bien est-il celui d'un AUTRE dossier en cours (adresse ou parcelle) ? Il n'est alors jamais proposé au dossier courant.
+  function bienAutreDossierAuthentic(bien, courant, liste) {
+    return !!bien && (liste || []).some(x => x && x !== courant && !x.archive && bienDuDossierSurAuthentic(x, bien));
   }
   // Pure : deux adresses du même bien — numéro présent des deux côtés et le même, même voie (adresse approchée, autre code postal refusé).
   function adresseSureAuthentic(a, b) {
@@ -519,8 +527,9 @@
   }
   function parcelleCommuneAuthentic(p1, p2) {
     const cle = p => p && p.section && p.numero ? String(p.section).toUpperCase() + ' ' + String(p.numero).replace(/^0+/, '') : '';
-    const deux = new Set((p2 || []).map(cle).filter(Boolean));
-    return (p1 || []).some(p => deux.has(cle(p)));
+    const liste = p => (Array.isArray(p) ? p : []);
+    const deux = new Set(liste(p2).map(cle).filter(Boolean));
+    return liste(p1).some(p => deux.has(cle(p)));
   }
 
   // Pure : la lecture des comparants de ce côté n'y retrouve aucune personne de la fiche (aucun mot de nom en commun) — lecture ratée.
