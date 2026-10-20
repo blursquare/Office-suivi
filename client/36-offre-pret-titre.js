@@ -247,9 +247,18 @@
   function garantiesPretAffichees(d) {
     if (!d || d.sansPret) return null;
     const libelles = libellesGarantiesPret(d.garantiesPret);
-    if (libelles.length) return { texte: libelles.join(' · '), identifiee: true };
+    if (libelles.length) return { texte: libelles.join(' · '), identifiee: true, liste: libelles };
     if (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer') return { texte: 'Garantie non identifiée', identifiee: false };
     return null;
+  }
+
+  // Les garanties en pastilles bien visibles (étude 20/10 : « Hypothèque légale de prêteur de deniers : le mettre plus
+  // visible ») — une par garantie, carte « Obtention du prêt » et bloc « Offre de prêt » de l'onglet Fonds.
+  function pastillesGarantiesPret(g) {
+    if (!g) return '';
+    const liste = g.identifiee ? (g.liste || [g.texte]) : [g.texte];
+    return `<span class="garanties-pastilles">${liste.map(l =>
+      `<span class="garantie-pastille${g.identifiee ? '' : ' garantie-inconnue'}">${icone('key')}${escapeHtml(l)}</span>`).join('')}</span>`;
   }
 
   function libellesGarantiesPret(cles) {

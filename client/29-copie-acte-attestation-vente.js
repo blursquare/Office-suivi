@@ -583,7 +583,7 @@
       ? `<li><span class="fonds-offre-cle">Condition de prêt</span><span>${escapeHtml(formatDateFr(r.butoir))}${delai ? ` <span class="fonds-offre-delai${r.jours < 0 ? ' depasse' : ''}">${escapeHtml(delai)}</span>` : ''}</span></li>` : '';
     const ligneMontant = r.montant ? `<li><span class="fonds-offre-cle">Montant du prêt</span><span>${escapeHtml(formaterMontantEuros(r.montant))}</span></li>` : '';
     const garanties = r.garanties
-      ? `<span class="${r.garanties.identifiee ? '' : 'garantie-inconnue'}">${escapeHtml(r.garanties.texte)}</span>`
+      ? pastillesGarantiesPret(r.garanties)
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
     const actions = r.ouvrable
       ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>`

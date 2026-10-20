@@ -295,6 +295,15 @@ test('garantiesPretAffichees : « Garantie non identifiée » quand l’offre es
   assert.equal(g({ sansPret: true, offrePretStatut: 'recue' }), 'null');
 });
 
+test('pastillesGarantiesPret : une pastille par garantie (étude 20/10 : « le mettre plus visible »)', () => {
+  const app = chargerApplication();
+  const html = app.pastillesGarantiesPret(app.garantiesPretAffichees({ offrePretStatut: 'recue', garantiesPret: ['caution', 'hypothequeLegale'] }));
+  assert.equal((html.match(/class="garantie-pastille"/g) || []).length, 2);
+  const inconnue = app.pastillesGarantiesPret(app.garantiesPretAffichees({ offrePretStatut: 'recue', garantiesPret: [] }));
+  assert.match(inconnue, /garantie-pastille garantie-inconnue/);
+  assert.equal(app.pastillesGarantiesPret(null), '');
+});
+
 test('titre « Garanties (constatées par acte(s) séparé(s)) : » : la caution Crédit Logement est lue (offre Société Générale, 15/10)', () => {
   const app = chargerApplication();
   const texte = [

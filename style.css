@@ -4545,8 +4545,14 @@
     font-size: var(--texte-s);
     color: var(--muted);
   }
-  .tab-garanties .icone { flex: none; opacity: 0.75; }
-  .tab-garanties.garantie-inconnue { color: var(--pret); font-weight: 600; }
+  /* Étude 20/10 : les garanties « plus visibles » — une pastille par garantie, à la couleur des actes. */
+  .garanties-pastilles { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .garantie-pastille {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--rayon-pilule);
+    background: var(--acte-bg); color: var(--acte); font-size: var(--texte-m); font-weight: 600;
+  }
+  .garantie-pastille .icone { flex: none; }
+  .garantie-pastille.garantie-inconnue { background: var(--pret-bg); color: var(--pret); }
 
   /* ---- .dot-label : langage unique de statut dans tout l'outil ----
      Un point (ou une icône) coloré + un mot, jamais de fond ni de contour par défaut — remplace
@@ -6998,7 +7004,6 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .fonds-offre-delai { color: var(--muted); font-size: var(--texte-s); margin-left: 4px; }
 .fonds-offre-delai.depasse { color: var(--urgent); font-weight: 600; }
 .fonds-offre-muet { color: var(--muted); }
-.fonds-offre .garantie-inconnue { color: var(--pret); font-weight: 600; }
 .fonds-offre-actions { display: flex; gap: 12px; }
 .hint.echanges-destinataire { margin: 0; }
 

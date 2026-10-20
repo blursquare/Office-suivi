@@ -2039,7 +2039,7 @@
       // "Obtention du prêt", emplacement choisi par l'étude.
       const garanties = garantiesPretAffichees(d);
       const garantiesBloc = garanties
-        ? `<span class="tab-garanties${garanties.identifiee ? '' : ' garantie-inconnue'}" title="${garanties.identifiee ? 'Garantie(s) relevée(s) dans l’offre de prêt' : 'Aucune garantie lue dans l’offre de prêt : à vérifier dans l’offre'}">${icone('key')} ${escapeHtml(garanties.texte)}</span>`
+        ? `<span class="tab-garanties" title="${garanties.identifiee ? 'Garantie(s) relevée(s) dans l’offre de prêt' : 'Aucune garantie lue dans l’offre de prêt : à vérifier dans l’offre'}">${pastillesGarantiesPret(garanties)}</span>`
         : '';
       // Voir d.piecesNotifications/fermerDossierDrawer : l'offre de prêt partage le même
       // mécanisme "Nouveau" que les pièces de la checklist (pseudo-cle CLE_NOTIF_OFFRE_PRET).
