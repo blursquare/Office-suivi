@@ -20,7 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.297.1', date: '2026-10-20 21:25', resume: "Fiche d'une vente : les pièces sur trois colonnes ; onglet Dossier, le responsable et ce qui suit sur deux colonnes, et les outils et courriers dessous, en gros boutons." },
+    { version: '0.297.1', date: '2026-10-20 21:07', resume: "Fiche d'une vente : les pièces sur trois colonnes ; onglet Dossier, le responsable et ce qui suit sur deux colonnes, et les outils et courriers dessous, en gros boutons." },
     { version: '0.297.0', date: '2026-10-20 20:49', resume: "Barre latérale : un champ de recherche en tête pour trouver un dossier (nom, partie, adresse, référence) ou un outil, avec Ctrl+K ; « Demander à CLAIRE » devient un bouton à côté de Claire Scan." },
     { version: '0.296.0', date: '2026-10-20 20:19', resume: "Hypothèque : l'hypothèque légale ou conventionnelle est mise en avant près du prix en haut de la fiche. En participation, « Rédiger l'acte de prêt » et « Envoyer la DOD au notaire instrumentaire » arrivent dans À faire ; si un confrère représente l'acquéreur, c'est sa DOD qu'on réclame ; seul notaire, le prêt est rédigé dans l'acte de vente. Le sous-dossier « Prêt » d'Authentic dit si l'acte de prêt est en cours de rédaction ou signé." },
     { version: '0.295.2', date: '2026-10-20 19:59', resume: "Offre de prêt : l'hypothèque légale de prêteur de deniers passe en tête, en pastille pleine, bien plus visible que la caution et les autres garanties." },
