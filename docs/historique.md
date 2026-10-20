@@ -21292,3 +21292,10 @@ Serveur : `explorateurNas.js` (liste d'un niveau + arborescence, `renommerFichie
 - **Confiance** en six points, étiquettes « Type appris » / « Corrigé », chiffres des 30 derniers jours (rangés, % seuls, corrigés, type le plus corrigé).
 - **Limites** : rien éprouvé sur le vrai copieur ni le NAS ; non faits (proposés mais écartés ce soir) : découpage d'un scan multi-documents, redressement et pages vides. Point terrain `scan-memoire`.
 
+### 0.302.0 — 20/10/2026 23:52 — Explorateur du NAS : arbre dépliable et glisser-déposer
+
+Étude 20/10 (capture de la fenêtre « Déplacer la pièce ») : « il faut que les dossiers puissent se déplier et que l'on puisse faire un glissé-déposé d'un fichier dans un sous-dossier ».
+- `client/93-explorateur-nas.js` : l'écran n'est plus un parcours niveau par niveau (fil d'Ariane retiré) mais un arbre — chaque dossier se déplie et se replie (`basculerDossierExplorateurNas`, contenu lu à la demande et gardé dans `niveaux`), retrait par niveau, « Dossier du client » collé en haut de la liste. Après un geste, la racine et les dossiers dépliés sont relus.
+- Un fichier est glissable (`draggable`) ; le déposer sur un dossier ou sur « Dossier du client » appelle le même `deplacerVersExplorateurNas` que la fenêtre « Déplacer » (mêmes règles serveur : dossier existant du même dossier client, « Nom (2) » si pris, jamais d'écrasement), toast « Annuler ». Déposer un fichier dans son propre dossier ne fait rien. La fenêtre « Déplacer » reste (clavier, écran tactile).
+- Aucun changement serveur. Éprouvé dans Chromium (serveur réel, NAS de dossiers inventés) ; non éprouvé sur le vrai NAS.
+

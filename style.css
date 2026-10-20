@@ -10344,14 +10344,19 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .exp-tete { display: flex; align-items: center; gap: 8px; }
 .exp-titres { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .exp-titres h2 { margin: 0; font-size: var(--texte-l); font-weight: 500; }
-.exp-fil { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: var(--texte-m); }
-.exp-fil-sep { color: var(--muted); }
-.exp-fil-courant { font-weight: 500; }
 .exp-corps { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
 .exp-liste { list-style: none; margin: 0; padding: 0; }
 .exp-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 8px; padding: 4px 8px 4px 12px; border-top: 1px solid var(--line-soft); }
 .exp-ligne:first-child { border-top: 0; }
-.exp-dossier { grid-template-columns: minmax(0, 1fr); }
+.exp-dossier, .exp-vide { grid-template-columns: minmax(0, 1fr); }
+/* Arbre dépliable : retrait par niveau (--niv), dépôt d'un fichier glissé sur un dossier. */
+.exp-ligne { padding-inline-start: calc(12px + var(--niv, 0) * 20px); }
+.exp-racine { position: sticky; top: 0; z-index: 1; background: var(--paper-card); }
+.exp-racine .exp-nom { font-weight: 500; }
+.exp-fichier { cursor: grab; }
+.exp-fichier.exp-glisse { opacity: 0.5; }
+.exp-dossier.exp-depot { background: color-mix(in srgb, var(--focus) 14%, transparent); box-shadow: inset 0 0 0 2px var(--focus); }
+.exp-erreur { padding: 8px 12px; text-align: left; }
 .exp-nom { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 0; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--texte-base); text-align: left; cursor: pointer; }
 .exp-nom span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .exp-nom:hover span { text-decoration: underline; }

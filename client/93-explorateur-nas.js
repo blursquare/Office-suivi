@@ -4,7 +4,10 @@
 // renommer un fichier (extension gardée) et le déplacer vers un autre sous-dossier existant ; jamais de suppression ni d'écrasement.
 // Chaque geste se défait d'un clic (« Annuler » : le geste inverse).
 
-var explorateurNas = { dossierId: '', sous: '', niveau: null, arbre: [], erreur: '', chargement: false };
+// Arbre dépliable (étude 20/10 : « que les dossiers puissent se déplier, glisser-déposer un fichier dans un sous-dossier ») :
+// `niveaux` = contenu lu de chaque dossier (clé = chemin, '' = racine), `ouverts` = dossiers dépliés, `glisse` = fichier tenu au pointeur.
+function etatVideExplorateurNas(dossierId) { return { dossierId: dossierId || '', niveaux: {}, ouverts: new Set(), arbre: [], erreur: '', chargement: false, glisse: '', survol: null }; }
+var explorateurNas = etatVideExplorateurNas('');
 
 function dossierExplorateurNas() { return dossiers.find(x => x.id === explorateurNas.dossierId) || null; }
 
@@ -20,7 +23,8 @@ function ouvrirExplorateurNas(dossierId) {
     fond.addEventListener('click', (e) => { if (e.target === fond && fond.dataset.appui === '1') fermerExplorateurNas(); });
     document.body.appendChild(fond);
   }
-  explorateurNas = { dossierId, sous: '', niveau: null, arbre: [], erreur: '', chargement: true };
+  explorateurNas = etatVideExplorateurNas(dossierId);
+  explorateurNas.chargement = true;
   fond.style.display = 'flex';
   renderExplorateurNas();
   chargerExplorateurNas('');
@@ -29,7 +33,7 @@ function ouvrirExplorateurNas(dossierId) {
 function fermerExplorateurNas() {
   const fond = document.getElementById('explorateur-nas-overlay');
   if (fond) { fond.style.display = 'none'; fond.innerHTML = ''; }
-  explorateurNas = { dossierId: '', sous: '', niveau: null, arbre: [], erreur: '', chargement: false };
+  explorateurNas = etatVideExplorateurNas('');
 }
 document.addEventListener('keydown', (e) => {
   const fond = document.getElementById('explorateur-nas-overlay');
@@ -39,35 +43,43 @@ document.addEventListener('keydown', (e) => {
 }, true);
 
 var sequenceExplorateurNas = 0;
+// Lit un dossier (la racine par défaut) et le garde ; les dossiers dépliés sont relus avec la racine après un geste.
 async function chargerExplorateurNas(sous) {
   const id = explorateurNas.dossierId;
   if (!id) return;
+  const cle = sous || '';
   const numero = ++sequenceExplorateurNas;
   explorateurNas.chargement = true;
   explorateurNas.erreur = '';
   renderExplorateurNas();
   try {
-    const r = await fetchAvecAuth(`/api/nas/explorer?dossierId=${encodeURIComponent(id)}&sous=${encodeURIComponent(sous || '')}`);
+    const r = await fetchAvecAuth(`/api/nas/explorer?dossierId=${encodeURIComponent(id)}&sous=${encodeURIComponent(cle)}`);
     const corps = await r.json().catch(() => ({}));
-    if (explorateurNas.dossierId !== id || numero !== sequenceExplorateurNas) return;
+    if (explorateurNas.dossierId !== id) return;
     if (!r.ok) throw new Error(corps.erreur || 'Le NAS n’a pas répondu.');
-    explorateurNas.niveau = corps;
-    explorateurNas.arbre = corps.arbre || [];
-    explorateurNas.sous = corps.chemin || '';
+    explorateurNas.niveaux[cle] = corps;
+    if (corps.arbre) explorateurNas.arbre = corps.arbre;
   } catch (e) {
-    if (explorateurNas.dossierId !== id || numero !== sequenceExplorateurNas) return;
+    if (explorateurNas.dossierId !== id) return;
+    if (cle) explorateurNas.ouverts.delete(cle);
     explorateurNas.erreur = e.message || 'Le NAS n’a pas répondu.';
   }
-  explorateurNas.chargement = false;
+  if (numero === sequenceExplorateurNas) explorateurNas.chargement = false;
   renderExplorateurNas();
 }
 
-function allerExplorateurNas(sous) { chargerExplorateurNas(sous); }
+// Déplier ou replier un dossier ; un dossier jamais lu se lit à l'ouverture.
+function basculerDossierExplorateurNas(chemin) {
+  const e = explorateurNas;
+  if (e.ouverts.has(chemin)) { e.ouverts.delete(chemin); renderExplorateurNas(); return; }
+  e.ouverts.add(chemin);
+  if (e.niveaux[chemin]) renderExplorateurNas(); else chargerExplorateurNas(chemin);
+}
 
-// Pure : les morceaux du chemin affiché [{ libelle, chemin }], la racine du dossier du client en tête.
-function filExplorateurNas(sous, libelleRacine) {
-  const morceaux = String(sous || '').split('/').filter(Boolean);
-  return [{ libelle: libelleRacine || 'Dossier du client', chemin: '' }].concat(morceaux.map((m, i) => ({ libelle: m, chemin: morceaux.slice(0, i + 1).join('/') })));
+// Après un geste : la racine et chaque dossier déplié sont relus (le fichier a changé de place).
+async function relireOuvertsExplorateurNas() {
+  const chemins = [''].concat([...explorateurNas.ouverts]);
+  for (const c of chemins) { if (explorateurNas.dossierId) await chargerExplorateurNas(c); }
 }
 
 // Pure : le nom sans son extension (ce qu'on retouche) et l'extension.
@@ -76,49 +88,116 @@ function nomSansExtensionNas(nom) {
   return m && m[1] ? { base: m[1], ext: m[2] } : { base: String(nom || ''), ext: '' };
 }
 
-function cheminFichierExplorateurNas(nom) { return explorateurNas.sous ? explorateurNas.sous + '/' + nom : nom; }
+// Pure : le dossier où un fichier glissé sur `cible` irait, ou null s'il y est déjà (déplacement sans effet).
+function destinationGlisseExplorateurNas(cheminFichier, cible) {
+  const f = String(cheminFichier || '');
+  const dedans = f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : '';
+  return dedans === String(cible || '') ? null : String(cible || '');
+}
+
+function lignesNiveauExplorateurNas(chemin) {
+  const e = explorateurNas;
+  const n = e.niveaux[chemin];
+  if (!n) return '';
+  const rang = chemin ? chemin.split('/').length : 0;
+  const sortie = [];
+  n.dossiers.forEach(f => {
+    const cheminF = chemin ? chemin + '/' + f.nom : f.nom;
+    const ouvert = e.ouverts.has(cheminF);
+    sortie.push(`<li class="exp-ligne exp-dossier" style="--niv:${rang}" data-dossier="${escapeAttr(cheminF)}" aria-expanded="${ouvert}">
+      <button type="button" class="exp-nom" onclick="basculerDossierExplorateurNas('${escapeOnclickArg(cheminF)}')">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${icone('folder')}<span>${escapeHtml(f.nom)}</span></button></li>`);
+    if (ouvert) {
+      const dedans = e.niveaux[cheminF] ? lignesNiveauExplorateurNas(cheminF) : '';
+      if (dedans) sortie.push(dedans);
+      else sortie.push(`<li class="exp-ligne exp-vide" style="--niv:${rang + 1}"><span class="hint">${e.niveaux[cheminF] ? 'Dossier vide' : `${icone('spinner', null, true)} Lecture…`}</span></li>`);
+    }
+  });
+  n.fichiers.forEach(f => {
+    const cheminF = chemin ? chemin + '/' + f.nom : f.nom;
+    const arg = escapeOnclickArg(cheminF);
+    const quand = f.modifieLe ? new Date(f.modifieLe).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    sortie.push(`<li class="exp-ligne exp-fichier" style="--niv:${rang}" draggable="true" data-fichier="${escapeAttr(cheminF)}">
+        <button type="button" class="exp-nom" onclick="ouvrirFichierExplorateurNas('${arg}')" title="Ouvrir (ou glisser sur un dossier pour le déplacer)">${icone('file-text')}<span>${escapeHtml(f.nom)}</span></button>
+        <span class="exp-info">${f.taille != null ? escapeHtml(tailleLisible(f.taille)) : ''}</span><span class="exp-info">${escapeHtml(quand)}</span>
+        <span class="exp-actions">
+          <wa-button appearance="plain" size="s" class="bouton-icone" onclick="renommerFichierExplorateurNas('${arg}')" aria-label="Renommer ${escapeAttr(f.nom)}" title="Renommer">${icone('pencil')}</wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-discret" onclick="deplacerFichierExplorateurNas('${arg}')" aria-label="Déplacer ${escapeAttr(f.nom)}" title="Déplacer vers un autre dossier">${icone('folder')} Déplacer</wa-button>
+        </span></li>`);
+  });
+  return sortie.join('');
+}
 
 function renderExplorateurNas() {
   const fond = document.getElementById('explorateur-nas-overlay');
   const d = dossierExplorateurNas();
   if (!fond || !d) return;
   const e = explorateurNas;
-  const fil = filExplorateurNas(e.sous, 'Dossier du client').map((m, i, tous) => i === tous.length - 1
-    ? `<span class="exp-fil-courant">${escapeHtml(m.libelle)}</span>`
-    : `<button type="button" class="lien-action" onclick="allerExplorateurNas('${escapeOnclickArg(m.chemin)}')">${escapeHtml(m.libelle)}</button><span class="exp-fil-sep">›</span>`).join('');
-  const n = e.niveau;
+  const racine = e.niveaux[''];
   let corps;
-  if (e.erreur) corps = `<p class="hint exp-etat">${icone('alert-triangle')} ${escapeHtml(e.erreur)}</p>`;
-  else if (!n) corps = `<p class="hint exp-etat">${icone('spinner', null, true)} Lecture du NAS…</p>`;
+  if (e.erreur && !racine) corps = `<p class="hint exp-etat">${icone('alert-triangle')} ${escapeHtml(e.erreur)}</p>`;
+  else if (!racine) corps = `<p class="hint exp-etat">${icone('spinner', null, true)} Lecture du NAS…</p>`;
   else {
-    const lignesDossiers = n.dossiers.map(f => `<li class="exp-ligne exp-dossier"><button type="button" class="exp-nom" onclick="allerExplorateurNas('${escapeOnclickArg(e.sous ? e.sous + '/' + f.nom : f.nom)}')">${icone('folder')}<span>${escapeHtml(f.nom)}</span></button></li>`);
-    const lignesFichiers = n.fichiers.map(f => {
-      const chemin = cheminFichierExplorateurNas(f.nom);
-      const quand = f.modifieLe ? new Date(f.modifieLe).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
-      return `<li class="exp-ligne">
-        <button type="button" class="exp-nom" onclick="ouvrirFichierExplorateurNas('${escapeOnclickArg(chemin)}')" title="Ouvrir">${icone('file-text')}<span>${escapeHtml(f.nom)}</span></button>
-        <span class="exp-info">${f.taille != null ? escapeHtml(tailleLisible(f.taille)) : ''}</span><span class="exp-info">${escapeHtml(quand)}</span>
-        <span class="exp-actions">
-          <wa-button appearance="plain" size="s" class="bouton-icone" onclick="renommerFichierExplorateurNas('${escapeOnclickArg(chemin)}')" aria-label="Renommer ${escapeAttr(f.nom)}" title="Renommer">${icone('pencil')}</wa-button>
-          <wa-button appearance="plain" size="s" class="bouton-discret" onclick="deplacerFichierExplorateurNas('${escapeOnclickArg(chemin)}')" aria-label="Déplacer ${escapeAttr(f.nom)}" title="Déplacer vers un autre dossier">${icone('folder')} Déplacer</wa-button>
-        </span></li>`;
-    });
-    const tout = lignesDossiers.concat(lignesFichiers);
-    corps = tout.length ? `<ul class="exp-liste">${tout.join('')}</ul>` : '<p class="hint exp-etat">Ce dossier est vide.</p>';
+    const lignes = lignesNiveauExplorateurNas('');
+    corps = `${e.erreur ? `<p class="hint exp-etat exp-erreur">${icone('alert-triangle')} ${escapeHtml(e.erreur)}</p>` : ''}
+      <ul class="exp-liste"><li class="exp-ligne exp-dossier exp-racine" style="--niv:0" data-dossier="" title="Déposer ici pour remettre un fichier à la racine"><span class="exp-nom">${icone('folder')}<span>Dossier du client</span></span></li>${lignes}</ul>
+      ${lignes ? '' : '<p class="hint exp-etat">Ce dossier est vide.</p>'}`;
   }
   const defile = fond.querySelector('.exp-corps');
   const haut = defile ? defile.scrollTop : 0;
   fond.innerHTML = `<div class="confirm-box explorateur-nas" role="dialog" aria-modal="true" aria-labelledby="exp-titre">
       <header class="exp-tete">
-        <div class="exp-titres"><h2 id="exp-titre">Dossier du NAS ${e.chargement && n ? icone('spinner', null, true) : ''}</h2><span class="hint">${escapeHtml(libelleDossierAffiche(d))}</span></div>
+        <div class="exp-titres"><h2 id="exp-titre">Dossier du NAS ${e.chargement && racine ? icone('spinner', null, true) : ''}</h2><span class="hint">${escapeHtml(libelleDossierAffiche(d))} · glisser un fichier sur un dossier pour le déplacer</span></div>
         <wa-button appearance="outlined" size="s" class="bouton-discret" onclick="copierEmplacementExplorateurNas()" title="Copier l’emplacement réseau, à coller dans l’Explorateur Windows">${icone('copier')} Copier l’emplacement</wa-button>
         <wa-button appearance="plain" size="s" class="bouton-icone icon-btn" onclick="fermerExplorateurNas()" aria-label="Fermer">${icone('x')}</wa-button>
       </header>
-      <nav class="exp-fil" aria-label="Chemin">${fil}</nav>
       <div class="exp-corps">${corps}</div>
     </div>`;
   const nouveau = fond.querySelector('.exp-corps');
-  if (nouveau && haut && explorateurNas.niveau && explorateurNas.niveau.chemin === explorateurNas.sous) nouveau.scrollTop = haut;
+  if (nouveau && haut) nouveau.scrollTop = haut;
+}
+
+// Glisser-déposer : un fichier tenu au pointeur se dépose sur un dossier (ou sur la racine). Le survol se marque sans redessiner
+// la liste (un redessin en plein glissé annulerait le geste).
+function marquerSurvolExplorateurNas(cible) {
+  const fond = document.getElementById('explorateur-nas-overlay');
+  if (!fond) return;
+  explorateurNas.survol = cible;
+  fond.querySelectorAll('.exp-depot').forEach(li => li.classList.remove('exp-depot'));
+  if (cible !== null) { const li = [...fond.querySelectorAll('li[data-dossier]')].find(x => x.dataset.dossier === cible); if (li) li.classList.add('exp-depot'); }
+}
+if (typeof document !== 'undefined' && document.addEventListener) {
+  const dansFenetre = (ev) => { const fond = document.getElementById('explorateur-nas-overlay'); return !!(fond && ev.target && fond.contains(ev.target)); };
+  const dossierSous = (ev) => { const li = ev.target && ev.target.closest ? ev.target.closest('li[data-dossier]') : null; return li ? li.dataset.dossier : null; };
+  document.addEventListener('dragstart', (ev) => {
+    if (!dansFenetre(ev)) return;
+    const li = ev.target && ev.target.closest ? ev.target.closest('li[data-fichier]') : null;
+    if (!li) return;
+    explorateurNas.glisse = li.dataset.fichier;
+    ev.dataTransfer.effectAllowed = 'move';
+    try { ev.dataTransfer.setData('text/plain', li.dataset.fichier); } catch (e) { /* navigateur sans données */ }
+    li.classList.add('exp-glisse');
+  });
+  document.addEventListener('dragover', (ev) => {
+    if (!dansFenetre(ev) || !explorateurNas.glisse) return;
+    const cible = dossierSous(ev);
+    const permis = cible !== null && destinationGlisseExplorateurNas(explorateurNas.glisse, cible) !== null;
+    if (permis) { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; }
+    const marque = permis ? cible : null;
+    if (marque !== explorateurNas.survol) marquerSurvolExplorateurNas(marque);
+  });
+  document.addEventListener('drop', (ev) => {
+    if (!dansFenetre(ev) || !explorateurNas.glisse) return;
+    ev.preventDefault();
+    const cible = dossierSous(ev);
+    const chemin = explorateurNas.glisse;
+    const vers = cible === null ? null : destinationGlisseExplorateurNas(chemin, cible);
+    explorateurNas.glisse = '';
+    marquerSurvolExplorateurNas(null);
+    if (vers !== null) {
+      deplacerVersExplorateurNas(chemin, vers).then(erreur => { if (erreur) afficherToast(erreur, 'OK', null); });
+    } else renderExplorateurNas();
+  });
+  document.addEventListener('dragend', () => { if (explorateurNas.glisse) { explorateurNas.glisse = ''; marquerSurvolExplorateurNas(null); renderExplorateurNas(); } });
 }
 
 // Un fichier : PDF et images s'affichent dans un onglet, le reste se télécharge.
@@ -153,7 +232,7 @@ async function gesteExplorateurNas(route, corps, dossierId) {
 
 // Après un geste : la liste est relue. Les pièces de la fiche ne sont PAS relancées : au prochain parcours du NAS, une pièce
 // reconnue par son nom et renommée ou déplacée peut repasser « manquante » (sauf validée à la main).
-function apresGesteExplorateurNas() { chargerExplorateurNas(explorateurNas.sous); }
+function apresGesteExplorateurNas() { relireOuvertsExplorateurNas(); }
 
 function renommerFichierExplorateurNas(chemin) {
   const nom = String(chemin).split('/').pop();
@@ -177,6 +256,28 @@ function renommerFichierExplorateurNas(chemin) {
   });
 }
 
+// Le déplacement lui-même (fenêtre « Déplacer » et glisser-déposer) ; « Annuler » remet le fichier d'où il vient.
+async function deplacerVersExplorateurNas(chemin, vers) {
+  const nom = String(chemin).split('/').pop();
+  const dossierActuel = String(chemin).includes('/') ? String(chemin).slice(0, String(chemin).lastIndexOf('/')) : '';
+  const dossierId = explorateurNas.dossierId;
+  const r = await gesteExplorateurNas('deplacer', { chemin, vers }, dossierId);
+  if (r.erreur) return r.erreur;
+  noterVerificationPoste('explorateur-nas', { detail: 'pièce déplacée' });
+  if (vers) explorateurNas.ouverts.add(vers);
+  apresGesteExplorateurNas();
+  afficherToast(`Déplacé dans « ${vers ? vers.replace(/\//g, ' › ') : 'la racine'} »${r.nom !== nom ? ` sous le nom « ${r.nom} »` : ''}.`, 'Annuler', async () => {
+    let retour = await gesteExplorateurNas('deplacer', { chemin: r.chemin, vers: dossierActuel }, dossierId);
+    // Arrivé sous « Nom (2) » : il retrouve le nom qu'il avait, si ce nom est libre.
+    if (!retour.erreur && retour.nom !== nom) {
+      const rendu = await gesteExplorateurNas('renommer', { chemin: retour.chemin, nom: nomSansExtensionNas(nom).base }, dossierId);
+      if (!rendu.erreur) retour = rendu;
+    }
+    if (retour.erreur) afficherToast(retour.erreur, 'OK', null); else apresGesteExplorateurNas();
+  });
+  return '';
+}
+
 function deplacerFichierExplorateurNas(chemin) {
   const nom = String(chemin).split('/').pop();
   const dossierActuel = String(chemin).includes('/') ? String(chemin).slice(0, String(chemin).lastIndexOf('/')) : '';
@@ -187,23 +288,7 @@ function deplacerFichierExplorateurNas(chemin) {
     titre: 'Déplacer la pièce',
     champs: [{ id: 'vers', label: `Déplacer « ${nom} » vers`, valeur: options[0].valeur, options }],
     bouton: 'Déplacer',
-    onValider: async (v) => {
-      const dossierId = explorateurNas.dossierId;
-      const r = await gesteExplorateurNas('deplacer', { chemin, vers: v.vers }, dossierId);
-      if (r.erreur) return r.erreur;
-      noterVerificationPoste('explorateur-nas', { detail: 'pièce déplacée' });
-      apresGesteExplorateurNas();
-      afficherToast(`Déplacé dans « ${v.vers ? v.vers.replace(/\//g, ' › ') : 'la racine'} »${r.nom !== nom ? ` sous le nom « ${r.nom} »` : ''}.`, 'Annuler', async () => {
-        let retour = await gesteExplorateurNas('deplacer', { chemin: r.chemin, vers: dossierActuel }, dossierId);
-        // Arrivé sous « Nom (2) » : il retrouve le nom qu'il avait, si ce nom est libre.
-        if (!retour.erreur && retour.nom !== nom) {
-          const rendu = await gesteExplorateurNas('renommer', { chemin: retour.chemin, nom: nomSansExtensionNas(nom).base }, dossierId);
-          if (!rendu.erreur) retour = rendu;
-        }
-        if (retour.erreur) afficherToast(retour.erreur, 'OK', null); else apresGesteExplorateurNas();
-      });
-      return '';
-    }
+    onValider: (v) => deplacerVersExplorateurNas(chemin, v.vers)
   });
 }
 
