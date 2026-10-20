@@ -1480,7 +1480,7 @@
           </div>
           <div class="pieces-barre${complet ? ' complet' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${nbRecues}" aria-label="Pièces reçues"><span style="width:${pct}%"></span></div>
         </div>
-        ${total ? `<ul class="pieces-liste">${visibles.map(ligne).join('')}</ul>` : '<p class="fiche-vide pieces-vide">Aucune pièce attendue pour ce dossier.</p>'}
+        ${total ? `<ul class="pieces-liste${estSuccession(d) ? '' : ' pieces-3col'}">${visibles.map(ligne).join('')}</ul>` : '<p class="fiche-vide pieces-vide">Aucune pièce attendue pour ce dossier.</p>'}
         ${cachees > 0 ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = true; render();">Voir les ${cachees} autre${cachees > 1 ? 's' : ''} (reçue${cachees > 1 ? 's' : ''})</button>`
           : (piecesToutesVisibles && ordonnees.some((p, i) => i >= MAX_PIECES_VISIBLES && pieces[p.cle] === 'recue' && !notifs.includes(p.cle)) ? `<button type="button" class="pieces-voir-plus" onclick="piecesToutesVisibles = false; render();">Voir moins</button>` : '')}
         ${renderAjoutPiece(d)}

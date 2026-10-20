@@ -809,10 +809,15 @@
     // Succession (étude 15/10) : défunt, héritiers, régime, donation, testament, type et actes — client/74-fiche-succession.js.
     if (estSuccession(d)) return renderDossierSuccession(d, ligne, responsable, nas);
 
+    // Outils et courriers, sous les deux colonnes et bien en avant (étude 20/10 : « sors les outils et les courriers en dessous des deux colonnes et mets-les plus en avant »).
+    const blocOutils = `<section class="fiche-outils-bloc" aria-label="Outils du dossier">
+        <span class="section-eyebrow">Outils</span>
+        <div class="fiche-outils-boutons">${d.archive || d.roleNotaire === 'participant' ? '' : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers à la mairie (numérotage, alignement, péril, assainissement) : toutes les parcelles et tous les vendeurs d’Authentic">Constitution de dossier</wa-button>`}${renderOutilsVenteFiche(d)}</div>
+      </section>`;
     // Présentation façon Authentic (étude 17/10) : à gauche les parties et les biens — chacun une fiche unique, avec les autres dossiers où
     // il figure —, à droite tout le reste.
     const blocBien = `
-      <div class="fiche-dossier-colonnes">
+      <div class="fiche-dossier-colonnes fiche-dossier-vente">
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
           ${(renderClientsAPlacer(d, ligne) + renderPersonnesConnues(d, ligne)).trim() ? `<dl class="fiche-proprietes">${renderClientsAPlacer(d, ligne)}${renderPersonnesConnues(d, ligne)}</dl>` : ''}
@@ -834,12 +839,11 @@
         </div>
         <div class="fiche-dossier-droite">
           <!--bascule-champs-vides-->
+      <div class="fiche-droite-colonnes"><div class="fiche-droite-col">
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
-        ${d.archive || d.roleNotaire === 'participant' ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers à la mairie (numérotage, alignement, péril, assainissement) : toutes les parcelles et tous les vendeurs d’Authentic">Constitution de dossier</wa-button>`, null, 'prop-pleine')}
-        ${ligne('settings', 'Outils', renderOutilsVenteFiche(d), null, 'prop-pleine')}
         ${ligneProvisionFiche(d) ? ligne('banknote', 'Provision', ligneProvisionFiche(d), null, 'prop-pleine') : ''}
         ${ligne('file-text', 'Avant-contrat', avantContrat, null, 'prop-pleine')}
         ${estSuccession(d) ? '' : ligne('calendar', 'Signé le', `<input type="date" id="date-ac-${d.id}" class="prop-champ" value="${escapeAttr(d.dateAvantContrat || '')}" onchange="changerDateAvantContrat('${escapeOnclickArg(d.id)}', this.value)">`, `date-ac-${d.id}`, siVide(!d.dateAvantContrat).trim())}
@@ -853,6 +857,7 @@
         ${d.honoraires && !d.honoraires.direct ? ligne('users', 'Négociation', `<span class="prop-texte">${escapeHtml(libelleHonoraires(d.honoraires).replace(/^Négociée par /, ''))}</span>`, null, 'prop-pleine') : ''}
         ${d.fondsTravaux ? ligne('package', 'Fonds de travaux', `<span class="prop-texte">${escapeHtml(libelleFondsTravaux(d.fondsTravaux))}</span>`, null, 'prop-pleine') : ''}
       </dl>
+      </div><div class="fiche-droite-col">
       <dl class="fiche-proprietes">
         ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur' && !nonPlaces.length))}
         ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur' && !nonPlaces.length))}
@@ -866,6 +871,8 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
+      </div></div>
+      ${blocOutils}
         </div>
       </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;

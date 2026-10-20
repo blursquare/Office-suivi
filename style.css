@@ -2730,7 +2730,11 @@
     column-gap: 24px;
   }
   .pieces-liste .piece-ligne { break-inside: avoid; }
-  @media (max-width: 560px) { .pieces-liste { column-count: 1; } }
+  /* Une vente : les pièces sur trois colonnes (étude 20/10) ; deux dans une fenêtre étroite ou une fiche à côté. */
+  .pieces-liste.pieces-3col { column-count: 3; column-gap: 20px; }
+  @media (max-width: 1100px) { .pieces-liste.pieces-3col { column-count: 2; } }
+  body.fiche-a-cote .pieces-liste.pieces-3col { column-count: 2; }
+  @media (max-width: 560px) { .pieces-liste, .pieces-liste.pieces-3col { column-count: 1; } }
   .pieces-vide { margin: 0; padding: 12px 16px; background: var(--paper-sunk); }
   .piece-ligne {
     display: flex;
@@ -9910,6 +9914,22 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .pb-modifier > summary > .icone:last-child { margin-left: auto; color: var(--muted); transition: transform var(--anim-duree, 200ms) var(--anim-courbe, ease); }
 .pb-modifier[open] > summary > .icone:last-child { transform: rotate(180deg); }
 .pb-modifier[open] { padding-bottom: 12px; }
+/* Colonne de droite de l'onglet Dossier d'une vente : responsable et ce qui suit sur deux colonnes (étude 20/10), les outils dessous. */
+.fiche-droite-colonnes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; align-items: start; }
+.fiche-droite-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.fiche-dossier-colonnes.fiche-dossier-vente { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); }
+@media (max-width: 1100px) { .fiche-dossier-colonnes.fiche-dossier-vente { grid-template-columns: minmax(0, 1fr); } }
+body.fiche-a-cote .fiche-dossier-colonnes.fiche-dossier-vente { grid-template-columns: minmax(0, 1fr); }
+.fiche-droite-colonnes .prop-ligne { grid-template-columns: 108px minmax(0, 1fr); }
+.fiche-droite-colonnes .prop-ligne dd { flex-wrap: wrap; row-gap: 2px; }
+.fiche-droite-colonnes input.prop-champ { flex-basis: 140px; }
+@media (max-width: 1300px) { .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr); } }
+body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr); }
+.fiche-outils-bloc { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px 16px 16px; background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); }
+.fiche-outils-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+.fiche-outils-boutons .succ-actes { display: contents; }
+.fiche-outils-bloc wa-button.action-rapide { margin: 0; --wa-form-control-height: 40px; --wa-form-control-padding-inline: 16px; font-size: var(--texte-base); font-weight: 500; color: var(--ink); }
+.fiche-outils-bloc wa-button.action-rapide .icone { color: var(--focus); }
 /* « Compléter la fiche (n) » en tête de la colonne de droite, dont il montre les champs vides. */
 .fiche-droite-tete { display: flex; justify-content: flex-end; }
 .fiche-droite-tete > wa-button.bouton-ajout.fiche-completer { margin: 0; }
