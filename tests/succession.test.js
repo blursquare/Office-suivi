@@ -185,6 +185,23 @@ test('FCDDV : compte rendu réel de l’ADSN (20/10) — deux inscriptions « Ac
   assert.deepEqual([vide.aucune, vide.inscriptions.length], [true, 0]);
 });
 
+test('FCDDV ADSN : plusieurs pages, morceaux dans tous les ordres, associés d’une même étude, relecture qui garde les corrections (relecture 20/10)', () => {
+  const tete = (n) => `XXX;I;341089;20260930 ADSN 95 avenue des Logissons 13107 VENELLES cedex Tél.: 0 800 306 212 fcddv@adsn.fr ETUDE : 41089 Référence : JS Me GOSSART Sophie NOTAIRE 3 RUE DU BOUT DES HAIES BP 20104 41001 BLOIS Folio ${n} / 2 `;
+  const texte = tete(1) + 'COMPTE RENDU Le fichier central a enregistré les inscriptions suivantes : Acte du : 29/01/2002 Me LEROUX et Maître MOREAU NOTAIRE 9 AVENUE DE LA GARE 41250 BRACIEUX CEDEX Etude 41008 Compostage 2002020550563 '
+    + 'Acte du : 25/11/2009 NOTAIRE 9 AVENUE DE LA GARE B.P 2 41250 BRACIEUX MOREAU LEROUX Etude 41008 Compostage 2009120370349\n'
+    + tete(2) + 'Acte du : Etude 41099 12/03/2010 PETIT Compostage 2010031212345 NOTAIRE 2 RUE HAUTE 41200 ROMORANTIN-LANTHENAY '
+    + 'Acte du : 01/02/2015 Etude 41089 GOSSART Compostage 2015020112345 NOTAIRE 3 RUE DU BOUT DES HAIES 41001 BLOIS';
+  const a = app.analyseFcddv(texte);
+  assert.equal(a.inscriptions.map(i => `${i.date}|${i.notaire}|${i.ville}|${i.crpcen}`).join(' ; '),
+    '2002-01-29|LEROUX et MOREAU|BRACIEUX|41008 ; 2009-11-25|MOREAU LEROUX|BRACIEUX|41008 ; 2010-03-12|PETIT|ROMORANTIN-LANTHENAY|41099', 'en-têtes, CEDEX, notre étude écartés');
+  assert.equal(app.confreresFcddv({ inscriptions: a.inscriptions }).length, 2, 'un email par étude, même avec des associés différents');
+  const d = base();
+  app.appliquerFcddvSurDossier(d, a, 'X/FCDDV.pdf', '2026-10-20T10:00:00Z');
+  d.succession.fcddv.inscriptions[0].nature = 'Testament olographe';
+  app.appliquerFcddvSurDossier(d, app.analyseFcddv(texte), 'X/FCDDV.pdf', '2026-10-21T10:00:00Z');
+  assert.equal(d.succession.fcddv.inscriptions[0].nature, 'Testament olographe', 'la nature corrigée par l’étude reste à la relecture');
+});
+
 test('FCDDV : email du notaire par l’annuaire, sinon par le CRPCEN de l’adresse ; testament et donation répondus sur la fiche', () => {
   const carnet = [{ id: 'o1', notaires: ['Paul LEROUX'], ville: 'Tours', email: 'leroux@notaires.fr' }, { id: 'o2', notaires: ['Luc PETIT'], ville: 'Romorantin', email: 'office.41099@notaires.fr' }];
   assert.equal(app.emailNotaireFcddv({ notaire: 'Paul LEROUX', ville: 'TOURS' }, carnet), 'leroux@notaires.fr');
@@ -918,4 +935,14 @@ test('relecture 0.290.1 : volet du défunt dans la fiche de la veuve, groupes am
   // Réunis : « à créer » dit par la page du dossier.
   const r2 = app.fusionnerGroupesAuthentic([gr('VTE DUPONT / MARTIN', '', { aCreer: true }), gr('2 - Vente DUPONT / MARTIN', 'A 2020 00001', { infos: { a: 1 }, aCreer: false })]);
   assert.deepEqual([r2.length, r2[0].aCreer], [1, false]);
+});
+
+test('Nouveau dossier d’une succession : fiches à ouvrir dans Authentic, cochées quand elles sont lues (étude 20/10)', () => {
+  const d = { authentic: { comparants: [{ role: 'DEFUNT', nom: 'Mme MARTEL Jeanne' }], fichesClients: { a: { nom: 'Alain COSTE', prenom: 'Alain' } }, biensDossier: { nombre: 2 } } };
+  const p = { defunt: 'Jeanne MARTEL', heritiers: [{ nom: 'Alain COSTE' }, { nom: 'Claude COSTE' }], biens: [{ adresse: 'BLOIS (41000), 15 rue de Touraine' }], bienPrincipal: '' };
+  const l = app.pagesAOuvrirWizardSuccession(p, d);
+  assert.equal(l.map(x => (x.recue ? '✓' : '○') + x.libelle).join(' | '),
+    '○Fiche de Jeanne MARTEL (défunt) | ✓Fiche de Alain COSTE | ○Fiche de Claude COSTE | ✓Fiche du bien BLOIS (41000), 15 rue de Touraine | ○Fiche d’un autre bien');
+  assert.equal(app.pagesAOuvrirWizardSuccession({ defunt: '', heritiers: [], biens: [], bienPrincipal: '41000 BLOIS, 2 rue Haute' }, {}).map(x => x.libelle).join(' | '),
+    'Fiche du défunt | Fiche du bien 41000 BLOIS, 2 rue Haute');
 });

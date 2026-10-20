@@ -409,26 +409,39 @@
   // Pure : les inscriptions du compte rendu d'interrogation de l'ADSN — date de l'acte, étude (son CRPCEN), notaire(s) nommés, numéro de
   // compostage, ville de l'étude. La nature de l'acte n'y est pas écrite : « Disposition de dernières volontés », à demander au confrère.
   function inscriptionsFcddvAdsn(plat) {
-    const texte = String(plat || '');
+    let texte = String(plat || '').replace(/\s+/g, ' ');
     const debut = texte.search(/inscriptions?\s+suivantes?\s*:/i);
     if (debut < 0) return [];
-    // Les morceaux d'une inscription n'arrivent pas toujours dans l'ordre de la page (pdf.js) : chacun est cherché dans le bloc.
-    const blocs = texte.slice(debut).split(/Acte\s+du\s*:/i).slice(1);
+    // Notre étude (le demandeur, « ETUDE : 41089 » en tête) : jamais une inscription à demander à un confrère.
+    const demandeur = (/ETUDE\s*:\s*(\d{5})/i.exec(texte) || [])[1] || '';
+    // Les en-têtes et pieds de page (« ADSN … Folio 2 / 2 », lignes « …;I;… », téléphone, adresse fcddv@adsn.fr) sortent du texte :
+    // sur une réponse de plusieurs pages, ils tombaient au milieu d'une inscription (relecture 20/10).
+    texte = texte.slice(debut).replace(/ADSN\b[\s\S]*?Folio\s+\d+\s*\/\s*\d+/gi, ' ').replace(/\S*;I;\S*/g, ' ').replace(/Folio\s+\d+\s*\/\s*\d+/gi, ' ')
+      .replace(/fcddv@adsn\.fr|T[ée]l\.?\s*:?\s*0\s?800[\d\s]*/gi, ' ').replace(/\s+/g, ' ');
     const out = [];
-    blocs.forEach(b => {
-      const bloc = b.replace(/Folio\s+\d+\s*\/\s*\d+.*$/i, '').trim();
-      const date = /^(\d{1,2}\/\d{1,2}\/\d{4})/.exec(bloc);
+    texte.split(/Acte\s+du\s*:/i).slice(1).forEach(b => {
+      const bloc = b.trim();
+      // Les morceaux d'une inscription n'arrivent pas toujours dans l'ordre de la page (pdf.js) : chacun est cherché dans le bloc.
+      const date = /(\d{1,2}\/\d{1,2}\/\d{4})/.exec(bloc);
       const etude = /(?:[ÉE]tude|Office)\s+(\d{5})(?!\d)/i.exec(bloc);
       const compostage = /Compostage\s+(\d{6,})/i.exec(bloc);
-      if (!date || !etude) return;
-      const reste = bloc.slice(date[0].length).replace(/(?:[ÉE]tude|Office)\s+\d{5}(?!\d)/gi, ' ').replace(/Compostage\s+\d{6,}/gi, ' ').replace(/\s+/g, ' ').trim();
-      // Le ou les notaires : avant « NOTAIRE », sinon avant le premier chiffre de l'adresse.
-      const n = /^(.+?)\s+(?:NOTAIRES?\b|\d)/.exec(reste);
-      const notaire = (n ? n[1] : '').replace(/^(?:Ma[îi]tres?|Me)\s+/i, '').trim();
-      if (!notaire || /gossart/i.test(notaire)) return;
-      const villes = [...reste.matchAll(/(?:^|\s)\d{5}\s+([A-ZÀ-Ý][A-ZÀ-Ý'’-]*(?:\s+[A-ZÀ-Ý][A-ZÀ-Ý'’-]*){0,3})/g)];
-      const ins = { nature: 'Disposition de dernières volontés', date: dateIsoDepuisFr(date[1]) || '', notaire, ville: villes.length ? villes[villes.length - 1][1].trim() : '',
-        crpcen: etude[1], compostage: compostage ? compostage[1] : '' };
+      if (!date || !etude || etude[1] === demandeur) return;
+      let reste = bloc.replace(date[0], ' ').replace(/(?:[ÉE]tude|Office)\s+\d{5}(?!\d)/gi, ' ').replace(/Compostage\s+\d{6,}/gi, ' ')
+        .replace(/\bNOTAIRES?\b/g, ' ').replace(/\s+/g, ' ').trim();
+      // L'adresse de l'étude : du premier chiffre au « CP VILLE » (CEDEX retiré). Les noms sont ce qui reste, avant ou après elle.
+      const adr = /\d[\s\S]*?(?:^|\s)(\d{5})\s+((?:[A-ZÀ-Ý][A-ZÀ-Ý'’-]*\s*)+)/.exec(reste);
+      let ville = '';
+      let noms = reste;
+      if (adr) {
+        const avant = reste.slice(0, adr.index).trim();
+        const mots = adr[2].replace(/\bCEDEX\b.*$/, '').trim().split(/\s+/).filter(Boolean);
+        // Noms écrits avant l'adresse : tout ce qui suit le code postal est la ville ; sinon la ville est son premier mot.
+        ville = avant ? mots.join(' ') : (mots[0] || '');
+        noms = avant || mots.slice(1).join(' ') + ' ' + reste.slice(adr.index + adr[0].length);
+      }
+      const notaire = noms.replace(/\b(?:Ma[îi]tres?|Me)\b\.?\s*/gi, '').replace(/\s+/g, ' ').trim();
+      if (!notaire || /^\d|^NOTAIRE/i.test(notaire) || /gossart/i.test(notaire)) return;
+      const ins = { nature: 'Disposition de dernières volontés', date: dateIsoDepuisFr(date[1]) || '', notaire, ville, crpcen: etude[1], compostage: compostage ? compostage[1] : '' };
       if (!out.some(x => x.date === ins.date && x.crpcen === ins.crpcen && x.compostage === ins.compostage)) out.push(ins);
     });
     return out;
@@ -450,7 +463,8 @@
   function confreresFcddv(fcddv) {
     const groupes = [];
     ((fcddv && fcddv.inscriptions) || []).forEach((ins, index) => {
-      const cle = normaliserPourRecherche(ins.notaire || '').replace(/[^a-z0-9]+/g, ' ').trim() || ('n' + index);
+      // Une étude = un email, même si ses actes portent des associés différents : son CRPCEN d'abord, sinon le nom.
+      const cle = (ins.crpcen ? 'crpcen ' + ins.crpcen : normaliserPourRecherche(ins.notaire || '').replace(/[^a-z0-9]+/g, ' ').trim()) || ('n' + index);
       let g = groupes.find(x => x.cle === cle);
       if (!g) { g = { cle, notaire: ins.notaire, ville: ins.ville || '', email: ins.email || '', inscriptions: [] }; groupes.push(g); }
       if (!g.email && ins.email) g.email = ins.email;
@@ -483,8 +497,11 @@
     const anciennes = (s.fcddv && s.fcddv.inscriptions) || [];
     const carnet = typeof carnetConfreres !== 'undefined' ? carnetConfreres : [];
     const inscriptions = analyse.inscriptions.map(i => {
-      const deja = anciennes.find(a => a.notaire === i.notaire && a.nature === i.nature && a.date === i.date);
-      return Object.assign({}, i, { email: (deja && deja.email) || emailNotaireFcddv(i, carnet), demandeLe: (deja && deja.demandeLe) || '' });
+      // Le même acte relu (son compostage, sinon l'étude et la date) garde ce que l'étude a corrigé : nature, notaire, email.
+      const memeActe = anciennes.find(a => !a.saisie && ((i.compostage && a.compostage === i.compostage) || (i.crpcen && a.crpcen === i.crpcen && a.date === i.date)));
+      const deja = memeActe || anciennes.find(a => a.notaire === i.notaire && a.nature === i.nature && a.date === i.date);
+      const garde = memeActe ? { nature: memeActe.nature || i.nature, notaire: memeActe.notaire || i.notaire } : {};
+      return Object.assign({}, i, garde, { email: (deja && deja.email) || emailNotaireFcddv(Object.assign({}, i, garde), carnet), demandeLe: (deja && deja.demandeLe) || '' });
     });
     // Les inscriptions ajoutées à la main restent.
     anciennes.filter(a => a.saisie).forEach(a => inscriptions.push(a));

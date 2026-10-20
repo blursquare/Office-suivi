@@ -55,6 +55,22 @@ async function rafraichirWizardSuccessionAuthentic() {
   } catch (_) { /* hors ligne : le dossier repris reste tel quel */ }
 }
 
+// Pure : les fiches à ouvrir dans Authentic pendant « Vérifier » (étude 20/10 : « que CLAIRE demande : ouvrez la fiche de… ; ça se
+// complète, c'est gardé — idem pour le défunt, les héritiers, les biens ») → [{ libelle, recue }]. Chaque page lue coche sa ligne.
+function pagesAOuvrirWizardSuccession(p, d) {
+  const r = [];
+  const fiche = (nom) => !!(nom && ficheClientDe(d, nom));
+  const defunt = p.defunt || '';
+  r.push({ libelle: defunt ? `Fiche de ${defunt} (défunt)` : 'Fiche du défunt', recue: !!defuntDepuisFiches(d).fiche });
+  (p.heritiers || []).forEach(h => r.push({ libelle: `Fiche de ${h.nom}`, recue: fiche(h.nom) }));
+  const lus = (p.biens || []).length;
+  const annonces = Number(d && d.authentic && d.authentic.biensDossier && d.authentic.biensDossier.nombre) || 0;
+  (p.biens || []).forEach(b => r.push({ libelle: `Fiche du bien ${b.adresse || ''}`.trim(), recue: true }));
+  const manquants = Math.max(annonces - lus, !lus && p.bienPrincipal ? 1 : 0);
+  for (let i = 0; i < manquants; i++) r.push({ libelle: i === 0 && !lus && p.bienPrincipal ? `Fiche du bien ${p.bienPrincipal}` : 'Fiche d’un autre bien', recue: false });
+  return r;
+}
+
 function valeurChampWizardSuccession(id) {
   const el = document.getElementById(id);
   return el ? String(el.value || '').trim() : '';
@@ -88,7 +104,12 @@ function renderWizardSuccession() {
     ? p.biens.map(b => `<li><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.parcelles ? ` <span class="hint">${escapeHtml(b.parcelles)}</span>` : ''}</li>`).join('')
     : p.bienPrincipal ? `<li><span class="prop-texte">${escapeHtml(p.bienPrincipal)}</span> <span class="hint">rubrique « Immeubles » ; fiche du bien pas encore ouverte</span></li>`
       : '<li class="hint">Aucun bien immobilier relevé dans Authentic.</li>';
+  const aOuvrir = pagesAOuvrirWizardSuccession(p, dossierProvisoireSuccession(exportAuthenticActuel));
+  const restent = aOuvrir.filter(x => !x.recue).length;
+  const ouvrir = `<div class="wizard-succ-ouvrir"><div class="analyse-sous-titre">${restent ? `À ouvrir dans Authentic <span class="analyse-compteur">${restent}</span>` : 'Tout est lu dans Authentic'} ${infoBulle('Ouvrez chaque fiche dans Authentic pendant que cet écran est affiché : elle se coche ici, ses données complètent ce qui est montré et sont gardées à l’ajout du dossier.')}</div>
+      <ul class="pa-pages">${aOuvrir.map(x => `<li class="pa-page ${x.recue ? 'recue' : 'manque'}">${icone(x.recue ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}</span></li>`).join('')}</ul></div>`;
   bloc.innerHTML = `<div class="wizard-bloc-titre">Succession</div>
+    ${ouvrir}
     <div class="field-row">
       <div><label for="f-succ-prenoms">Prénoms du défunt ${infoBulle('Tels qu’ils s’écrivent dans les courriers. Repris d’Authentic : comparant « Défunt », sinon le premier comparant quand le nom du dossier le désigne, sinon la fiche portant une date de décès.')}</label>
         <input type="text" id="f-succ-prenoms" value="${escapeAttr(v('f-succ-prenoms', 'prenoms'))}" placeholder="Ex. Jeanne Marie"></div>

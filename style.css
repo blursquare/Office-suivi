@@ -8906,6 +8906,7 @@ tcxspan { cursor: pointer; }
 #panel.wizard-succession .succession-seul { display: block; }
 .wizard-succ-listes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 12px; }
 .wizard-succ-listes > * { min-width: 0; }
+.wizard-succ-ouvrir { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .wizard-succ-liste { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); }
 
 /* ---- Réglages › Authentic : journal des pages lues (étude, 02/10) ---- */

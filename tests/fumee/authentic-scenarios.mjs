@@ -647,7 +647,8 @@ try {
     const lire = () => page.evaluate(() => {
       const val = (id) => { const el = document.getElementById(id); return el ? el.value : '∅'; };
       const her = [...document.querySelectorAll('#wizard-bloc-succession .wizard-succ-liste')].map(u => u.textContent.replace(/\s+/g, ' ').trim()).join(' / ');
-      return `défunt « ${val('f-succ-prenoms')} ${val('f-succ-nom')} », décès ${val('f-succ-deces-date')} ${val('f-succ-deces-lieu')} ; héritiers : ${her}`;
+      const ouvrir = [...document.querySelectorAll('#wizard-bloc-succession .wizard-succ-ouvrir .pa-page')].map(li => (li.classList.contains('recue') ? '✓' : '○') + li.textContent.trim()).join(' · ');
+      return `défunt « ${val('f-succ-prenoms')} ${val('f-succ-nom')} », décès ${val('f-succ-deces-date')} ${val('f-succ-deces-lieu')} ; héritiers : ${her} ; à ouvrir : ${ouvrir}`;
     });
     const avant = await lire();
     constat(S, /Alain COSTE/i.test(avant) && /Claude COSTE/i.test(avant) && /MARTEL/.test(avant), `Vérifier ouvert : ${avant} (${ouvert.length})`);
@@ -666,6 +667,8 @@ try {
     await pause(4000);
     const apres3 = await lire();
     constat(S, /2026-08-31/.test(apres3) && /alain\.coste/.test(apres3) && /claude\.coste/.test(apres3), `après la fiche d’une seconde héritière : ${apres3}`);
+    constat(S, /○Fiche de Jeanne/.test(avant) && /✓Fiche de Jeanne/.test(apres3) && /✓Fiche de Alain COSTE/.test(apres3) && /✓Fiche de Claude COSTE/.test(apres3) && /○Fiche du bien/.test(apres3),
+      `fiches à ouvrir cochées au fil des pages : ${apres3.split('à ouvrir : ')[1] || ''}`);
     await page.evaluate(() => { reinitialiserFormulaire(); definirOnglet('dashboard'); });
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
