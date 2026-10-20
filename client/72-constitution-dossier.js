@@ -22,7 +22,9 @@
     retraite: { re: /agirc|arrco|cicas|humanis|retraite compl/i },
     carsat: { re: /carsat/i },
     msa: { re: /\bmsa\b/i },
-    mutuelle: { re: /mutuelle|camieg|harmonie/i }
+    mutuelle: { re: /mutuelle|camieg|harmonie/i },
+    // Étude 20/10 : les maisons de retraite rangées dans leur catégorie du répertoire.
+    ehpad: { theme: 'maisonsRetraite' }
   };
 
   // ---- Données (pures) ----
@@ -181,6 +183,8 @@
   function contactPreferePourDefuntConstitution(cle, contacts, defunt) {
     const candidats = candidatsRepertoireConstitution(cle, contacts);
     if (!candidats.length || cle === 'banque' || cle === 'assurance-vie') return null;
+    // Maison de retraite : seulement celle que le domicile du défunt cite (son nom ou sa rue) — jamais la seule du répertoire par défaut.
+    if (cle === 'ehpad') return maisonRetraiteDuDefuntConstitution(candidats, defunt);
     // Impôts : toujours le SPFE de Blois (étude 18/10 : « changer pour les successions en SPFE de BLOIS »), quel que soit le domicile.
     if (cle === 'impots') return candidats.find(c => /\bspfe\b|s\.?\s*i\.?\s*e\.?\s*p\.?\s*f\b/i.test(String(c.organisme || '')) || c.id === 'rep-siepf-blois') || null;
     const dep = departementDeTexteConstitution(defunt && defunt.domicile);
@@ -194,6 +198,24 @@
     if (!dep) return null;
     const memeDep = candidats.filter(c => departementDeTexteConstitution(c.adresse) === dep);
     return memeDep.length === 1 ? memeDep[0] : null;
+  }
+
+  // Pure : la maison de retraite du répertoire que le domicile du défunt désigne — l'établissement cité porte tous les mots distinctifs
+  // de son nom, ou la même voie avec le même numéro ; une seule, sinon null.
+  function maisonRetraiteDuDefuntConstitution(candidats, defunt) {
+    const domicile = String((defunt && defunt.domicile) || '');
+    const etab = etablissementDansDomicileConstitution(domicile);
+    if (!etab) return null;
+    const mots = (t) => normaliserPourRecherche(String(t || '')).replace(/[^a-z0-9]+/g, ' ').split(' ')
+      .filter(m => m.length >= 3 && !/^(ehpad|residence|maison|retraite|foyer|clinique|hopital|les|des|del|aux)$/.test(m));
+    const cite = new Set(mots(etab.nom));
+    const parNom = candidats.filter(c => { const m = mots(c.organisme); return m.length && m.every(x => cite.has(x)); });
+    if (parNom.length === 1) return parNom[0];
+    if (parNom.length > 1) return null;
+    const voie = (t) => { const x = /(\d{1,4})\s*(?:bis|ter)?\s*,?\s*((?:rue|avenue|av|bd|boulevard|chemin|route|allee|place|impasse|quai)\b[^,]*)/.exec(normaliserPourRecherche(String(t || ''))); return x ? x[1] + ' ' + x[2].trim() : ''; };
+    const v = voie(domicile);
+    const parVoie = v ? candidats.filter(c => voie(c.adresse) === v) : [];
+    return parVoie.length === 1 ? parVoie[0] : null;
   }
 
   // Pure : le défunt du dossier — les champs saisis sur la fiche (d.defunt) l'emportent ; sinon la fiche client d'Authentic qui porte une
@@ -388,7 +410,7 @@
       let contact = contactPreferePourDefuntConstitution(modele, contacts, defunt);
       let lignes = contact ? adresseCourrierContact(contact) : (m ? m.destinataire.slice() : []);
       let origine = contact ? 'Répertoire' : (lignes.length ? 'Adresse type du modèle' : '');
-      if (modele === 'ehpad') {
+      if (modele === 'ehpad' && !contact) {
         const etab = etablissementDansDomicileConstitution(defunt.domicile);
         if (etab) { lignes = etab.lignes; origine = 'Domicile du défunt (établissement cité)'; }
       }

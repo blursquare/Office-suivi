@@ -135,6 +135,19 @@ test('contactPreferePourDefuntConstitution et etablissementDansDomicileConstitut
   assert.equal(app.etablissementDansDomicileConstitution('8 rue des Lilas 41000 BLOIS'), null);
 });
 
+test('maison de retraite du répertoire : seulement celle que le domicile du défunt cite (étude 20/10)', () => {
+  const contacts = [
+    { id: 'm1', theme: 'maisonsRetraite', organisme: 'EHPAD La Bonne Eure', adresse: '31 rue de Candy, 41000 BLOIS' },
+    { id: 'm2', theme: 'maisonsRetraite', organisme: 'Résidence Les Tilleuls', adresse: '4 avenue Wilson, 41000 BLOIS' },
+    { id: 's1', theme: 'social', organisme: 'CARSAT Centre', adresse: '45033 ORLEANS' }
+  ];
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', contacts, { domicile: 'BLOIS (41000), EHPAD La Bonne Eure, 31 rue de Candy' }).id, 'm1');
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', contacts, { domicile: 'BLOIS (41000), Résidence du parc, 4 avenue Wilson' }).id, 'm2', 'par la rue et le numéro');
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', contacts, { domicile: 'BLOIS (41000), 8 rue des Lilas' }), null, 'domicile sans établissement : rien d’office');
+  assert.equal(app.contactPreferePourDefuntConstitution('ehpad', [contacts[0]], { domicile: 'VINEUIL (41350), EHPAD Les Roses, 2 rue Haute' }), null, 'jamais la seule du répertoire par défaut');
+  assert.equal(app.candidatsRepertoireConstitution('ehpad', contacts).map(c => c.id).join(','), 'm1,m2', 'proposées au choix');
+});
+
 test('retenirImmeublesAuthentic : tous les articles du dossier Authentic gardés', () => {
   const d = {};
   const donnees = { biens: [], immeubles: [
