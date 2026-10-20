@@ -495,7 +495,7 @@
     if (personne.morale) {
       const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
       const nom = mots(personne.nom);
-      return !!nom && (d.parties || []).some(p => p && (mots(p.nom) === nom || (' ' + mots(p.nom) + ' ').includes(' ' + nom + ' ')));
+      return !!nom && (d.parties || []).some(p => p && mots(p.nom) === nom);
     }
     if (!personne.prenom) return false;
     if (estSuccession(d)) return !!partieSuccessionDeLaFiche(d, personne);
@@ -561,8 +561,12 @@
   function marquerSocieteAuthentic(d, societe, role, noter) {
     const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
     const nom = mots(societe.nom);
-    const p = (Array.isArray(d.parties) ? d.parties : []).find(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ') || (' ' + nom + ' ').includes(' ' + mots(x.nom) + ' ')));
-    if (!p || p.qualitePersonne === 'morale') return;
+    // Jamais une personne physique (prénom ou civilité) ni une partie dont le nom n'est qu'un morceau de la raison sociale :
+    // le gérant « DUPONT » vend souvent avec sa « SCI DUPONT ».
+    const cote = (Array.isArray(d.parties) ? d.parties : []).filter(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ')));
+    if (cote.some(x => x.qualitePersonne === 'morale')) return;
+    const p = cote.find(x => !x.prenom && !x.civilite);
+    if (!p) return;
     p.qualitePersonne = 'morale';
     delete p.civilite;
     noter(`${p.nom} : société d’après sa fiche Authentic${societe.forme ? ` (${societe.forme})` : ''}`);

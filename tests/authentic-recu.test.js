@@ -185,3 +185,16 @@ test('fiche client d’une SOCIÉTÉ (structure du 20/10) : raison sociale, form
   assert.match(lue.lignes.map((l) => l.join(' ')).join(' | '), /Forme Société civile immobilière \| SIREN 123456789 \| SIRET 12345678900017/);
   assert.equal(app.personneDuDossierSurAuthentic(d, p), true, 'fiche de la société dans son onglet : la société du dossier');
 });
+
+test('fiche d’une société : jamais le gérant du même nom pris pour la société (relecture 0.293.0)', () => {
+  const d = { id: 'm2', nom: 'DUPONT / DURAND', parties: [{ role: 'VENDEUR', nom: 'DUPONT', prenom: 'Paul', civilite: 'M' }, { role: 'VENDEUR', nom: 'SCI DUPONT' }], historique: [] };
+  const notes = [];
+  app.marquerSocieteAuthentic(d, { morale: true, nom: 'SCI DUPONT' }, 'VENDEUR', (t) => notes.push(t));
+  assert.equal(d.parties[0].qualitePersonne, undefined);
+  assert.equal(d.parties[0].civilite, 'M');
+  assert.equal(d.parties[1].qualitePersonne, 'morale');
+  const d2 = { parties: [{ role: 'VENDEUR', nom: 'DUPONT' }] };
+  app.marquerSocieteAuthentic(d2, { morale: true, nom: 'SCI DUPONT' }, 'VENDEUR', () => {});
+  assert.equal(d2.parties[0].qualitePersonne, undefined, 'un nom contenu dans la raison sociale n’est pas la société');
+  assert.equal(app.personneDuDossierSurAuthentic({ parties: [{ nom: 'SCI LES PINS DU LAC' }] }, { morale: true, nom: 'SCI LES PINS' }), false);
+});

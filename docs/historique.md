@@ -21194,3 +21194,9 @@ noté sans montant (pas d'OCR ici). Point terrain `factures-succession-nas`.
   personne morale (`marquerSocieteAuthentic`) ; fiche retenue avec ses champs de société (`retenirFicheClientAuthentic`), panneau « Authentic »
   (Forme, SIREN, SIRET, Siège, Capital, Parts), fiche attendue aussi pour une société (`personnesAttenduesAuthentic`), onglet propre reconnu
   par la raison sociale (`personneDuDossierSurAuthentic`). Scénario 36.
+
+### 20/10 — Relecture de 0.293.0 : deux corrections avant publication
+
+- Fiche d'une société : `marquerSocieteAuthentic` ne prend plus une partie dont le nom n'est qu'un morceau de la raison sociale, ni une partie qui porte un prénom ou une civilité (le gérant « DUPONT » vendant avec sa « SCI DUPONT » passait en société) ; `personneDuDossierSurAuthentic` exige la raison sociale identique.
+- Factures d'une succession : une facture retirée du suivi entre dans `facturesNasVues` (une facture rangée par Claire Scan puis retirée revenait au relevé suivant du NAS).
+- « Clients et biens » : la fiche d'une société d'Authentic reste hors de la base des personnes, comme les parties « morale ».

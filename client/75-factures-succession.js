@@ -255,6 +255,8 @@
     if (!d || !d.succession || !Array.isArray(d.succession.factures)) return;
     const f = factureSuccessionParId(d, factureId);
     d.succession.factures = d.succession.factures.filter(x => x && x.id !== factureId);
+    // Un fichier retiré du suivi ne revient pas au relevé suivant du NAS (rangé par Claire Scan comme déposé à la main).
+    if (f && f.fichier) d.succession.facturesNasVues = (d.succession.facturesNasVues || []).concat(f.fichier).slice(-300);
     ajouterHistorique(d, `Facture retirée du suivi : ${(f && f.organisme) || 'sans organisme'}`);
     sauvegarder(d);
     render();

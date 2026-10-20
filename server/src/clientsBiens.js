@@ -105,6 +105,8 @@ function occurrencesPersonnes(dossiers, imp) {
     for (const f of fiches) {
       // Fiche gardée seule (absente des comparants, 0.292.1) : jamais une partie du dossier.
       if (f.horsComparants) continue;
+      // Fiche d'une société (0.293.0) : hors de la base des personnes, comme les parties « morale ».
+      if (f.qualitePersonne === 'morale' || f.morale) continue;
       const nomFamille = texte(f.nomFamille) || decouperNom(f.nom).nomFamille;
       const prenom = texte(f.prenom) || decouperNom(f.nom).prenom;
       if (!nomFamille) continue;
