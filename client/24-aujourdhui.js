@@ -160,6 +160,9 @@
         }
       }
 
+      // 1 bis. Hypothèque : acte de prêt à faire rédiger et DOD à envoyer (participation), DOD à réclamer au confrère (étude 20/10).
+      tachesActePret(d, aujourdhuiIso).forEach(ajouter);
+
       // 2. Avant la signature : appel de fonds, projet, réception des fonds, RIB.
       const jRdv = d.rendezVousSignature ? ecartJours(aujourdhuiIso, d.rendezVousSignature) : null;
       // Succession : ni appel de fonds, ni projet, ni RIB, ni questionnaire de vente — comme le planning et l'onglet Échanges
@@ -525,6 +528,12 @@
       re: /^Questionnaire de satisfaction envoyé au vendeur/ },
     copieActe: { titre: 'Envoyer la copie de l’acte / l’attestation de vente', categorie: 'neutre',
       re: /^Email (?:envoyé|préparé) — (?:copie de l’acte|attestation de vente)/ },
+    actePret: { titre: 'Faire rédiger l’acte de prêt', categorie: 'pret',
+      re: /^(Acte de prêt (?:en cours de rédaction|signé) \(sous-dossier prêt d’Authentic\)|Faire rédiger l’acte de prêt : noté fait à la main)/ },
+    dodEnvoi: { titre: 'Envoyer la DOD au notaire instrumentaire', categorie: 'pret',
+      re: /^(Email envoyé — DOD au notaire instrumentaire|Envoyer la DOD au notaire instrumentaire : noté fait à la main)/ },
+    dodAttendue: { titre: 'Réclamer la DOD au confrère', categorie: 'pret',
+      re: /^(Email envoyé — DOD demandée au confrère|Réclamer la DOD au confrère : noté fait à la main)/ },
     redaction: { titre: 'Rédiger l’acte', categorie: 'redaction',
       re: /^(Rédaction de l’acte marquée réalisée|Acte dans Authentic : En cours de rédaction)/,
       annule: /^(Rédaction de l’acte : validation annulée|Tâche du jour « Rédiger l’acte » : « fait » annulé)/ }
@@ -729,6 +738,8 @@
     } else if (geste.type === 'copieActe') {
       fermerFenetreAujourdhui();
       ouvrirEnvoiCopieActe(id);
+    } else if (geste.type === 'dod') {
+      Promise.resolve(ouvrirEmailDod(id, geste.sens)).then(ok => { if (ok) { noterTraite(a, 'Brouillon ouvert'); render(); } });
     } else {
       fermerFenetreAujourdhui();
       ouvrirDossierDepuisDashboard(id);
@@ -772,7 +783,7 @@
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', questionnaireSuccession: 'questionnaireSuccessionEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
     ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe',
-    copieActe: 'copieActeEnvoyeeLe'
+    copieActe: 'copieActeEnvoyeeLe', actePret: 'actePretLe', dodEnvoi: 'dodEnvoyeeLe', dodAttendue: 'dodRecueLe'
   };
 
   // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
@@ -1003,7 +1014,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
@@ -1011,7 +1022,7 @@
 
   function iconeGeste(a) {
     if (!a.geste) return icone('folder');
-    if (a.geste.type === 'email' || a.geste.type === 'questionnaire') return icone('mail');
+    if (a.geste.type === 'email' || a.geste.type === 'questionnaire' || a.geste.type === 'dod') return icone('mail');
     if (a.geste.type === 'marquer') return icone('check');
     if (a.geste.type === 'appelFonds' || a.geste.type === 'copieActe') return icone('file-text');
     return icone('folder');

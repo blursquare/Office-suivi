@@ -754,7 +754,7 @@
     if (RE_INTITULE_SUCCESSION_AUTHENTIC.test(intitule || '')) return true;
     const sous = sousDossierAuthentic(capture);
     if (sous === 'succession') return true;
-    if (sous === 'vente' || sous === 'promesse' || sous === 'avenant') return false;
+    if (sous === 'vente' || sous === 'promesse' || sous === 'avenant' || sous === 'pret') return false;
     if (/^\s*(?:vte|vente)(?![a-z])/i.test(intitule || '')) return false;
     if (comparantsAuthentic(capture).some(c => c.role === 'DEFUNT' || c.role === 'HERITIER')) return true;
     // Étude 16/10 (« le lien renvoie vers un nouveau dossier de vente ») : une page qui ne dit pas « Succession » dans son en-tête —

@@ -585,6 +585,7 @@
     const garanties = r.garanties
       ? pastillesGarantiesPret(r.garanties)
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
+    const lignePret = ligneActePretFonds(d);
     const actions = r.ouvrable
       ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>`
       : (d.dossierLie ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)">Revérifier</button>` : '');
@@ -596,6 +597,7 @@
         <ul class="fonds-offre-lignes">
           ${ligneButoir}${ligneMontant}
           <li><span class="fonds-offre-cle">Garanties</span>${garanties}</li>
+          ${lignePret ? `<li><span class="fonds-offre-cle">Acte de prêt</span><span class="${lignePret.classe ? 'fonds-offre-a-faire' : ''}">${escapeHtml(lignePret.texte)}</span></li>` : ''}
         </ul>
         ${actions ? `<div class="fonds-offre-actions">${actions}</div>` : ''}
       </div>`;

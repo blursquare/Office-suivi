@@ -504,6 +504,7 @@
       if (/^(?:promesse|compromis|avant[\s-]*contrat|pv|puv)(?![a-z])/.test(l)) return 'promesse';
       if (/^(?:vte|vente)(?![a-z])/.test(l)) return 'vente';
       if (/^(?:succ|succession)(?![a-z])/.test(l)) return 'succession';
+      if (/^(?:acte\s+de\s+)?pret(?![a-z])/.test(l)) return 'pret';
       return 'autre';
     }
     return '';
@@ -2630,8 +2631,9 @@
       const dTrouve = dossierPourIntituleAuthentic(lu, dossiers, adresse, reference);
       const dSous = dossierSurAuthentic(dTrouve, reference, lu) ? dTrouve : null; // jamais une référence retenue par les noms seuls
       dossierCourantAuthentic = { id: dSous ? dSous.id : '', t: Date.now(), sur: !!dSous };
-      const libelleSous = sous === 'promesse' ? 'promesse' : sous === 'avenant' ? 'avenant' : 'autre que la vente';
-      if (dSous && retenirReferenceAuthentic(dSous, reference, dossiers)) { await sauvegarder(dSous); render(); }
+      const libelleSous = sous === 'promesse' ? 'promesse' : sous === 'avenant' ? 'avenant' : sous === 'pret' ? 'prêt' : 'autre que la vente';
+      const pretLu = sous === 'pret' && dSous && retenirPageActePretAuthentic(dSous, capture, isoAujourdhuiLocal()); // étude 20/10 : état de l'acte de prêt
+      if (dSous && (retenirReferenceAuthentic(dSous, reference, dossiers) || pretLu)) { await sauvegarder(dSous); render(); }
       return { etat: 'sans-changement', dossierId: dSous ? dSous.id : undefined, texte: `sous-dossier ${libelleSous} : seul le sous-dossier de vente est lu` };
     }
     let referenceNotee = false;

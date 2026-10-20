@@ -392,6 +392,16 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   (≥ 6 pages) confirmé par l'IA locale ; « à confirmer » si le modèle est indisponible. Garanties
   lues dans le seul paragraphe « GARANTIES », une garantie conditionnelle/future n'est pas comptée. Offre reçue sans garantie lue : « Garantie non identifiée »
   (`garantiesPretAffichees`), jamais un blanc.
+- **Hypothèque : acte de prêt et DOD** (étude 20/10, 0.296.0, `client/90-acte-pret.js`) : une hypothèque légale de prêteur de deniers ou conventionnelle lue dans l'offre
+  (`hypothequesPret` ; ni caution ni « sans garantie ») est **mise en avant près du prix en haut de la fiche** (pastille pleine, `pastillesHypothequeEntete`) et décide du circuit
+  (`circuitActePret`) : **participation et notre client est l'acquéreur** (`roleNotaire` participant, aucun confrère sur l'acquéreur) → « Faire rédiger l'acte de prêt »
+  et « Envoyer la DOD au notaire instrumentaire » dans « À faire » ; **nous recevons l'acte et un confrère représente l'acquéreur** → l'inverse, « Réclamer la DOD au confrère »
+  (c'est lui qui rédige et nous envoie sa DOD) ; **seul notaire** → le prêt est rédigé dans l'acte de vente, rien à faire ; participation côté vendeur : rien pour nous. Emails de la DOD =
+  **premiers jets de CLAIRE** (`construireEmailDod`), jamais partis sans « Envoyer » ; « Déjà fait / Déjà envoyée / Déjà reçue » posent `actePretLe`, `dodEnvoyeeLe`, `dodRecueLe`.
+  **Sous-dossier « Prêt » d'Authentic** (en-tête « N - Prêt … », `sousDossierAuthentic` → `'pret'`) : son tableau « Rédaction » (Non rédigé / En cours / Signé le) est retenu
+  dans `d.authentic.pret` (jamais appliqué à la vente) ; **en cours ou signé → la tâche « Faire rédiger l'acte de prêt » tombe** (même règle que l'acte de vente) ; état affiché sur la
+  ligne « Acte de prêt » du bloc « Offre de prêt » de l'onglet Fonds. **Non vérifié sur une vraie page** (points `pret-authentic-sous-dossier`, `dod-email`) ; le badge de statut du
+  sous-dossier (« Préparation définitive »…) n'est pas lu.
 - **Pièces du dossier** : reconnues **par le nom de fichier seulement** (`motifNom` +
   formes tolérantes `FORMES_NOM_PIECES`), jamais par le contenu (le compromis cite toutes les pièces).
   **Liste des noms reconnus** : `EXEMPLES_NOMS_PIECES` (Réglages › Pièces et Claire Scan), vérifiée par

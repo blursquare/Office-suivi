@@ -2132,6 +2132,7 @@
                 ${d.responsable ? `<span class="fiche-resp" title="Responsable : ${escapeAttr(d.responsable)}">${pastilleCollaborateur(d.responsable)}</span>` : ''}
                 ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}
                 ${d.prixVente ? `<strong class="fiche-entete-prix">${escapeHtml(formaterPrix(d.prixVente))}</strong>` : ''}
+                ${pastillesHypothequeEntete(d)}
                 ${estSuccession(d) ? '' : boutonOuvrirCompromis}
                 ${boutonDossierNas}
               </div>

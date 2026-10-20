@@ -88,5 +88,6 @@
   "86-animations.js",
   "87-widget-nouveautes.js",
   "88-import-clients-biens.js",
-  "89-panneau-authentic.js"
+  "89-panneau-authentic.js",
+  "90-acte-pret.js"
 ]

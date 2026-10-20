@@ -276,6 +276,18 @@ try {
     const d = await lire('martel');
     constat(S, !(d.echeancesValidees && d.echeancesValidees.acte) && JSON.stringify(d.pieces) === JSON.stringify(avant.pieces), `acte marqué signé : ${!!(d.echeancesValidees && d.echeancesValidees.acte)} (${e.texte || ''})`);
   }
+  // 40. Sous-dossier « Prêt » (étude 20/10) : son état de rédaction est retenu sur la fiche, sans toucher à l'acte de vente.
+  {
+    const S = '40. Sous-dossier prêt : état de l’acte de prêt';
+    const avant = await lire('martel');
+    const p = pageDossier({ ref: 'A 2026 00500', intitule: 'VTE MARTEL / FOURNIER', sous: '4 - Prêt MARTEL / FOURNIER', comparants: [['M. MARTEL Alexandre', 'Vendeur'], ['Mme FOURNIER Camille', 'Acquéreur']],
+      immeubles: [['41350 VINEUIL', '3 chemin des Vignes']] });
+    p.tableaux = [{ titre: 'Rédaction', entete: ['Document', 'Date', 'État'], lignes: [['Acte de prêt', '', 'En cours']] }];
+    const e = await envoyer(p);
+    const d = await lire('martel');
+    constat(S, d.authentic && d.authentic.pret && d.authentic.pret.etat === 'redaction', `état du prêt : ${JSON.stringify(d.authentic && d.authentic.pret)} (${e.texte || ''})`);
+    constat(S, !(d.echeancesValidees && d.echeancesValidees.acte) && JSON.stringify(d.pieces) === JSON.stringify(avant.pieces), 'la vente n’est pas touchée par la page du prêt');
+  }
   // 14. Ancien dossier signé des mêmes clients : la page de l'ancien numéro ne touche pas le nouveau.
   {
     const S = '14. Ancien dossier des mêmes clients';
