@@ -514,7 +514,8 @@ function corpsUpdateEcheanceDate({ itemId, changeKey, dateStr }) {
   return ENVELOPPE_DEBUT
     + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
     + '<m:ItemChanges><t:ItemChange>'
-    + '<t:ItemId Id="' + echapperXml(itemId) + '" ChangeKey="' + echapperXml(changeKey) + '"/>'
+    // Sans ChangeKey (trajets posés par CLAIRE, étude 20/10) : l'élément est désigné par son seul identifiant.
+    + '<t:ItemId Id="' + echapperXml(itemId) + '"' + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/>'
     + '<t:Updates>'
     + '<t:SetItemField><t:FieldURI FieldURI="calendar:Start"/>'
     + '<t:CalendarItem><t:Start>' + debut + '</t:Start></t:CalendarItem></t:SetItemField>'
@@ -549,7 +550,8 @@ function corpsUpdateRendezVousHoraire({ itemId, changeKey, debut, fin }) {
   return ENVELOPPE_DEBUT
     + '<m:UpdateItem ConflictResolution="AutoResolve" SendMeetingInvitationsOrCancellations="SendToNone">'
     + '<m:ItemChanges><t:ItemChange>'
-    + '<t:ItemId Id="' + echapperXml(itemId) + '" ChangeKey="' + echapperXml(changeKey) + '"/>'
+    // Sans ChangeKey (trajets posés par CLAIRE, étude 20/10) : l'élément est désigné par son seul identifiant.
+    + '<t:ItemId Id="' + echapperXml(itemId) + '"' + (changeKey ? ' ChangeKey="' + echapperXml(changeKey) + '"' : '') + '/>'
     + '<t:Updates>'
     + '<t:SetItemField><t:FieldURI FieldURI="calendar:Start"/>'
     + '<t:CalendarItem><t:Start>' + debut + '</t:Start></t:CalendarItem></t:SetItemField>'
@@ -657,6 +659,7 @@ async function supprimerEcheanceExchange({ url, email, motDePasse, itemId, chang
 async function deplacerRendezVousExchange({ url, email, motDePasse, itemId, changeKey, debut, fin, delaiMs }, injections) {
   const r = await posterEws({ url, email, motDePasse, delaiMs, body: corpsUpdateRendezVousHoraire({ itemId, changeKey, debut, fin }) }, injections);
   if (r.echec) return r.echec;
+  if (aCodeReponse(String(r.corps || ''), 'ErrorItemNotFound')) return { ok: false, introuvable: true, raison: 'ews', message: "Ce rendez-vous n'est plus dans l'agenda." };
   return interpreterReponseCreation(r.statut, r.corps,
     "Rendez-vous déplacé dans l'agenda.", 'Le déplacement du rendez-vous a échoué');
 }

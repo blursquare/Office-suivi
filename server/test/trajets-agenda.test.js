@@ -14,11 +14,13 @@ const { rendezVousChezConfrere, momentParisInstant } = require('../src/routes/ex
 
 const envoisEws = [];
 let compteur = 0;
+let introuvables = false;
 const ok = (corps) => ({ statusCode: 200, body: `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="m" xmlns:t="t"><s:Body>${corps}</s:Body></s:Envelope>` });
 const fauxPoster = (opts, cb) => {
   envoisEws.push(opts.body);
   const b = String(opts.body);
   if (/<m:CreateItem/.test(b)) { compteur++; return cb(null, ok(`<m:CreateItemResponse><m:ResponseMessages><m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items><t:CalendarItem><t:ItemId Id="ID${compteur}" ChangeKey="CK${compteur}"/></t:CalendarItem></m:Items></m:CreateItemResponseMessage></m:ResponseMessages></m:CreateItemResponse>`)); }
+  if (/<m:UpdateItem/.test(b) && introuvables && !/ChangeKey=/.test(b)) return cb(null, ok('<m:UpdateItemResponse><m:ResponseMessages><m:UpdateItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorItemNotFound</m:ResponseCode></m:UpdateItemResponseMessage></m:ResponseMessages></m:UpdateItemResponse>'));
   if (/<m:UpdateItem/.test(b)) { const id = /ItemId Id="([^"]+)"/.exec(b)[1]; return cb(null, ok(`<m:UpdateItemResponse><m:ResponseMessages><m:UpdateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items><t:CalendarItem><t:ItemId Id="${id}" ChangeKey="CK-maj"/></t:CalendarItem></m:Items></m:UpdateItemResponseMessage></m:ResponseMessages></m:UpdateItemResponse>`)); }
   if (/<m:DeleteItem/.test(b)) return cb(null, ok('<m:DeleteItemResponse><m:ResponseMessages><m:DeleteItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode></m:DeleteItemResponseMessage></m:ResponseMessages></m:DeleteItemResponse>'));
   return cb(null, ok(''));
@@ -78,6 +80,7 @@ test('déplacé puis supprimé depuis la page Agenda : les trajets suivent, puis
   assert.equal(majs.length, 3, 'le rendez-vous et ses deux trajets');
   assert.ok(majs.some((b) => /2026-11-04T13:30:00Z<\/t:Start>[^]*2026-11-04T14:00:00Z<\/t:End>/.test(b)), 'aller collé avant 15 h');
   assert.ok(majs.some((b) => /2026-11-04T15:30:00Z<\/t:Start>[^]*2026-11-04T16:00:00Z<\/t:End>/.test(b)), 'retour collé après 16 h 30');
+  assert.equal(majs.filter((b) => !/ChangeKey=/.test(b)).length, 2, 'trajets déplacés sans ChangeKey (une clé gardée peut être périmée)');
   const stock = await (await appeler('/api/agenda/evenements?debut=2026-11-01&fin=2026-11-30')).json();
   const trajetsStock = (stock.evenements || []).filter((e) => /^Trajet/.test(e.sujet) && e.date === '2026-11-04');
   assert.deepEqual(trajetsStock.map((e) => e.heure).sort(), ['14:30', '16:30']);
@@ -87,6 +90,20 @@ test('déplacé puis supprimé depuis la page Agenda : les trajets suivent, puis
   assert.equal(s.trajetsRetires, 2);
   assert.equal(envoisEws.filter((b) => /<m:DeleteItem/.test(b)).length, 3);
   assert.doesNotMatch(envoisEws.join(''), /HardDelete/);
+});
+
+test('marqué « Annulé / à replacer » : ses trajets partent ; un trajet effacé à la main est oublié au déplacement suivant', async () => {
+  const r = await creer({ sujet: 'VTE - JAUNE', date: '2026-11-06', heure: '10:00', dureeMinutes: 60, categorie: 'Catégorie Orange', adresseConfrere: '50 rue de Genève, 01800 Meximieux' });
+  envoisEws.length = 0;
+  await appeler('/api/exchange/evenement/modifier', { method: 'POST', body: JSON.stringify({ itemId: r.itemId, date: '2026-11-06', heure: '10:00', heureFin: '11:00', categories: ['Catégorie Orange', 'Catégorie Jaune'] }) });
+  assert.equal(envoisEws.filter((b) => /<m:DeleteItem/.test(b)).length, 2);
+  const r2 = await creer({ sujet: 'VTE - EFFACE', date: '2026-11-06', heure: '15:00', dureeMinutes: 60, categorie: 'Catégorie Orange', adresseConfrere: '50 rue de Genève, 01800 Meximieux' });
+  introuvables = true;
+  await appeler('/api/exchange/evenement/modifier', { method: 'POST', body: JSON.stringify({ itemId: r2.itemId, changeKey: r2.changeKey, date: '2026-11-06', heure: '16:00', heureFin: '17:00' }) });
+  introuvables = false;
+  envoisEws.length = 0;
+  await appeler('/api/exchange/evenement/modifier', { method: 'POST', body: JSON.stringify({ itemId: r2.itemId, date: '2026-11-06', heure: '16:30', heureFin: '17:30' }) });
+  assert.equal(envoisEws.filter((b) => /<m:UpdateItem/.test(b)).length, 1, 'plus aucun UpdateItem vers les trajets disparus');
 });
 
 test('ni trajet pour une autre couleur, ni trajet d’un trajet ; sans adresse, « Trajet » sans km', async () => {

@@ -288,8 +288,10 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
       if (r.ok) n++;
       if ((r.ok || r.introuvable) && typeof parametresRepo.retirerEvenementAgendaOffice === 'function') parametresRepo.retirerEvenementAgendaOffice(t.itemId);
     }
-    delete liens[itemId];
-    ecrireLiensTrajets(parametresRepo, liens);
+    // Relu juste avant d'écrire : un autre poste a pu poser ses trajets pendant les suppressions (seule cette clé est touchée).
+    const aJour = lireLiensTrajets(parametresRepo);
+    delete aJour[itemId];
+    ecrireLiensTrajets(parametresRepo, aJour);
     return n;
   }
 
@@ -303,7 +305,8 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     const restants = [];
     for (const t of lien.trajets) {
       const h = horaires[t.sens];
-      const r = await deplacerRendezVousExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: t.itemId, changeKey: t.changeKey, debut: h.debut, fin: h.fin }, injections);
+      // Sans ChangeKey : le trajet a pu être retouché (glissé dans CLAIRE, Outlook) depuis sa création, sa clé gardée serait périmée.
+      const r = await deplacerRendezVousExchange({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, itemId: t.itemId, changeKey: '', debut: h.debut, fin: h.fin }, injections);
       if (!r.ok) {
         // Trajet effacé à la main dans Outlook : oublié ; autre échec : gardé pour le prochain geste.
         if (!r.introuvable) restants.push(t);
@@ -322,9 +325,10 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
         }
       }
     }
-    delete liens[ancienId];
-    if (restants.length) liens[nouvelId || ancienId] = { ...lien, trajets: restants };
-    ecrireLiensTrajets(parametresRepo, liens);
+    const aJour = lireLiensTrajets(parametresRepo);
+    delete aJour[ancienId];
+    if (restants.length) aJour[nouvelId || ancienId] = { ...lien, trajets: restants };
+    ecrireLiensTrajets(parametresRepo, aJour);
     return n;
   }
 
@@ -486,7 +490,9 @@ function creerRouteurExchange(parametresRepo, injections = {}) {
     // Trajets d'un rendez-vous chez un confrère : ils suivent l'horaire ; retirés s'il quitte la couleur du confrère ou devient
     // une journée entière.
     if (r.ok) {
-      const quitteConfrere = categories && !categories.some((c) => rendezVousChezConfrere(reglages, c, ''));
+      // « Annulé / à replacer » (jaune) : le rendez-vous n'a plus lieu, ses trajets non plus.
+      const annule = categories && categories.some((c) => rendezVousChezConfrere({ categoriesRdv: { confrere: reglages.categoriesRdv && reglages.categoriesRdv.annule } }, c, ''));
+      const quitteConfrere = annule || (categories && !categories.some((c) => rendezVousChezConfrere(reglages, c, '')));
       if (quitteConfrere || journeeEntiere) await retirerTrajetsLies(reglages, itemId.trim());
       else await deplacerTrajetsLies(reglages, itemId.trim(), r.itemId || itemId.trim(), horaire.debut, horaire.fin);
     }

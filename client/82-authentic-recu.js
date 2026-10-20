@@ -515,9 +515,19 @@
           : parcellesCadastre(b.cadastre) })));
     return cibles.some(c => adresseSureAuthentic(bien.adresse, c.adresse) || parcelleCommuneAuthentic(bien.parcelles, c.parcelles));
   }
+  // Pure : la fiche bien d'un onglet à elle se propose-t-elle d'un clic au dossier sûr ? Seulement une SUCCESSION qui ne connaît encore
+  // aucun bien (étude 20/10, BARBOSA-ANTUNES), jamais depuis une recherche d'immeubles, jamais le bien d'un autre dossier en cours.
+  function questionBienSuccessionAuthentic(capture, courant, liste) {
+    if (!courant || !estSuccession(courant)) return false;
+    const aucunBien = !courant.adresseBien && !parcellesCadastre(courant.bien && courant.bien.cadastre).length
+      && !(Array.isArray(courant.biens) && courant.biens.length) && !((courant.authentic && courant.authentic.immeubles) || []).length;
+    const actif = ((capture && capture.onglets) || []).find(o => o && o.actif);
+    if (!aucunBien || (actif && /recherche/i.test(actif.titre || ''))) return false;
+    return !bienAutreDossierAuthentic(bienDepuisFicheAuthentic(capture), courant, liste);
+  }
   // Pure : ce bien est-il celui d'un AUTRE dossier en cours (adresse ou parcelle) ? Il n'est alors jamais proposé au dossier courant.
   function bienAutreDossierAuthentic(bien, courant, liste) {
-    return !!bien && (liste || []).some(x => x && x !== courant && !x.archive && bienDuDossierSurAuthentic(x, bien));
+    return !!bien && (liste || []).some(x => x && x !== courant && !x.archive && !x.deleted && bienDuDossierSurAuthentic(x, bien));
   }
   // Pure : deux adresses du même bien — numéro présent des deux côtés et le même, même voie (adresse approchée, autre code postal refusé).
   function adresseSureAuthentic(a, b) {

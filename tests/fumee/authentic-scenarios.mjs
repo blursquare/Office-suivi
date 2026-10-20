@@ -538,7 +538,7 @@ try {
     constat(S, e1.dossierId === 'arthur' && fiches.some(x => /BOUCHKAR/i.test(x.nom)), `fiche client : ${e1.etat} → ${e1.dossierId || '—'} ; fiches lues : ${fiches.map(x => x.nom).join(', ') || 'aucune'} (${e1.texte || ''})`);
     constat(S, /hamza\.b@/.test(d.emailAcquereur || ''), `email acquéreur « ${d.emailAcquereur || ''} »`);
     constat(S, e2.dossierId === 'arthur', `fiche du bien : ${e2.etat} → ${e2.dossierId || '—'} (${e2.texte || ''})`);
-    constat(S, e3.dossierId !== 'arthur' && !/BX12/.test(parcellesFiche(d)), `bien d’ailleurs : ${e3.etat} → ${e3.dossierId || '—'} ; parcelles ${parcellesFiche(d)}`);
+    constat(S, e3.etat === 'sans-changement' && !/BX12/.test(parcellesFiche(d)), `bien d’ailleurs : ${e3.etat} → ${e3.dossierId || '—'} (aucune question) ; parcelles ${parcellesFiche(d)}`);
   }
   // 35. Le 20/10 (succession MARTIN) : après la page de la succession, les fiches du défunt et d'un héritier, chacune dans son propre onglet,
   // vont à la succession sans question.

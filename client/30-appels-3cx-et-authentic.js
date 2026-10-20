@@ -2663,8 +2663,9 @@
       d = bienDuDossierSurAuthentic(courantSurAuthentic(), bienDepuisFicheAuthentic(capture)) ? courantSurAuthentic() : null;
       // Bien que le dossier sûr ne connaît pas encore (étude 20/10, succession BARBOSA-ANTUNES : sa page n'annonçait pas l'adresse) :
       // « est-ce le bien de ce dossier ? » d'un clic — jamais rangé seul, jamais écarté en silence.
-      if (!d && courantSurAuthentic() && !bienAutreDossierAuthentic(bienDepuisFicheAuthentic(capture), courantSurAuthentic(), dossiers)) {
-        return pageAConfirmerAuthentic(capture, rel, { d: courantSurAuthentic(), propose: courantSurAuthentic(), groupe: '' }, 'bien');
+      const courantSur = courantSurAuthentic();
+      if (!d && questionBienSuccessionAuthentic(capture, courantSur, dossiers)) {
+        return pageAConfirmerAuthentic(capture, rel, { d: courantSur, propose: courantSur, groupe: courantSur.referenceAuthentic || 'bien:' + courantSur.id }, 'bien');
       }
       if (!d) {
         noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
