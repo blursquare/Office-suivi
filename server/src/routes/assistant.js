@@ -184,8 +184,10 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     };
     const sortie = await tourAgent({
       conversation: chaine(corps.conversation, 80),
-      texte: chaine(corps.texte, 2000),
+      texte: chaine(corps.texte, 12000),
       resultats,
+      anonymiser: typeof corps.anonymiser === 'boolean' ? corps.anonymiser : undefined,
+      documents: Array.isArray(corps.documents) ? corps.documents : undefined,
       dossiers: dossiersDuCorps(corps),
       contexte: corps.contexte && typeof corps.contexte === 'object' ? corps.contexte : {},
       // Carnet de consignes de l'étude (CLAIRE.md) : pris par l'agent au premier tour de chaque conversation (reprise comprise).

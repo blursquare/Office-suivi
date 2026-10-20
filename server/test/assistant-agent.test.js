@@ -478,3 +478,79 @@ test('controles_relecture (18/10) : rien de nominatif ne part des constats, pass
   assert.match(envoye, /Condition suspensive de prêt sans date/);
   assert.equal(r.reponse, 'Synthèse.');
 });
+
+// ---- Étude 20/10 : acte déposé = texte intégral joint ; anonymisation en option ----
+
+const ACTE = [
+  { id: 'pj1', pagesTotal: 2, pages: [
+    { page: 1, texte: 'PROMESSE DE VENTE\nEntre Monsieur Paul FOURNIER, demeurant à BLOIS (41000), 2 rue des Tanneurs, joignable au 06 12 34 56 78, et Madame Léa GAUTHIER.' },
+    { page: 2, texte: 'Le prix est de 245 000 euros. Condition suspensive d’obtention d’un prêt de 180 000 euros.' }
+  ] }
+];
+
+test('acte déposé : le texte intégral est joint à la question, page par page, MASQUÉ ; rien de nominatif ne part', async () => {
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('## Synthèse\n\nPromesse entre [NOM1] et [NOM2] [pj1 p. 2].')] }]);
+  const r = await tourAgent({ texte: 'Analyse cet acte.', documents: ACTE, dossiers: D, contexte: { aujourdhui: '2026-10-20', prenom: 'Bastien' } }, { cle: 'k', client, modele: 'claude-opus-5-5' });
+  const envoye = JSON.stringify(client.requetes[0].messages);
+  assert.doesNotMatch(envoye, SECRETS);
+  const contenu = client.requetes[0].messages[0].content;
+  assert.match(contenu, /Texte intégral des pièces jointes/);
+  assert.match(contenu, /\[pj1 p\. 1\]/);
+  assert.match(contenu, /\[pj1 p\. 2\]/);
+  assert.match(contenu, /245 000|245000|\[MONTANT/);
+  assert.match(r.reponse, /## Synthèse/);
+  assert.match(r.reponse, /FOURNIER|Fournier/);
+});
+
+test('anonymisation désactivée : la phrase, l’acte et les résultats d’outils arrivent en clair, l’IA en est prévenue, pas de recherche web', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'lire_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voici l’analyse pour Paul FOURNIER.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5', rechercheWeb: ['legifrance.gouv.fr'] };
+  let r = await tourAgent({ texte: 'Analyse l’acte de Paul Fournier.', documents: ACTE, anonymiser: false, dossiers: D, contexte: { aujourdhui: '2026-10-20', prenom: 'Bastien' } }, o);
+  const q = client.requetes[0];
+  const contenu = q.messages[0].content;
+  assert.match(contenu, /Paul Fournier/);
+  assert.match(contenu, /Paul FOURNIER/);
+  assert.match(contenu, /06 12 34 56 78/);
+  assert.match(contenu, /Anonymisation DÉSACTIVÉE/);
+  assert.ok(!(q.tools || []).some((t) => t.name === 'web_search'), 'pas de recherche web sans anonymisation');
+  r = await tourAgent({ conversation: r.conversation, anonymiser: false, resultats: [{ id: 't1', contenu: { id: 'd1', parties: [{ prenom: 'Paul', nom: 'FOURNIER' }] } }] }, o);
+  assert.match(JSON.stringify(client.requetes[1].messages), /FOURNIER/);
+  assert.match(r.reponse, /Paul FOURNIER/);
+});
+
+test('anonymisation désactivée : une recherche Légifrance ou BOFiP ne porte jamais un mot des fiches', async () => {
+  const client = fauxClient([{ stop_reason: 'tool_use', usage, content: [outil('t1', 'legifrance__rechercher', { requete: 'prêt de Paul Fournier article 1583 BLOIS Tanneurs' })] }]);
+  const r = await tourAgent({ texte: 'Cherche le texte.', anonymiser: false, dossiers: D, contexte: { aujourdhui: '2026-10-20' } },
+    { cle: 'k', client, modele: 'claude-opus-5-5', outilsExternes: [{ name: 'legifrance__rechercher', description: 'x', input_schema: { type: 'object', properties: { requete: { type: 'string' } } } }] });
+  assert.equal(r.appels[0].nom, 'legifrance__rechercher');
+  assert.doesNotMatch(JSON.stringify(r.appels[0].entree), /Paul|Fournier|FOURNIER|Tanneurs/i);
+  assert.match(JSON.stringify(r.appels[0].entree), /1583/);
+});
+
+test('anonymisation changée en cours de conversation : l’IA en est prévenue à la question suivante', async () => {
+  const client = fauxClient([
+    { stop_reason: 'end_turn', usage, content: [texte('Bonjour.')] },
+    { stop_reason: 'end_turn', usage, content: [texte('Compris.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Bonjour', dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, o);
+  await tourAgent({ conversation: r.conversation, texte: 'Et maintenant ?', anonymiser: false, dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, o);
+  assert.match(JSON.stringify(client.requetes[1].messages), /Anonymisation DÉSACTIVÉE/);
+});
+
+test('blocDocumentsJoints : identifiants contrôlés, plafond, pages sans texte, jamais plus de 8 documents', () => {
+  const { blocDocumentsJoints } = require('../src/assistantAgent');
+  const id = (s) => s;
+  const r = blocDocumentsJoints([{ id: 'pj1', pages: [{ page: 1, texte: 'abc' }, { page: 2, texte: '' }] }, { id: '../x', pages: [{ page: 1, texte: 'pirate' }] }, { id: 'pj2', pages: 'non' }], id);
+  assert.equal(r.pages, 2);
+  assert.doesNotMatch(r.bloc, /pirate/);
+  assert.match(r.bloc, /page sans texte lisible/);
+  const long = blocDocumentsJoints([{ id: 'pj1', pages: [{ page: 1, texte: 'x'.repeat(30000) }, { page: 2, texte: 'y'.repeat(30000) }] }], id, 40000);
+  assert.equal(long.coupe, true);
+  assert.equal(long.pages, 1);
+  assert.match(long.bloc, /Texte coupé/);
+  assert.equal(blocDocumentsJoints([], id).bloc, '');
+});

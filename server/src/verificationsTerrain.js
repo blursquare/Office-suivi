@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'agent-acte-integral', depuis: '0.300.0', source: 'poste', titre: 'Demander à CLAIRE : un acte déposé est lu en entier et analysé comme dans une conversation Claude',
+    comment: 'Coché quand un PDF joint est lu en entier et son texte joint à la question. Sur un vrai acte (promesse, projet d’acte) : le compte rendu est structuré (synthèse, parties, bien, prix, conditions suspensives, points d’attention), les citations [pj1 p. N] ouvrent la bonne page, et un acte scanné est lu par OCR sans manquer de pages. Essayer aussi l’anonymisation désactivée dans la colonne de droite (noms en clair dans la réponse, sans codes).' },
   { id: 'explorateur-nas', depuis: '0.299.0', source: 'poste', titre: 'Explorateur du NAS : une pièce renommée ou déplacée vers un autre sous-dossier du dossier client',
     comment: 'Coché au premier renommage ou déplacement réussi depuis « Dossier NAS » d’une fiche. À regarder dans l’Explorateur Windows : le fichier porte le nouveau nom ou est dans le bon sous-dossier, sans doublon ; « Annuler » le remet. Les pièces de la fiche se mettent à jour au prochain parcours du NAS.' },
   { id: 'gnau-assistants-agglopolys', depuis: '0.275.0', source: 'manuel', titre: 'Extension Chrome : « Formuler » trouvé, adresse et parcelles saisies par les assistants du guichet d’Agglopolys (CU et DIA)',

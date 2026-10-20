@@ -1506,15 +1506,16 @@
         <div class="asst-mention" id="assistant-mention" role="listbox" aria-label="Dossiers" style="display:none;"></div>
         <div class="asst-pj-liste asst-pj-saisie" id="assistant-pieces" style="display:none;"></div>
         <input type="file" id="assistant-fichiers" accept="application/pdf,.pdf,image/*" multiple hidden onchange="ajouterPiecesJointesAssistant(this.files)">
-        <textarea id="assistant-saisie" rows="1" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
+        <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
+          <div class="asst-options-saisie" id="assistant-options-saisie"></div>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
           <wa-button variant="brand" size="s" type="submit" class="asst-envoyer">Envoyer <span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
         </div>
       </form>
-      <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; toute autre action qui modifie un dossier attend votre autorisation. Avec une IA en ligne, seuls la phrase et le texte lu des documents partent, les noms masqués.</p>
+      <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; toute autre action qui modifie un dossier attend votre autorisation. Avec une IA en ligne, partent la phrase, le texte lu des documents et ce que lisent ses outils, noms masqués — sauf si vous désactivez l’anonymisation dans l’espace de travail.</p>
     </div>
     </div>
     <!-- Espace de travail (étude 18/10 : « une sidebar à droite comme un Claude ») — client/85-assistant-colonne.js. -->
@@ -2818,5 +2819,6 @@
 <script src="client/91-recherche-sidebar.js"></script>
 <script src="client/92-categories-ajoutees.js"></script>
 <script src="client/93-explorateur-nas.js"></script>
+<script src="client/94-assistant-acte.js"></script>
 </body>
 </html>

@@ -16,8 +16,8 @@
     { valeur: 'high', libelle: 'Approfondie' }
   ];
   var CLE_COLONNE_ASSISTANT = 'claire-assistant-colonne';
-  var blocsOuvertsColonneAssistant = { etapes: true, documents: true, dossier: true, modele: false };
-  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'medium', apercu: null, docsDossier: null };
+  var blocsOuvertsColonneAssistant = { etapes: true, documents: true, dossier: true, confidentialite: true };
+  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'medium', anonymiser: true, apercu: null, docsDossier: null };
   var pdfApercuAssistant = null;          // { docId, pdf } : le PDF de l'aperçu, gardé pour feuilleter
   var blocApercuAssistant = null;         // la page dessinée et son surlignage : un élément gardé, replacé à chaque rendu de la colonne
 
@@ -40,6 +40,8 @@
 
   // Une nouvelle conversation repart sans étapes ni aperçu ; le modèle et la réflexion choisis restent ceux du poste.
   function reinitialiserColonneAssistant() {
+    // L'anonymisation désactivée ne dure que le temps d'une conversation.
+    colonneAssistant.anonymiser = true;
     colonneAssistant.etapes = [];
     colonneAssistant.journal = [];
     colonneAssistant.lus = {};
@@ -56,6 +58,7 @@
     return {
       ...(colonneAssistant.modele ? { modele: colonneAssistant.modele } : {}),
       effort: colonneAssistant.effort || 'medium',
+      anonymiser: colonneAssistant.anonymiser !== false,
       historique: (assistantContexte.echanges || []).map(e => ({ role: e.role === 'claire' ? 'claire' : 'moi', texte: e.texte || '' }))
     };
   }
@@ -240,6 +243,7 @@
   // ---- Rendu ----
 
   function renderColonneAssistant() {
+    renderBarreOptionsAssistant();
     const page = document.querySelector('#onglet-assistant .asst-page');
     const zone = document.getElementById('assistant-droite');
     if (!page || !zone) return;
@@ -304,18 +308,7 @@
             <span class="asst-doc-nom">${escapeHtml(d.libelle)}</span><span class="asst-doc-note">${escapeHtml(d.piece || '')}${d.date ? ' · ' + escapeHtml(String(d.date).split('-').reverse().join('/')) : ''}</span></button>
             <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="demanderLectureDocumentAssistant('${escapeOnclickArg(d.id)}')" title="Demander à CLAIRE de le lire" aria-label="Demander à CLAIRE de le lire">${icone('sparkle')}</wa-button></li>`).join('')}</ul>` : ''}
       </details>
-      <details class="asst-droite-bloc" data-bloc="modele"${blocsOuvertsColonneAssistant.modele ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['modele'] = this.open">
-        <summary>${icone('settings')} Modèle et réflexion</summary>
-        <label class="asst-droite-champ"><span>Modèle</span>
-          <select id="assistant-colonne-modele" class="asst-droite-select" onchange="colonneAssistant.modele = this.value">
-            ${MODELES_COLONNE_ASSISTANT.map(m => `<option value="${escapeAttr(m.valeur)}"${m.valeur === colonneAssistant.modele ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('')}
-          </select></label>
-        <label class="asst-droite-champ"><span>Réflexion</span>
-          <select id="assistant-colonne-effort" class="asst-droite-select" onchange="colonneAssistant.effort = this.value">
-            ${EFFORTS_COLONNE_ASSISTANT.map(m => `<option value="${escapeAttr(m.valeur)}"${m.valeur === colonneAssistant.effort ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('')}
-          </select></label>
-        <p class="asst-droite-vide">Un autre modèle ouvre une nouvelle conversation pour CLAIRE, qui reprend le fil des échanges. Avec Mistral, le modèle et la réflexion des Réglages s’appliquent.</p>
-      </details>`;
+      ${htmlBlocConfidentialiteAssistant()}`;
     // La page déjà dessinée est replacée telle quelle (le HTML de la colonne est refait à chaque étape de CLAIRE).
     const place = document.getElementById('assistant-apercu-place');
     if (place && a) place.appendChild(blocApercu());

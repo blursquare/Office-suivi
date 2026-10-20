@@ -62,7 +62,7 @@ function fermerFenetreSaisie() {
 }
 document.addEventListener('keydown', (e) => {
   const fond = document.getElementById('fenetre-saisie-overlay');
-  if (e.key === 'Escape' && fond && fond.style.display === 'flex') { e.stopPropagation(); fermerFenetreSaisie(); }
+  if (e.key === 'Escape' && fond && fond.style.display === 'flex') { e.stopImmediatePropagation(); e.stopPropagation(); fermerFenetreSaisie(); }
 }, true);
 
 // ---- Claire Scan : catégories de pièce ----

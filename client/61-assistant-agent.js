@@ -18,23 +18,57 @@
     faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…', chercher_conversations: 'Je cherche dans nos conversations passées…'
   };
 
-  // Pure : la réponse de l'agent (texte avec « - » en liste et **gras**) en HTML échappé.
+  // Pure : la réponse de l'agent en HTML échappé — comme une réponse de Claude : titres (# à ####), listes à puces et numérotées,
+  // tableaux (| a | b | avec leur ligne |---|---|), citations (>), filet (---), **gras**, *italique*, `code`.
   function htmlReponseAgentAssistant(texte) {
     const lignes = String(texte || '').replace(/\r/g, '').split('\n');
     const blocs = [];
-    let liste = null;
+    let liste = null;      // { ordonnee, items }
     let para = [];
-    const enLigne = (t) => citationsCliquablesAssistant(escapeHtml(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>'));
+    let citation = [];
+    const enLigne = (t) => citationsCliquablesAssistant(escapeHtml(t)
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g, '$1<i>$2</i>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>'));
     const finPara = () => { if (para.length) { blocs.push(`<p>${para.map(enLigne).join('<br>')}</p>`); para = []; } };
-    const finListe = () => { if (liste) { blocs.push(`<ul class="asst-liste">${liste.map(l => `<li>${enLigne(l)}</li>`).join('')}</ul>`); liste = null; } };
-    lignes.forEach(l => {
-      const puce = l.match(/^\s*(?:[-•*]|\d+[.)])\s+(.*)$/);
-      if (puce) { finPara(); (liste = liste || []).push(puce[1]); return; }
-      if (!l.trim()) { finPara(); finListe(); return; }
-      finListe();
+    const finListe = () => { if (liste) { const b = liste.ordonnee ? 'ol' : 'ul'; blocs.push(`<${b} class="asst-liste">${liste.items.map(l => `<li>${enLigne(l)}</li>`).join('')}</${b}>`); liste = null; } };
+    const finCitation = () => { if (citation.length) { blocs.push(`<blockquote class="asst-citation">${citation.map(enLigne).join('<br>')}</blockquote>`); citation = []; } };
+    const fin = () => { finPara(); finListe(); finCitation(); };
+    const cellules = (l) => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+    const estLigneTableau = (l) => /^\s*\|.*\|\s*$/.test(l);
+    const estSeparateur = (l) => estLigneTableau(l) && cellules(l).every(c => /^:?-+:?$/.test(c));
+    for (let i = 0; i < lignes.length; i++) {
+      const l = lignes[i];
+      if (estLigneTableau(l) && i + 1 < lignes.length && estSeparateur(lignes[i + 1])) {
+        fin();
+        const entete = cellules(l);
+        const aligne = cellules(lignes[i + 1]).map(c => /^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '');
+        const corps = [];
+        i += 2;
+        while (i < lignes.length && estLigneTableau(lignes[i]) && !estSeparateur(lignes[i])) { corps.push(cellules(lignes[i])); i++; }
+        i--;
+        const style = (k) => aligne[k] ? ` style="text-align:${aligne[k]}"` : '';
+        blocs.push(`<div class="asst-table-defile"><table class="asst-table"><thead><tr>${entete.map((c, k) => `<th${style(k)}>${enLigne(c)}</th>`).join('')}</tr></thead><tbody>${corps.map(r => `<tr>${entete.map((_, k) => `<td${style(k)}>${enLigne(r[k] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+        continue;
+      }
+      const titre = l.match(/^\s{0,3}(#{1,4})\s+(.*?)\s*#*\s*$/);
+      if (titre) { fin(); const n = Math.min(4, titre[1].length); blocs.push(`<h${n + 2} class="asst-titre asst-titre-${n}">${enLigne(titre[2])}</h${n + 2}>`); continue; }
+      if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)) { fin(); blocs.push('<hr class="asst-filet">'); continue; }
+      const quote = l.match(/^\s*>\s?(.*)$/);
+      if (quote) { finPara(); finListe(); citation.push(quote[1]); continue; }
+      const puce = l.match(/^\s*(?:([-•*])|(\d+)[.)])\s+(.*)$/);
+      if (puce) {
+        finPara(); finCitation();
+        const ordonnee = !!puce[2];
+        if (liste && liste.ordonnee !== ordonnee) finListe();
+        (liste = liste || { ordonnee, items: [] }).items.push(puce[3]);
+        continue;
+      }
+      if (!l.trim()) { fin(); continue; }
+      finListe(); finCitation();
       para.push(l.trim());
-    });
-    finPara(); finListe();
+    }
+    fin();
     return blocs.join('') || '<p></p>';
   }
 
@@ -259,7 +293,7 @@
   }
 
   // Rend vrai quand l'agent a répondu (ou dit pourquoi il n'a pas pu), faux pour revenir à la compréhension d'une phrase.
-  async function envoyerAgentAssistant(texte, dossierImpose) {
+  async function envoyerAgentAssistant(texte, dossierImpose, documents) {
     const contexte = () => {
       // Le dossier rattaché dans la colonne de droite passe avant la fiche ouverte à côté.
       const id = dossierImpose || assistantContexte.dossierId || dossierOuvert || '';
@@ -277,8 +311,9 @@
       return true;
     };
     try {
-      let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) });
-      if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers) }); }
+      const joints = Array.isArray(documents) && documents.length ? { documents } : {};
+      let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints });
+      if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints }); }
       if (rep.repli) { assistantEnCours = false; assistantEtapeAgent = ''; return false; }
       if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Je reprends le fil de notre échange.</p>');
       while (rep && Array.isArray(rep.appels) && rep.appels.length) {

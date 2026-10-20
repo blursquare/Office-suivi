@@ -360,7 +360,18 @@
       // Sinon, c'est une nouvelle demande : on continue normalement.
     }
     // L'agent (11/10) d'abord : Claude lit les dossiers et enchaîne les étapes ; sans lui, la compréhension d'une phrase.
-    if (assistantDisponibilite.agent && (pieces.length || !assistantContexte.attente) && await envoyerAgentAssistant(texte + mentionPiecesJointesAgent(pieces), impose)) return;
+    // Pièces jointes lues EN ENTIER sur ce poste, avant l'envoi : leur texte part avec la question (client/94), comme un document déposé
+    // dans une conversation Claude ; celles qui ne se lisent pas restent à lire par l'agent.
+    let documentsJoints = [];
+    let piecesALire = pieces;
+    if (pieces.length && assistantDisponibilite.agent) {
+      assistantEnCours = true;
+      renderAssistant();
+      try { const lu = await lireDocumentsJointsAssistant(pieces); documentsJoints = lu.documents; piecesALire = lu.restantes; }
+      catch (e) { console.warn('Lecture des pièces jointes :', e && e.message); }
+      finally { assistantEnCours = false; assistantEtapeAgent = ''; }
+    }
+    if (assistantDisponibilite.agent && (pieces.length || !assistantContexte.attente) && await envoyerAgentAssistant(texte + mentionPiecesJointesAgent(piecesALire), impose, documentsJoints)) return;
     if (pieces.length) { poserMessageAssistant('claire', '<p>Je n’ai pas pu lire la pièce jointe : l’agent n’a pas répondu. Réessayez dans un instant.</p>'); return; }
     assistantEnCours = true;
     renderAssistant();

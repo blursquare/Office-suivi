@@ -116,3 +116,44 @@ test('journal : renommer et déplacer sont notés (relatifs au dossier du client
   assert.ok(j.every((e) => e.dossierId === 'd1' && !e.de.includes(os.tmpdir())));
   assert.ok(j.some((e) => e.geste === 'renomme') && j.some((e) => e.geste === 'deplace'));
 });
+
+test('relecture 20/10 : nasDossier « . » ou « a/.. », racine du NAS atteinte par un lien, dossiers cachés', async () => {
+  const lienRacine = path.join(base, 'racine-lien');
+  try { fs.symlinkSync(nas, lienRacine); } catch (_) { return; }
+  assert.equal(await exp.dossierClientAbsolu(lienRacine, '.'), null);
+  assert.equal(await exp.dossierClientAbsolu(lienRacine, 'DUPONT MARTIN/..'), null);
+  assert.equal(await exp.dossierClientAbsolu(nas, '.'), null);
+  assert.ok(await exp.dossierClientAbsolu(lienRacine, 'DUPONT MARTIN'));
+  fs.mkdirSync(path.join(client, '.cache'), { recursive: true });
+  assert.equal(await exp.dansDossier(client, '.cache'), null);
+  assert.equal((await exp.listerNiveau(client, '.cache')).statut, 400);
+});
+
+test('relecture 20/10 : renommage « casse seule » ne touche jamais un voisin, jamais d’écrasement', async () => {
+  const dir = path.join(client, '9 - AAE', 'Anciens');
+  fs.writeFileSync(path.join(dir, 'rib.pdf'), '%PDF-1.4 minuscule');
+  fs.writeFileSync(path.join(dir, 'RIB.pdf'), '%PDF-1.4 majuscule');
+  const r = await exp.renommerFichier(client, '9 - AAE/Anciens/rib.pdf', 'RIB');
+  assert.equal(r.statut, 409);
+  assert.equal(fs.readFileSync(path.join(dir, 'rib.pdf'), 'utf8'), '%PDF-1.4 minuscule');
+  assert.equal(fs.readFileSync(path.join(dir, 'RIB.pdf'), 'utf8'), '%PDF-1.4 majuscule');
+});
+
+test('relecture 20/10 : deplacerSansEcraser refuse un nom pris, même posé entre-temps', async () => {
+  const dir = path.join(client, '9 - AAE', 'Anciens');
+  fs.writeFileSync(path.join(dir, 'a.pdf'), 'A');
+  fs.writeFileSync(path.join(dir, 'b.pdf'), 'B');
+  await assert.rejects(() => exp.deplacerSansEcraser(path.join(dir, 'a.pdf'), path.join(dir, 'b.pdf')), (e) => e.code === 'EEXIST');
+  assert.equal(fs.readFileSync(path.join(dir, 'b.pdf'), 'utf8'), 'B');
+  assert.ok(fs.existsSync(path.join(dir, 'a.pdf')));
+  await exp.deplacerSansEcraser(path.join(dir, 'a.pdf'), path.join(dir, 'c.pdf'));
+  assert.ok(!fs.existsSync(path.join(dir, 'a.pdf')) && fs.readFileSync(path.join(dir, 'c.pdf'), 'utf8') === 'A');
+});
+
+test('relecture 20/10 : même règle d’extension que le poste, nom réservé Windows jusque dans NUL.tar.gz', () => {
+  assert.equal(exp.extensionDe('Compte rendu. final'), '');
+  assert.equal(exp.extensionDe('note.longextension'), '');
+  assert.equal(exp.extensionDe('a.tar.gz'), '.gz');
+  assert.equal(exp.nomFichierRenomme('X', 'Compte rendu. final'), 'X');
+  assert.equal(exp.nomFichierRenomme('NUL', 'a.tar'), 'Document NUL.tar');
+});
