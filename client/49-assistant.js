@@ -367,7 +367,11 @@
     if (pieces.length && assistantDisponibilite.agent) {
       assistantEnCours = true;
       renderAssistant();
-      try { const lu = await lireDocumentsJointsAssistant(pieces); documentsJoints = lu.documents; piecesALire = lu.restantes; }
+      try {
+        const lu = await lireDocumentsJointsAssistant(pieces);
+        documentsJoints = lu.documents; piecesALire = lu.restantes;
+        if (lu.coupe) poserMessageAssistant('claire', '<p class="asst-note">Le document est plus long que ce que le modèle choisi peut lire : la fin n’est pas jointe. Choisissez Opus 5.5 sous la saisie pour un acte plus long.</p>');
+      }
       catch (e) { console.warn('Lecture des pièces jointes :', e && e.message); }
       finally { assistantEnCours = false; assistantEtapeAgent = ''; }
     }

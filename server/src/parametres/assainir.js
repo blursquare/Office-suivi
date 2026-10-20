@@ -811,7 +811,13 @@ function assainirEntreeJournalScans(e) {
     auteur: txt(e.auteur, 80), auto: e.auto === true,
     score: Number.isFinite(e.score) && e.score >= 0 ? Math.min(99, Math.round(e.score)) : null,
     // Date du fichier rangé quand l'original n'a pas pu quitter Scan : ce même fichier n'est plus proposé (audit 12/10).
-    dateSource: txt(e.dateSource, 40)
+    dateSource: txt(e.dateSource, 40),
+    // Étude 20/10 : identifiant du rangement (annulation, recherche), empreinte du fichier (doublons), rangé après une correction de
+    // l'étude, et date de l'annulation (« Remettre dans Scan »).
+    id: /^[A-Za-z0-9-]{8,64}$/.test(typeof e.id === 'string' ? e.id : '') ? e.id : '',
+    hash: /^[a-f0-9]{64}$/.test(typeof e.hash === 'string' ? e.hash : '') ? e.hash : '',
+    corrige: e.corrige === true,
+    annule: txt(e.annule, 40)
   };
 }
 function assainirJournalScans(brut) {
@@ -880,6 +886,18 @@ function assainirJournalGestesNas(brut) {
   return (Array.isArray(brut) ? brut : []).filter((e) => e && typeof e === 'object' && (e.geste === 'renomme' || e.geste === 'deplace') && txt(e.date, 40))
     .map((e) => ({ date: txt(e.date, 40), auteur: txt(e.auteur, 80), geste: e.geste, dossierId: txt(e.dossierId, 80), de: txt(e.de, 400), vers: txt(e.vers, 400) }))
     .slice(0, MAX_NAS_GESTES);
+}
+// Mémoire de Claire Scan (étude 20/10, voir commun/scans-memoire.js) : types de pièce corrigés par l'étude et identifiants rangés.
+const CLE_SCANS_MEMOIRE = 'scans-memoire';
+function assainirMemoireScans(brut) {
+  const b = brut && typeof brut === 'object' ? brut : {};
+  const txt = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+  const types = (Array.isArray(b.types) ? b.types : []).filter((e) => e && typeof e.type === 'string' && e.type && Array.isArray(e.mots))
+    .map((e) => ({ mots: e.mots.filter((m) => typeof m === 'string' && /^[a-z]{4,40}$/.test(m)).slice(0, 40), type: txt(e.type, 80), n: Number.isInteger(e.n) && e.n > 0 ? Math.min(e.n, 9999) : 1, maj: txt(e.maj, 40) }))
+    .filter((e) => e.mots.length >= 3).slice(0, 300);
+  const identifiants = (Array.isArray(b.identifiants) ? b.identifiants : []).filter((e) => e && typeof e.id === 'string' && /^[A-Z0-9]{8,34}$/.test(e.id))
+    .map((e) => ({ id: e.id, dossierId: txt(e.dossierId, 80), maj: txt(e.maj, 40) })).slice(0, 3000);
+  return { rev: Number.isInteger(b.rev) && b.rev >= 0 ? b.rev : 0, types, identifiants };
 }
 const CLE_SCANS_CATEGORIES = 'scans-categories';
 const MAX_SCANS_CATEGORIES = 60;
@@ -951,5 +969,5 @@ function assainirSyntheseIaEmails(brut) {
 }
 
 module.exports = {
-  MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL, assainirCarnet, carnetInitial, avecOfficeEtude, assainirRepertoire, repertoireInitial, CLE_SONDAGES, assainirSondages, assainirJournalAppels, CLE_APPELS, CLE_REGLAGES, CLE_DERNIER_TOUR, CLE_COPIES_GMAIL, CLE_SECRET_LIENS, CLE_EXCLUSIONS_PIECES, MAX_NOMS_PAR_PIECE, CLE_CORRECTIONS_APPRISES, MAX_CORRECTIONS_APPRISES, CATEGORIES_CORRECTION, assainirCorrectionApprise, assainirCorrectionsApprises, CLE_JOURNAL_CORRECTIONS, MAX_JOURNAL_CORRECTIONS, assainirEntreeJournalCorrection, assainirJournalCorrections, CLE_RAPPELS_PERSO, MAX_RAPPELS_PERSO, assainirRappelPerso, assainirRappelsPerso, CLE_PREFERENCES, THEMES_PREFERENCES, ACCENTS_PREFERENCES, SIDEBAR_PREFERENCES, WIDGETS_PREFERENCES, TAILLES_WIDGETS, HAUTEURS_WIDGETS, assainirWidgetsPreference, assainirPreference, assainirPreferences, CLE_REGLAGE_SAUVEGARDE, CLE_ETAT_SAUVEGARDE, assainirTentativeSauvegarde, assainirEtatSauvegarde, assainirExclusionsPieces, MAX_COPIES_EN_ATTENTE, assainirCopiesEnAttente, CLE_RETOURS_AUDIT, MAX_RETOURS_AUDIT, VERDICTS_RETOUR_AUDIT, GRAVITES_AUDIT, texteBorne, assainirRetourAudit, assainirRetoursAudit, PORT_SMTP_PAR_DEFAUT, REGLAGES_PAR_DEFAUT, texteNettoye, assainirReglages, MAX_ERREURS_CONSERVEES, assainirDernierTour, CLE_REGLAGES_CLAUDE, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT, FOURNISSEURS_RELECTURE, assainirReglagesClaude, CLE_MISE_A_JOUR, assainirReglagesMiseAJour, CLE_REGLAGES_EXCHANGE, URL_EWS_DEFAUT, CATEGORIES_RDV_DEFAUT, assainirCategoriesRdv, pageSondageValide, relaisSondageValide, assainirReglagesExchange, CLE_DERNIER_TOUR_AGENDA, MAX_ENTREES_TOUR_AGENDA, assainirEntreeDetectionAgenda, CLE_ABSENCES_AGENDA, CLE_CATEGORIES_AGENDA, MAX_CATEGORIES_AGENDA, assainirCategoriesAgenda, MAX_ABSENCES_AGENDA, CLE_AGENDA_DU_JOUR, CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, MAX_AGENDA_DU_JOUR, assainirAgendaDuJour, CLE_AGENDA_OFFICE, MAX_AGENDA_OFFICE, assainirEvenementAgenda, assainirAgendaOffice, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirDernierTourAgenda, CLE_RESUME_EMAILS, CLE_SCANS_REGLAGES, CLE_SCANS_JOURNAL, CLE_SCANS_ECARTES, CLE_PIECES_NOTIFIEES, MAX_PIECES_NOTIFIEES, assainirPiecesNotifiees, MAX_SCANS_JOURNAL, MAX_SCANS_ECARTES, assainirReglagesScans, assainirEntreeJournalScans, assainirJournalScans, assainirScansEcartes, CLE_RAPPORT_TECHNIQUE, assainirRapportTechnique, CLE_CARNET_CONFRERES, CLE_REPERTOIRE, CLE_REPERTOIRE_THEMES, MAX_THEMES_REPERTOIRE, RE_CLE_THEME_PERSO, assainirThemesRepertoire, CLE_SCANS_CATEGORIES, assainirCategoriesScans, CLE_NAS_GESTES, assainirJournalGestesNas, assainirEmailResume, assainirResumeEmails, assainirSyntheseIaEmails
+  MODELES_MISTRAL, MODELE_MISTRAL_PAR_DEFAUT, REGIONS_MISTRAL, assainirCarnet, carnetInitial, avecOfficeEtude, assainirRepertoire, repertoireInitial, CLE_SONDAGES, assainirSondages, assainirJournalAppels, CLE_APPELS, CLE_REGLAGES, CLE_DERNIER_TOUR, CLE_COPIES_GMAIL, CLE_SECRET_LIENS, CLE_EXCLUSIONS_PIECES, MAX_NOMS_PAR_PIECE, CLE_CORRECTIONS_APPRISES, MAX_CORRECTIONS_APPRISES, CATEGORIES_CORRECTION, assainirCorrectionApprise, assainirCorrectionsApprises, CLE_JOURNAL_CORRECTIONS, MAX_JOURNAL_CORRECTIONS, assainirEntreeJournalCorrection, assainirJournalCorrections, CLE_RAPPELS_PERSO, MAX_RAPPELS_PERSO, assainirRappelPerso, assainirRappelsPerso, CLE_PREFERENCES, THEMES_PREFERENCES, ACCENTS_PREFERENCES, SIDEBAR_PREFERENCES, WIDGETS_PREFERENCES, TAILLES_WIDGETS, HAUTEURS_WIDGETS, assainirWidgetsPreference, assainirPreference, assainirPreferences, CLE_REGLAGE_SAUVEGARDE, CLE_ETAT_SAUVEGARDE, assainirTentativeSauvegarde, assainirEtatSauvegarde, assainirExclusionsPieces, MAX_COPIES_EN_ATTENTE, assainirCopiesEnAttente, CLE_RETOURS_AUDIT, MAX_RETOURS_AUDIT, VERDICTS_RETOUR_AUDIT, GRAVITES_AUDIT, texteBorne, assainirRetourAudit, assainirRetoursAudit, PORT_SMTP_PAR_DEFAUT, REGLAGES_PAR_DEFAUT, texteNettoye, assainirReglages, MAX_ERREURS_CONSERVEES, assainirDernierTour, CLE_REGLAGES_CLAUDE, MODELES_CLAUDE, MODELE_CLAUDE_PAR_DEFAUT, FOURNISSEURS_RELECTURE, assainirReglagesClaude, CLE_MISE_A_JOUR, assainirReglagesMiseAJour, CLE_REGLAGES_EXCHANGE, URL_EWS_DEFAUT, CATEGORIES_RDV_DEFAUT, assainirCategoriesRdv, pageSondageValide, relaisSondageValide, assainirReglagesExchange, CLE_DERNIER_TOUR_AGENDA, MAX_ENTREES_TOUR_AGENDA, assainirEntreeDetectionAgenda, CLE_ABSENCES_AGENDA, CLE_CATEGORIES_AGENDA, MAX_CATEGORIES_AGENDA, assainirCategoriesAgenda, MAX_ABSENCES_AGENDA, CLE_AGENDA_DU_JOUR, CLE_AGENDA_COMPARAISON, assainirComparaisonAgenda, MAX_AGENDA_DU_JOUR, assainirAgendaDuJour, CLE_AGENDA_OFFICE, MAX_AGENDA_OFFICE, assainirEvenementAgenda, assainirAgendaOffice, assainirAbsenceAgenda, assainirAbsencesAgenda, assainirDernierTourAgenda, CLE_RESUME_EMAILS, CLE_SCANS_REGLAGES, CLE_SCANS_JOURNAL, CLE_SCANS_ECARTES, CLE_PIECES_NOTIFIEES, MAX_PIECES_NOTIFIEES, assainirPiecesNotifiees, MAX_SCANS_JOURNAL, MAX_SCANS_ECARTES, assainirReglagesScans, assainirEntreeJournalScans, assainirJournalScans, assainirScansEcartes, CLE_RAPPORT_TECHNIQUE, assainirRapportTechnique, CLE_CARNET_CONFRERES, CLE_REPERTOIRE, CLE_REPERTOIRE_THEMES, MAX_THEMES_REPERTOIRE, RE_CLE_THEME_PERSO, assainirThemesRepertoire, CLE_SCANS_CATEGORIES, assainirCategoriesScans, CLE_SCANS_MEMOIRE, assainirMemoireScans, CLE_NAS_GESTES, assainirJournalGestesNas, assainirEmailResume, assainirResumeEmails, assainirSyntheseIaEmails
 };

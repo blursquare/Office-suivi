@@ -371,6 +371,10 @@ test('documents du dossier (étude 13/10) : le texte d’un PDF lu part masqué,
   const envoye = JSON.stringify(client.requetes[2].messages);
   assert.doesNotMatch(envoye, SECRETS, 'aucune donnée des fiches : ' + envoye.slice(-900));
   assert.doesNotMatch(envoye, /LEMAIRE|Gérard|g\.lemaire|02 54 12 34 56|Grouets/, 'un tiers du document ne part pas : ' + envoye.slice(-900));
+  // Le masquage d'un DOCUMENT garde l'acte lisible (étude 20/10) : titres, parcelle, mots du métier, communes hors fiches.
+  assert.match(envoye, /COMPROMIS DE VENTE/);
+  assert.match(envoye, /section DZ n° 187/);
+  assert.match(envoye, /géomètre-expert à Vineuil/);
   assert.match(envoye, /245 000 euros/, 'les montants partent tels quels');
   assert.match(envoye, /20 novembre 2026/, 'les dates partent telles quelles');
   assert.match(envoye, /Condition suspensive/);
@@ -553,4 +557,65 @@ test('blocDocumentsJoints : identifiants contrôlés, plafond, pages sans texte,
   assert.equal(long.pages, 1);
   assert.match(long.bloc, /Texte coupé/);
   assert.equal(blocDocumentsJoints([], id).bloc, '');
+});
+
+// ---- Relecture 20/10 : masquage d'un DOCUMENT (lisible, linéaire), filtres des recherches sortantes ----
+
+test('masquerDocument : un acte reste lisible (titres, « de », « le », mots du métier), les personnes et coordonnées sont codées', () => {
+  const { masquerDocument } = require('../src/assistantMistral');
+  const table = new Map();
+  const texte = 'PROMESSE DE VENTE\nENTRE LES SOUSSIGNÉS :\nMonsieur Paul FOURNIER, né à Tours le 12 mai 1970, demeurant à BLOIS (41000), 12 rue des Lices, marié sous le régime légal,\n'
+    + 'et Madame Léa MARTIN épouse GAUTHIER, joignable au 06 12 34 56 78 ou lea@exemple.fr, IBAN FR76 3000 6000 0112 3456 7890 189.\n'
+    + 'Le bien, au lieu-dit « Les Grouets », est vendu moyennant le prix de 245 000 euros, libre de toute occupation. Surface : 85 m². Article PREMIER. Paris, le 12 octobre 2026.';
+  const m = masquerDocument(texte, new Set(['fournier', 'paul', 'lices']), table);
+  assert.match(m, /PROMESSE DE VENTE/);
+  assert.match(m, /ENTRE LES SOUSSIGNÉS/);
+  assert.match(m, /moyennant le prix de 245 000 euros, libre de toute occupation/);
+  assert.match(m, /Surface : 85 m²/);
+  assert.match(m, /Article PREMIER/);
+  assert.match(m, /Paris, le 12 octobre 2026/);
+  assert.doesNotMatch(m, /FOURNIER|Fournier|Paul|MARTIN|Léa|GAUTHIER|lea@exemple|06 12 34 56 78|FR76 3000|Grouets|Lices|Tours|BLOIS/);
+  assert.ok(![...table.values()].some((v) => /^(de|le|les|et|vente)$/i.test(v)), 'aucun mot courant en table : ' + [...table.values()].join('|'));
+});
+
+test('masquerDocument : linéaire — 400 000 caractères en moins de deux secondes', () => {
+  const { masquerDocument } = require('../src/assistantMistral');
+  const phrase = 'Le vendeur déclare que le bien est libre de toute occupation et que Monsieur Paul DURAND, demeurant à TOURS, a payé le prix de 245 000 euros. ';
+  const t0 = Date.now();
+  const m = masquerDocument(phrase.repeat(Math.ceil(400000 / phrase.length)), new Set(), new Map());
+  assert.ok(m.length > 300000);
+  assert.ok(Date.now() - t0 < 2000, 'durée : ' + (Date.now() - t0) + ' ms');
+});
+
+test('sansNomsPropres : une recherche de droit perd les noms propres et garde les mots de droit ; rne garde numéros et codes postaux', () => {
+  const { sansNomsPropres, rneSansPersonnes } = require('../src/assistantAgent');
+  assert.equal(sansNomsPropres('promesse Fournier prêt article 1583 Code civil Dupont'), 'promesse prêt article 1583 Code civil');
+  assert.deepEqual(sansNomsPropres({ requete: 'bail Martin CGI 150 U' }), { requete: 'bail CGI 150 U' });
+  assert.deepEqual(rneSansPersonnes({ q: 'Paul Durand', cp: '41000', siren: '732 829 320' }, new Set()), { q: '', cp: '41000', siren: '732 829 320' });
+});
+
+test('réactiver l’anonymisation ne rouvre ni la recherche web ni les recherches de droit non filtrées', async () => {
+  const client = fauxClient([
+    { stop_reason: 'end_turn', usage, content: [texte('Bonjour.')] },
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'legifrance__rechercher', { requete: 'promesse Fournier article 1583' })] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5', rechercheWeb: ['legifrance.gouv.fr'],
+    outilsExternes: [{ name: 'legifrance__rechercher', description: 'x', input_schema: { type: 'object', properties: { requete: { type: 'string' } } } }] };
+  let r = await tourAgent({ texte: 'Bonjour', anonymiser: false, dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, o);
+  r = await tourAgent({ conversation: r.conversation, texte: 'Cherche', anonymiser: true, dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, o);
+  assert.ok(!(client.requetes[1].tools || []).some((t) => t.name === 'web_search'));
+  assert.doesNotMatch(JSON.stringify(r.appels[0].entree), /Fournier/);
+  assert.match(JSON.stringify(r.appels[0].entree), /1583/);
+});
+
+test('texte coupé : plus aucune page après la première qui ne tient pas, et le poste en est informé (joints)', async () => {
+  const { blocDocumentsJoints } = require('../src/assistantAgent');
+  const r = blocDocumentsJoints([{ id: 'pj1', pagesTotal: 3, pages: [{ page: 1, texte: 'a'.repeat(100) }, { page: 2, texte: 'b'.repeat(500) }, { page: 3, texte: 'c' }] }, { id: 'pj2', pages: [{ page: 1, texte: 'd' }] }], (x) => x, 300);
+  assert.equal(r.pages, 1);
+  assert.equal(r.coupe, true);
+  assert.equal(r.pagesDemandees, 3);
+  assert.doesNotMatch(r.bloc, /pj2 p\. 1|\[pj1 p\. 3\]/);
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('ok')] }]);
+  const sortie = await tourAgent({ texte: 'Analyse', documents: [{ id: 'pj1', pages: [{ page: 1, texte: 'x' }] }], dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, { cle: 'k', client, modele: 'claude-opus-5-5' });
+  assert.deepEqual(sortie.joints, { pages: 1, demandees: 1, coupe: false });
 });

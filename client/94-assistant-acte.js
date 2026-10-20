@@ -6,10 +6,20 @@
   // est désactivée. Le modèle et la réflexion se choisissent sous la saisie ; l'anonymisation, dans la colonne de droite.
 
   var MAX_PAGES_ACTE_ASSISTANT = 400;
+  // Texte joint au plus : celui que le serveur accepte (700 000 caractères avec Opus, qui résume le début d'une longue conversation ;
+  // 180 000 avec les autres modèles). Au-delà, rien ne part : le poste ne lit pas ce qui serait jeté (OCR compris).
+  var MAX_CARACTERES_ACTE_OPUS = 700000;
+  var MAX_CARACTERES_ACTE_AUTRES = 180000;
+
+  // Pure : ce que le modèle choisi peut recevoir de texte joint. `modele` : l'identifiant choisi ('' = celui des Réglages).
+  function plafondCaracteresActeAssistant(modele, modeleReglage, mistral) {
+    if (mistral) return MAX_CARACTERES_ACTE_AUTRES;
+    return /opus/.test(String(modele || modeleReglage || '')) ? MAX_CARACTERES_ACTE_OPUS : MAX_CARACTERES_ACTE_AUTRES;
+  }
 
   // Lit tout un document joint : les tranches de 30 pages l'une après l'autre. Rend { id, pagesTotal, pages: [{ page, texte }] } ou
   // { id, erreur }. `suivi(texte)` dit où en est la lecture.
-  async function lireDocumentJointComplet(piece, suivi) {
+  async function lireDocumentJointComplet(piece, suivi, budget) {
     const pages = [];
     let total = 0;
     let debut = 1;
@@ -17,7 +27,8 @@
       const r = await lireDocumentAgent(piece.id, debut, 0);
       if (!r || r.erreur) return pages.length ? { id: piece.id, pagesTotal: total, pages } : { id: piece.id, erreur: (r && r.erreur) || 'lecture impossible' };
       total = r.pages_total || total || 1;
-      (r.pages || []).forEach(p => pages.push({ page: p.page, texte: String(p.texte || '') }));
+      (r.pages || []).forEach(p => { if (budget && budget.restant <= 0) return; pages.push({ page: p.page, texte: String(p.texte || '') }); if (budget) budget.restant -= String(p.texte || '').length; });
+      if (budget && budget.restant <= 0) { budget.coupe = true; break; }
       const derniere = pages.length ? pages[pages.length - 1].page : debut - 1;
       if (suivi) suivi(`${derniere} / ${total}`);
       if (!(r.pages || []).length || derniere >= total || pages.length >= MAX_PAGES_ACTE_ASSISTANT) break;
@@ -26,19 +37,22 @@
     return { id: piece.id, pagesTotal: total, pages };
   }
 
-  // Les pièces jointes d'un message, lues en entier. Rend { documents, restantes } : `restantes` = celles qui n'ont pas pu l'être
+  // Les pièces jointes d'un message, lues en entier. Rend { documents, restantes, coupe } : `coupe` = le texte a été limité à ce que le modèle choisi peut recevoir ; `restantes` = celles qui n'ont pas pu l'être
   // (l'agent les lira lui-même avec lire_document).
   async function lireDocumentsJointsAssistant(pieces) {
     const documents = [];
     const restantes = [];
+    const mistral = typeof assistantDisponibilite === 'object' && assistantDisponibilite && assistantDisponibilite.moteur === 'mistral';
+    const budget = { restant: plafondCaracteresActeAssistant(colonneAssistant.modele, assistantDisponibilite && assistantDisponibilite.modele, mistral), coupe: false };
     for (const p of pieces || []) {
+      if (budget.restant <= 0) { budget.coupe = true; break; }
       assistantEtapeAgent = 'Je lis le document en entier…';
       renderAssistant();
-      const r = await lireDocumentJointComplet(p, (avance) => { assistantEtapeAgent = `Je lis le document en entier… page ${avance}`; renderAssistant(); });
+      const r = await lireDocumentJointComplet(p, (avance) => { assistantEtapeAgent = `Je lis le document en entier… page ${avance}`; renderAssistant(); }, budget);
       if (r.erreur || !r.pages.length) restantes.push(p);
       else { documents.push(r); noterVerificationPoste('agent-acte-integral', { detail: `${r.pages.length} page(s) jointes au message` }); }
     }
-    return { documents, restantes };
+    return { documents, restantes, coupe: budget.coupe };
   }
 
   // ---- Sous la saisie : modèle, réflexion, et un rappel quand l'anonymisation est désactivée ----

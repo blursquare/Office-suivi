@@ -32,6 +32,19 @@ test('réponse de l’agent façon Claude : titres, tableau, citation, filet, it
   assert.equal(app.htmlReponseAgentAssistant('| seule |'), '<p>| seule |</p>');
 });
 
+test('réponse de l’agent : liste numérotée interrompue par du texte ou une ligne vide garde sa numérotation, sous-puces rangées', () => {
+  const h = app.htmlReponseAgentAssistant('1. **Condition de prêt**\n   Avant le 30 octobre.\n2. **Vente préalable**\n  - sans objet\n\n3. **Préemption**');
+  assert.match(h, /<ol class="asst-liste"><li><b>Condition de prêt<\/b><br>Avant le 30 octobre\.<\/li><li><b>Vente préalable<\/b><ul class="asst-liste asst-sous-liste"><li>sans objet<\/li><\/ul><\/li><\/ol>/);
+  assert.match(h, /<ol class="asst-liste" start="3"><li><b>Préemption<\/b><\/li><\/ol>/);
+});
+
+test('texte joint d’un acte : le plafond suit le modèle (Opus 700 000, les autres 180 000, Mistral 180 000)', () => {
+  assert.equal(app.plafondCaracteresActeAssistant('claude-opus-5-5', '', false), 700000);
+  assert.equal(app.plafondCaracteresActeAssistant('', 'claude-opus-5-5', false), 700000);
+  assert.equal(app.plafondCaracteresActeAssistant('claude-sonnet-5-5', 'claude-opus-5-5', false), 180000);
+  assert.equal(app.plafondCaracteresActeAssistant('claude-opus-5-5', '', true), 180000);
+});
+
 test('agenda lu par l’agent : la nature du rendez-vous, jamais son titre', () => {
   assert.equal(app.natureRendezVousAgent({ sujet: 'VTE - DUPONT / MARTIN' }), 'signature de vente');
   assert.equal(app.natureRendezVousAgent({ sujet: 'VTE - DUPONT ? — option CLAIRE, créneau 1/3' }), 'signature de vente (option, à confirmer)');

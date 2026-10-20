@@ -7,13 +7,20 @@
 //   POST /api/scans/ranger         → { nom, dossierNas, rubriques[], nomCible, dossierId, dossier, type, auteur, auto }
 //   POST /api/scans/ecarter        → { nom, auteur } : laisser ce scan dans Scan, ne plus le proposer
 //   POST /api/scans/retablir       → { nom } : le reproposer
+//   GET  /api/scans/memoire        → ce que Claire Scan a appris (types corrigés, identifiants) — étude 20/10
+//   DELETE /api/scans/memoire      → tout oublier
+//   GET  /api/scans/recherche?q=   → les scans rangés dont le texte contient ces mots (nom, dossier, rubrique, date, extrait)
+//   POST /api/scans/annuler        → { id } : « Remettre dans Scan » un scan rangé
 //   POST /api/scans/relais         → { fenetre } : cette fenêtre CLAIRE fait-elle le rangement
 //                                    automatique ? (une seule à la fois, voir plus bas)
 
 const express = require('express');
 const fs = require('node:fs');
 const path = require('node:path');
-const { trouverDossierScans, listerScans, nomScanValide, rangerScan, ajouterAuJournal, depuisMsScans } = require('../scans');
+const crypto = require('node:crypto');
+const { trouverDossierScans, listerScans, nomScanValide, rangerScan, annulerRangement, ajouterAuJournal, depuisMsScans } = require('../scans');
+const { creerScansTextes } = require('../scansTextes');
+const M = require('../../../commun/scans-memoire');
 const { envoyerFlux } = require('./nas');
 
 const routeAsync = (fn) => (req, res) => {
@@ -41,8 +48,36 @@ function accorderRelais(relais, fenetre, locale, maintenant) {
   return relais;
 }
 
-function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
+// Empreinte d'un fichier (doublons : un scan identique à un scan déjà rangé).
+function hashFichier(chemin) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    const flux = fs.createReadStream(chemin);
+    flux.on('error', reject);
+    flux.on('data', (d) => h.update(d));
+    flux.on('end', () => resolve(h.digest('hex')));
+  });
+}
+
+/** Pure : les chiffres du mois écoulé d'après le journal — rangés, rangés seuls, corrigés à la main, types les plus corrigés. */
+function statistiquesScans(journal, maintenantMs) {
+  const depuis = maintenantMs - 30 * 24 * 3600 * 1000;
+  const recents = (journal || []).filter((e) => e && !e.annule && Date.parse(e.date) >= depuis);
+  const corriges = recents.filter((e) => e.corrige);
+  const parType = {};
+  corriges.forEach((e) => { if (e.type) parType[e.type] = (parType[e.type] || 0) + 1; });
+  return {
+    jours: 30, ranges: recents.length, automatiques: recents.filter((e) => e.auto).length, corriges: corriges.length,
+    typesCorriges: Object.entries(parType).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([type, n]) => ({ type, n }))
+  };
+}
+
+function creerRouteurScans(config, parametresRepo, horloge = () => Date.now(), options = {}) {
   const routeur = express.Router();
+  // Texte des scans rangés (FTS5) : un index indisponible ne gêne jamais le classeur.
+  let textes = null;
+  if (options && options.db) { try { textes = creerScansTextes(options.db); } catch (e) { console.error('[scans] index du texte indisponible :', e && e.message ? e.message : e); } }
+  const hashes = new Map();   // nom|date|taille → empreinte (mémoire du serveur)
   let relais = { fenetre: null, locale: false, expire: 0 };
   // Deux fenêtres CLAIRE (ou un geste manuel pendant le rangement automatique) peuvent viser le
   // même scan : un seul rangement à la fois par nom.
@@ -64,10 +99,29 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     const ecartes = new Set(parametresRepo.lireScansEcartes().map((e) => e.nom));
     const depuisMs = depuisMsScans(reglages.depuis);
     // Déjà rangé mais resté dans Scan (déplacement refusé) : plus jamais reproposé ni recopié (audit 12/10).
-    const ranges = new Set(parametresRepo.lireJournalScans().filter((e) => !e.original && e.dateSource).map((e) => e.nom + '|' + e.dateSource));
+    const ranges = new Set(parametresRepo.lireJournalScans().filter((e) => !e.original && e.dateSource && !e.annule).map((e) => e.nom + '|' + e.dateSource));
     const tous = (reglages.actif ? await listerScans(dossier, depuisMs) : []).filter((s) => !ranges.has(s.nom + '|' + s.date));
+    // Doublons (étude 20/10) : un scan dont l'empreinte est celle d'un scan déjà rangé (et pas annulé) le dit ; six empreintes au plus
+    // par lecture, les autres au tour suivant.
+    const integral = parametresRepo.lireJournalScans();
+    const parHash = new Map();
+    integral.filter((e) => e.hash && !e.annule).forEach((e) => { if (!parHash.has(e.hash)) parHash.set(e.hash, e); });
+    let calcules = 0;
+    for (const sc of tous) {
+      if (!sc.stable) continue;
+      const cle = `${sc.nom}|${sc.date}|${sc.taille}`;
+      if (!hashes.has(cle) && calcules < 6) {
+        calcules += 1;
+        try { hashes.set(cle, await hashFichier(path.join(dossier, sc.nom))); } catch (_) { /* illisible un instant : au tour suivant */ }
+        if (hashes.size > 2000) hashes.delete(hashes.keys().next().value);
+      }
+      const h = hashes.get(cle);
+      const vu = h ? parHash.get(h) : null;
+      if (vu) sc.doublon = { date: vu.date, dossier: vu.dossier, rubrique: vu.rubrique };
+    }
     res.json({
       configure: true, dossier, reglages, journal, categories,
+      stats: statistiquesScans(integral, horloge()), memoireRev: parametresRepo.lireMemoireScans().rev, textesIndexes: textes ? textes.nombre() : 0,
       scans: tous.filter((s) => !ecartes.has(s.nom)),
       ecartes: tous.filter((s) => ecartes.has(s.nom))
     });
@@ -133,13 +187,16 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     const dossierScans = await trouverDossierScans(config);
     if (!dossierScans) { res.status(503).json({ erreur: 'Dossier Scan introuvable.' }); return; }
     if (enCours.has(nom)) { res.status(409).json({ erreur: 'Ce scan est déjà en cours de rangement.' }); return; }
-    const resteRange = parametresRepo.lireJournalScans().find((e) => e.nom === nom && !e.original && e.dateSource);
+    const resteRange = parametresRepo.lireJournalScans().find((e) => e.nom === nom && !e.original && e.dateSource && !e.annule);
     if (resteRange) {
       const st = await fs.promises.stat(path.join(dossierScans, nom)).catch(() => null);
       if (st && new Date(st.mtimeMs).toISOString() === resteRange.dateSource) { res.status(409).json({ erreur: 'Ce scan est déjà rangé (l’original n’a pas pu quitter le dossier Scan).' }); return; }
     }
     enCours.add(nom);
     try {
+      // Empreinte du fichier AVANT son déplacement (doublons) ; un fichier illisible n'empêche pas le rangement.
+      let empreinte = '';
+      if (nomScanValide(nom)) { try { empreinte = await hashFichier(path.join(dossierScans, nom)); } catch (_) { empreinte = ''; } }
       const r = await rangerScan({
         dossierScans, nasRacine: config.nasRacine, nom,
         dossierNas: typeof b.dossierNas === 'string' ? b.dossierNas : '',
@@ -153,12 +210,72 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
         dossierId: typeof b.dossierId === 'string' ? b.dossierId : '', dossier: typeof b.dossier === 'string' ? b.dossier : '',
         type: typeof b.type === 'string' ? b.type : '', auteur: typeof b.auteur === 'string' ? b.auteur : '', auto: b.auto === true,
         score: Number.isFinite(b.score) ? b.score : null,
-        dateSource: r.original ? '' : (r.dateSource || '')
+        dateSource: r.original ? '' : (r.dateSource || ''),
+        id: crypto.randomUUID(), hash: empreinte, corrige: b.corrige === true && b.auto !== true, annule: ''
       };
       parametresRepo.ecrireJournalScans(ajouterAuJournal(parametresRepo.lireJournalScans(), entree));
-      res.json(Object.assign({ ok: true }, r));
+      // Ce que l'étude vient de faire à la main s'apprend (types corrigés, identifiants du dossier) ; jamais un rangement automatique.
+      if (b.auto !== true && b.apprentissage && typeof b.apprentissage === 'object') {
+        try {
+          const ap = b.apprentissage;
+          const mem = parametresRepo.lireMemoireScans();
+          const maintenantIso = new Date(horloge()).toISOString();
+          const mots = (Array.isArray(ap.mots) ? ap.mots : []).filter((m) => typeof m === 'string' && /^[a-z]{4,40}$/.test(m)).slice(0, 40);
+          const ids = (Array.isArray(ap.identifiants) ? ap.identifiants : []).filter((x) => typeof x === 'string' && /^[A-Z0-9]{8,34}$/.test(x)).slice(0, 12);
+          const type = typeof ap.type === 'string' && ap.type.length <= 80 ? ap.type : '';
+          if (type && mots.length >= 3) mem.types = M.fusionnerTypeMemoire(mem.types, mots, type, maintenantIso);
+          if (ids.length && entree.dossierId) mem.identifiants = M.fusionnerIdentifiantsMemoire(mem.identifiants, ids, entree.dossierId, maintenantIso);
+          mem.rev += 1;
+          parametresRepo.ecrireMemoireScans(mem);
+        } catch (e) { console.warn('[scans] mémoire non mise à jour :', e && e.message); }
+      }
+      // Le texte lu devient cherchable (nom de la copie, dossier, rubrique, texte des premières pages), sur ce serveur seulement.
+      if (textes) {
+        try {
+          textes.indexer({ id: entree.id, nom: path.basename(String(r.chemin || nom)), dossierId: entree.dossierId, dossier: entree.dossier, rubrique: entree.rubrique, date: entree.date,
+            texte: typeof b.texte === 'string' ? b.texte : '' });
+        } catch (e) { console.warn('[scans] texte non indexé :', e && e.message); }
+      }
+      res.json(Object.assign({ ok: true, id: entree.id }, r));
     } finally {
       enCours.delete(nom);
+    }
+  }));
+
+  // Ce que Claire Scan a appris (types corrigés, identifiants) : lu par le poste quand sa révision change.
+  routeur.get('/scans/memoire', (req, res) => { res.json(parametresRepo.lireMemoireScans()); });
+  routeur.delete('/scans/memoire', (req, res) => {
+    const avant = parametresRepo.lireMemoireScans();
+    res.json(parametresRepo.ecrireMemoireScans({ rev: avant.rev + 1, types: [], identifiants: [] }));
+  });
+
+  // Recherche dans le texte des scans rangés : jamais le texte entier, un extrait.
+  routeur.get('/scans/recherche', routeAsync(async (req, res) => {
+    if (!textes) { res.status(503).json({ erreur: 'Recherche dans les scans indisponible sur ce serveur.' }); return; }
+    res.json({ resultats: textes.chercher(String(req.query.q || '').slice(0, 200), 20), indexes: textes.nombre() });
+  }));
+
+  // « Remettre dans Scan » : le scan rangé revient dans le dossier Scan (voir annulerRangement).
+  routeur.post('/scans/annuler', routeAsync(async (req, res) => {
+    const id = String((req.body || {}).id || '');
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(id)) { res.status(400).json({ erreur: 'Rangement inconnu.' }); return; }
+    if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return; }
+    const dossierScans = await trouverDossierScans(config);
+    if (!dossierScans) { res.status(503).json({ erreur: 'Dossier Scan introuvable.' }); return; }
+    const journal = parametresRepo.lireJournalScans();
+    const entree = journal.find((e) => e.id === id);
+    if (!entree) { res.status(404).json({ erreur: 'Ce rangement n’est plus dans le journal.' }); return; }
+    if (entree.annule) { res.status(409).json({ erreur: 'Ce rangement est déjà annulé.' }); return; }
+    if (enCours.has(entree.nom)) { res.status(409).json({ erreur: 'Ce scan est en cours de traitement.' }); return; }
+    enCours.add(entree.nom);
+    try {
+      const r = await annulerRangement({ dossierScans, nasRacine: config.nasRacine, entree });
+      if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+      parametresRepo.ecrireJournalScans(journal.map((e) => (e.id === id ? Object.assign({}, e, { annule: new Date(horloge()).toISOString() }) : e)));
+      if (textes) { try { textes.retirer(id); } catch (e) { /* l'index suit au prochain rangement */ } }
+      res.json({ ok: true, remis: r.remis, copieRetiree: r.copieRetiree, entree: { dossierId: entree.dossierId, type: entree.type, chemin: entree.chemin, nom: entree.nom } });
+    } finally {
+      enCours.delete(entree.nom);
     }
   }));
 
@@ -189,4 +306,4 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
   return routeur;
 }
 
-module.exports = { creerRouteurScans, accorderRelais, DUREE_RELAIS_MS };
+module.exports = { creerRouteurScans, accorderRelais, DUREE_RELAIS_MS, statistiquesScans };

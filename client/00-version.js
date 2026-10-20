@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.300.0';
+  const VERSION_APP = '0.301.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.301.0', date: '2026-10-20 23:47', resume: "Claire Scan apprend de vos rangements : un type de pièce ou un numéro de contrat que vous corrigez à la main est reconnu au scan suivant. Nouveau : confiance en six points, scans rangés en lot, doublons signalés, recherche dans le texte des scans rangés, « Remettre dans Scan » pour défaire un rangement, chiffres des 30 derniers jours." },
     { version: '0.300.0', date: '2026-10-20 23:29', resume: "Demander à CLAIRE : un acte déposé est lu en entier et analysé comme dans une conversation Claude (compte rendu structuré : synthèse, tableaux, conditions suspensives, points d'attention). Le modèle et la réflexion se choisissent sous la saisie, le correcteur d'orthographe est actif dans le champ, et l'anonymisation devient une option de la colonne de droite (activée par défaut, désactivable le temps d'une conversation après confirmation)." },
     { version: '0.299.0', date: '2026-10-20 23:14', resume: "Explorateur du NAS : « Dossier NAS » d'une fiche ouvre une fenêtre avec les sous-dossiers et les fichiers du dossier du client (PDF et images s'ouvrent, le reste se télécharge). On peut renommer une pièce (l'extension reste) et la déplacer vers un autre sous-dossier du même dossier, avec « Annuler » ; jamais de suppression ni d'écrasement." },
     { version: '0.298.0', date: '2026-10-20 22:10', resume: "Claire Scan : « + Nouvelle catégorie… » dans la liste « Pièce » d'un scan (nom, sous-dossier du dossier client où ranger, mots qui la reconnaissent) ; les catégories ajoutées se gèrent aussi dans Réglages › Pièces et Claire Scan. Répertoire : « + Nouveau thème » dans la colonne de gauche, thème renommable et supprimable une fois vide." },

@@ -10,5 +10,6 @@
   "courriers-succession.js",
   "constitution.js",
   "donnees-dossier.js",
-  "trajets.js"
+  "trajets.js",
+  "scans-memoire.js"
 ]

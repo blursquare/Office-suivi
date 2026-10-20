@@ -23,7 +23,7 @@
   function htmlReponseAgentAssistant(texte) {
     const lignes = String(texte || '').replace(/\r/g, '').split('\n');
     const blocs = [];
-    let liste = null;      // { ordonnee, items }
+    let liste = null;      // { ordonnee, debut, items: [{ texte, sous: [] }] }
     let para = [];
     let citation = [];
     const enLigne = (t) => citationsCliquablesAssistant(escapeHtml(t)
@@ -31,7 +31,8 @@
       .replace(/(^|[^*\w])\*([^*\s][^*]*?)\*(?![*\w])/g, '$1<i>$2</i>')
       .replace(/`([^`]+)`/g, '<code>$1</code>'));
     const finPara = () => { if (para.length) { blocs.push(`<p>${para.map(enLigne).join('<br>')}</p>`); para = []; } };
-    const finListe = () => { if (liste) { const b = liste.ordonnee ? 'ol' : 'ul'; blocs.push(`<${b} class="asst-liste">${liste.items.map(l => `<li>${enLigne(l)}</li>`).join('')}</${b}>`); liste = null; } };
+    const htmlItem = (it) => `<li>${it.texte.split('\n').map(enLigne).join('<br>')}${it.sous.length ? `<ul class="asst-liste asst-sous-liste">${it.sous.map(x => `<li>${enLigne(x)}</li>`).join('')}</ul>` : ''}</li>`;
+    const finListe = () => { if (liste) { const b = liste.ordonnee ? 'ol' : 'ul'; blocs.push(`<${b} class="asst-liste"${liste.ordonnee && liste.debut > 1 ? ` start="${liste.debut}"` : ''}>${liste.items.map(htmlItem).join('')}</${b}>`); liste = null; } };
     const finCitation = () => { if (citation.length) { blocs.push(`<blockquote class="asst-citation">${citation.map(enLigne).join('<br>')}</blockquote>`); citation = []; } };
     const fin = () => { finPara(); finListe(); finCitation(); };
     const cellules = (l) => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
@@ -56,14 +57,18 @@
       if (/^\s{0,3}([-*_])(\s*\1){2,}\s*$/.test(l)) { fin(); blocs.push('<hr class="asst-filet">'); continue; }
       const quote = l.match(/^\s*>\s?(.*)$/);
       if (quote) { finPara(); finListe(); citation.push(quote[1]); continue; }
-      const puce = l.match(/^\s*(?:([-•*])|(\d+)[.)])\s+(.*)$/);
+      const puce = l.match(/^(\s*)(?:([-•*])|(\d+)[.)])\s+(.*)$/);
+      // Sous-puce d'un élément de liste (au moins deux espaces d'indentation) : rangée sous l'élément précédent.
+      if (puce && liste && puce[1].length >= 2 && liste.items.length) { liste.items[liste.items.length - 1].sous.push(puce[4]); continue; }
       if (puce) {
         finPara(); finCitation();
-        const ordonnee = !!puce[2];
+        const ordonnee = !!puce[3];
         if (liste && liste.ordonnee !== ordonnee) finListe();
-        (liste = liste || { ordonnee, items: [] }).items.push(puce[3]);
+        (liste = liste || { ordonnee, debut: ordonnee ? parseInt(puce[3], 10) || 1 : 1, items: [] }).items.push({ texte: puce[4], sous: [] });
         continue;
       }
+      // Ligne de suite d'un élément (indentée, sans puce) : elle reste dans l'élément — « 1. Condition » / texte / « 2. Vente ».
+      if (liste && liste.items.length && /^\s{2,}\S/.test(l)) { const it = liste.items[liste.items.length - 1]; if (it.sous.length) it.sous[it.sous.length - 1] += ' ' + l.trim(); else it.texte += '\n' + l.trim(); continue; }
       if (!l.trim()) { fin(); continue; }
       finListe(); finCitation();
       para.push(l.trim());
@@ -316,6 +321,7 @@
       if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints }); }
       if (rep.repli) { assistantEnCours = false; assistantEtapeAgent = ''; return false; }
       if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Je reprends le fil de notre échange.</p>');
+      if (rep.joints && rep.joints.coupe) poserMessageAssistant('claire', `<p class="asst-note">Seules les ${rep.joints.pages} premières pages sur ${rep.joints.demandees} ont pu être jointes : le modèle choisi lit moins de texte qu’Opus 5.5. Choisissez Opus 5.5 sous la saisie pour un acte plus long.</p>`);
       while (rep && Array.isArray(rep.appels) && rep.appels.length) {
         engage = true;
         assistantAgentConversation = rep.conversation || assistantAgentConversation;

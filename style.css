@@ -7554,6 +7554,28 @@ button.widgets-personnaliser.actif { background: var(--focus); border-color: var
 .scan-ligne.scan-occupe .scan-champs, .scan-ligne.scan-occupe .scan-vignette { opacity: 0.55; }
 .scan-bouton { display: inline-flex; align-items: center; gap: 6px; }
 .scan-bouton:disabled { cursor: progress; }
+/* Claire Scan : confiance, étiquettes, lot, recherche (20/10). */
+.scan-ligne:has(> .scan-case) { grid-template-columns: 20px 88px minmax(0, 1fr); }
+.scan-case { margin-top: 4px; width: 16px; height: 16px; accent-color: var(--focus); }
+.scan-statut { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.scan-confiance { display: inline-flex; gap: 2px; align-items: center; }
+.scan-confiance i { width: 6px; height: 12px; border-radius: var(--rayon-xs); background: var(--line); }
+.scan-confiance i.plein { background: var(--muted); }
+.scan-confiance.sur i.plein { background: var(--success); }
+.scan-confiance.moyen i.plein { background: var(--pret); }
+.scan-etiquette { display: inline-block; padding: 1px 6px; border-radius: var(--rayon-pilule); font-size: var(--texte-xs); font-weight: 600; color: var(--muted); background: var(--paper-sunk); }
+.scan-etiquette-alerte { color: var(--urgent); background: color-mix(in srgb, var(--urgent) 12%, transparent); }
+.scans-lot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; padding: 8px; border-radius: var(--rayon-m); background: var(--paper-sunk); }
+.scans-lot-tout { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-m); }
+.scans-lot .scan-dossier-saisie { flex: 1 1 200px; min-width: 0; }
+.scans-stats { margin: 4px 0 8px; }
+.scans-recherche { margin: 8px 0; }
+.scans-recherche input { width: 100%; }
+.scans-resultats { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.scans-resultats li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: var(--texte-m); }
+.scans-resultat-corps { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.scans-extrait { color: var(--muted); font-size: var(--texte-s); overflow-wrap: anywhere; }
+.scans-journal li.scan-annule > span:nth-child(2) { text-decoration: line-through; color: var(--muted); }
 @media (max-width: 480px) {
   .scan-ligne { grid-template-columns: 60px minmax(0, 1fr); gap: 10px; }
   .scan-vignette { width: 60px; }

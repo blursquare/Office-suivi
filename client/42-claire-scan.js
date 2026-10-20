@@ -229,11 +229,18 @@
 
   // Le dossier d'un scan parmi `dossiers` (non archivés). `sur` seulement au-dessus du seuil ET
   // nettement devant le deuxième ; sinon le meilleur reste une suggestion à confirmer. Pure.
-  function identifierDossierScan(texte, dossiersCandidats) {
+  function identifierDossierScan(texte, dossiersCandidats, memoire) {
     const b = BAREME_SCORE_SCAN;
     const mots = texteMotsScan(texte);
+    // Mémoire (étude 20/10) : un numéro déjà rangé dans un dossier, ou la référence d'Authentic, donne des points à ce dossier.
+    const bonus = memoire && typeof pointsMemoireParDossier === 'function'
+      ? pointsMemoireParDossier(texte, (dossiersCandidats || []).filter(d => d && !d.archive), memoire.identifiants) : {};
     const classes = (dossiersCandidats || []).filter(d => d && !d.archive)
-      .map(d => Object.assign({ dossier: d }, scoreDossierScan(d, mots)))
+      .map(d => {
+        const sc = scoreDossierScan(d, mots);
+        const b2 = bonus[d.id];
+        return Object.assign({ dossier: d }, sc, b2 ? { score: sc.score + b2.points, raisons: sc.raisons.concat(b2.raisons) } : {});
+      })
       .filter(c => c.score > 0)
       .sort((a, b2) => b2.score - a.score);
     if (!classes.length) return { dossier: null, sur: false, score: 0, second: 0, raisons: [], role: null, candidats: [] };
@@ -286,22 +293,26 @@
 
   // Proposition complète pour un scan : dossier, type, nom de la copie, rubriques, et si elle peut
   // être rangée sans intervention (dossier sûr, relié au NAS, et type reconnu). Pure.
-  function propositionScan(lecture, dossiersCandidats, dateIso) {
+  function propositionScan(lecture, dossiersCandidats, dateIso, memoire, scan) {
     const texte = (lecture && lecture.texte) || '';
-    const type = typePieceScan(enTeteScan((lecture && lecture.page1) || texte));
-    const id = identifierDossierScan(texte, dossiersCandidats);
+    const id = identifierDossierScan(texte, dossiersCandidats, memoire);
     const d = id.dossier;
+    const typeRegle = typePieceScan(enTeteScan((lecture && lecture.page1) || texte));
+    const appris = memoire && typeof typeScanAvecMemoire === 'function'
+      ? typeScanAvecMemoire(typeRegle, motsEmpreinteScan((lecture && lecture.page1) || texte, motsExclusEmpreinteScan(d)), memoire) : { type: typeRegle, viaMemoire: false };
+    const type = appris.type;
     const personne = id.personnes && id.personnes.length === 1 ? id.personnes[0] : '';
     const rubriques = rubriquesScan(type, id.role);
     const relie = !!(d && d.nasDossier);
     const p = {
       dossierId: d ? d.id : null, dossierSur: id.sur, score: id.score, second: id.second, raisons: id.raisons, candidats: id.candidats,
       type: type ? type.cle : null, rubriques, nomCible: nomCibleScan(type, { date: dateIso, personne }),
-      relie, automatique: !!(id.sur && type && relie)
+      relie, automatique: !!(id.sur && type && relie && !(scan && scan.doublon)),
+      viaMemoire: !!appris.viaMemoire, doublon: scan && scan.doublon ? scan.doublon : null
     };
     // Succession (étude 15/10) : courrier → « Courrier reçu », facture → « Factures à régler » ; rangé seul même sans type reconnu.
     appliquerRangementSuccessionScan(p, d, lecture, p.type, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []);
-    if (p.sousDossier) p.automatique = !!(id.sur && relie);
+    if (p.sousDossier) p.automatique = !!(id.sur && relie && !(scan && scan.doublon));
     return p;
   }
   // --- fin du socle pur des scans ---------------------------------------------------------------
@@ -312,7 +323,7 @@
   // `charge` : faux tant que le serveur n'a pas répondu une première fois — les réglages ne sont alors
   // PAS connus (et non « désactivés ») : l'interrupteur reste grisé plutôt que d'afficher un état faux
   // (étude, 30/09 : « dès que je quitte CLAIRE je suis obligé de recocher »).
-  var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [], categories: [] };
+  var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [], categories: [], memoire: null, memoireRev: 0, stats: null };
   var lecturesScans = {};           // cle → { statut: 'lecture'|'pret'|'erreur', lecture, proposition, choix }
   var scansEnRangement = new Set();
   // « Laisser dans Scan » en cours (étude, 01/10 : un indicateur dès le clic, pendant que ça mouline).
@@ -359,6 +370,7 @@
       if (!r.ok) return false;
       etatScans = Object.assign(etatScans, await r.json(), { charge: true });
       appliquerCategoriesScan();
+      await chargerMemoireScans();
     } catch (e) { return false; }
     majBadgeScans();
     // Carte « Dernières pièces » du tableau de bord : scans à ranger et rangés à jour.
@@ -517,7 +529,7 @@
               apercusScans[cle] = url || 'echec';
               if (ongletActuel === 'scans') renderScans();
             }), DUREE_MAX_LECTURE_SCAN_MS);
-            const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date);
+            const proposition = propositionScan(lecture, dossiersCandidatsScans(), scan.date, memoireScansPourProposition(), scan);
             noterJournalTechnique({ categorie: 'scan-lu', dureeMs: Date.now() - debutLecture, ocr: !!lecture.viaOcr, reconnu: !!(proposition && proposition.type), sur: !!(proposition && proposition.automatique), type: (proposition && proposition.type) || '' });
             lecturesScans[cle] = { statut: 'pret', lecture: { viaOcr: lecture.viaOcr, pages: lecture.pages, texte: lecture.texte, page1: lecture.page1 }, proposition, choix: choixDepuisProposition(proposition) };
           } catch (e) {
@@ -581,7 +593,10 @@
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nom, dossierNas: d.nasDossier, rubriques: choix.rubriques, nomCible: choix.nomCible, sousDossier: choix.sousDossier || '',
           dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto,
-          score: l && l.proposition && l.proposition.dossierId === d.id ? l.proposition.score : null })
+          score: l && l.proposition && l.proposition.dossierId === d.id ? l.proposition.score : null,
+          corrige: !auto && rangementCorrigeScan(l && l.proposition, choix),
+          apprentissage: !auto ? apprentissageScan(l && l.lecture, d, choix) : null,
+          texte: l && l.lecture ? String(l.lecture.texte || '').slice(0, 60000) : '' })
       });
       const corps = await r.json().catch(() => ({}));
       if (!r.ok) {
@@ -590,6 +605,7 @@
         return;
       }
       range = true;
+      if (!auto && rangementCorrigeScan(l && l.proposition, choix)) noterVerificationPoste('scan-memoire', { detail: 'rangement corrigé à la main, appris' });
       if (!auto) afficherToast(`Rangé dans ${libelleDossierAffiche(d)}${corps.rubrique ? ' › ' + corps.rubrique.replace(/[\\/]+/g, ' › ') : ''}.`, 'OK', null);
       // Pièce ajoutée/cochée et responsable prévenu tout de suite, sans attendre le parcours du NAS
       // (relancé ensuite pour le reste : il ne renotifie pas une pièce déjà « reçue »). Ni l'un ni
@@ -747,7 +763,7 @@
             ${r.depuis && r.depuis.length > 10 ? `<span class="hint">${escapeHtml(new Date(r.depuis).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}</span>
           <input type="date" id="reglages-scans-depuis" value="${escapeAttr(dateLocaleDepuisScans(r.depuis))}"${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
         </label>
-      </div>${htmlCategoriesScan()}`;
+      </div>${htmlCategoriesScan()}${htmlMemoireScansReglages()}`;
   }
 
   // Champ « Dossier » d'un scan (étude 07/10 : « dans le champ de recherche du dossier, de quoi taper le nom ») : on tape le nom,
@@ -953,8 +969,10 @@
     else statut = `<span class="dot-label dl-neutre"><span class="dot"></span>Dossier non reconnu</span>`;
     if (l.statut !== 'erreur') statut += `<span class="scan-score">${escapeHtml(explicationScoreScan(p))}${l.lecture && l.lecture.viaOcr ? ' · texte lu par OCR' : ''}</span>`;
     const bloque = occupe ? ' disabled' : '';
-    return `<li class="scan-ligne${occupe ? ' scan-occupe' : ''}"${occupe ? ' aria-busy="true"' : ''}>${vignette}<div class="scan-corps">${tete}
-      <div class="scan-statut">${statut}</div>
+    const case_ = l.statut === 'pret' ? `<input type="checkbox" class="scan-case" aria-label="Sélectionner ${escapeAttr(scan.nom)}"${scansSelectionnes.has(scan.nom) ? ' checked' : ''}${bloque} onchange="basculerSelectionScan('${nomArg}', this.checked)">` : '';
+    const etiquettes = htmlEtiquettesScan(p, scan);
+    return `<li class="scan-ligne${occupe ? ' scan-occupe' : ''}"${occupe ? ' aria-busy="true"' : ''}>${case_}${vignette}<div class="scan-corps">${tete}
+      <div class="scan-statut">${l.statut !== 'erreur' ? htmlConfianceScan(p) : ''}${statut}${etiquettes}</div>
       <div class="scan-champs">
         <label class="scan-champ"><span>Dossier</span>${champDossierScan(scan, index, c.dossierId, p, bloque)}</label>
         <label class="scan-champ"><span>Pièce</span><select onchange="choisirTypeScan('${nomArg}', this)"${bloque}>${optionsTypesScan(c.type)}</select></label>
@@ -1011,18 +1029,12 @@
     const liste = scans.length
       ? `<ul class="scans-liste">${scans.map(renderLigneScan).join('')}</ul>`
       : `<p class="hint scans-rien">Aucun scan en attente dans le dossier du copieur.</p>`;
-    const journal = (e.journal || []).slice(0, 30);
-    const historiqueHtml = `<div class="calc-card scans-journal">
-        <div class="dash-section-titre">Historique ${infoBulle('Les scans déjà rangés, à la main ou automatiquement par CLAIRE.')}</div>
-        ${journal.length ? `<ul>${journal.map(j => `<li><span class="scan-date">${escapeHtml(new Date(j.date).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}</span>
-          <span>${escapeHtml(j.nom)} → <strong>${escapeHtml(j.dossier ? libelleDossierParNom(j.dossier, j.dossierId) : '')}</strong>${j.rubrique ? ' › ' + escapeHtml(j.rubrique.replace(/[\\/]+/g, ' › ')) : ''}</span>
-          <span class="scan-mode"><span class="dot-label ${j.auto ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${j.auto ? 'Automatique' : 'À la main'}</span>${j.auto ? '' : ` <span class="hint">${escapeHtml(j.auteur || '')}</span>`}${j.score != null ? ` <span class="hint">score ${noteScoreScan(j.score)}</span>` : ''}</span></li>`).join('')}</ul>` : '<p class="hint scans-rien">Aucun scan rangé pour l’instant.</p>'}
-      </div>`;
+    const historiqueHtml = htmlHistoriqueScans();
     const ecartes = (e.ecartes || []);
     const ecartesHtml = ecartes.length ? `<details class="scans-ecartes"><summary>Laissés dans Scan (${ecartes.length})</summary>
         <ul>${ecartes.map(s => `<li><span>${escapeHtml(s.nom)}</span><button type="button" class="lien-action" onclick="retablirScan('${escapeOnclickArg(s.nom)}')">Reproposer</button></li>`).join('')}</ul>
       </details>` : '';
-    zone.innerHTML = `${renderFacturesAReglerScans()}<div class="calc-card"><div class="dash-section-titre">Non rangés${scans.length ? ` (${scans.length})` : ''}</div>${liste}${ecartesHtml}</div>${historiqueHtml}`;
+    zone.innerHTML = `${renderFacturesAReglerScans()}<div class="calc-card"><div class="dash-section-titre">Non rangés${scans.length ? ` (${scans.length})` : ''}</div>${htmlLotScans()}${liste}${ecartesHtml}</div>${historiqueHtml}`;
   }
 
   function initScans() {

@@ -107,6 +107,24 @@ function assainirReglagesAssistant(brut) {
 // pas. 3 (étude 08/10) : un réglage d'avant passe à Claude, qui lit toutes les demandes.
 const REVISION_REGLAGES_ASSISTANT = 3;
 
+/** Pure : emails, IBAN, SIRET/SIREN, téléphones, références et longs numéros d'un texte remplacés par des jetons (`jeton(prefixe, origine)`). */
+function masquerMotifsStructures(texte, jeton) {
+  let t = texte;
+  t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
+  // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
+  t = t.replace(/\b[A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){3,7}(?:[ ]?[A-Za-z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
+  // SIRET / SIREN et numéro fiscal écrits par groupes.
+  t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
+  t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
+  // Téléphones étrangers : +41 79 123 45 67, +32 470 12 34 56, +44 7700 900123…
+  t = t.replace(/(?:\+|00)(?!33)\d{2,3}[\s.]?(?:\(0\)[\s.]?)?\d{1,4}(?:[\s./-]?\d{2,4}){2,5}/g, (m) => jeton('TEL', m));
+  // Téléphones : 06 12 34 56 78, 06.12…, 06/12/…, +33 6…, +33 (0)6…, 0033 6…
+  t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
+  t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
+  t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
+  return t;
+}
+
 /**
  * Masque dans une phrase tout ce qui peut désigner une personne ou un dossier. `table` (Map jeton → texte d'origine) est complétée
  * et partagée entre la phrase, le libellé du dossier en consultation et les échanges précédents. Pure.
@@ -124,18 +142,7 @@ function masquer(texte, sensibles, table) {
     return j;
   };
   let t = String(texte || '');
-  t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
-  // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
-  t = t.replace(/\b[A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){3,7}(?:[ ]?[A-Za-z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
-  // SIRET / SIREN et numéro fiscal écrits par groupes.
-  t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
-  t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
-  // Téléphones étrangers : +41 79 123 45 67, +32 470 12 34 56, +44 7700 900123…
-  t = t.replace(/(?:\+|00)(?!33)\d{2,3}[\s.]?(?:\(0\)[\s.]?)?\d{1,4}(?:[\s./-]?\d{2,4}){2,5}/g, (m) => jeton('TEL', m));
-  // Téléphones : 06 12 34 56 78, 06.12…, 06/12/…, +33 6…, +33 (0)6…, 0033 6…
-  t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
-  t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
-  t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
+  t = masquerMotifsStructures(t, jeton);
   // Le mot qui suit une civilité est toujours un nom.
   // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
   t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)(\p{Lu}[\p{L}'-]+)((?:[ \t]+\p{Lu}[\p{L}'-]+){0,2})/gu,
@@ -172,6 +179,73 @@ function masquer(texte, sensibles, table) {
     return sensible ? jeton('NOM', mot) : mot;
   });
   return t;
+}
+
+// Mots d'un acte qui ressemblent à un prénom suivi d'un nom sans en être un (« Article PREMIER », « Code CIVIL »).
+const MOTS_NON_PRENOMS_DOCUMENT = new Set(['article', 'articles', 'chapitre', 'titre', 'section', 'partie', 'annexe', 'page', 'code', 'loi', 'decret', 'ordonnance',
+  'livre', 'paragraphe', 'sous', 'alinea', 'lot', 'lots', 'bloc', 'batiment', 'escalier', 'etage', 'parcelle', 'parcelles', 'cadastre', 'vente', 'promesse', 'acte',
+  'compromis', 'prix', 'pret', 'banque', 'notaire', 'etude', 'office', 'societe', 'syndic', 'agence', 'mairie', 'commune', 'departement', 'region', 'france', 'republique']);
+
+/**
+ * Masque le texte d'un DOCUMENT lu (acte, offre de prêt, état daté…) — étude 20/10 : « la même analyse que dans une conversation
+ * Claude ». Plus fin que `masquer` (pensé pour des phrases courtes : il codait toute capitale et tout mot à majuscule, donc « DE », « LE »,
+ * « Surface » d'un acte) et LINÉAIRE (pas de relecture du texte précédent à chaque mot : un acte de 300 000 caractères ne fige plus le
+ * serveur). Sont codés : emails, IBAN, SIRET/SIREN, téléphones, références, longs numéros ; les mots des fiches (toute casse) ; les noms
+ * qui suivent une civilité ; « Prénom NOM » et « NOM Prénom » ; les noms après « née », « veuve de », « épouse de »… Ne sont PAS codés :
+ * les titres en capitales, les mots à majuscule et les lieux absents des fiches (limite connue, dite à l'étude). `table` partagée avec la
+ * conversation. Pure. @param {string} texte @param {Set<string>} sensibles @param {Map<string, string>} table
+ */
+function masquerDocument(texte, sensibles, table) {
+  const parOrigine = new Map([...table].map(([jeton, origine]) => [origine.toLowerCase(), jeton]));
+  const compteurs = {};
+  const jeton = (prefixe, origine) => {
+    const cle = origine.toLowerCase();
+    const deja = parOrigine.get(cle);
+    if (deja) return deja;
+    if (compteurs[prefixe] === undefined) compteurs[prefixe] = [...table.keys()].filter((k) => k.startsWith('[' + prefixe)).length;
+    compteurs[prefixe] += 1;
+    const j = `[${prefixe}${compteurs[prefixe]}]`;
+    table.set(j, origine);
+    parOrigine.set(cle, j);
+    return j;
+  };
+  let t = masquerMotifsStructures(String(texte || ''), jeton);
+  const nomPropre = '\\p{Lu}[\\p{L}\\p{M}\'’-]+';
+  // Civilité : le nom qui suit (jusqu'à trois mots à majuscule).
+  t = t.replace(new RegExp(`(^|[^\\p{L}])(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Ma[iî]tre|Me|Mme|Mlle|Mr|M\\.)(\\s+)(${nomPropre})((?:[ \\t]+${nomPropre}){0,2})`, 'gu'),
+    (m, avant, civ, esp, nom, suite) => (/^\[/.test(nom) ? m : avant + civ + esp + jeton('NOM', nom) + String(suite || '').replace(new RegExp(nomPropre, 'gu'), (mot) => jeton('NOM', mot))));
+  // Né(e), veuve de, épouse de, divorcé de… : les mots à majuscule qui suivent sont un nom.
+  t = t.replace(new RegExp(`(^|[^\\p{L}])(n[ée]e|veuve|veuf|[ée]pouse|[ée]poux|divorc[ée]e?)(\\s+(?:de\\s+|du\\s+)?)(${nomPropre}(?:[ \\t]+${nomPropre}){0,2})`, 'giu'),
+    (m, avant, mot, lien, noms) => avant + mot + lien + noms.replace(new RegExp(nomPropre, 'gu'), (nom) => (/^\[/.test(nom) ? nom : jeton('NOM', nom))));
+  // Domicile (« demeurant à BLOIS (41000), 12 rue des Lices, »), lieu de naissance (« né à Blois le … ») et lieu-dit entre guillemets
+  // (« lieu-dit « Les Grouets » ») : codés en entier — ce sont des adresses, pas des mots du métier.
+  t = t.replace(/(demeurant|demeurent|domicili[ée]e?s?)(\s+(?:à|au|aux|en|chez|dans)\s+|\s+)([^\n;.]{3,110}?)(?=,\s*(?:né|nés|née|nées|de nationalité|profession|marié|mariée|célibataire|veuf|veuve|divorcé|divorcée|pacsé|pacsée|ci-après|ayant|agissant|et\s)|[;\n]|\.\s|\.$|$)/giu,
+    (m, mot, lien, adresse) => (/^\[/.test(adresse.trim()) ? m : mot + lien + jeton('NOM', adresse.trim())));
+  t = t.replace(/(n[ée]e?s?\s+(?:à|au|aux|en)\s+)([^\n,;()]{2,60}?)(?=\s+le\s+\d|\s+en\s+\d|\s*\(|,|\n|$)/giu, (m, mot, lieu) => (/^\[/.test(lieu.trim()) ? m : mot + jeton('NOM', lieu.trim())));
+  t = t.replace(/(lieu[- ]dit\s*:?\s*[«"“])([^»"”\n]{2,60})([»"”])/giu, (m, a, lieu, c) => a + jeton('NOM', lieu.trim()) + c);
+  // « Prénom NOM » (prénom à majuscule, nom en capitales) et « NOM Prénom » : deux mots d'une personne.
+  const capitales = '\\p{Lu}{3,}(?:-\\p{Lu}{2,})?';
+  const prenom = '\\p{Lu}\\p{Ll}[\\p{L}\\p{M}\'’-]+(?:-\\p{Lu}\\p{Ll}[\\p{L}\\p{M}]+)?';
+  const gardeMot = (mot) => MOTS_NON_PRENOMS_DOCUMENT.has(A.normaliserDemande(mot).replace(/[^a-z]/g, ''));
+  t = t.replace(new RegExp(`(?<![\\p{L}\\[])(${prenom})([ \\t]+)(${capitales})(?![\\p{L}\\]])`, 'gu'),
+    (m, p, esp, nom) => (gardeMot(p) || gardeMot(nom) ? m : jeton('NOM', p) + esp + jeton('NOM', nom)));
+  t = t.replace(new RegExp(`(?<![\\p{L}\\[])(${capitales})([ \\t]+)(${prenom})(?![\\p{L}\\]])`, 'gu'),
+    (m, nom, esp, p) => (gardeMot(p) || gardeMot(nom) ? m : jeton('NOM', nom) + esp + jeton('NOM', p)));
+  // Mots des fiches (noms, adresse, agence, notaires), toute casse, morceaux d'un nom à tiret ou apostrophe compris.
+  t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|\p{L}[\p{L}\p{M}'’-]*/gu, (mot) => {
+    if (mot.startsWith('[')) return mot;
+    const sensible = (x) => { const n = A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, ''); return n.length >= 2 && sensibles.has(n); };
+    return sensible(mot) || mot.split(/['’-]/).some((m) => m.length >= 3 && sensible(m)) ? jeton('NOM', mot) : mot;
+  });
+  return t;
+}
+
+/** Pure : masquerDocument sur toutes les chaînes d'une valeur (résultat d'un outil qui lit un document). */
+function masquerValeurDocument(valeur, sensibles, table) {
+  if (typeof valeur === 'string') return masquerDocument(valeur, sensibles, table);
+  if (Array.isArray(valeur)) return valeur.map((v) => masquerValeurDocument(v, sensibles, table));
+  if (valeur && typeof valeur === 'object') return Object.fromEntries(Object.entries(valeur).map(([k, v]) => [k, masquerValeurDocument(v, sensibles, table)]));
+  return valeur;
 }
 
 /**
@@ -338,7 +412,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, motsSensiblesDossiers,
+  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers,
   REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

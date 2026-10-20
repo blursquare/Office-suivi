@@ -21280,3 +21280,15 @@ Serveur : `explorateurNas.js` (liste d'un niveau + arborescence, `renommerFichie
 - **Anonymisation en option** : voir CLAUDE.md, contrainte 1. Aucun accord de sous-traitance n'est attesté : la fenêtre de confirmation le dit.
 - **Sous la saisie** : liste du modèle (Opus 5.5, Sonnet 5.5, Haiku 5.5 ; « Mistral » fixe quand Mistral est le moteur) et de la réflexion (Rapide / Normale / Approfondie) ; le bloc « Modèle et réflexion » de la colonne de droite est remplacé par « Confidentialité ».
 - **Orthographe** : `spellcheck="true" lang="fr"` sur le champ — le correcteur du navigateur (soulignement, clic droit) ; il dépend du dictionnaire français activé dans Chrome/Edge du poste (non rejoué sur un poste du bureau).
+
+### 0.301.0 — 20/10/2026 23:47 — Claire Scan : mémoire, lot, doublons, recherche, annulation
+
+Étude 20/10 : « Comment améliorer Claire Scan ? Un RAG des fichiers déjà scannés… » puis « mets en place toutes les nouveautés proposées ».
+- **Mémoire sans IA** (`commun/scans-memoire.js`, clé `scans-memoire`) : un rangement fait à la main apprend l'empreinte du haut de la première page (mots de 4 lettres et plus, sans chiffre, sans noms du dossier ni mots de son adresse) pour le type choisi, et les identifiants lus (contrat, prêt, avis, IBAN ; SIREN/SIRET écartés par Luhn) pour le dossier. Un type appris est proposé quand les règles ne reconnaissent rien (similarité ≥ 60 %), ou passe devant les règles s'il est confirmé deux fois à ≥ 80 % ; un identifiant déjà rangé donne +3 au dossier, la référence d'Authentic +6 ; un identifiant vu dans deux dossiers n'attribue plus rien. « Tout oublier » dans Réglages › Pièces et Claire Scan.
+- **Texte des scans rangés** indexé en SQLite FTS5 (`scansTextes.js`, 60 000 caractères au plus par scan, sur le serveur du bureau) ; recherche dans l'historique (`GET /api/scans/recherche`). Seuls les scans rangés depuis cette version sont cherchables.
+- **Doublons** : SHA-256 du fichier avant déplacement ; un scan identique à un scan rangé porte « Déjà rangé le … » et n'est jamais rangé seul.
+- **Lot** : cases à cocher, dossier commun à la sélection, « Ranger la sélection » (confirmation).
+- **Remettre dans Scan** (`POST /api/scans/annuler`) : la copie quitte le dossier client, l'original archivé revient dans Scan (copie gardée dans « Annulés »), la pièce cochée par ce rangement est décochée si elle l'a été par ce fichier.
+- **Confiance** en six points, étiquettes « Type appris » / « Corrigé », chiffres des 30 derniers jours (rangés, % seuls, corrigés, type le plus corrigé).
+- **Limites** : rien éprouvé sur le vrai copieur ni le NAS ; non faits (proposés mais écartés ce soir) : découpage d'un scan multi-documents, redressement et pages vides. Point terrain `scan-memoire`.
+

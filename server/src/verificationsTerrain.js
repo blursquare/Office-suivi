@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'scan-memoire', depuis: '0.301.0', source: 'poste', titre: 'Claire Scan : un rangement corrigé à la main est reconnu au scan suivant ; « Remettre dans Scan » défait un rangement',
+    comment: 'Coché au premier rangement à la main qui corrige le type ou le dossier proposé. À regarder avec un vrai scan du copieur : un second scan du même genre reçoit le type appris (étiquette « Type appris ») ; la recherche de l’historique retrouve un mot du scan rangé ; « Remettre dans Scan » ramène le fichier dans le dossier Scan, retire la copie du dossier client et décoche la pièce. Un scan identique à un scan rangé porte « Déjà rangé » et n’est pas rangé seul.' },
   { id: 'agent-acte-integral', depuis: '0.300.0', source: 'poste', titre: 'Demander à CLAIRE : un acte déposé est lu en entier et analysé comme dans une conversation Claude',
     comment: 'Coché quand un PDF joint est lu en entier et son texte joint à la question. Sur un vrai acte (promesse, projet d’acte) : le compte rendu est structuré (synthèse, parties, bien, prix, conditions suspensives, points d’attention), les citations [pj1 p. N] ouvrent la bonne page, et un acte scanné est lu par OCR sans manquer de pages. Essayer aussi l’anonymisation désactivée dans la colonne de droite (noms en clair dans la réponse, sans codes).' },
   { id: 'explorateur-nas', depuis: '0.299.0', source: 'poste', titre: 'Explorateur du NAS : une pièce renommée ou déplacée vers un autre sous-dossier du dossier client',

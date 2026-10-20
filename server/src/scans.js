@@ -374,8 +374,51 @@ function ajouterAuJournal(journal, entree) {
   return [entree, ...(Array.isArray(journal) ? journal : [])].slice(0, MAX_JOURNAL);
 }
 
+// Annule un rangement (étude 20/10 : « Remettre dans Scan ») : la COPIE que CLAIRE avait rangée dans le dossier client revient dans le
+// dossier Scan (sous son nom d'origine, avec la date de l'original), l'original archivé passe dans « CLAIRE - scans rangés/Annulés »
+// — jamais supprimé. Refusé si la copie a changé depuis (taille) ou n'est plus là, ou si l'entrée du journal n'a pas gardé son original.
+async function annulerRangement({ dossierScans, nasRacine, entree }, fsImpl = fsp) {
+  const erreur = (statut, message) => ({ erreur: message, statut });
+  if (!entree || !entree.chemin) return erreur(400, 'Rangement inconnu.');
+  if (!entree.original) return erreur(409, 'Ce rangement ne peut pas être annulé : l’original n’a pas quitté le dossier Scan.');
+  const racine = path.resolve(nasRacine);
+  const copie = await resoudreCheminNas(nasRacine, entree.chemin, fsImpl);
+  if (!copie || copie === racine || !copie.startsWith(racine + path.sep)) return erreur(400, 'Copie hors du NAS configuré.');
+  const archive = path.resolve(dossierScans, NOM_ARCHIVE_SCANS);
+  const original = path.resolve(dossierScans, entree.original);
+  if (!original.startsWith(archive + path.sep)) return erreur(400, 'Original hors de l’archive des scans.');
+  let stCopie, stOriginal;
+  try { stCopie = await fsImpl.stat(copie); } catch (_) { return erreur(404, 'La copie n’est plus dans le dossier du client : elle a été déplacée ou renommée.'); }
+  try { stOriginal = await fsImpl.stat(original); } catch (_) { return erreur(404, 'L’original archivé est introuvable.'); }
+  if (!stCopie.isFile() || stCopie.size !== stOriginal.size) return erreur(409, 'La copie a été modifiée depuis le rangement : elle reste où elle est.');
+  const retour = await cheminLibre(dossierScans, nomFichierSur(entree.nom), fsImpl);
+  try {
+    await fsImpl.copyFile(copie, retour, fsc.constants.COPYFILE_EXCL);
+    const st = await fsImpl.stat(retour);
+    if (st.size !== stCopie.size) throw new Error('Copie incomplète.');
+  } catch (e) {
+    if (!(e && e.code === 'EEXIST')) { try { await fsImpl.unlink(retour); } catch (_) { /* rien à retirer */ } }
+    return erreur(500, 'Le scan n’a pas pu être remis dans le dossier Scan : ' + (e && e.code ? e.code : 'erreur d’écriture'));
+  }
+  try { await fsImpl.utimes(retour, stOriginal.atime, stOriginal.mtime); } catch (_) { /* la date d'arrivée reste celle d'aujourd'hui */ }
+  // La copie du dossier client n'est retirée qu'une fois le scan revenu (et vérifié) dans Scan ; si le retrait échoue, le scan est
+  // quand même remis (un doublon dans le dossier client vaut mieux qu'une perte).
+  let copieRetiree = true;
+  try { await fsImpl.unlink(copie); } catch (_) { copieRetiree = false; }
+  let archive2 = null;
+  try {
+    const annules = path.join(archive, 'Annulés');
+    await fsImpl.mkdir(annules, { recursive: true });
+    archive2 = await cheminLibre(annules, path.basename(original), fsImpl);
+    await fsImpl.rename(original, archive2);
+  } catch (_) {
+    try { await fsImpl.copyFile(original, archive2, fsc.constants.COPYFILE_EXCL); await fsImpl.unlink(original); } catch (__) { archive2 = null; }
+  }
+  return { ok: true, remis: path.basename(retour), copieRetiree, originalRange: !!archive2 };
+}
+
 module.exports = {
-  copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE, SOUS_DOSSIERS_CREES, sousDossierCree,
+  annulerRangement, copierDansDossierClient, extensionPieceJointe, EXTENSIONS_PIECE_JOINTE, SOUS_DOSSIERS_CREES, sousDossierCree,
   trouverDossierScans, parentsCandidats, partagesScansCandidats, depuisMsScans, nomScanValide, listerScans, oublierScansAnciens, nomRubriqueNormalise,
   resoudreRubrique, nomFichierSur, cheminLibre, rangerScan, ajouterAuJournal,
   RUBRIQUES_SCANS, NOM_ARCHIVE_SCANS, DELAI_STABILITE_MS, MAX_JOURNAL
