@@ -59,14 +59,19 @@ async function rafraichirWizardSuccessionAuthentic() {
 // complète, c'est gardé — idem pour le défunt, les héritiers, les biens ») → [{ libelle, recue }]. Chaque page lue coche sa ligne.
 function pagesAOuvrirWizardSuccession(p, d) {
   const r = [];
-  const fiche = (nom) => !!(nom && ficheClientDe(d, nom));
+  const ficheDefunt = defuntDepuisFiches(d).fiche;
+  const cle = (n) => normaliserPourRecherche(String(n || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
+  // Un héritier n'est jamais coché par la fiche du défunt (père et fils qui partagent un prénom), ni par une fiche qui porte un décès.
+  const fiche = (nom) => { const f = nom ? ficheClientDe(d, nom) : null; return !!f && f !== ficheDefunt && !(f.deces && f.deces.date); };
   const defunt = p.defunt || '';
-  r.push({ libelle: defunt ? `Fiche de ${defunt} (défunt)` : 'Fiche du défunt', recue: !!defuntDepuisFiches(d).fiche });
+  // Le défunt : sa fiche porte la date du décès, ou exactement son nom.
+  const defuntLu = !!ficheDefunt && (!!(ficheDefunt.deces && ficheDefunt.deces.date) || (!!defunt && cle(ficheDefunt.nom) === cle(defunt)));
+  r.push({ libelle: defunt ? `Fiche de ${defunt} (défunt)` : 'Fiche du défunt', recue: defuntLu });
   (p.heritiers || []).forEach(h => r.push({ libelle: `Fiche de ${h.nom}`, recue: fiche(h.nom) }));
   const lus = (p.biens || []).length;
   const annonces = Number(d && d.authentic && d.authentic.biensDossier && d.authentic.biensDossier.nombre) || 0;
   (p.biens || []).forEach(b => r.push({ libelle: `Fiche du bien ${b.adresse || ''}`.trim(), recue: true }));
-  const manquants = Math.max(annonces - lus, !lus && p.bienPrincipal ? 1 : 0);
+  const manquants = Math.min(6, Math.max(annonces - lus, !lus && p.bienPrincipal ? 1 : 0));
   for (let i = 0; i < manquants; i++) r.push({ libelle: i === 0 && !lus && p.bienPrincipal ? `Fiche du bien ${p.bienPrincipal}` : 'Fiche d’un autre bien', recue: false });
   return r;
 }

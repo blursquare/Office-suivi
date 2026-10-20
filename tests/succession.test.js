@@ -946,3 +946,32 @@ test('Nouveau dossier d’une succession : fiches à ouvrir dans Authentic, coch
   assert.equal(app.pagesAOuvrirWizardSuccession({ defunt: '', heritiers: [], biens: [], bienPrincipal: '41000 BLOIS, 2 rue Haute' }, {}).map(x => x.libelle).join(' | '),
     'Fiche du défunt | Fiche du bien 41000 BLOIS, 2 rue Haute');
 });
+
+test('FCDDV ADSN, seconde relecture : CEDEX suivi des noms, ville de plusieurs mots par l’annuaire, « Maître » entier, deux actes le même jour', () => {
+  const debut = 'Le fichier central a enregistré les inscriptions suivantes : ';
+  const cedex = app.analyseFcddv(debut + 'Acte du : 25/11/2009 NOTAIRE 9 AVENUE DE LA GARE 41250 BRACIEUX CEDEX MOREAU LEROUX Etude 41008 Compostage 2009120370349');
+  assert.equal(cedex.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'MOREAU LEROUX|BRACIEUX');
+  const maitre = app.analyseFcddv(debut + 'Acte du : 25/11/2009 Etude 41008 9 RUE HAUTE 41250 BRACIEUX Maître Jean Leroux Compostage 2009120370349');
+  assert.equal(maitre.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'Jean Leroux|BRACIEUX');
+  app.carnetConfreres = [{ id: 'o', ville: 'Les Montils', email: 'office.41077@notaires.fr', notaires: ['Paul DURAND'] }];
+  const montils = app.analyseFcddv(debut + 'Acte du : 02/03/2004 NOTAIRE 2 RUE HAUTE 41120 LES MONTILS DURAND Etude 41077 Compostage 2004030212345');
+  assert.equal(montils.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'DURAND|LES MONTILS');
+  app.carnetConfreres = [];
+  // Deux actes de la même étude, le même jour : la correction de l'un ne passe pas à l'autre.
+  const deux = debut + 'Acte du : 10/05/2012 PETIT NOTAIRE 1 RUE X 41000 BLOIS Etude 41050 Compostage 2012051011111 Acte du : 10/05/2012 PETIT NOTAIRE 1 RUE X 41000 BLOIS Etude 41050 Compostage 2012051022222';
+  const d = base();
+  app.appliquerFcddvSurDossier(d, app.analyseFcddv(deux), 'X', '2026-10-20T10:00:00Z');
+  Object.assign(d.succession.fcddv.inscriptions[0], { nature: 'Testament olographe', demandeLe: '2026-10-20' });
+  app.appliquerFcddvSurDossier(d, app.analyseFcddv(deux), 'X', '2026-10-21T10:00:00Z');
+  assert.equal(d.succession.fcddv.inscriptions.map(i => `${i.nature}|${i.demandeLe}`).join(' ; '), 'Testament olographe|2026-10-20 ; Disposition de dernières volontés|');
+});
+
+test('Fiches à ouvrir : père et fils du même prénom jamais cochés l’un pour l’autre ; biens manquants plafonnés', () => {
+  const pere = { authentic: { comparants: [{ role: 'DEFUNT', nom: 'M. DUPONT Jean Pierre' }, { role: 'HERITIER', nom: 'M. DUPONT Pierre' }], fichesClients: { a: { nom: 'Jean Pierre DUPONT', prenom: 'Jean Pierre', deces: { date: '2026-08-01' } } } } };
+  const l = app.pagesAOuvrirWizardSuccession({ defunt: 'Jean Pierre DUPONT', heritiers: [{ nom: 'Pierre DUPONT' }], biens: [], bienPrincipal: '' }, pere);
+  assert.equal(l.map(x => (x.recue ? '✓' : '○') + x.libelle).join(' | '), '✓Fiche de Jean Pierre DUPONT (défunt) | ○Fiche de Pierre DUPONT');
+  const fils = { authentic: { comparants: [{ role: 'DEFUNT', nom: 'M. DUPONT Jean Pierre' }, { role: 'HERITIER', nom: 'M. DUPONT Jean' }], fichesClients: { b: { nom: 'Jean DUPONT', prenom: 'Jean' } } } };
+  assert.equal(app.pagesAOuvrirWizardSuccession({ defunt: 'Jean Pierre DUPONT', heritiers: [], biens: [], bienPrincipal: '' }, fils)[0].recue, false, 'la fiche du fils ne coche pas le défunt');
+  const beaucoup = app.pagesAOuvrirWizardSuccession({ defunt: '', heritiers: [], biens: [], bienPrincipal: '' }, { authentic: { biensDossier: { nombre: 40 } } });
+  assert.equal(beaucoup.length, 7);
+});

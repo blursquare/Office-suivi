@@ -383,7 +383,7 @@
     const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament|donation|mention)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
     // Forme réelle du compte rendu de l'ADSN (reçu le 20/10) : « Le fichier central a enregistré les inscriptions suivantes : Acte du :
     // 29/01/2002 Etude 41008 NOM NOM Compostage 2002… NOTAIRE adresse 41250 VILLE » — une inscription par « Acte du », sans nature.
-    const reelles = inscriptionsFcddvAdsn(plat);
+    const reelles = inscriptionsFcddvAdsn(plat, typeof carnetConfreres !== 'undefined' ? carnetConfreres : []);
     if (reelles.length) return { aucune: false, inscriptions: reelles };
     const debuts = [];
     let m;
@@ -408,7 +408,7 @@
 
   // Pure : les inscriptions du compte rendu d'interrogation de l'ADSN — date de l'acte, étude (son CRPCEN), notaire(s) nommés, numéro de
   // compostage, ville de l'étude. La nature de l'acte n'y est pas écrite : « Disposition de dernières volontés », à demander au confrère.
-  function inscriptionsFcddvAdsn(plat) {
+  function inscriptionsFcddvAdsn(plat, villes) {
     let texte = String(plat || '').replace(/\s+/g, ' ');
     const debut = texte.search(/inscriptions?\s+suivantes?\s*:/i);
     if (debut < 0) return [];
@@ -429,15 +429,28 @@
       let reste = bloc.replace(date[0], ' ').replace(/(?:[ÉE]tude|Office)\s+\d{5}(?!\d)/gi, ' ').replace(/Compostage\s+\d{6,}/gi, ' ')
         .replace(/\bNOTAIRES?\b/g, ' ').replace(/\s+/g, ' ').trim();
       // L'adresse de l'étude : du premier chiffre au « CP VILLE » (CEDEX retiré). Les noms sont ce qui reste, avant ou après elle.
-      const adr = /\d[\s\S]*?(?:^|\s)(\d{5})\s+((?:[A-ZÀ-Ý][A-ZÀ-Ý'’-]*\s*)+)/.exec(reste);
+      // Un mot n'entre dans la suite qu'entier (« Maître » n'y laisse pas son « M »).
+      const adr = /\d[\s\S]*?(?:^|\s)(\d{5})\s+((?:[A-ZÀ-Ý][A-ZÀ-Ý'’-]*(?=\s|$)\s*)+)/.exec(reste);
       let ville = '';
       let noms = reste;
       if (adr) {
         const avant = reste.slice(0, adr.index).trim();
-        const mots = adr[2].replace(/\bCEDEX\b.*$/, '').trim().split(/\s+/).filter(Boolean);
-        // Noms écrits avant l'adresse : tout ce qui suit le code postal est la ville ; sinon la ville est son premier mot.
-        ville = avant ? mots.join(' ') : (mots[0] || '');
-        noms = avant || mots.slice(1).join(' ') + ' ' + reste.slice(adr.index + adr[0].length);
+        const tous = adr[2].trim().split(/\s+/).filter(Boolean);
+        const iCedex = tous.indexOf('CEDEX');
+        // CEDEX coupe : la ville avant, ce qui suit va aux noms.
+        let mots = iCedex >= 0 ? tous.slice(0, iCedex) : tous;
+        let suite = iCedex >= 0 ? tous.slice(iCedex + 1) : [];
+        if (!avant && iCedex < 0 && mots.length > 1) {
+          // Noms écrits après l'adresse, sans CEDEX : la ville de l'étude dans l'annuaire (son CRPCEN dans l'adresse email) dit où couper ;
+          // à défaut le premier mot.
+          const v = villeEtudeAnnuaireFcddv(etude[1], villes);
+          const mv = v ? normaliserPourRecherche(v).replace(/[^a-z0-9]+/g, ' ').trim().split(' ') : [];
+          const n = mv.length && mots.slice(0, mv.length).map(x => normaliserPourRecherche(x).replace(/[^a-z0-9]+/g, '')).join(' ') === mv.join(' ') ? mv.length : 1;
+          suite = mots.slice(n);
+          mots = mots.slice(0, n);
+        }
+        ville = mots.join(' ');
+        noms = avant || [suite.join(' '), reste.slice(adr.index + adr[0].length)].join(' ');
       }
       const notaire = noms.replace(/\b(?:Ma[îi]tres?|Me)\b\.?\s*/gi, '').replace(/\s+/g, ' ').trim();
       if (!notaire || /^\d|^NOTAIRE/i.test(notaire) || /gossart/i.test(notaire)) return;
@@ -445,6 +458,12 @@
       if (!out.some(x => x.date === ins.date && x.crpcen === ins.crpcen && x.compostage === ins.compostage)) out.push(ins);
     });
     return out;
+  }
+
+  // Pure : la ville de l'étude dont l'email porte ce CRPCEN (« office.41008@notaires.fr ») dans l'annuaire, sinon ''.
+  function villeEtudeAnnuaireFcddv(crpcen, carnet) {
+    const o = (Array.isArray(carnet) ? carnet : []).find(x => x && x.email && new RegExp('[.\\-_]' + crpcen + '@').test(x.email));
+    return o && o.ville ? String(o.ville) : '';
   }
 
   // Pure : l'email de l'office d'un notaire dépositaire — l'annuaire (nom, ville), sinon le CRPCEN dans l'adresse (« ….41001@notaires.fr »).
@@ -496,9 +515,14 @@
     const s = Object.assign({}, d.succession);
     const anciennes = (s.fcddv && s.fcddv.inscriptions) || [];
     const carnet = typeof carnetConfreres !== 'undefined' ? carnetConfreres : [];
+    const reprises = new Set();
     const inscriptions = analyse.inscriptions.map(i => {
       // Le même acte relu (son compostage, sinon l'étude et la date) garde ce que l'étude a corrigé : nature, notaire, email.
-      const memeActe = anciennes.find(a => !a.saisie && ((i.compostage && a.compostage === i.compostage) || (i.crpcen && a.crpcen === i.crpcen && a.date === i.date)));
+      // Compostage d'abord ; étude + date seulement quand ni l'un ni l'autre n'en a ; une ancienne inscription ne sert qu'une fois.
+      const libre = (a) => !a.saisie && !reprises.has(a);
+      const memeActe = anciennes.find(a => libre(a) && i.compostage && a.compostage === i.compostage)
+        || anciennes.find(a => libre(a) && !i.compostage && !a.compostage && i.crpcen && a.crpcen === i.crpcen && a.date === i.date);
+      if (memeActe) reprises.add(memeActe);
       const deja = memeActe || anciennes.find(a => a.notaire === i.notaire && a.nature === i.nature && a.date === i.date);
       const garde = memeActe ? { nature: memeActe.nature || i.nature, notaire: memeActe.notaire || i.notaire } : {};
       return Object.assign({}, i, garde, { email: (deja && deja.email) || emailNotaireFcddv(Object.assign({}, i, garde), carnet), demandeLe: (deja && deja.demandeLe) || '' });
