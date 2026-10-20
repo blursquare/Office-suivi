@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.296.0';
+  const VERSION_APP = '0.297.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.297.0', date: '2026-10-20 20:49', resume: "Barre latérale : un champ de recherche en tête pour trouver un dossier (nom, partie, adresse, référence) ou un outil, avec Ctrl+K ; « Demander à CLAIRE » devient un bouton à côté de Claire Scan." },
     { version: '0.296.0', date: '2026-10-20 20:19', resume: "Hypothèque : l'hypothèque légale ou conventionnelle est mise en avant près du prix en haut de la fiche. En participation, « Rédiger l'acte de prêt » et « Envoyer la DOD au notaire instrumentaire » arrivent dans À faire ; si un confrère représente l'acquéreur, c'est sa DOD qu'on réclame ; seul notaire, le prêt est rédigé dans l'acte de vente. Le sous-dossier « Prêt » d'Authentic dit si l'acte de prêt est en cours de rédaction ou signé." },
     { version: '0.295.2', date: '2026-10-20 19:59', resume: "Offre de prêt : l'hypothèque légale de prêteur de deniers passe en tête, en pastille pleine, bien plus visible que la caution et les autres garanties." },
     { version: '0.295.1', date: '2026-10-20 18:07', resume: "Offre de prêt : les garanties (hypothèque légale de prêteur de deniers, caution…) bien visibles, une pastille par garantie, sur la carte « Obtention du prêt » et dans l'onglet Fonds." },

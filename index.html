@@ -55,19 +55,22 @@
         <span class="sidebar-scan-icone" id="icon-nav-scans" aria-hidden="true"></span>
         <span class="sidebar-scan-pastille" id="badge-scans" style="display:none;"></span>
       </button>
+      <!-- Demander à CLAIRE (étude 20/10), à côté de Claire Scan : la page de conversation ; réservé à l'administrateur. -->
+      <button type="button" id="tab-assistant" class="sidebar-scan-bannette" style="display:none;" onclick="definirOnglet('assistant')" aria-label="Demander à CLAIRE" title="Demander à CLAIRE">
+        <span class="sidebar-scan-icone" id="icon-nav-assistant" aria-hidden="true"></span>
+      </button>
       <span class="sidebar-controles-espace"></span>
       <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
         <span id="icon-sidebar-collapse" aria-hidden="true"></span>
       </button>
     </div>
 
-    <!-- « Demander à CLAIRE » en champ, en haut de la barre (étude 18/10 : « déplace de la sidebar Demander à CLAIRE et place-le en tête,
-         sous forme de champ où l'on peut taper une requête ») ; réservé à Bastien comme avant (`majSidebarReservee`, id `tab-assistant`).
-         Entrée : la page de conversation s'ouvre et la demande part ; barre repliée : l'icône ouvre la page. -->
-    <form id="tab-assistant" class="sidebar-demander" style="display:none;" role="search" aria-label="Demander à CLAIRE" onsubmit="event.preventDefault(); envoyerDepuisSidebarAssistant();">
-      <button type="button" class="sidebar-demander-icone" id="icon-nav-assistant" aria-label="Ouvrir Demander à CLAIRE" title="Demander à CLAIRE" onclick="ouvrirAssistantDepuisSidebar()"></button>
-      <input type="text" id="sidebar-assistant-saisie" class="sidebar-demander-saisie" placeholder="Demander à CLAIRE…" autocomplete="off" aria-label="Votre demande à CLAIRE">
-      <button type="submit" class="sidebar-demander-envoyer" id="icon-sidebar-assistant-envoyer" aria-label="Envoyer la demande" title="Envoyer"></button>
+    <!-- Recherche de la barre (étude 20/10 : « un champ de recherche à la place de Demander à CLAIRE, pour rechercher un dossier ou un outil ») :
+         dossiers (nom, parties, adresse, référence) et écrans/outils de la barre ; la liste s'ouvre sous le champ, flèches + Entrée, Ctrl+K.
+         « Demander à CLAIRE » est le bouton à côté de Claire Scan (réservé à Bastien comme avant, `majSidebarReservee`, id `tab-assistant`). -->
+    <form id="sidebar-recherche" class="sidebar-recherche" role="search" aria-label="Rechercher un dossier ou un outil" onsubmit="event.preventDefault(); ouvrirRechercheSidebar();">
+      <button type="button" class="sidebar-recherche-icone" id="icon-sidebar-recherche" aria-label="Rechercher" title="Rechercher (Ctrl+K)" onclick="focaliserRechercheSidebar()"></button>
+      <input type="text" id="sidebar-recherche-saisie" class="sidebar-recherche-saisie" placeholder="Dossier ou outil…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sidebar-recherche-liste" aria-label="Rechercher un dossier ou un outil" oninput="majRechercheSidebar()" onfocus="majRechercheSidebar()" onblur="fermerRechercheSidebar()" onkeydown="toucheRechercheSidebar(event)">
     </form>
 
     <!-- Liens groupés par catégorie (demandé par l'étude) : "Tableau de bord" reste seul, sans
@@ -2812,5 +2815,6 @@
 <script src="client/88-import-clients-biens.js"></script>
 <script src="client/89-panneau-authentic.js"></script>
 <script src="client/90-acte-pret.js"></script>
+<script src="client/91-recherche-sidebar.js"></script>
 </body>
 </html>

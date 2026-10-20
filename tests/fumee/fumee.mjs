@@ -128,6 +128,20 @@ try {
         return r;
       });
       verifier(avenir && avenir.liste && avenir.haut >= 640 && avenir.large >= 1000 && avenir.croix, `tâches à venir : lien, liste et grande fenêtre (${JSON.stringify(avenir)})`);
+      // Recherche de la barre latérale (20/10) : un dossier et un outil se trouvent, Entrée ouvre la fiche.
+      const rech = await page.evaluate(async () => {
+        const champ = document.getElementById('sidebar-recherche-saisie');
+        if (!champ) return { champ: false };
+        champ.value = 'moreau'; majRechercheSidebar();
+        const dossiersTrouves = document.querySelectorAll('#sidebar-recherche-liste .sidebar-recherche-ligne').length;
+        champ.value = 'quotit'; majRechercheSidebar();
+        const outilsTrouves = document.querySelectorAll('#sidebar-recherche-liste .sidebar-recherche-ligne').length;
+        champ.value = 'moreau'; majRechercheSidebar(); ouvrirRechercheSidebar();
+        await new Promise(r => setTimeout(r, 300));
+        return { champ: true, dossiersTrouves, outilsTrouves, fiche: !!document.querySelector('body.fiche-en-page'), vide: champ.value === '' };
+      });
+      verifier(rech.champ && rech.dossiersTrouves >= 1 && rech.outilsTrouves >= 1 && rech.fiche && rech.vide, `[${ecran.nom}] recherche de la barre : dossier, outil, Entrée ouvre la fiche (${JSON.stringify(rech)})`);
+      await geste(page, 'recherche : retour', () => { definirOnglet('dashboard'); });
       // Dates sur les cartes du Tableau (13/10) : crayon → champ date → ✓ écrit la date sur la fiche, par le vrai clic.
       await geste(page, 'carte : ouvrir la fiche', () => { ouvrirDossierDepuisDashboard('f1'); definirOngletFiche('tableau'); });
       await pause(300);

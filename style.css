@@ -801,25 +801,37 @@
     color: var(--ink);
     letter-spacing: -0.02em;
   }
-  /* « Demander à CLAIRE » en champ, en haut de la barre (étude 18/10). */
-  .sidebar-demander {
-    display: flex; align-items: center; gap: 4px; height: 40px; margin: 0 0 12px; padding: 0 4px 0 6px;
+  /* Recherche en haut de la barre (étude 20/10 : un dossier ou un outil) ; « Demander à CLAIRE » est le bouton à côté de Claire Scan. */
+  .sidebar-recherche {
+    display: flex; align-items: center; gap: 4px; height: 40px; margin: 0 0 12px; padding: 0 6px;
     background: var(--sidebar-actif-bg); border: 1px solid var(--sidebar-trait); border-radius: var(--rayon-m);
   }
-  .sidebar-demander:focus-within { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
-  .sidebar-demander.actif { border-color: var(--focus); }
-  .sidebar-demander-icone, .sidebar-demander-envoyer {
+  .sidebar-recherche:focus-within { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+  .sidebar-recherche-icone {
     flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0;
     border: 0; border-radius: var(--rayon-s); background: transparent; color: var(--muted); cursor: pointer; font-family: inherit;
   }
-  .sidebar-demander-icone { color: var(--focus); }
-  .sidebar-demander-envoyer:hover, .sidebar-demander-icone:hover { background: var(--sidebar-bg); color: var(--ink); }
-  .sidebar-demander-icone .icone, .sidebar-demander-envoyer .icone { width: 16px; height: 16px; }
-  .sidebar .sidebar-demander input[type="text"].sidebar-demander-saisie {
+  .sidebar-recherche-icone:hover { background: var(--sidebar-bg); color: var(--ink); }
+  .sidebar-recherche-icone .icone { width: 16px; height: 16px; }
+  .sidebar .sidebar-recherche input[type="text"].sidebar-recherche-saisie {
     flex: 1 1 auto; min-width: 0; height: 32px; min-height: 0; padding: 0 2px; border: 0; background: transparent; box-shadow: none;
     color: var(--ink); font-family: inherit; font-size: var(--texte-m); outline: none;
   }
-  .sidebar .sidebar-demander input[type="text"].sidebar-demander-saisie::placeholder { color: var(--muted); }
+  .sidebar .sidebar-recherche input[type="text"].sidebar-recherche-saisie::placeholder { color: var(--muted); }
+  /* La liste des résultats, posée sur la page (hors de la barre sombre : jetons normaux). */
+  .sidebar-recherche-liste {
+    position: fixed; z-index: 80; max-height: 60vh; overflow-y: auto; padding: 6px; background: var(--paper-card);
+    border: 1px solid var(--line); border-radius: var(--rayon-carte); box-shadow: var(--shadow-float); color: var(--ink);
+  }
+  .sidebar-recherche-titre { padding: 6px 8px 4px; color: var(--muted); font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+  .sidebar-recherche-ligne {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--rayon-s);
+    background: transparent; color: var(--ink); font-family: inherit; font-size: var(--texte-m); text-align: left; cursor: pointer;
+  }
+  .sidebar-recherche-ligne:hover, .sidebar-recherche-ligne.actif { background: var(--paper-sunk); }
+  .sidebar-recherche-ligne .sidebar-recherche-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar-recherche-ligne .sidebar-recherche-resp { flex: none; color: var(--muted); font-size: var(--texte-s); }
+  .sidebar-recherche-vide { padding: 8px; color: var(--muted); font-size: var(--texte-m); }
   .sidebar-nav {
     display: flex;
     flex-direction: column;
@@ -1043,6 +1055,7 @@
      pastille de notification ») : à gauche de la rangée d'icônes sous le logo, toujours visible ;
      la pastille compte les scans à ranger (majBadgeScans). */
   .sidebar-controles-espace { flex: 1; }
+  .sidebar-controles .sidebar-scan-bannette + .sidebar-scan-bannette { margin-left: 6px; }
   .sidebar-scan-bannette {
     position: relative; display: inline-flex; align-items: center; justify-content: center; flex: none;
     width: 40px; height: 36px; padding: 0; border: 1px solid var(--sidebar-trait); border-radius: var(--rayon-m);
@@ -1072,10 +1085,10 @@
      mobile (un `display:none` ne se "révèle" pas proprement avec `revert` sans système de calques
      CSS, qui n'est pas en place ici), plutôt que de simplement ne jamais les appliquer. */
   @media (min-width: 901px) {
-    .sidebar.repliee .sidebar-demander { justify-content: center; padding: 0; background: transparent; border-color: transparent; }
-    .sidebar.repliee .sidebar-demander input[type="text"].sidebar-demander-saisie, .sidebar.repliee .sidebar-demander-envoyer { display: none; }
-    .sidebar.repliee .sidebar-demander-icone { width: 40px; height: 36px; }
-    .sidebar.repliee .sidebar-demander-icone .icone { width: 20px; height: 20px; }
+    .sidebar.repliee .sidebar-recherche { justify-content: center; padding: 0; background: transparent; border-color: transparent; }
+    .sidebar.repliee .sidebar-recherche input[type="text"].sidebar-recherche-saisie { display: none; }
+    .sidebar.repliee .sidebar-recherche-icone { width: 40px; height: 36px; }
+    .sidebar.repliee .sidebar-recherche-icone .icone { width: 20px; height: 20px; }
     .sidebar.repliee {
       flex-basis: 76px;
       width: 76px;

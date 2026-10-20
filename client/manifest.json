@@ -89,5 +89,6 @@
   "87-widget-nouveautes.js",
   "88-import-clients-biens.js",
   "89-panneau-authentic.js",
-  "90-acte-pret.js"
+  "90-acte-pret.js",
+  "91-recherche-sidebar.js"
 ]
