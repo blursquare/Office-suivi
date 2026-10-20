@@ -70,7 +70,7 @@
       ]
     },
     {
-      cle: 'retraite', libelle: 'Caisse de retraite (AGIRC-ARRCO)', destinataire: ['Centre de réception AGIRC-ARRCO', 'TSA 36661', '92621 GENNEVILLIERS Cedex'], salutation: 'Madame, Monsieur,', blancsSignature: 1,
+      cle: 'retraite', libelle: 'Caisse de retraite', destinataire: ['Centre de réception AGIRC-ARRCO', 'TSA 36661', '92621 GENNEVILLIERS Cedex'], salutation: 'Madame, Monsieur,', blancsSignature: 1,
       lignes: () => [
         'En ma qualité de notaire chargé du règlement de la succession de la personne ci-dessus visée, il a été porté à ma connaissance que le défunt était titulaire d\'une allocation servie par votre organisme.', '',
         'Aussi, je vous serais très obligé de bien vouloir me faire connaître :',

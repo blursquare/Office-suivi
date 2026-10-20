@@ -1291,7 +1291,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   // Pure : les contacts du répertoire qui répondent à une recherche (organisme, service, personne, ville), 8 au plus. Pour une succession
   // (étude 15/10 : « présenter en priorité les services successions, et pas la banque pour le prêt ») : un service « successions » et
   // les thèmes des successions d'abord, les banques « prêts et mainlevées » en dernier ; à égalité, l'ordre du répertoire.
-  var THEMES_SUCCESSION_REPERTOIRE = ['banquesSuccessions', 'assurances', 'social', 'impots'];
+  var THEMES_SUCCESSION_REPERTOIRE = ['banquesSuccessions', 'assurances', 'social', 'maisonsRetraite', 'impots'];
   function rechercheRepertoireConstitution(q, contacts, genre) {
     const mots = normaliserPourRecherche(String(q || '')).split(/[^a-z0-9]+/).filter(m => m.length >= 2);
     if (!mots.length) return [];

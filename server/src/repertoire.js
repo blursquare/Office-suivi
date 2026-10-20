@@ -26,6 +26,7 @@ const THEMES_REPERTOIRE = [
   { cle: 'banquesSuccessions', libelle: 'Banques — successions' },
   { cle: 'assurances', libelle: 'Assurances et assurance-vie' },
   { cle: 'social', libelle: 'Retraite, santé et aide sociale' },
+  { cle: 'maisonsRetraite', libelle: 'Maisons de retraite et EHPAD' },
   { cle: 'justice', libelle: 'Tribunaux et état civil' },
   { cle: 'impots', libelle: 'Impôts et enregistrement' },
   { cle: 'mairies', libelle: 'Mairies et urbanisme' },
