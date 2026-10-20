@@ -60,6 +60,11 @@ function outilsRechercheSidebar(requete, outils) {
     .slice(0, MAX_OUTILS_RECHERCHE_SIDEBAR);
 }
 
+// Le badge d'état d'un dossier ; un dossier très abîmé n'empêche pas la liste de s'afficher.
+function badgeRechercheSidebar(d) {
+  try { return renderBadgeStatut(d); } catch (e) { return ''; }
+}
+
 function listeRechercheSidebar() {
   let el = document.getElementById('sidebar-recherche-liste');
   if (!el) {
@@ -68,6 +73,8 @@ function listeRechercheSidebar() {
     el.className = 'sidebar-recherche-liste';
     el.setAttribute('role', 'listbox');
     el.style.display = 'none';
+    // Un clic dans la liste (sa barre de défilement comprise) ne retire pas le focus au champ : la liste ne se referme pas.
+    el.addEventListener('mousedown', (e) => e.preventDefault());
     document.body.appendChild(el);
   }
   return el;
@@ -94,7 +101,7 @@ function majRechercheSidebar() {
   const ligne = (l, i) => {
     const actif = i === rechercheSidebar.actif ? ' actif' : '';
     const corps = l.type === 'dossier'
-      ? `${renderBadgeStatut(l.d)}<span class="sidebar-recherche-nom">${escapeHtml(libelleDossierAffiche(l.d))}</span><span class="sidebar-recherche-resp">${escapeHtml(prenomCollaborateur(l.d.responsable || ''))}</span>`
+      ? `${badgeRechercheSidebar(l.d)}<span class="sidebar-recherche-nom">${escapeHtml(libelleDossierAffiche(l.d))}</span><span class="sidebar-recherche-resp">${escapeHtml(prenomCollaborateur(l.d.responsable || ''))}</span>`
       : `<span class="sidebar-recherche-nom">${escapeHtml(l.libelle)}</span>`;
     return `<button type="button" role="option" class="sidebar-recherche-ligne${actif}" aria-selected="${actif ? 'true' : 'false'}" onmousedown="event.preventDefault()" onclick="choisirRechercheSidebar(${i})">${corps}</button>`;
   };
