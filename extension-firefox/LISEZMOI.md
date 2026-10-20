@@ -8,7 +8,11 @@ l'envoie au serveur CLAIRE du bureau, puis ouvre CLAIRE sur la page reçue.
 - Jamais un mot de passe ni un champ caché de la page.
 - Le serveur garde la page **30 minutes en mémoire** seulement (ni base, ni journal).
 
-## État (03/10/2026) — version 0.3.9
+## État (20/10/2026) — version 0.3.11
+
+- **0.3.11** : la fiche client d'une SOCIÉTÉ (SCI, SARL… — champs « identiteClient », « Dénomination sociale ») est relevée et envoyée à
+  CLAIRE comme celle d'une personne.
+- **0.3.10** : l'onglet actif compte dans l'empreinte d'une page : revenir sur un dossier la renvoie.
 
 - **0.3.9** : correction du bouton « Envoyer à CLAIRE » (« result is non-structured-clonable data » : le relevé
   injecté rendait une fonction) ; la navigation vers un dossier d'un autre type envoie aussi la référence du dossier

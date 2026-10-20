@@ -27,11 +27,11 @@
     return { etat: 'aucun', titre: a.releveLe ? 'Pages reçues sans référence' : 'Aucune page reçue', texte: 'Pas encore rattaché' };
   }
 
-  // Pure : les personnes dont une fiche client est attendue — parties de la fiche (jamais une société, qui n'en a pas).
+  // Pure : les personnes dont une fiche client est attendue — parties de la fiche, sociétés comprises (Authentic en a une, 20/10).
   function personnesAttenduesAuthentic(d) {
     const vues = new Set();
     return (Array.isArray(d && d.parties) ? d.parties : [])
-      .filter(p => p && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
+      .filter(p => p && String(p.nom || '').trim())
       .map(p => {
         const prenom = String(p.prenom || '').trim();
         return !prenom || normaliserPourRecherche(String(p.nom)).includes(normaliserPourRecherche(prenom)) ? String(p.nom) : prenom + ' ' + p.nom;
@@ -107,14 +107,17 @@
       const role = partie ? (/^VENDEUR$/i.test(partie.role) ? 'Vendeur' : /^ACQUEREUR$/i.test(partie.role) ? 'Acquéreur' : 'Partie') : '';
       const civ = f.civilite === 'Mme' ? 'Madame ' : f.civilite === 'M' ? 'Monsieur ' : '';
       const naissance = [f.dateNaissance ? 'né' + (f.civilite === 'Mme' ? 'e' : '') + ' le ' + formatDateFr(f.dateNaissance) : '', f.lieuNaissance ? 'à ' + f.lieuNaissance + (f.paysNaissance && !/^france$/i.test(f.paysNaissance) ? ` (${f.paysNaissance})` : '') : ''].filter(Boolean).join(' ');
-      const lignes = [
+      const lignes = f.qualitePersonne === 'morale' ? [
+        ['Forme', f.forme], ['SIREN', f.siren], ['SIRET', f.siret], ['Siège', f.domicile], ['Capital', f.capital], ['Parts', f.nombreParts],
+        ['Email', (f.emails || []).join(', ')], ['Téléphone', (f.telephones || []).join(' / ')]
+      ].filter(([, v]) => v) : [
         ['Naissance', naissance], ['Nom d’usage', f.nomUsage], ['Nationalité', f.nationalite], ['Profession', f.profession], ['Domicile', f.domicile],
         ['Situation', f.situationMatrimoniale ? libelleSituationMatrimoniale(f.situationMatrimoniale) : ''],
         ['Décès', f.deces && f.deces.date ? `le ${formatDateFr(f.deces.date)}${f.deces.lieu ? ' à ' + f.deces.lieu : ''}` : ''],
         ['Email', (f.emails || []).join(', ')], ['Téléphone', (f.telephones || []).join(' / ')]
       ].filter(([, v]) => v);
-      const manque = ['Naissance', 'Domicile', 'Email', 'Téléphone'].filter(l => !lignes.some(x => x[0] === l));
-      return { nom: civ + f.nom, role, lignes, manque, partie: !!partie, vuLe: f.vuLe || '' };
+      const manque = (f.qualitePersonne === 'morale' ? ['SIREN', 'Siège'] : ['Naissance', 'Domicile', 'Email', 'Téléphone']).filter(l => !lignes.some(x => x[0] === l));
+      return { nom: civ + f.nom, role, lignes, manque, partie: !!partie, vuLe: f.vuLe || '', morale: f.qualitePersonne === 'morale' };
     }).sort((a, b) => (a.partie === b.partie ? 0 : a.partie ? -1 : 1));
   }
 
@@ -160,7 +163,7 @@
         ${c.etat === 'corrige' && !c.contact ? `<button type="button" class="lien-action" onclick="remettreValeurAuthentic('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(c.cle)}')" title="Retirer la correction faite sur la fiche et reprendre la valeur d’Authentic">Remettre la valeur d’Authentic</button>` : ''}
       </div>`).join('') + (identiques ? `<ul class="pa-identiques">${identiques}</ul>` : '');
     const cartesPersonnes = personnes.map(p => `<div class="pa-personne">
-        <div class="pa-personne-tete">${icone('user')}<span class="pa-personne-nom">${escapeHtml(p.nom)}</span>${p.role ? `<span class="pa-role">${escapeHtml(p.role)}</span>` : '<span class="pa-role pa-role-hors">hors parties</span>'}</div>
+        <div class="pa-personne-tete">${icone(p.morale ? 'users' : 'user')}<span class="pa-personne-nom">${escapeHtml(p.nom)}</span>${p.role ? `<span class="pa-role">${escapeHtml(p.role)}</span>` : '<span class="pa-role pa-role-hors">hors parties</span>'}</div>
         <dl class="pa-personne-infos">${p.lignes.map(([l, v]) => `<dt>${escapeHtml(l)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}</dl>
         ${p.manque.length ? `<div class="pa-personne-manque">${icone('info')}Non renseigné dans Authentic : ${escapeHtml(p.manque.join(', ').toLowerCase())}</div>` : ''}
       </div>`).join('');

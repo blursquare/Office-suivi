@@ -60,7 +60,8 @@
     // n'est pas fixe et change parfois ») : « N - … » suivi de Importer / Comparants / Immeubles.
     const reGestion = /(?:^|[^\w])\d{1,6}\s*-\s*[A-Za-zÀ-ÿ][^\n]{0,150}?\S\s*(?:Importer|Comparants|Immeubles)(?![A-Za-zÀ-ÿ])/i;
     const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
-    if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
+    // Fiche client d'une société (0.3.11, 20/10) : champs « …:identiteClient:… », pas « ficheClientPhysique ».
+    if (libelles.some(l => /ficheClientPhysique|tabView:identiteClient:|ficheImmeuble/i.test(l))) return true;
     // « VTE VENDEURS / ACQUÉREURS » sans numéro (0.3.8, étude 02/10 : c'est ainsi que le dossier est
     // identifié ; le numéro est caché dans ses données) : titre de l'onglet actif ou en-tête de la page.
     const reOnglet = /^\s*(?:\d{1,6}\s*-\s*[A-Za-zÀ-ÿ]|(?:VTE|Vente)\.?\s+[^\n\/]*?\S\s*\/\s*\S)/i;

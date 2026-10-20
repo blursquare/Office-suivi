@@ -490,7 +490,14 @@
 
   // Pure : la personne d'une fiche client est-elle partie de ce dossier sous ses prénom et nom (fiche ouverte dans un onglet à elle) ?
   function personneDuDossierSurAuthentic(d, personne) {
-    if (!d || !personne || !personne.prenom) return false;
+    if (!d || !personne) return false;
+    // Société : une partie de la fiche sous la même raison sociale (mots entiers).
+    if (personne.morale) {
+      const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+      const nom = mots(personne.nom);
+      return !!nom && (d.parties || []).some(p => p && (mots(p.nom) === nom || (' ' + mots(p.nom) + ' ').includes(' ' + nom + ' ')));
+    }
+    if (!personne.prenom) return false;
     if (estSuccession(d)) return !!partieSuccessionDeLaFiche(d, personne);
     return conjointPartieDuDossierAuthentic(d, personne);
   }
@@ -522,4 +529,41 @@
     const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(m => m.length >= 3);
     const motsComp = new Set(comps.flatMap(c => mots(c.nom)));
     return !(d.parties || []).some(p => p && p.role === role && mots([p.prenom, p.nom, p.nomUsage].filter(Boolean).join(' ')).some(m => motsComp.has(m)));
+  }
+
+  // Pure : la fiche client d'une SOCIÉTÉ (SCI, SARL…) d'Authentic (structure reçue le 20/10 : « Dénomination sociale », type de société,
+  // numéro d'identification, SIRET, capital, parts, siège) → une personne morale au format des fiches client, ou null.
+  function societeDepuisFicheAuthentic(champs) {
+    const denomination = valeurChampAuthentic(champs, n => n === 'denomination sociale');
+    if (!denomination) return null;
+    const val = (re) => valeurChampAuthentic(champs, (n, b) => re.test(b));
+    const emails = [];
+    champs.filter(c => libelleNetAuthentic(c.libelle) === 'email').forEach(c => {
+      emailsDepuisTexte(c.valeur).forEach(e => { if (!emails.some(x => x.toLowerCase() === e.toLowerCase())) emails.push(e); });
+    });
+    const telephones = champs.filter(c => /inputTelephone/i.test(c.libelle || '')).map(c => String(c.valeur || '').trim()).filter(Boolean).filter((x, i, l) => l.indexOf(x) === i);
+    const chiffres = (v) => String(v || '').replace(/\D/g, '');
+    const siren = chiffres(valeurChampAuthentic(champs, n => /^numero d.identification$/.test(n)));
+    const siret = chiffres(valeurChampAuthentic(champs, n => n === 'numero de siret'));
+    return {
+      id: 'authentic-societe-' + normaliserPourRecherche(denomination).replace(/[^a-z0-9]+/g, '') + (siren ? '-' + siren : ''), index: 0, morale: true,
+      civilite: '', nom: denomination.toUpperCase(), prenom: '', nomUsage: '', autresPrenoms: '', dateNaissance: '', lieuNaissance: '', paysNaissance: '',
+      nationalite: '', deces: null, profession: '', situationMatrimoniale: null, complement: null, documents: [],
+      adresse: adresseFicheAuthentic(champs), emails, telephones,
+      forme: val(/:societeType:/) || '', sigle: valeurChampAuthentic(champs, n => n === 'sigle'),
+      siren: /^\d{9}$/.test(siren) ? siren : '', siret: /^\d{14}$/.test(siret) ? siret : '',
+      capital: valeurChampAuthentic(champs, n => n === 'capital social'), nombreParts: valeurChampAuthentic(champs, n => n === 'nombre de parts'),
+      montantNominal: valeurChampAuthentic(champs, n => n === 'montant nominal')
+    };
+  }
+
+  // Modifie d : la partie de ce côté qui porte le nom de la société lue devient une personne morale (raison sociale d'Authentic).
+  function marquerSocieteAuthentic(d, societe, role, noter) {
+    const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const nom = mots(societe.nom);
+    const p = (Array.isArray(d.parties) ? d.parties : []).find(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ') || (' ' + nom + ' ').includes(' ' + mots(x.nom) + ' ')));
+    if (!p || p.qualitePersonne === 'morale') return;
+    p.qualitePersonne = 'morale';
+    delete p.civilite;
+    noter(`${p.nom} : société d’après sa fiche Authentic${societe.forme ? ` (${societe.forme})` : ''}`);
   }

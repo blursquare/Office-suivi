@@ -101,7 +101,7 @@ function origineRequete(req, adresses) {
 // Pure : nature d'une page relevée, pour le journal (sans rien de son contenu sinon l'intitulé).
 function naturePageAuthentic(capture) {
   const libelles = ((capture && capture.champs) || []).map(ch => String(ch.libelle || ''));
-  if (libelles.some(l => /ficheClientPhysique/i.test(l))) return 'client';
+  if (libelles.some(l => /ficheClientPhysique|tabView:identiteClient:/i.test(l))) return 'client'; // personne, ou société (20/10)
   if (libelles.some(l => /ficheImmeuble/i.test(l))) return 'bien';
   return 'dossier';
 }
@@ -410,7 +410,7 @@ function intitulePageAuthentic(capture) {
 function pageAuthenticConnue(capture) {
   const c = capture || {};
   const libelles = (c.champs || []).map(ch => String(ch.libelle || '') + ' ' + String(ch.valeur || ''));
-  if (libelles.some(l => /ficheClientPhysique|ficheImmeuble/i.test(l))) return true;
+  if (libelles.some(l => /ficheClientPhysique|tabView:identiteClient:|ficheImmeuble/i.test(l))) return true;
   if ((c.onglets || []).some(o => o.actif && RE_ONGLET_DOSSIER.test(o.titre))) return true;
   const texte = texteActifAuthentic(c);
   const res = [RE_INTITULE_PAGE, RE_INTITULE_GESTION_PAGE, RE_EN_TETE_VTE_PAGE];

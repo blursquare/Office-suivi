@@ -5,14 +5,14 @@ const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
 const app = chargerApplication();
 
-test('pages attendues : page du dossier, fiche client de chaque personne (jamais une société), chaque bien annoncé', () => {
+test('pages attendues : page du dossier, fiche client de chaque personne et de chaque société, chaque bien annoncé', () => {
   const d = { parties: [{ role: 'VENDEUR', nom: 'Léa ESSAI' }, { role: 'VENDEUR', nom: 'SCI DU TEST', qualitePersonne: 'morale' }, { role: 'ACQUEREUR', nom: 'Paul EXEMPLE' }],
     authentic: { fichesClients: { 'lea essai': { nom: 'Léa ESSAI', vuLe: '2026-10-19T08:00:00Z' } }, biensDossier: { nombre: 2 } } };
   const vide = app.pagesAttenduesAuthentic(d, []);
   assert.equal(vide.map((p) => `${p.libelle}:${p.recue ? 'oui' : 'non'}`).join(' | '),
-    'Page du dossier:non | Fiche de Léa ESSAI:oui | Fiche de Paul EXEMPLE:non | Fiche du bien 1:non | Fiche du bien 2:non');
+    'Page du dossier:non | Fiche de Léa ESSAI:oui | Fiche de SCI DU TEST:non | Fiche de Paul EXEMPLE:non | Fiche du bien 1:non | Fiche du bien 2:non');
   const plein = app.pagesAttenduesAuthentic(d, [{ nature: 'dossier', recueLe: '2026-10-19T09:00:00Z' }, { nature: 'bien' }, { nature: 'bien' }]);
-  assert.equal(plein.filter((p) => !p.recue).map((p) => p.libelle).join(','), 'Fiche de Paul EXEMPLE');
+  assert.equal(plein.filter((p) => !p.recue).map((p) => p.libelle).join(','), 'Fiche de SCI DU TEST,Fiche de Paul EXEMPLE');
   assert.equal(app.formatDateHeureCourte('pas une date'), '');
 });
 
@@ -151,4 +151,37 @@ test('succession : tirets, apostrophes et fiche sans nom de famille (relecture d
   assert.equal(app.memeDefunt('Jean Paul ESSAI', '', 'Jean Paul', 'Jean Paul ESSAI'), true, 'fiche sans nom de famille');
   assert.equal(app.memeDefunt('Paul ESSAI', '', 'Jean Paul', 'Jean Paul ESSAI'), false);
   assert.equal(app.memeDefunt('Essai Jean', '', 'Essai Jean', 'Essai Jean'), true, 'comparant sans capitales');
+});
+
+test('fiche client d’une SOCIÉTÉ (structure du 20/10) : raison sociale, forme, SIREN, SIRET, siège ; la partie devient une personne morale', () => {
+  const ID = 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:tabView:';
+  const capture = { onglets: [{ titre: 'SCI LES TILLEULS', actif: true }], tableaux: [], texte: '', champs: [
+    { libelle: ID + 'clientEtude_input', valeur: 'oui' },
+    { libelle: ID + 'identiteClient:categorie:selectonemenu_input', valeur: 'Société' },
+    { libelle: ID + 'identiteClient:societeType:selectonemenu_input', valeur: 'Société civile immobilière' },
+    { libelle: 'Dénomination sociale*', valeur: 'SCI Les Tilleuls' },
+    { libelle: "Numéro d'identification", valeur: '123 456 789' },
+    { libelle: 'Numéro de SIRET', valeur: '12345678900017' },
+    { libelle: 'Nombre de parts', valeur: '1000' },
+    { libelle: 'N° de voie', valeur: '3' }, { libelle: 'Type de voie', valeur: 'rue' }, { libelle: 'Nom de la voie', valeur: 'des Lilas' },
+    { libelle: 'CP - Ville', valeur: '41000 BLOIS' },
+    { libelle: ID + 'panelAdresseEtCoordonnees:coordonneesClientPrincipale:ficheClientCoordonneesContactPrincipale:Telephone:inputTelephone', valeur: '02 54 00 00 00' },
+    { libelle: 'Email', valeur: 'contact@sci-tilleuls.fr' }] };
+  assert.equal(app.typePageAuthentic(capture), 'client');
+  const p = app.clientDepuisFicheAuthentic(capture);
+  assert.equal(p.morale, true);
+  assert.equal(p.nom, 'SCI LES TILLEULS');
+  assert.equal(p.forme, 'Société civile immobilière');
+  assert.equal(p.siren, '123456789');
+  assert.equal(p.siret, '12345678900017');
+  const d = { id: 'm1', nom: 'SCI LES TILLEULS / DURAND', parties: [{ role: 'VENDEUR', nom: 'SCI LES TILLEULS' }, { role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Léa' }], pieces: {}, historique: [] };
+  const r = app.appliquerReleveSurDossier(d, capture, '2026-10-20T10:00:00Z', [d]);
+  assert.equal(r.modifie, true);
+  assert.equal(d.parties[0].qualitePersonne, 'morale');
+  assert.match(d.emailVendeur || '', /sci-tilleuls/);
+  const fiche = Object.values(d.authentic.fichesClients)[0];
+  assert.equal(fiche.siren, '123456789');
+  const lue = app.personnesLuesAuthentic(d)[0];
+  assert.match(lue.lignes.map((l) => l.join(' ')).join(' | '), /Forme Société civile immobilière \| SIREN 123456789 \| SIRET 12345678900017/);
+  assert.equal(app.personneDuDossierSurAuthentic(d, p), true, 'fiche de la société dans son onglet : la société du dossier');
 });

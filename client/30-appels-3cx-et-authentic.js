@@ -353,7 +353,7 @@
   // Pure : 'gestion' | 'client' | 'bien' | 'autre'.
   function typePageAuthentic(capture) {
     const champs = (capture && capture.champs) || [];
-    if (champs.some(c => /ficheClientPhysique/i.test(c.libelle || ''))) return 'client';
+    if (champs.some(c => /ficheClientPhysique|tabView:identiteClient:/i.test(c.libelle || ''))) return 'client'; // personne ou société (20/10)
     if (champs.some(c => /ficheImmeuble/i.test(c.libelle || ''))) return 'bien';
     if (intituleDossierAuthentic(capture) && lignesDocumentsAuthentic(capture).length) return 'gestion';
     return 'autre';
@@ -977,7 +977,7 @@
     const capture = partage ? partage.principale : capture0;
     const champs = (capture && capture.champs) || [];
     const nom = valeurChampAuthentic(champs, n => n === 'nom de famille');
-    if (!nom) return null;
+    if (!nom) return societeDepuisFicheAuthentic(champs);
     const emails = [];
     champs.filter(c => libelleNetAuthentic(c.libelle) === 'email').forEach(c => {
       emailsDepuisTexte(c.valeur).forEach(e => { if (!emails.some(x => x.toLowerCase() === e.toLowerCase())) emails.push(e); });
@@ -1683,6 +1683,9 @@
       emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3), complement: personne.complement || null
     };
     if (extra && extra.horsComparants) fiche.horsComparants = true; // fiche gardée seule : jamais une partie (Clients et biens)
+    // Société (20/10) : forme, SIREN, SIRET, capital et parts ; le siège est son domicile.
+    if (personne.morale) Object.assign(fiche, { qualitePersonne: 'morale', forme: personne.forme || '', sigle: personne.sigle || '', siren: personne.siren || '',
+      siret: personne.siret || '', capital: personne.capital || '', nombreParts: personne.nombreParts || '', montantNominal: personne.montantNominal || '' });
     const avant = d.authentic || {};
     const reg = Object.assign({}, avant.fichesClients || {});
     if (reg[cle] && JSON.stringify(Object.assign({}, reg[cle], { vuLe: '' })) === JSON.stringify(Object.assign({}, fiche, { vuLe: '' }))) return false;
@@ -1733,7 +1736,9 @@
     // Authentic d'abord (étude 06/10 au soir) : la première fois, ses emails et téléphones REMPLACENT ceux de la fiche ; ensuite un
     // changement d'Authentic est proposé, jamais écrit (voir client/52-authentic-fait-foi.js). Même règle pour l'identité de la partie.
     appliquerContactAuthentic(d, role, nomComplet, { emails: personne.emails, telephones: personne.telephones }, { noter, maintenant });
-    alignerIdentitePartieAuthentic(d, personne, role, { noter, maintenant }).forEach(noter);
+    // Société : ni civilité, ni prénom, ni date de naissance — la partie du même nom devient une personne morale.
+    if (personne.morale) marquerSocieteAuthentic(d, personne, role, noter);
+    else alignerIdentitePartieAuthentic(d, personne, role, { noter, maintenant }).forEach(noter);
     // La fiche client entière est retenue (domicile, naissance, situation) : base des courriers de « Constitution de dossier ».
     retenirFicheClientAuthentic(d, personne, maintenant);
     const avant = d.authentic || {};

@@ -21,6 +21,9 @@ const base = (o) => Object.assign({ responsable: 'Julie VASSELIN', typeVente: 'm
 
 // ---- Dossiers de CLAIRE (inventés) ----
 const DOSSIERS = [
+  // 20/10 : vendeur société (fiche client « Dénomination sociale »).
+  base({ id: 'sci', nom: 'SCI LES TILLEULS / DURAND', referenceAuthentic: 'A 2026 00800', adresseBien: 'BLOIS (41000), 12 rue du Mail',
+    parties: [{ role: 'VENDEUR', nom: 'SCI LES TILLEULS' }, { role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Léa' }] }),
   // 20/10 (ARTHUR / BOUCHKAR) : fiches ouvertes dans leur propre onglet, comparants que la lecture ne retrouve pas.
   base({ id: 'arthur', nom: 'ARTHUR / BOUCHKAR', referenceAuthentic: 'A 2026 00225', typeVente: 'copropriete', adresseBien: 'TOULOUSE (31000), 25 Boulevard des Minimes',
     parties: [{ role: 'VENDEUR', nom: 'ARTHUR', prenom: '' }, { role: 'ACQUEREUR', nom: 'BOUCHKAR', prenom: 'Hamza', civilite: 'M' }] }),
@@ -544,6 +547,24 @@ try {
     const d = await lire('succ');
     const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {});
     constat(S, e.dossierId === 'succ' && fiches.some(x => /Lucie BERNARD/i.test(x.nom)), `fiche de l’héritière : ${e.etat} → ${e.dossierId || '—'} (${e.texte || ''})`);
+  }
+  // 36. Le 20/10 : fiche client d'une SOCIÉTÉ (structure reçue), ouverte dans son propre onglet après la page du dossier.
+  {
+    const S = '36. Fiche client d’une société';
+    await envoyer(pageDossier({ ref: 'A 2026 00800', intitule: 'VTE SCI LES TILLEULS / DURAND', comparants: [['SCI LES TILLEULS', 'Vendeur'], ['Mme DURAND Léa', 'Acquéreur']],
+      immeubles: [['41000 BLOIS', '12 rue du Mail']] }));
+    const I = 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:tabView:';
+    const e = await envoyer({ titre: 'Authentic', onglets: onglets('SCI LES TILLEULS'), tableaux: [], texte: '', champs: [
+      { groupe: '', libelle: I + 'clientEtude_input', valeur: 'oui' },
+      { groupe: '', libelle: I + 'identiteClient:societeType:selectonemenu_input', valeur: 'Société civile immobilière' },
+      { groupe: '', libelle: 'Dénomination sociale*', valeur: 'SCI Les Tilleuls' },
+      { groupe: '', libelle: "Numéro d'identification", valeur: '123456789' }, { groupe: '', libelle: 'Numéro de SIRET', valeur: '12345678900017' },
+      { groupe: '', libelle: 'N° de voie', valeur: '3' }, { groupe: '', libelle: 'Type de voie', valeur: 'rue' }, { groupe: '', libelle: 'Nom de la voie', valeur: 'des Lilas' },
+      { groupe: '', libelle: 'CP - Ville', valeur: '41000 BLOIS' }, { groupe: '', libelle: 'Email', valeur: 'contact@sci-tilleuls.fr' }] });
+    const d = await lire('sci');
+    const fiche = Object.values((d.authentic && d.authentic.fichesClients) || {}).find(x => /TILLEULS/.test(x.nom)) || {};
+    constat(S, e.dossierId === 'sci' && fiche.siren === '123456789', `fiche de la SCI : ${e.etat} → ${e.dossierId || '—'} ; SIREN ${fiche.siren || '—'} (${e.texte || ''})`);
+    constat(S, (d.parties || []).some(p => /TILLEULS/.test(p.nom) && p.qualitePersonne === 'morale') && /sci-tilleuls/.test(d.emailVendeur || ''), `partie société, email vendeur « ${d.emailVendeur || ''} »`);
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
   {

@@ -21185,3 +21185,12 @@ texte lu sur le poste (`ouvrirPdfNas`, `lireTextePdfParPage`), organisme et mont
 `annoncerFactureSuccession` (Teams à Sophie, extrait d'`enregistrerScanSuccession`, une fois par fichier côté serveur). Vus gardés dans
 `d.succession.facturesNasVues` (300) : une facture retirée de la fiche ne revient pas. 10 au plus par ouverture. Un PDF scanné sans texte est
 noté sans montant (pas d'OCR ici). Point terrain `factures-succession-nas`.
+- Même version : **fiche client d'une société** (structure reçue de l'étude le 20/10 : champs « …:tabView:identiteClient:… » — catégorie,
+  `societeType` « Société civile immobilière », « Dénomination sociale », « Numéro d'identification » (SIREN), « Numéro de SIRET », capital,
+  nombre de parts, montant nominal, adresse du siège, téléphones, email ; jamais « ficheClientPhysique »). L'extension (0.3.11, `pageConnue`)
+  et le serveur (`pageAuthenticConnue`, `naturePageAuthentic`) ne l'acceptaient pas ; `typePageAuthentic` la reconnaît, `clientDepuisFicheAuthentic`
+  rend `societeDepuisFicheAuthentic` (client/82 : `morale: true`, nom = raison sociale en capitales, forme, sigle, SIREN 9 chiffres, SIRET 14,
+  capital, parts). `appliquerClientAuthentic` : coordonnées du côté comme une personne, identité non alignée, la partie du même nom passe en
+  personne morale (`marquerSocieteAuthentic`) ; fiche retenue avec ses champs de société (`retenirFicheClientAuthentic`), panneau « Authentic »
+  (Forme, SIREN, SIRET, Siège, Capital, Parts), fiche attendue aussi pour une société (`personnesAttenduesAuthentic`), onglet propre reconnu
+  par la raison sociale (`personneDuDossierSurAuthentic`). Scénario 36.
