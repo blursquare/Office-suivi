@@ -1523,7 +1523,9 @@
       const intitule = intituleDossierAuthentic(cap) || (ongletActifAutreDossierAuthentic(cap, courant, (groupes.get(courant) || {}).reference) ? '' : courant);
       if (intituleDossierAuthentic(cap)) courant = intituleDossierAuthentic(cap);
       if (!intitule || (type === 'autre' && !intituleDossierAuthentic(cap))) return;
-      if (type === 'bien' && !intituleDossierAuthentic(cap) && ongletActifHorsDossierAuthentic(cap)) return; // ouverte hors d'un dossier (19/10)
+      // Fiche bien ouverte dans un onglet à elle (Authentic en ouvre une par fiche, 20/10) : gardée seulement si la rubrique « Immeubles » du
+      // dossier la cite (filtre plus bas) — jamais d'office (recherche d'immeubles, 19/10).
+      const horsOnglet = type === 'bien' && !intituleDossierAuthentic(cap) && ongletActifHorsDossierAuthentic(cap);
       const referencePage = intituleDossierAuthentic(cap) ? referenceDossierAuthentic(cap) : '';
       if (!groupes.has(intitule)) groupes.set(intitule, { intitule, derniere: '', personnes: new Map(), immeubles: new Map(), documents: new Map(), infos: {}, adresse: '', aCreer: false, releves: [] });
       const g = groupes.get(intitule);
@@ -1542,7 +1544,8 @@
           const sansIdentite = !b.adresse && !b.parcelles.length && b.lots.length;
           const dernier = [...g.immeubles.values()].pop();
           if (sansIdentite && dernier) g.immeubles.set(dernier.id, fusionnerBienAuthentic(dernier, b));
-          else g.immeubles.set(b.id, g.immeubles.has(b.id) ? fusionnerBienAuthentic(g.immeubles.get(b.id), b) : b);
+          else if (g.immeubles.has(b.id)) g.immeubles.set(b.id, Object.assign(fusionnerBienAuthentic(g.immeubles.get(b.id), b), { horsOnglet: g.immeubles.get(b.id).horsOnglet && horsOnglet }));
+          else g.immeubles.set(b.id, horsOnglet ? Object.assign({}, b, { horsOnglet: true }) : b);
         }
       }
       if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], g.succession || /succ/i.test(intitule) ? 'succession' : 'vente')
@@ -1556,7 +1559,9 @@
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
-      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false), g.apercu);
+      const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => im.horsOnglet
+        ? bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) === true
+        : g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false).map(im => { const c = Object.assign({}, im); delete c.horsOnglet; return c; }), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       const sortie = {
         intitule: g.intitule, reference: g.reference || '', derniere: g.derniere, adresse: adresseBien, aCreer: !!g.aCreer,
@@ -2057,7 +2062,16 @@
       // Le sous-dossier dit qui est vendeur et acquéreur (rubrique « Comparants », étude 09/10) : une fiche client d'une personne qui
       // n'y figure pas — conjoint d'une partie, propriétaire seule ou acquéreur seul — n'ajoute ni personne ni coordonnées. Sans
       // comparants relevés, le côté se lit par le nom seulement, jamais par le conjoint.
-      if (!personneComparantAuthentic(d, personne, role)) return resultat;
+      // Personne déjà partie de la fiche sous ses prénom et nom : complétée même si la lecture des comparants ne la retrouve pas (20/10,
+      // BOUCHKAR : fiche lue, rien repris).
+      if (!personneComparantAuthentic(d, personne, role) && !conjointPartieDuDossierAuthentic(d, personne)) {
+        // Sa fiche entière reste lisible sur le dossier (panneau « Authentic »), sans partie ni coordonnées reprises.
+        if (retenirFicheClientAuthentic(d, personne, maintenant)) {
+          noter(`Fiche client de ${[personne.prenom, personne.nom].filter(Boolean).join(' ')} gardée : absente des comparants, ni partie ni coordonnées reprises`);
+          resultat.modifie = true;
+        }
+        return resultat;
+      }
       return appliquerClientAuthentic(d, personne, role, noter, resultat, maintenant);
     }
     if (type === 'bien') {
@@ -2326,7 +2340,9 @@
   function dossiersCandidatsFicheClient(capture, liste) {
     const personne = clientDepuisFicheAuthentic(capture);
     if (!personne) return [];
-    return (liste || []).filter(d => d && !d.deleted && !d.archive && !signatureFaiteSuivi(d) && roleClientAuthenticDansDossier(d, personne));
+    // Succession (20/10, MARTIN) : défunt, héritier ou conjoint survivant, reconnu sous ses prénom et nom.
+    return (liste || []).filter(d => d && !d.deleted && !d.archive && !signatureFaiteSuivi(d)
+      && (estSuccession(d) ? !!partieSuccessionDeLaFiche(d, personne) : roleClientAuthenticDansDossier(d, personne)));
   }
 
   // Fiches client en attente d'un choix de dossier (mémoire du poste seulement, 10 au plus).
@@ -2563,6 +2579,9 @@
       // Étude 19/10 (« ne plus jamais deviner le dossier ») : seulement le dossier SÛR de l'onglet actif (référence rattachée, intitulé
       // rangé à la main), et seulement si la personne y est partie ou que sa fiche le cite ; sinon la fiche attend un clic.
       const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());
+      // Fiche ouverte dans un onglet à elle (Authentic en ouvre une par fiche, 20/10) : le dernier dossier SÛR vu, si la personne y est
+      // partie sous ses prénom et nom — jamais un autre dossier, jamais par le nom seul.
+      if (!ctx.d && !ctx.groupe && personneDuDossierSurAuthentic(courantSurAuthentic(), clientDepuisFicheAuthentic(capture))) ctx.d = courantSurAuthentic();
       d = ctx.d ? dossierPourFicheClientAuthentic(capture, [ctx.d], ctx.d) : null;
       // Onglet d'un dossier d'Authentic que les noms ne désignent pas (titre coupé…) : la personne propose son dossier ; personne → création.
       if (!d && !ctx.d && ctx.groupe && !ctx.propose && !dossierPourFicheClientAuthentic(capture, dossiers, null)) return { etat: 'sans-changement', texte: 'fiche ouverte dans l’onglet d’un dossier d’Authentic absent de CLAIRE : gardée pour sa création' };
@@ -2630,9 +2649,13 @@
         referenceNotee = true;
       }
     } else if (typePageAuthentic(capture) === 'bien' && ongletActifHorsDossierAuthentic(capture)) {
-      // Fiche bien ouverte hors de l'onglet d'un dossier (recherche d'immeubles…) : d'aucun dossier sûr, jamais le dernier vu (étude 19/10).
-      noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
-      return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic : non rangée' };
+      // Fiche bien ouverte dans un onglet à elle (Authentic en ouvre une par fiche, 20/10) : le dernier dossier SÛR vu, seulement si le
+      // bien est le sien (adresse, parcelle, ou cité dans sa rubrique « Immeubles ») ; sinon d'aucun dossier (recherche d'immeubles…).
+      d = bienDuDossierSurAuthentic(courantSurAuthentic(), bienDepuisFicheAuthentic(capture)) ? courantSurAuthentic() : null;
+      if (!d) {
+        noterVerificationPoste('authentic-fiche-bien-hors-onglet', { detail: 'fiche bien non rangée : onglet actif sans dossier' });
+        return { etat: 'sans-changement', texte: 'fiche bien ouverte hors de l’onglet d’un dossier d’Authentic, d’aucun dossier sûr : non rangée' };
+      }
     } else {
       // Page sans intitulé (fiche bien, lots…) : le dossier SÛR de l'onglet actif, sinon la question (étude 19/10).
       const ctx = contexteSurAuthentic(capture, dossiers, courantSurAuthentic());

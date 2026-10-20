@@ -21,6 +21,9 @@ const base = (o) => Object.assign({ responsable: 'Julie VASSELIN', typeVente: 'm
 
 // ---- Dossiers de CLAIRE (inventés) ----
 const DOSSIERS = [
+  // 20/10 (ARTHUR / BOUCHKAR) : fiches ouvertes dans leur propre onglet, comparants que la lecture ne retrouve pas.
+  base({ id: 'arthur', nom: 'ARTHUR / BOUCHKAR', referenceAuthentic: 'A 2026 00225', typeVente: 'copropriete', adresseBien: 'TOULOUSE (31000), 25 Boulevard des Minimes',
+    parties: [{ role: 'VENDEUR', nom: 'ARTHUR', prenom: '' }, { role: 'ACQUEREUR', nom: 'BOUCHKAR', prenom: 'Hamza', civilite: 'M' }] }),
   base({ id: 'bournouville', nom: 'BOURNOUVILLE / NOEL', adresseBien: 'MER (41500), 3 rue Haute',
     parties: [{ role: 'VENDEUR', nom: 'BOURNOUVILLE', prenom: 'Luc' }, { role: 'ACQUEREUR', nom: 'NOEL', prenom: 'Inès' }] }),
   // Point 2 (19/10) : dossier sans référence ; la fiche client arrive AVANT la réponse à la question.
@@ -511,6 +514,36 @@ try {
     const d = await lire('bournouville');
     constat(S, e.etat === 'a-confirmer' && !/luc\.b@/.test(d.emailVendeur || ''), `${e.etat} → ${e.dossierId || '—'}, rien d’office (${e.texte || ''})`);
     await page.evaluate(() => fermerToastFixe());
+  }
+  // 34. Le 20/10 au bureau : Authentic ouvre chaque fiche dans un onglet à elle. Après la page du dossier (sûre, par sa référence), la fiche
+  // client de l'acquéreur et la fiche du bien vont au dossier sans question ; un bien d'ailleurs, ouvert de même, n'y va pas. Les comparants
+  // où la lecture ne retrouve pas l’acquéreur n’empêchent pas de compléter une partie déjà sur la fiche sous ses prénom et nom.
+  {
+    const S = '34. Fiches dans leur propre onglet, comparants non retrouvés';
+    await envoyer(pageDossier({ ref: 'A 2026 00225', intitule: 'Vente ARTHUR / BOUCHKAR', comparants: [['SCI ARTHUR', 'Vendeur'], ['Mme RIGUIDEL Amélie', 'Acquéreur']],
+      immeubles: [['31000 TOULOUSE', '25 Boulevard des Minimes']] }));
+    const f = ficheClient({ civilite: 'Monsieur', nom: 'Bouchkar', prenom: 'Hamza', tel: '06 44 44 44 44', email: 'hamza.b@exemple.fr', ongletActif: 'BOUCHKAR Hamza' });
+    f.champs.push({ groupe: '', libelle: 'Profession', valeur: 'Ingénieur' });
+    const e1 = await envoyer(f);
+    const e2 = await envoyer(ficheBien({ type: 'Appartement', numero: '25', typeVoie: 'Boulevard', voie: 'des Minimes', cpVille: '31000 TOULOUSE', parcelles: [['AD', '500']], ongletActif: '25 Boulevard des Minimes' }));
+    const e3 = await envoyer(ficheBien({ numero: '3', voie: 'des Lilas', cpVille: '31200 TOULOUSE', parcelles: [['BX', '12']], ongletActif: '3 rue des Lilas' }));
+    const d = await lire('arthur');
+    const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {});
+    constat(S, e1.dossierId === 'arthur' && fiches.some(x => /BOUCHKAR/i.test(x.nom)), `fiche client : ${e1.etat} → ${e1.dossierId || '—'} ; fiches lues : ${fiches.map(x => x.nom).join(', ') || 'aucune'} (${e1.texte || ''})`);
+    constat(S, /hamza\.b@/.test(d.emailAcquereur || ''), `email acquéreur « ${d.emailAcquereur || ''} »`);
+    constat(S, e2.dossierId === 'arthur', `fiche du bien : ${e2.etat} → ${e2.dossierId || '—'} (${e2.texte || ''})`);
+    constat(S, e3.dossierId !== 'arthur' && !/BX12/.test(parcellesFiche(d)), `bien d’ailleurs : ${e3.etat} → ${e3.dossierId || '—'} ; parcelles ${parcellesFiche(d)}`);
+  }
+  // 35. Le 20/10 (succession MARTIN) : après la page de la succession, les fiches du défunt et d'un héritier, chacune dans son propre onglet,
+  // vont à la succession sans question.
+  {
+    const S = '35. Succession : fiches dans leur propre onglet';
+    await envoyer(pageDossier({ ref: 'A 2026 00330', intitule: 'SUCC BERNARD Paul', sous: '1 - Succession Paul BERNARD',
+      comparants: [['M. BERNARD Paul', 'Défunt'], ['Mme BERNARD Lucie', 'Héritier'], ['M. BERNARD Marc', 'Héritier']], immeubles: [['41000 BLOIS', '5 rue Haute']] }));
+    const e = await envoyer(ficheClient({ civilite: 'Madame', nom: 'Bernard', prenom: 'Lucie', email: 'lucie.bernard@exemple.fr', ongletActif: 'BERNARD Lucie' }));
+    const d = await lire('succ');
+    const fiches = Object.values((d.authentic && d.authentic.fichesClients) || {});
+    constat(S, e.dossierId === 'succ' && fiches.some(x => /Lucie BERNARD/i.test(x.nom)), `fiche de l’héritière : ${e.etat} → ${e.dossierId || '—'} (${e.texte || ''})`);
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
   {

@@ -21143,3 +21143,24 @@ peut modifier ; visuel, attractif et intelligent ».
 - Même soir (étude : « quand on ferme la fiche dossier avec la croix, fermer l'onglet ») : `fermerFicheEtOnglet` (client/60) pour la croix
   de la fiche et Échap — la fiche se ferme, son onglet de travail disparaît, l'écran d'où elle avait été ouverte revient. Les autres
   fermetures (changement d'écran, ouverture d'un outil depuis la fiche) gardent l'onglet, comme avant.
+
+### 20/10/2026 — 0.292.1 : fiches d'Authentic ouvertes dans leur propre onglet ; FCDDV « Ouvrir »
+
+Au bureau, le matin de la 0.292.0 (ARTHUR / BOUCHKAR, succession MARTIN) : « la fiche du client a été détectée mais pas complétée avec sa
+profession, adresse… et toujours en orange », « la fiche immeuble n'est plus reconnue, seulement l'aperçu », « succession MARTIN : il n'arrive
+pas à faire le lien ». Cause : Authentic ouvre chaque fiche client et chaque fiche bien dans un ONGLET À ELLE (point terrain
+`authentic-fiche-bien-hors-onglet` noté à chaque fiche) ; la règle du 19/10 (hors onglet de dossier = d'aucun dossier) et celle du 0.292.0
+(seul le contexte sûr de l'onglet actif) les écartaient.
+- Fiche client d'un onglet à elle : le dernier dossier SÛR vu (`courantSurAuthentic`), seulement si la personne y est partie sous ses prénom
+  et nom (`personneDuDossierSurAuthentic` : `conjointPartieDuDossierAuthentic` pour une vente, `partieSuccessionDeLaFiche` pour une succession).
+- Fiche bien d'un onglet à elle : le dernier dossier sûr vu, seulement si le bien est le sien (`bienDuDossierSurAuthentic` : adresse ou
+  parcelle du bien principal ou d'un immeuble retenu, ou cité dans la rubrique « Immeubles »). À la création (`dossiersDepuisRelevesAuthentic`),
+  gardée seulement si la rubrique la cite (`horsOnglet`).
+- Comparants non retrouvés : une partie déjà sur la fiche sous ses prénom et nom est complétée quand même ; une personne absente des
+  comparants a sa fiche client gardée (`fichesClients`, panneau « Authentic ») sans partie ni coordonnées.
+- `dossiersCandidatsFicheClient` : les successions dont la personne est partie (défunt, héritier, conjoint survivant) sont proposées.
+- FCDDV : bouton « Ouvrir » (`ouvrirFichierNas`) à côté de « Lire la réponse » (étude 20/10).
+- Bancs : scénarios 34 (vente, fiches en onglet propre, comparants non retrouvés — rejoué sans le correctif : l'échec du bureau) et 35
+  (succession) ; test unitaire de création.
+- Décès à la création d'une succession : pré-rempli quand la fiche du défunt est ouverte dans Authentic avant ou pendant « Vérifier » (relu
+  à la volée) ; ouverte après la création, elle complète maintenant seule la fiche (avant : choix à la main).

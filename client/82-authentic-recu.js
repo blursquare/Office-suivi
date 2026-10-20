@@ -487,3 +487,19 @@
       } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: 'Authentic : page en attente non reprise — ' + String(e && e.message || e).slice(0, 120) }); }
     }
   }
+
+  // Pure : la personne d'une fiche client est-elle partie de ce dossier sous ses prénom et nom (fiche ouverte dans un onglet à elle) ?
+  function personneDuDossierSurAuthentic(d, personne) {
+    if (!d || !personne || !personne.prenom) return false;
+    if (estSuccession(d)) return !!partieSuccessionDeLaFiche(d, personne);
+    return conjointPartieDuDossierAuthentic(d, personne);
+  }
+
+  // Pure : le bien d'une fiche bien est-il celui de ce dossier (adresse, parcelle, ou cité dans la rubrique « Immeubles » de sa page) ?
+  function bienDuDossierSurAuthentic(d, bien) {
+    if (!d || !bien) return false;
+    if (bienPrincipalDuDossierAuthentic(d, bien)) return true;
+    if ((((d.authentic && d.authentic.immeubles) || [])).some(im => im && bienPrincipalDuDossierAuthentic({ adresseBien: im.adresse, bien: { cadastre: { parcelles: im.parcelles || [] } } }, bien))) return true;
+    const r = d.authentic && d.authentic.biensDossier;
+    return !!(r && bien.adresse && bienDansRubriqueAuthentic(bien.adresse, r) === true);
+  }

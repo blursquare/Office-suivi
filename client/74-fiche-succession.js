@@ -585,7 +585,9 @@
     const f = (d.succession || {}).fcddv;
     const chemin = fichierFcddv(d);
     const enCours = lecturesFcddvEnCours.has(d.id);
-    const bouton = chemin ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireFcddvDossier('${idJs}', false)"${enCours ? ' disabled' : ''}>${enCours ? 'Lecture…' : (f && f.luLe ? 'Relire' : 'Lire la réponse')}</wa-button>` : '';
+    const bouton = chemin ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireFcddvDossier('${idJs}', false)"${enCours ? ' disabled' : ''}>${enCours ? 'Lecture…' : (f && f.luLe ? 'Relire' : 'Lire la réponse')}</wa-button>`
+      // Ouvrir la réponse elle-même (étude 20/10 : « un bouton pour ouvrir le document ») : même geste que les pièces du NAS.
+      + `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFichierNas('${escapeOnclickArg(chemin)}')" title="Ouvrir la réponse du FCDDV trouvée sur le NAS">${icone('file-text')} Ouvrir</wa-button>` : '';
     let etat;
     if (!f || !f.luLe) etat = `<span class="prop-texte vide">${chemin ? 'Réponse trouvée sur le NAS, pas encore lue' : 'Réponse pas encore trouvée sur le NAS'}</span>`;
     else if (f.aucune) etat = `<span class="dot-label dl-success"><span class="dot"></span>Aucune inscription</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;

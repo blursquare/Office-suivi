@@ -159,3 +159,24 @@ test('Point 2 (19/10) : un dossier n’est sûr que par sa référence ou un int
   const c4 = app.contexteSurAuthentic({ champs: [], tableaux: [], texte: '' }, liste, galois);
   assert.equal(c4.d, galois, 'ancienne extension sans onglets : le dernier dossier SÛR vu');
 });
+
+test('Création (20/10) : une fiche bien ouverte dans son propre onglet n’entre au dossier à créer que si sa rubrique « Immeubles » la cite', () => {
+  const ID = 'ui-ficho-tabs:mainTabPanel:tabForm2:tabContent:';
+  const bien = (numero, voie, cpVille, onglet) => ({ onglets: [{ titre: onglet, actif: true }], texte: '', champs: [
+    { groupe: 'Informations du bien', libelle: ID + 'ficheImmeubleTabView:infosComponent:ficheImmeubleIdentite:typeWithDialog:selectOneMenu_input', valeur: 'Maison individuelle' },
+    { groupe: 'Informations du bien', libelle: 'N° de voie', valeur: numero }, { groupe: 'Informations du bien', libelle: 'Type de voie', valeur: 'rue' },
+    { groupe: 'Informations du bien', libelle: 'Nom de la voie', valeur: voie }, { groupe: 'Informations du bien', libelle: 'CP - Ville*', valeur: cpVille }],
+    tableaux: [{ titre: 'Cadastre', entete: ['Commune', 'Préfixe', 'Section', 'Numéro', 'Adresse ou lieu-dit', 'Nature', 'Zone urbanisme', 'SPF', 'surface', ''], lignes: [[cpVille, '', 'B', numero, '', '', '', '', '500', '']] }] });
+  const page = { onglets: [{ titre: 'A 2026 00777 VTE MARTIN / DURAND', actif: true }], champs: [], tableaux: [],
+    texte: 'A 2026 00777 VTE MARTIN / DURAND\n2 - Vente d’immeuble Importer\nComparants (2)\nM. MARTIN Paul\nVendeur\nImmeubles (1)\n4 Grande Rue 41290 VIEVY LE RAYE Maison individuelle\nDocuments' };
+  const releves = [
+    { recueLe: '2026-10-20T08:00:00Z', capture: page },
+    { recueLe: '2026-10-20T08:01:00Z', capture: bien('4', 'Grande Rue', '41290 VIEVY LE RAYE', 'Grande Rue') },
+    { recueLe: '2026-10-20T08:02:00Z', capture: bien('24', 'des Lilas', '41190 SAINT LUBIN', 'Recherche d’immeubles') }
+  ];
+  const g = app.dossiersDepuisRelevesAuthentic(releves).find(x => /MARTIN/.test(x.intitule));
+  assert.ok(g, 'groupe du dossier');
+  assert.equal(g.export.immeubles.map(im => im.adresse && im.adresse.texte).join(' | ').includes('Lilas'), false, 'bien d’ailleurs écarté');
+  assert.equal(g.export.immeubles.length, 1);
+  assert.match(String(g.export.immeubles[0].adresse && g.export.immeubles[0].adresse.texte), /Grande Rue/);
+});
