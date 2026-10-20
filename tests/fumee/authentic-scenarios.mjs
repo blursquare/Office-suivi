@@ -586,6 +586,88 @@ try {
     const e2 = await envoyer(ficheBien({ type: 'Maison individuelle', numero: '9', typeVoie: 'allée', voie: 'des Roses', cpVille: '41000 BLOIS', parcelles: [['AR', '120'], ['AR', '121']], ongletActif: '9 allée des Roses' }));
     constat(S, e2.dossierId === 'barbosa' || e2.etat === 'sans-changement', `revue ensuite sans question : ${e2.etat} → ${e2.dossierId || '—'}`);
   }
+  // 38. Le 20/10 (succession MARTINEAU) : créée depuis Authentic, héritiers d'un autre nom que la défunte ; une fiche client ouverte
+  // ensuite (une héritière, puis une autre personne) ne doit pas faire disparaître les héritiers déjà sur la fiche.
+  {
+    const S = '38. Succession créée : héritiers gardés à l’arrivée d’une autre fiche';
+    await envoyer(pageDossier({ ref: 'A 2026 00950', intitule: 'SUCC MARTINEAU Simone', sous: '1 - Succession Simone MARTINEAU',
+      comparants: [['Mme MARTINEAU Simone Odette', 'Défunt'], ['M. CONSTANTIN Alain', 'Héritier'], ['Mme CONSTANTIN Claude', 'Héritier']], immeubles: [['41000 BLOIS', '13 rue de Touraine']] }));
+    await envoyer(ficheClient({ civilite: 'Monsieur', nom: 'Constantin', prenom: 'Alain', email: 'alain.c@exemple.fr', ongletActif: 'A 2026 00950 SUCC MARTINEAU Simone' }));
+    const cree = await page.evaluate(async () => {
+      definirOnglet('nouveau');
+      choisirModeImport('seul');
+      for (let i = 0; i < 40 && !groupesAuthenticRecents.some(g => /MARTINEAU/.test(g.intitule)); i++) await new Promise(r => setTimeout(r, 150));
+      const i = groupesAuthenticRecents.findIndex(g => /MARTINEAU/.test(g.intitule));
+      if (i < 0) return 'groupe absent';
+      creerDepuisAuthentic(i);
+      await new Promise(r => setTimeout(r, 400));
+      const resp = document.getElementById('f-responsable');
+      if (resp && !resp.value) resp.value = 'Julie VASSELIN';
+      const avant = dossiers.length;
+      await ajouterDossier(true);
+      for (let k = 0; k < 40 && dossiers.length === avant; k++) await new Promise(r => setTimeout(r, 150));
+      const d = dossiers.find(x => x.referenceAuthentic === 'A 2026 00950' || /MARTINEAU/.test(x.nom || ''));
+      return d ? d.id : 'pas créé';
+    });
+    const heritiers = () => page.evaluate((id) => { const d = dossiers.find(x => x.id === id); return d ? personnesSuccession(d).heritiers.map(h => h.nom).sort().join(', ') + ' | parties ' + (d.parties || []).map(p => p.nom).join(', ') : 'absent'; }, cree);
+    await pause(1500);
+    const h1 = await heritiers();
+    constat(S, /Alain CONSTANTIN/i.test(h1) && /Claude CONSTANTIN/i.test(h1), `après la création : ${h1}`);
+    const e = await envoyer(ficheClient({ civilite: 'Madame', nom: 'Constantin', prenom: 'Claude', email: 'claude.c@exemple.fr', ongletActif: 'CONSTANTIN Claude' }));
+    await pause(800);
+    const h2 = await heritiers();
+    constat(S, /Alain CONSTANTIN/i.test(h2) && /Claude CONSTANTIN/i.test(h2), `après la fiche de Claude (${e.etat} → ${e.dossierId || '—'}) : ${h2}`);
+    await pause(15500); // une page de dossier revue dans les 15 s est un doublon (serveur)
+    const e2 = await envoyer(pageDossier({ ref: 'A 2026 00950', intitule: 'SUCC MARTINEAU Simone', sous: '1 - Succession Simone MARTINEAU',
+      comparants: [['Mme MARTINEAU Simone Odette', 'Défunt'], ['M. CONSTANTIN Alain', 'Héritier'], ['Mme CONSTANTIN Claude', 'Héritier'], ['M. CONSTANTIN Paul', 'Héritier']], immeubles: [['41000 BLOIS', '13 rue de Touraine']] }));
+    await pause(800);
+    const h3 = await heritiers();
+    constat(S, /Alain CONSTANTIN/i.test(h3) && /Claude CONSTANTIN/i.test(h3) && /Paul CONSTANTIN/i.test(h3), `après un héritier de plus dans Authentic (${e2.etat}) : ${h3}`);
+  }
+  // 39. Le 20/10 (succession MARTINEAU, étude : « les parties se remplissent puis se suppriment ») : « Nouveau dossier » d'une succession
+  // ouvert à « Vérifier » ; les fiches de la défunte puis de deux héritiers du même nom, sans date de naissance, arrivent chacune dans son
+  // onglet — rien de ce qui est déjà lu ne disparaît (la seconde fiche effaçait la première : même identifiant).
+  {
+    const S = '39. Nouveau dossier d’une succession : héritiers gardés quand une page arrive';
+    await envoyer(pageDossier({ ref: 'A 2026 00960', intitule: 'SUCC MARTEL Jeanne', sous: '1 - Succession Jeanne MARTEL',
+      comparants: [['Mme MARTEL Jeanne Odette', 'Défunt'], ['M. COSTE Alain', 'Héritier'], ['Mme COSTE Claude', 'Héritier']], immeubles: [['41000 BLOIS', '15 rue de Touraine']] }));
+    const ouvert = await page.evaluate(async () => {
+      definirOnglet('nouveau');
+      choisirModeImport('seul');
+      for (let i = 0; i < 40 && !groupesAuthenticRecents.some(g => /MARTEL Jeanne/.test(g.intitule)); i++) await new Promise(r => setTimeout(r, 150));
+      const i = groupesAuthenticRecents.findIndex(g => /MARTEL Jeanne/.test(g.intitule));
+      if (i < 0) return 'groupe absent';
+      creerDepuisAuthentic(i);
+      await new Promise(r => setTimeout(r, 600));
+      try { definirEtapeWizard(2); } catch (e) { /* déjà à Vérifier */ }
+      await new Promise(r => setTimeout(r, 400));
+      const b = document.getElementById('wizard-bloc-succession');
+      return b ? (b.textContent.replace(/\s+/g, ' ') || `vide (succession en cours : ${successionEnCoursWizard()}, export : ${exportAuthenticActuel && exportAuthenticActuel.intitule})`) : 'bloc absent';
+    });
+    const lire = () => page.evaluate(() => {
+      const val = (id) => { const el = document.getElementById(id); return el ? el.value : '∅'; };
+      const her = [...document.querySelectorAll('#wizard-bloc-succession .wizard-succ-liste')].map(u => u.textContent.replace(/\s+/g, ' ').trim()).join(' / ');
+      return `défunt « ${val('f-succ-prenoms')} ${val('f-succ-nom')} », décès ${val('f-succ-deces-date')} ${val('f-succ-deces-lieu')} ; héritiers : ${her}`;
+    });
+    const avant = await lire();
+    constat(S, /Alain COSTE/i.test(avant) && /Claude COSTE/i.test(avant) && /MARTEL/.test(avant), `Vérifier ouvert : ${avant} (${ouvert.length})`);
+    // Comme au bureau : chaque fiche dans son propre onglet — la défunte (décès), puis deux héritiers (téléphone, email).
+    const defunte = ficheClient({ civilite: 'Madame', nom: 'Martel', prenom: 'Jeanne', ongletActif: 'MARTEL Jeanne' });
+    defunte.champs.push({ groupe: '', libelle: ID + 'tabView:ficheClientPhysiqueIdentite:dateDeces:dateDeces', valeur: '31/08/2026' }, { groupe: '', libelle: 'CP, Ville (décès)', valeur: '41000 BLOIS' });
+    await envoyer(defunte);
+    await pause(4000);
+    const apres = await lire();
+    constat(S, /Alain COSTE/i.test(apres) && /Claude COSTE/i.test(apres) && /2026-08-31/.test(apres), `après la fiche de la défunte : ${apres}`);
+    await envoyer(ficheClient({ civilite: 'Monsieur', nom: 'Coste', prenom: 'Alain', naissance: '', tel: '06 11 22 33 44', email: 'alain.coste@exemple.fr', ongletActif: 'COSTE Alain' }));
+    await pause(4000);
+    const apres2 = await lire();
+    constat(S, /2026-08-31/.test(apres2) && /alain\.coste/.test(apres2), `après la fiche d’un héritier : ${apres2}`);
+    await envoyer(ficheClient({ civilite: 'Madame', nom: 'Coste', prenom: 'Claude', naissance: '', tel: '06 55 66 77 88', email: 'claude.coste@exemple.fr', ongletActif: 'COSTE Claude' }));
+    await pause(4000);
+    const apres3 = await lire();
+    constat(S, /2026-08-31/.test(apres3) && /alain\.coste/.test(apres3) && /claude\.coste/.test(apres3), `après la fiche d’une seconde héritière : ${apres3}`);
+    await page.evaluate(() => { reinitialiserFormulaire(); definirOnglet('dashboard'); });
+  }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.
   {
     const S = '31. Deux fenêtres CLAIRE ouvertes';

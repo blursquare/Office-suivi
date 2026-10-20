@@ -171,6 +171,20 @@ test('FCDDV : chaque inscription avec sa nature, sa date, le notaire dépositair
   assert.deepEqual([app.analyseFcddv('texte illisible').aucune, app.analyseFcddv('texte illisible').inscriptions.length], [false, 0]);
 });
 
+test('FCDDV : compte rendu réel de l’ADSN (20/10) — deux inscriptions « Acte du », sans nature, morceaux dans le désordre', () => {
+  const texte = 'XXX;I;341089;20260930 ADSN 95 avenue des Logissons 13107 VENELLES cedex ETUDE : 41089 Référence : JS Me GOSSART Sophie NOTAIRE '
+    + '3 RUE DU BOUT DES HAIES BP 20104 41001 BLOIS Folio 1 / 1 COMPTE RENDU D\'INTERROGATION Nom: DURAND Prénoms : Jeanne Date de décès : 14/09/2026 '
+    + 'Le fichier central a enregistré les inscriptions suivantes : Acte du : 29/01/2002 LEROUX MOREAU NOTAIRE 9 AVENUE DE LA GARE B.P 2 41250 BRACIEUX '
+    + 'Etude 41008 Compostage 2002020550563 Acte du : 25/11/2009 Etude 41008 LEROUX MOREAU Compostage 2009120370349 NOTAIRE 9 AVENUE DE LA GARE 41250 BRACIEUX Folio 1 / 1';
+  const a = app.analyseFcddv(texte);
+  assert.equal(a.aucune, false);
+  assert.equal(a.inscriptions.map(i => `${i.nature}|${i.date}|${i.notaire}|${i.ville}|${i.crpcen}`).join(' ; '),
+    'Disposition de dernières volontés|2002-01-29|LEROUX MOREAU|BRACIEUX|41008 ; Disposition de dernières volontés|2009-11-25|LEROUX MOREAU|BRACIEUX|41008');
+  assert.equal(app.confreresFcddv({ inscriptions: a.inscriptions }).length, 1, 'un seul email à l’étude, pour ses deux actes');
+  const vide = app.analyseFcddv('COMPTE RENDU D\'INTERROGATION Le fichier central n\'a enregistré aucune inscription au nom de DURAND Jeanne. Folio 1 / 1');
+  assert.deepEqual([vide.aucune, vide.inscriptions.length], [true, 0]);
+});
+
 test('FCDDV : email du notaire par l’annuaire, sinon par le CRPCEN de l’adresse ; testament et donation répondus sur la fiche', () => {
   const carnet = [{ id: 'o1', notaires: ['Paul LEROUX'], ville: 'Tours', email: 'leroux@notaires.fr' }, { id: 'o2', notaires: ['Luc PETIT'], ville: 'Romorantin', email: 'office.41099@notaires.fr' }];
   assert.equal(app.emailNotaireFcddv({ notaire: 'Paul LEROUX', ville: 'TOURS' }, carnet), 'leroux@notaires.fr');

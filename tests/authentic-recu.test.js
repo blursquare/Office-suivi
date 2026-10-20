@@ -198,3 +198,13 @@ test('fiche d’une société : jamais le gérant du même nom pris pour la soci
   assert.equal(d2.parties[0].qualitePersonne, undefined, 'un nom contenu dans la raison sociale n’est pas la société');
   assert.equal(app.personneDuDossierSurAuthentic({ parties: [{ nom: 'SCI LES PINS DU LAC' }] }, { morale: true, nom: 'SCI LES PINS' }), false);
 });
+
+test('fiches client de deux personnes du même nom sans date de naissance : deux identifiants (étude 20/10, succession MARTINEAU)', () => {
+  const ID = 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:tabView:';
+  const fiche = (prenom) => ({ onglets: [{ titre: 'COSTE ' + prenom, actif: true }], tableaux: [], texte: '', champs: [
+    { libelle: ID + 'ficheClientPhysiqueIdentite:etude_input', valeur: 'oui' }, { libelle: 'Nom de famille*', valeur: 'Coste' }, { libelle: 'Prénom*', valeur: prenom }] });
+  const a = app.clientDepuisFicheAuthentic(fiche('Alain'));
+  const c = app.clientDepuisFicheAuthentic(fiche('Claude'));
+  assert.notEqual(a.id, c.id);
+  assert.equal(app.clientDepuisFicheAuthentic(fiche('Alain')).id, a.id, 'la même personne garde son identifiant');
+});

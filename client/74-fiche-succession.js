@@ -381,6 +381,10 @@
     const plat = String(texte || '').replace(/\s+/g, ' ').trim();
     // « Il peut aussi ne rien y avoir comme inscription » (étude 18/10) : formes courantes d'une réponse vide, et le geste « Aucune inscription » à la main.
     const aucuneEcrite = /aucune\s+(?:disposition|inscription|testament|donation|mention)|n[ée]ant|r[ée]ponse\s+n[ée]gative|pas\s+d['’]\s*inscription|n['’]\s*(?:a|ont)\s+(?:été\s+)?(?:trouv|relev|enregistr)/i.test(plat);
+    // Forme réelle du compte rendu de l'ADSN (reçu le 20/10) : « Le fichier central a enregistré les inscriptions suivantes : Acte du :
+    // 29/01/2002 Etude 41008 NOM NOM Compostage 2002… NOTAIRE adresse 41250 VILLE » — une inscription par « Acte du », sans nature.
+    const reelles = inscriptionsFcddvAdsn(plat);
+    if (reelles.length) return { aucune: false, inscriptions: reelles };
     const debuts = [];
     let m;
     RE_NATURE_FCDDV.lastIndex = 0;
@@ -400,6 +404,34 @@
       if (!inscriptions.some(x => x.nature === ins.nature && x.notaire === ins.notaire && x.date === ins.date)) inscriptions.push(ins);
     });
     return { aucune: !inscriptions.length && aucuneEcrite, inscriptions };
+  }
+
+  // Pure : les inscriptions du compte rendu d'interrogation de l'ADSN — date de l'acte, étude (son CRPCEN), notaire(s) nommés, numéro de
+  // compostage, ville de l'étude. La nature de l'acte n'y est pas écrite : « Disposition de dernières volontés », à demander au confrère.
+  function inscriptionsFcddvAdsn(plat) {
+    const texte = String(plat || '');
+    const debut = texte.search(/inscriptions?\s+suivantes?\s*:/i);
+    if (debut < 0) return [];
+    // Les morceaux d'une inscription n'arrivent pas toujours dans l'ordre de la page (pdf.js) : chacun est cherché dans le bloc.
+    const blocs = texte.slice(debut).split(/Acte\s+du\s*:/i).slice(1);
+    const out = [];
+    blocs.forEach(b => {
+      const bloc = b.replace(/Folio\s+\d+\s*\/\s*\d+.*$/i, '').trim();
+      const date = /^(\d{1,2}\/\d{1,2}\/\d{4})/.exec(bloc);
+      const etude = /(?:[ÉE]tude|Office)\s+(\d{5})(?!\d)/i.exec(bloc);
+      const compostage = /Compostage\s+(\d{6,})/i.exec(bloc);
+      if (!date || !etude) return;
+      const reste = bloc.slice(date[0].length).replace(/(?:[ÉE]tude|Office)\s+\d{5}(?!\d)/gi, ' ').replace(/Compostage\s+\d{6,}/gi, ' ').replace(/\s+/g, ' ').trim();
+      // Le ou les notaires : avant « NOTAIRE », sinon avant le premier chiffre de l'adresse.
+      const n = /^(.+?)\s+(?:NOTAIRES?\b|\d)/.exec(reste);
+      const notaire = (n ? n[1] : '').replace(/^(?:Ma[îi]tres?|Me)\s+/i, '').trim();
+      if (!notaire || /gossart/i.test(notaire)) return;
+      const villes = [...reste.matchAll(/(?:^|\s)\d{5}\s+([A-ZÀ-Ý][A-ZÀ-Ý'’-]*(?:\s+[A-ZÀ-Ý][A-ZÀ-Ý'’-]*){0,3})/g)];
+      const ins = { nature: 'Disposition de dernières volontés', date: dateIsoDepuisFr(date[1]) || '', notaire, ville: villes.length ? villes[villes.length - 1][1].trim() : '',
+        crpcen: etude[1], compostage: compostage ? compostage[1] : '' };
+      if (!out.some(x => x.date === ins.date && x.crpcen === ins.crpcen && x.compostage === ins.compostage)) out.push(ins);
+    });
+    return out;
   }
 
   // Pure : l'email de l'office d'un notaire dépositaire — l'annuaire (nom, ville), sinon le CRPCEN dans l'adresse (« ….41001@notaires.fr »).

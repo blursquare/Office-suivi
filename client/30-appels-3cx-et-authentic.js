@@ -986,7 +986,9 @@
       .filter((x, i, l) => l.indexOf(x) === i);
     const nomUsage = valeurChampAuthentic(champs, n => n === "denomination d'usage" || n === 'denomination d’usage');
     return {
-      id: 'authentic-' + normaliserPourRecherche(nom).replace(/[^a-z0-9]+/g, '') + '-' + dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
+      // Le prénom aussi (étude 20/10, succession MARTINEAU : deux héritiers du même nom sans date de naissance avaient le même identifiant,
+      // la fiche du second effaçait celle du premier — coordonnées perdues dans « Nouveau dossier »).
+      id: 'authentic-' + normaliserPourRecherche(nom + ' ' + valeurChampAuthentic(champs, n => n === 'prenom')).replace(/[^a-z0-9]+/g, '') + '-' + dateIsoDepuisFr(valeurChampAuthentic(champs, (n, b) => /naissanceDate/.test(b))),
       index: 0,
       civilite: valeurChampAuthentic(champs, (n, b) => /:civilite:/.test(b)),
       nom: nom.toUpperCase(),
