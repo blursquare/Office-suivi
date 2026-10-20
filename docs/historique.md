@@ -21164,3 +21164,9 @@ pas à faire le lien ». Cause : Authentic ouvre chaque fiche client et chaque f
   (succession) ; test unitaire de création.
 - Décès à la création d'une succession : pré-rempli quand la fiche du défunt est ouverte dans Authentic avant ou pendant « Vérifier » (relu
   à la volée) ; ouverte après la création, elle complète maintenant seule la fiche (avant : choix à la main).
+- Relecture indépendante (même matin) : le bien d'un voisin (même rue, même code postal) était accepté — la rubrique « Immeubles » ne compare
+  que le code postal. `bienDuDossierSurAuthentic` : même adresse, numéro compris, ou même parcelle quand une adresse manque
+  (`bienPrincipalDuDossierAuthentic(…, true)`) ; à la création, une fiche bien d'un onglet à elle n'entre que si son adresse est celle de la
+  page du dossier. Comparants : une partie absente des comparants n'est complétée que si la lecture de ce côté n'y retrouve AUCUNE personne
+  de la fiche (`comparantsCoteIllisiblesAuthentic`) — des comparants lus qui écartent le conjoint posé à tort l'emportent (règle du 09/10).
+  Fiche gardée seule marquée `horsComparants` : jamais une partie dans « Clients et biens » (server/src/clientsBiens.js).

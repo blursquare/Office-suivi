@@ -180,3 +180,15 @@ test('Création (20/10) : une fiche bien ouverte dans son propre onglet n’entr
   assert.equal(g.export.immeubles.length, 1);
   assert.match(String(g.export.immeubles[0].adresse && g.export.immeubles[0].adresse.texte), /Grande Rue/);
 });
+
+test('Relecture 0.292.1 : le voisin de la même rue n’est pas le bien du dossier ; des comparants lus qui écartent une personne l’emportent', () => {
+  const d = { id: 'v', nom: 'MARTIN / DURAND', adresseBien: 'VIEVY-LE-RAYE (41290), 4 Grande Rue', bien: { cadastre: { parcelles: [{ section: 'B', numero: '234' }] } },
+    parties: [{ role: 'VENDEUR', nom: 'DUPONT', prenom: 'Paul' }, { role: 'VENDEUR', nom: 'DUPONT', prenom: 'Claire' }],
+    authentic: { biensDossier: { nombre: 1, texte: '4 Grande Rue 41290 VIEVY LE RAYE Maison' }, comparants: [{ nom: 'DUPONT Claire', role: 'VENDEUR' }] } };
+  assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: { texte: '4 Grande Rue 41290 VIEVY LE RAYE' }, parcelles: [] }), true, 'son bien');
+  assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: { texte: '8 Grande Rue 41290 VIEVY LE RAYE' }, parcelles: [{ section: 'B', numero: '240' }] }), false, 'le voisin');
+  assert.equal(app.bienDuDossierSurAuthentic(d, { adresse: null, parcelles: [{ section: 'B', numero: '234' }] }), true, 'sans adresse : la parcelle');
+  assert.equal(app.comparantsCoteIllisiblesAuthentic(d, 'VENDEUR'), false, 'Mme DUPONT est lue : Paul reste écarté');
+  const rate = Object.assign({}, d, { authentic: { comparants: [{ nom: 'SCI LES TILLEULS', role: 'VENDEUR' }] } });
+  assert.equal(app.comparantsCoteIllisiblesAuthentic(rate, 'VENDEUR'), true, 'personne de la fiche dans les comparants lus : lecture ratée');
+});

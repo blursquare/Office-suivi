@@ -103,6 +103,8 @@ function occurrencesPersonnes(dossiers, imp) {
       return fiche && fiche.deces && d.typeAffaire === 'succession' ? 'DEFUNT' : 'PARTIE';
     };
     for (const f of fiches) {
+      // Fiche gardée seule (absente des comparants, 0.292.1) : jamais une partie du dossier.
+      if (f.horsComparants) continue;
       const nomFamille = texte(f.nomFamille) || decouperNom(f.nom).nomFamille;
       const prenom = texte(f.prenom) || decouperNom(f.nom).prenom;
       if (!nomFamille) continue;

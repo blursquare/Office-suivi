@@ -495,11 +495,18 @@
     return conjointPartieDuDossierAuthentic(d, personne);
   }
 
-  // Pure : le bien d'une fiche bien est-il celui de ce dossier (adresse, parcelle, ou cité dans la rubrique « Immeubles » de sa page) ?
+  // Pure : le bien d'une fiche bien est-il celui de ce dossier ? Même adresse (numéro compris), ou même parcelle quand l'une des deux adresses
+  // manque — jamais par le seul code postal de la rubrique « Immeubles » (relecture 0.292.1 : le voisin du 8 de la même rue entrait).
   function bienDuDossierSurAuthentic(d, bien) {
     if (!d || !bien) return false;
-    if (bienPrincipalDuDossierAuthentic(d, bien)) return true;
-    if ((((d.authentic && d.authentic.immeubles) || [])).some(im => im && bienPrincipalDuDossierAuthentic({ adresseBien: im.adresse, bien: { cadastre: { parcelles: im.parcelles || [] } } }, bien))) return true;
-    const r = d.authentic && d.authentic.biensDossier;
-    return !!(r && bien.adresse && bienDansRubriqueAuthentic(bien.adresse, r) === true);
+    if (bienPrincipalDuDossierAuthentic(d, bien, true)) return true;
+    return (((d.authentic && d.authentic.immeubles) || [])).some(im => im && bienPrincipalDuDossierAuthentic({ adresseBien: im.adresse, bien: { cadastre: { parcelles: im.parcelles || [] } } }, bien, true));
+  }
+
+  // Pure : la lecture des comparants de ce côté n'y retrouve aucune personne de la fiche (aucun mot de nom en commun) — lecture ratée.
+  function comparantsCoteIllisiblesAuthentic(d, role) {
+    const comps = ((d && d.authentic && d.authentic.comparants) || []).filter(c => c && c.role === role);
+    const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(m => m.length >= 3);
+    const motsComp = new Set(comps.flatMap(c => mots(c.nom)));
+    return !(d.parties || []).some(p => p && p.role === role && mots([p.prenom, p.nom, p.nomUsage].filter(Boolean).join(' ')).some(m => motsComp.has(m)));
   }

@@ -1559,8 +1559,9 @@
         .forEach(pc => g.personnes.set(pc.id + '-' + normaliserPourRecherche(pc.prenom || '').replace(/[^a-z0-9]+/g, ''), pc));
       const personnes = [...g.personnes.values()].map((p, i) => Object.assign({}, p, { index: i }));
       // Seulement les biens cités par la rubrique « Immeubles » de la page du dossier, quand elle est lue (étude 19/10).
+      // Fiche ouverte dans un onglet à elle : seulement le bien de la page du dossier (même adresse, numéro compris), jamais par le code postal.
       const immeubles = avecApercuImmeubleAuthentic([...g.immeubles.values()].filter(im => im.horsOnglet
-        ? bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) === true
+        ? !!g.adresse && memeAdresseApprocheeAuthentic(im.adresse, g.adresse)
         : g.succession || /succ/i.test(g.intitule) || bienDansRubriqueAuthentic(im.adresse, g.infos && g.infos.biensDossier) !== false).map(im => { const c = Object.assign({}, im); delete c.horsOnglet; return c; }), g.apercu);
       const adresseBien = g.adresse || (immeubles[0] && immeubles[0].adresse && immeubles[0].adresse.texte) || '';
       const sortie = {
@@ -1665,7 +1666,7 @@
   // Modifie d : la fiche client d'Authentic est RETENUE telle quelle sur le dossier (d.authentic.fichesClients) — identité, naissance,
   // domicile, décès, situation matrimoniale. Authentic est la base des courriers de « Constitution de dossier » (étude 15/10) : rien
   // n'y est deviné ni repris d'un compromis. Une relecture de la même fiche remplace la précédente. → vrai si quelque chose a changé.
-  function retenirFicheClientAuthentic(d, personne, maintenant) {
+  function retenirFicheClientAuthentic(d, personne, maintenant, extra) {
     if (!d || !personne || !personne.nom) return false;
     const cle = cleFicheClientAuthentic(personne);
     if (!cle) return false;
@@ -1681,6 +1682,7 @@
       nationalite: personne.nationalite || '', profession: personne.profession || '',
       emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3), complement: personne.complement || null
     };
+    if (extra && extra.horsComparants) fiche.horsComparants = true; // fiche gardée seule : jamais une partie (Clients et biens)
     const avant = d.authentic || {};
     const reg = Object.assign({}, avant.fichesClients || {});
     if (reg[cle] && JSON.stringify(Object.assign({}, reg[cle], { vuLe: '' })) === JSON.stringify(Object.assign({}, fiche, { vuLe: '' }))) return false;
@@ -2064,9 +2066,11 @@
       // comparants relevés, le côté se lit par le nom seulement, jamais par le conjoint.
       // Personne déjà partie de la fiche sous ses prénom et nom : complétée même si la lecture des comparants ne la retrouve pas (20/10,
       // BOUCHKAR : fiche lue, rien repris).
-      if (!personneComparantAuthentic(d, personne, role) && !conjointPartieDuDossierAuthentic(d, personne)) {
+      // Seulement quand la lecture des comparants de CE côté n'y retrouve aucune personne de la fiche (lecture ratée) : des comparants lus
+      // qui écartent quelqu'un (le conjoint posé à tort depuis le compromis, règle du 09/10) l'emportent toujours.
+      if (!personneComparantAuthentic(d, personne, role) && !(conjointPartieDuDossierAuthentic(d, personne) && comparantsCoteIllisiblesAuthentic(d, role))) {
         // Sa fiche entière reste lisible sur le dossier (panneau « Authentic »), sans partie ni coordonnées reprises.
-        if (retenirFicheClientAuthentic(d, personne, maintenant)) {
+        if (retenirFicheClientAuthentic(d, personne, maintenant, { horsComparants: true })) {
           noter(`Fiche client de ${[personne.prenom, personne.nom].filter(Boolean).join(' ')} gardée : absente des comparants, ni partie ni coordonnées reprises`);
           resultat.modifie = true;
         }
