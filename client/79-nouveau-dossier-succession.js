@@ -62,10 +62,10 @@ function pagesAOuvrirWizardSuccession(p, d) {
   const ficheDefunt = defuntDepuisFiches(d).fiche;
   const cle = (n) => normaliserPourRecherche(String(n || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
   // Un héritier n'est jamais coché par la fiche du défunt (père et fils qui partagent un prénom), ni par une fiche qui porte un décès.
-  const fiche = (nom) => { const f = nom ? ficheClientDe(d, nom) : null; return !!f && f !== ficheDefunt && !(f.deces && f.deces.date); };
   const defunt = p.defunt || '';
   // Le défunt : sa fiche porte la date du décès, ou exactement son nom.
   const defuntLu = !!ficheDefunt && (!!(ficheDefunt.deces && ficheDefunt.deces.date) || (!!defunt && cle(ficheDefunt.nom) === cle(defunt)));
+  const fiche = (nom) => { const f = nom ? ficheClientDe(d, nom) : null; return !!f && (f !== ficheDefunt || !defuntLu) && !(f.deces && f.deces.date); };
   r.push({ libelle: defunt ? `Fiche de ${defunt} (défunt)` : 'Fiche du défunt', recue: defuntLu });
   (p.heritiers || []).forEach(h => r.push({ libelle: `Fiche de ${h.nom}`, recue: fiche(h.nom) }));
   const lus = (p.biens || []).length;

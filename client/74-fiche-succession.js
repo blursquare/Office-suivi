@@ -430,12 +430,12 @@
         .replace(/\bNOTAIRES?\b/g, ' ').replace(/\s+/g, ' ').trim();
       // L'adresse de l'étude : du premier chiffre au « CP VILLE » (CEDEX retiré). Les noms sont ce qui reste, avant ou après elle.
       // Un mot n'entre dans la suite qu'entier (« Maître » n'y laisse pas son « M »).
-      const adr = /\d[\s\S]*?(?:^|\s)(\d{5})\s+((?:[A-ZÀ-Ý][A-ZÀ-Ý'’-]*(?=\s|$)\s*)+)/.exec(reste);
+      const adr = /\d[\s\S]*?(?:^|\s)(\d{5})\s+((?:[A-ZÀ-Ý][A-ZÀ-Ý'’-]*(?=[\s.,;]|$)[.,;]?\s*)+)/.exec(reste);
       let ville = '';
       let noms = reste;
       if (adr) {
         const avant = reste.slice(0, adr.index).trim();
-        const tous = adr[2].trim().split(/\s+/).filter(Boolean);
+        const tous = adr[2].replace(/[.,;]/g, ' ').trim().split(/\s+/).filter(Boolean);
         const iCedex = tous.indexOf('CEDEX');
         // CEDEX coupe : la ville avant, ce qui suit va aux noms.
         let mots = iCedex >= 0 ? tous.slice(0, iCedex) : tous;
@@ -450,7 +450,8 @@
           mots = mots.slice(0, n);
         }
         ville = mots.join(' ');
-        noms = avant || [suite.join(' '), reste.slice(adr.index + adr[0].length)].join(' ');
+        // « CEDEX 9 » : le numéro du CEDEX n'est pas un nom.
+        noms = avant || [suite.join(' '), reste.slice(adr.index + adr[0].length).replace(/^\s*\d{1,2}(?!\d)\s*/, '')].join(' ');
       }
       const notaire = noms.replace(/\b(?:Ma[îi]tres?|Me)\b\.?\s*/gi, '').replace(/\s+/g, ' ').trim();
       if (!notaire || /^\d|^NOTAIRE/i.test(notaire) || /gossart/i.test(notaire)) return;

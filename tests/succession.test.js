@@ -953,6 +953,8 @@ test('FCDDV ADSN, seconde relecture : CEDEX suivi des noms, ville de plusieurs m
   assert.equal(cedex.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'MOREAU LEROUX|BRACIEUX');
   const maitre = app.analyseFcddv(debut + 'Acte du : 25/11/2009 Etude 41008 9 RUE HAUTE 41250 BRACIEUX Maître Jean Leroux Compostage 2009120370349');
   assert.equal(maitre.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'Jean Leroux|BRACIEUX');
+  assert.equal(app.analyseFcddv(debut + 'Acte du : 29/01/2002 MOREAU NOTAIRE 9 AVENUE X 41000 BLOIS. Etude 41008 Compostage 2002020550563').inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'MOREAU|BLOIS');
+  assert.equal(app.analyseFcddv(debut + 'Acte du : 29/01/2002 NOTAIRE 9 AVENUE X 41000 BLOIS CEDEX 9 MOREAU Etude 41008 Compostage 2002020550563').inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'MOREAU|BLOIS');
   app.carnetConfreres = [{ id: 'o', ville: 'Les Montils', email: 'office.41077@notaires.fr', notaires: ['Paul DURAND'] }];
   const montils = app.analyseFcddv(debut + 'Acte du : 02/03/2004 NOTAIRE 2 RUE HAUTE 41120 LES MONTILS DURAND Etude 41077 Compostage 2004030212345');
   assert.equal(montils.inscriptions.map(i => `${i.notaire}|${i.ville}`).join(), 'DURAND|LES MONTILS');
@@ -971,7 +973,8 @@ test('Fiches à ouvrir : père et fils du même prénom jamais cochés l’un po
   const l = app.pagesAOuvrirWizardSuccession({ defunt: 'Jean Pierre DUPONT', heritiers: [{ nom: 'Pierre DUPONT' }], biens: [], bienPrincipal: '' }, pere);
   assert.equal(l.map(x => (x.recue ? '✓' : '○') + x.libelle).join(' | '), '✓Fiche de Jean Pierre DUPONT (défunt) | ○Fiche de Pierre DUPONT');
   const fils = { authentic: { comparants: [{ role: 'DEFUNT', nom: 'M. DUPONT Jean Pierre' }, { role: 'HERITIER', nom: 'M. DUPONT Jean' }], fichesClients: { b: { nom: 'Jean DUPONT', prenom: 'Jean' } } } };
-  assert.equal(app.pagesAOuvrirWizardSuccession({ defunt: 'Jean Pierre DUPONT', heritiers: [], biens: [], bienPrincipal: '' }, fils)[0].recue, false, 'la fiche du fils ne coche pas le défunt');
+  const lf = app.pagesAOuvrirWizardSuccession({ defunt: 'Jean Pierre DUPONT', heritiers: [{ nom: 'Jean DUPONT' }], biens: [], bienPrincipal: '' }, fils);
+  assert.equal(lf.map(x => (x.recue ? '✓' : '○') + x.libelle).join(' | '), '○Fiche de Jean Pierre DUPONT (défunt) | ✓Fiche de Jean DUPONT', 'la fiche du fils coche le fils, pas le défunt');
   const beaucoup = app.pagesAOuvrirWizardSuccession({ defunt: '', heritiers: [], biens: [], bienPrincipal: '' }, { authentic: { biensDossier: { nombre: 40 } } });
   assert.equal(beaucoup.length, 7);
 });
