@@ -79,7 +79,8 @@
   // ---- Traitement en lot ----
 
   function scansSelectionnablesLot() {
-    return (etatScans.scans || []).filter(s => s.stable && lecturesScans[cleScan(s)] && lecturesScans[cleScan(s)].statut === 'pret' && !scansEnRangement.has(s.nom));
+    // Jamais un doublon dans la sélection générale : il attend une décision à lui.
+    return (etatScans.scans || []).filter(s => s.stable && !s.doublon && lecturesScans[cleScan(s)] && lecturesScans[cleScan(s)].statut === 'pret' && !scansEnRangement.has(s.nom));
   }
 
   function basculerSelectionScan(nom, coche) {
@@ -126,8 +127,14 @@
     const sansDossier = scansSelectionnes.size - aRanger.length;
     if (!aRanger.length) { afficherToast('Choisissez d’abord le dossier des scans sélectionnés (et reliez-le au NAS).', 'OK', null); return; }
     demanderConfirmation(`Ranger ${aRanger.length} scan${aRanger.length > 1 ? 's' : ''} dans leur dossier ?${sansDossier ? ` ${sansDossier} sans dossier relié restent en attente.` : ''}`, async () => {
-      for (const nom of aRanger) { await rangerScanChoisi(nom, false); scansSelectionnes.delete(nom); }
-      afficherToast(`${aRanger.length} scan${aRanger.length > 1 ? 's rangés' : ' rangé'}.`, 'OK', null);
+      let faits = 0;
+      for (const nom of aRanger) {
+        await rangerScanChoisi(nom, false);
+        // Rangé = sorti de la liste (un échec le laisse en attente, avec son message).
+        if (!scanParNom(nom)) faits += 1;
+        scansSelectionnes.delete(nom);
+      }
+      afficherToast(faits === aRanger.length ? `${faits} scan${faits > 1 ? 's rangés' : ' rangé'}.` : `${faits} scan${faits > 1 ? 's rangés' : ' rangé'} sur ${aRanger.length} : les autres attendent.`, 'OK', null);
     }, { bouton: 'Ranger', ton: 'valider' });
   }
 
@@ -228,15 +235,19 @@
     const chemin = String(entree.chemin).replace(/\\/g, '/');
     const nomCible = chemin.split('/').pop().replace(/\.pdf$/i, '').replace(/\s\(\d+\)$/, '');
     const piece = pieceDepuisScanRange(d, entree.type, nomCible, checklistPieces(d.typeVente, d), new Date().toISOString());
-    if (!piece || piece.nouvelle) return;
+    if (!piece) return;
     const cle = NAS_CLE_PIECE(piece.cle);
     if (String((d.fichiersTrouves || {})[cle] || '').replace(/\\/g, '/') !== chemin) return;
     d.pieces = d.pieces || {};
-    d.pieces[piece.cle] = 'manquante';
+    // Une pièce AJOUTÉE par ce rangement (personnalisée, jamais demandée par l'étude) est retirée de la fiche ; une pièce de la
+    // checklist (ou ajoutée avant) repasse seulement « manquante ».
+    const ajoutee = (d.piecesPersonnalisees || []).some(p => p.cle === piece.cle) && /^perso-scan-/.test(piece.cle);
+    if (ajoutee) { d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => p.cle !== piece.cle); delete d.pieces[piece.cle]; }
+    else d.pieces[piece.cle] = 'manquante';
     memoriserFichierTrouve(d, cle, '');
     if (d.piecesTrouveesLe) delete d.piecesTrouveesLe[piece.cle];
     d.piecesValideesManuellement = (d.piecesValideesManuellement || []).filter(c => c !== piece.cle);
-    ajouterHistorique(d, `Scan remis dans le dossier Scan : « ${piece.label} » de nouveau attendue`, { auto: false });
+    ajouterHistorique(d, ajoutee ? `Scan remis dans le dossier Scan : pièce « ${piece.label} » retirée de la liste` : `Scan remis dans le dossier Scan : « ${piece.label} » de nouveau attendue`, { auto: false });
     await sauvegarder(d);
     render();
   }

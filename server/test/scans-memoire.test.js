@@ -118,6 +118,12 @@ test('doublon : un scan identique à un scan déjà rangé le dit', async () => 
   assert.equal(b.doublon.dossier, 'VTE - DURAND');
 });
 
+test('doublon : le serveur refuse de le ranger seul (auto), la main reste libre', async () => {
+  const r = await post('/api/scans/ranger', { nom: 'SCAN_B.pdf', dossierNas: 'DURAND Camille', rubriques: ['aae'], nomCible: 'B', dossierId: 'd1', dossier: 'VTE - DURAND', type: 'rib', auto: true });
+  assert.equal(r.status, 409);
+  assert.ok(fs.existsSync(path.join(scan, 'SCAN_B.pdf')), 'le scan reste dans Scan');
+});
+
 test('« Remettre dans Scan » : la copie revient, l’original archivé passe dans « Annulés », jamais supprimé, une seule fois', async () => {
   const entree = (await (await fetch(url('/api/scans'))).json()).journal.find((e) => e.id === idRangement);
   const copie = path.join(nas, entree.chemin);
@@ -155,3 +161,13 @@ test('oublier ce qui a été appris', async () => {
   const m = await r.json();
   assert.deepEqual([m.types.length, m.identifiants.length], [0, 0]);
 });
+
+test('« Remettre dans Scan » : une copie de même taille mais d’un autre contenu n’est jamais retirée', async () => {
+  fs.writeFileSync(path.join(scan, 'SCAN_E.pdf'), '%PDF-1.4 e1');
+  const r = await post('/api/scans/ranger', { nom: 'SCAN_E.pdf', dossierNas: 'DURAND Camille', rubriques: ['aae'], nomCible: 'E', dossierId: 'd1', dossier: 'VTE - DURAND', type: 'rib' });
+  const { id, chemin } = await r.json();
+  fs.writeFileSync(path.join(nas, chemin), '%PDF-1.4 e2');   // même taille, autre contenu
+  assert.equal((await post('/api/scans/annuler', { id })).status, 409);
+  assert.ok(fs.existsSync(path.join(nas, chemin)), 'le fichier du client est resté');
+});
+

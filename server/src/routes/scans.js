@@ -197,6 +197,11 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now(), o
       // Empreinte du fichier AVANT son déplacement (doublons) ; un fichier illisible n'empêche pas le rangement.
       let empreinte = '';
       if (nomScanValide(nom)) { try { empreinte = await hashFichier(path.join(dossierScans, nom)); } catch (_) { empreinte = ''; } }
+      // Un rangement automatique ne refait jamais un scan identique à un scan déjà rangé (non annulé) : il attend un geste.
+      if (empreinte && b.auto === true && parametresRepo.lireJournalScans().some((e) => e.hash === empreinte && !e.annule)) {
+        res.status(409).json({ erreur: 'Ce scan est identique à un scan déjà rangé : il attend une décision.' });
+        return;
+      }
       const r = await rangerScan({
         dossierScans, nasRacine: config.nasRacine, nom,
         dossierNas: typeof b.dossierNas === 'string' ? b.dossierNas : '',
@@ -271,7 +276,8 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now(), o
     try {
       const r = await annulerRangement({ dossierScans, nasRacine: config.nasRacine, entree });
       if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
-      parametresRepo.ecrireJournalScans(journal.map((e) => (e.id === id ? Object.assign({}, e, { annule: new Date(horloge()).toISOString() }) : e)));
+      // Le journal est relu juste avant d'écrire : un rangement terminé pendant l'annulation (plusieurs secondes sur le NAS) y reste.
+      parametresRepo.ecrireJournalScans(parametresRepo.lireJournalScans().map((e) => (e.id === id ? Object.assign({}, e, { annule: new Date(horloge()).toISOString() }) : e)));
       if (textes) { try { textes.retirer(id); } catch (e) { /* l'index suit au prochain rangement */ } }
       res.json({ ok: true, remis: r.remis, copieRetiree: r.copieRetiree, entree: { dossierId: entree.dossierId, type: entree.type, chemin: entree.chemin, nom: entree.nom } });
     } finally {

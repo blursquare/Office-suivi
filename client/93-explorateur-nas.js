@@ -24,6 +24,7 @@ function ouvrirExplorateurNas(dossierId) {
     document.body.appendChild(fond);
   }
   explorateurNas = etatVideExplorateurNas(dossierId);
+  sequenceExplorateurNas = {};
   explorateurNas.chargement = true;
   fond.style.display = 'flex';
   renderExplorateurNas();
@@ -42,29 +43,29 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && fond && fond.style.display === 'flex') { e.stopPropagation(); fermerExplorateurNas(); }
 }, true);
 
-var sequenceExplorateurNas = 0;
+var sequenceExplorateurNas = {};   // dernière lecture lancée par dossier : une lecture plus ancienne n'écrase jamais la plus récente
 // Lit un dossier (la racine par défaut) et le garde ; les dossiers dépliés sont relus avec la racine après un geste.
 async function chargerExplorateurNas(sous) {
   const id = explorateurNas.dossierId;
   if (!id) return;
   const cle = sous || '';
-  const numero = ++sequenceExplorateurNas;
+  const numero = (sequenceExplorateurNas[cle] = (sequenceExplorateurNas[cle] || 0) + 1);
   explorateurNas.chargement = true;
   explorateurNas.erreur = '';
   renderExplorateurNas();
   try {
     const r = await fetchAvecAuth(`/api/nas/explorer?dossierId=${encodeURIComponent(id)}&sous=${encodeURIComponent(cle)}`);
     const corps = await r.json().catch(() => ({}));
-    if (explorateurNas.dossierId !== id) return;
+    if (explorateurNas.dossierId !== id || numero !== sequenceExplorateurNas[cle]) return;
     if (!r.ok) throw new Error(corps.erreur || 'Le NAS n’a pas répondu.');
     explorateurNas.niveaux[cle] = corps;
     if (corps.arbre) explorateurNas.arbre = corps.arbre;
   } catch (e) {
-    if (explorateurNas.dossierId !== id) return;
+    if (explorateurNas.dossierId !== id || numero !== sequenceExplorateurNas[cle]) return;
     if (cle) explorateurNas.ouverts.delete(cle);
     explorateurNas.erreur = e.message || 'Le NAS n’a pas répondu.';
   }
-  if (numero === sequenceExplorateurNas) explorateurNas.chargement = false;
+  explorateurNas.chargement = false;
   renderExplorateurNas();
 }
 

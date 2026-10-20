@@ -438,7 +438,9 @@ const MOTS_DROIT_GARDES = new Set(['code', 'civil', 'penal', 'general', 'generau
 /** Pure : retire d'une recherche les mots à majuscule qui ne sont pas du droit (un nom de personne absent des fiches). @param {any} valeur */
 function sansNomsPropres(valeur) {
   if (typeof valeur === 'string') {
-    return valeur.replace(/(?<![\p{L}\p{M}'’-])\p{Lu}[\p{L}\p{M}'’-]{1,}/gu, (mot) => (MOTS_DROIT_GARDES.has(mot.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) ? mot : '')).replace(/\s{2,}/g, ' ').trim();
+    // Un identifiant de Légifrance/BOFiP (LEGIARTI000006419288, JORFTEXT…, BOI-…) n'est pas un nom : il reste intact.
+    if (/^[A-Z]{3,}[A-Z0-9-]*\d{6,}[A-Za-z0-9-]*$/.test(valeur.trim())) return valeur;
+    return valeur.replace(/(?<![\p{L}\p{M}'’-])\p{Lu}[\p{L}\p{M}'’-]{1,}(?![\p{L}\p{M}'’\d-])/gu, (mot) => (MOTS_DROIT_GARDES.has(mot.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) ? mot : '')).replace(/\s{2,}/g, ' ').trim();
   }
   if (Array.isArray(valeur)) return valeur.map((v) => sansNomsPropres(v));
   if (valeur && typeof valeur === 'object') return Object.fromEntries(Object.entries(valeur).map(([k, v]) => [k, sansNomsPropres(v)]));

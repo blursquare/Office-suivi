@@ -619,3 +619,11 @@ test('texte coupé : plus aucune page après la première qui ne tient pas, et l
   const sortie = await tourAgent({ texte: 'Analyse', documents: [{ id: 'pj1', pages: [{ page: 1, texte: 'x' }] }], dossiers: D, contexte: { aujourdhui: '2026-10-20' } }, { cle: 'k', client, modele: 'claude-opus-5-5' });
   assert.deepEqual(sortie.joints, { pages: 1, demandees: 1, coupe: false });
 });
+
+test('sansNomsPropres : un identifiant Légifrance ou BOFiP reste intact', () => {
+  const { sansNomsPropres } = require('../src/assistantAgent');
+  const r = sansNomsPropres({ id: 'LEGIARTI000006419288', q: 'voir JORFTEXT000041234567 Martin Dupont vente BOI-ENR-DMTOM-10-10-20190101' });
+  assert.equal(r.id, 'LEGIARTI000006419288');
+  assert.equal(r.q, 'voir JORFTEXT000041234567 vente BOI-ENR-DMTOM-10-10-20190101');
+});
+

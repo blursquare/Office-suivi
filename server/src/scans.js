@@ -20,6 +20,7 @@
 const path = require('node:path');
 const fsp = require('node:fs/promises');
 const fsc = require('node:fs');
+const crypto = require('node:crypto');
 const { resoudreCheminNas, listerSousDossiers } = require('./nas');
 
 // Le dossier du copieur s'appelle « Scan » (réponse de l'étude, 30/09) ; « Scans » est toléré.
@@ -377,6 +378,17 @@ function ajouterAuJournal(journal, entree) {
 // Annule un rangement (étude 20/10 : « Remettre dans Scan ») : la COPIE que CLAIRE avait rangée dans le dossier client revient dans le
 // dossier Scan (sous son nom d'origine, avec la date de l'original), l'original archivé passe dans « CLAIRE - scans rangés/Annulés »
 // — jamais supprimé. Refusé si la copie a changé depuis (taille) ou n'est plus là, ou si l'entrée du journal n'a pas gardé son original.
+// Empreinte SHA-256 d'un fichier (lecture en flux).
+function empreinteFichier(chemin) {
+  return new Promise((resolve, reject) => {
+    const h = crypto.createHash('sha256');
+    const flux = fsc.createReadStream(chemin);
+    flux.on('error', reject);
+    flux.on('data', (d) => h.update(d));
+    flux.on('end', () => resolve(h.digest('hex')));
+  });
+}
+
 async function annulerRangement({ dossierScans, nasRacine, entree }, fsImpl = fsp) {
   const erreur = (statut, message) => ({ erreur: message, statut });
   if (!entree || !entree.chemin) return erreur(400, 'Rangement inconnu.');
@@ -391,6 +403,12 @@ async function annulerRangement({ dossierScans, nasRacine, entree }, fsImpl = fs
   try { stCopie = await fsImpl.stat(copie); } catch (_) { return erreur(404, 'La copie n’est plus dans le dossier du client : elle a été déplacée ou renommée.'); }
   try { stOriginal = await fsImpl.stat(original); } catch (_) { return erreur(404, 'L’original archivé est introuvable.'); }
   if (!stCopie.isFile() || stCopie.size !== stOriginal.size) return erreur(409, 'La copie a été modifiée depuis le rangement : elle reste où elle est.');
+  // Même taille ne suffit pas : un autre fichier du client de même taille ne doit jamais être retiré (empreinte du rangement).
+  if (entree.hash) {
+    let h = '';
+    try { h = await empreinteFichier(copie); } catch (_) { return erreur(500, 'La copie n’a pas pu être relue pour vérification.'); }
+    if (h !== entree.hash) return erreur(409, 'La copie a été modifiée depuis le rangement : elle reste où elle est.');
+  }
   const retour = await cheminLibre(dossierScans, nomFichierSur(entree.nom), fsImpl);
   try {
     await fsImpl.copyFile(copie, retour, fsc.constants.COPYFILE_EXCL);
