@@ -51,13 +51,14 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
   routeur.get('/scans', routeAsync(async (req, res) => {
     const reglages = parametresRepo.lireReglagesScans();
     const journal = parametresRepo.lireJournalScans().slice(0, 50);
+    const categories = parametresRepo.lireCategoriesScans();
     if (!config.nasRacine) {
-      res.json({ configure: false, raison: 'Le serveur ne sait pas encore où sont les dossiers des clients sur le NAS : l’administrateur l’indique une fois dans la configuration du serveur, puis Claire Scan trouve seul le dossier « Scan » du copieur.', reglages, scans: [], journal });
+      res.json({ configure: false, raison: 'Le serveur ne sait pas encore où sont les dossiers des clients sur le NAS : l’administrateur l’indique une fois dans la configuration du serveur, puis Claire Scan trouve seul le dossier « Scan » du copieur.', reglages, scans: [], journal, categories });
       return;
     }
     const dossier = await trouverDossierScans(config);
     if (!dossier) {
-      res.json({ configure: false, raison: 'Dossier du copieur introuvable depuis le serveur : ni le partage « Scan » du NAS (\\\\serveur\\Scan), ni un dossier « Scan » à côté des dossiers clients. Renseignez "nasScans" dans config.json si son nom est différent.', reglages, scans: [], journal });
+      res.json({ configure: false, raison: 'Dossier du copieur introuvable depuis le serveur : ni le partage « Scan » du NAS (\\\\serveur\\Scan), ni un dossier « Scan » à côté des dossiers clients. Renseignez "nasScans" dans config.json si son nom est différent.', reglages, scans: [], journal, categories });
       return;
     }
     const ecartes = new Set(parametresRepo.lireScansEcartes().map((e) => e.nom));
@@ -66,7 +67,7 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     const ranges = new Set(parametresRepo.lireJournalScans().filter((e) => !e.original && e.dateSource).map((e) => e.nom + '|' + e.dateSource));
     const tous = (reglages.actif ? await listerScans(dossier, depuisMs) : []).filter((s) => !ranges.has(s.nom + '|' + s.date));
     res.json({
-      configure: true, dossier, reglages, journal,
+      configure: true, dossier, reglages, journal, categories,
       scans: tous.filter((s) => !ecartes.has(s.nom)),
       ecartes: tous.filter((s) => ecartes.has(s.nom))
     });
@@ -82,6 +83,30 @@ function creerRouteurScans(config, parametresRepo, horloge = () => Date.now()) {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(nom)}"`);
     envoyerFlux(res, cible);
+  }));
+
+  // Catégories de pièce ajoutées par l'étude (étude 20/10) : toute l'étude les partage.
+  routeur.put('/scans/categories', routeAsync(async (req, res) => {
+    const b = req.body || {};
+    const avant = parametresRepo.lireCategoriesScans();
+    const norm = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const label = norm(b.label);
+    if (!label) { res.status(400).json({ erreur: 'Donnez un nom à la catégorie.' }); return; }
+    const id = typeof b.id === 'string' && avant.some((c) => c.id === b.id) ? b.id
+      : 'c-' + (label.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'piece') + '-' + Date.now().toString(36).slice(-4);
+    if (avant.some((c) => c.id !== id && norm(c.label) === label)) { res.status(400).json({ erreur: 'Une catégorie porte déjà ce nom.' }); return; }
+    const motsBruts = Array.isArray(b.mots) ? b.mots : String(b.mots || '').split(/[,;\n]+/);
+    const suivantes = avant.some((c) => c.id === id)
+      ? avant.map((c) => (c.id === id ? { id, label: b.label, rubrique: b.rubrique, mots: motsBruts } : c))
+      : avant.concat([{ id, label: b.label, rubrique: b.rubrique, mots: motsBruts }]);
+    const categories = parametresRepo.ecrireCategoriesScans(suivantes);
+    if (!categories.some((c) => c.id === id)) { res.status(400).json({ erreur: 'Catégorie invalide ou trop nombreuses.' }); return; }
+    res.json({ id, categories });
+  }));
+
+  routeur.delete('/scans/categories/:id', routeAsync(async (req, res) => {
+    const avant = parametresRepo.lireCategoriesScans();
+    res.json({ categories: parametresRepo.ecrireCategoriesScans(avant.filter((c) => c.id !== req.params.id)) });
   }));
 
   routeur.put('/scans/reglages', routeAsync(async (req, res) => {

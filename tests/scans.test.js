@@ -313,3 +313,26 @@ test('Claire Scan : le dessin attend le relâchement du bouton (second clic sur 
   assert.match(src, /Non rangés/);
   assert.match(src, /Historique/);
 });
+
+test('catégories ajoutées : leurs mots font reconnaître la pièce, elles se retirent proprement, sans mots = à la main', () => {
+  const app = chargerApplication();
+  app.etatScans.categories = [
+    { id: 'c-maint-1', label: 'Contrat de maintenance', rubrique: 'AAE', mots: ['Contrat de maintenance'] },
+    { id: 'c-libre-2', label: 'Pièce libre', rubrique: '', mots: [] }
+  ];
+  app.appliquerCategoriesScan();
+  assert.equal(type(app, 'CONTRAT DE MAINTENANCE\nchaudière du bien'), 'perso-c-maint-1');
+  const t = app.TYPES_SCAN.find(x => x.cle === 'perso-c-maint-1');
+  assert.deepEqual(Array.from(t.rubriques), ['perso:AAE']);
+  assert.deepEqual(Array.from(app.TYPES_SCAN.find(x => x.cle === 'perso-c-libre-2').rubriques), []);
+  assert.equal(type(app, 'Pièce libre'), null);
+  app.etatScans.categories = [];
+  app.appliquerCategoriesScan();
+  assert.equal(app.TYPES_SCAN.some(x => x.perso), false);
+  assert.equal(type(app, 'CONTRAT DE MAINTENANCE'), null);
+});
+
+test('motsCategorieScanDepuisSaisie : virgules, points-virgules, trois lettres au moins', () => {
+  const app = chargerApplication();
+  assert.deepEqual(Array.from(app.motsCategorieScanDepuisSaisie('a contrat, ab ;  entretien\nxyz')), ['a contrat', 'entretien', 'xyz']);
+});

@@ -194,12 +194,22 @@ function nomRubriqueNormalise(nom) {
     .trim();
 }
 
+// Rubrique d'une catégorie de pièce ajoutée par l'étude (étude 20/10) : « perso:NOM » = le sous-dossier du dossier client dont le
+// nom (numéro et accents ignorés) est NOM ; introuvable → racine, jamais créé. Le nom est échappé : aucun motif libre.
+function motifsRubriquePerso(cle) {
+  if (typeof cle !== 'string' || !cle.startsWith('perso:')) return null;
+  const nom = nomRubriqueNormalise(cle.slice(6));
+  if (!nom) return null;
+  const echappe = nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return [new RegExp('^' + echappe + '$')];
+}
+
 // Chemin relatif (depuis le dossier client) de la première rubrique trouvée parmi `cles`, dans
 // l'ordre ; un niveau introuvable arrête la descente au niveau atteint (« 8 - COPRO » sans
 // sous-dossier « ETAT DATE » : le scan va dans « 8 - COPRO »). '' = racine du dossier client.
 async function resoudreRubrique(dossierClientAbsolu, cles, lister = listerSousDossiers) {
   for (const cle of Array.isArray(cles) ? cles : []) {
-    const motifs = RUBRIQUES_SCANS[cle];
+    const motifs = RUBRIQUES_SCANS[cle] || motifsRubriquePerso(cle);
     if (!motifs) continue;
     const segments = [];
     let courant = dossierClientAbsolu;

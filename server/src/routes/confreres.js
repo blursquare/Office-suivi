@@ -9,6 +9,7 @@ const express = require('express');
 const zlib = require('node:zlib');
 const { assainirOffice, MAX_OFFICES, ID_OFFICE_ETUDE, fusionnerCarnetEtAnnuaire } = require('../carnetConfreres');
 const { assainirContact, MAX_CONTACTS, THEMES_REPERTOIRE } = require('../repertoire');
+const { MAX_THEMES_REPERTOIRE } = require('../parametres/assainir');
 const annuaire = require('../annuaireNotaires');
 
 function creerRouteurConfreres(parametresRepo) {
@@ -66,7 +67,42 @@ function creerRouteurConfreres(parametresRepo) {
   // Répertoire (repertoire.js) : mêmes règles que le carnet — un contact à la fois, fusionné par
   // identifiant.
   routeur.get('/repertoire', (req, res) => {
-    res.json({ themes: THEMES_REPERTOIRE, contacts: parametresRepo.lireRepertoire() });
+    res.json({ themes: THEMES_REPERTOIRE.concat(parametresRepo.lireThemesRepertoire().map((t) => Object.assign({ perso: true }, t))), contacts: parametresRepo.lireRepertoire() });
+  });
+
+  // Thèmes ajoutés par l'étude (étude 20/10) : créer, renommer, supprimer un thème vide. Ceux du relevé ne changent pas.
+  const themesComplets = () => THEMES_REPERTOIRE.concat(parametresRepo.lireThemesRepertoire().map((t) => Object.assign({ perso: true }, t)));
+  const libelleTheme = (v) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, 60) : '');
+  routeur.post('/repertoire/themes', (req, res) => {
+    const libelle = libelleTheme(req.body && req.body.libelle);
+    if (!libelle) return res.status(400).json({ erreur: 'Donnez un nom au thème.' });
+    const perso = parametresRepo.lireThemesRepertoire();
+    const tous = themesComplets();
+    const norm = (x) => String(x).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (tous.some((t) => norm(t.libelle) === norm(libelle))) return res.status(400).json({ erreur: 'Un thème porte déjà ce nom.' });
+    if (perso.length >= MAX_THEMES_REPERTOIRE) return res.status(400).json({ erreur: 'Trop de thèmes ajoutés.' });
+    const base = 'perso-' + (norm(libelle).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'theme');
+    let cle = base.length >= 9 ? base : base + '-theme';
+    for (let i = 2; tous.some((t) => t.cle === cle); i++) cle = base + '-' + i;
+    parametresRepo.ecrireThemesRepertoire(perso.concat([{ cle, libelle }]));
+    res.json({ cle, themes: themesComplets() });
+  });
+
+  routeur.put('/repertoire/themes/:cle', (req, res) => {
+    const libelle = libelleTheme(req.body && req.body.libelle);
+    const perso = parametresRepo.lireThemesRepertoire();
+    if (!perso.some((t) => t.cle === req.params.cle)) return res.status(404).json({ erreur: 'Thème introuvable (seuls les thèmes ajoutés se renomment).' });
+    if (!libelle) return res.status(400).json({ erreur: 'Donnez un nom au thème.' });
+    parametresRepo.ecrireThemesRepertoire(perso.map((t) => (t.cle === req.params.cle ? { cle: t.cle, libelle } : t)));
+    res.json({ themes: themesComplets() });
+  });
+
+  routeur.delete('/repertoire/themes/:cle', (req, res) => {
+    const perso = parametresRepo.lireThemesRepertoire();
+    if (!perso.some((t) => t.cle === req.params.cle)) return res.status(404).json({ erreur: 'Thème introuvable.' });
+    if (parametresRepo.lireRepertoire().some((c) => c.theme === req.params.cle)) return res.status(400).json({ erreur: 'Ce thème contient encore des contacts : déplacez-les ou supprimez-les d’abord.' });
+    parametresRepo.ecrireThemesRepertoire(perso.filter((t) => t.cle !== req.params.cle));
+    res.json({ themes: themesComplets() });
   });
 
   routeur.post('/repertoire', (req, res) => {

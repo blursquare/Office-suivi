@@ -450,10 +450,13 @@
       const lignes = (t.cle === 'confreres'
         ? offices.map(o => carnetEdition === o.id ? `<div class="rep-ligne-form">${renderFormOfficeCarnet(o)}</div>` : renderLigneOfficeCarnet(o, parOffice[o.id] || []))
         : []).concat(parTheme[t.cle].map(c => repertoireEdition === c.id ? `<div class="rep-ligne-form">${renderFormContactRepertoire(c)}</div>` : renderLigneContactRepertoire(c)));
-      if (!lignes.length) return '';
+      // Un thème ajouté par l'étude reste affiché vide quand il est choisi : on y rénomme, on le supprime, on y ajoute.
+      const videChoisi = t.perso && !rechercheGlobale && repertoireTheme === t.cle;
+      if (!lignes.length && !videChoisi) return '';
+      const actionsTheme = t.perso ? `<span class="rep-section-actions"><wa-button appearance="plain" size="s" class="bouton-icone" onclick="ouvrirThemeRepertoire('${escapeOnclickArg(t.cle)}')" aria-label="Renommer ce thème" title="Renommer ce thème">${icone('pencil')}</wa-button><wa-button appearance="plain" size="s" class="bouton-icone" onclick="supprimerThemeRepertoire('${escapeOnclickArg(t.cle)}')" aria-label="Supprimer ce thème" title="Supprimer ce thème">${icone('x')}</wa-button></span>` : '';
       return `<section class="rep-section">
-          <h2 class="rep-section-titre">${escapeHtml(libelleThemeRepertoire(t))}<span class="rep-section-n">${nombre(t.cle)}</span></h2>
-          <div class="annuaire-liste">${lignes.join('')}</div>
+          <h2 class="rep-section-titre">${escapeHtml(libelleThemeRepertoire(t))}<span class="rep-section-n">${nombre(t.cle)}</span>${actionsTheme}</h2>
+          <div class="annuaire-liste">${lignes.length ? lignes.join('') : '<p class="carnet-vide">Aucun contact dans ce thème : « Nouveau contact » en ajoute un.</p>'}</div>
         </section>`;
     }).join('');
     const sectionAnnuaire = '';
@@ -478,7 +481,8 @@
     const rechercheGlobale = String(carnetRecherche || '').trim().length >= 2;
     nav.innerHTML = '<div class="rep-nav-groupe">Interlocuteurs</div>'
       + lien('annuaire', 'Notaires', rechercheGlobale ? nombre('confreres') : (france || nombre('confreres')), '')
-      + repertoireThemes.filter(t => t.cle !== 'confreres').map(t => lien(t.cle, t.libelle, nombre(t.cle), '')).join('');
+      + repertoireThemes.filter(t => t.cle !== 'confreres').map(t => lien(t.cle, t.libelle, nombre(t.cle), '')).join('')
+      + '<button type="button" class="rep-nav-lien rep-nav-nouveau" onclick="ouvrirThemeRepertoire(\'\')"><span class="rep-nav-libelle">+ Nouveau thème</span></button>';
   }
 
   // Une ligne du carnet : office, notaires, adresse et bureaux, notes, dossiers en cours ; téléphone et

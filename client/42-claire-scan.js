@@ -308,7 +308,7 @@
   // `charge` : faux tant que le serveur n'a pas répondu une première fois — les réglages ne sont alors
   // PAS connus (et non « désactivés ») : l'interrupteur reste grisé plutôt que d'afficher un état faux
   // (étude, 30/09 : « dès que je quitte CLAIRE je suis obligé de recocher »).
-  var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [] };
+  var etatScans = { charge: false, configure: false, raison: '', dossier: '', reglages: { actif: false, auto: false, depuis: null }, scans: [], ecartes: [], journal: [], categories: [] };
   var lecturesScans = {};           // cle → { statut: 'lecture'|'pret'|'erreur', lecture, proposition, choix }
   var scansEnRangement = new Set();
   // « Laisser dans Scan » en cours (étude, 01/10 : un indicateur dès le clic, pendant que ça mouline).
@@ -354,6 +354,7 @@
       const r = await fetchAvecAuth('/api/scans');
       if (!r.ok) return false;
       etatScans = Object.assign(etatScans, await r.json(), { charge: true });
+      appliquerCategoriesScan();
     } catch (e) { return false; }
     majBadgeScans();
     // Carte « Dernières pièces » du tableau de bord : scans à ranger et rangés à jour.
@@ -742,7 +743,7 @@
             ${r.depuis && r.depuis.length > 10 ? `<span class="hint">${escapeHtml(new Date(r.depuis).toLocaleString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }))}</span>` : ''}</span>
           <input type="date" id="reglages-scans-depuis" value="${escapeAttr(dateLocaleDepuisScans(r.depuis))}"${r.actif && !inconnu ? '' : ' disabled'} onchange="enregistrerReglagesScans({ depuis: this.value })">
         </label>
-      </div>`;
+      </div>${htmlCategoriesScan()}`;
   }
 
   // Champ « Dossier » d'un scan (étude 07/10 : « dans le champ de recherche du dossier, de quoi taper le nom ») : on tape le nom,
@@ -819,7 +820,8 @@
 
   function optionsTypesScan(choisi) {
     return `<option value=""${choisi ? '' : ' selected'}>Autre pièce</option>`
-      + TYPES_SCAN.map(t => `<option value="${escapeAttr(t.cle)}"${t.cle === choisi ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('');
+      + TYPES_SCAN.map(t => `<option value="${escapeAttr(t.cle)}"${t.cle === choisi ? ' selected' : ''}>${escapeHtml(t.label)}</option>`).join('')
+      + '<option value="__nouvelle__">+ Nouvelle catégorie…</option>';
   }
 
   // ---- Aperçu d'un scan ----
@@ -951,7 +953,7 @@
       <div class="scan-statut">${statut}</div>
       <div class="scan-champs">
         <label class="scan-champ"><span>Dossier</span>${champDossierScan(scan, index, c.dossierId, p, bloque)}</label>
-        <label class="scan-champ"><span>Pièce</span><select onchange="changerChoixScan('${nomArg}', 'type', this.value)"${bloque}>${optionsTypesScan(c.type)}</select></label>
+        <label class="scan-champ"><span>Pièce</span><select onchange="choisirTypeScan('${nomArg}', this)"${bloque}>${optionsTypesScan(c.type)}</select></label>
         <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
       </div>
       <div class="scan-actions">

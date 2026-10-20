@@ -10298,3 +10298,19 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
   .pa-identique { grid-template-columns: 16px minmax(0, 1fr); }
   .pa-identique-valeur { grid-column: 2; }
 }
+
+/* ---- Catégories ajoutées (étude 20/10) : fenêtre de saisie, liste des Réglages, thème du répertoire ---- */
+.fenetre-saisie { max-width: 460px; display: flex; flex-direction: column; gap: 12px; }
+.fenetre-saisie-titre { margin: 0; font-size: var(--texte-l); font-weight: 500; }
+.fenetre-saisie-champ { display: flex; flex-direction: column; gap: 4px; font-size: var(--texte-m); color: var(--ink); }
+.fenetre-saisie-champ > span { font-weight: 500; }
+.fenetre-saisie-champ textarea { min-height: 72px; resize: vertical; font-family: inherit; font-size: var(--texte-base); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px 12px; background: var(--paper-card); color: var(--ink); }
+.fenetre-saisie-erreur { margin: 0; color: var(--urgent, var(--ink)); }
+.categories-ajoutees { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.categories-ajoutees li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 2px 8px; align-items: center; }
+.categories-ajoutees .categories-nom { font-weight: 500; grid-column: 1; }
+.categories-ajoutees .hint { grid-column: 1; }
+.categories-ajoutees wa-button { grid-row: 1 / span 2; }
+.rep-section-actions { margin-left: 8px; display: inline-flex; gap: 2px; vertical-align: middle; }
+.rep-nav-nouveau { color: var(--muted); }
+.annuaire-liste > .carnet-vide { padding: 12px 16px; margin: 0; }

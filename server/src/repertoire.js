@@ -35,6 +35,8 @@ const THEMES_REPERTOIRE = [
   { cle: 'syndics', libelle: 'Syndics de copropriété' },
   { cle: 'divers', libelle: 'Chambres consulaires et divers' }
 ];
+// Thèmes ajoutés par l'étude (clé `perso-…`, voir parametres/assainir.js).
+const RE_CLE_THEME_PERSO = /^perso-[a-z0-9-]{3,40}$/;
 const CLES_THEMES = new Set(THEMES_REPERTOIRE.map((t) => t.cle));
 
 // { id, theme, organisme, service, personnes[], adresse, telephones[], emails[], liens[], notes }
@@ -250,7 +252,7 @@ function assainirContact(brut) {
   if (!organisme && !personnes.length) return null;
   return {
     id: b.id,
-    theme: CLES_THEMES.has(b.theme) ? b.theme : 'divers',
+    theme: CLES_THEMES.has(b.theme) || (typeof b.theme === 'string' && RE_CLE_THEME_PERSO.test(b.theme)) ? b.theme : 'divers',
     organisme,
     service: texte(b.service, 160),
     personnes,

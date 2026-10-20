@@ -258,3 +258,23 @@ test('lot de corrections (étude 18/10) : le S.I.E.P.F. de Blois devient le SPFE
     assert.equal(repo.lireRepertoire().find((c) => c.id === 'rep-siepf-blois').organisme, 'Service des impôts de Blois');
   } finally { base.close(); }
 });
+
+test('thèmes du répertoire ajoutés : créés, renommés, jamais en double, supprimés seulement vides', async () => {
+  const appel = (m, c, corps) => appeler(c, m, corps);
+  let r = await appel('POST', '/api/repertoire/themes', { libelle: 'Experts-comptables' });
+  assert.equal(r.status, 200);
+  const { cle, themes } = await r.json();
+  assert.match(cle, /^perso-[a-z0-9-]{3,40}$/);
+  assert.ok(themes.some((t) => t.cle === cle && t.perso));
+  assert.equal((await appel('POST', '/api/repertoire/themes', { libelle: 'EXPERTS-comptables' })).status, 400);
+  assert.equal((await appel('POST', '/api/repertoire/themes', { libelle: 'Banques — successions' })).status, 400);
+  r = await appel('PUT', '/api/repertoire/themes/' + cle, { libelle: 'Comptables' });
+  assert.equal((await r.json()).themes.find((t) => t.cle === cle).libelle, 'Comptables');
+  assert.equal((await appel('PUT', '/api/repertoire/themes/banquesPrets', { libelle: 'x' })).status, 404);
+  r = await appel('POST', '/api/repertoire', { contact: { id: 'c-test-theme', theme: cle, organisme: 'Cabinet Test' } });
+  assert.equal((await r.json()).contacts.find((c) => c.id === 'c-test-theme').theme, cle);
+  assert.equal((await appel('DELETE', '/api/repertoire/themes/' + cle)).status, 400);
+  await appel('DELETE', '/api/repertoire/c-test-theme');
+  assert.equal((await appel('DELETE', '/api/repertoire/themes/' + cle)).status, 200);
+  assert.equal((await appel('DELETE', '/api/repertoire/themes/banquesPrets')).status, 404);
+});

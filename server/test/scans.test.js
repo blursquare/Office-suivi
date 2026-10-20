@@ -336,3 +336,22 @@ test('notification Teams d’une facture de succession : dossier, organisme, mon
   assert.match(texteFactureSuccession('SUCC - DURAND', '', null, ''), /organisme non lu — montant non lu/);
   assert.match(htmlFactureSuccession('SUCC - <X>', 'A & B', 12.5, 'http://h/l'), /SUCC - &lt;X&gt;.*A &amp; B.*12,50\s€.*href="http:\/\/h\/l"/);
 });
+
+test('catégories de pièce ajoutées : créées, partagées par GET /scans, supprimées ; rubrique « perso: » confinée au nom exact', async () => {
+  let r = await envoyer('PUT', '/api/scans/categories', { label: 'Contrat de maintenance', rubrique: 'AAE', mots: 'contrat de maintenance, ab, contrat d’entretien' });
+  assert.equal(r.status, 200);
+  const { id, categories } = await r.json();
+  assert.deepEqual(categories[0].mots, ['contrat de maintenance', 'contrat d’entretien']);
+  r = await envoyer('PUT', '/api/scans/categories', { label: 'contrat de MAINTENANCE', rubrique: '' });
+  assert.equal(r.status, 400);
+  r = await envoyer('PUT', '/api/scans/categories', { label: '  ' });
+  assert.equal(r.status, 400);
+  const etat = await (await fetch(url('/api/scans'))).json();
+  assert.equal(etat.categories.length, 1);
+  const lister = async () => ['3 - Titre', '9 - AAE', '10 - AAE bis'];
+  assert.equal(await resoudreRubrique('/x', ['perso:AAE'], lister), '9 - AAE');
+  assert.equal(await resoudreRubrique('/x', ['perso:.*'], lister), '');
+  assert.equal(await resoudreRubrique('/x', ['perso:Inconnu'], lister), '');
+  r = await fetch(url('/api/scans/categories/' + id), { method: 'DELETE' });
+  assert.deepEqual((await r.json()).categories, []);
+});
