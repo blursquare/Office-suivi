@@ -1052,3 +1052,12 @@ test('étude 21/10 : personne ajoutée à la main à « Nouveau dossier » (conj
   app.appliquerSaisieWizardSuccession(d, {}, { conjoint: true });
   assert.equal(d.succession.conjointSurvivant, true);
 });
+
+test('étude 21/10 : « INVENTAIRE + NOTO » = un seul rendez-vous pour l\'inventaire et la notoriété ; en deux temps, deux rendez-vous', () => {
+  const un = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20', rendezVous: [{ id: 'a', etape: 'notoriete', titre: 'INVENTAIRE + NOTO Marie DUPONT', date: '2026-12-09', heure: '10:00' }] } }), '2026-10-21');
+  assert.deepEqual([un.find(x => x.type === 'controleDroits').iso, un.find(x => x.type === 'notoriete').iso], ['2026-12-09', '2026-12-09']);
+  const deux = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20', rendezVous: [
+    { id: 'i', etape: 'controleDroits', titre: 'INVENTAIRE Marie DUPONT', date: '2026-12-09', heure: '10:00' },
+    { id: 'n', etape: 'notoriete', titre: 'NOTO Marie DUPONT', date: '2027-01-12', heure: '10:00' }] } }), '2026-10-21');
+  assert.deepEqual([deux.find(x => x.type === 'controleDroits').iso, deux.find(x => x.type === 'notoriete').iso], ['2026-12-09', '2027-01-12']);
+});

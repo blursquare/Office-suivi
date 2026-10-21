@@ -21393,3 +21393,6 @@ L'agent répondait « requête refusée par Claude » (400) sans dire pourquoi. 
 
 ### 21/10/2026 soir — 0.309.0 : inventaire, projet, « + Personne » (successions)
 Réponses de l'étude (1 à 6) : notoriété 4–6 mois inchangée ; INVENTAIRE = rendez-vous du contrôle des droits à 2 mois de l'ouverture ; SUCC = succession ; projet et décompte seulement pour la déclaration ; conjoint survivant = marié au défunt, non noté ; bouton pour ajouter une personne (son nom aide à reconnaître sa fiche) ; dossier agenda = nom du défunt. `etapeRendezVousSuccessionDepuisTitre`, étape `controleDroits` (rdv), étape `projetSuccession` (client/24, 74, 20, jobs/rappels), `appliquerPersonnesSaisiesSuccession` (client/79). Reste : rendez-vous lus depuis Authentic (structure à fournir), page des actes « ACT … T@ » (structure à fournir).
+
+### 21/10/2026 — inventaire = acte signé chez le client
+Étude : l'inventaire est un acte signé chez le client (prise du mobilier avec un commissaire de justice, pour réduire les droits), parfois en même temps que la notoriété, parfois en deux temps. Un rendez-vous « INVENTAIRE + NOTO … » (étape `notoriete`, titre contenant INVENTAIRE) sert aussi au contrôle des droits (`etapesSuccession`) ; « INVENTAIRE … » seul reste l'étape `controleDroits`.

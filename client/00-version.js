@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.309.0';
+  const VERSION_APP = '0.309.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.309.1', date: '2026-10-21 22:29', resume: "Successions : un rendez-vous « INVENTAIRE + NOTO … » (inventaire chez le client et notoriété signés ensemble) sert à la fois au contrôle des droits et à la notoriété ; en deux temps, chacun garde son rendez-vous." },
     { version: '0.309.0', date: '2026-10-21 22:16', resume: "Successions : « INVENTAIRE » seul dans l’agenda est le rendez-vous du contrôle des droits (à 2 mois de l’ouverture) et « INVENTAIRE + NOTO » celui de la notoriété ; le projet à faire valider est proposé avec le décompte, pour la seule déclaration de succession ; « Nouveau dossier » d’une succession : bouton « + Personne » pour ajouter à la main la conjointe survivante ou un héritier, retrouvée quand sa fiche est ouverte dans Authentic." },
     { version: '0.308.5', date: '2026-10-21 21:34', resume: "Nouveau dossier d’une succession : la conjointe survivante lue dans la fiche du défunt compte maintenant comme conjoint survivant (« Selon Authentic : oui », comptes transférés, plus d’appel de fonds de l’étude) ; elle est gardée à la création du dossier." },
     { version: '0.308.4', date: '2026-10-21 19:08', resume: "Successions : les actes ajoutés dans Authentic (« ACT Attestation SUCC … », délivrance de legs…) ne s’affichent plus dans la timeline ; leur état (rédigé ou non) se lit toujours dans le bloc « Dossier »." },

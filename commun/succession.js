@@ -377,7 +377,11 @@
       butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? depuisDeces(MOIS_NOTORIETE_DS_DEBUT) : '', depuisDeces: ensemble && !!deces
     });
     // Un rendez-vous « INVENTAIRE … » placé donne sa date ; sans lui, 2 mois après l'ouverture.
-    const rdvControle = rendezVousRetenu(rdvs.filter((r) => r.etape === 'controleDroits'), auj);
+    // L'inventaire est un acte signé chez le client (prise du mobilier avec un commissaire de justice) : un rendez-vous « INVENTAIRE + NOTO … »
+    // (notoriété signée en même temps, étude 21/10) sert aux deux étapes ; en deux temps, chacune a son rendez-vous.
+    const avecInventaire = (/** @type {any} */ r) => /(?<![A-Z])INVENTAIRE(?![A-Z])/.test(String(r.titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase());
+    const rdvControle = rendezVousRetenu(rdvs.filter((r) => r.etape === 'controleDroits'), auj)
+      || rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' && avecInventaire(r)), auj);
     etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: rdvControle ? rdvControle.date : plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true, rdvPlace: !!rdvControle });
     const apresNoto = noto.fait ? (noto.iso || '') : '';
     if (conjointSurvivant(d)) {
