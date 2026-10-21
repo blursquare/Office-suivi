@@ -353,19 +353,22 @@
     // Notoriété + déclaration de succession : un seul rendez-vous pour les deux actes, entre 4 et 6 mois (étude 15/10).
     const ensemble = type.cle === 'notoriete-ds';
     const notoSeule = acteSigneSuccession(d, 'notoriete');
-    const dsEnsemble = ensemble ? acteSigneSuccession(d, 'declaration') : { fait: false, iso: '' };
-    const noto = { fait: notoSeule.fait || dsEnsemble.fait, iso: notoSeule.iso || dsEnsemble.iso };
+    // Notoriété + déclaration : deux étapes, deux rendez-vous possibles (étude 21/10 : « parfois ne sont pas signées le même jour »).
+    const noto = { fait: notoSeule.fait, iso: notoSeule.iso };
     // Rendez-vous placés (agenda) : la date de l'acte à venir ; sans lui, la date butoir (`butoir`), à confirmer. Un rendez-vous « acte »
     // (sans étape dite) va à la notoriété tant qu'elle n'est pas signée, puis à la déclaration s'il vient après elle (relecture 15/10 : un
     // rendez-vous passé est celui de la notoriété elle-même).
     const rdvs = rendezVousSuccession(d).filter((r) => !r.annule);
     const apresNotoriete = (/** @type {any} */ r) => noto.fait && (noto.iso ? r.date > noto.iso : r.date > auj);
-    const rdvNotoriete = noto.fait ? null : rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' || r.etape === 'acte' || (ensemble && r.etape === 'declarationSuccession')), auj);
-    const rdvDeclaration = rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession' || (r.etape === 'acte' && apresNotoriete(r))), auj);
+    // Un seul rendez-vous pour les deux actes (titre « SUCC - … ») sert aux deux étapes tant que la notoriété n'a pas le sien.
+    const rdvNotoriete = noto.fait ? null : (rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' || r.etape === 'acte'), auj)
+      || (ensemble ? rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession'), auj) : null));
+    // Notoriété + déclaration : un rendez-vous « acte » sans autre rendez-vous de déclaration sert aussi à la déclaration (relecture 21/10).
+    const rdvDeclaration = rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession' || (r.etape === 'acte' && apresNotoriete(r))), auj) || (ensemble && !noto.fait ? rdvNotoriete : null);
     const rdv = rdvNotoriete ? rdvNotoriete.date : '';
     const butoirNoto = ensemble ? depuisDeces(MOIS_DECLARATION_SUCCESSION) : plus(MOIS_NOTORIETE);
     etapes.push({
-      type: 'notoriete', label: ensemble ? 'Signature de l’acte de notoriété et de la déclaration de succession' : 'Signature de l’acte de notoriété',
+      type: 'notoriete', label: 'Signature de l’acte de notoriété',
       iso: noto.fait ? noto.iso : (rdv || butoirNoto), fait: noto.fait, attente: false, active: true,
       butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? depuisDeces(MOIS_NOTORIETE_DS_DEBUT) : '', depuisDeces: ensemble && !!deces
     });
@@ -379,7 +382,7 @@
       etapes.push({ type: 'receptionFonds', label: 'Réception des fonds', iso: '', fait: cocheeSuccession(d, 'receptionFonds'), attente: true, active: noto.fait && debloque });
     }
     // Succession classique : attestation immobilière et déclaration de succession, après la notoriété, au plus tard à 6 mois.
-    if (type.actes.includes('declaration') && !ensemble) {
+    if (type.actes.includes('declaration')) {
       const ds = acteSigneSuccession(d, 'declaration');
       const label = type.actes.includes('attestation') ? 'Signature de l’attestation immobilière et de la déclaration de succession' : 'Signature de la déclaration de succession';
       const placee = rdvDeclaration ? rdvDeclaration.date : '';
@@ -395,7 +398,7 @@
     const dernier = etapes[iDernier];
     // Pas de décompte ni d'appel de fonds pour une notoriété seule (étude 21/10 : « pas besoin pour le NOTORIETE, INVENTAIRE ») : seulement
     // quand l'acte du dernier rendez-vous est la déclaration de succession (seule ou signée avec la notoriété).
-    if (dernier && (dernier.type === 'declarationSuccession' || ensemble)) {
+    if (dernier && dernier.type === 'declarationSuccession') {
       const avantRdv = dernier.rdvPlace && dernier.iso ? (C.addDays(dernier.iso, -JOURS_AVANT_DERNIER_RDV_SUCCESSION) || '') : '';
       const s = infoSuccession(d);
       const avant = [{ type: 'decompteSuccession', label: 'Envoi du décompte à faire valider', iso: dernier.fait ? '' : avantRdv,
@@ -441,7 +444,9 @@
   /** Pure : la checklist standard d'une succession (moins les pièces retirées ; l'immobilier seulement s'il y en a). @param {any} d */
   function piecesSuccessionDossier(d) {
     const retirees = new Set((d && d.piecesRetirees) || []);
-    const immobilier = typeSuccessionDef(typeSuccession(d)).actes.includes('attestation') || successionAvecImmobilier(d);
+    // Notoriété + déclaration : pas d'attestation immobilière, donc aucune pièce d'immobilier (étude 21/10).
+    const type = typeSuccessionDef(typeSuccession(d));
+    const immobilier = type.cle === 'classique' || (type.cle !== 'notoriete-ds' && successionAvecImmobilier(d));
     return PIECES_SUCCESSION.filter(p => !retirees.has(p.cle) && (!p.immobilier || immobilier))
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }

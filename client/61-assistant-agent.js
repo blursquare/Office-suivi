@@ -322,10 +322,11 @@
     renderAssistant();
     // Dès que l'agent a commencé (un outil a tourné, un geste a pu être fait), on ne revient JAMAIS à la compréhension d'une phrase :
     // elle referait le geste (relecture 0.213.0 : un rappel posé deux fois). L'erreur est dite à la place.
-    let engage = false;
+    let outilLance = false;
     const echec = (raison) => {
       assistantEnCours = false; assistantEtapeAgent = ''; assistantAgentConversation = '';
-      poserMessageAssistant('claire', `<p>Je n’ai pas pu terminer : ${escapeHtml(raison || 'réponse impossible')}. Ce qui est déjà fait reste affiché au-dessus ; vous pouvez reposer la question.</p>`);
+      const lisible = /^(aucun outil attendu|ni question ni résultats)/.test(String(raison || '')) ? 'réponse incomplète de l’agent' : raison;
+      poserMessageAssistant('claire', `<p>Je n’ai pas pu terminer : ${escapeHtml(lisible || 'réponse impossible')}. ${outilLance ? 'Ce qui est déjà fait reste affiché au-dessus ; vous' : 'Rien n’a été modifié ; vous'} pouvez reposer la question.</p>`);
       return true;
     };
     try {
@@ -336,7 +337,7 @@
       if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Je reprends le fil de notre échange.</p>');
       if (rep.joints && rep.joints.coupe) poserMessageAssistant('claire', `<p class="asst-note">Seules les ${rep.joints.pages} premières pages sur ${rep.joints.demandees} ont pu être jointes : le modèle choisi lit moins de texte qu’Opus 5.5. Choisissez Opus 5.5 sous la saisie pour un acte plus long.</p>`);
       while (rep && Array.isArray(rep.appels) && rep.appels.length) {
-        engage = true;
+        outilLance = true;
         assistantAgentConversation = rep.conversation || assistantAgentConversation;
         const resultats = [];
         for (const appel of rep.appels) {
@@ -352,10 +353,9 @@
         rep = await appelAgentAssistant({ conversation: assistantAgentConversation, resultats });
       }
       if (rep && rep.erreur) {
-        if (engage) return echec(rep.expiree ? 'notre échange a expiré pendant que la fenêtre était ouverte' : rep.erreur);
-        assistantEnCours = false; assistantEtapeAgent = ''; assistantAgentConversation = '';
-        // Rien n'a encore été fait : la compréhension d'une phrase prend le relais.
-        return false;
+        // L'agent est annoncé disponible : on dit sa vraie erreur (étude 21/10, « Claude ne fonctionne pas comme il faut ») au lieu de
+        // laisser la compréhension d'une phrase répondre « Je n'ai pas bien saisi » à une demande qu'elle ne sait pas lire.
+        return echec(rep.expiree ? 'notre échange a expiré pendant que la fenêtre était ouverte' : String(rep.erreur).slice(0, 300));
       }
       assistantEnCours = false;
       assistantEtapeAgent = '';
@@ -365,12 +365,8 @@
       noterEchangeAssistant('claire', rep.reponse || '');
       return true;
     } catch (e) {
-      if (engage) return echec(e && e.message);
-      assistantEnCours = false;
-      assistantEtapeAgent = '';
-      assistantAgentConversation = '';
-      console.warn('Demander à CLAIRE : agent indisponible, compréhension d’une phrase à la place', e && e.message);
-      return false;
+      console.warn('Demander à CLAIRE : agent en échec', e && e.message);
+      return echec(String((e && e.message) || 'serveur injoignable').slice(0, 300));
     }
   }
 

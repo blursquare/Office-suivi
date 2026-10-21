@@ -47,7 +47,7 @@ test('déroulé : ouverture, notoriété à 1 mois, contrôle à 2 mois, déclar
   assert.ok(S.etapesSuccession(d, '2026-10-21')[0].fait);
 });
 
-test('notoriété : date butoir à 1 mois, remplacée par le rendez-vous placé ; notoriété + DS : les deux actes ensemble, entre 4 et 6 mois', () => {
+test('notoriété : date butoir à 1 mois, remplacée par le rendez-vous placé ; notoriété + DS : deux étapes, deux rendez-vous possibles', () => {
   const seule = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' } }), '2026-10-15').find(x => x.type === 'notoriete');
   assert.deepEqual([seule.iso, seule.butoir, seule.rdvPlace], ['2026-11-20', true, false]);
   const placee = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' }, rendezVousSignature: '2026-11-12' }), '2026-10-15').find(x => x.type === 'notoriete');
@@ -55,13 +55,26 @@ test('notoriété : date butoir à 1 mois, remplacée par le rendez-vous placé 
   const ds = base({ succession: { ouvertureLe: '2026-10-20', actifSuperieurSeuil: true } });
   const e = S.etapesSuccession(ds, '2026-10-15');
   const n = e.find(x => x.type === 'notoriete');
-  assert.match(n.label, /notoriété et de la déclaration de succession/);
+  assert.equal(n.label, 'Signature de l’acte de notoriété');
   assert.deepEqual([n.iso, n.fenetreDebut, n.butoir], ['2027-04-20', '2027-02-20', true]);
-  assert.ok(!e.some(x => x.type === 'declarationSuccession'));
+  const decl = e.find(x => x.type === 'declarationSuccession');
+  assert.equal(decl.label, 'Signature de la déclaration de succession');
+  assert.ok(!e.some(x => /ttestation/.test(x.label)));
+  // Deux rendez-vous (21/10) : chacun sa date ; un seul rendez-vous « SUCC - … » sert aux deux étapes.
+  const deux = S.etapesSuccession(Object.assign({}, ds, { succession: Object.assign({}, ds.succession, { rendezVous: [
+    { id: 'a', etape: 'notoriete', date: '2027-03-02', heure: '10:00' }, { id: 'b', etape: 'declarationSuccession', date: '2027-03-09', heure: '10:00' }] }) }), '2027-02-01');
+  assert.deepEqual([deux.find(x => x.type === 'notoriete').iso, deux.find(x => x.type === 'declarationSuccession').iso], ['2027-03-02', '2027-03-09']);
+  const un = S.etapesSuccession(Object.assign({}, ds, { succession: Object.assign({}, ds.succession, { rendezVous: [{ id: 'b', etape: 'declarationSuccession', date: '2027-03-09', heure: '10:00' }] }) }), '2027-02-01');
+  assert.deepEqual([un.find(x => x.type === 'notoriete').iso, un.find(x => x.type === 'declarationSuccession').iso], ['2027-03-09', '2027-03-09']);
+  const acte = S.etapesSuccession(Object.assign({}, ds, { succession: Object.assign({}, ds.succession, { rendezVous: [{ id: 'c', etape: 'acte', date: '2027-03-12', heure: '10:00' }] }) }), '2027-02-01');
+  assert.deepEqual([acte.find(x => x.type === 'notoriete').iso, acte.find(x => x.type === 'declarationSuccession').iso, acte.find(x => x.type === 'declarationSuccession').rdvPlace], ['2027-03-12', '2027-03-12', true]);
+  // Pas d'attestation immobilière : aucune pièce d'immobilier, même avec un bien.
+  assert.ok(!S.piecesSuccessionDossier(Object.assign({}, ds, { succession: Object.assign({}, ds.succession, { type: 'notoriete-ds' }), biens: [{ adresse: '1 rue des Tests' }] })).some(p => (S.PIECES_SUCCESSION.find(q => q.cle === p.cle) || {}).immobilier));
   const c = app.cartesTableauFiche(Object.assign({ id: 'sd' }, ds), '2026-10-15', []);
   assert.match(c.faire.find(x => x.cle === 'succession:notoriete').sous, /^Entre le .+ et le .+ — date butoir, à confirmer par le rendez-vous/);
-  // Déclaration signée dans Authentic : les deux actes sont faits.
-  assert.ok(S.etapesSuccession(Object.assign({}, ds, { authentic: { actesSuccession: [{ intitule: 'Déclaration de succession', etat: 'signe', signeLe: '2027-03-01' }] } }), '2027-03-02').find(x => x.type === 'notoriete').fait);
+  // Déclaration signée dans Authentic : la déclaration est faite, la notoriété garde sa propre étape.
+  const signee = S.etapesSuccession(Object.assign({}, ds, { authentic: { actesSuccession: [{ intitule: 'Déclaration de succession', etat: 'signe', signeLe: '2027-03-01' }] } }), '2027-03-02');
+  assert.ok(signee.find(x => x.type === 'declarationSuccession').fait);
 });
 
 test('après la notoriété signée : déblocage des fonds puis réception ; avec un conjoint survivant, transfert des comptes', () => {
