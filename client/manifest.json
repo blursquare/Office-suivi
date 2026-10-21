@@ -95,5 +95,6 @@
   "93-explorateur-nas.js",
   "94-assistant-acte.js",
   "95-scan-memoire.js",
-  "96-assistant-pouvoirs.js"
+  "96-assistant-pouvoirs.js",
+  "97-assistant-nas-libre.js"
 ]

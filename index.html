@@ -2100,6 +2100,28 @@
         <span id="reglages-web-resultat"></span>
       </div>
     </div>
+    <!-- Lecture libre du NAS par l'agent (étude 21/10, palier 2) — server/src/nasLibre.js, client/97-assistant-nas-libre.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Lecture libre du NAS <span class="info-i" tabindex="0" data-info="Éteinte par défaut. Allumée, l'agent de « Demander à CLAIRE » peut chercher (par le nom) et lire, en LECTURE SEULE, des fichiers du NAS hors du dossier d'un client, dans les dossiers ouverts ci-dessous. Les PDF sont lus par le poste (OCR compris), les Word et textes par le serveur ; ce qu'il lit part vers l'IA en ligne, noms masqués par le serveur (montants et dates en clair). Un dossier par ligne, chemin depuis la racine du NAS ; vide = toute la racine. Un mot de la seconde liste écarte tout dossier ou fichier dont le nom le porte."></span></h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-nas-libre-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut parcourir et lire le NAS</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-nas-libre-actif"></wa-switch>
+        </label>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-nas-libre-racines">Dossiers ouverts</label></div>
+          <textarea id="reglages-nas-libre-racines" rows="4" spellcheck="false" placeholder="MODELES - OUTILS"></textarea>
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-nas-libre-exclus">Noms écartés</label></div>
+          <textarea id="reglages-nas-libre-exclus" rows="3" spellcheck="false" placeholder="compta"></textarea>
+        </div>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerNasLibre()">Enregistrer</wa-button>
+        <span id="reglages-nas-libre-resultat"></span>
+      </div>
+    </div>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">IA en ligne de « Demander à CLAIRE » (relecture d'actes comprise)</h3>
       <div class="reglages-liste">
@@ -2823,5 +2845,6 @@
 <script src="client/94-assistant-acte.js"></script>
 <script src="client/95-scan-memoire.js"></script>
 <script src="client/96-assistant-pouvoirs.js"></script>
+<script src="client/97-assistant-nas-libre.js"></script>
 </body>
 </html>

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.303.2';
+  const VERSION_APP = '0.304.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.304.0', date: '2026-10-21 08:28', resume: "Demander à CLAIRE peut chercher et lire dans le NAS en dehors du dossier d'un client (modèles, archives, fichiers de l'étude), en lecture seule. C'est éteint tant que vous ne l'allumez pas : Réglages › IA et relecture d'actes › « Lecture libre du NAS » — vous choisissez les dossiers ouverts et les mots qui écartent un dossier ou un fichier. Les PDF sont lus avec la lecture habituelle (scans compris), les Word et textes sont lus directement ; les noms restent masqués avant l'IA." },
     { version: '0.303.2', date: '2026-10-21 08:01', resume: "Demander à CLAIRE sait répondre aux questions qui portent sur tous les dossiers (« quelle offre de prêt avec inscription hypothécaire avons-nous reçue en octobre ? ») : il voit la date de l'offre, son montant et ses garanties dans la liste des dossiers." },
     { version: '0.303.1', date: '2026-10-21 07:54', resume: "Demander à CLAIRE : le lot d'actions, le rangement des scans et la modification de l'agenda sont fiabilisés (un refus ne change plus rien, un scan déjà traité n'est jamais déclaré rangé, les options de sondage ne se déplacent pas, la liste du NAS garde le nom des fichiers lisible)." },
     { version: '0.303.0', date: '2026-10-21 07:39', resume: "Demander à CLAIRE peut faire plus : ranger, laisser et défaire un rangement de Claire Scan, renommer et déplacer les pièces du dossier du client sur le NAS, déplacer, renommer ou supprimer un rendez-vous de l'agenda, et faire plusieurs actions sur plusieurs dossiers avec une seule autorisation. Chaque modification demande toujours votre « Autoriser »." },

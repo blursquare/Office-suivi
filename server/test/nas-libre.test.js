@@ -1,0 +1,127 @@
+'use strict';
+
+// Lecture libre du NAS par l'agent (21/10, palier 2) : éteinte par défaut, confinée, exclusions, rien d'exécutable ni de caché.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const nl = require('../src/nasLibre');
+
+function nasInvente() {
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-libre-'));
+  const ecrire = (rel, texte) => { const abs = path.join(racine, rel); fs.mkdirSync(path.dirname(abs), { recursive: true }); fs.writeFileSync(abs, texte); };
+  ecrire('MODELES - OUTILS/Modele procuration.txt', 'Je soussigné(e) ... donne pouvoir');
+  ecrire('MODELES - OUTILS/Compta/Bilan 2025.txt', 'secret comptable');
+  ecrire('MODELES - OUTILS/outil.exe', 'MZ');
+  ecrire('MODELES - OUTILS/.cache/x.txt', 'caché');
+  ecrire('AUTRES/Courrier divers.txt', 'autre');
+  ecrire('AUTRES/Modele hors zone.txt', 'hors zone');
+  return racine;
+}
+
+test('éteinte par défaut ; réglages assainis (chemins propres, mots simplifiés, bornes)', () => {
+  assert.equal(nl.assainirNasLibre(undefined).actif, false);
+  assert.equal(nl.assainirNasLibre({ actif: 'oui' }).actif, false);
+  const r = nl.assainirNasLibre({ actif: true, racines: ['../x', 'A/../B', ' MODELES - OUTILS/ ', '.cache', 'MODELES - OUTILS'], exclus: ['Compta', 'é', '  RH  '] });
+  assert.deepEqual(r.racines, ['MODELES - OUTILS']);
+  assert.deepEqual(r.exclus, ['compta', 'rh']);
+  assert.equal(r.actif, true);
+});
+
+test('chemins : jamais « .. » ni dossier caché ; permis selon racines et exclusions', () => {
+  assert.equal(nl.cheminRelatifPropre('a/../b'), null);
+  assert.equal(nl.cheminRelatifPropre('a/.git/x'), null);
+  assert.equal(nl.cheminRelatifPropre('/a//b/'), 'a/b');
+  const r = { racines: ['MODELES - OUTILS'], exclus: ['compta'] };
+  assert.equal(nl.cheminPermis('MODELES - OUTILS/x.txt', r), true);
+  assert.equal(nl.cheminPermis('MODELES - OUTILS/Compta/Bilan.txt', r), false);
+  assert.equal(nl.cheminPermis('AUTRES/x.txt', r), false);
+  assert.equal(nl.cheminPermis('MODELES - OUTILS 2/x.txt', r), false, 'un dossier voisin au nom proche n’est pas la racine');
+  assert.equal(nl.cheminPermis('', r), false);
+  assert.equal(nl.cheminPermis('', { racines: [], exclus: [] }), true);
+});
+
+test('lister : seulement le permis, sans caché ni exécutable ; la racine ne montre que les dossiers ouverts', async () => {
+  const nas = nasInvente();
+  const r = { racines: ['MODELES - OUTILS'], exclus: ['compta'] };
+  const racine = await nl.listerNasLibre(nas, '', r);
+  assert.deepEqual(racine.dossiers.map((d) => d.nom), ['MODELES - OUTILS']);
+  const niveau = await nl.listerNasLibre(nas, 'MODELES - OUTILS', r);
+  assert.deepEqual(niveau.fichiers.map((f) => f.nom), ['Modele procuration.txt']);
+  assert.deepEqual(niveau.dossiers, [], 'Compta est écarté, .cache est caché');
+  assert.equal((await nl.listerNasLibre(nas, 'AUTRES', r)).statut, 403);
+  assert.equal((await nl.listerNasLibre(nas, '../', r)).statut, 400);
+});
+
+test('chercher : tous les mots du chemin, dans la zone permise seulement', async () => {
+  const nas = nasInvente();
+  const r = { racines: ['MODELES - OUTILS'], exclus: ['compta'] };
+  const trouve = await nl.chercherNasLibre(nas, 'modèle PROCURATION', '', r);
+  assert.deepEqual(trouve.resultats.map((x) => x.chemin), ['MODELES - OUTILS/Modele procuration.txt']);
+  assert.deepEqual((await nl.chercherNasLibre(nas, 'modele hors', '', r)).resultats, [], 'hors des dossiers ouverts');
+  assert.deepEqual((await nl.chercherNasLibre(nas, 'bilan', '', r)).resultats, [], 'nom écarté');
+  assert.ok(!(await nl.chercherNasLibre(nas, 'outil', '', r)).resultats.some((x) => /\.exe$/.test(x.chemin)), 'jamais un exécutable');
+  assert.equal((await nl.chercherNasLibre(nas, 'a', '', r)).statut, 400);
+  // Toute la racine ouverte : l'autre dossier se cherche aussi.
+  assert.equal((await nl.chercherNasLibre(nas, 'modele hors', '', { racines: [], exclus: [] })).resultats.length, 1);
+});
+
+test('lire : texte seulement, permis seulement, repris par tranches ; un PDF et un exécutable refusés', async () => {
+  const nas = nasInvente();
+  const r = { racines: ['MODELES - OUTILS'], exclus: ['compta'] };
+  const ok = await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/Modele procuration.txt', 0, r);
+  assert.match(ok.texte, /donne pouvoir/);
+  assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/Compta/Bilan 2025.txt', 0, r)).statut, 403);
+  assert.equal((await nl.lireTexteNasLibre(nas, 'AUTRES/Courrier divers.txt', 0, r)).statut, 403);
+  assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/outil.exe', 0, r)).statut, 400);
+  assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/a.pdf', 0, r)).statut, 415);
+  assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/.cache/x.txt', 0, r)).statut, 400);
+  fs.writeFileSync(path.join(nas, 'MODELES - OUTILS', 'long.txt'), 'x'.repeat(nl.MAX_CARACTERES_TEXTE + 10));
+  const p1 = await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/long.txt', 0, r);
+  assert.equal(p1.suite, nl.MAX_CARACTERES_TEXTE);
+  const p2 = await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/long.txt', p1.suite, r);
+  assert.equal(p2.texte.length, 10);
+  assert.equal(p2.suite, undefined);
+});
+
+test('un lien symbolique ne sort jamais de la racine du NAS', async (t) => {
+  const nas = nasInvente();
+  const dehors = fs.mkdtempSync(path.join(os.tmpdir(), 'hors-nas-'));
+  fs.writeFileSync(path.join(dehors, 'secret.txt'), 'hors du NAS');
+  try { fs.symlinkSync(dehors, path.join(nas, 'MODELES - OUTILS', 'lien')); } catch (_) { t.skip('liens symboliques indisponibles'); return; }
+  const r = { racines: [], exclus: [] };
+  assert.ok((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/lien/secret.txt', 0, r)).erreur);
+  assert.deepEqual((await nl.chercherNasLibre(nas, 'secret', '', r)).resultats, []);
+});
+
+test('routes : 403 tant que c’est éteint, puis lister / chercher / texte / pdf confinés aux réglages', async () => {
+  const express = require('express');
+  const { creerRouteurNasLibre } = require('../src/routes/nasLibre');
+  const nas = nasInvente();
+  fs.writeFileSync(path.join(nas, 'MODELES - OUTILS', 'Modele.pdf'), '%PDF-1.4 inventé');
+  fs.writeFileSync(path.join(nas, 'AUTRES', 'Dehors.pdf'), '%PDF-1.4 inventé');
+  const stock = {};
+  const repo = { lireJsonBrut: (cle, defaut) => (cle in stock ? stock[cle] : defaut), ecrireJsonBrut: (cle, v) => { stock[cle] = v; } };
+  const app = express();
+  app.use(express.json());
+  app.use('/api', creerRouteurNasLibre({ nasRacine: nas }, repo));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  const base = `http://127.0.0.1:${serveur.address().port}/api/nas-libre`;
+  try {
+    for (const u of ['/lister', '/chercher?texte=modele', '/texte?chemin=a.txt', '/pdf?chemin=a.pdf']) assert.equal((await fetch(base + u)).status, 403, `${u} éteint`);
+    const put = await fetch(base + '/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: true, racines: ['MODELES - OUTILS'], exclus: ['compta'] }) });
+    assert.equal((await put.json()).actif, true);
+    assert.equal((await (await fetch(base + '/lister?sous=MODELES%20-%20OUTILS')).json()).fichiers.length, 2);
+    assert.equal((await fetch(base + '/lister?sous=AUTRES')).status, 403);
+    assert.equal((await (await fetch(base + '/chercher?texte=procuration')).json()).resultats.length, 1);
+    assert.equal((await fetch(base + '/texte?chemin=' + encodeURIComponent('MODELES - OUTILS/Modele procuration.txt'))).status, 200);
+    const pdf = await fetch(base + '/pdf?chemin=' + encodeURIComponent('MODELES - OUTILS/Modele.pdf'));
+    assert.equal(pdf.status, 200);
+    assert.equal(pdf.headers.get('content-type'), 'application/pdf');
+    assert.equal((await fetch(base + '/pdf?chemin=' + encodeURIComponent('AUTRES/Dehors.pdf'))).status, 403);
+    assert.equal((await fetch(base + '/pdf?chemin=' + encodeURIComponent('MODELES - OUTILS/Modele procuration.txt'))).status, 400);
+    assert.equal((await fetch(base + '/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ racines: 'x' }) })).status, 400);
+  } finally { serveur.close(); }
+});

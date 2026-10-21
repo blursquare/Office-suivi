@@ -236,6 +236,16 @@ const OUTILS_AGENT = [
       } }
   },
   {
+    name: 'nas_libre',
+    description: 'Lecture LIBRE du NAS de l’étude (au-delà du dossier d’un client), seulement si l’étude l’a ouverte dans les Réglages, dans les dossiers qu’elle a choisis ; lecture seule, jamais d’écriture. lister : le contenu d’un dossier (sous = element_id rendu par une liste ou une recherche, "" = la racine ouverte) avec, par entrée, element_id, type, intitule (son nom, noms de personnes remplacés par des codes), taille, date ; chercher : fichiers et dossiers dont le chemin porte TOUS les mots (texte), sous = element_id d’un dossier pour limiter la recherche ou "" ; lire : le texte d’un fichier Word, texte ou CSV (element_id, debut = position de reprise rendue par « suite ») — pour un PDF, lire rend un document_id à lire ensuite avec lire_document. Cherche par le NOM (pas dans le contenu) : pour une question sur le contenu, cherche le bon fichier puis lis-le.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['action', 'sous', 'texte', 'element_id', 'debut'],
+      properties: {
+        action: { type: 'string', enum: ['lister', 'chercher', 'lire'] },
+        sous: chaine('lister / chercher : element_id d’un dossier, "" = la racine ouverte'), texte: chaine('chercher : les mots du chemin à trouver, sinon ""'),
+        element_id: chaine('lire : element_id d’un fichier, sinon ""'), debut: { type: 'number', description: 'lire : position de reprise (0 au début, ou « suite »)' }
+      } }
+  },
+  {
     name: 'agenda_evenement',
     description: 'Modifie ou supprime un rendez-vous EXISTANT de l’agenda de l’office, après l’autorisation de l’utilisateur (une carte « Autoriser / Refuser » ; le résultat de l’outil agenda donne evenement_id). deplacer : nouvelle date et heure de début (heure_fin = nouvelle fin, "" = même durée) ; renommer : nouveau titre ; supprimer : le rendez-vous va dans les éléments supprimés d’Outlook (récupérable). Pour CRÉER un rendez-vous, une option ou un sondage : faire_geste. Un rendez-vous de signature déplacé emmène la fiche du dossier ; un seul essai, pas de réessai automatique.',
     input_schema: { type: 'object', additionalProperties: false, required: ['action', 'evenement_id', 'date', 'heure', 'heure_fin', 'titre'],
@@ -287,9 +297,9 @@ const OUTILS_AGENT = [
       } }
   }
 ];
-// `strict` : l'API limite le nombre d'outils stricts par requête (20, à notre connaissance) — les quatre outils ajoutés le 21/10 n'y sont
+// `strict` : l'API limite le nombre d'outils stricts par requête (20, à notre connaissance) — les cinq outils ajoutés le 21/10 n'y sont
 // pas (leurs champs restent tous obligatoires et le poste revalide chaque entrée), les 20 d'avant gardent leur schéma strict.
-const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement'];
+const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre'];
 for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.
@@ -306,6 +316,7 @@ Comment tu travailles :
 - Analyse d'un acte déposé (promesse, compromis, projet d'acte, acte de vente, offre de prêt, état daté, diagnostic) : la même profondeur qu'une conversation Claude avec le document sous les yeux — lis tout, vérifie les incohérences (noms, états civils, montants, dates, surfaces, références cadastrales, quotes-parts), puis rends, selon ce que le document contient : **Synthèse** ; **Parties** (état civil, régime, représentation) ; **Bien** (désignation, cadastre, lots, origine de propriété) ; **Prix et paiement** (prix, mobilier, honoraires, séquestre, financement) ; **Conditions suspensives et délais** (prêt, vente préalable, préemption, SAFER, urbanisme) avec leurs dates ; **Engagements** de chaque partie ; **Charges, servitudes, urbanisme, copropriété, diagnostics** ; **Points d'attention** classés (à régler avant la signature, à vérifier) ; **Pièces ou informations manquantes**. Pour un avant-contrat ou un projet d'acte, appelle aussi controles_relecture et intègre ses constats. Un point absent du texte se dit « non trouvé dans le document », jamais « conforme ».
 - Documents : pour analyser un compromis, une offre de prêt, un état daté, un diagnostic… liste les documents du dossier, LIS ceux qui comptent (par tranches de 30 pages pour un long acte) et appuie chaque constat sur la page. Pour un courrier, une note à conserver ou un document Word demandé, produis-le avec rediger_document (forme « courrier » pour toute lettre : elle sort sur le papier à en-tête de l'office) plutôt que de le recopier dans ta réponse ; ta réponse dit alors en une ou deux phrases ce que contient le document. Une analyse ou un compte rendu se rend dans la conversation. Sers-t'en dès qu'une question touche un dossier, une date, une tâche : ne réponds jamais de mémoire et n'invente aucun fait (date, pièce, montant, nom, statut). Enchaîne les outils autant que nécessaire (chercher le dossier, puis lire sa fiche, puis comparer…), plusieurs à la fois quand ils sont indépendants.
 - Plus loin que la lecture (étude 21/10 : « qu'il puisse faire plus ») : tu ranges et défais les scans du copieur (scans_claire : lister, ranger, laisser, historique, remettre, chercher), tu ranges le dossier du client sur le NAS (nas_dossier : lister, renommer, déplacer — jamais supprimer), tu déplaces, renommes ou supprimes un rendez-vous de l'agenda de l'office (agenda_evenement), tu crées des rendez-vous et prépares des emails (faire_geste ; chaque email s'ouvre dans sa fenêtre, rien ne part sans « Envoyer »). Pour une demande qui touche PLUSIEURS dossiers, prépare tout puis fais UN lot (actions_en_lot) : une seule autorisation pour l'ensemble, au lieu d'une par geste ; ne mets dans un lot que des actions certaines. Avant de ranger un scan, regarde sa proposition (dossier sûr ? doublon ?) et ne range jamais un doublon sans le dire. Toute modification passe par l'autorisation de l'utilisateur : si elle refuse, ne recommence pas.
+- Lecture libre du NAS (nas_libre) : si l'étude l'a ouverte, tu peux chercher et lire hors du dossier d'un client (modèles, archives, fichiers de l'étude) ; elle ne cherche que dans les NOMS : propose des mots de recherche variés, regarde les dossiers voisins (lister) avant de conclure qu'un fichier n'existe pas. Si l'outil répond que la lecture est éteinte, dis-le simplement : c'est un réglage de l'étude.
 - Questions qui portent sur TOUS les dossiers (« quelle offre de prêt avec inscription hypothécaire avons-nous reçue en octobre ? », « lesquels signent ce mois-ci sans offre ? », « qui a une SAFER en cours ? ») : n'attends pas qu'un nom te soit donné — appelle lister_dossiers (etat « tous » pour inclure les dossiers archivés) et filtre toi-même sur ses champs (offre_de_pret_recue_le, garanties_du_pret, inscription_hypothecaire, signature, date_butoir…), puis lis la fiche des dossiers retenus pour confirmer. Dis combien de dossiers tu as parcourus et, si la liste est coupée, filtre par responsable pour couvrir le reste. Une date « reçue le » est celle où CLAIRE a retrouvé l'offre : dis-le si l'étude demande une date certaine.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
 - Les noms des personnes, adresses, agences, notaires, emails et téléphones t'arrivent remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). Utilise-les tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent. Quand l'en-tête dit que l'anonymisation est désactivée, les noms arrivent en clair : n'en mets alors jamais dans une recherche Légifrance, BOFiP ou du registre des entreprises (sauf le nom complet d'une société pour ce dernier).
@@ -715,11 +726,15 @@ async function tourAgent(entree, o) {
       if (nomAppel === 'chercher_conversations' && typeof o.sensiblesConversations === 'function') {
         try { for (const m of motsSensiblesDossiers([{ parties: o.sensiblesConversations().map((v) => ({ nom: v })) }])) conv.sensibles.add(m); } catch (e) { /* jamais bloquant */ }
       }
-      let contenu = /^(legifrance|bofip)__/.test(nomAppel)
+      // Lecture libre du NAS : les noms de dossiers et de fichiers de l'étude (« MODELES - OUTILS », « Procuration ») doivent rester
+      // lisibles pour qu'elle s'y retrouve — masquage léger (mots des fiches, emails, téléphones, IBAN ; ni capitales ni majuscules) ; le
+      // TEXTE d'un fichier lu reste masqué comme un document.
+      const nasLibreNoms = nomAppel === 'nas_libre' && !(brut && typeof brut.texte === 'string');
+      let contenu = /^(legifrance|bofip)__/.test(nomAppel) || (nasLibreNoms && conv.anonymiser !== false)
         ? JSON.stringify(masquerValeurLegere(brut === undefined ? null : brut, conv.sensibles, conv.table))
         : conv.anonymiser === false ? JSON.stringify(brut === undefined ? null : brut)
           // Le texte d'un document lu par l'outil : masquage adapté aux documents (lisible, linéaire), comme les pièces jointes.
-          : nomAppel === 'lire_document' ? JSON.stringify(masquerValeurDocument(brut === undefined ? null : brut, conv.sensibles, conv.table))
+          : (nomAppel === 'lire_document' || (nomAppel === 'nas_libre' && brut && typeof brut.texte === 'string')) ? JSON.stringify(masquerValeurDocument(brut === undefined ? null : brut, conv.sensibles, conv.table))
             : JSON.stringify(masquerValeur(brut === undefined ? null : brut, conv.sensibles, conv.table));
       // Identifiants (SIREN…) rendus par le registre des entreprises : publics, rétablis vers le registre seulement.
       if (/^rne__/.test(nomAppel)) {
@@ -735,7 +750,7 @@ async function tourAgent(entree, o) {
         conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
         conv.externesUtilises = true;
       }
-      if (['lire_document', 'controles_relecture'].includes((conv.nomsAppels || {})[id]) && !r.erreur) {
+      if (['lire_document', 'controles_relecture'].includes((conv.nomsAppels || {})[id]) && !r.erreur || ((conv.nomsAppels || {})[id] === 'nas_libre' && brut && typeof brut.texte === 'string')) {
         if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
         }
@@ -967,5 +982,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, retablirValeur, nettoyerReponseAgent,
+module.exports = { blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };

@@ -13,6 +13,7 @@
     evenementsAgent = { parId: {}, parItem: {}, n: 0 };
     scansAgent_ = { parNom: {}, parId: {}, n: 0 };
     elementsNasAgent = { parCle: {}, parId: {}, n: 0 };
+    reinitialiserNasLibreAgent();
   }
 
   // L'identifiant donné à l'agent pour un rendez-vous de l'agenda ('' sans identifiant Outlook : il ne se modifie pas).

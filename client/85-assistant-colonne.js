@@ -133,7 +133,7 @@
     const ancien = pdfApercuAssistant;
     const promesse = (doc.sorte === 'joint'
       ? doc.fichier.arrayBuffer().then(data => pdfjsLib.getDocument({ isEvalSupported: false, data, verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise)
-      : ouvrirPdfNas(doc.chemin));
+      : (doc.libre ? ouvrirPdfNasLibre(doc.chemin) : ouvrirPdfNas(doc.chemin)));
     pdfApercuAssistant = { docId, promesse };
     // L'ancien PDF n'est libéré qu'une fois le nouveau demandé (un dessin en cours de l'ancien s'arrête alors sans dommage).
     if (ancien) ancien.promesse.then(pdf => { try { pdf.destroy(); } catch (e) { /* déjà libéré */ } }).catch(() => {});

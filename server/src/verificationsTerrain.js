@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'nas-libre', depuis: '0.304.0', source: 'poste', titre: 'Demander à CLAIRE : chercher et lire dans le NAS hors d\u2019un dossier client (lecture libre, éteinte par défaut)',
+    comment: 'Coché à la première lecture réussie. À regarder au bureau : Réglages › IA et relecture d\u2019actes › « Lecture libre du NAS », allumer et ouvrir un dossier (ex. MODELES - OUTILS) ; demander à Claude « trouve le modèle de … » : recherche par nom, lecture d\u2019un Word, d\u2019un PDF (lire_document). Un dossier non ouvert ou un nom écarté ne doit jamais apparaître ; éteint, l\u2019outil répond que c\u2019est un réglage de l\u2019étude.' },
   { id: 'agent-pouvoirs', depuis: '0.303.0', source: 'poste', titre: 'Demander à CLAIRE : ranger un scan, renommer ou déplacer une pièce du NAS, déplacer un rendez-vous de l\u2019agenda, un lot d\u2019actions',
     comment: 'Coché au premier geste réussi demandé à Claude. À regarder au bureau avec la clé Claude : « range ce scan dans le dossier MARTIN » (carte Autoriser, copie dans le bon sous-dossier, pièce cochée), « renomme la CNI » et « mets-la dans le dossier Acquéreur » sur le vrai NAS, « décale la signature de vendredi à 15 h » dans l\u2019agenda partagé (Exchange), « note X sur ces trois dossiers » (une seule carte). Refuser doit laisser tout en place.' },
   { id: 'scan-memoire', depuis: '0.301.0', source: 'poste', titre: 'Claire Scan : un rangement corrigé à la main est reconnu au scan suivant ; « Remettre dans Scan » défait un rangement',

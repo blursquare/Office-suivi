@@ -7,7 +7,7 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { tourAgent, requeteAgent, masquerValeur, nettoyerReponseAgent, coutAgentUsd, entreeOutilPourPoste, viderConversationsAgent, OUTILS_AGENT, MAX_TOURS_OUTILS } = require('../src/assistantAgent');
+const { tourAgent, requeteAgent, masquerValeur, masquerValeurLegere, nettoyerReponseAgent, coutAgentUsd, entreeOutilPourPoste, viderConversationsAgent, OUTILS_AGENT, MAX_TOURS_OUTILS } = require('../src/assistantAgent');
 const { motsSensiblesDossiers } = require('../src/assistantMistral');
 
 const D = [{ id: 'd1', nom: 'FOURNIER / GAUTHIER', parties: [{ nom: 'FOURNIER', prenom: 'Paul' }, { nom: 'GAUTHIER', prenom: 'Léa' }],
@@ -676,3 +676,36 @@ test('plus de pouvoirs (21/10) : la liste du NAS garde le nom des fichiers lisib
   assert.doesNotMatch(m.entrees[0].intitule, /Paul|FOURNIER/);
 });
 
+
+test('lecture libre du NAS (21/10) : outil déclaré non strict ; noms de fichiers lisibles mais sans personne ; texte lu masqué comme un document', () => {
+  const o = OUTILS_AGENT.find((t) => t.name === 'nas_libre');
+  assert.ok(o && o.strict === false);
+  assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
+  assert.ok(OUTILS_AGENT.filter((t) => t.strict).length <= 20);
+  const m = masquerValeurLegere({ resultats: [{ element_id: 'lf3', type: 'fichier', intitule: 'AUTRES/CNI Paul FOURNIER.pdf' }, { element_id: 'lf4', type: 'fichier', intitule: 'MODELES - OUTILS/Procuration.docx' }] }, motsSensiblesDossiers(D), new Map());
+  assert.equal(m.resultats[1].intitule, 'MODELES - OUTILS/Procuration.docx', 'les noms de l’étude restent lisibles');
+  assert.doesNotMatch(m.resultats[0].intitule, /Paul|FOURNIER/, 'un mot des fiches est masqué, quelle que soit sa place');
+});
+
+test('lecture libre du NAS (21/10) : de bout en bout, noms de l’étude lisibles, mots des fiches et tiers du texte masqués', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'nas_libre', { action: 'chercher', sous: '', texte: 'procuration', element_id: '', debut: 0 })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'nas_libre', { action: 'lire', sous: '', texte: '', element_id: 'lf1', debut: 0 })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voici le modèle.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Trouve le modèle de procuration', dossiers: D, contexte: { aujourdhui: '2026-10-21' } }, o);
+  assert.equal(r.appels[0].nom, 'nas_libre');
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { nombre: 2, resultats: [
+    { element_id: 'lf1', type: 'fichier', intitule: 'MODELES - OUTILS/Procuration générale.docx', taille: '12 Ko', modifie: '2025-03-02' },
+    { element_id: 'lf2', type: 'fichier', intitule: 'MODELES - OUTILS/Procuration Paul FOURNIER.docx', taille: '9 Ko', modifie: '2026-01-04' }] } }] }, o);
+  const noms = JSON.stringify(client.requetes[1].messages);
+  assert.match(noms, /MODELES - OUTILS\/Procuration générale\.docx/, 'les noms de l’étude restent lisibles');
+  assert.doesNotMatch(noms, SECRETS, 'un mot des fiches est masqué : ' + noms.slice(-500));
+  assert.equal(r.appels[0].nom, 'nas_libre');
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { texte: 'PROCURATION\nJe soussigné Monsieur Paul FOURNIER, demeurant 2 rue des Tanneurs,\ndonne pouvoir à Monsieur Gérard LEMAIRE, g.lemaire@cabinet-exemple.fr, 02 54 12 34 56.', caracteres_total: 150, debut: 0 } }] }, o);
+  const lu = JSON.stringify(client.requetes[2].messages);
+  assert.doesNotMatch(lu, SECRETS, 'aucune donnée des fiches dans le texte lu : ' + lu.slice(-600));
+  assert.doesNotMatch(lu, /LEMAIRE|g\.lemaire|02 54 12 34 56/, 'un tiers du texte ne part pas : ' + lu.slice(-600));
+  assert.match(lu, /donne pouvoir/);
+});
