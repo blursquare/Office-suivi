@@ -300,6 +300,8 @@
     // Comparants d'Authentic (étude 15/10) : un héritier « conjoint survivant », ou le défunt « époux/épouse de ».
     const comps = d && d.authentic && Array.isArray(d.authentic.comparants) ? d.authentic.comparants : [];
     if (comps.some((/** @type {any} */ c) => c && c.role === 'HERITIER' && /survivant/i.test(String(c.qualite || '')))) return true;
+    // Une partie reprise du volet de la fiche du défunt (étude 21/10) : qualité « Conjoint survivant ».
+    if ((d && Array.isArray(d.parties) ? d.parties : []).some((/** @type {any} */ p) => p && /survivant/i.test(String(p.qualite || '')))) return true;
     const defunt = comps.find((/** @type {any} */ c) => c && c.role === 'DEFUNT');
     if (defunt && /^[ée]pou(?:x|se)\b/i.test(String(defunt.lien || ''))) return true;
     // Un héritier « veuve / veuf de » (relecture 15/10), ou « époux / épouse de » le défunt (nom de famille du défunt dans le nom du conjoint).

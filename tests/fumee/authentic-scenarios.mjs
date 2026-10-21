@@ -70,7 +70,7 @@ function pageDossier({ ref, intitule, comparants = [], immeubles = [], documents
   return { titre: 'Authentic', onglets: onglets(`${ref} ${intitule}`, autresOnglets), champs: [{ groupe: '', libelle: 'Rechercher', valeur: '' }],
     tableaux: documents.length ? [{ titre: '', entete: [], lignes: documents }] : [{ titre: '', entete: [], lignes: [['Compromis de vente', '', '01/09/2026', '', 'Signé']] }], texte };
 }
-function ficheClient({ civilite, nom, prenom, naissance = '14/02/1985', tel = '', email = '', ongletActif, autresOnglets = [], conjoint }) {
+function ficheClient({ civilite, nom, prenom, naissance = '14/02/1985', tel = '', email = '', ongletActif, autresOnglets = [], conjoint, situation }) {
   const id = (s) => ID + 'tabView:' + s;
   const champs = [
     { groupe: '', libelle: id('ficheClientPhysiqueIdentite:etude_input'), valeur: 'oui' },
@@ -92,7 +92,7 @@ function ficheClient({ civilite, nom, prenom, naissance = '14/02/1985', tel = ''
       { groupe: '', libelle: c('ficheClientPhysiqueIdentite:naissanceDate:naissanceDate'), valeur: '02/03/1980' },
       { groupe: '', libelle: 'Email', valeur: conjoint.email || '' });
   }
-  return { titre: 'Authentic', onglets: onglets(ongletActif, autresOnglets), champs, tableaux: [], texte: '' };
+  return { titre: 'Authentic', onglets: onglets(ongletActif, autresOnglets), champs, tableaux: situation ? [{ titre: 'Situation matrimoniale', entete: ['Situation', 'Date', 'Conjoint'], lignes: [[situation.situation, situation.date || '', situation.conjoint || '']] }] : [], texte: '' };
 }
 function ficheBien({ type = 'Maison individuelle', numero, voie, typeVoie = 'rue', cpVille, parcelles, ongletActif, autresOnglets = [] }) {
   const champs = [
@@ -681,6 +681,52 @@ try {
     constat(S, /2026-08-31/.test(apres3) && /alain\.coste/.test(apres3) && /claude\.coste/.test(apres3), `après la fiche d’une seconde héritière : ${apres3}`);
     constat(S, /○Fiche de Jeanne/.test(avant) && /✓Fiche de Jeanne/.test(apres3) && /✓Fiche de Alain COSTE/.test(apres3) && /✓Fiche de Claude COSTE/.test(apres3) && /○Fiche du bien/.test(apres3),
       `fiches à ouvrir cochées au fil des pages : ${apres3.split('à ouvrir : ')[1] || ''}`);
+    await page.evaluate(() => { reinitialiserFormulaire(); definirOnglet('dashboard'); });
+  }
+
+  // 40. Succession d'un mari décédé : épouse survivante (volet de la fiche du défunt), deux filles, un bien — rien ne disparaît d'une fiche à
+  // l'autre, la conjointe survivante figure avec les héritiers (étude 21/10 : « impossible d'ajouter la conjointe survivante »).
+  {
+    const S = '40. Succession : mari décédé, conjointe survivante, deux filles, un bien';
+    await envoyer(pageDossier({ ref: 'A 2026 00970', intitule: 'SUCC LEBLOND Pierre', sous: '1 - Succession Pierre LEBLOND',
+      comparants: [['M. LEBLOND Pierre', 'Défunt'], ['Mme LEBLOND Sophie', 'Héritier'], ['Mme LEBLOND Camille', 'Héritier']], immeubles: [['41000 BLOIS', '3 rue du Bourg']] }));
+    const ouvert = await page.evaluate(async () => {
+      definirOnglet('nouveau');
+      choisirModeImport('seul');
+      for (let i = 0; i < 40 && !groupesAuthenticRecents.some(g => /LEBLOND Pierre/.test(g.intitule)); i++) await new Promise(r => setTimeout(r, 150));
+      const i = groupesAuthenticRecents.findIndex(g => /LEBLOND Pierre/.test(g.intitule));
+      if (i < 0) return 'groupe absent';
+      creerDepuisAuthentic(i);
+      await new Promise(r => setTimeout(r, 600));
+      try { definirEtapeWizard(2); } catch (e) { /* déjà à Vérifier */ }
+      await new Promise(r => setTimeout(r, 400));
+      return 'ok';
+    });
+    const lire = () => page.evaluate(() => {
+      const val = (id) => { const el = document.getElementById(id); return el ? el.value : '∅'; };
+      const her = [...document.querySelectorAll('#wizard-bloc-succession .wizard-succ-liste')].map(u => u.textContent.replace(/\s+/g, ' ').trim()).join(' / ');
+      const conj = document.getElementById('f-succ-conjoint');
+      return `défunt « ${val('f-succ-prenoms')} ${val('f-succ-nom')} », décès ${val('f-succ-deces-date')} ; héritiers : ${her} ; conjoint : ${conj ? conj.options[conj.selectedIndex].text : '∅'}`;
+    });
+    const avant = await lire();
+    constat(S, ouvert === 'ok' && /Sophie LEBLOND/i.test(avant) && /Camille LEBLOND/i.test(avant), `Vérifier ouvert : ${avant} (${ouvert})`);
+    // La fiche du défunt : décès, et le volet de son épouse (situation « Marié(e) », conjointe vivante).
+    const defunt = ficheClient({ civilite: 'Monsieur', nom: 'Leblond', prenom: 'Pierre', naissance: '03/04/1948', ongletActif: 'LEBLOND Pierre',
+      conjoint: { civilite: 'Madame', nom: 'Leblond', prenom: 'Martine', email: 'martine.leblond@exemple.fr' }, situation: { situation: 'Marié(e)', date: '12/06/1975', conjoint: 'Martine LEBLOND' } });
+    defunt.champs.push({ groupe: '', libelle: ID + 'tabView:ficheClientPhysiqueIdentite:dateDeces:dateDeces', valeur: '30/09/2026' }, { groupe: '', libelle: 'CP, Ville (décès)', valeur: '41000 BLOIS' });
+    await envoyer(defunt);
+    await pause(4000);
+    const apres1 = await lire();
+    constat(S, /Sophie LEBLOND/i.test(apres1) && /Camille LEBLOND/i.test(apres1) && /2026-09-30/.test(apres1), `après la fiche du défunt : ${apres1}`);
+    await envoyer(ficheClient({ civilite: 'Madame', nom: 'Leblond', prenom: 'Sophie', naissance: '', tel: '06 11 22 33 44', email: 'sophie.leblond@exemple.fr', ongletActif: 'LEBLOND Sophie' }));
+    await pause(4000);
+    const apres2 = await lire();
+    constat(S, /2026-09-30/.test(apres2) && /Martine LEBLOND/i.test(apres2) && /Camille LEBLOND/i.test(apres2), `après la fiche d’une fille : ${apres2}`);
+    await envoyer(ficheClient({ civilite: 'Madame', nom: 'Leblond', prenom: 'Camille', naissance: '', tel: '06 55 66 77 88', email: 'camille.leblond@exemple.fr', ongletActif: 'LEBLOND Camille' }));
+    await pause(4000);
+    const apres3 = await lire();
+    constat(S, /2026-09-30/.test(apres3) && /Martine LEBLOND/i.test(apres3) && /Sophie LEBLOND/i.test(apres3) && /Camille LEBLOND/i.test(apres3), `après la seconde fille : ${apres3}`);
+    constat(S, /conjoint : Selon Authentic : oui/.test(apres3), `le conjoint survivant est « oui » : ${apres3.split('conjoint : ')[1] || ''}`);
     await page.evaluate(() => { reinitialiserFormulaire(); definirOnglet('dashboard'); });
   }
   // 31. Deux fenêtres CLAIRE ouvertes : la page n'est appliquée qu'une fois.

@@ -25,10 +25,12 @@ function dossierProvisoireSuccession(donnees) {
 function propositionWizardSuccession(donnees) {
   const d = dossierProvisoireSuccession(donnees);
   const df = defuntConstitution(d).champs;
+  const heritiers = personnesSuccession(d).heritiers;
   return {
     defunt: [df.prenoms, df.nom].filter(Boolean).join(' '), prenoms: df.prenoms || '', nom: df.nom || '', decesDate: df.decesDate || '', decesLieu: df.decesLieu || '',
-    conjoint: conjointSurvivant(d), type: typeSuccessionPropose(d),
-    heritiers: personnesSuccession(d).heritiers, biens: d.biens || [],
+    // La conjointe lue dans le volet de la fiche du défunt figure avec les héritiers : elle fait le conjoint survivant (étude 21/10).
+    conjoint: conjointSurvivant(d) || heritiers.some(h => /survivant/i.test(String(h.qualite || ''))), type: typeSuccessionPropose(d),
+    heritiers, biens: d.biens || [],
     // Bien principal (étude 16/10) : le premier bien de la liste — fiche bien d'Authentic lue, sinon la première ligne de la rubrique
     // « Immeubles » de la page du dossier.
     bienPrincipal: ((d.biens || [])[0] && d.biens[0].adresse) || String((d.authentic && d.authentic.premierImmeuble) || '')
@@ -176,6 +178,7 @@ function appliquerSaisieWizardSuccession(d, saisie, p) {
   if (Object.keys(defunt).length) d.defunt = defunt;
   const succ = Object.assign({}, d.succession || {});
   if (s.conjoint === 'oui' || s.conjoint === 'non') succ.conjointSurvivant = s.conjoint === 'oui';
+  else if (prop.conjoint === true) succ.conjointSurvivant = true;   // « Selon Authentic : oui » est gardé : la fiche ne le redéduit pas des seuls comparants.
   if (s.type && s.type !== prop.type) succ.type = s.type;
   if (/^\d{4}-\d{2}-\d{2}$/.test(s.ouverture || '')) succ.ouvertureLe = s.ouverture;
   if (Object.keys(succ).length) d.succession = succ;

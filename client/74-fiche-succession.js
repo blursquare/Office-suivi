@@ -961,7 +961,7 @@
     const comp = premier ? comparantsSuccession(d).find(c => (c.role === 'HERITIER' || (c.role === 'DEFUNT' && personne.deces)) && premierDe(c) === normaliserPourRecherche(premier) && noms.some(n => memePersonneNommee(n, c.nom))) : null;
     if (comp) return { nom: complet, role: 'PARTIE', nouvelle: true };
     // Conjoint survivant (étude 19/10) : lu dans le volet de la fiche du défunt, sa situation nomme le défunt — marié ou pacsé, vivant.
-    if (conjointSurvivantSuccession(d, personne)) return { nom: complet, role: 'PARTIE', nouvelle: true };
+    if (conjointSurvivantSuccession(d, personne)) return { nom: complet, role: 'PARTIE', qualite: 'Conjoint survivant', nouvelle: true };
     return null;
   }
 

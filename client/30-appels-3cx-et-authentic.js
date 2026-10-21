@@ -1709,7 +1709,7 @@
       d.parties = (Array.isArray(d.parties) ? d.parties : []).concat(Object.assign({
         nom: complet, role: 'PARTIE', qualiteActe: '', qualitePersonne: 'physique', representant: null, origine: 'authentic',
         emails: (personne.emails || []).slice(0, 3), telephones: (personne.telephones || []).slice(0, 3)
-      }, civiliteDepuisTexte(personne.civilite) ? { civilite: civiliteDepuisTexte(personne.civilite) } : {}, personne.nomUsage ? { nomUsage: personne.nomUsage } : {}));
+      }, civiliteDepuisTexte(personne.civilite) ? { civilite: civiliteDepuisTexte(personne.civilite) } : {}, personne.nomUsage ? { nomUsage: personne.nomUsage } : {}, partie.qualite ? { qualite: partie.qualite } : {}));
       noter(`Personne ajoutée d’après sa fiche Authentic : ${complet}`);
     }
     // Partie déjà sur la fiche : ses coordonnées et sa civilité manquantes viennent d'Authentic.
