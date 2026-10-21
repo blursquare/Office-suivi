@@ -21396,3 +21396,6 @@ Réponses de l'étude (1 à 6) : notoriété 4–6 mois inchangée ; INVENTAIRE 
 
 ### 21/10/2026 — inventaire = acte signé chez le client
 Étude : l'inventaire est un acte signé chez le client (prise du mobilier avec un commissaire de justice, pour réduire les droits), parfois en même temps que la notoriété, parfois en deux temps. Un rendez-vous « INVENTAIRE + NOTO … » (étape `notoriete`, titre contenant INVENTAIRE) sert aussi au contrôle des droits (`etapesSuccession`) ; « INVENTAIRE … » seul reste l'étape `controleDroits`.
+
+### 21/10/2026 — placer l'inventaire dans l'agenda en orange (0.310.0)
+Étude : « une fois le contrôle des droits fait, placer le rendez-vous de signature d'inventaire en orange (à l'extérieur), c'est un acte notarié ». `ETAPES_AGENDA_SUCCESSION.controleDroits` (client/76) : titre « SUCC - … - Inventaire », catégorie orange préchoisie (`typeRdv: confrere`, libellé de la catégorie « Chez un confrère »), pas une signature ; le bouton reste sur la carte du contrôle une fois fait, tant qu'aucun rendez-vous d'inventaire n'est placé.

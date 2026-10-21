@@ -11,7 +11,9 @@
     notoriete: { suffixe: 'Acte de notoriété', signature: true },
     declarationSuccession: { suffixe: 'Déclaration de succession', signature: true },
     // Tout autre rendez-vous du dossier (étude 16/10 : « il peut y avoir plusieurs rendez-vous par dossier ») : héritiers, inventaire…
-    autre: { suffixe: 'Rendez-vous', signature: false }
+    autre: { suffixe: 'Rendez-vous', signature: false },
+    // L'inventaire est un acte notarié signé chez le client, avec un commissaire de justice (étude 21/10) : rendez-vous « à l'extérieur », en orange.
+    controleDroits: { suffixe: 'Inventaire', signature: false, typeRdv: 'confrere' }
   };
 
   // Pure : le rendez-vous proposé pour une étape d'une succession → { titre, date, signature } ou null (étape sans rendez-vous).
@@ -22,7 +24,9 @@
     const auj = String(aujIso || '').slice(0, 10);
     if (etape === 'autre') return { titre: `${libelleDossierAffiche(d)} - ${def.suffixe}`, date: auj ? addDays(auj, 7) : auj, signature: false };
     const e = etapesSuccession(d, auj).find(x => x.type === etape);
-    if (!e || e.fait || e.rdvPlace || (etape === 'ouvertureSuccession' && e.iso)) return null;
+    // Le contrôle des droits fait, l'inventaire se place encore (étude 21/10) : seule la présence d'un rendez-vous l'en empêche.
+    if (!e || (e.fait && etape !== 'controleDroits') || e.rdvPlace || (etape === 'ouvertureSuccession' && e.iso)) return null;
+    if (etape === 'controleDroits') return { titre: `${libelleDossierAffiche(d)} - ${def.suffixe}`, date: auj ? addDays(auj, 14) : auj, signature: false, typeRdv: def.typeRdv };
     let date = etape === 'ouvertureSuccession' ? (auj ? addDays(auj, 7) : auj) : (e.fenetreDebut || e.iso || auj);
     if (date < auj) date = auj;
     const suffixe = etape === 'notoriete' && /declaration/i.test(normaliserPourRecherche(e.label)) ? 'Notoriété et déclaration de succession' : def.suffixe;
@@ -46,6 +50,9 @@
     const sig = document.getElementById('agenda-creation-signature');
     // Chaque rendez-vous d'une succession est gardé à part sur la fiche (`d.succession.rendezVous`) : la case suit l'étape.
     if (sig) sig.checked = !!r.signature;
+    // Inventaire : rendez-vous à l'extérieur, catégorie orange.
+    const radio = r.typeRdv ? document.querySelector(`input[name="agenda-creation-type"][value="${r.typeRdv}"]`) : null;
+    if (radio) radio.checked = true;
   }
 
   // ---- Les rendez-vous d'une succession (étude 16/10 : « plusieurs rendez-vous par dossier ») ----
@@ -82,7 +89,7 @@
     d.succession = Object.assign({}, d.succession, { rendezVous: rendezVousSuccessionAvecAjout(d, r) });
     if (r.etape === 'ouvertureSuccession') d.succession.ouvertureLe = r.date;
     synchroniserSignatureSuccession(d);
-    const libelle = { ouvertureSuccession: 'd’ouverture avec Sophie', notoriete: 'de l’acte de notoriété', declarationSuccession: 'de la déclaration de succession', acte: 'de signature' }[r.etape];
+    const libelle = { ouvertureSuccession: 'd’ouverture avec Sophie', notoriete: 'de l’acte de notoriété', controleDroits: 'de l’inventaire', declarationSuccession: 'de la déclaration de succession', acte: 'de signature' }[r.etape];
     ajouterHistorique(d, `Rendez-vous ${libelle || `« ${r.titre} »`} fixé depuis l’agenda : ${formatDateFr(r.date)}${r.heure ? ' à ' + r.heure : ''} (créé dans l’agenda Outlook).`);
     sauvegarder(d);
   }
