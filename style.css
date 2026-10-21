@@ -10480,3 +10480,8 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
   .asst-page.artefact-ouvert { grid-template-columns: minmax(0, 1fr); }
   .asst-moi .asst-corps { max-width: 92%; }
 }
+.asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr) minmax(600px, 62%); }
+.asst-page.artefact-ouvert.artefact-large .asst-cote { display: none; }
+.asst-art-corps > .asst-art-outil-place { margin: -16px; }
+@media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
+.asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }

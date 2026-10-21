@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.306.0';
+  const VERSION_APP = '0.307.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.307.0', date: '2026-10-21 08:57', resume: "Les outils de CLAIRE s'ouvrent maintenant dans le panneau de droite de « Demander à CLAIRE », déjà remplis avec le dossier : appel de fonds, quotités, contrôle de l'urbanisme, provision, prorata, forfait mobilier, répertoire. Ouvert depuis la barre latérale, l'outil retrouve son onglet habituel ; « Ouvrir dans un onglet » fait la même chose depuis le panneau. Les courriers et tableaux restent dans le panneau d'une conversation à l'autre (croix pour les fermer), et corriger le texte d'un courrier ne fait plus perdre le premier clic sur « Word » ou « PDF/A »." },
     { version: '0.306.0', date: '2026-10-21 08:47', resume: "« Demander à CLAIRE » prend l'allure de Claude : vos demandes dans une bulle, ses réponses en pleine largeur, une saisie arrondie. Et ce que CLAIRE produit s'ouvre dans un panneau à droite, comme un artefact : un courrier sur la page à en-tête de l'office (vous corrigez le texte directement sur la page, puis Word, PDF/A ou rangement dans le dossier, avec ou sans tampon et signature), un tableau modifiable à télécharger pour Excel (.xlsx ou CSV), ou la carte de l'outil avec les données de la fiche reprises et le bouton qui l'ouvre prérempli." },
     { version: '0.305.1', date: '2026-10-21 08:43', resume: "Le logo « Notaires de France » est net sur l'aperçu et le PDF/A des courriers (la copie utilisée faisait 280 pixels de large, celle du modèle Word 766). Lecture libre du NAS : un dossier ouvert mal saisi est refusé au lieu d'ouvrir tout le NAS, et les exclusions valent aussi pour les raccourcis qui mènent à un dossier exclu." },
     { version: '0.305.0', date: '2026-10-21 08:35', resume: "Demander à CLAIRE sait calculer librement : totaux, classements, moyennes, regroupements sur tous les dossiers, comparaisons, et il peut vous remettre un tableau à télécharger (ouvert dans Excel). Le calcul est écrit par l'IA mais exécuté sur votre poste, dans un espace fermé sans accès à Internet ni au reste de CLAIRE ; les valeurs réelles de vos dossiers ne partent pas, l'IA ne reçoit que le résultat (noms masqués). Le code utilisé est visible sous la réponse (« Voir le code »)." },

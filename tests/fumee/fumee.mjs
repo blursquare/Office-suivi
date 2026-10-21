@@ -331,11 +331,18 @@ try {
         const tableau = { cellules: document.querySelectorAll('#assistant-artefact td[contenteditable]').length, onglets: document.querySelectorAll('#assistant-artefact .asst-art-onglet').length };
         ouvrirOutilArtefactAssistant('Appel de fonds', dossiers[0], () => {});
         const outil = !!document.querySelector('#assistant-artefact .asst-art-outil');
-        reinitialiserArtefactsAssistant();
-        return { courrier, tableau, outil, ferme: !document.querySelector('.asst-page.artefact-ouvert') };
+        // Un outil monté dans le panneau : écran déplacé (visible, prérempli), retour à sa place depuis la barre latérale.
+        await outilClaireAgent({ outil: 'quotites', mode: 'ouvrir', dossier_id: 'f1', texte: '' });
+        await new Promise(r => setTimeout(r, 300));
+        const monte = { dansPanneau: !!document.querySelector('#assistant-artefact #onglet-quotites'), visible: document.getElementById('onglet-quotites').offsetParent !== null, ecran: ongletActuel, large: !!document.querySelector('.asst-page.artefact-large') };
+        definirOnglet('quotites');
+        const rendu = { retour: document.getElementById('onglet-quotites').parentElement.classList.contains('app-main'), visible: document.getElementById('onglet-quotites').offsetParent !== null };
+        definirOnglet('assistant');
+        while (artefactCourantAssistant()) fermerArtefactAssistant();
+        return { courrier, tableau, outil, monte, rendu, ferme: !document.querySelector('.asst-page.artefact-ouvert') && !document.querySelector('#assistant-artefact #onglet-quotites') };
       });
-      verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.ferme,
-        `[${ecran.nom}] artefacts : courrier sur papier à en-tête modifiable, tableau modifiable, carte d'outil, fermeture`);
+      verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.monte.dansPanneau && art.monte.visible && art.monte.ecran === 'assistant' && art.monte.large && art.rendu.retour && art.rendu.visible && art.ferme,
+        `[${ecran.nom}] artefacts : courrier sur papier à en-tête modifiable, tableau modifiable, carte d'outil, outil monté dans le panneau puis rendu à son onglet, fermeture`);
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }

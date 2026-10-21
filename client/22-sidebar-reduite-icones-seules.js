@@ -190,6 +190,8 @@
     // Une fiche affichée en page (client/60-onglets-travail.js) laisse la place à l'écran choisi ; son onglet reste.
     // Une fiche ancrée à côté (étape 3) reste : c'est tout l'intérêt de l'ouvrir à côté d'un outil.
     if (dossierOuvert && !ficheACoteActive()) fermerDossierDrawer();
+    // Un outil monté dans le panneau de « Demander à CLAIRE » (client/99) retourne à sa place avant d'être affiché comme onglet.
+    if (typeof demonterOutilAssistant === 'function') demonterOutilAssistant(nom);
     ongletActuel = nom;
     noterOngletEcran(nom);
     renderOngletsTravail();
@@ -281,4 +283,5 @@
     if (nom === 'inventaire') initInventaire();
     if (nom === 'preemption') initPreemption();
     if (nom === 'constitution') initConstitution();
+    if (typeof reafficherOutilsMontesAssistant === 'function') reafficherOutilsMontesAssistant(nom);
   }

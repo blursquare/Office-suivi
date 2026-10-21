@@ -38,22 +38,24 @@
   }
 
   // Ouvre l'outil, pré-rempli du dossier quand l'outil le permet (dans le geste de l'utilisateur : clic sur le bouton).
-  function ouvrirOutilClaireAgent(outil, d, confirme) {
+  // `apres` : appelée une fois l'outil ouvert (pour le monter dans le panneau des artefacts, client/99) — aussi après une confirmation.
+  function ouvrirOutilClaireAgent(outil, d, confirme, apres) {
     const o = OUTILS_CLAIRE_AGENT[outil];
     if (!o) return;
+    const fin = () => { if (typeof apres === 'function') apres(); };
     const etat = { quotites: qtDossierLie || '', appelFonds: afDossierLie || '',
       urbanisme: prEtat && prEtat.dossierId ? prEtat.dossierId : '' };
     if (!confirme && travailEnCoursOutilAgent(outil, d, etat)) {
-      demanderConfirmation(`Remplacer le travail en cours dans l’outil ${o.libelle} ? Il porte sur un autre dossier et sera perdu.`, () => ouvrirOutilClaireAgent(outil, d, true));
+      demanderConfirmation(`Remplacer le travail en cours dans l’outil ${o.libelle} ? Il porte sur un autre dossier et sera perdu.`, () => ouvrirOutilClaireAgent(outil, d, true, apres));
       return;
     }
     // Déjà sur ce dossier : on montre l'outil sans le remettre à zéro.
-    if (dossierDejaDansOutilAgent(outil, d, etat)) { definirOnglet(o.onglet); return; }
-    if (outil === 'appel_fonds' && d) { preparerAppelFondsDepuisDossier(d.id); return; }
-    if (outil === 'controle_urbanisme' && d) { ouvrirPreemptionDepuisFiche(d.id); return; }
+    if (dossierDejaDansOutilAgent(outil, d, etat)) { definirOnglet(o.onglet); fin(); return; }
+    if (outil === 'appel_fonds' && d) { preparerAppelFondsDepuisDossier(d.id); fin(); return; }
+    if (outil === 'controle_urbanisme' && d) { ouvrirPreemptionDepuisFiche(d.id); fin(); return; }
     definirOnglet(o.onglet);
-    if (!d) return;
-    if (outil === 'quotites') choisirDossierQuotites(d.id);
+    if (d && outil === 'quotites') choisirDossierQuotites(d.id);
+    fin();
   }
 
   // Pure : ce que l'outil donne à lire pour un dossier (ou le répertoire pour un texte) — un objet, ou { erreur }.
@@ -109,10 +111,15 @@
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
     if (e.mode === 'ouvrir') {
-      const idArtefact = ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d));
-      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} est prêt à ouvrir (carte à droite).</p>`,
-        [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
-      return { fait: true, bouton_affiche: `Ouvrir ${o.libelle}` };
+      // Un outil qui se monte dans le panneau (étude 21/10 : « oui, je le veux ») s'y ouvre tout de suite, prérempli ; les autres (Claire Scan,
+      // Nouveau dossier) gardent leur onglet de travail et le panneau montre leur carte.
+      const montable = outilMontableAssistant(o.onglet);
+      const idArtefact = ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d), { onglet: o.onglet, outil: e.outil });
+      if (montable) monterOutilAssistant(idArtefact);
+      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} ${montable ? 'est ouvert à droite, prérempli.' : 'est prêt à ouvrir (carte à droite).'}</p>`,
+        montable ? [{ libelle: 'Voir l’outil', action: () => choisirArtefactAssistant(idArtefact) }]
+          : [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
+      return { fait: true, affiche_a_l_utilisateur: montable ? `${o.libelle} ouvert dans le panneau de droite, prérempli avec le dossier` : `bouton « Ouvrir ${o.libelle} » affiché` };
     }
     try { return lectureOutilClaireAgent(e.outil, d, e.texte); } catch (err) { return { erreur: 'lecture impossible : ' + String(err && err.message || err).slice(0, 120) }; }
   }

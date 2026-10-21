@@ -87,3 +87,10 @@ test('tableau : cellule numérique reconnue (virgule), code à zéro initial et 
   assert.doesNotMatch(f['xl/workbook.xml'], /[<>/:?*]1>/);
   assert.match(f['xl/workbook.xml'], /name="Offres {2}&lt;1&gt; 2"/);
 });
+
+test('courrier : signature « Maître … » reconnue, titre « # » en gras, pas de doublon de signature', () => {
+  const d = app.documentCourrierDepuisTexteAgent('Mairie\n\nBlois, le 2 mars 2027\n\n# Objet : demande\n\nMadame, Monsieur,\n\nBonjour.\n\nMaître Sophie GOSSART', 'x');
+  assert.equal(d.signature, 'Me  Sophie GOSSART');
+  assert.ok([...d.lignes].includes('**Objet : demande**'));
+  assert.ok(![...d.lignes].some(l => /GOSSART/.test(l)), 'la signature n’est pas répétée dans le corps');
+});
