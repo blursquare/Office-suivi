@@ -54,3 +54,34 @@ test('agenda lu par l’agent : la nature du rendez-vous, jamais son titre', () 
   assert.equal(app.natureRendezVousAgent({ sujet: 'Déjeuner chez Paul' }), 'autre rendez-vous');
   assert.equal(app.natureRendezVousAgent(null), 'autre rendez-vous');
 });
+
+// ---- Plus de pouvoirs (étude 21/10) : client/96-assistant-pouvoirs.js ----
+test('un lot d’actions : une phrase puis une ligne par action', () => {
+  const app = chargerApplication();
+  const t = app.descriptionLotAgent(['Marquer reçue la pièce « RIB » — VTE - MARTIN.', '', 'Noter dans l’historique : « relancé » — VTE - DURAND.']);
+  assert.equal(t.split('\n')[0], '2 actions à faire, d’un seul coup :');
+  assert.equal(t.split('\n').length, 3);
+  assert.equal(app.descriptionLotAgent(['x']).split('\n')[0], '1 action à faire, d’un seul coup :');
+  // La carte rend le lot en liste, échappée.
+  const html = app.htmlAutorisationAgent(t.replace('relancé', '<b>relancé</b>'), '');
+  assert.match(html, /<ul class="asst-liste"><li>/);
+  assert.ok(!html.includes('<b>'));
+});
+
+test('identifiants opaques : un rendez-vous, un scan, un élément du NAS gardent le même identifiant', () => {
+  const app = chargerApplication();
+  const e = { itemId: 'AAMk-1', date: '2026-10-22' };
+  const id = app.idEvenementAgent(e);
+  assert.match(id, /^ev\d+$/);
+  assert.equal(app.idEvenementAgent({ itemId: 'AAMk-1', date: '2026-10-22' }), id);
+  assert.equal(app.idEvenementAgent({ date: '2026-10-22' }), '', 'sans identifiant Outlook, il ne se modifie pas');
+  assert.equal(app.idScanAgent('SCAN_1.pdf'), app.idScanAgent('SCAN_1.pdf'));
+  assert.notEqual(app.idScanAgent('SCAN_1.pdf'), app.idScanAgent('SCAN_2.pdf'));
+  const f = app.idElementNasAgent('d1', '1 - Vendeur/CNI.pdf', 'fichier');
+  const r = app.idElementNasAgent('d1', '1 - Vendeur', 'dossier');
+  assert.match(f, /^nf\d+$/);
+  assert.match(r, /^nd\d+$/);
+  assert.equal(app.idElementNasAgent('d1', '1 - Vendeur/CNI.pdf', 'fichier'), f);
+  app.reinitialiserPouvoirsAgent();
+  assert.equal(app.idScanAgent('SCAN_9.pdf'), 'sc1');
+});

@@ -71,7 +71,10 @@
   function htmlAutorisationAgent(description, etat) {
     const tete = etat === 'autorise' ? '<span class="asst-autorisation-etat ok">Autorisé</span>'
       : etat === 'refuse' ? '<span class="asst-autorisation-etat non">Refusé</span>' : '<span class="asst-autorisation-etat">À autoriser</span>';
-    return `<div class="asst-autorisation">${tete}<p>${escapeHtml(description)}</p></div>`;
+    // Plusieurs lignes (un lot d'actions) : la première en phrase, les autres en liste.
+    const lignes = String(description || '').split('\n').filter(Boolean);
+    const corps = lignes.length > 1 ? `<p>${escapeHtml(lignes[0])}</p><ul class="asst-liste">${lignes.slice(1).map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>` : `<p>${escapeHtml(description)}</p>`;
+    return `<div class="asst-autorisation">${tete}${corps}</div>`;
   }
 
   // Une nouvelle conversation ou une page quittée : la carte en attente vaut refus (la boucle de l'agent reprend la main).

@@ -703,29 +703,38 @@
     const d = dossierDeEvenement(e);
     const note = d && e.signature ? ' La date reste sur la fiche du dossier.' : '';
     demanderConfirmation(`Supprimer le rendez-vous « ${e.sujet || 'sans titre'} » ${quand} de l’agenda de l’office ? Il ira dans les éléments supprimés d’Outlook.${note}`, async () => {
-      try {
-        const reponse = await fetchAvecAuth('/api/exchange/evenement/supprimer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ itemId: e.itemId, changeKey: e.changeKey || '' })
-        });
-        const corps = await reponse.json();
-        if (!corps.ok) { afficherToast(corps.message || 'La suppression a échoué.', 'OK', null); return; }
-        agendaEvenements = agendaEvenements.filter(x => x.itemId !== e.itemId);
-        if (d) {
-          if (estSuccession(d)) majRendezVousSuccessionAgenda(d, e.itemId, null);
-          if (d.rdvAgendaItem && d.rdvAgendaItem.itemId === e.itemId) { d.rdvAgendaItem = null; d.rdvAgendaCreeLe = null; }
-          ajouterHistorique(d, `Rendez-vous « ${e.sujet} » ${quand} supprimé de l’agenda de l’office depuis CLAIRE.`);
-          sauvegarder(d);
-        }
-        agendaModale = null;
-        agendaSelection = null;
-        afficherToast(corps.message || 'Rendez-vous supprimé.', 'OK', null);
-        renderPageAgenda();
-      } catch (err) {
-        afficherToast('Serveur injoignable — rendez-vous non supprimé.', 'OK', null);
-      }
+      const r = await retirerEvenementAgenda(e);
+      afficherToast(r.message, 'OK', null);
     });
+  }
+
+  // Retire le rendez-vous de l'agenda de l'office (MoveToDeletedItems, un seul essai) et met la fiche à jour. Sans confirmation : celle de
+  // l'écran (supprimerEvenementAgenda) ou l'autorisation de « Demander à CLAIRE » vient avant. → { ok, message }.
+  async function retirerEvenementAgenda(e) {
+    const quand = e.heure ? `du ${dateAvecJourFr(e.date)} à ${e.heure.replace(':', ' h ')}` : `du ${dateAvecJourFr(e.date)}`;
+    const d = dossierDeEvenement(e);
+    try {
+      const reponse = await fetchAvecAuth('/api/exchange/evenement/supprimer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: e.itemId, changeKey: e.changeKey || '' })
+      });
+      const corps = await reponse.json();
+      if (!corps.ok) return { ok: false, message: corps.message || 'La suppression a échoué.' };
+      agendaEvenements = agendaEvenements.filter(x => x.itemId !== e.itemId);
+      if (d) {
+        if (estSuccession(d)) majRendezVousSuccessionAgenda(d, e.itemId, null);
+        if (d.rdvAgendaItem && d.rdvAgendaItem.itemId === e.itemId) { d.rdvAgendaItem = null; d.rdvAgendaCreeLe = null; }
+        ajouterHistorique(d, `Rendez-vous « ${e.sujet} » ${quand} supprimé de l’agenda de l’office depuis CLAIRE.`);
+        sauvegarder(d);
+      }
+      agendaModale = null;
+      agendaSelection = null;
+      renderPageAgenda();
+      return { ok: true, message: corps.message || 'Rendez-vous supprimé.' };
+    } catch (err) {
+      return { ok: false, message: 'Serveur injoignable — rendez-vous non supprimé.' };
+    }
   }
 
   function renderModaleAgenda() {

@@ -215,17 +215,25 @@
     const j = (etatScans.journal || []).find(x => x.id === id);
     if (!j) return;
     demanderConfirmation(`Remettre « ${j.nom} » dans le dossier Scan ? La copie quittera le dossier du client et la pièce cochée sur la fiche sera décochée.`, async () => {
-      let r;
-      try {
-        const rep = await fetchAvecAuth('/api/scans/annuler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        r = await rep.json().catch(() => ({}));
-        if (!rep.ok) { afficherToast(r.erreur || 'Le scan n’a pas pu être remis dans Scan.', 'OK', null); return; }
-      } catch (e) { afficherToast('Serveur injoignable.', 'OK', null); return; }
-      try { await annulerPieceRangeeScan(r.entree); } catch (e) { console.warn('Pièce non décochée :', e && e.message); }
-      noterVerificationPoste('scan-memoire', { detail: 'scan remis dans le dossier Scan' });
-      afficherToast(`« ${j.nom} » est de retour dans le dossier Scan${r.copieRetiree === false ? ' (la copie du dossier client n’a pas pu être retirée : retirez-la à la main)' : ''}.`, 'OK', null);
-      await chargerScans(true);
+      const r = await remettreRangementScan(id);
+      afficherToast(r.message, 'OK', null);
     }, { bouton: 'Remettre', ton: 'valider' });
+  }
+
+  // Défait un rangement (la confirmation, ou l'autorisation de « Demander à CLAIRE », vient avant). → { ok, message }.
+  async function remettreRangementScan(id) {
+    const j = (etatScans.journal || []).find(x => x.id === id);
+    if (!j) return { ok: false, message: 'Ce rangement n’est plus dans le journal.' };
+    let r;
+    try {
+      const rep = await fetchAvecAuth('/api/scans/annuler', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+      r = await rep.json().catch(() => ({}));
+      if (!rep.ok) return { ok: false, message: r.erreur || 'Le scan n’a pas pu être remis dans Scan.' };
+    } catch (e) { return { ok: false, message: 'Serveur injoignable.' }; }
+    try { await annulerPieceRangeeScan(r.entree); } catch (e) { console.warn('Pièce non décochée :', e && e.message); }
+    noterVerificationPoste('scan-memoire', { detail: 'scan remis dans le dossier Scan' });
+    await chargerScans(true);
+    return { ok: true, message: `« ${j.nom} » est de retour dans le dossier Scan${r.copieRetiree === false ? ' (la copie du dossier client n’a pas pu être retirée : retirez-la à la main)' : ''}.` };
   }
 
   // La pièce cochée par ce rangement (même fichier mémorisé) repasse manquante ; jamais une pièce validée par un autre fichier.

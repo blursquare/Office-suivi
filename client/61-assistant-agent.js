@@ -15,6 +15,7 @@
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', rediger_document: 'Je rédige le document…',
     outil_claire: 'J’utilise l’outil…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…',
+    actions_en_lot: 'Je prépare le lot d’actions…', scans_claire: 'Je regarde Claire Scan…', nas_dossier: 'Je regarde le dossier du NAS…', agenda_evenement: 'Je prépare la modification de l’agenda…',
     faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…', chercher_conversations: 'Je cherche dans nos conversations passées…'
   };
 
@@ -174,7 +175,7 @@
       .sort((a, b) => (a.date + (a.heure || '')).localeCompare(b.date + (b.heure || '')))
       .slice(0, 200).map(e => {
         const d = dossierDeRendezVousAgent(e);
-        return { date: e.date, heure: e.journeeEntiere ? '' : (e.heure || ''), fin: e.heureFin || '', journee_entiere: !!e.journeeEntiere,
+        return { evenement_id: idEvenementAgent(e), date: e.date, heure: e.journeeEntiere ? '' : (e.heure || ''), fin: e.heureFin || '', journee_entiere: !!e.journeeEntiere,
           nature: natureRendezVousAgent(e), categories: (e.categories || []).filter(c => /^[A-Za-zÀ-ÿ /-]{1,30}$/.test(String(c))),
           dossier_id: d ? d.id : '', dossier: d ? libelleDossierAffiche(d) : '' };
       }) };
@@ -278,6 +279,10 @@
     if (nom === 'rediger_document') return redigerDocumentAgent(e);
     if (nom === 'outil_claire') return outilClaireAgent(e);
     if (nom === 'action_dossier') return actionDossierAgent(e);
+    if (nom === 'actions_en_lot') return actionsEnLotAgent(e);
+    if (nom === 'scans_claire') return scansAgent(e);
+    if (nom === 'nas_dossier') return nasDossierAgent(e);
+    if (nom === 'agenda_evenement') return evenementAgendaAgent(e);
     if (nom === 'demander_collaborateur') return demanderCollaborateurAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     if (nom === 'consulter_site') return consulterSiteAgent(e);
@@ -361,4 +366,4 @@
     }
   }
 
-  function oublierConversationAgent() { assistantAgentConversation = ''; oublierDocumentsAgent(); refuserAutorisationEnAttente(); }
+  function oublierConversationAgent() { assistantAgentConversation = ''; oublierDocumentsAgent(); reinitialiserPouvoirsAgent(); refuserAutorisationEnAttente(); }

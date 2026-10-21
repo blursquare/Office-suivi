@@ -258,10 +258,10 @@ function renommerFichierExplorateurNas(chemin) {
 }
 
 // Le déplacement lui-même (fenêtre « Déplacer » et glisser-déposer) ; « Annuler » remet le fichier d'où il vient.
-async function deplacerVersExplorateurNas(chemin, vers) {
+async function deplacerVersExplorateurNas(chemin, vers, dossierIdForce) {
   const nom = String(chemin).split('/').pop();
   const dossierActuel = String(chemin).includes('/') ? String(chemin).slice(0, String(chemin).lastIndexOf('/')) : '';
-  const dossierId = explorateurNas.dossierId;
+  const dossierId = dossierIdForce || explorateurNas.dossierId;
   const r = await gesteExplorateurNas('deplacer', { chemin, vers }, dossierId);
   if (r.erreur) return r.erreur;
   noterVerificationPoste('explorateur-nas', { detail: 'pièce déplacée' });

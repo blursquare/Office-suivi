@@ -627,3 +627,34 @@ test('sansNomsPropres : un identifiant Légifrance ou BOFiP reste intact', () =>
   assert.equal(r.q, 'voir JORFTEXT000041234567 vente BOI-ENR-DMTOM-10-10-20190101');
 });
 
+
+test('plus de pouvoirs (21/10) : noms de fichiers du NAS, de scans et d’agenda masqués, identifiants opaques intacts', () => {
+  const table = new Map();
+  const m = masquerValeur({
+    dossier_affiche: '1 - Vendeur',
+    entrees: [{ element_id: 'nf6', type: 'fichier', nom: 'CNI Paul FOURNIER.pdf' }, { element_id: 'nf7', type: 'fichier', nom: 'Carte Léa GAUTHIER - Dubreuil Immobilier.pdf' }],
+    scans_en_attente: [{ scan_id: 'sc1', dossier_propose: { id: 'd1', libelle: 'VTE - FOURNIER / GAUTHIER' }, pourquoi: 'Score 5/6 : 2 parties nommées +6' }],
+    resultats: [{ dossier: 'VTE - FOURNIER', extrait: 'Madame Léa GAUTHIER, 2 rue des Tanneurs à Blois' }],
+    rangements: [{ entree_id: '1bce4ca4-ebc6-4e7d-84c0-b426c0d7eb63', dossier: 'VTE - FOURNIER' }]
+  }, motsSensiblesDossiers(D), table);
+  const texte = JSON.stringify(m);
+  assert.doesNotMatch(texte, SECRETS);
+  assert.equal(m.entrees[0].element_id, 'nf6');
+  assert.equal(m.scans_en_attente[0].scan_id, 'sc1');
+  assert.equal(m.rangements[0].entree_id, '1bce4ca4-ebc6-4e7d-84c0-b426c0d7eb63');
+});
+
+test('plus de pouvoirs (21/10) : les nouveaux outils sont déclarés, stricts, et l’agent est prévenu des autorisations', () => {
+  const { SYSTEME_AGENT } = require('../src/assistantAgent');
+  for (const nom of ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement']) {
+    const o = OUTILS_AGENT.find((x) => x.name === nom);
+    assert.ok(o, nom);
+    assert.equal(o.strict, true);
+    assert.equal(o.input_schema.additionalProperties, false);
+    assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort(), `${nom} : tous les champs requis (mode strict)`);
+  }
+  // Rien de destructeur : ni suppression sur le NAS, ni envoi d'email.
+  assert.deepEqual(OUTILS_AGENT.find((x) => x.name === 'nas_dossier').input_schema.properties.action.enum, ['lister', 'renommer', 'deplacer']);
+  assert.match(SYSTEME_AGENT, /actions_en_lot/);
+  assert.match(SYSTEME_AGENT, /autorisation de l'utilisateur/);
+});
