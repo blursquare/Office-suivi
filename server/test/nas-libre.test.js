@@ -134,3 +134,32 @@ test('relecture 21/10 : des dossiers saisis tous refusés n’ouvrent jamais tou
   assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/raccourci/Bilan 2025.txt', 0, r)).statut, 403, 'chemin réel exclu');
   assert.equal((await nl.listerNasLibre(nas, 'MODELES - OUTILS/raccourci', r)).statut, 403);
 });
+
+test('audit 21/10 : tout le NAS seulement sur demande explicite ; HTML forgé en temps linéaire ; Word forgé aussi', async () => {
+  const express = require('express');
+  const { creerRouteurNasLibre } = require('../src/routes/nasLibre');
+  const stock = {};
+  const repo = { lireJsonBrut: (cle, defaut) => (cle in stock ? stock[cle] : defaut), ecrireJsonBrut: (cle, v) => { stock[cle] = v; } };
+  const app = express(); app.use(express.json()); app.use('/api', creerRouteurNasLibre({ nasRacine: nasInvente() }, repo));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  const url = `http://127.0.0.1:${serveur.address().port}/api/nas-libre/reglages`;
+  const put = (corps) => fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  try {
+    assert.equal((await put({ actif: true, racines: [] })).status, 400);
+    assert.equal((await put({ actif: true })).status, 400);
+    assert.equal((await put({ actif: true, racines: [], toutLeNas: true })).status, 200);
+    assert.equal((await put({ actif: false, racines: [] })).status, 200, 'éteindre ne demande rien');
+  } finally { serveur.close(); }
+  const nas = nasInvente();
+  fs.writeFileSync(path.join(nas, 'AUTRES', 'forge.html'), '<script>'.repeat(200000) + 'texte');
+  const t0 = Date.now();
+  const rep = await nl.lireTexteNasLibre(nas, 'AUTRES/forge.html', 0, { racines: [], exclus: [] });
+  assert.ok(Date.now() - t0 < 3000, 'html forgé : ' + (Date.now() - t0) + ' ms');
+  assert.ok(rep.texte !== undefined);
+  const { texteDocumentXml } = require('../src/memoire');
+  const t1 = Date.now();
+  texteDocumentXml('<w:document>' + '<w:del '.repeat(200000) + '<w:p><w:r><w:t>vrai</w:t></w:r></w:p>');
+  texteDocumentXml('<w:p>'.repeat(200000));
+  assert.ok(Date.now() - t1 < 3000, 'xml forgé : ' + (Date.now() - t1) + ' ms');
+  assert.match(texteDocumentXml('<w:p><w:r><w:t>a</w:t></w:r><w:del w:id="1"><w:r><w:delText>x</w:delText></w:r></w:del></w:p><w:p><w:r><w:t>b</w:t></w:r></w:p>'), /a[\s\S]*b/);
+});

@@ -103,6 +103,26 @@ async function cheminReelPermis(nasRacine, abs, r) {
 /** @param {string} nom */
 function extensionDe(nom) { return path.extname(nom).toLowerCase(); }
 
+/** Pure : le HTML sans ses blocs <script> et <style>, par recherche linéaire (une regex paresseuse y était quadratique : un fichier forgé
+ * pouvait figer le serveur — audit 21/10, M1). Un bloc jamais refermé écarte le reste. @param {string} html */
+function sansScriptsNiStyles(html) {
+  const bas = html.toLowerCase();
+  let sortie = '';
+  let i = 0;
+  while (i < html.length) {
+    const a = bas.indexOf('<script', i);
+    const b = bas.indexOf('<style', i);
+    const debut = a < 0 ? b : b < 0 ? a : Math.min(a, b);
+    if (debut < 0) { sortie += html.slice(i); break; }
+    sortie += html.slice(i, debut) + ' ';
+    const fin = bas.indexOf(bas.startsWith('<script', debut) ? '</script' : '</style', debut);
+    if (fin < 0) break;
+    const ferme = bas.indexOf('>', fin);
+    i = ferme < 0 ? html.length : ferme + 1;
+  }
+  return sortie;
+}
+
 /** Un niveau du NAS : sous-dossiers et fichiers permis. @param {string} nasRacine @param {string} rel @param {{ racines: string[], exclus: string[] }} r */
 async function listerNasLibre(nasRacine, rel, r) {
   const propre = cheminRelatifPropre(rel);
@@ -120,15 +140,16 @@ async function listerNasLibre(nasRacine, rel, r) {
     const enfant = propre ? propre + '/' + e.name : e.name;
     if (e.isDirectory()) {
       if (cheminPermis(enfant, r) || (surLeCheminDUneRacine(enfant, r) && !exclu(segmentsSimples(enfant), r.exclus))) dossiers.push({ nom: e.name, chemin: enfant });
-    } else if (e.isFile() && cheminPermis(enfant, r) && !RE_EXECUTABLE.test(e.name)) {
-      let st = null;
-      try { st = await fsp.stat(path.join(abs, e.name)); } catch (_) { /* verrouillé : sans détail */ }
-      fichiers.push({ nom: e.name, chemin: enfant, taille: st ? st.size : null, modifieLe: st ? st.mtime.toISOString() : null });
-    }
+    } else if (e.isFile() && cheminPermis(enfant, r) && !RE_EXECUTABLE.test(e.name)) fichiers.push({ nom: e.name, chemin: enfant, taille: null, modifieLe: null });
   }
   const tri = (a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true });
   dossiers.sort(tri); fichiers.sort(tri);
-  return { chemin: propre, dossiers: dossiers.slice(0, 300), fichiers: fichiers.slice(0, 300), coupe: dossiers.length > 300 || fichiers.length > 300 };
+  const gardes = fichiers.slice(0, 300);
+  // La taille et la date des 300 premiers seulement, par paquets de 16 (SMB : un aller-retour par fichier — audit 21/10, M5).
+  for (let k = 0; k < gardes.length; k += 16) {
+    await Promise.all(gardes.slice(k, k + 16).map(async (f) => { try { const st = await fsp.stat(path.join(abs, f.nom)); f.taille = st.size; f.modifieLe = st.mtime.toISOString(); } catch (_) { /* verrouillé : sans détail */ } }));
+  }
+  return { chemin: propre, dossiers: dossiers.slice(0, 300), fichiers: gardes, coupe: dossiers.length > 300 || fichiers.length > 300 };
 }
 
 /** Recherche par NOM (chemin compris) dans la zone permise : tous les mots doivent y figurer. @param {string} nasRacine @param {string} texte @param {string} depuis
@@ -194,7 +215,7 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r) {
     const buf = await fsp.readFile(abs);
     texte = ext === '.docx' ? await texteDocx(buf) : buf.toString('utf8');
   } catch (_) { return { erreur: 'Fichier illisible.', statut: 422 }; }
-  if (ext === '.html' || ext === '.htm') texte = texte.replace(/<(script|style)\b[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ');
+  if (ext === '.html' || ext === '.htm') texte = sansScriptsNiStyles(texte).replace(/<[^>]+>/g, ' ').replace(/[ \t]+/g, ' ');
   const depart = Math.max(0, Math.min(texte.length, parseInt(String(debut), 10) || 0));
   const morceau = texte.slice(depart, depart + MAX_CARACTERES_TEXTE);
   const fin = depart + morceau.length;

@@ -38,7 +38,14 @@ function creerRouteurNasLibre(config, parametresRepo) {
     const refusees = nl.racinesRefusees(b.racines);
     if (refusees.length) { res.status(400).json({ erreur: `Dossier refusé : « ${refusees.join(' », « ')} » (un chemin depuis la racine du NAS, sans « .. » ni dossier caché). Rien n’a été enregistré.` }); return; }
     const avant = nl.lireNasLibre(parametresRepo);
-    res.json(nl.ecrireNasLibre(parametresRepo, { actif: b.actif === true, racines: b.racines === undefined ? avant.racines : b.racines, exclus: b.exclus === undefined ? avant.exclus : b.exclus }));
+    const racines = b.racines === undefined ? avant.racines : b.racines;
+    // Aucun dossier choisi = TOUT le NAS : demandé explicitement (audit 21/10, M3), jamais par oubli.
+    if (b.actif === true && nl.assainirNasLibre({ racines }).racines.length === 0 && b.toutLeNas !== true) {
+      res.status(400).json({ erreur: 'Aucun dossier choisi : cela ouvrirait TOUT le NAS à l’IA. Choisissez des dossiers, ou confirmez « tout le NAS ».', toutLeNas: true }); return;
+    }
+    const sortie = nl.ecrireNasLibre(parametresRepo, { actif: b.actif === true, racines, exclus: b.exclus === undefined ? avant.exclus : b.exclus });
+    console.warn(`[CLAIRE] Lecture libre du NAS ${sortie.actif ? 'ouverte' : 'éteinte'} (${sortie.racines.length ? sortie.racines.length + ' dossier(s)' : 'tout le NAS'}).`);
+    res.json(sortie);
   });
 
   routeur.get('/nas-libre/lister', routeAsync(async (req, res) => {

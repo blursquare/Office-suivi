@@ -58,6 +58,8 @@ function creerRouteurExplorateurNas(config, depot, parametresRepo) {
     res.setHeader('Content-Disposition', `${f.affichable ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.nom)}`);
     const flux = fs.createReadStream(f.abs);
     flux.on('error', () => { if (!res.headersSent) { res.removeHeader('Content-Disposition'); res.status(404).json({ erreur: 'Fichier illisible sur le NAS.' }); } else res.destroy(); });
+    // Un client qui abandonne ne laisse pas le fichier ouvert (audit 21/10, B5).
+    res.on('close', () => flux.destroy());
     flux.pipe(res);
   }));
 

@@ -729,3 +729,14 @@ test('calcul libre (21/10) : outil non strict ; le résultat d’un calcul sur l
   assert.doesNotMatch(envoye, SECRETS, 'aucune donnée des fiches : ' + envoye.slice(-500));
   assert.match(envoye, /180000/, 'les montants partent tels quels (choix de l’étude)');
 });
+
+test('audit 21/10 (H1) : un résultat de calcul qui recode des valeurs (base64, hexadécimal, lettres espacées, codes de caractères) est retenu', () => {
+  const { resultatCalculSuspect } = require('../src/assistantAgent');
+  assert.equal(resultatCalculSuspect({ total: 180000, par_type: { vente: 12, succession: 3 }, libelle: 'D001' }), false);
+  assert.equal(resultatCalculSuspect({ e: 'D u p o n t' }), true);
+  assert.equal(resultatCalculSuspect({ e: [68, 117, 112, 111, 110, 116] }), true);
+  assert.equal(resultatCalculSuspect({ e: Buffer.from('paul.dupont@mail.fr').toString('base64') }), true);
+  assert.equal(resultatCalculSuspect({ e: Buffer.from('paul.dupont@mail.fr').toString('hex') }), true);
+  assert.equal(resultatCalculSuspect({ m: 'Offres reçues en octobre : 4 dossiers sur 12, soit 33 %' }), false);
+  assert.equal(resultatCalculSuspect({ ids: ['f1', 'f2', 'abcdef123456'] }), false);
+});

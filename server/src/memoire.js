@@ -134,12 +134,46 @@ function sansEntitesXml(s) {
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 }
 
+/** Pure : le XML sans les blocs `ouvre … ferme`, par recherche linéaire (une regex paresseuse y est quadratique : un document forgé figeait
+ * le serveur — audit 21/10, M2). `<w:del` ne doit pas être le début de `<w:delText` : le caractère suivant est contrôlé. @param {string} xml @param {string} ouvre @param {string} ferme */
+function retirerBlocsXml(xml, ouvre, ferme) {
+  let sortie = '';
+  let i = 0;
+  while (i < xml.length) {
+    let d = xml.indexOf(ouvre, i);
+    while (d >= 0 && /[A-Za-z0-9]/.test(xml[d + ouvre.length] || '')) d = xml.indexOf(ouvre, d + 1);
+    if (d < 0) { sortie += xml.slice(i); break; }
+    sortie += xml.slice(i, d);
+    const f = xml.indexOf(ferme, d);
+    if (f < 0) break;
+    i = f + ferme.length;
+  }
+  return sortie;
+}
+
+/** Pure : les paragraphes `<w:p …>…</w:p>` d'un XML, par recherche linéaire — des objets `{ 0: texte }` comme les résultats de matchAll. @param {string} xml */
+function paragraphesXml(xml) {
+  /** @type {string[][]} */
+  const sortie = [];
+  let i = 0;
+  while (i < xml.length) {
+    let d = xml.indexOf('<w:p', i);
+    while (d >= 0 && /[A-Za-z0-9]/.test(xml[d + 4] || '')) d = xml.indexOf('<w:p', d + 1);
+    if (d < 0) break;
+    const f = xml.indexOf('</w:p>', d);
+    if (f < 0) break;
+    sortie.push([xml.slice(d, f + 6)]);
+    i = f + 6;
+  }
+  return sortie;
+}
+
 /** Pure : le texte d'un `word/document.xml` — un paragraphe par ligne (tabulations et retours conservés). Texte seulement : ni mise en
  * forme, ni commentaires, ni modifications suivies supprimées. @param {string} xml */
 function texteDocumentXml(xml) {
-  const sansSupprime = xml.replace(/<w:del\b[\s\S]*?<\/w:del>/g, '');
+  const sansSupprime = retirerBlocsXml(xml, '<w:del', '</w:del>');
   const lignes = [];
-  for (const m of sansSupprime.matchAll(/<w:p\b[\s\S]*?<\/w:p>/g)) {
+  for (const m of paragraphesXml(sansSupprime)) {
     const morceaux = [];
     for (const t of m[0].matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g)) {
       morceaux.push(t[1] !== undefined ? sansEntitesXml(t[1]) : (t[0].startsWith('<w:tab') ? '\t' : '\n'));

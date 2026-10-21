@@ -107,15 +107,16 @@
     } catch (err) { if (sortie) sortie.textContent = 'Réglages illisibles.'; }
   }
 
-  async function enregistrerNasLibre() {
+  async function enregistrerNasLibre(toutLeNas) {
     const sortie = document.getElementById('reglages-nas-libre-resultat');
     const inter = document.getElementById('reglages-nas-libre-actif');
     const racines = document.getElementById('reglages-nas-libre-racines');
     const exclus = document.getElementById('reglages-nas-libre-exclus');
     try {
       const r = await fetchAvecAuth('/api/nas-libre/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ actif: !!(inter && inter.checked), racines: lignesNasLibre(racines), exclus: lignesNasLibre(exclus) }) });
+        body: JSON.stringify({ actif: !!(inter && inter.checked), racines: lignesNasLibre(racines), exclus: lignesNasLibre(exclus), toutLeNas: toutLeNas === true }) });
       const j = await r.json().catch(() => ({}));
+      if (!r.ok && j.toutLeNas) { demanderConfirmation('Ouvrir TOUT le NAS à « Demander à CLAIRE » ? Aucun dossier n’est choisi : l’IA pourra chercher et lire (nom des fichiers masqué légèrement, texte masqué) dans tous les dossiers, y compris ceux des clients.', () => enregistrerNasLibre(true)); return; }
       if (!r.ok) { if (sortie) sortie.textContent = j.erreur || 'Non enregistré.'; return; }
       if (racines) racines.value = (j.racines || []).join('\n');
       if (exclus) exclus.value = (j.exclus || []).join('\n');

@@ -247,13 +247,13 @@ const OUTILS_AGENT = [
   },
   {
     name: 'calcul',
-    description: 'Calcul libre, comme un tableur ou un script : tu écris le CORPS d’une fonction JavaScript (le paramètre s’appelle donnees ; termine par return) que le poste exécute dans un bac à sable SANS réseau, avec un délai (10 s par défaut, 30 s au plus). Les données : donnees (un objet que tu fournis, ex. des nombres lus plus haut) et dossier_ids : ["*"] = tous les dossiers en résumé dans donnees.dossiers (id, libelle, type, archive, etat, responsable, signature, prochaine_echeance, offre_de_pret, offre_de_pret_recue_le, montant_du_pret, garanties_du_pret, inscription_hypothecaire, pieces_manquantes, fonds…), ou une liste d’id (40 au plus) = leur fiche complète. Les valeurs réelles restent sur le poste : toi tu ne reçois que ce que la fonction renvoie. Pour un tableau à remettre à l’utilisateur (téléchargeable en CSV, ouvert dans Excel), renvoie { tableau: { titre, colonnes: [..], lignes: [[..], ..] }, ...tes autres champs } : seuls le nombre de lignes et un aperçu te reviennent, jamais le tableau entier — n’y recopie donc pas les lignes ensuite. Tu ne peux ni lire un fichier, ni appeler un site, ni modifier un dossier : calcul, tri, filtre, regroupement, statistiques, comparaisons seulement. Un résultat compte au plus 30 000 caractères : renvoie des totaux ou un tableau, pas les données brutes.',
+    description: 'Calcul libre, comme un tableur ou un script : tu écris le CORPS d’une fonction JavaScript (le paramètre s’appelle donnees ; termine par return) que le poste exécute dans un bac à sable SANS réseau, avec un délai (10 s par défaut, 30 s au plus). Les données : donnees (un objet que tu fournis, ex. des nombres lus plus haut) et dossier_ids : ["*"] = tous les dossiers en résumé dans donnees.dossiers, SANS leur nom (un repère ref « D001 »… par dossier, rétabli en libellé dans le tableau que voit l’utilisateur ; id, type, archive, etat, responsable, signature, prochaine_echeance, offre_de_pret, offre_de_pret_recue_le, montant_du_pret, garanties_du_pret, inscription_hypothecaire, pieces_manquantes, fonds…). Une fiche complète n’entre jamais dans un calcul (lire_dossier, masqué). Les valeurs réelles restent sur le poste : toi tu ne reçois que ce que la fonction renvoie, sans valeur recodée (base64, hexadécimal, lettres séparées : le résultat serait retenu) ; mets les repères ref dans tes tableaux pour désigner les dossiers. Pour un tableau à remettre à l’utilisateur (téléchargeable en CSV, ouvert dans Excel), renvoie { tableau: { titre, colonnes: [..], lignes: [[..], ..] }, ...tes autres champs } : seuls le nombre de lignes et un aperçu te reviennent, jamais le tableau entier — n’y recopie donc pas les lignes ensuite. Tu ne peux ni lire un fichier, ni appeler un site, ni modifier un dossier : calcul, tri, filtre, regroupement, statistiques, comparaisons seulement. Un résultat compte au plus 30 000 caractères : renvoie des totaux ou un tableau, pas les données brutes.',
     input_schema: { type: 'object', additionalProperties: false, required: ['objectif', 'code', 'donnees', 'dossier_ids', 'delai_secondes'],
       properties: {
         objectif: chaine('ce que le calcul établit, en une phrase (montré à l’utilisateur)'),
         code: chaine('corps d’une fonction JavaScript : lit donnees, termine par return'),
         donnees: { type: 'object', additionalProperties: true, description: 'données que tu fournis au code ({} si aucune)' },
-        dossier_ids: { type: 'array', items: { type: 'string' }, description: '["*"] = tous les dossiers en résumé ; sinon les id dont la fiche est fournie ; [] = aucun' },
+        dossier_ids: { type: 'array', items: { type: 'string' }, description: '["*"] = tous les dossiers en résumé sans noms (repères ref) ; [] = aucun' },
         delai_secondes: { type: 'number', description: 'délai maximum en secondes (0 = 10 s)' }
       } }
   },
@@ -440,6 +440,25 @@ function argumentsDroitSansMontants(valeur) {
   if (Array.isArray(valeur)) return valeur.map(argumentsDroitSansMontants);
   if (valeur && typeof valeur === 'object') return Object.fromEntries(Object.entries(valeur).map(([k, v]) => [k, argumentsDroitSansMontants(v)]));
   return valeur;
+}
+
+
+/** Pure : un résultat de calcul qui ressemble à des données recodées pour échapper au masquage (base64 ou hexadécimal long, lettres
+ * espacées, séries de codes de caractères) est retenu : l'IA n'en voit rien (audit 21/10, H1 : le code du calcul est écrit par l'IA).
+ * @param {any} valeur */
+function resultatCalculSuspect(valeur) {
+  /** @type {string[]} */
+  const chaines = [];
+  let codes = 0;
+  (function parcourir(v) {
+    if (typeof v === 'string') chaines.push(v);
+    else if (Array.isArray(v)) { if (v.length >= 4 && v.every((x) => Number.isInteger(x) && x >= 32 && x <= 0x2ff)) codes++; v.forEach(parcourir); }
+    else if (v && typeof v === 'object') Object.values(v).forEach(parcourir);
+  })(valeur);
+  const t = chaines.join('\n').replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '');
+  return codes > 0
+    || /(?<![A-Za-z0-9+/])(?=[A-Za-z0-9+/]*\d)(?=[A-Za-z0-9+/]*[A-Za-z])[A-Za-z0-9+/]{16,}={0,2}(?![A-Za-z0-9+/])/.test(t)
+    || /(?<![\p{L}])(?:\p{L}[ .-]){5,}\p{L}(?![\p{L}])/u.test(t);
 }
 
 /** Masquage léger (textes de droit publics) : chaque chaîne passe par masquerCarnet. Pure. @param {any} valeur @param {Set<string>} sensibles @param {Map<string, string>} table */
@@ -734,6 +753,9 @@ async function tourAgent(entree, o) {
       const nomAppel = (conv.nomsAppels || {})[id] || '';
       // Légifrance et BOFiP : des textes publics de droit — seuls les mots des fiches, emails et téléphones sont masqués (le masquage
       // habituel, qui prend tout mot à majuscule, rendrait « Code civil » ou « Cour de cassation » illisibles). RNE : comme le reste.
+      if (nomAppel === 'calcul' && !r.erreur && resultatCalculSuspect(brut)) {
+        return { id, contenu: 'Résultat retenu : il contient des valeurs recodées (base64, hexadécimal, lettres séparées, codes de caractères). Renvoie des totaux, des repères (ref) ou des statuts, jamais des valeurs recopiées.', erreur: true };
+      }
       const avantCodes = new Set(conv.table.keys());
       // Mémoire des conversations : les noms masqués dans les conversations passées (gardés avec elles sur le serveur) le sont aussi ici,
       // même absents des fiches d'aujourd'hui (relecture 0.285.0 : dossier supprimé, tiers d'un document).
@@ -833,7 +855,8 @@ async function tourAgent(entree, o) {
         // Anonymisation désactivée : rien de nominatif ne part au registre — seul le nom COMPLET d'une société des fiches ou un numéro.
         : /^rne__/.test(b.nom) ? (conv.anonymiser === false || conv.aEteEnClair ? rneSansPersonnes(b.entree || {}, conv.societes || new Set())
           : retablirSocietes(b.entree || {}, conv.table, conv.societes || new Set(), conv.numsRne))
-          : entreeOutilPourPoste(b.nom, retablirValeur(b.entree || {}, conv.table)) })),
+          // `calcul` : les codes [NOM…] restent des codes — un nom rétabli dans le bac à sable pourrait en ressortir recodé (audit 21/10, H1).
+          : b.nom === 'calcul' ? (b.entree || {}) : entreeOutilPourPoste(b.nom, retablirValeur(b.entree || {}, conv.table)) })),
       ...(tour.texte ? { note: nettoyerReponseAgent(tour.texte, conv.table) } : {})
     };
   }
@@ -996,5 +1019,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, retablirValeur, nettoyerReponseAgent,
+module.exports = { blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };

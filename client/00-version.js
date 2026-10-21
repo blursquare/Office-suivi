@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.307.1';
+  const VERSION_APP = '0.307.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.307.2', date: '2026-10-21 11:31', resume: "Contrôle de sécurité de la version : le calcul de « Demander à CLAIRE » ne reçoit plus les noms des dossiers (un repère à la place, rétabli seulement dans le tableau que vous voyez) ; « Tout le NAS » demande une confirmation avant d'être ouvert à l'IA ; les fichiers Word ou HTML piégés ne peuvent plus figer le serveur ; la page de CLAIRE ne s'affiche plus dans le cadre d'un autre site." },
     { version: '0.307.1', date: '2026-10-21 09:36', resume: "« Demander à CLAIRE » : la liste des conversations se replie d'un clic (bouton à gauche du titre) pour laisser plus de place à la conversation et au panneau de droite ; le choix est retenu sur le poste." },
     { version: '0.307.0', date: '2026-10-21 08:57', resume: "Les outils de CLAIRE s'ouvrent maintenant dans le panneau de droite de « Demander à CLAIRE », déjà remplis avec le dossier : appel de fonds, quotités, contrôle de l'urbanisme, provision, prorata, forfait mobilier, répertoire. Ouvert depuis la barre latérale, l'outil retrouve son onglet habituel ; « Ouvrir dans un onglet » fait la même chose depuis le panneau. Les courriers et tableaux restent dans le panneau d'une conversation à l'autre (croix pour les fermer), et corriger le texte d'un courrier ne fait plus perdre le premier clic sur « Word » ou « PDF/A »." },
     { version: '0.306.0', date: '2026-10-21 08:47', resume: "« Demander à CLAIRE » prend l'allure de Claude : vos demandes dans une bulle, ses réponses en pleine largeur, une saisie arrondie. Et ce que CLAIRE produit s'ouvre dans un panneau à droite, comme un artefact : un courrier sur la page à en-tête de l'office (vous corrigez le texte directement sur la page, puis Word, PDF/A ou rangement dans le dossier, avec ou sans tampon et signature), un tableau modifiable à télécharger pour Excel (.xlsx ou CSV), ou la carte de l'outil avec les données de la fiche reprises et le bouton qui l'ouvre prérempli." },

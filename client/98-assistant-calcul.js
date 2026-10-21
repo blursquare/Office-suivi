@@ -18,6 +18,7 @@
   // Le code du Worker : `donnees` en paramètre, `return` du résultat (une promesse est attendue) ; rien d'autre que le langage.
   var SOURCE_WORKER_CALCUL = [
     '"use strict";',
+    '["fetch","XMLHttpRequest","WebSocket","EventSource","RTCPeerConnection","WebTransport","importScripts","BroadcastChannel"].forEach(function (k) { try { delete self[k]; self[k] = undefined; } catch (x) { /* déjà sans effet */ } });',
     'self.onmessage = function (e) {',
     '  var m = e.data || {};',
     '  function fin(r) { try { self.postMessage({ ok: true, valeur: JSON.parse(JSON.stringify(r === undefined ? null : r)) }); } catch (x) { self.postMessage({ erreur: "résultat non convertible en JSON : " + String(x && x.message || x) }); } }',
@@ -115,19 +116,23 @@
     return '﻿' + [t.colonnes.map(celluleCsvCalcul).join(';')].concat(t.lignes.map(l => t.colonnes.map((_, i) => celluleCsvCalcul(l[i])).join(';'))).join('\r\n') + '\r\n';
   }
 
-  // Les données du calcul, lues ICI : `donnees` de l'agent, plus les dossiers demandés (["*"] = tous, en résumé ; sinon la fiche lue).
+  // Les données du calcul, lues ICI : `donnees` de l'agent, plus — avec ["*"] seulement — le RÉSUMÉ de chaque dossier SANS son libellé
+  // (qui porte les noms) : un repère « D001 » le remplace, rétabli seulement dans le tableau montré à l'utilisateur (audit 21/10, H1 : le
+  // code du calcul est écrit par l'IA, il pourrait recoder un nom avant le masquage). Une fiche complète n'entre jamais dans le calcul.
   function donneesCalculAgent(entree) {
     const donnees = entree.donnees && typeof entree.donnees === 'object' && !Array.isArray(entree.donnees) ? { ...entree.donnees } : {};
     const ids = Array.isArray(entree.dossier_ids) ? entree.dossier_ids.map(String) : [];
-    if (!ids.length) return { donnees };
-    if (ids.includes('*')) {
-      donnees.dossiers = dossiers.filter(d => !d.supprime).slice(0, MAX_DOSSIERS_CALCUL).map(d => resumeDossierAgent(d));
-      return { donnees, note: dossiers.length > MAX_DOSSIERS_CALCUL ? `seuls les ${MAX_DOSSIERS_CALCUL} premiers dossiers ont été fournis` : '' };
-    }
-    const inconnus = ids.filter(i => !dossiers.some(d => d.id === i));
-    if (inconnus.length) return { erreur: 'dossier_ids : dossier inconnu (' + inconnus.slice(0, 3).join(', ') + ')' };
-    donnees.dossiers = ids.slice(0, 40).map(i => lireDossierAgent(dossiers.find(d => d.id === i)));
-    return { donnees };
+    const libelles = new Map();
+    if (!ids.length) return { donnees, libelles };
+    if (!ids.includes('*')) return { erreur: 'dossier_ids : seul ["*"] (résumé de chaque dossier, sans noms : un repère « ref » D001… par dossier) est permis ; pour une fiche, utilise lire_dossier' };
+    const liste = dossiers.filter(d => !d.supprime).slice(0, MAX_DOSSIERS_CALCUL);
+    donnees.dossiers = liste.map((d, i) => {
+      const { libelle, ...autres } = resumeDossierAgent(d);
+      const ref = 'D' + String(i + 1).padStart(3, '0');
+      libelles.set(ref, libelle);
+      return { ...autres, ref };
+    });
+    return { donnees, libelles, note: dossiers.length > MAX_DOSSIERS_CALCUL ? `seuls les ${MAX_DOSSIERS_CALCUL} premiers dossiers ont été fournis` : '' };
   }
 
   async function calculAgent(entree) {
@@ -163,7 +168,9 @@
     const boutons = [];
     if (tableau) {
       // Le tableau s'ouvre à droite (client/99) : cellules modifiables, Excel, CSV ; l'IA n'en voit qu'un aperçu.
-      const idArtefact = ouvrirArtefactAssistant({ type: 'tableau', titre: tableau.titre, colonnes: tableau.colonnes.slice(), lignes: tableau.lignes.map(l => l.slice()) });
+      // Les repères D001… sont remplacés par le libellé du dossier dans ce que voit l'utilisateur ; l'aperçu rendu à l'IA garde les repères.
+      const rendre = (c) => (typeof c === 'string' && lu.libelles.has(c) ? lu.libelles.get(c) : c);
+      const idArtefact = ouvrirArtefactAssistant({ type: 'tableau', titre: tableau.titre, colonnes: tableau.colonnes.slice(), lignes: tableau.lignes.map(l => l.map(rendre)) });
       boutons.push({ libelle: 'Ouvrir le tableau', action: () => choisirArtefactAssistant(idArtefact) });
       sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: apercuTableauCalcul(tableau.lignes),
         ...(tableau.coupe ? { coupe: `seules les ${MAX_LIGNES_TABLEAU_CALCUL} premières lignes sont gardées` } : {}) };

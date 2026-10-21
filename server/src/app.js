@@ -151,6 +151,12 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const app = express();
   // Avant tout : adresse et origine de la requête (securiteHote.js, audit 13/10).
   app.use(creerControleHote(config));
+  // La page de CLAIRE ne s'affiche jamais dans le cadre d'un autre site (clickjacking, cartes « Autoriser » comprises — audit 21/10, M8) ;
+  // seulement les pages HTML : les PDF du NAS s'affichent dans des cadres de CLAIRE même.
+  app.use((req, res, next) => {
+    if (req.path === '/' || req.path === '/index.html') { res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Content-Security-Policy', "frame-ancestors 'none'"); }
+    next();
+  });
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
   // Journal technique (erreurs, événements des postes) : alimente le rapport technique GitHub.
