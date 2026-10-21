@@ -745,8 +745,10 @@
         <span class="ag-autre-contexte">${escapeHtml(o.contexte)}</span></span>`).join('')}</span></div>`;
   }
 
-  function infosRendezVousDossier(d) {
+  function infosRendezVousDossier(d, e) {
     if (!d) return null;
+    // Étude 21/10 : pas de décompte ni de projet pour un rendez-vous de notoriété ou d'inventaire d'une succession.
+    const notorieteSeule = estSuccession(d) && e && (e.etapeSuccession || etapeEvenementSuccession(e)) === 'notoriete';
     return {
       responsable: d.responsable ? prenomCollaborateur(d.responsable) : '',
       // Pas de participation pour une succession (étude 16/10) : jamais de confrère.
@@ -754,7 +756,7 @@
       // Étude 05/10 : « le décompte, c'est à noter dans les dossiers de successions. Pour les ventes, on a l'appel de fonds si on
       // représente l'acquéreur et un décompte acquéreur si c'est un confrère, mais on marque appel de fonds envoyé » — une vente
       // montre donc l'appel de fonds seul, une succession le décompte.
-      etats: [
+      etats: notorieteSeule ? [] : [
         estSuccession(d)
           ? { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) || echeanceValidee(d, 'decompteSuccession') }
           : { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
@@ -799,7 +801,7 @@
     const e = place.e;
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
-    const infos = infosRendezVousDossier(d);
+    const infos = infosRendezVousDossier(d, e);
     const proba = probabiliteEvenementAgenda(d, e, auj, absencesOffice);
     const largeur = 100 / place.colonnes;
     const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
@@ -831,7 +833,7 @@
     if (agendaVue === 'semaine') return renderEvenementSemaine(place, auj);
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
-    const infos = infosRendezVousDossier(d);
+    const infos = infosRendezVousDossier(d, e);
     const proba = probabiliteEvenementAgenda(d, e, auj, absencesOffice);
     const largeur = 100 / place.colonnes;
     const style = `top:${place.haut.toFixed(2)}%;height:${place.hauteur.toFixed(2)}%;left:calc(${(place.colonne * largeur).toFixed(2)}% + 2px);width:calc(${largeur.toFixed(2)}% - 4px)`;
@@ -1669,7 +1671,7 @@
     const auj = isoAujourdhuiLocal();
     const teinte = teinteEvenementAgenda(e, categoriesRdvReglees());
     const d = dossierDeEvenement(e);
-    const infos = infosRendezVousDossier(d);
+    const infos = infosRendezVousDossier(d, e);
     const duree = dureeRendezVous(e.heure, e.heureFin);
     const jour = e.dateFin && e.dateFin !== e.date ? `Du ${dateAvecJourFr(e.date)} au ${dateAvecJourFr(e.dateFin)}` : dateAvecJourFr(e.date);
     const horaire = e.journeeEntiere || !e.heure ? 'Toute la journée' : `${duree ? duree + ' ' : ''}(${e.heure}${e.heureFin ? ' – ' + e.heureFin : ''})`;

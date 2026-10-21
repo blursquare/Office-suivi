@@ -301,8 +301,10 @@
       ajouter(e.attente || attenteRdv ? 'attente' : 'faire', base);
     });
     // Appel de fonds dit « pas nécessaire » : une carte discrète pour le rétablir.
-    const dernierActe = etapesSuccession(d, aujourdhuiIso).filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
-    if (s.appelFondsInutile === true && !(dernierActe && dernierActe.fait)) {
+    const etapesCartes = etapesSuccession(d, aujourdhuiIso);
+    const dernierActe = etapesCartes.filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
+    // Sans étape « Appel de fonds » (notoriété seule, 21/10) la carte « Rétablir » ne ferait rien.
+    if (s.appelFondsInutile === true && etapesCartes.some(x => x.type === 'decompteSuccession') && !(dernierActe && dernierActe.fait)) {
       ajouter('fait', { cle: 'succession:appelFondsInutile', titre: 'Appel de fonds — pas nécessaire', iso: '', sous: 'Fonds suffisants en comptabilité', categorie: 'succession', fait: true, auto: true,
         bouton: { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', false)`, titre: 'Prévoir de nouveau un appel de fonds avant le dernier rendez-vous', icone: icone('rotate-ccw'), libelle: 'Rétablir' } });
     }
@@ -688,7 +690,17 @@
     const aucuneMain = !(f && f.aucune) && !((f && f.inscriptions) || []).length
       ? `<wa-button appearance="outlined" size="s" type="button" onclick="marquerFcddvAucune('${idJs}')" title="La réponse du FCDDV ne mentionne aucune inscription : testament et donation entre époux passent à « non » s'ils ne sont pas encore répondus">${icone('check')} Aucune inscription</wa-button>` : '';
     return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
-      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}</div>${lignes}${f && f.aucune ? '' : ajout}</div>`;
+      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}${f && f.aucune ? `<wa-button appearance="plain" size="s" type="button" onclick="rouvrirFcddv('${idJs}')" title="Une inscription existe finalement : afficher le formulaire d’ajout">Corriger</wa-button>` : ''}</div>${lignes}${f && f.aucune ? '' : ajout}</div>`;
+  }
+
+  // « Aucune inscription » noté par erreur : le formulaire d'ajout revient.
+  function rouvrirFcddv(id) {
+    const d = dossiers.find(x => x.id === id);
+    if (!d || !d.succession || !d.succession.fcddv) return;
+    d.succession.fcddv.aucune = false;
+    ajouterHistorique(d, 'FCDDV : « aucune inscription » corrigé');
+    sauvegarder(d);
+    render();
   }
 
   function marquerFcddvAucune(id) {

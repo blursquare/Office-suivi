@@ -193,12 +193,14 @@
     // « Ouverture du testament / du coffre » n'est pas le rendez-vous d'ouverture de la succession (relecture 16/10).
     if (/OUVERTURE(?!\s+(?:DU|D'UN|DE\s+L'|DES?)\s+(?:TESTAMENT|COFFRE|COMPTE|PLI))/.test(t)) etape = 'ouvertureSuccession';
     // « NOTO prénom NOM », « NOTORIETE - … », « INVENTAIRE + NOTO … », « INVENTAIRE et NOTORIETE … » (étude 21/10) : la notoriété.
-    else if (/(?<![A-Z])NOTO(?:RIETE|RITE)?(?![A-Z])|(?<![A-Z])INVENTAIRE(?![A-Z])/.test(t)) etape = 'notoriete';
+    // NOTORIETE n'importe où dans le titre (comme avant) ; NOTO, NOTORITE et INVENTAIRE seulement en tête (« Contrôle des droits et inventaire »
+    // n'est pas un rendez-vous de signature).
+    else if (/NOTORIETE/.test(t) || /^\s*(?:INVENTAIRE|NOTO(?:RITE)?)(?![A-Z])/.test(t)) etape = 'notoriete';
     else if (/DECLARATION/.test(t)) etape = 'declarationSuccession';
     else if (/ATTESTATION|SIGNATURE|(?<![A-Z])ACTE(?![A-Z])/.test(t)) etape = 'acte';
     // « SUCC - prénom NOM », « SUCCESSION prénom NOM » seuls (rien après le nom) : attestation immobilière + déclaration de succession
     // (étude 21/10 : « c'est pour API + DS »).
-    else if (/^\s*SUCC(?:ESSION)?(?![A-Z])\s*[-–:]?\s*(?:(?!\s[-–:]\s).)+$/.test(t)) etape = 'declarationSuccession';
+    else if (/^\s*SUCC(?:ESSION)?(?![A-Z])\s*[-–:]?\s*(?:(?!\s[-–:]\s)[A-Z' .-])+$/.test(t)) etape = 'declarationSuccession';
     return provisoire && etape !== 'ouvertureSuccession' && etape !== 'autre' ? 'autre' : etape;
   }
 

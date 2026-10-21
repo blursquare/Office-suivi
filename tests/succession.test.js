@@ -990,3 +990,12 @@ test('agenda 21/10 : titres NOTO / INVENTAIRE / SUCC seuls', () => {
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DUPONT ?'), 'autre');
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - ouverture du testament'), 'autre');
 });
+
+test('agenda 21/10 : INVENTAIRE hors tête de titre et SUCC suivi de chiffres ne sont pas des actes', () => {
+  const S = require('../commun/succession');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - Contrôle des droits et inventaire'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - Inventaire'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DUPONT 14h'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DUPONT (visite)'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - Notoriété'), 'notoriete');
+});

@@ -572,8 +572,8 @@
     });
     const butoir = d.acte && !estSuccession(d) ? ` La date butoir de l’avant-contrat est le ${escapeHtml(formatDateFr(d.acte))}${d.rendezVousSignature ? ' (à titre d’information, le rendez-vous est fixé)' : ''}.` : '';
     const html = !dites.length ? `<p>Aucune échéance en cours sur <b>${nom}</b>.${butoir}</p>`
-      : dites.length === 1 ? `<p>Sur <b>${nom}</b>, il reste ${dites[0]}.${butoir}</p>`
-      : `<p>Sur <b>${nom}</b>, il reste ${dites.slice(0, -1).join(' ; ')}, puis ${dites[dites.length - 1]}.${butoir}</p>`;
+      : dites.length === 1 ? `<p>Sur <b>${nom}</b>, l’échéance est ${dites[0]}.${butoir}</p>`
+      : `<p>Sur <b>${nom}</b>, les échéances sont : ${dites.slice(0, -1).join(' ; ')}, puis ${dites[dites.length - 1]}.${butoir}</p>`;
     return { html, boutons: [boutonFicheAssistant(d)] };
   }
 
