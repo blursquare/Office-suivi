@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.308.2';
+  const VERSION_APP = '0.308.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.308.3', date: '2026-10-21 19:00', resume: "« Demander à CLAIRE » : quand Claude refuse la requête de l’agent, le détail donné par Claude est affiché (et noté au journal du serveur) pour en trouver la cause." },
     { version: '0.308.2', date: '2026-10-21 18:28', resume: "Successions « notoriété et déclaration » : deux étapes, chacune avec son rendez-vous (notoriété et déclaration ne sont pas toujours signées le même jour ; un seul rendez-vous « SUCC - … » sert encore aux deux), plus rien sur l’attestation immobilière ni de pièces d’immobilier pour ce type. Le décompte et l’appel de fonds suivent le rendez-vous de la déclaration." },
     { version: '0.308.1', date: '2026-10-21 18:13', resume: "« Demander à CLAIRE » : quand l’agent ne peut pas répondre, la vraie raison s’affiche au lieu du « Je n’ai pas bien saisi » de la lecture par mots-clés, qui ne sait pas lire une demande comme un calcul ou un tableau." },
     { version: '0.308.0', date: '2026-10-21 17:10', resume: "Successions dans l’agenda : « NOTO », « NOTORIETE », « INVENTAIRE + NOTO », « INVENTAIRE et NOTORIETE » suivis du prénom et du nom sont reconnus comme la notoriété du dossier, « SUCC - », « SUCCESSION » seuls comme l’attestation immobilière et la déclaration de succession ; plus d’envoi du décompte ni d’appel de fonds pour une notoriété seule. FCDDV : sans inscription, le formulaire d’ajout d’une inscription disparaît (« Corriger » le ramène) ; pas de pastilles « D » et « P » sur un rendez-vous de notoriété. « Demander à CLAIRE » répond en phrases, comme Claude : plus de cartes bordées, un tableau simple seulement quand il aide." },

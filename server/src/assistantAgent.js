@@ -642,7 +642,12 @@ function messageErreurAgent(err) {
   if (statut === 401) return 'clé Claude refusée';
   if (statut === 403) return 'cette clé n’a pas accès au modèle choisi';
   if (statut === 429) return 'limite de débit Claude atteinte';
-  if (statut === 400) return 'requête refusée par Claude';
+  if (statut === 400) {
+    // Le détail donné par l'API (schéma d'un outil, paramètre…) ne reprend aucune donnée de dossier : il aide à trouver la cause.
+    const detail = String((err && err.error && err.error.error && err.error.error.message) || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+    console.error('[CLAIRE] Agent : requête refusée par Claude — ' + (detail || 'sans détail'));
+    return 'requête refusée par Claude' + (detail ? ` (${detail})` : '');
+  }
   if (statut >= 500) return 'service de Claude momentanément indisponible';
   if (err && /timeout|timed out/i.test(String(err.name || '') + String(err.message || ''))) return 'Claude n’a pas répondu à temps';
   return 'Claude injoignable depuis le serveur';
@@ -1019,5 +1024,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
+module.exports = { messageErreurAgent, blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };

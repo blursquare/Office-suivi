@@ -21381,3 +21381,6 @@ Capture de l'étude : « Calcule le nombre de dossiers par type… » → « Je 
 
 ### 21/10/2026 — 0.308.2 : notoriété + déclaration = deux étapes, deux rendez-vous
 Étude : « retirer ce qui touche à l'attestation immobilière ; parfois la notoriété et la déclaration ne sont pas signées le même jour, il y a deux rendez-vous ; le rendez-vous de notoriété n'a pas été retrouvé ». `etapesSuccession` (commun/succession.js) : type `notoriete-ds` → étape `notoriete` (rendez-vous notoriété/acte ; à défaut le rendez-vous de déclaration, un seul rendez-vous servant aux deux) ET étape `declarationSuccession` (son rendez-vous) ; le décompte et l'appel de fonds se calent sur la déclaration ; `piecesSuccessionDossier` : aucune pièce d'immobilier pour ce type. Notoriété seule : inchangé.
+
+### 21/10/2026 19 h — 0.308.3 : détail de la requête refusée par Claude
+L'agent répondait « requête refusée par Claude » (400) sans dire pourquoi. `messageErreurAgent` (server/src/assistantAgent.js) ajoute le message de l'API (240 caractères, jamais une donnée de dossier) et le note au journal du serveur. Schémas des 26 outils relus ici : 20 stricts (limite), aucune option ni union en trop ; cause du 400 non établie sans la réponse de l'API. Envoi sur main attendu à partir de 8 h (garde 19 h–8 h).

@@ -740,3 +740,9 @@ test('audit 21/10 (H1) : un résultat de calcul qui recode des valeurs (base64, 
   assert.equal(resultatCalculSuspect({ m: 'Offres reçues en octobre : 4 dossiers sur 12, soit 33 %' }), false);
   assert.equal(resultatCalculSuspect({ ids: ['f1', 'f2', 'abcdef123456'] }), false);
 });
+
+test('erreur 400 de Claude : le détail de l\'API est dit (21/10)', () => {
+  const { messageErreurAgent } = require('../src/assistantAgent');
+  const m = messageErreurAgent({ status: 400, error: { error: { message: 'tools.7.custom.input_schema: invalid' } } });
+  assert.match(m, /requête refusée par Claude \(tools\.7\.custom\.input_schema: invalid\)/);
+});
