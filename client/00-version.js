@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.305.0';
+  const VERSION_APP = '0.305.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.305.1', date: '2026-10-21 08:43', resume: "Le logo « Notaires de France » est net sur l'aperçu et le PDF/A des courriers (la copie utilisée faisait 280 pixels de large, celle du modèle Word 766). Lecture libre du NAS : un dossier ouvert mal saisi est refusé au lieu d'ouvrir tout le NAS, et les exclusions valent aussi pour les raccourcis qui mènent à un dossier exclu." },
     { version: '0.305.0', date: '2026-10-21 09:05', resume: "Demander à CLAIRE sait calculer librement : totaux, classements, moyennes, regroupements sur tous les dossiers, comparaisons, et il peut vous remettre un tableau à télécharger (ouvert dans Excel). Le calcul est écrit par l'IA mais exécuté sur votre poste, dans un espace fermé sans accès à Internet ni au reste de CLAIRE ; les valeurs réelles de vos dossiers ne partent pas, l'IA ne reçoit que le résultat (noms masqués). Le code utilisé est visible sous la réponse (« Voir le code »)." },
     { version: '0.304.0', date: '2026-10-21 08:28', resume: "Demander à CLAIRE peut chercher et lire dans le NAS en dehors du dossier d'un client (modèles, archives, fichiers de l'étude), en lecture seule. C'est éteint tant que vous ne l'allumez pas : Réglages › IA et relecture d'actes › « Lecture libre du NAS » — vous choisissez les dossiers ouverts et les mots qui écartent un dossier ou un fichier. Les PDF sont lus avec la lecture habituelle (scans compris), les Word et textes sont lus directement ; les noms restent masqués avant l'IA." },
     { version: '0.303.2', date: '2026-10-21 08:01', resume: "Demander à CLAIRE sait répondre aux questions qui portent sur tous les dossiers (« quelle offre de prêt avec inscription hypothécaire avons-nous reçue en octobre ? ») : il voit la date de l'offre, son montant et ses garanties dans la liste des dossiers." },
