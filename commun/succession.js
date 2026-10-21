@@ -409,10 +409,8 @@
       }
       etapes.splice(iDernier, 0, ...avant);
     }
-    // Actes ajoutés dans Authentic (délivrance de legs, quasi-usufruit…) : suivis par leur état, sans date propre.
-    actesSuccession(d).filter(a => !a.base).forEach(a => {
-      etapes.push({ type: 'acte:' + a.cle, label: a.libelle, iso: a.signeLe || '', fait: a.etat === 'signe', attente: false, active: true, authentic: true });
-    });
+    // Les actes ajoutés dans Authentic (« ACT Attestation SUCC … », délivrance de legs…) ne sont plus des étapes de la timeline (étude 21/10 :
+    // « ne pas afficher cela ou autre dans la timeline, juste vérifier l'état rédigé ou non ») : leur état se lit dans le bloc « Dossier ».
     return etapes;
   }
 

@@ -21384,3 +21384,6 @@ Capture de l'étude : « Calcule le nombre de dossiers par type… » → « Je 
 
 ### 21/10/2026 19 h — 0.308.3 : détail de la requête refusée par Claude
 L'agent répondait « requête refusée par Claude » (400) sans dire pourquoi. `messageErreurAgent` (server/src/assistantAgent.js) ajoute le message de l'API (240 caractères, jamais une donnée de dossier) et le note au journal du serveur. Schémas des 26 outils relus ici : 20 stricts (limite), aucune option ni union en trop ; cause du 400 non établie sans la réponse de l'API. Envoi sur main attendu à partir de 8 h (garde 19 h–8 h).
+
+### 21/10/2026 19 h 08 — 0.308.4 : plus d'acte d'Authentic dans la timeline d'une succession
+Étude : « ACT Attestation SUCC … : ne pas afficher cela ou autre dans la timeline, juste vérifier l'état rédigé ou non ». `etapesSuccession` ne crée plus d'étape `acte:…` ; `actesSuccession` (état rédigé / en cours / signé) reste lu et affiché dans le bloc « Dossier ». Rendez-vous « NOTORIETE Claude SIMON » non rattaché (capture) : la reconnaissance sans le mot SUCC date de 0.308.0 (17 h 43) ; avec les noms testés le rattachement fonctionne (noms de dossier à confirmer si le cas persiste). Relecture indépendante à faire avant l'envoi sur main (8 h).

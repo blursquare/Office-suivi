@@ -1012,3 +1012,9 @@ test('agenda 21/10 : INVENTAIRE hors tête de titre et SUCC suivi de chiffres ne
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DUPONT (visite)'), 'autre');
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - Notoriété'), 'notoriete');
 });
+
+test('timeline 21/10 : un acte ajouté dans Authentic n\'est pas une étape, son état reste lisible', () => {
+  const d = base({ succession: { ouvertureLe: '2026-10-20' }, authentic: { actesSuccession: [{ intitule: 'ACT Attestation SUCC Claude SIMON T@', etat: 'en_cours' }] } });
+  assert.ok(!S.etapesSuccession(d, '2026-10-21').some(x => String(x.type).startsWith('acte:')));
+  assert.equal(S.actesSuccession(d).length > 0, true);
+});
