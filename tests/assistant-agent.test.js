@@ -87,3 +87,17 @@ test('identifiants opaques : un rendez-vous, un scan, un élément du NAS garden
   app.reinitialiserPouvoirsAgent();
   assert.equal(app.idScanAgent({ nom: 'SCAN_9.pdf', date: s1.date }), 'sc1');
 });
+
+test('lister_dossiers : la date de l’offre de prêt, le montant, les garanties et l’inscription hypothécaire sont donnés à l’agent (étude 21/10)', () => {
+  const app = chargerApplication();
+  const d = { id: 'v1', nom: 'MARTIN / DURAND', typeVente: 'maison', offrePretStatut: 'recue', montantPret: 180000, garantiesPret: ['hypothequeLegale'],
+    pieces: {}, parties: [], historique: [{ date: '2026-10-14T09:00:00', texte: 'Offre de prêt retrouvée sur le NAS' }] };
+  const r = app.resumeDossierAgent(d);
+  assert.equal(r.offre_de_pret_recue_le, '2026-10-14');
+  assert.equal(r.montant_du_pret, 180000);
+  assert.equal(r.garanties_du_pret.length, 1);
+  assert.equal(r.inscription_hypothecaire.length, 1);
+  const sans = app.resumeDossierAgent({ ...d, sansPret: true });
+  assert.equal(sans.offre_de_pret_recue_le, '');
+  assert.deepEqual(Array.from(sans.inscription_hypothecaire), []);
+});

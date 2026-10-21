@@ -100,6 +100,12 @@
       signature: d.rendezVousSignature ? { date: d.rendezVousSignature, heure: d.rendezVousSignatureHeure || '', faite: sur(() => echeanceValidee(d, 'rendezVousSignature'), false) } : null,
       prochaine_echeance: prochaine ? { libelle: prochaine.label, date: prochaine.iso || '', jours: prochaine.jours } : null,
       offre_de_pret: estSuccession(d) ? '' : d.sansPret ? 'sans prêt' : sur(() => echeanceValidee(d, 'pret'), false) ? 'reçue' : 'attendue',
+      // Pour « quelle offre de prêt avec inscription hypothécaire avons-nous reçue en octobre ? » (étude 21/10) : la date où CLAIRE a
+      // retrouvé ou noté l'offre, le montant, les garanties lues dans l'offre et, à part, les hypothèques.
+      offre_de_pret_recue_le: estSuccession(d) || d.sansPret ? '' : sur(() => dateObtentionPret(d) || '', ''),
+      montant_du_pret: estSuccession(d) || d.sansPret ? null : (Number(d.montantPret) > 0 ? Number(d.montantPret) : null),
+      garanties_du_pret: estSuccession(d) || d.sansPret ? [] : sur(() => (garantiesPretAffichees(d) || {}).liste || [], []),
+      inscription_hypothecaire: estSuccession(d) || d.sansPret ? [] : sur(() => hypothequesPret(d).map(h => h.label), []),
       pieces_manquantes: estSuccession(d) ? 0 : sur(() => piecesAttenduesDossier(d).length, 0),
       fonds: estSuccession(d) ? '' : sur(() => bilanFondsAssistant(d), '')
     };
