@@ -125,3 +125,12 @@ test('routes : 403 tant que c’est éteint, puis lister / chercher / texte / pd
     assert.equal((await fetch(base + '/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ racines: 'x' }) })).status, 400);
   } finally { serveur.close(); }
 });
+
+test('relecture 21/10 : des dossiers saisis tous refusés n’ouvrent jamais tout le NAS ; un lien vers un dossier exclu ne contourne rien', async (t) => {
+  assert.deepEqual(nl.racinesRefusees(['..\\MODELES', '.', ' ', 'MODELES - OUTILS', '.archives']), ['..\\MODELES', '.', '.archives']);
+  const nas = nasInvente();
+  const r = { racines: [], exclus: ['compta'] };
+  try { fs.symlinkSync(path.join(nas, 'MODELES - OUTILS', 'Compta'), path.join(nas, 'MODELES - OUTILS', 'raccourci')); } catch (_) { t.skip('liens symboliques indisponibles'); return; }
+  assert.equal((await nl.lireTexteNasLibre(nas, 'MODELES - OUTILS/raccourci/Bilan 2025.txt', 0, r)).statut, 403, 'chemin réel exclu');
+  assert.equal((await nl.listerNasLibre(nas, 'MODELES - OUTILS/raccourci', r)).statut, 403);
+});

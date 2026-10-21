@@ -48,6 +48,12 @@ function assainirNasLibre(brut) {
   return { actif: b.actif === true, racines, exclus };
 }
 
+/** Pure : les lignes saisies que l'assainissement écarterait (« .. », dossier caché, vide après nettoyage) — l'étude doit le savoir, sinon
+ * une liste de dossiers ouverts qui devient vide ouvrirait TOUT le NAS. @param {any} brutes */
+function racinesRefusees(brutes) {
+  return (Array.isArray(brutes) ? brutes : []).map((x) => String(x == null ? '' : x).trim()).filter((x) => x !== '' && !cheminRelatifPropre(x)).slice(0, 5);
+}
+
 /** @param {{ lireJsonBrut: Function }} repo */
 function lireNasLibre(repo) { return assainirNasLibre(repo.lireJsonBrut(CLE_NAS_LIBRE, null)); }
 
@@ -84,6 +90,16 @@ function surLeCheminDUneRacine(rel, r) {
   return r.racines.some((racine) => commencePar(segmentsSimples(racine), seg));
 }
 
+/** Le chemin RÉEL (liens et jonctions résolus) reste-t-il permis ? Les droits se contrôlent aussi sur lui : un lien d'un dossier ouvert vers
+ * un dossier exclu ne contourne rien. @param {string} nasRacine @param {string} abs @param {{ racines: string[], exclus: string[] }} r */
+async function cheminReelPermis(nasRacine, abs, r) {
+  let racineReelle = path.resolve(nasRacine);
+  try { racineReelle = await fsp.realpath(racineReelle); } catch (_) { /* racine illisible : comparaison lexicale */ }
+  const rel = path.relative(racineReelle, abs).split(path.sep).join('/');
+  if (rel.startsWith('..')) return false;
+  return rel === '' ? true : cheminPermis(rel, r) || (surLeCheminDUneRacine(rel, r) && !exclu(segmentsSimples(rel), r.exclus));
+}
+
 /** @param {string} nom */
 function extensionDe(nom) { return path.extname(nom).toLowerCase(); }
 
@@ -94,6 +110,7 @@ async function listerNasLibre(nasRacine, rel, r) {
   const abs = await resoudreCheminNas(nasRacine, propre);
   if (!abs) return { erreur: 'Dossier introuvable sur le NAS.', statut: 404 };
   if (!cheminPermis(propre, r) && !surLeCheminDUneRacine(propre, r)) return { erreur: 'Ce dossier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
+  if (!(await cheminReelPermis(nasRacine, abs, r))) return { erreur: 'Ce dossier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
   let entrees;
   try { entrees = await fsp.readdir(abs, { withFileTypes: true }); } catch (_) { return { erreur: 'Dossier illisible.', statut: 404 }; }
   const dossiers = [];
@@ -167,6 +184,7 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r) {
   if (ext !== '.docx' && !EXTENSIONS_TEXTE.has(ext)) return { erreur: 'Seuls les fichiers Word (.docx), texte et CSV se lisent ici ; un PDF se lit avec lire_document.', statut: 415 };
   const abs = await resoudreCheminNas(nasRacine, propre);
   if (!abs) return { erreur: 'Fichier introuvable sur le NAS.', statut: 404 };
+  if (!(await cheminReelPermis(nasRacine, abs, r))) return { erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
   let st;
   try { st = await fsp.stat(abs); } catch (_) { return { erreur: 'Fichier introuvable sur le NAS.', statut: 404 }; }
   if (!st.isFile()) return { erreur: 'Ce n’est pas un fichier.', statut: 400 };
@@ -183,5 +201,5 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r) {
   return { texte: morceau, caracteres_total: texte.length, debut: depart, ...(fin < texte.length ? { suite: fin } : {}) };
 }
 
-module.exports = { CLE_NAS_LIBRE, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
+module.exports = { CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
   listerNasLibre, chercherNasLibre, lireTexteNasLibre, MAX_CARACTERES_TEXTE };

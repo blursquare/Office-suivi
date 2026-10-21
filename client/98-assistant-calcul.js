@@ -99,6 +99,19 @@
     return { titre: String(t.titre || 'Tableau').slice(0, 140), colonnes, lignes, coupe: t.lignes.length > MAX_LIGNES_TABLEAU_CALCUL };
   }
 
+  // Pure : l'aperçu rendu à l'IA — 15 lignes, chaque cellule coupée à 200 caractères, 6 000 caractères au plus en tout.
+  function apercuTableauCalcul(lignes) {
+    let total = 0;
+    const sortie = [];
+    for (const l of lignes.slice(0, LIGNES_APERCU_CALCUL)) {
+      const ligne = l.map(c => (typeof c === 'string' && c.length > 200 ? c.slice(0, 200) + '…' : c));
+      total += JSON.stringify(ligne).length;
+      if (total > 6000 && sortie.length) break;
+      sortie.push(ligne);
+    }
+    return sortie;
+  }
+
   // Pure : le CSV (BOM UTF-8 pour qu'Excel lise les accents).
   function csvDepuisTableauCalcul(t) {
     return '﻿' + [t.colonnes.map(celluleCsvCalcul).join(';')].concat(t.lignes.map(l => t.colonnes.map((_, i) => celluleCsvCalcul(l[i])).join(';'))).join('\r\n') + '\r\n';
@@ -162,7 +175,7 @@
       calculsAgent[id] = { blob: new Blob([csvDepuisTableauCalcul(tableau)], { type: 'text/csv;charset=utf-8' }), nom, titre: tableau.titre };
       Object.keys(calculsAgent).slice(0, Math.max(0, Object.keys(calculsAgent).length - MAX_CALCULS_GARDES)).forEach(k => { delete calculsAgent[k]; });
       boutons.push({ libelle: 'Télécharger (Excel, CSV)', action: () => telechargerCalculAgent(id) });
-      sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: tableau.lignes.slice(0, LIGNES_APERCU_CALCUL),
+      sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: apercuTableauCalcul(tableau.lignes),
         ...(tableau.coupe ? { coupe: `seules les ${MAX_LIGNES_TABLEAU_CALCUL} premières lignes sont gardées` } : {}) };
       sortie.affiche_a_l_utilisateur = `tableau « ${tableau.titre} » prêt, avec « Télécharger »`;
     }

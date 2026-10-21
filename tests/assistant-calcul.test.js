@@ -40,3 +40,11 @@ test('page du bac à sable : CSP qui coupe tout, iframe sans origine, un Worker 
   assert.match(page, /ev\.source !== parent/, 'seul le parent peut lancer un calcul');
   assert.match(app.SOURCE_WORKER_CALCUL, /AsyncFunction/);
 });
+
+test('aperçu rendu à l’IA : 15 lignes, cellules coupées, taille bornée', () => {
+  const lignes = new Array(40).fill(['x'.repeat(5000), 1]);
+  const a = app.apercuTableauCalcul(lignes);
+  assert.ok(a.length <= 15);
+  assert.ok(a[0][0].length <= 201);
+  assert.ok(JSON.stringify(a).length < 7000);
+});

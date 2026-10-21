@@ -36,7 +36,7 @@
     try {
       pdf = doc.sorte === 'joint'
         ? await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise
-        : await ouvrirPdfNas(doc.chemin);
+        : doc.libre ? await ouvrirPdfNasLibre(doc.chemin) : await ouvrirPdfNas(doc.chemin);
     } catch (e) { return { erreur: 'PDF illisible : ' + String(e && e.message || e).slice(0, 120) }; }
     try {
       const lu = await lireTextePdfParPage(pdf);

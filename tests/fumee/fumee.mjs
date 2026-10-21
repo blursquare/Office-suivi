@@ -55,7 +55,7 @@ try {
   for (const ecran of [{ nom: 'bureau', viewport: { width: 1400, height: 900 } }, { nom: 'téléphone', viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true }]) {
     const ctx = await navigateur.newContext({ viewport: ecran.viewport, isMobile: !!ecran.isMobile, hasTouch: !!ecran.hasTouch });
     await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
-    await ctx.addInitScript(() => { localStorage.setItem('claire-utilisateur-poste', 'Julie VASSELIN'); });
+    await ctx.addInitScript(() => { try { localStorage.setItem('claire-utilisateur-poste', 'Julie VASSELIN'); } catch (e) { /* cadre isolé (bac à sable du calcul) : sans stockage */ } });
     const page = await ctx.newPage();
     page.on('pageerror', (e) => erreurs.push(`[${ecran.nom}] erreur de page : ${e.message}`));
     page.on('console', (m) => {

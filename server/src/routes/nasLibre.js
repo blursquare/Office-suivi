@@ -35,6 +35,8 @@ function creerRouteurNasLibre(config, parametresRepo) {
   routeur.put('/nas-libre/reglages', (req, res) => {
     const b = req.body && typeof req.body === 'object' ? req.body : {};
     if ((b.racines !== undefined && !Array.isArray(b.racines)) || (b.exclus !== undefined && !Array.isArray(b.exclus))) { res.status(400).json({ erreur: 'Listes attendues.' }); return; }
+    const refusees = nl.racinesRefusees(b.racines);
+    if (refusees.length) { res.status(400).json({ erreur: `Dossier refusé : « ${refusees.join(' », « ')} » (un chemin depuis la racine du NAS, sans « .. » ni dossier caché). Rien n’a été enregistré.` }); return; }
     const avant = nl.lireNasLibre(parametresRepo);
     res.json(nl.ecrireNasLibre(parametresRepo, { actif: b.actif === true, racines: b.racines === undefined ? avant.racines : b.racines, exclus: b.exclus === undefined ? avant.exclus : b.exclus }));
   });
@@ -67,6 +69,7 @@ function creerRouteurNasLibre(config, parametresRepo) {
     if (!nl.cheminPermis(rel, r)) { res.status(403).json({ erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).' }); return; }
     const cible = await resoudreCheminNas(config.nasRacine, rel);
     if (!cible) { res.status(404).json({ erreur: 'Fichier introuvable sur le NAS.' }); return; }
+    if (!(await nl.cheminReelPermis(config.nasRacine, cible, r))) { res.status(403).json({ erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
