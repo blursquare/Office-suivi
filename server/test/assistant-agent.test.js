@@ -709,3 +709,23 @@ test('lecture libre du NAS (21/10) : de bout en bout, noms de l’étude lisible
   assert.doesNotMatch(lu, /LEMAIRE|g\.lemaire|02 54 12 34 56/, 'un tiers du texte ne part pas : ' + lu.slice(-600));
   assert.match(lu, /donne pouvoir/);
 });
+
+test('calcul libre (21/10) : outil non strict ; le résultat d’un calcul sur les fiches repart masqué, les valeurs réelles ne quittent pas le poste', async () => {
+  const o0 = OUTILS_AGENT.find((t) => t.name === 'calcul');
+  assert.ok(o0 && o0.strict === false);
+  assert.deepEqual([...o0.input_schema.required].sort(), Object.keys(o0.input_schema.properties).sort());
+  assert.ok(OUTILS_AGENT.filter((t) => t.strict).length <= 20);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'calcul', { objectif: 'Total des prêts', code: 'return donnees.dossiers.length;', donnees: {}, dossier_ids: ['*'], delai_secondes: 0 })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Total des prêts reçus', dossiers: D, contexte: { aujourdhui: '2026-10-21' } }, o);
+  assert.equal(r.appels[0].nom, 'calcul');
+  assert.equal(r.appels[0].entree.dossier_ids[0], '*');
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { calcul_fait: true, resultat: { total: 180000, dossier_le_plus_gros: 'VTE - FOURNIER / GAUTHIER' },
+    tableau: { titre: 'Offres', colonnes: ['Dossier', 'Montant'], lignes_total: 2, apercu: [['VTE - FOURNIER / GAUTHIER', 180000]] } } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucune donnée des fiches : ' + envoye.slice(-500));
+  assert.match(envoye, /180000/, 'les montants partent tels quels (choix de l’étude)');
+});

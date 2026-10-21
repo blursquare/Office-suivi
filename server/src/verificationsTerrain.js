@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'agent-calcul', depuis: '0.305.0', source: 'poste', titre: 'Demander à CLAIRE : un calcul libre sur les dossiers et un tableau à télécharger (CSV, Excel)',
+    comment: 'Coché au premier calcul réussi. À regarder au bureau avec la clé Claude : « classe les offres de prêt reçues ce mois-ci par montant et donne-moi le tableau » : « Voir le code » sous la réponse, bouton « Télécharger (Excel, CSV) », fichier ouvert dans Excel (accents, virgules décimales, colonnes). Le calcul tourne dans un espace fermé : jamais d\u2019accès à Internet ni à CLAIRE (testé dans Chromium, à confirmer avec le Chrome du poste).' },
   { id: 'nas-libre', depuis: '0.304.0', source: 'poste', titre: 'Demander à CLAIRE : chercher et lire dans le NAS hors d\u2019un dossier client (lecture libre, éteinte par défaut)',
     comment: 'Coché à la première lecture réussie. À regarder au bureau : Réglages › IA et relecture d\u2019actes › « Lecture libre du NAS », allumer et ouvrir un dossier (ex. MODELES - OUTILS) ; demander à Claude « trouve le modèle de … » : recherche par nom, lecture d\u2019un Word, d\u2019un PDF (lire_document). Un dossier non ouvert ou un nom écarté ne doit jamais apparaître ; éteint, l\u2019outil répond que c\u2019est un réglage de l\u2019étude.' },
   { id: 'agent-pouvoirs', depuis: '0.303.0', source: 'poste', titre: 'Demander à CLAIRE : ranger un scan, renommer ou déplacer une pièce du NAS, déplacer un rendez-vous de l\u2019agenda, un lot d\u2019actions',

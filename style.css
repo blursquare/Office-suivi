@@ -9500,6 +9500,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-texte b { font-weight: 600; }
 .asst-texte p:last-child, .asst-texte ul:last-child { margin-bottom: 0; }
 .asst-liste { margin: 0 0 8px; padding-left: 20px; }
+.asst-calcul { margin: 6px 0 0; font-size: var(--texte-s); color: var(--muted); }
+.asst-calcul pre { margin: 6px 0 0; padding: 10px 16px; max-height: 240px; overflow: auto; white-space: pre-wrap; background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-s); color: var(--ink); font-size: var(--texte-xs); }
 .asst-liste li { margin: 2px 0; }
 /* Un résultat (état d'un dossier, pièces, échéances…) : une carte bordée, comme une pièce jointe d'un message. */
 .asst-claire .asst-texte .asst-liste { list-style: disc; background: var(--paper-sunk); border: 1px solid var(--line); border-left: 4px solid var(--focus); border-radius: var(--rayon-s); padding: 10px 16px 10px 32px; margin: 6px 0 8px; max-width: 640px; }

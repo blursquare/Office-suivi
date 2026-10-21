@@ -310,6 +310,17 @@ try {
       const envoi = await page.evaluate(() => window.__envoiFumee);
       verifier(!!envoiRecu && envoiRecu.a === 'client@exemple.fr' && envoi && envoi.ok && envoi.mode === 'envoye', `[${ecran.nom}] fenêtre d’email : un clic sur « Envoyer » atteint le serveur`);
       await page.unroute('**/api/emails/envoyer');
+      // Calcul libre de « Demander à CLAIRE » (21/10, palier 3) : bac à sable sans réseau, boucle sans fin arrêtée, page vivante.
+      const bac = await page.evaluate(async () => {
+        const somme = await executerCalculIsole('return donnees.n.reduce((a, b) => a + b, 0);', { n: [1, 2, 3.5] }, 4000);
+        const reseau = await executerCalculIsole('try { await fetch(location.href); return "PASSE"; } catch (e) { return "bloqué"; }', {}, 4000);
+        const stockage = await executerCalculIsole('return [typeof localStorage, typeof document, typeof parent];', {}, 4000);
+        const t0 = Date.now();
+        const boucle = await executerCalculIsole('while (true) {}', {}, 1200);
+        return { somme, reseau, stockage, boucle, ms: Date.now() - t0, cadres: document.querySelectorAll('iframe[sandbox]').length };
+      });
+      verifier(bac.somme.valeur === 6.5 && bac.reseau.valeur === 'bloqué' && /undefined/.test(JSON.stringify(bac.stockage.valeur)) && /trop long/.test(bac.boucle.erreur || '') && bac.ms < 4000 && bac.cadres === 0,
+        `[${ecran.nom}] calcul libre : résultat juste, réseau coupé, boucle arrêtée (${bac.ms} ms), aucun cadre laissé`);
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }
