@@ -10487,7 +10487,7 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
 
 /* Liste des conversations repliée (étude 21/10) : la conversation prend la place ; le bouton de l'en-tête la rouvre. */
-.asst-page.fils-replies .asst-cote { display: none; }
+@media (min-width: 901px) { .asst-page.fils-replies .asst-cote { display: none; } }
 .asst-page.fils-replies { grid-template-columns: minmax(0, 1fr); }
 .asst-page.fils-replies.colonne-ouverte { grid-template-columns: minmax(0, 1fr) 360px; }
 .asst-page.fils-replies.artefact-ouvert { grid-template-columns: minmax(0, 1fr) minmax(460px, 46%); }

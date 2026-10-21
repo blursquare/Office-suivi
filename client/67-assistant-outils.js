@@ -116,7 +116,7 @@
       const montable = outilMontableAssistant(o.onglet);
       const idArtefact = ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d), { onglet: o.onglet, outil: e.outil });
       if (montable) monterOutilAssistant(idArtefact);
-      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} ${montable ? 'est ouvert à droite, prérempli.' : 'est prêt à ouvrir (carte à droite).'}</p>`,
+      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} ${montable ? 's’ouvre à droite, prérempli.' : 'est prêt à ouvrir (carte à droite).'}</p>`,
         montable ? [{ libelle: 'Voir l’outil', action: () => choisirArtefactAssistant(idArtefact) }]
           : [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
       return { fait: true, affiche_a_l_utilisateur: montable ? `${o.libelle} ouvert dans le panneau de droite, prérempli avec le dossier` : `bouton « Ouvrir ${o.libelle} » affiché` };

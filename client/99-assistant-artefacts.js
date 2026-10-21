@@ -18,6 +18,8 @@
 
   // Un artefact entre dans le panneau et devient le courant (les plus anciens sont oubliés au-delà de douze).
   function ouvrirArtefactAssistant(a) {
+    // Un outil demandé de nouveau remplace sa carte (jamais douze cartes du même outil).
+    if (a.type === 'outil' && a.onglet) artefactsAssistant.liste = artefactsAssistant.liste.filter(x => !(x.type === 'outil' && x.onglet === a.onglet));
     a.id = 'art' + (++artefactsAssistant.n);
     artefactsAssistant.liste.push(a);
     if (artefactsAssistant.liste.length > MAX_ARTEFACTS_ASSISTANT) artefactsAssistant.liste.shift();
@@ -38,7 +40,7 @@
   function fermerArtefactAssistant() {
     const a = artefactCourantAssistant();
     if (a) {
-      if (a.type === 'outil' && a.onglet && outilsMontesAssistant[a.onglet]) demonterOutilAssistant(a.onglet);
+      if (a.type === 'outil' && a.onglet && outilsMontesAssistant[a.onglet] && outilsMontesAssistant[a.onglet].artefactId === a.id) demonterOutilAssistant(a.onglet);
       const k = artefactsAssistant.liste.indexOf(a);
       artefactsAssistant.liste.splice(k, 1);
       const voisin = artefactsAssistant.liste[Math.min(k, artefactsAssistant.liste.length - 1)];
@@ -273,7 +275,7 @@
   // son état, ses gestionnaires et sa lecture du dossier. Un repère (commentaire) marque sa place d'origine ; il y retourne quand
   // l'outil est ouvert depuis la barre latérale ou une nouvelle conversation commence. Claire Scan et Nouveau dossier (écrans trop larges,
   // état propre) gardent leur onglet.
-  var OUTILS_MONTABLES_ASSISTANT = ['preemption', 'quotites', 'appel-fonds', 'calculateur', 'prorata', 'inventaire', 'confreres'];
+  var OUTILS_MONTABLES_ASSISTANT = ['preemption', 'quotites', 'appel-fonds', 'calculateur', 'prorata', 'inventaire'];
   var outilsMontesAssistant = {};   // onglet → { repere, artefactId }
 
   function outilMontableAssistant(onglet) { return OUTILS_MONTABLES_ASSISTANT.includes(onglet) && !!document.getElementById('onglet-' + onglet); }
@@ -333,6 +335,41 @@
   function reafficherOutilsMontesAssistant(nom) {
     Object.keys(outilsMontesAssistant).forEach(onglet => { const n = document.getElementById('onglet-' + onglet); if (n) n.style.display = ''; });
     if (nom === 'assistant') { artefactsAssistant.rendu = -1; renderArtefactAssistant(); }
+  }
+
+  // Ctrl+P : les règles d'impression de l'appel de fonds et du forfait mobilier isolent l'écran de l'outil (classes posées par
+  // definirOnglet) — un outil monté retourne donc à son onglet le temps de l'impression, puis revient dans le panneau.
+  var outilsRemontesApresImpression = [];
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('beforeprint', () => {
+      outilsRemontesApresImpression = [];
+      ['appel-fonds', 'inventaire'].forEach(onglet => {
+        const m = outilsMontesAssistant[onglet];
+        const noeud = document.getElementById('onglet-' + onglet);
+        if (!m || !noeud || !noeud.offsetParent) return;
+        outilsRemontesApresImpression.push({ onglet, artefactId: m.artefactId });
+        demonterOutilAssistant(onglet);
+        definirOnglet(onglet);
+      });
+    });
+    window.addEventListener('afterprint', () => {
+      const a = outilsRemontesApresImpression;
+      outilsRemontesApresImpression = [];
+      a.forEach(({ onglet, artefactId }) => {
+        const art = artefactsAssistant.liste.find(x => x.id === artefactId);
+        const noeud = document.getElementById('onglet-' + onglet);
+        if (!art || !noeud || outilsMontesAssistant[onglet]) return;
+        const repere = document.createComment('outil-monte:' + onglet);
+        noeud.parentNode.insertBefore(repere, noeud);
+        outilsMontesAssistant[onglet] = { repere, artefactId };
+        garageOutilsAssistant().appendChild(noeud);
+        art.monte = true;
+        artefactsAssistant.courant = art.id;
+        artefactsAssistant.version++;
+        definirOnglet('assistant');
+        renderArtefactAssistant();
+      });
+    });
   }
 
   function ouvrirOutilEnOngletAssistant(id) {
