@@ -126,9 +126,21 @@ function referenceDossierEvenement(evenement) {
 // « SUCC - DUPONT », « SUCC DUPONT - Acte de notoriété », « Succession DUPONT » : la référence est la suite du titre après le mot SUCC
 // (jamais « succès »). Seulement quand le titre ne porte pas de référence de vente.
 const RE_REFERENCE_SUCC = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])\.?\s*[-–:]?\s*(.+)/i;
+// Titres sans le mot SUCC (étude 21/10) : « NOTO prénom NOM », « NOTORIETE - … », « INVENTAIRE + NOTO … », « INVENTAIRE et NOTORIETE … » —
+// la référence est ce qui suit les mots de l'acte.
+const RE_MOT_ACTE_SUCC = /^(?:INVENTAIRE|NOTORI[EÉ]T[EÉ]|NOTORITE|NOTO)(?![A-Za-zÀ-ɏ])\s*/i;
+const RE_LIAISON_ACTE_SUCC = /^(?:\+|&|[-–:]|ET(?![A-Za-zÀ-ɏ]))\s*/i;
 function extraireReferenceSuccession(texte) {
   const source = String(texte || '');
   if (extraireReferenceVte(source)) return '';
+  let reste = source.trim();
+  let mots = 0;
+  while (RE_MOT_ACTE_SUCC.test(reste)) {
+    reste = reste.replace(RE_MOT_ACTE_SUCC, '');
+    mots += 1;
+    while (RE_LIAISON_ACTE_SUCC.test(reste) && mots) reste = reste.replace(RE_LIAISON_ACTE_SUCC, '');
+  }
+  if (mots && reste.trim()) return reste.trim();
   const m = RE_REFERENCE_SUCC.exec(source);
   return m ? m[1].trim() : '';
 }

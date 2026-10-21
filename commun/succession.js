@@ -192,9 +192,13 @@
     let etape = 'autre';
     // « Ouverture du testament / du coffre » n'est pas le rendez-vous d'ouverture de la succession (relecture 16/10).
     if (/OUVERTURE(?!\s+(?:DU|D'UN|DE\s+L'|DES?)\s+(?:TESTAMENT|COFFRE|COMPTE|PLI))/.test(t)) etape = 'ouvertureSuccession';
-    else if (/NOTORIETE/.test(t)) etape = 'notoriete';
+    // « NOTO prénom NOM », « NOTORIETE - … », « INVENTAIRE + NOTO … », « INVENTAIRE et NOTORIETE … » (étude 21/10) : la notoriété.
+    else if (/(?<![A-Z])NOTO(?:RIETE|RITE)?(?![A-Z])|(?<![A-Z])INVENTAIRE(?![A-Z])/.test(t)) etape = 'notoriete';
     else if (/DECLARATION/.test(t)) etape = 'declarationSuccession';
     else if (/ATTESTATION|SIGNATURE|(?<![A-Z])ACTE(?![A-Z])/.test(t)) etape = 'acte';
+    // « SUCC - prénom NOM », « SUCCESSION prénom NOM » seuls (rien après le nom) : attestation immobilière + déclaration de succession
+    // (étude 21/10 : « c'est pour API + DS »).
+    else if (/^\s*SUCC(?:ESSION)?(?![A-Z])\s*[-–:]?\s*(?:(?!\s[-–:]\s).)+$/.test(t)) etape = 'declarationSuccession';
     return provisoire && etape !== 'ouvertureSuccession' && etape !== 'autre' ? 'autre' : etape;
   }
 
@@ -387,7 +391,9 @@
     // (`d.succession.appelFondsInutile`) ; avec un conjoint survivant les comptes lui sont transférés, l'étude ne reçoit rien.
     const iDernier = etapes.map((e) => e.type).lastIndexOf(etapes.some((e) => e.type === 'declarationSuccession') ? 'declarationSuccession' : 'notoriete');
     const dernier = etapes[iDernier];
-    if (dernier) {
+    // Pas de décompte ni d'appel de fonds pour une notoriété seule (étude 21/10 : « pas besoin pour le NOTORIETE, INVENTAIRE ») : seulement
+    // quand l'acte du dernier rendez-vous est la déclaration de succession (seule ou signée avec la notoriété).
+    if (dernier && (dernier.type === 'declarationSuccession' || ensemble)) {
       const avantRdv = dernier.rdvPlace && dernier.iso ? (C.addDays(dernier.iso, -JOURS_AVANT_DERNIER_RDV_SUCCESSION) || '') : '';
       const s = infoSuccession(d);
       const avant = [{ type: 'decompteSuccession', label: 'Envoi du décompte à faire valider', iso: dernier.fait ? '' : avantRdv,

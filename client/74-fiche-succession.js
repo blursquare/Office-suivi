@@ -688,7 +688,7 @@
     const aucuneMain = !(f && f.aucune) && !((f && f.inscriptions) || []).length
       ? `<wa-button appearance="outlined" size="s" type="button" onclick="marquerFcddvAucune('${idJs}')" title="La réponse du FCDDV ne mentionne aucune inscription : testament et donation entre époux passent à « non » s'ils ne sont pas encore répondus">${icone('check')} Aucune inscription</wa-button>` : '';
     return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
-      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}</div>${lignes}${ajout}</div>`;
+      <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}</div>${lignes}${f && f.aucune ? '' : ajout}</div>`;
   }
 
   function marquerFcddvAucune(id) {

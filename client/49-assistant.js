@@ -536,21 +536,21 @@
     return { libelle: libelle || 'Ouvrir la fiche', action: () => ouvrirDossierDepuisDashboard(d.id) };
   }
 
+  // Phrases, pas une carte (étude 21/10 : « comme un vrai Claude »).
   function reponseEtatDossierAssistant(d) {
     const auj = isoAujourdhuiLocal();
     const etat = etatDossier(d, auj);
     const prochaine = estSuccession(d) ? null : prochaineEcheanceDetail(d);
     const manque = estSuccession(d) ? [] : piecesAttenduesDossier(d);
-    const lignes = [];
-    // Le détail de « Attente de pièces » est la liste des pièces : elle a sa propre ligne dessous.
-    lignes.push(`<li><b>Statut</b> : ${escapeHtml(etat.texte)}${etat.detail && etat.cle !== 'attente' ? ` — ${escapeHtml(etat.detail)}` : ''}</li>`);
-    if (d.responsable) lignes.push(`<li><b>Responsable</b> : ${escapeHtml(d.responsable)}</li>`);
-    if (d.rendezVousSignature) lignes.push(`<li><b>Signature</b> : ${escapeHtml(dateAvecJourFr(d.rendezVousSignature))}${d.rendezVousSignatureHeure ? ' à ' + escapeHtml(d.rendezVousSignatureHeure.replace(':', ' h ')) : ''}${echeanceValidee(d, 'rendezVousSignature') ? ' (faite)' : ''}</li>`);
-    else if (prochaine) lignes.push(`<li><b>Prochaine étape</b> : ${escapeHtml(prochaine.label)}${prochaine.iso ? ` — ${escapeHtml(formatDateFr(prochaine.iso))} (${prochaine.jours >= 0 ? `dans ${prochaine.jours} j` : `dépassée de ${-prochaine.jours} j`})` : ''}</li>`);
-    if (manque.length) lignes.push(`<li><b>Attendu</b> : ${manque.slice(0, 6).map(escapeHtml).join(', ')}${manque.length > 6 ? ` et ${manque.length - 6} de plus` : ''}</li>`);
+    const phrases = [];
+    // Le détail de « Attente de pièces » est la liste des pièces : elle a sa propre phrase dessous.
+    phrases.push(`<b>${escapeHtml(libelleDossierAffiche(d))}</b> est au statut « ${escapeHtml(etat.texte)} »${etat.detail && etat.cle !== 'attente' ? ` : ${escapeHtml(etat.detail.charAt(0).toLowerCase() + etat.detail.slice(1))}` : ''}${d.responsable ? `, suivi par ${escapeHtml(d.responsable)}` : ''}.`);
+    if (d.rendezVousSignature) phrases.push(`La signature est ${echeanceValidee(d, 'rendezVousSignature') ? 'faite' : 'fixée'} le ${escapeHtml(dateAvecJourFr(d.rendezVousSignature))}${d.rendezVousSignatureHeure ? ' à ' + escapeHtml(d.rendezVousSignatureHeure.replace(':', ' h ')) : ''}.`);
+    else if (prochaine) phrases.push(`La prochaine étape est « ${escapeHtml(prochaine.label)} »${prochaine.iso ? `, le ${escapeHtml(formatDateFr(prochaine.iso))} (${prochaine.jours >= 0 ? `dans ${prochaine.jours} j` : `dépassée de ${-prochaine.jours} j`})` : ''}.`);
+    if (manque.length) phrases.push(`Il manque encore ${manque.slice(0, 6).map(escapeHtml).join(', ')}${manque.length > 6 ? ` et ${manque.length - 6} autre${manque.length - 6 > 1 ? 's' : ''}` : ''}.`);
     const fonds = bilanFondsAssistant(d);
-    if (fonds) lignes.push(`<li><b>Fonds</b> : ${fonds}</li>`);
-    return { html: `<p><b>${escapeHtml(libelleDossierAffiche(d))}</b></p><ul class="asst-liste">${lignes.join('')}</ul>`, boutons: [boutonFicheAssistant(d)] };
+    if (fonds) phrases.push(`Côté fonds : ${fonds}`);
+    return { html: `<p>${phrases.join(' ')}</p>`, boutons: [boutonFicheAssistant(d)] };
   }
 
   function reponsePiecesAssistant(d) {
@@ -564,14 +564,17 @@
   function reponseEcheancesAssistant(d) {
     const auj = isoAujourdhuiLocal();
     const items = echeancesPlanning(d).slice().sort((a, b) => String(a.iso || '9999').localeCompare(String(b.iso || '9999')));
-    const lignes = items.map(it => {
+    const nom = escapeHtml(libelleDossierAffiche(d));
+    const dites = items.map(it => {
       const j = it.iso ? joursEntre(auj, it.iso) - 1 : null;
-      const quand = it.iso ? `${formatDateFr(it.iso)} (${j > 0 ? `dans ${j} j` : j === 0 ? 'aujourd’hui' : `dépassée de ${-j} j`})` : 'sans date';
-      return `<li>${escapeHtml(it.label)} — ${escapeHtml(quand)}</li>`;
+      const quand = it.iso ? `le ${formatDateFr(it.iso)} (${j > 0 ? `dans ${j} j` : j === 0 ? 'aujourd’hui' : `dépassée de ${-j} j`})` : 'sans date';
+      return `${escapeHtml(it.label)}, ${escapeHtml(quand)}`;
     });
-    const butoir = d.acte && !estSuccession(d) ? `<p class="asst-note">Date butoir de l’avant-contrat : ${escapeHtml(formatDateFr(d.acte))}${d.rendezVousSignature ? ' (informative, le rendez-vous est fixé)' : ''}.</p>` : '';
-    return { html: lignes.length ? `<p>Échéances de ${escapeHtml(libelleDossierAffiche(d))} :</p><ul class="asst-liste">${lignes.join('')}</ul>${butoir}` : `<p>Aucune échéance en cours sur ${escapeHtml(libelleDossierAffiche(d))}.</p>${butoir}`,
-      boutons: [boutonFicheAssistant(d)] };
+    const butoir = d.acte && !estSuccession(d) ? ` La date butoir de l’avant-contrat est le ${escapeHtml(formatDateFr(d.acte))}${d.rendezVousSignature ? ' (à titre d’information, le rendez-vous est fixé)' : ''}.` : '';
+    const html = !dites.length ? `<p>Aucune échéance en cours sur <b>${nom}</b>.${butoir}</p>`
+      : dites.length === 1 ? `<p>Sur <b>${nom}</b>, il reste ${dites[0]}.${butoir}</p>`
+      : `<p>Sur <b>${nom}</b>, il reste ${dites.slice(0, -1).join(' ; ')}, puis ${dites[dites.length - 1]}.${butoir}</p>`;
+    return { html, boutons: [boutonFicheAssistant(d)] };
   }
 
   function reponseCoordonneesAssistant(d, partie) {

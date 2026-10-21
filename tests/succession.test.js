@@ -978,3 +978,15 @@ test('Fiches à ouvrir : père et fils du même prénom jamais cochés l’un po
   const beaucoup = app.pagesAOuvrirWizardSuccession({ defunt: '', heritiers: [], biens: [], bienPrincipal: '' }, { authentic: { biensDossier: { nombre: 40 } } });
   assert.equal(beaucoup.length, 7);
 });
+
+test('agenda 21/10 : titres NOTO / INVENTAIRE / SUCC seuls', () => {
+  const S = require('../commun/succession');
+  for (const t of ['NOTO Marie DUPONT', 'NOTORITE Marie DUPONT', 'NOTORIETE - Marie DUPONT', 'INVENTAIRE + NOTO Marie DUPONT', 'INVENTAIRE et NOTORIETE Marie DUPONT', 'INVENTAIRE et NOTO Marie DUPONT']) {
+    assert.equal(S.etapeRendezVousSuccessionDepuisTitre(t), 'notoriete', t);
+  }
+  for (const t of ['SUCC - Marie DUPONT', 'SUCCESSION Marie DUPONT', 'SUCCESSION - Marie DUPONT', 'SUCC - Jean-Pierre MARTIN']) {
+    assert.equal(S.etapeRendezVousSuccessionDepuisTitre(t), 'declarationSuccession', t);
+  }
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DUPONT ?'), 'autre');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - DUPONT - ouverture du testament'), 'autre');
+});
