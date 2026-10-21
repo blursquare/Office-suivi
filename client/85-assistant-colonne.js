@@ -47,6 +47,7 @@
     colonneAssistant.lus = {};
     colonneAssistant.apercu = null;
     colonneAssistant.docsDossier = null;
+    reinitialiserArtefactsAssistant();
     if (pdfApercuAssistant) pdfApercuAssistant.promesse.then(pdf => { try { pdf.destroy(); } catch (e) { /* déjà libéré */ } }).catch(() => {});
     pdfApercuAssistant = null;
     if (blocApercuAssistant) blocApercuAssistant.innerHTML = '';

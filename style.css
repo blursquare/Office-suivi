@@ -10088,6 +10088,8 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 @keyframes anim-pose { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
+  .asst-survol { transition: none; }
+  .asst-marque-attente .icone { animation: none; }
   .anim-etape-coche.anim-trace path, .ja.fait.vient-de-finir .ja-coche, .ja.fait.vient-de-finir .ja-titre, .jour-anneau.vient-de-compter .jour-anneau-plein,
   .jour-anneau.vient-de-compter .jour-anneau-texte, .anim-enregistre, .app-main > .onglet-panel, .reglages-panneau:not([hidden]),
   .app-main > .drawer-overlay .drawer-panneau, .sidebar-sousmenu:not(.ferme) > *,
@@ -10399,3 +10401,82 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-page .asst-barre { flex-wrap: wrap; }
 .asst-page .asst-astuce { display: none; }
 .asst-page .asst-options-saisie { flex-wrap: wrap; }
+
+/* ==== « Demander à CLAIRE » façon Claude (étude 21/10 : « reprends une interface de discussion façon Claude plutôt que Slack ») :
+   colonne de lecture centrée, demande en bulle à droite, réponse en pleine largeur sous l'étincelle de CLAIRE, saisie arrondie ;
+   puis le panneau des artefacts (courrier, tableau, outil) à droite de la conversation ==== */
+.asst-titre { font-weight: 500; }
+.asst-tete { border-bottom: 0; padding: 12px 24px 0; min-height: 52px; }
+.asst-messages { padding: 8px 24px 24px; }
+.asst-accueil { max-width: 720px; margin: 0 auto; padding: 56px 0 16px; text-align: center; }
+.asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; margin-bottom: 16px; color: var(--focus); }
+.asst-accueil-logo .icone { width: 32px; height: 32px; }
+.asst-accueil-titre { font-size: var(--texte-4xl); }
+.asst-accueil .asst-suggestions { justify-content: center; }
+.asst-jour { max-width: 720px; margin: 16px auto 8px; }
+.asst-jour::before, .asst-jour::after { display: none; }
+.asst-jour span { margin: 0 auto; border: 0; background: transparent; }
+.asst-message { display: block; max-width: 720px; margin: 0 auto; padding: 8px 0; }
+.asst-message:hover { background: transparent; }
+.asst-message.asst-suite { padding-top: 2px; padding-bottom: 2px; }
+.asst-moi { display: flex; justify-content: flex-end; }
+.asst-moi .asst-corps { position: relative; max-width: 85%; background: var(--paper-sunk); border-radius: var(--rayon-carte); padding: 8px 16px; }
+.asst-moi .asst-survol { position: absolute; right: 0; top: 100%; margin: 0; }
+.asst-moi .asst-texte p:last-child { margin-bottom: 0; }
+.asst-claire { position: relative; padding-left: 32px; }
+.asst-marque { position: absolute; left: 0; top: 12px; display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: var(--focus); }
+.asst-marque .icone { width: 16px; height: 16px; }
+.asst-claire .asst-texte { max-width: none; font-size: var(--texte-base); line-height: 1.6; }
+.asst-claire .asst-texte p { margin: 0 0 8px; }
+.asst-survol { position: static; display: flex; margin-top: 2px; padding: 0; border: 0; box-shadow: none; background: transparent; opacity: 0; transition: opacity 150ms ease; }
+.asst-message:hover .asst-survol, .asst-survol:focus-within { opacity: 1; }
+.asst-moi .asst-survol { justify-content: flex-end; }
+.asst-marque-attente .icone { animation: asst-pulse 1.2s infinite ease-in-out; }
+.asst-bas { padding: 0 24px 12px; }
+.asst-bas > * { max-width: 720px; margin-left: auto; margin-right: auto; }
+.asst-page .asst-saisie { border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); }
+.asst-page .asst-saisie textarea#assistant-saisie { min-height: 56px; padding: 16px 20px 8px; border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
+.asst-barre { padding: 4px 8px 8px 12px; }
+.asst-pied { text-align: center; }
+
+/* Artefacts : un panneau à droite de la conversation. */
+.asst-artefact { display: none; }
+.asst-page.artefact-ouvert { grid-template-columns: 248px minmax(0, 1fr) minmax(460px, 46%); }
+.asst-page.artefact-ouvert .asst-artefact { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--paper-card); }
+.asst-page.artefact-ouvert .asst-droite { display: none; }
+.asst-art-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 12px 16px 8px; }
+.asst-art-type { display: inline-flex; color: var(--muted); }
+.asst-art-titre { flex: 1 1 auto; min-width: 0; margin: 0; font-size: var(--texte-l); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asst-art-onglets { flex: 0 0 auto; display: flex; gap: 4px; padding: 0 16px 8px; overflow-x: auto; }
+.asst-art-onglet { display: inline-flex; align-items: center; gap: 6px; max-width: 200px; font: inherit; font-size: var(--texte-s); color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 4px 12px; cursor: pointer; }
+.asst-art-onglet span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asst-art-onglet .icone { width: 14px; height: 14px; flex: 0 0 auto; }
+.asst-art-onglet.actif { color: var(--ink); background: var(--paper-sunk); }
+.asst-art-actions { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 16px 12px; border-bottom: 1px solid var(--line); }
+.asst-art-signe { display: inline-flex; align-items: center; gap: 8px; margin-right: auto; font-size: var(--texte-m); }
+.asst-art-corps { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 16px; background: var(--paper-sunk); }
+.asst-art-aide { margin: 0 0 8px; color: var(--muted); font-size: var(--texte-s); }
+.asst-art-feuille { background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); overflow: hidden; }
+.asst-art-tableau { overflow: auto; max-height: 100%; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); }
+.asst-art-tableau table { border-collapse: collapse; font-size: var(--texte-m); min-width: 100%; }
+.asst-art-tableau th, .asst-art-tableau td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; min-width: 80px; }
+.asst-art-tableau thead th { position: sticky; top: 0; background: var(--paper-sunk); font-weight: 600; }
+.asst-art-tableau th.asst-art-num, .asst-art-tableau th.asst-art-coin { min-width: 0; width: 32px; text-align: right; color: var(--muted); font-weight: 400; background: var(--paper-sunk); }
+.asst-art-tableau td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.asst-art-tableau td:focus, .asst-art-tableau th:focus { outline: 2px solid var(--focus); outline-offset: -2px; }
+.asst-art-outil h3 { margin: 0 0 12px; font-size: var(--texte-xl); font-weight: 500; }
+.asst-art-donnees { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0 0 16px; padding: 16px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.asst-art-donnees dt { color: var(--muted); font-size: var(--texte-s); }
+.asst-art-donnees dd { margin: 0; overflow-wrap: anywhere; }
+@media (min-width: 1800px) {
+  .asst-page.artefact-ouvert.colonne-ouverte { grid-template-columns: 248px minmax(0, 1fr) minmax(460px, 40%) 340px; }
+  .asst-page.artefact-ouvert.colonne-ouverte .asst-droite { display: flex; }
+}
+@media (max-width: 1280px) {
+  .asst-page.artefact-ouvert { grid-template-columns: 248px minmax(0, 1fr); }
+  .asst-page.artefact-ouvert .asst-artefact { position: absolute; z-index: 7; top: 0; bottom: 0; right: 0; width: min(640px, 96%); box-shadow: var(--shadow-float); }
+}
+@media (max-width: 900px) {
+  .asst-page.artefact-ouvert { grid-template-columns: minmax(0, 1fr); }
+  .asst-moi .asst-corps { max-width: 92%; }
+}

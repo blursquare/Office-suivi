@@ -330,6 +330,14 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
     const courrier = e.forme === 'courrier';
+    // Un courrier s'ouvre à droite, sur le papier à en-tête de l'office, à corriger sur la page (étude 21/10, client/99) ; Word, PDF/A et
+    // le rangement refont la page telle qu'elle est affichée.
+    if (courrier) {
+      await ouvrirCourrierArtefactAssistant(titre, contenu, d);
+      poserMessageAssistant('claire', `<p>Courrier prêt : <b>${escapeHtml(titre)}</b>${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}. Il est ouvert à droite, sur le papier à en-tête de l’office : corrigez-le sur la page, puis Word, PDF/A ou « Ranger dans le dossier ».</p>`,
+        [{ libelle: 'Rouvrir le courrier', action: () => choisirArtefactAssistant(artefactsAssistant.liste.filter(a => a.type === 'courrier' && a.titre === titre).pop()?.id || '') }]);
+      return { fait: true, affiche_a_l_utilisateur: `courrier « ${titre} » ouvert dans le panneau de droite, sur le papier à en-tête de l’office ; l’utilisateur peut le corriger sur la page avant de le télécharger (Word, PDF/A)${d && d.nasDossier ? ' ou de le ranger dans le dossier du NAS' : ''}` };
+    }
     let blob;
     try { blob = courrier ? await courrierRenduAgent(contenu, d) : await docxRenduAgent(titre, contenu); }
     catch (err) { return { erreur: 'document Word impossible à fabriquer sur ce poste (bibliothèque en ligne injoignable ?)' }; }

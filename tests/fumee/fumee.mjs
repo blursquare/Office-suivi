@@ -321,6 +321,21 @@ try {
       });
       verifier(bac.somme.valeur === 6.5 && bac.reseau.valeur === 'bloqué' && /undefined/.test(JSON.stringify(bac.stockage.valeur)) && /trop long/.test(bac.boucle.erreur || '') && bac.ms < 4000 && bac.cadres === 0,
         `[${ecran.nom}] calcul libre : résultat juste, réseau coupé, boucle arrêtée (${bac.ms} ms), aucun cadre laissé`);
+      // Artefacts de « Demander à CLAIRE » (21/10) : courrier sur le papier à en-tête, tableau modifiable, carte d'outil — dans le panneau de droite.
+      await page.evaluate(() => definirOnglet('assistant'));
+      await pause(300);
+      const art = await page.evaluate(async () => {
+        await ouvrirCourrierArtefactAssistant('Essai', 'Mairie de Blois\n41000 BLOIS\n\nBlois, le 21 octobre 2026\n\nMadame, Monsieur,\n\nBonjour.\n\nMe Sophie GOSSART', dossiers[0]);
+        const courrier = { page: !!document.querySelector('#assistant-artefact .cstp-page'), editable: !!document.querySelector('#assistant-artefact [data-ligne][contenteditable]'), ouvert: !!document.querySelector('.asst-page.artefact-ouvert') };
+        ouvrirArtefactAssistant({ type: 'tableau', titre: 'Essai', colonnes: ['A', 'B'], lignes: [['x', 1], ['y', 2]] });
+        const tableau = { cellules: document.querySelectorAll('#assistant-artefact td[contenteditable]').length, onglets: document.querySelectorAll('#assistant-artefact .asst-art-onglet').length };
+        ouvrirOutilArtefactAssistant('Appel de fonds', dossiers[0], () => {});
+        const outil = !!document.querySelector('#assistant-artefact .asst-art-outil');
+        reinitialiserArtefactsAssistant();
+        return { courrier, tableau, outil, ferme: !document.querySelector('.asst-page.artefact-ouvert') };
+      });
+      verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.ferme,
+        `[${ecran.nom}] artefacts : courrier sur papier à en-tête modifiable, tableau modifiable, carte d'outil, fermeture`);
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }

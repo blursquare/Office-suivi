@@ -1483,7 +1483,7 @@
 <!-- « Demander à CLAIRE » (étude 06/10) : conversation façon Claude — messages au centre, champ en bas. Le rendu des
      messages est en JS (renderAssistant) ; le champ de saisie reste en HTML pour ne pas perdre la frappe au rendu. -->
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
-  <!-- Présentation « à la Slack » (étude 11/10) : fil continu, avatar carré, nom et heure ; @ pour citer un dossier. -->
+  <!-- Présentation « façon Claude » (étude 21/10, avant : « à la Slack ») : demande en bulle, réponse en pleine largeur ; @ pour citer un dossier. -->
   <div class="asst-page">
     <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
     <aside class="asst-cote" aria-label="Conversations">
@@ -1493,7 +1493,7 @@
     <div class="asst-principal">
     <div class="asst-tete">
       <wa-button appearance="plain" size="s" class="bouton-icone asst-fils-bouton" type="button" onclick="basculerFilsMobileAssistant()" title="Conversations" aria-label="Conversations"><span id="icon-assistant-fils" aria-hidden="true"></span></wa-button>
-      <h1 class="asst-titre"><span class="asst-diese" aria-hidden="true">#</span>Demander à CLAIRE</h1>
+      <h1 class="asst-titre">Demander à CLAIRE</h1>
       <div class="asst-etat" id="assistant-etat"></div>
       <span class="asst-tete-espace"></span>
       <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
@@ -1518,6 +1518,8 @@
       <p class="asst-pied">Les emails s’ouvrent dans la fenêtre d’envoi, l’agenda demande une confirmation ; toute autre action qui modifie un dossier attend votre autorisation. Avec une IA en ligne, partent la phrase, le texte lu des documents et ce que lisent ses outils, noms masqués — sauf si vous désactivez l’anonymisation dans l’espace de travail.</p>
     </div>
     </div>
+    <!-- Artefacts (étude 21/10 : courrier à en-tête éditable, tableau Excel, outil prérempli) — client/99-assistant-artefacts.js. -->
+    <aside class="asst-artefact" id="assistant-artefact" aria-label="Artefact"></aside>
     <!-- Espace de travail (étude 18/10 : « une sidebar à droite comme un Claude ») — client/85-assistant-colonne.js. -->
     <aside class="asst-droite" id="assistant-droite" aria-label="Espace de travail"></aside>
   </div>
@@ -2847,5 +2849,6 @@
 <script src="client/96-assistant-pouvoirs.js"></script>
 <script src="client/97-assistant-nas-libre.js"></script>
 <script src="client/98-assistant-calcul.js"></script>
+<script src="client/99-assistant-artefacts.js"></script>
 </body>
 </html>

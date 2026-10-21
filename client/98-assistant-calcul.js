@@ -14,8 +14,6 @@
   var LIGNES_APERCU_CALCUL = 15;
   var MAX_LIGNES_TABLEAU_CALCUL = 20000;
   var MAX_DOSSIERS_CALCUL = 400;
-  var MAX_CALCULS_GARDES = 8;
-  var calculsAgent = {};   // id → { blob, nom, titre } : les CSV produits dans cette fenêtre
 
   // Le code du Worker : `donnees` en paramètre, `return` du résultat (une promesse est attendue) ; rien d'autre que le langage.
   var SOURCE_WORKER_CALCUL = [
@@ -117,12 +115,6 @@
     return '﻿' + [t.colonnes.map(celluleCsvCalcul).join(';')].concat(t.lignes.map(l => t.colonnes.map((_, i) => celluleCsvCalcul(l[i])).join(';'))).join('\r\n') + '\r\n';
   }
 
-  function telechargerCalculAgent(id) {
-    const c = calculsAgent[id];
-    if (!c) { afficherToast('Ce tableau n’est plus gardé par la fenêtre : redemandez-le à CLAIRE.', 'OK', null); return; }
-    telechargerFichier(c.blob, c.nom + '.csv', 'text/csv');
-  }
-
   // Les données du calcul, lues ICI : `donnees` de l'agent, plus les dossiers demandés (["*"] = tous, en résumé ; sinon la fiche lue).
   function donneesCalculAgent(entree) {
     const donnees = entree.donnees && typeof entree.donnees === 'object' && !Array.isArray(entree.donnees) ? { ...entree.donnees } : {};
@@ -170,14 +162,12 @@
     if (valeur !== null && !(valeur && typeof valeur === 'object' && !Object.keys(valeur).length)) sortie.resultat = valeur;
     const boutons = [];
     if (tableau) {
-      const id = 'calcul' + (Object.keys(calculsAgent).length + 1) + '-' + Date.now().toString(36);
-      const nom = nomFichierRenduAgent(tableau.titre);
-      calculsAgent[id] = { blob: new Blob([csvDepuisTableauCalcul(tableau)], { type: 'text/csv;charset=utf-8' }), nom, titre: tableau.titre };
-      Object.keys(calculsAgent).slice(0, Math.max(0, Object.keys(calculsAgent).length - MAX_CALCULS_GARDES)).forEach(k => { delete calculsAgent[k]; });
-      boutons.push({ libelle: 'Télécharger (Excel, CSV)', action: () => telechargerCalculAgent(id) });
+      // Le tableau s'ouvre à droite (client/99) : cellules modifiables, Excel, CSV ; l'IA n'en voit qu'un aperçu.
+      const idArtefact = ouvrirArtefactAssistant({ type: 'tableau', titre: tableau.titre, colonnes: tableau.colonnes.slice(), lignes: tableau.lignes.map(l => l.slice()) });
+      boutons.push({ libelle: 'Ouvrir le tableau', action: () => choisirArtefactAssistant(idArtefact) });
       sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: apercuTableauCalcul(tableau.lignes),
         ...(tableau.coupe ? { coupe: `seules les ${MAX_LIGNES_TABLEAU_CALCUL} premières lignes sont gardées` } : {}) };
-      sortie.affiche_a_l_utilisateur = `tableau « ${tableau.titre} » prêt, avec « Télécharger »`;
+      sortie.affiche_a_l_utilisateur = `tableau « ${tableau.titre} » ouvert dans le panneau de droite (modifiable, Excel et CSV)`;
     }
     poserMessageAssistant('claire', `<p>Calcul fait : <b>${escapeHtml(objectif)}</b>.${tableau ? ` Tableau « ${escapeHtml(tableau.titre)} » : ${tableau.lignes.length} ligne${tableau.lignes.length > 1 ? 's' : ''}.` : ''}</p>`
       + `<details class="asst-calcul"><summary>Voir le code</summary><pre>${escapeHtml(code)}</pre></details>`, boutons);

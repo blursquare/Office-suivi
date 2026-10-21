@@ -97,5 +97,6 @@
   "95-scan-memoire.js",
   "96-assistant-pouvoirs.js",
   "97-assistant-nas-libre.js",
-  "98-assistant-calcul.js"
+  "98-assistant-calcul.js",
+  "99-assistant-artefacts.js"
 ]

@@ -109,8 +109,9 @@
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
     if (e.mode === 'ouvrir') {
-      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} est prêt à ouvrir.</p>`,
-        [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }]);
+      const idArtefact = ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d));
+      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} est prêt à ouvrir (carte à droite).</p>`,
+        [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
       return { fait: true, bouton_affiche: `Ouvrir ${o.libelle}` };
     }
     try { return lectureOutilClaireAgent(e.outil, d, e.texte); } catch (err) { return { erreur: 'lecture impossible : ' + String(err && err.message || err).slice(0, 120) }; }

@@ -86,24 +86,19 @@
     return new Date(quand || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
-  function auteurAssistant(role) {
-    if (role === 'claire') return { nom: 'CLAIRE', avatar: icone('sparkle'), classe: 'asst-av-claire' };
-    const nom = typeof utilisateurPoste === 'string' ? utilisateurPoste : '';
-    return { nom: prenomPosteAssistant() || 'Vous', avatar: escapeHtml(initialesCollaborateur(nom) || '?'), classe: 'asst-av-moi' };
-  }
-
   function renderAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
     renderFilsAssistant();
     renderColonneAssistant();
+    renderArtefactAssistant();
     assistantActions = {};
     const relances = document.getElementById('assistant-relances');
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
       `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
     if (!assistantMessages.length) {
       zone.innerHTML = `<div class="asst-accueil">
-          <div class="asst-avatar asst-av-claire asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
+          <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
           <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase. Tapez @ pour citer un dossier.</p>
           <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
@@ -120,23 +115,17 @@
         return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}')">${escapeHtml(b.libelle)}</wa-button>`;
       }).join('');
       const r = reperes[i];
-      const a = auteurAssistant(m.role);
       const jour = r.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(m.quand, maintenant))}</span></div>` : '';
-      const gouttiere = r.debutGroupe
-        ? `<span class="asst-avatar ${a.classe}" aria-hidden="true">${a.avatar}</span>`
-        : `<span class="asst-heure-survol" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`;
-      const tete = r.debutGroupe
-        ? `<div class="asst-qui"><b>${escapeHtml(a.nom)}</b>${m.role === 'claire' ? '<span class="asst-etiquette">Assistante</span>' : ''}<time>${escapeHtml(heureAssistant(m.quand))}</time></div>`
-        : '';
-      return `${jour}<div class="asst-message asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
-          ${gouttiere}
-          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}</div>
-          <div class="asst-survol"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div>
+      // Présentation « façon Claude » (étude 21/10) : pas d'avatar ni de nom ; la demande dans une bulle à droite, la réponse en pleine
+      // largeur avec la petite étincelle de CLAIRE en tête ; copier sous le message, au survol.
+      const marque = m.role === 'claire' && r.debutGroupe ? `<span class="asst-marque" aria-hidden="true">${icone('sparkle')}</span>` : '';
+      return `${jour}<div class="asst-message asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}" title="${escapeAttr(heureAssistant(m.quand))}">
+          ${marque}<div class="asst-corps"><div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
+          <div class="asst-survol"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
-          <span class="asst-avatar asst-av-claire" aria-hidden="true">${icone('sparkle')}</span>
-          <div class="asst-corps"><div class="asst-qui"><b>CLAIRE</b><span class="asst-etiquette">Assistante</span></div>
-          <div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+          <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('sparkle')}</span>
+          <div class="asst-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
   }
