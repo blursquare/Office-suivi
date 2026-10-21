@@ -244,3 +244,17 @@ function joursApres(n) {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+
+test('délais des rappels : valeurs d origine, enregistrement assaini, rétablissement', async () => {
+  const avant = await (await appeler('/api/reglages/delais-rappels')).json();
+  const pret = avant.echeances.find((e) => e.cle === 'pret');
+  assert.deepEqual(pret.jours, [15, 7]);
+  assert.ok(avant.echeances.some((e) => e.groupe === 'succession' && e.cle === 'notoriete'));
+  const mis = await (await appeler('/api/reglages/delais-rappels', { method: 'PUT', body: JSON.stringify({ delais: { pret: [30, 10, 10], notoriete: [], bidon: [1] } }) })).json();
+  assert.deepEqual(mis.echeances.find((e) => e.cle === 'pret').jours, [30, 10]);
+  assert.deepEqual(mis.echeances.find((e) => e.cle === 'notoriete').jours, []);
+  assert.deepEqual(mis.echeances.find((e) => e.cle === 'rendezVousSignature').jours, [25, 15]);
+  assert.equal((await appeler('/api/reglages/delais-rappels', { method: 'PUT', body: JSON.stringify({ delais: [1] }) })).status, 400);
+  const retabli = await (await appeler('/api/reglages/delais-rappels', { method: 'PUT', body: JSON.stringify({ delais: {} }) })).json();
+  assert.deepEqual(retabli.echeances.find((e) => e.cle === 'pret').jours, [15, 7]);
+});

@@ -96,6 +96,7 @@
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
       chargerComptesCollaborateurs();
+      chargerDelaisRappels();
       renderReglages3cx();
       renderReglagesAuthentic();
       document.getElementById('reglages-etat').style.display = 'none';

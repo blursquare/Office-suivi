@@ -10,7 +10,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
 const {
-  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType,
+  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, assainirDelaisRappels,
   echeanceValidee, toutesEcheances, joursRestants,
   calculerRappelsDus, texteRappel, executerTacheRappels
 } = require('../src/jobs/rappels');
@@ -753,4 +753,14 @@ test('prêt ancré sur la date butoir : son rappel n’empêche pas celui de la 
   const ensuite = calculerRappelsDus([{ ...d, pret: '2026-11-25' }], '2026-11-10', envoyes);
   assert.equal(ensuite.length, 1);
   assert.equal(ensuite[0].reminderKey, 'pret:15');
+});
+
+test('les délais réglés par l étude remplacent les seuils d origine', () => {
+  const delais = assainirDelaisRappels({ pret: ['30', 7, 7, -1, 'x', 400], autre: [3], notoriete: [], inconnu: [1], appelFonds: 'non' });
+  assert.deepEqual(delais, { pret: [30, 7], autre: [3], notoriete: [] });
+  assert.deepEqual(seuilsPourType('pret', delais), [30, 7]);
+  assert.deepEqual(seuilsPourType('autre-2', delais), [3]);
+  assert.deepEqual(seuilsPourType('notoriete', delais), [], 'liste vide : aucun rappel');
+  assert.deepEqual(seuilsPourType('rendezVousSignature', delais), [25, 15], 'type non réglé : seuil d origine');
+  assert.deepEqual(assainirDelaisRappels(null), {});
 });

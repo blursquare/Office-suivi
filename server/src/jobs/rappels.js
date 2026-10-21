@@ -69,7 +69,52 @@ const SEUILS_RAPPELS_PAR_TYPE = {
 // qu'elle nomme elle-même au cas par cas, ce repli reprend donc l'ancien couple unique.
 const SEUILS_RAPPELS_DEFAUT = [15, 7];
 
-function seuilsPourType(type) {
+// Délais choisis par l'étude (Réglages › Rappels, étude 21/10 : « un réglage pour choisir les délais de rappels pour vente et
+// succession ») : clé `rappels-delais` { <type d'échéance>: [jours…], autre: [jours…] }. Seuls les types listés ici sont
+// réglables ; un type absent du réglage garde son seuil d'origine, une liste vide = aucun rappel pour cette échéance.
+const CLE_DELAIS_RAPPELS = 'rappels-delais';
+const ECHEANCES_DELAIS_RAPPELS = [
+  { cle: 'pret', libelle: 'Obtention du prêt', groupe: 'vente' },
+  { cle: 'ventebien', libelle: 'Vente préalable', groupe: 'vente' },
+  { cle: 'rendezVousSignature', libelle: 'Rendez-vous de signature', groupe: 'vente' },
+  { cle: 'appelFonds', libelle: 'Appel de fonds (jours avant l’échéance)', groupe: 'vente' },
+  { cle: 'projetEnvoye', libelle: 'Envoi du projet d’acte', groupe: 'vente' },
+  { cle: 'autre', libelle: 'Échéance ajoutée à la main', groupe: 'vente' },
+  { cle: 'notoriete', libelle: 'Acte de notoriété', groupe: 'succession' },
+  { cle: 'controleDroits', libelle: 'Contrôle des droits et inventaire', groupe: 'succession' },
+  { cle: 'declarationSuccession', libelle: 'Déclaration de succession', groupe: 'succession' },
+  { cle: 'decompteSuccession', libelle: 'Décompte à faire valider', groupe: 'succession' },
+  { cle: 'projetSuccession', libelle: 'Projet de déclaration', groupe: 'succession' },
+  { cle: 'appelFondsSuccession', libelle: 'Appel de fonds', groupe: 'succession' }
+].map((e) => Object.assign(e, { defaut: (e.cle === 'autre' ? SEUILS_RAPPELS_DEFAUT : (SEUILS_RAPPELS_PAR_TYPE[e.cle] || SEUILS_RAPPELS_DEFAUT)).slice() }));
+
+// Pure : ne garde que des types connus et des listes d'entiers 0…365 sans doublon, du plus grand au plus petit (5 au plus).
+function assainirDelaisRappels(brut) {
+  const sortie = {};
+  if (!brut || typeof brut !== 'object') return sortie;
+  for (const e of ECHEANCES_DELAIS_RAPPELS) {
+    const liste = brut[e.cle];
+    if (!Array.isArray(liste)) continue;
+    const jours = [...new Set(liste.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x <= 365))]
+      .sort((a, b) => b - a).slice(0, 5);
+    sortie[e.cle] = jours;
+  }
+  return sortie;
+}
+
+function lireDelaisRappels(parametresRepo) {
+  try {
+    return assainirDelaisRappels(parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_DELAIS_RAPPELS, {}) : {});
+  } catch (e) {
+    return {};
+  }
+}
+
+function seuilsPourType(type, delais) {
+  if (delais) {
+    const cle = /^autre-/.test(type) ? 'autre' : type;
+    if (Array.isArray(delais[cle])) return delais[cle];
+  }
   return SEUILS_RAPPELS_PAR_TYPE[type] || SEUILS_RAPPELS_DEFAUT;
 }
 
@@ -85,7 +130,7 @@ function joursRestants(iso, aujourdHui) {
 // rappels dus — une entrée par (dossier, échéance, seuil) tombant EXACTEMENT sur ce jour.
 // `dejaEnvoyes` (un Set de `${dossierId}:${type}:${seuil}`) filtre ceux déjà notifiés — le job
 // tourne toutes les 30 minutes, largement plusieurs fois entre le début et la fin du jour concerné.
-function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
+function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes, delais) {
   const dus = [];
   for (const d of dossiers || []) {
     if (!d || d.archive || !d.responsable) continue;
@@ -103,7 +148,7 @@ function calculerRappelsDus(dossiers, aujourdHui, dejaEnvoyes) {
     }
     for (const e of echeances) {
       const j = joursRestants(e.iso, aujourdHui);
-      for (const seuil of seuilsPourType(e.type)) {
+      for (const seuil of seuilsPourType(e.type, delais)) {
         if (j !== seuil) continue;
         const reminderKey = `${e.type}:${seuil}${e.ancreButoir ? `@${e.iso}` : ''}`;
         if (dejaEnvoyes && dejaEnvoyes.has(`${d.id}:${reminderKey}`)) continue;
@@ -255,7 +300,7 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
   );
 
   /** @type {Array<Record<string, any>>} */
-  const dus = [].concat(calculerRappelsDus(dossiers, jour, dejaEnvoyes),
+  const dus = [].concat(calculerRappelsDus(dossiers, jour, dejaEnvoyes, lireDelaisRappels(parametresRepo)),
     alertesFondsDues(dossiers, jour, dejaEnvoyes).map((a) => Object.assign(a, { texte: texteAlerteFonds(a) })));
   resultat.rappelsDus = dus.length;
 
@@ -328,7 +373,7 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 
 module.exports = {
   libelleDossier,
-  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, echeanceValidee, toutesEcheances, joursRestants, echeanceSaferDossier,
+  SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, CLE_DELAIS_RAPPELS, ECHEANCES_DELAIS_RAPPELS, assainirDelaisRappels, lireDelaisRappels, echeanceValidee, toutesEcheances, joursRestants, echeanceSaferDossier,
   calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels,
   bilanFonds, jourSemaine, alertesFondsDues, texteAlerteFonds
 };

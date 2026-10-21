@@ -1755,7 +1755,7 @@
        destinataire réel, voir server/src/envoiEmail.js). Gmail uniquement (décision de l'étude,
        faute de droits d'administration Microsoft 365 — voir GMAIL_SMTP dans script.js). ===== -->
   <section class="reglages-panneau" id="reglages-panneau-rappels" role="tabpanel" aria-labelledby="reglages-onglet-rappels" hidden>
-    <h2 class="reglages-titre">Rappels <span class="info-i" tabindex="0" data-info="CLAIRE envoie un email à la boîte-passerelle : l'objet porte l'adresse du collaborateur, le corps le message ; le flux Power Automate le poste dans Teams. Seuils : vente préalable et prêt J-15 / J-7, appel de fonds J-15 / J-10, signature J-25 / J-15, échéance personnalisée J-15 / J-7. Les rappels nomment le dossier et ses pièces : ces données transitent par le compte Gmail."></span></h2>
+    <h2 class="reglages-titre">Rappels <span class="info-i" tabindex="0" data-info="CLAIRE envoie un email à la boîte-passerelle : l'objet porte l'adresse du collaborateur, le corps le message ; le flux Power Automate le poste dans Teams. Les délais se règlent plus bas. Les rappels nomment le dossier et ses pièces : ces données transitent par le compte Gmail."></span></h2>
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Envoi par Gmail</h3>
       <div class="reglages-liste">
@@ -1788,6 +1788,15 @@
     </div>
 
 
+
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Délais des rappels <span class="info-i" tabindex="0" data-info="Les jours avant l’échéance où le rappel Teams part, séparés par des virgules : « 15, 7 » = à J-15 puis à J-7, « 0 » = le jour même, vide = aucun rappel. Pris en compte au tour suivant (toutes les 30 minutes) ; un rappel déjà envoyé ne repart pas."></span></h3>
+      <div class="reglages-liste" id="reglages-delais-rappels"></div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerDelaisRappels()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="enregistrerDelaisRappels(true)">Rétablir les délais d’origine</wa-button>
+      </div>
+    </div>
 
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Dernier tour de rappels <span class="info-i" tabindex="0" data-info="« Lancer un tour maintenant » envoie réellement les rappels dus : ils ne repartiront pas au tour suivant. Rien n'arrive dans Teams : voir l'historique du flux, puis les indésirables de la boîte-passerelle."></span></h3>
@@ -2851,5 +2860,6 @@
 <script src="client/97-assistant-nas-libre.js"></script>
 <script src="client/98-assistant-calcul.js"></script>
 <script src="client/99-assistant-artefacts.js"></script>
+<script src="client/100-reglages-delais-rappels.js"></script>
 </body>
 </html>

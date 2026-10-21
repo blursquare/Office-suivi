@@ -15,7 +15,7 @@ const express = require('express');
 const { envoyerEmail, envoiConfigure } = require('../envoiEmail');
 const { estCompteGmail } = require('../imapGmail');
 const { mettreCopiesEnAttente, DELAI_AVANT_EFFACEMENT_MS } = require('../nettoyageGmail');
-const { executerTacheRappels } = require('../jobs/rappels');
+const { executerTacheRappels, CLE_DELAIS_RAPPELS, ECHEANCES_DELAIS_RAPPELS, assainirDelaisRappels, lireDelaisRappels } = require('../jobs/rappels');
 
 // Forme d'une adresse email : un seul @, une partie locale, un domaine d'au moins deux libellés
 // séparés par des points, sans espace. Volontairement simple — il ne s'agit pas de valider la RFC,
@@ -124,6 +124,19 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
     } catch (e) {
       res.status(500).json({ erreur: `Le tour de rappels a échoué : ${e.message}` });
     }
+  });
+
+  // Délais des rappels par échéance (vente et succession) : { echeances: [{ cle, libelle, groupe, defaut, jours }] }.
+  function delaisRappelsPublics() {
+    const choisis = lireDelaisRappels(parametresRepo);
+    return { echeances: ECHEANCES_DELAIS_RAPPELS.map((e) => Object.assign({}, e, { jours: Array.isArray(choisis[e.cle]) ? choisis[e.cle] : e.defaut })) };
+  }
+  routeur.get('/reglages/delais-rappels', (req, res) => res.json(delaisRappelsPublics()));
+  routeur.put('/reglages/delais-rappels', (req, res) => {
+    const brut = req.body && req.body.delais;
+    if (!brut || typeof brut !== 'object' || Array.isArray(brut)) return res.status(400).json({ erreur: 'Délais attendus.' });
+    parametresRepo.ecrireJsonBrut(CLE_DELAIS_RAPPELS, assainirDelaisRappels(brut));
+    res.json(delaisRappelsPublics());
   });
 
   return routeur;

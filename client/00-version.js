@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.311.0';
+  const VERSION_APP = '0.312.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.312.0', date: '2026-10-21 23:17', resume: "Réglages › Rappels : on choisit les délais des rappels, échéance par échéance, pour les ventes (prêt, vente préalable, signature, appel de fonds, projet) et pour les successions (notoriété, contrôle des droits, déclaration, décompte, projet, appel de fonds). Par exemple « 15, 7 » rappelle à J-15 puis à J-7, « 0 » le jour même, vide = aucun rappel ; « Rétablir les délais d’origine » remet les valeurs d’avant." },
     { version: '0.311.0', date: '2026-10-21 22:56', resume: "Successions : le rendez-vous d’inventaire compte comme une signature à l’agenda (sans changer la date de signature de la fiche), l’itinéraire des deux « Trajet » part de la maison du défunt, et la catégorie orange s’appelle « À l’extérieur ou chez un confrère »." },
     { version: '0.310.0', date: '2026-10-21 22:43', resume: "Successions : une fois le contrôle des droits fait, le rendez-vous de signature de l’inventaire (acte notarié chez le client) se place dans l’agenda, en orange (à l’extérieur), depuis la carte du contrôle des droits." },
     { version: '0.309.1', date: '2026-10-21 22:29', resume: "Successions : un rendez-vous « INVENTAIRE + NOTO … » (inventaire chez le client et notoriété signés ensemble) sert à la fois au contrôle des droits et à la notoriété ; en deux temps, chacun garde son rendez-vous." },
