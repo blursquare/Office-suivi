@@ -128,7 +128,7 @@
   }
 
   // Ligne « Rendez-vous » de la fiche d'une succession : tous les rendez-vous, et « Ajouter un rendez-vous ».
-  var LIBELLES_ETAPE_RDV_SUCCESSION = { ouvertureSuccession: 'Ouverture', notoriete: 'Notoriété', declarationSuccession: 'Déclaration', acte: 'Signature', autre: 'Rendez-vous' };
+  var LIBELLES_ETAPE_RDV_SUCCESSION = { ouvertureSuccession: 'Ouverture', notoriete: 'Notoriété', controleDroits: 'Inventaire', declarationSuccession: 'Déclaration', acte: 'Signature', autre: 'Rendez-vous' };
   // Pure : ce que le titre d'un rendez-vous ajoute à son étape sur la fiche — sans le nom du dossier (« SUCC - MOREAU - … »), et rien quand
   // il redit l'étape (« Acte de notoriété » sous « Notoriété ») : relecture du 17/10, la répétition restait.
   function complementTitreRdvSuccession(d, r) {

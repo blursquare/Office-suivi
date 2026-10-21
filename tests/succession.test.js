@@ -39,7 +39,7 @@ test('déroulé : ouverture, notoriété à 1 mois, contrôle à 2 mois, déclar
   const d = base({ biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-20' } });
   const e = S.etapesSuccession(d, '2026-10-15');
   assert.equal(e.map(x => `${x.type}:${x.iso}:${x.fait ? 'fait' : ''}:${x.active ? 'actif' : ''}`).join('|'),
-    'ouvertureSuccession:2026-10-20::actif|notoriete:2026-11-20::actif|controleDroits:2026-12-20::actif|deblocageFonds:::|receptionFonds:::|decompteSuccession:::actif|appelFondsSuccession:::actif|declarationSuccession:2027-04-20::actif');
+    'ouvertureSuccession:2026-10-20::actif|notoriete:2026-11-20::actif|controleDroits:2026-12-20::actif|deblocageFonds:::|receptionFonds:::|decompteSuccession:::actif|projetSuccession:::actif|appelFondsSuccession:::actif|declarationSuccession:2027-04-20::actif');
   assert.match(e.find(x => x.type === 'declarationSuccession').label, /attestation immobilière et de la déclaration de succession/);
   // Notoriété seule : pas de déclaration de succession.
   assert.ok(!S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20' } }), '2026-10-15').some(x => x.type === 'declarationSuccession'));
@@ -1017,4 +1017,38 @@ test('timeline 21/10 : un acte ajouté dans Authentic n\'est pas une étape, son
   const d = base({ succession: { ouvertureLe: '2026-10-20' }, authentic: { actesSuccession: [{ intitule: 'ACT Attestation SUCC Claude SIMON T@', etat: 'en_cours' }] } });
   assert.ok(!S.etapesSuccession(d, '2026-10-21').some(x => String(x.type).startsWith('acte:')));
   assert.equal(S.actesSuccession(d).length > 0, true);
+});
+
+test('étude 21/10 : INVENTAIRE seul = contrôle des droits (rendez-vous à 2 mois), INVENTAIRE + NOTO = notoriété ; le projet suit le décompte', () => {
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('INVENTAIRE Marie DUPONT'), 'controleDroits');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('INVENTAIRE + NOTO Marie DUPONT'), 'notoriete');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('INVENTAIRE et NOTORIETE Marie DUPONT'), 'notoriete');
+  const d = base({ succession: { ouvertureLe: '2026-10-20', rendezVous: [{ id: 'i', etape: 'controleDroits', date: '2026-12-15', heure: '10:00' }] } });
+  const e = S.etapesSuccession(d, '2026-10-21');
+  assert.deepEqual([e.find(x => x.type === 'controleDroits').iso, e.find(x => x.type === 'controleDroits').rdvPlace], ['2026-12-15', true]);
+  // Un rendez-vous d'inventaire n'est pas une signature.
+  assert.equal(S.signatureSuccessionDepuisRendezVous(S.rendezVousSuccession(d), '2026-10-21'), null);
+  const ds = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20', type: 'notoriete-ds', rendezVous: [{ id: 'd', etape: 'declarationSuccession', date: '2027-03-10', heure: '10:00' }] } }), '2027-02-01');
+  assert.deepEqual(['decompteSuccession', 'projetSuccession'].map(t => ds.find(x => x.type === t).iso), ['2027-02-28', '2027-02-28']);
+  const noto = S.etapesSuccession(base({ succession: { ouvertureLe: '2026-10-20', type: 'notoriete' } }), '2027-02-01');
+  assert.ok(!noto.some(x => x.type === 'projetSuccession' || x.type === 'decompteSuccession'));
+});
+
+test('étude 21/10 : personne ajoutée à la main à « Nouveau dossier » (conjointe survivante), gardée quand sa fiche est ouverte dans Authentic', () => {
+  const exp = { intitule: 'SUCC MAILLARD Paul', type: 'succession', parties: [], immeubles: [],
+    infosAuthentic: { comparants: [{ nom: 'MAILLARD Paul', role: 'DEFUNT' }, { nom: 'MAILLARD Lucie', role: 'HERITIER' }] },
+    personnes: [] };
+  const ajouts = [{ nom: 'Odile MAILLARD', qualite: 'Conjoint survivant' }];
+  const avant = app.propositionWizardSuccession(exp, ajouts);
+  assert.equal(avant.heritiers.map(h => h.nom + ':' + (h.qualite || '')).join('|'), 'Lucie MAILLARD:|Odile MAILLARD:Conjoint survivant');
+  assert.equal(avant.conjoint, true);
+  const apres = app.propositionWizardSuccession(Object.assign({}, exp, { personnes: [{ id: 'o', nom: 'MAILLARD', prenom: 'Odile', civilite: 'Madame', emails: ['odile@exemple.fr'], telephones: [] }] }), ajouts);
+  assert.equal(apres.heritiers.map(h => h.nom + ':' + (h.qualite || '')).join('|'), 'Lucie MAILLARD:|Odile MAILLARD:Conjoint survivant');
+  assert.equal(apres.conjoint, true);
+  // Un héritier ajouté à la main.
+  assert.equal(app.propositionWizardSuccession(exp, [{ nom: 'Hugo MAILLARD', qualite: 'Héritier' }]).heritiers.map(h => h.nom).join('|'), 'Lucie MAILLARD|Hugo MAILLARD');
+  // À la création : la partie porte sa qualité, le conjoint survivant est gardé.
+  const d = { parties: [], succession: {} };
+  app.appliquerSaisieWizardSuccession(d, {}, { conjoint: true });
+  assert.equal(d.succession.conjointSurvivant, true);
 });

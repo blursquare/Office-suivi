@@ -1990,7 +1990,7 @@
     ouvertureSuccession: 'Rendez-vous d’ouverture de la succession', notoriete: 'Signature de l’acte de notoriété',
     controleDroits: 'Contrôle des droits et de l’inventaire', transfertComptes: 'Transfert des comptes au conjoint survivant',
     deblocageFonds: 'Déblocage des fonds', receptionFonds: 'Réception des fonds', declarationSuccession: 'Signature de la déclaration de succession',
-    decompteSuccession: 'Envoi du décompte à faire valider', appelFondsSuccession: 'Appel de fonds (succession)'
+    decompteSuccession: 'Envoi du décompte à faire valider', projetSuccession: 'Envoi du projet à faire valider', appelFondsSuccession: 'Appel de fonds (succession)'
   };
 
   // Résout le libellé d'une échéance pour un message d'historique — les trois/cinq types fixes

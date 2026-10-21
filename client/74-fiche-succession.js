@@ -120,7 +120,8 @@
     const parties = (Array.isArray(d && d.parties) ? d.parties : []).map(p => (p && p.prenom && p.nom && !String(p.nom).includes(p.prenom) ? Object.assign({}, p, { nom: p.prenom + ' ' + p.nom }) : p)).filter(p => p && p.nom && !estDefunt(p.nom) && !(p.nomUsage && defComp && memePersonneNommee([p.nom, p.nomUsage].join(' '), defComp.nom)));
     const her = comps.filter(c => c.role === 'HERITIER');
     // Le conjoint survivant (étude 19/10) : avec les héritiers, qualité « Conjoint survivant », même absent des comparants.
-    const conjoint = (p) => conjointSurvivantSuccession(d, Object.assign({}, ficheClientDe(d, p.nom) || {}, { nom: p.nom, prenom: '', deces: null }));
+    // Une personne ajoutée à la main comme conjoint survivant (étude 21/10) l'est sans autre preuve.
+    const conjoint = (p) => /^conjoint survivant$/i.test(String(p.qualite || '')) || conjointSurvivantSuccession(d, Object.assign({}, ficheClientDe(d, p.nom) || {}, { nom: p.nom, prenom: '', deces: null }));
     if (!her.length) return { heritiers: parties.map(p => (conjoint(p) && !p.qualite ? Object.assign({}, p, { qualite: 'Conjoint survivant' }) : p)), autres: [] };
     const heritiers = [], vus = new Set();
     her.forEach(c => {
@@ -130,7 +131,7 @@
       const np = nomPrenomsComparant(c.nom);
       heritiers.push({ nom: [np.prenoms, np.nom].filter(Boolean).join(' ') || c.nom, civilite: c.civilite || '', qualite, comparant: true });
     });
-    parties.filter(p => !vus.has(p) && conjoint(p)).forEach(p => { vus.add(p); heritiers.push(Object.assign({}, p, { qualite: 'Conjoint survivant' })); });
+    parties.filter(p => !vus.has(p) && (conjoint(p) || p.heritierSaisi)).forEach(p => { vus.add(p); heritiers.push(conjoint(p) ? Object.assign({}, p, { qualite: 'Conjoint survivant' }) : p); });
     return { heritiers, autres: parties.filter(p => !vus.has(p)) };
   }
 
@@ -350,7 +351,7 @@
       const j = ecartJours(aujourdhuiIso, e.iso);
       if (j === null) return;
       if (e.butoir && j <= 15) r.push({ gravite: j <= 5 ? 'critique' : 'vigilance', titre: 'Placer le rendez-vous', detail: `${e.label} · date butoir le ${court(e.iso)}${j < 0 ? ' (dépassée)' : ''}`, jours: j });
-      else if (e.avantRdv && j <= 3) r.push({ gravite: j <= 0 ? 'critique' : 'vigilance', titre: e.type === 'appelFondsSuccession' ? 'Envoyer l’appel de fonds' : 'Envoyer le décompte à faire valider', detail: `Avant le rendez-vous · le ${court(e.iso)}${j < 0 ? ' (en retard)' : ''}`, jours: j });
+      else if (e.avantRdv && j <= 3) r.push({ gravite: j <= 0 ? 'critique' : 'vigilance', titre: e.type === 'appelFondsSuccession' ? 'Envoyer l’appel de fonds' : e.type === 'projetSuccession' ? 'Envoyer le projet à faire valider' : 'Envoyer le décompte à faire valider', detail: `Avant le rendez-vous · le ${court(e.iso)}${j < 0 ? ' (en retard)' : ''}`, jours: j });
     });
     return r;
   }

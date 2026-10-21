@@ -9,21 +9,38 @@
 var wizardSuccessionCle = '';
 // La proposition d'Authentic AFFICHÉE dans le bloc : la saisie lui est comparée (jamais à un recalcul, relecture 16/10).
 var wizardSuccessionProposition = null;
+// Personnes ajoutées à la main pendant « Vérifier » (étude 21/10) : [{ nom, qualite: 'Conjoint survivant' | 'Héritier' }].
+var wizardSuccessionAjouts = [];
 
 // Pure : le dossier tel qu'il sera créé (parties, biens, comparants et fiches client d'Authentic) — pour lire défunt, héritiers, conjoint
 // survivant et type proposé avec les mêmes règles que la fiche.
-function dossierProvisoireSuccession(donnees) {
+function dossierProvisoireSuccession(donnees, ajouts) {
   const exp = donnees || {};
   const d = { id: 'nouveau', nom: exp.intitule || '', typeAffaire: 'succession', sansPret: true,
     parties: partiesSuccessionDepuisAuthentic(exp), biens: biensDepuisAuthentic(exp),
     authentic: Object.assign({}, exp.infosAuthentic || {}) };
+  appliquerPersonnesSaisiesSuccession(d, ajouts);
   (exp.personnes || []).forEach(p => retenirFicheClientAuthentic(d, p, ''));
   return d;
 }
 
+// Modifie d.parties : les personnes ajoutées à la main (conjointe survivante, héritier). Une personne déjà là — sa fiche d'Authentic lue —
+// reçoit sa qualité ; sinon elle est ajoutée. Rend d.
+function appliquerPersonnesSaisiesSuccession(d, ajouts) {
+  const parties = Array.isArray(d.parties) ? d.parties.slice() : [];
+  (Array.isArray(ajouts) ? ajouts : []).filter(a => a && a.nom).forEach(a => {
+    const marque = a.qualite === 'Conjoint survivant' ? { qualite: 'Conjoint survivant' } : { heritierSaisi: true };
+    const i = parties.findIndex(p => p && memePersonneNommee(p.nom, a.nom));
+    if (i >= 0) parties[i] = Object.assign({}, parties[i], marque);
+    else parties.push(Object.assign({ nom: a.nom, role: 'PARTIE', qualiteActe: '', qualitePersonne: 'physique', representant: null, origine: 'saisie' }, marque));
+  });
+  d.parties = parties;
+  return d;
+}
+
 // Pure : ce que l'assistant propose pour une succession → { defunt, decesDate, decesLieu, conjoint (bool), type, heritiers, biens }.
-function propositionWizardSuccession(donnees) {
-  const d = dossierProvisoireSuccession(donnees);
+function propositionWizardSuccession(donnees, ajouts) {
+  const d = dossierProvisoireSuccession(donnees, ajouts === undefined ? wizardSuccessionAjouts : ajouts);
   const df = defuntConstitution(d).champs;
   const heritiers = personnesSuccession(d).heritiers;
   return {
@@ -90,6 +107,7 @@ function renderWizardSuccession() {
   if (!successionEnCoursWizard()) { bloc.innerHTML = ''; wizardSuccessionCle = ''; wizardSuccessionProposition = null; return; }
   const cle = String(exportAuthenticActuel.intitule || '') + '|' + String(exportAuthenticActuel.reference || '');
   const garder = wizardSuccessionCle === cle && !!wizardSuccessionProposition;
+  if (!garder) wizardSuccessionAjouts = [];
   // Relu à chaque fois (étude 19/10 : date et lieu du décès vides) : une fiche du défunt ouverte dans Authentic pendant « Vérifier »
   // complète les champs restés vides — une saisie n'est jamais remplacée.
   // Un champ qui vaut encore ce qu'Authentic proposait n'est pas une saisie : il suit la nouvelle proposition (relecture 0.290.1 — sinon
@@ -111,7 +129,7 @@ function renderWizardSuccession() {
     ? p.biens.map(b => `<li><span class="prop-texte">${escapeHtml(b.adresse || 'Adresse non relevée')}</span>${b.parcelles ? ` <span class="hint">${escapeHtml(b.parcelles)}</span>` : ''}</li>`).join('')
     : p.bienPrincipal ? `<li><span class="prop-texte">${escapeHtml(p.bienPrincipal)}</span> <span class="hint">rubrique « Immeubles » ; fiche du bien pas encore ouverte</span></li>`
       : '<li class="hint">Aucun bien immobilier relevé dans Authentic.</li>';
-  const aOuvrir = pagesAOuvrirWizardSuccession(p, dossierProvisoireSuccession(exportAuthenticActuel));
+  const aOuvrir = pagesAOuvrirWizardSuccession(p, dossierProvisoireSuccession(exportAuthenticActuel, wizardSuccessionAjouts));
   const restent = aOuvrir.filter(x => !x.recue).length;
   const ouvrir = `<div class="wizard-succ-ouvrir"><div class="analyse-sous-titre">${restent ? `À ouvrir dans Authentic <span class="analyse-compteur">${restent}</span>` : 'Tout est lu dans Authentic'} ${infoBulle('Ouvrez chaque fiche dans Authentic pendant que cet écran est affiché : elle se coche ici, ses données complètent ce qui est montré et sont gardées à l’ajout du dossier.')}</div>
       <ul class="pa-pages">${aOuvrir.map(x => `<li class="pa-page ${x.recue ? 'recue' : 'manque'}">${icone(x.recue ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}</span></li>`).join('')}</ul></div>`;
@@ -141,7 +159,8 @@ function renderWizardSuccession() {
         <input type="date" id="f-succ-ouverture" value="${escapeAttr(ouverture)}"></div>
     </div>
     <div class="wizard-succ-listes">
-      <div><div class="analyse-sous-titre">Héritiers <span class="analyse-compteur">${p.heritiers.length || ''}</span></div><ul class="wizard-succ-liste">${heritiers}</ul></div>
+      <div><div class="analyse-sous-titre">Héritiers <span class="analyse-compteur">${p.heritiers.length || ''}</span></div><ul class="wizard-succ-liste">${heritiers}</ul>
+        ${ajoutPersonneWizardSuccession()}</div>
       <div><div class="analyse-sous-titre">Biens</div><ul class="wizard-succ-liste">${biens}</ul></div>
     </div>`;
   // Bien principal pré-rempli une fois par dossier d'Authentic, jamais par-dessus une saisie.
@@ -149,6 +168,29 @@ function renderWizardSuccession() {
   if (!garder && champBien && !champBien.value.trim() && p.bienPrincipal) champBien.value = p.bienPrincipal;
   wizardSuccessionCle = cle;
   wizardSuccessionProposition = p;
+}
+
+// Ajout à la main d'une personne (conjointe survivante, héritier) : son nom aide à reconnaître sa fiche quand on l'ouvre dans Authentic.
+function ajoutPersonneWizardSuccession() {
+  const saisies = wizardSuccessionAjouts.map((a, i) => `<li><span class="prop-texte">${escapeHtml(a.nom)}</span> <span class="hint">${escapeHtml(a.qualite)} (ajouté à la main)</span>
+    <wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer" onclick="retirerPersonneWizardSuccession(${i})">${icone('x')}</wa-button></li>`).join('');
+  return `${saisies ? `<ul class="wizard-succ-liste">${saisies}</ul>` : ''}<div class="fcddv-ajout">
+    <input type="text" id="f-succ-ajout-nom" class="prop-champ" placeholder="Prénom NOM" aria-label="Nom de la personne à ajouter">
+    <select id="f-succ-ajout-qualite" class="prop-champ" aria-label="Qualité"><option>Conjoint survivant</option><option>Héritier</option></select>
+    <wa-button appearance="outlined" size="s" type="button" class="bouton-ajout" onclick="ajouterPersonneWizardSuccession()"><span slot="start" class="bouton-ajout-plus">+</span>Personne</wa-button></div>`;
+}
+
+function ajouterPersonneWizardSuccession() {
+  const nom = valeurChampWizardSuccession('f-succ-ajout-nom');
+  const qualite = valeurChampWizardSuccession('f-succ-ajout-qualite') === 'Héritier' ? 'Héritier' : 'Conjoint survivant';
+  if (!nom || wizardSuccessionAjouts.some(a => memePersonneNommee(a.nom, nom))) return;
+  wizardSuccessionAjouts = wizardSuccessionAjouts.concat({ nom: nom.slice(0, 120), qualite });
+  renderWizardSuccession();   // la proposition est recalculée avec la personne ajoutée
+}
+
+function retirerPersonneWizardSuccession(i) {
+  wizardSuccessionAjouts = wizardSuccessionAjouts.filter((_, k) => k !== i);
+  renderWizardSuccession();
 }
 
 function civiliteLibelle(c) {
@@ -176,6 +218,7 @@ function appliquerSaisieWizardSuccession(d, saisie, p) {
   if (s.decesDate && s.decesDate !== prop.decesDate) defunt.decesDate = s.decesDate;
   if (s.decesLieu && s.decesLieu !== prop.decesLieu) defunt.decesLieu = s.decesLieu;
   if (Object.keys(defunt).length) d.defunt = defunt;
+  appliquerPersonnesSaisiesSuccession(d, wizardSuccessionAjouts);
   const succ = Object.assign({}, d.succession || {});
   if (s.conjoint === 'oui' || s.conjoint === 'non') succ.conjointSurvivant = s.conjoint === 'oui';
   else if (prop.conjoint === true) succ.conjointSurvivant = true;   // « Selon Authentic : oui » est gardé : la fiche ne le redéduit pas des seuls comparants.
@@ -195,6 +238,7 @@ function appliquerWizardSuccessionSurDossier(d) {
 function oublierWizardSuccession() {
   wizardSuccessionCle = '';
   wizardSuccessionProposition = null;
+  wizardSuccessionAjouts = [];
   const bloc = document.getElementById('wizard-bloc-succession');
   if (bloc) bloc.innerHTML = '';
 }

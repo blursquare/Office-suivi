@@ -143,7 +143,7 @@
   // Gardés en liste sur la fiche (`d.succession.rendezVous` : { id, etape, titre, date, heure, itemId, changeKey }) au lieu de la seule
   // date de signature d'une vente, qui s'écrasait. `etape` : ouvertureSuccession, notoriete, declarationSuccession, acte (un acte sans étape
   // dite), autre (rendez-vous avec les héritiers, inventaire…).
-  var ETAPES_RDV_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'declarationSuccession', 'acte', 'autre'];
+  var ETAPES_RDV_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'declarationSuccession', 'acte', 'autre'];
 
   /**
    * Pure : les rendez-vous d'une succession, triés par date et heure. Une fiche d'avant (date de signature seule) en rend un, « acte ».
@@ -195,7 +195,9 @@
     // « NOTO prénom NOM », « NOTORIETE - … », « INVENTAIRE + NOTO … », « INVENTAIRE et NOTORIETE … » (étude 21/10) : la notoriété.
     // NOTORIETE n'importe où dans le titre (comme avant) ; NOTO, NOTORITE et INVENTAIRE seulement en tête (« Contrôle des droits et inventaire »
     // n'est pas un rendez-vous de signature).
-    else if (/NOTORIETE/.test(t) || /^\s*(?:INVENTAIRE|NOTO(?:RITE)?)(?![A-Z])/.test(t)) etape = 'notoriete';
+    else if (/NOTORIETE/.test(t) || /^\s*(?:INVENTAIRE\s*(?:\+|&|ET)\s*)?NOTO(?:RITE)?(?![A-Z])/.test(t)) etape = 'notoriete';
+    // « INVENTAIRE … » seul : le rendez-vous du contrôle des droits et de l'inventaire, à 2 mois de l'ouverture (étude 21/10).
+    else if (/^\s*INVENTAIRE(?![A-Z])/.test(t)) etape = 'controleDroits';
     else if (/DECLARATION/.test(t)) etape = 'declarationSuccession';
     else if (/ATTESTATION|SIGNATURE|(?<![A-Z])ACTE(?![A-Z])/.test(t)) etape = 'acte';
     // « SUCC - prénom NOM », « SUCCESSION prénom NOM » seuls (rien après le nom) : attestation immobilière + déclaration de succession
@@ -374,7 +376,9 @@
       iso: noto.fait ? noto.iso : (rdv || butoirNoto), fait: noto.fait, attente: false, active: true,
       butoir: !noto.fait && !rdv && !!butoirNoto, rdvPlace: !noto.fait && !!rdv, fenetreDebut: ensemble && !noto.fait && !rdv ? depuisDeces(MOIS_NOTORIETE_DS_DEBUT) : '', depuisDeces: ensemble && !!deces
     });
-    etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true });
+    // Un rendez-vous « INVENTAIRE … » placé donne sa date ; sans lui, 2 mois après l'ouverture.
+    const rdvControle = rendezVousRetenu(rdvs.filter((r) => r.etape === 'controleDroits'), auj);
+    etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: rdvControle ? rdvControle.date : plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true, rdvPlace: !!rdvControle });
     const apresNoto = noto.fait ? (noto.iso || '') : '';
     if (conjointSurvivant(d)) {
       etapes.push({ type: 'transfertComptes', label: 'Transfert des comptes au profit du conjoint survivant', iso: apresNoto, fait: cocheeSuccession(d, 'transfertComptes'), attente: false, active: noto.fait });
@@ -404,7 +408,10 @@
       const avantRdv = dernier.rdvPlace && dernier.iso ? (C.addDays(dernier.iso, -JOURS_AVANT_DERNIER_RDV_SUCCESSION) || '') : '';
       const s = infoSuccession(d);
       const avant = [{ type: 'decompteSuccession', label: 'Envoi du décompte à faire valider', iso: dernier.fait ? '' : avantRdv,
-        fait: dernier.fait || cocheeSuccession(d, 'decompteSuccession'), attente: false, active: true, avantRdv: true }];
+        fait: dernier.fait || cocheeSuccession(d, 'decompteSuccession'), attente: false, active: true, avantRdv: true },
+      // Le projet n'est envoyé que pour la déclaration de succession, comme le décompte (étude 21/10).
+      { type: 'projetSuccession', label: 'Envoi du projet à faire valider', iso: dernier.fait ? '' : avantRdv,
+        fait: dernier.fait || cocheeSuccession(d, 'projetSuccession'), attente: false, active: true, avantRdv: true }];
       if (s.appelFondsInutile !== true) {
         avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
           fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
@@ -423,7 +430,7 @@
     return cocheeSuccession(d, type);
   }
 
-  var TYPES_ETAPES_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds', 'decompteSuccession', 'appelFondsSuccession', 'declarationSuccession'];
+  var TYPES_ETAPES_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'declarationSuccession'];
   var JOURS_AVANT_DERNIER_RDV_SUCCESSION = 10;
 
   /**

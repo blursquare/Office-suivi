@@ -61,6 +61,7 @@ const SEUILS_RAPPELS_PAR_TYPE = {
   redaction: [],
   // Succession (étude 16/10) : décompte à faire valider et appel de fonds, le jour de leur échéance (10 jours avant le dernier rendez-vous).
   decompteSuccession: [0],
+  projetSuccession: [0],
   appelFondsSuccession: [0]
 };
 
