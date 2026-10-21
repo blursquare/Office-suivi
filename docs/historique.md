@@ -21369,3 +21369,6 @@ Défauts confirmés puis corrigés : Répertoire retiré des outils montables (s
 ### 0.307.2 — 2026-10-21 11:31 — Audit de la version (publication 0.295.2 → 0.307.2)
 
 Rapport dans `docs/audits/2026-10-21-0.307.1.md` : H1 (calcul libre : contournement du masquage par recodage) corrigé — résumés sans libellé + repères `ref`, codes non rétablis dans l'entrée, filtre `resultatCalculSuspect` ; M1/M2 regex quadratiques remplacées par des recherches linéaires ; M3 « tout le NAS » confirmé explicitement ; M5 `stat` par paquets (lecture libre) ; M8 `frame-ancestors 'none'` ; B1, B5. **Dit à l'étude, non corrigé** : M4 (`nasDossier` posé par le poste), M6 (texte des scans rangés en clair en base — registre RGPD), M7.
+
+### 21/10/2026 — Les 100 scénarios Authentic ne tournent plus à chaque envoi
+Demande de l'étude : retirés de `.github/workflows/verifier.yml` (≈ 12 min par envoi). Le script `tests/fumee/authentic-cent-scenarios.mjs` et `npm run scenarios-authentic-cent` restent, à lancer à la main après un changement de la liaison avec Authentic. Les 31 scénarios courts et la fumée restent sur GitHub.
