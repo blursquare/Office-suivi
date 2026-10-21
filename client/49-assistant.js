@@ -90,6 +90,7 @@
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
     renderFilsAssistant();
+    appliquerFilsRepliesAssistant();
     renderColonneAssistant();
     renderArtefactAssistant();
     assistantActions = {};

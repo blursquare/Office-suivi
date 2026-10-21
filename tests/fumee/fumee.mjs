@@ -343,6 +343,14 @@ try {
       });
       verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.monte.dansPanneau && art.monte.visible && art.monte.ecran === 'assistant' && art.monte.large && art.rendu.retour && art.rendu.visible && art.ferme,
         `[${ecran.nom}] artefacts : courrier sur papier à en-tête modifiable, tableau modifiable, carte d'outil, outil monté dans le panneau puis rendu à son onglet, fermeture`);
+      // Liste des conversations repliable (21/10) : la colonne disparaît, le choix est gardé, le bouton la rend.
+      const repli = await page.evaluate(() => {
+        basculerFilsRepliesAssistant();
+        const replie = document.querySelector('.asst-page').classList.contains('fils-replies') && getComputedStyle(document.querySelector('.asst-cote')).display === 'none';
+        basculerFilsRepliesAssistant();
+        return { replie, rouvert: !document.querySelector('.asst-page').classList.contains('fils-replies') };
+      });
+      verifier(repli.replie && repli.rouvert, `[${ecran.nom}] conversations : la liste se replie et se rouvre`);
       await page.evaluate(() => definirOnglet('dashboard'));
       await pause(300);
     }

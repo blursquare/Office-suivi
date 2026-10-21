@@ -177,6 +177,20 @@
     });
   }
 
+  // La liste des conversations se replie pour gagner de la place (étude 21/10) ; le choix est gardé sur le poste.
+  var CLE_FILS_REPLIES_ASSISTANT = 'claire-assistant-fils-replies';
+  function filsRepliesAssistant() { try { return localStorage.getItem(CLE_FILS_REPLIES_ASSISTANT) === '1'; } catch (e) { return false; } }
+  function appliquerFilsRepliesAssistant() {
+    const page = document.querySelector('#onglet-assistant .asst-page');
+    if (page) page.classList.toggle('fils-replies', filsRepliesAssistant());
+    const b = document.getElementById('assistant-fils-replier');
+    if (b) { const r = filsRepliesAssistant(); b.setAttribute('aria-expanded', String(!r)); b.title = r ? 'Afficher les conversations' : 'Replier les conversations'; b.setAttribute('aria-label', b.title); }
+  }
+  function basculerFilsRepliesAssistant() {
+    ecrireLocal(CLE_FILS_REPLIES_ASSISTANT, filsRepliesAssistant() ? '0' : '1');
+    appliquerFilsRepliesAssistant();
+  }
+
   function basculerFilsMobileAssistant() {
     const page = document.querySelector('.asst-page');
     if (page) page.classList.toggle('fils-ouverts');

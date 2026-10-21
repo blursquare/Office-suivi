@@ -10485,3 +10485,13 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-art-corps > .asst-art-outil-place { margin: -16px; }
 @media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
 .asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
+
+/* Liste des conversations repliée (étude 21/10) : la conversation prend la place ; le bouton de l'en-tête la rouvre. */
+.asst-page.fils-replies .asst-cote { display: none; }
+.asst-page.fils-replies { grid-template-columns: minmax(0, 1fr); }
+.asst-page.fils-replies.colonne-ouverte { grid-template-columns: minmax(0, 1fr) 360px; }
+.asst-page.fils-replies.artefact-ouvert { grid-template-columns: minmax(0, 1fr) minmax(460px, 46%); }
+.asst-page.fils-replies.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr) minmax(600px, 62%); }
+@media (min-width: 1800px) { .asst-page.fils-replies.artefact-ouvert.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(460px, 40%) 340px; } }
+@media (max-width: 1280px) { .asst-page.fils-replies.colonne-ouverte, .asst-page.fils-replies.artefact-ouvert, .asst-page.fils-replies.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .asst-fils-replier { display: none; } }
