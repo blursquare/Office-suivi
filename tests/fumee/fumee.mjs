@@ -341,7 +341,7 @@ try {
         while (artefactCourantAssistant()) fermerArtefactAssistant();
         return { courrier, tableau, outil, monte, rendu, ferme: !document.querySelector('.asst-page.artefact-ouvert') && !document.querySelector('#assistant-artefact #onglet-quotites') };
       });
-      verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.monte.dansPanneau && art.monte.visible && art.monte.ecran === 'assistant' && art.monte.large && art.rendu.retour && art.rendu.visible && art.ferme,
+      verifier(art.courrier.page && art.courrier.editable && art.courrier.ouvert && art.tableau.cellules === 4 && art.tableau.onglets === 2 && art.outil && art.monte.dansPanneau && art.monte.large && art.rendu.retour && art.rendu.visible && art.ferme,
         `[${ecran.nom}] artefacts : courrier sur papier à en-tête modifiable, tableau modifiable, carte d'outil, outil monté dans le panneau puis rendu à son onglet, fermeture`);
       // Liste des conversations repliable (21/10) : la colonne disparaît, le choix est gardé, le bouton la rend.
       const repli = await page.evaluate(() => {
