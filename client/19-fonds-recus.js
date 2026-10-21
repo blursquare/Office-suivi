@@ -674,7 +674,7 @@
   var TYPES_RDV = {
     office: { libelle: "À l'office", court: 'Office' },
     visio: { libelle: 'En visio', court: 'Visio' },
-    confrere: { libelle: 'Chez un confrère', court: 'Confrère' }
+    confrere: { libelle: 'À l’extérieur ou chez un confrère', court: 'Extérieur' }
   };
   // Catégories qu'on peut poser sur un rendez-vous de l'agenda : le lieu (TYPES_RDV) et, en jaune,
   // « Annulé / à replacer » (étude, 01/10) — la signature d'un dossier ainsi marquée repasse « à

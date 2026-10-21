@@ -13,7 +13,7 @@
     // Tout autre rendez-vous du dossier (étude 16/10 : « il peut y avoir plusieurs rendez-vous par dossier ») : héritiers, inventaire…
     autre: { suffixe: 'Rendez-vous', signature: false },
     // L'inventaire est un acte notarié signé chez le client, avec un commissaire de justice (étude 21/10) : rendez-vous « à l'extérieur », en orange.
-    controleDroits: { suffixe: 'Inventaire', signature: false, typeRdv: 'confrere' }
+    controleDroits: { suffixe: 'Inventaire', signature: true, typeRdv: 'confrere' }
   };
 
   // Pure : le rendez-vous proposé pour une étape d'une succession → { titre, date, signature } ou null (étape sans rendez-vous).
@@ -26,11 +26,21 @@
     const e = etapesSuccession(d, auj).find(x => x.type === etape);
     // Le contrôle des droits fait, l'inventaire se place encore (étude 21/10) : seule la présence d'un rendez-vous l'en empêche.
     if (!e || (e.fait && etape !== 'controleDroits') || e.rdvPlace || (etape === 'ouvertureSuccession' && e.iso)) return null;
-    if (etape === 'controleDroits') return { titre: `${libelleDossierAffiche(d)} - ${def.suffixe}`, date: auj ? addDays(auj, 14) : auj, signature: false, typeRdv: def.typeRdv };
+    if (etape === 'controleDroits') return { titre: `${libelleDossierAffiche(d)} - ${def.suffixe}`, date: auj ? addDays(auj, 14) : auj, signature: def.signature, typeRdv: def.typeRdv };
     let date = etape === 'ouvertureSuccession' ? (auj ? addDays(auj, 7) : auj) : (e.fenetreDebut || e.iso || auj);
     if (date < auj) date = auj;
     const suffixe = etape === 'notoriete' && /declaration/i.test(normaliserPourRecherche(e.label)) ? 'Notoriété et déclaration de succession' : def.suffixe;
     return { titre: `${libelleDossierAffiche(d)} - ${suffixe}`, date, signature: def.signature };
+  }
+
+  // Pure : l'adresse de la maison du défunt pour l'itinéraire de l'inventaire — « 2 rue X, 41110 SAINT-AIGNAN » — ou '' (autre rendez-vous,
+  // domicile non lu). Seule exception où l'adresse d'un client part vers le service d'itinéraire de l'IGN (demande de l'étude, 21/10).
+  function adresseInventaireSuccession(d, etape) {
+    if (!d || !estSuccession(d) || etape !== 'controleDroits') return '';
+    const dom = String(defuntConstitution(d).champs.domicile || '').trim();
+    const m = /^(.+?)\s*\((\d{5})\),\s*(.+)$/.exec(dom);
+    const adresse = m ? `${m[3]}, ${m[2]} ${m[1]}` : dom;
+    return /\d{5}/.test(adresse) ? adresse : '';
   }
 
   // Ouvre l'Agenda sur « Nouveau rendez-vous » prérempli pour cette étape (dossier, titre, date, case « signature »).
@@ -81,7 +91,7 @@
   // cochée, sinon « autre » ; un titre provisoire (« ? ») n'est jamais un acte.
   function etapeRendezVousSuccessionCree(etapeFiche, signature, provisoire) {
     const etape = etapeFiche || (signature ? 'acte' : 'autre');
-    return provisoire && ['notoriete', 'declarationSuccession', 'acte'].includes(etape) ? 'autre' : etape;
+    return provisoire && ['notoriete', 'controleDroits', 'declarationSuccession', 'acte'].includes(etape) ? 'autre' : etape;
   }
 
   function noterRendezVousSuccession(d, r) {

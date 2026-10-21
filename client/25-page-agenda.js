@@ -2395,7 +2395,8 @@
           sujet, date, heure, dureeMinutes, lieu, categorie, signature,
           dossierId: dossier ? dossier.id : null, dossierNom: dossier ? dossier.nom : null,
           // Chez un confrère : son adresse, pour les kilomètres des trajets que le serveur pose avant et après (étude 20/10).
-          adresseConfrere: typeRdv === 'confrere' && dossier ? adresseOfficeConfrereDossier(dossier) : '',
+          // Inventaire d'une succession (étude 21/10) : l'itinéraire part de la maison du défunt, pas d'un office de confrère.
+          adresseConfrere: typeRdv === 'confrere' && dossier ? (adresseInventaireSuccession(dossier, etapeSuccession) || adresseOfficeConfrereDossier(dossier)) : '',
           // Les notes saisies deviennent le corps du rendez-vous dans Outlook.
           corps: notes || (signature ? 'Rendez-vous de signature créé depuis l’agenda de CLAIRE.' : 'Rendez-vous créé depuis l’agenda de CLAIRE.')
         })

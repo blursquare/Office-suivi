@@ -170,7 +170,8 @@ function dossierDeRendezVousAgenda(evt, dossiers) {
 }
 // Un rendez-vous de succession compte comme une signature (pastilles, détail) quand c'est un acte confirmé (notoriété, déclaration…).
 function signatureSuccessionAgenda(evt, etape) {
-  return ['notoriete', 'declarationSuccession', 'acte'].includes(etape) && estRendezVousSignature(evt);
+  // L'inventaire (étape `controleDroits`) est un acte notarié signé chez le client : compté comme une signature à l'agenda (étude 21/10).
+  return ['notoriete', 'controleDroits', 'declarationSuccession', 'acte'].includes(etape) && estRendezVousSignature(evt);
 }
 
 // Le déclencheur donné par l'étude est un ENVOI FAIT : « Appel de fonds envoyé », « Appel de fonds

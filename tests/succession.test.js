@@ -1066,8 +1066,13 @@ test('étude 21/10 : après le contrôle des droits, l\'inventaire se place dans
   const d = base({ id: 'inv', nom: 'SUCC Marie DUPONT', typeAffaire: 'succession', succession: { ouvertureLe: '2026-10-20' }, echeancesValidees: { controleDroits: true } });
   const r = app.rdvAgendaSuccession(d, 'controleDroits', '2026-11-05');
   assert.equal(r.typeRdv, 'confrere');
-  assert.equal(r.signature, false);
+  assert.equal(r.signature, true);
   assert.match(r.titre, /Inventaire$/);
+  // Itinéraire : depuis la maison du défunt (domicile de sa fiche), pour l'inventaire seulement.
+  const avecDomicile = Object.assign({}, d, { defunt: { domicile: 'SAINT-AIGNAN (41110), 2 rue des Cours' } });
+  assert.equal(app.adresseInventaireSuccession(avecDomicile, 'controleDroits'), '2 rue des Cours, 41110 SAINT-AIGNAN');
+  assert.equal(app.adresseInventaireSuccession(avecDomicile, 'notoriete'), '');
+  assert.equal(app.adresseInventaireSuccession(d, 'controleDroits'), '');
   // Déjà un rendez-vous placé : plus de bouton.
   const place = base({ id: 'inv2', nom: 'SUCC Marie DUPONT', typeAffaire: 'succession', succession: { ouvertureLe: '2026-10-20', rendezVous: [{ id: 'i', etape: 'controleDroits', date: '2026-12-09', heure: '10:00' }] } });
   assert.equal(app.rdvAgendaSuccession(place, 'controleDroits', '2026-11-05'), null);
