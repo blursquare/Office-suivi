@@ -6,6 +6,7 @@
 
   var evenementsAgent = { parId: {}, parItem: {}, n: 0 };
   var scansAgent_ = { parNom: {}, parId: {}, n: 0 };
+  var scansRangesParAgent = new Set();      // scans que l'agent range : ce rangement n'enseigne rien (il n'est pas une correction faite à la main)
   var elementsNasAgent = { parCle: {}, parId: {}, n: 0 };
 
   function reinitialiserPouvoirsAgent() {
@@ -23,9 +24,11 @@
     return id;
   }
 
-  function idScanAgent(nom) {
-    let id = scansAgent_.parNom[nom];
-    if (!id) { id = 'sc' + (++scansAgent_.n); scansAgent_.parNom[nom] = id; scansAgent_.parId[id] = nom; }
+  // Un scan se reconnaît par son nom ET sa date (le copieur peut réutiliser un nom).
+  function idScanAgent(s) {
+    const cle = s.nom + '|' + s.date;
+    let id = scansAgent_.parNom[cle];
+    if (!id) { id = 'sc' + (++scansAgent_.n); scansAgent_.parNom[cle] = id; scansAgent_.parId[id] = { nom: s.nom, date: s.date }; }
     return id;
   }
 
@@ -46,7 +49,7 @@
 
   // Pure : la carte d'un lot — une phrase puis une ligne par action.
   function descriptionLotAgent(descriptions) {
-    const liste = (descriptions || []).filter(Boolean);
+    const liste = (descriptions || []).filter(Boolean).map(x => String(x).replace(/\s*\n\s*/g, ' '));
     return `${liste.length} action${liste.length > 1 ? 's' : ''} à faire, d’un seul coup :\n${liste.join('\n')}`;
   }
 
@@ -57,6 +60,8 @@
     const ignorees = [];
     liste.forEach((e, i) => {
       const sansDossier = e.action === 'tache_faite' || e.action === 'tache_executer';
+      // Une tâche « à exécuter » ouvre un email, un outil ou une fiche : une par une (action_dossier), jamais dans un lot.
+      if (e.action === 'tache_executer') { ignorees.push({ numero: i + 1, erreur: 'tache_executer ne va pas dans un lot : fais-la seule avec action_dossier' }); return; }
       const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
       if (!sansDossier && !d) { ignorees.push({ numero: i + 1, erreur: 'dossier introuvable : cherche-le d’abord' }); return; }
       const prep = preparerActionDossierAgent(e, d);
@@ -88,7 +93,7 @@
 
   function resumeScanAgent(s) {
     const l = lecturesScans[cleScan(s)] || null;
-    const base = { scan_id: idScanAgent(s.nom), date: s.date };
+    const base = { scan_id: idScanAgent(s), date: s.date };
     if (!s.stable) return { ...base, etat: 'copie en cours depuis le copieur' };
     if (!l || l.statut === 'lecture') return { ...base, etat: 'lecture en cours' };
     if (l.statut === 'erreur') return { ...base, etat: 'lecture impossible', erreur: l.erreur || '' };
@@ -138,9 +143,9 @@
       if (r.ok) noterPouvoirAgent('rangement défait');
       return r.ok ? { fait: true } : { erreur: r.message };
     }
-    // ranger, laisser : sur un scan en attente
-    const nom = scansAgent_.parId[e.scan_id];
-    const scan = nom ? scanParNom(nom) : null;
+    // ranger, laisser : sur un scan en attente (retrouvé par son nom ET sa date)
+    const ref = scansAgent_.parId[e.scan_id];
+    const scan = ref ? (etatScans.scans || []).find(s => s.nom === ref.nom && s.date === ref.date) : null;
     if (!scan) return { erreur: 'scan introuvable ou déjà traité : relance lister' };
     if (action === 'laisser') {
       if (!(await demanderAutorisationAgent(`Laisser le scan « ${scan.nom} » dans le dossier Scan (il ne sera plus proposé tant que vous ne le remettez pas).`))) return REFUS_AGENT;
@@ -148,27 +153,48 @@
       return (etatScans.ecartes || []).some(x => x.nom === scan.nom) ? { fait: true } : { erreur: 'le scan n’a pas pu être mis de côté' };
     }
     if (action !== 'ranger') return { erreur: 'action : lister, ranger, laisser, historique, remettre ou chercher' };
-    const l = lecturesScans[cleScan(scan)];
+    const cle = cleScan(scan);
+    const l = lecturesScans[cle];
     if (!scan.stable || !l || l.statut !== 'pret') return { erreur: 'scan pas encore lu (ou lecture impossible) : relance lister dans un instant' };
-    if (e.dossier_id && e.dossier_id !== l.choix.dossierId) {
-      if (!dossiers.some(x => x.id === e.dossier_id)) return { erreur: 'dossier introuvable' };
-      changerChoixScan(scan.nom, 'dossierId', e.dossier_id);
+    if (scansEnRangement.has(scan.nom)) return { erreur: 'ce scan est déjà en cours de rangement' };
+    // Tant que la carte attend : le rangement automatique de cette fenêtre ne touche pas à ce scan, et un refus remet le choix d'avant.
+    const etaitEcarteDuAuto = echecsAutoScans.has(cle);
+    echecsAutoScans.add(cle);
+    const choixAvant = JSON.parse(JSON.stringify(l.choix));
+    const restaurer = () => { l.choix = choixAvant; if (ongletActuel === 'scans') renderScans(true); };
+    try {
+      if (e.dossier_id && e.dossier_id !== l.choix.dossierId) {
+        const cible = dossiers.find(x => x.id === e.dossier_id);
+        if (!cible) return { erreur: 'dossier introuvable' };
+        if (cible.archive) return { erreur: 'ce dossier est archivé : Claire Scan ne range pas dans un dossier archivé' };
+        changerChoixScan(scan.nom, 'dossierId', e.dossier_id);
+      }
+      if (e.type && e.type !== l.choix.type) {
+        if (!TYPES_SCAN.some(t => t.cle === e.type)) { restaurer(); return { erreur: 'type inconnu : prends une clé de pieces_possibles' }; }
+        changerChoixScan(scan.nom, 'type', e.type);
+      }
+      const c = l.choix;
+      const d = dossiers.find(x => x.id === c.dossierId);
+      if (!d) { restaurer(); return { erreur: 'aucun dossier proposé : passe dossier_id' }; }
+      if (d.archive) { restaurer(); return { erreur: 'ce dossier est archivé : Claire Scan ne range pas dans un dossier archivé' }; }
+      if (!d.nasDossier) { restaurer(); return { erreur: 'ce dossier n’est pas relié à son dossier du NAS' }; }
+      const rubrique = c.sousDossier ? c.sousDossier : libelleRubriquesScan(c.rubriques);
+      const doublon = scan.doublon ? ' — attention : identique à un scan déjà rangé' : '';
+      if (!(await demanderAutorisationAgent(`Ranger le scan « ${scan.nom} » dans ${libelleDossierAffiche(d)} › ${rubrique}, sous le nom « ${c.nomCible}.pdf »${doublon}.`))) { restaurer(); return REFUS_AGENT; }
+      // Le scan a pu partir (autre fenêtre, rangement automatique) pendant que la carte attendait : rien n'est alors fait.
+      if (!scanParNom(scan.nom)) return { erreur: 'le scan a déjà été traité pendant que la carte attendait : relance lister' };
+      const avant = new Set((etatScans.journal || []).map(j => j.id));
+      scansRangesParAgent.add(scan.nom);
+      try { await rangerScanChoisi(scan.nom, false); } finally { scansRangesParAgent.delete(scan.nom); }
+      // « Rangé » = une nouvelle ligne du journal pour CE scan et CE dossier (pas seulement un scan sorti de la liste).
+      await chargerScans(true);
+      const entree = (etatScans.journal || []).find(j => !avant.has(j.id) && j.nom === scan.nom && j.dossierId === d.id && !j.annule);
+      if (!entree) return { erreur: 'le scan n’a pas été rangé dans ce dossier (voir le message affiché à l’utilisateur)' };
+      noterPouvoirAgent('scan rangé');
+      return { fait: true, dossier_id: d.id, rubrique, entree_id: entree.id || '' };
+    } finally {
+      if (!etaitEcarteDuAuto) echecsAutoScans.delete(cle);
     }
-    if (e.type && e.type !== l.choix.type) {
-      if (!TYPES_SCAN.some(t => t.cle === e.type)) return { erreur: 'type inconnu : prends une clé de pieces_possibles' };
-      changerChoixScan(scan.nom, 'type', e.type);
-    }
-    const c = lecturesScans[cleScan(scan)].choix;
-    const d = dossiers.find(x => x.id === c.dossierId);
-    if (!d) return { erreur: 'aucun dossier proposé : passe dossier_id' };
-    if (!d.nasDossier) return { erreur: 'ce dossier n’est pas relié à son dossier du NAS' };
-    const rubrique = c.sousDossier ? c.sousDossier : libelleRubriquesScan(c.rubriques);
-    const doublon = scan.doublon ? ' — attention : identique à un scan déjà rangé' : '';
-    if (!(await demanderAutorisationAgent(`Ranger le scan « ${scan.nom} » dans ${libelleDossierAffiche(d)} › ${rubrique}, sous le nom « ${c.nomCible}.pdf »${doublon}.`))) return REFUS_AGENT;
-    await rangerScanChoisi(scan.nom, false);
-    if (scanParNom(scan.nom)) return { erreur: 'le scan n’a pas été rangé (voir le message affiché à l’utilisateur)' };
-    noterPouvoirAgent('scan rangé');
-    return { fait: true, dossier_id: d.id, rubrique };
   }
 
   // ---- Le dossier du client sur le NAS ----
@@ -191,8 +217,8 @@
         const chemin = (nom) => (sous ? sous + '/' : '') + nom;
         return {
           dossier_affiche: sous || 'racine du dossier du client',
-          entrees: [].concat((j.dossiers || []).map(f => ({ element_id: idElementNasAgent(d.id, chemin(f.nom), 'dossier'), type: 'dossier', nom: f.nom })),
-            (j.fichiers || []).map(f => ({ element_id: idElementNasAgent(d.id, chemin(f.nom), 'fichier'), type: 'fichier', nom: f.nom, taille: f.taille != null ? tailleLisible(f.taille) : '', modifie: f.modifieLe ? String(f.modifieLe).slice(0, 10) : '' }))),
+          entrees: [].concat((j.dossiers || []).map(f => ({ element_id: idElementNasAgent(d.id, chemin(f.nom), 'dossier'), type: 'dossier', intitule: f.nom })),
+            (j.fichiers || []).map(f => ({ element_id: idElementNasAgent(d.id, chemin(f.nom), 'fichier'), type: 'fichier', intitule: f.nom, taille: f.taille != null ? tailleLisible(f.taille) : '', modifie: f.modifieLe ? String(f.modifieLe).slice(0, 10) : '' }))),
           tous_les_sous_dossiers: (j.arbre || []).slice(0, 80).map(c => ({ element_id: idElementNasAgent(d.id, c, 'dossier'), chemin: c }))
         };
       } catch (err) { return { erreur: 'serveur injoignable' }; }
@@ -241,6 +267,9 @@
     const ev = evenementsAgent.parId[e.evenement_id];
     if (!ev) return { erreur: 'rendez-vous introuvable : relis l’agenda (outil agenda) pour avoir son evenement_id' };
     if (!exchangeAgendaPret()) return { erreur: 'agenda de l’office non relié (Réglages › Agenda et Outlook)' };
+    if (e.action === 'supprimer' ? !evenementSupprimableAgenda(ev) : !evenementModifiableAgenda(ev)) {
+      return { erreur: ev.option ? 'c’est une option d’un sondage de dates : elle se place ou s’annule depuis le sondage (Dates proposées), pas ici' : 'ce rendez-vous ne peut pas être modifié depuis CLAIRE (hors agenda de l’office, archive ou signature pas encore dans Outlook)' };
+    }
     const quand = `${dateAvecJourFr(ev.date)}${ev.heure && !ev.journeeEntiere ? ' à ' + ev.heure.replace(':', ' h ') : ''}`;
     const titre = ev.sujet ? `« ${ev.sujet} »` : 'sans titre';
     const d = dossierDeEvenement(ev);

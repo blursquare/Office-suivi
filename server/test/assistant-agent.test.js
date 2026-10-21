@@ -77,7 +77,8 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.equal(requeteAgent('claude-sonnet-5-5', []).context_management, undefined);
   assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'high' }).output_config.effort, 'high');
   assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'max!' }).output_config.effort, 'medium');
-  assert.ok(OUTILS_AGENT.every((t) => t.strict === true && t.input_schema.additionalProperties === false));
+  assert.ok(OUTILS_AGENT.every((t) => t.input_schema.additionalProperties === false))
+  assert.ok(OUTILS_AGENT.filter((t) => t.strict === true).length === 20, 'les 20 premiers outils restent stricts (limite de l’API)');
   const haiku = requeteAgent('claude-haiku-5-5', []);
   assert.equal(haiku.fallbacks, undefined);
   assert.equal(requeteAgent('inconnu', []).max_tokens, 16000);
@@ -649,7 +650,7 @@ test('plus de pouvoirs (21/10) : les nouveaux outils sont déclarés, stricts, e
   for (const nom of ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement']) {
     const o = OUTILS_AGENT.find((x) => x.name === nom);
     assert.ok(o, nom);
-    assert.equal(o.strict, true);
+    assert.equal(o.strict, false, 'l’API limite les outils stricts à 20 par requête');
     assert.equal(o.input_schema.additionalProperties, false);
     assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort(), `${nom} : tous les champs requis (mode strict)`);
   }
@@ -658,3 +659,20 @@ test('plus de pouvoirs (21/10) : les nouveaux outils sont déclarés, stricts, e
   assert.match(SYSTEME_AGENT, /actions_en_lot/);
   assert.match(SYSTEME_AGENT, /autorisation de l'utilisateur/);
 });
+
+test('plus de pouvoirs (21/10) : 20 outils stricts au plus ; un code inventé dans un lot, un nom de fichier ou un titre devient « [à compléter] »', () => {
+  assert.ok(OUTILS_AGENT.filter((o) => o.strict).length <= 20);
+  const e = entreeOutilPourPoste('actions_en_lot', { actions: [{ action: 'note_historique', dossier_id: 'd1', valeur: 'relancé [NOM7]', piece: '', numero: 0, libelle: '', date: '', champ: '', tache_id: '' }] });
+  assert.equal(e.actions[0].valeur, 'relancé [à compléter]');
+  assert.equal(entreeOutilPourPoste('nas_dossier', { action: 'renommer', nouveau_nom: 'CNI [NOM9]' }).nouveau_nom, 'CNI [à compléter]');
+  assert.equal(entreeOutilPourPoste('agenda_evenement', { action: 'renommer', titre: 'VTE - [NOM2]' }).titre, 'VTE - [à compléter]');
+  assert.equal(entreeOutilPourPoste('scans_claire', { action: 'lister', scan_id: 'sc1' }).scan_id, 'sc1');
+});
+
+test('plus de pouvoirs (21/10) : la liste du NAS garde le nom des fichiers lisible (clé non masquée en entier), noms de personnes codés', () => {
+  const m = masquerValeur({ entrees: [{ element_id: 'nf6', type: 'fichier', intitule: 'CNI Paul FOURNIER.pdf' }, { element_id: 'nf7', type: 'fichier', intitule: 'RIB.pdf' }] }, motsSensiblesDossiers(D), new Map());
+  assert.equal(m.entrees[1].intitule, 'RIB.pdf');
+  assert.match(m.entrees[0].intitule, /^CNI .*\.pdf$/);
+  assert.doesNotMatch(m.entrees[0].intitule, /Paul|FOURNIER/);
+});
+

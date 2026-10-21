@@ -286,7 +286,11 @@ const OUTILS_AGENT = [
           } }
       } }
   }
-].map((o) => ({ ...o, strict: true }));
+];
+// `strict` : l'API limite le nombre d'outils stricts par requête (20, à notre connaissance) — les quatre outils ajoutés le 21/10 n'y sont
+// pas (leurs champs restent tous obligatoires et le poste revalide chaque entrée), les 20 d'avant gardent leur schéma strict.
+const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement'];
+for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.
 
@@ -924,7 +928,17 @@ async function tourMistral(conv, o) {
 }
 
 /** Entrée d'un outil prête pour le poste : les paramètres d'un geste passent par le même contrôle que ceux de l'IA. Pure. */
+/** Pure : un code que l'IA a inventé (« [NOM9] » jamais rendu) devient « [à compléter] », dans toute la valeur (listes et objets compris). */
+function sansCodesInconnus(v) {
+  if (typeof v === 'string') return v.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '[à compléter]');
+  if (Array.isArray(v)) return v.map(sansCodesInconnus);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, sansCodesInconnus(x)]));
+  return v;
+}
+
 function entreeOutilPourPoste(nom, entree) {
+  // Les outils ajoutés le 21/10 écrivent aussi (note d'un lot, nom d'un fichier, titre d'un rendez-vous) : même garde, récursive.
+  if (OUTILS_SANS_STRICT.includes(nom)) return sansCodesInconnus(entree || {});
   // Un code que l'IA a inventé (« [NOM9] » inconnu) ne finit pas dans le document Word.
   if (nom === 'rediger_document' || nom === 'action_dossier' || nom === 'demander_collaborateur') return Object.fromEntries(Object.entries(entree || {})
     .map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '[à compléter]') : v]));

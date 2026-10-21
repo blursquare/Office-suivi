@@ -265,8 +265,8 @@ async function deplacerVersExplorateurNas(chemin, vers, dossierIdForce) {
   const r = await gesteExplorateurNas('deplacer', { chemin, vers }, dossierId);
   if (r.erreur) return r.erreur;
   noterVerificationPoste('explorateur-nas', { detail: 'pièce déplacée' });
-  if (vers) explorateurNas.ouverts.add(vers);
-  apresGesteExplorateurNas();
+  // Les dossiers dépliés ne sont relus que si la fenêtre est sur ce dossier du client (un geste de l'agent peut viser un autre).
+  if (explorateurNas.dossierId === dossierId) { if (vers) explorateurNas.ouverts.add(vers); apresGesteExplorateurNas(); }
   afficherToast(`Déplacé dans « ${vers ? vers.replace(/\//g, ' › ') : 'la racine'} »${r.nom !== nom ? ` sous le nom « ${r.nom} »` : ''}.`, 'Annuler', async () => {
     let retour = await gesteExplorateurNas('deplacer', { chemin: r.chemin, vers: dossierActuel }, dossierId);
     // Arrivé sous « Nom (2) » : il retrouve le nom qu'il avait, si ce nom est libre.
@@ -274,7 +274,7 @@ async function deplacerVersExplorateurNas(chemin, vers, dossierIdForce) {
       const rendu = await gesteExplorateurNas('renommer', { chemin: retour.chemin, nom: nomSansExtensionNas(nom).base }, dossierId);
       if (!rendu.erreur) retour = rendu;
     }
-    if (retour.erreur) afficherToast(retour.erreur, 'OK', null); else apresGesteExplorateurNas();
+    if (retour.erreur) afficherToast(retour.erreur, 'OK', null); else if (explorateurNas.dossierId === dossierId) apresGesteExplorateurNas();
   });
   return '';
 }

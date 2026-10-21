@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.303.0';
+  const VERSION_APP = '0.303.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.303.1', date: '2026-10-21 07:54', resume: "Demander à CLAIRE : le lot d'actions, le rangement des scans et la modification de l'agenda sont fiabilisés (un refus ne change plus rien, un scan déjà traité n'est jamais déclaré rangé, les options de sondage ne se déplacent pas, la liste du NAS garde le nom des fichiers lisible)." },
     { version: '0.303.0', date: '2026-10-21 07:39', resume: "Demander à CLAIRE peut faire plus : ranger, laisser et défaire un rangement de Claire Scan, renommer et déplacer les pièces du dossier du client sur le NAS, déplacer, renommer ou supprimer un rendez-vous de l'agenda, et faire plusieurs actions sur plusieurs dossiers avec une seule autorisation. Chaque modification demande toujours votre « Autoriser »." },
     { version: '0.302.1', date: '2026-10-21 00:07', resume: "Claire Scan : un scan identique à un scan déjà rangé n'est plus jamais rangé seul, « Remettre dans Scan » retire aussi la pièce qu'avait ajoutée le rangement et ne touche qu'à la copie identique ; Demander à CLAIRE : les identifiants Légifrance restent intacts." },
     { version: '0.302.0', date: '2026-10-20 23:52', resume: "Explorateur du NAS : les dossiers se déplient en arbre (plusieurs à la fois) et un fichier se glisse-dépose dans un sous-dossier, ou sur « Dossier du client » pour le remettre à la racine ; « Annuler » défait le déplacement." },

@@ -75,13 +75,15 @@ test('identifiants opaques : un rendez-vous, un scan, un élément du NAS garden
   assert.match(id, /^ev\d+$/);
   assert.equal(app.idEvenementAgent({ itemId: 'AAMk-1', date: '2026-10-22' }), id);
   assert.equal(app.idEvenementAgent({ date: '2026-10-22' }), '', 'sans identifiant Outlook, il ne se modifie pas');
-  assert.equal(app.idScanAgent('SCAN_1.pdf'), app.idScanAgent('SCAN_1.pdf'));
-  assert.notEqual(app.idScanAgent('SCAN_1.pdf'), app.idScanAgent('SCAN_2.pdf'));
+  const s1 = { nom: 'SCAN_1.pdf', date: '2026-10-20T10:00:00Z' };
+  assert.equal(app.idScanAgent(s1), app.idScanAgent({ ...s1 }));
+  assert.notEqual(app.idScanAgent(s1), app.idScanAgent({ nom: 'SCAN_2.pdf', date: s1.date }));
+  assert.notEqual(app.idScanAgent(s1), app.idScanAgent({ nom: 'SCAN_1.pdf', date: '2026-10-21T10:00:00Z' }), 'même nom, autre date : autre scan');
   const f = app.idElementNasAgent('d1', '1 - Vendeur/CNI.pdf', 'fichier');
   const r = app.idElementNasAgent('d1', '1 - Vendeur', 'dossier');
   assert.match(f, /^nf\d+$/);
   assert.match(r, /^nd\d+$/);
   assert.equal(app.idElementNasAgent('d1', '1 - Vendeur/CNI.pdf', 'fichier'), f);
   app.reinitialiserPouvoirsAgent();
-  assert.equal(app.idScanAgent('SCAN_9.pdf'), 'sc1');
+  assert.equal(app.idScanAgent({ nom: 'SCAN_9.pdf', date: s1.date }), 'sc1');
 });

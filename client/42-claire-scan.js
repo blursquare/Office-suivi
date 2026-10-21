@@ -595,7 +595,7 @@
           dossierId: d.id, dossier: libelleDossierAffiche(d), type: choix.type, auteur: auto ? 'CLAIRE' : (utilisateurPoste || ''), auto: !!auto,
           score: l && l.proposition && l.proposition.dossierId === d.id ? l.proposition.score : null,
           corrige: !auto && rangementCorrigeScan(l && l.proposition, choix),
-          apprentissage: !auto ? apprentissageScan(l && l.lecture, d, choix) : null,
+          apprentissage: !auto && !(typeof scansRangesParAgent !== 'undefined' && scansRangesParAgent.has(nom)) ? apprentissageScan(l && l.lecture, d, choix) : null,
           texte: l && l.lecture ? String(l.lecture.texte || '').slice(0, 60000) : '' })
       });
       const corps = await r.json().catch(() => ({}));
