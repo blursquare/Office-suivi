@@ -28,6 +28,8 @@ function arreterRevelationAssistant() {
   if (revelationAssistant.timer) clearInterval(revelationAssistant.timer);
   revelationAssistant.timer = 0;
   revelationAssistant.message = null;
+  const zone = document.getElementById('assistant-messages');
+  if (zone) zone.removeAttribute('aria-busy');
 }
 
 /** Une réponse vient d'être posée : elle s'écrira peu à peu (sauf « réduire les animations »). @param {any} message */
@@ -68,6 +70,7 @@ function reprendreRevelationAssistant(zone) {
   const pied = Array.from(bloc.querySelectorAll('.asst-boutons, .asst-survol'));
   const montrer = (n) => { textesRevelesAssistant(textes, n).forEach((v, k) => { noeuds[k].nodeValue = v; }); };
   const pas = pasRevelationAssistant(total);
+  zone.setAttribute('aria-busy', 'true'); // un lecteur d'écran n'annonce pas chaque fragment : il lit la réponse une fois finie
   pied.forEach((el) => { el.style.visibility = 'hidden'; });
   montrer(revelationAssistant.n);
   revelationAssistant.timer = setInterval(() => {

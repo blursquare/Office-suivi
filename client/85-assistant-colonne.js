@@ -101,8 +101,16 @@
   function documentsColonneAssistant(connus, lus) {
     return Object.keys(connus || {}).filter(id => connus[id] && (connus[id].sorte === 'joint' || Object.prototype.hasOwnProperty.call(lus || {}, id)))
       .map(id => ({ id, libelle: String(connus[id].libelle || connus[id].nom || id), joint: connus[id].sorte === 'joint', pages: (lus || {})[id] || '',
+        // Le nom du fichier joint reste sur le poste (jamais envoyé à l'IA) : la liste le montre pour qu'on reconnaisse la pièce.
+        nomFichier: connus[id].sorte === 'joint' && connus[id].fichier && typeof connus[id].fichier.name === 'string' ? connus[id].fichier.name : '',
         image: connus[id].sorte === 'joint' && connus[id].sortePiece === 'image' }))
       .reverse();
+  }
+
+  // Le nom montré à l'écran pour un document : celui du fichier joint (resté sur le poste), sinon son libellé.
+  function nomDocumentLocalAssistant(id) {
+    const c = (typeof documentsAgentConnus === 'object' && documentsAgentConnus[id]) || {};
+    return (c.sorte === 'joint' && c.fichier && c.fichier.name) || c.libelle || c.nom || id;
   }
 
   // Pure : les citations d'une réponse de l'agent — « extrait » [doc3 p. 12] ou [pj1 p. 2] seul — rendues cliquables. Le texte est
@@ -271,7 +279,7 @@
       </div>
       ${a ? `<section class="asst-droite-bloc asst-apercu" aria-label="Aperçu du document">
         <div class="asst-apercu-tete">
-          <span class="asst-apercu-nom">${escapeHtml(((documentsAgentConnus[a.docId] || {}).libelle) || a.docId)}</span>
+          <span class="asst-apercu-nom">${escapeHtml(nomDocumentLocalAssistant(a.docId))}</span>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="fermerApercuAssistant()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button>
         </div>
         <div class="asst-apercu-nav">
@@ -291,7 +299,7 @@
       <details class="asst-droite-bloc" data-bloc="documents"${blocsOuvertsColonneAssistant.documents ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['documents'] = this.open">
         <summary>${icone('file-text')} Documents <span class="asst-droite-nb">${docs.length || ''}</span></summary>
         ${docs.length ? `<ul class="asst-docs">${docs.map(d => `<li><button type="button" class="asst-doc" onclick="afficherApercuAssistant('${escapeOnclickArg(d.id)}', 1, '')" ${d.image ? 'disabled' : ''}>
-            <span class="asst-doc-nom">${escapeHtml(d.libelle)}</span>
+            <span class="asst-doc-nom">${escapeHtml(d.nomFichier || d.libelle)}</span>
             <span class="asst-doc-note">${escapeHtml(d.id)}${d.joint ? ' · joint' : ''}${d.pages ? ' · lu p. ' + escapeHtml(d.pages) : ''}</span></button></li>`).join('')}</ul>`
           : '<p class="asst-droite-vide">Joignez un PDF au message (trombone ou glisser-déposer) ou demandez à CLAIRE de lire un document du dossier.</p>'}
       </details>
@@ -323,6 +331,8 @@
 
   // Sous 1 280 px la colonne passe par-dessus la conversation : Échap la ferme et rend le focus au bouton qui l'ouvre.
   if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('keydown', (ev) => {
+    // Le tiroir de l'aperçu d'un PDF se ferme d'abord (Échap), à toute largeur.
+    if (ev.key === 'Escape' && !ev.defaultPrevented && colonneAssistant.apercu && !document.querySelector('.confirm-overlay[style*="flex"], .jour-overlay[style*="flex"]')) { ev.preventDefault(); fermerApercuAssistant(); return; }
     if (ev.key !== 'Escape' || ev.defaultPrevented || !colonneAssistant.ouverte || window.innerWidth > 1280) return;
     // Une fenêtre posée par-dessus (email, autorisation, confirmation) se ferme d'abord.
     if ([...document.querySelectorAll('.confirm-overlay, .jour-overlay, .drawer-overlay')].some(o => o.style.display && o.style.display !== 'none')) return;

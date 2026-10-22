@@ -98,6 +98,7 @@
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
       `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
     if (!assistantMessages.length) {
+      arreterRevelationAssistant();
       zone.innerHTML = `<div class="asst-accueil">
           <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
