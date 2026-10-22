@@ -1094,6 +1094,8 @@ test('actes d’Authentic « ACT Déclaration Succ … » et « ACT Attestation 
   assert.equal(S.acteBaseDepuisIntitule('ACT Attestation Succ Joël RASQUIER T@'), 'attestation');
   assert.equal(S.acteBaseDepuisIntitule('ACT Attestation immobilière RASQUIER'), 'attestation');
   assert.equal(S.acteBaseDepuisIntitule('ACT Délivrance de legs RASQUIER'), '');
+  assert.equal(S.acteBaseDepuisIntitule('ACT Attestation de vente RASQUIER'), '');
+  assert.equal(S.acteBaseDepuisIntitule('ACT Vente API'), '');
 });
 
 test('« À faire » : décompte, projet et appel de fonds d’une succession ne sortent qu’une fois (tâche), pas aussi comme alerte', () => {

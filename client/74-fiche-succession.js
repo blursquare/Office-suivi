@@ -294,7 +294,7 @@
       if (e.avantRdv && !e.iso) base.sous = '10 jours avant le dernier rendez-vous, une fois placé';
       const attenteRdv = e.avantRdv && !e.iso;
       if (e.type === 'appelFondsSuccession') {
-        base.sous = [base.sous, conjointSurvivant(d) ? 'Comptes transférés au conjoint survivant : l’étude ne reçoit aucun fonds' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
+        base.sous = [base.sous, conjointSurvivant(d) ? 'Fonds transférés au conjoint, peu en comptabilité : appel de fonds dû' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
         base.bouton = { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier', icone: icone('x'), libelle: 'Pas nécessaire' };
       }
       if (e.type === 'controleDroits') base.sous = [s.droitsDus ? `droits dus : ${s.droitsDus}` : 'droits à vérifier', s.inventaireNecessaire ? `inventaire : ${s.inventaireNecessaire}` : 'inventaire à vérifier'].join(' · ');

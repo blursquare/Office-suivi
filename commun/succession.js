@@ -87,7 +87,7 @@
     if (/notori[ée]t[ée]/i.test(t)) return 'notoriete';
     // « ACT Déclaration Succ NOM » et « ACT Attestation Succ NOM T@ » (intitulés d'Authentic, 22/10) : « Succ » abrège « succession ».
     if (/d[ée]claration\s+(?:de\s+)?succ/i.test(t) || /(?:^|[^A-Za-z])DS(?![A-Za-z])/.test(t)) return 'declaration';
-    if (/attestation\s+(?:immobili|notari|de\s+propri|apr[èe]s\s+d[ée]c[èe]s|de\s+transmission|succ)/i.test(t) || /(?:^|[^A-Za-z])(?:API|PAI)(?![A-Za-z])/.test(t)) return 'attestation';
+    if (/attestation\s+(?:immobili|notari|de\s+propri|apr[èe]s\s+d[ée]c[èe]s|de\s+transmission|succ)/i.test(t)) return 'attestation';
     return '';
   }
 
