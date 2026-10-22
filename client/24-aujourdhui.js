@@ -116,22 +116,22 @@
     return j !== null && j >= 0 && j <= JOURS_RELANCE_DECOMPTE_CONFRERE;
   }
 
-  // Pure : vente en participation, l'office du vendeur est un confrère — sa copie du titre de propriété est à réclamer quand il ne l'a
-  // pas envoyée 48 h après l'ouverture du dossier (étude 22/10 : « si le notaire vendeur ne nous a pas envoyé la copie sous 48 h, faire un
-  // email de relance »). Une seule demande (relanceTitreConfrereLe) ; « Déjà reçu » la clôt ; plus rien une fois le titre reçu ou l'acte signé.
+  // Pure : vente en participation, l'office du vendeur est un confrère qui reçoit l'acte — sa copie est à réclamer quand elle n'est pas
+  // arrivée 48 h après la SIGNATURE de l'acte de vente (étude 22/10 : « si le notaire vendeur ne nous a pas envoyé la copie sous 48 h, faire
+  // un email de relance » ; « à compter de la date de signature de l'acte de vente »). Une seule demande (relanceTitreConfrereLe) ;
+  // « Déjà reçu » la clôt. Seulement les actes signés depuis la mise en service (22/10) et pendant 15 jours : jamais une avalanche de relances
+  // sur les dossiers déjà signés.
   var HEURES_RELANCE_TITRE_CONFRERE = 48;
   var JOURS_MAX_RELANCE_TITRE_CONFRERE = 15;
   var DEBUT_RELANCE_TITRE_CONFRERE = '2026-10-22';
   function relanceTitreConfrereDue(d, aujourdhuiIso) {
     if (!d || d.archive || estSuccession(d) || d.roleNotaire !== 'participant' || !confrereRepresenteVendeur(d)) return false;
-    if (d.relanceTitreConfrereLe || (d.pieces || {}).titrePropriete === 'recue') return false;
+    if (d.relanceTitreConfrereLe) return false;
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
-    if (dateSignatureDossier(d, auj)) return false;
-    const ouvert = dateOuvertureDossier(d);
-    const j = ouvert ? ecartJours(ouvert, auj) : null;
-    // Seulement les dossiers ouverts depuis la mise en service (22/10) et dans les 15 jours : jamais une avalanche de relances sur les dossiers en cours d'avant.
-    if (ouvert < DEBUT_RELANCE_TITRE_CONFRERE || j > JOURS_MAX_RELANCE_TITRE_CONFRERE) return false;
-    return j !== null && j * 24 >= HEURES_RELANCE_TITRE_CONFRERE;
+    const signe = dateSignatureDossier(d, auj);
+    if (!signe || signe < DEBUT_RELANCE_TITRE_CONFRERE) return false;
+    const j = ecartJours(signe, auj);
+    return j !== null && j <= JOURS_MAX_RELANCE_TITRE_CONFRERE && j * 24 >= HEURES_RELANCE_TITRE_CONFRERE;
   }
 
   // Pure : la confirmation de réception des fonds a été envoyée pour le rendez-vous actuel — elle en rappelle
@@ -178,13 +178,13 @@
         }
       }
 
-      // 1 ter. Participation : copie du titre de propriété à réclamer au confrère du vendeur (48 h après l'ouverture, étude 22/10).
+      // 1 ter. Participation : copie de l'acte (titre de propriété) à réclamer au confrère du vendeur, 48 h après la signature (étude 22/10).
       if (relanceTitreConfrereDue(d, aujourdhuiIso)) {
         const emailConfrere = emailConfrereVendeurDossier(d);
         ajouter({
           type: 'relanceTitreConfrere', categorie: 'neutre', categorieLabel: 'Titre de propriété',
           titre: 'Demander la copie du titre au confrère',
-          contexte: `Le vendeur est représenté par ${d.notaireVendeur} : sa copie du titre de propriété n’est pas arrivée.${emailConfrere ? '' : ' Email du confrère non renseigné.'}`,
+          contexte: `Acte signé le ${formatDateFr(dateSignatureDossier(d, aujourdhuiIso))} ; le vendeur est représenté par ${d.notaireVendeur} : sa copie de l’acte n’est pas arrivée.${emailConfrere ? '' : ' Email du confrère non renseigné.'}`,
           jours: null, gravite: 'vigilance',
           geste: emailConfrere ? { type: 'email', motif: 'relanceTitreConfrere' } : { type: 'fiche' },
           bouton: emailConfrere ? 'Ouvrir la demande' : 'Ouvrir la fiche',

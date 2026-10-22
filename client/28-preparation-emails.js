@@ -1192,7 +1192,7 @@
     // Décompte du confrère qui représente le vendeur, demandé 10 jours avant le rendez-vous (étude 06/10, J-10 depuis le 07/10) : au confrère, jamais
     // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
     relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: (d, c) => emailDepuisModele('relanceDecompteConfrere', d, undefined, c), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true },
-    // Copie du titre de propriété du confrère du vendeur, réclamée 48 h après l'ouverture d'une vente en participation (étude 22/10, texte de l'étude).
+    // Copie du titre de propriété du confrère du vendeur, réclamée 48 h après la signature d'une vente en participation (étude 22/10, texte de l'étude).
     relanceTitreConfrere: { cle: 'relanceTitreConfrere', libelle: 'Demander la copie du titre au confrère', construire: (d, c) => emailDepuisModele('relanceTitreConfrere', d, undefined, c), historique: 'Email envoyé — copie du titre de propriété demandée au confrère du vendeur', date: 'relanceTitreConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
   };
 
