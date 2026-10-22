@@ -17,7 +17,7 @@ description: Procédure complète avant d'envoyer un changement de CLAIRE sur ma
 ## 2. Vérifier
 
 1. `npm run verifier` (lint, types, les deux suites de tests, test de fumée dans Chromium) : 0 échec, 0 avertissement.
-2. `npm run scenarios` : rejoue les parcours types d'un dossier (planning, statut, cocher et décocher, préemption, successions, archivés, fiche en colonnes, assistant). Tout doit passer.
+2. (`npm run scenarios` n'est plus à lancer : ses fichiers sont déjà dans `npm test`, donc dans `npm run verifier` — doublon retiré le 22/10.)
 3. Un changement **visible** : le regarder dans Chromium (Playwright, bureau et largeur téléphone si l'écran s'y prête), une capture, un seul regard puis les retouches. Un changement qui touche un geste : le jouer pour de vrai (le cliquer, vérifier son effet), pas seulement le tester en pur.
 4. Un nouveau geste impossible à éprouver ici (Exchange, Windows, 3CX, Ollama, NAS, IA en ligne) : ajouter son point à `VERIFICATIONS_TERRAIN` et son appel `noterVerification`.
 
