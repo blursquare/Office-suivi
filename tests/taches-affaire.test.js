@@ -131,3 +131,43 @@ test('regroupement à partir de 2 tâches du même type : une carte, une ligne p
   assert.ok(html.includes("marquerFaitJour('a:pret')") && html.includes("marquerFaitJour('b:pret')"));
   assert.equal(app.elementsColonneTaches([mk('a', 'pret')]).length, 1);
 });
+
+// ---- Tuiles, liste compacte, renommer / retirer (étude 22/10, client/105-taches-widget.js) ----
+
+test('chiffres du haut : à faire, en retard, à venir (reportées comprises), faites sans « reporté »', () => {
+  const app = chargerApplication();
+  const c = app.chiffresTachesJour([{ jours: -2 }, { jours: 0 }, { jours: null }], [{}], [{}, {}], [{ etat: 'Fait' }, { etat: 'Reporté à demain' }]);
+  assert.equal(c.aFaire, 3);
+  assert.equal(c.enRetard, 1);
+  assert.equal(c.plusTard, 3);
+  assert.equal(c.faites, 1);
+});
+
+test('réglages des tâches : renommée = nouveau titre, écartée = absente, JSON abîmé = vide', () => {
+  const app = chargerApplication();
+  const r = app.reglagesTachesDepuisTexte(JSON.stringify({ renommees: { a: ' Mon titre ', b: '', c: 3 }, ecartees: { x: '2026-10-22', y: 5 } }));
+  assert.equal(r.renommees.a, 'Mon titre');
+  assert.ok(!('b' in r.renommees) && !('c' in r.renommees));
+  assert.equal(Object.keys(r.ecartees).join(), 'x');
+  assert.equal(Object.keys(app.reglagesTachesDepuisTexte('{pas du json').renommees).length, 0);
+  const actions = [{ cle: 'a', titre: 'Titre A' }, { cle: 'x', titre: 'Titre X' }, { cle: 'z', titre: 'Titre Z' }];
+  const out = app.appliquerReglagesTaches(actions, r);
+  assert.equal(out.map(a => a.titre).join('|'), 'Mon titre|Titre Z');
+  assert.equal(out[0].titreOrigine, 'Titre A');
+  assert.equal(actions[0].titre, 'Titre A', 'l’original n’est pas modifié');
+});
+
+test('liste compacte : un fin titre par thème, les identiques regroupées, le menu « ⋯ » et les initiales du responsable', () => {
+  const app = chargerApplication();
+  const d = (id, nom) => ({ id, nom, responsable: 'Julie VASSELIN' });
+  const t = (id, type, titre) => ({ cle: id + ':' + type, type, titre, dossier: d(id, 'VTE ' + id), jours: 3, categorie: 'neutre', categorieLabel: 'x', geste: { type: 'fiche' } });
+  const html = app.renderTachesCompactes([t('a', 'pret', 'Relancer l’offre'), t('b', 'pret', 'Relancer l’offre'), t('c', 'redaction', 'Rédiger l’acte')]);
+  assert.ok(html.includes('tc-theme-titre'), 'titre de thème');
+  assert.equal((html.match(/tc-groupe-tete/g) || []).length, 1, 'les deux relances sont réunies');
+  assert.ok(html.includes('2 dossiers'));
+  assert.ok(html.includes('tache-menu') && html.includes('Renommer') && html.includes('Retirer de la liste'));
+  assert.ok(html.includes('JV'), 'initiales du responsable');
+  assert.ok(!html.includes('tc-voir-tout'), 'moins de huit lignes : pas de « Voir toutes »');
+  const beaucoup = Array.from({ length: 12 }, (_, i) => t('d' + i, 'redaction', 'Rédiger l’acte'));
+  assert.ok(app.renderTachesCompactes(beaucoup).includes('tc-voir-tout'));
+});

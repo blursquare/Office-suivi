@@ -163,8 +163,8 @@ function renderCarteTache(a) {
     : '';
   return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
     <span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel || '')}</span>
-    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span></div>
-    <div class="tf-meta">${lienDossierTache(a.dossier)}${delai}</div>
+    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuTache(a.cle)}</div>
+    <div class="tf-meta">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}${delai}</div>
     <div class="tf-actions-tache">${geste}${boutonOutil}</div>
   </article>`;
 }
@@ -193,7 +193,7 @@ function renderCarteGroupeTaches(liste) {
     const boutonOutil = outil ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>` : '';
     const geste = sansGeste ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + a.titre)}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;
     return `<li class="tf-groupe-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre + ' — ' + libelleDossierAffiche(a.dossier))}" title="Déjà fait — valider à la main">${icone('check')}</button>
-      <span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</li>`;
+      <span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}${renderMenuTache(a.cle)}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</li>`;
   }).join('');
   return `<article class="tf-carte${liste.some((a) => a.gravite === 'critique') ? ' critique' : ''}">
     <span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel || '')}</span>
@@ -216,7 +216,7 @@ function tachesDesDossiers(liste) {
   const actifs = (liste || []).filter((d) => d && !d.archive);
   const etat = lireEtatJour();
   const faites = new Set(((etat.traites && etat.traites.liste) || []).map((t) => t.cle));
-  return filtrerActionsParAffaire(actionsDuJour(actifs, isoAujourdhuiLocal()).actions, modeTachesAffaire())
+  return appliquerReglagesTaches(filtrerActionsParAffaire(actionsDuJour(actifs, isoAujourdhuiLocal()).actions, modeTachesAffaire()), lireReglagesTaches())
     .filter((a) => !(etat.reports && etat.reports[a.cle]) && !faites.has(a.cle));
 }
 

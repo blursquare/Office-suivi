@@ -654,7 +654,7 @@
     }
     const traitees = new Set(etat.traites.liste.map(t => t.cle));
     const actionsToutes = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
-    const actions = filtrerActionsParAffaire(actionsToutes, mode);
+    const actions = appliquerReglagesTaches(filtrerActionsParAffaire(actionsToutes, mode), lireReglagesTaches());
     // Ce qui n'a pas été fait la veille revient aujourd'hui (la liste est recalculée chaque jour
     // depuis l'état des dossiers) et doit se REPÉRER comme tel (demandé par l'étude) : on retient,
     // par collaborateur et par poste, les actions restées à faire (ou reportées) dans la journée.
@@ -1407,7 +1407,7 @@
     if (!bloc) return;
     const global = vueGlobaleDashboard();
     const presentation = presentationWidget('aujourdhui');
-    const { aujourdhui, actions, traites } = etatAujourdhui();
+    const { aujourdhui, actions, traites, reportees, aVenir } = etatAujourdhui();
     const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
@@ -1439,8 +1439,12 @@
       const pleineLargeur = (dispositionWidgetsCourante().find(w => w.id === 'aujourdhui') || {}).taille === 'grand';
       // Les colonnes ne remplacent que les tâches des dossiers : mes rappels du jour, les rappels cochés et les tâches faites restent dessous.
       const annexes = `${rappelsJour}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}`;
-      const listeOuColonnes = pleineLargeur && actions.length ? renderTachesColonnes(actions) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '') : liste;
-      corps = `${feteHtml}${renderBasculeAffaireJour()}${listeOuColonnes}
+      // 4 colonnes : les cartes par thème ; 2 colonnes : la liste compacte par thème (étude 22/10). Les deux sous les quatre tuiles de chiffres.
+      const listeOuColonnes = actions.length
+        ? (pleineLargeur ? renderTachesColonnes(actions) : renderTachesCompactes(actions)) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '')
+        : liste;
+      const tuiles = renderTuilesTaches(chiffresTachesJour(actions, reportees, aVenir, traites));
+      corps = `${feteHtml}${tuiles}${renderBasculeAffaireJour()}${listeOuColonnes}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;

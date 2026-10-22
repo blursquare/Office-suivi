@@ -227,6 +227,7 @@
     'chevron-up': '<path d="M3.5 10 8 5.5 12.5 10"/>',
     'chevron-left': '<path d="M10 3.5 5.5 8 10 12.5"/>',
     'chevron-right': '<path d="M6 3.5 10.5 8 6 12.5"/>',
+    ellipsis: '<circle cx="3.5" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8" r="1.1" fill="currentColor" stroke="none"/>',
     'rotate-ccw': '<path d="M13.3 8A5.3 5.3 0 1 1 10.8 3.4"/><path d="M13.6 2.6v3.6h-3.6"/>',
     // Prorata : un disque coupé en deux parts inégales — une somme répartie entre deux parties.
     // Même grille 16x16 et même trait que le reste du jeu.

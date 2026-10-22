@@ -103,5 +103,6 @@
   "101-assistant-revelation.js",
   "102-fcddv-commun.js",
   "103-liens-chrome.js",
-  "104-taches-affaire.js"
+  "104-taches-affaire.js",
+  "105-taches-widget.js"
 ]
