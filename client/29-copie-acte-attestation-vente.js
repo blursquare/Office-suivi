@@ -57,6 +57,43 @@
       .slice(0, 20);
   }
 
+  // Pure : la copie de l'acte du confrère est arrivée quand une fausse minute du dossier date d'après la signature (étude 22/10 : « si en lisant les
+  // fausses minutes sur le commun »). → la fausse minute, ou null.
+  function copieActeConfrereRecue(fichiers, d, aujourdhuiIso) {
+    const signe = dateSignatureDossier(d, aujourdhuiIso || isoAujourdhuiLocal());
+    if (!signe) return null;
+    return faussesMinutesPourDossier(fichiers, d).find(f => String(f.modifie || '').slice(0, 10) >= signe) || null;
+  }
+
+  // Dossiers en participation dont le confrère du vendeur doit nous envoyer la copie : acte signé depuis la mise en service, pas encore noté reçu.
+  function dossiersCopieConfrereAttendue(liste, aujourdhuiIso) {
+    return (liste || []).filter(d => {
+      if (!d || d.archive || estSuccession(d) || d.roleNotaire !== 'participant' || !confrereRepresenteVendeur(d) || d.relanceTitreConfrereLe) return false;
+      const signe = dateSignatureDossier(d, aujourdhuiIso);
+      const j = signe ? ecartJours(signe, aujourdhuiIso) : null;
+      return !!signe && signe >= DEBUT_RELANCE_TITRE_CONFRERE && j !== null && j >= 0 && j <= JOURS_MAX_RELANCE_TITRE_CONFRERE;
+    });
+  }
+
+  // Toutes les heures : la copie du confrère trouvée dans « Fausses minutes » vaut « Déjà reçu » (la relance ne part plus).
+  async function verifierCopieActeConfrere() {
+    const aujourdhui = isoAujourdhuiLocal();
+    const attendus = dossiersCopieConfrereAttendue(dossiers, aujourdhui);
+    if (!attendus.length) return;
+    const r = await fetchAvecAuth('/api/nas/fausses-minutes');
+    const corps = await r.json();
+    if (!r.ok || !corps.trouve) return;
+    for (const d of attendus) {
+      const f = copieActeConfrereRecue(corps.fichiers || [], d, aujourdhui);
+      if (!f) continue;
+      d.relanceTitreConfrereLe = aujourdhui;
+      ajouterHistorique(d, 'Copie de l’acte du confrère reçue (retrouvée dans les fausses minutes)');
+      await sauvegarder(d);
+      noterVerificationPoste('copie-acte-confrere', { detail: 'copie retrouvée dans les fausses minutes' });
+    }
+    render();
+  }
+
   // Pure : « 3,4 Mo » / « 850 Ko ».
   function tailleLisible(octets) {
     const n = Number(octets) || 0;

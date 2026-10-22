@@ -66,6 +66,26 @@ function appliquerActePretAuthentic(d, lu, aujourdhuiIso) {
   return true;
 }
 
+// Sous-dossier « Promesse » d'Authentic (étude 22/10 : « date de l'avant-contrat inconnue — c'est la date de signature du compromis ou de la
+// promesse de vente ») : son « Signé le … » est la date de l'avant-contrat des statistiques. Jamais par-dessus une date déjà posée (créée à
+// l'import, saisie à la main). → vrai si la fiche a changé. Forme de la page non vérifiée au bureau (point `avant-contrat-authentic`).
+function retenirDateAvantContratAuthentic(d, capture) {
+  if (!d || d.deleted || estSuccession(d) || /^\d{4}-\d{2}-\d{2}$/.test(d.dateAvantContrat || '')) return false;
+  const e = etatActeAuthentic(capture);
+  let date = e && e.etat === 'signe' ? (e.date || '') : '';
+  // Badge du sous-dossier : « Signé » puis sa date, sur deux lignes (structure reçue le 22/10 pour un sous-dossier signé).
+  if (!date) {
+    const m = /(?:^|\n)\s*Sign[ée]e?\s*\n\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(String((capture && capture.texte) || ''));
+    date = m ? dateIsoDepuisFr(m[1]) : '';
+  }
+  const signe = /^\d{4}-\d{2}-\d{2}$/.test(date || '');
+  noterVerificationPoste('avant-contrat-authentic', signe ? { detail: 'date de signature lue' } : { ok: false, detail: 'sous-dossier promesse sans « Signé le » lisible' });
+  if (!signe) return false;
+  d.dateAvantContrat = date;
+  ajouterHistorique(d, `Date de l’avant-contrat reprise d’Authentic : signé le ${formatDateFr(date)}`);
+  return true;
+}
+
 // Page du sous-dossier « prêt » reçue pour ce dossier : lit son état et le retient. → vrai si la fiche a changé.
 function retenirPageActePretAuthentic(d, capture, aujourdhuiIso) {
   const lu = lireActePretAuthentic(capture);

@@ -2633,7 +2633,8 @@
       dossierCourantAuthentic = { id: dSous ? dSous.id : '', t: Date.now(), sur: !!dSous };
       const libelleSous = sous === 'promesse' ? 'promesse' : sous === 'avenant' ? 'avenant' : sous === 'pret' ? 'prêt' : 'autre que la vente';
       const pretLu = sous === 'pret' && dSous && retenirPageActePretAuthentic(dSous, capture, isoAujourdhuiLocal()); // étude 20/10 : état de l'acte de prêt
-      if (dSous && (retenirReferenceAuthentic(dSous, reference, dossiers) || pretLu)) { await sauvegarder(dSous); render(); }
+      const promesseLue = sous === 'promesse' && dSous && retenirDateAvantContratAuthentic(dSous, capture); // étude 22/10 : date de l'avant-contrat
+      if (dSous && (retenirReferenceAuthentic(dSous, reference, dossiers) || pretLu || promesseLue)) { await sauvegarder(dSous); render(); }
       return { etat: 'sans-changement', dossierId: dSous ? dSous.id : undefined, texte: `sous-dossier ${libelleSous} : seul le sous-dossier de vente est lu` };
     }
     let referenceNotee = false;
