@@ -351,7 +351,7 @@
       const j = ecartJours(aujourdhuiIso, e.iso);
       if (j === null) return;
       if (e.butoir && j <= 15) r.push({ gravite: j <= 5 ? 'critique' : 'vigilance', titre: 'Placer le rendez-vous', detail: `${e.label} · date butoir le ${court(e.iso)}${j < 0 ? ' (dépassée)' : ''}`, jours: j });
-      else if (e.avantRdv && j <= 3) r.push({ gravite: j <= 0 ? 'critique' : 'vigilance', titre: e.type === 'appelFondsSuccession' ? 'Envoyer l’appel de fonds' : e.type === 'projetSuccession' ? 'Envoyer le projet à faire valider' : 'Envoyer le décompte à faire valider', detail: `Avant le rendez-vous · le ${court(e.iso)}${j < 0 ? ' (en retard)' : ''}`, jours: j });
+      // Décompte, projet et appel de fonds : déjà des tâches d'« À faire » (client/24) — jamais deux fois (étude 22/10).
     });
     return r;
   }

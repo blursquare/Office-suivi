@@ -1085,3 +1085,11 @@ test('conjoint survivant : pas d’étape « Appel de fonds » (l’étude ne re
   assert.ok(types.includes('decompteSuccession'));
   assert.ok(!types.includes('appelFondsSuccession'));
 });
+
+test('« À faire » : décompte, projet et appel de fonds d’une succession ne sortent qu’une fois (tâche), pas aussi comme alerte', () => {
+  const d = base({ biens: [{ adresse: 'X' }], responsable: 'Bastien ANGLUMENT', succession: { type: 'notoriete-ds', ouvertureLe: '2026-08-15',
+    rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2026-10-31', heure: '14:00' }] }, rendezVousSignature: '2026-10-31' });
+  const titres = app.actionsDuJour([d], '2026-10-22').actions.map(a => a.titre);
+  assert.equal(titres.filter(t => /décompte/.test(t)).length, 1);
+  assert.equal(titres.filter(t => /projet/.test(t)).length, 1);
+});

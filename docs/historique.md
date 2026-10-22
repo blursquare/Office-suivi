@@ -21408,3 +21408,6 @@ Réponses de l'étude (1 à 6) : notoriété 4–6 mois inchangée ; INVENTAIRE 
 
 
 **0.312.1 (22/10, correction)** — étude : « c'est le bazar, il faut simplifier » (colonne « À faire » de la fiche d'une succession : décompte et appel de fonds en double). `cartesTableauFiche` (client/57) ignore les gestes du jour `decompteSuccession` / `projetSuccession` / `appelFondsSuccession` d'une succession (leur carte d'étape existe) ; `etapesSuccession` ne crée plus l'étape `appelFondsSuccession` quand `conjointSurvivant(d)`. Les cartes « ACT … » d'Authentic ne sont plus des étapes depuis 0.309.
+
+
+**0.312.2 (22/10, correction)** — étude : « ne pas afficher, c'est un doublon (succession) ». Cause réelle : `alertesSuccession` (client/74) remontait aussi le décompte, le projet et l'appel de fonds comme points (`point-envoyer-…`) en plus des tâches `decompteSuccession` / `projetSuccession` / `appelFondsSuccession` de client/24. L'alerte est retirée (seule reste « Placer le rendez-vous »). Test dans `tests/succession.test.js`.
