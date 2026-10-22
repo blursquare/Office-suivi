@@ -201,6 +201,11 @@ test('infosRendezVousDossier : responsable, confrère, appel de fonds (vente) ou
   const decl = { id: 's2', nom: 'DURAND', typeAffaire: 'succession', responsable: 'Julie VASSELIN', biens: [{ adresse: 'X' }],
     succession: { type: 'notoriete-ds', ouvertureLe: '2026-08-15', rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2099-12-10', heure: '10:00' }] } };
   assert.equal(app.infosRendezVousDossier(decl).etats.map(x => x.cle).join(','), 'appelFonds,decompte,projet');
+  // Même chose pour les signatures « API et DS » (rendez-vous « NOTO API DS PARTAGE », « API DS ») : tout est signé ensemble.
+  for (const titre of ['SUCC - Christian VIEL (NOTO API DS PARTAGE)', 'SUCC - Christian VIEL (API DS)']) {
+    const e = { titre, etapeSuccession: app.etapeRendezVousSuccessionDepuisTitre(titre) };
+    assert.equal(app.infosRendezVousDossier(decl, e).etats.map(x => x.cle).join(','), 'appelFonds,decompte,projet', titre);
+  }
   decl.succession.appelFondsInutile = true;
   assert.equal(app.infosRendezVousDossier(decl).etats.map(x => x.cle).join(','), 'decompte,projet');
 
