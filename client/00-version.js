@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.319.0';
+  const VERSION_APP = '0.319.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.319.1', date: '2026-10-22 22:23', resume: "Tâches en colonnes : les tâches identiques (à partir de 2) se regroupent en une carte, une ligne par dossier ; l'icône d'outil n'est plus en double quand le geste ouvre déjà l'outil (appel de fonds) ; rien ne déborde des cartes de 390 à 1 400 px ; en colonnes, mes rappels du jour et les tâches faites restent affichés." },
     { version: '0.319.0', date: '2026-10-22 22:20', resume: "Tâches du jour en colonnes par thème (à rédiger, relances, avant / après la signature) : dans le widget « Aujourd'hui » quand il occupe toute la ligne, et dans une nouvelle vue « Tâches » du Suivi des dossiers. Une tâche liée à un outil (l'appel de fonds) porte l'icône de l'outil, qui s'ouvre prérempli." },
     { version: '0.318.0', date: '2026-10-22 21:49', resume: "Tâches du jour : les étapes d'une succession (acte de notoriété, contrôle des droits, transfert des comptes ou déblocage des fonds, réception des fonds) et les factures à régler deviennent des tâches ; un choix Tout / Ventes / Successions au-dessus de la liste." },
     { version: '0.317.0', date: '2026-10-22 21:12', resume: "Réglages › Liens : les liens vers un autre site (Légifrance, WeTransfer, visio ADNOV…) peuvent s'ouvrir dans un onglet du Chrome habituel au lieu de la fenêtre CLAIRE. Un fichier à importer une fois par poste, puis un interrupteur." },

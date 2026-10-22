@@ -10512,8 +10512,17 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .ja-bascule-affaire { margin: 0 0 8px; }
 
 /* Tâches en colonnes (étude 22/10, client/104-taches-affaire.js) : actions d'une carte, vue « Tâches » du Suivi. */
-.tf-actions-tache { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tf-actions-tache { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
 .tf-taches-colonnes { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .suivi-taches { padding: 8px 0; }
 .w-corps:has(.tf-taches-colonnes) { overflow-y: auto; }
-.tf-taches-colonnes .tf-categorie { overflow-wrap: anywhere; }
+.tf-taches-colonnes .tf-categorie { display: flex; max-width: 100%; min-width: 0; align-items: baseline; white-space: normal; overflow-wrap: anywhere; }
+
+/* Carte de tâches regroupées (étude 22/10) : une ligne par dossier. */
+.tf-groupe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.tf-groupe-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-width: 0; }
+.tf-groupe-ligne > .tf-rond { grid-row: span 2; align-self: start; }
+.tf-groupe-dossier { min-width: 0; font-size: var(--texte-s); overflow-wrap: anywhere; }
+.tf-groupe-actions { display: inline-flex; align-items: center; }
+.tf-groupe-delai { grid-column: 2 / span 2; font-size: var(--texte-s); }
+.tf-groupe-delai .tf-delai { white-space: nowrap; }

@@ -881,7 +881,7 @@
     const { aVoir, reste } = partagerAVoirSuivi(tries);
     const blocAVoir = renderAVoirSuivi(aVoir);
     // Vue « Tâches » (étude 22/10) : les mêmes dossiers filtrés, leurs tâches du jour en colonnes par thème (client/104).
-    if (vueSuivi === 'taches') { list.innerHTML = renderVueTachesSuivi(tries); return; }
+    if (vueSuivi === 'taches') { list.innerHTML = renderVueTachesSuivi(tries.filter(d => !d.archive)); return; }
     if (vueSuivi === 'semaines') {
       // Les archivés (case « Archivés » cochée) ont leur propre section en bas : jamais dans une semaine.
       const enCours = reste.filter(d => !d.archive);

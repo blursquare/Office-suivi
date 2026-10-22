@@ -94,7 +94,9 @@ test('colonnes : une carte par tâche avec case ronde, geste et outil ; la colon
   const dossier = { id: 'v1', nom: 'MARTIN / DUPONT', historique: [], pieces: {} };
   const html = app.renderTachesColonnes([{ cle: 'v1:appelFonds', type: 'appelFonds', titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', jours: 3, dossier, geste: { type: 'appelFonds' } }]);
   assert.ok(html.includes('tf-taches-colonnes') && html.includes('Avant la signature'));
-  assert.ok(html.includes("marquerFaitJour('v1:appelFonds')") && html.includes('preparerAppelFondsDepuisDossier'));
+  assert.ok(html.includes("marquerFaitJour('v1:appelFonds')"));
+  assert.ok(!html.includes('preparerAppelFondsDepuisDossier'), 'le geste de l’appel de fonds ouvre déjà l’outil : pas d’icône en double');
+  assert.ok(html.includes("executerActionJour('v1:appelFonds')"));
   assert.ok(!html.includes('À décider'), 'pas de colonne vide « À décider »');
   assert.ok(app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Décider', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]).includes('À décider'));
 });
@@ -115,4 +117,17 @@ test('les tâches traitées suivent le choix Tout / Ventes / Successions (progre
   assert.equal(app.filtrerTraitesParAffaire(traites, 'tout', tous).length, 2);
   assert.equal(app.filtrerTraitesParAffaire(traites, 'vente', tous).map(t => t.cle).join(), 'v1:pret');
   assert.equal(app.filtrerTraitesParAffaire(traites, 'succession', tous).map(t => t.cle).join(), 's1:notoriete');
+});
+
+test('regroupement à partir de 2 tâches du même type : une carte, une ligne par dossier', () => {
+  const app = chargerApplication();
+  const mk = (id, type) => ({ cle: id + ':' + type, type, titre: 'Relancer l’offre de prêt', categorie: 'pret', categorieLabel: 'Obtention du prêt', jours: 2, dossier: { id, nom: 'DOS ' + id, historique: [], pieces: {} }, geste: { type: 'email' } });
+  const el = app.elementsColonneTaches([mk('a', 'pret'), mk('b', 'pret'), mk('c', 'ventePrealable')]);
+  assert.equal(el.length, 2);
+  assert.equal(el[0].groupe.length, 2);
+  assert.equal(el[1].action.type, 'ventePrealable');
+  const html = app.renderCarteGroupeTaches(el[0].groupe);
+  assert.ok(html.includes('2 dossiers') && (html.match(/tf-groupe-ligne/g) || []).length === 2);
+  assert.ok(html.includes("marquerFaitJour('a:pret')") && html.includes("marquerFaitJour('b:pret')"));
+  assert.equal(app.elementsColonneTaches([mk('a', 'pret')]).length, 1);
 });

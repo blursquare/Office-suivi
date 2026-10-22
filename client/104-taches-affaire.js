@@ -96,6 +96,7 @@ function reglerFactureDepuisTache(a, silencieux) {
   if (!a || !a.dossier || !a.factureId) return false;
   basculerFactureReglee(a.dossier.id, a.factureId);
   noterTraite(a, 'Facture notée réglée', { factureId: a.factureId });   // compte dans la progression ; « Annuler » la remet à régler (annulerTraiteJour)
+  if (!silencieux) render();   // la ligne « traitée » et la progression suivent (le rendu de basculerFactureReglee précède la note)
   if (!silencieux) afficherToast(`Facture notée réglée — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(a.cle));
   return true;
 }
@@ -132,6 +133,12 @@ function regrouperTachesParTheme(actions) {
   return THEMES_TACHES.map((t) => ({ theme: t, actions: (actions || []).filter((a) => themeTache(a) === t.cle) }));
 }
 
+/** Pure : le bouton d'outil à ajouter à une tâche — pas quand son geste ouvre déjà ce même outil prérempli (appel de fonds). @param {any} a */
+function outilSupplementaireTache(a) {
+  const outil = outilDeTache(a);
+  return outil && !(a.geste && a.geste.type === 'appelFonds' && outil.cle === 'appel-fonds') ? outil : null;
+}
+
 /** Pure : l'outil de CLAIRE lié à une tâche, ou null — { cle, libelle, icone, onclick }. Ouvre l'outil prérempli par la fiche du dossier. @param {any} a */
 function outilDeTache(a) {
   if (!a || !a.dossier) return null;
@@ -144,7 +151,7 @@ function outilDeTache(a) {
 /** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
 function renderCarteTache(a) {
   const cle = escapeOnclickArg(a.cle);
-  const outil = outilDeTache(a);
+  const outil = outilSupplementaireTache(a);
   const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
     : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${icone('clock')}${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
   const sansGeste = !a.geste || a.geste.type === 'fiche';
@@ -162,12 +169,45 @@ function renderCarteTache(a) {
   </article>`;
 }
 
+// Tâches identiques (même type) à partir de ce nombre : UNE carte, une ligne par dossier (étude 22/10 : « regroupement à partir de 2 »).
+var SEUIL_REGROUPEMENT_TACHES = 2;
+
+/** Pure : les tâches d'une colonne en éléments — { groupe: [actions] } pour 2 identiques ou plus, { action } sinon ; l'ordre du premier de chaque type est gardé. @param {any[]} actions */
+function elementsColonneTaches(actions) {
+  const parType = new Map();
+  (actions || []).forEach((a) => { if (!parType.has(a.type)) parType.set(a.type, []); parType.get(a.type).push(a); });
+  const out = [];
+  parType.forEach((liste) => { if (liste.length >= SEUIL_REGROUPEMENT_TACHES) out.push({ groupe: liste }); else out.push({ action: liste[0] }); });
+  return out;
+}
+
+/** Une carte pour plusieurs tâches du même type : une ligne par dossier (case ronde, dossier, délai, geste). @param {any[]} liste */
+function renderCarteGroupeTaches(liste) {
+  const a0 = liste[0];
+  const lignes = liste.map((a) => {
+    const cle = escapeOnclickArg(a.cle);
+    const sansGeste = !a.geste || a.geste.type === 'fiche';
+    const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
+      : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+    const outil = outilSupplementaireTache(a);
+    const boutonOutil = outil ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>` : '';
+    const geste = sansGeste ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + a.titre)}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;
+    return `<li class="tf-groupe-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre + ' — ' + libelleDossierAffiche(a.dossier))}" title="Déjà fait — valider à la main">${icone('check')}</button>
+      <span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</li>`;
+  }).join('');
+  return `<article class="tf-carte${liste.some((a) => a.gravite === 'critique') ? ' critique' : ''}">
+    <span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel || '')}</span>
+    <div class="tf-ligne"><span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span><span class="tf-titre">${escapeHtml(a0.titre)} <span class="tf-sous">· ${liste.length} dossiers</span></span></div>
+    <ul class="tf-groupe">${lignes}</ul>
+  </article>`;
+}
+
 /** Les tâches en COLONNES par thème (widget pleine largeur, vue « Tâches » du Suivi). @param {any[]} actions */
 function renderTachesColonnes(actions) {
   const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || g.theme.cle !== 'decider');
   return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
       <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
-      <div class="tf-cartes">${g.actions.length ? g.actions.map(renderCarteTache).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
+      <div class="tf-cartes">${g.actions.length ? elementsColonneTaches(g.actions).map((e) => (e.groupe ? renderCarteGroupeTaches(e.groupe) : renderCarteTache(e.action))).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
     </section>`).join('')}</div>`;
 }
 
@@ -183,5 +223,6 @@ function tachesDesDossiers(liste) {
 /** La vue « Tâches » du Suivi des dossiers : les mêmes dossiers filtrés, leurs tâches en colonnes. @param {any[]} liste */
 function renderVueTachesSuivi(liste) {
   const actions = tachesDesDossiers(liste);
-  return `<div class="suivi-taches">${renderBasculeAffaireJour()}${actions.length ? renderTachesColonnes(actions) : '<p class="jour-vide jour-vide-ok">✓ Aucune tâche pour ces dossiers.</p>'}</div>`;
+  const vide = modeTachesAffaire() !== 'tout' ? '✓ Aucune tâche de ce type pour ces dossiers (choix « ' + (modeTachesAffaire() === 'vente' ? 'Ventes' : 'Successions') + ' » ci-dessus).' : '✓ Aucune tâche pour ces dossiers.';
+  return `<div class="suivi-taches">${renderBasculeAffaireJour()}${actions.length ? renderTachesColonnes(actions) : `<p class="jour-vide jour-vide-ok">${escapeHtml(vide)}</p>`}</div>`;
 }

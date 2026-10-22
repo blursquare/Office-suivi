@@ -1018,7 +1018,11 @@
     const etat = lireEtatJour();
     const entree = etat.traites.liste.find(t => t.cle === cle);
     delete etat.reports[cle];
-    if (entree && entree.factureId) basculerFactureReglee(entree.dossierId, entree.factureId);   // facture réglée depuis une tâche : remise à régler
+    if (entree && entree.factureId) {   // facture réglée depuis une tâche : remise à régler (seulement si elle est encore réglée)
+      const dossierFacture = dossiers.find(x => x.id === entree.dossierId);
+      const facture = dossierFacture && factureSuccessionParId(dossierFacture, entree.factureId);
+      if (facture && facture.regleeLe) basculerFactureReglee(entree.dossierId, entree.factureId);
+    }
     etat.traites.liste = etat.traites.liste.filter(t => t.cle !== cle);
     ecrireEtatJour(etat);
     if (entree && entree.champsDossier) {
@@ -1433,7 +1437,9 @@
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Widget sur toute la ligne (4 colonnes) : les tâches en colonnes par thème (étude 22/10) ; sinon la liste.
       const pleineLargeur = (dispositionWidgetsCourante().find(w => w.id === 'aujourdhui') || {}).taille === 'grand';
-      const listeOuColonnes = pleineLargeur && actions.length ? renderTachesColonnes(actions) : liste;
+      // Les colonnes ne remplacent que les tâches des dossiers : mes rappels du jour, les rappels cochés et les tâches faites restent dessous.
+      const annexes = `${rappelsJour}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}`;
+      const listeOuColonnes = pleineLargeur && actions.length ? renderTachesColonnes(actions) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '') : liste;
       corps = `${feteHtml}${renderBasculeAffaireJour()}${listeOuColonnes}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
