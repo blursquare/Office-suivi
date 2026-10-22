@@ -1126,8 +1126,12 @@ test('rendez-vous « NOTO API DS » : le jour même, l’acte n’est signé qu�
     rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC - Christian VIEL (NOTO API DS PARTAGE)', date: '2026-12-10', heure }] } });
   // Date du jour simulée (pas celle d'aujourd'hui à Paris) : le jour du rendez-vous compte comme passé.
   assert.equal(S.etapesSuccession(d('10:00'), '2026-12-10').find(e => e.type === 'notoriete').fait, true);
-  const parisJour = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  const rdv = (heure) => ({ date: parisJour, heure });
+  // Horloge injectée : 10 h 30 à Paris (CEST = UTC+2) le 10/12/2026 (hiver : UTC+1 → 09:30 UTC).
+  const h = new Date('2026-12-10T09:30:00Z');
+  assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '10:00' }, '2026-12-10', h), true, 'heure passée');
+  assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '10:31' }, '2026-12-10', h), false, 'heure pas encore passée');
+  assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '' }, '2026-12-10', h), true, 'sans heure');
+});
   assert.equal(S.rendezVousPasse(rdv('00:00'), parisJour), true, 'heure déjà passée aujourd’hui');
   assert.equal(S.rendezVousPasse(rdv('23:59'), parisJour), false, 'heure pas encore passée aujourd’hui');
   assert.equal(S.rendezVousPasse({ date: parisJour, heure: '' }, parisJour), true, 'sans heure');

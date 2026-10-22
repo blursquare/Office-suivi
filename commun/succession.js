@@ -342,9 +342,9 @@
   /**
    * Pure : le rendez-vous est passé — sa date est avant `auj`, ou c'est aujourd'hui et son HEURE est passée (étude 22/10 : « avec l'heure
    * aussi »). L'heure du jour n'est lue que quand `auj` est la date d'aujourd'hui à Paris ; une date du jour simulée compte comme passée.
-   * @param {any} r @param {string} auj
+   * @param {any} r @param {string} auj @param {Date} [maintenant] horloge injectable (tests)
    */
-  function rendezVousPasse(r, auj) {
+  function rendezVousPasse(r, auj, maintenant) {
     if (!r || !r.date) return false;
     if (r.date < auj) return true;
     if (r.date > auj) return false;
@@ -353,7 +353,7 @@
     let parisJour = '', parisHeure = '';
     try {
       const f = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-      const p = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
+      const p = Object.fromEntries(f.formatToParts(maintenant || new Date()).map((x) => [x.type, x.value]));
       parisJour = `${p.year}-${p.month}-${p.day}`; parisHeure = `${p.hour}:${p.minute}`;
     } catch (e) { return true; }
     return auj !== parisJour || heure <= parisHeure;
