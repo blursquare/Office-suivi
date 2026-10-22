@@ -43,3 +43,15 @@ test('date de l’avant-contrat : le badge « Signé » + date du sous-dossier P
   assert.equal(app.retenirDateAvantContratAuthentic(d, { texte: '1 - Promesse VTE X / Y\nSigné\n12/09/2026\nSupprimer le sous-dossier', champs: [], tableaux: [] }), true);
   assert.equal(d.dateAvantContrat, '2026-09-12');
 });
+
+test('copie du confrère : un seul côté nommé ou une attestation seule ne ferment pas la relance ; date de l’avant-contrat future ou impossible refusée', () => {
+  const d = dossier({});
+  const un = [{ nom: 'Copie.pdf', chemin: '2026/VTE MARTEL AUTRE/Copie.pdf', modifie: '2026-10-26T10:00:00' }];
+  assert.equal(app.copieActeConfrereRecue(un, d, '2026-10-27'), null, 'un seul côté nommé');
+  const att = [{ nom: 'Attestation.pdf', chemin: '2026/VTE MARTEL FOURNIER/Attestation.pdf', modifie: '2026-10-26T10:00:00' }];
+  assert.equal(app.copieActeConfrereRecue(att, d, '2026-10-27'), null, 'attestation seule');
+  const v = { id: 'v5', nom: 'X / Y', parties: [], historique: [] };
+  assert.equal(app.retenirDateAvantContratAuthentic(v, { texte: 'SIGNÉ\n31/02/2026', champs: [], tableaux: [] }), false, '31/02 impossible');
+  assert.equal(app.retenirDateAvantContratAuthentic(v, { texte: 'Signé\n01/01/2099', champs: [], tableaux: [] }), false, 'date future');
+  assert.equal(app.retenirDateAvantContratAuthentic(v, { texte: 'SIGNÉ\n12/09/2026', champs: [], tableaux: [] }), true, 'majuscules acceptées');
+});

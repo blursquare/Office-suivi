@@ -62,7 +62,8 @@
   function copieActeConfrereRecue(fichiers, d, aujourdhuiIso) {
     const signe = dateSignatureDossier(d, aujourdhuiIso || isoAujourdhuiLocal());
     if (!signe) return null;
-    return faussesMinutesPourDossier(fichiers, d).find(f => String(f.modifie || '').slice(0, 10) >= signe) || null;
+    // Les DEUX côtés nommés (un seul nom courant ferait fermer la relance à tort) et la copie de l'acte, jamais l'attestation seule.
+    return faussesMinutesPourDossier(fichiers, d).find(f => f.score >= 2 && f.type === 'copie' && String(f.modifie || '').slice(0, 10) >= signe) || null;
   }
 
   // Dossiers en participation dont le confrère du vendeur doit nous envoyer la copie : acte signé depuis la mise en service, pas encore noté reçu.
@@ -81,9 +82,11 @@
     const attendus = dossiersCopieConfrereAttendue(dossiers, aujourdhui);
     if (!attendus.length) return;
     const r = await fetchAvecAuth('/api/nas/fausses-minutes');
+    if (!r.ok) return;
     const corps = await r.json();
-    if (!r.ok || !corps.trouve) return;
+    if (!corps.trouve) return;
     for (const d of attendus) {
+      if (d.relanceTitreConfrereLe) continue; // relance envoyée ou « Déjà reçu » cliqué pendant l'attente
       const f = copieActeConfrereRecue(corps.fichiers || [], d, aujourdhui);
       if (!f) continue;
       d.relanceTitreConfrereLe = aujourdhui;

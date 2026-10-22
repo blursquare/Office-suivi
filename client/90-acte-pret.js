@@ -74,12 +74,17 @@ function retenirDateAvantContratAuthentic(d, capture) {
   const e = etatActeAuthentic(capture);
   let date = e && e.etat === 'signe' ? (e.date || '') : '';
   // Badge du sous-dossier : « Signé » puis sa date, sur deux lignes (structure reçue le 22/10 pour un sous-dossier signé).
+  const texte = String((capture && capture.texte) || '');
   if (!date) {
-    const m = /(?:^|\n)\s*Sign[ée]e?\s*\n\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(String((capture && capture.texte) || ''));
+    const m = /(?:^|\n)\s*Sign[ée]e?\s*\n\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i.exec(texte);
     date = m ? dateIsoDepuisFr(m[1]) : '';
   }
-  const signe = /^\d{4}-\d{2}-\d{2}$/.test(date || '');
-  noterVerificationPoste('avant-contrat-authentic', signe ? { detail: 'date de signature lue' } : { ok: false, detail: 'sous-dossier promesse sans « Signé le » lisible' });
+  // Date plausible seulement : au calendrier, jamais dans le futur.
+  const valide = /^\d{4}-\d{2}-\d{2}$/.test(date || '') && !Number.isNaN(Date.parse(date + 'T00:00:00Z')) && new Date(date + 'T00:00:00Z').toISOString().slice(0, 10) === date && date <= isoAujourdhuiLocal();
+  const signe = valide;
+  // Un échec n'est noté que si la page dit « Signé » sans date lisible (une promesse en cours de rédaction n'est pas un échec).
+  if (signe) noterVerificationPoste('avant-contrat-authentic', { detail: 'date de signature lue' });
+  else if (/(?:^|\n)\s*Sign[ée]e?\b/i.test(texte)) noterVerificationPoste('avant-contrat-authentic', { ok: false, detail: 'sous-dossier promesse signé sans date lisible' });
   if (!signe) return false;
   d.dateAvantContrat = date;
   ajouterHistorique(d, `Date de l’avant-contrat reprise d’Authentic : signé le ${formatDateFr(date)}`);
