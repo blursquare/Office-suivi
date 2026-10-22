@@ -129,6 +129,7 @@
           <div class="asst-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
+    reprendreRevelationAssistant(zone);
   }
 
   // Suites rapides au-dessus de la saisie, une fois la conversation lancée. « Où en est… » complète la saisie au lieu d'envoyer.
@@ -256,7 +257,9 @@
   }
 
   function poserMessageAssistant(role, html, boutons) {
-    assistantMessages.push({ role, html, boutons: boutons || [], quand: Date.now() });
+    const message = { role, html, boutons: boutons || [], quand: Date.now() };
+    assistantMessages.push(message);
+    if (role === 'claire') lancerRevelationAssistant(message);
     if (assistantMessages.length > 60) assistantMessages = assistantMessages.slice(-60);
     memoriserConversationAssistant(true);
     renderAssistant();

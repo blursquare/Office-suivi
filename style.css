@@ -9573,6 +9573,11 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .asst-astuce, .asst-pied { display: none; }
   .asst-suggestion { font-size: var(--texte-s); padding: 6px 10px; }
 }
+/* Fenêtre peu haute (22/10) : les suites rapides et l'astuce du bas écrasaient la conversation, « CLAIRE écrit » restait cachée sous le champ. */
+@media (max-height: 820px) {
+  .asst-relances, .asst-astuce, .asst-pied { display: none; }
+  .asst-messages { min-height: 160px; }
+}
 @media (hover: none) { .asst-survol { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } }
 
