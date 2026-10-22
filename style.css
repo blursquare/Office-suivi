@@ -6504,6 +6504,10 @@ wa-button.rappel-perso-suppr:hover { color: var(--urgent); }
 wa-button.rappel-perso-modif:hover { color: var(--focus); }
 @media (hover: none) { wa-button.rappel-perso-suppr { opacity: 1; } }
 .rappel-perso-ajout { align-self: flex-start; margin-top: 6px; }
+wa-button.rappel-perso-ajout { color: var(--focus); }
+wa-button.rappel-perso-ajout::part(base) { background: color-mix(in srgb, var(--focus) 10%, transparent); border-color: color-mix(in srgb, var(--focus) 35%, transparent); border-radius: var(--rayon-pilule); font-weight: 500; transition: background 0.15s ease, transform 0.15s ease; }
+wa-button.rappel-perso-ajout:hover::part(base) { background: color-mix(in srgb, var(--focus) 18%, transparent); }
+wa-button.rappel-perso-ajout:active::part(base) { transform: scale(0.97); }
 /* Rappel qui parle d'écrire : un email vierge, signature comprise (voir ouvrirEmailRappelPerso). */
 .rappel-perso wa-button.rappel-perso-email, .rappel-perso wa-button.rappel-perso-email:hover { color: var(--focus); flex: none; }
 /* Tâche du jour restée non faite la veille (voir majVeilleJour). */
@@ -6512,9 +6516,28 @@ wa-button.rappel-perso-modif:hover { color: var(--focus); }
   font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0; white-space: nowrap;
   color: var(--pret); background: color-mix(in srgb, var(--pret) 14%, transparent);
 }
-.rappel-perso-form { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-.rappel-perso-form-ligne { display: flex; gap: 8px; flex-wrap: wrap; }
-.rappel-perso-form-ligne input[type="date"], .rappel-perso-form-ligne select { flex: 1 1 150px; width: auto; min-width: 0; }
+/* Formulaire d'une tâche : une carte posée sur la liste, nom en grand, échéance et dossier en pastilles, Annuler / Ajouter à droite. */
+.rappel-perso-form {
+  display: flex; flex-direction: column; gap: 12px; margin-top: 6px; padding: 12px 16px;
+  background: var(--paper-card); border-radius: var(--rayon-carte); box-shadow: var(--shadow-float);
+}
+.rappel-perso-form input.rappel-perso-nom, .rappel-perso-form input.rappel-perso-nom:focus {
+  border: 0; box-shadow: none; background: transparent; padding: 0; min-height: 0; height: auto;
+  font-size: var(--texte-l); font-weight: 500; color: var(--ink); outline: none;
+}
+.rappel-perso-form-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rappel-perso-puce {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 0 12px; height: 32px;
+  border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--muted);
+  font-size: var(--texte-s); transition: border-color 0.15s ease, color 0.15s ease;
+}
+.rappel-perso-puce:hover, .rappel-perso-puce:focus-within { border-color: var(--focus); color: var(--ink); }
+.rappel-perso-puce .icone { flex: none; }
+.rappel-perso-puce input, .rappel-perso-puce select {
+  border: 0; box-shadow: none; background: transparent; padding: 0; min-height: 0; height: 28px; width: auto; min-width: 0;
+  max-width: 180px; font-size: var(--texte-s); color: inherit; outline: none;
+}
+.rappel-perso-form-actions { display: inline-flex; gap: 8px; margin-left: auto; }
 
 /* ---- « À traiter » : une ligne par dossier, groupée par gravité (voir pointsATraiter) ---- */
 .a-traiter-groupe { display: flex; flex-direction: column; }

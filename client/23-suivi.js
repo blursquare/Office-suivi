@@ -2347,14 +2347,14 @@
         ? (d => d ? `<option value="${escapeAttr(d.id)}" selected>${escapeHtml(libelleDossierAffiche(d))}</option>` : '')(dossiers.find(x => x.id === r.dossierId)) : '';
       return `
       <form class="rappel-perso-form" onsubmit="event.preventDefault(); ${r ? 'validerEditionRappel()' : 'ajouterRappelPerso()'};">
-        <input type="text" id="rappel-perso-texte" maxlength="200" placeholder="Ex. Relancer le syndic pour l'état daté" value="${r ? escapeAttr(r.texte) : ''}" required>
-        <div class="rappel-perso-form-ligne">
-          <input type="date" id="rappel-perso-date" aria-label="Échéance" value="${r ? escapeAttr(r.echeance || '') : ''}">
-          <select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${hors}${optionsDossiers(r ? r.dossierId : '')}</select>
-        </div>
-        <div class="rappel-perso-form-ligne">
-          <wa-button variant="brand" type="submit" class="primary">${r ? 'Enregistrer' : 'Ajouter'}</wa-button>
-          <wa-button appearance="outlined" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</wa-button>
+        <input type="text" id="rappel-perso-texte" class="rappel-perso-nom" maxlength="200" placeholder="Nom de la tâche…" aria-label="Nom de la tâche" value="${r ? escapeAttr(r.texte) : ''}" required>
+        <div class="rappel-perso-form-pied">
+          <label class="rappel-perso-puce">${icone('calendar')}<input type="date" id="rappel-perso-date" aria-label="Échéance" value="${r ? escapeAttr(r.echeance || '') : ''}"></label>
+          <label class="rappel-perso-puce">${icone('folder')}<select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${hors}${optionsDossiers(r ? r.dossierId : '')}</select></label>
+          <span class="rappel-perso-form-actions">
+            <wa-button appearance="outlined" size="s" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</wa-button>
+            <wa-button variant="brand" size="s" type="submit" class="primary">${r ? 'Enregistrer' : 'Ajouter la tâche'}</wa-button>
+          </span>
         </div>
       </form>`;
     };
