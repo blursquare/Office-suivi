@@ -52,6 +52,22 @@ jobs:
         with:
           node-version: '22.22.2'
 
+      # Étude 22/10 (« les relectures et vérifications sont de plus en plus longues ») : le contrôle « verifier » de GitHub est exigé
+      # pour pousser sur main et a déjà passé lint, types, les deux suites et la fumée sur CE commit exact (verifier.yml, branche de
+      # travail). Le refaire ici retardait l'.exe. Un envoi qui ne l'a pas (modification à la main, relance manuelle) ou dont la
+      # lecture échoue refait tout, comme avant.
+      - name: Déjà vérifié sur ce commit ?
+        id: verifie
+        env:
+          JETON: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then echo "Lancement manuel : tous les contrôles."; exit 0; fi
+          ETAT=$(curl -fsS -H "Authorization: Bearer $JETON" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=verifier&filter=latest" \
+            | jq -r '[.check_runs[] | select(.app.slug == "github-actions")] | map(.conclusion) | if length > 0 and all(. == "success") then "ok" else "non" end' 2>/dev/null || true)
+          echo "Contrôle « verifier » sur ce commit : ${ETAT:-illisible}"
+          if [ "$ETAT" = "ok" ]; then echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Contrôles déjà passés sur ce commit : ils ne sont pas refaits."; fi
+
       - name: Installer osslsigncode (retrait propre de la signature Authenticode)
         run: sudo apt-get update && sudo apt-get install -y osslsigncode
 
@@ -64,19 +80,23 @@ jobs:
 
       # Les règles de code (eslint.config.js) : une variable inconnue ou une fonction en double arrête la construction.
       - name: Règles de code
+        if: steps.verifie.outputs.deja != 'true'
         run: npm run lint
 
       # Typage progressif (tsconfig.json) : les fichiers marqués `// @ts-check` (commun/, scripts/, modules purs du serveur)
       # sont vérifiés par TypeScript sans compilation — propriété inexistante, mauvais nombre d'arguments.
       - name: Vérification des types
+        if: steps.verifie.outputs.deja != 'true'
         run: npm run types
 
       # Un exécutable n'est publié que si les deux suites de tests passent : sinon la mise à jour
       # en un clic pourrait installer au bureau une version qui casse une fonction déjà en place.
       - name: Tests côté client
+        if: steps.verifie.outputs.deja != 'true'
         run: npm test
 
       - name: Tests côté serveur
+        if: steps.verifie.outputs.deja != 'true'
         working-directory: server
         run: npm test
 
@@ -84,9 +104,11 @@ jobs:
       # bord, chaque écran, une fiche de chaque sorte, bureau et téléphone — sans erreur d'exécution (tests/fumee/fumee.mjs).
       # Le lint ne voit ni un ordre de chargement faux ni un `undefined.x` au rendu.
       - name: Installer Chromium (test de fumée)
+        if: steps.verifie.outputs.deja != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Test de fumée dans Chromium
+        if: steps.verifie.outputs.deja != 'true'
         run: npm run fumee
 
       - name: Construire l'exécutable Windows

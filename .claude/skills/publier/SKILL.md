@@ -27,7 +27,7 @@ Lance la procédure de `/relire` (second agent, lecture seule). Corrige les déf
 
 ## 3 bis. Audit de la version (étude 13/10 : « voici la marche à suivre à chaque nouvelle version de CLAIRE »)
 
-À chaque nouvelle version, après la relecture indépendante et avant l'envoi : un **second agent (lecture seule)** audite le code de la
+**Seulement pour une nouveauté (MINEUR + 1)** — étude 22/10, « les deux » : une correction (CORRECTIF + 1) n'a que la relecture indépendante, l'audit lisant le même diff. À chaque nouveauté, après la relecture indépendante et avant l'envoi : un **second agent (lecture seule)** audite le code de la
 version — tout ce qui a changé depuis la dernière version sur `main` (`git diff origin/main...HEAD`), fichiers touchés lus en entier —
 avec le cadre de l'étude, mot pour mot :
 
