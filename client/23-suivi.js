@@ -2212,6 +2212,17 @@
   function ajouterRappelPerso() {
     const texte = (document.getElementById('rappel-perso-texte').value || '').trim();
     if (!texte || !utilisateurPoste) return;
+    // « Pour » un autre collaborateur (étude 22/10) : la tâche va dans SA liste « Aujourd'hui » et il est prévenu sur Teams (même voie que « Demander à CLAIRE »).
+    const pour = (document.getElementById('rappel-perso-pour') || {}).value || '';
+    if (pour && COLLABORATEURS_AGENT[pour] && COLLABORATEURS_AGENT[pour] !== utilisateurPoste) {
+      const dossierId = document.getElementById('rappel-perso-dossier').value || '';
+      const date = document.getElementById('rappel-perso-date').value || '';
+      const entree = { collaborateur: pour, texte, date, dossier_id: dossierId };
+      ajoutRappelOuvert = false;
+      renderAlertesDashboard(dossiersPerimetreDashboard());
+      envoyerDemandeCollaborateur(rappelDemandeCollaborateur(entree, utilisateurPoste, isoAujourdhuiLocal(), Date.now()), COLLABORATEURS_AGENT[pour], entree, dossierId ? dossiers.find(x => x.id === dossierId) : null);
+      return;
+    }
     const rappel = {
       id: 'rp-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
       auteur: utilisateurPoste,
@@ -2350,6 +2361,7 @@
         <input type="text" id="rappel-perso-texte" class="rappel-perso-nom" maxlength="200" placeholder="Nom de la tâche…" aria-label="Nom de la tâche" value="${r ? escapeAttr(r.texte) : ''}" required>
         <div class="rappel-perso-form-pied">
           <label class="rappel-perso-puce">${icone('calendar')}<input type="date" id="rappel-perso-date" aria-label="Échéance" value="${r ? escapeAttr(r.echeance || '') : ''}"></label>
+          ${r ? '' : `<label class="rappel-perso-puce">${icone('user')}<select id="rappel-perso-pour" aria-label="Assigner à"><option value="">Pour moi</option>${Object.keys(COLLABORATEURS_AGENT).filter(k => COLLABORATEURS_AGENT[k] !== utilisateurPoste).map(k => `<option value="${escapeAttr(k)}">${escapeHtml(k)}</option>`).join('')}</select></label>`}
           <label class="rappel-perso-puce">${icone('folder')}<select id="rappel-perso-dossier" aria-label="Dossier"><option value="">Sans dossier</option>${hors}${optionsDossiers(r ? r.dossierId : '')}</select></label>
           <span class="rappel-perso-form-actions">
             <wa-button appearance="outlined" size="s" class="secondary" onclick="${r ? 'ouvrirEditionRappel(null)' : 'ouvrirAjoutRappel(false)'}">Annuler</wa-button>

@@ -7,7 +7,7 @@
 // (annulable), « renommer » change son titre affiché ; rien n'est écrit sur le dossier. Gardé dans le navigateur du poste, comme l'état de la journée.
 
 var PREFIXE_REGLAGES_TACHES = 'claire-taches-reglees:';
-var JOURS_GARDE_TACHE_ECARTEE = 60;
+var JOURS_GARDE_TACHE_ECARTEE = 30;
 var LIGNES_MAX_LISTE_COMPACTE = 8;
 
 /** Pure : les réglages lus d'un texte JSON (renommées, écartées), jamais d'erreur. @param {string|null} brut */
@@ -29,14 +29,14 @@ function lireReglagesTaches() {
   let brut = null;
   try { brut = localStorage.getItem(PREFIXE_REGLAGES_TACHES + utilisateurPoste); } catch (e) { /* pas bloquant */ }
   const r = reglagesTachesDepuisTexte(brut);
-  // Une tâche écartée depuis plus de 60 jours est oubliée : si elle est toujours due, elle revient.
+  // Une tâche écartée depuis plus de 30 jours est oubliée : si elle est toujours due, elle revient.
   const limite = addDays(isoAujourdhuiLocal(), -JOURS_GARDE_TACHE_ECARTEE);
   for (const k of Object.keys(r.ecartees)) if (r.ecartees[k] < limite) delete r.ecartees[k];
   return r;
 }
 
 function ecrireReglagesTaches(r) {
-  if (utilisateurPoste) ecrireLocal(PREFIXE_REGLAGES_TACHES + utilisateurPoste, JSON.stringify(r));
+  return !!utilisateurPoste && ecrireLocal(PREFIXE_REGLAGES_TACHES + utilisateurPoste, JSON.stringify(r));
 }
 
 /** Pure : les tâches sans celles écartées, les autres au titre renommé (copie, l'original est gardé dans `titreOrigine`). @param {any[]} actions @param {{renommees:any, ecartees:any}} reglages */
@@ -45,20 +45,33 @@ function appliquerReglagesTaches(actions, reglages) {
     .map((a) => (reglages.renommees[a.cle] ? Object.assign({}, a, { titre: reglages.renommees[a.cle], titreOrigine: a.titre }) : a));
 }
 
+function fermerMenusTaches() {
+  if (typeof document !== 'undefined') document.querySelectorAll('details.tache-menu[open]').forEach((m) => m.removeAttribute('open'));
+}
+
 function retirerTacheJour(cle) {
   const r = lireReglagesTaches();
   r.ecartees[cle] = isoAujourdhuiLocal();
-  ecrireReglagesTaches(r);
+  if (!ecrireReglagesTaches(r)) { afficherToast('Tâche non retirée : le navigateur ne garde pas ce réglage.', 'OK', null); return; }
   render();
-  afficherToast('Tâche retirée de votre liste.', 'Annuler', () => {
-    const x = lireReglagesTaches();
-    delete x.ecartees[cle];
-    ecrireReglagesTaches(x);
-    render();
-  });
+  afficherToast('Tâche retirée de votre liste.', 'Annuler', () => { retablirTacheJour(cle); });
+}
+
+/** Remet une tâche retirée (ou, sans clé, toutes). @param {string} [cle] */
+function retablirTacheJour(cle) {
+  const x = lireReglagesTaches();
+  if (cle) delete x.ecartees[cle]; else x.ecartees = {};
+  ecrireReglagesTaches(x);
+  render();
+}
+
+/** « N tâches retirées · Rétablir » sous la liste. @param {number} n */
+function renderTachesRetirees(n) {
+  return n > 0 ? `<p class="tc-retirees w-fixe">${n} tâche${n > 1 ? 's' : ''} retirée${n > 1 ? 's' : ''} de votre liste · <button type="button" class="lien-discret" onclick="retablirTacheJour()">Rétablir</button></p>` : '';
 }
 
 function renommerTacheJour(cle) {
+  fermerMenusTaches();
   const a = trouverActionJour(cle);
   const r = lireReglagesTaches();
   const actuel = r.renommees[cle] || (a ? a.titre : '');
@@ -123,6 +136,7 @@ function boutonsTacheCompact(a) {
 
 /** Une tâche : une ligne (case ronde, titre, dossier + initiales du responsable, délai, gestes, menu). @param {any} a */
 function renderLigneTacheCompacte(a) {
+  if (a.rappel) return renderLigneRappelCompact(a);
   const cle = escapeOnclickArg(a.cle);
   return `<li class="tc-ligne${a.gravite === 'critique' ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
     <span class="tc-texte"><span class="tc-titre">${escapeHtml(a.titre)}</span><span class="tc-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span></span>
@@ -166,4 +180,77 @@ function renderTachesCompactes(actions) {
   const suite = total > LIGNES_MAX_LISTE_COMPACTE
     ? `<button type="button" class="lien-discret w-fixe tc-voir-tout" onclick="ouvrirTachesSuivi()">Voir toutes les tâches (${total}) dans le Suivi</button>` : '';
   return `<div class="tc-liste-theme">${blocs.join('')}${suite}</div>`;
+}
+
+// ==== Mes rappels, tâches de l'agenda Outlook et tâches demandées par un collègue, dans la même liste (étude 22/10) ====
+//
+// « Prendre en charge les tâches ajoutées sur l'agenda Outlook et celles que je demande aux collaborateurs via Teams » : ce sont des rappels
+// (`rappelsPerso`) ; ils entrent dans les tuiles et dans le thème « Mes tâches », avec leurs propres gestes (case, menu).
+
+/** Pure : un rappel en « tâche » du widget (cle `rappel:<id>`). @param {any} r @param {any[]} liste @param {string} aujourdhui */
+function rappelEnTache(r, liste, aujourdhui) {
+  const d = r.dossierId ? (liste || []).find((x) => x && x.id === r.dossierId) || null : null;
+  const echeance = /^\d{4}-\d{2}-\d{2}$/.test(String(r.echeance || '')) ? r.echeance : '';
+  const jours = echeance ? Math.round((Date.parse(echeance + 'T00:00:00Z') - Date.parse(aujourdhui + 'T00:00:00Z')) / 86400000) : null;
+  return { cle: 'rappel:' + r.id, type: 'rappel', rappel: true, rappelId: r.id, titre: String(r.texte || ''), dossier: d, jours,
+    categorie: 'neutre', categorieLabel: r.agendaItemId ? 'Agenda' : r.demandePar ? 'Demande' : 'Rappel',
+    agenda: !!r.agendaItemId, demandePar: r.demandePar || '', gravite: jours != null && jours < 0 ? 'critique' : '' };
+}
+
+/** Pure : les rappels du mode choisi — sans dossier : toujours ; avec un dossier : selon vente / succession. @param {any[]} taches @param {string} mode */
+function filtrerRappelsParAffaire(taches, mode) {
+  if (mode !== 'vente' && mode !== 'succession') return taches;
+  return taches.filter((t) => !t.dossier || (mode === 'succession' ? estSuccession(t.dossier) : !estSuccession(t.dossier)));
+}
+
+/** Les rappels à faire (les miens, ceux de l'agenda, les demandes) en tâches du widget. */
+function rappelsEnTaches(aujourdhui) {
+  if (!utilisateurPoste) return [];
+  return filtrerRappelsParAffaire(rappelsDuJour(rappelsPerso, aujourdhui).aFaire.map((r) => rappelEnTache(r, dossiers, aujourdhui)), modeTachesAffaire());
+}
+
+function renommerRappelTache(id) {
+  fermerMenusTaches();
+  const r = rappelsPerso.find((x) => x.id === id);
+  if (!r || r.agendaItemId) return;
+  const saisi = typeof prompt === 'function' ? prompt('Nouveau nom de la tâche', r.texte) : null;
+  const nom = saisi == null ? '' : saisi.trim().slice(0, 200);
+  if (!nom || nom === r.texte) return;
+  r.texte = nom;
+  enregistrerRappelPerso(r);
+  render();
+}
+
+/** Le menu « ⋯ » d'un rappel : Renommer, Supprimer — rien pour une tâche de l'agenda (elle suit Outlook). @param {any} a */
+function renderMenuRappel(a) {
+  if (a.agenda) return '';
+  return `<details class="tache-menu"><summary class="tache-menu-bouton" aria-label="Autres actions" title="Autres actions">${icone('ellipsis')}</summary>
+    <div class="tache-menu-liste"><button type="button" onclick="renommerRappelTache('${escapeOnclickArg(a.rappelId)}')">Renommer</button><button type="button" class="danger" onclick="supprimerRappelPerso('${escapeOnclickArg(a.rappelId)}')">Supprimer</button></div></details>`;
+}
+
+function etiquetteRappelTache(a) {
+  return a.agenda ? 'Tâche de l’agenda' : a.demandePar ? `Demandé par ${prenomCollaborateur(a.demandePar)}` : 'Mon rappel';
+}
+
+function boutonEmailRappelTache(a) {
+  return rappelParleEmail(a.titre) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(a.rappelId)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</wa-button>` : '';
+}
+
+/** Un rappel en ligne du widget compact. @param {any} a */
+function renderLigneRappelCompact(a) {
+  const dossier = a.dossier ? lienDossierTache(a.dossier) : '';
+  return `<li class="tc-ligne${a.gravite === 'critique' ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="basculerRappelPerso('${escapeOnclickArg(a.rappelId)}')" aria-label="${escapeAttr('Fait : ' + a.titre)}" title="Fait">${icone('check')}</button>
+    <span class="tc-texte"><span class="tc-titre" title="${escapeAttr(a.titre)}">${escapeHtml(a.titre)}</span><span class="tc-dossier">${escapeHtml(etiquetteRappelTache(a))}${dossier ? ' · ' + dossier : ''}</span></span>
+    <span class="tc-delai">${a.jours == null ? '' : delaiTacheCompact(a)}</span><span class="tc-actions">${boutonEmailRappelTache(a)}${renderMenuRappel(a)}</span></li>`;
+}
+
+/** Un rappel en carte (colonnes). @param {any} a */
+function renderCarteRappel(a) {
+  const dossier = a.dossier ? lienDossierTache(a.dossier) : '';
+  return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
+    <span class="dot-label dl-neutre tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>
+    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="basculerRappelPerso('${escapeOnclickArg(a.rappelId)}')" aria-label="${escapeAttr('Fait : ' + a.titre)}" title="Fait">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuRappel(a)}</div>
+    <div class="tf-meta"><span>${escapeHtml(etiquetteRappelTache(a))}</span>${dossier}${a.jours == null ? '' : delaiTacheCompact(a)}</div>
+    <div class="tf-actions-tache">${boutonEmailRappelTache(a)}</div>
+  </article>`;
 }

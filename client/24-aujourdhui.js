@@ -643,7 +643,8 @@
     // tâches faites ailleurs gardent TOUT (changer de choix ne perd rien).
     const mode = modeTachesAffaire();
     const reporteesToutes = calcul.actions.filter(a => etat.reports[a.cle]);
-    const reportees = filtrerActionsParAffaire(reporteesToutes, mode);
+    const reglagesTaches = lireReglagesTaches();
+    const reportees = appliquerReglagesTaches(filtrerActionsParAffaire(reporteesToutes, mode), reglagesTaches);
     // Une action déjà traitée aujourd'hui (« Déjà fait », brouillon ouvert…) ne reste pas dans
     // « À faire » en plus de sa ligne cochée — c'était le doublon signalé par l'étude le 28/09.
     // Une tâche cochée aujourd'hui puis DÉCOCHÉE dans la fiche du dossier (validation annulée) redevient à faire (étude 15/10).
@@ -654,7 +655,9 @@
     }
     const traitees = new Set(etat.traites.liste.map(t => t.cle));
     const actionsToutes = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
-    const actions = appliquerReglagesTaches(filtrerActionsParAffaire(actionsToutes, mode), lireReglagesTaches());
+    const actionsDuMode = filtrerActionsParAffaire(actionsToutes, mode);
+    const actions = appliquerReglagesTaches(actionsDuMode, reglagesTaches);
+    const retirees = actionsDuMode.length - actions.length;
     // Ce qui n'a pas été fait la veille revient aujourd'hui (la liste est recalculée chaque jour
     // depuis l'état des dossiers) et doit se REPÉRER comme tel (demandé par l'étude) : on retient,
     // par collaborateur et par poste, les actions restées à faire (ou reportées) dans la journée.
@@ -663,7 +666,7 @@
     veilleJour = veille;
     const faitesAilleurs = tachesFaitesAilleurs(dossiersPerimetreJour(), utilisateurPoste, aujourdhui,
       new Set(calcul.actions.map(a => a.cle)), traitees);
-    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: filtrerTraitesParAffaire(etat.traites.liste.concat(faitesAilleurs), mode) };
+    return { aujourdhui, actions, reportees, retirees, aVenir: filtrerActionsParAffaire(calcul.aVenir, mode), traites: filtrerTraitesParAffaire(etat.traites.liste.concat(faitesAilleurs), mode) };
   }
 
   // Tâches du jour restées non faites la veille (voir etatAujourdhui). Pure et testable :
@@ -1407,8 +1410,9 @@
     if (!bloc) return;
     const global = vueGlobaleDashboard();
     const presentation = presentationWidget('aujourdhui');
-    const { aujourdhui, actions, traites, reportees, aVenir } = etatAujourdhui();
-    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length, traites.length) : '';
+    const { aujourdhui, actions, traites, reportees, aVenir, retirees } = etatAujourdhui();
+    // Une tâche retirée de la liste n'est pas une tâche faite : elle garde l'anneau ouvert et la fête éteinte.
+    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length + retirees, traites.length) : '';
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
     let feteHtml = '';
@@ -1431,20 +1435,25 @@
       const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [], aVenir: [] };
       // « Plus tard » (reporté à demain) n'est pas une tâche faite (audit 12/10 : il déclenchait la fête).
       const faitsDuJour = traites.filter(t => t.etat !== 'Reporté à demain').length + mesRappels.faits.length;
-      if (journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
+      if (!retirees && journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
       // Widget sur toute la ligne (4 colonnes) : les tâches en colonnes par thème (étude 22/10) ; sinon la liste.
       const pleineLargeur = (dispositionWidgetsCourante().find(w => w.id === 'aujourdhui') || {}).taille === 'grand';
       // Les colonnes ne remplacent que les tâches des dossiers : mes rappels du jour, les rappels cochés et les tâches faites restent dessous.
-      const annexes = `${rappelsJour}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}`;
+      const annexes = `${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}`;
       // 4 colonnes : les cartes par thème ; 2 colonnes : la liste compacte par thème (étude 22/10). Les deux sous les quatre tuiles de chiffres.
-      const listeOuColonnes = actions.length
-        ? (pleineLargeur ? renderTachesColonnes(actions) : renderTachesCompactes(actions)) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '')
+      // Mes rappels du jour, les tâches de l'agenda Outlook et celles demandées par un collègue y sont aussi (thème « Mes tâches », étude 22/10).
+      const toutes = rappelsEnTaches(aujourdhui).concat(actions);
+      const listeOuColonnes = toutes.length
+        ? (pleineLargeur ? renderTachesColonnes(toutes) : renderTachesCompactes(toutes)) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '')
         : liste;
-      const tuiles = renderTuilesTaches(chiffresTachesJour(actions, reportees, aVenir, traites));
-      corps = `${feteHtml}${tuiles}${renderBasculeAffaireJour()}${listeOuColonnes}
+      const chiffres = chiffresTachesJour(toutes, reportees, aVenir, traites);
+      chiffres.faites += mesRappels.faits.length;
+      chiffres.plusTard += mesRappels.aVenir.length;
+      const tuiles = renderTuilesTaches(chiffres);
+      corps = `${feteHtml}${tuiles}${renderBasculeAffaireJour()}${listeOuColonnes}${renderTachesRetirees(retirees)}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;

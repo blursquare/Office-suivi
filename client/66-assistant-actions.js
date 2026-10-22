@@ -305,12 +305,21 @@
     const description = `Demander à ${prenomCollaborateur(collaborateur)} : « ${String(e.texte).trim()} »${d ? ` — ${libelleDossierAffiche(d)}` : ''}${quand}. ${soiMeme ? 'Tâche dans votre liste « Aujourd’hui ».' : 'Message Teams et tâche dans sa liste « Aujourd’hui ».'}`;
     if (!(await demanderAutorisationAgent(description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
     const rappel = rappelDemandeCollaborateur(e, soiMeme ? '' : utilisateurPoste, isoAujourdhuiLocal(), Date.now());
+    const { tache, teams } = await envoyerDemandeCollaborateur(rappel, collaborateur, e, d);
+    if (soiMeme) return tache ? { fait: true, tache: 'ajoutée' } : { erreur: 'tâche non enregistrée' };
+    return { fait: tache, tache: tache ? 'ajoutée à sa liste « Aujourd’hui »' : 'non enregistrée', teams };
+  }
+
+  // La tâche posée dans la liste du collaborateur, puis (si ce n'est pas soi) le message Teams. Voie unique de « Demander à CLAIRE » et du
+  // formulaire « Ajouter une tâche » (étude 22/10 : assigner une tâche à un collaborateur). `e` : { texte, date, dossier_id }.
+  async function envoyerDemandeCollaborateur(rappel, collaborateur, e, d) {
+    const soiMeme = collaborateur === utilisateurPoste;
     let tache = false;
     try {
       const r = await fetchAvecAuth('/api/rappels-perso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rappel }) });
       tache = r.ok;
     } catch (err) { tache = false; }
-    if (soiMeme) { if (tache) { rappelsPerso.push(rappel); renderAlertesDashboard(dossiersPerimetreDashboard()); } return tache ? { fait: true, tache: 'ajoutée' } : { erreur: 'tâche non enregistrée' }; }
+    if (soiMeme) { if (tache) { rappelsPerso.push(rappel); renderAlertesDashboard(dossiersPerimetreDashboard()); } return { tache, teams: '' }; }
     let teams = 'non envoyé';
     try {
       const r = await fetchAvecAuth('/api/notifications/demande-collaborateur', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -320,7 +329,7 @@
     } catch (err) { teams = 'serveur injoignable'; }
     noterVerificationPoste('agent-demande-collaborateur', teams === 'envoyé' && tache ? { detail: 'Teams et tâche' } : { ok: false, message: tache ? 'Teams non envoyé' : 'tâche non enregistrée' });
     afficherToast(`${prenomCollaborateur(collaborateur)} : ${tache ? 'tâche ajoutée' : 'tâche NON enregistrée'}, Teams ${teams}.`, 'OK', null);
-    return { fait: tache, tache: tache ? 'ajoutée à sa liste « Aujourd’hui »' : 'non enregistrée', teams };
+    return { tache, teams };
   }
 
   // La tâche demandée par un autre est cochée : il est prévenu sur Teams (une fois).

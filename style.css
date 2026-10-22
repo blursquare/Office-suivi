@@ -10606,3 +10606,4 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .tache-menu-liste button.danger { color: var(--urgent); }
 .tf-ligne .tache-menu { margin-left: auto; }
 .tf-meta .pastille-collab { flex: none; }
+.tc-retirees { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }

@@ -115,6 +115,7 @@ function renderBasculeAffaireJour() {
 // colonnes, avec les tâches ». Les colonnes sont des THÈMES : à rédiger, relances, avant la signature, après la signature, à décider.
 
 var THEMES_TACHES = [
+  { cle: 'perso', nom: 'Mes tâches', sous: 'rappels, agenda, demandes', types: ['rappel'] },
   { cle: 'rediger', nom: 'Prêts à rédiger', sous: 'dossier complet ou presque', types: ['redaction'] },
   { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
   { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
@@ -150,6 +151,7 @@ function outilDeTache(a) {
 
 /** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
 function renderCarteTache(a) {
+  if (a.rappel) return renderCarteRappel(a);
   const cle = escapeOnclickArg(a.cle);
   const outil = outilSupplementaireTache(a);
   const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
@@ -175,7 +177,7 @@ var SEUIL_REGROUPEMENT_TACHES = 2;
 /** Pure : les tâches d'une colonne en éléments — { groupe: [actions] } pour 2 identiques ou plus, { action } sinon ; l'ordre du premier de chaque type est gardé. @param {any[]} actions */
 function elementsColonneTaches(actions) {
   const parType = new Map();
-  (actions || []).forEach((a) => { if (!parType.has(a.type)) parType.set(a.type, []); parType.get(a.type).push(a); });
+  (actions || []).forEach((a) => { const k = a.rappel ? a.cle : a.type + '|' + a.titre; if (!parType.has(k)) parType.set(k, []); parType.get(k).push(a); });
   const out = [];
   parType.forEach((liste) => { if (liste.length >= SEUIL_REGROUPEMENT_TACHES) out.push({ groupe: liste }); else out.push({ action: liste[0] }); });
   return out;
@@ -204,7 +206,7 @@ function renderCarteGroupeTaches(liste) {
 
 /** Les tâches en COLONNES par thème (widget pleine largeur, vue « Tâches » du Suivi). @param {any[]} actions */
 function renderTachesColonnes(actions) {
-  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || g.theme.cle !== 'decider');
+  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || (g.theme.cle !== 'decider' && g.theme.cle !== 'perso'));
   return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
       <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
       <div class="tf-cartes">${g.actions.length ? elementsColonneTaches(g.actions).map((e) => (e.groupe ? renderCarteGroupeTaches(e.groupe) : renderCarteTache(e.action))).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
@@ -222,7 +224,9 @@ function tachesDesDossiers(liste) {
 
 /** La vue « Tâches » du Suivi des dossiers : les mêmes dossiers filtrés, leurs tâches en colonnes. @param {any[]} liste */
 function renderVueTachesSuivi(liste) {
-  const actions = tachesDesDossiers(liste);
+  const actions = rappelsEnTaches(isoAujourdhuiLocal()).concat(tachesDesDossiers(liste));
+  const ecartees = lireReglagesTaches().ecartees;
+  const retirees = filtrerActionsParAffaire(actionsDuJour((liste || []).filter((d) => d && !d.archive), isoAujourdhuiLocal()).actions, modeTachesAffaire()).filter((a) => ecartees[a.cle]).length;
   const vide = modeTachesAffaire() !== 'tout' ? '✓ Aucune tâche de ce type pour ces dossiers (choix « ' + (modeTachesAffaire() === 'vente' ? 'Ventes' : 'Successions') + ' » ci-dessus).' : '✓ Aucune tâche pour ces dossiers.';
-  return `<div class="suivi-taches">${renderBasculeAffaireJour()}${actions.length ? renderTachesColonnes(actions) : `<p class="jour-vide jour-vide-ok">${escapeHtml(vide)}</p>`}</div>`;
+  return `<div class="suivi-taches">${renderBasculeAffaireJour()}${actions.length ? renderTachesColonnes(actions) : `<p class="jour-vide jour-vide-ok">${escapeHtml(vide)}</p>`}${renderTachesRetirees(retirees)}</div>`;
 }
