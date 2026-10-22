@@ -181,14 +181,15 @@
   }
 
   /**
-   * Pure : le titre d'un rendez-vous dit « tout le même jour » — notoriété (NOTO), attestation immobilière (API / PAI) ET déclaration de
-   * succession (DS), dans n'importe quel ordre, par exemple « SUCC - prénom NOM (NOTO API DS PARTAGE) » (étude 22/10). Sans « ? ».
+   * Pure : le titre d'un rendez-vous dit « tout le même jour » — la notoriété (NOTO) avec l'attestation immobilière (API / PAI) et / ou la
+   * déclaration de succession (DS), dans n'importe quel ordre : « SUCC - prénom NOM (NOTO API DS PARTAGE) », « (NOTO API) », « (NOTO DS) »
+   * (étude 22/10 : « ou API »). Sans « ? ».
    * @param {string} titre
    */
   function titreToutEnsembleSuccession(titre) {
     const t = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
     if (/\?/.test(t)) return false;
-    return /(?<![A-Z])NOTO(?:RITE|RIETE)?(?![A-Z])/.test(t) && /(?<![A-Z])(?:API|PAI|AI)(?![A-Z])|ATTESTATION/.test(t) && /(?<![A-Z])DS(?![A-Z])|DECLARATION/.test(t);
+    return /(?<![A-Z])NOTO(?:RITE|RIETE)?(?![A-Z])/.test(t) && (/(?<![A-Z])(?:API|PAI|AI)(?![A-Z])|ATTESTATION/.test(t) || /(?<![A-Z])DS(?![A-Z])|DECLARATION/.test(t));
   }
 
   /**
@@ -211,6 +212,8 @@
     // « INVENTAIRE … » seul : le rendez-vous du contrôle des droits et de l'inventaire, à 2 mois de l'ouverture (étude 21/10).
     else if (/^\s*INVENTAIRE(?![A-Z])/.test(t)) etape = 'controleDroits';
     else if (/DECLARATION/.test(t)) etape = 'declarationSuccession';
+    // « SUCC - prénom NOM (API DS) » : l'attestation immobilière et la déclaration (sans la notoriété).
+    else if (/^\s*SUCC/.test(t) && /(?<![A-Z])(?:API|PAI|DS)(?![A-Z])/.test(t)) etape = 'declarationSuccession';
     else if (/ATTESTATION|SIGNATURE|(?<![A-Z])ACTE(?![A-Z])/.test(t)) etape = 'acte';
     // « SUCC - prénom NOM », « SUCCESSION prénom NOM » seuls (rien après le nom) : attestation immobilière + déclaration de succession
     // (étude 21/10 : « c'est pour API + DS »).
@@ -336,12 +339,32 @@
     return v === true;
   }
 
+  /**
+   * Pure : le rendez-vous est passé — sa date est avant `auj`, ou c'est aujourd'hui et son HEURE est passée (étude 22/10 : « avec l'heure
+   * aussi »). L'heure du jour n'est lue que quand `auj` est la date d'aujourd'hui à Paris ; une date du jour simulée compte comme passée.
+   * @param {any} r @param {string} auj
+   */
+  function rendezVousPasse(r, auj) {
+    if (!r || !r.date) return false;
+    if (r.date < auj) return true;
+    if (r.date > auj) return false;
+    const heure = /^\d{1,2}:\d{2}$/.test(String(r.heure || '')) ? String(r.heure).padStart(5, '0') : '';
+    if (!heure) return true;
+    let parisJour = '', parisHeure = '';
+    try {
+      const f = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+      const p = Object.fromEntries(f.formatToParts(new Date()).map((x) => [x.type, x.value]));
+      parisJour = `${p.year}-${p.month}-${p.day}`; parisHeure = `${p.hour}:${p.minute}`;
+    } catch (e) { return true; }
+    return auj !== parisJour || heure <= parisHeure;
+  }
+
   /** Pure : un acte de base signé (coché sur la fiche, ou « Signé » dans Authentic) — { fait, iso }. @param {any} d @param {string} acte */
   function acteSigneSuccession(d, acte, aujourdhuiIso) {
     const type = acte === 'notoriete' ? 'notoriete' : 'declarationSuccession';
     // Un rendez-vous « NOTO API DS … » passé (étude 22/10) : tous les actes sont signés à sa date — la succession est close.
     const auj = String(aujourdhuiIso || new Date().toISOString()).slice(0, 10);
-    const tout = rendezVousSuccession(d).filter((r) => r && !r.annule && r.etape !== 'autre' && titreToutEnsembleSuccession(r.titre) && r.date && r.date <= auj).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    const tout = rendezVousSuccession(d).filter((r) => r && !r.annule && r.etape !== 'autre' && titreToutEnsembleSuccession(r.titre) && rendezVousPasse(r, auj)).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
     const a = acteAuthenticSuccession(d, acte);
     const signeAuthentic = !!(a && a.etat === 'signe');
     const s = infoSuccession(d);
@@ -481,7 +504,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

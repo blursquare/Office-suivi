@@ -1099,7 +1099,10 @@ test('« SUCC - … (NOTO API DS PARTAGE) » : un seul rendez-vous pour la notor
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre(titre), 'declarationSuccession');
   assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Christian VIEL (NOTO API DS PARTAGE) ?'), 'autre', 'provisoire');
   assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (DS NOTO PAI)'), true, 'ordre libre, PAI accepté');
-  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (NOTO DS)'), false, 'sans attestation : pas « tout »');
+  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (NOTO DS)'), true, 'NOTO + DS : tout le même jour');
+  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (NOTO API)'), true, 'NOTO + API');
+  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (API DS)'), false, 'sans notoriété : pas « tout »');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Marie DURAND (API DS)'), 'declarationSuccession');
   const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'classique', ouvertureLe: '2026-08-15',
     rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre, date: '2026-12-10', heure: '10:00' }] } });
   const avant = S.etapesSuccession(d, '2026-11-20');
@@ -1116,4 +1119,16 @@ test('rendez-vous « NOTO API DS » redevenu provisoire (étape « autre ») : p
   const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'classique', ouvertureLe: '2026-08-15',
     rendezVous: [{ id: 'a', etape: 'autre', titre: 'SUCC - Christian VIEL (NOTO API DS PARTAGE)', date: '2026-12-10', heure: '10:00' }] } });
   assert.equal(S.etapesSuccession(d, '2026-12-11').find(e => e.type === 'notoriete').fait, false);
+});
+
+test('rendez-vous « NOTO API DS » : le jour même, l’acte n’est signé qu’une fois l’heure passée', () => {
+  const d = (heure) => base({ biens: [{ adresse: 'X' }], succession: { type: 'classique', ouvertureLe: '2026-08-15',
+    rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC - Christian VIEL (NOTO API DS PARTAGE)', date: '2026-12-10', heure }] } });
+  // Date du jour simulée (pas celle d'aujourd'hui à Paris) : le jour du rendez-vous compte comme passé.
+  assert.equal(S.etapesSuccession(d('10:00'), '2026-12-10').find(e => e.type === 'notoriete').fait, true);
+  const parisJour = new Intl.DateTimeFormat('fr-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const rdv = (heure) => ({ date: parisJour, heure });
+  assert.equal(S.rendezVousPasse(rdv('00:00'), parisJour), true, 'heure déjà passée aujourd’hui');
+  assert.equal(S.rendezVousPasse(rdv('23:59'), parisJour), false, 'heure pas encore passée aujourd’hui');
+  assert.equal(S.rendezVousPasse({ date: parisJour, heure: '' }, parisJour), true, 'sans heure');
 });
