@@ -265,7 +265,7 @@ test('autorisation du lien claire-devant : stratégie Chrome et Edge limitée à
   const { fichierRegAutorisationLien, octetsRegAutorisationLien } = require('../src/relaisAppelReg');
   const t = fichierRegAutorisationLien({ origine: 'http://192.168.1.10:3000/' });
   // Stratégie « dictionnaire » de Chrome : une chaîne JSON (liste de règles) posée sur la clé du navigateur, pas une sous-clé numérotée.
-  assert.match(t, /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"="\[\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-devant\\"\}\]"/);
+  assert.match(t, /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"="\[\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-devant\\"\},\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\],\\"protocol\\":\\"claire-web\\"\}\]"/);
   assert.match(t, /\[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Edge\]/);
   assert.doesNotMatch(t, /"1"=/);
   // Le fichier du poste la pose aussi pour la session Windows (sans administrateur).
@@ -274,4 +274,18 @@ test('autorisation du lien claire-devant : stratégie Chrome et Edge limitée à
   assert.match(u, /\[HKEY_CURRENT_USER\\Software\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"="\[\{\\"allowed_origins\\":\[\\"http:\/\/192\.168\.1\.10:3000\\"\]/);
   assert.match(u, /\[HKEY_CURRENT_USER\\Software\\Policies\\Microsoft\\Edge\]/);
   assert.equal(octetsRegAutorisationLien({ origine: 'http://x:1' }).readUInt16LE(0), 0xFEFF);
+});
+
+test('lien claire-web : le fichier .reg du poste ouvre une adresse http(s) validée dans Chrome, jamais comme du code', () => {
+  const { fichierRegLiensWeb, scriptLiensWeb, commandeLiensWeb, octetsRegLiensWeb } = require('../src/relaisAppelReg');
+  const t = fichierRegLiensWeb({ url: 'http://192.168.1.10:3000/' });
+  assert.match(t, /\[HKEY_CURRENT_USER\\Software\\Classes\\claire-web\\shell\\open\\command\]/);
+  assert.match(t, /\[HKEY_CURRENT_USER\\Software\\Policies\\Google\\Chrome\]\r\n"AutoLaunchProtocolsFromOrigins"=.*claire-web/);
+  const c = commandeLiensWeb();
+  assert.ok(c.endsWith(' #" "%1"'), 'le lien reçu tombe dans le commentaire final');
+  const s = scriptLiensWeb();
+  assert.ok(!s.includes('"'), 'aucun guillemet double dans le script (la commande les utilise)');
+  assert.match(s, /\^https\?:\/\//, 'seules les adresses http(s)');
+  assert.match(s, /Start-Process chrome\.exe/);
+  assert.equal(octetsRegLiensWeb({ url: 'http://x:1/' }).readUInt16LE(0), 0xFEFF);
 });

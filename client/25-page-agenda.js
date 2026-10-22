@@ -1806,7 +1806,7 @@
   var ENTETE_NOTES_VISIO = 'Visio ADNOV :';
 
   function ouvrirSiteVisio() {
-    window.open(URL_VISIO_ADNOV, '_blank', 'noopener');
+    ouvrirLienExterne(URL_VISIO_ADNOV);
   }
 
   // Pure : un rendez-vous en visio — catégorie « visio » réglée, ou signature d'un dossier en visio.

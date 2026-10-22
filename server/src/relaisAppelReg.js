@@ -18,6 +18,8 @@
 // réduit à un identifiant d'appel (lettres, chiffres, tirets). Fonctions pures, testées.
 
 var PROTOCOLE_RELAIS_REG = 'claire-devant';
+// Liens externes de CLAIRE ouverts dans un onglet du Chrome habituel (étude 22/10, `client/103-liens-chrome.js`).
+var PROTOCOLE_LIENS_WEB = 'claire-web';
 
 // Titre de la fenêtre CLAIRE (index.html, <title>), écrit en ASCII pour PowerShell (la clé ne porte que de l'ASCII).
 var TITRE_FENETRE_PS = "'CLAIRE '+[char]0x2014+' Registre des '+[char]0xE9+'ch'+[char]0xE9+'ances notariales'";
@@ -69,9 +71,10 @@ function valeurReg(v) {
 
 // Pure : la valeur de la stratégie AutoLaunchProtocolsFromOrigins de Chrome et d'Edge — UNE chaîne JSON (liste de règles) posée
 // directement sur la clé du navigateur (étude 19/10 : la sous-clé numérotée du 14/10 n'était pas lue, la question revenait à chaque appel).
-/** @param {string} origine @returns {string} */
-function valeurPolitiqueLien(origine) {
-  return JSON.stringify([{ allowed_origins: [String(origine || '').replace(/\/+$/, '')], protocol: PROTOCOLE_RELAIS_REG }]);
+/** @param {string} origine @param {string[]} [protocoles] @returns {string} */
+function valeurPolitiqueLien(origine, protocoles) {
+  const o = String(origine || '').replace(/\/+$/, '');
+  return JSON.stringify((protocoles && protocoles.length ? protocoles : [PROTOCOLE_RELAIS_REG]).map((p) => ({ allowed_origins: [o], protocol: p })));
 }
 
 // Pure : le fichier .reg (texte ; envoyé en UTF-16 avec BOM, la forme que l'Éditeur du Registre attend). Il pose aussi, pour la session
@@ -113,11 +116,11 @@ function octetsRegRelaisAppel(o) {
 /** @param {{ origine: string }} o @returns {string} */
 function fichierRegAutorisationLien({ origine }) {
   const o = String(origine || '').replace(/\/+$/, '');
-  const bloc = (editeur) => ['[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\' + editeur + ']', '"AutoLaunchProtocolsFromOrigins"=' + valeurReg(valeurPolitiqueLien(o)), ''];
+  const bloc = (editeur) => ['[HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\' + editeur + ']', '"AutoLaunchProtocolsFromOrigins"=' + valeurReg(valeurPolitiqueLien(o, [PROTOCOLE_RELAIS_REG, PROTOCOLE_LIENS_WEB])), ''];
   return [
     'Windows Registry Editor Version 5.00',
     '',
-    '; CLAIRE : le navigateur ouvre le lien « ' + PROTOCOLE_RELAIS_REG + ': » depuis ' + o + ' sans demander confirmation.',
+    '; CLAIRE : le navigateur ouvre les liens « ' + PROTOCOLE_RELAIS_REG + ': » (appels 3CX) et « ' + PROTOCOLE_LIENS_WEB + ': » (liens dans Chrome) depuis ' + o + ' sans demander confirmation.',
     '; A importer avec un compte administrateur. Pour le retirer : supprimer la valeur AutoLaunchProtocolsFromOrigins de ces deux cles (puis redemarrer le navigateur).',
     '; Si la valeur existe deja avec d\'autres regles, y ajouter celle-ci au lieu d\'importer ce fichier.',
     '',
@@ -131,4 +134,53 @@ function octetsRegAutorisationLien(o) {
   return Buffer.from('\uFEFF' + fichierRegAutorisationLien(o), 'utf16le');
 }
 
-module.exports = { valeurPolitiqueLien, fichierRegAutorisationLien, octetsRegAutorisationLien, PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };
+// Pure : le script PowerShell du lien `claire-web:` — ouvre l'adresse reçue dans un ONGLET de Chrome (le profil habituel), sinon dans le
+// navigateur par défaut. L'adresse (encodée par CLAIRE : encodeURIComponent) n'est JAMAIS lue comme du code : relue depuis l'argument brut,
+// décodée, puis refusée si ce n'est pas une adresse http(s) sans espace, guillemet, accent grave, chevron ni caractère de commande.
+/** @returns {string} */
+function scriptLiensWeb() {
+  return [
+    "$ErrorActionPreference='SilentlyContinue'",
+    '$l=[string]([Environment]::GetCommandLineArgs()[-1])',
+    `$r=$l -replace '^${PROTOCOLE_LIENS_WEB}:/*',''`,
+    '$u=[uri]::UnescapeDataString($r)',
+    "if($u -match '^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\\[\\]-]{3,1800}$'){try{Start-Process chrome.exe -ArgumentList $u -ErrorAction Stop}catch{Start-Process $u}}"
+  ].join(';');
+}
+
+/** @returns {string} */
+function commandeLiensWeb() {
+  return 'powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command "' + scriptLiensWeb() + ' #" "%1"';
+}
+
+// Pure : le fichier .reg du poste (HKCU, sans droit d'administrateur) qui déclare le lien `claire-web:` et la stratégie qui laisse le
+// navigateur l'ouvrir sans confirmation depuis CLAIRE (efficace sur un poste géré ; sinon le fichier administrateur d'« autorisation »).
+/** @param {{ url: string }} o @returns {string} */
+function fichierRegLiensWeb(o) {
+  const cle = 'HKEY_CURRENT_USER\\Software\\Classes\\' + PROTOCOLE_LIENS_WEB;
+  const origine = String(o.url || '').replace(/\/+$/, '');
+  const politique = (editeur) => ['[HKEY_CURRENT_USER\\Software\\Policies\\' + editeur + ']', '"AutoLaunchProtocolsFromOrigins"=' + valeurReg(valeurPolitiqueLien(origine, [PROTOCOLE_LIENS_WEB])), ''];
+  return [
+    'Windows Registry Editor Version 5.00',
+    '',
+    '; CLAIRE : les liens externes s\'ouvrent dans un onglet de Chrome (Reglages, Ce poste). Aucun programme sur le disque.',
+    '; Pour le retirer : supprimer la cle HKEY_CURRENT_USER\\Software\\Classes\\' + PROTOCOLE_LIENS_WEB + '.',
+    '',
+    '[' + cle + ']',
+    '@="URL:CLAIRE - lien dans Chrome"',
+    '"URL Protocol"=""',
+    '',
+    '[' + cle + '\\shell\\open\\command]',
+    '@=' + valeurReg(commandeLiensWeb()),
+    '',
+    ...politique('Google\\Chrome'),
+    ...politique('Microsoft\\Edge')
+  ].join('\r\n');
+}
+
+/** @param {{ url: string }} o @returns {Buffer} */
+function octetsRegLiensWeb(o) {
+  return Buffer.from('\uFEFF' + fichierRegLiensWeb(o), 'utf16le');
+}
+
+module.exports = { PROTOCOLE_LIENS_WEB, scriptLiensWeb, commandeLiensWeb, fichierRegLiensWeb, octetsRegLiensWeb, valeurPolitiqueLien, fichierRegAutorisationLien, octetsRegAutorisationLien, PROTOCOLE_RELAIS_REG, scriptRelaisReg, commandeRelaisReg, fichierRegRelaisAppel, octetsRegRelaisAppel };

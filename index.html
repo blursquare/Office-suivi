@@ -1725,6 +1725,20 @@
       </div>
     </div>
 
+    <!-- Liens externes dans Chrome (étude 22/10, client/103-liens-chrome.js) : un fichier .reg importé une fois par poste, puis activé ici. -->
+    <div class="reglages-section" id="reglages-section-liens-chrome">
+      <h3 class="reglages-section-titre">Liens</h3>
+      <div class="reglages-liste">
+        <label class="reglages-option" for="reglages-liens-chrome">
+          <span class="reglages-option-texte">
+            <span class="reglages-option-titre">Ouvrir les liens dans Chrome <span class="info-i" tabindex="0" data-info="Un lien vers un autre site (Légifrance, guichets d'urbanisme, WeTransfer…) s'ouvre dans un onglet du Chrome habituel au lieu de la fenêtre CLAIRE. À installer une fois sur chaque poste (fichier .reg, sans droit d'administrateur), puis à activer ici."></span></span>
+            <a href="#" class="reglages-lien" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurLiensChrome();">Télécharger le fichier d’installation</a>
+          </span>
+          <wa-switch class="switch reglages-switch" id="reglages-liens-chrome" onchange="choisirLiensChrome(this.checked)"></wa-switch>
+        </label>
+      </div>
+    </div>
+
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Documents et emails</h3>
       <div class="reglages-liste">
@@ -2863,5 +2877,6 @@
 <script src="client/100-reglages-delais-rappels.js"></script>
 <script src="client/101-assistant-revelation.js"></script>
 <script src="client/102-fcddv-commun.js"></script>
+<script src="client/103-liens-chrome.js"></script>
 </body>
 </html>

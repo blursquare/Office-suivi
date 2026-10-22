@@ -287,7 +287,7 @@
       // Étude 14/10 : rien n'est téléchargé. WeTransfer s'ouvre (un site tiers ne se préremplit pas depuis CLAIRE) et le panneau
       // donne à copier ce qu'il demande ; le lien obtenu se colle ensuite ici pour préparer l'email.
       const mails = (reglagesEnregistres && reglagesEnregistres.emailsResponsables) || {};
-      window.open(ADRESSE_WETRANSFER, '_blank', 'noopener');
+      ouvrirLienExterne(ADRESSE_WETRANSFER);
       envoiCopieActe.wetransfer = { champs: champsWeTransferCopieActe(d, types, choisis, envoiCopieActe.dossierReseau, mails[d.responsable] || ''), types, noms: choisis.map(f => f.nom) };
       renderEnvoiCopieActeFenetre();
       return;

@@ -1096,6 +1096,8 @@
     if (modeEmail) modeEmail.value = modeEmailPoste();
     const ouvertureAuto = document.getElementById('reglages-ouverture-auto');
     if (ouvertureAuto) ouvertureAuto.checked = ouvertureAutoActive();
+    const liensChrome = document.getElementById('reglages-liens-chrome');
+    if (liensChrome) liensChrome.checked = liensChromeActifs();
     const sectionApplication = document.getElementById('reglages-section-application');
     if (sectionApplication) sectionApplication.style.display = estAdresseLocale(location.hostname) ? 'none' : '';
   }
