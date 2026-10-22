@@ -35,17 +35,17 @@ function ouvrirLienExterne(url) {
   document.body.removeChild(lien);
 }
 
-// Un clic sur un lien d'un autre site : ouvert dans Chrome (réglage actif). Pris à la capture, avant les gestionnaires de la page.
+// Un clic sur un lien d'un autre site : ouvert dans Chrome (réglage actif). Pris à la REMONTÉE (pas à la capture) : le `onclick` en ligne du
+// lien s'exécute d'abord (ex. « noterOuvertureGnau » du lien du guichet) et un lien déjà traité par la page (`defaultPrevented`) est laissé.
 if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('click', (ev) => {
   if (ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || !liensChromeActifs()) return;
   const lien = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
-  if (!lien) return;
+  if (!lien || lien.hasAttribute('download')) return;
   const externe = lienExternePourChrome(lien.getAttribute('href'), location.origin);
   if (!externe) return;
   ev.preventDefault();
-  ev.stopPropagation();
   ouvrirLienExterne(externe);
-}, true);
+});
 
 async function telechargerInstallateurLiensChrome() {
   try {
@@ -58,7 +58,7 @@ async function telechargerInstallateurLiensChrome() {
     lien.click();
     document.body.removeChild(lien);
     setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
-    afficherInfoAction('Fichier téléchargé', 'Ouvrez CLAIRE-liens-dans-Chrome.reg (double-clic), puis « Oui » à l’Éditeur du Registre : aucun programme n’est installé. Revenez ici, activez « Ouvrir les liens dans Chrome », puis fermez et rouvrez Chrome. À la première ouverture, Chrome peut demander d’autoriser le lien : cochez « Toujours autoriser ».');
+    afficherInfoAction('Fichier téléchargé', 'Ouvrez CLAIRE-liens-dans-Chrome.reg (double-clic), puis « Oui » à l’Éditeur du Registre : aucun programme n’est installé. Revenez ici, activez « Ouvrir les liens dans Chrome », puis fermez et rouvrez Chrome. À la première ouverture, Chrome peut demander d’autoriser le lien : cochez « Toujours autoriser ». Si un fichier « autorisation » (Fichorga) est déjà posé pour les appels 3CX, faites-le ré-importer : la nouvelle version couvre aussi ce lien.');
   } catch (e) {
     afficherToast('Téléchargement impossible : ' + e.message, 'OK', null);
   }
