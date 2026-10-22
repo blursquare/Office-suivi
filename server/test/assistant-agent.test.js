@@ -78,7 +78,11 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'high' }).output_config.effort, 'high');
   assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'max!' }).output_config.effort, 'medium');
   assert.ok(OUTILS_AGENT.every((t) => t.input_schema.additionalProperties === false))
-  assert.ok(OUTILS_AGENT.filter((t) => t.strict === true).length === 20, 'les 20 premiers outils restent stricts (limite de l’API)');
+  assert.ok(OUTILS_AGENT.filter((t) => t.strict === true).length === 18, 'les outils stricts restent peu nombreux (limite de l’API)');
+  // 22/10 : « The compiled grammar is too large » — la grammaire de tous les schémas stricts réunis a une limite ; on reste bien en dessous.
+  const tailleStricts = OUTILS_AGENT.filter((t) => t.strict === true).reduce((n, t) => n + JSON.stringify(t.input_schema).length, 0);
+  assert.ok(tailleStricts < 7000, 'schémas stricts trop gros : ' + tailleStricts);
+  assert.ok(OUTILS_AGENT.find((t) => t.name === 'faire_geste').strict === false && OUTILS_AGENT.find((t) => t.name === 'action_dossier').strict === false);
   const haiku = requeteAgent('claude-haiku-5-5', []);
   assert.equal(haiku.fallbacks, undefined);
   assert.equal(requeteAgent('inconnu', []).max_tokens, 16000);

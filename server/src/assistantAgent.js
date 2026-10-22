@@ -309,9 +309,11 @@ const OUTILS_AGENT = [
       } }
   }
 ];
-// `strict` : l'API limite le nombre d'outils stricts par requête (20, à notre connaissance) — les six outils ajoutés le 21/10 n'y sont
-// pas (leurs champs restent tous obligatoires et le poste revalide chaque entrée), les 20 d'avant gardent leur schéma strict.
-const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul'];
+// `strict` : l'API limite le nombre d'outils stricts par requête (20, à notre connaissance) ET la taille de leur grammaire compilée
+// (22/10 : « The compiled grammar is too large » — les énumérations de faire_geste et d'action_dossier, qui ont grossi avec les
+// successions, la dépassaient). Les outils ajoutés le 21/10 et ces deux-là n'y sont pas (leurs champs restent tous obligatoires et le
+// poste revalide chaque entrée, `entreeOutilPourPoste`) ; les autres gardent leur schéma strict.
+const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier'];
 for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.
@@ -996,9 +998,10 @@ function sansCodesInconnus(v) {
 
 function entreeOutilPourPoste(nom, entree) {
   // Les outils ajoutés le 21/10 écrivent aussi (note d'un lot, nom d'un fichier, titre d'un rendez-vous) : même garde, récursive.
-  if (OUTILS_SANS_STRICT.includes(nom)) return sansCodesInconnus(entree || {});
+  // (faire_geste a son propre nettoyage plus bas : non strict depuis le 22/10, ses champs manquants sont rétablis vides.)
+  if (OUTILS_SANS_STRICT.includes(nom) && nom !== 'faire_geste') return sansCodesInconnus(entree || {});
   // Un code que l'IA a inventé (« [NOM9] » inconnu) ne finit pas dans le document Word.
-  if (nom === 'rediger_document' || nom === 'action_dossier' || nom === 'demander_collaborateur') return Object.fromEntries(Object.entries(entree || {})
+  if (nom === 'rediger_document' || nom === 'demander_collaborateur') return Object.fromEntries(Object.entries(entree || {})
     .map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '[à compléter]') : v]));
   if (nom !== 'faire_geste') return entree;
   const p = entree && entree.parametres ? entree.parametres : {};
