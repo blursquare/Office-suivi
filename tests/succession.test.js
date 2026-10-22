@@ -1132,7 +1132,3 @@ test('rendez-vous « NOTO API DS » : le jour même, l’acte n’est signé qu�
   assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '10:31' }, '2026-12-10', h), false, 'heure pas encore passée');
   assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '' }, '2026-12-10', h), true, 'sans heure');
 });
-  assert.equal(S.rendezVousPasse(rdv('00:00'), parisJour), true, 'heure déjà passée aujourd’hui');
-  assert.equal(S.rendezVousPasse(rdv('23:59'), parisJour), false, 'heure pas encore passée aujourd’hui');
-  assert.equal(S.rendezVousPasse({ date: parisJour, heure: '' }, parisJour), true, 'sans heure');
-});
