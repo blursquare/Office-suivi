@@ -637,11 +637,13 @@
   // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
   function etatAujourdhui() {
     const aujourdhui = isoAujourdhuiLocal();
-    const brut = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
-    // Tout / Ventes / Successions (étude 22/10, client/104).
-    const calcul = Object.assign({}, brut, { actions: filtrerActionsParAffaire(brut.actions, modeTachesAffaire()) });
+    const calcul = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
     const etat = lireEtatJour();
-    const reportees = calcul.actions.filter(a => etat.reports[a.cle]);
+    // Tout / Ventes / Successions (étude 22/10, client/104) : appliqué à ce que l'écran montre (actions, reportées, traitées) ; la veille et les
+    // tâches faites ailleurs gardent TOUT (changer de choix ne perd rien).
+    const mode = modeTachesAffaire();
+    const reporteesToutes = calcul.actions.filter(a => etat.reports[a.cle]);
+    const reportees = filtrerActionsParAffaire(reporteesToutes, mode);
     // Une action déjà traitée aujourd'hui (« Déjà fait », brouillon ouvert…) ne reste pas dans
     // « À faire » en plus de sa ligne cochée — c'était le doublon signalé par l'étude le 28/09.
     // Une tâche cochée aujourd'hui puis DÉCOCHÉE dans la fiche du dossier (validation annulée) redevient à faire (étude 15/10).
@@ -651,16 +653,17 @@
       ecrireEtatJour(etat);
     }
     const traitees = new Set(etat.traites.liste.map(t => t.cle));
-    const actions = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
+    const actionsToutes = calcul.actions.filter(a => !etat.reports[a.cle] && !traitees.has(a.cle));
+    const actions = filtrerActionsParAffaire(actionsToutes, mode);
     // Ce qui n'a pas été fait la veille revient aujourd'hui (la liste est recalculée chaque jour
     // depuis l'état des dossiers) et doit se REPÉRER comme tel (demandé par l'étude) : on retient,
     // par collaborateur et par poste, les actions restées à faire (ou reportées) dans la journée.
-    const veille = majVeilleJour(lireVeilleJour(), aujourdhui, actions.concat(reportees).map(a => a.cle));
+    const veille = majVeilleJour(lireVeilleJour(), aujourdhui, actionsToutes.concat(reporteesToutes).map(a => a.cle));
     ecrireVeilleJour(veille.stock);
     veilleJour = veille;
     const faitesAilleurs = tachesFaitesAilleurs(dossiersPerimetreJour(), utilisateurPoste, aujourdhui,
       new Set(calcul.actions.map(a => a.cle)), traitees);
-    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: etat.traites.liste.concat(faitesAilleurs) };
+    return { aujourdhui, actions, reportees, aVenir: calcul.aVenir, traites: filtrerTraitesParAffaire(etat.traites.liste.concat(faitesAilleurs), mode) };
   }
 
   // Tâches du jour restées non faites la veille (voir etatAujourdhui). Pure et testable :
@@ -847,7 +850,7 @@
   function marquerFaitJour(cle, silencieux) {
     const a = trouverActionJour(cle);
     if (!a) return false;
-    if (a.type === 'factureSuccession') { const ok = reglerFactureDepuisTache(a); if (ok && !silencieux) render(); return ok; }
+    if (a.type === 'factureSuccession') return reglerFactureDepuisTache(a, silencieux);
     const echeance = ECHEANCE_FAIT_MAIN_PAR_TYPE[a.type];
     if (echeance) {
       noterTraite(a, echeance.fait, { echeance: echeance.champ });
@@ -1015,6 +1018,7 @@
     const etat = lireEtatJour();
     const entree = etat.traites.liste.find(t => t.cle === cle);
     delete etat.reports[cle];
+    if (entree && entree.factureId) basculerFactureReglee(entree.dossierId, entree.factureId);   // facture réglée depuis une tâche : remise à régler
     etat.traites.liste = etat.traites.liste.filter(t => t.cle !== cle);
     ecrireEtatJour(etat);
     if (entree && entree.champsDossier) {
@@ -1427,7 +1431,10 @@
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      corps = `${feteHtml}${renderBasculeAffaireJour()}${liste}
+      // Widget sur toute la ligne (4 colonnes) : les tâches en colonnes par thème (étude 22/10) ; sinon la liste.
+      const pleineLargeur = (dispositionWidgetsCourante().find(w => w.id === 'aujourdhui') || {}).taille === 'grand';
+      const listeOuColonnes = pleineLargeur && actions.length ? renderTachesColonnes(actions) : liste;
+      corps = `${feteHtml}${renderBasculeAffaireJour()}${listeOuColonnes}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
@@ -1445,7 +1452,7 @@
       presentation,
       titre: 'Aujourd’hui',
       // Le bandeau de fête dit déjà « Journée bouclée » : pas de doublon sous le titre.
-      sous: presentation === 'petit' || feteHtml ? '' : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      sous: feteHtml ? '' : presentation === 'petit' ? escapeHtml(libelleModeTachesAffaire()) : escapeHtml(messageProgressionJour(actions.length, traites.length)),
       droite: anneau,
       corps
     });

@@ -880,6 +880,8 @@
     // Les dossiers qui ont du nouveau d'abord, dans les deux vues ; le reste suit, sans doublon.
     const { aVoir, reste } = partagerAVoirSuivi(tries);
     const blocAVoir = renderAVoirSuivi(aVoir);
+    // Vue « Tâches » (étude 22/10) : les mêmes dossiers filtrés, leurs tâches du jour en colonnes par thème (client/104).
+    if (vueSuivi === 'taches') { list.innerHTML = renderVueTachesSuivi(tries); return; }
     if (vueSuivi === 'semaines') {
       // Les archivés (case « Archivés » cochée) ont leur propre section en bas : jamais dans une semaine.
       const enCours = reste.filter(d => !d.archive);
@@ -1208,9 +1210,11 @@
   }
 
   function definirVueSuivi(vue) {
-    vueSuivi = vue === 'semaines' ? 'semaines' : 'tableau';
+    vueSuivi = vue === 'semaines' || vue === 'taches' ? vue : 'tableau';
     document.getElementById('vue-btn-tableau').classList.toggle('actif', vueSuivi === 'tableau');
     document.getElementById('vue-btn-semaines').classList.toggle('actif', vueSuivi === 'semaines');
+    const boutonTaches = document.getElementById('vue-btn-taches');
+    if (boutonTaches) boutonTaches.classList.toggle('actif', vueSuivi === 'taches');
     const tri = document.getElementById('tri-dossiers-bloc');
     if (tri) tri.style.display = vueSuivi === 'tableau' ? '' : 'none';
     render();

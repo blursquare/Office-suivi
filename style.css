@@ -10510,3 +10510,10 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 
 /* Tâches du jour : choix Tout / Ventes / Successions (étude 22/10, client/104-taches-affaire.js). */
 .ja-bascule-affaire { margin: 0 0 8px; }
+
+/* Tâches en colonnes (étude 22/10, client/104-taches-affaire.js) : actions d'une carte, vue « Tâches » du Suivi. */
+.tf-actions-tache { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.tf-taches-colonnes { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.suivi-taches { padding: 8px 0; }
+.w-corps:has(.tf-taches-colonnes) { overflow-y: auto; }
+.tf-taches-colonnes .tf-categorie { overflow-wrap: anywhere; }

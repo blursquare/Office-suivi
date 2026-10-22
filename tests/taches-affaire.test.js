@@ -64,3 +64,55 @@ test('actionsDuJour : les tâches de succession y figurent (étapes, factures)',
   assert.ok(types.includes('factureSuccession') && types.includes('deblocageFonds'), types.join());
   assert.ok(app.TYPES_TACHES_ETAPES_SUCCESSION.every(t => !types.includes('fcddv') && t !== 'fcddv'));
 });
+
+test('thèmes : chaque type de tâche a sa colonne, le reste « À décider », les colonnes vides gardées', () => {
+  const app = chargerApplication();
+  assert.equal(app.themeTache({ type: 'redaction' }), 'rediger');
+  assert.equal(app.themeTache({ type: 'pret' }), 'relances');
+  assert.equal(app.themeTache({ type: 'appelFonds' }), 'avant');
+  assert.equal(app.themeTache({ type: 'receptionFonds' }), 'avant');
+  assert.equal(app.themeTache({ type: 'questionnaire' }), 'apres');
+  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'apres');
+  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'decider');
+  const g = app.regrouperTachesParTheme([{ type: 'pret' }, { type: 'pret' }, { type: 'copieActe' }]);
+  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'rediger:0,relances:2,avant:0,apres:1,decider:0');
+});
+
+test('outil lié : l’appel de fonds d’une vente ouvre l’outil prérempli, pas pour une succession ni une relance', () => {
+  const app = chargerApplication();
+  const vente = { id: 'v1', nom: 'VTE X' };
+  const o = app.outilDeTache({ type: 'appelFonds', dossier: vente });
+  assert.equal(o.cle, 'appel-fonds');
+  assert.ok(o.onclick.includes('preparerAppelFondsDepuisDossier') && o.onclick.includes('v1'));
+  assert.equal(app.outilDeTache({ type: 'appelFondsSuccession', dossier: { id: 's', typeAffaire: 'succession', nom: 'SUCC Y' } }), null);
+  assert.equal(app.outilDeTache({ type: 'pret', dossier: vente }), null);
+  assert.equal(app.outilDeTache({ type: 'point-x', categorieLabel: 'Droit de préemption', dossier: vente }).cle, 'preemption');
+});
+
+test('colonnes : une carte par tâche avec case ronde, geste et outil ; la colonne « À décider » seulement si utile', () => {
+  const app = chargerApplication();
+  const dossier = { id: 'v1', nom: 'MARTIN / DUPONT', historique: [], pieces: {} };
+  const html = app.renderTachesColonnes([{ cle: 'v1:appelFonds', type: 'appelFonds', titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', jours: 3, dossier, geste: { type: 'appelFonds' } }]);
+  assert.ok(html.includes('tf-taches-colonnes') && html.includes('Avant la signature'));
+  assert.ok(html.includes("marquerFaitJour('v1:appelFonds')") && html.includes('preparerAppelFondsDepuisDossier'));
+  assert.ok(!html.includes('À décider'), 'pas de colonne vide « À décider »');
+  assert.ok(app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Décider', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]).includes('À décider'));
+});
+
+test('relecture 0.318 : pas de tâche de notoriété sans rendez-vous placé, plus d’étape une fois le questionnaire envoyé', () => {
+  const app = chargerApplication();
+  const sansRdv = succ({ succession: { type: 'classique', ouvertureLe: '2026-09-25' } });
+  assert.ok(!app.tachesEtapesSuccession(sansRdv, AUJ).some(t => t.type === 'notoriete'), 'date butoir seule : l’alerte « placer le rendez-vous » suffit');
+  const close = succ({ questionnaireSuccessionEnvoyeLe: '2026-10-20', echeancesValidees: { notoriete: true } });
+  assert.equal(app.tachesEtapesSuccession(close, AUJ).length, 0);
+});
+
+test('les tâches traitées suivent le choix Tout / Ventes / Successions (progression, fête)', () => {
+  const app = chargerApplication();
+  const v = { id: 'v1', nom: 'VTE X' }; const s = { id: 's1', nom: 'SUCC Y', typeAffaire: 'succession' };
+  const tous = [v, s];
+  const traites = [{ cle: 'v1:pret', dossierId: 'v1' }, { cle: 's1:notoriete', dossierId: 's1' }];
+  assert.equal(app.filtrerTraitesParAffaire(traites, 'tout', tous).length, 2);
+  assert.equal(app.filtrerTraitesParAffaire(traites, 'vente', tous).map(t => t.cle).join(), 'v1:pret');
+  assert.equal(app.filtrerTraitesParAffaire(traites, 'succession', tous).map(t => t.cle).join(), 's1:notoriete');
+});

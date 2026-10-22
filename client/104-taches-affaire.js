@@ -28,6 +28,25 @@ function choisirModeTachesAffaire(mode) {
   render();
 }
 
+/** Le nom du choix en cours, '' pour « Tout » (rappelé dans le petit widget, où la bascule n'est pas montrée). */
+function libelleModeTachesAffaire() {
+  const m = modeTachesAffaire();
+  return m === 'vente' ? 'Ventes seulement' : m === 'succession' ? 'Successions seulement' : '';
+}
+
+/** Pure : les tâches déjà traitées de ce mode (l'entrée garde `dossierId`) — la progression et la fête suivent le choix. @param {any[]} traites @param {string} mode @param {any[]} [tousDossiers] */
+function filtrerTraitesParAffaire(traites, mode, tousDossiers) {
+  const base = Array.isArray(tousDossiers) ? tousDossiers : dossiers;
+  const liste = Array.isArray(traites) ? traites : [];
+  if (mode !== 'vente' && mode !== 'succession') return liste;
+  return liste.filter((t) => {
+    const id = t && (t.dossierId || String(t.cle || '').split(':')[0]);
+    const d = id ? base.find((x) => x && x.id === id) : null;
+    if (!d) return true;
+    return mode === 'succession' ? estSuccession(d) : !estSuccession(d);
+  });
+}
+
 /** Pure : les tâches de ce mode — 'vente' ou 'succession' ne gardent que leurs dossiers, 'tout' (ou inconnu) rend tout. @param {any[]} actions @param {string} mode */
 function filtrerActionsParAffaire(actions, mode) {
   const liste = Array.isArray(actions) ? actions : [];
@@ -38,12 +57,15 @@ function filtrerActionsParAffaire(actions, mode) {
 
 /** Pure : les tâches d'ÉTAPES d'une succession (pas le décompte, le projet ni l'appel de fonds, déjà dans client/24) → actions sans `dossier` ni `cle`. @param {any} d @param {string} aujourdhuiIso */
 function tachesEtapesSuccession(d, aujourdhuiIso) {
-  if (!d || d.archive || !estSuccession(d)) return [];
+  // Succession terminée (questionnaire de satisfaction envoyé, étape qui l'archive) : plus de tâche d'étape.
+  if (!d || d.archive || !estSuccession(d) || d.questionnaireSuccessionEnvoyeLe) return [];
   const limite = addDays(aujourdhuiIso, JOURS_AVANT_ETAPE_SUCCESSION_TACHE);
   const taches = [];
   etapesSuccession(d, aujourdhuiIso).forEach((e) => {
     if (!TYPES_TACHES_ETAPES_SUCCESSION.includes(e.type) || e.fait || e.active === false) return;
     // Une étape datée n'apparaît qu'à l'approche de sa date ; une étape sans date (comptes, fonds) dès qu'elle est active.
+    // Une notoriété sans rendez-vous placé n'est qu'une date butoir : l'alerte « Placer le rendez-vous » la porte déjà (pas de doublon).
+    if (e.type === 'notoriete' && !e.rdvPlace) return;
     if ((e.type === 'notoriete' || e.type === 'controleDroits') && (!e.iso || e.iso > limite)) return;
     const j = e.iso && (e.type === 'notoriete' || e.type === 'controleDroits') ? ecartJours(aujourdhuiIso, e.iso) : null;
     taches.push({
@@ -61,7 +83,7 @@ function tachesEtapesSuccession(d, aujourdhuiIso) {
 function tachesFacturesSuccession(d) {
   if (!d || d.archive || !estSuccession(d)) return [];
   return facturesARegler(d).map((f) => ({
-    type: 'factureSuccession', cle: d.id + ':facture:' + f.id, factureId: f.id, categorie: 'neutre', categorieLabel: 'Facture à régler',
+    type: 'factureSuccession', cle: d.id + ':facture-' + f.id, factureId: f.id, categorie: 'neutre', categorieLabel: 'Facture à régler',
     titre: `Régler la facture${f.organisme ? ' ' + f.organisme : ''}${f.montant ? ' (' + formaterPrixCentimes(f.montant) + ')' : ''}`,
     contexte: `Facture reçue${f.recueLe ? ' le ' + formatDateFr(f.recueLe) : ''}, à régler.`,
     jours: null, delaiTexte: f.recueLe ? 'reçue le ' + formatDateFr(f.recueLe) : 'à régler', gravite: 'vigilance',
@@ -69,11 +91,12 @@ function tachesFacturesSuccession(d) {
   }));
 }
 
-/** La facture de la tâche est réglée (case ronde) ; « Annuler » la remet à régler. @param {any} a */
-function reglerFactureDepuisTache(a) {
+/** La facture de la tâche est réglée (case ronde) ; « Annuler » la remet à régler. @param {any} a @param {boolean} [silencieux] */
+function reglerFactureDepuisTache(a, silencieux) {
   if (!a || !a.dossier || !a.factureId) return false;
   basculerFactureReglee(a.dossier.id, a.factureId);
-  afficherToast(`Facture notée réglée — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => basculerFactureReglee(a.dossier.id, a.factureId));
+  noterTraite(a, 'Facture notée réglée', { factureId: a.factureId });   // compte dans la progression ; « Annuler » la remet à régler (annulerTraiteJour)
+  if (!silencieux) afficherToast(`Facture notée réglée — ${libelleDossierAffiche(a.dossier)}.`, 'Annuler', () => annulerTraiteJour(a.cle));
   return true;
 }
 
@@ -82,4 +105,83 @@ function renderBasculeAffaireJour() {
   const mode = modeTachesAffaire();
   const bouton = (cle, libelle) => `<wa-button appearance="outlined" size="s" type="button" class="vue-bascule-btn${mode === cle ? ' actif' : ''}" aria-pressed="${mode === cle}" onclick="choisirModeTachesAffaire('${cle}')">${libelle}</wa-button>`;
   return `<div class="ja-bascule-affaire w-fixe"><wa-button-group label="Tâches des ventes, des successions ou de tous">${bouton('tout', 'Tout')}${bouton('vente', 'Ventes')}${bouton('succession', 'Successions')}</wa-button-group></div>`;
+}
+
+// ==== Classement par thème, outil lié, vue en colonnes (étude 22/10) ====
+//
+// « Si la tâche est liée à un outil (ex. faire l'appel de fonds), mettre l'icône de l'outil et, au clic, ouvrir l'outil prérempli » ;
+// « en quatre colonnes (widget pleine largeur), passer en mode colonnes » ; « une nouvelle vue après Échéances dans le Suivi des dossiers, en
+// colonnes, avec les tâches ». Les colonnes sont des THÈMES : à rédiger, relances, avant la signature, après la signature, à décider.
+
+var THEMES_TACHES = [
+  { cle: 'rediger', nom: 'Prêts à rédiger', sous: 'dossier complet ou presque', types: ['redaction'] },
+  { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
+  { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
+  { cle: 'apres', nom: 'Après la signature', sous: 'copie, questionnaire, factures', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe', 'factureSuccession'] },
+  { cle: 'decider', nom: 'À décider', sous: 'préemption, autres points', types: [] }
+];
+
+/** Pure : la clé du thème d'une tâche (« decider » pour le reste). @param {any} a */
+function themeTache(a) {
+  const t = THEMES_TACHES.find((x) => x.types.includes(a && a.type));
+  return t ? t.cle : 'decider';
+}
+
+/** Pure : les tâches rangées par thème, dans l'ordre des thèmes, les thèmes vides gardés (colonne vide). @param {any[]} actions */
+function regrouperTachesParTheme(actions) {
+  return THEMES_TACHES.map((t) => ({ theme: t, actions: (actions || []).filter((a) => themeTache(a) === t.cle) }));
+}
+
+/** Pure : l'outil de CLAIRE lié à une tâche, ou null — { cle, libelle, icone, onclick }. Ouvre l'outil prérempli par la fiche du dossier. @param {any} a */
+function outilDeTache(a) {
+  if (!a || !a.dossier) return null;
+  const id = escapeOnclickArg(a.dossier.id);
+  if (a.type === 'appelFonds' && !estSuccession(a.dossier)) return { cle: 'appel-fonds', libelle: 'Appel de fonds', icone: 'file-text', onclick: `preparerAppelFondsDepuisDossier('${id}')` };
+  if (/pr[ée]emption/i.test(String(a.categorieLabel || '') + ' ' + String(a.type || ''))) return { cle: 'preemption', libelle: 'Contrôle de l’urbanisme', icone: 'shield', onclick: `ouvrirPreemptionDepuisFiche('${id}')` };
+  return null;
+}
+
+/** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
+function renderCarteTache(a) {
+  const cle = escapeOnclickArg(a.cle);
+  const outil = outilDeTache(a);
+  const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
+    : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${icone('clock')}${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+  const sansGeste = !a.geste || a.geste.type === 'fiche';
+  const geste = sansGeste
+    ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="ouvrirDossierDrawer('${escapeOnclickArg(a.dossier.id)}')">${icone('folder')}Ouvrir la fiche</wa-button>`
+    : `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton || a.titre)}">${iconeGeste(a)}${escapeHtml(libelleCourtGeste(a))}</wa-button>`;
+  const boutonOutil = outil
+    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-outil" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>`
+    : '';
+  return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
+    <span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel || '')}</span>
+    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span></div>
+    <div class="tf-meta">${lienDossierTache(a.dossier)}${delai}</div>
+    <div class="tf-actions-tache">${geste}${boutonOutil}</div>
+  </article>`;
+}
+
+/** Les tâches en COLONNES par thème (widget pleine largeur, vue « Tâches » du Suivi). @param {any[]} actions */
+function renderTachesColonnes(actions) {
+  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || g.theme.cle !== 'decider');
+  return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
+      <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
+      <div class="tf-cartes">${g.actions.length ? g.actions.map(renderCarteTache).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
+    </section>`).join('')}</div>`;
+}
+
+/** Les tâches des dossiers donnés (hors reportées et déjà faites aujourd'hui), selon le choix Tout / Ventes / Successions. @param {any[]} liste */
+function tachesDesDossiers(liste) {
+  const actifs = (liste || []).filter((d) => d && !d.archive);
+  const etat = lireEtatJour();
+  const faites = new Set(((etat.traites && etat.traites.liste) || []).map((t) => t.cle));
+  return filtrerActionsParAffaire(actionsDuJour(actifs, isoAujourdhuiLocal()).actions, modeTachesAffaire())
+    .filter((a) => !(etat.reports && etat.reports[a.cle]) && !faites.has(a.cle));
+}
+
+/** La vue « Tâches » du Suivi des dossiers : les mêmes dossiers filtrés, leurs tâches en colonnes. @param {any[]} liste */
+function renderVueTachesSuivi(liste) {
+  const actions = tachesDesDossiers(liste);
+  return `<div class="suivi-taches">${renderBasculeAffaireJour()}${actions.length ? renderTachesColonnes(actions) : '<p class="jour-vide jour-vide-ok">✓ Aucune tâche pour ces dossiers.</p>'}</div>`;
 }
