@@ -181,6 +181,17 @@
   }
 
   /**
+   * Pure : le titre d'un rendez-vous dit « tout le même jour » — notoriété (NOTO), attestation immobilière (API / PAI) ET déclaration de
+   * succession (DS), dans n'importe quel ordre, par exemple « SUCC - prénom NOM (NOTO API DS PARTAGE) » (étude 22/10). Sans « ? ».
+   * @param {string} titre
+   */
+  function titreToutEnsembleSuccession(titre) {
+    const t = String(titre || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+    if (/\?/.test(t)) return false;
+    return /(?<![A-Z])NOTO(?:RITE|RIETE)?(?![A-Z])/.test(t) && /(?<![A-Z])(?:API|PAI|AI)(?![A-Z])|ATTESTATION/.test(t) && /(?<![A-Z])DS(?![A-Z])|DECLARATION/.test(t);
+  }
+
+  /**
    * Pure : l'étape d'un rendez-vous d'après son titre dans l'agenda (« SUCC - DUPONT - Acte de notoriété »…) ; un titre provisoire
    * (« ? » dans le titre ou le lieu) n'est jamais un acte (étude 07/10).
    * @param {string} titre @param {string} [lieu]
@@ -195,6 +206,7 @@
     // « NOTO prénom NOM », « NOTORIETE - … », « INVENTAIRE + NOTO … », « INVENTAIRE et NOTORIETE … » (étude 21/10) : la notoriété.
     // NOTORIETE n'importe où dans le titre (comme avant) ; NOTO, NOTORITE et INVENTAIRE seulement en tête (« Contrôle des droits et inventaire »
     // n'est pas un rendez-vous de signature).
+    else if (titreToutEnsembleSuccession(t)) etape = 'declarationSuccession';
     else if (/NOTORIETE/.test(t) || /^\s*(?:INVENTAIRE\s*(?:\+|&|ET)\s*)?NOTO(?:RITE)?(?![A-Z])/.test(t)) etape = 'notoriete';
     // « INVENTAIRE … » seul : le rendez-vous du contrôle des droits et de l'inventaire, à 2 mois de l'ouverture (étude 21/10).
     else if (/^\s*INVENTAIRE(?![A-Z])/.test(t)) etape = 'controleDroits';
@@ -325,13 +337,18 @@
   }
 
   /** Pure : un acte de base signé (coché sur la fiche, ou « Signé » dans Authentic) — { fait, iso }. @param {any} d @param {string} acte */
-  function acteSigneSuccession(d, acte) {
+  function acteSigneSuccession(d, acte, aujourdhuiIso) {
     const type = acte === 'notoriete' ? 'notoriete' : 'declarationSuccession';
+    // Un rendez-vous « NOTO API DS … » passé (étude 22/10) : tous les actes sont signés à sa date — la succession est close.
+    const auj = String(aujourdhuiIso || new Date().toISOString()).slice(0, 10);
+    const tout = rendezVousSuccession(d).filter((r) => r && !r.annule && titreToutEnsembleSuccession(r.titre) && r.date && r.date <= auj).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
     const a = acteAuthenticSuccession(d, acte);
     const signeAuthentic = !!(a && a.etat === 'signe');
     const s = infoSuccession(d);
     const dateSaisie = acte === 'notoriete' ? s.notorieteSigneeLe : s.declarationSigneeLe;
-    return { fait: cocheeSuccession(d, type) || signeAuthentic, iso: String(dateSaisie || (a && a.signeLe) || '').slice(0, 10) };
+    const iso = String(dateSaisie || (a && a.signeLe) || '').slice(0, 10);
+    if (tout && !(cocheeSuccession(d, type) || signeAuthentic)) return { fait: true, iso: tout.date };
+    return { fait: cocheeSuccession(d, type) || signeAuthentic, iso };
   }
 
   /**
@@ -356,7 +373,7 @@
     etapes.push({ type: 'ouvertureSuccession', label: 'Rendez-vous d’ouverture avec Sophie', iso: ouverture, fait: ouvertureFaite, attente: false, active: true });
     // Notoriété + déclaration de succession : un seul rendez-vous pour les deux actes, entre 4 et 6 mois (étude 15/10).
     const ensemble = type.cle === 'notoriete-ds';
-    const notoSeule = acteSigneSuccession(d, 'notoriete');
+    const notoSeule = acteSigneSuccession(d, 'notoriete', auj);
     // Notoriété + déclaration : deux étapes, deux rendez-vous possibles (étude 21/10 : « parfois ne sont pas signées le même jour »).
     const noto = { fait: notoSeule.fait, iso: notoSeule.iso };
     // Rendez-vous placés (agenda) : la date de l'acte à venir ; sans lui, la date butoir (`butoir`), à confirmer. Un rendez-vous « acte »
@@ -366,7 +383,8 @@
     const apresNotoriete = (/** @type {any} */ r) => noto.fait && (noto.iso ? r.date > noto.iso : r.date > auj);
     // Un seul rendez-vous pour les deux actes (titre « SUCC - … ») sert aux deux étapes tant que la notoriété n'a pas le sien.
     const rdvNotoriete = noto.fait ? null : (rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' || r.etape === 'acte'), auj)
-      || (ensemble ? rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession'), auj) : null));
+      || (ensemble ? rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession'), auj) : null)
+      || rendezVousRetenu(rdvs.filter((r) => titreToutEnsembleSuccession(r.titre)), auj));
     // Notoriété + déclaration : un rendez-vous « acte » sans autre rendez-vous de déclaration sert aussi à la déclaration (relecture 21/10).
     const rdvDeclaration = rendezVousRetenu(rdvs.filter((r) => r.etape === 'declarationSuccession' || (r.etape === 'acte' && apresNotoriete(r))), auj) || (ensemble && !noto.fait ? rdvNotoriete : null);
     const rdv = rdvNotoriete ? rdvNotoriete.date : '';
@@ -393,7 +411,7 @@
     }
     // Succession classique : attestation immobilière et déclaration de succession, après la notoriété, au plus tard à 6 mois.
     if (type.actes.includes('declaration')) {
-      const ds = acteSigneSuccession(d, 'declaration');
+      const ds = acteSigneSuccession(d, 'declaration', auj);
       const label = type.actes.includes('attestation') ? 'Signature de l’attestation immobilière et de la déclaration de succession' : 'Signature de la déclaration de succession';
       const placee = rdvDeclaration ? rdvDeclaration.date : '';
       const butoir = depuisDeces(MOIS_DECLARATION_SUCCESSION);
@@ -463,7 +481,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

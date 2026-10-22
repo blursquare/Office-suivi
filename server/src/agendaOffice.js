@@ -140,9 +140,11 @@ function extraireReferenceSuccession(texte) {
     mots += 1;
     while (RE_LIAISON_ACTE_SUCC.test(reste) && mots) reste = reste.replace(RE_LIAISON_ACTE_SUCC, '');
   }
-  if (mots && reste.trim()) return reste.trim();
+  // Une parenthèse en fin de titre (« SUCC - prénom NOM (NOTO API DS PARTAGE) », étude 22/10) dit les actes, pas le défunt.
+  const sansParentheses = (/** @type {string} */ x) => x.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (mots && reste.trim()) return sansParentheses(reste.trim());
   const m = RE_REFERENCE_SUCC.exec(source);
-  return m ? m[1].trim() : '';
+  return m ? sansParentheses(m[1].trim()) : '';
 }
 
 // Le dossier de succession d'un rendez-vous : d'abord par l'identifiant Outlook déjà connu (créé par CLAIRE ou déjà relu), puis par

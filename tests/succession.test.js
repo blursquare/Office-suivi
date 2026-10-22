@@ -1093,3 +1093,21 @@ test('« À faire » : décompte, projet et appel de fonds d’une succession ne
   assert.equal(titres.filter(t => /décompte/.test(t)).length, 1);
   assert.equal(titres.filter(t => /projet/.test(t)).length, 1);
 });
+
+test('« SUCC - … (NOTO API DS PARTAGE) » : un seul rendez-vous pour la notoriété, l’attestation et la déclaration — tous les actes signés à sa date', () => {
+  const titre = 'SUCC - Christian VIEL (NOTO API DS PARTAGE)';
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre(titre), 'declarationSuccession');
+  assert.equal(S.etapeRendezVousSuccessionDepuisTitre('SUCC - Christian VIEL (NOTO API DS PARTAGE) ?'), 'autre', 'provisoire');
+  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (DS NOTO PAI)'), true, 'ordre libre, PAI accepté');
+  assert.equal(S.titreToutEnsembleSuccession('SUCC - Marie DURAND (NOTO DS)'), false, 'sans attestation : pas « tout »');
+  const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'classique', ouvertureLe: '2026-08-15',
+    rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre, date: '2026-12-10', heure: '10:00' }] } });
+  const avant = S.etapesSuccession(d, '2026-11-20');
+  const noto = avant.find(e => e.type === 'notoriete'), ds = avant.find(e => e.type === 'declarationSuccession');
+  assert.equal(noto.iso, '2026-12-10'); assert.equal(noto.fait, false); assert.equal(noto.rdvPlace, true, 'la notoriété prend aussi ce rendez-vous');
+  assert.equal(ds.iso, '2026-12-10'); assert.equal(ds.fait, false);
+  const apres = S.etapesSuccession(d, '2026-12-11');
+  const n2 = apres.find(e => e.type === 'notoriete'), d2 = apres.find(e => e.type === 'declarationSuccession');
+  assert.equal(n2.fait, true); assert.equal(n2.iso, '2026-12-10');
+  assert.equal(d2.fait, true); assert.equal(d2.iso, '2026-12-10');
+});
