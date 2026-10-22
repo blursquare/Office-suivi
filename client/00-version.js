@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.315.6';
+  const VERSION_APP = '0.316.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.316.0', date: '2026-10-22 20:37', resume: "Successions : la réponse du FCDDV qui n'est pas dans le dossier du client est cherchée à la racine du commun, dans le dossier FCDDV et son sous-dossier INTERROGATION (fichier du défunt reconnu par son nom ET son prénom)." },
     { version: '0.315.6', date: '2026-10-22 18:44', resume: "Successions : les actes « ACT Déclaration Succ … » et « ACT Attestation Succ … » d'Authentic sont rapprochés de « Déclaration de succession » et « Attestation immobilière » (le statut d'Authentic s'affiche à côté, plus de doublon) ; un rendez-vous de succession montre AF (appel de fonds : frais d'acte versés à l'office), D (décompte) et P ; avec un conjoint survivant l'appel de fonds est dû, avec les seuls héritiers il reste facultatif." },
     { version: '0.315.5', date: '2026-10-22 18:21', resume: "Fiche d'un dossier : la zone « Agricole (PLU)Bois et forêt… » affichée sur des parcelles qui ne sont pas en zone A n'apparaît plus (c'était le texte de toute une liste déroulante d'Authentic, pas une zone). Extension Authentic 0.3.12 : une liste déroulante sans choix ne renvoie plus ses options. Fiche bien d'Authentic : les parcelles du tableau « Ancien cadastre » ne sont plus reprises. Aperçu PDF : bord droit non rogné, Échap plus sûr ; la rubrique d'orthographe ne juge plus les mots collés par la lecture du PDF." },
     { version: '0.315.4', date: '2026-10-22 18:06', resume: "« Demander à CLAIRE » : l'aperçu d'un PDF s'ouvre dans un grand tiroir à droite (Échap pour le fermer), la liste des documents montre le nom du fichier joint (au lieu de « Pièce jointe »), et toute relecture ou analyse d'acte relève aussi les fautes d'orthographe et les coquilles de chiffres." },

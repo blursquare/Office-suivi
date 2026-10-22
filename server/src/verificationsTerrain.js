@@ -126,6 +126,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première page de sous-dossier « Promesse » lue avec une date ; en échec si la page ne montre aucun « Signé le ». Copier la structure de la page (Authentic › « Copier la structure ») pour adapter la lecture.' },
   { id: 'copie-acte-confrere', depuis: '0.314.0', source: 'poste', titre: 'Participation : la copie de l’acte du confrère retrouvée dans « Fausses minutes » ferme la relance',
     comment: 'Coché à la première copie reconnue ; vérifier qu’elle est bien celle du dossier (nom du fichier ou du sous-dossier) et que la tâche « Demander la copie du titre au confrère » disparaît.' },
+  { id: 'fcddv-commun', depuis: '0.316.0', source: 'poste', titre: 'Succession : la réponse du FCDDV est cherchée à la racine du commun (dossier FCDDV, sous-dossier INTERROGATION) quand elle n’est pas dans le dossier du client',
+    comment: 'Coché à la première lecture de la liste ; en échec si le dossier FCDDV est introuvable (renseigner alors « nasFcddv » dans config.json). Vérifier que le fichier retenu est bien celui du défunt (nom de famille ET prénom dans le nom du fichier).' },
   { id: 'dod-email', depuis: '0.296.0', source: 'poste', titre: 'Hypothèque : l’email de la DOD (déclaration d’origine des deniers) s’ouvre pour le notaire instrumentaire ou le confrère de l’acquéreur',
     comment: 'Coché au premier email préparé ; vérifier le texte (premier jet de CLAIRE), l’adresse du confrère et la pièce jointe.' },
   { id: 'prorata-avis-nas', depuis: '0.252.0', source: 'poste', titre: 'Prorata ouvert depuis une fiche : l’avis de taxe foncière du dossier du NAS est lu seul et son montant posé',

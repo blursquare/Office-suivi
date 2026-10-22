@@ -100,5 +100,6 @@
   "98-assistant-calcul.js",
   "99-assistant-artefacts.js",
   "100-reglages-delais-rappels.js",
-  "101-assistant-revelation.js"
+  "101-assistant-revelation.js",
+  "102-fcddv-commun.js"
 ]

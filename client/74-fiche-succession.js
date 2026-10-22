@@ -556,13 +556,22 @@
   async function lireFcddvDossier(dossierId, silencieux) {
     const d = dossiers.find(x => x.id === dossierId);
     if (!d || !estSuccession(d) || lecturesFcddvEnCours.has(dossierId)) return;
-    const chemin = fichierFcddv(d);
-    if (!chemin) { if (!silencieux) afficherToast('Réponse du FCDDV pas encore trouvée dans le dossier du NAS (« FCDDV » dans le nom du fichier).'); return; }
+    // Le dossier du client d'abord ; à défaut, le dossier FCDDV (et INTERROGATION) à la racine du commun (étude 22/10, client/102).
+    let chemin = fichierFcddv(d);
+    let communChemin = '';
+    if (!chemin) {
+      lecturesFcddvEnCours.add(dossierId);
+      const c = await fcddvCommunDuDossier(d);
+      lecturesFcddvEnCours.delete(dossierId);
+      if (c) { chemin = c.affiche; communChemin = c.chemin; }
+    }
+    if (!chemin) { if (!silencieux) afficherToast('Réponse du FCDDV pas encore trouvée dans le dossier du NAS ni dans le dossier FCDDV du commun (nom du défunt dans le nom du fichier).'); return; }
+    if (lecturesFcddvEnCours.has(dossierId)) return;
     lecturesFcddvEnCours.add(dossierId);
     lecturesFcddvFaites.add(dossierId + '|' + chemin);
     render();
     try {
-      const pdf = await ouvrirPdfNas(chemin);
+      const pdf = communChemin ? await ouvrirPdfFcddvCommun(communChemin) : await ouvrirPdfNas(chemin);
       const { texte } = await lireTextePdfParPage(pdf);
       const analyse = analyseFcddv(texte);
       const actuel = dossiers.find(x => x.id === dossierId);
@@ -592,7 +601,16 @@
     if (!d || !estSuccession(d) || d.archive) return;
     const chemin = fichierFcddv(d);
     const f = (d.succession || {}).fcddv;
-    if (!chemin || (f && f.fichier === chemin) || lecturesFcddvFaites.has(d.id + '|' + chemin)) return;
+    if (!chemin) {
+      // Pas dans le dossier du client : le dossier FCDDV du commun (étude 22/10), lu seul une fois par fichier.
+      fcddvCommunDuDossier(d).then(c => {
+        const actuel = dossiers.find(x => x.id === d.id);
+        if (!c || !actuel || (((actuel.succession || {}).fcddv || {}).fichier === c.affiche) || lecturesFcddvFaites.has(d.id + '|' + c.affiche)) return;
+        lireFcddvDossier(d.id, true);
+      }).catch(() => {});
+      return;
+    }
+    if ((f && f.fichier === chemin) || lecturesFcddvFaites.has(d.id + '|' + chemin)) return;
     lireFcddvDossier(d.id, true);
   }
 

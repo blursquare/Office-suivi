@@ -26,7 +26,7 @@ function dossierSauvegardeAutorise(dossier, config, dejaEnregistre) {
   const hote = hoteReseau(dossier);
   if (!hote) return true;
   const c = config || {};
-  return [c.nasRacine, c.nasScans, c.nasFaussesMinutes, dejaEnregistre].map(hoteReseau).filter(Boolean).includes(hote);
+  return [c.nasRacine, c.nasScans, c.nasFaussesMinutes, c.nasFcddv, dejaEnregistre].map(hoteReseau).filter(Boolean).includes(hote);
 }
 
 // Pure (base ouverte) : une base de CLAIRE porte au moins ses tables de dossiers et de paramètres (audit 13/10 : une base

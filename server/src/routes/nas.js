@@ -30,6 +30,7 @@ function envoyerFlux(res, cible) {
   flux.pipe(res);
 }
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
+const { fcddvCommun, trouverDossierFcddv, resoudreFichierFcddv } = require('../fcddvCommun');
 const { copierDansDossierClient } = require('../scans');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
@@ -202,6 +203,21 @@ function creerRouteurNas(config, depot) {
     const cible = dossier ? await resoudreFichierFaussesMinutes(dossier, req.query.chemin) : null;
     if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF du dossier des fausses minutes sont servis).' }); return; }
     if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans les fausses minutes.' }); return; }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
+    envoyerFlux(res, cible);
+  }));
+
+  // Réponses du FCDDV à la racine du commun (étude 22/10) : dossier « FCDDV » et son sous-dossier « INTERROGATION », lecture seule.
+  routeur.get('/nas/fcddv', routeAsync(async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await fcddvCommun(config));
+  }));
+  routeur.get('/nas/fcddv/fichier', routeAsync(async (req, res) => {
+    const dossier = await trouverDossierFcddv(config);
+    const cible = dossier ? await resoudreFichierFcddv(dossier, req.query.chemin) : null;
+    if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF du dossier FCDDV sont servis).' }); return; }
+    if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans le dossier FCDDV.' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
     envoyerFlux(res, cible);
