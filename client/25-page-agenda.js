@@ -745,6 +745,11 @@
         <span class="ag-autre-contexte">${escapeHtml(o.contexte)}</span></span>`).join('')}</span></div>`;
   }
 
+  // Pure : l'étape « Appel de fonds » existe-t-elle pour cette succession (déclaration de succession au dernier rendez-vous, pas « pas nécessaire ») ?
+  function appelFondsSuccessionAttendu(d) {
+    try { return etapesSuccession(d, isoAujourdhuiLocal()).some(e => e.type === 'appelFondsSuccession'); } catch (err) { return false; }
+  }
+
   function infosRendezVousDossier(d, e) {
     if (!d) return null;
     // Étude 21/10 : pas de décompte ni de projet pour un rendez-vous de notoriété ou d'inventaire d'une succession.
@@ -756,10 +761,13 @@
       // Étude 05/10 : « le décompte, c'est à noter dans les dossiers de successions. Pour les ventes, on a l'appel de fonds si on
       // représente l'acquéreur et un décompte acquéreur si c'est un confrère, mais on marque appel de fonds envoyé » — une vente
       // montre donc l'appel de fonds seul, une succession le décompte.
+      // Étude 22/10 : pour une succession, AF (les clients versent les frais d'acte à l'office) et D (le décompte : ce qu'ils vont recevoir) sont
+      // deux choses — un rendez-vous peut montrer AF, D et P ; AF seulement quand l'étape existe (« pas nécessaire » ne la montre pas).
       etats: notorieteSeule ? [] : [
-        estSuccession(d)
-          ? { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) || echeanceValidee(d, 'decompteSuccession') }
-          : { cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') },
+        ...(estSuccession(d) ? [
+          ...(appelFondsSuccessionAttendu(d) ? [{ cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFondsSuccession') }] : []),
+          { cle: 'decompte', libelle: 'Décompte', fait: decompteAcquereurFait(d) || echeanceValidee(d, 'decompteSuccession') }
+        ] : [{ cle: 'appelFonds', libelle: 'Appel de fonds', fait: echeanceValidee(d, 'appelFonds') }]),
         // Projet d'acte envoyé (étude, 30/09 : la probabilité se lit « sous projet envoyé »).
         { cle: 'projet', libelle: 'Projet', fait: echeanceValidee(d, 'projetEnvoye') }
       ]

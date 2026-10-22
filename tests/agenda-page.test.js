@@ -197,6 +197,13 @@ test('infosRendezVousDossier : responsable, confrère, appel de fonds (vente) ou
   const succ = app.infosRendezVousDossier({ id: 's', nom: 'DURAND', typeAffaire: 'succession', responsable: 'Julie VASSELIN', detectionsNas: { appelFondsFichier: 'Comptabilité/Décompte DURAND.pdf' } });
   assert.equal(succ.etats.map(x => `${x.cle}:${x.fait}`).join(','), 'decompte:true,projet:false');
 
+  // Étude 22/10 : un rendez-vous de déclaration de succession montre AF, D et P (appel de fonds ≠ décompte) ; « pas nécessaire » retire AF.
+  const decl = { id: 's2', nom: 'DURAND', typeAffaire: 'succession', responsable: 'Julie VASSELIN', biens: [{ adresse: 'X' }],
+    succession: { type: 'notoriete-ds', ouvertureLe: '2026-08-15', rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2099-12-10', heure: '10:00' }] } };
+  assert.equal(app.infosRendezVousDossier(decl).etats.map(x => x.cle).join(','), 'appelFonds,decompte,projet');
+  decl.succession.appelFondsInutile = true;
+  assert.equal(app.infosRendezVousDossier(decl).etats.map(x => x.cle).join(','), 'decompte,projet');
+
   // Le décompte vaut aussi fait quand le montant attendu a été lu dans un courrier pour les fonds reçus.
   assert.equal(app.decompteAcquereurFait({ fondsRecus: { attenduChemin: 'Comptabilité/Décompte.pdf' } }), true);
   assert.equal(app.decompteAcquereurFait(null), false);

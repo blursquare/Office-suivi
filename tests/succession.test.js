@@ -1078,12 +1078,22 @@ test('étude 21/10 : après le contrôle des droits, l\'inventaire se place dans
   assert.equal(app.rdvAgendaSuccession(place, 'controleDroits', '2026-11-05'), null);
 });
 
-test('conjoint survivant : pas d’étape « Appel de fonds » (l’étude ne reçoit aucun fonds), décompte et projet restent', () => {
+test('conjoint survivant : l’appel de fonds est dû (on transfère les fonds, peu en comptabilité), non facultatif ; héritiers seuls : facultatif', () => {
   const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'notoriete-ds', conjointSurvivant: true, ouvertureLe: '2026-08-15',
     rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2026-12-10', heure: '10:00' }] } });
   const types = S.etapesSuccession(d, '2026-10-22').map(e => e.type);
   assert.ok(types.includes('decompteSuccession'));
-  assert.ok(!types.includes('appelFondsSuccession'));
+  assert.ok(types.includes('appelFondsSuccession'));
+  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, false);
+  d.succession.conjointSurvivant = false;
+  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, true);
+});
+
+test('actes d’Authentic « ACT Déclaration Succ … » et « ACT Attestation Succ … T@ » rapprochés des actes de base (22/10)', () => {
+  assert.equal(S.acteBaseDepuisIntitule('ACT Déclaration Succ Joël RASQUIER'), 'declaration');
+  assert.equal(S.acteBaseDepuisIntitule('ACT Attestation Succ Joël RASQUIER T@'), 'attestation');
+  assert.equal(S.acteBaseDepuisIntitule('ACT Attestation immobilière RASQUIER'), 'attestation');
+  assert.equal(S.acteBaseDepuisIntitule('ACT Délivrance de legs RASQUIER'), '');
 });
 
 test('« À faire » : décompte, projet et appel de fonds d’une succession ne sortent qu’une fois (tâche), pas aussi comme alerte', () => {

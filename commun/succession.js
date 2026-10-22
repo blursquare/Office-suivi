@@ -85,8 +85,9 @@
   function acteBaseDepuisIntitule(intitule) {
     const t = String(intitule || '');
     if (/notori[ée]t[ée]/i.test(t)) return 'notoriete';
-    if (/d[ée]claration\s+de\s+succession/i.test(t) || /(?:^|[^A-Za-z])DS(?![A-Za-z])/.test(t)) return 'declaration';
-    if (/attestation\s+(?:immobili|notari|de\s+propri|apr[èe]s\s+d[ée]c[èe]s|de\s+transmission)/i.test(t)) return 'attestation';
+    // « ACT Déclaration Succ NOM » et « ACT Attestation Succ NOM T@ » (intitulés d'Authentic, 22/10) : « Succ » abrège « succession ».
+    if (/d[ée]claration\s+(?:de\s+)?succ/i.test(t) || /(?:^|[^A-Za-z])DS(?![A-Za-z])/.test(t)) return 'declaration';
+    if (/attestation\s+(?:immobili|notari|de\s+propri|apr[èe]s\s+d[ée]c[èe]s|de\s+transmission|succ)/i.test(t) || /(?:^|[^A-Za-z])(?:API|PAI)(?![A-Za-z])/.test(t)) return 'attestation';
     return '';
   }
 
@@ -457,10 +458,12 @@
       // Le projet n'est envoyé que pour la déclaration de succession, comme le décompte (étude 21/10).
       { type: 'projetSuccession', label: 'Envoi du projet à faire valider', iso: dernier.fait ? '' : avantRdv,
         fait: dernier.fait || cocheeSuccession(d, 'projetSuccession'), attente: false, active: true, avantRdv: true }];
-      // Conjoint survivant : comptes transférés, l'étude ne reçoit aucun fonds — pas d'appel de fonds à proposer (étude 22/10 : « il faut simplifier »).
-      if (s.appelFondsInutile !== true && !conjointSurvivant(d)) {
+      // Appel de fonds = les clients versent les frais d'acte à l'office ; le décompte (autre étape) = le tableau qui leur dit ce qu'ils vont recevoir.
+      // Étude 22/10 : avec un conjoint survivant on TRANSFÈRE les fonds et il y a très peu en comptabilité — l'appel de fonds est dû ; avec les seuls
+      // héritiers, la banque débloque les comptes et l'étude se rémunère dessus s'il y a assez, sinon elle demande un complément (étape facultative).
+      if (s.appelFondsInutile !== true) {
         avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
-          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
+          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: !conjointSurvivant(d) });
       }
       etapes.splice(iDernier, 0, ...avant);
     }
