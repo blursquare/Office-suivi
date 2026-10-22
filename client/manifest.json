@@ -102,5 +102,6 @@
   "100-reglages-delais-rappels.js",
   "101-assistant-revelation.js",
   "102-fcddv-commun.js",
-  "103-liens-chrome.js"
+  "103-liens-chrome.js",
+  "104-taches-affaire.js"
 ]

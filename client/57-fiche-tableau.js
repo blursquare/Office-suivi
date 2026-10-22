@@ -113,7 +113,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   // --- Gestes du jour (les mêmes que « À faire ») : un bouton pour le geste, la case pour « déjà fait ».
   gestes.forEach(a => {
     // Succession : le décompte, le projet et l'appel de fonds ont déjà leur carte d'étape (cartesEtapesSuccessionFiche) — jamais deux fois (étude 22/10).
-    if (succession && (a.type === 'decompteSuccession' || a.type === 'projetSuccession' || a.type === 'appelFondsSuccession')) return;
+    if (succession && (a.type === 'decompteSuccession' || a.type === 'projetSuccession' || a.type === 'appelFondsSuccession' || TYPES_TACHES_ETAPES_SUCCESSION.includes(a.type) || a.type === 'factureSuccession')) return;
     const cle = escapeOnclickArg(a.cle);
     const sansGeste = !a.geste || a.geste.type === 'fiche';
     ajouter('faire', {

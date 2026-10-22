@@ -387,6 +387,13 @@
         });
       }
 
+      // 3 quinquies. Succession (étude 22/10) : les étapes de la fiche (notoriété, contrôle des droits, comptes, fonds) et les factures à régler
+      //    — client/104-taches-affaire.js. Jamais le FCDDV (son inscription est dans l'en-tête de la fiche).
+      if (succession) {
+        tachesEtapesSuccession(d, aujourdhuiIso).forEach(ajouter);
+        tachesFacturesSuccession(d).forEach(ajouter);
+      }
+
       // 4. Le reste des points qui demandent une décision (vente préalable, date butoir, pièces…) :
       //    pas de geste tout prêt, la fiche s'ouvre.
       const points = alertesImportantes([d], aujourdhuiIso).concat(pointsEtatDossier(d));
@@ -630,7 +637,9 @@
   // Les actions du jour telles que les écrans les montrent : sans celles reportées à demain.
   function etatAujourdhui() {
     const aujourdhui = isoAujourdhuiLocal();
-    const calcul = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
+    const brut = actionsDuJour(dossiersPerimetreJour(), aujourdhui);
+    // Tout / Ventes / Successions (étude 22/10, client/104).
+    const calcul = Object.assign({}, brut, { actions: filtrerActionsParAffaire(brut.actions, modeTachesAffaire()) });
     const etat = lireEtatJour();
     const reportees = calcul.actions.filter(a => etat.reports[a.cle]);
     // Une action déjà traitée aujourd'hui (« Déjà fait », brouillon ouvert…) ne reste pas dans
@@ -825,13 +834,20 @@
     redaction: { champ: 'redaction', fait: 'Rédaction de l’acte notée commencée' },
     decompteSuccession: { champ: 'decompteSuccession', fait: 'Décompte noté envoyé' },
     projetSuccession: { champ: 'projetSuccession', fait: 'Projet noté envoyé' },
-    appelFondsSuccession: { champ: 'appelFondsSuccession', fait: 'Appel de fonds noté envoyé' }
+    appelFondsSuccession: { champ: 'appelFondsSuccession', fait: 'Appel de fonds noté envoyé' },
+    // Étapes de succession devenues tâches (étude 22/10) : la case ronde coche l'étape, comme sur la fiche.
+    notoriete: { champ: 'notoriete', fait: 'Acte de notoriété noté signé' },
+    controleDroits: { champ: 'controleDroits', fait: 'Contrôle des droits noté fait' },
+    transfertComptes: { champ: 'transfertComptes', fait: 'Transfert des comptes noté fait' },
+    deblocageFonds: { champ: 'deblocageFonds', fait: 'Déblocage des fonds noté demandé' },
+    receptionFonds: { champ: 'receptionFonds', fait: 'Réception des fonds notée' }
   };
 
   // `silencieux` : appelé pour chaque tâche d'un groupe (marquerFaitGroupeJour) — ni rendu ni notification, le groupe s'en charge.
   function marquerFaitJour(cle, silencieux) {
     const a = trouverActionJour(cle);
     if (!a) return false;
+    if (a.type === 'factureSuccession') { const ok = reglerFactureDepuisTache(a); if (ok && !silencieux) render(); return ok; }
     const echeance = ECHEANCE_FAIT_MAIN_PAR_TYPE[a.type];
     if (echeance) {
       noterTraite(a, echeance.fait, { echeance: echeance.champ });
@@ -1277,7 +1293,7 @@
     const liste = !actions.length && !traites.length && !rappels
       ? '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>'
       : `<ul class="ja-liste ja-taches">${rappels}${renderActionsJour(actions, global, traites)}</ul>`;
-    return liste + renderTachesAVenirJour();
+    return renderBasculeAffaireJour() + liste + renderTachesAVenirJour();
   }
 
   // Mes tâches datées après aujourd'hui (étude 13/10 : « j'ai ajouté des tâches il y a une semaine, pas encore validées, je ne les
@@ -1411,7 +1427,7 @@
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`
         : '<p class="jour-vide jour-vide-ok">✓ Rien à faire aujourd’hui sur vos dossiers.</p>';
-      corps = `${feteHtml}${liste}
+      corps = `${feteHtml}${renderBasculeAffaireJour()}${liste}
         <div class="w-section dash-rappels-bloc">
           <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
         </div>`;
