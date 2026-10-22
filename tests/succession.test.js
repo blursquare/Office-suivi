@@ -1111,3 +1111,9 @@ test('« SUCC - … (NOTO API DS PARTAGE) » : un seul rendez-vous pour la notor
   assert.equal(n2.fait, true); assert.equal(n2.iso, '2026-12-10');
   assert.equal(d2.fait, true); assert.equal(d2.iso, '2026-12-10');
 });
+
+test('rendez-vous « NOTO API DS » redevenu provisoire (étape « autre ») : plus aucun acte signé par lui', () => {
+  const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'classique', ouvertureLe: '2026-08-15',
+    rendezVous: [{ id: 'a', etape: 'autre', titre: 'SUCC - Christian VIEL (NOTO API DS PARTAGE)', date: '2026-12-10', heure: '10:00' }] } });
+  assert.equal(S.etapesSuccession(d, '2026-12-11').find(e => e.type === 'notoriete').fait, false);
+});

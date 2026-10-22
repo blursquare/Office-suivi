@@ -341,7 +341,7 @@
     const type = acte === 'notoriete' ? 'notoriete' : 'declarationSuccession';
     // Un rendez-vous « NOTO API DS … » passé (étude 22/10) : tous les actes sont signés à sa date — la succession est close.
     const auj = String(aujourdhuiIso || new Date().toISOString()).slice(0, 10);
-    const tout = rendezVousSuccession(d).filter((r) => r && !r.annule && titreToutEnsembleSuccession(r.titre) && r.date && r.date <= auj).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    const tout = rendezVousSuccession(d).filter((r) => r && !r.annule && r.etape !== 'autre' && titreToutEnsembleSuccession(r.titre) && r.date && r.date <= auj).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
     const a = acteAuthenticSuccession(d, acte);
     const signeAuthentic = !!(a && a.etat === 'signe');
     const s = infoSuccession(d);
