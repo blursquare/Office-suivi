@@ -1191,7 +1191,9 @@
     relanceFonds: { cle: 'relanceFonds', libelle: 'Relancer pour les fonds', construire: (d, c) => emailDepuisModele('relanceFonds', d, undefined, c), historique: 'Email envoyé — relance : fonds pas encore reçus', date: 'relanceFondsLe' },
     // Décompte du confrère qui représente le vendeur, demandé 10 jours avant le rendez-vous (étude 06/10, J-10 depuis le 07/10) : au confrère, jamais
     // au client — `destinataire` et `confrere` remplacent la règle par défaut (emailDestinataireRelance, côté acquéreur).
-    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: (d, c) => emailDepuisModele('relanceDecompteConfrere', d, undefined, c), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
+    relanceDecompteConfrere: { cle: 'relanceDecompteConfrere', libelle: 'Demander son décompte au confrère', construire: (d, c) => emailDepuisModele('relanceDecompteConfrere', d, undefined, c), historique: 'Email envoyé — décompte demandé au confrère du vendeur', date: 'relanceDecompteConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true },
+    // Copie du titre de propriété du confrère du vendeur, réclamée 48 h après l'ouverture d'une vente en participation (étude 22/10, texte de l'étude).
+    relanceTitreConfrere: { cle: 'relanceTitreConfrere', libelle: 'Demander la copie du titre au confrère', construire: (d, c) => emailDepuisModele('relanceTitreConfrere', d, undefined, c), historique: 'Email envoyé — copie du titre de propriété demandée au confrère du vendeur', date: 'relanceTitreConfrereLe', destinataire: d => emailConfrereVendeurDossier(d), confrere: true }
   };
 
   // Premiers jets de CLAIRE (comme l'email du projet d'acte) : à remplacer par les textes de l'étude
@@ -1249,6 +1251,13 @@
   function construireEmailRelanceDecompteConfrere(d) {
     return { sujet: `Votre décompte — ${libelleDossierAffiche(d)}`, corps: ['Mon Cher Maître,',
       'Pouvez-vous nous envoyer votre décompte s\'il vous plait ?',
+      'Dans l\'attente et vous en remerciant par avance,',
+      'Votre bien dévoué.'].join('\n\n') };
+  }
+
+  function construireEmailRelanceTitreConfrere(d) {
+    return { sujet: `Copie du titre de propriété — ${libelleDossierAffiche(d)}`, corps: ['Mon Cher Maître,',
+      'Pouvez-vous nous envoyer la copie du titre de propriété s\'il vous plait ?',
       'Dans l\'attente et vous en remerciant par avance,',
       'Votre bien dévoué.'].join('\n\n') };
   }
@@ -1413,6 +1422,9 @@
         corps: ['Bonjour,', 'Les fonds destinés à votre acquisition ne nous sont pas encore parvenus en comptabilité.',
           'Le rendez-vous de signature de l’acte authentique est fixé le {date et heure du rendez-vous}, {lieu du rendez-vous}. Pour qu’il puisse se tenir, nous vous remercions de bien vouloir effectuer le virement dès que possible, selon les indications de notre appel de fonds.',
           'Si le virement a déjà été effectué, merci de nous en adresser le justificatif en réponse à cet email.', 'Nous restons à votre disposition pour toute question.', 'Bien cordialement,'].join('\n\n') },
+      { cle: 'relanceTitreConfrere', nom: 'Demande de la copie du titre (au confrère du vendeur)', construire: construireEmailRelanceTitreConfrere,
+        sujet: 'Copie du titre de propriété — {dossier}',
+        corps: ['Mon Cher Maître,', 'Pouvez-vous nous envoyer la copie du titre de propriété s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n') },
       { cle: 'relanceDecompteConfrere', nom: 'Demande du décompte (au confrère du vendeur)', construire: construireEmailRelanceDecompteConfrere,
         sujet: 'Votre décompte — {dossier}',
         corps: ['Mon Cher Maître,', 'Pouvez-vous nous envoyer votre décompte s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n') },
@@ -1621,6 +1633,7 @@
     fonds: [[/reception des fonds|fonds (bien )?recus|virement (a ete )?(effectue|fait|envoye|realise|passe)/, 12], [/virement|versement/, 5]],
     relanceFonds: [[/fonds|virement/, 3]],
     relanceDecompteConfrere: [[/decompte/, 8]],
+    relanceTitreConfrere: [[/titre de propriete|\btitre\b/, 8]],
     projet: [[/projet d.acte/, 12], [/\bprojet\b/, 6]],
     confirmationRdv: [[/rendez-vous|\brdv\b|date de (la )?signature/, 6], [/confirm/, 3]],
     appelFonds: [[/appel de fonds|decompte/, 12], [/montant a (virer|verser|regler)|somme a (virer|verser|regler)|combien/, 6]],
@@ -1949,7 +1962,8 @@
     rib: { titre: 'Demander le RIB et la pièce d’identité', verbe: 'Envoyer', categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature' },
     confirmationRdv: { titre: 'Confirmer le rendez-vous', verbe: 'Confirmer', categorie: 'rendezVousSignature', categorieLabel: 'Relation client' },
     relanceFonds: { titre: 'Relancer pour les fonds', verbe: 'Relancer', categorie: 'appelFonds', categorieLabel: 'Réception des fonds' },
-    relanceDecompteConfrere: { titre: 'Demander son décompte au confrère', verbe: 'Demander', categorie: 'appelFonds', categorieLabel: 'Appel de fonds' }
+    relanceDecompteConfrere: { titre: 'Demander son décompte au confrère', verbe: 'Demander', categorie: 'appelFonds', categorieLabel: 'Appel de fonds' },
+    relanceTitreConfrere: { titre: 'Demander la copie du titre au confrère', verbe: 'Demander', categorie: 'neutre', categorieLabel: 'Titre de propriété' }
   };
 
   // Date du dernier envoi d'un email : le champ daté du dossier, à défaut la dernière ligne

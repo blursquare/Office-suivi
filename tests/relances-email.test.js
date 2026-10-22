@@ -44,7 +44,7 @@ test('construireEmailRelanceRib reprend mot pour mot le texte de l’étude, san
 
 test('MODELES_EMAIL_RELANCE couvre exactement les dix motifs (relation client de la page Agenda, relance des fonds, décompte du confrère)', () => {
   const app = chargerApplication();
-  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'confirmationRdv,fonds,pret,projet,provision,relanceDecompteConfrere,relanceFonds,rib,ventePrealable');
+  assert.equal(Object.keys(app.MODELES_EMAIL_RELANCE).sort().join(','), 'confirmationRdv,fonds,pret,projet,provision,relanceDecompteConfrere,relanceFonds,relanceTitreConfrere,rib,ventePrealable');
 });
 
 test('relance de la vente préalable : au client, ou au confrère quand un autre office représente l’acquéreur', () => {
@@ -730,4 +730,22 @@ test('décompte du confrère (étude 06/10) : demandé à J-10 (07/10) quand un 
   assert.doesNotMatch(app.renderEchangesDossier(base({ rendezVousSignature: rdvProche })), /Demander son décompte au confrère/);
   assert.match(app.renderFondsDossier(base({ rendezVousSignature: rdvProche, relanceDecompteConfrerePour: rdvProche, relanceDecompteConfrereLe: '2026-10-06' })), /Envoyé le 6 octobre 2026/);
   assert.doesNotMatch(app.renderFondsDossier(base({ rendezVousSignature: rdvProche, emailConfrereVendeur: '' })), /Demander son décompte au confrère/);
+});
+
+test('copie du titre du confrère (étude 22/10) : demandée 48 h après l’ouverture d’une vente en participation, une seule fois', () => {
+  const app = chargerApplication();
+  const base = (extra) => dossierBase(app, Object.assign({ sansPret: true, roleNotaire: 'participant', historique: [{ texte: 'Dossier créé', date: '2026-10-10T09:00:00' }],
+    notaireVendeur: 'Maître Paul DUPUIS (Tours)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)', emailConfrereVendeur: 'dupuis@notaires.fr', emailAcquereur: 'acq@exemple.fr' }, extra));
+  assert.equal(app.relanceTitreConfrereDue(base({}), '2026-10-11'), false, '24 h : trop tôt');
+  assert.equal(app.relanceTitreConfrereDue(base({}), '2026-10-12'), true, '48 h');
+  assert.equal(app.relanceTitreConfrereDue(base({ pieces: { titrePropriete: 'recue' } }), '2026-10-12'), false, 'titre reçu');
+  assert.equal(app.relanceTitreConfrereDue(base({ relanceTitreConfrereLe: '2026-10-12' }), '2026-10-20'), false, 'déjà demandé');
+  assert.equal(app.relanceTitreConfrereDue(base({ roleNotaire: 'instrumentaire' }), '2026-10-12'), false, 'pas en participation');
+  assert.equal(app.relanceTitreConfrereDue(base({ notaireVendeur: 'Maître Sophie GOSSART (BLOIS)' }), '2026-10-12'), false, 'le vendeur est notre client');
+  const t = app.actionsDuJour([base({})], '2026-10-12').actions.find(a => a.type === 'relanceTitreConfrere');
+  assert.ok(t);
+  assert.equal(t.geste.motif, 'relanceTitreConfrere');
+  const b = app.brouillonAction({ dossier: base({}), geste: { type: 'email', motif: 'relanceTitreConfrere' } });
+  assert.equal(b.a, 'dupuis@notaires.fr');
+  assert.equal(String(b.corps).replace(/[’']/g, "'"), ['Mon Cher Maître,', 'Pouvez-vous nous envoyer la copie du titre de propriété s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n'));
 });

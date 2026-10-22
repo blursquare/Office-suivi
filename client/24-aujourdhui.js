@@ -116,6 +116,20 @@
     return j !== null && j >= 0 && j <= JOURS_RELANCE_DECOMPTE_CONFRERE;
   }
 
+  // Pure : vente en participation, l'office du vendeur est un confrère — sa copie du titre de propriété est à réclamer quand il ne l'a
+  // pas envoyée 48 h après l'ouverture du dossier (étude 22/10 : « si le notaire vendeur ne nous a pas envoyé la copie sous 48 h, faire un
+  // email de relance »). Une seule demande (relanceTitreConfrereLe) ; « Déjà reçu » la clôt ; plus rien une fois le titre reçu ou l'acte signé.
+  var HEURES_RELANCE_TITRE_CONFRERE = 48;
+  function relanceTitreConfrereDue(d, aujourdhuiIso) {
+    if (!d || d.archive || estSuccession(d) || d.roleNotaire !== 'participant' || !confrereRepresenteVendeur(d)) return false;
+    if (d.relanceTitreConfrereLe || (d.pieces || {}).titrePropriete === 'recue') return false;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    if (dateSignatureDossier(d, auj)) return false;
+    const ouvert = dateOuvertureDossier(d);
+    const j = ouvert ? ecartJours(ouvert, auj) : null;
+    return j !== null && j * 24 >= HEURES_RELANCE_TITRE_CONFRERE;
+  }
+
   // Pure : la confirmation de réception des fonds a été envoyée pour le rendez-vous actuel — elle en rappelle
   // la date et le lieu, donc confirmation et rappel du rendez-vous sont faits (étude, 03/10). Un dossier dont
   // la confirmation est antérieure au suivi de la date (receptionFondsPourRdv absent) est compté pour son rendez-vous actuel.
@@ -158,6 +172,20 @@
             aVenir.push({ dossier: d, titre: 'Offre de prêt relancée', detail: `Relancée ${quandJour(d.derniereRelanceAuto, aujourdhuiIso)} · prochaine relance ${quandJour(prochaine, aujourdhuiIso)}`, iso: prochaine });
           }
         }
+      }
+
+      // 1 ter. Participation : copie du titre de propriété à réclamer au confrère du vendeur (48 h après l'ouverture, étude 22/10).
+      if (relanceTitreConfrereDue(d, aujourdhuiIso)) {
+        const emailConfrere = emailConfrereVendeurDossier(d);
+        ajouter({
+          type: 'relanceTitreConfrere', categorie: 'neutre', categorieLabel: 'Titre de propriété',
+          titre: 'Demander la copie du titre au confrère',
+          contexte: `Le vendeur est représenté par ${d.notaireVendeur} : sa copie du titre de propriété n’est pas arrivée.${emailConfrere ? '' : ' Email du confrère non renseigné.'}`,
+          jours: null, gravite: 'vigilance',
+          geste: emailConfrere ? { type: 'email', motif: 'relanceTitreConfrere' } : { type: 'fiche' },
+          bouton: emailConfrere ? 'Ouvrir la demande' : 'Ouvrir la fiche',
+          second: { type: 'marquer', champ: 'relanceTitreConfrere', libelle: 'Déjà reçu' }
+        });
       }
 
       // 1 bis. Hypothèque : acte de prêt à faire rédiger et DOD à envoyer (participation), DOD à réclamer au confrère (étude 20/10).
@@ -782,7 +810,7 @@
   var CHAMP_FAIT_MAIN_PAR_TYPE = {
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', questionnaireSuccession: 'questionnaireSuccessionEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
-    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe',
+    ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe', relanceTitreConfrere: 'relanceTitreConfrereLe',
     copieActe: 'copieActeEnvoyeeLe', actePret: 'actePretLe', dodEnvoi: 'dodEnvoyeeLe', dodAttendue: 'dodRecueLe'
   };
 
