@@ -95,7 +95,7 @@ function assainirDelaisRappels(brut) {
   for (const e of ECHEANCES_DELAIS_RAPPELS) {
     const liste = brut[e.cle];
     if (!Array.isArray(liste)) continue;
-    const jours = [...new Set(liste.map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x <= 365))]
+    const jours = [...new Set(liste.filter((x) => typeof x === 'number' || (typeof x === 'string' && /^\d+$/.test(x))).map((x) => Number(x)).filter((x) => Number.isInteger(x) && x >= 0 && x <= 365))]
       .sort((a, b) => b - a).slice(0, 5);
     sortie[e.cle] = jours;
   }

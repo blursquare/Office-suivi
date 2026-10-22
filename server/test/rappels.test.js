@@ -764,3 +764,8 @@ test('les délais réglés par l étude remplacent les seuils d origine', () => 
   assert.deepEqual(seuilsPourType('rendezVousSignature', delais), [25, 15], 'type non réglé : seuil d origine');
   assert.deepEqual(assainirDelaisRappels(null), {});
 });
+
+test('délais : null, chaîne vide et valeurs hors bornes ne deviennent jamais « le jour même » ; projetSuccession part le jour de son échéance', () => {
+  assert.deepEqual(assainirDelaisRappels({ pret: [null, '', [], 366, -2, '7'] }), { pret: [7] });
+  assert.deepEqual(seuilsPourType('projetSuccession'), [0]);
+});

@@ -36,6 +36,7 @@ on:
 
 permissions:
   contents: write # nécessaire pour créer une release et y attacher l'exécutable
+  checks: read # lire le contrôle « verifier » du même commit (étape « Déjà vérifié ? »)
 
 jobs:
   build:
