@@ -608,7 +608,8 @@
       // Pas dans le dossier du client : le dossier FCDDV du commun (étude 22/10), lu seul une fois par fichier.
       fcddvCommunDuDossier(d).then(c => {
         const actuel = dossiers.find(x => x.id === d.id);
-        if (!c || !actuel || (((actuel.succession || {}).fcddv || {}).fichier === c.affiche) || lecturesFcddvFaites.has(d.id + '|' + c.affiche)) return;
+        if (!c || !actuel) return;
+        if ((((actuel.succession || {}).fcddv || {}).fichier === c.affiche) || lecturesFcddvFaites.has(d.id + '|' + c.affiche)) { render(); return; }   // déjà lu : les boutons Relire / Ouvrir apparaissent
         lireFcddvDossier(d.id, true);
       }).catch(() => {});
       return;

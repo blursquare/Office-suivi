@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.316.1';
+  const VERSION_APP = '0.316.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.316.2', date: '2026-10-22 20:58', resume: "Succession : quand le FCDDV révèle une inscription (testament, donation entre époux…), elle est mise en avant dans l'en-tête de la fiche comme une inscription hypothécaire (pastille « FCDDV : … »)." },
     { version: '0.316.1', date: '2026-10-22 20:44', resume: "Tableau de bord : la liste des tâches « Aujourd'hui » passe en tête, avant « Demander à CLAIRE ». La disposition de chacun est ramenée une fois à celle par défaut ; Personnaliser permet de la réarranger." },
     { version: '0.316.0', date: '2026-10-22 20:37', resume: "Successions : la réponse du FCDDV qui n'est pas dans le dossier du client est cherchée à la racine du commun, dans le dossier FCDDV et son sous-dossier INTERROGATION (fichier du défunt reconnu par son nom ET son prénom)." },
     { version: '0.315.6', date: '2026-10-22 18:44', resume: "Successions : les actes « ACT Déclaration Succ … » et « ACT Attestation Succ … » d'Authentic sont rapprochés de « Déclaration de succession » et « Attestation immobilière » (le statut d'Authentic s'affiche à côté, plus de doublon) ; un rendez-vous de succession montre AF (appel de fonds : frais d'acte versés à l'office), D (décompte) et P ; avec un conjoint survivant l'appel de fonds est dû, avec les seuls héritiers il reste facultatif." },

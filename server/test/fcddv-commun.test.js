@@ -50,6 +50,8 @@ test('fichier : seulement la racine du FCDDV et INTERROGATION', () => {
   assert.equal(fc.cheminFcddvPermis('Interrogation/2026/x.pdf'), true);
   assert.equal(fc.cheminFcddvPermis('AUTRE/Jamais lu LEROY.pdf'), false);
   assert.equal(fc.cheminFcddvPermis(''), false);
+  assert.equal(fc.cheminFcddvPermis('Interrogation/../AUTRE/x.pdf'), false, 'jamais de « .. »');
+  assert.equal(fc.cheminFcddvPermis('Interrogation\\..\\AUTRE\\x.pdf'), false);
 });
 
 test('routes : liste puis fichier, jamais hors du dossier', async () => {

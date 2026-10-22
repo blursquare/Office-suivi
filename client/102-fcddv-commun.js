@@ -80,3 +80,15 @@ async function ouvrirPdfFcddvCommun(chemin) {
   if (!reponse.ok) throw new Error(`Lecture impossible (${reponse.status})`);
   return pdfjsLib.getDocument({ isEvalSupported: false, data: await reponse.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
 }
+
+/**
+ * Pure : la pastille d'en-tête de la fiche quand le FCDDV a révélé des inscriptions (testament, donation entre époux…) — mise en avant comme une
+ * inscription hypothécaire (étude 22/10), même style que « Hypothèque légale » ; '' sans inscription ou hors succession. @param {any} d
+ */
+function pastilleFcddvEntete(d) {
+  const f = d && typeof estSuccession === 'function' && estSuccession(d) && d.succession && d.succession.fcddv;
+  const inscriptions = f && Array.isArray(f.inscriptions) ? f.inscriptions.filter((i) => i && i.nature) : [];
+  if (!inscriptions.length) return '';
+  const detail = inscriptions.map((i) => [i.nature, i.notaire ? 'chez Maître ' + i.notaire : ''].filter(Boolean).join(' ')).join(' ; ');
+  return `<span class="fiche-entete-hypotheque" title="${escapeAttr('FCDDV : ' + detail)}"><span class="garantie-pastille garantie-forte">${icone('key')}${escapeHtml(inscriptions.length > 1 ? `FCDDV : ${inscriptions.length} inscriptions` : 'FCDDV : ' + inscriptions[0].nature)}</span></span>`;
+}

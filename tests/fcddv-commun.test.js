@@ -25,3 +25,13 @@ test('FCDDV du commun : les accents, la casse et les noms composés ne gênent p
   assert.ok(r);
   assert.equal(app.fichierFcddvCommunDuDefunt([f('fcddv FONTAINE Léa.pdf')], { nom: 'DE LA FONTAINE', prenoms: 'Léa' }), null, 'tous les mots du nom');
 });
+
+test('pastille d’en-tête : une inscription du FCDDV est mise en avant, rien sans inscription ni hors succession (22/10)', () => {
+  const app = chargerApplication();
+  const succ = (inscriptions) => ({ id: 's', nom: 'DURAND', typeAffaire: 'succession', succession: { fcddv: { luLe: '2026-10-22', inscriptions } } });
+  const une = app.pastilleFcddvEntete(succ([{ nature: 'Testament olographe', notaire: 'Paul MARTIN' }]));
+  assert.ok(une.includes('garantie-forte') && une.includes('FCDDV : Testament olographe') && une.includes('chez Maître Paul MARTIN'), une);
+  assert.ok(app.pastilleFcddvEntete(succ([{ nature: 'Testament olographe' }, { nature: 'Donation entre époux' }])).includes('2 inscriptions'));
+  assert.equal(app.pastilleFcddvEntete(succ([])), '');
+  assert.equal(app.pastilleFcddvEntete({ id: 'v', nom: 'VTE X', succession: { fcddv: { inscriptions: [{ nature: 'Testament' }] } } }), '', 'jamais pour une vente');
+});

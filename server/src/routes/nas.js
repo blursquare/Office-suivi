@@ -216,7 +216,8 @@ function creerRouteurNas(config, depot) {
   routeur.get('/nas/fcddv/fichier', routeAsync(async (req, res) => {
     const dossier = await trouverDossierFcddv(config);
     if (!dossier) { res.status(404).json({ erreur: 'Dossier FCDDV introuvable (renseigner « nasFcddv » dans config.json).' }); return; }
-    const cible = cheminFcddvPermis(String(req.query.chemin || '')) ? await resoudreFichierFcddv(dossier, req.query.chemin) : null;
+    const demande = String(req.query.chemin || '').replace(/\\/g, '/');
+    const cible = cheminFcddvPermis(demande) ? await resoudreFichierFcddv(dossier, demande) : null;
     if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF de la racine du dossier FCDDV et de INTERROGATION sont servis).' }); return; }
     if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans le dossier FCDDV.' }); return; }
     res.setHeader('Content-Type', 'application/pdf');

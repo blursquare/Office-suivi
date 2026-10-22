@@ -93,6 +93,7 @@ async function fcddvCommun(config, fsImpl = fsp, maintenant = Date.now()) {
 /** Pure : le chemin demandé est-il à la racine du dossier FCDDV ou dans son sous-dossier INTERROGATION ? (/fichier ne sert pas le reste.) @param {string} chemin */
 function cheminFcddvPermis(chemin) {
   const segments = String(chemin || '').replace(/\\/g, '/').split('/').filter(Boolean);
+  if (segments.some((x) => x === '..' || x === '.')) return false;
   return segments.length === 1 || (segments.length > 1 && /^interrogations?$/.test(nomSimple(segments[0])));
 }
 function oublierCacheFcddv() { cache = null; }
