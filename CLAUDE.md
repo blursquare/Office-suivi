@@ -97,6 +97,7 @@ server/                              Serveur (son propre package.json ; le packa
                                      fiche de la mairie (annuaire du service public), corrections de l'étude ; poste : client/69-depot-dia.js
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique
+  src/fcddvCommun.js, routes/nas.js  Réponses du FCDDV (22/10) : dossier « FCDDV » du commun (`nasFcddv` de config.json, sinon partage `\\serveur\FCDDV`, sinon à côté des dossiers clients) et son sous-dossier INTERROGATION, lecture seule confinée ; poste : client/102 (défunt reconnu par nom ET prénom)
   src/scans.js, routes/scans.js      Classeur des scans du copieur (dossier « Scan » → dossiers clients)
   src/agendaOffice.js, agendaWatch.js  Lecture de l'agenda de l'office (EWS, toutes les 15 min)
   src/exchange/ews.js                Écriture dans l'agenda Outlook (EWS/NTLM)

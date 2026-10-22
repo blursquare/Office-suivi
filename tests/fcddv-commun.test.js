@@ -16,6 +16,7 @@ test('FCDDV du commun : nom de famille ET prénom dans le nom du fichier, le plu
   assert.equal(app.fichierFcddvCommunDuDefunt(fichiers, { nom: 'DURAND', prenoms: 'Jeanne' }), null, 'jamais le FCDDV d’un homonyme');
   assert.equal(app.fichierFcddvCommunDuDefunt(fichiers, { nom: 'LEROY', prenoms: 'Marie' }), null);
   assert.equal(app.fichierFcddvCommunDuDefunt(fichiers, { nom: '', prenoms: 'Marie' }), null);
+  assert.equal(app.fichierFcddvCommunDuDefunt(fichiers, { nom: 'DURAND', prenoms: '' }), null, 'sans prénom connu : rien (jamais un homonyme)');
 });
 
 test('FCDDV du commun : les accents, la casse et les noms composés ne gênent pas', () => {

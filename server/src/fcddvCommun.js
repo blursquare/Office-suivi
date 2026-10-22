@@ -53,8 +53,9 @@ async function trouverDossierFcddv(config, fsImpl = fsp) {
 async function listerFcddv(racine, fsImpl = fsp) {
   /** @type {Array<{ chemin: string, nom: string, taille: number, modifie: string, interrogation: boolean }>} */
   const fichiers = [];
+  let tronque = false;
   const file = [{ chemin: racine, profondeur: 0, interrogation: false }];
-  while (file.length && fichiers.length < MAX_FICHIERS) {
+  while (file.length && !tronque) {
     const courant = /** @type {any} */ (file.shift());
     let entrees;
     try { entrees = await fsImpl.readdir(courant.chemin, { withFileTypes: true }); } catch (_) { continue; }
@@ -64,14 +65,15 @@ async function listerFcddv(racine, fsImpl = fsp) {
         // Seul le sous-dossier « INTERROGATION » de la racine est parcouru (et ses sous-dossiers) : pas tout le FCDDV.
         if (courant.interrogation && courant.profondeur < PROFONDEUR_INTERROGATION && !/^[.#@$]/.test(e.name)) file.push({ chemin: absolu, profondeur: courant.profondeur + 1, interrogation: true });
         else if (!courant.interrogation && courant.profondeur === 0 && /^interrogations?$/.test(nomSimple(e.name))) file.push({ chemin: absolu, profondeur: 1, interrogation: true });
-      } else if (/\.pdf$/i.test(e.name) && fichiers.length < MAX_FICHIERS) {
+      } else if (/\.pdf$/i.test(e.name)) {
+        if (fichiers.length >= MAX_FICHIERS) { tronque = true; break; }
         let st = null;
         try { st = await fsImpl.stat(absolu); } catch (_) { continue; }
         fichiers.push({ chemin: path.relative(racine, absolu).split(path.sep).join('/'), nom: e.name, taille: st.size, modifie: new Date(st.mtimeMs).toISOString(), interrogation: courant.interrogation });
       }
     }
   }
-  return fichiers;
+  return Object.assign(fichiers, { tronque });
 }
 
 // Liste gardée une minute : plusieurs fiches de succession ouvertes de suite ne reparcourent pas le dossier.
@@ -79,17 +81,24 @@ async function listerFcddv(racine, fsImpl = fsp) {
 let cache = null;
 /** @param {any} config @param {any} [fsImpl] @param {number} [maintenant] */
 async function fcddvCommun(config, fsImpl = fsp, maintenant = Date.now()) {
+  // Liste et emplacement du dossier gardés une minute (audit 22/10 : la recherche du dossier sur le réseau ne se refait pas à chaque requête).
+  if (cache && maintenant - cache.le < DUREE_CACHE_MS) return { trouve: true, nom: path.basename(cache.dossier), fichiers: cache.fichiers, tronque: !!cache.fichiers.tronque };
   const dossier = await trouverDossierFcddv(config, fsImpl);
   if (!dossier) return { trouve: false, fichiers: [] };
-  if (cache && cache.dossier === dossier && maintenant - cache.le < DUREE_CACHE_MS) return { trouve: true, nom: path.basename(dossier), fichiers: cache.fichiers };
   const fichiers = await listerFcddv(dossier, fsImpl);
   cache = { dossier, le: maintenant, fichiers };
-  return { trouve: true, nom: path.basename(dossier), fichiers };
+  return { trouve: true, nom: path.basename(dossier), fichiers, tronque: !!fichiers.tronque };
+}
+
+/** Pure : le chemin demandé est-il à la racine du dossier FCDDV ou dans son sous-dossier INTERROGATION ? (/fichier ne sert pas le reste.) @param {string} chemin */
+function cheminFcddvPermis(chemin) {
+  const segments = String(chemin || '').replace(/\\/g, '/').split('/').filter(Boolean);
+  return segments.length === 1 || (segments.length > 1 && /^interrogations?$/.test(nomSimple(segments[0])));
 }
 function oublierCacheFcddv() { cache = null; }
 
 module.exports = {
-  RE_NOM_DOSSIER_FCDDV, partagesFcddvCandidats, trouverDossierFcddv, listerFcddv, fcddvCommun, oublierCacheFcddv,
+  RE_NOM_DOSSIER_FCDDV, partagesFcddvCandidats, trouverDossierFcddv, listerFcddv, fcddvCommun, oublierCacheFcddv, cheminFcddvPermis,
   // Même confinement que les fausses minutes (chemin relatif au dossier, liens résolus, PDF seulement).
   resoudreFichierFcddv: resoudreFichierFaussesMinutes
 };

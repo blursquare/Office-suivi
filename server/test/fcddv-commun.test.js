@@ -45,6 +45,13 @@ test('fichier : confiné au dossier FCDDV, PDF seulement', async () => {
   assert.equal(await fc.resoudreFichierFcddv(fcddv, 'notes.txt'), null);
 });
 
+test('fichier : seulement la racine du FCDDV et INTERROGATION', () => {
+  assert.equal(fc.cheminFcddvPermis('FCDDV DURAND Marie.pdf'), true);
+  assert.equal(fc.cheminFcddvPermis('Interrogation/2026/x.pdf'), true);
+  assert.equal(fc.cheminFcddvPermis('AUTRE/Jamais lu LEROY.pdf'), false);
+  assert.equal(fc.cheminFcddvPermis(''), false);
+});
+
 test('routes : liste puis fichier, jamais hors du dossier', async () => {
   const express = require('express');
   const { creerRouteurNas } = require('../src/routes/nas');
@@ -64,6 +71,8 @@ test('routes : liste puis fichier, jamais hors du dossier', async () => {
     assert.equal(await ok.text(), '%PDF-1.4 interro');
     const ko = await fetch(b + '/api/nas/fcddv/fichier?chemin=' + encodeURIComponent('../secret.pdf'));
     assert.equal(ko.status, 400);
+    const autre = await fetch(b + '/api/nas/fcddv/fichier?chemin=' + encodeURIComponent('AUTRE/Jamais lu LEROY.pdf'));
+    assert.equal(autre.status, 400, 'hors INTERROGATION');
   } finally {
     s.close();
   }

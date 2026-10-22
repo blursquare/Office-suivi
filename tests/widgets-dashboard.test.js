@@ -13,8 +13,8 @@ const ids = (dispo) => dispo.map(w => w.id).join(',');
 
 test('sans préférence : tous les widgets, dans l’ordre et aux tailles par défaut', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(d), 'assistant,aujourdhui,agenda,nouveautes,portefeuille,pieces,avancement,activite,statistiques');
-  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'grand1,moyen2,moyen1,petit1,petit1,petit1,moyen2,moyen2,grand1');
+  assert.equal(ids(d), 'aujourdhui,assistant,agenda,nouveautes,portefeuille,pieces,avancement,activite,statistiques');
+  assert.equal(d.map(w => w.taille + w.hauteur).join(','), 'moyen2,grand1,moyen1,petit1,petit1,petit1,moyen2,moyen2,grand1');
   assert.equal(d.filter(w => w.masque).map(w => w.id).join(','), 'portefeuille', 'Dossiers ouverts retiré par défaut : Nouveautés le remplace (étude 18/10)');
 });
 
@@ -36,7 +36,7 @@ test('préférence partielle ou abîmée : ordre gardé, taille ramenée à une 
 
 test('déplacer : à une position donnée, bornée', () => {
   const d = app.dispositionWidgetsDepuis(null);
-  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,assistant,aujourdhui,agenda,nouveautes,portefeuille,avancement,activite,statistiques');
+  assert.equal(ids(app.deplacerWidgetDans(d, 'pieces', 0)), 'pieces,aujourdhui,assistant,agenda,nouveautes,portefeuille,avancement,activite,statistiques');
   assert.equal(ids(app.deplacerWidgetDans(d, 'aujourdhui', 99)), 'assistant,agenda,nouveautes,portefeuille,pieces,avancement,activite,statistiques,aujourdhui');
   assert.equal(ids(app.deplacerWidgetDans(d, 'inconnu', 0)), ids(d));
 });
@@ -45,8 +45,8 @@ test('flèches : un pas parmi les widgets visibles, les masqués sont sautés', 
   let d = app.dispositionWidgetsDepuis(null);
   d = d.map(w => w.id === 'agenda' ? Object.assign({}, w, { masque: true }) : w);
   // nouveautes avance d'un cran « visible » : il passe devant aujourdhui (agenda masqué est sauté).
-  assert.equal(ids(app.decalerWidgetDans(d, 'nouveautes', -1)), 'assistant,nouveautes,aujourdhui,agenda,portefeuille,pieces,avancement,activite,statistiques');
-  assert.equal(ids(app.decalerWidgetDans(d, 'assistant', -1)), ids(d), 'déjà premier');
+  assert.equal(ids(app.decalerWidgetDans(d, 'nouveautes', -1)), 'aujourdhui,nouveautes,assistant,agenda,portefeuille,pieces,avancement,activite,statistiques');
+  assert.equal(ids(app.decalerWidgetDans(d, 'aujourdhui', -1)), ids(d), 'déjà premier');
   assert.equal(ids(app.decalerWidgetDans(d, 'statistiques', 1)), ids(d), 'déjà dernier');
 });
 
@@ -61,7 +61,7 @@ test('glisser-déposer : la disposition suit l’ordre du DOM, tailles et masqua
 test('« Demander à CLAIRE » : en tête par défaut, jamais déplacé chez qui l’a déjà rangé, seul s’il est seul', () => {
   const d = app.dispositionWidgetsDepuis([{ id: 'agenda', taille: 'moyen', hauteur: 1 }, { id: 'assistant', taille: 'petit', hauteur: 1 }]);
   assert.equal(ids(d).split(',').slice(0, 2).join(','), 'agenda,assistant');
-  assert.equal(ids(app.dispositionWidgetsDepuis([])).split(',')[0], 'assistant');
+  assert.equal(ids(app.dispositionWidgetsDepuis([])).split(',').slice(0, 2).join(','), 'aujourdhui,assistant', 'les tâches du jour d’abord (étude 22/10)');
 });
 
 test('toutes les cartes existent en petit, moyen et grand', () => {

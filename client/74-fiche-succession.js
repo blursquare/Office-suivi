@@ -559,11 +559,13 @@
     // Le dossier du client d'abord ; à défaut, le dossier FCDDV (et INTERROGATION) à la racine du commun (étude 22/10, client/102).
     let chemin = fichierFcddv(d);
     let communChemin = '';
+    let communPlusieurs = 0;
     if (!chemin) {
       lecturesFcddvEnCours.add(dossierId);
-      const c = await fcddvCommunDuDossier(d);
-      lecturesFcddvEnCours.delete(dossierId);
-      if (c) { chemin = c.affiche; communChemin = c.chemin; }
+      try {
+        const c = await fcddvCommunDuDossier(d);
+        if (c) { chemin = c.affiche; communChemin = c.chemin; communPlusieurs = c.plusieurs; }
+      } finally { lecturesFcddvEnCours.delete(dossierId); }
     }
     if (!chemin) { if (!silencieux) afficherToast('Réponse du FCDDV pas encore trouvée dans le dossier du NAS ni dans le dossier FCDDV du commun (nom du défunt dans le nom du fichier).'); return; }
     if (lecturesFcddvEnCours.has(dossierId)) return;
@@ -582,6 +584,7 @@
         actuel.succession = Object.assign({}, actuel.succession, { fcddv: Object.assign({}, (actuel.succession || {}).fcddv, { luLe: new Date().toISOString(), fichier: chemin, illisible: true }) });
       } else {
         const reponses = appliquerFcddvSurDossier(actuel, analyse, chemin, new Date().toISOString());
+        if (communPlusieurs > 1) ajouterHistorique(actuel, `FCDDV : ${communPlusieurs} fichiers au nom du défunt dans le dossier FCDDV du commun — le plus récent a été lu (à vérifier)`);
         noterVerificationPoste('fcddv-lu', { detail: analyse.aucune ? 'aucune inscription' : `${analyse.inscriptions.length} inscription(s)` });
         ajouterHistorique(actuel, `FCDDV lu : ${analyse.aucune ? 'aucune inscription' : analyse.inscriptions.map(i => `${i.nature} chez Maître ${i.notaire}`).join(' ; ')}${reponses.length ? ` (${reponses.join(', ')})` : ''}`, { auto: silencieux });
         if (!silencieux) afficherToast(analyse.aucune ? 'FCDDV : aucune inscription.' : `FCDDV : ${analyse.inscriptions.length} inscription${analyse.inscriptions.length > 1 ? 's' : ''}.`);
@@ -678,13 +681,16 @@
   function renderFcddvSuccession(d) {
     const idJs = escapeOnclickArg(d.id);
     const f = (d.succession || {}).fcddv;
-    const chemin = fichierFcddv(d);
+    // Réponse du dossier du client, sinon du dossier FCDDV du commun (étude 22/10, client/102) : mêmes boutons Lire / Relire / Ouvrir.
+    const cheminClient = fichierFcddv(d);
+    const communConnu = cheminClient ? null : fcddvCommunConnuDuDossier(d);
+    const chemin = cheminClient || (communConnu ? communConnu.affiche : '');
     const enCours = lecturesFcddvEnCours.has(d.id);
     const bouton = chemin ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireFcddvDossier('${idJs}', false)"${enCours ? ' disabled' : ''}>${enCours ? 'Lecture…' : (f && f.luLe ? 'Relire' : 'Lire la réponse')}</wa-button>`
       // Ouvrir la réponse elle-même (étude 20/10 : « un bouton pour ouvrir le document ») : même geste que les pièces du NAS.
-      + `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirFichierNas('${escapeOnclickArg(chemin)}')" title="Ouvrir la réponse du FCDDV trouvée sur le NAS">${icone('file-text')} Ouvrir</wa-button>` : '';
+      + `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${communConnu ? `ouvrirFcddvCommun('${escapeOnclickArg(communConnu.chemin)}')` : `ouvrirFichierNas('${escapeOnclickArg(chemin)}')`}" title="Ouvrir la réponse du FCDDV trouvée sur le NAS">${icone('file-text')} Ouvrir</wa-button>` : '';
     let etat;
-    if (!f || !f.luLe) etat = `<span class="prop-texte vide">${chemin ? 'Réponse trouvée sur le NAS, pas encore lue' : 'Réponse pas encore trouvée sur le NAS'}</span>`;
+    if (!f || !f.luLe) etat = `<span class="prop-texte vide">${chemin ? (communConnu ? 'Réponse trouvée dans le dossier FCDDV du commun, pas encore lue' : 'Réponse trouvée sur le NAS, pas encore lue') : 'Réponse pas encore trouvée sur le NAS'}</span>`;
     else if (f.aucune) etat = `<span class="dot-label dl-success"><span class="dot"></span>Aucune inscription</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;
     else if (f.illisible && !(f.inscriptions || []).length) etat = '<span class="dot-label dl-pret"><span class="dot"></span>Rien de reconnu dans la réponse</span> <span class="hint">aucune inscription, ou à saisir ci-dessous</span>';
     else etat = `<span class="dot-label dl-urgent"><span class="dot"></span>${f.inscriptions.length} inscription${f.inscriptions.length > 1 ? 's' : ''}</span> <span class="hint">lu le ${escapeHtml(formatDateFr(String(f.luLe).slice(0, 10)))}</span>`;

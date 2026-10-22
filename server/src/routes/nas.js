@@ -30,7 +30,7 @@ function envoyerFlux(res, cible) {
   flux.pipe(res);
 }
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
-const { fcddvCommun, trouverDossierFcddv, resoudreFichierFcddv } = require('../fcddvCommun');
+const { fcddvCommun, trouverDossierFcddv, resoudreFichierFcddv, cheminFcddvPermis } = require('../fcddvCommun');
 const { copierDansDossierClient } = require('../scans');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
@@ -215,8 +215,9 @@ function creerRouteurNas(config, depot) {
   }));
   routeur.get('/nas/fcddv/fichier', routeAsync(async (req, res) => {
     const dossier = await trouverDossierFcddv(config);
-    const cible = dossier ? await resoudreFichierFcddv(dossier, req.query.chemin) : null;
-    if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF du dossier FCDDV sont servis).' }); return; }
+    if (!dossier) { res.status(404).json({ erreur: 'Dossier FCDDV introuvable (renseigner « nasFcddv » dans config.json).' }); return; }
+    const cible = cheminFcddvPermis(String(req.query.chemin || '')) ? await resoudreFichierFcddv(dossier, req.query.chemin) : null;
+    if (!cible) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF de la racine du dossier FCDDV et de INTERROGATION sont servis).' }); return; }
     if (!(await existe(cible))) { res.status(404).json({ erreur: 'Fichier introuvable dans le dossier FCDDV.' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);
