@@ -120,6 +120,8 @@
   // pas envoyée 48 h après l'ouverture du dossier (étude 22/10 : « si le notaire vendeur ne nous a pas envoyé la copie sous 48 h, faire un
   // email de relance »). Une seule demande (relanceTitreConfrereLe) ; « Déjà reçu » la clôt ; plus rien une fois le titre reçu ou l'acte signé.
   var HEURES_RELANCE_TITRE_CONFRERE = 48;
+  var JOURS_MAX_RELANCE_TITRE_CONFRERE = 15;
+  var DEBUT_RELANCE_TITRE_CONFRERE = '2026-10-22';
   function relanceTitreConfrereDue(d, aujourdhuiIso) {
     if (!d || d.archive || estSuccession(d) || d.roleNotaire !== 'participant' || !confrereRepresenteVendeur(d)) return false;
     if (d.relanceTitreConfrereLe || (d.pieces || {}).titrePropriete === 'recue') return false;
@@ -127,6 +129,8 @@
     if (dateSignatureDossier(d, auj)) return false;
     const ouvert = dateOuvertureDossier(d);
     const j = ouvert ? ecartJours(ouvert, auj) : null;
+    // Seulement les dossiers ouverts depuis la mise en service (22/10) et dans les 15 jours : jamais une avalanche de relances sur les dossiers en cours d'avant.
+    if (ouvert < DEBUT_RELANCE_TITRE_CONFRERE || j > JOURS_MAX_RELANCE_TITRE_CONFRERE) return false;
     return j !== null && j * 24 >= HEURES_RELANCE_TITRE_CONFRERE;
   }
 
