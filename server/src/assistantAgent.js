@@ -996,9 +996,21 @@ function sansCodesInconnus(v) {
   return v;
 }
 
+/** `action_dossier` n'est plus strict : les énumérations du schéma (action, champ…) sont rétablies ici — une valeur hors liste devient '' (le poste répond « action inconnue »). Pure. @param {any} e */
+function entreeActionDossierValidee(e) {
+  const def = OUTILS_AGENT.find((t) => t.name === 'action_dossier');
+  const props = (def && def.input_schema && def.input_schema.properties) || {};
+  const sortie = { ...e };
+  for (const [k, p] of Object.entries(props)) {
+    if (p && Array.isArray(p.enum) && k in sortie && !p.enum.includes(sortie[k])) sortie[k] = '';
+  }
+  return sortie;
+}
+
 function entreeOutilPourPoste(nom, entree) {
   // Les outils ajoutés le 21/10 écrivent aussi (note d'un lot, nom d'un fichier, titre d'un rendez-vous) : même garde, récursive.
   // (faire_geste a son propre nettoyage plus bas : non strict depuis le 22/10, ses champs manquants sont rétablis vides.)
+  if (nom === 'action_dossier') return entreeActionDossierValidee(sansCodesInconnus(entree || {}));
   if (OUTILS_SANS_STRICT.includes(nom) && nom !== 'faire_geste') return sansCodesInconnus(entree || {});
   // Un code que l'IA a inventé (« [NOM9] » inconnu) ne finit pas dans le document Word.
   if (nom === 'rediger_document' || nom === 'demander_collaborateur') return Object.fromEntries(Object.entries(entree || {})

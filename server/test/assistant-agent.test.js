@@ -750,3 +750,10 @@ test('erreur 400 de Claude : le détail de l\'API est dit (21/10)', () => {
   const m = messageErreurAgent({ status: 400, error: { error: { message: 'tools.7.custom.input_schema: invalid' } } });
   assert.match(m, /requête refusée par Claude \(tools\.7\.custom\.input_schema: invalid\)/);
 });
+
+test('action_dossier non strict : une valeur hors énumération (champ « constructor ») est vidée (22/10)', () => {
+  const e = entreeOutilPourPoste('action_dossier', { action: 'date_effacer', dossier_id: 'd1', champ: 'constructor', valeur: 'x' });
+  assert.equal(e.champ, '');
+  assert.equal(entreeOutilPourPoste('action_dossier', { action: 'rien', dossier_id: 'd1' }).action, '');
+  assert.equal(entreeOutilPourPoste('action_dossier', { action: 'piece_recue', dossier_id: 'd1' }).action, 'piece_recue');
+});
