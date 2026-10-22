@@ -21405,3 +21405,6 @@ Réponses de l'étude (1 à 6) : notoriété 4–6 mois inchangée ; INVENTAIRE 
 
 
 **0.312.0 (21/10, nouveauté)** — étude : « un réglage pour choisir les délais de rappels pour vente et succession ». Clé `rappels-delais` { type: [jours] } (`CLE_DELAIS_RAPPELS`, `ECHEANCES_DELAIS_RAPPELS`, `assainirDelaisRappels`, `lireDelaisRappels` dans `server/src/jobs/rappels.js`) ; `seuilsPourType(type, delais)` : le réglage l'emporte, un type absent garde son seuil d'origine, liste vide = aucun rappel, `autre-N` → clé `autre`. Relu à chaque tour de rappels. Routes `GET/PUT /api/reglages/delais-rappels` ; poste : `client/100-reglages-delais-rappels.js`, section « Délais des rappels » de Réglages › Rappels. Entiers 0…365, 5 au plus par échéance.
+
+
+**0.312.1 (22/10, correction)** — étude : « c'est le bazar, il faut simplifier » (colonne « À faire » de la fiche d'une succession : décompte et appel de fonds en double). `cartesTableauFiche` (client/57) ignore les gestes du jour `decompteSuccession` / `projetSuccession` / `appelFondsSuccession` d'une succession (leur carte d'étape existe) ; `etapesSuccession` ne crée plus l'étape `appelFondsSuccession` quand `conjointSurvivant(d)`. Les cartes « ACT … » d'Authentic ne sont plus des étapes depuis 0.309.

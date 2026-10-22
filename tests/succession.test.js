@@ -1077,3 +1077,11 @@ test('étude 21/10 : après le contrôle des droits, l\'inventaire se place dans
   const place = base({ id: 'inv2', nom: 'SUCC Marie DUPONT', typeAffaire: 'succession', succession: { ouvertureLe: '2026-10-20', rendezVous: [{ id: 'i', etape: 'controleDroits', date: '2026-12-09', heure: '10:00' }] } });
   assert.equal(app.rdvAgendaSuccession(place, 'controleDroits', '2026-11-05'), null);
 });
+
+test('conjoint survivant : pas d’étape « Appel de fonds » (l’étude ne reçoit aucun fonds), décompte et projet restent', () => {
+  const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'notoriete-ds', conjointSurvivant: true, ouvertureLe: '2026-08-15',
+    rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2026-12-10', heure: '10:00' }] } });
+  const types = S.etapesSuccession(d, '2026-10-22').map(e => e.type);
+  assert.ok(types.includes('decompteSuccession'));
+  assert.ok(!types.includes('appelFondsSuccession'));
+});

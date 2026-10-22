@@ -416,7 +416,8 @@
       // Le projet n'est envoyé que pour la déclaration de succession, comme le décompte (étude 21/10).
       { type: 'projetSuccession', label: 'Envoi du projet à faire valider', iso: dernier.fait ? '' : avantRdv,
         fait: dernier.fait || cocheeSuccession(d, 'projetSuccession'), attente: false, active: true, avantRdv: true }];
-      if (s.appelFondsInutile !== true) {
+      // Conjoint survivant : comptes transférés, l'étude ne reçoit aucun fonds — pas d'appel de fonds à proposer (étude 22/10 : « il faut simplifier »).
+      if (s.appelFondsInutile !== true && !conjointSurvivant(d)) {
         avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
           fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
       }
