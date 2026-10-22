@@ -134,9 +134,18 @@
     ].filter(Boolean).join(' — ');
   }
 
+  // Pure : la zone lue dans la colonne « Zone » d'Authentic, ou '' quand ce n'est pas une zone (22/10, fiche CH 562… « zone Agricole (PLU)Bois et
+  // forêt dans une commune sans document d… » : la liste déroulante sans choix rendait le texte de TOUTES ses options, collées). Une vraie zone
+  // est courte et sans mots collés (« U », « Agricole (PLU) ») ; la vraie zone vient du Géoportail de l'urbanisme, jamais de ce champ.
+  function zoneParcelleAuthentic(texte) {
+    const t = String(texte || '').replace(/\s+/g, ' ').trim();
+    if (!t || t.length > 60 || /[a-zà-ÿ)][A-ZÀ-Ý]/.test(t)) return '';
+    return t;
+  }
+
   // Pure : une parcelle d'un bien, « EV 10 · 6 a 6 ca · Sol ».
   function libelleParcelleCb(p) {
-    return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit, p.zone ? `zone ${p.zone}` : ''].filter(Boolean).join(' · ');
+    return [[p.prefixe, p.section, p.numero].filter(Boolean).join(' '), typeof p.surface === 'number' ? formaterContenance(p.surface) : '', p.nature, p.lieuDit, zoneParcelleAuthentic(p.zone) ? `zone ${zoneParcelleAuthentic(p.zone)}` : ''].filter(Boolean).join(' · ');
   }
 
   function initClientsBiens() {

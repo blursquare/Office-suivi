@@ -1452,6 +1452,7 @@
     const designation = valeurChampAuthentic(champs, n => n === 'designation');
     const parcelles = [];
     (c.tableaux || []).forEach(t => {
+      if (/ancien cadastre/i.test(t.titre || '')) return; // étude 22/10 : jamais les parcelles du tableau « Ancien cadastre »
       const entete = (t.entete || []).map(libelleNetAuthentic);
       const iSection = entete.indexOf('section');
       const iNumero = entete.findIndex(e => /^num/.test(e));
@@ -1476,7 +1477,7 @@
         if (cellule(l, iCommune)) p.commune = cellule(l, iCommune);
         if (cellule(l, iPrefixe)) p.prefixe = cellule(l, iPrefixe);
         // Zone d'urbanisme et service de publicité foncière de la parcelle (« tout récupérer d'Authentic », étude 17/10).
-        if (cellule(l, iZone)) p.zone = cellule(l, iZone);
+        if (zoneParcelleAuthentic(cellule(l, iZone))) p.zone = zoneParcelleAuthentic(cellule(l, iZone));
         if (cellule(l, iSpf)) p.spf = cellule(l, iSpf);
         parcelles.push(p);
       });
@@ -1484,7 +1485,7 @@
     const designationNorm = normaliserPourRecherche(designation || '').replace(/\s+/g, ' ').trim();
     // Cadastre saisi dans la fiche du bien (structure reçue le 16/10) : pas un tableau à en-têtes mais des champs par ligne
     // (« …dataTableCadastre:0:cadastreHorsVolumeNumero »), la surface dans les trois champs hectare / are / centiare qui suivent le SPF.
-    parcellesChampsCadastreAuthentic(champs).forEach(q => {
+    parcellesChampsCadastreAuthentic(champs.filter(ch => !/ancien cadastre/i.test(ch.groupe || ''))).forEach(q => {
       const deja = parcelles.find(p => p.section === q.section && p.numero === q.numero);
       // Une surface du tableau nulle ou réduite aux hectares (« 0 ») cède la place aux trois champs hectare / are / centiare (19/10).
       if (deja) { ['surface', 'prefixe', 'nature', 'adresseCadastre'].forEach(k => { if ((detailParcelleVide(k, deja[k]) || (k === 'surface' && /^\d+$/.test(String(deja[k])))) && q[k]) deja[k] = q[k]; }); }

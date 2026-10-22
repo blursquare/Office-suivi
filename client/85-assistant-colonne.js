@@ -332,7 +332,9 @@
   // Sous 1 280 px la colonne passe par-dessus la conversation : Échap la ferme et rend le focus au bouton qui l'ouvre.
   if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('keydown', (ev) => {
     // Le tiroir de l'aperçu d'un PDF se ferme d'abord (Échap), à toute largeur.
-    if (ev.key === 'Escape' && !ev.defaultPrevented && colonneAssistant.apercu && !document.querySelector('.confirm-overlay[style*="flex"], .jour-overlay[style*="flex"]')) { ev.preventDefault(); fermerApercuAssistant(); return; }
+    const tiroir = colonneAssistant.apercu ? document.querySelector('.asst-droite-bloc.asst-apercu') : null;
+    if (ev.key === 'Escape' && !ev.defaultPrevented && tiroir && tiroir.getClientRects().length
+      && ![...document.querySelectorAll('.confirm-overlay, .jour-overlay, .drawer-overlay')].some(o => o.style.display && o.style.display !== 'none')) { ev.preventDefault(); fermerApercuAssistant(); return; }
     if (ev.key !== 'Escape' || ev.defaultPrevented || !colonneAssistant.ouverte || window.innerWidth > 1280) return;
     // Une fenêtre posée par-dessus (email, autorisation, confirmation) se ferme d'abord.
     if ([...document.querySelectorAll('.confirm-overlay, .jour-overlay, .drawer-overlay')].some(o => o.style.display && o.style.display !== 'none')) return;

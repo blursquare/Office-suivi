@@ -136,6 +136,8 @@ window.__claireRelever = function () {
       var cellules = Array.prototype.map.call(cases, function (c) {
         var champ = c.querySelector('input, select, textarea');
         var type = champ ? (champ.getAttribute('type') || '').toLowerCase() : '';
+        // Une liste déroulante sans choix rend '' : jamais le texte de toutes ses options (22/10, zone « Agricole (PLU)Bois et forêt… »).
+        if (champ && champ.tagName === 'SELECT') return valeurDe(champ);
         if (champ && type !== 'password' && type !== 'hidden') return valeurDe(champ) || texteSans(c);
         return net(c.innerText || c.textContent) || iconeDe(c);
       });
