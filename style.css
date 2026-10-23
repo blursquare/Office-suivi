@@ -10184,7 +10184,7 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 .cb-plus { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px 0; }
 @media (max-width: 760px) { .cb-colonne { max-height: none; overflow: visible; } }
 /* Constitution : page d'accueil centrale (étude 18/10 : « première page plus attractive », « une première page centrale »). */
-.cst-accueil { max-width: 720px; margin: 40px auto 0; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; }
+.cst-accueil { max-width: 720px; min-height: calc(100vh - 220px - var(--decalage-onglets)); margin: 0 auto; padding: 24px 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; }
 .cst-accueil-icone { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: var(--rayon-carte); background: color-mix(in srgb, var(--focus) 12%, var(--paper-card)); color: var(--focus); }
 .cst-accueil-icone .icone { width: 28px; height: 28px; }
 .cst-accueil-titre { margin: 8px 0 0; font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
@@ -10204,7 +10204,7 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 .cst-accueil-carte-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .cst-accueil-carte-titre { font-size: var(--texte-base); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cst-accueil-carte-sous { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 640px) { .cst-accueil { margin-top: 16px; } .cst-accueil-grille { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .cst-accueil { min-height: 0; justify-content: flex-start; padding: 16px 0; } .cst-accueil-grille { grid-template-columns: 1fr; } }
 /* Barre des étapes de la Constitution posée dans une carte, traits continus d'une étape à l'autre (étude 18/10 : « la ligne flotte »). */
 .wizard-stepper.cst-stepper { flex-wrap: nowrap; align-items: center; background: var(--paper-card); border: 1px solid var(--bord-carte); border-bottom: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); padding: 12px 16px; margin: 12px 0 16px; }
 .wizard-stepper.cst-stepper .wizard-step-trait { flex: 1 1 16px; max-width: none; min-width: 12px; }
@@ -10641,4 +10641,4 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .aut-vide { min-height: 1.45em; }
 .aut-apercu-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; }
 #aut-dossier { flex: 0 1 360px; min-width: 0; }
-.aut-cartes { width: 100%; }
+.aut-cartes { width: 100%; min-height: 320px; }
