@@ -135,3 +135,31 @@ test('routes /yousign/oauth : démarrer rend l’adresse de Yousign, le retour e
     assert.equal((await j('POST', '/api/yousign/oauth/deconnecter')).connecte, false);
   } finally { serveur.close(); }
 });
+
+test('renouvellement : une panne passagère (503) garde les jetons, une déconnexion pendant le renouvellement n’est pas annulée', async () => {
+  const d = depot();
+  let t = 1000000;
+  let statut = 503;
+  let liberer;
+  const porte = new Promise((r) => { liberer = r; });
+  const f = fauxAuth();
+  const fetch = async (url, init) => {
+    if (/\/token$/.test(url) && new URLSearchParams(init.body).get('grant_type') === 'refresh_token') {
+      await porte;
+      return { ok: statut < 300, status: statut, headers: { get: () => '' }, text: async () => JSON.stringify(statut < 300 ? { access_token: 'neuf', refresh_token: 'r', expires_in: 3600 } : {}) };
+    }
+    return f.fetch(url, init);
+  };
+  const c = O.creerOauthYousign({ ...d, fetch, maintenant: () => t });
+  const etat = new URL(await c.demarrer('https://api.yousign.app/mcp', 'http://127.0.0.1:3000')).searchParams.get('state');
+  await c.terminer('c', etat);
+  t += 4000 * 1000;
+  liberer();
+  await assert.rejects(() => c.jeton(), /expirée/);
+  assert.equal(d.voir().refresh, 'renouv-1', 'un 503 ne retire pas le jeton de renouvellement');
+  statut = 200;
+  const enVol = c.jeton();
+  c.deconnecter();
+  await assert.rejects(() => enVol, /modifiée/);
+  assert.equal(c.connectee(), false, 'déconnecté pendant le renouvellement : reste déconnecté');
+});

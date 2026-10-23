@@ -43,6 +43,8 @@ function creerOauthYousign(o) {
   const etats = new Map();
   /** @type {Promise<any> | null} */
   let renouvellement = null;
+  /** Change à chaque connexion ou déconnexion : un renouvellement parti avant n'écrit plus rien. */
+  let generation = 0;
 
   async function json(url, init) {
     if (!adresseYousignOauthValide(url)) throw new Error('adresse de connexion refusée (hors Yousign)');
@@ -118,6 +120,7 @@ function creerOauthYousign(o) {
   async function terminer(code, etat) {
     const attente = etats.get(etat);
     etats.delete(etat);
+    generation++;
     if (!attente || attente.jusqua < maintenant()) throw new Error('connexion expirée ou inconnue : recommencez depuis les Réglages');
     const garde = o.lire() || {};
     if (!garde.clientId || !garde.jeton) throw new Error('connexion incomplète : recommencez depuis les Réglages');
@@ -136,11 +139,14 @@ function creerOauthYousign(o) {
     if (!g.refresh || !g.clientId || !g.jeton) { throw Object.assign(new Error('connexion Yousign expirée : reconnectez-vous dans les Réglages'), { code: 'sans-cle' }); }
     // Un seul renouvellement à la fois (le jeton de renouvellement ne sert souvent qu'une fois).
     if (!renouvellement) {
+      const gen = generation;
       renouvellement = (async () => {
         const r = await json(g.jeton, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
           body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: g.refresh, client_id: g.clientId }).toString() });
+        if (gen !== generation) throw Object.assign(new Error('connexion Yousign modifiée : réessayez'), { code: 'sans-cle' });
         if (!r.ok || !r.corps || typeof r.corps.access_token !== 'string') {
-          o.ecrire({ ...g, access: '', refresh: '', expire: 0 });
+          // Seul un refus du jeton (400/401) l'efface ; une panne passagère (429, 5xx) le garde.
+          if (r.statut === 400 || r.statut === 401) o.ecrire({ ...g, access: '', refresh: '', expire: 0 });
           throw Object.assign(new Error('connexion Yousign expirée : reconnectez-vous dans les Réglages'), { code: 'sans-cle' });
         }
         const n = { ...(o.lire() || g), access: r.corps.access_token, refresh: typeof r.corps.refresh_token === 'string' && r.corps.refresh_token ? r.corps.refresh_token : g.refresh,
@@ -155,7 +161,7 @@ function creerOauthYousign(o) {
   /** CLAIRE est-elle connectée (un jeton, valide ou renouvelable) ? */
   function connectee() { const g = o.lire() || {}; return !!(g.access && (g.refresh || (g.expire && g.expire > maintenant()))); }
 
-  function deconnecter() { const g = o.lire() || {}; o.ecrire({ clientId: g.clientId || '', retour: g.retour || '', jeton: g.jeton || '', authorization: g.authorization || '' }); etats.clear(); }
+  function deconnecter() { generation++; const g = o.lire() || {}; o.ecrire({ clientId: g.clientId || '', retour: g.retour || '', jeton: g.jeton || '', authorization: g.authorization || '' }); etats.clear(); }
 
   return { demarrer, terminer, jeton, connectee, deconnecter };
 }

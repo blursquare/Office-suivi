@@ -240,7 +240,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const yousign = creerYousign(parametresRepo, { fetch: assistant && assistant.fetchYousign, fetchOauth: assistant && assistant.fetchOauth });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign }, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOpenlegi(parametresRepo, openlegi));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurYousign(parametresRepo, yousign));
+  // Le retour de Yousign est une navigation du navigateur (sans en-tête Authorization) : le `state` à usage unique le protège.
+  const sansAuthRetourYousign = (req, res, next) => (req.method === 'GET' && req.path === '/yousign/oauth/retour' ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
+  app.use('/api', sansAuthRetourYousign, creerRouteurYousign(parametresRepo, yousign));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));

@@ -84,7 +84,8 @@ function creerClientYousign(o) {
 
   async function poster(corps, sess, delai) {
     const r = o.reglages();
-    const jeton = o.jeton ? await o.jeton() : '';
+    let jeton = '';
+    try { jeton = o.jeton ? await o.jeton() : ''; } catch (e) { if (!r.cle) throw e; }
     const cle = jeton || r.cle;
     if (!cle) { const e = new Error('Yousign non connecté'); /** @type {any} */ (e).code = 'sans-cle'; throw e; }
     if (!urlYousignValide(r.url)) throw new Error('adresse Yousign refusée (un serveur en .yousign.app seulement)');
