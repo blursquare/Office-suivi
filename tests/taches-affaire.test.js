@@ -65,20 +65,24 @@ test('actionsDuJour : les tâches de succession y figurent (étapes, factures)',
   assert.ok(app.TYPES_TACHES_ETAPES_SUCCESSION.every(t => !types.includes('fcddv') && t !== 'fcddv'));
 });
 
-test('thèmes : chaque type de tâche a sa colonne, le reste « À décider », les colonnes vides gardées', () => {
+test('thèmes : quatre colonnes, chaque type de tâche a la sienne, le reste « Gestion du dossier », les colonnes vides gardées', () => {
   const app = chargerApplication();
-  assert.equal(app.themeTache({ type: 'redaction' }), 'rediger');
+  assert.equal(app.themeTache({ type: 'redaction' }), 'gestion');
   assert.equal(app.themeTache({ type: 'pret' }), 'relances');
   assert.equal(app.themeTache({ type: 'appelFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'receptionFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'questionnaire' }), 'apres');
-  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'apres');
-  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'decider');
-  // Les tâches de rendez-vous (fixer, placer…) ont leur catégorie « Agenda » (étude 23/10).
-  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'agenda');
-  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'agenda');
+  // Les factures d'une succession se règlent pendant la gestion du dossier, pas après la signature (étude 23/10).
+  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'gestion');
+  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'gestion');
+  // Les tâches de rendez-vous (fixer, placer…) vont dans « Gestion du dossier » (étude 23/10 : quatre colonnes).
+  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'gestion');
+  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'gestion');
   const g = app.regrouperTachesParTheme([{ type: 'pret' }, { type: 'pret' }, { type: 'copieActe' }]);
-  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'perso:0,agenda:0,rediger:0,relances:2,avant:0,apres:1,decider:0');
+  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'gestion:0,relances:2,avant:0,apres:1');
+  // Dans « Gestion du dossier » : mes tâches, puis les rendez-vous, la rédaction, les factures, le reste — quel que soit l'ordre d'arrivée.
+  const p = app.regrouperTachesParTheme([{ type: 'point-droit-de-preemption' }, { type: 'factureSuccession' }, { type: 'redaction' }, { type: 'point-fixer-le-rendez-vous' }, { type: 'rappel' }]);
+  assert.equal(p[0].actions.map(a => a.type).join(), 'rappel,point-fixer-le-rendez-vous,redaction,factureSuccession,point-droit-de-preemption');
 });
 
 test('outil lié : l’appel de fonds d’une vente ouvre l’outil prérempli, pas pour une succession ni une relance', () => {
@@ -175,7 +179,7 @@ test('liste compacte : un fin titre par thème, les identiques regroupées, le m
   assert.ok(app.renderTachesCompactes(beaucoup).includes('tc-voir-tout'));
 });
 
-test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, thème « Mes tâches », menu', () => {
+test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, en tête de « Gestion du dossier », menu', () => {
   const app = chargerApplication();
   const dossierS = { id: 's1', nom: 'SUCC X', typeAffaire: 'succession', responsable: 'Julie VASSELIN' };
   const agenda = app.rappelEnTache({ id: 'ag-1', texte: 'JV - appeler la CPAM', echeance: '2026-10-21', agendaItemId: 'I1' }, [], AUJ);
@@ -185,16 +189,17 @@ test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon 
   assert.equal(agenda.gravite, 'critique');
   assert.equal(demande.jours, 3);
   assert.equal(perso.jours, null);
-  assert.equal(app.themeTache(agenda), 'perso');
+  assert.equal(app.themeTache(agenda), 'gestion');
   const html = app.renderTachesCompactes([agenda, demande, perso]);
-  assert.ok(html.includes('Mes tâches'));
+  assert.ok(html.includes('Gestion du dossier'));
   assert.ok(html.includes('Tâche de l’agenda') && html.includes('Demandé par Bastien'));
   assert.equal((html.match(/Supprimer/g) || []).length, 2, 'pas de menu pour la tâche de l’agenda');
   assert.ok(html.includes('basculerRappelPerso(&#39;ag-1&#39;)') || html.includes("basculerRappelPerso('ag-1')"));
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'vente').length, 2, 'la demande liée à une succession sort du mode Ventes');
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'succession').length, 3);
-  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('Mes tâches'));
-  assert.ok(!app.renderTachesColonnes([]).includes('Mes tâches'), 'colonne vide masquée');
+  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('Gestion du dossier'));
+  // Quatre colonnes toujours, même vides (étude 23/10).
+  assert.equal((app.renderTachesColonnes([]).match(/class="tf-colonne"/g) || []).length, 4);
 });
 
 test('tâches retirées : mention « Rétablir », renommer sépare les groupes', () => {

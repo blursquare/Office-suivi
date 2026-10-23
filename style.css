@@ -10543,18 +10543,30 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 
 /* Tâches en colonnes (étude 22/10, client/104-taches-affaire.js) : actions d'une carte, vue « Tâches » du Suivi. */
 .tf-actions-tache { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
-.tf-taches-colonnes { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+/* Quatre colonnes de thèmes (étude 23/10), deux sur un écran moyen, une sur téléphone. */
+.tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: minmax(0, 1fr); } }
+/* Vue « Tâches » du Suivi : sous 1 800 px, la colonne du mois passe SOUS les tâches pour laisser aux quatre colonnes leur largeur. */
+@media (max-width: 1799px) {
+  .suivi-corps:has(.suivi-taches) { grid-template-columns: minmax(0, 1fr); }
+  .suivi-corps:has(.suivi-taches) > .suivi-cote { position: static; order: 2; }
+}
 .suivi-taches { padding: 8px 0; }
 .w-corps:has(.tf-taches-colonnes) { overflow-y: auto; }
 .tf-taches-colonnes .tf-categorie { display: flex; max-width: 100%; min-width: 0; align-items: baseline; white-space: normal; overflow-wrap: anywhere; }
 
 /* Carte de tâches regroupées (étude 22/10) : une ligne par dossier. */
 .tf-groupe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
-.tf-groupe-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 8px; align-items: center; min-width: 0; }
-.tf-groupe-ligne > .tf-rond { grid-row: span 2; align-self: start; }
-.tf-groupe-dossier { min-width: 0; font-size: var(--texte-s); overflow-wrap: anywhere; }
-.tf-groupe-actions { display: inline-flex; align-items: center; }
-.tf-groupe-delai { grid-column: 2 / span 2; font-size: var(--texte-s); }
+.tf-groupe-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "rond dossier dossier" ". delai actions"; column-gap: 8px; row-gap: 0; align-items: center; min-width: 0; padding: 4px 0; border-top: 1px solid var(--line); }
+.tf-groupe-ligne:first-child { border-top: 0; }
+.tf-groupe-ligne > .tf-rond { grid-area: rond; }
+/* Le nom du dossier sur UNE ligne (coupé par « … »), les initiales du responsable juste après, jamais collées ni renvoyées à la ligne. */
+.tf-groupe-dossier { grid-area: dossier; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--texte-s); }
+.tf-groupe-dossier .ja-dossier-lien { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tf-groupe-dossier .pastille-collab { flex: none; }
+.tf-groupe-actions { grid-area: actions; display: inline-flex; align-items: center; justify-content: flex-end; }
+.tf-groupe-delai { grid-area: delai; font-size: var(--texte-s); }
 .tf-groupe-delai .tf-delai { white-space: nowrap; }
 
 /* ---- Tâches du jour : tuiles de chiffres, liste compacte par thème, menu « ⋯ » (étude 22/10) ---- */
