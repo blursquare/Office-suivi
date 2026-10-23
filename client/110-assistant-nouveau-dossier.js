@@ -22,15 +22,42 @@ function resumeFormulaireNouveauDossierAgent() {
   return { champs, a_completer: Object.keys(champs).filter(k => !champs[k]) };
 }
 
+// Étape « Authentic » : les dossiers ouverts dans Authentic aujourd'hui (extension « CLAIRE pour Authentic »), relus à l'instant, avec de
+// quoi choisir (résumé, déjà suivi dans CLAIRE ou non, succession). `authentic_id` est le rang dans cette liste pour cette session.
+async function listerDossiersAuthenticAgent() {
+  definirOnglet('nouveau');
+  await chargerRelevesAuthenticRecents();
+  const liste = groupesAuthenticRecents.map((g, i) => ({
+    authentic_id: String(i), intitule: g.intitule, resume: resumeGroupeAuthentic(g), reference: g.reference || '',
+    deja_dans_claire: !!dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse, g.reference), a_creer: !!g.aCreer,
+    succession: RE_INTITULE_SUCCESSION_AUTHENTIC.test(g.intitule || '') || !!(g.export && g.export.type === 'succession')
+  })).slice(0, 30);
+  return { nombre: liste.length, dossiers_authentic: liste,
+    ...(liste.length ? {} : { raison: 'aucune page de dossier relevée dans Authentic ces dernières 24 h : l’utilisateur doit ouvrir la page du dossier dans Authentic (extension « CLAIRE pour Authentic »), puis les fiches vendeur, acquéreur et bien' }) };
+}
+
 async function nouveauDossierDepuisCompromisAgent(entree) {
   const e = entree || {};
-  const doc = documentsAgentConnus[e.document_id];
+  if (e.mode === 'authentic') return listerDossiersAuthenticAgent();
   if (e.mode === 'creer') return creerNouveauDossierAgent(e);
-  if (!doc || doc.sortePiece !== 'pdf' || !doc.fichier) return { erreur: 'document_id inconnu : le compromis doit être un PDF joint au message (pj1, pj2…)' };
-  if (typeof traiterFichierPdf !== 'function') return { erreur: 'lecture indisponible' };
+  const sansPdf = !e.document_id;
+  const doc = documentsAgentConnus[e.document_id];
+  if (!sansPdf && (!doc || doc.sortePiece !== 'pdf' || !doc.fichier)) return { erreur: 'document_id inconnu : le compromis doit être un PDF joint au message (pj1, pj2…)' };
+  if (sansPdf && !e.authentic_id) return { erreur: 'joins le compromis (document_id) ou choisis un dossier d’Authentic (authentic_id, rendu par le mode « authentic »)' };
   definirOnglet('nouveau');
-  choisirModeImport('pdf');
   await chargerRelevesAuthenticRecents();
+  const choisi = e.authentic_id ? groupesAuthenticRecents[Number(e.authentic_id)] : null;
+  if (e.authentic_id && !choisi) return { erreur: 'authentic_id inconnu : relis la liste avec le mode « authentic »' };
+  if (sansPdf) {
+    // Sans compromis : Authentic seul (dates butoir à saisir), vente ou succession.
+    choisirModeImport('seul');
+    creerDepuisAuthentic(Number(e.authentic_id));
+    noterVerificationPoste('assistant-nouveau-dossier', { detail: 'dossier d’Authentic repris sans compromis' });
+    return { pret: true, authentic_repris: true, compromis_lu: false, ...resumeFormulaireNouveauDossierAgent(),
+      suite: 'le formulaire est à l’étape « Vérifier » (sans compromis : dates butoir à saisir si besoin) ; crée-le avec le mode « creer » (autorisation) ou laisse l’utilisateur le relire' };
+  }
+  if (typeof traiterFichierPdf !== 'function') return { erreur: 'lecture indisponible' };
+  choisirModeImport('pdf');
   await traiterFichierPdf(doc.fichier);
   if (!dernierTexteTraite) { noterVerificationPoste('assistant-nouveau-dossier', { ok: false, message: 'compromis illisible' }); return { erreur: 'le PDF n’a pas pu être lu (texte absent ou illisible)' }; }
   if (e.responsable) { const r = document.getElementById('f-responsable'); if (r) { const v = String(e.responsable).trim(); if ([...r.options || []].some(o => o.value === v)) r.value = v; } }
@@ -38,13 +65,14 @@ async function nouveauDossierDepuisCompromisAgent(entree) {
   const tries = groupesAuthenticPourCompromis(groupesAuthenticRecents, nomLu);
   const correspond = (g) => !!nomLu && scoreDossierAuthentic(g.intitule, '', { nom: nomLu }).score >= SEUIL_DOSSIER_AUTHENTIC;
   const existantDe = (g) => dossierPourIntituleAuthentic(g.intitule, dossiers, g.adresse, g.reference);
-  const trouve = dossierAuthenticPourCompromis(tries, correspond, existantDe);
+  // Le dossier d'Authentic choisi par l'agent (après le mode « authentic »), sinon celui qui correspond de façon certaine.
+  const trouve = choisi ? { i: Number(e.authentic_id) } : dossierAuthenticPourCompromis(tries, correspond, existantDe);
   const deja = tries.find(x => correspond(x.g) && existantDe(x.g));
   if (!trouve) {
     noterVerificationPoste('assistant-nouveau-dossier', { ok: false, message: 'aucun dossier d’Authentic ne correspond' });
     return { pret: false, compromis_lu: true, ...resumeFormulaireNouveauDossierAgent(),
       raison: deja ? 'un dossier correspondant existe déjà dans CLAIRE : le compromis peut le compléter depuis sa fiche (« Compléter »)'
-        : 'aucun dossier d’Authentic ne correspond de façon certaine : l’utilisateur doit ouvrir la page du dossier dans Authentic, puis choisir le dossier à l’étape « Importer » (le formulaire reste ouvert, compromis lu)' };
+        : 'aucun dossier d’Authentic ne correspond de façon certaine : liste ceux d’Authentic (mode « authentic ») et rappelle « preparer » avec authentic_id, ou demande à l’utilisateur d’ouvrir la page du dossier dans Authentic (compromis lu, formulaire ouvert)' };
   }
   creerDepuisAuthentic(trouve.i);
   noterVerificationPoste('assistant-nouveau-dossier', { detail: 'compromis lu, dossier d’Authentic repris' });
@@ -53,10 +81,10 @@ async function nouveauDossierDepuisCompromisAgent(entree) {
 }
 
 async function creerNouveauDossierAgent() {
-  if (!exportAuthenticActuel || !dernierTexteTraite) return { erreur: 'aucun nouveau dossier n’est prêt : prépare-le d’abord (mode « preparer »)' };
+  if (!exportAuthenticActuel) return { erreur: 'aucun nouveau dossier n’est prêt : prépare-le d’abord (mode « preparer »)' };
   const r = resumeFormulaireNouveauDossierAgent();
   if (!r.champs.nom) return { erreur: 'le nom du dossier est vide : l’utilisateur doit le renseigner dans le formulaire' };
-  const description = `Créer le dossier « ${libelleDossierParNom(r.champs.nom)} » avec les données lues dans le compromis et dans Authentic.\n${r.a_completer.length ? 'Non renseigné : ' + r.a_completer.join(', ').replace(/_/g, ' ') + '.' : 'Tous les champs principaux sont renseignés.'}`;
+  const description = `Créer le dossier « ${libelleDossierParNom(r.champs.nom)} » avec les données d’Authentic${dernierTexteTraite ? ' et du compromis' : ''}.\n${r.a_completer.length ? 'Non renseigné : ' + r.a_completer.join(', ').replace(/_/g, ' ') + '.' : 'Tous les champs principaux sont renseignés.'}`;
   if (!(await demanderAutorisationAgent(description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
   const avant = new Set(dossiers.map(d => d.id));
   await ajouterDossier();

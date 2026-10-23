@@ -23,3 +23,9 @@ test('yousign_rib : dossier inconnu, état sans brouillon créé, acquéreur abs
   assert.match((await app.yousignRibAgent({ action: 'statut', dossier_id: 'd1', acquereur: 1 })).erreur, /aucun brouillon/);
   assert.match((await app.yousignRibAgent({ action: 'brouillon', dossier_id: 'd1', acquereur: 1 })).erreur, /aucun acquéreur/);
 });
+
+test('sans PDF ni dossier d’Authentic choisi : rien n’est préparé', async () => {
+  const app = chargerApplication();
+  const r = await app.nouveauDossierDepuisCompromisAgent({ mode: 'preparer', document_id: '', authentic_id: '', responsable: '' });
+  assert.match(r.erreur, /authentic_id/);
+});

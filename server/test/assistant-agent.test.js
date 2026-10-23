@@ -764,8 +764,16 @@ test('nouveau dossier de vente depuis un compromis joint (24/10) : outil déclar
   assert.ok(o);
   assert.equal(o.strict, false);
   assert.equal(o.input_schema.additionalProperties, false);
-  assert.deepEqual(o.input_schema.properties.mode.enum, ['preparer', 'creer']);
+  assert.deepEqual(o.input_schema.properties.mode.enum, ['authentic', 'preparer', 'creer']);
   assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
   assert.match(SYSTEME_AGENT, /nouveau_dossier_vente/);
   assert.match(SYSTEME_AGENT, /Rien n'est créé sans dossier d'Authentic correspondant/);
+});
+
+test('nouveau dossier : étape Authentic — mode « authentic » et authentic_id déclarés', () => {
+  const o = OUTILS_AGENT.find((x) => x.name === 'nouveau_dossier_vente');
+  assert.deepEqual(o.input_schema.properties.mode.enum, ['authentic', 'preparer', 'creer']);
+  assert.ok(o.input_schema.properties.authentic_id);
+  assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
+  assert.match(o.description, /TOUJOURS depuis Authentic/);
 });

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.330.0';
+  const VERSION_APP = '0.330.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.330.1', date: '2026-10-24 01:01', resume: "Nouveau dossier par Demander à CLAIRE : une étape « Authentic » précède la préparation — CLAIRE relit les dossiers ouverts dans Authentic, en choisit un (ou vous demande d’ouvrir la page) et peut aussi reprendre un dossier d’Authentic sans compromis, vente ou succession." },
     { version: '0.330.0', date: '2026-10-24 00:55', resume: "Demander à CLAIRE travaille avec l’agent Yousign : « prépare la signature du RIB de l’acquéreur de ce dossier » crée le brouillon dans Yousign après votre autorisation, et « où en est la signature ? » lit l’état de la demande. CLAIRE ne voit ni ne donne aucun nom, email ou numéro ; rien n’est envoyé, vous vérifiez et envoyez dans Yousign." },
     { version: '0.329.0', date: '2026-10-24 00:48', resume: "Demander à CLAIRE remplit seule un nouveau dossier de vente : joignez le compromis ou la promesse (PDF) au message, CLAIRE le lit, reprend le dossier d’Authentic qui correspond et remplit le formulaire « Vérifier », en disant ce qui reste à compléter. Elle crée le dossier après votre autorisation. Sans dossier d’Authentic correspondant, rien n’est créé." },
     { version: '0.328.1', date: '2026-10-24 00:35', resume: "Signature du RIB : « Faire signer » prend la place de l’email de rappel « Demander le RIB et la pièce d’identité » — dans l’onglet Fonds de la fiche (une ligne par acquéreur, société comprise, avec l’attestation en PDF à côté) et dans la tâche d’« À faire ». Le brouillon Yousign créé coche la demande de RIB. Les icônes sous chaque personne sont retirées." },
