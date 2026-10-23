@@ -8,6 +8,7 @@
 // « Autoriser / Refuser » pour TOUT outil qui écrit (créer, modifier, ajouter ou retirer un signataire, ENVOYER), puis par
 // POST /api/yousign/appel. Jamais exposé : `send_feedback` (texte libre vers l'éditeur).
 
+const crypto = require('node:crypto');
 const { messagesSse, texteResultatOpenlegi, schemaPropreOpenlegi } = require('./openlegi');
 
 const URL_YOUSIGN_DEFAUT = 'https://api.yousign.app/mcp';
@@ -17,13 +18,16 @@ const DUREE_OUTILS_MS = 3600 * 1000;
 const DELAI_APPEL_MS = 45000;
 const DELAI_LISTE_MS = 8000;
 const VERSION_PROTOCOLE = '2025-06-18';
+const DUREE_AUTORISATION_MS = 10 * 60 * 1000;
+const MAX_REPONSE = 2000000;
+const SERVEURS_YOUSIGN = new Set(['api.yousign.app', 'api-sandbox.yousign.app']);
 
 /** Pure : l'adresse du serveur MCP est-elle un serveur de Yousign ? https seul, un nom en `.yousign.app`, ni identifiants ni port — le jeton
  * ne part jamais ailleurs (une adresse tapée par erreur ou piégée). @param {string} adresse */
 function urlYousignValide(adresse) {
   try {
     const u = new URL(String(adresse || ''));
-    return u.protocol === 'https:' && /^[a-z0-9-]+(\.[a-z0-9-]+)*\.yousign\.app$/i.test(u.hostname) && !u.username && !u.password && !u.port;
+    return u.protocol === 'https:' && SERVEURS_YOUSIGN.has(u.hostname.toLowerCase()) && !u.username && !u.password && !u.port;
   } catch (e) { return false; }
 }
 
@@ -32,7 +36,8 @@ function classeOutilYousign(nom) {
   const n = String(nom || '');
   if (!/^[a-zA-Z0-9_-]{1,50}$/.test(n)) return 'exclu';
   if (/^send[-_]feedback$/i.test(n)) return 'exclu';
-  return /^(get|search|list)[-_]/i.test(n) ? 'lecture' : 'ecriture';
+  // Lecture : un préfixe get / search / list ET aucun mot d'action (un futur « get-and-send » reste une écriture, donc sous carte).
+  return /^(get|search|list)[-_]/i.test(n) && !/(send|create|update|add|remove|delete|cancel|archive|approve|sign|remind|activate|revoke|reopen|finish)/i.test(n.replace(/^(get|search|list)[-_]/i, '').replace(/signature[-_]requests?|signers?/gi, '')) ? 'lecture' : 'ecriture';
 }
 
 /** Pure : le nom donné à l'agent, et l'inverse (nom de l'outil de Yousign ou null). @param {string} nom */
@@ -53,6 +58,12 @@ function outilAgentDepuisYousign(outil, ecriture) {
   return { name: nomAgentYousign(outil.name), description: `[Yousign — signature électronique]${note} ${String(outil.description || '').replace(/\s+/g, ' ').slice(0, 400)}`, input_schema: schema };
 }
 
+/** Pure : une écriture ramenée à une clé stable (nom + arguments, clés triées). @param {string} nomAgent @param {any} args */
+function cleAppelYousign(nomAgent, args) {
+  const trier = (v) => (Array.isArray(v) ? v.map(trier) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, trier(v[k])])) : v);
+  return crypto.createHash('sha256').update(nomAgent + '\n' + JSON.stringify(trier(args && typeof args === 'object' ? args : {}))).digest('hex');
+}
+
 /**
  * Le client MCP de Yousign (une session, rouverte sur une session expirée).
  * @param {{ reglages: () => { cle: string, url: string, ecriture: boolean }, fetch?: Function, maintenant?: () => number }} o
@@ -65,7 +76,11 @@ function creerClientYousign(o) {
   /** @type {{ le: number, outils: any[] } | null} */
   let outils = null;
   let echecLe = 0;
+  let suspenduJusqua = 0;
   let id = 0;
+  /** Écritures DEMANDÉES par l'agent (la clé d'un appel émis par le serveur), consommées une fois : sans elles, `appeler` refuse d'écrire —
+   * un curl direct sur /api/yousign/appel n'envoie rien (audit 0.321.0, H1). @type {Map<string, number>} */
+  const attendues = new Map();
 
   async function poster(corps, sess, delai) {
     const r = o.reglages();
@@ -81,6 +96,7 @@ function creerClientYousign(o) {
         body: JSON.stringify(corps)
       });
       const texte = await rep.text();
+      if (texte.length > MAX_REPONSE) throw new Error('réponse Yousign trop volumineuse');
       return { statut: rep.status, ok: rep.ok, session: (rep.headers && rep.headers.get && rep.headers.get('mcp-session-id')) || '', messages: messagesSse(texte) };
     } finally { clearTimeout(minuteur); }
   }
@@ -108,9 +124,11 @@ function creerClientYousign(o) {
       const n = ++id;
       const r = await poster({ jsonrpc: '2.0', id: n, method, params }, sess, delai);
       // Session oubliée par le serveur : rouverte une fois — jamais pour une session ouverte à l'instant (un 400 y dit des arguments refusés).
-      if (essai === 0 && !neuve && (r.statut === 404 || r.statut === 400)) { session = null; continue; }
-      if (!r.ok) throw erreurStatut(r.statut);
+      // (Un appel d'outil n'est rejoué que sur 404 : un 400 y dit des arguments refusés, jamais une écriture à refaire.)
+      if (essai === 0 && !neuve && (r.statut === 404 || (r.statut === 400 && method !== 'tools/call'))) { session = null; continue; }
       const m = r.messages.find((x) => x && x.id === n) || r.messages.find((x) => x && (x.result || x.error));
+      // Un refus de Yousign garde son message (arguments refusés…) quand il est rendu.
+      if (!r.ok) { if (m && m.error && m.error.message && r.statut < 500 && r.statut !== 401 && r.statut !== 403) throw new Error(String(m.error.message).slice(0, 200)); throw erreurStatut(r.statut); }
       if (!m) throw new Error('réponse Yousign illisible');
       if (m.error) throw new Error(String(m.error.message || 'erreur Yousign').slice(0, 200));
       return m.result;
@@ -142,6 +160,7 @@ function creerClientYousign(o) {
   /** Les outils donnés à l'agent : lecture seule si l'écriture est coupée dans les Réglages ; vide si Yousign ne répond pas. */
   async function outilsAgent() {
     const r = o.reglages();
+    if (suspenduJusqua > maintenant()) return [];
     try {
       const liste = await Promise.race([outilsServeur(), new Promise((ok) => { const m = setTimeout(() => ok([]), DELAI_LISTE_MS); if (m && m.unref) m.unref(); })]);
       return /** @type {any[]} */ (liste).map((t) => outilAgentDepuisYousign(t, r.ecriture)).filter(Boolean);
@@ -154,17 +173,43 @@ function creerClientYousign(o) {
     if (!nom) throw new Error('outil Yousign inconnu');
     const classe = classeOutilYousign(nom);
     if (classe === 'exclu') throw new Error('outil Yousign non permis');
-    if (classe === 'ecriture' && !o.reglages().ecriture) throw new Error('écriture dans Yousign coupée dans les Réglages');
+    if (classe === 'ecriture') {
+      if (!o.reglages().ecriture) throw new Error('écriture dans Yousign coupée dans les Réglages');
+      // Une écriture n'est faite que si l'agent l'a demandée (appel émis par le serveur, avec ces arguments) — et le poste, lui, a affiché la carte.
+      const cle = cleAppelYousign(nomAgent, args);
+      const jusqua = attendues.get(cle);
+      attendues.delete(cle);
+      if (!jusqua || jusqua < maintenant()) throw new Error('écriture refusée : elle n’a pas été demandée par l’agent');
+    }
     const connus = await outilsServeur();
     if (!connus.some((t) => t.name === nom)) throw new Error('outil Yousign inconnu du serveur');
-    const r = await requete('tools/call', { name: nom, arguments: args && typeof args === 'object' ? args : {} });
-    return { texte: texteResultatOpenlegi(r), erreur: !!(r && r.isError), ecriture: classe === 'ecriture' };
+    try {
+      const r = await requete('tools/call', { name: nom, arguments: args && typeof args === 'object' ? args : {} });
+      return { texte: texteResultatOpenlegi(r), erreur: !!(r && r.isError), ecriture: classe === 'ecriture' };
+    } catch (e) {
+      // Coupé par le délai : l'écriture a pu aboutir chez Yousign — l'IA doit relire la demande avant de recommencer.
+      if (classe === 'ecriture' && e && /** @type {any} */ (e).name === 'AbortError') throw new Error('Yousign n’a pas répondu à temps : résultat incertain, relire la demande avant de recommencer');
+      throw e;
+    }
   }
 
-  function oublier() { session = null; outils = null; echecLe = 0; }
+  /** L'agent vient de demander ces appels : ceux qui écrivent sont attendus (10 min, une fois chacun). @param {Array<{ nom: string, entree: any }>} appels */
+  function attendre(appels) {
+    const t = maintenant();
+    for (const [k, v] of attendues) if (v < t) attendues.delete(k);
+    for (const a of appels || []) {
+      const n = decouperNomYousign(a && a.nom);
+      if (n && classeOutilYousign(n) === 'ecriture') attendues.set(cleAppelYousign(a.nom, a.entree), t + DUREE_AUTORISATION_MS);
+    }
+  }
 
-  return { outilsAgent, outilsServeur, appeler, oublier };
+  /** Yousign mis de côté une heure (schéma refusé par l'IA). */
+  function suspendre() { suspenduJusqua = maintenant() + 3600 * 1000; }
+
+  function oublier() { session = null; outils = null; echecLe = 0; suspenduJusqua = 0; }
+
+  return { outilsAgent, outilsServeur, appeler, attendre, suspendre, oublier };
 }
 
-module.exports = { URL_YOUSIGN_DEFAUT, CLE_YOUSIGN, PREFIXE_YOUSIGN, urlYousignValide, classeOutilYousign, nomAgentYousign, decouperNomYousign,
+module.exports = { cleAppelYousign, URL_YOUSIGN_DEFAUT, CLE_YOUSIGN, PREFIXE_YOUSIGN, urlYousignValide, classeOutilYousign, nomAgentYousign, decouperNomYousign,
   outilAgentDepuisYousign, creerClientYousign };

@@ -38,12 +38,12 @@ function creerRouteurYousign(parametresRepo, client) {
     const r = lireReglagesYousign(parametresRepo);
     if (typeof corps.cle === 'string') {
       const c = corps.cle.trim();
-      if (c.length > 600 || /\s/.test(c)) { res.status(400).json({ erreur: 'Clé invalide.' }); return; }
+      if (c && !/^[\x21-\x7e]{8,600}$/.test(c)) { res.status(400).json({ erreur: 'Clé invalide.' }); return; }
       r.cle = c;
     }
     if (typeof corps.url === 'string') {
       const u = corps.url.trim();
-      if (u && !urlYousignValide(u)) { res.status(400).json({ erreur: 'Adresse refusée : un serveur Yousign en https (…yousign.app) seulement.' }); return; }
+      if (u && !urlYousignValide(u)) { res.status(400).json({ erreur: 'Adresse refusée : api.yousign.app ou api-sandbox.yousign.app en https seulement.' }); return; }
       r.url = u || URL_YOUSIGN_DEFAUT;
     }
     if (typeof corps.actif === 'boolean') r.actif = corps.actif;

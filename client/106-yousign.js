@@ -24,20 +24,64 @@
     return /^yousign__/.test(String(nom || '')) ? (RE_YOUSIGN_LECTURE.test(nom) ? 'Je consulte Yousign…' : 'Je prépare la demande à Yousign…') : '';
   }
 
-  // Pure : ce que dit la carte « Autoriser » d'un outil de Yousign qui écrit.
-  function descriptionActionYousign(nom, entree) {
+  // Pure : tous les arguments d'un outil, à plat (« chemin : valeur »), imbriqués compris — un email ou un nom de signataire n'échappe pas à la carte.
+  function aplatirArgumentsYousign(entree, prefixe, sortie) {
+    const liste = sortie || [];
+    if (liste.length >= 14) return liste;
+    if (Array.isArray(entree)) entree.forEach((v, i) => aplatirArgumentsYousign(v, `${prefixe || ''}[${i + 1}]`, liste));
+    else if (entree && typeof entree === 'object') Object.entries(entree).forEach(([k, v]) => aplatirArgumentsYousign(v, prefixe ? `${prefixe}.${k}` : k, liste));
+    else if (entree !== '' && entree != null && prefixe) liste.push(`${prefixe} : ${String(entree).slice(0, /mail|phone|tel/i.test(prefixe) ? 200 : 120)}`);
+    return liste;
+  }
+
+  // Pure : ce que la demande de signature relue dit à l'utilisateur — son nom, son état, ses signataires (nom, email) ; à défaut, les emails du texte.
+  function resumeDemandeYousign(texte) {
+    let j = null;
+    try { j = JSON.parse(String(texte || '')); } catch (e) { j = null; }
+    const signataires = [];
+    const parcourir = (v, profondeur) => {
+      if (!v || typeof v !== 'object' || profondeur > 5) return;
+      if (Array.isArray(v)) { v.forEach((x) => parcourir(x, profondeur + 1)); return; }
+      const info = v.info && typeof v.info === 'object' ? v.info : v;
+      const nom = [info.first_name, info.last_name].filter(Boolean).join(' ') || (typeof info.name === 'string' && info.email ? info.name : '');
+      if (info.email && typeof info.email === 'string') signataires.push(`${nom ? nom + ' ' : ''}<${info.email}>`);
+      else Object.values(v).forEach((x) => parcourir(x, profondeur + 1));
+    };
+    if (j) parcourir(j.signers || j, 0);
+    const emails = signataires.length ? [] : [...new Set(String(texte || '').match(/[\w.+-]+@[\w-]+(\.[\w-]+)+/g) || [])].slice(0, 6);
+    const nom = j && typeof j.name === 'string' ? `« ${j.name.slice(0, 100)} »` : '';
+    const etat = j && typeof j.status === 'string' ? ` (${j.status})` : '';
+    const dest = (signataires.length ? signataires : emails).slice(0, 8).join(', ');
+    return [nom + etat, dest ? `signataires : ${dest}` : ''].filter(Boolean).join(' — ');
+  }
+
+  // Pure : ce que dit la carte « Autoriser » d'un outil de Yousign qui écrit (audit 0.321.0, H2 : tous les arguments, la demande relue).
+  function descriptionActionYousign(nom, entree, demande) {
     const court = String(nom || '').replace(/^yousign__/, '');
-    const trouve = LIBELLES_ACTIONS_YOUSIGN.find(([re]) => re.test(court));
-    const args = entree && typeof entree === 'object' ? entree : {};
-    const resume = Object.entries(args).filter(([, v]) => v !== '' && v != null && typeof v !== 'object')
-      .map(([k, v]) => `${k} : ${String(v).slice(0, 80)}`).join(' · ').slice(0, 300);
-    return `Yousign — ${trouve ? trouve[1] : 'Écrire dans Yousign (' + court + ')'}.${resume ? ' ' + resume : ''}`;
+    const trouve = LIBELLES_ACTIONS_YOUSIGN.find(([re]) => re.test(court.toLowerCase()));
+    const args = aplatirArgumentsYousign(entree && typeof entree === 'object' ? entree : {}).join(' · ').slice(0, 700);
+    return `Yousign — ${trouve ? trouve[1] : 'Écrire dans Yousign (' + court + ')'}.${demande ? ' Demande : ' + demande + '.' : ''}${args ? ' ' + args : ''}`;
+  }
+
+  async function lireDemandeYousign(entree) {
+    const cle = entree && typeof entree === 'object' ? (['signature_request_id', 'id'].find((k) => typeof entree[k] === 'string' && entree[k]) || '') : '';
+    if (!cle) return '';
+    try {
+      const r = await fetchAvecAuth('/api/yousign/appel', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ outil: 'yousign__get-signature-request', arguments: { [cle]: entree[cle] } }) });
+      const json = await r.json().catch(() => ({}));
+      return r.ok && !json.erreur && json.texte ? resumeDemandeYousign(json.texte) : '';
+    } catch (e) { return ''; }
   }
 
   async function appelYousignAgent(nom, entree) {
     const ecrit = !RE_YOUSIGN_LECTURE.test(nom);
-    if (ecrit && !(await demanderAutorisationAgent(descriptionActionYousign(nom, entree)))) {
-      return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    if (ecrit) {
+      // Un outil qui ne porte qu'un identifiant (envoyer, retirer, modifier) : la demande est relue pour que la carte dise laquelle.
+      const demande = /create/i.test(nom) ? '' : await lireDemandeYousign(entree);
+      if (!(await demanderAutorisationAgent(descriptionActionYousign(nom, entree, demande)))) {
+        return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+      }
     }
     try {
       const r = await fetchAvecAuth('/api/yousign/appel', { method: 'POST', headers: { 'Content-Type': 'application/json' },

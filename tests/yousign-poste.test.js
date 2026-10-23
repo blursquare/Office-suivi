@@ -23,3 +23,18 @@ test('étape affichée : lecture ou préparation, rien pour un autre outil', () 
   assert.match(app.libelleOutilYousign('yousign__send-signature-request'), /Je prépare/);
   assert.equal(app.libelleOutilYousign('legifrance__x'), '');
 });
+
+test('carte « Autoriser » (audit 0.321.0, H2) : arguments imbriqués, email entier, demande relue', () => {
+  const app = chargerApplication();
+  const d = app.descriptionActionYousign('yousign__add-signature-request-signer', { signature_request_id: 'abc', info: { first_name: 'Paul', last_name: 'DURAND', email: 'paul.durand@exemple-longue-adresse.fr' } }, '« Vente DURAND » (draft)');
+  assert.match(d, /info\.email : paul\.durand@exemple-longue-adresse\.fr/);
+  assert.match(d, /info\.first_name : Paul/);
+  assert.match(d, /Demande : « Vente DURAND » \(draft\)/);
+  assert.match(app.descriptionActionYousign('yousign__SEND-signature-request', {}), /ENVOYER/, 'casse indifférente');
+  const resume = app.resumeDemandeYousign(JSON.stringify({ name: 'Vente DURAND', status: 'ongoing', signers: [{ info: { first_name: 'Paul', last_name: 'DURAND', email: 'paul@x.fr' } }, { info: { email: 'claire@y.fr' } }] }));
+  assert.match(resume, /« Vente DURAND » \(ongoing\)/);
+  assert.match(resume, /Paul DURAND <paul@x\.fr>/);
+  assert.match(resume, /<claire@y\.fr>/);
+  assert.match(app.resumeDemandeYousign('texte libre avec marie@z.fr dedans'), /<?marie@z\.fr/);
+  assert.equal(app.resumeDemandeYousign(''), '');
+});

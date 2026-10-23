@@ -43,7 +43,7 @@ beforeEach(() => viderConversationsAgent());
 test('adresse : https et un nom en .yousign.app seulement — la clé ne part jamais ailleurs', () => {
   assert.equal(Y.urlYousignValide('https://api.yousign.app/mcp'), true);
   assert.equal(Y.urlYousignValide('https://api-sandbox.yousign.app/mcp'), true);
-  for (const mauvaise of ['http://api.yousign.app/mcp', 'https://yousign.app.evil.fr/mcp', 'https://evil.fr/yousign.app', 'https://u:p@api.yousign.app/mcp', 'https://api.yousign.app:8443/mcp', 'n’importe quoi', '']) {
+  for (const mauvaise of ['https://autre.yousign.app/mcp', 'http://api.yousign.app/mcp', 'https://yousign.app.evil.fr/mcp', 'https://evil.fr/yousign.app', 'https://u:p@api.yousign.app/mcp', 'https://api.yousign.app:8443/mcp', 'n’importe quoi', '']) {
     assert.equal(Y.urlYousignValide(mauvaise), false, mauvaise);
   }
 });
@@ -72,11 +72,33 @@ test('client : session, clé en en-tête, lecture et écriture, send_feedback é
     const r = await c.appeler('yousign__get-signature-request', { id: 'abc' });
     assert.equal(r.ecriture, false);
     assert.match(r.texte, /Vente FOURNIER/);
+    c.attendre([{ nom: 'yousign__send-signature-request', entree: { id: 'abc' } }]);
     const e = await c.appeler('yousign__send-signature-request', { id: 'abc' });
     assert.equal(e.ecriture, true);
     await assert.rejects(() => c.appeler('yousign__send_feedback', {}), /non permis/);
+    c.attendre([{ nom: 'yousign__inconnu-du-serveur', entree: {} }]);
     await assert.rejects(() => c.appeler('yousign__inconnu-du-serveur', {}), /inconnu du serveur/);
   }
+});
+
+test('écriture sans demande de l’agent : refusée, une fois consommée aussi, et avec d’autres arguments aussi (audit 0.321.0, H1)', async () => {
+  const f = fauxMcp();
+  const c = Y.creerClientYousign({ reglages: reglages(), fetch: f.fetch });
+  await assert.rejects(() => c.appeler('yousign__send-signature-request', { id: 'abc' }), /pas été demandée par l’agent/);
+  c.attendre([{ nom: 'yousign__send-signature-request', entree: { id: 'abc', b: { y: 1, x: 2 } } }]);
+  await assert.rejects(() => c.appeler('yousign__send-signature-request', { id: 'autre' }), /pas été demandée/, 'autres arguments');
+  c.attendre([{ nom: 'yousign__send-signature-request', entree: { id: 'abc', b: { y: 1, x: 2 } } }]);
+  assert.equal((await c.appeler('yousign__send-signature-request', { b: { x: 2, y: 1 }, id: 'abc' })).ecriture, true, 'ordre des clés indifférent');
+  await assert.rejects(() => c.appeler('yousign__send-signature-request', { id: 'abc', b: { y: 1, x: 2 } }), /pas été demandée/, 'une seule fois');
+  // Une lecture n'a besoin de rien ; un appel qui ne figure pas dans attendre() ne devient pas une écriture permise par un nom proche.
+  assert.equal((await c.appeler('yousign__get-signature-request', { id: 'abc' })).ecriture, false);
+  assert.equal(f.requetes.filter((r) => r.corps.method === 'tools/call').length, 2, 'seuls l’écriture demandée et la lecture sont partis');
+});
+
+test('classement : un futur « get-and-send » reste une écriture', () => {
+  assert.equal(Y.classeOutilYousign('get-and-send-signature-request'), 'ecriture');
+  assert.equal(Y.classeOutilYousign('list-templates'), 'lecture');
+  assert.equal(Y.classeOutilYousign('search-workspaces'), 'lecture');
 });
 
 test('écriture coupée : seuls les outils de lecture sont donnés et un appel qui écrit est refusé', async () => {
@@ -121,6 +143,7 @@ test('routes /yousign : clé jamais renvoyée, gardée si absente, effacée sur 
     assert.doesNotMatch(JSON.stringify(t), /tres-secrete/);
     const lu = (await requete('POST', '/yousign/appel', { outil: 'yousign__get-signature-request', arguments: { id: 'abc' } })).json;
     assert.match(lu.texte, /Vente FOURNIER/);
+    assert.match((await requete('POST', '/yousign/appel', { outil: 'yousign__send-signature-request', arguments: { id: 'abc' } })).json.erreur, /pas été demandée par l’agent/, 'un curl direct n’envoie rien');
     await requete('PUT', '/yousign/reglages', { ecriture: false });
     assert.match((await requete('POST', '/yousign/appel', { outil: 'yousign__send-signature-request', arguments: { id: 'abc' } })).json.erreur, /coupée/);
     assert.match((await requete('POST', '/yousign/appel', { outil: 'yousign__send_feedback', arguments: {} })).json.erreur, /non permis|inconnu/i);
@@ -141,7 +164,8 @@ test('agent : un résultat de Yousign est masqué avant l’IA, les codes sont r
   ];
   const client = { beta: { messages: { create: async (req) => { envoyes.push(JSON.stringify(req.messages)); return reponses.shift(); } } } };
   const dossiers = [{ id: 'd1', nom: 'FOURNIER / MARTIN', parties: [{ role: 'VENDEUR', nom: 'FOURNIER', prenom: 'Paul' }] }];
-  const o = { cle: 'k', client, outilsExternes: outils };
+  const demandees = [];
+  const o = { cle: 'k', client, outilsExternes: outils, surAppelsEcriture: (a) => demandees.push(...a) };
   let s = await tourAgent({ texte: 'où en est la signature ?', dossiers }, o);
   assert.equal(s.appels[0].nom, 'yousign__get-signature-request');
   s = await tourAgent({ conversation: s.conversation, resultats: [{ id: 't1', contenu: { texte: TEXTE } }] }, o);
@@ -150,4 +174,26 @@ test('agent : un résultat de Yousign est masqué avant l’IA, les codes sont r
   assert.equal(s.appels[0].nom, 'yousign__create-signature-request');
   assert.match(s.appels[0].entree.name, /FOURNIER/, 'le code est rétabli pour Yousign');
   assert.doesNotMatch(JSON.stringify(s.appels[0].entree), /\[NOM9\]/, 'un code inventé ne part pas');
+  const ecritures = demandees.filter((a) => a.nom === 'yousign__create-signature-request');
+  assert.equal(ecritures.length, 1, 'l’écriture demandée est annoncée au client Yousign avec les arguments rétablis');
+  assert.match(ecritures[0].entree.name, /FOURNIER/);
+});
+
+test('masquage des résultats Yousign : prénom en minuscule, nom de demande, lien de signature, uuid gardé (audit 0.321.0, M2)', async () => {
+  const outils = (await Y.creerClientYousign({ reglages: reglages(), fetch: fauxMcp().fetch }).outilsAgent());
+  const envoyes = [];
+  const reponses = [
+    { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 't1', name: 'yousign__get-signature-request', input: { id: 'abc' } }], usage: {} },
+    { stop_reason: 'end_turn', content: [{ type: 'text', text: 'Vu.' }], usage: {} }
+  ];
+  const client = { beta: { messages: { create: async (req) => { envoyes.push(JSON.stringify(req.messages)); return reponses.shift(); } } } };
+  const o = { cle: 'k', client, outilsExternes: outils };
+  let s = await tourAgent({ texte: 'où en est la signature ?', dossiers: [] }, o);
+  const resultat = { id: '3f2a1b4c-0123-4567-89ab-123456789012', signature_request_id: '123456789-aaaa-bbbb-cccc-dddddddddddd', name: 'acte de vente durand', status: 'ongoing',
+    signers: [{ info: { first_name: 'jean', last_name: 'durand', phone_number: '+33612345678' }, signature_link: 'https://app.yousign.app/s/SECRETJETON' }] };
+  await tourAgent({ conversation: s.conversation, resultats: [{ id: 't1', contenu: resultat }] }, o);
+  const vu = envoyes[1];
+  assert.doesNotMatch(vu, /jean|durand|SECRETJETON|612345678/i, 'rien de nominatif ni de lien de signature ne part');
+  assert.match(vu, /3f2a1b4c-0123-4567-89ab-123456789012/, 'l’identifiant de la demande reste lisible');
+  assert.match(vu, /123456789-aaaa-bbbb/, 'un uuid à neuf chiffres reste intact');
 });
