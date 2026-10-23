@@ -66,7 +66,7 @@ function cleAppelYousign(nomAgent, args) {
 
 /**
  * Le client MCP de Yousign (une session, rouverte sur une session expirée).
- * @param {{ reglages: () => { cle: string, url: string, ecriture: boolean }, fetch?: Function, maintenant?: () => number }} o
+ * @param {{ reglages: () => { cle: string, url: string, ecriture: boolean }, jeton?: () => Promise<string>, fetch?: Function, maintenant?: () => number }} o  `jeton` : le jeton à envoyer (connexion par identifiant et mot de passe, OAuth) ; à défaut, la clé des Réglages.
  */
 function creerClientYousign(o) {
   const fetchFn = o.fetch || fetch;
@@ -84,14 +84,16 @@ function creerClientYousign(o) {
 
   async function poster(corps, sess, delai) {
     const r = o.reglages();
-    if (!r.cle) { const e = new Error('clé Yousign non enregistrée'); /** @type {any} */ (e).code = 'sans-cle'; throw e; }
+    const jeton = o.jeton ? await o.jeton() : '';
+    const cle = jeton || r.cle;
+    if (!cle) { const e = new Error('Yousign non connecté'); /** @type {any} */ (e).code = 'sans-cle'; throw e; }
     if (!urlYousignValide(r.url)) throw new Error('adresse Yousign refusée (un serveur en .yousign.app seulement)');
     const ctrl = new AbortController();
     const minuteur = setTimeout(() => ctrl.abort(), delai || DELAI_APPEL_MS);
     try {
       const rep = await fetchFn(r.url, {
         method: 'POST', signal: ctrl.signal, redirect: 'error',
-        headers: { Authorization: `Bearer ${r.cle}`, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream',
+        headers: { Authorization: `Bearer ${cle}`, 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream',
           ...(sess ? { 'mcp-session-id': sess } : {}), 'MCP-Protocol-Version': VERSION_PROTOCOLE },
         body: JSON.stringify(corps)
       });
@@ -102,7 +104,7 @@ function creerClientYousign(o) {
   }
 
   function erreurStatut(statut) {
-    const e = new Error(statut === 401 || statut === 403 ? 'clé Yousign refusée' : statut === 429 ? 'limite de débit Yousign atteinte'
+    const e = new Error(statut === 401 || statut === 403 ? 'connexion ou clé Yousign refusée' : statut === 429 ? 'limite de débit Yousign atteinte'
       : statut >= 500 ? 'service Yousign momentanément indisponible' : `Yousign a répondu ${statut}`);
     /** @type {any} */ (e).statut = statut;
     return e;

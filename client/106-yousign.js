@@ -112,7 +112,7 @@
       if (actif) actif.checked = json.actif !== false;
       const ecriture = document.getElementById('reglages-yousign-ecriture');
       if (ecriture) ecriture.checked = json.ecriture !== false;
-      resultatYousign(json.cleEnregistree ? '' : 'Aucune clé enregistrée.');
+      resultatYousign(json.connecte ? 'Connecté par identifiant et mot de passe.' : json.cleEnregistree ? 'Clé enregistrée.' : 'Pas connecté.');
     } catch (e) { resultatYousign('Réglages illisibles.'); }
   }
 
@@ -135,6 +135,26 @@
     // Champ vide = clé gardée (jamais renvoyée par le serveur).
     if (champ && champ.value.trim()) corps.cle = champ.value.trim();
     envoyerReglagesYousign(corps, 'Enregistré. Vaut dès la prochaine conversation.');
+  }
+
+  // Connexion par identifiant et mot de passe (OAuth) : la page de connexion de Yousign s'ouvre, CLAIRE ne voit jamais le mot de passe.
+  async function connecterYousign() {
+    resultatYousign('Ouverture de la page de connexion de Yousign…');
+    try {
+      const r = await fetchAvecAuth('/api/yousign/oauth/demarrer', { method: 'POST' });
+      const json = await r.json().catch(() => ({}));
+      if (!json.ok || !json.url) { resultatYousign(json.message || 'Connexion impossible.'); return; }
+      if (typeof ouvrirLienExterne === 'function') ouvrirLienExterne(json.url); else window.open(json.url, '_blank', 'noopener');
+      resultatYousign('Connectez-vous sur la page de Yousign, puis revenez ici et cliquez sur « Tester la connexion ».');
+    } catch (e) { resultatYousign('Serveur injoignable.'); }
+  }
+
+  async function deconnecterYousign() {
+    try {
+      await fetchAvecAuth('/api/yousign/oauth/deconnecter', { method: 'POST' });
+      await chargerReglagesYousign();
+      resultatYousign('Déconnecté.');
+    } catch (e) { resultatYousign('Serveur injoignable.'); }
   }
 
   function effacerCleYousign() {

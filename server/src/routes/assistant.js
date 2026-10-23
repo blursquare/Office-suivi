@@ -184,7 +184,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       const droit = ol.jeton && ol.actif && injections && injections.openlegi ? await injections.openlegi.outilsAgent() : [];
       // Yousign (signature électronique, étude 23/10) : lecture, et écriture si elle n'est pas coupée dans les Réglages.
       const yo = lireReglagesYousign(parametresRepo);
-      const signature = yo.cle && yo.actif && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
+      const signature = yo.connecte && yo.actif && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
       return droit.concat(signature);
     };
     const sortie = await tourAgent({

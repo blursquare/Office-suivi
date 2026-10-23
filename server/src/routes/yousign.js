@@ -5,6 +5,7 @@
 
 const express = require('express');
 const { CLE_YOUSIGN, URL_YOUSIGN_DEFAUT, urlYousignValide, classeOutilYousign, decouperNomYousign, creerClientYousign } = require('../yousign');
+const { creerOauthYousign, CLE_YOUSIGN_OAUTH } = require('../yousignOauth');
 const { noterVerification } = require('../verificationsTerrain');
 
 const routeAsync = (fn) => (req, res) => {
@@ -14,22 +15,37 @@ const routeAsync = (fn) => (req, res) => {
   });
 };
 
-/** Réglages enregistrés. @param {any} parametresRepo */
+/** La connexion par identifiant et mot de passe (OAuth) : jetons gardés sur le serveur, jamais renvoyés. @param {any} parametresRepo */
+function creerConnexionYousign(parametresRepo, injections = {}) {
+  return creerOauthYousign({
+    lire: () => (parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_YOUSIGN_OAUTH, {}) : {}) || {},
+    ecrire: (v) => parametresRepo.ecrireJsonBrut(CLE_YOUSIGN_OAUTH, v),
+    fetch: injections.fetch
+  });
+}
+
+/** Réglages enregistrés (`connecte` : une clé OU une connexion par identifiant et mot de passe). @param {any} parametresRepo */
 function lireReglagesYousign(parametresRepo) {
   const b = (parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_YOUSIGN, {}) : {}) || {};
-  return { cle: typeof b.cle === 'string' ? b.cle : '', actif: b.actif !== false, ecriture: b.ecriture !== false,
+  const o = (parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_YOUSIGN_OAUTH, {}) : {}) || {};
+  const cle = typeof b.cle === 'string' ? b.cle : '';
+  const oauth = !!(o && o.access);
+  return { cle, oauth, connecte: !!cle || oauth, actif: b.actif !== false, ecriture: b.ecriture !== false,
     url: typeof b.url === 'string' && urlYousignValide(b.url) ? b.url : URL_YOUSIGN_DEFAUT };
 }
 
-/** Le client partagé par la route et l'agent. @param {any} parametresRepo @param {{ fetch?: Function }} [injections] */
+/** Le client partagé par la route et l'agent. @param {any} parametresRepo @param {{ fetch?: Function, fetchOauth?: Function }} [injections] */
 function creerYousign(parametresRepo, injections = {}) {
-  return creerClientYousign({ reglages: () => lireReglagesYousign(parametresRepo), fetch: injections.fetch });
+  const connexion = creerConnexionYousign(parametresRepo, { fetch: injections.fetchOauth || injections.fetch });
+  const client = creerClientYousign({ reglages: () => lireReglagesYousign(parametresRepo), fetch: injections.fetch, jeton: () => connexion.jeton() });
+  return Object.assign(client, { connexion });
 }
 
 /** @param {any} parametresRepo @param {ReturnType<typeof creerClientYousign>} client */
 function creerRouteurYousign(parametresRepo, client) {
+  const connexion = /** @type {any} */ (client).connexion;
   const routeur = express.Router();
-  const vue = () => { const r = lireReglagesYousign(parametresRepo); return { cleEnregistree: !!r.cle, actif: r.actif, ecriture: r.ecriture, url: r.url }; };
+  const vue = () => { const r = lireReglagesYousign(parametresRepo); return { cleEnregistree: !!r.cle, connecte: r.oauth, actif: r.actif, ecriture: r.ecriture, url: r.url }; };
 
   routeur.get('/yousign/reglages', (req, res) => { res.json(vue()); });
 
@@ -54,7 +70,7 @@ function creerRouteurYousign(parametresRepo, client) {
   });
 
   routeur.post('/yousign/tester', routeAsync(async (req, res) => {
-    if (!lireReglagesYousign(parametresRepo).cle) { res.json({ ok: false, message: 'Aucune clé enregistrée.' }); return; }
+    if (!lireReglagesYousign(parametresRepo).connecte) { res.json({ ok: false, message: 'Pas connecté : « Se connecter à Yousign » ou enregistrez une clé.' }); return; }
     client.oublier();
     try {
       const outils = await client.outilsServeur();
@@ -72,7 +88,7 @@ function creerRouteurYousign(parametresRepo, client) {
   routeur.post('/yousign/appel', routeAsync(async (req, res) => {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const r = lireReglagesYousign(parametresRepo);
-    if (!r.cle || !r.actif) { res.json({ erreur: 'Yousign coupé dans les Réglages.' }); return; }
+    if (!r.connecte || !r.actif) { res.json({ erreur: 'Yousign coupé dans les Réglages.' }); return; }
     const outil = typeof corps.outil === 'string' ? corps.outil.slice(0, 80) : '';
     const nom = decouperNomYousign(outil);
     if (!nom) { res.json({ erreur: 'Outil Yousign inconnu.' }); return; }
@@ -88,6 +104,38 @@ function creerRouteurYousign(parametresRepo, client) {
       res.json({ erreur: message });
     }
   }));
+
+
+  // Connexion par identifiant et mot de passe : CLAIRE envoie sur la page de connexion de Yousign et reçoit un code à son adresse de retour.
+  routeur.post('/yousign/oauth/demarrer', routeAsync(async (req, res) => {
+    try {
+      const r = lireReglagesYousign(parametresRepo);
+      const url = await connexion.demarrer(r.url, `${req.protocol}://${req.get('host')}`);
+      res.json({ ok: true, url });
+    } catch (e) {
+      const message = String(e && e.message || e).slice(0, 220);
+      noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
+      res.json({ ok: false, message });
+    }
+  }));
+
+  routeur.get('/yousign/oauth/retour', routeAsync(async (req, res) => {
+    const page = (titre, texte) => { res.status(200).type('html').send(`<!doctype html><meta charset="utf-8"><title>CLAIRE</title><body style="font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px"><h2>${titre}</h2><p>${texte}</p>`); };
+    const q = req.query || {};
+    if (typeof q.error === 'string') { page('Connexion refusée', 'Yousign n’a pas autorisé CLAIRE. Vous pouvez fermer cet onglet et recommencer depuis les Réglages.'); return; }
+    try {
+      await connexion.terminer(String(q.code || '').slice(0, 2000), String(q.state || '').slice(0, 200));
+      client.oublier();
+      noterVerification(parametresRepo, 'yousign-connexion', { detail: 'connexion par identifiant et mot de passe' });
+      page('CLAIRE est connectée à Yousign', 'Vous pouvez fermer cet onglet et revenir dans CLAIRE (Réglages › Tester la connexion).');
+    } catch (e) {
+      const message = String(e && e.message || e).slice(0, 200);
+      noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
+      page('Connexion impossible', message.replace(/[<>&]/g, ''));
+    }
+  }));
+
+  routeur.post('/yousign/oauth/deconnecter', (req, res) => { connexion.deconnecter(); client.oublier(); res.json({ ok: true, ...vue() }); });
 
   return routeur;
 }

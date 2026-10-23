@@ -2111,10 +2111,10 @@
     </div>
     <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé reste sur le serveur du bureau."></span></h3>
+      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign</label><span class="info-i" tabindex="0" data-info="Créée dans Yousign (réglages développeur). Commencer par la clé du bac à sable. Laisser vide conserve celle en place."></span></div>
+          <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign (facultative)</label><span class="info-i" tabindex="0" data-info="Inutile avec « Se connecter à Yousign » (identifiant et mot de passe de Yousign, saisis sur la page de Yousign : CLAIRE ne les voit jamais). Une clé d'API reste possible si Yousign en accepte une pour ce serveur. Laisser vide conserve celle en place."></span></div>
           <input type="password" id="reglages-yousign-cle" autocomplete="off" placeholder="Clé d'API Yousign">
         </div>
         <div class="reglages-champ">
@@ -2131,7 +2131,9 @@
         </label>
       </div>
       <div class="reglages-actions">
-        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesYousign()">Enregistrer</wa-button>
+        <wa-button variant="brand" class="primary" onclick="connecterYousign()">Se connecter à Yousign</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="deconnecterYousign()">Se déconnecter</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="enregistrerReglagesYousign()">Enregistrer</wa-button>
         <wa-button appearance="outlined" class="secondary" onclick="testerYousign()">Tester la connexion</wa-button>
         <wa-button appearance="outlined" class="secondary" onclick="effacerCleYousign()">Effacer la clé</wa-button>
         <span id="reglages-yousign-resultat"></span>

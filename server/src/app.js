@@ -237,7 +237,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // OpenLegi (étude 18/10) : un seul client MCP, partagé par l'agent et les Réglages.
   const openlegi = creerOpenlegi(parametresRepo, { fetch: assistant && assistant.fetchOpenlegi });
   // Yousign (étude 23/10) : même principe, un seul client MCP partagé par l'agent et les Réglages.
-  const yousign = creerYousign(parametresRepo, { fetch: assistant && assistant.fetchYousign });
+  const yousign = creerYousign(parametresRepo, { fetch: assistant && assistant.fetchYousign, fetchOauth: assistant && assistant.fetchOauth });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign }, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOpenlegi(parametresRepo, openlegi));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurYousign(parametresRepo, yousign));
