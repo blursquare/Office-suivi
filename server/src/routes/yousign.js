@@ -121,7 +121,7 @@ function creerRouteurYousign(parametresRepo, client) {
   }));
 
   routeur.get('/yousign/oauth/retour', routeAsync(async (req, res) => {
-    const page = (titre, texte) => { res.status(200).type('html').send(`<!doctype html><meta charset="utf-8"><title>CLAIRE</title><body style="font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px"><h2>${titre}</h2><p>${texte}</p>`); };
+    const page = (titre, texte) => { res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" }); res.status(200).type('html').send(`<!doctype html><meta charset="utf-8"><title>CLAIRE</title><body style="font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px"><h2>${titre}</h2><p>${texte}</p>`); };
     const q = req.query || {};
     if (typeof q.error === 'string') { page('Connexion refusée', 'Yousign n’a pas autorisé CLAIRE. Vous pouvez fermer cet onglet et recommencer depuis les Réglages.'); return; }
     try {
@@ -131,7 +131,7 @@ function creerRouteurYousign(parametresRepo, client) {
       page('CLAIRE est connectée à Yousign', 'Vous pouvez fermer cet onglet et revenir dans CLAIRE (Réglages › Tester la connexion).');
     } catch (e) {
       const message = String(e && e.message || e).slice(0, 200);
-      noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
+      if (!(e && e.stateInconnu)) noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
       page('Connexion impossible', message.replace(/[<>&]/g, ''));
     }
   }));

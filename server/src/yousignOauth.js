@@ -141,8 +141,9 @@ function creerOauthYousign(o) {
   async function terminer(code, etat) {
     const attente = etats.get(etat);
     etats.delete(etat);
+    // Un state inconnu (appel quelconque sur la page de retour) n'a aucun effet : ni renouvellement annulé, ni jeton touché.
+    if (!attente || attente.jusqua < maintenant()) throw Object.assign(new Error('connexion expirée ou inconnue : recommencez depuis les Réglages'), { stateInconnu: true });
     generation++;
-    if (!attente || attente.jusqua < maintenant()) throw new Error('connexion expirée ou inconnue : recommencez depuis les Réglages');
     const garde = o.lire() || {};
     if (!garde.clientId || !garde.jeton) throw new Error('connexion incomplète : recommencez depuis les Réglages');
     const r = await json(garde.jeton, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
