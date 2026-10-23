@@ -213,7 +213,7 @@ function emailsDusFiche(d, aujourdhuiIso, gestes) {
     && (m === 'relanceDecompteConfrere' ? !!emailConfrereVendeurDossier(d) : !!emailDestinataireRelance(d))).map(m => {
     const a = ACTIONS_EMAIL_DOSSIER[m];
     return { cle: m, motif: m, titre: a.titre, verbe: a.verbe, categorie: a.categorie, onglet: CLES_ECHANGES_FONDS.includes(m) ? 'fonds' : 'echanges',
-      onclick: `envoyerRelanceCiblee('${escapeOnclickArg(id)}', '${m}')` };
+      onclick: m === 'rib' ? `preparerSignatureRibDossier('${escapeOnclickArg(id)}')` : `envoyerRelanceCiblee('${escapeOnclickArg(id)}', '${m}')` };
   });
 }
 

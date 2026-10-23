@@ -614,7 +614,7 @@
       const champSociete = morale ? champNom.replace('placeholder="Prénom NOM"', 'placeholder="Raison sociale"').replace(`aria-label="Prénom et nom ${qui}"`, `aria-label="Raison sociale ${qui}"`) : champNom;
       return `<span class="personne-ligne"><select class="prop-champ personne-civ" aria-label="Civilité ${qui}" onchange="changerPersonneDossier('${escapeOnclickArg(id)}', ${i}, 'civilite', this.value)">`
         + `<option value=""${civ ? '' : ' selected'}>Civilité</option><option value="M"${civ === 'M' ? ' selected' : ''}>Monsieur</option><option value="Mme"${civ === 'Mme' ? ' selected' : ''}>Madame</option><option value="societe"${morale ? ' selected' : ''}>Société</option></select>${champSociete}</span>`
-        + ((t) => t ? `<span class="hint personne-etat-civil" title="Fiche client d'Authentic">${escapeHtml(t)}</span>` : '')(morale ? '' : etatCivilMariageAuthentic(((d.authentic || {}).fichesClients || {})[cleFicheClientAuthentic(p)] || ficheClientDe(d, [p.prenom, p.nom].filter(Boolean).join(' ')))) + (morale ? '' : boutonAttestationRib(d.id, i));
+        + ((t) => t ? `<span class="hint personne-etat-civil" title="Fiche client d'Authentic">${escapeHtml(t)}</span>` : '')(morale ? '' : etatCivilMariageAuthentic(((d.authentic || {}).fichesClients || {})[cleFicheClientAuthentic(p)] || ficheClientDe(d, [p.prenom, p.nom].filter(Boolean).join(' '))));
     });
     let situation = '';
     if (indices.filter(i => parties[i].qualitePersonne !== 'morale').length >= 2) {

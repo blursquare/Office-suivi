@@ -36,11 +36,18 @@ test('les personnes proposées : physiques seulement, vendeurs d’abord', () =>
   assert.deepStrictEqual(l.map(p => p.nom), ['A', 'B', 'C']);
 });
 
-test('la fiche d’un dossier : deux liens sous chaque personne physique, avec un identifiant protégé', () => {
+test('la ligne de l’onglet Fonds : un brouillon Yousign par acquéreur, société comprise, avec un identifiant protégé', () => {
   const app = chargerApplication();
-  const html = app.boutonAttestationRib("a'b", 2);
+  const d = { id: "a'b", rendezVousSignature: '2099-12-01', parties: [
+    { role: 'VENDEUR', nom: 'Paul DUPONT' },
+    { role: 'ACQUEREUR', nom: 'Léa MARTIN', prenom: 'Léa', emails: ['lea@exemple.fr'], telephones: ['0611223344'] },
+    { role: 'ACQUEREUR', nom: 'SCI DES LICES', qualitePersonne: 'morale', emails: ['sci@exemple.fr'], telephones: ['0655667788'] }] };
+  const html = app.renderLignesSignatureRib(d);
+  assert.match(html, /preparerSignatureRib\('a\\'b', 1\)/);
   assert.match(html, /preparerSignatureRib\('a\\'b', 2\)/);
-  assert.match(html, /telechargerAttestationRib\('a\\'b', 2\)/);
-  assert.match(html, /Faire signer le RIB \(Yousign\)/);
-  assert.match(html, /Attestation en PDF/);
+  assert.match(html, /telechargerAttestationRib\('a\\'b', 1\)/);
+  assert.ok(!/preparerSignatureRib\('a\\'b', 0\)/.test(html), 'le vendeur n’est pas proposé');
+  const sci = app.signataireRibDePartie(d, d.parties[2]);
+  assert.deepStrictEqual([sci.prenom, sci.nom, sci.email, sci.telephone], ['Représentant', 'SCI DES LICES', 'sci@exemple.fr', '+33655667788']);
+  assert.strictEqual(app.renderLignesSignatureRib({ id: 'x', parties: [{ role: 'VENDEUR', nom: 'A' }] }), '');
 });
