@@ -31,6 +31,9 @@ function urlYousignValide(adresse) {
   } catch (e) { return false; }
 }
 
+/** Les SEULS outils ouverts au connecteur de l'API Claude : liste blanche exacte (le classement par préfixe ouvre par défaut — audit 0.325.0, M2), recoupée avec la liste lue. */
+const OUTILS_LECTURE_CONNECTEUR = new Set(['get-signature-request', 'get-signature-request-signer', 'get-signature-request-approver', 'get-signature-request-activity-feed', 'search-signature-requests', 'search-templates', 'search-workspaces', 'list-custom-experiences']);
+
 /** Pure : 'lecture' (get, search, list), 'ecriture' (le reste) ou 'exclu' (jamais donné à l'agent). @param {string} nom */
 function classeOutilYousign(nom) {
   const n = String(nom || '');
@@ -177,7 +180,7 @@ function creerClientYousign(o) {
     if (suspenduJusqua > maintenant()) return null;
     try {
       const liste = await Promise.race([outilsServeur(), new Promise((ok) => { const m = setTimeout(() => ok([]), DELAI_LISTE_MS); if (m && m.unref) m.unref(); })]);
-      const outilsLecture = /** @type {any[]} */ (liste).map((t) => t && t.name).filter((n) => typeof n === 'string' && classeOutilYousign(n) === 'lecture');
+      const outilsLecture = /** @type {any[]} */ (liste).map((t) => t && t.name).filter((n) => typeof n === 'string' && OUTILS_LECTURE_CONNECTEUR.has(n) && classeOutilYousign(n) !== 'exclu');
       if (!outilsLecture.length) return null;
       const jeton = async () => { let j = ''; try { j = o.jeton ? await o.jeton() : ''; } catch (e) { if (!o.reglages().cle) throw e; } return j || o.reglages().cle; };
       return { url: r.url, nom: 'yousign', jeton, outilsLecture };
@@ -228,5 +231,5 @@ function creerClientYousign(o) {
   return { outilsAgent, connecteurClaude, outilsServeur, appeler, attendre, suspendre, oublier };
 }
 
-module.exports = { cleAppelYousign, URL_YOUSIGN_DEFAUT, CLE_YOUSIGN, PREFIXE_YOUSIGN, urlYousignValide, classeOutilYousign, nomAgentYousign, decouperNomYousign,
+module.exports = { OUTILS_LECTURE_CONNECTEUR, cleAppelYousign, URL_YOUSIGN_DEFAUT, CLE_YOUSIGN, PREFIXE_YOUSIGN, urlYousignValide, classeOutilYousign, nomAgentYousign, decouperNomYousign,
   outilAgentDepuisYousign, creerClientYousign };

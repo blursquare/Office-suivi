@@ -5,7 +5,7 @@
 
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { tourAgent, requeteAgent, viderConversationsAgent } = require('../src/assistantAgent');
+const { tourAgent, requeteAgent, viderConversationsAgent, sansBlocsMcp } = require('../src/assistantAgent');
 const { creerClientYousign } = require('../src/yousign');
 
 beforeEach(() => viderConversationsAgent());
@@ -57,4 +57,24 @@ test('connecteurClaude : seuls les outils classés « lecture » ; jamais une é
   assert.deepEqual(c.outilsLecture, ['get-signature-request', 'search-signature-requests']);
   assert.equal(c.url, 'https://api-sandbox.yousign.app/mcp');
   assert.equal(await c.jeton(), 'cle-secrete-123');
+});
+
+test('audit 0.325.0 : connecteur donné = aucune recherche web, rien gardé en mémoire des conversations, historique sans blocs du connecteur à la reprise', async () => {
+  const requetes = [];
+  const gardees = [];
+  const client = { beta: { messages: { create: async (req) => { requetes.push(JSON.parse(JSON.stringify(req))); return { stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Réponse.' }] }; } } } };
+  await tourAgent({ texte: 'Où en est la signature ?', dossiers: [], contexte: { aujourdhui: '2026-10-23' } },
+    { cle: 'k', client, modele: 'claude-opus-5-5', chargerConnecteurMcp: async () => connecteur, rechercheWeb: ['legifrance.gouv.fr'], noterConversation: (i) => gardees.push(i) });
+  assert.equal(requetes[0].tools.some((t) => t.name === 'web_search'), false, 'jamais de recherche web avec le connecteur');
+  assert.equal(gardees.length, 0, 'conversation non gardée');
+  const h = sansBlocsMcp([{ role: 'assistant', content: [{ type: 'mcp_tool_use', id: 'a', name: 'x', server_name: 'yousign', input: {} }, { type: 'mcp_tool_result', tool_use_id: 'a', content: [{ type: 'text', text: 'en attente' }] }, { type: 'text', text: 'ok' }] }]);
+  assert.deepEqual(h[0].content.map((b) => b.type), ['text', 'text']);
+  assert.match(h[0].content[0].text, /en attente/);
+});
+
+test('liste blanche exacte : un outil classé « lecture » par son préfixe mais inconnu de la liste n’est jamais ouvert au connecteur', () => {
+  const { OUTILS_LECTURE_CONNECTEUR, classeOutilYousign } = require('../src/yousign');
+  for (const n of ['get-and-notify', 'get-reset-link', 'get-upload-url', 'list-export']) { assert.equal(classeOutilYousign(n), 'lecture'); assert.equal(OUTILS_LECTURE_CONNECTEUR.has(n), false); }
+  assert.equal(OUTILS_LECTURE_CONNECTEUR.has('get-signature-request'), true);
+  assert.equal(OUTILS_LECTURE_CONNECTEUR.has('send-signature-request'), false);
 });

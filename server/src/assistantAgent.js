@@ -718,6 +718,8 @@ async function tourAgent(entree, o) {
       rechercheWeb: fournisseur === 'claude' && Array.isArray(o.rechercheWeb) ? o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40) : [] };
     // Yousign par le connecteur MCP de l'API Claude (lecture seule) : fixé pour la conversation ; jamais avec Mistral.
     if (fournisseur === 'claude' && typeof o.chargerConnecteurMcp === 'function') { try { conv.connecteurMcp = await o.chargerConnecteurMcp(); } catch (e) { conv.connecteurMcp = null; } }
+    // Connecteur donné : les noms de Yousign peuvent arriver en clair DÈS CE TOUR — jamais de recherche web dans cette conversation, filtres des recherches de droit en place d'emblée (audit 0.325.0, H1).
+    if (conv.connecteurMcp) { conv.rechercheWeb = []; conv.aEteEnClair = true; conv.mcpDonne = true; }
     conversations.set(conv.id, conv);
   }
   conv.maj = maintenant;
@@ -914,7 +916,8 @@ async function tourAgent(entree, o) {
   if (tour.fin === 'refus') return { ...plus, conversation: conv.id, reponse: 'Je ne peux pas répondre à cette demande telle quelle. Pouvez-vous la formuler autrement ?', coutUsd };
   const reponse = nettoyerReponseAgent(tour.texte, conv.table)
     + (tour.fin === 'coupe' ? '\n\n(Réponse coupée : elle était trop longue. Demandez la suite.)' : '');
-  if (reponse && typeof o.noterConversation === 'function') {
+  // Une conversation qui a reçu des noms en clair du connecteur n'est pas gardée en mémoire (90 jours) : ils reviendraient à l'IA dans une autre conversation (audit 0.325.0, M1).
+  if (reponse && typeof o.noterConversation === 'function' && !conv.mcpDonne) {
     try { o.noterConversation({ id: conv.id, auteur: conv.prenom || '', question: conv.derniereQuestion || '', reponse, dossierId: conv.dossierId || '', sensibles: [...conv.table.values()] }); } catch (err) { /* la mémoire ne bloque jamais une réponse */ }
   }
   return { ...plus, conversation: conv.id, reponse: reponse || 'Je n’ai pas de réponse à donner.', coutUsd, modele: conv.modele };
@@ -937,6 +940,24 @@ function pousserResultats(conv, blocs) {
 }
 
 /** Un appel à Claude. Le contenu rendu est gardé TEL QUEL (réflexion, appels, bascule de secours). @param {any} conv @param {any} o */
+/** L'historique sans les blocs du connecteur (la reprise sans serveur déclaré ne doit pas les contenir) : un résultat devient du texte, un appel disparaît. Pure. @param {any[]} messages */
+function sansBlocsMcp(messages) {
+  return messages.map((m) => {
+    if (!m || !Array.isArray(m.content)) return m;
+    const contenu = [];
+    for (const b of m.content) {
+      if (b && b.type === 'mcp_tool_use') continue;
+      if (b && b.type === 'mcp_tool_result') {
+        const t = Array.isArray(b.content) ? b.content.filter((x) => x && x.type === 'text').map((x) => x.text).join('\n') : String(b.content || '');
+        if (t) contenu.push({ type: 'text', text: `(Résultat Yousign déjà lu) ${t}` });
+        continue;
+      }
+      contenu.push(b);
+    }
+    return contenu.length ? { ...m, content: contenu } : { ...m, content: [{ type: 'text', text: '(…)' }] };
+  });
+}
+
 async function tourClaude(conv, o) {
   const sdk = o.client || creerClientAgent(o.cle);
   let message;
@@ -950,8 +971,9 @@ async function tourClaude(conv, o) {
       message = await sdk.beta.messages.create(requeteAgent(conv.modele, conv.messages, { conclure: conv.tours >= MAX_TOURS_OUTILS, carnet: conv.carnet, outilsExternes: conv.outilsExternes, effort: conv.effort, rechercheWeb: rechercheWebPourTour(conv), connecteurMcp: mcp }));
     } catch (err) {
       // Le connecteur ne répond pas (Yousign, clé refusée) : la conversation continue SANS lui, jamais coupée pour autant.
-      if (mcp && err && /mcp/i.test(String(err.message || ''))) {
+      if (mcp && err && (err.status === 400 || err.status === undefined) && /mcp/i.test(String(err.message || ''))) {
         conv.connecteurMcp = null;
+        conv.messages = sansBlocsMcp(conv.messages);
         if (o.parametresRepo) noterVerification(o.parametresRepo, 'yousign-connecteur-claude', { ok: false, message: String(err.message || '').slice(0, 120) });
         relance--;
         continue;
@@ -1101,5 +1123,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { messageErreurAgent, blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
+module.exports = { sansBlocsMcp, messageErreurAgent, blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };
