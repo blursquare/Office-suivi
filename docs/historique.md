@@ -21475,3 +21475,7 @@ Demande de l'étude : le lien de la liste compacte devient un `wa-button` outlin
 ### 2026-10-23 07:41 — 0.320.4 : « + » à droite de « Voir toutes les tâches »
 
 Quand la liste compacte dépasse 8 lignes, le pied porte « Voir toutes les tâches » (pleine largeur moins le rond) et le gros « + » (`.tc-pied`, `boutonPlusTache`, option `ajout-liste` de `renderMesRappels`) ; sinon le « + » reste seul en bas à droite.
+
+### 2026-10-23 07:48 — 0.320.5 : « + » en carré arrondi
+
+`.rappel-perso-plus` : 40 px, coins `--rayon-m` (comme « Voir toutes les tâches »), plus de rond ni d'ombre.
