@@ -808,15 +808,19 @@
     noterEnvoiDansAgenda(id, true);
   }
 
-  function reporterActionJour(cle) {
+  // `jours` : 1 (demain, par défaut) ou 7 (dans une semaine) — menu « ⋯ » du widget (étude 23/10).
+  function reporterActionJour(cle, jours) {
+    const n = jours === 7 ? 7 : 1;
     const a = trouverActionJour(cle);
     const etat = lireEtatJour();
-    etat.reports[cle] = addDays(isoAujourdhuiLocal(), 1);
+    etat.reports[cle] = addDays(isoAujourdhuiLocal(), n);
     ecrireEtatJour(etat);
-    if (a) noterTraite(a, 'Reporté à demain');
+    const libelle = n === 7 ? 'Reporté d’une semaine' : 'Reporté à demain';
+    if (a) noterTraite(a, libelle);
     apercusJour.delete(cle);
+    if (typeof fermerMenusTaches === 'function') fermerMenusTaches();
     render();
-    if (a) afficherToast(`Reporté à demain — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
+    if (a) afficherToast(`${libelle} — ${a.titre.toLowerCase()}.`, 'Annuler', () => annulerTraiteJour(cle));
   }
 
   // « Déjà fait » : valider une action à la main, quand le geste a été fait hors de CLAIRE (email
@@ -1221,13 +1225,13 @@
   // `sansDossier` : la tâche faite dans le tiroir de son dossier — titre seul, sans sous-titre (étude 05/10).
   function renderLignesTraitees(traites, sansDossier) {
     return traites.map(t => `
-      <li class="ja fait${t.etat === 'Reporté à demain' ? ' reporte' : ''}${vientDEtreTraitee(t.cle) ? ' vient-de-finir' : ''}">
-        <span class="ja-coche" aria-hidden="true">${t.etat === 'Reporté à demain' ? icone('clock') : icone('check')}</span>
+      <li class="ja fait${/^Reporté/.test(t.etat) ? ' reporte' : ''}${vientDEtreTraitee(t.cle) ? ' vient-de-finir' : ''}">
+        <span class="ja-coche" aria-hidden="true">${/^Reporté/.test(t.etat) ? icone('clock') : icone('check')}</span>
         <span class="ja-texte-fait">
           <span class="ja-titre">${escapeHtml(t.titre)}</span>
           ${sansDossier ? '' : `<span class="ja-sous">${t.dossierId ? lienDossierTache({ id: t.dossierId }, libelleDossierParNom(t.dossier, t.dossierId)) : escapeHtml(libelleDossierParNom(t.dossier, t.dossierId))} · ${escapeHtml(t.etat)} · ${escapeHtml(t.heure)}</span>`}
         </span>
-        ${t.etat === 'Reporté à demain' || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
+        ${/^Reporté/.test(t.etat) || t.champ || t.manuel || t.echeance ? `<button type="button" class="lien-discret ja-annuler" onclick="annulerTraiteJour('${escapeOnclickArg(t.cle)}')">Annuler</button>` : ''}
         ${t.courrier ? `<button type="button" class="lien-discret ja-annuler" onclick="ouvrirCourrierAppelFonds('${escapeOnclickArg(t.dossierId)}')">Voir le courrier</button>` : ''}
       </li>`).join('');
   }
@@ -1434,7 +1438,7 @@
       const rappelsCoches = utilisateurPoste ? renderRappelsJour(aujourdhui, true, 'faits') : '';
       const mesRappels = utilisateurPoste ? rappelsDuJour(rappelsPerso, aujourdhui) : { aFaire: [], faits: [], aVenir: [] };
       // « Plus tard » (reporté à demain) n'est pas une tâche faite (audit 12/10 : il déclenchait la fête).
-      const faitsDuJour = traites.filter(t => t.etat !== 'Reporté à demain').length + mesRappels.faits.length;
+      const faitsDuJour = traites.filter(t => !/^Reporté/.test(t.etat)).length + mesRappels.faits.length;
       if (!retirees && journeeBouclee(actions.length, mesRappels.aFaire.length, faitsDuJour)) feteHtml = renderFeteJour(feteJourAAnimer(aujourdhui), faitsDuJour);
       const liste = actions.length || traites.length || rappelsJour || rappelsCoches
         ? `<ul class="ja-liste ja-taches" data-ajuster="1" data-min="1">${rappelsJour}${renderActionsJour(actions, global, traites, true)}${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}${plusWidget(versPage)}</ul>`

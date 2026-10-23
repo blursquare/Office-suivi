@@ -87,7 +87,7 @@ function renommerTacheJour(cle) {
 function renderMenuTache(cle) {
   const c = escapeOnclickArg(cle);
   return `<details class="tache-menu"><summary class="tache-menu-bouton" aria-label="Autres actions" title="Autres actions">${icone('ellipsis')}</summary>
-    <div class="tache-menu-liste"><button type="button" onclick="renommerTacheJour('${c}')">Renommer</button><button type="button" class="danger" onclick="retirerTacheJour('${c}')">Retirer de la liste</button></div></details>`;
+    <div class="tache-menu-liste"><button type="button" onclick="reporterActionJour('${c}', 1)">Reporter d’un jour</button><button type="button" onclick="reporterActionJour('${c}', 7)">Reporter d’une semaine</button><button type="button" onclick="renommerTacheJour('${c}')">Renommer</button><button type="button" class="danger" onclick="retirerTacheJour('${c}')">Retirer de la liste</button></div></details>`;
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {
@@ -109,7 +109,7 @@ function chiffresTachesJour(actions, reportees, aVenir, traites) {
     aFaire: (actions || []).length,
     enRetard: (actions || []).filter((a) => a.jours != null && a.jours < 0).length,
     plusTard: (reportees || []).length + (aVenir || []).length,
-    faites: (traites || []).filter((t) => t.etat !== 'Reporté à demain').length
+    faites: (traites || []).filter((t) => !/^Reporté/.test(t.etat)).length
   };
 }
 
@@ -131,7 +131,8 @@ function boutonsTacheCompact(a) {
   const sansGeste = !a.geste || a.geste.type === 'fiche';
   const geste = sansGeste ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + a.titre)}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;
   const boutonOutil = outil ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>` : '';
-  return `${geste}${boutonOutil}${renderMenuTache(a.cle)}`;
+  // Le responsable (initiales) entre le délai et le menu « ⋯ » (étude 23/10).
+  return `${geste}${boutonOutil}<span class="tc-resp">${pastilleCollaborateur(a.dossier.responsable)}</span>${renderMenuTache(a.cle)}`;
 }
 
 /** Une tâche : une ligne (case ronde, titre, dossier + initiales du responsable, délai, gestes, menu). @param {any} a */
@@ -139,7 +140,7 @@ function renderLigneTacheCompacte(a) {
   if (a.rappel) return renderLigneRappelCompact(a);
   const cle = escapeOnclickArg(a.cle);
   return `<li class="tc-ligne${a.gravite === 'critique' ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
-    <span class="tc-texte"><span class="tc-titre">${escapeHtml(a.titre)}</span><span class="tc-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span></span>
+    <span class="tc-texte"><span class="tc-titre">${escapeHtml(a.titre)}</span><span class="tc-dossier">${lienDossierTache(a.dossier)}</span></span>
     <span class="tc-delai">${delaiTacheCompact(a)}</span><span class="tc-actions">${boutonsTacheCompact(a)}</span></li>`;
 }
 
@@ -149,7 +150,7 @@ function renderGroupeTacheCompact(liste) {
   const lignes = liste.map((a) => {
     const cle = escapeOnclickArg(a.cle);
     return `<li class="tc-ligne tc-sous"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre + ' — ' + libelleDossierAffiche(a.dossier))}" title="Déjà fait — valider à la main">${icone('check')}</button>
-      <span class="tc-texte"><span class="tc-dossier tc-dossier-seul">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span></span>
+      <span class="tc-texte"><span class="tc-dossier tc-dossier-seul">${lienDossierTache(a.dossier)}</span></span>
       <span class="tc-delai">${delaiTacheCompact(a)}</span><span class="tc-actions">${boutonsTacheCompact(a)}</span></li>`;
   }).join('');
   return `<li class="tc-groupe"><div class="tc-groupe-tete"><span class="tc-titre">${escapeHtml(a0.titre)}</span><span class="tf-sous">· ${liste.length} dossiers</span></div><ul class="tc-liste">${lignes}</ul></li>`;
@@ -209,6 +210,18 @@ function rappelsEnTaches(aujourdhui) {
   return filtrerRappelsParAffaire(rappelsDuJour(rappelsPerso, aujourdhui).aFaire.map((r) => rappelEnTache(r, dossiers, aujourdhui)), modeTachesAffaire());
 }
 
+/** Reporter un de mes rappels : son échéance passe à aujourd'hui + N jours (il revient ce jour-là). @param {string} id @param {number} jours */
+function reporterRappelTache(id, jours) {
+  fermerMenusTaches();
+  const r = rappelsPerso.find((x) => x.id === id);
+  if (!r || r.agendaItemId || r.demandePar) return;
+  const avant = r.echeance || '';
+  r.echeance = addDays(isoAujourdhuiLocal(), jours);
+  enregistrerRappelPerso(r);
+  render();
+  afficherToast(`Reporté ${jours === 1 ? 'à demain' : 'd’une semaine'} — ${r.texte.toLowerCase()}.`, 'Annuler', () => { r.echeance = avant; enregistrerRappelPerso(r); render(); });
+}
+
 function renommerRappelTache(id) {
   fermerMenusTaches();
   const r = rappelsPerso.find((x) => x.id === id);
@@ -225,7 +238,7 @@ function renommerRappelTache(id) {
 function renderMenuRappel(a) {
   if (a.agenda) return '';
   return `<details class="tache-menu"><summary class="tache-menu-bouton" aria-label="Autres actions" title="Autres actions">${icone('ellipsis')}</summary>
-    <div class="tache-menu-liste"><button type="button" onclick="renommerRappelTache('${escapeOnclickArg(a.rappelId)}')">Renommer</button><button type="button" class="danger" onclick="supprimerRappelPerso('${escapeOnclickArg(a.rappelId)}')">Supprimer</button></div></details>`;
+    <div class="tache-menu-liste">${a.demandePar ? '' : `<button type="button" onclick="reporterRappelTache('${escapeOnclickArg(a.rappelId)}', 1)">Reporter d’un jour</button><button type="button" onclick="reporterRappelTache('${escapeOnclickArg(a.rappelId)}', 7)">Reporter d’une semaine</button>`}<button type="button" onclick="renommerRappelTache('${escapeOnclickArg(a.rappelId)}')">Renommer</button><button type="button" class="danger" onclick="supprimerRappelPerso('${escapeOnclickArg(a.rappelId)}')">Supprimer</button></div></details>`;
 }
 
 function etiquetteRappelTache(a) {

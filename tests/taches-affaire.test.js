@@ -204,3 +204,15 @@ test('tâches retirées : mention « Rétablir », renommer sépare les groupes'
   assert.equal(els.length, 2);
   assert.equal(els[0].groupe.length, 2);
 });
+
+test('menu « ⋯ » : reporter d’un jour / d’une semaine ; le responsable précède le menu, après le délai', () => {
+  const app = chargerApplication();
+  const t = { cle: 'a:pret', type: 'pret', titre: 'Relancer', dossier: { id: 'a', nom: 'VTE A', responsable: 'Julie VASSELIN' }, jours: 2, geste: { type: 'fiche' } };
+  const html = app.renderLigneTacheCompacte(t);
+  assert.ok(html.includes('Reporter d’un jour') && html.includes('Reporter d’une semaine'));
+  assert.ok(html.indexOf('tc-delai') < html.indexOf('tc-resp') && html.indexOf('tc-resp') < html.indexOf('tache-menu'));
+  assert.ok(!html.includes('tc-dossier"><span class="ja-dossier-lien" data-ouvrir-dossier="a" title="Ouvrir la fiche du dossier">VTE - A</span><span class="pastille'), 'plus d’initiales sous le titre');
+  const rappel = app.renderLigneRappelCompact(app.rappelEnTache({ id: 'r1', texte: 'Écrire' }, [], AUJ));
+  assert.ok(rappel.includes('reporterRappelTache'));
+  assert.ok(!app.renderLigneRappelCompact(app.rappelEnTache({ id: 'r2', texte: 'x', demandePar: 'Julie VASSELIN' }, [], AUJ)).includes('reporterRappelTache'), 'une demande ne se reporte pas');
+});

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.320.0';
+  const VERSION_APP = '0.320.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.320.1', date: '2026-10-23 07:10', resume: "Widget des tâches : le responsable (initiales) passe entre le délai et le menu « ⋯ » ; le menu propose « Reporter d'un jour » et « Reporter d'une semaine » (pas pour une tâche de l'agenda ni une demande d'un collègue)." },
     { version: '0.320.0', date: '2026-10-22 22:41', resume: "Widget « Aujourd'hui » : quatre tuiles de chiffres en haut (à faire, en retard, à venir, faites) qui mènent à la vue « Tâches » du Suivi, puis la liste compacte par thème (tâches identiques réunies, initiales du responsable à côté du dossier). Mes rappels, les tâches de l'agenda Outlook et celles qu'un collègue vous demande (Teams) y figurent aussi, sous « Mes tâches ». Chaque tâche a un menu « ⋯ » : la renommer ou la retirer (rétablissable). « Ajouter une tâche » permet de l'assigner à un collaborateur (sa liste + message Teams)." },
     { version: '0.319.2', date: '2026-10-22 22:31', resume: "« Ajouter une tâche » : le bouton devient une pastille à l'accent, et le formulaire s'ouvre en carte (nom de la tâche en grand, échéance et dossier en pastilles, Annuler / Ajouter la tâche)." },
     { version: '0.319.1', date: '2026-10-22 22:23', resume: "Tâches en colonnes : les tâches identiques (à partir de 2) se regroupent en une carte, une ligne par dossier ; l'icône d'outil n'est plus en double quand le geste ouvre déjà l'outil (appel de fonds) ; rien ne déborde des cartes de 390 à 1 400 px ; en colonnes, mes rappels du jour et les tâches faites restent affichés." },
