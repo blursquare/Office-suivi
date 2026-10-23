@@ -83,6 +83,10 @@ test('thèmes : quatre colonnes, chaque type de tâche a la sienne, le reste « 
   // Dans « Gestion du dossier » : mes tâches, puis les rendez-vous, la rédaction, les factures, le reste — quel que soit l'ordre d'arrivée.
   const p = app.regrouperTachesParTheme([{ type: 'point-droit-de-preemption' }, { type: 'factureSuccession' }, { type: 'redaction' }, { type: 'point-fixer-le-rendez-vous' }, { type: 'rappel' }]);
   assert.equal(p[0].actions.map(a => a.type).join(), 'rappel,point-fixer-le-rendez-vous,redaction,factureSuccession,point-droit-de-preemption');
+  // Même rang : l'ordre d'arrivée (l'urgence calculée par actionsDuJour) est gardé ; la liste reçue n'est jamais réordonnée.
+  const entree = [{ type: 'redaction', cle: 'r1' }, { type: 'rappel', cle: 'm1' }, { type: 'redaction', cle: 'r2' }, { type: 'rappel', cle: 'm2' }];
+  assert.equal(app.regrouperTachesParTheme(entree)[0].actions.map(a => a.cle).join(), 'm1,m2,r1,r2');
+  assert.equal(entree.map(a => a.cle).join(), 'r1,m1,r2,m2');
 });
 
 test('outil lié : l’appel de fonds d’une vente ouvre l’outil prérempli, pas pour une succession ni une relance', () => {
@@ -198,6 +202,12 @@ test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon 
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'vente').length, 2, 'la demande liée à une succession sort du mode Ventes');
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'succession').length, 3);
   assert.ok(app.renderTachesColonnes([agenda, demande]).includes('Gestion du dossier'));
+  // Liste compacte : la facture d'une succession est sous « Gestion du dossier », avant « Après la signature ».
+  const facture = { cle: 's1:facture', type: 'factureSuccession', titre: 'Régler la facture EDF', dossier: dossierS, categorie: 'neutre', categorieLabel: 'Facture à régler' };
+  const questionnaire = { cle: 'v1:q', type: 'questionnaire', titre: 'Envoyer le questionnaire', dossier: { id: 'v1', nom: 'X / Y' }, categorie: 'neutre', categorieLabel: 'Signature passée' };
+  const compact = app.renderTachesCompactes([questionnaire, facture]);
+  assert.ok(compact.indexOf('Gestion du dossier') < compact.indexOf('Régler la facture EDF'));
+  assert.ok(compact.indexOf('Régler la facture EDF') < compact.indexOf('Après la signature'));
   // Quatre colonnes toujours, même vides (étude 23/10).
   assert.equal((app.renderTachesColonnes([]).match(/class="tf-colonne"/g) || []).length, 4);
 });

@@ -1451,7 +1451,7 @@
       // Les colonnes ne remplacent que les tâches des dossiers : mes rappels du jour, les rappels cochés et les tâches faites restent dessous.
       const annexes = `${rappelsCoches}${renderLignesTraitees(grouperActionsParDossier(actions, traites).traites)}`;
       // 4 colonnes : les cartes par thème ; 2 colonnes : la liste compacte par thème (étude 22/10). Les deux sous les quatre tuiles de chiffres.
-      // Mes rappels du jour, les tâches de l'agenda Outlook et celles demandées par un collègue y sont aussi (thème « Mes tâches », étude 22/10).
+      // Mes rappels du jour, les tâches de l'agenda Outlook et celles demandées par un collègue y sont aussi (en tête du thème « Gestion du dossier », étude 23/10).
       const toutes = rappelsEnTaches(aujourdhui).concat(actions);
       const listeOuColonnes = toutes.length
         ? (pleineLargeur ? renderTachesColonnes(toutes) : renderTachesCompactes(toutes)) + (annexes.trim() ? `<ul class="ja-liste ja-taches">${annexes}</ul>` : '')

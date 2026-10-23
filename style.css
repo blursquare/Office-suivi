@@ -10547,8 +10547,11 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 1100px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: minmax(0, 1fr); } }
-/* Vue « Tâches » du Suivi : sous 1 800 px, la colonne du mois passe SOUS les tâches pour laisser aux quatre colonnes leur largeur. */
-@media (max-width: 1799px) {
+/* Fiche ouverte à côté : l'écran de gauche est resserré, deux colonnes (quatre y feraient moins de 160 px). */
+body.fiche-a-cote .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Vue « Tâches » du Suivi : de 1 101 à 1 799 px, la colonne du mois passe SOUS les tâches pour laisser aux quatre colonnes leur largeur
+   (plus étroit, elle reste au-dessus comme dans le reste du Suivi). */
+@media (min-width: 1101px) and (max-width: 1799px) {
   .suivi-corps:has(.suivi-taches) { grid-template-columns: minmax(0, 1fr); }
   .suivi-corps:has(.suivi-taches) > .suivi-cote { position: static; order: 2; }
 }
