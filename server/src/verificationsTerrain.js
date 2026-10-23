@@ -204,6 +204,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Réglages › Téléphonie 3CX › « Ajouter l’extension 3CX », depuis la fenêtre CLAIRE, puis connexion au compte 3CX.' },
   { id: 'courrier-tampon-signature', depuis: '0.205.0', source: 'manuel', titre: 'Courrier d’appel de fonds (.docx ouvert dans Word) : tampon de l’office et signature par-dessus, sans fond, sous « Me … »',
     comment: 'À regarder dans Word au bureau (ici seul LibreOffice a rendu le .docx) : position sous la signature, transparence, pas de page blanche ajoutée.' },
+  { id: 'attestation-rib-pdf', depuis: '0.326.0', source: 'poste', titre: 'Attestation de transmission de RIB : PDF composé sur le papier de l’office, à signer par Yousign avec le RIB du client en pièce jointe',
+    comment: 'Rendu vérifié ici sur des données inventées ; reste à le déposer dans Yousign et à voir le client le signer par SMS en joignant son RIB (la pièce jointe obligatoire se règle dans Yousign, pas par CLAIRE).' },
   { id: 'courrier-pdfa-authentic', depuis: '0.205.0', source: 'manuel', titre: 'Courrier d’appel de fonds en PDF/A-2U accepté par Authentic (« PDF/A pour Authentic »)',
     comment: 'Conforme PDF/A-2U (et donc 2B) d’après veraPDF au moment de l’écriture ; reste à le déposer dans Authentic et à voir sa « Conformité Norme » (PDF/A-2U ou 2B).' },
   { id: 'photos-aeriennes-ign', depuis: '0.201.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : photos aériennes de la parcelle lues à l’IGN (data.geopf.fr)',

@@ -12,5 +12,6 @@
   "donnees-dossier.js",
   "trajets.js",
   "scans-memoire.js",
-  "autorisations-succession.js"
+  "autorisations-succession.js",
+  "attestation-rib.js"
 ]

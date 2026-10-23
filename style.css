@@ -10144,7 +10144,8 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 }
 /* État civil d'Authentic sous une personne de la fiche (étude 18/10 : régime, date et lieu du mariage). */
 .personne-etat-civil { display: block; margin: 0 0 6px 120px; font-size: var(--texte-s); line-height: 1.35; }
-@media (max-width: 700px) { .personne-etat-civil { margin-left: 0; } }
+.personne-attestation { display: block; margin: 0 0 6px 120px; font-size: var(--texte-s); }
+@media (max-width: 700px) { .personne-etat-civil, .personne-attestation { margin-left: 0; } }
 /* Parcelles d'un coup d'œil (étude 18/10, Constitution › DIA et SAFER et Contrôle de l'urbanisme) : une carte par parcelle, la famille de zone en couleur. */
 .parcelles-zonage { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 4px 0 12px; }
 .pz-carte { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; border: 1px solid var(--line); border-left: 4px solid var(--muted); border-radius: var(--rayon-m); background: var(--paper-card); min-width: 0; }

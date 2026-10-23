@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.325.1';
+  const VERSION_APP = '0.326.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.326.0', date: '2026-10-23 21:51', resume: "Attestation de transmission de RIB : sous chaque personne de la fiche, un lien produit le PDF de l'office (en-tête de l'office, plus moderne), déjà rempli du nom, du domicile et de la référence du dossier d'après la fiche et Authentic. Le client le signe par Yousign avec un code SMS et y joint son RIB." },
     { version: '0.325.1', date: '2026-10-23 17:58', resume: "Nouveau dossier, étape Vérifier : une date modifiée n'est plus retenue avant la fin de la frappe — elle l'est en quittant le champ ou par Entrée (taper le jour d'une date déjà remplie redessinait le panneau au premier chiffre)." },
     { version: '0.325.0', date: '2026-10-23 13:55', resume: "Yousign : « Demander à CLAIRE » peut lire Yousign par le connecteur MCP de Claude, comme dans Claude (Réglages › Yousign › « Lire par le connecteur MCP de Claude », éteint par défaut). Lecture seule : état d’une demande, signataires ; aucune écriture par ce biais. Les noms des signataires arrivent alors à l’IA sans masquage ; avec Mistral, ou éteint, CLAIRE lit elle-même, noms masqués." },
     { version: '0.324.1', date: '2026-10-23 13:33', resume: "Les pages d’accueil de « Constitution de dossier » et de « Autorisations de fonds » sont centrées aussi en hauteur." },
