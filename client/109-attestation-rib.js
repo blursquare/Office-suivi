@@ -29,7 +29,7 @@ function renderLignesSignatureRib(d) {
       categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature', titre: 'Demander le RIB et la pièce d’identité',
       sous: (liste.length > 1 && nom ? nom + ' · ' : '') + (faite && d.ribDemandeLe ? `Signature demandée le ${formatDateFr(d.ribDemandeLe)}` : 'Signature électronique (code SMS) avec le RIB en pièce jointe'),
       faite,
-      bouton: { libelle: faite ? 'Refaire' : 'Faire signer', icone: icone('pencil'), onclick: `preparerSignatureRib('${escapeOnclickArg(d.id)}', ${Number(index)})`, titre: 'Crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.' },
+      bouton: { libelle: faite ? 'Renvoyer' : 'Envoyer', icone: icone('mail'), onclick: `preparerSignatureRib('${escapeOnclickArg(d.id)}', ${Number(index)})`, titre: 'Crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.' },
       secondaires: `<wa-button appearance="plain" class="bouton-icone" size="s" onclick="telechargerAttestationRib('${escapeOnclickArg(d.id)}', ${Number(index)})" title="Attestation en PDF à faire signer" aria-label="Attestation en PDF">${icone('file-text')}</wa-button>`
     });
   }).join('');

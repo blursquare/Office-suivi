@@ -278,7 +278,7 @@
             titre: 'Demander le RIB et la pièce d’identité',
             contexte: `${signature}. Signature du RIB par Yousign pas encore demandée.`,
             jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
-            geste: { type: 'signatureRib' }, bouton: 'Faire signer le RIB'
+            geste: { type: 'signatureRib' }, bouton: 'Envoyer'
           });
         }
       }

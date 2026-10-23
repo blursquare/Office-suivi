@@ -21558,3 +21558,5 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 - Point terrain `signature-rib-claude` (même agent, **non vérifié au bureau**). Nouveauté : audit sécurité/qualité à faire avant publication sur `main`.
 
 - **0.330.1** (`client/110-assistant-nouveau-dossier.js`, outil `nouveau_dossier_vente`) : étude 24/10 « lors de l'ajout d'un dossier, une étape pour récupérer les infos d'Authentic » — mode `authentic` (relit `GET /api/authentic/releves/recents`, liste `authentic_id`, résumé, déjà suivi, succession), `preparer` accepte `authentic_id` (choix explicite quand le dossier ne se reconnaît pas seul) et, sans PDF, reprend Authentic seul (`creerDepuisAuthentic`) ; « creer » ne demande plus de compromis lu.
+
+- **0.330.2** : bouton « Envoyer » / « Renvoyer » (étude 24/10, « au lieu de Faire signer remets le bouton Envoyer ») ; il lance toujours la préparation du brouillon Yousign, rien ne part sans l'envoi dans Yousign.
