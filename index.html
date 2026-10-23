@@ -143,6 +143,10 @@
         <button type="button" id="tab-inventaire" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="ouvrirArbitrageSansDossier()">
           <span class="sidebar-link-icone" id="icon-nav-inventaire" aria-hidden="true"></span>Arbitrage forfait mobilier
         </button>
+        <!-- Autorisations de déblocage ou de transfert de fonds (étude 23/10, client/108, commun/autorisations-succession.js). -->
+        <button type="button" id="tab-autorisations" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('autorisations')">
+          <span class="sidebar-link-icone" id="icon-nav-autorisations" aria-hidden="true"></span>Autorisations de fonds
+        </button>
       </div>
       </div>
 
@@ -1400,6 +1404,11 @@
      l'artefact abandonnées au profit des jetons de CLAIRE. L'aperçu de droite reste une FEUILLE
      (fond blanc, Times New Roman comme le .docx produit) dans les deux thèmes : c'est le
      fac-similé du document, même principe que le courrier d'appel de fonds. -->
+
+<!-- Autorisations de déblocage ou de transfert de fonds d'une succession (étude 23/10, client/108-autorisations-succession.js). -->
+<div class="onglet-panel" id="onglet-autorisations" style="display:none;">
+  <div class="card" id="aut-carte"></div>
+</div>
 
 <!-- Constitution de dossier (étude 15/10, client/72-constitution-dossier.js, commun/constitution.js) : courriers d'interrogation d'une vente ou d'une succession. -->
 <div class="onglet-panel" id="onglet-constitution" style="display:none;">
@@ -2828,6 +2837,7 @@
 <script src="commun/donnees-dossier.js"></script>
 <script src="commun/trajets.js"></script>
 <script src="commun/scans-memoire.js"></script>
+<script src="commun/autorisations-succession.js"></script>
 <script src="client/00-version.js"></script>
 <script src="client/01-socle.js"></script>
 <script src="client/02-extraction-type-acte-qualites.js"></script>
@@ -2936,5 +2946,6 @@
 <script src="client/105-taches-widget.js"></script>
 <script src="client/106-yousign.js"></script>
 <script src="client/107-appel-fonds-saisie-nas.js"></script>
+<script src="client/108-autorisations-succession.js"></script>
 </body>
 </html>

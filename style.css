@@ -10623,3 +10623,14 @@ wa-button.rappel-perso-plus { font-size: var(--texte-2xl); }
 wa-button.rappel-perso-plus::part(base) { width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: var(--rayon-m); transition: transform 0.15s ease; }
 wa-button.rappel-perso-plus:hover::part(base) { transform: scale(1.06); }
 wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
+
+/* Autorisations de fonds d'une succession (client/108-autorisations-succession.js) */
+.aut-choix { display: flex; align-items: center; gap: 8px; margin: 16px 0; }
+.aut-liste { display: flex; flex-direction: column; gap: 8px; }
+.aut-ligne { border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px 12px; background: var(--paper-card); }
+.aut-ligne-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.aut-nom { flex: 1 1 200px; font-weight: 500; }
+.aut-modele { max-width: 100%; }
+.aut-apercu { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.aut-ligne-texte { min-height: 0; field-sizing: content; width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; font-size: var(--texte-base); }
+.aut-ligne-texte.aut-gras { font-weight: 600; }

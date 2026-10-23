@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.323.1';
+  const VERSION_APP = '0.324.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.324.0', date: '2026-10-23 12:40', resume: "Successions : un nouvel outil « Autorisations de fonds » (tiroir Outils › Succession) et un bouton « Autorisation » sur chaque héritier de la fiche. Les trois modèles de l’office — déblocage de fonds, transfert de fonds du conjoint survivant, transfert de fonds d’un héritier — se téléchargent en PDF d’un clic, l’identité du signataire et du défunt étant reprise de la fiche ; ce qui manque est marqué « à compléter » et se corrige sur l’aperçu avant le PDF." },
     { version: '0.323.1', date: '2026-10-23 12:08', resume: "Demander à CLAIRE : la lecture libre du NAS atteint aussi « MODELES - OUTILS » (et les trois autres dossiers de la mémoire) quand ils sont à côté de la racine des dossiers clients, dans le même partage — à condition de les nommer dans « Dossiers ouverts ». Avant, ils restaient invisibles et l’IA disait que la racine était vide." },
     { version: '0.323.0', date: '2026-10-23 11:02', resume: "Appel de fonds : le courrier peut être enregistré dans le dossier de la vente (bouton « Enregistrer dans le dossier » : Word et PDF/A à la racine du dossier du NAS, au lieu du dossier de téléchargement). Dans le tableau, effacer le « € » n’empêche plus l’addition (« 24 » devient « 24,00 € » en quittant la cellule) et une ligne peut porter un texte à la place du montant (« pour mémoire », « offert »…) : elle n’entre pas dans le total. « Nouveau dossier » ne se replie plus. Alerte « mobilier supérieur au prix » : plus de fausse alerte (6 000 € dans 210 077 €), les montants sont comparés en nombres. Tâches : une catégorie « Agenda » pour les tâches de rendez-vous (fixer, placer). Yousign : champ « Identifiant d’application » et message d’erreur complet." },
     { version: '0.322.2', date: '2026-10-23 10:33', resume: "Succession : une fiche bien ouverte dans son propre onglet d’Authentic n’est plus ignorée quand la succession connaît déjà un bien. Si la rubrique « Immeubles » en annonce plus (ou cite son code postal), CLAIRE propose d’un clic « est-ce le bien de ce dossier ? » ; jamais rangé seul, jamais depuis une recherche d’immeubles." },

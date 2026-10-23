@@ -1070,6 +1070,7 @@
       'icon-nav-prorata': 'part-disque',
       'icon-nav-appel-fonds': 'mail',
       'icon-nav-constitution': 'courriers',
+      'icon-nav-autorisations': 'file-text',
       'icon-nav-inventaire': 'scale',
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',
