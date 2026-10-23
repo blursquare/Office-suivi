@@ -14,7 +14,7 @@ var LOGOS_ATTESTATION_RIB = { logoOffice: { visible: [0.1031, 0.1946, 0.8987, 0.
 
 // Les deux liens sous la personne, dans la fiche : le PDF de l'attestation, et le brouillon Yousign préparé par Claude.
 function boutonAttestationRib(idDossier, index) {
-  return `<span class="personne-attestation"><button type="button" class="lien-action" onclick="preparerSignatureRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="Ouvre Claude, qui crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.">${icone('pencil')} Faire signer le RIB (Yousign)</button>`
+  return `<span class="personne-attestation"><button type="button" class="lien-action" onclick="preparerSignatureRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="Crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.">${icone('pencil')} Faire signer le RIB (Yousign)</button>`
     + ` <button type="button" class="lien-action" onclick="telechargerAttestationRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="PDF de l’attestation à faire signer au client (code par SMS) en lui demandant de joindre son RIB">${icone('file-text')} Attestation en PDF</button></span>`;
 }
 
@@ -29,8 +29,44 @@ function signataireRibDePartie(d, partie) {
   return signataireSignatureRib({ prenom, nom, emails: p.emails, telephones: p.telephones });
 }
 
-// Un clic : la consigne est copiée (pour Cowork ou un autre outil) et Claude s'ouvre avec elle ; son connecteur Yousign crée le brouillon.
-// Rien ne part sans le clic de l'étude dans Yousign. Ouvert avant toute attente : le navigateur n'autorise une fenêtre que dans le geste.
+// L'agent Yousign du serveur est-il utilisable (clé d'API Claude enregistrée) ? Sondé une fois au démarrage ; `null` tant qu'on ne sait pas.
+var signatureRibAuto = null;
+var signatureRibEnCours = false;
+
+async function sonderSignatureRib() {
+  try {
+    const r = await fetchAvecAuth('/api/signature-rib/disponibilite');
+    const j = r.ok ? await r.json() : null;
+    signatureRibAuto = !!(j && j.disponible);
+  } catch (e) { signatureRibAuto = false; }
+}
+(function () { const t = setTimeout(sonderSignatureRib, 4000); if (t && t.unref) t.unref(); })();
+
+// Le brouillon créé par l'agent Yousign du serveur : le lien s'affiche dans CLAIRE. Rien n'est envoyé : l'étude vérifie le brouillon dans Yousign.
+async function creerBrouillonSignatureRib(s) {
+  if (signatureRibEnCours) { afficherToast('Un brouillon est déjà en cours de préparation.', 'OK', null); return; }
+  signatureRibEnCours = true;
+  afficherToast(`Préparation du brouillon pour ${s.prenom} ${s.nom}… (une minute au plus)`, 'OK', null, { fixe: true, cle: 'signature-rib' });
+  try {
+    const r = await fetchAvecAuth('/api/signature-rib/brouillon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
+    const j = await r.json().catch(() => ({}));
+    if (typeof fermerToastFixe === 'function') fermerToastFixe('signature-rib');
+    if (r.ok && j.ok && j.url) {
+      afficherToast('Brouillon créé dans Yousign : vérifiez-le, puis envoyez-le depuis Yousign.', 'Ouvrir', () => window.open(j.url, '_blank', 'noopener'), { fixe: true, cle: 'signature-rib' });
+    } else {
+      if (j && j.configuration) signatureRibAuto = false; // réglage à revoir : les prochains clics reprennent le bouton de repli
+      afficherToast((j && j.raison) || 'Le brouillon n’a pas pu être préparé.', 'OK', null, { fixe: true, cle: 'signature-rib' });
+    }
+  } catch (e) {
+    if (typeof fermerToastFixe === 'function') fermerToastFixe('signature-rib');
+    afficherToast('Le serveur n’a pas répondu : vérifiez dans Yousign si un brouillon a été créé avant de recommencer.', 'OK', null);
+  } finally {
+    signatureRibEnCours = false;
+  }
+}
+
+// Un clic : l'agent Yousign du serveur crée le brouillon, sans rien copier ni coller. À défaut (clé d'API Claude absente ou refusée, serveur
+// qui ne répond pas à la sonde), un lien vers Yousign. Rien ne part sans le clic de l'étude dans Yousign.
 function preparerSignatureRib(idDossier, index) {
   const d = dossiers.find(x => x.id === idDossier);
   const partie = d && Array.isArray(d.parties) ? d.parties[index] : null;
@@ -41,12 +77,12 @@ function preparerSignatureRib(idDossier, index) {
     afficherToast(`Il manque sur la fiche : ${manques.join(', ')}. À compléter avant de préparer la signature.`, 'OK', null);
     return;
   }
-  const consigne = consigneSignatureRib(s);
-  const copie = copierTexteSilencieux(consigne);
-  const fenetre = window.open(adresseClaudeConsigne(consigne), '_blank', 'noopener');
+  if (signatureRibAuto === true) { creerBrouillonSignatureRib(s); return; }
+  // Repli : un simple lien vers Yousign (ouvert dans le geste du clic, sinon le navigateur bloque la fenêtre).
+  const fenetre = window.open('https://yousign.app/', '_blank', 'noopener');
   afficherToast(fenetre
-    ? 'Claude est ouvert avec la consigne : il prépare le brouillon dans Yousign. Vérifiez-le dans Yousign avant d’envoyer.'
-    : `La fenêtre est bloquée${copie ? ' ; la consigne est copiée, collez-la dans Claude ou Cowork' : ''}.`, 'OK', null);
+    ? 'Yousign est ouvert : la préparation automatique n’est pas disponible (clé d’API Claude des Réglages). Créez l’invitation depuis le modèle « Signature d’attestation et envoi de RIB ».'
+    : 'La fenêtre est bloquée : ouvrez https://yousign.app/ et créez l’invitation depuis le modèle « Signature d’attestation et envoi de RIB ».', 'OK', null);
 }
 
 async function attestationRibGenererPdf(doc) {

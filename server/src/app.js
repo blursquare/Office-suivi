@@ -59,6 +59,8 @@ const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
 const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
+const { creerRouteurSignatureRib } = require('./routes/signatureRib');
+const { creerSignatureRibAgent } = require('./signatureRibAgent');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
 const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
@@ -243,6 +245,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Le retour de Yousign est une navigation du navigateur (sans en-tête Authorization) : le `state` à usage unique le protège.
   const sansAuthRetourYousign = (req, res, next) => (req.method === 'GET' && req.path === '/yousign/oauth/retour' ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
   app.use('/api', sansAuthRetourYousign, creerRouteurYousign(parametresRepo, yousign));
+  // Signature du RIB (étude 23/10) : brouillon Yousign préparé par l'agent géré d'Anthropic, avec la clé d'API Claude des Réglages.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureRib(parametresRepo, creerSignatureRibAgent({ parametresRepo, config, creerClient: assistant && assistant.creerClientSignatureRib })));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));

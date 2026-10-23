@@ -42,11 +42,6 @@ test('un nom piégé ne sort pas de sa ligne et reste borné', () => {
   assert.ok(s.nom.length <= 80);
 });
 
-test('l’adresse ouvre une nouvelle conversation avec la consigne encodée', () => {
-  const u = R.adresseClaudeConsigne('a b\né & c=d');
-  assert.strictEqual(u, 'https://claude.ai/new?q=a%20b%0A%C3%A9%20%26%20c%3Dd');
-});
-
 test('le signataire d’une partie de la fiche vient de la fiche et d’Authentic', () => {
   const app = chargerApplication();
   const d = { parties: [{ role: 'VENDEUR', nom: 'Léa MARTIN', emails: ['lea@exemple.fr'] }], authentic: { fichesClients: { a: { nom: 'Léa MARTIN', telephones: ['06 11 22 33 44'] } } } };

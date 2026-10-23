@@ -57,7 +57,7 @@
    */
   function consigneSignatureRib(s) {
     return [
-      'Prépare une invitation à signer Yousign en BROUILLON avec le connecteur Youtrust. Ne l\'envoie pas.',
+      'Prépare une invitation à signer Yousign en BROUILLON avec tes outils Yousign (serveur Youtrust). Ne l\'envoie pas.',
       '',
       `1. Appelle search-templates et prends le modèle « ${MODELE_YOUSIGN_RIB} » (aucun autre modèle).`,
       '2. Appelle create-signature-request-from-template avec ce modèle. Pour son unique emplacement de signataire (reprends son libellé exact tel que search-templates le donne), renseigne :',
@@ -72,12 +72,7 @@
     ].join('\n');
   }
 
-  /** L'adresse qui ouvre une nouvelle conversation Claude avec la consigne déjà saisie. @param {string} consigne */
-  function adresseClaudeConsigne(consigne) {
-    return 'https://claude.ai/new?q=' + encodeURIComponent(consigne);
-  }
-
-  exporter({ MODELE_YOUSIGN_RIB, telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib, adresseClaudeConsigne });
+  exporter({ MODELE_YOUSIGN_RIB, telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);
