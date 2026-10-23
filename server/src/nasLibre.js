@@ -100,6 +100,31 @@ async function cheminReelPermis(nasRacine, abs, r) {
   return rel === '' ? true : cheminPermis(rel, r) || (surLeCheminDUneRacine(rel, r) && !exclu(segmentsSimples(rel), r.exclus));
 }
 
+/** Pure : parmi les dossiers de la mémoire hors de la racine des dossiers clients (`{ nom, chemin }`), ceux que l'étude a NOMMÉS dans « Dossiers
+ * ouverts » — jamais un autre, jamais sans `racines` (« tout le NAS » reste la racine des dossiers clients). @param {Array<{ nom: string, chemin: string }>} dossiers
+ * @param {{ racines: string[], exclus: string[] }} r */
+function supplementairesPermis(dossiers, r) {
+  const premiers = new Set(r.racines.map((x) => simplifier(x.split('/')[0])));
+  return (Array.isArray(dossiers) ? dossiers : []).filter((d) => d && typeof d.nom === 'string' && typeof d.chemin === 'string' && premiers.has(simplifier(d.nom)));
+}
+
+/** Le dossier réel d'un chemin relatif : sous la racine des dossiers clients, ou — si son premier dossier est l'un des `supp` et n'existe pas sous la racine —
+ * sous ce dossier-là, qui ne peut jamais être quitté (liens résolus). Rend { abs, base } ou null. @param {string} nasRacine @param {string} rel @param {Array<{ nom: string, chemin: string }>} supp */
+async function resoudreLibre(nasRacine, rel, supp) {
+  const premier = rel.split('/')[0];
+  const s = premier ? supp.find((x) => simplifier(x.nom) === simplifier(premier)) : null;
+  let sousRacine = true;
+  if (s) { try { await fsp.stat(path.join(nasRacine, premier)); } catch (_) { sousRacine = false; } }
+  if (!s || sousRacine) { const abs = await resoudreCheminNas(nasRacine, rel); return abs ? { abs, base: nasRacine } : null; }
+  const base = path.dirname(s.chemin);
+  const abs = await resoudreCheminNas(base, rel);
+  if (!abs) return null;
+  let dossierReel = path.resolve(s.chemin);
+  try { dossierReel = await fsp.realpath(dossierReel); } catch (_) { /* illisible : comparaison lexicale */ }
+  if (abs !== dossierReel && !abs.startsWith(dossierReel + path.sep)) return null;
+  return { abs, base };
+}
+
 /** @param {string} nom */
 function extensionDe(nom) { return path.extname(nom).toLowerCase(); }
 
@@ -124,13 +149,14 @@ function sansScriptsNiStyles(html) {
 }
 
 /** Un niveau du NAS : sous-dossiers et fichiers permis. @param {string} nasRacine @param {string} rel @param {{ racines: string[], exclus: string[] }} r */
-async function listerNasLibre(nasRacine, rel, r) {
+async function listerNasLibre(nasRacine, rel, r, supp = []) {
   const propre = cheminRelatifPropre(rel);
   if (propre === null) return { erreur: 'Chemin refusé.', statut: 400 };
-  const abs = await resoudreCheminNas(nasRacine, propre);
-  if (!abs) return { erreur: 'Dossier introuvable sur le NAS.', statut: 404 };
+  const res0 = await resoudreLibre(nasRacine, propre, supp);
+  if (!res0) return { erreur: 'Dossier introuvable sur le NAS.', statut: 404 };
+  const abs = res0.abs;
   if (!cheminPermis(propre, r) && !surLeCheminDUneRacine(propre, r)) return { erreur: 'Ce dossier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
-  if (!(await cheminReelPermis(nasRacine, abs, r))) return { erreur: 'Ce dossier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
+  if (!(await cheminReelPermis(res0.base, abs, r))) return { erreur: 'Ce dossier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
   let entrees;
   try { entrees = await fsp.readdir(abs, { withFileTypes: true }); } catch (_) { return { erreur: 'Dossier illisible.', statut: 404 }; }
   const dossiers = [];
@@ -142,6 +168,7 @@ async function listerNasLibre(nasRacine, rel, r) {
       if (cheminPermis(enfant, r) || (surLeCheminDUneRacine(enfant, r) && !exclu(segmentsSimples(enfant), r.exclus))) dossiers.push({ nom: e.name, chemin: enfant });
     } else if (e.isFile() && cheminPermis(enfant, r) && !RE_EXECUTABLE.test(e.name)) fichiers.push({ nom: e.name, chemin: enfant, taille: null, modifieLe: null });
   }
+  if (propre === '') for (const d of supp) if (!dossiers.some((x) => x.nom === path.basename(d.chemin))) dossiers.push({ nom: path.basename(d.chemin), chemin: path.basename(d.chemin) });
   const tri = (a, b) => a.nom.localeCompare(b.nom, 'fr', { numeric: true });
   dossiers.sort(tri); fichiers.sort(tri);
   const gardes = fichiers.slice(0, 300);
@@ -154,7 +181,7 @@ async function listerNasLibre(nasRacine, rel, r) {
 
 /** Recherche par NOM (chemin compris) dans la zone permise : tous les mots doivent y figurer. @param {string} nasRacine @param {string} texte @param {string} depuis
  * @param {{ racines: string[], exclus: string[] }} r @param {{ maintenant?: () => number }} [options] */
-async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}) {
+async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}, supp = []) {
   const mots = simplifier(texte).split(' ').filter((m) => m.length >= 2).slice(0, 8);
   if (!mots.length) return { erreur: 'texte : au moins un mot de deux lettres.', statut: 400 };
   const maintenant = options.maintenant || Date.now;
@@ -169,10 +196,13 @@ async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}) {
   while (file.length) {
     if (vus >= MAX_ENTREES_PARCOURUES || maintenant() - debut > DUREE_RECHERCHE_MS) { incomplet = true; break; }
     const rel = /** @type {string} */ (file.shift());
-    const abs = await resoudreCheminNas(nasRacine, rel);
-    if (!abs) continue;
+    const res0 = await resoudreLibre(nasRacine, rel, supp);
+    if (!res0) continue;
+    const abs = res0.abs;
+    /** @type {any[]} */
     let entrees;
     try { entrees = await fsp.readdir(abs, { withFileTypes: true }); } catch (_) { continue; }
+    if (rel === '') for (const d of supp) if (!entrees.some((e) => e.name === path.basename(d.chemin))) entrees = entrees.concat([{ name: path.basename(d.chemin), isDirectory: () => true, isFile: () => false }]);
     for (const e of entrees) {
       if (RE_CACHE.test(e.name)) continue;
       vus++;
@@ -195,7 +225,7 @@ async function chercherNasLibre(nasRacine, texte, depuis, r, options = {}) {
 
 /** Le texte d'un fichier Word ou texte (les PDF sont lus par le poste). @param {string} nasRacine @param {string} rel @param {number} debut
  * @param {{ racines: string[], exclus: string[] }} r */
-async function lireTexteNasLibre(nasRacine, rel, debut, r) {
+async function lireTexteNasLibre(nasRacine, rel, debut, r, supp = []) {
   const propre = cheminRelatifPropre(rel);
   if (propre === null || propre === '') return { erreur: 'Chemin refusé.', statut: 400 };
   if (!cheminPermis(propre, r)) return { erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
@@ -203,9 +233,10 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r) {
   if (RE_EXECUTABLE.test(nom)) return { erreur: 'Fichier exécutable : jamais lu.', statut: 400 };
   const ext = extensionDe(nom);
   if (ext !== '.docx' && !EXTENSIONS_TEXTE.has(ext)) return { erreur: 'Seuls les fichiers Word (.docx), texte et CSV se lisent ici ; un PDF se lit avec lire_document.', statut: 415 };
-  const abs = await resoudreCheminNas(nasRacine, propre);
-  if (!abs) return { erreur: 'Fichier introuvable sur le NAS.', statut: 404 };
-  if (!(await cheminReelPermis(nasRacine, abs, r))) return { erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
+  const res0 = await resoudreLibre(nasRacine, propre, supp);
+  if (!res0) return { erreur: 'Fichier introuvable sur le NAS.', statut: 404 };
+  const abs = res0.abs;
+  if (!(await cheminReelPermis(res0.base, abs, r))) return { erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).', statut: 403 };
   let st;
   try { st = await fsp.stat(abs); } catch (_) { return { erreur: 'Fichier introuvable sur le NAS.', statut: 404 }; }
   if (!st.isFile()) return { erreur: 'Ce n’est pas un fichier.', statut: 400 };
@@ -223,4 +254,4 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r) {
 }
 
 module.exports = { CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
-  listerNasLibre, chercherNasLibre, lireTexteNasLibre, MAX_CARACTERES_TEXTE };
+  supplementairesPermis, resoudreLibre, listerNasLibre, chercherNasLibre, lireTexteNasLibre, MAX_CARACTERES_TEXTE };

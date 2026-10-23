@@ -11,7 +11,7 @@
 const express = require('express');
 const path = require('node:path');
 const nl = require('../nasLibre');
-const { resoudreCheminNas } = require('../nas');
+const { trouverDossiersMemoire } = require('../memoire');
 const { envoyerFlux } = require('./nas');
 
 function creerRouteurNasLibre(config, parametresRepo) {
@@ -28,6 +28,14 @@ function creerRouteurNasLibre(config, parametresRepo) {
     if (!r.actif) { res.status(403).json({ erreur: 'La lecture libre du NAS est éteinte (Réglages › IA et relecture d’actes).' }); return null; }
     if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return null; }
     return r;
+  }
+  // Les dossiers de la mémoire hors de la racine des dossiers clients (ex. « MODELES - OUTILS » à côté d'elle), seulement s'ils sont nommés dans « Dossiers ouverts ».
+  async function supplementaires(r) {
+    if (!r.racines.length) return [];
+    let trouves = [];
+    try { trouves = await trouverDossiersMemoire(config); } catch (_) { return []; }
+    const racine = path.resolve(config.nasRacine);
+    return nl.supplementairesPermis(trouves.map((t) => ({ nom: path.basename(t.chemin), chemin: t.chemin })).filter((t) => !path.resolve(t.chemin).startsWith(racine + path.sep)), r);
   }
   const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
 
@@ -50,21 +58,21 @@ function creerRouteurNasLibre(config, parametresRepo) {
 
   routeur.get('/nas-libre/lister', routeAsync(async (req, res) => {
     const r = ouvert(res); if (!r) return;
-    const rep = await nl.listerNasLibre(config.nasRacine, chaine(req.query.sous, 1000), r);
+    const rep = await nl.listerNasLibre(config.nasRacine, chaine(req.query.sous, 1000), r, await supplementaires(r));
     if (rep.erreur) { res.status(rep.statut).json({ erreur: rep.erreur }); return; }
     res.json(rep);
   }));
 
   routeur.get('/nas-libre/chercher', routeAsync(async (req, res) => {
     const r = ouvert(res); if (!r) return;
-    const rep = await nl.chercherNasLibre(config.nasRacine, chaine(req.query.texte, 200), chaine(req.query.sous, 1000), r);
+    const rep = await nl.chercherNasLibre(config.nasRacine, chaine(req.query.texte, 200), chaine(req.query.sous, 1000), r, {}, await supplementaires(r));
     if (rep.erreur) { res.status(rep.statut).json({ erreur: rep.erreur }); return; }
     res.json(rep);
   }));
 
   routeur.get('/nas-libre/texte', routeAsync(async (req, res) => {
     const r = ouvert(res); if (!r) return;
-    const rep = await nl.lireTexteNasLibre(config.nasRacine, chaine(req.query.chemin, 1000), chaine(req.query.debut, 12), r);
+    const rep = await nl.lireTexteNasLibre(config.nasRacine, chaine(req.query.chemin, 1000), chaine(req.query.debut, 12), r, await supplementaires(r));
     if (rep.erreur) { res.status(rep.statut).json({ erreur: rep.erreur }); return; }
     res.json(rep);
   }));
@@ -74,9 +82,10 @@ function creerRouteurNasLibre(config, parametresRepo) {
     const rel = nl.cheminRelatifPropre(chaine(req.query.chemin, 1000));
     if (!rel || !/\.pdf$/i.test(rel)) { res.status(400).json({ erreur: 'Chemin invalide (seuls les PDF sont servis).' }); return; }
     if (!nl.cheminPermis(rel, r)) { res.status(403).json({ erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).' }); return; }
-    const cible = await resoudreCheminNas(config.nasRacine, rel);
-    if (!cible) { res.status(404).json({ erreur: 'Fichier introuvable sur le NAS.' }); return; }
-    if (!(await nl.cheminReelPermis(config.nasRacine, cible, r))) { res.status(403).json({ erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).' }); return; }
+    const trouve = await nl.resoudreLibre(config.nasRacine, rel, await supplementaires(r));
+    if (!trouve) { res.status(404).json({ erreur: 'Fichier introuvable sur le NAS.' }); return; }
+    const cible = trouve.abs;
+    if (!(await nl.cheminReelPermis(trouve.base, cible, r))) { res.status(403).json({ erreur: 'Ce fichier n’est pas ouvert à CLAIRE (Réglages › IA).' }); return; }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(path.basename(cible))}"`);

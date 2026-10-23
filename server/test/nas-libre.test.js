@@ -163,3 +163,33 @@ test('audit 21/10 : tout le NAS seulement sur demande explicite ; HTML forgé en
   assert.ok(Date.now() - t1 < 3000, 'xml forgé : ' + (Date.now() - t1) + ' ms');
   assert.match(texteDocumentXml('<w:p><w:r><w:t>a</w:t></w:r><w:del w:id="1"><w:r><w:delText>x</w:delText></w:r></w:del></w:p><w:p><w:r><w:t>b</w:t></w:r></w:p>'), /a[\s\S]*b/);
 });
+
+test('23/10 : un dossier voisin de la racine (MODELES - OUTILS dans le partage Commun) se lit seulement s’il est nommé dans « Dossiers ouverts », sans jamais en sortir', async () => {
+  const commun = fs.mkdtempSync(path.join(os.tmpdir(), 'nas-commun-'));
+  const ecrire = (rel, texte) => { const abs = path.join(commun, rel); fs.mkdirSync(path.dirname(abs), { recursive: true }); fs.writeFileSync(abs, texte); };
+  ecrire('CLIENTS/VTE X/fiche.txt', 'client');
+  ecrire('MODELES - OUTILS/Note honoraires.txt', 'modele de note');
+  ecrire('RAPPEL DE PROCEDURES/p.txt', 'procedure');
+  ecrire('SECRET/s.txt', 'secret');
+  const racine = path.join(commun, 'CLIENTS');
+  const dossiers = [{ nom: 'MODELES - OUTILS', chemin: path.join(commun, 'MODELES - OUTILS') }, { nom: 'RAPPEL DE PROCEDURES', chemin: path.join(commun, 'RAPPEL DE PROCEDURES') }];
+  const r = { racines: ['MODELES - OUTILS'], exclus: [] };
+  const supp = nl.supplementairesPermis(dossiers, r);
+  assert.deepEqual(supp.map((d) => d.nom), ['MODELES - OUTILS'], 'seul le dossier nommé');
+  assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: [], exclus: [] }), [], 'jamais sans dossier nommé');
+  assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: ['MODELES - OUTILS'], exclus: ['outils'] }), [], 'un nom exclu n’apparaît pas');
+  const racineListe = await nl.listerNasLibre(racine, '', r, supp);
+  assert.deepEqual(racineListe.dossiers.map((d) => d.nom), ['MODELES - OUTILS']);
+  const dedans = await nl.listerNasLibre(racine, 'MODELES - OUTILS', r, supp);
+  assert.deepEqual(dedans.fichiers.map((f) => f.nom), ['Note honoraires.txt']);
+  const trouve = await nl.chercherNasLibre(racine, 'note honoraires', '', r, {}, supp);
+  assert.deepEqual(trouve.resultats.map((x) => x.chemin), ['MODELES - OUTILS/Note honoraires.txt']);
+  const texte = await nl.lireTexteNasLibre(racine, 'MODELES - OUTILS/Note honoraires.txt', 0, r, supp);
+  assert.equal(texte.texte, 'modele de note');
+  assert.equal((await nl.lireTexteNasLibre(racine, 'SECRET/s.txt', 0, r, supp)).statut, 403);
+  assert.ok((await nl.listerNasLibre(racine, 'SECRET', r, supp)).erreur, 'un voisin non nommé reste fermé');
+  // un lien du dossier nommé vers un voisin ne le contourne pas
+  try { fs.symlinkSync(path.join(commun, 'SECRET'), path.join(commun, 'MODELES - OUTILS', 'lien')); } catch (_) { return; }
+  const via = await nl.lireTexteNasLibre(racine, 'MODELES - OUTILS/lien/s.txt', 0, r, supp);
+  assert.ok(via.erreur, 'le lien ne sort pas du dossier nommé');
+});
