@@ -77,20 +77,24 @@ async function rangerAppelFondsDansDossier(btn) {
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.erreur || `le serveur a répondu ${r.status}`);
       ranges.push(String(j.chemin || '').split(/[\\/]/).pop() || nomBase + '.' + format);
+      // Tracé dès le premier dépôt réussi : un nouvel essai après une panne ne laisse pas un doublon sans explication.
+      ajouterHistorique(d, `Courrier d'appel de fonds enregistré dans le dossier du NAS (${ranges[ranges.length - 1]})`);
+      sauvegarder(d);
     };
+    // Génération et dépôt du PDF/A séparés : une génération impossible (bibliothèques) n'empêche pas le Word, un dépôt refusé se dit.
+    let pdf = null;
+    try { pdf = await genererPdfAAppelFonds(word.donnees, word.nom); } catch (e) { console.error(e); }
     await deposer(word.blob, 'docx');
-    try {
-      const pdf = await genererPdfAAppelFonds(word.donnees, word.nom);
-      await deposer(pdf.blob, 'pdf');
-    } catch (e) { console.error(e); afficherToast('Le Word est rangé ; le PDF/A n’a pas pu être généré (bibliothèques non chargées).', 'OK', null); }
+    if (pdf) await deposer(pdf.blob, 'pdf');
     enregistrerAppelFondsHistorique('telecharge', word.nom, word.donnees);
-    ajouterHistorique(d, `Courrier d'appel de fonds enregistré dans le dossier du NAS (${ranges.join(', ')})`);
-    sauvegarder(d);
-    afficherToast(`Rangé dans le dossier de la vente : ${ranges.join(' · ')}`, 'OK', null);
+    afficherToast(pdf ? `Rangé dans le dossier de la vente : ${ranges.join(' · ')}` : `Word rangé : ${ranges[0]}. Le PDF/A n’a pas pu être généré (bibliothèques non chargées).`, 'OK', null);
   } catch (e) {
     console.error(e);
-    afficherToast('Courrier non rangé : ' + (e && e.message ? e.message : 'erreur'), 'OK', null);
+    afficherToast('Courrier non rangé en entier : ' + (e && e.message ? e.message : 'erreur') + (ranges.length ? ` (déjà rangé : ${ranges.join(', ')})` : ''), 'OK', null);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = libelleInitial; }
   }
 }
+
+// Le champ de montant où se trouve le curseur est remis en forme avant la génération du courrier (« 24 » → « 24,00 € »).
+function formaterChampMontantActifAppelFonds() { formaterMontantSortieAppelFonds(afChampMontantActif); }

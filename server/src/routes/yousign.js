@@ -66,6 +66,8 @@ function creerRouteurYousign(parametresRepo, client) {
     if (typeof corps.clientId === 'string') {
       const c = corps.clientId.trim();
       if (c && !/^[A-Za-z0-9._~-]{4,200}$/.test(c)) { res.status(400).json({ erreur: 'Identifiant d’application invalide.' }); return; }
+      // Un autre identifiant d'application (ou plus aucun) : l'ancienne connexion ne vaut plus, jamais un ancien client réutilisé en silence.
+      if (c !== r.clientId) parametresRepo.ecrireJsonBrut(CLE_YOUSIGN_OAUTH, {});
       r.clientId = c;
     }
     if (typeof corps.actif === 'boolean') r.actif = corps.actif;

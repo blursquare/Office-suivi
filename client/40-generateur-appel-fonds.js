@@ -2852,6 +2852,7 @@
   // création d'un brouillon Outlook (pièce jointe) et l'historique (`donnees` et `nom` d'un courrier gardé :
   // le même .docx refait). Lève si les bibliothèques ne sont pas chargées.
   async function genererBlobAppelFonds(donneesGardees, nomGarde) {
+    formaterChampMontantActifAppelFonds();
     await chargerModeleAppelFonds();
     const Ctor = window.docxtemplater.default || window.docxtemplater;
     const zip = new window.PizZip(afBase64VersOctets(window.APPEL_FONDS_MODELE.docxB64));
@@ -2930,7 +2931,6 @@
     afDateLettreChoisie = true;
     majApercuAppelFonds();
   }
-
   function reinitialiserAppelFonds() {
     afDossierDetache = null;
     afDateLettreChoisie = false;
