@@ -1071,6 +1071,8 @@
     const s = signatureFaiteSuivi(d);
     if (s && s.iso) return s.iso;
     if (s) return d.rendezVousSignature || '';
+    // Succession : jamais « signée » par un rendez-vous passé tant qu'un acte (DS, API et DS) reste à signer (étude 23/10).
+    if (estSuccession(d)) return '';
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     return d.rendezVousSignature && d.rendezVousSignature < auj ? d.rendezVousSignature : '';
   }
@@ -1089,7 +1091,7 @@
   }
   function celluleTypeProchaineEcheance(d) {
     const signe = signatureFaiteSuivi(d);
-    if (signe) return `<td><span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(signe.actes ? `${signe.actes} signé${/\+/.test(signe.actes) ? 's' : ''}` : 'Acte signé')}</span></td>`;
+    if (signe) return `<td><span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(signe.actes ? `${signe.actes} signée${/\+/.test(signe.actes) ? 's' : ''}` : 'Acte signé')}</span></td>`;
     const p = prochaineEcheanceDetail(d);
     if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
     return `<td><span class="dot-label dl-${p.type}"><span class="dot"></span>${escapeHtml(p.label)}</span></td>`;

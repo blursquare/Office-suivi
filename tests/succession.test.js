@@ -1171,3 +1171,8 @@ test('libellé de l’acte d’un rendez-vous de succession', () => {
   assert.equal(S.libelleActeRendezVousSuccession('notoriete', true, false), 'Notoriété + DS');
   assert.equal(S.libelleActeRendezVousSuccession('acte', false, false), 'Acte à préciser');
 });
+
+test('succession non terminée : un rendez-vous passé ne la rend pas « signée » (étude 23/10)', () => {
+  const d = base({ succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true }, rendezVousSignature: '2026-09-15' });
+  assert.equal(app.dateSignatureDossier(d, '2026-10-20'), '');
+});

@@ -117,7 +117,8 @@ function creerOauthYousign(o) {
       const raison = [c.error, c.error_description || c.message].filter((x) => typeof x === 'string' && x).join(' : ').replace(/[^\p{L}\p{N} _.,:'’()-]/gu, '').slice(0, 160);
       throw new Error(`Yousign a refusé l’enregistrement de CLAIRE (${r.statut}${raison ? ' — ' + raison : ''}) pour l’adresse de retour ${retour}`);
     }
-    o.ecrire({ ...garde, clientId: r.corps.client_id, retour, jeton: meta.jeton, authorization: meta.authorization });
+    // Un nouveau client : les jetons de l'ancien ne valent plus rien (ils ne se renouvelleraient pas avec ce client).
+    o.ecrire({ clientId: r.corps.client_id, retour, jeton: meta.jeton, authorization: meta.authorization });
     return r.corps.client_id;
   }
 
