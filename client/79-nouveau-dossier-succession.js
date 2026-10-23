@@ -54,20 +54,33 @@ function propositionWizardSuccession(donnees, ajouts) {
   };
 }
 
+// Pure : la clé du dossier d'Authentic repris — ses noms (`cleNomsDossierAuthentic`), à défaut son intitulé tel quel.
+function cleDossierWizardSuccession(donnees) {
+  const intitule = String((donnees && donnees.intitule) || '');
+  return cleNomsDossierAuthentic(intitule) || intitule;
+}
+
 // « Nouveau dossier » d'une succession ouvert à « Vérifier » : chaque page d'Authentic relevée (fiche du défunt, d'un héritier, d'un bien)
 // met à jour le dossier repris — même intitulé, même référence —, puis le bloc « Succession » (étude 19/10).
+var wizardSuccessionRelance = 0;
 async function rafraichirWizardSuccessionAuthentic() {
   if (!exportAuthenticActuel || !successionEnCoursWizard()) return;
   const bloc = document.getElementById('wizard-bloc-succession');
-  // Jamais pendant une saisie dans le bloc (il est redessiné).
-  if (!bloc || !bloc.offsetParent || bloc.contains(document.activeElement)) return;
+  if (!bloc || !bloc.offsetParent) return;
+  // Jamais pendant une saisie dans le bloc (il est redessiné) — mais la page relevée n'est pas perdue : nouvel essai dans 2 s, six fois au plus
+  // (étude 23/10 : le lien avec la fiche d'Authentic ne se faisait qu'au bout de quelques secondes, le curseur restant dans le bloc).
+  if (bloc.contains(document.activeElement)) {
+    if (wizardSuccessionRelance < 6) { wizardSuccessionRelance++; setTimeout(rafraichirWizardSuccessionAuthentic, 2000); }
+    return;
+  }
+  wizardSuccessionRelance = 0;
   const actuel = exportAuthenticActuel;
   try {
     const r = await fetchAvecAuth('/api/authentic/releves/recents');
     if (!r.ok) return;
     const { releves } = await r.json();
     const g = dossiersDepuisRelevesAuthentic(releves || [], { apercu: true })
-      .find(x => x.intitule === actuel.intitule && (!actuel.reference || !x.reference || x.reference === actuel.reference));
+      .find(x => cleDossierWizardSuccession(x) === cleDossierWizardSuccession(actuel) && (!actuel.reference || !x.reference || x.reference === actuel.reference));
     if (!g || exportAuthenticActuel !== actuel || JSON.stringify(g.export) === JSON.stringify(actuel)) return;
     exportAuthenticActuel = g.export;
     renderWizardSuccession();
@@ -105,7 +118,9 @@ function renderWizardSuccession() {
   const bloc = document.getElementById('wizard-bloc-succession');
   if (!bloc) return;
   if (!successionEnCoursWizard()) { bloc.innerHTML = ''; wizardSuccessionCle = ''; wizardSuccessionProposition = null; return; }
-  const cle = String(exportAuthenticActuel.intitule || '') + '|' + String(exportAuthenticActuel.reference || '');
+  // Le même dossier d'Authentic tant que ses NOMS sont les mêmes : la référence qui apparaît, ou un intitulé relevé autrement par la page
+  // d'une fiche, ne remet plus la saisie à zéro (étude 23/10 : « au second héritier il efface toutes les données »).
+  const cle = cleDossierWizardSuccession(exportAuthenticActuel);
   const garder = wizardSuccessionCle === cle && !!wizardSuccessionProposition;
   if (!garder) wizardSuccessionAjouts = [];
   // Relu à chaque fois (étude 19/10 : date et lieu du décès vides) : une fiche du défunt ouverte dans Authentic pendant « Vérifier »
@@ -133,6 +148,7 @@ function renderWizardSuccession() {
   const restent = aOuvrir.filter(x => !x.recue).length;
   const ouvrir = `<div class="wizard-succ-ouvrir"><div class="analyse-sous-titre">${restent ? `À ouvrir dans Authentic <span class="analyse-compteur">${restent}</span>` : 'Tout est lu dans Authentic'} ${infoBulle('Ouvrez chaque fiche dans Authentic pendant que cet écran est affiché : elle se coche ici, ses données complètent ce qui est montré et sont gardées à l’ajout du dossier.')}</div>
       <ul class="pa-pages">${aOuvrir.map(x => `<li class="pa-page ${x.recue ? 'recue' : 'manque'}">${icone(x.recue ? 'check' : 'alert-triangle')}<span>${escapeHtml(x.libelle)}</span></li>`).join('')}</ul></div>`;
+  const ajoutTape = valeurChampWizardSuccession('f-succ-ajout-nom');
   bloc.innerHTML = `<div class="wizard-bloc-titre">Succession</div>
     ${ouvrir}
     <div class="field-row">
@@ -163,6 +179,8 @@ function renderWizardSuccession() {
         ${ajoutPersonneWizardSuccession()}</div>
       <div><div class="analyse-sous-titre">Biens</div><ul class="wizard-succ-liste">${biens}</ul></div>
     </div>`;
+  const champAjout = document.getElementById('f-succ-ajout-nom');
+  if (garder && champAjout && ajoutTape) champAjout.value = ajoutTape;
   // Bien principal pré-rempli une fois par dossier d'Authentic, jamais par-dessus une saisie.
   const champBien = document.getElementById('f-adresse-bien');
   if (!garder && champBien && !champBien.value.trim() && p.bienPrincipal) champBien.value = p.bienPrincipal;

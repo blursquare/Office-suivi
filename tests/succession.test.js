@@ -1176,3 +1176,11 @@ test('succession non terminée : un rendez-vous passé ne la rend pas « signée
   const d = base({ succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true }, rendezVousSignature: '2026-09-15' });
   assert.equal(app.dateSignatureDossier(d, '2026-10-20'), '');
 });
+
+test('dossier de succession repris d’Authentic : la référence qui apparaît ou un intitulé relevé autrement restent le même dossier (étude 23/10)', () => {
+  const k = (intitule) => app.cleDossierWizardSuccession({ intitule });
+  assert.equal(k('12 - Succession LEBLOND Pierre'), k('Succession Pierre LEBLOND'));
+  assert.equal(k('SUCC LEBLOND Pierre'), k('3 - SUCC Pierre LEBLOND'));
+  assert.notEqual(k('Succession LEBLOND Pierre'), k('Succession DURAND Marie'));
+  assert.equal(k('???'), '???', 'sans nom lisible : l’intitulé tel quel');
+});

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.322.0';
+  const VERSION_APP = '0.322.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.322.1', date: '2026-10-23 10:31', resume: "Nouveau dossier de succession : ajouter les héritiers un à un depuis Authentic n’efface plus ce qui est déjà repris (le dossier garde sa clé quand la référence apparaît), la page relevée n’est plus perdue quand le curseur reste dans le bloc, et le nom tapé dans « + Personne » reste." },
     { version: '0.322.0', date: '2026-10-23 10:00', resume: "Réglages et agenda plus précis. Réglages : un picto par rubrique, un champ « Chercher un réglage », Légifrance/BOFiP et Yousign rangés dans « Connexions », et un groupe « Intelligence de CLAIRE » (IA, consignes, mémoire, apprentissage). Successions : le rendez-vous dit quel acte est à signer (Notoriété, DS, API et DS) et le Suivi ne marque le dossier « signé » que lorsque tous ses actes le sont, en nommant l’acte signé. Agenda : un dossier déjà placé dans l’agenda n’est plus proposé « à placer » (cas CHEYMOL). Fonds : « Revérifier l’offre de prêt » toujours proposé. Yousign : la raison d’un refus d’enregistrement s’affiche, et l’adresse de retour passe par localhost." },
     { version: '0.321.1', date: '2026-10-23 09:16', resume: "Yousign : connexion par identifiant et mot de passe (bouton « Se connecter à Yousign » dans les Réglages), sans clé d'API. CLAIRE ne voit jamais le mot de passe." },
     { version: '0.321.0', date: '2026-10-23 08:14', resume: "Signature électronique : « Demander à CLAIRE » est branchée sur Yousign. Elle lit les demandes de signature (état, signataires) et peut en créer, modifier et envoyer ; chaque action qui écrit demande d'abord votre « Autoriser », rien ne part chez un signataire sans votre clic. À régler dans Réglages › IA et relecture d'actes : clé d'API Yousign, interrupteurs lecture / écriture." },

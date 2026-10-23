@@ -334,17 +334,22 @@
   // fiches bien rangées sous l'intitulé de l'onglet — « SUCC BARON Philippe » —, la page du dossier sous son en-tête — « 1 - Succession
   // Philippe BARON » — : la création ne recevait ni les fiches ni tous les biens). Même référence, ou mêmes noms et même type d'acte sans
   // références contraires. Le groupe qui porte la page du dossier (informations relevées) reçoit les autres.
-  function fusionnerGroupesAuthentic(groupes) {
+  // Pure : la clé « mêmes noms » d'un intitulé de dossier d'Authentic (type + noms de chaque côté, sans numéro, référence ni ordre des mots) ;
+  // '' si l'intitulé ne dit aucun nom. Deux intitulés de même clé désignent le même dossier (étude 23/10 : une succession relevée sous
+  // deux intitulés — page du dossier, onglet d'une fiche — ne doit pas être prise pour deux dossiers).
+  function cleNomsDossierAuthentic(intitule) {
     const TYPES = { vte: 'vente', vente: 'vente', succ: 'succession', succession: 'succession' };
-    const cleNoms = (intitule) => {
-      const mots = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split(/[^a-z0-9]+/).filter(m => m.length >= 2);
-      const type = mots.map(m => TYPES[m]).find(Boolean) || '';
-      const garder = (m) => !TYPES[m] && !/^(veuve|veuf|epouse|epoux|nee|ne|de|du|et|consorts?)$/.test(m);
-      // Les côtés d'une vente restent distincts (« MARTIN / DUPONT » n'est pas « DUPONT / MARTIN ») ; l'ordre des mots dans un côté ne compte pas.
-      const cotes = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split('/')
-        .map(c => c.split(/[^a-z0-9]+/).filter(m => m.length >= 2 && garder(m)).sort().join(' ')).filter(Boolean);
-      return mots.some(garder) ? type + ':' + cotes.join('/') : '';
-    };
+    const mots = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split(/[^a-z0-9]+/).filter(m => m.length >= 2);
+    const type = mots.map(m => TYPES[m]).find(Boolean) || '';
+    const garder = (m) => !TYPES[m] && !/^(veuve|veuf|epouse|epoux|nee|ne|de|du|et|consorts?)$/.test(m);
+    // Les côtés d'une vente restent distincts (« MARTIN / DUPONT » n'est pas « DUPONT / MARTIN ») ; l'ordre des mots dans un côté ne compte pas.
+    const cotes = normaliserPourRecherche(sansReferenceAuthentic(intitule)).replace(/^\s*\d{1,6}\s*-\s*/, '').split('/')
+      .map(c => c.split(/[^a-z0-9]+/).filter(m => m.length >= 2 && garder(m)).sort().join(' ')).filter(Boolean);
+    return mots.some(garder) ? type + ':' + cotes.join('/') : '';
+  }
+
+  function fusionnerGroupesAuthentic(groupes) {
+    const cleNoms = cleNomsDossierAuthentic;
     const sortie = [];
     (groupes || []).forEach(g => {
       const k = cleNoms(g.intitule);
