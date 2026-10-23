@@ -527,8 +527,16 @@
     const aucunBien = !courant.adresseBien && !parcellesCadastre(courant.bien && courant.bien.cadastre).length
       && !(Array.isArray(courant.biens) && courant.biens.length) && !((courant.authentic && courant.authentic.immeubles) || []).length;
     const actif = ((capture && capture.onglets) || []).find(o => o && o.actif);
-    if (!aucunBien || (actif && /recherche/i.test(actif.titre || ''))) return false;
-    return !bienAutreDossierAuthentic(bienDepuisFicheAuthentic(capture), courant, liste);
+    if (actif && /recherche/i.test(actif.titre || '')) return false;
+    const bien = bienDepuisFicheAuthentic(capture);
+    // Un autre bien de la succession (étude 23/10, LOURY : « j'ouvre les biens mais ils ne sont pas détectés ») : la rubrique « Immeubles » de
+    // sa page en annonce plus que la fiche n'en connaît, ou en cite le code postal — proposé d'un clic, jamais rangé seul.
+    const connus = Math.max(Array.isArray(courant.biens) ? courant.biens.length : 0, ((courant.authentic && courant.authentic.immeubles) || []).length);
+    const rubrique = courant.authentic && courant.authentic.biensDossier;
+    const annonce = Number(rubrique && rubrique.nombre) || 0;
+    const encoreUnBien = connus > 0 && (annonce > connus || (!!bien && bienDansRubriqueAuthentic(bien.adresse, rubrique) === true));
+    if (!aucunBien && !encoreUnBien) return false;
+    return !bienAutreDossierAuthentic(bien, courant, liste);
   }
   // Pure : ce bien est-il celui d'un AUTRE dossier en cours (adresse ou parcelle) ? Il n'est alors jamais proposé au dossier courant.
   function bienAutreDossierAuthentic(bien, courant, liste) {

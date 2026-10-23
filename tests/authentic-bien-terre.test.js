@@ -99,3 +99,16 @@ test('fiche bien lue sur un dossier : type « terre », « Réponse SAFER » ajo
   assert.match(hist, /Réponse SAFER/);
   assert.match(hist, /en nature de bois/);
 });
+
+test('succession qui connaît déjà un bien : une fiche bien d’un autre bien, annoncé par la rubrique « Immeubles », est proposée d’un clic (étude 23/10)', () => {
+  const capture = Object.assign(fiche({ type: 'Terre', designation: 'Une parcelle de terre', nature: 'T' }), { onglets: [{ titre: 'Authentic', actif: true }] });
+  const succ = { id: 's1', nom: 'SUCC LOURY', typeAffaire: 'succession', parties: [], pieces: {}, biens: [{ adresse: 'BLOIS (41000), 1 rue X', parcelles: 'AB 12' }],
+    authentic: { biensDossier: { nombre: 2, texte: '41000 BLOIS 41120 CELLETTES' } } };
+  assert.equal(app.questionBienSuccessionAuthentic(capture, succ, [succ]), true, 'deux biens annoncés, un seul connu');
+  const complet = Object.assign({}, succ, { authentic: { biensDossier: { nombre: 1, texte: '41000 BLOIS' } } });
+  assert.equal(app.questionBienSuccessionAuthentic(capture, complet, [complet]), false, 'tous les biens annoncés sont connus : rien à proposer');
+  const recherche = Object.assign({}, capture, { onglets: [{ titre: 'Recherche d’immeubles', actif: true }] });
+  assert.equal(app.questionBienSuccessionAuthentic(recherche, succ, [succ]), false, 'jamais depuis une recherche d’immeubles');
+  const autre = { id: 'v1', nom: 'VTE X / Y', parties: [], pieces: {}, bien: { adresse: 'CELLETTES (41120), Les Grands Champs', cadastre: { parcelles: [{ section: 'ZB', numero: '42' }] } } };
+  assert.equal(app.questionBienSuccessionAuthentic(capture, succ, [succ, autre]), false, 'le bien d’un autre dossier n’est jamais proposé');
+});
