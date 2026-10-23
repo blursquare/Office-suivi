@@ -184,8 +184,13 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       const droit = ol.jeton && ol.actif && injections && injections.openlegi ? await injections.openlegi.outilsAgent() : [];
       // Yousign (signature électronique, étude 23/10) : lecture, et écriture si elle n'est pas coupée dans les Réglages.
       const yo = lireReglagesYousign(parametresRepo);
-      const signature = yo.connecte && yo.actif && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
+      const signature = yo.connecte && yo.actif && !(yo.viaClaude && a.fournisseur === 'claude') && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
       return droit.concat(signature);
+    };
+    // Yousign par le connecteur MCP de l'API Claude (lecture seule, Claude seulement) : choisi dans les Réglages ; sinon les outils lus par le serveur.
+    const chargerConnecteurMcp = async () => {
+      const yo = lireReglagesYousign(parametresRepo);
+      return yo.viaClaude && yo.connecte && yo.actif && a.fournisseur === 'claude' && injections && injections.yousign && injections.yousign.connecteurClaude ? injections.yousign.connecteurClaude() : null;
     };
     const sortie = await tourAgent({
       conversation: chaine(corps.conversation, 80),
@@ -200,7 +205,7 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       // Échanges gardés par le poste : relus seulement si le serveur a oublié la conversation (reprise).
       historique: Array.isArray(corps.historique) ? corps.historique.slice(-12).map((h) => ({ role: h && h.role === 'moi' ? 'moi' : 'claire', texte: chaine(h && h.texte, 1500) })) : []
     }, { cle: a.cle, fournisseur: a.fournisseur, modele: modeleConversation(a, corps), effort: EFFORTS_AGENT.includes(corps.effort) ? corps.effort : undefined, region: a.region, client: injections && injections.clientAgent,
-      fetchMistral: injections && injections.fetchMistral, parametresRepo, chargerOutilsExternes,
+      fetchMistral: injections && injections.fetchMistral, parametresRepo, chargerOutilsExternes, chargerConnecteurMcp,
       rechercheWeb: (() => { const w = lireRechercheWeb(parametresRepo); return w.actif ? w.domaines : []; })(),
       noterConversation: (info) => noterConversation(parametresRepo, info),
       sensiblesConversations: () => sensiblesConversations(parametresRepo),

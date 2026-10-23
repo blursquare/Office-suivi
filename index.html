@@ -1960,6 +1960,10 @@
           <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
           <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
         </label>
+        <label class="reglages-option" for="reglages-yousign-via-claude">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Lire par le connecteur MCP de Claude (lecture seule)</span><span class="info-i" tabindex="0" data-info="Avec Claude, c’est Anthropic qui appelle Yousign, avec la clé, comme dans Claude : lecture seule (état d’une demande, signataires). Les noms des signataires arrivent alors à l’IA SANS masquage et la clé part chez Anthropic. Les écritures (créer, envoyer) ne passent pas par ce connecteur. Avec Mistral, ou éteint : CLAIRE lit elle-même, noms masqués.">i</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-yousign-via-claude"></wa-switch>
+        </label>
       </div>
       <div class="reglages-champ">
         <div class="reglages-champ-libelle"><label for="reglages-yousign-appid">Identifiant d'application (facultatif)</label><span class="info-i" tabindex="0" data-info="Yousign n'accepte comme adresse de retour que celles qu'il a enregistrées. Si « Se connecter » répond « invalid_redirect_uri », demandez à Yousign d'enregistrer pour CLAIRE l'adresse affichée dans le message (http://localhost:… /api/yousign/oauth/retour) et collez ici l'identifiant d'application (client_id) qu'il vous donne : CLAIRE ne tentera plus de s'enregistrer seule."></span></div>

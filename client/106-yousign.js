@@ -114,6 +114,8 @@
       if (actif) actif.checked = json.actif !== false;
       const ecriture = document.getElementById('reglages-yousign-ecriture');
       if (ecriture) ecriture.checked = json.ecriture !== false;
+      const viaClaude = document.getElementById('reglages-yousign-via-claude');
+      if (viaClaude) viaClaude.checked = json.viaClaude === true;
       resultatYousign(json.connecte ? 'Connecté par identifiant et mot de passe.' : json.cleEnregistree ? 'Clé enregistrée.' : 'Pas connecté.');
     } catch (e) { resultatYousign('Réglages illisibles.'); }
   }
@@ -134,7 +136,8 @@
     const actif = document.getElementById('reglages-yousign-actif');
     const ecriture = document.getElementById('reglages-yousign-ecriture');
     const appId = document.getElementById('reglages-yousign-appid');
-    const corps = { actif: !!(actif && actif.checked), ecriture: !!(ecriture && ecriture.checked), url: url ? url.value.trim() : '', clientId: appId ? appId.value.trim() : '' };
+    const viaClaude = document.getElementById('reglages-yousign-via-claude');
+    const corps = { actif: !!(actif && actif.checked), ecriture: !!(ecriture && ecriture.checked), viaClaude: !!(viaClaude && viaClaude.checked), url: url ? url.value.trim() : '', clientId: appId ? appId.value.trim() : '' };
     // Champ vide = clé gardée (jamais renvoyée par le serveur).
     if (champ && champ.value.trim()) corps.cle = champ.value.trim();
     envoyerReglagesYousign(corps, 'Enregistré. Vaut dès la prochaine conversation.');

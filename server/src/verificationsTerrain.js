@@ -150,6 +150,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier « Tester la connexion » ou à la première liste d’outils lue ; en échec si la clé est refusée ou si api.yousign.app ne répond pas (réseau du bureau, pare-feu), ou si Yousign n’accepte pas une clé d’API pour ce serveur.' },
   { id: 'yousign-lecture', depuis: '0.321.0', source: 'serveur', titre: 'Yousign : l’agent cherche une demande de signature et dit où elle en est',
     comment: 'Coché au premier appel réussi d’un outil de lecture par l’agent. Demander par exemple « où en est la signature du dossier X ? ».' },
+  { id: 'yousign-connecteur-claude', depuis: '0.325.0', source: 'serveur', titre: 'Yousign : l’agent lit une demande de signature par le connecteur MCP de l’API Claude (lecture seule)',
+    comment: 'Réglages › Yousign › « Lire par le connecteur de Claude » allumé ; coché au premier résultat de lecture reçu par ce connecteur ; en échec si Anthropic ne peut pas joindre Yousign avec la clé (la conversation continue alors sans lui). Les noms des signataires arrivent à l’IA sans masquage.' },
   { id: 'yousign-ecriture', depuis: '0.321.0', source: 'serveur', titre: 'Yousign : l’agent crée ou envoie une demande de signature après « Autoriser »',
     comment: 'Coché au premier appel réussi d’un outil qui écrit (créer, ajouter un signataire, envoyer…), toujours après la carte « Autoriser ». À essayer d’abord dans le bac à sable de Yousign.' },
   { id: 'assistant-agent', depuis: '0.213.0', source: 'serveur', titre: '« Demander à CLAIRE » en agent : Claude lit les dossiers (masqués) avec ses outils et répond',

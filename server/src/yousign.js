@@ -170,6 +170,20 @@ function creerClientYousign(o) {
     } catch (e) { return []; }
   }
 
+  /** Le connecteur MCP de l'API Claude (étude 23/10 : « que Claude utilise le MCP ») : { url, nom, jeton, outilsLecture } — LECTURE SEULE, seuls les outils classés
+   * « lecture » sont ouverts ; null si Yousign ne répond pas ou n'a aucun outil de lecture. Le jeton part chez Anthropic, qui appelle Yousign. */
+  async function connecteurClaude() {
+    const r = o.reglages();
+    if (suspenduJusqua > maintenant()) return null;
+    try {
+      const liste = await Promise.race([outilsServeur(), new Promise((ok) => { const m = setTimeout(() => ok([]), DELAI_LISTE_MS); if (m && m.unref) m.unref(); })]);
+      const outilsLecture = /** @type {any[]} */ (liste).map((t) => t && t.name).filter((n) => typeof n === 'string' && classeOutilYousign(n) === 'lecture');
+      if (!outilsLecture.length) return null;
+      const jeton = async () => { let j = ''; try { j = o.jeton ? await o.jeton() : ''; } catch (e) { if (!o.reglages().cle) throw e; } return j || o.reglages().cle; };
+      return { url: r.url, nom: 'yousign', jeton, outilsLecture };
+    } catch (e) { return null; }
+  }
+
   /** Un appel d'outil (nom donné à l'agent). Rend { texte, erreur, ecriture }. @param {string} nomAgent @param {any} args */
   async function appeler(nomAgent, args) {
     const nom = decouperNomYousign(nomAgent);
@@ -211,7 +225,7 @@ function creerClientYousign(o) {
 
   function oublier() { session = null; outils = null; echecLe = 0; suspenduJusqua = 0; }
 
-  return { outilsAgent, outilsServeur, appeler, attendre, suspendre, oublier };
+  return { outilsAgent, connecteurClaude, outilsServeur, appeler, attendre, suspendre, oublier };
 }
 
 module.exports = { cleAppelYousign, URL_YOUSIGN_DEFAUT, CLE_YOUSIGN, PREFIXE_YOUSIGN, urlYousignValide, classeOutilYousign, nomAgentYousign, decouperNomYousign,
