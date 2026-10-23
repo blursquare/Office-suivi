@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.326.1';
+  const VERSION_APP = '0.327.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.327.0', date: '2026-10-23 23:18', resume: "Signature du RIB : sous chaque personne de la fiche, « Faire signer le RIB (Yousign) » ouvre Claude avec une consigne déjà prête (modèle « Signature d'attestation et envoi de RIB », prénom, nom, email et portable de la fiche). Son connecteur Yousign crée le brouillon ; rien n'est envoyé, l'étude vérifie puis envoie. La consigne est aussi copiée, pour Cowork." },
     { version: '0.326.1', date: '2026-10-23 22:11', resume: "Attestation de transmission de RIB : mise en page plus sobre (le titre seul en couleur, filets gris, texte presque noir) et bords alignés sur la marge — les logos ne sont plus décalés par leurs marges blanches." },
     { version: '0.326.0', date: '2026-10-23 21:51', resume: "Attestation de transmission de RIB : sous chaque personne de la fiche, un lien produit le PDF de l'office (en-tête de l'office, plus moderne), déjà rempli du nom, du domicile et de la référence du dossier d'après la fiche et Authentic. Le client le signe par Yousign avec un code SMS et y joint son RIB." },
     { version: '0.325.1', date: '2026-10-23 17:58', resume: "Nouveau dossier, étape Vérifier : une date modifiée n'est plus retenue avant la fin de la frappe — elle l'est en quittant le champ ou par Entrée (taper le jour d'une date déjà remplie redessinait le panneau au premier chiffre)." },

@@ -12,9 +12,41 @@ var COULEURS_ATTESTATION_RIB = { bordeaux: '6D2332', texte: '262224', gris: '666
 var PAGE_ATTESTATION_RIB = { largeur: 595.28, hauteur: 841.89, marge: 56.7 };
 var LOGOS_ATTESTATION_RIB = { logoOffice: { visible: [0.1031, 0.1946, 0.8987, 0.7617] }, logoNotaires: { visible: [0.3172, 0.1117, 0.6841, 0.7792] } };
 
-// Le lien sous la personne, dans la fiche : un clic = le PDF de cette personne.
+// Les deux liens sous la personne, dans la fiche : le PDF de l'attestation, et le brouillon Yousign préparé par Claude.
 function boutonAttestationRib(idDossier, index) {
-  return `<span class="personne-attestation"><button type="button" class="lien-action" onclick="telechargerAttestationRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="PDF à faire signer au client (code par SMS) en lui demandant de joindre son RIB">${icone('file-text')} Attestation de transmission de RIB</button></span>`;
+  return `<span class="personne-attestation"><button type="button" class="lien-action" onclick="preparerSignatureRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="Ouvre Claude, qui crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.">${icone('pencil')} Faire signer le RIB (Yousign)</button>`
+    + ` <button type="button" class="lien-action" onclick="telechargerAttestationRib('${escapeOnclickArg(idDossier)}', ${Number(index)})" title="PDF de l’attestation à faire signer au client (code par SMS) en lui demandant de joindre son RIB">${icone('file-text')} Attestation en PDF</button></span>`;
+}
+
+// Le signataire d'une partie de la fiche : prénom, nom de famille, email et portable lus sur la fiche et les fiches client d'Authentic.
+function signataireRibDePartie(d, partie) {
+  const p = personneDossier(d, partie);
+  const np = p.prenom ? null : nomPrenomsComparant(p.nom);
+  const prenom = p.prenom || np.prenoms;
+  const famille = String(p.prenom ? (p.nomFamille || p.nom) : (np.nom || p.nom)).trim();
+  // « Paul DUPONT » avec le prénom « Paul » : le nom de famille est « DUPONT ».
+  const nom = prenom && famille.toLowerCase().startsWith(prenom.toLowerCase() + ' ') ? famille.slice(prenom.length + 1) : famille;
+  return signataireSignatureRib({ prenom, nom, emails: p.emails, telephones: p.telephones });
+}
+
+// Un clic : la consigne est copiée (pour Cowork ou un autre outil) et Claude s'ouvre avec elle ; son connecteur Yousign crée le brouillon.
+// Rien ne part sans le clic de l'étude dans Yousign. Ouvert avant toute attente : le navigateur n'autorise une fenêtre que dans le geste.
+function preparerSignatureRib(idDossier, index) {
+  const d = dossiers.find(x => x.id === idDossier);
+  const partie = d && Array.isArray(d.parties) ? d.parties[index] : null;
+  if (!partie) return;
+  const s = signataireRibDePartie(d, partie);
+  const manques = manquesSignatureRib(s);
+  if (manques.length) {
+    afficherToast(`Il manque sur la fiche : ${manques.join(', ')}. À compléter avant de préparer la signature.`, 'OK', null);
+    return;
+  }
+  const consigne = consigneSignatureRib(s);
+  const copie = copierTexteSilencieux(consigne);
+  const fenetre = window.open(adresseClaudeConsigne(consigne), '_blank', 'noopener');
+  afficherToast(fenetre
+    ? 'Claude est ouvert avec la consigne : il prépare le brouillon dans Yousign. Vérifiez-le dans Yousign avant d’envoyer.'
+    : `La fenêtre est bloquée${copie ? ' ; la consigne est copiée, collez-la dans Claude ou Cowork' : ''}.`, 'OK', null);
 }
 
 async function attestationRibGenererPdf(doc) {

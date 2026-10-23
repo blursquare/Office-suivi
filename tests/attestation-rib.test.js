@@ -36,9 +36,11 @@ test('les personnes proposées : physiques seulement, vendeurs d’abord', () =>
   assert.deepStrictEqual(l.map(p => p.nom), ['A', 'B', 'C']);
 });
 
-test('la fiche d’un dossier : le lien « Attestation » est sous chaque personne physique, avec un identifiant protégé', () => {
+test('la fiche d’un dossier : deux liens sous chaque personne physique, avec un identifiant protégé', () => {
   const app = chargerApplication();
   const html = app.boutonAttestationRib("a'b", 2);
+  assert.match(html, /preparerSignatureRib\('a\\'b', 2\)/);
   assert.match(html, /telechargerAttestationRib\('a\\'b', 2\)/);
-  assert.match(html, /Attestation de transmission de RIB/);
+  assert.match(html, /Faire signer le RIB \(Yousign\)/);
+  assert.match(html, /Attestation en PDF/);
 });

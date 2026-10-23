@@ -204,6 +204,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Réglages › Téléphonie 3CX › « Ajouter l’extension 3CX », depuis la fenêtre CLAIRE, puis connexion au compte 3CX.' },
   { id: 'courrier-tampon-signature', depuis: '0.205.0', source: 'manuel', titre: 'Courrier d’appel de fonds (.docx ouvert dans Word) : tampon de l’office et signature par-dessus, sans fond, sous « Me … »',
     comment: 'À regarder dans Word au bureau (ici seul LibreOffice a rendu le .docx) : position sous la signature, transparence, pas de page blanche ajoutée.' },
+  { id: 'signature-rib-claude', depuis: '0.327.0', source: 'manuel', titre: 'Signature du RIB : le bouton de la fiche ouvre Claude, dont le connecteur Yousign crée le brouillon depuis le modèle avec le signataire de la fiche',
+    comment: 'À essayer sur un dossier réel : Claude s’ouvre-t-il avec la consigne déjà saisie (adresse claude.ai/new?q=), le brouillon est-il créé sans envoi, le signataire et le code SMS sont-ils bons ? Sinon coller la consigne copiée.' },
   { id: 'attestation-rib-pdf', depuis: '0.326.0', source: 'poste', titre: 'Attestation de transmission de RIB : PDF composé sur le papier de l’office, à signer par Yousign avec le RIB du client en pièce jointe',
     comment: 'Rendu vérifié ici sur des données inventées ; reste à le déposer dans Yousign et à voir le client le signer par SMS en joignant son RIB (la pièce jointe obligatoire se règle dans Yousign, pas par CLAIRE).' },
   { id: 'courrier-pdfa-authentic', depuis: '0.205.0', source: 'manuel', titre: 'Courrier d’appel de fonds en PDF/A-2U accepté par Authentic (« PDF/A pour Authentic »)',
