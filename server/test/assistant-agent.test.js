@@ -757,3 +757,15 @@ test('action_dossier non strict : une valeur hors énumération (champ « constr
   assert.equal(entreeOutilPourPoste('action_dossier', { action: 'rien', dossier_id: 'd1' }).action, '');
   assert.equal(entreeOutilPourPoste('action_dossier', { action: 'piece_recue', dossier_id: 'd1' }).action, 'piece_recue');
 });
+
+test('nouveau dossier de vente depuis un compromis joint (24/10) : outil déclaré, non strict, mode et pièce jointe, consigne de l’agent', () => {
+  const { SYSTEME_AGENT } = require('../src/assistantAgent');
+  const o = OUTILS_AGENT.find((x) => x.name === 'nouveau_dossier_vente');
+  assert.ok(o);
+  assert.equal(o.strict, false);
+  assert.equal(o.input_schema.additionalProperties, false);
+  assert.deepEqual(o.input_schema.properties.mode.enum, ['preparer', 'creer']);
+  assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
+  assert.match(SYSTEME_AGENT, /nouveau_dossier_vente/);
+  assert.match(SYSTEME_AGENT, /Rien n'est créé sans dossier d'Authentic correspondant/);
+});

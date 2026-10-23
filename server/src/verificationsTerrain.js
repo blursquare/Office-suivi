@@ -232,6 +232,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À confirmer à l’œil après avoir réimporté le fichier .reg du poste et rouvert Chrome : plus de question au deuxième appel.' },
   { id: 'import-clients-biens', depuis: '0.291.0', source: 'poste', titre: 'Réglages › Authentic : export clients ou immeubles d’Authentic (.xls) lu et importé',
     comment: 'Coché au premier export lu sur un poste (SheetJS chargé, colonnes devinées) ; en échec si le fichier est illisible ou la bibliothèque injoignable.' },
+  { id: 'assistant-nouveau-dossier', depuis: '0.329.0', source: 'poste', titre: '« Demander à CLAIRE » : un compromis ou une promesse joint remplit seul un nouveau dossier de vente (dossier d’Authentic repris), puis le crée après autorisation',
+    comment: 'Coché au premier dossier préparé par l’agent depuis un PDF joint ; en échec si le PDF est illisible ou si aucun dossier d’Authentic ne correspond.' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traité à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

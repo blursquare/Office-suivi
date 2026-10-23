@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.328.1';
+  const VERSION_APP = '0.329.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.329.0', date: '2026-10-24 00:48', resume: "Demander à CLAIRE remplit seule un nouveau dossier de vente : joignez le compromis ou la promesse (PDF) au message, CLAIRE le lit, reprend le dossier d’Authentic qui correspond et remplit le formulaire « Vérifier », en disant ce qui reste à compléter. Elle crée le dossier après votre autorisation. Sans dossier d’Authentic correspondant, rien n’est créé." },
     { version: '0.328.1', date: '2026-10-24 00:35', resume: "Signature du RIB : « Faire signer » prend la place de l’email de rappel « Demander le RIB et la pièce d’identité » — dans l’onglet Fonds de la fiche (une ligne par acquéreur, société comprise, avec l’attestation en PDF à côté) et dans la tâche d’« À faire ». Le brouillon Yousign créé coche la demande de RIB. Les icônes sous chaque personne sont retirées." },
     { version: '0.328.0', date: '2026-10-24 00:16', resume: "Signature du RIB sans copier-coller : « Faire signer le RIB (Yousign) » prépare seul le brouillon depuis le modèle « Signature d’attestation et envoi de RIB » avec la personne de la fiche (code SMS) et affiche le lien du brouillon. Rien n’est envoyé : vous le vérifiez dans Yousign puis l’envoyez. Demande la clé d’API Claude des Réglages (celle du compte de l’agent Yousign) ; sans elle, le bouton ouvre simplement Yousign." },
     { version: '0.327.0', date: '2026-10-23 23:18', resume: "Signature du RIB : sous chaque personne de la fiche, « Faire signer le RIB (Yousign) » ouvre Claude avec une consigne déjà prête (modèle « Signature d'attestation et envoi de RIB », prénom, nom, email et portable de la fiche). Son connecteur Yousign crée le brouillon ; rien n'est envoyé, l'étude vérifie puis envoie. La consigne est aussi copiée, pour Cowork." },

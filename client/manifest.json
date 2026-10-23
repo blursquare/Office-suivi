@@ -108,5 +108,6 @@
   "106-yousign.js",
   "107-appel-fonds-saisie-nas.js",
   "108-autorisations-succession.js",
-  "109-attestation-rib.js"
+  "109-attestation-rib.js",
+  "110-assistant-nouveau-dossier.js"
 ]
