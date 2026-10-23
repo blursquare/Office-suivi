@@ -105,7 +105,7 @@ async function cheminReelPermis(nasRacine, abs, r) {
  * @param {{ racines: string[], exclus: string[] }} r */
 function supplementairesPermis(dossiers, r) {
   const premiers = new Set(r.racines.map((x) => simplifier(x.split('/')[0])));
-  return (Array.isArray(dossiers) ? dossiers : []).filter((d) => d && typeof d.nom === 'string' && typeof d.chemin === 'string' && premiers.has(simplifier(d.nom)));
+  return (Array.isArray(dossiers) ? dossiers : []).filter((d) => d && typeof d.nom === 'string' && typeof d.chemin === 'string' && premiers.has(simplifier(d.nom)) && !exclu(segmentsSimples(d.nom), r.exclus));
 }
 
 /** Le dossier réel d'un chemin relatif : sous la racine des dossiers clients, ou — si son premier dossier est l'un des `supp` et n'existe pas sous la racine —
