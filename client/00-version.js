@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.320.2';
+  const VERSION_APP = '0.320.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.320.3', date: '2026-10-23 07:33', resume: "Widget des tâches : « Voir toutes les tâches » devient un bouton pleine largeur, plus haut." },
     { version: '0.320.2', date: '2026-10-23 07:19', resume: "Carte « Aujourd'hui » : le message sous le titre et l'anneau comptent aussi vos rappels, les tâches de l'agenda et les demandes (comme les tuiles) ; « Ajouter une tâche » devient un gros « + » rond, à droite." },
     { version: '0.320.1', date: '2026-10-23 07:10', resume: "Widget des tâches : le responsable (initiales) passe entre le délai et le menu « ⋯ » ; le menu propose « Reporter d'un jour » et « Reporter d'une semaine » (pas pour une tâche de l'agenda ni une demande d'un collègue)." },
     { version: '0.320.0', date: '2026-10-22 22:41', resume: "Widget « Aujourd'hui » : quatre tuiles de chiffres en haut (à faire, en retard, à venir, faites) qui mènent à la vue « Tâches » du Suivi, puis la liste compacte par thème (tâches identiques réunies, initiales du responsable à côté du dossier). Mes rappels, les tâches de l'agenda Outlook et celles qu'un collègue vous demande (Teams) y figurent aussi, sous « Mes tâches ». Chaque tâche a un menu « ⋯ » : la renommer ou la retirer (rétablissable). « Ajouter une tâche » permet de l'assigner à un collaborateur (sa liste + message Teams)." },

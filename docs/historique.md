@@ -21467,3 +21467,7 @@ Demande de l'étude sur le widget des tâches. Initiales du responsable déplac�
 ### 23/10/2026 07:19 — 0.320.2 : message et anneau comptent tout, gros « + » à droite
 
 Le message sous le titre (« 8 choses ») et l'anneau ne comptaient pas mes rappels, l'agenda ni les demandes alors que les tuiles en comptaient 10 : `resteJour` / `faitsJour` de `renderAlertesDashboard` (hors petite tuile). « Ajouter une tâche » de la carte = `.rappel-perso-plus` (bouton rond 40 px, à droite) ; « Ajouter un rappel » ailleurs inchangé. Relecture de 0.320.1 : rien de bloquant.
+
+### 2026-10-23 07:33 — 0.320.3 : « Voir toutes les tâches » en bouton pleine largeur
+
+Demande de l'étude : le lien de la liste compacte devient un `wa-button` outlined pleine largeur de 40 px (`.tc-voir-tout`).

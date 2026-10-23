@@ -179,7 +179,7 @@ function renderTachesCompactes(actions) {
   }
   const total = lignesListeCompacte(actions);
   const suite = total > LIGNES_MAX_LISTE_COMPACTE
-    ? `<button type="button" class="lien-discret w-fixe tc-voir-tout" onclick="ouvrirTachesSuivi()">Voir toutes les tâches (${total}) dans le Suivi</button>` : '';
+    ? `<wa-button appearance="outlined" type="button" class="w-fixe tc-voir-tout" onclick="ouvrirTachesSuivi()">Voir toutes les tâches (${total}) dans le Suivi</wa-button>` : '';
   return `<div class="tc-liste-theme">${blocs.join('')}${suite}</div>`;
 }
 
