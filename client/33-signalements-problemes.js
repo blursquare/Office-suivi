@@ -342,7 +342,7 @@
     if (cle === 'noms-nas') initNomsNas();
     if (cle === 'memoire') ouvrirReglagesMemoire();
     if (cle === 'consignes') ouvrirCarnetClaire();
-    if (cle === 'relecture') { chargerReglagesOpenlegi(); chargerRechercheWeb(); chargerNasLibre(); }
+    if (cle === 'relecture') { chargerReglagesOpenlegi(); chargerReglagesYousign(); chargerRechercheWeb(); chargerNasLibre(); }
     if (cle === 'modeles') ouvrirReglagesModelesEmails();
   }
 

@@ -58,6 +58,7 @@ const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
+const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
 const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
@@ -235,8 +236,11 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
   // OpenLegi (étude 18/10) : un seul client MCP, partagé par l'agent et les Réglages.
   const openlegi = creerOpenlegi(parametresRepo, { fetch: assistant && assistant.fetchOpenlegi });
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi }, parametresRepo));
+  // Yousign (étude 23/10) : même principe, un seul client MCP partagé par l'agent et les Réglages.
+  const yousign = creerYousign(parametresRepo, { fetch: assistant && assistant.fetchYousign });
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign }, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOpenlegi(parametresRepo, openlegi));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurYousign(parametresRepo, yousign));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));

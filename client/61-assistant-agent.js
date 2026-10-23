@@ -298,6 +298,7 @@
     if (nom === 'controles_relecture') return controlesRelectureAgent(e);
     if (nom === 'chercher_conversations') return chercherConversationsAgent(e);
     if (/^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(nom)) return appelOpenlegiAgent(nom, e);
+    if (/^yousign__[a-zA-Z0-9_-]+$/.test(nom)) return appelYousignAgent(nom, e);
     return { erreur: 'outil inconnu' };
   }
 
@@ -341,7 +342,7 @@
         assistantAgentConversation = rep.conversation || assistantAgentConversation;
         const resultats = [];
         for (const appel of rep.appels) {
-          assistantEtapeAgent = LIBELLES_OUTILS_AGENT[appel.nom] || libelleOutilOpenlegi(appel.nom) || 'Je réfléchis…';
+          assistantEtapeAgent = LIBELLES_OUTILS_AGENT[appel.nom] || libelleOutilOpenlegi(appel.nom) || libelleOutilYousign(appel.nom) || 'Je réfléchis…';
           renderAssistant();
           if (appel.nom !== 'plan_de_travail') noterOutilColonneAssistant(appel.id, assistantEtapeAgent, false);
           try { resultats.push({ id: appel.id, contenu: await executerOutilAgent(appel.nom, appel.entree) }); }

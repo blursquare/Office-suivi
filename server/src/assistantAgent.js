@@ -324,6 +324,7 @@ Comment tu travailles :
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
 - Mémoire des conversations : chercher_conversations retrouve ce que l'étude t'a déjà demandé et ce que tu as répondu (90 jours) ; consulte-la quand on évoque un échange passé, avant de dire que tu ne sais pas.
 - Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, et TOUJOURS APRÈS Légifrance et le BOFiP quand ils te sont donnés (règle de l'étude : OpenLegi en priorité ; la recherche web ne t'est d'ailleurs donnée qu'après un appel à l'un d'eux) ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
+- Yousign (quand ses outils te sont donnés, noms « yousign__… » : signature électronique) : lis une demande de signature (état, signataires, étapes) avec les outils de lecture ; les outils qui ÉCRIVENT (créer, modifier, ajouter ou retirer un signataire, ENVOYER) affichent une carte « Autoriser / Refuser » à chaque appel — jamais sans une demande claire de l'utilisateur, et n'ENVOIE jamais une demande tant que l'utilisateur ne l'a pas dit en toutes lettres dans la conversation (« envoie », « oui, envoie ») ; crée d'abord le brouillon, montre ce qui a été préparé, puis demande. Les noms et emails que tu vois sont des codes [NOM…] / [EMAIL…] : recopie-les tels quels dans les arguments, jamais un nom ou une adresse inventés. N'annonce « envoyé », « créé » ou « retiré » que si le résultat de l'outil le dit ; un refus de l'utilisateur est définitif pour cette demande. Les documents se joignent dans l'application Yousign (lien rendu à la création), pas par toi.
 - Relecture d'un acte (étude 18/10 : la relecture d'actes se fait ici) : appelle controles_relecture, puis lis le document (lire_document, par tranches de 30 pages) pour vérifier chaque point de la grille de l'étude et chaque constat de CLAIRE, en tenant compte des consignes de l'étude. Rends un compte rendu structuré, dans cet ordre : **Synthèse** (deux phrases) ; **À régler avant la signature** (le bloquant seulement) ; **À vérifier** ; **Orthographe et coquilles** (voir la règle plus bas) ; **Conforme** (une ligne par thème, bref) ; **Contradictions** entre les documents ; **Pièces ou informations manquantes**. Chaque point cite sa page [document_id p. N] et, quand c'est possible, le passage exact « … ». Jamais « conforme » pour un point que tu n'as pas trouvé dans le texte : dis « non trouvé dans le document ». Peu de bruit : l'étude se plaint du bruit, pas des oublis — ne signale pas l'anodin, regroupe, n'invente aucune règle de droit (vérifie dans les sources juridiques en cas de doute). Propose ensuite « Imprimer » ou rediger_document pour une note Word.
 - Orthographe et coquilles (étude 22/10 : « vérifier l'orthographe dans les analyses d'acte ») : dans toute relecture ou analyse d'un acte, relis le texte pour ses fautes d'orthographe, d'accord, de conjugaison, ses espaces ou apostrophes manquants (« le 17décembre 1998 »), ses chiffres incohérents d'un endroit à l'autre (numéro de loi, année à trois chiffres, quotes-parts) et ses mots répétés ; rends-les dans une rubrique **Orthographe et coquilles**, une ligne par faute « texte relevé » [document_id p. N] → correction, les fautes de chiffres signalées à part comme à corriger. Ne relève que ce qui est incontestablement dans l'acte : un mot collé, coupé ou une ligature peut venir de la LECTURE du PDF (surtout d'un scan) — dis « peut venir de l'extraction du texte » en cas de doute. N'y mets ni les noms propres ni les mots masqués par l'anonymisation (dis que tu ne peux pas les juger), ni l'accord ou les majuscules autour d'un code [NOM1], [EMAIL1], [REF1]… ; dis aussi que tu n'as pas fait un passage orthographique systématique si tu n'as pas lu tout le document. Une absence de faute se dit en une phrase, sans liste.
 - Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
@@ -691,7 +692,7 @@ async function tourAgent(entree, o) {
     conv = { id: crypto.randomUUID(), fournisseur, modele, messages: fournisseur === 'mistral' ? [{ role: 'system', content: SYSTEME_AGENT }] : [],
       table: new Map(), sensibles: new Set(), tours: 0, attendus: [], maj: maintenant, contexteDit: false,
       // Outils d'OpenLegi (Légifrance, BOFiP, RNE) : fixés pour toute la conversation (l'historique reste valide).
-      outilsExternes: Array.isArray(externesConversation) ? externesConversation.filter((t) => t && /^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(t.name)).slice(0, 40) : [],
+      outilsExternes: Array.isArray(externesConversation) ? externesConversation.filter((t) => t && /^(legifrance|bofip|rne)__[a-z0-9_]+$|^yousign__[a-zA-Z0-9_-]{1,50}$/i.test(t.name)).slice(0, 70) : [],
       // Recherche web (Claude seulement), domaines fixés pour toute la conversation.
       rechercheWeb: fournisseur === 'claude' && Array.isArray(o.rechercheWeb) ? o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40) : [] };
     conversations.set(conv.id, conv);
@@ -786,7 +787,7 @@ async function tourAgent(entree, o) {
         for (const k of conv.table.keys()) if (!avantCodes.has(k) && /^\[NUM/.test(k)) conv.numsRne.add(k);
       }
       // Sources juridiques : 12 000 caractères par résultat, comptés dans la limite de lecture de la conversation.
-      if (/^(legifrance|bofip|rne)__/.test(nomAppel) && !r.erreur) {
+      if (/^(legifrance|bofip|rne|yousign)__/.test(nomAppel) && !r.erreur) {
         if (contenu.length > 12000) contenu = contenu.slice(0, 12000) + ' … (coupé : affine la recherche)';
         if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà trouvé.', erreur: true };
@@ -851,7 +852,7 @@ async function tourAgent(entree, o) {
     conv.attendus = tour.appels.map((b) => b.id);
     conv.nomsAppels = Object.fromEntries(tour.appels.map((b) => [b.id, b.nom]));
     // Un appel à OpenLegi est dans l'historique : ses outils ne peuvent plus être retirés de la conversation.
-    if (tour.appels.some((b) => /^(legifrance|bofip|rne)__/.test(b.nom))) conv.externesUtilises = true;
+    if (tour.appels.some((b) => /^(legifrance|bofip|rne|yousign)__/.test(b.nom))) conv.externesUtilises = true;
     return {
       ...plus,
       conversation: conv.id,
@@ -1009,6 +1010,8 @@ function entreeActionDossierValidee(e) {
 }
 
 function entreeOutilPourPoste(nom, entree) {
+  // Yousign : un code que l'IA a inventé (« [NOM9] » inconnu) ne part jamais comme nom ou email d'un signataire.
+  if (/^yousign__/.test(nom)) return sansCodesInconnus(entree || {});
   // Les outils ajoutés le 21/10 écrivent aussi (note d'un lot, nom d'un fichier, titre d'un rendez-vous) : même garde, récursive.
   // (faire_geste a son propre nettoyage plus bas : non strict depuis le 22/10, ses champs manquants sont rétablis vides.)
   if (nom === 'action_dossier') return entreeActionDossierValidee(sansCodesInconnus(entree || {}));

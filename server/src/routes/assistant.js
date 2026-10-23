@@ -13,6 +13,7 @@ const { tourAgent, EFFORTS_AGENT } = require('../assistantAgent');
 const { lireCarnet } = require('../carnetClaire');
 const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
 const { lireReglagesOpenlegi } = require('./openlegi');
+const { lireReglagesYousign } = require('./yousign');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
@@ -180,7 +181,11 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     // Outils d'OpenLegi : lus par l'agent seulement quand une conversation naît (ceux d'une conversation en cours sont fixés).
     const chargerOutilsExternes = async () => {
       const ol = lireReglagesOpenlegi(parametresRepo);
-      return ol.jeton && ol.actif && injections && injections.openlegi ? injections.openlegi.outilsAgent() : [];
+      const droit = ol.jeton && ol.actif && injections && injections.openlegi ? await injections.openlegi.outilsAgent() : [];
+      // Yousign (signature électronique, étude 23/10) : lecture, et écriture si elle n'est pas coupée dans les Réglages.
+      const yo = lireReglagesYousign(parametresRepo);
+      const signature = yo.cle && yo.actif && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
+      return droit.concat(signature);
     };
     const sortie = await tourAgent({
       conversation: chaine(corps.conversation, 80),

@@ -2109,6 +2109,34 @@
         <span id="reglages-openlegi-resultat"></span>
       </div>
     </div>
+    <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé reste sur le serveur du bureau."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign</label><span class="info-i" tabindex="0" data-info="Créée dans Yousign (réglages développeur). Commencer par la clé du bac à sable. Laisser vide conserve celle en place."></span></div>
+          <input type="password" id="reglages-yousign-cle" autocomplete="off" placeholder="Clé d'API Yousign">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-yousign-url">Adresse du serveur MCP</label><span class="info-i" tabindex="0" data-info="https://api.yousign.app/mcp en production. Seul un serveur en https dont le nom finit par .yousign.app est accepté : la clé ne part jamais ailleurs."></span></div>
+          <input type="text" id="reglages-yousign-url" autocomplete="off" placeholder="https://api.yousign.app/mcp">
+        </div>
+        <label class="reglages-option" for="reglages-yousign-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte Yousign</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-yousign-actif"></wa-switch>
+        </label>
+        <label class="reglages-option" for="reglages-yousign-ecriture">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
+        </label>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesYousign()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="testerYousign()">Tester la connexion</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="effacerCleYousign()">Effacer la clé</wa-button>
+        <span id="reglages-yousign-resultat"></span>
+      </div>
+    </div>
     <!-- Recherche web de l'agent, sites officiels seulement (étude 18/10) — server/src/conversationsAgent.js, client/84-openlegi.js. -->
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Recherche web (sites officiels) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » (Claude) peut chercher sur ces sites seulement, pour vérifier un texte, une règle ou une procédure publique. La recherche est écrite par l'IA, qui ne voit les noms des clients que sous forme de codes (masqués par le serveur) ; elle peut contenir un montant ou une date. Un site par ligne."></span></h3>
@@ -2881,5 +2909,6 @@
 <script src="client/103-liens-chrome.js"></script>
 <script src="client/104-taches-affaire.js"></script>
 <script src="client/105-taches-widget.js"></script>
+<script src="client/106-yousign.js"></script>
 </body>
 </html>
