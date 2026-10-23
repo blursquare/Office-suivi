@@ -21560,3 +21560,10 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 - **0.330.1** (`client/110-assistant-nouveau-dossier.js`, outil `nouveau_dossier_vente`) : étude 24/10 « lors de l'ajout d'un dossier, une étape pour récupérer les infos d'Authentic » — mode `authentic` (relit `GET /api/authentic/releves/recents`, liste `authentic_id`, résumé, déjà suivi, succession), `preparer` accepte `authentic_id` (choix explicite quand le dossier ne se reconnaît pas seul) et, sans PDF, reprend Authentic seul (`creerDepuisAuthentic`) ; « creer » ne demande plus de compromis lu.
 
 - **0.330.2** : bouton « Envoyer » / « Renvoyer » (étude 24/10, « au lieu de Faire signer remets le bouton Envoyer ») ; il lance toujours la préparation du brouillon Yousign, rien ne part sans l'envoi dans Yousign.
+
+## 0.331.0 — 24/10/2026 — plus de liberté pour Claude dans « Demander à CLAIRE »
+
+Étude : « laisse à l'API Claude le plus de liberté possible dans CLAIRE » ; choix : **limites élargies** et **accès libre en lecture** (pas de cartes en moins, pas de masquage allégé).
+- `assistantAgent.js` : 60 tours d'outils (25), 300 s (180), 32 000 jetons de réponse (16 000), résultat d'outil 120 000 caractères (60 000), documents lus 300 000 caractères par conversation (180 000) ; poste : 400 dossiers par liste (120), 30 documents / 25 fichiers du NAS par réponse. Mistral garde sa limite de jetons (contexte 128 000).
+- `nasLibre.js` : `lireNasLibre` rend « ouvert, tout le NAS, exclus compta/paie/salaire » tant que la clé `agent-nas-libre` n'a jamais été écrite (le choix de l'étude du 24/10 vaut la confirmation « tout le NAS » de l'audit M3) ; résultats 100 (40), texte 100 000 caractères (40 000), recherche 8 s (4 s). Un réglage enregistré, même éteint, fait foi.
+- Inchangés : cartes « Autoriser / Refuser », masquage par le serveur, aucun email sans « Envoyer », aucun envoi Yousign, recherche web aux sites officiels. Nouveauté : audit sécurité/qualité à faire avant publication sur `main`.

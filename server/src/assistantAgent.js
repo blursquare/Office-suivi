@@ -55,18 +55,18 @@ function sourcesWebCitees(contenu) {
 }
 
 // Étude 13/10 (« tout son potentiel… sans limite ») : lire des documents entiers et rédiger un rendu demande plus de place et de temps.
-const DELAI_AGENT_MS = 180 * 1000;
+const DELAI_AGENT_MS = 300 * 1000;
 const MAX_JETONS_AGENT_MISTRAL = 16000;
-const MAX_JETONS_AGENT = 16000;
-const MAX_TOURS_OUTILS = 25;              // appels d'outils enchaînés pour UNE question, au-delà l'IA doit conclure
+const MAX_JETONS_AGENT = 32000;
+const MAX_TOURS_OUTILS = 60;              // appels d'outils enchaînés pour UNE question, au-delà l'IA doit conclure
 const DUREE_CONVERSATION_MS = 2 * 3600 * 1000;
 const MAX_CONVERSATIONS = 20;   // 2 h chacune, documents lus compris : la mémoire du serveur du bureau reste bornée
 // Réflexion choisie dans la colonne de droite (étude 18/10 : « Modèle et réflexion ») : rapide, normale, approfondie.
 const EFFORTS_AGENT = ['low', 'medium', 'high'];
-const MAX_CARACTERES_RESULTAT = 60000;    // un résultat d'outil plus long est coupé (une liste de 400 dossiers)
+const MAX_CARACTERES_RESULTAT = 120000;   // un résultat d'outil plus long est coupé (une liste de 400 dossiers)
 // Texte de documents lu dans UNE conversation (relecture 13/10) : tout l'historique repart à chaque tour — au-delà, le contexte de
 // Mistral (128 000 jetons) déborde, l'appel échoue et la conversation est perdue. ≈ 50 000 jetons de documents au plus.
-const MAX_CARACTERES_DOCUMENTS_CONVERSATION = 180000;
+const MAX_CARACTERES_DOCUMENTS_CONVERSATION = 300000;
 // Avec le résumé automatique du début de conversation (Opus 5.5) : un acte entier et ses annexes se lisent.
 const MAX_CARACTERES_DOCUMENTS_COMPACTION = 900000;
 const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy'];

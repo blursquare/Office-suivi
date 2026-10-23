@@ -7,7 +7,7 @@
 
   let assistantAgentConversation = '';
   var assistantEtapeAgent = '';              // « Je lis la fiche… » sous l'indicateur d'écriture
-  var MAX_DOSSIERS_LISTE_AGENT = 120;
+  var MAX_DOSSIERS_LISTE_AGENT = 400;
 
   var LIBELLES_OUTILS_AGENT = {
     chercher_dossiers: 'Je cherche le dossier…', lister_dossiers: 'Je parcours les dossiers…', lire_dossier: 'Je lis la fiche…',
