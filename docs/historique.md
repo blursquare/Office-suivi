@@ -21567,3 +21567,5 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 - `assistantAgent.js` : 60 tours d'outils (25), 300 s (180), 32 000 jetons de réponse (16 000), résultat d'outil 120 000 caractères (60 000), documents lus 300 000 caractères par conversation (180 000) ; poste : 400 dossiers par liste (120), 30 documents / 25 fichiers du NAS par réponse. Mistral garde sa limite de jetons (contexte 128 000).
 - `nasLibre.js` : `lireNasLibre` rend « ouvert, tout le NAS, exclus compta/paie/salaire » tant que la clé `agent-nas-libre` n'a jamais été écrite (le choix de l'étude du 24/10 vaut la confirmation « tout le NAS » de l'audit M3) ; résultats 100 (40), texte 100 000 caractères (40 000), recherche 8 s (4 s). Un réglage enregistré, même éteint, fait foi.
 - Inchangés : cartes « Autoriser / Refuser », masquage par le serveur, aucun email sans « Envoyer », aucun envoi Yousign, recherche web aux sites officiels. Nouveauté : audit sécurité/qualité à faire avant publication sur `main`.
+
+- **0.331.1** : étude 24/10 « juste le texte du bouton » — l'icône crayon de la ligne RIB est remise, seul le libellé reste « Envoyer » / « Renvoyer ».
