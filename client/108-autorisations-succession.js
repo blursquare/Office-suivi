@@ -69,11 +69,12 @@ function autPersonnes(d) {
   const { heritiers } = personnesSuccession(d);
   const survit = conjointSurvivant(d);
   const defunt = autDefunt(d);
-  const liste = heritiers.map(h => ({ nom: h.nom, qualite: h.qualite || '', civilite: h.civilite || '', estConjoint: /^conjoint survivant$/i.test(String(h.qualite || '')), emails: [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : []) }));
-  if (survit && !liste.some(p => p.estConjoint) && defunt.conjointNom && /^[ée]pou/i.test(defunt.conjointLien || '')) {
-    liste.push({ nom: defunt.conjointNom.replace(/^(monsieur|madame|mademoiselle|m\.|mme)\s+/i, ''), qualite: 'Conjoint survivant', civilite: /^monsieur/i.test(defunt.conjointNom) ? 'M' : /^madame|^mme/i.test(defunt.conjointNom) ? 'Mme' : '', estConjoint: true, emails: [] });
+  const nomConjoint = defunt.conjointNom && /^[ée]pou/i.test(defunt.conjointLien || '') ? defunt.conjointNom.replace(/^(monsieur|madame|mademoiselle|m\.|mme)\s+/i, '') : '';
+  const liste = heritiers.map(h => ({ nom: h.nom, qualite: h.qualite || '', civilite: h.civilite || '', estConjoint: /^conjoint survivant$/i.test(String(h.qualite || '')) || (survit && !!nomConjoint && memePersonneNommee(h.nom, nomConjoint)), emails: [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : []) }));
+  if (survit && !liste.some(p => p.estConjoint) && nomConjoint) {
+    liste.push({ nom: nomConjoint, qualite: 'Conjoint survivant', civilite: /^monsieur/i.test(defunt.conjointNom) ? 'M' : /^madame|^mme/i.test(defunt.conjointNom) ? 'Mme' : '', estConjoint: true, emails: [] });
   }
-  return liste.map(p => Object.assign(p, { cle: autClePersonne(p.nom), modeleDefaut: modeleParDefautAutorisation(p.estConjoint, survit), emails: p.emails.concat(((ficheClientDe(d, p.nom) || {}).emails) || []).filter(Boolean) }));
+  return liste.map(p => Object.assign(p, { cle: autClePersonne(p.nom), modeleDefaut: modeleParDefautAutorisation(p.estConjoint, survit), emails: p.emails.concat(((ficheClientDe(d, p.nom) || {}).emails) || []).filter((e, i, tab) => e && tab.findIndex(x => String(x).toLowerCase() === String(e).toLowerCase()) === i) }));
 }
 
 function autModeleDe(d, p) {
@@ -108,7 +109,7 @@ async function autGenererPdf(doc) {
   const jeu = new Set(normale.getCharacterSet());
   let remplaces = 0;
   // Un caractère que la police standard n'a pas (« ễ », « ł »…) est écrit sans son accent ; à défaut « ? » (et signalé).
-  const propre = t => Array.from(String(t).replace(/[‘’]/g, '\'').replace(/ /g, ' ')).map(c => {
+  const propre = t => Array.from(String(t).replace(/[‘’]/g, '\'').replace(/[\u00a0\u202f\u2009]/g, ' ').replace(/\u2011/g, '-').replace(/\s+/g, ' ')).map(c => {
     if (jeu.has(c.codePointAt(0))) return c;
     remplaces++;
     const nu = c.normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -200,7 +201,7 @@ async function envoyerAutorisationsSuccession(idDossier, noms) {
       const r = await autPdfDe(d, p, personnes);
       const piece = { nom: r.nom, type: 'application/pdf', contenuBase64: await base64DepuisBlob(r.blob) };
       const res = await livrerEmailDossier({ destinataire: p.emails.slice(0, 3).join(', '), sujet: `Succession ${nomDefunt || ''} — autorisation de ${modele === 'deblocage' ? 'déblocage' : 'transfert'} de fonds`.replace(/\s+/g, ' ').trim(),
-        corps: corpsEmailAutorisation(modele, nomDefunt, p.civilite), pieces: [piece], responsableSignature: d.responsable, dossierId: d.id, geste: 'autorisation-fonds' });
+        corps: corpsEmailAutorisation(modele, nomDefunt, autPersonneDepuisFiche(d, p.nom, p.civilite).civilite), pieces: [piece], responsableSignature: d.responsable, dossierId: d.id, geste: 'autorisation-fonds' });
       if (res && res.ok) { ajouterHistorique(d, `Autorisation de fonds de ${p.nom} préparée par email`); sauvegarder(d); }
       else if (res && res.annule) break;
     } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur'), 'OK', null); break; }
@@ -223,6 +224,7 @@ function autChoisirModele(nom, modele) {
 
 function autCocher(nom, coche) {
   autEtat.choisis[autEtat.dossierId + '|' + autClePersonne(nom)] = !!coche;
+  autEtat.courant = autClePersonne(nom);
   renderAutorisationsSuccession();
 }
 
@@ -259,18 +261,56 @@ function autRetablir() {
 
 function initAutorisationsSuccession() {
   const liste = autDossiersSuccession();
-  if (!liste.some(d => d.id === autEtat.dossierId)) { autEtat.dossierId = liste.length ? liste[0].id : ''; autEtat.courant = ''; }
+  if (!liste.some(d => d.id === autEtat.dossierId)) { autEtat.dossierId = ''; autEtat.courant = ''; }
   renderAutorisationsSuccession();
 }
 
+// Un redessin ne fait pas perdre le focus (case cochée, modèle changé au clavier).
 function renderAutorisationsSuccession() {
+  const actif = document.activeElement && document.activeElement.id;
+  autRendreCorps();
+  if (actif) { const e = document.getElementById(actif); if (e && e.focus && e !== document.activeElement) e.focus(); }
+}
+
+// Page d'accueil (comme la Constitution) : au centre, la recherche, puis les successions d'un clic.
+function autDossiersAccueil(q) {
+  const actifs = autDossiersSuccession();
+  if (q) return actifs.filter(x => normaliserPourRecherche(libelleDossierAffiche(x)).includes(q) || normaliserPourRecherche(x.responsable || '').includes(q)).slice(0, 12);
+  const recents = dossiersConsultesRecents(lireDossiersConsultes(), actifs).map(x => x.dossier);
+  return recents.concat(actifs.filter(x => !recents.includes(x))).slice(0, 6);
+}
+
+function autCartesAccueil(q) {
+  const cartes = autDossiersAccueil(q).map(x => `<button type="button" class="cst-accueil-carte" onclick="autChoisirDossier('${escapeOnclickArg(x.id)}')">
+      <span class="cst-accueil-carte-icone succ" aria-hidden="true">${icone('users')}</span>
+      <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
+      <span class="cst-accueil-carte-sous">${escapeHtml(['Succession', x.referenceAuthentic, x.responsable].filter(Boolean).join(' · '))}</span></span></button>`).join('');
+  return cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">${q ? 'Résultats' : 'Derniers dossiers'}</div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune succession ne correspond.</div>';
+}
+
+function autRechercher(valeur) {
+  const zone = document.getElementById('aut-cartes');
+  if (zone) zone.innerHTML = autCartesAccueil(normaliserPourRecherche(String(valeur || '').trim()));
+}
+
+function autRendreCorps() {
   const carte = document.getElementById('aut-carte');
   if (!carte) return;
   const liste = autDossiersSuccession();
   const d = autDossierChoisi();
-  const options = liste.map(x => `<option value="${escapeAttr(x.id)}"${x.id === autEtat.dossierId ? ' selected' : ''}>${escapeHtml(libelleDossierAffiche(x))}</option>`).join('');
   const entete = `<div class="dash-header"><div><div class="dash-eyebrow">Succession</div><div class="dash-titre-ligne"><h1 class="dash-titre">Autorisations de fonds</h1>${infoBulle('Déblocage de fonds pour un héritier sans conjoint survivant ; transfert de fonds pour le conjoint survivant, et pour chaque héritier au nom du conjoint survivant. Texte des modèles de l’office, identité reprise de la fiche : ce qui manque est marqué « [à compléter] » et se corrige sur l’aperçu.')}</div></div></div>`;
-  if (!liste.length || !d) { carte.innerHTML = `${entete}<p class="hint">Aucune succession en cours. Créez-en une depuis Authentic (« Nouveau dossier »).</p>`; return; }
+  if (!liste.length) { carte.innerHTML = `${entete}<p class="hint">Aucune succession en cours. Créez-en une depuis Authentic (« Nouveau dossier »).</p>`; return; }
+  if (!d) {
+    autEtat.dossierId = '';
+    carte.innerHTML = `<div class="cst-accueil">
+      <span class="cst-accueil-icone" aria-hidden="true">${icone('file-text')}</span>
+      <h2 class="cst-accueil-titre">Pour quelle succession ?</h2>
+      <p class="cst-accueil-sous">Les autorisations de déblocage ou de transfert de fonds se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
+      <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="aut-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher une succession…" aria-label="Rechercher une succession" oninput="autRechercher(this.value)"></div>
+      <div id="aut-cartes" class="aut-cartes">${autCartesAccueil('')}</div>
+    </div>`;
+    return;
+  }
   const personnes = autPersonnes(d);
   if (!personnes.some(p => p.cle === autEtat.courant)) autEtat.courant = personnes.length ? personnes[0].cle : '';
   const idJs = escapeOnclickArg(d.id);
@@ -282,10 +322,10 @@ function renderAutorisationsSuccession() {
     const modele = autModeleDe(d, p);
     const manques = manquesAutorisation(autDocument(d, p, modele, personnes));
     const nomJs = escapeOnclickArg(p.nom);
-    return `<div class="cst-item aut-item${p.cle === autEtat.courant ? ' actif' : ''}" onclick="autVoir('${nomJs}')">
+    return `<div class="cst-item aut-item${p.cle === autEtat.courant ? ' actif' : ''}" role="button" tabindex="0" aria-label="Voir l’aperçu de ${escapeAttr(p.nom)}" onclick="autVoir('${nomJs}')" onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); autVoir('${nomJs}'); }">
       <input type="checkbox" id="aut-c-${escapeAttr(p.cle.replace(/ /g, '-'))}" aria-label="Choisir ${escapeAttr(p.nom)}"${autEtat.choisis[d.id + '|' + p.cle] ? ' checked' : ''} onclick="event.stopPropagation()" onchange="autCocher('${nomJs}', this.checked)">
       <div class="aut-personne"><span class="aut-nom">${escapeHtml(p.nom)}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>
-        <select class="aut-modele" aria-label="Modèle pour ${escapeAttr(p.nom)}" onclick="event.stopPropagation()" onchange="autChoisirModele('${nomJs}', this.value)">${MODELES_AUTORISATION_SUCCESSION.map(m => `<option value="${m.cle}"${m.cle === modele ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('')}</select>
+        <select class="aut-modele" id="aut-m-${escapeAttr(p.cle.replace(/ /g, '-'))}" aria-label="Modèle pour ${escapeAttr(p.nom)}" onclick="event.stopPropagation()" onchange="autChoisirModele('${nomJs}', this.value)">${MODELES_AUTORISATION_SUCCESSION.map(m => `<option value="${m.cle}"${m.cle === modele ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('')}</select>
         ${manques ? `<span class="hint aut-manques">${manques} ligne${manques > 1 ? 's' : ''} à compléter</span>` : ''}</div>
       <span class="cst-item-actions" onclick="event.stopPropagation()">
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Télécharger le PDF" aria-label="Télécharger le PDF de ${escapeAttr(p.nom)}" onclick="telechargerAutorisationsSuccession('${idJs}', ['${nomJs}'])">${icone('download')}</wa-button>
@@ -297,7 +337,8 @@ function renderAutorisationsSuccession() {
   if (courant) {
     const modele = autModeleDe(d, courant);
     const doc = autDocument(d, courant, modele, personnes);
-    const corrige = autEtat.edites[d.id + '|' + courant.cle + '|' + modele];
+    const editeCourant = autEtat.edites[d.id + '|' + courant.cle + '|' + modele];
+    const corrige = editeCourant && editeCourant.sig === JSON.stringify(autDocumentBrut(d, courant, modele, personnes).map(x => x.texte));
     apercu = `<div class="aut-page" id="aut-page" aria-label="Aperçu de l’autorisation de ${escapeAttr(courant.nom)}">${doc.map((x, i) => (x.vide ? '<div class="aut-para aut-vide"></div>'
       : `<div class="aut-para${x.gras ? ' aut-gras' : ''}" contenteditable="plaintext-only" spellcheck="false" data-i="${i}" oninput="autEditer(this)">${escapeHtml(x.texte)}</div>`)).join('')}</div>
       <div class="aut-apercu-pied"><span class="hint">Corrigez le texte directement sur la page : le PDF et l’email partent tels qu’ils sont ici.</span>${corrige ? '<button type="button" class="lien-action" onclick="autRetablir()">Revenir au texte d’origine</button>' : ''}</div>`;
@@ -305,7 +346,8 @@ function renderAutorisationsSuccession() {
   carte.innerHTML = `${entete}
     <div class="cst-corps">
       <div class="cst-barre">
-        <label for="aut-dossier">Dossier</label><select id="aut-dossier" onchange="autChoisirDossier(this.value)">${options}</select>
+        <span class="cst-dossier-titre">${escapeHtml(libelleDossierAffiche(d))}</span>
+        <wa-button appearance="outlined" size="s" type="button" onclick="autChoisirDossier('')" title="Revenir au choix du dossier">${icone('rotate-ccw')} Changer de dossier</wa-button>
         <span class="cst-dossier-info">${personnes.length} personne${personnes.length > 1 ? 's' : ''}</span>
         <span class="aut-barre-actions">
           <button type="button" class="lien-action" onclick="autToutCocher(${choisies.length < personnes.length})">${choisies.length < personnes.length ? 'Tout cocher' : 'Tout décocher'}</button>

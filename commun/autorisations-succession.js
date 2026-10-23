@@ -122,7 +122,7 @@
     p(ligneNaissance(s));
     p(ligneNationalite(s));
     if (cle === 'deblocage' && estMarie(s)) p(String(s.mariage || '').trim() || `Mariage (lieu, date, régime) : ${A_COMPLETER}.`);
-    if (cle !== 'conjoint' && !estMarie(s) && !/pacs/.test(sansAccents(s.situation))) p(String(s.situation || '').trim() || lien ? PACS_AUCUN : `Pacte civil de solidarité : ${A_COMPLETER}.`);
+    if (cle !== 'conjoint' && !estMarie(s) && !/pacs/.test(sansAccents(s.situation))) p((String(s.situation || '').trim() || lien) ? PACS_AUCUN : `Pacte civil de solidarité : ${A_COMPLETER}.`);
     titre(cle === 'conjoint' ? 'Agissant en qualité de conjoint survivant de :' : 'Habile à se dire et porter héritier de :');
 
     const lienD = String(d.conjointLien || '').trim() && String(d.conjointNom || '').trim()

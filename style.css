@@ -10641,3 +10641,4 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .aut-vide { min-height: 1.45em; }
 .aut-apercu-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; }
 #aut-dossier { flex: 0 1 360px; min-width: 0; }
+.aut-cartes { width: 100%; }
