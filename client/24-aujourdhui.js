@@ -1459,10 +1459,11 @@
       const chiffres = chiffresTachesJour(toutes, reportees, aVenir, traites);
       chiffres.faites += mesRappels.faits.length;
       chiffres.plusTard += mesRappels.aVenir.length;
+      const plusDansPied = !pleineLargeur && toutes.length > 0 && lignesListeCompacte(toutes) > LIGNES_MAX_LISTE_COMPACTE;
       const tuiles = renderTuilesTaches(chiffres);
       corps = `${feteHtml}${tuiles}${renderBasculeAffaireJour()}${listeOuColonnes}${renderTachesRetirees(retirees)}
         <div class="w-section dash-rappels-bloc">
-          <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, 'ajout')}</div>
+          <div class="rappels-perso" data-ajuster="0" data-garder>${mesRappels.aVenir && mesRappels.aVenir.length ? `<button type="button" class="lien-discret w-fixe jour-lien-avenir" onclick="${versPage}">${escapeHtml(libelleLienTachesAVenir(mesRappels.aVenir.length))}</button>` : ''}${renderMesRappels(perimetreActifs, plusDansPied ? 'ajout-liste' : 'ajout')}</div>
         </div>`;
     }
     // Une tâche en cours de saisie survit au redessin (audit 12/10 : effacée au premier rafraîchissement).

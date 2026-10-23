@@ -10588,8 +10588,10 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .tc-theme .tc-liste > .tc-groupe:first-child { border-top: 0; padding-top: 0; }
 .tc-groupe-tete { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .tc-sous { padding-left: 12px; border-top: 0; }
-wa-button.tc-voir-tout { display: block; width: 100%; margin-top: 4px; }
+.tc-pied { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+wa-button.tc-voir-tout { flex: 1; min-width: 0; }
 wa-button.tc-voir-tout::part(base) { width: 100%; min-height: 40px; }
+.tc-pied wa-button.rappel-perso-plus { flex: none; }
 .w-corps:has(.tc-liste-theme) { overflow-y: auto; }
 
 .tache-menu { position: relative; flex: none; }

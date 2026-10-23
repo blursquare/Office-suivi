@@ -178,8 +178,9 @@ function renderTachesCompactes(actions) {
     blocs.push(`<section class="tc-theme"><h3 class="tc-theme-titre">${escapeHtml(g.theme.nom)}<span class="tc-theme-nb">${g.actions.length}</span></h3><ul class="tc-liste">${lignes.join('')}</ul></section>`);
   }
   const total = lignesListeCompacte(actions);
+  // Au-delà de la limite : un bouton pleine largeur vers le Suivi, le « + » d'ajout juste à sa droite.
   const suite = total > LIGNES_MAX_LISTE_COMPACTE
-    ? `<wa-button appearance="outlined" type="button" class="w-fixe tc-voir-tout" onclick="ouvrirTachesSuivi()">Voir toutes les tâches (${total}) dans le Suivi</wa-button>` : '';
+    ? `<div class="tc-pied w-fixe"><wa-button appearance="outlined" type="button" class="tc-voir-tout" onclick="ouvrirTachesSuivi()">Voir toutes les tâches (${total}) dans le Suivi</wa-button>${ajoutRappelOuvert ? '' : boutonPlusTache()}</div>` : '';
   return `<div class="tc-liste-theme">${blocs.join('')}${suite}</div>`;
 }
 

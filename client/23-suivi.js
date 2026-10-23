@@ -2202,6 +2202,11 @@
     return dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()).filter(d => !d.archive);
   }
 
+  /** Le gros « + » rond d'« Ajouter une tâche » (carte « Aujourd'hui »). */
+  function boutonPlusTache() {
+    return `<wa-button variant="brand" type="button" class="rappel-perso-plus" onclick="ouvrirAjoutRappel(true)" aria-label="Ajouter une tâche" title="Ajouter une tâche">${icone('plus')}</wa-button>`;
+  }
+
   function ouvrirAjoutRappel(ouvrir) {
     ajoutRappelOuvert = !!ouvrir;
     if (ajoutRappelOuvert) rappelEnEdition = null;
@@ -2342,7 +2347,8 @@
   // ou cochés aujourd'hui) n'y sont pas répétés ; restent ceux sans échéance datée future… et l'ajout. 'ajout' (carte
   // « Aujourd'hui » depuis le 07/10) : seulement « Ajouter une tâche » et le formulaire d'un rappel en cours de modification.
   function renderMesRappels(perimetreActifs, sansDuJour) {
-    const ajoutSeul = sansDuJour === 'ajout';
+    // 'ajout-liste' : comme 'ajout', mais le « + » est déjà dans le pied de la liste compacte, à côté de « Voir toutes les tâches ».
+    const ajoutSeul = sansDuJour === 'ajout' || sansDuJour === 'ajout-liste';
     if (!utilisateurPoste) {
       return `<div class="rappels-perso-vide">Pour noter vos rappels, <button type="button" class="lien-discret" onclick="ouvrirChoixPoste()">indiquez qui utilise ce poste</button>.</div>`;
     }
@@ -2392,8 +2398,8 @@
         </div>`;
     }).join('');
     const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : (ajoutSeul
-      // Carte « Aujourd'hui » : un gros « + » rond, à droite (étude 23/10).
-      ? `<div class="rappel-perso-plus-bloc"><wa-button variant="brand" type="button" class="rappel-perso-plus" onclick="ouvrirAjoutRappel(true)" aria-label="Ajouter une tâche" title="Ajouter une tâche">${icone('plus')}</wa-button></div>`
+      // Carte « Aujourd'hui » : un gros « + » rond, à droite (étude 23/10) — ou dans le pied de la liste, à côté de « Voir toutes les tâches ».
+      ? (sansDuJour === 'ajout-liste' ? '' : `<div class="rappel-perso-plus-bloc">${boutonPlusTache()}</div>`)
       : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un rappel</wa-button>`);
     // Carte « Aujourd'hui » : pas de « Aucun rappel » sous la liste des tâches (étude 07/10 : « trop d'espace pour ajouter un
     // rappel ») — le bouton d'ajout suffit.

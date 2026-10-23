@@ -21471,3 +21471,7 @@ Le message sous le titre (« 8 choses ») et l'anneau ne comptaient pas mes rapp
 ### 2026-10-23 07:33 — 0.320.3 : « Voir toutes les tâches » en bouton pleine largeur
 
 Demande de l'étude : le lien de la liste compacte devient un `wa-button` outlined pleine largeur de 40 px (`.tc-voir-tout`).
+
+### 2026-10-23 07:41 — 0.320.4 : « + » à droite de « Voir toutes les tâches »
+
+Quand la liste compacte dépasse 8 lignes, le pied porte « Voir toutes les tâches » (pleine largeur moins le rond) et le gros « + » (`.tc-pied`, `boutonPlusTache`, option `ajout-liste` de `renderMesRappels`) ; sinon le « + » reste seul en bas à droite.
