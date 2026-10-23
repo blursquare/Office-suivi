@@ -286,6 +286,7 @@ test('lien claire-web : le fichier .reg du poste ouvre une adresse http(s) valid
   const s = scriptLiensWeb();
   assert.ok(!s.includes('"'), 'aucun guillemet double dans le script (la commande les utilise)');
   assert.match(s, /\^https\?:\/\//, 'seules les adresses http(s)');
-  assert.match(s, /Start-Process chrome\.exe/);
+  assert.match(s, /Start-Process chrome\.exe -ArgumentList \('--profile-directory='\+\$p\),\$u/, 'dans le profil de l’étude, jamais le dernier profil utilisé (celui de la fenêtre CLAIRE)');
+  assert.match(s, /notmatch '\^Claire'/, 'le profil de la fenêtre CLAIRE est écarté');
   assert.equal(octetsRegLiensWeb({ url: 'http://x:1/' }).readUInt16LE(0), 0xFEFF);
 });

@@ -144,7 +144,11 @@ function scriptLiensWeb() {
     '$l=[string]([Environment]::GetCommandLineArgs()[-1])',
     `$r=$l -replace '^${PROTOCOLE_LIENS_WEB}:/*',''`,
     '$u=[uri]::UnescapeDataString($r)',
-    "if($u -match '^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\\[\\]-]{3,1800}$'){try{Start-Process chrome.exe -ArgumentList $u -ErrorAction Stop}catch{Start-Process $u}}"
+    // Le profil Chrome de l'étude (« Default », sinon le premier qui n'est pas celui de la fenêtre CLAIRE « Claire… ») : sans lui Chrome rouvre le
+    // DERNIER profil utilisé — celui de la fenêtre CLAIRE, où le lien s'ouvrait dans une fenêtre de l'application (étude 23/10).
+    "$p='Default'",
+    "try{$j=Get-Content -Raw ($env:LOCALAPPDATA+'\\Google\\Chrome\\User Data\\Local State')|ConvertFrom-Json;$n=@($j.profile.info_cache.PSObject.Properties.Name|Where-Object{$_ -notmatch '^Claire'});if($n.Count -gt 0 -and $n -notcontains 'Default'){$p=$n[0]}}catch{}",
+    "if($u -match '^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\\[\\]-]{3,1800}$'){try{Start-Process chrome.exe -ArgumentList ('--profile-directory='+$p),$u -ErrorAction Stop}catch{Start-Process $u}}"
   ].join(';');
 }
 
