@@ -5,8 +5,12 @@
 // logos du courrier d'appel de fonds, polices embarquées (Liberation Serif, Carlito), bordeaux et or du logo. Rien n'est gardé sur le serveur.
 // Le PDF est ensuite déposé dans Yousign (le connecteur n'a pas d'outil de dépôt) ; le RIB est la pièce que le client y joint.
 
-var COULEURS_ATTESTATION_RIB = { bordeaux: '6D2332', or: 'C4922F', texte: '2B2326', gris: '6B5E64', panneau: 'F8F2F3', trait: 'E6D9DC' };
-var PAGE_ATTESTATION_RIB = { largeur: 595.28, hauteur: 841.89, marge: 56 };
+// Papier sobre (étude 23/10 : « un peu plus professionnel, moins coloré ») : une seule couleur, le bordeaux du titre ; texte presque noir,
+// filets gris. `visible` = la part de chaque logo qui n'est pas blanche (fractions de l'image, relevées sur les logos du courrier) : les marges
+// blanches des logos ne décalent plus les bords.
+var COULEURS_ATTESTATION_RIB = { bordeaux: '6D2332', texte: '262224', gris: '666666', filet: '8C8C8C', filetFin: 'D6D6D6' };
+var PAGE_ATTESTATION_RIB = { largeur: 595.28, hauteur: 841.89, marge: 56.7 };
+var LOGOS_ATTESTATION_RIB = { logoOffice: { visible: [0.1031, 0.1946, 0.8987, 0.7617] }, logoNotaires: { visible: [0.3172, 0.1117, 0.6841, 0.7792] } };
 
 // Le lien sous la personne, dans la fiche : un clic = le PDF de cette personne.
 function boutonAttestationRib(idDossier, index) {
@@ -55,57 +59,58 @@ async function attestationRibGenererPdf(doc) {
   };
   const filet = (y, hex, epaisseur, x1, x2) => page.drawLine({ start: { x: x1 == null ? marge : x1, y: bas(y) }, end: { x: x2 == null ? droite : x2, y: bas(y) }, thickness: epaisseur, color: couleur(hex) });
 
-  // En-tête : les logos du courrier de l'office (leurs marges blanches font l'aération), puis un filet or.
+  // En-tête : la partie visible de chaque logo posée sur les bords de la marge (office à gauche, Notaires de France à droite), un filet gris dessous.
   const assets = (window.APPEL_FONDS_MODELE && window.APPEL_FONDS_MODELE.assets) || {};
-  const poserLogo = async (cle, x, yHaut, l) => {
+  const poserLogo = async (cle, cote, yHaut, hVisible) => {
     if (!assets[cle]) return;
     const image = await pdf.embedPng(octetsDepuisDataUri(assets[cle]));
+    const [x0, y0, x1, y1] = LOGOS_ATTESTATION_RIB[cle].visible;
+    const lVisible = hVisible * ((x1 - x0) * image.width) / ((y1 - y0) * image.height);
+    const l = lVisible / (x1 - x0);
     const h = l * image.height / image.width;
-    page.drawImage(image, { x, y: bas(yHaut + h), width: l, height: h });
+    const xVisible = cote === 'droite' ? droite - lVisible : marge;
+    page.drawImage(image, { x: xVisible - x0 * l, y: bas(yHaut - y0 * h + h), width: l, height: h });
   };
-  await poserLogo('logoOffice', marge - 20, 6, 170);
-  await poserLogo('logoNotaires', droite - 96, 14, 120);
-  filet(106, C.or, 1.2);
+  await poserLogo('logoOffice', 'gauche', 40, 50);
+  await poserLogo('logoNotaires', 'droite', 40, 50);
+  filet(106, C.filet, 0.75);
 
-  // Titre : étiquette espacée puis titre en deux lignes.
-  espace(doc.surtitre.toUpperCase(), marge, 142, 'sansGras', 10, C.or, 3);
-  doc.titre.forEach((l, i) => texte(l, marge, 170 + i * 28, 'serifGras', 24, C.bordeaux));
+  // Titre : étiquette espacée grise, puis le titre (seul élément en couleur).
+  espace(doc.surtitre.toUpperCase(), marge, 146, 'sansGras', 9.5, C.gris, 2.5);
+  doc.titre.forEach((l, i) => texte(l, marge, 176 + i * 27, 'serifGras', 23, C.bordeaux));
 
-  // Identité du signataire : un panneau clair, étiquette à gauche, valeur à droite.
-  let y = 226;
-  const colValeur = marge + 150;
-  const largeurValeur = droite - 16 - colValeur;
-  const rangees = doc.champs.map(c => ({ c, l: lignes(c.valeur, c.manque ? 'serifItalique' : 'sans', 12.5, largeurValeur) }));
-  const hauteurPanneau = 26 + rangees.reduce((n, r) => n + Math.max(1, r.l.length) * 16 + 12, 0) - 12;
-  page.drawRectangle({ x: marge, y: bas(y + hauteurPanneau), width: droite - marge, height: hauteurPanneau, color: couleur(C.panneau) });
-  page.drawRectangle({ x: marge, y: bas(y + hauteurPanneau), width: 3.5, height: hauteurPanneau, color: couleur(C.or) });
-  let ry = y + 24;
+  // Identité du signataire : étiquette à gauche, valeur sur un filet.
+  let y = 236;
+  const colValeur = marge + 130;
+  const rangees = doc.champs.map(c => ({ c, l: lignes(c.valeur, c.manque ? 'serifItalique' : 'sans', 12, droite - colValeur) }));
   rangees.forEach(r => {
-    espace(r.c.libelle.toUpperCase(), marge + 20, ry - 1, 'sansGras', 8.5, C.gris, 1.4);
-    r.l.forEach((l, i) => texte(l, colValeur, ry + i * 16, r.c.manque ? 'serifItalique' : 'sans', 12.5, r.c.manque ? C.bordeaux : C.texte));
-    ry += Math.max(1, r.l.length) * 16 + 12;
+    espace(r.c.libelle.toUpperCase(), marge, y, 'sansGras', 8.5, C.gris, 1.2);
+    r.l.forEach((l, i) => texte(l, colValeur, y + i * 16, r.c.manque ? 'serifItalique' : 'sans', 12, r.c.manque ? C.gris : C.texte));
+    const fin = y + (r.l.length - 1) * 16 + 6;
+    filet(fin, C.filet, 0.5, colValeur, droite);
+    y = fin + 22;
   });
 
-  // Engagements : le verbe en bordeaux dans la marge, le texte du modèle à droite, un filet entre deux.
-  y = y + hauteurPanneau + 34;
-  const colTexte = marge + 96;
+  // Engagements : le verbe en gras dans la marge, le texte du modèle à droite, un filet fin entre deux.
+  y += 14;
+  const colTexte = marge + 85;
   doc.engagements.forEach((e, i) => {
     const corps = lignes(e.texte, 'sans', 11.5, droite - colTexte);
-    texte(e.verbe, marge, y, 'sansGras', 12.5, C.bordeaux);
+    texte(e.verbe, marge, y, 'sansGras', 11.5, C.texte);
     corps.forEach((l, k) => texte(l, colTexte, y + k * 15.5, 'sans', 11.5, C.texte));
-    y += corps.length * 15.5 + 8;
-    if (i < doc.engagements.length - 1) { filet(y - 4, C.trait, 0.6); y += 14; }
+    y += (corps.length - 1) * 15.5 + 12;
+    if (i < doc.engagements.length - 1) { filet(y, C.filetFin, 0.6); y += 20; }
   });
 
   // Clôture et cadre de signature (le champ de signature se place dans Yousign).
-  y += 22;
-  texte(doc.cloture, marge, y + 6, 'serifItalique', 12, C.gris);
-  const cadreL = 236, cadreH = 72;
-  page.drawRectangle({ x: droite - cadreL, y: bas(y + cadreH), width: cadreL, height: cadreH, borderColor: couleur(C.bordeaux), borderWidth: 0.9, color: undefined });
-  espace(doc.signature.toUpperCase(), droite - cadreL + 14, y + 20, 'sansGras', 8.5, C.bordeaux, 1.4);
+  y += 34;
+  texte(doc.cloture, marge, y + 6, 'sans', 11.5, C.texte);
+  const cadreL = 226, cadreH = 74;
+  page.drawRectangle({ x: droite - cadreL, y: bas(y - 12 + cadreH), width: cadreL, height: cadreH, borderColor: couleur(C.filet), borderWidth: 0.75 });
+  espace(doc.signature.toUpperCase(), droite - cadreL + 12, y + 3, 'sansGras', 8.5, C.gris, 1.2);
 
-  // Pied de page : filet or, identité de l'office.
-  filet(hauteur - 66, C.or, 0.8);
+  // Pied de page : filet gris, identité de l'office.
+  filet(hauteur - 66, C.filet, 0.5);
   const pied = `${doc.entete.office}  ·  ${doc.entete.adresse}`;
   texte(pied, (largeur - largeurTexte(pied, 'sans', 8.5)) / 2, hauteur - 50, 'sans', 8.5, C.gris);
 
