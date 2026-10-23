@@ -113,28 +113,29 @@ function renderBasculeAffaireJour() {
 // « Si la tâche est liée à un outil (ex. faire l'appel de fonds), mettre l'icône de l'outil et, au clic, ouvrir l'outil prérempli » ;
 // « en quatre colonnes (widget pleine largeur), passer en mode colonnes » ; « une nouvelle vue après Échéances dans le Suivi des dossiers, en
 // colonnes, avec les tâches ». Les colonnes sont des THÈMES, quatre au plus (étude 23/10 : « passer à quatre colonnes, en compact aussi » ;
-// choix : suivre le dossier) — gestion du dossier (mes tâches, rendez-vous, rédaction, factures d'une succession, à décider — étude 23/10 :
-// « les factures ne sont pas après la signature, c'est pendant la gestion du dossier »), relances, avant la signature, après la signature.
+// choix : suivre le dossier) — à préparer (mes tâches, rendez-vous, rédaction, factures d'une succession, à décider — étude 23/10 :
+// « les factures ne sont pas après la signature, c'est pendant la gestion du dossier » ; titre « À préparer » gardé, étude 24/10 : « c'était
+// mieux le titre À préparer »), relances, avant la signature, après la signature.
 
 var THEMES_TACHES = [
   // Mes rappels, les tâches de l'agenda Outlook et les demandes d'un collègue en tête, puis les rendez-vous à fixer ou à placer (étude
   // 23/10 : catégorie « Agenda »), les actes à rédiger, les factures d'une succession à régler, et tout ce qui n'a pas d'autre colonne
   // (préemption, autres points).
-  { cle: 'gestion', nom: 'Gestion du dossier', sous: 'mes tâches, rendez-vous, rédaction, factures', types: ['rappel', 'redaction', 'factureSuccession'], motif: /^point-.*(rendez-vous|rdv)/ },
+  { cle: 'preparer', nom: 'À préparer', sous: 'mes tâches, rendez-vous, rédaction, factures', types: ['rappel', 'redaction', 'factureSuccession'], motif: /^point-.*(rendez-vous|rdv)/ },
   { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
   { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
   { cle: 'apres', nom: 'Après la signature', sous: 'copie de l’acte, questionnaire', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe'] }
 ];
 
-/** Pure : la clé du thème d'une tâche (« gestion » pour le reste). @param {any} a */
+/** Pure : la clé du thème d'une tâche (« preparer » pour le reste). @param {any} a */
 function themeTache(a) {
   const type = String((a && a.type) || '');
   const t = THEMES_TACHES.find((x) => x.types.includes(type) || (x.motif && x.motif.test(type)));
-  return t ? t.cle : 'gestion';
+  return t ? t.cle : 'preparer';
 }
 
-/** Pure : le rang d'une tâche dans « Gestion du dossier » — mes tâches, rendez-vous, rédaction, factures, puis le reste. @param {any} a */
-function rangGestionTache(a) {
+/** Pure : le rang d'une tâche dans « À préparer » — mes tâches, rendez-vous, rédaction, factures, puis le reste. @param {any} a */
+function rangPreparerTache(a) {
   const type = String((a && a.type) || '');
   return type === 'rappel' ? 0 : /^point-.*(rendez-vous|rdv)/.test(type) ? 1 : type === 'redaction' ? 2 : type === 'factureSuccession' ? 3 : 4;
 }
@@ -143,7 +144,7 @@ function rangGestionTache(a) {
 function regrouperTachesParTheme(actions) {
   return THEMES_TACHES.map((t) => {
     const liste = (actions || []).filter((a) => themeTache(a) === t.cle);
-    if (t.cle === 'gestion') liste.sort((x, y) => rangGestionTache(x) - rangGestionTache(y));
+    if (t.cle === 'preparer') liste.sort((x, y) => rangPreparerTache(x) - rangPreparerTache(y));
     return { theme: t, actions: liste };
   });
 }

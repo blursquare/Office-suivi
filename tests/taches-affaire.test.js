@@ -65,22 +65,22 @@ test('actionsDuJour : les tâches de succession y figurent (étapes, factures)',
   assert.ok(app.TYPES_TACHES_ETAPES_SUCCESSION.every(t => !types.includes('fcddv') && t !== 'fcddv'));
 });
 
-test('thèmes : quatre colonnes, chaque type de tâche a la sienne, le reste « Gestion du dossier », les colonnes vides gardées', () => {
+test('thèmes : quatre colonnes, chaque type de tâche a la sienne, le reste « À préparer », les colonnes vides gardées', () => {
   const app = chargerApplication();
-  assert.equal(app.themeTache({ type: 'redaction' }), 'gestion');
+  assert.equal(app.themeTache({ type: 'redaction' }), 'preparer');
   assert.equal(app.themeTache({ type: 'pret' }), 'relances');
   assert.equal(app.themeTache({ type: 'appelFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'receptionFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'questionnaire' }), 'apres');
-  // Les factures d'une succession se règlent pendant la gestion du dossier, pas après la signature (étude 23/10).
-  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'gestion');
-  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'gestion');
-  // Les tâches de rendez-vous (fixer, placer…) vont dans « Gestion du dossier » (étude 23/10 : quatre colonnes).
-  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'gestion');
-  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'gestion');
+  // Les factures d'une succession se règlent pendant la gestion du dossier (colonne « À préparer »), pas après la signature (étude 23/10).
+  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'preparer');
+  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'preparer');
+  // Les tâches de rendez-vous (fixer, placer…) vont dans « À préparer » (étude 23/10 : quatre colonnes).
+  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'preparer');
+  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'preparer');
   const g = app.regrouperTachesParTheme([{ type: 'pret' }, { type: 'pret' }, { type: 'copieActe' }]);
-  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'gestion:0,relances:2,avant:0,apres:1');
-  // Dans « Gestion du dossier » : mes tâches, puis les rendez-vous, la rédaction, les factures, le reste — quel que soit l'ordre d'arrivée.
+  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'preparer:0,relances:2,avant:0,apres:1');
+  // Dans « À préparer » : mes tâches, puis les rendez-vous, la rédaction, les factures, le reste — quel que soit l'ordre d'arrivée.
   const p = app.regrouperTachesParTheme([{ type: 'point-droit-de-preemption' }, { type: 'factureSuccession' }, { type: 'redaction' }, { type: 'point-fixer-le-rendez-vous' }, { type: 'rappel' }]);
   assert.equal(p[0].actions.map(a => a.type).join(), 'rappel,point-fixer-le-rendez-vous,redaction,factureSuccession,point-droit-de-preemption');
   // Même rang : l'ordre d'arrivée (l'urgence calculée par actionsDuJour) est gardé ; la liste reçue n'est jamais réordonnée.
@@ -183,7 +183,7 @@ test('liste compacte : un fin titre par thème, les identiques regroupées, le m
   assert.ok(app.renderTachesCompactes(beaucoup).includes('tc-voir-tout'));
 });
 
-test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, en tête de « Gestion du dossier », menu', () => {
+test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, en tête de « À préparer », menu', () => {
   const app = chargerApplication();
   const dossierS = { id: 's1', nom: 'SUCC X', typeAffaire: 'succession', responsable: 'Julie VASSELIN' };
   const agenda = app.rappelEnTache({ id: 'ag-1', texte: 'JV - appeler la CPAM', echeance: '2026-10-21', agendaItemId: 'I1' }, [], AUJ);
@@ -193,20 +193,20 @@ test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon 
   assert.equal(agenda.gravite, 'critique');
   assert.equal(demande.jours, 3);
   assert.equal(perso.jours, null);
-  assert.equal(app.themeTache(agenda), 'gestion');
+  assert.equal(app.themeTache(agenda), 'preparer');
   const html = app.renderTachesCompactes([agenda, demande, perso]);
-  assert.ok(html.includes('Gestion du dossier'));
+  assert.ok(html.includes('À préparer'));
   assert.ok(html.includes('Tâche de l’agenda') && html.includes('Demandé par Bastien'));
   assert.equal((html.match(/Supprimer/g) || []).length, 2, 'pas de menu pour la tâche de l’agenda');
   assert.ok(html.includes('basculerRappelPerso(&#39;ag-1&#39;)') || html.includes("basculerRappelPerso('ag-1')"));
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'vente').length, 2, 'la demande liée à une succession sort du mode Ventes');
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'succession').length, 3);
-  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('Gestion du dossier'));
-  // Liste compacte : la facture d'une succession est sous « Gestion du dossier », avant « Après la signature ».
+  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('À préparer'));
+  // Liste compacte : la facture d'une succession est sous « À préparer », avant « Après la signature ».
   const facture = { cle: 's1:facture', type: 'factureSuccession', titre: 'Régler la facture EDF', dossier: dossierS, categorie: 'neutre', categorieLabel: 'Facture à régler' };
   const questionnaire = { cle: 'v1:q', type: 'questionnaire', titre: 'Envoyer le questionnaire', dossier: { id: 'v1', nom: 'X / Y' }, categorie: 'neutre', categorieLabel: 'Signature passée' };
   const compact = app.renderTachesCompactes([questionnaire, facture]);
-  assert.ok(compact.indexOf('Gestion du dossier') < compact.indexOf('Régler la facture EDF'));
+  assert.ok(compact.indexOf('À préparer') < compact.indexOf('Régler la facture EDF'));
   assert.ok(compact.indexOf('Régler la facture EDF') < compact.indexOf('Après la signature'));
   // Quatre colonnes toujours, même vides (étude 23/10).
   assert.equal((app.renderTachesColonnes([]).match(/class="tf-colonne"/g) || []).length, 4);

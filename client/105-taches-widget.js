@@ -187,7 +187,7 @@ function renderTachesCompactes(actions) {
 // ==== Mes rappels, tâches de l'agenda Outlook et tâches demandées par un collègue, dans la même liste (étude 22/10) ====
 //
 // « Prendre en charge les tâches ajoutées sur l'agenda Outlook et celles que je demande aux collaborateurs via Teams » : ce sont des rappels
-// (`rappelsPerso`) ; ils entrent dans les tuiles et en tête du thème « Gestion du dossier », avec leurs propres gestes (case, menu).
+// (`rappelsPerso`) ; ils entrent dans les tuiles et en tête du thème « À préparer », avec leurs propres gestes (case, menu).
 
 /** Pure : un rappel en « tâche » du widget (cle `rappel:<id>`). @param {any} r @param {any[]} liste @param {string} aujourdhui */
 function rappelEnTache(r, liste, aujourdhui) {
