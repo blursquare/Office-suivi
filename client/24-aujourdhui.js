@@ -1416,7 +1416,10 @@
     const presentation = presentationWidget('aujourdhui');
     const { aujourdhui, actions, traites, reportees, aVenir, retirees } = etatAujourdhui();
     // Une tâche retirée de la liste n'est pas une tâche faite : elle garde l'anneau ouvert et la fête éteinte.
-    const anneau = actions.length || traites.length ? renderAnneauJour(actions.length + retirees, traites.length) : '';
+    // Mes rappels, les tâches de l'agenda et les demandes comptent comme les tâches des dossiers (étude 23/10 : le message disait 8, les tuiles 10).
+    const resteJour = actions.length + (presentation === 'petit' ? 0 : rappelsEnTaches(aujourdhui).length);
+    const faitsJour = traites.length + (utilisateurPoste && presentation !== 'petit' ? rappelsDuJour(rappelsPerso, aujourdhui).faits.length : 0);
+    const anneau = resteJour || faitsJour ? renderAnneauJour(resteJour + retirees, faitsJour) : '';
     const versPage = "ouvrirFenetreAujourdhui()";
     let corps;
     let feteHtml = '';
@@ -1475,7 +1478,7 @@
       presentation,
       titre: 'Aujourd’hui',
       // Le bandeau de fête dit déjà « Journée bouclée » : pas de doublon sous le titre.
-      sous: feteHtml ? '' : presentation === 'petit' ? escapeHtml(libelleModeTachesAffaire()) : escapeHtml(messageProgressionJour(actions.length, traites.length)),
+      sous: feteHtml ? '' : presentation === 'petit' ? escapeHtml(libelleModeTachesAffaire()) : escapeHtml(messageProgressionJour(resteJour, faitsJour)),
       droite: anneau,
       corps
     });

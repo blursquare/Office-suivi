@@ -2391,7 +2391,10 @@
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</wa-button>`}
         </div>`;
     }).join('');
-    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${ajoutSeul ? 'Ajouter une tâche' : 'Ajouter un rappel'}</wa-button>`;
+    const formulaire = ajoutRappelOuvert ? formulaireRappel(null) : (ajoutSeul
+      // Carte « Aujourd'hui » : un gros « + » rond, à droite (étude 23/10).
+      ? `<div class="rappel-perso-plus-bloc"><wa-button variant="brand" type="button" class="rappel-perso-plus" onclick="ouvrirAjoutRappel(true)" aria-label="Ajouter une tâche" title="Ajouter une tâche">${icone('plus')}</wa-button></div>`
+      : `<wa-button appearance="outlined" type="button" class="bouton-ajout rappel-perso-ajout" onclick="ouvrirAjoutRappel(true)"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>Ajouter un rappel</wa-button>`);
     // Carte « Aujourd'hui » : pas de « Aucun rappel » sous la liste des tâches (étude 07/10 : « trop d'espace pour ajouter un
     // rappel ») — le bouton d'ajout suffit.
     const vide = !rappelsPersoCharges || sansDuJour ? '' : '<div class="rappels-perso-vide">Aucun rappel pour le moment.</div>';
