@@ -43,10 +43,28 @@ test('héritier : transfert au nom du conjoint survivant ; signataire féminin n
 test('une donnée absente reste « à compléter » et est comptée ; modèle proposé et nom de fichier', () => {
   const doc = A.documentAutorisationSuccession('deblocage', { signataire: { civilite: 'Madame', nom: 'DUPONT' }, defunt: {} });
   assert.ok(A.manquesAutorisation(doc) >= 5);
-  assert.match(texte(doc), /demeurant à à compléter/);
+  assert.match(texte(doc), /demeurant à \[à compléter\]/);
   assert.equal(A.modeleParDefautAutorisation(true, true), 'conjoint');
   assert.equal(A.modeleParDefautAutorisation(false, true), 'heritier');
   assert.equal(A.modeleParDefautAutorisation(false, false), 'deblocage');
   assert.equal(A.nomFichierAutorisation('deblocage', { nom: 'NGUYEN', prenoms: 'Philippe' }), 'Autorisation de déblocage de fonds - NGUYEN Philippe.pdf');
   assert.equal(A.dateAutorisation('2026-13-01'), '');
+});
+
+test('relecture 23/10 : genre inconnu, profession accordée, PACS jamais inventé, mariage à compléter, date impossible', () => {
+  const inconnu = texte(A.documentAutorisationSuccession('deblocage', { signataire: { nom: 'DUPONT', prenoms: 'Camille' }, defunt: { nom: 'DUPONT', prenoms: 'Jean' } }));
+  assert.match(inconnu, /^LE SOUSSIGNÉ\(E\) :/);
+  assert.match(inconnu, /Né\(e\) à \[à compléter\]/);
+  assert.match(inconnu, /Décédé\(e\) à/);
+  assert.match(inconnu, /Pacte civil de solidarité : \[à compléter\]\./);
+  assert.doesNotMatch(inconnu, /N'ayant pas conclu/);
+  assert.equal(A.professionAccordee('Retraité', 'f'), 'retraitée');
+  assert.equal(A.professionAccordee('Retraitée', 'f'), 'retraitée');
+  assert.equal(A.professionAccordee('Retraitée', 'm'), 'retraité');
+  assert.equal(A.professionAccordee('Chef de groupe', 'f'), 'chef de groupe');
+  const marie = texte(A.documentAutorisationSuccession('deblocage', { signataire: { civilite: 'Madame', prenoms: 'Anne', nom: 'LEROY', conjointLien: 'Épouse de', conjointNom: 'Monsieur Paul LEROY' }, defunt }));
+  assert.match(marie, /Mariage \(lieu, date, régime\) : \[à compléter\]\./);
+  assert.doesNotMatch(marie, /pacte civil/);
+  assert.equal(A.dateAutorisation('2026-02-31'), '');
+  assert.match(A.corpsEmailAutorisation('heritier', 'Madame Jeanne DURAND', 'Madame'), /^Madame,\n\nDans le cadre du règlement de la succession de Madame Jeanne DURAND, vous trouverez ci-joint l'autorisation de transfert de fonds/);
 });

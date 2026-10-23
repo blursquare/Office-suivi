@@ -7,11 +7,11 @@
   'use strict';
 
   const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
-  const A_COMPLETER = 'à compléter';
+  const A_COMPLETER = '[à compléter]';
 
   /**
    * @typedef {{ civilite?: string, prenoms?: string, nom?: string, profession?: string, domicile?: string, naissanceLieu?: string, naissanceDate?: string,
-   *   nationalite?: string, decesLieu?: string, decesDate?: string, conjointLien?: string, conjointNom?: string, mariage?: string, pacse?: boolean }} PersonneAutorisation
+   *   nationalite?: string, decesLieu?: string, decesDate?: string, conjointLien?: string, conjointNom?: string, mariage?: string, situation?: string }} PersonneAutorisation
    * @typedef {{ texte: string, gras?: boolean, vide?: boolean }} ParagrapheAutorisation
    */
 
@@ -27,12 +27,19 @@
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
     if (!m) return '';
     const mois = Number(m[2]);
-    if (mois < 1 || mois > 12 || Number(m[3]) < 1 || Number(m[3]) > 31) return '';
+    const jour = Number(m[3]);
+    const t = new Date(Date.UTC(Number(m[1]), mois - 1, jour));
+    if (mois < 1 || mois > 12 || t.getUTCMonth() !== mois - 1 || t.getUTCDate() !== jour) return '';
     return `${m[3]} ${MOIS[mois - 1]} ${m[1]}`;
   }
 
-  /** @param {string | undefined} civilite */
-  function estFeminin(civilite) { return /^(madame|mme|mlle|mademoiselle)/i.test(String(civilite || '').trim()); }
+  /** 'f', 'm' ou '' (civilité inconnue : jamais deviné). @param {string | undefined} civilite */
+  function genreAutorisation(civilite) {
+    const c = String(civilite || '').trim();
+    if (/^(madame|mme|mlle|mademoiselle)/i.test(c)) return 'f';
+    if (/^(monsieur|m\.?|mr)$/i.test(c)) return 'm';
+    return '';
+  }
 
   /** @param {string | undefined} civilite */
   function civiliteComplete(civilite) {
@@ -40,22 +47,35 @@
     if (/^(m\.?|monsieur|mr)$/i.test(c)) return 'Monsieur';
     if (/^(mme\.?|madame)$/i.test(c)) return 'Madame';
     if (/^(mlle\.?|mademoiselle)$/i.test(c)) return 'Mademoiselle';
-    return c;
+    return '';
   }
 
-  /** « Madame Thi Trang HO ». @param {PersonneAutorisation} p */
+  /** « Madame Thi Trang HO » (civilité absente : « [à compléter] »). @param {PersonneAutorisation} p */
   function nomCompletAutorisation(p) {
-    return [civiliteComplete(p.civilite), p.prenoms, p.nom].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
+    const nom = [p.prenoms, p.nom].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
+    if (!nom) return '';
+    return [civiliteComplete(p.civilite) || A_COMPLETER, nom].join(' ');
+  }
+
+  /** Accord en genre ; genre inconnu : « Né(e) ». @param {string} masculin @param {string} feminin @param {string} genre */
+  const accord = (masculin, feminin, genre) => (genre === 'f' ? feminin : genre === 'm' ? masculin : `${masculin}(e)`);
+
+  /** Une profession lue d'une fiche (« Retraité »), en minuscules et accordée quand l'accord est sûr (é / ée) ; sinon telle quelle. @param {string | undefined} profession @param {string} genre */
+  function professionAccordee(profession, genre) {
+    const t = String(profession || '').trim();
+    if (!t) return A_COMPLETER;
+    const bas = t.replace(/^./, (c) => c.toLowerCase());
+    if (genre === 'f' && /é$/i.test(bas)) return bas.replace(/é$/i, 'ée');
+    if (genre === 'm' && /ée$/i.test(bas)) return bas.replace(/ée$/i, 'é');
+    return bas;
   }
 
   /** @param {string | undefined} v */
   const ou = (v) => (String(v || '').trim() || A_COMPLETER);
 
-  /** « Né à ORLEANS (45000), le 19 juillet 1960. » @param {PersonneAutorisation} p @param {string} [verbe] */
-  function ligneNaissance(p, verbe) {
-    const f = estFeminin(p.civilite);
-    const lieu = String(p.naissanceLieu || '').trim();
-    return `${verbe || (f ? 'Née' : 'Né')} à ${lieu || A_COMPLETER}, le ${dateAutorisation(p.naissanceDate) || A_COMPLETER}.`;
+  /** « Né à ORLEANS (45000), le 19 juillet 1960. » @param {PersonneAutorisation} p */
+  function ligneNaissance(p) {
+    return `${accord('Né', 'Née', genreAutorisation(p.civilite))} à ${ou(p.naissanceLieu)}, le ${dateAutorisation(p.naissanceDate) || A_COMPLETER}.`;
   }
 
   /** @param {PersonneAutorisation} p */
@@ -69,8 +89,11 @@
     return `${lien.replace(/^É/, 'E')} ${nom}.`;
   }
 
+  /** @param {string | undefined} t */
+  const sansAccents = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   /** @param {PersonneAutorisation} p */
-  function estMarieOuPacse(p) { return /^(epou|epouse|marie)/i.test(String(p.conjointLien || '').normalize('NFD').replace(/[̀-ͯ]/g, '')) || p.pacse === true; }
+  function estMarie(p) { return /^(epou|mari)/.test(sansAccents(p.conjointLien)) || /mari/.test(sansAccents(p.situation)); }
 
   const PACS_AUCUN = 'N\'ayant pas conclu, à ce jour, de pacte civil de solidarité régi par les articles 515-1 et suivants du Code civil.';
 
@@ -84,26 +107,27 @@
   function documentAutorisationSuccession(cle, v) {
     const s = v.signataire || {};
     const d = v.defunt || {};
-    const fs = estFeminin(s.civilite);
-    const fd = estFeminin(d.civilite);
+    const gs = genreAutorisation(s.civilite);
+    const gd = genreAutorisation(d.civilite);
     /** @type {ParagrapheAutorisation[]} */
     const doc = [];
-    const p = (texte, gras) => { doc.push(gras ? { texte, gras: true } : { texte }); };
+    const p = (/** @type {string} */ texte) => { doc.push({ texte }); };
+    const titre = (/** @type {string} */ texte) => { doc.push({ texte, gras: true }); };
     const vide = () => doc.push({ texte: '', vide: true });
 
-    p(fs ? 'LA SOUSSIGNÉE :' : 'LE SOUSSIGNÉ :', true);
-    p(`${nomCompletAutorisation(s) || A_COMPLETER}, ${ou(s.profession)}, demeurant à ${ou(s.domicile)}.`);
+    titre(gs === 'f' ? 'LA SOUSSIGNÉE :' : gs === 'm' ? 'LE SOUSSIGNÉ :' : 'LE SOUSSIGNÉ(E) :');
+    p(`${nomCompletAutorisation(s) || A_COMPLETER}, ${professionAccordee(s.profession, gs)}, demeurant à ${ou(s.domicile)}.`);
     const lien = ligneLien(s);
     if (lien) p(lien);
     p(ligneNaissance(s));
     p(ligneNationalite(s));
-    if (cle === 'deblocage' && String(s.mariage || '').trim()) p(String(s.mariage).trim());
-    if (cle !== 'conjoint' && !estMarieOuPacse(s)) p(PACS_AUCUN);
-    p(cle === 'conjoint' ? 'Agissant en qualité de conjoint survivant de :' : 'Habile à se dire et porter héritier de :', true);
+    if (cle === 'deblocage' && estMarie(s)) p(String(s.mariage || '').trim() || `Mariage (lieu, date, régime) : ${A_COMPLETER}.`);
+    if (cle !== 'conjoint' && !estMarie(s) && !/pacs/.test(sansAccents(s.situation))) p(String(s.situation || '').trim() || lien ? PACS_AUCUN : `Pacte civil de solidarité : ${A_COMPLETER}.`);
+    titre(cle === 'conjoint' ? 'Agissant en qualité de conjoint survivant de :' : 'Habile à se dire et porter héritier de :');
 
     const lienD = String(d.conjointLien || '').trim() && String(d.conjointNom || '').trim()
       ? `${String(d.conjointLien).trim().replace(/^./, (c) => c.toLowerCase())} ${String(d.conjointNom).trim()}` : '';
-    const enSonVivant = `en son vivant ${ou(d.profession)}`;
+    const enSonVivant = `en son vivant ${professionAccordee(d.profession, gd)}`;
     if (cle === 'conjoint') {
       p(`${nomCompletAutorisation(d) || A_COMPLETER}, ${lienD ? lienD + ', ' : ''}${enSonVivant}, demeurant à ${ou(d.domicile)},`);
     } else {
@@ -111,7 +135,7 @@
     }
     p(ligneNaissance(d));
     p(ligneNationalite(d));
-    p(`${fd ? 'Décédée' : 'Décédé'} à ${String(d.decesLieu || '').trim() || A_COMPLETER}, le ${dateAutorisation(d.decesDate) || A_COMPLETER}.`);
+    p(`${accord('Décédé', 'Décédée', gd)} à ${ou(d.decesLieu)}, le ${dateAutorisation(d.decesDate) || A_COMPLETER}.`);
 
     p('AUTORISE expressément par les présentes :');
     p('Maître Sophie GOSSART, notaire à BLOIS,');
@@ -138,7 +162,7 @@
 
   /** Les données qui manquent encore (« à compléter » dans le texte). @param {ParagrapheAutorisation[]} doc */
   function manquesAutorisation(doc) {
-    return doc.filter((x) => x.texte.includes(A_COMPLETER)).length;
+    return doc.filter((x) => x.texte.includes(A_COMPLETER) || /\(e\)/.test(x.texte)).length;
   }
 
   /** Nom de fichier : « Autorisation de déblocage de fonds - NOM Prénom.pdf ». @param {string} cle @param {PersonneAutorisation} signataire */
@@ -155,7 +179,15 @@
     return unConjointSurvit ? 'heritier' : 'deblocage';
   }
 
-  exporter({ A_COMPLETER, nomCompletAutorisation, MODELES_AUTORISATION_SUCCESSION, dateAutorisation, documentAutorisationSuccession, manquesAutorisation, nomFichierAutorisation, modeleParDefautAutorisation });
+  /** Premier jet de l'email d'envoi (texte de CLAIRE, à remplacer par celui de l'étude). @param {string} cle @param {string} nomDefunt @param {string} civilite */
+  function corpsEmailAutorisation(cle, nomDefunt, civilite) {
+    const objet = cle === 'deblocage' ? 'déblocage de fonds' : 'transfert de fonds';
+    const g = genreAutorisation(civilite);
+    const appel = g === 'f' ? 'Madame,' : g === 'm' ? 'Monsieur,' : 'Madame, Monsieur,';
+    return `${appel}\n\nDans le cadre du règlement de la succession de ${nomDefunt || A_COMPLETER}, vous trouverez ci-joint l'autorisation de ${objet} à nous retourner datée et signée.\n\nBien cordialement,`;
+  }
+
+  exporter({ A_COMPLETER, genreAutorisation, professionAccordee, corpsEmailAutorisation, nomCompletAutorisation, MODELES_AUTORISATION_SUCCESSION, dateAutorisation, documentAutorisationSuccession, manquesAutorisation, nomFichierAutorisation, modeleParDefautAutorisation });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);
