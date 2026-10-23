@@ -163,3 +163,15 @@ test('renouvellement : une panne passagère (503) garde les jetons, une déconne
   await assert.rejects(() => enVol, /modifiée/);
   assert.equal(c.connectee(), false, 'déconnecté pendant le renouvellement : reste déconnecté');
 });
+
+test('adresse de retour : localhost ou https seulement, l’IP du serveur devient localhost ; le refus d’enregistrement dit sa raison', async () => {
+  assert.deepEqual(O.origineRetour('http', '192.168.60.5:3000'), { origine: 'http://localhost:3000', local: false });
+  assert.deepEqual(O.origineRetour('http', 'localhost:3000'), { origine: 'http://localhost:3000', local: true });
+  assert.deepEqual(O.origineRetour('https', 'claire.exemple.fr'), { origine: 'https://claire.exemple.fr', local: false });
+  const f = fauxAuth();
+  const refus = async (url, init) => (/\/register$/.test(url)
+    ? { ok: false, status: 400, headers: { get: () => '' }, text: async () => JSON.stringify({ error: 'invalid_redirect_uri', error_description: 'redirect uri must be https' }) }
+    : f.fetch(url, init));
+  const c = O.creerOauthYousign({ ...depot(), fetch: refus });
+  await assert.rejects(() => c.demarrer('https://api.yousign.app/mcp', 'http://localhost:3000'), /400 — invalid_redirect_uri : redirect uri must be https/);
+});

@@ -1645,8 +1645,9 @@
        definirSousOngletReglages() ; la dernière rubrique ouverte est retenue sur ce poste. -->
   <div class="reglages-corps">
     <nav class="reglages-nav" role="tablist" aria-label="Rubriques des réglages" aria-orientation="vertical">
+      <input type="search" id="reglages-nav-recherche" class="reglages-nav-recherche" autocomplete="off" placeholder="Chercher un réglage…" aria-label="Chercher un réglage" oninput="filtrerRubriquesReglages(this.value)" onkeydown="if(event.key==='Enter'){ouvrirPremiereRubriqueReglages();}">
       <div class="reglages-nav-groupe premier" role="presentation">L’étude</div>
-      <button type="button" class="reglages-nav-btn actif" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="true" onclick="definirSousOngletReglages('general')">Général</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-general" aria-controls="reglages-panneau-general" aria-selected="false" onclick="definirSousOngletReglages('general')">Général</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-collaborateurs" aria-controls="reglages-panneau-collaborateurs" aria-selected="false" onclick="definirSousOngletReglages('collaborateurs')">Collaborateurs</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signature" aria-controls="reglages-panneau-signature" aria-selected="false" onclick="definirSousOngletReglages('signature')">Signature des emails</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-modeles" aria-controls="reglages-panneau-modeles" aria-selected="false" onclick="definirSousOngletReglages('modeles')">Modèles d'emails</button>
@@ -1656,12 +1657,15 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-telephonie" aria-controls="reglages-panneau-telephonie" aria-selected="false" onclick="definirSousOngletReglages('telephonie')">Téléphonie 3CX</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-authentic" aria-controls="reglages-panneau-authentic" aria-selected="false" onclick="definirSousOngletReglages('authentic')">Authentic</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-sites" aria-controls="reglages-panneau-sites" aria-selected="false" onclick="definirSousOngletReglages('sites')">Sites consultés par CLAIRE</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-openlegi" aria-controls="reglages-panneau-openlegi" aria-selected="false" onclick="definirSousOngletReglages('openlegi')">Légifrance et BOFiP</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-yousign" aria-controls="reglages-panneau-yousign" aria-selected="false" onclick="definirSousOngletReglages('yousign')">Yousign</button>
       <div class="reglages-nav-groupe" role="presentation">Dossiers et actes</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-pieces" aria-controls="reglages-panneau-pieces" aria-selected="false" onclick="definirSousOngletReglages('pieces')">Pièces et Claire Scan</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
-      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-consignes" aria-controls="reglages-panneau-consignes" aria-selected="false" onclick="definirSousOngletReglages('consignes')">Consignes de CLAIRE</button>
+      <div class="reglages-nav-groupe" role="presentation">Intelligence de CLAIRE</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-consignes" aria-controls="reglages-panneau-consignes" aria-selected="false" onclick="definirSousOngletReglages('consignes')">Consignes de CLAIRE</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
       <div class="reglages-nav-groupe" role="presentation">Maintenance</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-signalements" aria-controls="reglages-panneau-signalements" aria-selected="false" onclick="definirSousOngletReglages('signalements')">Signalements<span class="reglages-onglet-compteur" id="reglages-onglet-compteur-signalements" hidden></span></button>
@@ -1899,6 +1903,69 @@
 
   <!-- ===== Ce que CLAIRE a appris (étude, 02/10) : voir ce que CLAIRE a retenu des corrections de l'étude
        et retirer ce qui serait faux — voir renderPageApprentissage dans script.js. ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-openlegi" role="tabpanel" aria-labelledby="reglages-onglet-openlegi" hidden>
+    <h2 class="reglages-titre">Légifrance et BOFiP</h2>
+    <!-- Sources juridiques officielles par OpenLegi (étude 18/10) — server/src/openlegi.js, client/84-openlegi.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Sources juridiques (OpenLegi) <span class="info-i" tabindex="0" data-info="Légifrance (codes, jurisprudence, Journal officiel, textes consolidés), BOFiP et registre national des entreprises, par OpenLegi (hébergé en France). L'agent de « Demander à CLAIRE » y cherche un article, une décision ou une société. Pour Légifrance et le BOFiP, seuls des mots de droit partent, jamais un nom de client ; pour le registre des entreprises, le nom de la société cherchée part. Le jeton reste sur le serveur du bureau."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-openlegi-jeton">Jeton OpenLegi</label><span class="info-i" tabindex="0" data-info="Sur auth.openlegi.fr, tableau de bord. Laisser vide conserve celui en place."></span></div>
+          <input type="password" id="reglages-openlegi-jeton" autocomplete="off" placeholder="Jeton personnel">
+        </div>
+        <label class="reglages-option" for="reglages-openlegi-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte les sources juridiques</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-openlegi-actif"></wa-switch>
+        </label>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesOpenlegi()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="testerOpenlegi()">Tester la connexion</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="effacerJetonOpenlegi()">Effacer le jeton</wa-button>
+        <span id="reglages-openlegi-resultat"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="reglages-panneau" id="reglages-panneau-yousign" role="tabpanel" aria-labelledby="reglages-onglet-yousign" hidden>
+    <h2 class="reglages-titre">Yousign</h2>
+    <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
+      <div class="reglages-liste">
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign (facultative)</label><span class="info-i" tabindex="0" data-info="Inutile avec « Se connecter à Yousign » (identifiant et mot de passe de Yousign, saisis sur la page de Yousign : CLAIRE ne les voit jamais). Une clé d'API reste possible si Yousign en accepte une pour ce serveur. Laisser vide conserve celle en place."></span></div>
+          <input type="password" id="reglages-yousign-cle" autocomplete="off" placeholder="Clé d'API Yousign">
+        </div>
+        <div class="reglages-champ">
+          <div class="reglages-champ-libelle"><label for="reglages-yousign-url">Adresse du serveur MCP</label><span class="info-i" tabindex="0" data-info="https://api.yousign.app/mcp en production. Seul un serveur en https dont le nom finit par .yousign.app est accepté : la clé ne part jamais ailleurs."></span></div>
+          <input type="text" id="reglages-yousign-url" autocomplete="off" placeholder="https://api.yousign.app/mcp">
+        </div>
+        <label class="reglages-option" for="reglages-yousign-actif">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte Yousign</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-yousign-actif"></wa-switch>
+        </label>
+        <label class="reglages-option" for="reglages-yousign-ecriture">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
+          <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
+        </label>
+      </div>
+      <div class="reglages-champ" id="reglages-yousign-retour" style="display:none">
+        <div class="reglages-champ-libelle"><label for="reglages-yousign-adresse">Adresse de retour de Yousign</label><span class="info-i" tabindex="0" data-info="Yousign n'accepte que localhost ou https comme adresse de retour : si CLAIRE est ouverte depuis un autre poste que le serveur, la page qui s'affiche après la connexion est en erreur. Son adresse (dans la barre du navigateur) contient le code : collez-la ici."></span></div>
+        <input type="text" id="reglages-yousign-adresse" autocomplete="off" placeholder="http://localhost:…/api/yousign/oauth/retour?code=…">
+        <wa-button variant="brand" class="primary" onclick="terminerConnexionYousign()">Terminer la connexion</wa-button>
+      </div>
+      <div class="reglages-actions">
+        <wa-button variant="brand" class="primary" onclick="connecterYousign()">Se connecter à Yousign</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="deconnecterYousign()">Se déconnecter</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="enregistrerReglagesYousign()">Enregistrer</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="testerYousign()">Tester la connexion</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="effacerCleYousign()">Effacer la clé</wa-button>
+        <span id="reglages-yousign-resultat"></span>
+      </div>
+    </div>
+  </section>
+
   <section class="reglages-panneau" id="reglages-panneau-apprentissage" role="tabpanel" aria-labelledby="reglages-onglet-apprentissage" hidden>
     <h2 class="reglages-titre">Ce que CLAIRE a appris</h2>
     <div class="reglages-section">
@@ -2087,56 +2154,6 @@
       <div class="reglages-actions">
         <wa-button variant="brand" class="primary" onclick="enregistrerReglagesAssistant()">Enregistrer</wa-button>
         <span id="reglages-assistant-resultat"></span>
-      </div>
-    </div>
-    <!-- Sources juridiques officielles par OpenLegi (étude 18/10) — server/src/openlegi.js, client/84-openlegi.js. -->
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Sources juridiques (OpenLegi) <span class="info-i" tabindex="0" data-info="Légifrance (codes, jurisprudence, Journal officiel, textes consolidés), BOFiP et registre national des entreprises, par OpenLegi (hébergé en France). L'agent de « Demander à CLAIRE » y cherche un article, une décision ou une société. Pour Légifrance et le BOFiP, seuls des mots de droit partent, jamais un nom de client ; pour le registre des entreprises, le nom de la société cherchée part. Le jeton reste sur le serveur du bureau."></span></h3>
-      <div class="reglages-liste">
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-openlegi-jeton">Jeton OpenLegi</label><span class="info-i" tabindex="0" data-info="Sur auth.openlegi.fr, tableau de bord. Laisser vide conserve celui en place."></span></div>
-          <input type="password" id="reglages-openlegi-jeton" autocomplete="off" placeholder="Jeton personnel">
-        </div>
-        <label class="reglages-option" for="reglages-openlegi-actif">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte les sources juridiques</span></span>
-          <wa-switch class="switch reglages-switch" id="reglages-openlegi-actif"></wa-switch>
-        </label>
-      </div>
-      <div class="reglages-actions">
-        <wa-button variant="brand" class="primary" onclick="enregistrerReglagesOpenlegi()">Enregistrer</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="testerOpenlegi()">Tester la connexion</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="effacerJetonOpenlegi()">Effacer le jeton</wa-button>
-        <span id="reglages-openlegi-resultat"></span>
-      </div>
-    </div>
-    <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
-    <div class="reglages-section">
-      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
-      <div class="reglages-liste">
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign (facultative)</label><span class="info-i" tabindex="0" data-info="Inutile avec « Se connecter à Yousign » (identifiant et mot de passe de Yousign, saisis sur la page de Yousign : CLAIRE ne les voit jamais). Une clé d'API reste possible si Yousign en accepte une pour ce serveur. Laisser vide conserve celle en place."></span></div>
-          <input type="password" id="reglages-yousign-cle" autocomplete="off" placeholder="Clé d'API Yousign">
-        </div>
-        <div class="reglages-champ">
-          <div class="reglages-champ-libelle"><label for="reglages-yousign-url">Adresse du serveur MCP</label><span class="info-i" tabindex="0" data-info="https://api.yousign.app/mcp en production. Seul un serveur en https dont le nom finit par .yousign.app est accepté : la clé ne part jamais ailleurs."></span></div>
-          <input type="text" id="reglages-yousign-url" autocomplete="off" placeholder="https://api.yousign.app/mcp">
-        </div>
-        <label class="reglages-option" for="reglages-yousign-actif">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE consulte Yousign</span></span>
-          <wa-switch class="switch reglages-switch" id="reglages-yousign-actif"></wa-switch>
-        </label>
-        <label class="reglages-option" for="reglages-yousign-ecriture">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
-          <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
-        </label>
-      </div>
-      <div class="reglages-actions">
-        <wa-button variant="brand" class="primary" onclick="connecterYousign()">Se connecter à Yousign</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="deconnecterYousign()">Se déconnecter</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="enregistrerReglagesYousign()">Enregistrer</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="testerYousign()">Tester la connexion</wa-button>
-        <wa-button appearance="outlined" class="secondary" onclick="effacerCleYousign()">Effacer la clé</wa-button>
-        <span id="reglages-yousign-resultat"></span>
       </div>
     </div>
     <!-- Recherche web de l'agent, sites officiels seulement (étude 18/10) — server/src/conversationsAgent.js, client/84-openlegi.js. -->

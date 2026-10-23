@@ -5,7 +5,7 @@
 
 const express = require('express');
 const { CLE_YOUSIGN, URL_YOUSIGN_DEFAUT, urlYousignValide, classeOutilYousign, decouperNomYousign, creerClientYousign } = require('../yousign');
-const { creerOauthYousign, CLE_YOUSIGN_OAUTH } = require('../yousignOauth');
+const { creerOauthYousign, CLE_YOUSIGN_OAUTH, origineRetour } = require('../yousignOauth');
 const { noterVerification } = require('../verificationsTerrain');
 
 const routeAsync = (fn) => (req, res) => {
@@ -110,8 +110,9 @@ function creerRouteurYousign(parametresRepo, client) {
   routeur.post('/yousign/oauth/demarrer', routeAsync(async (req, res) => {
     try {
       const r = lireReglagesYousign(parametresRepo);
-      const url = await connexion.demarrer(r.url, `${req.protocol}://${req.get('host')}`);
-      res.json({ ok: true, url });
+      const { origine, local } = origineRetour(req.protocol, req.get('host') || '');
+      const url = await connexion.demarrer(r.url, origine);
+      res.json({ ok: true, url, manuel: !local && !/^https:/.test(origine) });
     } catch (e) {
       const message = String(e && e.message || e).slice(0, 220);
       noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
@@ -132,6 +133,25 @@ function creerRouteurYousign(parametresRepo, client) {
       const message = String(e && e.message || e).slice(0, 200);
       noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
       page('Connexion impossible', message.replace(/[<>&]/g, ''));
+    }
+  }));
+
+  // Retour collé à la main : l'adresse de la page où Yousign a renvoyé le navigateur (« http://localhost:…/api/yousign/oauth/retour?code=…&state=… »),
+  // quand ce navigateur n'est pas celui du serveur. Seuls `code` et `state` en sont lus ; le `state` à usage unique la protège.
+  routeur.post('/yousign/oauth/terminer', routeAsync(async (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    let q;
+    try { q = new URL(String(corps.adresse || '').trim()).searchParams; } catch (e) { res.json({ ok: false, message: 'Adresse illisible : collez l’adresse entière de la page.' }); return; }
+    if (q.get('error')) { res.json({ ok: false, message: 'Yousign n’a pas autorisé CLAIRE.' }); return; }
+    try {
+      await connexion.terminer(String(q.get('code') || '').slice(0, 2000), String(q.get('state') || '').slice(0, 200));
+      client.oublier();
+      noterVerification(parametresRepo, 'yousign-connexion', { detail: 'connexion par identifiant et mot de passe' });
+      res.json({ ok: true, ...vue() });
+    } catch (e) {
+      const message = String(e && e.message || e).slice(0, 200);
+      noterVerification(parametresRepo, 'yousign-connexion', { ok: false, message });
+      res.json({ ok: false, message });
     }
   }));
 

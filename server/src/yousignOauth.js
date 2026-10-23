@@ -27,6 +27,22 @@ function adresseRetour(origine) {
   return String(origine || '').replace(/\/+$/, '') + '/api/yousign/oauth/retour';
 }
 
+/**
+ * Pure : l'adresse d'où CLAIRE annonce son retour à Yousign. Un serveur OAuth n'accepte qu'une adresse en https ou en localhost : l'adresse IP
+ * du serveur du bureau (http) est donc remplacée par `http://localhost:<port>` (étude 23/10 : « Yousign a refusé l'enregistrement (400) ») ;
+ * le navigateur d'un autre poste n'y trouvera rien, mais l'adresse affichée porte le code, que l'on colle dans CLAIRE (`terminer`).
+ * @param {string} protocole @param {string} hote ex. « 192.168.60.5:3000 »
+ * @returns {{ origine: string, local: boolean }}
+ */
+function origineRetour(protocole, hote) {
+  const h = String(hote || '');
+  const nom = h.replace(/:\d+$/, '');
+  const port = (h.match(/:(\d+)$/) || [])[1] || '';
+  const local = /^(localhost|127\.0\.0\.1|\[::1\])$/i.test(nom);
+  if (local || protocole === 'https') return { origine: `${protocole}://${h}`, local };
+  return { origine: `http://localhost${port ? ':' + port : ''}`, local: false };
+}
+
 /** Pure : { verifier, challenge } PKCE (S256). */
 function pkce() {
   const verifier = crypto.randomBytes(48).toString('base64url');
@@ -95,7 +111,12 @@ function creerOauthYousign(o) {
     if (!meta.enregistrement) throw new Error('Yousign n’accepte pas l’enregistrement automatique de CLAIRE : un identifiant d’application est nécessaire');
     const r = await json(meta.enregistrement, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ client_name: 'CLAIRE (étude notariale)', redirect_uris: [retour], grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none' }) });
-    if (!r.ok || !r.corps || typeof r.corps.client_id !== 'string') throw new Error(`Yousign a refusé l’enregistrement de CLAIRE (${r.statut})`);
+    if (!r.ok || !r.corps || typeof r.corps.client_id !== 'string') {
+      // La raison donnée par Yousign (« invalid_redirect_uri »…) : un code et une phrase d'erreur, jamais un secret.
+      const c = (r.corps && typeof r.corps === 'object') ? r.corps : {};
+      const raison = [c.error, c.error_description || c.message].filter((x) => typeof x === 'string' && x).join(' : ').replace(/[^\p{L}\p{N} _.,:'’()-]/gu, '').slice(0, 160);
+      throw new Error(`Yousign a refusé l’enregistrement de CLAIRE (${r.statut}${raison ? ' — ' + raison : ''}) pour l’adresse de retour ${retour}`);
+    }
     o.ecrire({ ...garde, clientId: r.corps.client_id, retour, jeton: meta.jeton, authorization: meta.authorization });
     return r.corps.client_id;
   }
@@ -166,4 +187,4 @@ function creerOauthYousign(o) {
   return { demarrer, terminer, jeton, connectee, deconnecter };
 }
 
-module.exports = { CLE_YOUSIGN_OAUTH, adresseYousignOauthValide, adresseRetour, pkce, creerOauthYousign };
+module.exports = { CLE_YOUSIGN_OAUTH, adresseYousignOauthValide, adresseRetour, origineRetour, pkce, creerOauthYousign };

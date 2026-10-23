@@ -145,7 +145,27 @@
       const json = await r.json().catch(() => ({}));
       if (!json.ok || !json.url) { resultatYousign(json.message || 'Connexion impossible.'); return; }
       if (typeof ouvrirLienExterne === 'function') ouvrirLienExterne(json.url); else window.open(json.url, '_blank', 'noopener');
-      resultatYousign('Connectez-vous sur la page de Yousign, puis revenez ici et cliquez sur « Tester la connexion ».');
+      const zone = document.getElementById('reglages-yousign-retour');
+      if (zone) zone.style.display = json.manuel ? '' : 'none';
+      resultatYousign(json.manuel
+        ? 'Connectez-vous sur la page de Yousign. Ensuite la page affichera une erreur (normal) : copiez l’adresse de cette page dans la barre du navigateur, collez-la ci-dessous et cliquez sur « Terminer la connexion ».'
+        : 'Connectez-vous sur la page de Yousign, puis revenez ici et cliquez sur « Tester la connexion ».');
+    } catch (e) { resultatYousign('Serveur injoignable.'); }
+  }
+
+  // Retour collé à la main (navigateur d'un autre poste que le serveur) : l'adresse de la page d'erreur porte le code de Yousign.
+  async function terminerConnexionYousign() {
+    const champ = document.getElementById('reglages-yousign-adresse');
+    const adresse = champ ? champ.value.trim() : '';
+    if (!adresse) { resultatYousign('Collez d’abord l’adresse de la page.'); return; }
+    resultatYousign('Connexion en cours…');
+    try {
+      const r = await fetchAvecAuth('/api/yousign/oauth/terminer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adresse }) });
+      const json = await r.json().catch(() => ({}));
+      if (!json.ok) { resultatYousign(json.message || 'Connexion impossible.'); return; }
+      if (champ) champ.value = '';
+      await chargerReglagesYousign();
+      resultatYousign('Connecté. Vous pouvez « Tester la connexion ».');
     } catch (e) { resultatYousign('Serveur injoignable.'); }
   }
 

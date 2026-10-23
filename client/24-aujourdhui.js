@@ -1677,11 +1677,21 @@
     return typeEvenementAgenda(e, categoriesRdv) || (e && e.absence ? 'absence' : teinteEvenementAgenda(e, categoriesRdv));
   }
 
+  // Succession : l'acte que ce rendez-vous fait signer (étude 23/10) — « Notoriété », « DS », « API et DS », « Notoriété + DS » ; '' pour une vente.
+  function acteRendezVousSuccessionAgenda(e) {
+    const d = e && e.signature && e.dossierId ? dossierDeEvenement(e) : null;
+    if (!d || !estSuccession(d)) return '';
+    const r = rendezVousSuccession(d).find(x => x.itemId && x.itemId === e.itemId);
+    return libelleActeRendezVousSuccession(r ? r.etape : etapeEvenementSuccession(e), titreToutEnsembleSuccession(r ? r.titre : e.sujet),
+      typeSuccessionDef(typeSuccession(d)).actes.includes('attestation'));
+  }
+
   function etiquetteEvenementAgenda(e, teinte) {
     if (teinte === 'absence') return 'Absence';
     if (teinte === 'butoir' || estDateButoirAgenda(e)) return 'Date butoir';
-    if (CATEGORIES_AGENDA[teinte]) return e.signature ? `Signature · ${CATEGORIES_AGENDA[teinte].court}` : CATEGORIES_AGENDA[teinte].libelle;
-    if (e.signature) return 'Signature';
+    const acte = acteRendezVousSuccessionAgenda(e);
+    if (CATEGORIES_AGENDA[teinte]) return e.signature ? `Signature${acte ? ' ' + acte : ''} · ${CATEGORIES_AGENDA[teinte].court}` : CATEGORIES_AGENDA[teinte].libelle;
+    if (e.signature) return acte ? `Signature ${acte}` : 'Signature';
     if ((e.categories || []).length) return e.categories[0];
     return e.journeeEntiere ? 'Journée entière' : 'Rendez-vous';
   }

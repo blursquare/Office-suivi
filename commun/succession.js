@@ -479,6 +479,44 @@
     return cocheeSuccession(d, type);
   }
 
+  /**
+   * Pure : le nom court de l'acte qu'un rendez-vous de succession fait signer (étude 23/10 : « préciser quel acte il faut signer »).
+   * `etape` : celle du rendez-vous ; `tout` : le titre dit notoriété ET déclaration ; `avecAttestation` : type classique (API + DS).
+   * @param {string} etape @param {boolean} [tout] @param {boolean} [avecAttestation]
+   */
+  function libelleActeRendezVousSuccession(etape, tout, avecAttestation) {
+    const ds = avecAttestation ? 'API et DS' : 'DS';
+    if (tout) return 'Notoriété + ' + ds;
+    if (etape === 'notoriete') return 'Notoriété';
+    if (etape === 'declarationSuccession') return ds;
+    if (etape === 'controleDroits') return 'Inventaire';
+    if (etape === 'ouvertureSuccession') return 'Ouverture';
+    if (etape === 'acte') return 'Acte à préciser';
+    return '';
+  }
+
+  /**
+   * Pure : les actes d'une succession signés et ceux qui restent (étude 23/10 : « si c'est la notoriété le dossier n'est pas terminé s'il a
+   * API et DS ou DS »). `complet` : tous les actes du type sont signés ; `iso` : la date du dernier signé ; `libelle` : « Notoriété », « DS »,
+   * « Notoriété + API et DS »… des actes signés.
+   * @param {any} d @param {string} [aujourdhuiIso]
+   */
+  function actesSignesSuccession(d, aujourdhuiIso) {
+    const etapes = etapesSuccession(d, aujourdhuiIso);
+    const avecAttestation = typeSuccessionDef(typeSuccession(d)).actes.includes('attestation');
+    /** @type {{ cle: string, label: string, iso: string }[]} */
+    const signes = [];
+    /** @type {{ cle: string, label: string }[]} */
+    const restants = [];
+    for (const e of etapes) {
+      if (e.type !== 'notoriete' && e.type !== 'declarationSuccession') continue;
+      const label = e.type === 'notoriete' ? 'Notoriété' : (avecAttestation ? 'API et DS' : 'DS');
+      if (e.fait) signes.push({ cle: e.type, label, iso: String(e.iso || '') }); else restants.push({ cle: e.type, label });
+    }
+    const iso = signes.map((x) => x.iso).filter(Boolean).sort().pop() || '';
+    return { signes, restants, complet: signes.length > 0 && restants.length === 0, iso, libelle: signes.map((x) => x.label).join(' + ') };
+  }
+
   var TYPES_ETAPES_SUCCESSION = ['ouvertureSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'declarationSuccession'];
   var JOURS_AVANT_DERNIER_RDV_SUCCESSION = 10;
 
@@ -507,7 +545,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier };
+  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

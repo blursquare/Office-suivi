@@ -484,3 +484,16 @@ test('fantomesSemaineAgenda : jamais plus de 6 rendez-vous par jour, autres rend
   assert.ok(Object.keys(parJour).length >= 2, 'répartis dans la semaine');
   f.filter(x => x.heure).forEach(x => assert.equal(app.motifCreneauExceptionnel(x.heure, 60, 0), '', `${x.date} ${x.heure} hors règles`));
 });
+
+test('un dossier déjà placé dans l’agenda (date absente de la fiche) n’est plus proposé « à placer » (étude 23/10, CHEYMOL)', () => {
+  const auj = '2026-10-23';
+  const d = { id: 'c', nom: 'CHEYMOL', parties: [], pieces: {}, sansPret: true };
+  const evt = { dossierId: 'c', signature: true, date: '2026-11-18', heure: '17:00', sujet: 'VTE - CHEYMOL / QUEVA', lieu: '', categories: [] };
+  assert.ok(app.rendezVousAgendaPlaceDossier(d, [evt], auj));
+  assert.equal(app.semaineProbableSignature(d, auj, [], [evt]), null);
+  assert.ok(app.semaineProbableSignature(d, auj, [], []), 'sans rendez-vous dans l’agenda, la semaine probable reste calculée');
+  assert.equal(app.rendezVousAgendaPlaceDossier(d, [Object.assign({}, evt, { sujet: 'VTE - CHEYMOL ?' })], auj), null, 'un « ? » reste en attente de confirmation');
+  assert.equal(app.rendezVousAgendaPlaceDossier(d, [Object.assign({}, evt, { date: '2026-10-01' })], auj), null, 'passé : plus un rendez-vous à venir');
+  assert.equal(app.rendezVousAgendaPlaceDossier(d, [Object.assign({}, evt, { option: true })], auj), null);
+  assert.equal(app.rendezVousAgendaPlaceDossier(d, [Object.assign({}, evt, { dossierId: 'autre' })], auj), null);
+});

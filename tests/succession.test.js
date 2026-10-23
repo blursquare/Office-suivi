@@ -1144,3 +1144,30 @@ test('rendez-vous « NOTO API DS » : le jour même, l’acte n’est signé qu�
   assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '10:31' }, '2026-12-10', h), false, 'heure pas encore passée');
   assert.equal(S.rendezVousPasse({ date: '2026-12-10', heure: '' }, '2026-12-10', h), true, 'sans heure');
 });
+
+test('actesSignesSuccession : notoriété signée mais déclaration à venir = pas terminé ; tout signé = terminé avec le nom des actes (étude 23/10)', () => {
+  const noto = S.actesSignesSuccession(base({ succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true } }), '2026-10-10');
+  assert.equal(noto.complet, false);
+  assert.equal(noto.libelle, 'Notoriété');
+  assert.equal(noto.restants.map((x) => x.label).join(','), 'DS');
+  const classique = S.actesSignesSuccession(base({ succession: { type: 'classique', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true } }), '2026-10-10');
+  assert.equal(classique.restants.map((x) => x.label).join(','), 'API et DS');
+  const seule = S.actesSignesSuccession(base({ succession: { type: 'notoriete', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true } }), '2026-10-10');
+  assert.equal(seule.complet, true);
+  assert.equal(seule.iso, '2026-09-15');
+  const tout = S.actesSignesSuccession(base({ succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-09-15', declarationSigneeLe: '2026-09-20' }, echeancesValidees: { notoriete: true, declarationSuccession: true } }), '2026-10-10');
+  assert.equal(tout.complet, true);
+  assert.equal(tout.libelle, 'Notoriété + DS');
+  assert.equal(tout.iso, '2026-09-20');
+  // Dans le Suivi : la notoriété seule signée d'un dossier à DS n'est pas « Acte signé » ; le dossier terminé dit son acte.
+  assert.equal(app.signatureFaiteSuivi(base({ succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true } })), null);
+  assert.equal(app.signatureFaiteSuivi(base({ succession: { type: 'notoriete', notorieteSigneeLe: '2026-09-15' }, echeancesValidees: { notoriete: true } })).actes, 'Notoriété');
+});
+
+test('libellé de l’acte d’un rendez-vous de succession', () => {
+  assert.equal(S.libelleActeRendezVousSuccession('notoriete', false, true), 'Notoriété');
+  assert.equal(S.libelleActeRendezVousSuccession('declarationSuccession', false, true), 'API et DS');
+  assert.equal(S.libelleActeRendezVousSuccession('declarationSuccession', false, false), 'DS');
+  assert.equal(S.libelleActeRendezVousSuccession('notoriete', true, false), 'Notoriété + DS');
+  assert.equal(S.libelleActeRendezVousSuccession('acte', false, false), 'Acte à préciser');
+});

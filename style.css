@@ -5310,19 +5310,25 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 .reglages-corps { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 40px; align-items: start; }
 .reglages-corps > * { min-width: 0; }
 .reglages-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: calc(16px + var(--decalage-onglets)); }
+.reglages-nav-recherche { width: 100%; min-height: 32px; margin-bottom: 8px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font: inherit; font-size: var(--texte-s); }
+.reglages-nav-recherche:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.reglages-nav-icone { display: inline-flex; flex: none; width: 16px; height: 16px; color: var(--muted); }
+.reglages-nav-icone .icone { width: 16px; height: 16px; }
+.reglages-corps .reglages-nav-btn.actif .reglages-nav-icone { color: var(--focus); }
 .reglages-nav-groupe {
   margin: 14px 12px 4px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--ink);
 }
 .reglages-nav-groupe.premier { margin-top: 0; }
 .reglages-corps .reglages-nav-btn {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+  display: flex; align-items: center; justify-content: flex-start; gap: 8px; width: 100%;
   padding: 8px 12px; border: 0; border-radius: var(--rayon-m); background: transparent;
   color: var(--ink-soft); font-size: var(--texte-base); font-weight: 500; text-align: left; cursor: pointer;
 }
 .reglages-corps .reglages-nav-btn:hover { background: var(--paper-sunk); color: var(--ink); }
 .reglages-corps .reglages-nav-btn.actif { background: var(--paper-card); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-card); }
 .reglages-corps .reglages-nav-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.reglages-nav-btn .reglages-onglet-compteur { margin-left: auto; }
 .reglages-onglet-compteur {
   min-width: 18px; height: 18px; padding: 0 6px; border-radius: var(--rayon-m);
   background: var(--urgent); color: var(--on-accent); font-size: var(--texte-xs); font-weight: 700;
@@ -5375,6 +5381,7 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
   .reglages-nav { position: static; flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
   .reglages-corps .reglages-nav-btn { width: auto; white-space: nowrap; }
   .reglages-nav-groupe { display: none; }
+  .reglages-nav-recherche { display: none; }
 }
 @media (max-width: 600px) {
   .reglages-champ { grid-template-columns: minmax(0, 1fr); gap: 6px; }

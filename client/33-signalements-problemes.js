@@ -312,7 +312,9 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'sites', 'pieces', 'noms-nas', 'memoire', 'consignes', 'relecture', 'apprentissage', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'sites', 'openlegi', 'yousign', 'pieces', 'noms-nas', 'relecture', 'consignes', 'memoire', 'apprentissage', 'signalements', 'systeme'];
+  // Un picto par rubrique (étude 23/10 : « naviguer plus rapidement ») — icônes du jeu ICONES.
+  var ICONES_RUBRIQUES_REGLAGES = { general: 'settings', collaborateurs: 'users', signature: 'mail', modeles: 'file-text', rappels: 'clock', agenda: 'calendar', telephonie: 'phone', authentic: 'clipboard', sites: 'link', openlegi: 'scale', yousign: 'pencil', pieces: 'bannette', 'noms-nas': 'folder', relecture: 'sparkle', consignes: 'book', memoire: 'archive', apprentissage: 'trend-up', signalements: 'flag', systeme: 'rotate-ccw' };
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
 
   function sousOngletReglagesRetenu() {
@@ -322,7 +324,51 @@
     } catch (e) { return 'general'; }
   }
 
+  function poserIconesReglages() {
+    for (const k of SOUS_ONGLETS_REGLAGES) {
+      const bouton = document.getElementById('reglages-onglet-' + k);
+      if (!bouton || bouton.querySelector('.reglages-nav-icone')) continue;
+      bouton.insertAdjacentHTML('afterbegin', `<span class="reglages-nav-icone" aria-hidden="true">${icone(ICONES_RUBRIQUES_REGLAGES[k] || 'settings')}</span>`);
+    }
+  }
+
+  // Pure : les mots d'un texte sans accents ni majuscules, pour la recherche d'une rubrique.
+  function motsReglages(texte) {
+    return String(texte || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+
+  // Recherche d'un réglage : le nom de la rubrique ou le titre d'une de ses sections (« Rangement dans Outlook », « Sondages de créneaux »…).
+  function filtrerRubriquesReglages(texte) {
+    const q = motsReglages(texte).trim();
+    let premierGroupe = null;
+    let groupeAvecResultat = false;
+    const nav = document.querySelector('.reglages-nav');
+    if (!nav) return;
+    const fermer = (groupe, visible) => { if (groupe) groupe.style.display = visible ? '' : 'none'; };
+    for (const el of Array.from(nav.children)) {
+      if (el.classList.contains('reglages-nav-groupe')) {
+        fermer(premierGroupe, !q || groupeAvecResultat);
+        premierGroupe = el; groupeAvecResultat = false;
+        continue;
+      }
+      if (!el.id || !el.id.startsWith('reglages-onglet-')) continue;
+      const cle = el.id.slice('reglages-onglet-'.length);
+      const panneau = document.getElementById('reglages-panneau-' + cle);
+      const titres = panneau ? Array.from(panneau.querySelectorAll('h2, h3')).map(h => h.textContent).join(' ') : '';
+      const trouve = !q || motsReglages(el.textContent + ' ' + titres).includes(q);
+      el.style.display = trouve ? '' : 'none';
+      if (trouve) groupeAvecResultat = true;
+    }
+    fermer(premierGroupe, !q || groupeAvecResultat);
+  }
+
+  function ouvrirPremiereRubriqueReglages() {
+    const premier = Array.from(document.querySelectorAll('.reglages-nav-btn')).find(b => b.style.display !== 'none');
+    if (premier) definirSousOngletReglages(premier.id.slice('reglages-onglet-'.length));
+  }
+
   function definirSousOngletReglages(nom) {
+    poserIconesReglages();
     const cle = SOUS_ONGLETS_REGLAGES.includes(nom) ? nom : 'general';
     for (const k of SOUS_ONGLETS_REGLAGES) {
       const panneau = document.getElementById('reglages-panneau-' + k);
@@ -342,7 +388,9 @@
     if (cle === 'noms-nas') initNomsNas();
     if (cle === 'memoire') ouvrirReglagesMemoire();
     if (cle === 'consignes') ouvrirCarnetClaire();
-    if (cle === 'relecture') { chargerReglagesOpenlegi(); chargerReglagesYousign(); chargerRechercheWeb(); chargerNasLibre(); }
+    if (cle === 'relecture') { chargerRechercheWeb(); chargerNasLibre(); }
+    if (cle === 'openlegi') chargerReglagesOpenlegi();
+    if (cle === 'yousign') chargerReglagesYousign();
     if (cle === 'modeles') ouvrirReglagesModelesEmails();
   }
 

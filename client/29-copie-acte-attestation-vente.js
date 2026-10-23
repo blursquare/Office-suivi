@@ -626,9 +626,9 @@
       ? pastillesGarantiesPret(r.garanties)
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
     const lignePret = ligneActePretFonds(d);
-    const actions = r.ouvrable
-      ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>`
-      : (d.dossierLie ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)">Revérifier</button>` : '');
+    // « Revérifier l'offre de prêt » toujours dans l'onglet Fonds (étude 23/10), à côté de « Ouvrir l'offre » quand elle est trouvée.
+    const actions = (r.ouvrable ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>` : '')
+      + (d.dossierLie && !d.archive ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">Revérifier l’offre de prêt</button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
           <span class="section-eyebrow">Offre de prêt</span>

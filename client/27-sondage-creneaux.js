@@ -1052,6 +1052,11 @@
   // sur un rendez-vous daté. { iso } (date de signature, '' si inconnue) ou null.
   function signatureFaiteSuivi(d) {
     if (!d) return null;
+    // Une succession n'est signée que quand TOUS ses actes le sont (étude 23/10 : notoriété signée, déclaration à venir = pas terminée).
+    if (estSuccession(d)) {
+      const s = actesSignesSuccession(d);
+      return s.complet ? { iso: s.iso, actes: s.libelle } : null;
+    }
     const a = d.authentic && d.authentic.acte;
     if (a && a.etat === 'signe') return { iso: a.date || d.rendezVousSignature || '' };
     if (d.echeancesValidees && d.echeancesValidees.rendezVousSignature && d.rendezVousSignature) return { iso: d.rendezVousSignature };
@@ -1083,7 +1088,8 @@
     return `<td><span class="echeance-jours ${classeDateEcheanceSuivi(d, p, p.jours)}" title="${escapeAttr(p.jours < 0 ? 'Dépassée' : p.jours === 0 ? "Aujourd'hui" : 'J-' + p.jours)}">${formatDateFr(p.iso)}</span></td>`;
   }
   function celluleTypeProchaineEcheance(d) {
-    if (signatureFaiteSuivi(d)) return '<td><span class="dot-label dl-success"><span class="dot"></span>Acte signé</span></td>';
+    const signe = signatureFaiteSuivi(d);
+    if (signe) return `<td><span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(signe.actes ? `${signe.actes} signé${/\+/.test(signe.actes) ? 's' : ''}` : 'Acte signé')}</span></td>`;
     const p = prochaineEcheanceDetail(d);
     if (!p) return '<td><span class="echeance-jours calme">—</span></td>';
     return `<td><span class="dot-label dl-${p.type}"><span class="dot"></span>${escapeHtml(p.label)}</span></td>`;

@@ -215,8 +215,8 @@
   // Même règle que le planning (commun/planning.js) : la renonciation au droit de préemption REÇUE (le document est indispensable
   // pour signer, étude 07/10 — une DIA envoyée ne suffit pas) ; la SAFER levée, ou son délai daté (créneaux proposés après lui).
   // Avant le 07/10, une SAFER attendue sans date laissait proposer des créneaux que le planning refusait.
-  function dossiersAPlacer(liste) {
-    return (liste || []).filter(d => d && !d.archive && !estSuccession(d) && !d.rendezVousSignature && pretLeve(d)
+  function dossiersAPlacer(liste, evenements) {
+    return (liste || []).filter(d => d && !d.archive && !estSuccession(d) && !d.rendezVousSignature && !rendezVousAgendaPlaceDossier(d, evenements) && pretLeve(d)
       && preemptionLevee(d) && (saferLevee(d) || !!echeanceSaferDossier(d))
       && (!d.ventebien || echeanceValidee(d, 'ventebien')));
   }
@@ -308,12 +308,26 @@
       .sort((a, b) => a.date.localeCompare(b.date) || String(a.heure).localeCompare(String(b.heure)))[0] || null;
   }
 
+  // Pure : le dossier a déjà un rendez-vous de signature À VENIR dans l'agenda de l'office (étude 23/10, CHEYMOL / QUEVA & ROY : placé le
+  // 18/11 dans l'agenda mais proposé « à placer » parce que la date n'était pas sur la fiche) — jamais une option de sondage, une carte
+  // fantôme, un rendez-vous « ? » (en attente, traité à part) ni un rendez-vous marqué « annulé / à replacer ». null sinon.
+  function rendezVousAgendaPlaceDossier(d, evenements, aujourdhuiIso) {
+    if (!d || !d.id) return null;
+    const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    return (evenements || []).filter(e => e && e.dossierId === d.id && e.signature && !e.fantome && !e.option && !e.journeeEntiere && e.heure
+        && /^\d{4}-\d{2}-\d{2}$/.test(String(e.date || '')) && e.date >= auj
+        && !/\?/.test(String(e.sujet || '') + ' ' + String(e.lieu || '')) && !/option CLAIRE/i.test(String(e.sujet || ''))
+        && typeEvenementAgenda(e, categoriesRdvReglees()) !== 'annule')
+      .sort((a, b) => a.date.localeCompare(b.date) || String(a.heure).localeCompare(String(b.heure)))[0] || null;
+  }
+
   // `evenements` (facultatif) : l'agenda de l'office. Étude, 02/10 : « pour les probabilités de
   // rendez-vous, vérifier avant si un rendez-vous n'est pas en attente de confirmation avec des ?? » —
   // un tel rendez-vous donne la date (au lieu de la date au plus tôt), sans carte fantôme.
   function semaineProbableSignature(d, aujourdhuiIso, absences, evenements) {
     if (!d || d.archive || d.rendezVousSignature) return null;
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
+    if (rendezVousAgendaPlaceDossier(d, evenements, auj)) return null;
     const aConfirmer = rendezVousAConfirmerDossier(d, evenements, auj);
     if (aConfirmer) {
       const tenueConf = probabiliteTenueSignature(Object.assign({}, d, { rendezVousSignature: aConfirmer.date }), auj, absences);
@@ -1100,7 +1114,7 @@
     // dans le détail de chaque rendez-vous.
     // Dossiers sans rendez-vous, par semaine probable de signature (au plus tôt) : un clic affiche
     // cette semaine, carte fantôme ouverte. Ceux qui sont prêts à signer gardent trois créneaux libres.
-    const prets = dossiersAPlacer(perimetre).map(d => d.id);
+    const prets = dossiersAPlacer(perimetre, agendaEvenements).map(d => d.id);
     const probables = ordreRendezVousAPlacer(perimetre.map(d => ({ d, p: semaineProbableSignature(d, auj, absencesOffice, agendaEvenements) })).filter(x => x.p), prets);
     const aPlacer = agendaPlacerTous ? probables : probables.filter((x, i) => i < NB_RDV_A_PLACER_AFFICHES || agendaSelection === 'probable:' + x.d.id);
     // Créneaux proposés seulement sur le premier dossier et sur celui qu'on vient de choisir (étude 07/10 : « que ça prenne moins de
