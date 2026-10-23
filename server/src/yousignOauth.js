@@ -50,7 +50,7 @@ function pkce() {
 }
 
 /**
- * @param {{ lire: () => any, ecrire: (v: any) => void, fetch?: Function, maintenant?: () => number }} o
+ * @param {{ lire: () => any, ecrire: (v: any) => void, fetch?: Function, maintenant?: () => number, clientId?: () => string }} o
  */
 function creerOauthYousign(o) {
   const fetchFn = o.fetch || fetch;
@@ -106,7 +106,13 @@ function creerOauthYousign(o) {
 
   /** CLAIRE s'enregistre chez Yousign pour cette adresse de retour (une fois, puis gardé). @param {any} meta @param {string} retour */
   async function clientPour(meta, retour) {
+    // Un identifiant d'application donné par l'étude (client enregistré chez Yousign, avec cette adresse de retour) : aucun enregistrement automatique.
+    const fixe = typeof o.clientId === 'function' ? String(o.clientId() || '') : '';
     const garde = o.lire() || {};
+    if (fixe) {
+      if (garde.clientId !== fixe || garde.retour !== retour || garde.jeton !== meta.jeton) o.ecrire({ clientId: fixe, retour, jeton: meta.jeton, authorization: meta.authorization });
+      return fixe;
+    }
     if (garde.clientId && garde.retour === retour && garde.jeton === meta.jeton) return garde.clientId;
     if (!meta.enregistrement) throw new Error('Yousign n’accepte pas l’enregistrement automatique de CLAIRE : un identifiant d’application est nécessaire');
     const r = await json(meta.enregistrement, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -114,7 +120,7 @@ function creerOauthYousign(o) {
     if (!r.ok || !r.corps || typeof r.corps.client_id !== 'string') {
       // La raison donnée par Yousign (« invalid_redirect_uri »…) : un code et une phrase d'erreur, jamais un secret.
       const c = (r.corps && typeof r.corps === 'object') ? r.corps : {};
-      const raison = [c.error, c.error_description || c.message].filter((x) => typeof x === 'string' && x).join(' : ').replace(/[^\p{L}\p{N} _.,:'’()-]/gu, '').slice(0, 160);
+      const raison = [c.error, c.error_description || c.message].filter((x) => typeof x === 'string' && x).join(' : ').replace(/[^\p{L}\p{N} _.,:'’()/%?=-]/gu, '').slice(0, 160);
       throw new Error(`Yousign a refusé l’enregistrement de CLAIRE (${r.statut}${raison ? ' — ' + raison : ''}) pour l’adresse de retour ${retour}`);
     }
     // Un nouveau client : les jetons de l'ancien ne valent plus rien (ils ne se renouvelleraient pas avec ce client).

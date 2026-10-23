@@ -485,7 +485,7 @@
     const panneau = document.getElementById('panel');
     if (panneau) panneau.classList.toggle('wizard-complement', !!d);
     const summary = panneau ? panneau.querySelector('summary') : null;
-    if (summary) summary.innerHTML = d ? `Compléter ${escapeHtml(libelleDossierAffiche(d))} avec le compromis` : 'Nouveau dossier <span class="plus">+</span>';
+    if (summary) summary.innerHTML = d ? `Compléter ${escapeHtml(libelleDossierAffiche(d))} avec le compromis` : 'Nouveau dossier';
     const bouton = document.getElementById('btn-ajouter-dossier');
     if (bouton && !creationDossierEnCours) bouton.textContent = d ? 'Compléter le dossier' : 'Ajouter le dossier';
     const entete = document.getElementById('complement-entete');
@@ -648,7 +648,6 @@
     });
     const id = d.id;
     reinitialiserFormulaire();
-    document.getElementById('panel').open = false;
     definirOnglet('suivi');
     render();
     ouvrirDossierDrawer(id);
@@ -927,7 +926,6 @@
       completerDossierDepuisRelevesRecents(enListe);
     }
     reinitialiserFormulaire();
-    document.getElementById('panel').open = false;
     definirOnglet('suivi');
     // Rattachement au NAS immédiat quand le nom du dossier désigne sans ambiguïté un dossier
     // client existant : c'est le moment où ça sert le plus, et ça évite le clic « Relier un

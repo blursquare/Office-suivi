@@ -74,8 +74,11 @@ test('thèmes : chaque type de tâche a sa colonne, le reste « À décider », 
   assert.equal(app.themeTache({ type: 'questionnaire' }), 'apres');
   assert.equal(app.themeTache({ type: 'factureSuccession' }), 'apres');
   assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'decider');
+  // Les tâches de rendez-vous (fixer, placer…) ont leur catégorie « Agenda » (étude 23/10).
+  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'agenda');
+  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'agenda');
   const g = app.regrouperTachesParTheme([{ type: 'pret' }, { type: 'pret' }, { type: 'copieActe' }]);
-  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'perso:0,rediger:0,relances:2,avant:0,apres:1,decider:0');
+  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'perso:0,agenda:0,rediger:0,relances:2,avant:0,apres:1,decider:0');
 });
 
 test('outil lié : l’appel de fonds d’une vente ouvre l’outil prérempli, pas pour une succession ni une relance', () => {

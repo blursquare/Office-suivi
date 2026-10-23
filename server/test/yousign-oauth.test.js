@@ -175,3 +175,17 @@ test('adresse de retour : localhost ou https seulement, l’IP du serveur devien
   const c = O.creerOauthYousign({ ...depot(), fetch: refus });
   await assert.rejects(() => c.demarrer('https://api.yousign.app/mcp', 'http://localhost:3000'), /400 — invalid_redirect_uri : redirect uri must be https/);
 });
+
+test('identifiant d’application donné par l’étude : aucun enregistrement automatique ; l’adresse du refus garde ses « / » et « : »', async () => {
+  const f = fauxAuth();
+  const d = depot();
+  const c = O.creerOauthYousign({ ...d, fetch: f.fetch, clientId: () => 'app-claire-1' });
+  const url = new URL(await c.demarrer('https://api.yousign.app/mcp', 'http://localhost:3000'));
+  assert.equal(url.searchParams.get('client_id'), 'app-claire-1');
+  assert.equal(f.appels.some((a) => /\/register$/.test(a.url)), false, 'pas d’enregistrement dynamique');
+  const refus = async (u, init) => (/\/register$/.test(u)
+    ? { ok: false, status: 400, headers: { get: () => '' }, text: async () => JSON.stringify({ error: 'invalid_redirect_uri', error_description: 'redirect_uri http://localhost:3000/api/yousign/oauth/retour is not registered' }) }
+    : f.fetch(u, init));
+  const c2 = O.creerOauthYousign({ ...depot(), fetch: refus });
+  await assert.rejects(() => c2.demarrer('https://api.yousign.app/mcp', 'http://localhost:3000'), /http:\/\/localhost:3000\/api\/yousign\/oauth\/retour is not registered/);
+});

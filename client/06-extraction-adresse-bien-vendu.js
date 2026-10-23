@@ -457,10 +457,15 @@
 
     const mobilier = extraction.champs && extraction.champs.prixMobilier;
     const prixVal = prix && prix.valeur;
-    if (mobilier && mobilier.valeur && prixVal && mobilier.valeur >= prixVal) {
+    // Comparés EN NOMBRES : une valeur gardée en texte (« 210.077,00 » reprise d'Authentic, « 6.000,00 ») se comparait lettre à lettre
+    // (« 6… » > « 2… ») et l'alerte se déclenchait pour un mobilier de 6 000 € dans une vente à 210 077 € (étude 23/10 : « j'ai pas compris l'alerte »).
+    const enNombre = (v) => (typeof v === 'number' ? v : eurosDepuisSaisie(v));
+    const mobilierNum = mobilier ? enNombre(mobilier.valeur) : null;
+    const prixNum = enNombre(prixVal);
+    if (mobilierNum && prixNum && mobilierNum >= prixNum) {
       alertes.push({
         code: 'MOBILIER_SUPERIEUR_PRIX', gravite: 'attention', champs: ['prixMobilier', 'prixVente'],
-        message: `Le mobilier lu (${formaterPrix(mobilier.valeur)}) n’est pas inférieur au prix de vente (${formaterPrix(prixVal)}) : l’un des deux montants est mal lu.`
+        message: `Le mobilier lu (${formaterPrix(mobilierNum)}) n’est pas inférieur au prix de vente (${formaterPrix(prixNum)}) : l’un des deux montants est mal lu.`
       });
     }
 

@@ -116,6 +116,8 @@ function renderBasculeAffaireJour() {
 
 var THEMES_TACHES = [
   { cle: 'perso', nom: 'Mes tâches', sous: 'rappels, agenda, demandes', types: ['rappel'] },
+  // Agenda (étude 23/10 : « une catégorie Agenda quand c'est lié à une tâche rendez-vous ») : fixer, placer ou confirmer un rendez-vous.
+  { cle: 'agenda', nom: 'Agenda', sous: 'rendez-vous à fixer ou à placer', types: [], motif: /^point-.*(rendez-vous|rdv)/ },
   { cle: 'rediger', nom: 'Prêts à rédiger', sous: 'dossier complet ou presque', types: ['redaction'] },
   { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
   { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
@@ -125,7 +127,8 @@ var THEMES_TACHES = [
 
 /** Pure : la clé du thème d'une tâche (« decider » pour le reste). @param {any} a */
 function themeTache(a) {
-  const t = THEMES_TACHES.find((x) => x.types.includes(a && a.type));
+  const type = String((a && a.type) || '');
+  const t = THEMES_TACHES.find((x) => x.types.includes(type) || (x.motif && x.motif.test(type)));
   return t ? t.cle : 'decider';
 }
 
@@ -206,7 +209,7 @@ function renderCarteGroupeTaches(liste) {
 
 /** Les tâches en COLONNES par thème (widget pleine largeur, vue « Tâches » du Suivi). @param {any[]} actions */
 function renderTachesColonnes(actions) {
-  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || (g.theme.cle !== 'decider' && g.theme.cle !== 'perso'));
+  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || !['decider', 'perso', 'agenda'].includes(g.theme.cle));
   return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
       <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
       <div class="tf-cartes">${g.actions.length ? elementsColonneTaches(g.actions).map((e) => (e.groupe ? renderCarteGroupeTaches(e.groupe) : renderCarteTache(e.action))).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>

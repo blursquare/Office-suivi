@@ -237,7 +237,8 @@
 <div class="wrap">
 
   <details class="panel" id="panel" open>
-    <summary>Nouveau dossier <span class="plus">+</span></summary>
+    <!-- Toujours ouvert (étude 23/10 : « retire le plier déplier, ça sert à rien ») : le titre ne replie plus la carte. -->
+    <summary onclick="event.preventDefault()">Nouveau dossier</summary>
     <div class="panel-body">
 
       <div class="wizard-stepper" id="wizard-stepper">
@@ -997,6 +998,7 @@
       <wa-button appearance="outlined" class="secondary" id="af-historique-btn" onclick="ouvrirHistoriqueAppelsFonds()">Courriers créés</wa-button>
       <wa-button appearance="outlined" class="secondary" onclick="reinitialiserAppelFonds()">Effacer</wa-button>
       <wa-button appearance="outlined" class="secondary" id="af-brouillon-outlook" style="display:none;" onclick="preparerEmailAppelFonds(this)" title="Prépare l’email au destinataire du dossier relié, le courrier déjà joint">Email (courrier joint)</wa-button>
+      <wa-button appearance="outlined" class="secondary" id="af-ranger-nas" style="display:none;" onclick="rangerAppelFondsDansDossier(this)" title="Enregistre le courrier (Word et PDF/A) à la racine du dossier de la vente sur le NAS, au lieu du dossier de téléchargement">Enregistrer dans le dossier</wa-button>
       <wa-button appearance="outlined" class="secondary" id="af-telecharger-pdfa" onclick="telechargerAppelFondsPdfA(this)" title="Le même courrier en PDF/A-2U (ISO 19005-2), à déposer dans Authentic">PDF/A pour Authentic</wa-button>
       <wa-button variant="brand" class="primary" id="af-telecharger" onclick="telechargerAppelFondsDocx(this)">Télécharger le courrier (.docx)</wa-button>
     </div>
@@ -1949,6 +1951,10 @@
           <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
           <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
         </label>
+      </div>
+      <div class="reglages-champ">
+        <div class="reglages-champ-libelle"><label for="reglages-yousign-appid">Identifiant d'application (facultatif)</label><span class="info-i" tabindex="0" data-info="Yousign n'accepte comme adresse de retour que celles qu'il a enregistrées. Si « Se connecter » répond « invalid_redirect_uri », demandez à Yousign d'enregistrer pour CLAIRE l'adresse affichée dans le message (http://localhost:… /api/yousign/oauth/retour) et collez ici l'identifiant d'application (client_id) qu'il vous donne : CLAIRE ne tentera plus de s'enregistrer seule."></span></div>
+        <input type="text" id="reglages-yousign-appid" autocomplete="off" placeholder="client_id donné par Yousign">
       </div>
       <div class="reglages-champ" id="reglages-yousign-retour" style="display:none">
         <div class="reglages-champ-libelle"><label for="reglages-yousign-adresse">Adresse de retour de Yousign</label><span class="info-i" tabindex="0" data-info="Yousign n'accepte que localhost ou https comme adresse de retour : si CLAIRE est ouverte depuis un autre poste que le serveur, la page qui s'affiche après la connexion est en erreur. Son adresse (dans la barre du navigateur) contient le code : collez-la ici."></span></div>
@@ -2929,5 +2935,6 @@
 <script src="client/104-taches-affaire.js"></script>
 <script src="client/105-taches-widget.js"></script>
 <script src="client/106-yousign.js"></script>
+<script src="client/107-appel-fonds-saisie-nas.js"></script>
 </body>
 </html>

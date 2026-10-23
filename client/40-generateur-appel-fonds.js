@@ -931,7 +931,6 @@
       else aCompleter.push('Fonds de travaux remboursé au vendeur : montant à reprendre de l’état daté.');
     }
 
-
     // Pour le CONTRÔLE des frais (jamais pour les remplir) : le département vient du code postal du
     // bien, le type de bien du type de vente. Ni l'un ni l'autre n'est deviné quand le dossier ne
     // permet pas de trancher (Corse/Alsace regroupées, 69 scindé — voir cleBaremeDepuisDepartement).
@@ -1472,6 +1471,9 @@
     if (!bouton) return;
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
     bouton.style.display = (d && emailDestinataireRelance(d)) ? '' : 'none';
+    // « Enregistrer dans le dossier de la vente » : seulement quand le dossier relié l'est aussi au NAS (étude 23/10).
+    const ranger = afEl('af-ranger-nas');
+    if (ranger) ranger.style.display = (d && d.nasDossier) ? '' : 'none';
   }
 
   // --- adresse du bien : reprise du dossier, ou suggestions de la Base Adresse Nationale --------
@@ -1746,7 +1748,7 @@
           else if (f.statut === 'sous') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↓ ${escapeHtml(montantVersTexteFr(f.ecart))} sous le barème</span>`;
           else if (f.statut === 'sur') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↑ ${escapeHtml(montantVersTexteFr(f.ecart))} au-dessus du barème</span>`;
         }
-        const montantTexte = l.memoire ? 'Mémoire' : montantVersTexteFr(l.montant || 0);
+        const montantTexte = l.memoire ? (l.texteMemoire || 'Mémoire') : montantVersTexteFr(l.montant || 0);
         const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="montant">${escapeHtml(montantTexte)}</span>`;
         // Flèches d'ordre (étude 08/10 : « faire remonter une ligne ou la descendre ») : hors du texte
         // du courrier (contenteditable="false", jamais lues par le .docx qui ne prend que les .af-champ).
@@ -1779,9 +1781,11 @@
     const i = parseInt(span.getAttribute('data-af-index'), 10);
     const ligne = afLignes[section] && afLignes[section][i];
     if (!ligne) return;
-    const texte = span.textContent || '';
-    if (AF_MEMOIRE_RE.test(texte)) { ligne.memoire = true; ligne.montant = 0; }
-    else { ligne.memoire = false; ligne.montant = montantSaisiAppelFonds(texte) || 0; }
+    const texte = (span.textContent || '').replace(/\u00a0/g, ' ').trim();
+    // Une ligne est toujours un montant, mais un texte sans chiffre (« pour mémoire », « offert », « néant »…) se saisit aussi : il part tel quel
+    // dans le courrier et la ligne n'entre pas dans le total (étude 23/10).
+    if (AF_MEMOIRE_RE.test(texte) || (texte && !/\d/.test(texte))) { ligne.memoire = true; ligne.montant = 0; ligne.texteMemoire = texte.slice(0, 60); }
+    else { ligne.memoire = false; delete ligne.texteMemoire; ligne.montant = montantSaisiAppelFonds(texte) || 0; }
     recalculerTotauxAppelFonds();
   }
 
@@ -1815,6 +1819,7 @@
   // (suppression d'une autre ligne, ajout, contrôle des frais) le faisait réapparaître (signalé
   // par l'étude le 29/09). Chaque frappe dans le courrier relit donc toutes les cellules.
   function synchroniserDecompteDepuisApercu() {
+    reparerChampsDecompteAppelFonds();
     ['af-tbody-debit', 'af-tbody-credit'].forEach(id => {
       const tbody = afEl(id);
       if (!tbody) return;

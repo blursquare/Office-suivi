@@ -73,3 +73,12 @@ test('le mobilier est conservé à l’import d’une sauvegarde', () => {
   assert.strictEqual(d.prixMobilier, 3000);
   assert.strictEqual(app.normaliserDossierImporte({ id: 'y', nom: 'A / B', prixMobilier: 'abc' }).prixMobilier, null);
 });
+
+test('mobilier et prix gardés en texte : comparés en nombres, plus d’alerte pour 6 000 € dans 210 077 € (étude 23/10)', () => {
+  const code = (ex) => app.controlerCoherence(ex).some(a => a.code === 'MOBILIER_SUPERIEUR_PRIX');
+  const ex = (prix, mobilier) => ({ champs: { prixVente: { valeur: prix }, prixMobilier: { valeur: mobilier } }, parties: [], notaires: {}, bien: null });
+  assert.equal(code(ex('210.077,00', '6.000,00')), false);
+  assert.equal(code(ex(210077, 6000)), false);
+  assert.equal(code(ex('100.000,00', '120.000,00')), true, 'un mobilier supérieur au prix reste signalé');
+  assert.equal(code(ex(100000, 120000)), true);
+});

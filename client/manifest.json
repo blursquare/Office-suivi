@@ -105,5 +105,6 @@
   "103-liens-chrome.js",
   "104-taches-affaire.js",
   "105-taches-widget.js",
-  "106-yousign.js"
+  "106-yousign.js",
+  "107-appel-fonds-saisie-nas.js"
 ]

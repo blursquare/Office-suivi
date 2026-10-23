@@ -20,7 +20,8 @@ function creerConnexionYousign(parametresRepo, injections = {}) {
   return creerOauthYousign({
     lire: () => (parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_YOUSIGN_OAUTH, {}) : {}) || {},
     ecrire: (v) => parametresRepo.ecrireJsonBrut(CLE_YOUSIGN_OAUTH, v),
-    fetch: injections.fetch
+    fetch: injections.fetch,
+    clientId: () => lireReglagesYousign(parametresRepo).clientId
   });
 }
 
@@ -30,7 +31,7 @@ function lireReglagesYousign(parametresRepo) {
   const o = (parametresRepo && parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_YOUSIGN_OAUTH, {}) : {}) || {};
   const cle = typeof b.cle === 'string' ? b.cle : '';
   const oauth = !!(o && o.access);
-  return { cle, oauth, connecte: !!cle || oauth, actif: b.actif !== false, ecriture: b.ecriture !== false,
+  return { cle, oauth, connecte: !!cle || oauth, clientId: typeof b.clientId === 'string' ? b.clientId : '', actif: b.actif !== false, ecriture: b.ecriture !== false,
     url: typeof b.url === 'string' && urlYousignValide(b.url) ? b.url : URL_YOUSIGN_DEFAUT };
 }
 
@@ -45,7 +46,7 @@ function creerYousign(parametresRepo, injections = {}) {
 function creerRouteurYousign(parametresRepo, client) {
   const connexion = /** @type {any} */ (client).connexion;
   const routeur = express.Router();
-  const vue = () => { const r = lireReglagesYousign(parametresRepo); return { cleEnregistree: !!r.cle, connecte: r.oauth, actif: r.actif, ecriture: r.ecriture, url: r.url }; };
+  const vue = () => { const r = lireReglagesYousign(parametresRepo); return { cleEnregistree: !!r.cle, clientId: r.clientId, connecte: r.oauth, actif: r.actif, ecriture: r.ecriture, url: r.url }; };
 
   routeur.get('/yousign/reglages', (req, res) => { res.json(vue()); });
 
@@ -61,6 +62,11 @@ function creerRouteurYousign(parametresRepo, client) {
       const u = corps.url.trim();
       if (u && !urlYousignValide(u)) { res.status(400).json({ erreur: 'Adresse refusée : api.yousign.app ou api-sandbox.yousign.app en https seulement.' }); return; }
       r.url = u || URL_YOUSIGN_DEFAUT;
+    }
+    if (typeof corps.clientId === 'string') {
+      const c = corps.clientId.trim();
+      if (c && !/^[A-Za-z0-9._~-]{4,200}$/.test(c)) { res.status(400).json({ erreur: 'Identifiant d’application invalide.' }); return; }
+      r.clientId = c;
     }
     if (typeof corps.actif === 'boolean') r.actif = corps.actif;
     if (typeof corps.ecriture === 'boolean') r.ecriture = corps.ecriture;
