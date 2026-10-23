@@ -172,7 +172,36 @@ test('route : disponibilité, brouillon, codes HTTP ; le message de l’agent n�
       assert.equal((await requete('GET', '/signature-rib/disponibilite')).json.disponible, true);
       assert.equal((await requete('POST', '/signature-rib/brouillon', { ...SIGNATAIRE, email: '' })).statut, 400);
       const ok = await requete('POST', '/signature-rib/brouillon', SIGNATAIRE);
-      assert.deepEqual([ok.statut, ok.json], [200, { ok: true, url: LIEN }]);
+      assert.deepEqual([ok.statut, ok.json], [200, { ok: true, id: '4a304c31-e229-47d2-9adc-d2b2f443b5bc', url: LIEN }]);
     } finally { if (sansCle === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = sansCle; }
   } finally { await new Promise((res) => serveur.close(res)); }
+});
+
+test('état d’une demande : lecture seule, seuls get-signature-request et get-signature-request-signer sont autorisés, identifiant contrôlé', async () => {
+  const ID = '4a304c31-e229-47d2-9adc-d2b2f443b5bc';
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'sevt_1', name: 'get-signature-request', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'sevt_2', name: 'send-signature-request', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'sevt_3', name: 'create-signature-request-from-template', evaluated_permission: 'ask' },
+    texte('Demande envoyée ; le signataire n’a pas encore signé.'), idle('end_turn')]);
+  const r = await service(c).lireStatut(ID);
+  assert.deepEqual([r.ok, r.statut], [true, 'Demande envoyée ; le signataire n’a pas encore signé.']);
+  const decisions = c.envoyes.filter((e) => e.events && e.events[0].type === 'user.tool_confirmation').map((e) => e.events[0].result);
+  assert.deepEqual(decisions, ['allow', 'deny', 'deny']);
+  assert.match(c.envoyes[1].events[0].content[0].text, new RegExp(ID));
+  for (const mauvais of ['', 'abc', ID + ' ; envoie tout', null]) {
+    const x = await service(fauxClient([])).lireStatut(mauvais);
+    assert.deepEqual([x.ok, x.code], [false, 'donnees']);
+  }
+  assert.equal((await A.creerSignatureRibAgent({ parametresRepo: parametres(''), env: {} }).lireStatut(ID)).code, 'configuration');
+});
+
+test('outil yousign_rib de l’agent CLAIRE : déclaré, non strict, sans aucune donnée de signataire en entrée', () => {
+  const { OUTILS_AGENT, SYSTEME_AGENT } = require('../src/assistantAgent');
+  const o = OUTILS_AGENT.find((t) => t.name === 'yousign_rib');
+  assert.ok(o);
+  assert.equal(o.strict, false);
+  assert.deepEqual(Object.keys(o.input_schema.properties).sort(), ['acquereur', 'action', 'dossier_id']);
+  assert.deepEqual(o.input_schema.properties.action.enum, ['brouillon', 'statut']);
+  assert.match(SYSTEME_AGENT, /yousign_rib/);
 });

@@ -13,6 +13,8 @@ const { telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manq
 const AGENT_PAR_DEFAUT = 'agent_01B92Dko9uhJ2RSRb3giDcrV';
 const ENVIRONNEMENT_PAR_DEFAUT = 'env_01GhpfYHqbJcaFA9PDvdF1YY';
 const OUTILS_PERMIS = new Set(['search-templates', 'create-signature-request-from-template']);
+const OUTILS_LECTURE = new Set(['get-signature-request', 'get-signature-request-signer']);
+const RE_ID_DEMANDE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DELAI_MS = 150000;
 const DELAI_REPONSE_MS = 20000;
 const RE_BROUILLON = /https:\/\/yousign\.app\/auth\/workspace\/requests\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
@@ -30,11 +32,11 @@ function reglagesAgentYousign(config) {
 }
 
 /** La décision pour un appel d'outil mis en attente : « allow » seulement pour un outil de la liste. @param {{ name?: string }} evenement */
-function decisionOutil(evenement) {
+function decisionOutil(evenement, permis) {
   const nom = String((evenement && evenement.name) || '');
-  return OUTILS_PERMIS.has(nom)
+  return (permis || OUTILS_PERMIS).has(nom)
     ? { result: 'allow' }
-    : { result: 'deny', deny_message: `L'outil « ${nom || 'inconnu'} » n'est pas autorisé : seuls la lecture des modèles et la création d'un brouillon le sont.` };
+    : { result: 'deny', deny_message: `L'outil « ${nom || 'inconnu'} » n'est pas autorisé : seuls les outils prévus pour cette demande le sont.` };
 }
 
 /** Le code CLAIRE d'une erreur de l'API, sans jamais reprendre son message (il peut citer la requête). @param {any} err */
@@ -71,7 +73,7 @@ function creerSignatureRibAgent(o = {}) {
   }
 
   /** @param {any} client @param {string} texte @param {{ agent: string, environnement: string, coffre: string }} r */
-  async function seance(client, texte, r) {
+  async function seance(client, texte, r, permis) {
     const session = await client.beta.sessions.create({ agent: r.agent, environment_id: r.environnement, ...(r.coffre ? { vault_ids: [r.coffre] } : {}) });
     // Flux ouvert avant l'envoi : il ne livre que les événements postérieurs à son ouverture.
     const flux = await client.beta.sessions.events.stream(session.id);
@@ -84,7 +86,7 @@ function creerSignatureRibAgent(o = {}) {
         if (e.type === 'agent.message') {
           for (const b of e.content || []) if (b.type === 'text') reponse += b.text + '\n';
         } else if ((e.type === 'agent.tool_use' || e.type === 'agent.mcp_tool_use') && e.evaluated_permission === 'ask') {
-          const d = decisionOutil(e);
+          const d = decisionOutil(e, permis);
           if (d.result === 'deny') refus++;
           await client.beta.sessions.events.send(session.id, { events: [{ type: 'user.tool_confirmation', tool_use_id: e.id, ...d }] });
         } else if (e.type === 'session.error') {
@@ -138,7 +140,33 @@ function creerSignatureRibAgent(o = {}) {
     return enCours;
   }
 
-  return { disponibilite, creerBrouillon };
+  /**
+   * L'état d'une demande de signature créée plus tôt (lecture seule : get-signature-request) : une phrase, jamais un envoi.
+   * @param {unknown} id l'identifiant d'une demande, tel que rendu à la création du brouillon
+   */
+  async function lireStatut(id) {
+    const identifiant = String(id || '').trim().toLowerCase();
+    if (!RE_ID_DEMANDE.test(identifiant)) return { ok: false, code: 'donnees', raison: 'Identifiant de demande invalide.' };
+    const k = cle();
+    if (!k) return { ok: false, code: 'configuration', raison: 'Aucune clé d’API Claude n’est enregistrée (Réglages › IA et relecture d’actes).' };
+    if (enCours) return { ok: false, code: 'occupe', raison: 'Une demande est déjà en cours. Réessayez dans un instant.' };
+    const consigne = ['Lecture seule : appelle get-signature-request avec l\'identifiant ' + identifiant + ' (aucun autre outil, rien ne se modifie, rien ne s\'envoie).',
+      'Réponds en deux phrases au plus, sans nom ni adresse : l\'état de la demande (brouillon, envoyée, signée, refusée, expirée…) et, pour le signataire, s\'il a signé.'].join('\n');
+    enCours = (async () => {
+      try {
+        const r = await seance(creerClient(k), consigne, reglagesAgentYousign(o.config), OUTILS_LECTURE);
+        if (r.fin === 'delai') return { ok: false, code: 'delai', raison: 'L’agent n’a pas répondu à temps.' };
+        if (r.fin !== 'ok') return { ok: false, code: 'echec', raison: 'La session de l’agent s’est arrêtée avant la fin.' };
+        const texte = String(r.reponse || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+        return texte ? { ok: true, statut: texte } : { ok: false, code: 'sans_reponse', raison: 'L’agent n’a rien rendu.' };
+      } catch (e) {
+        return { ok: false, ...codeErreurApi(e) };
+      }
+    })().finally(() => { enCours = null; });
+    return enCours;
+  }
+
+  return { disponibilite, creerBrouillon, lireStatut };
 }
 
-module.exports = { creerSignatureRibAgent, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };
+module.exports = { creerSignatureRibAgent, OUTILS_LECTURE, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };

@@ -80,7 +80,7 @@ async function creerBrouillonSignatureRib(s, idDossier) {
     const j = await r.json().catch(() => ({}));
     if (typeof fermerToastFixe === 'function') fermerToastFixe('signature-rib');
     if (r.ok && j.ok && j.url) {
-      noterSignatureRibDemandee(idDossier);
+      noterSignatureRibDemandee(idDossier, j);
       afficherToast('Brouillon créé dans Yousign : vérifiez-le, puis envoyez-le depuis Yousign.', 'Ouvrir', () => window.open(j.url, '_blank', 'noopener'), { fixe: true, cle: 'signature-rib' });
     } else {
       if (j && j.configuration) signatureRibAuto = false; // réglage à revoir : les prochains clics reprennent le bouton de repli
@@ -95,10 +95,11 @@ async function creerBrouillonSignatureRib(s, idDossier) {
 }
 
 // Le brouillon est créé : la demande de RIB est faite (même effet que l'email de rappel), la tâche et la ligne de l'onglet Fonds se cochent.
-function noterSignatureRibDemandee(idDossier) {
+function noterSignatureRibDemandee(idDossier, brouillon) {
   const d = dossiers.find(x => x.id === idDossier);
   if (!d) return;
   d.ribDemandeLe = isoAujourdhuiLocal();
+  if (brouillon && brouillon.id) d.signatureRib = { id: String(brouillon.id), url: String(brouillon.url || ''), le: d.ribDemandeLe };
   ajouterHistorique(d, LIBELLE_HISTORIQUE_RIB + ' (signature Yousign, brouillon créé)');
   sauvegarder();
   render();

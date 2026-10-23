@@ -15,3 +15,11 @@ test('créer sans formulaire préparé : erreur claire, aucune carte d’autoris
   const r = await app.nouveauDossierDepuisCompromisAgent({ mode: 'creer', document_id: '', responsable: '' });
   assert.match(r.erreur, /prépare-le d’abord/);
 });
+
+test('yousign_rib : dossier inconnu, état sans brouillon créé, acquéreur absent — refusés avant toute demande', async () => {
+  const app = chargerApplication();
+  assert.match((await app.yousignRibAgent({ action: 'statut', dossier_id: 'zz', acquereur: 1 })).erreur, /introuvable/);
+  require('node:vm').runInContext("dossiers.push({ id: 'd1', nom: 'A / B', parties: [{ role: 'VENDEUR', nom: 'Paul DUPONT' }] });", app);
+  assert.match((await app.yousignRibAgent({ action: 'statut', dossier_id: 'd1', acquereur: 1 })).erreur, /aucun brouillon/);
+  assert.match((await app.yousignRibAgent({ action: 'brouillon', dossier_id: 'd1', acquereur: 1 })).erreur, /aucun acquéreur/);
+});

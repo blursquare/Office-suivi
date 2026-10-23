@@ -69,3 +69,35 @@ async function creerNouveauDossierAgent() {
   }
   return { cree: true, dossier_id: cree.id, libelle: libelleDossierAffiche(cree) };
 }
+
+// « Demander à CLAIRE » et l'agent Yousign (étude 24/10 : « que CLAIRE puisse travailler aussi avec l'agent API Youtrust ») : brouillon de la
+// signature du RIB d'un acquéreur (après la carte « Autoriser »), ou état de la demande déjà créée. Le signataire est pris sur la fiche par
+// le poste : l'IA ne voit ni ne donne aucun nom, email ou numéro. Jamais d'envoi : l'étude vérifie et envoie dans Yousign.
+async function yousignRibAgent(entree) {
+  const e = entree || {};
+  const d = dossiers.find(x => x.id === e.dossier_id);
+  if (!d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
+  if (e.action === 'statut') {
+    if (!d.signatureRib || !d.signatureRib.id) return { erreur: 'aucun brouillon de signature n’a été créé depuis CLAIRE pour ce dossier' };
+    try {
+      const r = await fetchAvecAuth('/api/signature-rib/statut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: d.signatureRib.id }) });
+      const j = await r.json().catch(() => ({}));
+      return r.ok && j.ok ? { statut: j.statut, brouillon_cree_le: d.signatureRib.le || '' } : { erreur: (j && j.raison) || 'état illisible' };
+    } catch (err) { return { erreur: 'le serveur n’a pas répondu' }; }
+  }
+  const liste = acquereursSignatureRib(d);
+  const choisi = liste[Math.max(1, Number(e.acquereur) || 1) - 1];
+  if (!choisi) return { erreur: 'aucun acquéreur à ce rang dans la fiche' };
+  const s = signataireRibDePartie(d, choisi.partie);
+  const manques = manquesSignatureRib(s);
+  if (manques.length) return { erreur: `il manque sur la fiche : ${manques.join(', ')}` };
+  if (signatureRibAuto !== true) return { erreur: 'l’agent Yousign n’est pas utilisable : clé d’API Claude des Réglages absente ou refusée' };
+  const description = `Préparer dans Yousign le brouillon « Signature d’attestation et envoi de RIB » pour ${s.prenom} ${s.nom} (${libelleDossierAffiche(d)}). Rien n’est envoyé : vous le vérifiez dans Yousign.`;
+  if (!(await demanderAutorisationAgent(description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  try {
+    const r = await fetchAvecAuth('/api/signature-rib/brouillon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok && j.url) { noterSignatureRibDemandee(d.id, j); return { cree: true, lien: j.url, rappel: 'brouillon seulement : l’étude le vérifie et l’envoie dans Yousign' }; }
+    return { cree: false, erreur: (j && j.raison) || 'le brouillon n’a pas pu être préparé' };
+  } catch (err) { return { cree: false, erreur: 'le serveur n’a pas répondu : vérifier dans Yousign si un brouillon a été créé avant de recommencer' }; }
+}

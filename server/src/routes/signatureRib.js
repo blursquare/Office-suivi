@@ -9,7 +9,7 @@ const { noterVerification } = require('../verificationsTerrain');
 /** Codes qui disent « l'agent n'est pas utilisable tel que réglé » : le poste repasse au bouton de repli. */
 const CODES_CONFIGURATION = ['configuration', 'cle', 'introuvable'];
 
-/** @param {any} parametresRepo @param {{ disponibilite: Function, creerBrouillon: Function }} service */
+/** @param {any} parametresRepo @param {{ disponibilite: Function, creerBrouillon: Function, lireStatut: Function }} service */
 function creerRouteurSignatureRib(parametresRepo, service) {
   const router = express.Router();
 
@@ -29,9 +29,20 @@ function creerRouteurSignatureRib(parametresRepo, service) {
       if (r.ok) noterVerification(parametresRepo, 'signature-rib-claude', { detail: 'brouillon créé par l’agent Yousign' });
       else if (r.code !== 'donnees' && r.code !== 'occupe') noterVerification(parametresRepo, 'signature-rib-claude', { ok: false, message: r.code });
       const statut = r.ok ? 200 : r.code === 'donnees' ? 400 : r.code === 'occupe' ? 409 : 502;
-      res.status(statut).json(r.ok ? { ok: true, url: r.url } : { ok: false, code: r.code, raison: r.raison, configuration: CODES_CONFIGURATION.includes(r.code) });
+      res.status(statut).json(r.ok ? { ok: true, id: r.id, url: r.url } : { ok: false, code: r.code, raison: r.raison, configuration: CODES_CONFIGURATION.includes(r.code) });
     } catch (e) {
       console.error('[signature-rib]', e && e.message ? e.message : e);
+      res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
+    }
+  });
+
+  router.post('/signature-rib/statut', express.json({ limit: '1kb' }), async (req, res) => {
+    try {
+      const r = await service.lireStatut(req.body && req.body.id);
+      const statut = r.ok ? 200 : r.code === 'donnees' ? 400 : r.code === 'occupe' ? 409 : 502;
+      res.status(statut).json(r.ok ? { ok: true, statut: r.statut } : { ok: false, code: r.code, raison: r.raison });
+    } catch (e) {
+      console.error('[signature-rib] statut', e && e.message ? e.message : e);
       res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
     }
   });
