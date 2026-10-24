@@ -5268,6 +5268,12 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 @media (hover: none) { .af-ordre { opacity: 1; } }
 /* Écran tactile (étude 24/10) : les flèches et la croix sur leur propre ligne, au-dessus du libellé (flottantes, elles
    coupaient le premier mot : « P / rix d'acquisition »). */
+/* Les flèches se posent PAR-DESSUS le coin de la cellule au survol (24/10) : flottantes, elles retiraient 60 px à la première ligne
+   du libellé, et « Montant » se coupait en « Monta / nt » sur un écran de 1366 px. */
+@media (hover: hover) {
+  table.af-table td:has(> .af-ordre) { position: relative; }
+  .af-ordre { position: absolute; top: 2px; right: 2px; float: none; margin: 0; padding: 0 2px; background: #ffffff; border-radius: 4px; }
+}
 @media (hover: none) { .af-ordre { float: none; display: flex; justify-content: flex-end; margin: 0 0 2px; } }
 .af-ordre-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
@@ -10844,3 +10850,39 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shadow: 0 0 0 1px var(--urgent); }
 .champ-alerte { margin: 4px 0 0; font-size: var(--texte-xs); color: var(--urgent); line-height: 1.4; }
 .qt-ligne > .champ-alerte { grid-column: 1 / -1; order: 9; margin: 0; }
+
+/* ==== Sections de saisie des outils (étude 24/10, maquette D : « les champs flottent, un gros amas blanc ») ====
+   client/44-presentation-outils.js regroupe chaque titre de section et ses champs (`.outil-section`). Carte assez large : titre à
+   gauche, champs à droite ; sinon titre au-dessus. Un seul filet entre deux sections (le titre ne porte plus le sien). Champs
+   grisés. Sections qui attendent une section requise pas encore remplie : pâles, pleines au survol ou à la saisie. */
+.outil-formulaire { container: outil-formulaire / inline-size; }
+.outil-section { padding: 20px 0; transition: opacity 200ms ease; }
+.outil-section:first-child { padding-top: 0; }
+.outil-section:last-child { padding-bottom: 0; }
+.outil-section + .outil-section { border-top: 1px solid var(--line-soft); }
+.outil-formulaire .outil-section > .outil-section-tete { margin: 0 0 12px; padding-top: 0; border-top: none; scroll-margin-top: 112px; }
+.outil-section-corps { min-width: 0; }
+.outil-section-corps > :first-child { margin-top: 0; }
+.outil-section-corps > :last-child { margin-bottom: 0; }
+@container outil-formulaire (min-width: 480px) {
+  .outil-section { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  .outil-formulaire .outil-section > .outil-section-tete { margin: 0; align-items: flex-start; font-size: var(--texte-base); }
+}
+/* Contrôle de l'urbanisme : la ligne code postal · commune · parcelles a besoin de place — titres à gauche à partir de 640 px. */
+.pr-grid > .outil-formulaire { container-name: outil-formulaire-large; }
+@container outil-formulaire-large (min-width: 640px) {
+  .outil-section { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 20px; align-items: start; }
+  .outil-formulaire .outil-section > .outil-section-tete { margin: 0; align-items: flex-start; font-size: var(--texte-base); }
+}
+.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]), .outil-formulaire select, .outil-formulaire textarea {
+  background: var(--paper-sunk); border-color: transparent;
+}
+.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):hover, .outil-formulaire select:hover, .outil-formulaire textarea:hover { border-color: var(--line); }
+.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):focus, .outil-formulaire select:focus, .outil-formulaire textarea:focus { background: var(--paper-card); border-color: var(--focus); }
+/* Champs posés dans un bloc déjà grisé : restent blancs pour se voir. */
+.outil-formulaire :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
+.outil-section-attente { opacity: 0.45; }
+.outil-section-attente:hover, .outil-section-attente:focus-within { opacity: 1; }
+.outil-section-courante > .outil-section-tete .outil-num { background: var(--focus); color: var(--blanc-fixe); }
+@media (prefers-reduced-motion: reduce) { .outil-section { transition: none; } }
+@media print { .outil-section-attente { opacity: 1; } }

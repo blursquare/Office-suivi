@@ -55,3 +55,26 @@ test('les quotités lisent un montant à la française et ignorent un montant n�
   assert.strictEqual(app.montantQuotite('-500'), 0);
   assert.strictEqual(app.montantQuotite('abc'), 0);
 });
+
+test('sections des outils : la première section requise non remplie est la courante, celles d\'après attendent', () => {
+  const etapes = [
+    { cle: 'dossier', saisie: true },
+    { cle: 'somme', saisie: true, requis: true },
+    { cle: 'periode', saisie: true, requis: true },
+    { cle: 'option', saisie: true },
+    { cle: 'resultat' }
+  ];
+  const etats = (faits) => app.etatsSectionsOutil(etapes, faits).map(e => e.cle + ':' + e.etat).join(' ');
+  assert.strictEqual(etats({}), 'dossier: somme:courante periode:attente option:attente resultat:');
+  assert.strictEqual(etats({ somme: true }), 'dossier: somme: periode:courante option:attente resultat:');
+  assert.strictEqual(etats({ somme: true, periode: true }), 'dossier: somme: periode: option: resultat:');
+  // Une section remplie plus loin ne lève pas l'attente tant qu'une section requise d'avant est vide.
+  assert.strictEqual(etats({ periode: true }), 'dossier: somme:courante periode:attente option:attente resultat:');
+});
+
+test('chaque outil a au moins une section requise, et toute section requise est une section de saisie', () => {
+  for (const [outil, etapes] of Object.entries(app.ETAPES_OUTILS)) {
+    assert.ok(etapes.some(e => e.requis), outil);
+    for (const e of etapes) if (e.requis) assert.ok(e.saisie && typeof e.fait === 'function', `${outil}.${e.cle}`);
+  }
+});

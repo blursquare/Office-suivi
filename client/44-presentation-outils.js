@@ -9,54 +9,93 @@
 
   // Étapes de chaque outil, dans l'ordre de l'écran. `fait` dit si l'étape est remplie (coche) ; sans `fait`, jamais cochée
   // (choix déjà posés par défaut, ou rien à vérifier).
+  // `saisie` : section de champs, présentée titre à gauche, champs grisés à droite (étude 24/10, maquette D). `requis` : section à
+  // remplir avant la suite — les sections de saisie qui suivent la première section requise pas encore remplie restent pâles
+  // (pleines au survol ou dès qu'on y saisit), pour mener la saisie dans l'ordre (étude 24/10 : « mettre en avant l'étape un… les
+  // étapes après en transparent, pleines quand la première est remplie »). Jamais bloquant : tout reste cliquable.
   var ETAPES_OUTILS = {
     'appel-fonds': [
-      { cle: 'dossier', libelle: 'Dossier', fait: () => !!afDossierLie },
-      { cle: 'decompte', libelle: 'Décompte', fait: () => (afLignes.debit || []).some(l => Number(l.montant) > 0) },
-      { cle: 'clients', libelle: 'Clients', fait: () => afClients.some(c => String(c.nom || '').trim()) },
-      { cle: 'rdv', libelle: 'Rendez-vous', fait: () => !!afValeur('af-date-rdv') },
-      { cle: 'bien', libelle: 'Bien vendu', fait: () => !!(afValeur('af-designation') && afValeur('af-adresse-bien')) },
-      { cle: 'financement', libelle: 'Financement' },
+      { cle: 'dossier', libelle: 'Dossier', saisie: true, fait: () => !!afDossierLie },
+      { cle: 'decompte', libelle: 'Décompte', saisie: true, requis: true, fait: () => (afLignes.debit || []).some(l => Number(l.montant) > 0) },
+      { cle: 'clients', libelle: 'Clients', saisie: true, requis: true, fait: () => afClients.some(c => String(c.nom || '').trim()) },
+      { cle: 'rdv', libelle: 'Rendez-vous', saisie: true, requis: true, fait: () => !!afValeur('af-date-rdv') },
+      { cle: 'bien', libelle: 'Bien vendu', saisie: true, requis: true, fait: () => !!(afValeur('af-designation') && afValeur('af-adresse-bien')) },
+      { cle: 'financement', libelle: 'Financement', saisie: true },
       { cle: 'courrier', libelle: 'Courrier', fait: () => !!afHistoriqueId }
     ],
     quotites: [
-      { cle: 'dossier', libelle: 'Dossier', fait: () => !!(document.getElementById('qt-dossier-pill') || {}).innerHTML },
-      { cle: 'bien', libelle: 'Bien' },
-      { cle: 'acquereurs', libelle: 'Acquéreurs', fait: () => champsRemplisDans('qt-acquereurs') >= 1 },
-      { cle: 'montant', libelle: 'Montant', fait: () => totalOutilAffiche('qt-total-operation') },
-      { cle: 'financement', libelle: 'Financement', fait: () => totalOutilAffiche('qt-total-financement') },
+      { cle: 'dossier', libelle: 'Dossier', saisie: true, fait: () => !!(document.getElementById('qt-dossier-pill') || {}).innerHTML },
+      { cle: 'bien', libelle: 'Bien', saisie: true },
+      { cle: 'acquereurs', libelle: 'Acquéreurs', saisie: true, requis: true, fait: () => champsRemplisDans('qt-acquereurs') >= 1 },
+      { cle: 'montant', libelle: 'Montant', saisie: true, requis: true, fait: () => totalOutilAffiche('qt-total-operation') },
+      { cle: 'financement', libelle: 'Financement', saisie: true, requis: true, fait: () => totalOutilAffiche('qt-total-financement') },
       { cle: 'quotites', libelle: 'Quotités' },
       { cle: 'annexe', libelle: 'Annexe' }
     ],
     calculateur: [
-      { cle: 'prix', libelle: 'Prix', fait: () => montantSaisiFr(valeurChamp('calc-price')) > 0 },
-      { cle: 'acquereur', libelle: 'Acquéreur' },
-      { cle: 'bien', libelle: 'Bien' },
+      { cle: 'prix', libelle: 'Prix', saisie: true, requis: true, fait: () => montantSaisiFr(valeurChamp('calc-price')) > 0 },
+      { cle: 'acquereur', libelle: 'Acquéreur', saisie: true },
+      { cle: 'bien', libelle: 'Bien', saisie: true },
       { cle: 'resultat', libelle: 'Provision', fait: () => montantSaisiFr(valeurChamp('calc-price')) > 0 }
     ],
     prorata: [
-      { cle: 'somme', libelle: 'Somme', fait: () => montantSaisiFr(valeurChamp('prorata-montant')) > 0 },
-      { cle: 'periode', libelle: 'Période', fait: () => !!(valeurChamp('prorata-debut') && valeurChamp('prorata-fin')) },
-      { cle: 'acte', libelle: "Date de l'acte", fait: () => !!valeurChamp('prorata-date') },
+      { cle: 'somme', libelle: 'Somme', saisie: true, requis: true, fait: () => montantSaisiFr(valeurChamp('prorata-montant')) > 0 },
+      { cle: 'periode', libelle: 'Période', saisie: true, requis: true, fait: () => !!(valeurChamp('prorata-debut') && valeurChamp('prorata-fin')) },
+      { cle: 'acte', libelle: "Date de l'acte", saisie: true, requis: true, fait: () => !!valeurChamp('prorata-date') },
       { cle: 'repartition', libelle: 'Répartition', fait: () => elementVisible('prorata-resultat') }
     ],
     preemption: [
-      { cle: 'dossier', libelle: 'Dossier', fait: () => !!(prEtat && prEtat.dossierId) },
-      { cle: 'parcelle', libelle: 'Parcelle', fait: () => !!(prEtat && (prEtat.zonages || []).some(z => z.statut === 'ok')) },
-      { cle: 'mutation', libelle: 'Mutation', fait: () => !!(prEtat && prEtat.reponses.mutation) },
-      { cle: 'bien', libelle: 'Bien', fait: () => !!(prEtat && prEtat.reponses.bien) },
-      { cle: 'rural', libelle: 'Agricole et forestier' },
+      { cle: 'dossier', libelle: 'Dossier', saisie: true, fait: () => !!(prEtat && prEtat.dossierId) },
+      { cle: 'parcelle', libelle: 'Parcelle', saisie: true, fait: () => !!(prEtat && (prEtat.zonages || []).some(z => z.statut === 'ok')) },
+      { cle: 'mutation', libelle: 'Mutation', saisie: true, requis: true, fait: () => !!(prEtat && prEtat.reponses.mutation) },
+      { cle: 'bien', libelle: 'Bien', saisie: true, requis: true, fait: () => !!(prEtat && prEtat.reponses.bien) },
+      { cle: 'rural', libelle: 'Agricole et forestier', saisie: true },
       { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) },
       { cle: 'depot', libelle: 'Dépôt DIA', fait: () => !!(prEtat && prEtat.depotDia && prEtat.depotDia.etat === 'ok' && prEtat.depotDia.donnees && prEtat.depotDia.donnees.depot && prEtat.depotDia.donnees.depot.mode !== 'inconnu') },
       { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) },
       { cle: 'sites', libelle: 'Plan de situation', fait: () => !!(prEtat && prEtat.sites && prEtat.sites.plan && prEtat.sites.plan.etat === 'fini') }
     ],
     inventaire: [
-      { cle: 'droits', libelle: 'Droits simulés', fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },
-      { cle: 'cout', libelle: "Coût de l'inventaire" },
+      { cle: 'droits', libelle: 'Droits simulés', saisie: true, requis: true, fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },
+      { cle: 'cout', libelle: "Coût de l'inventaire", saisie: true },
       { cle: 'verdict', libelle: 'Verdict', fait: () => elementVisible('inv-decompte') }
     ]
   };
+
+  // Pure : pour chaque étape, son état d'affichage — 'attente' (pâle : une section requise d'avant n'est pas remplie), 'courante'
+  // (la première section requise pas encore remplie), '' sinon. `faits` = { cle: booléen }.
+  function etatsSectionsOutil(etapes, faits) {
+    let bloque = false;
+    return (etapes || []).map(e => {
+      if (!e.saisie) return { cle: e.cle, etat: '' };
+      if (bloque) return { cle: e.cle, etat: 'attente' };
+      if (e.requis && !faits[e.cle]) { bloque = true; return { cle: e.cle, etat: 'courante' }; }
+      return { cle: e.cle, etat: '' };
+    });
+  }
+
+  // Regroupe chaque titre de section de saisie et ce qui le suit (jusqu'au titre suivant) dans `.outil-section` > titre +
+  // `.outil-section-corps` ; la carte qui les porte devient `.outil-formulaire` (conteneur des règles de largeur). Une fois.
+  function structurerSectionsOutil(outil) {
+    const panneau = panneauOutil(outil);
+    if (!panneau) return;
+    (ETAPES_OUTILS[outil] || []).filter(e => e.saisie).forEach(e => {
+      const titre = panneau.querySelector(`.outil-section-tete[data-etape="${e.cle}"]`);
+      if (!titre || !titre.parentElement || titre.parentElement.classList.contains('outil-section')) return;
+      const carte = titre.parentElement;
+      carte.classList.add('outil-formulaire');
+      const section = document.createElement('div');
+      section.className = 'outil-section';
+      section.dataset.section = e.cle;
+      const corps = document.createElement('div');
+      corps.className = 'outil-section-corps';
+      titre.before(section);
+      section.append(titre, corps);
+      while (section.nextSibling && !(section.nextSibling.nodeType === 1 && (section.nextSibling.matches('.outil-section-tete') || section.nextSibling.matches('.outil-section')))) {
+        corps.append(section.nextSibling);
+      }
+    });
+  }
 
   var etapeChoisieOutil = null;     // étape cliquée dans la barre, gardée allumée le temps d'y défiler
 
@@ -94,6 +133,7 @@
     const place = panneau && panneau.querySelector('.outil-sommaire-place');
     const etapes = ETAPES_OUTILS[outil];
     if (!place || !etapes || place.querySelector('wa-stepper')) return;
+    structurerSectionsOutil(outil);
     place.innerHTML = `<wa-stepper class="outil-sommaire" clickable orientation="horizontal" label="Sections de l’outil">
       ${etapes.map(e => `<wa-step name="${e.cle}">${escapeHtml(e.libelle)}</wa-step>`).join('')}
     </wa-stepper>`;
@@ -123,10 +163,12 @@
     // Le trait ne se remplit que d'une étape faite à l'autre DEPUIS LA PREMIÈRE (étude 24/10 : des étapes préremplies plus loin
     // coloraient un bout de trait isolé, commencé au milieu d'une liaison) : `data-suite` sur les étapes faites sans trou avant elles.
     let suite = true;
+    const faits = {};
     etapes.forEach(e => {
       const step = stepper.querySelector(`wa-step[name="${e.cle}"]`);
       let fait = false;
       try { fait = !!(e.fait && e.fait()); } catch (err) { fait = false; }
+      faits[e.cle] = fait;
       // Web Awesome colore aussi, de lui-même, la liaison qui suit une étape faite (relecture 24/10) : neutralisée quand l'étape
       // d'avant n'est pas dans la suite faite depuis la première (`data-avant-suite` absent).
       if (step) step.toggleAttribute('data-avant-suite', suite);
@@ -140,6 +182,12 @@
         else if (!fait && coche) coche.remove();
       }
       if (step) step.dataset.vu = '1';
+    });
+    etatsSectionsOutil(etapes, faits).forEach(({ cle, etat }) => {
+      const section = panneau.querySelector(`.outil-section[data-section="${cle}"]`);
+      if (!section) return;
+      section.classList.toggle('outil-section-attente', etat === 'attente');
+      section.classList.toggle('outil-section-courante', etat === 'courante');
     });
     const positions = etapes.map(e => {
       const titre = panneau.querySelector(`.outil-section-tete[data-etape="${e.cle}"]`);
