@@ -115,7 +115,7 @@ function renderEnteteCanal() {
   const zone = document.getElementById('canal-entete');
   if (!titre || !zone) return;
   const id = canaux.actif;
-  if (!id) { titre.textContent = 'Demander à CLAIRE'; zone.innerHTML = ''; zone.style.display = 'none'; return; }
+  if (!id) { titre.textContent = 'Discussions'; zone.innerHTML = ''; zone.style.display = 'none'; return; }
   const nom = libelleCanal(id, canaux.liste, dossiers);
   titre.textContent = id === '@traiter' ? 'À traiter' : (typeCanal(id) === 'dossier' ? nom : '# ' + nom);
   zone.style.display = '';

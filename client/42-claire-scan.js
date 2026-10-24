@@ -1050,7 +1050,7 @@
       'icon-burger': 'menu',
       'icon-nav-dashboard': 'tableau-bord',
       'icon-nav-suivi': 'list',
-      'icon-nav-assistant': 'sparkle',
+      'icon-nav-assistant': 'discussion',
       'icon-sidebar-recherche': 'search', 'icon-assistant-colonne': 'volet-droit',
       'icon-assistant-envoyer': 'send',
       'icon-assistant-joindre': 'paperclip',

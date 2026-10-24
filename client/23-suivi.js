@@ -1250,7 +1250,7 @@
   // enTete : un widget ajouté après coup, placé en tête (et non à la fin) chez qui avait déjà sa disposition.
   var WIDGETS_DASHBOARD = [
     { id: 'aujourdhui', titre: 'Aujourd’hui', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'sun', description: 'Ce qui est à faire aujourd’hui sur vos dossiers, et vos rappels.' },
-    { id: 'assistant', titre: 'Demander à CLAIRE', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'sparkle', enTete: true, description: 'Une question ou un geste en une phrase : la réponse s’affiche sur la page « Demander à CLAIRE ».' },
+    { id: 'assistant', titre: 'Discussions', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'sparkle', enTete: true, description: 'Une question ou un geste en une phrase : la réponse s’affiche sur la page « Demander à CLAIRE ».' },
     { id: 'agenda', titre: 'Agenda', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 1, icone: 'calendar', description: 'La semaine de l’office et les prochaines signatures.' },
     { id: 'nouveautes', titre: 'Nouveautés', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'sparkle', description: 'La dernière nouveauté de CLAIRE, sa version et sa date ; les flèches remontent le temps.' },
     // Retiré de la disposition par défaut (étude 18/10 : « Nouveautés » le remplace) ; il se rajoute depuis « Widgets ».

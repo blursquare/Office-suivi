@@ -200,7 +200,7 @@ function majPastilleCanaux() {
   if (badge) { badge.textContent = n > 99 ? '99+' : String(n); badge.style.display = n ? '' : 'none'; }
   const bouton = document.getElementById('tab-assistant');
   if (bouton) {
-    const titre = n ? `Demander à CLAIRE : ${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Demander à CLAIRE';
+    const titre = n ? `Discussions : ${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Discussions';
     bouton.title = titre; bouton.setAttribute('aria-label', titre);
   }
 }

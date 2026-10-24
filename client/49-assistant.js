@@ -737,7 +737,7 @@
     const destinataireDit = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
     const destinataire = destinataireDit || emailDestinataireRelance(d) || d.emailVendeur || '';
     const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
-    if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis « Demander à CLAIRE »'); sauvegarder(d); }
+    if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis les Discussions'); sauvegarder(d); }
     return { html: r && r.ok ? '<p>Email envoyé.</p>' : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
   }
 
@@ -1126,7 +1126,7 @@
       return;
     }
     // Le titre du widget, comme sur les autres cartes (étude 07/10 : « remettre le titre du widget »).
-    const titre = 'Demander à CLAIRE';
+    const titre = 'Discussions';
     const formulaire = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
         <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
         <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
