@@ -22,10 +22,22 @@ function resumeFormulaireNouveauDossierAgent() {
   return { champs, a_completer: Object.keys(champs).filter(k => !champs[k]) };
 }
 
+// L'écran « Nouveau dossier » s'affiche à droite de la conversation (étude 24/10 : « monte-le à droite aussi »), comme les autres outils ;
+// repli sur son onglet quand le panneau ne peut pas le monter. Déjà monté : rien à faire.
+function montrerNouveauDossierAgent() {
+  if (outilsMontesAssistant.nouveau) return;
+  if (outilMontableAssistant('nouveau') && ecranAffiche('assistant')) {
+    const id = ouvrirOutilArtefactAssistant('Nouveau dossier', null, () => ouvrirOutilClaireAgent('nouveau_dossier', null), { onglet: 'nouveau', outil: 'nouveau_dossier' });
+    monterOutilAssistant(id);
+    return;
+  }
+  definirOnglet('nouveau');
+}
+
 // Étape « Authentic » : les dossiers ouverts dans Authentic aujourd'hui (extension « CLAIRE pour Authentic »), relus à l'instant, avec de
 // quoi choisir (résumé, déjà suivi dans CLAIRE ou non, succession). `authentic_id` est le rang dans cette liste pour cette session.
 async function listerDossiersAuthenticAgent() {
-  definirOnglet('nouveau');
+  montrerNouveauDossierAgent();
   await chargerRelevesAuthenticRecents();
   const liste = groupesAuthenticRecents.map((g, i) => ({
     authentic_id: String(i), intitule: g.intitule, resume: resumeGroupeAuthentic(g), reference: g.reference || '',
@@ -44,7 +56,7 @@ async function nouveauDossierDepuisCompromisAgent(entree) {
   const doc = documentsAgentConnus[e.document_id];
   if (!sansPdf && (!doc || doc.sortePiece !== 'pdf' || !doc.fichier)) return { erreur: 'document_id inconnu : le compromis doit être un PDF joint au message (pj1, pj2…)' };
   if (sansPdf && !e.authentic_id) return { erreur: 'joins le compromis (document_id) ou choisis un dossier d’Authentic (authentic_id, rendu par le mode « authentic »)' };
-  definirOnglet('nouveau');
+  montrerNouveauDossierAgent();
   await chargerRelevesAuthenticRecents();
   const choisi = e.authentic_id ? groupesAuthenticRecents[Number(e.authentic_id)] : null;
   if (e.authentic_id && !choisi) return { erreur: 'authentic_id inconnu : relis la liste avec le mode « authentic »' };

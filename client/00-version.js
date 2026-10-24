@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.338.0';
+  const VERSION_APP = '0.338.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.338.0', date: '2026-10-24 23:03', resume: "Demander à CLAIRE peut remplir les champs d'un outil ouvert à droite comme vous à la main (Appel de fonds, Quotités, Prorata…), et « Autoriser pour toute cette demande » évite une carte par geste." },
+    { version: '0.338.1', date: '2026-10-24 23:12', resume: "Demander à CLAIRE : l'écran « Nouveau dossier » s'ouvre aussi à droite de la conversation." },
+  { version: '0.338.0', date: '2026-10-24 23:03', resume: "Demander à CLAIRE peut remplir les champs d'un outil ouvert à droite comme vous à la main (Appel de fonds, Quotités, Prorata…), et « Autoriser pour toute cette demande » évite une carte par geste." },
   { version: '0.337.0', date: '2026-10-24 22:52', resume: "Demander à CLAIRE : la Constitution de dossier s'ouvre à droite de la conversation, et on peut lui donner des noms de banques ou d'organismes : elle les ajoute aux courriers (répertoire), vous relisez et validez." },
   { version: '0.336.9', date: '2026-10-24 22:47', resume: "Routines de CLAIRE : le niveau 2 devient « Valider, puis j'agis » — vous relisez et cliquez « Autoriser », CLAIRE envoie elle-même (administrateur seulement, comme le niveau 3)." },
   { version: '0.336.8', date: '2026-10-24 22:03', resume: "Discussions : les réponses de Claire portent un avatar, un disque sombre de 32 px avec l'icône en blanc." },
