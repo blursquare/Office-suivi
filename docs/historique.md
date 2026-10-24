@@ -21740,3 +21740,6 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 
 ### 24/10/2026 — Minutes GitHub : option 1
 `verifier.yml` en lancement manuel seulement ; `build-exe.yml` ne refait plus que lint, types et tests (fumée Chromium en lancement manuel) ; étape « Déjà vérifié sur ce commit ? » retirée ; skill `publier` et CLAUDE.md mis à jour.
+
+### 24/10/2026 — Icône Discussions partout
+Étude : « le nouveau logo partout ». L'icône `discussion` (mochi + étoile) est déjà celle de la barre latérale, de l'onglet, de la page, des réponses, des canaux et du widget ; la rubrique « IA et Discussions » des Réglages la reprend (0.336.4, `client/33`).
