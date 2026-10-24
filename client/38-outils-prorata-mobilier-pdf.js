@@ -540,7 +540,7 @@
 
     document.getElementById('qt-lignes').innerHTML = qtEtat.lignes.map(l => `
       <div class="qt-ligne qt-ligne-operation${l.memoire ? ' qt-memoire' : ''}">
-        <input type="text" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
+        <input type="text" class="qt-libelle" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
         <input type="number" min="0" step="0.01" aria-label="Montant de ${escapeAttr(l.libelle || 'la ligne')}" placeholder="${l.memoire ? 'Mémoire' : '0,00'}" value="${l.memoire ? '' : valeurChampQuotite(l.montant)}" ${l.memoire ? 'disabled' : ''} oninput="modifierLigneQuotites('${l.id}', 'montant', this.value, false)">
         <label class="qt-memoire-coche" title="Montant non encore connu : écrit « MEMOIRE » dans l'annexe et exclu du total"><input type="checkbox" ${l.memoire ? 'checked' : ''} onchange="modifierLigneQuotites('${l.id}', 'memoire', this.checked, true)">Mémoire</label>
         <wa-button appearance="plain" size="s" type="button" class="bouton-icone qt-suppr" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="retirerLigneQuotites('${l.id}')">${icone('x')}</wa-button>

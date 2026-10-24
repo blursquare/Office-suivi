@@ -493,7 +493,7 @@
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
         </div>`).join('')}</div>
         ${renderPatrimoineOutil(patrimoinePreemption(e))}
-        <p class="hint">Assistance à la décision : le notaire garde la décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</p>
+        <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
           ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
     }

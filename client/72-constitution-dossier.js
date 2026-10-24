@@ -1109,7 +1109,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
 
   function champConstitution(libelle, valeur, gestionnaire, extra) {
     const o = extra || {};
-    return `<div class="calc-champ${o.large ? ' cst-large' : ''}"><label>${escapeHtml(libelle)}</label>
+    return `<div class="calc-champ${o.large ? ' cst-large' : ''}${o.deux ? ' cst-deux' : ''}"><label>${escapeHtml(libelle)}</label>
       <input type="${o.type || 'text'}" class="prop-champ" value="${escapeAttr(valeur)}" placeholder="${escapeAttr(o.placeholder || '')}" oninput="${gestionnaire}(this.value)"${o.fin ? ` onchange="${o.fin}"` : ''}></div>`;
   }
 
@@ -1193,7 +1193,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       const k = escapeOnclickArg(g.cle);
       const idc = escapeAttr(g.cle);
       return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong> ${etat}</div>
-        <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
+        <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" placeholder="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
         <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic : ajoutez-la.</p>'}</div>
         <div class="cst-ajout cst-ajout-parcelle"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Sect." maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
           <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="5 a 12 ca" aria-label="Contenance">
@@ -1211,15 +1211,15 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const df = cstEtat.defunt;
     const c = df.champs;
     const civ = `<div class="calc-champ"><label>Civilité</label><select class="prop-champ" onchange="cstDefunt('civilite', this.value); cstDefuntFin()"><option${c.civilite === 'Madame' ? ' selected' : ''}>Madame</option><option${c.civilite === 'Monsieur' ? ' selected' : ''}>Monsieur</option></select></div>`;
-    const f = (champ, libelle, type, placeholder, large) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, fin: 'cstDefuntFin()' });
+    const f = (champ, libelle, type, placeholder, large, deux) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, deux, fin: 'cstDefuntFin()' });
     return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)}${(df.champs.regime || df.regime) || df.situation ? ` <span class="hint">${escapeHtml(df.situation || '')}${(df.champs.regime || df.regime) ? ' · régime : ' : ''}${(df.champs.regime || df.regime) ? `<strong>${escapeHtml((df.champs.regime || df.regime))}</strong>` : ''}</span>` : ' <span class="hint">Régime matrimonial non renseigné dans Authentic.</span>'}</p>
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
       <div class="calc-champs cst-grille">${civ}${f('prenoms', 'Prénoms', 'text', 'Alice Marcelle')}${f('nom', 'Nom', 'text', 'FRA')}
         ${f('domicile', 'Domicile', 'text', 'BRACIEUX (41250), 31 rue de Candy', true)}
-        ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)')}
-        ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)')}
+        ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)', false, true)}
+        ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)', false, true)}
         <div class="calc-champ"><label>Situation</label><select class="prop-champ" onchange="cstDefunt('conjointLien', this.value); majApercuConstitution()">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(l => `<option value="${escapeAttr(l)}"${c.conjointLien === l ? ' selected' : ''}>${l || '—'}</option>`).join('')}</select></div>
-        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}${f('regime', 'Régime matrimonial', 'text', 'Communauté légale')}</div>`;
+        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER', false, true)}${f('regime', 'Régime matrimonial', 'text', 'Communauté légale', true)}</div>`;
   }
   function cstDefuntApercu(champ, valeur) { cstDefunt(champ, valeur); majApercuConstitution(); }
 
@@ -1507,11 +1507,20 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     ].filter(Boolean);
   }
 
+  // Étude 24/10 : même barre que les autres outils (wa-stepper de client/44, marqueurs en carré arrondi), l'état de chaque étape en
+  // description ; un clic sur une étape y mène (`wa-step-change`, écouté une fois pour toutes plus bas).
   function renderStepperConstitution(etapes) {
     const i = Math.min(Math.max(0, cstEtat.etape || 0), etapes.length - 1);
-    return `<div class="wizard-stepper cst-stepper" id="cst-stepper">${etapes.map((x, k) => `${k ? '<span class="wizard-step-trait"></span>' : ''}<button type="button" class="wizard-step-btn${k === i ? ' actif' : ''}${k < i ? ' fait' : ''}" onclick="cstEtape(${k})">
-        <span class="wizard-step-num">${k < i ? icone('check') : k + 1}</span><span class="wizard-step-texte"><span class="wizard-step-libelle">${escapeHtml(x.court)}</span><span class="wizard-step-sous">${escapeHtml(x.sous || '')}</span></span></button>`).join('')}</div>`;
+    const coche = '<span slot="icon" class="anim-etape-coche" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" pathLength="1"/></svg></span>';
+    return `<div class="outil-sommaire-place cst-sommaire" id="cst-stepper"><wa-stepper class="outil-sommaire" clickable orientation="horizontal" label="Étapes de la constitution" active="${escapeAttr(etapes[i].cle)}">${etapes.map((x, k) => `<wa-step name="${escapeAttr(x.cle)}"${k < i ? ' completed data-suite' : ''}${k <= i ? ' data-avant-suite' : ''}>${escapeHtml(x.court)}${x.sous ? `<span slot="description">${escapeHtml(x.sous)}</span>` : ''}${k < i ? coche : ''}</wa-step>`).join('')}</wa-stepper></div>`;
   }
+  document.addEventListener('wa-step-change', (ev) => {
+    const barre = ev.target && ev.target.closest ? ev.target.closest('#cst-stepper') : null;
+    const d = barre && cstEtat ? dossierConstitution() : null;
+    if (!d) return;
+    const k = etapesConstitution(d).findIndex(x => x.cle === (ev.detail && ev.detail.name));
+    if (k >= 0 && k !== cstEtat.etape) cstEtape(k);
+  });
 
   // La barre des étapes redessinée seule (plan ou zonage qui avance sur une autre étape : la saisie en cours n'est pas effacée).
   function majStepperConstitution() {

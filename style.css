@@ -9876,7 +9876,11 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-bloc-titre { display: flex; align-items: baseline; gap: 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cst-liste-titre { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .cst-liste-titre .cst-email-groupe { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
-.cst-ligne { display: grid; grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.4fr) 10px auto; gap: 6px; align-items: center; }
+.cst-ligne { display: grid; grid-template-columns: 72px minmax(0, 1fr) 10px auto; gap: 6px; align-items: center; }
+/* Étude 24/10 : le domicile passe sous le nom, sur toute sa largeur (il était coupé), sa pastille à côté de lui, la croix sur la ligne du nom. */
+.cst-ligne > .cst-domicile { grid-area: 2 / 1 / 3 / 3; }
+.cst-ligne > .cst-pastille { grid-area: 2 / 3; }
+.cst-ligne > wa-button { grid-area: 1 / 4; }
 .cst-ligne > * { min-width: 0; }
 .cst-pastille { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
 .cst-pastille.manque { background: var(--urgent); }
@@ -9898,7 +9902,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-zonage { gap: 6px; display: flex; flex-direction: column; }
 .cst-etape { padding: 12px; gap: 6px; display: flex; flex-direction: column; }
 .cst-donnees-corps { display: flex; flex-direction: column; gap: 8px; }
-.cst-stepper { flex-wrap: wrap; margin: 12px 0 16px; padding-bottom: 12px; }
 .cst-etape .cst-nav { margin-top: 12px; padding-top: 12px; }
 .calc-card > .cst-etape-tete:first-child { margin: 0 0 4px; }
 .cst-plan-commune { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-m); }
@@ -9941,7 +9944,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .cst-actions wa-button { flex: 1 1 200px; }
 .cst-sortie #cst-message:empty { display: none; }
-.cst-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.cst-grille { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cst-grille .cst-deux { grid-column: span 2; }
+@media (max-width: 640px) { .cst-grille { grid-template-columns: minmax(0, 1fr); } .cst-grille .cst-deux { grid-column: auto; } }
 .cst-grille > * { min-width: 0; }
 .cst-grille .cst-large { grid-column: 1 / -1; }
 .cst-source-ligne { margin: 0; }
@@ -10046,7 +10051,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 @media (max-width: 700px) {
   .cst-edition-corps { grid-template-columns: minmax(0, 1fr); }
   .cst-ligne { grid-template-columns: 64px minmax(0, 1fr) 10px auto; }
-  .cst-ligne .cst-domicile { grid-column: 1 / -1; }
+  .cst-barre > .cst-recherche { flex: 1 1 100%; margin-left: 0; }
   .cst-parcelle { grid-template-columns: auto 64px minmax(0, 1fr) 10px; }
   .cst-parcelle-surf { display: none; }
 }
@@ -10322,12 +10327,11 @@ wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { bac
 .cst-accueil-carte-titre { font-size: var(--texte-base); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cst-accueil-carte-sous { font-size: var(--texte-s); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 640px) { .cst-accueil { min-height: 0; justify-content: flex-start; padding: 16px 0; } .cst-accueil-grille { grid-template-columns: 1fr; } }
-/* Barre des étapes de la Constitution posée dans une carte, traits continus d'une étape à l'autre (étude 18/10 : « la ligne flotte »). */
-.wizard-stepper.cst-stepper { flex-wrap: nowrap; align-items: center; background: var(--paper-card); border: 1px solid var(--bord-carte); border-bottom: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); padding: 12px 16px; margin: 12px 0 16px; }
-.wizard-stepper.cst-stepper .wizard-step-trait { flex: 1 1 16px; max-width: none; min-width: 12px; }
-.wizard-stepper.cst-stepper .wizard-step-btn.fait + .wizard-step-trait { background: var(--focus); }
-.wizard-stepper.cst-stepper .wizard-step-btn { flex: none; }
-@media (max-width: 1200px) { .wizard-stepper.cst-stepper .wizard-step-sous { display: none; } }
+/* Barre des étapes de la Constitution = celle des autres outils (étude 24/10) ; l'état de chaque étape en description, masqué
+   sous 1 200 px comme avant. */
+.cst-sommaire { margin: 12px 0 16px; }
+wa-stepper.outil-sommaire wa-step::part(description) { font-size: var(--texte-xs); color: var(--muted); }
+@media (max-width: 1200px) { .cst-sommaire wa-step::part(description) { display: none; } }
 /* « Nouveau dossier » (étude 18/10 : « plus attractif, supprimer ce que CLAIRE fait ») : plus d'encadré « Ce que CLAIRE repère » ;
    tant qu'aucun PDF n'est affiché, le formulaire est seul, au centre. */
 #nouveau-intro { display: none !important; }
@@ -10784,3 +10788,33 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .aut-apercu-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; }
 #aut-dossier { flex: 0 1 360px; min-width: 0; }
 .aut-cartes { width: 100%; min-height: 320px; }
+
+/* Défauts relevés outil par outil (étude 24/10). */
+/* Un bouton qui porte le nom du dossier (« Enregistrer sur la fiche VTE - … ») passe à la ligne au lieu de sortir de sa carte. */
+.inv-actions { flex-wrap: wrap; }
+#inv-enregistrer-fiche, #calc-enregistrer-fiche { max-width: 100%; }
+#inv-enregistrer-fiche::part(base), #calc-enregistrer-fiche::part(base) { height: auto; min-height: 36px; padding-block: 6px; }
+#inv-enregistrer-fiche::part(label), #calc-enregistrer-fiche::part(label) { white-space: normal; text-align: center; }
+/* La dernière phrase d'une aide garde sa pastille « i » sur sa ligne. */
+.mot-et-info { white-space: nowrap; }
+/* Quotités : le libellé d'une ligne se lit comme un titre (champ discret, bordé au survol et à la saisie), son montant dessous. */
+.qt-ligne-operation > input[type="text"].qt-libelle { border-color: transparent; background: transparent; padding-left: 0; padding-right: 0; height: 28px; min-height: 0; font-weight: 500; color: var(--ink); }
+.qt-ligne-operation > input[type="text"].qt-libelle:hover { border-color: var(--line); padding-left: 8px; }
+.qt-ligne-operation > input[type="text"].qt-libelle:focus { border-color: var(--focus); background: var(--paper-card); padding-left: 8px; }
+/* Répertoire : la recherche porte tout son texte d'exemple. */
+.dash-recherche.carnet-recherche { width: min(520px, 100%); }
+@media (max-width: 700px) {
+  /* Barre d'étapes : neuf étapes tiennent dans la largeur d'un téléphone. */
+  wa-stepper.outil-sommaire { --marker-size: 24px; --gap: 4px; }
+  wa-step::part(marker) { font-size: var(--texte-s); }
+  /* Contrôle de l'urbanisme : un champ par ligne (le troisième restait seul à demi-largeur, les listes étaient coupées). */
+  .calc-champs.pr-champs { grid-template-columns: minmax(0, 1fr); }
+  /* Quotités : « Effacer » et « Télécharger » côte à côte, comme deux boutons. */
+  #onglet-quotites .dash-header-actions { flex-direction: row; }
+  #onglet-quotites .dash-header-actions wa-button { flex: 1 1 auto; }
+  /* Autorisations de fonds : « Tout cocher » sur sa ligne, les deux boutons dessous ; les icônes d'une personne sous son modèle. */
+  .aut-barre-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; margin-left: 0; }
+  .aut-barre-actions > .lien-action { grid-column: 1 / -1; justify-self: start; }
+  .aut-item { grid-template-columns: 20px minmax(0, 1fr); }
+  .aut-item > .cst-item-actions { grid-column: 2; justify-self: start; }
+}
