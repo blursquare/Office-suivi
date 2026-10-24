@@ -289,7 +289,8 @@
       if (e.butoir) base.sous = (e.fenetreDebut ? `Entre le ${formatDateFr(e.fenetreDebut)} et le ${formatDateFr(e.iso)} — date butoir, à confirmer par le rendez-vous` : 'Date butoir — à confirmer par le rendez-vous')
         + (e.depuisDeces ? ' (6 mois après le décès)' : (e.type === 'declarationSuccession' || e.fenetreDebut ? ' (date du décès inconnue : comptée depuis l’ouverture)' : ''));
       else if (e.rdvPlace) base.sous = 'Rendez-vous placé';
-      if (e.type === 'notoriete' && attentes.length) base.sous = [base.sous, 'À réunir : ' + attentes.join(', ')].filter(Boolean).join(' · ');
+      // Au-delà de deux pièces, leur nombre seulement (étude 24/10 : la carte était un paragraphe) ; la liste est dans « À obtenir ».
+      if (e.type === 'notoriete' && attentes.length) base.sous = [base.sous, 'À réunir : ' + (attentes.length <= 2 ? attentes.join(', ') : `${attentes.length} pièces`)].filter(Boolean).join(' · ');
       // Décompte et appel de fonds : 10 jours avant le dernier rendez-vous (étude 16/10).
       if (e.avantRdv && !e.iso) base.sous = '10 jours avant le dernier rendez-vous, une fois placé';
       const attenteRdv = e.avantRdv && !e.iso;

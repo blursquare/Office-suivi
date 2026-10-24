@@ -1996,6 +1996,9 @@
         <span class="w-ligne-meta">${escapeHtml(e.heure ? e.heure.replace(':', ' h ') : 'Journée')}</span></button></li>`;
     };
 
+    // Jour sans rendez-vous (lecture faite) : sa ligne « Aucun rendez-vous » rejoint l'en-tête des prochains rendez-vous (étude 24/10 :
+    // l'en-tête seul prenait la place, la liste des prochains ne tenait plus et la carte restait vide).
+    const jourVideFusionne = !duJour.length && agendaWidget.charge && suivants.length > 0;
     bloc.innerHTML = carteWidget({
       presentation,
       titre: `<button type="button" class="w-titre-lien" onclick="${versPage}" title="Ouvrir l’agenda">Agenda</button>`,
@@ -2007,16 +2010,16 @@
         </div>`,
       corps: `<div class="agenda-bande w-fixe" role="group" aria-label="Jours de la semaine">${bande}</div>
       ${presentation === 'grand' && absentsSemaine.length ? `<div class="agenda-absences">${icone('alert-triangle')} Absent cette semaine : ${absentsSemaine.map(n => escapeHtml(prenomCollaborateur(n))).join(', ')}</div>` : ''}
-      <div class="w-section">
+      ${jourVideFusionne ? '' : `<div class="w-section">
         <div class="agenda-liste-titre">
           <span class="section-eyebrow">${escapeHtml(titreListe)}</span>
           ${duJour.length ? '' : `<span class="w-note">${agendaWidget.charge ? 'Aucun rendez-vous' : 'Lecture…'}</span>`}
           ${revenir}
         </div>
         ${duJour.length ? `<ol class="ajd-liste ajd-compacte" data-ajuster="1" data-defiler>${lignesEvenementsAgendaJour(duJour, jourAffiche === aujourdhui, true)}</ol>` : ''}
-      </div>
+      </div>`}
       ${suivants.length ? `<div class="w-section">
-        <div class="agenda-liste-titre"><span class="section-eyebrow">Prochains rendez-vous</span></div>
+        <div class="agenda-liste-titre"><span class="section-eyebrow">Prochains rendez-vous</span>${jourVideFusionne ? `<span class="w-note">${escapeHtml(titreListe)} : aucun</span>${revenir}` : ''}</div>
         <ul class="w-lignes" data-ajuster="2">${suivants.map(ligneSuivant).join('')}</ul>
       </div>` : ''}
       ${echeances.length ? `<div class="w-section">

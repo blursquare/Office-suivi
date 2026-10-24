@@ -3968,10 +3968,11 @@
   }
   .fiche-onglet.actif .fiche-compteur { color: var(--focus); background: color-mix(in srgb, var(--focus) 13%, transparent); }
   .fiche-compteur.complet, .fiche-onglet.actif .fiche-compteur.complet { color: var(--success); background: var(--success-bg); }
+  /* Collée à son libellé (étude 24/10 : en coin d'un onglet élargi, elle flottait à mi-chemin de l'onglet suivant). */
   .fiche-onglet-nouveau {
-    position: absolute;
-    top: 5px;
-    right: 5px;
+    flex: none;
+    align-self: flex-start;
+    margin: 2px 0 0 -2px;
     width: 7px;
     height: 7px;
     border-radius: 50%;
@@ -7098,9 +7099,20 @@ wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 
 .echanges-stade { font-size: var(--texte-s); font-weight: 600; color: var(--ink-soft); }
 /* Hors du stade du dossier (05/10) : visibles mais en grisé ; la couleur revient au survol ou au clavier. */
 .echanges-hors-stade { margin: -6px 0 20px; }
-.echanges-hors-stade-titre { padding: 6px 6px 2px; font-size: var(--texte-m); color: var(--muted); }
-.echanges-hors-stade > .ja-liste { opacity: 0.55; filter: grayscale(1); transition: opacity 0.15s, filter 0.15s; }
-.echanges-hors-stade > .ja-liste:hover, .echanges-hors-stade > .ja-liste:focus-within { opacity: 1; filter: none; }
+.echanges-hors-stade-titre { display: flex; align-items: center; gap: 6px; padding: 6px; font-size: var(--texte-m); color: var(--muted); cursor: pointer; }
+.echanges-hors-stade-titre:hover { color: var(--ink); }
+.echanges-hors-stade-titre:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--rayon-xs); }
+.echanges-hors-stade-nb { font-variant-numeric: tabular-nums; }
+.echanges-hors-stade-titre { list-style: none; }
+.echanges-hors-stade-titre::-webkit-details-marker { display: none; }
+.echanges-hors-stade-titre .icone { transition: transform 0.15s ease; }
+.echanges-hors-stade[open] > .echanges-hors-stade-titre .icone { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .echanges-hors-stade-titre .icone { transition: none; } }
+/* Dans les onglets Fonds et Échanges de la fiche, un seul bouton plein : le premier geste utile ; les suivants à contour (étude 24/10). */
+.fiche-panneau .echanges-groupe > .ja-liste > .ja ~ .ja > wa-button.ja-go::part(base),
+.fiche-panneau .echanges-hors-stade .ja > wa-button.ja-go::part(base) { background: var(--paper-card); border-color: var(--line); color: var(--ink); }
+.fiche-panneau .echanges-groupe > .ja-liste > .ja ~ .ja > wa-button.ja-go:hover::part(base),
+.fiche-panneau .echanges-hors-stade .ja > wa-button.ja-go:hover::part(base) { background: var(--paper-sunk); }
 .echanges-hors-stade .ja-titre { font-weight: 500; }
 details.echanges-autres { margin: -6px 0 20px; }
 details.echanges-autres > summary {
@@ -8494,9 +8506,12 @@ body.ag-redim-en-cours, body.ag-redim-en-cours * { cursor: ns-resize !important;
 /* Moins de hauteur (étude 07/10) : lignes serrées, une seule ligne de texte sous le nom. */
 .ag-placer .ag-ligne { padding: 4px 6px; }
 .ag-placer .ag-ligne-texte b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ag-placer .ag-placer-meta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Semaine et responsable lisibles en entier (étude 24/10 : « Semaine du 9 nov. · B… » coupé) : la ligne passe à la ligne si besoin. */
+.ag-placer .ag-placer-meta { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 .ag-placer .ag-placer-meta .ag-proba { flex: none; }
-.ag-placer .ag-placer-meta > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ag-placer .ag-placer-meta > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+/* Titre « Rendez-vous à placer », son nombre et sa pastille « i » sur une ligne (la pastille tombait seule dessous). */
+.ag-anticipe .jour-section-titre { display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; white-space: nowrap; }
 .ag-placer-plus { margin-top: 4px; }
 .ag-placer:first-child { border-top: none; padding-top: 0; }
 .ag-creneaux { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }

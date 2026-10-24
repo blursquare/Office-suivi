@@ -128,8 +128,15 @@ test('Tableau de la fiche : rendez-vous d’ouverture à fixer, puis les étapes
   const c2 = app.cartesTableauFiche(ouverte, '2026-10-15', []);
   assert.ok(c2.fait.some(x => x.cle === 'succession:ouvertureSuccession'));
   const noto = c2.faire.find(x => x.cle === 'succession:notoriete');
-  assert.match(noto.sous, /À réunir : Acte de décès/);
+  // Plus de deux pièces à réunir : leur nombre seulement, la liste est dans « À obtenir » (étude 24/10).
+  assert.match(noto.sous, /À réunir : 5 pièces/);
+  const deux = app.cartesTableauFiche(base({ id: 's4', biens: [{ adresse: 'X' }], succession: { ouvertureLe: '2026-10-01', donationEpoux: 'non', testament: 'non' }, pieces: { actesNaissance: 'recue', fcddv: 'recue' } }), '2026-10-15', []);
+  assert.match(deux.faire.find(x => x.cle === 'succession:notoriete').sous, /À réunir : Acte de décès$/);
   assert.ok(c2.attente.some(x => x.cle === 'succession:deblocageFonds'));
+  // Étude 24/10 : la tâche « Placer le rendez-vous » ne double pas la carte de l'étape qui porte « Placer dans l'agenda ».
+  assert.ok(noto.bouton && /agenda/i.test(noto.bouton.libelle), 'l’étape porte le geste');
+  const avecTache = app.cartesTableauFiche(ouverte, '2026-10-15', [{ cle: 's3:point-placer-le-rendez-vous', type: 'point-placer-le-rendez-vous', titre: 'Placer le rendez-vous', jours: 5, gravite: 'critique', dossier: ouverte }]);
+  assert.ok(!avecTache.faire.some(x => x.cle === 'action:s3:point-placer-le-rendez-vous'));
   assert.ok(c2.obtenir.some(x => x.cle === 'piece:fcddv'));
 });
 

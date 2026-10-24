@@ -2040,7 +2040,8 @@
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
+      // Libellé « Avant-contrat » (étude 24/10 : « Ouvrir » seul, à côté du prix, ne disait pas ce qu’il ouvre).
+      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Avant-contrat</wa-button>`;
       const boutonDossierNas = d.dossierLie && d.nasDossier
         ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirDossierNas('${escapeOnclickArg(d.id)}')" title="Copier l’emplacement du dossier du NAS pour l’ouvrir dans l’Explorateur">${icone('folder')} Dossier NAS</wa-button>` : '';
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander

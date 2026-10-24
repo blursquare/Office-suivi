@@ -561,10 +561,11 @@
 
   // Lignes hors du stade du dossier : toujours visibles, en grisé sous les lignes utiles (étude 05/10, plus de repli).
   function renderAutresEchanges(lignesAutres) {
-    return lignesAutres.length ? `<div class="echanges-hors-stade">
-        <div class="echanges-hors-stade-titre">Hors de ce stade</div>
+    // Replié (étude 24/10) : en gris, ses boutons avaient l'air désactivés alors qu'ils marchent ; déplié, tout est normal.
+    return lignesAutres.length ? `<details class="echanges-hors-stade">
+        <summary class="echanges-hors-stade-titre">${icone('chevron-right')}Hors de ce stade <span class="echanges-hors-stade-nb">${lignesAutres.length}</span></summary>
         <ul class="ja-liste">${lignesAutres.join('')}</ul>
-      </div>` : '';
+      </details>` : '';
   }
 
   // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office
@@ -627,8 +628,9 @@
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
     const lignePret = ligneActePretFonds(d);
     // « Revérifier l'offre de prêt » toujours dans l'onglet Fonds (étude 23/10), à côté de « Ouvrir l'offre » quand elle est trouvée.
-    const actions = (r.ouvrable ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>` : '')
-      + (d.dossierLie && !d.archive ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">Revérifier l’offre de prêt</button>` : '');
+    // Mêmes pastilles d'action que « Revérifier » des pièces (étude 24/10 : un texte bordeaux en gras ne disait pas qu'on pouvait cliquer).
+    const actions = (r.ouvrable ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">${icone('file-text')} Ouvrir l’offre</wa-button>` : '')
+      + (d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">${icone('rotate-ccw')} Revérifier l’offre de prêt</wa-button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
           <span class="section-eyebrow">Offre de prêt</span>

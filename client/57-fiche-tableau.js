@@ -111,13 +111,17 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   }
 
   // --- Gestes du jour (les mêmes que « À faire ») : un bouton pour le geste, la case pour « déjà fait ».
+  // Succession : une étape dont le rendez-vous se place d'ici (« Placer dans l'agenda ») porte déjà le geste — la tâche « Placer le
+  // rendez-vous » ferait la même carte deux fois (étude 24/10).
+  const rdvSurEtape = succession && etapesSuccession(d, aujourdhuiIso).some(e => !e.fait && e.active && rdvAgendaSuccession(d, e.type, aujourdhuiIso));
   gestes.forEach(a => {
     // Succession : le décompte, le projet et l'appel de fonds ont déjà leur carte d'étape (cartesEtapesSuccessionFiche) — jamais deux fois (étude 22/10).
     if (succession && (a.type === 'decompteSuccession' || a.type === 'projetSuccession' || a.type === 'appelFondsSuccession' || TYPES_TACHES_ETAPES_SUCCESSION.includes(a.type) || a.type === 'factureSuccession')) return;
+    if (rdvSurEtape && /^point-.*(rendez-vous|rdv)/.test(String(a.type || ''))) return;
     const cle = escapeOnclickArg(a.cle);
     const sansGeste = !a.geste || a.geste.type === 'fiche';
     ajouter('faire', {
-      cle: 'action:' + a.cle, titre: a.titre, sous: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite === 'critique' ? 'critique' : (a.gravite === 'vigilance' ? 'vigilance' : ''),
+      cle: 'action:' + a.cle, titre: a.titre, sous: delaiAction(a), categorie: a.categorie || '', gravite: tacheEnRetard(a) ? 'critique' : (a.gravite ? 'vigilance' : ''),
       coche: { onclick: `marquerFaitJour('${cle}')`, libelle: 'Déjà fait — valider à la main' },
       bouton: sansGeste ? null : { onclick: `executerActionJour('${cle}')`, libelle: libelleCourtGeste(a), icone: iconeGeste(a), titre: a.bouton || '' }
     });
@@ -348,7 +352,8 @@ function renderCarteTableauFiche(c, changee, dossierId) {
     ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="${c.bouton.onclick}" title="${escapeAttr(c.bouton.titre)}">${c.bouton.icone}${escapeHtml(c.bouton.libelle)}</wa-button>`
     : '';
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
-  const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
+  // « Succession » sur chaque carte d'une fiche de succession ne disait rien (étude 24/10).
+  const libelleCategorie = c.categorie === 'succession' ? '' : (LIBELLES_CATEGORIE_FICHE[c.categorie] || '');
   const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
   const gestesDate = renderDateCarteFiche(c, dossierId);
   const deplacable = c.coche && !gestesDate.edition;
