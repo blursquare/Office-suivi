@@ -10295,6 +10295,8 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 .cx-radios { display: flex; flex-direction: column; gap: 4px; }
 .cx-radio { text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); cursor: pointer; font: inherit; font-size: var(--texte-m); color: var(--ink); }
 .cx-radio.actif { border-color: var(--focus); box-shadow: inset 2px 0 0 var(--focus); font-weight: 500; }
+.fiche-canal-btn { flex: none; }
+.fiche-canal-btn .cx-n-bouton { margin-left: 6px; height: 18px; min-width: 18px; }
 @media (prefers-reduced-motion: reduce) { .cx-c { transition: none; } }
 
 /* ==== Animations qui aident à comprendre (étude 18/10, client/86-animations.js) ====

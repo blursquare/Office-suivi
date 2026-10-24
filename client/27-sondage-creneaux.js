@@ -2150,6 +2150,7 @@
                   <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-valider" onclick="validerEditionNom('${escapeOnclickArg(d.id)}')" title="Valider" aria-label="Valider le nom">✓</wa-button>
                 </span>
               </div>
+              ${htmlBoutonCanalFiche(d)}
               <div class="fiche-entete-infos">
                 ${d.responsable ? `<span class="fiche-resp" title="Responsable : ${escapeAttr(d.responsable)}">${pastilleCollaborateur(d.responsable)}</span>` : ''}
                 ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}

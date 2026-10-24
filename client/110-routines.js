@@ -286,6 +286,7 @@ function renderPropositionsFiche(d) {
 
 // Une décision prise ailleurs (la boîte) ou une nouvelle proposition : la fiche ouverte se redessine seule, sans toucher à sa saisie.
 function rafraichirPropositionsFiche() {
+  if (typeof majBoutonCanalFiche === 'function') majBoutonCanalFiche();
   const bandeau = document.querySelector('#dossier-drawer .pc-fiche');
   const id = typeof dossierOuvert === 'string' ? dossierOuvert : '';
   if (!id) return;
