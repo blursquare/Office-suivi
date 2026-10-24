@@ -2115,6 +2115,7 @@
       // l'encadré « Prochaine étape » (voir renderProchaineEtapeFiche), la dire deux fois chargeait la fiche.
 
       const analyseVide = analyse.documents.length === 0 && analyse.engagements.length === 0;
+      const urbaFiche = avecPieces ? renderPreemptionFiche(d) : '';
       return `
       <div class="dossier fiche${d.archive ? ' est-archive' : ''}">
         <!-- Barre d'outils collante : fermer et agrandir à gauche (le geste le plus fréquent en
@@ -2186,8 +2187,9 @@
             </section>
 
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
-              ${avecPieces ? `${renderPiecesDossier(d)}
-              ${renderPreemptionFiche(d)}` : ''}
+              ${avecPieces ? renderPiecesDossier(d) : ''}
+              <!-- Analyse de l'avant-contrat et contrôle de l'urbanisme côte à côte (étude 24/10), l'un sous l'autre quand la place manque. -->
+              <div class="fiche-analyse-urba${urbaFiche.trim() ? ' avec-urba' : ''}">
               <div class="fiche-sous-partie"${estSuccession(d) ? ' hidden' : ''}>
               ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
@@ -2208,6 +2210,8 @@
                 </div>
               </div>`}
               ${renderAjoutEngagement(d)}
+              </div>
+              ${urbaFiche.trim() ? `<div class="fiche-urba-col">${urbaFiche}</div>` : ''}
               </div>
               <div class="fiche-fin-repliables">
                 ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}
