@@ -152,7 +152,7 @@
     try { return 'ot-etat-' + etatDossier(d, isoAujourdhuiLocal()).cle; } catch (e) { return ''; }
   }
 
-  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'sparkle', reglages: 'settings', 'appel-fonds': 'mail', constitution: 'courriers', autorisations: 'file-text', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', 'clients-biens': 'users', calculateur: 'banknote' };
+  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'discussion', reglages: 'settings', 'appel-fonds': 'mail', constitution: 'courriers', autorisations: 'file-text', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', 'clients-biens': 'users', calculateur: 'banknote' };
 
   function renderOngletsTravail() {
     const barre = document.getElementById('onglets-travail');
