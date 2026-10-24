@@ -29,3 +29,13 @@ test('sans PDF ni dossier d’Authentic choisi : rien n’est préparé', async 
   const r = await app.nouveauDossierDepuisCompromisAgent({ mode: 'preparer', document_id: '', authentic_id: '', responsable: '' });
   assert.match(r.erreur, /authentic_id/);
 });
+
+test('compromis : un PDF joint ou un PDF du NAS est repris, un autre document est refusé', async () => {
+  const app = chargerApplication();
+  const pdf = { name: 'c.pdf' };
+  assert.equal(await app.fichierCompromisAgent({ sorte: 'joint', sortePiece: 'pdf', fichier: pdf }), pdf);
+  assert.equal(await app.fichierCompromisAgent({ sorte: 'joint', sortePiece: 'image', fichier: pdf }), null);
+  assert.equal(await app.fichierCompromisAgent({ sorte: 'fichier', chemin: 'DOSSIER/compromis.docx' }), null, 'un Word du NAS n’est pas un PDF');
+  assert.equal(await app.fichierCompromisAgent({ sorte: 'scan', chemin: 'x.pdf' }), null);
+  assert.equal(await app.fichierCompromisAgent(null), null);
+});

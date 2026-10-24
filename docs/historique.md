@@ -21762,3 +21762,7 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 ### 24/10/2026 23 h — 0.338.1 : « Nouveau dossier » monté à droite de « Demander à CLAIRE »
 
 Étude (Bastien) : « Monte-le à droite aussi ». `nouveau` entre dans `OUTILS_MONTABLES_ASSISTANT` ; les deux entrées de `nouveau_dossier_vente` (liste d'Authentic, lecture du compromis) passent par `montrerNouveauDossierAgent` (client/110) qui monte l'écran dans le panneau au lieu de quitter la conversation pour son onglet (repli sur l'onglet si le panneau ne peut pas le monter ; déjà monté : rien). La création reste derrière la carte « Autoriser ». Joué dans Chromium (écran « Comment créer le dossier ? » à droite). Claire Scan et le Répertoire gardent leur onglet.
+
+### 24/10/2026 23 h — 0.338.2 : le compromis d'un nouveau dossier peut venir du NAS
+
+Étude (Bastien) : « À la création d'une vente, si je demande à Claire de récupérer le compromis dans le dossier NAS, le PDF est repris pour la création ? » (corrigé : la première question disait « Constitution »). Avant, `nouveau_dossier_vente` n'acceptait qu'une pièce jointe au message (`pjN`). `fichierCompromisAgent` (client/110) reprend aussi un PDF du NAS rendu par `documents_du_dossier` ou `nas_libre` (mêmes routes que « Compléter avec le compromis » : `/api/nas/fichier`, `/api/nas-libre/pdf`), lu par `traiterFichierPdf` ; un Word, un scan non rangé ou un autre document restent refusés avec le motif. La création garde sa carte « Autoriser ». Test `tests/assistant-nouveau-dossier.test.js`.

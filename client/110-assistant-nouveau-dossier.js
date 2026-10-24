@@ -48,13 +48,31 @@ async function listerDossiersAuthenticAgent() {
     ...(liste.length ? {} : { raison: 'aucune page de dossier relevée dans Authentic ces dernières 24 h : l’utilisateur doit ouvrir la page du dossier dans Authentic (extension « CLAIRE pour Authentic »), puis les fiches vendeur, acquéreur et bien' }) };
 }
 
+// Pure ou presque : le « fichier » que lit `traiterFichierPdf` — la pièce jointe elle-même, ou le PDF du NAS récupéré par le serveur
+// (même route que « Compléter le dossier » avec le compromis du NAS) ; null si le document n'est pas un PDF connu.
+async function fichierCompromisAgent(doc) {
+  if (!doc) return null;
+  if (doc.sorte === 'joint') return doc.sortePiece === 'pdf' && doc.fichier ? doc.fichier : null;
+  if (doc.sorte !== 'fichier' || !doc.chemin || !/\.pdf$/i.test(String(doc.chemin))) return null;
+  const r = await fetchAvecAuth((doc.libre ? '/api/nas-libre/pdf?chemin=' : '/api/nas/fichier?chemin=') + encodeURIComponent(doc.chemin));
+  if (!r.ok) throw new Error(`lecture impossible (${r.status})`);
+  const buffer = await r.arrayBuffer();
+  return { name: String(doc.chemin).split(/[\\/]/).pop() || 'compromis.pdf', arrayBuffer: async () => buffer };
+}
+
 async function nouveauDossierDepuisCompromisAgent(entree) {
   const e = entree || {};
   if (e.mode === 'authentic') return listerDossiersAuthenticAgent();
   if (e.mode === 'creer') return creerNouveauDossierAgent(e);
   const sansPdf = !e.document_id;
   const doc = documentsAgentConnus[e.document_id];
-  if (!sansPdf && (!doc || doc.sortePiece !== 'pdf' || !doc.fichier)) return { erreur: 'document_id inconnu : le compromis doit être un PDF joint au message (pj1, pj2…)' };
+  // Le compromis : un PDF joint au message (pj1…) OU un PDF du dossier du NAS rendu par documents_du_dossier / nas_libre (étude 24/10 :
+  // « à la création d'une vente, si je demande à Claire de récupérer le compromis dans le dossier NAS »).
+  let fichierCompromis = null;
+  if (!sansPdf) {
+    try { fichierCompromis = await fichierCompromisAgent(doc); } catch (err) { return { erreur: 'le compromis n’a pas pu être récupéré : ' + String(err && err.message || err).slice(0, 120) }; }
+    if (!fichierCompromis) return { erreur: 'document_id inconnu : le compromis doit être un PDF joint au message (pj1, pj2…) ou un PDF du dossier du NAS (document_id rendu par documents_du_dossier)' };
+  }
   if (sansPdf && !e.authentic_id) return { erreur: 'joins le compromis (document_id) ou choisis un dossier d’Authentic (authentic_id, rendu par le mode « authentic »)' };
   montrerNouveauDossierAgent();
   await chargerRelevesAuthenticRecents();
@@ -70,7 +88,7 @@ async function nouveauDossierDepuisCompromisAgent(entree) {
   }
   if (typeof traiterFichierPdf !== 'function') return { erreur: 'lecture indisponible' };
   choisirModeImport('pdf');
-  await traiterFichierPdf(doc.fichier);
+  await traiterFichierPdf(fichierCompromis);
   if (!dernierTexteTraite) { noterVerificationPoste('assistant-nouveau-dossier', { ok: false, message: 'compromis illisible' }); return { erreur: 'le PDF n’a pas pu être lu (texte absent ou illisible)' }; }
   if (e.responsable) { const r = document.getElementById('f-responsable'); if (r) { const v = String(e.responsable).trim(); if ([...r.options || []].some(o => o.value === v)) r.value = v; } }
   const nomLu = champNouveauDossierAgent('f-nom');
