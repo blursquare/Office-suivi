@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.325.1';
+  const VERSION_APP = '0.326.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.326.0', date: '2026-10-24 08:47', resume: "Ventes : une fiche de signature à imprimer pour le dossier. 48 h avant le rendez-vous, un pop-up propose de télécharger le PDF : date, heure et lieu du rendez-vous en grand, puis chaque condition (prêt, vente préalable, préemption, SAFER, pièces, engagements du vendeur, appel de fonds, projet, fonds, RIB) avec une grande coche verte et sa date en gros quand c’est fait, en rouge ce qui reste à lever. La même fiche se télécharge à tout moment depuis la fiche du dossier (onglet Dossier › « Fiche de signature »). Le pop-up ne revient pas pour un rendez-vous déjà proposé." },
     { version: '0.325.1', date: '2026-10-23 17:38', resume: "Liens externes : un lien s’ouvre maintenant dans le profil Chrome habituel (et non dans une fenêtre de l’environnement de CLAIRE). Il faut importer de nouveau le fichier .reg (Réglages › Ouvrir les liens dans Chrome › Télécharger le fichier d’installation)." },
     { version: '0.325.0', date: '2026-10-23 13:55', resume: "Yousign : « Demander à CLAIRE » peut lire Yousign par le connecteur MCP de Claude, comme dans Claude (Réglages › Yousign › « Lire par le connecteur MCP de Claude », éteint par défaut). Lecture seule : état d’une demande, signataires ; aucune écriture par ce biais. Les noms des signataires arrivent alors à l’IA sans masquage ; avec Mistral, ou éteint, CLAIRE lit elle-même, noms masqués." },
     { version: '0.324.1', date: '2026-10-23 13:33', resume: "Les pages d’accueil de « Constitution de dossier » et de « Autorisations de fonds » sont centrées aussi en hauteur." },

@@ -10642,3 +10642,15 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .aut-apercu-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; }
 #aut-dossier { flex: 0 1 360px; min-width: 0; }
 .aut-cartes { width: 100%; min-height: 320px; }
+
+/* ---- Fiche de veille de signature (client/109-veille-signature.js) ---- */
+.veille-box { max-width: 560px; }
+.veille-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--texte-xl); font-weight: 500; letter-spacing: -0.02em; }
+.veille-intro { margin: 0 0 16px; color: var(--muted); font-size: var(--texte-base); }
+.veille-liste { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 50vh; overflow-y: auto; }
+.veille-dossier { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
+.veille-dossier-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.veille-quand { color: var(--muted); font-size: var(--texte-s); text-align: right; }
+.veille-etat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: var(--texte-s); }
+.veille-manque { color: var(--muted); }
+.veille-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }

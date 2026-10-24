@@ -1326,6 +1326,9 @@
     // Envois validés sans date saisie ici (décompte retrouvé sur le NAS, case cochée ailleurs) : notés dans le lieu du rendez-vous.
     setTimeout(() => { rattraperNotesAgenda().catch(() => {}); }, 30 * 1000);
     setInterval(() => { rattraperNotesAgenda().catch(() => {}); }, 5 * 60 * 1000);
+    // Fiche de signature proposée 48 h avant un rendez-vous (étude 24/10) : au démarrage puis toutes les 5 minutes, jamais pendant une saisie.
+    setTimeout(() => { try { verifierVeilleSignature(); } catch (e) { /* jamais bloquant */ } }, 20 * 1000);
+    setInterval(() => { try { verifierVeilleSignature(); } catch (e) { /* jamais bloquant */ } }, 5 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
