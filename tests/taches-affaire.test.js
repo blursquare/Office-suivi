@@ -109,7 +109,25 @@ test('colonnes : une carte par tâche avec case ronde, geste et outil ; la colon
   assert.ok(!html.includes('preparerAppelFondsDepuisDossier'), 'le geste de l’appel de fonds ouvre déjà l’outil : pas d’icône en double');
   assert.ok(html.includes("executerActionJour('v1:appelFonds')"));
   assert.ok(!html.includes('À décider'), 'pas de colonne vide « À décider »');
-  assert.ok(app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Décider', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]).includes('À décider'));
+  const point = app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Droit de préemption', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]);
+  assert.ok(point.includes('À décider'), 'étiquette utile gardée');
+  // Étude 24/10 : plus de bouton « Ouvrir la fiche » (le nom du dossier l'ouvre), pas de liseré rouge à J+1.
+  assert.ok(!point.includes('Ouvrir la fiche</wa-button>') && !point.includes('tf-actions-tache'));
+  assert.ok(!point.includes('tf-carte critique'));
+});
+
+test('cartes de tâches : étiquette retirée quand elle redit le titre, liseré rouge seulement en retard', () => {
+  const app = chargerApplication();
+  assert.equal(app.categorieRedondanteTache({ titre: 'Envoyer l’appel de fonds', categorieLabel: 'Envoi appel de fonds' }), true);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Régler la facture EDF (50,00 €)', categorieLabel: 'Facture à régler' }), true);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur', categorieLabel: 'Signature passée' }), false);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Demander le RIB et la pièce d’identité', categorieLabel: 'Rendez-vous de signature' }), false);
+  assert.equal(app.tacheEnRetard({ jours: -1, gravite: 'critique' }), true);
+  assert.equal(app.tacheEnRetard({ jours: 5, gravite: 'critique' }), false);
+  assert.equal(app.tacheEnRetard({ jours: null, gravite: 'critique' }), false);
+  const dossier = { id: 'v1', nom: 'MARTIN / DUPONT', historique: [], pieces: {} };
+  const html = app.renderTachesColonnes([{ cle: 'v1:appelFonds', type: 'appelFonds', titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', jours: -2, gravite: 'critique', dossier, geste: { type: 'appelFonds' } }]);
+  assert.ok(!html.includes('Envoi appel de fonds</span>') && html.includes('tf-carte critique'));
 });
 
 test('relecture 0.318 : pas de tâche de notoriété sans rendez-vous placé, plus d’étape une fois le questionnaire envoyé', () => {

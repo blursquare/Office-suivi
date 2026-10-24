@@ -199,7 +199,12 @@
     { cle: 'pret', texte: 'Prêt', dl: 'dl-success' }
   ];
   // Ordre du tri « Statut » du Suivi : ce qui presse d'abord, ce qui est terminé en dernier.
-  var ORDRE_ETAT_DOSSIER = ['urgent', 'arelier', 'attente', 'complet', 'pret', 'archive'];
+  var ORDRE_ETAT_DOSSIER = ['urgent', 'arelier', 'attente', 'complet', 'pret', 'signe', 'archive'];
+  // États hors des pastilles du Suivi : l'acte signé (pas encore archivé) et l'archive.
+  var ETATS_DOSSIER_FIN = [
+    { cle: 'signe', texte: 'Signé', dl: 'dl-success' },
+    { cle: 'archive', texte: 'Archivé', dl: 'dl-neutre' }
+  ];
 
   // Pure : les dates butoir dépassées et non levées, dans l'ordre du dossier.
   function datesButoirDepassees(d, aujourdhuiIso) {
@@ -308,10 +313,14 @@
   function etatDossier(d, aujourdhuiIso) {
     const auj = aujourdhuiIso || isoAujourdhuiLocal();
     const etat = (cle, detail) => {
-      const e = ETATS_DOSSIER.find(x => x.cle === cle) || { cle, texte: 'Archivé', dl: 'dl-neutre' };
+      const e = ETATS_DOSSIER.find(x => x.cle === cle) || ETATS_DOSSIER_FIN.find(x => x.cle === cle) || { cle, texte: 'Archivé', dl: 'dl-neutre' };
       return { cle, texte: e.texte, dl: e.dl, detail: detail || '' };
     };
     if (d.archive) return etat('archive', 'Dossier archivé');
+    // Acte signé (Authentic ou signature cochée, dateSignatureDossier ; jamais une succession) : « Signé », plus « Attente de pièces »
+    // ni « Urgent » (étude 24/10 : un dossier signé affichait « Attente de pièces »). Il le reste jusqu'à son archivage.
+    const signeLe = dateSignatureDossier(d, auj);
+    if (signeLe) return etat('signe', `Acte signé le ${formatDateFr(signeLe)}`);
     const depassees = datesButoirDepassees(d, auj);
     if (depassees.length) {
       return etat('urgent', depassees.map(x => `${x.libelle} dépassée depuis le ${formatDateFr(x.iso)}`).join(' · '));
@@ -319,9 +328,6 @@
     if (!d.dossierLie) return etat('arelier', 'Dossier du NAS pas encore relié : pièces et offre non vérifiées');
     const manque = piecesAttenduesDossier(d);
     if (manque.length) return etat('attente', `En attente : ${manque.join(', ')}`);
-    // Acte déjà signé (Authentic ou signature cochée, dateSignatureDossier) : la bulle le dit au passé, avec la date retenue partout.
-    const signeLe = dateSignatureDossier(d, auj);
-    if (signeLe) return etat('pret', `Toutes les pièces sont reçues ; acte signé le ${formatDateFr(signeLe)}`);
     if (d.rendezVousSignature) return etat('pret', `Toutes les pièces sont reçues ; signature le ${formatDateFr(d.rendezVousSignature)}`);
     return etat('complet', 'Toutes les pièces sont reçues ; rendez-vous de signature à placer');
   }

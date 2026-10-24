@@ -73,7 +73,19 @@ test('urgent : une date butoir dépassée passe avant tout, puis l’ordre norma
 test('couleurs : urgent rouge, à relier neutre, attente ambre, complet accent, prêt vert', () => {
   assert.equal(app.ETATS_DOSSIER.map(e => e.cle + ':' + e.dl).join(','),
     'urgent:dl-urgent,arelier:dl-neutre,attente:dl-pret,complet:dl-complet,pret:dl-success');
-  assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,archive');
+  assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,signe,archive');
+});
+
+test('acte signé : « Signé » (vert), jamais « Attente de pièces » ni « Urgent », jusqu’à l’archivage', () => {
+  // Pièce manquante et date butoir dépassée, mais acte signé dans Authentic.
+  const d = dossier({ dossierLie: true, pret: '2026-09-01', authentic: { acte: { etat: 'signe', date: '2026-09-25' } } });
+  assert.equal(app.dateSignatureDossier(d, AUJ) !== '', true, 'signature lue');
+  const e = etat(d);
+  assert.equal(e.cle + ':' + e.texte + ':' + e.dl, 'signe:Signé:dl-success');
+  assert.match(e.detail, /^Acte signé le /);
+  assert.equal(etat(Object.assign({}, d, { archive: true })).cle, 'archive');
+  // Une succession n'a jamais de « Signé » (dateSignatureDossier ne vaut que pour une vente).
+  assert.notEqual(etat(dossier({ typeAffaire: 'succession', dossierLie: true, echeancesValidees: { acte: true }, rendezVousSignature: '2026-09-20' })).cle, 'signe');
 });
 
 test('vente préalable en cours : liée au financement, le dossier n’est ni complet ni prêt tant qu’elle n’est pas réalisée', () => {

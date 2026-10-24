@@ -3723,7 +3723,7 @@
   .ot-point.ot-etat-urgent { background: var(--urgent); }
   .ot-point.ot-etat-attente { background: var(--pret); }
   .ot-point.ot-etat-complet { background: var(--acte); }
-  .ot-point.ot-etat-pret { background: var(--success); }
+  .ot-point.ot-etat-pret, .ot-point.ot-etat-signe { background: var(--success); }
   .ot-fermer { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; border-radius: var(--rayon-xs); background: transparent; color: var(--muted); cursor: pointer; padding: 0; opacity: 0; }
   .ot-onglet:hover .ot-fermer, .ot-onglet.actif .ot-fermer, .ot-fermer:focus-visible { opacity: 1; }
   .ot-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
@@ -4038,7 +4038,9 @@
   .fb-jours { font-size: var(--texte-4xl); font-weight: 500; letter-spacing: -0.02em; line-height: 1; font-variant-numeric: tabular-nums; }
   .fb-sig-ligne small { font-size: var(--texte-s); color: var(--muted); }
   .fb-sig-date { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; font-size: var(--texte-m); }
-  .fb-maintenant { background: color-mix(in srgb, var(--focus) 8%, var(--paper-card)); box-shadow: 0 0 0 1px var(--focus); }
+  /* « À faire maintenant » : un filet d'accent à gauche pour le désigner, sans fond teinté ; rouge seulement en retard (étude 24/10). */
+  .fb-maintenant { background: var(--paper-card); box-shadow: inset 3px 0 0 var(--focus), 0 0 0 1px var(--line); }
+  .fb-maintenant-retard { box-shadow: inset 3px 0 0 var(--urgent), 0 0 0 1px var(--urgent); }
   .fb-ligne-titre { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; }
   .fb-titre { font-size: var(--texte-base); font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
   .fb-gestes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
@@ -4073,7 +4075,7 @@
   .tf-carte.fait .tf-titre { color: var(--ink-soft); }
   .tf-carte.changee { animation: tf-arrivee 2.4s ease-out; }
   @keyframes tf-arrivee { 0% { box-shadow: 0 0 0 3px var(--focus); } 100% { box-shadow: 0 0 0 1px var(--line); } }
-  @media (prefers-reduced-motion: reduce) { .tf-carte.changee { animation: none; box-shadow: 0 0 0 2px var(--focus); } }
+  @media (prefers-reduced-motion: reduce) { .tf-carte.changee, .tf-piece-ligne.changee { animation: none; box-shadow: 0 0 0 2px var(--focus); } }
   .tf-carte.deplacable { cursor: grab; }
   .tf-carte.glissee { opacity: 0.5; }
   .tf-colonne.survol { box-shadow: 0 0 0 2px var(--focus); }
@@ -4095,6 +4097,15 @@
   .tf-delai.fini { font-weight: 400; color: var(--muted); }
   .tf-date { font-variant-numeric: tabular-nums; }
   .tf-geste { align-self: flex-end; }
+  /* Pièces à réunir en une carte (étude 24/10) : une ligne par pièce, l'état commun sous le titre. */
+  .tf-pieces-etat { padding-left: 2px; font-size: var(--texte-s); color: var(--muted); }
+  .tf-pieces { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .tf-piece-ligne { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+  .tf-piece-ligne:first-child { border-top: 0; }
+  .tf-piece-ligne.changee { animation: tf-arrivee 2.4s ease-out; border-radius: var(--rayon-xs); }
+  .tf-piece-texte { display: flex; flex-direction: column; gap: 0; min-width: 0; flex: 1; }
+  .tf-piece-texte .tf-titre { font-size: var(--texte-m); }
+  .tf-piece-texte .tf-sous { font-size: var(--texte-s); color: var(--muted); }
   /* Date d'une carte : crayon et croix au bout de la ligne de date, discrets jusqu'au survol (toujours visibles au doigt). */
   .tf-ico-groupe { display: inline-flex; gap: 0; margin-left: auto; opacity: 0.45; transition: opacity 0.15s; }
   .tf-carte:hover .tf-ico-groupe, .tf-ico-groupe:focus-within { opacity: 1; }
@@ -7679,10 +7690,20 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 /* À droite de la colonne, la place se resserre : filtres sur deux lignes au besoin, colonnes fixes du
    tableau plus étroites pour laisser le nom du dossier sur une ligne. */
 .suivi-principal .suivi-barre-filtres { flex-wrap: wrap; }
-.suivi-principal .col-echeance-date { width: 146px; }
-.suivi-principal .col-echeance-type { width: 162px; }
-.suivi-principal .col-echeance-statut { width: 124px; }
-.suivi-principal .col-echeance-resp { width: 72px; }
+.suivi-principal .col-echeance-date { width: 176px; }
+.suivi-principal .col-echeance-type { width: 184px; }
+.suivi-principal .col-echeance-statut { width: 152px; }
+.suivi-principal .col-echeance-resp { width: 64px; }
+/* Statut sur une ligne (étude 24/10 : « Attente de / pièces » coupé en deux) ; la date aussi dès 1 500 px (« Signé le 21 octobre 2026 ») :
+   la colonne du dossier, qui avait de la place à revendre, cède ce qu'il faut. Plus étroit, la date d'un dossier signé peut passer à la
+   ligne pour que le nom du dossier garde la sienne. */
+.suivi-principal .echeances-table td:last-child .dot-label { white-space: nowrap; }
+@media (min-width: 1500px) { .suivi-principal .echeances-table td:first-child { white-space: nowrap; } }
+@media (max-width: 1499px) {
+  .suivi-principal .col-echeance-date { width: 150px; }
+  .suivi-principal .col-echeance-type { width: 160px; }
+  .suivi-principal .col-echeance-resp { width: 56px; }
+}
 .suivi-stats:empty { display: none; }
 .suivi-stats { display: flex; flex-direction: column; gap: 12px; }
 #dossier-list .table-scroll { border-color: var(--bord-carte); border-radius: var(--rayon-carte); }
@@ -10586,10 +10607,12 @@ body.fiche-a-cote .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat
 .tt-tuile:hover { background: color-mix(in srgb, var(--tt-teinte, var(--muted)) 22%, var(--paper-card)); }
 .tt-tuile:active { transform: scale(0.98); }
 .tt-tuile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.tt-afaire { --tt-teinte: var(--success); }
+/* Couleurs de CLAIRE (étude 24/10) : le vert dit « fait » partout — il va donc aux tâches faites ; celles à faire sont en neutre. */
+.tt-afaire { --tt-teinte: var(--ink-soft); }
 .tt-retard { --tt-teinte: var(--urgent); }
 .tt-plustard { --tt-teinte: var(--acte); }
-.tt-faites { --tt-teinte: var(--muted); }
+.tt-faites { --tt-teinte: var(--success); }
+.tt-tuile.tt-zero { --tt-teinte: var(--muted); }
 .tt-lib { display: flex; align-items: center; justify-content: space-between; gap: 4px; font-size: var(--texte-s); font-weight: 500; color: var(--ink-soft); }
 .tt-lib .icone { flex: none; }
 .tt-nb { align-self: flex-end; font-size: var(--texte-4xl); line-height: 1; font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--tt-teinte, var(--muted)) 75%, var(--ink)); }

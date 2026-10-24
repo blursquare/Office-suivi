@@ -164,6 +164,22 @@ function outilDeTache(a) {
   return null;
 }
 
+// Étude 24/10 (« corrige » une carte de tâche à trois étages) : l'étiquette au-dessus du titre ne reste que si elle apporte quelque chose,
+// « Ouvrir la fiche » disparaît (le nom du dossier ouvre déjà la fiche) et le liseré rouge ne marque qu'une tâche VRAIMENT en retard.
+
+/** Pure : vrai quand l'étiquette de la tâche redit son titre (« Envoi appel de fonds » / « Envoyer l'appel de fonds ») — un mot de
+ *  l'étiquette d'au moins 4 lettres dont les 5 premières se retrouvent dans un mot du titre. @param {any} a */
+function categorieRedondanteTache(a) {
+  const mots = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((m) => m.length >= 4);
+  const titre = mots(a && a.titre).map((m) => m.slice(0, 5));
+  return mots(a && a.categorieLabel).some((m) => titre.includes(m.slice(0, 5)));
+}
+
+/** Pure : la tâche est en retard (délai dépassé) — seule raison d'un liseré rouge. @param {any} a */
+function tacheEnRetard(a) {
+  return !!a && a.jours != null && a.jours < 0;
+}
+
 /** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
 function renderCarteTache(a) {
   if (a.rappel) return renderCarteRappel(a);
@@ -173,16 +189,17 @@ function renderCarteTache(a) {
     : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${icone('clock')}${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
   const sansGeste = !a.geste || a.geste.type === 'fiche';
   const geste = sansGeste
-    ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="ouvrirDossierDrawer('${escapeOnclickArg(a.dossier.id)}')">${icone('folder')}Ouvrir la fiche</wa-button>`
+    ? ''
     : `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton || a.titre)}">${iconeGeste(a)}${escapeHtml(libelleCourtGeste(a))}</wa-button>`;
   const boutonOutil = outil
     ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-outil" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>`
     : '';
-  return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
-    <span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel || '')}</span>
+  const categorie = a.categorieLabel && !categorieRedondanteTache(a) ? `<span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>` : '';
+  return `<article class="tf-carte${tacheEnRetard(a) ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
+    ${categorie}
     <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuTache(a.cle)}</div>
     <div class="tf-meta">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}${delai}</div>
-    <div class="tf-actions-tache">${geste}${boutonOutil}</div>
+    ${geste || boutonOutil ? `<div class="tf-actions-tache">${geste}${boutonOutil}</div>` : ''}
   </article>`;
 }
 
@@ -212,8 +229,9 @@ function renderCarteGroupeTaches(liste) {
     return `<li class="tf-groupe-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre + ' — ' + libelleDossierAffiche(a.dossier))}" title="Déjà fait — valider à la main">${icone('check')}</button>
       <span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}${renderMenuTache(a.cle)}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</li>`;
   }).join('');
-  return `<article class="tf-carte${liste.some((a) => a.gravite === 'critique') ? ' critique' : ''}">
-    <span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel || '')}</span>
+  const categorie = a0.categorieLabel && !categorieRedondanteTache(a0) ? `<span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel)}</span>` : '';
+  return `<article class="tf-carte${liste.some(tacheEnRetard) ? ' critique' : ''}">
+    ${categorie}
     <div class="tf-ligne"><span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span><span class="tf-titre">${escapeHtml(a0.titre)} <span class="tf-sous">· ${liste.length} dossiers</span></span></div>
     <ul class="tf-groupe">${lignes}</ul>
   </article>`;

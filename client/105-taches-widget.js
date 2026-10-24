@@ -115,7 +115,8 @@ function chiffresTachesJour(actions, reportees, aVenir, traites) {
 
 /** Les quatre tuiles du haut (chiffre en grand, libellé, flèche) ; un clic mène à la vue « Tâches » du Suivi. */
 function renderTuilesTaches(c) {
-  const tuile = (cle, libelle, n) => `<button type="button" class="tt-tuile tt-${cle}" onclick="ouvrirTachesSuivi()" aria-label="${escapeAttr(libelle + ' : ' + n + '. Voir dans le Suivi des dossiers')}">
+  // Une tuile à zéro reste grise : un « En retard 0 » rouge alarmait pour rien (étude 24/10).
+  const tuile = (cle, libelle, n) => `<button type="button" class="tt-tuile tt-${cle}${n ? '' : ' tt-zero'}" onclick="ouvrirTachesSuivi()" aria-label="${escapeAttr(libelle + ' : ' + n + '. Voir dans le Suivi des dossiers')}">
       <span class="tt-lib">${escapeHtml(libelle)}${icone('chevron-right')}</span><span class="tt-nb">${n}</span></button>`;
   return `<div class="tt-tuiles w-fixe">${tuile('afaire', 'À faire', c.aFaire)}${tuile('retard', 'En retard', c.enRetard)}${tuile('plustard', 'À venir', c.plusTard)}${tuile('faites', 'Faites', c.faites)}</div>`;
 }
@@ -139,7 +140,7 @@ function boutonsTacheCompact(a) {
 function renderLigneTacheCompacte(a) {
   if (a.rappel) return renderLigneRappelCompact(a);
   const cle = escapeOnclickArg(a.cle);
-  return `<li class="tc-ligne${a.gravite === 'critique' ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
+  return `<li class="tc-ligne${tacheEnRetard(a) ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
     <span class="tc-texte"><span class="tc-titre">${escapeHtml(a.titre)}</span><span class="tc-dossier">${lienDossierTache(a.dossier)}</span></span>
     <span class="tc-delai">${delaiTacheCompact(a)}</span><span class="tc-actions">${boutonsTacheCompact(a)}</span></li>`;
 }

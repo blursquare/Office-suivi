@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.325.2';
+  const VERSION_APP = '0.325.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.325.3', date: '2026-10-24 09:08', resume: "Présentation revue. Un dossier dont l’acte est signé affiche « Signé » (vert) au lieu de « Attente de pièces » jusqu’à son archivage. Suivi : le statut et la date tiennent sur une ligne. Fiche, onglet Tableau : les pièces à réunir sont dans une seule carte, une ligne par pièce. « À faire maintenant » n’est plus en rose : rouge seulement en cas de retard ; le pourcentage à côté de la date de signature se lit « maintien 5 % ». Cartes de tâches : plus de bouton « Ouvrir la fiche » (le nom du dossier l’ouvre), plus d’étiquette qui répète le titre, bord rouge seulement pour une tâche en retard. Widget « Aujourd’hui » : « Faites » en vert, « À faire » en neutre, une tuile à zéro en gris. Activité de l’étude : une même action sur plusieurs dossiers tient sur une ligne (« 4 dossiers »)." },
     { version: '0.325.2', date: '2026-10-24 01:00', resume: "Tâches en quatre colonnes, dans la vue « Tâches » du Suivi comme dans la liste du widget « Aujourd’hui » : À préparer (mes tâches, rendez-vous à fixer ou placer, actes à rédiger, factures d’une succession à régler, points à décider), Relances, Avant la signature, Après la signature (copie de l’acte, questionnaire) — plus de colonne renvoyée seule à la ligne. Dans la vue « Tâches », sous 1 800 px de large, les tuiles du mois passent sous les tâches pour laisser la place aux colonnes. Tâches regroupées : le nom du dossier tient sur une ligne, les initiales du responsable à côté, le délai et les boutons dessous. Barre du Suivi : 12 px sous la ligne de recherche (le trait collait à la recherche), recherche et filtres alignés sur les boutons." },
     { version: '0.325.1', date: '2026-10-23 17:38', resume: "Liens externes : un lien s’ouvre maintenant dans le profil Chrome habituel (et non dans une fenêtre de l’environnement de CLAIRE). Il faut importer de nouveau le fichier .reg (Réglages › Ouvrir les liens dans Chrome › Télécharger le fichier d’installation)." },
     { version: '0.325.0', date: '2026-10-23 13:55', resume: "Yousign : « Demander à CLAIRE » peut lire Yousign par le connecteur MCP de Claude, comme dans Claude (Réglages › Yousign › « Lire par le connecteur MCP de Claude », éteint par défaut). Lecture seule : état d’une demande, signataires ; aucune écriture par ce biais. Les noms des signataires arrivent alors à l’IA sans masquage ; avec Mistral, ou éteint, CLAIRE lit elle-même, noms masqués." },

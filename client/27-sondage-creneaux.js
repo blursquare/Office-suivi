@@ -1038,7 +1038,7 @@
     const estSignature = echeance.type === 'rendezVousSignature' || (!!d.rendezVousSignature && echeance.iso === d.rendezVousSignature);
     if (!estSignature) return false;
     const cle = etatDossier(d).cle;
-    return cle === 'complet' || cle === 'pret';
+    return cle === 'complet' || cle === 'pret' || cle === 'signe';
   }
 
   // Classe de la date d'une échéance dans le Suivi : vert (signature d'un dossier complet ou prêt),

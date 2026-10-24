@@ -374,6 +374,45 @@ function cartesChangeesFiche(avant, cartes) {
   return changees;
 }
 
+// Pièces à réunir en une seule carte dès ce nombre (étude 24/10 : « À obtenir » alignait neuf grandes cartes « Pièce · … · Pas encore
+// vérifiée »). Une pièce datée, en retard ou en cours d'édition garde sa propre carte.
+var SEUIL_GROUPE_PIECES_FICHE = 3;
+
+/** Pure : les cartes d'une colonne en éléments — { groupe: [cartes] } pour les pièces et documents à réunir (au moins le seuil),
+ *  posé à la place de la première, { carte } sinon. @param {any[]} liste */
+function elementsColonneFiche(liste) {
+  const groupable = (c) => /^(piece|document):/.test(c.cle) && !c.fait && !c.date && !c.bouton && c.jours === null && !c.gravite;
+  const groupe = (liste || []).filter(groupable);
+  if (groupe.length < SEUIL_GROUPE_PIECES_FICHE) return (liste || []).map(c => ({ carte: c }));
+  const out = [];
+  (liste || []).forEach(c => {
+    if (!groupable(c)) out.push({ carte: c });
+    else if (c === groupe[0]) out.push({ groupe });
+  });
+  return out;
+}
+
+/** Une carte pour plusieurs pièces à réunir : une ligne par pièce (case ronde, nom qui mène à l'onglet Pièces), l'état commun en tête. */
+function renderGroupePiecesFiche(cartes, changees) {
+  const etats = [...new Set(cartes.map(c => c.sous).filter(Boolean))];
+  const lignes = cartes.map(c => {
+    const rond = c.coche
+      ? `<button type="button" class="tf-rond" onclick="${c.coche.onclick}" aria-label="${escapeAttr(c.coche.libelle + ' : ' + c.titre)}" title="${escapeAttr(c.coche.libelle)}">${icone('check')}</button>`
+      : `<span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span>`;
+    const titre = c.onglet
+      ? `<button type="button" class="tf-titre tf-lien" onclick="definirOngletFiche('${c.onglet}')">${escapeHtml(c.titre)}</button>`
+      : `<span class="tf-titre">${escapeHtml(c.titre)}</span>`;
+    const sous = etats.length > 1 && c.sous ? `<span class="tf-sous">${escapeHtml(c.sous)}</span>` : '';
+    return `<li class="tf-piece-ligne${changees.has(c.cle) ? ' changee' : ''}" data-cle="${escapeAttr(c.cle)}">${rond}<span class="tf-piece-texte">${titre}${sous}</span></li>`;
+  }).join('');
+  const nb = cartes.length;
+  return `<article class="tf-carte tf-carte-pieces">
+    <span class="dot-label dl-piece tf-categorie"><span class="dot"></span>${nb} pièces à réunir</span>
+    ${etats.length === 1 ? `<span class="tf-sous tf-pieces-etat">${escapeHtml(etats[0])}</span>` : ''}
+    <ul class="tf-pieces">${lignes}</ul>
+  </article>`;
+}
+
 function renderTableauFiche(d, actions) {
   const cartes = cartesTableauFiche(d, isoAujourdhuiLocal(), actions);
   const avant = colonnesPrecedentesFiche.id === d.id ? colonnesPrecedentesFiche.parCle : null;
@@ -385,7 +424,7 @@ function renderTableauFiche(d, actions) {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>
-      <div class="tf-cartes">${liste.length ? liste.map(c => renderCarteTableauFiche(c, changees.has(c.cle), d.id)).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
+      <div class="tf-cartes">${liste.length ? elementsColonneFiche(liste).map(e => (e.groupe ? renderGroupePiecesFiche(e.groupe, changees) : renderCarteTableauFiche(e.carte, changees.has(e.carte.cle), d.id))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
     </section>`;
   }).join('')}</div>`;
 }
@@ -411,7 +450,7 @@ function renderBandeauFiche(d, actions) {
   if (s.etat === 'signe') sigCorps = `<strong class="fb-grand fb-ok">${escapeHtml(s.texte)}</strong>`;
   else if (s.etat === 'placee') {
     // Date illisible (jours inconnus) : pas de « null jour » (audit 12/10).
-    sigCorps = `<div class="fb-sig-ligne">${s.jours == null ? '' : `<span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba)}</span></div>`;
+    sigCorps = `<div class="fb-sig-ligne">${s.jours == null ? '' : `<span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba, 'maintien')}</span></div>`;
   } else if (s.etat === 'passee') {
     // Le geste est là où la question se pose (audit 12/10 : aucune carte ne permettait de marquer l'acte signé).
     sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>
@@ -433,7 +472,9 @@ function renderBandeauFiche(d, actions) {
   } else if (m.type === 'archive') corpsMaintenant = '<strong class="fb-titre">Dossier archivé</strong><span class="fb-petit">Plus rien à faire.</span>';
   else corpsMaintenant = '<strong class="fb-titre">Rien à faire pour le moment</strong><span class="fb-petit">On attend les pièces et la signature.</span>';
   const titreCarte = m.type === 'etape' ? 'Prochaine étape' : 'À faire maintenant';
-  const carteMaintenant = `<div class="fb-carte fb-maintenant"><span class="section-eyebrow">${titreCarte}</span>${corpsMaintenant}</div>`;
+  // Rouge seulement pour un vrai retard (étude 24/10 : l'encadré criait plus fort que tout, même sans rien en retard).
+  const enRetard = (m.type === 'action' && m.gravite === 'critique') || (m.type === 'etape' && m.jours != null && m.jours < 0);
+  const carteMaintenant = `<div class="fb-carte fb-maintenant${enRetard ? ' fb-maintenant-retard' : ''}"><span class="section-eyebrow">${titreCarte}</span>${corpsMaintenant}</div>`;
   return `<div class="fb-bandeau">${cartePieces}${carteSignature}${carteMaintenant}</div>`;
 }
 
