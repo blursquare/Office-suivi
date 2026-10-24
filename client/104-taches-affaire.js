@@ -241,7 +241,7 @@ function renderCarteGroupeTaches(liste) {
 function renderTachesColonnes(actions) {
   const groupes = regrouperTachesParTheme(actions);
   return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
-      <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
+      <header class="tf-colonne-tete tf-theme-tete"><h3>${escapeHtml(g.theme.nom)}<span class="tf-theme-nb">${g.actions.length}</span></h3><p class="tf-theme-sous">${escapeHtml(g.theme.sous)}</p></header>
       <div class="tf-cartes">${g.actions.length ? elementsColonneTaches(g.actions).map((e) => (e.groupe ? renderCarteGroupeTaches(e.groupe) : renderCarteTache(e.action))).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
     </section>`).join('')}</div>`;
 }

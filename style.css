@@ -4099,7 +4099,15 @@
   .tf-geste { align-self: flex-end; }
   /* Onglet Pièces et analyse : l'analyse de l'avant-contrat à gauche, le contrôle de l'urbanisme à droite (étude 24/10). */
   .fiche-analyse-urba { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 24px; align-items: start; }
-  .fiche-analyse-urba { margin-top: 20px; }
+  .fiche-analyse-urba { margin-top: 16px; }
+  .fiche-analyse-urba > .pieces-dossier, .fiche-urba-col > .pieces-dossier { margin-top: 0; }
+  @media (max-width: 1099px) { .fiche-analyse-urba > * + * { margin-top: 16px; } }
+  body.fiche-a-cote .fiche-analyse-urba > * + * { margin-top: 16px; }
+  /* Analyse et contrôle de l'urbanisme en cartes, au style de « Pièces du dossier » (étude 24/10). */
+  .bloc-fiche-corps { padding: 12px 16px 16px; }
+  .bloc-fiche-corps .analyse-section { padding: 0; margin: 0 0 16px; background: none; border: 0; border-radius: 0; }
+  .bloc-fiche-corps .analyse-section + .analyse-section { padding-top: 12px; border-top: 1px solid var(--line-soft); }
+  .bloc-fiche-corps > .pr-fiche:first-child { margin-top: 0; }
   .fiche-analyse-urba > * { min-width: 0; }
   /* Dans la demi-largeur : statut et droit sur une ligne, l'explication dessous sur toute la largeur. */
   .fiche-analyse-urba.avec-urba .fiche-urba-col .pr-fiche-ligne { grid-template-columns: 110px minmax(0, 1fr); gap: 2px 12px; }
@@ -10579,6 +10587,12 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .tf-actions-tache { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: auto; }
 .tf-actions-tache .tf-outil { order: -1; }
 /* Quatre colonnes de thèmes (étude 23/10), deux sur un écran moyen, une sur téléphone. */
+/* En-tête d'une colonne de thème (étude 24/10 : « les sous-titres des colonnes, c'est moche ») : le thème en titre de carte avec son
+   nombre en pastille, ce qu'il contient en une ligne grise dessous — plus de capitales espacées sur un texte en encre. */
+.tf-colonne-tete.tf-theme-tete { display: block; padding: 2px 4px 10px; }
+.tf-theme-tete h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--texte-base); font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.tf-theme-nb { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--rayon-pilule); background: var(--paper-card); box-shadow: 0 0 0 1px var(--line); font-size: var(--texte-xs); font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tf-theme-sous { margin: 2px 0 0; font-size: var(--texte-s); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 1100px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .tf-tableau.tf-taches-colonnes { grid-template-columns: minmax(0, 1fr); } }

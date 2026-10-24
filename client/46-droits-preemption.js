@@ -587,8 +587,8 @@
     const ouvrir = `ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')`;
     if (!p || !Array.isArray(p.droits)) {
       const enCours = preemptionsAutoEnCours.has(d.id);
-      return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Contrôle de l’urbanisme</div>
-        <ul class="ja-liste">${renderLigneAction({ titre: enCours ? 'Lecture du zonage…' : 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
+      return `<div class="pieces-dossier bloc-fiche">${enteteBlocFiche('shield', 'Contrôle de l’urbanisme', '', '')}<div class="bloc-fiche-corps">
+        <ul class="ja-liste">${renderLigneAction({ titre: enCours ? 'Lecture du zonage…' : 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div></div>`;
     }
     const droits = droitsPreemptionFiche(p);
     const questions = questionsPreemptionFiche(p);
@@ -597,8 +597,10 @@
     const dpu = droits.find(dr => dr.cle === 'dpu');
     const renonciationInutile = dpu && dpu.statut === 'non' && d.typeVente !== 'copropriete'
       && piecesChecklist.some(pc => pc.cle === 'renonciationPreemption') && !(d.pieces && d.pieces.renonciationPreemption === 'recue');
-    return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Contrôle de l’urbanisme
-        <span class="hint">${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}${p.auto ? 'lus seuls' : 'vérifiés'} le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}</span>${p.auto ? infoBulle('Analyse faite par CLAIRE à l’ajout du dossier, avec l’outil « Contrôle de l’urbanisme » : zonage de chaque parcelle lu sur le Géoportail de l’urbanisme, nature du bien d’après la fiche. Un droit à purger ajoute sa pièce à attendre ; une réponse manquante laisse le droit « À vérifier ».') : ''}</div>
+    const precision = `${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}${p.auto ? 'lus seuls' : 'vérifiés'} le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}`;
+    const aide = p.auto ? infoBulle('Analyse faite par CLAIRE à l’ajout du dossier, avec l’outil « Contrôle de l’urbanisme » : zonage de chaque parcelle lu sur le Géoportail de l’urbanisme, nature du bien d’après la fiche. Un droit à purger ajoute sa pièce à attendre ; une réponse manquante laisse le droit « À vérifier ».') : '';
+    const revoir = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button>`;
+    return `<div class="pieces-dossier bloc-fiche">${enteteBlocFiche('shield', 'Contrôle de l’urbanisme', precision + aide, revoir)}<div class="bloc-fiche-corps">
       <div class="pr-fiche">${droits.map(dr => `<div class="pr-fiche-ligne">
           <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut)}</span>
           <span class="pr-fiche-titre">${escapeHtml(dr.titre)}</span>
@@ -618,5 +620,5 @@
         </div>`).join('')}</div>` : ''}
       ${reste.length ? `<p class="hint">À préciser dans l’outil : ${escapeHtml(reste.join(', '))}.</p>` : ''}
       ${renonciationInutile ? `<ul class="ja-liste">${renderLigneAction({ titre: 'Retirer « Renonciation au droit de préemption » des pièces', sous: 'Le droit de préemption urbain ne s’applique pas à cette vente', bouton: { libelle: 'Retirer', onclick: `retirerPieceStandard('${escapeOnclickArg(d.id)}', 'renonciationPreemption', 'Renonciation au droit de préemption')` } })}</ul>` : ''}
-      <wa-button appearance="plain" size="s" class="bouton-discret" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button></div>`;
+      </div></div>`;
   }

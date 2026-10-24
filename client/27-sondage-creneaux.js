@@ -1509,6 +1509,14 @@
     `;
   }
 
+  // L'en-tête d'un bloc de l'onglet « Pièces et analyse », au style de « Pièces du dossier » (étude 24/10 : « le même style que pièces pour
+  // analyse et contrôle de l'urbanisme ») : icône, titre, précision en gris, puis ce qui va à droite (compteur, bouton).
+  function enteteBlocFiche(nomIcone, titre, precisionHtml, droiteHtml) {
+    return `<div class="pieces-entete"><div class="pieces-entete-ligne">
+      <span class="pieces-titre">${icone(nomIcone)}<span class="pieces-titre-texte">${escapeHtml(titre)}</span>${precisionHtml ? `<span class="pieces-type">· ${precisionHtml}</span>` : ''}</span>${droiteHtml || ''}
+    </div></div>`;
+  }
+
   // Pure : « notifiée le 12/09/2026, prise en compte le 15/09/2026 » (Réponse SAFER, onglet Pièces).
   function suiviSaferPiece(d) {
     const sa = d && d.authentic && d.authentic.safer;
@@ -2190,8 +2198,9 @@
               ${avecPieces ? renderPiecesDossier(d) : ''}
               <!-- Analyse de l'avant-contrat et contrôle de l'urbanisme côte à côte (étude 24/10), l'un sous l'autre quand la place manque. -->
               <div class="fiche-analyse-urba${urbaFiche.trim() ? ' avec-urba' : ''}">
-              <div class="fiche-sous-partie"${estSuccession(d) ? ' hidden' : ''}>
-              ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
+              <div class="pieces-dossier bloc-fiche"${estSuccession(d) ? ' hidden' : ''}>
+              ${enteteBlocFiche('file-text', 'Analyse de l’avant-contrat', '', avAnalyse.total ? `<span class="pieces-compteur${avAnalyse.faits === avAnalyse.total ? ' complet' : ''}">${avAnalyse.faits}/${avAnalyse.total}</span>` : '')}
+              <div class="bloc-fiche-corps">
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
               <div class="analyse-juridique">
                 ${analyse.engagements.length > 0 ? `
@@ -2210,6 +2219,7 @@
                 </div>
               </div>`}
               ${renderAjoutEngagement(d)}
+              </div>
               </div>
               ${urbaFiche.trim() ? `<div class="fiche-urba-col">${urbaFiche}</div>` : ''}
               </div>
