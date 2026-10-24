@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.336.6';
+  const VERSION_APP = '0.336.7';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.336.6', date: '2026-10-24 21:49', resume: "Discussions : dans la barre latérale, l'icône de la maquette 8a seule, sans la toile bleue." },
+    { version: '0.336.7', date: '2026-10-24 21:54', resume: "Le widget Discussions du tableau de bord est retiré ; « Constitution de dossier » passe dans le tiroir Outils, au-dessus de « Vente »." },
+  { version: '0.336.6', date: '2026-10-24 21:49', resume: "Discussions : dans la barre latérale, l'icône de la maquette 8a seule, sans la toile bleue." },
   { version: '0.336.5', date: '2026-10-24 21:39', resume: "Discussions : l’icône de Claude Design remplace la précédente (le robot-mochi au trait, l’étoile de CLAIRE qui mord le coin en bas à droite). Elle est la même dans la barre latérale, les onglets, la page, les réponses de Claire, les canaux, le widget et les Réglages." },
     { version: '0.336.4', date: '2026-10-24 21:34', resume: "Discussions : la nouvelle icône (le mochi et l’étoile de CLAIRE) remplace aussi l’étincelle de la rubrique « IA et Discussions » des Réglages. Elle est maintenant la même partout où les Discussions apparaissent : barre latérale, onglet, page, réponses de Claire, canaux, widget du tableau de bord et Réglages." },
     { version: '0.336.3', date: '2026-10-24 19:54', resume: "Barre latérale : le mot « Claire » en Instrument Sans blanc, le badge « Bêta » en IBM Plex Sans gris, le logo à la hauteur du bouton Claire Scan. Constitution de dossier et Nouveau dossier : champs sur fond grisé comme dans les outils ; dans la Constitution, les étapes pas encore atteintes restent pâles dans la barre d’étapes. Nouveau dossier : l’écran de départ est centré en hauteur aussi." },

@@ -84,10 +84,6 @@
              d.piecesNotifications dans script.js) : masqué tant qu'il n'y a rien à signaler. -->
         <span class="sidebar-badge-notif" id="badge-notif-suivi" style="display:none;"></span>
       </button>
-      <!-- Constitution de dossier (étude 15/10 ; sous le Suivi des dossiers depuis 0.249.0) : les courriers d'interrogation d'une vente ou d'une succession, d'après la fiche et Authentic. -->
-      <button type="button" id="tab-constitution" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('constitution')">
-        <span class="sidebar-link-icone" id="icon-nav-constitution" aria-hidden="true"></span>Constitution de dossier
-      </button>
       <!-- Agenda de l'office (page Agenda, 30/09), sous le Suivi des dossiers (étude 09/10). -->
       <button type="button" id="tab-agenda" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('agenda')">
         <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
@@ -113,6 +109,10 @@
       <div class="sidebar-sousmenu ferme" id="sidebar-sousmenu-outils">
         <!-- Deux catégories (étude 15/10 : « scinde les outils succession et vente en deux catégories ») : un titre chacune, masqué
              barre repliée (un trait les sépare alors). Dans chaque catégorie, ordre alphabétique. -->
+        <!-- Constitution de dossier (étude 15/10 ; dans le tiroir Outils, au-dessus de « Vente », depuis 0.336.7) : les courriers d'interrogation d'une vente ou d'une succession, d'après la fiche et Authentic. -->
+        <button type="button" id="tab-constitution" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('constitution')">
+          <span class="sidebar-link-icone" id="icon-nav-constitution" aria-hidden="true"></span>Constitution de dossier
+        </button>
         <div class="sidebar-sousmenu-titre" id="sidebar-outils-vente">Vente</div>
         <!-- Générateur d'appel de fonds : la convocation au rendez-vous de signature, avec le
              décompte des sommes à virer. Relié à Outil 1 — « Préparer l'appel de fonds » sur une
@@ -224,7 +224,6 @@
          fonction selon sa taille (petit, moyen, grand) ; l'ordre et la taille sont ceux du
          collaborateur du poste. -->
     <div class="widgets-grille" id="widgets-dashboard">
-      <section class="widget" data-widget="assistant"><div class="dash-bloc" id="widget-assistant"></div></section>
       <section class="widget" data-widget="aujourdhui"><div class="dash-bloc" id="alertes-dashboard"></div></section>
       <section class="widget" data-widget="agenda"><div class="dash-bloc" id="agenda-dashboard"></div></section>
       <section class="widget" data-widget="avancement"><div class="dash-bloc" id="dash-avancement" style="display:none;"></div></section>

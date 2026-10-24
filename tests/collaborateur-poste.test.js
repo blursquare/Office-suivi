@@ -152,9 +152,9 @@ test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés
   const lignes = app.lignesGalerieWidgets(dispo, 'Bastien ANGLUMENT');
   assert.equal(lignes.length, app.WIDGETS_DASHBOARD.length);
   assert.equal(lignes.map(l => `${l.def.id}:${l.affiche ? 'oui' : 'non'}`).join(','),
-    'aujourdhui:oui,assistant:oui,nouveautes:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,portefeuille:non,pieces:non');
+    'aujourdhui:oui,nouveautes:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,portefeuille:non,pieces:non');
   assert.ok(lignes.every(l => l.def.description && l.def.icone));
-  assert.ok(app.lignesGalerieWidgets(dispo, 'Julie VASSELIN').some(l => l.def.id === 'assistant'), 'Demander à CLAIRE : ouvert à tous depuis les canaux (24/10)');
+  assert.ok(!app.lignesGalerieWidgets(dispo, 'Julie VASSELIN').some(l => l.def.id === 'assistant'), 'widget Discussions retiré (24/10)');
 });
 
 test('ongletReserve : plus aucun écran réservé à l’administrateur (Demander à CLAIRE ouvert à tous depuis les canaux, 24/10)', () => {

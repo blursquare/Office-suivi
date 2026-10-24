@@ -9697,7 +9697,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-mention-note { color: var(--muted); font-size: var(--texte-xs); }
 .asst-pied { color: var(--muted); font-size: var(--texte-xs); text-align: center; margin: 6px 0 0; }
 /* Champ du widget du tableau de bord : même forme qu'avant la page façon Slack (une ligne, bouton à droite). */
-.w-asst-saisie { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); }
 @media (max-width: 900px) {
   #onglet-assistant { margin: 0 -16px -32px; }
   .asst-page { height: calc(100vh - 72px); }
@@ -9766,20 +9765,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 }
 
 /* Widget « Demander à CLAIRE » du tableau de bord (étude 07/10) : le champ de la page, en plus sobre, et les exemples. */
-.w-asst-compact .w-tete { padding-bottom: 6px; }
-.w-asst-compact .w-corps { padding: 0 16px 12px; justify-content: center; }
-.w-asst-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.w-asst-ligne .w-asst-saisie { flex: 1 0 45%; min-width: 0; }
-.w-asst-ligne .w-asst-exemples { flex: 1 1 0; min-width: 0; max-height: 28px; overflow: hidden; }
-@container widgets (max-width: 560px) { .w-asst-ligne .w-asst-exemples { display: none; } }
-.w-asst-compact .w-tete-droite-asst:empty { display: none; }
-.w-carte.assistant .w-asst-saisie { position: static; align-items: center; box-shadow: none; border-radius: var(--rayon-m); padding: 4px 4px 4px 14px; background: var(--paper); }
-.w-asst-saisie input#widget-assistant-saisie { flex: 1 1 auto; min-width: 0; height: 32px; min-height: 0; border: 0; background: transparent; padding: 0; box-shadow: none; font-size: var(--texte-base); }
-.w-asst-saisie input#widget-assistant-saisie:focus { outline: none; box-shadow: none; }
-.w-carte.assistant .w-asst-saisie:focus-within { border-color: var(--focus); }
-.w-asst-exemples { display: flex; flex-wrap: wrap; gap: 6px; }
-.w-corps .w-asst-exemples.w-coupee { flex-direction: row; justify-content: flex-start; align-content: flex-start; }
-.w-asst-exemples .asst-suggestion.w-asst-exemple { font-size: var(--texte-s); padding: 4px 12px; }
 
 /* Contrôle de l'urbanisme : travaux déclarés, Sitadel, photos (étude 08/10 : « pas trop de texte, attractif, facile à lire du
    premier coup ») — une carte par travail, des pastilles courtes, le détail dans la bulle au survol. */
