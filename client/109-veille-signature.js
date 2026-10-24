@@ -112,7 +112,7 @@ function lignesVeilleSignature(d) {
   if (!participation) {
     const pieces = d.pieces || {};
     const analyse = elementsAnalyseEnAttente(d);
-    const manquantes = checklistPieces(d.typeVente, d).filter(p => p.cle !== 'renonciationPreemption' && pieces[p.cle] !== 'recue').map(p => p.label).concat(analyse.documents);
+    const manquantes = checklistPieces(d.typeVente, d).filter(p => p.cle !== 'renonciationPreemption' && p.cle !== 'perso-safer' && pieces[p.cle] !== 'recue').map(p => p.label).concat(analyse.documents);
     ligne('pieces', 'Pièces du dossier réunies', manquantes.length ? 'attente' : 'fait', '', manquantes.length ? `${manquantes.length} manquante${manquantes.length > 1 ? 's' : ''} : ${listeCourteVeille(manquantes, 4)}` : '');
     const engagements = (d.analyseJuridique && d.analyseJuridique.engagements) || [];
     if (engagements.length) {
@@ -167,6 +167,12 @@ function ficheVeilleSignature(d, options) {
     lieu: texteLieu ? texteLieu.charAt(0).toUpperCase() + texteLieu.slice(1) : '',
     responsable: d.responsable || '',
     lignes,
+    // Ancien modèle (fiche imprimée de CLAIRE, imprimerFiche) : tuiles d'échéances, pièces à réclamer, engagements, procédure des fonds.
+    cases: casesFicheImprimee(d),
+    docs: ((d.analyseJuridique && d.analyseJuridique.documents) || []).map(x => typeof x === 'string' ? x : x.label).filter(Boolean),
+    engagements: ((d.analyseJuridique && d.analyseJuridique.engagements) || []).map(x => typeof x === 'string' ? x : x.phrase).filter(Boolean).map(x => x.length > 140 ? x.slice(0, 140) + '…' : x),
+    etapes: etatProcedureFonds(d).map((e, i) => Object.assign({ num: i + 1, lead: PROCEDURE_FONDS[i].lead.toUpperCase(), suite: PROCEDURE_FONDS[i].suite }, e)),
+    achatComptant: !!d.sansPret,
     faites,
     total: applicables.length,
     reste: applicables.length - faites
@@ -179,23 +185,44 @@ function nomFichierVeilleSignature(d, aujourdhuiIso) {
   return base.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() + '.pdf';
 }
 
-// Pure : un texte coupé en lignes d'au plus `largeur` points ; `mesurer(texte)` rend la largeur.
-function lignesTexteVeille(texte, largeur, mesurer) {
+// Pure : des segments de texte { t, cle } (cle = police) coupés en lignes d'au plus `largeur` points ; `mesurer(texte, cle)` rend la largeur.
+// Chaque ligne est une liste de segments (un mot par segment, espaces comprises) prêts à être écrits à la suite.
+function lignesRunsVeille(runs, largeur, mesurer) {
   const lignes = [];
-  let courante = '';
-  String(texte || '').split(/\s+/).filter(Boolean).forEach(mot => {
-    const essai = courante ? `${courante} ${mot}` : mot;
-    if (courante && mesurer(essai) > largeur) { lignes.push(courante); courante = mot; } else courante = essai;
+  let courante = [];
+  let l = 0;
+  (runs || []).forEach(run => {
+    String(run.t || '').split(/(\s+)/).filter(Boolean).forEach(morceau => {
+      const espace = /^\s+$/.test(morceau);
+      const texte = espace ? ' ' : morceau;
+      const w = mesurer(texte, run.cle);
+      if (!espace && courante.length && l + w > largeur) {
+        while (courante.length && /^ $/.test(courante[courante.length - 1].t)) courante.pop();
+        lignes.push(courante);
+        courante = [];
+        l = 0;
+      }
+      if (espace && !courante.length) return;
+      courante.push({ t: texte, cle: run.cle, l: w });
+      l += w;
+    });
   });
-  if (courante) lignes.push(courante);
+  while (courante.length && /^ $/.test(courante[courante.length - 1].t)) courante.pop();
+  if (courante.length) lignes.push(courante);
   return lignes;
 }
 
-// ---- Le PDF ----
+// ---- Le PDF : le modèle de la fiche imprimée de CLAIRE (imprimerFiche), en A4 portrait ----
 
-var MISE_EN_PAGE_VEILLE = { largeur: 595.28, hauteur: 841.89, gauche: 40, droite: 555.28, haut: 40, bas: 790, caseTaille: 30, ligneMax: 46, ligneMin: 34 };
+var MISE_EN_PAGE_VEILLE = { largeur: 595.28, hauteur: 841.89, gauche: 31, droite: 564.28, haut: 26, bas: 786, ecart: 11.3 };
+var COULEURS_VEILLE = { marine: '16233C', texte: '1A1A1A', gris: '555555', filet: 'DDDDDD', vert: '1F6B45', fondCarte: 'FAFAFA' };
 
-// La page A4. `lib` = pdf-lib (injectable pour un essai hors navigateur), `polices` = octets de chargerOutilsPdfA, `maintenant` = date d'édition.
+// Pure : le tracé SVG d'un rectangle à coins arrondis (origine en haut à gauche, y vers le bas — pdf-lib drawSvgPath).
+function traceRectArrondiVeille(w, h, r) {
+  return `M ${r} 0 H ${w - r} A ${r} ${r} 0 0 1 ${w} ${r} V ${h - r} A ${r} ${r} 0 0 1 ${w - r} ${h} H ${r} A ${r} ${r} 0 0 1 0 ${h - r} V ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
+}
+
+// La page A4. `lib` = pdf-lib (+ fontkit, injectable pour un essai hors navigateur), `polices` = octets de chargerOutilsPdfA, `maintenant` = date d'édition.
 async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
   const { PDFDocument, rgb } = lib;
   const doc = await PDFDocument.create();
@@ -203,16 +230,17 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
   const sansLigatures = { liga: false, clig: false, dlig: false, calt: false };
   const f = {
     sans: await doc.embedFont(polices.sans, { subset: false, features: sansLigatures }),
-    gras: await doc.embedFont(polices.sansGras, { subset: false, features: sansLigatures }),
-    titre: await doc.embedFont(polices.serifGras, { subset: true, features: sansLigatures })
+    gras: await doc.embedFont(polices.sansGras, { subset: false, features: sansLigatures })
   };
   const jeux = {};
   Object.keys(f).forEach(cle => { jeux[cle] = new Set(f[cle].getCharacterSet()); });
   const propre = (t, cle) => texteImprimablePdfA(t, cp => jeux[cle].has(cp));
   const M = MISE_EN_PAGE_VEILLE;
   const H = M.hauteur;
+  const largeurUtile = M.droite - M.gauche;
   const hex = (h) => rgb(parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255);
-  const bordeaux = hex('6D2332'), noir = hex('1A1A1A'), gris = hex('666666'), filet = hex('D9D9D9'), vert = hex('1F7A3D'), rouge = hex('B3261E');
+  const C = {};
+  Object.keys(COULEURS_VEILLE).forEach(cle => { C[cle] = hex(COULEURS_VEILLE[cle]); });
   let page = null;
   const nouvellePage = () => { page = doc.addPage([M.largeur, H]); };
   // Coordonnées « depuis le haut » ; `droite` aligne le texte sur son bord droit.
@@ -220,71 +248,137 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
     const s = propre(texte, cle);
     if (!s) return 0;
     const l = f[cle].widthOfTextAtSize(s, taille);
-    page.drawText(s, { x: droite ? x - l : x, y: H - yHaut - taille * 0.8, size: taille, font: f[cle], color: couleur || noir });
+    page.drawText(s, { x: droite ? x - l : x, y: H - yHaut - taille * 0.8, size: taille, font: f[cle], color: couleur || C.texte });
     return l;
   };
-  const mesure = (cle, taille) => (t) => f[cle].widthOfTextAtSize(propre(t, cle), taille);
+  const mesurerRun = (taille) => (t, cle) => f[cle].widthOfTextAtSize(propre(t, cle), taille);
   const trait = (x1, y1, x2, y2, epaisseur, couleur, rond) => page.drawLine({ start: { x: x1, y: H - y1 }, end: { x: x2, y: H - y2 }, thickness: epaisseur, color: couleur, lineCap: rond ? 1 : 0 });
+  const rect = (x, yHaut, w, h, remplissage, bord, epaisseur, rayon) => page.drawSvgPath(traceRectArrondiVeille(w, h, rayon == null ? 5.7 : rayon), Object.assign({ x, y: H - yHaut, color: remplissage }, bord ? { borderColor: bord, borderWidth: epaisseur || 0.6 } : {}));
+  // Des lignes de segments écrites à partir de (x, yHaut) ; rend la hauteur occupée.
+  const ecrireLignes = (lignes, x, yHaut, taille, interligne, couleur) => {
+    lignes.forEach((ligne, i) => {
+      let cx = x;
+      ligne.forEach(seg => { cx += ecrire(seg.t, cx, yHaut + i * interligne, seg.cle, taille, couleur); });
+    });
+    return lignes.length * interligne;
+  };
+  // La grande case : cochée (coche verte plus grande que la case) ou vide.
+  const grandeCase = (x, yHaut, t, fait) => {
+    page.drawRectangle({ x, y: H - yHaut - t, width: t, height: t, borderColor: fait ? C.vert : C.marine, borderWidth: 1.8, color: rgb(1, 1, 1) });
+    if (fait) {
+      trait(x + t * 0.2, yHaut + t * 0.58, x + t * 0.43, yHaut + t * 0.82, t * 0.16, C.vert, true);
+      trait(x + t * 0.43, yHaut + t * 0.82, x + t * 1.1, yHaut + t * 0.02, t * 0.16, C.vert, true);
+    }
+  };
 
   nouvellePage();
-  // En-tête : ce que c'est, puis le dossier.
-  ecrire('FICHE DE SIGNATURE — À JOINDRE AU DOSSIER', M.gauche, M.haut, 'gras', 10, bordeaux);
-  let tailleTitre = 22;
-  while (tailleTitre > 14 && f.titre.widthOfTextAtSize(propre(fiche.dossier, 'titre'), tailleTitre) > M.droite - M.gauche) tailleTitre -= 1;
-  ecrire(fiche.dossier, M.gauche, M.haut + 18, 'titre', tailleTitre, noir);
+  // En-tête : le dossier, le responsable et la date d'édition, sous un trait marine.
+  let tailleTitre = 19;
+  const meta = [fiche.responsable ? 'Responsable : ' + fiche.responsable : '', fiche.achatComptant ? 'Achat comptant' : '', 'Édité le ' + maintenant.toLocaleDateString('fr-FR')].filter(Boolean).join(' · ');
+  const largeurMeta = f.sans.widthOfTextAtSize(propre(meta, 'sans'), 8.5);
+  while (tailleTitre > 12 && f.gras.widthOfTextAtSize(propre(fiche.dossier, 'gras'), tailleTitre) > largeurUtile - largeurMeta - 16) tailleTitre -= 1;
+  ecrire(fiche.dossier, M.gauche, M.haut, 'gras', tailleTitre, C.marine);
+  ecrire(meta, M.droite, M.haut + tailleTitre - 9, 'sans', 8.5, C.gris, true);
+  trait(M.gauche, M.haut + tailleTitre + 5, M.droite, M.haut + tailleTitre + 5, 1.5, C.marine, false);
+  let y = M.haut + tailleTitre + 16;
 
-  // Le rendez-vous, en grand, dans un cadre.
-  const hautCadre = 100, hautCadreBloc = 92;
-  page.drawRectangle({ x: M.gauche, y: H - hautCadre - hautCadreBloc, width: M.droite - M.gauche, height: hautCadreBloc, borderColor: bordeaux, borderWidth: 1.6 });
-  ecrire(fiche.jour || 'Rendez-vous à fixer', M.gauche + 16, hautCadre + 12, 'gras', 30, bordeaux);
-  if (fiche.heureTexte) ecrire('à ' + fiche.heureTexte, M.gauche + 16, hautCadre + 48, 'gras', 26, noir);
-  const infos = [fiche.lieu, fiche.responsable ? 'Responsable : ' + fiche.responsable : ''].filter(Boolean);
-  infos.forEach((t, i) => ecrire(t, M.droite - 16, hautCadre + 52 + i * 16, 'sans', 12, gris, true));
+  // 1 · Échéances et points de vigilance : une tuile par échéance, quatre par ligne.
+  ecrire('1 · Échéances et points de vigilance', M.gauche, y, 'gras', 12, C.marine);
+  y += 20;
+  if (!fiche.cases.length) {
+    ecrire('Aucune échéance enregistrée.', M.gauche, y, 'sans', 9, C.gris);
+    y += 16;
+  } else {
+    const gap = 6, wTuile = (largeurUtile - 3 * gap) / 4, hTuile = 40;
+    fiche.cases.forEach((c, i) => {
+      const col = i % 4;
+      if (i && !col) y += hTuile + gap;
+      const t = TEINTES_FICHE_IMPRIMEE[c.cls] || TEINTES_FICHE_IMPRIMEE.autre;
+      const x = M.gauche + col * (wTuile + gap);
+      rect(x, y, wTuile, hTuile, hex(t.fond.slice(1)), null, 0, 5.7);
+      page.drawRectangle({ x, y: H - y - hTuile, width: 2.8, height: hTuile, color: hex(t.barre.slice(1)) });
+      const label = c.cls === 'rendezVous' && fiche.heureTexte ? `${c.label} · ${fiche.heureTexte}` : c.label;
+      const lignesLabel = lignesRunsVeille([{ t: label, cle: 'sans' }], wTuile - 16, mesurerRun(7.8)).slice(0, 2);
+      ecrireLignes(lignesLabel, x + 9, y + 5, 7.8, 9, C.gris);
+      ecrire(formatDateFr(c.date), x + 9, y + 5 + lignesLabel.length * 9 + 2, 'gras', 12, C.texte);
+    });
+    y += hTuile + 14;
+  }
 
-  // Le compte des conditions.
-  const yCompte = hautCadre + hautCadreBloc + 14;
-  const compte = fiche.total ? (fiche.reste ? `${fiche.faites} condition${fiche.faites > 1 ? 's' : ''} sur ${fiche.total} remplie${fiche.faites > 1 ? 's' : ''} — ${fiche.reste} à lever` : `Les ${fiche.total} conditions sont remplies`) : '';
-  if (compte) ecrire(compte, M.gauche, yCompte, 'gras', 13, fiche.reste ? rouge : vert);
-
-  // Les conditions : grande case (cochée en vert quand c'est fait), libellé, note, date en gros à droite.
-  const debutLignes = yCompte + 26;
-  const reserveNotes = 96;
-  const hauteurLigne = Math.max(M.ligneMin, Math.min(M.ligneMax, Math.floor((M.bas - reserveNotes - debutLignes) / Math.max(1, fiche.lignes.length))));
-  let y = debutLignes;
-  fiche.lignes.forEach(l => {
-    if (y + hauteurLigne > M.bas) { nouvellePage(); y = M.haut; }
-    const cx = M.gauche, cy = y + (hauteurLigne - M.caseTaille) / 2, t = M.caseTaille;
-    if (l.etat === 'sans-objet') {
-      page.drawRectangle({ x: cx, y: H - cy - t, width: t, height: t, color: hex('F1F1F1'), borderColor: hex('BDBDBD'), borderWidth: 1.2 });
-      trait(cx + 8, cy + t / 2, cx + t - 8, cy + t / 2, 1.6, hex('9A9A9A'), true);
-    } else {
-      page.drawRectangle({ x: cx, y: H - cy - t, width: t, height: t, borderColor: l.etat === 'fait' ? vert : noir, borderWidth: 2 });
-      if (l.etat === 'fait') {
-        // La coche : deux traits épais arrondis, plus grands que la case.
-        trait(cx + 6, cy + 17, cx + 13, cy + 24, 4.2, vert, true);
-        trait(cx + 13, cy + 24, cx + t + 3, cy + 1, 4.2, vert, true);
-      }
-    }
-    const xTexte = cx + t + 16;
-    const largeurTexte = M.droite - 130 - xTexte;
-    const gris2 = l.etat === 'sans-objet';
-    const noteLignes = l.note ? lignesTexteVeille(l.note, largeurTexte, mesure('sans', 9.5)).slice(0, 2) : [];
-    const blocHauteur = 14 + noteLignes.length * 11.5;
-    const yTexte = y + (hauteurLigne - blocHauteur) / 2;
-    ecrire(l.label, xTexte, yTexte, 'gras', 13, gris2 ? gris : noir);
-    noteLignes.forEach((n, i) => ecrire(n, xTexte, yTexte + 16 + i * 11.5, 'sans', 9.5, l.etat === 'attente' ? rouge : gris));
-    if (l.date) ecrire(dateCourteVeille(l.date), M.droite, y + (hauteurLigne - 18) / 2, 'gras', 18, l.etat === 'fait' ? vert : noir, true);
-    else if (l.etat === 'sans-objet') ecrire('sans objet', M.droite, y + (hauteurLigne - 11) / 2, 'sans', 11, gris, true);
-    trait(M.gauche, y + hauteurLigne, M.droite, y + hauteurLigne, 0.6, filet, false);
-    y += hauteurLigne;
+  // Pièces à réclamer au vendeur / Engagements du vendeur : deux encadrés côte à côte.
+  const wBoite = (largeurUtile - M.ecart) / 2;
+  const boite = (titre, items, vide, x, fond, bord) => {
+    const maxHauteur = 118;
+    let hauteur = 30;
+    const traces = [];
+    items.every((it, i) => {
+      const lignes = lignesRunsVeille([{ t: it, cle: 'sans' }], wBoite - 36, mesurerRun(8.6));
+      if (hauteur + lignes.length * 10.4 + 2 > maxHauteur) { traces.push({ reste: items.length - i }); return false; }
+      traces.push({ lignes, y: hauteur });
+      hauteur += lignes.length * 10.4 + 2;
+      return true;
+    });
+    return { titre, x, fond, bord, vide, traces, hauteur: items.length ? hauteur + (traces.some(t => t.reste) ? 12 : 0) + 4 : 40 };
+  };
+  const boites = [
+    boite('Pièces à réclamer au vendeur', fiche.docs, 'Aucune pièce identifiée.', M.gauche, 'F0F7F4', 'BFE0D2'),
+    boite('Engagements du vendeur', fiche.engagements, 'Aucun engagement relevé.', M.gauche + wBoite + M.ecart, 'EEF3FA', 'C6D9EE')
+  ];
+  const hBoites = Math.max(boites[0].hauteur, boites[1].hauteur);
+  boites.forEach(b => {
+    rect(b.x, y, wBoite, hBoites, hex(b.fond), hex(b.bord), 0.7, 5.7);
+    ecrire(b.titre, b.x + 10, y + 8, 'gras', 11, C.marine);
+    if (!b.traces.length) ecrire(b.vide, b.x + 10, y + 28, 'sans', 8.6, C.gris);
+    let yReste = y + 30;
+    b.traces.forEach(t => {
+      if (t.reste) { ecrire(`… et ${t.reste} autre${t.reste > 1 ? 's' : ''}`, b.x + 22, yReste, 'sans', 8.6, C.gris); return; }
+      ecrire('•', b.x + 12, y + t.y, 'sans', 8.6, C.texte);
+      ecrireLignes(t.lignes, b.x + 22, y + t.y, 8.6, 10.4, C.texte);
+      yReste = y + t.y + t.lignes.length * 10.4 + 2;
+    });
   });
+  y += hBoites + 14;
 
-  // Notes à la main, puis la mention d'édition (l'état change : la date et l'heure disent de quand est la fiche).
-  const yNotes = Math.min(M.bas - 70, y + 14);
-  ecrire('Notes', M.gauche, yNotes, 'gras', 10, bordeaux);
-  page.drawRectangle({ x: M.gauche, y: H - M.bas, width: M.droite - M.gauche, height: M.bas - yNotes - 16, borderColor: filet, borderWidth: 1 });
-  const edition = `Fiche éditée par CLAIRE le ${maintenant.toLocaleDateString('fr-FR')} à ${maintenant.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} — état du dossier à cet instant.`;
-  ecrire(edition, M.gauche, H - 28, 'sans', 8, gris);
+  // 2 · Procédure des appels et de la réception des fonds : neuf étapes en deux colonnes, chacune avec sa grande case et sa date en gros.
+  const l2 = ecrire('2 · Procédure — Appels et réception des fonds', M.gauche, y, 'gras', 12, C.marine);
+  ecrire(`(cochée d’après CLAIRE le ${maintenant.toLocaleDateString('fr-FR')}, à compléter au fil du dossier)`, M.gauche + l2 + 8, y + 4, 'sans', 7, C.gris);
+  y += 20;
+  const tailleCase = 22;
+  const carte = (e) => {
+    const lignes = lignesRunsVeille([{ t: e.lead, cle: 'gras' }, { t: e.suite, cle: 'sans' }], wBoite - 52, mesurerRun(8.8));
+    const note = e.note ? lignesRunsVeille([{ t: e.note, cle: 'sans' }], wBoite - 52, mesurerRun(8)) : [];
+    return { e, lignes, note, hauteur: 10 + lignes.length * 10.8 + (note.length ? note.length * 9.6 + 3 : 0) + 6 + tailleCase + 8 };
+  };
+  const cartes = fiche.etapes.map(carte);
+  for (let i = 0; i < cartes.length; i += 2) {
+    const rangee = cartes.slice(i, i + 2);
+    const h = Math.max(...rangee.map(c => c.hauteur));
+    if (y + h > M.bas - 30) { nouvellePage(); y = M.haut; }
+    rangee.forEach((c, j) => {
+      const x = M.gauche + j * (wBoite + M.ecart);
+      rect(x, y, wBoite, h, hex(COULEURS_VEILLE.fondCarte), hex(COULEURS_VEILLE.filet), 0.6, 5.7);
+      // Pastille numérotée à gauche, texte en retrait.
+      page.drawCircle({ x: x + 17, y: H - y - 17, size: 8.5, color: C.marine });
+      const num = String(c.e.num);
+      ecrire(num, x + 17 - f.gras.widthOfTextAtSize(num, 8.5) / 2, y + 17 - 8.5 * 0.4 - 3.4, 'gras', 8.5, rgb(1, 1, 1));
+      const yt = y + 10;
+      const bas = ecrireLignes(c.lignes, x + 33, yt, 8.8, 10.8, C.texte);
+      if (c.note.length) ecrireLignes(c.note, x + 33, yt + bas + 1, 8, 9.6, C.marine);
+      const yFait = y + h - tailleCase - 8;
+      grandeCase(x + 33, yFait, tailleCase, c.e.fait);
+      const xFait = x + 33 + tailleCase + 8;
+      const lFait = ecrire(c.e.fait ? 'Fait' + (c.e.date ? ' le' : '') : 'Fait le', xFait, yFait + 6, 'sans', 9.5, c.e.fait ? C.vert : C.gris);
+      if (c.e.fait && c.e.date) ecrire(dateCourteVeille(c.e.date), xFait + lFait + 6, yFait + 3, 'gras', 15, C.vert);
+      else if (!c.e.fait) trait(xFait + lFait + 6, yFait + tailleCase - 3, xFait + lFait + 96, yFait + tailleCase - 3, 0.6, hex('999999'), false);
+    });
+    y += h + 6;
+  }
+
+  // Pied : le règlement de l'étude, puis l'instant de l'édition (l'état du dossier change).
+  const yPied = Math.max(y + 4, M.bas - 24);
+  trait(M.gauche, yPied, M.droite, yPied, 0.6, hex('999999'), false);
+  const reglement = lignesRunsVeille([{ t: 'Les procédures écrites sont des règlements de l’entreprise. En cas de non-respect (non validé par le notaire), des sanctions disciplinaires peuvent être prononcées. · Dates issues d’une lecture automatique du compromis : à vérifier avant usage. · Fiche éditée par CLAIRE le ' + maintenant.toLocaleDateString('fr-FR') + ' à ' + maintenant.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' — état du dossier à cet instant.', cle: 'sans' }], largeurUtile, mesurerRun(6.8));
+  ecrireLignes(reglement, M.gauche, yPied + 3, 6.8, 8.4, C.gris);
 
   doc.setTitle(`Fiche de signature — ${fiche.dossier}`);
   doc.setCreator('CLAIRE');
@@ -343,7 +437,8 @@ var veilleSignatureAffichee = [];
 function delaiVeilleSignature(d, maintenant) {
   const r = instantsSignatureVeille(d);
   if (!r) return '';
-  const jours = joursEntre(isoLocalDepuisDate(maintenant), r.iso);
+  // joursEntre compte les bornes comprises : 1 = le même jour.
+  const jours = joursEntre(isoLocalDepuisDate(maintenant), r.iso) - 1;
   const quand = jours <= 0 ? 'aujourd’hui' : (jours === 1 ? 'demain' : `${dateAvecJourFr(r.iso)}`);
   return r.heure ? `${quand} à ${heureEmail(r.heure).replace('h', ' h ').trim()}` : quand;
 }

@@ -112,10 +112,43 @@ test('le nom du fichier n’a aucun caractère refusé par Windows', () => {
   assert.doesNotMatch(nom, /[\\/:*?"<>|]/);
 });
 
-test('le texte long d’une note est coupé en lignes de la largeur demandée', () => {
-  const mesurer = t => t.length * 5;
-  const lignes = app.lignesTexteVeille('une note assez longue pour passer à la ligne sur deux lignes', 150, mesurer);
+test('le délai du pop-up dit aujourd’hui, demain, puis la date (la relecture du 24/10 : joursEntre compte les bornes)', () => {
+  const d = vente();
+  assert.equal(app.delaiVeilleSignature(d, T('2026-10-29T08:00:00')), 'aujourd’hui à 14 h 30');
+  assert.equal(app.delaiVeilleSignature(d, T('2026-10-28T18:00:00')), 'demain à 14 h 30');
+  assert.match(app.delaiVeilleSignature(d, T('2026-10-27T15:00:00')), /^jeudi 29 octobre 2026 à 14 h 30$/);
+});
+
+test('« Réponse SAFER » n’est pas comptée deux fois : elle a sa propre ligne', () => {
+  const d = vente({ authentic: { safer: { decision: 'non_preemption', decisionLe: '2026-10-10' } }, piecesPersonnalisees: [{ cle: 'perso-safer', label: 'Réponse SAFER' }] });
+  const f = app.ficheVeilleSignature(d, {});
+  const par = Object.fromEntries(f.lignes.map(l => [l.cle, l]));
+  assert.equal(par.safer.etat, 'fait');
+  assert.equal(par.safer.date, '2026-10-10');
+  assert.equal(par.pieces.etat, 'fait', par.pieces.note);
+});
+
+test('le PDF reprend le modèle de la fiche imprimée : tuiles, pièces, engagements et les neuf étapes de la procédure', () => {
+  const d = vente({ analyseJuridique: { documents: ['Titre de propriété', { label: 'Plan' }], engagements: [{ phrase: 'x'.repeat(200) }] } });
+  const f = app.ficheVeilleSignature(d, {});
+  assert.deepEqual(f.cases.map(c => c.cls).sort().join(','), 'appelFonds,projetEnvoye,rendezVous');
+  assert.equal(f.docs.join('|'), 'Titre de propriété|Plan');
+  assert.equal(f.engagements[0].length, 141);
+  assert.equal(f.etapes.length, 9);
+  assert.equal(f.etapes[0].num, 1);
+  assert.equal(f.etapes[0].lead, f.etapes[0].lead.toUpperCase());
+  // Appel de fonds envoyé : étape 1 cochée avec sa date ; projet envoyé : étape 7 ; l'étape 5 (séquestre) n'est jamais cochée seule.
+  assert.equal(f.etapes[0].fait, true);
+  assert.equal(f.etapes[0].date, '2026-10-19');
+  assert.equal(f.etapes[6].fait, true);
+  assert.equal(f.etapes[6].date, '2026-10-22');
+  assert.equal(f.etapes[4].fait, false);
+});
+
+test('les segments de texte sont coupés en lignes de la largeur demandée, sans perdre un mot', () => {
+  const mesurer = (t, cle) => t.length * (cle === 'gras' ? 6 : 5);
+  const lignes = app.lignesRunsVeille([{ t: 'ENVOYER LE PROJET', cle: 'gras' }, { t: ' au plus tard 7 jours avant le rendez-vous', cle: 'sans' }], 150, mesurer);
   assert.ok(lignes.length >= 2);
-  lignes.forEach(l => assert.ok(mesurer(l) <= 150));
-  assert.equal(lignes.join(' '), 'une note assez longue pour passer à la ligne sur deux lignes');
+  lignes.forEach(l => assert.ok(l.reduce((s, x) => s + x.l, 0) <= 150));
+  assert.equal(lignes.map(l => l.map(x => x.t).join('')).join(' '), 'ENVOYER LE PROJET au plus tard 7 jours avant le rendez-vous');
 });
