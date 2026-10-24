@@ -41,6 +41,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -52,6 +53,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
       # Étude 22/10 (« les relectures et vérifications sont de plus en plus longues ») : le contrôle « verifier » de GitHub est exigé
       # pour pousser sur main et a déjà passé lint, types, les deux suites et la fumée sur CE commit exact (verifier.yml, branche de
@@ -104,6 +109,14 @@ jobs:
       # Test de fumée : la page dans un vrai Chromium, servie par le vrai serveur avec des dossiers inventés — tableau de
       # bord, chaque écran, une fiche de chaque sorte, bureau et téléphone — sans erreur d'exécution (tests/fumee/fumee.mjs).
       # Le lint ne voit ni un ordre de chargement faux ni un `undefined.x` au rendu.
+      # Navigateur de Playwright gardé d'un passage à l'autre (clé = verrou racine, qui fixe la version de Playwright).
+      - name: Cache de Chromium (Playwright)
+        if: steps.verifie.outputs.deja != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Installer Chromium (test de fumée)
         if: steps.verifie.outputs.deja != 'true'
         run: npx playwright install --with-deps chromium

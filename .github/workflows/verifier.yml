@@ -7,7 +7,17 @@ name: Vérifier CLAIRE
 on:
   push:
     branches-ignore: [main]
+    # Étude 24/10 (minutes GitHub) : un envoi qui ne touche que des rapports d'audit, des maquettes ou des LISEZMOI n'a rien à vérifier.
+    # CLAUDE.md et docs/historique.md ne sont PAS ignorés : ils sont embarqués dans le .exe.
+    paths-ignore:
+      - 'docs/audits/**'
+      - 'docs/maquettes-sidebar/**'
+      - '**/LISEZMOI.md'
   pull_request:
+    paths-ignore:
+      - 'docs/audits/**'
+      - 'docs/maquettes-sidebar/**'
+      - '**/LISEZMOI.md'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +34,7 @@ jobs:
     # ne les refait pas (étude 18/10 : minutes GitHub consommées en double).
     if: github.event_name != 'pull_request' || github.head_ref != 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +74,10 @@ jobs:
         if: steps.main.outputs.deja != 'true'
         with:
           node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
       - name: Installer l'outillage racine
         if: steps.main.outputs.deja != 'true'
@@ -89,6 +104,14 @@ jobs:
         if: steps.main.outputs.deja != 'true'
         working-directory: server
         run: npm test
+
+      # Navigateur de Playwright gardé d'un passage à l'autre (clé = verrou racine, qui fixe la version de Playwright).
+      - name: Cache de Chromium (Playwright)
+        if: steps.main.outputs.deja != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Installer Chromium (test de fumée)
         if: steps.main.outputs.deja != 'true'
