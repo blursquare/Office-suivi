@@ -1604,7 +1604,7 @@
       : saferLevee(d) ? etat('SAFER', sa || (d.piecesPersonnalisees || []).some(p => p && /safer/i.test(p.label || '')) ? '✓ Non-préemption' : 'Pas de notification', 'ok')
         : etat('SAFER', 'Notifiée, date d’envoi non relevée', 'a-verifier'));
     return `<aside class="tf-preemption" aria-label="Droits de préemption">
-      <div class="section-eyebrow tf-preemption-titre">Préemption</div>
+      <div class="tf-preemption-titre"><span class="pieces-titre">${icone('shield')}<span class="pieces-titre-texte">Préemption</span></span></div>
       <ul class="ech-liste">${dpu}${safer}</ul>
     </aside>`;
   }

@@ -132,7 +132,7 @@
   function renderProvisionFondsFiche(d) {
     const ligne = ligneProvisionFiche(d);
     if (!ligne) return '';
-    return `<div class="echanges-groupe"><div class="echanges-tete"><span class="section-eyebrow">Provision</span></div>
+    return `<div class="echanges-groupe"><div class="echanges-tete"><span class="pieces-titre">${icone('scale')}<span class="pieces-titre-texte">Provision</span></span></div>
       <p class="fonds-provision">${ligne} <wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="ouvrirProvisionDepuisFiche('${escapeOnclickArg(d.id)}')">Refaire</wa-button></p></div>`;
   }
 

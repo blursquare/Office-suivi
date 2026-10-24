@@ -1748,7 +1748,7 @@
         <label class="reglages-option" for="reglages-liens-chrome">
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Ouvrir les liens dans Chrome <span class="info-i" tabindex="0" data-info="Un lien vers un autre site (Légifrance, guichets d'urbanisme, WeTransfer…) s'ouvre dans un onglet du Chrome habituel au lieu de la fenêtre CLAIRE. À installer une fois sur chaque poste (fichier .reg, sans droit d'administrateur), puis à activer ici."></span></span>
-            <a href="#" class="reglages-lien" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurLiensChrome();">Télécharger le fichier d’installation</a>
+            <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide reglages-telecharger" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurLiensChrome();"><svg class="icone" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/></svg>Télécharger le fichier d’installation</wa-button>
           </span>
           <wa-switch class="switch reglages-switch" id="reglages-liens-chrome" onchange="choisirLiensChrome(this.checked)"></wa-switch>
         </label>
@@ -1763,7 +1763,7 @@
         <label class="reglages-option" for="reglages-ouverture-auto">
           <span class="reglages-option-texte">
             <span class="reglages-option-titre">Ouvrir les documents dès leur téléchargement <span class="info-i" tabindex="0" data-info="Emails dans Outlook, courriers dans Word. À installer une fois sur chaque poste."></span></span>
-            <a href="#" class="reglages-lien" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();">Télécharger l’installateur</a>
+            <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide reglages-telecharger" onclick="event.preventDefault(); event.stopPropagation(); telechargerInstallateurOuvertureAuto();"><svg class="icone" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v8"/><path d="M4.5 7 8 10.5 11.5 7"/><path d="M3 13.5h10"/></svg>Télécharger l’installateur</wa-button>
           </span>
           <wa-switch class="switch reglages-switch" id="reglages-ouverture-auto" onchange="choisirOuvertureAuto(this.checked)"></wa-switch>
         </label>

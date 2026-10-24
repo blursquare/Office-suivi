@@ -5406,7 +5406,8 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 .reglages-section .reglages-dernier-tour:not(:empty) { margin-top: 12px; }
 .reglages-option-fixe { cursor: default; }
 .reglages-option-fixe button { display: inline-flex; align-items: center; gap: 6px; }
-.reglages-lien { font-size: var(--texte-m); color: var(--focus); width: fit-content; }
+/* Fichier à installer sur le poste : un bouton, comme tout geste (étude 24/10 : c'était un lien souligné). */
+.reglages-option-texte .reglages-telecharger { align-self: flex-start; margin-top: 4px; }
 .reglages-section > .signature-images, .reglages-section > #reglages-exclusions { margin-top: 12px; }
 @media (max-width: 860px) {
   .reglages-corps { grid-template-columns: minmax(0, 1fr); gap: 20px; }
@@ -7074,6 +7075,12 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
   .ech > .ech-etat { grid-area: e; font-size: var(--texte-s); }
   .ech > .ech-actions { grid-area: a; min-width: 0; }
   .ech > .ech-sous { grid-column: 2 / -1; grid-row: 3; }
+  /* Bloc « Préemption » de la fiche : sa propre disposition (nom sur toute la ligne, l'état dessous). Les zones ci-dessus posaient
+     l'état sur la colonne du nom : les deux textes se superposaient sur téléphone (étude 24/10). */
+  .tf-preemption .ech { grid-template-areas: none; }
+  .tf-preemption .ech > .ech-pastille, .tf-preemption .ech > .ech-etat, .tf-preemption .ech > .ech-actions { grid-area: auto; }
+  .tf-preemption .ech > .ech-nom-cell, .tf-preemption .ech > .ech-sous, .tf-preemption .tf-preemption-etat > .ech-etat { grid-area: auto / 2 / auto / -1; }
+  .tf-preemption .ech > .ech-date-cell { grid-area: auto / 2; }
 }
 
 /* ---- Fiche › Échanges : groupes de lignes d'action (voir renderEchangesDossier) ---- */
@@ -7097,6 +7104,15 @@ wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 
 /* Onglet Échanges selon le stade du dossier (voir echangesSelonStade). */
 .echanges-tete { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-right: 6px; }
 .echanges-stade { font-size: var(--texte-s); font-weight: 600; color: var(--ink-soft); }
+/* Onglets Fonds et Échanges de la fiche : chaque groupe en carte, au style de « Pièces du dossier » (étude 24/10 : « même style que
+   Pièces ») — titre avec icône dans un en-tête séparé par un filet, le contenu dessous. */
+.fiche-panneau .echanges-groupe { margin: 0 0 16px; padding: 0 16px 12px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); }
+.fiche-panneau .echanges-groupe > .echanges-tete { align-items: center; margin: 0 -16px 4px; padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+.fiche-panneau .echanges-groupe > .echanges-tete .pieces-titre { flex: 1 1 auto; }
+.fiche-panneau .echanges-stade { font-weight: 500; color: var(--muted); }
+/* Titres de blocs hors carte (Préemption du Tableau, Factures d'une succession) : même titre, sans le cadre. */
+.tf-preemption-titre .pieces-titre, .fiche-titre-bloc .pieces-titre { flex: none; }
+.fiche-titre-bloc { margin: 16px 0 8px; }
 /* Hors du stade du dossier (05/10) : visibles mais en grisé ; la couleur revient au survol ou au clavier. */
 .echanges-hors-stade { margin: -6px 0 20px; }
 .echanges-hors-stade-titre { display: flex; align-items: center; gap: 6px; padding: 6px; font-size: var(--texte-m); color: var(--muted); cursor: pointer; }
@@ -7741,6 +7757,22 @@ button.scan-nom:focus-visible { outline: 2px solid var(--focus); outline-offset:
 .suivi-stats:empty { display: none; }
 .suivi-stats { display: flex; flex-direction: column; gap: 12px; }
 #dossier-list .table-scroll { border-color: var(--bord-carte); border-radius: var(--rayon-carte); }
+/* Sur téléphone (étude 24/10) : la liste d'abord, les tuiles du mois et l'activité ensuite ; chaque dossier en carte de trois lignes
+   (dossier + responsable, date + statut, échéance) au lieu d'un tableau de 720 px à faire défiler de côté. */
+@media (max-width: 640px) {
+  .suivi-corps > .suivi-cote { order: 2; }
+  #dossier-list .table-scroll { overflow-x: visible; }
+  #dossier-list .dossiers-table { display: block; min-width: 0; table-layout: auto; }
+  #dossier-list .dossiers-table colgroup, #dossier-list .dossiers-table thead { display: none; }
+  #dossier-list .dossiers-table tbody { display: block; }
+  #dossier-list .dossiers-table tbody tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "dossier resp" "date statut" "echeance echeance"; gap: 4px 12px; align-items: center; padding: 10px 14px; }
+  #dossier-list .dossiers-table tbody td { display: block; padding: 0; min-width: 0; }
+  #dossier-list .dossiers-table tbody td:nth-child(1) { grid-area: date; }
+  #dossier-list .dossiers-table tbody td:nth-child(2) { grid-area: dossier; }
+  #dossier-list .dossiers-table tbody td:nth-child(3) { grid-area: echeance; }
+  #dossier-list .dossiers-table tbody td:nth-child(4) { grid-area: resp; justify-self: end; }
+  #dossier-list .dossiers-table tbody td:nth-child(5) { grid-area: statut; justify-self: end; }
+}
 .sm-bloc { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); padding: 12px; box-shadow: var(--shadow-card); }
 .sm-titre { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; padding: 0 2px; font-size: var(--texte-l); font-weight: 500; color: var(--ink); }
 .sm-titre button.sm-effacer { margin: 0 0 0 auto; padding: 0; border: 0; background: none; box-shadow: none; font: inherit; font-size: var(--texte-m); font-weight: 500; color: var(--focus); cursor: pointer; }

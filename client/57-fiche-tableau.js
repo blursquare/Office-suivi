@@ -95,7 +95,8 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     (analyse.engagements || []).forEach((e, i) => {
       if (etatEngagementAnalyse(d, e).fait) { engagementsFaits++; return; }
       ajouter('obtenir', {
-        cle: 'engagement:' + i, titre: 'Engagement : ' + libelleCourtEngagement(e), categorie: 'engagement', onglet: 'pieces',
+        // L'étiquette « Engagement » le dit déjà : le titre ne le répète pas (étude 24/10).
+        cle: 'engagement:' + i, titre: libelleCourtEngagement(e).replace(/^./, (x) => x.toUpperCase()), categorie: 'engagement', onglet: 'pieces',
         coche: { onclick: `basculerEngagementFait('${escapeOnclickArg(id)}', ${i})`, libelle: 'Marquer réalisé' }
       });
     });

@@ -581,7 +581,7 @@
     const libelleStade = succession ? (etapeSucc ? etapeSucc.label : 'Succession réglée') : STADES_DOSSIER[stade];
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="section-eyebrow">${succession ? 'Échanges avec les héritiers' : (notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client')}</span>
+          <span class="pieces-titre">${icone('mail')}<span class="pieces-titre-texte">${succession ? 'Échanges avec les héritiers' : (notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client')}</span></span>
           <span class="echanges-stade" title="${succession ? 'Étape en cours de la succession' : 'Stade du dossier, lu dans ses dates'}">${escapeHtml(libelleStade)}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
@@ -633,7 +633,7 @@
       + (d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">${icone('rotate-ccw')} Revérifier l’offre de prêt</wa-button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
-          <span class="section-eyebrow">Offre de prêt</span>
+          <span class="pieces-titre">${icone('file-text')}<span class="pieces-titre-texte">Offre de prêt</span></span>
           <span class="dot-label ${r.dl}"><span class="dot"></span>${escapeHtml(r.texte)}</span>
         </div>
         <ul class="fonds-offre-lignes">
@@ -650,7 +650,7 @@
     const hint = texteDestinataireEchanges(d);
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="section-eyebrow">Fonds du dossier</span>
+          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Fonds du dossier</span></span>
           <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
