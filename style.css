@@ -31,6 +31,8 @@
     /* Blanc qui le reste dans les deux thèmes : fond d'un document ou d'une image (page de PDF, scan, signature), pouce
        d'un interrupteur, texte d'une bulle toujours sombre. */
     --blanc-fixe: #FFFFFF;
+    /* Disque de l'avatar de Claire dans le fil de Discussions : le gris sombre de la barre latérale, dans les deux thèmes. */
+    --avatar-claire: #1B1E23;
     /* Texte posé sur la couleur pleine d’un rendez-vous : noir (étude 16/10 : « le texte titre de rdv en noir »). */
     --ag-texte-plein: var(--noir-fixe);
     /* Noir qui le reste dans les deux thèmes : halo du texte posé sur une photo. */
@@ -10814,9 +10816,9 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-moi .asst-corps { position: relative; max-width: 85%; background: var(--paper-sunk); border-radius: var(--rayon-carte); padding: 8px 16px; }
 .asst-moi .asst-survol { position: absolute; right: 0; top: 100%; margin: 0; }
 .asst-moi .asst-texte p:last-child { margin-bottom: 0; }
-.asst-claire { position: relative; padding-left: 32px; }
-.asst-marque { position: absolute; left: 0; top: 12px; display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; color: var(--focus); }
-.asst-marque .icone { width: 16px; height: 16px; }
+.asst-claire { position: relative; padding-left: 48px; }
+.asst-marque { position: absolute; left: 0; top: 8px; display: inline-flex; width: 32px; height: 32px; align-items: center; justify-content: center; border-radius: 50%; background: var(--avatar-claire); color: var(--blanc-fixe); }
+.asst-marque .icone { width: 20px; height: 20px; }
 .asst-claire .asst-texte { max-width: none; font-size: var(--texte-base); line-height: 1.6; }
 .asst-claire .asst-texte p { margin: 0 0 8px; }
 .asst-survol { position: static; display: flex; margin-top: 2px; padding: 0; border: 0; box-shadow: none; background: transparent; opacity: 0; transition: opacity 150ms ease; }
