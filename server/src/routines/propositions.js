@@ -125,7 +125,8 @@ function compterATraiter(liste, responsable, tous) {
  * @param {any[]} liste @param {string} routineId
  */
 function statsRoutine(liste, routineId) {
-  const siennes = liste.filter((p) => p.routine === routineId && !p.exemple);
+  // Une alerte se lit, elle ne se refuse pas : elle ne compte jamais dans le taux d'acceptation.
+  const siennes = liste.filter((p) => p.routine === routineId && !p.exemple && p.type !== 'alerte');
   const acceptees = siennes.filter((p) => p.etat === 'acceptee').length;
   const refusees = siennes.filter((p) => p.etat === 'refusee').length;
   const decidees = acceptees + refusees;

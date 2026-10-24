@@ -41,7 +41,7 @@ function texteResumeTeams(responsable, propositions, libelleDossier) {
   const n = propositions.length;
   const lignes = propositions.slice(0, MAX_TITRES_RESUME).map((p) => {
     const dossier = p.dossierId ? libelleDossier(p.dossierId) : '';
-    return `• ${p.titre}${dossier ? ` — ${dossier}` : ''}`;
+    return `• ${String(p.titre).replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim()}${dossier ? ` — ${dossier}` : ''}`;
   });
   const reste = n - lignes.length;
   return `📝 CLAIRE — Bonjour ${prenomDe(responsable)}, j’ai préparé ${n} chose${n > 1 ? 's' : ''} pour vous :\n${lignes.join('\n')}${reste > 0 ? `\n… et ${reste} autre${reste > 1 ? 's' : ''}` : ''}\n\nOuvrez CLAIRE (l’icône ✦ en haut de la barre) pour les autoriser ou les refuser. Rien ne part sans votre clic.`;
@@ -117,8 +117,16 @@ function creerPlanificateur(deps) {
           const marquees = new Set();
           for (const [responsable, liste] of parResponsable) {
             const adresse = (reglagesMail.emailsResponsables || {})[responsable];
-            if (!adresse) continue;
-            const r = await envoyer(reglagesMail, adresse, texteResumeTeams(responsable, liste, libelleDossier));
+            if (!adresse) {
+              noterJournalRoutines(parametresRepo, { routine: 'resume', texte: `Résumé Teams non envoyé à ${prenomDe(responsable)} : aucune adresse dans Réglages › Rappels.`, resultat: 'erreur' }, maintenant);
+              continue;
+            }
+            /** @type {any} */
+            let r;
+            try { r = await envoyer(reglagesMail, adresse, texteResumeTeams(responsable, liste, libelleDossier)); } catch (e) { r = { ok: false, erreur: e && e.message }; }
+            if (r && r.ok && r.messageId) {
+              try { require('../nettoyageGmail').mettreCopiesEnAttente(parametresRepo, reglagesMail, [r.messageId]); } catch (_) { /* la copie restera dans les envoyés */ }
+            }
             noterVerification(parametresRepo, 'routines-resume-teams', r && r.ok ? { detail: 'résumé Teams envoyé' } : { ok: false, message: 'résumé Teams refusé' });
             if (r && r.ok) { bilan.resumes += 1; liste.forEach((p) => marquees.add(p.id)); } else {
               noterJournalRoutines(parametresRepo, { routine: 'resume', texte: `Résumé Teams non envoyé à ${prenomDe(responsable)} : ${String((r && r.erreur) || 'erreur').slice(0, 120)}`, resultat: 'erreur' }, maintenant);

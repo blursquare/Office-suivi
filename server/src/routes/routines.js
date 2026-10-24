@@ -6,9 +6,9 @@
 
 const express = require('express');
 const { NIVEAUX, CATALOGUE, routineParId } = require('../routines/catalogue');
-const { lireReglagesRoutines, ecrireReglagesRoutines } = require('../routines/reglages');
+const { lireReglagesRoutines, ecrireReglagesRoutines, assainirReglagesRoutines, niveauEffectif } = require('../routines/reglages');
 const { lirePropositions, ecrirePropositions, listerPropositions, compterATraiter, decider, statsRoutine, expirer } = require('../routines/propositions');
-const { lireJournalRoutines } = require('../routines/journal');
+const { lireJournalRoutines, noterJournalRoutines } = require('../routines/journal');
 const { lireUsageRoutines } = require('../routines/usage');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
@@ -47,7 +47,15 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const avant = lireReglagesRoutines(parametresRepo);
     const routines = Object.assign({}, avant.routines);
     for (const id of Object.keys(corps.routines && typeof corps.routines === 'object' ? corps.routines : {})) routines[id] = Object.assign({}, avant.routines[id], corps.routines[id]);
-    res.json(ecrireReglagesRoutines(parametresRepo, Object.assign({}, avant, corps, { routines })));
+    const fusion = Object.assign({}, avant, corps, { routines });
+    const propre = assainirReglagesRoutines(fusion);
+    const auteur = collaborateurDe(corps.auteur);
+    const monte3 = CATALOGUE.some((r) => r.gestes.some((g) => niveauEffectif(propre, r.id, g.cle) === 3 && niveauEffectif(avant, r.id, g.cle) < 3));
+    const bascule = propre.actif !== avant.actif;
+    if ((monte3 || bascule) && !(auteur && ADMINISTRATEURS.includes(auteur))) { res.status(403).json({ erreur: 'Réservé à l’administrateur.' }); return; }
+    ecrireReglagesRoutines(parametresRepo, fusion);
+    if (monte3 || bascule) noterJournalRoutines(parametresRepo, { routine: 'reglages', texte: `${bascule ? (propre.actif ? 'Routines allumées' : 'Routines éteintes') : 'Niveau 3 accordé'} par ${String(auteur).split(' ')[0]}.`, niveau: monte3 ? 3 : 1 });
+    res.json(propre);
   });
 
   routeur.post('/routines/:id/lancer', (req, res) => {
@@ -68,7 +76,8 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const tous = req.query.tous === '1' && ADMINISTRATEURS.includes(utilisateur);
     if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const toutes = expirer(lirePropositions(parametresRepo));
-    const etats = ETATS_PAR_FILTRE[/** @type {'a-traiter' | 'traitees'} */ (String(req.query.etat || ''))];
+    const filtre = String(req.query.etat || '');
+    const etats = Object.prototype.hasOwnProperty.call(ETATS_PAR_FILTRE, filtre) ? ETATS_PAR_FILTRE[/** @type {'a-traiter' | 'traitees'} */ (filtre)] : undefined;
     const dossierId = typeof req.query.dossierId === 'string' ? req.query.dossierId.slice(0, 80) : '';
     res.json({
       aTraiter: compterATraiter(toutes, utilisateur, tous),
@@ -83,10 +92,14 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const par = collaborateurDe(corps.auteur);
     if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     if (!['vue', 'acceptee', 'refusee'].includes(corps.decision)) { res.status(400).json({ erreur: 'Décision inconnue.' }); return; }
-    const r = decider(lirePropositions(parametresRepo), req.params.id, corps.decision, par);
+    const liste = lirePropositions(parametresRepo);
+    const cible = liste.find((x) => x.id === req.params.id);
+    if (cible && cible.responsable && cible.responsable !== par && !ADMINISTRATEURS.includes(par)) { res.status(403).json({ erreur: 'Cette proposition n’est pas dans votre boîte.' }); return; }
+    const r = decider(liste, req.params.id, corps.decision, par);
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
-    ecrirePropositions(parametresRepo, r.liste);
-    res.json({ ok: true, proposition: r.proposition });
+    const dejaTraitee = r.liste === liste;
+    if (!dejaTraitee) ecrirePropositions(parametresRepo, r.liste);
+    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue', proposition: r.proposition });
   });
 
   return routeur;

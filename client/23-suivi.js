@@ -1077,6 +1077,8 @@
     dossiersConsultesCollaborateur = null;   // la liste du nouveau collaborateur arrive avec ses préférences
     render();
     chargerRappelsPerso();
+    Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0, tous: false });
+    chargerPropositionsClaire('a-traiter');
     chargerPreferencesCollaborateur();
   }
 

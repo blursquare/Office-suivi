@@ -193,7 +193,7 @@ function ouvrirReglagesRoutines() {
 
 async function enregistrerReglagesRoutines(corps, message) {
   try {
-    const r = await fetchAvecAuth('/api/routines/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+    const r = await fetchAvecAuth('/api/routines/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({}, corps, { auteur: utilisateurPoste })) });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
     if (routinesEtat) routinesEtat.reglages = await r.json();
     renderReglagesRoutines();

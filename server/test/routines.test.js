@@ -306,3 +306,19 @@ test('routes : état, réglages fusionnés sans effacer les routines inconnues d
     assert.match(jr.corps.entrees[0].texte, /4 propositions d’exemple/);
   });
 });
+
+test('statistiques : une alerte ne compte jamais dans le taux d’acceptation', () => {
+  const liste = [
+    { id: 'a', routine: 'revue-matin', etat: 'acceptee', type: 'alerte' },
+    { id: 'b', routine: 'revue-matin', etat: 'refusee', type: 'tache' }
+  ];
+  const s = P.statsRoutine(liste, 'revue-matin');
+  assert.equal(s.decidees, 1);
+  assert.equal(s.acceptees, 0);
+});
+
+test('résumé Teams : le titre tient sur une ligne et ne porte aucun lien', () => {
+  const t = texteResumeTeams('Julie VASSELIN', [{ titre: 'Relancer\nle client http://exemple.fr/x vite' }], () => '');
+  assert.ok(t.includes('• Relancer le client vite'));
+  assert.ok(!t.includes('http'));
+});

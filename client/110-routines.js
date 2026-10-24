@@ -67,7 +67,11 @@ var OUTILS_PROPOSITION = {
 // ---- Chargement et pastille ----
 
 async function chargerPropositionsClaire(onglet) {
-  if (!utilisateurPoste) return;
+  if (!utilisateurPoste) {
+    Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0 });
+    majPastillePropositionsClaire();
+    return;
+  }
   const filtre = onglet || (propositionsClaire.ouvert ? propositionsClaire.onglet : 'a-traiter');
   try {
     const q = `utilisateur=${encodeURIComponent(utilisateurPoste)}&etat=${filtre}${propositionsClaire.tous && estAdministrateur(utilisateurPoste) ? '&tous=1' : ''}`;
@@ -79,7 +83,7 @@ async function chargerPropositionsClaire(onglet) {
       propositionsClaire.aTraiter = corps.aTraiter || 0;
     } else {
       propositionsClaire.traitees = corps.propositions || [];
-      propositionsClaire.aTraiter = corps.aTraiter || propositionsClaire.aTraiter;
+      propositionsClaire.aTraiter = corps.aTraiter || 0;
     }
     propositionsClaire.charge = true;
     majPastillePropositionsClaire();
@@ -221,7 +225,8 @@ async function enregistrerDecisionProposition(id, decision) {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, auteur: utilisateurPoste })
   });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
-  return (await r.json()).proposition;
+  const corps = await r.json();
+  return Object.assign({}, corps.proposition, { dejaTraitee: !!corps.dejaTraitee });
 }
 
 // La tâche d'une proposition « tâche » : un rappel de la liste « À faire » du collaborateur, comme « Ajouter une tâche ».
@@ -262,13 +267,28 @@ function executerActionProposition(p) {
   return 'C’est noté.';
 }
 
+var propositionsEnCours = {};
+
 async function autoriserProposition(id) {
   const p = propositionParId(id);
-  if (!p) return;
+  if (!p || propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
   try {
-    await enregistrerDecisionProposition(id, 'acceptee');
+    await autoriserPropositionSure(id, p);
+  } finally { delete propositionsEnCours[id]; }
+}
+
+async function autoriserPropositionSure(id, p) {
+  let decidee;
+  try {
+    decidee = await enregistrerDecisionProposition(id, p.type === 'alerte' ? 'vue' : 'acceptee');
   } catch (e) {
     afficherToast('Proposition non enregistrée : ' + e.message, 'OK', null);
+    return;
+  }
+  if (decidee.dejaTraitee) {
+    afficherToast('Cette proposition a déjà été traitée.', 'OK', null);
+    await chargerPropositionsClaire('a-traiter');
     return;
   }
   noterVerificationPoste('routines-boite-poste', { detail: `proposition « ${p.type} » autorisée` });
@@ -279,13 +299,15 @@ async function autoriserProposition(id) {
 
 async function refuserProposition(id) {
   const p = propositionParId(id);
-  if (!p) return;
+  if (!p || propositionsEnCours[id]) return;
+  let decidee;
   try {
-    await enregistrerDecisionProposition(id, 'refusee');
+    decidee = await enregistrerDecisionProposition(id, 'refusee');
   } catch (e) {
     afficherToast('Refus non enregistré : ' + e.message, 'OK', null);
     return;
   }
+  if (decidee.dejaTraitee) { afficherToast('Cette proposition a déjà été traitée.', 'OK', null); await chargerPropositionsClaire('a-traiter'); return; }
   noterVerificationPoste('routines-boite-poste', { detail: 'proposition refusée' });
   afficherToast('Refusée : CLAIRE ne la proposera plus.', 'OK', null);
   await chargerPropositionsClaire('a-traiter');
