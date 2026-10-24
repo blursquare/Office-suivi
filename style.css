@@ -10329,7 +10329,7 @@ wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { bac
 @media (max-width: 640px) { .cst-accueil { min-height: 0; justify-content: flex-start; padding: 16px 0; } .cst-accueil-grille { grid-template-columns: 1fr; } }
 /* Barre des étapes de la Constitution = celle des autres outils (étude 24/10) ; l'état de chaque étape en description, masqué
    sous 1 200 px comme avant. */
-.cst-sommaire { margin: 12px 0 16px; }
+.cst-sommaire { margin: 12px 0 16px; position: static; } /* pas collante : l'aperçu à droite l'est déjà (relecture 24/10) */
 wa-stepper.outil-sommaire wa-step::part(description) { font-size: var(--texte-xs); color: var(--muted); }
 @media (max-width: 1200px) { .cst-sommaire wa-step::part(description) { display: none; } }
 /* « Nouveau dossier » (étude 18/10 : « plus attractif, supprimer ce que CLAIRE fait ») : plus d'encadré « Ce que CLAIRE repère » ;
@@ -10799,6 +10799,7 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .mot-et-info { white-space: nowrap; }
 /* Quotités : le libellé d'une ligne se lit comme un titre (champ discret, bordé au survol et à la saisie), son montant dessous. */
 .qt-ligne-operation > input[type="text"].qt-libelle { border-color: transparent; background: transparent; padding-left: 0; padding-right: 0; height: 28px; min-height: 0; font-weight: 500; color: var(--ink); }
+.qt-memoire > input[type="text"].qt-libelle { color: var(--muted); }
 .qt-ligne-operation > input[type="text"].qt-libelle:hover { border-color: var(--line); padding-left: 8px; }
 .qt-ligne-operation > input[type="text"].qt-libelle:focus { border-color: var(--focus); background: var(--paper-card); padding-left: 8px; }
 /* Répertoire : la recherche porte tout son texte d'exemple. */
@@ -10808,7 +10809,7 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
   wa-stepper.outil-sommaire { --marker-size: 24px; --gap: 4px; }
   wa-step::part(marker) { font-size: var(--texte-s); }
   /* Contrôle de l'urbanisme : un champ par ligne (le troisième restait seul à demi-largeur, les listes étaient coupées). */
-  .calc-champs.pr-champs { grid-template-columns: minmax(0, 1fr); }
+  .calc-champs.pr-champs, .calc-champs.pr-champs.pr-champs-lieu { grid-template-columns: minmax(0, 1fr); }
   /* Quotités : « Effacer » et « Télécharger » côte à côte, comme deux boutons. */
   #onglet-quotites .dash-header-actions { flex-direction: row; }
   #onglet-quotites .dash-header-actions wa-button { flex: 1 1 auto; }
