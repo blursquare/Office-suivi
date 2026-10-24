@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.325.8';
+  const VERSION_APP = '0.325.9';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.325.9', date: '2026-10-24 19:54', resume: "Barre latérale : le mot « Claire » en Instrument Sans blanc, le badge « Bêta » en IBM Plex Sans gris, le logo à la hauteur du bouton Claire Scan. Constitution de dossier et Nouveau dossier : champs sur fond grisé comme dans les outils ; dans la Constitution, les étapes pas encore atteintes restent pâles dans la barre d’étapes. Nouveau dossier : l’écran de départ est centré en hauteur aussi." },
     { version: '0.325.8', date: '2026-10-24 17:11', resume: "Outils (Provision, Prorata, Arbitrage, Quotités, Appel de fonds, Contrôle de l’urbanisme) : chaque section de saisie a son titre à gauche et ses champs à droite quand la carte est assez large, champs sur fond grisé, un seul filet entre deux sections. La première section à remplir a son numéro en couleur ; les sections qui la suivent restent pâles tant qu’elle n’est pas remplie (pleines au survol ou dès qu’on y saisit, jamais bloquées). Fiche : « À faire maintenant » n’est plus rouge pour une tâche d’après la signature ; Appel de fonds : un département choisi à la main ne reste plus au dossier suivant, « Émoluments et droits » est reconnu pour le contrôle des frais." },
     { version: '0.325.7', date: '2026-10-24 16:50', resume: "Outils : un montant tapé ou collé à la française (« 1.234,56 », « 250.000,00 € ») est lu dans le Prorata, le Simulateur de provision, l’Arbitrage du forfait mobilier et les Quotités — il vidait le champ sans rien dire. Une saisie négative ou illisible est signalée sous le champ et ne compte pas ; un mobilier supérieur au prix est signalé (il n’est pas déduit). Clients et biens : « Aucun résultat pour … » quand une recherche ne trouve rien." },
     { version: '0.325.6', date: '2026-10-24 14:14', resume: "Appel de fonds : le contrôle des frais au barème (« conforme au barème ») marche dans plus de cas — adresse gardée seulement dans la fiche du bien, code postal écrit « 41 000 », adresse retapée sans code postal (le département n’est plus effacé), prix gardé en texte, libellés du confrère « Frais de l’acte », « Coût de l’acte »… Quand il ne peut pas se faire, la ligne le dit : « contrôle : département ? », « nature du bien ? » ou « prix ? »." },

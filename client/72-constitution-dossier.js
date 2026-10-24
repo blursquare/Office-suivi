@@ -1558,7 +1558,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ${renderStepperConstitution(etapes)}
       <div class="cst-mise-en-page">
         <div class="cst-gauche">
-          <section class="calc-card cst-etape">
+          <section class="calc-card cst-etape outil-champs">
             <h2 class="outil-section-tete cst-etape-tete">${escapeHtml(x.titre)}${x.compte ? ` <span class="hint">${escapeHtml(x.compte)}</span>` : ''}${x.info ? ' ' + infoBulle(x.info) : ''}</h2>
             ${x.html}
             <div class="wizard-nav cst-nav">

@@ -83,7 +83,7 @@
       const titre = panneau.querySelector(`.outil-section-tete[data-etape="${e.cle}"]`);
       if (!titre || !titre.parentElement || titre.parentElement.classList.contains('outil-section')) return;
       const carte = titre.parentElement;
-      carte.classList.add('outil-formulaire');
+      carte.classList.add('outil-formulaire', 'outil-champs');
       const section = document.createElement('div');
       section.className = 'outil-section';
       section.dataset.section = e.cle;

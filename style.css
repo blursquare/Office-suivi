@@ -752,28 +752,20 @@
      (il vivait seul dans un bloc calé en haut à droite de la sidebar) — un simple repère discret
      à côté de la marque plutôt qu'un second bloc d'état. L'indicateur de connexion au serveur, qui
      partageait ce bloc, a lui été déplacé dans l'écran "À propos" (voir .apropos-box). */
+  /* @marque — badge « Bêta » et mot « Claire » : valeurs exactes données par l'étude le 24/10 (polices chargées de Google Fonts
+     comme Inter ; repli Geist). Zone exemptée de l'échelle commune (scripts/style-echelle.js), comme les zones papier. */
   .sidebar-alpha-badge {
     display: inline-block;
     align-self: flex-start;
-    margin-top: 2px;
     margin-left: 4px;
-    font-size: var(--texte-micro);
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    /* Padding SYMÉTRIQUE, rétabli à la demande de l'étude. Un réglage asymétrique (3px en haut,
-       0 en bas) avait été posé ici pour compenser l'espace des jambages qu'aucune capitale
-       n'occupe — mais il avait été mesuré sur la police de REPLI, fonts.googleapis.com étant
-       bloqué dans l'environnement de développement : avec Inter réellement chargée, les mêmes
-       pixels de compensation décalent le mot vers le bas. Ne pas réessayer ce genre de réglage
-       fin sans pouvoir l'observer avec la vraie police. */
-    padding: 2px 4px;
-    border-radius: var(--rayon-carte);
-    background: color-mix(in srgb, var(--focus) 15%, var(--paper-card));
-    border: 1px solid color-mix(in srgb, var(--focus) 40%, transparent);
-    color: var(--focus);
+    font-family: 'IBM Plex Sans', 'Geist', sans-serif;
+    font-size: 11px;
+    font-weight: 400;
+    color: #8A909C;
+    letter-spacing: .04em;
     cursor: help;
   }
+  /* @fin-marque */
   .sidebar-brand {
     display: flex;
     align-items: center;
@@ -794,15 +786,18 @@
      une marque plus affirmée/moderne que le reste de l'interface, déjà en Inter partout ailleurs
      (voir h1/h2/h3 en tête de fichier). Graisse 500 plutôt que 700 : demandé par l'étude (« moins
      gras ») ; le léger resserrement (letter-spacing négatif) reste, Montserrat étant large. */
+  /* @marque */
   .brand-word {
-    font-family: 'Montserrat', 'Geist', -apple-system, 'Segoe UI', sans-serif;
-    font-weight: 500;
-    /* 22px → 30px (symbole 30 → 40px dans index.html) : logo agrandi à la demande de l'étude. */
-    font-size: var(--texte-5xl);
+    font-family: 'Instrument Sans', 'Geist', sans-serif;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -.035em;
     line-height: 1;
     color: var(--ink);
-    letter-spacing: -0.02em;
   }
+  /* Blanc dans la barre latérale (toujours sombre) ; À propos et Connexion, sur fond clair, gardent l'encre. */
+  .sidebar .brand-word { color: #FFFFFF; }
+  /* @fin-marque */
   /* Recherche en haut de la barre (étude 20/10 : un dossier ou un outil) ; « Demander à CLAIRE » est le bouton à côté de Claire Scan. */
   .sidebar-recherche {
     display: flex; align-items: center; gap: 4px; height: 40px; margin: 0 0 12px; padding: 0 6px;
@@ -10382,6 +10377,8 @@ wa-stepper.outil-sommaire wa-step::part(description) { font-size: var(--texte-xs
 #onglet-nouveau.nd-accueil .panel { background: transparent; border: none; box-shadow: none; }
 #onglet-nouveau.nd-accueil .panel > summary, #onglet-nouveau.nd-accueil .wizard-stepper, #onglet-nouveau.nd-accueil #wizard-step-1 > .wizard-nav { display: none; }
 #onglet-nouveau.nd-accueil .import-choix { gap: 16px; }
+/* Centré en hauteur aussi, comme l'accueil de la Constitution (étude 24/10). */
+#onglet-nouveau.nd-accueil .wrap { min-height: calc(100vh - 96px - var(--decalage-onglets)); display: flex; flex-direction: column; justify-content: center; }
 #onglet-nouveau.nd-accueil .import-choix-carte { min-height: 150px; padding: 24px; box-shadow: var(--shadow-card); border-color: var(--bord-carte); align-content: start; }
 #onglet-nouveau.nd-accueil .import-choix-icone { width: 48px; height: 48px; }
 #onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
@@ -10869,15 +10866,19 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
   .outil-section { display: grid; grid-template-columns: 136px minmax(0, 1fr); column-gap: 20px; align-items: start; }
   .outil-formulaire .outil-section > .outil-section-tete { margin: 0; align-items: flex-start; font-size: var(--texte-base); }
 }
-.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]), .outil-formulaire select, .outil-formulaire textarea {
+.outil-champs input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]), .outil-champs select, .outil-champs textarea {
   background: var(--paper-sunk); border-color: transparent;
 }
-.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):hover, .outil-formulaire select:hover, .outil-formulaire textarea:hover { border-color: var(--line); }
-.outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):focus, .outil-formulaire select:focus, .outil-formulaire textarea:focus { background: var(--paper-card); border-color: var(--focus); }
-/* Champs posés dans un bloc déjà grisé : restent blancs pour se voir. */
-.outil-formulaire :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
-.outil-formulaire input:is([type="text"], [type="search"])[aria-invalid="true"]:is(:hover, :focus, :not(:focus)) { border-color: var(--urgent); }
+.outil-champs input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):hover, .outil-champs select:hover, .outil-champs textarea:hover { border-color: var(--line); }
+.outil-champs input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):focus, .outil-champs select:focus, .outil-champs textarea:focus { background: var(--paper-card); border-color: var(--focus); }
+/* Champs grisés : sections de saisie des outils, étapes de la Constitution, Nouveau dossier (étude 24/10, classe `outil-champs`).
+   Champs posés dans un bloc déjà grisé : restent blancs pour se voir. */
+.outil-champs :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre, .cst-item-edition) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
+.outil-champs input:is([type="text"], [type="search"])[aria-invalid="true"]:is(:hover, :focus, :not(:focus)) { border-color: var(--urgent); }
 .outil-section-attente { opacity: 0.45; }
 .outil-section-attente:hover, .outil-section-attente:focus-within { opacity: 1; }
 .outil-section-courante > .outil-section-tete .outil-num { background: var(--focus); color: var(--blanc-fixe); }
 @media print { .outil-section-attente { opacity: 1; } }
+/* Constitution de dossier : les étapes pas encore atteintes restent pâles dans la barre (étude 24/10, comme les sections des outils). */
+.cst-sommaire wa-step:not([completed]):not(:state(active)) { opacity: 0.45; }
+.cst-sommaire wa-step:not([completed]):not(:state(active)):hover { opacity: 1; }

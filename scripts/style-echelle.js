@@ -6,7 +6,8 @@
 // style.css, et la liste des espacements permis ci-dessous. tests/style-uniforme.test.js refuse toute valeur hors échelle.
 // Exemptés : les blocs de jetons eux-mêmes (:root, [data-theme="dark"]), l'impression (@media print) et les zones papier
 // (courrier d'appel de fonds, feuille des quotités — identité papier de l'étude, hors thème), bornées dans style.css par
-// les commentaires « @papier » et « @fin-papier ».
+// les commentaires « @papier » et « @fin-papier » ; de même la marque (mot « Claire » et badge « Bêta » de la barre latérale,
+// valeurs exactes données par l'étude le 24/10), bornée par « @marque » et « @fin-marque ».
 
 /** Espacements permis (padding, margin, gap) en px : pas de 2 jusqu'à 16, puis 20, 24, 28, 32, 40, 48, 56, 64 ; au-delà,
  * un multiple de 8. */
@@ -82,6 +83,8 @@ function declarationsCss(css) {
       const commentaire = css.slice(i, fin < 0 ? n : fin + 2);
       if (/^\/\*\s*@papier\b/.test(commentaire)) papier = true;
       if (/^\/\*\s*@fin-papier\b/.test(commentaire)) papier = false;
+      if (/^\/\*\s*@marque\b/.test(commentaire)) papier = true;
+      if (/^\/\*\s*@fin-marque\b/.test(commentaire)) papier = false;
       // Le commentaire est remplacé par des espaces dans le tampon : les positions restent justes.
       tampon += ' '.repeat(commentaire.length);
       i += commentaire.length;
