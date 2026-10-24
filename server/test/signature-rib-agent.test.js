@@ -205,3 +205,18 @@ test('outil yousign_rib de l’agent CLAIRE : déclaré, non strict, sans aucune
   assert.deepEqual(o.input_schema.properties.action.enum, ['brouillon', 'statut']);
   assert.match(SYSTEME_AGENT, /yousign_rib/);
 });
+
+test('un document sans modèle (autorisation de fonds) : outils create-signature-request seulement, jamais l’envoi', async () => {
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'create-signature-request', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e2', name: 'add-signature-request-signer', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e3', name: 'send-signature-request', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e4', name: 'search-templates', evaluated_permission: 'ask' },
+    texte(LIEN), idle('end_turn')]);
+  const r = await service(c).creerBrouillon({ ...SIGNATAIRE, titre: 'Autorisation de déblocage de fonds - DUPONT Léa.pdf' });
+  assert.equal(r.ok, true);
+  const decisions = c.envoyes.filter((e) => e.events && e.events[0].type === 'user.tool_confirmation').map((e) => e.events[0].result);
+  assert.deepEqual(decisions, ['allow', 'allow', 'deny', 'deny']);
+  assert.match(c.envoyes[1].events[0].content[0].text, /create-signature-request pour créer un brouillon nommé « Autorisation de déblocage de fonds - DUPONT Léa\.pdf »/);
+  assert.doesNotMatch(c.envoyes[1].events[0].content[0].text, /search-templates/);
+});

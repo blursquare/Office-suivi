@@ -145,9 +145,10 @@ async function autGenererPdf(doc) {
 }
 
 // Le PDF d'une personne : { blob, nom, manques, remplaces }.
-async function autPdfDe(d, p, personnes) {
+async function autPdfDe(d, p, personnes, options) {
   const modele = autModeleDe(d, p);
-  const doc = autDocument(d, p, modele, personnes);
+  // Pour Yousign : sans « Fait à : / Le : », Yousign date et situe lui-même la signature.
+  const doc = options && options.sansLieuDate ? sansLieuDateAutorisation(autDocument(d, p, modele, personnes)) : autDocument(d, p, modele, personnes);
   const { blob, remplaces } = await autGenererPdf(doc);
   return { blob, nom: nomFichierAutorisation(modele, autPersonneDepuisFiche(d, p.nom, p.civilite)), manques: manquesAutorisation(doc), remplaces };
 }
@@ -205,6 +206,51 @@ async function envoyerAutorisationsSuccession(idDossier, noms) {
       if (res && res.ok) { ajouterHistorique(d, `Autorisation de fonds de ${p.nom} préparée par email`); sauvegarder(d); }
       else if (res && res.annule) break;
     } catch (err) { console.error(err); afficherToast('Email impossible à préparer : ' + (err && err.message ? err.message : 'erreur'), 'OK', null); break; }
+  }
+}
+
+// ---- Yousign (le brouillon est préparé par l'agent Yousign du serveur ; le PDF, téléchargé sans « Fait à / Le », se joint dans Yousign) ----
+
+async function envoyerYousignAutorisations(idDossier, noms) {
+  const d = dossiers.find(x => x.id === idDossier);
+  if (!d) return;
+  const personnes = autPersonnes(d);
+  const cibles = (noms || []).map(n => personnes.find(p => p.cle === autClePersonne(n))).filter(Boolean);
+  if (!cibles.length) { afficherToast('Aucune personne choisie.', 'OK', null); return; }
+  if (signatureRibEnCours) { afficherToast('Un brouillon Yousign est déjà en cours de préparation.', 'OK', null); return; }
+  // Ouvert avant toute attente : le navigateur n'autorise une fenêtre que dans le geste du clic.
+  const secours = signatureRibAuto === true ? null : window.open('https://yousign.app/', '_blank', 'noopener');
+  signatureRibEnCours = true;
+  try {
+    for (const p of cibles) {
+      const f = ficheClientDe(d, p.nom) || {};
+      const sig = autPersonneDepuisFiche(d, p.nom, p.civilite);
+      const signataire = signataireSignatureRib({ prenom: String(sig.prenoms || '').split(/\s+/)[0], nom: sig.nom, emails: p.emails, telephones: f.telephones || [] });
+      const r = await autPdfDe(d, p, personnes, { sansLieuDate: true });
+      telechargerFichier(r.blob, r.nom);
+      const manques = manquesSignatureRib(signataire);
+      if (manques.length) { afficherToast(`PDF téléchargé sans « Fait à / Le ». Pour Yousign, il manque sur la fiche : ${manques.join(', ')}.`, 'OK', null); continue; }
+      if (signatureRibAuto !== true) {
+        afficherToast(`PDF téléchargé sans « Fait à / Le » : ${secours ? 'Yousign est ouvert, créez la demande et joignez-le.' : 'ouvrez https://yousign.app/, créez la demande et joignez-le.'}`, 'OK', null);
+        continue;
+      }
+      afficherToast(`Préparation du brouillon Yousign pour ${signataire.prenom} ${signataire.nom}… (une minute au plus)`, 'OK', null, { fixe: true, cle: 'signature-aut' });
+      const rep = await fetchAvecAuth('/api/signature-rib/brouillon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ titre: r.nom.replace(/\.pdf$/i, '') }, signataire)) });
+      const j = await rep.json().catch(() => ({}));
+      if (typeof fermerToastFixe === 'function') fermerToastFixe('signature-aut');
+      if (rep.ok && j.ok && j.url) {
+        ajouterHistorique(d, `Autorisation de fonds de ${p.nom} : brouillon Yousign créé`);
+        sauvegarder(d);
+        afficherToast('Brouillon créé dans Yousign : joignez le PDF téléchargé (sans « Fait à / Le »), placez la signature, puis envoyez-le depuis Yousign.', 'Ouvrir', () => window.open(j.url, '_blank', 'noopener'), { fixe: true, cle: 'signature-aut' });
+      } else {
+        afficherToast(((j && j.raison) || 'Le brouillon n’a pas pu être préparé.') + ' Le PDF est téléchargé.', 'OK', null, { fixe: true, cle: 'signature-aut' });
+      }
+    }
+  } catch (e) {
+    console.error(e);
+    afficherToast('Le PDF ou le brouillon n’a pas pu être préparé.', 'OK', null);
+  } finally {
+    signatureRibEnCours = false;
   }
 }
 
@@ -330,6 +376,7 @@ function autRendreCorps() {
       <span class="cst-item-actions" onclick="event.stopPropagation()">
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Télécharger le PDF" aria-label="Télécharger le PDF de ${escapeAttr(p.nom)}" onclick="telechargerAutorisationsSuccession('${idJs}', ['${nomJs}'])">${icone('download')}</wa-button>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Envoyer par email${p.emails.length ? ' à ' + escapeAttr(p.emails[0]) : ''}" aria-label="Envoyer par email à ${escapeAttr(p.nom)}" onclick="envoyerAutorisationsSuccession('${idJs}', ['${nomJs}'])">${icone('mail')}</wa-button>
+        <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Envoyer sur Yousign (sans « Fait à / Le »)" aria-label="Envoyer sur Yousign à ${escapeAttr(p.nom)}" onclick="envoyerYousignAutorisations('${idJs}', ['${nomJs}'])">${icone('pencil')}</wa-button>
       </span></div>`;
   }).join('');
   const courant = personnes.find(p => p.cle === autEtat.courant);
@@ -352,6 +399,7 @@ function autRendreCorps() {
         <span class="aut-barre-actions">
           <button type="button" class="lien-action" onclick="autToutCocher(${choisies.length < personnes.length})">${choisies.length < personnes.length ? 'Tout cocher' : 'Tout décocher'}</button>
           <wa-button appearance="outlined" size="s" type="button"${choisies.length ? '' : ' disabled'} onclick="envoyerAutorisationsSuccession('${idJs}', ${noms(choisies)})">${icone('mail')}Envoyer par email${choisies.length ? ` (${choisies.length})` : ''}</wa-button>
+          <wa-button appearance="outlined" size="s" type="button"${choisies.length ? '' : ' disabled'} onclick="envoyerYousignAutorisations('${idJs}', ${noms(choisies)})" title="PDF sans « Fait à / Le » téléchargé, brouillon préparé dans Yousign">${icone('pencil')}Envoyer sur Yousign${choisies.length ? ` (${choisies.length})` : ''}</wa-button>
           <wa-button variant="brand" size="s" type="button"${choisies.length ? '' : ' disabled'} onclick="telechargerAutorisationsSuccession('${idJs}', ${noms(choisies)})">${icone('download')}Télécharger${choisies.length ? ` (${choisies.length})` : ''}</wa-button>
         </span>
       </div>

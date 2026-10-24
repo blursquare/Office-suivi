@@ -21569,3 +21569,9 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 - Inchangés : cartes « Autoriser / Refuser », masquage par le serveur, aucun email sans « Envoyer », aucun envoi Yousign, recherche web aux sites officiels. Nouveauté : audit sécurité/qualité à faire avant publication sur `main`.
 
 - **0.331.1** : étude 24/10 « juste le texte du bouton » — l'icône crayon de la ligne RIB est remise, seul le libellé reste « Envoyer » / « Renvoyer ».
+
+## 0.332.0 — 24/10/2026 — Autorisations de fonds : « Envoyer sur Yousign »
+
+Étude : « dans l'outil déblocage des fonds, rajouter un bouton envoyer sur Yousign : si c'est envoyé, retirer du courrier Fait à : Le »
+- `commun/autorisations-succession.js` : `sansLieuDateAutorisation` retire les paragraphes exactement « Fait à : » et « Le : » et les lignes vides finales (Yousign date et situe la signature) ; `client/108` : `envoyerYousignAutorisations` (bouton par personne et pour les personnes cochées) télécharge ce PDF-là puis, si l'agent Yousign est utilisable, `POST /api/signature-rib/brouillon` avec `titre` (nom du PDF) : le serveur crée un brouillon SANS modèle (`consigneBrouillonDocument` ; outils permis `create-signature-request`, `add-signature-request-signer`, `search-workspaces`, jamais l'envoi). Aucun document ne passe par CLAIRE : le PDF se joint dans Yousign. Sans agent : le PDF est téléchargé et https://yousign.app/ s'ouvre. Le téléchargement et l'email gardent « Fait à / Le ».
+- Point terrain `signature-rib-claude` (même agent), **non vérifié** : le brouillon sans modèle et son signataire dans un vrai compte Yousign. Nouveauté : audit sécurité/qualité à faire avant publication sur `main`.

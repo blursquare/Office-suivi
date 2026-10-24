@@ -8,11 +8,12 @@
 // l'étude dans Yousign. Les valeurs du signataire sont des données : revalidées ici, jamais prises telles quelles du poste.
 // Identifiants (agent, environnement, coffre) : `config.json` (agentYousignId, agentYousignEnvironnement, agentYousignVault), sinon ceux de l'étude.
 
-const { telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib } = /** @type {any} */ (require('../../commun/signature-rib'));
+const { telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib, consigneBrouillonDocument } = /** @type {any} */ (require('../../commun/signature-rib'));
 
 const AGENT_PAR_DEFAUT = 'agent_01B92Dko9uhJ2RSRb3giDcrV';
 const ENVIRONNEMENT_PAR_DEFAUT = 'env_01GhpfYHqbJcaFA9PDvdF1YY';
 const OUTILS_PERMIS = new Set(['search-templates', 'create-signature-request-from-template']);
+const OUTILS_DOCUMENT = new Set(['create-signature-request', 'add-signature-request-signer', 'search-workspaces']);
 const OUTILS_LECTURE = new Set(['get-signature-request', 'get-signature-request-signer']);
 const RE_ID_DEMANDE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DELAI_MS = 150000;
@@ -123,7 +124,10 @@ function creerSignatureRibAgent(o = {}) {
     if (enCours) return { ok: false, code: 'occupe', raison: 'Un brouillon est déjà en cours de préparation. Réessayez dans un instant.' };
     enCours = (async () => {
       try {
-        const r = await seance(creerClient(k), consigneSignatureRib(s), reglagesAgentYousign(o.config));
+        const titre = typeof b.titre === 'string' ? b.titre.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) : '';
+        const r = titre
+          ? await seance(creerClient(k), consigneBrouillonDocument(titre, s), reglagesAgentYousign(o.config), OUTILS_DOCUMENT)
+          : await seance(creerClient(k), consigneSignatureRib(s), reglagesAgentYousign(o.config));
         if (r.fin === 'delai') return { ok: false, code: 'delai', raison: 'L’agent n’a pas répondu à temps. Vérifiez dans Yousign si un brouillon a été créé avant de recommencer.' };
         if (r.fin === 'termine' || r.fin === 'ferme' || r.fin === 'epuise') return { ok: false, code: 'echec', raison: 'La session de l’agent s’est arrêtée avant la fin.' };
         const m = RE_BROUILLON.exec(r.reponse);
@@ -169,4 +173,4 @@ function creerSignatureRibAgent(o = {}) {
   return { disponibilite, creerBrouillon, lireStatut };
 }
 
-module.exports = { creerSignatureRibAgent, OUTILS_LECTURE, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };
+module.exports = { creerSignatureRibAgent, OUTILS_LECTURE, OUTILS_DOCUMENT, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };
