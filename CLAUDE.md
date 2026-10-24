@@ -27,7 +27,7 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   ni `HEAD:main`, ni merge local puis push, même pour un changement minuscule ou pour le rapport lui-même ; si la demande de
   fusion ne peut pas être ouverte, laisser la branche poussée et le dire dans l'issue. Le push direct sur `main` reste réservé
   aux sessions où l'étude suit le travail en direct.
-- **Rien sur `main` entre 19 h et 8 h, heure de Paris — nouveauté ni correction** (étude 18/10 : « je ne suis pas au bureau pour
+- **Rien sur `main` entre 19 h et 8 h, heure de Paris, ni le samedi ni le dimanche (étude 24/10) — nouveauté ni correction** (étude 18/10 : « je ne suis pas au bureau pour
   tester », puis « bloque aussi les corrections la nuit ») : la garde de publication (`horsHeuresBureau` de `scripts/garde-publication.js`)
   refuse tout envoi sur `main` dans cette plage ; le travail reste poussé sur la branche et part sur `main` à partir de 8 h.
 - La version 100 % locale (sans serveur, `localStorage`) n'est plus maintenue ; son dernier état

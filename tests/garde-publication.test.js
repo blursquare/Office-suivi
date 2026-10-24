@@ -71,11 +71,20 @@ test('garde : découpe une ligne de commande sans couper dans les guillemets', (
 
 test('garde : rien ne part sur main entre 19 h et 8 h (heure de Paris, étude 18/10)', () => {
   // Octobre = heure d'été (UTC+2), décembre = heure d'hiver (UTC+1).
-  assert.equal(G.heureParis(new Date('2026-10-18T16:59:00Z')), 18);
-  assert.equal(G.horsHeuresBureau(new Date('2026-10-18T16:59:00Z')), false);
-  assert.equal(G.horsHeuresBureau(new Date('2026-10-18T17:00:00Z')), true); // 19 h
+  assert.equal(G.heureParis(new Date('2026-10-16T16:59:00Z')), 18);
+  assert.equal(G.horsHeuresBureau(new Date('2026-10-16T16:59:00Z')), false);
+  assert.equal(G.horsHeuresBureau(new Date('2026-10-16T17:00:00Z')), true); // 19 h
   assert.equal(G.horsHeuresBureau(new Date('2026-10-19T05:59:00Z')), true); // 7 h 59
   assert.equal(G.horsHeuresBureau(new Date('2026-10-19T06:00:00Z')), false); // 8 h
   assert.equal(G.horsHeuresBureau(new Date('2026-12-15T17:30:00Z')), false); // 18 h 30 l'hiver
   assert.equal(G.horsHeuresBureau(new Date('2026-12-15T18:00:00Z')), true); // 19 h l'hiver
+});
+
+test('garde : rien ne part sur main le week-end, même en pleine journée (étude 24/10)', () => {
+  assert.equal(G.weekEndParis(new Date('2026-10-24T10:00:00Z')), true); // samedi
+  assert.equal(G.weekEndParis(new Date('2026-10-25T10:00:00Z')), true); // dimanche
+  assert.equal(G.weekEndParis(new Date('2026-10-23T22:30:00Z')), true); // samedi 0 h 30 à Paris
+  assert.equal(G.weekEndParis(new Date('2026-10-26T10:00:00Z')), false); // lundi
+  assert.equal(G.horsHeuresBureau(new Date('2026-10-24T10:00:00Z')), true);
+  assert.equal(G.horsHeuresBureau(new Date('2026-10-26T10:00:00Z')), false);
 });

@@ -21532,3 +21532,6 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 ## 0.325.1 — 23/10/2026 17:38 — lien claire-web : profil Chrome habituel
 
 Étude : après import du .reg, « le lien s'ouvre dans une fenêtre Chrome dans l'environnement de CLAIRE ». Cause : `chrome.exe <url>` sans profil rouvre le DERNIER profil utilisé, celui de la fenêtre CLAIRE (profil `Claire` / `ClaireServeur`). `scriptLiensWeb` (`server/src/relaisAppelReg.js`) lit `Local State` de Chrome et passe `--profile-directory=` : `Default`, sinon le premier profil dont le nom ne commence pas par « Claire » ; repli sur l'ouverture par défaut. **À réimporter** : la commande est dans le .reg (une fois par poste). **Non vérifié sur un vrai Windows.** Test `server/test/appels.test.js`.
+
+### 24/10/2026 — Garde de publication : week-end
+Étude : pas d'envoi sur `main` le week-end (bureau fermé). `weekEndParis` dans `scripts/garde-publication.js`, test dans `tests/garde-publication.test.js`.
