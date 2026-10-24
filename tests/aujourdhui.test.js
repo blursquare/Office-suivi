@@ -38,15 +38,20 @@ test('sans email, la relance de l’offre ouvre la fiche au lieu d’un brouillo
 
 test('avant la signature : appel de fonds, puis projet, confirmation des fonds et RIB', () => {
   const base = { rendezVousSignature: '2026-09-30', sansPret: true };
-  assert.strictEqual(types(app.actionsDuJour([dossier(base)], AUJ)), 'appelFonds,rib');
+  // À 2 jours du rendez-vous : la fiche de signature est aussi à imprimer (étude 24/10).
+  assert.strictEqual(types(app.actionsDuJour([dossier(base)], AUJ)), 'appelFonds,rib,ficheSignature');
   const apresAppel = dossier(Object.assign({}, base, { appelFonds: '2026-09-21', echeancesValidees: { appelFonds: true } }));
   // À 3 jours du rendez-vous sans fonds relevés : la relance des fonds remplace « Confirmer la réception » (étude, 03/10).
-  assert.strictEqual(types(app.actionsDuJour([apresAppel], AUJ)), 'projetEnvoye,relanceFonds,rib');
+  assert.strictEqual(types(app.actionsDuJour([apresAppel], AUJ)), 'projetEnvoye,relanceFonds,rib,ficheSignature');
   const tout = dossier(Object.assign({}, base, {
     appelFonds: '2026-09-21', projetEnvoye: '2026-09-24', receptionFondsConfirmeeLe: '2026-09-25', ribDemandeLe: '2026-09-26',
     echeancesValidees: { appelFonds: true, projetEnvoye: true }
   }));
-  assert.strictEqual(types(app.actionsDuJour([tout], AUJ)), '');
+  assert.strictEqual(types(app.actionsDuJour([tout], AUJ)), 'ficheSignature');
+  // Fiche de signature téléchargée pour CE rendez-vous : plus rien à faire ; un rendez-vous déplacé la redemande.
+  const imprimee = Object.assign({}, tout, { ficheSignatureImprimeePour: app.cleVeilleSignature(tout) });
+  assert.strictEqual(types(app.actionsDuJour([imprimee], AUJ)), '');
+  assert.strictEqual(types(app.actionsDuJour([Object.assign({}, imprimee, { rendezVousSignature: '2026-09-29' })], AUJ)), 'ficheSignature');
   // Le RIB déjà demandé par l'ancienne relance (historique seul) compte aussi.
   const ancien = dossier(Object.assign({}, base, { historique: [{ date: '2026-09-20T09:00:00Z', texte: 'Relance manuelle envoyée — RIB' }] }));
   assert.ok(!types(app.actionsDuJour([ancien], AUJ)).includes('rib'));
@@ -238,7 +243,7 @@ test('Emails du matin : plus affichés à personne (étude 07/10 : « retire les
 test('acquéreur accompagné par un confrère : pas de RIB, provision et pièce d’identité demandées au confrère', () => {
   const confrere = { notaireVendeur: 'Maître Sophie GOSSART (Blois)', notaireAcquereur: 'Maître Jules VERNAY (Cellettes)',
     emailNotaireParticipant: 'office.vernay@notaires.fr', rendezVousSignature: '2026-09-30', sansPret: true };
-  assert.strictEqual(types(app.actionsDuJour([dossier(confrere)], AUJ)), 'appelFonds');
+  assert.strictEqual(types(app.actionsDuJour([dossier(confrere)], AUJ)), 'appelFonds,ficheSignature');
   // Onglet Échanges : pas de RIB ; la provision et la pièce d'identité restent demandées au confrère.
   const e = app.echangesSelonStade(dossier(confrere), AUJ);
   const tout = e.utiles.concat(e.autres).join(',');
@@ -509,4 +514,18 @@ test('tâche demandée par un collègue : dans « Aujourd’hui » dès son arri
   ], AUJ);
   assert.equal(r.aFaire.map(x => x.id).join(','), 'b,a', 'la demande passe en tête, la date à venir ne la cache pas');
   assert.equal(r.aVenir.map(x => x.id).join(','), 'c', 'elle n’est pas aussi dans « À venir »');
+});
+
+test('« Imprimer la fiche dossier » : tâche 48 h avant le rendez-vous, avec son geste, jamais pour une succession ni plus tôt', () => {
+  const d = dossier({ rendezVousSignature: '2026-09-30', rendezVousSignatureHeure: '10:00', sansPret: true });
+  const r = app.actionsDuJour([d], AUJ);
+  const t = r.actions.find(a => a.type === 'ficheSignature');
+  assert.ok(t);
+  assert.strictEqual(t.titre, 'Imprimer la fiche dossier');
+  assert.strictEqual(t.geste.type, 'ficheSignature');
+  assert.strictEqual(app.themeTache(t), 'avant');
+  // Rendez-vous plus lointain : pas encore.
+  assert.ok(!types(app.actionsDuJour([Object.assign({}, d, { rendezVousSignature: '2026-10-02' })], AUJ)).includes('ficheSignature'));
+  // Succession : jamais.
+  assert.ok(!types(app.actionsDuJour([Object.assign({}, d, { typeAffaire: 'succession' })], AUJ)).includes('ficheSignature'));
 });

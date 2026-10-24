@@ -283,6 +283,19 @@
         }
       }
 
+      // 2 bis. Fiche de signature à imprimer pour le dossier, 48 h avant le rendez-vous (dès le vendredi 17 h si ces 48 h tombent un
+      //    week-end) — étude 24/10 : « une tâche pour le collaborateur : Imprimer la fiche dossier ». Faite dès que le PDF est téléchargé
+      //    pour CE rendez-vous (telechargerFicheSignature), ou par « Déjà fait ».
+      if (jRdv !== null && jRdv >= 0 && !succession && ficheSignatureAImprimer(d, aujourdhuiIso)) {
+        ajouter({
+          type: 'ficheSignature', categorie: 'rendezVousSignature', categorieLabel: 'Rendez-vous de signature',
+          titre: 'Imprimer la fiche dossier',
+          contexte: `${phraseSignature(d, aujourdhuiIso)}. Échéances, pièces et procédure des fonds, déjà cochées d’après CLAIRE : à imprimer pour le dossier.`,
+          jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
+          geste: { type: 'ficheSignature' }, bouton: 'Voir la fiche'
+        });
+      }
+
       // 3. Après la signature, d'abord (étude 07/10 : « juste avant l'étape questionnaire ») — participation : la copie de l'acte /
       //    l'attestation de vente à notre client, une fois l'acte signé chez le confrère (étude 07/10 : « ajoute à À faire » — elle
       //    n'était que dans l'onglet Échanges, jamais rappelée). Même titre et même geste que la
@@ -782,6 +795,9 @@
     } else if (geste.type === 'appelFonds') {
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
+    } else if (geste.type === 'ficheSignature') {
+      fermerFenetreAujourdhui();
+      ouvrirVeilleSignature(id);
     } else if (geste.type === 'copieActe') {
       fermerFenetreAujourdhui();
       ouvrirEnvoiCopieActe(id);
@@ -834,7 +850,7 @@
     pret: 'derniereRelanceAuto', rib: 'ribDemandeLe', fonds: 'receptionFondsConfirmeeLe',
     questionnaire: 'questionnaireEnvoyeLe', questionnaireVendeur: 'questionnaireVendeurEnvoyeLe', questionnaireSuccession: 'questionnaireSuccessionEnvoyeLe', appelFonds: 'appelFonds', projetEnvoye: 'projetEnvoye',
     ventePrealable: 'relanceVentePrealableLe', relanceFonds: 'relanceFondsLe', relanceDecompteConfrere: 'relanceDecompteConfrereLe', relanceTitreConfrere: 'relanceTitreConfrereLe',
-    copieActe: 'copieActeEnvoyeeLe', actePret: 'actePretLe', dodEnvoi: 'dodEnvoyeeLe', dodAttendue: 'dodRecueLe'
+    copieActe: 'copieActeEnvoyeeLe', ficheSignature: 'ficheSignatureImprimeeLe', actePret: 'actePretLe', dodEnvoi: 'dodEnvoyeeLe', dodAttendue: 'dodRecueLe'
   };
 
   // Tâches qui SONT une échéance du dossier : la case ronde coche l'échéance (même geste que sur la fiche, décochable par « Annuler »),
@@ -886,6 +902,11 @@
         if (a.type === 'relanceFonds') {
           annulation.champsDossier.relanceFondsPour = d.relanceFondsPour || null;
           d.relanceFondsPour = d.rendezVousSignature || '';
+        }
+        // La fiche de signature vaut pour UN rendez-vous (ficheSignatureAImprimer lit ficheSignatureImprimeePour).
+        if (a.type === 'ficheSignature') {
+          annulation.champsDossier.ficheSignatureImprimeePour = d.ficheSignatureImprimeePour || null;
+          d.ficheSignatureImprimeePour = cleVeilleSignature(d);
         }
         if (a.type === 'relanceDecompteConfrere') {
           annulation.champsDossier.relanceDecompteConfrerePour = d.relanceDecompteConfrerePour || null;
@@ -1078,7 +1099,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', ficheSignature: 'Imprimer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
@@ -1088,6 +1109,7 @@
     if (!a.geste) return icone('folder');
     if (a.geste.type === 'email' || a.geste.type === 'questionnaire' || a.geste.type === 'dod') return icone('mail');
     if (a.geste.type === 'marquer') return icone('check');
+    if (a.geste.type === 'ficheSignature') return icone('printer');
     if (a.geste.type === 'appelFonds' || a.geste.type === 'copieActe') return icone('file-text');
     return icone('folder');
   }

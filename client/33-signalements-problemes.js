@@ -1073,6 +1073,32 @@
     return etat;
   }
 
+  // Teintes des tuiles d'échéance de la fiche imprimée (mêmes valeurs que --acte/--ventebien, voir imprimerFiche).
+  var TEINTES_FICHE_IMPRIMEE = {
+    pret:  { fond: '#FBEFD9', barre: '#B07A12' },
+    acte:  { fond: '#E2E7F0', barre: '#1E3A63' },
+    vente: { fond: '#E3EEF7', barre: '#2472B0' },
+    autre: { fond: '#EEEEEE', barre: '#8A93A9' },
+    appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },
+    // projetEnvoye : même teinte neutre que "autre" (--muted en écran), pas de couleur de
+    // catégorie dédiée — comme appelFonds/rendezVous, une échéance manuelle hors extraction.
+    projetEnvoye: { fond: '#F7E6EF', barre: '#B83E78' },
+    rendezVous: { fond: '#E4F2EA', barre: '#2F8F5B' }
+  };
+
+  // Pure : les échéances de la fiche imprimée (une tuile chacune, teinte de TEINTES_FICHE_IMPRIMEE) — reprises par la fiche de signature (client/109).
+  function casesFicheImprimee(d) {
+    return [
+      d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
+      d.appelFonds ? { cls: 'appelFonds', label: 'Envoi appel de fonds', date: d.appelFonds } : null,
+      d.projetEnvoye ? { cls: 'projetEnvoye', label: 'Envoi projet', date: d.projetEnvoye } : null,
+      d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
+      d.rendezVousSignature ? { cls: 'rendezVous', label: 'Rendez-vous de signature', date: d.rendezVousSignature } : null,
+      d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
+      ...(d.autres || []).map(a => ({ cls: 'autre', label: a.label, date: a.date }))
+    ].filter(Boolean);
+  }
+
   function imprimerFiche(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -1090,27 +1116,8 @@
     // l'extraction) — appelFonds reprend la teinte neutre "autre" (--muted), rendezVous reprend
     // celle de "acte" (--acte), dont il est la précision (le rendez-vous EST la signature, juste
     // daté précisément) — aucune couleur inventée pour l'occasion.
-    const TEINTES = {
-      pret:  { fond: '#FBEFD9', barre: '#B07A12' },
-      acte:  { fond: '#E2E7F0', barre: '#1E3A63' },
-      vente: { fond: '#E3EEF7', barre: '#2472B0' },
-      autre: { fond: '#EEEEEE', barre: '#8A93A9' },
-      appelFonds: { fond: '#EEE9F7', barre: '#7C5CBF' },
-      // projetEnvoye : même teinte neutre que "autre" (--muted en écran), pas de couleur de
-      // catégorie dédiée — comme appelFonds/rendezVous, une échéance manuelle hors extraction.
-      projetEnvoye: { fond: '#F7E6EF', barre: '#B83E78' },
-      rendezVous: { fond: '#E4F2EA', barre: '#2F8F5B' }
-    };
-
-    const cases = [
-      d.pret ? { cls: 'pret', label: 'Obtention du prêt', date: d.pret } : null,
-      d.appelFonds ? { cls: 'appelFonds', label: 'Envoi appel de fonds', date: d.appelFonds } : null,
-      d.projetEnvoye ? { cls: 'projetEnvoye', label: 'Envoi projet', date: d.projetEnvoye } : null,
-      d.acte ? { cls: 'acte', label: "Signature de l'acte", date: d.acte } : null,
-      d.rendezVousSignature ? { cls: 'rendezVous', label: 'Rendez-vous de signature', date: d.rendezVousSignature } : null,
-      d.ventebien ? { cls: 'vente', label: 'Vente préalable', date: d.ventebien } : null,
-      ...(d.autres || []).map(a => ({ cls: 'autre', label: a.label, date: a.date }))
-    ].filter(Boolean);
+    const TEINTES = TEINTES_FICHE_IMPRIMEE;
+    const cases = casesFicheImprimee(d);
 
     function ligneParPaquets(items, parLigne, rendu) {
       let html = '';

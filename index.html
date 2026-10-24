@@ -2593,6 +2593,13 @@
   </div>
 </div>
 
+<!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/109-veille-signature.js). -->
+<div class="confirm-overlay" id="veille-signature-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerVeilleSignature(); this.dataset.fond = ''">
+  <div class="confirm-box nas-choix-box veille-box" role="dialog" aria-modal="true" aria-label="Fiche de signature">
+    <div id="veille-signature-contenu"></div>
+  </div>
+</div>
+
 <div class="confirm-overlay" id="nas-choix-overlay" style="display:none;">
   <div class="confirm-box nas-choix-box">
     <p id="nas-choix-intro"></p>
@@ -2951,5 +2958,6 @@
 <script src="client/106-yousign.js"></script>
 <script src="client/107-appel-fonds-saisie-nas.js"></script>
 <script src="client/108-autorisations-succession.js"></script>
+<script src="client/109-veille-signature.js"></script>
 </body>
 </html>

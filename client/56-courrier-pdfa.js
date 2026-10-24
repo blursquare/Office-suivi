@@ -17,6 +17,9 @@
 
   var URL_PDF_LIB_PDFA = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
   var URL_FONTKIT_PDFA = 'https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js';
+// Empreintes SRI de ces deux fichiers exacts (versions figées, calculées le 24/10/2026 et identiques à celles des paquets npm) — à recalculer avec la version.
+var SRI_PDF_LIB_PDFA = 'sha384-weMABwrltA6jWR8DDe9Jp5blk+tZQh7ugpCsF3JwSA53WZM9/14PjS5LAJNHNjAI';
+var SRI_FONTKIT_PDFA = 'sha384-2p6U+1mmqF10USehFeRiyG2ESG9FwIqN+jxULn5w9jjQIihSn9Pt13dVCn/Hawjn';
   var POLICES_COURRIER_PDFA = {
     serif: 'vendor/polices/courrier/LiberationSerif-Regular.ttf',
     serifGras: 'vendor/polices/courrier/LiberationSerif-Bold.ttf',
@@ -179,8 +182,8 @@
     if (outilsPdfAEnCours) return outilsPdfAEnCours;
     outilsPdfAEnCours = (async () => {
       await chargerModeleAppelFonds();
-      if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA);
-      if (!window.fontkit) await afChargerScript(URL_FONTKIT_PDFA);
+      if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA, SRI_PDF_LIB_PDFA);
+      if (!window.fontkit) await afChargerScript(URL_FONTKIT_PDFA, SRI_FONTKIT_PDFA);
       const polices = {};
       await Promise.all(Object.keys(POLICES_COURRIER_PDFA).map(async cle => {
         const r = await fetch(POLICES_COURRIER_PDFA[cle]);

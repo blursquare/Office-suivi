@@ -107,5 +107,6 @@
   "105-taches-widget.js",
   "106-yousign.js",
   "107-appel-fonds-saisie-nas.js",
-  "108-autorisations-succession.js"
+  "108-autorisations-succession.js",
+  "109-veille-signature.js"
 ]

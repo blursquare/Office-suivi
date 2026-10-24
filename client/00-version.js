@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.325.1';
+  const VERSION_APP = '0.326.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.326.0', date: '2026-10-24 08:47', resume: "Ventes : une fiche de signature à imprimer pour le dossier. 48 h avant le rendez-vous (dès le vendredi 17 h pour un rendez-vous du lundi ou du mardi tôt), un pop-up propose de télécharger le PDF, sur le modèle de l’ancienne fiche imprimée : les échéances (le rendez-vous avec son heure), les pièces à réclamer, les engagements du vendeur, puis les neuf étapes de la procédure des fonds, chacune avec sa case cochée en vert et sa date quand CLAIRE sait que c’est fait. Le pop-up s’ouvre seulement quand on va sur la fiche du dossier (une seule fois par rendez-vous) : l’aperçu de la fiche préremplie, avec une case et une date à remplir sur chaque étape non faite et un cadre de notes, imprimés dans le PDF ; il indique aussi les conditions à lever (prêt, préemption, SAFER, pièces, fonds). La même fiche s’ouvre à tout moment par le bouton « Fiche de signature » de l’onglet Dossier. Une tâche « Imprimer la fiche dossier » apparaît aussi dans « À faire » à la même heure, faite dès que la fiche est téléchargée." },
     { version: '0.325.1', date: '2026-10-23 17:38', resume: "Liens externes : un lien s’ouvre maintenant dans le profil Chrome habituel (et non dans une fenêtre de l’environnement de CLAIRE). Il faut importer de nouveau le fichier .reg (Réglages › Ouvrir les liens dans Chrome › Télécharger le fichier d’installation)." },
     { version: '0.325.0', date: '2026-10-23 13:55', resume: "Yousign : « Demander à CLAIRE » peut lire Yousign par le connecteur MCP de Claude, comme dans Claude (Réglages › Yousign › « Lire par le connecteur MCP de Claude », éteint par défaut). Lecture seule : état d’une demande, signataires ; aucune écriture par ce biais. Les noms des signataires arrivent alors à l’IA sans masquage ; avec Mistral, ou éteint, CLAIRE lit elle-même, noms masqués." },
     { version: '0.324.1', date: '2026-10-23 13:33', resume: "Les pages d’accueil de « Constitution de dossier » et de « Autorisations de fonds » sont centrées aussi en hauteur." },

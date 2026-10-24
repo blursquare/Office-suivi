@@ -1235,6 +1235,7 @@
     // Passer d'une fiche à une autre (onglets) vaut fermeture pour la première : ses notifications sont vues.
     if (dossierOuvert && dossierOuvert !== id) marquerNotificationsVuesDossier(dossierOuvert);
     dossierOuvert = id;
+    try { proposerVeilleSignatureFiche(id); } catch (e) { noterJournalTechnique({ categorie: 'erreur-poste', message: `Fiche de signature (ouverture de la fiche) : ${(e && e.message) || e}`, source: 'rendu' }); /* jamais bloquant : la fiche s'ouvre quoi qu'il arrive */ }
     noterOngletDossier(id);   // un onglet par fiche ouverte (client/60-onglets-travail.js)
     noterDossierConsulte(id);
     // Dossiers d'Authentic relevés récemment, pour « Tout reprendre d'Authentic » du panneau de la fiche (étude 06/10, 19/10).
