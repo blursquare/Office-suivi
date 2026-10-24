@@ -7926,6 +7926,8 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-barre > :last-child { padding-bottom: 0; }
 .suivi-barre > * + * { border-top: 1px solid var(--line); }
 .suivi-barre-ligne { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* La marge basse générale des <label> (6 px) décalait la recherche et les filtres de 3 px au-dessus des boutons et grandissait la ligne. */
+.suivi-barre-ligne > label { margin: 0; }
 .suivi-barre-recherche { gap: 14px; }
 .suivi-recherche { position: relative; flex: 1 1 auto; min-width: 0; display: flex; }
 .suivi-recherche-icone { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); display: inline-flex; color: var(--muted); pointer-events: none; }
@@ -7947,8 +7949,9 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 .suivi-plus-filtres { flex: none; }
 .suivi-plus-filtres.actif::part(base),
 .suivi-plus-filtres.actif:hover::part(base) { border-color: var(--focus); color: var(--focus); }
-/* Panneau fermé : la ligne de recherche est la dernière visible de la carte. */
-.suivi-barre:not(.plus-ouvert) > .suivi-barre-recherche { padding-bottom: 0; }
+/* Panneau fermé et aucune pastille de statut dessous : la ligne de recherche est la dernière visible de la carte. Avec les pastilles,
+   elle garde ses 12 px sous elle (sinon le liseré collait à la recherche, 12 px au-dessus des pastilles — étude 24/10). */
+.suivi-barre:not(.plus-ouvert) > .suivi-barre-recherche:not(:has(~ .suivi-statuts:not(:empty))) { padding-bottom: 0; }
 .suivi-plus-compte { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 6px; border-radius: var(--rayon-pilule); background: var(--focus); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; }
 .suivi-plus-compte[hidden] { display: none; }
 .suivi-plus-annonce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
