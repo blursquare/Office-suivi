@@ -185,10 +185,17 @@ function heureParis(date) {
   return Number((parties.find((p) => p.type === 'hour') || { value: '0' }).value) % 24;
 }
 
-/** Pure : hors des heures de bureau de l'étude — de 19 h à 8 h (heure de Paris), personne pour essayer ce qui s'installe (étude 18/10). @param {Date} date */
+/** Pure : samedi ou dimanche à Paris (étude 24/10 : « pas le week-end »). @param {Date} date */
+function weekEndParis(date) {
+  const jour = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', weekday: 'short' }).format(date);
+  return jour === 'Sat' || jour === 'Sun';
+}
+
+/** Pure : hors des heures de bureau de l'étude — de 19 h à 8 h (heure de Paris, étude 18/10) et tout le week-end (étude 24/10) :
+ * personne pour essayer ce qui s'installe. @param {Date} date */
 function horsHeuresBureau(date) {
   const h = heureParis(date);
-  return h >= HEURE_FIN_BUREAU || h < HEURE_DEBUT_BUREAU;
+  return weekEndParis(date) || h >= HEURE_FIN_BUREAU || h < HEURE_DEBUT_BUREAU;
 }
 
 function git(args, opts = {}) { return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], ...opts }).trim(); }
@@ -257,10 +264,13 @@ function crochet() {
   if (sources.includes('*')) return refuser('envoi qui ne désigne pas une seule source (--all, *, alias) — pousser explicitement HEAD:main.');
   // Avant les marques : inutile de lancer les tests la nuit pour apprendre ensuite que l'heure bloque.
   // Étude 18/10 : « entre 19 h et 8 h le lendemain tu n'envoies plus les nouveautés sur main, je ne suis pas au bureau pour tester »,
-  // puis « bloque aussi les corrections la nuit » : un .exe s'installe seul au bureau, personne n'est là pour l'essayer.
+  // puis « bloque aussi les corrections la nuit » : un .exe s'installe seul au bureau, personne n'est là pour l'essayer. Étude 24/10 : « pas le week-end ».
   const maintenant = new Date();
+  if (weekEndParis(maintenant)) {
+    return refuser(`on est le week-end à Paris : rien ne part sur main le samedi ni le dimanche (nouveauté ni correction), l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main le lundi à partir de ${HEURE_DEBUT_BUREAU} h.`);
+  }
   if (horsHeuresBureau(maintenant)) {
-    return refuser(`il est ${heureParis(maintenant)} h à Paris : entre ${HEURE_FIN_BUREAU} h et ${HEURE_DEBUT_BUREAU} h, rien ne part sur main (nouveauté ni correction), l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main à partir de ${HEURE_DEBUT_BUREAU} h.`);
+    return refuser(`il est ${heureParis(maintenant)} h à Paris : entre ${HEURE_FIN_BUREAU} h et ${HEURE_DEBUT_BUREAU} h, rien ne part sur main (nouveauté ni correction), l'étude n'est pas au bureau pour l'essayer. Laisser la branche poussée et envoyer sur main ${weekEndParis(new Date(maintenant.getTime() + 12 * 3600 * 1000)) ? 'le lundi ' : ''}à partir de ${HEURE_DEBUT_BUREAU} h.`);
   }
   for (const src of sources) {
     const manque = etapesManquantes(src);
@@ -282,4 +292,4 @@ if (require.main === module) {
   process.exit(code);
 }
 
-module.exports = { heureParis, horsHeuresBureau, sansDocumentsEnLigne, segmentsCommande, motsSegment, sourcesVersMain, commandePousseVersMain, commandeChangeMainSurGithub, outilGithubChangeMain };
+module.exports = { heureParis, weekEndParis, horsHeuresBureau, sansDocumentsEnLigne, segmentsCommande, motsSegment, sourcesVersMain, commandePousseVersMain, commandeChangeMainSurGithub, outilGithubChangeMain };
