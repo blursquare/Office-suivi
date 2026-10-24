@@ -21735,3 +21735,8 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 - **CLAIRE dans les canaux, comme Claude dans Slack** : `claireDoitRepondreCanal(texte, claireRepond, collaborateurs, canalId)` — dans le canal d'un dossier ou un canal libre, seulement si on la cite (@CLAIRE) ; dans « général », elle répond à tout sauf à un message adressé à un collègue (@Prénom) ; l'interrupteur « CLAIRE répond / Note à l'équipe » n'existe plus que dans « général ».
 - **Doublons retirés** de la colonne de droite d'un canal de dossier : bouton « Ouvrir la fiche » (déjà dans l'en-tête), sélecteur de dossier (le canal EST le dossier), bloc « Notifications du canal » (la cloche de l'en-tête fait la même chose ; la note sur Teams est passée dans son menu).
 
+### 24/10/2026 — Garde de publication : week-end
+Étude : pas d'envoi sur `main` le week-end (bureau fermé). `weekEndParis` dans `scripts/garde-publication.js`, test dans `tests/garde-publication.test.js`.
+
+### 24/10/2026 — Minutes GitHub : option 1
+`verifier.yml` en lancement manuel seulement ; `build-exe.yml` ne refait plus que lint, types et tests (fumée Chromium en lancement manuel) ; étape « Déjà vérifié sur ce commit ? » retirée ; skill `publier` et CLAUDE.md mis à jour.

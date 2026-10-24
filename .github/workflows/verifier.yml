@@ -4,10 +4,9 @@ name: Vérifier CLAIRE
 # travail, rapports techniques, demandes de fusion) passe les mêmes contrôles que la construction du .exe — règles de code, types,
 # les deux suites de tests, test de fumée dans Chromium — sans rien construire ni publier. main a les siens dans build-exe.yml.
 
+# Étude 24/10 (minutes GitHub) : plus de lancement automatique — `npm run verifier` fait la même chose en local et la garde de
+# publication l'exige avant tout envoi sur main. Ce workflow reste pour un contrôle à la demande d'une branche (Actions › Run workflow).
 on:
-  push:
-    branches-ignore: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -24,6 +23,7 @@ jobs:
     # ne les refait pas (étude 18/10 : minutes GitHub consommées en double).
     if: github.event_name != 'pull_request' || github.head_ref != 'main'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +63,10 @@ jobs:
         if: steps.main.outputs.deja != 'true'
         with:
           node-version: '22.22.2'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
 
       - name: Installer l'outillage racine
         if: steps.main.outputs.deja != 'true'
@@ -89,6 +93,14 @@ jobs:
         if: steps.main.outputs.deja != 'true'
         working-directory: server
         run: npm test
+
+      # Navigateur de Playwright gardé d'un passage à l'autre (clé = verrou racine, qui fixe la version de Playwright).
+      - name: Cache de Chromium (Playwright)
+        if: steps.main.outputs.deja != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Installer Chromium (test de fumée)
         if: steps.main.outputs.deja != 'true'
