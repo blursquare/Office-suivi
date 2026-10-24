@@ -257,7 +257,7 @@ function bandeauFiche(d, aujourdhuiIso, actions, probabilite) {
   if (d.archive) maintenant = { type: 'archive' };
   else if (actions && actions.length) {
     const a = actions[0];
-    maintenant = { type: 'action', cle: a.cle, titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
+    maintenant = { type: 'action', cle: a.cle, jours: a.jours == null ? null : a.jours, titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
   } else {
     const p = prochaineEcheanceDetail(d);
     maintenant = p ? { type: 'etape', titre: p.label, iso: p.iso, jours: p.jours, categorie: p.type } : { type: 'rien' };
@@ -473,7 +473,7 @@ function renderBandeauFiche(d, actions) {
   else corpsMaintenant = '<strong class="fb-titre">Rien à faire pour le moment</strong><span class="fb-petit">On attend les pièces et la signature.</span>';
   const titreCarte = m.type === 'etape' ? 'Prochaine étape' : 'À faire maintenant';
   // Rouge seulement pour un vrai retard (étude 24/10 : l'encadré criait plus fort que tout, même sans rien en retard).
-  const enRetard = (m.type === 'action' && m.gravite === 'critique') || (m.type === 'etape' && m.jours != null && m.jours < 0);
+  const enRetard = m.type === 'action' ? tacheEnRetard(m) : (m.type === 'etape' && m.jours != null && m.jours < 0);
   const carteMaintenant = `<div class="fb-carte fb-maintenant${enRetard ? ' fb-maintenant-retard' : ''}"><span class="section-eyebrow">${titreCarte}</span>${corpsMaintenant}</div>`;
   return `<div class="fb-bandeau">${cartePieces}${carteSignature}${carteMaintenant}</div>`;
 }

@@ -1364,7 +1364,7 @@
   .pf-seg.pf-arelier, .pf-point.pf-arelier { stroke: var(--muted); background: var(--muted); }
   .pf-seg.pf-attente, .pf-point.pf-attente { stroke: var(--pret); background: var(--pret); }
   .pf-seg.pf-complet, .pf-point.pf-complet { stroke: var(--acte); background: var(--acte); }
-  .pf-seg.pf-pret, .pf-point.pf-pret { stroke: var(--success); background: var(--success); }
+  .pf-seg.pf-pret, .pf-point.pf-pret, .pf-seg.pf-signe, .pf-point.pf-signe { stroke: var(--success); background: var(--success); }
   .pf-centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
   .pf-centre-num { font-size: var(--texte-4xl); font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
   .pf-centre-lib { font-size: var(--texte-xs); color: var(--muted); margin-top: 4px; }

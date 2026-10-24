@@ -2481,7 +2481,7 @@
     const actifs = (dossiersActifs || []).filter(d => !d.archive);
     // Répartition : par état du dossier (le badge vu partout).
     const parEtat = {};
-    ETATS_DOSSIER.forEach(g => { parEtat[g.cle] = 0; });
+    etatsPortefeuille().forEach(g => { parEtat[g.cle] = 0; });
     actifs.forEach(d => { const c = etatDossier(d, aujourdhuiIso).cle; if (c in parEtat) parEtat[c]++; });
     const mois = String(aujourdhuiIso || '').slice(0, 7);
     const duMois = (dossiersTous || actifs).filter(d => d.rendezVousSignature && String(d.rendezVousSignature).slice(0, 7) === mois);
@@ -2496,12 +2496,18 @@
 
   // Pure : une phrase courte qui dit ce que la carte montre, sur le ton d'un collègue — jamais un
   // reproche. La première règle qui s'applique l'emporte.
+  // Les états de l'anneau « Dossiers ouverts » : ceux du badge, plus « Signé » (acte signé pas encore archivé, 24/10) — sinon un dossier
+  // signé comptait dans le total sans être dans aucun segment.
+  function etatsPortefeuille() {
+    return ETATS_DOSSIER.concat(ETATS_DOSSIER_FIN.filter(e => e.cle === 'signe'));
+  }
+
   function phrasePortefeuille(st) {
     if (!st.actifs) return 'Aucun dossier en cours.';
     const e = st.parEtat || {};
     const pl = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
     if (e.urgent) return `${pl(e.urgent, 'dossier')} avec une date butoir dépassée.`;
-    if (e.pret === st.actifs) return 'Tous les dossiers sont prêts à signer.';
+    if ((e.pret || 0) + (e.signe || 0) === st.actifs && e.pret) return 'Tous les dossiers sont prêts à signer.';
     if (st.signaturesMois.total && st.signaturesMois.faites === st.signaturesMois.total) return 'Toutes les signatures du mois sont faites.';
     if (e.attente) return `${pl(e.attente, 'dossier')} en attente de pièces.`;
     const restantes = st.signaturesMois.total - st.signaturesMois.faites;
@@ -2519,7 +2525,7 @@
   function anneauPortefeuille(st) {
     const total = st.actifs;
     let debut = 0;
-    const presents = ETATS_DOSSIER.map(g => g.cle).filter(k => st.parEtat[k]);
+    const presents = etatsPortefeuille().map(g => g.cle).filter(k => st.parEtat[k]);
     // Un petit blanc entre deux segments pour qu'ils se lisent séparément ; aucun s'il n'y en a qu'un.
     const ecart = presents.length > 1 ? 1.2 : 0;
     const segments = total ? presents.map(k => {
@@ -2529,7 +2535,7 @@
       debut += part;
       return seg;
     }).join('') : '';
-    return `<svg class="pf-anneau" viewBox="0 0 42 42" role="img" aria-label="${escapeAttr(ETATS_DOSSIER.map(g => `${g.texte} : ${st.parEtat[g.cle]}`).join(', '))}">
+    return `<svg class="pf-anneau" viewBox="0 0 42 42" role="img" aria-label="${escapeAttr(etatsPortefeuille().map(g => `${g.texte} : ${st.parEtat[g.cle]}`).join(', '))}">
       <circle class="pf-fond" cx="21" cy="21" r="15.9155"></circle>${segments}
     </svg>`;
   }
@@ -2561,7 +2567,7 @@
     const tMois = formaterTendance(evolution.ecartMois);
     const anime = false; // étude 19/10 : aucune animation des widgets au démarrage
     if (st.actifs > 0) portefeuilleDejaAnime = true;
-    const etats = presentation === 'petit' ? ETATS_DOSSIER.filter(g => st.parEtat[g.cle]) : ETATS_DOSSIER;
+    const etats = presentation === 'petit' ? etatsPortefeuille().filter(g => st.parEtat[g.cle]) : etatsPortefeuille();
     const legende = etats.map(g => `
       <li class="pf-legende-ligne${st.parEtat[g.cle] ? '' : ' vide'}"><span class="pf-point pf-${g.cle}"></span><span>${g.texte}</span><b>${st.parEtat[g.cle]}</b></li>`).join('');
     const sig = st.signaturesMois;

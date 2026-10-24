@@ -317,10 +317,11 @@
       return { cle, texte: e.texte, dl: e.dl, detail: detail || '' };
     };
     if (d.archive) return etat('archive', 'Dossier archivé');
-    // Acte signé (Authentic ou signature cochée, dateSignatureDossier ; jamais une succession) : « Signé », plus « Attente de pièces »
-    // ni « Urgent » (étude 24/10 : un dossier signé affichait « Attente de pièces »). Il le reste jusqu'à son archivage.
-    const signeLe = dateSignatureDossier(d, auj);
-    if (signeLe) return etat('signe', `Acte signé le ${formatDateFr(signeLe)}`);
+    // Acte VRAIMENT signé (signatureFaiteSuivi : signé dans Authentic ou signature cochée ; une succession dont tous les actes sont signés) :
+    // « Signé », plus « Attente de pièces » ni « Urgent » (étude 24/10 : un dossier signé affichait « Attente de pièces »), jusqu'à
+    // l'archivage. Un rendez-vous simplement passé n'y suffit pas (relecture 24/10 : il masquait « Urgent » et la « Date passée » de la fiche).
+    const signe = signatureFaiteSuivi(d);
+    if (signe) return etat('signe', signe.iso ? `Acte signé le ${formatDateFr(signe.iso)}` : 'Acte signé');
     const depassees = datesButoirDepassees(d, auj);
     if (depassees.length) {
       return etat('urgent', depassees.map(x => `${x.libelle} dépassée depuis le ${formatDateFr(x.iso)}`).join(' · '));

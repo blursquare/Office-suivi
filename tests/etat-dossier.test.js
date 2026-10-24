@@ -84,8 +84,22 @@ test('acte signé : « Signé » (vert), jamais « Attente de pièces » ni « U
   assert.equal(e.cle + ':' + e.texte + ':' + e.dl, 'signe:Signé:dl-success');
   assert.match(e.detail, /^Acte signé le /);
   assert.equal(etat(Object.assign({}, d, { archive: true })).cle, 'archive');
-  // Une succession n'a jamais de « Signé » (dateSignatureDossier ne vaut que pour une vente).
+  // Signature cochée à la main : « Signé » aussi.
+  assert.equal(etat(dossier({ dossierLie: true, rendezVousSignature: '2026-09-25', echeancesValidees: { rendezVousSignature: true } })).cle, 'signe');
+  // Relecture 24/10 : un rendez-vous simplement PASSÉ (ni signé dans Authentic ni coché) n'est pas « Signé » — l'urgence reste visible.
+  const passe = dossier({ dossierLie: true, pret: '2026-09-01', rendezVousSignature: '2026-09-28' });
+  assert.equal(etat(passe).cle, 'urgent');
+  // Succession : « Signé » seulement quand tous ses actes le sont (signatureFaiteSuivi), pas sur une case « acte » seule.
   assert.notEqual(etat(dossier({ typeAffaire: 'succession', dossierLie: true, echeancesValidees: { acte: true }, rendezVousSignature: '2026-09-20' })).cle, 'signe');
+});
+
+test('anneau « Dossiers ouverts » : un dossier signé a son segment (le total au centre = la somme des segments)', () => {
+  const st = app.statsPortefeuilleVisuel([
+    dossier({ id: 'a', dossierLie: true, rendezVousSignature: '2026-09-25', echeancesValidees: { rendezVousSignature: true } }),
+    dossier({ id: 'b', pret: '2026-11-20', dossierLie: true })
+  ], null, AUJ);
+  assert.equal(st.parEtat.signe, 1);
+  assert.equal(Object.values(st.parEtat).reduce((x, y) => x + y, 0), 2);
 });
 
 test('vente préalable en cours : liée au financement, le dossier n’est ni complet ni prêt tant qu’elle n’est pas réalisée', () => {
