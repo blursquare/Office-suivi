@@ -121,10 +121,10 @@ var THEMES_TACHES = [
   // Mes rappels, les tâches de l'agenda Outlook et les demandes d'un collègue en tête, puis les rendez-vous à fixer ou à placer (étude
   // 23/10 : catégorie « Agenda »), les actes à rédiger, les factures d'une succession à régler, et tout ce qui n'a pas d'autre colonne
   // (préemption, autres points).
-  { cle: 'preparer', nom: 'À préparer', sous: 'rendez-vous, rédaction, factures', types: ['rappel', 'redaction', 'factureSuccession'], motif: /^point-.*(rendez-vous|rdv)/ },
-  { cle: 'relances', nom: 'Relances', sous: 'prêt, pièces, fonds, confrères', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
-  { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
-  { cle: 'apres', nom: 'Après la signature', sous: 'copie de l’acte, questionnaire', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe'] }
+  { cle: 'preparer', nom: 'À préparer', sous: 'Rendez-vous, rédaction, factures', types: ['rappel', 'redaction', 'factureSuccession'], motif: /^point-.*(rendez-vous|rdv)/ },
+  { cle: 'relances', nom: 'Relances', sous: 'Prêt, pièces, fonds, confrères', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
+  { cle: 'avant', nom: 'Avant la signature', sous: 'Appel de fonds, projet, RIB', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
+  { cle: 'apres', nom: 'Après la signature', sous: 'Copie de l’acte, questionnaire', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe'] }
 ];
 
 /** Pure : la clé du thème d'une tâche (« preparer » pour le reste). @param {any} a */
