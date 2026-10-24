@@ -191,13 +191,26 @@ function verifierProrataLigne(ligne) {
 // l'adresse du dossier n'était que dans la fiche du bien (`d.bien.adresse`, code postal à part), quand le code postal était écrit
 // « 41 000 », quand l'adresse retapée dans l'outil n'avait pas de code postal (le département choisi était alors effacé) ou quand
 // le prix était gardé en texte. Pures.
+// Le code postal d'une adresse : celui entre parenthèses (« BLOIS (41000) ») d'abord, sinon le DERNIER groupe de cinq chiffres
+// qui n'est ni une boîte postale (BP, CS, TSA, CEDEX) ni un numéro ; écrit « 41 000 », seulement entre parenthèses ou suivi du
+// nom de la commune (relecture 24/10 : « CS 20819, 41000 BLOIS » donnait la Corse).
 function codePostalDansTexteAppelFonds(texte) {
-  const m = /(?<!\d)(\d{2})\s?(\d{3})(?!\d)/.exec(String(texte || ''));
-  return m ? m[1] + m[2] : null;
+  const t = String(texte || '');
+  const paren = /\((\d{2})\s?(\d{3})\)/.exec(t);
+  if (paren) return paren[1] + paren[2];
+  let retenu = null;
+  for (const m of t.matchAll(/(?<!\d)(\d{2})(\s?)(\d{3})(?!\d)/g)) {
+    const avant = t.slice(Math.max(0, m.index - 8), m.index);
+    if (/(?:\bBP|\bCS|\bTSA|CEDEX|n°|\bno)\s*$/i.test(avant)) continue;
+    if (m[2] && !/^\s+\p{Lu}{2}/u.test(t.slice(m.index + m[0].length))) continue;
+    retenu = m[1] + m[3];
+  }
+  return retenu;
 }
 function codePostalBienAppelFonds(d) {
   const a = (d && d.bien && d.bien.adresse) || {};
-  return codePostalDansTexteAppelFonds(a.codePostal) || codePostalDansTexteAppelFonds(d && d.adresseBien) || codePostalDansTexteAppelFonds(a.adresseComplete);
+  // L'adresse imprimée dans le courrier d'abord : le contrôle porte sur le même bien que la lettre.
+  return codePostalDansTexteAppelFonds(d && d.adresseBien) || codePostalDansTexteAppelFonds(a.codePostal) || codePostalDansTexteAppelFonds(a.adresseComplete);
 }
 function adresseBienDossierAppelFonds(d) {
   if (!d) return '';

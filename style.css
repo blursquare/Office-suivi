@@ -10837,3 +10837,5 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
   #onglet-appel-fonds .dash-header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #onglet-appel-fonds .dash-header-actions #af-telecharger { grid-column: 1 / -1; order: -1; }
 }
+/* Les pastilles de contrôle du décompte (barème, prorata) ne s'impriment pas avec le courrier (relecture 24/10). */
+@media print { table.af-table .af-verif, table.af-table .af-ordre { display: none; } }

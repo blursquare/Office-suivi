@@ -405,8 +405,8 @@
   // dans les décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas
   // « frais d'acte » comme le modèle de l'étude — le contrôle ne se déclenchait donc jamais sur
   // un décompte importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
-  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+de\s+vente|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte|droits\s+de\s+mutation)\b/i;
-  var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession)\b/i;
+  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte)\b/i;
+  var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession|d[ée]p[ôo]t|quittance|rectificati(?:f|ve)|mobilier|vendeur)\b/i;
 
   function estLigneFraisActeVente(libelle) {
     const t = String(libelle || '');
@@ -467,7 +467,7 @@
     };
     if (!afFraisChoisiALaMain.departement) {
       const cp = codePostalDansTexteAppelFonds(afValeur('af-adresse-bien'));
-      const cle = cp ? cleBaremeDepuisDepartement(departementDepuisCodePostal(cp)) : afValeur('af-frais-departement');
+      const cle = cp ? cleBaremeDepuisDepartement(departementDepuisCodePostal(cp)) : (afValeur('af-adresse-bien').trim() ? afValeur('af-frais-departement') : '');
       // Une clé absente du menu (69, Corse/Alsace non tranchées) remet le champ à vide plutôt que
       // de laisser le département précédent contrôler une adresse qui n'est plus la sienne.
       poser('af-frais-departement', cle && DEPARTEMENTS_FRAIS_ACTE[cle] ? cle : '');
@@ -1606,7 +1606,7 @@
     if (caseSansPret) caseSansPret.checked = !!p.sansPret;
     // Préremplis seulement quand le dossier tranche : un département ambigu (69) ou un type de
     // vente absent laisse le select vide, donc le contrôle silencieux, plutôt qu'un barème deviné.
-    ecrire('af-frais-departement', p.departementFrais);
+    { const e = afEl('af-frais-departement'); if (e && !afFraisChoisiALaMain.departement) e.value = p.departementFrais || ''; } // jamais celui d'une saisie d'avant
     ecrire('af-frais-type', p.typeBienFrais);
     ecrire('af-prix-mobilier', p.prixMobilier ? String(p.prixMobilier) : '');
 

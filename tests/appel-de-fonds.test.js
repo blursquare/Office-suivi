@@ -823,6 +823,19 @@ test('contrôle des frais : code postal et prix lus partout où le dossier les g
 
 test('contrôle des frais : libellés du confrère reconnus comme frais de l’acte de vente', () => {
   const app = chargerApplication();
-  ["Frais de l'acte", 'Frais de vente', 'Frais acquéreur', "Coût de l'acte", 'Droits de mutation et émoluments', 'Frais de notaire'].forEach(l => assert.ok(app.estLigneFraisActeVente(l), l));
+  ["Frais de l'acte", 'Frais acquéreur', "Coût de l'acte", 'Frais de notaire'].forEach(l => assert.ok(app.estLigneFraisActeVente(l), l));
   ["Frais de l'acte de prêt", 'Frais de mainlevée', 'Frais de négociation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
+});
+
+test('contrôle des frais : boîte postale, numéro, deux adresses, actes annexes (relecture 24/10)', () => {
+  const app = chargerApplication();
+  const cp = app.codePostalDansTexteAppelFonds;
+  assert.equal(cp('12 rue X, CS 20819, 41000 BLOIS'), '41000');
+  assert.equal(cp('BP 12345 41000 BLOIS'), '41000');
+  assert.equal(cp('lieu-dit 12 345'), null);
+  assert.equal(cp('BLOIS (41 000), 12 rue'), '41000');
+  assert.equal(cp('41 000 BLOIS'), '41000');
+  assert.equal(cp('02 54 78 61 70'), null);
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: 'TOURS (37000), 1 rue X', bien: { adresse: { codePostal: '41000' } } }), '37000', 'l’adresse du courrier d’abord');
+  ["Frais de l'acte de dépôt de pièces", "Frais de l'acte de quittance", "Frais de l'acte rectificatif", 'Frais de vente du mobilier', 'Droits de mutation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
 });
