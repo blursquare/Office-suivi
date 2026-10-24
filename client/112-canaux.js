@@ -79,12 +79,14 @@ function sectionsCanaux(serveur, dossiersListe, filtre) {
   };
 }
 
-// Pure : CLAIRE répond-elle à ce message ? Oui par défaut ; non si l'interrupteur « note à l'équipe » est coupé, ou si le message
-// s'adresse à un collègue (@Julie) sans citer @CLAIRE.
-function claireDoitRepondreCanal(texte, claireRepond, collaborateurs) {
+// Pure : CLAIRE répond-elle à ce message ? Comme Claude dans Slack : dans « général » (l'espace où on lui écrit) elle répond à tout, sauf
+// à un message adressé à un collègue (@Julie) ; dans le canal d'un dossier ou un canal libre (l'espace des collègues, où elle dépose
+// seule ses propositions) elle ne répond que si on la cite (@CLAIRE). Non aussi si l'interrupteur « note à l'équipe » est coupé.
+function claireDoitRepondreCanal(texte, claireRepond, collaborateurs, canalId) {
   if (!claireRepond) return false;
   const t = platCanal(texte);
   if (/(^|[^a-z0-9])@claire(?![a-z0-9])/.test(t)) return true;
+  if (canalId && canalId !== 'general') return false;
   const prenoms = (collaborateurs || []).map(c => platCanal(String(c).split(/\s+/)[0])).filter(Boolean);
   return !prenoms.some(p => new RegExp(`(^|[^a-z0-9])@${p}(?![a-z0-9])`).test(t));
 }
@@ -396,13 +398,13 @@ function majSaisieCanal() {
     ? `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @CLAIRE pour lui demander, @Julie pour prévenir`
     : 'Message à CLAIRE… tapez @ pour citer un dossier';
   if (bascule) {
-    bascule.style.display = reel ? '' : 'none';
+    bascule.style.display = reel && canaux.actif === 'general' ? '' : 'none';
     bascule.classList.toggle('actif', canaux.claireRepond);
     bascule.setAttribute('aria-pressed', String(canaux.claireRepond));
     bascule.innerHTML = canaux.claireRepond ? `${icone('sparkle')}CLAIRE répond` : `${icone('users')}Note à l’équipe`;
-    bascule.title = canaux.claireRepond ? 'CLAIRE répond à votre message (sauf s’il s’adresse à un collègue). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
+    bascule.title = canaux.claireRepond ? 'CLAIRE répond à votre message (sauf s’il s’adresse à un collègue avec @). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
   }
-  if (saisie) saisie.classList.toggle('canal-note', reel && !canaux.claireRepond);
+  if (saisie) saisie.classList.toggle('canal-note', reel && canaux.actif === 'general' && !canaux.claireRepond);
 }
 
 // ---- La liste des canaux (colonne de gauche) ----

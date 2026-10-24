@@ -37,8 +37,15 @@ test('sectionsCanaux : favoris, équipe, dossiers actifs (non-lus d’abord), ca
   assert.equal(app.sectionsCanaux([], ds, '').calmes.length, 3, 'sans activité : calmes');
 });
 
-test('claireDoitRepondreCanal : oui par défaut, non à un collègue ou en note à l’équipe, oui si @CLAIRE', () => {
-  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS), true);
+test('claireDoitRepondreCanal : dans un dossier ou un canal libre seulement si on la cite', () => {
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'd:abc'), false);
+  assert.equal(app.claireDoitRepondreCanal('Merci Julie, c’est noté', true, COLLABS, 'l:equipe'), false);
+  assert.equal(app.claireDoitRepondreCanal('@CLAIRE où en est le prêt ?', true, COLLABS, 'd:abc'), true);
+  assert.equal(app.claireDoitRepondreCanal('@Julie et @CLAIRE, regardez', true, COLLABS, 'l:equipe'), true);
+});
+
+test('claireDoitRepondreCanal : dans « général », oui par défaut, non à un collègue ou en note à l’équipe, oui si @CLAIRE', () => {
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'general'), true);
   assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', false, COLLABS), false);
   assert.equal(app.claireDoitRepondreCanal('@Julie peux-tu regarder ?', true, COLLABS), false);
   assert.equal(app.claireDoitRepondreCanal('@julie et @CLAIRE, regardez', true, COLLABS), true);

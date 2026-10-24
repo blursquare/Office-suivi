@@ -352,7 +352,7 @@
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
     poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
-    if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.claireRepond, canaux.collaborateurs)) return;
+    if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif)) return;
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).
