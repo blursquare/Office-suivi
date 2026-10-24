@@ -10211,6 +10211,7 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 @keyframes anim-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 wa-stepper.outil-sommaire wa-step::part(connector) { background-image: linear-gradient(var(--focus), var(--focus)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size 250ms var(--anim-courbe); }
 wa-stepper.outil-sommaire wa-step[completed][data-suite]::part(connector) { background-size: 100% 100%; }
+wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { background-color: var(--line); }
 
 /* 4. Tâche cochée dans « Aujourd'hui » : le cercle se remplit, la ligne se barre d'un trait, le compteur change en glissant. */
 .ja.fait.vient-de-finir .ja-coche { animation: anim-remplit 220ms var(--anim-courbe); }

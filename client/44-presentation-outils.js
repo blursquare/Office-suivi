@@ -127,6 +127,9 @@
       const step = stepper.querySelector(`wa-step[name="${e.cle}"]`);
       let fait = false;
       try { fait = !!(e.fait && e.fait()); } catch (err) { fait = false; }
+      // Web Awesome colore aussi, de lui-même, la liaison qui suit une étape faite (relecture 24/10) : neutralisée quand l'étape
+      // d'avant n'est pas dans la suite faite depuis la première (`data-avant-suite` absent).
+      if (step) step.toggleAttribute('data-avant-suite', suite);
       suite = suite && fait;
       if (step) step.toggleAttribute('data-suite', suite);
       if (step && step.completed !== fait) {
