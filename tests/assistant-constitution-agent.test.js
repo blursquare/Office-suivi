@@ -45,3 +45,16 @@ test('mode ajouter : refusé sans dossier ni constitution ouverte sur lui', () =
   assert.match(app.ajouterOrganismesConstitutionAgent('quotites', { id: 'x' }, 'BNP').erreur, /constitution/);
   assert.match(app.ajouterOrganismesConstitutionAgent('constitution', { id: 'x' }, 'BNP').erreur, /pas ouverte/);
 });
+
+test('champs d’un outil : la liste choisie par valeur, par libellé ou par un libellé qui la contient seul ; oui / non', () => {
+  const options = [{ value: 'maison', text: 'Maison ou immeuble' }, { value: 'copro', text: 'Copropriété' }, { value: 'terrain', text: 'Terrain à bâtir' }];
+  assert.equal(app.optionChoisieAgent(options, 'copro').value, 'copro');
+  assert.equal(app.optionChoisieAgent(options, 'copropriete').value, 'copro');
+  assert.equal(app.optionChoisieAgent(options, 'Terrain').value, 'terrain');
+  assert.equal(app.optionChoisieAgent(options, 'immeuble').value, 'maison');
+  assert.equal(app.optionChoisieAgent(options, 'garage'), null);
+  assert.equal(app.optionChoisieAgent(options, ''), null);
+  assert.equal(app.booleenDepuisTexteAgent('Oui'), true);
+  assert.equal(app.booleenDepuisTexteAgent('décoché'), false);
+  assert.equal(app.booleenDepuisTexteAgent('peut-être'), null);
+});

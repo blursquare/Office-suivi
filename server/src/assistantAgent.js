@@ -187,6 +187,17 @@ const OUTILS_AGENT = [
       } }
   },
   {
+    name: 'outil_champs',
+    description: 'Les champs d’un outil de CLAIRE ouvert à droite (outil_claire, mode ouvrir) : tu les REMPLIS comme le ferait l’utilisateur à la main. Mode « lister » : les champs visibles de l’outil (id, libellé, type, valeur actuelle, options d’une liste). Mode « remplir » : écrit chaque valeur dans le champ désigné par son id (liste : le libellé ou la valeur d’une option ; case ou interrupteur : « oui » ou « non » ; date : AAAA-MM-JJ ; montant : comme on le tape, « 250 000 »), 40 champs au plus par appel. Tu ne cliques sur rien : calculer, générer, enregistrer, télécharger et envoyer restent à l’utilisateur, qui relit ce que tu as rempli. Liste d’abord les champs, n’invente jamais un id.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['outil', 'mode', 'champs'],
+      properties: {
+        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'repertoire', 'constitution'] },
+        mode: { type: 'string', enum: ['lister', 'remplir'] },
+        champs: { type: 'array', description: 'mode remplir : les champs à écrire ; [] en mode lister', items: { type: 'object', additionalProperties: false, required: ['id', 'valeur'],
+          properties: { id: chaine('id du champ, rendu par le mode lister'), valeur: chaine('la valeur à écrire') } } }
+      } }
+  },
+  {
     name: 'nouveau_dossier_vente',
     description: 'Prépare, puis crée, un NOUVEAU dossier à partir d’Authentic et, pour une vente, d’un compromis ou d’une promesse (PDF joint au message de l’utilisateur, pj1, pj2…). Un nouveau dossier se crée TOUJOURS depuis Authentic : commence par le mode « authentic » (liste des dossiers ouverts dans Authentic aujourd’hui, relus à l’instant, avec authentic_id ; liste vide = l’utilisateur doit ouvrir la page du dossier dans Authentic). Mode « preparer » (document_id = le PDF ; authentic_id = le dossier d’Authentic choisi, "" pour laisser CLAIRE prendre celui qui correspond de façon certaine ; sans PDF, authentic_id seul reprend le dossier d’Authentic sans compromis, vente ou succession) : le poste lit le PDF comme « Nouveau dossier › Compromis (PDF) » (parties, bien, prix, dates butoir, engagements, agence, notaires), reprend le dossier d’Authentic qui correspond et remplit le formulaire « Vérifier » ; tu reçois ce qui est rempli et ce qui reste « à compléter ». Si aucun dossier d’Authentic ne correspond de façon certaine, rien n’est créé : liste ceux d’Authentic et choisis avec authentic_id si l’un correspond sans doute possible, sinon dis à l’utilisateur d’ouvrir la page du dossier dans Authentic. Mode « creer » : après « preparer », demande l’autorisation de l’utilisateur (carte « Autoriser / Refuser ») puis crée le dossier ; s’il refuse, ne recommence pas. Ne devine jamais une donnée absente : signale-la.',
     input_schema: { type: 'object', additionalProperties: false, required: ['mode', 'document_id', 'authentic_id', 'responsable'],
@@ -325,7 +336,7 @@ const OUTILS_AGENT = [
 // (22/10 : « The compiled grammar is too large » — les énumérations de faire_geste et d'action_dossier, qui ont grossi avec les
 // successions, la dépassaient). Les outils ajoutés le 21/10 et ces deux-là n'y sont pas (leurs champs restent tous obligatoires et le
 // poste revalide chaque entrée, `entreeOutilPourPoste`) ; les autres gardent leur schéma strict.
-const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib'];
+const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib', 'outil_champs'];
 for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT) comme une collègue experte, fiable et attentionnée.

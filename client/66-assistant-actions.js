@@ -42,24 +42,39 @@
   // ---- La carte d'autorisation ----
 
   var autorisationAgentEnAttente = null;     // { resoudre } pendant qu'une carte attend un clic
+  // « Autoriser pour toute cette demande » (étude 24/10 : « une seule fois par demande ») : les gestes suivants de la MÊME demande ne
+  // rouvrent pas de carte — chacun reste dit dans la conversation. Remis à zéro à chaque nouvelle demande, à l'oubli de la conversation
+  // et au refus. Un geste `strict` (envoi ou écriture chez Yousign, suppression d'un rendez-vous) a toujours sa propre carte.
+  var autorisationDemandeAgent = false;
+  function reinitialiserAutorisationDemandeAgent() { autorisationDemandeAgent = false; }
 
-  function demanderAutorisationAgent(description) {
+  function demanderAutorisationAgent(description, options) {
+    const strict = !!(options && options.strict);
+    if (autorisationDemandeAgent && !strict) {
+      assistantMessages.push({ role: 'claire', html: htmlAutorisationAgent(description, 'autorise-demande'), boutons: [], quand: Date.now() });
+      renderAssistant();
+      return Promise.resolve(true);
+    }
     if (autorisationAgentEnAttente) autorisationAgentEnAttente.resoudre(false);
     return new Promise(resoudre => {
       let fini = false;
       const message = { role: 'claire', html: '', boutons: [], quand: Date.now() };
-      const conclure = (ok) => {
+      const conclure = (ok, toutLaDemande) => {
         if (fini) return;
         fini = true;
         autorisationAgentEnAttente = null;
+        if (toutLaDemande) autorisationDemandeAgent = true;
+        if (!ok) autorisationDemandeAgent = false;
         message.boutons = [];
-        message.html = htmlAutorisationAgent(description, ok ? 'autorise' : 'refuse');
+        message.html = htmlAutorisationAgent(description, ok ? (toutLaDemande ? 'autorise-demande' : 'autorise') : 'refuse');
         assistantEtapeAgent = ok ? 'Je m’en occupe…' : 'Je réfléchis…';
         renderAssistant();
         resoudre(ok);
       };
       message.html = htmlAutorisationAgent(description, '');
-      message.boutons = [{ libelle: 'Autoriser', principal: true, action: () => conclure(true) }, { libelle: 'Refuser', action: () => conclure(false) }];
+      message.boutons = [{ libelle: 'Autoriser', principal: true, action: () => conclure(true) },
+        ...(strict ? [] : [{ libelle: 'Autoriser pour toute cette demande', action: () => conclure(true, true) }]),
+        { libelle: 'Refuser', action: () => conclure(false) }];
       autorisationAgentEnAttente = { resoudre: conclure };
       assistantMessages.push(message);
       assistantEtapeAgent = 'En attente de votre autorisation…';
@@ -69,7 +84,8 @@
 
   // Pure : la carte, avant (état '') et après le clic.
   function htmlAutorisationAgent(description, etat) {
-    const tete = etat === 'autorise' ? '<span class="asst-autorisation-etat ok">Autorisé</span>'
+    const tete = etat === 'autorise-demande' ? '<span class="asst-autorisation-etat ok">Autorisé pour cette demande</span>'
+      : etat === 'autorise' ? '<span class="asst-autorisation-etat ok">Autorisé</span>'
       : etat === 'refuse' ? '<span class="asst-autorisation-etat non">Refusé</span>' : '<span class="asst-autorisation-etat">À autoriser</span>';
     // Plusieurs lignes (un lot d'actions) : la première en phrase, les autres en liste.
     const lignes = String(description || '').split('\n').filter(Boolean);
@@ -79,6 +95,7 @@
 
   // Une nouvelle conversation ou une page quittée : la carte en attente vaut refus (la boucle de l'agent reprend la main).
   function refuserAutorisationEnAttente() {
+    autorisationDemandeAgent = false;
     if (autorisationAgentEnAttente) autorisationAgentEnAttente.resoudre(false);
   }
 

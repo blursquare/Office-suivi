@@ -334,6 +334,7 @@
   }
 
   async function envoyerDemandeAssistantSuite(texteForce) {
+    reinitialiserAutorisationDemandeAgent();   // chaque nouvelle demande repart avec ses propres cartes
     const champ = document.getElementById('assistant-saisie');
     const joints = !texteForce && piecesJointesAssistant.length > 0;
     const texte = String(texteForce || (champ ? champ.value : '') || '').trim() || (joints ? 'Que contient la pièce jointe et que faut-il en retenir ?' : '');

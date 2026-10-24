@@ -79,7 +79,7 @@
     if (ecrit) {
       // Un outil qui ne porte qu'un identifiant (envoyer, retirer, modifier) : la demande est relue pour que la carte dise laquelle.
       const demande = /create/i.test(nom) ? '' : await lireDemandeYousign(entree);
-      if (!(await demanderAutorisationAgent(descriptionActionYousign(nom, entree, demande)))) {
+      if (!(await demanderAutorisationAgent(descriptionActionYousign(nom, entree, demande), { strict: true }))) {
         return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
       }
     }

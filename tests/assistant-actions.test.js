@@ -115,3 +115,27 @@ test('audit 13/10 : notaire écrit par son nom et seulement s’il est du réper
   const d = { id: 'd1', typeVente: 'maison', pieces: {} };
   assert.equal(app.pieceChecklistParLibelle(d, 'de'), null, 'deux lettres ne désignent rien');
 });
+
+test('« Autoriser pour toute cette demande » : les gestes suivants de la même demande n’ont plus de carte, sauf un geste strict ; une nouvelle demande repart à zéro', async () => {
+  assert.match(app.htmlAutorisationAgent('Faire', 'autorise-demande'), /Autorisé pour cette demande/);
+  app.reinitialiserAutorisationDemandeAgent();
+  const premiere = app.demanderAutorisationAgent('Premier geste');
+  assert.ok(app.autorisationAgentEnAttente, 'une carte attend un clic');
+  app.autorisationAgentEnAttente.resoudre(true, true);
+  assert.equal(await premiere, true);
+  assert.equal(app.autorisationAgentEnAttente, null);
+  // Le geste suivant passe sans carte…
+  assert.equal(await app.demanderAutorisationAgent('Deuxième geste'), true);
+  assert.equal(app.autorisationAgentEnAttente, null);
+  // …sauf s'il est strict (envoi, suppression d'un rendez-vous).
+  const stricte = app.demanderAutorisationAgent('Supprimer un rendez-vous', { strict: true });
+  assert.ok(app.autorisationAgentEnAttente, 'un geste strict a toujours sa carte');
+  app.autorisationAgentEnAttente.resoudre(false);
+  assert.equal(await stricte, false);
+  // Un refus, comme une nouvelle demande, remet les cartes.
+  const apres = app.demanderAutorisationAgent('Troisième geste');
+  assert.ok(app.autorisationAgentEnAttente, 'après un refus, une carte est de nouveau demandée');
+  app.autorisationAgentEnAttente.resoudre(true);
+  assert.equal(await apres, true);
+  app.reinitialiserAutorisationDemandeAgent();
+});

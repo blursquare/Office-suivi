@@ -107,6 +107,104 @@
     return { nombre: resultats.length, resultats, ...(resultats.length >= MAX_RESULTATS_REPERTOIRE_AGENT ? { coupe: 'affine la recherche' } : {}) };
   }
 
+  // ---- Remplir les champs d'un outil ouvert (étude 24/10 : « il faut qu'elle puisse interagir avec tout le logiciel comme si c'était moi ») ----
+  // L'agent écrit dans les champs de l'écran de l'outil, comme l'utilisateur à la main, puis s'arrête : il ne clique sur aucun bouton
+  // (calculer, générer, enregistrer, télécharger et envoyer restent à l'utilisateur, qui relit). Aucune écriture dans un dossier : rien
+  // à autoriser. Les valeurs lues reviennent à l'agent MASQUÉES par le serveur, comme tout résultat d'outil.
+  var MAX_CHAMPS_LUS_OUTIL_AGENT = 80;
+  var MAX_CHAMPS_ECRITS_OUTIL_AGENT = 40;
+  var TYPES_CHAMPS_EXCLUS_AGENT = ['file', 'password', 'hidden', 'button', 'submit', 'reset', 'image'];
+
+  // Pure : un texte de choix retrouvé parmi des options { value, text } — la valeur, sinon le libellé, sans accents ni casse, sinon un seul libellé qui le contient.
+  function optionChoisieAgent(options, voulu) {
+    const v = normaliserPourRecherche(String(voulu == null ? '' : voulu)).trim();
+    if (!v) return null;
+    const norm = (o) => ({ o, val: normaliserPourRecherche(String(o.value)).trim(), txt: normaliserPourRecherche(String(o.text || '')).trim() });
+    const liste = (options || []).map(norm);
+    const exact = liste.find(x => x.val === v) || liste.find(x => x.txt === v);
+    if (exact) return exact.o;
+    const contient = liste.filter(x => x.txt && (x.txt.includes(v) || v.includes(x.txt)));
+    return contient.length === 1 ? contient[0].o : null;
+  }
+
+  // Pure : « oui » / « non » (et leurs variantes) → vrai / faux, sinon null.
+  function booleenDepuisTexteAgent(valeur) {
+    const t = normaliserPourRecherche(String(valeur == null ? '' : valeur)).trim();
+    if (/^(oui|vrai|true|1|coche|coches|actif|active|on)$/.test(t)) return true;
+    if (/^(non|faux|false|0|decoche|inactif|desactive|off)$/.test(t)) return false;
+    return null;
+  }
+
+  function noeudOutilAgent(outil) {
+    const o = OUTILS_CLAIRE_AGENT[outil];
+    return o ? document.getElementById('onglet-' + o.onglet) : null;
+  }
+
+  function libelleChampOutilAgent(el) {
+    const pour = el.id && document.querySelector(`label[for="${el.id.replace(/"/g, '')}"]`);
+    const ancetre = el.closest && el.closest('label');
+    const brut = (pour && pour.textContent) || (ancetre && ancetre.textContent) || el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || '';
+    return String(brut).replace(/\s+/g, ' ').trim().slice(0, 80);
+  }
+
+  function champEstEditableAgent(el) {
+    const tag = String(el.tagName || '').toLowerCase();
+    if (tag === 'wa-switch') return !el.disabled;
+    if (!['input', 'select', 'textarea'].includes(tag)) return false;
+    if (el.disabled || el.readOnly) return false;
+    return !TYPES_CHAMPS_EXCLUS_AGENT.includes(String(el.type || '').toLowerCase());
+  }
+
+  function champsVisiblesOutilAgent(noeud) {
+    return Array.from(noeud.querySelectorAll('input, select, textarea, wa-switch'))
+      .filter(el => el.id && champEstEditableAgent(el) && el.offsetParent !== null);
+  }
+
+  function champsOutilAgent(entree) {
+    const e = entree || {};
+    const noeud = noeudOutilAgent(e.outil);
+    if (!noeud) return { erreur: 'outil inconnu ou sans champs : ' + String(e.outil || '') };
+    const visibles = champsVisiblesOutilAgent(noeud);
+    if (!visibles.length) return { erreur: 'cet outil n’est pas ouvert : ouvre-le d’abord (outil_claire, mode ouvrir)' };
+    if (e.mode === 'lister') {
+      return { nombre: visibles.length, champs: visibles.slice(0, MAX_CHAMPS_LUS_OUTIL_AGENT).map(el => {
+        const tag = el.tagName.toLowerCase();
+        const type = tag === 'wa-switch' ? 'interrupteur' : tag === 'select' ? 'liste' : String(el.type || 'text');
+        const valeur = tag === 'wa-switch' || type === 'checkbox' || type === 'radio' ? (el.checked ? 'oui' : 'non') : String(el.value || '').slice(0, 120);
+        return Object.assign({ id: el.id, libelle: libelleChampOutilAgent(el), type, valeur },
+          tag === 'select' ? { options: Array.from(el.options).slice(0, 40).map(o => o.text.trim()) } : {});
+      }), ...(visibles.length > MAX_CHAMPS_LUS_OUTIL_AGENT ? { coupe: 'seuls les premiers champs sont listés' } : {}) };
+    }
+    if (e.mode !== 'remplir') return { erreur: 'mode : lister ou remplir' };
+    const demandes = Array.isArray(e.champs) ? e.champs.slice(0, MAX_CHAMPS_ECRITS_OUTIL_AGENT) : [];
+    if (!demandes.length) return { erreur: 'champs : au moins un champ { id, valeur }' };
+    const autorises = new Map(visibles.map(el => [el.id, el]));
+    const resultats = demandes.map(c => {
+      const id = String((c && c.id) || '');
+      const el = autorises.get(id);
+      if (!el) return { id, ok: false, raison: 'champ introuvable dans cet outil (liste les champs) ou non modifiable' };
+      const tag = el.tagName.toLowerCase();
+      const type = String(el.type || '').toLowerCase();
+      try {
+        if (tag === 'wa-switch' || type === 'checkbox' || type === 'radio') {
+          const b = booleenDepuisTexteAgent(c.valeur);
+          if (b === null) return { id, ok: false, raison: 'valeur attendue : oui ou non' };
+          el.checked = b;
+        } else if (tag === 'select') {
+          const choisie = optionChoisieAgent(Array.from(el.options).map(o => ({ value: o.value, text: o.text })), c.valeur);
+          if (!choisie) return { id, ok: false, raison: 'option inconnue', options: Array.from(el.options).slice(0, 40).map(o => o.text.trim()) };
+          el.value = choisie.value;
+        } else {
+          el.value = String(c.valeur == null ? '' : c.valeur);
+        }
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (err) { return { id, ok: false, raison: 'écriture impossible' }; }
+      return { id, ok: true, valeur: tag === 'wa-switch' || type === 'checkbox' || type === 'radio' ? (el.checked ? 'oui' : 'non') : String(el.value || '').slice(0, 120) };
+    });
+    return { resultats, suite: 'rien n’est calculé, généré ni enregistré : l’utilisateur relit les champs à droite et clique lui-même' };
+  }
+
   // ---- Constitution de dossier : ajouter des organismes ou des banques par leur nom (étude 24/10 : « si je lui donne le nom des banques,
   // elle peut constituer ? »). Rien n'est généré, enregistré ni envoyé : les courriers s'ajoutent à la constitution ouverte, que
   // l'utilisateur relit dans le panneau de droite et valide lui-même. Les noms d'organismes ne sont pas des données de client. ----

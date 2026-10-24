@@ -777,3 +777,25 @@ test('nouveau dossier : étape Authentic — mode « authentic » et authentic_i
   assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
   assert.match(o.description, /TOUJOURS depuis Authentic/);
 });
+
+test('outil_champs (24/10) : proposé à l’agent, un code inventé n’est jamais écrit dans un champ, rien de nominatif ne part dans la liste des champs', async () => {
+  const def = OUTILS_AGENT.find((t) => t.name === 'outil_champs');
+  assert.ok(def, 'outil outil_champs proposé');
+  assert.deepEqual(def.input_schema.properties.mode.enum, ['lister', 'remplir']);
+  assert.ok(!def.input_schema.properties.outil.enum.includes('claire_scan'), 'ni Claire Scan ni Nouveau dossier : ils ont leurs outils');
+  const e = entreeOutilPourPoste('outil_champs', { outil: 'quotites', mode: 'remplir', champs: [{ id: 'qt-apport', valeur: '[NOM9]' }, { id: 'qt-prix', valeur: '250 000' }] });
+  assert.doesNotMatch(JSON.stringify(e), /\[NOM9\]/);
+  assert.match(JSON.stringify(e), /250 000/);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'outil_champs', { outil: 'appel_fonds', mode: 'lister', champs: [] })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Remplis l’appel de fonds', dossiers: D, contexte: {} }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { nombre: 2, champs: [
+    { id: 'af-email', libelle: 'Email', type: 'email', valeur: 'paul.fournier@exemple.fr' },
+    { id: 'af-nom', libelle: 'Destinataire', type: 'text', valeur: 'Monsieur Paul FOURNIER' }] } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-500));
+  assert.equal(r.reponse, 'Voilà.');
+});

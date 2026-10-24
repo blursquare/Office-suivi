@@ -276,7 +276,7 @@
     const d = dossierDeEvenement(ev);
     const suit = d && typeof signatureSuitAgenda === 'function' && signatureSuitAgenda(d, ev);
     if (e.action === 'supprimer') {
-      if (!(await demanderAutorisationAgent(`Supprimer le rendez-vous ${titre} du ${quand} de l’agenda de l’office (éléments supprimés d’Outlook, récupérable).${suit ? ' La date reste sur la fiche du dossier.' : ''}`))) return REFUS_AGENT;
+      if (!(await demanderAutorisationAgent(`Supprimer le rendez-vous ${titre} du ${quand} de l’agenda de l’office (éléments supprimés d’Outlook, récupérable).${suit ? ' La date reste sur la fiche du dossier.' : ''}`, { strict: true }))) return REFUS_AGENT;
       const r = await retirerEvenementAgenda(ev);
       afficherToast(r.message, 'OK', null);
       if (r.ok) noterPouvoirAgent('rendez-vous supprimé');
