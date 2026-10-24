@@ -3,7 +3,7 @@
 // le rendez-vous (date, heure, lieu) en grand, puis une ligne par condition de la signature — prêt, vente préalable, préemption, SAFER, pièces,
 // engagements du vendeur, appel de fonds, projet, fonds, RIB — avec une grande case cochée quand c'est fait et sa date en gros. Rien n'est écrit
 // sur le dossier ; la fiche dit l'état au moment où elle est éditée (et l'heure). La même fiche s'obtient à tout moment depuis la fiche du dossier
-// (ligne « Outils » de l'onglet Dossier). Le pop-up n'est montré qu'une fois par rendez-vous et par poste (une nouvelle date le fait revenir).
+// (ligne « Outils » de l'onglet Dossier). Le pop-up ne s'affiche qu'à l'ouverture de CLAIRE ou à l'ouverture de la fiche du dossier concerné, une seule fois par rendez-vous et par poste (une nouvelle date le fait revenir).
 // PDF composé dans le navigateur par pdf-lib avec les polices embarquées du courrier (Carlito, Liberation Serif), jamais un PDF/A : c'est une fiche
 // de travail, pas une pièce de dossier à déposer dans Authentic.
 
@@ -469,7 +469,7 @@ function delaiVeilleSignature(d, maintenant) {
   return r.heure ? `${quand} à ${heureEmail(r.heure).replace('h', ' h ').trim()}` : quand;
 }
 
-function renderVeilleSignature(liste, maintenant) {
+function renderVeilleSignature(liste, maintenant, depuisFiche) {
   const contenu = document.getElementById('veille-signature-contenu');
   if (!contenu) return;
   const categoriesRdv = categoriesRdvReglees();
@@ -487,8 +487,8 @@ function renderVeilleSignature(liste, maintenant) {
           <div class="veille-dossier-tete"><strong>${escapeHtml(f.dossier)}</strong><span class="veille-quand">${escapeHtml(delaiVeilleSignature(d, maintenant))}</span></div>
           <div class="veille-etat">${etat}</div>
           <div class="veille-actions">
-            <wa-button variant="brand" size="s" type="button" onclick="ouvrirFicheDossierVeilleSignature('${escapeOnclickArg(d.id)}')">${icone('folder')}Ouvrir la fiche du dossier</wa-button>
-            <wa-button appearance="outlined" size="s" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
+            ${depuisFiche ? '' : `<wa-button variant="brand" size="s" type="button" onclick="ouvrirFicheDossierVeilleSignature('${escapeOnclickArg(d.id)}')">${icone('folder')}Ouvrir la fiche du dossier</wa-button>`}
+            <wa-button ${depuisFiche ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
           </div>
         </div>`;
       }).join('')}
@@ -511,21 +511,36 @@ function fermerVeilleSignature() {
   veilleSignatureAffichee = [];
 }
 
-// Une saisie, une fenêtre ou un autre pop-up ouvert : on attend le tour suivant plutôt que de couper le travail.
-function posteOccupeVeilleSignature() {
+// Une saisie, une fenêtre ou un autre pop-up ouvert : pas de pop-up par-dessus le travail en cours. À l'ouverture d'une fiche (`sansSaisie`),
+// le clic qui l'ouvre vient d'avoir lieu : seules les fenêtres déjà ouvertes comptent.
+function posteOccupeVeilleSignature(sansSaisie) {
   const a = document.activeElement;
-  if (a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
+  if (!sansSaisie && a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
   return Array.from(document.querySelectorAll('.confirm-overlay')).some(o => o.style.display && o.style.display !== 'none');
 }
 
-function verifierVeilleSignature() {
-  if (!utilisateurPoste || posteOccupeVeilleSignature()) return;
-  const maintenant = new Date();
-  const liste = dossiersVeilleSignature(dossiers, utilisateurPoste, maintenant, veillesSignatureVues());
-  if (!liste.length) return;
+// Affiche le pop-up pour ces dossiers et les compte « vus » AUSSITÔT : il ne se propose qu'une fois par rendez-vous.
+function afficherVeilleSignature(liste, maintenant, depuisFiche) {
   const overlay = document.getElementById('veille-signature-overlay');
-  if (!overlay) return;
+  if (!overlay || !liste.length) return;
   veilleSignatureAffichee = liste;
-  renderVeilleSignature(liste, maintenant);
+  renderVeilleSignature(liste, maintenant, depuisFiche);
   overlay.style.display = 'flex';
+  liste.forEach(noteVeilleSignatureVue);
+}
+
+// À l'ouverture de CLAIRE : les fiches des dossiers du collaborateur dont le rendez-vous est dans les 48 h (ou dès le vendredi 17 h).
+function verifierVeilleSignature() {
+  if (!utilisateurPoste || posteOccupeVeilleSignature(false)) return;
+  const maintenant = new Date();
+  afficherVeilleSignature(dossiersVeilleSignature(dossiers, utilisateurPoste, maintenant, veillesSignatureVues()), maintenant, false);
+}
+
+// À l'ouverture de la fiche d'un dossier : la sienne seulement, si elle est due et pas encore proposée.
+function proposerVeilleSignatureFiche(id) {
+  if (!utilisateurPoste || posteOccupeVeilleSignature(true)) return;
+  const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
+  if (!d) return;
+  const maintenant = new Date();
+  afficherVeilleSignature(dossiersVeilleSignature([d], utilisateurPoste, maintenant, veillesSignatureVues()), maintenant, true);
 }
