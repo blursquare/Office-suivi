@@ -275,7 +275,7 @@
   // son état, ses gestionnaires et sa lecture du dossier. Un repère (commentaire) marque sa place d'origine ; il y retourne quand
   // l'outil est ouvert depuis la barre latérale ou une nouvelle conversation commence. Claire Scan et Nouveau dossier (écrans trop larges,
   // état propre) gardent leur onglet.
-  var OUTILS_MONTABLES_ASSISTANT = ['preemption', 'quotites', 'appel-fonds', 'calculateur', 'prorata', 'inventaire'];
+  var OUTILS_MONTABLES_ASSISTANT = ['preemption', 'quotites', 'appel-fonds', 'calculateur', 'prorata', 'inventaire', 'constitution'];
   var outilsMontesAssistant = {};   // onglet → { repere, artefactId }
 
   function outilMontableAssistant(onglet) { return OUTILS_MONTABLES_ASSISTANT.includes(onglet) && !!document.getElementById('onglet-' + onglet); }

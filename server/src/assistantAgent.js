@@ -178,11 +178,11 @@ const OUTILS_AGENT = [
   },
   {
     name: 'outil_claire',
-    description: 'Les outils de CLAIRE. Mode « lire » : le résultat te revient — controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
+    description: 'Les outils de CLAIRE. constitution (Constitution de dossier : les courriers de l’office d’une vente ou d’une succession) : mode « ouvrir » = l’outil s’ouvre à droite de la conversation, prérempli avec le dossier, pour que l’utilisateur relise ; mode « ajouter » = ajoute à cette constitution (ouverte d’abord sur le dossier) un courrier par organisme ou banque cité dans texte (noms séparés par « ; » ou des retours à la ligne), pris dans le répertoire — un nom ambigu te revient pour que tu demandes lequel, un nom absent du répertoire est ajouté avec son adresse à compléter ; tu ne génères, n’enregistres ni n’envoies rien : l’utilisateur valide à droite. Mode « lire » : le résultat te revient — controle_urbanisme (droits de préemption, monuments et sites protégés, travaux déclarés, autorisations Sitadel enregistrés sur la fiche), quotites (acquéreurs, prix et ce qui reste à saisir), repertoire (texte = organisme, nom, ville ou thème : contacts du répertoire de l’étude et offices de notaires, avec téléphones et emails). Mode « ouvrir » : un bouton « Ouvrir … » s’affiche dans la conversation et ouvre l’outil pré-rempli du dossier — controle_urbanisme, quotites, appel_fonds, provision, prorata, forfait_mobilier, repertoire, claire_scan, nouveau_dossier. Les calculs de provision et de prorata, eux, passent par faire_geste.',
     input_schema: { type: 'object', additionalProperties: false, required: ['outil', 'mode', 'dossier_id', 'texte'],
       properties: {
-        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'repertoire', 'claire_scan', 'nouveau_dossier'] },
-        mode: { type: 'string', enum: ['lire', 'ouvrir'] },
+        outil: { type: 'string', enum: ['controle_urbanisme', 'quotites', 'appel_fonds', 'provision', 'prorata', 'forfait_mobilier', 'repertoire', 'claire_scan', 'nouveau_dossier', 'constitution'] },
+        mode: { type: 'string', enum: ['lire', 'ouvrir', 'ajouter'] },
         dossier_id: chaine('id du dossier, ou ""'), texte: chaine('recherche dans le répertoire, ou ""')
       } }
   },
