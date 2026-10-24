@@ -33,6 +33,24 @@ test('proposée dans les 48 h avant le rendez-vous, jamais avant, jamais après'
   assert.equal(app.veilleSignatureDue(d, T('2026-10-29T14:31:00')), false);
 });
 
+test('les 48 h tombent un week-end : proposée dès le vendredi 17 h (rendez-vous du lundi ou du mardi)', () => {
+  const lundi = vente({ rendezVousSignature: '2026-10-26', rendezVousSignatureHeure: '09:30' });
+  assert.equal(app.veilleSignatureDue(lundi, T('2026-10-23T16:59:00')), false);
+  assert.equal(app.veilleSignatureDue(lundi, T('2026-10-23T17:00:00')), true);
+  assert.equal(app.veilleSignatureDue(lundi, T('2026-10-26T09:29:00')), true);
+  const mardi = vente({ rendezVousSignature: '2026-10-27', rendezVousSignatureHeure: '10:00' });
+  assert.equal(app.veilleSignatureDue(mardi, T('2026-10-23T16:59:00')), false);
+  assert.equal(app.veilleSignatureDue(mardi, T('2026-10-23T17:00:00')), true);
+  // Un rendez-vous du mercredi : 48 h avant = lundi, pas de week-end, pas d'avance.
+  const mercredi = vente({ rendezVousSignature: '2026-10-28', rendezVousSignatureHeure: '10:00' });
+  assert.equal(app.veilleSignatureDue(mercredi, T('2026-10-23T17:00:00')), false);
+  assert.equal(app.veilleSignatureDue(mercredi, T('2026-10-26T10:00:00')), true);
+  // Un rendez-vous du samedi : 48 h avant = jeudi.
+  const samedi = vente({ rendezVousSignature: '2026-10-31', rendezVousSignatureHeure: '10:00' });
+  assert.equal(app.veilleSignatureDue(samedi, T('2026-10-29T09:59:00')), false);
+  assert.equal(app.veilleSignatureDue(samedi, T('2026-10-29T10:00:00')), true);
+});
+
 test('sans heure, le rendez-vous vaut toute la journée', () => {
   const d = vente({ rendezVousSignatureHeure: '' });
   assert.equal(app.veilleSignatureDue(d, T('2026-10-27T00:00:00')), true);

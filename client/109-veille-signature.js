@@ -35,14 +35,27 @@ function instantsSignatureVeille(d) {
   return { iso, heure, debut, fin };
 }
 
-// Pure : la fiche est-elle « due » — rendez-vous dans les 48 prochaines heures (et pas encore passé), vente non archivée et pas déjà signée.
+// Pure : l'instant où la fiche est proposée pour un rendez-vous commençant à `debut` — 48 h avant, sauf si ces 48 h tombent un samedi ou un
+// dimanche (l'office est fermé : un rendez-vous du lundi ou du mardi tôt serait proposé trop tard) : alors le vendredi précédent à 17 h
+// (étude 24/10 : « oui » à une avance le vendredi 17 h).
+function debutVeilleSignature(debut) {
+  const t = new Date(debut.getTime() - HEURES_VEILLE_SIGNATURE * 3600 * 1000);
+  const jour = t.getDay();
+  if (jour !== 6 && jour !== 0) return t;
+  const vendredi = new Date(t.getTime());
+  vendredi.setDate(vendredi.getDate() - (jour === 6 ? 1 : 2));
+  vendredi.setHours(17, 0, 0, 0);
+  return vendredi;
+}
+
+// Pure : la fiche est-elle « due » — rendez-vous dans les 48 prochaines heures, ou dès le vendredi 17 h si ces 48 h tombent un week-end (et pas encore passé), vente non archivée et pas déjà signée.
 // Jamais pour une succession (autre déroulé, pas de conditions de vente).
 function veilleSignatureDue(d, maintenant) {
   if (!d || d.archive || estSuccession(d) || signatureFaiteSuivi(d)) return false;
   const r = instantsSignatureVeille(d);
   if (!r) return false;
   const t = (maintenant || new Date()).getTime();
-  return t >= r.debut.getTime() - HEURES_VEILLE_SIGNATURE * 3600 * 1000 && t <= r.fin.getTime();
+  return t >= debutVeilleSignature(r.debut).getTime() && t <= r.fin.getTime();
 }
 
 // Pure : repère d'un rendez-vous déjà proposé (dossier + date + heure) — un rendez-vous déplacé revient.
