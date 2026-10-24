@@ -100,7 +100,7 @@ test('cartes de l’onglet Dossier : chaque fiche une fois, homonymes par le rô
   const html = app.htmlCartesClientsBiensDossier(d, f);
   const ids = [...html.matchAll(/ouvrirFicheClientBien\('personne', '([^']+)'\)/g)].map((m) => m[1]);
   assert.equal(ids.join(','), 'pV,pA,pD', 'vendeur puis acquéreur, chacun sa fiche ; Léa DURAND reliée à « DURAND »');
-  assert.match(html, /pb-groupe-titre">Vendeur<[^]*pb-groupe-titre">Acquéreurs</, 'un titre par groupe');
+  assert.match(html, /pieces-titre-texte">Vendeur<[^]*pieces-titre-texte">Acquéreurs</, 'un titre par groupe');
   assert.match(html, /pb-carte pb-carte-simple[^]*SCI DU TEST/, 'une société : carte simple, sans lien');
   assert.doesNotMatch(html, /en cours de lecture/, 'fiches lues : jamais « en cours de lecture »');
 });
@@ -110,8 +110,8 @@ test('cartes d’une succession : civilité du défunt et des héritiers, titres
     parties: [{ role: 'PARTIE', nom: 'Jean ESSAI' }, { role: 'PARTIE', nom: 'Léa ESSAI', civilite: 'Mme' }, { role: 'PARTIE', nom: 'Paul ESSAI' }],
     authentic: { fichesClients: { 'paul essai': { nom: 'Paul ESSAI', nomFamille: 'ESSAI', prenom: 'Paul', civilite: 'M' } } } };
   const html = app.htmlCartesClientsBiensDossier(d, null);
-  assert.match(html, /Défunt<\/div>[^]*Monsieur Jean ESSAI/);
-  assert.match(html, /Héritiers<\/div>[^]*Madame Léa ESSAI[^]*Monsieur Paul ESSAI/);
+  assert.match(html, /Défunt<\/span><\/span><\/div>[^]*Monsieur Jean ESSAI/);
+  assert.match(html, /Héritiers<\/span><\/span><\/div>[^]*Madame Léa ESSAI[^]*Monsieur Paul ESSAI/);
 });
 
 test('civilité d’une succession : jamais inventée pour le défunt, jamais pour une société, reprise des comparants', () => {

@@ -217,7 +217,7 @@
           ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${idJs}', this.open)">
             <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier le défunt, les héritiers et les biens</span><span onclick="event.preventDefault()">${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus.')}</span>${icone('chevron-down')}</summary>
-      <div class="section-eyebrow fiche-sous-titre">Le défunt ${df.source ? `<span class="hint">· ${escapeHtml(df.source)}</span>` : ''}</div>
+      <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('user')}<span class="pieces-titre-texte">Le défunt</span>${df.source ? `<span class="pieces-type">· ${escapeHtml(df.source)}</span>` : ''}</span></div>
       <dl class="fiche-proprietes">
         ${ligne('user', 'Défunt', `<span class="succ-identite">${civilite}${texte('prenoms', c.prenoms, 'Prénoms', 'Prénoms du défunt')}${texte('nom', c.nom, 'NOM', 'Nom du défunt')}</span>`, null, 'prop-pleine')}
         ${ligne('calendar', 'Décès', `<span class="succ-identite">${date('decesDate', c.decesDate, 'Date du décès', 'changerDefuntFiche')}${texte('decesLieu', c.decesLieu, 'Lieu du décès', 'Lieu du décès')}</span>`, null, 'prop-pleine')}
@@ -230,7 +230,7 @@
         ${ligne('file-text', 'Donation époux', choixOuiNon('donationEpoux', s.donationEpoux, 'Donation entre époux'), null)}
         ${ligne('file-text', 'Testament', choixOuiNon('testament', s.testament, 'Testament'), null)}
       </dl>
-      <div class="section-eyebrow fiche-sous-titre">Héritiers <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
+      <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Héritiers</span></span> <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
       <dl class="fiche-proprietes fiche-coordonnees">
         ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" title="Autorisation de déblocage ou de transfert de fonds de cette personne, en PDF (modèles de l’office ; le modèle se change dans l’outil « Autorisations de fonds »)" onclick="telechargerAutorisationSuccession('${idJs}', '${escapeOnclickArg(p.nom)}')">${icone('download')}Autorisation</wa-button>`, null, 'prop-pleine')).join('')
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
@@ -253,7 +253,7 @@
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
         ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${idJs}')" title="Courriers d’interrogation (banque, assurance-vie, impôts, caisses, EHPAD…) : en papier, ou envoyés par email depuis CLAIRE">Préparer et envoyer</wa-button>`, null, 'prop-pleine')}
       </dl>
-      <div class="section-eyebrow fiche-sous-titre">Contrôle à 2 mois ${infoBulle('Deux mois après l’ouverture : vérifier si des droits de succession sont dus et si un inventaire est nécessaire, puis cocher l’étape.')}</div>
+      <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('scale')}<span class="pieces-titre-texte">Contrôle à 2 mois</span></span> ${infoBulle('Deux mois après l’ouverture : vérifier si des droits de succession sont dus et si un inventaire est nécessaire, puis cocher l’étape.')}</div>
       <dl class="fiche-proprietes">
         ${ligne('banknote', 'Droits dus', choixOuiNon('droitsDus', s.droitsDus, 'Droits de succession dus'), null)}
         ${ligne('list-check', 'Inventaire', choixOuiNon('inventaireNecessaire', s.inventaireNecessaire, 'Inventaire nécessaire'), null)}
@@ -716,7 +716,7 @@
     // Réponse sans inscription notée à la main (aussi quand la lecture n'a rien reconnu, ou sans réponse sur le NAS).
     const aucuneMain = !(f && f.aucune) && !((f && f.inscriptions) || []).length
       ? `<wa-button appearance="outlined" size="s" type="button" onclick="marquerFcddvAucune('${idJs}')" title="La réponse du FCDDV ne mentionne aucune inscription : testament et donation entre époux passent à « non » s'ils ne sont pas encore répondus">${icone('check')} Aucune inscription</wa-button>` : '';
-    return `<div class="section-eyebrow fiche-sous-titre">FCDDV ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
+    return `<div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('file-text')}<span class="pieces-titre-texte">FCDDV</span></span> ${infoBulle('Réponse du fichier central des dispositions de dernières volontés, lue dans le dossier du NAS : inscriptions (testament, donation entre époux…) et notaire dépositaire. Un email par confrère pour lui demander la nature de l’acte et son coût.')}</div>
       <div class="fcddv-bloc"><div class="fcddv-etat">${etat}${bouton}${aucuneMain}${f && f.aucune ? `<wa-button appearance="plain" size="s" type="button" onclick="rouvrirFcddv('${idJs}')" title="Une inscription existe finalement : afficher le formulaire d’ajout">Corriger</wa-button>` : ''}</div>${lignes}${f && f.aucune ? '' : ajout}</div>`;
   }
 
