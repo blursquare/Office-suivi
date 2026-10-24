@@ -262,7 +262,7 @@ function bandeauFiche(d, aujourdhuiIso, actions, probabilite) {
   if (d.archive) maintenant = { type: 'archive' };
   else if (actions && actions.length) {
     const a = actions[0];
-    maintenant = { type: 'action', cle: a.cle, jours: a.jours == null ? null : a.jours, titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
+    maintenant = { type: 'action', cle: a.cle, jours: a.jours == null ? null : a.jours, delaiTexte: a.delaiTexte || '', titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
   } else {
     const p = prochaineEcheanceDetail(d);
     maintenant = p ? { type: 'etape', titre: p.label, iso: p.iso, jours: p.jours, categorie: p.type } : { type: 'rien' };

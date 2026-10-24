@@ -405,8 +405,8 @@
   // dans les décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas
   // « frais d'acte » comme le modèle de l'étude — le contrôle ne se déclenchait donc jamais sur
   // un décompte importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
-  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte)\b/i;
-  var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession|d[ée]p[ôo]t|quittance|rectificati(?:f|ve)|mobilier|vendeur)\b/i;
+  var AF_FRAIS_ACTE_RE = /(?<![A-Za-z0-9_\u00C0-\u024F])(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte)(?![A-Za-z0-9_\u00C0-\u024F])/i;
+  var AF_FRAIS_HORS_VENTE_RE = /(?<![A-Za-z0-9_\u00C0-\u024F])(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession|d[ée]p[ôo]t|quittance|rectificati(?:f|ve)|mobilier|vendeur)(?![A-Za-z0-9_\u00C0-\u024F])/i;
 
   function estLigneFraisActeVente(libelle) {
     const t = String(libelle || '');
@@ -1569,6 +1569,7 @@
     afDossierDetache = null;
     const autreDossier = !!precedent && precedent !== p.dossierId;
     if (autreDossier) {
+      afFraisChoisiALaMain = { departement: false, type: false }; // le choix à la main du dossier d'avant ne vaut pas ici
       tfAvis.af = null;
       renderBlocTaxeFonciere('af');
       ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });

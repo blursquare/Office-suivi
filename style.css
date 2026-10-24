@@ -5268,12 +5268,6 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 @media (hover: none) { .af-ordre { opacity: 1; } }
 /* Écran tactile (étude 24/10) : les flèches et la croix sur leur propre ligne, au-dessus du libellé (flottantes, elles
    coupaient le premier mot : « P / rix d'acquisition »). */
-/* Les flèches se posent PAR-DESSUS le coin de la cellule au survol (24/10) : flottantes, elles retiraient 60 px à la première ligne
-   du libellé, et « Montant » se coupait en « Monta / nt » sur un écran de 1366 px. */
-@media (hover: hover) {
-  table.af-table td:has(> .af-ordre) { position: relative; }
-  .af-ordre { position: absolute; top: 2px; right: 2px; float: none; margin: 0; padding: 0 2px; background: #ffffff; border-radius: 4px; }
-}
 @media (hover: none) { .af-ordre { float: none; display: flex; justify-content: flex-end; margin: 0 0 2px; } }
 .af-ordre-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
@@ -10271,6 +10265,7 @@ wa-stepper.outil-sommaire wa-step:not([data-avant-suite])::part(connector) { bac
   .pa-barre > span, .pa-section > summary > .icone:last-child, .pb-modifier > summary > .icone:last-child { transition: none; }
   .pieces-depot.survol, .pdf-dropzone.dragover { transform: none; }
   .pieces-depot, .pdf-dropzone { transition: background-color var(--anim-duree); }
+  .outil-section { transition: none; }
 }
 /* État civil d'Authentic sous une personne de la fiche (étude 18/10 : régime, date et lieu du mariage). */
 .personne-etat-civil { display: block; margin: 0 0 6px 120px; font-size: var(--texte-s); line-height: 1.35; }
@@ -10881,8 +10876,8 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .outil-formulaire input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):focus, .outil-formulaire select:focus, .outil-formulaire textarea:focus { background: var(--paper-card); border-color: var(--focus); }
 /* Champs posés dans un bloc déjà grisé : restent blancs pour se voir. */
 .outil-formulaire :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
+.outil-formulaire input:is([type="text"], [type="search"])[aria-invalid="true"]:is(:hover, :focus, :not(:focus)) { border-color: var(--urgent); }
 .outil-section-attente { opacity: 0.45; }
 .outil-section-attente:hover, .outil-section-attente:focus-within { opacity: 1; }
 .outil-section-courante > .outil-section-tete .outil-num { background: var(--focus); color: var(--blanc-fixe); }
-@media (prefers-reduced-motion: reduce) { .outil-section { transition: none; } }
 @media print { .outil-section-attente { opacity: 1; } }

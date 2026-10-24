@@ -839,3 +839,10 @@ test('contrôle des frais : boîte postale, numéro, deux adresses, actes annexe
   assert.equal(app.codePostalBienAppelFonds({ adresseBien: 'TOURS (37000), 1 rue X', bien: { adresse: { codePostal: '41000' } } }), '37000', 'l’adresse du courrier d’abord');
   ["Frais de l'acte de dépôt de pièces", "Frais de l'acte de quittance", "Frais de l'acte rectificatif", 'Frais de vente du mobilier', 'Droits de mutation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
 });
+
+test('libellés des frais : « Émoluments et droits » reconnu, « … copropriété » écarté (lettres accentuées en bord de mot, relecture 24/10)', () => {
+  assert.equal(app.AF_FRAIS_ACTE_RE.test('Émoluments et droits'), true);
+  assert.equal(app.AF_FRAIS_ACTE_RE.test("émoluments et droits de l'acte"), true);
+  assert.equal(app.AF_FRAIS_HORS_VENTE_RE.test("Frais d'acte copropriété"), true);
+  assert.equal(app.AF_FRAIS_HORS_VENTE_RE.test("Frais d'acte"), false);
+});

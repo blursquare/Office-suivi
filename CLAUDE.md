@@ -362,7 +362,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   « À relier » (jamais relié au NAS), « Attente de pièces » (pièce de la checklist ou offre de prêt
   manquante ; participation : l'offre seule), « Complet » (tout reçu), « Prêt » (complet + rendez-vous
   placé), et **« Urgent »** dès qu'une date butoir est dépassée (vente préalable, prêt, date butoir
-  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Confirmé par l'étude :
+  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée ; **« Signé »** (vert, étude 24/10) dès que l'acte est VRAIMENT signé
+  (`signatureFaiteSuivi` : signé dans Authentic ou signature cochée — jamais un rendez-vous seulement passé), avant « Urgent » et « Attente de pièces »,
+  jusqu'à l'archivage. Confirmé par l'étude :
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
@@ -691,7 +693,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
   questionnaire J+1…J+30 (« À faire », `JOURS_QUESTIONNAIRE`) ; **« un mot un an après la signature » retiré le 07/10** (étude : « retire le mot d'anniversaire » — dossier archivé avant, jamais proposé ; `gestesRelationClient` supprimée) — **date de signature = `dateSignatureDossier`** (07/10 : signé dans Authentic ou coché, sinon rendez-vous passé ; stade, questionnaire, archivage à J+30, statistiques, avancement, tuiles du mois ; jamais `d.rendezVousSignature` seul ; jamais pour une succession) — **jamais quand un confrère accompagne l'acquéreur**,
   étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
-  dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
+  dus ou faits ; le reste replié sous « Hors de ce stade », déplié à l'impression — étude 24/10), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
   absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la

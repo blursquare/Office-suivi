@@ -661,3 +661,11 @@
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }
+
+  // À l'impression (Ctrl+P de la fiche), « Hors de ce stade » s'imprime déplié, puis reprend son état (relecture 24/10).
+  window.addEventListener('beforeprint', () => {
+    document.querySelectorAll('details.echanges-hors-stade:not([open])').forEach(el => { el.open = true; el.dataset.ouvertPourImpression = '1'; });
+  });
+  window.addEventListener('afterprint', () => {
+    document.querySelectorAll('details.echanges-hors-stade[data-ouvert-pour-impression]').forEach(el => { el.open = false; delete el.dataset.ouvertPourImpression; });
+  });
