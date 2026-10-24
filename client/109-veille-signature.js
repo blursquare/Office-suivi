@@ -363,7 +363,7 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
   const l2 = ecrire('2 · Procédure — Appels et réception des fonds', M.gauche, y, 'gras', 12, C.marine);
   ecrire(`(cochée d’après CLAIRE le ${maintenant.toLocaleDateString('fr-FR')}, à compléter au fil du dossier)`, M.gauche + l2 + 8, y + 4, 'sans', 7, C.gris);
   y += 20;
-  const tailleCase = 16;
+  const tailleCase = 12;
   const carte = (e) => {
     const lignes = lignesRunsVeille([{ t: e.lead, cle: 'gras' }, { t: e.suite, cle: 'sans' }], wBoite - 52, mesurerRun(8.8));
     const note = e.note ? lignesRunsVeille([{ t: e.note, cle: 'sans' }], wBoite - 52, mesurerRun(8)) : [];
@@ -386,10 +386,10 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
       if (c.note.length) ecrireLignes(c.note, x + 33, yt + bas + 1, 8, 9.6, C.marine);
       const yFait = y + h - tailleCase - 8;
       grandeCase(x + 33, yFait, tailleCase, c.e.fait);
-      const xFait = x + 33 + tailleCase + 7;
-      const lFait = ecrire(c.e.fait ? 'Fait' + (c.e.date ? ' le' : '') : 'Fait le', xFait, yFait + 3.5, 'sans', 9, c.e.fait ? C.vert : C.gris);
-      if (c.e.fait && c.e.date) ecrire(dateCourteVeille(c.e.date), xFait + lFait + 5, yFait + 2.2, 'gras', 11, C.vert);
-      else if (!c.e.fait) trait(xFait + lFait + 5, yFait + tailleCase - 2, xFait + lFait + 85, yFait + tailleCase - 2, 0.6, hex('999999'), false);
+      const xFait = x + 33 + tailleCase + 6;
+      const lFait = ecrire(c.e.fait ? 'Fait' + (c.e.date ? ' le' : '') : 'Fait le', xFait, yFait + 1.6, 'sans', 8.6, c.e.fait ? C.vert : C.gris);
+      if (c.e.fait && c.e.date) ecrire(dateCourteVeille(c.e.date), xFait + lFait + 5, yFait + 1.4, 'gras', 9.5, C.vert);
+      else if (!c.e.fait) trait(xFait + lFait + 5, yFait + tailleCase - 1.5, xFait + lFait + 80, yFait + tailleCase - 1.5, 0.6, hex('999999'), false);
     });
     y += h + 6;
   }
