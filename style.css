@@ -9987,24 +9987,15 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .fiche-outils-droite wa-button.action-rapide::part(base) { justify-content: flex-start; }
 .fiche-outils-droite wa-button.action-rapide::part(label) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fiche-outils-droite wa-button.action-rapide .icone { color: var(--focus); }
-@media (max-width: 1100px) { .fiche-dossier-colonnes.fiche-dossier-vente, .fiche-dossier-colonnes.fiche-dossier-vente:has(> .fiche-outils-droite), .fiche-dossier-colonnes:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 1fr); } .fiche-dossier-vente > .fiche-outils-droite { display: none; } .fiche-outils-droite { position: static; } }
+@media (max-width: 1100px) { .fiche-dossier-colonnes.fiche-dossier-vente, .fiche-dossier-colonnes.fiche-dossier-vente:has(> .fiche-outils-droite), .fiche-dossier-colonnes:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 1fr); } .fiche-outils-droite { position: static; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); } .fiche-outils-droite .section-eyebrow { grid-column: 1 / -1; } }
 body.fiche-a-cote .fiche-dossier-colonnes.fiche-dossier-vente, body.fiche-a-cote .fiche-dossier-colonnes:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 1fr); }
-body.fiche-a-cote .fiche-dossier-vente > .fiche-outils-droite { display: none; }
-body.fiche-a-cote .fiche-outils-droite { position: static; }
+body.fiche-a-cote .fiche-outils-droite { position: static; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+body.fiche-a-cote .fiche-outils-droite .section-eyebrow { grid-column: 1 / -1; }
 .fiche-droite-colonnes .prop-ligne { grid-template-columns: 108px minmax(0, 1fr); }
 .fiche-droite-colonnes .prop-ligne dd { flex-wrap: wrap; row-gap: 2px; }
 .fiche-droite-colonnes input.prop-champ { flex-basis: 140px; }
 @media (max-width: 1440px) { .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr); } }
 body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr); }
-.fiche-outils-bloc { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; padding: 12px 16px 16px; background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); }
-.fiche-outils-boutons { display: grid; grid-template-columns: repeat(var(--outils-colonnes, 3), minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 1100px) { .fiche-outils-boutons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.fiche-outils-boutons .succ-actes { display: contents; }
-.fiche-outils-bloc wa-button.action-rapide { margin: 0; --wa-form-control-height: 40px; --wa-form-control-padding-inline: 16px; font-size: var(--texte-base); font-weight: 500; color: var(--ink); }
-.fiche-outils-bloc wa-button.action-rapide { width: 100%; }
-.fiche-outils-bloc wa-button.action-rapide::part(label) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fiche-outils-bloc wa-button.action-rapide .icone { color: var(--focus); }
 /* « Compléter la fiche (n) » en tête de la colonne de droite, dont il montre les champs vides. */
 .fiche-droite-tete { display: flex; justify-content: flex-end; }
 .fiche-droite-tete > wa-button.bouton-ajout.fiche-completer { margin: 0; }

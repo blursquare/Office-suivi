@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.332.1';
+  const VERSION_APP = '0.332.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.332.2', date: '2026-10-24 08:33', resume: "Fiche d’un dossier : les outils ne sont plus en double. Pour une vente, le bloc du dessous est retiré (la colonne de droite reste, et passe sous les colonnes sur un écran étroit) ; pour une succession, la ligne « Courriers » et le bouton « Forfait mobilier » de la colonne, qui doublonnaient Constitution de dossier et « Simuler l’arbitrage »." },
     { version: '0.332.1', date: '2026-10-24 08:27', resume: "Fiche d’un dossier, onglet Dossier : les outils reviennent aussi à droite des colonnes, un bouton par ligne — pour une vente (Constitution de dossier, agenda, appel de fonds, provision, prorata, quotités, urbanisme) comme pour une succession (Constitution de dossier, Autorisations de fonds, Forfait mobilier). Sous 1 100 px ou en fiche à côté, la vente garde son bloc du dessous." },
     { version: '0.332.0', date: '2026-10-24 08:12', resume: "Autorisations de fonds : un bouton « Envoyer sur Yousign » (par personne, ou pour les personnes cochées) télécharge le PDF sans les lignes « Fait à : / Le : » (Yousign date et situe la signature) et prépare dans Yousign le brouillon de la demande avec le signataire de la fiche. Vous joignez le PDF dans Yousign, placez la signature et envoyez : rien ne part sans vous." },
     { version: '0.331.1', date: '2026-10-24 01:21', resume: "Signature du RIB : seul le texte du bouton change (« Envoyer » / « Renvoyer ») ; l’icône du crayon est remise." },

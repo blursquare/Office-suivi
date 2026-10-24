@@ -251,7 +251,6 @@
         ${ligne('list-check', 'Actes', `<span class="succ-actes">${actes}</span>`, null, 'prop-pleine')}
         ${attentes.length && !acteSigneSuccession(d, 'notoriete').fait ? ligne('clock', 'Notoriété', `<span class="hint">À réunir avant de la rédiger : ${escapeHtml(attentes.join(', '))}</span>`, null, 'prop-pleine') : ''}
         ${ligne('folder', 'Dossier NAS', nas, null, 'prop-pleine')}
-        ${d.archive ? '' : ligne('mail', 'Courriers', `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${idJs}')" title="Courriers d’interrogation (banque, assurance-vie, impôts, caisses, EHPAD…) : en papier, ou envoyés par email depuis CLAIRE">Préparer et envoyer</wa-button>`, null, 'prop-pleine')}
       </dl>
       <div class="section-eyebrow fiche-sous-titre">Contrôle à 2 mois ${infoBulle('Deux mois après l’ouverture : vérifier si des droits de succession sont dus et si un inventaire est nécessaire, puis cocher l’étape.')}</div>
       <dl class="fiche-proprietes">
