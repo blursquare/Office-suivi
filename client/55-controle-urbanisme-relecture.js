@@ -331,7 +331,7 @@
 
   function renderDocumentsAObtenirTravaux(analyse) {
     if (!analyse.aObtenir || !analyse.aObtenir.length) return '';
-    return `<div class="pr-a-obtenir"><div class="section-eyebrow pr-eyebrow">Documents à obtenir</div>
+    return `<div class="pr-a-obtenir"><div class="pr-eyebrow"><span class="pieces-titre">${icone('file-text')}<span class="pieces-titre-texte">Documents à obtenir</span></span></div>
       <ul>${analyse.aObtenir.map(x => `<li>${icone('file-text')}<span>${escapeHtml(x.doc)}</span><span class="hint">${escapeHtml(x.travail)}</span></li>`).join('')}</ul></div>`;
   }
 
@@ -349,7 +349,7 @@
     const etat = tr.lecture ? '<p class="hint">Lecture du compromis…</p>'
       : tr.erreur ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(tr.erreur)}</p>` : '';
     const liste = tr.liste
-      ? `<div class="section-eyebrow pr-eyebrow">Travaux du compromis${infoBulle(`Lus dans « ${tr.source || 'le compromis'} ». Une autorisation compte comme demandée quand le compromis la cite ; survolez une pastille pour le détail.`)}</div>
+      ? `<div class="pr-eyebrow"><span class="pieces-titre">${icone('list-check')}<span class="pieces-titre-texte">Travaux du compromis</span></span>${infoBulle(`Lus dans « ${tr.source || 'le compromis'} ». Une autorisation compte comme demandée quand le compromis la cite ; survolez une pastille pour le détail.`)}</div>
         ${renderTravauxUrbanismeListe(analyseTravauxUrbanisme(tr.liste, patrimoinePreemption(prEtat) || (d && d.preemption && d.preemption.patrimoine), null, sitadelPreemption()))}`
       : '';
     zone.innerHTML = boutons + etat + liste + renderSitadelPreemption() + renderPhotosPreemption();
@@ -467,7 +467,7 @@
   function renderSitadelPreemption() {
     const s = prEtat.sitadel || {};
     const liste = sitadelPreemption();
-    const tete = `<div class="section-eyebrow pr-eyebrow">Sitadel${infoBulle(AIDE_SITADEL)}</div>`;
+    const tete = `<div class="pr-eyebrow"><span class="pieces-titre">${icone('folder')}<span class="pieces-titre-texte">Sitadel</span></span>${infoBulle(AIDE_SITADEL)}</div>`;
     if (s.lecture) return tete + '<p class="hint">Recherche…</p>';
     if (s.erreur) return tete + `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(s.erreur)}</p>`;
     if (!liste) return tete + `<p class="hint">${prEtat.insee && prEtat.parcelles ? 'Pas encore cherché.' : 'Commune et parcelles d’abord.'}</p>`;
@@ -565,7 +565,7 @@
 
   function renderPhotosPreemption() {
     const h = prEtat.historique;
-    const tete = `<div class="section-eyebrow pr-eyebrow">Photos aériennes${infoBulle('Photos de l’IGN, contour du cadastre en orange, numéros des parcelles (celles du dossier en gras) pour repérer les constructions d’une date à l’autre. Une année seule n’a souvent pas de photo (le Loir-et-Cher est photographié environ tous les trois ans) : préférer les périodes. À comparer à l’œil.')}</div>`;
+    const tete = `<div class="pr-eyebrow"><span class="pieces-titre">${icone('map-pin')}<span class="pieces-titre-texte">Photos aériennes</span></span>${infoBulle('Photos de l’IGN, contour du cadastre en orange, numéros des parcelles (celles du dossier en gras) pour repérer les constructions d’une date à l’autre. Une année seule n’a souvent pas de photo (le Loir-et-Cher est photographié environ tous les trois ans) : préférer les périodes. À comparer à l’œil.')}</div>`;
     if (!h) return tete + `<p class="hint">${prEtat.insee && prEtat.parcelles ? 'Pas encore chargées.' : 'Commune et parcelles d’abord.'}</p>`;
     if (h.lecture) return tete + '<p class="hint">Contour de la parcelle…</p>';
     if (h.erreur) return tete + `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(h.erreur)}</p>`;

@@ -1109,7 +1109,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
 
   function champConstitution(libelle, valeur, gestionnaire, extra) {
     const o = extra || {};
-    return `<div class="calc-champ${o.large ? ' cst-large' : ''}"><label>${escapeHtml(libelle)}</label>
+    return `<div class="calc-champ${o.large ? ' cst-large' : ''}${o.deux ? ' cst-deux' : ''}"><label>${escapeHtml(libelle)}</label>
       <input type="${o.type || 'text'}" class="prop-champ" value="${escapeAttr(valeur)}" placeholder="${escapeAttr(o.placeholder || '')}" oninput="${gestionnaire}(this.value)"${o.fin ? ` onchange="${o.fin}"` : ''}></div>`;
   }
 
@@ -1150,7 +1150,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
         <h2 class="cst-accueil-titre">Quel dossier constituer ?</h2>
         <p class="cst-accueil-sous">Les courriers de l’office se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
         <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher un dossier de vente ou de succession…" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>
-        ${cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">Derniers dossiers</div><div class="cst-accueil-grille">${cartes}</div>` : ''}
+        ${cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone('clock')}<span class="pieces-titre-texte">Derniers dossiers</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : ''}
       </div>`;
   }
 
@@ -1193,7 +1193,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       const k = escapeOnclickArg(g.cle);
       const idc = escapeAttr(g.cle);
       return `<div class="cst-commune"><div class="cst-commune-tete"><strong>${escapeHtml(g.commune)}${g.cp ? ' (' + escapeHtml(g.cp) + ')' : ''}</strong> ${etat}</div>
-        <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
+        <input type="text" class="prop-champ" value="${escapeAttr(g.adresseImmeuble)}" oninput="cstGroupe('${k}', 'adresseImmeuble', this.value); majApercuConstitution()" aria-label="Adresse de l’immeuble dans les courriers" placeholder="Adresse de l’immeuble dans les courriers" title="Adresse de l’immeuble, telle qu’elle s’écrit dans les courriers">
         <div class="cst-parcelles">${lignes || '<p class="hint">Aucune parcelle relevée dans Authentic : ajoutez-la.</p>'}</div>
         <div class="cst-ajout cst-ajout-parcelle"><input type="text" class="prop-champ" id="cst-np-section-${idc}" placeholder="Sect." maxlength="3" aria-label="Section"><input type="text" class="prop-champ" id="cst-np-numero-${idc}" placeholder="N°" maxlength="5" aria-label="Numéro">
           <input type="text" class="prop-champ" id="cst-np-lieudit-${idc}" placeholder="Lieu-dit" aria-label="Lieu-dit"><input type="text" class="prop-champ" id="cst-np-surface-${idc}" placeholder="5 a 12 ca" aria-label="Contenance">
@@ -1211,15 +1211,15 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const df = cstEtat.defunt;
     const c = df.champs;
     const civ = `<div class="calc-champ"><label>Civilité</label><select class="prop-champ" onchange="cstDefunt('civilite', this.value); cstDefuntFin()"><option${c.civilite === 'Madame' ? ' selected' : ''}>Madame</option><option${c.civilite === 'Monsieur' ? ' selected' : ''}>Monsieur</option></select></div>`;
-    const f = (champ, libelle, type, placeholder, large) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, fin: 'cstDefuntFin()' });
+    const f = (champ, libelle, type, placeholder, large, deux) => champConstitution(libelle, c[champ], `cstDefuntApercu.bind(null, '${champ}')`, { type, placeholder, large, deux, fin: 'cstDefuntFin()' });
     return `<p class="cst-source-ligne">${puceSourceConstitution(df.source)}${(df.champs.regime || df.regime) || df.situation ? ` <span class="hint">${escapeHtml(df.situation || '')}${(df.champs.regime || df.regime) ? ' · régime : ' : ''}${(df.champs.regime || df.regime) ? `<strong>${escapeHtml((df.champs.regime || df.regime))}</strong>` : ''}</span>` : ' <span class="hint">Régime matrimonial non renseigné dans Authentic.</span>'}</p>
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
       <div class="calc-champs cst-grille">${civ}${f('prenoms', 'Prénoms', 'text', 'Alice Marcelle')}${f('nom', 'Nom', 'text', 'FRA')}
         ${f('domicile', 'Domicile', 'text', 'BRACIEUX (41250), 31 rue de Candy', true)}
-        ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)')}
-        ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)')}
+        ${f('naissanceDate', 'Né(e) le', 'date')}${f('naissanceLieu', 'à', 'text', 'SAINT SOUPLET (59360)', false, true)}
+        ${f('decesDate', 'Décédé(e) le', 'date')}${f('decesLieu', 'à', 'text', 'BRACIEUX (41250)', false, true)}
         <div class="calc-champ"><label>Situation</label><select class="prop-champ" onchange="cstDefunt('conjointLien', this.value); majApercuConstitution()">${['', 'Veuve de', 'Veuf de', 'Épouse de', 'Époux de', 'Divorcée de', 'Divorcé de'].map(l => `<option value="${escapeAttr(l)}"${c.conjointLien === l ? ' selected' : ''}>${l || '—'}</option>`).join('')}</select></div>
-        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER')}${f('regime', 'Régime matrimonial', 'text', 'Communauté légale')}</div>`;
+        ${f('conjointNom', 'Conjoint', 'text', 'Monsieur Maurice Charles FISCHER', false, true)}${f('regime', 'Régime matrimonial', 'text', 'Communauté légale', true)}</div>`;
   }
   function cstDefuntApercu(champ, valeur) { cstDefunt(champ, valeur); majApercuConstitution(); }
 
@@ -1293,7 +1293,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       <div class="cst-actions">
         ${nEmail ? `<wa-button appearance="outlined" type="button" ${e.enCours ? 'disabled ' : ''}onclick="envoyerEmailsConstitution()" title="Une fenêtre d’email par courrier à envoyer par email : rien ne part sans « Envoyer »">${icone('mail')} Envoyer les emails (${nEmail})</wa-button>` : ''}
         <wa-button appearance="outlined" type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier cochés, chacun suivi du plan cadastral de sa commune, dans un seul PDF ouvert pour l’impression">${icone('printer')} Imprimer tout (${nPapier})</wa-button>
-        <wa-button variant="brand" type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune' : 'Dossier non relié au NAS : reliez-le sur la fiche'}">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>
+        ${nas ? `<wa-button variant="brand" type="button" ${bloque ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>` : ''}
       </div>
       ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
@@ -1307,7 +1307,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       const docs = courriersMairieGroupeConstitution(e.documents, g.cle);
       if (!docs.length) return '';
       return `<div class="cst-mairie-envoi">
-          <div class="cst-mairie-tete"><strong>Mairie de ${escapeHtml(g.commune)}</strong><span class="hint">${docs.map(x => escapeHtml(x.libelle)).join(' · ')}</span></div>
+          <div class="cst-mairie-tete"><strong>${g.commune ? `Mairie de ${escapeHtml(g.commune)}` : 'Mairie (commune à compléter)'}</strong><span class="hint">${docs.map(x => escapeHtml(x.libelle)).join(' · ')}</span></div>
           ${renderPlanCommuneConstitution(g)}
           <wa-button appearance="outlined" type="button" class="cst-email-groupe"${e.enCours ? ' disabled' : ''} onclick="emailGroupeMairieConstitution('${escapeOnclickArg(g.cle)}')" title="Les courriers cochés pour la mairie en PDF et le plan cadastral, dans un email : rien ne part sans « Envoyer »">${icone('mail')} Un seul email à la mairie (${docs.length} courrier${docs.length > 1 ? 's' : ''} + plan)</wa-button>
         </div>`;
@@ -1364,18 +1364,18 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
-        ${doc.origine ? `<span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
         <wa-button appearance="outlined" size="s" type="button" class="cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Télécharger le courrier en Word (.docx)">Word</wa-button>
+        ${doc.origine ? `<span class="hint">${/^adresse/i.test(doc.origine) ? escapeHtml(doc.origine) : `Adresse : ${escapeHtml(doc.origine)}`}</span>` : ''}
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
           <span class="hint">Le texte du courrier dans l’email, le courrier joint en PDF${doc.genre === 'vente' ? ' avec le plan cadastral' : ''}.</span>` : ''}
       </div>
       <div class="cst-edition-corps">
         <div class="calc-champ"><label>Destinataire</label>
-          <textarea class="prop-champ" id="cst-dest" rows="4" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>
+          <textarea class="prop-champ" id="cst-dest" rows="${Math.max(4, doc.lignes.length + 1)}" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>
           ${retenir ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstRetenirAdresse('${idDoc}')" title="Garder cette adresse pour les prochains dossiers">Retenir l’adresse</wa-button>` : ''}</div>
         <div class="calc-champ cst-rep"><label>Chercher dans le répertoire</label>
-          <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom, ville… (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
+          <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom ou ville" title="Nom ou ville (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
           <div id="cst-rep-resultats" class="cst-rep-resultats"></div></div>
       </div>
       ${doc.modele === 'autre' ? `<div class="calc-champ cst-texte-libre"><label>Texte du courrier ${infoBulle(doc.genre === 'vente' ? 'Votre demande, entre « Madame, Monsieur, » et les références cadastrales. **mot** = gras, __mot__ = souligné.' : 'Votre demande, entre « Madame, Monsieur, » et la formule finale. **mot** = gras, __mot__ = souligné.')}</label>
@@ -1507,11 +1507,20 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     ].filter(Boolean);
   }
 
+  // Étude 24/10 : même barre que les autres outils (wa-stepper de client/44, marqueurs en carré arrondi), l'état de chaque étape en
+  // description ; un clic sur une étape y mène (`wa-step-change`, écouté une fois pour toutes plus bas).
   function renderStepperConstitution(etapes) {
     const i = Math.min(Math.max(0, cstEtat.etape || 0), etapes.length - 1);
-    return `<div class="wizard-stepper cst-stepper" id="cst-stepper">${etapes.map((x, k) => `${k ? '<span class="wizard-step-trait"></span>' : ''}<button type="button" class="wizard-step-btn${k === i ? ' actif' : ''}${k < i ? ' fait' : ''}" onclick="cstEtape(${k})">
-        <span class="wizard-step-num">${k < i ? icone('check') : k + 1}</span><span class="wizard-step-texte"><span class="wizard-step-libelle">${escapeHtml(x.court)}</span><span class="wizard-step-sous">${escapeHtml(x.sous || '')}</span></span></button>`).join('')}</div>`;
+    const coche = '<span slot="icon" class="anim-etape-coche" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" pathLength="1"/></svg></span>';
+    return `<div class="outil-sommaire-place cst-sommaire" id="cst-stepper"><wa-stepper class="outil-sommaire" clickable orientation="horizontal" label="Étapes de la constitution" active="${escapeAttr(etapes[i].cle)}">${etapes.map((x, k) => `<wa-step name="${escapeAttr(x.cle)}"${k < i ? ' completed data-suite' : ''}${k <= i ? ' data-avant-suite' : ''}${k <= Math.max(i, cstEtat.etapeMax || 0) ? ' data-atteinte' : ''}>${escapeHtml(x.court)}${x.sous ? `<span slot="description">${escapeHtml(x.sous)}</span>` : ''}${k < i ? coche : ''}</wa-step>`).join('')}</wa-stepper></div>`;
   }
+  document.addEventListener('wa-step-change', (ev) => {
+    const barre = ev.target && ev.target.closest ? ev.target.closest('#cst-stepper') : null;
+    const d = barre && cstEtat ? dossierConstitution() : null;
+    if (!d) return;
+    const k = etapesConstitution(d).findIndex(x => x.cle === (ev.detail && ev.detail.name));
+    if (k >= 0 && k !== cstEtat.etape) cstEtape(k);
+  });
 
   // La barre des étapes redessinée seule (plan ou zonage qui avance sur une autre étape : la saisie en cours n'est pas effacée).
   function majStepperConstitution() {
@@ -1523,6 +1532,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   function cstEtape(i) {
     if (!cstEtat) return;
     cstEtat.etape = i;
+    cstEtat.etapeMax = Math.max(cstEtat.etapeMax || 0, i); // étapes déjà atteintes : jamais pâles dans la barre
     renderConstitution();
     const z = document.getElementById('cst-stepper');
     if (z) z.scrollIntoView({ block: 'nearest' });
@@ -1549,7 +1559,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ${renderStepperConstitution(etapes)}
       <div class="cst-mise-en-page">
         <div class="cst-gauche">
-          <section class="calc-card cst-etape">
+          <section class="calc-card cst-etape outil-champs">
             <h2 class="outil-section-tete cst-etape-tete">${escapeHtml(x.titre)}${x.compte ? ` <span class="hint">${escapeHtml(x.compte)}</span>` : ''}${x.info ? ' ' + infoBulle(x.info) : ''}</h2>
             ${x.html}
             <div class="wizard-nav cst-nav">

@@ -366,6 +366,26 @@
     return { jours, aujourdhui: jours[6].n, equipe, max: Math.max(1, ...jours.map(j => j.n)) };
   }
 
+  // Pure : les entrées du fil, la même action (même auteur, même texte, même jour) faite sur plusieurs dossiers réunie en UNE ligne
+  // (étude 24/10 : « Pièce « Non péril… » non réclamée » répété une fois par dossier). L'entrée gardée est la plus récente ;
+  // `dossiers` = [{ id, nom }] de toutes, dans l'ordre du fil.
+  function regrouperActivite(entrees, maintenantMs) {
+    const parCle = new Map();
+    const out = [];
+    (entrees || []).forEach(e => {
+      const cle = [e.auteur || e.source || '', e.texte || '', groupeJourActivite(e.date, maintenantMs)].join('|');
+      const deja = parCle.get(cle);
+      if (deja) {
+        if (!deja.dossiers.some(x => x.id === e.dossierId)) deja.dossiers.push({ id: e.dossierId, nom: e.dossierNom });
+        return;
+      }
+      const g = Object.assign({}, e, { dossiers: [{ id: e.dossierId, nom: e.dossierNom }] });
+      parCle.set(cle, g);
+      out.push(g);
+    });
+    return out;
+  }
+
   // Pure : l'intitulé du groupe d'une entrée dans le fil.
   function groupeJourActivite(dateIso, maintenantMs) {
     const t = Date.parse(dateIso);
@@ -415,9 +435,10 @@
     const rythme = rythmeActivite(toutes, maintenant);
     // Peu d'actions des collaborateurs : les relevés de CLAIRE complètent le fil (le rythme et
     // « qui a agi » restent ceux des collaborateurs).
-    const entrees = toutes.length >= limite ? toutes.slice(0, limite)
-      : toutes.concat(activiteAutomatique(tousDossiers, limite - toutes.length))
+    const brutes = toutes.length >= limite ? toutes.slice(0, limite * 3)
+      : toutes.concat(activiteAutomatique(tousDossiers, limite * 3 - toutes.length))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    const entrees = regrouperActivite(brutes, maintenant).slice(0, limite);
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
     const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}" title="${escapeAttr(`${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
@@ -446,9 +467,11 @@
       const g = groupeJourActivite(e.date, maintenant);
       const tete = g !== groupe ? `<li class="act-groupe">${escapeHtml(g)}</li>` : '';
       groupe = g;
-      return `${tete}<li class="act-item" data-cat="${cat.cle}"><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(e.dossierId)}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + e.dossierNom)}">
+      const plusieurs = e.dossiers && e.dossiers.length > 1;
+      const noms = plusieurs ? e.dossiers.map(x => x.nom).join(', ') : e.dossierNom;
+      return `${tete}<li class="act-item" data-cat="${cat.cle}"><button type="button" class="activite-ligne${recent ? ' recente' : ''}" onclick="ouvrirDossierDepuisDashboard('${escapeOnclickArg(e.dossierId)}')" title="${escapeAttr(qui + ' — ' + e.texte + ' — ' + noms)}">
         <span class="act-pastille act-cat-${cat.cle}" aria-hidden="true">${icone(cat.icone)}</span>
-        <span class="activite-texte"><b>${escapeHtml(qui)}</b> ${escapeHtml(e.texte)}<span class="activite-dossier"> · ${escapeHtml(e.dossierNom)}</span></span>
+        <span class="activite-texte"><b>${escapeHtml(qui)}</b> ${escapeHtml(e.texte)}<span class="activite-dossier"> · ${escapeHtml(plusieurs ? e.dossiers.length + ' dossiers' : e.dossierNom)}</span></span>
         <span class="activite-quand">${escapeHtml(ilYaActivite(e.date, maintenant))}</span>
       </button></li>`;
     }).join('');

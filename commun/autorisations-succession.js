@@ -15,11 +15,11 @@
    * @typedef {{ texte: string, gras?: boolean, vide?: boolean }} ParagrapheAutorisation
    */
 
-  /** @type {Array<{ cle: string, libelle: string, court: string }>} */
+  /** @type {Array<{ cle: string, libelle: string, court: string, option: string }>} */
   const MODELES_AUTORISATION_SUCCESSION = [
-    { cle: 'deblocage', libelle: 'Déblocage de fonds (héritier, sans conjoint survivant)', court: 'Déblocage' },
-    { cle: 'conjoint', libelle: 'Transfert de fonds (conjoint survivant)', court: 'Transfert conjoint' },
-    { cle: 'heritier', libelle: 'Transfert de fonds (héritier, au nom du conjoint survivant)', court: 'Transfert héritier' }
+    { cle: 'deblocage', libelle: 'Déblocage de fonds (héritier, sans conjoint survivant)', court: 'Déblocage', option: 'Déblocage · héritier, sans conjoint' },
+    { cle: 'conjoint', libelle: 'Transfert de fonds (conjoint survivant)', court: 'Transfert conjoint', option: 'Transfert · conjoint survivant' },
+    { cle: 'heritier', libelle: 'Transfert de fonds (héritier, au nom du conjoint survivant)', court: 'Transfert héritier', option: 'Transfert · héritier, au nom du conjoint' }
   ];
 
   /** « 2026-10-01 » → « 01 octobre 2026 » ; '' si la date n'existe pas. @param {string | undefined} iso */

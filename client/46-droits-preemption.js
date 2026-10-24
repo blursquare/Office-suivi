@@ -427,7 +427,7 @@
     if (zone) {
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       const actif = document.activeElement && document.activeElement.id;
-      zone.innerHTML = `<div class="calc-champs pr-champs">
+      zone.innerHTML = `<div class="calc-champs pr-champs pr-champs-lieu">
           <div class="calc-champ"><label for="pr-cp">Code postal</label>
             <input type="text" id="pr-cp" inputmode="numeric" maxlength="5" value="${escapeAttr(e.cp)}" onchange="changerChampPreemption('cp', this.value)"></div>
           <div class="calc-champ"><label for="pr-commune">Commune</label>
@@ -442,7 +442,7 @@
         </div>
         <div class="pr-zonage-actions">
           <wa-button appearance="outlined" size="s" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('map-pin')} Lire le zonage</wa-button>
-          <span class="hint">Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.</span>
+          ${infoBulle('Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.')}
         </div>
         ${e.erreurZonage ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(e.erreurZonage)}</p>` : ''}
         ${renderTableauZonagePreemption(e, lignes)}
@@ -493,9 +493,11 @@
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
         </div>`).join('')}</div>
         ${renderPatrimoineOutil(patrimoinePreemption(e))}
-        <p class="hint">Assistance à la décision, d’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle) : le notaire garde la décision. Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.</p>
+        <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
-          ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
+          ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
+            ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))} — à enregistrer</span>`
+            : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : ''}</div>` : ''}`;
     }
     renderTravauxPreemption();
     renderSitesPreemption();
@@ -520,6 +522,19 @@
   }
 
   // Pure : ce qui est gardé sur la fiche — les réponses données, la zone lue, le résultat de chaque droit.
+  // Étude 24/10 : « Enregistré le … » ne doit pas rester affiché quand les réponses ou les droits de l'outil ont changé depuis.
+  // Compare les réponses données (vides ignorées) et le statut de chaque droit. Pure.
+  function preemptionModifieeDepuisFiche(enregistre, actuel, etat) {
+    if (!enregistre || !actuel) return false;
+    // Zonage pas encore relu (lecture en cours, Géoportail muet) : les droits sans zone diffèrent toujours de ceux enregistrés —
+    // seules les réponses données comptent alors (relecture 24/10).
+    const sansZonage = !!(etat && (etat.lecture || !(etat.zonages && etat.zonages.length)));
+    const reponses = (r) => JSON.stringify(Object.keys(r || {}).filter(k => r[k] !== '' && r[k] != null).sort().map(k => [k, r[k]]));
+    const droits = (l) => JSON.stringify((Array.isArray(l) ? l : []).map(dr => [dr.cle, dr.statut]).sort());
+    return reponses(enregistre.reponses) !== reponses(actuel.reponses)
+      || (!sansZonage && droits(typeof droitsPreemptionFiche === 'function' ? droitsPreemptionFiche(enregistre) : enregistre.droits) !== droits(actuel.droits));
+  }
+
   function preemptionPourFiche(etat, maintenant) {
     const rep = reponsesPreemption(etat);
     const lignes = lignesZonageParcelles(etat.zonages || [], rep.zonesParcelles);
@@ -587,8 +602,8 @@
     const ouvrir = `ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')`;
     if (!p || !Array.isArray(p.droits)) {
       const enCours = preemptionsAutoEnCours.has(d.id);
-      return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Contrôle de l’urbanisme</div>
-        <ul class="ja-liste">${renderLigneAction({ titre: enCours ? 'Lecture du zonage…' : 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div>`;
+      return `<div class="pieces-dossier bloc-fiche">${enteteBlocFiche('shield', 'Contrôle de l’urbanisme', '', '')}<div class="bloc-fiche-corps">
+        <ul class="ja-liste">${renderLigneAction({ titre: enCours ? 'Lecture du zonage…' : 'Vérifier les droits de préemption', sous: 'DPU, SAFER, bois et forêts — d’après le zonage de chaque parcelle', bouton: { libelle: 'Vérifier', onclick: ouvrir } })}</ul></div></div>`;
     }
     const droits = droitsPreemptionFiche(p);
     const questions = questionsPreemptionFiche(p);
@@ -597,8 +612,10 @@
     const dpu = droits.find(dr => dr.cle === 'dpu');
     const renonciationInutile = dpu && dpu.statut === 'non' && d.typeVente !== 'copropriete'
       && piecesChecklist.some(pc => pc.cle === 'renonciationPreemption') && !(d.pieces && d.pieces.renonciationPreemption === 'recue');
-    return `<div class="fiche-sous-partie"><div class="section-eyebrow fiche-sous-titre">Contrôle de l’urbanisme
-        <span class="hint">${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}${p.auto ? 'lus seuls' : 'vérifiés'} le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}</span>${p.auto ? infoBulle('Analyse faite par CLAIRE à l’ajout du dossier, avec l’outil « Contrôle de l’urbanisme » : zonage de chaque parcelle lu sur le Géoportail de l’urbanisme, nature du bien d’après la fiche. Un droit à purger ajoute sa pièce à attendre ; une réponse manquante laisse le droit « À vérifier ».') : ''}</div>
+    const precision = `${p.zone ? 'zone ' + escapeHtml(p.zone) + ' · ' : ''}${p.auto ? 'lus seuls' : 'vérifiés'} le ${escapeHtml(formatDateFr(String(p.le || '').slice(0, 10)))}`;
+    const aide = p.auto ? infoBulle('Analyse faite par CLAIRE à l’ajout du dossier, avec l’outil « Contrôle de l’urbanisme » : zonage de chaque parcelle lu sur le Géoportail de l’urbanisme, nature du bien d’après la fiche. Un droit à purger ajoute sa pièce à attendre ; une réponse manquante laisse le droit « À vérifier ».') : '';
+    const revoir = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button>`;
+    return `<div class="pieces-dossier bloc-fiche">${enteteBlocFiche('shield', 'Contrôle de l’urbanisme', precision + aide, revoir)}<div class="bloc-fiche-corps">
       <div class="pr-fiche">${droits.map(dr => `<div class="pr-fiche-ligne">
           <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(LIBELLES_STATUT_PREEMPTION[dr.statut] || dr.statut)}</span>
           <span class="pr-fiche-titre">${escapeHtml(dr.titre)}</span>
@@ -618,5 +635,5 @@
         </div>`).join('')}</div>` : ''}
       ${reste.length ? `<p class="hint">À préciser dans l’outil : ${escapeHtml(reste.join(', '))}.</p>` : ''}
       ${renonciationInutile ? `<ul class="ja-liste">${renderLigneAction({ titre: 'Retirer « Renonciation au droit de préemption » des pièces', sous: 'Le droit de préemption urbain ne s’applique pas à cette vente', bouton: { libelle: 'Retirer', onclick: `retirerPieceStandard('${escapeOnclickArg(d.id)}', 'renonciationPreemption', 'Renonciation au droit de préemption')` } })}</ul>` : ''}
-      <wa-button appearance="plain" size="s" class="bouton-discret" onclick="${ouvrir}">${icone('pencil')} Revoir</wa-button></div>`;
+      </div></div>`;
   }

@@ -1094,6 +1094,45 @@
     return Number.isFinite(n) ? Math.round(n) : null;
   }
 
+  // Saisie des montants et des nombres dans les outils (étude 24/10 : « 1.234,56 » tapé dans le Prorata vidait le champ sans
+  // rien dire ; « -500 » ou « abc » passaient dans les Quotités, « -2 » prestations de serment dans l'Arbitrage). Les champs
+  // sont des champs texte (`inputmode="decimal"`) lus à la française par montantSaisiFr (commun/montants.js) ; une saisie
+  // illisible, négative ou hors limite est signalée sous le champ et ne compte pas dans le calcul.
+
+  // Pure : le message d'une saisie refusée ('' si elle convient). opts : { entier, positif (> 0), max, messageMax }.
+  function erreurSaisieChamp(valeur, opts) {
+    const o = opts || {};
+    if (valeur === null) return '';
+    if (Number.isNaN(valeur)) return o.entier ? 'Nombre illisible : tapez par exemple 2.' : 'Montant illisible : tapez par exemple 1.234,56.';
+    if (valeur < 0) return o.entier ? 'Un nombre ne peut pas être négatif.' : 'Un montant ne peut pas être négatif.';
+    if (o.entier && !Number.isInteger(valeur)) return 'Nombre entier attendu.';
+    if (o.positif && valeur === 0) return 'Le montant doit être supérieur à zéro.';
+    if (Number.isFinite(o.max) && valeur > o.max) return o.messageMax || 'Valeur trop élevée.';
+    return '';
+  }
+
+  // Lit un champ, montre ou retire son message, rend la valeur retenue (null si vide ou refusée).
+  function controlerChampSaisie(el, opts) {
+    if (!el) return null;
+    const valeur = montantSaisiFr(el.value);
+    const message = erreurSaisieChamp(valeur, opts);
+    let alerte = el.nextElementSibling && el.nextElementSibling.classList.contains('champ-alerte') ? el.nextElementSibling : null;
+    if (message) {
+      if (!alerte) {
+        alerte = document.createElement('p');
+        alerte.className = 'champ-alerte';
+        alerte.setAttribute('role', 'alert');
+        el.insertAdjacentElement('afterend', alerte);
+      }
+      alerte.textContent = message;
+      el.setAttribute('aria-invalid', 'true');
+      return null;
+    }
+    if (alerte) alerte.remove();
+    el.removeAttribute('aria-invalid');
+    return valeur;
+  }
+
   // Montant emprunté, lu dans le texte de l'offre de prêt elle-même (pas le compromis) une fois
   // celle-ci retrouvée dans le dossier local relié — voir l'appel dans verifierDossierLocal(). Même
   // heuristique que PRIX_VENTE_RE (le montant en lettres est répété en chiffres entre parenthèses,

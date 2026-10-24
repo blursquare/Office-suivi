@@ -65,20 +65,28 @@ test('actionsDuJour : les tâches de succession y figurent (étapes, factures)',
   assert.ok(app.TYPES_TACHES_ETAPES_SUCCESSION.every(t => !types.includes('fcddv') && t !== 'fcddv'));
 });
 
-test('thèmes : chaque type de tâche a sa colonne, le reste « À décider », les colonnes vides gardées', () => {
+test('thèmes : quatre colonnes, chaque type de tâche a la sienne, le reste « À préparer », les colonnes vides gardées', () => {
   const app = chargerApplication();
-  assert.equal(app.themeTache({ type: 'redaction' }), 'rediger');
+  assert.equal(app.themeTache({ type: 'redaction' }), 'preparer');
   assert.equal(app.themeTache({ type: 'pret' }), 'relances');
   assert.equal(app.themeTache({ type: 'appelFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'receptionFonds' }), 'avant');
   assert.equal(app.themeTache({ type: 'questionnaire' }), 'apres');
-  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'apres');
-  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'decider');
-  // Les tâches de rendez-vous (fixer, placer…) ont leur catégorie « Agenda » (étude 23/10).
-  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'agenda');
-  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'agenda');
+  // Les factures d'une succession se règlent pendant la gestion du dossier (colonne « À préparer »), pas après la signature (étude 23/10).
+  assert.equal(app.themeTache({ type: 'factureSuccession' }), 'preparer');
+  assert.equal(app.themeTache({ type: 'point-droit-de-preemption' }), 'preparer');
+  // Les tâches de rendez-vous (fixer, placer…) vont dans « À préparer » (étude 23/10 : quatre colonnes).
+  assert.equal(app.themeTache({ type: 'point-fixer-le-rendez-vous' }), 'preparer');
+  assert.equal(app.themeTache({ type: 'point-placer-le-rendez-vous-de-signature' }), 'preparer');
   const g = app.regrouperTachesParTheme([{ type: 'pret' }, { type: 'pret' }, { type: 'copieActe' }]);
-  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'perso:0,agenda:0,rediger:0,relances:2,avant:0,apres:1,decider:0');
+  assert.equal(g.map(x => x.theme.cle + ':' + x.actions.length).join(), 'preparer:0,relances:2,avant:0,apres:1');
+  // Dans « À préparer » : mes tâches, puis les rendez-vous, la rédaction, les factures, le reste — quel que soit l'ordre d'arrivée.
+  const p = app.regrouperTachesParTheme([{ type: 'point-droit-de-preemption' }, { type: 'factureSuccession' }, { type: 'redaction' }, { type: 'point-fixer-le-rendez-vous' }, { type: 'rappel' }]);
+  assert.equal(p[0].actions.map(a => a.type).join(), 'rappel,point-fixer-le-rendez-vous,redaction,factureSuccession,point-droit-de-preemption');
+  // Même rang : l'ordre d'arrivée (l'urgence calculée par actionsDuJour) est gardé ; la liste reçue n'est jamais réordonnée.
+  const entree = [{ type: 'redaction', cle: 'r1' }, { type: 'rappel', cle: 'm1' }, { type: 'redaction', cle: 'r2' }, { type: 'rappel', cle: 'm2' }];
+  assert.equal(app.regrouperTachesParTheme(entree)[0].actions.map(a => a.cle).join(), 'm1,m2,r1,r2');
+  assert.equal(entree.map(a => a.cle).join(), 'r1,m1,r2,m2');
 });
 
 test('outil lié : l’appel de fonds d’une vente ouvre l’outil prérempli, pas pour une succession ni une relance', () => {
@@ -101,7 +109,30 @@ test('colonnes : une carte par tâche avec case ronde, geste et outil ; la colon
   assert.ok(!html.includes('preparerAppelFondsDepuisDossier'), 'le geste de l’appel de fonds ouvre déjà l’outil : pas d’icône en double');
   assert.ok(html.includes("executerActionJour('v1:appelFonds')"));
   assert.ok(!html.includes('À décider'), 'pas de colonne vide « À décider »');
-  assert.ok(app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Décider', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]).includes('À décider'));
+  const point = app.renderTachesColonnes([{ cle: 'v1:point-x', type: 'point-x', titre: 'Droit de préemption', categorieLabel: 'À décider', jours: 1, dossier, geste: { type: 'fiche' } }]);
+  assert.ok(point.includes('À décider'), 'étiquette utile gardée');
+  // Étude 24/10 : plus de bouton « Ouvrir la fiche » (le nom du dossier l'ouvre), pas de liseré rouge à J+1.
+  assert.ok(!point.includes('Ouvrir la fiche</wa-button>') && !point.includes('tf-actions-tache'));
+  assert.ok(!point.includes('tf-carte critique'));
+});
+
+test('cartes de tâches : étiquette retirée quand elle redit le titre, liseré rouge seulement en retard', () => {
+  const app = chargerApplication();
+  assert.equal(app.categorieRedondanteTache({ titre: 'Envoyer l’appel de fonds', categorieLabel: 'Envoi appel de fonds' }), true);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Régler la facture EDF (50,00 €)', categorieLabel: 'Facture à régler' }), true);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Envoyer le questionnaire de satisfaction à l’acquéreur', categorieLabel: 'Signature passée' }), false);
+  assert.equal(app.categorieRedondanteTache({ titre: 'Demander le RIB et la pièce d’identité', categorieLabel: 'Rendez-vous de signature' }), false);
+  assert.equal(app.tacheEnRetard({ jours: -1, gravite: 'critique' }), true);
+  assert.equal(app.tacheEnRetard({ jours: 5, gravite: 'critique' }), false);
+  assert.equal(app.tacheEnRetard({ jours: null, gravite: 'critique' }), false);
+  // Questionnaire trois jours après la signature : jours négatifs (depuis la signature), pas un retard ; son délai se lit « signé … ».
+  const questionnaire = { jours: -3, gravite: 'normal', delaiTexte: 'signé il y a 3 j' };
+  assert.equal(app.tacheEnRetard(questionnaire), false);
+  assert.ok(app.pastilleDelaiTache(questionnaire, false).includes('signé il y a 3 j') && !app.pastilleDelaiTache(questionnaire, false).includes('retard'));
+  assert.equal(app.chiffresTachesJour([questionnaire, { jours: -1 }], [], [], []).enRetard, 1);
+  const dossier = { id: 'v1', nom: 'MARTIN / DUPONT', historique: [], pieces: {} };
+  const html = app.renderTachesColonnes([{ cle: 'v1:appelFonds', type: 'appelFonds', titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', jours: -2, gravite: 'critique', dossier, geste: { type: 'appelFonds' } }]);
+  assert.ok(!html.includes('Envoi appel de fonds</span>') && html.includes('tf-carte critique'));
 });
 
 test('relecture 0.318 : pas de tâche de notoriété sans rendez-vous placé, plus d’étape une fois le questionnaire envoyé', () => {
@@ -175,7 +206,7 @@ test('liste compacte : un fin titre par thème, les identiques regroupées, le m
   assert.ok(app.renderTachesCompactes(beaucoup).includes('tc-voir-tout'));
 });
 
-test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, thème « Mes tâches », menu', () => {
+test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon rappel — jours, en tête de « À préparer », menu', () => {
   const app = chargerApplication();
   const dossierS = { id: 's1', nom: 'SUCC X', typeAffaire: 'succession', responsable: 'Julie VASSELIN' };
   const agenda = app.rappelEnTache({ id: 'ag-1', texte: 'JV - appeler la CPAM', echeance: '2026-10-21', agendaItemId: 'I1' }, [], AUJ);
@@ -185,16 +216,23 @@ test('rappels dans la liste des tâches : agenda, demande d’un collègue, mon 
   assert.equal(agenda.gravite, 'critique');
   assert.equal(demande.jours, 3);
   assert.equal(perso.jours, null);
-  assert.equal(app.themeTache(agenda), 'perso');
+  assert.equal(app.themeTache(agenda), 'preparer');
   const html = app.renderTachesCompactes([agenda, demande, perso]);
-  assert.ok(html.includes('Mes tâches'));
+  assert.ok(html.includes('À préparer'));
   assert.ok(html.includes('Tâche de l’agenda') && html.includes('Demandé par Bastien'));
   assert.equal((html.match(/Supprimer/g) || []).length, 2, 'pas de menu pour la tâche de l’agenda');
   assert.ok(html.includes('basculerRappelPerso(&#39;ag-1&#39;)') || html.includes("basculerRappelPerso('ag-1')"));
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'vente').length, 2, 'la demande liée à une succession sort du mode Ventes');
   assert.equal(app.filtrerRappelsParAffaire([agenda, demande, perso], 'succession').length, 3);
-  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('Mes tâches'));
-  assert.ok(!app.renderTachesColonnes([]).includes('Mes tâches'), 'colonne vide masquée');
+  assert.ok(app.renderTachesColonnes([agenda, demande]).includes('À préparer'));
+  // Liste compacte : la facture d'une succession est sous « À préparer », avant « Après la signature ».
+  const facture = { cle: 's1:facture', type: 'factureSuccession', titre: 'Régler la facture EDF', dossier: dossierS, categorie: 'neutre', categorieLabel: 'Facture à régler' };
+  const questionnaire = { cle: 'v1:q', type: 'questionnaire', titre: 'Envoyer le questionnaire', dossier: { id: 'v1', nom: 'X / Y' }, categorie: 'neutre', categorieLabel: 'Signature passée' };
+  const compact = app.renderTachesCompactes([questionnaire, facture]);
+  assert.ok(compact.indexOf('À préparer') < compact.indexOf('Régler la facture EDF'));
+  assert.ok(compact.indexOf('Régler la facture EDF') < compact.indexOf('Après la signature'));
+  // Quatre colonnes toujours, même vides (étude 23/10).
+  assert.equal((app.renderTachesColonnes([]).match(/class="tf-colonne"/g) || []).length, 4);
 });
 
 test('tâches retirées : mention « Rétablir », renommer sépare les groupes', () => {

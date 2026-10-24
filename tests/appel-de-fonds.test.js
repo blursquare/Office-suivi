@@ -640,8 +640,11 @@ test('situation : destinataire et formule d’appel du courrier', () => {
   const lea = { civilite: 'Mme', prenom: '', nom: 'Léa MARTIN' };
   const marc = { civilite: 'M', prenom: '', nom: 'Marc LEROY' };
   const anne = { civilite: 'Mme', prenom: '', nom: 'Anne ROCHE' };
-  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT');
-  assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT', 'Monsieur trouvé par sa civilité');
+  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'marie').join('|'), 'Monsieur et Madame DUPONT');
+  assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'marie').join('|'), 'Monsieur et Madame DUPONT', 'Monsieur trouvé par sa civilité');
+  // Étude 24/10 : couple marié aux noms différents → nom du mari seul, sans prénom.
+  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'Mme', prenom: 'Léa', nom: 'LAMBERT' }, { civilite: 'M', prenom: 'Marc', nom: 'DUVAL' }], 'marie').join('|'), 'Monsieur et Madame DUVAL');
+  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'M', prenom: '', nom: 'Jean de LA FONTAINE' }, lea], 'marie').join('|'), 'Monsieur et Madame de LA FONTAINE', 'particule gardée');
   assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'pacse').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
   assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'concubin').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
   assert.equal(app.lignesDestinatairesAppelFonds([paul, marc], 'marie').join('|'), 'Monsieur Paul DUPONT et Monsieur Marc LEROY', 'deux hommes mariés');
@@ -746,4 +749,100 @@ test('afNettoyerLibelle : ni « à parfaire » ni tirets dans les lignes du cour
   assert.strictEqual(app.afNettoyerLibelle('– Frais de garantie –'), 'Frais de garantie');
   assert.strictEqual(app.afNettoyerLibelle('Taxe - foncière'), 'Taxe - foncière');
   assert.strictEqual(app.afNettoyerLibelle('Prix de vente: '), 'Prix de vente');
+});
+
+// Étude 24/10 : décompte du confrère COLLÉ à la main, sans « € » ni centimes, avec « A déduire : … » sur la même ligne. Montants inventés.
+test('décompte collé : montants sans €, bascule sur la ligne, « Débit / Crédit »', () => {
+  const app = chargerApplication();
+  const colle = "Prix de vente 185 000\nFrais d'acte 14 520,00\nSoit au total 199 520,00\nA déduire : dépôt de garantie 9 250,00\nSolde à verser 190 270,00";
+  const r = app.parserDecompteConfrere(app.texteDecompteColleNormalise(colle));
+  assert.equal(r.lignes.debit.map(l => l.montant).join('|'), '185000|14520');
+  assert.equal(r.lignes.credit.map(l => l.montant).join('|'), '9250', 'le dépôt de garantie est déduit, pas perdu');
+  assert.equal(r.meta.soldeDeclare, 190270);
+  const r2 = app.parserDecompteConfrere(app.texteDecompteColleNormalise('DEBIT\nPrix de vente : 185 000,00 €\nCRÉDIT\nDépôt de garantie : 9 250,00 €'));
+  assert.equal(r2.lignes.credit.length, 1, '« Crédit » seul vaut « A déduire »');
+});
+
+test('montant en fin de ligne : une année qui précède n’est pas prise pour des milliers', () => {
+  const app = chargerApplication();
+  const r = app.parserDecompteConfrere('Prix de vente 185 000,00 €\nTaxe foncière 2026 412,00 €');
+  assert.equal(r.lignes.debit.map(l => l.libelle + '=' + l.montant).join('|'), 'Prix d’acquisition=185000|Taxe foncière 2026=412');
+});
+
+// Relecture 24/10 : nom du mari pour « Monsieur et Madame NOM », saisies variées (noms inventés).
+test('nom de famille pour « Monsieur et Madame NOM »', () => {
+  const app = chargerApplication();
+  const n = (nom) => app.nomFamilleClientAppelFonds({ nom });
+  assert.equal(n('Paul DUPONT'), 'DUPONT');
+  assert.equal(n('DUPONT Paul'), 'DUPONT');
+  assert.equal(n("Jean d'ARTAGNAN"), "d'ARTAGNAN");
+  assert.equal(n('Jean de la FONTAINE'), 'de la FONTAINE');
+  assert.equal(n('Paul J. DUPONT'), 'DUPONT');
+  assert.equal(n('Paul DUPONT-MARTIN'), 'DUPONT-MARTIN');
+  assert.equal(n('Dupont'), 'Dupont');
+});
+
+test('décompte collé : référence, année, montant sans séparateur', () => {
+  const app = chargerApplication();
+  const norm = app.texteDecompteColleNormalise('Réf. dossier 2026 123\nPrix de vente 1234,56\nTaxe foncière 2026');
+  assert.ok(!/2026 123,00/.test(norm), 'une référence ne devient pas un montant');
+  const r = app.parserDecompteConfrere(norm);
+  assert.equal(r.lignes.debit.filter(l => l.montant).map(l => l.montant).join('|'), '1234.56', 'montant sans séparateur lu en entier');
+});
+
+test('frais estimés : une saisie à la main, même à zéro, n’est jamais écrasée', () => {
+  const app = chargerApplication();
+  const ligne = { libelle: 'Montant des frais et droits de l’acte de vente', montant: 0 };
+  app.afLignes = { debit: [ligne], credit: [] };
+  app.afModeDecompte = 'office';
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 16000.2 });
+  assert.equal(ligne.montant, 16001, 'ligne vide : estimation du barème');
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 17000 });
+  assert.equal(ligne.montant, 17000, 'estimée et jamais retouchée : suit le barème');
+  ligne.montant = 0; ligne.main = true; delete ligne.estime;
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 18000 });
+  assert.equal(ligne.montant, 0, 'zéro tapé à la main : gardé');
+  app.afModeDecompte = 'confrere';
+  const autre = { libelle: 'Montant des frais et droits de l’acte de vente', montant: 0 };
+  app.afLignes = { debit: [autre], credit: [] };
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 18000 });
+  assert.equal(autre.montant, 0, 'décompte du confrère : jamais rempli');
+});
+
+// Étude 24/10 : « le contrôle de la provision ne fonctionne pas à chaque fois » — sources du code postal et du prix.
+test('contrôle des frais : code postal et prix lus partout où le dossier les garde', () => {
+  const app = chargerApplication();
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: '', bien: { adresse: { codePostal: '41000', commune: 'BLOIS' } } }), '41000', 'fiche du bien seule');
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: 'BLOIS (41 000), 12 rue' }), '41000', 'code postal écrit en deux');
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: '12 rue des Lices BLOIS' }), null);
+  assert.equal(app.adresseBienDossierAppelFonds({ bien: { adresse: { numero: '12', typeVoie: 'rue', nomVoie: 'des Lices', codePostal: '41000', commune: 'BLOIS' } } }), '12 rue des Lices, 41000 BLOIS');
+  assert.equal(app.montantDossierAppelFonds('210 000'), 210000);
+  assert.equal(app.montantDossierAppelFonds(98000), 98000);
+  assert.equal(app.montantDossierAppelFonds(''), 0);
+});
+
+test('contrôle des frais : libellés du confrère reconnus comme frais de l’acte de vente', () => {
+  const app = chargerApplication();
+  ["Frais de l'acte", 'Frais acquéreur', "Coût de l'acte", 'Frais de notaire'].forEach(l => assert.ok(app.estLigneFraisActeVente(l), l));
+  ["Frais de l'acte de prêt", 'Frais de mainlevée', 'Frais de négociation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
+});
+
+test('contrôle des frais : boîte postale, numéro, deux adresses, actes annexes (relecture 24/10)', () => {
+  const app = chargerApplication();
+  const cp = app.codePostalDansTexteAppelFonds;
+  assert.equal(cp('12 rue X, CS 20819, 41000 BLOIS'), '41000');
+  assert.equal(cp('BP 12345 41000 BLOIS'), '41000');
+  assert.equal(cp('lieu-dit 12 345'), null);
+  assert.equal(cp('BLOIS (41 000), 12 rue'), '41000');
+  assert.equal(cp('41 000 BLOIS'), '41000');
+  assert.equal(cp('02 54 78 61 70'), null);
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: 'TOURS (37000), 1 rue X', bien: { adresse: { codePostal: '41000' } } }), '37000', 'l’adresse du courrier d’abord');
+  ["Frais de l'acte de dépôt de pièces", "Frais de l'acte de quittance", "Frais de l'acte rectificatif", 'Frais de vente du mobilier', 'Droits de mutation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
+});
+
+test('libellés des frais : « Émoluments et droits » reconnu, « … copropriété » écarté (lettres accentuées en bord de mot, relecture 24/10)', () => {
+  assert.equal(app.AF_FRAIS_ACTE_RE.test('Émoluments et droits'), true);
+  assert.equal(app.AF_FRAIS_ACTE_RE.test("émoluments et droits de l'acte"), true);
+  assert.equal(app.AF_FRAIS_HORS_VENTE_RE.test("Frais d'acte copropriété"), true);
+  assert.equal(app.AF_FRAIS_HORS_VENTE_RE.test("Frais d'acte"), false);
 });

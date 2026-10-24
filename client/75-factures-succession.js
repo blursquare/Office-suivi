@@ -299,10 +299,10 @@
         <div class="succ-factures-chiffre"><span class="succ-factures-nombre">${reglees.length}</span><span>réglée${reglees.length > 1 ? 's' : ''}${total(reglees)}</span></div>
         ${infoBulle('Chaque facture scannée pour cette succession est rangée par Claire Scan dans « Factures à régler » du dossier du NAS, son organisme et son montant lus, et annoncée à Sophie sur Teams. Cochez-la une fois réglée.')}
       </div>
-      <div class="section-eyebrow fiche-sous-titre">À régler</div>
+      <div class="fiche-titre-bloc"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">À régler</span></span></div>
       ${enAttente.length ? `<ul class="succ-factures">${enAttente.map(ligneFacture).join('')}</ul>` : '<p class="hint succ-factures-vide">Aucune facture en attente de règlement.</p>'}
       <wa-button appearance="outlined" class="bouton-ajout" onclick="ajouterFactureSuccession('${idJs}')"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter une facture</wa-button>
-      ${reglees.length ? `<div class="section-eyebrow fiche-sous-titre">Réglées</div><ul class="succ-factures">${reglees.map(ligneFacture).join('')}</ul>` : ''}
+      ${reglees.length ? `<div class="fiche-titre-bloc"><span class="pieces-titre">${icone('check')}<span class="pieces-titre-texte">Réglées</span></span></div><ul class="succ-factures">${reglees.map(ligneFacture).join('')}</ul>` : ''}
     </div>`;
   }
 

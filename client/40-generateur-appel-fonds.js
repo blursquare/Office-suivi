@@ -51,7 +51,7 @@
   // tableau. Ces motifs ont été écrits sur de vrais décomptes — ne pas les resserrer sans
   // relire les tests correspondants (tests/appel-de-fonds.test.js), même consigne que pour les
   // regex de détection de dates.
-  var AF_MONTANT_FIN_RE = /([0-9]{1,3}(?:[.\s ][0-9]{3})*,[0-9]{2})(?:\s*€)+\s*$/;
+  var AF_MONTANT_FIN_RE = /(?<![0-9])((?:[0-9]{1,3}(?:[.\s ][0-9]{3})+|[0-9]+),[0-9]{2})(?:\s*€)+\s*$/;
   // Un libellé coupé par la mise en page du confrère (« …frais et droits de l’acte de » / « prêt »)
   // laisse sur la ligne SUIVANTE un ou deux mots en minuscules, sans montant : c’est la fin du
   // libellé précédent, pas le début du suivant. Borné à 35 caractères et à des minuscules : un
@@ -389,21 +389,6 @@
     return { lignes: lignesFinales, meta };
   }
 
-  // Recalcule un prorata annoncé par le confrère. Un écart de plus de 2 centimes est signalé :
-  // c'est la seule vérification que l'outil peut faire sur un décompte qu'il n'a pas produit.
-  function verifierProrataLigne(ligne) {
-    if (!ligne || !ligne.formule) return { statut: 'non-verifiable' };
-    const m = AF_FORMULE_RE.exec(ligne.formule);
-    if (!m) return { statut: 'non-verifiable' };
-    const base = montantDepuisTexteFr(m[1]);
-    const num = parseFloat(m[2]);
-    const den = parseFloat(m[3]);
-    if (base == null || !num || !den) return { statut: 'non-verifiable' };
-    const attendu = Math.round((base * num / den) * 100) / 100;
-    return Math.abs(attendu - ligne.montant) <= 0.02
-      ? { statut: 'ok', attendu }
-      : { statut: 'ecart', attendu };
-  }
 
   // Le contrôle des frais d'acte, pendant de verifierProrataLigne ci-dessus : la SECONDE chose que
   // l'outil peut vérifier sur un décompte qu'il n'a pas produit. Il compare le montant annoncé au
@@ -420,8 +405,8 @@
   // dans les décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas
   // « frais d'acte » comme le modèle de l'étude — le contrôle ne se déclenchait donc jamais sur
   // un décompte importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
-  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais)\b/i;
-  var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession)\b/i;
+  var AF_FRAIS_ACTE_RE = /(?<![A-Za-z0-9_\u00C0-\u024F])(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte)(?![A-Za-z0-9_\u00C0-\u024F])/i;
+  var AF_FRAIS_HORS_VENTE_RE = /(?<![A-Za-z0-9_\u00C0-\u024F])(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession|d[ée]p[ôo]t|quittance|rectificati(?:f|ve)|mobilier|vendeur)(?![A-Za-z0-9_\u00C0-\u024F])/i;
 
   function estLigneFraisActeVente(libelle) {
     const t = String(libelle || '');
@@ -481,8 +466,8 @@
       change = true;
     };
     if (!afFraisChoisiALaMain.departement) {
-      const cp = (afValeur('af-adresse-bien').match(/\b\d{5}\b/) || [null])[0];
-      const cle = cleBaremeDepuisDepartement(departementDepuisCodePostal(cp));
+      const cp = codePostalDansTexteAppelFonds(afValeur('af-adresse-bien'));
+      const cle = cp ? cleBaremeDepuisDepartement(departementDepuisCodePostal(cp)) : (afValeur('af-adresse-bien').trim() ? afValeur('af-frais-departement') : '');
       // Une clé absente du menu (69, Corse/Alsace non tranchées) remet le champ à vide plutôt que
       // de laisser le département précédent contrôler une adresse qui n'est plus la sienne.
       poser('af-frais-departement', cle && DEPARTEMENTS_FRAIS_ACTE[cle] ? cle : '');
@@ -735,7 +720,8 @@
     render();
   }
 
-  // Lignes du destinataire du courrier (étude 05/10) : couple marié Monsieur + Madame « Monsieur et Madame Paul DUPONT » ;
+  // Lignes du destinataire du courrier (étude 05/10) : couple marié Monsieur + Madame « Monsieur et Madame DUPONT » (nom du mari,
+  // sans prénom, même quand Madame porte un autre nom — étude 24/10 : « Monsieur et Madame DUVAL ») ;
   // sinon chacun nommé avec sa civilité, Monsieur d'abord — « Monsieur Paul DUPONT et Madame Léa MARTIN » (pacsés, concubins),
   // « Monsieur Paul DUPONT et Monsieur Marc LEROY », « Madame … et Madame … ». Une SCI ou plus de deux personnes : une ligne
   // par client, comme avant. Pure.
@@ -743,13 +729,13 @@
     const liste = (Array.isArray(clients) ? clients : []).filter(c => c && String(c.nom || '').trim());
     const estPersonne = c => c.civilite !== 'SCI' && c.civilite !== 'Indivision';
     if (estCoupleSituation(situation) && liste.length === 1 && estPersonne(liste[0])) {
-      return [['Monsieur et Madame', liste[0].prenom, liste[0].nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')];
+      return [`Monsieur et Madame ${nomFamilleClientAppelFonds(liste[0])}`.trim()];
     }
     if (liste.length === 2 && liste.every(estPersonne)) {
       const monsieur = liste.find(c => c.civilite === 'M');
       const madame = liste.find(c => c.civilite === 'Mme' || c.civilite === 'Mlle');
       if (monsieur && madame && situation === 'marie') {
-        return [['Monsieur et Madame', monsieur.prenom, monsieur.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ')];
+        return [`Monsieur et Madame ${nomFamilleClientAppelFonds(monsieur)}`.trim()];
       }
       if (estCoupleSituation(situation)) {
         const ordre = monsieur && madame ? [monsieur, madame] : liste;
@@ -758,6 +744,7 @@
     }
     return liste.map(ligneClientComplete).filter(Boolean);
   }
+
 
   // Formule d'appel : selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, », « Chères Mesdames, ») ; un couple
   // saisi en une seule ligne (« DUPONT ») reste « Chers Monsieur et Madame, ».
@@ -779,7 +766,7 @@
 
   function ligneClientComplete(c) {
     if (!c) return '';
-    if (c.civilite === 'SCI') return String(c.nom || '').trim();
+    if (c.civilite === 'SCI' || c.civilite === 'Indivision') return String(c.nom || '').trim();
     const civLong = c.civilite === 'M' ? 'Monsieur' : (c.civilite === 'Mlle' ? 'Mademoiselle' : 'Madame');
     return [civLong, c.prenom, c.nom].filter(Boolean).join(' ').trim();
   }
@@ -895,7 +882,7 @@
       aCompleter.push('Nom du ou des acquéreurs — aucun n’a pu être lu sur ce dossier.');
     }
 
-    if (d.adresseBien) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
+    if (adresseBienDossierAppelFonds(d)) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
     if (designationDepuisTypeVente(d.typeVente)) repris.push('Désignation du bien');
     const lieuRdv = lieuAppelFondsDossier(d, categoriesRdv);
     if (d.rendezVousSignature) {
@@ -934,12 +921,11 @@
     // Pour le CONTRÔLE des frais (jamais pour les remplir) : le département vient du code postal du
     // bien, le type de bien du type de vente. Ni l'un ni l'autre n'est deviné quand le dossier ne
     // permet pas de trancher (Corse/Alsace regroupées, 69 scindé — voir cleBaremeDepuisDepartement).
-    const cpBien = (String(d.adresseBien || '').match(/\b\d{5}\b/) || [null])[0];
-    const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(cpBien));
+    const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(codePostalBienAppelFonds(d)));
     const typeBienFrais = AF_TYPE_BIEN_PAR_TYPE_VENTE[d.typeVente] || null;
     // Frais et droits de l'acte : estimés par le barème (étude 06/10 : « que le décompte se remplisse tout seul »), au taux
     // plein — un primo-accédant paie moins, dit dans « À compléter ». Seulement quand l'office établit le décompte.
-    const fraisActe = modeDecompteParDefaut(d) === 'office' ? fraisActeEstimesAppelFonds(d.prixVente, d.prixMobilier, departementFrais, typeBienFrais) : null;
+    const fraisActe = modeDecompteParDefaut(d) === 'office' ? fraisActeEstimesAppelFonds(montantDossierAppelFonds(d.prixVente), montantDossierAppelFonds(d.prixMobilier), departementFrais, typeBienFrais) : null;
     if (fraisActe) {
       aCompleter.push(`Frais et droits de l’acte estimés par le barème : ${formaterPrixCentimes(fraisActe.montant)}${fraisActe.primo < fraisActe.montant ? ` (acquéreur primo-accédant : ${formaterPrixCentimes(fraisActe.primo)})` : ''} — à vérifier, débours du dossier compris.`);
     } else if (modeDecompteParDefaut(d) === 'office') {
@@ -954,13 +940,13 @@
       dossierNom: d.nom ? libelleDossierAffiche(d) : '',
       clients,
       situation,
-      adresseBien: normaliserAdresse(d.adresseBien),
+      adresseBien: normaliserAdresse(adresseBienDossierAppelFonds(d)),
       designation: designationDepuisTypeVente(d.typeVente),
       dateRdv: d.rendezVousSignature || '',
       heureRdv: d.rendezVousSignature ? (d.rendezVousSignatureHeure || '') : '',
       lieuRdv,
-      prixVente: d.prixVente || null,
-      prixMobilier: d.prixMobilier || null,
+      prixVente: montantDossierAppelFonds(d.prixVente) || null,
+      prixMobilier: montantDossierAppelFonds(d.prixMobilier) || null,
       depotGarantie: depot.deductible ? d.depotGarantie : null,
       depotMotif: depot.motif,
       departementFrais,
@@ -985,7 +971,7 @@
   function lignesDecompteDepuisPrefill(p) {
     const debit = [
       { libelle: "Prix d'acquisition", montant: (p && p.prixVente) || 0, formule: null, id: afIdLigne() },
-      { libelle: "Montant des frais et droits de l'acte de vente", montant: (p && p.fraisActe) || 0, formule: null, id: afIdLigne() }
+      { libelle: "Montant des frais et droits de l'acte de vente", montant: (p && p.fraisActe) || 0, formule: null, id: afIdLigne(), estime: !!(p && p.fraisActe) }
     ];
     if (p && p.pretHypothecaire) {
       debit.push({ libelle: LIBELLE_FRAIS_PRET_HYPOTHECAIRE, montant: 0, formule: null, id: afIdLigne() });
@@ -1583,6 +1569,7 @@
     afDossierDetache = null;
     const autreDossier = !!precedent && precedent !== p.dossierId;
     if (autreDossier) {
+      afFraisChoisiALaMain = { departement: false, type: false }; // le choix à la main du dossier d'avant ne vaut pas ici
       tfAvis.af = null;
       renderBlocTaxeFonciere('af');
       ['charges', 'etatDate', 'releve'].forEach(type => { afPieces[type] = null; renderBlocPieceAppelFonds(type); });
@@ -1620,7 +1607,7 @@
     if (caseSansPret) caseSansPret.checked = !!p.sansPret;
     // Préremplis seulement quand le dossier tranche : un département ambigu (69) ou un type de
     // vente absent laisse le select vide, donc le contrôle silencieux, plutôt qu'un barème deviné.
-    ecrire('af-frais-departement', p.departementFrais);
+    { const e = afEl('af-frais-departement'); if (e && !afFraisChoisiALaMain.departement) e.value = p.departementFrais || ''; } // jamais celui d'une saisie d'avant
     ecrire('af-frais-type', p.typeBienFrais);
     ecrire('af-prix-mobilier', p.prixMobilier ? String(p.prixMobilier) : '');
 
@@ -1643,8 +1630,10 @@
         : '';
       recap.innerHTML = bloc('Repris du dossier', p.repris, '') + bloc('À compléter vous-même', p.aCompleter, 'af-recap-manquant');
       recap.className = 'af-recap af-recap-visible';
+      majRecapManquantsAppelFonds();
     }
   }
+
 
   // Bouton « Préparer l'appel de fonds » de la fiche dossier : bascule vers l'onglet avec le
   // dossier déjà repris. Le tiroir se ferme — on quitte le Suivi, le laisser ouvert par-dessus un
@@ -1662,12 +1651,14 @@
     const cible = afEl('af-clients');
     if (!cible) return;
     if (!afClients.length) afClients = [{ civilite: 'M', prenom: '', nom: '' }];
-    cible.innerHTML = afClients.map((c, i) => `<div class="af-client">
+    // Une SCI ou une indivision n'a pas de prénom : le nom prend la place des deux champs (étude 24/10, « SCI LES TILLE… » coupé).
+    const morale = (c) => c.civilite === 'SCI' || c.civilite === 'Indivision';
+    cible.innerHTML = afClients.map((c, i) => `<div class="af-client${morale(c) ? ' af-client-morale' : ''}">
       <select aria-label="Civilité du client ${i + 1}" onchange="changerClientAppelFonds(${i}, 'civilite', this.value)">
         ${AF_CIVILITES.map(v => `<option value="${v}"${c.civilite === v ? ' selected' : ''}>${v}</option>`).join('')}
       </select>
-      <input type="text" placeholder="Prénom" aria-label="Prénom du client ${i + 1}" value="${escapeAttr(c.prenom || '')}" oninput="changerClientAppelFonds(${i}, 'prenom', this.value)">
-      <input type="text" placeholder="Nom" aria-label="Nom du client ${i + 1}" value="${escapeAttr(c.nom || '')}" oninput="changerClientAppelFonds(${i}, 'nom', this.value)">
+      ${morale(c) ? '' : `<input type="text" placeholder="Prénom" aria-label="Prénom du client ${i + 1}" value="${escapeAttr(c.prenom || '')}" oninput="changerClientAppelFonds(${i}, 'prenom', this.value)">`}
+      <input type="text" placeholder="${morale(c) ? (c.civilite === 'SCI' ? 'Dénomination de la société' : 'Noms des indivisaires') : 'Nom'}" aria-label="Nom du client ${i + 1}" value="${escapeAttr(c.nom || '')}" oninput="changerClientAppelFonds(${i}, 'nom', this.value)">
       <button type="button" class="af-client-suppr" title="Retirer ce client" onclick="supprimerClientAppelFonds(${i})">${icone('x')}</button>
     </div>`).join('');
   }
@@ -1680,6 +1671,9 @@
   function changerClientAppelFonds(i, champ, valeur) {
     if (!afClients[i]) return;
     afClients[i][champ] = valeur;
+    // Une SCI ou une indivision n'a pas de prénom : celui d'avant, devenu invisible, ne part pas dans le courrier (relecture 24/10).
+    if (champ === 'civilite' && (valeur === 'SCI' || valeur === 'Indivision')) afClients[i].prenom = '';
+    if (champ === 'civilite') renderClientsAppelFonds();
     majApercuAppelFonds();
   }
 
@@ -1728,6 +1722,7 @@
 
   function renderTableAppelFonds() {
     const fourchette = fourchetteFraisActeFormulaire();
+    remplirFraisActeEstimesAppelFonds(fourchette);
     const rendu = (section) => {
       const tbody = afEl(section === 'debit' ? 'af-tbody-debit' : 'af-tbody-credit');
       if (!tbody) return 0;
@@ -1747,7 +1742,7 @@
           if (f.statut === 'ok') badge = `<span class="af-verif af-verif-ok" title="${escapeAttr(plage)}">✓ conforme au barème</span>`;
           else if (f.statut === 'sous') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↓ ${escapeHtml(montantVersTexteFr(f.ecart))} sous le barème</span>`;
           else if (f.statut === 'sur') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↑ ${escapeHtml(montantVersTexteFr(f.ecart))} au-dessus du barème</span>`;
-        }
+        } else if (!badge && section === 'debit' && !l.memoire && !fourchette && estLigneFraisActeVente(l.libelle)) badge = badgeSansControleFraisAppelFonds();
         const montantTexte = l.memoire ? (l.texteMemoire || 'Mémoire') : montantVersTexteFr(l.montant || 0);
         const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="montant">${escapeHtml(montantTexte)}</span>`;
         // Flèches d'ordre (étude 08/10 : « faire remonter une ligne ou la descendre ») : hors du texte
@@ -1772,6 +1767,7 @@
     const credit = rendu('credit');
     const solde = afEl('af-p-solde');
     if (solde) solde.textContent = montantVersTexteFr(debit - credit);
+    majRecapManquantsAppelFonds();
   }
 
   // Le montant est modifié DANS le tableau : on met le modèle à jour et on recalcule les totaux,
@@ -1781,6 +1777,8 @@
     const i = parseInt(span.getAttribute('data-af-index'), 10);
     const ligne = afLignes[section] && afLignes[section][i];
     if (!ligne) return;
+    delete ligne.estime;
+    ligne.main = true;
     const texte = (span.textContent || '').replace(/\u00a0/g, ' ').trim();
     // Une ligne est toujours un montant, mais un texte sans chiffre (« pour mémoire », « offert », « néant »…) se saisit aussi : il part tel quel
     // dans le courrier et la ligne n'entre pas dans le total (étude 23/10).
@@ -1885,6 +1883,7 @@
 
   function majApercuAppelFonds() {
     const poser = (id, texte) => { const e = afEl(id); if (e && texte) e.textContent = texte; };
+    majRecapManquantsAppelFonds();
 
     // L'adresse et la désignation du bien alimentent aussi le contrôle des frais, juste en dessous
     // (voir majFraisDepuisBienAppelFonds) : c'est le seul endroit par où passent TOUS les chemins
@@ -2621,8 +2620,9 @@
   function importerDecompteColle() {
     const zone = afEl('af-coller-texte');
     if (!zone) return;
-    appliquerDecompteAppelFonds(zone.value || '');
+    appliquerDecompteAppelFonds(texteDecompteColleNormalise(zone.value || ''));
   }
+
 
   // Reprend le rendez-vous lu dans le document, SANS jamais écraser ce qui est déjà saisi — même
   // règle que la référence de dossier juste en dessous, et que tout le reste de l'outil. Une date

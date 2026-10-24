@@ -65,7 +65,35 @@
     return Object.assign(bilan, { manuel: false });
   }
 
-  const exportes = { formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus, bilanFondsDossier };
+  /**
+   * Pure : un montant TAPÉ ou collé dans un champ (étude 24/10 : « 1.234,56 » collé d'un courrier vidait le champ numérique du
+   * navigateur). Lit « 1.234,56 », « 1 234,56 € », « 1234,5 », « 1500.50 » (point suivi d'un ou deux chiffres = décimales),
+   * « 250.000 » (milliers). Vide → null ; illisible → NaN ; le signe moins est gardé (le contrôle du champ le refuse).
+   * @param {unknown} texte
+   * @returns {number | null}
+   */
+  function montantSaisiFr(texte) {
+    let t = String(texte == null ? '' : texte).replace(/[€\s\u00a0\u202f]/g, '').replace(/\u2212/g, '-');
+    if (!t) return null;
+    const negatif = t.startsWith('-');
+    if (negatif) t = t.slice(1);
+    if (t.includes(',')) {
+      if (!/^\d{1,3}(?:\.\d{3})*,\d*$|^\d+,\d*$/.test(t)) return NaN;
+      t = t.replace(/\./g, '').replace(',', '.');
+    } else if (/^\d+(?:\.\d{3})*\.\d{1,2}$/.test(t)) {
+      const i = t.lastIndexOf('.');
+      t = t.slice(0, i).replace(/\./g, '') + '.' + t.slice(i + 1);
+    } else if (/^\d+\.$/.test(t)) {
+      t = t.slice(0, -1); // « 1234. » en cours de frappe
+    } else if (/^\d{1,3}(?:\.\d{3})+$/.test(t)) {
+      t = t.replace(/\./g, '');
+    } else if (!/^\d+$/.test(t)) return NaN;
+    const n = Number(t);
+    if (!Number.isFinite(n)) return NaN;
+    return negatif ? -n : n;
+  }
+
+  const exportes = { montantSaisiFr, formaterMontantEuros, formaterPrix, formaterPrixCentimes, MARGE_FONDS_RECUS, bilanFondsRecus, bilanFondsDossier };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

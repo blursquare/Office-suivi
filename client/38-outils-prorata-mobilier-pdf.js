@@ -34,10 +34,9 @@
   // les deux simulations de droits n'ont pas été saisies.
   function nombreSaisiInventaire(valeur) {
     if (valeur === null || valeur === undefined) return null;
-    const texte = String(valeur).trim();
-    if (!texte) return null;
-    const n = Number(texte.replace(',', '.'));
-    return Number.isFinite(n) ? n : null;
+    // Lu à la française : « 1.234,56 » collé d'un courrier compte (étude 24/10).
+    const n = montantSaisiFr(valeur);
+    return n !== null && Number.isFinite(n) ? n : null;
   }
 
   // Aucun montant négatif n'a de sens ici, et un coût négatif gonflerait silencieusement
@@ -145,27 +144,43 @@
     };
   }
 
-  function calculerInventaireAffichage() {
+  // La saisie de l'écran, chaque champ contrôlé : une valeur refusée (message sous le champ) compte pour vide.
+  function saisieInventaireControlee() {
     const saisie = lireSaisieInventaire();
+    Object.entries(CHAMPS_SAISIE_ARBITRAGE).forEach(([cle, id]) => {
+      const el = document.getElementById(id);
+      if (el && controlerChampSaisie(el, { entier: /-nb$/.test(id) }) === null) saisie[cle] = '';
+    });
+    return saisie;
+  }
+
+  function calculerInventaireAffichage() {
+    // Une saisie illisible ou négative est dite sous son champ ; le calcul la compte pour rien (étude 24/10).
+    const saisie = saisieInventaireControlee();
     const r = calculerArbitrageInventaire(saisie);
     const v = verdictArbitrageInventaire(r);
+    // Un montant négatif s'écrit comme les coûts du décompte : « − 1.240,00 € » (étude 24/10 : « -1.240,00 € » détonnait).
+    const montantSigneInventaire = (m) => (m < 0 ? '− ' + formaterPrix(-m) : formaterPrix(m));
 
     const badge = document.getElementById('inv-verdict-badge');
     if (badge) badge.innerHTML = `<span class="dot-label ${v.dl}"><span class="dot"></span>${escapeHtml(v.libelle)}</span>`;
     const chiffre = document.getElementById('inv-verdict-montant');
     if (chiffre) {
-      chiffre.textContent = r.complet ? formaterPrix(r.net) : '—';
+      chiffre.textContent = r.complet ? montantSigneInventaire(r.net) : '—';
       chiffre.classList.toggle('inv-montant-negatif', r.complet && r.net <= 0);
     }
     const texte = document.getElementById('inv-verdict-texte');
     if (texte) texte.textContent = v.message;
+    // Rien de saisi : la phrase seule, sans la boîte grise et son tiret (étude 24/10).
+    const resultat = chiffre && chiffre.closest('.calc-resultat');
+    if (resultat) resultat.classList.toggle('calc-vide', !r.complet);
 
     const decompte = document.getElementById('inv-decompte');
     if (decompte) decompte.style.display = r.complet ? '' : 'none';
     if (r.complet) {
       const pose = (id, montant, signe) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = (signe || '') + formaterPrix(montant);
+        if (el) el.textContent = signe ? signe + formaterPrix(montant) : montantSigneInventaire(montant);
       };
       pose('inv-l-droits-sans', r.droitsSans);
       pose('inv-l-droits-avec', r.droitsAvec);
@@ -293,8 +308,8 @@
   }
 
   function montantQuotite(v) {
-    const n = typeof v === 'number' ? v : parseFloat(String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.'));
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    const n = typeof v === 'number' ? v : montantSaisiFr(v);
+    return n !== null && Number.isFinite(n) && n > 0 ? n : 0;
   }
 
   // Répartit 100 % entre des montants au centième près, par la méthode du plus fort reste : chaque
@@ -537,8 +552,8 @@
 
     document.getElementById('qt-lignes').innerHTML = qtEtat.lignes.map(l => `
       <div class="qt-ligne qt-ligne-operation${l.memoire ? ' qt-memoire' : ''}">
-        <input type="text" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
-        <input type="number" min="0" step="0.01" aria-label="Montant de ${escapeAttr(l.libelle || 'la ligne')}" placeholder="${l.memoire ? 'Mémoire' : '0,00'}" value="${l.memoire ? '' : valeurChampQuotite(l.montant)}" ${l.memoire ? 'disabled' : ''} oninput="modifierLigneQuotites('${l.id}', 'montant', this.value, false)">
+        <input type="text" class="qt-libelle" aria-label="Libellé" placeholder="Libellé" value="${escapeAttr(l.libelle)}" oninput="modifierLigneQuotites('${l.id}', 'libelle', this.value, false)">
+        <input type="text" inputmode="decimal" autocomplete="off" aria-label="Montant de ${escapeAttr(l.libelle || 'la ligne')}" placeholder="${l.memoire ? 'Mémoire' : '0,00'}" value="${l.memoire ? '' : valeurChampQuotite(l.montant)}" ${l.memoire ? 'disabled' : ''} oninput="controlerChampSaisie(this); modifierLigneQuotites('${l.id}', 'montant', this.value, false)">
         <label class="qt-memoire-coche" title="Montant non encore connu : écrit « MEMOIRE » dans l'annexe et exclu du total"><input type="checkbox" ${l.memoire ? 'checked' : ''} onchange="modifierLigneQuotites('${l.id}', 'memoire', this.checked, true)">Mémoire</label>
         <wa-button appearance="plain" size="s" type="button" class="bouton-icone qt-suppr" title="Supprimer la ligne" aria-label="Supprimer la ligne" onclick="retirerLigneQuotites('${l.id}')">${icone('x')}</wa-button>
       </div>`).join('');
@@ -557,11 +572,13 @@
         <div class="qt-source-montants">
           ${qtEtat.acquereurs.map(a => `<label class="qt-part">
             <span class="qt-part-nom" id="qt-part-nom-${src.id}-${a.id}">${escapeHtml(nomAcquereurQuotite(a))}</span>
-            <input type="number" min="0" step="0.01" placeholder="0,00" value="${valeurChampQuotite((src.montants || {})[a.id])}" oninput="modifierMontantSourceQuotites('${src.id}', '${a.id}', this.value)">
+            <input type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${valeurChampQuotite((src.montants || {})[a.id])}" oninput="controlerChampSaisie(this); modifierMontantSourceQuotites('${src.id}', '${a.id}', this.value)">
           </label>`).join('')}
         </div>
       </div>`).join('');
 
+    // Champs reconstruits : une saisie refusée garde son message.
+    document.querySelectorAll('#qt-lignes input[inputmode="decimal"], #qt-sources input[inputmode="decimal"]').forEach(el => { if (!el.disabled) controlerChampSaisie(el); });
     majResultatsQuotites();
   }
 

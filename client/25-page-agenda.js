@@ -676,11 +676,12 @@
     return p && p.aConfirmer ? Object.assign({}, p, { lundi: null }) : null;
   }
 
-  function renderPastilleProbabilite(p) {
+  // `libelle` (fiche, étude 24/10) : « maintien 5 % » plutôt qu'un pourcentage seul, qu'on ne savait pas lire.
+  function renderPastilleProbabilite(p, libelle) {
     if (!p) return '';
     const dl = p.niveau === 'haute' ? 'dl-success' : p.niveau === 'moyenne' ? 'dl-pret' : 'dl-urgent';
     const titre = p.lundi ? 'Probabilité que la signature se tienne cette semaine-là' : 'Probabilité que le rendez-vous soit maintenu à cette date';
-    return `<span class="ag-proba dot-label ${dl}" title="${titre}"><span class="dot"></span>${p.pourcent} %</span>`;
+    return `<span class="ag-proba dot-label ${dl}" title="${titre}"><span class="dot"></span>${libelle ? escapeHtml(libelle) + ' ' : ''}${p.pourcent} %</span>`;
   }
 
   // ---- Ce qu'un rendez-vous d'un dossier dit de lui (comme la note du rendez-vous dans Outlook) ----

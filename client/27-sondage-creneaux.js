@@ -1038,7 +1038,7 @@
     const estSignature = echeance.type === 'rendezVousSignature' || (!!d.rendezVousSignature && echeance.iso === d.rendezVousSignature);
     if (!estSignature) return false;
     const cle = etatDossier(d).cle;
-    return cle === 'complet' || cle === 'pret';
+    return cle === 'complet' || cle === 'pret' || cle === 'signe';
   }
 
   // Classe de la date d'une échéance dans le Suivi : vert (signature d'un dossier complet ou prêt),
@@ -1508,6 +1508,14 @@
         ${renderAjoutPiece(d)}
       </div>
     `;
+  }
+
+  // L'en-tête d'un bloc de l'onglet « Pièces et analyse », au style de « Pièces du dossier » (étude 24/10 : « le même style que pièces pour
+  // analyse et contrôle de l'urbanisme ») : icône, titre, précision en gris, puis ce qui va à droite (compteur, bouton).
+  function enteteBlocFiche(nomIcone, titre, precisionHtml, droiteHtml) {
+    return `<div class="pieces-entete"><div class="pieces-entete-ligne">
+      <span class="pieces-titre">${icone(nomIcone)}<span class="pieces-titre-texte">${escapeHtml(titre)}</span>${precisionHtml ? `<span class="pieces-type">· ${precisionHtml}</span>` : ''}</span>${droiteHtml || ''}
+    </div></div>`;
   }
 
   // Pure : « notifiée le 12/09/2026, prise en compte le 15/09/2026 » (Réponse SAFER, onglet Pièces).
@@ -2033,7 +2041,8 @@
       const titreOuvrirCompromis = d.compromisNomFichier
         ? `Ouvrir « ${d.compromisNomFichier} », le fichier importé à la création du dossier`
         : "Rechercher et ouvrir l'avant-contrat dans le dossier NAS relié (aucun nom de fichier mémorisé pour ce dossier)";
-      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Ouvrir</wa-button>`;
+      // Libellé « Avant-contrat » (étude 24/10 : « Ouvrir » seul, à côté du prix, ne disait pas ce qu’il ouvre).
+      const boutonOuvrirCompromis = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirCompromisTrouve('${escapeOnclickArg(d.id)}', this)" title="${escapeAttr(titreOuvrirCompromis)}">${icone('file-text')} Avant-contrat</wa-button>`;
       const boutonDossierNas = d.dossierLie && d.nasDossier
         ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirDossierNas('${escapeOnclickArg(d.id)}')" title="Copier l’emplacement du dossier du NAS pour l’ouvrir dans l’Explorateur">${icone('folder')} Dossier NAS</wa-button>` : '';
       // Le nom du dossier NAS relié est affiché dans l'infobulle : le vérifier ne doit pas demander
@@ -2116,6 +2125,7 @@
       // l'encadré « Prochaine étape » (voir renderProchaineEtapeFiche), la dire deux fois chargeait la fiche.
 
       const analyseVide = analyse.documents.length === 0 && analyse.engagements.length === 0;
+      const urbaFiche = avecPieces ? renderPreemptionFiche(d) : '';
       return `
       <div class="dossier fiche${d.archive ? ' est-archive' : ''}">
         <!-- Barre d'outils collante : fermer et agrandir à gauche (le geste le plus fréquent en
@@ -2187,10 +2197,12 @@
             </section>
 
             <section class="fiche-panneau" data-onglet="pieces" role="tabpanel"${cache('pieces')}>
-              ${avecPieces ? `${renderPiecesDossier(d)}
-              ${renderPreemptionFiche(d)}` : ''}
-              <div class="fiche-sous-partie"${estSuccession(d) ? ' hidden' : ''}>
-              ${avecPieces ? `<div class="section-eyebrow fiche-sous-titre">Analyse de l'avant-contrat</div>` : ''}
+              ${avecPieces ? renderPiecesDossier(d) : ''}
+              <!-- Analyse de l'avant-contrat et contrôle de l'urbanisme côte à côte (étude 24/10), l'un sous l'autre quand la place manque. -->
+              <div class="fiche-analyse-urba${urbaFiche.trim() ? ' avec-urba' : ''}">
+              <div class="pieces-dossier bloc-fiche"${estSuccession(d) ? ' hidden' : ''}>
+              ${enteteBlocFiche('file-text', 'Analyse de l’avant-contrat', '', avAnalyse.total ? `<span class="pieces-compteur${avAnalyse.faits === avAnalyse.total ? ' complet' : ''}">${avAnalyse.faits}/${avAnalyse.total}</span>` : '')}
+              <div class="bloc-fiche-corps">
               ${analyseVide ? `<p class="fiche-vide">Aucune obligation du vendeur ni aucun document relevé dans l'avant-contrat.</p>` : `
               <div class="analyse-juridique">
                 ${analyse.engagements.length > 0 ? `
@@ -2209,6 +2221,9 @@
                 </div>
               </div>`}
               ${renderAjoutEngagement(d)}
+              </div>
+              </div>
+              ${urbaFiche.trim() ? `<div class="fiche-urba-col">${urbaFiche}</div>` : ''}
               </div>
               <div class="fiche-fin-repliables">
                 ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}

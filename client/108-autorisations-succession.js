@@ -285,7 +285,7 @@ function autCartesAccueil(q) {
       <span class="cst-accueil-carte-icone succ" aria-hidden="true">${icone('users')}</span>
       <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
       <span class="cst-accueil-carte-sous">${escapeHtml(['Succession', x.referenceAuthentic, x.responsable].filter(Boolean).join(' · '))}</span></span></button>`).join('');
-  return cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">${q ? 'Résultats' : 'Derniers dossiers'}</div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune succession ne correspond.</div>';
+  return cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone(q ? 'search' : 'clock')}<span class="pieces-titre-texte">${q ? 'Résultats' : 'Derniers dossiers'}</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune succession ne correspond.</div>';
 }
 
 function autRechercher(valeur) {
@@ -325,7 +325,7 @@ function autRendreCorps() {
     return `<div class="cst-item aut-item${p.cle === autEtat.courant ? ' actif' : ''}" role="button" tabindex="0" aria-label="Voir l’aperçu de ${escapeAttr(p.nom)}" onclick="autVoir('${nomJs}')" onkeydown="if (event.target === this && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); autVoir('${nomJs}'); }">
       <input type="checkbox" id="aut-c-${escapeAttr(p.cle.replace(/ /g, '-'))}" aria-label="Choisir ${escapeAttr(p.nom)}"${autEtat.choisis[d.id + '|' + p.cle] ? ' checked' : ''} onclick="event.stopPropagation()" onchange="autCocher('${nomJs}', this.checked)">
       <div class="aut-personne"><span class="aut-nom">${escapeHtml(p.nom)}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>
-        <select class="aut-modele" id="aut-m-${escapeAttr(p.cle.replace(/ /g, '-'))}" aria-label="Modèle pour ${escapeAttr(p.nom)}" onclick="event.stopPropagation()" onchange="autChoisirModele('${nomJs}', this.value)">${MODELES_AUTORISATION_SUCCESSION.map(m => `<option value="${m.cle}"${m.cle === modele ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('')}</select>
+        <select class="aut-modele" id="aut-m-${escapeAttr(p.cle.replace(/ /g, '-'))}" aria-label="Modèle pour ${escapeAttr(p.nom)}" onclick="event.stopPropagation()" onchange="autChoisirModele('${nomJs}', this.value)">${MODELES_AUTORISATION_SUCCESSION.map(m => `<option value="${m.cle}" title="${escapeAttr(m.libelle)}"${m.cle === modele ? ' selected' : ''}>${escapeHtml(m.option || m.libelle)}</option>`).join('')}</select>
         ${manques ? `<span class="hint aut-manques">${manques} ligne${manques > 1 ? 's' : ''} à compléter</span>` : ''}</div>
       <span class="cst-item-actions" onclick="event.stopPropagation()">
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Télécharger le PDF" aria-label="Télécharger le PDF de ${escapeAttr(p.nom)}" onclick="telechargerAutorisationsSuccession('${idJs}', ['${nomJs}'])">${icone('download')}</wa-button>

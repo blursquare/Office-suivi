@@ -107,7 +107,7 @@ function ouvrirTachesSuivi() {
 function chiffresTachesJour(actions, reportees, aVenir, traites) {
   return {
     aFaire: (actions || []).length,
-    enRetard: (actions || []).filter((a) => a.jours != null && a.jours < 0).length,
+    enRetard: (actions || []).filter(tacheEnRetard).length,
     plusTard: (reportees || []).length + (aVenir || []).length,
     faites: (traites || []).filter((t) => !/^Reporté/.test(t.etat)).length
   };
@@ -115,14 +115,15 @@ function chiffresTachesJour(actions, reportees, aVenir, traites) {
 
 /** Les quatre tuiles du haut (chiffre en grand, libellé, flèche) ; un clic mène à la vue « Tâches » du Suivi. */
 function renderTuilesTaches(c) {
-  const tuile = (cle, libelle, n) => `<button type="button" class="tt-tuile tt-${cle}" onclick="ouvrirTachesSuivi()" aria-label="${escapeAttr(libelle + ' : ' + n + '. Voir dans le Suivi des dossiers')}">
+  // Une tuile à zéro reste grise : un « En retard 0 » rouge alarmait pour rien (étude 24/10).
+  const tuile = (cle, libelle, n) => `<button type="button" class="tt-tuile tt-${cle}${n ? '' : ' tt-zero'}" onclick="ouvrirTachesSuivi()" aria-label="${escapeAttr(libelle + ' : ' + n + '. Voir dans le Suivi des dossiers')}">
       <span class="tt-lib">${escapeHtml(libelle)}${icone('chevron-right')}</span><span class="tt-nb">${n}</span></button>`;
   return `<div class="tt-tuiles w-fixe">${tuile('afaire', 'À faire', c.aFaire)}${tuile('retard', 'En retard', c.enRetard)}${tuile('plustard', 'À venir', c.plusTard)}${tuile('faites', 'Faites', c.faites)}</div>`;
 }
 
 function delaiTacheCompact(a) {
   if (a.jours == null) return a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '';
-  return `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+  return pastilleDelaiTache(a, false);
 }
 
 function boutonsTacheCompact(a) {
@@ -139,7 +140,7 @@ function boutonsTacheCompact(a) {
 function renderLigneTacheCompacte(a) {
   if (a.rappel) return renderLigneRappelCompact(a);
   const cle = escapeOnclickArg(a.cle);
-  return `<li class="tc-ligne${a.gravite === 'critique' ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
+  return `<li class="tc-ligne${tacheEnRetard(a) ? ' critique' : ''}"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button>
     <span class="tc-texte"><span class="tc-titre">${escapeHtml(a.titre)}</span><span class="tc-dossier">${lienDossierTache(a.dossier)}</span></span>
     <span class="tc-delai">${delaiTacheCompact(a)}</span><span class="tc-actions">${boutonsTacheCompact(a)}</span></li>`;
 }
@@ -187,7 +188,7 @@ function renderTachesCompactes(actions) {
 // ==== Mes rappels, tâches de l'agenda Outlook et tâches demandées par un collègue, dans la même liste (étude 22/10) ====
 //
 // « Prendre en charge les tâches ajoutées sur l'agenda Outlook et celles que je demande aux collaborateurs via Teams » : ce sont des rappels
-// (`rappelsPerso`) ; ils entrent dans les tuiles et dans le thème « Mes tâches », avec leurs propres gestes (case, menu).
+// (`rappelsPerso`) ; ils entrent dans les tuiles et en tête du thème « À préparer », avec leurs propres gestes (case, menu).
 
 /** Pure : un rappel en « tâche » du widget (cle `rappel:<id>`). @param {any} r @param {any[]} liste @param {string} aujourdhui */
 function rappelEnTache(r, liste, aujourdhui) {

@@ -167,7 +167,7 @@ test('libelleSemaine nomme les groupes en français, année tue si c’est la m�
 test('ORDRE_ETAT_DOSSIER classe du plus pressant au terminé', () => {
   // C'est lui qui pilote le tri "Statut" du tableau : ce qui presse en premier.
   const app = chargerApplication();
-  assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,archive');
+  assert.equal(app.ORDRE_ETAT_DOSSIER.join(','), 'urgent,arelier,attente,complet,pret,signe,archive');
 });
 
 test('la vue Échéances porte des titres de colonne, une seule fois, en haut', () => {

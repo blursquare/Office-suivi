@@ -95,7 +95,8 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
     (analyse.engagements || []).forEach((e, i) => {
       if (etatEngagementAnalyse(d, e).fait) { engagementsFaits++; return; }
       ajouter('obtenir', {
-        cle: 'engagement:' + i, titre: 'Engagement : ' + libelleCourtEngagement(e), categorie: 'engagement', onglet: 'pieces',
+        // L'étiquette « Engagement » le dit déjà : le titre ne le répète pas (étude 24/10).
+        cle: 'engagement:' + i, titre: (libelleCourtEngagement(e) || 'Engagement du vendeur').replace(/^./, (x) => x.toUpperCase()), categorie: 'engagement', onglet: 'pieces',
         coche: { onclick: `basculerEngagementFait('${escapeOnclickArg(id)}', ${i})`, libelle: 'Marquer réalisé' }
       });
     });
@@ -111,13 +112,17 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
   }
 
   // --- Gestes du jour (les mêmes que « À faire ») : un bouton pour le geste, la case pour « déjà fait ».
+  // Succession : une étape dont le rendez-vous se place d'ici (« Placer dans l'agenda ») porte déjà le geste — la tâche « Placer le
+  // rendez-vous » ferait la même carte deux fois (étude 24/10).
+  const rdvSurEtape = succession && etapesSuccession(d, aujourdhuiIso).some(e => !e.fait && e.active && rdvAgendaSuccession(d, e.type, aujourdhuiIso));
   gestes.forEach(a => {
     // Succession : le décompte, le projet et l'appel de fonds ont déjà leur carte d'étape (cartesEtapesSuccessionFiche) — jamais deux fois (étude 22/10).
     if (succession && (a.type === 'decompteSuccession' || a.type === 'projetSuccession' || a.type === 'appelFondsSuccession' || TYPES_TACHES_ETAPES_SUCCESSION.includes(a.type) || a.type === 'factureSuccession')) return;
+    if (rdvSurEtape && /^point-.*(rendez-vous|rdv)/.test(String(a.type || ''))) return;
     const cle = escapeOnclickArg(a.cle);
     const sansGeste = !a.geste || a.geste.type === 'fiche';
     ajouter('faire', {
-      cle: 'action:' + a.cle, titre: a.titre, sous: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite === 'critique' ? 'critique' : (a.gravite === 'vigilance' ? 'vigilance' : ''),
+      cle: 'action:' + a.cle, titre: a.titre, sous: delaiAction(a), categorie: a.categorie || '', gravite: tacheEnRetard(a) ? 'critique' : (a.gravite ? 'vigilance' : ''),
       coche: { onclick: `marquerFaitJour('${cle}')`, libelle: 'Déjà fait — valider à la main' },
       bouton: sansGeste ? null : { onclick: `executerActionJour('${cle}')`, libelle: libelleCourtGeste(a), icone: iconeGeste(a), titre: a.bouton || '' }
     });
@@ -257,7 +262,7 @@ function bandeauFiche(d, aujourdhuiIso, actions, probabilite) {
   if (d.archive) maintenant = { type: 'archive' };
   else if (actions && actions.length) {
     const a = actions[0];
-    maintenant = { type: 'action', cle: a.cle, titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
+    maintenant = { type: 'action', cle: a.cle, jours: a.jours == null ? null : a.jours, delaiTexte: a.delaiTexte || '', titre: a.titre, contexte: a.contexte || '', delai: delaiAction(a), categorie: a.categorie || '', gravite: a.gravite || '', sansGeste: !a.geste || a.geste.type === 'fiche', libelleGeste: libelleCourtGeste(a), iconeGeste: iconeGeste(a), titreGeste: a.bouton || '' };
   } else {
     const p = prochaineEcheanceDetail(d);
     maintenant = p ? { type: 'etape', titre: p.label, iso: p.iso, jours: p.jours, categorie: p.type } : { type: 'rien' };
@@ -348,7 +353,8 @@ function renderCarteTableauFiche(c, changee, dossierId) {
     ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="${c.bouton.onclick}" title="${escapeAttr(c.bouton.titre)}">${c.bouton.icone}${escapeHtml(c.bouton.libelle)}</wa-button>`
     : '';
   const date = c.jours !== null && !c.fait ? `<span class="tf-date">${escapeHtml(formatDateFr(c.iso))}</span>` : '';
-  const libelleCategorie = LIBELLES_CATEGORIE_FICHE[c.categorie] || '';
+  // « Succession » sur chaque carte d'une fiche de succession ne disait rien (étude 24/10).
+  const libelleCategorie = c.categorie === 'succession' ? '' : (LIBELLES_CATEGORIE_FICHE[c.categorie] || '');
   const categorie = libelleCategorie ? `<span class="dot-label dl-${escapeAttr(c.fait ? 'success' : (c.categorie || 'neutre'))} tf-categorie"><span class="dot"></span>${escapeHtml(libelleCategorie)}</span>` : '';
   const gestesDate = renderDateCarteFiche(c, dossierId);
   const deplacable = c.coche && !gestesDate.edition;
@@ -374,6 +380,45 @@ function cartesChangeesFiche(avant, cartes) {
   return changees;
 }
 
+// Pièces à réunir en une seule carte dès ce nombre (étude 24/10 : « À obtenir » alignait neuf grandes cartes « Pièce · … · Pas encore
+// vérifiée »). Une pièce datée, en retard ou en cours d'édition garde sa propre carte.
+var SEUIL_GROUPE_PIECES_FICHE = 3;
+
+/** Pure : les cartes d'une colonne en éléments — { groupe: [cartes] } pour les pièces et documents à réunir (au moins le seuil),
+ *  posé à la place de la première, { carte } sinon. @param {any[]} liste */
+function elementsColonneFiche(liste) {
+  const groupable = (c) => /^(piece|document):/.test(c.cle) && !c.fait && !c.date && !c.bouton && c.jours === null && !c.gravite;
+  const groupe = (liste || []).filter(groupable);
+  if (groupe.length < SEUIL_GROUPE_PIECES_FICHE) return (liste || []).map(c => ({ carte: c }));
+  const out = [];
+  (liste || []).forEach(c => {
+    if (!groupable(c)) out.push({ carte: c });
+    else if (c === groupe[0]) out.push({ groupe });
+  });
+  return out;
+}
+
+/** Une carte pour plusieurs pièces à réunir : une ligne par pièce (case ronde, nom qui mène à l'onglet Pièces), l'état commun en tête. */
+function renderGroupePiecesFiche(cartes, changees) {
+  const etats = [...new Set(cartes.map(c => c.sous).filter(Boolean))];
+  const lignes = cartes.map(c => {
+    const rond = c.coche
+      ? `<button type="button" class="tf-rond" onclick="${c.coche.onclick}" aria-label="${escapeAttr(c.coche.libelle + ' : ' + c.titre)}" title="${escapeAttr(c.coche.libelle)}">${icone('check')}</button>`
+      : `<span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span>`;
+    const titre = c.onglet
+      ? `<button type="button" class="tf-titre tf-lien" onclick="definirOngletFiche('${c.onglet}')">${escapeHtml(c.titre)}</button>`
+      : `<span class="tf-titre">${escapeHtml(c.titre)}</span>`;
+    const sous = etats.length > 1 && c.sous ? `<span class="tf-sous">${escapeHtml(c.sous)}</span>` : '';
+    return `<li class="tf-piece-ligne${changees.has(c.cle) ? ' changee' : ''}" data-cle="${escapeAttr(c.cle)}">${rond}<span class="tf-piece-texte">${titre}${sous}</span></li>`;
+  }).join('');
+  const nb = cartes.length;
+  return `<article class="tf-carte tf-carte-pieces">
+    <span class="dot-label dl-piece tf-categorie"><span class="dot"></span>${nb} pièces à réunir</span>
+    ${etats.length === 1 ? `<span class="tf-sous tf-pieces-etat">${escapeHtml(etats[0])}</span>` : ''}
+    <ul class="tf-pieces">${lignes}</ul>
+  </article>`;
+}
+
 function renderTableauFiche(d, actions) {
   const cartes = cartesTableauFiche(d, isoAujourdhuiLocal(), actions);
   const avant = colonnesPrecedentesFiche.id === d.id ? colonnesPrecedentesFiche.parCle : null;
@@ -385,7 +430,7 @@ function renderTableauFiche(d, actions) {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>
-      <div class="tf-cartes">${liste.length ? liste.map(c => renderCarteTableauFiche(c, changees.has(c.cle), d.id)).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
+      <div class="tf-cartes">${liste.length ? elementsColonneFiche(liste).map(e => (e.groupe ? renderGroupePiecesFiche(e.groupe, changees) : renderCarteTableauFiche(e.carte, changees.has(e.carte.cle), d.id))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
     </section>`;
   }).join('')}</div>`;
 }
@@ -411,7 +456,7 @@ function renderBandeauFiche(d, actions) {
   if (s.etat === 'signe') sigCorps = `<strong class="fb-grand fb-ok">${escapeHtml(s.texte)}</strong>`;
   else if (s.etat === 'placee') {
     // Date illisible (jours inconnus) : pas de « null jour » (audit 12/10).
-    sigCorps = `<div class="fb-sig-ligne">${s.jours == null ? '' : `<span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba)}</span></div>`;
+    sigCorps = `<div class="fb-sig-ligne">${s.jours == null ? '' : `<span class="fb-jours">${s.jours === 0 ? 'Auj.' : s.jours}</span>${s.jours === 0 ? '' : `<small>jour${s.jours > 1 ? 's' : ''}</small>`}`}<span class="fb-sig-date"><strong>${escapeHtml(formatDateFr(s.iso))}${s.heure ? ', ' + escapeHtml(String(s.heure).replace(':', ' h ').replace(/ h 00$/, ' h')) : ''}</strong>${renderPastilleProbabilite(s.proba, 'maintien')}</span></div>`;
   } else if (s.etat === 'passee') {
     // Le geste est là où la question se pose (audit 12/10 : aucune carte ne permettait de marquer l'acte signé).
     sigCorps = `<strong class="fb-grand fb-retard">Date passée</strong><span class="fb-petit">${escapeHtml(formatDateFr(s.iso))} · à marquer signée ou à déplacer</span>
@@ -433,7 +478,9 @@ function renderBandeauFiche(d, actions) {
   } else if (m.type === 'archive') corpsMaintenant = '<strong class="fb-titre">Dossier archivé</strong><span class="fb-petit">Plus rien à faire.</span>';
   else corpsMaintenant = '<strong class="fb-titre">Rien à faire pour le moment</strong><span class="fb-petit">On attend les pièces et la signature.</span>';
   const titreCarte = m.type === 'etape' ? 'Prochaine étape' : 'À faire maintenant';
-  const carteMaintenant = `<div class="fb-carte fb-maintenant"><span class="section-eyebrow">${titreCarte}</span>${corpsMaintenant}</div>`;
+  // Rouge seulement pour un vrai retard (étude 24/10 : l'encadré criait plus fort que tout, même sans rien en retard).
+  const enRetard = m.type === 'action' ? tacheEnRetard(m) : (m.type === 'etape' && m.jours != null && m.jours < 0);
+  const carteMaintenant = `<div class="fb-carte fb-maintenant${enRetard ? ' fb-maintenant-retard' : ''}"><span class="section-eyebrow">${titreCarte}</span>${corpsMaintenant}</div>`;
   return `<div class="fb-bandeau">${cartePieces}${carteSignature}${carteMaintenant}</div>`;
 }
 

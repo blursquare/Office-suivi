@@ -7,7 +7,7 @@ description: Procédure complète avant d'envoyer un changement de CLAIRE sur ma
 
 `main` = production : un push construit un `.exe` installé seul sur le serveur du bureau dans les dix minutes. **Jamais depuis la session programmée « relecture des rapports techniques »** (voir CLAUDE.md : branche + demande de fusion, c'est l'étude qui fusionne).
 
-**Jamais entre 19 h et 8 h, heure de Paris** (étude 18/10 : l'étude n'est pas au bureau pour essayer — nouveauté ni correction) : la garde refuse l'envoi sur `main`. Le soir, pousser la branche et publier à partir de 8 h (`node scripts/prochaine-version.js` donne l'heure de Paris).
+**Jamais entre 19 h et 8 h ni le samedi et le dimanche, heure de Paris** (étude 18/10 et 24/10 : l'étude n'est pas au bureau pour essayer — nouveauté ni correction) : la garde refuse l'envoi sur `main`. Le soir ou le week-end, pousser la branche et publier à partir de 8 h un jour de semaine (`node scripts/prochaine-version.js` donne l'heure de Paris).
 
 ## 1. Cadrer
 

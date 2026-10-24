@@ -270,7 +270,7 @@
         <div class="sites-ligne">
           <div class="calc-champ"><label for="sites-echelle">Échelle</label>
             <select id="sites-echelle" onchange="changerEchelleSites(this.value)">${ECHELLES_PLAN_SITUATION.map(x => `<option value="${x.cle}"${x.cle === st.echelle ? ' selected' : ''}>${x.libelle}</option>`).join('')}</select></div>
-          <wa-button variant="brand" size="s" onclick="lancerPlanSituation()"${manque || enCours(plan) ? ' disabled' : ''}${enCours(plan) ? ' loading' : ''}>${icone('map-pin')} Tirer le plan de situation</wa-button>
+          <wa-button variant="brand" size="s" onclick="lancerPlanSituation()"${manque ? ` title="${escapeAttr(manque)}"` : ''}${manque || enCours(plan) ? ' disabled' : ''}${enCours(plan) ? ' loading' : ''}>${icone('map-pin')} Tirer le plan de situation</wa-button>
         </div>
         ${plan ? (enCours(plan) ? renderSuiviTacheSite('plan', plan)
           : plan.etat === 'fini' ? `${lignesPlansSites(plan.resultat).map(l => `<p class="hint">${icone('check')} ${escapeHtml(l)}</p>`).join('')}
@@ -281,7 +281,7 @@
         <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('map-pin')} Plan aérien IGN — numéros de parcelles et zonage</span>
           ${infoBulle('Photographie aérienne de l’IGN : les parcelles du dossier surlignées en jaune fluo avec leur numéro, les parcelles voisines numérotées pour comparer avec le plan du cadastre, et la part de chaque zone du document d’urbanisme dans chaque parcelle (calcul géométrique sur les contours publiés, à titre indicatif).')}</div>
         <div class="sites-ligne">
-          <wa-button variant="brand" size="s" onclick="lancerPlanAerien()"${manque || (aerien && aerien.etat === 'envoi') ? ' disabled' : ''}${aerien && aerien.etat === 'envoi' ? ' loading' : ''}>${icone('map-pin')} Tirer le plan aérien</wa-button>
+          <wa-button variant="brand" size="s" onclick="lancerPlanAerien()"${manque ? ` title="${escapeAttr(manque)}"` : ''}${manque || (aerien && aerien.etat === 'envoi') ? ' disabled' : ''}${aerien && aerien.etat === 'envoi' ? ' loading' : ''}>${icone('map-pin')} Tirer le plan aérien</wa-button>
         </div>
         ${aerien ? (aerien.etat === 'envoi' ? '<p class="hint">Lecture de la photographie aérienne, du cadastre et du zonage…</p>'
           : aerien.etat === 'fini' ? renderResultatPlanAerien(aerien)

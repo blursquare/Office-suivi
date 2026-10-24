@@ -157,7 +157,7 @@
           ${d.courriel ? `<wa-button appearance="outlined" size="s" onclick="copierCourrielDepotDia('${escapeOnclickArg(d.courriel)}')">${icone('mail')} Copier ${escapeHtml(d.courriel)}</wa-button>` : ''}
         </div>
         <p class="hint">${escapeHtml([origine, verifie].filter(Boolean).join(' · '))}${source && !d.indiquePar ? ` · <a href="${escapeAttr(source)}" target="_blank" rel="noopener">page lue</a>` : ''}</p>
-        ${m ? `<div class="depot-dia-mairie"><span class="section-eyebrow">Mairie</span>
+        ${m ? `<div class="depot-dia-mairie"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Mairie</span></span>
             <span>${escapeHtml(m.nom)}${m.adresse ? ` — ${escapeHtml(m.adresse)}` : ''}</span>
             <span>${m.telephone ? `Tél. ${escapeHtml(m.telephone)}` : ''}${m.courriel ? ` ${icone('mail')} <a href="mailto:${escapeAttr(m.courriel)}">${escapeHtml(m.courriel)}</a>` : ''}${lienDepotDiaSur(m.site) ? ` <a href="${escapeAttr(lienDepotDiaSur(m.site))}" target="_blank" rel="noopener">${icone('link')} site</a>` : ''}</span></div>`
           : (j.mairieLue ? '' : '<p class="hint">Fiche de la mairie indisponible (annuaire du service public injoignable).</p>')}

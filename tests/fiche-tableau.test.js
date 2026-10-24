@@ -227,3 +227,10 @@ test('tableau : confirmation des fonds cochable à la main, en participation aus
   const succ = app.cartesTableauFiche(dossier({ typeAffaire: 'succession' }), AUJ, []);
   assert.ok(!cle(succ).some(k => k.startsWith('fonds-conf')));
 });
+
+test('bandeau : une tâche d’après signature (« signé il y a 3 j ») n’est jamais « en retard » (relecture 24/10)', () => {
+  const action = { cle: 'questionnaire', jours: -3, delaiTexte: 'signé il y a 3 j', titre: 'Envoyer le questionnaire de satisfaction', geste: { type: 'email' } };
+  const b = app.bandeauFiche(VARIANTES.maison, AUJ, [action], null);
+  assert.equal(app.tacheEnRetard(action), false);
+  assert.equal(app.tacheEnRetard(b.maintenant), false);
+});

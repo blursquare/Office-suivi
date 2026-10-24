@@ -361,7 +361,7 @@
       return `<li><span class="appels-quand">${escapeHtml(dateHeureAppel(a.t))}</span><span>${escapeHtml(x ? LIBELLES_PARTIE_APPEL[x.partie] || '' : '')}${a.nom ? ` · ${escapeHtml(a.nom)}` : ''}</span><span class="appels-numero">${escapeHtml(a.numero || '')}${liensAppelTelephone(a.numero, 'coord-appel coord-appel-inline')}</span></li>`;
     };
     return `<div class="appels-dossier">
-        <span class="section-eyebrow">Appels reçus <span class="jour-onglet-nb">${liste.length}</span></span>
+        <span class="pieces-titre">${icone('phone')}<span class="pieces-titre-texte">Appels reçus</span><span class="pieces-compteur">${liste.length}</span></span>
         <ul class="appels-liste">${liste.slice(0, 4).map(ligne).join('')}</ul>
         ${liste.length > 4 ? `<details class="appels-plus"><summary>${liste.length - 4} de plus</summary><ul class="appels-liste">${liste.slice(4).map(ligne).join('')}</ul></details>` : ''}
       </div>`;

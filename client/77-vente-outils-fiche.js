@@ -106,7 +106,7 @@
   function lireSaisieProvision() {
     const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
     const radio = nom => { const r = document.querySelector(`input[name="${nom}"]:checked`); return r ? r.value : ''; };
-    return { prix: Number(v('calc-price')), mobilier: Number(v('calc-mobilier')), dept: v('calc-dept'), type: v('calc-type'),
+    return { prix: Math.max(0, montantSaisiFr(v('calc-price')) || 0), mobilier: Math.max(0, montantSaisiFr(v('calc-mobilier')) || 0), dept: v('calc-dept'), type: v('calc-type'),
       primo: radio('calc-first') === 'yes', residencePrincipale: radio('calc-rp') !== 'no' };
   }
 
@@ -132,7 +132,7 @@
   function renderProvisionFondsFiche(d) {
     const ligne = ligneProvisionFiche(d);
     if (!ligne) return '';
-    return `<div class="echanges-groupe"><div class="echanges-tete"><span class="section-eyebrow">Provision</span></div>
+    return `<div class="echanges-groupe"><div class="echanges-tete"><span class="pieces-titre">${icone('scale')}<span class="pieces-titre-texte">Provision</span></span></div>
       <p class="fonds-provision">${ligne} <wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="ouvrirProvisionDepuisFiche('${escapeOnclickArg(d.id)}')">Refaire</wa-button></p></div>`;
   }
 

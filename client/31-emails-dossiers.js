@@ -271,7 +271,7 @@
     const reste = liste.length - Math.min(f.n, liste.length);
     return `<div class="emails-dossier">
         <div class="emails-tete">
-          <span class="section-eyebrow">Emails envoyés <span class="jour-onglet-nb">${emails.length}</span> ${infoBulle('Emails envoyés par l’office et les collaborateurs à une adresse de ce dossier, relevés chaque minute. Les emails reçus ne sont plus affichés : CLAIRE les lit seulement pour reconnaître les réponses et les envois.')}</span>
+          <span class="pieces-titre">${icone('mail')}<span class="pieces-titre-texte">Emails envoyés</span><span class="pieces-compteur">${emails.length}</span> ${infoBulle('Emails envoyés par l’office et les collaborateurs à une adresse de ce dossier, relevés chaque minute. Les emails reçus ne sont plus affichés : CLAIRE les lit seulement pour reconnaître les réponses et les envois.')}</span>
           ${emails.length > EMAILS_PAR_PAGE ? `<input type="search" class="emails-recherche" placeholder="Rechercher un email" aria-label="Rechercher dans les emails du dossier" oninput="rechercherEmailsDossier(this)">` : ''}
         </div>
         <ul class="emails-liste">${liste.map(ligne).join('')}</ul>

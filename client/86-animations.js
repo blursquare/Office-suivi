@@ -25,7 +25,7 @@
   function nombreDepuisMontantAffiche(texte) {
     const t = String(texte == null ? '' : texte);
     if (!/\d/.test(t) || !/€/.test(t)) return null;
-    const brut = t.replace(/[^\d,-]/g, '').replace(',', '.');
+    const brut = t.replace(/\u2212/g, '-').replace(/[^\d,-]/g, '').replace(',', '.');
     const n = Number(brut);
     return brut && Number.isFinite(n) ? n : null;
   }

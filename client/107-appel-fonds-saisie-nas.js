@@ -1,4 +1,4 @@
-// Courrier d'appel de fonds — saisie des montants dans l'aperçu et rangement sur le NAS (étude 23/10) ; suite de client/40-generateur-appel-fonds.js.
+// Courrier d'appel de fonds — saisie des montants dans l'aperçu, rangement sur le NAS (étude 23/10), frais estimés, décompte collé et « À compléter » suivi (étude 24/10) ; suite de client/40-generateur-appel-fonds.js.
 
 // Le navigateur peut retirer le <span> d'une cellule quand on en efface tout le texte (le « € » supprimé, puis un chiffre tapé) : le texte
 // reste dans la cellule, hors de tout champ — la ligne n'était plus additionnée ni reprise dans le courrier (étude 23/10). Le champ est
@@ -98,3 +98,140 @@ async function rangerAppelFondsDansDossier(btn) {
 
 // Le champ de montant où se trouve le curseur est remis en forme avant la génération du courrier (« 24 » → « 24,00 € »).
 function formaterChampMontantActifAppelFonds() { formaterMontantSortieAppelFonds(afChampMontantActif); }
+
+// Étude 24/10 (« teste l'appel de fonds dans tous les sens ») : les frais et droits de l'acte restaient à 0,00 € quand le
+// département ou la nature du bien n'étaient choisis que dans l'outil — le barème n'était lu qu'à la reprise du dossier.
+// Une ligne de frais encore à zéro, ou remplie par le barème et jamais retouchée (`estime`), prend l'estimation du moment
+// (taux plein, comme à la reprise) ; une saisie à la main n'est jamais écrasée. Décompte de l'office seulement.
+function remplirFraisActeEstimesAppelFonds(fourchette) {
+  if (afModeDecompte !== 'office' || !fourchette) return;
+  const ligne = (afLignes.debit || []).find(l => l && !l.memoire && /frais\s+et\s+droits\s+de\s+l.acte\s+de\s+vente/i.test(l.libelle || ''));
+  if (!ligne || !(ligne.estime || (!ligne.montant && !ligne.main))) return;
+  ligne.montant = Math.ceil(fourchette.max);
+  ligne.estime = true;
+}
+
+// Texte collé à la main (étude 24/10 : un décompte collé sans « € » ne donnait « aucune ligne reconnue ») : un montant en fin
+// de ligne sans « € » le reçoit, « 185 000 » devient « 185 000,00 € », « A déduire : dépôt de garantie 9 250,00 » se coupe
+// en deux lignes (bascule puis ligne), « Débit » / « Crédit » seuls valent « A payer » / « A déduire ». Seulement pour le
+// collage : un PDF garde la lecture d'origine, plus stricte. Pure.
+function texteDecompteColleNormalise(texte) {
+  const sortie = [];
+  String(texte || '').split(/\r?\n/).forEach(brute => {
+    let l = brute.replace(/\t+/g, ' ').trim();
+    if (!l) return;
+    if (/^d[ée]bits?\s*:?$/i.test(l)) { sortie.push('A payer'); return; }
+    if (/^cr[ée]dits?\s*:?$/i.test(l)) { sortie.push('A déduire'); return; }
+    const bascule = /^((?:a|à)\s*d[ée]duire|sommes?\s+(?:a|à)\s+d[ée]duire|(?:a|à)\s*payer|(?:a|à)\s*ajouter)\s*[:\-–]\s*(\S.*)$/i.exec(l);
+    if (bascule) { sortie.push(bascule[1]); l = bascule[2]; }
+    // Montant entier à séparateur de milliers, sans centimes (« 185 000 », « 185.000 € ») : centimes ajoutés.
+    l = l.replace(/(?<![\d.,])(\d{1,3}(?:[ .\u00a0\u202f]\d{3})+)(\s*€)?\s*$/, '$1,00 €');
+    // Montant à centimes en fin de ligne sans « € ».
+    if (/(?<![\d.,])(?:\d{1,3}(?:[.\s\u00a0\u202f]\d{3})+|\d+),\d{2}\s*$/.test(l)) l = l.replace(/\s*$/, ' €');
+    sortie.push(l.replace(/[\u00a0\u202f]/g, ' '));
+  });
+  return sortie.join('\n');
+}
+
+// « À compléter vous-même » suit la saisie (étude 24/10 : la liste restait telle qu'à la reprise du dossier, « barème n'a pas
+// pu estimer » compris, une fois tout rempli) : un point réglé dans l'outil est barré et coché. Les points qui ne se règlent
+// pas dans l'outil (dépôt chez un tiers, honoraires…) restent tels quels.
+var AF_POINTS_RECAP = [
+  { motif: /^Situation des acquéreurs/, fait: () => !!afValeur('af-situation') },
+  { motif: /^Adresse du bien/, fait: () => !!afValeur('af-adresse-bien').trim() },
+  { motif: /^Date du rendez-vous/, fait: () => !!afValeur('af-date-rdv') },
+  { motif: /^Heure du rendez-vous/, fait: () => !!afValeur('af-heure-rdv') },
+  { motif: /^Prix d’acquisition\./, fait: () => (afLignes.debit || []).some(l => /prix\s+d.acquisition/i.test(l.libelle || '') && l.montant > 0) },
+  { motif: /^Garanties du prêt inconnues/, fait: () => { const a = afEl('af-sans-pret'); const b = afEl('af-pret-hypothecaire'); return !!((a && a.checked) || (b && b.checked)); } },
+  { motif: /^Montant des frais et droits de l’acte de vente/, fait: () => (afLignes.debit || []).some(l => /frais\s+et\s+droits\s+de\s+l.acte\s+de\s+vente/i.test(l.libelle || '') && l.montant > 0) }
+];
+function majRecapManquantsAppelFonds() {
+  const liste = document.querySelector('#af-recap-prefill ul.af-recap-manquant');
+  if (!liste) return;
+  liste.querySelectorAll('li').forEach(li => {
+    const point = AF_POINTS_RECAP.find(x => x.motif.test(li.textContent || ''));
+    let fait = false;
+    try { fait = !!(point && point.fait()); } catch (e) { fait = false; }
+    li.classList.toggle('af-recap-fait', fait);
+  });
+}
+
+// Nom de famille d'un client pour « Monsieur et Madame NOM » : la suite de mots en capitales du nom (« Paul DUPONT » et
+// « DUPONT Paul » → « DUPONT », « Jean d'ARTAGNAN » → « d'ARTAGNAN »), particules en minuscules juste avant gardées
+// (« Jean de la FONTAINE » → « de la FONTAINE »), une initiale (« J. ») n'en est pas ; sinon le nom tel quel. Pure.
+function nomFamilleClientAppelFonds(c) {
+  const mots = String((c && c.nom) || '').trim().split(/\s+/).filter(Boolean);
+  const capitales = m => { const coeur = m.replace(/^[dl][’']/i, ''); return /\p{Lu}{2}/u.test(coeur) && coeur === coeur.toLocaleUpperCase('fr-FR'); };
+  const i = mots.findIndex(capitales);
+  if (i < 0) return mots.join(' ');
+  let fin = i;
+  while (fin + 1 < mots.length && (capitales(mots[fin + 1]) || /^-/.test(mots[fin + 1]))) fin++;
+  let debut = i;
+  while (debut > 0 && /^(de|du|des|la|le|d[’'])$/i.test(mots[debut - 1])) debut--;
+  return mots.slice(debut, fin + 1).join(' ');
+}
+
+// Recalcule un prorata annoncé par le confrère. Un écart de plus de 2 centimes est signalé :
+// c'est la seule vérification que l'outil peut faire sur un décompte qu'il n'a pas produit.
+function verifierProrataLigne(ligne) {
+  if (!ligne || !ligne.formule) return { statut: 'non-verifiable' };
+  const m = AF_FORMULE_RE.exec(ligne.formule);
+  if (!m) return { statut: 'non-verifiable' };
+  const base = montantDepuisTexteFr(m[1]);
+  const num = parseFloat(m[2]);
+  const den = parseFloat(m[3]);
+  if (base == null || !num || !den) return { statut: 'non-verifiable' };
+  const attendu = Math.round((base * num / den) * 100) / 100;
+  return Math.abs(attendu - ligne.montant) <= 0.02
+    ? { statut: 'ok', attendu }
+    : { statut: 'ecart', attendu };
+}
+
+// Contrôle des frais d'acte (étude 24/10 : « le contrôle de la provision ne fonctionne pas à chaque fois »). Il se taisait quand
+// l'adresse du dossier n'était que dans la fiche du bien (`d.bien.adresse`, code postal à part), quand le code postal était écrit
+// « 41 000 », quand l'adresse retapée dans l'outil n'avait pas de code postal (le département choisi était alors effacé) ou quand
+// le prix était gardé en texte. Pures.
+// Le code postal d'une adresse : celui entre parenthèses (« BLOIS (41000) ») d'abord, sinon le DERNIER groupe de cinq chiffres
+// qui n'est ni une boîte postale (BP, CS, TSA, CEDEX) ni un numéro ; écrit « 41 000 », seulement entre parenthèses ou suivi du
+// nom de la commune (relecture 24/10 : « CS 20819, 41000 BLOIS » donnait la Corse).
+function codePostalDansTexteAppelFonds(texte) {
+  const t = String(texte || '');
+  const paren = /\((\d{2})\s?(\d{3})\)/.exec(t);
+  if (paren) return paren[1] + paren[2];
+  let retenu = null;
+  for (const m of t.matchAll(/(?<!\d)(\d{2})(\s?)(\d{3})(?!\d)/g)) {
+    const avant = t.slice(Math.max(0, m.index - 8), m.index);
+    if (/(?:\bBP|\bCS|\bTSA|CEDEX|n°|\bno)\s*$/i.test(avant)) continue;
+    if (m[2] && !/^\s+\p{Lu}{2}/u.test(t.slice(m.index + m[0].length))) continue;
+    retenu = m[1] + m[3];
+  }
+  return retenu;
+}
+function codePostalBienAppelFonds(d) {
+  const a = (d && d.bien && d.bien.adresse) || {};
+  // L'adresse imprimée dans le courrier d'abord : le contrôle porte sur le même bien que la lettre.
+  return codePostalDansTexteAppelFonds(d && d.adresseBien) || codePostalDansTexteAppelFonds(a.codePostal) || codePostalDansTexteAppelFonds(a.adresseComplete);
+}
+function adresseBienDossierAppelFonds(d) {
+  if (!d) return '';
+  if (String(d.adresseBien || '').trim()) return d.adresseBien;
+  const a = (d.bien && d.bien.adresse) || {};
+  if (String(a.adresseComplete || '').trim()) return a.adresseComplete;
+  const voie = [a.numero, a.typeVoie, a.nomVoie].filter(Boolean).join(' ') || a.lieuDit || '';
+  const commune = [a.codePostal, a.commune].filter(Boolean).join(' ');
+  return [voie, commune].filter(Boolean).join(', ');
+}
+function montantDossierAppelFonds(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const n = typeof eurosDepuisSaisie === 'function' ? eurosDepuisSaisie(String(v || '')) : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+// Sur la ligne des frais quand le contrôle ne peut pas se faire : ce qui manque, au lieu d'un silence.
+function badgeSansControleFraisAppelFonds() {
+  const manque = [];
+  if (!afValeur('af-frais-departement')) manque.push('département');
+  if (!afValeur('af-frais-type')) manque.push('nature du bien');
+  if (typeof prixPourControleFraisActe === 'function' && !prixPourControleFraisActe()) manque.push('prix');
+  if (!manque.length) return '';
+  return `<span class="af-verif af-verif-manque" title="Choisissez ${escapeAttr(manque.join(', '))} dans « Bien vendu » (ou le prix dans le tableau) pour contrôler les frais au barème.">contrôle : ${escapeHtml(manque.join(', '))} ?</span>`;
+}

@@ -561,10 +561,11 @@
 
   // Lignes hors du stade du dossier : toujours visibles, en grisé sous les lignes utiles (étude 05/10, plus de repli).
   function renderAutresEchanges(lignesAutres) {
-    return lignesAutres.length ? `<div class="echanges-hors-stade">
-        <div class="echanges-hors-stade-titre">Hors de ce stade</div>
+    // Replié (étude 24/10) : en gris, ses boutons avaient l'air désactivés alors qu'ils marchent ; déplié, tout est normal.
+    return lignesAutres.length ? `<details class="echanges-hors-stade">
+        <summary class="echanges-hors-stade-titre">${icone('chevron-right')}Hors de ce stade <span class="echanges-hors-stade-nb">${lignesAutres.length}</span></summary>
         <ul class="ja-liste">${lignesAutres.join('')}</ul>
-      </div>` : '';
+      </details>` : '';
   }
 
   // Onglet Échanges de la fiche : le destinataire (client, ou confrère quand un autre office
@@ -580,7 +581,7 @@
     const libelleStade = succession ? (etapeSucc ? etapeSucc.label : 'Succession réglée') : STADES_DOSSIER[stade];
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="section-eyebrow">${succession ? 'Échanges avec les héritiers' : (notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client')}</span>
+          <span class="pieces-titre">${icone('mail')}<span class="pieces-titre-texte">${succession ? 'Échanges avec les héritiers' : (notaireParticipant ? 'Échanges avec le confrère' : 'Échanges avec le client')}</span></span>
           <span class="echanges-stade" title="${succession ? 'Étape en cours de la succession' : 'Stade du dossier, lu dans ses dates'}">${escapeHtml(libelleStade)}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
@@ -627,11 +628,12 @@
       : '<span class="fonds-offre-muet">Lues à la réception de l’offre</span>';
     const lignePret = ligneActePretFonds(d);
     // « Revérifier l'offre de prêt » toujours dans l'onglet Fonds (étude 23/10), à côté de « Ouvrir l'offre » quand elle est trouvée.
-    const actions = (r.ouvrable ? `<button type="button" class="lien-action" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">Ouvrir l’offre</button>` : '')
-      + (d.dossierLie && !d.archive ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">Revérifier l’offre de prêt</button>` : '');
+    // Mêmes pastilles d'action que « Revérifier » des pièces (étude 24/10 : un texte bordeaux en gras ne disait pas qu'on pouvait cliquer).
+    const actions = (r.ouvrable ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')">${icone('file-text')} Ouvrir l’offre</wa-button>` : '')
+      + (d.dossierLie && !d.archive ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)" title="Relire le dossier du NAS pour retrouver l’offre de prêt">${icone('rotate-ccw')} Revérifier l’offre de prêt</wa-button>` : '');
     return `<div class="echanges-groupe fonds-offre">
         <div class="echanges-tete">
-          <span class="section-eyebrow">Offre de prêt</span>
+          <span class="pieces-titre">${icone('file-text')}<span class="pieces-titre-texte">Offre de prêt</span></span>
           <span class="dot-label ${r.dl}"><span class="dot"></span>${escapeHtml(r.texte)}</span>
         </div>
         <ul class="fonds-offre-lignes">
@@ -648,7 +650,7 @@
     const hint = texteDestinataireEchanges(d);
     return `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="section-eyebrow">Fonds du dossier</span>
+          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Fonds du dossier</span></span>
           <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
@@ -659,3 +661,11 @@
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }
+
+  // À l'impression (Ctrl+P de la fiche), « Hors de ce stade » s'imprime déplié, puis reprend son état (relecture 24/10).
+  window.addEventListener('beforeprint', () => {
+    document.querySelectorAll('details.echanges-hors-stade:not([open])').forEach(el => { el.open = true; el.dataset.ouvertPourImpression = '1'; });
+  });
+  window.addEventListener('afterprint', () => {
+    document.querySelectorAll('details.echanges-hors-stade[data-ouvert-pour-impression]').forEach(el => { el.open = false; delete el.dataset.ouvertPourImpression; });
+  });

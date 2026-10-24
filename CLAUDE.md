@@ -27,9 +27,10 @@ durable, l'architecture ou « Ce qui reste ouvert » change.
   ni `HEAD:main`, ni merge local puis push, même pour un changement minuscule ou pour le rapport lui-même ; si la demande de
   fusion ne peut pas être ouverte, laisser la branche poussée et le dire dans l'issue. Le push direct sur `main` reste réservé
   aux sessions où l'étude suit le travail en direct.
-- **Rien sur `main` entre 19 h et 8 h, heure de Paris — nouveauté ni correction** (étude 18/10 : « je ne suis pas au bureau pour
-  tester », puis « bloque aussi les corrections la nuit ») : la garde de publication (`horsHeuresBureau` de `scripts/garde-publication.js`)
-  refuse tout envoi sur `main` dans cette plage ; le travail reste poussé sur la branche et part sur `main` à partir de 8 h.
+- **Rien sur `main` entre 19 h et 8 h ni le week-end, heure de Paris — nouveauté ni correction** (étude 18/10 : « je ne suis pas au bureau pour
+  tester », puis « bloque aussi les corrections la nuit » ; 24/10 : « pas le week-end ») : la garde de publication (`horsHeuresBureau` et
+  `weekEndParis` de `scripts/garde-publication.js`) refuse tout envoi sur `main` dans ces plages ; le travail reste poussé sur la branche et
+  part sur `main` à partir de 8 h un jour de semaine (le lundi après un week-end).
 - La version 100 % locale (sans serveur, `localStorage`) n'est plus maintenue ; son dernier état
   est le commit `c90e9d0`. Dans `docs/historique.md`, « sur `main` » dans les entrées antérieures
   au 18/09/2026 désigne cette version locale, et « `claude/serveur-intranet` » l'actuelle `main`.
@@ -361,7 +362,9 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   « À relier » (jamais relié au NAS), « Attente de pièces » (pièce de la checklist ou offre de prêt
   manquante ; participation : l'offre seule), « Complet » (tout reçu), « Prêt » (complet + rendez-vous
   placé), et **« Urgent »** dès qu'une date butoir est dépassée (vente préalable, prêt, date butoir
-  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée. Confirmé par l'étude :
+  sans rendez-vous) — prioritaire, calculé, il disparaît dès l'échéance levée ; **« Signé »** (vert, étude 24/10) dès que l'acte est VRAIMENT signé
+  (`signatureFaiteSuivi` : signé dans Authentic ou signature cochée — jamais un rendez-vous seulement passé), avant « Urgent » et « Attente de pièces »,
+  jusqu'à l'archivage. Confirmé par l'étude :
   un rendez-vous placé avec une pièce manquante reste « Attente de pièces » ; une vente préalable non
   réalisée (financement, comme l'offre) empêche « Complet » et « Prêt ». Couleurs : rouge, gris, ambre, bleu `--acte`
   (jamais l'accent, qui peut être orange ou vert), vert. **Suivi** (30/09, choix de l'étude) : barre en trois lignes
@@ -448,7 +451,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `ajouterPersonneDossier`) et, dès deux personnes, la situation du couple (`SITUATIONS_CLIENT` : marié, pacsé, concubins ;
   `d.situationVendeur`/`d.situationAcquereur` ; **remplie seule d'après les fiches client d'Authentic** (étude 07/10, `appliquerSituationsAuthentic`, Authentic d'abord comme l'identité ; marié/pacsé seulement si le conjoint nommé est l'autre personne, `situationClientDeduite`), jamais d'un
   prénom ; la civilité aussi, à la lecture d'une fiche client comme au complément depuis Authentic). Courrier d'appel de fonds (`lignesDestinatairesAppelFonds`, `salutationAppelFonds`) : marié Monsieur + Madame
-  « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
+  « Monsieur et Madame DUPONT » (nom du mari seul, sans prénom, même si Madame porte un autre nom — étude 24/10) ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
   Léa MARTIN », « Monsieur … et Monsieur … ») ; formule selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, »,
   « Chères Mesdames, »).
   **Société** (étude 08/10 : « prévoir la situation quand il s'agit d'une société, vendeur ou acquéreur ») : « Société » dans la
@@ -690,7 +693,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `construireEmailRelanceFonds`, une fois par date `relanceFondsPour`, À faire + Échanges, premier jet de CLAIRE),
   questionnaire J+1…J+30 (« À faire », `JOURS_QUESTIONNAIRE`) ; **« un mot un an après la signature » retiré le 07/10** (étude : « retire le mot d'anniversaire » — dossier archivé avant, jamais proposé ; `gestesRelationClient` supprimée) — **date de signature = `dateSignatureDossier`** (07/10 : signé dans Authentic ou coché, sinon rendez-vous passé ; stade, questionnaire, archivage à J+30, statistiques, avancement, tuiles du mois ; jamais `d.rendezVousSignature` seul ; jamais pour une succession) — **jamais quand un confrère accompagne l'acquéreur**,
   étude 01/10) : ces emails vivent dans l'**onglet Échanges de la fiche** (`echangesSelonStade`, utiles quand ils sont
-  dus ou faits), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
+  dus ou faits ; le reste replié sous « Hors de ce stade », déplié à l'impression — étude 24/10), plus dans la barre de l'agenda (retirés le 01/10). **Couleur d'un
   rendez-vous = celle d'Outlook** (étude, 30/09) : couleur nommée dans la catégorie
   (`couleurCategorieOutlook`, jetons `--cat-*`), sinon type réglé (office/visio/confrère), sinon
   absence, signature, autre — page Agenda et fenêtre du matin. **Absences et dates butoir en rose** (étude, 01/10, avant la
@@ -1032,7 +1035,7 @@ sont plus appelées par le poste.
   **Typographie** (étude 04/10 : « tu trouves les polices cohérentes ? », puis « option B ») : **Geist** partout dans
   l'interface (`var(--police)`, police variable OFL **embarquée** dans `vendor/polices/` — `@font-face` en tête de style.css,
   déclarée dans `ASSETS_STATIQUES` et les assets du `.exe`, servie en binaire par `creerMiddlewareAssetsSea` ; aucune famille
-  écrite en dur hors zones papier, testé) ; Montserrat pour le mot « Claire » ; Inter (Google Fonts), Lora, Times, Calibri
+  écrite en dur hors zones papier, testé) ; pour la marque de la barre latérale (étude 24/10, valeurs exactes de l'étude dans la zone `/* @marque */ … /* @fin-marque */` de style.css, exemptée de l'échelle comme les zones papier) Instrument Sans pour le mot « Claire » (blanc dans la barre seulement) et IBM Plex Sans pour le badge « Bêta », chargées de Google Fonts ; Inter (Google Fonts), Lora, Times, Calibri
   seulement dans les zones papier et les emails ; **graisses 400 texte, 500 libellés/boutons et TOUT grand texte (titres de
   page, de carte, chiffres clés — `var(--texte-xl)` et au-delà : la taille fait la hiérarchie, pas le gras), 600 étiquettes et
   mise en valeur dans le texte, 700 badges** — rien d'autre ; **espacement de lettres -0.02em (titres à partir de 20 px), 0, ou

@@ -112,29 +112,41 @@ function renderBasculeAffaireJour() {
 //
 // « Si la tâche est liée à un outil (ex. faire l'appel de fonds), mettre l'icône de l'outil et, au clic, ouvrir l'outil prérempli » ;
 // « en quatre colonnes (widget pleine largeur), passer en mode colonnes » ; « une nouvelle vue après Échéances dans le Suivi des dossiers, en
-// colonnes, avec les tâches ». Les colonnes sont des THÈMES : à rédiger, relances, avant la signature, après la signature, à décider.
+// colonnes, avec les tâches ». Les colonnes sont des THÈMES, quatre au plus (étude 23/10 : « passer à quatre colonnes, en compact aussi » ;
+// choix : suivre le dossier) — à préparer (mes tâches, rendez-vous, rédaction, factures d'une succession, à décider — étude 23/10 :
+// « les factures ne sont pas après la signature, c'est pendant la gestion du dossier » ; titre « À préparer » gardé, étude 24/10 : « c'était
+// mieux le titre À préparer »), relances, avant la signature, après la signature.
 
 var THEMES_TACHES = [
-  { cle: 'perso', nom: 'Mes tâches', sous: 'rappels, agenda, demandes', types: ['rappel'] },
-  // Agenda (étude 23/10 : « une catégorie Agenda quand c'est lié à une tâche rendez-vous ») : fixer, placer ou confirmer un rendez-vous.
-  { cle: 'agenda', nom: 'Agenda', sous: 'rendez-vous à fixer ou à placer', types: [], motif: /^point-.*(rendez-vous|rdv)/ },
-  { cle: 'rediger', nom: 'Prêts à rédiger', sous: 'dossier complet ou presque', types: ['redaction'] },
-  { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
-  { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'ficheSignature', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
-  { cle: 'apres', nom: 'Après la signature', sous: 'copie, questionnaire, factures', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe', 'factureSuccession'] },
-  { cle: 'decider', nom: 'À décider', sous: 'préemption, autres points', types: [] }
+  // Mes rappels, les tâches de l'agenda Outlook et les demandes d'un collègue en tête, puis les rendez-vous à fixer ou à placer (étude
+  // 23/10 : catégorie « Agenda »), les actes à rédiger, les factures d'une succession à régler, et tout ce qui n'a pas d'autre colonne
+  // (préemption, autres points).
+  { cle: 'preparer', nom: 'À préparer', sous: 'Rendez-vous, rédaction, factures', types: ['rappel', 'redaction', 'factureSuccession'], motif: /^point-.*(rendez-vous|rdv)/ },
+  { cle: 'relances', nom: 'Relances', sous: 'Prêt, pièces, fonds, confrères', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
+  { cle: 'avant', nom: 'Avant la signature', sous: 'Appel de fonds, projet, RIB', types: ['appelFonds', 'projetEnvoye', 'rib', 'ficheSignature', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
+  { cle: 'apres', nom: 'Après la signature', sous: 'Copie de l’acte, questionnaire', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe'] }
 ];
 
-/** Pure : la clé du thème d'une tâche (« decider » pour le reste). @param {any} a */
+/** Pure : la clé du thème d'une tâche (« preparer » pour le reste). @param {any} a */
 function themeTache(a) {
   const type = String((a && a.type) || '');
   const t = THEMES_TACHES.find((x) => x.types.includes(type) || (x.motif && x.motif.test(type)));
-  return t ? t.cle : 'decider';
+  return t ? t.cle : 'preparer';
+}
+
+/** Pure : le rang d'une tâche dans « À préparer » — mes tâches, rendez-vous, rédaction, factures, puis le reste. @param {any} a */
+function rangPreparerTache(a) {
+  const type = String((a && a.type) || '');
+  return type === 'rappel' ? 0 : /^point-.*(rendez-vous|rdv)/.test(type) ? 1 : type === 'redaction' ? 2 : type === 'factureSuccession' ? 3 : 4;
 }
 
 /** Pure : les tâches rangées par thème, dans l'ordre des thèmes, les thèmes vides gardés (colonne vide). @param {any[]} actions */
 function regrouperTachesParTheme(actions) {
-  return THEMES_TACHES.map((t) => ({ theme: t, actions: (actions || []).filter((a) => themeTache(a) === t.cle) }));
+  return THEMES_TACHES.map((t) => {
+    const liste = (actions || []).filter((a) => themeTache(a) === t.cle);
+    if (t.cle === 'preparer') liste.sort((x, y) => rangPreparerTache(x) - rangPreparerTache(y));
+    return { theme: t, actions: liste };
+  });
 }
 
 /** Pure : le bouton d'outil à ajouter à une tâche — pas quand son geste ouvre déjà ce même outil prérempli (appel de fonds). @param {any} a */
@@ -152,25 +164,50 @@ function outilDeTache(a) {
   return null;
 }
 
+// Étude 24/10 (« corrige » une carte de tâche à trois étages) : l'étiquette au-dessus du titre ne reste que si elle apporte quelque chose,
+// « Ouvrir la fiche » disparaît (le nom du dossier ouvre déjà la fiche) et le liseré rouge ne marque qu'une tâche VRAIMENT en retard.
+
+/** Pure : vrai quand l'étiquette de la tâche redit son titre (« Envoi appel de fonds » / « Envoyer l'appel de fonds ») — un mot de
+ *  l'étiquette d'au moins 4 lettres dont les 5 premières se retrouvent dans un mot du titre. @param {any} a */
+function categorieRedondanteTache(a) {
+  const mots = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter((m) => m.length >= 4);
+  const titre = mots(a && a.titre).map((m) => m.slice(0, 5));
+  return mots(a && a.categorieLabel).some((m) => titre.includes(m.slice(0, 5)));
+}
+
+/** Pure : la tâche est en retard (délai dépassé) — seule raison d'un liseré rouge. Une tâche d'après signature (questionnaire,
+ *  copie de l'acte) compte ses jours depuis la signature, donc en négatif sans être en retard : elle porte son propre texte de délai
+ *  (`delaiTexte` : « signé il y a 3 j », relecture 24/10). @param {any} a */
+function tacheEnRetard(a) {
+  return !!a && a.jours != null && a.jours < 0 && !a.delaiTexte;
+}
+
+/** La pastille de délai d'une tâche (rouge seulement en retard). @param {any} a @param {boolean} [avecIcone] */
+function pastilleDelaiTache(a, avecIcone) {
+  const classe = tacheEnRetard(a) ? 'retard' : (a.jours < 0 ? '' : classeDelaiCarteFiche({ jours: a.jours, fait: false }));
+  return `<span class="tf-delai ${classe}">${avecIcone ? icone('clock') : ''}${escapeHtml(delaiAction(a))}</span>`;
+}
+
 /** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
 function renderCarteTache(a) {
   if (a.rappel) return renderCarteRappel(a);
   const cle = escapeOnclickArg(a.cle);
   const outil = outilSupplementaireTache(a);
   const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
-    : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${icone('clock')}${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+    : pastilleDelaiTache(a, true);
   const sansGeste = !a.geste || a.geste.type === 'fiche';
   const geste = sansGeste
-    ? `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="ouvrirDossierDrawer('${escapeOnclickArg(a.dossier.id)}')">${icone('folder')}Ouvrir la fiche</wa-button>`
+    ? ''
     : `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton || a.titre)}">${iconeGeste(a)}${escapeHtml(libelleCourtGeste(a))}</wa-button>`;
   const boutonOutil = outil
     ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-outil" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>`
     : '';
-  return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
-    <span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel || '')}</span>
+  const categorie = a.categorieLabel && !categorieRedondanteTache(a) ? `<span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>` : '';
+  return `<article class="tf-carte${tacheEnRetard(a) ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
+    ${categorie}
     <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuTache(a.cle)}</div>
     <div class="tf-meta">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}${delai}</div>
-    <div class="tf-actions-tache">${geste}${boutonOutil}</div>
+    ${geste || boutonOutil ? `<div class="tf-actions-tache">${geste}${boutonOutil}</div>` : ''}
   </article>`;
 }
 
@@ -193,15 +230,16 @@ function renderCarteGroupeTaches(liste) {
     const cle = escapeOnclickArg(a.cle);
     const sansGeste = !a.geste || a.geste.type === 'fiche';
     const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
-      : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+      : pastilleDelaiTache(a, false);
     const outil = outilSupplementaireTache(a);
     const boutonOutil = outil ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>` : '';
     const geste = sansGeste ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + a.titre)}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;
     return `<li class="tf-groupe-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre + ' — ' + libelleDossierAffiche(a.dossier))}" title="Déjà fait — valider à la main">${icone('check')}</button>
       <span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}${renderMenuTache(a.cle)}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</li>`;
   }).join('');
-  return `<article class="tf-carte${liste.some((a) => a.gravite === 'critique') ? ' critique' : ''}">
-    <span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel || '')}</span>
+  const categorie = a0.categorieLabel && !categorieRedondanteTache(a0) ? `<span class="dot-label dl-${escapeAttr(a0.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a0.categorieLabel)}</span>` : '';
+  return `<article class="tf-carte${liste.some(tacheEnRetard) ? ' critique' : ''}">
+    ${categorie}
     <div class="tf-ligne"><span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span><span class="tf-titre">${escapeHtml(a0.titre)} <span class="tf-sous">· ${liste.length} dossiers</span></span></div>
     <ul class="tf-groupe">${lignes}</ul>
   </article>`;
@@ -209,9 +247,9 @@ function renderCarteGroupeTaches(liste) {
 
 /** Les tâches en COLONNES par thème (widget pleine largeur, vue « Tâches » du Suivi). @param {any[]} actions */
 function renderTachesColonnes(actions) {
-  const groupes = regrouperTachesParTheme(actions).filter((g) => g.actions.length || !['decider', 'perso', 'agenda'].includes(g.theme.cle));
+  const groupes = regrouperTachesParTheme(actions);
   return `<div class="tf-tableau tf-taches-colonnes" role="list" aria-label="Les tâches par thème">${groupes.map((g) => `<section class="tf-colonne" role="listitem" aria-label="${escapeAttr(g.theme.nom)}">
-      <header class="tf-colonne-tete"><div><h3>${escapeHtml(g.theme.nom)}</h3><div class="hint">${escapeHtml(g.theme.sous)}</div></div><span class="tf-nb">${g.actions.length}</span></header>
+      <header class="tf-colonne-tete tf-theme-tete"><h3>${escapeHtml(g.theme.nom)}<span class="tf-theme-nb">${g.actions.length}</span></h3><p class="tf-theme-sous">${escapeHtml(g.theme.sous)}</p></header>
       <div class="tf-cartes">${g.actions.length ? elementsColonneTaches(g.actions).map((e) => (e.groupe ? renderCarteGroupeTaches(e.groupe) : renderCarteTache(e.action))).join('') : '<p class="tf-vide">Rien pour l’instant</p>'}</div>
     </section>`).join('')}</div>`;
 }

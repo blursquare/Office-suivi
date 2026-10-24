@@ -24,7 +24,7 @@ test('entreeHistoriqueAppelFonds : dossier, destinataires du courrier, rendez-vo
   });
   assert.strictEqual(e.dossierId, 'dos-1');
   assert.match(e.dossier, /ROCHE/);
-  assert.strictEqual(e.destinataires, 'Monsieur et Madame Paul ROCHE');
+  assert.strictEqual(e.destinataires, 'Monsieur et Madame ROCHE');
   assert.strictEqual(e.dateRdv, '2026-11-03');
   assert.strictEqual(e.mode, 'office');
   assert.strictEqual(e.gestes.length, 1);

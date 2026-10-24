@@ -8,6 +8,12 @@
   let cbMinuterie = null;
   // Nombre de lignes demandées par colonne (80, puis + 80 par « Afficher plus »), remis à 80 à chaque recherche.
   let cbLimites = { personnes: 80, biens: 80 };
+  // Type d'un bien affiché : la clé d'une fiche (« copropriete ») en libellé, première lettre en capitale (« Maison », étude 24/10).
+  function typeBienCb(type) {
+    const t = String(type || '').trim();
+    const l = (typeof LIBELLES_TYPE_VENTE_AUTHENTIC !== 'undefined' && LIBELLES_TYPE_VENTE_AUTHENTIC[t]) || t;
+    return l ? l.charAt(0).toLocaleUpperCase('fr-FR') + l.slice(1) : '';
+  }
   let cbOuvert = null;              // { type: 'personne' | 'bien', id }
   let cbEdition = '';               // champ en cours de correction
   const cbParDossier = new Map();   // dossierId → { t, fiches, enCours }
@@ -164,7 +170,7 @@
   async function chercherClientsBiens(q) {
     try {
       const r = await fetchAvecAuth('/api/clients-biens?q=' + encodeURIComponent(q || '') + '&np=' + cbLimites.personnes + '&nb=' + cbLimites.biens);
-      cbResultats = r.ok ? await r.json() : { erreur: 'Lecture impossible.' };
+      cbResultats = r.ok ? Object.assign(await r.json(), { recherche: q || '' }) : { erreur: 'Lecture impossible.' };
     } catch (_) { cbResultats = { erreur: 'Serveur injoignable.' }; }
     renderPageClientsBiens();
   }
@@ -178,17 +184,20 @@
     const personnes = (r.personnes || []).map(p => `<button type="button" class="cb-ligne" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')">
         <span class="cb-ligne-titre">${p.civilite ? escapeHtml(p.civilite === 'Mme' ? 'Madame' : 'Monsieur') + ' ' : ''}${escapeHtml(p.nom)}${p.decede ? ' <span class="hint">· décédé(e)</span>' : ''}</span>
         <span class="cb-ligne-detail">${[p.naissance ? 'né(e) le ' + valeurAfficheeCb('dateNaissance', p.naissance) : '', p.commune].filter(Boolean).map(escapeHtml).join(' · ')}</span>
-        <span class="cb-ligne-badges">${p.dossiers > 1 ? `<span class="cb-badge">${p.dossiers} dossiers</span>` : ''}${p.peutEtre ? '<span class="cb-badge cb-badge-question">Homonyme à confirmer</span>' : ''}${p.aRevoir ? '<span class="cb-badge cb-badge-question">Authentic a changé</span>' : ''}</span>
+        <span class="cb-ligne-badges">${p.dossiers > 1 ? `<span class="cb-badge">${p.dossiers} dossiers</span>` : ''}${p.peutEtre ? '<span class="cb-badge cb-badge-question">Homonyme à confirmer</span>' : ''}${p.aRevoir ? '<span class="cb-badge cb-badge-question">Authentic a changé</span>' : ''}${icone('chevron-right')}</span>
       </button>`).join('');
     const biens = (r.biens || []).map(b => `<button type="button" class="cb-ligne" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(b.id)}')">
         <span class="cb-ligne-titre">${escapeHtml(b.adresse ? normaliserAdresse(b.adresse) : b.commune || 'Bien')}</span>
         <span class="cb-ligne-detail">${escapeHtml(b.parcelles.join(', '))}</span>
-        <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}</span>
+        <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}${icone('chevron-right')}</span>
       </button>`).join('');
+    // Une recherche sans résultat le dit ; sans recherche, la colonne dit d'où viennent ses lignes (étude 24/10).
+    const recherche = String(r.recherche || '').trim(); // celle qui a donné la liste affichée, pas la frappe en cours
+    const rien = (vide) => `<p class="hint">${recherche ? `Aucun résultat pour « ${escapeHtml(recherche)} ».` : vide}</p>`;
     const plus = (n, total, cle) => total > n ? `<div class="cb-plus"><span class="hint">${n} sur ${total}</span>${n < 1000 ? `<wa-button appearance="outlined" size="s" type="button" onclick="afficherPlusClientsBiens('${cle}')">Afficher ${Math.min(80, total - n)} de plus</wa-button>` : '<span class="hint">précisez la recherche</span>'}</div>` : '';
     zone.innerHTML = `<div class="cb-colonnes">
-      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre">Clients <span class="hint">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
-      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre">Biens <span class="hint">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
+      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Clients</span></span><span class="pieces-compteur">${r.total ? r.total.personnes : 0}</span></h2>${personnes || rien('Aucun client.')}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
+      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Biens</span></span><span class="pieces-compteur">${r.total ? r.total.biens : 0}</span></h2>${biens || rien('Aucun bien : ils viennent des fiches bien ouvertes dans Authentic.')}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
     </div>`;
   }
 
@@ -278,7 +287,7 @@
     if (cbOuvert.type === 'bien') {
       zone.innerHTML = `<h2 class="cb-titre">${escapeHtml(f.adresse ? normaliserAdresse(f.adresse) : f.commune || 'Bien')}</h2>
         <dl class="cb-champs">
-          ${f.type ? `<dt>Type</dt><dd>${escapeHtml(f.type)}</dd>` : ''}
+          ${f.type ? `<dt>Type</dt><dd>${escapeHtml(typeBienCb(f.type))}</dd>` : ''}
           <dt>Parcelles</dt><dd>${f.parcelles.length ? f.parcelles.map(p => `<div>${escapeHtml(libelleParcelleCb(p))}</div>`).join('') : '—'}${typeof f.surfaceTotale === 'number' && f.parcelles.length > 1 ? `<div class="hint">Total · ${escapeHtml(formaterContenance(f.surfaceTotale))}</div>` : ''}</dd>
           ${f.lots && f.lots.length ? `<dt>Lots</dt><dd>${f.lots.map(l => `<div>${escapeHtml(libelleLotCopropriete(l, null))}</div>`).join('')}</dd>` : ''}
           ${f.description ? `<dt>Désignation</dt><dd>${escapeHtml(f.description)}</dd>` : ''}
@@ -467,7 +476,9 @@
       parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.sous || '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale || p.vide));
     });
     const TITRES = { Vendeur: ['Vendeur', 'Vendeurs'], 'Acquéreur': ['Acquéreur', 'Acquéreurs'], 'Défunt': ['Défunt', 'Défunt'], 'Héritier': ['Héritier', 'Héritiers'], Partie: ['Autre partie', 'Autres parties'] };
-    const groupe = (titre, cartes) => `<div class="pb-groupe"><div class="pb-groupe-titre">${escapeHtml(titre)}</div>${cartes.join('')}</div>`;
+    // Titre au style de « Pièces du dossier » (étude 24/10) : icône et titre, plus de petites capitales grises.
+    const ICONES_GROUPES = { Vendeur: 'user', Vendeurs: 'users', 'Acquéreur': 'user', 'Acquéreurs': 'users', 'Défunt': 'user', 'Héritier': 'user', 'Héritiers': 'users', 'Autre partie': 'user', 'Autres parties': 'users', Bien: 'home', Biens: 'home' };
+    const groupe = (titre, cartes) => `<div class="pb-groupe"><div class="pb-groupe-titre"><span class="pieces-titre">${icone(ICONES_GROUPES[titre] || 'users')}<span class="pieces-titre-texte">${escapeHtml(titre)}</span></span></div>${cartes.join('')}</div>`;
     const personnes = [...parRole].map(([role, cartes]) => groupe((TITRES[role] || [role, role])[cartes.length > 1 ? 1 : 0], cartes));
     const fichesB = (f && f.biens) || [];
     const biens = biensDossier(d).map(b => {

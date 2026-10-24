@@ -216,7 +216,7 @@
     const liste = appelsFondsHistorique.filter(a => a.dossierId === dossierId);
     if (!liste.length) return '';
     return `<div class="echanges-groupe">
-      <div class="echanges-tete"><span class="section-eyebrow">Courriers d'appel de fonds</span></div>
+      <div class="echanges-tete"><span class="pieces-titre">${icone('courriers')}<span class="pieces-titre-texte">Courriers d’appel de fonds</span></span></div>
       <ul class="af-histo-liste">${liste.map(a => ligneHistoriqueAppelFonds(a, false)).join('')}</ul>
     </div>`;
   }
@@ -293,6 +293,8 @@
     definirModeDecompteAppelFonds(etat.mode);
     const lignes = etat.lignes || {};
     afLignes = { debit: Array.isArray(lignes.debit) ? lignes.debit : [], credit: Array.isArray(lignes.credit) ? lignes.credit : [] };
+    // Repris tel qu'il est sorti (relecture 24/10) : le barème ne remplit ni ne recalcule plus aucune ligne de ce courrier.
+    afLignes.debit.concat(afLignes.credit).forEach(l => { if (l) { delete l.estime; l.main = true; } });
     renderPillDossierAppelFonds();
     renderClientsAppelFonds();
     renderTableAppelFonds();

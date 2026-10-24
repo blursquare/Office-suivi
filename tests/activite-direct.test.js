@@ -40,3 +40,15 @@ test('groupeJourActivite : Aujourd’hui, Hier, Plus tôt', () => {
   assert.equal(app.groupeJourActivite(new Date(MIDI - 50 * 3600000).toISOString(), MIDI), 'Plus tôt');
   assert.equal(app.groupeJourActivite('pas une date', MIDI), 'Plus tôt');
 });
+
+test('fil : la même action sur plusieurs dossiers le même jour = une ligne « N dossiers » (étude 24/10)', () => {
+  const app = chargerApplication();
+  const maintenant = Date.parse('2026-10-24T10:00:00');
+  const texte = 'Pièce « Non péril, non insalubrité » non réclamée';
+  const e = (id, heure, t, auteur) => ({ dossierId: id, dossierNom: 'VTE - ' + id, texte: t || texte, date: '2026-10-24T' + heure + ':00', auteur: auteur || 'Bastien ANGLUMENT' });
+  const fil = app.regrouperActivite([e('A', '09:50'), e('B', '09:49'), e('A', '09:48', 'Date butoir modifiée'), e('C', '09:40'), e('D', '09:30', texte, 'Julie VASSELIN')], maintenant);
+  assert.equal(fil.map(x => x.dossierId + ':' + x.dossiers.map(d => d.id).join('+')).join(','), 'A:A+B+C,A:A,D:D');
+  // Hier et aujourd'hui ne se mélangent pas.
+  const deuxJours = app.regrouperActivite([e('A', '09:50'), Object.assign(e('B', '09:00'), { date: '2026-10-23T09:00:00' })], maintenant);
+  assert.equal(deuxJours.length, 2);
+});
