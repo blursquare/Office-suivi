@@ -18,6 +18,8 @@ const MAX_TEXTE = 20000;
 const MAX_LIBRES = 40;
 const MAX_CANAUX_INDEX = 600;
 const MAX_TEXTE_PERSONNE = 8000;
+// Durée de conservation des messages d'un canal : 12 mois (choix raisonnable en attendant le registre des traitements de l'étude).
+const JOURS_CONSERVATION_MESSAGES = 365;
 const NOTIFICATIONS = ['tous', 'mentions', 'muet'];
 
 const RE_CANAL = /^(general|d:[A-Za-z0-9._:-]{1,120}|l:[a-z0-9-]{1,40})$/;
@@ -300,8 +302,37 @@ function purgerCanauxOrphelins(repo, existe) {
   return n;
 }
 
+/**
+ * Retire les messages de plus de `JOURS_CONSERVATION_MESSAGES` jours (les épinglés ne sont pas épargnés : ils contiennent aussi des données de clients).
+ * Rend le nombre de messages retirés.
+ * @param {any} repo @param {number} [maintenant]
+ */
+function purgerMessagesAnciens(repo, maintenant) {
+  const limite = (maintenant || Date.now()) - JOURS_CONSERVATION_MESSAGES * 86400000;
+  const index = lireIndex(repo);
+  let retires = 0;
+  for (const id of Object.keys(index)) {
+    if (!canalValide(id)) continue;
+    const e = index[id];
+    if (!Number.isFinite(Number(e && e.dernierLe)) || Number(e.dernierLe) >= limite) {
+      // Le dernier message est récent : on ne relit le canal que s'il a de vieux messages (les événements récents le disent).
+      const plusAncien = Array.isArray(e && e.recents) && e.recents.length ? Math.min(...e.recents.map((r) => Number(r[0]))) : Infinity;
+      if (!(plusAncien < limite)) continue;
+    }
+    const messages = lireMessages(repo, id);
+    const gardes = messages.filter((m) => m.quand >= limite);
+    if (gardes.length === messages.length) continue;
+    retires += messages.length - gardes.length;
+    repo.ecrireJsonBrut(cleMessages(id), gardes);
+    if (!gardes.length) delete index[id];
+    else index[id] = Object.assign({}, e, { recents: (Array.isArray(e.recents) ? e.recents : []).filter((r) => Number(r[0]) >= limite) });
+  }
+  if (retires) repo.ecrireJsonBrut(CLE_INDEX, index);
+  return retires;
+}
+
 module.exports = {
-  MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
+  JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
   CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
   lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux

@@ -9,7 +9,7 @@ const { routineParId } = require('./catalogue');
 const { lireReglagesRoutines } = require('./reglages');
 const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
 const { deposerProposition } = require('../canaux/deposer');
-const { purgerCanauxOrphelins } = require('../canaux/canaux');
+const { purgerCanauxOrphelins, purgerMessagesAnciens } = require('../canaux/canaux');
 const { noterJournalRoutines } = require('./journal');
 const { proposerExemples } = require('./essai');
 const { libelleDossierAffiche } = require('../../../commun/dossier');
@@ -101,6 +101,7 @@ function creerPlanificateur(deps) {
       const etatPurge = lireEtat();
       if (depot && depot.trouverParId && etatPurge.dernierePurgeCanaux !== jourPurge) {
         purgerCanauxOrphelins(parametresRepo, (id) => { try { return !!depot.trouverParId(id); } catch (e) { return true; } });
+        purgerMessagesAnciens(parametresRepo, maintenant.getTime());
         parametresRepo.ecrireJsonBrut(CLE_ETAT_ROUTINES, Object.assign({}, etatPurge, { dernierePurgeCanaux: jourPurge }));
       }
       const reglages = lireReglagesRoutines(parametresRepo);

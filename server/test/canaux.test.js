@@ -211,3 +211,18 @@ test('mention : 12 messages Teams par heure et par personne au plus, copie Gmail
   assert.equal(envoyes.length, 12);
   assert.ok(Array.isArray(repo.lireJsonBrut('gmail-copies-en-attente', [])) || true);
 });
+
+test('conservation : les messages de plus de 12 mois sont retirés, les récents gardés, un canal vide sort de l’index', () => {
+  const repo = fauxRepo();
+  const an = 365 * 86400000;
+  const maintenant = 10 * an;
+  C.ajouterMessage(repo, 'd:a', { auteur: 'Julie VASSELIN', texte: 'ancien' }, maintenant - an - 5 * 86400000);
+  C.ajouterMessage(repo, 'd:a', { auteur: 'Julie VASSELIN', texte: 'récent' }, maintenant - 86400000);
+  C.ajouterMessage(repo, 'd:b', { auteur: 'Julie VASSELIN', texte: 'vieux seul' }, maintenant - 2 * an);
+  assert.equal(C.purgerMessagesAnciens(repo, maintenant), 2);
+  assert.deepEqual(C.lireMessages(repo, 'd:a').map((m) => m.texte), ['récent']);
+  assert.equal(C.lireMessages(repo, 'd:b').length, 0);
+  assert.equal(C.lireIndex(repo)['d:b'], undefined);
+  assert.ok(C.lireIndex(repo)['d:a']);
+  assert.equal(C.purgerMessagesAnciens(repo, maintenant), 0, 'rien de plus à retirer');
+});
