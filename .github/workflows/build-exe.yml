@@ -36,7 +36,6 @@ on:
 
 permissions:
   contents: write # nécessaire pour créer une release et y attacher l'exécutable
-  checks: read # lire le contrôle « verifier » du même commit (étape « Déjà vérifié ? »)
 
 jobs:
   build:
@@ -58,22 +57,10 @@ jobs:
             package-lock.json
             server/package-lock.json
 
-      # Étude 22/10 (« les relectures et vérifications sont de plus en plus longues ») : le contrôle « verifier » de GitHub est exigé
-      # pour pousser sur main et a déjà passé lint, types, les deux suites et la fumée sur CE commit exact (verifier.yml, branche de
-      # travail). Le refaire ici retardait l'.exe. Un envoi qui ne l'a pas (modification à la main, relance manuelle) ou dont la
-      # lecture échoue refait tout, comme avant.
-      - name: Déjà vérifié sur ce commit ?
-        id: verifie
-        env:
-          JETON: ${{ github.token }}
-        run: |
-          if [ "${{ github.event_name }}" != "push" ]; then echo "Lancement manuel : tous les contrôles."; exit 0; fi
-          ETAT=$(curl -fsS -H "Authorization: Bearer $JETON" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?check_name=verifier&filter=latest" \
-            | jq -r '[.check_runs[] | select(.app.slug == "github-actions")] | map(.conclusion) | if length > 0 and all(. == "success") then "ok" else "non" end' 2>/dev/null || true)
-          echo "Contrôle « verifier » sur ce commit : ${ETAT:-illisible}"
-          if [ "$ETAT" = "ok" ]; then echo "deja=true" >> "$GITHUB_OUTPUT"; echo "Contrôles déjà passés sur ce commit : ils ne sont pas refaits."; fi
-
+      # Étude 24/10 (minutes GitHub) : le contrôle « verifier » des branches n'est plus lancé automatiquement (verifier.yml en lancement
+      # manuel). Lint, types, tests et fumée passent en local (`npm run verifier`, exigé par la garde de publication avant tout envoi sur
+      # main). Ici ne restent que les contrôles rapides, filet contre une modification faite à la main sur GitHub ; la fumée dans
+      # Chromium (la plus longue) ne tourne qu'à la demande.
       - name: Installer osslsigncode (retrait propre de la signature Authenticode)
         run: sudo apt-get update && sudo apt-get install -y osslsigncode
 
@@ -86,23 +73,19 @@ jobs:
 
       # Les règles de code (eslint.config.js) : une variable inconnue ou une fonction en double arrête la construction.
       - name: Règles de code
-        if: steps.verifie.outputs.deja != 'true'
         run: npm run lint
 
       # Typage progressif (tsconfig.json) : les fichiers marqués `// @ts-check` (commun/, scripts/, modules purs du serveur)
       # sont vérifiés par TypeScript sans compilation — propriété inexistante, mauvais nombre d'arguments.
       - name: Vérification des types
-        if: steps.verifie.outputs.deja != 'true'
         run: npm run types
 
       # Un exécutable n'est publié que si les deux suites de tests passent : sinon la mise à jour
       # en un clic pourrait installer au bureau une version qui casse une fonction déjà en place.
       - name: Tests côté client
-        if: steps.verifie.outputs.deja != 'true'
         run: npm test
 
       - name: Tests côté serveur
-        if: steps.verifie.outputs.deja != 'true'
         working-directory: server
         run: npm test
 
@@ -111,18 +94,18 @@ jobs:
       # Le lint ne voit ni un ordre de chargement faux ni un `undefined.x` au rendu.
       # Navigateur de Playwright gardé d'un passage à l'autre (clé = verrou racine, qui fixe la version de Playwright).
       - name: Cache de Chromium (Playwright)
-        if: steps.verifie.outputs.deja != 'true'
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Installer Chromium (test de fumée)
-        if: steps.verifie.outputs.deja != 'true'
+        if: github.event_name == 'workflow_dispatch'
         run: npx playwright install --with-deps chromium
 
       - name: Test de fumée dans Chromium
-        if: steps.verifie.outputs.deja != 'true'
+        if: github.event_name == 'workflow_dispatch'
         run: npm run fumee
 
       - name: Construire l'exécutable Windows

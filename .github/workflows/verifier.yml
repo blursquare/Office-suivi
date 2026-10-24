@@ -4,20 +4,9 @@ name: Vérifier CLAIRE
 # travail, rapports techniques, demandes de fusion) passe les mêmes contrôles que la construction du .exe — règles de code, types,
 # les deux suites de tests, test de fumée dans Chromium — sans rien construire ni publier. main a les siens dans build-exe.yml.
 
+# Étude 24/10 (minutes GitHub) : plus de lancement automatique — `npm run verifier` fait la même chose en local et la garde de
+# publication l'exige avant tout envoi sur main. Ce workflow reste pour un contrôle à la demande d'une branche (Actions › Run workflow).
 on:
-  push:
-    branches-ignore: [main]
-    # Étude 24/10 (minutes GitHub) : un envoi qui ne touche que des rapports d'audit, des maquettes ou des LISEZMOI n'a rien à vérifier.
-    # CLAUDE.md et docs/historique.md ne sont PAS ignorés : ils sont embarqués dans le .exe.
-    paths-ignore:
-      - 'docs/audits/**'
-      - 'docs/maquettes-sidebar/**'
-      - '**/LISEZMOI.md'
-  pull_request:
-    paths-ignore:
-      - 'docs/audits/**'
-      - 'docs/maquettes-sidebar/**'
-      - '**/LISEZMOI.md'
   workflow_dispatch:
 
 permissions:

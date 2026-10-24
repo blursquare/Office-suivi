@@ -21535,3 +21535,6 @@ Refus du 23/10 : l'ouverture PAR DÉFAUT du NAS (rien d'enregistré = tout le NA
 
 ### 24/10/2026 — Garde de publication : week-end
 Étude : pas d'envoi sur `main` le week-end (bureau fermé). `weekEndParis` dans `scripts/garde-publication.js`, test dans `tests/garde-publication.test.js`.
+
+### 24/10/2026 — Minutes GitHub : option 1
+`verifier.yml` en lancement manuel seulement ; `build-exe.yml` ne refait plus que lint, types et tests (fumée Chromium en lancement manuel) ; étape « Déjà vérifié sur ce commit ? » retirée ; skill `publier` et CLAUDE.md mis à jour.
