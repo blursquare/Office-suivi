@@ -10421,12 +10421,8 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 @media (prefers-reduced-motion: reduce) { .cx-c { transition: none; } }
 
 .cx-menu-note { padding: 6px 8px 2px; font-size: var(--texte-xs); color: var(--muted); border-top: 1px solid var(--line); margin-top: 4px; }
-/* Pastille de « Discussions » dans la barre latérale : une toile bleu nuit dégradée avec un halo, le mochi et son étoile en bleu clair dedans. */
-#tab-assistant .sidebar-link-icone {
-  width: 24px; height: 24px; margin: -2px; border-radius: var(--rayon-s); opacity: 1; color: var(--ia-trait);
-  background: radial-gradient(circle at 70% 80%, var(--ia-fond-2) 0%, transparent 70%), var(--ia-fond-1);
-}
-#tab-assistant .sidebar-link-icone .icone { width: 16px; height: 16px; }
+/* « Discussions » dans la barre latérale : le symbole de la maquette 8a seul, à la couleur du texte comme les autres icônes (ni toile ni dégradé), un peu plus grand que les autres pour que le visage se lise. */
+#tab-assistant .sidebar-link-icone .icone { width: 20px; height: 20px; }
 
 /* Photos de profil des collaborateurs (étude 24/10) : remplacent les initiales, qui restent sans photo. */
 .pastille-collab, .activite-avatar, .cx-av, .photo-profil-apercu { overflow: hidden; }
