@@ -165,7 +165,7 @@ test('fiche Dossier : défunt, héritiers, donation, testament, type proposé ; 
     defunt: { civilite: 'Madame', prenoms: 'Jeanne', nom: 'DURAND', decesDate: '2026-09-14', regime: 'Communauté légale' } });
   const ligne = (ic, libelle, valeur) => `<div>${libelle}:${valeur}</div>`;
   const html = app.renderDossierSuccession(d, ligne, '<select></select>', 'NAS');
-  assert.match(html, /Héritiers <span class="hint">· 1<\/span>/);
+  assert.match(html, /Héritiers<\/span><\/span> <span class="hint">· 1<\/span>/);
   assert.match(html, /Paul &lt;MARTIN&gt;/);
   assert.match(html, /Donation entre époux/);
   assert.match(html, /Testament/);
