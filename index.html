@@ -763,11 +763,11 @@
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="calc-price">Prix / valeur d'assiette (€)</label>
-          <input type="number" id="calc-price" min="1" step="1" placeholder="Saisir le prix" oninput="calculerFraisActe()">
+          <input type="text" inputmode="decimal" autocomplete="off" id="calc-price" placeholder="Saisir le prix" oninput="calculerFraisActe()">
         </div>
         <div class="calc-champ">
           <label for="calc-mobilier">Dont mobilier (€) <span class="info-i" tabindex="0" data-info="Les meubles vendus avec le bien sortent de l&#x27;assiette des droits de mutation."></span></label>
-          <input type="number" id="calc-mobilier" min="0" step="1" placeholder="Aucun" oninput="calculerFraisActe()">
+          <input type="text" inputmode="decimal" autocomplete="off" id="calc-mobilier" placeholder="Aucun" oninput="calculerFraisActe()">
         </div>
       </div>
       <h2 class="outil-section-tete" data-etape="acquereur">Acquéreur et destination</h2>
@@ -919,7 +919,7 @@
       <div class="calc-champs">
         <div class="calc-champ">
           <label for="prorata-montant">Montant appelé (€)</label>
-          <input type="number" id="prorata-montant" min="1" step="0.01" placeholder="Saisir le montant appelé" oninput="calculerProrataAffichage()">
+          <input type="text" inputmode="decimal" autocomplete="off" id="prorata-montant" placeholder="Saisir le montant appelé" oninput="calculerProrataAffichage()">
         </div>
       </div>
       <h2 class="outil-section-tete" data-etape="periode">Période appelée</h2>
@@ -1305,35 +1305,35 @@
           </div>
           <div class="calc-champ">
             <label for="inv-droits-sans">Sans prisée — forfait mobilier de 5 % (€)</label>
-            <input type="number" id="inv-droits-sans" min="0" step="1" placeholder="Droits dus si le forfait s'applique" oninput="calculerInventaireAffichage()">
+            <input type="text" inputmode="decimal" autocomplete="off" id="inv-droits-sans" placeholder="Droits dus si le forfait s'applique" oninput="calculerInventaireAffichage()">
           </div>
           <div class="calc-champ">
             <label for="inv-droits-avec">Avec prisée par commissaire de justice (€)</label>
-            <input type="number" id="inv-droits-avec" min="0" step="1" placeholder="Droits dus sur la valeur réelle du mobilier" oninput="calculerInventaireAffichage()">
+            <input type="text" inputmode="decimal" autocomplete="off" id="inv-droits-avec" placeholder="Droits dus sur la valeur réelle du mobilier" oninput="calculerInventaireAffichage()">
           </div>
         </div>
         <h2 class="outil-section-tete" data-etape="cout">Coût de l'inventaire <span class="info-i" tabindex="0" data-info="Montants habituels de l&#x27;étude posés d&#x27;office, à ajuster si besoin. Un poste vidé n&#x27;est pas compté ; serments et trajets n&#x27;apparaissent au décompte que s&#x27;ils sont chiffrés."></span></h2>
         <div class="calc-champs">
           <div class="calc-champ">
             <label for="inv-frais-ouverture">Provision — acte d'inventaire (€)</label>
-            <input type="number" id="inv-frais-ouverture" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+            <input type="text" inputmode="decimal" autocomplete="off" id="inv-frais-ouverture" placeholder="0" oninput="calculerInventaireAffichage()">
           </div>
           <div class="calc-champ">
             <label for="inv-prisee">Prisée du commissaire de justice, TTC (€)</label>
-            <input type="number" id="inv-prisee" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+            <input type="text" inputmode="decimal" autocomplete="off" id="inv-prisee" placeholder="0" oninput="calculerInventaireAffichage()">
           </div>
           <div class="calc-champ">
             <label for="inv-frais-cloture">Provision — acte de clôture (€)</label>
-            <input type="number" id="inv-frais-cloture" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+            <input type="text" inputmode="decimal" autocomplete="off" id="inv-frais-cloture" placeholder="0" oninput="calculerInventaireAffichage()">
           </div>
           <div class="calc-champ calc-champ-paire">
             <div>
               <label for="inv-serment-nb">Prestations de serment (absents)</label>
-              <input type="number" id="inv-serment-nb" min="0" step="1" placeholder="0" oninput="calculerInventaireAffichage()">
+              <input type="text" inputmode="numeric" autocomplete="off" id="inv-serment-nb" placeholder="0" oninput="calculerInventaireAffichage()">
             </div>
             <div>
               <label for="inv-serment-unit">Coût unitaire (€)</label>
-              <input type="number" id="inv-serment-unit" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+              <input type="text" inputmode="decimal" autocomplete="off" id="inv-serment-unit" placeholder="0" oninput="calculerInventaireAffichage()">
             </div>
           </div>
           <div class="calc-radios calc-coche">
@@ -1345,11 +1345,11 @@
           <div class="calc-champ calc-champ-paire" id="inv-trajet-champs" style="display:none;">
             <div>
               <label for="inv-trajet-nb">Nombre de trajets</label>
-              <input type="number" id="inv-trajet-nb" min="0" step="1" placeholder="0" oninput="calculerInventaireAffichage()">
+              <input type="text" inputmode="numeric" autocomplete="off" id="inv-trajet-nb" placeholder="0" oninput="calculerInventaireAffichage()">
             </div>
             <div>
               <label for="inv-trajet-unit">Coût unitaire (€)</label>
-              <input type="number" id="inv-trajet-unit" min="0" step="0.01" placeholder="0" oninput="calculerInventaireAffichage()">
+              <input type="text" inputmode="decimal" autocomplete="off" id="inv-trajet-unit" placeholder="0" oninput="calculerInventaireAffichage()">
             </div>
           </div>
         </div>

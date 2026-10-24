@@ -170,7 +170,7 @@
   async function chercherClientsBiens(q) {
     try {
       const r = await fetchAvecAuth('/api/clients-biens?q=' + encodeURIComponent(q || '') + '&np=' + cbLimites.personnes + '&nb=' + cbLimites.biens);
-      cbResultats = r.ok ? await r.json() : { erreur: 'Lecture impossible.' };
+      cbResultats = r.ok ? Object.assign(await r.json(), { recherche: q || '' }) : { erreur: 'Lecture impossible.' };
     } catch (_) { cbResultats = { erreur: 'Serveur injoignable.' }; }
     renderPageClientsBiens();
   }
@@ -191,10 +191,13 @@
         <span class="cb-ligne-detail">${escapeHtml(b.parcelles.join(', '))}</span>
         <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}${icone('chevron-right')}</span>
       </button>`).join('');
+    // Une recherche sans résultat le dit ; sans recherche, la colonne dit d'où viennent ses lignes (étude 24/10).
+    const recherche = String(r.recherche || '').trim(); // celle qui a donné la liste affichée, pas la frappe en cours
+    const rien = (vide) => `<p class="hint">${recherche ? `Aucun résultat pour « ${escapeHtml(recherche)} ».` : vide}</p>`;
     const plus = (n, total, cle) => total > n ? `<div class="cb-plus"><span class="hint">${n} sur ${total}</span>${n < 1000 ? `<wa-button appearance="outlined" size="s" type="button" onclick="afficherPlusClientsBiens('${cle}')">Afficher ${Math.min(80, total - n)} de plus</wa-button>` : '<span class="hint">précisez la recherche</span>'}</div>` : '';
     zone.innerHTML = `<div class="cb-colonnes">
-      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Clients</span></span><span class="pieces-compteur">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
-      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Biens</span></span><span class="pieces-compteur">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien : ils viennent des fiches bien ouvertes dans Authentic.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
+      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Clients</span></span><span class="pieces-compteur">${r.total ? r.total.personnes : 0}</span></h2>${personnes || rien('Aucun client.')}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
+      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Biens</span></span><span class="pieces-compteur">${r.total ? r.total.biens : 0}</span></h2>${biens || rien('Aucun bien : ils viennent des fiches bien ouvertes dans Authentic.')}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
     </div>`;
   }
 

@@ -5462,8 +5462,8 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
   grid-template-areas: "lib lib lib" "mt mem x";
   padding-bottom: 8px; border-bottom: 1px solid var(--line-soft);
 }
-.qt-ligne-operation > input[type="text"] { grid-area: lib; }
-.qt-ligne-operation > input[type="number"] { grid-area: mt; }
+.qt-ligne-operation > input.qt-libelle { grid-area: lib; }
+.qt-ligne-operation > input[inputmode="decimal"] { grid-area: mt; }
 .qt-ligne-operation > .qt-memoire-coche { grid-area: mem; }
 .qt-ligne-operation > .qt-suppr { grid-area: x; }
 .qt-memoire input[type="text"] { color: var(--muted); }
@@ -10839,3 +10839,8 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 }
 /* Les pastilles de contrôle du décompte (barème, prorata) ne s'impriment pas avec le courrier (relecture 24/10). */
 @media print { table.af-table .af-verif, table.af-table .af-ordre { display: none; } }
+
+/* Saisie refusée dans un outil (client/01-socle.js, étude 24/10) : filet et message sous le champ, couleur des dates dépassées. */
+input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shadow: 0 0 0 1px var(--urgent); }
+.champ-alerte { margin: 4px 0 0; font-size: var(--texte-xs); color: var(--urgent); line-height: 1.4; }
+.qt-ligne > .champ-alerte { grid-column: 1 / -1; order: 9; margin: 0; }

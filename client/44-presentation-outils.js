@@ -29,13 +29,13 @@
       { cle: 'annexe', libelle: 'Annexe' }
     ],
     calculateur: [
-      { cle: 'prix', libelle: 'Prix', fait: () => Number(valeurChamp('calc-price')) > 0 },
+      { cle: 'prix', libelle: 'Prix', fait: () => montantSaisiFr(valeurChamp('calc-price')) > 0 },
       { cle: 'acquereur', libelle: 'Acquéreur' },
       { cle: 'bien', libelle: 'Bien' },
-      { cle: 'resultat', libelle: 'Provision', fait: () => Number(valeurChamp('calc-price')) > 0 }
+      { cle: 'resultat', libelle: 'Provision', fait: () => montantSaisiFr(valeurChamp('calc-price')) > 0 }
     ],
     prorata: [
-      { cle: 'somme', libelle: 'Somme', fait: () => Number(valeurChamp('prorata-montant')) > 0 },
+      { cle: 'somme', libelle: 'Somme', fait: () => montantSaisiFr(valeurChamp('prorata-montant')) > 0 },
       { cle: 'periode', libelle: 'Période', fait: () => !!(valeurChamp('prorata-debut') && valeurChamp('prorata-fin')) },
       { cle: 'acte', libelle: "Date de l'acte", fait: () => !!valeurChamp('prorata-date') },
       { cle: 'repartition', libelle: 'Répartition', fait: () => elementVisible('prorata-resultat') }

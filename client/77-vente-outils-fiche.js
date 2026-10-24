@@ -106,7 +106,7 @@
   function lireSaisieProvision() {
     const v = id => { const el = document.getElementById(id); return el ? el.value : ''; };
     const radio = nom => { const r = document.querySelector(`input[name="${nom}"]:checked`); return r ? r.value : ''; };
-    return { prix: Number(v('calc-price')), mobilier: Number(v('calc-mobilier')), dept: v('calc-dept'), type: v('calc-type'),
+    return { prix: Math.max(0, montantSaisiFr(v('calc-price')) || 0), mobilier: Math.max(0, montantSaisiFr(v('calc-mobilier')) || 0), dept: v('calc-dept'), type: v('calc-type'),
       primo: radio('calc-first') === 'yes', residencePrincipale: radio('calc-rp') !== 'no' };
   }
 

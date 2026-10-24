@@ -1980,8 +1980,13 @@
 
     // Le champ part vide (demandé par l'étude) : tant qu'aucun prix n'est saisi, on n'affiche pas
     // un résultat calculé sur une valeur de repli — il aurait l'air d'une vraie provision.
-    const prixSaisi = Number(prixEl.value);
-    if (!prixEl.value.trim() || !Number.isFinite(prixSaisi) || prixSaisi <= 0) {
+    // Lu à la française (« 250.000,00 ») ; une saisie refusée est dite sous le champ (étude 24/10).
+    const prixSaisi = controlerChampSaisie(prixEl, { positif: true });
+    const mobilierEl = document.getElementById('calc-mobilier');
+    // Le mobilier n'est qu'une partie du prix : au-delà, il n'est pas déduit, et le champ le dit (étude 24/10).
+    const mobilier = controlerChampSaisie(mobilierEl, prixSaisi > 0
+      ? { max: prixSaisi - 0.01, messageMax: 'Le mobilier doit être inférieur au prix : il n\'est pas déduit.' } : {}) || 0;
+    if (!(prixSaisi > 0)) {
       document.getElementById('calc-tag').textContent = '';
       document.getElementById('calc-total').textContent = '—';
       if (document.getElementById('calc-tre-detail')) document.getElementById('calc-tre-detail').textContent = '';
@@ -2000,8 +2005,6 @@
 
     // Le mobilier compris dans le prix sort de l'assiette des droits de mutation (art. 735 CGI) :
     // le barème s'applique au seul prix de l'immeuble.
-    const mobilierEl = document.getElementById('calc-mobilier');
-    const mobilier = mobilierEl ? Number(mobilierEl.value) : 0;
     const prix = assietteImmobiliere(Math.max(1, prixSaisi), mobilier);
     const mobilierDeduit = prix < prixSaisi;
     const primoAccedant = document.querySelector('input[name="calc-first"]:checked').value === 'yes';
@@ -2150,7 +2153,8 @@
   }
 
   function calculerProrataAffichage() {
-    const montant = parseFloat(document.getElementById('prorata-montant').value);
+    const lu = controlerChampSaisie(document.getElementById('prorata-montant'), { positif: true });
+    const montant = lu === null ? NaN : lu;
     const debut = document.getElementById('prorata-debut').value;
     const fin = document.getElementById('prorata-fin').value;
     const dateActe = document.getElementById('prorata-date').value;
