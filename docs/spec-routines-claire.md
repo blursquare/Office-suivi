@@ -12,16 +12,23 @@ Aujourd'hui CLAIRE agit seule par du code (rappels Teams, lecture de l'agenda et
 
 | Sujet | Décision |
 |---|---|
-| Qui voit la boîte de propositions | **Chacun la sienne** (propositions de ses dossiers, comme « Mes dossiers » ; l'administrateur voit « Tous »). |
-| Heure | **Jours ouvrés, 9 h 30.** |
-| IA | **IA en ligne avec masquage** (Claude, noms et références masqués par le serveur comme l'agent actuel). |
-| Premières routines | Revue du matin, constitution de dossier, veille de signature, veille juridique hebdomadaire — et les ajouts ci-dessous. |
-| Ajouts | Appels de fonds préparés seule ; constitution selon la règle du §5 ; autorisations de clôture/transfert 48 h avant une notoriété ; relance des pièces demandées dans les emails envoyés ; brouillon de proposition de dates quand un dossier est complet. |
+| Boîte de propositions | **Chacun la sienne** (propositions de ses dossiers, comme « Mes dossiers » ; l'administrateur voit « Tous »). |
+| Heure | **Jours ouvrés, 9 h 30.** Teams : **un résumé par responsable à 9 h 30**, pas une alerte par proposition. |
+| IA | **IA en ligne avec masquage, allumée dès le départ** (Claude, noms et références masqués par le serveur comme l'agent actuel) ; l'accord de sous-traitance se régularise en parallèle (risque assumé par l'étude, voir §6). **Plafond : 50 € par mois.** |
+| Identité | **« CLAIRE »** dans l'historique des dossiers et sur Teams ; les emails restent à l'expéditeur du responsable au moment de l'envoi. |
+| Autonomie | **Les trois niveaux sont à prévoir, réglables tâche par tâche** (voir §3). Départ au niveau 1 sauf décision contraire pour une routine. |
+| Promotion | CLAIRE propose le passage au niveau supérieur à **90 % de propositions acceptées sur 30** ; l'étude décide. |
+| Constitution d'une vente | Quand l'étude est notaire vendeur **au sens large : nous représentons le vendeur OU nous recevons l'acte** ; dossiers **créés à compter du 24/10/2026** (aucun rattrapage). |
+| Constitution d'une succession | Juste après la création du dossier. |
+| Appel de fonds préparé seule | **Quand nous représentons l'acquéreur**, avec les documents trouvés sur le NAS ou avec le décompte du confrère. |
+| Dossiers confiés à CLAIRE, à terme | **Petits actes** (PACS, donation entre époux…), à ajouter par la suite, puis **ventes simples** et **notoriétés seules**. |
+| Démarrage | **Phase 0 : le socle.** |
+| Fiche de signature (0.326.0) | Publiée sur `main` après audit et vérification verte, **en journée**. |
 | Ambition | CLAIRE collaboratrice à part entière, **chargée seule de dossiers à terme**. |
 
 ## 3. Principe : préparer, proposer, puis (plus tard) agir
 
-Quatre niveaux d'autonomie, **réglés routine par routine** :
+Quatre niveaux d'autonomie, **réglables routine par routine, et même geste par geste** (étude, 24/10 : « prévoir les trois modes d'autonomie que l'on pourra ajuster en fonction des tâches ») — par exemple une même routine peut proposer ses emails (niveau 1) et noter seule dans le dossier (niveau 2) :
 
 0. **Observer** : alerter (Teams, pastille). Existe déjà.
 1. **Proposer** : un brouillon, un document ou une tâche arrive dans la **boîte de propositions** ; le collaborateur fait « Autoriser » / « Refuser » / « Ouvrir ». **Tout démarre ici.**
@@ -59,7 +66,7 @@ Un interrupteur par routine (**éteint par défaut**), l'heure, la date repère,
 |---|---|---|---|---|
 | R1 | **Revue du matin** | jours ouvrés 9 h 30 | Pour chaque dossier : ce qui bloque (prêt dépassé, pièce manquante, rendez-vous sans appel de fonds…) et les relances prêtes en brouillon, dans la boîte du responsable ; un résumé Teams. | Rédaction des brouillons seulement |
 | R2 | **Constitution de dossier** | création d'un dossier | **Vente** : seulement quand l'étude est **notaire du vendeur** et pour les dossiers entrés **à compter du 24/10/2026** ; **succession** : juste après la création. Courriers de la Constitution (mairie, urbanisme, assainissement, succession…) avec le plan cadastral, prêts à valider. | Non |
-| R3 | **Appel de fonds préparé seule** | échéance de l'appel de fonds (10 jours avant le rendez-vous) | Courrier et décompte préremplis par les données du dossier (`prefillAppelFonds`), email en brouillon ; ce qui manque est listé dans la proposition (« à compléter »). Seulement quand l'office établit le décompte. | Non |
+| R3 | **Appel de fonds préparé seule** | échéance de l'appel de fonds (10 jours avant le rendez-vous) | Courrier et décompte préremplis par les données du dossier (`prefillAppelFonds`), email en brouillon ; ce qui manque est listé dans la proposition (« à compléter »). Seulement quand **nous représentons l'acquéreur** : décompte établi par l'office d'après les pièces du NAS, ou repris du décompte du confrère trouvé sur le NAS (`reprendreDecompteConfrereNas`). | Non |
 | R4 | **Veille de signature** | 48 h avant le rendez-vous | La fiche de signature (déjà construite) préparée, contrôlée ; alerte Teams « fiche prête, N conditions à lever ». | Non |
 | R5 | **Autorisations de clôture ou de transfert** | 48 h avant le rendez-vous d'un **acte de notoriété** | Autorisations de déblocage / de transfert de fonds (modèles de l'office, mot pour mot) préparées d'après les fiches client d'Authentic, avec l'email d'envoi en brouillon. | Non |
 | R6 | **Relance des pièces demandées** | 48 h après un email envoyé qui réclame une pièce | Lit les emails **envoyés** ; relève quelles pièces l'étude a demandées ; si 48 h après elle n'est pas trouvée dans le dossier du NAS, prépare l'email de relance. | Oui (lecture de l'email envoyé, masquée) |
@@ -71,7 +78,7 @@ Un interrupteur par routine (**éteint par défaut**), l'heure, la date repère,
 ## 6. Garde-fous
 
 - **Le bruit** (la plainte connue de l'étude) : une routine qui n'a rien de vérifié à dire ne dit rien ; une proposition par objet et par échéance ; expirée seule quand elle n'a plus lieu d'être.
-- **RGPD** : plus de données partent chez le fournisseur, et surtout sans que quelqu'un l'ait demandé. L'accord de sous-traitance (DPA) et la rétention zéro d'Anthropic, ainsi que le registre des traitements, **restent à faire par l'étude** (voir « Ce qui reste ouvert ») ; ils devraient précéder l'allumage de toute routine qui envoie du texte à l'IA.
+- **RGPD** : l'étude a décidé d'allumer l'IA en ligne dès le départ. Plus de données partent donc chez le fournisseur, sans qu'on l'ait demandé sur le moment. L'accord de sous-traitance (DPA), la rétention zéro d'Anthropic et le registre des traitements **restent à faire par l'étude, en parallèle** (voir « Ce qui reste ouvert » de `CLAUDE.md`) ; le masquage actuel s'applique (limites connues : un prénom suivi d'un nom en casse mixte absent des fiches passe en clair dans le texte d'un document). Un interrupteur par routine permet de couper l'IA sans couper la routine.
 - **Déontologie** : jamais d'email directement au client d'un confrère (les demandes passent par son office, règle déjà codée) ; rien de plus que ce que le collaborateur ferait.
 - **Heures** : alertes Teams en heures de bureau seulement ; les routines de production peuvent tourner à 9 h 30 comme décidé.
 - **Coût** : plafond mensuel, arrêt au plafond, coût visible.
@@ -80,7 +87,7 @@ Un interrupteur par routine (**éteint par défaut**), l'heure, la date repère,
 
 ## 7. Phasage proposé
 
-- **Phase 0 — le socle** : identité « CLAIRE », planificateur, boîte de propositions (clé, routes, widget, pastille, bloc de la fiche), journal, Réglages › Routines. Aucune routine encore ; une routine d'essai « bonjour » pour vérifier la chaîne.
+- **Phase 0 — le socle (démarrage décidé le 24/10)** : identité « CLAIRE », planificateur, boîte de propositions (clé, routes, widget, pastille, bloc de la fiche), journal, Réglages › Routines avec les **trois niveaux d'autonomie réglables par routine**, plafond de 50 € par mois, résumé Teams de 9 h 30. Aucune routine encore ; une routine d'essai « bonjour » pour vérifier la chaîne.
 - **Phase 1 — par le code seul** : R1 (blocages et relances, sans rédaction par l'IA) et R4 (veille de signature, Teams).
 - **Phase 2 — le poste CLAIRE** : fenêtre sans écran, puis R2 (constitution), R3 (appel de fonds), R5 (autorisations de notoriété).
 - **Phase 3 — l'IA** : agent « mode routine », plafond de jetons, puis R6 (relance des pièces), R7 (proposition de dates), rédaction des brouillons de R1, R8 (veille juridique).
@@ -88,18 +95,15 @@ Un interrupteur par routine (**éteint par défaut**), l'heure, la date repère,
 
 Chaque phase est un envoi à part, testé au bureau avant la suivante.
 
-## 8. Hypothèses prises (à confirmer par l'étude)
+## 8. Hypothèses restantes
 
-1. « L'étude est notaire vendeur » (R2) = **l'étude représente le vendeur** (notre client est le vendeur et aucun confrère ne le représente). Les dossiers où l'étude ne représente que l'acquéreur, ou est en participation, sont écartés.
-2. « À compter d'aujourd'hui » = dossiers **créés à partir du 24/10/2026** ; aucun rattrapage des dossiers existants.
-3. Pour une succession, la constitution part **juste après la création** du dossier, avec les neuf modèles de la Constitution (la mutuelle décochée, comme aujourd'hui).
-4. L'appel de fonds (R3) n'est préparé que quand **l'office établit le décompte** (pas en participation avec le décompte du confrère).
-5. 9 h 30 est l'heure de la revue et des préparations ; les événements (création de dossier, rendez-vous relevé) déclenchent leur routine dans la minute.
-6. Le niveau de départ de toutes les routines est le **niveau 1** (proposer) ; aucun envoi automatique.
+1. 9 h 30 est l'heure de la revue et des préparations ; les événements (création de dossier, rendez-vous relevé, email envoyé relevé) déclenchent leur routine dans la minute.
+2. Pour une succession, la constitution part juste après la création du dossier, avec les neuf modèles actuels (la mutuelle décochée, comme aujourd'hui).
+3. Le niveau de départ de chaque routine est le **niveau 1** ; passer une routine au niveau 2 ou 3 est une décision de l'étude, jamais d'office (la règle n° 4 de `CLAUDE.md` est modifiée routine par routine, à ce moment-là).
+4. Les petits actes (PACS, donation entre époux…) confiés à CLAIRE à terme sont à définir avec l'étude un par un : pièces, étapes, courriers, ce que le notaire valide.
 
 ## 9. Points ouverts
 
-- Plafond mensuel de jetons.
-- Faut-il une adresse Teams ou une boîte propre à CLAIRE pour signer ses messages ?
-- À partir de quel taux d'acceptation, sur quelle durée, l'étude accepterait-elle de passer une routine au niveau 2 ?
-- Le jour où CLAIRE est « responsable » d'un dossier : qui est son notaire référent, et sur quels types de dossiers commencer ?
+- Le notaire référent le jour où CLAIRE est « responsable » d'un dossier (probablement Sophie GOSSART).
+- La date de l'accord de sous-traitance avec Anthropic et le registre RGPD (hors du code).
+- Les petits actes à ajouter en premier.
