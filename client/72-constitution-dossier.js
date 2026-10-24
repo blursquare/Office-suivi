@@ -1512,7 +1512,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   function renderStepperConstitution(etapes) {
     const i = Math.min(Math.max(0, cstEtat.etape || 0), etapes.length - 1);
     const coche = '<span slot="icon" class="anim-etape-coche" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" pathLength="1"/></svg></span>';
-    return `<div class="outil-sommaire-place cst-sommaire" id="cst-stepper"><wa-stepper class="outil-sommaire" clickable orientation="horizontal" label="Étapes de la constitution" active="${escapeAttr(etapes[i].cle)}">${etapes.map((x, k) => `<wa-step name="${escapeAttr(x.cle)}"${k < i ? ' completed data-suite' : ''}${k <= i ? ' data-avant-suite' : ''}>${escapeHtml(x.court)}${x.sous ? `<span slot="description">${escapeHtml(x.sous)}</span>` : ''}${k < i ? coche : ''}</wa-step>`).join('')}</wa-stepper></div>`;
+    return `<div class="outil-sommaire-place cst-sommaire" id="cst-stepper"><wa-stepper class="outil-sommaire" clickable orientation="horizontal" label="Étapes de la constitution" active="${escapeAttr(etapes[i].cle)}">${etapes.map((x, k) => `<wa-step name="${escapeAttr(x.cle)}"${k < i ? ' completed data-suite' : ''}${k <= i ? ' data-avant-suite' : ''}${k <= Math.max(i, cstEtat.etapeMax || 0) ? ' data-atteinte' : ''}>${escapeHtml(x.court)}${x.sous ? `<span slot="description">${escapeHtml(x.sous)}</span>` : ''}${k < i ? coche : ''}</wa-step>`).join('')}</wa-stepper></div>`;
   }
   document.addEventListener('wa-step-change', (ev) => {
     const barre = ev.target && ev.target.closest ? ev.target.closest('#cst-stepper') : null;
@@ -1532,6 +1532,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   function cstEtape(i) {
     if (!cstEtat) return;
     cstEtat.etape = i;
+    cstEtat.etapeMax = Math.max(cstEtat.etapeMax || 0, i); // étapes déjà atteintes : jamais pâles dans la barre
     renderConstitution();
     const z = document.getElementById('cst-stepper');
     if (z) z.scrollIntoView({ block: 'nearest' });

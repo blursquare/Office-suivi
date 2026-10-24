@@ -1035,7 +1035,7 @@ sont plus appelées par le poste.
   **Typographie** (étude 04/10 : « tu trouves les polices cohérentes ? », puis « option B ») : **Geist** partout dans
   l'interface (`var(--police)`, police variable OFL **embarquée** dans `vendor/polices/` — `@font-face` en tête de style.css,
   déclarée dans `ASSETS_STATIQUES` et les assets du `.exe`, servie en binaire par `creerMiddlewareAssetsSea` ; aucune famille
-  écrite en dur hors zones papier, testé) ; Montserrat pour le mot « Claire » ; Inter (Google Fonts), Lora, Times, Calibri
+  écrite en dur hors zones papier, testé) ; pour la marque de la barre latérale (étude 24/10, valeurs exactes de l'étude dans la zone `/* @marque */ … /* @fin-marque */` de style.css, exemptée de l'échelle comme les zones papier) Instrument Sans pour le mot « Claire » (blanc dans la barre seulement) et IBM Plex Sans pour le badge « Bêta », chargées de Google Fonts ; Inter (Google Fonts), Lora, Times, Calibri
   seulement dans les zones papier et les emails ; **graisses 400 texte, 500 libellés/boutons et TOUT grand texte (titres de
   page, de carte, chiffres clés — `var(--texte-xl)` et au-delà : la taille fait la hiérarchie, pas le gras), 600 étiquettes et
   mise en valeur dans le texte, 700 badges** — rien d'autre ; **espacement de lettres -0.02em (titres à partir de 20 px), 0, ou

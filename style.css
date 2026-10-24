@@ -10378,7 +10378,7 @@ wa-stepper.outil-sommaire wa-step::part(description) { font-size: var(--texte-xs
 #onglet-nouveau.nd-accueil .panel > summary, #onglet-nouveau.nd-accueil .wizard-stepper, #onglet-nouveau.nd-accueil #wizard-step-1 > .wizard-nav { display: none; }
 #onglet-nouveau.nd-accueil .import-choix { gap: 16px; }
 /* Centré en hauteur aussi, comme l'accueil de la Constitution (étude 24/10). */
-#onglet-nouveau.nd-accueil .wrap { min-height: calc(100vh - 96px - var(--decalage-onglets)); display: flex; flex-direction: column; justify-content: center; }
+@media (min-width: 901px) { #onglet-nouveau.nd-accueil .wrap { min-height: calc(100vh - 96px - var(--decalage-onglets)); display: flex; flex-direction: column; justify-content: center; } }
 #onglet-nouveau.nd-accueil .import-choix-carte { min-height: 150px; padding: 24px; box-shadow: var(--shadow-card); border-color: var(--bord-carte); align-content: start; }
 #onglet-nouveau.nd-accueil .import-choix-icone { width: 48px; height: 48px; }
 #onglet-nouveau.nd-accueil .import-choix-icone svg { width: 24px; height: 24px; }
@@ -10873,12 +10873,12 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .outil-champs input:is([type="text"], [type="search"], [type="date"], [type="time"], [type="email"], [type="number"]):focus, .outil-champs select:focus, .outil-champs textarea:focus { background: var(--paper-card); border-color: var(--focus); }
 /* Champs grisés : sections de saisie des outils, étapes de la Constitution, Nouveau dossier (étude 24/10, classe `outil-champs`).
    Champs posés dans un bloc déjà grisé : restent blancs pour se voir. */
-.outil-champs :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre, .cst-item-edition) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
+.outil-champs :is(.pr-zonage, .tf-bloc, .pieces-depot, .qt-alerte-neutre) :is(input, select, textarea) { background: var(--paper-card); border-color: var(--line); }
 .outil-champs input:is([type="text"], [type="search"])[aria-invalid="true"]:is(:hover, :focus, :not(:focus)) { border-color: var(--urgent); }
 .outil-section-attente { opacity: 0.45; }
 .outil-section-attente:hover, .outil-section-attente:focus-within { opacity: 1; }
 .outil-section-courante > .outil-section-tete .outil-num { background: var(--focus); color: var(--blanc-fixe); }
 @media print { .outil-section-attente { opacity: 1; } }
 /* Constitution de dossier : les étapes pas encore atteintes restent pâles dans la barre (étude 24/10, comme les sections des outils). */
-.cst-sommaire wa-step:not([completed]):not(:state(active)) { opacity: 0.45; }
-.cst-sommaire wa-step:not([completed]):not(:state(active)):hover { opacity: 1; }
+.cst-sommaire wa-step:not([data-atteinte]) { opacity: 0.45; }
+.cst-sommaire wa-step:not([data-atteinte]):hover { opacity: 1; }
