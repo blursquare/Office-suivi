@@ -913,7 +913,7 @@
   function estAdministrateur(nom) { return ADMINISTRATEURS.indexOf(nom) !== -1; }
 
   // Écrans réservés à l'administrateur (étude 09/10 : « Relecture d'actes et Demander à CLAIRE que pour Bastien »).
-  var ONGLETS_ADMINISTRATEUR = ['assistant'];
+  var ONGLETS_ADMINISTRATEUR = [];   // « Demander à CLAIRE » est ouvert à tous depuis les canaux (étude 24/10) ; la liste reste pour un futur écran réservé
   function ongletReserve(nom, utilisateur) { return ONGLETS_ADMINISTRATEUR.indexOf(nom) !== -1 && !estAdministrateur(utilisateur); }
   // Liens de la barre latérale réservés, montrés ou cachés selon le collaborateur du poste ; un écran réservé resté ouvert repart au tableau de bord.
   function majSidebarReservee() {
@@ -1077,8 +1077,11 @@
     dossiersConsultesCollaborateur = null;   // la liste du nouveau collaborateur arrive avec ses préférences
     render();
     chargerRappelsPerso();
-    Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0, tous: false });
+    Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0 });
+    quitterCanal();
+    canaux.liste = []; canaux.badge = 0; majPastilleCanaux();
     chargerPropositionsClaire('a-traiter');
+    chargerCanaux();
     chargerPreferencesCollaborateur();
   }
 
@@ -1382,10 +1385,10 @@
   // supprimer ») : tous les widgets, affichés ou retirés, avec Ajouter / Retirer. Retirer ne perd que
   // la place sur le tableau de bord : le widget revient à sa taille d'avant quand on le rajoute. ----
   // Pure : les lignes de la liste, dans l'ordre du catalogue — affichés d'abord, puis retirés.
-  // « Demander à CLAIRE » n'est proposé qu'à l'administrateur (étude 09/10).
+  // « Demander à CLAIRE » : proposé à tous depuis les canaux (étude 24/10 ; réservé à l'administrateur avant).
   function lignesGalerieWidgets(dispo, utilisateur) {
     const parId = new Map((dispo || []).map(w => [w.id, w]));
-    const lignes = WIDGETS_DASHBOARD.filter(def => !(def.id === 'assistant' && !estAdministrateur(utilisateur)))
+    const lignes = WIDGETS_DASHBOARD.filter(() => true)
       .map(def => ({ def, affiche: !(parId.get(def.id) || {}).masque }));
     return lignes.filter(l => l.affiche).concat(lignes.filter(l => !l.affiche));
   }
@@ -1598,7 +1601,7 @@
       // sauf en personnalisation où il reste visible pour être rangé.
       const interieur = el.querySelector('.dash-bloc');
       const vide = !!interieur && interieur.style.display === 'none';
-      const reserve = w.id === 'assistant' && !estAdministrateur(utilisateurPoste);   // « Demander à CLAIRE » : Bastien seulement
+      const reserve = false;   // « Demander à CLAIRE » : ouvert à tous (étude 24/10)
       el.style.display = w.masque || reserve || (vide && !modeEditionWidgets) ? 'none' : '';
       el.classList.toggle('widget-vide', vide);
       el.querySelectorAll(':scope > .widget-barre, :scope > .widget-retirer, :scope > .widget-fleche').forEach(x => x.remove());

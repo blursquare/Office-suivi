@@ -1,11 +1,11 @@
-// Routines de CLAIRE, phase 0 (étude 24/10, cadrage docs/spec-routines-claire.md) — le côté du collaborateur : la BOÎTE DE PROPOSITIONS.
-// CLAIRE prépare (brouillon d'email, document, tâche, dates, alerte) et dépose dans la boîte de chacun ; le collaborateur AUTORISE ou REFUSE.
-// Rien ne part ni ne s'écrit sans ce clic : « Autoriser » exécute le geste habituel de CLAIRE (ouvrir le brouillon dans la fenêtre d'email,
-// ouvrir l'outil, poser la tâche) — jamais un envoi. La boîte se trouve : (1) dans l'icône ✦ en haut de la barre latérale (pastille = ce qui
-// attend une décision), (2) dans un bandeau « CLAIRE a préparé » en tête du Tableau de la fiche du dossier concerné. Les réglages des routines
-// (interrupteurs, trois niveaux d'autonomie) sont dans client/111-reglages-routines.js. Serveur : server/src/routines/, routes/routines.js.
+// Routines de CLAIRE (étude 24/10, cadrage docs/spec-routines-claire.md) — le côté du collaborateur : les PROPOSITIONS.
+// CLAIRE prépare (brouillon d'email, document, tâche, dates, alerte) et le dit dans le canal du dossier (client/112-canaux.js) ; le collaborateur
+// AUTORISE ou REFUSE sur la carte. Rien ne part ni ne s'écrit sans ce clic : « Autoriser » exécute le geste habituel de CLAIRE (ouvrir le
+// brouillon dans la fenêtre d'email, ouvrir l'outil, poser la tâche) — jamais un envoi. La liste de ce qui attend MA décision (toutes les
+// propositions dont je suis le responsable) alimente la vue « À traiter » des canaux ; les réglages des routines (interrupteurs, trois niveaux
+// d'autonomie) sont dans client/111-reglages-routines.js. Serveur : server/src/routines/, canaux/, routes/routines.js, routes/canaux.js.
 
-var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], onglet: 'a-traiter', tous: false, charge: false, ouvert: false };
+var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], charge: false };
 var INTERVALLE_PROPOSITIONS_MS = 60 * 1000;
 
 // ---- Pures ----
@@ -69,12 +69,12 @@ var OUTILS_PROPOSITION = {
 async function chargerPropositionsClaire(onglet) {
   if (!utilisateurPoste) {
     Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0 });
-    majPastillePropositionsClaire();
+    if (typeof renderCanaux === 'function') renderCanaux();
     return;
   }
-  const filtre = onglet || (propositionsClaire.ouvert ? propositionsClaire.onglet : 'a-traiter');
+  const filtre = onglet || 'a-traiter';
   try {
-    const q = `utilisateur=${encodeURIComponent(utilisateurPoste)}&etat=${filtre}${propositionsClaire.tous && estAdministrateur(utilisateurPoste) ? '&tous=1' : ''}`;
+    const q = `utilisateur=${encodeURIComponent(utilisateurPoste)}&etat=${filtre}`;
     const r = await fetchAvecAuth('/api/propositions?' + q);
     if (!r.ok) return;
     const corps = await r.json();
@@ -86,24 +86,9 @@ async function chargerPropositionsClaire(onglet) {
       propositionsClaire.aTraiter = corps.aTraiter || 0;
     }
     propositionsClaire.charge = true;
-    majPastillePropositionsClaire();
-    if (propositionsClaire.ouvert) renderPropositionsClaire();
+    if (typeof renderCanaux === 'function') renderCanaux();
     rafraichirPropositionsFiche();
   } catch (e) { /* serveur injoignable : la pastille garde son dernier état */ }
-}
-
-function majPastillePropositionsClaire() {
-  const badge = document.getElementById('badge-propositions');
-  if (!badge) return;
-  const n = propositionsClaire.aTraiter;
-  badge.textContent = n > 99 ? '99+' : String(n);
-  badge.style.display = n ? '' : 'none';
-  const bouton = document.getElementById('tab-propositions');
-  if (bouton) {
-    const titre = n ? `Propositions de CLAIRE : ${n} à décider` : 'Propositions de CLAIRE';
-    bouton.title = titre;
-    bouton.setAttribute('aria-label', titre);
-  }
 }
 
 // Un contrôle toutes les minutes tant que la fenêtre est ouverte ; lancé une fois par demarrerApplication.
@@ -112,7 +97,7 @@ function demarrerPropositionsClaire() {
   setInterval(() => { if (!document.hidden) chargerPropositionsClaire(); }, INTERVALLE_PROPOSITIONS_MS);
 }
 
-// ---- La boîte (volet à droite) ----
+// ---- La carte d'une proposition (dans un canal, la vue « À traiter » et la fiche) ----
 
 function carteProposition(p, options) {
   const o = options || {};
@@ -125,11 +110,15 @@ function carteProposition(p, options) {
     p.exemple ? '<span class="pc-puce pc-puce-exemple">Exemple</span>' : ''
   ].join('');
   const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree';
+  const moi = peutDeciderProposition(p, utilisateurPoste);
   const actions = traitee
     ? `<p class="pc-etat pc-etat-${escapeAttr(p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>`
-    : `<div class="pc-actions">
+    : !moi
+      ? `<p class="pc-etat">Pour ${escapeHtml(prenomCollaborateur(p.responsable))} : c’est à elle ou lui de décider.</p>`
+      : `<div class="pc-actions">
         <wa-button variant="brand" size="s" type="button" onclick="autoriserProposition('${idJs}')">${icone(t.icone)}${escapeHtml(t.bouton)}</wa-button>
-        ${p.type === 'alerte' ? '' : `<wa-button appearance="plain" size="s" type="button" onclick="refuserProposition('${idJs}')">Refuser</wa-button>`}
+        ${p.type === 'alerte' ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="refuserProposition('${idJs}')">Refuser</wa-button>`}
+        ${p.dossierId && p.type !== 'alerte' ? `<wa-button appearance="plain" size="s" type="button" onclick="silencerDossierProposition('${idJs}')">Jamais pour ce dossier</wa-button>` : ''}
       </div>`;
   return `<article class="pc-carte pc-type-${escapeAttr(p.type)}${o.compacte ? ' pc-compacte' : ''}${traitee ? ' pc-traitee' : ''}" data-proposition="${escapeAttr(p.id)}">
     <span class="pc-rail" aria-hidden="true"></span>
@@ -143,81 +132,27 @@ function carteProposition(p, options) {
   </article>`;
 }
 
-function renderPropositionsClaire() {
-  const contenu = document.getElementById('propositions-contenu');
-  if (!contenu) return;
-  const a = propositionsClaire;
-  const liste = a.onglet === 'a-traiter' ? a.liste : a.traitees;
-  const admin = estAdministrateur(utilisateurPoste);
-  const vide = a.onglet === 'a-traiter'
-    ? `<div class="pc-vide"><span class="pc-vide-icone" aria-hidden="true">${icone('sparkle')}</span><h3>Rien à décider pour le moment</h3>
-        <p>CLAIRE prépare des brouillons, des documents et des tâches d’après vos dossiers. Dès qu’elle a quelque chose, ça arrive ici — et vous décidez.</p>
-        <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirReglagesRoutinesDepuisBoite()">${icone('settings')}Régler les routines</wa-button></div>`
-    : `<div class="pc-vide"><span class="pc-vide-icone" aria-hidden="true">${icone('archive')}</span><h3>Aucune proposition traitée</h3><p>Ce que vous autorisez ou refusez se retrouve ici.</p></div>`;
-  contenu.innerHTML = `
-    <header class="pc-tete">
-      <span class="pc-etincelle" aria-hidden="true">${icone('sparkle')}</span>
-      <div class="pc-tete-texte"><h2 id="propositions-titre">Propositions de CLAIRE</h2><p>${escapeHtml(resumeBoiteClaire(a.aTraiter, utilisateurPoste))}</p></div>
-      <wa-button appearance="plain" class="bouton-icone" type="button" onclick="fermerPropositionsClaire()" aria-label="Fermer">${icone('x')}</wa-button>
-    </header>
-    <div class="pc-barre">
-      <wa-button-group>
-        <wa-button appearance="outlined" size="s" class="vue-bascule-btn${a.onglet === 'a-traiter' ? ' actif' : ''}" type="button" onclick="choisirOngletPropositions('a-traiter')">À décider${a.aTraiter ? ` (${a.aTraiter})` : ''}</wa-button>
-        <wa-button appearance="outlined" size="s" class="vue-bascule-btn${a.onglet === 'traitees' ? ' actif' : ''}" type="button" onclick="choisirOngletPropositions('traitees')">Traitées</wa-button>
-      </wa-button-group>
-      ${admin ? `<label class="pc-tous"><wa-switch ${a.tous ? 'checked' : ''} onchange="basculerPropositionsToutes(this.checked)"></wa-switch><span>Toute l’étude</span></label>` : ''}
-    </div>
-    <div class="pc-liste" role="list">${liste.length ? liste.map(p => carteProposition(p)).join('') : vide}</div>
-    <footer class="pc-pied"><span class="pc-pied-texte">${icone('shield')}Rien ne part sans votre clic.</span>
-      <wa-button appearance="plain" size="s" type="button" onclick="ouvrirReglagesRoutinesDepuisBoite()">Réglages des routines</wa-button></footer>`;
-}
-
-function ouvrirPropositionsClaire() {
-  const overlay = document.getElementById('propositions-overlay');
-  if (!overlay) return;
-  propositionsClaire.ouvert = true;
-  overlay.style.display = 'flex';
-  // Le volet glisse depuis la droite : la classe est posée à l'image suivante pour que la transition parte.
-  requestAnimationFrame(() => overlay.classList.add('ouvert'));
-  renderPropositionsClaire();
-  chargerPropositionsClaire(propositionsClaire.onglet);
-}
-
-function fermerPropositionsClaire() {
-  const overlay = document.getElementById('propositions-overlay');
-  propositionsClaire.ouvert = false;
-  if (!overlay) return;
-  overlay.classList.remove('ouvert');
-  setTimeout(() => { if (!propositionsClaire.ouvert) overlay.style.display = 'none'; }, 220);
-}
-
-function choisirOngletPropositions(onglet) {
-  propositionsClaire.onglet = onglet === 'traitees' ? 'traitees' : 'a-traiter';
-  renderPropositionsClaire();
-  chargerPropositionsClaire(propositionsClaire.onglet);
-}
-
-function basculerPropositionsToutes(coche) {
-  propositionsClaire.tous = !!coche;
-  chargerPropositionsClaire(propositionsClaire.onglet);
-  chargerPropositionsClaire(propositionsClaire.onglet === 'a-traiter' ? 'traitees' : 'a-traiter');
-}
-
-function ouvrirReglagesRoutinesDepuisBoite() {
-  fermerPropositionsClaire();
-  definirOnglet('reglages');
-  definirSousOngletReglages('routines');
-}
-
 function ouvrirDossierDepuisProposition(id) {
-  fermerPropositionsClaire();
   ouvrirDossierDepuisDashboard(id);
 }
 
 // ---- Décisions ----
 
 function propositionParId(id) {
-  return propositionsClaire.liste.concat(propositionsClaire.traitees).find(p => p.id === id) || null;
+  const deCanal = typeof canaux === 'object' && canaux.cartes ? canaux.cartes[id] : null;
+  return propositionsClaire.liste.concat(propositionsClaire.traitees).find(p => p.id === id) || deCanal || null;
+}
+
+// Une décision prise : la liste « à traiter », les compteurs et le canal ouvert se remettent à jour.
+async function apresDecisionProposition() {
+  await chargerPropositionsClaire('a-traiter');
+  if (typeof chargerMessagesCanal === 'function') chargerMessagesCanal(true);
+  if (typeof chargerCanaux === 'function') chargerCanaux();
+}
+
+// Pure : le collaborateur peut-il décider cette proposition ? Son responsable, ou l'administrateur.
+function peutDeciderProposition(p, utilisateur) {
+  return !!p && (!p.responsable || p.responsable === utilisateur || estAdministrateur(utilisateur));
 }
 
 async function enregistrerDecisionProposition(id, decision) {
@@ -247,14 +182,12 @@ function executerActionProposition(p) {
   const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
   if (p.type === 'email') {
     // La fenêtre d'email habituelle : tout est relisible et modifiable ; l'email ne part qu'au clic sur « Envoyer ».
-    fermerPropositionsClaire();
     livrerEmailDossier({ destinataire: (p.details && p.details.destinataire) || '', sujet: (p.details && p.details.sujet) || p.titre, corps: (p.details && p.details.corps) || '',
       dossierId: p.dossierId || '', geste: 'routine-claire' });
     return 'Brouillon ouvert : relisez-le, rien ne part sans votre clic sur « Envoyer ».';
   }
   if (p.type === 'document') {
     const outil = OUTILS_PROPOSITION[(p.details && p.details.outil) || ''];
-    fermerPropositionsClaire();
     if (!outil) { if (d) ouvrirDossierDepuisDashboard(d.id); return 'Fiche du dossier ouverte.'; }
     if (outil.onglet === 'appel-fonds' && d) preparerAppelFondsDepuisDossier(d.id);
     else if (outil.onglet === 'constitution' && d) { definirOnglet('constitution'); choisirDossierConstitution(d.id); }
@@ -263,7 +196,7 @@ function executerActionProposition(p) {
     return 'Document ouvert dans son outil : relisez-le avant de l’utiliser.';
   }
   if (p.type === 'tache') { poserTacheDepuisProposition(p); return 'Tâche ajoutée dans votre liste « À faire ».'; }
-  if (p.type === 'dates' && d) { fermerPropositionsClaire(); ouvrirDossierDepuisDashboard(d.id); return 'Fiche du dossier ouverte.'; }
+  if (p.type === 'dates' && d) { ouvrirDossierDepuisDashboard(d.id); return 'Fiche du dossier ouverte.'; }
   return 'C’est noté.';
 }
 
@@ -288,13 +221,13 @@ async function autoriserPropositionSure(id, p) {
   }
   if (decidee.dejaTraitee) {
     afficherToast('Cette proposition a déjà été traitée.', 'OK', null);
-    await chargerPropositionsClaire('a-traiter');
+    await apresDecisionProposition();
     return;
   }
   noterVerificationPoste('routines-boite-poste', { detail: `proposition « ${p.type} » autorisée` });
   const message = executerActionProposition(p);
   afficherToast(message, 'OK', null);
-  await chargerPropositionsClaire('a-traiter');
+  await apresDecisionProposition();
 }
 
 async function refuserProposition(id) {
@@ -307,21 +240,47 @@ async function refuserProposition(id) {
     afficherToast('Refus non enregistré : ' + e.message, 'OK', null);
     return;
   }
-  if (decidee.dejaTraitee) { afficherToast('Cette proposition a déjà été traitée.', 'OK', null); await chargerPropositionsClaire('a-traiter'); return; }
+  if (decidee.dejaTraitee) { afficherToast('Cette proposition a déjà été traitée.', 'OK', null); await apresDecisionProposition(); return; }
   noterVerificationPoste('routines-boite-poste', { detail: 'proposition refusée' });
   afficherToast('Refusée : CLAIRE ne la proposera plus.', 'OK', null);
-  await chargerPropositionsClaire('a-traiter');
+  await apresDecisionProposition();
 }
 
-// ---- Le bandeau de la fiche du dossier ----
+// « Jamais pour ce dossier » : la proposition est refusée ET CLAIRE ne dépose plus de proposition de cette routine sur ce dossier (annulable).
+async function silencerDossierProposition(id) {
+  const p = propositionParId(id);
+  if (!p || !p.dossierId || propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
+  try {
+    await enregistrerDecisionProposition(id, 'refusee');
+    const r = await fetchAvecAuth(`/api/canaux/silences/${encodeURIComponent(p.dossierId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auteur: utilisateurPoste, routine: p.routine || '' }) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  } catch (e) {
+    afficherToast('Non enregistré : ' + e.message, 'OK', null);
+    return;
+  } finally { delete propositionsEnCours[id]; }
+  afficherToast('CLAIRE ne vous proposera plus ça sur ce dossier.', 'Annuler', async () => {
+    try {
+      await fetchAvecAuth(`/api/canaux/silences/${encodeURIComponent(p.dossierId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auteur: utilisateurPoste, routine: p.routine || '', lever: true }) });
+    } catch (e) { /* le silence reste : il se lève dans le canal du dossier */ }
+    if (typeof chargerSilencesCanal === 'function') chargerSilencesCanal();
+  });
+  await apresDecisionProposition();
+  if (typeof chargerSilencesCanal === 'function') chargerSilencesCanal();
+}
 
-// Le bandeau « CLAIRE a préparé » en tête du Tableau de la fiche : les propositions à décider de CE dossier, ou rien.
+// ---- Le lien de la fiche du dossier vers son canal ----
+
+// En tête du Tableau de la fiche : le lien vers le canal du dossier — ce que CLAIRE y a écrit, ce qui attend une décision. Rien s'il n'y a rien.
 function renderPropositionsFiche(d) {
-  const siennes = propositionsClaire.liste.filter(p => p.dossierId === d.id);
-  if (!siennes.length) return '';
-  return `<section class="pc-fiche" aria-label="CLAIRE a préparé">
-    <header class="pc-fiche-tete"><span class="pc-etincelle pc-etincelle-petite" aria-hidden="true">${icone('sparkle')}</span><strong>CLAIRE a préparé</strong><span class="pc-fiche-nb">${siennes.length}</span></header>
-    <div class="pc-fiche-liste">${siennes.map(p => carteProposition(p, { compacte: true })).join('')}</div>
+  const aDecider = propositionsClaire.liste.filter(p => p.dossierId === d.id).length;
+  const c = typeof canaux === 'object' && canaux.liste ? canaux.liste.find(x => x.id === 'd:' + d.id) : null;
+  const nonLus = c ? c.nonLus : 0;
+  if (!aDecider && !nonLus) return '';
+  const texte = [nonLus ? `${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : '', aDecider ? `${aDecider} à décider` : ''].filter(Boolean).join(' · ');
+  return `<section class="pc-fiche" aria-label="Canal du dossier">
+    <header class="pc-fiche-tete"><span class="pc-etincelle pc-etincelle-petite" aria-hidden="true">${icone('diese')}</span><strong>Canal du dossier</strong><span class="pc-fiche-nb">${escapeHtml(texte)}</span>
+      <wa-button variant="brand" size="s" type="button" class="pc-fiche-ouvrir" onclick="ouvrirCanalDepuisFiche('${escapeOnclickArg(d.id)}')">Ouvrir</wa-button></header>
   </section>`;
 }
 
@@ -338,8 +297,4 @@ function rafraichirPropositionsFiche() {
   if (bandeau) { bandeau.outerHTML = html; return; }
   const tableau = document.querySelector('#dossier-drawer .tf-tableau');
   if (tableau) tableau.insertAdjacentHTML('beforebegin', html);
-}
-
-if (typeof document !== 'undefined' && document.addEventListener) {
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && propositionsClaire.ouvert) fermerPropositionsClaire(); });
 }

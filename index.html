@@ -55,14 +55,10 @@
         <span class="sidebar-scan-icone" id="icon-nav-scans" aria-hidden="true"></span>
         <span class="sidebar-scan-pastille" id="badge-scans" style="display:none;"></span>
       </button>
-      <!-- Demander à CLAIRE (étude 20/10), à côté de Claire Scan : la page de conversation ; réservé à l'administrateur. -->
-      <button type="button" id="tab-assistant" class="sidebar-scan-bannette" style="display:none;" onclick="definirOnglet('assistant')" aria-label="Demander à CLAIRE" title="Demander à CLAIRE">
+      <!-- Demander à CLAIRE (étude 20/10), à côté de Claire Scan : conversations et canaux (étude 24/10, ouvert à tous) ; la pastille compte les messages non lus. -->
+      <button type="button" id="tab-assistant" class="sidebar-scan-bannette" onclick="definirOnglet('assistant')" aria-label="Demander à CLAIRE" title="Demander à CLAIRE">
         <span class="sidebar-scan-icone" id="icon-nav-assistant" aria-hidden="true"></span>
-      </button>
-      <!-- Propositions de CLAIRE (étude 24/10, client/110-routines.js) : la boîte de ce que CLAIRE a préparé ; la pastille compte ce qui attend une décision. -->
-      <button type="button" id="tab-propositions" class="sidebar-scan-bannette" onclick="ouvrirPropositionsClaire()" aria-label="Propositions de CLAIRE" title="Propositions de CLAIRE">
-        <span class="sidebar-scan-icone" id="icon-nav-propositions" aria-hidden="true"></span>
-        <span class="sidebar-scan-pastille" id="badge-propositions" style="display:none;"></span>
+        <span class="sidebar-scan-pastille" id="badge-assistant" style="display:none;"></span>
       </button>
       <span class="sidebar-controles-espace"></span>
       <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
@@ -1503,9 +1499,13 @@
   <!-- Présentation « façon Claude » (étude 21/10, avant : « à la Slack ») : demande en bulle, réponse en pleine largeur ; @ pour citer un dossier. -->
   <div class="asst-page">
     <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
-    <aside class="asst-cote" aria-label="Conversations">
-      <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
-      <div class="asst-fils" id="assistant-fils"></div>
+    <aside class="asst-cote" aria-label="Conversations et canaux">
+      <section class="asst-cote-conversations" aria-label="Mes conversations avec CLAIRE">
+        <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
+        <div class="asst-fils" id="assistant-fils"></div>
+      </section>
+      <!-- Canaux (étude 24/10, client/112-canaux.js) : un fil partagé par dossier, « général » et canaux libres. -->
+      <section class="asst-cote-canaux" id="assistant-canaux" aria-label="Canaux"></section>
     </aside>
     <div class="asst-principal">
     <div class="asst-tete">
@@ -1513,6 +1513,7 @@
       <wa-button appearance="plain" size="s" class="bouton-icone asst-fils-replier" id="assistant-fils-replier" aria-expanded="true" type="button" onclick="basculerFilsRepliesAssistant()" title="Replier les conversations" aria-label="Replier les conversations"><span id="icon-assistant-replier" aria-hidden="true"></span></wa-button>
       <h1 class="asst-titre">Demander à CLAIRE</h1>
       <div class="asst-etat" id="assistant-etat"></div>
+      <div class="cx-entete-canal" id="canal-entete" style="display:none;"></div>
       <span class="asst-tete-espace"></span>
       <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
       <wa-button appearance="plain" size="s" class="bouton-icone asst-colonne-bouton" id="assistant-colonne-bouton" aria-controls="assistant-droite" aria-expanded="false" type="button" onclick="basculerColonneAssistant()" title="Espace de travail : documents, aperçu, dossier, étapes" aria-label="Espace de travail"><span id="icon-assistant-colonne" aria-hidden="true"></span></wa-button>
@@ -1528,6 +1529,7 @@
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
+          <button type="button" class="canal-bascule" id="canal-bascule" style="display:none;" onclick="basculerClaireRepond()" aria-pressed="true"></button>
           <div class="asst-options-saisie" id="assistant-options-saisie"></div>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
           <wa-button variant="brand" size="s" type="submit" class="asst-envoyer">Envoyer <span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
@@ -2605,11 +2607,6 @@
   </div>
 </div>
 
-<!-- Propositions de CLAIRE (étude 24/10, client/110-routines.js) : le volet de la boîte, à droite. -->
-<div class="pc-overlay" id="propositions-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerPropositionsClaire(); this.dataset.fond = ''">
-  <aside class="pc-volet" role="dialog" aria-modal="true" aria-labelledby="propositions-titre"><div id="propositions-contenu"></div></aside>
-</div>
-
 <!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/109-veille-signature.js). -->
 <div class="confirm-overlay" id="veille-signature-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerVeilleSignature(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box veille-box" role="dialog" aria-modal="true" aria-label="Fiche de signature">
@@ -2978,5 +2975,7 @@
 <script src="client/109-veille-signature.js"></script>
 <script src="client/110-routines.js"></script>
 <script src="client/111-reglages-routines.js"></script>
+<script src="client/112-canaux.js"></script>
+<script src="client/113-canaux-actions.js"></script>
 </body>
 </html>

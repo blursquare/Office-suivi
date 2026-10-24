@@ -14,6 +14,7 @@
 
   function initAssistant() {
     chargerConversationsAssistant();
+    chargerCanaux();
     if (dossierOuvert) assistantContexte.dossierId = dossierOuvert;
     renderAssistant();
     chargerDisponibiliteAssistant();
@@ -94,6 +95,11 @@
     renderColonneAssistant();
     renderArtefactAssistant();
     assistantActions = {};
+    renderCanaux();
+    // Dans un canal (client/112 et 113), le fil est celui du serveur, présenté façon Slack ; tout le reste de la page est la même.
+    if (canaux.actif) { renderCanalAssistant(zone); return; }
+    majSaisieCanal();
+    renderEnteteCanal();
     const relances = document.getElementById('assistant-relances');
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
       `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
@@ -204,6 +210,7 @@
   }
 
   function majMentionAssistant() {
+    if (canaux.actif) { majMentionCanal(); return; }
     const champ = document.getElementById('assistant-saisie');
     const menu = document.getElementById('assistant-mention');
     if (!champ || !menu) return;
@@ -231,10 +238,10 @@
     const d = mentionAssistant.liste[k];
     if (!champ || !d) return;
     const fin = champ.selectionStart || 0;
-    const insere = d.nom + ' ';
+    const insere = (d.insere !== undefined ? d.insere : d.nom) + ' ';
     champ.value = champ.value.slice(0, mentionAssistant.debut) + insere + champ.value.slice(fin);
     const pos = mentionAssistant.debut + insere.length;
-    mentionsChoisiesAssistant.push({ nom: d.nom, id: d.id });
+    if (d.id) mentionsChoisiesAssistant.push({ nom: d.nom, id: d.id });
     fermerMentionAssistant();
     champ.focus();
     champ.setSelectionRange(pos, pos);
@@ -257,13 +264,16 @@
     if (typeof fn === 'function') fn();
   }
 
-  function poserMessageAssistant(role, html, boutons) {
+  function poserMessageAssistant(role, html, boutons, meta) {
     const message = { role, html, boutons: boutons || [], quand: Date.now() };
     assistantMessages.push(message);
-    if (role === 'claire') lancerRevelationAssistant(message);
-    if (assistantMessages.length > 60) assistantMessages = assistantMessages.slice(-60);
+    if (role === 'claire' && !canaux.actif) lancerRevelationAssistant(message);
+    if (assistantMessages.length > (canaux.actif ? 300 : 60)) assistantMessages = assistantMessages.slice(canaux.actif ? -300 : -60);
     memoriserConversationAssistant(true);
+    if (canaux.actif) canaux.forcerBas = true;
     renderAssistant();
+    // Dans un canal, le message est aussi écrit sur le serveur : tous les collaborateurs le lisent.
+    if (canaux.actif) publierMessageCanal(message, meta);
   }
 
   function nouvelleConversationAssistant() {
@@ -340,7 +350,9 @@
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
-    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''));
+    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
+    // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
+    if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.claireRepond, canaux.collaborateurs)) return;
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).

@@ -7,7 +7,8 @@
 
 const { routineParId } = require('./catalogue');
 const { lireReglagesRoutines } = require('./reglages');
-const { lirePropositions, ecrirePropositions, ajouterProposition, expirer } = require('./propositions');
+const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
+const { deposerProposition } = require('../canaux/deposer');
 const { noterJournalRoutines } = require('./journal');
 const { proposerExemples } = require('./essai');
 const { libelleDossierAffiche } = require('../../../commun/dossier');
@@ -75,14 +76,10 @@ function creerPlanificateur(deps) {
     const responsable = String((options && options.responsable) || '').trim();
     if (!responsable) return { ok: false, ajoutees: 0, message: 'Collaborateur non indiqué.' };
     if (routineId !== 'essai') return { ok: false, ajoutees: 0, message: 'Routine sans exécutant.' };
-    let liste = lirePropositions(parametresRepo);
     let ajoutees = 0;
     for (const p of proposerExemples({ responsable, jour: infosParis(maintenant).iso })) {
-      const r = ajouterProposition(liste, p, maintenant);
-      liste = r.liste;
-      if (r.ajoutee) ajoutees += 1;
+      if (deposerProposition(parametresRepo, p, maintenant).ok) ajoutees += 1;
     }
-    ecrirePropositions(parametresRepo, liste);
     const message = ajoutees ? `${ajoutees} proposition${ajoutees > 1 ? 's' : ''} d’exemple déposée${ajoutees > 1 ? 's' : ''} dans la boîte de ${prenomDe(responsable)}.` : `Les exemples d’aujourd’hui sont déjà dans la boîte de ${prenomDe(responsable)}.`;
     noterJournalRoutines(parametresRepo, { routine: routineId, texte: message, resultat: ajoutees ? 'ok' : 'rien', niveau: 1 }, maintenant);
     return { ok: true, ajoutees, message };

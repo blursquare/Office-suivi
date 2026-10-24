@@ -256,7 +256,7 @@ async function lancerRoutineEssai() {
     const r = await fetchAvecAuth('/api/routines/essai/lancer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsable: utilisateurPoste }) });
     const corps = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(corps.erreur || `HTTP ${r.status}`);
-    afficherToast(corps.message, 'Ouvrir ma boîte', () => ouvrirPropositionsClaire());
+    afficherToast(corps.message, 'Ouvrir « À traiter »', () => { definirOnglet('assistant'); setTimeout(() => ouvrirCanal('@traiter'), 0); });
     chargerPropositionsClaire('a-traiter');
     chargerReglagesRoutines();
   } catch (e) {

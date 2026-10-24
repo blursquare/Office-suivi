@@ -110,5 +110,7 @@
   "108-autorisations-succession.js",
   "109-veille-signature.js",
   "110-routines.js",
-  "111-reglages-routines.js"
+  "111-reglages-routines.js",
+  "112-canaux.js",
+  "113-canaux-actions.js"
 ]

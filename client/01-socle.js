@@ -257,7 +257,11 @@
     package: '<path d="M8 1.6 14 5v6L8 14.4 2 11V5Z" stroke-linejoin="round"/><path d="M2 5 8 8.4 14 5"/><line x1="8" y1="8.4" x2="8" y2="14.4"/>',
     // Épingle (« garder la sidebar toujours ouverte ») : une tête + une tige, pour rester dans le
     // même vocabulaire minimal (pas une punaise/pin réaliste).
-    pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>'
+    pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>',
+    cloche: '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 8.8 0v3.8l1.1 1.3H2.5z" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/>',
+    'cloche-barree': '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 7.3-3.3M12.4 7.6v3.6l1.1 1.3H2.5" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/><line x1="2.2" y1="2.2" x2="13.8" y2="13.8"/>',
+    etoile: '<path d="M8 1.9 9.8 5.8l4.2.5-3.1 2.9.8 4.2L8 11.3l-3.7 2 .8-4.2L2 6.3l4.2-.5z" stroke-linejoin="round"/>',
+    diese: '<line x1="6" y1="2.4" x2="4.8" y2="13.6"/><line x1="11.2" y1="2.4" x2="10" y2="13.6"/><line x1="2.8" y1="6" x2="13.2" y2="6"/><line x1="2.4" y1="10" x2="12.8" y2="10"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").

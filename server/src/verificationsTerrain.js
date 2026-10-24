@@ -20,6 +20,10 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'canaux-mention-teams', depuis: '0.328.0', source: 'serveur', titre: 'Canaux de CLAIRE : une mention « @Julie » dans un canal prévient la personne sur Teams (au plus une fois par heure et par canal)',
+    comment: 'Coché à la première mention notifiée. À essayer au bureau : écrire « @Julie peux-tu regarder ? » dans le canal d’un dossier depuis un autre poste ; le message Teams arrive par la même passerelle que les rappels.' },
+  { id: 'canaux-poste', depuis: '0.328.0', source: 'poste', titre: 'Canaux de CLAIRE : le canal d’un dossier se partage entre collaborateurs (messages de l’un lus par l’autre, non-lus, réponse de CLAIRE visible de tous)',
+    comment: 'Coché au premier message envoyé dans un canal. À regarder au bureau avec deux postes : Julie écrit dans le canal d’un dossier, Bastien voit le message arriver (une minute au plus) et la pastille de l’étincelle.' },
   { id: 'routines-resume-teams', depuis: '0.327.0', source: 'serveur', titre: 'Routines de CLAIRE : le résumé Teams de 9 h 30 arrive au collaborateur (un message groupé par jour)',
     comment: 'Coché au premier résumé envoyé : Réglages › Routines, allumer les routines, déposer des exemples, attendre le lundi 9 h 30 (les exemples ne déclenchent aucun message — il faut une vraie proposition).' },
   { id: 'routines-boite-poste', depuis: '0.327.0', source: 'poste', titre: 'Routines de CLAIRE : la boîte de propositions s’ouvre, une proposition s’autorise ou se refuse, le brouillon d’email s’ouvre sans rien envoyer',

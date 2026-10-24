@@ -1329,6 +1329,7 @@
     demanderUtilisateurPosteSiInconnu();
     // Boîte de propositions de CLAIRE (étude 24/10) : la pastille de la barre latérale, relue chaque minute.
     demarrerPropositionsClaire();
+    demarrerCanaux();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le

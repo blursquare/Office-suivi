@@ -128,18 +128,26 @@ try {
         return r;
       });
       verifier(avenir && avenir.liste && avenir.haut >= 640 && avenir.large >= 1000 && avenir.croix, `tâches à venir : lien, liste et grande fenêtre (${JSON.stringify(avenir)})`);
-      // Routines de CLAIRE (24/10, phase 0) : la boîte de propositions s'ouvre ; Réglages › Routines dessine l'état, les trois niveaux et les routines.
+      // Canaux de CLAIRE (24/10) : la page « Demander à CLAIRE » liste les canaux, un canal s'ouvre (en-tête, fil, interrupteur « CLAIRE répond »),
+      // la vue « À traiter » s'ouvre, on repart sur les conversations ; Réglages › Routines dessine l'état, les trois niveaux et les routines.
       const routines = await geste(page, 'routines de CLAIRE', async () => {
-        ouvrirPropositionsClaire();
+        definirOnglet('assistant');
+        await new Promise((r) => setTimeout(r, 500));
+        const liste = document.querySelectorAll('#assistant-canaux .cx-c').length;
+        await ouvrirCanal('general');
         await new Promise((r) => setTimeout(r, 400));
-        const boite = document.getElementById('propositions-overlay').style.display !== 'none' && !!document.querySelector('#propositions-contenu .pc-tete');
-        fermerPropositionsClaire();
+        const canal = document.getElementById('canal-entete').style.display !== 'none' && document.getElementById('canal-bascule').style.display !== 'none'
+          && !!document.querySelector('#assistant-messages .asst-accueil, #assistant-messages .cx-m');
+        await ouvrirCanal('@traiter');
+        await new Promise((r) => setTimeout(r, 300));
+        const traiter = !!document.querySelector('#assistant-messages .asst-accueil, #assistant-messages .cx-traiter-vue');
+        quitterCanal(); renderAssistant();
         definirOnglet('reglages'); definirSousOngletReglages('routines');
         await new Promise((r) => setTimeout(r, 900));
         const z = document.getElementById('routines-contenu');
-        return { boite, routines: z.querySelectorAll('.rt-routine').length, niveaux: z.querySelectorAll('.rt-niveau').length, interrupteur: !!z.querySelector('#rt-actif') };
+        return { liste, canal, traiter, routines: z.querySelectorAll('.rt-routine').length, niveaux: z.querySelectorAll('.rt-niveau').length, interrupteur: !!z.querySelector('#rt-actif') };
       });
-      verifier(routines && routines.boite && routines.routines >= 9 && routines.niveaux === 3 && routines.interrupteur, `routines de CLAIRE : boîte ouverte, ${routines && routines.routines} routines, ${routines && routines.niveaux} niveaux`);
+      verifier(routines && routines.liste >= 2 && routines.canal && routines.traiter && routines.routines >= 9 && routines.niveaux === 3 && routines.interrupteur, `canaux et routines de CLAIRE : ${routines && routines.liste} canaux listés, canal et « À traiter » ouverts, ${routines && routines.routines} routines, ${routines && routines.niveaux} niveaux`);
       // Recherche de la barre latérale (20/10) : un dossier et un outil se trouvent, Entrée ouvre la fiche.
       const rech = await page.evaluate(async () => {
         const champ = document.getElementById('sidebar-recherche-saisie');

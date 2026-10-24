@@ -277,6 +277,7 @@
         <span class="asst-droite-titre">Espace de travail</span>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerColonneAssistant()" title="Masquer la colonne" aria-label="Masquer la colonne">${icone('x')}</wa-button>
       </div>
+      ${typeof htmlColonneCanal === 'function' ? htmlColonneCanal() : ''}
       ${a ? `<section class="asst-droite-bloc asst-apercu" aria-label="Aperçu du document">
         <div class="asst-apercu-tete">
           <span class="asst-apercu-nom">${escapeHtml(nomDocumentLocalAssistant(a.docId))}</span>
@@ -305,7 +306,7 @@
       </details>
       <details class="asst-droite-bloc" data-bloc="dossier"${blocsOuvertsColonneAssistant.dossier ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['dossier'] = this.open">
         <summary>${icone('folder')} Dossier rattaché</summary>
-        <select id="assistant-colonne-dossier" class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
+        <select id="assistant-colonne-dossier" ${canaux.actif && canaux.actif.startsWith('d:') ? 'disabled title="Ce canal est celui de ce dossier"' : ''} class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
           <option value="">Aucun dossier</option>
           ${dossiersTries.map(d => `<option value="${escapeAttr(d.id)}"${d.id === dossierId ? ' selected' : ''}>${escapeHtml(d.libelle)}</option>`).join('')}
         </select>

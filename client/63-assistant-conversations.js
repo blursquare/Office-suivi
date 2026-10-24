@@ -89,6 +89,7 @@
   // La conversation affichée (globaux de client/49 et 61) recopiée dans la liste, puis écrite (au plus une fois par seconde).
   // `nouveauMessage` : seule une conversation qui reçoit un message remonte en tête (relecture : la parcourir ne la date pas).
   function memoriserConversationAssistant(nouveauMessage) {
+    if (canaux.actif) return;   // le fil d'un canal est celui du serveur, jamais une conversation personnelle
     if (!assistantMessages.length) return;
     if (!assistantConversationId) assistantConversationId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     let c = assistantConversations.find(x => x.id === assistantConversationId);
@@ -130,7 +131,8 @@
   }
 
   function ouvrirConversationAssistant(id) {
-    if (id === assistantConversationId || occupeAssistant()) { fermerFilsMobileAssistant(); return; }
+    if ((id === assistantConversationId && !canaux.actif) || occupeAssistant()) { fermerFilsMobileAssistant(); return; }
+    quitterCanal();
     memoriserConversationAssistant();
     const c = assistantConversations.find(x => x.id === id);
     if (!c) return;
@@ -148,6 +150,7 @@
   // Une nouvelle conversation : la précédente reste dans la liste.
   function commencerConversationAssistant() {
     if (occupeAssistant()) return false;
+    quitterCanal();
     memoriserConversationAssistant();
     assistantConversationId = '';
     fermerFilsMobileAssistant();
