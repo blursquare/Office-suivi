@@ -58,6 +58,13 @@ function veilleSignatureDue(d, maintenant) {
   return t >= debutVeilleSignature(r.debut).getTime() && t <= r.fin.getTime();
 }
 
+// Pure : la fiche de signature reste-t-elle à imprimer (tâche « Imprimer la fiche dossier » d'« À faire », étude 24/10) — due, et pas déjà
+// téléchargée pour CE rendez-vous (un rendez-vous déplacé la redemande). `aujourdhuiIso` = jour de référence (le jour même : l'heure réelle).
+function ficheSignatureAImprimer(d, aujourdhuiIso) {
+  const maintenant = !aujourdhuiIso || aujourdhuiIso === isoAujourdhuiLocal() ? new Date() : new Date(`${aujourdhuiIso}T12:00:00`);
+  return veilleSignatureDue(d, maintenant) && d.ficheSignatureImprimeePour !== cleVeilleSignature(d);
+}
+
 // Pure : repère d'un rendez-vous déjà proposé (dossier + date + heure) — un rendez-vous déplacé revient.
 function cleVeilleSignature(d) {
   const r = instantsSignatureVeille(d);
@@ -69,7 +76,7 @@ function dossiersVeilleSignature(liste, utilisateur, maintenant, vues) {
   if (!utilisateur) return [];
   const deja = new Set(Array.isArray(vues) ? vues : []);
   return (Array.isArray(liste) ? liste : [])
-    .filter(d => d && d.responsable === utilisateur && veilleSignatureDue(d, maintenant) && !deja.has(cleVeilleSignature(d)))
+    .filter(d => d && d.responsable === utilisateur && veilleSignatureDue(d, maintenant) && !deja.has(cleVeilleSignature(d)) && d.ficheSignatureImprimeePour !== cleVeilleSignature(d))
     .sort((a, b) => instantsSignatureVeille(a).debut - instantsSignatureVeille(b).debut);
 }
 
@@ -415,6 +422,12 @@ async function telechargerFicheSignature(id) {
     const { blob, nom } = await genererPdfVeilleSignature(d);
     telechargerFichier(blob, nom, 'application/pdf');
     noteVeilleSignatureVue(d);
+    // Téléchargée pour CE rendez-vous : la tâche « Imprimer la fiche dossier » d'« À faire » et le pop-up ne reviennent pas.
+    d.ficheSignatureImprimeeLe = isoAujourdhuiLocal();
+    d.ficheSignatureImprimeePour = cleVeilleSignature(d);
+    ajouterHistorique(d, 'Fiche de signature téléchargée pour impression');
+    sauvegarder(d);
+    render();
     noterVerificationPoste('veille-signature-pdf', { detail: 'fiche de signature produite' });
   } catch (e) {
     afficherToast('Impossible de produire la fiche de signature : ' + (e && e.message ? e.message : 'erreur inconnue'), 'OK', null);
@@ -474,13 +487,20 @@ function renderVeilleSignature(liste, maintenant) {
           <div class="veille-dossier-tete"><strong>${escapeHtml(f.dossier)}</strong><span class="veille-quand">${escapeHtml(delaiVeilleSignature(d, maintenant))}</span></div>
           <div class="veille-etat">${etat}</div>
           <div class="veille-actions">
-            <wa-button variant="brand" size="s" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
-            <wa-button appearance="outlined" size="s" type="button" onclick="fermerVeilleSignature(); ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">Ouvrir la fiche du dossier</wa-button>
+            <wa-button variant="brand" size="s" type="button" onclick="ouvrirFicheDossierVeilleSignature('${escapeOnclickArg(d.id)}')">${icone('folder')}Ouvrir la fiche du dossier</wa-button>
+            <wa-button appearance="outlined" size="s" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
           </div>
         </div>`;
       }).join('')}
     </div>
     <div class="confirm-actions"><wa-button appearance="outlined" type="button" onclick="fermerVeilleSignature()">Fermer</wa-button></div>`;
+}
+
+// Le pop-up mène à la fiche du dossier (onglet Dossier, où se trouve « Fiche de signature » dans la ligne « Outils ») — étude 24/10.
+function ouvrirFicheDossierVeilleSignature(id) {
+  fermerVeilleSignature();
+  ouvrirDossierDepuisDashboard(id);
+  definirOngletFiche('dossier');
 }
 
 function fermerVeilleSignature() {

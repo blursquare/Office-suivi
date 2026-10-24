@@ -120,7 +120,7 @@ var THEMES_TACHES = [
   { cle: 'agenda', nom: 'Agenda', sous: 'rendez-vous à fixer ou à placer', types: [], motif: /^point-.*(rendez-vous|rdv)/ },
   { cle: 'rediger', nom: 'Prêts à rédiger', sous: 'dossier complet ou presque', types: ['redaction'] },
   { cle: 'relances', nom: 'Relances', sous: 'prêt, vente préalable, fonds, confrère', types: ['pret', 'ventePrealable', 'relanceFonds', 'relanceTitreConfrere', 'relanceDecompteConfrere', 'pieces', 'fonds'] },
-  { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
+  { cle: 'avant', nom: 'Avant la signature', sous: 'appel de fonds, projet, RIB, étapes', types: ['appelFonds', 'projetEnvoye', 'rib', 'ficheSignature', 'decompteSuccession', 'projetSuccession', 'appelFondsSuccession', 'notoriete', 'controleDroits', 'transfertComptes', 'deblocageFonds', 'receptionFonds'] },
   { cle: 'apres', nom: 'Après la signature', sous: 'copie, questionnaire, factures', types: ['questionnaire', 'questionnaireVendeur', 'questionnaireSuccession', 'copieActe', 'factureSuccession'] },
   { cle: 'decider', nom: 'À décider', sous: 'préemption, autres points', types: [] }
 ];
