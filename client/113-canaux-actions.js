@@ -280,7 +280,7 @@ function htmlColonneCanal() {
       </div></details>`;
     const cartes = Object.values(canaux.cartes).filter(p => p.dossierId === d.id).sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)));
     const silences = canaux.silences || [];
-    blocs += `<details class="asst-droite-bloc" open><summary>${icone('sparkle')} Claire sur ce dossier <span class="asst-droite-nb">${cartes.length || ''}</span></summary>
+    blocs += `<details class="asst-droite-bloc" open><summary>${icone('discussion')} Claire sur ce dossier <span class="asst-droite-nb">${cartes.length || ''}</span></summary>
       <div class="cx-bloc">${cartes.length ? `<ul class="cx-activite">${cartes.slice(0, 8).map(p => `<li class="cx-act-${escapeAttr(p.etat)}"><span class="cx-act-point" aria-hidden="true"></span><span class="cx-act-texte">${escapeHtml(p.titre)}<small>${escapeHtml(p.etat === 'proposee' || p.etat === 'vue' ? 'À décider' : etatTexteProposition(p))}</small></span></li>`).join('')}</ul>` : '<p class="asst-droite-vide">Rien de préparé pour l’instant.</p>'}
       ${silences.length ? `<div class="cx-silences">${silences.map(s => `<div class="cx-silence"><span>${s.routine ? 'Routine coupée' : 'Claire coupée'} sur ce dossier</span><button type="button" class="cx-lien" onclick="retablirSilenceCanal('${escapeOnclickArg(s.routine)}')">Rétablir</button></div>`).join('')}</div>` : ''}</div></details>`;
   }

@@ -106,7 +106,7 @@
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
       zone.innerHTML = `<div class="asst-accueil">
-          <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
+          <div class="asst-accueil-logo" aria-hidden="true">${icone('discussion')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
           <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase. Tapez @ pour citer un dossier.</p>
           <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
@@ -126,13 +126,13 @@
       const jour = r.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(m.quand, maintenant))}</span></div>` : '';
       // Présentation « façon Claude » (étude 21/10) : pas d'avatar ni de nom ; la demande dans une bulle à droite, la réponse en pleine
       // largeur avec la petite étincelle de CLAIRE en tête ; copier sous le message, au survol.
-      const marque = m.role === 'claire' && r.debutGroupe ? `<span class="asst-marque" aria-hidden="true">${icone('sparkle')}</span>` : '';
+      const marque = m.role === 'claire' && r.debutGroupe ? `<span class="asst-marque" aria-hidden="true">${icone('discussion')}</span>` : '';
       return `${jour}<div class="asst-message asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}" title="${escapeAttr(heureAssistant(m.quand))}">
           ${marque}<div class="asst-corps"><div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
           <div class="asst-survol"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
-          <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('sparkle')}</span>
+          <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('discussion')}</span>
           <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;

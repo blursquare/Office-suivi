@@ -396,7 +396,7 @@ function majSaisieCanal() {
     bascule.style.display = reel && canaux.actif === 'general' ? '' : 'none';
     bascule.classList.toggle('actif', canaux.claireRepond);
     bascule.setAttribute('aria-pressed', String(canaux.claireRepond));
-    bascule.innerHTML = canaux.claireRepond ? `${icone('sparkle')}Claire répond` : `${icone('users')}Note à l’équipe`;
+    bascule.innerHTML = canaux.claireRepond ? `${icone('discussion')}Claire répond` : `${icone('users')}Note à l’équipe`;
     bascule.title = canaux.claireRepond ? 'Claire répond à votre message (sauf s’il s’adresse à un collègue avec @). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
   }
   if (saisie) saisie.classList.toggle('canal-note', reel && canaux.actif === 'general' && !canaux.claireRepond);
