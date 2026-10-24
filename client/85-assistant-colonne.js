@@ -277,6 +277,7 @@
         <span class="asst-droite-titre">Espace de travail</span>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerColonneAssistant()" title="Masquer la colonne" aria-label="Masquer la colonne">${icone('x')}</wa-button>
       </div>
+      ${typeof htmlColonneCanal === 'function' ? htmlColonneCanal() : ''}
       ${a ? `<section class="asst-droite-bloc asst-apercu" aria-label="Aperçu du document">
         <div class="asst-apercu-tete">
           <span class="asst-apercu-nom">${escapeHtml(nomDocumentLocalAssistant(a.docId))}</span>
@@ -294,23 +295,23 @@
         <summary>${icone('list-check')} Étapes du travail</summary>
         ${etapes.length ? `<ol class="asst-etapes">${etapes.map(e => `<li class="asst-etape-${e.etat}"><span class="asst-etape-marque" aria-hidden="true">${e.etat === 'fait' ? icone('check') : ''}</span>${escapeHtml(e.texte)}</li>`).join('')}</ol>` : ''}
         ${journal.length ? `<ul class="asst-journal">${journal.map(j => `<li class="${j.fini ? 'fini' : 'encours'}">${j.fini ? icone('check') : '<span class="asst-journal-point" aria-hidden="true"></span>'}${escapeHtml(j.libelle)}</li>`).join('')}</ul>` : ''}
-        ${!etapes.length && !journal.length ? '<p class="asst-droite-vide">Le plan et les lectures de CLAIRE s’affichent ici pendant qu’elle travaille.</p>' : ''}
+        ${!etapes.length && !journal.length ? '<p class="asst-droite-vide">Le plan et les lectures de Claire s’affichent ici pendant qu’elle travaille.</p>' : ''}
       </details>
       <details class="asst-droite-bloc" data-bloc="documents"${blocsOuvertsColonneAssistant.documents ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['documents'] = this.open">
         <summary>${icone('file-text')} Documents <span class="asst-droite-nb">${docs.length || ''}</span></summary>
         ${docs.length ? `<ul class="asst-docs">${docs.map(d => `<li><button type="button" class="asst-doc" onclick="afficherApercuAssistant('${escapeOnclickArg(d.id)}', 1, '')" ${d.image ? 'disabled' : ''}>
             <span class="asst-doc-nom">${escapeHtml(d.nomFichier || d.libelle)}</span>
             <span class="asst-doc-note">${escapeHtml(d.id)}${d.joint ? ' · joint' : ''}${d.pages ? ' · lu p. ' + escapeHtml(d.pages) : ''}</span></button></li>`).join('')}</ul>`
-          : '<p class="asst-droite-vide">Joignez un PDF au message (trombone ou glisser-déposer) ou demandez à CLAIRE de lire un document du dossier.</p>'}
+          : '<p class="asst-droite-vide">Joignez un PDF au message (trombone ou glisser-déposer) ou demandez à Claire de lire un document du dossier.</p>'}
       </details>
       <details class="asst-droite-bloc" data-bloc="dossier"${blocsOuvertsColonneAssistant.dossier ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['dossier'] = this.open">
         <summary>${icone('folder')} Dossier rattaché</summary>
-        <select id="assistant-colonne-dossier" class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
+        ${canaux.actif && canaux.actif.startsWith('d:') ? '' : `        <select id="assistant-colonne-dossier" ${canaux.actif && canaux.actif.startsWith('d:') ? 'disabled title="Ce canal est celui de ce dossier"' : ''} class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
           <option value="">Aucun dossier</option>
           ${dossiersTries.map(d => `<option value="${escapeAttr(d.id)}"${d.id === dossierId ? ' selected' : ''}>${escapeHtml(d.libelle)}</option>`).join('')}
-        </select>
+        </select>`}
         ${dossierId ? `<div class="asst-droite-actions"><wa-button appearance="outlined" size="s" type="button" onclick="chargerDocumentsDossierColonne()">Pièces du NAS</wa-button>
-          <wa-button appearance="plain" size="s" type="button" onclick="ouvrirDossierDepuisColonneAssistant()">Ouvrir la fiche</wa-button></div>` : ''}
+          ${canaux.actif && canaux.actif.startsWith('d:') ? '' : '<wa-button appearance="plain" size="s" type="button" onclick="ouvrirDossierDepuisColonneAssistant()">Ouvrir la fiche</wa-button>'}</div>` : ''}
         ${dd && dd.chargement ? '<p class="asst-droite-vide">Lecture du dossier du NAS…</p>' : ''}
         ${dd && dd.erreur ? `<p class="asst-droite-vide">${escapeHtml(dd.erreur)}</p>` : ''}
         ${dd && dd.liste && dd.liste.length ? `<ul class="asst-docs asst-docs-dossier">${dd.liste.slice(0, 60).map(d => `<li><button type="button" class="asst-doc" onclick="afficherApercuAssistant('${escapeOnclickArg(d.id)}', 1, '')">

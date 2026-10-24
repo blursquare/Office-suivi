@@ -154,12 +154,12 @@ test('lignesGalerieWidgets : tous les widgets, affichés d’abord puis retirés
   assert.equal(lignes.map(l => `${l.def.id}:${l.affiche ? 'oui' : 'non'}`).join(','),
     'aujourdhui:oui,assistant:oui,nouveautes:oui,avancement:oui,activite:oui,statistiques:oui,agenda:non,portefeuille:non,pieces:non');
   assert.ok(lignes.every(l => l.def.description && l.def.icone));
-  assert.ok(!app.lignesGalerieWidgets(dispo, 'Julie VASSELIN').some(l => l.def.id === 'assistant'), 'Demander à CLAIRE : Bastien seulement');
+  assert.ok(app.lignesGalerieWidgets(dispo, 'Julie VASSELIN').some(l => l.def.id === 'assistant'), 'Demander à CLAIRE : ouvert à tous depuis les canaux (24/10)');
 });
 
-test('ongletReserve : Relecture d’actes et Demander à CLAIRE réservés à l’administrateur', () => {
+test('ongletReserve : plus aucun écran réservé à l’administrateur (Demander à CLAIRE ouvert à tous depuis les canaux, 24/10)', () => {
   const app = chargerApplication();
-  assert.equal(app.ongletReserve('assistant', 'Julie VASSELIN'), true);
+  assert.equal(app.ongletReserve('assistant', 'Julie VASSELIN'), false);
   assert.equal(app.ongletReserve('analyse-ia', ''), false, 'relecture d’actes retirée (18/10) : dans « Demander à CLAIRE »');
   assert.equal(app.ongletReserve('suivi', 'Julie VASSELIN'), false);
 });

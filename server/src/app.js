@@ -38,6 +38,7 @@ const { creerRouteurPoste, creerRouteurIconePoste } = require('./routes/poste');
 const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerrain');
 const { creerRouteurNomsFichiersNas } = require('./routes/nomsFichiersNas');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
+const { creerRouteurPhotosCollaborateurs } = require('./routes/photosCollaborateurs');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurModelesEmails } = require('./routes/modelesEmails');
 const { creerRouteurPreferences } = require('./routes/preferences');
@@ -57,6 +58,10 @@ const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
+const { creerRouteurRoutines } = require('./routes/routines');
+const { creerPlanificateur } = require('./routines/planificateur');
+const { creerRouteurCanaux } = require('./routes/canaux');
+const { creerNotifieur } = require('./canaux/notifier');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
 const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
 const { creerRouteurSignatureRib } = require('./routes/signatureRib');
@@ -248,6 +253,10 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Signature du RIB (étude 23/10) : brouillon Yousign préparé par l'agent géré d'Anthropic, avec la clé d'API Claude des Réglages.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureRib(parametresRepo, creerSignatureRibAgent({ parametresRepo, config, creerClient: assistant && assistant.creerClientSignatureRib })));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
+  // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
+  const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRoutines(parametresRepo, planificateurRoutines));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn }), depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNasLibre(config, parametresRepo));
@@ -284,6 +293,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureImages(db));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPhotosCollaborateurs(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   // Modèles d'emails de l'étude (Réglages › Modèles d'emails, fenêtre d'email) : voir modelesEmails.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurModelesEmails(parametresRepo));
@@ -329,7 +339,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

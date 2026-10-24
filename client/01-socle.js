@@ -244,6 +244,7 @@
     // Fiche dossier (tiroir) : barre d'actions à icônes seules et lignes de propriétés.
     archive: '<rect x="1.8" y="2.6" width="12.4" height="3.2" rx="0.8"/><path d="M2.8 5.8v6.8a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1V5.8"/><line x1="6.4" y1="8.4" x2="9.6" y2="8.4"/>',
     trash: '<path d="M2.6 4.2h10.8"/><path d="M6.2 4.2V2.6h3.6v1.6"/><path d="M3.8 4.2l.7 9.2a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-9.2" stroke-linejoin="round"/>',
+    'boite-claire': '<rect x="2" y="2.2" width="12" height="11.6" rx="3"/><path d="M8 4.9 8.9 7.1 11.1 8 8.9 8.9 8 11.1 7.1 8.9 4.9 8 7.1 7.1 8 4.9Z" stroke-linejoin="round"/>',
     printer: '<path d="M4.4 5.6V1.8h7.2v3.8"/><rect x="1.6" y="5.6" width="12.8" height="5.6" rx="1.2"/><rect x="4.4" y="9.2" width="7.2" height="5" rx="0.6"/>',
     maximize: '<path d="M9.4 2.2h4.4v4.4"/><path d="M13.8 2.2 9 7"/><path d="M6.6 13.8H2.2V9.4"/><path d="M2.2 13.8 7 9"/>',
     minimize: '<path d="M13.6 6.4H9.6V2.4"/><path d="M9.6 6.4 14 2"/><path d="M2.4 9.6h4v4"/><path d="M6.4 9.6 2 14"/>',
@@ -256,7 +257,12 @@
     package: '<path d="M8 1.6 14 5v6L8 14.4 2 11V5Z" stroke-linejoin="round"/><path d="M2 5 8 8.4 14 5"/><line x1="8" y1="8.4" x2="8" y2="14.4"/>',
     // Épingle (« garder la sidebar toujours ouverte ») : une tête + une tige, pour rester dans le
     // même vocabulaire minimal (pas une punaise/pin réaliste).
-    pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>'
+    pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>',
+    discussion: '<g fill="currentColor" stroke="none"><path transform="translate(-1 2.8) scale(.88)" fill-rule="evenodd" d="M2.2 11.6C1.2 8.8 2.4 5.6 5 4.4 7 3.5 9.3 3.5 11.2 4.4c2.6 1.2 3.7 4.2 2.8 7-.4 1.6-1.8 2.4-3.4 2.4H5.6c-1.6 0-3-.8-3.4-2.2ZM4.25 9.2a.95.95 0 1 0 1.9 0a.95.95 0 1 0-1.9 0ZM9.850000000000001 9.2a.95.95 0 1 0 1.9 0a.95.95 0 1 0-1.9 0ZM6.6 10.3h2.8c0 1.5-.6 1.9-1.4 1.9s-1.4-.4-1.4-1.9Z"/><path transform="translate(11.6 4.4) scale(.62)" d="M0-5C.6-1.7 1.7-.6 5 0 1.7.6.6 1.7 0 5-.6 1.7-1.7.6-5 0-1.7-.6-.6-1.7 0-5Z"/></g>',
+    cloche: '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 8.8 0v3.8l1.1 1.3H2.5z" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/>',
+    'cloche-barree': '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 7.3-3.3M12.4 7.6v3.6l1.1 1.3H2.5" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/><line x1="2.2" y1="2.2" x2="13.8" y2="13.8"/>',
+    etoile: '<path d="M8 1.9 9.8 5.8l4.2.5-3.1 2.9.8 4.2L8 11.3l-3.7 2 .8-4.2L2 6.3l4.2-.5z" stroke-linejoin="round"/>',
+    diese: '<line x1="6" y1="2.4" x2="4.8" y2="13.6"/><line x1="11.2" y1="2.4" x2="10" y2="13.6"/><line x1="2.8" y1="6" x2="13.2" y2="6"/><line x1="2.4" y1="10" x2="12.8" y2="10"/>'
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").

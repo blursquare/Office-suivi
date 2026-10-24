@@ -96,6 +96,8 @@
       memoriserReglagesEnregistres(reglages);
       renderReglagesEmails(reglages.emailsResponsables || {}, reglages.fonctionsResponsables || {});
       chargerComptesCollaborateurs();
+      chargerPhotosCollaborateurs();
+      renderReglagesPhotos();
       chargerDelaisRappels();
       renderReglages3cx();
       renderReglagesAuthentic();

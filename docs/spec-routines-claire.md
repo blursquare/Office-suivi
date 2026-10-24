@@ -87,7 +87,7 @@ Un interrupteur par routine (**éteint par défaut**), l'heure, la date repère,
 
 ## 7. Phasage proposé
 
-- **Phase 0 — le socle (démarrage décidé le 24/10)** : identité « CLAIRE », planificateur, boîte de propositions (clé, routes, widget, pastille, bloc de la fiche), journal, Réglages › Routines avec les **trois niveaux d'autonomie réglables par routine**, plafond de 50 € par mois, résumé Teams de 9 h 30. Aucune routine encore ; une routine d'essai « bonjour » pour vérifier la chaîne.
+- **Phase 0 — le socle (démarrage décidé le 24/10)** : identité « CLAIRE », planificateur, boîte de propositions (clé, routes, widget, pastille, bloc de la fiche), journal, Réglages › Routines avec les **trois niveaux d'autonomie réglables par routine**, plafond de 50 € par mois, résumé Teams de 9 h 30. Aucune routine encore ; une routine d'essai pour vérifier la chaîne. **Réalisée en 0.327.0** (voir `docs/historique.md`) à une exception près : le widget du tableau de bord n'est pas fait (la boîte est dans la barre latérale et en tête de la fiche).
 - **Phase 1 — par le code seul** : R1 (blocages et relances, sans rédaction par l'IA) et R4 (veille de signature, Teams).
 - **Phase 2 — le poste CLAIRE** : fenêtre sans écran, puis R2 (constitution), R3 (appel de fonds), R5 (autorisations de notoriété).
 - **Phase 3 — l'IA** : agent « mode routine », plafond de jetons, puis R6 (relance des pièces), R7 (proposition de dates), rédaction des brouillons de R1, R8 (veille juridique).

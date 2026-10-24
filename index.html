@@ -55,10 +55,6 @@
         <span class="sidebar-scan-icone" id="icon-nav-scans" aria-hidden="true"></span>
         <span class="sidebar-scan-pastille" id="badge-scans" style="display:none;"></span>
       </button>
-      <!-- Demander à CLAIRE (étude 20/10), à côté de Claire Scan : la page de conversation ; réservé à l'administrateur. -->
-      <button type="button" id="tab-assistant" class="sidebar-scan-bannette" style="display:none;" onclick="definirOnglet('assistant')" aria-label="Demander à CLAIRE" title="Demander à CLAIRE">
-        <span class="sidebar-scan-icone" id="icon-nav-assistant" aria-hidden="true"></span>
-      </button>
       <span class="sidebar-controles-espace"></span>
       <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
         <span id="icon-sidebar-collapse" aria-hidden="true"></span>
@@ -66,8 +62,7 @@
     </div>
 
     <!-- Recherche de la barre (étude 20/10 : « un champ de recherche à la place de Demander à CLAIRE, pour rechercher un dossier ou un outil ») :
-         dossiers (nom, parties, adresse, référence) et écrans/outils de la barre ; la liste s'ouvre sous le champ, flèches + Entrée, Ctrl+K.
-         « Demander à CLAIRE » est le bouton à côté de Claire Scan (réservé à Bastien comme avant, `majSidebarReservee`, id `tab-assistant`). -->
+         dossiers (nom, parties, adresse, référence) et écrans/outils de la barre ; la liste s'ouvre sous le champ, flèches + Entrée, Ctrl+K. -->
     <form id="sidebar-recherche" class="sidebar-recherche" role="search" aria-label="Rechercher un dossier ou un outil" onsubmit="event.preventDefault(); ouvrirRechercheSidebar();">
       <button type="button" class="sidebar-recherche-icone" id="icon-sidebar-recherche" aria-label="Rechercher" title="Rechercher (Ctrl+K)" onclick="focaliserRechercheSidebar()"></button>
       <input type="text" id="sidebar-recherche-saisie" class="sidebar-recherche-saisie" placeholder="Dossier ou outil…" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="sidebar-recherche-liste" aria-label="Rechercher un dossier ou un outil" oninput="majRechercheSidebar()" onfocus="majRechercheSidebar()" onblur="fermerRechercheSidebar()" onkeydown="toucheRechercheSidebar(event)">
@@ -98,6 +93,12 @@
         <span class="sidebar-link-icone" id="icon-nav-agenda" aria-hidden="true"></span>Agenda
         <!-- Réponses aux dates proposées arrivées et pas encore vues (majBadgeAgendaDates). -->
         <span class="sidebar-badge-notif" id="badge-notif-agenda" style="display:none;"></span>
+      </button>
+
+      <!-- Discussions (ex-« Demander à CLAIRE », étude 24/10) : conversations, canaux par dossier et propositions de CLAIRE ; ouvert à tous ; la pastille compte les messages non lus. -->
+      <button type="button" id="tab-assistant" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('assistant')" title="Discussions">
+        <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Discussions
+        <span class="sidebar-badge-notif" id="badge-assistant" style="display:none;"></span>
       </button>
 
       <!-- Outils (étude, 01/10 puis 06/10) : plus de page des outils — « Outils » déplie ou replie le tiroir dans la barre
@@ -1498,16 +1499,21 @@
   <!-- Présentation « façon Claude » (étude 21/10, avant : « à la Slack ») : demande en bulle, réponse en pleine largeur ; @ pour citer un dossier. -->
   <div class="asst-page">
     <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
-    <aside class="asst-cote" aria-label="Conversations">
-      <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
-      <div class="asst-fils" id="assistant-fils"></div>
+    <aside class="asst-cote" aria-label="Conversations et canaux">
+      <section class="asst-cote-conversations" aria-label="Mes conversations avec Claire">
+        <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
+        <div class="asst-fils" id="assistant-fils"></div>
+      </section>
+      <!-- Canaux (étude 24/10, client/112-canaux.js) : un fil partagé par dossier, « général » et canaux libres. -->
+      <section class="asst-cote-canaux" id="assistant-canaux" aria-label="Canaux"></section>
     </aside>
     <div class="asst-principal">
     <div class="asst-tete">
       <wa-button appearance="plain" size="s" class="bouton-icone asst-fils-bouton" type="button" onclick="basculerFilsMobileAssistant()" title="Conversations" aria-label="Conversations"><span id="icon-assistant-fils" aria-hidden="true"></span></wa-button>
       <wa-button appearance="plain" size="s" class="bouton-icone asst-fils-replier" id="assistant-fils-replier" aria-expanded="true" type="button" onclick="basculerFilsRepliesAssistant()" title="Replier les conversations" aria-label="Replier les conversations"><span id="icon-assistant-replier" aria-hidden="true"></span></wa-button>
-      <h1 class="asst-titre">Demander à CLAIRE</h1>
+      <h1 class="asst-titre">Discussions</h1>
       <div class="asst-etat" id="assistant-etat"></div>
+      <div class="cx-entete-canal" id="canal-entete" style="display:none;"></div>
       <span class="asst-tete-espace"></span>
       <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
       <wa-button appearance="plain" size="s" class="bouton-icone asst-colonne-bouton" id="assistant-colonne-bouton" aria-controls="assistant-droite" aria-expanded="false" type="button" onclick="basculerColonneAssistant()" title="Espace de travail : documents, aperçu, dossier, étapes" aria-label="Espace de travail"><span id="icon-assistant-colonne" aria-hidden="true"></span></wa-button>
@@ -1519,10 +1525,11 @@
         <div class="asst-mention" id="assistant-mention" role="listbox" aria-label="Dossiers" style="display:none;"></div>
         <div class="asst-pj-liste asst-pj-saisie" id="assistant-pieces" style="display:none;"></div>
         <input type="file" id="assistant-fichiers" accept="application/pdf,.pdf,image/*" multiple hidden onchange="ajouterPiecesJointesAssistant(this.files)">
-        <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
+        <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à Claire… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
+          <button type="button" class="canal-bascule" id="canal-bascule" style="display:none;" onclick="basculerClaireRepond()" aria-pressed="true"></button>
           <div class="asst-options-saisie" id="assistant-options-saisie"></div>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
           <wa-button variant="brand" size="s" type="submit" class="asst-envoyer">Envoyer <span id="icon-assistant-envoyer" aria-hidden="true"></span></wa-button>
@@ -1675,6 +1682,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
       <div class="reglages-nav-groupe" role="presentation">Intelligence de CLAIRE</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-routines" aria-controls="reglages-panneau-routines" aria-selected="false" onclick="definirSousOngletReglages('routines')">Routines de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-consignes" aria-controls="reglages-panneau-consignes" aria-selected="false" onclick="definirSousOngletReglages('consignes')">Consignes de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
@@ -1852,6 +1860,10 @@
       <h3 class="reglages-section-titre">Comptes Exchange <span class="info-i" tabindex="0" data-info="Identifiant et mot de passe de la messagerie de chaque collaborateur (ceux d'Outlook). Avec eux, CLAIRE lit ses « Éléments envoyés » pour suivre ses emails de dossiers et envoie ses emails depuis sa propre boîte, sans accès délégué ni droit « Envoyer en tant que » à demander à Fichorga. Le mot de passe n'est jamais réaffiché ni envoyé ailleurs. Un seul essai à la fois : si Exchange refuse les identifiants, le compte est mis de côté jusqu'à correction (un compte verrouillé par trop d'essais bloquerait la messagerie du collaborateur). Sans compte, rien ne change : le compte relié sert."></span></h3>
       <div class="reglages-liste" id="reglages-comptes-liste"></div>
     </div>
+    <div class="reglages-section">
+      <h3 class="reglages-section-titre">Photos de profil <span class="info-i" tabindex="0" data-info="La photo remplace les initiales du collaborateur partout dans CLAIRE (Suivi, tâches, canaux). Sans photo, les initiales restent. L'image est recadrée en carré et réduite avant d'être enregistrée."></span></h3>
+      <div class="reglages-liste" id="reglages-photos-liste"></div>
+    </div>
   </section>
 
   <!-- ===== Téléphonie 3CX : adresse à coller dans l'« Intégration CRM » du client web de chaque
@@ -1918,7 +1930,7 @@
     <h2 class="reglages-titre">Légifrance et BOFiP</h2>
     <!-- Sources juridiques officielles par OpenLegi (étude 18/10) — server/src/openlegi.js, client/84-openlegi.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Sources juridiques (OpenLegi) <span class="info-i" tabindex="0" data-info="Légifrance (codes, jurisprudence, Journal officiel, textes consolidés), BOFiP et registre national des entreprises, par OpenLegi (hébergé en France). L'agent de « Demander à CLAIRE » y cherche un article, une décision ou une société. Pour Légifrance et le BOFiP, seuls des mots de droit partent, jamais un nom de client ; pour le registre des entreprises, le nom de la société cherchée part. Le jeton reste sur le serveur du bureau."></span></h3>
+      <h3 class="reglages-section-titre">Sources juridiques (OpenLegi) <span class="info-i" tabindex="0" data-info="Légifrance (codes, jurisprudence, Journal officiel, textes consolidés), BOFiP et registre national des entreprises, par OpenLegi (hébergé en France). L'agent de CLAIRE dans les Discussions y cherche un article, une décision ou une société. Pour Légifrance et le BOFiP, seuls des mots de droit partent, jamais un nom de client ; pour le registre des entreprises, le nom de la société cherchée part. Le jeton reste sur le serveur du bureau."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-openlegi-jeton">Jeton OpenLegi</label><span class="info-i" tabindex="0" data-info="Sur auth.openlegi.fr, tableau de bord. Laisser vide conserve celui en place."></span></div>
@@ -1938,11 +1950,17 @@
     </div>
   </section>
 
+  <!-- ===== Routines de CLAIRE (étude 24/10, phase 0) — client/111-reglages-routines.js ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-routines" role="tabpanel" aria-labelledby="reglages-onglet-routines" hidden>
+    <h2 class="reglages-titre">Routines de CLAIRE</h2>
+    <div id="routines-contenu"></div>
+  </section>
+
   <section class="reglages-panneau" id="reglages-panneau-yousign" role="tabpanel" aria-labelledby="reglages-onglet-yousign" hidden>
     <h2 class="reglages-titre">Yousign</h2>
     <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
+      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de CLAIRE dans les Discussions lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign (facultative)</label><span class="info-i" tabindex="0" data-info="Inutile avec « Se connecter à Yousign » (identifiant et mot de passe de Yousign, saisis sur la page de Yousign : CLAIRE ne les voit jamais). Une clé d'API reste possible si Yousign en accepte une pour ce serveur. Laisser vide conserve celle en place."></span></div>
@@ -2000,7 +2018,7 @@
       <div id="apprentissage-exclusions"></div>
     </div>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Relecture d'actes : vos commentaires <span class="info-i" tabindex="0" data-info="Les avis donnés sur les anciennes relectures : « Demander à CLAIRE » les lit comme consignes quand elle relit un acte. Pour en ajouter une, « Corriger » sous une réponse de CLAIRE (elle va dans CLAIRE.md)."></span></h3>
+      <h3 class="reglages-section-titre">Relecture d'actes : vos commentaires <span class="info-i" tabindex="0" data-info="Les avis donnés sur les anciennes relectures : les Discussions les lit comme consignes quand elle relit un acte. Pour en ajouter une, « Corriger » sous une réponse de CLAIRE (elle va dans CLAIRE.md)."></span></h3>
       <div id="apprentissage-relecture"></div>
     </div>
   </section>
@@ -2119,7 +2137,7 @@
     <h2 class="reglages-titre">IA et relecture d'actes</h2>
     <!-- « Demander à CLAIRE » (étude 07/10 : Mistral ; 08/10 : Claude pour toutes les demandes, noms masqués) — server/src/assistantClaude.js, assistantMistral.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Demander à CLAIRE</h3>
+      <h3 class="reglages-section-titre">Discussions</h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-assistant-moteur">IA qui comprend les demandes</label><span class="info-i" tabindex="0" data-info="Seule la phrase part chez Claude ou Mistral, noms, adresses, emails et téléphones remplacés par des codes. Les fiches restent au bureau. La clé utilisée est celle de la relecture d’actes, plus bas."></span></div>
@@ -2177,7 +2195,7 @@
     </div>
     <!-- Recherche web de l'agent, sites officiels seulement (étude 18/10) — server/src/conversationsAgent.js, client/84-openlegi.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Recherche web (sites officiels) <span class="info-i" tabindex="0" data-info="L'agent de « Demander à CLAIRE » (Claude) peut chercher sur ces sites seulement, pour vérifier un texte, une règle ou une procédure publique. La recherche est écrite par l'IA, qui ne voit les noms des clients que sous forme de codes (masqués par le serveur) ; elle peut contenir un montant ou une date. Un site par ligne."></span></h3>
+      <h3 class="reglages-section-titre">Recherche web (sites officiels) <span class="info-i" tabindex="0" data-info="L'agent de CLAIRE dans les Discussions (Claude) peut chercher sur ces sites seulement, pour vérifier un texte, une règle ou une procédure publique. La recherche est écrite par l'IA, qui ne voit les noms des clients que sous forme de codes (masqués par le serveur) ; elle peut contenir un montant ou une date. Un site par ligne."></span></h3>
       <div class="reglages-liste">
         <label class="reglages-option" for="reglages-web-actif">
           <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE cherche sur les sites officiels</span></span>
@@ -2195,7 +2213,7 @@
     </div>
     <!-- Lecture libre du NAS par l'agent (étude 21/10, palier 2) — server/src/nasLibre.js, client/97-assistant-nas-libre.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Lecture libre du NAS <span class="info-i" tabindex="0" data-info="Éteinte par défaut. Allumée, l'agent de « Demander à CLAIRE » peut chercher (par le nom) et lire, en LECTURE SEULE, des fichiers du NAS hors du dossier d'un client, dans les dossiers ouverts ci-dessous. Les PDF sont lus par le poste (OCR compris), les Word et textes par le serveur ; ce qu'il lit part vers l'IA en ligne, mots des fiches, emails et téléphones masqués par le serveur ; ATTENTION : dans les NOMS de dossiers et de fichiers, un nom de personne absent des fiches en cours (archives, anciens dossiers) part en clair — n'ouvrez donc que des dossiers sans nom de client (modèles, outils). Montants et dates en clair. Un dossier par ligne, chemin depuis la racine du NAS ; vide = toute la racine. Un mot de la seconde liste écarte tout dossier ou fichier dont le nom le porte."></span></h3>
+      <h3 class="reglages-section-titre">Lecture libre du NAS <span class="info-i" tabindex="0" data-info="Éteinte par défaut. Allumée, l'agent de CLAIRE dans les Discussions peut chercher (par le nom) et lire, en LECTURE SEULE, des fichiers du NAS hors du dossier d'un client, dans les dossiers ouverts ci-dessous. Les PDF sont lus par le poste (OCR compris), les Word et textes par le serveur ; ce qu'il lit part vers l'IA en ligne, mots des fiches, emails et téléphones masqués par le serveur ; ATTENTION : dans les NOMS de dossiers et de fichiers, un nom de personne absent des fiches en cours (archives, anciens dossiers) part en clair — n'ouvrez donc que des dossiers sans nom de client (modèles, outils). Montants et dates en clair. Un dossier par ligne, chemin depuis la racine du NAS ; vide = toute la racine. Un mot de la seconde liste écarte tout dossier ou fichier dont le nom le porte."></span></h3>
       <div class="reglages-liste">
         <label class="reglages-option" for="reglages-nas-libre-actif">
           <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut parcourir et lire le NAS</span></span>
@@ -2216,7 +2234,7 @@
       </div>
     </div>
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">IA en ligne de « Demander à CLAIRE » (relecture d'actes comprise)</h3>
+      <h3 class="reglages-section-titre">IA en ligne des Discussions (relecture d'actes comprise)</h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-ia-fournisseur">Fournisseur</label></div>
@@ -2317,15 +2335,15 @@
 
   <!-- Mémoire de CLAIRE (étude 15/10) : quatre dossiers du NAS lus et indexés pour « Demander à CLAIRE ». Voir server/src/memoire.js, client/70-memoire.js. -->
   <section class="reglages-panneau" id="reglages-panneau-memoire" role="tabpanel" aria-labelledby="reglages-onglet-memoire" hidden>
-    <h2 class="reglages-titre">Mémoire de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE lit les dossiers DECENNALES ENTREPRISES, FAUSSES MINUTES, MODELES - OUTILS et RAPPEL DE PROCEDURES du NAS (Word par le serveur, PDF et scans par ce poste) et les garde sur le serveur du bureau. « Demander à CLAIRE » y cherche des extraits : le texte est masqué avant d'être envoyé à l'IA, jamais un nom de fichier."></span></h2>
+    <h2 class="reglages-titre">Mémoire de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE lit les dossiers DECENNALES ENTREPRISES, FAUSSES MINUTES, MODELES - OUTILS et RAPPEL DE PROCEDURES du NAS (Word par le serveur, PDF et scans par ce poste) et les garde sur le serveur du bureau. les Discussions y cherche des extraits : le texte est masqué avant d'être envoyé à l'IA, jamais un nom de fichier."></span></h2>
     <div class="reglages-section" id="memoire-corps"></div>
   </section>
 
-  <!-- ===== Consignes de CLAIRE (CLAIRE.md, étude 18/10) : un carnet Markdown pour toute l'étude, lu par « Demander à CLAIRE »
+  <!-- ===== Consignes de CLAIRE (CLAIRE.md, étude 18/10) : un carnet Markdown pour toute l'étude, lu par les Discussions
        avant chaque conversation. Voir client/83-carnet-claire.js et server/src/carnetClaire.js. ===== -->
   <section class="reglages-panneau" id="reglages-panneau-consignes" role="tabpanel" aria-labelledby="reglages-onglet-consignes" hidden>
     <div class="reglages-titre-ligne">
-      <h2 class="reglages-titre">Consignes de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE.md : le carnet de l'étude, lu par « Demander à CLAIRE » avant chaque conversation — ton, vocabulaire, règles, corrections. Écrit en Markdown, comme un CLAUDE.md. Jamais le nom d'un client ni d'un dossier : un texte qui en cite un est refusé. Le bouton « Corriger » sous une réponse de CLAIRE ajoute une consigne ici."></span></h2>
+      <h2 class="reglages-titre">Consignes de CLAIRE <span class="info-i" tabindex="0" data-info="CLAIRE.md : le carnet de l'étude, lu par les Discussions avant chaque conversation — ton, vocabulaire, règles, corrections. Écrit en Markdown, comme un CLAUDE.md. Jamais le nom d'un client ni d'un dossier : un texte qui en cite un est refusé. Le bouton « Corriger » sous une réponse de CLAIRE ajoute une consigne ici."></span></h2>
       <wa-button appearance="outlined" size="s" type="button" id="consignes-telecharger" onclick="telechargerCarnetClaire()">Télécharger CLAIRE.md</wa-button>
     </div>
     <div class="reglages-section">
@@ -2963,5 +2981,10 @@
 <script src="client/109-attestation-rib.js"></script>
 <script src="client/110-assistant-nouveau-dossier.js"></script>
 <script src="client/111-veille-signature.js"></script>
+<script src="client/112-routines.js"></script>
+<script src="client/113-reglages-routines.js"></script>
+<script src="client/114-canaux.js"></script>
+<script src="client/115-canaux-actions.js"></script>
+<script src="client/116-photos-collaborateurs.js"></script>
 </body>
 </html>

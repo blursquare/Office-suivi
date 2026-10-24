@@ -312,7 +312,7 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       const json = await reponse.json().catch(() => ({}));
       if (!reponse.ok) throw new Error(json.erreur || `le serveur a répondu ${reponse.status}`);
       r.range = String(json.chemin || '').split(/[\\/]/).pop() || r.nom + '.docx';
-      ajouterHistorique(d, `Document « ${r.titre} » rangé dans le dossier du NAS (Demander à CLAIRE)`);
+      ajouterHistorique(d, `Document « ${r.titre} » rangé dans le dossier du NAS (Discussions)`);
       sauvegarder(d);
       noterVerificationPoste('agent-document-nas', { detail: 'rangé à la racine du dossier' });
       afficherToast(`Rangé dans le dossier du NAS : ${r.range}`, 'OK', null);

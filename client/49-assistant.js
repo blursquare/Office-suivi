@@ -14,7 +14,8 @@
 
   function initAssistant() {
     chargerConversationsAssistant();
-    if (dossierOuvert) assistantContexte.dossierId = dossierOuvert;
+    chargerCanaux();
+    if (dossierOuvert && !canaux.actif) assistantContexte.dossierId = dossierOuvert;   // un canal de dossier garde SON dossier
     renderAssistant();
     chargerDisponibiliteAssistant();
     const champ = document.getElementById('assistant-saisie');
@@ -94,13 +95,18 @@
     renderColonneAssistant();
     renderArtefactAssistant();
     assistantActions = {};
+    renderCanaux();
+    // Dans un canal (client/112 et 113), le fil est celui du serveur, présenté façon Slack ; tout le reste de la page est la même.
+    if (canaux.actif) { renderCanalAssistant(zone); return; }
+    majSaisieCanal();
+    renderEnteteCanal();
     const relances = document.getElementById('assistant-relances');
     if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
       `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
       zone.innerHTML = `<div class="asst-accueil">
-          <div class="asst-accueil-logo" aria-hidden="true">${icone('sparkle')}</div>
+          <div class="asst-accueil-logo" aria-hidden="true">${icone('discussion')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
           <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase. Tapez @ pour citer un dossier.</p>
           <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
@@ -120,14 +126,14 @@
       const jour = r.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(m.quand, maintenant))}</span></div>` : '';
       // Présentation « façon Claude » (étude 21/10) : pas d'avatar ni de nom ; la demande dans une bulle à droite, la réponse en pleine
       // largeur avec la petite étincelle de CLAIRE en tête ; copier sous le message, au survol.
-      const marque = m.role === 'claire' && r.debutGroupe ? `<span class="asst-marque" aria-hidden="true">${icone('sparkle')}</span>` : '';
+      const marque = m.role === 'claire' && r.debutGroupe ? `<span class="asst-marque" aria-hidden="true">${icone('discussion')}</span>` : '';
       return `${jour}<div class="asst-message asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}" title="${escapeAttr(heureAssistant(m.quand))}">
           ${marque}<div class="asst-corps"><div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
           <div class="asst-survol"><wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
-          <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('sparkle')}</span>
-          <div class="asst-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+          <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('discussion')}</span>
+          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);
@@ -204,6 +210,7 @@
   }
 
   function majMentionAssistant() {
+    if (canaux.actif) { majMentionCanal(); return; }
     const champ = document.getElementById('assistant-saisie');
     const menu = document.getElementById('assistant-mention');
     if (!champ || !menu) return;
@@ -231,10 +238,10 @@
     const d = mentionAssistant.liste[k];
     if (!champ || !d) return;
     const fin = champ.selectionStart || 0;
-    const insere = d.nom + ' ';
+    const insere = (d.insere !== undefined ? d.insere : d.nom) + ' ';
     champ.value = champ.value.slice(0, mentionAssistant.debut) + insere + champ.value.slice(fin);
     const pos = mentionAssistant.debut + insere.length;
-    mentionsChoisiesAssistant.push({ nom: d.nom, id: d.id });
+    if (d.id) mentionsChoisiesAssistant.push({ nom: d.nom, id: d.id });
     fermerMentionAssistant();
     champ.focus();
     champ.setSelectionRange(pos, pos);
@@ -257,13 +264,16 @@
     if (typeof fn === 'function') fn();
   }
 
-  function poserMessageAssistant(role, html, boutons) {
+  function poserMessageAssistant(role, html, boutons, meta) {
     const message = { role, html, boutons: boutons || [], quand: Date.now() };
     assistantMessages.push(message);
-    if (role === 'claire') lancerRevelationAssistant(message);
-    if (assistantMessages.length > 60) assistantMessages = assistantMessages.slice(-60);
+    if (role === 'claire' && !canaux.actif) lancerRevelationAssistant(message);
+    if (assistantMessages.length > (canaux.actif ? 300 : 60)) assistantMessages = assistantMessages.slice(canaux.actif ? -300 : -60);
     memoriserConversationAssistant(true);
+    if (canaux.actif) canaux.forcerBas = true;
     renderAssistant();
+    // Dans un canal, le message est aussi écrit sur le serveur : tous les collaborateurs le lisent.
+    if (canaux.actif) publierMessageCanal(message, meta);
   }
 
   function nouvelleConversationAssistant() {
@@ -340,7 +350,9 @@
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
-    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''));
+    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
+    // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
+    if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif)) return;
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).
@@ -725,7 +737,7 @@
     const destinataireDit = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
     const destinataire = destinataireDit || emailDestinataireRelance(d) || d.emailVendeur || '';
     const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
-    if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis « Demander à CLAIRE »'); sauvegarder(d); }
+    if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis les Discussions'); sauvegarder(d); }
     return { html: r && r.ok ? '<p>Email envoyé.</p>' : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
   }
 
@@ -1114,9 +1126,9 @@
       return;
     }
     // Le titre du widget, comme sur les autres cartes (étude 07/10 : « remettre le titre du widget »).
-    const titre = 'Demander à CLAIRE';
+    const titre = 'Discussions';
     const formulaire = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
-        <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
+        <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à Claire">
         <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
       </form>`;
     const listeExemples = exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : '';
@@ -1141,5 +1153,7 @@
       if (saisie) saisie.value = texte;
       return;
     }
+    // Une question du tableau de bord est une conversation personnelle : jamais écrite dans le dernier canal partagé consulté.
+    if (canaux.actif) { if (occupeAssistant()) return; quitterCanal(); renderAssistant(); }
     envoyerDemandeAssistant(texte);
   }

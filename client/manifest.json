@@ -110,5 +110,10 @@
   "108-autorisations-succession.js",
   "109-attestation-rib.js",
   "110-assistant-nouveau-dossier.js",
-  "111-veille-signature.js"
+  "111-veille-signature.js",
+  "112-routines.js",
+  "113-reglages-routines.js",
+  "114-canaux.js",
+  "115-canaux-actions.js",
+  "116-photos-collaborateurs.js"
 ]
