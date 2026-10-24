@@ -96,7 +96,7 @@ function cartesTableauFiche(d, aujourdhuiIso, actions) {
       if (etatEngagementAnalyse(d, e).fait) { engagementsFaits++; return; }
       ajouter('obtenir', {
         // L'étiquette « Engagement » le dit déjà : le titre ne le répète pas (étude 24/10).
-        cle: 'engagement:' + i, titre: libelleCourtEngagement(e).replace(/^./, (x) => x.toUpperCase()), categorie: 'engagement', onglet: 'pieces',
+        cle: 'engagement:' + i, titre: (libelleCourtEngagement(e) || 'Engagement du vendeur').replace(/^./, (x) => x.toUpperCase()), categorie: 'engagement', onglet: 'pieces',
         coche: { onclick: `basculerEngagementFait('${escapeOnclickArg(id)}', ${i})`, libelle: 'Marquer réalisé' }
       });
     });
