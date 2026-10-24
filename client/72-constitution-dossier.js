@@ -1293,7 +1293,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       <div class="cst-actions">
         ${nEmail ? `<wa-button appearance="outlined" type="button" ${e.enCours ? 'disabled ' : ''}onclick="envoyerEmailsConstitution()" title="Une fenêtre d’email par courrier à envoyer par email : rien ne part sans « Envoyer »">${icone('mail')} Envoyer les emails (${nEmail})</wa-button>` : ''}
         <wa-button appearance="outlined" type="button" ${e.enCours || !nPapier || !pdfOk ? 'disabled ' : ''}onclick="genererConstitution('imprimer')" title="Les courriers papier cochés, chacun suivi du plan cadastral de sa commune, dans un seul PDF ouvert pour l’impression">${icone('printer')} Imprimer tout (${nPapier})</wa-button>
-        <wa-button variant="brand" type="button" ${bloque || !nas ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="${nas ? 'Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune' : 'Dossier non relié au NAS : reliez-le sur la fiche'}">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>
+        ${nas ? `<wa-button variant="brand" type="button" ${bloque ? 'disabled ' : ''}onclick="genererConstitution('ranger')" title="Dans le sous-dossier « Constitution » du dossier client, créé s’il manque ; rien n’est écrasé ; un plan cadastral par commune">${icone('folder')} ${e.enCours ? 'Préparation…' : `Enregistrer tout dans le dossier du NAS (${n})`}</wa-button>` : ''}
       </div>
       ${nas ? '' : '<p class="hint">Dossier non relié au NAS : reliez-le sur la fiche pour enregistrer dans « Constitution ».</p>'}
       <p class="hint" id="cst-message">${escapeHtml(e.message || '')}</p>`;
@@ -1307,7 +1307,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       const docs = courriersMairieGroupeConstitution(e.documents, g.cle);
       if (!docs.length) return '';
       return `<div class="cst-mairie-envoi">
-          <div class="cst-mairie-tete"><strong>Mairie de ${escapeHtml(g.commune)}</strong><span class="hint">${docs.map(x => escapeHtml(x.libelle)).join(' · ')}</span></div>
+          <div class="cst-mairie-tete"><strong>${g.commune ? `Mairie de ${escapeHtml(g.commune)}` : 'Mairie (commune à compléter)'}</strong><span class="hint">${docs.map(x => escapeHtml(x.libelle)).join(' · ')}</span></div>
           ${renderPlanCommuneConstitution(g)}
           <wa-button appearance="outlined" type="button" class="cst-email-groupe"${e.enCours ? ' disabled' : ''} onclick="emailGroupeMairieConstitution('${escapeOnclickArg(g.cle)}')" title="Les courriers cochés pour la mairie en PDF et le plan cadastral, dans un email : rien ne part sans « Envoyer »">${icone('mail')} Un seul email à la mairie (${docs.length} courrier${docs.length > 1 ? 's' : ''} + plan)</wa-button>
         </div>`;
@@ -1364,18 +1364,18 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
-        ${doc.origine ? `<span class="hint">${escapeHtml(doc.origine)}</span>` : ''}
         <wa-button appearance="outlined" size="s" type="button" class="cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Télécharger le courrier en Word (.docx)">Word</wa-button>
+        ${doc.origine ? `<span class="hint">Adresse : ${escapeHtml(doc.origine)}</span>` : ''}
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
           <span class="hint">Le texte du courrier dans l’email, le courrier joint en PDF${doc.genre === 'vente' ? ' avec le plan cadastral' : ''}.</span>` : ''}
       </div>
       <div class="cst-edition-corps">
         <div class="calc-champ"><label>Destinataire</label>
-          <textarea class="prop-champ" id="cst-dest" rows="4" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>
+          <textarea class="prop-champ" id="cst-dest" rows="${Math.max(4, doc.lignes.length + 1)}" oninput="cstLignesDoc('${idDoc}', this.value); majApercuConstitution(); majItemConstitution()" placeholder="Nom de l’organisme&#10;Service&#10;Adresse&#10;CP VILLE">${escapeHtml(doc.lignes.join('\n'))}</textarea>
           ${retenir ? `<wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="cstRetenirAdresse('${idDoc}')" title="Garder cette adresse pour les prochains dossiers">Retenir l’adresse</wa-button>` : ''}</div>
         <div class="calc-champ cst-rep"><label>Chercher dans le répertoire</label>
-          <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom, ville… (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
+          <input type="search" class="nas-choix-recherche" id="cst-rep-q" autocomplete="off" placeholder="Nom ou ville" title="Nom ou ville (Crédit Agricole, Harmonie…)" oninput="cstRechercheRepertoire(this.value)">
           <div id="cst-rep-resultats" class="cst-rep-resultats"></div></div>
       </div>
       ${doc.modele === 'autre' ? `<div class="calc-champ cst-texte-libre"><label>Texte du courrier ${infoBulle(doc.genre === 'vente' ? 'Votre demande, entre « Madame, Monsieur, » et les références cadastrales. **mot** = gras, __mot__ = souligné.' : 'Votre demande, entre « Madame, Monsieur, » et la formule finale. **mot** = gras, __mot__ = souligné.')}</label>

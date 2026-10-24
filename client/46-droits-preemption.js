@@ -495,7 +495,9 @@
         ${renderPatrimoineOutil(patrimoinePreemption(e))}
         <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
-          ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
+          ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat))
+            ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))} — à enregistrer</span>`
+            : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : ''}</div>` : ''}`;
     }
     renderTravauxPreemption();
     renderSitesPreemption();
@@ -520,6 +522,15 @@
   }
 
   // Pure : ce qui est gardé sur la fiche — les réponses données, la zone lue, le résultat de chaque droit.
+  // Étude 24/10 : « Enregistré le … » ne doit pas rester affiché quand les réponses ou les droits de l'outil ont changé depuis.
+  // Compare les réponses données (vides ignorées) et le statut de chaque droit. Pure.
+  function preemptionModifieeDepuisFiche(enregistre, actuel) {
+    if (!enregistre || !actuel) return false;
+    const reponses = (r) => JSON.stringify(Object.keys(r || {}).filter(k => r[k] !== '' && r[k] != null).sort().map(k => [k, r[k]]));
+    const droits = (l) => JSON.stringify((Array.isArray(l) ? l : []).map(dr => [dr.cle, dr.statut]).sort());
+    return reponses(enregistre.reponses) !== reponses(actuel.reponses) || droits(enregistre.droits) !== droits(actuel.droits);
+  }
+
   function preemptionPourFiche(etat, maintenant) {
     const rep = reponsesPreemption(etat);
     const lignes = lignesZonageParcelles(etat.zonages || [], rep.zonesParcelles);

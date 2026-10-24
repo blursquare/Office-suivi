@@ -21590,3 +21590,17 @@ Relecture indépendante des points 21 à 28 : deux défauts corrigés. (a) « Em
 7. Répertoire : recherche `min(520px, 100%)`.
 8. Autorisations de fonds sur téléphone : « Tout cocher » sur sa ligne, les deux boutons dessous ; les icônes d'une personne sous son modèle. Reste : le nom du modèle, long, est coupé dans la liste (un `<select>` ne passe pas à la ligne).
 Relecture indépendante : trois défauts corrigés. (a) La barre d'étapes de la Constitution reprenait la classe collante des autres outils et recouvrait le haut de l'aperçu, lui aussi collant → `.cst-sommaire { position: static }`. (b) Le libellé d'une ligne « Mémoire » des Quotités n'était plus grisé (règle `.qt-libelle` plus forte) → `.qt-memoire > .qt-libelle` en gris. (c) Entre 641 et 700 px, la ligne code postal / commune / parcelles du Contrôle de l'urbanisme gardait trois colonnes → une colonne aussi.
+
+### 24/10/2026 — 0.325.5 : outils utilisés en profondeur, puis l'Appel de fonds dans tous les sens
+
+Étude : « Tu as vu d'autres choses en utilisant les outils de manière approfondie ? », « Corrige tout, pour le 3 … met Monsieur et Madame DUVAL » (confirmé : nom du mari, sans prénom), puis « travaille avec l'outil appel de fonds, c'est le plus utilisé, teste-le dans tous les sens, corrige et améliore le design ».
+1. Destinataire du courrier d'appel de fonds, couple marié Monsieur + Madame : « Monsieur et Madame NOM » (nom de famille du mari, `nomFamilleClientAppelFonds` : mots en capitales, particule gardée), même si Madame porte un autre nom — avant « Monsieur et Madame Marc DUVAL » faisait disparaître Madame LAMBERT. CLAUDE.md mis à jour.
+2. Frais et droits de l'acte : remplis par le barème dès que département + nature du bien sont connus dans l'outil (`remplirFraisActeEstimesAppelFonds`, ligne à zéro ou estimée et jamais retouchée — `estime`, effacé par une saisie), décompte de l'office seulement.
+3. Décompte collé (`texteDecompteColleNormalise`, collage seulement) : « € » ajouté, centimes ajoutés à « 185 000 », « A déduire : … » coupé en deux lignes, « Débit / Crédit » seuls. `AF_MONTANT_FIN_RE` ne commence plus au milieu d'un nombre (« Taxe foncière 2026 412,00 € » lisait 2.026.412 €). Tests ajoutés.
+4. « À compléter vous-même » : un point réglé dans l'outil est barré et coché (`AF_POINTS_RECAP`, `majRecapManquantsAppelFonds`).
+5. SCI / indivision : plus de champ prénom, le nom prend les deux colonnes (re-rendu au changement de civilité).
+6. Téléphone : client sur une ligne (civilité 84 px), flèches et croix d'une ligne du décompte au-dessus du libellé (écran tactile ou ≤ 700 px), boutons d'en-tête deux par ligne, « Télécharger » en tête.
+7. Constitution : origine de l'adresse « Adresse : Répertoire » sous la ligne Papier/Email/Word ; case du destinataire à la taille de l'adresse (`field-sizing: content`) ; recherche « Nom ou ville » ; « Mairie (commune à compléter) » ; bouton « Enregistrer tout dans le dossier du NAS » absent sans NAS (la phrase l'explique).
+8. Contrôle de l'urbanisme : « Modifié depuis l'enregistrement du … — à enregistrer » quand réponses ou droits diffèrent de la fiche (`preemptionModifieeDepuisFiche`).
+9. Arbitrage : montants négatifs « − 1.240,00 € » comme les coûts. Pastille « i » détachée du « ? » d'une question. Autorisations de fonds : noms courts dans la liste (`option`, nom complet en bulle). Clients et biens : type « Maison ».
+Constaté sans changement : « Télécharger » et « Email » sans réseau affichent déjà le message d'erreur (en bas à gauche).

@@ -8,6 +8,12 @@
   let cbMinuterie = null;
   // Nombre de lignes demandées par colonne (80, puis + 80 par « Afficher plus »), remis à 80 à chaque recherche.
   let cbLimites = { personnes: 80, biens: 80 };
+  // Type d'un bien affiché : la clé d'une fiche (« copropriete ») en libellé, première lettre en capitale (« Maison », étude 24/10).
+  function typeBienCb(type) {
+    const t = String(type || '').trim();
+    const l = (typeof LIBELLES_TYPE_VENTE_AUTHENTIC !== 'undefined' && LIBELLES_TYPE_VENTE_AUTHENTIC[t]) || t;
+    return l ? l.charAt(0).toLocaleUpperCase('fr-FR') + l.slice(1) : '';
+  }
   let cbOuvert = null;              // { type: 'personne' | 'bien', id }
   let cbEdition = '';               // champ en cours de correction
   const cbParDossier = new Map();   // dossierId → { t, fiches, enCours }
@@ -278,7 +284,7 @@
     if (cbOuvert.type === 'bien') {
       zone.innerHTML = `<h2 class="cb-titre">${escapeHtml(f.adresse ? normaliserAdresse(f.adresse) : f.commune || 'Bien')}</h2>
         <dl class="cb-champs">
-          ${f.type ? `<dt>Type</dt><dd>${escapeHtml(f.type)}</dd>` : ''}
+          ${f.type ? `<dt>Type</dt><dd>${escapeHtml(typeBienCb(f.type))}</dd>` : ''}
           <dt>Parcelles</dt><dd>${f.parcelles.length ? f.parcelles.map(p => `<div>${escapeHtml(libelleParcelleCb(p))}</div>`).join('') : '—'}${typeof f.surfaceTotale === 'number' && f.parcelles.length > 1 ? `<div class="hint">Total · ${escapeHtml(formaterContenance(f.surfaceTotale))}</div>` : ''}</dd>
           ${f.lots && f.lots.length ? `<dt>Lots</dt><dd>${f.lots.map(l => `<div>${escapeHtml(libelleLotCopropriete(l, null))}</div>`).join('')}</dd>` : ''}
           ${f.description ? `<dt>Désignation</dt><dd>${escapeHtml(f.description)}</dd>` : ''}

@@ -640,8 +640,11 @@ test('situation : destinataire et formule d’appel du courrier', () => {
   const lea = { civilite: 'Mme', prenom: '', nom: 'Léa MARTIN' };
   const marc = { civilite: 'M', prenom: '', nom: 'Marc LEROY' };
   const anne = { civilite: 'Mme', prenom: '', nom: 'Anne ROCHE' };
-  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT');
-  assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'marie').join('|'), 'Monsieur et Madame Paul DUPONT', 'Monsieur trouvé par sa civilité');
+  assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'marie').join('|'), 'Monsieur et Madame DUPONT');
+  assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'marie').join('|'), 'Monsieur et Madame DUPONT', 'Monsieur trouvé par sa civilité');
+  // Étude 24/10 : couple marié aux noms différents → nom du mari seul, sans prénom.
+  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'Mme', prenom: 'Léa', nom: 'LAMBERT' }, { civilite: 'M', prenom: 'Marc', nom: 'DUVAL' }], 'marie').join('|'), 'Monsieur et Madame DUVAL');
+  assert.equal(app.lignesDestinatairesAppelFonds([{ civilite: 'M', prenom: '', nom: 'Jean de LA FONTAINE' }, lea], 'marie').join('|'), 'Monsieur et Madame de LA FONTAINE', 'particule gardée');
   assert.equal(app.lignesDestinatairesAppelFonds([lea, paul], 'pacse').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
   assert.equal(app.lignesDestinatairesAppelFonds([paul, lea], 'concubin').join('|'), 'Monsieur Paul DUPONT et Madame Léa MARTIN');
   assert.equal(app.lignesDestinatairesAppelFonds([paul, marc], 'marie').join('|'), 'Monsieur Paul DUPONT et Monsieur Marc LEROY', 'deux hommes mariés');
@@ -746,4 +749,22 @@ test('afNettoyerLibelle : ni « à parfaire » ni tirets dans les lignes du cour
   assert.strictEqual(app.afNettoyerLibelle('– Frais de garantie –'), 'Frais de garantie');
   assert.strictEqual(app.afNettoyerLibelle('Taxe - foncière'), 'Taxe - foncière');
   assert.strictEqual(app.afNettoyerLibelle('Prix de vente: '), 'Prix de vente');
+});
+
+// Étude 24/10 : décompte du confrère COLLÉ à la main, sans « € » ni centimes, avec « A déduire : … » sur la même ligne. Montants inventés.
+test('décompte collé : montants sans €, bascule sur la ligne, « Débit / Crédit »', () => {
+  const app = chargerApplication();
+  const colle = "Prix de vente 185 000\nFrais d'acte 14 520,00\nSoit au total 199 520,00\nA déduire : dépôt de garantie 9 250,00\nSolde à verser 190 270,00";
+  const r = app.parserDecompteConfrere(app.texteDecompteColleNormalise(colle));
+  assert.equal(r.lignes.debit.map(l => l.montant).join('|'), '185000|14520');
+  assert.equal(r.lignes.credit.map(l => l.montant).join('|'), '9250', 'le dépôt de garantie est déduit, pas perdu');
+  assert.equal(r.meta.soldeDeclare, 190270);
+  const r2 = app.parserDecompteConfrere(app.texteDecompteColleNormalise('DEBIT\nPrix de vente : 185 000,00 €\nCRÉDIT\nDépôt de garantie : 9 250,00 €'));
+  assert.equal(r2.lignes.credit.length, 1, '« Crédit » seul vaut « A déduire »');
+});
+
+test('montant en fin de ligne : une année qui précède n’est pas prise pour des milliers', () => {
+  const app = chargerApplication();
+  const r = app.parserDecompteConfrere('Prix de vente 185 000,00 €\nTaxe foncière 2026 412,00 €');
+  assert.equal(r.lignes.debit.map(l => l.libelle + '=' + l.montant).join('|'), 'Prix d’acquisition=185000|Taxe foncière 2026=412');
 });

@@ -149,12 +149,14 @@
     const saisie = lireSaisieInventaire();
     const r = calculerArbitrageInventaire(saisie);
     const v = verdictArbitrageInventaire(r);
+    // Un montant négatif s'écrit comme les coûts du décompte : « − 1.240,00 € » (étude 24/10 : « -1.240,00 € » détonnait).
+    const montantSigneInventaire = (m) => (m < 0 ? '− ' + formaterPrix(-m) : formaterPrix(m));
 
     const badge = document.getElementById('inv-verdict-badge');
     if (badge) badge.innerHTML = `<span class="dot-label ${v.dl}"><span class="dot"></span>${escapeHtml(v.libelle)}</span>`;
     const chiffre = document.getElementById('inv-verdict-montant');
     if (chiffre) {
-      chiffre.textContent = r.complet ? formaterPrix(r.net) : '—';
+      chiffre.textContent = r.complet ? montantSigneInventaire(r.net) : '—';
       chiffre.classList.toggle('inv-montant-negatif', r.complet && r.net <= 0);
     }
     const texte = document.getElementById('inv-verdict-texte');
@@ -168,7 +170,7 @@
     if (r.complet) {
       const pose = (id, montant, signe) => {
         const el = document.getElementById(id);
-        if (el) el.textContent = (signe || '') + formaterPrix(montant);
+        if (el) el.textContent = signe ? signe + formaterPrix(montant) : montantSigneInventaire(montant);
       };
       pose('inv-l-droits-sans', r.droitsSans);
       pose('inv-l-droits-avec', r.droitsAvec);

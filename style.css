@@ -5158,7 +5158,7 @@ input[type="search"].af-historique-recherche { width: 100%; }
   display: inline-flex; align-items: center; border-radius: var(--rayon-s);
 }
 .af-client-suppr:hover { color: var(--urgent); background: var(--paper-sunk); }
-@media (max-width: 520px) { .af-client { grid-template-columns: 88px 1fr auto; } }
+@media (max-width: 520px) { .af-client { grid-template-columns: 84px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 4px; } }
 
 /* ---- l'aperçu du courrier : identité papier de l'étude, hors thème ---- */
 .af-apercu { display: flex; flex-direction: column; gap: 10px; align-items: center; }
@@ -5265,6 +5265,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .af-ordre { float: right; display: inline-flex; gap: 2px; margin-left: 6px; opacity: 0; transition: opacity 0.12s; }
 table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { opacity: 1; }
 @media (hover: none) { .af-ordre { opacity: 1; } }
+/* Écran tactile ou étroit (étude 24/10) : les flèches et la croix sur leur propre ligne, au-dessus du libellé (flottantes, elles
+   coupaient le premier mot : « P / rix d'acquisition »). */
+@media (hover: none), (max-width: 700px) { .af-ordre { float: none; display: flex; justify-content: flex-end; margin: 0 0 2px; } }
 .af-ordre-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
   background: #fff; border: 1px solid #c9c9c9; border-radius: 4px; color: #6b6250; cursor: pointer; font-size: 12px;
@@ -10818,4 +10821,18 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
   .aut-barre-actions > .lien-action { grid-column: 1 / -1; justify-self: start; }
   .aut-item { grid-template-columns: 20px minmax(0, 1fr); }
   .aut-item > .cst-item-actions { grid-column: 2; justify-self: start; }
+}
+/* La pastille « i » d'une question détachée du « ? » (étude 24/10 : « agricole ?ⓘ »). */
+.pr-question-texte .info-i { margin-left: 4px; }
+/* Constitution : la case du destinataire grandit avec l'adresse (elle coupait une ligne au milieu, étude 24/10). */
+#cst-dest { field-sizing: content; min-height: 104px; max-height: 280px; }
+.af-client.af-client-morale > input { grid-column: span 2; }
+/* Point de « À compléter vous-même » réglé dans l'outil : barré, en gris, coché (étude 24/10). */
+.af-recap-manquant li.af-recap-fait { color: var(--muted); text-decoration: line-through; }
+.af-recap-manquant li.af-recap-fait::marker { content: '✓  '; color: var(--success); }
+/* Appel de fonds sur téléphone : « Télécharger » en tête sur toute la largeur, les autres gestes deux par ligne (étude 24/10 :
+   cinq boutons empilés repoussaient l'outil d'un écran). */
+@media (max-width: 640px) {
+  #onglet-appel-fonds .dash-header-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #onglet-appel-fonds .dash-header-actions #af-telecharger { grid-column: 1 / -1; order: -1; }
 }

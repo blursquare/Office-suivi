@@ -448,7 +448,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   `ajouterPersonneDossier`) et, dès deux personnes, la situation du couple (`SITUATIONS_CLIENT` : marié, pacsé, concubins ;
   `d.situationVendeur`/`d.situationAcquereur` ; **remplie seule d'après les fiches client d'Authentic** (étude 07/10, `appliquerSituationsAuthentic`, Authentic d'abord comme l'identité ; marié/pacsé seulement si le conjoint nommé est l'autre personne, `situationClientDeduite`), jamais d'un
   prénom ; la civilité aussi, à la lecture d'une fiche client comme au complément depuis Authentic). Courrier d'appel de fonds (`lignesDestinatairesAppelFonds`, `salutationAppelFonds`) : marié Monsieur + Madame
-  « Monsieur et Madame Paul DUPONT » ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
+  « Monsieur et Madame DUPONT » (nom du mari seul, sans prénom, même si Madame porte un autre nom — étude 24/10) ; sinon chacun nommé avec sa civilité, Monsieur d'abord (« Monsieur Paul DUPONT et Madame
   Léa MARTIN », « Monsieur … et Monsieur … ») ; formule selon les civilités (« Chers Monsieur et Madame, », « Chers Messieurs, »,
   « Chères Mesdames, »).
   **Société** (étude 08/10 : « prévoir la situation quand il s'agit d'une société, vendeur ou acquéreur ») : « Société » dans la
