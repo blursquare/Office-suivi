@@ -133,7 +133,7 @@
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
           <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('sparkle')}</span>
-          <div class="asst-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);
@@ -1128,7 +1128,7 @@
     // Le titre du widget, comme sur les autres cartes (étude 07/10 : « remettre le titre du widget »).
     const titre = 'Discussions';
     const formulaire = `<form class="asst-saisie w-asst-saisie w-fixe" onsubmit="event.preventDefault(); envoyerDepuisWidgetAssistant();">
-        <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à CLAIRE">
+        <input type="text" id="widget-assistant-saisie" autocomplete="off" placeholder="Posez votre question…" aria-label="Votre question à Claire">
         <wa-button variant="brand" type="submit" size="s" class="asst-envoyer" aria-label="Demander">${icone('send')}</wa-button>
       </form>`;
     const listeExemples = exemples.length ? `<div class="w-asst-exemples" data-ajuster="1" data-cle="${escapeAttr(exemples.join('|'))}">${puces}</div>` : '';

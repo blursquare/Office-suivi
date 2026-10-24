@@ -14,7 +14,7 @@ function avatarCanal(m) {
 }
 
 function nomAuteurCanal(m) {
-  if (m.role === 'claire') return 'CLAIRE';
+  if (m.role === 'claire') return 'Claire';
   return m.role === 'moi' ? 'Vous' : prenomCollaborateur(m.auteur);
 }
 
@@ -67,7 +67,7 @@ function htmlMessageCanal(m, i, r, repere) {
 function vueATraiter() {
   const liste = propositionsClaire.liste;
   if (!liste.length) return `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone('list-check')}</div><h2 class="asst-accueil-titre">Rien à décider</h2>
-    <p class="asst-accueil-texte">Ce que CLAIRE prépare pour vous — brouillons, documents, tâches — arrive d’abord dans le canal du dossier, puis ici tant que vous n’avez pas décidé.</p></div>`;
+    <p class="asst-accueil-texte">Ce que Claire prépare pour vous — brouillons, documents, tâches — arrive d’abord dans le canal du dossier, puis ici tant que vous n’avez pas décidé.</p></div>`;
   const parDossier = new Map();
   liste.forEach(p => { const k = p.dossierId || ''; parDossier.set(k, (parDossier.get(k) || []).concat([p])); });
   return `<div class="cx-traiter-vue"><p class="cx-traiter-intro">${liste.length} chose${liste.length > 1 ? 's' : ''} à décider. Rien ne part sans votre clic.</p>${[...parDossier.entries()].map(([dossierId, ps]) => {
@@ -95,7 +95,7 @@ function renderCanalAssistant(zone) {
     zone.innerHTML = q
       ? `<div class="asst-accueil"><h2 class="asst-accueil-titre">Aucun message</h2><p class="asst-accueil-texte">Rien ne contient « ${escapeHtml(q)} » dans ${escapeHtml(nom)}.</p></div>`
       : `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone(typeCanal(canaux.actif) === 'dossier' ? 'folder' : 'diese')}</div><h2 class="asst-accueil-titre">${escapeHtml(nom)}</h2>
-          <p class="asst-accueil-texte">${typeCanal(canaux.actif) === 'dossier' ? 'Le canal de ce dossier : CLAIRE y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer.' : 'Un fil partagé par toute l’étude. Écrivez ici, CLAIRE répond quand on l’appelle avec @CLAIRE.'} Un collègue : @Prénom.</p></div>${attente}`;
+          <p class="asst-accueil-texte">${typeCanal(canaux.actif) === 'dossier' ? 'Le canal de ce dossier : Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer.' : 'Un fil partagé par toute l’étude. Écrivez ici, Claire répond quand on l’appelle avec @Claire.'} Un collègue : @Prénom.</p></div>${attente}`;
     return;
   }
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')
@@ -280,9 +280,9 @@ function htmlColonneCanal() {
       </div></details>`;
     const cartes = Object.values(canaux.cartes).filter(p => p.dossierId === d.id).sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)));
     const silences = canaux.silences || [];
-    blocs += `<details class="asst-droite-bloc" open><summary>${icone('sparkle')} CLAIRE sur ce dossier <span class="asst-droite-nb">${cartes.length || ''}</span></summary>
+    blocs += `<details class="asst-droite-bloc" open><summary>${icone('sparkle')} Claire sur ce dossier <span class="asst-droite-nb">${cartes.length || ''}</span></summary>
       <div class="cx-bloc">${cartes.length ? `<ul class="cx-activite">${cartes.slice(0, 8).map(p => `<li class="cx-act-${escapeAttr(p.etat)}"><span class="cx-act-point" aria-hidden="true"></span><span class="cx-act-texte">${escapeHtml(p.titre)}<small>${escapeHtml(p.etat === 'proposee' || p.etat === 'vue' ? 'À décider' : etatTexteProposition(p))}</small></span></li>`).join('')}</ul>` : '<p class="asst-droite-vide">Rien de préparé pour l’instant.</p>'}
-      ${silences.length ? `<div class="cx-silences">${silences.map(s => `<div class="cx-silence"><span>${s.routine ? 'Routine coupée' : 'CLAIRE coupée'} sur ce dossier</span><button type="button" class="cx-lien" onclick="retablirSilenceCanal('${escapeOnclickArg(s.routine)}')">Rétablir</button></div>`).join('')}</div>` : ''}</div></details>`;
+      ${silences.length ? `<div class="cx-silences">${silences.map(s => `<div class="cx-silence"><span>${s.routine ? 'Routine coupée' : 'Claire coupée'} sur ce dossier</span><button type="button" class="cx-lien" onclick="retablirSilenceCanal('${escapeOnclickArg(s.routine)}')">Rétablir</button></div>`).join('')}</div>` : ''}</div></details>`;
   }
   const epingles = assistantMessages.filter(m => m.epingle && m.id);
   blocs += `<details class="asst-droite-bloc"${epingles.length ? ' open' : ''}><summary>${icone('pin')} Épinglés <span class="asst-droite-nb">${epingles.length || ''}</span></summary>
@@ -300,7 +300,7 @@ function allerAuMessageCanal(id) {
 // Pure : les propositions de la liste « @ » d'un canal pour une requête (sans accent ni casse).
 function mentionsPourCanal(requete, collaborateurs, dossiersListe, avecDossiers, moi) {
   const q = platCanal(requete).trim();
-  const items = [{ type: 'claire', nom: 'CLAIRE', insere: '@CLAIRE', note: 'lui demander' }]
+  const items = [{ type: 'claire', nom: 'Claire', insere: '@Claire', note: 'lui demander' }]
     .concat((collaborateurs || []).filter(c => c !== moi).map(c => ({ type: 'collab', nom: String(c).split(/\s+/)[0], insere: '@' + String(c).split(/\s+/)[0], note: 'prévenir' })))
     .filter(x => !q || platCanal(x.nom).startsWith(q));
   const ds = avecDossiers ? dossiersMentionAssistant(dossiersListe, requete).map(d => ({ type: 'dossier', nom: d.nom, id: d.id, libelle: libelleDossierAffiche(d), note: d.archive ? 'archivé' : '' })) : [];

@@ -103,8 +103,8 @@ test('repereMessagesCanal : jour, groupes par auteur, séparateur « Nouveau » 
 test('mentionsPourCanal : CLAIRE d’abord, collègues sans soi-même, dossiers hors canal de dossier', () => {
   const ds = [{ id: 'p1', nom: 'MARTIN / DURAND', parties: [] }];
   const dansDossier = app.mentionsPourCanal('', COLLABS, ds, false, 'Julie VASSELIN');
-  assert.equal(dansDossier.map(x => x.nom).join(','), 'CLAIRE,Bastien,Jérémy');
-  assert.equal(dansDossier.map(x => x.insere).join(','), '@CLAIRE,@Bastien,@Jérémy');
+  assert.equal(dansDossier.map(x => x.nom).join(','), 'Claire,Bastien,Jérémy');
+  assert.equal(dansDossier.map(x => x.insere).join(','), '@Claire,@Bastien,@Jérémy');
   assert.equal(app.mentionsPourCanal('jer', COLLABS, ds, false, 'Julie VASSELIN').map(x => x.nom).join(','), 'Jérémy');
   const general = app.mentionsPourCanal('mar', COLLABS, ds, true, 'Julie VASSELIN');
   assert.equal(general[0].type, 'dossier');

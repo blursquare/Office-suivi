@@ -1500,7 +1500,7 @@
   <div class="asst-page">
     <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
     <aside class="asst-cote" aria-label="Conversations et canaux">
-      <section class="asst-cote-conversations" aria-label="Mes conversations avec CLAIRE">
+      <section class="asst-cote-conversations" aria-label="Mes conversations avec Claire">
         <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
         <div class="asst-fils" id="assistant-fils"></div>
       </section>
@@ -1525,7 +1525,7 @@
         <div class="asst-mention" id="assistant-mention" role="listbox" aria-label="Dossiers" style="display:none;"></div>
         <div class="asst-pj-liste asst-pj-saisie" id="assistant-pieces" style="display:none;"></div>
         <input type="file" id="assistant-fichiers" accept="application/pdf,.pdf,image/*" multiple hidden onchange="ajouterPiecesJointesAssistant(this.files)">
-        <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à CLAIRE… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
+        <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à Claire… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>

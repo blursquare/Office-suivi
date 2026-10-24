@@ -390,14 +390,14 @@ function majSaisieCanal() {
   const reel = canaux.actif && canaux.actif !== '@traiter';
   if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', canaux.actif === '@traiter'); }
   if (champ) champ.placeholder = reel
-    ? `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @CLAIRE pour lui demander, @Julie pour prévenir`
-    : 'Message à CLAIRE… tapez @ pour citer un dossier';
+    ? `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`
+    : 'Message à Claire… tapez @ pour citer un dossier';
   if (bascule) {
     bascule.style.display = reel && canaux.actif === 'general' ? '' : 'none';
     bascule.classList.toggle('actif', canaux.claireRepond);
     bascule.setAttribute('aria-pressed', String(canaux.claireRepond));
-    bascule.innerHTML = canaux.claireRepond ? `${icone('sparkle')}CLAIRE répond` : `${icone('users')}Note à l’équipe`;
-    bascule.title = canaux.claireRepond ? 'CLAIRE répond à votre message (sauf s’il s’adresse à un collègue avec @). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
+    bascule.innerHTML = canaux.claireRepond ? `${icone('sparkle')}Claire répond` : `${icone('users')}Note à l’équipe`;
+    bascule.title = canaux.claireRepond ? 'Claire répond à votre message (sauf s’il s’adresse à un collègue avec @). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
   }
   if (saisie) saisie.classList.toggle('canal-note', reel && canaux.actif === 'general' && !canaux.claireRepond);
 }
@@ -409,7 +409,7 @@ function ligneCanal(e) {
   const muet = e.notif === 'muet';
   const marque = e.mentions ? `<span class="cx-n cx-n-mention" title="${e.mentions} mention${e.mentions > 1 ? 's' : ''} ou à décider">${e.mentions}</span>`
     : e.nonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${e.nonLus}</span>` : '';
-  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'CLAIRE' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
+  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
       <span class="cx-d" aria-hidden="true">${icone(e.favori ? 'etoile' : e.dossier ? 'folder' : 'diese')}</span>
       <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;
