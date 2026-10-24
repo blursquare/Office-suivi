@@ -216,20 +216,30 @@ function lignesRunsVeille(runs, largeur, mesurer) {
   const lignes = [];
   let courante = [];
   let l = 0;
+  // Un mot plus large que la ligne (une adresse web collée dans une note) est coupé caractère par caractère : il ne déborde jamais.
+  const coupeMot = (mot, cle) => {
+    const morceaux = [];
+    let cur = '';
+    Array.from(mot).forEach(c => { if (cur && mesurer(cur + c, cle) > largeur) { morceaux.push(cur); cur = c; } else cur += c; });
+    if (cur) morceaux.push(cur);
+    return morceaux;
+  };
   (runs || []).forEach(run => {
     String(run.t || '').split(/(\s+)/).filter(Boolean).forEach(morceau => {
       const espace = /^\s+$/.test(morceau);
       const texte = espace ? ' ' : morceau;
-      const w = mesurer(texte, run.cle);
-      if (!espace && courante.length && l + w > largeur) {
-        while (courante.length && /^ $/.test(courante[courante.length - 1].t)) courante.pop();
-        lignes.push(courante);
-        courante = [];
-        l = 0;
-      }
-      if (espace && !courante.length) return;
-      courante.push({ t: texte, cle: run.cle, l: w });
-      l += w;
+      (!espace && mesurer(texte, run.cle) > largeur ? coupeMot(texte, run.cle) : [texte]).forEach(partie => {
+        const w = mesurer(partie, run.cle);
+        if (!espace && courante.length && l + w > largeur) {
+          while (courante.length && /^ $/.test(courante[courante.length - 1].t)) courante.pop();
+          lignes.push(courante);
+          courante = [];
+          l = 0;
+        }
+        if (espace && !courante.length) return;
+        courante.push({ t: partie, cle: run.cle, l: w });
+        l += w;
+      });
     });
   });
   while (courante.length && /^ $/.test(courante[courante.length - 1].t)) courante.pop();
@@ -621,8 +631,15 @@ function veilleCocher(num, coche) {
 // Saisir une date coche l'étape ; l'effacer la décoche.
 function veilleDater(num, valeur) {
   const s = veilleEdition.saisies[num] || (veilleEdition.saisies[num] = { fait: false, date: '' });
-  s.date = String(valeur || '');
   const carte = document.querySelector(`[data-vs-num="${num}"]`);
+  // Une date future (tapée au clavier : `max` ne l'interdit pas) est refusée sur-le-champ : l'aperçu et le PDF disent la même chose.
+  if (String(valeur || '') > isoAujourdhuiLocal()) {
+    const champ = carte && carte.querySelector('.vs-date');
+    if (champ) champ.value = s.date;
+    afficherToast('« Fait le » ne peut pas être une date à venir.', 'OK', null);
+    return;
+  }
+  s.date = String(valeur || '');
   const faitD = carte && carte.querySelector('.vs-case') && carte.querySelector('.vs-case').disabled;
   // Une étape déjà faite sans date (champ date libre) : la date la complète, rien d'autre ne change.
   if (faitD) { s.fait = true; return; }

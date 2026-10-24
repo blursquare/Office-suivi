@@ -223,12 +223,18 @@ test('SAFER : un dossier en participation est « sans objet », jamais « fait �
 
 test('« à imprimer » : due et pas encore téléchargée pour CE rendez-vous', () => {
   const d = vente({ rendezVousSignature: '2026-10-25' });
-  const jour = '2026-10-24';
-  const vraiJour = require('node:fs') && app.isoAujourdhuiLocal();
   // `ficheSignatureAImprimer` lit l'heure réelle pour le jour même : on passe un autre jour pour fixer la date.
   assert.equal(app.ficheSignatureAImprimer(d, '2026-10-24'), true);
   assert.equal(app.ficheSignatureAImprimer(Object.assign({}, d, { ficheSignatureImprimeePour: app.cleVeilleSignature(d) }), '2026-10-24'), false);
   assert.equal(app.ficheSignatureAImprimer(Object.assign({}, d, { ficheSignatureImprimeePour: 'autre|2026-10-25|' }), '2026-10-24'), true);
   assert.equal(app.ficheSignatureAImprimer(d, '2026-10-20'), false);
-  assert.ok(jour && vraiJour);
+});
+
+test('un mot plus large que la ligne (adresse web dans une note) est coupé, jamais perdu ni débordant', () => {
+  const mesurer = t => t.length * 5;
+  const mot = 'https://exemple.fr/un/tres/long/chemin/de/fichier.pdf';
+  const lignes = app.lignesRunsVeille([{ t: 'voir ' + mot + ' ensuite', cle: 'sans' }], 60, mesurer);
+  lignes.forEach(l => assert.ok(l.reduce((s, x) => s + x.l, 0) <= 60, JSON.stringify(l)));
+  assert.equal(lignes.map(l => l.map(x => x.t).join('')).join('').replace(/ /g, ''), ('voir' + mot + 'ensuite'));
+  assert.ok(lignes.length >= 4);
 });
