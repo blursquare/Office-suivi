@@ -78,6 +78,9 @@ server/                              Serveur (son propre package.json ; le packa
                                      jamais recopiée ; choix de l'étude seuls gardés (clé `clients-biens` : liaisons, corrections) ; poste : client/80-clients-biens.js
   src/importClientsBiens.js          Export clients / immeubles d'Authentic (.xls) importé dans Réglages › Authentic (19/10) : lu sur le poste (client/88), lignes rangées
                                      gardées sur le serveur (clé `clients-biens-import`), base de « Clients et biens » servie après les dossiers et Authentic
+  src/routines/*.js, routes/routines.js  Routines de CLAIRE (24/10, 0.327.0, phase 0 — cadrage `docs/spec-routines-claire.md`) : catalogue des routines et de leurs gestes, réglages (clé `routines-reglages`),
+                                     boîte de propositions (`routines-propositions`), journal (`routines-journal`), plafond de l'IA (`routines-usage`), planificateur (un tour par minute, résumé Teams à 9 h 30) ;
+                                     poste : client/110-routines.js (boîte, bandeau de la fiche), client/111-reglages-routines.js (Réglages › Routines)
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)
@@ -310,6 +313,8 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    `#6D2332`), hors thème de l'application.
 
 ## Règles métier stables (à ne pas rouvrir sans nouvelle demande)
+
+- **Routines de CLAIRE** (étude 24/10, 0.327.0 ; `docs/spec-routines-claire.md`) : CLAIRE prépare seule, **l'humain décide**. Une routine ne fait jamais l'action finale : elle dépose une PROPOSITION (brouillon d'email, document, tâche, dates, alerte) dans la boîte de chaque collaborateur (icône « boîte de CLAIRE » de la barre latérale, bandeau « CLAIRE a préparé » en tête de la fiche) ; « Autoriser » exécute le geste habituel de CLAIRE par le POSTE (fenêtre d'email, outil, tâche), **jamais un envoi** — un email ne part que par « Envoyer ». **Trois niveaux d'autonomie**, réglables routine par routine et geste par geste, tout au niveau 1 au départ : 1 proposer, 2 agir en réversible (noté « CLAIRE », « Annuler »), 3 agir seule vers l'extérieur (email, agenda — décision de l'étude geste par geste, **confirmée** et réservée à l'administrateur ; le niveau 3 modifie alors la règle n° 4 pour CE geste). Une proposition acceptée, refusée ou expirée n'est jamais refaite (empreinte) ; passage au niveau supérieur proposé à 90 % d'acceptation sur 30 propositions, jamais d'office. Teams : un résumé groupé par collaborateur à l'heure du passage (9 h 30, jours ouvrés), jamais une alerte par proposition. Plafond de l'IA en ligne des routines : 50 € par mois (clé `routines-usage`). Toute nouvelle routine = une entrée de `server/src/routines/catalogue.js` (gestes, niveaux maximaux), son exécutant, son test « rien de nominatif ne part » si elle utilise l'IA, et son point de « vérifications sur le terrain ». Phase 0 faite (socle, routine d'essai) ; phases 1 à 4 à venir.
 
 - **Parties** : Vendeur = Promettant, Acquéreur = Bénéficiaire — sauf promesse d'**achat**, où le
   rôle se déduit du type d'acte (`ROLES_PAR_TYPE_ACTE`). La **forme** de l'acte (authentique : les
@@ -1224,6 +1229,7 @@ sont plus appelées par le poste.
   — à juger par l'étude sur des actes déjà relus, avec le mode commentaires. Avant l'usage réel,
   demander à Mistral : rétention zéro, absence d'entraînement, accord de sous-traitance. Connecteur
   openlegi : construit le 18/10 (0.281.0), voir contrainte 1.
+- **Routines de CLAIRE** : phases 1 à 4 du cadrage (`docs/spec-routines-claire.md`) à faire — revue du matin et veille de signature par le code, puis le « poste CLAIRE » sans écran et ses documents (constitution, appel de fonds, autorisations de notoriété), puis l'IA en ligne (relance des pièces, dates, veille juridique), puis l'autonomie ; widget « Propositions de CLAIRE » du tableau de bord non fait ; jours fériés non pris en compte par le planificateur.
 - **RGPD — IA en ligne** (point de l'étude, 18/10) : « Demander à CLAIRE » envoie par défaut des textes pseudonymisés à
   Anthropic (Claude), sinon à Mistral, plus la recherche web et OpenLegi. À faire par l'étude, hors du code : inscrire ces
   traitements au registre (finalité, données envoyées après masquage — montants et dates en clair —, sous-traitants, pays,

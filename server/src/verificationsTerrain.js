@@ -20,6 +20,10 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'routines-resume-teams', depuis: '0.327.0', source: 'serveur', titre: 'Routines de CLAIRE : le résumé Teams de 9 h 30 arrive au collaborateur (un message groupé par jour)',
+    comment: 'Coché au premier résumé envoyé : Réglages › Routines, allumer les routines, déposer des exemples, attendre le lundi 9 h 30 (les exemples ne déclenchent aucun message — il faut une vraie proposition).' },
+  { id: 'routines-boite-poste', depuis: '0.327.0', source: 'poste', titre: 'Routines de CLAIRE : la boîte de propositions s’ouvre, une proposition s’autorise ou se refuse, le brouillon d’email s’ouvre sans rien envoyer',
+    comment: 'Coché à la première proposition autorisée depuis la boîte (icône en haut de la barre latérale). Réglages › Routines › « Déposer des exemples dans ma boîte » pour l’essayer.' },
   { id: 'veille-signature-pdf', depuis: '0.326.0', source: 'poste', titre: 'Fiche de signature : le PDF (échéances, pièces, engagements, procédure des fonds cochée avec ses dates) se télécharge depuis le pop-up de la fiche du dossier, le bouton de la fiche ou la tâche d’« À faire »',
     comment: 'Coché au premier PDF produit (pdf-lib et fontkit chargés depuis Internet, avec leur empreinte SRI : si le chargement échoue, c’est un point à examiner). À regarder au bureau : lisibilité de la coche et des dates une fois imprimé.' },
   { id: 'agent-calcul', depuis: '0.305.0', source: 'poste', titre: 'Demander à CLAIRE : un calcul libre sur les dossiers et un tableau à télécharger (CSV, Excel)',

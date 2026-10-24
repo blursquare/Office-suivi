@@ -1327,6 +1327,8 @@
     setTimeout(() => { rattraperNotesAgenda().catch(() => {}); }, 30 * 1000);
     setInterval(() => { rattraperNotesAgenda().catch(() => {}); }, 5 * 60 * 1000);
     demanderUtilisateurPosteSiInconnu();
+    // Boîte de propositions de CLAIRE (étude 24/10) : la pastille de la barre latérale, relue chaque minute.
+    demarrerPropositionsClaire();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le

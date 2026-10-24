@@ -57,6 +57,8 @@ const { creerRouteurAuthentic } = require('./routes/authentic');
 const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
+const { creerRouteurRoutines } = require('./routes/routines');
+const { creerPlanificateur } = require('./routines/planificateur');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
 const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
@@ -244,6 +246,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const sansAuthRetourYousign = (req, res, next) => (req.method === 'GET' && req.path === '/yousign/oauth/retour' ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
   app.use('/api', sansAuthRetourYousign, creerRouteurYousign(parametresRepo, yousign));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
+  // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
+  const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRoutines(parametresRepo, planificateurRoutines));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNasLibre(config, parametresRepo));
@@ -325,7 +330,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

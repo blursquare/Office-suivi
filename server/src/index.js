@@ -240,7 +240,7 @@ function demarrer() {
   const { db, reparee } = config.cheminDb === ':memory:' ? { db: ouvrirDb(config.cheminDb), reparee: null } : ouvrirDbVerifiee(config.cheminDb, ouvrirDb);
   if (reparee) console.warn(`[CLAIRE] Base illisible avec son journal (${reparee.controle}) : journal écarté, base rouverte seule. Copie gardée : ${reparee.copie}`);
   let serveur = null;
-  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour, routeurMemoire } = creerApp({
+  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines } = creerApp({
     db,
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
@@ -278,6 +278,9 @@ function demarrer() {
   // Emails des dossiers : boîte de réception et « Éléments envoyés » relus toutes les minutes.
   demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config);
   demarrerRangementOutlook(parametresRepo, config);
+
+  // Routines de CLAIRE (phase 0) : expiration des propositions et résumé Teams de 9 h 30 — un tour par minute, jours ouvrés.
+  planificateurRoutines.demarrer();
 
   // Rapport technique (voir rapportTechnique.js) : les erreurs et avertissements du serveur, lancé
   // sans fenêtre, sont gardés dans le journal technique ; à 12 h et 17 h les jours ouvrés, un

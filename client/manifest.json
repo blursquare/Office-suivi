@@ -108,5 +108,7 @@
   "106-yousign.js",
   "107-appel-fonds-saisie-nas.js",
   "108-autorisations-succession.js",
-  "109-veille-signature.js"
+  "109-veille-signature.js",
+  "110-routines.js",
+  "111-reglages-routines.js"
 ]

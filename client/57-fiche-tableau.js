@@ -381,7 +381,8 @@ function renderTableauFiche(d, actions) {
   const parCle = {};
   COLONNES_TABLEAU_FICHE.forEach(col => cartes[col.cle].forEach(c => { parCle[c.cle] = col.cle; }));
   colonnesPrecedentesFiche = { id: d.id, parCle };
-  return `<div class="tf-tableau" role="list" aria-label="Le dossier en colonnes">${COLONNES_TABLEAU_FICHE.map(col => {
+  // Ce que CLAIRE a préparé pour CE dossier (étude 24/10, client/110-routines.js) : en tête du Tableau, rien s'il n'y a rien.
+  return renderPropositionsFiche(d) + `<div class="tf-tableau" role="list" aria-label="Le dossier en colonnes">${COLONNES_TABLEAU_FICHE.map(col => {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>

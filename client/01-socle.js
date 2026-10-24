@@ -244,6 +244,7 @@
     // Fiche dossier (tiroir) : barre d'actions à icônes seules et lignes de propriétés.
     archive: '<rect x="1.8" y="2.6" width="12.4" height="3.2" rx="0.8"/><path d="M2.8 5.8v6.8a1 1 0 0 0 1 1h8.4a1 1 0 0 0 1-1V5.8"/><line x1="6.4" y1="8.4" x2="9.6" y2="8.4"/>',
     trash: '<path d="M2.6 4.2h10.8"/><path d="M6.2 4.2V2.6h3.6v1.6"/><path d="M3.8 4.2l.7 9.2a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.7-9.2" stroke-linejoin="round"/>',
+    'boite-claire': '<rect x="2" y="2.2" width="12" height="11.6" rx="3"/><path d="M8 4.9 8.9 7.1 11.1 8 8.9 8.9 8 11.1 7.1 8.9 4.9 8 7.1 7.1 8 4.9Z" stroke-linejoin="round"/>',
     printer: '<path d="M4.4 5.6V1.8h7.2v3.8"/><rect x="1.6" y="5.6" width="12.8" height="5.6" rx="1.2"/><rect x="4.4" y="9.2" width="7.2" height="5" rx="0.6"/>',
     maximize: '<path d="M9.4 2.2h4.4v4.4"/><path d="M13.8 2.2 9 7"/><path d="M6.6 13.8H2.2V9.4"/><path d="M2.2 13.8 7 9"/>',
     minimize: '<path d="M13.6 6.4H9.6V2.4"/><path d="M9.6 6.4 14 2"/><path d="M2.4 9.6h4v4"/><path d="M6.4 9.6 2 14"/>',

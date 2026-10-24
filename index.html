@@ -59,6 +59,11 @@
       <button type="button" id="tab-assistant" class="sidebar-scan-bannette" style="display:none;" onclick="definirOnglet('assistant')" aria-label="Demander à CLAIRE" title="Demander à CLAIRE">
         <span class="sidebar-scan-icone" id="icon-nav-assistant" aria-hidden="true"></span>
       </button>
+      <!-- Propositions de CLAIRE (étude 24/10, client/110-routines.js) : la boîte de ce que CLAIRE a préparé ; la pastille compte ce qui attend une décision. -->
+      <button type="button" id="tab-propositions" class="sidebar-scan-bannette" onclick="ouvrirPropositionsClaire()" aria-label="Propositions de CLAIRE" title="Propositions de CLAIRE">
+        <span class="sidebar-scan-icone" id="icon-nav-propositions" aria-hidden="true"></span>
+        <span class="sidebar-scan-pastille" id="badge-propositions" style="display:none;"></span>
+      </button>
       <span class="sidebar-controles-espace"></span>
       <button type="button" class="sidebar-icon-btn" id="sidebar-collapse-btn" onclick="toggleSidebarRepliee()" title="Réduire la sidebar" aria-label="Réduire la sidebar">
         <span id="icon-sidebar-collapse" aria-hidden="true"></span>
@@ -1675,6 +1680,7 @@
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-noms-nas" aria-controls="reglages-panneau-noms-nas" aria-selected="false" onclick="definirSousOngletReglages('noms-nas')">Noms de fichiers du NAS</button>
       <div class="reglages-nav-groupe" role="presentation">Intelligence de CLAIRE</div>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-relecture" aria-controls="reglages-panneau-relecture" aria-selected="false" onclick="definirSousOngletReglages('relecture')">IA et relecture d'actes</button>
+      <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-routines" aria-controls="reglages-panneau-routines" aria-selected="false" onclick="definirSousOngletReglages('routines')">Routines de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-consignes" aria-controls="reglages-panneau-consignes" aria-selected="false" onclick="definirSousOngletReglages('consignes')">Consignes de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-memoire" aria-controls="reglages-panneau-memoire" aria-selected="false" onclick="definirSousOngletReglages('memoire')">Mémoire de CLAIRE</button>
       <button type="button" class="reglages-nav-btn" role="tab" id="reglages-onglet-apprentissage" aria-controls="reglages-panneau-apprentissage" aria-selected="false" onclick="definirSousOngletReglages('apprentissage')">Ce que CLAIRE a appris</button>
@@ -1936,6 +1942,12 @@
         <span id="reglages-openlegi-resultat"></span>
       </div>
     </div>
+  </section>
+
+  <!-- ===== Routines de CLAIRE (étude 24/10, phase 0) — client/111-reglages-routines.js ===== -->
+  <section class="reglages-panneau" id="reglages-panneau-routines" role="tabpanel" aria-labelledby="reglages-onglet-routines" hidden>
+    <h2 class="reglages-titre">Routines de CLAIRE</h2>
+    <div id="routines-contenu"></div>
   </section>
 
   <section class="reglages-panneau" id="reglages-panneau-yousign" role="tabpanel" aria-labelledby="reglages-onglet-yousign" hidden>
@@ -2593,6 +2605,11 @@
   </div>
 </div>
 
+<!-- Propositions de CLAIRE (étude 24/10, client/110-routines.js) : le volet de la boîte, à droite. -->
+<div class="pc-overlay" id="propositions-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerPropositionsClaire(); this.dataset.fond = ''">
+  <aside class="pc-volet" role="dialog" aria-modal="true" aria-labelledby="propositions-titre"><div id="propositions-contenu"></div></aside>
+</div>
+
 <!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/109-veille-signature.js). -->
 <div class="confirm-overlay" id="veille-signature-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerVeilleSignature(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box veille-box" role="dialog" aria-modal="true" aria-label="Fiche de signature">
@@ -2959,5 +2976,7 @@
 <script src="client/107-appel-fonds-saisie-nas.js"></script>
 <script src="client/108-autorisations-succession.js"></script>
 <script src="client/109-veille-signature.js"></script>
+<script src="client/110-routines.js"></script>
+<script src="client/111-reglages-routines.js"></script>
 </body>
 </html>
