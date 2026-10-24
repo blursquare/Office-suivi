@@ -21743,3 +21743,6 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 
 ### 24/10/2026 — Icône Discussions partout
 Étude : « le nouveau logo partout ». L'icône `discussion` (mochi + étoile) est déjà celle de la barre latérale, de l'onglet, de la page, des réponses, des canaux et du widget ; la rubrique « IA et Discussions » des Réglages la reprend (0.336.4, `client/33`).
+
+### 24/10/2026 — Icône Discussions de Claude Design (0.336.5)
+Étude : « je veux les logos de Claude design ». `ICONES.discussion` (client/01-socle.js) reprend la maquette 8a de `docs/maquettes-icone-discussions/` (robot-mochi au trait, étoile CLAIRE qui mord le coin bas droit, masque) ; `icone()` donne à chaque copie un identifiant de masque propre. Non fait : l'avatar anthracite (la couleur #1B1E23 n'est pas un jeton de style.css) et la tuile app.

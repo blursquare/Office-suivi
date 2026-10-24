@@ -258,7 +258,10 @@
     // Épingle (« garder la sidebar toujours ouverte ») : une tête + une tige, pour rester dans le
     // même vocabulaire minimal (pas une punaise/pin réaliste).
     pin: '<circle cx="8" cy="5" r="3.1"/><line x1="8" y1="8" x2="8" y2="14.2"/>',
-    discussion: '<g fill="currentColor" stroke="none"><path transform="translate(-1 2.8) scale(.88)" fill-rule="evenodd" d="M2.2 11.6C1.2 8.8 2.4 5.6 5 4.4 7 3.5 9.3 3.5 11.2 4.4c2.6 1.2 3.7 4.2 2.8 7-.4 1.6-1.8 2.4-3.4 2.4H5.6c-1.6 0-3-.8-3.4-2.2ZM4.25 9.2a.95.95 0 1 0 1.9 0a.95.95 0 1 0-1.9 0ZM9.850000000000001 9.2a.95.95 0 1 0 1.9 0a.95.95 0 1 0-1.9 0ZM6.6 10.3h2.8c0 1.5-.6 1.9-1.4 1.9s-1.4-.4-1.4-1.9Z"/><path transform="translate(11.6 4.4) scale(.62)" d="M0-5C.6-1.7 1.7-.6 5 0 1.7.6.6 1.7 0 5-.6 1.7-1.7.6-5 0-1.7-.6-.6-1.7 0-5Z"/></g>',
+    // Icône « Discussions » : le robot-mochi au trait avec l'étoile de CLAIRE mordant le coin bas droit (planche de Claude Design, maquette 8a,
+    // docs/maquettes-icone-discussions/). Le masque porte un identifiant propre à chaque copie (`icone()` le renomme) : deux copies sur la page,
+    // dont une dans un bloc caché, ne se volent pas leur masque.
+    discussion: '<defs><mask id="claire-discussions-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="#fff"/><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" transform="translate(13.1 13.1) scale(0.25) translate(-12 -12)" fill="#000" stroke="#000" stroke-width="8.6" stroke-linejoin="round"/></mask></defs><g mask="url(#claire-discussions-cut)"><path d="M1.5 8C1.5 4.7 3.9 2.25 7.5 2.25C11.1 2.25 13.5 4.7 13.5 8V10.25C13.5 12.3 12.2 13.75 10 13.75H5C2.8 13.75 1.5 12.3 1.5 10.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><rect x="5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><rect x="8.5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><path d="M6.1 10.3Q7.5 11.2 8.9 10.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></g><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" transform="translate(13.1 13.1) scale(0.25) translate(-12 -12)" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
     cloche: '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 8.8 0v3.8l1.1 1.3H2.5z" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/>',
     'cloche-barree': '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 7.3-3.3M12.4 7.6v3.6l1.1 1.3H2.5" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/><line x1="2.2" y1="2.2" x2="13.8" y2="13.8"/>',
     etoile: '<path d="M8 1.9 9.8 5.8l4.2.5-3.1 2.9.8 4.2L8 11.3l-3.7 2 .8-4.2L2 6.3l4.2-.5z" stroke-linejoin="round"/>',
@@ -266,9 +269,11 @@
   };
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
+  let compteurMasquesDiscussion = 0;
   function icone(nom, cls, spin) {
-    const chemin = ICONES[nom];
+    let chemin = ICONES[nom];
     if (!chemin) return '';
+    if (nom === 'discussion') chemin = chemin.replace(/claire-discussions-cut/g, 'claire-discussions-' + (++compteurMasquesDiscussion));
     return `<svg class="icone${cls ? ' ' + cls : ''}${spin ? ' icone-spin' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${chemin}</svg>`;
   }
 
