@@ -292,7 +292,7 @@
           titre: 'Imprimer la fiche dossier',
           contexte: `${phraseSignature(d, aujourdhuiIso)}. Échéances, pièces et procédure des fonds, déjà cochées d’après CLAIRE : à imprimer pour le dossier.`,
           jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
-          geste: { type: 'ficheSignature' }, bouton: 'Télécharger la fiche'
+          geste: { type: 'ficheSignature' }, bouton: 'Voir la fiche'
         });
       }
 
@@ -796,7 +796,7 @@
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
     } else if (geste.type === 'ficheSignature') {
-      telechargerFicheSignature(id);
+      ouvrirVeilleSignature(id);
     } else if (geste.type === 'copieActe') {
       fermerFenetreAujourdhui();
       ouvrirEnvoiCopieActe(id);
@@ -1098,7 +1098,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', ficheSignature: 'Télécharger', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', ficheSignature: 'Imprimer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';

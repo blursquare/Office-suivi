@@ -170,3 +170,19 @@ test('les segments de texte sont coupés en lignes de la largeur demandée, sans
   lignes.forEach(l => assert.ok(l.reduce((s, x) => s + x.l, 0) <= 150));
   assert.equal(lignes.map(l => l.map(x => x.t).join('')).join(' '), 'ENVOYER LE PROJET au plus tard 7 jours avant le rendez-vous');
 });
+
+test('les saisies du pop-up complètent la fiche : étape cochée avec sa date, date d’une étape faite sans date, notes', () => {
+  const f = app.ficheVeilleSignature(vente({ appelFonds: '', projetEnvoye: '', echeancesValidees: {} }), {});
+  assert.equal(f.etapes[6].fait, false);
+  const m = app.ficheAvecSaisiesVeille(f, { 7: { fait: true, date: '2026-10-27' }, 2: { fait: false, date: '2026-10-01' } }, '  Apporter le plan  ');
+  assert.equal(m.etapes[6].fait, true);
+  assert.equal(m.etapes[6].date, '2026-10-27');
+  // Une étape non cochée dans le pop-up reste telle quelle, même avec une date.
+  assert.equal(m.etapes[1].fait, f.etapes[1].fait);
+  assert.equal(m.notes, 'Apporter le plan');
+  // La date de CLAIRE reste prioritaire sur celle du pop-up ; la fiche d'origine n'est pas modifiée.
+  const f2 = app.ficheVeilleSignature(vente(), {});
+  assert.equal(app.ficheAvecSaisiesVeille(f2, { 1: { fait: true, date: '2026-01-01' } }, '').etapes[0].date, '2026-10-19');
+  assert.equal(f.etapes[6].fait, false);
+  assert.equal(app.ficheAvecSaisiesVeille(f, null, null).notes, '');
+});

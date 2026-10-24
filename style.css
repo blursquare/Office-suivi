@@ -10644,7 +10644,6 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .aut-cartes { width: 100%; min-height: 320px; }
 
 /* ---- Fiche de veille de signature (client/109-veille-signature.js) ---- */
-.veille-box { max-width: 560px; }
 .veille-titre { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--texte-xl); font-weight: 500; letter-spacing: -0.02em; }
 .veille-intro { margin: 0 0 16px; color: var(--muted); font-size: var(--texte-base); }
 .veille-liste { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; max-height: 50vh; overflow-y: auto; }
@@ -10654,3 +10653,51 @@ wa-button.rappel-perso-plus:active::part(base) { transform: scale(0.96); }
 .veille-etat { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: var(--texte-s); }
 .veille-manque { color: var(--muted); }
 .veille-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+
+/* ---- Fiche de signature : aperçu de la fiche préremplie (client/109-veille-signature.js) ---- */
+.veille-box { max-width: 1040px; width: calc(100% - 48px); max-height: calc(100vh - 48px); display: flex; flex-direction: column; padding: 24px; }
+#veille-signature-contenu { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.vs-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+.vs-tete .veille-intro { margin: 0; }
+.vs-tete .veille-etat { flex-direction: column; align-items: flex-end; gap: 4px; max-width: 420px; text-align: right; }
+.vs-corps { overflow-y: auto; min-height: 0; padding: 16px; border-radius: var(--rayon-m); background: var(--paper-sunk); }
+.vs-papier { max-width: 860px; margin: 0 auto; padding: 24px; border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-card); font-size: var(--texte-s); color: var(--ink); }
+.vs-papier h3 { margin: 0; font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; }
+.vs-papier h4 { margin: 16px 0 8px; font-size: var(--texte-l); font-weight: 500; letter-spacing: 0; }
+.vs-papier h4 small { margin-left: 8px; font-size: var(--texte-xxs); font-weight: 400; color: var(--muted); }
+.vs-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+.vs-entete span { font-size: var(--texte-xs); color: var(--muted); text-align: right; }
+.vs-tuiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.vs-tuile { padding: 6px 10px; border-radius: var(--rayon-s); color: var(--noir-fixe); }
+.vs-tuile-l { font-size: var(--texte-xs); opacity: 0.65; }
+.vs-tuile-d { font-size: var(--texte-base); font-weight: 500; }
+.vs-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.vs-boite { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-sunk); }
+.vs-boite h4 { margin: 0 0 6px; font-size: var(--texte-base); }
+.vs-boite ul { margin: 0; padding-left: 16px; }
+.vs-boite li { margin-bottom: 2px; }
+.vs-vide { margin: 0; color: var(--muted); font-style: italic; }
+.vs-cartes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vs-carte { position: relative; display: grid; grid-template-columns: 24px 1fr; gap: 4px 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-sunk); }
+.vs-carte.fait { border-color: var(--success); }
+.vs-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); color: var(--paper-card); font-size: var(--texte-xxs); font-weight: 700; }
+.vs-texte b { font-weight: 600; }
+.vs-note { margin-top: 2px; font-size: var(--texte-xs); color: var(--muted); }
+.vs-fait { grid-column: 2; display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); white-space: nowrap; }
+.vs-carte.fait .vs-fait { color: var(--success); }
+.vs-case { width: 20px; height: 20px; margin: 0; accent-color: var(--success); cursor: pointer; }
+.vs-case:disabled { cursor: default; }
+.vs-date { flex: 1; min-width: 0; max-width: 180px; height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); color: var(--ink); font: inherit; }
+.vs-date:disabled { opacity: 0.5; }
+.vs-date-fixe { font-size: var(--texte-l); font-weight: 600; color: var(--success); }
+.vs-notes { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); color: var(--ink); font: inherit; resize: vertical; }
+.vs-pied { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 16px; }
+.vs-aide { font-size: var(--texte-xs); color: var(--muted); }
+.vs-actions { display: flex; gap: 8px; flex-shrink: 0; }
+@media (max-width: 760px) {
+  .vs-tuiles { grid-template-columns: repeat(2, 1fr); }
+  .vs-deux, .vs-cartes { grid-template-columns: 1fr; }
+  .vs-tete { flex-direction: column; }
+  .vs-tete .veille-etat { align-items: flex-start; text-align: left; }
+  .vs-pied { flex-direction: column; align-items: stretch; }
+}

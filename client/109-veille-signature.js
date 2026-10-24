@@ -3,7 +3,7 @@
 // le rendez-vous (date, heure, lieu) en grand, puis une ligne par condition de la signature — prêt, vente préalable, préemption, SAFER, pièces,
 // engagements du vendeur, appel de fonds, projet, fonds, RIB — avec une grande case cochée quand c'est fait et sa date en gros. Rien n'est écrit
 // sur le dossier ; la fiche dit l'état au moment où elle est éditée (et l'heure). La même fiche s'obtient à tout moment depuis la fiche du dossier
-// (ligne « Outils » de l'onglet Dossier). Le pop-up ne s'affiche qu'à l'ouverture de CLAIRE ou à l'ouverture de la fiche du dossier concerné, une seule fois par rendez-vous et par poste (une nouvelle date le fait revenir).
+// (ligne « Outils » de l'onglet Dossier). Le pop-up (aperçu de la fiche préremplie, champs vides à remplir) ne s'affiche qu'à l'ouverture de la fiche du dossier concerné, une seule fois par rendez-vous et par poste (une nouvelle date le fait revenir) ; il s'ouvre aussi par le bouton « Fiche de signature » de la fiche et par la tâche d'« À faire ».
 // PDF composé dans le navigateur par pdf-lib avec les polices embarquées du courrier (Carlito, Liberation Serif), jamais un PDF/A : c'est une fiche
 // de travail, pas une pièce de dossier à déposer dans Authentic.
 
@@ -273,7 +273,7 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
   };
   const mesurerRun = (taille) => (t, cle) => f[cle].widthOfTextAtSize(propre(t, cle), taille);
   const trait = (x1, y1, x2, y2, epaisseur, couleur, rond) => page.drawLine({ start: { x: x1, y: H - y1 }, end: { x: x2, y: H - y2 }, thickness: epaisseur, color: couleur, lineCap: rond ? 1 : 0 });
-  const rect = (x, yHaut, w, h, remplissage, bord, epaisseur, rayon) => page.drawSvgPath(traceRectArrondiVeille(w, h, rayon == null ? 5.7 : rayon), Object.assign({ x, y: H - yHaut, color: remplissage }, bord ? { borderColor: bord, borderWidth: epaisseur || 0.6 } : {}));
+  const rect = (x, yHaut, w, h, remplissage, bord, epaisseur, rayon) => page.drawSvgPath(traceRectArrondiVeille(w, h, rayon == null ? 5.7 : rayon), Object.assign({ x, y: H - yHaut, color: remplissage || rgb(1, 1, 1) }, bord ? { borderColor: bord, borderWidth: epaisseur || 0.6 } : {}));
   // Des lignes de segments écrites à partir de (x, yHaut) ; rend la hauteur occupée.
   const ecrireLignes = (lignes, x, yHaut, taille, interligne, couleur) => {
     lignes.forEach((ligne, i) => {
@@ -396,6 +396,22 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
 
   // Pied : le règlement de l'étude, puis l'instant de l'édition (l'état du dossier change).
   const yPied = Math.max(y + 4, M.bas - 24);
+  // Notes : ce que le collaborateur a saisi dans le pop-up, ou un cadre libre à remplir à la main, dans la place qui reste.
+  const yNotes = y + 6;
+  const hNotes = yPied - 8 - yNotes;
+  if (hNotes >= 40) {
+    ecrire('Notes', M.gauche, yNotes, 'gras', 10, C.marine);
+    rect(M.gauche, yNotes + 14, largeurUtile, hNotes - 14, null, C.filet, 0.8, 5.7);
+    const paragraphes = String(fiche.notes || '').split(/\r?\n/).filter(t => t.trim());
+    let yt = yNotes + 20;
+    paragraphes.forEach(para => {
+      lignesRunsVeille([{ t: para, cle: 'sans' }], largeurUtile - 20, mesurerRun(9.5)).forEach(ligne => {
+        if (yt + 11 > yNotes + hNotes - 4) return;
+        ecrireLignes([ligne], M.gauche + 10, yt, 9.5, 11, C.texte);
+        yt += 11.5;
+      });
+    });
+  }
   trait(M.gauche, yPied, M.droite, yPied, 0.6, hex('999999'), false);
   const reglement = lignesRunsVeille([{ t: 'Les procédures écrites sont des règlements de l’entreprise. En cas de non-respect (non validé par le notaire), des sanctions disciplinaires peuvent être prononcées. · Dates issues d’une lecture automatique du compromis : à vérifier avant usage. · Fiche éditée par CLAIRE le ' + maintenant.toLocaleDateString('fr-FR') + ' à ' + maintenant.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' — état du dossier à cet instant.', cle: 'sans' }], largeurUtile, mesurerRun(6.8));
   ecrireLignes(reglement, M.gauche, yPied + 3, 6.8, 8.4, C.gris);
@@ -407,19 +423,56 @@ async function composerPdfVeilleSignature(fiche, lib, polices, maintenant) {
   return doc.save();
 }
 
-// Le PDF d'un dossier : { blob, nom }.
-async function genererPdfVeilleSignature(d) {
-  const polices = await chargerOutilsPdfA();
-  const fiche = ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() });
+// Pure : la fiche avec ce que le collaborateur a saisi dans le pop-up — `saisies[num]` = { fait, date } pour l'étape n° num : une étape cochée
+// devient « faite » avec la date saisie (celle de CLAIRE reste prioritaire quand elle existe), une date saisie sur une étape déjà faite mais
+// sans date la complète. `notes` est imprimé dans le cadre « Notes ». Rien n'est écrit sur le dossier.
+function ficheAvecSaisiesVeille(fiche, saisies, notes) {
+  const s = saisies || {};
+  return Object.assign({}, fiche, {
+    notes: String(notes || '').trim(),
+    etapes: fiche.etapes.map(e => {
+      const x = s[e.num];
+      if (!x || (!e.fait && !x.fait)) return e;
+      return Object.assign({}, e, { fait: true, date: e.date || isoValideVeille(x.date) });
+    })
+  });
+}
+
+// Ce qu'il faut au PDF : pdf-lib, fontkit et les deux polices Carlito du courrier (client/56) — pas le modèle Word de l'appel de fonds, dont la
+// fiche n'a pas besoin (et qui charge PizZip depuis Internet).
+var outilsVeilleEnCours = null;
+function chargerOutilsVeille() {
+  if (outilsVeilleEnCours) return outilsVeilleEnCours;
+  outilsVeilleEnCours = (async () => {
+    if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA);
+    if (!window.fontkit) await afChargerScript(URL_FONTKIT_PDFA);
+    const polices = {};
+    await Promise.all(['sans', 'sansGras'].map(async cle => {
+      const r = await fetch(POLICES_COURRIER_PDFA[cle]);
+      if (!r.ok) throw new Error('Police de la fiche introuvable : ' + POLICES_COURRIER_PDFA[cle]);
+      polices[cle] = new Uint8Array(await r.arrayBuffer());
+    }));
+    return polices;
+  })();
+  outilsVeilleEnCours.catch(() => { outilsVeilleEnCours = null; });
+  return outilsVeilleEnCours;
+}
+
+// Le PDF d'un dossier : { blob, nom }. `saisies` / `notes` : voir ficheAvecSaisiesVeille.
+async function genererPdfVeilleSignature(d, saisies, notes) {
+  const polices = await chargerOutilsVeille();
+  const fiche = ficheAvecSaisiesVeille(ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies, notes);
   const octets = await composerPdfVeilleSignature(fiche, Object.assign({}, window.PDFLib, { fontkit: window.fontkit }), polices, new Date());
   return { blob: new Blob([octets], { type: 'application/pdf' }), nom: nomFichierVeilleSignature(d) };
 }
 
+// Télécharge la fiche telle qu'elle est affichée dans le pop-up (ses saisies comprises) ; sans pop-up ouvert sur ce dossier, la fiche brute.
 async function telechargerFicheSignature(id) {
   const d = dossiers.find(x => x.id === id);
   if (!d) return;
+  const saisie = veilleEdition.id === id ? veilleEdition : { saisies: {}, notes: '' };
   try {
-    const { blob, nom } = await genererPdfVeilleSignature(d);
+    const { blob, nom } = await genererPdfVeilleSignature(d, saisie.saisies, saisie.notes);
     telechargerFichier(blob, nom, 'application/pdf');
     noteVeilleSignatureVue(d);
     // Téléchargée pour CE rendez-vous : la tâche « Imprimer la fiche dossier » d'« À faire » et le pop-up ne reviennent pas.
@@ -427,6 +480,7 @@ async function telechargerFicheSignature(id) {
     d.ficheSignatureImprimeePour = cleVeilleSignature(d);
     ajouterHistorique(d, 'Fiche de signature téléchargée pour impression');
     sauvegarder(d);
+    fermerVeilleSignature();
     render();
     noterVerificationPoste('veille-signature-pdf', { detail: 'fiche de signature produite' });
   } catch (e) {
@@ -435,7 +489,7 @@ async function telechargerFicheSignature(id) {
   }
 }
 
-// ---- Le pop-up ----
+// ---- Le pop-up : l'aperçu de la fiche préremplie, avec ses champs vides à remplir ----
 
 function clePosteVeilleSignature() {
   return CLE_STOCKAGE_VEILLE_SIGNATURE + String(utilisateurPoste || '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -457,7 +511,8 @@ function noteVeilleSignatureVue(d) {
   ecrireLocal(clePosteVeilleSignature(), JSON.stringify(vues.slice(-LIMITE_VUES_VEILLE_SIGNATURE)));
 }
 
-var veilleSignatureAffichee = [];
+// Ce que le pop-up ouvert est en train d'éditer : le dossier, la fiche calculée à l'ouverture, les saisies { [n° d'étape]: { fait, date } }, les notes.
+var veilleEdition = { id: '', fiche: null, saisies: {}, notes: '' };
 
 // Le texte du délai : « demain à 14 h 30 », « aujourd'hui à 10 h », « dans 2 jours ».
 function delaiVeilleSignature(d, maintenant) {
@@ -469,78 +524,120 @@ function delaiVeilleSignature(d, maintenant) {
   return r.heure ? `${quand} à ${heureEmail(r.heure).replace('h', ' h ').trim()}` : quand;
 }
 
-function renderVeilleSignature(liste, maintenant, depuisFiche) {
-  const contenu = document.getElementById('veille-signature-contenu');
-  if (!contenu) return;
-  const categoriesRdv = categoriesRdvReglees();
-  contenu.innerHTML = `
-    <h2 class="veille-titre">${icone('calendar')}Signature dans moins de 48 h</h2>
-    <p class="veille-intro">La fiche de signature est prête : les conditions remplies sont cochées avec leur date. Imprimez-la pour le dossier.</p>
-    <div class="veille-liste">
-      ${liste.map(d => {
-        const f = ficheVeilleSignature(d, { categoriesRdv });
-        const manque = f.lignes.filter(l => l.etat === 'attente').map(l => l.label);
-        const etat = f.reste
-          ? `<span class="dot-label dl-urgent"><span class="dot"></span>${f.reste} condition${f.reste > 1 ? 's' : ''} à lever</span><span class="veille-manque">${escapeHtml(listeCourteVeille(manque, 3))}</span>`
-          : '<span class="dot-label dl-success"><span class="dot"></span>Toutes les conditions sont remplies</span>';
-        return `<div class="veille-dossier">
-          <div class="veille-dossier-tete"><strong>${escapeHtml(f.dossier)}</strong><span class="veille-quand">${escapeHtml(delaiVeilleSignature(d, maintenant))}</span></div>
-          <div class="veille-etat">${etat}</div>
-          <div class="veille-actions">
-            ${depuisFiche ? '' : `<wa-button variant="brand" size="s" type="button" onclick="ouvrirFicheDossierVeilleSignature('${escapeOnclickArg(d.id)}')">${icone('folder')}Ouvrir la fiche du dossier</wa-button>`}
-            <wa-button ${depuisFiche ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>
-    <div class="confirm-actions"><wa-button appearance="outlined" type="button" onclick="fermerVeilleSignature()">Fermer</wa-button></div>`;
+// Une étape de la procédure, comme sur la fiche imprimée : numéro, texte, note, puis case et date — modifiables tant que l'étape n'est pas faite.
+function carteEtapeVeille(e) {
+  const dateFixe = e.fait && e.date;
+  const champDate = dateFixe
+    ? `<span class="vs-date-fixe">${escapeHtml(dateCourteVeille(e.date))}</span>`
+    : `<input type="date" class="vs-date" value="" onchange="veilleDater(${e.num}, this.value)" aria-label="Date de l’étape ${e.num}">`;
+  return `<div class="vs-carte${e.fait ? ' fait' : ''}" data-vs-num="${e.num}">
+    <span class="vs-num">${e.num}</span>
+    <div class="vs-texte"><b>${escapeHtml(e.lead)}</b>${escapeHtml(e.suite)}${e.note ? `<div class="vs-note">${escapeHtml(e.note)}</div>` : ''}</div>
+    <label class="vs-fait"><input type="checkbox" class="vs-case" ${e.fait ? 'checked disabled' : ''} onchange="veilleCocher(${e.num}, this.checked)" aria-label="Étape ${e.num} faite"><span>Fait le</span>${champDate}</label>
+  </div>`;
 }
 
-// Le pop-up mène à la fiche du dossier (onglet Dossier, où se trouve « Fiche de signature » dans la ligne « Outils ») — étude 24/10.
-function ouvrirFicheDossierVeilleSignature(id) {
-  fermerVeilleSignature();
-  ouvrirDossierDepuisDashboard(id);
-  definirOngletFiche('dossier');
+function renderVeilleSignature(d, maintenant) {
+  const contenu = document.getElementById('veille-signature-contenu');
+  if (!contenu) return;
+  const f = veilleEdition.fiche;
+  const manque = f.lignes.filter(l => l.etat === 'attente').map(l => l.label);
+  const resume = f.reste
+    ? `<span class="dot-label dl-urgent"><span class="dot"></span>${f.reste} condition${f.reste > 1 ? 's' : ''} à lever</span><span class="veille-manque">${escapeHtml(listeCourteVeille(manque, 4))}</span>`
+    : '<span class="dot-label dl-success"><span class="dot"></span>Toutes les conditions sont remplies</span>';
+  const tuiles = f.cases.length
+    ? f.cases.map(c => {
+      const t = TEINTES_FICHE_IMPRIMEE[c.cls] || TEINTES_FICHE_IMPRIMEE.autre;
+      const label = c.cls === 'rendezVous' && f.heureTexte ? `${c.label} · ${f.heureTexte}` : c.label;
+      return `<div class="vs-tuile" style="background:${t.fond};border-left:3px solid ${t.barre};"><div class="vs-tuile-l">${escapeHtml(label)}</div><div class="vs-tuile-d">${escapeHtml(formatDateFr(c.date))}</div></div>`;
+    }).join('')
+    : '<p class="vs-vide">Aucune échéance enregistrée.</p>';
+  const liste = (items, vide) => items.length ? `<ul>${items.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul>` : `<p class="vs-vide">${vide}</p>`;
+  contenu.innerHTML = `
+    <div class="vs-tete">
+      <div>
+        <h2 class="veille-titre">${icone('printer')}Fiche de signature</h2>
+        <p class="veille-intro">${escapeHtml(f.dossier)} · signature ${escapeHtml(delaiVeilleSignature(d, maintenant))}</p>
+      </div>
+      <div class="veille-etat">${resume}</div>
+    </div>
+    <div class="vs-corps">
+      <div class="vs-papier">
+        <div class="vs-entete"><h3>${escapeHtml(f.dossier)}</h3><span>${[f.responsable ? 'Responsable : ' + escapeHtml(f.responsable) : '', f.achatComptant ? 'Achat comptant' : '', 'Édité le ' + new Date().toLocaleDateString('fr-FR')].filter(Boolean).join(' · ')}</span></div>
+        <h4>1 · Échéances et points de vigilance</h4>
+        <div class="vs-tuiles">${tuiles}</div>
+        <div class="vs-deux">
+          <div class="vs-boite vs-pieces"><h4>Pièces à réclamer au vendeur</h4>${liste(f.docs, 'Aucune pièce identifiée.')}</div>
+          <div class="vs-boite vs-engagements"><h4>Engagements du vendeur</h4>${liste(f.engagements, 'Aucun engagement relevé.')}</div>
+        </div>
+        <h4>2 · Procédure — Appels et réception des fonds <small>(cochée d’après CLAIRE, à compléter ci-dessous)</small></h4>
+        <div class="vs-cartes">${f.etapes.map(carteEtapeVeille).join('')}</div>
+        <h4>Notes <small>(imprimées dans le cadre « Notes » de la fiche)</small></h4>
+        <textarea class="vs-notes" rows="3" placeholder="Ce qu’il faut garder en tête pour la signature…" oninput="veilleNotes(this.value)"></textarea>
+      </div>
+    </div>
+    <div class="vs-pied">
+      <span class="vs-aide">Cochez et datez ce qui est fait : la fiche imprimée en tient compte. Le dossier n’est pas modifié.</span>
+      <span class="vs-actions">
+        <wa-button appearance="outlined" type="button" onclick="fermerVeilleSignature()">Fermer</wa-button>
+        <wa-button variant="brand" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>
+      </span>
+    </div>`;
+}
+
+// Cocher une étape : sa date du jour, modifiable. Mise à jour en place (une réaffichage ferait perdre le focus d'un champ).
+function veilleCocher(num, coche) {
+  const s = veilleEdition.saisies[num] || (veilleEdition.saisies[num] = { fait: false, date: '' });
+  s.fait = !!coche;
+  if (s.fait && !s.date) s.date = isoAujourdhuiLocal();
+  if (!s.fait) s.date = '';
+  const carte = document.querySelector(`[data-vs-num="${num}"]`);
+  if (!carte) return;
+  carte.classList.toggle('fait', s.fait);
+  const champ = carte.querySelector('.vs-date');
+  if (champ) champ.value = s.date;
+}
+
+// Saisir une date coche l'étape ; l'effacer la décoche.
+function veilleDater(num, valeur) {
+  const s = veilleEdition.saisies[num] || (veilleEdition.saisies[num] = { fait: false, date: '' });
+  s.date = String(valeur || '');
+  const carte = document.querySelector(`[data-vs-num="${num}"]`);
+  const faitD = carte && carte.querySelector('.vs-case') && carte.querySelector('.vs-case').disabled;
+  // Une étape déjà faite sans date (champ date libre) : la date la complète, rien d'autre ne change.
+  if (faitD) { s.fait = true; return; }
+  if (s.date && !s.fait) { s.fait = true; const c = carte && carte.querySelector('.vs-case'); if (c) c.checked = true; if (carte) carte.classList.add('fait'); }
+  if (!s.date && s.fait) { s.fait = false; const c = carte && carte.querySelector('.vs-case'); if (c) c.checked = false; if (carte) carte.classList.remove('fait'); }
+}
+
+function veilleNotes(texte) {
+  veilleEdition.notes = String(texte || '');
 }
 
 function fermerVeilleSignature() {
   const overlay = document.getElementById('veille-signature-overlay');
   if (overlay) overlay.style.display = 'none';
-  // Fermer vaut « vu » : le pop-up ne revient pas pour ce rendez-vous (la fiche reste dans l'onglet Dossier).
-  veilleSignatureAffichee.forEach(noteVeilleSignatureVue);
-  veilleSignatureAffichee = [];
+  veilleEdition = { id: '', fiche: null, saisies: {}, notes: '' };
 }
 
-// Une saisie, une fenêtre ou un autre pop-up ouvert : pas de pop-up par-dessus le travail en cours. À l'ouverture d'une fiche (`sansSaisie`),
-// le clic qui l'ouvre vient d'avoir lieu : seules les fenêtres déjà ouvertes comptent.
-function posteOccupeVeilleSignature(sansSaisie) {
-  const a = document.activeElement;
-  if (!sansSaisie && a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)) return true;
-  return Array.from(document.querySelectorAll('.confirm-overlay')).some(o => o.style.display && o.style.display !== 'none');
-}
-
-// Affiche le pop-up pour ces dossiers et les compte « vus » AUSSITÔT : il ne se propose qu'une fois par rendez-vous.
-function afficherVeilleSignature(liste, maintenant, depuisFiche) {
-  const overlay = document.getElementById('veille-signature-overlay');
-  if (!overlay || !liste.length) return;
-  veilleSignatureAffichee = liste;
-  renderVeilleSignature(liste, maintenant, depuisFiche);
-  overlay.style.display = 'flex';
-  liste.forEach(noteVeilleSignatureVue);
-}
-
-// À l'ouverture de CLAIRE : les fiches des dossiers du collaborateur dont le rendez-vous est dans les 48 h (ou dès le vendredi 17 h).
-function verifierVeilleSignature() {
-  if (!utilisateurPoste || posteOccupeVeilleSignature(false)) return;
-  const maintenant = new Date();
-  afficherVeilleSignature(dossiersVeilleSignature(dossiers, utilisateurPoste, maintenant, veillesSignatureVues()), maintenant, false);
-}
-
-// À l'ouverture de la fiche d'un dossier : la sienne seulement, si elle est due et pas encore proposée.
-function proposerVeilleSignatureFiche(id) {
-  if (!utilisateurPoste || posteOccupeVeilleSignature(true)) return;
+// Ouvre l'aperçu de la fiche de signature d'un dossier : à l'ouverture de sa fiche (une fois par rendez-vous), par le bouton « Fiche de signature »
+// de la fiche, ou par la tâche « Imprimer la fiche dossier » d'« À faire ». Compté « vu » dès l'affichage.
+function ouvrirVeilleSignature(id) {
   const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
-  if (!d) return;
-  const maintenant = new Date();
-  afficherVeilleSignature(dossiersVeilleSignature([d], utilisateurPoste, maintenant, veillesSignatureVues()), maintenant, true);
+  const overlay = document.getElementById('veille-signature-overlay');
+  if (!d || !overlay || !instantsSignatureVeille(d)) return;
+  veilleEdition = { id, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
+  renderVeilleSignature(d, new Date());
+  overlay.style.display = 'flex';
+  noteVeilleSignatureVue(d);
+}
+
+// À l'ouverture de la fiche d'un dossier : la sienne seulement, si elle est due, pas encore proposée, et qu'aucune autre fenêtre n'est ouverte.
+// Jamais à l'ouverture de CLAIRE (étude 24/10 : « que lorsque l'on va sur la fiche dossier »).
+function proposerVeilleSignatureFiche(id) {
+  if (!utilisateurPoste) return;
+  if (Array.from(document.querySelectorAll('.confirm-overlay')).some(o => o.style.display && o.style.display !== 'none')) return;
+  const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
+  if (!d || !dossiersVeilleSignature([d], utilisateurPoste, new Date(), veillesSignatureVues()).length) return;
+  ouvrirVeilleSignature(id);
 }
