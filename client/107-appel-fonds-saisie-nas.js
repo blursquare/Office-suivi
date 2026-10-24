@@ -186,3 +186,39 @@ function verifierProrataLigne(ligne) {
     ? { statut: 'ok', attendu }
     : { statut: 'ecart', attendu };
 }
+
+// Contrôle des frais d'acte (étude 24/10 : « le contrôle de la provision ne fonctionne pas à chaque fois »). Il se taisait quand
+// l'adresse du dossier n'était que dans la fiche du bien (`d.bien.adresse`, code postal à part), quand le code postal était écrit
+// « 41 000 », quand l'adresse retapée dans l'outil n'avait pas de code postal (le département choisi était alors effacé) ou quand
+// le prix était gardé en texte. Pures.
+function codePostalDansTexteAppelFonds(texte) {
+  const m = /(?<!\d)(\d{2})\s?(\d{3})(?!\d)/.exec(String(texte || ''));
+  return m ? m[1] + m[2] : null;
+}
+function codePostalBienAppelFonds(d) {
+  const a = (d && d.bien && d.bien.adresse) || {};
+  return codePostalDansTexteAppelFonds(a.codePostal) || codePostalDansTexteAppelFonds(d && d.adresseBien) || codePostalDansTexteAppelFonds(a.adresseComplete);
+}
+function adresseBienDossierAppelFonds(d) {
+  if (!d) return '';
+  if (String(d.adresseBien || '').trim()) return d.adresseBien;
+  const a = (d.bien && d.bien.adresse) || {};
+  if (String(a.adresseComplete || '').trim()) return a.adresseComplete;
+  const voie = [a.numero, a.typeVoie, a.nomVoie].filter(Boolean).join(' ') || a.lieuDit || '';
+  const commune = [a.codePostal, a.commune].filter(Boolean).join(' ');
+  return [voie, commune].filter(Boolean).join(', ');
+}
+function montantDossierAppelFonds(v) {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+  const n = typeof eurosDepuisSaisie === 'function' ? eurosDepuisSaisie(String(v || '')) : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+// Sur la ligne des frais quand le contrôle ne peut pas se faire : ce qui manque, au lieu d'un silence.
+function badgeSansControleFraisAppelFonds() {
+  const manque = [];
+  if (!afValeur('af-frais-departement')) manque.push('département');
+  if (!afValeur('af-frais-type')) manque.push('nature du bien');
+  if (typeof prixPourControleFraisActe === 'function' && !prixPourControleFraisActe()) manque.push('prix');
+  if (!manque.length) return '';
+  return `<span class="af-verif af-verif-manque" title="Choisissez ${escapeAttr(manque.join(', '))} dans « Bien vendu » (ou le prix dans le tableau) pour contrôler les frais au barème.">contrôle : ${escapeHtml(manque.join(', '))} ?</span>`;
+}

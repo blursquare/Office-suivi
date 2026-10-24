@@ -5253,6 +5253,7 @@ table.af-table .af-formule { display: block; font-size: 10.5px; color: #6b6250; 
 table.af-table .af-verif { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 99px; vertical-align: 1px; }
 table.af-table .af-verif-ok { background: #dcefe3; color: #1e6b45; }
 table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
+table.af-table .af-verif-manque { background: #ececf0; color: #4f5566; }
 
 .af-table-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 16px; }
 .af-ajout-ligne {

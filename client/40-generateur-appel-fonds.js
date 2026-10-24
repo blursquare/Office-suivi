@@ -405,7 +405,7 @@
   // dans les décomptes réels (« Frais d'achat (sauf à parfaire ou à diminuer) »), pas
   // « frais d'acte » comme le modèle de l'étude — le contrôle ne se déclenchait donc jamais sur
   // un décompte importé, celui-là même qu'il sert à vérifier. Signalé par l'étude.
-  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais)\b/i;
+  var AF_FRAIS_ACTE_RE = /\b(?:frais\s+et\s+droits|frais\s+d['\u2019]?\s*(?:acte|achat|acquisition)|frais\s+de\s+notaire|frais\s+notari[ée]s|[ée]moluments\s+et\s+droits|provision\s+sur\s+frais|frais\s+de\s+l['\u2019]\s*acte|frais\s+de\s+vente|frais\s+acqu[ée]reur|co[uû]t\s+de\s+l['\u2019]\s*acte|droits\s+de\s+mutation)\b/i;
   var AF_FRAIS_HORS_VENTE_RE = /\b(pr[êe]t|mainlev[ée]e|n[ée]gociation|hypoth[èe]que|caution|copropri[ée]t[ée]|syndic|bancaires?|garantie|succession)\b/i;
 
   function estLigneFraisActeVente(libelle) {
@@ -466,8 +466,8 @@
       change = true;
     };
     if (!afFraisChoisiALaMain.departement) {
-      const cp = (afValeur('af-adresse-bien').match(/\b\d{5}\b/) || [null])[0];
-      const cle = cleBaremeDepuisDepartement(departementDepuisCodePostal(cp));
+      const cp = codePostalDansTexteAppelFonds(afValeur('af-adresse-bien'));
+      const cle = cp ? cleBaremeDepuisDepartement(departementDepuisCodePostal(cp)) : afValeur('af-frais-departement');
       // Une clé absente du menu (69, Corse/Alsace non tranchées) remet le champ à vide plutôt que
       // de laisser le département précédent contrôler une adresse qui n'est plus la sienne.
       poser('af-frais-departement', cle && DEPARTEMENTS_FRAIS_ACTE[cle] ? cle : '');
@@ -882,7 +882,7 @@
       aCompleter.push('Nom du ou des acquéreurs — aucun n’a pu être lu sur ce dossier.');
     }
 
-    if (d.adresseBien) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
+    if (adresseBienDossierAppelFonds(d)) repris.push('Adresse du bien'); else aCompleter.push('Adresse du bien.');
     if (designationDepuisTypeVente(d.typeVente)) repris.push('Désignation du bien');
     const lieuRdv = lieuAppelFondsDossier(d, categoriesRdv);
     if (d.rendezVousSignature) {
@@ -921,12 +921,11 @@
     // Pour le CONTRÔLE des frais (jamais pour les remplir) : le département vient du code postal du
     // bien, le type de bien du type de vente. Ni l'un ni l'autre n'est deviné quand le dossier ne
     // permet pas de trancher (Corse/Alsace regroupées, 69 scindé — voir cleBaremeDepuisDepartement).
-    const cpBien = (String(d.adresseBien || '').match(/\b\d{5}\b/) || [null])[0];
-    const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(cpBien));
+    const departementFrais = cleBaremeDepuisDepartement(departementDepuisCodePostal(codePostalBienAppelFonds(d)));
     const typeBienFrais = AF_TYPE_BIEN_PAR_TYPE_VENTE[d.typeVente] || null;
     // Frais et droits de l'acte : estimés par le barème (étude 06/10 : « que le décompte se remplisse tout seul »), au taux
     // plein — un primo-accédant paie moins, dit dans « À compléter ». Seulement quand l'office établit le décompte.
-    const fraisActe = modeDecompteParDefaut(d) === 'office' ? fraisActeEstimesAppelFonds(d.prixVente, d.prixMobilier, departementFrais, typeBienFrais) : null;
+    const fraisActe = modeDecompteParDefaut(d) === 'office' ? fraisActeEstimesAppelFonds(montantDossierAppelFonds(d.prixVente), montantDossierAppelFonds(d.prixMobilier), departementFrais, typeBienFrais) : null;
     if (fraisActe) {
       aCompleter.push(`Frais et droits de l’acte estimés par le barème : ${formaterPrixCentimes(fraisActe.montant)}${fraisActe.primo < fraisActe.montant ? ` (acquéreur primo-accédant : ${formaterPrixCentimes(fraisActe.primo)})` : ''} — à vérifier, débours du dossier compris.`);
     } else if (modeDecompteParDefaut(d) === 'office') {
@@ -941,13 +940,13 @@
       dossierNom: d.nom ? libelleDossierAffiche(d) : '',
       clients,
       situation,
-      adresseBien: normaliserAdresse(d.adresseBien),
+      adresseBien: normaliserAdresse(adresseBienDossierAppelFonds(d)),
       designation: designationDepuisTypeVente(d.typeVente),
       dateRdv: d.rendezVousSignature || '',
       heureRdv: d.rendezVousSignature ? (d.rendezVousSignatureHeure || '') : '',
       lieuRdv,
-      prixVente: d.prixVente || null,
-      prixMobilier: d.prixMobilier || null,
+      prixVente: montantDossierAppelFonds(d.prixVente) || null,
+      prixMobilier: montantDossierAppelFonds(d.prixMobilier) || null,
       depotGarantie: depot.deductible ? d.depotGarantie : null,
       depotMotif: depot.motif,
       departementFrais,
@@ -1742,7 +1741,7 @@
           if (f.statut === 'ok') badge = `<span class="af-verif af-verif-ok" title="${escapeAttr(plage)}">✓ conforme au barème</span>`;
           else if (f.statut === 'sous') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↓ ${escapeHtml(montantVersTexteFr(f.ecart))} sous le barème</span>`;
           else if (f.statut === 'sur') badge = `<span class="af-verif af-verif-ecart" title="${escapeAttr(plage)}">↑ ${escapeHtml(montantVersTexteFr(f.ecart))} au-dessus du barème</span>`;
-        }
+        } else if (!badge && section === 'debit' && !l.memoire && !fourchette && estLigneFraisActeVente(l.libelle)) badge = badgeSansControleFraisAppelFonds();
         const montantTexte = l.memoire ? (l.texteMemoire || 'Mémoire') : montantVersTexteFr(l.montant || 0);
         const cellMontant = `<span class="af-champ" data-af-section="${section}" data-af-index="${i}" data-af-champ="montant">${escapeHtml(montantTexte)}</span>`;
         // Flèches d'ordre (étude 08/10 : « faire remonter une ligne ou la descendre ») : hors du texte

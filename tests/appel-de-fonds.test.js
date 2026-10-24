@@ -808,3 +808,21 @@ test('frais estimés : une saisie à la main, même à zéro, n’est jamais éc
   app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 18000 });
   assert.equal(autre.montant, 0, 'décompte du confrère : jamais rempli');
 });
+
+// Étude 24/10 : « le contrôle de la provision ne fonctionne pas à chaque fois » — sources du code postal et du prix.
+test('contrôle des frais : code postal et prix lus partout où le dossier les garde', () => {
+  const app = chargerApplication();
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: '', bien: { adresse: { codePostal: '41000', commune: 'BLOIS' } } }), '41000', 'fiche du bien seule');
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: 'BLOIS (41 000), 12 rue' }), '41000', 'code postal écrit en deux');
+  assert.equal(app.codePostalBienAppelFonds({ adresseBien: '12 rue des Lices BLOIS' }), null);
+  assert.equal(app.adresseBienDossierAppelFonds({ bien: { adresse: { numero: '12', typeVoie: 'rue', nomVoie: 'des Lices', codePostal: '41000', commune: 'BLOIS' } } }), '12 rue des Lices, 41000 BLOIS');
+  assert.equal(app.montantDossierAppelFonds('210 000'), 210000);
+  assert.equal(app.montantDossierAppelFonds(98000), 98000);
+  assert.equal(app.montantDossierAppelFonds(''), 0);
+});
+
+test('contrôle des frais : libellés du confrère reconnus comme frais de l’acte de vente', () => {
+  const app = chargerApplication();
+  ["Frais de l'acte", 'Frais de vente', 'Frais acquéreur', "Coût de l'acte", 'Droits de mutation et émoluments', 'Frais de notaire'].forEach(l => assert.ok(app.estLigneFraisActeVente(l), l));
+  ["Frais de l'acte de prêt", 'Frais de mainlevée', 'Frais de négociation'].forEach(l => assert.ok(!app.estLigneFraisActeVente(l), l));
+});
