@@ -97,6 +97,7 @@
     /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), puis adoucies (« un peu trop fluo », « plus doux mais visible ») : même teinte, moins saturées, texte noir lisible ; les mêmes en clair et en sombre. */
     --cat-rouge: #CC5B66; --cat-orange: #DB8556; --cat-jaune: #E0CF57; --cat-vert: #5AAA7D; --cat-olive: #84985C;
     --cat-bleu: #6596CC; --cat-violet: #978DCF; --cat-gris: #979DA8; --cat-rose: #D086A6; --cat-marron: #A98066;
+    --ia-1: #3F6FE0; --ia-2: #8B6BD6; --ia-3: #D0679A;
     --projet: #B83E78;
     --ventebien-bg: #E3EEF7;
     --urgent: #C2410C;
@@ -146,6 +147,7 @@
     /* Couleurs de l'agenda Outlook de l'office (étude 16/10, capture : « reprends ces couleurs »), celles de la capture d'écran de l'agenda Outlook (« reprends les couleurs exactes »), puis adoucies (« un peu trop fluo », « plus doux mais visible ») : même teinte, moins saturées, texte noir lisible ; les mêmes en clair et en sombre. */
     --cat-rouge: #CC5B66; --cat-orange: #DB8556; --cat-jaune: #E0CF57; --cat-vert: #5AAA7D; --cat-olive: #84985C;
     --cat-bleu: #6596CC; --cat-violet: #978DCF; --cat-gris: #979DA8; --cat-rose: #D086A6; --cat-marron: #A98066;
+    --ia-1: #3F6FE0; --ia-2: #8B6BD6; --ia-3: #D0679A;
     --ag-texte-plein: var(--noir-fixe);
     --projet: #E58AB5;
     --ventebien-bg: #263238;
@@ -10300,6 +10302,14 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 @media (prefers-reduced-motion: reduce) { .cx-c { transition: none; } }
 
 .cx-menu-note { padding: 6px 8px 2px; font-size: var(--texte-xs); color: var(--muted); border-top: 1px solid var(--line); margin-top: 4px; }
+/* Pastille de « Discussions » dans la barre latérale : une toile dégradée bleu-violet-rose façon assistants IA, le mochi dedans. */
+#tab-assistant .sidebar-link-icone {
+  width: 24px; height: 24px; margin: -2px; border-radius: var(--rayon-s); opacity: 1; color: var(--blanc-fixe);
+  background: radial-gradient(circle at 78% 82%, var(--ia-3) 0%, transparent 55%), linear-gradient(135deg, var(--ia-1) 0%, var(--ia-2) 100%);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--blanc-fixe) 18%, transparent);
+}
+#tab-assistant .sidebar-link-icone .icone { width: 18px; height: 18px; }
+
 /* Photos de profil des collaborateurs (étude 24/10) : remplacent les initiales, qui restent sans photo. */
 .pastille-collab, .activite-avatar, .cx-av, .photo-profil-apercu { overflow: hidden; }
 .avatar-photo { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
