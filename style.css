@@ -10105,6 +10105,9 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 .pb-groupe-titre { margin-top: 4px; }
 .pb-groupe-titre .pieces-titre, .fiche-outils-bloc > .pieces-titre { flex: none; }
 .fiche-titre-bloc.fiche-sous-titre { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+/* Une précision longue (source du défunt) passe à la ligne au lieu de sortir du cadre (relecture 24/10). */
+.fiche-titre-bloc .pieces-titre { flex: 0 1 auto; min-width: 0; flex-wrap: wrap; row-gap: 2px; }
+.fiche-titre-bloc .pieces-type { white-space: normal; overflow: visible; }
 
 /* Consignes de CLAIRE (CLAIRE.md, étude 18/10) : le carnet en Markdown dans Réglages, la case « Corriger » de la conversation. */
 .reglages-panneau textarea.consignes-texte { width: 100%; min-height: 420px; padding: 12px; font-size: var(--texte-m); line-height: 1.55; border-radius: var(--rayon-m); }

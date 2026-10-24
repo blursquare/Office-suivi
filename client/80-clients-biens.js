@@ -468,7 +468,7 @@
     });
     const TITRES = { Vendeur: ['Vendeur', 'Vendeurs'], 'Acquéreur': ['Acquéreur', 'Acquéreurs'], 'Défunt': ['Défunt', 'Défunt'], 'Héritier': ['Héritier', 'Héritiers'], Partie: ['Autre partie', 'Autres parties'] };
     // Titre au style de « Pièces du dossier » (étude 24/10) : icône et titre, plus de petites capitales grises.
-    const ICONES_GROUPES = { Vendeur: 'user', Vendeurs: 'users', 'Acquéreur': 'user', 'Acquéreurs': 'users', 'Défunt': 'user', Bien: 'home', Biens: 'home' };
+    const ICONES_GROUPES = { Vendeur: 'user', Vendeurs: 'users', 'Acquéreur': 'user', 'Acquéreurs': 'users', 'Défunt': 'user', 'Héritier': 'user', 'Héritiers': 'users', 'Autre partie': 'user', 'Autres parties': 'users', Bien: 'home', Biens: 'home' };
     const groupe = (titre, cartes) => `<div class="pb-groupe"><div class="pb-groupe-titre"><span class="pieces-titre">${icone(ICONES_GROUPES[titre] || 'users')}<span class="pieces-titre-texte">${escapeHtml(titre)}</span></span></div>${cartes.join('')}</div>`;
     const personnes = [...parRole].map(([role, cartes]) => groupe((TITRES[role] || [role, role])[cartes.length > 1 ? 1 : 0], cartes));
     const fichesB = (f && f.biens) || [];
