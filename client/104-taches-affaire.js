@@ -175,9 +175,17 @@ function categorieRedondanteTache(a) {
   return mots(a && a.categorieLabel).some((m) => titre.includes(m.slice(0, 5)));
 }
 
-/** Pure : la tâche est en retard (délai dépassé) — seule raison d'un liseré rouge. @param {any} a */
+/** Pure : la tâche est en retard (délai dépassé) — seule raison d'un liseré rouge. Une tâche d'après signature (questionnaire,
+ *  copie de l'acte) compte ses jours depuis la signature, donc en négatif sans être en retard : elle porte son propre texte de délai
+ *  (`delaiTexte` : « signé il y a 3 j », relecture 24/10). @param {any} a */
 function tacheEnRetard(a) {
-  return !!a && a.jours != null && a.jours < 0;
+  return !!a && a.jours != null && a.jours < 0 && !a.delaiTexte;
+}
+
+/** La pastille de délai d'une tâche (rouge seulement en retard). @param {any} a @param {boolean} [avecIcone] */
+function pastilleDelaiTache(a, avecIcone) {
+  const classe = tacheEnRetard(a) ? 'retard' : (a.jours < 0 ? '' : classeDelaiCarteFiche({ jours: a.jours, fait: false }));
+  return `<span class="tf-delai ${classe}">${avecIcone ? icone('clock') : ''}${escapeHtml(delaiAction(a))}</span>`;
 }
 
 /** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
@@ -186,7 +194,7 @@ function renderCarteTache(a) {
   const cle = escapeOnclickArg(a.cle);
   const outil = outilSupplementaireTache(a);
   const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
-    : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${icone('clock')}${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+    : pastilleDelaiTache(a, true);
   const sansGeste = !a.geste || a.geste.type === 'fiche';
   const geste = sansGeste
     ? ''
@@ -222,7 +230,7 @@ function renderCarteGroupeTaches(liste) {
     const cle = escapeOnclickArg(a.cle);
     const sansGeste = !a.geste || a.geste.type === 'fiche';
     const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
-      : `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+      : pastilleDelaiTache(a, false);
     const outil = outilSupplementaireTache(a);
     const boutonOutil = outil ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>` : '';
     const geste = sansGeste ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + a.titre)}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;

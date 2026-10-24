@@ -107,7 +107,7 @@ function ouvrirTachesSuivi() {
 function chiffresTachesJour(actions, reportees, aVenir, traites) {
   return {
     aFaire: (actions || []).length,
-    enRetard: (actions || []).filter((a) => a.jours != null && a.jours < 0).length,
+    enRetard: (actions || []).filter(tacheEnRetard).length,
     plusTard: (reportees || []).length + (aVenir || []).length,
     faites: (traites || []).filter((t) => !/^Reporté/.test(t.etat)).length
   };
@@ -123,7 +123,7 @@ function renderTuilesTaches(c) {
 
 function delaiTacheCompact(a) {
   if (a.jours == null) return a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '';
-  return `<span class="tf-delai ${a.jours < 0 ? 'retard' : classeDelaiCarteFiche({ jours: a.jours, fait: false })}">${escapeHtml(libelleDelaiJour(a.jours))}</span>`;
+  return pastilleDelaiTache(a, false);
 }
 
 function boutonsTacheCompact(a) {

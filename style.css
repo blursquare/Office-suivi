@@ -7109,9 +7109,11 @@ wa-button.bouton-ajout.ajout-piece-btn { width: calc(100% - 24px); margin: 10px 
 .echanges-hors-stade[open] > .echanges-hors-stade-titre .icone { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) { .echanges-hors-stade-titre .icone { transition: none; } }
 /* Dans les onglets Fonds et Échanges de la fiche, un seul bouton plein : le premier geste utile ; les suivants à contour (étude 24/10). */
-.fiche-panneau .echanges-groupe > .ja-liste > .ja ~ .ja > wa-button.ja-go::part(base),
+/* Le geste plein = la première ligne PAS ENCORE FAITE qui porte un bouton (une ligne déjà faite, « Renvoyer », est à contour d'elle-même) :
+   seules les lignes non faites qui la suivent passent à contour (relecture 24/10 : sinon, première ligne faite → aucun bouton plein). */
+.fiche-panneau .echanges-groupe > .ja-liste > .ja:not(.ja-faite):has(> wa-button.ja-go) ~ .ja:not(.ja-faite) > wa-button.ja-go::part(base),
 .fiche-panneau .echanges-hors-stade .ja > wa-button.ja-go::part(base) { background: var(--paper-card); border-color: var(--line); color: var(--ink); }
-.fiche-panneau .echanges-groupe > .ja-liste > .ja ~ .ja > wa-button.ja-go:hover::part(base),
+.fiche-panneau .echanges-groupe > .ja-liste > .ja:not(.ja-faite):has(> wa-button.ja-go) ~ .ja:not(.ja-faite) > wa-button.ja-go:hover::part(base),
 .fiche-panneau .echanges-hors-stade .ja > wa-button.ja-go:hover::part(base) { background: var(--paper-sunk); }
 .echanges-hors-stade .ja-titre { font-weight: 500; }
 details.echanges-autres { margin: -6px 0 20px; }

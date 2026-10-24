@@ -125,6 +125,11 @@ test('cartes de tâches : étiquette retirée quand elle redit le titre, liseré
   assert.equal(app.tacheEnRetard({ jours: -1, gravite: 'critique' }), true);
   assert.equal(app.tacheEnRetard({ jours: 5, gravite: 'critique' }), false);
   assert.equal(app.tacheEnRetard({ jours: null, gravite: 'critique' }), false);
+  // Questionnaire trois jours après la signature : jours négatifs (depuis la signature), pas un retard ; son délai se lit « signé … ».
+  const questionnaire = { jours: -3, gravite: 'normal', delaiTexte: 'signé il y a 3 j' };
+  assert.equal(app.tacheEnRetard(questionnaire), false);
+  assert.ok(app.pastilleDelaiTache(questionnaire, false).includes('signé il y a 3 j') && !app.pastilleDelaiTache(questionnaire, false).includes('retard'));
+  assert.equal(app.chiffresTachesJour([questionnaire, { jours: -1 }], [], [], []).enRetard, 1);
   const dossier = { id: 'v1', nom: 'MARTIN / DUPONT', historique: [], pieces: {} };
   const html = app.renderTachesColonnes([{ cle: 'v1:appelFonds', type: 'appelFonds', titre: 'Envoyer l’appel de fonds', categorie: 'appelFonds', categorieLabel: 'Envoi appel de fonds', jours: -2, gravite: 'critique', dossier, geste: { type: 'appelFonds' } }]);
   assert.ok(!html.includes('Envoi appel de fonds</span>') && html.includes('tf-carte critique'));
