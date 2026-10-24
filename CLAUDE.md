@@ -84,6 +84,7 @@ server/                              Serveur (son propre package.json ; le packa
   src/canaux/*.js, routes/canaux.js  Canaux de CLAIRE (24/10, 0.328.0) : « Demander à CLAIRE » façon Slack, ouvert à tous — un fil PARTAGÉ par dossier (`d:<id>`), `general`, canaux libres (`l:<nom>`) ;
                                      messages (clé `canal:<id>`, 300 au plus), non-lus, mentions, préférences, silences « Jamais pour ce dossier » ; `deposer.js` = le chemin unique d'une routine
                                      (proposition + message de CLAIRE avec sa carte) ; `notifier.js` = mention → Teams ; poste : client/112-canaux.js, 113-canaux-actions.js
+  src/routes/photosCollaborateurs.js Photos de profil des collaborateurs (24/10, 0.329.0) : JPEG carré de 160 px déposé dans Réglages › Collaborateurs, clé `photos-collaborateurs`, remplace les initiales partout (client/114-photos-collaborateurs.js, `contenuAvatarCollaborateur`), initiales gardées sans photo
   src/carnetConfreres.js             Carnet des confrères (relevé initial des offices du 41, liste blanche)
   src/annuaireNotaires.js            Notaires de France par département (data/annuaire-notaires.json, lecture seule)
   src/repertoire.js                  Répertoire hors notaires (relevé du répertoire Word de l'étude, par thème)

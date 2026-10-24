@@ -306,12 +306,12 @@
       </details>
       <details class="asst-droite-bloc" data-bloc="dossier"${blocsOuvertsColonneAssistant.dossier ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['dossier'] = this.open">
         <summary>${icone('folder')} Dossier rattaché</summary>
-        <select id="assistant-colonne-dossier" ${canaux.actif && canaux.actif.startsWith('d:') ? 'disabled title="Ce canal est celui de ce dossier"' : ''} class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
+        ${canaux.actif && canaux.actif.startsWith('d:') ? '' : `        <select id="assistant-colonne-dossier" ${canaux.actif && canaux.actif.startsWith('d:') ? 'disabled title="Ce canal est celui de ce dossier"' : ''} class="asst-droite-select" onchange="this.blur(); choisirDossierColonneAssistant(this.value)" aria-label="Dossier rattaché à la conversation">
           <option value="">Aucun dossier</option>
           ${dossiersTries.map(d => `<option value="${escapeAttr(d.id)}"${d.id === dossierId ? ' selected' : ''}>${escapeHtml(d.libelle)}</option>`).join('')}
-        </select>
+        </select>`}
         ${dossierId ? `<div class="asst-droite-actions"><wa-button appearance="outlined" size="s" type="button" onclick="chargerDocumentsDossierColonne()">Pièces du NAS</wa-button>
-          <wa-button appearance="plain" size="s" type="button" onclick="ouvrirDossierDepuisColonneAssistant()">Ouvrir la fiche</wa-button></div>` : ''}
+          ${canaux.actif && canaux.actif.startsWith('d:') ? '' : '<wa-button appearance="plain" size="s" type="button" onclick="ouvrirDossierDepuisColonneAssistant()">Ouvrir la fiche</wa-button>'}</div>` : ''}
         ${dd && dd.chargement ? '<p class="asst-droite-vide">Lecture du dossier du NAS…</p>' : ''}
         ${dd && dd.erreur ? `<p class="asst-droite-vide">${escapeHtml(dd.erreur)}</p>` : ''}
         ${dd && dd.liste && dd.liste.length ? `<ul class="asst-docs asst-docs-dossier">${dd.liste.slice(0, 60).map(d => `<li><button type="button" class="asst-doc" onclick="afficherApercuAssistant('${escapeOnclickArg(d.id)}', 1, '')">

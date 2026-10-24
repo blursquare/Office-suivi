@@ -41,13 +41,6 @@ function libelleCanal(id, liste, dossiersListe) {
   return '';
 }
 
-// Pure : « Julie VASSELIN » → « JV ».
-function initialesAuteurCanal(nom) {
-  const mots = String(nom || '').trim().split(/\s+/).filter(Boolean);
-  if (!mots.length) return '?';
-  return (mots.length > 1 ? mots[0][0] + mots[mots.length - 1][0] : mots[0].slice(0, 2)).toUpperCase();
-}
-
 function platCanal(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
@@ -215,6 +208,8 @@ function majPastilleCanaux() {
 // Lancé une fois par demarrerApplication : la liste toutes les 30 s ; le canal ouvert toutes les 8 s tant que la page est affichée.
 function demarrerCanaux() {
   chargerCanaux();
+  chargerPhotosCollaborateurs();
+  setInterval(() => { if (!document.hidden) chargerPhotosCollaborateurs(); }, 5 * 60 * 1000);
   setInterval(() => { if (!document.hidden) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
   minuterieCanalActif = setInterval(() => {
     if (!document.hidden && canaux.actif && canaux.actif !== '@traiter' && ecranAffiche('assistant')) chargerMessagesCanal(false);

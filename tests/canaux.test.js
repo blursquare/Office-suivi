@@ -77,14 +77,14 @@ test('htmlTexteCanal : échappé, retours à la ligne, mentions de collègues et
   assert.ok(!/cx-mention[^"]*">@Inconnu/.test(h));
 });
 
-test('texteDepuisHtmlCanal, filtrerMessagesCanal, initialesAuteurCanal', () => {
+test('texteDepuisHtmlCanal, filtrerMessagesCanal, initialesCollaborateur', () => {
   assert.equal(app.texteDepuisHtmlCanal('<p>Un &amp; deux</p><p>trois<br>quatre</p>'), 'Un & deux\ntrois\nquatre');
   const ms = [{ texte: 'La taxe foncière est arrivée' }, { html: '<p>Prêt accordé</p>' }, { texte: 'RIB reçu' }];
   assert.equal(app.filtrerMessagesCanal(ms, 'pret').length, 1);
   assert.equal(app.filtrerMessagesCanal(ms, '  ').length, 3);
   assert.equal(app.filtrerMessagesCanal(ms, 'foncière')[0].texte, 'La taxe foncière est arrivée');
-  assert.equal(app.initialesAuteurCanal('Julie VASSELIN'), 'JV');
-  assert.equal(app.initialesAuteurCanal(''), '?');
+  assert.equal(app.initialesCollaborateur('Julie VASSELIN'), 'JV');
+  assert.equal(app.initialesCollaborateur(''), '');
 });
 
 test('repereMessagesCanal : jour, groupes par auteur, séparateur « Nouveau » une seule fois, cartes jamais groupées', () => {

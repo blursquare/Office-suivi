@@ -1166,7 +1166,7 @@
   // Initiales du responsable dans une petite pastille ronde, posée devant le délai d'une tâche (même pastille que le Suivi).
   function pastilleResponsableTache(nom) {
     const ini = initialesCollaborateur(nom);
-    return ini ? `<span class="pastille-collab pastille-tache" title="${escapeAttr(nom)}" aria-label="${escapeAttr('Responsable : ' + nom)}">${escapeHtml(ini)}</span>` : '';
+    return ini ? `<span class="pastille-collab pastille-tache" title="${escapeAttr(nom)}" aria-label="${escapeAttr('Responsable : ' + nom)}">${contenuAvatarCollaborateur(nom, photosCollaborateurs, ini)}</span>` : '';
   }
 
   function renderLigneAction(o) {

@@ -305,7 +305,7 @@
   function pastilleCollaborateur(nom) {
     const ini = initialesCollaborateur(nom);
     if (!ini) return '<span class="echeance-jours calme">—</span>';
-    return `<span class="pastille-collab" title="${escapeAttr(nom)}" aria-label="${escapeAttr(nom)}">${escapeHtml(ini)}</span>`;
+    return `<span class="pastille-collab" title="${escapeAttr(nom)}" aria-label="${escapeAttr(nom)}">${contenuAvatarCollaborateur(nom, photosCollaborateurs, ini)}</span>`;
   }
 
   // ---- Suivi en direct, version visuelle (demandé par l'étude : « plus visuel et graphique ») ----
@@ -424,7 +424,7 @@
     const maxEquipe = Math.max(1, ...rythme.equipe.map(q => q.n));
     const equipe = rythme.equipe.length ? rythme.equipe.slice(0, 4).map(q => `
       <li class="act-qui" title="${escapeAttr(`${q.agenda ? 'Agenda de l’office' : q.nom} : ${q.n} aujourd’hui`)}">
-        <span class="activite-avatar${q.agenda ? ' agenda' : ''}" aria-hidden="true">${q.agenda ? icone('calendar') : escapeHtml(initialesCollaborateur(q.nom))}</span>
+        <span class="activite-avatar${q.agenda ? ' agenda' : ''}" aria-hidden="true">${q.agenda ? icone('calendar') : contenuAvatarCollaborateur(q.nom, photosCollaborateurs, initialesCollaborateur(q.nom))}</span>
         <span class="act-qui-barre"><span style="--w:${Math.round(100 * q.n / maxEquipe)}%"></span></span>
         <b>${q.n}</b>
       </li>`).join('') : '<li class="act-qui-vide">Personne encore aujourd’hui</li>';

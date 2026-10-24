@@ -10299,6 +10299,16 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 .fiche-canal-btn .cx-n-bouton { margin-left: 6px; height: 18px; min-width: 18px; }
 @media (prefers-reduced-motion: reduce) { .cx-c { transition: none; } }
 
+.cx-menu-note { padding: 6px 8px 2px; font-size: var(--texte-xs); color: var(--muted); border-top: 1px solid var(--line); margin-top: 4px; }
+/* Photos de profil des collaborateurs (étude 24/10) : remplacent les initiales, qui restent sans photo. */
+.pastille-collab, .activite-avatar, .cx-av, .photo-profil-apercu { overflow: hidden; }
+.avatar-photo { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: inherit; }
+.photo-profil-ligne { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.photo-profil-apercu {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 48px; height: 48px; border-radius: 50%;
+  background: var(--paper-sunk); border: 1px solid var(--line); color: var(--ink); font-size: var(--texte-base); font-weight: 700; letter-spacing: 0.06em;
+}
+
 /* ==== Animations qui aident à comprendre (étude 18/10, client/86-animations.js) ====
    150 à 250 ms, courbe douce, jamais d'attente avant la réaction à un clic ; seulement l'opacité, la position (transform) ou la couleur,
    jamais la taille de la mise en page. « Réduire les animations » : aucun mouvement, seule la couleur change (bloc en fin de section). */

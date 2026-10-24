@@ -10,7 +10,7 @@ var LOGO_CLAIRE_AVATAR = '<svg viewBox="0 0 48 48" width="32" height="32" fill="
 function avatarCanal(m) {
   if (m.role === 'claire') return `<span class="cx-av cx-av-claire" aria-hidden="true">${LOGO_CLAIRE_AVATAR}</span>`;
   const k = Math.max(0, (canaux.collaborateurs || []).indexOf(m.auteur));
-  return `<span class="cx-av cx-av-${k % 6}" aria-hidden="true">${escapeHtml(initialesAuteurCanal(m.auteur))}</span>`;
+  return `<span class="cx-av cx-av-${k % 6}" aria-hidden="true">${contenuAvatarCollaborateur(m.auteur, photosCollaborateurs, initialesCollaborateur(m.auteur) || '?')}</span>`;
 }
 
 function nomAuteurCanal(m) {
@@ -157,7 +157,7 @@ function ouvrirMenuNotifCanal() {
   if (m.style.display !== 'none') { m.style.display = 'none'; return; }
   const n = canaux.preferences.notif;
   const opt = (v, t, d) => `<button type="button" role="menuitemradio" aria-checked="${n === v}" class="cx-menu-ligne${n === v ? ' actif' : ''}" onclick="reglerNotifCanal('${v}')"><span class="cx-menu-coche">${n === v ? icone('check') : ''}</span><span><strong>${t}</strong><small>${d}</small></span></button>`;
-  m.innerHTML = `<div class="cx-menu-titre">Me prévenir</div>${opt('tous', 'Tous les messages', 'Pastille pour chaque nouveau message')}${opt('mentions', 'Mentions seulement', '@Prénom et propositions pour moi')}${opt('muet', 'Rien (muet)', 'Aucune pastille, aucun message Teams')}`;
+  m.innerHTML = `<div class="cx-menu-titre">Me prévenir</div>${opt('tous', 'Tous les messages', 'Pastille pour chaque nouveau message')}${opt('mentions', 'Mentions seulement', '@Prénom et propositions pour moi')}${opt('muet', 'Rien (muet)', 'Aucune pastille, aucun message Teams')}<div class="cx-menu-note">Une mention « @Prénom » prévient aussi la personne sur Teams (au plus une fois par heure).</div>`;
   m.style.display = 'block';
 }
 if (typeof document !== 'undefined' && document.addEventListener) {
@@ -277,7 +277,7 @@ function htmlColonneCanal() {
     const manquantes = typeof piecesAttenduesDossier === 'function' ? piecesAttenduesDossier(d).length : 0;
     blocs += `<details class="asst-droite-bloc" open><summary>${icone('folder')} Ce dossier</summary>
       <div class="cx-bloc">${ligne('Statut', renderBadgeStatut(d))}${ligne('Pièces attendues', manquantes ? `<span class="cx-ko">${manquantes}</span>` : '<span class="cx-ok">aucune</span>')}${d.pret ? ligne('Prêt', date(d.pret)) : ''}${ligne('Signature', date(d.rendezVousSignature))}
-      <div class="asst-droite-actions"><wa-button appearance="outlined" size="s" type="button" onclick="ouvrirDossierDrawer('${escapeOnclickArg(d.id)}')">Ouvrir la fiche</wa-button></div></div></details>`;
+      </div></details>`;
     const cartes = Object.values(canaux.cartes).filter(p => p.dossierId === d.id).sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)));
     const silences = canaux.silences || [];
     blocs += `<details class="asst-droite-bloc" open><summary>${icone('sparkle')} CLAIRE sur ce dossier <span class="asst-droite-nb">${cartes.length || ''}</span></summary>
@@ -287,10 +287,6 @@ function htmlColonneCanal() {
   const epingles = assistantMessages.filter(m => m.epingle && m.id);
   blocs += `<details class="asst-droite-bloc"${epingles.length ? ' open' : ''}><summary>${icone('pin')} Épinglés <span class="asst-droite-nb">${epingles.length || ''}</span></summary>
     <div class="cx-bloc">${epingles.length ? `<ul class="cx-epingles">${epingles.map(m => `<li><button type="button" class="cx-epingle-lien" onclick="allerAuMessageCanal('${escapeOnclickArg(m.id)}')"><strong>${escapeHtml(nomAuteurCanal(m) === 'Vous' ? 'Vous' : nomAuteurCanal(m))}</strong> ${escapeHtml((m.texte || texteDepuisHtmlCanal(m.html)).replace(/\s+/g, ' ').slice(0, 90))}</button></li>`).join('')}</ul>` : '<p class="asst-droite-vide">Épinglez un message (le punaise au survol) pour le retrouver ici.</p>'}</div></details>`;
-  const n = canaux.preferences.notif;
-  blocs += `<details class="asst-droite-bloc"><summary>${icone('cloche')} Notifications du canal</summary>
-    <div class="cx-bloc"><div class="cx-radios" role="radiogroup" aria-label="Notifications de ce canal">${[['tous', 'Tous les messages'], ['mentions', 'Mentions seulement'], ['muet', 'Muet']].map(([v, t]) => `<button type="button" role="radio" aria-checked="${n === v}" class="cx-radio${n === v ? ' actif' : ''}" onclick="reglerNotifCanal('${v}')">${t}</button>`).join('')}</div>
-    <p class="asst-droite-vide">Une mention « @Prénom » prévient aussi la personne sur Teams (au plus une fois par heure).</p></div></details>`;
   return blocs;
 }
 
