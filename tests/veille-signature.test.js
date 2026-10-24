@@ -134,7 +134,9 @@ test('le délai du pop-up dit aujourd’hui, demain, puis la date (la relecture 
   const d = vente();
   assert.equal(app.delaiVeilleSignature(d, T('2026-10-29T08:00:00')), 'aujourd’hui à 14 h 30');
   assert.equal(app.delaiVeilleSignature(d, T('2026-10-28T18:00:00')), 'demain à 14 h 30');
-  assert.match(app.delaiVeilleSignature(d, T('2026-10-27T15:00:00')), /^jeudi 29 octobre 2026 à 14 h 30$/);
+  assert.match(app.delaiVeilleSignature(d, T('2026-10-27T15:00:00')), /^le jeudi 29 octobre 2026 à 14 h 30$/);
+  // Un rendez-vous passé (bouton de la fiche) : jamais « aujourd’hui ».
+  assert.match(app.delaiVeilleSignature(d, T('2026-11-05T09:00:00')), /^le jeudi 29 octobre 2026 à 14 h 30$/);
 });
 
 test('« Réponse SAFER » n’est pas comptée deux fois : elle a sa propre ligne', () => {
@@ -174,9 +176,9 @@ test('les segments de texte sont coupés en lignes de la largeur demandée, sans
 test('les saisies du pop-up complètent la fiche : étape cochée avec sa date, date d’une étape faite sans date, notes', () => {
   const f = app.ficheVeilleSignature(vente({ appelFonds: '', projetEnvoye: '', echeancesValidees: {} }), {});
   assert.equal(f.etapes[6].fait, false);
-  const m = app.ficheAvecSaisiesVeille(f, { 7: { fait: true, date: '2026-10-27' }, 2: { fait: false, date: '2026-10-01' } }, '  Apporter le plan  ');
+  const m = app.ficheAvecSaisiesVeille(f, { 7: { fait: true, date: '2026-10-20' }, 2: { fait: false, date: '2026-10-01' } }, '  Apporter le plan  ');
   assert.equal(m.etapes[6].fait, true);
-  assert.equal(m.etapes[6].date, '2026-10-27');
+  assert.equal(m.etapes[6].date, '2026-10-20');
   // Une étape non cochée dans le pop-up reste telle quelle, même avec une date.
   assert.equal(m.etapes[1].fait, f.etapes[1].fait);
   assert.equal(m.notes, 'Apporter le plan');
@@ -185,4 +187,48 @@ test('les saisies du pop-up complètent la fiche : étape cochée avec sa date, 
   assert.equal(app.ficheAvecSaisiesVeille(f2, { 1: { fait: true, date: '2026-01-01' } }, '').etapes[0].date, '2026-10-19');
   assert.equal(f.etapes[6].fait, false);
   assert.equal(app.ficheAvecSaisiesVeille(f, null, null).notes, '');
+});
+
+test('pdf-lib et fontkit ne se chargent que verrouillés par leur empreinte SRI (audit du 24/10)', () => {
+  const fs = require('node:fs');
+  const lire = f => fs.readFileSync(require('node:path').join(__dirname, '..', 'client', f), 'utf8');
+  assert.match(lire('56-courrier-pdfa.js'), /var SRI_PDF_LIB_PDFA = 'sha384-[A-Za-z0-9+/]{64}'/);
+  assert.match(lire('56-courrier-pdfa.js'), /var SRI_FONTKIT_PDFA = 'sha384-[A-Za-z0-9+/]{64}'/);
+  // Chaque chargement de ces deux bibliothèques passe son empreinte.
+  for (const f of ['56-courrier-pdfa.js', '108-autorisations-succession.js', '109-veille-signature.js']) {
+    const src = lire(f);
+    for (const m of src.matchAll(/afChargerScript\((URL_PDF_LIB_PDFA|URL_FONTKIT_PDFA)([^)]*)\)/g)) {
+      assert.match(m[2], /SRI_(PDF_LIB|FONTKIT)_PDFA/, `${f} : ${m[0]}`);
+    }
+  }
+  // Le chargeur pose l'empreinte et le mode anonyme.
+  assert.match(lire('40-generateur-appel-fonds.js'), /s\.integrity = integrity; s\.crossOrigin = 'anonymous'/);
+});
+
+test('une date saisie dans le pop-up ne peut pas être future', () => {
+  const f = app.ficheVeilleSignature(vente({ appelFonds: '', projetEnvoye: '', echeancesValidees: {} }), {});
+  const demain = new Date(); demain.setDate(demain.getDate() + 2);
+  const iso = `${demain.getFullYear()}-${String(demain.getMonth() + 1).padStart(2, '0')}-${String(demain.getDate()).padStart(2, '0')}`;
+  const m = app.ficheAvecSaisiesVeille(f, { 7: { fait: true, date: iso } }, '');
+  assert.equal(m.etapes[6].fait, true);
+  assert.equal(m.etapes[6].date, '');
+});
+
+test('SAFER : un dossier en participation est « sans objet », jamais « fait » (relecture du 24/10)', () => {
+  const d = vente({ roleNotaire: 'participant', notaireAcquereur: 'Maître Autre', coteInstrumentaire: 'vendeur', authentic: { safer: { envoyeeLe: '2026-09-20' } } });
+  const par = Object.fromEntries(app.ficheVeilleSignature(d, {}).lignes.map(l => [l.cle, l]));
+  assert.equal(par.safer.etat, 'sans-objet');
+  assert.match(par.safer.note, /participation/);
+});
+
+test('« à imprimer » : due et pas encore téléchargée pour CE rendez-vous', () => {
+  const d = vente({ rendezVousSignature: '2026-10-25' });
+  const jour = '2026-10-24';
+  const vraiJour = require('node:fs') && app.isoAujourdhuiLocal();
+  // `ficheSignatureAImprimer` lit l'heure réelle pour le jour même : on passe un autre jour pour fixer la date.
+  assert.equal(app.ficheSignatureAImprimer(d, '2026-10-24'), true);
+  assert.equal(app.ficheSignatureAImprimer(Object.assign({}, d, { ficheSignatureImprimeePour: app.cleVeilleSignature(d) }), '2026-10-24'), false);
+  assert.equal(app.ficheSignatureAImprimer(Object.assign({}, d, { ficheSignatureImprimeePour: 'autre|2026-10-25|' }), '2026-10-24'), true);
+  assert.equal(app.ficheSignatureAImprimer(d, '2026-10-20'), false);
+  assert.ok(jour && vraiJour);
 });

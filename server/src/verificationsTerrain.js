@@ -20,8 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
-  { id: 'veille-signature-pdf', depuis: '0.326.0', source: 'poste', titre: 'Fiche de signature : le PDF (rendez-vous, conditions cochées avec leur date) se télécharge depuis le pop-up 48 h avant ou depuis la fiche du dossier',
-    comment: 'Coché au premier PDF produit (bibliothèque pdf-lib chargée depuis Internet). À regarder au bureau : lisibilité de la coche et des dates une fois imprimé.' },
+  { id: 'veille-signature-pdf', depuis: '0.326.0', source: 'poste', titre: 'Fiche de signature : le PDF (échéances, pièces, engagements, procédure des fonds cochée avec ses dates) se télécharge depuis le pop-up de la fiche du dossier, le bouton de la fiche ou la tâche d’« À faire »',
+    comment: 'Coché au premier PDF produit (pdf-lib et fontkit chargés depuis Internet, avec leur empreinte SRI : si le chargement échoue, c’est un point à examiner). À regarder au bureau : lisibilité de la coche et des dates une fois imprimé.' },
   { id: 'agent-calcul', depuis: '0.305.0', source: 'poste', titre: 'Demander à CLAIRE : un calcul libre sur les dossiers et un tableau à télécharger (CSV, Excel)',
     comment: 'Coché au premier calcul réussi. À regarder au bureau avec la clé Claude : « classe les offres de prêt reçues ce mois-ci par montant et donne-moi le tableau » : « Voir le code » sous la réponse, bouton « Télécharger (Excel, CSV) », fichier ouvert dans Excel (accents, virgules décimales, colonnes). Le calcul tourne dans un espace fermé : jamais d\u2019accès à Internet ni à CLAIRE (testé dans Chromium, à confirmer avec le Chrome du poste).' },
   { id: 'nas-libre', depuis: '0.304.0', source: 'poste', titre: 'Demander à CLAIRE : chercher et lire dans le NAS hors d\u2019un dossier client (lecture libre, éteinte par défaut)',

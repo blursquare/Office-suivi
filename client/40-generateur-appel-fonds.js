@@ -2714,10 +2714,10 @@
   //
   // Le modèle (≈350 Ko) et les deux bibliothèques ne servent qu'à cet écran : les charger dans
   // index.html ralentirait CHAQUE ouverture de CLAIRE pour rien.
-  function afChargerScript(src) {
+  function afChargerScript(src, integrity) { // `integrity` : empreinte SRI, exigée pour pdf-lib et fontkit (client/56)
     return new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = src;
+      s.src = src; if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
       s.onload = resolve;
       s.onerror = () => reject(new Error('Chargement impossible : ' + src));
       document.head.appendChild(s);

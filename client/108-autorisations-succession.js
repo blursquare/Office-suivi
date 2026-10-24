@@ -101,7 +101,7 @@ function autDocument(d, p, modele, personnes) {
 // ---- PDF ----
 
 async function autGenererPdf(doc) {
-  if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA);
+  if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA, SRI_PDF_LIB_PDFA);
   const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
   const pdf = await PDFDocument.create();
   const normale = await pdf.embedFont(StandardFonts.TimesRoman);

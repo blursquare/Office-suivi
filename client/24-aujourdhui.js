@@ -796,6 +796,7 @@
       fermerFenetreAujourdhui();
       preparerAppelFondsDepuisDossier(id);
     } else if (geste.type === 'ficheSignature') {
+      fermerFenetreAujourdhui();
       ouvrirVeilleSignature(id);
     } else if (geste.type === 'copieActe') {
       fermerFenetreAujourdhui();
