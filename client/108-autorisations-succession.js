@@ -256,6 +256,13 @@ async function envoyerYousignAutorisations(idDossier, noms) {
 
 // ---- Écran ----
 
+// Depuis la fiche d'une succession : l'outil ouvert sur ce dossier.
+function ouvrirAutorisationsDepuisFiche(idDossier) {
+  fermerDossierDrawer();
+  definirOnglet('autorisations');
+  autChoisirDossier(idDossier);
+}
+
 function autChoisirDossier(id) {
   autEtat.dossierId = id;
   autEtat.courant = '';

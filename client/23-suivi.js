@@ -874,6 +874,7 @@
       </div></div>
       ${blocOutils}
         </div>
+        ${renderColonneOutilsFiche(d)}
       </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);

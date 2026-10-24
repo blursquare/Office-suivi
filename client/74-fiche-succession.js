@@ -261,6 +261,7 @@
       </dl>
       ${renderFcddvSuccession(d)}
         </div>
+        ${renderColonneOutilsFiche(d)}
       </div>
     </div>`;
   }
