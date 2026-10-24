@@ -1990,8 +1990,13 @@
       }
       document.getElementById('calc-saving').textContent = '';
       document.getElementById('calc-regime').textContent = 'Saisissez un prix pour obtenir la provision.';
+      // Sans prix : la phrase seule, plus la grande boîte grise à tirets (étude 24/10).
+      const carteVide = document.getElementById('calc-total').closest('.calc-card');
+      if (carteVide) carteVide.classList.add('calc-carte-vide');
       return;
     }
+    const carteResultat = document.getElementById('calc-total').closest('.calc-card');
+    if (carteResultat) carteResultat.classList.remove('calc-carte-vide');
 
     // Le mobilier compris dans le prix sort de l'assiette des droits de mutation (art. 735 CGI) :
     // le barème s'applique au seul prix de l'immeuble.

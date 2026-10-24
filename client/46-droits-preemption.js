@@ -427,7 +427,7 @@
     if (zone) {
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       const actif = document.activeElement && document.activeElement.id;
-      zone.innerHTML = `<div class="calc-champs pr-champs">
+      zone.innerHTML = `<div class="calc-champs pr-champs pr-champs-lieu">
           <div class="calc-champ"><label for="pr-cp">Code postal</label>
             <input type="text" id="pr-cp" inputmode="numeric" maxlength="5" value="${escapeAttr(e.cp)}" onchange="changerChampPreemption('cp', this.value)"></div>
           <div class="calc-champ"><label for="pr-commune">Commune</label>
@@ -442,7 +442,7 @@
         </div>
         <div class="pr-zonage-actions">
           <wa-button appearance="outlined" size="s" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('map-pin')} Lire le zonage</wa-button>
-          <span class="hint">Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.</span>
+          ${infoBulle('Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.')}
         </div>
         ${e.erreurZonage ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(e.erreurZonage)}</p>` : ''}
         ${renderTableauZonagePreemption(e, lignes)}
@@ -493,7 +493,7 @@
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
         </div>`).join('')}</div>
         ${renderPatrimoineOutil(patrimoinePreemption(e))}
-        <p class="hint">Assistance à la décision, d’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle) : le notaire garde la décision. Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.</p>
+        <p class="hint">Assistance à la décision : le notaire garde la décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
           ${d.preemption && d.preemption.le ? `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>` : ''}</div>` : ''}`;
     }

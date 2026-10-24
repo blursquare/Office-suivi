@@ -178,17 +178,17 @@
     const personnes = (r.personnes || []).map(p => `<button type="button" class="cb-ligne" onclick="ouvrirFicheClientBien('personne', '${escapeOnclickArg(p.id)}')">
         <span class="cb-ligne-titre">${p.civilite ? escapeHtml(p.civilite === 'Mme' ? 'Madame' : 'Monsieur') + ' ' : ''}${escapeHtml(p.nom)}${p.decede ? ' <span class="hint">· décédé(e)</span>' : ''}</span>
         <span class="cb-ligne-detail">${[p.naissance ? 'né(e) le ' + valeurAfficheeCb('dateNaissance', p.naissance) : '', p.commune].filter(Boolean).map(escapeHtml).join(' · ')}</span>
-        <span class="cb-ligne-badges">${p.dossiers > 1 ? `<span class="cb-badge">${p.dossiers} dossiers</span>` : ''}${p.peutEtre ? '<span class="cb-badge cb-badge-question">Homonyme à confirmer</span>' : ''}${p.aRevoir ? '<span class="cb-badge cb-badge-question">Authentic a changé</span>' : ''}</span>
+        <span class="cb-ligne-badges">${p.dossiers > 1 ? `<span class="cb-badge">${p.dossiers} dossiers</span>` : ''}${p.peutEtre ? '<span class="cb-badge cb-badge-question">Homonyme à confirmer</span>' : ''}${p.aRevoir ? '<span class="cb-badge cb-badge-question">Authentic a changé</span>' : ''}${icone('chevron-right')}</span>
       </button>`).join('');
     const biens = (r.biens || []).map(b => `<button type="button" class="cb-ligne" onclick="ouvrirFicheClientBien('bien', '${escapeOnclickArg(b.id)}')">
         <span class="cb-ligne-titre">${escapeHtml(b.adresse ? normaliserAdresse(b.adresse) : b.commune || 'Bien')}</span>
         <span class="cb-ligne-detail">${escapeHtml(b.parcelles.join(', '))}</span>
-        <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}</span>
+        <span class="cb-ligne-badges">${b.dossiers > 1 ? `<span class="cb-badge">${b.dossiers} dossiers</span>` : ''}${icone('chevron-right')}</span>
       </button>`).join('');
     const plus = (n, total, cle) => total > n ? `<div class="cb-plus"><span class="hint">${n} sur ${total}</span>${n < 1000 ? `<wa-button appearance="outlined" size="s" type="button" onclick="afficherPlusClientsBiens('${cle}')">Afficher ${Math.min(80, total - n)} de plus</wa-button>` : '<span class="hint">précisez la recherche</span>'}</div>` : '';
     zone.innerHTML = `<div class="cb-colonnes">
-      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre">Clients <span class="hint">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
-      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre">Biens <span class="hint">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
+      <section class="cb-colonne" id="cb-colonne-personnes"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Clients</span></span><span class="pieces-compteur">${r.total ? r.total.personnes : 0}</span></h2>${personnes || '<p class="hint">Aucun client.</p>'}${plus((r.personnes || []).length, r.total ? r.total.personnes : 0, 'personnes')}</section>
+      <section class="cb-colonne" id="cb-colonne-biens"><h2 class="w-titre cb-colonne-titre"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Biens</span></span><span class="pieces-compteur">${r.total ? r.total.biens : 0}</span></h2>${biens || '<p class="hint">Aucun bien : ils viennent des fiches bien ouvertes dans Authentic.</p>'}${plus((r.biens || []).length, r.total ? r.total.biens : 0, 'biens')}</section>
     </div>`;
   }
 

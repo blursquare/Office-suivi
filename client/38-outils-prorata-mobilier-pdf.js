@@ -159,6 +159,9 @@
     }
     const texte = document.getElementById('inv-verdict-texte');
     if (texte) texte.textContent = v.message;
+    // Rien de saisi : la phrase seule, sans la boîte grise et son tiret (étude 24/10).
+    const resultat = chiffre && chiffre.closest('.calc-resultat');
+    if (resultat) resultat.classList.toggle('calc-vide', !r.complet);
 
     const decompte = document.getElementById('inv-decompte');
     if (decompte) decompte.style.display = r.complet ? '' : 'none';

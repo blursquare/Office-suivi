@@ -285,7 +285,7 @@ function autCartesAccueil(q) {
       <span class="cst-accueil-carte-icone succ" aria-hidden="true">${icone('users')}</span>
       <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
       <span class="cst-accueil-carte-sous">${escapeHtml(['Succession', x.referenceAuthentic, x.responsable].filter(Boolean).join(' · '))}</span></span></button>`).join('');
-  return cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">${q ? 'Résultats' : 'Derniers dossiers'}</div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune succession ne correspond.</div>';
+  return cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone(q ? 'search' : 'clock')}<span class="pieces-titre-texte">${q ? 'Résultats' : 'Derniers dossiers'}</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : '<div class="dash-recherche-vide">Aucune succession ne correspond.</div>';
 }
 
 function autRechercher(valeur) {

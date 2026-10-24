@@ -120,10 +120,15 @@
     const stepper = panneau && panneau.querySelector('wa-stepper.outil-sommaire');
     if (!stepper || panneau.style.display === 'none') return;
     const etapes = ETAPES_OUTILS[outil] || [];
+    // Le trait ne se remplit que d'une étape faite à l'autre DEPUIS LA PREMIÈRE (étude 24/10 : des étapes préremplies plus loin
+    // coloraient un bout de trait isolé, commencé au milieu d'une liaison) : `data-suite` sur les étapes faites sans trou avant elles.
+    let suite = true;
     etapes.forEach(e => {
       const step = stepper.querySelector(`wa-step[name="${e.cle}"]`);
       let fait = false;
       try { fait = !!(e.fait && e.fait()); } catch (err) { fait = false; }
+      suite = suite && fait;
+      if (step) step.toggleAttribute('data-suite', suite);
       if (step && step.completed !== fait) {
         step.completed = fait;
         // Étude 18/10 : la pastille de l'étape terminée se coche d'un petit tracé (seulement quand elle se termine sous les yeux).

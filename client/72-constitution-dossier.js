@@ -1150,7 +1150,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
         <h2 class="cst-accueil-titre">Quel dossier constituer ?</h2>
         <p class="cst-accueil-sous">Les courriers de l’office se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
         <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher un dossier de vente ou de succession…" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>
-        ${cartes ? `<div class="cst-accueil-liste-titre section-eyebrow">Derniers dossiers</div><div class="cst-accueil-grille">${cartes}</div>` : ''}
+        ${cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone('clock')}<span class="pieces-titre-texte">Derniers dossiers</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : ''}
       </div>`;
   }
 

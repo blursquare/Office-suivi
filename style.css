@@ -231,6 +231,8 @@
      le fondait dans le gris de la page ; survol en --paper-sunk. */
   wa-button[appearance="outlined"]::part(base) { background-color: var(--paper-card); }
   wa-button[appearance="outlined"]:not([disabled]):hover::part(base) { background-color: var(--paper-sunk); }
+  /* Bouton principal inactif : gris, pas un bordeaux délavé qui avait l'air cassé (étude 24/10) ; la raison est dans sa bulle. */
+  wa-button[variant="brand"][disabled]::part(base) { background-color: var(--paper-sunk); border-color: var(--line); color: var(--muted); opacity: 1; }
   .dash-header-actions wa-button[appearance="outlined"] { --wa-color-neutral-on-quiet: var(--ink); }
   /* Taille compacte : size="s", et les contextes serrés qui l'employaient déjà (gestes de « À faire », pieds de fenêtre,
      détail d'un rendez-vous, galerie des widgets). Une seule définition, pas de réglage au cas par cas. */
@@ -1846,6 +1848,10 @@
   .calc-radios input { width: auto; accent-color: var(--focus); }
   /* Résultat : léger fond teinté --focus (color-mix, même technique que .kpi-tile/.dot-label
      ailleurs dans l'outil) pour distinguer le total du reste de la carte sans inventer de couleur. */
+  /* Rien de saisi (étude 24/10) : la phrase qui dit quoi saisir, sans la grande boîte grise à tirets. */
+  .calc-carte-vide .calc-resultat, .calc-carte-vide .calc-table { display: none; }
+  .calc-resultat.calc-vide { padding: 0; background: none; border: 0; box-shadow: none; }
+  .calc-resultat.calc-vide .calc-tag, .calc-resultat.calc-vide .calc-total { display: none; }
   .calc-resultat {
     background: color-mix(in srgb, var(--focus) 6%, var(--paper-sunk));
     border: 1px solid color-mix(in srgb, var(--focus) 18%, var(--line));
@@ -2124,7 +2130,8 @@
     margin-bottom: 6px;
   }
 
-  input[type="text"], input[type="date"], input[type="email"], input[type="number"], input[type="search"], input[type="password"], textarea, select {
+  /* Champ d'heure compris (étude 24/10 : l'heure du rendez-vous de l'appel de fonds restait un petit champ natif à côté de la date). */
+  input[type="text"], input[type="date"], input[type="time"], input[type="email"], input[type="number"], input[type="search"], input[type="password"], textarea, select {
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -2158,7 +2165,7 @@
     }
     .date-block { padding-left: 10px; }
   }
-  input[type="text"]:hover, input[type="date"]:hover, input[type="email"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="password"]:hover, select:hover { border-color: var(--muted); }
+  input[type="text"]:hover, input[type="date"]:hover, input[type="time"]:hover, input[type="email"]:hover, input[type="number"]:hover, input[type="search"]:hover, input[type="password"]:hover, select:hover { border-color: var(--muted); }
 
   input:focus, select:focus, textarea:focus, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--focus);
@@ -8123,10 +8130,14 @@ button.annuaire-proche.actif { background: var(--focus); border-color: var(--foc
 /* Clients et biens (étude 16/10) : page de recherche, fenêtre d'une fiche, puces sur la fiche d'un dossier. */
 .cb-barre { margin: 0 0 16px; }
 .cb-recherche { width: 100%; max-width: 560px; }
-.cb-colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.cb-colonnes { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; align-items: start; }
 .cb-colonnes > * { min-width: 0; }
 .cb-colonne { background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
 .cb-colonne .w-titre { margin: 0 0 8px; display: flex; gap: 8px; align-items: baseline; }
+/* Étude 24/10 : titre au style de « Pièces du dossier », une ligne par client ou bien séparée d'un filet, une flèche qui dit qu'elle s'ouvre. */
+.cb-colonne .w-titre.cb-colonne-titre { align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.cb-colonne > .cb-ligne + .cb-ligne { border-top: 1px solid var(--line-soft); border-top-left-radius: 0; border-top-right-radius: 0; }
+.cb-ligne-badges > .icone { color: var(--muted); }
 .cb-ligne { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left; font-family: inherit; background: none; border: none; border-radius: var(--rayon-m); padding: 8px 10px; cursor: pointer; color: var(--ink); }
 .cb-ligne:hover { background: var(--paper-sunk); }
 .cb-ligne:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -9514,6 +9525,9 @@ label.copie-acte-fichier wa-button.bouton-icone { grid-column: 3; grid-row: 1 / 
 .calc-champs.pr-champs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
 .calc-champs.pr-champs > * { min-width: 0; }
 .pr-champ-large { grid-column: 1 / -1; }
+/* Code postal étroit, commune large : « Code postal d’abord » / un long nom de commune ne sont plus coupés (étude 24/10). */
+.calc-champs.pr-champs.pr-champs-lieu { grid-template-columns: minmax(96px, 0.6fr) minmax(0, 1.5fr) minmax(0, 1fr); }
+@media (max-width: 640px) { .calc-champs.pr-champs.pr-champs-lieu { grid-template-columns: minmax(0, 1fr); } }
 .pr-zonage-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 12px 0; }
 .pr-zonage-actions .hint { margin: 0; }
 .pr-erreur { color: var(--urgent); font-size: var(--texte-m); margin: 8px 0; display: flex; gap: 6px; align-items: center; }
@@ -9802,7 +9816,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .pr-zone-abf { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--texte-m); }
 .pr-zone-abf .pr-fiche-titre { font-weight: 500; }
 .pr-a-obtenir { margin-bottom: 12px; padding: 10px 14px; border-radius: var(--rayon-m); background: color-mix(in srgb, var(--pret) 8%, var(--paper-card)); border: 1px solid color-mix(in srgb, var(--pret) 35%, var(--line)); }
-.pr-a-obtenir .pr-eyebrow { margin: 0 0 6px; color: var(--pret); }
+.pr-a-obtenir .pr-eyebrow { margin: 0 0 6px; }
+.pr-eyebrow .pieces-titre, .depot-dia-mairie > .pieces-titre, .emails-tete .pieces-titre, .appels-dossier > .pieces-titre { flex: none; }
 .pr-a-obtenir ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .pr-a-obtenir li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: var(--texte-m); }
 .pr-a-obtenir li .hint { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
@@ -10195,7 +10210,7 @@ body.fiche-a-cote .fiche-outils-boutons { grid-template-columns: repeat(2, minma
 .anim-etape-coche.anim-trace path { stroke-dasharray: 1; animation: anim-trace 250ms var(--anim-courbe) both; }
 @keyframes anim-trace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
 wa-stepper.outil-sommaire wa-step::part(connector) { background-image: linear-gradient(var(--focus), var(--focus)); background-repeat: no-repeat; background-size: 0% 100%; transition: background-size 250ms var(--anim-courbe); }
-wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size: 100% 100%; }
+wa-stepper.outil-sommaire wa-step[completed][data-suite]::part(connector) { background-size: 100% 100%; }
 
 /* 4. Tâche cochée dans « Aujourd'hui » : le cercle se remplit, la ligne se barre d'un trait, le compteur change en glissant. */
 .ja.fait.vient-de-finir .ja-coche { animation: anim-remplit 220ms var(--anim-courbe); }
@@ -10290,7 +10305,9 @@ wa-stepper.outil-sommaire wa-step[completed]::part(connector) { background-size:
 .cst-accueil-sous { margin: 0 0 16px; font-size: var(--texte-base); color: var(--muted); }
 .cst-accueil .cst-accueil-recherche { width: 100%; position: relative; flex: none; margin-left: 0; }
 .cst-accueil-recherche input { width: 100%; box-sizing: border-box; min-height: 48px; font-size: var(--texte-l); padding: 0 16px; border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); }
-.cst-accueil-liste-titre { margin-top: 24px; align-self: flex-start; }
+/* Toujours à gauche, au style des titres de « Pièces du dossier » (étude 24/10 : centré dans les autorisations, à gauche dans la Constitution). */
+.cst-accueil-liste-titre { margin-top: 24px; align-self: flex-start; width: 100%; text-align: left; }
+.cst-accueil-liste-titre .pieces-titre { justify-content: flex-start; }
 .cst-accueil-grille { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .cst-accueil-carte { display: flex; align-items: center; gap: 12px; padding: 12px 14px; text-align: left; font: inherit; color: var(--ink); background: var(--paper-card); border: 1px solid var(--bord-carte); border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); cursor: pointer; min-width: 0; transition: border-color 150ms ease, transform 150ms ease; }
 .cst-accueil-carte:hover { border-color: var(--focus); }
