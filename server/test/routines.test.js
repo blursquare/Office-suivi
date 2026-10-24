@@ -274,9 +274,9 @@ test('routes : état, réglages fusionnés sans effacer les routines inconnues d
     assert.equal(e.corps.niveaux.length, 3);
     assert.equal(e.corps.catalogue[0].stats.total, 0);
     // Un poste qui n'envoie que le plafond et une routine ne touche pas aux autres.
-    const m = await j('/api/routines/reglages', { methode: 'PUT', corps: { plafondEuros: 30, routines: { 'revue-matin': { niveau: 2 } } } });
+    const m = await j('/api/routines/reglages', { methode: 'PUT', corps: { plafondEuros: 30, routines: { 'veille-signature': { niveau: 2 } } } });
     assert.equal(m.corps.plafondEuros, 30);
-    assert.equal(m.corps.routines['revue-matin'].niveau, 2);
+    assert.equal(m.corps.routines['veille-signature'].niveau, 2);
     assert.equal(m.corps.routines['constitution'].niveau, 1);
     assert.equal((await j('/api/routines/reglages', { methode: 'PUT', corps: [] })).statut, 400);
 
@@ -304,6 +304,20 @@ test('routes : état, réglages fusionnés sans effacer les routines inconnues d
     assert.equal((await j('/api/propositions?utilisateur=Julie%20VASSELIN&etat=traitees')).corps.propositions.length, 1);
     const jr = await j('/api/routines/journal');
     assert.match(jr.corps.entrees[0].texte, /4 propositions d’exemple/);
+  });
+});
+
+test('niveau 2 d’un geste vers l’extérieur (CLAIRE envoie après « Autoriser ») : réservé à l’administrateur, comme le niveau 3', async () => {
+  await avecServeur(async (j) => {
+    const demande = (auteur, niveau) => j('/api/routines/reglages', { methode: 'PUT', corps: { auteur, routines: { constitution: { gestes: { envoi: niveau } } } } });
+    assert.equal((await demande('Julie VASSELIN', 2)).statut, 403, 'un collaborateur ne peut pas');
+    assert.equal((await demande('Julie VASSELIN', 3)).statut, 403);
+    const ok = await demande('Bastien ANGLUMENT', 2);
+    assert.equal(ok.statut, 200);
+    assert.equal(ok.corps.routines.constitution.gestes.envoi, 2);
+    // Un geste interne (pas vers l'extérieur) au niveau 2 reste ouvert à tous.
+    const interne = await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Julie VASSELIN', routines: { 'veille-signature': { gestes: { fiche: 2 } } } } });
+    assert.equal(interne.statut, 200);
   });
 });
 

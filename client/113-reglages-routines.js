@@ -3,7 +3,7 @@
 // routine et geste par geste (1 proposer, 2 agir en réversible, 3 agir seule vers l'extérieur — décision de l'étude, geste par geste), ses
 // statistiques d'acceptation et la proposition de passer au niveau supérieur (90 % d'acceptation sur 30 propositions). Pour finir, le journal
 // « Ce que CLAIRE a fait seule ». Chaque réglage s'enregistre dès qu'on le change (comme les interrupteurs des autres rubriques).
-// Réservé à l'administrateur : l'interrupteur général et le niveau 3 (les autres collaborateurs voient les réglages sans les changer).
+// Réservé à l'administrateur : l'interrupteur général, le niveau 3 et le niveau 2 d'un geste vers l'extérieur (les autres collaborateurs voient les réglages sans les changer).
 
 var routinesEtat = null;
 var routinesJournal = [];
@@ -72,8 +72,8 @@ function renderGesteRoutine(routine, geste, reglages, admin) {
   const cle = escapeOnclickArg(geste.cle);
   const niveaux = niveauxPossiblesGeste(geste);
   return `<div class="rt-geste">
-    <div class="rt-geste-texte"><span class="rt-geste-nom">${escapeHtml(geste.libelle)}</span>${geste.sensible ? `<span class="rt-sensible" title="Ce geste agit vers l’extérieur : le niveau 3 n’est à accorder qu’après une période d’essai.">${icone('shield')}Vers l’extérieur</span>` : ''}</div>
-    ${boutonsNiveau(niveaux, niveau, n => `choisirNiveauGeste('${idJs}', '${cle}', ${n})`, n => n === 3 && !admin, { 1: 'Proposer', 2: 'Agir en réversible', 3: 'Agir seule' })}
+    <div class="rt-geste-texte"><span class="rt-geste-nom">${escapeHtml(geste.libelle)}</span>${geste.sensible ? `<span class="rt-sensible" title="Ce geste agit vers l’extérieur : les niveaux 2 et 3 (CLAIRE envoie) ne sont à accorder qu’après une période d’essai.">${icone('shield')}Vers l’extérieur</span>` : ''}</div>
+    ${boutonsNiveau(niveaux, niveau, n => `choisirNiveauGeste('${idJs}', '${cle}', ${n})`, n => (n === 3 || (n === 2 && geste.sensible)) && !admin, { 1: 'Proposer', 2: 'Valider, puis j’agis', 3: 'Agir seule' })}
   </div>`;
 }
 
@@ -105,7 +105,7 @@ function renderRoutineReglages(routine, etat, admin) {
     ${promotion}
     <div class="rt-autonomie">
       <div class="rt-autonomie-texte"><strong>Autonomie</strong><span>${escapeHtml(((etat.niveaux || []).find(n => n.niveau === s.niveau) || {}).court || '')}</span></div>
-      ${niveaux.length > 1 ? boutonsNiveau(niveaux, s.niveau, n => `choisirNiveauRoutine('${idJs}', ${n})`, n => n === 3 && !admin, { 1: 'Proposer', 2: 'Agir en réversible', 3: 'Agir seule' }) : '<span class="rt-niveau-fixe">Niveau 1 · Proposer</span>'}
+      ${niveaux.length > 1 ? boutonsNiveau(niveaux, s.niveau, n => `choisirNiveauRoutine('${idJs}', ${n})`, n => (n === 3 || (n === 2 && routine.gestes.some(g => g.sensible))) && !admin, { 1: 'Proposer', 2: 'Valider, puis j’agis', 3: 'Agir seule' }) : '<span class="rt-niveau-fixe">Niveau 1 · Proposer</span>'}
     </div>
     ${routine.gestes.length > 1 || niveauMax > 1 ? `<wa-details summary="Régler geste par geste" class="rt-gestes">${routine.gestes.map(g => renderGesteRoutine(routine, g, reglages, admin)).join('')}</wa-details>` : ''}
     ${essai ? `<div class="rt-routine-pied">${essai}</div>` : ''}
@@ -136,7 +136,7 @@ function renderReglagesRoutines() {
         <span class="rt-chip">${icone('sparkle')}IA en ligne ce mois-ci : ${escapeHtml(euros(e.usage.euros))} sur ${escapeHtml(euros(r.plafondEuros))}</span>
         <span class="rt-barre" role="img" aria-label="${part} % du plafond mensuel"><span style="width:${part}%"></span></span>
       </div>
-      ${admin ? '' : '<p class="rt-lecture">Lecture seule : l’interrupteur général et le niveau 3 sont réservés à l’administrateur.</p>'}
+      ${admin ? '' : '<p class="rt-lecture">Lecture seule : l’interrupteur général, le niveau 3 et le niveau 2 des gestes vers l’extérieur sont réservés à l’administrateur.</p>'}
     </div>
 
     <div class="reglages-section">
@@ -231,6 +231,14 @@ function basculerRoutine(id, coche) {
 }
 
 // Un niveau 3 se CONFIRME : la fenêtre dit ce que CLAIRE fera seule. Les autres niveaux s'enregistrent aussitôt.
+function demanderNiveauEnvoi(nomGeste, niveau, surConfirme) {
+  if (niveau === 2) {
+    demanderConfirmation(`Accorder le niveau 2 à « ${nomGeste} » ? CLAIRE préparera le travail ; quand vous cliquerez sur « Autoriser », elle l’enverra elle-même vers l’extérieur (email, agenda), sans second clic. Vous pourrez toujours revenir au niveau 1.`, surConfirme, { bouton: 'Accorder le niveau 2' });
+    return;
+  }
+  demanderNiveau3(nomGeste, surConfirme);
+}
+
 function demanderNiveau3(nomGeste, surConfirme) {
   demanderConfirmation(`Accorder le niveau 3 à « ${nomGeste} » ? CLAIRE fera et enverra seule, sans votre clic, vers l’extérieur (email, agenda). À n’accorder qu’après une période d’essai ; vous pourrez toujours revenir au niveau 1.`, surConfirme, { bouton: 'Accorder le niveau 3', ton: 'valider' });
 }
@@ -239,7 +247,7 @@ function choisirNiveauRoutine(id, niveau) {
   const r = routineDuCatalogue(id);
   if (!r) return;
   const appliquer = () => enregistrerReglagesRoutines({ routines: { [id]: { niveau, gestes: Object.fromEntries(r.gestes.map(g => [g.cle, Math.min(g.niveauMax, niveau)])) } } }, `${r.nom} : niveau ${niveau}.`);
-  if (niveau === 3) demanderNiveau3(r.nom, appliquer); else appliquer();
+  if (niveau === 3 || (niveau === 2 && r.gestes.some(g => g.sensible))) demanderNiveauEnvoi(r.nom, niveau, appliquer); else appliquer();
 }
 
 function choisirNiveauGeste(id, cle, niveau) {
@@ -247,7 +255,7 @@ function choisirNiveauGeste(id, cle, niveau) {
   const g = r && r.gestes.find(x => x.cle === cle);
   if (!g) return;
   const appliquer = () => enregistrerReglagesRoutines({ routines: { [id]: { gestes: Object.assign({}, (routinesEtat.reglages.routines[id] || {}).gestes, { [cle]: niveau }) } } }, `« ${g.libelle} » : niveau ${niveau}.`);
-  if (niveau === 3) demanderNiveau3(g.libelle, appliquer); else appliquer();
+  if (niveau === 3 || (niveau === 2 && g.sensible)) demanderNiveauEnvoi(g.libelle, niveau, appliquer); else appliquer();
 }
 
 // « Déposer des exemples dans ma boîte » : la routine d'essai, pour voir à quoi ressemble le travail de CLAIRE.

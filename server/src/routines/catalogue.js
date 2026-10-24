@@ -6,8 +6,10 @@
 //
 // Trois niveaux d'autonomie, réglables routine par routine et geste par geste :
 //   1 — Proposer : un brouillon, un document ou une tâche arrive dans la boîte de propositions ; le collaborateur autorise ou refuse.
-//   2 — Agir en réversible : faire et noter dans le dossier (signé « CLAIRE »), avec « Annuler ».
-//   3 — Agir seule, vers l'extérieur (envoyer un email, écrire dans l'agenda) : décision explicite de l'étude, geste par geste.
+//   2 — Valider, puis CLAIRE agit : le collaborateur relit et autorise, CLAIRE exécute elle-même — pour un geste vers l'extérieur (`sensible` :
+//       envoyer un email, écrire dans l'agenda) elle l'envoie après « Autoriser », sans second clic ; pour un geste interne (cocher, noter) elle
+//       le fait et le signe « CLAIRE », avec « Annuler ». Pour un geste vers l'extérieur, décision de l'étude (étude 24/10), réservée à l'administrateur.
+//   3 — Agir seule, vers l'extérieur (envoyer un email, écrire dans l'agenda) sans validation préalable : décision explicite de l'étude, geste par geste.
 
 /** @typedef {{ cle: string, libelle: string, niveauMax: 1 | 2 | 3, sensible?: boolean }} Geste */
 /** @typedef {{ id: string, nom: string, icone: string, description: string, declencheur: string, phase: number, disponible: boolean, ia: boolean, gestes: Geste[] }} Routine */
@@ -15,8 +17,8 @@
 /** @type {Record<number, { niveau: number, nom: string, court: string, detail: string }>} */
 const NIVEAUX = {
   1: { niveau: 1, nom: 'Proposer', court: 'Je propose, vous décidez', detail: 'Le travail arrive dans la boîte de propositions : vous autorisez ou refusez. Rien ne part sans votre clic.' },
-  2: { niveau: 2, nom: 'Agir en réversible', court: 'Je fais, vous pouvez annuler', detail: 'CLAIRE fait ce qui se défait (cocher une pièce reçue, noter dans le dossier) et le signe « CLAIRE » ; « Annuler » rétablit.' },
-  3: { niveau: 3, nom: 'Agir seule', court: 'Je fais et j’envoie', detail: 'CLAIRE envoie ou écrit seule vers l’extérieur (email, agenda). Décision de l’étude, geste par geste ; à n’accorder qu’après une période d’essai.' }
+  2: { niveau: 2, nom: 'Valider, puis j’agis', court: 'Vous validez, j’exécute', detail: 'Vous relisez le travail préparé et vous autorisez : CLAIRE l’exécute elle-même, y compris l’envoi d’un email (sans second clic). Ce qui se défait (cocher, noter dans le dossier) est signé « CLAIRE », avec « Annuler ».' },
+  3: { niveau: 3, nom: 'Agir seule', court: 'Je fais et j’envoie sans validation', detail: 'CLAIRE envoie ou écrit seule vers l’extérieur (email, agenda), sans votre validation. Décision de l’étude, geste par geste ; à n’accorder qu’après une période d’essai.' }
 };
 
 /** @type {Routine[]} */

@@ -50,11 +50,13 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const fusion = Object.assign({}, avant, corps, { routines });
     const propre = assainirReglagesRoutines(fusion);
     const auteur = collaborateurDe(corps.auteur);
-    const monte3 = CATALOGUE.some((r) => r.gestes.some((g) => niveauEffectif(propre, r.id, g.cle) === 3 && niveauEffectif(avant, r.id, g.cle) < 3));
+    // Réservé à l'administrateur : le niveau 3, et le niveau 2 d'un geste vers l'extérieur (CLAIRE envoie après « Autoriser » : règle n° 4 modifiée pour ce geste).
+    const seuilAdmin = (g) => (g.sensible ? 2 : 3);
+    const monte3 = CATALOGUE.some((r) => r.gestes.some((g) => niveauEffectif(propre, r.id, g.cle) >= seuilAdmin(g) && niveauEffectif(avant, r.id, g.cle) < seuilAdmin(g)));
     const bascule = propre.actif !== avant.actif;
     if ((monte3 || bascule) && !(auteur && ADMINISTRATEURS.includes(auteur))) { res.status(403).json({ erreur: 'Réservé à l’administrateur.' }); return; }
     ecrireReglagesRoutines(parametresRepo, fusion);
-    if (monte3 || bascule) noterJournalRoutines(parametresRepo, { routine: 'reglages', texte: `${bascule ? (propre.actif ? 'Routines allumées' : 'Routines éteintes') : 'Niveau 3 accordé'} par ${String(auteur).split(' ')[0]}.`, niveau: monte3 ? 3 : 1 });
+    if (monte3 || bascule) noterJournalRoutines(parametresRepo, { routine: 'reglages', texte: `${bascule ? (propre.actif ? 'Routines allumées' : 'Routines éteintes') : 'Autonomie élargie (envoi après validation ou seule)'} par ${String(auteur).split(' ')[0]}.`, niveau: monte3 ? 3 : 1 });
     res.json(propre);
   });
 
