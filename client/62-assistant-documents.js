@@ -7,8 +7,8 @@
   // l'aperçu de Claire Scan, une pièce du NAS dans un onglet). Lecture seule : rien n'est écrit ni déplacé.
 
   var JOURS_DOCUMENTS_ASSISTANT = 14;
-  var MAX_DOCUMENTS_ASSISTANT = 12;
-  var MAX_FICHIERS_NAS_ASSISTANT = 10;
+  var MAX_DOCUMENTS_ASSISTANT = 30;
+  var MAX_FICHIERS_NAS_ASSISTANT = 25;
   var MAX_BOUTONS_DOCUMENTS_ASSISTANT = 6;
   // Documents rendus à l'agent : document_id → document (ouvrir_documents ne reçoit que ces identifiants, jamais un chemin).
   var documentsAgentConnus = {};

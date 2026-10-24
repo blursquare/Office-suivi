@@ -85,7 +85,7 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.ok(OUTILS_AGENT.find((t) => t.name === 'faire_geste').strict === false && OUTILS_AGENT.find((t) => t.name === 'action_dossier').strict === false);
   const haiku = requeteAgent('claude-haiku-5-5', []);
   assert.equal(haiku.fallbacks, undefined);
-  assert.equal(requeteAgent('inconnu', []).max_tokens, 16000);
+  assert.equal(requeteAgent('inconnu', []).max_tokens, 32000);
   assert.deepEqual(requeteAgent('claude-opus-5-5', [], { conclure: true }).tool_choice, { type: 'none' });
 });
 
@@ -397,14 +397,14 @@ test('relecture 13/10 : la lecture de documents est plafonnée par conversation 
   for (let i = 0; i < 6; i++) reponses.push({ stop_reason: 'tool_use', usage, content: [outil('l' + i, 'lire_document', { document_id: 'doc1', page_debut: 1 + 30 * i, page_fin: 0 })] });
   reponses.push({ stop_reason: 'end_turn', usage, content: [texte('Fini.')] });
   const client = fauxClient(reponses);
-  // Sonnet : sans résumé automatique, la limite de 180 000 caractères s'applique.
+  // Sonnet : sans résumé automatique, la limite de 300 000 caractères s'applique.
   const o = { cle: 'k', client, modele: 'claude-sonnet-5-5' };
   let r = await tourAgent({ texte: 'Lis tout le compromis', dossiers: D, contexte: {} }, o);
-  const page = 'Clause '.repeat(6000);
+  const page = 'Clause '.repeat(12000);
   while (r.appels) r = await tourAgent({ conversation: r.conversation, resultats: r.appels.map((a) => ({ id: a.id, contenu: { pages: [{ page: 1, texte: page }] } })) }, o);
   const dernier = JSON.stringify(client.requetes[client.requetes.length - 1].messages);
   assert.match(dernier, /Limite de lecture de cette conversation atteinte/);
-  assert.ok(dernier.length < 260000, 'l’historique reste borné : ' + dernier.length);
+  assert.ok(dernier.length < 440000, 'l’historique reste borné : ' + dernier.length);
   const e = entreeOutilPourPoste('rediger_document', { dossier_id: '', forme: 'courrier', titre: 'Lettre', contenu: 'Monsieur [NOM9],' });
   assert.equal(e.contenu, 'Monsieur [à compléter],');
 });
@@ -756,4 +756,24 @@ test('action_dossier non strict : une valeur hors énumération (champ « constr
   assert.equal(e.champ, '');
   assert.equal(entreeOutilPourPoste('action_dossier', { action: 'rien', dossier_id: 'd1' }).action, '');
   assert.equal(entreeOutilPourPoste('action_dossier', { action: 'piece_recue', dossier_id: 'd1' }).action, 'piece_recue');
+});
+
+test('nouveau dossier de vente depuis un compromis joint (24/10) : outil déclaré, non strict, mode et pièce jointe, consigne de l’agent', () => {
+  const { SYSTEME_AGENT } = require('../src/assistantAgent');
+  const o = OUTILS_AGENT.find((x) => x.name === 'nouveau_dossier_vente');
+  assert.ok(o);
+  assert.equal(o.strict, false);
+  assert.equal(o.input_schema.additionalProperties, false);
+  assert.deepEqual(o.input_schema.properties.mode.enum, ['authentic', 'preparer', 'creer']);
+  assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
+  assert.match(SYSTEME_AGENT, /nouveau_dossier_vente/);
+  assert.match(SYSTEME_AGENT, /Rien n'est créé sans dossier d'Authentic correspondant/);
+});
+
+test('nouveau dossier : étape Authentic — mode « authentic » et authentic_id déclarés', () => {
+  const o = OUTILS_AGENT.find((x) => x.name === 'nouveau_dossier_vente');
+  assert.deepEqual(o.input_schema.properties.mode.enum, ['authentic', 'preparer', 'creer']);
+  assert.ok(o.input_schema.properties.authentic_id);
+  assert.deepEqual([...o.input_schema.required].sort(), Object.keys(o.input_schema.properties).sort());
+  assert.match(o.description, /TOUJOURS depuis Authentic/);
 });

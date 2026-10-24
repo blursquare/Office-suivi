@@ -21,8 +21,11 @@ function nasInvente() {
   return racine;
 }
 
-test('éteinte par défaut ; réglages assainis (chemins propres, mots simplifiés, bornes)', () => {
+test('jamais réglée : ouverte sur tout le NAS avec des mots d’exclusion (24/10) ; réglages assainis (chemins propres, mots simplifiés, bornes)', () => {
   assert.equal(nl.assainirNasLibre(undefined).actif, false);
+  const defaut = nl.lireNasLibre({ lireJsonBrut: (c, d) => d });
+  assert.deepEqual([defaut.actif, defaut.racines, defaut.exclus], [true, [], nl.EXCLUS_PAR_DEFAUT]);
+  assert.equal(nl.lireNasLibre({ lireJsonBrut: () => ({ actif: false }) }).actif, false, 'un réglage enregistré fait foi');
   assert.equal(nl.assainirNasLibre({ actif: 'oui' }).actif, false);
   const r = nl.assainirNasLibre({ actif: true, racines: ['../x', 'A/../B', ' MODELES - OUTILS/ ', '.cache', 'MODELES - OUTILS'], exclus: ['Compta', 'é', '  RH  '] });
   assert.deepEqual(r.racines, ['MODELES - OUTILS']);
@@ -102,7 +105,8 @@ test('routes : 403 tant que c’est éteint, puis lister / chercher / texte / pd
   const nas = nasInvente();
   fs.writeFileSync(path.join(nas, 'MODELES - OUTILS', 'Modele.pdf'), '%PDF-1.4 inventé');
   fs.writeFileSync(path.join(nas, 'AUTRES', 'Dehors.pdf'), '%PDF-1.4 inventé');
-  const stock = {};
+  // Réglage jamais fait = ouverte (24/10) ; ici l'étude l'a éteinte.
+  const stock = { 'agent-nas-libre': { actif: false, racines: [], exclus: [] } };
   const repo = { lireJsonBrut: (cle, defaut) => (cle in stock ? stock[cle] : defaut), ecrireJsonBrut: (cle, v) => { stock[cle] = v; } };
   const app = express();
   app.use(express.json());

@@ -1,6 +1,6 @@
 'use strict';
 
-// Fiche de veille de signature (étude 24/10, client/109-veille-signature.js) : quand elle est proposée (48 h avant, une fois par rendez-vous,
+// Fiche de veille de signature (étude 24/10, client/111-veille-signature.js) : quand elle est proposée (48 h avant, une fois par rendez-vous,
 // au responsable), ce qu'elle dit de chaque condition (coche, date relevée, sans objet) et son nom de fichier.
 
 const { test } = require('node:test');
@@ -195,7 +195,7 @@ test('pdf-lib et fontkit ne se chargent que verrouillés par leur empreinte SRI 
   assert.match(lire('56-courrier-pdfa.js'), /var SRI_PDF_LIB_PDFA = 'sha384-[A-Za-z0-9+/]{64}'/);
   assert.match(lire('56-courrier-pdfa.js'), /var SRI_FONTKIT_PDFA = 'sha384-[A-Za-z0-9+/]{64}'/);
   // Chaque chargement de ces deux bibliothèques passe son empreinte.
-  for (const f of ['56-courrier-pdfa.js', '108-autorisations-succession.js', '109-veille-signature.js']) {
+  for (const f of ['56-courrier-pdfa.js', '108-autorisations-succession.js', '111-veille-signature.js']) {
     const src = lire(f);
     for (const m of src.matchAll(/afChargerScript\((URL_PDF_LIB_PDFA|URL_FONTKIT_PDFA)([^)]*)\)/g)) {
       assert.match(m[2], /SRI_(PDF_LIB|FONTKIT)_PDFA/, `${f} : ${m[0]}`);

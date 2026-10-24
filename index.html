@@ -2593,7 +2593,7 @@
   </div>
 </div>
 
-<!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/109-veille-signature.js). -->
+<!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/111-veille-signature.js). -->
 <div class="confirm-overlay" id="veille-signature-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerVeilleSignature(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box veille-box" role="dialog" aria-modal="true" aria-label="Fiche de signature">
     <div id="veille-signature-contenu"></div>
@@ -2849,6 +2849,8 @@
 <script src="commun/trajets.js"></script>
 <script src="commun/scans-memoire.js"></script>
 <script src="commun/autorisations-succession.js"></script>
+<script src="commun/attestation-rib.js"></script>
+<script src="commun/signature-rib.js"></script>
 <script src="client/00-version.js"></script>
 <script src="client/01-socle.js"></script>
 <script src="client/02-extraction-type-acte-qualites.js"></script>
@@ -2958,6 +2960,8 @@
 <script src="client/106-yousign.js"></script>
 <script src="client/107-appel-fonds-saisie-nas.js"></script>
 <script src="client/108-autorisations-succession.js"></script>
-<script src="client/109-veille-signature.js"></script>
+<script src="client/109-attestation-rib.js"></script>
+<script src="client/110-assistant-nouveau-dossier.js"></script>
+<script src="client/111-veille-signature.js"></script>
 </body>
 </html>

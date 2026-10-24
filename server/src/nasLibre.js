@@ -3,7 +3,7 @@
 
 // Lecture LIBRE du NAS par « Demander à CLAIRE » (étude 21/10, palier 2 : « qu'il puisse chercher et lire dans tout le NAS, comme
 // Claude desktop sur un disque »). LECTURE SEULE, éteinte par défaut, réglée dans Réglages › IA et relecture d'actes :
-//   - `actif` : interrupteur général ;
+//   - `actif` : interrupteur général (ouvert tant que l'étude n'a rien réglé, voir `lireNasLibre`) ;
 //   - `racines` : dossiers (chemins relatifs à la racine du NAS) où l'agent peut aller — vide = toute la racine ;
 //   - `exclus` : mots qui écartent un dossier ou un fichier dont le NOM les porte (« compta », « RH »…), à tout niveau.
 // Même confinement que le reste du NAS (`resoudreCheminNas` : liens symboliques résolus avant contrôle) ; jamais un dossier caché,
@@ -18,9 +18,9 @@ const CLE_NAS_LIBRE = 'agent-nas-libre';
 const MAX_RACINES = 40;
 const MAX_EXCLUS = 60;
 const MAX_ENTREES_PARCOURUES = 30000;
-const DUREE_RECHERCHE_MS = 4000;
-const MAX_RESULTATS = 40;
-const MAX_CARACTERES_TEXTE = 40000;
+const DUREE_RECHERCHE_MS = 8000;
+const MAX_RESULTATS = 100;
+const MAX_CARACTERES_TEXTE = 100000;
 const TAILLE_MAX_DOCX = 25 * 1024 * 1024;
 const TAILLE_MAX_TEXTE = 3 * 1024 * 1024;
 const RE_CACHE = /^(\.|~\$|thumbs\.db$|desktop\.ini$|__macosx$)/i;
@@ -55,7 +55,14 @@ function racinesRefusees(brutes) {
 }
 
 /** @param {{ lireJsonBrut: Function }} repo */
-function lireNasLibre(repo) { return assainirNasLibre(repo.lireJsonBrut(CLE_NAS_LIBRE, null)); }
+// Étude 24/10 (« laisse à l'API Claude le plus de liberté possible », choix « accès libre en lecture ») : tant que l'étude n'a jamais réglé la
+// lecture libre, elle est OUVERTE sur tout le NAS, lecture seule, avec ces mots d'exclusion ; la première sauvegarde des Réglages fige le choix.
+const EXCLUS_PAR_DEFAUT = ['compta', 'paie', 'salaire', 'bulletin de paie'];
+function lireNasLibre(repo) {
+  const brut = repo.lireJsonBrut(CLE_NAS_LIBRE, null);
+  if (brut == null) return { actif: true, racines: [], exclus: [...EXCLUS_PAR_DEFAUT] };
+  return assainirNasLibre(brut);
+}
 
 /** @param {{ ecrireJsonBrut: Function }} repo @param {any} valeur */
 function ecrireNasLibre(repo, valeur) {
@@ -253,5 +260,5 @@ async function lireTexteNasLibre(nasRacine, rel, debut, r, supp = []) {
   return { texte: morceau, caracteres_total: texte.length, debut: depart, ...(fin < texte.length ? { suite: fin } : {}) };
 }
 
-module.exports = { CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
+module.exports = { EXCLUS_PAR_DEFAUT, CLE_NAS_LIBRE, racinesRefusees, cheminReelPermis, simplifier, cheminRelatifPropre, assainirNasLibre, lireNasLibre, ecrireNasLibre, cheminPermis, surLeCheminDUneRacine,
   supplementairesPermis, resoudreLibre, listerNasLibre, chercherNasLibre, lireTexteNasLibre, MAX_CARACTERES_TEXTE };

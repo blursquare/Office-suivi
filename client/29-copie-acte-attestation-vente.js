@@ -531,6 +531,7 @@
     if (cle === 'agenda') return renderNoterAgenda(d);
     if (cle === 'questionnaire') return renderQuestionnaireSatisfaction(d);
     if (cle === 'copieActe') return renderEnvoiCopieActe(d);
+    if (cle === 'rib') return renderLignesSignatureRib(d);
     // Au confrère du vendeur, pas à l'acquéreur : son propre destinataire.
     if (cle === 'relanceDecompteConfrere') return emailConfrereVendeurDossier(d) ? renderLigneEmailDossier(d, cle) : '';
     if (!avecDestinataire) return '';

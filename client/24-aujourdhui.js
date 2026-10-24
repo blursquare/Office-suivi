@@ -276,9 +276,9 @@
           ajouter({
             type: 'rib', categorie: 'rendezVousSignature', categorieLabel: 'Rendez-vous de signature',
             titre: 'Demander le RIB et la pièce d’identité',
-            contexte: `${signature}. L’email de rappel n’est pas encore parti.`,
+            contexte: `${signature}. Signature du RIB par Yousign pas encore demandée.`,
             jours: jRdv, gravite: jRdv <= 1 ? 'critique' : 'vigilance',
-            geste: { type: 'email', motif: 'rib' }, bouton: 'Ouvrir l’email'
+            geste: { type: 'signatureRib' }, bouton: 'Envoyer'
           });
         }
       }
@@ -798,6 +798,9 @@
     } else if (geste.type === 'ficheSignature') {
       fermerFenetreAujourdhui();
       ouvrirVeilleSignature(id);
+    } else if (geste.type === 'signatureRib') {
+      fermerFenetreAujourdhui();
+      preparerSignatureRibDossier(id);
     } else if (geste.type === 'copieActe') {
       fermerFenetreAujourdhui();
       ouvrirEnvoiCopieActe(id);

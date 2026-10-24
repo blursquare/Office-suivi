@@ -255,6 +255,15 @@
     renderPanneauRevision(extractionActuelle);
   }
 
+  // Date du panneau « Vérifier » : retenue seulement si elle a changé depuis l'affichage du panneau
+  // (quitter le champ sans rien changer ne redessine rien, le clic sur le champ suivant n'est pas perdu).
+  function validerDateRevision(input, cle) {
+    if (!input || input.value === input.defaultValue) return;
+    if (dateIncompleteEnCoursDeSaisie(input.value)) return;
+    input.defaultValue = input.value;
+    modifierDonneeRevision(cle, input.value);
+  }
+
   function synchroniserChampFormulaire(cle, valeur) {
     const definition = CHAMPS_REVISION.find(c => c.cle === cle);
     if (!definition || !definition.champId) return;
@@ -365,7 +374,15 @@
       return `<select class="revision-saisie" onchange="modifierDonneeRevision('${cle}', this.value)">
         <option value=""${brut ? '' : ' selected'}>—</option>${options}</select>`;
     }
-    const type = definition.type === 'date' ? 'date' : (definition.type === 'nombre' ? 'number' : 'text');
+    // Une date n'est retenue qu'en quittant le champ ou par Entrée (étude 23/10 : « il valide la date avant
+    // même que j'ai terminé d'écrire ») : un <input type="date"> émet `change` dès que ses trois cases font
+    // une date valide — taper « 1 » dans le jour d'une date déjà remplie donnait le 01, le panneau se
+    // redessinait et le reste de la frappe était perdu.
+    if (definition.type === 'date') {
+      return `<input type="date" class="revision-saisie" value="${escapeAttr(brut)}" placeholder="Non renseigné"
+        onblur="validerDateRevision(this, '${cle}')" onkeydown="if(event.key==='Enter'){event.preventDefault();validerDateRevision(this, '${cle}');}">`;
+    }
+    const type = definition.type === 'nombre' ? 'number' : 'text';
     // onchange (et non oninput) : le panneau se redessine à chaque modification, une saisie
     // caractère par caractère perdrait le focus au premier appui sur une touche.
     return `<input type="${type}" class="revision-saisie" value="${escapeAttr(brut)}"${definition.liste ? ` list="${definition.liste}"` : ''}

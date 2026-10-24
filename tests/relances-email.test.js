@@ -557,16 +557,16 @@ test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles 
   assert.match(html, /Échanges avec le client/);
   // RIB et provision : dans l'onglet Fonds (étude 05/10), même partage utile / replié.
   assert.doesNotMatch(html, /'rib'|'provision'/);
-  const [utile, replie] = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: '2099-12-01' })).split('<details class="echanges-hors-stade">');
+  const [utile, replie] = app.renderFondsDossier(dossierBase(app, { parties: [{ role: 'ACQUEREUR', nom: 'MARTIN', prenom: 'Léa' }], sansPret: true, rendezVousSignature: '2099-12-01' })).split('<div class="echanges-hors-stade">');
   // RIB : juste avant la signature (étude 07/10) — replié tant que le rendez-vous est à plus de 3 jours.
-  assert.doesNotMatch(utile, /envoyerRelanceCiblee\('d1', 'rib'\)/);
-  assert.match(replie, /envoyerRelanceCiblee\('d1', 'rib'\)/);
+  assert.doesNotMatch(utile, /preparerSignatureRib\('d1', \d+\)/);
+  assert.match(replie, /preparerSignatureRib\('d1', \d+\)/);
   assert.doesNotMatch(utile, /'provision'/);
   assert.match(replie, /envoyerRelanceCiblee\('d1', 'provision'\)/);
   const proche = new Date(); proche.setDate(proche.getDate() + 2);
   const iso = `${proche.getFullYear()}-${String(proche.getMonth() + 1).padStart(2, '0')}-${String(proche.getDate()).padStart(2, '0')}`;
-  const utileProche = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: iso })).split('<details class="echanges-hors-stade">')[0];
-  assert.match(utileProche, /envoyerRelanceCiblee\('d1', 'rib'\)/);
+  const utileProche = app.renderFondsDossier(dossierBase(app, { parties: [{ role: 'ACQUEREUR', nom: 'MARTIN', prenom: 'Léa' }], sansPret: true, rendezVousSignature: iso })).split('<div class="echanges-hors-stade">')[0];
+  assert.match(utileProche, /preparerSignatureRib\('d1', \d+\)/);
   const confrere = app.renderEchangesDossier(dossierBase(app, { roleNotaire: 'participant', notaireAcquereur: 'Maître DURAND', emailNotaireParticipant: 'durand@notaires.fr' }));
   assert.match(confrere, /Échanges avec le confrère/);
   assert.doesNotMatch(confrere, /Questionnaire de satisfaction/);

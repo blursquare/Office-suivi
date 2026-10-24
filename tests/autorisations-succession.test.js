@@ -68,3 +68,15 @@ test('relecture 23/10 : genre inconnu, profession accordée, PACS jamais invent�
   assert.equal(A.dateAutorisation('2026-02-31'), '');
   assert.match(A.corpsEmailAutorisation('heritier', 'Madame Jeanne DURAND', 'Madame'), /^Madame,\n\nDans le cadre du règlement de la succession de Madame Jeanne DURAND, vous trouverez ci-joint l'autorisation de transfert de fonds/);
 });
+
+test('pour Yousign : « Fait à : » et « Le : » sont retirés (avec les lignes vides qui les précèdent), rien d’autre', () => {
+  const doc = A.documentAutorisationSuccession('deblocage', { signataire: fils, defunt });
+  assert.deepEqual(doc.slice(-2).map((x) => x.texte), ['Fait à :', 'Le :']);
+  const sans = A.sansLieuDateAutorisation(doc);
+  assert.equal(sans.length, doc.length - 3, 'les deux lignes et la ligne vide qui les précède');
+  assert.doesNotMatch(texte(sans), /Fait à|^Le :/m);
+  assert.match(sans[sans.length - 1].texte, /paiement de toutes factures établies au nom du défunt\.$/);
+  assert.equal(sans[sans.length - 1].vide, undefined);
+  // Un paragraphe qui parle d'une date n'est pas touché.
+  assert.equal(A.sansLieuDateAutorisation([{ texte: 'Le jour de la signature.' }, { texte: 'Fait à :' }]).length, 1);
+});

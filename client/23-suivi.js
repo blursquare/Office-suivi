@@ -816,11 +816,6 @@
     // Succession (étude 15/10) : défunt, héritiers, régime, donation, testament, type et actes — client/74-fiche-succession.js.
     if (estSuccession(d)) return renderDossierSuccession(d, ligne, responsable, nas);
 
-    // Outils et courriers, sous les deux colonnes et bien en avant (étude 20/10 : « sors les outils et les courriers en dessous des deux colonnes et mets-les plus en avant »).
-    const blocOutils = `<section class="fiche-outils-bloc" aria-label="Outils du dossier">
-        <span class="pieces-titre">${icone('settings')}<span class="pieces-titre-texte">Outils</span></span>
-        <div class="fiche-outils-boutons" style="--outils-colonnes: ${Math.ceil((outilsVenteFiche(d).length + (d.archive || d.roleNotaire === 'participant' ? 0 : 1)) / 2)}">${d.archive || d.roleNotaire === 'participant' ? '' : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirConstitutionDepuisFiche('${escapeOnclickArg(d.id)}')" title="Préparer les courriers à la mairie (numérotage, alignement, péril, assainissement) : toutes les parcelles et tous les vendeurs d’Authentic">${icone('courriers')}Constitution de dossier</wa-button>`}${renderOutilsVenteFiche(d)}</div>
-      </section>`;
     // Présentation façon Authentic (étude 17/10) : à gauche les parties et les biens — chacun une fiche unique, avec les autres dossiers où
     // il figure —, à droite tout le reste.
     const blocBien = `
@@ -879,8 +874,8 @@
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
       </div></div>
-      ${blocOutils}
         </div>
+        ${renderColonneOutilsFiche(d)}
       </div>
       <datalist id="${listeId}" data-base="${escapeAttr(JSON.stringify(nomsDetectes))}">${optionsNotaires.map(n => `<option value="${escapeAttr(n)}"></option>`).join('')}</datalist>`;
     const ouvert = fichesChampsVidesOuverts.has(d.id);

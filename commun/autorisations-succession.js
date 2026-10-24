@@ -160,6 +160,17 @@
     return doc;
   }
 
+  /**
+   * Le document pour Yousign : sans « Fait à : / Le : » (Yousign date et situe la signature lui-même). Les deux lignes finales, et les
+   * lignes vides qui les précèdent, sont retirées — jamais un autre paragraphe, même ressemblant.
+   * @param {ParagrapheAutorisation[]} doc
+   */
+  function sansLieuDateAutorisation(doc) {
+    const sortie = doc.filter((x) => !(!x.vide && /^(Fait à|Le)\s*:\s*$/.test(String(x.texte || '').trim())));
+    while (sortie.length && sortie[sortie.length - 1].vide) sortie.pop();
+    return sortie;
+  }
+
   /** Les données qui manquent encore (« à compléter » dans le texte). @param {ParagrapheAutorisation[]} doc */
   function manquesAutorisation(doc) {
     return doc.filter((x) => x.texte.includes(A_COMPLETER) || /\(e\)/.test(x.texte)).length;
@@ -187,7 +198,7 @@
     return `${appel}\n\nDans le cadre du règlement de la succession de ${nomDefunt || A_COMPLETER}, vous trouverez ci-joint l'autorisation de ${objet} à nous retourner datée et signée.\n\nBien cordialement,`;
   }
 
-  exporter({ A_COMPLETER, genreAutorisation, professionAccordee, corpsEmailAutorisation, nomCompletAutorisation, MODELES_AUTORISATION_SUCCESSION, dateAutorisation, documentAutorisationSuccession, manquesAutorisation, nomFichierAutorisation, modeleParDefautAutorisation });
+  exporter({ A_COMPLETER, genreAutorisation, professionAccordee, corpsEmailAutorisation, nomCompletAutorisation, MODELES_AUTORISATION_SUCCESSION, dateAutorisation, documentAutorisationSuccession, sansLieuDateAutorisation, manquesAutorisation, nomFichierAutorisation, modeleParDefautAutorisation });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

@@ -201,8 +201,21 @@
     return outils;
   }
 
-  function renderOutilsVenteFiche(d) {
-    return `<span class="succ-actes">${outilsVenteFiche(d).map(o => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${o.onclick}" title="${escapeAttr(o.titre)}">${icone(o.icone)}${escapeHtml(o.libelle)}</wa-button>`).join('')}</span>`;
+  // Colonne des outils à DROITE des deux colonnes de l'onglet Dossier (étude 24/10 : « remettre l'accès aux outils aussi à droite des colonnes,
+  // dans les ventes et les successions ») : un bouton par ligne, les mêmes gestes que le bloc du dessous (vente) ou ceux d'une succession (le forfait mobilier a déjà sa ligne « Simuler l'arbitrage » dans le contrôle à 2 mois).
+  function renderColonneOutilsFiche(d) {
+    if (!d || d.archive && estSuccession(d)) return '';
+    const id = escapeOnclickArg(d.id);
+    const bouton = (ic, libelle, onclick, titre) => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${onclick}" title="${escapeAttr(titre)}">${icone(ic)}${escapeHtml(libelle)}</wa-button>`;
+    const outils = [];
+    if (estSuccession(d)) {
+      outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers d’interrogation : banques, assurances, caisses, impôts…'));
+      outils.push(bouton('file-text', 'Autorisations de fonds', `ouvrirAutorisationsDepuisFiche('${id}')`, 'Déblocage ou transfert de fonds : une autorisation par héritier'));
+    } else {
+      if (!d.archive && d.roleNotaire !== 'participant') outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers à la mairie : numérotage, alignement, péril, assainissement'));
+      outilsVenteFiche(d).forEach(o => outils.push(bouton(o.icone, o.libelle, o.onclick, o.titre)));
+    }
+    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}</aside>`;
   }
 
   // Pure : les parcelles d'une vente telles que la fiche les montre (étude 16/10 : « les surfaces des parcelles ne remontent pas dans la
