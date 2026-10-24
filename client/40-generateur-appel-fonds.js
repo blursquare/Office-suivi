@@ -51,7 +51,7 @@
   // tableau. Ces motifs ont été écrits sur de vrais décomptes — ne pas les resserrer sans
   // relire les tests correspondants (tests/appel-de-fonds.test.js), même consigne que pour les
   // regex de détection de dates.
-  var AF_MONTANT_FIN_RE = /(?<![0-9])([0-9]{1,3}(?:[.\s ][0-9]{3})*,[0-9]{2})(?:\s*€)+\s*$/;
+  var AF_MONTANT_FIN_RE = /(?<![0-9])((?:[0-9]{1,3}(?:[.\s ][0-9]{3})+|[0-9]+),[0-9]{2})(?:\s*€)+\s*$/;
   // Un libellé coupé par la mise en page du confrère (« …frais et droits de l’acte de » / « prêt »)
   // laisse sur la ligne SUIVANTE un ou deux mots en minuscules, sans montant : c’est la fin du
   // libellé précédent, pas le début du suivant. Borné à 35 caractères et à des minuscules : un
@@ -766,7 +766,7 @@
 
   function ligneClientComplete(c) {
     if (!c) return '';
-    if (c.civilite === 'SCI') return String(c.nom || '').trim();
+    if (c.civilite === 'SCI' || c.civilite === 'Indivision') return String(c.nom || '').trim();
     const civLong = c.civilite === 'M' ? 'Monsieur' : (c.civilite === 'Mlle' ? 'Mademoiselle' : 'Madame');
     return [civLong, c.prenom, c.nom].filter(Boolean).join(' ').trim();
   }
@@ -1671,6 +1671,8 @@
   function changerClientAppelFonds(i, champ, valeur) {
     if (!afClients[i]) return;
     afClients[i][champ] = valeur;
+    // Une SCI ou une indivision n'a pas de prénom : celui d'avant, devenu invisible, ne part pas dans le courrier (relecture 24/10).
+    if (champ === 'civilite' && (valeur === 'SCI' || valeur === 'Indivision')) afClients[i].prenom = '';
     if (champ === 'civilite') renderClientsAppelFonds();
     majApercuAppelFonds();
   }
@@ -1776,6 +1778,7 @@
     const ligne = afLignes[section] && afLignes[section][i];
     if (!ligne) return;
     delete ligne.estime;
+    ligne.main = true;
     const texte = (span.textContent || '').replace(/\u00a0/g, ' ').trim();
     // Une ligne est toujours un montant, mais un texte sans chiffre (« pour mémoire », « offert », « néant »…) se saisit aussi : il part tel quel
     // dans le courrier et la ligne n'entre pas dans le total (étude 23/10).

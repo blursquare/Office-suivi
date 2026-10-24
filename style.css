@@ -5265,9 +5265,9 @@ table.af-table .af-verif-ecart { background: #f6e3c9; color: #8a5417; }
 .af-ordre { float: right; display: inline-flex; gap: 2px; margin-left: 6px; opacity: 0; transition: opacity 0.12s; }
 table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { opacity: 1; }
 @media (hover: none) { .af-ordre { opacity: 1; } }
-/* Écran tactile ou étroit (étude 24/10) : les flèches et la croix sur leur propre ligne, au-dessus du libellé (flottantes, elles
+/* Écran tactile (étude 24/10) : les flèches et la croix sur leur propre ligne, au-dessus du libellé (flottantes, elles
    coupaient le premier mot : « P / rix d'acquisition »). */
-@media (hover: none), (max-width: 700px) { .af-ordre { float: none; display: flex; justify-content: flex-end; margin: 0 0 2px; } }
+@media (hover: none) { .af-ordre { float: none; display: flex; justify-content: flex-end; margin: 0 0 2px; } }
 .af-ordre-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0;
   background: #fff; border: 1px solid #c9c9c9; border-radius: 4px; color: #6b6250; cursor: pointer; font-size: 12px;

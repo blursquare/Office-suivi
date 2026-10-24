@@ -293,6 +293,8 @@
     definirModeDecompteAppelFonds(etat.mode);
     const lignes = etat.lignes || {};
     afLignes = { debit: Array.isArray(lignes.debit) ? lignes.debit : [], credit: Array.isArray(lignes.credit) ? lignes.credit : [] };
+    // Repris tel qu'il est sorti (relecture 24/10) : le barème ne remplit ni ne recalcule plus aucune ligne de ce courrier.
+    afLignes.debit.concat(afLignes.credit).forEach(l => { if (l) { delete l.estime; l.main = true; } });
     renderPillDossierAppelFonds();
     renderClientsAppelFonds();
     renderTableAppelFonds();

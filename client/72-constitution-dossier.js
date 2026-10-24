@@ -1365,7 +1365,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
         <wa-button appearance="outlined" size="s" type="button" class="cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Télécharger le courrier en Word (.docx)">Word</wa-button>
-        ${doc.origine ? `<span class="hint">Adresse : ${escapeHtml(doc.origine)}</span>` : ''}
+        ${doc.origine ? `<span class="hint">${/^adresse/i.test(doc.origine) ? escapeHtml(doc.origine) : `Adresse : ${escapeHtml(doc.origine)}`}</span>` : ''}
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
           <span class="hint">Le texte du courrier dans l’email, le courrier joint en PDF${doc.genre === 'vente' ? ' avec le plan cadastral' : ''}.</span>` : ''}

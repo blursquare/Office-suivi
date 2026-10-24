@@ -106,7 +106,7 @@ function formaterChampMontantActifAppelFonds() { formaterMontantSortieAppelFonds
 function remplirFraisActeEstimesAppelFonds(fourchette) {
   if (afModeDecompte !== 'office' || !fourchette) return;
   const ligne = (afLignes.debit || []).find(l => l && !l.memoire && /frais\s+et\s+droits\s+de\s+l.acte\s+de\s+vente/i.test(l.libelle || ''));
-  if (!ligne || !(ligne.estime || !ligne.montant)) return;
+  if (!ligne || !(ligne.estime || (!ligne.montant && !ligne.main))) return;
   ligne.montant = Math.ceil(fourchette.max);
   ligne.estime = true;
 }
@@ -125,9 +125,9 @@ function texteDecompteColleNormalise(texte) {
     const bascule = /^((?:a|à)\s*d[ée]duire|sommes?\s+(?:a|à)\s+d[ée]duire|(?:a|à)\s*payer|(?:a|à)\s*ajouter)\s*[:\-–]\s*(\S.*)$/i.exec(l);
     if (bascule) { sortie.push(bascule[1]); l = bascule[2]; }
     // Montant entier à séparateur de milliers, sans centimes (« 185 000 », « 185.000 € ») : centimes ajoutés.
-    l = l.replace(/(\d{1,3}(?:[ .\u00a0\u202f]\d{3})+)(\s*€)?\s*$/, '$1,00 €');
+    l = l.replace(/(?<![\d.,])(\d{1,3}(?:[ .\u00a0\u202f]\d{3})+)(\s*€)?\s*$/, '$1,00 €');
     // Montant à centimes en fin de ligne sans « € ».
-    if (/\d{1,3}(?:[.\s\u00a0\u202f]\d{3})*,\d{2}\s*$/.test(l)) l = l.replace(/\s*$/, ' €');
+    if (/(?<![\d.,])(?:\d{1,3}(?:[.\s\u00a0\u202f]\d{3})+|\d+),\d{2}\s*$/.test(l)) l = l.replace(/\s*$/, ' €');
     sortie.push(l.replace(/[\u00a0\u202f]/g, ' '));
   });
   return sortie.join('\n');
@@ -156,15 +156,19 @@ function majRecapManquantsAppelFonds() {
   });
 }
 
-// Nom de famille d'un client pour « Monsieur et Madame NOM » : les mots en capitales du nom (« Paul DUPONT » → « DUPONT »,
-// particule gardée : « Jean de LA FONTAINE » → « de LA FONTAINE »), sinon le nom tel quel. Pure.
+// Nom de famille d'un client pour « Monsieur et Madame NOM » : la suite de mots en capitales du nom (« Paul DUPONT » et
+// « DUPONT Paul » → « DUPONT », « Jean d'ARTAGNAN » → « d'ARTAGNAN »), particules en minuscules juste avant gardées
+// (« Jean de la FONTAINE » → « de la FONTAINE »), une initiale (« J. ») n'en est pas ; sinon le nom tel quel. Pure.
 function nomFamilleClientAppelFonds(c) {
   const mots = String((c && c.nom) || '').trim().split(/\s+/).filter(Boolean);
-  const capitales = m => /\p{Lu}/u.test(m) && m === m.toLocaleUpperCase('fr-FR');
+  const capitales = m => { const coeur = m.replace(/^[dl][’']/i, ''); return /\p{Lu}{2}/u.test(coeur) && coeur === coeur.toLocaleUpperCase('fr-FR'); };
   const i = mots.findIndex(capitales);
   if (i < 0) return mots.join(' ');
-  const debut = i > 0 && /^(de|du|des|d’|d')$/i.test(mots[i - 1]) ? i - 1 : i;
-  return mots.slice(debut).join(' ');
+  let fin = i;
+  while (fin + 1 < mots.length && (capitales(mots[fin + 1]) || /^-/.test(mots[fin + 1]))) fin++;
+  let debut = i;
+  while (debut > 0 && /^(de|du|des|la|le|d[’'])$/i.test(mots[debut - 1])) debut--;
+  return mots.slice(debut, fin + 1).join(' ');
 }
 
 // Recalcule un prorata annoncé par le confrère. Un écart de plus de 2 centimes est signalé :

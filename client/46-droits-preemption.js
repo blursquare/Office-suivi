@@ -495,7 +495,7 @@
         ${renderPatrimoineOutil(patrimoinePreemption(e))}
         <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
-          ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat))
+          ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
             ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))} — à enregistrer</span>`
             : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : ''}</div>` : ''}`;
     }
@@ -524,11 +524,15 @@
   // Pure : ce qui est gardé sur la fiche — les réponses données, la zone lue, le résultat de chaque droit.
   // Étude 24/10 : « Enregistré le … » ne doit pas rester affiché quand les réponses ou les droits de l'outil ont changé depuis.
   // Compare les réponses données (vides ignorées) et le statut de chaque droit. Pure.
-  function preemptionModifieeDepuisFiche(enregistre, actuel) {
+  function preemptionModifieeDepuisFiche(enregistre, actuel, etat) {
     if (!enregistre || !actuel) return false;
+    // Zonage pas encore relu (lecture en cours, Géoportail muet) : les droits sans zone diffèrent toujours de ceux enregistrés —
+    // seules les réponses données comptent alors (relecture 24/10).
+    const sansZonage = !!(etat && (etat.lecture || !(etat.zonages && etat.zonages.length)));
     const reponses = (r) => JSON.stringify(Object.keys(r || {}).filter(k => r[k] !== '' && r[k] != null).sort().map(k => [k, r[k]]));
     const droits = (l) => JSON.stringify((Array.isArray(l) ? l : []).map(dr => [dr.cle, dr.statut]).sort());
-    return reponses(enregistre.reponses) !== reponses(actuel.reponses) || droits(enregistre.droits) !== droits(actuel.droits);
+    return reponses(enregistre.reponses) !== reponses(actuel.reponses)
+      || (!sansZonage && droits(typeof droitsPreemptionFiche === 'function' ? droitsPreemptionFiche(enregistre) : enregistre.droits) !== droits(actuel.droits));
   }
 
   function preemptionPourFiche(etat, maintenant) {

@@ -768,3 +768,43 @@ test('montant en fin de ligne : une année qui précède n’est pas prise pour 
   const r = app.parserDecompteConfrere('Prix de vente 185 000,00 €\nTaxe foncière 2026 412,00 €');
   assert.equal(r.lignes.debit.map(l => l.libelle + '=' + l.montant).join('|'), 'Prix d’acquisition=185000|Taxe foncière 2026=412');
 });
+
+// Relecture 24/10 : nom du mari pour « Monsieur et Madame NOM », saisies variées (noms inventés).
+test('nom de famille pour « Monsieur et Madame NOM »', () => {
+  const app = chargerApplication();
+  const n = (nom) => app.nomFamilleClientAppelFonds({ nom });
+  assert.equal(n('Paul DUPONT'), 'DUPONT');
+  assert.equal(n('DUPONT Paul'), 'DUPONT');
+  assert.equal(n("Jean d'ARTAGNAN"), "d'ARTAGNAN");
+  assert.equal(n('Jean de la FONTAINE'), 'de la FONTAINE');
+  assert.equal(n('Paul J. DUPONT'), 'DUPONT');
+  assert.equal(n('Paul DUPONT-MARTIN'), 'DUPONT-MARTIN');
+  assert.equal(n('Dupont'), 'Dupont');
+});
+
+test('décompte collé : référence, année, montant sans séparateur', () => {
+  const app = chargerApplication();
+  const norm = app.texteDecompteColleNormalise('Réf. dossier 2026 123\nPrix de vente 1234,56\nTaxe foncière 2026');
+  assert.ok(!/2026 123,00/.test(norm), 'une référence ne devient pas un montant');
+  const r = app.parserDecompteConfrere(norm);
+  assert.equal(r.lignes.debit.filter(l => l.montant).map(l => l.montant).join('|'), '1234.56', 'montant sans séparateur lu en entier');
+});
+
+test('frais estimés : une saisie à la main, même à zéro, n’est jamais écrasée', () => {
+  const app = chargerApplication();
+  const ligne = { libelle: 'Montant des frais et droits de l’acte de vente', montant: 0 };
+  app.afLignes = { debit: [ligne], credit: [] };
+  app.afModeDecompte = 'office';
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 16000.2 });
+  assert.equal(ligne.montant, 16001, 'ligne vide : estimation du barème');
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 17000 });
+  assert.equal(ligne.montant, 17000, 'estimée et jamais retouchée : suit le barème');
+  ligne.montant = 0; ligne.main = true; delete ligne.estime;
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 18000 });
+  assert.equal(ligne.montant, 0, 'zéro tapé à la main : gardé');
+  app.afModeDecompte = 'confrere';
+  const autre = { libelle: 'Montant des frais et droits de l’acte de vente', montant: 0 };
+  app.afLignes = { debit: [autre], credit: [] };
+  app.remplirFraisActeEstimesAppelFonds({ min: 15000, max: 18000 });
+  assert.equal(autre.montant, 0, 'décompte du confrère : jamais rempli');
+});
