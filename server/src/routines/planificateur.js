@@ -9,6 +9,7 @@ const { routineParId } = require('./catalogue');
 const { lireReglagesRoutines } = require('./reglages');
 const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
 const { deposerProposition } = require('../canaux/deposer');
+const { purgerCanauxOrphelins } = require('../canaux/canaux');
 const { noterJournalRoutines } = require('./journal');
 const { proposerExemples } = require('./essai');
 const { libelleDossierAffiche } = require('../../../commun/dossier');
@@ -58,7 +59,7 @@ function creerPlanificateur(deps) {
 
   const lireEtat = () => {
     const e = parametresRepo.lireJsonBrut(CLE_ETAT_ROUTINES, null);
-    return { dernierResume: e && typeof e.dernierResume === 'string' ? e.dernierResume : '', derniersPassages: e && e.derniersPassages && typeof e.derniersPassages === 'object' ? e.derniersPassages : {} };
+    return { dernierePurgeCanaux: e && typeof e.dernierePurgeCanaux === 'string' ? e.dernierePurgeCanaux : '', dernierResume: e && typeof e.dernierResume === 'string' ? e.dernierResume : '', derniersPassages: e && e.derniersPassages && typeof e.derniersPassages === 'object' ? e.derniersPassages : {} };
   };
   const libelleDossier = (id) => {
     try { const d = depot && depot.trouverParId ? depot.trouverParId(id) : null; return d ? libelleDossierAffiche(d) : ''; } catch (e) { return ''; }
@@ -95,6 +96,13 @@ function creerPlanificateur(deps) {
       const avant = lirePropositions(parametresRepo);
       const apres = expirer(avant, maintenant);
       if (apres !== avant) { bilan.expirees = apres.filter((p, i) => p.etat !== avant[i].etat).length; ecrirePropositions(parametresRepo, apres); }
+      // Canaux de dossiers supprimés : vidés, une fois par jour.
+      const jourPurge = infosParis(maintenant).iso;
+      const etatPurge = lireEtat();
+      if (depot && depot.trouverParId && etatPurge.dernierePurgeCanaux !== jourPurge) {
+        purgerCanauxOrphelins(parametresRepo, (id) => { try { return !!depot.trouverParId(id); } catch (e) { return true; } });
+        parametresRepo.ecrireJsonBrut(CLE_ETAT_ROUTINES, Object.assign({}, etatPurge, { dernierePurgeCanaux: jourPurge }));
+      }
       const reglages = lireReglagesRoutines(parametresRepo);
       const info = infosParis(maintenant);
       if (!reglages.actif || !info.ouvre) return bilan;

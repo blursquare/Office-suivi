@@ -11,6 +11,7 @@ const { noterVerification } = require('../verificationsTerrain');
 
 const CLE_NOTIFS = 'canaux-notifs';
 const INTERVALLE_MENTION_MS = 60 * 60 * 1000;
+const MAX_MENTIONS_PAR_HEURE = 12;
 
 /**
  * @param {{ parametresRepo: any, depot?: any, envoyer?: (reglages: any, adresse: string, texte: string) => Promise<{ ok: boolean, erreur?: string | null }> }} deps
@@ -39,21 +40,31 @@ function creerNotifieur(deps) {
     if (!cibles.length) return prevenus;
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return prevenus;
-    const table = parametresRepo.lireJsonBrut(CLE_NOTIFS, null) || {};
     for (const cible of cibles) {
       if (preferences(parametresRepo, cible, canal).notif === 'muet') continue;
+      // La table est relue et réécrite sans attente entre les deux : deux messages simultanés ne se croisent pas ; au plus 12 messages Teams
+      // par heure et par personne, tous canaux confondus ; les entrées de plus d'un jour sont oubliées.
+      const table = parametresRepo.lireJsonBrut(CLE_NOTIFS, null) || {};
+      for (const k of Object.keys(table)) if (k !== '' && t - Number(table[k]) > 24 * 3600000 && !k.endsWith('|*')) delete table[k];
       const cle = `${cible}|${canal}`;
       if (table[cle] !== undefined && t - Number(table[cle]) < INTERVALLE_MENTION_MS) continue;
+      const total = table[`${cible}|*`] && t - Number(table[`${cible}|*`].debut) < INTERVALLE_MENTION_MS ? table[`${cible}|*`] : { debut: t, n: 0 };
+      if (total.n >= MAX_MENTIONS_PAR_HEURE) continue;
       const adresse = (reglages.emailsResponsables || {})[cible];
       if (!adresse) continue;
       table[cle] = t;
+      table[`${cible}|*`] = { debut: total.debut, n: total.n + 1 };
+      parametresRepo.ecrireJsonBrut(CLE_NOTIFS, table);
       const extrait = String(message.texte || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+      /** @type {any} */
       let r;
       try { r = await envoyer(reglages, adresse, `💬 CLAIRE — ${prenomDe(message.auteur)} vous a mentionné dans ${libelleCanal(canal)} : « ${extrait} »\nOuvrez CLAIRE (✦ Demander à CLAIRE) pour répondre.`); } catch (e) { r = { ok: false }; }
+      if (r && r.ok && r.messageId) {
+        try { require('../nettoyageGmail').mettreCopiesEnAttente(parametresRepo, reglages, [r.messageId]); } catch (e) { /* la copie restera dans les envoyés */ }
+      }
       noterVerification(parametresRepo, 'canaux-mention-teams', r && r.ok ? { detail: 'mention notifiée sur Teams' } : { ok: false, message: 'mention non notifiée' });
       if (r && r.ok) prevenus.push(cible);
     }
-    parametresRepo.ecrireJsonBrut(CLE_NOTIFS, table);
     return prevenus;
   }
 

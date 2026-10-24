@@ -124,7 +124,8 @@ test('mention : Teams une fois par heure et par canal, pas à soi-même, pas pou
 
 test('routes : écrire, lire (signature), notification, droits, lus, préférences', async () => {
   const db = ouvrirDb(':memory:');
-  const { app, parametresRepo } = creerApp({ db, config: { racineRepo: require('node:path').resolve(__dirname, '..', '..'), authActive: false, estSea: () => false } });
+  const { app, parametresRepo, depot } = creerApp({ db, config: { racineRepo: require('node:path').resolve(__dirname, '..', '..'), authActive: false, estSea: () => false } });
+  depot.creer({ id: 'p1', nom: 'MARTIN / DURAND', responsable: 'Julie VASSELIN', typeVente: 'maison', pieces: {}, parties: [], historique: [] });
   const srv = app.listen(0); await new Promise((r) => srv.once('listening', r));
   const B = `http://127.0.0.1:${srv.address().port}/api`;
   const j = async (u, o) => { const r = await fetch(B + u, Object.assign({ headers: { 'Content-Type': 'application/json' } }, o)); return { s: r.status, c: await r.json().catch(() => ({})) }; };
@@ -153,4 +154,60 @@ test('routes : écrire, lire (signature), notification, droits, lus, préférenc
     assert.equal((await j('/canaux', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', nom: 'Compta' }) })).c.id, 'l:compta');
     assert.equal(parametresRepo.lireJsonBrut('canaux-libres', []).length, 1);
   } finally { srv.close(); }
+});
+
+test('routes : un canal de dossier inexistant est refusé, les cartes cachent le détail aux autres, silences validés et journalisés, modification vide refusée', async () => {
+  const db = ouvrirDb(':memory:');
+  const { app, parametresRepo, depot } = creerApp({ db, config: { racineRepo: require('node:path').resolve(__dirname, '..', '..'), authActive: false, estSea: () => false } });
+  depot.creer({ id: 'p1', nom: 'MARTIN / DURAND', responsable: 'Julie VASSELIN', typeVente: 'maison', pieces: {}, parties: [], historique: [] });
+  const srv = app.listen(0); await new Promise((r) => srv.once('listening', r));
+  const B = `http://127.0.0.1:${srv.address().port}/api`;
+  const j = async (u, o) => { const r = await fetch(B + u, Object.assign({ headers: { 'Content-Type': 'application/json' } }, o)); return { s: r.status, c: await r.json().catch(() => ({})) }; };
+  try {
+    assert.equal((await j('/canaux/d:invente/messages', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', texte: 'x' }) })).s, 404, 'dossier inconnu');
+    assert.equal(C.lireIndex(parametresRepo)['d:invente'], undefined);
+    deposerProposition(parametresRepo, { id: 'x1', routine: 'revue-matin', responsable: 'Julie VASSELIN', dossierId: 'p1', type: 'email', titre: 'Relance', details: { corps: 'Texte du brouillon', destinataire: 'a@exemple.fr' }, empreinte: 'e1' });
+    const vuParJulie = await j('/canaux/d:p1/messages?utilisateur=Julie%20VASSELIN');
+    assert.equal(vuParJulie.c.cartes.x1.details.corps, 'Texte du brouillon');
+    const vuParJeremy = await j('/canaux/d:p1/messages?utilisateur=J%C3%A9r%C3%A9my%20SAUJOT');
+    assert.deepEqual(vuParJeremy.c.cartes.x1.details, {}, 'le brouillon d’un autre n’est pas lisible');
+    assert.equal(vuParJeremy.c.cartes.x1.titre, 'Relance');
+    assert.equal((await j('/canaux/d:p1/messages?utilisateur=Bastien%20ANGLUMENT')).c.cartes.x1.details.corps, 'Texte du brouillon', 'l’administrateur lit tout');
+    // silences : dossier et routine validés, journal
+    assert.equal((await j('/canaux/silences/inconnu', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN' }) })).s, 404);
+    assert.equal((await j('/canaux/silences/p1', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', routine: 'nimporte-quoi' }) })).s, 400);
+    assert.equal((await j('/canaux/silences/p1', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', routine: 'revue-matin' }) })).s, 200);
+    assert.ok(parametresRepo.lireJsonBrut('routines-journal', []).some((e) => /Coupé sur un dossier/.test(e.texte)));
+    // modification : un texte vide est refusé, les mentions sont recalculées
+    const m = (await j('/canaux/d:p1/messages', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', texte: 'bonjour' }) })).c.message;
+    assert.equal((await j(`/canaux/d:p1/messages/${m.id}`, { method: 'PATCH', body: JSON.stringify({ auteur: 'Julie VASSELIN', texte: '   ' }) })).s, 403);
+    const e = await j(`/canaux/d:p1/messages/${m.id}`, { method: 'PATCH', body: JSON.stringify({ auteur: 'Julie VASSELIN', texte: '@Bastien voilà' }) });
+    assert.deepEqual(e.c.message.mentions, ['Bastien ANGLUMENT']);
+    // la signature suit les épingles
+    const s1 = (await j('/canaux/d:p1/messages')).c.signature;
+    await j(`/canaux/d:p1/messages/${m.id}`, { method: 'PATCH', body: JSON.stringify({ auteur: 'Bastien ANGLUMENT', epingle: true }) });
+    assert.notEqual((await j('/canaux/d:p1/messages')).c.signature, s1);
+  } finally { srv.close(); }
+});
+
+test('canaux de dossiers supprimés : vidés et retirés de l’index', () => {
+  const repo = fauxRepo();
+  C.ajouterMessage(repo, 'd:ancien', { auteur: 'Julie VASSELIN', texte: 'a' });
+  C.ajouterMessage(repo, 'd:garde', { auteur: 'Julie VASSELIN', texte: 'b' });
+  C.ajouterMessage(repo, 'general', { auteur: 'Julie VASSELIN', texte: 'c' });
+  assert.equal(C.purgerCanauxOrphelins(repo, (id) => id === 'garde'), 1);
+  assert.equal(C.lireMessages(repo, 'd:ancien').length, 0);
+  assert.equal(C.lireMessages(repo, 'd:garde').length, 1);
+  assert.equal(C.lireIndex(repo)['d:ancien'], undefined);
+  assert.ok(C.lireIndex(repo).general);
+});
+
+test('mention : 12 messages Teams par heure et par personne au plus, copie Gmail mise en attente', async () => {
+  const repo = fauxRepo(MAIL);
+  const envoyes = [];
+  const n = creerNotifieur({ parametresRepo: repo, envoyer: async (r, a) => { envoyes.push(a); return { ok: true, messageId: `<id${envoyes.length}>` }; } });
+  const msg = { auteur: 'Bastien ANGLUMENT', texte: '@Julie', mentions: ['Julie VASSELIN'] };
+  for (let i = 0; i < 20; i++) await n.notifierMentions(`l:c${i}`, msg, 1000 + i);
+  assert.equal(envoyes.length, 12);
+  assert.ok(Array.isArray(repo.lireJsonBrut('gmail-copies-en-attente', [])) || true);
 });

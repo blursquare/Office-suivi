@@ -928,7 +928,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
 
 **L'outil « Relecture d'actes » (quatre étapes, pseudonymisation, envoi à l'API, bilan) est RETIRÉ** (étude 18/10 : « on va fusionner
 Relectures d'acte dans Demander à CLAIRE qui sera l'interface ; on lui enverra les données et elle fera un compte rendu comme Claude le
-ferait, sous format texte » ; choix : outil retiré, Bastien seulement comme l'agent). La relecture se demande à l'agent : outil
+ferait, sous format texte » ; choix : outil retiré ; l'agent est ouvert à tous depuis les canaux, 24/10). La relecture se demande à l'agent : outil
 `controles_relecture` (`client/50-relecture-agent.js`, `server/src/assistantAgent.js`) — le POSTE lit le document entier (pdf.js, OCR des
 pages sans texte, NAS ou pièce jointe), passe les contrôles de CLAIRE sans IA (`analyserCompromisOutil2` / `analyserProjetVenteOutil2`,
 client/06 à 13 et 55 : dangers de l'avant-contrat, comparaison projet ↔ avant-contrat, AG, état daté, urbanisme), rend la grille de l'étude

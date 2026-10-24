@@ -7,9 +7,12 @@
 const express = require('express');
 const C = require('../canaux/canaux');
 const { lirePropositions } = require('../routines/propositions');
+const { CATALOGUE } = require('../routines/catalogue');
+const { noterJournalRoutines } = require('../routines/journal');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
+const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
 
 /** @param {any} v */
 function collaborateurDe(v) {
@@ -18,9 +21,9 @@ function collaborateurDe(v) {
 }
 
 /**
- * @param {any} parametresRepo @param {{ notifierMentions?: (canal: string, message: any) => Promise<any> }} [notifieur]
+ * @param {any} parametresRepo @param {{ notifierMentions?: (canal: string, message: any) => Promise<any> }} [notifieur] @param {any} [depot]
  */
-function creerRouteurCanaux(parametresRepo, notifieur) {
+function creerRouteurCanaux(parametresRepo, notifieur, depot) {
   const routeur = express.Router();
 
   /** Le canal de l'URL, s'il est valide et (pour un canal libre) connu. @param {any} req */
@@ -28,8 +31,18 @@ function creerRouteurCanaux(parametresRepo, notifieur) {
     const id = String(req.params.id || '');
     if (!C.canalValide(id)) return '';
     if (id.startsWith('l:') && !C.lireLibres(parametresRepo).some((c) => c.id === id)) return '';
+    // Un canal de dossier n'existe que pour un dossier qui existe (sinon un identifiant inventé créerait un canal à chaque message).
+    if (id.startsWith('d:') && !dossierExiste(id.slice(2))) return '';
     return id;
   };
+  /** @param {string} dossierId */
+  const dossierExiste = (dossierId) => {
+    try { return !depot || !depot.trouverParId || !!depot.trouverParId(dossierId); } catch (e) { return false; }
+  };
+  // Ce qu'un lecteur voit d'une proposition citée par une carte : son état, son titre et son résumé (déjà dans le message) ; le détail
+  // (le brouillon d'un email, par exemple) seulement pour son responsable et l'administrateur.
+  /** @param {any} p @param {string} utilisateur */
+  const carteVisible = (p, utilisateur) => (p.responsable === utilisateur || ADMINISTRATEURS.includes(utilisateur) ? p : Object.assign({}, p, { details: {} }));
 
   routeur.get('/canaux', (req, res) => {
     const utilisateur = collaborateurDe(req.query.utilisateur);
@@ -59,14 +72,15 @@ function creerRouteurCanaux(parametresRepo, notifieur) {
     if (!id) { res.status(404).json({ erreur: 'Canal inconnu.' }); return; }
     const messages = C.lireMessages(parametresRepo, id);
     const props = lirePropositions(parametresRepo);
+    const lecteur = collaborateurDe(req.query.utilisateur);
     const cartes = {};
     for (const m of messages) {
       if (!m.carte) continue;
       const p = props.find((x) => x.id === m.carte);
-      if (p) cartes[m.carte] = p;
+      if (p) cartes[m.carte] = carteVisible(p, lecteur);
     }
     const dernier = messages.length ? messages[messages.length - 1] : null;
-    const signature = [messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0) + (m.epingle ? 1 : 0), 0),
+    const signature = [messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','),
       Object.values(cartes).map((p) => `${p.id}:${p.etat}`).join(',')].join('|');
     if (req.query.signature === signature) { res.json({ inchange: true, signature }); return; }
     res.json({ signature, messages, cartes, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id) });
@@ -79,6 +93,7 @@ function creerRouteurCanaux(parametresRepo, notifieur) {
     const par = collaborateurDe(corps.auteur);
     if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const texte = typeof corps.texte === 'string' ? corps.texte.trim() : '';
+    if (corps.claire !== true && texte.length > C.MAX_TEXTE_PERSONNE) { res.status(400).json({ erreur: `Message trop long (${C.MAX_TEXTE_PERSONNE} caractères au plus).` }); return; }
     const html = typeof corps.html === 'string' ? corps.html : '';
     if (!texte && !html) { res.status(400).json({ erreur: 'Message vide.' }); return; }
     // Une réponse de CLAIRE est écrite par le poste de celui qui l'a demandée (`via`) ; une personne écrit sous son nom.
@@ -98,9 +113,10 @@ function creerRouteurCanaux(parametresRepo, notifieur) {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const par = collaborateurDe(corps.auteur);
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
-    const action = corps.epingle !== undefined ? { epingle: corps.epingle === true } : { texte: String(corps.texte || '') };
+    const texteModifie = String(corps.texte || '');
+    const action = corps.epingle !== undefined ? { epingle: corps.epingle === true } : { texte: texteModifie, mentions: C.mentionsDansTexte(texteModifie, COLLABORATEURS).collaborateurs };
     const m = C.changerMessage(parametresRepo, id, req.params.mid, par, action);
-    if (!m) { res.status(403).json({ erreur: 'Message introuvable, ou ce n’est pas le vôtre.' }); return; }
+    if (!m) { res.status(403).json({ erreur: 'Message introuvable, vide, ou ce n’est pas le vôtre.' }); return; }
     res.json({ ok: true, message: m });
   });
 
@@ -137,8 +153,14 @@ function creerRouteurCanaux(parametresRepo, notifieur) {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const par = collaborateurDe(corps.auteur);
     if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    if (corps.lever === true) C.leverSilence(parametresRepo, req.params.dossierId, String(corps.routine || ''));
-    else C.silencer(parametresRepo, req.params.dossierId, String(corps.routine || ''), par);
+    const routine = String(corps.routine || '');
+    if (!dossierExiste(req.params.dossierId)) { res.status(404).json({ erreur: 'Dossier inconnu.' }); return; }
+    if (routine && !CATALOGUE.some((r) => r.id === routine)) { res.status(400).json({ erreur: 'Routine inconnue.' }); return; }
+    if (corps.lever === true) C.leverSilence(parametresRepo, req.params.dossierId, routine);
+    else C.silencer(parametresRepo, req.params.dossierId, routine, par);
+    // Écrit au journal « Ce que CLAIRE a fait seule » : qui a coupé quoi (jamais un nom de dossier).
+    const nom = routine ? ((CATALOGUE.find((r) => r.id === routine) || {}).nom || routine) : 'toutes les routines';
+    noterJournalRoutines(parametresRepo, { routine: 'silence', texte: `${corps.lever === true ? 'Rétabli' : 'Coupé'} sur un dossier (${nom}) par ${C.prenomDe(par)}.`, niveau: 1 });
     res.json({ ok: true, silences: C.lireSilences(parametresRepo).filter((s) => s.dossierId === req.params.dossierId) });
   });
 

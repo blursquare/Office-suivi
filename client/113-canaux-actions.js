@@ -22,7 +22,8 @@ function htmlCorpsMessageCanal(m) {
   const p = m.carte ? canaux.cartes[m.carte] : null;
   if (p) return `<div class="cx-carte">${carteProposition(p, { compacte: true })}</div>`;
   if (m.edition) return '';
-  if (m.role === 'claire' && m.local && !m.serveur) return `<div class="asst-texte">${m.html}</div>`;
+  // Le HTML écrit par l'agent de CE poste (message local) est celui de l'assistant, déjà de confiance ; tout autre passe par htmlSurCanal.
+  if (m.role === 'claire' && m.local) return `<div class="asst-texte">${m.html}</div>`;
   if (m.role === 'claire') return `<div class="asst-texte">${htmlSurCanal(m.html)}</div>`;
   return `<div class="cx-texte">${htmlTexteCanal(m.texte || texteDepuisHtmlCanal(m.html), canaux.collaborateurs, utilisateurPoste)}</div>`;
 }
@@ -100,6 +101,7 @@ function renderCanalAssistant(zone) {
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')
     + visibles.map((m, i) => htmlMessageCanal(m, i, reperes[i])).join('') + attente;
   if (canaux.forcerBas || proche) { zone.scrollTop = zone.scrollHeight; canaux.forcerBas = false; } else zone.scrollTop = sauve;
+  restaurerConsignesAssistant(zone);
   const edition = document.getElementById('canal-edition');
   if (edition && document.activeElement !== edition) { edition.focus(); edition.setSelectionRange(edition.value.length, edition.value.length); }
 }
@@ -107,6 +109,8 @@ function renderCanalAssistant(zone) {
 // ---- L'en-tête d'un canal ----
 
 function renderEnteteCanal() {
+  // Une recherche en cours de frappe garde son champ (et son focus) quand le fil se redessine.
+  if (document.activeElement && document.activeElement.id === 'canal-recherche') return;
   const titre = document.querySelector('#onglet-assistant .asst-titre');
   const zone = document.getElementById('canal-entete');
   if (!titre || !zone) return;

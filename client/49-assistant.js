@@ -15,7 +15,7 @@
   function initAssistant() {
     chargerConversationsAssistant();
     chargerCanaux();
-    if (dossierOuvert) assistantContexte.dossierId = dossierOuvert;
+    if (dossierOuvert && !canaux.actif) assistantContexte.dossierId = dossierOuvert;   // un canal de dossier garde SON dossier
     renderAssistant();
     chargerDisponibiliteAssistant();
     const champ = document.getElementById('assistant-saisie');
@@ -1153,5 +1153,7 @@
       if (saisie) saisie.value = texte;
       return;
     }
+    // Une question du tableau de bord est une conversation personnelle : jamais écrite dans le dernier canal partagé consulté.
+    if (canaux.actif) { if (occupeAssistant()) return; quitterCanal(); renderAssistant(); }
     envoyerDemandeAssistant(texte);
   }

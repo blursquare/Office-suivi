@@ -16,9 +16,11 @@ const MAX_MESSAGES = 300;
 const MAX_RECENTS = 120;
 const MAX_TEXTE = 20000;
 const MAX_LIBRES = 40;
+const MAX_CANAUX_INDEX = 600;
+const MAX_TEXTE_PERSONNE = 8000;
 const NOTIFICATIONS = ['tous', 'mentions', 'muet'];
 
-const RE_CANAL = /^(general|d:[A-Za-z0-9._:-]{1,80}|l:[a-z0-9-]{1,40})$/;
+const RE_CANAL = /^(general|d:[A-Za-z0-9._:-]{1,120}|l:[a-z0-9-]{1,40})$/;
 
 /** @param {any} v @param {number} n */
 const borne = (v, n) => (typeof v === 'string' ? v : '').trim().slice(0, n);
@@ -110,13 +112,15 @@ function ajouterMessage(repo, canal, brut, maintenant) {
   const ancien = index[canal] || {};
   const recents = (Array.isArray(ancien.recents) ? ancien.recents : []).concat([[m.quand, m.auteur, m.mentions.concat(m.pour ? [m.pour] : []).join('|'), m.claire ? 1 : 0]]).slice(-MAX_RECENTS);
   index[canal] = { dernierLe: m.quand, dernierAuteur: m.auteur, extrait: extraitDe(m), recents };
+  const ids = Object.keys(index);
+  if (ids.length > MAX_CANAUX_INDEX) ids.sort((a, b) => (Number(index[a].dernierLe) || 0) - (Number(index[b].dernierLe) || 0)).slice(0, ids.length - MAX_CANAUX_INDEX).forEach((i) => { delete index[i]; });
   repo.ecrireJsonBrut(CLE_INDEX, index);
   return m;
 }
 
 /**
  * Modifier (texte) ou supprimer un message : seulement son auteur. Rend le message, ou null.
- * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {{ texte?: string, supprimer?: boolean, epingle?: boolean }} action @param {number} [maintenant]
+ * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {{ texte?: string, supprimer?: boolean, epingle?: boolean, mentions?: string[] }} action @param {number} [maintenant]
  */
 function changerMessage(repo, canal, id, par, action, maintenant) {
   if (!canalValide(canal)) return null;
@@ -129,7 +133,11 @@ function changerMessage(repo, canal, id, par, action, maintenant) {
   } else {
     if (m.auteur !== par || m.claire) return null;
     if (action.supprimer) messages.splice(i, 1);
-    else messages[i] = Object.assign({}, m, { texte: String(action.texte || '').slice(0, MAX_TEXTE), html: '', modifieLe: maintenant || Date.now() });
+    else {
+      const texte = String(action.texte || '').trim().slice(0, MAX_TEXTE_PERSONNE);
+      if (!texte) return null;
+      messages[i] = Object.assign({}, m, { texte, html: '', mentions: (action.mentions || []).slice(0, 10), modifieLe: maintenant || Date.now() });
+    }
   }
   repo.ecrireJsonBrut(cleMessages(canal), messages);
   return action.supprimer ? m : messages[i];
@@ -275,7 +283,25 @@ function listerCanaux(repo, collab) {
   return { canaux, badge };
 }
 
+/**
+ * Retire les canaux de dossier dont le dossier n'existe plus (messages vidés, entrée d'index retirée). Rend le nombre de canaux retirés.
+ * @param {any} repo @param {(dossierId: string) => boolean} existe
+ */
+function purgerCanauxOrphelins(repo, existe) {
+  const index = lireIndex(repo);
+  let n = 0;
+  for (const id of Object.keys(index)) {
+    if (!id.startsWith('d:') || existe(id.slice(2))) continue;
+    repo.ecrireJsonBrut(cleMessages(id), []);
+    delete index[id];
+    n += 1;
+  }
+  if (n) repo.ecrireJsonBrut(CLE_INDEX, index);
+  return n;
+}
+
 module.exports = {
+  MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
   CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
   lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux

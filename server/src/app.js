@@ -251,7 +251,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
   const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRoutines(parametresRepo, planificateurRoutines));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn })));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn }), depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNasLibre(config, parametresRepo));

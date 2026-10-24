@@ -176,6 +176,7 @@ function messageCanalVersVue(sm, moi, ancien) {
     html: sm.html || escapeHtml(sm.texte || ''), texte: sm.texte || '', carte: sm.carte || '', pj: sm.pj || [], mentions: sm.mentions || [],
     epingle: !!sm.epingle, modifieLe: sm.modifieLe || 0, pour: sm.pour || '', claireMessage: claire
   };
+  if (ancien && ancien.local) { delete base.html; delete base.texte; }
   return ancien ? Object.assign(ancien, base) : Object.assign(base, { boutons: [] });
 }
 
@@ -236,7 +237,8 @@ async function chargerMessagesCanal(force) {
     if (corps.preferences) canaux.preferences = corps.preferences;
     fusionnerMessagesCanal(corps.messages || []);
     marquerCanalLu();
-    if (typeof ecranAffiche === 'function' && ecranAffiche('assistant')) renderAssistant();
+    const enEdition = document.activeElement && document.activeElement.id === 'canal-edition' && !force;
+    if (!enEdition && typeof ecranAffiche === 'function' && ecranAffiche('assistant')) renderAssistant();
   } catch (e) { /* le prochain tour réessaie */ }
 }
 
@@ -359,6 +361,8 @@ async function publierMessageCanal(message, meta) {
   const claire = message.role === 'claire';
   const texte = claire ? texteDepuisHtmlCanal(message.html) : (typeof m.texte === 'string' ? m.texte : texteDepuisHtmlCanal(message.html));
   if (!texte && !message.html) return;
+  // Un message qui porte un champ de saisie ou un bouton de l'assistant (« Corriger », consigne) n'a de sens que sur ce poste : jamais partagé.
+  if (claire && /<(textarea|input|select)\b/i.test(message.html || '')) return;
   canaux.publications += 1;
   try {
     const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(id)}/messages`, { method: 'POST', headers: enteteJsonCanaux(),
@@ -372,7 +376,7 @@ async function publierMessageCanal(message, meta) {
   } finally {
     canaux.publications -= 1;
   }
-  if (canaux.publications === 0) { canaux.signature = ''; chargerCanaux(); }
+  if (canaux.publications === 0) { canaux.signature = ''; chargerCanaux(); if (id === canaux.actif || canaux.actif) chargerMessagesCanal(true); }
 }
 
 function basculerClaireRepond() {
