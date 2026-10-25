@@ -11244,3 +11244,4 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .cx-res:hover { background: var(--paper-sunk); }
 .cx-res-lieu { color: var(--muted); font-size: var(--texte-xs); }
 .cx-res-texte { font-size: var(--texte-s); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cx-pres.absent { background: repeating-linear-gradient(135deg, var(--cat-rouge) 0 2px, transparent 2px 4px); border-color: var(--cat-rouge); }

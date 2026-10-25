@@ -100,3 +100,53 @@ test('routes : fil de discussion, canal privé fermé aux autres, recherche, enr
     assert.equal(l2.equipe.find(x => x.nom === 'Julie VASSELIN').statut.emoji, '⚖️');
   } finally { srv.close(); }
 });
+
+test('absence du jour : lue dans les absences de l’agenda, jamais devinée', () => {
+  const absences = [{ collaborateur: 'Julie VASSELIN', debut: '2026-10-26', fin: '2026-10-28' }, { collaborateur: 'Jérémy SAUJOT', debut: '2026-10-20', fin: '2026-10-20' }];
+  assert.ok(X.absentLe(absences, 'Julie VASSELIN', '2026-10-27'));
+  assert.equal(X.absentLe(absences, 'Julie VASSELIN', '2026-10-29'), null);
+  assert.equal(X.absentLe(absences, 'Bastien ANGLUMENT', '2026-10-27'), null);
+  assert.equal(X.absentLe(undefined, 'Julie VASSELIN', '2026-10-27'), null);
+});
+
+test('état d’une carte : ⏳ après un jour sans réponse, ✅ ❌ 💤 selon la décision, une seule réaction d’état de CLAIRE', () => {
+  const { deposerProposition } = require('../src/canaux/deposer');
+  const { lirePropositions, ecrirePropositions } = require('../src/routines/propositions');
+  const { emojiEtatCarte, synchroniserEtatCartes } = require('../src/canaux/etatCartes');
+  const repo = fauxRepo();
+  const t0 = Date.parse('2026-10-26T08:00:00Z');
+  const r = deposerProposition(repo, { id: 'prop1', routine: 'essai', responsable: 'Julie VASSELIN', dossierId: '', type: 'alerte', titre: 'À regarder', resume: 'x', empreinte: 'e1' }, new Date(t0));
+  assert.ok(r.ok);
+  const id = r.proposition.id;
+  assert.equal(emojiEtatCarte(r.proposition, t0 + 3600000), '');
+  assert.equal(emojiEtatCarte(r.proposition, t0 + 25 * 3600000), '⏳');
+  assert.equal(synchroniserEtatCartes(repo, t0 + 25 * 3600000), 1);
+  assert.equal(synchroniserEtatCartes(repo, t0 + 26 * 3600000), 0, 'rien de nouveau : rien de touché');
+  const carte = () => C.lireMessages(repo, 'general').find((m) => m.carte === id);
+  assert.deepEqual(carte().reactions, [{ emoji: '⏳', par: ['CLAIRE'] }]);
+  const liste = lirePropositions(repo);
+  ecrirePropositions(repo, liste.map((p) => (p.id === id ? Object.assign({}, p, { etat: 'acceptee' }) : p)));
+  assert.equal(synchroniserEtatCartes(repo, t0 + 27 * 3600000), 1);
+  assert.deepEqual(carte().reactions, [{ emoji: '✅', par: ['CLAIRE'] }], '⏳ retiré, ✅ posé');
+});
+
+test('routes : CLAIRE réagit au nom de CLAIRE sans que la réaction entre dans sa mémoire ; l’équipe dit qui est absent', async () => {
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { authActive: false, estSea: () => false, racineRepo: process.cwd() + '/..' } });
+  const srv = app.listen(0);
+  await new Promise(r => srv.once('listening', r));
+  const B = 'http://127.0.0.1:' + srv.address().port;
+  const json = { 'Content-Type': 'application/json' };
+  const post = (u, corps) => fetch(B + u, { method: 'POST', headers: json, body: JSON.stringify(corps) });
+  try {
+    const m = (await (await post('/api/canaux/general/messages', { auteur: 'Julie VASSELIN', texte: '@Claire peux-tu regarder ?' })).json()).message;
+    assert.equal((await post(`/api/canaux/general/messages/${m.id}/reaction`, { auteur: 'Julie VASSELIN', claire: true, emoji: '👀' })).status, 200);
+    const lus = await (await fetch(`${B}/api/canaux/general/messages?utilisateur=${encodeURIComponent('Julie VASSELIN')}`)).json();
+    assert.deepEqual(lus.messages.find((x) => x.id === m.id).reactions, [{ emoji: '👀', par: ['CLAIRE'] }]);
+    const claire = (await (await post('/api/canaux/general/messages', { auteur: 'Julie VASSELIN', claire: true, texte: 'Fait', html: '<p>Fait</p>' })).json()).message;
+    await post(`/api/canaux/general/messages/${claire.id}/reaction`, { auteur: 'Julie VASSELIN', claire: true, emoji: '✅' });
+    assert.equal((await (await fetch(B + '/api/assistant/reactions')).json()).reactions.length, 0, 'les réactions de CLAIRE ne sont pas gardées comme des retours humains');
+    const liste = await (await fetch(`${B}/api/canaux?utilisateur=${encodeURIComponent('Bastien ANGLUMENT')}`)).json();
+    assert.equal(typeof liste.equipe[0].absent, 'boolean');
+  } finally { srv.close(); }
+});

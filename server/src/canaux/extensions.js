@@ -124,7 +124,17 @@ function poserStatut(repo, collab, s, maintenant) {
   return statutDe(repo, collab, t);
 }
 
+/**
+ * Pur : l'absence du jour d'un collaborateur d'après les absences lues dans l'agenda de l'office (journées entières « absent », « congés »…),
+ * ou null. `jour` : AAAA-MM-JJ (heure de Paris).
+ * @param {any[]} absences @param {string} nom @param {string} jour
+ */
+function absentLe(absences, nom, jour) {
+  const a = (Array.isArray(absences) ? absences : []).find((x) => x && x.collaborateur === nom && String(x.debut) <= jour && jour <= String(x.fin || x.debut));
+  return a ? { debut: String(a.debut), fin: String(a.fin || a.debut) } : null;
+}
+
 /** Pur : en ligne = vu il y a moins de 3 minutes. @param {number} vuLe @param {number} [maintenant] */
 const enLigne = (vuLe, maintenant) => Number(vuLe) > 0 && (maintenant || Date.now()) - Number(vuLe) < PRESENCE_MS;
 
-module.exports = { rechercherMessages, canauxLisibles, accessible, lireEnregistres, enregistrerMessage, messagesEnregistres, lireStatuts, statutDe, poserStatut, enLigne, texteDuMessage, PRESENCE_MS };
+module.exports = { rechercherMessages, canauxLisibles, accessible, lireEnregistres, enregistrerMessage, messagesEnregistres, lireStatuts, statutDe, poserStatut, enLigne, absentLe, texteDuMessage, PRESENCE_MS };

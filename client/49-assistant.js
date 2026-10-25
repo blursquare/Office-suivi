@@ -268,7 +268,10 @@
 
   function poserMessageAssistant(role, html, boutons, meta) {
     const message = { role, html, boutons: boutons || [], quand: Date.now() };
+    // Dans un fil de discussion (client/120), tout ce qui s'écrit pendant la demande — la question comme les réponses de CLAIRE — y reste.
+    if (canaux.actif && canaux.parentCourant) message.parent = canaux.parentCourant;
     assistantMessages.push(message);
+    if (role === 'moi' && canaux.actif) canaux.dernierMessageMoi = message;
     if (role === 'claire' && !canaux.actif) lancerRevelationAssistant(message);
     if (assistantMessages.length > (canaux.actif ? 300 : 60)) assistantMessages = assistantMessages.slice(canaux.actif ? -300 : -60);
     memoriserConversationAssistant(true);
@@ -332,7 +335,8 @@
   async function envoyerDemandeAssistant(texteForce) {
     if (assistantTraitementEnCours) return;
     assistantTraitementEnCours = true;
-    try { await envoyerDemandeAssistantSuite(texteForce); } finally { assistantTraitementEnCours = false; }
+    const suivi = debuterSuiviReactionsClaire();
+    try { await envoyerDemandeAssistantSuite(texteForce); } finally { assistantTraitementEnCours = false; suivi.fin(); }
   }
 
   async function envoyerDemandeAssistantSuite(texteForce) {
@@ -359,7 +363,9 @@
     poserMessageAssistant('moi', htmlTexteCanal(texte, canaux.collaborateurs, utilisateurPoste) + (pieces.length && !canaux.actif ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte,
       pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.nas ? { nas: p.nas } : p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
-    if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif)) return;
+    // Dans un fil, la règle est celle du fil (claireRepondDansFil, client/120).
+    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif))) return;
+    marquerVuParClaire();
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).

@@ -12,7 +12,7 @@ var canaux = {
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
   recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, listeOuverte: true,
   claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
-  equipe: [], enregistres: [], fil: '', filTexte: '', rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
+  equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
 var INTERVALLE_CANAUX_MS = 30 * 1000;
 var INTERVALLE_CANAL_ACTIF_MS = 8 * 1000;
@@ -374,7 +374,7 @@ async function publierMessageCanal(message, meta) {
   canaux.publications += 1;
   try {
     const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(id)}/messages`, { method: 'POST', headers: enteteJsonCanaux(),
-      body: JSON.stringify({ auteur: utilisateurPoste, claire, texte, html: claire ? message.html : '', pj: m.pj || [] }) });
+      body: JSON.stringify({ auteur: utilisateurPoste, claire, texte, html: claire ? message.html : '', pj: m.pj || [], parent: message.parent || '' }) });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
     const corps = await r.json();
     if (id === canaux.actif) { message.id = corps.message.id; message.quand = corps.message.quand; message.mentions = corps.message.mentions || []; }

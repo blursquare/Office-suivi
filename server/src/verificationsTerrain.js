@@ -254,6 +254,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À vérifier au bureau : choisir un PDF du dossier NAS d\'un client, l\'envoyer, puis le rouvrir depuis la carte (un autre poste aussi).' },
   { id: 'canaux-fil', depuis: '0.344.0', source: 'poste', titre: 'Discussions : une réponse dans un fil de discussion est écrite et relue par les autres postes',
     comment: 'Coché à la première réponse dans un fil ; en échec si le serveur la refuse. À regarder au bureau avec deux postes : fils, messages privés, statut et présence.' },
+  { id: 'canaux-claire-emoji', depuis: '0.345.0', source: 'poste', titre: 'Discussions : Claire réagit par des emojis (👀 ✅ ❓) sur le message dont elle s’occupe, et répond dans un fil',
+    comment: 'Coché à la première réaction de Claire enregistrée ; en échec si le serveur la refuse. À regarder au bureau : @Claire dans un canal, réponse dans un fil, ❓ ou 👍 sur une réponse de Claire.' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traité à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

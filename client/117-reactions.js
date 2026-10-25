@@ -21,7 +21,7 @@ function htmlReactionsMessage(m) {
   const cle = escapeOnclickArg(identifiantMessageReaction(m));
   return `<div class="asst-reactions">${liste.map(r => {
     const moi = r.par.includes(utilisateurPoste);
-    const noms = r.par.map(p => prenomCollaborateur(p) || p).join(', ');
+    const noms = r.par.map(p => (p === 'CLAIRE' ? 'Claire' : (prenomCollaborateur(p) || p))).join(', ');
     return `<button type="button" class="asst-reaction${moi ? ' moi' : ''}" onclick="reagirMessageAssistant('${cle}', '${escapeOnclickArg(r.emoji)}')" title="${escapeAttr(noms)}" aria-pressed="${moi}" aria-label="${escapeAttr(`${r.emoji} ${r.par.length} : ${noms}`)}"><span class="asst-reaction-emoji">${escapeHtml(r.emoji)}</span><span class="asst-reaction-n">${r.par.length}</span></button>`;
   }).join('')}<button type="button" class="asst-reaction asst-reaction-ajout" onclick="ouvrirSelecteurReaction('${cle}', this)" aria-label="Ajouter une réaction" title="Ajouter une réaction">${icone('plus')}</button></div>`;
 }
@@ -89,6 +89,8 @@ async function reagirMessageAssistant(cle, emoji) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       if (claire) noterVerificationPoste('assistant-reactions', { detail: 'réaction sur une réponse de CLAIRE' });
       chargerMessagesCanal(true);
+      // ❓ ou 👎 sur une réponse de CLAIRE : elle y répond dans un fil (client/120).
+      if (claire && pose && !m.carte && ['pas-clair', 'refus', 'compris'].includes(sensReaction(emoji))) claireRepondAReaction(m, sensReaction(emoji));
     } else {
       memoriserConversationAssistant(false);
       if (claire) {
@@ -112,10 +114,13 @@ function prefixeReactionsAgent(messages, moi) {
   const lignes = [];
   const lues = [];
   messages.filter(m => m.role === 'claire' && Array.isArray(m.reactions) && m.reactions.length).slice(-20).forEach(m => {
-    const signature = m.reactions.map(r => r.emoji + r.par.join('+')).join('|');
+    // Les réactions de CLAIRE elle-même (état d'une carte) ne lui sont pas relues.
+    const reactions = m.reactions.map(r => ({ emoji: r.emoji, par: r.par.filter(p => p !== 'CLAIRE') })).filter(r => r.par.length);
+    if (!reactions.length) return;
+    const signature = reactions.map(r => r.emoji + r.par.join('+')).join('|');
     if (m.reactionsVues === signature) return;
     const extrait = String(m.texte || texteDepuisHtmlCanal(m.html) || '').replace(/\s+/g, ' ').slice(0, 120);
-    const dites = m.reactions.map(r => `${r.par.map(p => (p === moi ? 'moi' : (prenomCollaborateur(p) || p))).join(', ')} : ${r.emoji} (${phraseSensReaction(sensReaction(r.emoji))})`).join(' ; ');
+    const dites = reactions.map(r => `${r.par.map(p => (p === moi ? 'moi' : (prenomCollaborateur(p) || p))).join(', ')} : ${r.emoji} (${phraseSensReaction(sensReaction(r.emoji))})`).join(' ; ');
     lignes.push(`- sur ta réponse « ${extrait} » — ${dites}`);
     lues.push([m, signature]);
   });

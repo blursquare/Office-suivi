@@ -64,7 +64,12 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     noterPresence(utilisateur);
     const maintenant = Date.now();
-    const equipe = COLLABORATEURS.map((nom) => ({ nom, enLigne: nom === utilisateur || X.enLigne(vusLe[nom], maintenant), statut: X.statutDe(parametresRepo, nom, maintenant) }));
+    // Absent du jour : les journées d'absence de l'agenda de l'office (« JV absente »…), jamais deviné.
+    const jour = new Date(maintenant).toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+    /** @type {any[]} */
+    let absences = [];
+    try { absences = parametresRepo.lireAbsencesAgenda ? parametresRepo.lireAbsencesAgenda() : []; } catch (e) { absences = []; }
+    const equipe = COLLABORATEURS.map((nom) => ({ nom, enLigne: nom === utilisateur || X.enLigne(vusLe[nom], maintenant), absent: !!X.absentLe(absences, nom, jour), statut: X.statutDe(parametresRepo, nom, maintenant) }));
     res.json(Object.assign({ collaborateurs: COLLABORATEURS, equipe, enregistres: X.lireEnregistres(parametresRepo, utilisateur).map((e) => `${e.canal}|${e.mid}`) },
       C.listerCanaux(parametresRepo, utilisateur, COLLABORATEURS)));
   });
@@ -187,9 +192,11 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const par = collaborateurDe(corps.auteur);
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
-    const r = C.reagirMessage(parametresRepo, id, req.params.mid, par, String(corps.emoji || ''), corps.actif === undefined ? undefined : corps.actif === true);
+    // `claire: true` : le poste de `auteur` réagit AU NOM DE CLAIRE (👀 « je regarde », ✅ « fait », ❓ « il me manque une information »).
+    const parQui = corps.claire === true ? 'CLAIRE' : par;
+    const r = C.reagirMessage(parametresRepo, id, req.params.mid, parQui, String(corps.emoji || ''), corps.actif === undefined ? undefined : corps.actif === true);
     if (!r) { res.status(400).json({ erreur: 'Message ou réaction inconnus.' }); return; }
-    if (r.message.claire) {
+    if (r.message.claire && parQui !== 'CLAIRE') {
       noterReaction(parametresRepo, { par, emoji: String(corps.emoji), canal: id, messageId: r.message.id, pose: r.pose,
         extrait: r.message.texte || String(r.message.html || '').replace(/<[^>]*>/g, ' '), dossierId: id.startsWith('d:') ? id.slice(2) : '' });
     }

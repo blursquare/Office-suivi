@@ -53,3 +53,22 @@ test('fils : les réponses d’un message, dans l’ordre, et leur compte', () =
   assert.equal(app.libelleReponsesFil(1), '1 réponse');
   assert.equal(app.libelleReponsesFil(3), '3 réponses');
 });
+
+test('fil : Claire répond si on la cite, ou si le fil est le sien et qu’on ne parle pas à un collègue', () => {
+  const collabs = ['Bastien ANGLUMENT', 'Julie VASSELIN'];
+  const claire = { role: 'claire' };
+  const moi = { role: 'moi' };
+  assert.equal(app.claireRepondDansFil('@Claire et le prêt ?', moi, [], collabs), true);
+  assert.equal(app.claireRepondDansFil('et le prêt ?', claire, [], collabs), true, 'fil ouvert sous un message de Claire');
+  assert.equal(app.claireRepondDansFil('et le prêt ?', moi, [{ role: 'claire' }], collabs), true, 'Claire a déjà répondu dans ce fil');
+  assert.equal(app.claireRepondDansFil('et le prêt ?', moi, [{ role: 'autre' }], collabs), false, 'fil entre collègues');
+  assert.equal(app.claireRepondDansFil('@Julie tu peux voir ?', claire, [], collabs), false, 'adressé à un collègue');
+  assert.equal(app.claireRepondDansFil('@Julie @Claire vous pouvez voir ?', moi, [], collabs), true);
+});
+
+test('emoji de bilan de Claire : ❓ si elle pose une question, ⚠️ si elle n’a pas pu, sinon ✅', () => {
+  assert.equal(app.emojiBilanClaire('Voici le point. Souhaitez-vous que je m’en occupe ?'), '❓');
+  assert.equal(app.emojiBilanClaire('Je n’ai pas pu terminer : serveur injoignable.'), '⚠️');
+  assert.equal(app.emojiBilanClaire('C’est fait.'), '✅');
+  assert.equal(app.emojiBilanClaire(''), '✅');
+});

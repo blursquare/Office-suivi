@@ -8,6 +8,7 @@ const express = require('express');
 const { NIVEAUX, CATALOGUE, routineParId } = require('../routines/catalogue');
 const { lireReglagesRoutines, ecrireReglagesRoutines, assainirReglagesRoutines, niveauEffectif } = require('../routines/reglages');
 const { lirePropositions, ecrirePropositions, listerPropositions, compterATraiter, decider, statsRoutine, expirer } = require('../routines/propositions');
+const { synchroniserEtatCartes } = require('../canaux/etatCartes');
 const { lireJournalRoutines, noterJournalRoutines } = require('../routines/journal');
 const { lireUsageRoutines } = require('../routines/usage');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
@@ -100,7 +101,7 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const r = decider(liste, req.params.id, corps.decision, par);
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
     const dejaTraitee = r.liste === liste;
-    if (!dejaTraitee) ecrirePropositions(parametresRepo, r.liste);
+    if (!dejaTraitee) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
     res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue', proposition: r.proposition });
   });
 

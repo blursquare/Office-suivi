@@ -45,9 +45,12 @@ function htmlStatutAuteurCanal(nom) {
   return e && e.statut && e.statut.emoji ? `<span class="cx-statut-emoji" title="${escapeAttr(e.statut.texte || '')}">${escapeHtml(e.statut.emoji)}</span>` : '';
 }
 
+// La pastille : verte = en ligne, barrée = absent aujourd'hui d'après l'agenda de l'office (jamais deviné), vide = hors ligne.
 function htmlPresence(nom) {
   const e = membreEquipeCanal(nom);
-  return `<span class="cx-pres${e && e.enLigne ? ' en-ligne' : ''}" title="${e && e.enLigne ? 'En ligne' : 'Absent du poste'}" aria-label="${e && e.enLigne ? 'En ligne' : 'Hors ligne'}"></span>`;
+  const absent = !!(e && e.absent);
+  const etat = absent ? 'Absent(e) aujourd’hui (agenda de l’office)' : e && e.enLigne ? 'En ligne' : 'Hors ligne';
+  return `<span class="cx-pres${absent ? ' absent' : e && e.enLigne ? ' en-ligne' : ''}" title="${escapeAttr(etat)}" aria-label="${escapeAttr(etat)}"></span>`;
 }
 
 async function poserStatutCanal(emoji, texte, heures) {
@@ -206,10 +209,36 @@ function renderFilCanal() {
   remplirVignettesPiecesJointesAssistant();
 }
 
+// Pure : Claire répond-elle à ce message du fil ? Oui si on la cite (@Claire) ; sinon seulement quand le fil est le sien (message de départ de
+// Claire, ou elle y a déjà répondu) et que le message ne s'adresse pas à un collègue (@Julie sans @Claire).
+function claireRepondDansFil(texte, racine, reponses, collaborateurs) {
+  const t = platCanal(texte);
+  if (/(^|[^a-z0-9])@claire(?![a-z0-9])/.test(t)) return true;
+  const prenoms = (collaborateurs || []).map(c => platCanal(String(c).split(/\s+/)[0])).filter(Boolean);
+  if (prenoms.some(p => new RegExp(`(^|[^a-z0-9])@${p}(?![a-z0-9])`).test(t))) return false;
+  return !!(racine && racine.role === 'claire') || (reponses || []).some(m => m.role === 'claire');
+}
+
+// Écrit `texte` dans le fil `racineId` ET lance Claire dessus : la demande suit le chemin habituel (agent, outils, cartes), tout ce qui s'écrit
+// pendant ce temps — la question, ses étapes, sa réponse — reste dans le fil (`canaux.parentCourant`).
+async function envoyerDansFilCanal(texte, racineId) {
+  if (typeof occupeAssistant === 'function' && occupeAssistant()) { afficherToast('Claire travaille encore sur une demande : réessayez dans un instant.', 'OK', null); return false; }
+  canaux.parentCourant = racineId;
+  canaux.claireRepondFil = true;
+  try { await envoyerDemandeAssistant(texte); } finally { canaux.parentCourant = ''; canaux.claireRepondFil = false; }
+  return true;
+}
+
 async function envoyerReponseFil() {
   const champ = document.getElementById('fil-saisie');
   const texte = champ ? champ.value.trim() : '';
   if (!texte || !canaux.fil || !canaux.actif) return;
+  const racine = messageCanalParId(canaux.fil);
+  if (racine && claireRepondDansFil(texte, racine, reponsesFilCanal(assistantMessages, racine.id), canaux.collaborateurs)) {
+    champ.value = ''; canaux.filTexte = '';
+    await envoyerDansFilCanal(texte, racine.id);
+    return;
+  }
   champ.disabled = true;
   try {
     const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canaux.actif)}/messages`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ auteur: utilisateurPoste, texte, parent: canaux.fil }) });
@@ -312,4 +341,88 @@ async function canauxClaireAgent(e) {
       texte: String(m.texte || texteDepuisHtmlCanal(m.html) || (m.carte ? '(proposition de Claire)' : '')).slice(0, 700), ...(m.parent ? { dans_un_fil: true } : {}), ...(luLe && m.quand > luLe && m.auteur !== utilisateurPoste ? { nouveau: true } : {}), ...((m.pj || []).length ? { pieces_jointes: m.pj.length } : {}) })),
       ...(messages.length ? {} : { aucun: 'aucun message sur cette période' }) };
   } catch (err) { return { erreur: 'serveur injoignable' }; }
+}
+
+// ---- Claire réagit avec des emojis (étude 25/10) ----
+// 👀 « je regarde » dès qu'elle prend un message en charge, puis ✅ « fait » ou ❓ « il me manque une information » (ou ⚠️ si elle n'a pas pu), sur
+// le message de la personne, dans un canal. Rien n'est écrit dans une conversation personnelle (personne d'autre ne la voit).
+
+async function reagirCommeClaire(messageId, emoji, actif) {
+  if (!messageId || !canaux.actif || vueSpecialeCanal(canaux.actif)) return;
+  try {
+    await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canaux.actif)}/messages/${encodeURIComponent(messageId)}/reaction`, { method: 'POST', headers: enteteJsonCanaux(),
+      body: JSON.stringify({ auteur: utilisateurPoste, claire: true, emoji, actif }) });
+    noterVerificationPoste('canaux-claire-emoji', { detail: 'réaction de CLAIRE sur un message' });
+  } catch (e) { /* un emoji de moins : jamais bloquant */ }
+}
+
+// Attend (3 s au plus) que le message de la personne ait son identifiant du serveur.
+async function idMessageEcrit(message) {
+  for (let i = 0; i < 30 && message && !message.id; i++) await new Promise(r => setTimeout(r, 100));
+  return message && message.id ? message.id : '';
+}
+
+// Début d'une demande : le suivi n'agit que si Claire prend un message d'un canal en charge (marquerVuParClaire).
+function debuterSuiviReactionsClaire() {
+  const suivi = { canal: canaux.actif || '', cible: null, vu: false, avant: assistantMessages.length };
+  canaux.suivi = suivi;
+  return { fin: () => { terminerSuiviReactionsClaire(suivi); if (canaux.suivi === suivi) canaux.suivi = null; } };
+}
+
+function marquerVuParClaire() {
+  const s = canaux.suivi;
+  if (!s || !canaux.actif || vueSpecialeCanal(canaux.actif) || !canaux.dernierMessageMoi || s.vu) return;
+  s.vu = true;
+  s.cible = canaux.dernierMessageMoi;
+  s.promesseVu = idMessageEcrit(s.cible).then(id => (id && s.canal === canaux.actif ? reagirCommeClaire(id, '👀', true) : null));
+}
+
+// Pure : ce que Claire dit de son travail — '❓' si sa dernière réponse se termine par une question, '⚠️' si elle n'a pas pu terminer, sinon '✅'.
+function emojiBilanClaire(texteReponse) {
+  const t = String(texteReponse || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '✅';
+  if (/^Je n’ai pas pu (terminer|lire)/.test(t)) return '⚠️';
+  return /\?\s*$/.test(t) ? '❓' : '✅';
+}
+
+async function terminerSuiviReactionsClaire(suivi) {
+  if (!suivi || !suivi.vu || !suivi.cible || suivi.canal !== canaux.actif) return;
+  const id = await idMessageEcrit(suivi.cible);
+  if (!id) return;
+  try { await suivi.promesseVu; } catch (e) { /* le 👀 n'a pas pu être posé */ }
+  const reponses = assistantMessages.slice(suivi.avant).filter(m => m.role === 'claire');
+  const derniere = reponses[reponses.length - 1];
+  await reagirCommeClaire(id, '👀', false);
+  await reagirCommeClaire(id, emojiBilanClaire(derniere ? (derniere.texte || texteDepuisHtmlCanal(derniere.html)) : ''), true);
+  chargerMessagesCanal(true);
+}
+
+// ❓ / 👎 posé par quelqu'un sur une réponse de Claire : elle répond dans un fil — ❓ : elle la réexplique plus simplement ; 👎 : elle demande ce
+// qui ne va pas (et rappelle « Corriger », qui l'ajoute à ses consignes). Seul le poste de celui qui a réagi la lance (pas de doublon).
+async function claireRepondAReaction(m, sens) {
+  if (!m || !m.id || !canaux.actif || vueSpecialeCanal(canaux.actif)) return;
+  const racine = m.parent || m.id;
+  const texteDe = String(m.texte || texteDepuisHtmlCanal(m.html) || '').replace(/\s+/g, ' ').trim();
+  const question = /\?\s*$/.test(texteDe);
+  // 👍 n'est une réponse que si Claire venait de poser une question (« Souhaitez-vous que je m'en occupe ? ») : c'est un « oui » — elle poursuit
+  // (ses actions passent toujours par la carte « Autoriser »). 👎 sur une question = « non », elle laisse de côté. Un 👍 ailleurs = « compris », rien à dire.
+  if (sens === 'compris' && !question) return;
+  ouvrirFilCanal(racine);
+  if (sens === 'compris') { await envoyerDansFilCanal('Oui, vas-y.', racine); return; }
+  if (sens === 'refus' && question) { await ecrireClaireDansFil(racine, 'D’accord, je laisse cela de côté. Dites-le-moi si vous changez d’avis.'); return; }
+  if (sens === 'pas-clair') {
+    const extrait = texteDe.slice(0, 400);
+    await envoyerDansFilCanal(`Je n’ai pas bien compris ta réponse « ${extrait} ». Peux-tu l’expliquer plus simplement, en deux ou trois phrases ?`, racine);
+    return;
+  }
+  await ecrireClaireDansFil(racine, 'Qu’est-ce qui ne va pas dans cette réponse ? Dites-le-moi en une phrase : je le garde en mémoire.');
+}
+
+// Un message de Claire écrit tel quel (sans agent) dans un fil.
+async function ecrireClaireDansFil(racine, texte) {
+  try {
+    const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canaux.actif)}/messages`, { method: 'POST', headers: enteteJsonCanaux(),
+      body: JSON.stringify({ auteur: utilisateurPoste, claire: true, texte, html: `<p>${escapeHtml(texte)}</p>`, parent: racine }) });
+    if (r.ok) { canaux.signature = ''; chargerMessagesCanal(true); }
+  } catch (e) { /* le geste reste noté en mémoire */ }
 }
