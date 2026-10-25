@@ -3,19 +3,24 @@
 // message (copier, « rappelle-moi », épingler, modifier, supprimer) et le menu des @ dans un canal. Rien ici n'envoie d'email ni n'écrit
 // sur un dossier : les cartes de CLAIRE passent par les décisions de client/112-routines.js.
 
-var LOGO_CLAIRE_AVATAR = '<svg viewBox="0 0 48 48" width="32" height="32" fill="none" aria-hidden="true"><rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#fff" stroke="#D5D8DD"/><path d="M33 12a15 15 0 1 0 0 24" stroke="#111418" stroke-width="2.4" stroke-linecap="round"/><path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 // ---- Le fil ----
 
+// L'avatar de Claire (maquette 8a, disque sombre) — le même dans Discussions et dans les canaux.
+function avatarClaireHtml() {
+  return `<span class="cx-av cx-av-claire" aria-hidden="true">${icone('discussion')}</span>`;
+}
+
 function avatarCanal(m) {
-  if (m.role === 'claire') return `<span class="cx-av cx-av-claire" aria-hidden="true">${LOGO_CLAIRE_AVATAR}</span>`;
+  if (m.role === 'claire') return avatarClaireHtml();
   const k = Math.max(0, (canaux.collaborateurs || []).indexOf(m.auteur));
   return `<span class="cx-av cx-av-${k % 6}" aria-hidden="true">${contenuAvatarCollaborateur(m.auteur, photosCollaborateurs, initialesCollaborateur(m.auteur) || '?')}</span>`;
 }
 
 function nomAuteurCanal(m) {
   if (m.role === 'claire') return 'Claire';
-  return m.role === 'moi' ? 'Vous' : prenomCollaborateur(m.auteur);
+  // Le prénom de la personne qui parle, comme sur Slack (jamais « Vous »).
+  return prenomCollaborateur(m.role === 'moi' ? (m.auteur || utilisateurPoste) : m.auteur) || 'Vous';
 }
 
 function htmlCorpsMessageCanal(m) {
@@ -88,7 +93,7 @@ function renderCanalAssistant(zone) {
   const reperes = repereMessagesCanal(visibles, q ? 0 : canaux.luAvant, utilisateurPoste);
   const nom = libelleCanal(canaux.actif, canaux.liste, dossiers);
   assistantActions = {};
-  const attente = assistantEnCours ? `<div class="cx-m cx-claire cx-ecrit"><span class="cx-av cx-av-claire" aria-hidden="true">${LOGO_CLAIRE_AVATAR}</span><div class="cx-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '';
+  const attente = assistantEnCours ? `<div class="cx-m cx-claire cx-ecrit">${avatarClaireHtml()}<div class="cx-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '';
   if (!visibles.length) {
     zone.innerHTML = q
       ? `<div class="asst-accueil"><h2 class="asst-accueil-titre">Aucun message</h2><p class="asst-accueil-texte">Rien ne contient « ${escapeHtml(q)} » dans ${escapeHtml(nom)}.</p></div>`

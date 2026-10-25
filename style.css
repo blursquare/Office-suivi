@@ -9622,7 +9622,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-accueil-texte { line-height: 1.6; color: var(--ink); }
 .asst-slackbot-av { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin-bottom: 12px; border-radius: var(--rayon-carte); background: var(--avatar-claire); color: var(--blanc-fixe); }
 .asst-slackbot-av .icone { width: 32px; height: 32px; }
-.asst-suites { max-width: 720px; width: 100%; box-sizing: border-box; margin: 8px auto 0; padding-left: 48px; color: var(--muted); font-size: var(--texte-base); line-height: 1.6; }
+.asst-suites { max-width: 720px; width: 100%; box-sizing: border-box; margin: 8px auto 0; padding-left: calc(32px + 12px); color: var(--muted); font-size: var(--texte-base); line-height: 1.6; }
 .asst-suites .asst-exemple, .asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
 .asst-accueil-texte .asst-exemple:hover { text-decoration-color: var(--focus); }
 .asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 6px 14px; cursor: pointer; text-align: left; max-width: 100%; }
@@ -10352,7 +10352,8 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .cx-m { position: relative; display: flex; gap: 12px; max-width: 760px; padding: 4px 0; }
 .cx-m.cx-suite { padding-top: 0; }
 .cx-av { flex: none; width: 32px; height: 32px; border-radius: var(--rayon-m); display: inline-flex; align-items: center; justify-content: center; font-size: var(--texte-s); font-weight: 600; color: var(--blanc-fixe); background: var(--muted); overflow: hidden; }
-.cx-av-claire { background: transparent; }
+.cx-av-claire { background: var(--avatar-claire); color: var(--blanc-fixe); }
+.cx-av-claire .icone { width: 20px; height: 20px; }
 .cx-av-0 { background: var(--cat-orange); } .cx-av-1 { background: var(--cat-vert); } .cx-av-2 { background: var(--cat-violet); }
 .cx-av-3 { background: var(--cat-bleu); } .cx-av-4 { background: var(--cat-rose); } .cx-av-5 { background: var(--cat-marron); }
 .cx-heure-marge { flex: none; width: 32px; font-size: var(--texte-xs); color: transparent; text-align: center; padding-top: 2px; }
@@ -10828,6 +10829,16 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-message:hover .asst-survol, .asst-survol:focus-within { opacity: 1; }
 .asst-moi .asst-survol { justify-content: flex-end; }
 .asst-marque-attente .icone { animation: asst-pulse 1.2s infinite ease-in-out; }
+/* Messages comme sur Slack : tout le monde à gauche, avatar + prénom + heure, plus de bulle. */
+.asst-message.asst-slack { display: flex; gap: 12px; padding: 4px 0; }
+.asst-message.asst-slack.asst-suite { padding-top: 0; padding-bottom: 0; }
+.asst-slack.asst-moi, .asst-slack.asst-claire { justify-content: flex-start; padding-left: 0; }
+.asst-slack .asst-corps, .asst-slack.asst-moi .asst-corps { flex: 1 1 auto; position: static; max-width: none; background: none; border-radius: 0; padding: 0; min-width: 0; font-size: var(--texte-base); line-height: 1.5; }
+.asst-slack .asst-texte { font-size: var(--texte-base); line-height: 1.6; }
+.asst-slack .asst-texte p { margin: 0 0 8px; }
+.asst-slack .asst-texte p:last-child { margin-bottom: 0; }
+.asst-slack .asst-survol, .asst-slack.asst-moi .asst-survol { position: absolute; top: -14px; right: 0; margin: 0; justify-content: flex-end; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); }
+.asst-slack.asst-ecrit .cx-av-claire .icone { animation: asst-pulse 1.2s infinite ease-in-out; }
 .asst-bas { padding: 0 24px 12px; }
 .asst-bas > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .asst-page .asst-saisie { border-radius: var(--rayon-carte); box-shadow: var(--shadow-card); }

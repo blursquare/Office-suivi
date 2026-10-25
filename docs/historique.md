@@ -21782,3 +21782,7 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 ### 25/10/2026 08 h — 0.339.3 : séparateurs de jour façon Slack
 
 Étude (Bastien) : « Mettre des séparateurs comme sur Slack de conversation par journée ». Le séparateur existait (`.asst-jour`, `repereMessagesAssistant`) mais la présentation « façon Claude » du 21/10 avait retiré son filet et sa pastille : ils reviennent (filet sur la largeur de la colonne, pastille bordée au milieu, texte en gras), pour « Discussions » et les canaux ; « Aujourd'hui », « Hier », puis « Jeudi 22 octobre » (première lettre en majuscule).
+
+### 25/10/2026 08 h — 0.339.4 : l'auteur et l'heure de chaque message, comme Slack
+
+Étude (Bastien) : « Il faut remettre le pseudo de la personne qui parle et l'horaire, comme Slack, pour tout. » La présentation « façon Claude » du 21/10 (demande en bulle à droite, ni nom ni avatar) est remplacée dans « Discussions » par celle des canaux : tout le monde à gauche, **avatar + prénom + heure** en tête d'un groupe de messages du même auteur (5 minutes), l'heure dans la marge au survol dans la suite du groupe (`asst-slack`, mêmes `cx-av`, `cx-nom`, `cx-heure` que les canaux ; avatar de la personne = photo ou initiales, `avatarCanal`). **Le prénom remplace « Vous »** (`nomAuteurCanal`), aussi dans les canaux. **Avatar de Claire unique** (`avatarClaireHtml`, disque sombre de la maquette 8a) : l'ancien logo `LOGO_CLAIRE_AVATAR` des canaux est retiré. « Copier » devient une barre au survol, hors de la mise en page (plus de blanc sous chaque message).
