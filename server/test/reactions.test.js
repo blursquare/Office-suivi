@@ -144,3 +144,18 @@ test('audit 25/10 : un message ne joint jamais le fichier gardé d’un autre co
     assert.equal((m.pj || []).some((p) => p.fichierId), false);
   } finally { srv.close(); }
 });
+
+test('audit 25/10 : le HTML d’une réponse de CLAIRE est assaini par le serveur au dépôt', async () => {
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { authActive: false, estSea: () => false, racineRepo: process.cwd() + '/..' } });
+  const srv = app.listen(0);
+  await new Promise(r => srv.once('listening', r));
+  const B = 'http://127.0.0.1:' + srv.address().port;
+  try {
+    const r = await fetch(B + '/api/canaux/general/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auteur: 'Julie VASSELIN', claire: true, texte: 'x', html: '<p title="l&#39;acte" onclick="x()">Bonjour</p><img src=x onerror=alert(1)>' }) });
+    const m = (await r.json()).message;
+    assert.ok(!/onclick|<img/i.test(m.html));
+    assert.match(m.html, /<p title="l&#39;acte">Bonjour<\/p>/);
+  } finally { srv.close(); }
+});

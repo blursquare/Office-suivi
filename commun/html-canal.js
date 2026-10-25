@@ -46,7 +46,7 @@
         if (cle === 'class') {
           const classes = val.trim().split(/\s+/).filter((c) => RE_CLASSE_CANAL.test(c)).slice(0, 8);
           if (classes.length) attrs += ` class="${classes.join(' ')}"`;
-        } else if (cle === 'title') attrs += ` title="${echapperAttribut(val.replace(/&quot;/g, '"').replace(/&amp;/g, '&'))}"`;
+        } else if (cle === 'title') attrs += ` title="${echapperAttribut(val.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&'))}"`;
         else if (nom === 'a' && cle === 'href' && /^(https?:\/\/|mailto:)[^\s"'<>]*$/i.test(val.replace(/&amp;/g, '&'))) attrs += ` href="${echapperAttribut(val.replace(/&amp;/g, '&'))}" target="_blank" rel="noopener noreferrer"`;
         else if ((cle === 'colspan' || cle === 'rowspan') && /^\d{1,2}$/.test(val)) attrs += ` ${cle}="${val}"`;
       }

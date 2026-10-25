@@ -1454,7 +1454,7 @@
     if (!relanceOffreDue(d.derniereRelanceAuto, aujourdhui)) return;
     // Audit 25/10 : la relance n'est notée faite qu'une fois l'email envoyé ou préparé — fenêtre annulée, elle reviendra ;
     // une seule fenêtre à la fois par dossier tant qu'elle est ouverte, et une fenêtre annulée n'est pas rouverte le même jour.
-    if (relancesOffreOuvertes.has(d.id) || relancesOffreAnnulees.get(d.id) === aujourdhui) return;
+    if (relancesOffreOuvertes.has(d.id) || relanceOffreAnnuleeLe(d.id) === aujourdhui) return;
     relancesOffreOuvertes.add(d.id);
 
     const { sujet: subject, corps: body } = emailDepuisModele('pret', d);
@@ -1464,14 +1464,17 @@
           d.derniereRelanceAuto = aujourdhui;
           ajouterHistorique(d, `Relance automatique ${r.mode === 'envoye' ? 'envoyée' : 'préparée'} (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`, { auto: true });
           sauvegarder(d);
-        } else if (r && r.annule) relancesOffreAnnulees.set(d.id, aujourdhui);
+        } else if (r && r.annule) ecrireLocal('claire-relance-offre-annulee:' + d.id, aujourdhui);
         if (!r.annule) afficherToast(r.ok
         ? (r.mode === 'envoye' ? `Relance « offre de prêt » envoyée pour ${libelleDossierAffiche(d)}.` : `Relance « offre de prêt » prête pour ${libelleDossierAffiche(d)} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`)
         : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null); })
       .finally(() => relancesOffreOuvertes.delete(d.id));
   }
   var relancesOffreOuvertes = new Set();
-  var relancesOffreAnnulees = new Map();
+  // Le jour d'une relance annulée, gardé par le poste pour qu'un F5 ou le rechargement après une mise à jour ne la rouvre pas.
+  function relanceOffreAnnuleeLe(id) {
+    try { return localStorage.getItem('claire-relance-offre-annulee:' + id) || ''; } catch (e) { return ''; }
+  }
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
   // (ligne de tableau, carte "Obtention du prêt" du tiroir) : avant cette fonction, chaque endroit

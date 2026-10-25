@@ -55,7 +55,9 @@ function creerRouteurExplorateurNas(config, depot, parametresRepo) {
     if (f.erreur) { res.status(f.statut).json({ erreur: f.erreur }); return; }
     res.setHeader('Content-Type', f.type);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    // Défense en profondeur : une image ouverte dans un onglet n'a ni script ni origine (audit 25/10). Pas pour un PDF : la
+    // visionneuse du navigateur refuse de s'ouvrir dans un document en bac à sable.
+    if (!/pdf/i.test(String(f.type || ''))) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
     res.setHeader('Content-Disposition', `${f.affichable ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.nom)}`);
     const flux = fs.createReadStream(f.abs);
     flux.on('error', () => { if (!res.headersSent) { res.removeHeader('Content-Disposition'); res.status(404).json({ erreur: 'Fichier illisible sur le NAS.' }); } else res.destroy(); });

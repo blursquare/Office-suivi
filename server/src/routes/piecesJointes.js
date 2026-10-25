@@ -41,8 +41,9 @@ function creerRouteurPiecesJointes(stock) {
     if (!m || !chemin) { res.status(404).json({ erreur: 'Pièce jointe introuvable (ou expirée).' }); return; }
     res.setHeader('Content-Type', m.mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    // Défense en profondeur : un PDF ou une image piégé ouvert dans un onglet n'a ni script ni origine (audit 25/10).
-    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    // Défense en profondeur : une image ouverte dans un onglet n'a ni script ni origine (audit 25/10). Pas pour un PDF : la
+    // visionneuse du navigateur refuse de s'ouvrir dans un document en bac à sable.
+    if (!/pdf/i.test(String(m.mime || ''))) res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(m.nom).replace(/['()]/g, escape)}`);
     const flux = fs.createReadStream(chemin);
