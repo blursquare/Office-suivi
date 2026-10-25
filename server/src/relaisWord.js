@@ -190,8 +190,8 @@ function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches)
   for (const x of cartes) { if (x.type === 'message') { couvertes.add('Discussions'); } if (x.type === 'proposition') couvertes.add('Propositions de CLAIRE'); }
   p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS)
     .concat(cartes, nouvelles.filter(x => !couvertes.has(x.titre))).slice(-NOTIFICATIONS_MAX);
-  // Gestes demandés depuis une carte (ouvrir un canal, autoriser une proposition) : faits par la fenêtre CLAIRE de ce poste.
-  const actions = (p.actionsFenetre || []).filter(a => maintenant - a.t < NOTIFICATION_EXPIRE_MS).map(a => ({ type: a.type, canal: a.canal, id: a.id }));
+  // « Ouvrir » demandé depuis une carte : fait par la fenêtre CLAIRE de ce poste, dans les 20 s (plus tard, il n'a plus de sens).
+  const actions = (p.actionsFenetre || []).filter(a => maintenant - a.t < 20000).map(a => ({ type: a.type, canal: a.canal, id: a.id }));
   p.actionsFenetre = [];
   return { pastille: p.pastille, actions };
 }

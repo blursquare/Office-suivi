@@ -234,7 +234,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
   const notifieurCanaux = creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn });
-  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord, { notifieur: notifieurCanaux }));
+  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord, { notifieur: notifieurCanaux, depot }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, Object.assign({ depot }, relaisWord || {})));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire (30 min / 24 h) et par dossier.

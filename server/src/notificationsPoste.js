@@ -5,17 +5,16 @@
 // propositions sont nouveaux (des identifiants, jamais un texte) ; le serveur écrit lui-même la carte que le relais affiche en bas à
 // droite de l'écran — canal, auteur, heure, début du message, ou titre d'une proposition — en ne montrant que ce que le collaborateur
 // peut lire (messages privés : ses membres ; propositions : les siennes, ou toutes pour l'administrateur). Depuis la carte : répondre
-// (le message est posé par le serveur au nom du collaborateur du relais, comme s'il l'avait tapé), refuser une proposition (décidé ici),
-// ou ouvrir CLAIRE et autoriser (fait par la fenêtre CLAIRE, qui exécute le geste comme d'un clic — un email ne part jamais sans
-// « Envoyer »). Réglage « Montrer le texte des messages » éteint : cartes sans nom, rubrique et nombre seulement.
+// (le message est posé par le serveur au nom du collaborateur du relais, comme s'il l'avait tapé, dans le fil du message s'il en a un)
+// ou ouvrir CLAIRE. Jamais « Autoriser / Refuser » dans la carte (étude 25/10 : « non »). Réglage « Montrer le texte des messages »
+// éteint : cartes sans nom, rubrique et nombre seulement.
 
 const C = require('./canaux/canaux');
 const { accessible } = require('./canaux/extensions');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { clePoste } = require('./appels3cx');
 const { libelleDossierAffiche } = require('../../commun/dossier');
-const { lirePropositions, ecrirePropositions, decider } = require('./routines/propositions');
-const { synchroniserEtatCartes } = require('./canaux/etatCartes');
+const { lirePropositions } = require('./routines/propositions');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
@@ -27,9 +26,18 @@ function collaborateurDuPoste(poste) {
   return COLLABORATEURS.find((c) => clePoste(c) === poste) || '';
 }
 
-/** Pure : texte d'une ligne, sans balise ni caractère de contrôle, borné. @param {unknown} v @param {number} max */
-function ligne(v, max) {
-  const t = String(v == null ? '' : v).replace(/<[^>]*>/g, ' ').replace(/[\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim();
+/**
+ * Pure : texte d'une ligne, sans caractère de contrôle, borné. `html` : une réponse de CLAIRE en HTML — balises retirées, entités
+ * décodées (audit 25/10 : le texte d'une personne garde ses « < » et « > »).
+ * @param {unknown} v @param {number} max @param {boolean} [html]
+ */
+function ligne(v, max, html) {
+  let t = String(v == null ? '' : v);
+  if (html) {
+    t = t.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/&#0?39;|&rsquo;/g, '’').replace(/&amp;/g, '&');
+  }
+  t = t.replace(/[\x00-\x1f]+/g, ' ').replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t;
 }
 
@@ -53,18 +61,19 @@ const prenom = (/** @type {string} */ nom) => String(nom || '').split(/\s+/)[0];
  * Les cartes du relais pour ces canaux et ces propositions nouveaux. Un canal illisible pour ce collaborateur, un message de lui-même,
  * une proposition qui n'est pas la sienne : rien.
  * @param {{ repo: any, depot?: any, collab: string, canaux?: unknown, propositions?: unknown }} o
- * @returns {{ type: string, titre: string, texte: string, contexte: string, auteur: string, heure: string, canal?: string, id?: string, alerte?: boolean }[]}
+ * @returns {{ type: string, titre: string, texte: string, contexte: string, auteur: string, heure: string, canal?: string, parent?: string, id?: string }[]}
  */
 function notificationsRiches(o) {
   const sortie = [];
   const ids = (/** @type {unknown} */ v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, MAX_ELEMENTS) : []);
   for (const canal of ids(o.canaux)) {
     if (!C.canalValide(canal) || !accessible(canal, o.collab, COLLABORATEURS)) continue;
-    const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab).pop();
+    // Le dernier message d'un autre — jamais une carte de proposition (comptée par « À traiter », audit 25/10).
+    const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab && !x.carte).pop();
     if (!m) continue;
     const auteur = m.claire ? 'CLAIRE' : prenom(m.auteur);
-    sortie.push({ type: 'message', canal, titre: nomCanal(o.repo, o.depot, canal), auteur, heure: heureDe(m.quand), contexte: m.parent ? 'Dans un fil' : '',
-      texte: ligne(m.texte || m.html, LONGUEUR_APERCU) || (m.pj && m.pj.length ? 'Fichier joint' : '') });
+    sortie.push({ type: 'message', canal, parent: m.parent || m.id, titre: nomCanal(o.repo, o.depot, canal), auteur, heure: heureDe(m.quand), contexte: m.parent ? 'Dans un fil' : '',
+      texte: (m.texte ? ligne(m.texte, LONGUEUR_APERCU) : ligne(m.html, LONGUEUR_APERCU, true)) || (m.pj && m.pj.length ? 'Fichier joint' : '') });
   }
   if (ids(o.propositions).length) {
     const toutes = lirePropositions(o.repo);
@@ -73,16 +82,18 @@ function notificationsRiches(o) {
       // Seulement une proposition qui attend encore une décision (« vue » = une alerte lue, déjà traitée).
       if (!p || p.etat !== 'proposee') continue;
       if (p.responsable && p.responsable !== o.collab && !ADMINISTRATEURS.includes(o.collab)) continue;
-      sortie.push({ type: 'proposition', id, titre: p.dossierId ? nomCanal(o.repo, o.depot, 'd:' + p.dossierId) : 'Proposition de CLAIRE', auteur: 'CLAIRE', heure: '',
-        contexte: 'Proposition de CLAIRE', texte: ligne(p.titre, 160), alerte: p.type === 'alerte' });
+      sortie.push({ type: 'proposition', id, canal: '@traiter', titre: p.dossierId ? nomCanal(o.repo, o.depot, 'd:' + p.dossierId) : 'Proposition de CLAIRE', auteur: 'CLAIRE', heure: '',
+        contexte: 'Proposition de CLAIRE', texte: ligne(p.titre, 160) });
     }
   }
   return sortie;
 }
 
 /**
- * Une réponse tapée dans la carte du relais : posée dans le canal au nom du collaborateur du relais, mentions comprises (Teams).
- * @param {{ repo: any, collab: string, canal: unknown, texte: unknown, notifieur?: any }} o
+ * Une réponse tapée dans la carte du relais : posée au nom du collaborateur du relais, mentions comprises (Teams), DANS LE FIL du
+ * message (`parent` : le message d'une réponse de fil, ou le message lui-même — comme « Répondre » de Teams). Une réponse qui cite
+ * @CLAIRE est posée, mais CLAIRE n'y répond pas d'ici (son agent tourne sur le poste) : dit dans les Réglages.
+ * @param {{ repo: any, depot?: any, collab: string, canal: unknown, texte: unknown, parent?: unknown, notifieur?: any }} o
  * @returns {{ ok: boolean, erreur?: string, message?: any }}
  */
 function repondreDepuisRelais(o) {
@@ -90,30 +101,28 @@ function repondreDepuisRelais(o) {
   const texte = typeof o.texte === 'string' ? o.texte.trim() : '';
   if (!o.collab) return { ok: false, erreur: 'Collaborateur inconnu.' };
   if (!C.canalValide(canal) || !accessible(canal, o.collab, COLLABORATEURS)) return { ok: false, erreur: 'Canal inconnu.' };
+  // Mêmes contrôles d'existence que la route des canaux (audit 25/10) : jamais un canal libre ou un dossier inventé.
+  if (canal.startsWith('l:') && !C.lireLibres(o.repo).some((c) => c.id === canal)) return { ok: false, erreur: 'Canal inconnu.' };
+  if (canal.startsWith('d:')) {
+    let existe = false;
+    try { existe = !!(o.depot && o.depot.trouverParId && o.depot.trouverParId(canal.slice(2))); } catch (e) { existe = false; }
+    if (!existe) return { ok: false, erreur: 'Canal inconnu.' };
+  }
   if (!texte) return { ok: false, erreur: 'Message vide.' };
   if (texte.length > C.MAX_TEXTE_PERSONNE) return { ok: false, erreur: 'Message trop long.' };
   let mentions = C.mentionsDansTexte(texte, COLLABORATEURS).collaborateurs;
   if (canal.startsWith('p:')) mentions = [...new Set(mentions.concat((C.membresPrive(canal, COLLABORATEURS) || []).filter((c) => c !== o.collab)))];
-  const m = C.ajouterMessage(o.repo, canal, { auteur: o.collab, claire: false, via: '', texte, html: '', pj: [], mentions, parent: '' });
+  // Le message de départ du fil doit exister dans ce canal et ne pas être lui-même une réponse (un seul niveau, comme la route des canaux).
+  let parent = '';
+  if (typeof o.parent === 'string' && o.parent) {
+    const racine = C.lireMessages(o.repo, canal).find((x) => x.id === o.parent);
+    if (racine && !racine.parent) parent = racine.id;
+  }
+  const m = C.ajouterMessage(o.repo, canal, { auteur: o.collab, claire: false, via: '', texte, html: '', pj: [], mentions, parent });
   if (!m) return { ok: false, erreur: 'Message refusé.' };
   C.marquerLu(o.repo, o.collab, canal, m.quand);
   if (o.notifieur && o.notifieur.notifierMentions && mentions.length) o.notifieur.notifierMentions(canal, m).catch(() => {});
   return { ok: true, message: m };
 }
 
-/**
- * « Refuser » une proposition depuis la carte du relais : même règle que la route des propositions (sa boîte, ou l'administrateur).
- * @param {{ repo: any, collab: string, id: unknown }} o
- */
-function refuserDepuisRelais(o) {
-  const id = typeof o.id === 'string' ? o.id : '';
-  const liste = lirePropositions(o.repo);
-  const cible = liste.find((x) => x.id === id);
-  if (!cible) return { ok: false, erreur: 'Proposition introuvable.' };
-  if (cible.responsable && cible.responsable !== o.collab && !ADMINISTRATEURS.includes(o.collab)) return { ok: false, erreur: 'Cette proposition n’est pas dans votre boîte.' };
-  const r = decider(liste, id, 'refusee', o.collab);
-  if (r.liste !== liste) { ecrirePropositions(o.repo, r.liste); try { synchroniserEtatCartes(o.repo); } catch (e) { /* jamais bloquant */ } }
-  return { ok: true };
-}
-
-module.exports = { COLLABORATEURS, collaborateurDuPoste, ligne, nomCanal, notificationsRiches, repondreDepuisRelais, refuserDepuisRelais };
+module.exports = { COLLABORATEURS, collaborateurDuPoste, ligne, nomCanal, notificationsRiches, repondreDepuisRelais };

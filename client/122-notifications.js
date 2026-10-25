@@ -128,20 +128,15 @@ function elementsNouveaux(avant, apres, reglages) {
   return { canaux: canauxMontes, propositions };
 }
 
-// Gestes demandés depuis une carte du relais : « Ouvrir » (le canal du message) et « Autoriser » (le geste habituel, fait ici comme d'un
-// clic ; un email ne part jamais sans « Envoyer »). Le relais a déjà mis la fenêtre CLAIRE devant.
+// « Ouvrir » demandé depuis une carte du relais (le relais a mis la fenêtre CLAIRE devant) : le canal du message, « À traiter » pour
+// une proposition ; une carte de rubrique (Suivi, scans…) ne fait que montrer CLAIRE. Jamais « Autoriser / Refuser » depuis une carte
+// (étude 25/10). Fenêtre restée cachée : rien.
 function executerActionsRelais(actions) {
-  for (const a of (Array.isArray(actions) ? actions : []).slice(0, 5)) {
-    if (!a || typeof a !== 'object') continue;
-    if (a.type === 'ouvrir') {
-      definirOnglet('assistant');
-      const canal = typeof a.canal === 'string' && a.canal ? a.canal : '@traiter';
-      setTimeout(() => { ouvrirCanal(canal); }, 0);
-    } else if (a.type === 'autoriser' && typeof a.id === 'string') {
-      definirOnglet('assistant');
-      setTimeout(() => { ouvrirCanal('@traiter'); autoriserProposition(a.id); }, 0);
-    }
-  }
+  if (document.hidden) return;
+  const a = (Array.isArray(actions) ? actions : []).filter(x => x && x.type === 'ouvrir').pop();
+  if (!a || typeof a.canal !== 'string' || !a.canal) return;
+  definirOnglet('assistant');
+  setTimeout(() => { ouvrirCanal(a.canal); }, 0);
 }
 
 // La fenêtre est-elle sous les yeux du collaborateur ? Alors pas de notification Windows (la pastille, elle, reste juste).
@@ -166,9 +161,11 @@ async function tourPastille() {
   const notifications = pret && !regardee ? nouveautesNotifications(etatPastille.avant, compteurs, reglages) : [];
   const elements = pret && !regardee ? elementsNouveaux(etatPastille.avantDetails, details, reglages) : { canaux: [], propositions: [] };
   // Fenêtre regardée : les compteurs du moment deviennent la référence (ce qu'on voit n'est pas une nouveauté à annoncer plus tard).
-  if (pret && !notifications.length) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
-  // Un relais attend peut-être un geste (Ouvrir, Autoriser) : la fenêtre redevenue visible demande tout de suite (voir demarrerPastille).
-  if (total === etatPastille.envoye && !notifications.length && !etatPastille.forcer && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
+  // Un canal qui monte pendant qu'un autre est lu ne change pas le total : il a quand même sa carte (audit 25/10).
+  const aDire = notifications.length || elements.canaux.length || elements.propositions.length;
+  if (pret && !aDire) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
+  // Un relais attend peut-être un « Ouvrir » : la fenêtre redevenue visible demande tout de suite (voir demarrerPastille).
+  if (total === etatPastille.envoye && !aDire && !etatPastille.forcer && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
   etatPastille.forcer = false;
   try {
     const r = await fetchAvecAuth('/api/relais-word/pastille', {
@@ -188,7 +185,7 @@ async function tourPastille() {
 // Lancé une fois par demarrerApplication.
 function demarrerPastille() {
   setInterval(tourPastille, INTERVALLE_PASTILLE_MS);
-  // Fenêtre mise devant par le relais (« Ouvrir », « Autoriser ») : le geste attendu est demandé aussitôt, sans attendre le tour suivant.
+  // Fenêtre mise devant par le relais (« Ouvrir ») : le geste attendu est demandé aussitôt, sans attendre le tour suivant.
   const aussitot = () => { if (!document.hidden) { etatPastille.forcer = true; tourPastille(); } };
   document.addEventListener('visibilitychange', aussitot);
   window.addEventListener('focus', aussitot);
@@ -230,16 +227,16 @@ async function renderReglagesNotifications() {
       <h3 class="reglages-section-titre">Pour ${escapeHtml(nom)} ${infoBulle('Réglé pour le collaborateur de ce poste, gardé sur le serveur : il le retrouve sur tous les postes.')}</h3>
       <div class="reglages-liste">
         <label class="reglages-option" for="notif-pastille">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Pastille sur l’icône de CLAIRE ${infoBulle('Un rond rouge avec le nombre de choses à voir, sur l’icône de la fenêtre CLAIRE dans la barre des tâches de Windows. Il faut le relais CLAIRE de ce poste (plus bas).')}</span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Pastille sur l’icône de CLAIRE ${infoBulle('Un rond rouge avec le nombre de choses à voir, en haut à droite de l’icône de la fenêtre CLAIRE dans la barre des tâches de Windows. Il faut le relais CLAIRE de ce poste (plus bas).')}</span>
             <span class="reglages-option-sous">En ce moment : ${totalPastille(compteurs, r) || 'rien'}</span></span>
           ${interrupteur('notif-pastille', r.pastille, "enregistrerReglagesNotifications({ cle: 'pastille', valeur: this.checked })")}
         </label>
         <label class="reglages-option" for="notif-windows">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Notification Windows ${infoBulle('Une notification en bas à droite de l’écran à chaque nouveauté, quand la fenêtre CLAIRE n’est pas devant vous, et le bouton CLAIRE de la barre des tâches qui clignote. « Ouvrir » met CLAIRE devant.')}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Notification Windows ${infoBulle('Une notification sombre en bas à droite de l’écran à chaque nouveauté, quand la fenêtre CLAIRE n’est pas devant vous ; elle se retire seule au bout de quelques secondes. « Ouvrir dans CLAIRE » met CLAIRE devant.')}</span></span>
           ${interrupteur('notif-windows', r.windows, "enregistrerReglagesNotifications({ cle: 'windows', valeur: this.checked })")}
         </label>
         <label class="reglages-option" for="notif-apercu">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre, ouvrir, autoriser ou refuser sans quitter son travail — comme Teams. Les noms des dossiers s’affichent alors en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre sans quitter son travail — comme Teams ; la réponse part dans le fil du message. CLAIRE ne répond pas à une réponse tapée dans la notification : pour lui demander quelque chose, ouvrez CLAIRE. Les noms des dossiers s’affichent en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
           ${interrupteur('notif-apercu', r.apercu, "enregistrerReglagesNotifications({ cle: 'apercu', valeur: this.checked })", r.windows)}
         </label>
       </div>

@@ -144,12 +144,13 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   const geste = (route, corps) => fetch(`${baseUrl}/api/relais-word/${route}`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
   assert.equal((await geste('ouvrir', { poste: 'julie', jeton: 'faux', canal: 'general' })).status, 403);
   assert.equal((await geste('ouvrir', { poste: 'julie', jeton, canal: 'general' })).status, 200);
-  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'autoriser' })).status, 200);
-  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'acceptee' })).status, 400, 'jamais « accepter » sans la fenêtre CLAIRE');
-  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [{ type: 'ouvrir', canal: 'general', id: '' }, { type: 'autoriser', canal: '', id: 'rt-x' }]);
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'autoriser' })).status, 401, 'route retirée : jamais « Autoriser / Refuser » depuis une carte');
+  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [{ type: 'ouvrir', canal: 'general', id: '' }]);
   assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [], 'une seule fois');
   assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'general', texte: '' })).status, 400);
   assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'p:bastien-jeremy', texte: 'Bonjour' })).status, 400, 'jamais dans le privé des autres');
+  assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'l:invente', texte: 'Bonjour' })).status, 400, 'jamais un canal libre inventé');
+  assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'd:inconnu', texte: 'Bonjour' })).status, 400, 'jamais le canal d’un dossier inexistant');
   assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'general', texte: 'Je m’en occupe @Bastien' })).status, 200);
   const general = await fetch(`${baseUrl}/api/canaux/general/messages?utilisateur=${encodeURIComponent('Bastien ANGLUMENT')}`, { headers: auth }).then(x => x.json());
   const dernier = general.messages[general.messages.length - 1];
@@ -166,6 +167,10 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   assert.equal(cartes[0].titre, 'général');
   assert.equal(cartes[0].auteur, 'Julie');
   assert.equal(cartes[0].texte, 'Je m’en occupe @Bastien');
+  // Répondre depuis la carte : dans le fil du message (son identifiant est porté par la carte).
+  assert.equal((await geste('repondre', { poste: 'bastien', jeton: cfgB.jeton, canal: 'general', texte: 'Merci', parent: cartes[0].parent })).status, 200);
+  const g2 = await fetch(`${baseUrl}/api/canaux/general/messages?utilisateur=${encodeURIComponent('Julie VASSELIN')}`, { headers: auth }).then(x => x.json());
+  assert.equal(g2.messages[g2.messages.length - 1].parent, cartes[0].parent, 'réponse rangée dans le fil');
   await pastille({ poste: 'bastien', total: 1, apercu: false, elements: { canaux: ['general'] }, notifications: [{ cle: 'messages', n: 1 }] });
   assert.deepEqual((await releve({ poste: 'bastien', jeton: cfgB.jeton, inchange: true }).then(x => x.json())).notifications,
     [{ type: 'resume', titre: 'Discussions', texte: '1 nouveau message' }], 'texte des messages masqué : jamais un nom');
@@ -243,7 +248,7 @@ test('pastille du poste : le compteur de la fenêtre CLAIRE va au relais, étein
   assert.equal(plein.postes.size, 100, 'jamais plus de 100 postes en mémoire');
 });
 
-test('cartes « comme Teams » : une proposition seulement pour son responsable (ou l’administrateur) et tant qu’elle attend ; refuser = même règle', () => {
+test('cartes « comme Teams » : une proposition seulement pour son responsable (ou l’administrateur) et tant qu’elle attend', () => {
   const N = require('../src/notificationsPoste');
   const P = require('../src/routines/propositions');
   const memoire = new Map();
@@ -256,9 +261,8 @@ test('cartes « comme Teams » : une proposition seulement pour son responsable 
   const pour = (collab) => N.notificationsRiches({ repo, collab, propositions: ['a', 'b', 'c'] }).map((x) => x.id).join(',');
   assert.equal(pour('Julie VASSELIN'), 'a');
   assert.equal(pour('Bastien ANGLUMENT'), 'a,b', 'l’administrateur voit toutes celles qui attendent');
-  assert.equal(N.refuserDepuisRelais({ repo, collab: 'Julie VASSELIN', id: 'b' }).ok, false);
-  assert.equal(N.refuserDepuisRelais({ repo, collab: 'Julie VASSELIN', id: 'a' }).ok, true);
-  assert.equal(P.lirePropositions(repo).find((x) => x.id === 'a').etat, 'refusee');
   assert.equal(N.collaborateurDuPoste('jeremy'), 'Jérémy SAUJOT');
-  assert.equal(N.ligne('<b>x</b>\nsuite ' + 'y'.repeat(300), 20).length, 20);
+  assert.equal(N.ligne('<b>x</b>\nsuite ' + 'y'.repeat(300), 20, true).length, 20);
+  assert.equal(N.ligne('prix < 200 000 € et > 150 000', 80), 'prix < 200 000 € et > 150 000', 'le texte d’une personne garde ses chevrons');
+  assert.equal(N.ligne('<p>SCI A&amp;B</p>', 80, true), 'SCI A&B');
 });

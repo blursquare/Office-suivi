@@ -21913,3 +21913,15 @@ depuis le 12/10 et n'a jamais tourné au bureau — l'exclusion par empreinte re
   fil d'affichage, résultat écrit sur la carte. Rendu contrôlé ici sous Mono + Xvfb (capture), pas sur Windows. Nouvelle empreinte
   SHA-256 `0017f749…dca044`.
 - Limite : une réponse qui cite @CLAIRE est posée, mais CLAIRE n'y répond pas depuis la carte (son agent tourne sur le poste).
+
+Retour de Bastien sur les maquettes, le même soir (toujours 0.350.0, pas encore publiée) : texte du message « par défaut » (lu « Pas
+défaut ») ; « Autoriser / Refuser » dans la notification : **non** (bouton, route `/decider` et `refuserDepuisRelais` retirés ; une
+proposition s'annonce et s'ouvre dans « À traiter ») ; « une notification en mode sombre de base, jamais en clair », « reprend le style
+… adapté comme Teams », « elle se retire au bout de quelques secondes » (carte sombre aux couleurs du thème sombre de CLAIRE, coins
+arrondis, avatar aux initiales, champ de réponse arrondi, « Ouvrir dans CLAIRE », 6 s) ; « la pastille de l'icône en haut à droite »
+(l'icône de la fenêtre CLAIRE est remplacée par WM_SETICON — CLAIRE + rond rouge et nombre en haut à droite — la pastille de Windows,
+SetOverlayIcon, ne se place qu'en bas à droite ; à vérifier au bureau : un raccourci épinglé peut imposer son icône) ; « pas de
+clignotant » (FlashWindowEx retiré). Relecture et audit de la 0.350.0 : réponse rangée dans le fil, canal libre ou dossier inventé
+refusé, texte d'une personne qui garde ses « < » et « > », entités décodées pour une réponse de CLAIRE, « & » affiché tel quel dans
+la carte, carte jamais perdue quand un canal monte pendant qu'un autre est lu, « Ouvrir » fait d'abord au serveur puis la fenêtre
+devant, rien si la fenêtre reste cachée. Empreinte du relais 1.2 : `5b8ec17a…8d8955`.
