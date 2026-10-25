@@ -53,7 +53,7 @@ const CATALOGUE = [
     description: 'Le matin, un brouillon de réponse pour chaque email reçu d’un client ou d’un confrère d’un dossier depuis 18 h la veille ouvrée (soir, week-end et jours fériés compris). Rien ne part sans votre clic sur « Envoyer ».',
     gestes: [{ cle: 'reponse', libelle: 'Préparer le brouillon de réponse', niveauMax: 2, sensible: true }] },
   { id: 'veille-juridique', nom: 'Veille juridique', icone: 'scale', phase: 3, disponible: true, declencheur: 'Chaque semaine, le premier jour ouvré', ia: true,
-    description: 'Résume les nouveautés de Légifrance et du BOFiP utiles à l’office. Aucune donnée de client.',
+    description: 'Résume l’actualité notariale de la semaine, d’après deux sources seulement : la page Actualités du CNAF et les emails du CRIDON (magazine, flash) reçus dans la boîte du compte relié. Aucune donnée de client.',
     gestes: [{ cle: 'resume', libelle: 'Déposer le résumé hebdomadaire', niveauMax: 1 }] }
 ];
 

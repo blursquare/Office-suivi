@@ -94,7 +94,7 @@ async function chargerPropositionsClaire(onglet) {
 // Un contrôle toutes les minutes tant que la fenêtre est ouverte ; lancé une fois par demarrerApplication.
 function demarrerPropositionsClaire() {
   chargerPropositionsClaire('a-traiter');
-  setInterval(() => { if (!document.hidden) chargerPropositionsClaire(); }, INTERVALLE_PROPOSITIONS_MS);
+  setInterval(() => { if (!document.hidden || pastilleActiveHorsEcran()) chargerPropositionsClaire(); }, INTERVALLE_PROPOSITIONS_MS);
 }
 
 // ---- La carte d'une proposition (dans un canal, la vue « À traiter » et la fiche) ----

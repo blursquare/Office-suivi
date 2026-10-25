@@ -1330,6 +1330,8 @@
     // Boîte de propositions de CLAIRE (étude 24/10) : la pastille de la barre latérale, relue chaque minute.
     demarrerPropositionsClaire();
     demarrerCanaux();
+    // Pastille de la barre des tâches et notifications Windows par le relais du poste (étude 25/10, client/122).
+    demarrerPastille();
     chargerRappelsPerso();
     chargerPreferencesCollaborateur();
     // Connexion à l'agenda Outlook : chargée au démarrage pour que la fiche dossier sache si le

@@ -16,7 +16,7 @@ const source = path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.cs');
 const sortie = path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.exe');
 const icone = path.join(SERVER_DIR, 'build', 'icone.ico');
 execFileSync('mcs', ['-target:winexe', '-sdk:4.5', '-optimize+', '-nologo', `-out:${sortie}`,
-  '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Core.dll', '-r:System.Windows.Forms.dll', '-r:Microsoft.VisualBasic.dll',
+  '-r:Microsoft.CSharp.dll', '-r:System.Web.Extensions.dll', '-r:System.Core.dll', '-r:System.Windows.Forms.dll', '-r:System.Drawing.dll', '-r:Microsoft.VisualBasic.dll',
   ...(fs.existsSync(icone) ? [`-win32icon:${icone}`] : []), source], { stdio: 'inherit' });
 const empreinteSource = crypto.createHash('sha256').update(fs.readFileSync(source)).digest('hex');
 fs.writeFileSync(path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.source.sha256'), empreinteSource + '\n');

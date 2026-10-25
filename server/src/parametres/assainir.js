@@ -228,9 +228,17 @@ function assainirPreference(brut) {
       .slice(0, MAX_DOSSIERS_CONSULTES_PREFERENCE)
       .map((x) => ({ id: x.id, le: new Date(x.le).toISOString() }));
   }
+  // Notifications (étude 25/10, client/122-notifications.js) : interrupteurs seulement, rubriques de la liste fermée.
+  if (b.notifications && typeof b.notifications === 'object' && !Array.isArray(b.notifications)) {
+    const n = b.notifications;
+    const sources = {};
+    for (const cle of SOURCES_NOTIFICATIONS_PREFERENCE) if (n.sources && typeof n.sources[cle] === 'boolean') sources[cle] = n.sources[cle];
+    out.notifications = { pastille: n.pastille !== false, windows: n.windows !== false, sources };
+  }
   return out;
 }
 const MAX_DOSSIERS_CONSULTES_PREFERENCE = 10;
+const SOURCES_NOTIFICATIONS_PREFERENCE = ['messages', 'mentions', 'traiter', 'suivi', 'scans', 'taches', 'dates'];
 
 function assainirPreferences(brut) {
   const out = {};

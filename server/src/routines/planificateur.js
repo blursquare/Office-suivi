@@ -17,6 +17,7 @@ const { noterJournalRoutines } = require('./journal');
 const { proposerExemples } = require('./essai');
 const X = require('./executants');
 const IA = require('./ia');
+const V = require('./veille');
 const { niveauEffectif } = require('./reglages');
 const { statsRoutine } = require('./propositions');
 const { CATALOGUE } = require('./catalogue');
@@ -77,12 +78,30 @@ function texteResumeTeams(responsable, propositions, libelleDossier) {
   return `📝 CLAIRE — Bonjour ${prenomDe(responsable)}, j’ai préparé ${n} chose${n > 1 ? 's' : ''} pour vous :\n${lignes.join('\n')}${reste > 0 ? `\n… et ${reste} autre${reste > 1 ? 's' : ''}` : ''}\n\nOuvrez CLAIRE (l’icône ✦ en haut de la barre) pour les autoriser ou les refuser. Rien ne part sans votre clic.`;
 }
 
+/** @param {any} r */
+const connexionExchangePrete = (r) => Boolean(r && r.actif && r.url && r.email && r.motDePasse);
+
+/**
+ * Lecture d'une page du CNAF par le serveur : https://www.cnaf.notaires.fr seulement, sans suivre de redirection (une redirection vers
+ * un autre site ne serait jamais lue), 20 s, 2 Mo au plus. Aucune donnée ne part avec la requête.
+ * @param {string} url
+ */
+async function lirePageCnaf(url) {
+  if (!String(url).startsWith(V.URL_CNAF + '/')) throw new Error('adresse hors du site du CNAF');
+  const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(20000), headers: { 'User-Agent': 'CLAIRE (etude notariale)' } });
+  if (r.status !== 200) throw new Error('réponse ' + r.status);
+  const t = await r.text();
+  return t.slice(0, 2 * 1024 * 1024);
+}
+
 /**
  * @param {{ parametresRepo: any, depot?: any, envoyer?: (reglages: any, adresse: string, texte: string) => Promise<{ ok: boolean, erreur?: string | null }>,
- *   ia?: any, lireEmail?: (id: string) => Promise<any>, injectionsEmails?: any }} deps  `ia`, `lireEmail` : faux client de l'IA et lecture d'un email (tests)
+ *   ia?: any, lireEmail?: (id: string) => Promise<any>, injectionsEmails?: any, lireUrl?: (url: string) => Promise<string>, posterEws?: (corps: string) => Promise<any> }} deps
+ *   `ia`, `lireEmail`, `lireUrl`, `posterEws` : faux client de l'IA, lecture d'un email, d'une page du CNAF, de la boîte Exchange (tests)
  */
 function creerPlanificateur(deps) {
   const { parametresRepo, depot } = deps;
+  const lireUrl = deps.lireUrl || lirePageCnaf;
   const envoyer = deps.envoyer || ((r, a, t) => require('../envoiEmail').envoyerEmail(r, a, t));
   let enCours = false;
 
@@ -162,21 +181,40 @@ function creerPlanificateur(deps) {
       return { ajoutees, message: `${r.lus} email${r.lus > 1 ? 's' : ''} lu${r.lus > 1 ? 's' : ''}, ${ajoutees} brouillon${ajoutees > 1 ? 's' : ''} déposé${ajoutees > 1 ? 's' : ''}.` };
     }
     if (routineId === 'veille-juridique') {
-      const rw = require('../conversationsAgent').lireRechercheWeb(parametresRepo);
-      if (!rw.actif || !rw.domaines.length) {
-        noterJournalRoutines(parametresRepo, { routine: routineId, texte: 'Veille non lancée : recherche web coupée ou sans site autorisé (Réglages › IA et relecture d’actes).', resultat: 'erreur' }, maintenant);
-        return { ajoutees: 0, message: 'Recherche web coupée dans les Réglages.' };
-      }
-      // Déjà déposée cette semaine : aucun appel (chaque appel avec recherche se paie).
+      // Déjà déposée cette semaine : aucun appel.
       const lundiSemaine = new Date(Date.parse(info.iso + 'T12:00:00Z') - ((info.jour + 6) % 7) * 86400000).toISOString().slice(0, 10);
       if (lirePropositions(parametresRepo).some((x) => x.routine === routineId && String(x.empreinte).slice(7) >= lundiSemaine)) return { ajoutees: 0, message: 'La veille de cette semaine est déjà déposée.' };
-      const domaines = rw.domaines;
+      // Sources (étude 25/10) : la page Actualités du CNAF et les emails du CRIDON de la boîte du compte relié — rien d'autre.
+      const vus = V.lireVus(parametresRepo);
+      const cnaf = await V.sourcesCnaf({ lire: lireUrl, aujourdhui: info.iso, vus: vus.cnaf });
+      let cridon = { sources: /** @type {any[]} */ ([]), erreur: '' };
+      if (deps.posterEws || (connexionExchangePrete(rx) && !agendaWatch.lectureAgendaSuspendue(rx))) {
+        const { posterEws } = require('../exchange/ews');
+        const poster = deps.posterEws || ((/** @type {string} */ body) => posterEws({ url: rx.url, email: rx.email, motDePasse: rx.motDePasse, body, delaiMs: 30000 }, {}));
+        try { cridon = await V.sourcesCridon({ poster, aujourdhui: info.iso, vus: vus.cridon }); } catch (e) { cridon = { sources: [], erreur: 'boîte de réception illisible' }; }
+        if (/** @type {any} */ (cridon).refus) commun.signalerRefus();
+      } else cridon.erreur = 'Exchange non réglé ou suspendu';
+      const erreurs = [cnaf.erreur, cridon.erreur && `CRIDON : ${cridon.erreur}`].filter(Boolean);
+      if (erreurs.length) noterJournalRoutines(parametresRepo, { routine: routineId, texte: `Veille : ${erreurs.join(' ; ')}.`, resultat: 'erreur' }, maintenant);
+      const sources = [...cnaf.sources, ...cridon.sources];
+      if (!sources.length) {
+        noterJournalRoutines(parametresRepo, { routine: routineId, texte: 'Veille : aucun nouvel article du CNAF ni email du CRIDON cette semaine.', resultat: 'rien' }, maintenant);
+        noterVerification(parametresRepo, 'routines-veille-juridique', erreurs.length ? { ok: false, message: 'sources illisibles' } : { detail: 'aucune source nouvelle' });
+        return { ajoutees: 0, message: 'Aucun nouvel article du CNAF ni email du CRIDON.' };
+      }
+      // Aucune donnée de client, mais masquage léger au cas où une lettre citerait un nom porté par un client (codes rétablis au retour).
+      const { masquerCarnet } = require('../carnetClaire');
+      const table = new Map();
+      const sensibles = IA.sensiblesDesDossiers(commun.dossiers);
+      const masquees = sources.map((x) => Object.assign({}, x, { titre: masquerCarnet(x.titre, sensibles, table, 300, { nombres: false }),
+        texte: masquerCarnet(x.texte, sensibles, table, 6000, { nombres: false }) }));
       let texte = '';
-      try { texte = await client.texteAvecRecherche(IA.promptVeilleJuridique(info.iso), domaines); } catch (e) {
+      try { texte = await client.texte(V.promptVeilleNotariale(info.iso, masquees)); } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: routineId, texte: `Veille juridique en échec : ${String(e && e.message).slice(0, 100)}`, resultat: 'erreur' }, maintenant);
         noterVerification(parametresRepo, 'routines-veille-juridique', { ok: false, message: 'IA en échec' });
         return { ajoutees: 0, message: 'La veille juridique a échoué.' };
       }
+      texte = require('../assistantMistral').retablirTexte(texte, table);
       texte = require('../../../commun/assistant').sansSaufErreur(texte).slice(0, 6000);
       if (!texte) return { ajoutees: 0, message: 'Rien reçu.' };
       const empreinte = `veille:${info.iso}`;
@@ -189,7 +227,8 @@ function creerPlanificateur(deps) {
         const html = texte.split(/\n{2,}/).map((bloc) => `<p>${echap(bloc).replace(/(https:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>')}</p>`).join('');
         require('../canaux/canaux').ajouterMessage(parametresRepo, 'general', { auteur: 'CLAIRE', claire: true, texte, html: htmlSurCanal(html) }, maintenant.getTime() + 1);
       }
-      noterVerification(parametresRepo, 'routines-veille-juridique', { detail: 'veille déposée' });
+      if (ajoutees) V.noterVus(parametresRepo, { cnaf: cnaf.sources.map((x) => x.url), cridon: cridon.sources.map((x) => x.itemId) });
+      noterVerification(parametresRepo, 'routines-veille-juridique', { detail: `veille déposée (${cnaf.sources.length} CNAF, ${cridon.sources.length} CRIDON)` });
       return { ajoutees, message: ajoutees ? 'Veille juridique déposée dans « général ».' : 'La veille de cette semaine est déjà déposée.' };
     }
     return { ajoutees: 0, message: 'Routine sans exécutant.' };

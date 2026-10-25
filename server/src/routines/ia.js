@@ -7,7 +7,7 @@
 // Ce qui part chez Anthropic : le texte de l'email (relu dans Exchange, jamais gardé), son objet, le nom du dossier, la liste des pièces
 // manquantes — tout MASQUÉ par le serveur avec le masquage FORT de la phrase (`masquer` : noms des fiches, civilités, emails, téléphones,
 // IBAN, références, mots en capitales, mots à majuscule hors tête de phrase — un email est court, une adresse ou un nom absent des fiches
-// y est codé aussi) ; les codes [NOM1]… sont rétablis à l'arrivée du brouillon. La veille juridique n'envoie aucune donnée de client.
+// y est codé aussi) ; les codes [NOM1]… sont rétablis à l'arrivée du brouillon. La veille juridique n'envoie aucune donnée de client (voir veille.js).
 // Coût compté dans `routines-usage` ; au plafond, plus aucun appel.
 
 const { motsSensiblesDossiers, masquer, retablirTexte, MODELES_CLAUDE_ASSISTANT } = require('../assistantMistral');
@@ -22,7 +22,7 @@ const { idDepuisEmpreinte, dossierOuvert, joursEntre } = require('./executants')
 
 const MODELE_ROUTINES = 'claude-sonnet-5';
 const MODELE_VEILLE = 'claude-sonnet-5-5';
-const TARIF_VEILLE = { entree: 2, sortie: 10, recherche: 0.01 };
+const TARIF_VEILLE = { entree: 2, sortie: 10 };
 const MAX_EMAILS_PAR_TOUR = 20;
 const HEURE_SOIR = '18:00';
 const HEURE_MATIN = '08:00';
@@ -115,7 +115,7 @@ function lireEmailsTraites(repo, maintenantMs) {
 
 /**
  * @param {{ parametresRepo: any, sdk?: any, cle?: string }} deps
- * @returns {{ disponible: () => { ok: boolean, raison?: string }, json: (prompt: string, schema: any, valider?: (o: any) => string | null, maxJetons?: number) => Promise<any>, texteAvecRecherche: (prompt: string, domaines: string[]) => Promise<string> }}
+ * @returns {{ disponible: () => { ok: boolean, raison?: string }, json: (prompt: string, schema: any, valider?: (o: any) => string | null, maxJetons?: number) => Promise<any>, texte: (prompt: string) => Promise<string> }}
  */
 function creerIaRoutines(deps) {
   const repo = deps.parametresRepo;
@@ -150,29 +150,13 @@ function creerIaRoutines(deps) {
       if (probleme) throw new Error('réponse de Claude hors format (' + probleme + ')');
       return objet;
     },
-    async texteAvecRecherche(prompt, domaines) {
+    async texte(prompt) {
       if (plafondAtteint(reglagesPlafond(), lireUsageRoutines(repo))) throw new Error('plafond mensuel de l’IA des routines atteint');
-      const messages = [{ role: 'user', content: prompt }];
-      let texte = '';
-      // Une recherche longue s'interrompt (`pause_turn`) : on la relance, trois fois au plus ; une veille encore incomplète n'est pas déposée.
-      for (let tour = 0; tour < 4; tour += 1) {
-        let message;
-        try {
-          message = await client().messages.create({
-            model: MODELE_VEILLE, max_tokens: 4000,
-            tools: [{ type: 'web_search_20260209', name: 'web_search', allowed_domains: domaines.slice(0, 40), max_uses: 6 }],
-            messages
-          });
-        } catch (e) { throw new Error(messageErreurClaude(e)); }
-        const u = (message && message.usage) || {};
-        const recherches = (u.server_tool_use && u.server_tool_use.web_search_requests) || 0;
-        ajouterDepenseRoutines(repo, { euros: ((u.input_tokens || 0) * TARIF_VEILLE.entree + (u.output_tokens || 0) * TARIF_VEILLE.sortie) / 1e6 + recherches * TARIF_VEILLE.recherche,
-          jetons: (u.input_tokens || 0) + (u.output_tokens || 0) });
-        texte = (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
-        if (message.stop_reason !== 'pause_turn') return texte;
-        messages.push({ role: 'assistant', content: message.content });
-      }
-      throw new Error('recherche interrompue');
+      let message;
+      try { message = await client().messages.create({ model: MODELE_VEILLE, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }); } catch (e) { throw new Error(messageErreurClaude(e)); }
+      const u = (message && message.usage) || {};
+      ajouterDepenseRoutines(repo, { euros: ((u.input_tokens || 0) * TARIF_VEILLE.entree + (u.output_tokens || 0) * TARIF_VEILLE.sortie) / 1e6, jetons: (u.input_tokens || 0) + (u.output_tokens || 0) });
+      return (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
     }
   };
 }
@@ -319,20 +303,8 @@ async function relancePiecesDemandees(o) {
 // ---- R8 — Veille juridique ----
 
 /** Le prompt de la veille (aucune donnée de client). @param {string} aujourdhui */
-function promptVeilleJuridique(aujourdhui) {
-  return [
-    `Nous sommes le ${aujourdhui}. Tu fais la veille juridique hebdomadaire d'une étude notariale française (ventes immobilières, successions, donations, droit de la famille).`,
-    'Cherche sur les sites officiels les textes et décisions publiés ces 7 derniers jours qui touchent la pratique notariale : lois, décrets, arrêtés, réponses ministérielles, rescrits et commentaires du BOFiP, arrêts de la Cour de cassation (3e chambre civile, 1re chambre civile, chambre commerciale en matière fiscale).',
-    'Rédige en français, en texte simple sans tableau :',
-    '- une ligne de titre par nouveauté, puis une ou deux phrases qui disent ce qui change pour l’étude, puis l’adresse de la source ;',
-    '- 8 nouveautés au plus, les plus utiles d’abord ; rien d’inventé : une nouveauté sans source trouvée n’est pas citée ;',
-    '- s’il n’y a rien de notable, écris seulement « Rien de notable cette semaine. ».',
-    'Jamais « Sauf erreur de ma part ».'
-  ].join('\n');
-}
 
 module.exports = {
   MODELE_ROUTINES, CLE_EMAILS_TRAITES, MAX_EMAILS_PAR_TOUR, veilleOuvree, momentParis, recuApres18h, sensiblesDesDossiers, retablirBrouillon,
-  expediteurConfrereDossier, sujetReponse, lireEmailsTraites, creerIaRoutines, reponsesEmailsDuSoir, promptRelancePieces, relancePiecesDemandees,
-  promptVeilleJuridique
+  expediteurConfrereDossier, sujetReponse, lireEmailsTraites, creerIaRoutines, reponsesEmailsDuSoir, promptRelancePieces, relancePiecesDemandees
 };

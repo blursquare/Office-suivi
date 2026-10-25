@@ -15,6 +15,11 @@ const { proposerExemples } = require('../src/routines/essai');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
 
+// Page Actualités du CNAF et boîte Exchange inventées : aucun test n'ouvre de connexion réelle.
+const PAGE_CNAF_TEST = '<main><div class="actus-list"><a href="/actualites/donation-et-dettes" class="actu js-reveal"><div class="content"><p class="date">23 octobre 2026</p><h3>Donation et dettes du donataire</h3><p>Retour sur la notification au créancier.</p></div></a></div></main>';
+async function fauxCnaf(url) { return url.endsWith('/actualites') ? PAGE_CNAF_TEST : '<main>Retour aux actualités Donation et dettes du donataire. La notification au créancier reste nécessaire.</main>'; }
+async function fauxEws() { return { statut: 200, corps: '<s:Envelope><s:Body><m:FindItemResponse><m:ResponseMessages><m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items></t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse></s:Body></s:Envelope>' }; }
+
 function fauxRepo(reglagesMail) {
   const m = new Map();
   return {
@@ -188,7 +193,7 @@ async function planifier(options, fn) {
   const repo = fauxRepo(MAIL);
   const envois = [];
   const envoyer = async (reglages, adresse, texte) => { envois.push({ adresse, texte }); return options.echec ? { ok: false, erreur: 'refusé' } : { ok: true }; };
-  const p = creerPlanificateur({ parametresRepo: repo, depot: { trouverParId: () => ({ nom: 'MARTIN / DURAND', typeAffaire: 'vente' }) }, envoyer });
+  const p = creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo, depot: { trouverParId: () => ({ nom: 'MARTIN / DURAND', typeAffaire: 'vente' }) }, envoyer });
   R.ecrireReglagesRoutines(repo, Object.assign({ actif: true }, options.reglages || {}));
   let liste = [];
   for (const [i, titre] of ['Relance du prêt', 'Appel de fonds'].entries()) liste = P.ajouterProposition(liste, { id: `n${i}`, routine: 'revue-matin', responsable: 'Julie VASSELIN', dossierId: 'd1', type: 'email', titre, empreinte: `e${i}` }, new Date('2026-10-23T16:00:00Z')).liste;
@@ -234,7 +239,7 @@ test('planificateur : un envoi refusé est noté au journal, la proposition n’
 test('planificateur : l’envoi non configuré est dit au journal, rien ne part', async () => {
   const repo = fauxRepo({});
   const envois = [];
-  const p = creerPlanificateur({ parametresRepo: repo, depot: null, envoyer: async () => { envois.push(1); return { ok: true }; } });
+  const p = creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo, depot: null, envoyer: async () => { envois.push(1); return { ok: true }; } });
   R.ecrireReglagesRoutines(repo, { actif: true });
   P.ecrirePropositions(repo, P.ajouterProposition([], { id: 'a', routine: 'r', responsable: 'Julie VASSELIN', type: 'alerte', titre: 'T', empreinte: 'a' }).liste);
   await p.tour(lundi('10:00'));
@@ -244,7 +249,7 @@ test('planificateur : l’envoi non configuré est dit au journal, rien ne part'
 
 test('planificateur : « Lancer » dépose les exemples dans la boîte, une seule fois par jour, et lance une routine construite', async () => {
   const repo = fauxRepo();
-  const p = creerPlanificateur({ parametresRepo: repo });
+  const p = creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo });
   const a = p.lancer('essai', { responsable: 'Julie VASSELIN', maintenant: lundi('10:00') });
   assert.equal(a.ok, true);
   assert.equal(a.ajoutees, 4);

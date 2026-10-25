@@ -181,7 +181,8 @@ function demarrerCanaux() {
   chargerCanaux();
   chargerPhotosCollaborateurs();
   setInterval(() => { if (!document.hidden) chargerPhotosCollaborateurs(); }, 5 * 60 * 1000);
-  setInterval(() => { if (!document.hidden) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
+  // Fenêtre cachée ou réduite : relue quand même si la pastille de la barre des tâches est allumée (client/122).
+  setInterval(() => { if (!document.hidden || pastilleActiveHorsEcran()) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
   minuterieCanalActif = setInterval(() => {
     if (!document.hidden && canaux.actif && !vueSpecialeCanal(canaux.actif) && ecranAffiche('assistant')) chargerMessagesCanal(false);
   }, INTERVALLE_CANAL_ACTIF_MS);

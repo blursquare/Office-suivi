@@ -21861,3 +21861,33 @@ donc tout le 11 novembre ; le mardi après le lundi de Pentecôte reprend depuis
 tient aucun jour férié pour ouvré ; la veille juridique n'attend plus le lundi : elle part au premier jour ouvré de la semaine (empreinte
 de la semaine, jamais deux). Le prochain passage affiché dans Réglages › Routines saute aussi les fériés. Test dans
 `server/test/routines-phases.test.js`.
+
+### 25/10/2026 — 0.349.0 : veille notariale (CNAF, CRIDON) ; pastille et notifications Windows
+
+Demande de Bastien : « La veille juridique ne doit porter que sur l'actualité notariale. Mettre en source le CRIDON (à reprendre dans
+les emails magazine ou flash), https://www.cnaf.notaires.fr/… Il faudrait des notifications pastille sur l'app. » Réponses aux
+questions : page Actualités du CNAF ; emails du CRIDON dans la boîte du compte relié ; « vraie pastille Windows » ; compter messages
+non lus et mentions, propositions à traiter, nouveautés du Suivi, « et ajouter un réglage notifications dans les réglages pour
+ajuster et en rajouter ».
+
+- **Veille** (`server/src/routines/veille.js`) : `sourcesCnaf` lit https://www.cnaf.notaires.fr/actualites (`articlesCnafDepuisHtml` :
+  liens `/actualites/<mot-clé>` seulement, date « 25 septembre 2026 », titre, chapô ; structure relevée sur la vraie page le 25/10) puis
+  chaque article des 14 derniers jours (`texteArticleCnaf`, corps de `<main>`), 6 au plus ; `lirePageCnaf` (planificateur) n'ouvre que
+  ce site, en https, sans suivre de redirection, 20 s, 2 Mo. `sourcesCridon` : FindItem de la boîte de réception du compte relié (14
+  jours), emails dont l'expéditeur est d'un domaine « cridon » (ou objet « CRIDON » + magazine/flash/lettre), GetItem en texte, 6 au
+  plus ; jamais un autre email relu, ni une pièce jointe. Même disjoncteur que l'agenda. Sources masquées par `masquerCarnet` (mots des
+  fiches, noms après une civilité), consigne `promptVeilleNotariale` : rien d'autre que les sources, publicité et formations écartées,
+  source citée (adresse du CNAF, « CRIDON — objet »). Plus de recherche web (l'outil `web_search` et son coût sont retirés de la veille ;
+  `texteAvecRecherche` → `texte`). Sources reprises notées dans `routines-veille-vus` après le dépôt seulement. Rien de nouveau → rien
+  n'est demandé à Claude.
+- **Pastille et notifications** : la page ne peut ni poser de badge (API réservée au https et aux applications installées) ni afficher
+  de notification sur une adresse IP. `client/122-notifications.js` calcule le compteur (fonctions des pastilles existantes : canaux,
+  « À traiter », `totalNotificationsPieces`, scans, « Aujourd'hui », dates proposées) d'après la préférence `notifications`, l'envoie
+  toutes les 5 s quand il change (60 s sinon) avec les nouveautés (rubrique et nombre, jamais un nom ; pas de notification fenêtre
+  regardée ni dans les 20 premières secondes) ; canaux et propositions relus fenêtre cachée tant que la pastille est allumée. Serveur :
+  `noterPastillePoste` (texte seul, borné), rendus au relais par `appliquerReleveWord`. Relais 1.1 (`CLAIRE-relais.cs`) : fil STA avec
+  boucle de messages, `ITaskbarList3::SetOverlayIcon` (rond rouge 16 px, 9+), reposée au changement, à la réouverture de la fenêtre et
+  toutes les 15 s ; `NotifyIcon` (bulle, clic = fenêtre CLAIRE devant ou ouverte), `FlashWindowEx`. Recompilé (`mcs`, `-r:System.Drawing.dll`),
+  icône de CLAIRE posée : **nouvelle empreinte SHA-256 `fa10bffc…ee63e57`**, à faire autoriser par Fichorga (l'ancien relais n'était déjà
+  plus installable depuis le 13/10, Panda le mettant en quarantaine) ; bouton « Télécharger le relais pour ce poste » dans Réglages ›
+  Notifications. Non vérifié sur un vrai Windows (point `notifications-pastille-windows`).

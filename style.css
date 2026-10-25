@@ -5327,6 +5327,7 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
 .calc-champs > .reglages-option { padding-top: 0; }
 .reglages-option-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .reglages-option-titre { font-size: var(--texte-base); font-weight: 600; color: var(--ink); }
+.reglages-option-sous { font-size: var(--texte-s); color: var(--muted); }
 .reglages-option .hint { margin: 0; }
 .reglages-option .hint:empty { display: none; }
 /* Thème de couleur : une pastille par accent, dans la variante du mode affiché (fixe — elle

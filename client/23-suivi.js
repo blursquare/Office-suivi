@@ -1057,6 +1057,7 @@
     if (valide !== utilisateurPoste) { try { Object.keys(localStorage).filter(k => k.startsWith('claire-canal-brouillon:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* stockage indisponible */ } }
     utilisateurPoste = valide;
     vueDashboardGlobale = null;
+    if (valide !== utilisateurPoste) oublierPastilleCollaborateur();
     dispositionWidgets = null;   // disposition des widgets propre à chaque collaborateur
     filtreSuiviPose = false;
     try {

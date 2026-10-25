@@ -12,7 +12,9 @@
 //  - Lancé avec --fond : une seule copie à la fois (mutex) ; toutes les 0,5 s, le paragraphe de Word où se trouve le curseur
 //    (COM) et son intitulé, envoyés au serveur quand ils changent, battement chaque seconde ; la réponse porte les insertions
 //    demandées depuis CLAIRE (« Insérer dans Word ») et les sonneries 3CX du poste (fenêtre CLAIRE au premier plan pour un
-//    appelant d'un dossier, sinon la fenêtre d'avant la sonnerie).
+//    appelant d'un dossier, sinon la fenêtre d'avant la sonnerie), et le compteur de la pastille et les nouveautés du collaborateur
+//    (étude 25/10 : « des notifications pastille sur l'app ») — pastille rouge sur l'icône de la fenêtre CLAIRE dans la barre des
+//    tâches (ITaskbarList3::SetOverlayIcon), notification Windows (icône CLAIRE de la zone de notification) et bouton qui clignote.
 // Aucune frappe simulée : le premier plan passe par AttachThreadInput. Rien n'est écrit sur le disque hors de son installation.
 
 using System;
@@ -30,11 +32,135 @@ using Microsoft.Win32;
 
 // Propriétés du fichier (Windows › Propriétés › Détails) : un programme qui dit ce qu'il est.
 [assembly: System.Reflection.AssemblyTitle("Relais CLAIRE du poste")]
-[assembly: System.Reflection.AssemblyDescription("Relais CLAIRE du poste : Aide a la redaction (Word) et appels 3CX")]
+[assembly: System.Reflection.AssemblyDescription("Relais CLAIRE du poste : appels 3CX, pastille et notifications de CLAIRE")]
 [assembly: System.Reflection.AssemblyCompany("Etude de Maitre Sophie GOSSART")]
 [assembly: System.Reflection.AssemblyProduct("CLAIRE")]
-[assembly: System.Reflection.AssemblyVersion("1.0.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.0.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.1.0.0")]
+
+// ---- Barre des tâches de Windows (pastille sur l'icône d'une fenêtre) : interface COM de shell32, dans l'ordre de sa table. ----
+[ComImport, Guid("ea1afb91-9e28-4b86-90e9-9e9f8a5eefaf"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+interface ITaskbarList3
+{
+    void HrInit(); void AddTab(IntPtr h); void DeleteTab(IntPtr h); void ActivateTab(IntPtr h); void SetActiveAlt(IntPtr h);
+    void MarkFullscreenWindow(IntPtr h, [MarshalAs(UnmanagedType.Bool)] bool plein);
+    void SetProgressValue(IntPtr h, ulong fait, ulong total); void SetProgressState(IntPtr h, int etat);
+    void RegisterTab(IntPtr onglet, IntPtr fenetre); void UnregisterTab(IntPtr onglet); void SetTabOrder(IntPtr onglet, IntPtr avant);
+    void SetTabActive(IntPtr onglet, IntPtr fenetre, uint reserve);
+    void ThumbBarAddButtons(IntPtr h, uint n, IntPtr boutons); void ThumbBarUpdateButtons(IntPtr h, uint n, IntPtr boutons); void ThumbBarSetImageList(IntPtr h, IntPtr liste);
+    void SetOverlayIcon(IntPtr h, IntPtr icone, [MarshalAs(UnmanagedType.LPWStr)] string description);
+}
+
+[ComImport, Guid("56FDF344-FD6D-11d0-958A-006097C9A090"), ClassInterface(ClassInterfaceType.None)]
+class TaskbarListCom { }
+
+// ---- Pastille et notifications (étude 25/10) : un fil à part, avec sa boucle de messages (la zone de notification et la barre des
+// tâches l'exigent) ; la boucle du relais lui passe le compteur et les nouveautés par BeginInvoke. ----
+static class PastilleWindows
+{
+    [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
+    [DllImport("user32.dll")] static extern bool FlashWindowEx(ref FLASHWINFO f);
+    [StructLayout(LayoutKind.Sequential)] struct FLASHWINFO { public uint cbSize; public IntPtr hwnd; public uint dwFlags; public uint uCount; public uint dwTimeout; }
+
+    static System.Windows.Forms.Control porte;
+    static System.Windows.Forms.NotifyIcon zone;
+    static ITaskbarList3 barre;
+    static IntPtr fenetre = IntPtr.Zero, iconePosee = IntPtr.Zero;
+    static int voulu = 0, pose = -1;
+    static DateTime poseLe = DateTime.MinValue;
+
+    public static void Demarrer()
+    {
+        Thread t = new Thread(delegate ()
+        {
+            try
+            {
+                porte = new System.Windows.Forms.Control();
+                porte.CreateControl();
+                IntPtr forcer = porte.Handle;
+                try { barre = (ITaskbarList3)new TaskbarListCom(); barre.HrInit(); } catch { barre = null; }
+                zone = new System.Windows.Forms.NotifyIcon();
+                try { zone.Icon = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetEntryAssembly().Location); } catch { zone.Icon = System.Drawing.SystemIcons.Information; }
+                zone.Text = "CLAIRE";
+                zone.Visible = true;
+                zone.MouseClick += delegate (object o, System.Windows.Forms.MouseEventArgs e) { if (e.Button == System.Windows.Forms.MouseButtons.Left) RelaisClaire.MontrerClaire(); };
+                zone.BalloonTipClicked += delegate { RelaisClaire.MontrerClaire(); };
+                System.Windows.Forms.Application.Run();
+            }
+            catch { }
+        });
+        t.IsBackground = true;
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+    }
+
+    static void SurLeFil(System.Windows.Forms.MethodInvoker m)
+    {
+        try { if (porte != null && porte.IsHandleCreated) porte.BeginInvoke(m); } catch { }
+    }
+
+    // Appelé à chaque relevé (une seconde) : posée de nouveau quand le nombre change, quand la fenêtre CLAIRE change (rouverte), et
+    // toutes les 15 s (le navigateur peut retirer une pastille en redessinant son bouton).
+    public static void Mettre(int n)
+    {
+        SurLeFil(delegate
+        {
+            voulu = Math.Max(0, Math.Min(n, 999));
+            IntPtr h = RelaisClaire.TrouverClaire();
+            if (zone != null) zone.Text = voulu > 0 ? "CLAIRE — " + voulu + " à voir" : "CLAIRE";
+            if (h == IntPtr.Zero || barre == null) { fenetre = IntPtr.Zero; return; }
+            if (h == fenetre && voulu == pose && (DateTime.Now - poseLe).TotalSeconds < 15) return;
+            IntPtr icone = voulu > 0 ? IconePour(voulu) : IntPtr.Zero;
+            try { barre.SetOverlayIcon(h, icone, voulu > 0 ? voulu + " à voir dans CLAIRE" : ""); } catch { }
+            if (iconePosee != IntPtr.Zero) DestroyIcon(iconePosee);
+            iconePosee = icone; fenetre = h; pose = voulu; poseLe = DateTime.Now;
+        });
+    }
+
+    // Une notification Windows (bulle de l'icône CLAIRE de la zone de notification) et le bouton de la fenêtre CLAIRE qui clignote
+    // jusqu'à ce qu'on l'ouvre. Plusieurs nouveautés du même relevé : une seule bulle.
+    public static void Notifier(List<string[]> nouvelles)
+    {
+        if (nouvelles.Count == 0) return;
+        SurLeFil(delegate
+        {
+            if (zone == null) return;
+            string titre = nouvelles.Count == 1 ? nouvelles[0][0] : "CLAIRE — " + nouvelles.Count + " nouveautés";
+            StringBuilder texte = new StringBuilder();
+            foreach (string[] x in nouvelles) { if (texte.Length > 0) texte.Append("\n"); texte.Append(nouvelles.Count == 1 ? x[1] : x[0] + (x[1] != "" ? " : " + x[1] : "")); }
+            string t = texte.ToString(); if (t.Length > 250) t = t.Substring(0, 250);
+            try { zone.ShowBalloonTip(8000, titre, t == "" ? " " : t, System.Windows.Forms.ToolTipIcon.Info); } catch { }
+            IntPtr h = RelaisClaire.TrouverClaire();
+            if (h != IntPtr.Zero)
+            {
+                FLASHWINFO f = new FLASHWINFO { hwnd = h, dwFlags = 0x2 | 0xC, uCount = 0, dwTimeout = 0 }; // FLASHW_TRAY | FLASHW_TIMERNOFG
+                f.cbSize = (uint)Marshal.SizeOf(f);
+                try { FlashWindowEx(ref f); } catch { }
+            }
+        });
+    }
+
+    // Rond rouge et nombre blanc (9+ au-delà), 16 px : la taille d'une pastille de la barre des tâches.
+    static IntPtr IconePour(int n)
+    {
+        using (System.Drawing.Bitmap b = new System.Drawing.Bitmap(16, 16))
+        using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(b))
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            g.Clear(System.Drawing.Color.Transparent);
+            using (System.Drawing.SolidBrush rouge = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(220, 38, 38))) g.FillEllipse(rouge, 0, 0, 15, 15);
+            string t = n > 9 ? "9+" : n.ToString();
+            using (System.Drawing.Font f = new System.Drawing.Font("Segoe UI", t.Length > 1 ? 7f : 9f, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Pixel))
+            using (System.Drawing.StringFormat sf = new System.Drawing.StringFormat())
+            {
+                sf.Alignment = System.Drawing.StringAlignment.Center; sf.LineAlignment = System.Drawing.StringAlignment.Center;
+                g.DrawString(t, f, System.Drawing.Brushes.White, new System.Drawing.RectangleF(0, 0, 16, 16), sf);
+            }
+            return b.GetHicon();
+        }
+    }
+}
 
 static class RelaisClaire
 {
@@ -81,6 +207,7 @@ static class RelaisClaire
         using (Mutex mutex = new Mutex(true, "Local\\CLAIRE-relais", out cree))
         {
             if (!cree) return 0;
+            PastilleWindows.Demarrer();
             Boucle();
         }
         return 0;
@@ -256,7 +383,7 @@ static class RelaisClaire
     }
 
     // ---- Fenêtres ----
-    static IntPtr TrouverClaire()
+    internal static IntPtr TrouverClaire()
     {
         IntPtr trouve = IntPtr.Zero;
         EnumWindows(delegate (IntPtr h, IntPtr p)
@@ -334,7 +461,7 @@ static class RelaisClaire
             {
                 Dictionary<string, object> corps = new Dictionary<string, object>();
                 corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = avecDoc; corps["inchange"] = inchange;
-                corps["resultats"] = resultats.ToArray(); corps["appels"] = 1;
+                corps["resultats"] = resultats.ToArray(); corps["appels"] = 1; corps["pastille"] = 1;
                 if (!inchange) { corps["titre"] = titre; corps["paragraphe"] = para; }
                 try
                 {
@@ -344,6 +471,14 @@ static class RelaisClaire
                     foreach (object c in Liste(rep, "commandes")) resultats.Add(Inserer(wordObj, c as Dictionary<string, object>));
                     if (rep != null && rep.ContainsKey("renvoyer") && Equals(rep["renvoyer"], true)) dernier = null;
                     foreach (object a in Liste(rep, "appels")) Appel(a as Dictionary<string, object>);
+                    if (rep != null && rep.ContainsKey("pastille")) { try { PastilleWindows.Mettre(Convert.ToInt32(rep["pastille"])); } catch { } }
+                    List<string[]> nouvelles = new List<string[]>();
+                    foreach (object n in Liste(rep, "notifications"))
+                    {
+                        Dictionary<string, object> d = n as Dictionary<string, object>;
+                        if (d != null && Texte(d, "titre") != "") nouvelles.Add(new string[] { Texte(d, "titre"), Texte(d, "texte") });
+                    }
+                    PastilleWindows.Notifier(nouvelles);
                 }
                 catch (WebException e)
                 {
@@ -458,6 +593,20 @@ static class RelaisClaire
             if (e.t < quand && e.h != IntPtr.Zero && e.h != devant) { avant = e.h; break; }
         }
         if (avant != IntPtr.Zero) { Montrer(avant); Thread.Sleep(600); Montrer(avant); }
+    }
+
+    // Clic sur l'icône CLAIRE de la zone de notification ou sur une notification : la fenêtre CLAIRE devant, ouverte si elle est fermée.
+    internal static void MontrerClaire()
+    {
+        IntPtr h = TrouverClaire();
+        if (h != IntPtr.Zero) { Montrer(h); return; }
+        string navigateur = Navigateur();
+        try
+        {
+            if (navigateur != "") Process.Start(navigateur, "--profile-directory=\"" + profil + "\" --app=\"" + url + "\"");
+            else Process.Start(url);
+        }
+        catch { }
     }
 
     static string Navigateur()

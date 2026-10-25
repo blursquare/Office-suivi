@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const os = require('node:os');
 const {
   codeInstallationRelais, PREFIXE_CODE_RELAIS, jetonValide, empreinteJeton, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterAppelPourRelais, relaisPosteActif
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterAppelPourRelais, relaisPosteActif, noterPastillePoste, PASTILLE_VUE_MS
 } = require('../src/relaisWord');
 const { creerApp } = require('../src/app');
 const { ouvrirDb } = require('../src/db');
@@ -187,4 +187,21 @@ test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se fer
   const r = await releve({ poste: 'jeremy', jeton, word: false, inchange: true, appels: 1 });
   assert.equal(r.appels.length, 1);
   assert.equal(r.appels[0].dossier, false);
+});
+
+test('pastille du poste : le compteur de la fenêtre CLAIRE va au relais, éteint quand la fenêtre se tait ; notifications rendues une fois, texte seul', () => {
+  const etat = creerEtatRelaisWord();
+  noterPastillePoste(etat, 'julie', { total: 4, notifications: [{ titre: 'Discussions', texte: '<b>2</b> nouveaux messages\n' }, { titre: '' }, { titre: 'x'.repeat(200) }] }, 1000);
+  const r = appliquerReleveWord(etat, 'julie', { word: false, inchange: true, pastille: 1 }, 1500);
+  assert.equal(r.pastille, 4);
+  assert.deepEqual(r.notifications.map((n) => n.titre.length), [11, 60]);
+  assert.equal(r.notifications[0].texte, '2 nouveaux messages', 'balises et retours retirés');
+  assert.ok(!/[<>]/.test(r.notifications[0].texte));
+  assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true }, 2500).notifications.length, 0, 'une seule fois');
+  assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true }, 1000 + PASTILLE_VUE_MS + 1).pastille, 0, 'fenêtre fermée : pastille éteinte');
+  noterPastillePoste(etat, 'julie', { total: -3 }, 5000);
+  assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true }, 5100).pastille, 0);
+  noterPastillePoste(etat, 'julie', { total: 5000 }, 6000);
+  assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true, pastille: 1 }, 6100).pastille, 999);
+  assert.equal(etatPosteWord(etat, 'julie', true, 6200).pastille, true, 'relais qui sait poser la pastille');
 });

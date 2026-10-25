@@ -120,5 +120,6 @@
   "118-pieces-nas.js",
   "119-mise-en-forme.js",
   "120-canaux-slack.js",
-  "121-reactions-actions.js"
+  "121-reactions-actions.js",
+  "122-notifications.js"
 ]

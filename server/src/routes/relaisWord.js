@@ -15,7 +15,7 @@ const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
-  appliquerReleveWord, demanderInsertionWord, etatPosteWord
+  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste
 } = require('../relaisWord');
 
 var CLE_RELAIS_WORD = 'relais-word';
@@ -74,6 +74,14 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
     // « Installé » : un jeton en service (programme ou macro) ; un code demandé mais jamais présenté ne compte pas.
     res.json(etatPosteWord(etat, poste, !!empreintePoste(parametresRepo, poste)));
+  });
+  // Pastille et notifications Windows du collaborateur de ce poste (client/122-notifications.js) : gardées en mémoire du serveur,
+  // rendues au relais à son relevé suivant.
+  routeur.post('/relais-word/pastille', (req, res) => {
+    const corps = req.body || {};
+    const poste = clePoste(corps.poste);
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    res.json(noterPastillePoste(etat, poste, corps));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};

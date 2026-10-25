@@ -69,7 +69,16 @@ var RELAIS_VU_MS = 12000;
 var APPEL_RELAIS_VU_MS = 3000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
-/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[] }} PosteWord */
+/** @typedef {{ titre: string, texte: string, t: number }} NotificationPoste */
+/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, notifications?: NotificationPoste[] }} PosteWord */
+
+// Pastille et notifications Windows (étude 25/10 : « il faudrait des notifications pastille sur l'app ») : la fenêtre CLAIRE du poste
+// calcule son compteur d'après les réglages du collaborateur et l'envoie ici ; le relais du poste le lit à chaque relevé et le pose sur
+// l'icône de la fenêtre CLAIRE dans la barre des tâches. Une fenêtre CLAIRE qui ne dit plus rien depuis 2 minutes (fermée) : pastille
+// éteinte. Notifications : 5 au plus en attente, oubliées après 2 minutes (le relais les montre dans la seconde qui suit).
+var PASTILLE_VUE_MS = 120000;
+var NOTIFICATIONS_MAX = 5;
+var NOTIFICATION_EXPIRE_MS = 120000;
 
 function creerEtatRelaisWord() {
   return { postes: /** @type {Map<string, PosteWord>} */ (new Map()), demarrage: crypto.randomBytes(3).toString('hex') };
@@ -78,7 +87,7 @@ function creerEtatRelaisWord() {
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @returns {PosteWord} */
 function postePourWord(etat, poste) {
   let p = etat.postes.get(poste);
-  if (!p) { p = { vu: 0, word: false, titre: '', paragraphe: '', n: 0, commandes: [], resultats: [], appels: [] }; etat.postes.set(poste, p); }
+  if (!p) { p = { vu: 0, word: false, titre: '', paragraphe: '', n: 0, commandes: [], resultats: [], appels: [], pastille: 0, pastilleLe: 0, notifications: [] }; etat.postes.set(poste, p); }
   return p;
 }
 
@@ -91,6 +100,7 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   p.vu = maintenant;
   p.word = !!corps.word;
   p.appels3cx = corps.appels === 1;
+  p.pastilleRelais = corps.pastille === 1;
   if (!corps.inchange) {
     const titre = texteWord(corps.titre, 200);
     const paragraphe = texteWord(corps.paragraphe, 4000);
@@ -107,7 +117,10 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   // Sonneries de moins de 8 s (plus vieilles : l'onglet de 3CX est déjà loin, rien à rendre).
   const appels = (p.appels || []).filter(a => maintenant - a.t < 8000).map(a => ({ id: a.id, dossier: a.dossier, ilYaMs: Math.max(0, maintenant - a.t) }));
   p.appels = [];
-  return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), appels, renvoyer: neuf && !!corps.inchange };
+  const pastille = maintenant - (p.pastilleLe || 0) < PASTILLE_VUE_MS ? (p.pastille || 0) : 0;
+  const notifications = (p.notifications || []).filter(n => maintenant - n.t < NOTIFICATION_EXPIRE_MS).map(n => ({ titre: n.titre, texte: n.texte }));
+  p.notifications = [];
+  return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), appels, renvoyer: neuf && !!corps.inchange, pastille, notifications };
 }
 
 // Le relais du poste tourne-t-il (vu il y a moins de RELAIS_VU_MS) ?
@@ -144,6 +157,20 @@ function demanderInsertionWord(etat, poste, corps, maintenant = Date.now()) {
   return { id };
 }
 
+// Pure (sur l'état) : le compteur et les nouveautés envoyés par la fenêtre CLAIRE du poste. Texte seul, borné : aucun HTML ne va au relais.
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant] */
+function noterPastillePoste(etat, poste, corps, maintenant = Date.now()) {
+  const p = postePourWord(etat, poste);
+  const n = Number(corps && corps.total);
+  p.pastille = Number.isInteger(n) && n > 0 ? Math.min(n, 999) : 0;
+  p.pastilleLe = maintenant;
+  const nettoyer = (/** @type {unknown} */ v, /** @type {number} */ max) => String(v == null ? '' : v).replace(/<[^>]*>/g, '').replace(/[\x00-\x1f<>]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+  const nouvelles = (Array.isArray(corps && corps.notifications) ? corps.notifications : []).slice(0, NOTIFICATIONS_MAX)
+    .map(x => ({ titre: nettoyer(x && x.titre, 60), texte: nettoyer(x && x.texte, 160), t: maintenant })).filter(x => x.titre);
+  p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS).concat(nouvelles).slice(-NOTIFICATIONS_MAX);
+  return { pastille: p.pastille };
+}
+
 // Pure (sur l'état) : ce que voit la fenêtre CLAIRE du poste.
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {boolean} installe @param {number} [maintenant] */
 function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
@@ -156,12 +183,14 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
     titre: actif && p ? p.titre : '',
     paragraphe: actif && p ? p.paragraphe : '',
     n: etat.demarrage + ':' + (p ? p.n : 0),
-    resultats: p ? p.resultats.map(r => ({ id: r.id, ok: r.ok, message: r.message })) : []
+    resultats: p ? p.resultats.map(r => ({ id: r.id, ok: r.ok, message: r.message })) : [],
+    // Le relais en marche sait-il poser la pastille (version de 0.349.0) ?
+    pastille: actif && !!p && p.pastilleRelais === true
   };
 }
 
 module.exports = {
   codeInstallationRelais, lireExecutableRelais, PREFIXE_CODE_RELAIS,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, RELAIS_VU_MS
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, RELAIS_VU_MS, PASTILLE_VUE_MS
 };

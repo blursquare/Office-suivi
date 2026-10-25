@@ -312,7 +312,7 @@
   // Rubriques de la colonne de gauche, dans l'ordre (réorganisées le 29/09, à la manière des
   // réglages de Claude).
   // Ordre de la colonne de gauche (revu le 01/10 : une rubrique par sujet).
-  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'agenda', 'telephonie', 'authentic', 'sites', 'openlegi', 'yousign', 'pieces', 'noms-nas', 'relecture', 'routines', 'consignes', 'memoire', 'apprentissage', 'signalements', 'systeme'];
+  var SOUS_ONGLETS_REGLAGES = ['general', 'collaborateurs', 'signature', 'modeles', 'rappels', 'notifications', 'agenda', 'telephonie', 'authentic', 'sites', 'openlegi', 'yousign', 'pieces', 'noms-nas', 'relecture', 'routines', 'consignes', 'memoire', 'apprentissage', 'signalements', 'systeme'];
   // Un picto par rubrique (étude 23/10 : « naviguer plus rapidement ») — icônes du jeu ICONES.
   var ICONES_RUBRIQUES_REGLAGES = { routines: 'boite-claire', general: 'settings', collaborateurs: 'users', signature: 'mail', modeles: 'file-text', rappels: 'clock', agenda: 'calendar', telephonie: 'phone', authentic: 'clipboard', sites: 'link', openlegi: 'scale', yousign: 'pencil', pieces: 'bannette', 'noms-nas': 'folder', relecture: 'discussion', consignes: 'book', memoire: 'archive', apprentissage: 'trend-up', signalements: 'flag', systeme: 'rotate-ccw' };
   const CLE_SOUS_ONGLET_REGLAGES = 'reglages-sous-onglet';
@@ -389,6 +389,7 @@
     if (cle === 'memoire') ouvrirReglagesMemoire();
     if (cle === 'consignes') ouvrirCarnetClaire();
     if (cle === 'routines') ouvrirReglagesRoutines();
+    if (cle === 'notifications') renderReglagesNotifications();
     if (cle === 'relecture') { chargerRechercheWeb(); chargerNasLibre(); }
     if (cle === 'openlegi') chargerReglagesOpenlegi();
     if (cle === 'yousign') chargerReglagesYousign();

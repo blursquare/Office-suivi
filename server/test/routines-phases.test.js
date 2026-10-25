@@ -10,6 +10,11 @@ const P = require('../src/routines/propositions');
 const { creerPlanificateur } = require('../src/routines/planificateur');
 const { checklistPiecesBase } = require('../../commun/pieces');
 
+// Page Actualités du CNAF et boîte Exchange inventées : aucun test n'ouvre de connexion réelle.
+const PAGE_CNAF_TEST = '<main><div class="actus-list"><a href="/actualites/donation-et-dettes" class="actu js-reveal"><div class="content"><p class="date">23 octobre 2026</p><h3>Donation et dettes du donataire</h3><p>Retour sur la notification au créancier.</p></div></a></div></main>';
+async function fauxCnaf(url) { return url.endsWith('/actualites') ? PAGE_CNAF_TEST : '<main>Retour aux actualités Donation et dettes du donataire. La notification au créancier reste nécessaire.</main>'; }
+async function fauxEws() { return { statut: 200, corps: '<s:Envelope><s:Body><m:FindItemResponse><m:ResponseMessages><m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items></t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse></s:Body></s:Envelope>' }; }
+
 const fauxRepo = (initial) => {
   const m = new Map(Object.entries(initial || {}).map(([k, v]) => [k, JSON.stringify(v)]));
   return {
@@ -100,7 +105,7 @@ test('emails du soir : de la veille ouvrée 18 h à 8 h ce matin, le week-end co
 /** Un faux client de l'IA : garde chaque prompt, répond avec `reponse` (une fonction du prompt). */
 function fausseIa(reponse) {
   const prompts = [];
-  return { prompts, disponible: () => ({ ok: true }), async json(prompt) { prompts.push(prompt); return reponse(prompt); }, async texteAvecRecherche(prompt) { prompts.push(prompt); return 'Rien de notable cette semaine.'; } };
+  return { prompts, disponible: () => ({ ok: true }), async json(prompt) { prompts.push(prompt); return reponse(prompt); }, async texte(prompt) { prompts.push(prompt); return 'Rien de notable cette semaine.'; } };
 }
 
 const EMAILS = [
@@ -155,7 +160,7 @@ test('planificateur : le lundi, les routines allumées déposent leurs propositi
   const d = vente({ pret: '2026-11-05', rendezVousSignature: '2026-10-27' });
   const depot = { tousActifs: () => [d], trouverParId: (id) => (id === 'd1' ? d : null) };
   const ia = fausseIa(() => ({ reponse: 'Madame, bien reçu. Bien cordialement,' }));
-  const p = creerPlanificateur({ parametresRepo: repo, depot, envoyer: async () => ({ ok: true }), ia, lireEmail: async () => ({ texte: 'Bonjour' }) });
+  const p = creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo, depot, envoyer: async () => ({ ok: true }), ia, lireEmail: async () => ({ texte: 'Bonjour' }) });
   repo.ecrireJsonBrut('emails-dossiers', { emails: EMAILS, prepares: [] });
   assert.equal(R.lireReglagesRoutines(repo).actif, true, 'jamais enregistrés : allumées');
   await p.tour(new Date('2026-10-26T09:40:00+01:00'));
@@ -173,7 +178,7 @@ test('planificateur : le lundi, les routines allumées déposent leurs propositi
   // Éteintes : rien.
   const repo2 = fauxRepo();
   R.ecrireReglagesRoutines(repo2, { actif: false });
-  await creerPlanificateur({ parametresRepo: repo2, depot, envoyer: async () => ({ ok: true }), ia, lireEmail: async () => ({ texte: '' }) }).tour(new Date('2026-10-26T09:40:00+01:00'));
+  await creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo2, depot, envoyer: async () => ({ ok: true }), ia, lireEmail: async () => ({ texte: '' }) }).tour(new Date('2026-10-26T09:40:00+01:00'));
   assert.equal(P.lirePropositions(repo2).length, 0);
 });
 
@@ -216,7 +221,7 @@ test('décision : le niveau en vigueur s’applique à une proposition déposée
 test('« Lancer maintenant » : refusé pour une routine éteinte', async () => {
   const repo = fauxRepo();
   R.ecrireReglagesRoutines(repo, { actif: true, routines: { 'revue-matin': { actif: false } } });
-  const r = await creerPlanificateur({ parametresRepo: repo, depot: { tousActifs: () => [] } }).lancer('revue-matin', { responsable: 'Julie VASSELIN' });
+  const r = await creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo, depot: { tousActifs: () => [] } }).lancer('revue-matin', { responsable: 'Julie VASSELIN' });
   assert.equal(r.ok, false);
 });
 
@@ -232,7 +237,7 @@ test('jours fériés et week-end : la veille ouvrée saute les deux, les emails 
   assert.equal(infosParis(new Date('2026-11-11T09:40:00+01:00')).ouvre, false, 'le 11 novembre n’est pas ouvré');
   const repo = fauxRepo();
   const d = vente({ pret: '2026-11-20' });
-  await creerPlanificateur({ parametresRepo: repo, depot: { tousActifs: () => [d], trouverParId: () => d }, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({ reponse: 'x' })), lireEmail: async () => ({ texte: '' }) })
+  await creerPlanificateur({ lireUrl: fauxCnaf, posterEws: fauxEws, parametresRepo: repo, depot: { tousActifs: () => [d], trouverParId: () => d }, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({ reponse: 'x' })), lireEmail: async () => ({ texte: '' }) })
     .tour(new Date('2026-11-11T09:40:00+01:00'));
   assert.equal(P.lirePropositions(repo).length, 0, 'aucune routine un jour férié');
 });
@@ -241,8 +246,9 @@ test('veille juridique : un échec n’est pas relancé le lendemain ; un lundi 
   const depot = { tousActifs: () => [], trouverParId: () => null };
   const repo = fauxRepo();
   let appels = 0;
-  const enEchec = Object.assign(fausseIa(() => ({})), { async texteAvecRecherche() { appels += 1; throw new Error('recherche interrompue'); } });
-  const p = creerPlanificateur({ parametresRepo: repo, depot, envoyer: async () => ({ ok: true }), ia: enEchec, lireEmail: async () => ({ texte: '' }) });
+  const enEchec = Object.assign(fausseIa(() => ({})), { async texte() { appels += 1; throw new Error('recherche interrompue'); } });
+  const cnafRecent = async (url) => (url.endsWith('/actualites') ? PAGE_CNAF_TEST.replace('23 octobre', '31 octobre') : '<main>Texte</main>');
+  const p = creerPlanificateur({ lireUrl: cnafRecent, posterEws: fauxEws, parametresRepo: repo, depot, envoyer: async () => ({ ok: true }), ia: enEchec, lireEmail: async () => ({ texte: '' }) });
   await p.tour(new Date('2026-10-26T09:40:00+01:00'));
   await p.tour(new Date('2026-10-27T09:40:00+01:00'));
   await p.tour(new Date('2026-10-28T09:40:00+01:00'));
@@ -251,10 +257,60 @@ test('veille juridique : un échec n’est pas relancé le lendemain ; un lundi 
   assert.equal(appels, 2, 'la semaine suivante, un nouvel essai');
 
   const repo2 = fauxRepo();
-  const p2 = creerPlanificateur({ parametresRepo: repo2, depot, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({})), lireEmail: async () => ({ texte: '' }) });
+  const cnaf2027 = async (url) => (url.endsWith('/actualites') ? PAGE_CNAF_TEST.replace('23 octobre 2026', '14 mai 2027') : '<main>Texte</main>');
+  const p2 = creerPlanificateur({ lireUrl: cnaf2027, posterEws: fauxEws, parametresRepo: repo2, depot, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({})), lireEmail: async () => ({ texte: '' }) });
   await p2.tour(new Date('2027-05-17T09:40:00+02:00'));
   assert.equal(P.lirePropositions(repo2).filter((x) => x.routine === 'veille-juridique').length, 0, 'lundi de Pentecôte : rien');
   await p2.tour(new Date('2027-05-18T09:40:00+02:00'));
   await p2.tour(new Date('2027-05-19T09:40:00+02:00'));
   assert.equal(P.lirePropositions(repo2).filter((x) => x.routine === 'veille-juridique').length, 1, 'le mardi, une seule');
+});
+
+test('veille notariale : page Actualités du CNAF lue (date, titre, chapô), emails du CRIDON reconnus', () => {
+  const V = require('../src/routines/veille');
+  const a = V.articlesCnafDepuisHtml(PAGE_CNAF_TEST + '<a href="https://ailleurs.example/x" class="actu"><h3>Hors site</h3></a>');
+  assert.equal(a.length, 1);
+  assert.equal(a[0].url, 'https://www.cnaf.notaires.fr/actualites/donation-et-dettes');
+  assert.equal(a[0].date, '2026-10-23');
+  assert.equal(a[0].titre, 'Donation et dettes du donataire');
+  assert.equal(a[0].chapo, 'Retour sur la notification au créancier.');
+  assert.equal(V.isoDepuisDateFr('1er août 2026'), '2026-08-01');
+  assert.equal(V.texteArticleCnaf('<nav>Menu</nav><main>Retour aux actualités Titre <script>x()</script>Partagez cet article Le texte.</main>'), 'Titre Partagez cet article Le texte.'.replace('Partagez cet article ', ''));
+  assert.equal(V.estEmailCridon({ de: 'lettre@cridon-nord-est.fr', objet: 'Flash' }), true);
+  assert.equal(V.estEmailCridon({ de: 'contact@cridonlyon.fr', objet: 'Magazine' }), true);
+  assert.equal(V.estEmailCridon({ de: 'client@exemple.fr', objet: 'Question sur le CRIDON' }), false, 'un client qui cite le CRIDON');
+  assert.equal(V.estEmailCridon({ de: 'x@notaires.fr', objet: 'CRIDON Flash n° 12' }), true);
+});
+
+test('veille notariale : CNAF + CRIDON lus, rien de nominatif ne part, source dite, jamais reprise deux fois', async () => {
+  const repo = fauxRepo();
+  repo.ecrireReglagesExchange && repo.ecrireReglagesExchange({});
+  const env = (corps) => `<s:Envelope><s:Body>${corps}</s:Body></s:Envelope>`;
+  const ews = async (corps) => {
+    if (/<m:FindItem/.test(corps)) {
+      return { statut: 200, corps: env('<m:FindItemResponse><m:ResponseMessages><m:FindItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:RootFolder><t:Items>'
+        + '<t:Message><t:ItemId Id="cr1" ChangeKey="k"/><t:Subject>Flash CRIDON n° 42</t:Subject><t:From><t:Mailbox><t:EmailAddress>flash@cridon-paris.fr</t:EmailAddress></t:Mailbox></t:From></t:Message>'
+        + '<t:Message><t:ItemId Id="cl1" ChangeKey="k"/><t:Subject>Mon dossier</t:Subject><t:From><t:Mailbox><t:EmailAddress>lea.durand@exemple.fr</t:EmailAddress></t:Mailbox></t:From></t:Message>'
+        + '</t:Items></m:RootFolder></m:FindItemResponseMessage></m:ResponseMessages></m:FindItemResponse>') };
+    }
+    assert.ok(!/cl1/.test(corps), 'l’email d’un client n’est jamais relu');
+    return { statut: 200, corps: env('<m:GetItemResponse><m:ResponseMessages><m:GetItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode><m:Items>'
+      + '<t:Message><t:ItemId Id="cr1" ChangeKey="k"/><t:Body BodyType="Text">Réforme de la réserve héréditaire. Exemple : Madame Léa DURAND, 12 rue des Lices.</t:Body></t:Message>'
+      + '</m:Items></m:GetItemResponseMessage></m:ResponseMessages></m:GetItemResponse>') };
+  };
+  const ia = fausseIa(() => ({}));
+  const d = vente({ adresseBien: 'BLOIS (41000), 12 rue des Lices' }); // une lettre qui citerait par hasard l'adresse d'un bien
+  const p = creerPlanificateur({ lireUrl: fauxCnaf, posterEws: ews, parametresRepo: repo, depot: { tousActifs: () => [d], trouverParId: () => d },
+    envoyer: async () => ({ ok: true }), ia, lireEmail: async () => ({ texte: '' }) });
+  await p.lancer('veille-juridique', { responsable: 'Bastien ANGLUMENT', maintenant: new Date('2026-10-26T09:40:00+01:00') });
+  const prompt = ia.prompts.find((x) => /SOURCES/.test(x));
+  assert.ok(prompt, 'veille demandée');
+  assert.ok(/CNAF — 2026-10-23 — Donation et dettes du donataire — https:\/\/www\.cnaf\.notaires\.fr\/actualites\/donation-et-dettes/.test(prompt));
+  assert.ok(/CRIDON — Flash CRIDON n° 42/.test(prompt) && /réserve héréditaire/.test(prompt));
+  assert.ok(!/DURAND|Léa|Lices|cridon-paris|lea\.durand/.test(prompt), 'rien de nominatif ne part');
+  assert.ok(!/web_search|Légifrance/.test(prompt), 'plus de recherche web');
+  assert.equal(P.lirePropositions(repo).filter((x) => x.routine === 'veille-juridique').length, 1);
+  const avant = ia.prompts.length;
+  await p.lancer('veille-juridique', { responsable: 'Bastien ANGLUMENT', maintenant: new Date('2026-11-02T09:40:00+01:00') });
+  assert.equal(ia.prompts.length, avant, 'semaine suivante : sources déjà reprises, aucun appel');
 });
