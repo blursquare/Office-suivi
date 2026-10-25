@@ -6,32 +6,25 @@
 // https et aux applications installées) : la fenêtre CLAIRE calcule le compteur d'après Réglages › Notifications et l'envoie au
 // serveur (POST /api/relais-word/pastille) ; le relais du poste (server/relais/CLAIRE-relais.cs, 1.1) le lit chaque seconde, pose
 // la pastille rouge sur l'icône de la fenêtre CLAIRE, affiche une notification Windows pour chaque nouveauté et fait clignoter le
-// bouton. Les notifications ne disent qu'un nombre et une rubrique, jamais un nom de dossier ni un client. Réglages gardés dans les
+// bouton. Les notifications ne disent qu'un nombre et une rubrique (texte écrit par le serveur), jamais un nom de dossier ni un client. Réglages gardés dans les
 // préférences du collaborateur sur le serveur (`notifications`).
 
 // Les rubriques comptées, dans l'ordre des Réglages. `defaut` : allumée tant que le collaborateur n'a rien réglé.
 var SOURCES_NOTIFICATIONS = [
-  { cle: 'messages', libelle: 'Messages non lus des discussions', aide: 'Tous les messages non lus des canaux de « Demander à CLAIRE », messages privés compris (un canal mis en sourdine ne compte pas).', defaut: true,
-    titre: 'Discussions', texte: n => `${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}` },
-  { cle: 'mentions', libelle: 'Mentions (@vous)', aide: 'Les messages où un collègue ou CLAIRE vous cite. Comptés seuls quand les messages non lus sont éteints.', defaut: true,
-    titre: 'Discussions', texte: n => (n > 1 ? `On vous a cité ${n} fois` : 'On vous a cité') },
-  { cle: 'traiter', libelle: 'Propositions de CLAIRE à traiter', aide: 'Ce que les routines de CLAIRE attendent de VOTRE décision (« À traiter »).', defaut: true,
-    titre: 'Propositions de CLAIRE', texte: n => `${n} proposition${n > 1 ? 's' : ''} à décider` },
-  { cle: 'suivi', libelle: 'Nouveautés du Suivi des dossiers', aide: 'La pastille rouge de « Suivi des dossiers » : pièces trouvées, fonds tous reçus, mises à jour d’Authentic de vos dossiers.', defaut: true,
-    titre: 'Suivi des dossiers', texte: n => `${n} nouveauté${n > 1 ? 's' : ''} dans vos dossiers` },
-  { cle: 'scans', libelle: 'Scans à ranger', aide: 'Les scans du copieur que Claire Scan n’a pas rangés seuls.', defaut: false,
-    titre: 'Claire Scan', texte: n => `${n} scan${n > 1 ? 's' : ''} à ranger` },
-  { cle: 'taches', libelle: 'Tâches du jour', aide: 'Ce qui reste dans votre liste « Aujourd’hui » (tâches des dossiers et vos rappels).', defaut: false,
-    titre: 'Aujourd’hui', texte: n => `${n} nouvelle${n > 1 ? 's' : ''} tâche${n > 1 ? 's' : ''}` },
-  { cle: 'dates', libelle: 'Réponses aux dates proposées', aide: 'Les réponses des clients ou des confrères à un sondage de dates de signature, pas encore vues dans l’Agenda.', defaut: false,
-    titre: 'Dates proposées', texte: n => `${n} nouvelle${n > 1 ? 's' : ''} réponse${n > 1 ? 's' : ''}` }
+  { cle: 'messages', libelle: 'Messages non lus des discussions', aide: 'Les messages non lus de vos collègues dans les canaux de « Demander à CLAIRE », messages privés compris (un canal mis en sourdine ne compte pas ; les propositions de CLAIRE comptent dans « À traiter »).', defaut: true},
+  { cle: 'mentions', libelle: 'Mentions (@vous)', aide: 'Les messages où un collègue ou CLAIRE vous cite. Comptés seuls quand les messages non lus sont éteints.', defaut: true},
+  { cle: 'traiter', libelle: 'Propositions de CLAIRE à traiter', aide: 'Ce que les routines de CLAIRE attendent de VOTRE décision (« À traiter »).', defaut: true},
+  { cle: 'suivi', libelle: 'Nouveautés du Suivi des dossiers', aide: 'La pastille rouge de « Suivi des dossiers » : pièces trouvées, fonds tous reçus, mises à jour d’Authentic de vos dossiers.', defaut: true},
+  { cle: 'scans', libelle: 'Scans à ranger', aide: 'Les scans du copieur que Claire Scan n’a pas rangés seuls.', defaut: false},
+  { cle: 'taches', libelle: 'Tâches du jour', aide: 'Ce qui reste dans votre liste « Aujourd’hui » (tâches des dossiers et vos rappels).', defaut: false},
+  { cle: 'dates', libelle: 'Réponses aux dates proposées', aide: 'Les réponses des clients ou des confrères à un sondage de dates de signature, pas encore vues dans l’Agenda.', defaut: false }
 ];
 var INTERVALLE_PASTILLE_MS = 5000;
 var RAPPEL_PASTILLE_MS = 60000;   // le serveur éteint la pastille d'une fenêtre muette depuis 2 min
 var DELAI_PREMIERE_PASTILLE_MS = 20000;   // les compteurs du démarrage ne sont pas des nouveautés
 
 var reglagesNotifications = null;   // null tant que les préférences du collaborateur ne sont pas lues
-var etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0 };
+var etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0, relais: false };
 
 /** Pure : les réglages complets (rubriques absentes = leur valeur par défaut). */
 function reglagesNotificationsComplets(brut) {
@@ -64,7 +57,8 @@ function totalPastille(compteurs, reglages) {
   return Math.min(total, 999);
 }
 
-/** Pure : une notification par rubrique allumée dont le nombre a monté (rubrique et nombre seulement). */
+/** Pure : une notification par rubrique allumée dont le nombre a monté — { cle, n } seulement : le serveur en écrit le texte
+ * (server/src/relaisWord.js, TEXTES_NOTIFICATIONS), jamais un nom de dossier ni de client. */
 function nouveautesNotifications(avant, apres, reglages) {
   const r = reglagesNotificationsComplets(reglages);
   if (!r.windows || !avant) return [];
@@ -75,31 +69,39 @@ function nouveautesNotifications(avant, apres, reglages) {
     if (ecart <= 0) continue;
     // Une mention est aussi un message non lu : une seule notification, celle de la mention, qui dit davantage.
     if (s.cle === 'messages' && r.sources.mentions && (Number(apres.mentions) || 0) > (Number(avant.mentions) || 0)) continue;
-    sortie.push({ titre: s.titre, texte: s.texte(ecart) });
+    sortie.push({ cle: s.cle, n: ecart });
   }
   return sortie;
 }
 
-// Les compteurs de l'écran, chacun lu par la fonction qui fait déjà sa pastille dans la barre latérale.
-function compteursNotifications() {
-  const lire = (f) => { try { const n = Number(f()); return Number.isFinite(n) && n > 0 ? n : 0; } catch (e) { return 0; } };
+// Les compteurs de l'écran, chacun lu par la fonction qui fait déjà sa pastille dans la barre latérale. `reglages` : seules les
+// rubriques allumées sont calculées (« Aujourd'hui » et les scans parcourent tous les dossiers) ; sans réglages, toutes (écran des Réglages).
+function compteursNotifications(reglages) {
+  const allumees = reglages ? reglagesNotificationsComplets(reglages).sources : null;
+  const lire = (cle, f) => {
+    if (allumees && !allumees[cle]) return 0;
+    try { const n = Number(f()); return Number.isFinite(n) && n > 0 ? n : 0; } catch (e) { return 0; }
+  };
   return {
-    messages: lire(() => canaux.badge),
-    mentions: lire(() => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + (Number(c.mentions) || 0), 0)),
-    traiter: lire(() => propositionsClaire.liste.length),
-    suivi: lire(() => totalNotificationsPieces()),
-    scans: lire(() => nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif())),
-    taches: lire(() => { const e = etatAujourdhui(); return e.actions.length + rappelsEnTaches(e.aujourdhui).length; }),
-    dates: lire(() => reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length)
+    // Messages des personnes seulement : une proposition de CLAIRE est aussi un message de son canal, comptée par « À traiter ».
+    messages: lire('messages', () => (canaux.liste || []).reduce((t, c) => t + (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? (Number(c.mentions) || 0)
+      : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusClaire) || 0))), 0)),
+    mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + (Number(c.mentions) || 0), 0)),
+    traiter: lire('traiter', () => propositionsClaire.liste.length),
+    suivi: lire('suivi', () => totalNotificationsPieces()),
+    scans: lire('scans', () => nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif())),
+    taches: lire('taches', () => { const e = etatAujourdhui(); return e.actions.length + rappelsEnTaches(e.aujourdhui).length; }),
+    dates: lire('dates', () => reponsesNonVuesSondages(sondagesCreneaux, dateDatesVues()).length)
   };
 }
 
 // La fenêtre est-elle sous les yeux du collaborateur ? Alors pas de notification Windows (la pastille, elle, reste juste).
 function fenetreClaireRegardee() { return !document.hidden && document.hasFocus(); }
 
-// Les relevés qui alimentent les compteurs continuent fenêtre cachée ou réduite tant que la pastille est allumée (client/112, 114).
+// Les relevés qui alimentent les compteurs continuent fenêtre cachée ou réduite tant que la pastille est allumée ET que le relais de
+// ce collaborateur est installé (client/112, 114 ; audit 25/10 : sinon des relectures pour rien sur tous les postes).
 function pastilleActiveHorsEcran() {
-  return !!utilisateurPoste && lireReglagesNotifications().pastille;
+  return !!utilisateurPoste && etatPastille.relais && lireReglagesNotifications().pastille;
 }
 
 async function tourPastille() {
@@ -107,18 +109,24 @@ async function tourPastille() {
   const maintenant = Date.now();
   if (!etatPastille.demarreLe) etatPastille.demarreLe = maintenant;
   const reglages = lireReglagesNotifications();
-  const compteurs = compteursNotifications();
+  const compteurs = compteursNotifications(reglages);
   const total = totalPastille(compteurs, reglages);
   const pret = maintenant - etatPastille.demarreLe >= DELAI_PREMIERE_PASTILLE_MS;
   const notifications = pret && !fenetreClaireRegardee() ? nouveautesNotifications(etatPastille.avant, compteurs, reglages) : [];
-  if (pret) etatPastille.avant = compteurs;
+  // Fenêtre regardée : les compteurs du moment deviennent la référence (ce qu'on voit n'est pas une nouveauté à annoncer plus tard).
+  if (pret && !notifications.length) etatPastille.avant = compteurs;
   if (total === etatPastille.envoye && !notifications.length && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
   try {
     const r = await fetchAvecAuth('/api/relais-word/pastille', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ poste: clePosteAppels(utilisateurPoste), total, notifications })
     });
-    if (r.ok) { etatPastille.envoye = total; etatPastille.envoyeLe = maintenant; }
+    // Les nouveautés ne sont tenues pour annoncées qu'une fois reçues par le serveur (relecture 25/10 : perdues s'il redémarrait).
+    if (r.ok) {
+      const corps = await r.json().catch(() => ({}));
+      etatPastille.relais = corps.relais !== false;
+      etatPastille.envoye = total; etatPastille.envoyeLe = maintenant; if (pret) etatPastille.avant = compteurs;
+    }
   } catch (e) { /* serveur injoignable : renvoyé au tour suivant */ }
 }
 
@@ -130,7 +138,7 @@ function demarrerPastille() {
 // Changement du collaborateur du poste : nouvelles préférences, nouveaux compteurs de départ.
 function oublierPastilleCollaborateur() {
   reglagesNotifications = null;
-  etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0 };
+  etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0, relais: false };
 }
 
 // ---- Réglages › Notifications ----

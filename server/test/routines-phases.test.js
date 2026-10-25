@@ -266,6 +266,12 @@ test('veille juridique : un échec n’est pas relancé le lendemain ; un lundi 
   assert.equal(P.lirePropositions(repo2).filter((x) => x.routine === 'veille-juridique').length, 1, 'le mardi, une seule');
 });
 
+test('veille notariale : page du CNAF méconnaissable = erreur dite, jamais « rien de neuf »', async () => {
+  const V = require('../src/routines/veille');
+  const r = await V.sourcesCnaf({ lire: async () => '<main><p>Nouvelle présentation</p></main>', aujourdhui: '2026-10-26', vus: [] });
+  assert.match(r.erreur, /non reconnue/);
+});
+
 test('veille notariale : page Actualités du CNAF lue (date, titre, chapô), emails du CRIDON reconnus', () => {
   const V = require('../src/routines/veille');
   const a = V.articlesCnafDepuisHtml(PAGE_CNAF_TEST + '<a href="https://ailleurs.example/x" class="actu"><h3>Hors site</h3></a>');
@@ -275,11 +281,16 @@ test('veille notariale : page Actualités du CNAF lue (date, titre, chapô), ema
   assert.equal(a[0].titre, 'Donation et dettes du donataire');
   assert.equal(a[0].chapo, 'Retour sur la notification au créancier.');
   assert.equal(V.isoDepuisDateFr('1er août 2026'), '2026-08-01');
+  assert.equal(V.decoderEntites('&#99999999;&#x41;&#233;'), ' Aé', 'entité hors Unicode : jamais une erreur qui coupe la veille');
+  assert.equal(V.estEmailCridon({ de: 'flash@evilcridon.fr', objet: 'Flash' }), false, 'domaine qui ne commence pas par cridon');
   assert.equal(V.texteArticleCnaf('<nav>Menu</nav><main>Retour aux actualités Titre <script>x()</script>Partagez cet article Le texte.</main>'), 'Titre Partagez cet article Le texte.'.replace('Partagez cet article ', ''));
   assert.equal(V.estEmailCridon({ de: 'lettre@cridon-nord-est.fr', objet: 'Flash' }), true);
-  assert.equal(V.estEmailCridon({ de: 'contact@cridonlyon.fr', objet: 'Magazine' }), true);
-  assert.equal(V.estEmailCridon({ de: 'client@exemple.fr', objet: 'Question sur le CRIDON' }), false, 'un client qui cite le CRIDON');
-  assert.equal(V.estEmailCridon({ de: 'x@notaires.fr', objet: 'CRIDON Flash n° 12' }), true);
+  assert.equal(V.estEmailCridon({ de: 'contact@cridonlyon.fr', objet: 'Le Magazine du CRIDON n° 8' }), true);
+  assert.equal(V.estEmailCridon({ de: 'contact@cridonlyon.fr', objet: 'Votre consultation n° 12345 — succession' }), false, 'une consultation expose un dossier');
+  assert.equal(V.estEmailCridon({ de: 'juriste@cridon-paris.fr', objet: 'RE: Flash' }), false, 'une réponse');
+  assert.equal(V.estEmailCridon({ de: 'juriste@cridon-paris.fr', objet: 'Votre question' }), false);
+  assert.equal(V.estEmailCridon({ de: 'client@exemple.fr', objet: 'RE: Flash CRIDON n° 12' }), false, 'un client qui répond à une lettre');
+  assert.equal(V.estEmailCridon({ de: 'x@notaires.fr', objet: 'CRIDON Flash n° 12' }), false, 'pas le CRIDON lui-même');
 });
 
 test('veille notariale : CNAF + CRIDON lus, rien de nominatif ne part, source dite, jamais reprise deux fois', async () => {

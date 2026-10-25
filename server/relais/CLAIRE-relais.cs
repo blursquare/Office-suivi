@@ -75,6 +75,8 @@ static class PastilleWindows
         {
             try
             {
+                System.Windows.Forms.Application.SetUnhandledExceptionMode(System.Windows.Forms.UnhandledExceptionMode.CatchException);
+                System.Windows.Forms.Application.ThreadException += delegate { };
                 porte = new System.Windows.Forms.Control();
                 porte.CreateControl();
                 IntPtr forcer = porte.Handle;
@@ -96,7 +98,9 @@ static class PastilleWindows
 
     static void SurLeFil(System.Windows.Forms.MethodInvoker m)
     {
-        try { if (porte != null && porte.IsHandleCreated) porte.BeginInvoke(m); } catch { }
+        // Une erreur de dessin ou de la barre des tâches ne remonte jamais dans la boucle de messages (pas de boîte « exception non gérée »).
+        System.Windows.Forms.MethodInvoker sur = delegate { try { m(); } catch { } };
+        try { if (porte != null && porte.IsHandleCreated) porte.BeginInvoke(sur); } catch { }
     }
 
     // Appelé à chaque relevé (une seconde) : posée de nouveau quand le nombre change, quand la fenêtre CLAIRE change (rouverte), et

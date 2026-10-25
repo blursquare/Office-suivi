@@ -21888,6 +21888,6 @@ ajuster et en rajouter ».
   `noterPastillePoste` (texte seul, borné), rendus au relais par `appliquerReleveWord`. Relais 1.1 (`CLAIRE-relais.cs`) : fil STA avec
   boucle de messages, `ITaskbarList3::SetOverlayIcon` (rond rouge 16 px, 9+), reposée au changement, à la réouverture de la fenêtre et
   toutes les 15 s ; `NotifyIcon` (bulle, clic = fenêtre CLAIRE devant ou ouverte), `FlashWindowEx`. Recompilé (`mcs`, `-r:System.Drawing.dll`),
-  icône de CLAIRE posée : **nouvelle empreinte SHA-256 `fa10bffc…ee63e57`**, à faire autoriser par Fichorga (l'ancien relais n'était déjà
+  icône de CLAIRE posée : **nouvelle empreinte SHA-256 `6fea2783…a565e5`**, à faire autoriser par Fichorga (l'ancien relais n'était déjà
   plus installable depuis le 13/10, Panda le mettant en quarantaine) ; bouton « Télécharger le relais pour ce poste » dans Réglages ›
   Notifications. Non vérifié sur un vrai Windows (point `notifications-pastille-windows`).

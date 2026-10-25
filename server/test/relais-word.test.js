@@ -133,7 +133,13 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   assert.equal((await releve({ poste: 'constructor', jeton, word: true })).status, 403);
   assert.equal((await fetch(`${baseUrl}/api/relais-word/etat?poste=constructor`, { headers: auth }).then(x => x.json())).installe, false);
   const r = await releve({ poste: 'julie', jeton, word: true, titre: 'DPE', paragraphe: 'Numéro --- établi le ---\r' });
-  assert.deepEqual(await r.json(), { commandes: [] });
+  assert.deepEqual(await r.json(), { commandes: [], pastille: 0 });
+  // Pastille (0.349.0) : posée par la fenêtre CLAIRE, rendue au relais par la ROUTE du relevé (audit 25/10 : elle s'y perdait).
+  const pastille = (corps) => fetch(`${baseUrl}/api/relais-word/pastille`, { method: 'POST', headers: Object.assign({}, json, auth), body: JSON.stringify(corps) }).then(x => x.json());
+  assert.deepEqual(await pastille({ poste: 'paul', total: 3 }), { pastille: 0, relais: false }, 'sans relais installé : rien gardé');
+  assert.deepEqual(await pastille({ poste: 'julie', total: 3, notifications: [{ cle: 'traiter', n: 2 }] }), { pastille: 3 });
+  assert.deepEqual(await releve({ poste: 'julie', jeton, word: true, inchange: true, pastille: 1 }).then(x => x.json()),
+    { commandes: [], pastille: 3, notifications: [{ titre: 'Propositions de CLAIRE', texte: '2 propositions à décider' }] });
   const e = await fetch(`${baseUrl}/api/relais-word/etat?poste=julie`, { headers: auth }).then(x => x.json());
   assert.ok(e.installe && e.actif && e.word);
   assert.equal(e.paragraphe, 'Numéro --- établi le ---');
@@ -191,12 +197,11 @@ test('route : sonnerie d’un poste au relais actif → l’onglet de 3CX se fer
 
 test('pastille du poste : le compteur de la fenêtre CLAIRE va au relais, éteint quand la fenêtre se tait ; notifications rendues une fois, texte seul', () => {
   const etat = creerEtatRelaisWord();
-  noterPastillePoste(etat, 'julie', { total: 4, notifications: [{ titre: 'Discussions', texte: '<b>2</b> nouveaux messages\n' }, { titre: '' }, { titre: 'x'.repeat(200) }] }, 1000);
+  noterPastillePoste(etat, 'julie', { total: 4, notifications: [{ cle: 'messages', n: 2 }, { cle: 'inconnue', n: 1 }, { titre: 'Rappelez le 06 11 22 33 44', texte: 'libre' }, { cle: 'traiter', n: 1.5 }, { cle: 'mentions', n: 1 }] }, 1000);
   const r = appliquerReleveWord(etat, 'julie', { word: false, inchange: true, pastille: 1 }, 1500);
   assert.equal(r.pastille, 4);
-  assert.deepEqual(r.notifications.map((n) => n.titre.length), [11, 60]);
-  assert.equal(r.notifications[0].texte, '2 nouveaux messages', 'balises et retours retirés');
-  assert.ok(!/[<>]/.test(r.notifications[0].texte));
+  assert.equal(r.notifications.map((n) => n.titre + ' : ' + n.texte).join(' | '), 'Discussions : 2 nouveaux messages | Discussions : On vous a cité',
+    'texte écrit par le serveur, jamais un texte libre ni une rubrique inconnue');
   assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true }, 2500).notifications.length, 0, 'une seule fois');
   assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true }, 1000 + PASTILLE_VUE_MS + 1).pastille, 0, 'fenêtre fermée : pastille éteinte');
   noterPastillePoste(etat, 'julie', { total: -3 }, 5000);
@@ -204,4 +209,7 @@ test('pastille du poste : le compteur de la fenêtre CLAIRE va au relais, étein
   noterPastillePoste(etat, 'julie', { total: 5000 }, 6000);
   assert.equal(appliquerReleveWord(etat, 'julie', { inchange: true, pastille: 1 }, 6100).pastille, 999);
   assert.equal(etatPosteWord(etat, 'julie', true, 6200).pastille, true, 'relais qui sait poser la pastille');
+  const plein = creerEtatRelaisWord();
+  for (let i = 0; i < 150; i++) noterPastillePoste(plein, 'p' + i, { total: 1 }, 1000);
+  assert.equal(plein.postes.size, 100, 'jamais plus de 100 postes en mémoire');
 });

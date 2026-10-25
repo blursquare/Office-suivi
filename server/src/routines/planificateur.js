@@ -90,6 +90,7 @@ async function lirePageCnaf(url) {
   if (!String(url).startsWith(V.URL_CNAF + '/')) throw new Error('adresse hors du site du CNAF');
   const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(20000), headers: { 'User-Agent': 'CLAIRE (etude notariale)' } });
   if (r.status !== 200) throw new Error('réponse ' + r.status);
+  if (Number(r.headers.get('content-length')) > 2 * 1024 * 1024) throw new Error('page trop lourde');
   const t = await r.text();
   return t.slice(0, 2 * 1024 * 1024);
 }
@@ -224,7 +225,7 @@ function creerPlanificateur(deps) {
       if (ajoutees) {
         const { htmlSurCanal } = /** @type {any} */ (require('../../../commun/html-canal'));
         const echap = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const html = texte.split(/\n{2,}/).map((bloc) => `<p>${echap(bloc).replace(/(https:\/\/[^\s<]+)/g, '<a href="$1">$1</a>').replace(/\n/g, '<br>')}</p>`).join('');
+        const html = texte.split(/\n{2,}/).map((bloc) => `<p>${echap(bloc).replace(/(https:\/\/[^\s<"]+)/g, (u) => (u.startsWith(V.URL_CNAF + '/') ? `<a href="${u}">${u}</a>` : u)).replace(/\n/g, '<br>')}</p>`).join('');
         require('../canaux/canaux').ajouterMessage(parametresRepo, 'general', { auteur: 'CLAIRE', claire: true, texte, html: htmlSurCanal(html) }, maintenant.getTime() + 1);
       }
       if (ajoutees) V.noterVus(parametresRepo, { cnaf: cnaf.sources.map((x) => x.url), cridon: cridon.sources.map((x) => x.itemId) });

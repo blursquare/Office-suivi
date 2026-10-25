@@ -315,12 +315,14 @@ function compterCanal(entree, luLe, collab) {
   const recents = Array.isArray(entree && entree.recents) ? entree.recents : [];
   let nonLus = 0;
   let mentions = 0;
+  let nonLusClaire = 0;   // messages de CLAIRE (réponses, propositions des routines) : la pastille les compte par « À traiter »
   for (const r of recents) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
     nonLus += 1;
+    if (r[3] === 1) nonLusClaire += 1;
     if (String(r[2] || '').split('|').includes(collab)) mentions += 1;
   }
-  return { nonLus, mentions };
+  return { nonLus, mentions, nonLusClaire };
 }
 
 /**
@@ -345,7 +347,7 @@ function listerCanaux(repo, collab, collaborateurs) {
     badge += notif === 'muet' ? 0 : notif === 'mentions' ? c.mentions : c.nonLus;
     const libre = libres.find((l) => l.id === id);
     return { id, nom: libre ? libre.nom : '', libre: !!libre, prive: id.startsWith('p:'), membres: id.startsWith('p:') ? (membresPrive(id, collaborateurs || []) || []) : undefined, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
-      nonLus: c.nonLus, mentions: c.mentions, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
+      nonLus: c.nonLus, mentions: c.mentions, nonLusClaire: c.nonLusClaire, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
   });
   return { canaux, badge };
 }

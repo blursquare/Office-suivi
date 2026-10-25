@@ -58,9 +58,10 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat) {
     if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
     if (corps.verifier === true) { res.json({ ok: true }); return; }
-    const { commandes, appels, renvoyer } = appliquerReleveWord(etat, poste, corps);
-    const rep = { commandes };
+    const { commandes, appels, renvoyer, pastille, notifications } = appliquerReleveWord(etat, poste, corps);
+    const rep = { commandes, pastille };
     if (appels.length) rep.appels = appels;
+    if (notifications.length) rep.notifications = notifications;
     if (renvoyer) rep.renvoyer = true;
     res.json(rep);
   });
@@ -81,6 +82,8 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    // Seulement pour un collaborateur dont le relais est installé (audit 25/10 : la Map du serveur ne grossit pas d'un poste inventé).
+    if (!empreintePoste(parametresRepo, poste)) { res.json({ pastille: 0, relais: false }); return; }
     res.json(noterPastillePoste(etat, poste, corps));
   });
   routeur.post('/relais-word/inserer', (req, res) => {

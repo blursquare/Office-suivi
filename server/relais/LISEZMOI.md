@@ -22,8 +22,8 @@ Internet. Code source : `server/relais/CLAIRE-relais.cs` du dépôt de CLAIRE. R
 
 Le programme est **le même fichier sur tous les postes** (non signé) :
 
-- **SHA-256 : `fa10bffc40fbe69a1c619e654931e58aa945abdeb285c76ec5bc97980ee63e57`**
-- MD5 : `26b7962c4ca5db1d6ec14f68e1c9fe32` (si la console demande cette empreinte)
+- **SHA-256 : `6fea2783cc220e13c00754affd848c10a881d23d986ae2e0c42b910cf6a565e5`**
+- MD5 : `ebf0736a4c6a76ffb28f137e1dccbdf4` (si la console demande cette empreinte)
 - Nom : `CLAIRE-relais.exe` (« Relais CLAIRE du poste », produit « CLAIRE », version 1.1.0.0)
 - Emplacements : le dossier Téléchargements de l'utilisateur au moment de l'installation, puis
   `%LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe`

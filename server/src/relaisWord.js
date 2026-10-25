@@ -79,6 +79,17 @@ var APPEL_RELAIS_VU_MS = 3000;
 var PASTILLE_VUE_MS = 120000;
 var NOTIFICATIONS_MAX = 5;
 var NOTIFICATION_EXPIRE_MS = 120000;
+var POSTES_MAX = 100;
+/** @type {Record<string, [string, (n: number) => string]>} Rubrique → titre et texte de la bulle (rubrique et nombre, jamais un nom). */
+var TEXTES_NOTIFICATIONS = {
+  messages: ['Discussions', n => `${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`],
+  mentions: ['Discussions', n => (n > 1 ? `On vous a cité ${n} fois` : 'On vous a cité')],
+  traiter: ['Propositions de CLAIRE', n => `${n} proposition${n > 1 ? 's' : ''} à décider`],
+  suivi: ['Suivi des dossiers', n => `${n} nouveauté${n > 1 ? 's' : ''} dans vos dossiers`],
+  scans: ['Claire Scan', n => `${n} scan${n > 1 ? 's' : ''} à ranger`],
+  taches: ['Aujourd’hui', n => `${n} nouvelle${n > 1 ? 's' : ''} tâche${n > 1 ? 's' : ''}`],
+  dates: ['Dates proposées', n => `${n} nouvelle${n > 1 ? 's' : ''} réponse${n > 1 ? 's' : ''}`]
+};
 
 function creerEtatRelaisWord() {
   return { postes: /** @type {Map<string, PosteWord>} */ (new Map()), demarrage: crypto.randomBytes(3).toString('hex') };
@@ -160,13 +171,16 @@ function demanderInsertionWord(etat, poste, corps, maintenant = Date.now()) {
 // Pure (sur l'état) : le compteur et les nouveautés envoyés par la fenêtre CLAIRE du poste. Texte seul, borné : aucun HTML ne va au relais.
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant] */
 function noterPastillePoste(etat, poste, corps, maintenant = Date.now()) {
+  if (!etat.postes.has(poste) && etat.postes.size >= POSTES_MAX) return { pastille: 0 };
   const p = postePourWord(etat, poste);
   const n = Number(corps && corps.total);
   p.pastille = Number.isInteger(n) && n > 0 ? Math.min(n, 999) : 0;
   p.pastilleLe = maintenant;
-  const nettoyer = (/** @type {unknown} */ v, /** @type {number} */ max) => String(v == null ? '' : v).replace(/<[^>]*>/g, '').replace(/[\x00-\x1f<>]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+  // Le texte est écrit ICI, d'après une rubrique de la liste fermée et un nombre (audit 25/10 : jamais un texte libre venu du réseau
+  // dans une bulle Windows).
   const nouvelles = (Array.isArray(corps && corps.notifications) ? corps.notifications : []).slice(0, NOTIFICATIONS_MAX)
-    .map(x => ({ titre: nettoyer(x && x.titre, 60), texte: nettoyer(x && x.texte, 160), t: maintenant })).filter(x => x.titre);
+    .filter(x => x && Object.prototype.hasOwnProperty.call(TEXTES_NOTIFICATIONS, x.cle) && Number.isInteger(x.n) && x.n > 0 && x.n < 1000)
+    .map(x => ({ titre: TEXTES_NOTIFICATIONS[x.cle][0], texte: TEXTES_NOTIFICATIONS[x.cle][1](x.n), t: maintenant }));
   p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS).concat(nouvelles).slice(-NOTIFICATIONS_MAX);
   return { pastille: p.pastille };
 }

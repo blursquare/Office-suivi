@@ -20,7 +20,8 @@ const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 
 /** Pure : entités HTML courantes décodées. @param {string} t */
 function decoderEntites(t) {
   return String(t || '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;|&rsquo;/g, '’').replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(Number(n)));
+    .replace(/&#0?39;|&apos;|&rsquo;/g, '’')
+    .replace(/&#(x[0-9a-f]+|\d+);/gi, (m, n) => { const c = n[0].toLowerCase() === 'x' ? parseInt(n.slice(1), 16) : Number(n); return c > 0 && c <= 0x10ffff ? String.fromCodePoint(c) : ' '; });
 }
 
 /** Pure : texte lisible d'un morceau de HTML. @param {string} html */
@@ -65,10 +66,20 @@ function texteArticleCnaf(html) {
   return texteDepuisHtml(corps).replace(/^Retour aux actualités\s*/i, '').replace(/Partagez cet article\s*/i, '').slice(0, MAX_TEXTE_SOURCE);
 }
 
-/** Pure : un email vient-il du CRIDON (magazine, flash…) ? Expéditeur d'un domaine « cridon », ou objet qui le dit. @param {{ de?: string, objet?: string }} e */
+/**
+ * Pure : un email est-il une LETTRE du CRIDON (magazine, flash, lettre d'information) ? Les deux à la fois : expéditeur d'un domaine
+ * « cridon » ET objet qui dit magazine, flash, lettre, newsletter ou actualité (relecture 25/10 : une réponse du CRIDON à une
+ * consultation expose les faits d'un dossier ; un client qui répond « RE: Flash CRIDON » n'est pas le CRIDON). Jamais une réponse,
+ * un transfert ni une consultation.
+ * @param {{ de?: string, objet?: string }} e
+ */
 function estEmailCridon(e) {
   const de = String((e && e.de) || '').toLowerCase();
-  return /@([a-z0-9-]+\.)*[a-z0-9-]*cridon[a-z0-9-]*\.[a-z]{2,}$/.test(de) || (/cridon/i.test(String((e && e.objet) || '')) && /(magazine|flash|lettre|newsletter|actualit)/i.test(String(e.objet)));
+  const objet = String((e && e.objet) || '');
+  // Un domaine en .fr dont le nom COMMENCE par « cridon » (cridon-paris.fr, cridonlyon.fr ; jamais « evilcridon.ru »).
+  if (!/@(?:[a-z0-9-]+\.)*cridon[a-z0-9-]*\.fr$/.test(de)) return false;
+  if (/^\s*(re|tr|fw|fwd)\s*:/i.test(objet) || /consultation|votre (demande|question)|dossier|r[ée]ponse/i.test(objet)) return false;
+  return /magazine|flash|lettre|newsletter|actualit/i.test(objet);
 }
 
 /** @param {{ lireJsonBrut: Function }} repo @returns {{ cnaf: string[], cridon: string[] }} */
@@ -93,7 +104,10 @@ async function sourcesCnaf(o) {
   let page = '';
   try { page = await o.lire(PAGE_ACTUALITES_CNAF); } catch (e) { return { sources: [], erreur: `page Actualités du CNAF illisible (${String(e && e.message).slice(0, 60)})` }; }
   const depuis = new Date(Date.parse(o.aujourdhui + 'T12:00:00Z') - JOURS_VEILLE * 86400000).toISOString().slice(0, 10);
-  const articles = articlesCnafDepuisHtml(page).filter((a) => a.date && a.date >= depuis && !o.vus.includes(a.url)).slice(0, MAX_ARTICLES_CNAF);
+  const tous = articlesCnafDepuisHtml(page);
+  // Une page lue mais sans aucun article reconnu : le CNAF a changé sa présentation — dit au journal, jamais pris pour « rien de neuf ».
+  if (!tous.length) return { sources: [], erreur: 'structure de la page Actualités du CNAF non reconnue' };
+  const articles = tous.filter((a) => a.date && a.date >= depuis && !o.vus.includes(a.url)).slice(0, MAX_ARTICLES_CNAF);
   const sources = [];
   for (const a of articles) {
     let texte = '';
