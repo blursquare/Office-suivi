@@ -173,7 +173,7 @@ function messageCanalVersVue(sm, moi, ancien) {
   const base = {
     id: sm.id, role: claire ? 'claire' : (sm.auteur === moi ? 'moi' : 'autre'), auteur: sm.auteur, via: sm.via || '', quand: sm.quand,
     html: sm.html || escapeHtml(sm.texte || ''), texte: sm.texte || '', carte: sm.carte || '', pj: sm.pj || [], mentions: sm.mentions || [],
-    parent: sm.parent || '', reactions: Array.isArray(sm.reactions) ? sm.reactions : [], epingle: !!sm.epingle, modifieLe: sm.modifieLe || 0, pour: sm.pour || '', claireMessage: claire
+    parent: sm.parent || '', reactions: Array.isArray(sm.reactions) ? sm.reactions : [], epingle: !!sm.epingle, clos: !!sm.clos, modifieLe: sm.modifieLe || 0, pour: sm.pour || '', claireMessage: claire
   };
   if (ancien && ancien.local) { delete base.html; delete base.texte; }
   return ancien ? Object.assign(ancien, base) : Object.assign(base, { boutons: [] });

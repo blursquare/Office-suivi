@@ -179,7 +179,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const par = collaborateurDe(corps.auteur);
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
     const texteModifie = String(corps.texte || '');
-    const action = corps.epingle !== undefined ? { epingle: corps.epingle === true } : { texte: texteModifie, mentions: C.mentionsDansTexte(texteModifie, COLLABORATEURS).collaborateurs };
+    const action = corps.clos !== undefined ? { clos: corps.clos === true } : corps.epingle !== undefined ? { epingle: corps.epingle === true } : { texte: texteModifie, mentions: C.mentionsDansTexte(texteModifie, COLLABORATEURS).collaborateurs };
     const m = C.changerMessage(parametresRepo, id, req.params.mid, par, action);
     if (!m) { res.status(403).json({ erreur: 'Message introuvable, vide, ou ce n’est pas le vôtre.' }); return; }
     res.json({ ok: true, message: m });

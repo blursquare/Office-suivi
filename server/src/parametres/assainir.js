@@ -148,6 +148,8 @@ function assainirRappelPerso(brut) {
     creeLe: typeof b.creeLe === 'string' ? b.creeLe.slice(0, 40) : new Date().toISOString(),
     // Tâche demandée par un collaborateur (« Demander à CLAIRE », 13/10) : qui l'a demandée, prévenu quand elle est faite.
     ...(typeof b.demandePar === 'string' && b.demandePar.trim() ? { demandePar: b.demandePar.trim().slice(0, 80), ...(b.demandeurPrevenu === true ? { demandeurPrevenu: true } : {}) } : {}),
+    // Tâche prise par ✋ sur un message d'un canal (25/10) : le message d'origine, pour y poser ✅ quand elle est faite.
+    ...(b.source && typeof b.source === 'object' && /^[A-Za-z0-9:_.-]{1,80}$/.test(String(b.source.canal)) && /^[A-Za-z0-9_.-]{1,80}$/.test(String(b.source.messageId)) ? { source: { canal: String(b.source.canal), messageId: String(b.source.messageId) } } : {}),
     // Tâche relevée dans l'agenda de l'office (voir tachesAgenda.js) : le rendez-vous d'origine.
     ...(typeof b.agendaItemId === 'string' && b.agendaItemId && b.agendaItemId.length <= 1000 ? {
       agendaItemId: b.agendaItemId,

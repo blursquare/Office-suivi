@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.346.0';
+  const VERSION_APP = '0.347.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.347.0', date: '2026-10-25 12:55', resume: "Discussions : Claire signale ⚠️ sur le canal d’un dossier dont une échéance est dépassée et met ✅ sur la demande quand la tâche prise avec ✋ est cochée ; elle fête les anniversaires de l’étude et résume chaque matin les réponses qui ont reçu ❓ ou 👎. Nouveaux emojis : 🕐 / 🕒 rappel dans 3 jours / une semaine, 👥 prévenir le responsable du dossier, 📝 ajouter à CLAIRE.md, 🔒 clore un fil, 🗳️ compter un sondage (« sondage : … » puis une option par ligne, votes 1️⃣ 2️⃣ 3️⃣)." },
     { version: '0.346.0', date: '2026-10-25 12:39', resume: "Discussions : quatre emojis qui commandent un geste — 📌 épingle le message, ✋ « je la prends » (la tâche arrive dans votre « Aujourd’hui » et Claire le confirme dans le fil), 🔁 « relance ça » (Claire prépare l’email dans le fil, il attend votre « Envoyer »), et 🎉 posé par Claire sur le dernier message du canal d’un dossier dès que l’acte est signé." },
     { version: '0.345.0', date: '2026-10-25 11:00', resume: "Discussions : Claire répond dans un fil (quand on la cite, ou sous ses propres messages) et réagit avec des emojis — 👀 quand elle prend votre message en charge, puis ✅ fait, ❓ il lui manque une information ou ⚠️ elle n'a pas pu ; ❓ ou 👎 sur sa réponse la fait réexpliquer ou demander ce qui ne va pas, 👍 sur sa question vaut « oui, vas-y ». Une proposition en attente depuis un jour porte ⏳, puis ✅ ❌ ou 💤 selon la décision. La pastille de présence montre qui est absent aujourd'hui d'après l'agenda." },
     { version: '0.344.0', date: '2026-10-25 10:16', resume: "Discussions façon Slack : fils de discussion (répondre sous un message sans encombrer le canal), messages privés entre collègues, recherche dans tous les canaux (« de:julie »), messages enregistrés, statut et présence (« Au tribunal »), mise en forme du texte (gras, listes, liens, code, emoji) et résumé d'un canal par Claire." },

@@ -85,6 +85,8 @@ function assainirMessage(m) {
     mentions: (Array.isArray(m.mentions) ? m.mentions : []).slice(0, 10).map((x) => borne(x, 80)).filter(Boolean),
     modifieLe: Number(m.modifieLe) || 0,
     epingle: m.epingle === true,
+    // Un fil clos (🔒, étude 25/10) : replié, plus de réponse attendue.
+    clos: m.clos === true,
     // Un fil de discussion (étude 25/10) : la réponse porte l'identifiant du message de départ.
     parent: borne(m.parent, 60),
     // Réactions (étude 25/10) : un emoji et les prénoms de ceux qui l'ont posé.
@@ -135,7 +137,7 @@ function ajouterMessage(repo, canal, brut, maintenant) {
 
 /**
  * Modifier (texte) ou supprimer un message : seulement son auteur. Rend le message, ou null.
- * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {{ texte?: string, supprimer?: boolean, epingle?: boolean, mentions?: string[] }} action @param {number} [maintenant]
+ * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {{ texte?: string, supprimer?: boolean, epingle?: boolean, clos?: boolean, mentions?: string[] }} action @param {number} [maintenant]
  */
 function changerMessage(repo, canal, id, par, action, maintenant) {
   if (!canalValide(canal)) return null;
@@ -143,7 +145,10 @@ function changerMessage(repo, canal, id, par, action, maintenant) {
   const i = messages.findIndex((x) => x.id === id);
   if (i < 0) return null;
   const m = messages[i];
-  if (action.epingle !== undefined) {
+  if (action.clos !== undefined) {
+    if (m.parent) return null;
+    messages[i] = Object.assign({}, m, { clos: action.clos === true });
+  } else if (action.epingle !== undefined) {
     messages[i] = Object.assign({}, m, { epingle: action.epingle === true });
   } else {
     if (m.auteur !== par || m.claire) return null;

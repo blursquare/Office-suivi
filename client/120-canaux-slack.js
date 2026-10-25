@@ -257,6 +257,7 @@ function htmlLienFil(m, tous) {
   if (m.parent || !m.id) return '';
   const reps = reponsesFilCanal(tous || assistantMessages, m.id);
   if (!reps.length) return '';
+  if (m.clos) return `<button type="button" class="cx-fil-lien cx-fil-clos" onclick="ouvrirFilCanal('${escapeOnclickArg(m.id)}')" title="Fil clos"><b>🔒 Fil clos</b><span>${libelleReponsesFil(reps.length)}</span></button>`;
   const dernier = reps[reps.length - 1];
   return `<button type="button" class="cx-fil-lien" onclick="ouvrirFilCanal('${escapeOnclickArg(m.id)}')">${icone('discussion')}<b>${libelleReponsesFil(reps.length)}</b><span>dernière à ${escapeHtml(heureAssistant(dernier.quand))}</span></button>`;
 }
@@ -422,7 +423,7 @@ async function claireRepondAReaction(m, sens) {
 async function ecrireClaireDansFil(racine, texte) {
   try {
     const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canaux.actif)}/messages`, { method: 'POST', headers: enteteJsonCanaux(),
-      body: JSON.stringify({ auteur: utilisateurPoste, claire: true, texte, html: `<p>${escapeHtml(texte)}</p>`, parent: racine }) });
+      body: JSON.stringify({ auteur: utilisateurPoste, claire: true, texte, html: `<p>${escapeHtml(texte).replace(/\n/g, '<br>')}</p>`, parent: racine }) });
     if (r.ok) { canaux.signature = ''; chargerMessagesCanal(true); }
   } catch (e) { /* le geste reste noté en mémoire */ }
 }

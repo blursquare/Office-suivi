@@ -167,3 +167,39 @@ test('🎉 : un dossier nouvellement signé est fêté une fois, les déjà sign
   assert.equal(C.lireMessages(repo, C.canalDuDossier('dA'))[0].reactions.length, 0);
   assert.equal(venteSignee({ typeAffaire: 'succession', authentic: { acte: { etat: 'signe' } } }), false);
 });
+
+test('signaux : ⚠️ posé puis retiré, ✅ sur la tâche faite, 🎂 une fois, résumé des ❓', () => {
+  const S = require('../src/canaux/signaux');
+  const repo = fauxRepo();
+  const d = { id: 'dR', pret: '2026-10-01', echeancesValidees: {}, authentic: {} };
+  C.ajouterMessage(repo, C.canalDuDossier('dR'), { auteur: 'Julie VASSELIN', texte: 'bonjour' }, 5);
+  assert.equal(S.signalerRetards(repo, [d], '2026-10-25'), 1);
+  assert.equal(C.lireMessages(repo, C.canalDuDossier('dR'))[0].reactions[0].emoji, '⚠️');
+  assert.equal(S.signalerRetards(repo, [d], '2026-10-25'), 0, 'une seule fois');
+  d.echeancesValidees = { pret: true };
+  assert.equal(S.signalerRetards(repo, [d], '2026-10-25'), 1);
+  assert.equal(C.lireMessages(repo, C.canalDuDossier('dR'))[0].reactions.length, 0, 'retiré quand levé');
+  // ✅ sur la tâche prise par ✋
+  const m = C.ajouterMessage(repo, 'general', { auteur: 'Julie VASSELIN', texte: 'qui prend ?' }, 6);
+  assert.equal(S.confirmerTachesFaites(repo, [{ id: 'rp1', fait: true, source: { canal: 'general', messageId: m.id } }]), 1);
+  assert.equal(S.confirmerTachesFaites(repo, [{ id: 'rp1', fait: true, source: { canal: 'general', messageId: m.id } }]), 0);
+  assert.ok(C.lireMessages(repo, 'general').find((x) => x.id === m.id).reactions.some((r) => r.emoji === '✅'));
+  // 🎂
+  assert.equal(S.feterAnniversaires(repo, '2026-05-11', 100), 1);
+  assert.ok(/6 ans/.test(C.lireMessages(repo, 'general').slice(-1)[0].texte));
+  assert.equal(S.feterAnniversaires(repo, '2026-05-11', 200), 0);
+  assert.equal(S.feterAnniversaires(repo, '2026-12-26', 300), 1);
+  assert.ok(/Bastien/.test(C.lireMessages(repo, 'general').slice(-1)[0].texte));
+  // résumé
+  const t = S.texteResumeInterrogations([{ le: 10, sens: 'pas-clair', emoji: '❓', par: 'Julie VASSELIN', extrait: 'La vente' }, { le: 10, sens: 'compris', emoji: '👍', par: 'X', extrait: 'y' }], 5);
+  assert.ok(/1 de mes réponses a reçu/.test(t) && /Julie/.test(t));
+  assert.equal(S.texteResumeInterrogations([], 0), '');
+});
+
+test('🔒 : le fil se clôt sur le message de départ seulement', () => {
+  const repo = fauxRepo();
+  const r = C.ajouterMessage(repo, 'general', { auteur: 'Julie VASSELIN', texte: 'racine' }, 1);
+  const f = C.ajouterMessage(repo, 'general', { auteur: 'Julie VASSELIN', texte: 'réponse', parent: r.id }, 2);
+  assert.equal(C.changerMessage(repo, 'general', r.id, 'Bastien ANGLUMENT', { clos: true }).clos, true);
+  assert.equal(C.changerMessage(repo, 'general', f.id, 'Bastien ANGLUMENT', { clos: true }), null);
+});

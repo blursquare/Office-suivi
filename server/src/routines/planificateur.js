@@ -10,6 +10,7 @@ const { lireReglagesRoutines } = require('./reglages');
 const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
 const { synchroniserEtatCartes } = require('../canaux/etatCartes');
 const { celebrerSignatures } = require('../canaux/celebrations');
+const signaux = require('../canaux/signaux');
 const { deposerProposition } = require('../canaux/deposer');
 const { purgerCanauxOrphelins, purgerMessagesAnciens } = require('../canaux/canaux');
 const { noterJournalRoutines } = require('./journal');
@@ -102,6 +103,14 @@ function creerPlanificateur(deps) {
       try { synchroniserEtatCartes(parametresRepo, maintenant.getTime()); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // 🎉 de CLAIRE dans le canal d'un dossier dont l'acte vient d'être signé (une fois par dossier).
       try { if (depot && depot.tous) celebrerSignatures(parametresRepo, depot.tous()); } catch (e) { /* de l'affichage : jamais bloquant */ }
+      // Signaux de CLAIRE dans les canaux : ⚠️ retard, ✅ tâche faite, 🎂 anniversaires (jamais bloquants).
+      try {
+        const jourParis = infosParis(maintenant);
+        if (depot && depot.tous) signaux.signalerRetards(parametresRepo, depot.tous(), jourParis.iso);
+        if (parametresRepo.lireRappelsPerso) signaux.confirmerTachesFaites(parametresRepo, parametresRepo.lireRappelsPerso());
+        signaux.feterAnniversaires(parametresRepo, jourParis.iso, maintenant.getTime());
+        if (jourParis.ouvre && jourParis.hhmm >= '09:30') signaux.resumerInterrogations(parametresRepo, jourParis.iso, maintenant.getTime());
+      } catch (e) { /* de l'affichage : jamais bloquant */ }
       // Canaux de dossiers supprimés : vidés, une fois par jour.
       const jourPurge = infosParis(maintenant).iso;
       const etatPurge = lireEtat();

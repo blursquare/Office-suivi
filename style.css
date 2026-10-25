@@ -11226,6 +11226,7 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .cx-fil-lien { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 8px; border: 0; border-radius: var(--rayon-s); background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-s); cursor: pointer; }
 .cx-fil-lien:hover { background: var(--paper-sunk); }
 .cx-fil-lien span { color: var(--muted); }
+.cx-fil-clos b { color: var(--muted); font-weight: 500; }
 .cx-pres { display: inline-block; width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--muted); background: transparent; flex: none; }
 .cx-pres.en-ligne { background: var(--cat-vert); border-color: var(--cat-vert); }
 .cx-d-pres { display: inline-flex; align-items: center; justify-content: center; }

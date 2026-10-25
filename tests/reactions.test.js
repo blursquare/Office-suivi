@@ -48,3 +48,14 @@ test('actionReaction : 📌 épingle, ✋ prend, 🔁 relance, le reste rien', (
   assert.equal(actionReaction('🔁'), 'relancer');
   assert.equal(actionReaction('👍'), '');
 });
+
+test('nouveaux emojis-gestes et décompte d’un sondage', () => {
+  const { actionReaction, decompteSondage } = require('../commun/reactions');
+  assert.deepEqual(['🕐', '🕒', '👥', '📝', '🔒', '🗳️'].map(actionReaction), ['rappeler3', 'rappeler7', 'prevenir', 'consigne', 'clore', 'decompte']);
+  const s = decompteSondage('Sondage : déjeuner ?\n1. Pizza\n- Sushi', [{ emoji: '1️⃣', par: ['Julie VASSELIN', 'CLAIRE'] }]);
+  assert.equal(s.question, 'déjeuner ?');
+  assert.equal(s.options.length, 2);
+  assert.deepEqual(s.options.map((o) => o.votes.length), [1, 0], 'CLAIRE ne vote pas');
+  assert.equal(decompteSondage('bonjour', []), null);
+  assert.equal(decompteSondage('sondage : seule\n1. une', []), null);
+});

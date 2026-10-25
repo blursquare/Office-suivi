@@ -8,7 +8,7 @@
   /** Les emojis proposés d'un clic, comme dans Slack. */
   const EMOJIS_RAPIDES = ['👍', '👎', '✅', '❓', '👀', '🙏', '🎉', '❤️'];
   /** Une palette plus large, pour « Ajouter une réaction ». */
-  const EMOJIS_PALETTE = ['👍', '👎', '✅', '❌', '❓', '🤔', '👀', '🙏', '👌', '🎉', '❤️', '😀', '😂', '😅', '😮', '😢', '😡', '🔥', '💡', '⚠️', '📌', '✋', '🔁', '⏳', '👏', '💪', '🙌', '🤝', '✨', '🚀', '😴', '🤷'];
+  const EMOJIS_PALETTE = ['👍', '👎', '✅', '❌', '❓', '🤔', '👀', '🙏', '👌', '🎉', '❤️', '😀', '😂', '😅', '😮', '😢', '😡', '🔥', '💡', '⚠️', '📌', '✋', '🔁', '🕐', '🕒', '👥', '📝', '🔒', '🗳️', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '⏳', '👏', '💪', '🙌', '🤝', '✨', '🚀', '😴', '🤷'];
 
   const SENS = [
     { sens: 'compris', emojis: ['👍', '👌', '✅', '✔️', '☑️', '🙏', '💯'], phrase: 'compris / d\'accord' },
@@ -59,16 +59,44 @@
     return liste.map((r) => ({ emoji: r.emoji, par: r.par.slice(0, 50) }));
   }
 
-  /** Pur : le geste que commande un emoji posé par un collègue — 'epingler' 📌, 'prendre' ✋, 'relancer' 🔁 —, sinon ''. @param {unknown} emoji */
+  /** Pur : le geste que commande un emoji posé par un collègue — 'epingler' 📌, 'prendre' ✋, 'relancer' 🔁, 'rappeler3'/'rappeler7' 🕐/🕒, 'prevenir' 👥, 'consigne' 📝, 'clore' 🔒, 'decompte' 🗳️ —, sinon ''. @param {unknown} emoji */
   function actionReaction(emoji) {
     const e = String(emoji == null ? '' : emoji).replace(/️/g, '');
     if (e === '📌') return 'epingler';
     if (e === '✋' || e === '🙋') return 'prendre';
     if (e === '🔁' || e === '🔄') return 'relancer';
+    if (e === '🕐') return 'rappeler3';
+    if (e === '🕒') return 'rappeler7';
+    if (e === '👥') return 'prevenir';
+    if (e === '📝') return 'consigne';
+    if (e === '🔒') return 'clore';
+    if (e === '🗳') return 'decompte';
     return '';
   }
 
-  exporter({ actionReaction, EMOJIS_RAPIDES, EMOJIS_PALETTE, sensReaction, phraseSensReaction, emojiValide, basculerReaction });
+  const CLAVIERS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣'];
+
+  /**
+   * Pur : les options d'un sondage (« sondage : … » puis une option par ligne, « 1. », « - » ou « • » acceptés) et le décompte de leurs
+   * réactions 1️⃣ 2️⃣… (CLAIRE ne vote pas). Rend null si le message n'est pas un sondage de deux options au moins.
+   * @param {string} texte @param {any} reactions @returns {{ question: string, options: { emoji: string, texte: string, votes: string[] }[] } | null}
+   */
+  function decompteSondage(texte, reactions) {
+    const lignes = String(texte || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (!lignes.length || !/^sondage\s*:/i.test(lignes[0])) return null;
+    const options = lignes.slice(1, 1 + CLAVIERS.length).map((l) => l.replace(/^(?:\d+[.)]|[-•*])\s*/, '').trim()).filter(Boolean);
+    if (options.length < 2) return null;
+    const liste = Array.isArray(reactions) ? reactions : [];
+    return {
+      question: lignes[0].replace(/^sondage\s*:\s*/i, '').trim(),
+      options: options.map((o, i) => {
+        const r = liste.find((x) => x && String(x.emoji).replace(/️/g, '') === CLAVIERS[i].replace(/️/g, ''));
+        return { emoji: CLAVIERS[i], texte: o, votes: (r && Array.isArray(r.par) ? r.par : []).filter((p) => p !== 'CLAIRE') };
+      })
+    };
+  }
+
+  exporter({ decompteSondage, CLAVIERS, actionReaction, EMOJIS_RAPIDES, EMOJIS_PALETTE, sensReaction, phraseSensReaction, emojiValide, basculerReaction });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);
