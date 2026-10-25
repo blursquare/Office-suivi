@@ -9685,6 +9685,15 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-pj-liste { display: flex; flex-wrap: wrap; gap: 6px; }
 .asst-pj-saisie { padding: 8px 12px 0; }
 .asst-texte .asst-pj-liste { margin-top: 6px; }
+/* Carte d'une pièce jointe dans la conversation, comme sur Slack : vignette, nom, sorte et taille ; un clic ouvre la visionneuse. */
+.asst-pj-carte { display: inline-flex; flex-direction: column; width: 280px; max-width: 100%; padding: 0; overflow: hidden; text-align: left; font: inherit; color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); cursor: pointer; }
+.asst-pj-carte:hover { border-color: var(--muted); }
+.asst-pj-vignette { display: flex; align-items: center; justify-content: center; height: 160px; color: var(--muted); background: var(--paper-sunk); overflow: hidden; }
+.asst-pj-vignette .icone { width: 24px; height: 24px; }
+.asst-pj-vignette img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.asst-pj-infos { display: flex; flex-direction: column; gap: 2px; padding: 8px 12px; min-width: 0; }
+.asst-pj-titre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--texte-m); font-weight: 500; }
+.asst-pj-legende { font-size: var(--texte-s); color: var(--muted); }
 .asst-pj { display: inline-flex; align-items: center; gap: 6px; max-width: 280px; padding: 2px 4px 2px 8px; font-size: var(--texte-s); color: var(--ink-soft); background: var(--paper-sunk); border: 1px solid var(--line); border-radius: var(--rayon-s); }
 .asst-pj-nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asst-texte .asst-pj { padding-right: 8px; }

@@ -161,6 +161,7 @@
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);
+    remplirVignettesPiecesJointesAssistant();
   }
 
   function copierMessageAssistant(i) {
@@ -352,7 +353,7 @@
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
-    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlPuceJointeAssistant(p, false)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
+    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
     if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif)) return;
     noterEchangeAssistant('moi', texte);

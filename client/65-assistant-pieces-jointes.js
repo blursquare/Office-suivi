@@ -62,7 +62,7 @@
     const pieces = piecesJointesAssistant;
     piecesJointesAssistant = [];
     renderPiecesJointesAssistant();
-    pieces.forEach(p => { documentsAgentConnus[p.id] = { sorte: 'joint', libelle: 'Pièce jointe', sortePiece: p.sorte, fichier: p.fichier }; });
+    pieces.forEach(p => { documentsAgentConnus[p.id] = { sorte: 'joint', libelle: 'Pièce jointe', sortePiece: p.sorte, fichier: p.fichier, nom: p.nom, taille: p.fichier && p.fichier.size || 0 }; });
     return pieces;
   }
 
@@ -105,4 +105,124 @@
       const texte = String((r && r.data && r.data.text) || '').trim().slice(0, MAX_CARACTERES_LECTURE_AGENT);
       return { pages_total: 1, pages_lues: '1-1', pages: [{ page: 1, lue_par_ocr: true, texte: texte || '(image sans texte lisible)' }] };
     } finally { try { await worker.terminate(); } catch (e) { /* déjà arrêté */ } }
+  }
+
+  // ---- Aperçu d'une pièce jointe dans la conversation, comme sur Slack (étude 25/10) ----
+  // Le message porte une CARTE : vignette (l'image elle-même, ou la première page d'un PDF), nom, sorte et taille. Un clic ouvre la
+  // visionneuse : l'image en grand, ou toutes les pages du PDF (30 au plus), avec « Ouvrir dans un onglet » et « Télécharger ». Le fichier
+  // reste sur le poste, en mémoire : une conversation reprise plus tard garde la carte, mais plus l'aperçu (dit à l'ouverture).
+  var MAX_PAGES_APERCU_PIECE_JOINTE = 30;
+  var apercuPieceJointeOuvert = null;     // { id, jeton } tant que la visionneuse est ouverte
+
+  // Pure : « PDF · 2,4 Mo » / « Image · 850 Ko ».
+  function legendePieceJointeAssistant(sorte, octets) {
+    const n = Number(octets) || 0;
+    const taille = n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1).replace('.', ',')} Mo` : n ? `${Math.max(1, Math.round(n / 1024))} Ko` : '';
+    return [sorte === 'pdf' ? 'PDF' : 'Image', taille].filter(Boolean).join(' · ');
+  }
+
+  function htmlCartePieceJointeAssistant(p) {
+    return `<button type="button" class="asst-pj-carte" onclick="ouvrirApercuPieceJointe('${escapeOnclickArg(p.id)}')" title="Voir ${escapeAttr(p.nom)}">
+        <span class="asst-pj-vignette" data-pj="${escapeAttr(p.id)}" aria-hidden="true">${icone(p.sorte === 'pdf' ? 'file-text' : 'paperclip')}</span>
+        <span class="asst-pj-infos"><span class="asst-pj-titre">${escapeHtml(p.nom)}</span><span class="asst-pj-legende">${escapeHtml(legendePieceJointeAssistant(p.sorte, p.fichier && p.fichier.size))}</span></span>
+      </button>`;
+  }
+
+  function urlPieceJointeAssistant(doc) {
+    if (!doc.urlObjet && doc.fichier && typeof URL !== 'undefined' && URL.createObjectURL) doc.urlObjet = URL.createObjectURL(doc.fichier);
+    return doc.urlObjet || '';
+  }
+
+  // Remplit les vignettes des cartes affichées (appelée à la fin de chaque dessin de la conversation) : l'image, ou la page 1 d'un PDF.
+  async function remplirVignettesPiecesJointesAssistant() {
+    const zone = document.getElementById('assistant-messages');
+    if (!zone) return;
+    for (const el of Array.from(zone.querySelectorAll('.asst-pj-vignette[data-pj]'))) {
+      const doc = documentsAgentConnus[el.dataset.pj];
+      if (!doc || doc.sorte !== 'joint' || !doc.fichier) continue;
+      try {
+        if (doc.sortePiece === 'image') {
+          const url = urlPieceJointeAssistant(doc);
+          if (url) { el.innerHTML = `<img src="${url}" alt="" loading="lazy">`; el.classList.add('avec-image'); }
+        } else if (doc.sortePiece === 'pdf' && typeof pdfjsLib !== 'undefined') {
+          if (!doc.vignette) {
+            const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+            doc.pages = pdf.numPages;
+            doc.vignette = await imagePagePdf(pdf, 1, 360, 0.8);
+            try { pdf.destroy(); } catch (e) { /* déjà libéré */ }
+          }
+          el.innerHTML = `<img src="${doc.vignette}" alt="">`;
+          noterVerificationPoste('assistant-apercu-piece-jointe', { detail: 'vignette de PDF' });
+          el.classList.add('avec-image');
+          const legende = el.closest('.asst-pj-carte') && el.closest('.asst-pj-carte').querySelector('.asst-pj-legende');
+          if (legende && doc.pages) legende.textContent = `${legendePieceJointeAssistant('pdf', doc.fichier.size)} · ${doc.pages} page${doc.pages > 1 ? 's' : ''}`;
+        }
+      } catch (e) { if (doc.sortePiece === 'pdf') noterVerificationPoste('assistant-apercu-piece-jointe', { ok: false, message: 'vignette de PDF impossible' }); }
+    }
+  }
+
+  async function ouvrirApercuPieceJointe(id) {
+    const doc = documentsAgentConnus[id];
+    let overlay = document.getElementById('pj-apercu-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'pj-apercu-overlay';
+      overlay.className = 'scan-apercu-overlay';
+      overlay.addEventListener('click', (e) => { if (clicSurFond(e)) fermerApercuPieceJointe(); });
+      document.body.appendChild(overlay);
+    }
+    const jeton = {};
+    apercuPieceJointeOuvert = { id, jeton };
+    const nom = doc && doc.nom ? doc.nom : 'Pièce jointe';
+    const url = doc && doc.fichier ? urlPieceJointeAssistant(doc) : '';
+    overlay.innerHTML = `<div class="scan-apercu" role="dialog" aria-modal="true" aria-labelledby="pj-apercu-titre">
+        <header class="scan-apercu-tete">
+          <div class="scan-apercu-titres">
+            <h2 id="pj-apercu-titre">${escapeHtml(nom)}</h2>
+            <div class="scan-apercu-meta"><span id="pj-apercu-meta">${escapeHtml(doc ? legendePieceJointeAssistant(doc.sortePiece, doc.taille) : '')}</span></div>
+          </div>
+          ${url ? `<a class="bouton-icone icon-btn" href="${escapeAttr(url)}" target="_blank" rel="noopener" title="Ouvrir dans un onglet" aria-label="Ouvrir dans un onglet">${icone('maximize')}</a>
+          <a class="bouton-icone icon-btn" href="${escapeAttr(url)}" download="${escapeAttr(nom)}" title="Télécharger" aria-label="Télécharger">${icone('download')}</a>` : ''}
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerApercuPieceJointe()" aria-label="Fermer l’aperçu">${icone('x')}</wa-button>
+        </header>
+        <div class="scan-apercu-corps" id="pj-apercu-corps"><p class="hint scan-etat">${icone('spinner', null, true)} Chargement…</p></div>
+      </div>`;
+    overlay.style.display = 'flex';
+    const corps = document.getElementById('pj-apercu-corps');
+    const actif = () => apercuPieceJointeOuvert && apercuPieceJointeOuvert.jeton === jeton;
+    try {
+      if (!doc || !doc.fichier) throw new Error('Le fichier n’est plus sur ce poste : une conversation reprise plus tard ne garde pas les pièces jointes.');
+      if (doc.sortePiece === 'image') {
+        corps.innerHTML = `<figure class="scan-apercu-page"><img src="${escapeAttr(url)}" alt="${escapeAttr(nom)}"></figure>`;
+        return;
+      }
+      if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible : ouvrez le fichier dans un onglet.');
+      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      if (!actif()) return;
+      const total = pdf.numPages;
+      const meta = document.getElementById('pj-apercu-meta');
+      if (meta) meta.textContent = `${legendePieceJointeAssistant('pdf', doc.taille)} · ${total} page${total > 1 ? 's' : ''}`;
+      corps.innerHTML = '';
+      const largeur = Math.min(1600, Math.round(Math.max(320, corps.clientWidth - 32) * (window.devicePixelRatio || 1)));
+      for (let n = 1; n <= Math.min(total, MAX_PAGES_APERCU_PIECE_JOINTE); n++) {
+        const img = await imagePagePdf(pdf, n, largeur, 0.85);
+        if (!actif()) return;
+        const fig = document.createElement('figure');
+        fig.className = 'scan-apercu-page';
+        fig.innerHTML = `<img src="${img}" alt="Page ${n}"><figcaption>Page ${n} / ${total}</figcaption>`;
+        corps.appendChild(fig);
+      }
+      if (total > MAX_PAGES_APERCU_PIECE_JOINTE) corps.insertAdjacentHTML('beforeend', `<p class="hint scan-etat">${total - MAX_PAGES_APERCU_PIECE_JOINTE} pages de plus : ouvrez le fichier dans un onglet.</p>`);
+    } catch (e) {
+      if (actif()) corps.innerHTML = `<p class="hint scan-etat">${icone('alert-triangle')} ${escapeHtml(e.message || 'Aperçu impossible.')}</p>`;
+    }
+  }
+
+  function fermerApercuPieceJointe() {
+    apercuPieceJointeOuvert = null;
+    const overlay = document.getElementById('pj-apercu-overlay');
+    if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) {
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && apercuPieceJointeOuvert) { e.stopPropagation(); fermerApercuPieceJointe(); } }, true);
   }

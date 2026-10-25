@@ -22,7 +22,7 @@
   function titreConversationAssistant(messages) {
     const m = (messages || []).find(x => x && x.role === 'moi');
     if (!m) return 'Nouvelle conversation';
-    const t = String(m.html || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    const t = String(m.html || '').replace(/<div class="asst-pj-liste">[\s\S]*?<\/div>/g, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
     return t.length > 60 ? t.slice(0, 59).trimEnd() + '…' : (t || 'Nouvelle conversation');
   }

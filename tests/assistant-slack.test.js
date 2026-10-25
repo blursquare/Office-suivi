@@ -51,3 +51,18 @@ test('@ : le dossier choisi est imposé tant que son nom reste dans la phrase, l
   assert.equal(app.dossierMentionneAssistant('Mes tâches du jour', mentions), '', 'nom effacé : rien d’imposé');
   assert.equal(app.dossierMentionneAssistant('ROY', []), '');
 });
+
+test('pièce jointe : la légende dit la sorte et la taille, la carte porte un identifiant et jamais le nom dans un attribut de code', () => {
+  assert.equal(app.legendePieceJointeAssistant('pdf', 2.4 * 1024 * 1024), 'PDF · 2,4 Mo');
+  assert.equal(app.legendePieceJointeAssistant('image', 850 * 1024), 'Image · 850 Ko');
+  assert.equal(app.legendePieceJointeAssistant('pdf', 0), 'PDF');
+  const html = app.htmlCartePieceJointeAssistant({ id: 'pj3', nom: 'Compromis <MARTIN>.pdf', sorte: 'pdf', fichier: { size: 1024 } });
+  assert.match(html, /ouvrirApercuPieceJointe\('pj3'\)/);
+  assert.doesNotMatch(html, /<MARTIN>/);
+  assert.match(html, /data-pj="pj3"/);
+});
+
+test('titre d’une conversation : sans le nom des pièces jointes', () => {
+  const html = 'Que contient cet avis ?<div class="asst-pj-liste"><button class="asst-pj-carte"><span class="asst-pj-titre">avis-taxe-fonciere.png</span></button></div>';
+  assert.equal(app.titreConversationAssistant([{ role: 'moi', html }]), 'Que contient cet avis ?');
+});
