@@ -233,5 +233,6 @@ test('non-lus : seules les cartes de proposition de CLAIRE sont comptées à par
   const c = C.compterCanal(e, 0, 'Bastien ANGLUMENT');
   assert.equal(c.nonLus, 4);
   assert.equal(c.mentions, 1);
-  assert.equal(c.nonLusCartes, 1, 'la carte qui vous cite compte comme mention');
+  assert.equal(c.nonLusCartes, 2, 'toute carte de proposition, même adressée à vous');
+  assert.equal(c.mentionsCartes, 1, 'la carte adressée à son responsable n’est pas une mention pour la pastille');
 });

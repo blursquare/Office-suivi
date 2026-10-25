@@ -38,3 +38,8 @@ test('notifications : une par rubrique qui monte, rubrique et nombre seulement ;
   assert.equal(app.nouveautesNotifications(avant, apres, { windows: false }).length, 0);
   assert.equal(app.nouveautesNotifications(avant, apres, { sources: { scans: true } }).map((x) => x.cle).join(','), 'messages,scans');
 });
+
+test('mentions : une carte de proposition adressée au responsable n’est pas une mention (déjà dans « À traiter »)', () => {
+  assert.equal(app.mentionsHorsCartes({ mentions: 3, mentionsCartes: 2 }), 1);
+  assert.equal(app.mentionsHorsCartes({ mentions: 1 }), 1, 'ancienne réponse du serveur');
+});

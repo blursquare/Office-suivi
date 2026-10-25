@@ -76,6 +76,11 @@ function nouveautesNotifications(avant, apres, reglages) {
 
 // Les compteurs de l'écran, chacun lu par la fonction qui fait déjà sa pastille dans la barre latérale. `reglages` : seules les
 // rubriques allumées sont calculées (« Aujourd'hui » et les scans parcourent tous les dossiers) ; sans réglages, toutes (écran des Réglages).
+// Pure : les mentions d'un canal sans les cartes de proposition adressées au collaborateur (comptées par « À traiter »).
+function mentionsHorsCartes(c) {
+  return Math.max(0, (Number(c && c.mentions) || 0) - (Number(c && c.mentionsCartes) || 0));
+}
+
 function compteursNotifications(reglages) {
   const allumees = reglages ? reglagesNotificationsComplets(reglages).sources : null;
   const lire = (cle, f) => {
@@ -85,9 +90,9 @@ function compteursNotifications(reglages) {
   return {
     // Une proposition de CLAIRE (sa carte) est aussi un message de son canal : comptée par « À traiter » seulement. Les réponses de
     // CLAIRE et les messages qui vous citent restent des messages.
-    messages: lire('messages', () => (canaux.liste || []).reduce((t, c) => t + (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? (Number(c.mentions) || 0)
+    messages: lire('messages', () => (canaux.liste || []).reduce((t, c) => t + (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? mentionsHorsCartes(c)
       : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0))), 0)),
-    mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + (Number(c.mentions) || 0), 0)),
+    mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + mentionsHorsCartes(c), 0)),
     traiter: lire('traiter', () => propositionsClaire.liste.length),
     suivi: lire('suivi', () => totalNotificationsPieces()),
     scans: lire('scans', () => nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif())),

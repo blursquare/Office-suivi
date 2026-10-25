@@ -316,15 +316,17 @@ function compterCanal(entree, luLe, collab) {
   let nonLus = 0;
   let mentions = 0;
   let nonLusCartes = 0;   // propositions des routines (message de CLAIRE avec sa carte) : la pastille les compte par « À traiter »
+  let mentionsCartes = 0;   // dont celles qui « citent » leur responsable (`pour`) — pas une mention pour la pastille
   for (const r of recents) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
     nonLus += 1;
     const cite = String(r[2] || '').split('|').includes(collab);
     if (cite) mentions += 1;
-    // Une réponse de CLAIRE, la veille ou un message qui vous cite restent des messages ; seule la carte d'une proposition est à part.
-    else if (r[3] === 1 && r[4] === 1) nonLusCartes += 1;
+    // Une réponse de CLAIRE, la veille ou un message qui vous cite restent des messages ; seule la carte d'une proposition est à part
+    // (relecture 25/10 : la carte est adressée à son responsable par `pour`, qui la range parmi ses mentions).
+    if (r[3] === 1 && r[4] === 1) { nonLusCartes += 1; if (cite) mentionsCartes += 1; }
   }
-  return { nonLus, mentions, nonLusCartes };
+  return { nonLus, mentions, nonLusCartes, mentionsCartes };
 }
 
 /**
@@ -349,7 +351,7 @@ function listerCanaux(repo, collab, collaborateurs) {
     badge += notif === 'muet' ? 0 : notif === 'mentions' ? c.mentions : c.nonLus;
     const libre = libres.find((l) => l.id === id);
     return { id, nom: libre ? libre.nom : '', libre: !!libre, prive: id.startsWith('p:'), membres: id.startsWith('p:') ? (membresPrive(id, collaborateurs || []) || []) : undefined, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
-      nonLus: c.nonLus, mentions: c.mentions, nonLusCartes: c.nonLusCartes, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
+      nonLus: c.nonLus, mentions: c.mentions, nonLusCartes: c.nonLusCartes, mentionsCartes: c.mentionsCartes, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
   });
   return { canaux, badge };
 }
