@@ -108,9 +108,8 @@
       zone.innerHTML = `<div class="asst-accueil">
           <div class="asst-accueil-logo" aria-hidden="true">${icone('discussion')}</div>
           <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
-          <p class="asst-accueil-texte">Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase. Tapez @ pour citer un dossier.</p>
-          <div class="asst-suggestions">${suggestionsAssistant(dossiersPerimetreDashboard()).map(s =>
-            `<button type="button" class="asst-suggestion" onclick="envoyerDemandeAssistant(this.textContent)">${escapeHtml(s)}</button>`).join('')}</div>
+          <p class="asst-accueil-texte">Ceci est votre espace avec Claire. Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander ${suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5).map(s =>
+            `<span class="asst-exemple" role="button" tabindex="0" data-q="${escapeAttr(s)}" onclick="envoyerDemandeAssistant(this.dataset.q)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); envoyerDemandeAssistant(this.dataset.q); }">« ${escapeHtml(s)} »</span>`).join(', ')}, ou autre chose.</p>
         </div>`;
       return;
     }

@@ -9609,13 +9609,19 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-diese { color: var(--muted); margin-right: 4px; font-weight: 500; }
 .asst-etat { font-size: var(--texte-s); min-width: 0; }
 .asst-tete-espace { flex: 1 1 auto; }
-.asst-messages { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 8px 0 16px; }
-.asst-accueil { max-width: 720px; padding: 32px 24px 16px; }
+.asst-messages { flex: 1 1 auto; overflow-y: auto; min-height: 0; padding: 8px 0 16px; display: flex; flex-direction: column; }
+/* Comme Slack : les échanges s'affichent en bas, au-dessus de la saisie, et remontent à mesure que la conversation avance. */
+.asst-messages::before { content: ''; flex: 1 1 auto; }
+.asst-messages > * { flex: 0 0 auto; }
+.asst-messages > .asst-message, .asst-messages > .asst-accueil { width: 100%; box-sizing: border-box; }
+.asst-accueil { max-width: 720px; margin: 0 auto; text-align: left; padding: 32px 24px 16px; }
 .asst-accueil-logo { width: 48px; height: 48px; margin-bottom: 12px; }
 .asst-accueil-logo .icone { width: 24px; height: 24px; }
 .asst-accueil-titre { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; margin: 0 0 6px; }
 .asst-accueil-texte { color: var(--muted); margin: 0 0 20px; font-size: var(--texte-base); }
-.asst-suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+.asst-accueil-texte { line-height: 1.6; color: var(--ink); }
+.asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
+.asst-accueil-texte .asst-exemple:hover { text-decoration-color: var(--focus); }
 .asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 6px 14px; cursor: pointer; text-align: left; max-width: 100%; }
 .asst-suggestion:hover { background: var(--paper-sunk); border-color: var(--muted); }
 .asst-jour { display: flex; align-items: center; gap: 12px; margin: 12px 24px 4px; color: var(--muted); font-size: var(--texte-xs); font-weight: 600; }
@@ -9697,7 +9703,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-mention-ligne.actif { box-shadow: inset 2px 0 0 var(--focus); }
 .asst-mention-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--texte-m); }
 .asst-mention-note { color: var(--muted); font-size: var(--texte-xs); }
-.asst-pied { color: var(--muted); font-size: var(--texte-xs); text-align: center; margin: 6px 0 0; }
 /* Champ du widget du tableau de bord : même forme qu'avant la page façon Slack (une ligne, bouton à droite). */
 @media (max-width: 900px) {
   #onglet-assistant { margin: 0 -16px -32px; }
@@ -9709,12 +9714,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .asst-message { padding-left: 16px; padding-right: 16px; gap: 10px; grid-template-columns: 32px minmax(0, 1fr); }
   .asst-avatar { width: 32px; height: 32px; }
   .asst-bas { padding: 0 12px 8px; }
-  .asst-astuce, .asst-pied { display: none; }
+  .asst-astuce { display: none; }
   .asst-suggestion { font-size: var(--texte-s); padding: 6px 10px; }
 }
 /* Fenêtre peu haute (22/10) : les suites rapides et l'astuce du bas écrasaient la conversation, « CLAIRE écrit » restait cachée sous le champ. */
 @media (max-height: 820px) {
-  .asst-astuce, .asst-pied { display: none; }
+  .asst-astuce { display: none; }
   .asst-messages { min-height: 160px; }
 }
 @media (max-height: 640px) { .asst-relances { display: none; } }
@@ -10801,11 +10806,10 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-titre { font-weight: 500; }
 .asst-tete { border-bottom: 0; padding: 12px 24px 0; min-height: 52px; }
 .asst-messages { padding: 8px 24px 24px; }
-.asst-accueil { max-width: 720px; margin: 0 auto; padding: 56px 0 16px; text-align: center; }
+.asst-accueil { max-width: 720px; margin: 0 auto; padding: 56px 0 16px; text-align: left; }
 .asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; margin-bottom: 16px; color: var(--focus); }
 .asst-accueil-logo .icone { width: 32px; height: 32px; }
 .asst-accueil-titre { font-size: var(--texte-4xl); }
-.asst-accueil .asst-suggestions { justify-content: center; }
 .asst-jour { max-width: 720px; margin: 16px auto 8px; }
 .asst-jour::before, .asst-jour::after { display: none; }
 .asst-jour span { margin: 0 auto; border: 0; background: transparent; }
