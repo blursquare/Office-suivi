@@ -28,7 +28,25 @@
     return `${anneeCible}-${pad(moisCible + 1)}-${pad(Math.min(jour, dernierJour))}`;
   }
 
-  const exportes = { pad, addDays, ajouterMois };
+  // Jours fériés de France métropolitaine d'une année (fixes, et lundi de Pâques, Ascension, lundi de Pentecôte d'après Pâques —
+  // calcul de Meeus/Jones/Butcher), en AAAA-MM-JJ triés. Commun au poste (créneaux de signature) et au serveur (routines, 25/10).
+  /** @param {number} annee @returns {string[]} */
+  function joursFeriesFrance(annee) {
+    const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
+    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+    const paques = `${annee}-${pad(mois)}-${pad(jour)}`;
+    return ['01-01', '05-01', '05-08', '07-14', '08-15', '11-01', '11-11', '12-25'].map(md => `${annee}-${md}`)
+      .concat([addDays(paques, 1), addDays(paques, 39), addDays(paques, 50)]).sort();
+  }
+  /** @param {string} iso AAAA-MM-JJ */
+  function estJourFerie(iso) {
+    return joursFeriesFrance(Number(String(iso).slice(0, 4))).indexOf(String(iso).slice(0, 10)) !== -1;
+  }
+
+  const exportes = { pad, addDays, ajouterMois, joursFeriesFrance, estJourFerie };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

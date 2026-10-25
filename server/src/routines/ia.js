@@ -14,6 +14,7 @@ const { motsSensiblesDossiers, masquer, retablirTexte, MODELES_CLAUDE_ASSISTANT 
 const { requeteAssistantClaude, messageErreurClaude } = require('../assistantClaude');
 const { promptPropositionReponse, validerProposition } = require('../envoiEmailsExchange');
 const { sansSaufErreur } = require('../../../commun/assistant');
+const { estJourFerie } = require('../../../commun/dates');
 const { libelleDossierAffiche, estSuccession } = require('../../../commun/dossier');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
 const { lireUsageRoutines, ajouterDepenseRoutines, plafondAtteint } = require('./usage');
@@ -36,10 +37,14 @@ const SCHEMA_RELANCE = {
 
 // ---- Pures ----
 
-/** Le jour ouvré qui précède `iso` (vendredi pour un lundi). @param {string} iso AAAA-MM-JJ */
+/**
+ * Le jour ouvré qui précède `iso` : ni samedi, ni dimanche, ni jour férié (vendredi pour un lundi ; le mardi 10/11 pour le jeudi
+ * 12/11, le 11 étant férié). Tout ce qui est arrivé entre ce jour-là 18 h et ce matin 8 h — week-end et jours fériés compris — est repris.
+ * @param {string} iso AAAA-MM-JJ
+ */
 function veilleOuvree(iso) {
   const t = new Date(String(iso).slice(0, 10) + 'T12:00:00Z');
-  do { t.setUTCDate(t.getUTCDate() - 1); } while (t.getUTCDay() === 0 || t.getUTCDay() === 6);
+  do { t.setUTCDate(t.getUTCDate() - 1); } while (t.getUTCDay() === 0 || t.getUTCDay() === 6 || estJourFerie(t.toISOString().slice(0, 10)));
   return t.toISOString().slice(0, 10);
 }
 

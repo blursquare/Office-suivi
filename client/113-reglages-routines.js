@@ -24,7 +24,7 @@ function texteStatsRoutine(s) {
   return morceaux.join(' · ');
 }
 
-// Pure : le prochain passage des routines horaires — « aujourd'hui à 9 h 30 », « demain à 9 h 30 », « lundi à 9 h 30 » (jours ouvrés seulement).
+// Pure : le prochain passage des routines horaires — « aujourd'hui à 9 h 30 », « demain à 9 h 30 », « lundi à 9 h 30 » (jours ouvrés seulement, jours fériés exclus).
 function prochainPassageRoutines(heure, maintenant) {
   const m = /^(\d{2}):(\d{2})$/.exec(heure || '');
   if (!m) return '';
@@ -32,7 +32,8 @@ function prochainPassageRoutines(heure, maintenant) {
   const cible = new Date(base.getTime());
   cible.setHours(Number(m[1]), Number(m[2]), 0, 0);
   if (cible.getTime() <= base.getTime()) cible.setDate(cible.getDate() + 1);
-  while (cible.getDay() === 0 || cible.getDay() === 6) cible.setDate(cible.getDate() + 1);
+  const isoDe = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  while (cible.getDay() === 0 || cible.getDay() === 6 || estJourFerie(isoDe(cible))) cible.setDate(cible.getDate() + 1);
   const debut = new Date(base.getFullYear(), base.getMonth(), base.getDate());
   const jours = Math.round((new Date(cible.getFullYear(), cible.getMonth(), cible.getDate()) - debut) / 86400000);
   const quand = jours === 0 ? 'aujourd’hui' : (jours === 1 ? 'demain' : cible.toLocaleDateString('fr-FR', { weekday: 'long' }));

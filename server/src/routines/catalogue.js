@@ -49,10 +49,10 @@ const CATALOGUE = [
   { id: 'proposition-dates', nom: 'Proposition de dates', icone: 'clock', phase: 3, disponible: true, declencheur: 'Dossier complet sans rendez-vous', ia: true,
     description: 'Quand un dossier est complet et sans rendez-vous, prépare le sondage de dates (créneaux dans les règles de l’étude) à envoyer aux clients.',
     gestes: [{ cle: 'email', libelle: 'Préparer le sondage de dates', niveauMax: 1 }] },
-  { id: 'reponses-emails', nom: 'Réponses aux emails du soir', icone: 'mail', phase: 3, disponible: true, declencheur: 'Chaque matin, pour les emails reçus après 18 h', ia: true,
-    description: 'Le matin, un brouillon de réponse pour chaque email reçu d’un client ou d’un confrère d’un dossier entre 18 h la veille et 8 h. Rien ne part sans votre clic sur « Envoyer ».',
+  { id: 'reponses-emails', nom: 'Réponses aux emails du soir', icone: 'mail', phase: 3, disponible: true, declencheur: 'Chaque matin ouvré, pour les emails reçus depuis la veille ouvrée 18 h (week-end et jours fériés compris)', ia: true,
+    description: 'Le matin, un brouillon de réponse pour chaque email reçu d’un client ou d’un confrère d’un dossier depuis 18 h la veille ouvrée (soir, week-end et jours fériés compris). Rien ne part sans votre clic sur « Envoyer ».',
     gestes: [{ cle: 'reponse', libelle: 'Préparer le brouillon de réponse', niveauMax: 2, sensible: true }] },
-  { id: 'veille-juridique', nom: 'Veille juridique', icone: 'scale', phase: 3, disponible: true, declencheur: 'Chaque semaine', ia: true,
+  { id: 'veille-juridique', nom: 'Veille juridique', icone: 'scale', phase: 3, disponible: true, declencheur: 'Chaque semaine, le premier jour ouvré', ia: true,
     description: 'Résume les nouveautés de Légifrance et du BOFiP utiles à l’office. Aucune donnée de client.',
     gestes: [{ cle: 'resume', libelle: 'Déposer le résumé hebdomadaire', niveauMax: 1 }] }
 ];

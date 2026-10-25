@@ -91,21 +91,8 @@
     return semaines;
   }
 
-  // Pure : jours fériés en France métropolitaine d'une année (AAAA-MM-JJ) — fixes, et ceux qui
-  // suivent Pâques (lundi de Pâques, Ascension, lundi de Pentecôte). Aucun créneau n'y est proposé.
-  function joursFeriesFrance(annee) {
-    const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100;
-    const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
-    const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
-    const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
-    const mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
-    const paques = `${annee}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}`;
-    return ['01-01', '05-01', '05-08', '07-14', '08-15', '11-01', '11-11', '12-25'].map(md => `${annee}-${md}`)
-      .concat([addDays(paques, 1), addDays(paques, 39), addDays(paques, 50)]).sort();
-  }
-  function estJourFerie(iso) {
-    return joursFeriesFrance(Number(String(iso).slice(0, 4))).indexOf(iso) !== -1;
-  }
+  // Jours fériés (aucun créneau n'y est proposé) : joursFeriesFrance / estJourFerie, dans commun/dates.js depuis le 25/10 (le serveur
+  // en a besoin pour les routines).
 
   // ---- Probabilité de tenue d'une signature ----
   var PROBABILITE_MAX_SIGNATURE = 99;

@@ -21851,3 +21851,13 @@ Bastien : « Il me faut toutes les phases pour demain et rajoute une proposition
 - Réglages : révision 2 — jamais enregistrés ou d'avant = tout allumé au niveau 1 ; un réglage écrit fait foi.
 Non vérifié au bureau : tout ce qui touche Exchange (lecture des emails), la clé Claude et la recherche web ; la qualité des brouillons.
 Audit et relecture du même soir (`docs/audits/2026-10-25-0.348.0.md`), corrigés avant l'envoi : texte préparé visible sur la carte, disjoncteur Exchange respecté, niveau en vigueur à la décision, « Lancer maintenant » refusé pour une routine éteinte ou pendant un passage, plafond et interrupteurs réservés à l'administrateur, libellés des pièces masqués (l'IA rend des numéros), une relance des pièces par dossier, réponses préparées depuis CLAIRE comptées comme répondues, passage des emails à 8 h 05.
+
+### 25/10/2026 — 0.348.1 : routines, jours fériés et week-end
+
+Demande de Bastien : « Le lendemain d'un jour férié, les emails reçus pendant la journée du jour férié ne sont pas repris. Penser au
+week-end aussi ». `joursFeriesFrance` / `estJourFerie` passent de `client/25-page-agenda.js` à `commun/dates.js` (poste et serveur).
+`veilleOuvree` (`server/src/routines/ia.js`) saute samedis, dimanches et fériés : le jeudi 12/11 reprend depuis le mardi 10/11 18 h,
+donc tout le 11 novembre ; le mardi après le lundi de Pentecôte reprend depuis le vendredi 18 h. Le planificateur (`infosParis`) ne
+tient aucun jour férié pour ouvré ; la veille juridique n'attend plus le lundi : elle part au premier jour ouvré de la semaine (empreinte
+de la semaine, jamais deux). Le prochain passage affiché dans Réglages › Routines saute aussi les fériés. Test dans
+`server/test/routines-phases.test.js`.

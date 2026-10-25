@@ -219,3 +219,42 @@ test('« Lancer maintenant » : refusé pour une routine éteinte', async () => 
   const r = await creerPlanificateur({ parametresRepo: repo, depot: { tousActifs: () => [] } }).lancer('revue-matin', { responsable: 'Julie VASSELIN' });
   assert.equal(r.ok, false);
 });
+
+test('jours fériés et week-end : la veille ouvrée saute les deux, les emails reçus un jour férié sont repris le lendemain ; rien ne tourne un jour férié', async () => {
+  assert.equal(IA.veilleOuvree('2026-11-12'), '2026-11-10', 'jeudi après le 11 novembre (mercredi férié)');
+  assert.equal(IA.veilleOuvree('2026-05-26'), '2026-05-22', 'mardi après le lundi de Pentecôte et le week-end');
+  assert.equal(IA.recuApres18h('2026-11-11T10:00:00Z', '2026-11-12'), true, 'reçu le 11 novembre en journée');
+  assert.equal(IA.recuApres18h('2026-11-10T18:30:00Z', '2026-11-12'), true, 'reçu le 10 au soir');
+  assert.equal(IA.recuApres18h('2026-11-10T10:00:00Z', '2026-11-12'), false, 'le 10 aux heures de bureau');
+  assert.equal(IA.recuApres18h('2026-05-25T09:00:00Z', '2026-05-26'), true, 'lundi de Pentecôte');
+  assert.equal(IA.recuApres18h('2026-05-23T09:00:00Z', '2026-05-26'), true, 'samedi');
+  const { infosParis } = require('../src/routines/planificateur');
+  assert.equal(infosParis(new Date('2026-11-11T09:40:00+01:00')).ouvre, false, 'le 11 novembre n’est pas ouvré');
+  const repo = fauxRepo();
+  const d = vente({ pret: '2026-11-20' });
+  await creerPlanificateur({ parametresRepo: repo, depot: { tousActifs: () => [d], trouverParId: () => d }, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({ reponse: 'x' })), lireEmail: async () => ({ texte: '' }) })
+    .tour(new Date('2026-11-11T09:40:00+01:00'));
+  assert.equal(P.lirePropositions(repo).length, 0, 'aucune routine un jour férié');
+});
+
+test('veille juridique : un échec n’est pas relancé le lendemain ; un lundi férié, elle part le mardi, une seule fois', async () => {
+  const depot = { tousActifs: () => [], trouverParId: () => null };
+  const repo = fauxRepo();
+  let appels = 0;
+  const enEchec = Object.assign(fausseIa(() => ({})), { async texteAvecRecherche() { appels += 1; throw new Error('recherche interrompue'); } });
+  const p = creerPlanificateur({ parametresRepo: repo, depot, envoyer: async () => ({ ok: true }), ia: enEchec, lireEmail: async () => ({ texte: '' }) });
+  await p.tour(new Date('2026-10-26T09:40:00+01:00'));
+  await p.tour(new Date('2026-10-27T09:40:00+01:00'));
+  await p.tour(new Date('2026-10-28T09:40:00+01:00'));
+  assert.equal(appels, 1, 'un seul essai payé dans la semaine');
+  await p.tour(new Date('2026-11-02T09:40:00+01:00'));
+  assert.equal(appels, 2, 'la semaine suivante, un nouvel essai');
+
+  const repo2 = fauxRepo();
+  const p2 = creerPlanificateur({ parametresRepo: repo2, depot, envoyer: async () => ({ ok: true }), ia: fausseIa(() => ({})), lireEmail: async () => ({ texte: '' }) });
+  await p2.tour(new Date('2027-05-17T09:40:00+02:00'));
+  assert.equal(P.lirePropositions(repo2).filter((x) => x.routine === 'veille-juridique').length, 0, 'lundi de Pentecôte : rien');
+  await p2.tour(new Date('2027-05-18T09:40:00+02:00'));
+  await p2.tour(new Date('2027-05-19T09:40:00+02:00'));
+  assert.equal(P.lirePropositions(repo2).filter((x) => x.routine === 'veille-juridique').length, 1, 'le mardi, une seule');
+});

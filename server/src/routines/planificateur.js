@@ -21,6 +21,7 @@ const { niveauEffectif } = require('./reglages');
 const { statsRoutine } = require('./propositions');
 const { CATALOGUE } = require('./catalogue');
 const { libelleDossierAffiche } = require('../../../commun/dossier');
+const { estJourFerie } = require('../../../commun/dates');
 const { envoiConfigure } = require('../envoiEmail');
 const { noterVerification } = require('../verificationsTerrain');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
@@ -49,7 +50,10 @@ function infosParis(date) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23' })
     .formatToParts(date).map((x) => [x.type, x.value]));
   const jour = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(p.weekday) + 1;
-  return { iso: `${p.year}-${p.month}-${p.day}`, hhmm: `${p.hour}:${p.minute}`, jour, ouvre: jour >= 1 && jour <= 5 };
+  const iso = `${p.year}-${p.month}-${p.day}`;
+  // Jour ouvré = du lundi au vendredi, hors jours fériés (25/10 : les routines et le résumé Teams ne tournent pas un jour férié ; ce qui
+  // est arrivé ce jour-là est repris le jour ouvré suivant).
+  return { iso, hhmm: `${p.hour}:${p.minute}`, jour, ouvre: jour >= 1 && jour <= 5 && !estJourFerie(iso) };
 }
 
 /** « Julie VASSELIN » → « Julie ». @param {string} nom */
@@ -233,7 +237,8 @@ function creerPlanificateur(deps) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }
     }
-    // Par l'IA : les brouillons de réponse aux emails du soir et les relances dès 8 h ; la veille juridique le lundi à l'heure du passage.
+    // Par l'IA : les brouillons de réponse aux emails du soir et les relances dès 8 h ; la veille juridique au premier jour ouvré de la
+    // semaine (le lundi, ou le mardi après un lundi férié) à l'heure du passage — une seule par semaine, vérifiée avant tout appel.
     for (const id of ['reponses-emails', 'relance-pieces']) {
       // 8 h 05 : le relevé des emails des dossiers (toutes les minutes) a eu le temps de prendre ceux arrivés juste avant 8 h.
       if (!actif(id) || info.hhmm < '08:05' || !auBureau || passages[id] === info.iso) continue;
@@ -242,8 +247,10 @@ function creerPlanificateur(deps) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }
     }
-    if (actif('veille-juridique') && info.jour === 1 && info.hhmm >= reglages.heure && auBureau && passages['veille-juridique'] !== info.iso) {
-      marquer('veille-juridique', info.iso);
+    // Passage marqué à la SEMAINE (son lundi) : un échec (IA, plafond, recherche coupée) n'est pas relancé le lendemain.
+    const lundiSemaine = new Date(Date.parse(info.iso + 'T12:00:00Z') - ((info.jour + 6) % 7) * 86400000).toISOString().slice(0, 10);
+    if (actif('veille-juridique') && info.hhmm >= reglages.heure && auBureau && passages['veille-juridique'] !== lundiSemaine) {
+      marquer('veille-juridique', lundiSemaine);
       try { await routineIa('veille-juridique', reglages, maintenant); } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: 'veille-juridique', texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }

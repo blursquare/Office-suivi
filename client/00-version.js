@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.348.0';
+  const VERSION_APP = '0.348.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.348.1', date: '2026-10-25 20:33', resume: "Routines : les jours fériés et le week-end sont pris en compte. Le premier jour ouvré qui suit, CLAIRE propose un brouillon de réponse pour chaque email reçu depuis la veille ouvrée à 18 h — samedi, dimanche et jour férié compris, en journée aussi. Aucune routine ne tourne un jour férié ; la veille juridique passe au mardi quand le lundi est férié." },
     { version: '0.348.0', date: '2026-10-25 19:29', resume: "Routines de CLAIRE : toutes construites et allumées (niveau 1 : CLAIRE propose, vous décidez). Revue du matin (relance de l’offre de prêt, échéances dépassées, pièces manquantes), fiche de signature deux jours avant, constitution du dossier à sa création, appel de fonds dix jours avant la signature, autorisations de fonds avant une notoriété, dates à proposer quand un dossier est complet, relance des pièces demandées par email, veille juridique du lundi — et, chaque matin, un brouillon de réponse pour chaque email d’un client ou d’un confrère reçu après 18 h. Tout arrive dans le canal du dossier ; rien ne part sans votre clic." },
     { version: '0.347.2', date: '2026-10-25 18:25', resume: "Audit de tout le code : messages privés et conversations personnelles mieux cloisonnés (réactions, résumés, pièces jointes), mots de passe oubliés quand l’adresse d’Exchange ou du serveur d’envoi change, un seul tour de l’agenda et des rappels à la fois, rangements de pièces jointes jamais effacés par un tour, relance de l’offre de prêt notée seulement une fois l’email envoyé ou préparé." },
     { version: '0.347.1', date: '2026-10-25 13:30', resume: "Demander à CLAIRE : l’anonymisation est de nouveau active au départ de chaque conversation (elle reste désactivable d’un clic, après confirmation)." },
