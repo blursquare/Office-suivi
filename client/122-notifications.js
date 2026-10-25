@@ -11,7 +11,7 @@
 
 // Les rubriques comptées, dans l'ordre des Réglages. `defaut` : allumée tant que le collaborateur n'a rien réglé.
 var SOURCES_NOTIFICATIONS = [
-  { cle: 'messages', libelle: 'Messages non lus des discussions', aide: 'Les messages non lus de vos collègues dans les canaux de « Demander à CLAIRE », messages privés compris (un canal mis en sourdine ne compte pas ; les propositions de CLAIRE comptent dans « À traiter »).', defaut: true},
+  { cle: 'messages', libelle: 'Messages non lus des discussions', aide: 'Les messages non lus des canaux de « Demander à CLAIRE », messages privés et réponses de CLAIRE compris (un canal mis en sourdine ne compte pas ; les propositions de CLAIRE comptent dans « À traiter »).', defaut: true},
   { cle: 'mentions', libelle: 'Mentions (@vous)', aide: 'Les messages où un collègue ou CLAIRE vous cite. Comptés seuls quand les messages non lus sont éteints.', defaut: true},
   { cle: 'traiter', libelle: 'Propositions de CLAIRE à traiter', aide: 'Ce que les routines de CLAIRE attendent de VOTRE décision (« À traiter »).', defaut: true},
   { cle: 'suivi', libelle: 'Nouveautés du Suivi des dossiers', aide: 'La pastille rouge de « Suivi des dossiers » : pièces trouvées, fonds tous reçus, mises à jour d’Authentic de vos dossiers.', defaut: true},
@@ -83,9 +83,10 @@ function compteursNotifications(reglages) {
     try { const n = Number(f()); return Number.isFinite(n) && n > 0 ? n : 0; } catch (e) { return 0; }
   };
   return {
-    // Messages des personnes seulement : une proposition de CLAIRE est aussi un message de son canal, comptée par « À traiter ».
+    // Une proposition de CLAIRE (sa carte) est aussi un message de son canal : comptée par « À traiter » seulement. Les réponses de
+    // CLAIRE et les messages qui vous citent restent des messages.
     messages: lire('messages', () => (canaux.liste || []).reduce((t, c) => t + (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? (Number(c.mentions) || 0)
-      : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusClaire) || 0))), 0)),
+      : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0))), 0)),
     mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + (Number(c.mentions) || 0), 0)),
     traiter: lire('traiter', () => propositionsClaire.liste.length),
     suivi: lire('suivi', () => totalNotificationsPieces()),

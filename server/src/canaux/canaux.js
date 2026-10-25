@@ -127,7 +127,7 @@ function ajouterMessage(repo, canal, brut, maintenant) {
   repo.ecrireJsonBrut(cleMessages(canal), messages.slice(-MAX_MESSAGES));
   const index = lireIndex(repo);
   const ancien = index[canal] || {};
-  const recents = (Array.isArray(ancien.recents) ? ancien.recents : []).concat([[m.quand, m.auteur, m.mentions.concat(m.pour ? [m.pour] : []).join('|'), m.claire ? 1 : 0]]).slice(-MAX_RECENTS);
+  const recents = (Array.isArray(ancien.recents) ? ancien.recents : []).concat([[m.quand, m.auteur, m.mentions.concat(m.pour ? [m.pour] : []).join('|'), m.claire ? 1 : 0, m.carte ? 1 : 0]]).slice(-MAX_RECENTS);
   index[canal] = { dernierLe: m.quand, dernierAuteur: m.auteur, extrait: extraitDe(m), recents };
   const ids = Object.keys(index);
   if (ids.length > MAX_CANAUX_INDEX) ids.sort((a, b) => (Number(index[a].dernierLe) || 0) - (Number(index[b].dernierLe) || 0)).slice(0, ids.length - MAX_CANAUX_INDEX).forEach((i) => { delete index[i]; });
@@ -315,14 +315,16 @@ function compterCanal(entree, luLe, collab) {
   const recents = Array.isArray(entree && entree.recents) ? entree.recents : [];
   let nonLus = 0;
   let mentions = 0;
-  let nonLusClaire = 0;   // messages de CLAIRE (réponses, propositions des routines) : la pastille les compte par « À traiter »
+  let nonLusCartes = 0;   // propositions des routines (message de CLAIRE avec sa carte) : la pastille les compte par « À traiter »
   for (const r of recents) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
     nonLus += 1;
-    if (r[3] === 1) nonLusClaire += 1;
-    if (String(r[2] || '').split('|').includes(collab)) mentions += 1;
+    const cite = String(r[2] || '').split('|').includes(collab);
+    if (cite) mentions += 1;
+    // Une réponse de CLAIRE, la veille ou un message qui vous cite restent des messages ; seule la carte d'une proposition est à part.
+    else if (r[3] === 1 && r[4] === 1) nonLusCartes += 1;
   }
-  return { nonLus, mentions, nonLusClaire };
+  return { nonLus, mentions, nonLusCartes };
 }
 
 /**
@@ -347,7 +349,7 @@ function listerCanaux(repo, collab, collaborateurs) {
     badge += notif === 'muet' ? 0 : notif === 'mentions' ? c.mentions : c.nonLus;
     const libre = libres.find((l) => l.id === id);
     return { id, nom: libre ? libre.nom : '', libre: !!libre, prive: id.startsWith('p:'), membres: id.startsWith('p:') ? (membresPrive(id, collaborateurs || []) || []) : undefined, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
-      nonLus: c.nonLus, mentions: c.mentions, nonLusClaire: c.nonLusClaire, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
+      nonLus: c.nonLus, mentions: c.mentions, nonLusCartes: c.nonLusCartes, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
   });
   return { canaux, badge };
 }

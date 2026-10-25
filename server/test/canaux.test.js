@@ -226,3 +226,12 @@ test('conservation : les messages de plus de 12 mois sont retirés, les récents
   assert.ok(C.lireIndex(repo)['d:a']);
   assert.equal(C.purgerMessagesAnciens(repo, maintenant), 0, 'rien de plus à retirer');
 });
+
+test('non-lus : seules les cartes de proposition de CLAIRE sont comptées à part (pastille) ; ses réponses et ses mentions restent des messages', () => {
+  const C = require('../src/canaux/canaux');
+  const e = { recents: [[10, 'Julie VASSELIN', '', 0], [11, 'CLAIRE', '', 1, 0], [12, 'CLAIRE', '', 1, 1], [13, 'CLAIRE', 'Bastien ANGLUMENT', 1, 1]] };
+  const c = C.compterCanal(e, 0, 'Bastien ANGLUMENT');
+  assert.equal(c.nonLus, 4);
+  assert.equal(c.mentions, 1);
+  assert.equal(c.nonLusCartes, 1, 'la carte qui vous cite compte comme mention');
+});
