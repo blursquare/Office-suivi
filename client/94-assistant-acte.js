@@ -96,7 +96,7 @@
     const veutActive = !!(champ && champ.checked);
     if (veutActive) { colonneAssistant.anonymiser = true; renderColonneAssistant(); return; }
     // Retirer l'anonymisation envoie des noms en clair : confirmé, dit en clair, jamais par erreur.
-    demanderConfirmation('Désactiver l’anonymisation pour cette conversation ? Les noms, adresses, emails et téléphones des documents et des fiches partiront en clair chez le fournisseur de l’IA (Anthropic ou Mistral). Elle se réactive d’elle-même à la prochaine conversation.', () => {
+    demanderConfirmation('Désactiver l’anonymisation pour cette conversation ? Les noms, adresses, emails et téléphones des documents et des fiches partiront en clair chez le fournisseur de l’IA (Anthropic ou Mistral). Elle reste désactivée tant que vous ne la rallumez pas.', () => {
       colonneAssistant.anonymiser = false;
       renderColonneAssistant();
     }, { bouton: 'Désactiver', ton: 'danger' });
@@ -112,6 +112,6 @@
           <span class="asst-droite-option-texte"><b>Anonymisation</b>${infoBulle('Active : le serveur de l’étude remplace les noms, adresses, emails, téléphones et références par des codes avant de les envoyer à l’IA, et les rétablit dans la réponse. Désactivée : tout part en clair pour cette conversation (analyse plus fine d’un acte, sans codes à déchiffrer) ; la recherche web est alors coupée et les recherches Légifrance ou BOFiP n’emportent jamais un nom. Aucun accord de sous-traitance avec le fournisseur n’est encore attesté.')}</span>
           <wa-switch id="assistant-anonymiser" class="switch"${actif ? ' checked' : ''} onchange="basculerAnonymisationAssistant(this)"></wa-switch>
         </label>
-        <p class="asst-droite-vide">${actif ? 'Les noms sont remplacés par des codes avant l’envoi.' : 'Les noms partent en clair pour cette conversation.'}</p>
+        <p class="asst-droite-vide">${actif ? 'Les noms sont remplacés par des codes avant l’envoi.' : 'Les noms partent en clair (réglage de départ de l’étude).'}</p>
       </details>`;
   }
