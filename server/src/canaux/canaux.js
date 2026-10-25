@@ -25,7 +25,8 @@ const MAX_TEXTE_PERSONNE = 8000;
 const JOURS_CONSERVATION_MESSAGES = 365;
 const NOTIFICATIONS = ['tous', 'mentions', 'muet'];
 
-const RE_CANAL = /^(general|d:[A-Za-z0-9._:-]{1,120}|l:[a-z0-9-]{1,40})$/;
+// `p:julie-bastien` = messages privés (2 ou 3 prénoms rangés par ordre alphabétique, étude 25/10).
+const RE_CANAL = /^(general|d:[A-Za-z0-9._:-]{1,120}|l:[a-z0-9-]{1,40}|p:[a-z]{2,20}(?:-[a-z]{2,20}){1,2})$/;
 
 /** @param {any} v @param {number} n */
 const borne = (v, n) => (typeof v === 'string' ? v : '').trim().slice(0, n);
@@ -84,6 +85,8 @@ function assainirMessage(m) {
     mentions: (Array.isArray(m.mentions) ? m.mentions : []).slice(0, 10).map((x) => borne(x, 80)).filter(Boolean),
     modifieLe: Number(m.modifieLe) || 0,
     epingle: m.epingle === true,
+    // Un fil de discussion (étude 25/10) : la réponse porte l'identifiant du message de départ.
+    parent: borne(m.parent, 60),
     // Réactions (étude 25/10) : un emoji et les prénoms de ceux qui l'ont posé.
     reactions: basculerReaction(m.reactions, '', '')
   };
@@ -170,6 +173,34 @@ function reagirMessage(repo, canal, id, par, emoji, actif) {
   repo.ecrireJsonBrut(cleMessages(canal), messages);
   const pose = reactions.some((r) => r.emoji === emojiValide(emoji) && r.par.includes(par));
   return { message: messages[i], pose, sens: sensReaction(emoji) };
+}
+
+// ---- Messages privés (étude 25/10) ----
+
+/** « Julie VASSELIN » → « julie ». @param {string} nom */
+const slugPrenom = (nom) => plat(prenomDe(nom)).replace(/[^a-z]/g, '');
+
+/** L'identifiant du canal privé de ces collaborateurs (2 ou 3, ordre indifférent), ou ''. @param {string[]} noms */
+function idPrive(noms) {
+  const slugs = [...new Set((noms || []).map(slugPrenom).filter(Boolean))].sort();
+  return slugs.length >= 2 && slugs.length <= 3 ? `p:${slugs.join('-')}` : '';
+}
+
+/** Les collaborateurs d'un canal privé, ou null si l'identifiant n'en est pas un ou cite un inconnu. @param {string} id @param {string[]} collaborateurs */
+function membresPrive(id, collaborateurs) {
+  if (!canalValide(id) || !id.startsWith('p:')) return null;
+  const slugs = id.slice(2).split('-');
+  const membres = slugs.map((s) => (collaborateurs || []).find((c) => slugPrenom(c) === s) || '');
+  return membres.every(Boolean) && new Set(membres).size === membres.length ? membres : null;
+}
+
+/** Les canaux privés d'un collaborateur : un avec chaque collègue, et un de groupe quand l'équipe tient à trois. @param {string} collab @param {string[]} collaborateurs */
+function privesPour(collab, collaborateurs) {
+  if (!collab || !(collaborateurs || []).includes(collab)) return [];
+  const autres = collaborateurs.filter((c) => c !== collab);
+  const ids = autres.map((a) => idPrive([collab, a]));
+  if (collaborateurs.length === 3) ids.push(idPrive(collaborateurs));
+  return ids.filter(Boolean);
 }
 
 // ---- Lus, préférences, favoris ----
@@ -292,12 +323,14 @@ function compterCanal(entree, luLe, collab) {
  * (muet = rien, mentions = ses mentions seules).
  * @param {any} repo @param {string} collab
  */
-function listerCanaux(repo, collab) {
+function listerCanaux(repo, collab, collaborateurs) {
   const index = lireIndex(repo);
   const lus = lireTable(repo, CLE_LUS)[collab] || {};
   const prefs = lireTable(repo, CLE_PREFS)[collab] || {};
   const libres = lireLibres(repo);
-  const ids = new Set(['general', ...libres.map((c) => c.id), ...Object.keys(index)]);
+  const prives = privesPour(collab, collaborateurs || []);
+  // Un canal privé n'est listé que pour ses membres, même s'il a de l'activité.
+  const ids = new Set(['general', ...libres.map((c) => c.id), ...Object.keys(index).filter((i) => !i.startsWith('p:')), ...prives]);
   let badge = 0;
   const canaux = [...ids].filter(canalValide).map((id) => {
     const e = index[id] || {};
@@ -306,7 +339,7 @@ function listerCanaux(repo, collab) {
     const notif = NOTIFICATIONS.includes(p.notif) ? p.notif : 'tous';
     badge += notif === 'muet' ? 0 : notif === 'mentions' ? c.mentions : c.nonLus;
     const libre = libres.find((l) => l.id === id);
-    return { id, nom: libre ? libre.nom : '', libre: !!libre, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
+    return { id, nom: libre ? libre.nom : '', libre: !!libre, prive: id.startsWith('p:'), membres: id.startsWith('p:') ? (membresPrive(id, collaborateurs || []) || []) : undefined, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
       nonLus: c.nonLus, mentions: c.mentions, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };
   });
   return { canaux, badge };
@@ -360,7 +393,7 @@ function purgerMessagesAnciens(repo, maintenant) {
 
 module.exports = {
   JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
-  CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, lireMessages, lireIndex,
+  CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, slugPrenom, idPrive, membresPrive, privesPour, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
   lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
 };

@@ -48,6 +48,8 @@ function htmlActionsMessageCanal(m, i) {
   const bouton = (clic, icon, titre) => `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="${clic}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}">${icone(icon)}</wa-button>`;
   return `<div class="cx-survol" role="toolbar" aria-label="Actions sur le message">
     ${htmlBoutonsReactionSurvol(m)}
+    ${m.parent ? '' : bouton(`ouvrirFilCanal('${id}')`, 'discussion', 'Répondre dans un fil')}
+    ${bouton(`enregistrerMessageCanal('${id}')`, 'signet', messageEstEnregistre(canaux.actif, m.id) ? 'Retirer des enregistrés' : 'Enregistrer pour plus tard')}
     ${bouton(`copierMessageCanal('${id}')`, 'copier', 'Copier')}
     ${bouton(`rappelMessageCanal('${id}')`, 'clock', 'Me le rappeler demain')}
     ${bouton(`epinglerMessageCanal('${id}')`, 'pin', m.epingle ? 'Désépingler' : 'Épingler au canal')}
@@ -64,13 +66,13 @@ function htmlMessageCanal(m, i, r, repere) {
     assistantActions[cle] = b.action;
     return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}')">${escapeHtml(b.libelle)}</wa-button>`;
   }).join('');
-  const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(m))}${claire && m.via && m.via !== utilisateurPoste ? `<span class="cx-via"> · à la demande de ${escapeHtml(prenomCollaborateur(m.via))}</span>` : ''}${claire && m.pour && m.carte ? `<span class="cx-via"> · pour ${escapeHtml(m.pour === utilisateurPoste ? 'vous' : prenomCollaborateur(m.pour))}</span>` : ''}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}${m.modifieLe ? ' · modifié' : ''}</span>${m.epingle ? `<span class="cx-epingle" title="Épinglé">${icone('pin')}</span>` : ''}</div>` : '';
+  const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(m))}${htmlStatutAuteurCanal(m.auteur)}${claire && m.via && m.via !== utilisateurPoste ? `<span class="cx-via"> · à la demande de ${escapeHtml(prenomCollaborateur(m.via))}</span>` : ''}${claire && m.pour && m.carte ? `<span class="cx-via"> · pour ${escapeHtml(m.pour === utilisateurPoste ? 'vous' : prenomCollaborateur(m.pour))}</span>` : ''}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}${m.modifieLe ? ' · modifié' : ''}</span>${m.epingle ? `<span class="cx-epingle" title="Épinglé">${icone('pin')}</span>` : ''}</div>` : '';
   const edition = canaux.edition === m.id ? `<div class="cx-edition"><textarea id="canal-edition" rows="2" aria-label="Modifier le message" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enregistrerEditionCanal('${escapeOnclickArg(m.id)}'); } else if (event.key === 'Escape') { annulerEditionCanal(); }">${escapeHtml(m.texte || '')}</textarea>
       <div class="cx-edition-actions"><wa-button variant="brand" size="s" type="button" onclick="enregistrerEditionCanal('${escapeOnclickArg(m.id)}')">Enregistrer</wa-button><wa-button appearance="plain" size="s" type="button" onclick="annulerEditionCanal()">Annuler</wa-button></div></div>` : '';
   const corps = canaux.edition === m.id ? edition : htmlCorpsMessageCanal(m);
   return `${jour}${nouveau}<div class="cx-m cx-${escapeAttr(m.role)}${r.debutGroupe ? '' : ' cx-suite'}${m.epingle ? ' cx-epingle-m' : ''}" data-index="${i}" data-mid="${escapeAttr(m.id || '')}">
       ${r.debutGroupe ? avatarCanal(m) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
-      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
+      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${htmlLienFil(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
 }
 
 function vueATraiter() {
@@ -90,10 +92,12 @@ function renderCanalAssistant(zone) {
   majSaisieCanal();
   renderEnteteCanal();
   if (canaux.actif === '@traiter') { zone.innerHTML = vueATraiter(); return; }
+  if (canaux.actif === '@enregistres') { zone.innerHTML = vueEnregistresCanal(); return; }
   const proche = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 90;
   const sauve = zone.scrollTop;
   const q = canaux.recherche.trim();
-  const visibles = q ? filtrerMessagesCanal(assistantMessages, q) : assistantMessages;
+  // Les réponses d'un fil n'encombrent pas le canal : elles s'ouvrent sous leur message de départ (sauf dans une recherche).
+  const visibles = q ? filtrerMessagesCanal(assistantMessages, q) : assistantMessages.filter(m => !m.parent);
   const reperes = repereMessagesCanal(visibles, q ? 0 : canaux.luAvant, utilisateurPoste);
   const nom = libelleCanal(canaux.actif, canaux.liste, dossiers);
   assistantActions = {};
@@ -112,6 +116,7 @@ function renderCanalAssistant(zone) {
   if (canaux.forcerBas || proche) { zone.scrollTop = zone.scrollHeight; canaux.forcerBas = false; } else zone.scrollTop = sauve;
   restaurerConsignesAssistant(zone);
   remplirVignettesPiecesJointesAssistant();
+  if (canaux.fil) renderFilCanal();
   const edition = document.getElementById('canal-edition');
   if (edition && document.activeElement !== edition) { edition.focus(); edition.setSelectionRange(edition.value.length, edition.value.length); }
 }
@@ -127,15 +132,16 @@ function renderEnteteCanal() {
   const id = canaux.actif;
   if (!id) { titre.textContent = 'Discussions'; zone.innerHTML = ''; zone.style.display = 'none'; return; }
   const nom = libelleCanal(id, canaux.liste, dossiers);
-  titre.textContent = id === '@traiter' ? 'À traiter' : (typeCanal(id) === 'dossier' ? nom : '# ' + nom);
+  titre.textContent = id === '@traiter' ? 'À traiter' : id === '@enregistres' ? 'Enregistrés' : (typeCanal(id) === 'dossier' ? nom : typeCanal(id) === 'prive' ? nom : '# ' + nom);
   zone.style.display = '';
-  if (id === '@traiter') { zone.innerHTML = ''; return; }
+  if (vueSpecialeCanal(id)) { zone.innerHTML = ''; return; }
   const d = typeCanal(id) === 'dossier' ? dossiers.find(x => x.id === id.slice(2)) : null;
   const sig = d && d.rendezVousSignature ? `<span class="cx-pil" title="Rendez-vous de signature">signature le ${escapeHtml(String(d.rendezVousSignature).split('-').reverse().join('/'))}${d.rendezVousSignatureHeure ? ' à ' + escapeHtml(String(d.rendezVousSignatureHeure).replace(':', ' h ')) : ''}</span>` : '';
   const notif = canaux.preferences.notif;
   zone.innerHTML = `${sig}
     <span class="cx-entete-espace"></span>
     ${canaux.rechercheOuverte ? `<span class="cx-recherche"><input type="search" id="canal-recherche" value="${escapeAttr(canaux.recherche)}" placeholder="Chercher dans le canal…" aria-label="Chercher dans le canal" oninput="chercherCanal(this.value)" onkeydown="if (event.key === 'Escape') basculerRechercheCanal()"></span>` : ''}
+    <wa-button appearance="outlined" size="s" type="button" onclick="resumerCanalAvecClaire()" title="Claire résume ce canal (ce qui s’est dit, les décisions, ce qui reste à faire)">${icone('discussion')} Résumer</wa-button>
     <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerRechercheCanal()" title="Chercher dans le canal" aria-label="Chercher dans le canal">${icone('search')}</wa-button>
     <span class="cx-menu-place"><wa-button appearance="plain" size="s" class="bouton-icone${notif !== 'tous' ? ' cx-reglee' : ''}" type="button" onclick="ouvrirMenuNotifCanal()" title="Notifications de ce canal" aria-label="Notifications de ce canal" aria-haspopup="true">${icone(notif === 'muet' ? 'cloche-barree' : 'cloche')}</wa-button><div class="cx-menu" id="canal-menu-notif" style="display:none;" role="menu"></div></span>
     <wa-button appearance="plain" size="s" class="bouton-icone${canaux.preferences.favori ? ' cx-favori' : ''}" type="button" onclick="basculerFavoriCanal()" title="${canaux.preferences.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-label="Favori" aria-pressed="${canaux.preferences.favori}">${icone('etoile')}</wa-button>
@@ -278,7 +284,7 @@ async function retablirSilenceCanal(routine) {
 
 function htmlColonneCanal() {
   const id = canaux.actif;
-  if (!id || id === '@traiter') return '';
+  if (!id || vueSpecialeCanal(id)) return '';
   const d = typeCanal(id) === 'dossier' ? dossiers.find(x => x.id === id.slice(2)) : null;
   const ligne = (a, b) => `<div class="cx-li"><span>${a}</span><span>${b}</span></div>`;
   const date = (iso) => iso ? escapeHtml(String(iso).split('-').reverse().join('/')) : '—';

@@ -300,6 +300,7 @@
     if (nom === 'plan_de_travail') return planTravailAgent(e);
     if (nom === 'controles_relecture') return controlesRelectureAgent(e);
     if (nom === 'chercher_conversations') return chercherConversationsAgent(e);
+    if (nom === 'canaux_claire') return canauxClaireAgent(e);
     if (/^(legifrance|bofip|rne)__[a-z0-9_]+$/i.test(nom)) return appelOpenlegiAgent(nom, e);
     if (/^yousign__[a-zA-Z0-9_-]+$/.test(nom)) return appelYousignAgent(nom, e);
     return { erreur: 'outil inconnu' };

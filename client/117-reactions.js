@@ -69,7 +69,8 @@ function choisirReactionPalette(emoji) {
   const s = document.getElementById('reaction-selecteur');
   const cle = s ? s.dataset.cle : '';
   fermerSelecteurReaction();
-  if (cle) reagirMessageAssistant(cle, emoji);
+  if (cle === '@saisie') insererEmojiSaisie(emoji);
+  else if (cle) reagirMessageAssistant(cle, emoji);
 }
 
 // Le geste : un clic pose, un second clic retire.

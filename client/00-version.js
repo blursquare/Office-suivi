@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.343.0';
+  const VERSION_APP = '0.344.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.344.0', date: '2026-10-25 10:16', resume: "Discussions façon Slack : fils de discussion (répondre sous un message sans encombrer le canal), messages privés entre collègues, recherche dans tous les canaux (« de:julie »), messages enregistrés, statut et présence (« Au tribunal »), mise en forme du texte (gras, listes, liens, code, emoji) et résumé d'un canal par Claire." },
     { version: '0.343.0', date: '2026-10-25 10:00', resume: "Discussions : on peut joindre un fichier du dossier NAS d'un client sans le copier — un bouton « dossier » à côté du trombone ouvre le dossier, et le message garde un lien ; la carte et la visionneuse rouvrent l'original sur le NAS (dans les canaux aussi)." },
     { version: '0.342.1', date: '2026-10-25 09:52', resume: "Discussions : l'anonymisation est désactivée au départ de chaque conversation (réglage voulu par l'étude) ; l'interrupteur « Anonymisation » de la colonne de droite la rétablit d'un clic." },
     { version: '0.342.0', date: '2026-10-25 09:50', resume: "Discussions : on peut réagir à un message avec un emoji, comme sur Slack (👍, 👎, ❓… ou toute la palette) — dans un canal partagé tout le monde voit les pastilles. Claire lit les réactions posées sur ses réponses (👍 compris, 👎 à corriger, ❓ pas clair), s'en souvient 90 jours et les montre dans Réglages › Ce que CLAIRE a appris." },

@@ -6,6 +6,7 @@
 
 const express = require('express');
 const C = require('../canaux/canaux');
+const X = require('../canaux/extensions');
 const { noterReaction } = require('../reactionsAgent');
 const { lirePropositions } = require('../routines/propositions');
 const { CATALOGUE } = require('../routines/catalogue');
@@ -27,10 +28,23 @@ function collaborateurDe(v) {
 function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes) {
   const routeur = express.Router();
 
+  // Qui parle : le collaborateur déclaré par le poste (query ou corps). Sert à garder un canal privé à ses membres.
+  /** @param {any} req */
+  const demandeur = (req) => {
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    return collaborateurDe(req.query.utilisateur || req.query.auteur || b.utilisateur || b.auteur);
+  };
+  // Présence (étude 25/10) : « en ligne » = une requête de ce collaborateur il y a moins de 3 minutes ; gardée en mémoire seulement.
+  /** @type {Record<string, number>} */
+  const vusLe = {};
+  /** @param {string} collab */
+  const noterPresence = (collab) => { if (collab) vusLe[collab] = Date.now(); };
+
   /** Le canal de l'URL, s'il est valide et (pour un canal libre) connu. @param {any} req */
   const canalDe = (req) => {
     const id = String(req.params.id || '');
     if (!C.canalValide(id)) return '';
+    if (id.startsWith('p:') && !X.accessible(id, demandeur(req), COLLABORATEURS)) return '';
     if (id.startsWith('l:') && !C.lireLibres(parametresRepo).some((c) => c.id === id)) return '';
     // Un canal de dossier n'existe que pour un dossier qui existe (sinon un identifiant inventé créerait un canal à chaque message).
     if (id.startsWith('d:') && !dossierExiste(id.slice(2))) return '';
@@ -48,7 +62,42 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
   routeur.get('/canaux', (req, res) => {
     const utilisateur = collaborateurDe(req.query.utilisateur);
     if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    res.json(Object.assign({ collaborateurs: COLLABORATEURS }, C.listerCanaux(parametresRepo, utilisateur)));
+    noterPresence(utilisateur);
+    const maintenant = Date.now();
+    const equipe = COLLABORATEURS.map((nom) => ({ nom, enLigne: nom === utilisateur || X.enLigne(vusLe[nom], maintenant), statut: X.statutDe(parametresRepo, nom, maintenant) }));
+    res.json(Object.assign({ collaborateurs: COLLABORATEURS, equipe, enregistres: X.lireEnregistres(parametresRepo, utilisateur).map((e) => `${e.canal}|${e.mid}`) },
+      C.listerCanaux(parametresRepo, utilisateur, COLLABORATEURS)));
+  });
+
+  // Recherche dans tous les canaux lisibles (étude 25/10) : `q` = les mots, `auteur` = un prénom.
+  routeur.get('/canaux/recherche', (req, res) => {
+    const utilisateur = collaborateurDe(req.query.utilisateur);
+    if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    res.json({ resultats: X.rechercherMessages(parametresRepo, utilisateur, COLLABORATEURS, { q: String(req.query.q || '').slice(0, 200), auteur: String(req.query.auteur || '').slice(0, 40) }) });
+  });
+
+  // Messages enregistrés (« Enregistrés ») : liste, enregistrer, retirer.
+  routeur.get('/canaux/enregistres', (req, res) => {
+    const utilisateur = collaborateurDe(req.query.utilisateur);
+    if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    res.json({ messages: X.messagesEnregistres(parametresRepo, utilisateur, COLLABORATEURS) });
+  });
+  routeur.post('/canaux/enregistres', (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const utilisateur = collaborateurDe(corps.auteur);
+    const canal = String(corps.canal || '');
+    if (!utilisateur || !C.canalValide(canal) || !X.accessible(canal, utilisateur, COLLABORATEURS) || !String(corps.mid || '')) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
+    if (!C.lireMessages(parametresRepo, canal).some((m) => m.id === corps.mid)) { res.status(404).json({ erreur: 'Message introuvable.' }); return; }
+    X.enregistrerMessage(parametresRepo, utilisateur, canal, String(corps.mid), corps.actif !== false);
+    res.json({ ok: true, enregistres: X.lireEnregistres(parametresRepo, utilisateur).map((e) => `${e.canal}|${e.mid}`) });
+  });
+
+  // Mon statut (« Au tribunal jusqu'à 15 h »).
+  routeur.put('/canaux/statut', (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const utilisateur = collaborateurDe(corps.auteur);
+    if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    res.json({ ok: true, statut: X.poserStatut(parametresRepo, utilisateur, { emoji: corps.emoji, texte: corps.texte, heures: corps.heures }) });
   });
 
   routeur.post('/canaux', (req, res) => {
@@ -74,6 +123,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const messages = C.lireMessages(parametresRepo, id);
     const props = lirePropositions(parametresRepo);
     const lecteur = collaborateurDe(req.query.utilisateur);
+    noterPresence(lecteur);
     const cartes = {};
     for (const m of messages) {
       if (!m.carte) continue;
@@ -99,9 +149,18 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     if (!texte && !html) { res.status(400).json({ erreur: 'Message vide.' }); return; }
     // Une réponse de CLAIRE est écrite par le poste de celui qui l'a demandée (`via`) ; une personne écrit sous son nom.
     const claire = corps.claire === true;
-    const mentions = claire ? [] : C.mentionsDansTexte(texte, COLLABORATEURS).collaborateurs;
+    let mentions = claire ? [] : C.mentionsDansTexte(texte, COLLABORATEURS).collaborateurs;
+    // Dans un canal privé, chaque message prévient les autres membres (comme un message direct de Slack).
+    if (!claire && id.startsWith('p:')) mentions = [...new Set(mentions.concat((C.membresPrive(id, COLLABORATEURS) || []).filter((c) => c !== par)))];
+    // Une réponse dans un fil : le message de départ doit exister dans ce canal, et ne pas être lui-même une réponse (un seul niveau, comme Slack).
+    let parent = '';
+    if (corps.parent) {
+      const racine = C.lireMessages(parametresRepo, id).find((x) => x.id === corps.parent);
+      if (!racine || racine.parent) { res.status(400).json({ erreur: 'Message de départ du fil introuvable.' }); return; }
+      parent = racine.id;
+    }
     const m = C.ajouterMessage(parametresRepo, id, {
-      auteur: claire ? 'CLAIRE' : par, claire, via: claire ? par : '', texte, html: claire ? html : '', pj: claire ? [] : corps.pj, mentions
+      auteur: claire ? 'CLAIRE' : par, claire, via: claire ? par : '', texte, html: claire ? html : '', pj: claire ? [] : corps.pj, mentions, parent
     });
     if (!m) { res.status(400).json({ erreur: 'Message refusé.' }); return; }
     C.marquerLu(parametresRepo, par, id, m.quand);

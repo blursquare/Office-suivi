@@ -11,7 +11,8 @@ var canaux = {
   actif: '',                 // '' = conversations personnelles ; 'general' | 'd:<id>' | 'l:<nom>' | '@traiter' (vue des propositions à décider)
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
   recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, listeOuverte: true,
-  claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false
+  claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
+  equipe: [], enregistres: [], fil: '', filTexte: '', rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
 var INTERVALLE_CANAUX_MS = 30 * 1000;
 var INTERVALLE_CANAL_ACTIF_MS = 8 * 1000;
@@ -22,6 +23,8 @@ var minuterieCanalActif = null;
 // Pure : la sorte d'un canal.
 function typeCanal(id) {
   if (id === '@traiter') return 'traiter';
+  if (id === '@enregistres') return 'enregistres';
+  if (String(id).startsWith('p:')) return 'prive';
   if (id === 'general') return 'general';
   if (String(id).startsWith('d:')) return 'dossier';
   if (String(id).startsWith('l:')) return 'libre';
@@ -33,6 +36,8 @@ function libelleCanal(id, liste, dossiersListe) {
   const t = typeCanal(id);
   if (t === 'general') return 'général';
   if (t === 'traiter') return 'À traiter';
+  if (t === 'enregistres') return 'Enregistrés';
+  if (t === 'prive') return libellePriveCanal(id, liste);
   if (t === 'libre') { const c = (liste || []).find(x => x.id === id); return (c && c.nom) || String(id).slice(2); }
   if (t === 'dossier') {
     const d = (dossiersListe || []).find(x => x && x.id === String(id).slice(2));
@@ -131,14 +136,13 @@ function htmlSurCanal(html) {
 // Pure : le texte d'un message d'une personne, en HTML : échappé, retours à la ligne, @mentions en évidence.
 function htmlTexteCanal(texte, collaborateurs, moi) {
   const prenoms = (collaborateurs || []).map(c => String(c).split(/\s+/)[0]);
-  const echappe = escapeHtml(texte).replace(/\n/g, '<br>');
-  return echappe.replace(/(^|[\s>])@([A-Za-zÀ-ÿ]+)/g, (tout, avant, nom) => {
+  return htmlMiseEnFormeCanal(texte, (echappe) => echappe.replace(/(^|[\s>])@([A-Za-zÀ-ÿ]+)/g, (tout, avant, nom) => {
     const p = platCanal(nom);
     if (p === 'claire') return `${avant}<span class="cx-mention cx-mention-claire">@${nom}</span>`;
     const c = prenoms.find(x => platCanal(x) === p);
     if (!c) return tout;
     return `${avant}<span class="cx-mention${platCanal(c) === platCanal(String(moi || '').split(/\s+/)[0]) ? ' cx-mention-moi' : ''}">@${nom}</span>`;
-  });
+  }));
 }
 
 // Pure : repères d'affichage — séparateur de jour, début de groupe (même auteur à moins de 5 minutes), séparateur « Nouveau ».
@@ -169,7 +173,7 @@ function messageCanalVersVue(sm, moi, ancien) {
   const base = {
     id: sm.id, role: claire ? 'claire' : (sm.auteur === moi ? 'moi' : 'autre'), auteur: sm.auteur, via: sm.via || '', quand: sm.quand,
     html: sm.html || escapeHtml(sm.texte || ''), texte: sm.texte || '', carte: sm.carte || '', pj: sm.pj || [], mentions: sm.mentions || [],
-    reactions: Array.isArray(sm.reactions) ? sm.reactions : [], epingle: !!sm.epingle, modifieLe: sm.modifieLe || 0, pour: sm.pour || '', claireMessage: claire
+    parent: sm.parent || '', reactions: Array.isArray(sm.reactions) ? sm.reactions : [], epingle: !!sm.epingle, modifieLe: sm.modifieLe || 0, pour: sm.pour || '', claireMessage: claire
   };
   if (ancien && ancien.local) { delete base.html; delete base.texte; }
   return ancien ? Object.assign(ancien, base) : Object.assign(base, { boutons: [] });
@@ -186,6 +190,8 @@ async function chargerCanaux() {
     canaux.liste = corps.canaux || [];
     canaux.collaborateurs = corps.collaborateurs || canaux.collaborateurs;
     canaux.badge = corps.badge || 0;
+    canaux.equipe = corps.equipe || canaux.equipe;
+    canaux.enregistres = corps.enregistres || canaux.enregistres;
     canaux.charge = true;
     majPastilleCanaux();
     if (typeof ecranAffiche === 'function' && ecranAffiche('assistant')) renderCanaux();
@@ -212,7 +218,7 @@ function demarrerCanaux() {
   setInterval(() => { if (!document.hidden) chargerPhotosCollaborateurs(); }, 5 * 60 * 1000);
   setInterval(() => { if (!document.hidden) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
   minuterieCanalActif = setInterval(() => {
-    if (!document.hidden && canaux.actif && canaux.actif !== '@traiter' && ecranAffiche('assistant')) chargerMessagesCanal(false);
+    if (!document.hidden && canaux.actif && !vueSpecialeCanal(canaux.actif) && ecranAffiche('assistant')) chargerMessagesCanal(false);
   }, INTERVALLE_CANAL_ACTIF_MS);
 }
 
@@ -221,7 +227,7 @@ function enteteJsonCanaux() { return { 'Content-Type': 'application/json' }; }
 // `force` : relit même si la signature n'a pas changé (après une décision, une modification).
 async function chargerMessagesCanal(force) {
   const id = canaux.actif;
-  if (!id || id === '@traiter' || canaux.publications > 0) return;
+  if (!id || vueSpecialeCanal(id) || canaux.publications > 0) return;
   try {
     const q = `utilisateur=${encodeURIComponent(utilisateurPoste)}${!force && canaux.signature ? '&signature=' + encodeURIComponent(canaux.signature) : ''}`;
     const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(id)}/messages?${q}`);
@@ -249,7 +255,7 @@ function fusionnerMessagesCanal(serveur) {
 var derniereLectureCanal = 0;
 function marquerCanalLu() {
   const id = canaux.actif;
-  if (!id || id === '@traiter' || !utilisateurPoste || document.hidden) return;
+  if (!id || vueSpecialeCanal(id) || !utilisateurPoste || document.hidden) return;
   const c = canaux.liste.find(x => x.id === id);
   if (c && !c.nonLus && Date.now() - derniereLectureCanal < 20000) return;
   derniereLectureCanal = Date.now();
@@ -264,7 +270,7 @@ function canalAuDossierOuvert() { return typeCanal(canaux.actif) === 'dossier' ?
 function brouillonCanalCle(id) { return `claire-canal-brouillon:${utilisateurPoste || 'poste'}:${id}`; }
 function garderBrouillonCanal() {
   const champ = document.getElementById('assistant-saisie');
-  if (!champ || !canaux.actif || canaux.actif === '@traiter') return;
+  if (!champ || !canaux.actif || vueSpecialeCanal(canaux.actif)) return;
   try { if (champ.value.trim()) localStorage.setItem(brouillonCanalCle(canaux.actif), champ.value); else localStorage.removeItem(brouillonCanalCle(canaux.actif)); } catch (e) { /* stockage indisponible */ }
 }
 function rendreBrouillonCanal(id) {
@@ -282,6 +288,7 @@ function quitterCanal() {
   if (!canaux.actif) return;
   garderBrouillonCanal();
   canaux.actif = '';
+  fermerFilCanal();
   canaux.messages = []; canaux.cartes = {}; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
   assistantMessages = [];
   assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
@@ -297,6 +304,7 @@ async function ouvrirCanal(id) {
   if (typeCanal(id) === '') return;
   garderBrouillonCanal();
   memoriserConversationAssistant();
+  fermerFilCanal();
   canaux.actif = id;
   assistantConversationId = '';
   const c = canaux.liste.find(x => x.id === id) || {};
@@ -312,13 +320,15 @@ async function ouvrirCanal(id) {
   rendreBrouillonCanal(id);
   majSaisieCanal();
   renderAssistant();
-  if (id !== '@traiter') {
+  if (!vueSpecialeCanal(id)) {
     await chargerMessagesCanal(true);
     // Le contexte de la première demande à CLAIRE : les derniers échanges du canal (l'agent, neuf, sait de quoi on parle).
     assistantContexte.echanges = assistantMessages.filter(m => m.texte || m.html).slice(-6).map(m => ({ role: m.role === 'claire' ? 'claire' : 'moi', texte: String(m.texte || texteDepuisHtmlCanal(m.html)).slice(0, 400) }));
     if (dossierId) chargerSilencesCanal();
     const champ = document.getElementById('assistant-saisie');
     if (champ) champ.focus({ preventScroll: true });
+  } else if (id === '@enregistres') {
+    chargerEnregistresCanal();
   } else {
     chargerPropositionsClaire('a-traiter');
   }
@@ -352,7 +362,7 @@ if (typeof document !== 'undefined' && document.addEventListener) {
 // celui qui l'a demandée (`via`) ; son texte reste ici avec ses boutons (des fonctions, jamais envoyées).
 async function publierMessageCanal(message, meta) {
   const id = canaux.actif;
-  if (!id || id === '@traiter' || message.id) return;
+  if (!id || vueSpecialeCanal(id) || message.id) return;
   message.local = true; message.auteur = message.role === 'claire' ? 'CLAIRE' : utilisateurPoste;
   const m = meta || {};
   if (Array.isArray(m.pj) && m.pj.length) message.pj = m.pj;   // les cartes des pièces jointes s'affichent tout de suite
@@ -388,8 +398,8 @@ function majSaisieCanal() {
   const bascule = document.getElementById('canal-bascule');
   const saisie = document.querySelector('#onglet-assistant .asst-saisie');
   const page = document.querySelector('#onglet-assistant .asst-page');
-  const reel = canaux.actif && canaux.actif !== '@traiter';
-  if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', canaux.actif === '@traiter'); }
+  const reel = canaux.actif && !vueSpecialeCanal(canaux.actif);
+  if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', vueSpecialeCanal(canaux.actif)); }
   if (champ) champ.placeholder = reel
     ? `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`
     : 'Message à Claire… tapez @ pour citer un dossier';
@@ -422,7 +432,7 @@ function renderCanaux() {
   const champFiltre = zone.querySelector('.cx-filtre input');
   const enSaisie = champFiltre && document.activeElement === champFiltre;
   const s = sectionsCanaux(canaux.liste, dossiers, canaux.filtreListe);
-  const filtre = !!canaux.filtreListe.trim();
+  const filtre = !!(canaux.saisieListe || canaux.filtreListe).trim();
   const aTraiter = propositionsClaire.liste.length;
   const bloc = (titre, lignes, ouvrable) => lignes.length ? `<div class="cx-groupe"><div class="cx-groupe-titre">${titre}</div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul></div>` : '';
   const pliable = (titre, lignes, ouvert, bascule) => lignes.length ? `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="${bascule}" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${titre} <span class="cx-nb">${lignes.length}</span></button>${ouvert || filtre ? `<ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>` : ''}</div>` : '';
@@ -433,8 +443,9 @@ function renderCanaux() {
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="toutMarquerLuCanaux()" title="Tout marquer comme lu" aria-label="Tout marquer comme lu">${icone('check')}</wa-button></div>
     ${canaux.nouveau ? `<div class="cx-nouveau-canal"><input type="text" id="canal-nouveau-nom" maxlength="60" placeholder="Nom du canal (ex. compta)" aria-label="Nom du nouveau canal" autocomplete="off" onkeydown="if (event.key === 'Enter') { event.preventDefault(); creerCanalLibreDepuisSaisie(); } else if (event.key === 'Escape') { nouveauCanalLibre(); }">
       <wa-button variant="brand" size="s" type="button" onclick="creerCanalLibreDepuisSaisie()">Créer</wa-button></div>` : ''}
-    <div class="cx-filtre"><input type="search" value="${escapeAttr(canaux.filtreListe)}" placeholder="Filtrer les canaux…" aria-label="Filtrer les canaux" autocomplete="off" oninput="filtrerCanaux(this.value)"></div>
+    <div class="cx-filtre"><input type="search" value="${escapeAttr(canaux.saisieListe || canaux.filtreListe)}" placeholder="Canaux, messages… (de:julie)" aria-label="Chercher un canal ou un message" autocomplete="off" oninput="filtrerCanaux(this.value)"></div>
     ${filtre ? '' : traiter}
+    ${htmlSectionsSlack(filtre)}
     ${bloc('Favoris', s.favoris)}
     ${bloc('Équipe', s.equipe)}
     ${bloc('Dossiers', s.actifs)}
@@ -444,7 +455,13 @@ function renderCanaux() {
   if (enSaisie) { const n = zone.querySelector('.cx-filtre input'); if (n) { n.focus(); const l = n.value.length; n.setSelectionRange(l, l); } }
 }
 
-function filtrerCanaux(valeur) { canaux.filtreListe = String(valeur || ''); renderCanaux(); }
+function filtrerCanaux(valeur) {
+  canaux.saisieListe = String(valeur || '');
+  // « de:julie » vise un auteur : il ne filtre pas les noms de canaux.
+  canaux.filtreListe = requeteRechercheGlobale(canaux.saisieListe).q;
+  chercherMessagesGlobaux(canaux.saisieListe);
+  renderCanaux();
+}
 function basculerSectionCanaux(nom) { if (nom === 'calmes') canaux.calmesOuverts = !canaux.calmesOuverts; else canaux.archivesOuverts = !canaux.archivesOuverts; renderCanaux(); }
 
 async function toutMarquerLuCanaux() {

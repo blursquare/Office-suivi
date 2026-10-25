@@ -1526,6 +1526,15 @@
         <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à Claire… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
+          <span class="asst-format" role="group" aria-label="Mise en forme">
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt asst-fmt-gras" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('*')" title="Gras (Ctrl + B)" aria-label="Gras">B</wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt asst-fmt-ital" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('_')" title="Italique (Ctrl + I)" aria-label="Italique">I</wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt asst-fmt-barre" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('~')" title="Barré" aria-label="Barré">S</wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('`')" title="Code" aria-label="Code">&lt;/&gt;</wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('liste')" title="Liste à puces" aria-label="Liste à puces"><span id="icon-assistant-liste" aria-hidden="true"></span></wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('lien')" title="Lien sur des mots" aria-label="Lien"><span id="icon-assistant-lien" aria-hidden="true"></span></wa-button>
+            <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onmousedown="event.preventDefault()" onclick="ouvrirSelecteurReaction('@saisie', this)" title="Emoji" aria-label="Emoji"><span id="icon-assistant-emoji" aria-hidden="true"></span></wa-button>
+          </span>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirSelecteurNasAssistant()" title="Joindre un fichier du dossier NAS (un lien, sans copie)" aria-label="Joindre un fichier du dossier NAS"><span id="icon-assistant-nas" aria-hidden="true"></span></wa-button>
           <button type="button" class="canal-bascule" id="canal-bascule" style="display:none;" onclick="basculerClaireRepond()" aria-pressed="true"></button>
@@ -2991,5 +3000,7 @@
 <script src="client/116-photos-collaborateurs.js"></script>
 <script src="client/117-reactions.js"></script>
 <script src="client/118-pieces-nas.js"></script>
+<script src="client/119-mise-en-forme.js"></script>
+<script src="client/120-canaux-slack.js"></script>
 </body>
 </html>

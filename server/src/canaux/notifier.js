@@ -26,6 +26,7 @@ function creerNotifieur(deps) {
     if (canal.startsWith('d:')) {
       try { const d = depot && depot.trouverParId ? depot.trouverParId(canal.slice(2)) : null; return d ? libelleDossierAffiche(d) : 'un dossier'; } catch (e) { return 'un dossier'; }
     }
+    if (canal.startsWith('p:')) return 'un message privé';
     return `# ${canal.slice(2)}`;
   };
 

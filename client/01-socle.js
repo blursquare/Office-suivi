@@ -180,6 +180,7 @@
     // Trombone (joindre un fichier) et avion en papier (envoyer un email).
     paperclip: '<path d="M13.5 7.5 8 13a3.2 3.2 0 0 1-4.5-4.5l6-6a2.1 2.1 0 0 1 3 3L6.6 11.4a1 1 0 0 1-1.5-1.5L10.5 4.5"/>',
     send: '<path d="M14.5 1.5 7 9"/><path d="M14.5 1.5 10 14.5 7 9 1.5 6z"/>',
+    signet: '<path d="M4 2.5h8v11L8 10.5 4 13.5z"/>',
     smile: '<circle cx="8" cy="8" r="6"/><path d="M5.5 9.5c.6 1 1.5 1.5 2.5 1.5s1.9-.5 2.5-1.5"/><line x1="6" y1="6.5" x2="6" y2="6.6"/><line x1="10" y1="6.5" x2="10" y2="6.6"/>',
     plus: '<line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/>',
     minus: '<line x1="3.5" y1="8" x2="12.5" y2="8"/>',
