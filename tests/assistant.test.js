@@ -235,3 +235,11 @@ test('options de rendez-vous : intention, nombre demandé, mots qui ne désignen
   // « option », « créneaux » ne sont pas des noms de dossier.
   assert.equal(A.reconnaitreDossier('options créneaux provisoires', DOSSIERS.concat([{ id: 'x', nom: 'OPTION / CRENEAUX', parties: [] }])).dossier, '');
 });
+
+test('discussion sur un dossier : des exemples qui nomment le dossier (nom court)', () => {
+  const app = chargerApplication();
+  const e = app.exemplesDossierAssistant({ nom: 'MOREAU / LAMBERT' });
+  assert.equal(e.length, 4);
+  assert.ok(e.every(x => x.includes('MOREAU') && !x.includes('LAMBERT')));
+  assert.ok(app.exemplesDossierAssistant(null).every(x => x.includes('ce dossier')));
+});

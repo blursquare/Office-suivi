@@ -87,6 +87,12 @@
     return new Date(quand || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // Pure : les exemples d'une discussion sur un dossier — le nom court du dossier y figure, pour que la phrase désigne le dossier sans « @ ».
+  function exemplesDossierAssistant(d) {
+    const nom = String((d && d.nom) || '').split('/')[0].trim() || 'ce dossier';
+    return [`Où en est le dossier ${nom} ?`, `Quelles pièces manquent pour ${nom} ?`, `Fais l’appel de fonds de ${nom}`, `Trouve une date de signature pour ${nom}`];
+  }
+
   // « Comme Slackbot » (étude 25/10 : « l'accueil doit ressembler à Slackbot ») : un grand avatar carré arrondi, le nom, puis un
   // paragraphe dont la première phrase est en gras et dont les exemples sont des phrases cliquables entre « » (un `span`, pas un
   // `button` : un bouton ne se coupe pas en fin de ligne). `cliquables` faux (canal : la saisie est celle du canal) = texte seul.
@@ -129,9 +135,14 @@
     renderEnteteCanal();
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
-      zone.innerHTML = htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
-        'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
-        suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true);
+      const rattache = assistantContexte.dossierId ? dossiers.find(x => x.id === assistantContexte.dossierId) : null;
+      zone.innerHTML = rattache
+        ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
+          'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
+          exemplesDossierAssistant(rattache), true, 'folder')
+        : htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
+          'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
+          suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true);
       return;
     }
     const reperes = repereMessagesAssistant(assistantMessages);
