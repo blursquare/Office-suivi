@@ -218,11 +218,15 @@ function demanderActionFenetre(etat, poste, action, maintenant = Date.now(), adr
   p.actionsFenetre = (p.actionsFenetre || []).concat([{ type: action.type, canal: action.canal || '', id: action.id || '', adresse: adresse || '', t: maintenant }]).slice(-5);
 }
 
-// L'adresse réseau d'une requête (« ::ffff:192.168.60.12 » → « 192.168.60.12 » ; localhost sous une seule forme).
+// L'adresse réseau d'une requête (« ::ffff:192.168.60.12 » → « 192.168.60.12 »). Le poste serveur lui-même sous un seul nom, « local »,
+// qu'il appelle par localhost ou par son adresse (relecture 25/10 : relais en localhost, fenêtre par l'adresse IP).
 /** @param {any} req */
 function adresseRequete(req) {
   const a = String((req && (req.socket && req.socket.remoteAddress)) || '').replace(/^::ffff:/, '');
-  return a === '::1' ? '127.0.0.1' : a;
+  if (a === '::1' || a.startsWith('127.')) return 'local';
+  let locales = [];
+  try { locales = Object.values(require('os').networkInterfaces()).flat().map((i) => String(i && i.address || '').replace(/^::ffff:/, '')); } catch (e) { locales = []; }
+  return locales.includes(a) ? 'local' : a;
 }
 
 // Pure (sur l'état) : ce que voit la fenêtre CLAIRE du poste.

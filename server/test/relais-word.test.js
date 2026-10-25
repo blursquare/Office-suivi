@@ -300,5 +300,6 @@ test('gestes des cartes : rendus seulement à une fenêtre de la machine du rela
   assert.deepEqual(R.noterPastillePoste(etat, 'bastien', { total: 0 }, 3000, [], '192.168.60.12').actions.map((a) => a.id), ['rt-1']);
   assert.deepEqual(R.noterPastillePoste(etat, 'bastien', { total: 0 }, 4000, [], '192.168.60.12').actions, [], 'une seule fois');
   assert.equal(R.adresseRequete({ socket: { remoteAddress: '::ffff:192.168.60.12' } }), '192.168.60.12');
-  assert.equal(R.adresseRequete({ socket: { remoteAddress: '::1' } }), '127.0.0.1');
+  assert.equal(R.adresseRequete({ socket: { remoteAddress: '::1' } }), 'local');
+  assert.equal(R.adresseRequete({ socket: { remoteAddress: '127.0.0.1' } }), 'local', 'le poste serveur, par localhost ou par son adresse');
 });
