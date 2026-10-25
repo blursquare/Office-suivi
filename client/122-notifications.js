@@ -24,13 +24,13 @@ var RAPPEL_PASTILLE_MS = 60000;   // le serveur éteint la pastille d'une fenêt
 var DELAI_PREMIERE_PASTILLE_MS = 20000;   // les compteurs du démarrage ne sont pas des nouveautés
 
 var reglagesNotifications = null;   // null tant que les préférences du collaborateur ne sont pas lues
-var etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0, relais: false };
+var etatPastille = { envoye: -1, envoyeLe: 0, avant: null, avantDetails: null, demarreLe: 0, relais: false };
 
 /** Pure : les réglages complets (rubriques absentes = leur valeur par défaut). */
 function reglagesNotificationsComplets(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   const sources = b.sources && typeof b.sources === 'object' ? b.sources : {};
-  const out = { pastille: b.pastille !== false, windows: b.windows !== false, sources: {} };
+  const out = { pastille: b.pastille !== false, windows: b.windows !== false, apercu: b.apercu !== false, sources: {} };
   for (const s of SOURCES_NOTIFICATIONS) out.sources[s.cle] = typeof sources[s.cle] === 'boolean' ? sources[s.cle] : s.defaut;
   return out;
 }
@@ -101,6 +101,49 @@ function compteursNotifications(reglages) {
   };
 }
 
+// Le détail des compteurs, pour les cartes « comme Teams » (0.350.0) : non-lus de chaque canal (hors cartes de proposition) et
+// identifiants des propositions à décider. Seuls des identifiants partent au serveur, qui écrit lui-même la carte.
+function detailsNotifications() {
+  const canauxN = {};
+  try {
+    for (const c of canaux.liste || []) {
+      if (c.notif === 'muet') continue;
+      const n = c.notif === 'mentions' ? mentionsHorsCartes(c) : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0));
+      if (n > 0) canauxN[c.id] = n;
+    }
+  } catch (e) { /* liste pas encore chargée */ }
+  let propositions = [];
+  try { propositions = propositionsClaire.liste.map(p => p.id).filter(id => typeof id === 'string'); } catch (e) { /* pas encore chargées */ }
+  return { canaux: canauxN, propositions };
+}
+
+/** Pure : les canaux dont le nombre de non-lus a monté et les propositions apparues, 3 de chaque au plus. */
+function elementsNouveaux(avant, apres, reglages) {
+  const r = reglagesNotificationsComplets(reglages);
+  if (!r.windows || !avant) return { canaux: [], propositions: [] };
+  const canauxMontes = (r.sources.messages || r.sources.mentions)
+    ? Object.keys(apres.canaux).filter(id => apres.canaux[id] > (avant.canaux[id] || 0)).slice(0, 3) : [];
+  const vues = new Set(avant.propositions);
+  const propositions = r.sources.traiter ? apres.propositions.filter(id => !vues.has(id)).slice(0, 3) : [];
+  return { canaux: canauxMontes, propositions };
+}
+
+// Gestes demandés depuis une carte du relais : « Ouvrir » (le canal du message) et « Autoriser » (le geste habituel, fait ici comme d'un
+// clic ; un email ne part jamais sans « Envoyer »). Le relais a déjà mis la fenêtre CLAIRE devant.
+function executerActionsRelais(actions) {
+  for (const a of (Array.isArray(actions) ? actions : []).slice(0, 5)) {
+    if (!a || typeof a !== 'object') continue;
+    if (a.type === 'ouvrir') {
+      definirOnglet('assistant');
+      const canal = typeof a.canal === 'string' && a.canal ? a.canal : '@traiter';
+      setTimeout(() => { ouvrirCanal(canal); }, 0);
+    } else if (a.type === 'autoriser' && typeof a.id === 'string') {
+      definirOnglet('assistant');
+      setTimeout(() => { ouvrirCanal('@traiter'); autoriserProposition(a.id); }, 0);
+    }
+  }
+}
+
 // La fenêtre est-elle sous les yeux du collaborateur ? Alors pas de notification Windows (la pastille, elle, reste juste).
 function fenetreClaireRegardee() { return !document.hidden && document.hasFocus(); }
 
@@ -116,22 +159,28 @@ async function tourPastille() {
   if (!etatPastille.demarreLe) etatPastille.demarreLe = maintenant;
   const reglages = lireReglagesNotifications();
   const compteurs = compteursNotifications(reglages);
+  const details = detailsNotifications();
   const total = totalPastille(compteurs, reglages);
   const pret = maintenant - etatPastille.demarreLe >= DELAI_PREMIERE_PASTILLE_MS;
-  const notifications = pret && !fenetreClaireRegardee() ? nouveautesNotifications(etatPastille.avant, compteurs, reglages) : [];
+  const regardee = fenetreClaireRegardee();
+  const notifications = pret && !regardee ? nouveautesNotifications(etatPastille.avant, compteurs, reglages) : [];
+  const elements = pret && !regardee ? elementsNouveaux(etatPastille.avantDetails, details, reglages) : { canaux: [], propositions: [] };
   // Fenêtre regardée : les compteurs du moment deviennent la référence (ce qu'on voit n'est pas une nouveauté à annoncer plus tard).
-  if (pret && !notifications.length) etatPastille.avant = compteurs;
-  if (total === etatPastille.envoye && !notifications.length && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
+  if (pret && !notifications.length) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
+  // Un relais attend peut-être un geste (Ouvrir, Autoriser) : la fenêtre redevenue visible demande tout de suite (voir demarrerPastille).
+  if (total === etatPastille.envoye && !notifications.length && !etatPastille.forcer && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
+  etatPastille.forcer = false;
   try {
     const r = await fetchAvecAuth('/api/relais-word/pastille', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poste: clePosteAppels(utilisateurPoste), total, notifications })
+      body: JSON.stringify({ poste: clePosteAppels(utilisateurPoste), total, notifications, elements, apercu: reglages.apercu })
     });
     // Les nouveautés ne sont tenues pour annoncées qu'une fois reçues par le serveur (relecture 25/10 : perdues s'il redémarrait).
     if (r.ok) {
       const corps = await r.json().catch(() => ({}));
       etatPastille.relais = corps.relais !== false;
-      etatPastille.envoye = total; etatPastille.envoyeLe = maintenant; if (pret) etatPastille.avant = compteurs;
+      etatPastille.envoye = total; etatPastille.envoyeLe = maintenant; if (pret) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
+      executerActionsRelais(corps.actions);
     }
   } catch (e) { /* serveur injoignable : renvoyé au tour suivant */ }
 }
@@ -139,19 +188,23 @@ async function tourPastille() {
 // Lancé une fois par demarrerApplication.
 function demarrerPastille() {
   setInterval(tourPastille, INTERVALLE_PASTILLE_MS);
+  // Fenêtre mise devant par le relais (« Ouvrir », « Autoriser ») : le geste attendu est demandé aussitôt, sans attendre le tour suivant.
+  const aussitot = () => { if (!document.hidden) { etatPastille.forcer = true; tourPastille(); } };
+  document.addEventListener('visibilitychange', aussitot);
+  window.addEventListener('focus', aussitot);
 }
 
 // Changement du collaborateur du poste : nouvelles préférences, nouveaux compteurs de départ.
 function oublierPastilleCollaborateur() {
   reglagesNotifications = null;
-  etatPastille = { envoye: -1, envoyeLe: 0, avant: null, demarreLe: 0, relais: false };
+  etatPastille = { envoye: -1, envoyeLe: 0, avant: null, avantDetails: null, demarreLe: 0, relais: false };
 }
 
 // ---- Réglages › Notifications ----
 
 function enregistrerReglagesNotifications(modif) {
   const r = lireReglagesNotifications();
-  const suivant = { pastille: r.pastille, windows: r.windows, sources: Object.assign({}, r.sources) };
+  const suivant = { pastille: r.pastille, windows: r.windows, apercu: r.apercu, sources: Object.assign({}, r.sources) };
   if (modif.source) suivant.sources[modif.source] = !!modif.valeur;
   else if (modif.cle) suivant[modif.cle] = !!modif.valeur;
   reglagesNotifications = suivant;
@@ -182,8 +235,12 @@ async function renderReglagesNotifications() {
           ${interrupteur('notif-pastille', r.pastille, "enregistrerReglagesNotifications({ cle: 'pastille', valeur: this.checked })")}
         </label>
         <label class="reglages-option" for="notif-windows">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Notification Windows ${infoBulle('Une bulle en bas de l’écran à chaque nouveauté, quand la fenêtre CLAIRE n’est pas devant vous, et le bouton CLAIRE de la barre des tâches qui clignote. Elle dit la rubrique et le nombre, jamais un nom de dossier ni de client. Un clic sur la bulle ouvre CLAIRE.')}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Notification Windows ${infoBulle('Une notification en bas à droite de l’écran à chaque nouveauté, quand la fenêtre CLAIRE n’est pas devant vous, et le bouton CLAIRE de la barre des tâches qui clignote. « Ouvrir » met CLAIRE devant.')}</span></span>
           ${interrupteur('notif-windows', r.windows, "enregistrerReglagesNotifications({ cle: 'windows', valeur: this.checked })")}
+        </label>
+        <label class="reglages-option" for="notif-apercu">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre, ouvrir, autoriser ou refuser sans quitter son travail — comme Teams. Les noms des dossiers s’affichent alors en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
+          ${interrupteur('notif-apercu', r.apercu, "enregistrerReglagesNotifications({ cle: 'apercu', valeur: this.checked })", r.windows)}
         </label>
       </div>
     </div>

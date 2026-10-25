@@ -21891,3 +21891,25 @@ ajuster et en rajouter ».
   icône de CLAIRE posée : **nouvelle empreinte SHA-256 `6fea2783…a565e5`**, à faire autoriser par Fichorga (l'ancien relais n'était déjà
   plus installable depuis le 13/10, Panda le mettant en quarantaine) ; bouton « Télécharger le relais pour ce poste » dans Réglages ›
   Notifications. Non vérifié sur un vrai Windows (point `notifications-pastille-windows`).
+
+### 25/10/2026 — 0.350.0 : notifications comme Teams (répondre depuis la carte)
+
+Demande de Bastien : « Comment avoir des notifications comme Teams où l'on peut répondre ? », maquettes montrées, « Ok vas-y » ;
+porteur choisi : le programme CLAIRE-relais.exe (et non le .reg). « C'est bizarre cette question d'antivirus car ça fonctionnait
+avant » : ce qui fonctionnait, c'étaient le .vbs (07/10) puis le .reg des appels 3CX ; le programme est mis en quarantaine par Panda
+depuis le 12/10 et n'a jamais tourné au bureau — l'exclusion par empreinte reste à faire par Fichorga.
+
+- Poste (`client/122-notifications.js`) : `detailsNotifications` (non-lus par canal hors cartes de proposition, identifiants des
+  propositions), `elementsNouveaux` (canaux qui montent, propositions apparues, 3 au plus) envoyés avec la pastille ; réglage
+  `apercu` (« Montrer le texte des messages », allumé par défaut) ; `executerActionsRelais` (Ouvrir = canal, Autoriser =
+  `autoriserProposition` comme d'un clic) ; la fenêtre redevenue visible demande aussitôt (visibilitychange, focus).
+- Serveur (`server/src/notificationsPoste.js`) : `notificationsRiches` écrit les cartes d'après les identifiants (`accessible` pour
+  les canaux privés, propositions `proposee` du collaborateur ou toutes pour l'administrateur), `repondreDepuisRelais` (message au
+  nom du collaborateur du relais, mentions, Teams par le même notifieur que les canaux), `refuserDepuisRelais`. Routes hors session
+  avec le jeton du relais : `/api/relais-word/repondre`, `/decider` (refusée par le serveur ; « autoriser » rendue à la fenêtre),
+  `/ouvrir`. Une carte remplace la bulle de sa rubrique.
+- Relais 1.2 (`CarteNotification`) : fenêtre sans bordure, au premier plan sans prendre la main (ShowWithoutActivation,
+  WS_EX_TOOLWINDOW), en bas à droite de la zone de travail, 3 empilées, 10 s sauf souris dessus ou frappe ; appels au serveur hors du
+  fil d'affichage, résultat écrit sur la carte. Rendu contrôlé ici sous Mono + Xvfb (capture), pas sur Windows. Nouvelle empreinte
+  SHA-256 `0017f749…dca044`.
+- Limite : une réponse qui cite @CLAIRE est posée, mais CLAIRE n'y répond pas depuis la carte (son agent tourne sur le poste).

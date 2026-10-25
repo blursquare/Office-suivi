@@ -6,6 +6,8 @@ bureau). Installé une fois par poste et par utilisateur, sans droit d'administr
 - lit, par COM, le paragraphe de Microsoft Word où se trouve le curseur, et remplace sur demande un « --- » de ce paragraphe par
   une valeur choisie dans CLAIRE (aide à la rédaction des actes) ;
 - à chaque appel 3CX, met au premier plan la fenêtre CLAIRE (appelant connu) ou la fenêtre utilisée avant la sonnerie ;
+- depuis la version 1.2 (CLAIRE 0.350.0), affiche en bas à droite de l'écran une carte CLAIRE pour chaque nouveauté (message, proposition)
+  où l'on peut répondre, ouvrir CLAIRE, autoriser ou refuser ; la réponse part au serveur CLAIRE du bureau, jamais ailleurs ;
 - depuis la version 1.1 (CLAIRE 0.349.0, 25/10/2026), pose sur l'icône de la fenêtre CLAIRE dans la barre des tâches une pastille
   rouge avec le nombre de choses à voir, affiche une notification Windows (icône CLAIRE dans la zone de notification) pour chaque
   nouveauté et fait clignoter le bouton de la fenêtre CLAIRE.
@@ -22,13 +24,13 @@ Internet. Code source : `server/relais/CLAIRE-relais.cs` du dépôt de CLAIRE. R
 
 Le programme est **le même fichier sur tous les postes** (non signé) :
 
-- **SHA-256 : `6fea2783cc220e13c00754affd848c10a881d23d986ae2e0c42b910cf6a565e5`**
-- MD5 : `ebf0736a4c6a76ffb28f137e1dccbdf4` (si la console demande cette empreinte)
-- Nom : `CLAIRE-relais.exe` (« Relais CLAIRE du poste », produit « CLAIRE », version 1.1.0.0)
+- **SHA-256 : `0017f74906a039cad527f56db8cbf66483b29942b92fa874642ef742cddca044`**
+- MD5 : `d57c863dd0d7c3c7e4181e2a7bd9818a` (si la console demande cette empreinte)
+- Nom : `CLAIRE-relais.exe` (« Relais CLAIRE du poste », produit « CLAIRE », version 1.2.0.0)
 - Emplacements : le dossier Téléchargements de l'utilisateur au moment de l'installation, puis
   `%LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe`
 
 Demande : autoriser ce fichier (empreinte ci-dessus) sur les postes de l'étude, et le sortir de quarantaine là où il a été
 détecté (« Virus détecté — nom inconnu », 12/10/2026). Cette empreinte ne change que si le programme est modifié : la nouvelle
-sera alors redonnée. **Nouvelle empreinte le 25/10/2026 (version 1.1, pastille et notifications)** : l'exclusion de l'ancienne
+sera alors redonnée. **Nouvelle empreinte le 25/10/2026 (version 1.2, pastille et notifications avec réponse)** : l'exclusion de l'ancienne
 (`77b7bb9a…8b27325`) ne vaut plus pour ce fichier.

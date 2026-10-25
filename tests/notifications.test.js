@@ -43,3 +43,15 @@ test('mentions : une carte de proposition adressée au responsable n’est pas u
   assert.equal(app.mentionsHorsCartes({ mentions: 3, mentionsCartes: 2 }), 1);
   assert.equal(app.mentionsHorsCartes({ mentions: 1 }), 1, 'ancienne réponse du serveur');
 });
+
+test('cartes « comme Teams » : seuls les identifiants des canaux qui montent et des propositions apparues partent, 3 au plus', () => {
+  const avant = { canaux: { general: 1, 'd:1': 2 }, propositions: ['a'] };
+  const apres = { canaux: { general: 2, 'd:1': 1, 'd:2': 1, 'd:3': 1, 'd:4': 1 }, propositions: ['a', 'b'] };
+  const e = app.elementsNouveaux(avant, apres, null);
+  assert.equal(e.canaux.join(','), 'general,d:2,d:3');
+  assert.equal(e.propositions.join(','), 'b');
+  assert.equal(app.elementsNouveaux(null, apres, null).canaux.length, 0, 'premier tour');
+  assert.equal(app.elementsNouveaux(avant, apres, { sources: { traiter: false } }).propositions.length, 0);
+  assert.equal(app.elementsNouveaux(avant, apres, { windows: false }).canaux.length, 0);
+  assert.equal(app.reglagesNotificationsComplets(null).apercu, true, 'texte des messages montré par défaut');
+});

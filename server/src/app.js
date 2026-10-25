@@ -233,8 +233,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', creerRouteurIconePoste({ parametresRepo }));
   // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
-  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, relaisWord || {}));
+  const notifieurCanaux = creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn });
+  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord, { notifieur: notifieurCanaux }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, Object.assign({ depot }, relaisWord || {})));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire (30 min / 24 h) et par dossier.
   // Pages rangées dans un dossier : gardées dans la base du bureau (pagesAuthentic.js) ; un magasin indisponible ne bloque jamais CLAIRE.
@@ -267,7 +268,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   stockPiecesJointes.purger().catch(() => {});
   const minuteurPiecesJointes = setInterval(() => { stockPiecesJointes.purger().catch(() => {}); }, 3600000);
   if (minuteurPiecesJointes.unref) minuteurPiecesJointes.unref();
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn }), depot, stockPiecesJointes));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, notifieurCanaux, depot, stockPiecesJointes));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNasLibre(config, parametresRepo));

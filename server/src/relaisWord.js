@@ -70,7 +70,7 @@ var APPEL_RELAIS_VU_MS = 3000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
 /** @typedef {{ titre: string, texte: string, t: number }} NotificationPoste */
-/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, notifications?: NotificationPoste[] }} PosteWord */
+/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, actionsFenetre?: { type: string, canal: string, id: string, t: number }[], notifications?: NotificationPoste[] }} PosteWord */
 
 // Pastille et notifications Windows (étude 25/10 : « il faudrait des notifications pastille sur l'app ») : la fenêtre CLAIRE du poste
 // calcule son compteur d'après les réglages du collaborateur et l'envoie ici ; le relais du poste le lit à chaque relevé et le pose sur
@@ -129,7 +129,10 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   const appels = (p.appels || []).filter(a => maintenant - a.t < 8000).map(a => ({ id: a.id, dossier: a.dossier, ilYaMs: Math.max(0, maintenant - a.t) }));
   p.appels = [];
   const pastille = maintenant - (p.pastilleLe || 0) < PASTILLE_VUE_MS ? (p.pastille || 0) : 0;
-  const notifications = (p.notifications || []).filter(n => maintenant - n.t < NOTIFICATION_EXPIRE_MS).map(n => ({ titre: n.titre, texte: n.texte }));
+  const notifications = (p.notifications || []).filter(n => maintenant - n.t < NOTIFICATION_EXPIRE_MS).map(n => {
+    const { t, ...reste } = n; void t;
+    return Object.assign({ type: 'resume' }, reste);
+  });
   p.notifications = [];
   return { commandes: commandes.map(c => ({ id: c.id, valeur: c.valeur, occurrence: c.occurrence, attendu: c.attendu })), appels, renvoyer: neuf && !!corps.inchange, pastille, notifications };
 }
@@ -168,9 +171,10 @@ function demanderInsertionWord(etat, poste, corps, maintenant = Date.now()) {
   return { id };
 }
 
-// Pure (sur l'état) : le compteur et les nouveautés envoyés par la fenêtre CLAIRE du poste. Texte seul, borné : aucun HTML ne va au relais.
-/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant] */
-function noterPastillePoste(etat, poste, corps, maintenant = Date.now()) {
+// Pure (sur l'état) : le compteur et les nouveautés envoyés par la fenêtre CLAIRE du poste. Texte écrit par le serveur, jamais du HTML.
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant]
+ * @param {any[]} [riches] cartes écrites par le serveur (notificationsPoste.js) : elles remplacent la bulle de leur rubrique */
+function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches) {
   if (!etat.postes.has(poste) && etat.postes.size >= POSTES_MAX) return { pastille: 0 };
   const p = postePourWord(etat, poste);
   const n = Number(corps && corps.total);
@@ -181,8 +185,22 @@ function noterPastillePoste(etat, poste, corps, maintenant = Date.now()) {
   const nouvelles = (Array.isArray(corps && corps.notifications) ? corps.notifications : []).slice(0, NOTIFICATIONS_MAX)
     .filter(x => x && Object.prototype.hasOwnProperty.call(TEXTES_NOTIFICATIONS, x.cle) && Number.isInteger(x.n) && x.n > 0 && x.n < 1000)
     .map(x => ({ titre: TEXTES_NOTIFICATIONS[x.cle][0], texte: TEXTES_NOTIFICATIONS[x.cle][1](x.n), t: maintenant }));
-  p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS).concat(nouvelles).slice(-NOTIFICATIONS_MAX);
-  return { pastille: p.pastille };
+  const cartes = (riches || []).slice(0, NOTIFICATIONS_MAX).map(x => Object.assign({}, x, { t: maintenant }));
+  const couvertes = new Set();
+  for (const x of cartes) { if (x.type === 'message') { couvertes.add('Discussions'); } if (x.type === 'proposition') couvertes.add('Propositions de CLAIRE'); }
+  p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS)
+    .concat(cartes, nouvelles.filter(x => !couvertes.has(x.titre))).slice(-NOTIFICATIONS_MAX);
+  // Gestes demandés depuis une carte (ouvrir un canal, autoriser une proposition) : faits par la fenêtre CLAIRE de ce poste.
+  const actions = (p.actionsFenetre || []).filter(a => maintenant - a.t < NOTIFICATION_EXPIRE_MS).map(a => ({ type: a.type, canal: a.canal, id: a.id }));
+  p.actionsFenetre = [];
+  return { pastille: p.pastille, actions };
+}
+
+// Un geste demandé depuis une carte du relais, pour la fenêtre CLAIRE du poste (rendu à son prochain envoi de pastille).
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {{ type: string, canal?: string, id?: string }} action @param {number} [maintenant] */
+function demanderActionFenetre(etat, poste, action, maintenant = Date.now()) {
+  const p = postePourWord(etat, poste);
+  p.actionsFenetre = (p.actionsFenetre || []).concat([{ type: action.type, canal: action.canal || '', id: action.id || '', t: maintenant }]).slice(-5);
 }
 
 // Pure (sur l'état) : ce que voit la fenêtre CLAIRE du poste.
@@ -206,5 +224,5 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
 module.exports = {
   codeInstallationRelais, lireExecutableRelais, PREFIXE_CODE_RELAIS,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, RELAIS_VU_MS, PASTILLE_VUE_MS
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, demanderActionFenetre, RELAIS_VU_MS, PASTILLE_VUE_MS
 };

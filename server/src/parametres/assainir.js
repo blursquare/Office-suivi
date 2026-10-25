@@ -233,7 +233,7 @@ function assainirPreference(brut) {
     const n = b.notifications;
     const sources = {};
     for (const cle of SOURCES_NOTIFICATIONS_PREFERENCE) if (n.sources && typeof n.sources[cle] === 'boolean') sources[cle] = n.sources[cle];
-    out.notifications = { pastille: n.pastille !== false, windows: n.windows !== false, sources };
+    out.notifications = { pastille: n.pastille !== false, windows: n.windows !== false, apercu: n.apercu !== false, sources };
   }
   return out;
 }

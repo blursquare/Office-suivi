@@ -15,7 +15,7 @@ const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
-  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste
+  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste, demanderActionFenetre
 } = require('../relaisWord');
 
 var CLE_RELAIS_WORD = 'relais-word';
@@ -50,8 +50,39 @@ function jetonAccepte(parametresRepo, poste, jeton) {
   return true;
 }
 
-function creerRouteurRelaisWordPoste(parametresRepo, etat) {
+function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
   const routeur = express.Router();
+  const N = require('../notificationsPoste');
+  // Gestes depuis une carte du relais (0.350.0) : hors session, le jeton du poste en tient lieu ; le collaborateur est celui du relais.
+  const relaisDe = (req, res) => {
+    const corps = req.body || {};
+    const poste = clePoste(corps.poste);
+    if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return null; }
+    const collab = N.collaborateurDuPoste(poste);
+    if (!collab) { res.status(403).json({ erreur: 'Collaborateur inconnu.' }); return null; }
+    return { poste, collab, corps };
+  };
+  routeur.post('/relais-word/repondre', (req, res) => {
+    const r = relaisDe(req, res);
+    if (!r) return;
+    const fait = N.repondreDepuisRelais({ repo: parametresRepo, collab: r.collab, canal: r.corps.canal, texte: r.corps.texte, notifieur: options.notifieur });
+    res.status(fait.ok ? 200 : 400).json(fait.ok ? { ok: true } : { erreur: fait.erreur });
+  });
+  routeur.post('/relais-word/decider', (req, res) => {
+    const r = relaisDe(req, res);
+    if (!r) return;
+    if (r.corps.decision === 'refusee') { const fait = N.refuserDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
+    // « Autoriser » : le geste se fait dans la fenêtre CLAIRE (fenêtre d'email, outil) — jamais par le relais.
+    if (r.corps.decision === 'autoriser' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'autoriser', id: r.corps.id.slice(0, 80) }); res.json({ ok: true }); return; }
+    res.status(400).json({ erreur: 'Décision inconnue.' });
+  });
+  routeur.post('/relais-word/ouvrir', (req, res) => {
+    const r = relaisDe(req, res);
+    if (!r) return;
+    const canal = typeof r.corps.canal === 'string' ? r.corps.canal.slice(0, 80) : '';
+    demanderActionFenetre(etat, r.poste, { type: 'ouvrir', canal });
+    res.json({ ok: true });
+  });
   routeur.post('/relais-word/releve', (req, res) => {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
@@ -84,7 +115,12 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
     // Seulement pour un collaborateur dont le relais est installé (audit 25/10 : la Map du serveur ne grossit pas d'un poste inventé).
     if (!empreintePoste(parametresRepo, poste)) { res.json({ pastille: 0, relais: false }); return; }
-    res.json(noterPastillePoste(etat, poste, corps));
+    // Cartes « comme Teams » : écrites ICI d'après des identifiants, et seulement si le collaborateur montre le texte des messages.
+    const N = require('../notificationsPoste');
+    const collab = N.collaborateurDuPoste(poste);
+    const el = corps.elements && typeof corps.elements === 'object' ? corps.elements : {};
+    const riches = collab && corps.apercu !== false ? N.notificationsRiches({ repo: parametresRepo, depot: options.depot, collab, canaux: el.canaux, propositions: el.propositions }) : [];
+    res.json(noterPastillePoste(etat, poste, corps, Date.now(), riches));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};

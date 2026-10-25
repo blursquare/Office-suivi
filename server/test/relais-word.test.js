@@ -137,9 +137,38 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   // Pastille (0.349.0) : posée par la fenêtre CLAIRE, rendue au relais par la ROUTE du relevé (audit 25/10 : elle s'y perdait).
   const pastille = (corps) => fetch(`${baseUrl}/api/relais-word/pastille`, { method: 'POST', headers: Object.assign({}, json, auth), body: JSON.stringify(corps) }).then(x => x.json());
   assert.deepEqual(await pastille({ poste: 'paul', total: 3 }), { pastille: 0, relais: false }, 'sans relais installé : rien gardé');
-  assert.deepEqual(await pastille({ poste: 'julie', total: 3, notifications: [{ cle: 'traiter', n: 2 }] }), { pastille: 3 });
+  assert.deepEqual(await pastille({ poste: 'julie', total: 3, notifications: [{ cle: 'traiter', n: 2 }] }), { pastille: 3, actions: [] });
   assert.deepEqual(await releve({ poste: 'julie', jeton, word: true, inchange: true, pastille: 1 }).then(x => x.json()),
-    { commandes: [], pastille: 3, notifications: [{ titre: 'Propositions de CLAIRE', texte: '2 propositions à décider' }] });
+    { commandes: [], pastille: 3, notifications: [{ type: 'resume', titre: 'Propositions de CLAIRE', texte: '2 propositions à décider' }] });
+  // Gestes depuis une carte : jeton exigé ; « Ouvrir » et « Autoriser » rendus à la fenêtre CLAIRE du poste à son envoi suivant.
+  const geste = (route, corps) => fetch(`${baseUrl}/api/relais-word/${route}`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
+  assert.equal((await geste('ouvrir', { poste: 'julie', jeton: 'faux', canal: 'general' })).status, 403);
+  assert.equal((await geste('ouvrir', { poste: 'julie', jeton, canal: 'general' })).status, 200);
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'autoriser' })).status, 200);
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'acceptee' })).status, 400, 'jamais « accepter » sans la fenêtre CLAIRE');
+  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [{ type: 'ouvrir', canal: 'general', id: '' }, { type: 'autoriser', canal: '', id: 'rt-x' }]);
+  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [], 'une seule fois');
+  assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'general', texte: '' })).status, 400);
+  assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'p:bastien-jeremy', texte: 'Bonjour' })).status, 400, 'jamais dans le privé des autres');
+  assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'general', texte: 'Je m’en occupe @Bastien' })).status, 200);
+  const general = await fetch(`${baseUrl}/api/canaux/general/messages?utilisateur=${encodeURIComponent('Bastien ANGLUMENT')}`, { headers: auth }).then(x => x.json());
+  const dernier = general.messages[general.messages.length - 1];
+  assert.equal(dernier.auteur, 'Julie VASSELIN', 'posé au nom du collaborateur du relais');
+  assert.deepEqual(dernier.mentions, ['Bastien ANGLUMENT']);
+  // Carte « comme Teams » : écrite par le serveur d'après l'identifiant du canal ; aperçu éteint = rubrique seule.
+  await pastille({ poste: 'bastien', total: 1 });
+  const cfgB = configDuCode(await codePour('Bastien'));
+  await releve({ poste: 'bastien', jeton: cfgB.jeton, inchange: true });
+  await pastille({ poste: 'bastien', total: 1, elements: { canaux: ['general', 'p:jeremy-julie'] }, notifications: [{ cle: 'messages', n: 1 }] });
+  const cartes = (await releve({ poste: 'bastien', jeton: cfgB.jeton, inchange: true }).then(x => x.json())).notifications;
+  assert.equal(cartes.length, 1, 'la carte remplace la bulle de sa rubrique ; le privé des autres jamais');
+  assert.equal(cartes[0].type, 'message');
+  assert.equal(cartes[0].titre, 'général');
+  assert.equal(cartes[0].auteur, 'Julie');
+  assert.equal(cartes[0].texte, 'Je m’en occupe @Bastien');
+  await pastille({ poste: 'bastien', total: 1, apercu: false, elements: { canaux: ['general'] }, notifications: [{ cle: 'messages', n: 1 }] });
+  assert.deepEqual((await releve({ poste: 'bastien', jeton: cfgB.jeton, inchange: true }).then(x => x.json())).notifications,
+    [{ type: 'resume', titre: 'Discussions', texte: '1 nouveau message' }], 'texte des messages masqué : jamais un nom');
   const e = await fetch(`${baseUrl}/api/relais-word/etat?poste=julie`, { headers: auth }).then(x => x.json());
   assert.ok(e.installe && e.actif && e.word);
   assert.equal(e.paragraphe, 'Numéro --- établi le ---');
@@ -212,4 +241,24 @@ test('pastille du poste : le compteur de la fenêtre CLAIRE va au relais, étein
   const plein = creerEtatRelaisWord();
   for (let i = 0; i < 150; i++) noterPastillePoste(plein, 'p' + i, { total: 1 }, 1000);
   assert.equal(plein.postes.size, 100, 'jamais plus de 100 postes en mémoire');
+});
+
+test('cartes « comme Teams » : une proposition seulement pour son responsable (ou l’administrateur) et tant qu’elle attend ; refuser = même règle', () => {
+  const N = require('../src/notificationsPoste');
+  const P = require('../src/routines/propositions');
+  const memoire = new Map();
+  const repo = { lireJsonBrut: (c, d) => (memoire.has(c) ? JSON.parse(memoire.get(c)) : d), ecrireJsonBrut: (c, v) => memoire.set(c, JSON.stringify(v)) };
+  P.ecrirePropositions(repo, [
+    { id: 'a', routine: 'revue-matin', responsable: 'Julie VASSELIN', dossierId: '', type: 'tache', action: 'tache', empreinte: 'e1', titre: 'Relancer la banque', etat: 'proposee' },
+    { id: 'b', routine: 'revue-matin', responsable: 'Jérémy SAUJOT', dossierId: '', type: 'tache', action: 'tache', empreinte: 'e2', titre: 'Autre', etat: 'proposee' },
+    { id: 'c', routine: 'revue-matin', responsable: 'Julie VASSELIN', dossierId: '', type: 'tache', action: 'tache', empreinte: 'e3', titre: 'Déjà refusée', etat: 'refusee' }
+  ]);
+  const pour = (collab) => N.notificationsRiches({ repo, collab, propositions: ['a', 'b', 'c'] }).map((x) => x.id).join(',');
+  assert.equal(pour('Julie VASSELIN'), 'a');
+  assert.equal(pour('Bastien ANGLUMENT'), 'a,b', 'l’administrateur voit toutes celles qui attendent');
+  assert.equal(N.refuserDepuisRelais({ repo, collab: 'Julie VASSELIN', id: 'b' }).ok, false);
+  assert.equal(N.refuserDepuisRelais({ repo, collab: 'Julie VASSELIN', id: 'a' }).ok, true);
+  assert.equal(P.lirePropositions(repo).find((x) => x.id === 'a').etat, 'refusee');
+  assert.equal(N.collaborateurDuPoste('jeremy'), 'Jérémy SAUJOT');
+  assert.equal(N.ligne('<b>x</b>\nsuite ' + 'y'.repeat(300), 20).length, 20);
 });

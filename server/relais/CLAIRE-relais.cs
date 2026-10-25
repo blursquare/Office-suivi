@@ -14,7 +14,8 @@
 //    demandées depuis CLAIRE (« Insérer dans Word ») et les sonneries 3CX du poste (fenêtre CLAIRE au premier plan pour un
 //    appelant d'un dossier, sinon la fenêtre d'avant la sonnerie), et le compteur de la pastille et les nouveautés du collaborateur
 //    (étude 25/10 : « des notifications pastille sur l'app ») — pastille rouge sur l'icône de la fenêtre CLAIRE dans la barre des
-//    tâches (ITaskbarList3::SetOverlayIcon), notification Windows (icône CLAIRE de la zone de notification) et bouton qui clignote.
+//    tâches (ITaskbarList3::SetOverlayIcon), carte de notification en bas à droite (1.2 : répondre, ouvrir, autoriser, refuser, comme
+//    Teams ; icône CLAIRE dans la zone de notification) et bouton qui clignote.
 // Aucune frappe simulée : le premier plan passe par AttachThreadInput. Rien n'est écrit sur le disque hors de son installation.
 
 using System;
@@ -35,8 +36,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("Relais CLAIRE du poste : appels 3CX, pastille et notifications de CLAIRE")]
 [assembly: System.Reflection.AssemblyCompany("Etude de Maitre Sophie GOSSART")]
 [assembly: System.Reflection.AssemblyProduct("CLAIRE")]
-[assembly: System.Reflection.AssemblyVersion("1.1.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.1.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.2.0.0")]
 
 // ---- Barre des tâches de Windows (pastille sur l'icône d'une fenêtre) : interface COM de shell32, dans l'ordre de sa table. ----
 [ComImport, Guid("ea1afb91-9e28-4b86-90e9-9e9f8a5eefaf"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -121,19 +122,14 @@ static class PastilleWindows
         });
     }
 
-    // Une notification Windows (bulle de l'icône CLAIRE de la zone de notification) et le bouton de la fenêtre CLAIRE qui clignote
-    // jusqu'à ce qu'on l'ouvre. Plusieurs nouveautés du même relevé : une seule bulle.
-    public static void Notifier(List<string[]> nouvelles)
+    // Les nouveautés (0.350.0, « comme Teams ») : une carte CLAIRE par nouveauté en bas à droite de l'écran, par-dessus le travail en
+    // cours, sans lui prendre la main ; trois au plus empilées. Le bouton de la fenêtre CLAIRE clignote.
+    public static void Notifier(List<Dictionary<string, object>> nouvelles)
     {
         if (nouvelles.Count == 0) return;
         SurLeFil(delegate
         {
-            if (zone == null) return;
-            string titre = nouvelles.Count == 1 ? nouvelles[0][0] : "CLAIRE — " + nouvelles.Count + " nouveautés";
-            StringBuilder texte = new StringBuilder();
-            foreach (string[] x in nouvelles) { if (texte.Length > 0) texte.Append("\n"); texte.Append(nouvelles.Count == 1 ? x[1] : x[0] + (x[1] != "" ? " : " + x[1] : "")); }
-            string t = texte.ToString(); if (t.Length > 250) t = t.Substring(0, 250);
-            try { zone.ShowBalloonTip(8000, titre, t == "" ? " " : t, System.Windows.Forms.ToolTipIcon.Info); } catch { }
+            foreach (Dictionary<string, object> n in nouvelles) CarteNotification.Montrer(n);
             IntPtr h = RelaisClaire.TrouverClaire();
             if (h != IntPtr.Zero)
             {
@@ -163,6 +159,184 @@ static class PastilleWindows
             }
             return b.GetHicon();
         }
+    }
+}
+
+// ---- La carte d'une nouveauté (0.350.0) : canal, auteur, heure, début du message ; Répondre / Ouvrir / Plus tard, ou, pour une
+// proposition de CLAIRE, Refuser / Autoriser. Le texte vient du serveur de CLAIRE (rien n'est lu ailleurs) ; une réponse part par le
+// serveur au nom du collaborateur du relais ; « Autoriser » fait faire le geste par la fenêtre CLAIRE (jamais un email sans « Envoyer »).
+class CarteNotification : System.Windows.Forms.Form
+{
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageW(IntPtr h, int message, IntPtr w, string l);
+    static readonly List<CarteNotification> ouvertes = new List<CarteNotification>();
+    static readonly System.Drawing.Color BORDEAUX = System.Drawing.Color.FromArgb(109, 35, 50);
+    static readonly System.Drawing.Color GRIS = System.Drawing.Color.FromArgb(100, 112, 137);
+    const int LARGEUR = 380, MARGE = 14;
+
+    readonly Dictionary<string, object> n;
+    readonly System.Windows.Forms.Timer minuterie = new System.Windows.Forms.Timer();
+    System.Windows.Forms.TextBox saisie;
+    System.Windows.Forms.Label etat;
+    int restant = 10;
+
+    protected override bool ShowWithoutActivation { get { return true; } }
+    protected override System.Windows.Forms.CreateParams CreateParams
+    {
+        get { System.Windows.Forms.CreateParams cp = base.CreateParams; cp.ExStyle |= 0x80 | 0x8; return cp; } // WS_EX_TOOLWINDOW | WS_EX_TOPMOST
+    }
+
+    static string T(Dictionary<string, object> d, string cle) { object v; return d != null && d.TryGetValue(cle, out v) && v != null ? Convert.ToString(v) : ""; }
+
+    public static void Montrer(Dictionary<string, object> n)
+    {
+        while (ouvertes.Count >= 3) ouvertes[0].Close();
+        CarteNotification c = new CarteNotification(n);
+        ouvertes.Add(c);
+        Ranger();
+        c.Show();
+    }
+
+    static void Ranger()
+    {
+        System.Drawing.Rectangle zone = System.Windows.Forms.Screen.PrimaryScreen.WorkingArea;
+        int bas = zone.Bottom - 12;
+        for (int i = ouvertes.Count - 1; i >= 0; i--)
+        {
+            CarteNotification c = ouvertes[i];
+            c.Location = new System.Drawing.Point(zone.Right - LARGEUR - 12, bas - c.Height);
+            bas -= c.Height + 8;
+        }
+    }
+
+    CarteNotification(Dictionary<string, object> notification)
+    {
+        n = notification;
+        string type = T(n, "type");
+        FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
+        ShowInTaskbar = false; TopMost = true; StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+        BackColor = System.Drawing.Color.White;
+        Font = new System.Drawing.Font("Segoe UI", 9f);
+        Width = LARGEUR;
+        int y = 0;
+        System.Windows.Forms.Panel tete = new System.Windows.Forms.Panel { BackColor = BORDEAUX, Location = new System.Drawing.Point(0, 0), Size = new System.Drawing.Size(LARGEUR, 30) };
+        tete.Controls.Add(new System.Windows.Forms.Label { Text = "CLAIRE", ForeColor = System.Drawing.Color.White, AutoSize = true, Location = new System.Drawing.Point(MARGE, 7), Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Bold) });
+        System.Windows.Forms.Label croix = new System.Windows.Forms.Label { Text = "✕", ForeColor = System.Drawing.Color.White, AutoSize = true, Location = new System.Drawing.Point(LARGEUR - 26, 6), Cursor = System.Windows.Forms.Cursors.Hand };
+        croix.Click += delegate { Close(); };
+        tete.Controls.Add(croix);
+        Controls.Add(tete);
+        y = 40;
+        string contexte = T(n, "contexte");
+        string ligneHaut = (contexte != "" ? contexte + " · " : "") + T(n, "titre");
+        y = Ajouter(new System.Windows.Forms.Label { Text = ligneHaut.ToUpperInvariant(), ForeColor = GRIS, Font = new System.Drawing.Font("Segoe UI", 8f, System.Drawing.FontStyle.Bold) }, y, 4);
+        if (type == "message")
+        {
+            string qui = T(n, "auteur") + (T(n, "heure") != "" ? "   " + T(n, "heure") : "");
+            y = Ajouter(new System.Windows.Forms.Label { Text = qui, Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Bold) }, y, 2);
+        }
+        y = Ajouter(new System.Windows.Forms.Label { Text = T(n, "texte"), ForeColor = System.Drawing.Color.FromArgb(28, 35, 51) }, y, 10);
+        if (type == "message")
+        {
+            saisie = new System.Windows.Forms.TextBox { Location = new System.Drawing.Point(MARGE, y), Width = LARGEUR - 2 * MARGE - 90, Font = new System.Drawing.Font("Segoe UI", 10f) };
+            saisie.KeyDown += delegate (object o, System.Windows.Forms.KeyEventArgs e) { if (e.KeyCode == System.Windows.Forms.Keys.Enter) { e.SuppressKeyPress = true; Repondre(); } };
+            saisie.MouseDown += delegate { Activate(); saisie.Focus(); };
+            Controls.Add(saisie);
+            // Texte d'invite dans le champ (EM_SETCUEBANNER), une fois le champ créé.
+            saisie.HandleCreated += delegate { try { SendMessageW(saisie.Handle, 0x1501, (IntPtr)1, "Répondre à " + T(n, "auteur") + "…"); } catch { } };
+            Controls.Add(Bouton("Envoyer", true, LARGEUR - MARGE - 82, y - 1, 82, delegate { Repondre(); }));
+            y += saisie.Height + 10;
+            Controls.Add(Bouton("Plus tard", false, LARGEUR - MARGE - 82, y, 82, delegate { Close(); }));
+            Controls.Add(Bouton("Ouvrir", false, LARGEUR - MARGE - 170, y, 82, delegate { Ouvrir(T(n, "canal")); }));
+        }
+        else if (type == "proposition")
+        {
+            bool alerte = T(n, "alerte") == "True";
+            Controls.Add(Bouton(alerte ? "Vu" : "Autoriser", true, LARGEUR - MARGE - 90, y, 90, delegate { Decider("autoriser"); }));
+            if (!alerte) Controls.Add(Bouton("Refuser", false, LARGEUR - MARGE - 186, y, 90, delegate { Decider("refusee"); }));
+            Controls.Add(Bouton("Ouvrir", false, MARGE, y, 82, delegate { Ouvrir(""); }));
+        }
+        else
+        {
+            Controls.Add(Bouton("Plus tard", false, LARGEUR - MARGE - 82, y, 82, delegate { Close(); }));
+            Controls.Add(Bouton("Ouvrir", true, LARGEUR - MARGE - 170, y, 82, delegate { Ouvrir(""); }));
+        }
+        y += 34;
+        etat = new System.Windows.Forms.Label { AutoSize = false, Location = new System.Drawing.Point(MARGE, y), Size = new System.Drawing.Size(LARGEUR - 2 * MARGE, 16), ForeColor = GRIS, Font = new System.Drawing.Font("Segoe UI", 8f) };
+        Controls.Add(etat);
+        Height = y + 22;
+        Paint += delegate (object o, System.Windows.Forms.PaintEventArgs e) { using (System.Drawing.Pen p = new System.Drawing.Pen(System.Drawing.Color.FromArgb(214, 218, 227))) e.Graphics.DrawRectangle(p, 0, 0, Width - 1, Height - 1); };
+        // Se range seule après 10 s, sauf souris dessus ou réponse en cours de frappe.
+        minuterie.Interval = 1000;
+        minuterie.Tick += delegate
+        {
+            bool dessus = Bounds.Contains(System.Windows.Forms.Cursor.Position);
+            bool frappe = saisie != null && (saisie.Focused || saisie.Text.Length > 0);
+            if (dessus || frappe) { restant = Math.Max(restant, 4); return; }
+            if (--restant <= 0) Close();
+        };
+        minuterie.Start();
+        FormClosed += delegate { minuterie.Stop(); ouvertes.Remove(this); Ranger(); };
+    }
+
+    int Ajouter(System.Windows.Forms.Label l, int y, int apres)
+    {
+        l.AutoSize = true; l.MaximumSize = new System.Drawing.Size(LARGEUR - 2 * MARGE, 0); l.Location = new System.Drawing.Point(MARGE, y);
+        Controls.Add(l);
+        return y + l.PreferredHeight + apres;
+    }
+
+    System.Windows.Forms.Button Bouton(string texte, bool principal, int x, int y, int largeur, EventHandler clic)
+    {
+        System.Windows.Forms.Button b = new System.Windows.Forms.Button { Text = texte, Location = new System.Drawing.Point(x, y), Size = new System.Drawing.Size(largeur, 28), FlatStyle = System.Windows.Forms.FlatStyle.Flat, Cursor = System.Windows.Forms.Cursors.Hand };
+        b.FlatAppearance.BorderColor = principal ? BORDEAUX : System.Drawing.Color.FromArgb(214, 218, 227);
+        b.BackColor = principal ? BORDEAUX : System.Drawing.Color.White;
+        b.ForeColor = principal ? System.Drawing.Color.White : System.Drawing.Color.FromArgb(28, 35, 51);
+        b.Click += clic;
+        return b;
+    }
+
+    // Les appels au serveur partent hors du fil d'affichage ; la carte dit le résultat.
+    void Envoyer(string route, Dictionary<string, object> corps, string reussi, bool fermer)
+    {
+        etat.ForeColor = GRIS; etat.Text = "Envoi…";
+        ThreadPool.QueueUserWorkItem(delegate
+        {
+            string erreur = RelaisClaire.PosterRelais(route, corps);
+            try
+            {
+                BeginInvoke((System.Windows.Forms.MethodInvoker)delegate
+                {
+                    if (erreur == "") { etat.Text = reussi; if (fermer) { System.Windows.Forms.Timer t = new System.Windows.Forms.Timer { Interval = 1200 }; t.Tick += delegate { t.Stop(); Close(); }; t.Start(); } }
+                    else { etat.ForeColor = System.Drawing.Color.FromArgb(220, 38, 38); etat.Text = erreur; }
+                });
+            }
+            catch { }
+        });
+    }
+
+    void Repondre()
+    {
+        string texte = saisie.Text.Trim();
+        if (texte == "") return;
+        saisie.Enabled = false;
+        Dictionary<string, object> c = new Dictionary<string, object>();
+        c["canal"] = T(n, "canal"); c["texte"] = texte;
+        Envoyer("repondre", c, "Réponse envoyée", true);
+    }
+
+    void Ouvrir(string canal)
+    {
+        Dictionary<string, object> c = new Dictionary<string, object>();
+        c["canal"] = canal;
+        Envoyer("ouvrir", c, "", true);
+        RelaisClaire.MontrerClaire();
+    }
+
+    void Decider(string decision)
+    {
+        Dictionary<string, object> c = new Dictionary<string, object>();
+        c["id"] = T(n, "id"); c["decision"] = decision;
+        Envoyer("decider", c, decision == "refusee" ? "Refusée" : "Ouverte dans CLAIRE", true);
+        if (decision == "autoriser") RelaisClaire.MontrerClaire();
     }
 }
 
@@ -476,11 +650,11 @@ static class RelaisClaire
                     if (rep != null && rep.ContainsKey("renvoyer") && Equals(rep["renvoyer"], true)) dernier = null;
                     foreach (object a in Liste(rep, "appels")) Appel(a as Dictionary<string, object>);
                     if (rep != null && rep.ContainsKey("pastille")) { try { PastilleWindows.Mettre(Convert.ToInt32(rep["pastille"])); } catch { } }
-                    List<string[]> nouvelles = new List<string[]>();
+                    List<Dictionary<string, object>> nouvelles = new List<Dictionary<string, object>>();
                     foreach (object n in Liste(rep, "notifications"))
                     {
                         Dictionary<string, object> d = n as Dictionary<string, object>;
-                        if (d != null && Texte(d, "titre") != "") nouvelles.Add(new string[] { Texte(d, "titre"), Texte(d, "texte") });
+                        if (d != null && Texte(d, "titre") != "") nouvelles.Add(d);
                     }
                     PastilleWindows.Notifier(nouvelles);
                 }
@@ -508,6 +682,19 @@ static class RelaisClaire
         if (d == null || !d.ContainsKey(cle) || d[cle] == null) return new object[0];
         IEnumerable e = d[cle] as IEnumerable;
         return e != null && !(d[cle] is string) ? e : new object[] { d[cle] };
+    }
+
+    // Un geste d'une carte (répondre, ouvrir, décider) : poste et jeton du relais ajoutés. Rend '' ou un message d'erreur court.
+    internal static string PosterRelais(string route, Dictionary<string, object> corps)
+    {
+        corps["poste"] = poste; corps["jeton"] = jeton;
+        try { Poster(url + "api/relais-word/" + route, new JavaScriptSerializer().Serialize(corps)); return ""; }
+        catch (WebException e)
+        {
+            HttpWebResponse r = e.Response as HttpWebResponse;
+            return r == null ? "Serveur CLAIRE injoignable." : (int)r.StatusCode == 403 ? "Relais refusé par CLAIRE." : "Refusé par CLAIRE.";
+        }
+        catch { return "Envoi impossible."; }
     }
 
     static string Poster(string adresse, string corps)
