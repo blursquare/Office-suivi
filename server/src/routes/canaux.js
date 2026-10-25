@@ -210,6 +210,8 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     if (parQui === 'CLAIRE' && !EMOJIS_CLAIRE_PAR_POSTE.includes(String(corps.emoji || '').replace(/\uFE0F/g, ''))) { res.status(400).json({ erreur: 'Emoji réservé.' }); return; }
     const r = C.reagirMessage(parametresRepo, id, req.params.mid, parQui, String(corps.emoji || ''), corps.actif === undefined ? undefined : corps.actif === true);
     if (!r) { res.status(400).json({ erreur: 'Message ou réaction inconnus.' }); return; }
+    // Une réaction d'un collègue à un message d'une personne : sa carte va au relais du poste de l'auteur (0.350.0).
+    if (r.pose && !r.message.claire && parQui !== 'CLAIRE' && notifieur && notifieur.reactionPosee) notifieur.reactionPosee(id, r.message, String(corps.emoji || ''), par);
     if (r.message.claire && parQui !== 'CLAIRE') {
       noterReaction(parametresRepo, { par, emoji: String(corps.emoji), canal: id, messageId: r.message.id, pose: r.pose,
         extrait: r.message.texte || String(r.message.html || '').replace(/<[^>]*>/g, ' '), dossierId: id.startsWith('d:') ? id.slice(2) : '' });

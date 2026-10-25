@@ -190,10 +190,20 @@ function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches)
   for (const x of cartes) { if (x.type === 'message') { couvertes.add('Discussions'); } if (x.type === 'proposition') couvertes.add('Propositions de CLAIRE'); }
   p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS)
     .concat(cartes, nouvelles.filter(x => !couvertes.has(x.titre))).slice(-NOTIFICATIONS_MAX);
-  // « Ouvrir » demandé depuis une carte : fait par la fenêtre CLAIRE de ce poste, dans les 20 s (plus tard, il n'a plus de sens).
+  // « Ouvrir » / « Autoriser » demandés depuis une carte : faits par la fenêtre CLAIRE de ce poste, dans les 20 s (plus tard, plus de sens).
   const actions = (p.actionsFenetre || []).filter(a => maintenant - a.t < 20000).map(a => ({ type: a.type, canal: a.canal, id: a.id }));
   p.actionsFenetre = [];
   return { pastille: p.pastille, actions };
+}
+
+// Une carte écrite par le serveur hors du tour de la fenêtre (réaction d'un collègue à mon message), pour le relais de ce poste — seulement
+// un relais qui sait l'afficher (1.1 et plus) et qui a battu récemment.
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} carte @param {number} [maintenant] */
+function noterCartePoste(etat, poste, carte, maintenant = Date.now()) {
+  const p = poste ? etat.postes.get(poste) : null;
+  if (!p || !p.pastilleRelais || maintenant - p.vu > RELAIS_VU_MS) return false;
+  p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS).concat([Object.assign({}, carte, { t: maintenant })]).slice(-NOTIFICATIONS_MAX);
+  return true;
 }
 
 // Un geste demandé depuis une carte du relais, pour la fenêtre CLAIRE du poste (rendu à son prochain envoi de pastille).
@@ -224,5 +234,5 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
 module.exports = {
   codeInstallationRelais, lireExecutableRelais, PREFIXE_CODE_RELAIS,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, demanderActionFenetre, RELAIS_VU_MS, PASTILLE_VUE_MS
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, demanderActionFenetre, noterCartePoste, RELAIS_VU_MS, PASTILLE_VUE_MS
 };

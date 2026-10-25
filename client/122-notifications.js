@@ -17,6 +17,7 @@ var SOURCES_NOTIFICATIONS = [
   { cle: 'suivi', libelle: 'Nouveautés du Suivi des dossiers', aide: 'La pastille rouge de « Suivi des dossiers » : pièces trouvées, fonds tous reçus, mises à jour d’Authentic de vos dossiers.', defaut: true},
   { cle: 'scans', libelle: 'Scans à ranger', aide: 'Les scans du copieur que Claire Scan n’a pas rangés seuls.', defaut: false},
   { cle: 'taches', libelle: 'Tâches du jour', aide: 'Ce qui reste dans votre liste « Aujourd’hui » (tâches des dossiers et vos rappels).', defaut: false},
+  { cle: 'reactions', libelle: 'Réactions à vos messages', aide: 'Une notification quand un collègue réagit par un emoji à l’un de vos messages (« Julie a réagi 👍 à votre message »). Ne compte pas dans la pastille.', defaut: true, sansCompte: true },
   { cle: 'dates', libelle: 'Réponses aux dates proposées', aide: 'Les réponses des clients ou des confrères à un sondage de dates de signature, pas encore vues dans l’Agenda.', defaut: false }
 ];
 var INTERVALLE_PASTILLE_MS = 5000;
@@ -132,15 +133,30 @@ function elementsNouveaux(avant, apres, reglages) {
   return { canaux: canauxMontes, propositions };
 }
 
-// « Ouvrir » demandé depuis une carte du relais (le relais a mis la fenêtre CLAIRE devant) : le canal du message, « À traiter » pour
-// une proposition ; une carte de rubrique (Suivi, scans…) ne fait que montrer CLAIRE. Jamais « Autoriser / Refuser » depuis une carte
-// (étude 25/10). Fenêtre restée cachée : rien.
+// Gestes demandés depuis une carte du relais (le relais a mis la fenêtre CLAIRE devant ; le serveur ne les garde que 20 s). Fenêtre
+// restée cachée : rien.
+//  - « Ouvrir » : le canal du message, « À traiter » pour une proposition ; une carte de rubrique ne fait que montrer CLAIRE.
+//  - « Autoriser » (étude 25/10 : « remet les autorisations ou refus ») : la proposition est montrée dans « À traiter » puis autorisée
+//    comme d'un clic — au niveau 1, la fenêtre d'email ou l'outil s'ouvre et rien ne part sans « Envoyer » ; au niveau 2 (CLAIRE agit
+//    seule), une confirmation dans CLAIRE d'abord : la carte ne montre que le titre, jamais le brouillon (audit 25/10).
 function executerActionsRelais(actions) {
   if (document.hidden) return;
-  const a = (Array.isArray(actions) ? actions : []).filter(x => x && x.type === 'ouvrir').pop();
-  if (!a || typeof a.canal !== 'string' || !a.canal) return;
-  definirOnglet('assistant');
-  setTimeout(() => { ouvrirCanal(a.canal); }, 0);
+  for (const a of (Array.isArray(actions) ? actions : []).slice(-3)) {
+    if (!a || typeof a !== 'object') continue;
+    if (a.type === 'ouvrir' && typeof a.canal === 'string' && a.canal) {
+      definirOnglet('assistant');
+      setTimeout(() => { ouvrirCanal(a.canal); }, 0);
+    } else if (a.type === 'autoriser' && typeof a.id === 'string') {
+      const p = propositionParId(a.id);
+      if (!p) continue;
+      definirOnglet('assistant');
+      setTimeout(() => {
+        ouvrirCanal('@traiter');
+        if ((Number(p.details && p.details.niveau) || 1) >= 2) demanderConfirmation(`Autoriser « ${p.titre || 'la proposition'} » ? CLAIRE le fera elle-même.`, () => autoriserProposition(a.id), { bouton: 'Autoriser', ton: 'valider' });
+        else autoriserProposition(a.id);
+      }, 0);
+    }
+  }
 }
 
 // La fenêtre est-elle sous les yeux du collaborateur ? Alors pas de notification Windows (la pastille, elle, reste juste).
@@ -224,7 +240,7 @@ async function renderReglagesNotifications() {
   const interrupteur = (id, coche, appel, actif = true) => `<wa-switch class="switch reglages-switch" id="${id}"${coche ? ' checked' : ''}${actif ? '' : ' disabled'} onchange="${appel}"></wa-switch>`;
   const lignes = SOURCES_NOTIFICATIONS.map(s => `<label class="reglages-option" for="notif-source-${s.cle}">
       <span class="reglages-option-texte"><span class="reglages-option-titre">${escapeHtml(s.libelle)} ${infoBulle(s.aide)}</span>
-        <span class="reglages-option-sous">${compteurs[s.cle] ? `${compteurs[s.cle]} en ce moment` : 'Rien en ce moment'}</span></span>
+        ${s.sansCompte ? '' : `<span class="reglages-option-sous">${compteurs[s.cle] ? `${compteurs[s.cle]} en ce moment` : 'Rien en ce moment'}</span>`}</span>
       ${interrupteur('notif-source-' + s.cle, r.sources[s.cle], `enregistrerReglagesNotifications({ source: '${s.cle}', valeur: this.checked })`)}
     </label>`).join('');
   zone.innerHTML = `<div class="reglages-section">
@@ -240,7 +256,7 @@ async function renderReglagesNotifications() {
           ${interrupteur('notif-windows', r.windows, "enregistrerReglagesNotifications({ cle: 'windows', valeur: this.checked })")}
         </label>
         <label class="reglages-option" for="notif-apercu">
-          <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre sans quitter son travail — comme Teams ; la réponse part dans le fil du message. CLAIRE ne répond pas à une réponse tapée dans la notification : pour lui demander quelque chose, ouvrez CLAIRE. Les noms des dossiers s’affichent en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre, réagir par un emoji, autoriser ou refuser une proposition sans quitter son travail — comme Teams ; la réponse part dans le fil du message ; « Autoriser » ouvre son geste dans CLAIRE (un email ne part qu’après « Envoyer »). CLAIRE ne répond pas à une réponse tapée dans la notification : pour lui demander quelque chose, ouvrez CLAIRE. Les noms des dossiers s’affichent en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
           ${interrupteur('notif-apercu', r.apercu, "enregistrerReglagesNotifications({ cle: 'apercu', valeur: this.checked })", r.windows)}
         </label>
       </div>

@@ -238,7 +238,7 @@ function assainirPreference(brut) {
   return out;
 }
 const MAX_DOSSIERS_CONSULTES_PREFERENCE = 10;
-const SOURCES_NOTIFICATIONS_PREFERENCE = ['messages', 'mentions', 'traiter', 'suivi', 'scans', 'taches', 'dates'];
+const SOURCES_NOTIFICATIONS_PREFERENCE = ['messages', 'mentions', 'traiter', 'suivi', 'scans', 'taches', 'dates', 'reactions'];
 
 function assainirPreferences(brut) {
   const out = {};

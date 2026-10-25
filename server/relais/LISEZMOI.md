@@ -6,8 +6,8 @@ bureau). Installé une fois par poste et par utilisateur, sans droit d'administr
 - lit, par COM, le paragraphe de Microsoft Word où se trouve le curseur, et remplace sur demande un « --- » de ce paragraphe par
   une valeur choisie dans CLAIRE (aide à la rédaction des actes) ;
 - à chaque appel 3CX, met au premier plan la fenêtre CLAIRE (appelant connu) ou la fenêtre utilisée avant la sonnerie ;
-- depuis la version 1.2 (CLAIRE 0.350.0), affiche en bas à droite de l'écran une carte CLAIRE (bordeaux, sur le modèle de Teams) pour chaque nouveauté (message,
-  proposition) où l'on peut répondre ou ouvrir CLAIRE ; la réponse part au serveur CLAIRE du bureau, jamais ailleurs ; la pastille est
+- depuis la version 1.2 (CLAIRE 0.350.0), affiche en bas à droite de l'écran une carte CLAIRE sombre (sur le modèle de Teams) pour chaque nouveauté (message,
+  proposition, réaction) où l'on peut répondre, réagir, autoriser ou refuser une proposition, ou ouvrir CLAIRE ; la réponse part au serveur CLAIRE du bureau, jamais ailleurs ; la pastille est
   un rond rouge en haut à droite de l'icône de la fenêtre CLAIRE (icône de la fenêtre remplacée), sans clignotement ;
 - depuis la version 1.1 (CLAIRE 0.349.0, 25/10/2026), pose sur l'icône de la fenêtre CLAIRE dans la barre des tâches une pastille
   rouge avec le nombre de choses à voir, affiche une notification Windows (icône CLAIRE dans la zone de notification) pour chaque
@@ -25,8 +25,8 @@ Internet. Code source : `server/relais/CLAIRE-relais.cs` du dépôt de CLAIRE. R
 
 Le programme est **le même fichier sur tous les postes** (non signé) :
 
-- **SHA-256 : `f8682f7c2783bd932829711ae19e850b603759d7afdcdffb7ce8ef1feb5019c7`**
-- MD5 : `c1fb425d5f677312e79c5a295836e5a3` (si la console demande cette empreinte)
+- **SHA-256 : `919399b774071da0973cd28c39b1519ab8f2bd9fc2ba8f4413cdd50edddf4105`**
+- MD5 : `650d0304bc50afb4dbf3630fcc42d1d1` (si la console demande cette empreinte)
 - Nom : `CLAIRE-relais.exe` (« Relais CLAIRE du poste », produit « CLAIRE », version 1.2.0.0)
 - Emplacements : le dossier Téléchargements de l'utilisateur au moment de l'installation, puis
   `%LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe`

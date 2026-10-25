@@ -70,7 +70,7 @@ const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
 const { creerRouteurSignatureRib } = require('./routes/signatureRib');
 const { creerSignatureRibAgent } = require('./signatureRibAgent');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
-const { creerEtatRelaisWord, noterAppelPourRelais } = require('./relaisWord');
+const { creerEtatRelaisWord, noterAppelPourRelais, noterCartePoste } = require('./relaisWord');
 const { creerJournalTechnique } = require('./journalTechnique');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { lireBuildInstalle } = require('./miseAJour');
@@ -234,7 +234,15 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Relais Word de l'Aide à la rédaction (relaisWord.js) : le relais du poste parle hors session, avec le jeton de son
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
   const notifieurCanaux = creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn });
-  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord, { notifieur: notifieurCanaux, depot }));
+  // Une réaction d'un collègue à mon message : sa carte va au relais de mon poste (0.350.0, notificationsPoste.js).
+  const surReaction = (canal, message, emoji, par) => {
+    try {
+      const c = require('./notificationsPoste').carteReaction({ repo: parametresRepo, depot, canal, message, emoji, par, preferences: parametresRepo.lirePreferences ? parametresRepo.lirePreferences() : {} });
+      if (c) noterCartePoste(etatRelaisWord, c.poste, c.carte);
+    } catch (e) { /* jamais bloquant */ }
+  };
+  notifieurCanaux.reactionPosee = surReaction;
+  app.use('/api', creerRouteurRelaisWordPoste(parametresRepo, etatRelaisWord, { notifieur: notifieurCanaux, depot, surReaction }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelaisWord(parametresRepo, etatRelaisWord, Object.assign({ depot }, relaisWord || {})));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppels(parametresRepo, etatAppels));
   // Pages d'Authentic envoyées par l'extension Firefox (extension-firefox/), gardées en mémoire (30 min / 24 h) et par dossier.

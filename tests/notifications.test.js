@@ -12,7 +12,7 @@ test('réglages par défaut : pastille et notifications allumées ; messages, me
   const r = app.reglagesNotificationsComplets(null);
   assert.equal(r.pastille, true);
   assert.equal(r.windows, true);
-  assert.equal(JSON.stringify(r.sources), JSON.stringify({ messages: true, mentions: true, traiter: true, suivi: true, scans: false, taches: false, dates: false }));
+  assert.equal(JSON.stringify(r.sources), JSON.stringify({ messages: true, mentions: true, traiter: true, suivi: true, scans: false, taches: false, reactions: true, dates: false }));
   assert.equal(app.reglagesNotificationsComplets({ sources: { scans: true, messages: 'oui' } }).sources.scans, true);
   assert.equal(app.reglagesNotificationsComplets({ sources: { messages: 'oui' } }).sources.messages, true, 'valeur illisible : celle par défaut');
 });

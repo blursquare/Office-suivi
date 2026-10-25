@@ -53,8 +53,8 @@ function jetonAccepte(parametresRepo, poste, jeton) {
 function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
   const routeur = express.Router();
   const N = require('../notificationsPoste');
-  // Gestes depuis une carte du relais (0.350.0) : répondre, ouvrir — hors session, le jeton du poste en tient lieu ; le collaborateur
-  // est celui du relais. Jamais « Autoriser / Refuser » (étude 25/10).
+  // Gestes depuis une carte du relais (0.350.0) : répondre, réagir, ouvrir, refuser ou autoriser une proposition — hors session, le
+  // jeton du poste en tient lieu ; le collaborateur est celui du relais.
   const relaisDe = (req, res) => {
     const corps = req.body || {};
     const poste = clePoste(corps.poste);
@@ -68,6 +68,21 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!r) return;
     const fait = N.repondreDepuisRelais({ repo: parametresRepo, collab: r.collab, canal: r.corps.canal, texte: r.corps.texte, parent: r.corps.parent, depot: options.depot, notifieur: options.notifieur });
     res.status(fait.ok ? 200 : 400).json(fait.ok ? { ok: true } : { erreur: fait.erreur });
+  });
+  routeur.post('/relais-word/reagir', (req, res) => {
+    const r = relaisDe(req, res);
+    if (!r) return;
+    const fait = N.reagirDepuisRelais({ repo: parametresRepo, collab: r.collab, canal: r.corps.canal, mid: r.corps.mid, emoji: r.corps.emoji });
+    if (fait.ok && options.surReaction) options.surReaction(String(r.corps.canal), fait.message, String(r.corps.emoji), r.collab);
+    res.status(fait.ok ? 200 : 400).json(fait.ok ? { ok: true } : { erreur: fait.erreur });
+  });
+  routeur.post('/relais-word/decider', (req, res) => {
+    const r = relaisDe(req, res);
+    if (!r) return;
+    if (r.corps.decision === 'refusee') { const fait = N.refuserDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
+    // « Autoriser » : le geste se fait dans la fenêtre CLAIRE mise devant par le relais (fenêtre d'email, outil) — jamais par le relais.
+    if (r.corps.decision === 'autoriser' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'autoriser', id: r.corps.id.slice(0, 80) }); res.json({ ok: true }); return; }
+    res.status(400).json({ erreur: 'Décision inconnue.' });
   });
   routeur.post('/relais-word/ouvrir', (req, res) => {
     const r = relaisDe(req, res);

@@ -144,8 +144,10 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   const geste = (route, corps) => fetch(`${baseUrl}/api/relais-word/${route}`, { method: 'POST', headers: json, body: JSON.stringify(corps) });
   assert.equal((await geste('ouvrir', { poste: 'julie', jeton: 'faux', canal: 'general' })).status, 403);
   assert.equal((await geste('ouvrir', { poste: 'julie', jeton, canal: 'general' })).status, 200);
-  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'autoriser' })).status, 401, 'route retirée : jamais « Autoriser / Refuser » depuis une carte');
-  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [{ type: 'ouvrir', canal: 'general', id: '' }]);
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'autoriser' })).status, 200);
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'rt-x', decision: 'acceptee' })).status, 400, 'jamais « accepter » sans la fenêtre CLAIRE');
+  assert.equal((await geste('decider', { poste: 'julie', jeton, id: 'inconnue', decision: 'refusee' })).status, 400);
+  assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [{ type: 'ouvrir', canal: 'general', id: '' }, { type: 'autoriser', canal: '', id: 'rt-x' }]);
   assert.deepEqual((await pastille({ poste: 'julie', total: 0 })).actions, [], 'une seule fois');
   assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'general', texte: '' })).status, 400);
   assert.equal((await geste('repondre', { poste: 'julie', jeton, canal: 'p:bastien-jeremy', texte: 'Bonjour' })).status, 400, 'jamais dans le privé des autres');
@@ -156,6 +158,10 @@ test('routes : programme identique pour tous ; code = jeton du poste ; relevé h
   const dernier = general.messages[general.messages.length - 1];
   assert.equal(dernier.auteur, 'Julie VASSELIN', 'posé au nom du collaborateur du relais');
   assert.deepEqual(dernier.mentions, ['Bastien ANGLUMENT']);
+  // Réagir depuis la carte : emoji d'humeur seulement, sur le message d'une personne.
+  const dernierJulie = general.messages[general.messages.length - 1];
+  assert.equal((await geste('reagir', { poste: 'julie', jeton, canal: 'general', mid: dernierJulie.id, emoji: '📌' })).status, 400, 'jamais un emoji qui commande un geste');
+  assert.equal((await geste('reagir', { poste: 'julie', jeton, canal: 'general', mid: dernierJulie.id, emoji: '❤️' })).status, 200);
   // Carte « comme Teams » : écrite par le serveur d'après l'identifiant du canal ; aperçu éteint = rubrique seule.
   await pastille({ poste: 'bastien', total: 1 });
   const cfgB = configDuCode(await codePour('Bastien'));
@@ -265,4 +271,23 @@ test('cartes « comme Teams » : une proposition seulement pour son responsable 
   assert.equal(N.ligne('<b>x</b>\nsuite ' + 'y'.repeat(300), 20, true).length, 20);
   assert.equal(N.ligne('prix < 200 000 € et > 150 000', 80), 'prix < 200 000 € et > 150 000', 'le texte d’une personne garde ses chevrons');
   assert.equal(N.ligne('<p>SCI A&amp;B</p>', 80, true), 'SCI A&B');
+});
+
+test('carte d’une réaction : pour l’auteur du message seulement, jamais sa propre réaction ni sur un message de CLAIRE ; réglages respectés', () => {
+  const N = require('../src/notificationsPoste');
+  const memoire = new Map();
+  const repo = { lireJsonBrut: (c, d) => (memoire.has(c) ? JSON.parse(memoire.get(c)) : d), ecrireJsonBrut: (c, v) => memoire.set(c, JSON.stringify(v)) };
+  const m = { id: 'm1', auteur: 'Julie VASSELIN', texte: 'Je m’en occupe', quand: 1 };
+  const c = N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Jérémy SAUJOT' });
+  assert.equal(c.poste, 'julie');
+  assert.equal(c.carte.type, 'reaction');
+  assert.equal(c.carte.contexte, 'Jérémy a réagi 👍 à votre message');
+  assert.equal(N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Julie VASSELIN' }), null, 'sa propre réaction');
+  assert.equal(N.carteReaction({ repo, canal: 'general', message: Object.assign({}, m, { claire: true, auteur: 'CLAIRE' }), emoji: '👍', par: 'Jérémy SAUJOT' }), null);
+  assert.equal(N.carteReaction({ repo, canal: 'p:bastien-jeremy', message: m, emoji: '👍', par: 'Jérémy SAUJOT' }), null, 'privé dont l’auteur n’est pas membre');
+  const prefs = (n) => ({ 'Julie VASSELIN': { notifications: n } });
+  assert.equal(N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Jérémy SAUJOT', preferences: prefs({ sources: { reactions: false } }) }), null);
+  assert.equal(N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Jérémy SAUJOT', preferences: prefs({ windows: false }) }), null);
+  assert.deepEqual(N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Jérémy SAUJOT', preferences: prefs({ apercu: false }) }).carte,
+    { type: 'resume', titre: 'Discussions', texte: 'Une réaction à votre message' }, 'aperçu éteint : ni nom ni extrait');
 });
