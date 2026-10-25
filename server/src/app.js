@@ -235,7 +235,14 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // installateur ; la fenêtre CLAIRE, elle, passe par la session.
   const notifieurCanaux = creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn });
   // Une réaction d'un collègue à mon message : sa carte va au relais de mon poste (0.350.0, notificationsPoste.js).
+  // Une carte par réaction et par 10 min au plus (retirer puis remettre le même emoji ne renvoie pas de carte).
+  const reactionsAnnoncees = new Map();
   const surReaction = (canal, message, emoji, par) => {
+    const cle = `${canal}|${message && message.id}|${emoji}|${par}`;
+    const maintenant = Date.now();
+    for (const [k, t] of reactionsAnnoncees) if (maintenant - t > 10 * 60 * 1000) reactionsAnnoncees.delete(k);
+    if (reactionsAnnoncees.has(cle)) return;
+    reactionsAnnoncees.set(cle, maintenant);
     try {
       const c = require('./notificationsPoste').carteReaction({ repo: parametresRepo, depot, canal, message, emoji, par, preferences: parametresRepo.lirePreferences ? parametresRepo.lirePreferences() : {} });
       if (c) noterCartePoste(etatRelaisWord, c.poste, c.carte);

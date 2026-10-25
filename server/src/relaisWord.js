@@ -70,7 +70,7 @@ var APPEL_RELAIS_VU_MS = 3000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
 /** @typedef {{ titre: string, texte: string, t: number }} NotificationPoste */
-/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, actionsFenetre?: { type: string, canal: string, id: string, t: number }[], notifications?: NotificationPoste[] }} PosteWord */
+/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, actionsFenetre?: { type: string, canal: string, id: string, adresse?: string, t: number }[], notifications?: NotificationPoste[] }} PosteWord */
 
 // Pastille et notifications Windows (étude 25/10 : « il faudrait des notifications pastille sur l'app ») : la fenêtre CLAIRE du poste
 // calcule son compteur d'après les réglages du collaborateur et l'envoie ici ; le relais du poste le lit à chaque relevé et le pose sur
@@ -173,8 +173,9 @@ function demanderInsertionWord(etat, poste, corps, maintenant = Date.now()) {
 
 // Pure (sur l'état) : le compteur et les nouveautés envoyés par la fenêtre CLAIRE du poste. Texte écrit par le serveur, jamais du HTML.
 /** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {any} corps @param {number} [maintenant]
- * @param {any[]} [riches] cartes écrites par le serveur (notificationsPoste.js) : elles remplacent la bulle de leur rubrique */
-function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches) {
+ * @param {any[]} [riches] cartes écrites par le serveur (notificationsPoste.js) : elles remplacent la bulle de leur rubrique
+ * @param {string} [adresse] adresse réseau de la fenêtre : un geste n'est rendu qu'à une fenêtre de la machine dont le relais l'a demandé */
+function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches, adresse) {
   if (!etat.postes.has(poste) && etat.postes.size >= POSTES_MAX) return { pastille: 0 };
   const p = postePourWord(etat, poste);
   const n = Number(corps && corps.total);
@@ -191,8 +192,12 @@ function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches)
   p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS)
     .concat(cartes, nouvelles.filter(x => !couvertes.has(x.titre))).slice(-NOTIFICATIONS_MAX);
   // « Ouvrir » / « Autoriser » demandés depuis une carte : faits par la fenêtre CLAIRE de ce poste, dans les 20 s (plus tard, plus de sens).
-  const actions = (p.actionsFenetre || []).filter(a => maintenant - a.t < 20000).map(a => ({ type: a.type, canal: a.canal, id: a.id }));
-  p.actionsFenetre = [];
+  // Seulement une fenêtre de la MÊME machine que le relais (relecture 25/10 : CLAIRE ouvert aussi sur un autre poste du même
+  // collaborateur ne prend jamais un « Autoriser » qui n'est pas le sien) ; les autres restent en attente jusqu'à expiration.
+  const frais = (p.actionsFenetre || []).filter(a => maintenant - a.t < 20000);
+  const pourMoi = frais.filter(a => !a.adresse || !adresse || a.adresse === adresse);
+  p.actionsFenetre = frais.filter(a => !pourMoi.includes(a));
+  const actions = pourMoi.map(a => ({ type: a.type, canal: a.canal, id: a.id }));
   return { pastille: p.pastille, actions };
 }
 
@@ -207,10 +212,17 @@ function noterCartePoste(etat, poste, carte, maintenant = Date.now()) {
 }
 
 // Un geste demandé depuis une carte du relais, pour la fenêtre CLAIRE du poste (rendu à son prochain envoi de pastille).
-/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {{ type: string, canal?: string, id?: string }} action @param {number} [maintenant] */
-function demanderActionFenetre(etat, poste, action, maintenant = Date.now()) {
+/** @param {ReturnType<typeof creerEtatRelaisWord>} etat @param {string} poste @param {{ type: string, canal?: string, id?: string }} action @param {number} [maintenant] @param {string} [adresse] */
+function demanderActionFenetre(etat, poste, action, maintenant = Date.now(), adresse) {
   const p = postePourWord(etat, poste);
-  p.actionsFenetre = (p.actionsFenetre || []).concat([{ type: action.type, canal: action.canal || '', id: action.id || '', t: maintenant }]).slice(-5);
+  p.actionsFenetre = (p.actionsFenetre || []).concat([{ type: action.type, canal: action.canal || '', id: action.id || '', adresse: adresse || '', t: maintenant }]).slice(-5);
+}
+
+// L'adresse réseau d'une requête (« ::ffff:192.168.60.12 » → « 192.168.60.12 » ; localhost sous une seule forme).
+/** @param {any} req */
+function adresseRequete(req) {
+  const a = String((req && (req.socket && req.socket.remoteAddress)) || '').replace(/^::ffff:/, '');
+  return a === '::1' ? '127.0.0.1' : a;
 }
 
 // Pure (sur l'état) : ce que voit la fenêtre CLAIRE du poste.
@@ -234,5 +246,5 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
 module.exports = {
   codeInstallationRelais, lireExecutableRelais, PREFIXE_CODE_RELAIS,
   empreinteJeton, nouveauJeton, jetonValide, texteWord,
-  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, demanderActionFenetre, noterCartePoste, RELAIS_VU_MS, PASTILLE_VUE_MS
+  creerEtatRelaisWord, appliquerReleveWord, demanderInsertionWord, etatPosteWord, relaisPosteActif, noterAppelPourRelais, noterPastillePoste, demanderActionFenetre, noterCartePoste, adresseRequete, RELAIS_VU_MS, PASTILLE_VUE_MS
 };

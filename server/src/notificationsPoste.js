@@ -167,8 +167,10 @@ function reagirDepuisRelais(o) {
   if (!C.canalValide(canal) || !accessible(canal, o.collab, COLLABORATEURS)) return { ok: false, erreur: 'Canal inconnu.' };
   const m = C.lireMessages(o.repo, canal).find((x) => x.id === o.mid);
   if (!m || m.claire) return { ok: false, erreur: 'Message inconnu.' };
+  // Déjà posée par ce collaborateur : rien de neuf à annoncer (relecture 25/10 : un double clic donnait deux cartes à l'auteur).
+  const deja = (m.reactions || []).some((x) => x.emoji === emoji && Array.isArray(x.par) && x.par.includes(o.collab));
   const r = C.reagirMessage(o.repo, canal, m.id, o.collab, emoji, true);
-  return r ? { ok: true, message: r.message } : { ok: false, erreur: 'Réaction refusée.' };
+  return r ? { ok: true, message: r.message, nouvelle: !deja } : { ok: false, erreur: 'Réaction refusée.' };
 }
 
 /**

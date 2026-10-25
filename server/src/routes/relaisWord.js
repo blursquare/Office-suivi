@@ -15,7 +15,7 @@ const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
-  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste, demanderActionFenetre
+  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste, demanderActionFenetre, adresseRequete
 } = require('../relaisWord');
 
 var CLE_RELAIS_WORD = 'relais-word';
@@ -73,7 +73,7 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     const r = relaisDe(req, res);
     if (!r) return;
     const fait = N.reagirDepuisRelais({ repo: parametresRepo, collab: r.collab, canal: r.corps.canal, mid: r.corps.mid, emoji: r.corps.emoji });
-    if (fait.ok && options.surReaction) options.surReaction(String(r.corps.canal), fait.message, String(r.corps.emoji), r.collab);
+    if (fait.ok && fait.nouvelle && options.surReaction) options.surReaction(String(r.corps.canal), fait.message, String(r.corps.emoji), r.collab);
     res.status(fait.ok ? 200 : 400).json(fait.ok ? { ok: true } : { erreur: fait.erreur });
   });
   routeur.post('/relais-word/decider', (req, res) => {
@@ -81,14 +81,14 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!r) return;
     if (r.corps.decision === 'refusee') { const fait = N.refuserDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
     // « Autoriser » : le geste se fait dans la fenêtre CLAIRE mise devant par le relais (fenêtre d'email, outil) — jamais par le relais.
-    if (r.corps.decision === 'autoriser' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'autoriser', id: r.corps.id.slice(0, 80) }); res.json({ ok: true }); return; }
+    if (r.corps.decision === 'autoriser' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'autoriser', id: r.corps.id.slice(0, 80) }, Date.now(), adresseRequete(req)); res.json({ ok: true }); return; }
     res.status(400).json({ erreur: 'Décision inconnue.' });
   });
   routeur.post('/relais-word/ouvrir', (req, res) => {
     const r = relaisDe(req, res);
     if (!r) return;
     const canal = typeof r.corps.canal === 'string' ? r.corps.canal.slice(0, 80) : '';
-    demanderActionFenetre(etat, r.poste, { type: 'ouvrir', canal });
+    demanderActionFenetre(etat, r.poste, { type: 'ouvrir', canal }, Date.now(), adresseRequete(req));
     res.json({ ok: true });
   });
   routeur.post('/relais-word/releve', (req, res) => {
@@ -132,7 +132,7 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
       try { riches = N.notificationsRiches({ repo: parametresRepo, depot: options.depot, collab, canaux: el.canaux, propositions: el.propositions }); }
       catch (e) { console.warn('[CLAIRE] Cartes du relais non écrites :', e && e.message); }   // jamais un texte de message au journal
     }
-    res.json(noterPastillePoste(etat, poste, corps, Date.now(), riches));
+    res.json(noterPastillePoste(etat, poste, corps, Date.now(), riches, adresseRequete(req)));
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};

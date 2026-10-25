@@ -291,3 +291,14 @@ test('carte d’une réaction : pour l’auteur du message seulement, jamais sa 
   assert.deepEqual(N.carteReaction({ repo, canal: 'general', message: m, emoji: '👍', par: 'Jérémy SAUJOT', preferences: prefs({ apercu: false }) }).carte,
     { type: 'resume', titre: 'Discussions', texte: 'Une réaction à votre message' }, 'aperçu éteint : ni nom ni extrait');
 });
+
+test('gestes des cartes : rendus seulement à une fenêtre de la machine du relais', () => {
+  const R = require('../src/relaisWord');
+  const etat = creerEtatRelaisWord();
+  R.demanderActionFenetre(etat, 'bastien', { type: 'autoriser', id: 'rt-1' }, 1000, '192.168.60.12');
+  assert.deepEqual(R.noterPastillePoste(etat, 'bastien', { total: 0 }, 2000, [], '192.168.60.5').actions, [], 'autre poste du même collaborateur : rien');
+  assert.deepEqual(R.noterPastillePoste(etat, 'bastien', { total: 0 }, 3000, [], '192.168.60.12').actions.map((a) => a.id), ['rt-1']);
+  assert.deepEqual(R.noterPastillePoste(etat, 'bastien', { total: 0 }, 4000, [], '192.168.60.12').actions, [], 'une seule fois');
+  assert.equal(R.adresseRequete({ socket: { remoteAddress: '::ffff:192.168.60.12' } }), '192.168.60.12');
+  assert.equal(R.adresseRequete({ socket: { remoteAddress: '::1' } }), '127.0.0.1');
+});
