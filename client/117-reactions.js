@@ -90,6 +90,7 @@ async function reagirMessageAssistant(cle, emoji) {
       if (claire) noterVerificationPoste('assistant-reactions', { detail: 'réaction sur une réponse de CLAIRE' });
       chargerMessagesCanal(true);
       // ❓ ou 👎 sur une réponse de CLAIRE : elle y répond dans un fil (client/120).
+      if (pose && actionReaction(emoji)) actionDeReactionCanal(m, emoji);
       if (claire && pose && !m.carte && ['pas-clair', 'refus', 'compris'].includes(sensReaction(emoji))) claireRepondAReaction(m, sensReaction(emoji));
     } else {
       memoriserConversationAssistant(false);

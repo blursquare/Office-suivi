@@ -150,3 +150,20 @@ test('routes : CLAIRE réagit au nom de CLAIRE sans que la réaction entre dans 
     assert.equal(typeof liste.equipe[0].absent, 'boolean');
   } finally { srv.close(); }
 });
+
+test('🎉 : un dossier nouvellement signé est fêté une fois, les déjà signés au départ jamais', () => {
+  const { celebrerSignatures, venteSignee } = require('../src/canaux/celebrations');
+  const repo = fauxRepo();
+  const ancien = { id: 'dA', echeancesValidees: {}, authentic: { acte: { etat: 'signe' } } };
+  const neuf = { id: 'dB', echeancesValidees: {}, authentic: {} };
+  C.ajouterMessage(repo, C.canalDuDossier('dA'), { auteur: 'CLAIRE', texte: 'ancien' }, 1);
+  C.ajouterMessage(repo, C.canalDuDossier('dB'), { auteur: 'CLAIRE', texte: 'dernier mot' }, 2);
+  assert.equal(celebrerSignatures(repo, [ancien, neuf]), 0, 'premier tour : repères seulement');
+  neuf.authentic = { acte: { etat: 'signe' } };
+  assert.equal(celebrerSignatures(repo, [ancien, neuf]), 1);
+  assert.equal(celebrerSignatures(repo, [ancien, neuf]), 0, 'une seule fois');
+  const m = C.lireMessages(repo, C.canalDuDossier('dB'))[0];
+  assert.deepEqual(m.reactions, [{ emoji: '🎉', par: ['CLAIRE'] }]);
+  assert.equal(C.lireMessages(repo, C.canalDuDossier('dA'))[0].reactions.length, 0);
+  assert.equal(venteSignee({ typeAffaire: 'succession', authentic: { acte: { etat: 'signe' } } }), false);
+});

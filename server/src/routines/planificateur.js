@@ -9,6 +9,7 @@ const { routineParId } = require('./catalogue');
 const { lireReglagesRoutines } = require('./reglages');
 const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
 const { synchroniserEtatCartes } = require('../canaux/etatCartes');
+const { celebrerSignatures } = require('../canaux/celebrations');
 const { deposerProposition } = require('../canaux/deposer');
 const { purgerCanauxOrphelins, purgerMessagesAnciens } = require('../canaux/canaux');
 const { noterJournalRoutines } = require('./journal');
@@ -99,6 +100,8 @@ function creerPlanificateur(deps) {
       if (apres !== avant) { bilan.expirees = apres.filter((p, i) => p.etat !== avant[i].etat).length; ecrirePropositions(parametresRepo, apres); }
       // L'état des cartes (⏳ sans réponse depuis un jour, 💤 expirée) se dit par une réaction de CLAIRE sur la carte.
       try { synchroniserEtatCartes(parametresRepo, maintenant.getTime()); } catch (e) { /* de l'affichage : jamais bloquant */ }
+      // 🎉 de CLAIRE dans le canal d'un dossier dont l'acte vient d'être signé (une fois par dossier).
+      try { if (depot && depot.tous) celebrerSignatures(parametresRepo, depot.tous()); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // Canaux de dossiers supprimés : vidés, une fois par jour.
       const jourPurge = infosParis(maintenant).iso;
       const etatPurge = lireEtat();

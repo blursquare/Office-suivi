@@ -119,5 +119,6 @@
   "117-reactions.js",
   "118-pieces-nas.js",
   "119-mise-en-forme.js",
-  "120-canaux-slack.js"
+  "120-canaux-slack.js",
+  "121-reactions-actions.js"
 ]

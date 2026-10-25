@@ -8,7 +8,7 @@
   /** Les emojis proposés d'un clic, comme dans Slack. */
   const EMOJIS_RAPIDES = ['👍', '👎', '✅', '❓', '👀', '🙏', '🎉', '❤️'];
   /** Une palette plus large, pour « Ajouter une réaction ». */
-  const EMOJIS_PALETTE = ['👍', '👎', '✅', '❌', '❓', '🤔', '👀', '🙏', '👌', '🎉', '❤️', '😀', '😂', '😅', '😮', '😢', '😡', '🔥', '💡', '⚠️', '📌', '⏳', '👏', '💪', '🙌', '🤝', '✨', '🚀', '😴', '🤷'];
+  const EMOJIS_PALETTE = ['👍', '👎', '✅', '❌', '❓', '🤔', '👀', '🙏', '👌', '🎉', '❤️', '😀', '😂', '😅', '😮', '😢', '😡', '🔥', '💡', '⚠️', '📌', '✋', '🔁', '⏳', '👏', '💪', '🙌', '🤝', '✨', '🚀', '😴', '🤷'];
 
   const SENS = [
     { sens: 'compris', emojis: ['👍', '👌', '✅', '✔️', '☑️', '🙏', '💯'], phrase: 'compris / d\'accord' },
@@ -59,7 +59,16 @@
     return liste.map((r) => ({ emoji: r.emoji, par: r.par.slice(0, 50) }));
   }
 
-  exporter({ EMOJIS_RAPIDES, EMOJIS_PALETTE, sensReaction, phraseSensReaction, emojiValide, basculerReaction });
+  /** Pur : le geste que commande un emoji posé par un collègue — 'epingler' 📌, 'prendre' ✋, 'relancer' 🔁 —, sinon ''. @param {unknown} emoji */
+  function actionReaction(emoji) {
+    const e = String(emoji == null ? '' : emoji).replace(/️/g, '');
+    if (e === '📌') return 'epingler';
+    if (e === '✋' || e === '🙋') return 'prendre';
+    if (e === '🔁' || e === '🔄') return 'relancer';
+    return '';
+  }
+
+  exporter({ actionReaction, EMOJIS_RAPIDES, EMOJIS_PALETTE, sensReaction, phraseSensReaction, emojiValide, basculerReaction });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

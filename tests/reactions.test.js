@@ -40,3 +40,11 @@ test('lien NAS d’une pièce jointe : identifiant aller-retour, adresse de l’
   assert.match(app.urlServeurPieceJointeAssistant(id), /^\/api\/nas\/explorer\/fichier\?dossierId=dossier\.1&chemin=Vendeur%2F/);
   assert.equal(app.urlServeurPieceJointeAssistant('a'.repeat(32)), '/api/pieces-jointes/' + 'a'.repeat(32) + '/fichier');
 });
+
+test('actionReaction : 📌 épingle, ✋ prend, 🔁 relance, le reste rien', () => {
+  const { actionReaction } = require('../commun/reactions');
+  assert.equal(actionReaction('📌'), 'epingler');
+  assert.equal(actionReaction('✋'), 'prendre');
+  assert.equal(actionReaction('🔁'), 'relancer');
+  assert.equal(actionReaction('👍'), '');
+});
