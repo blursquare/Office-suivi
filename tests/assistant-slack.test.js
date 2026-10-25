@@ -6,7 +6,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app.js');
-const A = require('../commun/assistant');
 
 const app = chargerApplication();
 const t0 = new Date(2026, 9, 11, 9, 12).getTime();
@@ -43,14 +42,6 @@ test('@ : dossiers dont un mot commence par la saisie, en cours avant archivés,
   assert.equal(app.dossiersMentionAssistant(liste, 'zz').length, 0);
   const beaucoup = Array.from({ length: 10 }, (_, i) => ({ id: String(i), nom: 'MARTIN ' + i }));
   assert.equal(app.dossiersMentionAssistant(beaucoup, 'mar').length, 6);
-});
-
-test('suites rapides : comprises par les mots-clés, sans IA', () => {
-  app.relancesAssistant().filter(r => !r.completer).forEach(r => {
-    const c = A.interpreterParMotsCles(r.texte, { aujourdhui: '2026-10-11' });
-    assert.equal(c.surete, 'haute', r.texte);
-    assert.notEqual(c.intention, 'inconnu', r.texte);
-  });
 });
 
 test('@ : le dossier choisi est imposé tant que son nom reste dans la phrase, le dernier choisi l’emporte', () => {

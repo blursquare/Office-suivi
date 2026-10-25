@@ -9613,7 +9613,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 /* Comme Slack : les échanges s'affichent en bas, au-dessus de la saisie, et remontent à mesure que la conversation avance. */
 .asst-messages::before { content: ''; flex: 1 1 auto; }
 .asst-messages > * { flex: 0 0 auto; }
-.asst-messages > .asst-message, .asst-messages > .asst-accueil { width: 100%; box-sizing: border-box; }
+.asst-messages > .asst-message, .asst-messages > .asst-accueil, .asst-messages > .asst-jour { box-sizing: border-box; }
 .asst-accueil { max-width: 720px; margin: 0 auto; text-align: left; padding: 32px 24px 16px; }
 .asst-accueil-logo { width: 48px; height: 48px; margin-bottom: 12px; }
 .asst-accueil-logo .icone { width: 24px; height: 24px; }
@@ -9622,8 +9622,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-accueil-texte { line-height: 1.6; color: var(--ink); }
 .asst-slackbot-av { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin-bottom: 12px; border-radius: var(--rayon-carte); background: var(--avatar-claire); color: var(--blanc-fixe); }
 .asst-slackbot-av .icone { width: 32px; height: 32px; }
-.asst-suites { max-width: 720px; width: 100%; box-sizing: border-box; margin: 8px auto 0; padding-left: calc(32px + 12px); color: var(--muted); font-size: var(--texte-base); line-height: 1.6; }
-.asst-suites .asst-exemple, .asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
+.asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
 .asst-accueil-texte .asst-exemple:hover { text-decoration-color: var(--focus); }
 .asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 6px 14px; cursor: pointer; text-align: left; max-width: 100%; }
 .asst-suggestion:hover { background: var(--paper-sunk); border-color: var(--muted); }
@@ -10800,18 +10799,16 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-page .asst-astuce { display: none; }
 .asst-page .asst-options-saisie { flex-wrap: wrap; }
 
-/* ==== « Demander à CLAIRE » façon Claude (étude 21/10 : « reprends une interface de discussion façon Claude plutôt que Slack ») :
-   colonne de lecture centrée, demande en bulle à droite, réponse en pleine largeur sous l'étincelle de CLAIRE, saisie arrondie ;
-   puis le panneau des artefacts (courrier, tableau, outil) à droite de la conversation ==== */
+/* ==== « Demander à CLAIRE » : le choix « façon Claude » du 21/10 (colonne centrée de 720 px, demande en bulle à droite) est ANNULÉ
+   (étude 25/10) — retour à la présentation Slack, pleine largeur ; le panneau des artefacts (courrier, tableau, outil) reste à droite de la
+   conversation ==== */
 .asst-titre { font-weight: 500; }
-.asst-tete { border-bottom: 0; padding: 12px 24px 0; min-height: 52px; }
-.asst-messages { padding: 8px 24px 24px; }
-.asst-accueil { max-width: 720px; margin: 0 auto; padding: 56px 0 16px; text-align: left; }
+.asst-accueil { max-width: none; margin: 0; padding: 32px 24px 16px; text-align: left; }
 .asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; margin-bottom: 16px; color: var(--focus); }
 .asst-accueil-logo .icone { width: 32px; height: 32px; }
 .asst-accueil-titre { font-size: var(--texte-4xl); }
 /* Séparateur de jour comme sur Slack (étude 25/10) : un filet sur toute la largeur de la colonne et, au milieu, la pastille du jour. */
-.asst-jour { max-width: 720px; margin: 16px auto 8px; padding: 0; width: 100%; box-sizing: border-box; color: var(--ink); font-size: var(--texte-s); }
+.asst-jour { max-width: none; margin: 12px 24px 4px; color: var(--ink); font-size: var(--texte-s); }
 .asst-jour span { padding: 4px 14px; font-weight: 600; box-shadow: var(--shadow-card); }
 .asst-message { display: block; max-width: 720px; margin: 0 auto; padding: 8px 0; }
 .asst-message:hover { background: transparent; }
@@ -10830,14 +10827,15 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-moi .asst-survol { justify-content: flex-end; }
 .asst-marque-attente .icone { animation: asst-pulse 1.2s infinite ease-in-out; }
 /* Messages comme sur Slack : tout le monde à gauche, avatar + prénom + heure, plus de bulle. */
-.asst-message.asst-slack { display: flex; gap: 12px; padding: 4px 0; }
-.asst-message.asst-slack.asst-suite { padding-top: 0; padding-bottom: 0; }
-.asst-slack.asst-moi, .asst-slack.asst-claire { justify-content: flex-start; padding-left: 0; }
+.asst-message.asst-slack { display: flex; gap: 12px; max-width: none; margin: 0; padding: 6px 24px; }
+.asst-message.asst-slack:hover { background: var(--paper-sunk); }
+.asst-message.asst-slack.asst-suite { padding-top: 1px; padding-bottom: 1px; }
+.asst-slack.asst-moi, .asst-slack.asst-claire { justify-content: flex-start; }
 .asst-slack .asst-corps, .asst-slack.asst-moi .asst-corps { flex: 1 1 auto; position: static; max-width: none; background: none; border-radius: 0; padding: 0; min-width: 0; font-size: var(--texte-base); line-height: 1.5; }
 .asst-slack .asst-texte { font-size: var(--texte-base); line-height: 1.6; }
 .asst-slack .asst-texte p { margin: 0 0 8px; }
 .asst-slack .asst-texte p:last-child { margin-bottom: 0; }
-.asst-slack .asst-survol, .asst-slack.asst-moi .asst-survol { position: absolute; top: -14px; right: 0; margin: 0; justify-content: flex-end; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); }
+.asst-slack .asst-survol, .asst-slack.asst-moi .asst-survol { position: absolute; top: -14px; right: 24px; margin: 0; justify-content: flex-end; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); }
 .asst-slack.asst-ecrit .cx-av-claire .icone { animation: asst-pulse 1.2s infinite ease-in-out; }
 .asst-bas { padding: 0 24px 12px; }
 .asst-bas > * { max-width: 720px; margin-left: auto; margin-right: auto; }

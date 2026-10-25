@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.339.4';
+  const VERSION_APP = '0.339.5';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.339.4', date: '2026-10-25 08:46', resume: "Discussions : chaque message montre son auteur (avatar, prénom) et son heure comme sur Slack, tout le monde à gauche, plus de bulles ; même avatar de Claire dans les canaux." },
+    { version: '0.339.5', date: '2026-10-25 08:50', resume: "Discussions : le choix « façon Claude » du 21/10 est annulé (retour à la présentation Slack pleine largeur, trait sous l'en-tête) ; la phrase « Vous pouvez aussi demander… » en fin de conversation est retirée." },
+  { version: '0.339.4', date: '2026-10-25 08:46', resume: "Discussions : chaque message montre son auteur (avatar, prénom) et son heure comme sur Slack, tout le monde à gauche, plus de bulles ; même avatar de Claire dans les canaux." },
   { version: '0.339.3', date: '2026-10-25 08:41', resume: "Discussions : des séparateurs de jour comme sur Slack (un filet et la pastille « Aujourd'hui », « Hier », « Jeudi 22 octobre »)." },
   { version: '0.339.2', date: '2026-10-25 08:37', resume: "Discussions : une discussion sur un dossier garde la présentation de l'accueil (avatar, nom du dossier, paragraphe) avec un texte et des exemples propres au dossier." },
   { version: '0.339.1', date: '2026-10-25 08:29', resume: "Discussions : l'accueil ressemble à Slackbot (grand avatar, nom, paragraphe), les pastilles de suites deviennent un paragraphe à la fin de la conversation, canal d'un dossier présenté de la même façon." },

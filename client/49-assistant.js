@@ -111,16 +111,6 @@
       </div>`;
   }
 
-  // Les suites rapides (anciennes pastilles au-dessus de la saisie) : un paragraphe à la fin de la conversation, comme une
-  // suggestion de Slackbot — après une réponse de Claire seulement. « Où en est… » complète la saisie au lieu d'envoyer.
-  function htmlSuitesConversationAssistant() {
-    const dernier = assistantMessages[assistantMessages.length - 1];
-    if (!dernier || dernier.role !== 'claire') return '';
-    const liens = relancesAssistant().map((r, k) =>
-      `<span class="asst-exemple" role="button" tabindex="0" onclick="relanceAssistant(${k})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); relanceAssistant(${k}); }">« ${escapeHtml(r.libelle)} »</span>`);
-    return `<p class="asst-suites">Vous pouvez aussi demander ${liens.slice(0, -1).join(', ')} ou ${liens[liens.length - 1]}.</p>`;
-  }
-
   function renderAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
@@ -167,33 +157,10 @@
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-slack asst-claire asst-ecrit">
           ${avatarClaireHtml()}
-          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '') + (assistantEnCours ? '' : htmlSuitesConversationAssistant());
+          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);
-  }
-
-  // Suites rapides au-dessus de la saisie, une fois la conversation lancée. « Où en est… » complète la saisie au lieu d'envoyer.
-  function relancesAssistant() {
-    return [
-      { libelle: 'Où en est…', texte: 'Où en est le dossier @', completer: true },
-      { libelle: 'Mes tâches du jour', texte: 'Qu’est-ce que j’ai à faire aujourd’hui ?' },
-      { libelle: 'Agenda de demain', texte: 'Qu’est-ce qu’il y a à l’agenda demain ?' },
-      { libelle: 'Quoi de neuf depuis hier ?', texte: 'Quoi de neuf depuis hier ?' }
-    ];
-  }
-
-  function relanceAssistant(k) {
-    const r = relancesAssistant()[k];
-    if (!r) return;
-    const texte = r.texte;
-    const champ = document.getElementById('assistant-saisie');
-    if (!r.completer) { envoyerDemandeAssistant(texte); return; }
-    if (!champ) return;
-    champ.value = texte;
-    champ.focus();
-    champ.setSelectionRange(texte.length, texte.length);
-    majMentionAssistant();
   }
 
   function copierMessageAssistant(i) {
