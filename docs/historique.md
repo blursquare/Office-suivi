@@ -21778,3 +21778,7 @@ Demande de l'étude (24/10, après la phase 0 des routines) : « je pense qu'il 
 ### 25/10/2026 08 h — 0.339.2 : la discussion sur un dossier reprend la présentation de l'accueil
 
 Étude (Bastien) : « Reprends la même présentation pour les deux mais ajuste le paragraphe du début. » Une conversation vide dont un dossier est rattaché (colonne de droite) utilise `htmlPresentationClaire` comme l'accueil : avatar dossier, nom du dossier en titre, « Ceci est votre discussion sur ce dossier. Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. » et des exemples qui nomment le dossier (`exemplesDossierAssistant`, nom court : « Où en est le dossier MOREAU ? », pièces manquantes, appel de fonds, date de signature), cliquables. Le canal d'un dossier garde son paragraphe propre (« Ceci est le canal de ce dossier. »), même présentation.
+
+### 25/10/2026 08 h — 0.339.3 : séparateurs de jour façon Slack
+
+Étude (Bastien) : « Mettre des séparateurs comme sur Slack de conversation par journée ». Le séparateur existait (`.asst-jour`, `repereMessagesAssistant`) mais la présentation « façon Claude » du 21/10 avait retiré son filet et sa pastille : ils reviennent (filet sur la largeur de la colonne, pastille bordée au milieu, texte en gras), pour « Discussions » et les canaux ; « Aujourd'hui », « Hier », puis « Jeudi 22 octobre » (première lettre en majuscule).

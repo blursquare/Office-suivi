@@ -10809,9 +10809,9 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-accueil-logo { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; margin-bottom: 16px; color: var(--focus); }
 .asst-accueil-logo .icone { width: 32px; height: 32px; }
 .asst-accueil-titre { font-size: var(--texte-4xl); }
-.asst-jour { max-width: 720px; margin: 16px auto 8px; }
-.asst-jour::before, .asst-jour::after { display: none; }
-.asst-jour span { margin: 0 auto; border: 0; background: transparent; }
+/* Séparateur de jour comme sur Slack (étude 25/10) : un filet sur toute la largeur de la colonne et, au milieu, la pastille du jour. */
+.asst-jour { max-width: 720px; margin: 16px auto 8px; padding: 0; width: 100%; box-sizing: border-box; color: var(--ink); font-size: var(--texte-s); }
+.asst-jour span { padding: 4px 14px; font-weight: 600; box-shadow: var(--shadow-card); }
 .asst-message { display: block; max-width: 720px; margin: 0 auto; padding: 8px 0; }
 .asst-message:hover { background: transparent; }
 .asst-message.asst-suite { padding-top: 2px; padding-bottom: 2px; }

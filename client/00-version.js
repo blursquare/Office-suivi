@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.339.2';
+  const VERSION_APP = '0.339.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,7 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.339.2', date: '2026-10-25 08:37', resume: "Discussions : une discussion sur un dossier garde la présentation de l'accueil (avatar, nom du dossier, paragraphe) avec un texte et des exemples propres au dossier." },
+    { version: '0.339.3', date: '2026-10-25 08:41', resume: "Discussions : des séparateurs de jour comme sur Slack (un filet et la pastille « Aujourd'hui », « Hier », « Jeudi 22 octobre »)." },
+  { version: '0.339.2', date: '2026-10-25 08:37', resume: "Discussions : une discussion sur un dossier garde la présentation de l'accueil (avatar, nom du dossier, paragraphe) avec un texte et des exemples propres au dossier." },
   { version: '0.339.1', date: '2026-10-25 08:29', resume: "Discussions : l'accueil ressemble à Slackbot (grand avatar, nom, paragraphe), les pastilles de suites deviennent un paragraphe à la fin de la conversation, canal d'un dossier présenté de la même façon." },
   { version: '0.339.0', date: '2026-10-25 08:22', resume: "Discussions façon Slack : les échanges s'affichent en bas et remontent, l'accueil est un paragraphe avec des exemples cliquables, le texte sous la saisie est retiré ; Claire pose des questions pour remplir un outil jusqu'au bout." },
   { version: '0.338.2', date: '2026-10-24 23:26', resume: "Nouveau dossier par Demander à CLAIRE : le compromis peut aussi être un PDF retrouvé sur le NAS, pas seulement une pièce jointe." },

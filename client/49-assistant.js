@@ -80,7 +80,8 @@
     if (d.toDateString() === auj.toDateString()) return 'Aujourd’hui';
     const hier = new Date(auj); hier.setDate(hier.getDate() - 1);
     if (d.toDateString() === hier.toDateString()) return 'Hier';
-    return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const texte = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return texte.charAt(0).toUpperCase() + texte.slice(1);
   }
 
   function heureAssistant(quand) {
