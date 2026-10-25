@@ -21925,3 +21925,10 @@ clignotant » (FlashWindowEx retiré). Relecture et audit de la 0.350.0 : répon
 refusé, texte d'une personne qui garde ses « < » et « > », entités décodées pour une réponse de CLAIRE, « & » affiché tel quel dans
 la carte, carte jamais perdue quand un canal monte pendant qu'un autre est lu, « Ouvrir » fait d'abord au serveur puis la fenêtre
 devant, rien si la fenêtre reste cachée. Empreinte du relais 1.2 : `5b8ec17a…8d8955`.
+
+Capture d'exemple envoyée par Bastien (notifications de Teams) : carte refaite sur ce modèle — fond plein bordeaux de CLAIRE (jamais en
+clair), grand avatar rond (photo de profil du collaborateur, clé `photos-collaborateurs`, envoyée par le serveur avec la carte ;
+initiales sinon ; icône de CLAIRE pour CLAIRE), nom en gras, « canal · heure », début du message, lien « ↩ Répondre » qui ouvre le champ
+(Entrée envoie, Échap ferme), clic sur la carte = ouvrir CLAIRE, bouton plein clair « Ouvrir dans CLAIRE » pour une proposition.
+Relecture : en « mentions seulement », jamais la carte d'un message qui ne cite pas (`elementsNouveaux` compare les mentions) ; laissé :
+« Ouvrir » peut être pris par une autre fenêtre visible du même collaborateur (simple changement d'écran). Empreinte relais 1.2 : `f8682f7c…5019c7`.

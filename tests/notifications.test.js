@@ -45,13 +45,15 @@ test('mentions : une carte de proposition adressée au responsable n’est pas u
 });
 
 test('cartes « comme Teams » : seuls les identifiants des canaux qui montent et des propositions apparues partent, 3 au plus', () => {
-  const avant = { canaux: { general: 1, 'd:1': 2 }, propositions: ['a'] };
-  const apres = { canaux: { general: 2, 'd:1': 1, 'd:2': 1, 'd:3': 1, 'd:4': 1 }, propositions: ['a', 'b'] };
+  const c = (n, m) => ({ n, m: m || 0 });
+  const avant = { canaux: { general: c(1), 'd:1': c(2) }, propositions: ['a'] };
+  const apres = { canaux: { general: c(2), 'd:1': c(1), 'd:2': c(1, 1), 'd:3': c(1), 'd:4': c(1) }, propositions: ['a', 'b'] };
   const e = app.elementsNouveaux(avant, apres, null);
   assert.equal(e.canaux.join(','), 'general,d:2,d:3');
   assert.equal(e.propositions.join(','), 'b');
   assert.equal(app.elementsNouveaux(null, apres, null).canaux.length, 0, 'premier tour');
   assert.equal(app.elementsNouveaux(avant, apres, { sources: { traiter: false } }).propositions.length, 0);
   assert.equal(app.elementsNouveaux(avant, apres, { windows: false }).canaux.length, 0);
+  assert.equal(app.elementsNouveaux(avant, apres, { sources: { messages: false } }).canaux.join(','), 'd:2', 'mentions seules : jamais la carte d’un message qui ne vous cite pas');
   assert.equal(app.reglagesNotificationsComplets(null).apercu, true, 'texte des messages montré par défaut');
 });

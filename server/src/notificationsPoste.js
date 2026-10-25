@@ -15,6 +15,7 @@ const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { clePoste } = require('./appels3cx');
 const { libelleDossierAffiche } = require('../../commun/dossier');
 const { lirePropositions } = require('./routines/propositions');
+const { assainirPhotos } = require('./routes/photosCollaborateurs');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
@@ -61,11 +62,18 @@ const prenom = (/** @type {string} */ nom) => String(nom || '').split(/\s+/)[0];
  * Les cartes du relais pour ces canaux et ces propositions nouveaux. Un canal illisible pour ce collaborateur, un message de lui-même,
  * une proposition qui n'est pas la sienne : rien.
  * @param {{ repo: any, depot?: any, collab: string, canaux?: unknown, propositions?: unknown }} o
- * @returns {{ type: string, titre: string, texte: string, contexte: string, auteur: string, heure: string, canal?: string, parent?: string, id?: string }[]}
+ * @returns {{ type: string, titre: string, texte: string, contexte: string, auteur: string, heure: string, canal?: string, parent?: string, id?: string, photo?: string }[]}
  */
 function notificationsRiches(o) {
   const sortie = [];
   const ids = (/** @type {unknown} */ v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, MAX_ELEMENTS) : []);
+  // La photo de profil de l'auteur (Réglages › Collaborateurs, JPEG de 160 px), comme l'avatar de Teams ; sans photo, ses initiales.
+  let photos = null;
+  const photoDe = (/** @type {string} */ nom) => {
+    if (!photos) { try { photos = assainirPhotos(o.repo.lireJsonBrut('photos-collaborateurs', {})); } catch (e) { photos = {}; } }
+    const p = /** @type {any} */ (photos)[nom];
+    return p && p.base64 ? p.base64 : '';
+  };
   for (const canal of ids(o.canaux)) {
     if (!C.canalValide(canal) || !accessible(canal, o.collab, COLLABORATEURS)) continue;
     // Le dernier message d'un autre — jamais une carte de proposition (comptée par « À traiter », audit 25/10).
@@ -73,6 +81,7 @@ function notificationsRiches(o) {
     if (!m) continue;
     const auteur = m.claire ? 'CLAIRE' : prenom(m.auteur);
     sortie.push({ type: 'message', canal, parent: m.parent || m.id, titre: nomCanal(o.repo, o.depot, canal), auteur, heure: heureDe(m.quand), contexte: m.parent ? 'Dans un fil' : '',
+      photo: m.claire ? '' : photoDe(m.auteur),
       texte: (m.texte ? ligne(m.texte, LONGUEUR_APERCU) : ligne(m.html, LONGUEUR_APERCU, true)) || (m.pj && m.pj.length ? 'Fichier joint' : '') });
   }
   if (ids(o.propositions).length) {

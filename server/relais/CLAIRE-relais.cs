@@ -157,27 +157,28 @@ static class PastilleWindows
     }
 }
 
-// ---- La carte d'une nouveauté (0.350.0, étude 25/10 : « comme Teams », « en mode sombre, jamais en clair », « elle se retire au
-// bout de quelques secondes ») : avatar, auteur, heure, canal, début du message ; « Répondre » (Entrée) et « Ouvrir ». Le texte vient
-// du serveur de CLAIRE ; une réponse part par le serveur au nom du collaborateur du relais. Couleurs : le thème sombre de CLAIRE.
+// ---- La carte d'une nouveauté (0.350.0), sur le modèle des notifications de Teams (étude 25/10, capture d'exemple) : carte pleine à
+// la couleur de CLAIRE (bordeaux, jamais en clair), grand avatar rond (photo de profil du collaborateur, sinon ses initiales ; l'icône
+// de CLAIRE pour CLAIRE), nom en gras, canal et heure, début du message, « ↩ Répondre » qui ouvre le champ (Entrée pour envoyer) ; un clic
+// sur la carte ouvre CLAIRE. Se retire seule au bout de quelques secondes, sauf souris dessus ou frappe. Le texte vient du serveur.
 class CarteNotification : System.Windows.Forms.Form
 {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessageW(IntPtr h, int message, IntPtr w, string l);
     static readonly List<CarteNotification> ouvertes = new List<CarteNotification>();
-    static readonly System.Drawing.Color FOND = System.Drawing.Color.FromArgb(27, 30, 35);        // --paper-card (sombre)
-    static readonly System.Drawing.Color CHAMP = System.Drawing.Color.FromArgb(32, 35, 42);       // --paper-sunk (sombre)
-    static readonly System.Drawing.Color FILET = System.Drawing.Color.FromArgb(47, 52, 60);       // --line (sombre)
-    static readonly System.Drawing.Color ENCRE = System.Drawing.Color.FromArgb(237, 238, 240);    // --ink (sombre)
-    static readonly System.Drawing.Color DOUX = System.Drawing.Color.FromArgb(195, 199, 205);     // --ink-soft (sombre)
-    static readonly System.Drawing.Color GRIS = System.Drawing.Color.FromArgb(154, 160, 168);     // --muted (sombre)
-    static readonly System.Drawing.Color ACCENT = System.Drawing.Color.FromArgb(208, 138, 152);   // --accent-sombre (bordeaux)
-    static readonly System.Drawing.Color SUR_ACCENT = System.Drawing.Color.FromArgb(20, 22, 26);  // --on-accent (sombre)
-    const int LARGEUR = 360, MARGE = 16, SECONDES = 6;
+    static readonly System.Drawing.Color FOND = System.Drawing.Color.FromArgb(91, 30, 43);        // bordeaux de CLAIRE, assombri
+    static readonly System.Drawing.Color FILET = System.Drawing.Color.FromArgb(122, 52, 67);
+    static readonly System.Drawing.Color CHAMP = System.Drawing.Color.FromArgb(68, 21, 31);
+    static readonly System.Drawing.Color BLANC = System.Drawing.Color.FromArgb(255, 255, 255);
+    static readonly System.Drawing.Color DOUX = System.Drawing.Color.FromArgb(241, 217, 222);     // texte secondaire, rosé
+    static readonly System.Drawing.Color PALE = System.Drawing.Color.FromArgb(214, 176, 185);
+    const int LARGEUR = 380, MARGE = 18, AVATAR = 52, SECONDES = 6;
+    static System.Drawing.Image iconeClaire;
 
     readonly Dictionary<string, object> n;
     readonly System.Windows.Forms.Timer minuterie = new System.Windows.Forms.Timer();
+    System.Windows.Forms.Panel cadre;
     System.Windows.Forms.TextBox saisie;
-    System.Windows.Forms.Label etat;
+    System.Windows.Forms.Label repondre, etat;
     int restant = SECONDES;
     bool envoi;
 
@@ -206,15 +207,41 @@ class CarteNotification : System.Windows.Forms.Form
         {
             CarteNotification c = ouvertes[i];
             c.Location = new System.Drawing.Point(zone.Right - LARGEUR - 12, bas - c.Height);
-            bas -= c.Height + 8;
+            bas -= c.Height + 6;
         }
     }
 
     static string Initiales(string nom)
     {
-        if (nom == "CLAIRE") return "C";
         string[] mots = nom.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         return mots.Length == 0 ? "?" : mots[0].Substring(0, 1).ToUpperInvariant();
+    }
+
+    // L'avatar : photo (JPEG en base64 fourni par le serveur), icône de CLAIRE, sinon initiales sur un rond rosé.
+    System.Windows.Forms.Control Avatar(string auteur, string photo)
+    {
+        System.Drawing.Image image = null;
+        try
+        {
+            if (photo != "") image = System.Drawing.Image.FromStream(new MemoryStream(Convert.FromBase64String(photo)));
+            else if (auteur == "CLAIRE")
+            {
+                if (iconeClaire == null)
+                    using (System.Drawing.Icon i = System.Drawing.Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetEntryAssembly().Location)) iconeClaire = i.ToBitmap();
+                image = iconeClaire;
+            }
+        }
+        catch { image = null; }
+        System.Windows.Forms.Control c;
+        if (image != null)
+            c = new System.Windows.Forms.PictureBox { Image = image, SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom, BackColor = auteur == "CLAIRE" ? BLANC : FOND };
+        else
+            c = new System.Windows.Forms.Label { Text = Initiales(auteur), TextAlign = System.Drawing.ContentAlignment.MiddleCenter, BackColor = DOUX, ForeColor = FOND,
+                Font = new System.Drawing.Font("Segoe UI", 15f, System.Drawing.FontStyle.Bold), UseMnemonic = false };
+        c.Size = new System.Drawing.Size(AVATAR, AVATAR);
+        c.Location = new System.Drawing.Point(MARGE, MARGE);
+        c.Region = Arrondi(AVATAR, AVATAR, AVATAR / 2);
+        return c;
     }
 
     CarteNotification(Dictionary<string, object> notification)
@@ -223,61 +250,87 @@ class CarteNotification : System.Windows.Forms.Form
         string type = T(n, "type");
         FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
         ShowInTaskbar = false; TopMost = true; StartPosition = System.Windows.Forms.FormStartPosition.Manual;
-        BackColor = FOND; ForeColor = ENCRE;
-        Font = new System.Drawing.Font("Segoe UI", 9f);
+        BackColor = FOND; ForeColor = BLANC;
+        Font = new System.Drawing.Font("Segoe UI", 10f);
         Width = LARGEUR;
-        // En-tête discret, comme Teams : le nom de l'application et la croix.
-        Controls.Add(new System.Windows.Forms.Label { Text = "CLAIRE", ForeColor = GRIS, AutoSize = true, Location = new System.Drawing.Point(MARGE, 10), Font = new System.Drawing.Font("Segoe UI", 8f) });
-        System.Windows.Forms.Label croix = new System.Windows.Forms.Label { Text = "✕", ForeColor = GRIS, AutoSize = true, Location = new System.Drawing.Point(LARGEUR - 28, 8), Cursor = System.Windows.Forms.Cursors.Hand };
+        Cursor = System.Windows.Forms.Cursors.Hand;
+        string auteur = type == "message" ? T(n, "auteur") : "CLAIRE";
+        Controls.Add(Avatar(auteur, T(n, "photo")));
+        System.Windows.Forms.Label croix = new System.Windows.Forms.Label { Text = "✕", ForeColor = DOUX, AutoSize = true, Location = new System.Drawing.Point(LARGEUR - 30, 14), Font = new System.Drawing.Font("Segoe UI", 11f) };
         croix.Click += delegate { Close(); };
         Controls.Add(croix);
-        int y = 34;
-        string auteur = type == "message" ? T(n, "auteur") : "CLAIRE";
-        // Avatar rond aux initiales (CLAIRE : à l'accent).
-        System.Windows.Forms.Label avatar = new System.Windows.Forms.Label { Text = Initiales(auteur), Size = new System.Drawing.Size(36, 36), Location = new System.Drawing.Point(MARGE, y), TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-            BackColor = auteur == "CLAIRE" ? ACCENT : System.Drawing.Color.FromArgb(138, 159, 212), ForeColor = SUR_ACCENT, Font = new System.Drawing.Font("Segoe UI", 10f, System.Drawing.FontStyle.Bold) };
-        avatar.Region = Arrondi(36, 36, 18);
-        Controls.Add(avatar);
-        int x = MARGE + 48, large = LARGEUR - x - MARGE;
-        int yt = y;
-        string entete = type == "message" ? auteur + (T(n, "heure") != "" ? "  ·  " + T(n, "heure") : "") : T(n, "contexte") != "" ? T(n, "contexte") : T(n, "titre");
-        yt = Ajouter(new System.Windows.Forms.Label { Text = entete, ForeColor = ENCRE, Font = new System.Drawing.Font("Segoe UI", 9.5f, System.Drawing.FontStyle.Bold) }, x, yt, large, 1);
-        string ou = type == "message" ? (T(n, "contexte") != "" ? T(n, "contexte") + " · " : "") + T(n, "titre") : type == "proposition" ? T(n, "titre") : "";
-        if (ou != "") yt = Ajouter(new System.Windows.Forms.Label { Text = ou, ForeColor = GRIS, Font = new System.Drawing.Font("Segoe UI", 8f) }, x, yt, large, 4);
-        yt = Ajouter(new System.Windows.Forms.Label { Text = T(n, "texte"), ForeColor = DOUX }, x, yt, large, 12);
-        y = Math.Max(yt, y + 44);
+        int x = MARGE + AVATAR + 14, large = LARGEUR - x - 40;
+        int y = MARGE + 2;
+        string nom = type == "message" ? auteur : type == "proposition" ? "Proposition de CLAIRE" : T(n, "titre");
+        y = Ajouter(Libelle(nom, BLANC, 11f, true), x, y, large, 2);
+        string ou = type == "message" ? (T(n, "contexte") != "" ? T(n, "contexte") + " · " : "") + T(n, "titre") + (T(n, "heure") != "" ? " · " + T(n, "heure") : "")
+            : type == "proposition" ? T(n, "titre") : "";
+        if (ou != "") y = Ajouter(Libelle(ou, PALE, 8.5f, false), x, y, large, 4);
+        y = Ajouter(Libelle(T(n, "texte"), DOUX, 10f, false), x, y, large + 22, 10);
         if (type == "message")
         {
-            // Champ de réponse arrondi, Entrée pour envoyer (comme Teams).
-            System.Windows.Forms.Panel cadre = new System.Windows.Forms.Panel { BackColor = CHAMP, Location = new System.Drawing.Point(MARGE, y), Size = new System.Drawing.Size(LARGEUR - 2 * MARGE, 34) };
+            repondre = Libelle("↩  Répondre", BLANC, 10f, false);
+            repondre.Click += delegate { OuvrirReponse(); };
+            y = Ajouter(repondre, x, y, large, 8);
+            // Champ de réponse, montré au clic sur « Répondre » (comme Teams).
+            cadre = new System.Windows.Forms.Panel { BackColor = CHAMP, Location = new System.Drawing.Point(x, y), Size = new System.Drawing.Size(LARGEUR - x - MARGE, 34), Visible = false, Cursor = System.Windows.Forms.Cursors.IBeam };
             cadre.Region = Arrondi(cadre.Width, cadre.Height, 6);
-            saisie = new System.Windows.Forms.TextBox { BorderStyle = System.Windows.Forms.BorderStyle.None, BackColor = CHAMP, ForeColor = ENCRE, Location = new System.Drawing.Point(10, 8), Width = cadre.Width - 20, Font = new System.Drawing.Font("Segoe UI", 10f) };
-            saisie.KeyDown += delegate (object o, System.Windows.Forms.KeyEventArgs e) { if (e.KeyCode == System.Windows.Forms.Keys.Enter) { e.SuppressKeyPress = true; Repondre(); } };
-            saisie.MouseDown += delegate { Activate(); saisie.Focus(); };
-            saisie.HandleCreated += delegate { try { SendMessageW(saisie.Handle, 0x1501, (IntPtr)1, "Répondre à " + auteur + "…"); } catch { } };
+            saisie = new System.Windows.Forms.TextBox { BorderStyle = System.Windows.Forms.BorderStyle.None, BackColor = CHAMP, ForeColor = BLANC, Location = new System.Drawing.Point(10, 8), Width = cadre.Width - 20, Font = new System.Drawing.Font("Segoe UI", 10f) };
+            saisie.KeyDown += delegate (object o, System.Windows.Forms.KeyEventArgs e) { if (e.KeyCode == System.Windows.Forms.Keys.Enter) { e.SuppressKeyPress = true; Repondre(); } if (e.KeyCode == System.Windows.Forms.Keys.Escape) Close(); };
+            saisie.HandleCreated += delegate { try { SendMessageW(saisie.Handle, 0x1501, (IntPtr)1, "Répondre à " + auteur + "… (Entrée pour envoyer)"); } catch { } };
             cadre.Controls.Add(saisie);
             Controls.Add(cadre);
+        }
+        else if (type == "proposition")
+        {
+            // Bouton plein et clair, comme « Rejoindre » de Teams : la proposition se décide dans CLAIRE.
+            System.Windows.Forms.Button b = new System.Windows.Forms.Button { Text = "Ouvrir dans CLAIRE", Location = new System.Drawing.Point(x, y), Size = new System.Drawing.Size(LARGEUR - x - MARGE, 34),
+                FlatStyle = System.Windows.Forms.FlatStyle.Flat, BackColor = BLANC, ForeColor = FOND, Font = new System.Drawing.Font("Segoe UI", 10f, System.Drawing.FontStyle.Bold) };
+            b.FlatAppearance.BorderColor = BLANC;
+            b.Region = Arrondi(b.Width, b.Height, 4);
+            b.Click += delegate { Ouvrir(); };
+            Controls.Add(b);
             y += 44;
         }
-        System.Windows.Forms.Label ouvrir = new System.Windows.Forms.Label { Text = "Ouvrir dans CLAIRE", ForeColor = ACCENT, AutoSize = true, Location = new System.Drawing.Point(MARGE, y), Cursor = System.Windows.Forms.Cursors.Hand, Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Bold) };
-        ouvrir.Click += delegate { Ouvrir(T(n, "canal")); };
-        Controls.Add(ouvrir);
-        etat = new System.Windows.Forms.Label { AutoSize = false, TextAlign = System.Drawing.ContentAlignment.TopRight, Location = new System.Drawing.Point(LARGEUR / 2, y), Size = new System.Drawing.Size(LARGEUR / 2 - MARGE, 18), ForeColor = GRIS, Font = new System.Drawing.Font("Segoe UI", 8f) };
+        etat = new System.Windows.Forms.Label { AutoSize = false, Location = new System.Drawing.Point(x, y), Size = new System.Drawing.Size(LARGEUR - x - MARGE, 16), ForeColor = PALE, Font = new System.Drawing.Font("Segoe UI", 8f), UseMnemonic = false };
         Controls.Add(etat);
-        Height = y + 32;
+        Height = Math.Max(y + 18, MARGE * 2 + AVATAR);
         Region = Arrondi(Width, Height, 8);
         Paint += delegate (object o, System.Windows.Forms.PaintEventArgs e) { using (System.Drawing.Pen p = new System.Drawing.Pen(FILET)) e.Graphics.DrawRectangle(p, 0, 0, Width - 1, Height - 1); };
-        // Se retire seule après quelques secondes, sauf souris dessus ou réponse en cours de frappe.
+        // Un clic sur la carte (hors croix, « Répondre » et champ) ouvre CLAIRE, comme Teams.
+        Click += delegate { Ouvrir(); };
+        foreach (System.Windows.Forms.Control c in Controls)
+            if (c != croix && c != repondre && c != cadre && !(c is System.Windows.Forms.Button)) c.Click += delegate { Ouvrir(); };
         minuterie.Interval = 1000;
         minuterie.Tick += delegate
         {
             bool dessus = Bounds.Contains(System.Windows.Forms.Cursor.Position);
-            bool frappe = saisie != null && (saisie.Focused || saisie.Text.Length > 0);
+            bool frappe = cadre != null && cadre.Visible && (saisie.Focused || saisie.Text.Length > 0);
             if (dessus || frappe || envoi) { restant = Math.Max(restant, 3); return; }
             if (--restant <= 0) Close();
         };
         minuterie.Start();
         FormClosed += delegate { minuterie.Stop(); minuterie.Dispose(); ouvertes.Remove(this); Ranger(); };
+    }
+
+    static System.Windows.Forms.Label Libelle(string texte, System.Drawing.Color couleur, float taille, bool gras)
+    {
+        return new System.Windows.Forms.Label { Text = texte, ForeColor = couleur, UseMnemonic = false, BackColor = System.Drawing.Color.Transparent,
+            Font = new System.Drawing.Font("Segoe UI", taille, gras ? System.Drawing.FontStyle.Bold : System.Drawing.FontStyle.Regular) };
+    }
+
+    void OuvrirReponse()
+    {
+        if (cadre == null || cadre.Visible) return;
+        cadre.Visible = true;
+        repondre.Visible = false;
+        cadre.Top = repondre.Top;
+        etat.Top = cadre.Bottom + 4;
+        Height = Math.Max(etat.Bottom + 8, MARGE * 2 + AVATAR);
+        Region = Arrondi(Width, Height, 8);
+        Ranger();
+        Activate();
+        saisie.Focus();
     }
 
     // Coins arrondis (rayon r), par un chemin du dessin : pas d'appel à gdi32.
@@ -292,7 +345,6 @@ class CarteNotification : System.Windows.Forms.Form
 
     int Ajouter(System.Windows.Forms.Label l, int x, int y, int large, int apres)
     {
-        l.UseMnemonic = false;   // « SCI A&B » reste « SCI A&B »
         // Hauteur mesurée sur la largeur donnée, retours à la ligne compris : jamais un texte coupé.
         System.Drawing.Size taille = System.Windows.Forms.TextRenderer.MeasureText(l.Text == "" ? " " : l.Text, l.Font, new System.Drawing.Size(large, 0),
             System.Windows.Forms.TextFormatFlags.WordBreak | System.Windows.Forms.TextFormatFlags.NoPrefix);
@@ -306,7 +358,7 @@ class CarteNotification : System.Windows.Forms.Form
     {
         if (envoi) return;
         envoi = true;
-        etat.ForeColor = GRIS; etat.Text = "Envoi…";
+        etat.ForeColor = PALE; etat.Text = "Envoi…";
         ThreadPool.QueueUserWorkItem(delegate
         {
             string erreur = RelaisClaire.PosterRelais(route, corps);
@@ -317,7 +369,7 @@ class CarteNotification : System.Windows.Forms.Form
                 {
                     envoi = false;
                     if (erreur == "") { if (saisie != null) saisie.Text = ""; etat.Text = reussi; restant = 2; if (puisMontrer) { RelaisClaire.MontrerClaire(); restant = 1; } }
-                    else { etat.ForeColor = System.Drawing.Color.FromArgb(248, 113, 113); etat.Text = erreur; if (saisie != null) saisie.Enabled = true; }
+                    else { etat.ForeColor = System.Drawing.Color.FromArgb(255, 186, 186); etat.Text = erreur; if (saisie != null) saisie.Enabled = true; }
                 });
             }
             catch { }
@@ -336,10 +388,10 @@ class CarteNotification : System.Windows.Forms.Form
     }
 
     // Le geste est d'abord déposé au serveur, PUIS la fenêtre CLAIRE passe devant : elle le trouve à sa première demande (relecture 25/10).
-    void Ouvrir(string canal)
+    void Ouvrir()
     {
         Dictionary<string, object> c = new Dictionary<string, object>();
-        c["canal"] = canal; c["parent"] = T(n, "parent");
+        c["canal"] = T(n, "canal");
         Envoyer("ouvrir", c, "", true);
     }
 }

@@ -108,8 +108,9 @@ function detailsNotifications() {
   try {
     for (const c of canaux.liste || []) {
       if (c.notif === 'muet') continue;
-      const n = c.notif === 'mentions' ? mentionsHorsCartes(c) : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0));
-      if (n > 0) canauxN[c.id] = n;
+      const m = mentionsHorsCartes(c);
+      const n = c.notif === 'mentions' ? m : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0));
+      if (n > 0 || m > 0) canauxN[c.id] = { n, m };
     }
   } catch (e) { /* liste pas encore chargée */ }
   let propositions = [];
@@ -121,8 +122,11 @@ function detailsNotifications() {
 function elementsNouveaux(avant, apres, reglages) {
   const r = reglagesNotificationsComplets(reglages);
   if (!r.windows || !avant) return { canaux: [], propositions: [] };
-  const canauxMontes = (r.sources.messages || r.sources.mentions)
-    ? Object.keys(apres.canaux).filter(id => apres.canaux[id] > (avant.canaux[id] || 0)).slice(0, 3) : [];
+  // Messages éteints, mentions allumées : seulement un canal dont les MENTIONS montent (relecture 25/10 : jamais la carte d'un message
+  // qui ne vous cite pas).
+  const cle = r.sources.messages ? 'n' : r.sources.mentions ? 'm' : '';
+  const valeur = (x, id) => (x.canaux[id] && Number(x.canaux[id][cle])) || 0;
+  const canauxMontes = cle ? Object.keys(apres.canaux).filter(id => valeur(apres, id) > valeur(avant, id)).slice(0, 3) : [];
   const vues = new Set(avant.propositions);
   const propositions = r.sources.traiter ? apres.propositions.filter(id => !vues.has(id)).slice(0, 3) : [];
   return { canaux: canauxMontes, propositions };
