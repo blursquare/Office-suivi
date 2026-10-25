@@ -17,7 +17,7 @@
   ];
   var CLE_COLONNE_ASSISTANT = 'claire-assistant-colonne';
   var blocsOuvertsColonneAssistant = { etapes: true, documents: true, dossier: true, confidentialite: true };
-  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'medium', anonymiser: false, apercu: null, docsDossier: null };
+  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'medium', anonymiser: true, apercu: null, docsDossier: null };
   var pdfApercuAssistant = null;          // { docId, pdf } : le PDF de l'aperçu, gardé pour feuilleter
   var blocApercuAssistant = null;         // la page dessinée et son surlignage : un élément gardé, replacé à chaque rendu de la colonne
 
@@ -40,8 +40,8 @@
 
   // Une nouvelle conversation repart sans étapes ni aperçu ; le modèle et la réflexion choisis restent ceux du poste.
   function reinitialiserColonneAssistant() {
-    // Étude 25/10 : « désactiver l'anonymisation de base » — désactivée au départ de chaque conversation, réactivable d'un clic.
-    colonneAssistant.anonymiser = false;
+    // L'anonymisation désactivée ne dure que le temps d'une conversation (étude 25/10 : remise active par défaut après lecture de la charte IA du CSN).
+    colonneAssistant.anonymiser = true;
     colonneAssistant.etapes = [];
     colonneAssistant.journal = [];
     colonneAssistant.lus = {};
