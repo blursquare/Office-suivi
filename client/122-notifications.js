@@ -285,9 +285,10 @@ async function renderReglagesNotifications() {
         : `Relais pas en marche pour ${nom} : ni pastille ni notification Windows sur ce poste.`;
 }
 
-var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. L’antivirus doit l’autoriser : sa nouvelle empreinte est à donner à Fichorga.';
+var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Il demande le code d’installation : collez-le (Ctrl+V). Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. L’antivirus doit l’autoriser : sa nouvelle empreinte est à donner à Fichorga.';
 
-// Le code d'installation de ce collaborateur (copié dans le presse-papiers, lu par le programme à son ouverture) puis le programme,
+// Le code d'installation de ce collaborateur (copié dans le presse-papiers, collé par l'utilisateur dans le programme, qui ne lit
+// jamais le presse-papiers lui-même — relais 1.3) puis le programme,
 // le même pour tous les postes (exclusion de l'antivirus par empreinte).
 async function installerRelaisNotifications() {
   const poste = utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
@@ -308,8 +309,8 @@ async function installerRelaisNotifications() {
     document.body.removeChild(lien);
     setTimeout(() => URL.revokeObjectURL(lien.href), 60000);
     afficherInfoAction('Relais téléchargé', TEXTE_INSTALLATION_RELAIS
-      + (copie ? ' Le code d’installation de ce poste est copié : ouvrez le programme tout de suite, il le lit seul.' : '')
-      + ' Si le programme demande le code, collez : ' + corps.code);
+      + (copie ? ' Le code d’installation de ce poste est copié : ouvrez le programme et collez-le.' : '')
+      + ' Code à coller : ' + corps.code);
   } catch (e) {
     afficherToast('Téléchargement du relais impossible : ' + (e.message || 'erreur') + '.', 'OK', null);
   }

@@ -27,20 +27,28 @@ test('programme gardé dans le dépôt : compilé depuis le .cs actuel (sinon np
   assert.equal(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.exe')).subarray(0, 2).toString('latin1'), 'MZ');
 });
 
-test('programme du relais (C#) : pas de frappe simulée, blancs repérés sur le texte, ancien relais PowerShell retiré', () => {
+test('programme du relais (C#) : rien de ce qu\'un antivirus prend pour un logiciel espion (1.3, étude 25/10)', () => {
   const cs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'relais', 'CLAIRE-relais.cs'), 'utf8');
-  assert.doesNotMatch(cs, /keybd_event|SendInput|SendKeys/);
-  assert.match(cs, /AttachThreadInput/);
-  assert.match(cs, /Regex\.Matches\(txt, "-\{3,\}"\)/);
-  assert.match(cs, /Le curseur n est plus dans ce paragraphe/);
-  assert.match(cs, /word-claire\.ps1/);
-  assert.match(cs, /corps\["appels"\] = 1/);
-  assert.match(cs, /e\.h != IntPtr\.Zero && e\.h != devant/);
-  assert.match(cs, /if \(devant == h\) return;/);
-  // Configuration par le code copié par CLAIRE (jamais dans le fichier) ; vérifiée auprès du serveur avant l'installation.
-  assert.match(cs, /PREFIXE_CODE = "CLAIRE-RELAIS:"/);
-  assert.match(cs, /relais\.json/);
-  assert.match(cs, /try \{ Verifier\(\); \}/);
+  const code = cs.replace(/\/\/[^\n]*/g, '');
+  assert.doesNotMatch(code, /keybd_event|SendInput|SendKeys/);
+  // Ni Word, ni presse-papiers lu, ni marque « téléchargé d'Internet » effacée, ni processus arrêté de force, ni fichier d'un
+  // autre programme effacé (rapport de l'étude sur le blocage de Panda du 12/10).
+  assert.doesNotMatch(code, /GetActiveObject|Word\.Application|dynamic /);
+  assert.doesNotMatch(code, /Clipboard\.(GetText|ContainsText|GetData)/);
+  assert.doesNotMatch(code, /Zone\.Identifier|DeleteFileW/);
+  assert.doesNotMatch(code, /\.Kill\(|GetProcessesByName|TerminateProcess|winmgmts/);
+  assert.doesNotMatch(code, /word-claire|CLAIRE-Word/);
+  // Un relais déjà lancé s'arrête par un signal nommé.
+  assert.match(code, /EventWaitHandle\(false, EventResetMode\.ManualReset, "Local\\\\CLAIRE-relais-arret"\)/);
+  assert.match(code, /Programs", "CLAIRE"/);
+  assert.match(code, /AttachThreadInput/);
+  assert.match(code, /corps\["appels"\] = 1/);
+  assert.match(code, /e\.h != IntPtr\.Zero && e\.h != devant/);
+  assert.match(code, /if \(devant == h\) return;/);
+  // Configuration par le code collé par l'utilisateur (jamais dans le fichier) ; vérifiée auprès du serveur avant l'installation.
+  assert.match(code, /PREFIXE_CODE = "CLAIRE-RELAIS:"/);
+  assert.match(code, /relais\.json/);
+  assert.match(code, /try \{ Verifier\(\); \}/);
 });
 
 test('jeton : empreinte seule gardée, comparaison exacte', () => {

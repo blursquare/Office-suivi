@@ -5,18 +5,21 @@
 // l'antivirus par empreinte vaut pour tous — voir server/relais/LISEZMOI.md), téléchargé depuis CLAIRE ; la configuration du
 // poste arrive par un code copié par CLAIRE (voir « Configuration du poste »).
 //
-//  - Lancé sans argument (depuis Téléchargements) : il lit le code (presse-papiers, sinon demandé), le vérifie auprès du serveur,
-//    puis s'installe — configuration dans relais.json, copie dans %LOCALAPPDATA%\CLAIRE\CLAIRE-relais.exe, arrêt
-//    d'un relais déjà lancé (et de l'ancien relais PowerShell), démarrage à l'ouverture de session (clé Run de HKCU), lancement
-//    en arrière-plan, message de confirmation. Aucun droit d'administrateur.
-//  - Lancé avec --fond : une seule copie à la fois (mutex) ; toutes les 0,5 s, le paragraphe de Word où se trouve le curseur
-//    (COM) et son intitulé, envoyés au serveur quand ils changent, battement chaque seconde ; la réponse porte les insertions
-//    demandées depuis CLAIRE (« Insérer dans Word ») et les sonneries 3CX du poste (fenêtre CLAIRE au premier plan pour un
-//    appelant d'un dossier, sinon la fenêtre d'avant la sonnerie), et le compteur de la pastille et les nouveautés du collaborateur
-//    (étude 25/10 : « des notifications pastille sur l'app ») — rond rouge et nombre en haut à droite de l'icône de la fenêtre CLAIRE
-//    (WM_SETICON), carte de notification sombre en bas à droite (1.2 : répondre, ouvrir, comme Teams ; icône CLAIRE dans la zone de
-//    notification), sans clignotement.
-// Aucune frappe simulée : le premier plan passe par AttachThreadInput. Rien n'est écrit sur le disque hors de son installation.
+//  - Lancé sans argument (depuis Téléchargements) : il demande le code d'installation (collé par l'utilisateur), le vérifie
+//    auprès du serveur, puis s'installe — copie dans %LOCALAPPDATA%\Programs\CLAIRE\CLAIRE-relais.exe, configuration dans
+//    %LOCALAPPDATA%\CLAIRE\relais.json, démarrage à l'ouverture de session (clé Run de HKCU), lancement en arrière-plan,
+//    message de confirmation. Aucun droit d'administrateur.
+//  - Lancé avec --fond : une seule copie à la fois (mutex) ; chaque seconde un battement au serveur, dont la réponse porte les
+//    sonneries 3CX du poste (fenêtre CLAIRE au premier plan pour un appelant d'un dossier, sinon la fenêtre d'avant la
+//    sonnerie), le compteur de la pastille et les nouveautés du collaborateur (étude 25/10) — rond rouge et nombre en haut à
+//    droite de l'icône de la fenêtre CLAIRE (WM_SETICON), carte de notification sombre en bas à droite (répondre, ouvrir, comme
+//    Teams ; icône CLAIRE dans la zone de notification), sans clignotement.
+//
+// Version 1.3 (étude 25/10 : « anticiper un éventuel blocage ») — rien de ce qu'un antivirus prend pour un logiciel espion
+// (rapport de l'étude sur le blocage de Panda du 12/10, docs/historique.md) : plus aucune lecture de Word (l'aide à la
+// rédaction est retirée depuis le 15/10), le presse-papiers jamais lu, la marque « téléchargé d'Internet » jamais effacée,
+// aucun processus arrêté de force (un relais déjà lancé reçoit un signal nommé et s'arrête seul), aucun fichier d'un autre
+// programme effacé. Aucune frappe simulée : le premier plan passe par AttachThreadInput. Il ne parle qu'au serveur CLAIRE.
 
 using System;
 using System.Collections;
@@ -36,8 +39,8 @@ using Microsoft.Win32;
 [assembly: System.Reflection.AssemblyDescription("Relais CLAIRE du poste : appels 3CX, pastille et notifications de CLAIRE")]
 [assembly: System.Reflection.AssemblyCompany("Etude de Maitre Sophie GOSSART")]
 [assembly: System.Reflection.AssemblyProduct("CLAIRE")]
-[assembly: System.Reflection.AssemblyVersion("1.2.0.0")]
-[assembly: System.Reflection.AssemblyFileVersion("1.2.0.0")]
+[assembly: System.Reflection.AssemblyVersion("1.3.0.0")]
+[assembly: System.Reflection.AssemblyFileVersion("1.3.0.0")]
 
 // ---- Pastille et notifications (étude 25/10) : un fil à part, avec sa boucle de messages (la zone de notification et la barre des
 // tâches l'exigent) ; la boucle du relais lui passe le compteur et les nouveautés par BeginInvoke. ----
@@ -107,6 +110,19 @@ static class PastilleWindows
             if (petitePosee != IntPtr.Zero) DestroyIcon(petitePosee);
             grandePosee = grande; petitePosee = petite; fenetre = h; pose = voulu; poseLe = DateTime.Now;
         });
+    }
+
+    // Arrêt du relais (nouvelle version installée, --retirer) : pastille retirée (icône de 0) et icône de la zone de notification
+    // enlevée avant la sortie, pour ne laisser ni rond rouge ni icône fantôme.
+    public static void Arreter()
+    {
+        try
+        {
+            if (porte == null || !porte.IsHandleCreated) return;
+            Mettre(0);
+            porte.Invoke((System.Windows.Forms.MethodInvoker)delegate { try { if (zone != null) { zone.Visible = false; zone.Dispose(); } } catch { } });
+        }
+        catch { }
     }
 
     // Les nouveautés (0.350.0, « comme Teams ») : une carte CLAIRE par nouveauté en bas à droite de l'écran, par-dessus le travail en
@@ -486,7 +502,6 @@ static class RelaisClaire
     [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, IntPtr pid);
     [DllImport("user32.dll")] static extern bool AttachThreadInput(uint a, uint b, bool attacher);
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool DeleteFileW(string chemin);
 
     [STAThread]
     static int Main(string[] args)
@@ -507,21 +522,50 @@ static class RelaisClaire
         foreach (string a in args) if (a == "--fond") fond = true;
         if (!fond) return Installer(soi);
         if (!lisible) return 1;
-        bool cree;
-        using (Mutex mutex = new Mutex(true, "Local\\CLAIRE-relais", out cree))
+        // Un relais déjà lancé (installation d'une nouvelle version) est prié de s'arrêter par le signal nommé ; on attend qu'il
+        // rende le mutex. 6 min : un relais 1.2, qui n'entend pas le signal, s'arrête seul en 5 min au plus (jeton refusé par le
+        // serveur après la nouvelle installation) — le nouveau prend alors la place sans attendre l'ouverture de session suivante.
+        using (Mutex mutex = new Mutex(false, NOM_MUTEX))
         {
-            if (!cree) return 0;
-            PastilleWindows.Demarrer();
-            Boucle();
+            bool tenu;
+            try { tenu = mutex.WaitOne(TimeSpan.FromMinutes(6)); } catch (AbandonedMutexException) { tenu = true; }
+            if (!tenu) return 0;
+            try
+            {
+                arret.Reset();
+                PastilleWindows.Demarrer();
+                Boucle();
+            }
+            finally { PastilleWindows.Arreter(); mutex.ReleaseMutex(); }
         }
         return 0;
+    }
+
+    const string NOM_MUTEX = "Local\\CLAIRE-relais";
+    // Signal d'arrêt (installation d'une version plus récente, --retirer) : le relais en marche sort de sa boucle.
+    static readonly EventWaitHandle arret = new EventWaitHandle(false, EventResetMode.ManualReset, "Local\\CLAIRE-relais-arret");
+
+    // Demande au relais en marche de s'arrêter et attend qu'il ait rendu le mutex (15 s au plus : un relevé en cours peut durer
+    // 10 s). Le signal n'est pas remis à zéro ici — un relais encore dans son relevé le verra en sortant ; c'est le relais qui
+    // démarre ensuite qui le remet à zéro, une fois le mutex obtenu. Rend vrai si aucun relais ne tourne plus.
+    static bool ArreterRelaisEnMarche()
+    {
+        arret.Set();
+        using (Mutex m = new Mutex(false, NOM_MUTEX))
+        {
+            bool libre = false;
+            try { libre = m.WaitOne(15000); } catch (AbandonedMutexException) { libre = true; }
+            if (libre) m.ReleaseMutex();
+            return libre;
+        }
     }
 
     // ---- Configuration du poste ----
     // Le programme est le MÊME pour tous les postes (étude 12/10 : Panda Endpoint Protection le mettait en quarantaine ; une
     // exclusion par empreinte ne vaut que pour un fichier identique). La configuration (adresse du serveur, collaborateur, jeton)
     // arrive par un CODE que CLAIRE copie dans le presse-papiers au téléchargement (« CLAIRE-RELAIS: » + base64 du JSON), lu à
-    // l'installation, puis gardée dans %LOCALAPPDATA%\CLAIRE\relais.json.
+    // l'installation (collé par l'utilisateur : le programme ne lit jamais le presse-papiers), puis gardée dans
+    // %LOCALAPPDATA%\CLAIRE\relais.json.
     const string PREFIXE_CODE = "CLAIRE-RELAIS:";
 
     static string DossierClaire()
@@ -562,11 +606,6 @@ static class RelaisClaire
         catch { return null; }
     }
 
-    static string LirePressePapiers()
-    {
-        try { return System.Windows.Forms.Clipboard.ContainsText() ? System.Windows.Forms.Clipboard.GetText() : ""; } catch { return ""; }
-    }
-
     // Contrôle du jeton seulement (« verifier ») : le serveur ne touche à rien de ce qui attend le relais en marche sur ce
     // poste. Rend la réponse du serveur (une exception si refusé ou injoignable).
     static string Verifier()
@@ -584,16 +623,10 @@ static class RelaisClaire
     // ---- Installation ----
     static int Installer(string soi)
     {
-        // Le code copié par CLAIRE au téléchargement ; sinon demandé (à coller depuis CLAIRE).
-        string json = JsonDuCode(LirePressePapiers());
-        // Le code porte le jeton du poste : il ne reste pas dans le presse-papiers (ni dans son historique).
-        if (json != null) try { System.Windows.Forms.Clipboard.Clear(); } catch { }
-        if (json == null)
-        {
-            string saisi = Microsoft.VisualBasic.Interaction.InputBox("Collez le code d'installation affiche par CLAIRE (Reglages, Telephonie 3CX, ou Aide a la redaction, bouton d'installation du relais) :", TITRE, "");
-            if (String.IsNullOrEmpty(saisi)) return 1;
-            json = JsonDuCode(saisi);
-        }
+        // Le code affiché (et copié) par CLAIRE au téléchargement, collé ici par l'utilisateur (Ctrl+V).
+        string saisi = Microsoft.VisualBasic.Interaction.InputBox("Collez ici (Ctrl+V) le code d'installation que CLAIRE vient de copier (Reglages, Notifications, bouton d'installation du relais) :", TITRE, "");
+        if (String.IsNullOrEmpty(saisi)) return 1;
+        string json = JsonDuCode(saisi);
         if (json == null || !LireConfigJson(json))
         {
             MessageBoxW(IntPtr.Zero, "Ce code n'est pas un code d'installation de CLAIRE. Recommencez depuis CLAIRE : le bouton d'installation du relais copie le code.", TITRE, 0x30);
@@ -617,37 +650,31 @@ static class RelaisClaire
         {
             string dossier = DossierClaire();
             Directory.CreateDirectory(dossier);
-            string cible = Path.Combine(dossier, "CLAIRE-relais.exe");
-            int moi = Process.GetCurrentProcess().Id;
-            foreach (Process p in Process.GetProcessesByName("CLAIRE-relais"))
-            {
-                if (p.Id == moi) continue;
-                try { p.Kill(); p.WaitForExit(3000); } catch { }
-            }
-            RetirerAncienRelaisPowerShell();
+            // Le programme à l'emplacement habituel des programmes installés pour un seul utilisateur (Teams, VS Code…).
+            string dossierProgramme = DossierProgramme();
+            Directory.CreateDirectory(dossierProgramme);
+            string cible = Path.Combine(dossierProgramme, "CLAIRE-relais.exe");
+            bool seul = ArreterRelaisEnMarche();
             if (!String.Equals(Path.GetFullPath(soi), Path.GetFullPath(cible), StringComparison.OrdinalIgnoreCase))
             {
-                // L'ancien relais vient d'être arrêté : son fichier peut rester verrouillé un instant.
+                // Le relais d'avant vient de s'arrêter : son fichier peut rester verrouillé un instant. La marque « téléchargé
+                // d'Internet » suit la copie, telle quelle (jamais effacée).
                 for (int essai = 0; ; essai++)
                 {
                     try { File.Copy(soi, cible, true); break; }
                     catch (IOException) { if (essai >= 5) throw; Thread.Sleep(500); }
                 }
-                // La marque « téléchargé d'Internet » suit la copie : retirée (pas d'avertissement à l'ouverture de session).
-                DeleteFileW(cible + ":Zone.Identifier");
             }
             // La configuration après la copie : un échec de copie laisse l'ancienne en place.
             File.WriteAllText(FichierConfig(), json, new UTF8Encoding(false));
             using (RegistryKey run = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
-            {
                 run.SetValue("CLAIRE-relais", "\"" + cible + "\" --fond");
-                try { run.DeleteValue("CLAIRE-Word", false); } catch { }
-            }
-            Process.Start(new ProcessStartInfo(cible, "--fond") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dossier });
+            Process.Start(new ProcessStartInfo(cible, "--fond") { UseShellExecute = false, CreateNoWindow = true, WorkingDirectory = dossierProgramme });
             MessageBoxW(IntPtr.Zero, "Le relais CLAIRE de ce poste est installe :\n"
-                + "- l'Aide a la redaction suit le paragraphe ou se trouve le curseur de Word ;\n"
+                + "- pastille et notifications de CLAIRE (repondre, reagir, autoriser) ;\n"
                 + "- a chaque appel 3CX, la fenetre CLAIRE passe au premier plan si l'appelant a un dossier, sinon la fenetre d'avant revient.\n\n"
-                + "Il demarre seul a chaque ouverture de session. Pour le retirer : CLAIRE-relais.exe --retirer.", TITRE, 0x40);
+                + "Il demarre seul a chaque ouverture de session. Pour le retirer : CLAIRE-relais.exe --retirer."
+                + (seul ? "" : "\n\nUne ancienne version du relais tourne encore : la nouvelle prend sa place dans quelques minutes (ou a la prochaine ouverture de session)."), TITRE, 0x40);
             return 0;
         }
         catch (Exception e)
@@ -657,32 +684,27 @@ static class RelaisClaire
         }
     }
 
-    // Relais d'avant (script PowerShell lancé par un .vbs, 0.219.0 – 0.221.0) : ses fichiers et son démarrage retirés. Le
-    // processus encore en marche s'arrête seul : le nouveau téléchargement a changé le jeton, le serveur le refuse.
-    static void RetirerAncienRelaisPowerShell()
+    static string DossierProgramme()
     {
-        string ancien = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CLAIRE");
-        foreach (string f in new[] { "word-claire.ps1", "word-claire.vbs" })
-            try { File.Delete(Path.Combine(ancien, f)); } catch { }
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CLAIRE");
     }
 
-    // --retirer : relais arrêté, démarrage retiré, fichier effacé (au mieux : le programme en cours ne peut pas s'effacer).
+    // --retirer : relais prié de s'arrêter, démarrage retiré, ses propres fichiers effacés (au mieux : le programme en cours ne
+    // peut pas s'effacer lui-même).
     static int Retirer()
     {
-        int moi = Process.GetCurrentProcess().Id;
-        foreach (Process p in Process.GetProcessesByName("CLAIRE-relais"))
-            if (p.Id != moi) try { p.Kill(); p.WaitForExit(3000); } catch { }
+        bool seul = ArreterRelaisEnMarche();
         try
         {
             using (RegistryKey run = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
-                if (run != null) { run.DeleteValue("CLAIRE-relais", false); run.DeleteValue("CLAIRE-Word", false); }
+                if (run != null) run.DeleteValue("CLAIRE-relais", false);
         }
         catch { }
-        RetirerAncienRelaisPowerShell();
-        string cible = Path.Combine(DossierClaire(), "CLAIRE-relais.exe");
-        try { File.Delete(cible); } catch { }
+        foreach (string cible in new[] { Path.Combine(DossierProgramme(), "CLAIRE-relais.exe"), Path.Combine(DossierClaire(), "CLAIRE-relais.exe") })
+            try { File.Delete(cible); } catch { }
         try { File.Delete(FichierConfig()); } catch { }
-        MessageBoxW(IntPtr.Zero, "Le relais CLAIRE de ce poste est retire.", TITRE, 0x40);
+        MessageBoxW(IntPtr.Zero, seul ? "Le relais CLAIRE de ce poste est retire."
+            : "Le relais CLAIRE ne demarrera plus. Une ancienne version tourne encore : elle s'arrete a la fermeture de la session (son fichier sera efface en relancant --retirer ensuite).", TITRE, 0x40);
         return 0;
     }
 
@@ -723,83 +745,39 @@ static class RelaisClaire
 
     static void Boucle()
     {
-        string dernier = null;
-        List<object> resultats = new List<object>();
-        DateTime envoi = DateTime.MinValue;
         int refus = 0;
         JavaScriptSerializer json = new JavaScriptSerializer();
-        while (true)
+        while (!arret.WaitOne(0))
         {
             historique.Add(new Echantillon { t = DateTime.Now, h = GetForegroundWindow() });
             while (historique.Count > 40) historique.RemoveAt(0);
-            object wordObj = null;
-            bool avecDoc = false;
-            string titre = "", para = "";
-            try { wordObj = Marshal.GetActiveObject("Word.Application"); } catch { wordObj = null; }
-            if (wordObj != null)
+            Dictionary<string, object> corps = new Dictionary<string, object>();
+            corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = false; corps["inchange"] = true;
+            corps["appels"] = 1; corps["pastille"] = 1;
+            try
             {
-                try
+                string reponse = Poster(url + "api/relais-word/releve", json.Serialize(corps));
+                refus = 0;
+                Dictionary<string, object> rep = json.Deserialize<Dictionary<string, object>>(reponse);
+                foreach (object a in Liste(rep, "appels")) Appel(a as Dictionary<string, object>);
+                if (rep != null && rep.ContainsKey("pastille")) { try { PastilleWindows.Mettre(Convert.ToInt32(rep["pastille"])); } catch { } }
+                List<Dictionary<string, object>> nouvelles = new List<Dictionary<string, object>>();
+                foreach (object n in Liste(rep, "notifications"))
                 {
-                    dynamic word = wordObj;
-                    if ((int)word.Documents.Count > 0)
-                    {
-                        avecDoc = true;
-                        dynamic p = word.Selection.Paragraphs.Item(1);
-                        para = Convert.ToString(p.Range.Text) ?? "";
-                        for (int i = 0; i < 15; i++)
-                        {
-                            p = p.Previous();
-                            if (p == null) break;
-                            string t = Normaliser(Convert.ToString(p.Range.Text));
-                            if (t.Length > 0 && t.Length <= 90 && t.IndexOf("---") < 0) { titre = t; break; }
-                        }
-                    }
+                    Dictionary<string, object> d = n as Dictionary<string, object>;
+                    if (d != null && Texte(d, "titre") != "") nouvelles.Add(d);
                 }
-                catch { }
+                PastilleWindows.Notifier(nouvelles);
             }
-            if (para.Length > 4000) para = para.Substring(0, 4000);
-            string cle = titre + "|" + para;
-            bool inchange = cle == dernier;
-            DateTime maintenant = DateTime.Now;
-            if (!inchange || resultats.Count > 0 || (maintenant - envoi).TotalSeconds >= 1)
+            catch (WebException e)
             {
-                Dictionary<string, object> corps = new Dictionary<string, object>();
-                corps["poste"] = poste; corps["jeton"] = jeton; corps["word"] = avecDoc; corps["inchange"] = inchange;
-                corps["resultats"] = resultats.ToArray(); corps["appels"] = 1; corps["pastille"] = 1;
-                if (!inchange) { corps["titre"] = titre; corps["paragraphe"] = para; }
-                try
-                {
-                    string reponse = Poster(url + "api/relais-word/releve", json.Serialize(corps));
-                    dernier = cle; refus = 0; resultats.Clear(); envoi = maintenant;
-                    Dictionary<string, object> rep = json.Deserialize<Dictionary<string, object>>(reponse);
-                    foreach (object c in Liste(rep, "commandes")) resultats.Add(Inserer(wordObj, c as Dictionary<string, object>));
-                    if (rep != null && rep.ContainsKey("renvoyer") && Equals(rep["renvoyer"], true)) dernier = null;
-                    foreach (object a in Liste(rep, "appels")) Appel(a as Dictionary<string, object>);
-                    if (rep != null && rep.ContainsKey("pastille")) { try { PastilleWindows.Mettre(Convert.ToInt32(rep["pastille"])); } catch { } }
-                    List<Dictionary<string, object>> nouvelles = new List<Dictionary<string, object>>();
-                    foreach (object n in Liste(rep, "notifications"))
-                    {
-                        Dictionary<string, object> d = n as Dictionary<string, object>;
-                        if (d != null && Texte(d, "titre") != "") nouvelles.Add(d);
-                    }
-                    PastilleWindows.Notifier(nouvelles);
-                }
-                catch (WebException e)
-                {
-                    HttpWebResponse r = e.Response as HttpWebResponse;
-                    // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête.
-                    if (r != null && r.StatusCode == HttpStatusCode.Forbidden) { refus++; if (refus >= 10) return; Thread.Sleep(30000); }
-                }
-                catch { }
+                HttpWebResponse r = e.Response as HttpWebResponse;
+                // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête.
+                if (r != null && r.StatusCode == HttpStatusCode.Forbidden) { refus++; if (refus >= 10) return; if (arret.WaitOne(30000)) return; }
             }
-            if (wordObj != null)
-            {
-                try { Marshal.ReleaseComObject(wordObj); } catch { }
-                wordObj = null;
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-            }
-            Thread.Sleep(500);
+            catch { }
+            // Un battement par seconde ; le signal d'arrêt est entendu aussitôt.
+            if (arret.WaitOne(1000)) return;
         }
     }
 
@@ -837,41 +815,6 @@ static class RelaisClaire
         using (HttpWebResponse r = (HttpWebResponse)req.GetResponse())
         using (StreamReader lecteur = new StreamReader(r.GetResponseStream(), Encoding.UTF8))
             return lecteur.ReadToEnd();
-    }
-
-    static string Normaliser(string s)
-    {
-        return Regex.Replace(s ?? "", @"[\s\x00-\x1f]+", " ").Trim();
-    }
-
-    // ---- « Insérer dans Word » : le n-ième « --- » du paragraphe, repéré sur son TEXTE (même compte que le poste, /-{3,}/),
-    // la plage contrôlée avant d'écrire (un champ ou un texte masqué décale les positions : rien n'est écrit). ----
-    static Dictionary<string, object> Inserer(object wordObj, Dictionary<string, object> c)
-    {
-        Dictionary<string, object> r = new Dictionary<string, object>();
-        r["id"] = Texte(c, "id"); r["ok"] = false;
-        try
-        {
-            if (wordObj == null) { r["message"] = "Word n est pas ouvert."; return r; }
-            dynamic word = wordObj;
-            if ((int)word.Documents.Count == 0) { r["message"] = "Word n est pas ouvert."; return r; }
-            dynamic pr = word.Selection.Paragraphs.Item(1).Range;
-            string txt = Convert.ToString(pr.Text) ?? "";
-            if (Normaliser(txt) != Normaliser(Texte(c, "attendu"))) { r["message"] = "Le curseur n est plus dans ce paragraphe."; return r; }
-            if (txt.Length > 4000) { r["message"] = "Paragraphe trop long : copiez la valeur."; return r; }
-            MatchCollection ms = Regex.Matches(txt, "-{3,}");
-            int k = Convert.ToInt32(c["occurrence"]);
-            if (k < 0 || k >= ms.Count) { r["message"] = "Blanc introuvable dans le paragraphe."; return r; }
-            Match m = ms[k];
-            int debut = (int)pr.Start + m.Index;
-            dynamic plage = pr.Document.Range(debut, debut + m.Length);
-            if (Convert.ToString(plage.Text) != m.Value) { r["message"] = "Blanc introuvable a sa place (champ ou texte masque) : copiez la valeur."; return r; }
-            plage.Text = Texte(c, "valeur");
-            r["ok"] = true;
-            r.Remove("message");
-        }
-        catch { r["message"] = "Word a refuse l insertion."; }
-        return r;
     }
 
     // ---- Sonnerie 3CX : l'onglet de 3CX se ferme seul ; appelant d'un dossier → fenêtre CLAIRE devant (ouverte sur l'appel si

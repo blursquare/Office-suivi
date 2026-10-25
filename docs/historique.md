@@ -21949,3 +21949,25 @@ CLAIRE devant, confirmé dans CLAIRE au niveau 2 ; réactions d'humeur 👍 ❤�
 « insérer aussi les notifications d'interaction » (« Jérémy a réagi 👍 à votre message », emoji en badge sur l'avatar, rubrique
 « Réactions à vos messages ») ; « en mode sombre toujours » (retour aux couleurs du thème sombre, la mise en page de Teams gardée).
 Empreinte relais 1.2 : `919399b7…df4105`.
+
+- **25/10/2026 23 h 14 — 0.350.1 Relais CLAIRE 1.3 : anticiper un nouveau blocage par l'antivirus** (étude : « essaie de voir ce
+  qui pouvait bloquer le relais vbs », puis « modifie le relais pour anticiper un éventuel blocage »). Comparaison des deux relais
+  de l'historique : le `.vbs` d'appel du 07/10 (non bloqué) était lancé à la demande par un lien, ne vivait que quelques secondes
+  et ne touchait qu'aux fenêtres ; le relais Word du 12/10 (bloqué) cumulait démarrage par la clé Run, PowerShell caché permanent,
+  lecture de Word par COM avec envoi du texte au réseau chaque seconde, et arrêt de processus par WMI — la signature d'un
+  logiciel espion (collecte puis exfiltration). Règle exacte de Panda inconnue (à demander à Fichorga). Le relais 1.2 gardait
+  encore une partie de ces gestes ; la 1.3 les retire : plus aucune lecture de Word (l'aide à la rédaction est supprimée depuis
+  le 15/10 ; les routes Word du serveur restent, le relais envoie `word: false`), presse-papiers jamais lu (le code
+  d'installation se colle dans la boîte de saisie, Ctrl+V), Zone.Identifier jamais effacée, plus de `Process.Kill` ni de
+  `GetProcessesByName` (signal nommé `Local\CLAIRE-relais-arret` : le relais en marche sort de sa boucle, pastille et icône de
+  la zone de notification retirées ; le nouveau attend le mutex 10 s), plus de fichiers de l'ancien relais PowerShell effacés,
+  programme copié dans `%LOCALAPPDATA%\Programs\CLAIRE` (emplacement habituel des programmes d'un utilisateur), un battement par
+  seconde au lieu de deux. Test `relais-word` qui refuse ces gestes. Empreinte relais 1.3 : `0c55287a…914ec4b` (LISEZMOI).
+  Essayé sous Mono : un battement par seconde ; l'arrêt par signal entre deux processus n'est pas jouable ici (Mono ne partage
+  pas les noms entre processus). Restent à voir sur Windows : signal d'arrêt, avertissement de sécurité possible à l'ouverture de
+  session (la marque « téléchargé » suit la copie), tolérance de Panda.
+  Relecture indépendante : un relais 1.2 déjà lancé n'entend pas le signal — il s'arrête seul en 5 min (jeton refusé après la
+  nouvelle installation) : le relais 1.3 lancé par l'installateur attend donc le mutex 6 min (10 s avant, il sortait et le
+  poste restait sans relais jusqu'à la session suivante), message de l'installateur et de `--retirer` qui le dit ; le signal
+  d'arrêt n'est plus remis à zéro par l'installateur (un relevé lent de 10 s le manquait) mais par le relais qui démarre, une fois
+  le mutex obtenu ; attente de l'installateur portée à 15 s ; la boîte du code renvoie à Réglages › Notifications.
