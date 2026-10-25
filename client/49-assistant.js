@@ -87,6 +87,33 @@
     return new Date(quand || Date.now()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   }
 
+  // « Comme Slackbot » (étude 25/10 : « l'accueil doit ressembler à Slackbot ») : un grand avatar carré arrondi, le nom, puis un
+  // paragraphe dont la première phrase est en gras et dont les exemples sont des phrases cliquables entre « » (un `span`, pas un
+  // `button` : un bouton ne se coupe pas en fin de ligne). `cliquables` faux (canal : la saisie est celle du canal) = texte seul.
+  function htmlExemplesAssistant(exemples, cliquables) {
+    return (exemples || []).map(e => cliquables
+      ? `<span class="asst-exemple" role="button" tabindex="0" data-q="${escapeAttr(e)}" onclick="envoyerDemandeAssistant(this.dataset.q)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); envoyerDemandeAssistant(this.dataset.q); }">« ${escapeHtml(e)} »</span>`
+      : `« ${escapeHtml(e)} »`).join(', ');
+  }
+
+  function htmlPresentationClaire(titre, gras, texte, exemples, cliquables, icone_) {
+    return `<div class="asst-accueil asst-slackbot">
+        <div class="asst-slackbot-av" aria-hidden="true">${icone(icone_ || 'discussion')}</div>
+        <h2 class="asst-accueil-titre">${escapeHtml(titre)}</h2>
+        <p class="asst-accueil-texte"><strong>${escapeHtml(gras)}</strong> ${escapeHtml(texte)}${exemples && exemples.length ? ' ' + htmlExemplesAssistant(exemples, cliquables) + ', ou autre chose.' : ''}</p>
+      </div>`;
+  }
+
+  // Les suites rapides (anciennes pastilles au-dessus de la saisie) : un paragraphe à la fin de la conversation, comme une
+  // suggestion de Slackbot — après une réponse de Claire seulement. « Où en est… » complète la saisie au lieu d'envoyer.
+  function htmlSuitesConversationAssistant() {
+    const dernier = assistantMessages[assistantMessages.length - 1];
+    if (!dernier || dernier.role !== 'claire') return '';
+    const liens = relancesAssistant().map((r, k) =>
+      `<span class="asst-exemple" role="button" tabindex="0" onclick="relanceAssistant(${k})" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); relanceAssistant(${k}); }">« ${escapeHtml(r.libelle)} »</span>`);
+    return `<p class="asst-suites">Vous pouvez aussi demander ${liens.slice(0, -1).join(', ')} ou ${liens[liens.length - 1]}.</p>`;
+  }
+
   function renderAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
@@ -100,17 +127,11 @@
     if (canaux.actif) { renderCanalAssistant(zone); return; }
     majSaisieCanal();
     renderEnteteCanal();
-    const relances = document.getElementById('assistant-relances');
-    if (relances) relances.innerHTML = assistantMessages.length ? relancesAssistant().map((s, k) =>
-      `<button type="button" class="asst-suggestion asst-relance" onmousedown="event.preventDefault()" onclick="relanceAssistant(${k})">${escapeHtml(s.libelle)}</button>`).join('') : '';
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
-      zone.innerHTML = `<div class="asst-accueil">
-          <div class="asst-accueil-logo" aria-hidden="true">${icone('discussion')}</div>
-          <h2 class="asst-accueil-titre">${escapeHtml(accueilAssistant(prenomPosteAssistant(), new Date()))}</h2>
-          <p class="asst-accueil-texte">Ceci est votre espace avec Claire. Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander ${suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5).map(s =>
-            `<span class="asst-exemple" role="button" tabindex="0" data-q="${escapeAttr(s)}" onclick="envoyerDemandeAssistant(this.dataset.q)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); envoyerDemandeAssistant(this.dataset.q); }">« ${escapeHtml(s)} »</span>`).join(', ')}, ou autre chose.</p>
-        </div>`;
+      zone.innerHTML = htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
+        'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
+        suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true);
       return;
     }
     const reperes = repereMessagesAssistant(assistantMessages);
@@ -132,7 +153,7 @@
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-claire asst-ecrit">
           <span class="asst-marque asst-marque-attente" aria-hidden="true">${icone('discussion')}</span>
-          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '') + (assistantEnCours ? '' : htmlSuitesConversationAssistant());
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);

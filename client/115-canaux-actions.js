@@ -80,8 +80,6 @@ function vueATraiter() {
 function renderCanalAssistant(zone) {
   majSaisieCanal();
   renderEnteteCanal();
-  const relances = document.getElementById('assistant-relances');
-  if (relances) relances.innerHTML = '';
   if (canaux.actif === '@traiter') { zone.innerHTML = vueATraiter(); return; }
   const proche = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 90;
   const sauve = zone.scrollTop;
@@ -94,8 +92,10 @@ function renderCanalAssistant(zone) {
   if (!visibles.length) {
     zone.innerHTML = q
       ? `<div class="asst-accueil"><h2 class="asst-accueil-titre">Aucun message</h2><p class="asst-accueil-texte">Rien ne contient « ${escapeHtml(q)} » dans ${escapeHtml(nom)}.</p></div>`
-      : `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone(typeCanal(canaux.actif) === 'dossier' ? 'folder' : 'diese')}</div><h2 class="asst-accueil-titre">${escapeHtml(nom)}</h2>
-          <p class="asst-accueil-texte">${typeCanal(canaux.actif) === 'dossier' ? 'Le canal de ce dossier : Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer.' : 'Un fil partagé par toute l’étude. Écrivez ici, Claire répond quand on l’appelle avec @Claire.'} Un collègue : @Prénom.</p></div>${attente}`;
+      : (typeCanal(canaux.actif) === 'dossier'
+        ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @Claire. Un collègue : @Prénom. Vous pouvez par exemple demander',
+          ['Où en est ce dossier ?', 'Qu’est-ce qui manque pour signer ?', 'Prépare l’appel de fonds'], false, 'folder')
+        : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, Claire répond quand on l’appelle avec @Claire. Un collègue : @Prénom.', [], false, 'diese')) + attente;
     return;
   }
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')

@@ -9620,7 +9620,10 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-accueil-titre { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; margin: 0 0 6px; }
 .asst-accueil-texte { color: var(--muted); margin: 0 0 20px; font-size: var(--texte-base); }
 .asst-accueil-texte { line-height: 1.6; color: var(--ink); }
-.asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
+.asst-slackbot-av { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; margin-bottom: 12px; border-radius: var(--rayon-carte); background: var(--avatar-claire); color: var(--blanc-fixe); }
+.asst-slackbot-av .icone { width: 32px; height: 32px; }
+.asst-suites { max-width: 720px; width: 100%; box-sizing: border-box; margin: 8px auto 0; padding-left: 48px; color: var(--muted); font-size: var(--texte-base); line-height: 1.6; }
+.asst-suites .asst-exemple, .asst-accueil-texte .asst-exemple { color: var(--focus); cursor: pointer; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; text-align: left; }
 .asst-accueil-texte .asst-exemple:hover { text-decoration-color: var(--focus); }
 .asst-suggestion { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 6px 14px; cursor: pointer; text-align: left; max-width: 100%; }
 .asst-suggestion:hover { background: var(--paper-sunk); border-color: var(--muted); }
@@ -9667,9 +9670,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-attente span.asst-etape, .asst-attente em.asst-etape { width: auto; height: auto; background: none; animation: none; }
 @keyframes asst-pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
 .asst-bas { flex: 0 0 auto; padding: 0 24px 12px; }
-.asst-relances { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.asst-relances:empty { display: none; }
-.asst-relance.asst-suggestion { font-size: var(--texte-s); padding: 4px 12px; }
 .asst-page .asst-saisie { position: relative; display: flex; flex-direction: column; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); }
 .asst-page .asst-saisie:focus-within { border-color: var(--muted); box-shadow: 0 0 0 1px var(--muted); }
 .asst-page .asst-saisie textarea#assistant-saisie { min-height: 44px; max-height: 160px; border: 0; background: transparent; padding: 12px 16px 6px; resize: none; font-size: var(--texte-base); line-height: 1.4; box-shadow: none; border-radius: var(--rayon-m) var(--rayon-m) 0 0; }
@@ -9722,7 +9722,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .asst-astuce { display: none; }
   .asst-messages { min-height: 160px; }
 }
-@media (max-height: 640px) { .asst-relances { display: none; } }
 @media (hover: none) { .asst-survol { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } }
 
