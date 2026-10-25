@@ -1053,6 +1053,8 @@
 
   function definirUtilisateurPoste(nom) {
     const valide = RESPONSABLES.indexOf(nom) !== -1 ? nom : '';
+    // Les brouillons de canal du collaborateur précédent ne restent pas sur le poste (audit 25/10 : texte libre, possiblement nominatif).
+    if (valide !== utilisateurPoste) { try { Object.keys(localStorage).filter(k => k.startsWith('claire-canal-brouillon:')).forEach(k => localStorage.removeItem(k)); } catch (e) { /* stockage indisponible */ } }
     utilisateurPoste = valide;
     vueDashboardGlobale = null;
     dispositionWidgets = null;   // disposition des widgets propre à chaque collaborateur

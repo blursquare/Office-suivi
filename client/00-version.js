@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.347.1';
+  const VERSION_APP = '0.347.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.347.2', date: '2026-10-25 18:25', resume: "Audit de tout le code : messages privés et conversations personnelles mieux cloisonnés (réactions, résumés, pièces jointes), mots de passe oubliés quand l’adresse d’Exchange ou du serveur d’envoi change, un seul tour de l’agenda et des rappels à la fois, rangements de pièces jointes jamais effacés par un tour, relance de l’offre de prêt notée seulement une fois l’email envoyé ou préparé." },
     { version: '0.347.1', date: '2026-10-25 13:30', resume: "Demander à CLAIRE : l’anonymisation est de nouveau active au départ de chaque conversation (elle reste désactivable d’un clic, après confirmation)." },
     { version: '0.347.0', date: '2026-10-25 12:55', resume: "Discussions : Claire signale ⚠️ sur le canal d’un dossier dont une échéance est dépassée et met ✅ sur la demande quand la tâche prise avec ✋ est cochée ; elle fête les anniversaires de l’étude et résume chaque matin les réponses qui ont reçu ❓ ou 👎. Nouveaux emojis : 🕐 / 🕒 rappel dans 3 jours / une semaine, 👥 prévenir le responsable du dossier, 📝 ajouter à CLAIRE.md, 🔒 clore un fil, 🗳️ compter un sondage (« sondage : … » puis une option par ligne, votes 1️⃣ 2️⃣ 3️⃣)." },
     { version: '0.346.0', date: '2026-10-25 12:39', resume: "Discussions : quatre emojis qui commandent un geste — 📌 épingle le message, ✋ « je la prends » (la tâche arrive dans votre « Aujourd’hui » et Claire le confirme dans le fil), 🔁 « relance ça » (Claire prépare l’email dans le fil, il attend votre « Envoyer »), et 🎉 posé par Claire sur le dernier message du canal d’un dossier dès que l’acte est signé." },

@@ -95,7 +95,7 @@ function lignePriveCanal(c) {
   const seul = membres.length === 1 ? membres[0] : '';
   const e = seul ? membreEquipeCanal(seul) : null;
   const statut = e && e.statut && (e.statut.emoji || e.statut.texte) ? `${e.statut.emoji || ''} ${e.statut.texte || ''}`.trim() : '';
-  const marque = c.mentions ? `<span class="cx-n cx-n-mention">${c.mentions}</span>` : c.nonLus ? `<span class="cx-n">${c.nonLus}</span>` : '';
+  const marque = Number(c.mentions) ? `<span class="cx-n cx-n-mention">${Number(c.mentions)}</span>` : Number(c.nonLus) ? `<span class="cx-n">${Number(c.nonLus)}</span>` : '';
   const avatar = seul ? `<span class="cx-d cx-d-pres" aria-hidden="true">${htmlPresence(seul)}</span>` : `<span class="cx-d" aria-hidden="true">${icone('users')}</span>`;
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${c.nonLus ? ' non-lu' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(c.id)}')"${actif ? ' aria-current="true"' : ''}>
       ${avatar}<span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(libellePriveCanal(c.id, canaux.liste))}</span>${statut ? `<small>${escapeHtml(statut)}</small>` : ''}</span>${marque}</button></li>`;

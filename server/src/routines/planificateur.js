@@ -18,6 +18,8 @@ const { proposerExemples } = require('./essai');
 const { libelleDossierAffiche } = require('../../../commun/dossier');
 const { envoiConfigure } = require('../envoiEmail');
 const { noterVerification } = require('../verificationsTerrain');
+const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
+const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 
 const CLE_ETAT_ROUTINES = 'routines-etat';
 const INTERVALLE_PLANIFICATEUR_MS = 60 * 1000;
@@ -102,12 +104,13 @@ function creerPlanificateur(deps) {
       // L'état des cartes (⏳ sans réponse depuis un jour, 💤 expirée) se dit par une réaction de CLAIRE sur la carte.
       try { synchroniserEtatCartes(parametresRepo, maintenant.getTime()); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // 🎉 de CLAIRE dans le canal d'un dossier dont l'acte vient d'être signé (une fois par dossier).
-      try { if (depot && depot.tous) celebrerSignatures(parametresRepo, depot.tous()); } catch (e) { /* de l'affichage : jamais bloquant */ }
+      const dossiersActifs = depot && depot.tousActifs ? (() => { try { return depot.tousActifs(); } catch (e) { return []; } })() : [];
+      try { if (dossiersActifs.length) celebrerSignatures(parametresRepo, dossiersActifs); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // Signaux de CLAIRE dans les canaux : ⚠️ retard, ✅ tâche faite, 🎂 anniversaires (jamais bloquants).
       try {
         const jourParis = infosParis(maintenant);
-        if (depot && depot.tous) signaux.signalerRetards(parametresRepo, depot.tous(), jourParis.iso);
-        if (parametresRepo.lireRappelsPerso) signaux.confirmerTachesFaites(parametresRepo, parametresRepo.lireRappelsPerso());
+        if (dossiersActifs.length) signaux.signalerRetards(parametresRepo, dossiersActifs, jourParis.iso);
+        if (parametresRepo.lireRappelsPerso) signaux.confirmerTachesFaites(parametresRepo, parametresRepo.lireRappelsPerso(), COLLABORATEURS);
         signaux.feterAnniversaires(parametresRepo, jourParis.iso, maintenant.getTime());
         if (jourParis.ouvre && jourParis.hhmm >= '09:30') signaux.resumerInterrogations(parametresRepo, jourParis.iso, maintenant.getTime());
       } catch (e) { /* de l'affichage : jamais bloquant */ }

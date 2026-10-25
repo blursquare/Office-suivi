@@ -111,7 +111,7 @@
     const q = String((e && e.recherche) || '').slice(0, 200);
     const dossier = String((e && e.dossier_id) || '').slice(0, 80);
     try {
-      const r = await fetchAvecAuth(`/api/assistant/conversations/recherche?q=${encodeURIComponent(q)}&dossier=${encodeURIComponent(dossier)}`);
+      const r = await fetchAvecAuth(`/api/assistant/conversations/recherche?q=${encodeURIComponent(q)}&dossier=${encodeURIComponent(dossier)}&utilisateur=${encodeURIComponent(utilisateurPoste || '')}`);
       if (!r.ok) return { erreur: `le serveur a répondu ${r.status}` };
       const json = await r.json();
       return { conversations: json.resultats || [], ...(json.reactions && json.reactions.length ? { reactions: json.reactions } : {}), ...(json.resultats && json.resultats.length ? {} : { aucune: 'aucune conversation passée ne correspond : essaie d’autres mots' }) };

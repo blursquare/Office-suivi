@@ -180,7 +180,7 @@
           ${img ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone ech-ico ech-ico-suppr" onclick="retirerImageSignature('${e.cle}')" title="Retirer l’image" aria-label="Retirer l’image : ${escapeAttr(e.libelle)}">${icone('x')}</wa-button>` : ''}
         </div>
         ${img
-          ? `<img class="signature-image-apercu" src="data:${img.type};base64,${img.base64}" alt="${escapeAttr(e.libelle)}">`
+          ? `<img class="signature-image-apercu" src="data:${escapeAttr(img.type)};base64,${escapeAttr(img.base64)}" alt="${escapeAttr(e.libelle)}">`
           : `<span class="hint">${e.aide} Aucune image : version composée par CLAIRE.</span>`}
         <input type="file" id="signature-image-${e.cle}" accept="image/png,image/jpeg" hidden onchange="deposerImageSignature('${e.cle}', this)">
         <wa-button appearance="outlined" type="button" class="bouton-ajout bouton-ajout-court" onclick="document.getElementById('signature-image-${e.cle}').click()"><span slot="start" class="bouton-ajout-plus" aria-hidden="true">+</span>${img ? 'Remplacer l’image' : 'Déposer une image'}</wa-button>

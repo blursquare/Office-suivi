@@ -2163,7 +2163,7 @@
         const montant = detecterPrixMobilier(texte);
         const courant = dossiers.find(x => x.id === id);
         if (!courant) return;
-        courant.mobilierLuLe = new Date().toISOString().slice(0, 10);
+        courant.mobilierLuLe = isoAujourdhuiLocal();
         if (courant.prixMobilier) {
           // Saisi entre-temps : on ne touche à rien.
         } else if (montant && (!courant.prixVente || montant < courant.prixVente)) {

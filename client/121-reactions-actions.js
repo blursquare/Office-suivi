@@ -54,7 +54,10 @@ async function actionDeReactionCanal(m, emoji) {
     return;
   }
   if (action === 'consigne') {
-    demanderConfirmation(`Ajouter à CLAIRE.md pour toute l’étude : « ${extrait} » ?`, async () => {
+    // Jamais une réponse de Claire (elle peut reprendre le texte d'un document lu) : « Corriger » sous la réponse sert à cela.
+    if (m.role === 'claire') { afficherToast('📝 ajoute à CLAIRE.md la phrase d’un collègue ; pour une réponse de Claire, utilisez « Corriger ».', 'OK', null); return; }
+    const coupe = String(m.texte || texteDepuisHtmlCanal(m.html) || '').replace(/\s+/g, ' ').trim().length > extrait.length;
+    demanderConfirmation(`Ajouter à CLAIRE.md, pour toute l’étude, cette phrase de ${nomAuteurCanal(m) === 'Vous' ? 'vous' : nomAuteurCanal(m)}${coupe ? ' (coupée à 140 caractères)' : ''} : « ${extrait} » ?`, async () => {
       try {
         const r = await fetchAvecAuth('/api/carnet-claire/consigne', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne: extrait, auteur: prenomPosteAssistant() }) });
         const corps = await r.json().catch(() => ({}));

@@ -2733,8 +2733,8 @@
       // viennent d'un CDN, et un poste sans accès internet afficherait sinon un aperçu sans
       // en-tête alors que les images, elles, sont servies par le serveur de l'étude.
       appliquerImagesAppelFonds();
-      if (!window.PizZip) await afChargerScript('https://cdn.jsdelivr.net/npm/pizzip@3.3.0/dist/pizzip.js');
-      if (!window.docxtemplater) await afChargerScript('https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/build/docxtemplater.js');
+      if (!window.PizZip) await afChargerScript('https://cdn.jsdelivr.net/npm/pizzip@3.3.0/dist/pizzip.js', 'sha384-lEjhmM/J46QUmUQ+lJ3SoO6UoECkP+s9qjMzVs3h9s8ysjeMQAG3Znr3W90ekhAB');
+      if (!window.docxtemplater) await afChargerScript('https://cdn.jsdelivr.net/npm/docxtemplater@3.71.0/build/docxtemplater.js', 'sha384-vWfcdrAp5URB91Dl1ZEOdtU8ATKIbRenHw8R8JCD/Ykv0YMKavU1i/E0pA7CJfut');
       afModeleCharge = true;
     })();
     afModeleEnCours.catch(() => { afModeleEnCours = null; });

@@ -1450,19 +1450,28 @@
     // moment. Le seul arrêt est l'arrivée de l'offre (cette fonction n'est plus appelée) ou
     // l'archivage du dossier.
     if (jours === null || jours > FENETRE_RELANCE_OFFRE_JOURS) return;
-    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const aujourdhui = isoAujourdhuiLocal();
     if (!relanceOffreDue(d.derniereRelanceAuto, aujourdhui)) return;
-
-    d.derniereRelanceAuto = aujourdhui;
-    ajouterHistorique(d, `Relance automatique ouverte (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`, { auto: true });
-    sauvegarder(d);
+    // Audit 25/10 : la relance n'est notée faite qu'une fois l'email envoyé ou préparé — fenêtre annulée, elle reviendra ;
+    // une seule fenêtre à la fois par dossier tant qu'elle est ouverte, et une fenêtre annulée n'est pas rouverte le même jour.
+    if (relancesOffreOuvertes.has(d.id) || relancesOffreAnnulees.get(d.id) === aujourdhui) return;
+    relancesOffreOuvertes.add(d.id);
 
     const { sujet: subject, corps: body } = emailDepuisModele('pret', d);
     livrerEmailDossier({ destinataire, sujet: subject, corps: body, confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'relancePret' })
-      .then(r => { if (!r.annule) afficherToast(r.ok
-        ? (r.mode === 'envoye' ? `Relance « offre de prêt » envoyée pour ${libelleDossierAffiche(d)}.` : `Relance « offre de prêt » prête pour ${d.nom} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`)
-        : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null); });
+      .then(r => {
+        if (r && r.ok) {
+          d.derniereRelanceAuto = aujourdhui;
+          ajouterHistorique(d, `Relance automatique ${r.mode === 'envoye' ? 'envoyée' : 'préparée'} (offre de prêt introuvable, ${libelleEcheanceRelance(jours)})`, { auto: true });
+          sauvegarder(d);
+        } else if (r && r.annule) relancesOffreAnnulees.set(d.id, aujourdhui);
+        if (!r.annule) afficherToast(r.ok
+        ? (r.mode === 'envoye' ? `Relance « offre de prêt » envoyée pour ${libelleDossierAffiche(d)}.` : `Relance « offre de prêt » prête pour ${libelleDossierAffiche(d)} — ${r.mode === 'eml' ? 'ouvrez le fichier téléchargé' : 'vérifiez'} puis envoyez.`)
+        : `Relance « offre de prêt » de ${libelleDossierAffiche(d)} non préparée.`, 'OK', null); })
+      .finally(() => relancesOffreOuvertes.delete(d.id));
   }
+  var relancesOffreOuvertes = new Set();
+  var relancesOffreAnnulees = new Map();
 
   // Statut de l'offre de prêt à afficher, dans le même vocabulaire court partout où il apparaît
   // (ligne de tableau, carte "Obtention du prêt" du tiroir) : avant cette fonction, chaque endroit

@@ -96,42 +96,7 @@ function texteDepuisHtmlCanal(html) {
     .replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-var BALISES_CANAL = ['p', 'br', 'b', 'strong', 'i', 'em', 'u', 'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'span', 'div', 'h3', 'h4', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'small', 'hr', 'sup', 'sub', 'del', 'mark'];
-var BALISES_VIDES_CANAL = ['br', 'hr'];
-
-// Pure : le HTML d'un message de CLAIRE écrit par UN AUTRE poste n'est jamais fait confiance : seules des balises de mise en forme passent,
-// avec leurs attributs sûrs (classe, titre, lien http/https/mailto) ; tout le reste est écrit en texte. Les balises ouvertes sont refermées.
-function htmlSurCanal(html) {
-  const morceaux = String(html || '').split(/(<[^<>]*>?)/);
-  const ouvertes = [];
-  let sortie = '';
-  for (const m of morceaux) {
-    if (!m) continue;
-    if (m[0] !== '<') { sortie += m.replace(/</g, '&lt;'); continue; }
-    const t = m.match(/^<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:\s[^<>]*)?)\/?>$/);
-    if (!t || !BALISES_CANAL.includes(t[2].toLowerCase())) { sortie += escapeHtml(m); continue; }
-    const nom = t[2].toLowerCase();
-    if (t[1]) {
-      const k = ouvertes.lastIndexOf(nom);
-      if (k >= 0) { sortie += ouvertes.splice(k).reverse().map(n => `</${n}>`).join(''); }
-      continue;
-    }
-    let attrs = '';
-    const re = /([a-zA-Z-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
-    let a;
-    while ((a = re.exec(t[3]))) {
-      const cle = a[1].toLowerCase();
-      const val = a[2] !== undefined ? a[2] : a[3];
-      if (cle === 'class' && /^[\w\s-]{0,80}$/.test(val)) attrs += ` class="${val}"`;
-      else if (cle === 'title') attrs += ` title="${escapeAttr(val)}"`;
-      else if (nom === 'a' && cle === 'href' && /^(https?:\/\/|mailto:)[^\s"'<>]*$/i.test(val.replace(/&amp;/g, '&'))) attrs += ` href="${escapeAttr(val.replace(/&amp;/g, '&'))}" target="_blank" rel="noopener noreferrer"`;
-      else if ((cle === 'colspan' || cle === 'rowspan') && /^\d{1,2}$/.test(val)) attrs += ` ${cle}="${val}"`;
-    }
-    sortie += `<${nom}${attrs}>`;
-    if (!BALISES_VIDES_CANAL.includes(nom)) ouvertes.push(nom);
-  }
-  return sortie + ouvertes.reverse().map(n => `</${n}>`).join('');
-}
+// htmlSurCanal et BALISES_CANAL vivent dans commun/html-canal.js (appliqués aussi par le serveur au dépôt, audit 25/10).
 
 // Pure : le texte d'un message d'une personne, en HTML : échappé, retours à la ligne, @mentions en évidence.
 function htmlTexteCanal(texte, collaborateurs, moi) {
@@ -418,8 +383,10 @@ function majSaisieCanal() {
 function ligneCanal(e) {
   const actif = e.id === canaux.actif;
   const muet = e.notif === 'muet';
-  const marque = e.mentions ? `<span class="cx-n cx-n-mention" title="${e.mentions} mention${e.mentions > 1 ? 's' : ''} ou à décider">${e.mentions}</span>`
-    : e.nonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${e.nonLus}</span>` : '';
+  const nbMentions = Number(e.mentions) || 0;
+  const nbNonLus = Number(e.nonLus) || 0;
+  const marque = nbMentions ? `<span class="cx-n cx-n-mention" title="${nbMentions} mention${nbMentions > 1 ? 's' : ''} ou à décider">${nbMentions}</span>`
+    : nbNonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${nbNonLus}</span>` : '';
   const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
       <span class="cx-d" aria-hidden="true">${icone(e.favori ? 'etoile' : e.dossier ? 'folder' : 'diese')}</span>

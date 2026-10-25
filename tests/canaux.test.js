@@ -64,7 +64,7 @@ test('htmlSurCanal : mise en forme gardée, script, gestionnaires, liens piégé
   assert.equal(app.htmlSurCanal('<div><p>ouvert'), '<div><p>ouvert</p></div>', 'balises refermées');
   assert.equal(app.htmlSurCanal('a < b'), 'a &lt; b');
   assert.ok(!/<iframe|<object|<svg|<form|<input/i.test(app.htmlSurCanal('<iframe src=x></iframe><svg onload=1></svg><form><input></form>')));
-  assert.match(app.htmlSurCanal('<span class="asst-note x-y">t</span>'), /class="asst-note x-y"/);
+  assert.match(app.htmlSurCanal('<span class="asst-note x-y">t</span>'), /class="asst-note"/, 'seules les classes de CLAIRE (asst-, cx-, dot-, bouton-) passent');
   assert.ok(!/class="[^"]*"/.test(app.htmlSurCanal('<span class="a&quot;b">t</span>')) || !/"b/.test(app.htmlSurCanal('<span class="a&quot;b">t</span>')));
 });
 

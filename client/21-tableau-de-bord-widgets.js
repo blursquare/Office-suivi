@@ -671,10 +671,6 @@
     delais: { texte: 'Dans les délais', dl: 'dl-success', ordre: 2 }
   };
 
-  function isoDepuisMs(ms) {
-    const d = new Date(ms);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-  }
 
   // Pure et testable. `aujourdhuiIso` injectée pour que le calcul ne dépende pas de l'horloge.
   function avancementDossier(d, aujourdhuiIso) {
@@ -741,7 +737,7 @@
   function renderAvancementDossiers(dossiersActifs) {
     const section = document.getElementById('dash-avancement');
     if (!section) return;
-    const toutes = lignesAvancement(dossiersActifs, isoDepuisMs(Date.now()));
+    const toutes = lignesAvancement(dossiersActifs, isoLocalDepuisMs(Date.now()));
     if (!toutes.length) {
       section.style.display = 'none';
       section.innerHTML = '';

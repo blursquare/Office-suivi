@@ -2704,8 +2704,10 @@
     return iso.replace(/-/g, '');
   }
 
-  function buildEvent(uidBase, summary, iso, reminderDays) {
+  function buildEvent(uidBase, titre, iso, reminderDays) {
     if (!iso) return '';
+    // RFC 5545 : « , ; \\ » et les retours à la ligne s'échappent dans un texte (audit 25/10 : « DUPONT, MARTIN »).
+    const summary = String(titre).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
     const dtstart = icsDate(iso);
     const dtend = icsDate(addDays(iso, 1));
     const now = new Date();

@@ -134,7 +134,7 @@
   var reactionsApprises = [];
   async function chargerReactionsApprises() {
     try {
-      const r = await fetchAvecAuth('/api/assistant/reactions');
+      const r = await fetchAvecAuth('/api/assistant/reactions?utilisateur=' + encodeURIComponent(utilisateurPoste || ''));
       if (r.ok) reactionsApprises = (await r.json()).reactions || [];
     } catch (e) { console.warn('Réactions indisponibles', e); }
   }

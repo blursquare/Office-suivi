@@ -136,7 +136,7 @@ function ajouterMessage(repo, canal, brut, maintenant) {
 }
 
 /**
- * Modifier (texte) ou supprimer un message : seulement son auteur. Rend le message, ou null.
+ * Modifier (texte) ou supprimer un message : seulement son auteur ; épingler et clore un fil : ouverts à tous (comme Slack). Rend le message, ou null.
  * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {{ texte?: string, supprimer?: boolean, epingle?: boolean, clos?: boolean, mentions?: string[] }} action @param {number} [maintenant]
  */
 function changerMessage(repo, canal, id, par, action, maintenant) {
@@ -382,7 +382,8 @@ function purgerMessagesAnciens(repo, maintenant) {
     if (!Number.isFinite(Number(e && e.dernierLe)) || Number(e.dernierLe) >= limite) {
       // Le dernier message est récent : on ne relit le canal que s'il a de vieux messages (les événements récents le disent).
       const plusAncien = Array.isArray(e && e.recents) && e.recents.length ? Math.min(...e.recents.map((r) => Number(r[0]))) : Infinity;
-      if (!(plusAncien < limite)) continue;
+      // 120 événements récents pleins : le canal peut porter des messages plus vieux qu'eux (audit 25/10) — on relit.
+      if (!(plusAncien < limite) && !(Array.isArray(e && e.recents) && e.recents.length >= MAX_RECENTS)) continue;
     }
     const messages = lireMessages(repo, id);
     const gardes = messages.filter((m) => m.quand >= limite);

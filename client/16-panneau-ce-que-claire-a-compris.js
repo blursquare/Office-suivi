@@ -573,7 +573,7 @@
     const couleur = item.suggestion ? ' chip-' + item.suggestion : '';
     chip.className = 'chip' + couleur + (item.active ? '' : ' inactive');
     const boutonVoir = (pdfActuel && item.page)
-      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${item.page}, '${item.label.replace(/'/g, "\\'")}')">${icone('eye')} p.${item.page}</button>`
+      ? `<button type="button" class="voir-pdf-btn" onclick="voirDateDansPdf(${Number(item.page) || 1}, '${escapeOnclickArg(item.label)}')">${icone('eye')} p.${item.page}</button>`
       : '';
     const badgeApprise = item.apprise
       ? `<span class="dot-label dl-neutre" title="Classé d'après une correction déjà faite sur une clause très proche — à vérifier comme toute suggestion automatique">${icone('sparkle')}Appris</span>`

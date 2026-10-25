@@ -18,7 +18,7 @@ function creerRouteurSignatureRib(parametresRepo, service) {
       const d = await service.disponibilite();
       res.json({ disponible: !!d.disponible });
     } catch (e) {
-      console.error('[signature-rib] disponibilité', e && e.message ? e.message : e);
+      console.error('[signature-rib] disponibilité', e && (e.name || e.status) ? `${e.name || ''} ${e.status || ''}`.trim() : 'erreur');
       res.json({ disponible: false });
     }
   });
@@ -31,7 +31,7 @@ function creerRouteurSignatureRib(parametresRepo, service) {
       const statut = r.ok ? 200 : r.code === 'donnees' ? 400 : r.code === 'occupe' ? 409 : 502;
       res.status(statut).json(r.ok ? { ok: true, id: r.id, url: r.url } : { ok: false, code: r.code, raison: r.raison, configuration: CODES_CONFIGURATION.includes(r.code) });
     } catch (e) {
-      console.error('[signature-rib]', e && e.message ? e.message : e);
+      console.error('[signature-rib]', e && (e.name || e.status) ? `${e.name || ''} ${e.status || ''}`.trim() : 'erreur');
       res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
     }
   });
@@ -42,7 +42,7 @@ function creerRouteurSignatureRib(parametresRepo, service) {
       const statut = r.ok ? 200 : r.code === 'donnees' ? 400 : r.code === 'occupe' ? 409 : 502;
       res.status(statut).json(r.ok ? { ok: true, statut: r.statut } : { ok: false, code: r.code, raison: r.raison });
     } catch (e) {
-      console.error('[signature-rib] statut', e && e.message ? e.message : e);
+      console.error('[signature-rib] statut', e && (e.name || e.status) ? `${e.name || ''} ${e.status || ''}`.trim() : 'erreur');
       res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
     }
   });

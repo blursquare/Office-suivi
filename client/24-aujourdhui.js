@@ -1007,7 +1007,7 @@
   // délai le plus proche ; le tiroir déroule les tâches, chacune avec sa propre case et son geste.
   function renderGroupeActionsJour(groupe, global) {
     const { dossier: d, actions } = groupe;
-    const id = escapeOnclickArg(d.id);
+    const id = d.id;
     const ouvert = groupesOuvertsJour.has(d.id);
     const faites = groupe.faites || [];
     const premiere = actions[0];

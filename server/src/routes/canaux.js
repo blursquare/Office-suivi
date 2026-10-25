@@ -25,6 +25,10 @@ function collaborateurDe(v) {
 /**
  * @param {any} parametresRepo @param {{ notifierMentions?: (canal: string, message: any) => Promise<any> }} [notifieur] @param {any} [depot] @param {any} [stockPiecesJointes]
  */
+const { htmlSurCanal } = /** @type {any} */ (require('../../../commun/html-canal'));
+/** Les seuls emojis qu'un poste pose au nom de CLAIRE (client/120 : 👀 prise en charge, puis ✅ ❓ ⚠️). */
+const EMOJIS_CLAIRE_PAR_POSTE = ['👀', '✅', '❓', '⚠'];
+
 function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes) {
   const routeur = express.Router();
 
@@ -164,8 +168,16 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
       if (!racine || racine.parent) { res.status(400).json({ erreur: 'Message de départ du fil introuvable.' }); return; }
       parent = racine.id;
     }
+        // Un fichier gardé ne se cite que par celui qui l'a déposé (audit 25/10 : un message citant le fichier d'un collègue l'emportait à sa suppression).
+    const pj = (Array.isArray(corps.pj) ? corps.pj : []).filter((p) => {
+      if (!p || typeof p !== 'object') return false;
+      if (p.nas) return true;
+      if (typeof p.fichierId !== 'string') return !p.fichierId;
+      const meta = stockPiecesJointes && stockPiecesJointes.meta ? stockPiecesJointes.meta(p.fichierId) : null;
+      return !!meta && meta.par === par;
+    });
     const m = C.ajouterMessage(parametresRepo, id, {
-      auteur: claire ? 'CLAIRE' : par, claire, via: claire ? par : '', texte, html: claire ? html : '', pj: claire ? [] : corps.pj, mentions, parent
+      auteur: claire ? 'CLAIRE' : par, claire, via: claire ? par : '', texte, html: claire ? htmlSurCanal(html) : '', pj: claire ? [] : pj, mentions, parent
     });
     if (!m) { res.status(400).json({ erreur: 'Message refusé.' }); return; }
     C.marquerLu(parametresRepo, par, id, m.quand);
@@ -193,7 +205,9 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const par = collaborateurDe(corps.auteur);
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
     // `claire: true` : le poste de `auteur` réagit AU NOM DE CLAIRE (👀 « je regarde », ✅ « fait », ❓ « il me manque une information »).
+    // Au nom de CLAIRE, un poste ne pose que les emojis de la prise en charge ; ⏳ ✅ d'état de carte, 🎉 🎂 ⚠️ de signal restent au serveur (audit 25/10).
     const parQui = corps.claire === true ? 'CLAIRE' : par;
+    if (parQui === 'CLAIRE' && !EMOJIS_CLAIRE_PAR_POSTE.includes(String(corps.emoji || '').replace(/\uFE0F/g, ''))) { res.status(400).json({ erreur: 'Emoji réservé.' }); return; }
     const r = C.reagirMessage(parametresRepo, id, req.params.mid, parQui, String(corps.emoji || ''), corps.actif === undefined ? undefined : corps.actif === true);
     if (!r) { res.status(400).json({ erreur: 'Message ou réaction inconnus.' }); return; }
     if (r.message.claire && parQui !== 'CLAIRE') {
@@ -209,8 +223,11 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
     const m = C.changerMessage(parametresRepo, id, req.params.mid, par, { supprimer: true });
     if (!m) { res.status(403).json({ erreur: 'Message introuvable, ou ce n’est pas le vôtre.' }); return; }
-    // Un message supprimé emporte ses fichiers gardés sur le serveur.
-    if (stockPiecesJointes) for (const p of (m.pj || [])) if (p.fichierId) stockPiecesJointes.supprimer(p.fichierId).catch(() => {});
+    // Un message supprimé emporte ses fichiers gardés sur le serveur — ceux de son auteur seulement.
+    if (stockPiecesJointes) for (const p of (m.pj || [])) {
+      const meta = p.fichierId && stockPiecesJointes.meta ? stockPiecesJointes.meta(p.fichierId) : null;
+      if (meta && meta.par === par) stockPiecesJointes.supprimer(p.fichierId).catch(() => {});
+    }
     res.json({ ok: true });
   });
 

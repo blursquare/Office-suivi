@@ -750,8 +750,9 @@
     const destinataireDit = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
     const destinataire = destinataireDit || emailDestinataireRelance(d) || d.emailVendeur || '';
     const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
-    if (r && r.ok) { ajouterHistorique(d, 'Email envoyé depuis les Discussions'); sauvegarder(d); }
-    return { html: r && r.ok ? '<p>Email envoyé.</p>' : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
+    const envoye = !!(r && r.ok && r.mode === 'envoye');
+    if (r && r.ok) { ajouterHistorique(d, envoye ? 'Email envoyé depuis les Discussions' : 'Email préparé depuis les Discussions'); sauvegarder(d); }
+    return { html: r && r.ok ? (envoye ? '<p>Email envoyé.</p>' : '<p>Email préparé : envoyez-le depuis Outlook.</p>') : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
   }
 
   // Ce que devient le lieu du rendez-vous de signature dans Outlook après la coche d'un envoi (étude 07/10 : « noter l'envoi dans

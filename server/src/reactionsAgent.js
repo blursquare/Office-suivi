@@ -60,6 +60,19 @@ function oublierReaction(repo, id, maintenant) {
   return apres.length !== avant.length;
 }
 
+/**
+ * Pur : une réaction est-elle visible de `moi` ? Un canal partagé (général, dossier, libre) l'est de tous ; une conversation personnelle de son
+ * auteur seul ; un canal privé de ses membres (audit 25/10 : le résumé et « Ce que CLAIRE a appris » montraient le privé à toute l'étude).
+ * @param {{ canal?: string, par?: string }} r @param {string} moi @param {(canal: string) => string[]} [membresDe]
+ */
+function reactionVisiblePar(r, moi, membresDe) {
+  const canal = String((r && r.canal) || '');
+  if (canal === 'general' || /^[dl]:/.test(canal)) return true;
+  if (canal === 'perso') return !!moi && r.par === moi;
+  if (canal.startsWith('p:')) return !!moi && (membresDe ? membresDe(canal) : []).includes(moi);
+  return false;
+}
+
 /** Pur : les réactions qui répondent à une recherche (par dossier, sinon les plus récentes), 10 au plus, sous la forme que lit l'agent. @param {ReactionGardee[]} liste @param {string} [dossierId] */
 function reactionsPourAgent(liste, dossierId) {
   const filtre = String(dossierId || '');
@@ -68,4 +81,4 @@ function reactionsPourAgent(liste, dossierId) {
     sur_ta_reponse: r.extrait ? `… ${r.extrait}` : '', dossier_id: r.dossierId }));
 }
 
-module.exports = { CLE_REACTIONS, lireReactions, noterReaction, oublierReaction, reactionsPourAgent };
+module.exports = { CLE_REACTIONS, lireReactions, noterReaction, oublierReaction, reactionsPourAgent, reactionVisiblePar };

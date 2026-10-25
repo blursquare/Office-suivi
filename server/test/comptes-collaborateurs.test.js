@@ -208,3 +208,18 @@ test('rien ne sort : le mot de passe d’un collaborateur n’apparaît ni dans 
     assert.ok(!reglages.includes(MDP), 'jamais mêlé aux réglages renvoyés par /api/reglages');
   } finally { db.close(); }
 });
+
+test('audit 25/10 : une autre adresse Exchange oublie aussi les mots de passe des collaborateurs ; un autre serveur SMTP oublie le sien', () => {
+  const repo = creerRepoParametres(ouvrirDb(':memory:'));
+  repo.ecrireReglagesExchange({ url: 'https://mail.exemple.fr/EWS/Exchange.asmx', email: 'office@exemple.fr', motDePasse: 'secret' });
+  C.ecrireCompte(repo, C.NOMS_COLLABORATEURS[0], { identifiant: 'a@exemple.fr', motDePasse: 'mdp-collab' });
+  repo.ecrireReglagesExchange({ email: 'office@exemple.fr' });
+  assert.equal(C.lireComptes(repo)[C.NOMS_COLLABORATEURS[0]].motDePasse, 'mdp-collab', 'même adresse : gardé');
+  repo.ecrireReglagesExchange({ url: 'https://autre.exemple.net/EWS/Exchange.asmx' });
+  assert.equal(C.accesCollaborateur(repo, C.NOMS_COLLABORATEURS[0], 'a@exemple.fr'), null, 'nouvelle adresse : mot de passe à ressaisir');
+  repo.ecrireReglages({ smtpHote: 'smtp.exemple.fr', smtpUtilisateur: 'u@exemple.fr', smtpMotDePasse: 'smtp-secret' });
+  repo.ecrireReglages({ smtpHote: 'smtp.exemple.fr', smtpUtilisateur: 'u@exemple.fr' });
+  assert.equal(repo.lireReglages().smtpMotDePasse, 'smtp-secret');
+  repo.ecrireReglages({ smtpHote: 'smtp.ailleurs.net', smtpUtilisateur: 'u@exemple.fr' });
+  assert.equal(repo.lireReglages().smtpMotDePasse, '', 'autre serveur : oublié');
+});

@@ -483,3 +483,16 @@ test('clôture des comptes d\'une succession : envoi gardé puis recoupé au tou
     assert.equal(E.lireEtat(repo).envoisNonRattaches.length, 0, 'l’envoi qui a servi n’est plus gardé');
   } finally { db.close(); }
 });
+
+test('audit 25/10 : un rangement noté pendant un tour n’est pas effacé par la copie du tour', () => {
+  const repo = creerRepoParametres(ouvrirDb(':memory:'));
+  const email = (pj) => ({ id: 'e1', itemId: 'X', dossierId: 'd1', date: '2026-10-20T08:00:00Z', de: { adresse: 'client@exemple.fr' }, pj: [pj] });
+  E.ecrireEtat(repo, { emails: [email({ id: 'p1', nom: 'a.pdf' })] });
+  const copieDuTour = E.lireEtat(repo);
+  // Pendant le tour, un poste range la pièce et en écarte une autre.
+  const pendant = E.lireEtat(repo);
+  pendant.emails[0].pj[0].rangee = { chemin: 'Vendeur/a.pdf', le: '2026-10-20T09:00:00Z' };
+  E.ecrireEtat(repo, pendant);
+  E.ecrireEtatTour(repo, copieDuTour);
+  assert.equal(E.lireEtat(repo).emails[0].pj[0].rangee.chemin, 'Vendeur/a.pdf');
+});

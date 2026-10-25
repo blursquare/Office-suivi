@@ -27,8 +27,7 @@ function htmlCorpsMessageCanal(m) {
   const p = m.carte ? canaux.cartes[m.carte] : null;
   if (p) return `<div class="cx-carte">${carteProposition(p, { compacte: true })}</div>`;
   if (m.edition) return '';
-  // Le HTML écrit par l'agent de CE poste (message local) est celui de l'assistant, déjà de confiance ; tout autre passe par htmlSurCanal.
-  if (m.role === 'claire' && m.local) return `<div class="asst-texte">${m.html}</div>`;
+  // Même le HTML écrit par l'agent de CE poste passe par htmlSurCanal : un seul chemin de rendu (audit 25/10).
   if (m.role === 'claire') return `<div class="asst-texte">${htmlSurCanal(m.html)}</div>`;
   return `<div class="cx-texte">${htmlTexteCanal(m.texte || texteDepuisHtmlCanal(m.html), canaux.collaborateurs, utilisateurPoste)}</div>`;
 }

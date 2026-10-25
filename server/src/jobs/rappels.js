@@ -283,7 +283,22 @@ function texteRappel(r) {
 // est un AVERTISSEMENT, jamais une erreur : les rappels, eux, sont bien partis — l'encart de
 // l'écran Réglages ne doit pas passer au rouge pour une copie restée chez Google.
 // `options.effacerFn` injectable pour les tests.
-async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche, options) {
+// Audit 25/10 : un seul tour de rappels à la fois (un « Envoyer maintenant » pendant le tour du matin envoyait deux fois le
+// même rappel, le journal n'étant relu qu'au début) — un second appel rend le tour en cours.
+/** @type {Promise<any> | null} */
+let tourRappelsEnCours = null;
+function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche, options) {
+  if (tourRappelsEnCours) return tourRappelsEnCours;
+  tourRappelsEnCours = executerTacheRappelsSeule(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche, options)
+    .finally(() => { tourRappelsEnCours = null; });
+  return tourRappelsEnCours;
+}
+
+/**
+ * @param {any} depot @param {any} db @param {any} parametresRepo @param {any} envoyerFn
+ * @param {string} [aujourdHui] @param {string} [declenche] @param {any} [options]
+ */
+async function executerTacheRappelsSeule(depot, db, parametresRepo, envoyerFn, aujourdHui, declenche, options) {
   const resultat = { rappelsDus: 0, rappelsEnvoyes: 0, erreurs: [], avertissements: [] };
   const reglages = parametresRepo.lireReglages();
   // Envoi non configuré : on sort SANS rien consigner. Écrire un compte rendu vide écraserait le
@@ -291,7 +306,8 @@ async function executerTacheRappels(depot, db, parametresRepo, envoyerFn, aujour
   // place, que l'envoi n'est pas activé.
   if (!envoiConfigure(reglages)) return resultat;
 
-  const jour = aujourdHui || new Date().toISOString().slice(0, 10);
+  // Jour de Paris (audit 25/10 : la date UTC d'un tour lancé entre minuit et 2 h était celle de la veille).
+  const jour = aujourdHui || new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
   const dossiers = depot.tousActifs();
 
   const dejaEnvoyes = new Set(

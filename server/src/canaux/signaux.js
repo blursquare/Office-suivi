@@ -6,7 +6,7 @@
 //   résumé du matin des réponses de Claire qui ont reçu ❓ ou 👎 ; 🎂 aux anniversaires de l'étude.
 
 const { echeancesPlanning } = require('../../../commun/planning');
-const { lireMessages, reagirMessage, ajouterMessage, canalDuDossier } = require('./canaux');
+const { lireMessages, reagirMessage, ajouterMessage, canalDuDossier, membresPrive } = require('./canaux');
 const { lireReactions } = require('../reactionsAgent');
 
 const CLE_RETARDS = 'canaux-alertes-retard';
@@ -63,18 +63,22 @@ function signalerRetards(repo, dossiers, aujourdhui) {
   return touches;
 }
 
-/** ✅ de CLAIRE sur le message d'origine d'une tâche prise par ✋ et cochée depuis. @param {any} repo @param {any[]} rappels */
-function confirmerTachesFaites(repo, rappels) {
+/** ✅ de CLAIRE sur le message d'origine d'une tâche prise par ✋ et cochée depuis. @param {any} repo @param {any[]} rappels @param {string[]} [collaborateurs] */
+function confirmerTachesFaites(repo, rappels, collaborateurs) {
   const brut = repo.lireJsonBrut(CLE_TACHES_FAITES, null);
   /** @type {Record<string, number>} */
   const faits = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut : {};
   let n = 0;
+  let change = false;
   for (const r of rappels || []) {
     if (!r || !r.fait || !r.source || !r.source.canal || !r.source.messageId || faits[r.id]) continue;
+    // Un canal privé : seulement si l'auteur du rappel en est membre (un rappel forgé ne fait rien poser ailleurs).
+    if (String(r.source.canal).startsWith('p:') && !(membresPrive(r.source.canal, collaborateurs || []) || []).includes(r.auteur)) continue;
     faits[r.id] = Date.now();
+    change = true;
     if (reagirMessage(repo, r.source.canal, r.source.messageId, 'CLAIRE', '✅', true)) n += 1;
   }
-  if (Object.keys(faits).length) {
+  if (change) {
     const ids = Object.keys(faits);
     if (ids.length > 500) ids.sort((a, b) => faits[a] - faits[b]).slice(0, ids.length - 500).forEach((i) => { delete faits[i]; });
     repo.ecrireJsonBrut(CLE_TACHES_FAITES, faits);
@@ -94,7 +98,9 @@ function texteResumeInterrogations(reactions, depuis) {
 function resumerInterrogations(repo, aujourdhui, maintenant) {
   const etat = repo.lireJsonBrut(CLE_RESUME_INTERROGATIONS, null) || {};
   if (etat.jour === aujourdhui) return false;
-  const texte = texteResumeInterrogations(lireReactions(repo, maintenant), Number(etat.depuis) || maintenant - 24 * 3600 * 1000);
+  // Jamais ce qui vient d'un canal privé ni d'une conversation personnelle : « général » est lu par toute l'étude (audit 25/10).
+  const publiques = lireReactions(repo, maintenant).filter((r) => r.canal && r.canal !== 'perso' && !String(r.canal).startsWith('p:'));
+  const texte = texteResumeInterrogations(publiques, Number(etat.depuis) || maintenant - 24 * 3600 * 1000);
   repo.ecrireJsonBrut(CLE_RESUME_INTERROGATIONS, { jour: aujourdhui, depuis: maintenant });
   if (!texte) return false;
   return !!ajouterMessage(repo, 'general', { auteur: 'CLAIRE', claire: true, texte, html: `<p>${texte.replace(/&/g, '&amp;').replace(/</g, '&lt;').split('\n').join('<br>')}</p>` }, maintenant);
@@ -110,7 +116,7 @@ function feterAnniversaires(repo, aujourdhui, maintenant) {
     const cle = `${f.jour}:${annee}`;
     if (f.jour !== jour || faites[cle]) continue;
     const texte = f.annee ? f.texte(annee - f.annee) : `🎂 Joyeux anniversaire ${f.prenom} !`;
-    const m = ajouterMessage(repo, 'general', { auteur: 'CLAIRE', claire: true, texte, html: `<p>${texte}</p>` }, maintenant);
+    const m = ajouterMessage(repo, 'general', { auteur: 'CLAIRE', claire: true, texte, html: `<p>${texte.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</p>` }, maintenant);
     if (m) { reagirMessage(repo, 'general', m.id, 'CLAIRE', '🎂', true); faites[cle] = true; n += 1; }
   }
   if (n) repo.ecrireJsonBrut(CLE_FETES, faites);

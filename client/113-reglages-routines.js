@@ -121,7 +121,7 @@ function renderReglagesRoutines() {
   const admin = estAdministrateur(utilisateurPoste);
   const part = partPlafondRoutines(e.usage, r.plafondEuros);
   const euros = (n) => formaterMontantEuros(n);
-  const niveaux = (e.niveaux || []).map(n => `<div class="rt-niveau rt-niveau-${n.niveau}"><span class="rt-niveau-num">${n.niveau}</span><div><strong>${escapeHtml(n.nom)}</strong><span>${escapeHtml(n.detail)}</span></div></div>`).join('');
+  const niveaux = (e.niveaux || []).map(n => `<div class="rt-niveau rt-niveau-${Number(n.niveau) || 0}"><span class="rt-niveau-num">${Number(n.niveau) || 0}</span><div><strong>${escapeHtml(n.nom)}</strong><span>${escapeHtml(n.detail)}</span></div></div>`).join('');
   zone.innerHTML = `
     <div class="rt-hero">
       <div class="rt-hero-id">

@@ -450,7 +450,17 @@ async function executerTourSurveillanceAgenda(depot, reglagesExchange, injection
 // « Tester maintenant » des Réglages (voir routes/agenda.js). Un tour AUTOMATIQUE ne se lance pas
 // quand le disjoncteur est ouvert pour ces identifiants (rend { suspendu: true }, rien n'est écrit) ;
 // un tour MANUEL est toujours tenté — c'est un essai demandé par une personne.
-async function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections, declenche) {
+// Audit 25/10 (Haut) : un seul tour à la fois pour TOUT le serveur — « Tester » des Réglages pendant un tour automatique
+// rend le tour en cours au lieu d'en lancer un second (deux tours posaient deux fois la même date butoir).
+let tourAgendaEnCours = null;
+function executerEtEnregistrerTourAgenda(depot, parametresRepo, injections, declenche) {
+  if (tourAgendaEnCours) return tourAgendaEnCours;
+  tourAgendaEnCours = executerEtEnregistrerTourAgendaSeul(depot, parametresRepo, injections, declenche)
+    .finally(() => { tourAgendaEnCours = null; });
+  return tourAgendaEnCours;
+}
+
+async function executerEtEnregistrerTourAgendaSeul(depot, parametresRepo, injections, declenche) {
   const reglages = parametresRepo.lireReglagesExchange();
   const manuel = declenche === 'manuel';
   if (!manuel && lectureAgendaSuspendue(reglages)) return { ok: false, suspendu: true };

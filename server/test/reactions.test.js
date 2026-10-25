@@ -92,16 +92,19 @@ test('routes : réaction sur un message de CLAIRE gardée en mémoire, sur un me
     const apres = await (await fetch(B + '/api/canaux/general/messages?utilisateur=' + encodeURIComponent('Julie VASSELIN') + '&signature=' + encodeURIComponent(avant.signature))).json();
     assert.notEqual(apres.inchange, true, 'la signature change quand une réaction est posée');
     assert.equal(apres.messages.find(m => m.id === claire.id).reactions[0].emoji, '👍');
-    const memoire = (await (await fetch(B + '/api/assistant/reactions')).json()).reactions;
+    const memoire = (await (await fetch(B + '/api/assistant/reactions?utilisateur=' + encodeURIComponent('Jérémy SAUJOT'))).json()).reactions;
     assert.equal(memoire.length, 1, 'seule la réaction sur la réponse de CLAIRE est gardée');
     assert.equal(memoire[0].sens, 'compris');
     assert.equal(memoire[0].canal, 'general');
     // Conversation personnelle
     assert.equal((await post('/api/assistant/reactions', { auteur: 'Bastien ANGLUMENT', emoji: '❓', messageId: 'r1', extrait: 'Le prêt est attendu', pose: true })).status, 200);
     assert.equal((await post('/api/assistant/reactions', { auteur: 'Bastien ANGLUMENT', emoji: 'non', messageId: 'r1' })).status, 400);
-    const rech = await (await fetch(B + '/api/assistant/conversations/recherche?q=pret')).json();
+    const U = (n) => '&utilisateur=' + encodeURIComponent(n);
+    const rech = await (await fetch(B + '/api/assistant/conversations/recherche?q=pret' + U('Bastien ANGLUMENT'))).json();
     assert.equal(rech.reactions.some(r => r.sens === 'pas-clair'), true);
-    const id = (await (await fetch(B + '/api/assistant/reactions')).json()).reactions[0].id;
+    const autre = await (await fetch(B + '/api/assistant/conversations/recherche?q=pret' + U('Julie VASSELIN'))).json();
+    assert.equal(autre.reactions.some(r => r.sens === 'pas-clair'), false, 'la réaction d’une conversation personnelle n’est lue que par son auteur');
+    const id = (await (await fetch(B + '/api/assistant/reactions?utilisateur=' + encodeURIComponent('Bastien ANGLUMENT'))).json()).reactions[0].id;
     assert.equal((await (await fetch(B + '/api/assistant/reactions?id=' + encodeURIComponent(id), { method: 'DELETE' })).json()).ok, true);
   } finally { srv.close(); }
 });
@@ -115,4 +118,29 @@ test('pièce jointe du NAS : le message garde un lien confiné (dossier + chemin
   assert.deepEqual(m.pj[0].nas, { dossierId: 'p1', chemin: 'Vendeur/a.pdf' });
   assert.equal(m.pj[1].nas, undefined);
   assert.equal(m.pj[2].nas, undefined);
+});
+
+test('audit 25/10 : une réaction d’un message privé ou d’une conversation personnelle n’est lue que par ses membres', () => {
+  const { reactionVisiblePar } = require('../src/reactionsAgent');
+  const membres = () => ['Julie VASSELIN', 'Bastien ANGLUMENT'];
+  assert.equal(reactionVisiblePar({ canal: 'general', par: 'x' }, ''), true);
+  assert.equal(reactionVisiblePar({ canal: 'd:abc', par: 'x' }, 'Jérémy SAUJOT'), true);
+  assert.equal(reactionVisiblePar({ canal: 'perso', par: 'Julie VASSELIN' }, 'Jérémy SAUJOT'), false);
+  assert.equal(reactionVisiblePar({ canal: 'perso', par: 'Julie VASSELIN' }, 'Julie VASSELIN'), true);
+  assert.equal(reactionVisiblePar({ canal: 'p:bastien-julie', par: 'x' }, 'Jérémy SAUJOT', membres), false);
+  assert.equal(reactionVisiblePar({ canal: 'p:bastien-julie', par: 'x' }, 'Julie VASSELIN', membres), true);
+});
+
+test('audit 25/10 : un message ne joint jamais le fichier gardé d’un autre collaborateur', async () => {
+  const db = ouvrirDb(':memory:');
+  const { app } = creerApp({ db, config: { authActive: false, estSea: () => false, racineRepo: process.cwd() + '/..' } });
+  const srv = app.listen(0);
+  await new Promise(r => srv.once('listening', r));
+  const B = 'http://127.0.0.1:' + srv.address().port;
+  try {
+    const r = await fetch(B + '/api/canaux/general/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ auteur: 'Jérémy SAUJOT', texte: 'voir', pj: [{ nom: 'a.pdf', type: 'pdf', fichierId: 'a'.repeat(32) }] }) });
+    const m = (await r.json()).message;
+    assert.equal((m.pj || []).some((p) => p.fichierId), false);
+  } finally { srv.close(); }
 });

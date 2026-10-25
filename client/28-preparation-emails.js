@@ -2122,10 +2122,10 @@
     // Archivé quand le dernier côté attendu l'a reçu (étude 07/10) ; avant, le premier envoi archivait.
     const dejaArchive = !!d.archive;
     if (vendeur) {
-      d.questionnaireVendeurEnvoyeLe = new Date().toISOString().slice(0, 10);
+      d.questionnaireVendeurEnvoyeLe = isoAujourdhuiLocal();
       ajouterHistorique(d, 'Questionnaire de satisfaction envoyé au vendeur');
     } else {
-      d.questionnaireEnvoyeLe = new Date().toISOString().slice(0, 10);
+      d.questionnaireEnvoyeLe = isoAujourdhuiLocal();
       ajouterHistorique(d, 'Questionnaire de satisfaction envoyé');
     }
     const restants = questionnairesRestants(d);

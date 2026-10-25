@@ -15,5 +15,6 @@
   "autorisations-succession.js",
   "attestation-rib.js",
   "signature-rib.js",
-  "reactions.js"
+  "reactions.js",
+  "html-canal.js"
 ]

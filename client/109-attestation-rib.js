@@ -101,7 +101,7 @@ function noterSignatureRibDemandee(idDossier, brouillon) {
   d.ribDemandeLe = isoAujourdhuiLocal();
   if (brouillon && brouillon.id) d.signatureRib = { id: String(brouillon.id), url: String(brouillon.url || ''), le: d.ribDemandeLe };
   ajouterHistorique(d, LIBELLE_HISTORIQUE_RIB + ' (signature Yousign, brouillon créé)');
-  sauvegarder();
+  sauvegarder(d);
   render();
 }
 

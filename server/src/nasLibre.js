@@ -58,9 +58,14 @@ function racinesRefusees(brutes) {
 // Étude 24/10 (« laisse à l'API Claude le plus de liberté possible », choix « accès libre en lecture ») : tant que l'étude n'a jamais réglé la
 // lecture libre, elle est OUVERTE sur tout le NAS, lecture seule, avec ces mots d'exclusion ; la première sauvegarde des Réglages fige le choix.
 const EXCLUS_PAR_DEFAUT = ['compta', 'paie', 'salaire', 'bulletin de paie'];
+let ouvertureParDefautDite = false;
 function lireNasLibre(repo) {
   const brut = repo.lireJsonBrut(CLE_NAS_LIBRE, null);
-  if (brut == null) return { actif: true, racines: [], exclus: [...EXCLUS_PAR_DEFAUT] };
+  if (brut == null) {
+    // Dit une fois par démarrage au journal du serveur, comme « tout le NAS » confirmé (audit 21/10 M3, rappel audit 25/10).
+    if (!ouvertureParDefautDite) { ouvertureParDefautDite = true; console.warn(`[nas-libre] lecture libre ouverte sur tout le NAS par défaut (aucun réglage enregistré) ; mots exclus : ${EXCLUS_PAR_DEFAUT.join(', ')}`); }
+    return { actif: true, racines: [], exclus: [...EXCLUS_PAR_DEFAUT] };
+  }
   return assainirNasLibre(brut);
 }
 

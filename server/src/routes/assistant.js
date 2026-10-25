@@ -11,7 +11,12 @@ const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssi
 const { tourAgent, EFFORTS_AGENT } = require('../assistantAgent');
 
 const { lireCarnet } = require('../carnetClaire');
-const { lireReactions, noterReaction, oublierReaction, reactionsPourAgent } = require('../reactionsAgent');
+const { lireReactions, noterReaction, oublierReaction, reactionsPourAgent, reactionVisiblePar } = require('../reactionsAgent');
+const { membresPrive } = require('../canaux/canaux');
+const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
+const COLLABORATEURS_REACTIONS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
+/** Les réactions que ce collaborateur a le droit de voir (jamais le privé d'un autre ni une conversation personnelle d'un autre). @param {string} moi */
+const reactionsVisibles = (repo, moi) => lireReactions(repo).filter((r) => reactionVisiblePar(r, moi, (c) => membresPrive(c, COLLABORATEURS_REACTIONS) || []));
 const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { lireReglagesYousign } = require('./yousign');
@@ -222,12 +227,12 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   // au retour comme tout résultat d'outil.
   routeur.get('/assistant/conversations/recherche', (req, res) => {
     res.json({ resultats: rechercherConversations(lireConversations(parametresRepo), chaine(req.query.q, 200), chaine(req.query.dossier, 80)),
-      reactions: reactionsPourAgent(lireReactions(parametresRepo), chaine(req.query.dossier, 80)) });
+      reactions: reactionsPourAgent(reactionsVisibles(parametresRepo, chaine(req.query.utilisateur, 40)), chaine(req.query.dossier, 80)) });
   });
 
   // Réactions (emojis) posées sur les réponses de CLAIRE dans une conversation personnelle (celles des canaux passent par la route du canal) :
   // gardées en mémoire, listées dans « Ce que CLAIRE a appris », oubliables.
-  routeur.get('/assistant/reactions', (req, res) => { res.json({ reactions: lireReactions(parametresRepo) }); });
+  routeur.get('/assistant/reactions', (req, res) => { res.json({ reactions: reactionsVisibles(parametresRepo, chaine(req.query.utilisateur, 40)) }); });
   routeur.post('/assistant/reactions', (req, res) => {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const r = noterReaction(parametresRepo, { par: chaine(corps.auteur, 40), emoji: chaine(corps.emoji, 16), canal: 'perso', messageId: chaine(corps.messageId, 80),

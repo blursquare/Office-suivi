@@ -410,9 +410,15 @@ function assainirReglages(brut, precedent) {
   // Réglages persiste les clés actuelles et fait disparaître les anciennes, cet objet étant écrit
   // tel quel par ecrireReglages(). Rien à reprendre en revanche de `fluxEmailUrl`/`teamsWebhookUrl` :
   // le déclencheur HTTP n'existe plus du tout (voir envoiEmail.js).
+  // Audit 25/10 (Haut) : un autre serveur SMTP ou un autre compte sans nouveau mot de passe → l'ancien est OUBLIÉ (jamais envoyé
+  // au nouveau serveur), comme pour Exchange. Un réglage enregistré pour la première fois (`p` vide) n'oublie rien.
+  const hoteAvant = texteNettoye(p.smtpHote).toLowerCase();
+  const compteAvant = texteNettoye(p.smtpUtilisateur).toLowerCase();
+  const smtpChange = (b.smtpHote !== undefined && hoteAvant && texteNettoye(b.smtpHote).toLowerCase() !== hoteAvant)
+    || (b.smtpUtilisateur !== undefined && compteAvant && texteNettoye(b.smtpUtilisateur).toLowerCase() !== compteAvant);
   const motDePasse = (typeof b.smtpMotDePasse === 'string')
     ? b.smtpMotDePasse
-    : texteNettoye(p.smtpMotDePasse);
+    : (smtpChange ? '' : texteNettoye(p.smtpMotDePasse));
 
   return {
     emailActif: b.emailActif === true || (b.emailActif === undefined && b.teamsActif === true),

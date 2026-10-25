@@ -140,7 +140,17 @@ function ecrireEtatTour(parametresRepo, e) {
   const actuel = lireEtat(parametresRepo);
   const ids = new Set((e.prepares || []).map((p) => p && p.id));
   const nouveaux = (actuel.prepares || []).filter((p) => p && !ids.has(p.id));
-  return ecrireEtat(parametresRepo, { ...e, reglages: actuel.reglages, prepares: [...(e.prepares || []), ...nouveaux] });
+  // Audit 25/10 (Haut) : un rangement, une pièce écartée ou un échec noté par une route PENDANT le tour (qui a lu l'état avant
+  // ses attentes) n'est jamais effacé par la copie du tour — l'état de chaque pièce jointe reprend celui de la base.
+  const pjBase = new Map();
+  for (const m of actuel.emails || []) for (const pj of (m && m.pj) || []) if (pj) pjBase.set(m.id + '|' + pj.id, pj);
+  const emails = (e.emails || []).map((m) => (!m || !Array.isArray(m.pj) ? m : { ...m, pj: m.pj.map((pj) => {
+    const b = pj && pjBase.get(m.id + '|' + pj.id);
+    if (!b) return pj;
+    // `ignoree` n'est posé que par une route : la base fait foi.
+    return { ...pj, rangee: pj.rangee || b.rangee || null, ignoree: b.ignoree === true, echec: pj.rangee || b.rangee ? null : (pj.echec || b.echec || null) };
+  }) }));
+  return ecrireEtat(parametresRepo, { ...e, emails, reglages: actuel.reglages, prepares: [...(e.prepares || []), ...nouveaux] });
 }
 
 // ---- Pur ----
@@ -647,7 +657,7 @@ function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, inter
 }
 
 module.exports = {
-  CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, idCourt,
+  CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, ecrireEtatTour, idCourt,
   normaliserObjet, correspondAuPrepare, dossierDeEmailEnvoye, texteSansCitation, boitesEnvoyes,
   adressesNouvellesFiches, JOURS_RATTRAPAGE_ADRESSE, dossiersNouveauxEmails,
   corpsFind, corpsGetItems, corpsGetAttachment, parseFind, parseGetItems, parseGetAttachment, promptResumeEmail,

@@ -321,8 +321,24 @@ function creerRepoParametres(db) {
   }
 
   function ecrireReglagesExchange(reglages) {
-    const propre = assainirReglagesExchange(reglages, lireReglagesExchange());
+    const avant = lireReglagesExchange();
+    const propre = assainirReglagesExchange(reglages, avant);
     ecrireStmt.run(CLE_REGLAGES_EXCHANGE, JSON.stringify(propre));
+    // Audit 25/10 (Haut) : une autre adresse de serveur Exchange oublie aussi les mots de passe des collaborateurs — sinon
+    // les tours automatiques les enverraient à la nouvelle adresse sans qu'on les ait ressaisis.
+    if (String(propre.url || '').toLowerCase() !== String(avant.url || '').toLowerCase()) {
+      const ligne = lireStmt.get('comptes-collaborateurs');
+      if (ligne) {
+        try {
+          const comptes = JSON.parse(ligne.valeur) || {};
+          let change = false;
+          for (const c of Object.values(comptes)) {
+            if (c && typeof c === 'object' && c.motDePasse) { c.motDePasse = ''; change = true; }
+          }
+          if (change) ecrireStmt.run('comptes-collaborateurs', JSON.stringify(comptes));
+        } catch (e) { /* valeur illisible : laissée telle quelle */ }
+      }
+    }
     return propre;
   }
 

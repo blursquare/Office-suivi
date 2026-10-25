@@ -211,7 +211,7 @@ const OUTILS_AGENT = [
   },
   {
     name: 'yousign_rib',
-    description: 'Signature électronique du RIB avec l’agent Yousign de l’étude. Action « brouillon » : prépare dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » pour un acquéreur du dossier (signataire, email et portable pris sur la fiche par le poste : tu ne les vois ni ne les donnes) après l’autorisation de l’utilisateur (carte « Autoriser / Refuser » ; s’il refuse, ne recommence pas) ; rien n’est envoyé, l’étude vérifie le brouillon dans Yousign puis l’envoie. Action « statut » : lit l’état de la demande déjà créée pour ce dossier (brouillon, envoyée, signée…), en lecture seule. Jamais d’envoi.',
+    description: 'Signature électronique du RIB avec l’agent Yousign de l’étude. Action « brouillon » : prépare dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » pour un acquéreur du dossier (signataire, email et portable pris sur la fiche par le poste : ils ne te sont pas montrés ; ils sont transmis en clair à l’agent Yousign d’Anthropic, choix de l’étude) après l’autorisation de l’utilisateur (carte « Autoriser / Refuser » ; s’il refuse, ne recommence pas) ; rien n’est envoyé, l’étude vérifie le brouillon dans Yousign puis l’envoie. Action « statut » : lit l’état de la demande déjà créée pour ce dossier (brouillon, envoyée, signée…), en lecture seule. Jamais d’envoi.',
     input_schema: { type: 'object', additionalProperties: false, required: ['action', 'dossier_id', 'acquereur'],
       properties: { action: { type: 'string', enum: ['brouillon', 'statut'] }, dossier_id: chaine('id du dossier'), acquereur: { type: 'integer', description: 'rang de l’acquéreur dans la fiche (1 = le premier) ; 1 par défaut' } } }
   },
@@ -413,8 +413,10 @@ function masquerValeur(valeur, sensibles, table, cle) {
     // Champs qui ne portent QUE de l'identifiant (téléphone, email, nom, adresse, notaire, agence, référence) : masqués en entier,
     // quel que soit leur format (relecture : « +41 79 123 45 67 », « 0612 345 678 » passaient).
     const entier = /^(telephone|tel|email|phone)/.test(cle || '') ? (/^email/.test(cle || '') ? 'EMAIL' : 'TEL')
-      : /^(nom|prenom|first_name|last_name|full_name|external_id|nom_usage|nom_du_dossier|adresse|notaire_vendeur|notaire_acquereur|agence|reference|personnes|notaires|organisme|office)$/.test(cle || '') ? 'NOM' : '';
+      : /^(nom|prenom|first_name|last_name|full_name|external_id|nom_usage|nom_du_dossier|adresse|adresse_du_bien|notaire_vendeur|notaire_acquereur|agence|reference|personnes|notaires|organisme|office)$/.test(cle || '') ? 'NOM' : '';
     if (entier && valeur.trim()) return masquerEntier(valeur, entier, table);
+    // Un lien rendu par un outil (espace Yousign…) ne dit rien d'utile à l'IA et peut porter un identifiant : codé (audit 25/10).
+    if (/(^|_)(lien|url|href|link)$/i.test(cle || '') && /^https?:\/\//i.test(valeur.trim())) return masquerEntier(valeur, 'REF', table);
     return masquer(valeur, sensibles, table);
   }
   if (Array.isArray(valeur)) return valeur.map((v) => masquerValeur(v, sensibles, table, cle));
@@ -807,7 +809,8 @@ async function tourAgent(entree, o) {
     if (joints.caracteres) conv.caracteresLus = (conv.caracteresLus || 0) + joints.caracteres;
     conv.messages.push({ role: 'user', content: tete + phrase + joints.bloc });
     // Pour la mémoire des conversations (gardée en clair sur le serveur de l'étude, jamais envoyée telle quelle).
-    conv.derniereQuestion = texte;
+    // Sans le préfixe des réactions que le poste colle devant la question (il ferait le titre de la mémoire).
+    conv.derniereQuestion = texte.replace(/^\(Réactions posées[\s\S]*?\)\s*/, '');
     if (contexte.prenom) conv.prenom = contexte.prenom;
     if (contexte.dossierId) conv.dossierId = contexte.dossierId;
     conv.tours = 0;

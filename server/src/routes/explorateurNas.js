@@ -55,6 +55,7 @@ function creerRouteurExplorateurNas(config, depot, parametresRepo) {
     if (f.erreur) { res.status(f.statut).json({ erreur: f.erreur }); return; }
     res.setHeader('Content-Type', f.type);
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
     res.setHeader('Content-Disposition', `${f.affichable ? 'inline' : 'attachment'}; filename*=UTF-8''${encodeURIComponent(f.nom)}`);
     const flux = fs.createReadStream(f.abs);
     flux.on('error', () => { if (!res.headersSent) { res.removeHeader('Content-Disposition'); res.status(404).json({ erreur: 'Fichier illisible sur le NAS.' }); } else res.destroy(); });

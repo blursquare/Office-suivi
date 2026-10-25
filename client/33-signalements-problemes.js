@@ -499,7 +499,8 @@
       const r = await fetchAvecAuth(`/api/signalements/${encodeURIComponent(id)}`);
       if (!r.ok) throw new Error(`Erreur ${r.status}`);
       const s = (await r.json()).signalement;
-      if (s && s.capture) zone.innerHTML = `<a href="${s.capture}" target="_blank" rel="noopener"><img src="${s.capture}" alt="Capture jointe au signalement"></a>`;
+      // Seule une image en data: est posée (audit 25/10 : la capture venait telle quelle du serveur).
+      if (s && /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(s.capture || ''))) zone.innerHTML = `<a href="${escapeAttr(s.capture)}" target="_blank" rel="noopener"><img src="${escapeAttr(s.capture)}" alt="Capture jointe au signalement"></a>`;
     } catch (e) {
       afficherToast(`Capture indisponible : ${e.message}`, 'OK', null);
     }

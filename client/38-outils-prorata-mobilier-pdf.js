@@ -820,7 +820,7 @@
     qtTelechargementEnCours = true;
     if (btn) { btn.disabled = true; btn.textContent = 'Préparation…'; }
     try {
-      if (!window.docx) await afChargerScript('https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.min.js');
+      if (!window.docx) await afChargerScript('https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.min.js', 'sha384-7jc2SRdX+/eR9d3sDweapT3TGmIIUe3h4tlWVV1urVpUBlnPN5OsU6dM+zh9XwBz');
       const D = window.docx;
       const POLICE = 'Times New Roman';
       const TAILLE = 22;

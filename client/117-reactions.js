@@ -70,6 +70,7 @@ function choisirReactionPalette(emoji) {
   const cle = s ? s.dataset.cle : '';
   fermerSelecteurReaction();
   if (cle === '@saisie') insererEmojiSaisie(emoji);
+  else if (cle === '@statut') { canaux.statutEmoji = emoji; renderCanaux(); }
   else if (cle) reagirMessageAssistant(cle, emoji);
 }
 
