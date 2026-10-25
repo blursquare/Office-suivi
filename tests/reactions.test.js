@@ -30,3 +30,13 @@ test('pastilles : le nombre, ma réaction mise en avant, rien sans réaction', (
   assert.match(html, /ouvrirSelecteurReaction/);
   assert.equal(app.htmlReactionsMessage({ id: 'm2', reactions: [] }), '');
 });
+
+test('lien NAS d’une pièce jointe : identifiant aller-retour, adresse de l’explorateur confiné, jamais une copie', () => {
+  const id = app.idLienNasPieceJointe('dossier.1', 'Vendeur/Pièce d\'identité #1.pdf');
+  const l = app.lienNasPieceJointe(id);
+  assert.equal(l.dossierId, 'dossier.1');
+  assert.equal(l.chemin, 'Vendeur/Pièce d\'identité #1.pdf');
+  assert.equal(app.lienNasPieceJointe('a'.repeat(32)), null, 'un fichier du serveur n’est pas un lien NAS');
+  assert.match(app.urlServeurPieceJointeAssistant(id), /^\/api\/nas\/explorer\/fichier\?dossierId=dossier\.1&chemin=Vendeur%2F/);
+  assert.equal(app.urlServeurPieceJointeAssistant('a'.repeat(32)), '/api/pieces-jointes/' + 'a'.repeat(32) + '/fichier');
+});

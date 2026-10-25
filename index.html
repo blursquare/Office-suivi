@@ -1527,6 +1527,7 @@
         <div class="asst-barre">
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirSelecteurNasAssistant()" title="Joindre un fichier du dossier NAS (un lien, sans copie)" aria-label="Joindre un fichier du dossier NAS"><span id="icon-assistant-nas" aria-hidden="true"></span></wa-button>
           <button type="button" class="canal-bascule" id="canal-bascule" style="display:none;" onclick="basculerClaireRepond()" aria-pressed="true"></button>
           <div class="asst-options-saisie" id="assistant-options-saisie"></div>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
@@ -2989,5 +2990,6 @@
 <script src="client/115-canaux-actions.js"></script>
 <script src="client/116-photos-collaborateurs.js"></script>
 <script src="client/117-reactions.js"></script>
+<script src="client/118-pieces-nas.js"></script>
 </body>
 </html>

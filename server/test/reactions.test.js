@@ -105,3 +105,14 @@ test('routes : réaction sur un message de CLAIRE gardée en mémoire, sur un me
     assert.equal((await (await fetch(B + '/api/assistant/reactions?id=' + encodeURIComponent(id), { method: 'DELETE' })).json()).ok, true);
   } finally { srv.close(); }
 });
+
+test('pièce jointe du NAS : le message garde un lien confiné (dossier + chemin), jamais « .. » ni un identifiant douteux', () => {
+  const repo = fauxRepo();
+  const m = C.ajouterMessage(repo, 'general', { auteur: 'Julie VASSELIN', texte: 'voir', pj: [
+    { nom: 'a.pdf', type: 'pdf', nas: { dossierId: 'p1', chemin: 'Vendeur/a.pdf' } },
+    { nom: 'b.pdf', type: 'pdf', nas: { dossierId: 'p1', chemin: '../secret.pdf' } },
+    { nom: 'c.pdf', type: 'pdf', nas: { dossierId: '../x', chemin: 'c.pdf' } }] }, 10);
+  assert.deepEqual(m.pj[0].nas, { dossierId: 'p1', chemin: 'Vendeur/a.pdf' });
+  assert.equal(m.pj[1].nas, undefined);
+  assert.equal(m.pj[2].nas, undefined);
+});

@@ -128,6 +128,7 @@
   async function televerserPiecesJointesAssistant(pieces) {
     let echec = '';
     for (const p of (pieces || [])) {
+      if (p.nas) continue;   // un fichier du NAS n'est jamais copié : le message garde son lien (client/118)
       try {
         const r = await fetchAvecAuth('/api/pieces-jointes', { method: 'POST', body: p.fichier,
           headers: { 'Content-Type': 'application/octet-stream', 'X-Nom': encodeURIComponent(p.nom || ''), 'X-Auteur': encodeURIComponent(typeof utilisateurPoste === 'string' ? utilisateurPoste : '') } });
@@ -162,10 +163,15 @@
       return { sorte: doc.sortePiece, nom: doc.nom || 'Pièce jointe', taille: doc.taille || doc.fichier.size || 0, url: urlPieceJointeAssistant(doc), tampon: () => doc.fichier.arrayBuffer() };
     }
     if (!idServeur) return null;
+    const nas = lienNasPieceJointe(idServeur);
+    if (nas) {
+      const urlNas = urlServeurPieceJointeAssistant(idServeur);
+      return { sorte: /\.pdf$/i.test(nas.chemin) ? 'pdf' : 'image', nom: nas.chemin.split('/').pop(), taille: 0, url: urlNas, tampon: async () => (await fetchAvecAuth(urlNas)).arrayBuffer() };
+    }
     const rm = await fetchAvecAuth('/api/pieces-jointes/' + encodeURIComponent(idServeur));
     if (!rm.ok) return null;
     const m = await rm.json();
-    const url = '/api/pieces-jointes/' + encodeURIComponent(idServeur) + '/fichier';
+    const url = urlServeurPieceJointeAssistant(idServeur);
     return { sorte: m.sorte, nom: m.nom, taille: m.taille, url, tampon: async () => (await fetchAvecAuth(url)).arrayBuffer() };
   }
 
@@ -184,7 +190,7 @@
       try {
         if (el.dataset.sorte === 'image') {
           const doc = idLocal ? documentsAgentConnus[idLocal] : null;
-          const url = doc && doc.fichier ? urlPieceJointeAssistant(doc) : (idServeur ? '/api/pieces-jointes/' + encodeURIComponent(idServeur) + '/fichier' : '');
+          const url = doc && doc.fichier ? urlPieceJointeAssistant(doc) : urlServeurPieceJointeAssistant(idServeur);
           if (url) { el.innerHTML = `<img src="${escapeAttr(url)}" alt="" loading="lazy">`; el.classList.add('avec-image'); }
         } else if (typeof pdfjsLib !== 'undefined') {
           const cle = idServeur || idLocal;

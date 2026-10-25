@@ -1054,6 +1054,7 @@
       'icon-sidebar-recherche': 'search', 'icon-assistant-colonne': 'volet-droit',
       'icon-assistant-envoyer': 'send',
       'icon-assistant-joindre': 'paperclip',
+      'icon-assistant-nas': 'folder',
       'icon-assistant-fils': 'list', 'icon-assistant-replier': 'volet-gauche',
       'icon-recherche-suivi': 'search',
       'icon-nav-scans': 'bannette',

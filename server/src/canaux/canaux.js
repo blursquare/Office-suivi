@@ -77,7 +77,10 @@ function assainirMessage(m) {
     texte, html, carte,
     // Une pièce jointe : son nom, sa sorte et, si le fichier est gardé sur le serveur (étude 25/10, 90 jours), son identifiant opaque.
     pj: (Array.isArray(m.pj) ? m.pj : []).slice(0, 10).map((p) => ({ nom: borne(p && p.nom, 120), type: borne(p && p.type, 40),
-      ...(p && typeof p.fichierId === 'string' && /^[a-f0-9]{32}$/.test(p.fichierId) ? { fichierId: p.fichierId, taille: Math.max(0, Number(p.taille) || 0) } : {}) })).filter((p) => p.nom),
+      ...(p && typeof p.fichierId === 'string' && /^[a-f0-9]{32}$/.test(p.fichierId) ? { fichierId: p.fichierId, taille: Math.max(0, Number(p.taille) || 0) } : {}),
+      // Un fichier du NAS n'est pas copié : le message garde le lien (dossier + chemin dans le dossier du client), relu par l'explorateur confiné.
+      ...(p && p.nas && typeof p.nas === 'object' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}$/.test(String(p.nas.dossierId)) && typeof p.nas.chemin === 'string' && p.nas.chemin && p.nas.chemin.length <= 400 && !p.nas.chemin.split('/').includes('..')
+        ? { nas: { dossierId: String(p.nas.dossierId), chemin: p.nas.chemin } } : {}) })).filter((p) => p.nom),
     mentions: (Array.isArray(m.mentions) ? m.mentions : []).slice(0, 10).map((x) => borne(x, 80)).filter(Boolean),
     modifieLe: Number(m.modifieLe) || 0,
     epingle: m.epingle === true,

@@ -36,8 +36,8 @@ function htmlCorpsMessageCanal(m) {
 function htmlPiecesCanal(m) {
   const pj = (m.pj || []).filter(p => p && p.nom);
   // Une pièce gardée sur le serveur (étude 25/10) : sa carte, comme dans une conversation ; sinon (message d'avant) la pastille du nom.
-  return pj.length ? `<div class="asst-pj-liste">${pj.map(p => p.fichierId
-    ? htmlCartePieceJointeAssistant({ id: '', serveurId: p.fichierId, nom: p.nom, sorte: /pdf/i.test(p.type || p.nom) ? 'pdf' : 'image', taille: p.taille || 0 })
+  return pj.length ? `<div class="asst-pj-liste">${pj.map(p => (p.fichierId || p.nas)
+    ? htmlCartePieceJointeAssistant({ id: '', serveurId: p.nas ? idLienNasPieceJointe(p.nas.dossierId, p.nas.chemin) : p.fichierId, nom: p.nom, sorte: /pdf/i.test(p.type || p.nom) ? 'pdf' : 'image', taille: p.taille || 0 })
     : `<span class="asst-pj">${icone(/pdf/i.test(p.type || p.nom) ? 'file-text' : 'paperclip')}<span class="asst-pj-nom">${escapeHtml(p.nom)}</span></span>`).join('')}</div>` : '';
 }
 

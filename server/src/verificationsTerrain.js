@@ -250,6 +250,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier dépôt réussi ; en échec si le serveur refuse le fichier (ni PDF ni image, plus de 25 Mo) ou ne répond pas.' },
   { id: 'assistant-reactions', depuis: '0.342.0', source: 'poste', titre: '« Demander à CLAIRE » : une réaction (emoji) posée sur une réponse de CLAIRE est gardée en mémoire et lue par CLAIRE à son tour suivant',
     comment: 'Coché à la première réaction enregistrée sur une réponse de CLAIRE ; en échec si le serveur la refuse.' },
+  { id: 'assistant-piece-jointe-nas', depuis: '0.343.0', source: 'poste', titre: '« Demander à CLAIRE » : un fichier du dossier NAS est joint par un lien (sans copie) et rouvert depuis le NAS, aussi dans un canal partagé',
+    comment: 'À vérifier au bureau : choisir un PDF du dossier NAS d\'un client, l\'envoyer, puis le rouvrir depuis la carte (un autre poste aussi).' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traité à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

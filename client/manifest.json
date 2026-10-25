@@ -116,5 +116,6 @@
   "114-canaux.js",
   "115-canaux-actions.js",
   "116-photos-collaborateurs.js",
-  "117-reactions.js"
+  "117-reactions.js",
+  "118-pieces-nas.js"
 ]
