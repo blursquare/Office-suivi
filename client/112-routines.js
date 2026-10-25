@@ -126,6 +126,7 @@ function carteProposition(p, options) {
       <div class="pc-meta"><span class="pc-type">${icone(t.icone)}${escapeHtml(t.libelle)}</span><span class="pc-age">${escapeHtml(ageTexteProposition(p.creeLe))}</span></div>
       <h3 class="pc-titre">${escapeHtml(p.titre)}</h3>
       ${p.resume ? `<p class="pc-resume">${escapeHtml(p.resume)}</p>` : ''}
+      ${p.type === 'email' && p.details && p.details.corps ? `<details class="pc-apercu"${!traitee && Number(p.details.niveau) >= 2 ? ' open' : ''}><summary>Texte préparé${Number(p.details.niveau) >= 2 ? ' — il partira tel quel après « Autoriser »' : ''}</summary><div class="pc-apercu-texte">${escapeHtml(p.details.corps).replace(/\n/g, '<br>')}</div></details>` : ''}
       ${puces ? `<div class="pc-puces">${puces}</div>` : ''}
       ${actions}
     </div>
@@ -180,23 +181,40 @@ function poserTacheDepuisProposition(p) {
 // Ce que fait « Autoriser » : le geste habituel de CLAIRE, JAMAIS un envoi. Rend le message dit à l'utilisateur.
 function executerActionProposition(p) {
   const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
+  const det = p.details || {};
   if (p.type === 'email') {
-    // La fenêtre d'email habituelle : tout est relisible et modifiable ; l'email ne part qu'au clic sur « Envoyer ».
-    livrerEmailDossier({ destinataire: (p.details && p.details.destinataire) || '', sujet: (p.details && p.details.sujet) || p.titre, corps: (p.details && p.details.corps) || '',
-      dossierId: p.dossierId || '', geste: 'routine-claire' });
-    return 'Brouillon ouvert : relisez-le, rien ne part sans votre clic sur « Envoyer ».';
+    // Niveau 2 (décidé par l'administrateur, geste par geste) : CLAIRE envoie après « Autoriser », sans second clic.
+    const envoiSeul = Number(det.niveau) >= 2;
+    const apresOuverture = (geste) => { if (envoiSeul) setTimeout(() => {
+      if (envoyerRedactionOuverte(p.dossierId || '', geste)) noterVerificationPoste('routines-envoi-niveau-2', { detail: 'email envoyé après Autoriser' });
+      else afficherToast('Envoi par CLAIRE impossible ici : relisez l’email et cliquez sur « Envoyer ».', 'OK', null);
+    }, 400); };
+    // Une relance de l'étude (modèle mot pour mot) : composée par le poste, comme le bouton de la fiche.
+    if (det.modele && d && typeof MODELES_EMAIL_RELANCE === 'object' && MODELES_EMAIL_RELANCE[det.modele]) {
+      envoyerRelanceCiblee(d.id, det.modele, true);
+      apresOuverture(det.modele);
+      return envoiSeul ? 'CLAIRE envoie la relance préparée.' : 'Relance ouverte : relisez-la, rien ne part sans votre clic sur « Envoyer ».';
+    }
+    // La fenêtre d'email habituelle : tout est relisible et modifiable. Une réponse reste dans le fil de l'email reçu (`reponseA`).
+    livrerEmailDossier({ destinataire: det.destinataire || '', sujet: det.sujet || p.titre, corps: det.corps || '',
+      confrere: det.confrere === true || det.confrere === 'true', responsableSignature: d ? d.responsable : '',
+      dossierId: p.dossierId || '', geste: 'routine-claire', reponseA: det.reponseA || '' });
+    apresOuverture('routine-claire');
+    return envoiSeul ? 'CLAIRE envoie l’email préparé.' : 'Brouillon ouvert : relisez-le, rien ne part sans votre clic sur « Envoyer ».';
   }
   if (p.type === 'document') {
     const outil = OUTILS_PROPOSITION[(p.details && p.details.outil) || ''];
     if (!outil) { if (d) ouvrirDossierDepuisDashboard(d.id); return 'Fiche du dossier ouverte.'; }
     if (outil.onglet === 'appel-fonds' && d) preparerAppelFondsDepuisDossier(d.id);
+    else if (outil.onglet === 'autorisations' && d) ouvrirAutorisationsDepuisFiche(d.id);
     else if (outil.onglet === 'constitution' && d) { definirOnglet('constitution'); choisirDossierConstitution(d.id); }
     else if (outil.onglet) definirOnglet(outil.onglet);
     else if (d) ouvrirVeilleSignature(d.id);
     return 'Document ouvert dans son outil : relisez-le avant de l’utiliser.';
   }
   if (p.type === 'tache') { poserTacheDepuisProposition(p); return 'Tâche ajoutée dans votre liste « À faire ».'; }
-  if (p.type === 'dates' && d) { ouvrirDossierDepuisDashboard(d.id); return 'Fiche du dossier ouverte.'; }
+  if (p.type === 'dates' && d) { ouvrirSondageCreneaux(d.id); return 'Sondage de dates ouvert : choisissez les créneaux, rien ne part sans votre clic.'; }
+  if (det.ouvrir === 'reglages-routines') { definirOnglet('reglages'); definirSousOngletReglages('routines'); return 'Réglages › Routines ouverts : c’est à vous de décider.'; }
   return 'C’est noté.';
 }
 
@@ -225,7 +243,8 @@ async function autoriserPropositionSure(id, p) {
     return;
   }
   noterVerificationPoste('routines-boite-poste', { detail: `proposition « ${p.type} » autorisée` });
-  const message = executerActionProposition(p);
+  // Le niveau rendu par le serveur est celui EN VIGUEUR (un niveau abaissé depuis le dépôt s'applique).
+  const message = executerActionProposition(Object.assign({}, p, { details: Object.assign({}, p.details, decidee.details ? { niveau: decidee.details.niveau } : { niveau: '1' }) }));
   afficherToast(message, 'OK', null);
   await apresDecisionProposition();
 }

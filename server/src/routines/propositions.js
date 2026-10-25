@@ -6,7 +6,8 @@
 // Fonctions pures sur la liste : l'appelant lit et réécrit la clé.
 
 const CLE_PROPOSITIONS = 'routines-propositions';
-const MAX_PROPOSITIONS = 500;
+// 2 000 (25/10, toutes les routines allumées) : une proposition sortie de la liste perdrait son empreinte et pourrait revenir.
+const MAX_PROPOSITIONS = 2000;
 const JOURS_EXPIRATION = 30;
 const SEUIL_PROMOTION_PROPOSITIONS = 30;
 const SEUIL_PROMOTION_TAUX = 0.9;

@@ -885,6 +885,17 @@
     }
   }
 
+  // Niveau 2 d'une routine de CLAIRE (étude 24/10 : « je valide le travail et je l'autorise à envoyer ») : après « Autoriser », l'email
+  // préparé part sans second clic, par le même chemin que « Envoyer » (signature, logos, fil de la réponse). Sans Exchange, ou si l'email
+  // porte un « [à compléter] », la fenêtre reste ouverte et le dit : rien ne part à moitié prêt. Rend vrai si l'envoi a été lancé.
+  function envoyerRedactionOuverte(dossierId, geste) {
+    // Seulement la fenêtre ouverte par CE geste, jamais un autre email resté ouvert.
+    if (!redaction || redaction.dossierId !== (dossierId || '') || redaction.geste !== geste || !envoiDirectPossible()) return false;
+    if (!etatEnvoiRedaction().possible) { renderRedaction(); return false; }
+    envoyerRedaction();
+    return true;
+  }
+
   // « Ouvrir dans Outlook » : le fichier .eml d'avant, avec ce qui a été écrit dans la fenêtre.
   async function ouvrirRedactionDansOutlook() {
     const r = redaction;

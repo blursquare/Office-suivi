@@ -89,7 +89,8 @@ function renderRoutineReglages(routine, etat, admin) {
         <wa-button variant="brand" size="s" type="button" ${admin || s.niveau + 1 < 3 ? `onclick="choisirNiveauRoutine('${idJs}', ${s.niveau + 1})"` : 'disabled'}>Passer au niveau ${s.niveau + 1}</wa-button></div>` : '';
   const badge = routine.disponible ? '<span class="rt-badge rt-badge-ok">Disponible</span>' : `<span class="rt-badge">Phase ${routine.phase} · bientôt</span>`;
   const essai = routine.id === 'essai'
-    ? `<wa-button variant="brand" size="s" type="button" onclick="lancerRoutineEssai()">${icone('boite-claire')}Déposer des exemples dans ma boîte</wa-button>` : '';
+    ? `<wa-button variant="brand" size="s" type="button" onclick="lancerRoutineEssai()">${icone('boite-claire')}Déposer des exemples dans ma boîte</wa-button>`
+    : (routine.disponible && s.actif ? `<wa-button appearance="outlined" size="s" type="button" onclick="lancerRoutineMaintenant('${idJs}', this)">${icone('send')}Lancer maintenant</wa-button>` : '');
   return `<article class="rt-routine${routine.disponible ? '' : ' rt-a-venir'}${s.actif ? ' rt-allumee' : ''}" data-routine="${escapeAttr(routine.id)}">
     <header class="rt-routine-tete">
       <span class="rt-routine-icone" aria-hidden="true">${icone(routine.icone || 'sparkle')}</span>
@@ -256,6 +257,21 @@ function choisirNiveauGeste(id, cle, niveau) {
   if (!g) return;
   const appliquer = () => enregistrerReglagesRoutines({ routines: { [id]: { gestes: Object.assign({}, (routinesEtat.reglages.routines[id] || {}).gestes, { [cle]: niveau }) } } }, `« ${g.libelle} » : niveau ${niveau}.`);
   if (niveau === 3 || (niveau === 2 && g.sensible)) demanderNiveauEnvoi(g.libelle, niveau, appliquer); else appliquer();
+}
+
+// « Lancer maintenant » d'une routine (sans attendre son heure) : ses propositions arrivent dans les canaux des dossiers.
+async function lancerRoutineMaintenant(id, bouton) {
+  if (bouton) bouton.loading = true;
+  try {
+    const r = await fetchAvecAuth(`/api/routines/${encodeURIComponent(id)}/lancer`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsable: utilisateurPoste }) });
+    const corps = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(corps.erreur || `HTTP ${r.status}`);
+    afficherToast(corps.message, 'Ouvrir « À traiter »', () => { definirOnglet('assistant'); setTimeout(() => ouvrirCanal('@traiter'), 0); });
+    chargerPropositionsClaire('a-traiter');
+    chargerReglagesRoutines();
+  } catch (e) {
+    afficherToast('Routine non lancée : ' + e.message, 'OK', null);
+  } finally { if (bouton) bouton.loading = false; }
 }
 
 // « Déposer des exemples dans ma boîte » : la routine d'essai, pour voir à quoi ressemble le travail de CLAIRE.

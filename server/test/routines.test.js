@@ -27,15 +27,16 @@ const MAIL = { emailActif: true, smtpHote: 'smtp.exemple.fr', emailPasserelle: '
 const lundi = (hhmm) => new Date(`2026-10-26T${hhmm}:00+01:00`); // 26/10/2026 : lundi, heure d'hiver en France
 const samedi = (hhmm) => new Date(`2026-10-24T${hhmm}:00+02:00`);
 
-test('réglages : tout éteint par défaut, niveaux bornés par le maximum de chaque geste, une routine indisponible ne s’allume pas', () => {
+test('réglages : jamais enregistrés (ou d’avant le 25/10), tout allumé au niveau 1 ; niveaux bornés par le maximum de chaque geste', () => {
   const d = R.assainirReglagesRoutines(null);
-  assert.equal(d.actif, false);
+  assert.equal(d.actif, true, 'étude 25/10 : « toutes allumées, niveau 1 »');
   assert.equal(d.plafondEuros, 50);
   assert.equal(d.heure, '09:30');
   assert.equal(d.teams, true);
   assert.equal(CATALOGUE.length, Object.keys(d.routines).length);
-  for (const r of CATALOGUE) assert.equal(d.routines[r.id].actif, false);
-  const s = R.assainirReglagesRoutines({ actif: true, heure: '25:99', plafondEuros: -3, routines: {
+  for (const r of CATALOGUE) assert.equal(d.routines[r.id].actif, r.id !== 'essai', r.id);
+  for (const r of CATALOGUE) assert.equal(d.routines[r.id].niveau, 1);
+  const s = R.assainirReglagesRoutines({ revision: R.REVISION_REGLAGES_ROUTINES, actif: true, heure: '25:99', plafondEuros: -3, routines: {
     essai: { actif: true, niveau: 3 },
     'revue-matin': { actif: true, niveau: 3, gestes: { relance: 2, tache: 3 } },
     inconnue: { actif: true }
@@ -45,26 +46,27 @@ test('réglages : tout éteint par défaut, niveaux bornés par le maximum de ch
   assert.equal(s.plafondEuros, 50, 'plafond négatif : le défaut');
   assert.equal(s.routines.essai.actif, true);
   assert.equal(s.routines.essai.niveau, 1, 'l’essai ne dépasse pas le niveau 1');
-  assert.equal(s.routines['revue-matin'].actif, false, 'routine pas encore disponible : jamais allumée');
-  assert.equal(s.routines['revue-matin'].niveau, 3);
+  assert.equal(s.routines['revue-matin'].actif, true);
+  assert.equal(s.routines['revue-matin'].niveau, 2, 'aucun geste n’accepte encore le niveau 3');
   assert.equal(s.routines['revue-matin'].gestes.relance, 2);
-  assert.equal(s.routines['revue-matin'].gestes.tache, 2, 'le geste « tâche » plafonne au niveau 2');
+  assert.equal(s.routines['revue-matin'].gestes.tache, 1, 'le geste « tâche » plafonne au niveau 1');
+  assert.equal(s.routines['constitution'].actif, false, 'un réglage enregistré fait foi');
   assert.equal(s.routines.inconnue, undefined);
 });
 
 test('niveau effectif : le niveau du geste, sinon celui de la routine, jamais au-dessus du maximum', () => {
-  const s = R.assainirReglagesRoutines({ routines: { 'appel-fonds': { niveau: 3, gestes: { courrier: 2 } } } });
+  const s = R.assainirReglagesRoutines({ revision: R.REVISION_REGLAGES_ROUTINES, routines: { 'appel-fonds': { niveau: 3, gestes: { courrier: 2 } }, 'reponses-emails': { niveau: 3 } } });
   assert.equal(R.niveauEffectif(s, 'appel-fonds', 'courrier'), 1, 'courrier : maximum 1');
-  assert.equal(R.niveauEffectif(s, 'appel-fonds', 'email'), 3);
+  assert.equal(R.niveauEffectif(s, 'reponses-emails', 'reponse'), 2);
   assert.equal(R.niveauEffectif(s, 'inconnue', 'x'), 1);
 });
 
 test('réglages : lecture et écriture dans la clé de l’étude', () => {
   const repo = fauxRepo();
-  assert.equal(R.lireReglagesRoutines(repo).actif, false);
-  R.ecrireReglagesRoutines(repo, { actif: true, plafondEuros: 20.456 });
+  assert.equal(R.lireReglagesRoutines(repo).actif, true, 'jamais enregistrés : allumées');
+  R.ecrireReglagesRoutines(repo, { actif: false, plafondEuros: 20.456 });
   const r = R.lireReglagesRoutines(repo);
-  assert.equal(r.actif, true);
+  assert.equal(r.actif, false, 'un choix enregistré n’est jamais rallumé d’office');
   assert.equal(r.plafondEuros, 20.46);
 });
 
@@ -237,10 +239,10 @@ test('planificateur : l’envoi non configuré est dit au journal, rien ne part'
   P.ecrirePropositions(repo, P.ajouterProposition([], { id: 'a', routine: 'r', responsable: 'Julie VASSELIN', type: 'alerte', titre: 'T', empreinte: 'a' }).liste);
   await p.tour(lundi('10:00'));
   assert.equal(envois.length, 0);
-  assert.match(J.lireJournalRoutines(repo)[0].texte, /n’est pas configuré/);
+  assert.match(J.lireJournalRoutines(repo).map(e => e.texte).join(' | '), /n’est pas configuré/);
 });
 
-test('planificateur : « Lancer » dépose les exemples dans la boîte, une seule fois par jour, et refuse une routine pas encore disponible', () => {
+test('planificateur : « Lancer » dépose les exemples dans la boîte, une seule fois par jour, et lance une routine construite', async () => {
   const repo = fauxRepo();
   const p = creerPlanificateur({ parametresRepo: repo });
   const a = p.lancer('essai', { responsable: 'Julie VASSELIN', maintenant: lundi('10:00') });
@@ -250,7 +252,7 @@ test('planificateur : « Lancer » dépose les exemples dans la boîte, une seul
   assert.equal(b.ajoutees, 0);
   assert.match(b.message, /déjà dans la boîte/);
   assert.equal(p.lancer('essai', { responsable: 'Julie VASSELIN', maintenant: new Date('2026-10-27T10:00:00+01:00') }).ajoutees, 4, 'le lendemain : de nouveaux exemples');
-  assert.equal(p.lancer('revue-matin', { responsable: 'Julie VASSELIN' }).ok, false);
+  assert.equal((await p.lancer('revue-matin', { responsable: 'Julie VASSELIN' })).ok, true, 'routine construite (25/10) : lancée sur les dossiers');
   assert.equal(p.lancer('inconnue', { responsable: 'Julie VASSELIN' }).ok, false);
   assert.equal(p.lancer('essai', { responsable: '' }).ok, false);
 });
@@ -270,18 +272,21 @@ test('routes : état, réglages fusionnés sans effacer les routines inconnues d
     const e = await j('/api/routines');
     assert.equal(e.statut, 200);
     assert.equal(e.corps.catalogue.length, CATALOGUE.length);
-    assert.equal(e.corps.reglages.actif, false);
+    assert.equal(e.corps.reglages.actif, true);
     assert.equal(e.corps.niveaux.length, 3);
     assert.equal(e.corps.catalogue[0].stats.total, 0);
     // Un poste qui n'envoie que le plafond et une routine ne touche pas aux autres.
-    const m = await j('/api/routines/reglages', { methode: 'PUT', corps: { plafondEuros: 30, routines: { 'veille-signature': { niveau: 2 } } } });
+    assert.equal((await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Julie VASSELIN', plafondEuros: 9000 } })).statut, 403, 'le plafond : administrateur seulement');
+    assert.equal((await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Julie VASSELIN', routines: { constitution: { actif: false } } } })).statut, 403, 'éteindre une routine : administrateur seulement');
+    const m = await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Bastien ANGLUMENT', plafondEuros: 30, routines: { 'veille-signature': { actif: false } } } });
     assert.equal(m.corps.plafondEuros, 30);
-    assert.equal(m.corps.routines['veille-signature'].niveau, 2);
+    assert.equal(m.corps.routines['veille-signature'].actif, false);
+    assert.equal(m.corps.routines['constitution'].actif, true, 'les autres routines restent allumées');
     assert.equal(m.corps.routines['constitution'].niveau, 1);
     assert.equal((await j('/api/routines/reglages', { methode: 'PUT', corps: [] })).statut, 400);
 
     assert.equal((await j('/api/routines/essai/lancer', { corps: { responsable: 'Quelqu’un' } })).statut, 400);
-    assert.equal((await j('/api/routines/revue-matin/lancer', { corps: { responsable: 'Julie VASSELIN' } })).statut, 400);
+    assert.equal((await j('/api/routines/revue-matin/lancer', { corps: { responsable: 'Julie VASSELIN' } })).statut, 200);
     const l = await j('/api/routines/essai/lancer', { corps: { responsable: 'Julie VASSELIN' } });
     assert.equal(l.statut, 200);
     assert.equal(l.corps.ajoutees, 4);
@@ -309,14 +314,13 @@ test('routes : état, réglages fusionnés sans effacer les routines inconnues d
 
 test('niveau 2 d’un geste vers l’extérieur (CLAIRE envoie après « Autoriser ») : réservé à l’administrateur, comme le niveau 3', async () => {
   await avecServeur(async (j) => {
-    const demande = (auteur, niveau) => j('/api/routines/reglages', { methode: 'PUT', corps: { auteur, routines: { constitution: { gestes: { envoi: niveau } } } } });
+    const demande = (auteur, niveau) => j('/api/routines/reglages', { methode: 'PUT', corps: { auteur, routines: { 'reponses-emails': { gestes: { reponse: niveau } } } } });
     assert.equal((await demande('Julie VASSELIN', 2)).statut, 403, 'un collaborateur ne peut pas');
-    assert.equal((await demande('Julie VASSELIN', 3)).statut, 403);
     const ok = await demande('Bastien ANGLUMENT', 2);
     assert.equal(ok.statut, 200);
-    assert.equal(ok.corps.routines.constitution.gestes.envoi, 2);
+    assert.equal(ok.corps.routines['reponses-emails'].gestes.reponse, 2);
     // Un geste interne (pas vers l'extérieur) au niveau 2 reste ouvert à tous.
-    const interne = await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Julie VASSELIN', routines: { 'veille-signature': { gestes: { fiche: 2 } } } } });
+    const interne = await j('/api/routines/reglages', { methode: 'PUT', corps: { auteur: 'Julie VASSELIN', routines: { 'revue-matin': { gestes: { tache: 1 } } } } });
     assert.equal(interne.statut, 200);
   });
 });

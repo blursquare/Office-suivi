@@ -107,3 +107,7 @@ Chaque phase est un envoi à part, testé au bureau avant la suivante.
 - Le notaire référent le jour où CLAIRE est « responsable » d'un dossier (probablement Sophie GOSSART).
 - La date de l'accord de sous-traitance avec Anthropic et le registre RGPD (hors du code).
 - Les petits actes à ajouter en premier.
+
+## 10. État au 25/10/2026 (0.348.0)
+
+Toutes les phases sont construites (étude 25/10 : « il me faut toutes les phases pour demain »), avec deux écarts décidés le même soir : les documents (constitution, appel de fonds, autorisations, fiche de signature) sont fabriqués **sur le poste au clic sur « Autoriser »**, pas par un « poste CLAIRE » sans écran ; **aucun geste n'accepte encore le niveau 3**. Ajout de l'étude : **R9 — réponses aux emails du soir** (brouillon de réponse, le matin, pour chaque email d'une adresse d'un dossier reçu entre 18 h la veille ouvrée et 8 h). Les routines démarrent **allumées au niveau 1**. Détail : `docs/historique.md`, entrée 0.348.0.

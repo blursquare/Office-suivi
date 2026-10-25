@@ -10215,6 +10215,9 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .pc-age { color: var(--muted); }
 .pc-titre { margin: 0; font-size: var(--texte-base); font-weight: 500; line-height: 1.35; color: var(--ink); }
 .pc-resume { margin: 0; font-size: var(--texte-s); line-height: 1.45; color: var(--ink-soft); }
+.pc-apercu { margin: 0; font-size: var(--texte-s); }
+.pc-apercu > summary { cursor: pointer; color: var(--muted); font-weight: 500; }
+.pc-apercu-texte { margin-top: 6px; padding: 8px 12px; border-radius: var(--rayon-m); background: var(--paper-sunk); color: var(--ink); line-height: 1.5; max-height: 240px; overflow: auto; overflow-wrap: anywhere; }
 .pc-puces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .pc-puce { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--line-soft); border-radius: var(--rayon-pilule); background: var(--paper-sunk); font: inherit; font-size: var(--texte-xs); color: var(--ink-soft); }
 .pc-puce-dossier { cursor: pointer; color: var(--ink); }

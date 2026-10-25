@@ -55,17 +55,25 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const seuilAdmin = (g) => (g.sensible ? 2 : 3);
     const monte3 = CATALOGUE.some((r) => r.gestes.some((g) => niveauEffectif(propre, r.id, g.cle) >= seuilAdmin(g) && niveauEffectif(avant, r.id, g.cle) < seuilAdmin(g)));
     const bascule = propre.actif !== avant.actif;
-    if ((monte3 || bascule) && !(auteur && ADMINISTRATEURS.includes(auteur))) { res.status(403).json({ erreur: 'Réservé à l’administrateur.' }); return; }
+    // Le plafond de l'IA et l'interrupteur de chaque routine aussi (audit 25/10 : le plafond est le seul garde-fou du coût).
+    const plafondChange = propre.plafondEuros !== avant.plafondEuros;
+    const routineBascule = CATALOGUE.some((r) => !!(propre.routines[r.id] && propre.routines[r.id].actif) !== !!(avant.routines[r.id] && avant.routines[r.id].actif));
+    if ((monte3 || bascule || plafondChange || routineBascule) && !(auteur && ADMINISTRATEURS.includes(auteur))) { res.status(403).json({ erreur: 'Réservé à l’administrateur.' }); return; }
     ecrireReglagesRoutines(parametresRepo, fusion);
     if (monte3 || bascule) noterJournalRoutines(parametresRepo, { routine: 'reglages', texte: `${bascule ? (propre.actif ? 'Routines allumées' : 'Routines éteintes') : 'Autonomie élargie (envoi après validation ou seule)'} par ${String(auteur).split(' ')[0]}.`, niveau: monte3 ? 3 : 1 });
     res.json(propre);
   });
 
-  routeur.post('/routines/:id/lancer', (req, res) => {
+  routeur.post('/routines/:id/lancer', async (req, res) => {
     const responsable = collaborateurDe((req.body || {}).responsable);
     if (!responsable) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    const r = planificateur.lancer(req.params.id, { responsable });
-    res.status(r.ok ? 200 : 400).json(r.ok ? r : { erreur: r.message });
+    try {
+      const r = await planificateur.lancer(req.params.id, { responsable });
+      res.status(r.ok ? 200 : 400).json(r.ok ? r : { erreur: r.message });
+    } catch (e) {
+      console.error('[routines] lancement :', e && e.message);
+      res.status(500).json({ erreur: 'La routine n’a pas pu être lancée.' });
+    }
   });
 
   routeur.get('/routines/journal', (req, res) => {
@@ -102,7 +110,12 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
     const dejaTraitee = r.liste === liste;
     if (!dejaTraitee) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
-    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue', proposition: r.proposition });
+    // Le niveau d'autonomie EN VIGUEUR au moment de la décision (audit 25/10) : un niveau abaissé depuis le dépôt s'applique aussi aux
+    // propositions déjà en attente — jamais d'envoi sans clic si l'administrateur est revenu au niveau 1.
+    const p = r.proposition;
+    const det = p.details || {};
+    const niveau = Math.min(Number(det.niveau) || 1, det.geste ? niveauEffectif(lireReglagesRoutines(parametresRepo), p.routine, String(det.geste)) : 1);
+    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue', proposition: Object.assign({}, p, { details: Object.assign({}, det, { niveau: String(niveau) }) }) });
   });
 
   return routeur;
