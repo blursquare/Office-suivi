@@ -347,13 +347,17 @@
       return;
     }
     const pieces = joints ? prendrePiecesJointesAssistant() : [];
+    if (pieces.length) await televerserPiecesJointesAssistant(pieces);   // gardées sur le serveur 90 jours (étude 25/10)
     if (champ && !texteForce) champ.value = '';
     if (champ) champ.style.height = '';
     fermerMentionAssistant();
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
-    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte, pj: pieces.map(p => ({ nom: p.nom, type: p.sorte })) });
+    // Dans une conversation personnelle la carte est dans le message ; dans un canal, le serveur renvoie les pièces du message (`pj`) et
+    // le fil les montre de la même façon (htmlPiecesCanal).
+    poserMessageAssistant('moi', escapeHtml(texte) + (pieces.length && !canaux.actif ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte,
+      pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
     if (canaux.actif && !claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif)) return;
     noterEchangeAssistant('moi', texte);

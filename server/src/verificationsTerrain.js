@@ -246,6 +246,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier dossier préparé par l’agent depuis un PDF joint ; en échec si le PDF est illisible ou si aucun dossier d’Authentic ne correspond.' },
   { id: 'assistant-apercu-piece-jointe', depuis: '0.340.0', source: 'poste', titre: '« Demander à CLAIRE » : une pièce jointe PDF s’affiche dans la conversation avec la vignette de sa première page, et s’ouvre en grand au clic',
     comment: 'Coché à la première vignette de PDF rendue ; en échec si pdf.js n’a pas pu lire le fichier (l’icône reste à la place de la vignette).' },
+  { id: 'assistant-pieces-jointes-serveur', depuis: '0.340.0', source: 'poste', titre: '« Demander à CLAIRE » : une pièce jointe est gardée 90 jours sur le serveur, rouverte après une reprise de la conversation et visible dans un canal partagé',
+    comment: 'Coché au premier dépôt réussi ; en échec si le serveur refuse le fichier (ni PDF ni image, plus de 25 Mo) ou ne répond pas.' },
   { id: 'rangement-outlook', depuis: '0.289.0', source: 'serveur', titre: 'Outlook : emails « Facture Dossier FIDJI » et quarantaine@notaires.fr déplacés dans « Traité à distance »',
     comment: 'Coché au premier déplacement réussi dans la boîte du compte relié ; en échec si Exchange refuse le déplacement.' },
   { id: 'emails-dossiers-reception', depuis: '0.127.0', source: 'serveur', titre: 'Emails des dossiers : un email reçu rattaché à un dossier et lu en entier',

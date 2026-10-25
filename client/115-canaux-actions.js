@@ -35,7 +35,10 @@ function htmlCorpsMessageCanal(m) {
 
 function htmlPiecesCanal(m) {
   const pj = (m.pj || []).filter(p => p && p.nom);
-  return pj.length ? `<div class="asst-pj-liste">${pj.map(p => `<span class="asst-pj">${icone(/pdf/i.test(p.type || p.nom) ? 'file-text' : 'paperclip')}<span class="asst-pj-nom">${escapeHtml(p.nom)}</span></span>`).join('')}</div>` : '';
+  // Une pièce gardée sur le serveur (étude 25/10) : sa carte, comme dans une conversation ; sinon (message d'avant) la pastille du nom.
+  return pj.length ? `<div class="asst-pj-liste">${pj.map(p => p.fichierId
+    ? htmlCartePieceJointeAssistant({ id: '', serveurId: p.fichierId, nom: p.nom, sorte: /pdf/i.test(p.type || p.nom) ? 'pdf' : 'image', taille: p.taille || 0 })
+    : `<span class="asst-pj">${icone(/pdf/i.test(p.type || p.nom) ? 'file-text' : 'paperclip')}<span class="asst-pj-nom">${escapeHtml(p.nom)}</span></span>`).join('')}</div>` : '';
 }
 
 function htmlActionsMessageCanal(m, i) {
@@ -107,6 +110,7 @@ function renderCanalAssistant(zone) {
     + visibles.map((m, i) => htmlMessageCanal(m, i, reperes[i])).join('') + attente;
   if (canaux.forcerBas || proche) { zone.scrollTop = zone.scrollHeight; canaux.forcerBas = false; } else zone.scrollTop = sauve;
   restaurerConsignesAssistant(zone);
+  remplirVignettesPiecesJointesAssistant();
   const edition = document.getElementById('canal-edition');
   if (edition && document.activeElement !== edition) { edition.focus(); edition.setSelectionRange(edition.value.length, edition.value.length); }
 }

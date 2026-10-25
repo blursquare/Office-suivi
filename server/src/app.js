@@ -39,6 +39,9 @@ const { creerRouteurVerificationsTerrain } = require('./routes/verificationsTerr
 const { creerRouteurNomsFichiersNas } = require('./routes/nomsFichiersNas');
 const { creerRouteurSignatureImages } = require('./routes/signatureImages');
 const { creerRouteurPhotosCollaborateurs } = require('./routes/photosCollaborateurs');
+const { creerRouteurPiecesJointes } = require('./routes/piecesJointes');
+const { creerStockPiecesJointes } = require('./piecesJointes');
+const os = require('node:os');
 const { creerRouteurRappelsPerso } = require('./routes/rappelsPerso');
 const { creerRouteurModelesEmails } = require('./routes/modelesEmails');
 const { creerRouteurPreferences } = require('./routes/preferences');
@@ -256,7 +259,15 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
   const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRoutines(parametresRepo, planificateurRoutines));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn }), depot));
+  // Pièces jointes de « Demander à CLAIRE » et des canaux (étude 25/10) : un dossier de données à côté de la base (un dossier temporaire
+  // dans les tests), 90 jours ; purgées au démarrage puis toutes les heures.
+  const dossierPiecesJointes = config.dossierPiecesJointes || (config.cheminDb && config.cheminDb !== ':memory:'
+    ? path.join(path.dirname(config.cheminDb), 'pieces-jointes') : path.join(os.tmpdir(), `claire-pieces-jointes-${process.pid}`));
+  const stockPiecesJointes = creerStockPiecesJointes({ dossier: dossierPiecesJointes, parametresRepo });
+  stockPiecesJointes.purger().catch(() => {});
+  const minuteurPiecesJointes = setInterval(() => { stockPiecesJointes.purger().catch(() => {}); }, 3600000);
+  if (minuteurPiecesJointes.unref) minuteurPiecesJointes.unref();
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCanaux(parametresRepo, creerNotifieur({ parametresRepo, depot, envoyer: envoyerEmailFn }), depot, stockPiecesJointes));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNas(config, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurExplorateurNas(config, depot, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNasLibre(config, parametresRepo));
@@ -294,6 +305,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureImages(db));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPhotosCollaborateurs(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPiecesJointes(stockPiecesJointes));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   // Modèles d'emails de l'étude (Réglages › Modèles d'emails, fenêtre d'email) : voir modelesEmails.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurModelesEmails(parametresRepo));

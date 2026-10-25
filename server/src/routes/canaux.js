@@ -21,9 +21,9 @@ function collaborateurDe(v) {
 }
 
 /**
- * @param {any} parametresRepo @param {{ notifierMentions?: (canal: string, message: any) => Promise<any> }} [notifieur] @param {any} [depot]
+ * @param {any} parametresRepo @param {{ notifierMentions?: (canal: string, message: any) => Promise<any> }} [notifieur] @param {any} [depot] @param {any} [stockPiecesJointes]
  */
-function creerRouteurCanaux(parametresRepo, notifieur, depot) {
+function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes) {
   const routeur = express.Router();
 
   /** Le canal de l'URL, s'il est valide et (pour un canal libre) connu. @param {any} req */
@@ -126,6 +126,8 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot) {
     if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
     const m = C.changerMessage(parametresRepo, id, req.params.mid, par, { supprimer: true });
     if (!m) { res.status(403).json({ erreur: 'Message introuvable, ou ce n’est pas le vôtre.' }); return; }
+    // Un message supprimé emporte ses fichiers gardés sur le serveur.
+    if (stockPiecesJointes) for (const p of (m.pj || [])) if (p.fichierId) stockPiecesJointes.supprimer(p.fichierId).catch(() => {});
     res.json({ ok: true });
   });
 

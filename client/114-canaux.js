@@ -355,6 +355,7 @@ async function publierMessageCanal(message, meta) {
   if (!id || id === '@traiter' || message.id) return;
   message.local = true; message.auteur = message.role === 'claire' ? 'CLAIRE' : utilisateurPoste;
   const m = meta || {};
+  if (Array.isArray(m.pj) && m.pj.length) message.pj = m.pj;   // les cartes des pièces jointes s'affichent tout de suite
   const claire = message.role === 'claire';
   const texte = claire ? texteDepuisHtmlCanal(message.html) : (typeof m.texte === 'string' ? m.texte : texteDepuisHtmlCanal(message.html));
   if (!texte && !message.html) return;

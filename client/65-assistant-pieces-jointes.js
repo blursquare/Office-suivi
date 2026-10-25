@@ -109,10 +109,12 @@
 
   // ---- Aperçu d'une pièce jointe dans la conversation, comme sur Slack (étude 25/10) ----
   // Le message porte une CARTE : vignette (l'image elle-même, ou la première page d'un PDF), nom, sorte et taille. Un clic ouvre la
-  // visionneuse : l'image en grand, ou toutes les pages du PDF (30 au plus), avec « Ouvrir dans un onglet » et « Télécharger ». Le fichier
-  // reste sur le poste, en mémoire : une conversation reprise plus tard garde la carte, mais plus l'aperçu (dit à l'ouverture).
+  // visionneuse : l'image en grand, ou toutes les pages du PDF (30 au plus), avec « Ouvrir dans un onglet » et « Télécharger ».
+  // Le fichier est GARDÉ SUR LE SERVEUR du bureau 90 jours (étude 25/10 : « je veux pouvoir revenir dessus plus tard », y compris dans un
+  // canal partagé) : la carte porte son identifiant, et rouvre le fichier même après une reprise de la conversation ou sur un autre poste.
   var MAX_PAGES_APERCU_PIECE_JOINTE = 30;
   var apercuPieceJointeOuvert = null;     // { id, jeton } tant que la visionneuse est ouverte
+  var vignettesServeurPiecesJointes = {};  // identifiant serveur → { url, pages } (en mémoire de la fenêtre)
 
   // Pure : « PDF · 2,4 Mo » / « Image · 850 Ko ».
   function legendePieceJointeAssistant(sorte, octets) {
@@ -121,10 +123,30 @@
     return [sorte === 'pdf' ? 'PDF' : 'Image', taille].filter(Boolean).join(' · ');
   }
 
+  // Dépose les pièces d'un message sur le serveur (une par une) : `serveurId` est posé sur chacune ; un échec est dit une fois, la
+  // pièce reste lisible sur ce poste seulement.
+  async function televerserPiecesJointesAssistant(pieces) {
+    let echec = '';
+    for (const p of (pieces || [])) {
+      try {
+        const r = await fetchAvecAuth('/api/pieces-jointes', { method: 'POST', body: p.fichier,
+          headers: { 'Content-Type': 'application/octet-stream', 'X-Nom': encodeURIComponent(p.nom || ''), 'X-Auteur': encodeURIComponent(typeof utilisateurPoste === 'string' ? utilisateurPoste : '') } });
+        const j = await r.json().catch(() => ({}));
+        if (r.ok && j.ok && j.id) p.serveurId = j.id; else echec = j.erreur || `HTTP ${r.status}`;
+      } catch (e) { echec = 'le serveur n’a pas répondu'; }
+    }
+    if (echec) afficherToast('Pièce non gardée sur le serveur (' + echec + ') : elle ne s’ouvrira que depuis ce poste.', 'OK', null);
+    noterVerificationPoste('assistant-pieces-jointes-serveur', echec ? { ok: false, message: 'dépôt impossible' } : { detail: 'pièce jointe gardée sur le serveur' });
+    return pieces;
+  }
+
+  // La carte d'une pièce jointe. `p` : { id (local, peut être ''), serveurId, nom, sorte, taille } — une pièce d'un canal n'a que
+  // `serveurId`.
   function htmlCartePieceJointeAssistant(p) {
-    return `<button type="button" class="asst-pj-carte" onclick="ouvrirApercuPieceJointe('${escapeOnclickArg(p.id)}')" title="Voir ${escapeAttr(p.nom)}">
-        <span class="asst-pj-vignette" data-pj="${escapeAttr(p.id)}" aria-hidden="true">${icone(p.sorte === 'pdf' ? 'file-text' : 'paperclip')}</span>
-        <span class="asst-pj-infos"><span class="asst-pj-titre">${escapeHtml(p.nom)}</span><span class="asst-pj-legende">${escapeHtml(legendePieceJointeAssistant(p.sorte, p.fichier && p.fichier.size))}</span></span>
+    const taille = p.taille || (p.fichier && p.fichier.size) || 0;
+    return `<button type="button" class="asst-pj-carte" onclick="ouvrirApercuPieceJointe('${escapeOnclickArg(p.id || '')}', '${escapeOnclickArg(p.serveurId || '')}')" title="Voir ${escapeAttr(p.nom)}">
+        <span class="asst-pj-vignette" data-pj="${escapeAttr(p.id || '')}" data-serveur="${escapeAttr(p.serveurId || '')}" data-sorte="${escapeAttr(p.sorte)}" aria-hidden="true">${icone(p.sorte === 'pdf' ? 'file-text' : 'paperclip')}</span>
+        <span class="asst-pj-infos"><span class="asst-pj-titre">${escapeHtml(p.nom)}</span><span class="asst-pj-legende">${escapeHtml(legendePieceJointeAssistant(p.sorte, taille))}</span></span>
       </button>`;
   }
 
@@ -133,36 +155,59 @@
     return doc.urlObjet || '';
   }
 
+  // Ce qu'il faut pour montrer une pièce : le fichier de ce poste s'il y est encore, sinon celui du serveur. null = introuvable.
+  async function ressourcePieceJointeAssistant(idLocal, idServeur) {
+    const doc = idLocal ? documentsAgentConnus[idLocal] : null;
+    if (doc && doc.sorte === 'joint' && doc.fichier) {
+      return { sorte: doc.sortePiece, nom: doc.nom || 'Pièce jointe', taille: doc.taille || doc.fichier.size || 0, url: urlPieceJointeAssistant(doc), tampon: () => doc.fichier.arrayBuffer() };
+    }
+    if (!idServeur) return null;
+    const rm = await fetchAvecAuth('/api/pieces-jointes/' + encodeURIComponent(idServeur));
+    if (!rm.ok) return null;
+    const m = await rm.json();
+    const url = '/api/pieces-jointes/' + encodeURIComponent(idServeur) + '/fichier';
+    return { sorte: m.sorte, nom: m.nom, taille: m.taille, url, tampon: async () => (await fetchAvecAuth(url)).arrayBuffer() };
+  }
+
+  async function lirePdfPieceJointeAssistant(tampon) {
+    return pdfjsLib.getDocument({ isEvalSupported: false, data: await tampon(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+  }
+
   // Remplit les vignettes des cartes affichées (appelée à la fin de chaque dessin de la conversation) : l'image, ou la page 1 d'un PDF.
   async function remplirVignettesPiecesJointesAssistant() {
     const zone = document.getElementById('assistant-messages');
     if (!zone) return;
-    for (const el of Array.from(zone.querySelectorAll('.asst-pj-vignette[data-pj]'))) {
-      const doc = documentsAgentConnus[el.dataset.pj];
-      if (!doc || doc.sorte !== 'joint' || !doc.fichier) continue;
+    for (const el of Array.from(zone.querySelectorAll('.asst-pj-vignette[data-sorte]:not(.avec-image)'))) {
+      const idLocal = el.dataset.pj || '';
+      const idServeur = el.dataset.serveur || '';
+      if (!idLocal && !idServeur) continue;
       try {
-        if (doc.sortePiece === 'image') {
-          const url = urlPieceJointeAssistant(doc);
-          if (url) { el.innerHTML = `<img src="${url}" alt="" loading="lazy">`; el.classList.add('avec-image'); }
-        } else if (doc.sortePiece === 'pdf' && typeof pdfjsLib !== 'undefined') {
-          if (!doc.vignette) {
-            const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
-            doc.pages = pdf.numPages;
-            doc.vignette = await imagePagePdf(pdf, 1, 360, 0.8);
+        if (el.dataset.sorte === 'image') {
+          const doc = idLocal ? documentsAgentConnus[idLocal] : null;
+          const url = doc && doc.fichier ? urlPieceJointeAssistant(doc) : (idServeur ? '/api/pieces-jointes/' + encodeURIComponent(idServeur) + '/fichier' : '');
+          if (url) { el.innerHTML = `<img src="${escapeAttr(url)}" alt="" loading="lazy">`; el.classList.add('avec-image'); }
+        } else if (typeof pdfjsLib !== 'undefined') {
+          const cle = idServeur || idLocal;
+          let v = vignettesServeurPiecesJointes[cle];
+          if (!v) {
+            const r = await ressourcePieceJointeAssistant(idLocal, idServeur);
+            if (!r) continue;
+            const pdf = await lirePdfPieceJointeAssistant(r.tampon);
+            v = { url: await imagePagePdf(pdf, 1, 360, 0.8), pages: pdf.numPages };
             try { pdf.destroy(); } catch (e) { /* déjà libéré */ }
+            vignettesServeurPiecesJointes[cle] = v;
           }
-          el.innerHTML = `<img src="${doc.vignette}" alt="">`;
-          noterVerificationPoste('assistant-apercu-piece-jointe', { detail: 'vignette de PDF' });
+          el.innerHTML = `<img src="${v.url}" alt="">`;
           el.classList.add('avec-image');
           const legende = el.closest('.asst-pj-carte') && el.closest('.asst-pj-carte').querySelector('.asst-pj-legende');
-          if (legende && doc.pages) legende.textContent = `${legendePieceJointeAssistant('pdf', doc.fichier.size)} · ${doc.pages} page${doc.pages > 1 ? 's' : ''}`;
+          if (legende && v.pages) legende.textContent = `${legende.textContent.split(' · ').slice(0, 2).join(' · ')} · ${v.pages} page${v.pages > 1 ? 's' : ''}`;
+          noterVerificationPoste('assistant-apercu-piece-jointe', { detail: 'vignette de PDF' });
         }
-      } catch (e) { if (doc.sortePiece === 'pdf') noterVerificationPoste('assistant-apercu-piece-jointe', { ok: false, message: 'vignette de PDF impossible' }); }
+      } catch (e) { if (el.dataset.sorte === 'pdf') noterVerificationPoste('assistant-apercu-piece-jointe', { ok: false, message: 'vignette de PDF impossible' }); }
     }
   }
 
-  async function ouvrirApercuPieceJointe(id) {
-    const doc = documentsAgentConnus[id];
+  async function ouvrirApercuPieceJointe(idLocal, idServeur) {
     let overlay = document.getElementById('pj-apercu-overlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -172,17 +217,11 @@
       document.body.appendChild(overlay);
     }
     const jeton = {};
-    apercuPieceJointeOuvert = { id, jeton };
-    const nom = doc && doc.nom ? doc.nom : 'Pièce jointe';
-    const url = doc && doc.fichier ? urlPieceJointeAssistant(doc) : '';
+    apercuPieceJointeOuvert = { id: idLocal || idServeur, jeton };
     overlay.innerHTML = `<div class="scan-apercu" role="dialog" aria-modal="true" aria-labelledby="pj-apercu-titre">
         <header class="scan-apercu-tete">
-          <div class="scan-apercu-titres">
-            <h2 id="pj-apercu-titre">${escapeHtml(nom)}</h2>
-            <div class="scan-apercu-meta"><span id="pj-apercu-meta">${escapeHtml(doc ? legendePieceJointeAssistant(doc.sortePiece, doc.taille) : '')}</span></div>
-          </div>
-          ${url ? `<a class="bouton-icone icon-btn" href="${escapeAttr(url)}" target="_blank" rel="noopener" title="Ouvrir dans un onglet" aria-label="Ouvrir dans un onglet">${icone('maximize')}</a>
-          <a class="bouton-icone icon-btn" href="${escapeAttr(url)}" download="${escapeAttr(nom)}" title="Télécharger" aria-label="Télécharger">${icone('download')}</a>` : ''}
+          <div class="scan-apercu-titres"><h2 id="pj-apercu-titre">Pièce jointe</h2><div class="scan-apercu-meta"><span id="pj-apercu-meta"></span></div></div>
+          <span id="pj-apercu-actions"></span>
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerApercuPieceJointe()" aria-label="Fermer l’aperçu">${icone('x')}</wa-button>
         </header>
         <div class="scan-apercu-corps" id="pj-apercu-corps"><p class="hint scan-etat">${icone('spinner', null, true)} Chargement…</p></div>
@@ -191,17 +230,22 @@
     const corps = document.getElementById('pj-apercu-corps');
     const actif = () => apercuPieceJointeOuvert && apercuPieceJointeOuvert.jeton === jeton;
     try {
-      if (!doc || !doc.fichier) throw new Error('Le fichier n’est plus sur ce poste : une conversation reprise plus tard ne garde pas les pièces jointes.');
-      if (doc.sortePiece === 'image') {
-        corps.innerHTML = `<figure class="scan-apercu-page"><img src="${escapeAttr(url)}" alt="${escapeAttr(nom)}"></figure>`;
+      const r = await ressourcePieceJointeAssistant(idLocal, idServeur);
+      if (!actif()) return;
+      if (!r) throw new Error('Cette pièce jointe n’est plus disponible : les fichiers sont gardés 90 jours sur le serveur.');
+      document.getElementById('pj-apercu-titre').textContent = r.nom;
+      document.getElementById('pj-apercu-meta').textContent = legendePieceJointeAssistant(r.sorte, r.taille);
+      document.getElementById('pj-apercu-actions').innerHTML = `<a class="bouton-icone icon-btn" href="${escapeAttr(r.url)}" target="_blank" rel="noopener" title="Ouvrir dans un onglet" aria-label="Ouvrir dans un onglet">${icone('maximize')}</a>
+          <a class="bouton-icone icon-btn" href="${escapeAttr(r.url)}" download="${escapeAttr(r.nom)}" title="Télécharger" aria-label="Télécharger">${icone('download')}</a>`;
+      if (r.sorte === 'image') {
+        corps.innerHTML = `<figure class="scan-apercu-page"><img src="${escapeAttr(r.url)}" alt="${escapeAttr(r.nom)}"></figure>`;
         return;
       }
       if (typeof pdfjsLib === 'undefined') throw new Error('Lecteur PDF indisponible : ouvrez le fichier dans un onglet.');
-      const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await doc.fichier.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
+      const pdf = await lirePdfPieceJointeAssistant(r.tampon);
       if (!actif()) return;
       const total = pdf.numPages;
-      const meta = document.getElementById('pj-apercu-meta');
-      if (meta) meta.textContent = `${legendePieceJointeAssistant('pdf', doc.taille)} · ${total} page${total > 1 ? 's' : ''}`;
+      document.getElementById('pj-apercu-meta').textContent = `${legendePieceJointeAssistant('pdf', r.taille)} · ${total} page${total > 1 ? 's' : ''}`;
       corps.innerHTML = '';
       const largeur = Math.min(1600, Math.round(Math.max(320, corps.clientWidth - 32) * (window.devicePixelRatio || 1)));
       for (let n = 1; n <= Math.min(total, MAX_PAGES_APERCU_PIECE_JOINTE); n++) {

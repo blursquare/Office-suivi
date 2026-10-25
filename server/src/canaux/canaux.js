@@ -3,7 +3,8 @@
 // Canaux de CLAIRE (étude 24/10, 0.328.0) : « un slack » où CLAIRE écrit et où l'étude répond. Un canal par dossier (`d:<id>`), un canal
 // de l'étude (`general`) et des canaux libres (`l:<nom>`). Les messages sont PARTAGÉS (même fil pour tous les collaborateurs), gardés
 // sur le serveur du bureau, une clé `canal:<id>` par canal (300 derniers messages). Le texte d'un message est du texte ; `html` est le
-// rendu d'une réponse de l'agent, nettoyé de nouveau par le poste à l'affichage. Aucun fichier joint n'est gardé : seul son nom l'est.
+// rendu d'une réponse de l'agent, nettoyé de nouveau par le poste à l'affichage. Un fichier joint est gardé à part, sur le serveur, 90 jours
+// (`piecesJointes.js`, étude 25/10) : le message ne porte que son nom, sa sorte et son identifiant.
 // Lus, préférences de notification (tous / mentions / muet), favoris, canaux libres et silences par dossier (« Jamais pour ce dossier »)
 // sont des clés à part. Rien ici n'envoie quoi que ce soit : les notifications Teams sont dans `notifier.js`.
 
@@ -72,7 +73,9 @@ function assainirMessage(m) {
     via: borne(m.via, 80),
     pour: borne(m.pour, 80),
     texte, html, carte,
-    pj: (Array.isArray(m.pj) ? m.pj : []).slice(0, 10).map((p) => ({ nom: borne(p && p.nom, 120), type: borne(p && p.type, 40) })).filter((p) => p.nom),
+    // Une pièce jointe : son nom, sa sorte et, si le fichier est gardé sur le serveur (étude 25/10, 90 jours), son identifiant opaque.
+    pj: (Array.isArray(m.pj) ? m.pj : []).slice(0, 10).map((p) => ({ nom: borne(p && p.nom, 120), type: borne(p && p.type, 40),
+      ...(p && typeof p.fichierId === 'string' && /^[a-f0-9]{32}$/.test(p.fichierId) ? { fichierId: p.fichierId, taille: Math.max(0, Number(p.taille) || 0) } : {}) })).filter((p) => p.nom),
     mentions: (Array.isArray(m.mentions) ? m.mentions : []).slice(0, 10).map((x) => borne(x, 80)).filter(Boolean),
     modifieLe: Number(m.modifieLe) || 0,
     epingle: m.epingle === true
