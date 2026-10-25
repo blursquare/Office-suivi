@@ -115,5 +115,6 @@
   "113-reglages-routines.js",
   "114-canaux.js",
   "115-canaux-actions.js",
-  "116-photos-collaborateurs.js"
+  "116-photos-collaborateurs.js",
+  "117-reactions.js"
 ]

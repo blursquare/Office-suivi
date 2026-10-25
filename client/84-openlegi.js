@@ -114,6 +114,6 @@
       const r = await fetchAvecAuth(`/api/assistant/conversations/recherche?q=${encodeURIComponent(q)}&dossier=${encodeURIComponent(dossier)}`);
       if (!r.ok) return { erreur: `le serveur a répondu ${r.status}` };
       const json = await r.json();
-      return { conversations: json.resultats || [], ...(json.resultats && json.resultats.length ? {} : { aucune: 'aucune conversation passée ne correspond : essaie d’autres mots' }) };
+      return { conversations: json.resultats || [], ...(json.reactions && json.reactions.length ? { reactions: json.reactions } : {}), ...(json.resultats && json.resultats.length ? {} : { aucune: 'aucune conversation passée ne correspond : essaie d’autres mots' }) };
     } catch (err) { return { erreur: 'serveur injoignable' }; }
   }

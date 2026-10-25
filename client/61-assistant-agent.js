@@ -335,8 +335,11 @@
     };
     try {
       const joints = Array.isArray(documents) && documents.length ? { documents } : {};
-      let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints });
-      if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints }); }
+      const reactions = prefixeReactionsAgent();
+      const texteAgent = reactions.texte + texte;
+      let rep = await appelAgentAssistant({ conversation: assistantAgentConversation, texte: texteAgent, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints });
+      if (rep.expiree) { assistantAgentConversation = ''; rep = await appelAgentAssistant({ texte: texteAgent, contexte: contexte(), dossiers: dossiersPourAssistant(dossiers), ...joints }); }
+      if (!rep.repli && !rep.erreur) marquerReactionsLuesAgent(reactions.lues);
       if (rep.repli) { assistantEnCours = false; assistantEtapeAgent = ''; return false; }
       if (rep.repris) poserMessageAssistant('claire', '<p class="asst-note">Je reprends le fil de notre échange.</p>');
       if (rep.joints && rep.joints.coupe) poserMessageAssistant('claire', `<p class="asst-note">Seules les ${rep.joints.pages} premières pages sur ${rep.joints.demandees} ont pu être jointes : le modèle choisi lit moins de texte qu’Opus 5.5. Choisissez Opus 5.5 sous la saisie pour un acte plus long.</p>`);

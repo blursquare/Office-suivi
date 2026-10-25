@@ -14,5 +14,6 @@
   "scans-memoire.js",
   "autorisations-succession.js",
   "attestation-rib.js",
-  "signature-rib.js"
+  "signature-rib.js",
+  "reactions.js"
 ]

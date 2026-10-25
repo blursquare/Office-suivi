@@ -11,6 +11,7 @@ const { CLE_REGLAGES, MOTEURS, REVISION_REGLAGES_ASSISTANT, assainirReglagesAssi
 const { tourAgent, EFFORTS_AGENT } = require('../assistantAgent');
 
 const { lireCarnet } = require('../carnetClaire');
+const { lireReactions, noterReaction, oublierReaction, reactionsPourAgent } = require('../reactionsAgent');
 const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { lireReglagesYousign } = require('./yousign');
@@ -220,8 +221,21 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
   // Mémoire des conversations (étude 18/10) : l'outil chercher_conversations de l'agent, exécuté par le poste ; résultat masqué par le serveur
   // au retour comme tout résultat d'outil.
   routeur.get('/assistant/conversations/recherche', (req, res) => {
-    res.json({ resultats: rechercherConversations(lireConversations(parametresRepo), chaine(req.query.q, 200), chaine(req.query.dossier, 80)) });
+    res.json({ resultats: rechercherConversations(lireConversations(parametresRepo), chaine(req.query.q, 200), chaine(req.query.dossier, 80)),
+      reactions: reactionsPourAgent(lireReactions(parametresRepo), chaine(req.query.dossier, 80)) });
   });
+
+  // Réactions (emojis) posées sur les réponses de CLAIRE dans une conversation personnelle (celles des canaux passent par la route du canal) :
+  // gardées en mémoire, listées dans « Ce que CLAIRE a appris », oubliables.
+  routeur.get('/assistant/reactions', (req, res) => { res.json({ reactions: lireReactions(parametresRepo) }); });
+  routeur.post('/assistant/reactions', (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const r = noterReaction(parametresRepo, { par: chaine(corps.auteur, 40), emoji: chaine(corps.emoji, 16), canal: 'perso', messageId: chaine(corps.messageId, 80),
+      extrait: chaine(corps.extrait, 220), dossierId: chaine(corps.dossierId, 80), pose: corps.pose !== false });
+    if (!r && corps.pose !== false) { res.status(400).json({ erreur: 'Réaction refusée.' }); return; }
+    res.json({ ok: true, reaction: r });
+  });
+  routeur.delete('/assistant/reactions', (req, res) => { res.json({ ok: oublierReaction(parametresRepo, chaine(req.query.id, 240)) }); });
 
   // Recherche web de l'agent : sites autorisés (Réglages › IA et relecture d'actes).
   routeur.get('/assistant/recherche-web', (req, res) => { res.json(lireRechercheWeb(parametresRepo)); });

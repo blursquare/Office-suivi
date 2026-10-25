@@ -6,6 +6,7 @@
 
 const express = require('express');
 const C = require('../canaux/canaux');
+const { noterReaction } = require('../reactionsAgent');
 const { lirePropositions } = require('../routines/propositions');
 const { CATALOGUE } = require('../routines/catalogue');
 const { noterJournalRoutines } = require('../routines/journal');
@@ -80,7 +81,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
       if (p) cartes[m.carte] = carteVisible(p, lecteur);
     }
     const dernier = messages.length ? messages[messages.length - 1] : null;
-    const signature = [messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','),
+    const signature = [messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','), messages.map((m) => (m.reactions || []).map((r) => `${r.emoji}${r.par.join('+')}`).join('')).join(','),
       Object.values(cartes).map((p) => `${p.id}:${p.etat}`).join(',')].join('|');
     if (req.query.signature === signature) { res.json({ inchange: true, signature }); return; }
     res.json({ signature, messages, cartes, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id) });
@@ -118,6 +119,22 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const m = C.changerMessage(parametresRepo, id, req.params.mid, par, action);
     if (!m) { res.status(403).json({ erreur: 'Message introuvable, vide, ou ce n’est pas le vôtre.' }); return; }
     res.json({ ok: true, message: m });
+  });
+
+  // Réaction (emoji) d'un collaborateur sur un message — n'importe quel message, comme dans Slack. Sur un message de CLAIRE, elle est aussi
+  // gardée en mémoire (réactionsAgent) pour que CLAIRE la lise et s'en souvienne.
+  routeur.post('/canaux/:id/messages/:mid/reaction', (req, res) => {
+    const id = canalDe(req);
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const par = collaborateurDe(corps.auteur);
+    if (!id || !par) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
+    const r = C.reagirMessage(parametresRepo, id, req.params.mid, par, String(corps.emoji || ''), corps.actif === undefined ? undefined : corps.actif === true);
+    if (!r) { res.status(400).json({ erreur: 'Message ou réaction inconnus.' }); return; }
+    if (r.message.claire) {
+      noterReaction(parametresRepo, { par, emoji: String(corps.emoji), canal: id, messageId: r.message.id, pose: r.pose,
+        extrait: r.message.texte || String(r.message.html || '').replace(/<[^>]*>/g, ' '), dossierId: id.startsWith('d:') ? id.slice(2) : '' });
+    }
+    res.json({ ok: true, message: r.message, sens: r.sens });
   });
 
   routeur.delete('/canaux/:id/messages/:mid', (req, res) => {

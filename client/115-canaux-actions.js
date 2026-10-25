@@ -47,6 +47,7 @@ function htmlActionsMessageCanal(m, i) {
   const proprio = m.role === 'moi' && !m.carte;
   const bouton = (clic, icon, titre) => `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="${clic}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}">${icone(icon)}</wa-button>`;
   return `<div class="cx-survol" role="toolbar" aria-label="Actions sur le message">
+    ${htmlBoutonsReactionSurvol(m)}
     ${bouton(`copierMessageCanal('${id}')`, 'copier', 'Copier')}
     ${bouton(`rappelMessageCanal('${id}')`, 'clock', 'Me le rappeler demain')}
     ${bouton(`epinglerMessageCanal('${id}')`, 'pin', m.epingle ? 'Désépingler' : 'Épingler au canal')}
@@ -69,7 +70,7 @@ function htmlMessageCanal(m, i, r, repere) {
   const corps = canaux.edition === m.id ? edition : htmlCorpsMessageCanal(m);
   return `${jour}${nouveau}<div class="cx-m cx-${escapeAttr(m.role)}${r.debutGroupe ? '' : ' cx-suite'}${m.epingle ? ' cx-epingle-m' : ''}" data-index="${i}" data-mid="${escapeAttr(m.id || '')}">
       ${r.debutGroupe ? avatarCanal(m) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
-      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
+      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
 }
 
 function vueATraiter() {

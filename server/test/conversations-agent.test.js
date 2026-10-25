@@ -122,6 +122,22 @@ test('relecture 0.285.0 : chercher_conversations masque les noms des conversatio
   assert.equal(r.reponse, 'Oui.');
 });
 
+test('réactions (25/10) : un nom au début de l’extrait d’une réponse réagie ne part pas chez l’IA', async () => {
+  const R = require('../src/reactionsAgent');
+  const repo = fauxRepo();
+  R.noterReaction(repo, { par: 'Julie VASSELIN', emoji: '👎', canal: 'perso', messageId: 'r1', extrait: 'Zorglub-Martin a signé le 3 octobre, la vente est faite.' });
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [{ type: 'tool_use', id: 't1', name: 'chercher_conversations', input: { recherche: 'signé', dossier_id: '' } }] },
+    { stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Noté.' }] }
+  ]);
+  const o = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'On avait parlé d’une signature ?', contexte: {} }, o);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { reactions: R.reactionsPourAgent(R.lireReactions(repo)) } }] }, o);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, /Zorglub|zorglub/, 'rien de nominatif ne part : ' + envoye.slice(-400));
+  assert.match(envoye, /refus/);
+});
+
 test('relecture 0.285.0 : recherche web refusée → second essai sans elle ; encore en pause après 4 appels → « coupée » ; sources citées', async () => {
   const refus = Object.assign(new Error('400'), { status: 400 });
   let n = 0;

@@ -8,6 +8,8 @@
 // Lus, préférences de notification (tous / mentions / muet), favoris, canaux libres et silences par dossier (« Jamais pour ce dossier »)
 // sont des clés à part. Rien ici n'envoie quoi que ce soit : les notifications Teams sont dans `notifier.js`.
 
+const { basculerReaction, emojiValide, sensReaction } = /** @type {any} */ (require('../../../commun/reactions'));
+
 const CLE_INDEX = 'canaux-index';
 const CLE_LIBRES = 'canaux-libres';
 const CLE_LUS = 'canaux-lus';
@@ -78,7 +80,9 @@ function assainirMessage(m) {
       ...(p && typeof p.fichierId === 'string' && /^[a-f0-9]{32}$/.test(p.fichierId) ? { fichierId: p.fichierId, taille: Math.max(0, Number(p.taille) || 0) } : {}) })).filter((p) => p.nom),
     mentions: (Array.isArray(m.mentions) ? m.mentions : []).slice(0, 10).map((x) => borne(x, 80)).filter(Boolean),
     modifieLe: Number(m.modifieLe) || 0,
-    epingle: m.epingle === true
+    epingle: m.epingle === true,
+    // Réactions (étude 25/10) : un emoji et les prénoms de ceux qui l'ont posé.
+    reactions: basculerReaction(m.reactions, '', '')
   };
 }
 
@@ -146,6 +150,23 @@ function changerMessage(repo, canal, id, par, action, maintenant) {
   }
   repo.ecrireJsonBrut(cleMessages(canal), messages);
   return action.supprimer ? m : messages[i];
+}
+
+/**
+ * Pose ou retire la réaction d'une personne sur un message (n'importe qui peut réagir à n'importe quel message). Rend le message et le sens
+ * de l'emoji, ou null si le canal, le message ou l'emoji est inconnu.
+ * @param {any} repo @param {string} canal @param {string} id @param {string} par @param {string} emoji @param {boolean} [actif]
+ */
+function reagirMessage(repo, canal, id, par, emoji, actif) {
+  if (!canalValide(canal) || !emojiValide(emoji) || !par) return null;
+  const messages = lireMessages(repo, canal);
+  const i = messages.findIndex((x) => x.id === id);
+  if (i < 0) return null;
+  const reactions = basculerReaction(messages[i].reactions, emoji, par, actif);
+  messages[i] = Object.assign({}, messages[i], { reactions });
+  repo.ecrireJsonBrut(cleMessages(canal), messages);
+  const pose = reactions.some((r) => r.emoji === emojiValide(emoji) && r.par.includes(par));
+  return { message: messages[i], pose, sens: sensReaction(emoji) };
 }
 
 // ---- Lus, préférences, favoris ----
@@ -336,7 +357,7 @@ function purgerMessagesAnciens(repo, maintenant) {
 
 module.exports = {
   JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
-  CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, lireMessages, lireIndex,
+  CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
   lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
 };

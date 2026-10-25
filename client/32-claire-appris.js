@@ -39,7 +39,7 @@
   }
 
   async function ouvrirPageApprentissage() {
-    await Promise.all([chargerJournalCorrections(), chargerApprentissageServeur(), chargerRetoursAudit()].map(p => Promise.resolve(p).catch(() => null)));
+    await Promise.all([chargerJournalCorrections(), chargerApprentissageServeur(), chargerRetoursAudit(), chargerReactionsApprises()].map(p => Promise.resolve(p).catch(() => null)));
     renderPageApprentissage();
   }
 
@@ -84,6 +84,19 @@
 
     renderExclusionsReglages();
 
+    const reactions = document.getElementById('apprentissage-reactions');
+    if (reactions) {
+      reactions.innerHTML = reactionsApprises.length ? `<ul class="appris-liste">${reactionsApprises.slice(0, 40).map(r => `
+        <li class="appris-ligne appris-avec-geste">
+          <div class="appris-corps">
+            <span class="appris-titre">${escapeHtml(r.emoji)} ${escapeHtml(phraseSensReaction(r.sens))}${r.sens === 'refus' || r.sens === 'pas-clair' ? ' <span class="dot-label dl-pret"><span class="dot"></span>À vérifier</span>' : ''}</span>
+            <span class="appris-extrait">« ${escapeHtml(r.extrait || '')} »</span>
+            <span class="appris-meta">${escapeHtml(prenomCollaborateur(r.par) || r.par)}${r.le ? ' · le ' + escapeHtml(formatDateFr(new Date(r.le).toISOString().slice(0, 10))) : ''}</span>
+          </div>
+          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn appris-oublier" title="Oublier cette réaction" aria-label="Oublier cette réaction" onclick="oublierReactionApprise('${escapeOnclickArg(r.id)}')">${icone('x')}</wa-button>
+        </li>`).join('')}</ul>` : '<p class="hint">Aucune réaction sur une réponse de CLAIRE pour l’instant.</p>';
+    }
+
     const relecture = document.getElementById('apprentissage-relecture');
     if (relecture) {
       const liste = (retoursAudit || []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
@@ -118,6 +131,22 @@
   }
 
   // Un commentaire de relecture retiré (Réglages › Ce que CLAIRE a appris) : il ne sera plus une consigne de l'agent (client/50-relecture-agent.js).
+  var reactionsApprises = [];
+  async function chargerReactionsApprises() {
+    try {
+      const r = await fetchAvecAuth('/api/assistant/reactions');
+      if (r.ok) reactionsApprises = (await r.json()).reactions || [];
+    } catch (e) { console.warn('Réactions indisponibles', e); }
+  }
+  async function oublierReactionApprise(id) {
+    try {
+      const r = await fetchAvecAuth('/api/assistant/reactions?id=' + encodeURIComponent(id), { method: 'DELETE' });
+      if (!r.ok) throw new Error('statut ' + r.status);
+      reactionsApprises = reactionsApprises.filter(x => x.id !== id);
+      renderPageApprentissage();
+    } catch (e) { afficherToast('Impossible d’oublier cette réaction : ' + e.message, 'OK', null); }
+  }
+
   function oublierRetourAudit(id) {
     demanderConfirmation('Retirer ce commentaire de relecture ? Le point concerné ressortira normalement aux prochaines relectures.', async () => {
       try {
