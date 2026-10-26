@@ -59,3 +59,27 @@ test('requête refusée au premier tour avec le BOFiP : OpenLegi retiré d’abo
   assert.equal(requetes[1].tools.some((t) => t.name === 'bofip__rechercher_doctrine'), false);
   assert.equal(requetes[1].tools.some((t) => t.name === 'web_search'), true);
 });
+
+test('web refusé, OpenLegi innocent : OpenLegi rendu et jamais suspendu ; le web n’est plus redonné dans la conversation', async () => {
+  const { tourAgent, viderConversationsAgent } = require('../src/assistantAgent');
+  viderConversationsAgent();
+  const requetes = [];
+  // L'API refuse toute requête qui porte la recherche web.
+  const client = { beta: { messages: { create: async (req) => {
+    requetes.push(JSON.parse(JSON.stringify(req)));
+    if (req.tools.some((t) => t.name === 'web_search')) throw Object.assign(new Error('web refusé'), { status: 400 });
+    return { content: [{ type: 'text', text: 'Réponse.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } };
+  } } } };
+  let suspendu = 0;
+  const parametresRepo = { lireJsonBrut: (c, d) => d, ecrireJsonBrut: (c, v) => v };
+  const o = { cle: 'k', client, outilsExternes: [BOFIP], rechercheWeb: DOMAINES, parametresRepo, surRefusOutilsExternes: () => { suspendu++; } };
+  const r1 = await tourAgent({ texte: 'Mairie de Chaumont ?', dossiers: [], contexte: {} }, o);
+  assert.equal(r1.erreur, undefined);
+  assert.equal(suspendu, 0, 'OpenLegi n’est pas mis en cause');
+  const derniere = requetes[requetes.length - 1];
+  assert.equal(derniere.tools.some((t) => t.name === 'bofip__rechercher_doctrine'), true);
+  assert.equal(derniere.tools.some((t) => t.name === 'web_search'), false);
+  const avant = requetes.length;
+  await tourAgent({ conversation: r1.conversation, texte: 'Et son email ?', dossiers: [], contexte: {} }, o);
+  assert.equal(requetes.length, avant + 1, 'un seul essai au message suivant : le web n’est pas redonné');
+});

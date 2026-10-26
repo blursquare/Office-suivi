@@ -763,7 +763,7 @@ async function tourAgent(entree, o) {
   conv.maj = maintenant;
   // Sites ajoutés dans les Réglages pendant une conversation : pris dès le message suivant (étude 26/10). Une liste vidée ne retire pas
   // l'outil d'une conversation qui s'en est déjà servi (son historique le contient) ; une conversation passée en clair n'en reçoit jamais.
-  if (conv.fournisseur === 'claude' && !conv.aEteEnClair && Array.isArray(o.rechercheWeb)) {
+  if (conv.fournisseur === 'claude' && !conv.aEteEnClair && !conv.webRefuse && Array.isArray(o.rechercheWeb)) {
     const nouveaux = o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40);
     if (nouveaux.length || !rechercheWebUtilisee(conv.messages)) conv.rechercheWeb = nouveaux;
   }
@@ -904,23 +904,28 @@ async function tourAgent(entree, o) {
       const deuxFamilles = externesRetirables && externes.some(estYousign) && externes.some((t) => !estYousign(t));
       const essayer = () => (conv.fournisseur === 'mistral' ? tourMistral(conv, o) : tourClaude(conv, o));
       const refusDe = (/** @type {any} */ e2) => (e2 && e2.status === 400) || /refusée par Mistral/.test(String(e2 && e2.messageAgent || ''));
-      // Étapes de retrait, une à la fois, jusqu'à une requête acceptée (étude 26/10 : la recherche web est donnée dès le premier tour —
-      // un schéma refusé d'OpenLegi ne doit pas la couper à tort) : Yousign (s'il y a deux familles), puis OpenLegi, puis le web.
-      /** @type {{ nom: string, faire: () => void }[]} */
+      // Étapes de retrait, une à la fois, jusqu'à une requête acceptée (étude 26/10 : la recherche web est donnée dès le premier tour) :
+      // Yousign (s'il y a deux familles), OpenLegi, puis le web SEUL (OpenLegi rendu — relecture 0.354.4 : un web refusé ne doit pas
+      // suspendre OpenLegi), enfin les deux. Chaque étape pose l'état complet ; seule celle qui réussit désigne le fautif.
+      /** @type {{ nom: string, externes: any[], web: string[] }[]} */
       const etapes = [];
-      if (deuxFamilles) etapes.push({ nom: 'yousign', faire: () => { conv.outilsExternes = externes.filter((t) => !estYousign(t)); } });
-      if (externesRetirables) etapes.push({ nom: 'tous', faire: () => { conv.outilsExternes = []; } });
-      if (webRetirable) etapes.push({ nom: 'web', faire: () => { conv.rechercheWeb = []; } });
-      let famille = '';
-      let webRetire = false;
+      if (deuxFamilles) etapes.push({ nom: 'yousign', externes: externes.filter((t) => !estYousign(t)), web: gardes.web });
+      if (externesRetirables) etapes.push({ nom: 'tous', externes: [], web: gardes.web });
+      if (webRetirable) etapes.push({ nom: 'web', externes: gardes.externes, web: [] });
+      if (webRetirable && externesRetirables) etapes.push({ nom: 'deux', externes: [], web: [] });
+      let reussie = etapes[0];
       for (let i = 0; ; i++) {
-        const etape = etapes[i];
-        etape.faire();
-        if (etape.nom === 'web') webRetire = true; else famille = etape.nom;
+        reussie = etapes[i];
+        conv.outilsExternes = reussie.externes;
+        conv.rechercheWeb = reussie.web;
         try { tour = await essayer(); break; } catch (e2) {
           if (!refusDe(e2) || i === etapes.length - 1) { conv.outilsExternes = gardes.externes; conv.rechercheWeb = gardes.web; throw e2; }
         }
       }
+      const famille = reussie.nom === 'yousign' ? 'yousign' : reussie.nom === 'tous' || reussie.nom === 'deux' ? 'tous' : '';
+      const webRetire = reussie.nom === 'web' || reussie.nom === 'deux';
+      // Web refusé : plus redonné dans CETTE conversation (relecture 0.354.4 : la relecture des Réglages le remettait à chaque message).
+      if (webRetire) conv.webRefuse = true;
       // Le refus venait bien de là : la famille fautive mise de côté pour les conversations suivantes, la recherche web dite en échec.
       if (famille) {
         if (famille === 'yousign' && typeof o.surRefusYousign === 'function') o.surRefusYousign();

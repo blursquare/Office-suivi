@@ -22120,3 +22120,4 @@ dit à part ; `VERSION_RELAIS` 2.1 rendu par `/etat` (`versionRelais`) — un re
 était figé à la naissance de la conversation. Désormais : outil donné dès le premier tour (sauf conversation en clair ou anonymisation coupée),
 priorité à OpenLegi gardée comme consigne du prompt pour les questions de DROIT ; sites relus à chaque message (`tourAgent`, une liste vidée
 ne retire pas un outil déjà servi) ; refus de l'API : retrait un à un (Yousign, OpenLegi, web) pour qu'un schéma d'OpenLegi ne coupe pas le web.
+Relecture 0.354.4 : étapes de retrait à état complet (Yousign, OpenLegi, le web SEUL avec OpenLegi rendu, puis les deux) — un web refusé ne suspend plus OpenLegi ; `conv.webRefuse` : un web refusé n'est plus redonné par la relecture des Réglages dans la même conversation.
