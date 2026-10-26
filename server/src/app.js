@@ -27,6 +27,7 @@ const { creerRouteurPlanAerien } = require('./routes/planAerien');
 const { creerRouteurDepotDia } = require('./routes/depotDia');
 const { creerRouteurGnau } = require('./routes/gnau');
 const { creerRouteurClientsBiens } = require('./routes/clientsBiens');
+const { creerFichierClientsBiens } = require('./fichierClientsBiens');
 const { creerRouteurMemoire } = require('./routes/memoire');
 const { creerRouteurConstitution } = require('./routes/constitution');
 const { creerRouteurNotifications } = require('./routes/notifications');
@@ -172,6 +173,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   });
   const depot = creerDepot(db);
   const parametresRepo = creerRepoParametres(db);
+  const fichierClientsBiens = creerFichierClientsBiens(parametresRepo);
+  // Au démarrage : tout ce que les dossiers contiennent entre dans le fichier global des clients et des biens (rien n'en sort jamais).
+  setImmediate(() => { try { fichierClientsBiens.capturer(depot.tousActifs()); } catch (e) { /* base déjà fermée (tests) : sans importance */ } });
   // Journal technique (erreurs, événements des postes) : alimente le rapport technique GitHub.
   const journalTechnique = creerJournalTechnique(db);
   // authActive === false : accès sans mot de passe (défaut en production, voir config.js). Absent
@@ -259,7 +263,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   let pagesAuthentic = null;
   try { pagesAuthentic = creerPagesAuthentic(db); } catch (e) { console.error('[authentic] pages gardées indisponibles :', e && e.message ? e.message : e); }
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic({ pages: pagesAuthentic }));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot, fichierClientsBiens));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
   // OpenLegi (étude 18/10) : un seul client MCP, partagé par l'agent et les Réglages.
@@ -311,7 +315,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
   // CU et DIA sur les guichets uniques : fiche d'un dossier lue par l'extension Chrome (extension-chrome/, voir gnau.js).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurGnau(depot, parametresRepo, config));
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurClientsBiens(depot, parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurClientsBiens(depot, parametresRepo, fichierClientsBiens));
   // Constitution de dossier : adresses de destinataires saisies par l'étude, retenues pour la fois suivante (voir routes/constitution.js).
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConstitution(parametresRepo, urbanisme || {}));
   // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.

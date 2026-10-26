@@ -332,3 +332,37 @@ test('import : jamais le lien entre deux homonymes des dossiers, identifiant sta
   assert.equal(jean.every(p => !p.occurrences[0].startsWith('import:') || p.occurrences.length === 1), true);
   assert.equal(base.biens.filter(b => b.parcelles.some(p => p.section === 'AB')).length, 2, 'deux lignes sur la même parcelle restent deux biens');
 });
+
+test('fichier global : une personne et un bien retirés d’un dossier restent dans la base', () => {
+  const { lignesFichierDepuisDossier, fusionnerFichier, lignesFichierRetirees } = require('../src/clientsBiens');
+  const dossier = () => ({ id: 'v1', nom: 'EXEMPLE - ESSAI', typeAffaire: 'vente', adresseBien: 'BLOIS (41000), 3 rue Fictive',
+    parties: [{ nom: 'Paul EXEMPLE', role: 'VENDEUR' }, { nom: 'Anne ESSAI', role: 'VENDEUR' }, { nom: 'Paul EXEMPLE', role: 'ACQUEREUR' }],
+    bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS' }] } } });
+  const avant = dossier();
+  // Capturé avant le retrait.
+  const f = fusionnerFichier({}, lignesFichierDepuisDossier(avant)).fichier;
+  assert.equal(f.personnes.length, 2, 'Paul EXEMPLE (une personne par dossier, même s’il est des deux côtés) et Anne ESSAI');
+  assert.ok(f.biens.length >= 1);
+  // Anne est retirée du dossier ; le bien aussi.
+  const apres = dossier();
+  apres.parties = apres.parties.filter((p) => p.nom !== 'Anne ESSAI');
+  apres.bien = {}; apres.adresseBien = '';
+  const base = construireBase([apres], {}, undefined, f);
+  assert.ok(base.personnes.some((p) => p.nomComplet === 'Anne ESSAI'), 'Anne reste dans la base globale');
+  assert.equal(base.personnes.filter((p) => p.nomComplet === 'Paul EXEMPLE').length, 1, 'Paul est toujours dans le dossier : sa ligne du fichier n’ajoute pas de doublon');
+  assert.ok(base.biens.some((b) => /Fictive/.test(b.adresse)), 'le bien retiré reste dans la base globale');
+  assert.equal(lignesFichierRetirees(f, [dossier()]).fichierPersonnes.length, 0, 'tout est encore dans le dossier : rien en plus');
+  // Un second passage identique ne change rien ; jamais de retrait.
+  assert.equal(fusionnerFichier(f, lignesFichierDepuisDossier(avant)).change, false);
+  assert.equal(fusionnerFichier(f, lignesFichierDepuisDossier(apres)).fichier.personnes.length, 2, 'le fichier ne perd rien');
+});
+
+test('fichier global : deux homonymes de dossiers différents, l’un retiré, restent deux fiches sans date de naissance', () => {
+  const { lignesFichierDepuisDossier, fusionnerFichier } = require('../src/clientsBiens');
+  const a = { id: 'v1', nom: 'A - B', typeAffaire: 'vente', parties: [{ nom: 'Paul EXEMPLE', role: 'VENDEUR' }] };
+  const b = { id: 'v2', nom: 'C - D', typeAffaire: 'vente', parties: [{ nom: 'Paul EXEMPLE', role: 'VENDEUR' }] };
+  const f = fusionnerFichier(fusionnerFichier({}, lignesFichierDepuisDossier(a)).fichier, lignesFichierDepuisDossier(b)).fichier;
+  const aRetire = Object.assign({}, a, { parties: [] });
+  const base = construireBase([aRetire, b], {}, undefined, f);
+  assert.equal(base.personnes.filter((p) => p.nomComplet === 'Paul EXEMPLE').length, 2, 'le Paul retiré du dossier A ne fond pas avec celui du dossier B');
+});

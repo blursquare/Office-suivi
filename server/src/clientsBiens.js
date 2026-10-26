@@ -179,6 +179,20 @@ function occurrencesPersonnes(dossiers, imp) {
       situation: texte(p.situation) || texte(p.conjoint) ? { situation: texte(p.situation), conjoint: texte(p.conjoint), regime: '', date: '' } : null,
       deces: p.deces && typeof p.deces === 'object' ? { date: texte(p.deces.date), lieu: texte(p.deces.lieu) } : null });
   }
+  // Fichier global (étude 26/10) : les personnes qui ont figuré dans un dossier et n'y sont plus — retirées par CLAIRE, ou dossier supprimé.
+  // Même traitement prudent que le fichier importé (source « Import ») : jamais proposées « peut-être », jointes seulement sur la date de
+  // naissance ou la décision de l'étude — deux homonymes restent deux fiches.
+  for (const p of (imp && Array.isArray(imp.fichierPersonnes) ? imp.fichierPersonnes : [])) {
+    const nomFamille = texte(p.nom);
+    if (!norm(nomFamille) || !texte(p.id)) continue;
+    const prenom = texte(p.prenom);
+    occ.push({ id: `fichier:${texte(p.id)}`, dossier: null, fichier: true, dossierRetire: texte(p.dossierLibelle), cle: norm(nomFamille) + '|' + norm(prenom), source: 'Import', vuLe: texte(p.vuLe), role: texte(p.role) || 'PARTIE',
+      champs: { civilite: texte(p.civilite), nomFamille: nomFamille.toUpperCase(), prenom, nomUsage: texte(p.nomUsage).toUpperCase(), dateNaissance: texte(p.dateNaissance).slice(0, 10),
+        lieuNaissance: texte(p.lieuNaissance), nationalite: texte(p.nationalite), profession: texte(p.profession), domicile: texte(p.domicile),
+        emails: (p.emails || []).map(texte).filter(Boolean), telephones: (p.telephones || []).map(texte).filter(Boolean) },
+      situation: texte(p.situation) || texte(p.conjoint) ? { situation: texte(p.situation), conjoint: texte(p.conjoint), regime: texte(p.regime), date: '' } : null,
+      deces: p.deces && typeof p.deces === 'object' && (texte(p.deces.date) || texte(p.deces.lieu)) ? { date: texte(p.deces.date), lieu: texte(p.deces.lieu) } : null });
+  }
   return occ;
 }
 
@@ -270,7 +284,7 @@ function construirePersonnes(dossiers, reglages, imp) {
         if (dec === 'distinct') continue;
         const dI = i.champs.dateNaissance; const dO = o.champs.dateNaissance;
         if (dI && dO && dI !== dO) continue;
-        if (dec === 'meme' || (dI && dI === dO) || (importees.length === 1 && uneFiche)) unir(i.id, o.id);
+        if (dec === 'meme' || (dI && dI === dO) || (importees.length === 1 && uneFiche && !i.fichier)) unir(i.id, o.id);
       }
     }
   }
@@ -327,6 +341,8 @@ function construirePersonnes(dossiers, reglages, imp) {
       id, champs, authentic, aRevoir, situation: sit, deces, complement, autresPrenoms: autres.autresPrenoms, paysNaissance: autres.paysNaissance, source: tries[0].source,
       nomComplet: [champs.prenom, champs.nomFamille].filter(Boolean).join(' '),
       dossiers: dossiersLies.filter((x) => (vus.has(x.id + x.role) ? false : (vus.add(x.id + x.role), true))),
+      // Dossiers d'où elle a été retirée (fichier global) : elle reste dans la base, sans lien avec eux.
+      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].slice(0, 12),
       occurrences: liste.map((o) => o.id), conjoint: null, peutEtre: []
     });
     liste.forEach((o) => ficheDeOcc.set(o.id, id));
@@ -389,6 +405,15 @@ function occurrencesBiens(dossiers, imp) {
     const parcelles = (b.parcelles || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
     if (!parcelles.length && !adr.voie && !adr.lieuDit && !texte(b.adresse)) return;
     occ.push({ id: `import:b${i}`, dossier: null, importe: true, adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles, lots: [], type: texte(b.type), description: '', details: [] });
+  });
+  // Fichier global (étude 26/10) : les biens qui ont figuré dans un dossier et n'y sont plus.
+  (imp && Array.isArray(imp.fichierBiens) ? imp.fichierBiens : []).forEach((/** @type {any} */ b) => {
+    if (!texte(b.id)) return;
+    const adr = adresseDecomposee(texte(b.adresse), { codePostal: b.codePostal, commune: b.commune });
+    const parcelles = (b.parcelles || []).map((/** @type {any} */ p) => parcelleNette(p, adr.commune)).filter(Boolean);
+    if (!parcelles.length && !adr.voie && !adr.lieuDit && !texte(b.adresse)) return;
+    occ.push({ id: `fichier:${texte(b.id)}`, dossier: null, importe: true, fichier: true, dossierRetire: texte(b.dossierLibelle), adresse: texte(b.adresse), commune: adr.commune, codePostal: adr.codePostal, parcelles,
+      lots: Array.isArray(b.lots) ? b.lots : [], type: texte(b.type), description: texte(b.description), details: Array.isArray(b.details) ? b.details : [] });
   });
   for (const d of dossiers || []) {
     if (!d || d.deleted || !d.id) continue;
@@ -476,6 +501,7 @@ function construireBiens(dossiers, imp) {
       lots: liste.flatMap((o) => o.lots || []).filter((/** @type {any} */ l, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((x) => texte(x && (x.numero || x.lot)) === texte(l && (l.numero || l.lot))) === i).slice(0, 40),
       dossiers: liste.filter((o) => o.dossier).map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),
+      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].slice(0, 12),
       occurrences: liste.map((o) => o.id)
     });
   }
@@ -542,9 +568,75 @@ function fichesDuDossier(base, dossierId) {
   };
 }
 
-/** Pure : la base entière. @param {any[]} dossiers @param {any} [reglages] @param {any} [imp] fichier importé */
-function construireBase(dossiers, reglages, imp) {
-  return { personnes: construirePersonnes(dossiers, reglages, imp), biens: construireBiens(dossiers, imp) };
+/**
+ * Pure : les lignes du fichier global d'UN dossier — chaque personne et chaque bien tels que les dossiers les montrent, avec l'identifiant de leur
+ * occurrence (stable : dossier + nom + prénom) et le dossier d'où ils viennent. @param {any} d @param {string} [maintenant]
+ */
+function lignesFichierDepuisDossier(d, maintenant) {
+  if (!d || d.deleted || !d.id) return { personnes: [], biens: [] };
+  const vuLe = maintenant || new Date().toISOString();
+  const dossierLibelle = libelleDossier(d);
+  const personnes = occurrencesPersonnes([d]).map((o) => ({
+    id: o.id, dossierId: d.id, dossierLibelle, role: o.role, vuLe,
+    nom: o.champs.nomFamille, prenom: o.champs.prenom, civilite: o.champs.civilite, nomUsage: o.champs.nomUsage, dateNaissance: o.champs.dateNaissance,
+    lieuNaissance: o.champs.lieuNaissance, nationalite: o.champs.nationalite, profession: o.champs.profession, domicile: o.champs.domicile,
+    emails: o.champs.emails.slice(0, 6), telephones: o.champs.telephones.slice(0, 6),
+    situation: o.situation ? o.situation.situation : '', conjoint: o.situation ? o.situation.conjoint : '', regime: o.situation ? o.situation.regime : '',
+    deces: o.deces || null
+  }));
+  const biens = occurrencesBiens([d]).map((o) => ({
+    id: o.id, dossierId: d.id, dossierLibelle, vuLe, adresse: o.adresse, codePostal: o.codePostal, commune: o.commune, type: o.type, description: o.description,
+    parcelles: o.parcelles.slice(0, 300).map((/** @type {any} */ p) => ({ prefixe: p.prefixe, section: p.section, numero: p.numero, commune: p.commune, nature: p.nature, lieuDit: p.lieuDit, zone: p.zone, spf: p.spf,
+      surface: typeof p.surface === 'number' ? `${Math.floor(p.surface / 10000)} ha ${Math.floor((p.surface % 10000) / 100)} a ${p.surface % 100} ca` : '' })),
+    lots: (Array.isArray(o.lots) ? o.lots : []).slice(0, 40), details: (Array.isArray(o.details) ? o.details : []).slice(0, 30)
+  }));
+  return { personnes, biens };
+}
+
+const MAX_FICHIER = 20000;
+
+/**
+ * Pure : le fichier global fondu avec de nouvelles lignes — une ligne par identifiant, la plus récente remplace l'ancienne ; JAMAIS de retrait
+ * (retirer une personne ou un bien d'un dossier ne les enlève pas du fichier). Rend { fichier, change }.
+ * @param {any} fichier @param {{ personnes: any[], biens: any[] }} lignes
+ */
+function fusionnerFichier(fichier, lignes) {
+  const f = fichier && typeof fichier === 'object' ? fichier : {};
+  let change = false;
+  /** @param {any[]} avant @param {any[]} nouvelles */
+  const fondre = (avant, nouvelles) => {
+    const liste = Array.isArray(avant) ? avant.slice() : [];
+    const index = new Map(liste.map((x, i) => [x && x.id, i]));
+    for (const n of nouvelles || []) {
+      if (!n || !texte(n.id)) continue;
+      const i = index.get(n.id);
+      if (i === undefined) { if (liste.length >= MAX_FICHIER) continue; index.set(n.id, liste.length); liste.push(n); change = true; continue; }
+      const sansDate = (/** @type {any} */ x) => JSON.stringify(Object.assign({}, x, { vuLe: '' }));
+      if (sansDate(liste[i]) !== sansDate(n)) { liste[i] = n; change = true; }
+    }
+    return liste;
+  };
+  const personnes = fondre(f.personnes, lignes.personnes);
+  const biens = fondre(f.biens, lignes.biens);
+  return { fichier: { personnes, biens }, change };
+}
+
+/** Pure : les lignes du fichier global qui ne sont plus dans AUCUN dossier — celles que la base montre en plus des dossiers.
+ * @param {any} fichier @param {any[]} dossiers */
+function lignesFichierRetirees(fichier, dossiers) {
+  const f = fichier && typeof fichier === 'object' ? fichier : {};
+  const idsP = new Set(occurrencesPersonnes(dossiers).map((o) => o.id));
+  const idsB = new Set(occurrencesBiens(dossiers).map((o) => o.id));
+  return {
+    fichierPersonnes: (Array.isArray(f.personnes) ? f.personnes : []).filter((r) => r && !idsP.has(r.id)),
+    fichierBiens: (Array.isArray(f.biens) ? f.biens : []).filter((r) => r && !idsB.has(r.id))
+  };
+}
+
+/** Pure : la base entière. @param {any[]} dossiers @param {any} [reglages] @param {any} [imp] fichier importé @param {any} [fichier] fichier global */
+function construireBase(dossiers, reglages, imp, fichier) {
+  const etendu = fichier ? Object.assign({}, imp || {}, lignesFichierRetirees(fichier, dossiers)) : imp;
+  return { personnes: construirePersonnes(dossiers, reglages, etendu), biens: construireBiens(dossiers, etendu) };
 }
 
 /** Pure : les réglages gardés, assainis (liaisons et corrections seulement, bornés). @param {any} brut */
@@ -610,5 +702,5 @@ function pairesEntreFiches(personnes, occA, occB) {
   return r;
 }
 
-module.exports = { pairesEntreFiches, reattacherReglages, CHAMPS_PERSONNE, decouperNom, occurrencesPersonnes, construirePersonnes, construireBiens, construireBase, chercherClientsBiens, fichesDuDossier,
+module.exports = { lignesFichierDepuisDossier, fusionnerFichier, lignesFichierRetirees, pairesEntreFiches, reattacherReglages, CHAMPS_PERSONNE, decouperNom, occurrencesPersonnes, construirePersonnes, construireBiens, construireBase, chercherClientsBiens, fichesDuDossier,
   resumePersonne, resumeBien, assainirReglagesClientsBiens, valeurCorrection };

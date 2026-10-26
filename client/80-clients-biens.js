@@ -241,8 +241,9 @@
     if (ov) ov.style.display = 'none';
   }
 
-  function renderDossiersLiesCb(dossiersLies) {
-    return `<div class="cb-dossiers">${(dossiersLies || []).map(x => `<button type="button" class="cb-dossier" onclick="ouvrirDossierDepuisFicheCb('${escapeOnclickArg(x.id)}')">
+  function renderDossiersLiesCb(dossiersLies, anciens) {
+    const retires = (anciens || []).length ? `<p class="hint cb-anciens">Retiré${anciens.length > 1 ? 'e' : ''} du dossier ${anciens.map(escapeHtml).join(', ')} : gardé${anciens.length > 1 ? 'e' : ''} dans le fichier des clients et des biens.</p>` : '';
+    return `${retires}<div class="cb-dossiers">${(dossiersLies || []).map(x => `<button type="button" class="cb-dossier" onclick="ouvrirDossierDepuisFicheCb('${escapeOnclickArg(x.id)}')">
       <span>${escapeHtml(x.libelle)}</span>${x.roleLibelle ? `<span class="hint">${escapeHtml(x.roleLibelle)}</span>` : ''}${x.archive ? '<span class="hint">archivé</span>' : ''}</button>`).join('')}</div>`;
   }
 
@@ -293,7 +294,7 @@
           ${f.description ? `<dt>Désignation</dt><dd>${escapeHtml(f.description)}</dd>` : ''}
         </dl>
         ${(f.details || []).length ? `<h3 class="cb-sous-titre">Dans Authentic</h3><dl class="cb-champs">${f.details.map(x => `<dt>${escapeHtml(x.libelle)}</dt><dd>${escapeHtml(x.valeur)}</dd>`).join('')}</dl>` : ''}
-        <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers)}`;
+        <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}`;
       return;
     }
     const c = f.champs || {};
@@ -326,7 +327,7 @@
       ${revoir}${homonymes}
       <dl class="cb-champs">${['nomUsage', 'dateNaissance', 'lieuNaissance', 'nationalite', 'profession', 'domicile', 'emails', 'telephones'].map(ligneChamp).join('')}${situation}${regime}${deces}</dl>
       ${renderComplementFicheCb(f)}
-      <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers)}`;
+      <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}`;
     if (cbEdition) { const s = document.getElementById('cb-champ-saisie'); if (s) s.focus(); }
   }
 

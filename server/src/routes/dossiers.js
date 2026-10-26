@@ -17,7 +17,9 @@ function dossierValide(d) {
 // le serveur a redémarré (mise à jour automatique) et vérifie si sa page est encore la bonne version.
 const DEMARRAGE_SERVEUR = Date.now();
 
-function creerRouteurDossiers(depot) {
+function creerRouteurDossiers(depot, fichier) {
+  // Fichier global des clients et des biens : ce qu'un dossier contenait AVANT un changement est gardé (retirer ne supprime jamais du fichier).
+  const garder = (/** @type {any} */ d) => { if (fichier && d) fichier.capturer([d]); };
   const routeur = express.Router();
 
   // GET /api/dossiers?since=<ms> — tout si `since` absent/0 (premier chargement), sinon
@@ -45,6 +47,7 @@ function creerRouteurDossiers(depot) {
       return;
     }
     const updatedAt = depot.creer(d);
+    garder(d);
     res.status(201).json({ ...d, updatedAt });
   });
 
@@ -56,16 +59,19 @@ function creerRouteurDossiers(depot) {
     }
     // `X-Claire-Base` : updatedAt du dossier tel que le poste l'a vu en dernier (audit 04/10). Le serveur fusionne
     // alors ce PUT avec ce qui a changé depuis plutôt que de l'écraser (voir dossiersRepo.remplacerDepuisBase).
+    garder(depot.trouverParId(req.params.id));
     const r = depot.remplacerDepuisBase(req.params.id, d, req.get('x-claire-base'));
     if (r === null) {
       res.status(404).json({ erreur: 'Dossier introuvable (ou déjà supprimé).' });
       return;
     }
+    garder(r.dossier);
     if (r.baseInconnue) console.warn('[dossiers] PUT sans version de base connue : copie du poste appliquée telle quelle.');
     res.json({ ...r.dossier, updatedAt: r.updatedAt, fusionne: r.fusionne });
   });
 
   routeur.delete('/dossiers/:id', (req, res) => {
+    garder(depot.trouverParId(req.params.id));
     if (!depot.supprimer(req.params.id)) {
       res.status(404).json({ erreur: 'Dossier introuvable (ou déjà supprimé).' });
       return;

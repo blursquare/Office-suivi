@@ -14,7 +14,7 @@ const RE_OCC = /^[A-Za-z0-9_-]{1,80}:[a-z0-9 |~]{1,220}$/;
 const DUREE_CACHE_MS = 10000;
 
 /** @param {any} depot @param {any} parametresRepo */
-function creerRouteurClientsBiens(depot, parametresRepo) {
+function creerRouteurClientsBiens(depot, parametresRepo, fichier) {
   const routeur = express.Router();
   const reglages = () => assainirReglagesClientsBiens(parametresRepo.lireJsonBrut(CLE, {}));
   // Fichier clients et immeubles d'Authentic importé dans les Réglages (étude 19/10), lu une fois puis gardé en mémoire jusqu'au suivant.
@@ -23,7 +23,12 @@ function creerRouteurClientsBiens(depot, parametresRepo) {
   // Tous les dossiers, archivés compris (un client d'un ancien dossier se retrouve), jamais les supprimés.
   let cache = { t: 0, base: null };
   const base = () => {
-    if (!cache.base || Date.now() - cache.t > DUREE_CACHE_MS) cache = { t: Date.now(), base: construireBase(depot.tousActifs(), reglages(), lireImport()) };
+    if (!cache.base || Date.now() - cache.t > DUREE_CACHE_MS) {
+      const tous = depot.tousActifs();
+      // Le fichier global garde d'abord tout ce que les dossiers contiennent aujourd'hui, puis la base y ajoute ce qui n'y est plus.
+      if (fichier) fichier.capturer(tous);
+      cache = { t: Date.now(), base: construireBase(tous, reglages(), lireImport(), fichier ? fichier.lire() : undefined) };
+    }
     return cache.base;
   };
   const oublier = () => { cache = { t: 0, base: null }; };

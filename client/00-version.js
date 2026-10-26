@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.359.1';
+  const VERSION_APP = '0.360.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.360.0', date: '2026-10-26 23:02', resume: "Fichier global des clients et des biens, comme dans Authentic : chaque personne et chaque bien vus dans un dossier sont gardés dans le fichier, qui s'enrichit à chaque dossier créé ou modifié. Retirer une personne ou un bien d'un dossier (ou supprimer le dossier) ne l'enlève que du dossier : la page « Clients et biens » le garde, avec le dossier d'où il a été retiré, et rien n'est renvoyé à Authentic. Deux homonymes sans date de naissance restent deux fiches." },
     { version: '0.359.1', date: '2026-10-26 22:53', resume: "Parcelles lues dans Authentic : plus aucune ne se perd entre deux passages. Deux parcelles de même section et numéro dans deux communes différentes (terres, bois) restent deux parcelles au lieu d'être fondues en une, et les plafonds passent de 40 à 300 parcelles par bien et de 12 à 40 biens par dossier." },
     { version: '0.359.0', date: '2026-10-26 22:37', resume: "Nettoyer la fiche : une croix sur chaque partie et chaque bien (cartes de l'onglet Dossier, lignes de « Modifier… », héritiers d'une succession), une croix sur chaque parcelle et « Vider le bien ». Retirer efface aussi ce qu'Authentic en avait repris : à la prochaine page relevée — ou tout de suite si le dossier est déjà relevé — la personne, la parcelle ou le bien se remettent comme la première fois. Les fenêtres « Retirer ce bien » proposent « Retirer, Authentic pourra le remettre » à côté de « Retirer pour toujours »." },
     { version: '0.358.0', date: '2026-10-26 20:57', resume: "Discussions › À traiter : chaque proposition de CLAIRE a maintenant « Déjà fait » (on la ferme sans rien exécuter, CLAIRE ne la reproposera pas) et « Plus tard » (demain, dans 3 jours ou lundi à 8 h ; elle réapparaît seule, ou « Reprendre maintenant »). Accès rapide de la barre latérale : petit avatar encadré (photo ou initiale) avec le point vert ou vide de présence en bas à droite, « # » encadré pour Général, ligne « vous » ; barre de mise en forme au-dessus de la saisie et « Envoyer un message à Julie » dans un message privé. Réactions au survol d'un message : ✅ 👀 👍 d'un clic, et « plus d'emojis » avec recherche et sections. Colonne Discussions : les 3 conversations récentes avec Claire puis « Voir les N autres », « Mes dossiers » en tête (6 puis « Voir les N autres »), les dossiers des collègues repliés sous « Autres dossiers » ; chaque bloc (Claire, messages privés, équipe, dossiers) se replie d'un clic avec son nombre et la pastille de ses non-lus." },
