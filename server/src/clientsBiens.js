@@ -656,14 +656,6 @@ function indexLigneBien(lignes, n, prises) {
   return meilleur;
 }
 
-/** @param {any[]} liste @param {string} base un identifiant libre dans la liste */
-function idLibre(liste, base) {
-  const pris = new Set(liste.map((x) => x && x.id));
-  let id = base; let n = 2;
-  while (pris.has(id)) id = `${base}~${n++}`;
-  return id;
-}
-
 /**
  * Pure : le fichier global fondu avec de nouvelles lignes (celles d'un dossier) — une ligne reconnue par son contenu est mise à jour (elle garde
  * son identifiant), les autres sont ajoutées ; JAMAIS de retrait (retirer une personne ou un bien d'un dossier ne l'enlève pas du fichier).

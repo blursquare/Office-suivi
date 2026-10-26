@@ -82,16 +82,11 @@ function sectionsCanaux(serveur, dossiersListe, filtre, moi) {
   };
 }
 
-// Pure : CLAIRE répond-elle à ce message ? Comme Claude dans Slack : dans « général » (l'espace où on lui écrit) elle répond à tout, sauf
-// à un message adressé à un collègue (@Julie) ; dans le canal d'un dossier ou un canal libre (l'espace des collègues, où elle dépose
-// seule ses propositions) elle ne répond que si on la cite (@CLAIRE). Non aussi si l'interrupteur « note à l'équipe » est coupé.
-function claireDoitRepondreCanal(texte, claireRepond, collaborateurs, canalId) {
+// Pure : CLAIRE répond-elle à ce message ? Partout — « général » compris depuis 0.363.0 (étude 26/10 : « dans le canal général elle ne
+// peut interagir que si on l'appelle ») — seulement si on la cite (@CLAIRE) ; jamais en « note à l'équipe » (interrupteur coupé).
+function claireDoitRepondreCanal(texte, claireRepond) {
   if (!claireRepond) return false;
-  const t = platCanal(texte);
-  if (/(^|[^a-z0-9])@claire(?![a-z0-9])/.test(t)) return true;
-  if (canalId && canalId !== 'general') return false;
-  const prenoms = (collaborateurs || []).map(c => platCanal(String(c).split(/\s+/)[0])).filter(Boolean);
-  return !prenoms.some(p => new RegExp(`(^|[^a-z0-9])@${p}(?![a-z0-9])`).test(t));
+  return /(^|[^a-z0-9])@claire(?![a-z0-9])/.test(platCanal(texte));
 }
 
 // Pure : le texte d'un message HTML, sans balises (pour le serveur et la recherche).
@@ -390,7 +385,7 @@ function majSaisieCanal() {
     ? (typeCanal(canaux.actif) === 'prive' ? `Envoyer un message à ${libelleCanal(canaux.actif, canaux.liste, dossiers)}` : `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`)
     : 'Message à Claire… tapez @ pour citer un dossier';
   if (bascule) {
-    bascule.style.display = reel && canaux.actif === 'general' ? '' : 'none';
+    bascule.style.display = 'none';   // « Claire répond » / « Note à l'équipe » n'a plus d'objet : elle ne répond jamais sans être citée
     bascule.classList.toggle('actif', canaux.claireRepond);
     bascule.setAttribute('aria-pressed', String(canaux.claireRepond));
     bascule.innerHTML = canaux.claireRepond ? `${icone('discussion')}Claire répond` : `${icone('users')}Note à l’équipe`;

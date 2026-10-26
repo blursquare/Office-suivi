@@ -193,3 +193,13 @@ test('email libre : « Mon cher Maître » avec partie acquéreur (notre client)
   await app.gesteEmailAssistant(d, { destinataire: 'office.exemple@notaires.fr', objet: 'x', corps: 'Ci-joint.', partie: 'confrere', documents: [] });
   assert.equal(appels[1].confrere, true);
 });
+
+test('demander à un collègue (0.363.0) : la demande passe par la conversation personnelle, sous le nom de l’utilisateur', () => {
+  assert.equal(app.idCanalPriveEntre('Julie VASSELIN', 'Jérémy SAUJOT'), 'p:jeremy-julie', 'prénoms sans accent, rangés');
+  assert.equal(app.idCanalPriveEntre('Jérémy SAUJOT', 'Julie VASSELIN'), 'p:jeremy-julie', 'ordre indifférent');
+  assert.equal(app.idCanalPriveEntre('Julie VASSELIN', 'Julie VASSELIN'), '', 'soi-même : pas de conversation');
+  assert.equal(app.idCanalPriveEntre('', 'Julie VASSELIN'), '');
+  const d = { id: 'd1', nom: 'EXEMPLE / ESSAI' };
+  assert.match(app.texteDemandeCollaborateur({ texte: 'Appeler la banque', date: '2026-10-28' }, d), /^Appeler la banque — VTE - EXEMPLE \/ ESSAI \(pour le 28\/10\/2026\)$|^Appeler la banque — VTE - EXEMPLE \/ ESSAI \(pour le 28 octobre 2026\)$/);
+  assert.equal(app.texteDemandeCollaborateur({ texte: '  Appeler la banque ', date: '' }, null), 'Appeler la banque');
+});

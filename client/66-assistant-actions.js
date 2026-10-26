@@ -309,6 +309,22 @@
     };
   }
 
+  // Pure : l'identifiant du canal privé de deux collaborateurs (« p:jeremy-julie » : les prénoms sans accent, rangés), comme le serveur (canaux.js idPrive).
+  function idCanalPriveEntre(a, b) {
+    const slug = (nom) => normaliserPourRecherche(String(nom || '').trim().split(/\s+/)[0] || '').replace(/[^a-z]/g, '');
+    const slugs = [...new Set([slug(a), slug(b)].filter(Boolean))].sort();
+    return slugs.length === 2 ? `p:${slugs.join('-')}` : '';
+  }
+
+  // Pure : le texte écrit au collègue dans la conversation personnelle — sa demande, le dossier cité et la date voulue.
+  function texteDemandeCollaborateur(e, dossier) {
+    const quand = /^\d{4}-\d{2}-\d{2}$/.test(e.date || '') ? ` (pour le ${formatDateFr(e.date)})` : '';
+    return `${String(e.texte || '').trim()}${dossier ? ` — ${libelleDossierAffiche(dossier)}` : ''}${quand}`.slice(0, 1800);
+  }
+
+  // « Demander à un collègue » (étude 26/10 : « supprime la tâche et le Teams, passe par les conversations personnelles dans Claire ») : après
+  // l'autorisation de l'utilisateur, la demande est écrite SOUS SON NOM dans la conversation personnelle avec ce collègue (messages privés) ; le
+  // collègue y est prévenu comme pour tout message privé. Plus de tâche dans « Aujourd'hui » ni de message Teams à part.
   async function demanderCollaborateurAgent(entree) {
     const e = entree || {};
     const collaborateur = COLLABORATEURS_AGENT[e.collaborateur];
@@ -317,14 +333,19 @@
     if (/\[à compléter\]/.test(String(e.texte))) return { erreur: 'la demande cite un nom inconnu : reformule-la' };
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable' };
-    const soiMeme = collaborateur === utilisateurPoste;
-    const quand = /^\d{4}-\d{2}-\d{2}$/.test(e.date || '') ? ` pour le ${formatDateFr(e.date)}` : '';
-    const description = `Demander à ${prenomCollaborateur(collaborateur)} : « ${String(e.texte).trim()} »${d ? ` — ${libelleDossierAffiche(d)}` : ''}${quand}. ${soiMeme ? 'Tâche dans votre liste « Aujourd’hui ».' : 'Message Teams et tâche dans sa liste « Aujourd’hui ».'}`;
-    if (!(await demanderAutorisationAgent(description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
-    const rappel = rappelDemandeCollaborateur(e, soiMeme ? '' : utilisateurPoste, isoAujourdhuiLocal(), Date.now());
-    const { tache, teams } = await envoyerDemandeCollaborateur(rappel, collaborateur, e, d);
-    if (soiMeme) return tache ? { fait: true, tache: 'ajoutée' } : { erreur: 'tâche non enregistrée' };
-    return { fait: tache, tache: tache ? 'ajoutée à sa liste « Aujourd’hui »' : 'non enregistrée', teams };
+    if (collaborateur === utilisateurPoste) return { erreur: 'c’est l’utilisateur lui-même : pose-lui un rappel (rappel_ajouter), pas un message' };
+    const canal = idCanalPriveEntre(utilisateurPoste, collaborateur);
+    if (!canal) return { erreur: 'conversation personnelle introuvable (collaborateur du poste non choisi ?)' };
+    const texte = texteDemandeCollaborateur(e, d);
+    if (!(await demanderAutorisationAgent(`Écrire à ${prenomCollaborateur(collaborateur)}, dans votre conversation personnelle : « ${texte} »`))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    let ok = false;
+    try {
+      const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canal)}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auteur: utilisateurPoste, texte }) });
+      ok = r.ok;
+    } catch (err) { ok = false; }
+    noterVerificationPoste('agent-demande-collaborateur', ok ? { detail: 'message privé' } : { ok: false, message: 'message privé non posé' });
+    afficherToast(ok ? `Message envoyé à ${prenomCollaborateur(collaborateur)} dans votre conversation personnelle.` : 'Message NON envoyé : serveur injoignable ou refus.', 'OK', null);
+    return ok ? { fait: true, message: 'écrit dans la conversation personnelle avec ' + prenomCollaborateur(collaborateur) + '; tu ne vois pas sa réponse' } : { erreur: 'message non posé' };
   }
 
   // La tâche posée dans la liste du collaborateur, puis (si ce n'est pas soi) le message Teams. Voie unique de « Demander à CLAIRE » et du

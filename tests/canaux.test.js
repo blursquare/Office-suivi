@@ -44,13 +44,14 @@ test('claireDoitRepondreCanal : dans un dossier ou un canal libre seulement si o
   assert.equal(app.claireDoitRepondreCanal('@Julie et @CLAIRE, regardez', true, COLLABS, 'l:equipe'), true);
 });
 
-test('claireDoitRepondreCanal : dans « général », oui par défaut, non à un collègue ou en note à l’équipe, oui si @CLAIRE', () => {
-  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'general'), true);
-  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', false, COLLABS), false);
-  assert.equal(app.claireDoitRepondreCanal('@Julie peux-tu regarder ?', true, COLLABS), false);
-  assert.equal(app.claireDoitRepondreCanal('@julie et @CLAIRE, regardez', true, COLLABS), true);
+test('claireDoitRepondreCanal : « général » comme les autres canaux — seulement si on la cite (0.363.0)', () => {
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'general'), false, 'plus de réponse à tout dans général');
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS), false);
+  assert.equal(app.claireDoitRepondreCanal('@Julie peux-tu regarder ?', true, COLLABS, 'general'), false);
+  assert.equal(app.claireDoitRepondreCanal('@julie et @CLAIRE, regardez', true, COLLABS, 'general'), true);
+  assert.equal(app.claireDoitRepondreCanal('@CLAIRE où en est le prêt ?', true, COLLABS, 'general'), true);
   assert.equal(app.claireDoitRepondreCanal('@claire relance', false, COLLABS), false, 'note à l’équipe : jamais');
-  assert.equal(app.claireDoitRepondreCanal('écrire à mail@julie.fr', true, COLLABS), true, 'une adresse n’est pas une mention');
+  assert.equal(app.claireDoitRepondreCanal('écrire à mail@julie.fr', true, COLLABS), false, 'une adresse n’est pas une mention');
 });
 
 test('htmlSurCanal : mise en forme gardée, script, gestionnaires, liens piégés et styles retirés ; balises refermées', () => {

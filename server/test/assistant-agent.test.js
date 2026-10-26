@@ -823,7 +823,7 @@ test('agenda et noms de fichiers du NAS (étude 26/10) : titre, lieu et nom_fich
   assert.doesNotMatch(envoye, SECRETS, 'les noms des fiches sont codés dans le titre : ' + envoye.slice(-700));
   assert.match(envoye, /Rendez-vous téléphonique avec le syndic/, 'le titre d’un rendez-vous part');
   assert.match(envoye, /Office notarial de la/, 'le lieu part (les mots à majuscule hors tête de phrase restent codés, comme dans tout résultat d’outil)');
-  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { nombre: 1, documents: [{ document_id: 'doc1', nom_fichier: 'Compromis signé FOURNIER GAUTHIER', document: 'Compromis de vente', sous_dossier: 'racine', modifie_le: '2026-09-02' }] } }] }, o);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { nombre: 1, documents: [{ document_id: 'doc1', nom_fichier: 'Compromis signé FOURNIER GAUTHIER', document: 'Compromis de vente', sous_dossier: 'racine', modifie_le: '2026-09-02' }] } }] }, o);
   envoye = JSON.stringify(client.requetes[2].messages);
   assert.doesNotMatch(envoye, SECRETS, 'les noms des fiches sont codés dans le nom du fichier : ' + envoye.slice(-700));
   assert.match(envoye, /Compromis signé/, 'le nom du fichier reste lisible');
