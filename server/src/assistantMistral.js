@@ -119,6 +119,11 @@ function masquerMotifsStructures(texte, jeton, options) {
   t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
   // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
   t = t.replace(/\b[A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){3,7}(?:[ ]?[A-Za-z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
+  // Numéro de sécurité sociale (13 chiffres + clé) et numéros de compte, de contrat, de prêt ou fiscal (7 chiffres et plus, hors
+  // montant) : identifiants personnels, toujours codés — avec les téléphones, emails et IBAN (étude 26/10 : « IBAN et numéros de compte »).
+  t = t.replace(/\b[12][ .]?\d{2}[ .]?\d{2}[ .]?\d{2}[ .]?\d{3}[ .]?\d{3}(?:[ .]?\d{2})?\b/g, (m) => jeton('NUM', m));
+  t = t.replace(/\b(compte|rib|fiscal|contrat|pr[eê]t|dossier de pr[eê]t)(\s*(?:n°|no\.?|num[eé]ro|nº)?\s*:?\s*)(\d[\d .-]{5,}\d)(?!\s?(?:€|euros?\b|eur\b))/gi,
+    (m, mot, lien, num) => (num.replace(/\D/g, '').length >= 7 ? mot + lien + jeton('NUM', num) : m));
   // SIRET / SIREN et numéro fiscal écrits par groupes.
   if (numeros) {
     t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
@@ -155,7 +160,40 @@ function politiqueCouplee(sensibles) { return !!(sensibles && sensibles.couple =
  * @param {string} texte @param {boolean | ((phrase: string) => boolean)} quand @param {(phrase: string) => string} f
  */
 function dansPhrases(texte, quand, f) {
-  return String(texte).split(/(?<=[.!?;\n])/).map((p) => (quand === true || (typeof quand === 'function' && quand(p)) ? f(p) : p)).join('');
+  return phrasesDe(texte).map((p) => (quand === true || (typeof quand === 'function' && quand(p)) ? f(p) : p)).join('');
+}
+
+// Abréviations dont le point ne finit pas une phrase (« art. 5 », « n°. 5 », « St. Aignan », « M. DUPONT »).
+const ABREVIATIONS_PHRASE = new Set(['art', 'arts', 'n', 'no', 'nos', 'st', 'ste', 'bd', 'av', 'ch', 'mme', 'mmes', 'mlle', 'mr', 'm', 'me', 'dr', 'cf', 'etc', 'p', 'pp', 'ex', 'vs', 'resp', 'env', 'tel', 'fax', 'cp', 'bp']);
+
+/**
+ * Pure : le texte coupé en phrases, sans rien perdre (la jonction redonne le texte). Une coupure : un retour à la ligne, ou « . ! ? »
+ * suivi d'une espace puis d'une MAJUSCULE (ou de la fin du texte) — jamais un point de date (03.04.1980), de montant (250.000), de
+ * numérotation (1.2.) ou d'abréviation (art., n°., St., M.). Peu de coupures = des phrases plus longues, donc plus de couplage : sûr.
+ * @param {string} texte @returns {string[]}
+ */
+function phrasesDe(texte) {
+  const t = String(texte);
+  /** @type {string[]} */
+  const phrases = [];
+  let debut = 0;
+  const re = /\n|[.!?]+(?=\s|$)/g;
+  let r;
+  while ((r = re.exec(t))) {
+    const fin = r.index + r[0].length;
+    if (r[0] !== '\n') {
+      const avant = t.slice(0, r.index).match(/[\p{L}\p{M}\d°]+$/u);
+      const mot = avant ? avant[0] : '';
+      if (/\d$/.test(mot)) continue;
+      if (ABREVIATIONS_PHRASE.has(A.normaliserDemande(mot.replace(/°$/, '')).replace(/[^a-z]/g, '')) && mot.length <= 4) continue;
+      const suite = t.slice(fin).match(/^\s*(\S)/);
+      if (suite && !/[\p{Lu}\d(«"“]/u.test(suite[1])) continue;
+    }
+    phrases.push(t.slice(debut, fin));
+    debut = fin;
+  }
+  if (debut < t.length) phrases.push(t.slice(debut));
+  return phrases;
 }
 
 /**
@@ -388,6 +426,8 @@ function motsSensiblesDossiers(dossiers) {
   // Un mot qui est aussi un nom (ou un mot de l'agence, d'un notaire) reste codé partout : il n'est pas « adresse seulement ».
   for (const m of sensibles) adresses.delete(m);
   const liste = (dossiers || []).filter(Boolean);
+  // Propriétés non énumérables : une COPIE du Set (`new Set(sensibles)`, `[...sensibles]`) les perd et retombe sur l'ancien masquage
+  // complet (sûr) — ne copier que par `motsSensiblesDossiers`.
   Object.defineProperty(sensibles, 'adresses', { value: adresses, enumerable: false });
   Object.defineProperty(sensibles, 'couple', { value: liste.length > 0 && liste.every((d) => Array.isArray(d.adresses)), enumerable: false });
   return sensibles;
@@ -509,7 +549,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee,
+  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee, phrasePorteUnNom,
   REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

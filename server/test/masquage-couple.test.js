@@ -51,9 +51,9 @@ test('emails, téléphones et IBAN : toujours codés, même sans nom', () => {
 });
 
 test('références et longs numéros : en clair seuls, codés dans une phrase à nom', () => {
-  assert.equal(m('La référence est A 2026 00247 et le contrat 123456789.'), 'La référence est A 2026 00247 et le contrat 123456789.');
-  const avec = m('Le dossier de Monsieur MARTIN porte la référence A 2026 00247, contrat 123456789.');
-  assert.doesNotMatch(avec, /00247|123456789|MARTIN/);
+  assert.equal(m('La référence est A 2026 00247 et la société SIREN 123 456 789.'), 'La référence est A 2026 00247 et la société SIREN 123 456 789.');
+  const avec = m('Le dossier de Monsieur MARTIN porte la référence A 2026 00247, société SIREN 123 456 789.');
+  assert.doesNotMatch(avec, /00247|123 456 789|MARTIN/);
 });
 
 test('une fiche d’outil : adresse et référence en clair sans nom, codées dès qu’un nom est dans la fiche ou ses parents', () => {
@@ -94,4 +94,43 @@ test('un acte : l’adresse du bien seule reste en clair ; domicile d’une pers
   const t = masquerDocument(acte, s, new Map());
   assert.match(t, /^Désignation : une maison située à BLOIS \(41000\), 12 rue des Lices\./);
   assert.doesNotMatch(t, /MARTIN|Paul|TOURS|Colbert/);
+});
+
+test('phrases : un point de date, de montant, de numérotation ou d’abréviation ne sépare pas le nom de l’adresse', () => {
+  const s = sens();
+  const adresse = 'demeurant 12 rue des Lices';
+  for (const t of [`Vendeur MARTIN, né le 03.04.1980, ${adresse}`, `Vendeur MARTIN n°. 5 ${adresse}`, `Prix 250.000 euros pour MARTIN, ${adresse}`, `M. MARTIN, art. 5 ${adresse}`, `MARTIN Paul 1.2. ${adresse}`]) {
+    assert.doesNotMatch(masquer(t, s, new Map()), /Lices/, t);
+  }
+  assert.match(masquer('Le bien est situé 12 rue des Lices. Vendeur MARTIN est présent.', s, new Map()), /^Le bien est situé 12 rue des Lices\. Vendeur \[NOM\d+\] est présent\.$/);
+  // Acte : date à points et SIREN dans la phrase du propriétaire.
+  const acte = masquerDocument('MARTIN Paul, propriétaire depuis le 12.03.2015 du bien sis 12 rue des Lices, SIREN 123 456 789.', s, new Map());
+  assert.doesNotMatch(acte, /Lices|123 456 789|MARTIN/);
+});
+
+test('numéros de compte, de contrat, de prêt, fiscal et sécurité sociale : toujours codés, même sans nom ; un montant reste en clair', () => {
+  const t = m('Compte 12345678901 ; prêt n° 7654321 ; numéro fiscal : 12 34 567 890 123 ; né sous le 1 85 05 78 006 084 36 ; prêt de 150 000 euros pour 12 rue des Lices.');
+  assert.doesNotMatch(t, /12345678901|7654321|12 34 567|1 85 05 78/);
+  assert.match(t, /150 000 euros/);
+  assert.match(t, /12 rue des Lices\.$/);
+  const o = masquerValeur({ rib: '12345 67890 12345678901 12', compte: '12345678901', contrat: 'P-998877', adresse: ADRESSE }, sens(), new Map());
+  assert.doesNotMatch(JSON.stringify(o), /12345|P-998877/);
+  assert.equal(o.adresse, ADRESSE);
+});
+
+test('une fiche couplée par un nom que seules les clés ou les majuscules révèlent ; mémoïsation sans erreur sur une fiche profonde', () => {
+  const s = sens();
+  assert.doesNotMatch(JSON.stringify(masquerValeur({ adresse: ADRESSE, titulaire: 'marie leclerc' }, s, new Map())), /Lices/);
+  assert.doesNotMatch(JSON.stringify(masquerValeur({ adresse: ADRESSE, note: 'Contact : Marie Leclerc' }, s, new Map())), /Lices/);
+  let profonde = { adresse: ADRESSE };
+  for (let i = 0; i < 60; i++) profonde = { niveau: i, suite: profonde };
+  const t0 = Date.now();
+  masquerValeur(profonde, s, new Map());
+  assert.ok(Date.now() - t0 < 500, 'une fiche profonde ne se relit pas à chaque niveau');
+});
+
+test('recherche sortante sans anonymisation : aucun mot des fiches, adresse comprise', () => {
+  const { sansMotsDesFiches } = require('../src/assistantAgent');
+  const r = sansMotsDesFiches('servitude MARTIN 12 rue des Lices', sens());
+  assert.doesNotMatch(r, /MARTIN|Lices/);
 });

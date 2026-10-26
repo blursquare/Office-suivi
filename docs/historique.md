@@ -22181,3 +22181,10 @@ compte, téléphones et emails (les références Authentic, SIREN et numéros de
 tiroir « Outils » au démarrage (0.356.1) est annulée (replié comme depuis le 18/10) ; l'accès rapide aux discussions, déjà toujours déployé,
 reste maintenant visible barre repliée aussi : initiales (« # » pour Général), point rouge s'il y a du non-lu (`.sb-canal-initiale`,
 `.non-lu`).
+- 0.357.0, relecture (un défaut « Haut ») : phrases coupées seulement au retour à la ligne ou à `. ! ?` suivi d'une majuscule (`phrasesDe`) —
+  un point de date, de montant, de numérotation ou d'abréviation ne séparait plus le nom de l'adresse (fuite reproduite, corrigée) ;
+  numéros de sécurité sociale, de compte, de contrat, de prêt et fiscal toujours codés (clés `rib`, `compte`, `contrat`… comprises) ;
+  fiche couplée aussi par les clés `titulaire`, `vendeur(s)`, `heritier(s)`… et par la même preuve d'un nom que `masquer` ; `porteUnNom`
+  mémoïsé ; recherche sortante sans anonymisation : adresse comprise ; prompt : jamais d'adresse dans une recherche web ou de droit.
+  Limite gardée : une personne absente des fiches, écrite en casse mixte dans un ACTE, n'est pas codée (limite documentée des noms), donc
+  ne couple pas l'adresse de sa phrase. Audit : `docs/audits/2026-10-26-0.357.0.md`.

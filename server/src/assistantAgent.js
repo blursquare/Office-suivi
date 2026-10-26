@@ -16,7 +16,7 @@
 
 const crypto = require('node:crypto');
 const A = require('../../commun/assistant');
-const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee, retablirTexte, noterUsageAssistant, masquerMontants } = require('./assistantMistral');
+const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee, phrasePorteUnNom, retablirTexte, noterUsageAssistant, masquerMontants } = require('./assistantMistral');
 const { nettoyerParametresIa, dateEnFrancais } = require('./assistant');
 const { expurgerExtrait } = require('./memoire');
 const { masquerCarnet } = require('./carnetClaire');
@@ -371,7 +371,7 @@ Comment tu travailles :
 - Calcul libre (calcul) : pour un total, un classement, une moyenne, un regroupement sur plusieurs dossiers, un tableau, n'additionne pas de tête : écris le calcul (dossier_ids ["*"] lui donne tous les dossiers) et donne le résultat. Pour un tableau, renvoie-le dans « tableau » : l'utilisateur le télécharge, toi tu n'en vois qu'un aperçu — dis-lui simplement ce qu'il contient. Vérifie la vraisemblance du résultat (somme, nombre de lignes) avant de l'annoncer.
 - Questions qui portent sur TOUS les dossiers (« quelle offre de prêt avec inscription hypothécaire avons-nous reçue en octobre ? », « lesquels signent ce mois-ci sans offre ? », « qui a une SAFER en cours ? ») : n'attends pas qu'un nom te soit donné — appelle lister_dossiers (etat « tous » pour inclure les dossiers archivés) et filtre toi-même sur ses champs (offre_de_pret_recue_le, garanties_du_pret, inscription_hypothecaire, signature, date_butoir…), puis lis la fiche des dossiers retenus pour confirmer. Dis combien de dossiers tu as parcourus et, si la liste est coupée, filtre par responsable pour couvrir le reste. Une date « reçue le » est celle où CLAIRE a retrouvé l'offre : dis-le si l'étude demande une date certaine.
 - Si plusieurs dossiers correspondent et que la question ne permet pas de choisir, demande lequel en les citant.
-- Les noms des personnes, agences, notaires, emails et téléphones t'arrivent toujours remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). L'adresse d'un bien, une référence ou un numéro longs arrivent en clair quand aucun nom de personne n'est dans la même phrase ou la même fiche (donc utilisables pour une règle d'urbanisme, une mairie, un zonage), codés sinon. Utilise les codes tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent. Quand l'en-tête dit que l'anonymisation est désactivée, les noms arrivent en clair : n'en mets alors jamais dans une recherche Légifrance, BOFiP ou du registre des entreprises (sauf le nom complet d'une société pour ce dernier).
+- Les noms des personnes des fiches, agences, notaires, emails, téléphones, IBAN et numéros de compte t'arrivent toujours remplacés par des codes ([NOM1], [EMAIL2], [TEL1], [REF1]…). L'adresse d'un bien, une référence ou un numéro longs arrivent en clair quand aucun nom de personne n'est dans la même phrase ou la même fiche (donc utilisables pour une règle d'urbanisme, une mairie, un zonage), codés sinon. N'écris jamais l'adresse d'un bien, un numéro ou un nom dans une recherche web, Légifrance, BOFiP ou du registre des entreprises : la commune, le code postal ou la zone suffisent. Utilise les codes tels quels dans tes réponses et dans les outils : ils sont rétablis avant d'être montrés. N'essaie jamais de deviner ce qu'ils cachent. Quand l'en-tête dit que l'anonymisation est désactivée, les noms arrivent en clair : n'en mets alors jamais dans une recherche Légifrance, BOFiP ou du registre des entreprises (sauf le nom complet d'une société pour ce dernier).
 - Raisonne en notaire : planning d'une vente (vente préalable → obtention du prêt → renonciation aux droits de préemption, délai SAFER → rendez-vous de signature → appel de fonds 10 jours avant → projet d'acte → signature), conditions suspensives, dates butoir, pièces. Signale ce qui est en retard, ce qui bloque la signature, et la prochaine action utile.
 - Une date dite avec son jour (« vendredi 5 novembre ») : vérifie que le jour correspond (date_du_geste dans le résultat d'un geste) et signale tout écart à l'utilisateur. Un email destiné aux vendeurs, à l'acquéreur ou au confrère se demande avec la partie (paramètre « partie ») ; la date et l'heure du rendez-vous dites dans la phrase vont dans les paramètres « date » et « heure ».
 - Nouveau dossier de vente (nouveau_dossier_vente) : quand l'utilisateur joint un compromis ou une promesse de vente et demande de créer le dossier, commence par le mode « authentic » (les dossiers ouverts dans Authentic), puis « preparer » (avec authentic_id si plusieurs ou si le dossier ne se reconnaît pas seul), résume en quelques lignes ce qui a été lu et ce qui reste à compléter, puis propose de le créer (mode « creer », avec autorisation). Rien n'est créé sans dossier d'Authentic correspondant.
@@ -407,25 +407,28 @@ function purgerConversations(maintenant) {
 }
 
 // Clés d'un résultat d'outil qui portent un nom de personne : une fiche qui en a une est « couplée à un nom de famille ».
-const RE_CLES_NOM = /^(nom|prenom|first_name|last_name|full_name|nom_usage|nom_du_dossier|notaire_vendeur|notaire_acquereur|notaires|personnes|defunt)$/;
+const RE_CLES_NOM = /^(nom|prenom|first_name|last_name|full_name|nom_usage|nom_du_dossier|notaire_vendeur|notaire_acquereur|notaires|personnes|defunt|titulaire|vendeurs?|acquereurs?|heritiers?|parties?|payeur|expediteur|destinataire|signataire|interlocuteur|confrere|client|clients|contact|beneficiaire|promettant|comparants?)$/;
 
 /**
  * Pure : la valeur (objet, liste, texte) porte-t-elle un nom de famille — un champ de nom rempli, un mot des fiches, une civilité suivie
  * d'un nom ? Sert à la politique « adresse et références en clair sauf couplées à un nom » (étude 26/10).
- * @param {any} valeur @param {import('./assistantMistral').Sensibles} sensibles @param {string} [cle]
+ * @param {any} valeur @param {import('./assistantMistral').Sensibles} sensibles @param {string} [cle] @param {WeakMap<object, boolean>} [memo]
  */
-function porteUnNom(valeur, sensibles, cle) {
+function porteUnNom(valeur, sensibles, cle, memo) {
   if (typeof valeur === 'string') {
     if (!valeur.trim()) return false;
     if (RE_CLES_NOM.test(cle || '')) return true;
     if (/(?:^|[^\p{L}])(?:Monsieur|Madame|Mademoiselle|Mme|Mlle|M\.)\s+\p{Lu}/u.test(valeur)) return true;
-    return (valeur.match(/\p{L}[\p{L}\p{M}'’-]*/gu) || []).some((m) => m.split(/['’-]/).some((x) => {
-      const n = A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, '');
-      return n.length >= 2 && sensibles.has(n);
-    }));
+    // Même preuve d'un nom que `masquer` : mot des fiches, capitales, mot à majuscule hors tête de phrase.
+    return phrasePorteUnNom(valeur, sensibles);
   }
-  if (Array.isArray(valeur)) return valeur.some((v) => porteUnNom(v, sensibles, cle));
-  if (valeur && typeof valeur === 'object') return Object.entries(valeur).some(([k, v]) => porteUnNom(v, sensibles, k));
+  if (valeur && typeof valeur === 'object') {
+    // Un objet est examiné une fois par appel de masquerValeur (`memo`) : un parent ne relit pas ses enfants à chaque niveau.
+    if (memo && memo.has(valeur)) return memo.get(valeur);
+    const r = Array.isArray(valeur) ? valeur.some((v) => porteUnNom(v, sensibles, cle, memo)) : Object.entries(valeur).some(([k, v]) => porteUnNom(v, sensibles, k, memo));
+    if (memo) memo.set(valeur, r);
+    return r;
+  }
   return false;
 }
 
@@ -433,10 +436,11 @@ function porteUnNom(valeur, sensibles, cle) {
  * Masque toutes les chaînes d'une valeur (objet, liste) sauf les identifiants. Pure (complète `table`). Politique « couplé à un nom de
  * famille » (étude 26/10, dossiers reçus avec `adresses`) : l'adresse du bien, la référence et les longs numéros restent en clair
  * tant que la fiche (l'objet et ses parents) ne porte aucun nom ; emails, téléphones, IBAN, noms, agences et notaires sont toujours codés.
- * @param {any} valeur @param {import('./assistantMistral').Sensibles} sensibles @param {Map<string, string>} table @param {string} [cle] @param {boolean} [couple] la fiche porte un nom
+ * @param {any} valeur @param {import('./assistantMistral').Sensibles} sensibles @param {Map<string, string>} table @param {string} [cle] @param {boolean} [couple] la fiche porte un nom @param {WeakMap<object, boolean>} [memo]
  */
-function masquerValeur(valeur, sensibles, table, cle, couple) {
+function masquerValeur(valeur, sensibles, table, cle, couple, memo) {
   const couplee = politiqueCouplee(sensibles);
+  if (!memo) memo = new WeakMap();
   if (typeof valeur === 'string') {
     if (/^(id|dossier_id|dossierId|document_id|tache_id)$/.test(cle || '') || /^(?!external_)[a-z_]*_id$/.test(cle || '')) return valeur;
     // Champs qui ne portent QUE de l'identifiant (téléphone, email, nom, adresse, notaire, agence, référence) : masqués en entier,
@@ -446,19 +450,20 @@ function masquerValeur(valeur, sensibles, table, cle, couple) {
     // l'adresse des fiches hors d'une phrase à nom).
     const horsNom = couplee && !couple && /^(adresse|adresse_du_bien|reference)$/.test(cle || '');
     const entier = /^(telephone|tel|email|phone)/.test(cle || '') ? (/^email/.test(cle || '') ? 'EMAIL' : 'TEL')
+      : /^(iban|bic|rib|compte|numero_compte|numero_fiscal|spi|nir|numero_securite_sociale|numero_contrat|contrat|numero_pret)$/.test(cle || '') ? 'NUM'
       : nomOuAdresse && !horsNom ? 'NOM' : '';
     if (entier && valeur.trim()) return masquerEntier(valeur, entier, table);
     // Un lien rendu par un outil (espace Yousign…) ne dit rien d'utile à l'IA et peut porter un identifiant : codé (audit 25/10).
     if (/(^|_)(lien|url|href|link)$/i.test(cle || '') && /^https?:\/\//i.test(valeur.trim())) return masquerEntier(valeur, 'REF', table);
     return masquer(valeur, sensibles, table, couple === true);
   }
-  if (Array.isArray(valeur)) return valeur.map((v) => masquerValeur(v, sensibles, table, cle, couple));
+  if (Array.isArray(valeur)) return valeur.map((v) => masquerValeur(v, sensibles, table, cle, couple, memo));
   if (valeur && typeof valeur === 'object') {
     // Une fiche qui porte un nom couple tout ce qu'elle contient (ses enfants aussi).
-    const c = couple === true || (couplee && porteUnNom(valeur, sensibles));
+    const c = couple === true || (couplee && porteUnNom(valeur, sensibles, undefined, memo));
     /** @type {Record<string, any>} */
     const o = {};
-    for (const [k, v] of Object.entries(valeur)) o[k] = masquerValeur(v, sensibles, table, k, c);
+    for (const [k, v] of Object.entries(valeur)) o[k] = masquerValeur(v, sensibles, table, k, c, memo);
     return o;
   }
   return valeur;
@@ -594,8 +599,11 @@ function sansQuestionEnCours(historique, texte) {
 }
 
 /** Pure : retire des chaînes d'une valeur les mots des fiches (noms, adresses…), emails et téléphones — sans rien coder : pour une recherche
- * qui part chez un tiers (Légifrance, BOFiP) quand l'anonymisation est désactivée. @param {any} valeur @param {Set<string>} sensibles */
+ * qui part chez un tiers (Légifrance, BOFiP) quand l'anonymisation est désactivée. @param {any} valeur @param {import('./assistantMistral').Sensibles} sensibles */
 function sansMotsDesFiches(valeur, sensibles) {
+  // Une recherche qui part chez un tiers n'emporte AUCUN mot des fiches, adresse comprise (la politique « couplé à un nom » ne vaut que
+  // pour ce que reçoit l'IA).
+  if (typeof valeur === 'string' && sensibles.adresses instanceof Set && sensibles.adresses.size) sensibles = /** @type {any} */ (new Set([...sensibles, ...sensibles.adresses]));
   if (typeof valeur === 'string') return masquerCarnet(valeur, sensibles, new Map(), 60000, { nombres: false }).replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '').replace(/\s{2,}/g, ' ').trim();
   if (Array.isArray(valeur)) return valeur.map((v) => sansMotsDesFiches(v, sensibles));
   if (valeur && typeof valeur === 'object') return Object.fromEntries(Object.entries(valeur).map(([k, v]) => [k, sansMotsDesFiches(v, sensibles)]));
