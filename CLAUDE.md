@@ -1221,7 +1221,7 @@ sont plus appelées par le poste.
 
 ## Ce qui reste ouvert
 
-- **Appel de fonds** : aperçu de pagination A4 non repris ; frais et droits de l'acte estimés par le barème depuis le 06/10
+- **Appel de fonds** : aperçu A4 depuis 0.361.1 (feuille de 297 mm par page, trait de saut de page ; un paragraphe n'est pas repoussé à la page suivante) ; frais et droits de l'acte estimés par le barème depuis le 06/10
   (à vérifier). **Restent à brancher pour un décompte entièrement rempli** (étude 06/10) : appel de charges du syndic lu seul sur
   le NAS, acompte sur frais (relevé JurisWeb — emplacement à demander). **Encore à lire, en attente d'exemples réels** : montant des
   frais de garantie dans l'offre de prêt.
