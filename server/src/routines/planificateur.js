@@ -29,11 +29,16 @@ const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 
 const CLE_ETAT_ROUTINES = 'routines-etat';
-// Les routines par le code (executants.js) : `matin` = une fois par jour ouvré à l'heure du passage ; `continu` = toutes les 15 min de 8 h
-// à 19 h (une proposition n'est jamais refaite : l'empreinte suffit à ne pas répéter).
+// Les routines par le code (executants.js) : `continu` = toutes les 15 min de 8 h à 19 h les jours ouvrés (une proposition n'est jamais
+// refaite : l'empreinte suffit à ne pas répéter) ; `matin` = une fois par jour ouvré à l'heure du passage (plus aucune routine de code n'y est,
+// depuis le 26/10 ; la clé reste pour une future routine).
 const ROUTINES_CODE = {
-  'revue-matin': { fn: X.revueDuMatin, quand: 'matin' },
-  'proposition-dates': { fn: X.propositionDates, quand: 'matin' },
+  // `revue-matin` et `proposition-dates` sont passées en `continu` le 26/10 (étude : « il faut que « À traiter » se mette à jour dans la
+  // journée, pas seulement le matin — des tâches arrivent en journée mais n'y sont pas »). Elles tournent donc toutes les 15 min de 8 h à
+  // 19 h comme les autres : une échéance qui tombe à midi, un dossier qui devient complet l'après-midi apparaissent le jour même. Les
+  // empreintes empêchent toute répétition ; le résumé Teams groupé (heure du matin) n'en est pas changé — jamais une alerte par proposition.
+  'revue-matin': { fn: X.revueDuMatin, quand: 'continu' },
+  'proposition-dates': { fn: X.propositionDates, quand: 'continu' },
   'veille-signature': { fn: X.veilleSignature, quand: 'continu' },
   constitution: { fn: X.constitutionDossier, quand: 'continu' },
   'appel-fonds': { fn: X.appelDeFonds, quand: 'continu' },

@@ -286,8 +286,9 @@ test('lien claire-web : le fichier .reg du poste ouvre une adresse http(s) valid
   const s = scriptLiensWeb();
   assert.ok(!s.includes('"'), 'aucun guillemet double dans le script (la commande les utilise)');
   assert.match(s, /\^https\?:\/\//, 'seules les adresses http(s)');
-  assert.match(s, /Start-Process chrome\.exe -ArgumentList \('--profile-directory='\+\[char\]34\+\$p\+\[char\]34\),\$u/, 'dans le profil de l’étude, jamais le dernier profil utilisé (celui de la fenêtre CLAIRE)');
+  assert.match(s, /Start-Process chrome\.exe -ArgumentList \('--profile-directory='\+\[char\]34\+\$p\+\[char\]34\),\$u/, 'dans un profil nommé, jamais celui de la fenêtre CLAIRE');
   assert.match(s, /notmatch '\^Claire'/, 'le profil de la fenêtre CLAIRE est écarté');
+  assert.match(s, /profile\.last_used/, 'le dernier profil utilisé (session Google de l’utilisateur) d’abord');
   assert.match(s, /match '\^\[A-Za-z0-9 _-\]\+\$'/, 'un nom de profil piégé n’ajoute aucune option à Chrome');
   assert.ok(s.includes('[char]34'), 'un nom de profil à espace (« Profile 1 ») est passé entre guillemets');
   assert.equal(octetsRegLiensWeb({ url: 'http://x:1/' }).readUInt16LE(0), 0xFEFF);

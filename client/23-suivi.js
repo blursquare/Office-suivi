@@ -899,7 +899,7 @@
   // défaut ; les autres voient d'abord leurs propres dossiers, avec un bouton pour tout revoir.
   var CLE_UTILISATEUR_POSTE = 'claire-utilisateur-poste';
   var PREFIXE_DERNIERE_VISITE = 'claire-derniere-visite:';
-  var ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+  var ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
   var JOURS_RENDEZ_VOUS_DASHBOARD = 15;
   let utilisateurPoste = '';
   // null = vue par défaut selon le rôle ; true/false = choix fait avec la bascule du tableau de bord.

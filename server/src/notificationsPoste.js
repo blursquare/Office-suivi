@@ -21,7 +21,7 @@ const { synchroniserEtatCartes } = require('./canaux/etatCartes');
 const { assainirPhotos } = require('./routes/photosCollaborateurs');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
-const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 const MAX_ELEMENTS = 3;
 const LONGUEUR_APERCU = 240;
 // Les emojis qu'une carte propose : de l'humeur, jamais un geste (📌 ✋ 🔁 🕐… commandent une action dans CLAIRE, commun/reactions.js).

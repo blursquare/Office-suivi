@@ -27,7 +27,7 @@ const VALEURS_PERMISES = {
   partie: ['vendeur', 'acquereur', 'confrere', 'agence'],
   ecran: A.ECRANS_ASSISTANT.map((e) => e.cle)
 };
-const COLLABORATEURS = { bastien: 'Bastien ANGLUMENT', julie: 'Julie VASSELIN', jeremy: 'Jérémy SAUJOT' };
+const COLLABORATEURS = { bastien: 'Bastien ANGLUMENT', julie: 'Julie VASSELIN', jeremy: 'Jérémy SAUJOT', sophie: 'Sophie GOSSART' };
 
 /** Date du jour en français (« mardi 6 octobre 2026 ») pour le prompt. @param {string} iso */
 function dateEnFrancais(iso) {

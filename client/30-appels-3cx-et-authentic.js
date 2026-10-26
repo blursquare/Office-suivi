@@ -1261,7 +1261,9 @@
   // Pure : le collaborateur en charge — l'un des responsables de CLAIRE nommé dans les parties prenantes.
   function collaborateurAuthentic(capture) {
     const textes = textesPartiesPrenantesAuthentic(capture).map(t => ' ' + normaliserPourRecherche(t).replace(/[^a-z0-9]+/g, ' ') + ' ');
-    const trouves = RESPONSABLES.filter(r => {
+    // La notaire (Sophie GOSSART) n'est jamais le « collaborateur en charge » : son nom est celui de l'office, cité partout dans
+    // Authentic — l'inclure ferait toujours deux correspondances (étude 26/10, compte administrateur de Sophie).
+    const trouves = RESPONSABLES.filter(r => r !== 'Sophie GOSSART').filter(r => {
       const nom = normaliserPourRecherche(r.split(/\s+/).slice(1).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
       return nom && textes.some(t => t.includes(' ' + nom + ' '));
     });

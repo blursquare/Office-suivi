@@ -7,7 +7,7 @@ const express = require('express');
 const fs = require('node:fs');
 const { collaborateurDe } = require('./canaux');
 
-const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 
 /** @param {any} v */
 /** Une route async rattrape ses erreurs (règle du dépôt, comme routes/nas.js). @param {Function} fn */

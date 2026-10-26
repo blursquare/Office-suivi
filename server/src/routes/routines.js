@@ -14,7 +14,7 @@ const { lireUsageRoutines } = require('../routines/usage');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
-const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 const ETATS_PAR_FILTRE = { 'a-traiter': ['proposee', 'vue'], traitees: ['acceptee', 'refusee', 'expiree'] };
 
 /** Un collaborateur de la liste fermée, sinon rien. @param {any} v */

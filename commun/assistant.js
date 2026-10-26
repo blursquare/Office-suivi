@@ -560,7 +560,7 @@
       typeBien: /\bcopro/.test(t) ? 'condo' : /\bterrain\b/.test(t) ? 'land' : /\b(maison|appartement|immeuble|bien)\b/.test(t) ? 'house' : '',
       departement: mDept ? mDept[1] : '',
       primo: /\bprimo/.test(t),
-      collaborateur: /\bbastien\b/.test(t) ? 'Bastien ANGLUMENT' : /\bjulie\b/.test(t) ? 'Julie VASSELIN' : /\bjeremy\b/.test(t) ? 'Jérémy SAUJOT' : '',
+      collaborateur: /\bbastien\b/.test(t) ? 'Bastien ANGLUMENT' : /\bjulie\b/.test(t) ? 'Julie VASSELIN' : /\bjeremy\b/.test(t) ? 'Jérémy SAUJOT' : /\bsophie\b/.test(t) ? 'Sophie GOSSART' : '',
       texte: texteRappelDepuisPhrase(brut),
       dossierTexte: ''
     };

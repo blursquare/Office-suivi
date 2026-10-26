@@ -28,11 +28,12 @@
   // Liste fermée des 3 responsables (voir CLAUDE.md, "Responsables du dossier : liste fermée") —
   // reprise ici telle quelle plutôt que de refactoriser les <select> existants du formulaire/de la
   // fiche dossier, qui n'ont pas besoin de cette liste sous forme de variable.
-  var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT'];
-  // Sophie GOSSART n'est pas responsable de dossiers, mais reçoit sur Teams les factures des successions rangées par Claire Scan
-  // (étude 15/10) : son adresse est réglée avec celles des collaborateurs.
+  var RESPONSABLES = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT', 'Sophie GOSSART'];
+  // Sophie GOSSART, la notaire : administratrice comme Bastien depuis le 26/10 (compte collaborateur, vue de toute l'étude). Elle
+  // reçoit aussi sur Teams les factures des successions rangées par Claire Scan (étude 15/10) : son adresse est réglée avec celles
+  // des collaborateurs — la ligne « Factures de succession sur Teams » garde son info-bulle (`NOTAIRE_TEAMS`).
   var NOTAIRE_TEAMS = 'Sophie GOSSART';
-  var PERSONNES_EMAILS_REGLAGES = RESPONSABLES.concat([NOTAIRE_TEAMS]);
+  var PERSONNES_EMAILS_REGLAGES = RESPONSABLES;
 
   // Seul transport d'envoi proposé depuis l'écran Réglages : un compte Gmail avec mot de passe
   // d'application, port 587 en STARTTLS. Microsoft 365 est écarté (pas de droits d'administration

@@ -14,7 +14,7 @@ const { noterJournalRoutines } = require('../routines/journal');
 const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
-const ADMINISTRATEURS = ['Bastien ANGLUMENT'];
+const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 
 /** @param {any} v */
 function collaborateurDe(v) {

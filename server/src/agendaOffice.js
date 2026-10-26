@@ -531,7 +531,8 @@ function categoriesDistinctes(evenements) {
 const COLLABORATEURS_ABSENCE = [
   { nom: 'Bastien ANGLUMENT', prenom: 'Bastien', nomFamille: 'ANGLUMENT', initiales: 'BA' },
   { nom: 'Julie VASSELIN', prenom: 'Julie', nomFamille: 'VASSELIN', initiales: 'JV' },
-  { nom: 'Jérémy SAUJOT', prenom: 'Jérémy', nomFamille: 'SAUJOT', initiales: 'JS' }
+  { nom: 'Jérémy SAUJOT', prenom: 'Jérémy', nomFamille: 'SAUJOT', initiales: 'JS' },
+  { nom: 'Sophie GOSSART', prenom: 'Sophie', nomFamille: 'GOSSART', initiales: 'SG' }
 ];
 
 // Testé sur le titre NORMALISÉ (majuscules, sans accent — voir normaliserNomRapprochement) : « congés »
