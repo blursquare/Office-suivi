@@ -5334,7 +5334,7 @@ table.af-table tr:hover .af-ordre, table.af-table tr:focus-within .af-ordre { op
   body.onglet-appel-fonds-actif .af-form,
   body.onglet-appel-fonds-actif .af-apercu-barre,
   body.onglet-appel-fonds-actif .af-table-actions { display: none !important; }
-  body.onglet-appel-fonds-actif .af-lettre { border: none; box-shadow: none; max-width: none; padding: 0; }
+  body.onglet-appel-fonds-actif .af-lettre { border: none; box-shadow: none; max-width: none; padding: 0; width: auto !important; zoom: 1 !important; min-height: 0 !important; background-image: none !important; }
 }
 
 /* ---- Réglages : options « sur ce poste » en interrupteurs ------------------------------------

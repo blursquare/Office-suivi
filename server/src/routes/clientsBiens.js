@@ -9,7 +9,7 @@ const { construireBase, chercherClientsBiens, fichesDuDossier, assainirReglagesC
 
 const CLE = 'clients-biens';
 const RE_ID = /^[pb][0-9a-f]{12}$/;
-const RE_OCC = /^[A-Za-z0-9_-]{1,80}:[a-z0-9 |~]{1,220}$/;
+const RE_OCC = /^[A-Za-z0-9_-]{1,80}:[A-Za-z0-9_.:|~ -]{1,260}$/;
 // La base est recalculée au plus toutes les 10 s (frappe dans la recherche, fiches ouvertes) et aussitôt après un choix de l'étude.
 const DUREE_CACHE_MS = 10000;
 

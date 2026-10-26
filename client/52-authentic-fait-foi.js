@@ -705,7 +705,9 @@
       return sienne;
     });
     if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
-    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, MAX_PARCELLES_BIEN);
+    const toutes = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p))));
+    const parcelles = toutes.slice(0, MAX_PARCELLES_BIEN);
+    if (toutes.length > parcelles.length) noter(`Attention : ${toutes.length - parcelles.length} parcelle(s) au-delà de ${MAX_PARCELLES_BIEN} non reprise(s)`);
     d.bien = Object.assign({}, d.bien || {});
     d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
     if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);

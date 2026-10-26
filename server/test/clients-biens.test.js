@@ -427,3 +427,24 @@ test('supprimer du fichier global : seules les lignes sans dossier, par la route
     assert.equal((await fetch(B + '/api/clients-biens/fichier/societe/x', { method: 'DELETE' })).status, 400);
   } finally { serveur.close(); }
 });
+
+test('fichier global : nom corrigé = même personne ; homonyme vivant ailleurs = proposé « peut-être » ; ids acceptés par les routes', () => {
+  const { lignesFichierDepuisDossier, fusionnerFichier } = require('../src/clientsBiens');
+  const dossier = (nom) => ({ id: 'v1', nom: 'A - B', typeAffaire: 'vente', parties: [{ nom, role: 'VENDEUR' }] });
+  const f1 = fusionnerFichier({}, lignesFichierDepuisDossier(dossier('Paul DUPOND'))).fichier;
+  const f2 = fusionnerFichier(f1, lignesFichierDepuisDossier(dossier('Paul DUPONT'))).fichier;
+  assert.equal(f2.personnes.length, 1, 'faute corrigée : la même ligne');
+  const f3 = fusionnerFichier(f2, lignesFichierDepuisDossier(dossier('Paul DUPONT-DURAND'))).fichier;
+  assert.equal(f3.personnes.length, 1, 'nom composé : la même ligne');
+  // Retiré du dossier A, encore dans le dossier B : deux fiches proposées « peut-être » (jamais fondues seules).
+  const a = { id: 'v1', nom: 'A - B', typeAffaire: 'vente', parties: [{ nom: 'Paul DUPONT', role: 'VENDEUR' }] };
+  const b = { id: 'v2', nom: 'C - D', typeAffaire: 'vente', parties: [{ nom: 'Paul DUPONT', role: 'VENDEUR' }] };
+  const f = fusionnerFichier(fusionnerFichier({}, lignesFichierDepuisDossier(a)).fichier, lignesFichierDepuisDossier(b)).fichier;
+  const base = construireBase([Object.assign({}, a, { parties: [] }), b], {}, undefined, f);
+  const fiches = base.personnes.filter((p) => p.nomComplet === 'Paul DUPONT');
+  assert.equal(fiches.length, 2);
+  assert.ok(fiches.some((p) => p.peutEtre.length > 0), 'proposées « même personne ? » à l’étude');
+  const RE_OCC = /^[A-Za-z0-9_-]{1,80}:[A-Za-z0-9_.:|~ -]{1,260}$/;
+  assert.ok(fiches.flatMap((p) => p.occurrences).every((o) => RE_OCC.test(o)), 'chaque occurrence, fichier compris, passe la règle des routes de liaison et de correction');
+  assert.ok(fiches.flatMap((p) => p.occurrences).every((o) => !o.includes('#')), 'jamais de « # » : il sépare les deux côtés d\'une liaison');
+});

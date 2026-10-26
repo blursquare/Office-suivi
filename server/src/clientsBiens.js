@@ -263,7 +263,8 @@ function construirePersonnes(dossiers, reglages, imp) {
         const a = groupe[i]; const b = groupe[j];
         const dA = a.champs.dateNaissance; const dB = b.champs.dateNaissance;
         if (dA && dB && dA !== dB) continue;
-        if (a.source === 'Import' || b.source === 'Import') continue;
+        // Fichier importé : jamais proposé ; lignes du fichier global (personnes retirées d'un dossier) : proposées comme les autres, pour que l'étude dise « même personne » ou « différentes ».
+        if ((a.source === 'Import' && !a.fichier) || (b.source === 'Import' && !b.fichier)) continue;
         const dec = decision(a.id, b.id);
         if (dec === 'distinct') continue;
         if (dec === 'meme' || (dA && dA === dB)) unir(a.id, b.id); else aProposer.push([a.id, b.id]);
@@ -605,6 +606,16 @@ const nomPrenomLigne = (r) => ({ nom: norm(texte(r && r.nom)), prenom: norm(text
 /** @param {string} a @param {string} b premiers prénoms compatibles : l'un vide ou l'un commence l'autre */
 const prenomsCompatibles = (a, b) => !a || !b || a === b || a.startsWith(b + ' ') || b.startsWith(a + ' ');
 
+/** Pure : deux noms de famille voisins — à une lettre près (5 lettres au moins), ou l'un est un mot entier de l'autre (nom composé). @param {string} a @param {string} b */
+function nomsVoisins(a, b) {
+  if (!a || !b || a === b) return a === b && !!a;
+  if (` ${a} `.includes(` ${b} `) || ` ${b} `.includes(` ${a} `)) return true;
+  if (a.length < 5 || b.length < 5 || Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  const reste = (/** @type {string} */ x, /** @type {string} */ y) => x.slice(i) === y.slice(i);
+  return reste(a.slice(0, i) + a.slice(i + 1), b) || reste(a, b.slice(0, i) + b.slice(i + 1)) || a.slice(i + 1) === b.slice(i + 1);
+}
+
 /**
  * Pure : la ligne de personne du fichier (du MÊME dossier, pas déjà prise) qui désigne `n` — même nom et prénom et même date de naissance
  * d'abord, puis même nom et prénom, puis même nom de famille et prénoms compatibles ; jamais deux dates de naissance différentes. -1 si aucune.
@@ -622,6 +633,9 @@ function indexLignePersonne(lignes, n, prises) {
   let i = chercher((x, b, dx) => b.nom === a.nom && b.prenom === a.prenom && !!dx && dx === dn);
   if (i < 0) i = chercher((x, b) => b.nom === a.nom && b.prenom === a.prenom);
   if (i < 0) i = chercher((x, b) => b.nom === a.nom && prenomsCompatibles(a.prenom, b.prenom));
+  // Un nom corrigé (« DUPOND » → « DUPONT », « MARTIN » → « MARTIN DURAND ») reste la même personne : même date de naissance, ou nom voisin et prénoms compatibles.
+  if (i < 0 && dn) i = chercher((x, b, dx) => dx === dn);
+  if (i < 0) i = chercher((x, b) => nomsVoisins(a.nom, b.nom) && prenomsCompatibles(a.prenom, b.prenom));
   return i;
 }
 
@@ -646,7 +660,7 @@ function indexLigneBien(lignes, n, prises) {
 function idLibre(liste, base) {
   const pris = new Set(liste.map((x) => x && x.id));
   let id = base; let n = 2;
-  while (pris.has(id)) id = `${base}#${n++}`;
+  while (pris.has(id)) id = `${base}~${n++}`;
   return id;
 }
 
@@ -663,18 +677,31 @@ function fusionnerFichier(fichier, lignes) {
   const fondre = (avant, nouvelles, trouver) => {
     const liste = Array.isArray(avant) ? avant.slice() : [];
     const prises = new Set();
+    // Les lignes d'un dossier se cherchent parmi les lignes de CE dossier seulement (index par dossier, position de chaque ligne).
+    /** @type {Map<any, any[]>} */ const groupes = new Map();
+    /** @type {Map<any, number>} */ const position = new Map();
+    /** @type {Set<string>} */ const ids = new Set();
+    liste.forEach((x, k) => { if (!x) return; if (!groupes.has(x.dossierId)) groupes.set(x.dossierId, []); /** @type {any[]} */ (groupes.get(x.dossierId)).push(x); position.set(x, k); ids.add(x.id); });
     for (const n of nouvelles || []) {
       if (!n || !texte(n.id)) continue;
-      const i = trouver(liste, n, prises);
-      if (i >= 0) {
-        const ligne = Object.assign({}, n, { id: liste[i].id });
-        prises.add(ligne);
-        if (sansDate(liste[i]) !== sansDate(ligne)) { liste[i] = ligne; change = true; } else prises.add(liste[i]);
+      const groupe = groupes.get(n.dossierId) || [];
+      const j = trouver(groupe, n, prises);
+      if (j >= 0) {
+        const ancienne = groupe[j];
+        const ligne = Object.assign({}, n, { id: ancienne.id });
+        if (sansDate(ancienne) !== sansDate(ligne)) {
+          liste[/** @type {number} */ (position.get(ancienne))] = ligne; position.set(ligne, /** @type {number} */ (position.get(ancienne))); groupe[j] = ligne; change = true;
+          prises.add(ligne);
+        } else prises.add(ancienne);
         continue;
       }
       if (liste.length >= MAX_FICHIER) { console.error('[clients-biens] fichier global plein (' + MAX_FICHIER + ' lignes) : nouvelles lignes ignorées'); continue; }
-      const ligne = Object.assign({}, n, { id: idLibre(liste, n.id) });
-      liste.push(ligne); prises.add(ligne); change = true;
+      let id = n.id; let k = 2; while (ids.has(id)) id = `${n.id}~${k++}`;
+      ids.add(id);
+      const ligne = Object.assign({}, n, { id });
+      position.set(ligne, liste.length); liste.push(ligne); prises.add(ligne); change = true;
+      if (!groupes.has(n.dossierId)) groupes.set(n.dossierId, []);
+      /** @type {any[]} */ (groupes.get(n.dossierId)).push(ligne);
     }
     return liste;
   };
@@ -693,10 +720,14 @@ function lignesFichierRetirees(fichier, dossiers) {
   const personnes = Array.isArray(f.personnes) ? f.personnes.filter(Boolean) : [];
   const biens = Array.isArray(f.biens) ? f.biens.filter(Boolean) : [];
   const prisesP = new Set(); const prisesB = new Set();
+  /** @param {any[]} lignes */
+  const parDossier = (lignes) => { /** @type {Map<any, any[]>} */ const m = new Map(); for (const x of lignes) { if (!m.has(x.dossierId)) m.set(x.dossierId, []); /** @type {any[]} */ (m.get(x.dossierId)).push(x); } return m; };
+  const gP = parDossier(personnes); const gB = parDossier(biens);
   for (const d of dossiers || []) {
     const l = lignesFichierDepuisDossier(d);
-    for (const n of l.personnes) { const i = indexLignePersonne(personnes, n, prisesP); if (i >= 0) prisesP.add(personnes[i]); }
-    for (const n of l.biens) { const i = indexLigneBien(biens, n, prisesB); if (i >= 0) prisesB.add(biens[i]); }
+    const lp = gP.get(d && d.id) || []; const lb = gB.get(d && d.id) || [];
+    for (const n of l.personnes) { const i = indexLignePersonne(lp, n, prisesP); if (i >= 0) prisesP.add(lp[i]); }
+    for (const n of l.biens) { const i = indexLigneBien(lb, n, prisesB); if (i >= 0) prisesB.add(lb[i]); }
   }
   return { fichierPersonnes: personnes.filter((r) => !prisesP.has(r)), fichierBiens: biens.filter((r) => !prisesB.has(r)) };
 }

@@ -51,8 +51,9 @@ function cleParcelleLieu(p) { return cleParcelle(p && p.section, p && p.numero) 
 function parcelleDuBienRetire(p, aRetirer, gardees) {
   if (!p) return false;
   if (aRetirer.has(cleParcelleLieu(p))) return true;
-  if (communeNette(p.commune)) return false;
   const debut = cleParcelle(p.section, p.numero) + '|';
+  // Une parcelle sans commune (de la fiche, ou du bien retiré) se reconnaît à sa section et son numéro, tant qu'aucun bien gardé ne les porte.
+  if (communeNette(p.commune) && !aRetirer.has(debut)) return false;
   return [...aRetirer].some(k => k.startsWith(debut)) && ![...gardees].some(k => k.startsWith(debut));
 }
 
