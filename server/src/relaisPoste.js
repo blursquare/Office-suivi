@@ -440,7 +440,7 @@ async function boucle(s, o = {}) {
   // version trouve le programme libéré en une seconde (relecture 0.354.0 : la copie échouait sur un fichier encore en marche).
   /** @type {() => void} */
   let reveiller = () => {};
-  const pause = (/** @type {number} */ ms) => new Promise((res) => { const t = setTimeout(res, ms); reveiller = () => { clearTimeout(t); res(undefined); }; });
+  const pause = (/** @type {number} */ ms) => fin ? Promise.resolve() : new Promise((res) => { const t = setTimeout(res, ms); reveiller = () => { clearTimeout(t); res(undefined); }; });
   const serveur = o.tours ? null : await new Promise((resolve) => {
     const t = net.createServer((c) => { c.on('data', (d) => { if (String(d).startsWith('arret')) { fin = true; reveiller(); c.end(); } }); c.on('error', () => {}); });
     t.on('error', () => resolve(null));

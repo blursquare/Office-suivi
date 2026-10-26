@@ -71,7 +71,7 @@ const VERIFICATIONS_TERRAIN = [
   { id: 'relais-node-installation', depuis: '0.354.0', source: 'serveur', titre: 'Relais 2.0 (CLAIRE-serveur.exe sous le nom CLAIRE-relais.exe) installé sur un poste et en marche, sans blocage de l’antivirus',
     comment: 'Réglages › Notifications › installer le relais, coller le code : le message « installé » paraît ; le point se coche au premier relevé reçu du relais 2.0. Si Panda le bloque, le dire (avec le message de Panda).' },
   { id: 'relais-node-notifications', depuis: '0.354.0', source: 'manuel', titre: 'Relais 2.0 : notification Windows « CLAIRE » à un message d’un collègue, avec sa photo ; clic = CLAIRE devant ; « Répondre » ouvre le canal',
-    comment: 'Fenêtre CLAIRE réduite, un collègue écrit dans un canal : une notification de Windows au nom de CLAIRE paraît (centre de notifications). Vérifier aussi qu’aucune fenêtre noire ne s’ouvre au démarrage de la session ni au clic d’un bouton (conhost --headless).' },
+    comment: 'Fenêtre CLAIRE réduite, un collègue écrit dans un canal : une notification de Windows au nom de CLAIRE paraît (centre de notifications). Au démarrage de la session et au clic d’un bouton, une fenêtre noire peut paraître un instant (le relais se relance sans fenêtre) : dire si elle reste ou gêne.' },
   { id: 'relais-node-boutons', depuis: '0.354.0', source: 'serveur', titre: 'Relais 2.0 : bouton d’une notification (👍, Refuser, Autoriser, Répondre) reçu par CLAIRE',
     comment: 'Se coche seul à la première action reçue d’une notification du relais 2.0.' },
   { id: 'gnau-assistants-agglopolys', depuis: '0.275.0', source: 'manuel', titre: 'Extension Chrome : « Formuler » trouvé, adresse et parcelles saisies par les assistants du guichet d’Agglopolys (CU et DIA)',

@@ -380,6 +380,7 @@ test('agent sans connecteur Yousign, ou aucun coffre : dit, sans ouvrir de séan
   const c2 = avecConsole(fauxClient([]), { serveurs: [{ url: 'https://api.yousign.app/mcp' }], coffres: [{ id: 'vlt_a', urls: [] }] });
   const r2 = await service(c2).creerBrouillon(SIGNATAIRE);
   assert.match(r2.raison, /Aucun coffre/);
-  assert.deepEqual(A.choisirCoffreYousign([{ url: 'https://api.yousign.app/mcp' }], [{ id: 'a', urls: ['https://api.yousign.app/mcp/'] }, { id: 'b', urls: ['https://api.yousign.app/autre'] }, { id: 'c', urls: ['https://API.yousign.app/mcp'] }]), { coffres: ['a', 'c'] });
+  assert.deepEqual(A.choisirCoffreYousign([{ url: 'https://api.yousign.app/mcp' }], [{ id: 'a', urls: ['https://api.yousign.app/mcp/'] }, { id: 'b', urls: ['https://api.yousign.app/autre'] }, { id: 'c', urls: ['https://API.yousign.app/mcp'] }]), { erreur: 'plusieurs_coffres' });
+  assert.deepEqual(A.choisirCoffreYousign([{ url: 'https://api.yousign.app/mcp' }], [{ id: 'a', urls: ['https://api.yousign.app/mcp/'] }, { id: 'b', urls: ['https://api.yousign.app/autre'] }]), { coffres: ['a'] });
   assert.deepEqual(A.choisirCoffreYousign([{ url: 'https://api.yousign.app.exemple.invalid/mcp' }], []), { erreur: 'agent_sans_yousign' });
 });

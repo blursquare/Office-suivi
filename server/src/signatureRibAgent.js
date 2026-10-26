@@ -97,7 +97,7 @@ function adresseNormale(v) {
 /**
  * Pure : le coffre (vault) qui porte l'identifiant du connecteur Yousign de l'agent (étude 26/10 : sans coffre, le connecteur de l'agent
  * n'est pas authentifié et l'agent ne crée rien). `serveurs` = mcp_servers de l'agent ; `coffres` = [{ id, archive, urls }] ;
- * rend { coffres } (tous ceux qui portent l'adresse exacte du connecteur : une séance en accepte plusieurs) ou { erreur }.
+ * rend { coffres: [le seul qui porte l'adresse exacte du connecteur] } ou { erreur }.
  * @param {any[]} serveurs @param {{ id: string, archive?: boolean, urls: string[] }[]} coffres
  */
 function choisirCoffreYousign(serveurs, coffres) {
@@ -105,12 +105,15 @@ function choisirCoffreYousign(serveurs, coffres) {
   if (!adresses.length) return { erreur: 'agent_sans_yousign' };
   const bons = (coffres || []).filter((c) => c && !c.archive && (c.urls || []).some((u) => adresses.includes(adresseNormale(u))));
   if (!bons.length) return { erreur: 'sans_coffre' };
-  return { coffres: bons.slice(0, 10).map((c) => c.id) };
+  // Un seul : deux coffres pour la même adresse (essai et production…) feraient agir l'agent sur un compte imprévu (audit 0.354.0, M5).
+  if (bons.length > 1) return { erreur: 'plusieurs_coffres' };
+  return { coffres: [bons[0].id] };
 }
 
 const RAISONS_COFFRE = {
   agent_sans_yousign: 'L’agent de la console d’Anthropic n’a pas de connecteur Yousign (MCP) : ajoutez-le à l’agent, puis réessayez.',
-  sans_coffre: 'Aucun coffre (vault) de la console d’Anthropic ne porte d’identifiant pour l’adresse du connecteur Yousign de l’agent : créez-en un avec la clé de Yousign pour cette adresse, ou indiquez le coffre dans config.json (« agentYousignVault »).'
+  sans_coffre: 'Aucun coffre (vault) de la console d’Anthropic ne porte d’identifiant pour l’adresse du connecteur Yousign de l’agent : créez-en un avec la clé de Yousign pour cette adresse, ou indiquez le coffre dans config.json (« agentYousignVault »).',
+  plusieurs_coffres: 'Plusieurs coffres de la console d’Anthropic portent un identifiant pour le connecteur Yousign de l’agent : indiquez le bon dans config.json (« agentYousignVault »).'
 };
 
 /** La décision pour un appel d'outil mis en attente : « allow » seulement pour un outil de la liste. @param {{ name?: string }} evenement */
@@ -195,7 +198,9 @@ function creerSignatureRibAgent(o = {}) {
         coffres.push({ id: String(v.id), archive: !!v.archived_at, urls });
       }
       choix = choisirCoffreYousign(a && a.mcp_servers, coffres);
-    } catch (_) {
+    } catch (e) {
+      // Jamais le message de l'API (il peut citer la requête) : son statut seul (audit 0.354.0, B10).
+      console.warn('[CLAIRE] Coffres de l’agent Yousign non lus :', (e && /** @type {any} */ (e).status) || 'erreur');
       return [];
     }
     if (choix.erreur) { coffresConnus = { agent, erreur: choix.erreur, jusqua: maintenant() + 600000 }; throw echec(choix.erreur); }

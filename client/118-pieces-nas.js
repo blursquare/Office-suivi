@@ -147,7 +147,7 @@ function ouvrirMenuJoindreAssistant(bouton) {
   const r = bouton.getBoundingClientRect();
   m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - m.offsetWidth - 8)) + 'px';
   m.style.top = Math.max(8, r.top - m.offsetHeight - 6) + 'px';
-  setTimeout(() => document.addEventListener('mousedown', fermerMenuJoindreSiAilleurs), 0);
+  setTimeout(() => { document.addEventListener('mousedown', fermerMenuJoindreSiAilleurs); document.addEventListener('keydown', toucheMenuJoindreAssistant); }, 0);
   const premier = m.querySelector('button');
   if (premier) premier.focus();
 }
@@ -155,11 +155,18 @@ function ouvrirMenuJoindreAssistant(bouton) {
 function fermerMenuJoindreSiAilleurs(e) {
   const m = document.getElementById('asst-menu-joindre');
   if (m && e && m.contains(e.target)) return;
+  // Un clic sur « + » lui-même : laissé au bouton, qui referme le menu (sinon il le rouvrait aussitôt).
+  if (e && e.target && e.target.closest && e.target.closest('.asst-joindre-plus')) return;
   fermerMenuJoindreAssistant();
+}
+
+function toucheMenuJoindreAssistant(e) {
+  if (e && e.key === 'Escape') fermerMenuJoindreAssistant();
 }
 
 function fermerMenuJoindreAssistant() {
   const m = document.getElementById('asst-menu-joindre');
   if (m) m.remove();
   document.removeEventListener('mousedown', fermerMenuJoindreSiAilleurs);
+  document.removeEventListener('keydown', toucheMenuJoindreAssistant);
 }
