@@ -379,7 +379,7 @@
     if (!apercu) return liste;
     if (!liste.length) return [apercu];
     const completer = (im) => Object.assign({}, im, { parcelles: (im.parcelles || []).map(p => {
-      const q = apercu.parcelles.find(x => cleParcelle(x.section, x.numero) === cleParcelle(p.section, p.numero));
+      const q = apercu.parcelles.find(x => memeParcelle(x, p));
       return q ? Object.assign({}, q, Object.fromEntries(Object.entries(p).filter(([, v]) => v != null && v !== ''))) : p;
     }) });
     if (liste.length === 1) return [completer(fusionnerBienAuthentic(liste[0], apercu))];
@@ -441,18 +441,18 @@
       const i = affiches.findIndex(x => signatureBienVente(x) === signature);
       if (i < 0) return;
       const gardes = affiches.filter((x, j) => j !== i);
-      const clesGardees = new Set(gardes.flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))));
-      const aRetirer = new Set((im.parcelles || []).map(p => cleParcelle(p.section, p.numero)).filter(k => !clesGardees.has(k)));
+      const clesGardees = new Set(gardes.flatMap(x => (x.parcelles || []).map(cleParcelleLieu)));
+      const aRetirer = new Set((im.parcelles || []).map(cleParcelleLieu).filter(k => !clesGardees.has(k)));
       // Parmi les biens retirés : seulement ce qui n'appartient à aucun bien gardé (jamais l'adresse ni une parcelle du bien principal).
       const adresseGardee = gardes.some(x => normaliserAdresse(x.adresse || '') === normaliserAdresse(im.adresse || ''));
-      const k = clesBienSuccession({ adresse: adresseGardee ? '' : im.adresse, parcelles: (im.parcelles || []).filter(p => aRetirer.has(cleParcelle(p.section, p.numero))) });
+      const k = clesBienSuccession({ adresse: adresseGardee ? '' : im.adresse, parcelles: (im.parcelles || []).filter(p => aRetirer.has(cleParcelleLieu(p))) });
       d.authentic = Object.assign({}, d.authentic || {}, {
         immeubles: brut.filter((x, j) => j !== i),
         biensRetires: ((d.authentic && d.authentic.biensRetires) || []).concat(k.adresse || k.parcelles.length ? [k] : []).slice(-20)
       });
       const cad = d.bien && d.bien.cadastre;
       if (cad && Array.isArray(cad.parcelles) && aRetirer.size) {
-        const restantes = cad.parcelles.filter(p => !aRetirer.has(cleParcelle(p.section, p.numero)));
+        const restantes = cad.parcelles.filter(p => !parcelleDuBienRetire(p, aRetirer, clesGardees));
         if (restantes.length) d.bien = Object.assign({}, d.bien, { cadastre: Object.assign({}, cad, { parcelles: restantes, section: restantes[0].section, numero: restantes[0].numero }) });
       }
       ajouterHistorique(d, `Bien retiré du dossier : ${im.adresse ? normaliserAdresse(im.adresse) : [...aRetirer].join(', ')}`);

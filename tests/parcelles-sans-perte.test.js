@@ -38,3 +38,32 @@ test('export Authentic : deux « AB 12 » de communes différentes ne sont pas f
   const p = app.parcellesExportAuthentic({ immeubles: [{ id: 'a', parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS' }, { section: 'AB', numero: '12', commune: 'VINEUIL' }, { section: 'AB', numero: '12', commune: 'BLOIS' }] }] });
   assert.equal(p.length, 2);
 });
+
+test('préfixe absent d’un côté : la même parcelle, jamais un doublon', () => {
+  const d = { id: 'v3', typeVente: 'terre', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS' }] } }, authentic: {} };
+  app.appliquerBienAuthentic(d, { adresse: null, parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS', prefixe: '123' }] }, () => {}, {}, { sansRetenir: true });
+  assert.equal(d.bien.cadastre.parcelles.length, 1);
+  assert.equal(d.bien.cadastre.parcelles[0].prefixe, '123', 'le préfixe d’Authentic complète la parcelle');
+  assert.equal(app.memeParcelle({ section: 'AB', numero: '12', prefixe: '123' }, { section: 'AB', numero: '12', prefixe: '456' }), false, 'deux préfixes différents : deux parcelles');
+  assert.equal(app.memeParcelle({ section: 'AB', numero: '12', prefixe: '000' }, { section: 'AB', numero: '12' }), true);
+});
+
+test('fiche sans commune face à deux communes d’Authentic : la fiche en garde les deux, quel que soit l’ordre', () => {
+  const d = { id: 'v4', typeVente: 'terre', bien: { cadastre: { parcelles: [{ section: 'AB', numero: '12' }] } }, authentic: {} };
+  app.appliquerBienAuthentic(d, { adresse: null, parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS' }, { section: 'AB', numero: '12', commune: 'VINEUIL' }] }, () => {}, {}, { sansRetenir: true });
+  assert.equal(refs(d.bien.cadastre.parcelles), 'AB 12 BLOIS, AB 12 VINEUIL');
+  const sansCommuneDabord = app.parcellesExportAuthentic({ immeubles: [{ id: 'a', parcelles: [{ section: 'AB', numero: '12' }, { section: 'AB', numero: '12', commune: 'BLOIS' }, { section: 'AB', numero: '12', commune: 'VINEUIL' }] }] });
+  assert.equal(sansCommuneDabord.length, 2, 'la parcelle sans commune est absorbée par la première, la seconde reste');
+  const avecCommuneDabord = app.parcellesExportAuthentic({ immeubles: [{ id: 'a', parcelles: [{ section: 'AB', numero: '12', commune: 'BLOIS' }, { section: 'AB', numero: '12', commune: 'VINEUIL' }, { section: 'AB', numero: '12' }] }] });
+  assert.equal(avecCommuneDabord.length, 2);
+});
+
+test('retirer un bien : les parcelles de l’autre commune, portées par un bien gardé, restent sur la fiche', () => {
+  const garde = { section: 'AB', numero: '12', commune: 'BLOIS' }, retire = { section: 'AB', numero: '12', commune: 'VINEUIL' };
+  const gardees = new Set([app.cleParcelleLieu(garde)]);
+  const aRetirer = new Set([app.cleParcelleLieu(retire)]);
+  assert.equal(app.parcelleDuBienRetire(garde, aRetirer, gardees), false);
+  assert.equal(app.parcelleDuBienRetire(retire, aRetirer, gardees), true);
+  assert.equal(app.parcelleDuBienRetire({ section: 'AB', numero: '12' }, aRetirer, gardees), false, 'sans commune : gardée tant qu’un bien gardé porte AB 12');
+  assert.equal(app.parcelleDuBienRetire({ section: 'AB', numero: '12' }, aRetirer, new Set()), true, 'sans commune et aucun bien gardé ne la porte : elle part');
+});

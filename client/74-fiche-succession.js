@@ -791,7 +791,7 @@
     // La liste affichée : un bien par immeuble, les biens notés autrement (anciens dossiers) gardés.
     const affiche = (im) => ({ adresse: im.adresse || '', type: im.type || '', parcelles: (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '), description: im.description || '' });
     const anciens = (Array.isArray(d.biens) ? d.biens : []).filter(b => !immeubles.some(im => (b.adresse && net(b.adresse) === net(im.adresse)) || (b.parcelles && (im.parcelles || []).some(p => net(b.parcelles).includes(net(p.section + ' ' + p.numero))))));
-    d.biens = immeubles.map(affiche).concat(anciens).slice(0, 20);
+    d.biens = immeubles.map(affiche).concat(anciens).slice(0, MAX_IMMEUBLES_DOSSIER);
     noter(`Bien relevé dans Authentic${complete ? ' (complété)' : ''} : ${fusion.adresse || fusion.parcelles.map(p => p.section + ' ' + p.numero).join(', ')}${fusion.type ? ' — ' + fusion.type : ''}`);
     resultat.modifie = true;
     return resultat;

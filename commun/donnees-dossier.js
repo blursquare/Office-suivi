@@ -32,16 +32,49 @@
   const MAX_PARCELLES_BIEN = 300;
   const MAX_IMMEUBLES_DOSSIER = 40;
 
+  /** Pure : section + numéro d'une parcelle, sans préfixe ni commune ('' si l'un manque). @param {any} p */
+  function cleSectionNumero(p) {
+    const section = texte(p && p.section).toUpperCase();
+    const numero = texte(p && p.numero).replace(/^0+(?=\d)/, '');
+    return section && numero ? section + '|' + numero : '';
+  }
+
   /**
-   * Pure : deux parcelles sont-elles la même ? Même préfixe, section et numéro ET, quand les deux portent une commune, la même commune
-   * (« AB 12 » de deux communes = deux parcelles) ; une commune inconnue d'un côté ne départage pas.
+   * Pure : deux parcelles sont-elles la même ? Même section et numéro ; un préfixe (commune absorbée) différent, quand les deux le donnent, ou
+   * une commune différente, quand les deux la donnent, en font deux ; un préfixe ou une commune absent d'un côté ne départage pas.
    * @param {any} p @param {any} q
    */
   function memeParcelle(p, q) {
-    const a = cleParcelleSansCommune(p);
-    if (!a || a !== cleParcelleSansCommune(q)) return false;
+    const a = cleSectionNumero(p);
+    if (!a || a !== cleSectionNumero(q)) return false;
+    const pre = (/** @type {any} */ x) => (/^0*$/.test(texte(x && x.prefixe)) ? '' : texte(x.prefixe));
+    if (pre(p) && pre(q) && pre(p) !== pre(q)) return false;
     const ca = communeNette(p && p.commune), cb = communeNette(q && q.commune);
     return !(ca && cb && ca !== cb);
+  }
+
+  /**
+   * Pure : range des parcelles lues (`entrantes`) par rapport à celles déjà connues (`existantes`), une à une. Une commune ou un préfixe
+   * inconnu d'un côté ne départage pas, mais une parcelle connue SANS commune n'absorbe qu'une parcelle de commune différente : la fiche « AB 12 »
+   * face à « AB 12 BLOIS » et « AB 12 VINEUIL » garde la seconde comme parcelle de plus. Rend { appariements: [existante, entrante][], ajoutees }.
+   * @param {any[]} existantes @param {any[]} entrantes
+   */
+  function rapprocherParcelles(existantes, entrantes) {
+    const ex = liste(existantes).filter((p) => cleSectionNumero(p));
+    const prises = new Set();
+    /** @type {any[][]} */ const appariements = [];
+    /** @type {any[]} */ const ajoutees = [];
+    const memeLieu = (/** @type {any} */ p, /** @type {any} */ q) => communeNette(p.commune) === communeNette(q.commune);
+    for (const q of liste(entrantes)) {
+      if (!cleSectionNumero(q)) continue;
+      const exacte = ex.find((p) => memeParcelle(p, q) && memeLieu(p, q));
+      if (exacte) { appariements.push([exacte, q]); continue; }
+      const partielle = ex.find((p) => memeParcelle(p, q) && !prises.has(p));
+      if (partielle) { prises.add(partielle); appariements.push([partielle, q]); continue; }
+      ex.push(q);
+      ajoutees.push(q);
+    }
+    return { appariements, ajoutees };
   }
 
   /** Pure : un nom de commune réduit pour comparer (« SAINT-AIGNAN » = « st aignan »). @param {unknown} c */
@@ -125,8 +158,9 @@
       return liste_.slice(0, MAX_IMMEUBLES_DOSSIER);
     }
     const ancien = liste_[i];
-    const parcelles = liste(ancien.parcelles).map((/** @type {any} */ p) => completerParcelle(p, nouv.parcelles.find((q) => memeParcelle(q, p))));
-    nouv.parcelles.forEach((q) => { if (!parcelles.some((/** @type {any} */ p) => memeParcelle(p, q))) parcelles.push(q); });
+    const rap = rapprocherParcelles(liste(ancien.parcelles), nouv.parcelles);
+    const parcelles = liste(ancien.parcelles).map((/** @type {any} */ p) => rap.appariements.filter((a) => a[0] === p).reduce((r, a) => completerParcelle(r, a[1]), p));
+    rap.ajoutees.forEach((q) => parcelles.push(q));
     const proteges = (o && o.seulementCompleter) ? ['adresse', 'commune', 'codePostal'] : [];
     const apports = Object.fromEntries(Object.entries(nouv).filter(([k, v]) => v !== '' && v != null && !(Array.isArray(v) && !v.length)
       && !(proteges.includes(k) && texte(ancien[k]))));
@@ -315,7 +349,7 @@
     return (Array.isArray(d && d.parties) ? d.parties : []).filter((p) => p && texte(p.nom) && (!r || texte(p.role).toUpperCase() === r)).map((p) => personneDossier(d, p));
   }
 
-  exporter({ MAX_PARCELLES_BIEN, MAX_IMMEUBLES_DOSSIER, memeParcelle, detailParcelleVide, memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, immeublesSansParcellesEgarees, communeDeLAdresse,
+  exporter({ MAX_PARCELLES_BIEN, MAX_IMMEUBLES_DOSSIER, memeParcelle, rapprocherParcelles, detailParcelleVide, memeCommune, communeNette, cleParcelleDossier, cleParcelleSansCommune, parcellesCadastre, completerParcelle, fusionnerImmeubleAuthentic, immeublesSansParcellesEgarees, communeDeLAdresse,
     biensDossier, parcellesDossier, ficheClientDe, personneDossier, personnesDossier });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

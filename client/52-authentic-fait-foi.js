@@ -691,17 +691,17 @@
     const cad = (d.bien && d.bien.cadastre) || null;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
     // La même parcelle = même section, numéro et, si les deux la donnent, même commune : deux « AB 12 » de communes différentes s'ajoutent.
-    const vues = deja.slice();
-    const nouvelles = bien.parcelles.filter(p => { if (!cleParcelle(p.section, p.numero) || vues.some(q => memeParcelle(q, p))) return false; vues.push(p); return true; });
+    const rap = rapprocherParcelles(deja, bien.parcelles);
+    const nouvelles = rap.ajoutees;
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
     const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre', 'zone', 'spf'].filter(k => p && !detailParcelleVide(k, p[k])).map(k => [k, String(p[k]).slice(0, 60)]));
-    const parcelleDuBien = (p) => bien.parcelles.find(q => memeParcelle(q, p));
     let complete = false;
     const anciennes = deja.map(p => {
       // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
       const sienne = Object.assign({}, p);
-      const a = parcelleDuBien(p);
-      Object.entries(details(a)).forEach(([k, v]) => { if (detailParcelleVide(k, sienne[k])) { sienne[k] = v; complete = true; } });
+      rap.appariements.filter(x => x[0] === p).forEach(x => {
+        Object.entries(details(x[1])).forEach(([k, v]) => { if (detailParcelleVide(k, sienne[k])) { sienne[k] = v; complete = true; } });
+      });
       return sienne;
     });
     if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
@@ -1135,11 +1135,11 @@
     const gardes = d.authentic.immeubles.filter(im => !retires.includes(im));
     d.authentic = Object.assign({}, d.authentic, { immeubles: gardes });
     // Leurs parcelles quittent aussi la fiche, sauf celles d'un bien gardé.
-    const clesGardees = new Set(gardes.flatMap(x => ((x && x.parcelles) || []).map(p => cleParcelle(p.section, p.numero))));
-    const aRetirer = new Set(retires.flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))).filter(k => !clesGardees.has(k)));
+    const clesGardees = new Set(gardes.flatMap(x => ((x && x.parcelles) || []).map(cleParcelleLieu)));
+    const aRetirer = new Set(retires.flatMap(x => (x.parcelles || []).map(cleParcelleLieu)).filter(k => !clesGardees.has(k)));
     const cad = d.bien && d.bien.cadastre;
     if (cad && Array.isArray(cad.parcelles) && aRetirer.size) {
-      const restantes = cad.parcelles.filter(p => p && !aRetirer.has(cleParcelle(p.section, p.numero)));
+      const restantes = cad.parcelles.filter(p => p && !parcelleDuBienRetire(p, aRetirer, clesGardees));
       if (restantes.length && restantes.length < cad.parcelles.length) d.bien = Object.assign({}, d.bien, { cadastre: Object.assign({}, cad, { parcelles: restantes, section: restantes[0].section, numero: restantes[0].numero }) });
     }
     retires.forEach(im => {

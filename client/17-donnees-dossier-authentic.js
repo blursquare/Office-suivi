@@ -133,14 +133,15 @@
     const d = donnees || {};
     const ids = d.biens || [];
     const immeubles = (d.immeubles || []).filter(im => !ids.length || ids.includes(im.id));
-    const out = [];
+    const lues = [];
     immeubles.forEach(im => (im.parcelles || []).forEach(p => {
-      const cle = cleParcelle(p.section, p.numero);
-      // Même section et numéro dans deux communes différentes : deux parcelles (jamais fondues en une).
-      if (!cle || out.some(q => memeParcelle(q, p))) return;
-      out.push(Object.assign({ section: String(p.section).toUpperCase(), numero: String(p.numero) },
+      if (!cleParcelle(p.section, p.numero)) return;
+      lues.push(Object.assign({ section: String(p.section).toUpperCase(), numero: String(p.numero) },
         Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))));
     }));
+    // Une à une, sans fondre deux « AB 12 » de communes différentes ; une parcelle lue sans commune est complétée par celle qui en donne une.
+    const rap = rapprocherParcelles([], lues);
+    const out = rap.ajoutees.map(p => rap.appariements.filter(a => a[0] === p).reduce((r, a) => completerParcelle(r, a[1]), p));
     return out.slice(0, MAX_PARCELLES_BIEN);
   }
 

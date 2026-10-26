@@ -43,6 +43,19 @@ function retirerPartieDuDossier(d, index) {
   return nom;
 }
 
+// Pure : la clé d'une parcelle avec sa commune (« AB0012|blois ») — deux « AB 12 » de communes différentes sont deux parcelles.
+function cleParcelleLieu(p) { return cleParcelle(p && p.section, p && p.numero) + '|' + communeNette(p && p.commune); }
+
+// Pure : cette parcelle de la fiche part-elle avec un bien retiré ? `aRetirer` / `gardees` : ensembles de cleParcelleLieu des biens retirés et
+// gardés. Une parcelle de la fiche sans commune part seulement si un bien retiré la porte et qu'AUCUN bien gardé ne porte cette section et ce numéro.
+function parcelleDuBienRetire(p, aRetirer, gardees) {
+  if (!p) return false;
+  if (aRetirer.has(cleParcelleLieu(p))) return true;
+  if (communeNette(p.commune)) return false;
+  const debut = cleParcelle(p.section, p.numero) + '|';
+  return [...aRetirer].some(k => k.startsWith(debut)) && ![...gardees].some(k => k.startsWith(debut));
+}
+
 // Modifie d : retire une parcelle (section + numéro, la commune départage si elle est donnée) de la fiche ET des immeubles d'Authentic.
 // Rend le nombre de retraits.
 function retirerParcelleDuDossier(d, section, numero, commune) {
@@ -176,8 +189,7 @@ async function retirerBienPourReprise(id, signature) {
   const bien = retirerImmeubleSansBlocage(d, signature);
   if (!bien) { afficherToast('Ce bien n’est plus dans la liste : rouvrez la fiche.', 'OK', null); return; }
   // Ses parcelles quittent aussi la fiche, sauf celles d'un bien gardé.
-  const cleCommune = (p) => cleParcelle(p.section, p.numero) + '|' + motsNettoyageFiche(p.commune || '');
-  const gardees = new Set(((d.authentic && d.authentic.immeubles) || []).flatMap(x => (x.parcelles || []).map(cleCommune)));
-  (bien.parcelles || []).filter(p => !gardees.has(cleCommune(p))).forEach(p => retirerParcelleDuDossier(d, p.section, p.numero, p.commune));
+  const gardees = new Set(((d.authentic && d.authentic.immeubles) || []).flatMap(x => (x.parcelles || []).map(cleParcelleLieu)));
+  (bien.parcelles || []).filter(p => !gardees.has(cleParcelleLieu(p))).forEach(p => retirerParcelleDuDossier(d, p.section, p.numero, p.commune));
   await apresNettoyageFiche(d, `Bien retiré : ${bien.adresse ? normaliserAdresse(bien.adresse) : (bien.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ') || 'sans adresse'}`);
 }
