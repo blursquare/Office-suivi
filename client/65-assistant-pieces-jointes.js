@@ -4,7 +4,7 @@
   // reconnaissance de caractères pour une image ou un scan —, texte MASQUÉ par le serveur comme tout résultat d'outil. Le nom du
   // fichier ne part jamais (il peut porter un nom de client). Rien n'est gardé : les pièces sont oubliées avec la conversation.
 
-  var MAX_PIECES_JOINTES_ASSISTANT = 5;
+  var MAX_PIECES_JOINTES_ASSISTANT = 15;   // 0.364.0 (étude 26/10 : « augmente à 15 le nombre de documents à lire par message »), avant 5
   var MAX_OCTETS_PIECE_JOINTE_ASSISTANT = 25 * 1024 * 1024;
   var piecesJointesAssistant = [];          // en attente d'envoi : [{ id, nom, sorte: 'pdf' | 'image', fichier }]
   var compteurPiecesJointesAssistant = 0;

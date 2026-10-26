@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.363.1';
+  const VERSION_APP = '0.363.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.363.2', date: '2026-10-26 23:47', resume: "Demander à CLAIRE lit jusqu'à 15 documents joints par message (au lieu de 5), chacun en entier : les pages se lisent par tranches jusqu'à 400 pages par document, et le texte est coupé seulement si le plafond de lecture de la conversation est atteint (alors elle le dit)." },
     { version: '0.363.1', date: '2026-10-26 23:45', resume: "Demander à CLAIRE peut de nouveau poser une tâche dans la liste « À faire » d'un collègue, mais seulement si on le lui demande (« mets-lui une tâche ») : le message part dans votre conversation personnelle avec lui et la tâche s'ajoute à son « Aujourd'hui », sans message Teams à part." },
     { version: '0.363.0', date: '2026-10-26 23:40', resume: "Demander à CLAIRE : dans le canal « général », elle ne répond plus qu'à un message où on l'appelle (@Claire), comme dans les autres canaux. Quand on lui demande de confier quelque chose à un collègue, elle l'écrit, après votre « Autoriser », dans votre conversation personnelle avec lui, sous votre nom — plus de tâche dans son « Aujourd'hui » ni de message Teams à part." },
     { version: '0.362.0', date: '2026-10-26 23:35', resume: "Demander à CLAIRE lit maintenant le titre et le lieu des rendez-vous de l'agenda, et le nom des fichiers du dossier sur le NAS, comme l'étude l'a autorisé. Les noms des fiches, emails et téléphones restent remplacés par des codes avant d'aller chez le fournisseur d'IA ; un nom absent des fiches peut passer en clair. Le nom d'un scan du copieur ne part toujours pas." },

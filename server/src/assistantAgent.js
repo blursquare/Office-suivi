@@ -640,6 +640,7 @@ function sansNomsPropres(valeur) {
   return valeur;
 }
 
+const MAX_PIECES_JOINTES_MESSAGE = 15;        // documents joints à UN message (étude 26/10 : 15 ; avant 8 côté serveur, 5 côté poste)
 const MAX_CARACTERES_ACTE_MESSAGE = 700000;   // texte intégral des pièces jointes d'UN message (≈ 175 000 jetons)
 
 /**
@@ -649,7 +650,7 @@ const MAX_CARACTERES_ACTE_MESSAGE = 700000;   // texte intégral des pièces joi
  * @param {any} documents @param {(s: string) => string} masque @param {number} [plafond]
  */
 function blocDocumentsJoints(documents, masque, plafond) {
-  const docs = (Array.isArray(documents) ? documents : []).slice(0, 8)
+  const docs = (Array.isArray(documents) ? documents : []).slice(0, MAX_PIECES_JOINTES_MESSAGE)
     .filter((d) => d && typeof d.id === 'string' && /^pj\d{1,3}$/.test(d.id) && Array.isArray(d.pages));
   let restant = Math.max(0, Math.min(MAX_CARACTERES_ACTE_MESSAGE, Number.isFinite(plafond) ? plafond : MAX_CARACTERES_ACTE_MESSAGE));
   let pagesTotal = 0;

@@ -828,3 +828,14 @@ test('agenda et noms de fichiers du NAS (étude 26/10) : titre, lieu et nom_fich
   assert.doesNotMatch(envoye, SECRETS, 'les noms des fiches sont codés dans le nom du fichier : ' + envoye.slice(-700));
   assert.match(envoye, /Compromis signé/, 'le nom du fichier reste lisible');
 });
+
+test('pièces jointes (0.364.0) : 15 documents lus en entier par message, le texte de chacun intégral', () => {
+  const { blocDocumentsJoints } = require('../src/assistantAgent');
+  const docs = Array.from({ length: 17 }, (_, i) => ({ id: 'pj' + (i + 1), pagesTotal: 3, pages: [1, 2, 3].map((p) => ({ page: p, texte: `Texte de la page ${p} du document ${i + 1}.` })) }));
+  const r = blocDocumentsJoints(docs, (t) => t, 700000);
+  assert.equal(r.coupe, false);
+  assert.equal(r.pages, 45, '15 documents de 3 pages ; les deux suivants ne sont pas lus');
+  assert.match(r.bloc, /=== pj15 : 3 pages ===/);
+  assert.match(r.bloc, /page 3 du document 15\./, 'le dernier document est lu jusqu’au bout');
+  assert.doesNotMatch(r.bloc, /pj16/);
+});
