@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquettes — colonne Discussions</title>
+<style>
+:root{--paper:#E9EDF2;--carte:#fff;--ink:#16233C;--muted:#647089;--line:#DCE2E9;--accent:#6D2332;--vert:#2E9E5B;--rouge:#C8501E;--sunk:#F3F5F8}
+*{box-sizing:border-box}body{margin:0;padding:24px;background:var(--paper);color:var(--ink);font:400 13px/1.35 system-ui,sans-serif}
+h1{font-size:18px;font-weight:500;margin:0 0 16px}
+.grille{display:grid;grid-template-columns:repeat(3,300px);gap:28px 24px;justify-content:start}
+.cadre h2{font-size:13px;font-weight:600;margin:0 0 2px}.cadre p{margin:0 0 8px;color:var(--muted);font-size:11px;height:30px}
+.col{width:300px;height:620px;background:var(--carte);border:1px solid var(--line);border-radius:12px;padding:10px;overflow:hidden;display:flex;flex-direction:column;gap:2px}
+.btn{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;margin-bottom:4px}
+.tit{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:8px 4px 3px;display:flex;justify-content:space-between;align-items:center}
+.lig{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;white-space:nowrap}
+.lig.act{background:var(--sunk)}
+.lig .nom{flex:1;overflow:hidden;text-overflow:ellipsis}
+.lig small{display:block;color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.lig b{font-weight:600}
+.av{position:relative;flex:none;width:20px;height:20px;border:1px solid var(--muted);border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink)}
+.av i{position:absolute;right:-3px;bottom:-3px;width:8px;height:8px;border-radius:50%;border:1px solid var(--muted);background:#fff}
+.av i.on{background:var(--vert);border-color:var(--vert)}
+.ico{flex:none;width:20px;text-align:center;color:var(--muted)}
+.n{flex:none;min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
+.n.o{background:var(--rouge)}
+.puce{font-size:11px;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--muted)}
+.puce.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.onglets{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:2px 0 6px}
+.onglets span{padding:6px 8px;color:var(--muted);border-bottom:2px solid transparent;font-weight:500}
+.onglets span.on{color:var(--ink);border-color:var(--accent)}
+.plus{color:var(--accent);padding:3px 8px;font-size:12px}
+.ch{display:inline-block;width:10px;color:var(--muted);font-size:10px}
+.r{display:inline-block;width:18px;height:18px;border-radius:50%;background:var(--sunk);border:1px solid var(--line);font-size:9px;text-align:center;line-height:16px;color:var(--muted)}
+.sep{height:1px;background:var(--line);margin:4px 0}
+.etin{width:20px;text-align:center;color:var(--accent)}
+</style></head><body>
+<h1>Colonne Discussions — 6 présentations (30 dossiers en cours, 12 conversations avec Claire, 3 messages privés)</h1>
+<div class="grille" id="g"></div>
+<script>
+const N=['MARTIN / ROUX','BERNARD / DAVID','DUBOIS / MOREL','THOMAS / GIRARD','ROBERT / BONNET','RICHARD / FRANCOIS','PETIT / LAURENT','DURAND / MERCIER','LEROY / DUPONT','MOREAU / LAMBERT','SIMON / VINCENT','LAURENT / ANDRE'];
+const R=['Julie','Jérémy','Bastien'];
+const D=Array.from({length:30},(_,k)=>({n:N[k%12].replace(/^(\w+)/,(m)=>m)+(k>11?' '+(k-10):''),r:R[k%3],nl:[2,1,0,0,3,1,0,0,2,0][k%10],j:3+k*2,ex:'Pièces à relancer avant la signature'}));
+const C=['Où en est le dossier MARTIN ?','Qu’est-ce que j’ai à faire aujourd’hui ?','Relance BERNARD pour son offre de prêt','Trouve une date de signature pour DUBOIS','Prépare l’appel de fonds THOMAS','Quelles pièces manquent pour ROBERT ?','Rédige un mail au syndic de RICHARD','Relecture du projet d’acte PETIT','Calcule les frais d’acte pour 245 000 €','Qui est le notaire de DURAND ?','Rappelle-moi vendredi d’appeler la mairie','Résume les emails d’hier'];
+const P=[['Bastien',1,1],['Jérémy',1,0],['Sophie',1,0]];
+const av=(t,on)=>`<span class="av">${t}<i class="${on?'on':''}"></i></span>`;
+const dos=(d,sub)=>`<div class="lig"><span class="ico">▣</span><span class="nom">${d.nl?'<b>':''}VTE - ${d.n}${d.nl?'</b>':''}${sub?`<small>${d.ex}</small>`:''}</span>${d.nl?`<span class="n">${d.nl}</span>`:''}</div>`;
+const conv=(t,i)=>`<div class="lig${i===0?' act':''}"><span class="etin">✦</span><span class="nom">${t}</span></div>`;
+const priv=()=>P.map(p=>`<div class="lig">${av(p[0][0],p[2])}<span class="nom">${p[1]?'<b>'+p[0]+'</b>':p[0]}</span>${p[1]?'<span class="n o">1</span>':''}</div>`).join('');
+const hd=`<div class="btn">+ Nouvelle conversation</div>`;
+const T=(t,r='')=>`<div class="tit"><span>${t}</span><span>${r}</span></div>`;
+const mes=D.filter(d=>d.r==='Julie');
+const V=[];
+// A
+V.push(['A · Onglets','Un seul bloc visible à la fois : Claire, Dossiers, Équipe. Rien ne se bouscule, la hauteur est toute à la liste choisie.',
+`${hd}<div class="onglets"><span>Claire</span><span class="on">Dossiers <span class="n">12</span></span><span>Équipe <span class="n o">3</span></span></div>${D.slice(0,12).map(d=>dos(d,true)).join('')}`]);
+// B
+V.push(['B · Accordéons','Chaque bloc se replie ; seuls les blocs avec du non-lu sont ouverts. Les compteurs restent visibles repliés.',
+`${hd}${T('<span class="ch">▸</span> Claire · 12')}${T('<span class="ch">▾</span> Messages privés','<span class="n o">3</span>')}${priv()}${T('<span class="ch">▾</span> Dossiers','<span class="n">12</span>')}${D.filter(d=>d.nl).slice(0,6).map(d=>dos(d,false)).join('')}<div class="plus">Voir les 6 autres avec du non-lu</div>${T('<span class="ch">▸</span> Dossiers calmes · 18')}${T('<span class="ch">▸</span> Archivés · 1')}`]);
+// C
+V.push(['C · Un seul fil','Tout est mélangé, trié par dernière activité (comme « Toutes les conversations »). Pastilles de filtre en haut.',
+`${hd}<div style="display:flex;gap:4px;margin-bottom:4px"><span class="puce on">Tout</span><span class="puce">Non lus 15</span><span class="puce">Dossiers</span><span class="puce">Privés</span></div>`+
+`<div class="lig">${av('B',1)}<span class="nom"><b>Bastien</b><small>Salut, tu as vu l’offre de…</small></span><span class="n o">1</span></div>`+
+D.slice(0,5).map(d=>dos(d,true)).join('')+`<div class="lig"><span class="etin">✦</span><span class="nom">Où en est le dossier MARTIN ?<small>Claire · hier</small></span></div>`+D.slice(5,7).map(d=>dos(d,true)).join('')+`<div class="lig">${av('J',0)}<span class="nom">Jérémy<small>Ok pour vendredi</small></span></div>`]);
+// D
+V.push(['D · Mes dossiers d’abord','Mes dossiers (responsable) en tête, les autres repliés. Claire : 3 conversations récentes puis « voir plus ».',
+`${hd}${T('Claire')}${C.slice(0,3).map(conv).join('')}<div class="plus">Voir les 9 autres</div>${T('Messages privés')}${priv()}${T('Mes dossiers','10')}${mes.slice(0,4).map(d=>dos(d,true)).join('')}<div class="plus">Voir les 6 autres</div>${T('<span class="ch">▸</span> Autres dossiers','20')}`]);
+// E
+V.push(['E · Par responsable','Les dossiers sont groupés par responsable, chaque groupe se replie. Utile pour un collègue qui remplace.',
+`${hd}${T('<span class="ch">▸</span> Claire · 12')}${T('<span class="ch">▸</span> Messages privés','<span class="n o">3</span>')}${T('<span class="ch">▾</span> Julie · 10','<span class="n">8</span>')}${mes.slice(0,3).map(d=>dos(d,false)).join('')}${T('<span class="ch">▾</span> Jérémy · 10','<span class="n">5</span>')}${D.filter(d=>d.r==='Jérémy').slice(0,3).map(d=>dos(d,false)).join('')}${T('<span class="ch">▸</span> Bastien · 10','<span class="n">4</span>')}`]);
+// F
+V.push(['F · Par échéance','Les dossiers sont rangés par date de signature : Cette semaine, Semaine prochaine, Plus tard. Le plus urgent est en haut.',
+`${hd}${T('<span class="ch">▸</span> Claire · 12')}${T('<span class="ch">▸</span> Messages privés','<span class="n o">3</span>')}${T('Signature cette semaine','4')}${D.slice(0,4).map(d=>dos(d,false).replace('</span></div>',`</span><small style="color:var(--rouge)">J-${d.j}</small></div>`)).join('')}${T('Semaine prochaine','6')}${D.slice(4,8).map(d=>dos(d,false).replace('</span></div>',`</span><small style="color:var(--muted)">J-${d.j}</small></div>`)).join('')}<div class="plus">Voir les 2 autres</div>${T('<span class="ch">▸</span> Plus tard · 20')}`]);
+document.getElementById('g').innerHTML=V.map(v=>`<div class="cadre"><h2>${v[0]}</h2><p>${v[1]}</p><div class="col">${v[2]}</div></div>`).join('');
+</script></body></html>
