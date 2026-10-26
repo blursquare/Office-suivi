@@ -22048,3 +22048,30 @@ Empreinte relais 1.2 : `919399b7…df4105`.
 Non vérifiés au bureau : tout ce qui touche Authentic, Yousign et l'affichage réel.
 
 **0.353.0, relecture et audit (26/10)** — rapport `docs/audits/2026-10-26-0.353.0.md` : correct avec réserves, un Haut, quatre Moyens, tous corrigés avant l'envoi. **H1** : une société se rattachait par un simple nom de famille (« SCI DUPONT » rangée du côté de Paul DUPONT) — `roleSocieteAuthenticDansDossier` ne compte plus qu'une partie morale ou un nom portant une forme juridique (`FORMES_SOCIETE`), lit le nom du dossier seulement là où ses mots ne sont pas ceux d'une personne de ce côté, et rend '' (« à rattacher ») quand les comparants de ce côté sont lus sans la société. **M2** : société reprise du compromis sous une autre écriture (« Société civile immobilière LES PINS ») marquée société, plus ajoutée en double — forme juridique exigée dans le nom (le gérant « DUPONT » n'est jamais « SCI DUPONT »). **M3** : demande de RIB retenue PAR PERSONNE (`d.ribDemandes[cleRibPartie]`, `ribDemandeLePour`, `ribResteADemander`) ; l'ancien `ribDemandeLe` vaut pour les acquéreurs ; fiche de signature (client/111) : « N sur M » tant que toutes ne sont pas faites, « sans objet » seulement sans aucune partie accompagnée. **M4** : l'outil de l'agent (client/110) ne propose que les acquéreurs que l'étude accompagne (`partiesSignatureRib`). **M5** : Yousign — l'identifiant d'une demande par une clé nommée seulement, le lien seulement `/requests/<uuid>` (jamais celui d'un modèle ni un UUID quelconque du texte). **M6** : ancien cadastre — une surface « 0 » est une surface ; la migration recalcule la première parcelle de la fiche. Bas corrigé : héritiers homonymes, chacun son bouton « RIB ». Point terrain `yousign-brouillon-resultat`.
+
+### 26/10 — 0.354.0 (1/2) : Yousign par l'agent seulement, coffre trouvé seul
+
+Étude : « l'appel direct au MCP Yousign dans CLAIRE ne fonctionne pas. Il faut utiliser uniquement l'agent maintenant ». `routes/assistant.js` ne
+charge plus les outils `yousign__…` ni le connecteur MCP de l'API Claude ; les deux consignes correspondantes sont retirées de `SYSTEME_AGENT`.
+Cause probable de « l'agent n'a pas créé le brouillon » : séance ouverte sans `vault_ids` (aucun `agentYousignVault` dans config.json) — le
+connecteur Yousign de l'agent n'était pas authentifié. `coffreDeLAgent` (signatureRibAgent.js) lit l'agent (`agents.retrieve`), les coffres et
+leurs identifiants (`vaults.list`, `vaults.credentials.list`) et retient le seul coffre dont un identifiant vise l'hôte du connecteur Yousign
+(`choisirCoffreYousign`, pur, testé) ; gardé 1 h ; console injoignable = séance sans coffre comme avant ; agent sans connecteur Yousign, aucun ou
+plusieurs coffres = message clair, aucune séance. Interrupteur « Lire par le connecteur MCP de Claude » masqué dans Réglages › Yousign.
+Non vérifié avec la vraie console (droits de la clé sur `agents`/`vaults`).
+
+### 26/10 — 0.354.0 (2/2) : relais 2.0, CLAIRE-serveur.exe sous le nom CLAIRE-relais.exe
+
+Étude : Panda bloque CLAIRE-relais.exe (C#, Mono) ; « Fichorga ne répondra pas, trouve comment faire » ; choix : « sous la forme exe mais une
+autre techno, regarde : CLAIRE n'est pas bloquée via son exe » ; « vas-y pour le relais ». Le relais n'est plus un programme à part :
+`server/src/entree.js` (nouvelle entrée d'esbuild) lance `relaisPoste.js` quand l'exécutable s'appelle `CLAIRE-relais*.exe` (ou `--relais`),
+sinon `index.js`. `GET /api/relais-word/programme` sert `process.execPath` (sendFile). Le relais : installation (code collé dans la boîte de
+saisie de Windows par PowerShell, vérifié par le serveur, copie dans `%LOCALAPPDATA%\Programs\CLAIRE`, `relais.json` au même format que 1.x,
+icône `GET /api/poste/icone.ico`), registre HKCU par reg.exe (Run et lien `claire-relais:` par `conhost.exe --headless`, `AppUserModelId\CLAIRE.Relais`),
+instance unique par tuyau nommé (« arret » ; l'ancien relais par son signal nommé), relevé chaque seconde SANS `appels` (le 3CX revient au
+.reg), cartes du serveur en toasts (`toastXml`, boutons Répondre / 👍 ❤️ / Autoriser / Refuser, photo écrite dans `%LOCALAPPDATA%\CLAIRE\photos`),
+bouton = processus lancé par le lien qui poste au serveur (`agir`) puis montre CLAIRE (UI Automation + AppActivate, comme le .reg). Perdus : la
+pastille chiffrée (ITaskbarList3), la carte sombre « comme Teams » avec champ de réponse (le toast renvoie vers CLAIRE), le 3CX par le relais.
+Retirés : `CLAIRE-relais.cs`, `.exe`, `.source.sha256`, `scripts/compiler-relais.mjs`, `npm run relais`. Points `relais-node-installation`,
+`relais-node-notifications`, `relais-node-boutons` (remplacent `notifications-reponse-relais`, `notifications-pastille-windows`). Non vérifié sous
+Windows (toasts d'une application non empaquetée déclarée par le registre, conhost --headless, Panda sur la copie renommée).

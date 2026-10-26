@@ -11,6 +11,7 @@
 //    empreinte est gardée — clé `relais-word`). Le code est la seule réponse qui porte un jeton : il ne repasse jamais par une route.
 
 const express = require('express');
+const { noterVerification } = require('../verificationsTerrain');
 const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const {
@@ -61,6 +62,8 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return null; }
     const collab = N.collaborateurDuPoste(poste);
     if (!collab) { res.status(403).json({ erreur: 'Collaborateur inconnu.' }); return null; }
+    // Relais 2.0 (26/10) : un bouton de notification reçu (les gestes des cartes du relais 1.x passent par les mêmes routes).
+    if (corps.relais === '2.0') noterVerification(parametresRepo, 'relais-node-boutons', { detail: req.path.split('/').pop() });
     return { poste, collab, corps };
   };
   routeur.post('/relais-word/repondre', (req, res) => {
@@ -97,6 +100,7 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
     if (corps.verifier === true) { res.json({ ok: true }); return; }
+    if (corps.relais === '2.0') noterVerification(parametresRepo, 'relais-node-installation', { detail: 'relevé reçu' });
     const { commandes, appels, renvoyer, pastille, notifications } = appliquerReleveWord(etat, poste, corps);
     const rep = { commandes, pastille };
     if (appels.length) rep.appels = appels;
@@ -146,10 +150,12 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
   // gardé pour une fenêtre pas encore rechargée.
   const programme = (req, res) => {
     const exe = (options.lireExe || lireExecutableRelais)();
-    if (!exe) { res.status(503).json({ erreur: 'Le relais n’est pas dans cette version de CLAIRE.' }); return; }
+    if (!exe) { res.status(503).json({ erreur: 'Le relais n’est servi que par CLAIRE-serveur.exe.' }); return; }
     res.setHeader('Content-Type', 'application/octet-stream');
     res.setHeader('Content-Disposition', 'attachment; filename="CLAIRE-relais.exe"');
-    res.send(exe);
+    // CLAIRE-serveur.exe lui-même (relais 2.0), lu en flux ; un Buffer dans les tests.
+    if (typeof exe === 'string') res.sendFile(exe, { headers: { 'Content-Type': 'application/octet-stream' } }, (err) => { if (err && !res.headersSent) res.status(500).end(); });
+    else res.send(exe);
   };
   routeur.get('/relais-word/programme', programme);
   routeur.get('/relais-word/installateur', programme);

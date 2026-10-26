@@ -4,7 +4,7 @@
 //
 // Une page ne peut pas poser de pastille sur la barre des tâches sur une adresse IP (Chrome réserve l'API de badge aux sites en
 // https et aux applications installées) : la fenêtre CLAIRE calcule le compteur d'après Réglages › Notifications et l'envoie au
-// serveur (POST /api/relais-word/pastille) ; le relais du poste (server/relais/CLAIRE-relais.cs, 1.1) le lit chaque seconde, pose
+// serveur (POST /api/relais-word/pastille) ; le relais du poste (server/src/relaisPoste.js, 2.0) le lit chaque seconde, pose
 // la pastille rouge sur l'icône de la fenêtre CLAIRE, affiche une notification Windows pour chaque nouveauté et fait clignoter le
 // bouton. Les notifications ne disent qu'un nombre et une rubrique (texte écrit par le serveur), jamais un nom de dossier ni un client. Réglages gardés dans les
 // préférences du collaborateur sur le serveur (`notifications`).
@@ -280,12 +280,12 @@ async function renderReglagesNotifications() {
   const ligne = document.getElementById('notifications-relais');
   if (!ligne) return;
   ligne.textContent = !etat ? 'État du relais inconnu (serveur injoignable).'
-    : etat.actif && etat.pastille ? `Relais en marche pour ${nom} : la pastille et les notifications s’affichent sur ce poste.`
-      : etat.actif ? `Le relais de ${nom} est une version ancienne : téléchargez la nouvelle pour avoir la pastille.`
-        : `Relais pas en marche pour ${nom} : ni pastille ni notification Windows sur ce poste.`;
+    : etat.actif && etat.pastille ? `Relais en marche pour ${nom} : les notifications de CLAIRE s’affichent sur ce poste.`
+      : etat.actif ? `Le relais de ${nom} est une version ancienne : téléchargez la nouvelle.`
+        : `Relais pas en marche pour ${nom} : aucune notification Windows sur ce poste.`;
 }
 
-var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Il demande le code d’installation : collez-le (Ctrl+V). Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. L’antivirus doit l’autoriser : sa nouvelle empreinte est à donner à Fichorga.';
+var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver ; c’est le programme de CLAIRE elle-même, que l’antivirus laisse déjà passer sur le serveur). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Il demande le code d’installation : collez-le (Ctrl+V). Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. Les notifications arrivent dans le centre de notifications de Windows.';
 
 // Le code d'installation de ce collaborateur (copié dans le presse-papiers, collé par l'utilisateur dans le programme, qui ne lit
 // jamais le presse-papiers lui-même — relais 1.3) puis le programme,

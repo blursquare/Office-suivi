@@ -19,38 +19,6 @@ test('code d’installation : préfixe puis base64 du JSON de configuration (lu 
     { url: 'http://192.168.60.10:3000/', poste: 'julie', jeton: 'abc123', profil: 'Claire' });
 });
 
-test('programme gardé dans le dépôt : compilé depuis le .cs actuel (sinon npm run relais), même fichier pour tous', () => {
-  const fs = require('node:fs'); const path = require('node:path'); const crypto = require('node:crypto');
-  const dossier = path.join(__dirname, '..', 'relais');
-  const source = crypto.createHash('sha256').update(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.cs'))).digest('hex');
-  assert.equal(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.source.sha256'), 'utf8').trim(), source, 'CLAIRE-relais.cs modifié : relancer « npm run relais » (serveur) et redonner l’empreinte du .exe pour l’antivirus');
-  assert.equal(fs.readFileSync(path.join(dossier, 'CLAIRE-relais.exe')).subarray(0, 2).toString('latin1'), 'MZ');
-});
-
-test('programme du relais (C#) : rien de ce qu\'un antivirus prend pour un logiciel espion (1.3, étude 25/10)', () => {
-  const cs = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'relais', 'CLAIRE-relais.cs'), 'utf8');
-  const code = cs.replace(/\/\/[^\n]*/g, '');
-  assert.doesNotMatch(code, /keybd_event|SendInput|SendKeys/);
-  // Ni Word, ni presse-papiers lu, ni marque « téléchargé d'Internet » effacée, ni processus arrêté de force, ni fichier d'un
-  // autre programme effacé (rapport de l'étude sur le blocage de Panda du 12/10).
-  assert.doesNotMatch(code, /GetActiveObject|Word\.Application|dynamic /);
-  assert.doesNotMatch(code, /Clipboard\.(GetText|ContainsText|GetData)/);
-  assert.doesNotMatch(code, /Zone\.Identifier|DeleteFileW/);
-  assert.doesNotMatch(code, /\.Kill\(|GetProcessesByName|TerminateProcess|winmgmts/);
-  assert.doesNotMatch(code, /word-claire|CLAIRE-Word/);
-  // Un relais déjà lancé s'arrête par un signal nommé.
-  assert.match(code, /EventWaitHandle\(false, EventResetMode\.ManualReset, "Local\\\\CLAIRE-relais-arret"\)/);
-  assert.match(code, /Programs", "CLAIRE"/);
-  assert.match(code, /AttachThreadInput/);
-  assert.match(code, /corps\["appels"\] = 1/);
-  assert.match(code, /e\.h != IntPtr\.Zero && e\.h != devant/);
-  assert.match(code, /if \(devant == h\) return;/);
-  // Configuration par le code collé par l'utilisateur (jamais dans le fichier) ; vérifiée auprès du serveur avant l'installation.
-  assert.match(code, /PREFIXE_CODE = "CLAIRE-RELAIS:"/);
-  assert.match(code, /relais\.json/);
-  assert.match(code, /try \{ Verifier\(\); \}/);
-});
-
 test('jeton : empreinte seule gardée, comparaison exacte', () => {
   const e = empreinteJeton('secret');
   assert.ok(jetonValide(e, 'secret'));

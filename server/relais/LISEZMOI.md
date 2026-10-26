@@ -1,41 +1,43 @@
-# Relais CLAIRE des postes — à l'intention de l'administrateur de l'antivirus
+# Relais CLAIRE des postes (version 2.0, 26/10/2026)
 
-`CLAIRE-relais.exe` est un petit programme interne de l'étude (CLAIRE, outil de suivi des dossiers, servi par le serveur du
-bureau). Installé une fois par poste et par utilisateur, sans droit d'administrateur, il :
+**Ce n'est plus un programme à part.** `CLAIRE-relais.exe` est **le même fichier que `CLAIRE-serveur.exe`** (Node.js, construit
+par l'outil officiel de Node, celui que l'antivirus de l'étude laisse déjà passer sur le serveur), téléchargé depuis CLAIRE
+(Réglages › Notifications) sous un autre nom. Sous ce nom, il ne démarre pas le serveur mais le relais (`server/src/entree.js`,
+`server/src/relaisPoste.js`). L'ancien relais en C# (versions 1.x), bloqué par Panda Endpoint Protection, est retiré du dépôt.
 
-- affiche en bas à droite de l'écran une carte CLAIRE sombre (sur le modèle de Teams) pour chaque nouveauté (message,
-  proposition, réaction) où l'on peut répondre, réagir, autoriser ou refuser une proposition, ou ouvrir CLAIRE ; la réponse part
-  au serveur CLAIRE du bureau, jamais ailleurs ;
-- pose une pastille (rond rouge et nombre) en haut à droite de l'icône de la fenêtre CLAIRE dans la barre des tâches (icône de
-  la fenêtre remplacée), sans clignotement ; icône CLAIRE dans la zone de notification ;
-- à chaque appel 3CX, met au premier plan la fenêtre CLAIRE (appelant connu) ou la fenêtre utilisée avant la sonnerie ; pour un
-  appel d'un client dont la fenêtre CLAIRE est fermée, il lance Chrome ou Edge sur CLAIRE.
+Installé une fois par poste et par utilisateur, sans droit d'administrateur, il :
 
-**Ce qu'il ne fait pas (version 1.3, 25/10/2026)** — retiré pour qu'il ne ressemble en rien à un logiciel espion, après le
-blocage du 12/10 : il ne lit plus Microsoft Word (ni aucun autre programme), ne lit jamais le presse-papiers, n'efface pas la
-marque « téléchargé d'Internet » (Zone.Identifier), n'arrête aucun processus de force (un relais déjà lancé reçoit un signal
-nommé `Local\CLAIRE-relais-arret` et s'arrête seul), n'efface aucun fichier d'un autre programme. Aucune frappe simulée, aucun
-script, aucun accès à Internet.
+- montre chaque nouveauté de CLAIRE (message, réaction, proposition) en **notification de Windows** (centre de notifications),
+  au nom de « CLAIRE », avec la photo de l'auteur ; boutons : « Répondre » (CLAIRE ouverte sur le canal), 👍 ❤️ (réaction
+  envoyée au serveur), « Autoriser » / « Refuser » d'une proposition ; un clic sur la notification ouvre CLAIRE ;
+- met au premier plan la fenêtre CLAIRE (ou l'ouvre) quand on clique « Répondre », « Autoriser » ou la notification.
 
-À l'installation (lancé depuis Téléchargements), il demande le code d'installation que l'utilisateur colle (copié par CLAIRE),
-le vérifie auprès du serveur CLAIRE, se copie dans `%LOCALAPPDATA%\Programs\CLAIRE\CLAIRE-relais.exe` (emplacement habituel
-des programmes installés pour un seul utilisateur) et garde sa configuration dans `%LOCALAPPDATA%\CLAIRE\relais.json`. Seule
-écriture dans le registre : la valeur `CLAIRE-relais` de `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` (démarrage avec
-la session). Il ne parle qu'au serveur CLAIRE du réseau du bureau (HTTP, une requête par seconde, adresse de la
-configuration). Code source : `server/relais/CLAIRE-relais.cs` du dépôt de CLAIRE. Retrait : `CLAIRE-relais.exe --retirer`.
+**Ce qu'il ne fait plus** (pas de code natif) : la pastille rouge chiffrée sur l'icône de la barre des tâches, et la fenêtre CLAIRE
+au premier plan à la sonnerie 3CX — celle-ci reste assurée par le fichier `.reg` de Réglages › Téléphonie 3CX, comme avant le relais.
 
-## Exclusion à créer (Panda Endpoint Protection Plus)
+Tout ce que Node ne sait pas faire seul passe par **PowerShell de Windows**, en commandes courtes passées en clair (jamais une
+commande encodée, jamais un script écrit sur le disque) : notifications (API des notifications de Windows), fenêtre CLAIRE devant
+(UI Automation), boîtes de dialogue de l'installation. Il ne lit jamais le presse-papiers (le code d'installation est collé par
+l'utilisateur), n'observe aucune frappe, n'arrête aucun processus de force (un relais déjà lancé est prié de s'arrêter : tuyau
+nommé `\\.\pipe\CLAIRE-relais-<utilisateur>` pour la version 2, signal `Local\CLAIRE-relais-arret` pour l'ancienne), n'efface pas
+la marque « téléchargé d'Internet ». Il ne parle qu'au serveur CLAIRE du réseau du bureau (HTTP, une requête par seconde).
 
-Le programme est **le même fichier sur tous les postes** (non signé) :
+## Installation
 
-- **SHA-256 : `0c55287a5bde91370ade375d8ea6059d0f638bce2bdc1078e971f17de914ec4b`**
-- MD5 : `2b8321befb25dafa96c68129bc599fe5` (si la console demande cette empreinte)
-- Nom : `CLAIRE-relais.exe` (« Relais CLAIRE du poste », produit « CLAIRE », version 1.3.0.0)
-- Emplacements : le dossier Téléchargements de l'utilisateur au moment de l'installation, puis
-  `%LOCALAPPDATA%\Programs\CLAIRE\CLAIRE-relais.exe`
+Lancé depuis Téléchargements, il demande le code d'installation (copié par CLAIRE), le vérifie auprès du serveur, se copie dans
+`%LOCALAPPDATA%\Programs\CLAIRE\CLAIRE-relais.exe`, garde sa configuration dans `%LOCALAPPDATA%\CLAIRE\relais.json` et écrit,
+dans le registre de l'utilisateur (HKCU) seulement :
 
-Demande : autoriser ce fichier (empreinte ci-dessus) sur les postes de l'étude, et le sortir de quarantaine là où il a été
-détecté (« Virus détecté — nom inconnu », 12/10/2026). Cette empreinte ne change que si le programme est modifié : la nouvelle
-sera alors redonnée. **Nouvelle empreinte le 25/10/2026 (version 1.3)** : les exclusions des anciennes (`77b7bb9a…8b27325`,
-`919399b7…edddf4105`) ne valent plus pour ce fichier. Si la console indique la règle qui avait bloqué le relais le 12/10
-(programme non classé, indicateur d'attaque, script), merci de nous la communiquer.
+- `Software\Microsoft\Windows\CurrentVersion\Run`, valeur `CLAIRE-relais` : `conhost.exe --headless "…\CLAIRE-relais.exe" --fond`
+  (démarrage avec la session, sans fenêtre) ;
+- `Software\Classes\claire-relais` : le lien des boutons des notifications (même programme, `--action "%1"`) ;
+- `Software\Classes\AppUserModelId\CLAIRE.Relais` : nom (« CLAIRE ») et icône des notifications.
+
+Retrait : `CLAIRE-relais.exe --retirer`. Contrôle : `CLAIRE-relais.exe --verifier` (configuration lue, jeton vérifié).
+
+## Antivirus
+
+Aucune exclusion propre au relais n'est en principe nécessaire : le fichier est CLAIRE-serveur.exe. Si Panda le bloque quand même
+sous ce nom, l'exclusion est celle du programme de CLAIRE (même empreinte que `CLAIRE-serveur.exe` de la version installée).
+**Non vérifié sur un poste de l'étude** (notifications, conhost --headless, lien `claire-relais:`) : points `relais-node-*` des
+vérifications sur le terrain.

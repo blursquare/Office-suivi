@@ -153,7 +153,7 @@ async function main() {
 
   etape(1, 6, 'Regroupement du serveur en un seul fichier (esbuild)');
   execSync(
-    'npx --no-install esbuild src/index.js --bundle --platform=node --format=cjs ' +
+    'npx --no-install esbuild src/entree.js --bundle --platform=node --format=cjs ' +
       '--external:node:sqlite --external:node:sea --outfile=build/claire-server.cjs',
     { cwd: SERVER_DIR, stdio: 'inherit' }
   );
@@ -178,9 +178,7 @@ async function main() {
   } catch (err) {
     console.warn(`Icône Windows non construite (${err.message.split('\n')[0]}).`);
   }
-  // Relais CLAIRE des postes : compilé une fois et gardé dans le dépôt (server/relais/CLAIRE-relais.exe, `npm run relais`) pour
-  // que le fichier — donc son empreinte, exclue de l'antivirus de l'étude — reste le même d'une version à l'autre.
-  if (!fs.existsSync(path.join(SERVER_DIR, 'relais', 'CLAIRE-relais.exe'))) throw new Error('server/relais/CLAIRE-relais.exe manquant (npm run relais).');
+  // Relais CLAIRE des postes (relais 2.0, 26/10) : ce même exécutable, servi sous le nom CLAIRE-relais.exe (src/entree.js).
   const seaConfig = {
     main: 'build/claire-server.cjs',
     output: 'build/sea-prep.blob',
@@ -211,7 +209,6 @@ async function main() {
       'icone.svg': '../icone.svg',
       'build-info.json': 'build/build-info.json',
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
-      'CLAIRE-relais.exe': 'relais/CLAIRE-relais.exe',
       // Mémoire de CLAIRE, rubrique « Règles et décisions de l'étude » (src/memoire.js) : lus par le serveur, jamais servis.
       'memoire/CLAUDE.md': '../CLAUDE.md',
       'memoire/historique.md': '../docs/historique.md'

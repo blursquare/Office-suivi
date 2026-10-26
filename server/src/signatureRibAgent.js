@@ -89,6 +89,30 @@ function lienYousignSur(v) {
   } catch (_) { return ''; }
 }
 
+/** Pure : une adresse ramenée à hôte + chemin (minuscules, sans « / » final), '' si illisible. @param {unknown} v */
+function adresseNormale(v) {
+  try { const u = new URL(String(v || '')); return u.hostname.toLowerCase() + u.pathname.replace(/\/+$/, '').toLowerCase(); } catch (_) { return ''; }
+}
+
+/**
+ * Pure : le coffre (vault) qui porte l'identifiant du connecteur Yousign de l'agent (étude 26/10 : sans coffre, le connecteur de l'agent
+ * n'est pas authentifié et l'agent ne crée rien). `serveurs` = mcp_servers de l'agent ; `coffres` = [{ id, archive, urls }] ;
+ * rend { coffres } (tous ceux qui portent l'adresse exacte du connecteur : une séance en accepte plusieurs) ou { erreur }.
+ * @param {any[]} serveurs @param {{ id: string, archive?: boolean, urls: string[] }[]} coffres
+ */
+function choisirCoffreYousign(serveurs, coffres) {
+  const adresses = (serveurs || []).map((m) => adresseNormale(m && m.url)).filter((a) => /^([a-z0-9-]+\.)*yousign\.(app|com)(\/|$)/.test(a));
+  if (!adresses.length) return { erreur: 'agent_sans_yousign' };
+  const bons = (coffres || []).filter((c) => c && !c.archive && (c.urls || []).some((u) => adresses.includes(adresseNormale(u))));
+  if (!bons.length) return { erreur: 'sans_coffre' };
+  return { coffres: bons.slice(0, 10).map((c) => c.id) };
+}
+
+const RAISONS_COFFRE = {
+  agent_sans_yousign: 'L’agent de la console d’Anthropic n’a pas de connecteur Yousign (MCP) : ajoutez-le à l’agent, puis réessayez.',
+  sans_coffre: 'Aucun coffre (vault) de la console d’Anthropic ne porte d’identifiant pour l’adresse du connecteur Yousign de l’agent : créez-en un avec la clé de Yousign pour cette adresse, ou indiquez le coffre dans config.json (« agentYousignVault »).'
+};
+
 /** La décision pour un appel d'outil mis en attente : « allow » seulement pour un outil de la liste. @param {{ name?: string }} evenement */
 function decisionOutil(evenement, permis) {
   const nom = String((evenement && evenement.name) || '');
@@ -99,6 +123,7 @@ function decisionOutil(evenement, permis) {
 
 /** Le code CLAIRE d'une erreur de l'API, sans jamais reprendre son message (il peut citer la requête). @param {any} err */
 function codeErreurApi(err) {
+  if (err && err.claire && typeof err.claire.code === 'string') return { code: err.claire.code, raison: String(err.claire.raison || '') };
   const statut = err && err.status;
   if (statut === 401 || statut === 403) return { code: 'cle', raison: 'La clé d’API Claude des Réglages est refusée, ou n’a pas accès à l’agent.' };
   if (statut === 404) return { code: 'introuvable', raison: 'Agent ou environnement introuvable : la clé des Réglages doit être celle du compte et de l’espace de travail de l’agent.' };
@@ -144,6 +169,40 @@ function creerSignatureRibAgent(o = {}) {
     return (r && r.cleApi) || env.ANTHROPIC_API_KEY || '';
   }
 
+  // Les coffres de l'agent, trouvés une fois par heure : connecteur Yousign de l'agent, puis les coffres qui portent son adresse. Une
+  // console qui ne répond pas (droits, réseau) : séance sans coffre, comme avant ; un agent sans connecteur ou sans coffre : DIT (gardé
+  // 10 minutes, pour ne pas relire la console à chaque demande).
+  /** @type {{ agent: string, coffres?: string[], erreur?: string, jusqua: number } | null} */
+  let coffresConnus = null;
+  /** @param {any} client @param {string} agent @returns {Promise<string[]>} */
+  async function coffresDeLAgent(client, agent) {
+    const echec = (/** @type {string} */ code) => Object.assign(new Error(code), { claire: { code: 'configuration', raison: RAISONS_COFFRE[/** @type {keyof typeof RAISONS_COFFRE} */ (code)] } });
+    if (coffresConnus && coffresConnus.agent === agent && maintenant() < coffresConnus.jusqua) {
+      if (coffresConnus.erreur) throw echec(coffresConnus.erreur);
+      return coffresConnus.coffres || [];
+    }
+    /** @type {any} */
+    let choix;
+    try {
+      const a = await client.beta.agents.retrieve(agent);
+      /** @type {{ id: string, archive: boolean, urls: string[] }[]} */
+      const coffres = [];
+      for await (const v of client.beta.vaults.list()) {
+        const urls = [];
+        for await (const c of client.beta.vaults.credentials.list(v.id)) {
+          if (c && !c.archived_at && c.auth && c.auth.mcp_server_url) urls.push(String(c.auth.mcp_server_url));
+        }
+        coffres.push({ id: String(v.id), archive: !!v.archived_at, urls });
+      }
+      choix = choisirCoffreYousign(a && a.mcp_servers, coffres);
+    } catch (_) {
+      return [];
+    }
+    if (choix.erreur) { coffresConnus = { agent, erreur: choix.erreur, jusqua: maintenant() + 600000 }; throw echec(choix.erreur); }
+    coffresConnus = { agent, coffres: choix.coffres, jusqua: maintenant() + 3600000 };
+    return choix.coffres;
+  }
+
   async function disponibilite() {
     return { disponible: !!cle() };
   }
@@ -153,7 +212,8 @@ function creerSignatureRibAgent(o = {}) {
    * @param {{ id: string }} [envoi] mode envoyer : la SEULE demande que send-signature-request peut viser, une seule fois (audit 26/10, H1)
    */
   async function seance(client, texte, r, permis, envoi) {
-    const session = await client.beta.sessions.create({ agent: r.agent, environment_id: r.environnement, ...(r.coffre ? { vault_ids: [r.coffre] } : {}) });
+    const coffres = r.coffre ? [r.coffre] : await coffresDeLAgent(client, r.agent);
+    const session = await client.beta.sessions.create({ agent: r.agent, environment_id: r.environnement, ...(coffres.length ? { vault_ids: coffres } : {}) });
     // Flux ouvert avant l'envoi : il ne livre que les événements postérieurs à son ouverture.
     const flux = await client.beta.sessions.events.stream(session.id);
     await client.beta.sessions.events.send(session.id, { events: [{ type: 'user.message', content: [{ type: 'text', text: texte }] }] });
@@ -365,4 +425,4 @@ function creerSignatureRibAgent(o = {}) {
   return { disponibilite, creerBrouillon, lireStatut, agir, attendre };
 }
 
-module.exports = { creerSignatureRibAgent, brouillonDepuisResultat, lienYousignSur, MODES_AGENT_YOUSIGN, OUTILS_LECTURE, OUTILS_DOCUMENT, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };
+module.exports = { creerSignatureRibAgent, choisirCoffreYousign, brouillonDepuisResultat, lienYousignSur, MODES_AGENT_YOUSIGN, OUTILS_LECTURE, OUTILS_DOCUMENT, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };

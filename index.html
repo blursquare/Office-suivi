@@ -1974,7 +1974,7 @@
     <h2 class="reglages-titre">Yousign</h2>
     <!-- Signature électronique par Yousign (étude 23/10) — server/src/yousign.js, client/106-yousign.js. -->
     <div class="reglages-section">
-      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="L'agent de CLAIRE dans les Discussions lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
+      <h3 class="reglages-section-titre">Signature électronique (Yousign) <span class="info-i" tabindex="0" data-info="Depuis le 26/10, CLAIRE ne passe plus que par l'agent Yousign de la console d'Anthropic (son coffre d'identifiants est trouvé seul) : la connexion directe ci-dessous ne sert plus aux Discussions. L'agent de CLAIRE dans les Discussions lit les demandes de signature de Yousign et peut en créer, modifier et envoyer. Chaque action qui écrit demande d'abord votre autorisation dans la conversation ; rien n'est envoyé à un signataire sans votre clic. Les noms et emails sont masqués dans ce que reçoit l'IA. Les documents se joignent dans l'application Yousign. La clé ou la connexion reste sur le serveur du bureau. Pour « Se connecter », ouvrez CLAIRE depuis le poste du serveur (adresse localhost) : Yousign refuse souvent une adresse de retour en http sur le réseau."></span></h3>
       <div class="reglages-liste">
         <div class="reglages-champ">
           <div class="reglages-champ-libelle"><label for="reglages-yousign-cle">Clé d'API Yousign (facultative)</label><span class="info-i" tabindex="0" data-info="Inutile avec « Se connecter à Yousign » (identifiant et mot de passe de Yousign, saisis sur la page de Yousign : CLAIRE ne les voit jamais). Une clé d'API reste possible si Yousign en accepte une pour ce serveur. Laisser vide conserve celle en place."></span></div>
@@ -1992,7 +1992,7 @@
           <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE peut créer, modifier et envoyer des demandes (après « Autoriser »)</span></span>
           <wa-switch class="switch reglages-switch" id="reglages-yousign-ecriture"></wa-switch>
         </label>
-        <label class="reglages-option" for="reglages-yousign-via-claude">
+        <label class="reglages-option" for="reglages-yousign-via-claude" style="display:none">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Lire par le connecteur MCP de Claude (lecture seule)</span><span class="info-i" tabindex="0" data-info="Avec Claude, c’est Anthropic qui appelle Yousign, avec la clé, comme dans Claude : lecture seule (état d’une demande, signataires). Les noms des signataires arrivent alors à l’IA SANS masquage et la clé part chez Anthropic. Les écritures (créer, envoyer) ne passent pas par ce connecteur. Avec l’anonymisation active, l’IA ne voit que des codes : ses recherches par nom ne trouveront rien. Avec Mistral, ou éteint : CLAIRE lit elle-même, noms masqués."></span></span>
           <wa-switch class="switch reglages-switch" id="reglages-yousign-via-claude"></wa-switch>
         </label>

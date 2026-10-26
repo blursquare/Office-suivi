@@ -19,7 +19,6 @@ const COLLABORATEURS_REACTIONS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 const reactionsVisibles = (repo, moi) => lireReactions(repo).filter((r) => reactionVisiblePar(r, moi, (c) => membresPrive(c, COLLABORATEURS_REACTIONS) || []));
 const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
 const { lireReglagesOpenlegi } = require('./openlegi');
-const { lireReglagesYousign } = require('./yousign');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
@@ -188,16 +187,12 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
     const chargerOutilsExternes = async () => {
       const ol = lireReglagesOpenlegi(parametresRepo);
       const droit = ol.jeton && ol.actif && injections && injections.openlegi ? await injections.openlegi.outilsAgent() : [];
-      // Yousign (signature électronique, étude 23/10) : lecture, et écriture si elle n'est pas coupée dans les Réglages.
-      const yo = lireReglagesYousign(parametresRepo);
-      const signature = yo.connecte && yo.actif && !(yo.viaClaude && a.fournisseur === 'claude') && injections && injections.yousign ? await injections.yousign.outilsAgent() : [];
-      return droit.concat(signature);
+      // Yousign : plus jamais par l'appel direct au serveur MCP de Yousign (étude 26/10 : « l'appel direct au MCP Yousign dans CLAIRE ne
+      // fonctionne pas, il faut utiliser uniquement l'agent maintenant ») — seuls yousign_agent et yousign_rib (agent géré d'Anthropic).
+      return droit;
     };
-    // Yousign par le connecteur MCP de l'API Claude (lecture seule, Claude seulement) : choisi dans les Réglages ; sinon les outils lus par le serveur.
-    const chargerConnecteurMcp = async () => {
-      const yo = lireReglagesYousign(parametresRepo);
-      return yo.viaClaude && yo.connecte && yo.actif && a.fournisseur === 'claude' && injections && injections.yousign && injections.yousign.connecteurClaude ? injections.yousign.connecteurClaude() : null;
-    };
+    // Connecteur MCP de Yousign par l'API Claude : retiré pour la même raison (26/10), l'agent géré le remplace.
+    const chargerConnecteurMcp = async () => null;
     const sortie = await tourAgent({
       conversation: chaine(corps.conversation, 80),
       texte: chaine(corps.texte, 12000),
