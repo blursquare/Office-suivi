@@ -17,7 +17,7 @@
   // Gestes qui ouvrent une fenêtre, un formulaire ou une confirmation : rien n'est fait avant la validation de l'utilisateur.
   var GESTES_EN_ATTENTE_AGENT = ['email', 'sondage_dates', 'options_rendez_vous', 'rendez_vous_creer', 'rendez_vous_placer', 'appel_fonds', 'quotites', 'preemption'];
 
-  var COLLABORATEURS_AGENT = { Bastien: 'Bastien ANGLUMENT', Julie: 'Julie VASSELIN', 'Jérémy': 'Jérémy SAUJOT' };
+  var COLLABORATEURS_AGENT = { Bastien: 'Bastien ANGLUMENT', Julie: 'Julie VASSELIN', 'Jérémy': 'Jérémy SAUJOT', Sophie: 'Sophie GOSSART' };
 
   var LIBELLES_CHAMPS_FICHE_AGENT = {
     email_vendeur: 'Email du vendeur', email_acquereur: 'Email de l’acquéreur', telephone_vendeur: 'Téléphone du vendeur',

@@ -1718,3 +1718,11 @@ test('casier judiciaire : le statut écrit par Authentic à droite de la date, j
   app.appliquerReleveSurDossier(d, page('Pas de condamnation'), '2026-09-06T09:00:00Z');
   assert.equal(app.etatAuthenticPiece(d, { cle, label: 'x' }).classe, '', 'pas de condamnation : jamais en rouge');
 });
+
+test('collaborateurAuthentic : la notaire (GOSSART, nom de l’office) n’est jamais le collaborateur en charge (26/10)', () => {
+  const capture = { champs: [], tableaux: [], texte: 'Parties prenantes\nNotaire Maître Sophie GOSSART\nCollaborateur Julie VASSELIN\nDocuments' };
+  assert.equal(app.collaborateurAuthentic(capture), 'Julie VASSELIN');
+  assert.ok(app.RESPONSABLES.includes('Sophie GOSSART'));
+  assert.equal(app.estAdministrateur('Sophie GOSSART'), true);
+  assert.equal(app.FONCTIONS_SIGNATURE_DEFAUT['Sophie GOSSART'], 'Notaire');
+});

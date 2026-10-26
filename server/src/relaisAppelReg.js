@@ -144,13 +144,12 @@ function scriptLiensWeb() {
     '$l=[string]([Environment]::GetCommandLineArgs()[-1])',
     `$r=$l -replace '^${PROTOCOLE_LIENS_WEB}:/*',''`,
     '$u=[uri]::UnescapeDataString($r)',
-    // Le profil Chrome de l'étude (« Default », sinon le premier qui n'est pas celui de la fenêtre CLAIRE « Claire… ») : sans lui Chrome rouvre le
-    // DERNIER profil utilisé — celui de la fenêtre CLAIRE, où le lien s'ouvrait dans une fenêtre de l'application (étude 23/10).
+    // Le profil où l'utilisateur travaille dans son Chrome habituel, avec sa session Google (étude 26/10 : « il ouvre un autre Chrome, pas
+    // mon Chrome déjà ouvert avec ma session ») : parmi les profils qui ne sont pas celui de la fenêtre CLAIRE (« Claire… »), celui qui a
+    // servi le plus récemment (`active_time` du Local State). Pas `profile.last_used` : au clic, c'est le profil de la fenêtre CLAIRE (audit
+    // 26/10). Sans Local State lisible : « Default ». Un nom de profil n'a que lettres, chiffres, espace, « _ » et « - », jusqu'à la fin (\z).
     "$p='Default'",
-    // Le profil que l'utilisateur a utilisé en DERNIER dans son Chrome habituel (`profile.last_used`) : c'est là qu'est sa session
-    // Google (étude 26/10 : « il ouvre un autre Chrome, pas mon Chrome déjà ouvert avec ma session »). À défaut, le premier profil qui
-    // n'est pas celui de la fenêtre CLAIRE (« Claire… »), sinon « Default ». Jamais le profil de l'app CLAIRE.
-    "try{$j=Get-Content -Raw ($env:LOCALAPPDATA+'\\Google\\Chrome\\User Data\\Local State')|ConvertFrom-Json;$lu=[string]$j.profile.last_used;if($lu -and $lu -notmatch '^Claire' -and $lu -match '^[A-Za-z0-9 _-]+$'){$p=$lu}else{$n=@($j.profile.info_cache.PSObject.Properties.Name|Where-Object{$_ -notmatch '^Claire' -and $_ -match '^[A-Za-z0-9 _-]+$'});if($n.Count -gt 0 -and $n -notcontains 'Default'){$p=$n[0]}}}catch{}",
+    "try{$j=Get-Content -Raw ($env:LOCALAPPDATA+'\\Google\\Chrome\\User Data\\Local State')|ConvertFrom-Json;$b=@($j.profile.info_cache.PSObject.Properties|Where-Object{$_.Name -notmatch '^Claire' -and $_.Name -match '^[A-Za-z0-9 _-]+\\z'}|Sort-Object -Descending -Property {[double]$_.Value.active_time});if($b.Count -gt 0){$p=$b[0].Name}}catch{}",
     "if($u -match '^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%\\[\\]-]{3,1800}$'){try{Start-Process chrome.exe -ArgumentList ('--profile-directory='+[char]34+$p+[char]34),$u -ErrorAction Stop}catch{Start-Process $u}}"
   ].join(';');
 }

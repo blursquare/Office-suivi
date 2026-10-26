@@ -169,7 +169,7 @@
   }
 
   function listerDossiersAgent(etat, responsable) {
-    const nom = { Bastien: 'Bastien ANGLUMENT', Julie: 'Julie VASSELIN', 'Jérémy': 'Jérémy SAUJOT' }[responsable] || '';
+    const nom = COLLABORATEURS_AGENT[responsable] || '';
     const liste = dossiers.filter(d => d && (etat === 'tous' || (etat === 'archives' ? d.archive : !d.archive)) && (!nom || d.responsable === nom));
     // « coupe » AVANT la liste : si le texte est raccourci par le serveur, Claude le sait quand même.
     return { nombre: liste.length, ...(liste.length > MAX_DOSSIERS_LISTE_AGENT ? { coupe: `seuls les ${MAX_DOSSIERS_LISTE_AGENT} premiers sont listés : filtre par responsable ou cherche par nom` } : {}),

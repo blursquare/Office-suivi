@@ -355,7 +355,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
   l'acquéreur ; il peut l'être **au vendeur** quand l'étude le représente (étude 02/10, `renderQuestionnaireVendeur`,
   `d.questionnaireVendeurEnvoyeLe` ; tâche « Envoyer le questionnaire de satisfaction au vendeur » dans « À faire » comme celle de l'acquéreur ; **le dossier n'est archivé qu'une fois TOUS les côtés que l'étude représente servis** — **ou 30 jours après la signature si un questionnaire n'est pas parti** (étude 07/10, `archivageSansQuestionnaireDu`, `archiverSansQuestionnaire` au démarrage puis toutes les heures) — étude 07/10, `questionnairesRestants`, avant : au premier envoi ; un côté sans email reste attendu et sa tâche devient « Renseigner l'email … pour le questionnaire de satisfaction », qui ouvre la fiche — étude 07/10 : « s'il n'y a pas de mail, demander à remplir le mail »).
 - **Responsables** : liste fermée (Bastien ANGLUMENT — administrateur, vue globale —, Julie
-  VASSELIN, Jérémy SAUJOT).
+  VASSELIN, Jérémy SAUJOT, et depuis le 26/10 **Sophie GOSSART**, la notaire — administratrice comme Bastien, initiales SG, signature
+  « Notaire » ; jamais le « collaborateur en charge » lu dans Authentic, son nom étant celui de l'office, `collaborateurAuthentic`).
+  Un nouveau collaborateur s'ajoute PARTOUT : `RESPONSABLES` (client/41), `COLLABORATEURS_ABSENCE` (agendaOffice), `COLLABORATEURS_AGENT`
+  (client/66), les `ADMINISTRATEURS` s'il l'est (client/23 et quatre fichiers serveur), `COLLABORATEURS` / `PRENOMS_COLLABORATEURS` et les
+  `enum` des outils de l'agent (assistant, assistantAgent, assistantConversation, commun/assistant), `FONCTIONS_SIGNATURE_DEFAUT`.
 - **Planning** (`echeancesPlanning`, **`commun/planning.js`**, partagé poste/serveur depuis le 04/10 ; côté serveur
   `toutesEcheances` n'en est que l'habillage `autre-<index>`) : vente préalable → obtention du prêt → *renonciation au droit de
   préemption* (bloquante hors copropriété, sauf pièce retirée ou participation ; en copropriété

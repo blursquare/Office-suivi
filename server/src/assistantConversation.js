@@ -12,7 +12,7 @@ const { pseudonymiserDemande, retablirTexte, masquerMontants } = require('./assi
 
 const LONGUEUR_MAX_CONVERSATION = 700;
 const MAX_CARACTERES_REPONSE = 1500;
-const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy'];
+const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy', 'Sophie'];
 
 // Sortie structurée (Claude) : une seule chaîne.
 const SCHEMA_CONVERSATION = {

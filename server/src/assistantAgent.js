@@ -69,7 +69,7 @@ const MAX_CARACTERES_RESULTAT = 120000;   // un résultat d'outil plus long est 
 const MAX_CARACTERES_DOCUMENTS_CONVERSATION = 300000;
 // Avec le résumé automatique du début de conversation (Opus 5.5) : un acte entier et ses annexes se lisent.
 const MAX_CARACTERES_DOCUMENTS_COMPACTION = 900000;
-const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy'];
+const PRENOMS_COLLABORATEURS = ['Bastien', 'Julie', 'Jérémy', 'Sophie'];
 
 // Gestes que l'agent peut demander : les intentions de « Demander à CLAIRE » qui écrivent ou ouvrent quelque chose, faites par le
 // poste avec leur fonction habituelle (et leur bouton « Annuler », ou la fenêtre d'email, ou la confirmation de l'agenda).
@@ -93,7 +93,7 @@ const OUTILS_AGENT = [
     input_schema: { type: 'object', additionalProperties: false, required: ['etat', 'responsable'],
       properties: {
         etat: { type: 'string', enum: ['en_cours', 'archives', 'tous'], description: 'en_cours par défaut' },
-        responsable: { type: 'string', enum: ['', 'Bastien', 'Julie', 'Jérémy'], description: '"" = tous les collaborateurs' }
+        responsable: { type: 'string', enum: ['', 'Bastien', 'Julie', 'Jérémy', 'Sophie'], description: '"" = tous les collaborateurs' }
       } }
   },
   {
@@ -307,7 +307,7 @@ const OUTILS_AGENT = [
     name: 'demander_collaborateur',
     description: 'Demande à un collaborateur de faire quelque chose, APRÈS l’autorisation de l’utilisateur : un message Teams lui est envoyé et une tâche est posée dans sa liste « Aujourd’hui » de CLAIRE (avec le dossier et la date) ; quand il la coche, l’utilisateur est prévenu sur Teams. Tu ne peux PAS lire les réponses Teams.',
     input_schema: { type: 'object', additionalProperties: false, required: ['collaborateur', 'texte', 'dossier_id', 'date'],
-      properties: { collaborateur: { type: 'string', enum: ['Bastien', 'Julie', 'Jérémy'] }, texte: chaine('ce qu’il faut faire, en une phrase claire'),
+      properties: { collaborateur: { type: 'string', enum: ['Bastien', 'Julie', 'Jérémy', 'Sophie'] }, texte: chaine('ce qu’il faut faire, en une phrase claire'),
         dossier_id: chaine('"" si aucun dossier'), date: chaine('pour quand (AAAA-MM-JJ), "" = aujourd’hui') } }
   },
   {
@@ -332,7 +332,7 @@ const OUTILS_AGENT = [
             champ: { type: 'string', enum: ['', ...A.CHAMPS_DATE_ASSISTANT.map((c) => c.cle)] },
             partie: { type: 'string', enum: ['', 'vendeur', 'acquereur', 'confrere', 'agence'] },
             ecran: { type: 'string', enum: ['', ...A.ECRANS_ASSISTANT.map((e) => e.cle)] },
-            collaborateur: { type: 'string', enum: ['', 'Bastien', 'Julie', 'Jérémy'] },
+            collaborateur: { type: 'string', enum: ['', 'Bastien', 'Julie', 'Jérémy', 'Sophie'] },
             titre: chaine('titre d’un nouveau rendez-vous ou ""'),
             montant: { anyOf: [{ type: 'number' }, { type: 'null' }], description: 'en euros, ou null' },
             creneaux: { type: 'array', description: 'options_rendez_vous : les créneaux dits ([] si aucun)', items: { type: 'object', additionalProperties: false, required: ['date', 'heure'],

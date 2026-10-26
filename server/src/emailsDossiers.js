@@ -201,8 +201,9 @@ function texteSansCitation(t) {
   return (fin > 0 ? lignes.slice(0, fin) : lignes).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-// Adresses gardées dans les Réglages pour Teams seulement (étude 15/10 : factures de succession à Sophie) — jamais une boîte lue.
-const PERSONNES_TEAMS_SEULEMENT = ['Sophie GOSSART'];
+// Adresses gardées dans les Réglages pour Teams seulement — jamais une boîte lue. Vide depuis le 26/10 : Sophie GOSSART, collaboratrice
+// administratrice, voit ses « Éléments envoyés » lus comme ceux des autres (accès délégué « Relecteur » à donner dans Outlook).
+const PERSONNES_TEAMS_SEULEMENT = [];
 
 // Boîtes dont les envois sont lus : le compte relié, puis chaque collaborateur qui a une adresse.
 function boitesEnvoyes(reglagesExchange, reglagesRappels) {

@@ -47,7 +47,7 @@
 
   // Fonction affichée sous le nom du collaborateur dans sa carte de signature (Réglages ›
   // Collaborateurs). Par défaut « Collaborateur », comme sur la carte vierge de l'étude.
-  var FONCTIONS_SIGNATURE_DEFAUT = { 'Bastien ANGLUMENT': 'Responsable qualité et relation client' };
+  var FONCTIONS_SIGNATURE_DEFAUT = { 'Bastien ANGLUMENT': 'Responsable qualité et relation client', 'Sophie GOSSART': 'Notaire' };
 
   // Pure : qui signe l'email — le collaborateur du poste, à défaut le responsable du dossier ; son
   // adresse notaires.fr et sa fonction viennent des Réglages. Sans nom : la carte de l'office.

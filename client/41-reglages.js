@@ -251,7 +251,7 @@
             <input type="email" id="reglages-email-${i}" data-responsable="${escapeAttr(nom)}" placeholder="prenom.nom@notaires.fr" value="${escapeAttr(emailsResponsables[nom] || '')}">
             <wa-button appearance="outlined" class="secondary" onclick="testerEnvoiResponsable('${escapeOnclickArg(nom)}')">Tester</wa-button>
           </div>
-          ${nom === NOTAIRE_TEAMS ? '' : `<input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">`}
+          <input type="text" id="reglages-fonction-${i}" class="reglages-fonction" aria-label="Fonction de ${escapeAttr(nom)} dans la signature" placeholder="Fonction dans la signature : ${escapeAttr(FONCTIONS_SIGNATURE_DEFAUT[nom] || 'Collaborateur')}" value="${escapeAttr(fonctions[nom] || '')}">
           <p class="hint reglages-email-resultat" id="reglages-email-resultat-${i}"></p>
         </div>
       </div>
