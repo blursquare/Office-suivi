@@ -30,7 +30,7 @@ function majAccesRapideCanaux() {
   const surDiscussions = ecranAffiche('assistant');
   const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste);
   const html = lignes.map((x) => {
-    const actif = surDiscussions && canaux.actif === x.id;
+    const actif = surDiscussions && (x.id === 'moi' ? !canaux.actif : canaux.actif === x.id);
     // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.
     const initiales = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
     const marque = x.nom

@@ -111,13 +111,14 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const r = decider(liste, req.params.id, corps.decision, par, undefined, { quand: typeof corps.quand === 'string' ? corps.quand : '' });
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
     const dejaTraitee = r.liste === liste;
+    const encoreOuverte = ['proposee', 'vue'].includes(r.proposition.etat);
     if (!dejaTraitee) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
     // Le niveau d'autonomie EN VIGUEUR au moment de la décision (audit 25/10) : un niveau abaissé depuis le dépôt s'applique aussi aux
     // propositions déjà en attente — jamais d'envoi sans clic si l'administrateur est revenu au niveau 1.
     const p = r.proposition;
     const det = p.details || {};
     const niveau = Math.min(Number(det.niveau) || 1, det.geste ? niveauEffectif(lireReglagesRoutines(parametresRepo), p.routine, String(det.geste)) : 1);
-    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue' && corps.decision !== 'reporter', proposition: Object.assign({}, p, { details: Object.assign({}, det, { niveau: String(niveau) }) }) });
+    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue' && !(corps.decision === 'reporter' && encoreOuverte), proposition: Object.assign({}, p, { details: Object.assign({}, det, { niveau: String(niveau) }) }) });
   });
 
   return routeur;

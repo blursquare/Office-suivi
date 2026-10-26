@@ -82,6 +82,7 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
   routeur.post('/relais-word/decider', (req, res) => {
     const r = relaisDe(req, res);
     if (!r) return;
+    if (r.corps.decision === 'reporter') { const fait = N.reporterDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
     if (r.corps.decision === 'refusee') { const fait = N.refuserDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
     // « Autoriser » : le geste se fait dans la fenêtre CLAIRE mise devant par le relais (fenêtre d'email, outil) — jamais par le relais.
     // Relais 2.0 : le refus d'une notification se confirme dans la fenêtre CLAIRE (audit 0.354.0, M4).
