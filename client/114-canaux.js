@@ -268,6 +268,7 @@ function quitterCanal() {
   if (!canaux.actif) return;
   garderBrouillonCanal();
   canaux.actif = '';
+  majAccesRapideCanaux();
   fermerFilCanal();
   canaux.messages = []; canaux.cartes = {}; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
   assistantMessages = [];

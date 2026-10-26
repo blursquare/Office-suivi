@@ -1005,13 +1005,13 @@
   .sidebar-sousmenu-item ~ .sidebar-sousmenu-item::before { top: calc(-50% - 16px); height: calc(100% + 16px); }
   /* Fermé (repli du groupe, pas de la sidebar entière) : masqué, le trait avec. */
   .sidebar-sousmenu.ferme { display: none; }
-  /* Deux catégories d'outils, Vente et Succession (étude 15/10) : un titre en capitales ; le liseré repart sous chacun. */
   /* Accès rapide aux discussions sous « Discussions » (étude 26/10) : mêmes sous-items que le tiroir des outils ; barre repliée : masqué. */
   .sidebar-acces-canaux { margin-bottom: 4px; }
   .sb-canal-marque { flex: none; width: 8px; text-align: center; color: var(--muted); font-weight: 500; }
   .sb-canal .sidebar-badge-notif { min-width: 20px; height: 18px; padding: 0 4px; }
   .sb-canal-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
   .sidebar.repliee .sidebar-acces-canaux { display: none !important; }
+  /* Deux catégories d'outils, Vente et Succession (étude 15/10) : un titre en capitales ; le liseré repart sous chacun. */
   .sidebar-sousmenu-titre { padding: 8px 4px 2px 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sidebar-sousmenu-titre:first-child { padding-top: 4px; }
   .sidebar-sousmenu-titre + .sidebar-sousmenu-item::before { top: -8px; height: calc(50% + 8px); }

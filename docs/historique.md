@@ -22148,3 +22148,11 @@ message privé avec chacun des trois autres (les canaux privés sont de 2 ou 3 p
 - Aucune requête de plus : redessinée à chaque relecture de la liste des canaux (`majPastilleCanaux`), à `ouvrirCanal` et à
   `definirOnglet`. Barre repliée : masquée. Contrôle dans `npm run fumee` (quatre lignes, un clic ouvre `p:bastien-julie`).
 - Publication : poussée sur la branche seulement (19 h passée) ; part sur `main` avec la 0.355.0 à partir de 8 h.
+
+### 26/10/2026 19 h 39 — 0.356.1 : tiroir « Outils » ouvert au démarrage
+
+Étude : « il faudrait juste laisser ouvert tout le temps le tiroir » (barre latérale, après l'accès rapide aux discussions). Le tiroir
+« Outils » repasse ouvert à chaque démarrage (`groupeOutilsOuvertSeance` à vrai, HTML initial ouvert) ; un clic sur « Outils » le
+replie pour la séance seulement, rien n'est retenu — comme avant le 18/10.
+- 0.356.0, relecture : redessin au changement de poste et à la sortie d'un canal, pas de redessin si le HTML est identique (focus
+  clavier), `aria-label` avec le nombre de non-lus ; audit dans `docs/audits/2026-10-26-0.356.0.md`.

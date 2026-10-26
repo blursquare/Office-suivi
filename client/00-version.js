@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.356.0';
+  const VERSION_APP = '0.356.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.356.1', date: '2026-10-26 19:39', resume: "Barre latérale : le tiroir « Outils » est ouvert à chaque démarrage (il était replié depuis le 18/10)." },
     { version: '0.356.0', date: '2026-10-26 19:32', resume: "Barre latérale : un accès rapide aux discussions sous « Discussions » — « Général » et une ligne par collègue (Bastien, Julie, Jérémy, Sophie, sauf vous) qui ouvre votre message privé avec lui, avec la pastille des messages non lus de chaque conversation." },
     { version: '0.355.0', date: '2026-10-26 17:51', resume: "Notifications de Windows : « Répondre » ouvre une petite fenêtre de réponse en bas à droite de l’écran, avec le message et son fil ; Entrée envoie la réponse dans le fil et la fenêtre se ferme, sans passer par la grande fenêtre CLAIRE. Les messages arrivent aussi plus vite en notification : environ 5 à 10 secondes au lieu de 15 à 35. Pour en profiter, réinstallez le relais du poste (Réglages › Notifications)." },
     { version: '0.354.4', date: '2026-10-26 16:54', resume: "Demander à CLAIRE : la recherche web sur les sites autorisés dans les Réglages est donnée dès la première question (elle n’arrivait qu’après une recherche dans Légifrance ou le BOFiP — jamais pour un annuaire). Un site ajouté dans les Réglages sert dès le message suivant, même dans une conversation déjà commencée. Pour une question de droit, CLAIRE passe toujours par Légifrance et le BOFiP d’abord." },

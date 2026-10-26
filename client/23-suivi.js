@@ -1084,7 +1084,7 @@
     chargerRappelsPerso();
     Object.assign(propositionsClaire, { liste: [], traitees: [], aTraiter: 0 });
     quitterCanal();
-    canaux.liste = []; canaux.badge = 0; majPastilleCanaux();
+    canaux.liste = []; canaux.badge = 0; canaux.charge = false; majPastilleCanaux();
     chargerPropositionsClaire('a-traiter');
     chargerCanaux();
     chargerPreferencesCollaborateur();

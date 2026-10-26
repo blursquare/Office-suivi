@@ -3,8 +3,8 @@
   // Étude, 30/09 au soir : l'épingle est retirée (« elle ne sert à rien ») ; l'état de la barre AU
   // DÉMARRAGE (ouverte ou fermée) est un réglage du collaborateur (Réglages › Général, préférence
   // `sidebarDemarrage` en base, cache local lu avant toute connexion). Le chevron replie ou déplie
-  // la barre pour la séance seulement, sans changer ce réglage. Le groupe Outils est fermé à chaque
-  // démarrage (« ferme le tiroir outils de base »). Sans rapport avec le repli mobile (sous 900 px,
+  // la barre pour la séance seulement, sans changer ce réglage. Le groupe Outils est ouvert à chaque
+  // démarrage (étude 26/10). Sans rapport avec le repli mobile (sous 900 px,
   // la barre y est un panneau ouvert par le burger).
   // Barre repliée (étude, 06/10, sur un exemple) : le tiroir des outils reste DÉPLIÉ sous l'icône Outils — ses outils en icônes
   // seules dans un bloc arrondi ; plus de volet flottant au survol. Étude, 06/10 : plus de page « Outils » — un clic sur « Outils »
@@ -22,9 +22,9 @@
   }
 
   let sidebarReplieeSeance = null;   // état de la séance (null : celui du réglage de démarrage)
-  // Tiroir des outils REPLIÉ à chaque démarrage (étude 18/10 : « repli le tiroir outil de base » ; ouvert de base depuis le 04/10) ;
-  // un clic sur « Outils » ne change que la séance, rien n'est retenu.
-  let groupeOutilsOuvertSeance = false;
+  // Tiroir des outils OUVERT à chaque démarrage (étude 26/10 : « laisser ouvert tout le temps le tiroir » ; replié de base du 18/10 au
+  // 26/10, ouvert de base avant le 18/10) ; un clic sur « Outils » ne change que la séance, rien n'est retenu.
+  let groupeOutilsOuvertSeance = true;
 
   function sidebarRepliee() {
     return sidebarReplieeSeance === null ? sidebarDemarrage() === 'fermee' : sidebarReplieeSeance;
