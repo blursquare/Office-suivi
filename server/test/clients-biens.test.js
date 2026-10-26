@@ -366,3 +366,30 @@ test('fichier global : deux homonymes de dossiers différents, l’un retiré, r
   const base = construireBase([aRetire, b], {}, undefined, f);
   assert.equal(base.personnes.filter((p) => p.nomComplet === 'Paul EXEMPLE').length, 2, 'le Paul retiré du dossier A ne fond pas avec celui du dossier B');
 });
+
+test('fichier global : nom complété, homonyme retiré, bien de rang décalé — aucune ligne perdue ni doublon', () => {
+  const { lignesFichierDepuisDossier, fusionnerFichier } = require('../src/clientsBiens');
+  // 1. Père et fils (deux fiches client d'Authentic du même nom, dates de naissance différentes) : le père est retiré, la ligne du fils reste la sienne.
+  const fiche = (dateNaissance) => ({ nom: 'Jean MARTIN', nomFamille: 'MARTIN', prenom: 'Jean', dateNaissance });
+  const dossierPF = (fiches) => ({ id: 'v1', nom: 'M - X', typeAffaire: 'vente', parties: [], authentic: { fichesClients: Object.fromEntries(fiches.map((x, k) => ['k' + k, x])) } });
+  const f1 = fusionnerFichier({}, lignesFichierDepuisDossier(dossierPF([fiche('1950-05-05'), fiche('1980-01-01')]))).fichier;
+  assert.equal(f1.personnes.length, 2);
+  const f2 = fusionnerFichier(f1, lignesFichierDepuisDossier(dossierPF([fiche('1980-01-01')]))).fichier;
+  assert.equal(f2.personnes.length, 2, 'rien ne se perd');
+  assert.equal(f2.personnes.filter((p) => p.dateNaissance === '1950-05-05').length, 1, 'le père reste dans le fichier');
+  const base = construireBase([dossierPF([fiche('1980-01-01')])], {}, undefined, f2);
+  assert.equal(base.personnes.filter((p) => p.nomComplet === 'Jean MARTIN').length, 2, 'le fils (dans le dossier) et le père (retiré)');
+  // 2. Un nom complété (« MARTIN » → « Paul MARTIN ») est la même personne : pas de fiche « retirée » en double.
+  const g1 = fusionnerFichier({}, lignesFichierDepuisDossier({ id: 'v2', nom: 'A - B', typeAffaire: 'vente', parties: [{ nom: 'MARTIN', role: 'VENDEUR' }] })).fichier;
+  const dossierComplete = { id: 'v2', nom: 'A - B', typeAffaire: 'vente', parties: [{ nom: 'Paul MARTIN', role: 'VENDEUR' }] };
+  const g2 = fusionnerFichier(g1, lignesFichierDepuisDossier(dossierComplete)).fichier;
+  assert.equal(g2.personnes.length, 1, 'la même ligne est mise à jour');
+  assert.equal(construireBase([dossierComplete], {}, undefined, g2).personnes.length, 1, 'une seule fiche, jamais « Retiré du dossier »');
+  // 3. Un bien d'index 0 retiré : le bien d'index 1 devient 0 mais ne remplace pas la ligne du bien retiré.
+  const bien = (adresse, section) => ({ adresse, parcelles: [{ section, numero: '1', commune: 'BLOIS' }] });
+  const dBiens = (liste) => ({ id: 'v3', nom: 'C - D', typeAffaire: 'vente', adresseBien: liste[0] ? liste[0].adresse : '', bien: { cadastre: { parcelles: liste[0] ? liste[0].parcelles : [] } }, authentic: { immeubles: liste } });
+  const h1 = fusionnerFichier({}, lignesFichierDepuisDossier(dBiens([bien('BLOIS (41000), 1 rue A', 'AA'), bien('BLOIS (41000), 2 rue B', 'BB')]))).fichier;
+  const h2 = fusionnerFichier(h1, lignesFichierDepuisDossier(dBiens([bien('BLOIS (41000), 2 rue B', 'BB')]))).fichier;
+  assert.ok(h2.biens.some((b) => /1 rue A/.test(b.adresse)), 'le bien retiré reste dans le fichier');
+  assert.ok(h2.biens.some((b) => /2 rue B/.test(b.adresse)));
+});

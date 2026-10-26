@@ -342,7 +342,7 @@ function construirePersonnes(dossiers, reglages, imp) {
       nomComplet: [champs.prenom, champs.nomFamille].filter(Boolean).join(' '),
       dossiers: dossiersLies.filter((x) => (vus.has(x.id + x.role) ? false : (vus.add(x.id + x.role), true))),
       // Dossiers d'où elle a été retirée (fichier global) : elle reste dans la base, sans lien avec eux.
-      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].slice(0, 12),
+      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].filter((l) => !dossiersLies.some((x) => x.libelle === l)).slice(0, 12),
       occurrences: liste.map((o) => o.id), conjoint: null, peutEtre: []
     });
     liste.forEach((o) => ficheDeOcc.set(o.id, id));
@@ -501,7 +501,7 @@ function construireBiens(dossiers, imp) {
       lots: liste.flatMap((o) => o.lots || []).filter((/** @type {any} */ l, /** @type {number} */ i, /** @type {any[]} */ t) => t.findIndex((x) => texte(x && (x.numero || x.lot)) === texte(l && (l.numero || l.lot))) === i).slice(0, 40),
       dossiers: liste.filter((o) => o.dossier).map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),
-      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].slice(0, 12),
+      anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].filter((l) => !liste.some((o) => o.dossier && libelleDossier(o.dossier) === l)).slice(0, 12),
       occurrences: liste.map((o) => o.id)
     });
   }
@@ -595,42 +595,107 @@ function lignesFichierDepuisDossier(d, maintenant) {
 
 const MAX_FICHIER = 20000;
 
+// Une ligne du fichier est reconnue dans un dossier PAR SON CONTENU (nom, prénom, date de naissance ; parcelle ou adresse), jamais par son
+// identifiant d'occurrence — celui-ci bouge quand un nom se complète, qu'un homonyme est retiré ou qu'un bien change de rang.
+/** @param {any} r */
+const nomPrenomLigne = (r) => ({ nom: norm(texte(r && r.nom)), prenom: norm(texte(r && r.prenom)) });
+/** @param {string} a @param {string} b premiers prénoms compatibles : l'un vide ou l'un commence l'autre */
+const prenomsCompatibles = (a, b) => !a || !b || a === b || a.startsWith(b + ' ') || b.startsWith(a + ' ');
+
 /**
- * Pure : le fichier global fondu avec de nouvelles lignes — une ligne par identifiant, la plus récente remplace l'ancienne ; JAMAIS de retrait
- * (retirer une personne ou un bien d'un dossier ne les enlève pas du fichier). Rend { fichier, change }.
- * @param {any} fichier @param {{ personnes: any[], biens: any[] }} lignes
+ * Pure : la ligne de personne du fichier (du MÊME dossier, pas déjà prise) qui désigne `n` — même nom et prénom et même date de naissance
+ * d'abord, puis même nom et prénom, puis même nom de famille et prénoms compatibles ; jamais deux dates de naissance différentes. -1 si aucune.
+ * @param {any[]} lignes @param {any} n @param {Set<any>} prises
+ */
+function indexLignePersonne(lignes, n, prises) {
+  const a = nomPrenomLigne(n);
+  const dn = texte(n.dateNaissance);
+  /** @param {(x: any, b: { nom: string, prenom: string }, dx: string) => boolean} accepte */
+  const chercher = (accepte) => lignes.findIndex((x) => x && !prises.has(x) && x.dossierId === n.dossierId && (() => {
+    const b = nomPrenomLigne(x); const dx = texte(x.dateNaissance);
+    if (dx && dn && dx !== dn) return false;
+    return accepte(x, b, dx);
+  })());
+  let i = chercher((x, b, dx) => b.nom === a.nom && b.prenom === a.prenom && !!dx && dx === dn);
+  if (i < 0) i = chercher((x, b) => b.nom === a.nom && b.prenom === a.prenom);
+  if (i < 0) i = chercher((x, b) => b.nom === a.nom && prenomsCompatibles(a.prenom, b.prenom));
+  return i;
+}
+
+/**
+ * Pure : la ligne de bien du fichier (du MÊME dossier, pas déjà prise) qui désigne `n` — une parcelle en commun (même commune quand les deux la
+ * donnent), sinon la même adresse. -1 si aucune. @param {any[]} lignes @param {any} n @param {Set<any>} prises
+ */
+function indexLigneBien(lignes, n, prises) {
+  const adr = norm(texte(n.adresse));
+  let meilleur = -1; let score = 0;
+  lignes.forEach((x, i) => {
+    if (!x || prises.has(x) || x.dossierId !== n.dossierId) return;
+    const communes = (/** @type {any} */ p) => ({ section: p.section, numero: p.numero, prefixe: p.prefixe, commune: p.commune });
+    const communs = (n.parcelles || []).filter((/** @type {any} */ p) => (x.parcelles || []).some((/** @type {any} */ q) => DD.memeParcelle(communes(p), communes(q)))).length;
+    const sc = communs * 10 + (adr && norm(texte(x.adresse)) === adr ? 5 : 0);
+    if (sc > score) { score = sc; meilleur = i; }
+  });
+  return meilleur;
+}
+
+/** @param {any[]} liste @param {string} base un identifiant libre dans la liste */
+function idLibre(liste, base) {
+  const pris = new Set(liste.map((x) => x && x.id));
+  let id = base; let n = 2;
+  while (pris.has(id)) id = `${base}#${n++}`;
+  return id;
+}
+
+/**
+ * Pure : le fichier global fondu avec de nouvelles lignes (celles d'un dossier) — une ligne reconnue par son contenu est mise à jour (elle garde
+ * son identifiant), les autres sont ajoutées ; JAMAIS de retrait (retirer une personne ou un bien d'un dossier ne l'enlève pas du fichier).
+ * Rend { fichier, change }. @param {any} fichier @param {{ personnes: any[], biens: any[] }} lignes
  */
 function fusionnerFichier(fichier, lignes) {
   const f = fichier && typeof fichier === 'object' ? fichier : {};
   let change = false;
-  /** @param {any[]} avant @param {any[]} nouvelles */
-  const fondre = (avant, nouvelles) => {
+  const sansDate = (/** @type {any} */ x) => JSON.stringify(Object.assign({}, x, { vuLe: '' }));
+  /** @param {any[]} avant @param {any[]} nouvelles @param {(l: any[], n: any, p: Set<any>) => number} trouver */
+  const fondre = (avant, nouvelles, trouver) => {
     const liste = Array.isArray(avant) ? avant.slice() : [];
-    const index = new Map(liste.map((x, i) => [x && x.id, i]));
+    const prises = new Set();
     for (const n of nouvelles || []) {
       if (!n || !texte(n.id)) continue;
-      const i = index.get(n.id);
-      if (i === undefined) { if (liste.length >= MAX_FICHIER) continue; index.set(n.id, liste.length); liste.push(n); change = true; continue; }
-      const sansDate = (/** @type {any} */ x) => JSON.stringify(Object.assign({}, x, { vuLe: '' }));
-      if (sansDate(liste[i]) !== sansDate(n)) { liste[i] = n; change = true; }
+      const i = trouver(liste, n, prises);
+      if (i >= 0) {
+        const ligne = Object.assign({}, n, { id: liste[i].id });
+        prises.add(ligne);
+        if (sansDate(liste[i]) !== sansDate(ligne)) { liste[i] = ligne; change = true; } else prises.add(liste[i]);
+        continue;
+      }
+      if (liste.length >= MAX_FICHIER) { console.error('[clients-biens] fichier global plein (' + MAX_FICHIER + ' lignes) : nouvelles lignes ignorées'); continue; }
+      const ligne = Object.assign({}, n, { id: idLibre(liste, n.id) });
+      liste.push(ligne); prises.add(ligne); change = true;
     }
     return liste;
   };
-  const personnes = fondre(f.personnes, lignes.personnes);
-  const biens = fondre(f.biens, lignes.biens);
+  const personnes = fondre(f.personnes, lignes.personnes, indexLignePersonne);
+  const biens = fondre(f.biens, lignes.biens, indexLigneBien);
   return { fichier: { personnes, biens }, change };
 }
 
-/** Pure : les lignes du fichier global qui ne sont plus dans AUCUN dossier — celles que la base montre en plus des dossiers.
- * @param {any} fichier @param {any[]} dossiers */
+/**
+ * Pure : les lignes du fichier global que AUCUN dossier ne présente plus — celles que la base montre en plus des dossiers. Une ligne est « dans
+ * un dossier » quand une personne ou un bien de CE dossier la désigne (même reconnaissance que `fusionnerFichier`, une personne pour une ligne).
+ * @param {any} fichier @param {any[]} dossiers
+ */
 function lignesFichierRetirees(fichier, dossiers) {
   const f = fichier && typeof fichier === 'object' ? fichier : {};
-  const idsP = new Set(occurrencesPersonnes(dossiers).map((o) => o.id));
-  const idsB = new Set(occurrencesBiens(dossiers).map((o) => o.id));
-  return {
-    fichierPersonnes: (Array.isArray(f.personnes) ? f.personnes : []).filter((r) => r && !idsP.has(r.id)),
-    fichierBiens: (Array.isArray(f.biens) ? f.biens : []).filter((r) => r && !idsB.has(r.id))
-  };
+  const personnes = Array.isArray(f.personnes) ? f.personnes.filter(Boolean) : [];
+  const biens = Array.isArray(f.biens) ? f.biens.filter(Boolean) : [];
+  const prisesP = new Set(); const prisesB = new Set();
+  for (const d of dossiers || []) {
+    const l = lignesFichierDepuisDossier(d);
+    for (const n of l.personnes) { const i = indexLignePersonne(personnes, n, prisesP); if (i >= 0) prisesP.add(personnes[i]); }
+    for (const n of l.biens) { const i = indexLigneBien(biens, n, prisesB); if (i >= 0) prisesB.add(biens[i]); }
+  }
+  return { fichierPersonnes: personnes.filter((r) => !prisesP.has(r)), fichierBiens: biens.filter((r) => !prisesB.has(r)) };
 }
 
 /** Pure : la base entière. @param {any[]} dossiers @param {any} [reglages] @param {any} [imp] fichier importé @param {any} [fichier] fichier global */

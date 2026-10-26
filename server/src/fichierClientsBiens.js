@@ -21,6 +21,9 @@ function creerFichierClientsBiens(parametresRepo) {
     }
     return cache;
   };
+  // Version (updatedAt) de chaque dossier déjà gardé : un dossier inchangé n'est pas recalculé.
+  /** @type {Map<string, any>} */
+  const vus = new Map();
   /** Garde ce que ces dossiers contiennent. Jamais bloquant : une erreur est journalisée, le dossier s'enregistre quand même. @param {any[]} dossiers */
   const capturer = (dossiers) => {
     try {
@@ -29,10 +32,13 @@ function creerFichierClientsBiens(parametresRepo) {
       const maintenant = new Date().toISOString();
       for (const d of dossiers || []) {
         if (!d) continue;
+        if (d.updatedAt !== undefined && vus.get(d.id) === d.updatedAt) continue;
         const r = fusionnerFichier(courant, lignesFichierDepuisDossier(d, maintenant));
         if (r.change) { courant = r.fichier; change = true; }
+        if (d.updatedAt !== undefined) vus.set(d.id, d.updatedAt);
       }
-      if (change) { cache = courant; parametresRepo.ecrireJsonBrut(CLE, courant); }
+      // Le cache ne prend la nouvelle version qu'une fois écrite (une écriture qui échoue ne laisse pas de lignes seulement en mémoire).
+      if (change) { parametresRepo.ecrireJsonBrut(CLE, courant); cache = courant; }
       return change;
     } catch (e) {
       console.error('[clients-biens] fichier global :', e && /** @type {any} */ (e).message);
