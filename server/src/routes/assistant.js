@@ -45,6 +45,7 @@ function dossiersDuCorps(corps) {
         nom: p.nom.slice(0, 120), prenom: chaine(p.prenom, 80), nomUsage: chaine(p.nomUsage, 120), civilite: chaine(p.civilite, 12), societe: p.societe === true
       })) : [],
       autres: listeChaines(d.autres, 10, 300),
+      adresses: listeChaines(d.adresses, 10, 300),
       reference: chaine(d.reference, 40),
       contacts: listeChaines(d.contacts, 20, 200)
     })) : [];

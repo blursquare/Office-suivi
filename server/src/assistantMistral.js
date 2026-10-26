@@ -1,5 +1,6 @@
 // @ts-check
 'use strict';
+
 // « Demander à CLAIRE » par l'API Mistral (étude 07/10 : « ok, on essaie », après le chiffrage — quelques dizaines de centimes
 // par mois avec Mistral Small). Seule la PHRASE part, noms masqués avant l'envoi : noms, prénoms, noms d'usage, mots de l'adresse,
 // de l'agence et des notaires des fiches, mots en capitales, mot qui suit une civilité, emails, téléphones et références Authentic
@@ -107,30 +108,95 @@ function assainirReglagesAssistant(brut) {
 // pas. 3 (étude 08/10) : un réglage d'avant passe à Claude, qui lit toutes les demandes.
 const REVISION_REGLAGES_ASSISTANT = 3;
 
-/** Pure : emails, IBAN, SIRET/SIREN, téléphones, références et longs numéros d'un texte remplacés par des jetons (`jeton(prefixe, origine)`). */
-function masquerMotifsStructures(texte, jeton) {
+/**
+ * Pure : emails, IBAN, SIRET/SIREN, téléphones, références et longs numéros d'un texte remplacés par des jetons (`jeton(prefixe, origine)`).
+ * `options.numeros` à faux (politique « couplé à un nom », étude 26/10) : SIRET/SIREN, références et longs numéros restent en clair ici ;
+ * `masquerNumeros` les code ensuite, dans les seules phrases qui portent un nom. Emails, IBAN et téléphones sont toujours codés.
+ */
+function masquerMotifsStructures(texte, jeton, options) {
+  const numeros = !options || options.numeros !== false;
   let t = texte;
   t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, (m) => jeton('EMAIL', m));
   // IBAN avant les téléphones (un IBAN contient des suites qui ressemblent à un numéro).
   t = t.replace(/\b[A-Za-z]{2}\d{2}(?:[ ]?[A-Za-z0-9]{4}){3,7}(?:[ ]?[A-Za-z0-9]{1,4})?\b/g, (m) => jeton('NUM', m));
   // SIRET / SIREN et numéro fiscal écrits par groupes.
-  t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
-  t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
+  if (numeros) {
+    t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
+    t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
+  }
   // Téléphones étrangers : +41 79 123 45 67, +32 470 12 34 56, +44 7700 900123…
   t = t.replace(/(?:\+|00)(?!33)\d{2,3}[\s.]?(?:\(0\)[\s.]?)?\d{1,4}(?:[\s./-]?\d{2,4}){2,5}/g, (m) => jeton('TEL', m));
   // Téléphones : 06 12 34 56 78, 06.12…, 06/12/…, +33 6…, +33 (0)6…, 0033 6…
   t = t.replace(/(?:(?:\+|00)33[\s.]?(?:\(0\)[\s.]?)?|0)[1-9](?:[\s./-]?\d{2}){4}/g, (m) => jeton('TEL', m));
+  if (numeros) {
+    t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
+    t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
+  }
+  return t;
+}
+
+/** Pure : SIRET/SIREN, références et longs numéros d'un morceau de texte (la part de `masquerMotifsStructures` laissée en clair hors d'un nom). */
+function masquerNumeros(texte, jeton) {
+  let t = texte;
+  t = t.replace(/\b\d{3}[ .]\d{3}[ .]\d{3}(?:[ .]\d{5})?\b/g, (m) => jeton('NUM', m));
+  t = t.replace(/\b\d{2}[ .]\d{2}[ .]\d{3}[ .]\d{3}[ .]\d{3}\b/g, (m) => jeton('NUM', m));
   t = t.replace(/\b[A-Z]\s?\d{4}[\s-]?\d{4,6}\b/g, (m) => jeton('REF', m));
   t = t.replace(/\d{6,}/g, (m) => jeton('NUM', m));
   return t;
 }
 
+/** Pure : vrai quand les dossiers reçus portent l'adresse à part (`adresses`) : politique « adresse, références et numéros en clair
+ * tant qu'aucun nom de famille n'est dans la même phrase » (étude 26/10). Un poste d'avant ne la porte pas : tout reste masqué comme avant. @param {any} sensibles */
+function politiqueCouplee(sensibles) { return !!(sensibles && sensibles.couple === true && sensibles.adresses instanceof Set); }
+
+/**
+ * Pure : applique `f` aux phrases (coupées à « . ! ? ; » et au retour à la ligne) pour lesquelles `quand(phrase)` est vrai, ou à toutes
+ * si `quand` est vrai (le texte est lui-même couplé à un nom, par exemple une fiche). Les autres phrases restent telles quelles.
+ * @param {string} texte @param {boolean | ((phrase: string) => boolean)} quand @param {(phrase: string) => string} f
+ */
+function dansPhrases(texte, quand, f) {
+  return String(texte).split(/(?<=[.!?;\n])/).map((p) => (quand === true || (typeof quand === 'function' && quand(p)) ? f(p) : p)).join('');
+}
+
+/**
+ * Pure : la phrase porte-t-elle un NOM de famille ? Un code de nom déjà posé (civilité, « née de »…), un mot des fiches (noms, prénoms,
+ * agence, notaires), un mot en capitales ou un mot à majuscule ailleurs qu'en tête de phrase — comme le fait `masquer` —, mais PAS un mot
+ * courant à majuscule en tête de phrase (« Bien : 12 rue… » ne couple pas l'adresse). Un mot de l'adresse des fiches n'en est pas un.
+ * @param {string} phrase @param {Sensibles} sensibles
+ */
+function phrasePorteUnNom(phrase, sensibles) {
+  if (/\[NOM\d+\]/.test(phrase)) return true;
+  let premier = true;
+  for (const mot of phrase.replace(/\[(?:EMAIL|TEL|REF|NUM)\d+\]/g, ' ').match(/\p{L}[\p{L}\p{M}'’-]*/gu) || []) {
+    const tete = premier;
+    premier = false;
+    const morceaux = mot.split(/['’-]/).filter(Boolean);
+    const ns = morceaux.map((x) => A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, ''));
+    if (ns.some((n) => n.length >= 2 && sensibles.has(n))) return true;
+    if (ns.some((n) => n.length >= 3 && sensibles.adresses.has(n))) continue;
+    if (SIGLES.has(mot) || MOTS_MAJUSCULE_GARDES.has(mot) || morceaux.some((x) => SIGLES.has(x) || MOTS_MAJUSCULE_GARDES.has(x))) continue;
+    if (mot.length >= 3 && mot === mot.toUpperCase() && /\p{Lu}/u.test(mot)) return true;
+    if (!tete && /^\p{Lu}\p{Ll}/u.test(mot)) return true;
+  }
+  return false;
+}
+
+/** Pure : les mots de l'adresse des fiches d'une phrase remplacés par des codes (`jeton('NOM', mot)`). @param {string} phrase @param {Set<string>} adresses */
+function masquerMotsAdresse(phrase, adresses, jeton) {
+  return phrase.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|\p{L}[\p{L}\p{M}'’-]*/gu, (mot) => {
+    if (mot.startsWith('[')) return mot;
+    const sensible = (x) => { const n = A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, ''); return n.length >= 3 && adresses.has(n); };
+    return sensible(mot) || mot.split(/['’-]/).some((m) => m.length >= 3 && sensible(m)) ? jeton('NOM', mot) : mot;
+  });
+}
+
 /**
  * Masque dans une phrase tout ce qui peut désigner une personne ou un dossier. `table` (Map jeton → texte d'origine) est complétée
  * et partagée entre la phrase, le libellé du dossier en consultation et les échanges précédents. Pure.
- * @param {string} texte @param {Set<string>} sensibles mots normalisés à masquer @param {Map<string, string>} table
+ * @param {string} texte @param {Sensibles} sensibles mots normalisés à masquer @param {Map<string, string>} table @param {boolean} [couple] le texte est lui-même couplé à un nom (fiche d'un outil)
  */
-function masquer(texte, sensibles, table) {
+function masquer(texte, sensibles, table, couple) {
+  const couplee = politiqueCouplee(sensibles);
   const parOrigine = new Map([...table].map(([jeton, origine]) => [origine.toLowerCase(), jeton]));
   const compteur = (prefixe) => [...table.keys()].filter((k) => k.startsWith('[' + prefixe)).length + 1;
   const jeton = (prefixe, origine) => {
@@ -142,7 +208,7 @@ function masquer(texte, sensibles, table) {
     return j;
   };
   let t = String(texte || '');
-  t = masquerMotifsStructures(t, jeton);
+  t = masquerMotifsStructures(t, jeton, { numeros: !couplee });
   // Le mot qui suit une civilité est toujours un nom.
   // Les mots en majuscule qui suivent (prénom et nom, jusqu'à trois) aussi : « Monsieur Paul Martin ».
   t = t.replace(/\b(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Maître|Me|Mme|Mlle|Mr|M\.)(\s+)(\p{Lu}[\p{L}'-]+)((?:[ \t]+\p{Lu}[\p{L}'-]+){0,2})/gu,
@@ -151,6 +217,10 @@ function masquer(texte, sensibles, table) {
       const reste = String(suite || '').replace(/\p{Lu}[\p{L}'-]+/gu, (mot) => jeton('NOM', mot));
       return civ + esp + jeton('NOM', nom) + reste;
     });
+  // Politique « couplé à un nom de famille » (étude 26/10) : adresse, références et longs numéros des fiches ne sont codés que dans les
+  // phrases qui portent un nom (ou dans tout le texte quand il est lui-même couplé : `couple`, fiche d'un outil). Posée avant le codage
+  // des mots à majuscule : une phrase ne compte comme « à nom » que sur la preuve d'un nom (phrasePorteUnNom).
+  if (couplee) t = dansPhrases(t, couple === true || ((p) => phrasePorteUnNom(p, sensibles)), (p) => masquerNumeros(masquerMotsAdresse(p, sensibles.adresses, jeton), jeton));
   // Un mot est masqué si l'un de ses morceaux (tirets, apostrophe : « Dupont-Martin », « l'Agenda ») est un mot des fiches, est
   // écrit en capitales (deux lettres au moins, hors sigles du métier), ou commence par une majuscule AILLEURS qu'en tête de phrase
   // (un nom propre : un tiers cité dans un engagement, un prénom dans la phrase, un lieu-dit) — sauf les mots de CLAIRE gardés.
@@ -167,6 +237,8 @@ function masquer(texte, sensibles, table) {
     const sensible = morceaux.some((m, i) => {
       const n = A.normaliserDemande(m).replace(/^[^a-z]+|[^a-z]+$/g, '');
       if (n.length >= 2 && sensibles.has(n)) return true;
+      // Un mot de l'adresse des fiches n'est pas un nom : en clair, sauf dans une phrase qui porte un nom (passe suivante).
+      if (couplee && n.length >= 3 && sensibles.adresses.has(n)) return false;
       if (parOrigine.has(m.toLowerCase())) return true;          // déjà masqué ailleurs dans la conversation
       if (SIGLES.has(m) || MOTS_MAJUSCULE_GARDES.has(m)) return false;
       // Capitales (deux lettres au moins) : un nom — sauf une section cadastrale (« AB 123 »).
@@ -193,9 +265,10 @@ const MOTS_NON_PRENOMS_DOCUMENT = new Set(['article', 'articles', 'chapitre', 't
  * serveur). Sont codés : emails, IBAN, SIRET/SIREN, téléphones, références, longs numéros ; les mots des fiches (toute casse) ; les noms
  * qui suivent une civilité ; « Prénom NOM » et « NOM Prénom » ; les noms après « née », « veuve de », « épouse de »… Ne sont PAS codés :
  * les titres en capitales, les mots à majuscule et les lieux absents des fiches (limite connue, dite à l'étude). `table` partagée avec la
- * conversation. Pure. @param {string} texte @param {Set<string>} sensibles @param {Map<string, string>} table
+ * conversation. Pure. @param {string} texte @param {Sensibles} sensibles @param {Map<string, string>} table
  */
 function masquerDocument(texte, sensibles, table) {
+  const couplee = politiqueCouplee(sensibles);
   const parOrigine = new Map([...table].map(([jeton, origine]) => [origine.toLowerCase(), jeton]));
   const compteurs = {};
   const jeton = (prefixe, origine) => {
@@ -209,7 +282,7 @@ function masquerDocument(texte, sensibles, table) {
     parOrigine.set(cle, j);
     return j;
   };
-  let t = masquerMotifsStructures(String(texte || ''), jeton);
+  let t = masquerMotifsStructures(String(texte || ''), jeton, { numeros: !couplee });
   const nomPropre = '\\p{Lu}[\\p{L}\\p{M}\'’-]+';
   // Civilité : le nom qui suit (jusqu'à trois mots à majuscule).
   t = t.replace(new RegExp(`(^|[^\\p{L}])(Monsieur|Madame|Mademoiselle|Messieurs|Mesdames|Ma[iî]tre|Me|Mme|Mlle|Mr|M\\.)(\\s+)(${nomPropre})((?:[ \\t]+${nomPropre}){0,2})`, 'gu'),
@@ -237,6 +310,9 @@ function masquerDocument(texte, sensibles, table) {
     const sensible = (x) => { const n = A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, ''); return n.length >= 2 && sensibles.has(n); };
     return sensible(mot) || mot.split(/['’-]/).some((m) => m.length >= 3 && sensible(m)) ? jeton('NOM', mot) : mot;
   });
+  // Adresse des fiches, références et longs numéros : codés seulement dans les phrases qui portent un nom (domicile et lieu de naissance
+  // d'une personne le sont toujours, plus haut).
+  if (couplee) t = dansPhrases(t, (p) => /\[NOM\d+\]/.test(p), (p) => masquerNumeros(masquerMotsAdresse(p, sensibles.adresses, jeton), jeton));
   return t;
 }
 
@@ -269,12 +345,16 @@ function pseudonymiserDemande(texte, contexte, dossiers) {
   };
 }
 
+/** Mots à masquer : `adresses` (mots de l'adresse du bien, codés seulement couplés à un nom) et `couple` (vrai quand tous les dossiers reçus
+ * portent leur adresse à part — politique « couplé à un nom de famille », étude 26/10). Posés par `motsSensiblesDossiers`.
+ * @typedef {Set<string> & { adresses: Set<string>, couple: boolean }} Sensibles */
+
 /**
  * Les mots à masquer tirés des fiches reçues du poste (noms, prénoms, noms d'usage, mots de l'adresse, de l'agence, des notaires),
- * moins les mots du métier. Pure. @param {Array<any>} dossiers @returns {Set<string>}
+ * moins les mots du métier. Pure. @param {Array<any>} dossiers @returns {Sensibles}
  */
 function motsSensiblesDossiers(dossiers) {
-  const sensibles = new Set();
+  const sensibles = /** @type {Sensibles} */ (new Set());
   // Noms de famille de deux lettres (LY, VO, LE…) : gardés, sauf les petits mots du français qui ne désignent personne.
   const PETITS = new Set(['de', 'du', 'la', 'le', 'les', 'et', 'en', 'un', 'au', 'aux', 'a', 'd', 'l', 'y', 'o']);
   const court = (s) => A.normaliserDemande(String(s || '')).split(/[^a-z]+/).forEach((m) => { if (m.length === 2 && !PETITS.has(m)) sensibles.add(m); });
@@ -282,11 +362,18 @@ function motsSensiblesDossiers(dossiers) {
   const ajouter = (s) => A.normaliserDemande(String(s || '')).split(/[^a-z0-9-]+/).forEach((m) => {
     m.split('-').concat(m).forEach((x) => { if (x.length >= 3 && !/^\d+$/.test(x)) sensibles.add(x); });
   });
+  // Adresse du bien : mots à part (`sensibles.adresses`), en clair hors d'une phrase qui porte un nom — étude 26/10. Un poste qui ne
+  // l'envoie pas (`adresses` absent) la garde dans `autres` : tout reste masqué comme avant.
+  const adresses = new Set();
+  const ajouterAdresse = (s) => A.normaliserDemande(String(s || '').replace(RE_MOTS_VOIE, ' ')).split(/[^a-z0-9-]+/).forEach((m) => {
+    m.split('-').concat(m).forEach((x) => { if (x.length >= 3 && !/^\d+$/.test(x)) adresses.add(x); });
+  });
   for (const d of dossiers || []) {
     if (!d) continue;
+    for (const a of Array.isArray(d.adresses) ? d.adresses : []) ajouterAdresse(a);
     ajouter(String(d.nom || '').replace(/\b(VTE|SUCC|VENTE|SUCCESSION)\b/gi, ' '));
     for (const p of Array.isArray(d.parties) ? d.parties : []) { ajouter(p && p.nom); ajouter(p && p.prenom); ajouter(p && p.nomUsage); }
-    for (const a of Array.isArray(d.autres) ? d.autres : []) ajouter(String(a || '').replace(/\b(rue|avenue|chemin|route|allee|allée|impasse|boulevard|place|quai|lieu-dit|des|du|de|la|le|les|et|maitre|maître|agence|immobilier|immobiliere|immobilière|notaires?|office)\b/gi, ' '));
+    for (const a of Array.isArray(d.autres) ? d.autres : []) ajouter(String(a || '').replace(RE_MOTS_VOIE, ' '));
   }
   // Mots du métier jamais masqués, même s'ils figurent dans une fiche (une rue « du Prêt », une agence « Projet Immo »).
   // Seuls les mots écrits en minuscules dans les exemples comptent : MARTIN, Lices, Blois y sont des noms.
@@ -295,9 +382,19 @@ function motsSensiblesDossiers(dossiers) {
       .filter((x) => x.length >= 3).forEach((x) => sensibles.delete(x)))));
   ['pret', 'fonds', 'appel', 'projet', 'signature', 'rendez', 'vous', 'agenda', 'dossier', 'vendeur', 'acquereur', 'notaire',
     'demain', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'offre', 'piece', 'pieces', 'envoye', 'email', 'mail',
-    'bis', 'ter', 'quater'].forEach((m) => sensibles.delete(m));
+    'bis', 'ter', 'quater'].forEach((m) => { sensibles.delete(m); adresses.delete(m); });
+  A.INTENTIONS_ASSISTANT.forEach((i) => (i.exemples || []).forEach((ex) => (String(ex).match(/[A-Za-zÀ-ÿ'’-]+/g) || [])
+    .filter((m) => m === m.toLowerCase()).forEach((m) => A.normaliserDemande(m).split(/[^a-z]+/).filter((x) => x.length >= 3).forEach((x) => adresses.delete(x)))));
+  // Un mot qui est aussi un nom (ou un mot de l'agence, d'un notaire) reste codé partout : il n'est pas « adresse seulement ».
+  for (const m of sensibles) adresses.delete(m);
+  const liste = (dossiers || []).filter(Boolean);
+  Object.defineProperty(sensibles, 'adresses', { value: adresses, enumerable: false });
+  Object.defineProperty(sensibles, 'couple', { value: liste.length > 0 && liste.every((d) => Array.isArray(d.adresses)), enumerable: false });
   return sensibles;
 }
+
+// Mots d'une voie ou d'une qualité (rue, avenue, maître, agence…) retirés avant de relever les mots d'une adresse ou d'un office.
+const RE_MOTS_VOIE = /\b(rue|avenue|chemin|route|allee|allée|impasse|boulevard|place|quai|lieu-dit|des|du|de|la|le|les|et|maitre|maître|agence|immobilier|immobiliere|immobilière|notaires?|office)\b/gi;
 
 /**
  * Masque les montants (« 250 000 € », « 1.200,50 euros », « 12 000 ») d'un texte libre : un prix n'a pas à quitter le serveur. Utilisé par
@@ -412,7 +509,7 @@ function creerClientMistralAssistant({ cle, region, fetchFn, parametresRepo }) {
 }
 
 module.exports = {
-  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers,
+  MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee,
   REVISION_REGLAGES_ASSISTANT, MODELE_ASSISTANT_MISTRAL, MODELES_CLAUDE_ASSISTANT, MODELE_CLAUDE_ASSISTANT_DEFAUT, coutClaudeUsd, CLE_REGLAGES, MOTEURS, assainirReglagesAssistant, pseudonymiserDemande, retablirTexte, masquerMontants,
   coutAssistantUsd, lireUsageAssistant, noterUsageAssistant, creerClientMistralAssistant
 };

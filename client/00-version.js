@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.356.1';
+  const VERSION_APP = '0.357.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.357.0', date: '2026-10-26 20:02', resume: "Anonymisation de « Demander à CLAIRE » : les noms de famille, prénoms, agences, notaires, emails, téléphones et IBAN restent toujours remplacés par des codes. L’adresse d’un bien, une référence ou un numéro long ne le sont plus que s’ils sont dans la même phrase (ou la même fiche) qu’un nom de famille : seuls, ils partent en clair, ce qui permet à CLAIRE de chercher la mairie, le zonage ou une règle pour une commune. Réglable nulle part : c’est la nouvelle règle, dite dans la bulle « Anonymisation »." },
     { version: '0.356.1', date: '2026-10-26 19:39', resume: "Barre latérale : le tiroir « Outils » est ouvert à chaque démarrage (il était replié depuis le 18/10)." },
     { version: '0.356.0', date: '2026-10-26 19:32', resume: "Barre latérale : un accès rapide aux discussions sous « Discussions » — « Général » et une ligne par collègue (Bastien, Julie, Jérémy, Sophie, sauf vous) qui ouvre votre message privé avec lui, avec la pastille des messages non lus de chaque conversation." },
     { version: '0.355.0', date: '2026-10-26 17:51', resume: "Notifications de Windows : « Répondre » ouvre une petite fenêtre de réponse en bas à droite de l’écran, avec le message et son fil ; Entrée envoie la réponse dans le fil et la fenêtre se ferme, sans passer par la grande fenêtre CLAIRE. Les messages arrivent aussi plus vite en notification : environ 5 à 10 secondes au lieu de 15 à 35. Pour en profiter, réinstallez le relais du poste (Réglages › Notifications)." },

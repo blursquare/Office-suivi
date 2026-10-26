@@ -45,7 +45,7 @@
     if (d.agent) {
       const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5',
         'mistral-large-latest': 'Mistral Large', 'mistral-medium-latest': 'Mistral Medium', 'mistral-small-latest': 'Mistral Small' }[d.modele] || (d.moteur === 'mistral' ? 'Mistral' : 'Claude');
-      el.innerHTML = `<span class="dot-label dl-success" title="CLAIRE lit les dossiers pour répondre ; noms, adresses, emails et téléphones sont remplacés par des codes avant de partir."><span class="dot"></span>${escapeHtml(modele)} — dossiers lus, noms masqués</span>`;
+      el.innerHTML = `<span class="dot-label dl-success" title="CLAIRE lit les dossiers pour répondre ; noms, emails et téléphones sont remplacés par des codes avant de partir. Une adresse, une référence ou un numéro ne le sont que s’ils sont dans la même phrase ou la même fiche qu’un nom de famille."><span class="dot"></span>${escapeHtml(modele)} — dossiers lus, noms masqués</span>`;
       return;
     }
     el.innerHTML = d.ia
@@ -320,8 +320,10 @@
         id: d.id, nom: String(d.nom || ''), archive: !!d.archive,
         parties: parties.map(p => ({ nom: String((p && p.nom) || ''), prenom: texte(p && p.prenom), nomUsage: texte(p && p.nomUsage),
           civilite: String((p && p.civilite) || ''), societe: !!(p && p.qualitePersonne === 'morale') })).filter(p => p.nom),
-        autres: [d.adresseBien, d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : []), d.nomAgence,
-          d.notaireVendeur, d.notaireAcquereur, d.defunt && d.defunt.prenoms, d.defunt && d.defunt.nom, prenomDefuntDossier(d)].map(texte).filter(Boolean),
+        // L'adresse du bien est envoyée à part : le serveur ne la code que dans une phrase ou une fiche qui porte un nom de famille
+        // (étude 26/10) ; l'agence, les notaires et le défunt restent codés partout.
+        adresses: [d.adresseBien, d.bien && d.bien.adresse, ...(Array.isArray(d.biens) ? d.biens.map(b => b && b.adresse) : [])].map(texte).filter(Boolean),
+        autres: [d.nomAgence, d.notaireVendeur, d.notaireAcquereur, d.defunt && d.defunt.prenoms, d.defunt && d.defunt.nom, prenomDefuntDossier(d)].map(texte).filter(Boolean),
         reference: texte(d.referenceAuthentic),
         contacts: [d.emailVendeur, d.emailAcquereur, d.telephoneVendeur, d.telephoneAcquereur,
           ...parties.flatMap(p => [p && p.email, ...((p && p.emails) || []), ...((p && p.telephones) || [])])].map(texte).filter(Boolean)

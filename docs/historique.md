@@ -22156,3 +22156,21 @@ message privé avec chacun des trois autres (les canaux privés sont de 2 ou 3 p
 replie pour la séance seulement, rien n'est retenu — comme avant le 18/10.
 - 0.356.0, relecture : redessin au changement de poste et à la sortie d'un canal, pas de redessin si le HTML est identique (focus
   clavier), `aria-label` avec le nombre de non-lus ; audit dans `docs/audits/2026-10-26-0.356.0.md`.
+
+### 26/10/2026 20 h 02 — 0.357.0 : anonymisation « couplée à un nom de famille »
+
+Étude : « anonymise dans Claire que s'il y a un nom de famille ; pour les autres données, adresse ou autre, laisse en clair sauf si c'est
+couplé à un nom de famille ». Réponses à mes questions : « couplé » = même ligne ou phrase ; **toujours codés** : IBAN et numéros de
+compte, téléphones et emails (les références Authentic, SIREN et numéros de contrat ne sont donc codés que couplés).
+- `motsSensiblesDossiers` sépare `sensibles.adresses` (mots de l'adresse du bien, envoyée à part par le poste : champ `adresses` de
+  `dossiersPourAssistant`, accepté par `dossiersDuCorps`) des mots toujours codés ; `sensibles.couple` n'est vrai que si tous les dossiers
+  reçus portent `adresses` (un poste d'avant, ou aucun dossier : ancien masquage complet).
+- `masquer` : adresse, références et longs numéros codés par phrase (`dansPhrases`) quand `phrasePorteUnNom` (code de nom posé, mot des
+  fiches, capitales, mot à majuscule hors tête de phrase — un mot courant en tête de phrase ne couple pas) ; mots de l'adresse hors de
+  l'heuristique des mots à majuscule. `masquerDocument` : même passe en fin de traitement (domicile et lieu de naissance : toujours codés,
+  ce sont des données d'une personne). `masquerValeur` (résultats d'outils) : `porteUnNom` — l'objet ou un parent a un champ de nom rempli,
+  un mot des fiches ou une civilité — couple toute la fiche ; sinon `adresse`, `adresse_du_bien` et `reference` passent par `masquer`.
+- Inchangé : emails, téléphones, IBAN, agences, notaires, défunt, noms ; routines (`routines/ia.js`) et `masquerCarnet` ; anonymisation
+  désactivée. Prompt de l'agent et bulle « Anonymisation » mis à jour.
+- Limite dite : un lieu inconnu des fiches écrit avec une majuscule hors tête de phrase (« Vineuil ») est encore pris pour un nom et couple
+  sa phrase.

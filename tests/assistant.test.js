@@ -150,7 +150,7 @@ test('page : suggestions avec les noms des dossiers du poste, titre d’un rende
   const liste = app.dossiersPourAssistant([{ id: 'a', nom: 'X / Y', parties: [{ nom: 'X', prenom: 'P', civilite: 'M', telephones: ['06'] }],
     emailAcquereur: 'acq@x.fr', bien: { adresse: 'BLOIS (41000), 2 rue des Lices' }, nomAgence: 'Agence du Château', referenceAuthentic: 'A 2026 00247' }]);
   assert.equal(JSON.stringify(liste), '[{"id":"a","nom":"X / Y","archive":false,"parties":[{"nom":"X","prenom":"P","nomUsage":"","civilite":"M","societe":false}],'
-    + '"autres":["BLOIS (41000), 2 rue des Lices","Agence du Château"],"reference":"A 2026 00247","contacts":["acq@x.fr","06"]}]');
+    + '"adresses":["BLOIS (41000), 2 rue des Lices"],"autres":["Agence du Château"],"reference":"A 2026 00247","contacts":["acq@x.fr","06"]}]');
 });
 
 test('proximité avec la base d\'exemples : des variantes sans le mot-clé exact sont comprises, les phrases hors base restent inconnues', () => {
