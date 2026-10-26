@@ -22137,3 +22137,14 @@ la notification ? » (15 à 35 s : la fenêtre CLAIRE relisait les canaux toutes
 - Canaux relus toutes les 5 s (`INTERVALLE_CANAUX_NOTIFIES_MS`) quand la fenêtre n'est pas regardée et que le relais du poste
   notifie (`pastilleActiveHorsEcran`), 30 s sinon ; fenêtre cachée sans relais : rien.
 - Le relais doit être réinstallé (Réglages › Notifications) : le XML du toast est écrit par le relais du poste.
+
+### 26/10/2026 19 h 32 — 0.356.0 : accès rapide aux discussions dans la barre latérale
+
+Étude : « met un accès rapide dans la sidebar aux conversations de nous quatre et au canal général ». Lu comme : « Général » et le
+message privé avec chacun des trois autres (les canaux privés sont de 2 ou 3 personnes : un groupe de quatre n'existe pas).
+- `client/123-acces-rapide-canaux.js` : `lignesAccesRapideCanaux` (pure, testée dans `tests/canaux.test.js`) et `majAccesRapideCanaux`,
+  rendue sous « Discussions » avec les sous-items du tiroir des outils ; pastille = règle de l'étincelle (muet = rien, « mentions »
+  = ses mentions) ; ligne active quand le canal est ouvert dans Discussions ; clic = `definirOnglet('assistant')` puis `ouvrirCanal`.
+- Aucune requête de plus : redessinée à chaque relecture de la liste des canaux (`majPastilleCanaux`), à `ouvrirCanal` et à
+  `definirOnglet`. Barre repliée : masquée. Contrôle dans `npm run fumee` (quatre lignes, un clic ouvre `p:bastien-julie`).
+- Publication : poussée sur la branche seulement (19 h passée) ; part sur `main` avec la 0.355.0 à partir de 8 h.

@@ -217,6 +217,7 @@
     document.getElementById('onglet-reglages').style.display = nom === 'reglages' ? '' : 'none';
     document.getElementById('onglet-assistant').style.display = nom === 'assistant' ? '' : 'none';
     document.getElementById('tab-assistant').classList.toggle('actif', nom === 'assistant');
+    majAccesRapideCanaux();
     if (nom === 'assistant') initAssistant();
     document.getElementById('tab-dashboard').setAttribute('aria-selected', String(nom === 'dashboard'));
     document.getElementById('tab-suivi').setAttribute('aria-selected', String(nom === 'suivi'));

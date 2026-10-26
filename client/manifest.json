@@ -121,5 +121,6 @@
   "119-mise-en-forme.js",
   "120-canaux-slack.js",
   "121-reactions-actions.js",
-  "122-notifications.js"
+  "122-notifications.js",
+  "123-acces-rapide-canaux.js"
 ]

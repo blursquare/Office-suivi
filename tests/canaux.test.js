@@ -122,3 +122,23 @@ test('messageCanalVersVue : rôle selon l’auteur, boutons gardés pour un mess
   assert.equal(vue.boutons.length, 1);
   assert.equal(vue.texte, 'Bonjour');
 });
+
+test('accès rapide de la barre latérale : Général puis un message privé par collègue, pastille selon la règle de l’étincelle', () => {
+  const equipe = ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT', 'Sophie GOSSART'];
+  const prive = (a, b, plus) => Object.assign({ id: 'p:' + [a, b].map(n => n.split(' ')[0].toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')).sort().join('-'), prive: true, membres: [a, b], nonLus: 0, mentions: 0, notif: 'tous' }, plus || {});
+  const liste = [
+    { id: 'general', nonLus: 3, mentions: 1, notif: 'tous' },
+    prive('Bastien ANGLUMENT', 'Julie VASSELIN', { nonLus: 2 }),
+    prive('Bastien ANGLUMENT', 'Jérémy SAUJOT', { nonLus: 4, notif: 'muet' }),
+    prive('Bastien ANGLUMENT', 'Sophie GOSSART', { nonLus: 5, mentions: 1, notif: 'mentions' }),
+    prive('Julie VASSELIN', 'Jérémy SAUJOT', { nonLus: 9 }),
+    { id: 'p:bastien-julie-sophie', prive: true, membres: ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Sophie GOSSART'], nonLus: 7 }
+  ];
+  const l = app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT');
+  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Julie,Jérémy,Sophie');
+  assert.deepEqual(l.map(x => x.nonLus).join(','), '3,2,0,1', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
+  assert.equal(l[1].id, 'p:bastien-julie');
+  // Liste pas encore lue : Général seul, sans pastille.
+  assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general');
+  assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 1);
+});

@@ -175,6 +175,7 @@ function majPastilleCanaux() {
     const titre = n ? `Discussions : ${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Discussions';
     bouton.title = titre; bouton.setAttribute('aria-label', titre);
   }
+  majAccesRapideCanaux();
 }
 
 // Lancé une fois par demarrerApplication : la liste toutes les 30 s ; le canal ouvert toutes les 8 s tant que la page est affichée.
@@ -285,6 +286,7 @@ async function ouvrirCanal(id) {
   memoriserConversationAssistant();
   fermerFilCanal();
   canaux.actif = id;
+  majAccesRapideCanaux();
   assistantConversationId = '';
   const c = canaux.liste.find(x => x.id === id) || {};
   Object.assign(canaux, { messages: [], cartes: {}, signature: '', luAvant: c.luLe || 0, recherche: '', rechercheOuverte: false, edition: '', forcerBas: true, silences: [],
