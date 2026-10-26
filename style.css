@@ -785,6 +785,10 @@
     padding: 16px 2px 20px;
   }
   .brand-mark { display: inline-flex; flex-shrink: 0; }
+  /* Logo + mot cliquables : retour au tableau de bord (étude 26/10). */
+  .brand-lien { display: inline-flex; align-items: center; gap: 6px; color: inherit; text-decoration: none; border-radius: var(--rayon-s); cursor: pointer; }
+  .brand-lien:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+  .sidebar.repliee .brand-lien { gap: 0; }
   /* Logo "CLAIRE" seul : Montserrat (choisie explicitement par l'étude, après un premier essai en
      Bodoni Moda inspiré d'une référence "Sage" fournie plus tôt) — un sans-serif géométrique, pour
      une marque plus affirmée/moderne que le reste de l'interface, déjà en Inter partout ailleurs
