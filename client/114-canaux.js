@@ -406,7 +406,7 @@ function ligneCanal(e) {
     : nbNonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${nbNonLus}</span>` : '';
   const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
-      <span class="cx-d" aria-hidden="true">${icone(e.favori ? 'etoile' : e.dossier ? 'folder' : 'diese')}</span>
+      <span class="cx-d" aria-hidden="true">${e.favori || e.dossier ? icone(e.favori ? 'etoile' : 'folder') : '<span class="sb-canal-avatar sb-canal-diese">#</span>'}</span>
       <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;
 }
 

@@ -53,6 +53,12 @@ function htmlPresence(nom) {
   return `<span class="cx-pres${absent ? ' absent' : e && e.enLigne ? ' en-ligne' : ''}" title="${escapeAttr(etat)}" aria-label="${escapeAttr(etat)}"></span>`;
 }
 
+// Petit avatar encadré d'un collaborateur : sa photo ou son initiale, le point de présence en bas à droite (étude 26/10, comme Slack).
+function htmlAvatarPresence(nom) {
+  const prenom = String(nom || '').split(/\s+/)[0];
+  return `<span class="sb-canal-avatar">${contenuAvatarCollaborateur(nom, photosCollaborateurs, prenom.charAt(0).toUpperCase())}${htmlPresence(nom)}</span>`;
+}
+
 async function poserStatutCanal(emoji, texte, heures) {
   try {
     const r = await fetchAvecAuth('/api/canaux/statut', { method: 'PUT', headers: enteteJsonCanaux(), body: JSON.stringify({ auteur: utilisateurPoste, emoji, texte, heures }) });
@@ -96,7 +102,7 @@ function lignePriveCanal(c) {
   const e = seul ? membreEquipeCanal(seul) : null;
   const statut = e && e.statut && (e.statut.emoji || e.statut.texte) ? `${e.statut.emoji || ''} ${e.statut.texte || ''}`.trim() : '';
   const marque = Number(c.mentions) ? `<span class="cx-n cx-n-mention">${Number(c.mentions)}</span>` : Number(c.nonLus) ? `<span class="cx-n">${Number(c.nonLus)}</span>` : '';
-  const avatar = seul ? `<span class="cx-d cx-d-pres" aria-hidden="true">${htmlPresence(seul)}</span>` : `<span class="cx-d" aria-hidden="true">${icone('users')}</span>`;
+  const avatar = seul ? `<span class="cx-d cx-d-pres" aria-hidden="true">${htmlAvatarPresence(seul)}</span>` : `<span class="cx-d" aria-hidden="true">${icone('users')}</span>`;
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${c.nonLus ? ' non-lu' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(c.id)}')"${actif ? ' aria-current="true"' : ''}>
       ${avatar}<span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(libellePriveCanal(c.id, canaux.liste))}</span>${statut ? `<small>${escapeHtml(statut)}</small>` : ''}</span>${marque}</button></li>`;
 }

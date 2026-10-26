@@ -34,7 +34,7 @@ function majAccesRapideCanaux() {
     // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.
     const initiales = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
     const marque = x.nom
-      ? `<span class="sb-canal-avatar">${contenuAvatarCollaborateur(x.nom, photosCollaborateurs, initiales)}${htmlPresence(x.nom)}</span>`
+      ? htmlAvatarPresence(x.nom)
       : '<span class="sb-canal-avatar sb-canal-diese" aria-hidden="true">#</span>';
     const initiale = initiales;
     return `<button type="button" class="sidebar-link sidebar-sousmenu-item sb-canal${actif ? ' actif' : ''}${x.nonLus ? ' non-lu' : ''}" onclick="ouvrirAccesRapideCanal('${escapeOnclickArg(x.id)}')" title="${escapeAttr(x.titre)}" aria-label="${escapeAttr(x.titre + (x.nonLus ? `, ${x.nonLus} non lu${x.nonLus > 1 ? 's' : ''}` : ''))}"${actif ? ' aria-current="true"' : ''}>`
