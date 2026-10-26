@@ -9691,6 +9691,9 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-etape { margin-left: 8px; color: var(--muted); font-size: var(--texte-s); font-style: normal; }
 .asst-attente span.asst-etape, .asst-attente em.asst-etape { width: auto; height: auto; background: none; animation: none; }
 @keyframes asst-pulse { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+/* Une réponse de CLAIRE apparaît d'un bloc, en fondu (étude 26/10 : plus de texte écrit caractère par caractère). */
+.asst-apparait { animation: asst-apparait 220ms ease-out; }
+@keyframes asst-apparait { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .asst-bas { flex: 0 0 auto; padding: 0 24px 12px; }
 .asst-page .asst-saisie { position: relative; display: flex; flex-direction: column; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); }
 .asst-page .asst-saisie:focus-within { border-color: var(--muted); box-shadow: 0 0 0 1px var(--muted); }
@@ -9758,7 +9761,7 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
   .asst-messages { min-height: 160px; }
 }
 @media (hover: none) { .asst-survol { display: none !important; } }
-@media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } }
+@media (prefers-reduced-motion: reduce) { .asst-attente span { animation: none; opacity: 0.7; } .asst-apparait { animation: none; } }
 
 /* Compte rendu de relecture imprimé (étude 06/10 : « une page recto verso A4 au maximum, les éléments validés sur un
    quart de page au plus ») : Ctrl+P ou « Imprimer (A4) » depuis l'onglet sort #relecture-cr-print seul. */

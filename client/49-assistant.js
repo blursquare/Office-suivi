@@ -150,7 +150,7 @@
       // avatar, prénom et heure en tête d'un groupe de messages du même auteur ; dans la suite, l'heure apparaît au survol dans la marge.
       const auteur = { role: m.role, auteur: m.role === 'moi' ? utilisateurPoste : '' };
       const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(auteur))}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}</span></div>` : '';
-      return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
+      return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}${messageEnApparitionAssistant(m) ? ' asst-apparait' : ''}" data-index="${i}">
           ${r.debutGroupe ? avatarCanal(auteur) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
           <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
           <div class="asst-survol">${htmlBoutonsReactionSurvol(m)}<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
@@ -375,7 +375,14 @@
     if (assistantContexte.attente && assistantContexte.attente.type === 'dossier') {
       const r = impose ? { dossier: impose, candidats: [] } : reconnaitreDossier(texte, dossiersPourAssistant(dossiers));
       const attente = assistantContexte.attente;
-      if (r.dossier) { assistantContexte.attente = null; await executerDemandeAssistant({ ...attente.resultat, dossier: r.dossier, candidats: [] }); return; }
+      if (r.dossier) {
+        assistantContexte.attente = null;
+        const debut = Date.now();
+        assistantEnCours = true; renderAssistant();
+        try { await pauseReflexionAssistant(debut); } finally { assistantEnCours = false; }
+        await executerDemandeAssistant({ ...attente.resultat, dossier: r.dossier, candidats: [] });
+        return;
+      }
       if (r.candidats.length) { proposerCandidatsAssistant(r.candidats, attente.resultat); return; }
       assistantContexte.attente = null;
       // Sinon, c'est une nouvelle demande : on continue normalement.
@@ -400,6 +407,7 @@
     if (pieces.length) { poserMessageAssistant('claire', '<p>Je n’ai pas pu lire la pièce jointe : l’agent n’a pas répondu. Réessayez dans un instant.</p>'); return; }
     assistantEnCours = true;
     renderAssistant();
+    const debutReflexion = Date.now();
     try {
       const r = await fetchAvecAuth('/api/assistant/comprendre', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -412,6 +420,7 @@
       const corps = await r.json();
       if (!r.ok) throw new Error(corps.erreur || `Le serveur a répondu ${r.status}.`);
       assistantContexte.historique.push({ texte, intention: corps.intention });
+      await pauseReflexionAssistant(debutReflexion);   // réponse sans IA : 2 s de « réflexion » au moins
       assistantEnCours = false;
       // Le dossier choisi par @ l'emporte sur la lecture du nom (homonymes, dossier archivé).
       await executerDemandeAssistant(impose && dossiers.some(x => x.id === impose) ? { ...corps, dossier: impose, candidats: [] } : corps);
