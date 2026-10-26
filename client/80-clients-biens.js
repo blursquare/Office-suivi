@@ -422,7 +422,7 @@
       .map(p => {
         const prenom = String(p.prenom || '').trim();
         const nom = !prenom || normaliserPourRecherche(String(p.nom)).includes(normaliserPourRecherche(prenom)) ? String(p.nom) : [prenom, p.nom].join(' ');
-        return { nom, affiche: civ(p) + nom, morale: p.qualitePersonne === 'morale', role: rang(p.role || '') === 0 ? 'Vendeur' : rang(p.role || '') === 1 ? 'Acquéreur' : 'Partie' };
+        return { nom, affiche: civ(p) + nom, morale: p.qualitePersonne === 'morale', role: rang(p.role || '') === 0 ? 'Vendeur' : rang(p.role || '') === 1 ? 'Acquéreur' : 'Partie', partieIndex: d.parties.indexOf(p) };
       });
   }
 
@@ -431,7 +431,9 @@
   function retraitPartieCarte(d, p) {
     if (!d || !p || p.vide || p.role === 'Défunt') return null;
     const parties = Array.isArray(d.parties) ? d.parties : [];
-    const i = parties.findIndex(x => x && memePersonneNommee([x.prenom, x.nom].filter(Boolean).join(' '), p.nom));
+    // Vente : la place exacte dans d.parties (donnée par la carte) ; héritier : le même nom, mot pour mot — jamais « Paul MOREAU » pour « Jean Paul MOREAU ».
+    const exact = (x) => x && typeof motsNettoyageFiche === 'function' && motsNettoyageFiche([x.prenom, x.nom].filter(Boolean).join(' ')) === motsNettoyageFiche(p.nom);
+    const i = Number.isInteger(p.partieIndex) && parties[p.partieIndex] ? p.partieIndex : parties.findIndex(exact);
     if (i < 0) return null;
     return { clic: `demanderRetirerPartie('${escapeOnclickArg(d.id)}', ${i})`, titre: `Retirer ${p.nom} de la fiche (Authentic la remettra)` };
   }
@@ -443,10 +445,12 @@
     const cle = (a) => normaliserPourRecherche(normaliserAdresse(a || '')).replace(/[^a-z0-9]+/g, ' ').trim();
     const signature = signatureBienVente(b);
     const dansImmeubles = ((d.authentic && d.authentic.immeubles) || []).some(x => x && signatureBienVente(x) === signature);
-    const principal = !estSuccession(d) && (cle(b.adresse) && cle(b.adresse) === cle(d.adresseBien));
+    const cad = d.bien && d.bien.cadastre;
+    const clesFiche = new Set(((cad && Array.isArray(cad.parcelles)) ? cad.parcelles : []).map(q => cleParcelle(q.section, q.numero)).filter(Boolean));
+    const principal = !estSuccession(d) && ((cle(b.adresse) && cle(b.adresse) === cle(d.adresseBien)) || (!cle(b.adresse) && (b.parcelles || []).some(q => clesFiche.has(cleParcelle(q.section, q.numero)))));
     if (principal) return { clic: `demanderViderBien('${escapeOnclickArg(d.id)}')`, titre: 'Vider le bien de la fiche (Authentic le remettra)' };
     if (dansImmeubles) return { clic: `retirerBienPourReprise('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(signature)}')`, titre: 'Retirer ce bien de la fiche (Authentic pourra le remettre)' };
-    return !estSuccession(d) ? { clic: `demanderViderBien('${escapeOnclickArg(d.id)}')`, titre: 'Vider le bien de la fiche (Authentic le remettra)' } : null;
+    return null;
   }
 
   function renderCartesClientsBiensDossier(d) {

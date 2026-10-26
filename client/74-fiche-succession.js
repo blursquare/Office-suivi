@@ -962,7 +962,7 @@
   // La croix d'un héritier : retire sa partie enregistrée sur la fiche (et ce qu'Authentic en avait repris) ; s'il figure dans les comparants
   // d'Authentic il se remet seul à la lecture suivante. Pas de croix pour une personne qui n'est que dans les comparants.
   function boutonRetirerPersonneSuccession(d, nom) {
-    const i = (Array.isArray(d.parties) ? d.parties : []).findIndex(p => p && memePersonneNommee([p.prenom, p.nom].filter(Boolean).join(' '), nom));
+    const i = (Array.isArray(d.parties) ? d.parties : []).findIndex(p => p && motsNettoyageFiche([p.prenom, p.nom].filter(Boolean).join(' ')) === motsNettoyageFiche(nom));
     if (i < 0) return '';
     return `<wa-button appearance="plain" size="s" class="bouton-icone personne-retirer" type="button" title="Retirer de la fiche (Authentic la remettra)" aria-label="Retirer ${escapeAttr(nom)} de la fiche" onclick="demanderRetirerPartie('${escapeOnclickArg(d.id)}', ${i})">${icone('x')}</wa-button>`;
   }

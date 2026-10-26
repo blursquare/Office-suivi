@@ -9,25 +9,34 @@ function motsNettoyageFiche(nom) {
   return normaliserPourRecherche(String(nom || '')).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean).sort().join(' ');
 }
 
-// Modifie d : retire la partie d'index `index` et tout ce qu'Authentic en avait retenu. Rend son nom (« Prénom NOM »), '' si rien.
+// Modifie d : retire la partie d'index `index` et tout ce qu'Authentic en avait retenu POUR ELLE. Le côté (vendeur / acquéreur) compte : une
+// personne homonyme de l'autre côté garde sa fiche d'Authentic et sa mémoire. Rend son nom (« Prénom NOM »), '' si rien.
 function retirerPartieDuDossier(d, index) {
   const parties = d && Array.isArray(d.parties) ? d.parties : [];
   const p = parties[index];
   if (!p) return '';
   const nom = [p.prenom, p.nom].map(x => String(x || '').trim()).filter(Boolean).join(' ');
   const cle = motsNettoyageFiche(nom);
+  const role = String(p.role || '').toUpperCase();
   d.parties = parties.filter((x, i) => i !== index);
+  // Une autre partie du même nom (autre côté) : la fiche client d'Authentic, qui est celle de la personne, reste.
+  const homonyme = d.parties.some(x => x && motsNettoyageFiche([x.prenom, x.nom].join(' ')) === cle);
   const a = d.authentic;
   if (a && typeof a === 'object' && cle) {
     const autre = Object.assign({}, a);
-    ['fichesClients', 'fichesAuthentic'].forEach(registre => {
-      if (a[registre] && typeof a[registre] === 'object') autre[registre] = Object.fromEntries(Object.entries(a[registre]).filter(([k]) => motsNettoyageFiche(k) !== cle));
-    });
-    if (a.valeurs && typeof a.valeurs === 'object') {
-      autre.valeurs = Object.fromEntries(Object.entries(a.valeurs).map(([k, v]) => (/^parties:/.test(k) && Array.isArray(v) ? [k, v.filter(n => motsNettoyageFiche(n) !== cle)] : [k, v])));
+    if (!homonyme && a.fichesClients && typeof a.fichesClients === 'object') {
+      autre.fichesClients = Object.fromEntries(Object.entries(a.fichesClients).filter(([k]) => motsNettoyageFiche(k) !== cle));
     }
-    if (a.majEnAttente && typeof a.majEnAttente === 'object') {
-      autre.majEnAttente = Object.fromEntries(Object.entries(a.majEnAttente).filter(([k]) => !/^parties:/.test(k)));
+    // Registre des contacts repris : clés « RÔLE|mots du nom » ; la fiche porte son rôle et son nom.
+    if (a.fichesAuthentic && typeof a.fichesAuthentic === 'object') {
+      autre.fichesAuthentic = Object.fromEntries(Object.entries(a.fichesAuthentic).filter(([k, f]) => !(f && String(f.role || '').toUpperCase() === role && motsNettoyageFiche(f.nom || String(k).split('|').slice(1).join(' ')) === cle)));
+    }
+    if (a.valeurs && typeof a.valeurs === 'object' && role) {
+      const k = 'parties:' + role;
+      if (Array.isArray(a.valeurs[k])) autre.valeurs = Object.assign({}, a.valeurs, { [k]: a.valeurs[k].filter(n => motsNettoyageFiche(n) !== cle) });
+    }
+    if (a.majEnAttente && typeof a.majEnAttente === 'object' && role) {
+      autre.majEnAttente = Object.fromEntries(Object.entries(a.majEnAttente).filter(([k]) => k !== 'parties:' + role));
     }
     d.authentic = autre;
   }
@@ -80,17 +89,23 @@ function retirerImmeubleSansBlocage(d, signature) {
   return bien;
 }
 
-// Modifie d : vide le bien principal d'une vente (adresse, parcelles, lots) et la mémoire d'Authentic sur le bien — adresse, type, biens
-// retirés, immeubles. Le prix, les parties et les pièces ne bougent pas.
+// Modifie d : vide le bien principal d'une vente (adresse, parcelles, lots) et ce qu'Authentic en avait repris — son immeuble et sa valeur
+// d'adresse. Les AUTRES biens d'Authentic, les biens retirés pour toujours, le type de vente, le prix, les parties et les pièces ne bougent pas.
 function viderBienPrincipalDuDossier(d) {
   if (!d) return;
+  const cle = (a) => normaliserPourRecherche(normaliserAdresse(a || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+  const principal = cle(d.adresseBien);
+  const cad = d.bien && d.bien.cadastre;
+  const clesFiche = new Set(((cad && Array.isArray(cad.parcelles)) ? cad.parcelles : []).map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
+  const estPrincipal = (im) => !!im && ((principal && cle(im.adresse) === principal) || (im.parcelles || []).some(p => clesFiche.has(cleParcelle(p.section, p.numero))));
   d.adresseBien = '';
   d.bien = {};
   const a = d.authentic;
   if (a && typeof a === 'object') {
-    const autre = Object.assign({}, a, { immeubles: [], biensRetires: [] });
-    if (a.valeurs && typeof a.valeurs === 'object') autre.valeurs = Object.fromEntries(Object.entries(a.valeurs).filter(([k]) => !/^(adresse|adresseBien|typeVente|type|bien)/i.test(k)));
-    if (a.majEnAttente && typeof a.majEnAttente === 'object') autre.majEnAttente = Object.fromEntries(Object.entries(a.majEnAttente).filter(([k]) => !/^(adresse|adresseBien|typeVente|type|bien)/i.test(k)));
+    const autre = Object.assign({}, a);
+    if (Array.isArray(a.immeubles)) autre.immeubles = a.immeubles.filter(im => !estPrincipal(im));
+    if (a.valeurs && typeof a.valeurs === 'object') autre.valeurs = Object.fromEntries(Object.entries(a.valeurs).filter(([k]) => !/^(adresse|adresseBien)$/i.test(k)));
+    if (a.majEnAttente && typeof a.majEnAttente === 'object') autre.majEnAttente = Object.fromEntries(Object.entries(a.majEnAttente).filter(([k]) => !/^(adresse|adresseBien)$/i.test(k)));
     d.authentic = autre;
   }
 }
@@ -161,7 +176,8 @@ async function retirerBienPourReprise(id, signature) {
   const bien = retirerImmeubleSansBlocage(d, signature);
   if (!bien) { afficherToast('Ce bien n’est plus dans la liste : rouvrez la fiche.', 'OK', null); return; }
   // Ses parcelles quittent aussi la fiche, sauf celles d'un bien gardé.
-  const gardees = new Set(((d.authentic && d.authentic.immeubles) || []).flatMap(x => (x.parcelles || []).map(p => cleParcelle(p.section, p.numero))));
-  (bien.parcelles || []).filter(p => !gardees.has(cleParcelle(p.section, p.numero))).forEach(p => retirerParcelleDuDossier(d, p.section, p.numero, p.commune));
+  const cleCommune = (p) => cleParcelle(p.section, p.numero) + '|' + motsNettoyageFiche(p.commune || '');
+  const gardees = new Set(((d.authentic && d.authentic.immeubles) || []).flatMap(x => (x.parcelles || []).map(cleCommune)));
+  (bien.parcelles || []).filter(p => !gardees.has(cleCommune(p))).forEach(p => retirerParcelleDuDossier(d, p.section, p.numero, p.commune));
   await apresNettoyageFiche(d, `Bien retiré : ${bien.adresse ? normaliserAdresse(bien.adresse) : (bien.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', ') || 'sans adresse'}`);
 }
