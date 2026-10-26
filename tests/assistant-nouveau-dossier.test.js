@@ -39,3 +39,10 @@ test('compromis : un PDF joint ou un PDF du NAS est repris, un autre document es
   assert.equal(await app.fichierCompromisAgent({ sorte: 'scan', chemin: 'x.pdf' }), null);
   assert.equal(await app.fichierCompromisAgent(null), null);
 });
+
+test('yousign_rib : toujours sa propre carte, jamais couverte par « Autoriser pour toute cette demande » (audit 26/10)', () => {
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'client', '110-assistant-nouveau-dossier.js'), 'utf8');
+  const i = src.indexOf("'/api/signature-rib/brouillon'");
+  assert.ok(i > 0);
+  assert.match(src.slice(Math.max(0, i - 400), i), /demanderAutorisationAgent\(description, \{ strict: true \}\)/);
+});

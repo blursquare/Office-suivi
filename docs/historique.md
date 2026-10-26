@@ -21971,3 +21971,12 @@ Empreinte relais 1.2 : `919399b7…df4105`.
   poste restait sans relais jusqu'à la session suivante), message de l'installateur et de `--retirer` qui le dit ; le signal
   d'arrêt n'est plus remis à zéro par l'installateur (un relevé lent de 10 s le manquait) mais par le relais qui démarre, une fois
   le mutex obtenu ; attente de l'installateur portée à 15 s ; la boîte du code renvoie à Réglages › Notifications.
+
+- **26/10/2026 08 h 37 — 0.350.2 Audit avant publication (versions 0.330.0 à 0.347.1)** (routine de l'étude « Publier
+  claude/integration », lundi 8 h 30). Audit d'ensemble des nouveautés qui n'avaient pas encore le leur
+  (`docs/audits/2026-10-26-0.330.0-0.347.1.md`, verdict « correct avec réserves »). Point Haut corrigé : l'outil `yousign_rib`
+  (brouillon de signature du RIB, client/110) demandait l'autorisation sans `strict` — il passait sous « Autoriser pour toute
+  cette demande », alors que toute écriture chez Yousign garde sa carte (noms en clair chez l'agent Yousign d'Anthropic) ;
+  test ajouté. Moyens laissés ouverts, dits à l'étude : refus des outils non prévus de l'agent Yousign seulement quand l'appel
+  est « à confirmer » ; texte d'un autre message recopié par 🔁/❓ dans la question ; limites de lecture de 0.331.0 aussi
+  appliquées à Mistral ; pièces jointes gardées sans quota disque ; lecture libre du NAS ouverte par défaut (choix de l'étude).

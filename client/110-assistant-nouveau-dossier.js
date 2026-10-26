@@ -151,7 +151,8 @@ async function yousignRibAgent(entree) {
   if (manques.length) return { erreur: `il manque sur la fiche : ${manques.join(', ')}` };
   if (signatureRibAuto !== true) return { erreur: 'l’agent Yousign n’est pas utilisable : clé d’API Claude des Réglages absente ou refusée' };
   const description = `Préparer dans Yousign le brouillon « Signature d’attestation et envoi de RIB » pour ${s.prenom} ${s.nom} (${libelleDossierAffiche(d)}). Rien n’est envoyé : vous le vérifiez dans Yousign. Prénom, nom, email et portable partent en clair à l’agent Yousign d’Anthropic.`;
-  if (!(await demanderAutorisationAgent(description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  // Écriture chez Yousign, noms en clair chez Anthropic : toujours sa propre carte, jamais couverte par « Autoriser pour toute cette demande ».
+  if (!(await demanderAutorisationAgent(description, { strict: true }))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
   try {
     const r = await fetchAvecAuth('/api/signature-rib/brouillon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
     const j = await r.json().catch(() => ({}));
