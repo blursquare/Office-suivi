@@ -22174,3 +22174,10 @@ compte, téléphones et emails (les références Authentic, SIREN et numéros de
   désactivée. Prompt de l'agent et bulle « Anonymisation » mis à jour.
 - Limite dite : un lieu inconnu des fiches écrit avec une majuscule hors tête de phrase (« Vineuil ») est encore pris pour un nom et couple
   sa phrase.
+
+### 26/10/2026 20 h 11 — 0.357.1 : le « tiroir » était l'accès rapide aux discussions
+
+Étude : « le tiroir, c'est pas pour Outils, c'est pour Discussions » (à propos de « laisser ouvert tout le temps le tiroir »). L'ouverture du
+tiroir « Outils » au démarrage (0.356.1) est annulée (replié comme depuis le 18/10) ; l'accès rapide aux discussions, déjà toujours déployé,
+reste maintenant visible barre repliée aussi : initiales (« # » pour Général), point rouge s'il y a du non-lu (`.sb-canal-initiale`,
+`.non-lu`).

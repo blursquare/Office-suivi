@@ -30,8 +30,9 @@ function majAccesRapideCanaux() {
   const html = lignes.map((x) => {
     const actif = surDiscussions && canaux.actif === x.id;
     const marque = x.nom ? htmlPresence(x.nom) : '<span class="sb-canal-marque" aria-hidden="true">#</span>';
-    return `<button type="button" class="sidebar-link sidebar-sousmenu-item sb-canal${actif ? ' actif' : ''}" onclick="ouvrirAccesRapideCanal('${escapeOnclickArg(x.id)}')" title="${escapeAttr(x.titre)}" aria-label="${escapeAttr(x.titre + (x.nonLus ? `, ${x.nonLus} non lu${x.nonLus > 1 ? 's' : ''}` : ''))}"${actif ? ' aria-current="true"' : ''}>`
-      + `${marque}<span class="sb-canal-nom">${escapeHtml(x.libelle)}</span>`
+    const initiale = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
+    return `<button type="button" class="sidebar-link sidebar-sousmenu-item sb-canal${actif ? ' actif' : ''}${x.nonLus ? ' non-lu' : ''}" onclick="ouvrirAccesRapideCanal('${escapeOnclickArg(x.id)}')" title="${escapeAttr(x.titre)}" aria-label="${escapeAttr(x.titre + (x.nonLus ? `, ${x.nonLus} non lu${x.nonLus > 1 ? 's' : ''}` : ''))}"${actif ? ' aria-current="true"' : ''}>`
+      + `${marque}<span class="sb-canal-initiale" aria-hidden="true">${escapeHtml(initiale)}</span><span class="sb-canal-nom">${escapeHtml(x.libelle)}</span>`
       + `${x.nonLus ? `<span class="sidebar-badge-notif">${x.nonLus > 99 ? '99+' : x.nonLus}</span>` : ''}</button>`;
   }).join('');
   // Rien à redessiner si rien n'a changé : le focus clavier d'une ligne reste en place (relecture 0.356.0).

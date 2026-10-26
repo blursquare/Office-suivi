@@ -1010,7 +1010,12 @@
   .sb-canal-marque { flex: none; width: 8px; text-align: center; color: var(--muted); font-weight: 500; }
   .sb-canal .sidebar-badge-notif { min-width: 20px; height: 18px; padding: 0 4px; }
   .sb-canal-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
-  .sidebar.repliee .sidebar-acces-canaux { display: none !important; }
+  /* Barre repliée : le tiroir reste ouvert, en initiales (# pour Général) ; un point rouge dit qu'il y a du non-lu. */
+  .sb-canal-initiale { display: none; }
+  .sidebar.repliee .sb-canal .sb-canal-initiale { display: inline; font-size: var(--texte-m); font-weight: 500; }
+  .sidebar.repliee .sb-canal .sb-canal-nom, .sidebar.repliee .sb-canal .sb-canal-marque, .sidebar.repliee .sb-canal .cx-pres { display: none; }
+  .sidebar.repliee .sb-canal.non-lu { position: relative; }
+  .sidebar.repliee .sb-canal.non-lu::after { content: ''; position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--notif-nouveau); }
   /* Deux catégories d'outils, Vente et Succession (étude 15/10) : un titre en capitales ; le liseré repart sous chacun. */
   .sidebar-sousmenu-titre { padding: 8px 4px 2px 8px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
   .sidebar-sousmenu-titre:first-child { padding-top: 4px; }
