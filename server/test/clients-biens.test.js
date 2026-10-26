@@ -393,3 +393,37 @@ test('fichier global : nom complété, homonyme retiré, bien de rang décalé �
   assert.ok(h2.biens.some((b) => /1 rue A/.test(b.adresse)), 'le bien retiré reste dans le fichier');
   assert.ok(h2.biens.some((b) => /2 rue B/.test(b.adresse)));
 });
+
+test('supprimer du fichier global : seules les lignes sans dossier, par la route ; un dossier garde ce qu’il contient', async () => {
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const app = creerApp({ db: ouvrirDb(':memory:'), config: { authActive: false, estSea: () => false } });
+  const serveur = app.app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  const B = 'http://127.0.0.1:' + serveur.address().port;
+  const json = { 'Content-Type': 'application/json' };
+  try {
+    const d = { id: 'v1', nom: 'EXEMPLE - ESSAI', typeAffaire: 'vente', parties: [{ nom: 'Paul EXEMPLE', role: 'VENDEUR' }, { nom: 'Anne ESSAI', role: 'VENDEUR' }] };
+    await fetch(B + '/api/dossiers', { method: 'POST', headers: json, body: JSON.stringify(d) });
+    // Anne est retirée du dossier : elle reste dans la base globale.
+    await fetch(B + '/api/dossiers/v1', { method: 'PUT', headers: json, body: JSON.stringify(Object.assign({}, d, { parties: [d.parties[0]] })) });
+    const liste = await (await fetch(B + '/api/clients-biens?q=ESSAI')).json();
+    const anne = liste.personnes.find((p) => /Anne ESSAI/.test(p.nom));
+    assert.ok(anne, 'Anne reste dans la base après son retrait du dossier');
+    const fiche = (await (await fetch(B + '/api/clients-biens/personne/' + anne.id)).json()).personne;
+    assert.ok(fiche.fichierIds.length >= 1);
+    assert.deepEqual(fiche.anciensDossiers, ['VTE - EXEMPLE - ESSAI']);
+    // Paul est encore dans le dossier : rien à supprimer du fichier.
+    const paul = (await (await fetch(B + '/api/clients-biens?q=EXEMPLE')).json()).personnes.find((p) => /Paul EXEMPLE/.test(p.nom));
+    const refus = await fetch(B + '/api/clients-biens/fichier/personne/' + paul.id, { method: 'DELETE' });
+    assert.equal(refus.status, 400);
+    // Suppression d'Anne.
+    const ok = await fetch(B + '/api/clients-biens/fichier/personne/' + anne.id, { method: 'DELETE' });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).supprimees, 1);
+    const apres = await (await fetch(B + '/api/clients-biens?q=ESSAI')).json();
+    assert.ok(!apres.personnes.some((p) => /Anne ESSAI/.test(p.nom)), 'Anne n’est plus dans la base');
+    // Un identifiant invalide ou un genre inconnu : refusé.
+    assert.equal((await fetch(B + '/api/clients-biens/fichier/societe/x', { method: 'DELETE' })).status, 400);
+  } finally { serveur.close(); }
+});

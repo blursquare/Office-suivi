@@ -343,6 +343,8 @@ function construirePersonnes(dossiers, reglages, imp) {
       dossiers: dossiersLies.filter((x) => (vus.has(x.id + x.role) ? false : (vus.add(x.id + x.role), true))),
       // Dossiers d'où elle a été retirée (fichier global) : elle reste dans la base, sans lien avec eux.
       anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].filter((l) => !dossiersLies.some((x) => x.libelle === l)).slice(0, 12),
+      // Lignes du fichier global de cette fiche (sans dossier) : ce que « Supprimer du fichier » efface.
+      fichierIds: liste.filter((o) => o.fichier).map((o) => String(o.id).slice('fichier:'.length)),
       occurrences: liste.map((o) => o.id), conjoint: null, peutEtre: []
     });
     liste.forEach((o) => ficheDeOcc.set(o.id, id));
@@ -502,6 +504,7 @@ function construireBiens(dossiers, imp) {
       dossiers: liste.filter((o) => o.dossier).map((o) => ({ id: o.dossier.id, libelle: libelleDossier(o.dossier), archive: !!o.dossier.archive, succession: o.dossier.typeAffaire === 'succession' }))
         .filter((x) => (vus.has(x.id) ? false : (vus.add(x.id), true))),
       anciensDossiers: [...new Set(liste.filter((o) => o.fichier && o.dossierRetire).map((o) => o.dossierRetire))].filter((l) => !liste.some((o) => o.dossier && libelleDossier(o.dossier) === l)).slice(0, 12),
+      fichierIds: liste.filter((o) => o.fichier).map((o) => String(o.id).slice('fichier:'.length)),
       occurrences: liste.map((o) => o.id)
     });
   }

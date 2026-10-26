@@ -294,7 +294,7 @@
           ${f.description ? `<dt>Désignation</dt><dd>${escapeHtml(f.description)}</dd>` : ''}
         </dl>
         ${(f.details || []).length ? `<h3 class="cb-sous-titre">Dans Authentic</h3><dl class="cb-champs">${f.details.map(x => `<dt>${escapeHtml(x.libelle)}</dt><dd>${escapeHtml(x.valeur)}</dd>`).join('')}</dl>` : ''}
-        <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}`;
+        <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}${boutonSupprimerDuFichierCb(f)}`;
       return;
     }
     const c = f.champs || {};
@@ -327,8 +327,34 @@
       ${revoir}${homonymes}
       <dl class="cb-champs">${['nomUsage', 'dateNaissance', 'lieuNaissance', 'nationalite', 'profession', 'domicile', 'emails', 'telephones'].map(ligneChamp).join('')}${situation}${regime}${deces}</dl>
       ${renderComplementFicheCb(f)}
-      <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}`;
+      <h3 class="cb-sous-titre">Dossiers</h3>${renderDossiersLiesCb(f.dossiers, f.anciensDossiers)}${boutonSupprimerDuFichierCb(f)}`;
     if (cbEdition) { const s = document.getElementById('cb-champ-saisie'); if (s) s.focus(); }
+  }
+
+  // Pure : le bouton « Supprimer du fichier » — seulement pour une fiche qui porte des lignes du fichier global (retirée d'un dossier).
+  function boutonSupprimerDuFichierCb(f) {
+    if (!f || !Array.isArray(f.fichierIds) || !f.fichierIds.length) return '';
+    return `<div class="cb-supprimer"><wa-button appearance="outlined" size="s" variant="danger" type="button" onclick="supprimerDuFichierCb()" title="Efface cette fiche du fichier des clients et des biens. Ce que les dossiers contiennent encore n’est pas touché.">${icone('trash')}Supprimer du fichier</wa-button></div>`;
+  }
+
+  async function supprimerDuFichierCb() {
+    if (!cbOuvert || !cbOuvert.fiche) return;
+    const { type, id, fiche } = cbOuvert;
+    const nom = type === 'bien' ? (fiche.adresse ? normaliserAdresse(fiche.adresse) : 'ce bien') : (fiche.nomComplet || 'cette personne');
+    const encore = (fiche.dossiers || []).length ? ' Elle figure encore dans un dossier : ce dossier la garde.' : '';
+    demanderConfirmation(`Supprimer ${nom} du fichier des clients et des biens ?${encore} Rien n'est supprimé d'Authentic.`, async () => {
+      let j = {};
+      try {
+        const r = await fetchAvecAuth(`/api/clients-biens/fichier/${type}/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        j = await r.json().catch(() => ({}));
+        if (!r.ok) { afficherToast(j.erreur || 'Suppression refusée.', 'OK', null); return; }
+      } catch (_) { afficherToast('Serveur injoignable.', 'OK', null); return; }
+      cbParDossier.clear();
+      cbOuvert = null;
+      afficherToast(j.resteDansDossiers ? 'Supprimée du fichier ; le dossier où elle figure encore la garde.' : 'Supprimée du fichier des clients et des biens.', 'OK', null);
+      if (ecranAffiche('clients-biens')) chercherClientsBiens(cbRecherche);
+      fermerFicheClientBien();
+    }, { bouton: 'Supprimer', ton: 'danger' });
   }
 
   function corrigerChampCb(champ) { cbEdition = champ; renderFicheClientBien(); }

@@ -60,6 +60,23 @@ function creerRouteurClientsBiens(depot, parametresRepo, fichier) {
     res.json(fichesDuDossier(base(), id));
   });
 
+  // Supprimer du fichier global une personne ou un bien qui n'est plus dans aucun dossier (étude 26/10). Jamais ce qu'un dossier contient : la fiche
+  // doit porter des lignes du fichier (`fichierIds`) ; ce que les dossiers montrent encore reste, et réapparaîtrait de toute façon.
+  routeur.delete('/clients-biens/fichier/:genre/:id', (req, res) => {
+    const genre = String(req.params.genre || ''); const id = String(req.params.id || '');
+    if ((genre !== 'personne' && genre !== 'bien') || !RE_ID.test(id)) { res.status(400).json({ erreur: 'Demande invalide.' }); return; }
+    if (!fichier) { res.status(404).json({ erreur: 'Fichier indisponible.' }); return; }
+    const b = base();
+    const fiche = (genre === 'personne' ? b.personnes : b.biens).find((x) => x.id === id);
+    if (!fiche) { res.status(404).json({ erreur: 'Fiche introuvable : rechargez la liste.' }); return; }
+    const ids = Array.isArray(fiche.fichierIds) ? fiche.fichierIds : [];
+    if (!ids.length) { res.status(400).json({ erreur: 'Rien à supprimer du fichier : cette fiche n’est que dans des dossiers (retirez-la du dossier).' }); return; }
+    const supprimees = fichier.supprimer(genre === 'personne' ? { personnes: ids } : { biens: ids });
+    oublier();
+    console.warn(`[clients-biens] ${supprimees} ligne(s) du fichier global supprimée(s) (${genre}).`);
+    res.json({ ok: true, supprimees, resteDansDossiers: (fiche.dossiers || []).length > 0 });
+  });
+
   // « Même personne » / « Personnes distinctes » pour deux occurrences proposées (homonymes sans date de naissance).
   routeur.post('/clients-biens/liaison', (req, res) => {
     const b = req.body || {};

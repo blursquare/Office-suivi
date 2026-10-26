@@ -45,7 +45,19 @@ function creerFichierClientsBiens(parametresRepo) {
       return false;
     }
   };
-  return { lire, capturer };
+  /**
+   * Efface des lignes du fichier (décision de l'étude, depuis « Clients et biens ») : seules les lignes données, par leur identifiant.
+   * @param {{ personnes?: string[], biens?: string[] }} ids
+   */
+  const supprimer = (ids) => {
+    const courant = lire();
+    const p = new Set((ids && ids.personnes) || []); const b = new Set((ids && ids.biens) || []);
+    const suivant = { personnes: courant.personnes.filter((/** @type {any} */ x) => !(x && p.has(x.id))), biens: courant.biens.filter((/** @type {any} */ x) => !(x && b.has(x.id))) };
+    const n = (courant.personnes.length - suivant.personnes.length) + (courant.biens.length - suivant.biens.length);
+    if (n) { parametresRepo.ecrireJsonBrut(CLE, suivant); cache = suivant; }
+    return n;
+  };
+  return { lire, capturer, supprimer };
 }
 
 module.exports = { creerFichierClientsBiens, CLE };
