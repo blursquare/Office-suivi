@@ -458,7 +458,7 @@ test('clôture des comptes d\'une succession : envoi gardé puis recoupé au tou
   const db = ouvrirDb(':memory:');
   const repo = creerRepoParametres(db);
   repo.ecrireReglagesExchange({ actif: true, url: 'https://ex/ews', email: 'bastien@office.fr', motDePasse: 'secret' });
-  const dossier = { id: 's7', nom: 'SUCC LEFEBVRE', typeAffaire: 'succession', echeancesValidees: { notoriete: true }, parties: [], historique: [] };
+  const dossier = { id: 's7', nom: 'SUCC LEFEBVRE', typeAffaire: 'succession', succession: { type: 'notoriete-ds' }, echeancesValidees: { notoriete: true }, parties: [], historique: [] };
   const remplaces = [];
   const depot = { tousActifs: () => [dossier], trouverParId: () => dossier, remplacer: (id, x) => remplaces.push([id, x]) };
   let envoyes = [msgFind('B1', 'Succession LEFEBVRE - clôture des comptes', '2026-10-11T09:00:00Z', 'Bastien', 'bastien@office.fr', true),

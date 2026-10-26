@@ -8,7 +8,8 @@
 var autEtat = { dossierId: '', choisis: {}, courant: '', modeles: {}, edites: {} };
 
 function autDossiersSuccession() {
-  return (Array.isArray(dossiers) ? dossiers : []).filter(d => d && estSuccession(d) && !d.archive);
+  // Notoriété seule : aucune autorisation de fonds (étude 26/10) — le dossier n'est pas proposé dans l'outil.
+  return (Array.isArray(dossiers) ? dossiers : []).filter(d => d && estSuccession(d) && !d.archive && autorisationsFondsSuccession(d));
 }
 
 function autDossierChoisi() {

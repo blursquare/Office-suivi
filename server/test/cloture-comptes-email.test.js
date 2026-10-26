@@ -5,6 +5,8 @@ const C = require('../src/clotureComptesEmail');
 
 // Notoriété signée : l'étape des comptes peut se faire.
 const succession = (o) => Object.assign({ id: 's1', nom: 'Mme Marie LEFEBVRE veuve de M. Jean LEFEBVRE', typeAffaire: 'succession', echeancesValidees: { notoriete: true },
+  // Notoriété + déclaration : une notoriété seule n'a ni déblocage ni transfert des comptes (étude 26/10).
+  succession: { type: 'notoriete-ds' },
   parties: [{ nom: 'Anne LEFEBVRE', role: 'PARTIE', emails: ['anne.lefebvre@exemple.fr'] }],
   authentic: { courriersBanque: [{ intitule: 'Lettre banque clôture des comptes', date: '2026-10-10', mailLe: '2026-10-11', nature: 'cloture' }] }, historique: [] }, o);
 const etude = (a) => a.endsWith('@office-exemple.fr');
@@ -42,7 +44,7 @@ test('clôture des comptes : courrier d\'Authentic + email envoyé à la banque 
   d.echeancesValidees.deblocageFonds = false;
   assert.equal(C.cocherClotureComptes(d, t.courrier, envoye), false, 'décochée à la main : jamais recochée');
   // Conjoint survivant : le transfert des comptes.
-  const c = succession({ succession: { conjointSurvivant: true } });
+  const c = succession({ succession: { type: 'notoriete-ds', conjointSurvivant: true } });
   assert.equal(C.etapeClotureComptes(c), 'transfertComptes');
   assert.equal(C.cocherClotureComptes(c, t.courrier, envoye), true);
   assert.equal(c.echeancesValidees.transfertComptes, true);

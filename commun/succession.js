@@ -78,6 +78,11 @@
     return TYPES_SUCCESSION.some(t => t.cle === choisi) ? choisi : typeSuccessionPropose(d);
   }
 
+  /** Pure : la succession appelle-t-elle des autorisations de fonds (déblocage auprès des banques, transfert des comptes au conjoint
+   * survivant) ? Jamais pour un acte de notoriété seul (étude 26/10 : « pas d'autorisation de déblocage des fonds pour les dossiers
+   * notoriété seule », transfert au conjoint compris) : ni étape sur la fiche, ni bouton, ni proposition de la routine. @param {any} d */
+  function autorisationsFondsSuccession(d) { return typeSuccession(d) !== 'notoriete'; }
+
   /** @param {string} cle */
   function typeSuccessionDef(cle) { return TYPES_SUCCESSION.find(t => t.cle === cle) || TYPES_SUCCESSION[2]; }
 
@@ -426,7 +431,9 @@
       || rendezVousRetenu(rdvs.filter((r) => r.etape === 'notoriete' && avecInventaire(r)), auj);
     etapes.push({ type: 'controleDroits', label: 'Contrôle des droits et de l’inventaire', iso: rdvControle ? rdvControle.date : plus(MOIS_CONTROLE_DROITS), fait: cocheeSuccession(d, 'controleDroits'), attente: false, active: true, rdvPlace: !!rdvControle });
     const apresNoto = noto.fait ? (noto.iso || '') : '';
-    if (conjointSurvivant(d)) {
+    if (!autorisationsFondsSuccession(d)) {
+      // Notoriété seule : ni déblocage ni transfert des comptes (étude 26/10).
+    } else if (conjointSurvivant(d)) {
       etapes.push({ type: 'transfertComptes', label: 'Transfert des comptes au profit du conjoint survivant', iso: apresNoto, fait: cocheeSuccession(d, 'transfertComptes'), attente: false, active: noto.fait });
     } else {
       const debloque = cocheeSuccession(d, 'deblocageFonds');
@@ -545,7 +552,7 @@
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
   }
 
-  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
+  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, autorisationsFondsSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

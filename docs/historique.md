@@ -21984,3 +21984,11 @@ Empreinte relais 1.2 : `919399b7…df4105`.
   demande, il a échoué à l'installation de Chromium — `ubuntu-latest` est passé à Ubuntu 26.04, que Playwright 1.56.1 ne sait
   pas équiper (tests tous verts avant). `verifier.yml` et `build-exe.yml` sont fixés sur `ubuntu-24.04` (aucun changement de
   CLAIRE, pas de numéro de version).
+
+- **26/10/2026 10 h 05 — 0.350.3 Notoriété seule : aucune autorisation de fonds** (étude : « pas d'autorisation de déblocage des fonds
+  pour les dossiers notoriété seule » ; choix de l'étude : la proposition de la routine, le bouton « Autorisation » de la fiche et les
+  étapes de déblocage, transfert au conjoint survivant compris). `autorisationsFondsSuccession(d)` (commun/succession.js) : faux pour le
+  type `notoriete` (choisi ou proposé) → `etapesSuccession` n'ajoute ni transfert des comptes, ni déblocage, ni réception des fonds ; la
+  routine R5 (`autorisationsNotoriete`) saute ces dossiers ; la fiche n'affiche plus le bouton « Autorisation » des héritiers ; l'outil
+  « Autorisations de fonds » ne les liste plus. La clôture des comptes relevée par email (clotureComptesEmail.js) cherche l'étape, absente
+  ici : rien n'est coché. Tests mis au type `notoriete-ds` là où ils supposaient un déblocage, cas « notoriété seule » ajoutés.

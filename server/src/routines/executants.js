@@ -235,6 +235,8 @@ function autorisationsNotoriete(dossiers, aujourdhui, ctx) {
   const sortie = [];
   for (const d of dossiers || []) {
     if (!d || !d.id || d.archive || !d.responsable || !estSuccession(d)) continue;
+    // Notoriété seule : aucune autorisation de déblocage ni de transfert (étude 26/10).
+    if (!S.autorisationsFondsSuccession(d)) continue;
     let rdvs = [];
     try { rdvs = S.rendezVousSuccession(d); } catch (e) { rdvs = []; }
     for (const r of rdvs) {

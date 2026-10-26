@@ -78,20 +78,27 @@ test('notoriété : date butoir à 1 mois, remplacée par le rendez-vous placé 
 });
 
 test('après la notoriété signée : déblocage des fonds puis réception ; avec un conjoint survivant, transfert des comptes', () => {
-  const d = base({ succession: { ouvertureLe: '2026-10-01', notorieteSigneeLe: '2026-11-04' }, echeancesValidees: { notoriete: true } });
+  const d = base({ succession: { type: 'notoriete-ds', ouvertureLe: '2026-10-01', notorieteSigneeLe: '2026-11-04' }, echeancesValidees: { notoriete: true } });
   const e = S.etapesSuccession(d, '2026-11-10');
   const deb = e.find(x => x.type === 'deblocageFonds');
   assert.deepEqual([deb.iso, deb.active, deb.fait], ['2026-11-04', true, false]);
   assert.equal(e.find(x => x.type === 'receptionFonds').active, false);
   // Conjoint survivant : déduit de « Épouse de » sur le défunt, ou coché.
-  const c = S.etapesSuccession(base({ defunt: { conjointLien: 'Époux de' }, echeancesValidees: { notoriete: true } }), '2026-11-10');
+  const c = S.etapesSuccession(base({ succession: { type: 'classique' }, defunt: { conjointLien: 'Époux de' }, echeancesValidees: { notoriete: true } }), '2026-11-10');
   assert.ok(c.some(x => x.type === 'transfertComptes') && !c.some(x => x.type === 'deblocageFonds'));
+  // Notoriété seule (étude 26/10) : ni déblocage, ni réception, ni transfert des comptes — avec ou sans conjoint survivant.
+  for (const plus of [{}, { defunt: { conjointLien: 'Époux de' } }]) {
+    const seule = base(Object.assign({ succession: { type: 'notoriete', ouvertureLe: '2026-10-01', notorieteSigneeLe: '2026-11-04' }, echeancesValidees: { notoriete: true } }, plus));
+    assert.ok(!S.autorisationsFondsSuccession(seule));
+    assert.ok(!S.etapesSuccession(seule, '2026-11-10').some(x => ['deblocageFonds', 'receptionFonds', 'transfertComptes'].includes(x.type)));
+  }
+  assert.ok(S.autorisationsFondsSuccession(base({ succession: { type: 'notoriete-ds' } })));
   assert.ok(!S.conjointSurvivant(base({ defunt: { conjointLien: 'Veuve de' } })));
   assert.ok(S.conjointSurvivant(base({ succession: { conjointSurvivant: true } })));
 });
 
 test('acte de notoriété signé dans Authentic : fait, sans coche ; planning et echeanceValidee le suivent', () => {
-  const d = base({ succession: { ouvertureLe: '2026-10-01' }, authentic: { actesSuccession: [{ intitule: 'Notoriété', etat: 'signe', signeLe: '2026-10-28' }] } });
+  const d = base({ succession: { type: 'notoriete-ds', ouvertureLe: '2026-10-01' }, authentic: { actesSuccession: [{ intitule: 'Notoriété', etat: 'signe', signeLe: '2026-10-28' }] } });
   assert.ok(P.echeanceValidee(d, 'notoriete'));
   assert.ok(!P.echeancesPlanning(d).some(x => x.type === 'notoriete'));
   assert.equal(P.echeancesPlanning(d).find(x => x.type === 'deblocageFonds').iso, '2026-10-28');

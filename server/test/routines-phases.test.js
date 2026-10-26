@@ -75,11 +75,14 @@ test('appel de fonds : le jour de l’échéance (10 jours avant), seulement si 
 });
 
 test('autorisations de fonds : deux jours avant le rendez-vous d’une notoriété', () => {
-  const s = vente({ id: 's1', typeAffaire: 'succession', succession: { rendezVous: [{ id: 'r', etape: 'notoriete', date: '2026-10-28', heure: '10:00' }] } });
+  const s = vente({ id: 's1', typeAffaire: 'succession', succession: { type: 'notoriete-ds', rendezVous: [{ id: 'r', etape: 'notoriete', date: '2026-10-28', heure: '10:00' }] } });
   const l = X.autorisationsNotoriete([s], AUJ);
   assert.equal(l.length, 1);
   assert.equal(l[0].details.outil, 'autorisations');
   assert.equal(X.autorisationsNotoriete([vente({ rendezVousSignature: '2026-10-27' })], AUJ).length, 0, 'une vente : non');
+  // Étude 26/10 : « pas d'autorisation de déblocage des fonds pour les dossiers notoriété seule » (transfert au conjoint compris).
+  const seule = vente({ id: 's2', typeAffaire: 'succession', succession: { type: 'notoriete', rendezVous: [{ id: 'r', etape: 'notoriete', date: '2026-10-28', heure: '10:00' }] } });
+  assert.equal(X.autorisationsNotoriete([seule], AUJ).length, 0, 'notoriété seule : non');
 });
 
 test('proposition de dates : dossier complet sans rendez-vous ni sondage ouvert, pas en participation', () => {

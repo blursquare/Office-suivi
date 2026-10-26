@@ -210,7 +210,8 @@
     const outils = [];
     if (estSuccession(d)) {
       outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers d’interrogation : banques, assurances, caisses, impôts…'));
-      outils.push(bouton('file-text', 'Autorisations de fonds', `ouvrirAutorisationsDepuisFiche('${id}')`, 'Déblocage ou transfert de fonds : une autorisation par héritier'));
+      // Notoriété seule : aucune autorisation de fonds (étude 26/10).
+      if (autorisationsFondsSuccession(d)) outils.push(bouton('file-text', 'Autorisations de fonds', `ouvrirAutorisationsDepuisFiche('${id}')`, 'Déblocage ou transfert de fonds : une autorisation par héritier'));
     } else {
       if (!d.archive && d.roleNotaire !== 'participant') outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers à la mairie : numérotage, alignement, péril, assainissement'));
       outilsVenteFiche(d).forEach(o => outils.push(bouton(o.icone, o.libelle, o.onclick, o.titre)));
