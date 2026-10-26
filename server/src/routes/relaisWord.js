@@ -84,6 +84,8 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!r) return;
     if (r.corps.decision === 'refusee') { const fait = N.refuserDepuisRelais({ repo: parametresRepo, collab: r.collab, id: r.corps.id }); res.status(fait.ok ? 200 : 400).json(fait); return; }
     // « Autoriser » : le geste se fait dans la fenêtre CLAIRE mise devant par le relais (fenêtre d'email, outil) — jamais par le relais.
+    // Relais 2.0 : le refus d'une notification se confirme dans la fenêtre CLAIRE (audit 0.354.0, M4).
+    if (r.corps.decision === 'refuser-fenetre' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'refuser', id: r.corps.id.slice(0, 80) }, Date.now(), adresseRequete(req)); res.json({ ok: true }); return; }
     if (r.corps.decision === 'autoriser' && typeof r.corps.id === 'string') { demanderActionFenetre(etat, r.poste, { type: 'autoriser', id: r.corps.id.slice(0, 80) }, Date.now(), adresseRequete(req)); res.json({ ok: true }); return; }
     res.status(400).json({ erreur: 'Décision inconnue.' });
   });

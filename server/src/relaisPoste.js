@@ -30,6 +30,10 @@ const net = require('node:net');
 const http = require('node:http');
 const https = require('node:https');
 const { spawn } = require('node:child_process');
+const crypto = require('node:crypto');
+// Une connexion gardée ouverte pour le relevé de chaque seconde (audit 0.354.0, B5).
+const AGENT_HTTP = new http.Agent({ keepAlive: true, maxSockets: 2 });
+const AGENT_HTTPS = new https.Agent({ keepAlive: true, maxSockets: 2 });
 
 var VERSION_RELAIS = '2.0';
 var PREFIXE_CODE = 'CLAIRE-RELAIS:';
@@ -61,7 +65,7 @@ function configValide(cfg) {
   const url = typeof cfg.url === 'string' ? cfg.url : '';
   const poste = typeof cfg.poste === 'string' ? cfg.poste : '';
   const jeton = typeof cfg.jeton === 'string' ? cfg.jeton : '';
-  const profil = typeof cfg.profil === 'string' && /^[A-Za-z0-9 _-]{1,40}$/.test(cfg.profil) ? cfg.profil : 'Claire';
+  const profil = typeof cfg.profil === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(cfg.profil) ? cfg.profil : 'Claire';
   if (!/^https?:\/\/[^\s"'<>]+\/$/.test(url) || !/^[a-z0-9-]{1,40}$/.test(poste) || !/^[A-Za-z0-9]{16,128}$/.test(jeton)) return null;
   return { url, poste, jeton, profil };
 }
@@ -106,7 +110,7 @@ function actionDuLien(lien) {
     if (!k || v === undefined) continue;
     try { p[k] = decodeURIComponent(v); } catch (_) { /* paramètre illisible : ignoré */ }
   }
-  const canal = /^(general|[dlp]:[A-Za-z0-9_.:-]{1,70})$/.test(p.canal || '') ? p.canal : '';
+  const canal = /^(general|@traiter|[dlp]:[A-Za-z0-9_.:-]{1,70})$/.test(p.canal || '') ? p.canal : '';
   const ident = (/** @type {string} */ v) => (/^[A-Za-z0-9_-]{1,80}$/.test(v || '') ? v : '');
   const r = { action: m[1], canal, mid: ident(p.mid), parent: ident(p.parent), id: ident(p.id), emoji: REACTIONS_TOAST.includes(p.emoji) ? p.emoji : '' };
   if (r.action === 'reagir' && !(r.canal && r.mid && r.emoji)) return null;
@@ -200,12 +204,13 @@ function scriptArreterAncien() {
 }
 
 /**
- * Pure : les commandes reg.exe de l'installation (démarrage, lien `claire-relais:`, nom et icône des notifications). Le démarrage
- * et le lien passent par « conhost --headless » : l'exécutable est une application console, sans fenêtre ainsi.
+ * Pure : les commandes reg.exe de l'installation (démarrage, lien `claire-relais:`, nom et icône des notifications). L'exécutable
+ * est lancé directement ; application console, il se relance aussitôt détaché, sans fenêtre (lancerRelais) — jamais par
+ * un hôte de console caché, procédé que des antivirus surveillent (audit 0.354.0).
  * @param {string} exe @param {string} icone
  */
 function commandesRegistre(exe, icone) {
-  const lance = (/** @type {string} */ args) => `conhost.exe --headless "${exe}" ${args}`;
+  const lance = (/** @type {string} */ args) => `"${exe}" ${args}`;
   const classe = 'HKCU\\Software\\Classes\\' + PROTOCOLE;
   return [
     ['add', CLE_RUN, '/v', 'CLAIRE-relais', '/t', 'REG_SZ', '/d', lance('--fond'), '/f'],
@@ -248,7 +253,7 @@ function systeme(o) {
     powershell(script, vars) {
       return new Promise((resolve) => {
         let sortie = '';
-        const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script], { windowsHide: true, env: Object.assign({}, env, vars || {}) });
+        const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, env: Object.assign({}, env, vars || {}) });
         p.stdout.on('data', (d) => { sortie += d; });
         p.on('error', () => resolve(''));
         p.on('close', () => resolve(sortie));
@@ -290,7 +295,7 @@ function requete(adresse, methode, corps) {
   return new Promise((resolve, reject) => {
     const u = new URL(adresse);
     const mod = u.protocol === 'https:' ? https : http;
-    const req = mod.request(u, { method: methode, agent: false, timeout: 5000, headers: corps ? { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': corps.length } : {} }, (res) => {
+    const req = mod.request(u, { method: methode, agent: u.protocol === 'https:' ? AGENT_HTTPS : AGENT_HTTP, timeout: 5000, headers: corps ? { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': corps.length } : {} }, (res) => {
       const morceaux = [];
       res.on('data', (d) => morceaux.push(d));
       res.on('end', () => resolve({ statut: res.statusCode || 0, corps: Buffer.concat(morceaux) }));
@@ -395,8 +400,8 @@ async function agir(s, lien) {
   const corps = { poste: cfg.poste, jeton: cfg.jeton, relais: VERSION_RELAIS };
   try {
     if (a.action === 'reagir') { await s.poster(cfg.url + 'api/relais-word/reagir', Object.assign(corps, { canal: a.canal, mid: a.mid, emoji: a.emoji })); return 0; }
-    if (a.action === 'refuser') { await s.poster(cfg.url + 'api/relais-word/decider', Object.assign(corps, { decision: 'refusee', id: a.id })); return 0; }
-    if (a.action === 'autoriser') await s.poster(cfg.url + 'api/relais-word/decider', Object.assign(corps, { decision: 'autoriser', id: a.id }));
+    // Autoriser et refuser se font dans la fenêtre CLAIRE (un refus y est confirmé : audit 0.354.0, M4), jamais par le relais seul.
+    if (a.action === 'autoriser' || a.action === 'refuser') await s.poster(cfg.url + 'api/relais-word/decider', Object.assign(corps, { decision: a.action === 'refuser' ? 'refuser-fenetre' : 'autoriser', id: a.id }));
     else await s.poster(cfg.url + 'api/relais-word/ouvrir', Object.assign(corps, { canal: a.canal }));
   } catch (_) { /* serveur injoignable : CLAIRE est montrée quand même */ }
   // « Ouvrir » et « Autoriser » : la fenêtre CLAIRE devant fait le geste (comme d'un clic), jamais le relais.
@@ -406,11 +411,14 @@ async function agir(s, lien) {
 
 /** Photo de l'auteur (data:image/jpeg;base64) gardée en fichier pour le toast ; '' sinon. @param {ReturnType<typeof systeme>} s @param {unknown} photo */
 function fichierPhoto(s, photo) {
-  const m = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]{100,400000})$/.exec(String(photo || ''));
+  // Le serveur rend le base64 BRUT de la photo (photosCollaborateurs.js : JPEG) ; une adresse data: est aussi acceptée.
+  const brut = String(photo || '');
+  const m = /^data:image\/(jpeg|png);base64,([A-Za-z0-9+/=]{100,400000})$/.exec(brut)
+    || (/^\/9j\/[A-Za-z0-9+/=]{96,400000}$/.test(brut) ? [brut, 'jpeg', brut] : /^iVBORw0KGgo[A-Za-z0-9+/=]{89,400000}$/.test(brut) ? [brut, 'png', brut] : null);
   if (!m) return '';
   try {
     const octets = Buffer.from(m[2], 'base64');
-    const nom = require('node:crypto').createHash('sha256').update(octets).digest('hex').slice(0, 16) + (m[1] === 'png' ? '.png' : '.jpg');
+    const nom = crypto.createHash('sha256').update(octets).digest('hex').slice(0, 16) + (m[1] === 'png' ? '.png' : '.jpg');
     const dossier = path.join(s.dossierClaire, 'photos');
     fs.mkdirSync(dossier, { recursive: true });
     const f = path.join(dossier, nom);
@@ -428,8 +436,13 @@ async function boucle(s, o = {}) {
   const cfg = lireConfig(s);
   if (!cfg) return 1;
   let fin = false;
+  // La pause en cours (relevé suivant, ou 30 s après un refus) : « arret » la réveille, pour que l'installation d'une nouvelle
+  // version trouve le programme libéré en une seconde (relecture 0.354.0 : la copie échouait sur un fichier encore en marche).
+  /** @type {() => void} */
+  let reveiller = () => {};
+  const pause = (/** @type {number} */ ms) => new Promise((res) => { const t = setTimeout(res, ms); reveiller = () => { clearTimeout(t); res(undefined); }; });
   const serveur = o.tours ? null : await new Promise((resolve) => {
-    const t = net.createServer((c) => { c.on('data', (d) => { if (String(d).startsWith('arret')) { fin = true; c.end(); } }); c.on('error', () => {}); });
+    const t = net.createServer((c) => { c.on('data', (d) => { if (String(d).startsWith('arret')) { fin = true; reveiller(); c.end(); } }); c.on('error', () => {}); });
     t.on('error', () => resolve(null));
     t.listen(nomTuyau(s.env.USERNAME), () => resolve(t));
   });
@@ -444,7 +457,7 @@ async function boucle(s, o = {}) {
         if (r.statut === 403) {
           // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête.
           if (++refus >= 10) return 0;
-          await new Promise((res) => setTimeout(res, o.pause === undefined ? 30000 : o.pause));
+          await pause(o.pause === undefined ? 30000 : o.pause);
           continue;
         }
         refus = 0;
@@ -454,7 +467,7 @@ async function boucle(s, o = {}) {
           await s.powershell(scriptToasts(), { CLAIRE_TOASTS: toasts });
         }
       } catch (_) { /* serveur injoignable : relevé suivant */ }
-      await new Promise((res) => setTimeout(res, o.pause === undefined ? 1000 : o.pause));
+      await pause(o.pause === undefined ? 1000 : o.pause);
     }
   } finally {
     if (serveur) serveur.close();
@@ -466,6 +479,12 @@ async function boucle(s, o = {}) {
 async function lancerRelais(args, o) {
   const s = systeme(o);
   const m = modeDepuisArgs(args);
+  // Lancé par Windows (démarrage de session, bouton d'une notification) dans une fenêtre console : relancé aussitôt DÉTACHÉ (sans
+  // console ni fenêtre), cette fenêtre-ci se ferme dans l'instant.
+  if ((m.mode === 'fond' || m.mode === 'action') && !(args || []).includes('--detache') && (o && 'console' in o ? o.console : process.stdout.isTTY)) {
+    s.lancerDetache(s.exe, [...args, '--detache']);
+    return 0;
+  }
   if (m.mode === 'action') return agir(s, m.lien || '');
   if (m.mode === 'retirer') return retirer(s);
   if (m.mode === 'fond') return boucle(s);

@@ -14,6 +14,8 @@
   const URL_GNAU_CHAILLES = 'https://portail-usager.sirap.com/041032/connexion';
   /** Courriel du service qui reçoit, pour les notaires, les demandes de numérotage et d'alignement à Blois (dicté par l'étude, à confirmer). */
   const COURRIEL_GEOMETRE_BLOIS = 'geometres.notaires@blois.fr';
+  /** Site de la Ville de Blois réservé aux notaires : demandes de non-péril et de non-insalubrité (adresse donnée par l'étude le 26/10). */
+  const URL_PERIL_BLOIS = 'https://notaires.blois.fr//index.php/utilisateur/seconnecter';
   // Paris (recherche du 16/10, pages de la Ville) : numérotage par courriel à la Direction de l'Urbanisme (l'alignement figure dans la
   // notice de renseignements d'urbanisme, en ligne) ; assainissement : certificat de la Ville, contrôle payant en secteur séparatif.
   const COURRIEL_NUMEROTAGE_PARIS = 'du-dtdf-numerotage@paris.fr';
@@ -95,7 +97,8 @@
       return circuitCourrierVente('alignement', commune);
     }
     if (cle === 'peril' && insee === INSEE_BLOIS) {
-      return { mode: 'en-ligne', destinataire: 'blois-en-ligne', courriel: '', note: 'À Blois, la demande se fait sur le site de la Ville dédié aux notaires : pas de courrier.' };
+      return { mode: 'en-ligne', destinataire: 'blois-en-ligne', courriel: '', url: URL_PERIL_BLOIS, lien: 'Site des notaires de la Ville de Blois',
+        note: 'À Blois, la demande de non-péril et de non-insalubrité se fait en ligne, sur le site de la Ville dédié aux notaires : pas de courrier.' };
     }
     if (cle === 'alignement' && insee === INSEE_BLOIS) {
       return { mode: 'courriel', destinataire: 'blois-geometre', courriel: COURRIEL_GEOMETRE_BLOIS, note: 'À Blois, par courriel au service des géomètres dédié aux notaires.' };
@@ -382,7 +385,7 @@
     return { lien, nom: conjoint };
   }
 
-  exporter({ URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, COURRIERS_ALIGNEMENT_SEPARES, servicesAlignementSepares, courriersVenteCommune, homologuesCourrierVente, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
+  exporter({ URL_PERIL_BLOIS, URL_GNAU_CHAILLES, COURRIEL_NUMEROTAGE_PARIS, URL_RENSEIGNEMENTS_URBANISME_PARIS, URL_CONTROLE_ASSAINISSEMENT_PARIS, estParis, inseeArrondissementParis, URL_CU_PARIS, COURRIERS_ALIGNEMENT_SEPARES, servicesAlignementSepares, courriersVenteCommune, homologuesCourrierVente, INSEE_BLOIS, EPCI_AGGLOPOLYS, EPCI_GRAND_CHAMBORD, INSEE_CHAILLES, COURRIEL_GEOMETRE_BLOIS, COURRIERS_VENTE, DESTINATAIRES_CONNUS, ORDRE_SUCCESSION_PAR_DEFAUT, GRILLE_PARCELLES,
     circuitCourrierVente, noteGuichetCommune, premierComparantDefunt, centiaresDepuisContenance, contenanceDepuisCentiares, contenanceTotale, contenanceEcrite, lignePersonneProprietaire,
     tableauParcellesCourrier, documentCourrierVente, texteCorpsDocument, nomFichierCourrierVente, defuntDepuisFiches, conjointDefunt, comparantsSuccession, memePersonneNommee, nomPrenomsComparant });
 })(function (api) {

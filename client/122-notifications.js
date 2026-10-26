@@ -155,6 +155,16 @@ function executerActionsRelais(actions) {
         if ((Number(p.details && p.details.niveau) || 1) >= 2) demanderConfirmation(`Autoriser « ${p.titre || 'la proposition'} » ? CLAIRE le fera elle-même.`, () => autoriserProposition(a.id), { bouton: 'Autoriser', ton: 'valider' });
         else autoriserProposition(a.id);
       }, 0);
+    } else if (a.type === 'refuser' && typeof a.id === 'string') {
+      // Relais 2.0 (audit 0.354.0, M4) : un refus venu d'une notification se confirme toujours dans CLAIRE — un lien claire-relais:
+      // peut être lancé par une autre page.
+      const p = propositionParId(a.id);
+      if (!p) continue;
+      definirOnglet('assistant');
+      setTimeout(() => {
+        ouvrirCanal('@traiter');
+        demanderConfirmation(`Refuser « ${p.titre || 'la proposition'} » ?`, () => refuserProposition(a.id), { bouton: 'Refuser' });
+      }, 0);
     }
   }
 }

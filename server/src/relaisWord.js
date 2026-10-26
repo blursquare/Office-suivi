@@ -31,7 +31,7 @@ function codeInstallationRelais({ url, poste, jeton, profil }) {
 /** @returns {string | null} */
 function lireExecutableRelais() {
   try {
-    if (require('node:sea').isSea() && fs.existsSync(process.execPath)) return process.execPath;
+    if (require('node:sea').isSea()) return process.execPath;
   } catch (_) { /* pas dans l'exécutable */ }
   return null;
 }

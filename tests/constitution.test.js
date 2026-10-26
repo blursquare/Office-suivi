@@ -9,6 +9,8 @@ const K = require('../commun/constitution');
 test('circuits : Blois = pas de péril (site des notaires), numérotage par courriel, assainissement à Agglopolys', () => {
   const blois = { insee: '41018', epci: '200030385' };
   assert.deepEqual([K.circuitCourrierVente('peril', blois).mode, K.circuitCourrierVente('peril', blois).destinataire], ['en-ligne', 'blois-en-ligne']);
+  // Étude 26/10 : demande de non-péril et de non-insalubrité en ligne, sur le site des notaires de la Ville.
+  assert.equal(K.circuitCourrierVente('peril', blois).url, 'https://notaires.blois.fr//index.php/utilisateur/seconnecter');
   const a = K.circuitCourrierVente('alignement', blois);
   assert.deepEqual([a.mode, a.destinataire, a.courriel], ['courriel', 'blois-geometre', 'geometres.notaires@blois.fr']);
   assert.equal(K.circuitCourrierVente('assainissement', blois).destinataire, 'agglopolys');

@@ -22075,3 +22075,12 @@ pastille chiffrée (ITaskbarList3), la carte sombre « comme Teams » avec champ
 Retirés : `CLAIRE-relais.cs`, `.exe`, `.source.sha256`, `scripts/compiler-relais.mjs`, `npm run relais`. Points `relais-node-installation`,
 `relais-node-notifications`, `relais-node-boutons` (remplacent `notifications-reponse-relais`, `notifications-pastille-windows`). Non vérifié sous
 Windows (toasts d'une application non empaquetée déclarée par le registre, conhost --headless, Panda sur la copie renommée).
+
+### 26/10 — 0.354.0 (suite) : « + » de la saisie, fenêtre du NAS, non-péril de Blois
+
+Étude : « pour ajouter une pièce jointe mettre un + », puis « mets le + tout en premier à gauche » — trombone et dossier remplacés par un
+« + » en tête de `.asst-barre` (menu `ouvrirMenuJoindreAssistant` : fichier de l'ordinateur, fichier d'un dossier du NAS). « L'icône pour aller
+chercher un document sur le NAS ne fonctionne pas » : `#pj-nas-overlay` portait la classe `.scan-apercu-overlay` (display: none) sans jamais être
+affiché — `style.display = 'flex'` ; sans dossier rattaché, choix du dossier dans la fenêtre (`dossiersChoixNasAssistant` : reliés au NAS, en cours
+d'abord, filtre par le nom), « Autre dossier » ensuite. Rejoué dans Chromium. Constitution, Blois : demande de non-péril / non-insalubrité en ligne
+sur https://notaires.blois.fr//index.php/utilisateur/seconnecter (`URL_PERIL_BLOIS`, lien sur la carte du courrier).

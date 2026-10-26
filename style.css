@@ -9701,6 +9701,10 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-texte .asst-pj { padding-right: 8px; }
 #onglet-assistant.asst-depot .asst-saisie { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus); }
 .asst-astuce { flex: 1 1 auto; color: var(--muted); font-size: var(--texte-xs); text-align: right; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scan-apercu.pj-nas-fenetre { width: min(600px, 100%); height: min(640px, calc(100vh - 48px)); }
+.asst-menu-joindre { position: fixed; z-index: 1200; display: flex; flex-direction: column; gap: 2px; padding: 6px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); box-shadow: var(--shadow-float); }
+.asst-menu-joindre button { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--texte-m); text-align: left; border-radius: var(--rayon-s); cursor: pointer; white-space: nowrap; }
+.asst-menu-joindre button:hover, .asst-menu-joindre button:focus-visible { background: var(--paper-sunk); outline: none; }
 .asst-envoyer { flex: 0 0 auto; }
 .asst-envoyer .icone { width: 16px; height: 16px; }
 .asst-page .asst-envoyer { margin-left: auto; }

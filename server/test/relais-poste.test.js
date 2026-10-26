@@ -63,13 +63,14 @@ test('rien de ce qu’un antivirus prend pour un logiciel espion ; aucune comman
   assert.doesNotMatch(code, /EncodedCommand|-enc\b|Clipboard|GetClipboard|Zone\.Identifier|Stop-Process|taskkill|\.kill\(|keybd_event|SendKeys|Add-Type -TypeDefinition|Add-Type @/i);
   assert.doesNotMatch(code, /\.ps1|\.vbs|\.bat|\.cmd/);
   assert.doesNotMatch(code, /\.(ps1|vbs|js)['"]/);
+  assert.doesNotMatch(code, /ExecutionPolicy|Bypass|WindowStyle|conhost/i);
   // L'ancien relais (C#) est prié de s'arrêter par son signal nommé.
   assert.match(R.scriptArreterAncien(), /Local\\CLAIRE-relais-arret/);
 });
 
-test('registre : démarrage et lien sans fenêtre (conhost --headless), nom des notifications « CLAIRE »', () => {
+test('registre : démarrage et lien par l’exécutable lui-même (jamais conhost --headless), nom des notifications « CLAIRE »', () => {
   const c = R.commandesRegistre('C:\\Users\\j\\AppData\\Local\\Programs\\CLAIRE\\CLAIRE-relais.exe', 'C:\\x\\claire.ico').map((a) => a.join(' '));
-  assert.ok(c.some((l) => /CurrentVersion\\Run \/v CLAIRE-relais .* \/d conhost\.exe --headless "C:\\Users\\j\\AppData\\Local\\Programs\\CLAIRE\\CLAIRE-relais\.exe" --fond/.test(l)));
+  assert.ok(c.some((l) => /CurrentVersion\\Run \/v CLAIRE-relais .* \/d "C:\\Users\\j\\AppData\\Local\\Programs\\CLAIRE\\CLAIRE-relais\.exe" --fond/.test(l)));
   assert.ok(c.some((l) => /claire-relais\\shell\\open\\command \/ve .* --action "%1"/.test(l)));
   assert.ok(c.some((l) => /AppUserModelId\\CLAIRE\.Relais \/v DisplayName .* \/d CLAIRE/.test(l)));
   assert.ok(R.commandesRetrait().every((a) => a[0] === 'delete' && a.join(' ').includes('HKCU')));
@@ -107,17 +108,36 @@ test('boucle : jeton refusé dix fois de suite → arrêt', async () => {
   assert.equal(journal.postes.length, 10);
 });
 
-test('boutons : réagir et refuser par le serveur seul ; ouvrir et autoriser montrent CLAIRE', async () => {
+test('boutons : réagir par le serveur seul ; refuser, autoriser et ouvrir passent par CLAIRE, montrée devant', async () => {
   const { s, journal } = fauxSysteme([]);
   await R.agir(s, R.lienAction('reagir', { canal: 'general', mid: 'm1', emoji: '❤️' }));
   assert.equal(journal.postes[0].url, 'http://serveur.invalid/api/relais-word/reagir');
   assert.equal(journal.postes[0].corps.emoji, '❤️');
   assert.equal(journal.ps.length, 0);
   await R.agir(s, R.lienAction('refuser', { id: 'prop_1' }));
-  assert.deepEqual([journal.postes[1].corps.decision, journal.postes[1].corps.id], ['refusee', 'prop_1']);
+  assert.deepEqual([journal.postes[1].corps.decision, journal.postes[1].corps.id], ['refuser-fenetre', 'prop_1'], 'un refus se confirme dans CLAIRE');
   await R.agir(s, R.lienAction('autoriser', { id: 'prop_1' }));
   assert.equal(journal.postes[2].corps.decision, 'autoriser');
-  assert.equal(journal.ps.length, 1);
-  assert.equal(journal.ps[0].vars.CLAIRE_URL, 'http://serveur.invalid/');
+  assert.equal(journal.ps.length, 2);
+  assert.equal(journal.ps[1].vars.CLAIRE_URL, 'http://serveur.invalid/');
   assert.equal(await R.agir(s, 'claire-relais:inconnu'), 1);
+});
+
+test('photo de la carte : base64 brut du serveur (JPEG) écrit en fichier pour le toast ; lien vers « À traiter » accepté', async () => {
+  const { s } = fauxSysteme([{ statut: 200, json: { notifications: [{ type: 'message', auteur: 'Julie', titre: 'Général', texte: 'x', canal: 'general', photo: '/9j/' + 'A'.repeat(200) }] } }]);
+  const journal = [];
+  s.powershell = async (script, vars) => { journal.push(vars); return ''; };
+  await R.boucle(s, { tours: 1, pause: 0 });
+  const xmlToast = Buffer.from(journal[0].CLAIRE_TOASTS, 'base64').toString('utf8');
+  assert.match(xmlToast, /appLogoOverride[^>]*photos[\\/][0-9a-f]{16}\.jpg/);
+  assert.equal(R.actionDuLien('claire-relais:ouvrir?canal=%40traiter').canal, '@traiter');
+});
+
+test('lancé dans une console (Windows) : relancé détaché, sans fenêtre ; une fois détaché, il tourne', async () => {
+  const { s } = fauxSysteme([]);
+  const lances = [];
+  s.lancerDetache = (exe, args) => lances.push(args);
+  s.exe = 'C:\\x\\CLAIRE-relais.exe';
+  assert.equal(await R.lancerRelais(['--action', 'claire-relais:ouvrir'], Object.assign(s, { console: true })), 0);
+  assert.deepEqual(lances, [['--action', 'claire-relais:ouvrir', '--detache']]);
 });

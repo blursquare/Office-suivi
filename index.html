@@ -1525,6 +1525,7 @@
         <input type="file" id="assistant-fichiers" accept="application/pdf,.pdf,image/*" multiple hidden onchange="ajouterPiecesJointesAssistant(this.files)">
         <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Message à Claire… tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
+          <wa-button appearance="plain" size="s" class="bouton-icone asst-joindre-plus" type="button" onclick="ouvrirMenuJoindreAssistant(this)" title="Joindre un fichier (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier" aria-haspopup="menu"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone asst-arobase" type="button" onmousedown="event.preventDefault()" onclick="insererArobaseAssistant()" title="Citer un dossier" aria-label="Citer un dossier">@</wa-button>
           <span class="asst-format" role="group" aria-label="Mise en forme">
             <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt asst-fmt-gras" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('*')" title="Gras (Ctrl + B)" aria-label="Gras">B</wa-button>
@@ -1535,8 +1536,6 @@
             <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('lien')" title="Lien sur des mots" aria-label="Lien"><span id="icon-assistant-lien" aria-hidden="true"></span></wa-button>
             <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onmousedown="event.preventDefault()" onclick="ouvrirSelecteurReaction('@saisie', this)" title="Emoji" aria-label="Emoji"><span id="icon-assistant-emoji" aria-hidden="true"></span></wa-button>
           </span>
-          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="choisirPiecesJointesAssistant()" title="Joindre un PDF ou une image (ou glissez-le, ou collez-le)" aria-label="Joindre un fichier"><span id="icon-assistant-joindre" aria-hidden="true"></span></wa-button>
-          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirSelecteurNasAssistant()" title="Joindre un fichier du dossier NAS (un lien, sans copie)" aria-label="Joindre un fichier du dossier NAS"><span id="icon-assistant-nas" aria-hidden="true"></span></wa-button>
           <button type="button" class="canal-bascule" id="canal-bascule" style="display:none;" onclick="basculerClaireRepond()" aria-pressed="true"></button>
           <div class="asst-options-saisie" id="assistant-options-saisie"></div>
           <span class="asst-astuce">Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span>
