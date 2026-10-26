@@ -36,3 +36,10 @@ test('cadastre de la fiche du bien : une ligne sans section lisible n’invente 
   const champs = [{ libelle: `${P}0:cadastreHorsVolumeNumero`, valeur: '526' }, { libelle: 'BLOIS 1', valeur: '0' }];
   assert.equal(app.parcellesChampsCadastreAuthentic(champs).length, 0);
 });
+
+test('carte du bien de l’onglet Dossier : parcelles avec leur surface et le total (26/10)', () => {
+  const d = { id: 'x', preemption: { parcelles: [{ parcelle: 'AB 14', contenance: 100 }] } };
+  const b = { parcelles: [{ section: 'AB', numero: '12', surface: '0 ha 06 a 06 ca' }, { section: 'AB', numero: '0013', surface: '1206' }, { section: 'AB', numero: '14' }] };
+  assert.equal(app.texteParcellesCarteBien(d, b), 'AB 12 (6 a 6 ca), AB 13 (12 a 6 ca), AB 14 (1 a 0 ca) · total 19 a 12 ca');
+  assert.equal(app.texteParcellesCarteBien({}, { parcelles: [{ section: 'ZN', numero: '4' }, { section: 'ZN', numero: '5', surface: '0' }] }), 'ZN 4, ZN 5');
+});

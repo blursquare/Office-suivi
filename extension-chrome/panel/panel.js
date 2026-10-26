@@ -64,10 +64,28 @@ async function enregistrerServeur() {
   let url;
   try { url = new URL($("#serveur").value.trim()); } catch (_) { msg("#connexion-msg", "Adresse invalide (exemple : http://192.168.60.10:3000)."); return; }
   // Permission limitée à la machine de CLAIRE, demandée ici, au geste de l'utilisateur.
-  const accorde = await chrome.permissions.request({ origins: [url.protocol + "//" + url.hostname + "/*"] });
-  if (!accorde) { msg("#connexion-msg", "Autorisation refusée : l’extension ne pourra pas joindre CLAIRE."); return; }
+  const origines = { origins: [url.protocol + "//" + url.hostname + "/*"] };
+  // Demandée AVANT toute attente : Chrome n'accepte la demande que pendant le geste de l'utilisateur (une autorisation déjà donnée
+  // répond oui sans rien montrer). Fenêtre CLAIRE en application (Chrome --app, 26/10 : « je ne peux pas enregistrer quand ça s'ouvre
+  // dans la fenêtre liée à CLAIRE ») : Chrome n'y montre pas la demande — elle échoue ou ne répond jamais. 5 s au plus, puis la
+  // connexion s'ouvre dans un onglet ordinaire du même profil, où la demande s'affiche.
+  const demande = Promise.race([
+    chrome.permissions.request(origines).catch(() => null),
+    new Promise((r) => setTimeout(() => r(null), 5000))
+  ]);
   serveur = url.origin;
+  // L'adresse est gardée même sans l'autorisation : l'onglet ouvert plus bas la reprend.
   await chrome.storage.local.set({ serveur });
+  let accorde = await demande;
+  if (!accorde && await chrome.permissions.contains(origines).catch(() => false)) accorde = true;
+  if (!accorde) {
+    // Dans l'onglet ouvert pour l'autorisation : la réponse de Chrome est dite. Dans le panneau, un refus peut venir de la fenêtre CLAIRE
+    // elle-même (aucune demande montrée) : l'onglet est proposé dans les deux cas.
+    if (/[?&]connexion=1/.test(location.search)) { msg("#connexion-msg", accorde === false ? "Autorisation refusée : l’extension ne pourra pas joindre CLAIRE." : "Chrome n’a pas demandé l’autorisation : ouvrez Détails de l’extension › Accès aux sites."); return; }
+    msg("#connexion-msg", "Autorisez CLAIRE dans l’onglet Chrome qui vient de s’ouvrir (bouton Enregistrer), puis revenez ici.");
+    chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html?connexion=1") });
+    return;
+  }
   $("#serveur").value = serveur;
   const ok = await tester();
   msg("#connexion-msg", ok ? "Enregistré — CLAIRE répond." : "Enregistré, mais CLAIRE ne répond pas à cette adresse.", ok);
@@ -164,6 +182,10 @@ async function init() {
   serveur = st0.serveur || "";
   $("#serveur").value = serveur;
   if (serveur) { if (await tester()) rechercher(); } else setLink(false, "CLAIRE non réglé");
+  // Onglet ouvert pour l'autorisation : la connexion reste visible pour cliquer « Enregistrer ».
+  if (/[?&]connexion=1/.test(location.search)) $("#connexion").hidden = false;
+  // L'autorisation donnée dans l'onglet : le panneau ouvert dans la fenêtre CLAIRE se reconnecte seul.
+  chrome.permissions.onAdded.addListener(async () => { if (serveur && await tester()) rechercher(); });
 
   $("#enregistrer").addEventListener("click", enregistrerServeur);
   // Un clic sur le témoin rouvre la connexion (changer l'adresse de CLAIRE).

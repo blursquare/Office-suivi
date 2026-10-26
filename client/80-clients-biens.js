@@ -485,7 +485,7 @@
       const parcelles = (b.parcelles || []).map(q => [q.prefixe, q.section, q.numero].filter(Boolean).join(' '));
       const fiche = fichesB.find(x => (x.libelle && b.adresse && normaliserPourRecherche(normaliserAdresse(x.libelle)) === normaliserPourRecherche(normaliserAdresse(b.adresse)))
         || (x.parcelles || []).some(q => parcelles.includes(q))) || (fichesB.length === 1 && biensDossier(d).length === 1 ? fichesB[0] : null);
-      return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [parcelles.slice(0, 6).join(', '), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '');
+      return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [texteParcellesCarteBien(d, b), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '');
     });
     return `${personnes.join('') || '<span class="hint">Aucune partie</span>'}
       ${biens.length ? groupe(biens.length > 1 ? 'Biens' : 'Bien', biens) : groupe('Bien', ['<span class="hint">Aucun bien relevé</span>'])}`;

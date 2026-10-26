@@ -219,6 +219,33 @@
     return `<aside class="fiche-outils-droite" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}</aside>`;
   }
 
+  // Pure : la contenance du cadastre (IGN) de chaque parcelle lue par le Contrôle de l'urbanisme, par clé de parcelle.
+  function contenancesIgnDossier(d) {
+    return new Map(((d && d.preemption && d.preemption.parcelles) || []).filter(x => x && x.parcelle && Number(x.contenance) > 0)
+      .map(x => { const m = /^\s*([0-9A-Z]{1,2})\s*0*(\d+)\s*$/i.exec(String(x.parcelle)); return [m ? cleParcelle(m[1], m[2]) : '', Number(x.contenance)]; }));
+  }
+
+  // Pure : la référence et la surface d'une parcelle (surface lue, sinon celle de l'IGN), { ref, m2, surface }.
+  function surfaceParcelleFiche(p, igne) {
+    const lu = !detailParcelleVide('surface', p.surface) ? centiaresDepuisContenance(String(p.surface)) : null;
+    const m2 = lu || (igne && igne.get(cleParcelle(p.section, p.numero))) || null;
+    const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
+    return { ref, m2, surface: m2 != null ? formaterContenance(m2) : '' };
+  }
+
+  // Pure : les parcelles d'un bien sur sa carte de l'onglet Dossier (26/10 : « Claire a perdu toutes les surfaces de parcelles » — la carte ne
+  // montrait que « AB 12, AB 13 », la ligne avec les surfaces étant repliée sous « Modifier ») : « AB 12 (6 a 6 ca), AB 13 » puis le total
+  // quand toutes ont leur surface ; 6 parcelles au plus, puis « +N ».
+  function texteParcellesCarteBien(d, b) {
+    const igne = contenancesIgnDossier(d);
+    const lignes = ((b && b.parcelles) || []).filter(p => p && p.section && p.numero).map(p => surfaceParcelleFiche(p, igne));
+    if (!lignes.length) return '';
+    const textes = lignes.slice(0, 6).map(l => (l.surface ? `${l.ref} (${l.surface})` : l.ref));
+    if (lignes.length > 6) textes.push(`+${lignes.length - 6}`);
+    const total = lignes.length > 1 && lignes.every(l => l.m2 != null) ? ` · total ${formaterContenance(lignes.reduce((s, l) => s + l.m2, 0))}` : '';
+    return textes.join(', ') + total;
+  }
+
   // Pure : les parcelles d'une vente telles que la fiche les montre (étude 16/10 : « les surfaces des parcelles ne remontent pas dans la
   // fiche dossier ») — une par parcelle, « AB 12 · 6 a 06 ca », suivie de sa nature et de son lieu-dit, puis le total quand toutes ont leur
   // surface. Surface de la fiche bien d'Authentic (« 606 », « 1 206 », « 00ha 06a 06ca »…), sinon rien (jamais devinée).
@@ -230,14 +257,9 @@
     const plusieursCommunes = biens.some((x, i) => biens.some((y, j) => j > i && memeCommune(x, y) === false));
     // Sans surface lue (ni fiche ni Authentic), la contenance du cadastre (IGN) lue par le Contrôle de l'urbanisme (étude 19/10 : « il n'y a
     // pas les contenances, alors il faut les mettre »).
-    const igne = new Map(((d.preemption && d.preemption.parcelles) || []).filter(x => x && x.parcelle && Number(x.contenance) > 0)
-      .map(x => { const m = /^\s*([0-9A-Z]{1,2})\s*0*(\d+)\s*$/i.exec(String(x.parcelle)); return [m ? cleParcelle(m[1], m[2]) : '', Number(x.contenance)]; }));
-    const lignes = liste.filter(p => p && p.section && p.numero).map(p => {
-      const lu = !detailParcelleVide('surface', p.surface) ? centiaresDepuisContenance(String(p.surface)) : null;
-      const m2 = lu || igne.get(cleParcelle(p.section, p.numero)) || null;
-      const ref = [p.prefixe && !/^0*$/.test(String(p.prefixe)) ? p.prefixe : '', String(p.section).toUpperCase(), String(p.numero).replace(/^0+(?=\d)/, '')].filter(Boolean).join(' ');
-      return { ref, m2, surface: m2 != null ? formaterContenance(m2) : '', detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · ') };
-    });
+    const igne = contenancesIgnDossier(d);
+    const lignes = liste.filter(p => p && p.section && p.numero).map(p => Object.assign(surfaceParcelleFiche(p, igne),
+      { detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · ') }));
     const total = lignes.length > 1 && lignes.every(l => l.m2 != null) ? lignes.reduce((s, l) => s + l.m2, 0) : null;
     return { lignes, total: total != null ? formaterContenance(total) : '', manquantes: lignes.filter(l => l.m2 == null).length };
   }
