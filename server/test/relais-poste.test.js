@@ -141,3 +141,19 @@ test('lancé dans une console (Windows) : relancé détaché, sans fenêtre ; un
   assert.equal(await R.lancerRelais(['--action', 'claire-relais:ouvrir'], Object.assign(s, { console: true })), 0);
   assert.deepEqual(lances, [['--action', 'claire-relais:ouvrir', '--detache']]);
 });
+
+test('installation : la boîte du code et les messages sont des fenêtres VISIBLES (sinon console vide sans fin) ; les toasts, sans fenêtre', async () => {
+  const { s } = fauxSysteme([{ statut: 403, json: null }]);
+  const appels = [];
+  s.powershell = async (script, vars, o) => { appels.push({ script, o }); return /InputBox/.test(script) ? 'CLAIRE-RELAIS:' + Buffer.from(JSON.stringify({ url: 'http://serveur.invalid/', poste: 'julie', jeton: JETON })).toString('base64') : ''; };
+  assert.equal(await R.installer(s), 1);   // code refusé (403) : message dit
+  assert.ok(/InputBox/.test(appels[0].script) && appels[0].o && appels[0].o.fenetre === true);
+  assert.ok(/MessageBox/.test(appels[1].script) && appels[1].o && appels[1].o.fenetre === true);
+  const { s: s2, journal } = fauxSysteme([{ statut: 200, json: { notifications: [{ type: 'resume', titre: 'Discussions', texte: '1 message' }] } }]);
+  const options = [];
+  s2.powershell = async (script, vars, o) => { options.push(o); return ''; };
+  await R.boucle(s2, { tours: 1, pause: 0 });
+  assert.equal(options.length, 1);
+  assert.ok(!(options[0] && options[0].fenetre));
+  void journal;
+});

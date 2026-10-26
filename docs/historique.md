@@ -22084,3 +22084,10 @@ chercher un document sur le NAS ne fonctionne pas » : `#pj-nas-overlay` portait
 affiché — `style.display = 'flex'` ; sans dossier rattaché, choix du dossier dans la fenêtre (`dossiersChoixNasAssistant` : reliés au NAS, en cours
 d'abord, filtre par le nom), « Autre dossier » ensuite. Rejoué dans Chromium. Constitution, Blois : demande de non-péril / non-insalubrité en ligne
 sur https://notaires.blois.fr//index.php/utilisateur/seconnecter (`URL_PERIL_BLOIS`, lien sur la carte du courrier).
+
+### 26/10 — 0.354.1 : boîte du code d'installation invisible
+
+Étude : « le relais exe ouvre le terminal vide ». `spawn('powershell.exe', …, { windowsHide: true })` pose aussi SW_HIDE pour la première
+fenêtre que PowerShell ouvre : l'InputBox et les messages de l'installation étaient cachés, le relais attendait sans fin. `systeme().powershell`
+prend `{ fenetre: true }` pour les boîtes de dialogue (`windowsHide: false` ; PowerShell partage la console du relais, aucune fenêtre en plus) ;
+toasts et fenêtre CLAIRE restent cachés. Test « installation : boîte visible ».

@@ -249,11 +249,16 @@ function systeme(o) {
     dossierClaire: path.join(local, 'CLAIRE'),
     dossierProgramme: path.join(local, 'Programs', 'CLAIRE'),
     exe: process.execPath,
-    /** @param {string} script @param {Record<string, string>} [vars] @returns {Promise<string>} */
-    powershell(script, vars) {
+    /**
+     * `fenetre` : une boîte de dialogue (code d'installation, message). Sans elle, « windowsHide » cache AUSSI la première fenêtre
+     * ouverte par PowerShell — la boîte « Collez le code » restait invisible derrière une console vide (étude 26/10, relais 2.0).
+     * PowerShell partage alors la console du relais : aucune fenêtre en plus.
+     * @param {string} script @param {Record<string, string>} [vars] @param {{ fenetre?: boolean }} [o] @returns {Promise<string>}
+     */
+    powershell(script, vars, o) {
       return new Promise((resolve) => {
         let sortie = '';
-        const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, env: Object.assign({}, env, vars || {}) });
+        const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: !(o && o.fenetre), env: Object.assign({}, env, vars || {}) });
         p.stdout.on('data', (d) => { sortie += d; });
         p.on('error', () => resolve(''));
         p.on('close', () => resolve(sortie));
@@ -317,7 +322,7 @@ function lireConfig(s) {
 
 /** @param {ReturnType<typeof systeme>} s @param {string} message @param {number} [icone] */
 function dire(s, message, icone) {
-  return s.powershell(scriptMessage(), { CLAIRE_MESSAGE: message, CLAIRE_TITRE: TITRE, CLAIRE_ICONE: String(icone || 64) });
+  return s.powershell(scriptMessage(), { CLAIRE_MESSAGE: message, CLAIRE_TITRE: TITRE, CLAIRE_ICONE: String(icone || 64) }, { fenetre: true });
 }
 
 /** La fenêtre CLAIRE devant (ouverte si elle est fermée). @param {ReturnType<typeof systeme>} s @param {any} cfg @param {string} [ancre] */
@@ -343,7 +348,7 @@ async function installer(s) {
   const saisi = (await s.powershell(scriptDemanderCode(), {
     CLAIRE_QUESTION: "Collez ici (Ctrl+V) le code d'installation que CLAIRE vient de copier (Réglages › Notifications, bouton d'installation du relais) :",
     CLAIRE_TITRE: TITRE
-  })).trim();
+  }, { fenetre: true })).trim();
   if (!saisi) return 1;
   const cfg = configDuCode(saisi);
   if (!cfg) { await dire(s, "Ce code n'est pas un code d'installation de CLAIRE. Recommencez depuis CLAIRE : le bouton d'installation du relais copie le code.", 48); return 1; }
