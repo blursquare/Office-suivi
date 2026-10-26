@@ -807,3 +807,24 @@ test('faire_geste email : documents à joindre = identifiants opaques du poste s
   assert.ok(e.parametres.documents.every((x) => /^[a-z]{1,4}\d{1,6}$/i.test(x)));
   assert.equal(entreeOutilPourPoste('faire_geste', { geste: 'email', parametres: {} }).parametres.documents.length, 0);
 });
+
+test('agenda et noms de fichiers du NAS (étude 26/10) : titre, lieu et nom_fichier partent, noms des fiches codés', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'agenda', { debut: '2026-10-26', fin: '2026-10-30' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'documents_du_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Quels rendez-vous cette semaine ?', dossiers: D, contexte: { aujourdhui: '2026-10-26' } }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { rendez_vous: [
+    { evenement_id: 'e1', date: '2026-10-28', heure: '10:00', nature: 'signature de vente', titre: 'VTE - FOURNIER / GAUTHIER', lieu: 'Office notarial de la Salamandre, Blois', categories: [], dossier_id: 'd1', dossier: 'VTE - FOURNIER / GAUTHIER' },
+    { evenement_id: 'e2', date: '2026-10-29', heure: '14:00', nature: 'autre rendez-vous', titre: 'Rendez-vous téléphonique avec le syndic', lieu: 'Visio', categories: [], dossier_id: '', dossier: '' }] } }] }, o);
+  let envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'les noms des fiches sont codés dans le titre : ' + envoye.slice(-700));
+  assert.match(envoye, /Rendez-vous téléphonique avec le syndic/, 'le titre d’un rendez-vous part');
+  assert.match(envoye, /Office notarial de la/, 'le lieu part (les mots à majuscule hors tête de phrase restent codés, comme dans tout résultat d’outil)');
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { nombre: 1, documents: [{ document_id: 'doc1', nom_fichier: 'Compromis signé FOURNIER GAUTHIER', document: 'Compromis de vente', sous_dossier: 'racine', modifie_le: '2026-09-02' }] } }] }, o);
+  envoye = JSON.stringify(client.requetes[2].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'les noms des fiches sont codés dans le nom du fichier : ' + envoye.slice(-700));
+  assert.match(envoye, /Compromis signé/, 'le nom du fichier reste lisible');
+});

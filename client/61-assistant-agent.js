@@ -194,13 +194,15 @@
     if (joursEntre(debut, fin) > 32) return { erreur: '31 jours au plus' };
     const evenements = await evenementsAgendaAssistant(debut, fin);
     if (evenements === null) return { erreur: 'agenda de l’office illisible pour le moment' };
-    // Jamais le titre ni le lieu (relecture 0.213.0) : l'agenda porte aussi des rendez-vous hors CLAIRE (donations, clients
-    // inconnus des fiches) dont les noms ne seraient pas masqués. Seulement la nature, l'heure, la catégorie et le dossier reconnu.
+    // Titre et lieu envoyés depuis 0.362.0 (étude 26/10 : « elle peut lire l'agenda, j'autorise ») — le serveur les masque comme tout résultat
+    // d'outil (noms des fiches, emails, téléphones : codés ; avec l'anonymisation coupée, rien n'est masqué). Un rendez-vous hors CLAIRE
+    // (donation, client inconnu des fiches) dont le nom n'est pas dans les fiches peut donc passer en clair — risque accepté par l'étude.
     return { rendez_vous: evenements.filter(e => e && e.date >= debut && e.date <= fin)
       .sort((a, b) => (a.date + (a.heure || '')).localeCompare(b.date + (b.heure || '')))
       .slice(0, 200).map(e => {
         const d = dossierDeRendezVousAgent(e);
         return { evenement_id: idEvenementAgent(e), date: e.date, heure: e.journeeEntiere ? '' : (e.heure || ''), fin: e.heureFin || '', journee_entiere: !!e.journeeEntiere,
+          titre: String((e && e.sujet) || '').slice(0, 160), lieu: String((e && e.lieu) || '').slice(0, 160),
           nature: natureRendezVousAgent(e), categories: (e.categories || []).filter(c => /^[A-Za-zÀ-ÿ /-]{1,30}$/.test(String(c))),
           dossier_id: d ? d.id : '', dossier: d ? libelleDossierAffiche(d) : '' };
       }) };

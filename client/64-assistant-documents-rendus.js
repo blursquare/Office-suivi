@@ -38,7 +38,7 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
       if (!id) { do { id = 'doc' + (++n); } while (documentsAgentConnus[id]); }
       const nom = String(f.nom || '').replace(/\.pdf$/i, '');
       documentsAgentConnus[id] = { sorte: 'fichier', libelle: nom, dossier: d, le: f.modifieLe || '', chemin: cheminNasComplet(d, f.chemin) };
-      return { document_id: id, document: pieceFichierNasAssistant(d, nom), sous_dossier: sousDossierFichierAssistant(d, cheminNasComplet(d, f.chemin)), modifie_le: String(f.modifieLe || '').slice(0, 10) };
+      return { document_id: id, nom_fichier: nom.slice(0, 160), document: pieceFichierNasAssistant(d, nom), sous_dossier: sousDossierFichierAssistant(d, cheminNasComplet(d, f.chemin)), modifie_le: String(f.modifieLe || '').slice(0, 10) };
     });
     return { nombre: documents.length, ...(documents.length >= MAX_FICHIERS_DOSSIER_AGENT ? { coupe: `seuls les ${MAX_FICHIERS_DOSSIER_AGENT} plus récents sont listés` } : {}), documents };
   }

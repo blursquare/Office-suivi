@@ -105,7 +105,7 @@ const OUTILS_AGENT = [
   },
   {
     name: 'agenda',
-    description: 'Les rendez-vous de l’agenda partagé de l’office entre deux dates (comprises) : date, heure, durée, nature, catégorie, dossier reconnu et evenement_id (à passer à agenda_evenement pour déplacer, renommer ou supprimer un rendez-vous).',
+    description: 'Les rendez-vous de l’agenda partagé de l’office entre deux dates (comprises) : date, heure, durée, titre, lieu, nature, catégorie, dossier reconnu et evenement_id (à passer à agenda_evenement pour déplacer, renommer ou supprimer un rendez-vous).',
     input_schema: { type: 'object', additionalProperties: false, required: ['debut', 'fin'],
       properties: { debut: chaine('AAAA-MM-JJ'), fin: chaine('AAAA-MM-JJ (31 jours au plus après le début)') } }
   },
@@ -155,7 +155,7 @@ const OUTILS_AGENT = [
   },
   {
     name: 'documents_du_dossier',
-    description: 'Tous les PDF du dossier client sur le NAS (dossier relié), du plus récent au plus ancien : document_id, pièce reconnue d’après le nom du fichier (ou « Document non reconnu » — lis-le pour savoir ce que c’est), sous-dossier, date de modification. Le nom du fichier ne t’est jamais donné. Les document_id servent à lire_document et ouvrir_documents.',
+    description: 'Tous les PDF du dossier client sur le NAS (dossier relié), du plus récent au plus ancien : document_id, pièce reconnue d’après le nom du fichier (ou « Document non reconnu » — lis-le pour savoir ce que c’est), sous-dossier, date de modification. Le nom du fichier (nom_fichier) t’est donné, noms de personnes des fiches codés. Les document_id servent à lire_document et ouvrir_documents.',
     input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id'], properties: { dossier_id: chaine('id du dossier') } }
   },
   {
@@ -884,7 +884,7 @@ async function tourAgent(entree, o) {
       // Lecture libre du NAS : les noms de dossiers et de fichiers de l'étude (« MODELES - OUTILS », « Procuration ») doivent rester
       // lisibles pour qu'elle s'y retrouve — masquage léger (mots des fiches, emails, téléphones, IBAN ; ni capitales ni majuscules) ; le
       // TEXTE d'un fichier lu reste masqué comme un document.
-      const nasLibreNoms = nomAppel === 'nas_libre' && !(brut && typeof brut.texte === 'string');
+      const nasLibreNoms = (nomAppel === 'nas_libre' && !(brut && typeof brut.texte === 'string')) || nomAppel === 'documents_du_dossier' || nomAppel === 'nas_dossier';
       let contenu = /^(legifrance|bofip)__/.test(nomAppel) || (nasLibreNoms && conv.anonymiser !== false)
         ? JSON.stringify(masquerValeurLegere(brut === undefined ? null : brut, conv.sensibles, conv.table))
         : conv.anonymiser === false ? JSON.stringify(brut === undefined ? null : brut)
