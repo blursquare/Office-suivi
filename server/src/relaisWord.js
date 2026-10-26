@@ -68,7 +68,7 @@ var APPEL_RELAIS_VU_MS = 3000;
 
 /** @typedef {{ id: string, valeur: string, occurrence: number, attendu: string, t: number }} CommandeWord */
 /** @typedef {{ titre: string, texte: string, t: number }} NotificationPoste */
-/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, actionsFenetre?: { type: string, canal: string, id: string, adresse?: string, t: number }[], notifications?: NotificationPoste[] }} PosteWord */
+/** @typedef {{ vu: number, word: boolean, appels3cx?: boolean, titre: string, paragraphe: string, n: number, commandes: CommandeWord[], resultats: { id: string, ok: boolean, message: string, t: number }[], appels: { id: string, dossier: boolean, t: number }[], pastille?: number, pastilleLe?: number, pastilleRelais?: boolean, actionsFenetre?: { type: string, canal: string, id: string, adresse?: string, t: number }[], notifications?: NotificationPoste[], toasts?: string, versionRelais?: string }} PosteWord */
 
 // Pastille et notifications Windows (étude 25/10 : « il faudrait des notifications pastille sur l'app ») : la fenêtre CLAIRE du poste
 // calcule son compteur d'après les réglages du collaborateur et l'envoie ici ; le relais du poste le lit à chaque relevé et le pose sur
@@ -112,6 +112,7 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   p.pastilleRelais = corps.pastille === 1;
   // Relais 2.0 : ce que Windows a répondu aux dernières notifications (« Enabled », « DisabledForUser>secours »…), jamais un texte.
   if (typeof corps.toasts === 'string' && /^[A-Za-z>]{1,60}$/.test(corps.toasts)) p.toasts = corps.toasts;
+  p.versionRelais = typeof corps.relais === 'string' && /^\d+\.\d+$/.test(corps.relais) ? corps.relais : '';
   if (!corps.inchange) {
     const titre = texteWord(corps.titre, 200);
     const paragraphe = texteWord(corps.paragraphe, 4000);
@@ -244,7 +245,8 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
     resultats: p ? p.resultats.map(r => ({ id: r.id, ok: r.ok, message: r.message })) : [],
     // Le relais en marche sait-il poser la pastille (version de 0.349.0) ?
     pastille: actif && !!p && p.pastilleRelais === true,
-    toasts: actif && p && p.toasts ? p.toasts : ''
+    toasts: actif && p && p.toasts ? p.toasts : '',
+    versionRelais: actif && p && p.versionRelais ? p.versionRelais : ''
   };
 }
 

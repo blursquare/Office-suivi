@@ -22108,3 +22108,6 @@ l'état lu (`etatToasts`) part au relevé suivant (`toasts`), gardé par le serv
 (`texteEtatToastsWindows`) et noté au point `relais-node-notifications`. Bouton « Envoyer une notification d'essai » (`POST /api/relais-word/essai`,
 `noterCartePoste`). La pastille chiffrée n'existe plus depuis le relais 2.0 (dit à l'étude). NB : le relais installé n'est PAS mis à jour par la
 mise à jour du serveur (copie figée, audit 0.354.0 M3) : retélécharger.
+Relecture 0.354.3 : secours PowerShell seulement pour `DisabledByManifest` / `Inconnu` (une coupure voulue — pour CLAIRE, tout le poste, stratégie
+de groupe — n'est jamais contournée, elle est dite) ; « Enabled » dit avec la réserve « Ne pas déranger » ; état « Muet » (PowerShell pas lancé)
+dit à part ; `VERSION_RELAIS` 2.1 rendu par `/etat` (`versionRelais`) — un relais 2.0 est annoncé « version ancienne ».

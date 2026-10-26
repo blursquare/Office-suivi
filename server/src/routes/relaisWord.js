@@ -63,7 +63,7 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     const collab = N.collaborateurDuPoste(poste);
     if (!collab) { res.status(403).json({ erreur: 'Collaborateur inconnu.' }); return null; }
     // Relais 2.0 (26/10) : un bouton de notification reçu (les gestes des cartes du relais 1.x passent par les mêmes routes).
-    if (corps.relais === '2.0') noterVerification(parametresRepo, 'relais-node-boutons', { detail: req.path.split('/').pop() });
+    if (/^2\./.test(String(corps.relais || ''))) noterVerification(parametresRepo, 'relais-node-boutons', { detail: req.path.split('/').pop() });
     return { poste, collab, corps };
   };
   routeur.post('/relais-word/repondre', (req, res) => {
@@ -102,9 +102,9 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     if (!poste || !jetonAccepte(parametresRepo, poste, corps.jeton)) { res.status(403).json({ erreur: 'Relais inconnu.' }); return; }
     // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
     if (corps.verifier === true) { res.json({ ok: true }); return; }
-    if (corps.relais === '2.0') noterVerification(parametresRepo, 'relais-node-installation', { detail: 'relevé reçu' });
-    if (corps.relais === '2.0' && typeof corps.toasts === 'string' && /^[A-Za-z>]{1,60}$/.test(corps.toasts)) {
-      noterVerification(parametresRepo, 'relais-node-notifications', /^Enabled$/.test(corps.toasts) || /secours$/.test(corps.toasts) ? { detail: corps.toasts } : { ok: false, message: corps.toasts });
+    if (/^2\./.test(String(corps.relais || ''))) noterVerification(parametresRepo, 'relais-node-installation', { detail: 'relevé reçu' });
+    if (/^2\./.test(String(corps.relais || '')) && typeof corps.toasts === 'string' && /^[A-Za-z>]{1,60}$/.test(corps.toasts)) {
+      noterVerification(parametresRepo, 'relais-node-notifications', /^(Enabled|DisabledByManifest>secours|Inconnu>secours)$/.test(corps.toasts) ? { detail: corps.toasts } : { ok: false, message: corps.toasts });
     }
     const { commandes, appels, renvoyer, pastille, notifications } = appliquerReleveWord(etat, poste, corps);
     const rep = { commandes, pastille };

@@ -162,8 +162,9 @@ test('notifications : « CLAIRE » si Windows le permet, sinon PowerShell ; l’
   const sc = R.scriptToasts();
   assert.match(sc, /CreateToastNotifier\('CLAIRE\.Relais'\)/);
   assert.match(sc, /\$n\.Setting/);
-  assert.match(sc, /if\(\$r -ne 'Enabled'\)\{\$n=\[Windows\.UI\.Notifications\.ToastNotificationManager\]::CreateToastNotifier\('\{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7\}\\WindowsPowerShell\\v1\.0\\powershell\.exe'\)/);
-  assert.equal(R.etatToasts(' DisabledForUser>secours\r\n'), 'DisabledForUser>secours');
+  assert.match(sc, /if\(\$r -eq 'DisabledByManifest' -or \$r -eq 'Inconnu'\)\{\$n=\[Windows\.UI\.Notifications\.ToastNotificationManager\]::CreateToastNotifier\('\{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7\}\\WindowsPowerShell\\v1\.0\\powershell\.exe'\)/);
+  assert.equal(R.etatToasts(' DisabledByManifest>secours\r\n'), 'DisabledByManifest>secours');
+  assert.doesNotMatch(sc, /DisabledForUser'\)\{/, 'une coupure voulue n’est jamais contournée');
   assert.equal(R.etatToasts('<script>'), '');
   const carte = { type: 'resume', titre: 'CLAIRE', texte: 'essai' };
   const { s, journal } = fauxSysteme([{ statut: 200, json: { notifications: [carte] } }, { statut: 200, json: {} }]);

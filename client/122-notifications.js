@@ -291,7 +291,8 @@ async function renderReglagesNotifications() {
   const ligne = document.getElementById('notifications-relais');
   if (!ligne) return;
   ligne.textContent = !etat ? 'État du relais inconnu (serveur injoignable).'
-    : etat.actif && etat.pastille ? `Relais en marche pour ${nom}.${texteEtatToastsWindows(etat.toasts)}`
+    : etat.actif && etat.pastille && etat.versionRelais && etat.versionRelais !== '2.0' ? `Relais en marche pour ${nom}.${texteEtatToastsWindows(etat.toasts)}`
+      : etat.actif && etat.pastille ? `Le relais de ${nom} est une version ancienne : retéléchargez-le et relancez-le (bouton ci-dessous).`
       : etat.actif ? `Le relais de ${nom} est une version ancienne : téléchargez la nouvelle.`
         : `Relais pas en marche pour ${nom} : aucune notification Windows sur ce poste.`;
 }
@@ -300,13 +301,15 @@ async function renderReglagesNotifications() {
 function texteEtatToastsWindows(t) {
   const v = String(t || '');
   if (!v) return ' Aucune notification montrée depuis son démarrage : « Envoyer une notification d’essai » pour vérifier.';
-  if (v === 'Enabled') return ' Windows affiche ses notifications.';
+  if (v === 'Muet') return ' Le relais n’a pas pu lancer PowerShell pour afficher la notification.';
   if (/echec/.test(v)) return ' Windows a refusé d’afficher la dernière notification.';
-  const raison = /DisabledForUser/.test(v) ? 'les notifications de CLAIRE sont coupées dans les paramètres de Windows (Système › Notifications)'
+  if (v === 'Enabled') return ' Windows dit accepter ses notifications : si rien ne paraît, vérifiez « Ne pas déranger » et le centre de notifications (en bas à droite).';
+  if (/secours/.test(v)) return ' Windows ne reconnaît pas encore « CLAIRE » : les notifications arrivent au nom de Windows PowerShell.';
+  const raison = /DisabledForUser/.test(v) ? 'toutes les notifications de ce poste sont coupées (Paramètres › Système › Notifications)'
     : /DisabledByGroupPolicy/.test(v) ? 'une règle du poste (stratégie de groupe) les interdit'
-      : /DisabledForApplication/.test(v) ? 'elles sont coupées pour CLAIRE dans les paramètres de Windows'
-        : 'Windows ne reconnaît pas encore « CLAIRE »';
-  return /secours/.test(v) ? ` Windows ne laisse pas passer « CLAIRE » (${raison}) : les notifications arrivent au nom de Windows PowerShell.` : ` Notifications bloquées : ${raison}.`;
+      : /DisabledForApplication/.test(v) ? 'elles sont coupées pour CLAIRE (Paramètres › Système › Notifications › CLAIRE)'
+        : 'Windows n’a pas dit pourquoi';
+  return ` Notifications bloquées : ${raison}.`;
 }
 
 async function essaiNotificationRelais() {

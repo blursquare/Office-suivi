@@ -286,11 +286,12 @@ test('notification d’essai : une carte pour le relais en marche du poste ; l�
   assert.equal((await essai('jeremy')).status, 409, 'pas de relais en marche');
   const cfg = configDuCode(await codePour('Jérémy'));
   const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }).then(r => r.json());
-  await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.0' });
+  await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.1' });
   assert.equal((await essai('jeremy')).status, 200);
-  const r = await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.0', toasts: 'DisabledForUser>secours' });
+  const r = await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.1', toasts: 'DisabledByManifest>secours' });
   assert.equal(r.notifications.length, 1);
   assert.match(r.notifications[0].texte, /Notification d’essai/);
   const etat = await fetch(`${baseUrl}/api/relais-word/etat?poste=jeremy`, { headers: auth }).then(x => x.json());
-  assert.equal(etat.toasts, 'DisabledForUser>secours');
+  assert.equal(etat.toasts, 'DisabledByManifest>secours');
+  assert.equal(etat.versionRelais, '2.1');
 });

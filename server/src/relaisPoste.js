@@ -35,7 +35,7 @@ const crypto = require('node:crypto');
 const AGENT_HTTP = new http.Agent({ keepAlive: true, maxSockets: 2 });
 const AGENT_HTTPS = new https.Agent({ keepAlive: true, maxSockets: 2 });
 
-var VERSION_RELAIS = '2.0';
+var VERSION_RELAIS = '2.1';
 var PREFIXE_CODE = 'CLAIRE-RELAIS:';
 var PROTOCOLE = 'claire-relais';
 var AUMID = 'CLAIRE.Relais';
@@ -169,7 +169,9 @@ function scriptToasts() {
     '$null=[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]',
     `$n=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${litteralPs(AUMID)})`,
     "$r='Inconnu';try{$r=[string]$n.Setting}catch{}",
-    `if($r -ne 'Enabled'){$n=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${litteralPs(AUMID_SECOURS)});$r=$r+'>secours'}`,
+    // Secours seulement quand Windows ne RECONNAÎT pas « CLAIRE » (relecture 0.354.3) : une coupure voulue (par l'utilisateur pour
+    // CLAIRE, pour tout le poste, ou par une stratégie de groupe) n'est jamais contournée — elle est dite dans les Réglages.
+    `if($r -eq 'DisabledByManifest' -or $r -eq 'Inconnu'){$n=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${litteralPs(AUMID_SECOURS)});$r=$r+'>secours'}`,
     "$e=0;foreach($b in ($env:CLAIRE_TOASTS -split ' ')){if($b){try{$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)));$n.Show((New-Object Windows.UI.Notifications.ToastNotification $x))}catch{$e++}}}",
     "if($e){$r=$r+'>echec'};[Console]::Out.Write($r)"
   ].join(';');
