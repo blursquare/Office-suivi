@@ -515,7 +515,9 @@
     // RIB et pièce d'identité : juste avant la signature (étude 07/10 : « placer la demande de RIB et de pièce d'identité juste
     // avant la signature ») — utile à J-3 du rendez-vous comme la tâche d'« À faire » (JOURS_RAPPEL_RIB), ou une fois demandée ;
     // avant, repliée.
-    if (!confrere) ranger('rib', stade === 'signature' && ((jRdv !== null && jRdv <= JOURS_RAPPEL_RIB) || ribDejaDemande(d)));
+    // Depuis le 26/10 (étude : « dans tous les dossiers », « toujours, dès l'ouverture ») : toujours en avant, pour chaque partie que l'étude
+    // accompagne (vendeurs et acquéreurs — `partiesSignatureRib`) ; la tâche d'« À faire » reste à J-3 du rendez-vous.
+    if (partiesSignatureRib(d).length) ranger('rib', true);
     ranger('agenda', stade === 'signature');
     // « Confirmer le rendez-vous » retiré (étude 05/10 : doublon de la demande de RIB et de pièce d'identité).
     if (estDossierParticipation(d)) ranger('copieActe', stade === 'signe');

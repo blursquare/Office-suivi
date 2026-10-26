@@ -17,17 +17,37 @@ function acquereursSignatureRib(d) {
   return (Array.isArray(d && d.parties) ? d.parties : []).map((partie, index) => ({ partie, index })).filter(x => x.partie && x.partie.role === 'ACQUEREUR');
 }
 
+// Les parties à qui l'étude demande le RIB (étude 26/10 : « dans tous les dossiers, sauf lorsqu'on n'accompagne pas un client — accompagné par
+// un confrère ») : les acquéreurs sauf si un confrère les accompagne, les vendeurs sauf si un confrère les accompagne, les héritiers d'une
+// succession (ceux qui sont des parties de la fiche : un héritier lu seulement dans les comparants n'a ni email ni portable). [{ partie, index, role }]
+function partiesSignatureRib(d) {
+  const parties = Array.isArray(d && d.parties) ? d.parties : [];
+  if (estSuccession(d)) {
+    const her = (typeof personnesSuccession === 'function' ? personnesSuccession(d).heritiers : []).filter(h => h && !h.comparant);
+    const vus = new Set();
+    return her.map(h => {
+      const index = parties.findIndex((x, i) => x && !vus.has(i) && (x.nom === h.nom || (x.prenom && (x.prenom + ' ' + x.nom) === h.nom)));
+      if (index < 0) return null;
+      vus.add(index);
+      return { partie: parties[index], index, role: 'HERITIER', nomAffiche: h.nom };
+    }).filter(Boolean);
+  }
+  const acquereurs = notaireParticipantRepresenteAcquereur(d) ? [] : parties.map((partie, index) => ({ partie, index, role: 'ACQUEREUR' })).filter(x => x.partie && x.partie.role === 'ACQUEREUR');
+  const vendeurs = confrereRepresenteVendeur(d) ? [] : parties.map((partie, index) => ({ partie, index, role: 'VENDEUR' })).filter(x => x.partie && x.partie.role === 'VENDEUR');
+  return vendeurs.concat(acquereurs);
+}
+
 // Ligne de l'onglet Fonds (« Demander le RIB et la pièce d'identité ») : la signature du RIB par Yousign remplace l'email de rappel.
 function renderLignesSignatureRib(d) {
-  const liste = acquereursSignatureRib(d);
+  const liste = partiesSignatureRib(d);
   if (!liste.length) return '';
   const faite = ribDejaDemande(d);
-  return liste.map(({ partie, index }) => {
+  return liste.map(({ partie, index, role }) => {
     const s = signataireRibDePartie(d, partie);
     const nom = [s.prenom, s.nom].filter(Boolean).join(' ');
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature', titre: 'Demander le RIB et la pièce d’identité',
-      sous: (liste.length > 1 && nom ? nom + ' · ' : '') + (faite && d.ribDemandeLe ? `Signature demandée le ${formatDateFr(d.ribDemandeLe)}` : 'Signature électronique (code SMS) avec le RIB en pièce jointe'),
+      sous: ([{ VENDEUR: 'Vendeur', ACQUEREUR: 'Acquéreur', HERITIER: 'Héritier' }[role] || '', nom].filter(Boolean).join(' ') + ' · ') + (faite && d.ribDemandeLe ? `Signature demandée le ${formatDateFr(d.ribDemandeLe)}` : 'Signature électronique (code SMS) avec le RIB en pièce jointe'),
       faite,
       bouton: { libelle: faite ? 'Renvoyer' : 'Envoyer', icone: icone('pencil'), onclick: `preparerSignatureRib('${escapeOnclickArg(d.id)}', ${Number(index)})`, titre: 'Crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.' },
       secondaires: `<wa-button appearance="plain" class="bouton-icone" size="s" onclick="telechargerAttestationRib('${escapeOnclickArg(d.id)}', ${Number(index)})" title="Attestation en PDF à faire signer" aria-label="Attestation en PDF">${icone('file-text')}</wa-button>`
@@ -38,7 +58,7 @@ function renderLignesSignatureRib(d) {
 // Clic sur la tâche d'« À faire » : un seul acquéreur, le brouillon est préparé ; plusieurs, la fiche s'ouvre sur ses lignes.
 function preparerSignatureRibDossier(idDossier) {
   const d = dossiers.find(x => x.id === idDossier);
-  const liste = acquereursSignatureRib(d);
+  const liste = partiesSignatureRib(d);
   if (liste.length === 1) { preparerSignatureRib(idDossier, liste[0].index); return; }
   ouvrirDossierDepuisDashboard(idDossier);
   if (typeof definirOngletFiche === 'function') definirOngletFiche('fonds');

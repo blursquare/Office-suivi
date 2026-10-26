@@ -83,8 +83,23 @@ test('propositions : une même proposition n’est jamais refaite, même accept�
   assert.equal(P.ajouterProposition(liste, Object.assign({}, base, { id: 'p2' })).ajoutee, null);
   liste = P.decider(liste, 'p1', 'refusee', 'Julie VASSELIN').liste;
   assert.equal(P.ajouterProposition(liste, Object.assign({}, base, { id: 'p3' })).ajoutee, null, 'refusée : pas refaite');
-  // Même empreinte pour un autre collaborateur : une autre proposition.
-  assert.ok(P.ajouterProposition(liste, Object.assign({}, base, { id: 'p4', responsable: 'Jérémy SAUJOT' })).ajoutee);
+  // Même empreinte pour un autre collaborateur (dossier qui a changé de responsable) : une proposition traitée n'est jamais refaite.
+  const autre = P.ajouterProposition(liste, Object.assign({}, base, { id: 'p4', responsable: 'Jérémy SAUJOT' }));
+  assert.equal(autre.ajoutee, null);
+  assert.equal(autre.reattribuee, null);
+});
+
+test('propositions : une proposition en attente suit le dossier chez son nouveau responsable, sans doublon (26/10)', () => {
+  const base = { id: 'p1', routine: 'revue-matin', responsable: 'Julie VASSELIN', type: 'email', titre: 'Relance', empreinte: 'rev:d1:pret:2026-10-24' };
+  let liste = P.ajouterProposition([], base).liste;
+  const r = P.ajouterProposition(liste, Object.assign({}, base, { id: 'p2', responsable: 'Sophie GOSSART' }));
+  assert.equal(r.ajoutee, null);
+  assert.equal(r.liste.length, 1, 'jamais deux propositions pour le même geste');
+  assert.equal(r.liste[0].responsable, 'Sophie GOSSART');
+  assert.equal(r.liste[0].id, 'p1', 'même proposition, même carte');
+  assert.equal(r.reattribuee.avant, 'Julie VASSELIN');
+  // Même responsable : rien.
+  assert.equal(P.ajouterProposition(r.liste, Object.assign({}, base, { responsable: 'Sophie GOSSART' })).reattribuee, null);
 });
 
 test('propositions : une décision est définitive, « vue » ne rétrograde rien, un type ou un titre vides sont refusés', () => {

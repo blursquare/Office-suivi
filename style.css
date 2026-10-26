@@ -1304,6 +1304,7 @@
   .act-jour-col.auj .act-barre > span { background: var(--focus); }
   .act-lettre { font-size: var(--texte-xxs); font-weight: 600; color: var(--muted); }
   .act-jour-col.auj .act-lettre { color: var(--ink); }
+  .act-jour-col.futur { opacity: 0.4; }
   .act-equipe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; align-self: center; }
   .act-qui { display: grid; grid-template-columns: 22px minmax(0, 1fr) 18px; align-items: center; gap: 6px; font-size: var(--texte-s); }
   .act-qui b { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }

@@ -1441,6 +1441,35 @@
     return null;
   }
 
+  // Pure : les parcelles d'une fiche bien d'Authentic sans celles de l'« Ancien cadastre » — dès qu'une parcelle a sa surface, celles qui n'en
+  // ont pas sont anciennes (étude 26/10). Aucune surface du tout (fiche partielle) : toutes gardées.
+  function parcellesSansAncienCadastre(parcelles) {
+    const avec = (parcelles || []).filter(p => p && !detailParcelleVide('surface', p.surface));
+    return avec.length ? avec : (parcelles || []).slice();
+  }
+
+  // Modifie d : les parcelles de l'« Ancien cadastre » reprises avant le 26/10 sont retirées des immeubles d'Authentic retenus, et de la fiche
+  // quand elles n'y ont pas de surface (elles venaient de là). Rend true si quelque chose a changé.
+  function retirerParcellesAncienCadastre(d) {
+    if (!d || !d.authentic || !Array.isArray(d.authentic.immeubles)) return false;
+    const cle = (p) => String(p && p.section || '').toUpperCase() + ' ' + String(p && p.numero || '').replace(/^0+(?=\d)/, '');
+    const retirees = new Set();
+    const immeubles = d.authentic.immeubles.map(im => {
+      if (!im || !Array.isArray(im.parcelles)) return im;
+      const gardees = parcellesSansAncienCadastre(im.parcelles);
+      if (gardees.length === im.parcelles.length) return im;
+      im.parcelles.filter(p => !gardees.includes(p)).forEach(p => retirees.add(cle(p)));
+      return Object.assign({}, im, { parcelles: gardees });
+    });
+    if (!retirees.size) return false;
+    d.authentic = Object.assign({}, d.authentic, { immeubles });
+    const cad = d.bien && d.bien.cadastre;
+    if (cad && Array.isArray(cad.parcelles)) cad.parcelles = cad.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface)));
+    if (Array.isArray(d.biens)) d.biens = d.biens.map(b => (b && Array.isArray(b.parcelles) ? Object.assign({}, b, { parcelles: b.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface))) }) : b));
+    ajouterHistorique(d, `Parcelles de l’ancien cadastre retirées : ${[...retirees].join(', ')}`);
+    return true;
+  }
+
   // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre, lots d'une copropriété).
   // Copropriété (structure reçue le 06/10) : l'onglet « Informations du bien » porte le cadastre sous « Parcelle Assise
   // volumétrique » (mêmes colonnes Section / Numéro) ; l'onglet « Lots » n'a ni adresse ni cadastre, seulement les lots.
@@ -1487,12 +1516,17 @@
     const designationNorm = normaliserPourRecherche(designation || '').replace(/\s+/g, ' ').trim();
     // Cadastre saisi dans la fiche du bien (structure reçue le 16/10) : pas un tableau à en-têtes mais des champs par ligne
     // (« …dataTableCadastre:0:cadastreHorsVolumeNumero »), la surface dans les trois champs hectare / are / centiare qui suivent le SPF.
-    parcellesChampsCadastreAuthentic(champs.filter(ch => !/ancien cadastre/i.test(ch.groupe || ''))).forEach(q => {
+    parcellesChampsCadastreAuthentic(champs.filter(ch => !/ancien cadastre/i.test(ch.groupe || '') && !/ancien/i.test(ch.libelle || ''))).forEach(q => {
       const deja = parcelles.find(p => p.section === q.section && p.numero === q.numero);
       // Une surface du tableau nulle ou réduite aux hectares (« 0 ») cède la place aux trois champs hectare / are / centiare (19/10).
       if (deja) { ['surface', 'prefixe', 'nature', 'adresseCadastre'].forEach(k => { if ((detailParcelleVide(k, deja[k]) || (k === 'surface' && /^\d+$/.test(String(deja[k])))) && q[k]) deja[k] = q[k]; }); }
       else parcelles.push(q);
     });
+    // Ancien cadastre (étude 26/10 : « ce sont les parcelles sans surface ») : le titre « Ancien cadastre » n'est pas une rubrique de la page
+    // (le filtre par titre du 22/10 ne le voyait jamais) ; le cadastre en vigueur donne une surface à chaque parcelle.
+    const enVigueur = parcellesSansAncienCadastre(parcelles);
+    parcelles.length = 0;
+    enVigueur.forEach(p => parcelles.push(p));
     const type = typeVenteFicheBienAuthentic(typeBrut, designationNorm, parcelles, lots.length > 0);
     // Parcelles en bois (préemption des bois et forêts, SAFER) : seulement pour une terre ; sinon inconnu.
     const bois = boisFicheBienAuthentic(type, typeBrut, designationNorm, parcelles);
@@ -1611,6 +1645,7 @@
     if (!d || !personne || !personne.nom) return '';
     // Succession (étude 15/10) : pas de côté vendeur / acquéreur — la personne est une partie de la fiche, ou le défunt nommé par l'intitulé.
     if (estSuccession(d)) return partieSuccessionDeLaFiche(d, personne) ? 'PARTIE' : '';
+    if (personne.morale) return roleSocieteAuthenticDansDossier(d, personne.nom);
     for (const nom of [personne.nom, personne.nomUsage].filter(Boolean)) {
       const role = roleClientAuthenticParNom(d, nom, personne.prenom);
       if (role) return role;
@@ -2079,7 +2114,9 @@
       // BOUCHKAR : fiche lue, rien repris).
       // Seulement quand la lecture des comparants de CE côté n'y retrouve aucune personne de la fiche (lecture ratée) : des comparants lus
       // qui écartent quelqu'un (le conjoint posé à tort depuis le compromis, règle du 09/10) l'emportent toujours.
-      if (!personneComparantAuthentic(d, personne, role) && !(conjointPartieDuDossierAuthentic(d, personne) && comparantsCoteIllisiblesAuthentic(d, role))) {
+      // Une société n'est jamais le conjoint posé à tort : son côté, lu dans les parties, les comparants ou le nom du dossier (mots
+      // significatifs, 26/10), suffit — la lecture des comparants ne connaît pas toujours les raisons sociales.
+      if (!personne.morale && !personneComparantAuthentic(d, personne, role) && !(conjointPartieDuDossierAuthentic(d, personne) && comparantsCoteIllisiblesAuthentic(d, role))) {
         // Sa fiche entière reste lisible sur le dossier (panneau « Authentic »), sans partie ni coordonnées reprises.
         if (retenirFicheClientAuthentic(d, personne, maintenant, { horsComparants: true })) {
           noter(`Fiche client de ${[personne.prenom, personne.nom].filter(Boolean).join(' ')} gardée : absente des comparants, ni partie ni coordonnées reprises`);
@@ -2879,12 +2916,13 @@
       const numero = retirerNumeroAuthentic(d);
       const notaires = nettoyerCommunesNotairesDossier(d);
       const importer = retirerImporterAuthentic(d);
+      const ancien = retirerParcellesAncienCadastre(d);
       const dia = migrerPieceDiaCopropriete(d);
       const nonPeril = migrerPieceNonPeril(d);
       const doublons = [dedoublonnerPartiesDossier(d), retirerPartieDuMauvaisCote(d), retirerBiensDAutresDossiers(d)].some(Boolean);
       const droits = realignerDroitsPreemption(d);
       droits.forEach(t => ajouterHistorique(d, t));
-      if (date || numero || notaires || importer || dia || nonPeril || doublons || droits.length) await sauvegarder(d);
+      if (date || numero || notaires || importer || ancien || dia || nonPeril || doublons || droits.length) await sauvegarder(d);
     }
   }
 

@@ -589,7 +589,33 @@
     };
   }
 
-  // Modifie d : la partie de ce côté qui porte le nom de la société lue devient une personne morale (raison sociale d'Authentic).
+  // Pure : les mots qui désignent une société, sans sa forme juridique ni les petits mots (« SCI DES PINS » → « pins ») — une SCI s'écrit
+  // souvent autrement dans l'intitulé du dossier (« VTE MARTIN / LES PINS ») ou les comparants (« Société civile immobilière LES PINS »).
+  var MOTS_FORME_SOCIETE = ['sci', 'sarl', 'sas', 'sasu', 'eurl', 'sa', 'snc', 'scp', 'selarl', 'selas', 'scea', 'gaec', 'earl', 'sccv', 'scm', 'spfpl',
+    'societe', 'civile', 'immobiliere', 'commerciale', 'anonyme', 'responsabilite', 'limitee', 'simplifiee', 'par', 'actions', 'en', 'nom', 'collectif',
+    'de', 'des', 'du', 'la', 'le', 'les', 'l', 'd', 'et', 'a', 'au', 'aux'];
+  function motsSignificatifsSociete(nom) {
+    return normaliserPourRecherche(String(nom || '')).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(m => m && !MOTS_FORME_SOCIETE.includes(m));
+  }
+
+  // Pure : le côté d'une société dans le dossier (étude 26/10 : « Claire ne détecte toujours pas les parties qui sont des sociétés ») — une
+  // partie, un comparant ou un côté du nom du dossier qui porte TOUS ses mots significatifs ; jamais deviné (deux côtés possibles → '').
+  function roleSocieteAuthenticDansDossier(d, nom) {
+    const mots = motsSignificatifsSociete(nom);
+    if (!d || !mots.length) return '';
+    const porte = (texte) => { const t = ' ' + normaliserPourRecherche(String(texte || '')).replace(/[^a-z0-9]+/g, ' ') + ' '; return mots.every(m => t.includes(' ' + m + ' ')); };
+    const roles = new Set();
+    (Array.isArray(d.parties) ? d.parties : []).forEach(p => { if (p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && porte(p.nom)) roles.add(p.role); });
+    ((d.authentic && d.authentic.comparants) || []).forEach(c => { if (c && (c.role === 'VENDEUR' || c.role === 'ACQUEREUR') && porte(c.nom)) roles.add(c.role); });
+    if (!roles.size) {
+      const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
+      if (m) { if (porte(m[1])) roles.add('VENDEUR'); if (porte(m[2])) roles.add('ACQUEREUR'); }
+    }
+    return roles.size === 1 ? [...roles][0] : '';
+  }
+
+  // Modifie d : la partie de ce côté qui porte le nom de la société lue devient une personne morale (raison sociale d'Authentic) ; sans
+  // partie de ce nom, la société est AJOUTÉE de ce côté (26/10 — avant, une société absente des parties n'entrait jamais).
   function marquerSocieteAuthentic(d, societe, role, noter) {
     const mots = (x) => normaliserPourRecherche(String(x || '')).replace(/[^a-z0-9]+/g, ' ').trim();
     const nom = mots(societe.nom);
@@ -598,7 +624,17 @@
     const cote = (Array.isArray(d.parties) ? d.parties : []).filter(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ')));
     if (cote.some(x => x.qualitePersonne === 'morale')) return;
     const p = cote.find(x => !x.prenom && !x.civilite);
-    if (!p) return;
+    if (!p) {
+      // Déjà là comme société sous une autre écriture (« LES PINS » / « SCI DES PINS ») : rien de plus.
+      const sig = motsSignificatifsSociete(societe.nom);
+      if ((d.parties || []).some(x => x && x.role === role && x.qualitePersonne === 'morale' && sig.length && sig.every(m => motsSignificatifsSociete(x.nom).includes(m)))) return;
+      d.parties = (Array.isArray(d.parties) ? d.parties : []).concat({
+        nom: String(societe.nom || '').trim(), role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur', qualitePersonne: 'morale',
+        representant: null, origine: 'authentic', emails: (societe.emails || []).slice(0, 3), telephones: (societe.telephones || []).slice(0, 3)
+      });
+      noter(`${societe.nom} ajoutée ${role === 'VENDEUR' ? 'aux vendeurs' : 'aux acquéreurs'} d’après sa fiche Authentic${societe.forme ? ` (${societe.forme})` : ''}`);
+      return;
+    }
     p.qualitePersonne = 'morale';
     delete p.civilite;
     noter(`${p.nom} : société d’après sa fiche Authentic${societe.forme ? ` (${societe.forme})` : ''}`);

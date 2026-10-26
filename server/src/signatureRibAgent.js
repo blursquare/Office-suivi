@@ -9,7 +9,7 @@
 // Identifiants (agent, environnement, coffre) : `config.json` (agentYousignId, agentYousignEnvironnement, agentYousignVault), sinon ceux de l'étude.
 
 const { classeOutilYousign } = require('./yousign');
-const { telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib, consigneBrouillonDocument } = /** @type {any} */ (require('../../commun/signature-rib'));
+const { telephoneInternationalRib, premierEmailRib, signataireSignatureRib, manquesSignatureRib, consigneSignatureRib, consigneBrouillonDocument, MODELE_YOUSIGN_RIB } = /** @type {any} */ (require('../../commun/signature-rib'));
 
 const AGENT_PAR_DEFAUT = 'agent_01B92Dko9uhJ2RSRb3giDcrV';
 const ENVIRONNEMENT_PAR_DEFAUT = 'env_01GhpfYHqbJcaFA9PDvdF1YY';
@@ -45,6 +45,45 @@ function reglagesAgentYousign(config) {
   const c = (config && typeof config === 'object' ? config : {});
   const pris = (/** @type {unknown} */ v, /** @type {string} */ prefixe, /** @type {string} */ defaut) => (typeof v === 'string' && v.trim().startsWith(prefixe) && RE_IDENTIFIANT.test(v.trim()) ? v.trim() : defaut);
   return { agent: pris(c.agentYousignId, 'agent_', AGENT_PAR_DEFAUT), environnement: pris(c.agentYousignEnvironnement, 'env_', ENVIRONNEMENT_PAR_DEFAUT), coffre: pris(c.agentYousignVault, 'vlt_', '') };
+}
+
+// Les deux outils qui créent un brouillon : sans modèle (document d'une succession) et depuis un modèle (le RIB).
+const OUTILS_CREATION = new Set(['create-signature-request', 'create-signature-request-from-template']);
+
+/** Pure : le texte d'un résultat d'outil (blocs texte, ou chaîne). @param {any} e */
+function texteResultatOutil(e) {
+  const c = e && e.content;
+  if (typeof c === 'string') return c;
+  return Array.isArray(c) ? c.map((/** @type {any} */ b) => (b && typeof b.text === 'string' ? b.text : '')).join('\n') : '';
+}
+
+/**
+ * Pure : le brouillon rendu par create-signature-request — son identifiant (UUID) et son lien. Le lien n'est gardé que s'il est en https
+ * sur un domaine de Yousign (jamais un autre site) ; sans lien, celui de l'application est reconstruit depuis l'identifiant. null sinon.
+ * @param {any} e l'événement du résultat
+ */
+function brouillonDepuisResultat(e) {
+  const texte = texteResultatOutil(e);
+  if (!texte) return null;
+  /** @type {any} */
+  let objet = null;
+  try { objet = JSON.parse(texte); } catch (_) { objet = null; }
+  const racine = objet && typeof objet === 'object' ? (objet.signature_request || objet.signatureRequest || objet.data || objet) : null;
+  const RE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  let id = racine && typeof racine.id === 'string' && RE_UUID.test(racine.id) ? racine.id.toLowerCase() : '';
+  const lienBrut = racine && typeof racine.url === 'string' ? racine.url : (((/https:\/\/[^\s"'<>]+/i.exec(texte)) || [''])[0]);
+  const lien = lienYousignSur(lienBrut);
+  if (!id) { const m = RE_UUID.exec(lien || texte); id = m ? m[0].toLowerCase() : ''; }
+  if (!id) return null;
+  return { id, url: lien || 'https://yousign.app/auth/workspace/requests/' + id };
+}
+
+/** Pure : une adresse https sur un domaine de Yousign (yousign.app, yousign.com et leurs sous-domaines), sinon ''. @param {unknown} v */
+function lienYousignSur(v) {
+  try {
+    const u = new URL(String(v || ''));
+    return u.protocol === 'https:' && /(^|\.)yousign\.(app|com)$/i.test(u.hostname) ? u.href : '';
+  } catch (_) { return ''; }
 }
 
 /** La décision pour un appel d'outil mis en attente : « allow » seulement pour un outil de la liste. @param {{ name?: string }} evenement */
@@ -126,6 +165,15 @@ function creerSignatureRibAgent(o = {}) {
     const appelsEnvoi = new Set();
     let envoiConfirme = false;
     let envoiEchoue = false;
+    // Création d'un brouillon (26/10, étude : « l'agent n'a pas envoyé de lien de brouillon », « il n'a pas créé le brouillon non plus ») :
+    // le brouillon est lu dans le RÉSULTAT de create-signature-request (identifiant, lien), plus dans le texte libre de l'agent ; une
+    // erreur de Yousign est retenue pour être dite, jamais masquée derrière « pas de lien ».
+    /** @type {Map<string, string>} */
+    const nomsAppels = new Map();
+    let creationsDemandees = 0;
+    let creationsEchouees = 0;
+    /** @type {{ id: string, url: string } | null} */
+    let brouillon = null;
     // L'identifiant visé par un envoi, quel que soit le nom du champ dans le schéma de Yousign.
     const cibleEnvoi = (/** @type {any} */ e) => { const i = (e && e.input) || {}; return String(i.signatureRequestId || i.signature_request_id || i.id || '').trim().toLowerCase(); };
     /** Décision d'un appel : la liste du mode, et pour un envoi la demande dite seulement, une fois. @param {any} e */
@@ -142,7 +190,9 @@ function creerSignatureRibAgent(o = {}) {
         if (e.type === 'agent.message') {
           for (const b of e.content || []) if (b.type === 'text') reponse += b.text + '\n';
         } else if ((e.type === 'agent.tool_use' || e.type === 'agent.mcp_tool_use') && e.evaluated_permission === 'ask') {
+          nomsAppels.set(String(e.id || ''), String(e.name || ''));
           const d = decider(e);
+          if (d.result === 'allow' && OUTILS_CREATION.has(String(e.name || ''))) creationsDemandees++;
           if (d.result === 'deny') refus++;
           else outils.push(String(e.name || ''));
           await client.beta.sessions.events.send(session.id, { events: [{ type: 'user.tool_confirmation', tool_use_id: e.id, ...d }] });
@@ -150,16 +200,21 @@ function creerSignatureRibAgent(o = {}) {
           // Un outil réglé « toujours permis » dans l'agent géré passe sans confirmation (audit 26/10, M1) : un outil qui ÉCRIT hors de la liste
           // du mode — ou un envoi d'une autre demande que celle dite — arrête la séance ; une lecture hors liste ne modifie rien.
           const nom = String(e.name || '');
+          nomsAppels.set(String(e.id || ''), nom);
           const ecrit = classeOutilYousign(nom) !== 'lecture';
           if (ecrit && decider(e).result !== 'allow') {
             horsListe = true;
             try { await client.beta.sessions.events.send(session.id, { events: [{ type: 'user.interrupt' }] }); } catch (_) { /* meilleur effort */ }
             return { fin: 'hors_liste' };
           }
+          if (OUTILS_CREATION.has(nom)) creationsDemandees++;
           outils.push(nom);
         } else if (/tool_result$/.test(String(e.type || '')) && appelsEnvoi.has(String(e.mcp_tool_use_id || e.tool_use_id || ''))) {
           // Le résultat de l'envoi : réussi seulement si Yousign n'a pas rendu d'erreur (audit 26/10, M3).
           if (e.is_error) envoiEchoue = true; else envoiConfirme = true;
+        } else if (/tool_result$/.test(String(e.type || '')) && OUTILS_CREATION.has(nomsAppels.get(String(e.mcp_tool_use_id || e.tool_use_id || '')) || '')) {
+          if (e.is_error) creationsEchouees++;
+          else if (!brouillon) brouillon = brouillonDepuisResultat(e);
         } else if (e.type === 'session.error') {
           erreurSession = true;
         } else if (e.type === 'session.status_idle') {
@@ -180,7 +235,8 @@ function creerSignatureRibAgent(o = {}) {
       try { await client.beta.sessions.events.send(session.id, { events: [{ type: 'user.interrupt' }] }); } catch (_) { /* meilleur effort */ }
       try { if (flux && flux.controller) flux.controller.abort(); } catch (_) { /* idem */ }
     }
-    return { fin: issue.fin, reponse, refus, erreurSession, outils, horsListe, envoi: envoiConfirme && !envoiEchoue ? 'fait' : envoisFaits ? (envoiEchoue ? 'echec' : 'a_verifier') : 'aucun' };
+    return { fin: issue.fin, reponse, refus, erreurSession, outils, horsListe, brouillon, creationsDemandees, creationsEchouees,
+      envoi: envoiConfirme && !envoiEchoue ? 'fait' : envoisFaits ? (envoiEchoue ? 'echec' : 'a_verifier') : 'aucun' };
   }
 
   /** @param {any} corps le signataire envoyé par le poste */
@@ -201,13 +257,18 @@ function creerSignatureRibAgent(o = {}) {
         if (r.fin === 'hors_liste') return { ok: false, code: 'configuration', raison: 'L’agent Yousign a appelé un outil non prévu sans demander : séance arrêtée. Vérifiez dans Yousign ce qui a été fait, et réglez ses outils sur « demander » dans la console d’Anthropic.' };
         if (r.fin === 'delai') return { ok: false, code: 'delai', raison: 'L’agent n’a pas répondu à temps. Vérifiez dans Yousign si un brouillon a été créé avant de recommencer.' };
         if (r.fin === 'termine' || r.fin === 'ferme' || r.fin === 'epuise') return { ok: false, code: 'echec', raison: 'La session de l’agent s’est arrêtée avant la fin.' };
+        if (r.brouillon) return { ok: true, id: r.brouillon.id, url: r.brouillon.url };
         const m = RE_BROUILLON.exec(r.reponse);
-        if (!m) {
-          return r.refus
-            ? { ok: false, code: 'refuse', raison: 'L’agent a demandé un outil non autorisé : rien n’a été créé.' }
-            : { ok: false, code: 'sans_lien', raison: 'L’agent n’a pas rendu de lien de brouillon : rien ne permet de dire qu’il est créé.' };
+        if (m) return { ok: true, id: m[1].toLowerCase(), url: m[0] };
+        if (r.creationsEchouees) return { ok: false, code: 'yousign_refus', raison: 'Yousign a refusé la création du brouillon : vérifiez dans Réglages › Yousign que le jeton a les droits d’écriture et un espace de travail, et dans la console d’Anthropic les journaux de la séance.' };
+        if (r.refus) return { ok: false, code: 'refuse', raison: 'L’agent a demandé un outil non autorisé : rien n’a été créé.' };
+        if (!r.creationsDemandees) {
+          // L'explication de l'agent (modèle introuvable, outil refusé…) : montrée à l'étude telle quelle, courte, jamais journalisée.
+          const dit = String(r.reponse || '').replace(/\s+/g, ' ').trim().slice(0, 240);
+          const rappel = titre ? '' : ' Le modèle « ' + MODELE_YOUSIGN_RIB + ' » doit exister dans Yousign.';
+          return { ok: false, code: 'sans_creation', raison: 'L’agent n’a créé aucun brouillon.' + rappel + (dit ? ' Réponse de l’agent : « ' + dit + ' »' : ' Vérifiez que le connecteur Yousign est branché sur l’agent dans la console d’Anthropic.') };
         }
-        return { ok: true, id: m[1].toLowerCase(), url: m[0] };
+        return { ok: false, code: 'sans_lien', raison: 'L’agent n’a pas rendu de lien de brouillon : rien ne permet de dire qu’il est créé.' };
       } catch (e) {
         return { ok: false, ...codeErreurApi(e) };
       }
@@ -288,6 +349,7 @@ function creerSignatureRibAgent(o = {}) {
         const liens = [];
         const re = new RegExp(RE_BROUILLON.source, 'gi');
         let m;
+        if (r.brouillon && !liens.includes(r.brouillon.url)) liens.push(r.brouillon.url);
         while ((m = re.exec(r.reponse)) && liens.length < 10) if (!liens.includes(m[0])) liens.push(m[0]);
         return reponse || liens.length || r.envoi !== 'aucun' ? { ok: true, reponse, liens, outils: [...new Set(r.outils)], refus: r.refus, envoi: r.envoi } : { ok: false, code: 'sans_reponse', raison: 'L’agent n’a rien rendu.' };
       } catch (e) {
@@ -300,4 +362,4 @@ function creerSignatureRibAgent(o = {}) {
   return { disponibilite, creerBrouillon, lireStatut, agir, attendre };
 }
 
-module.exports = { creerSignatureRibAgent, MODES_AGENT_YOUSIGN, OUTILS_LECTURE, OUTILS_DOCUMENT, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };
+module.exports = { creerSignatureRibAgent, brouillonDepuisResultat, lienYousignSur, MODES_AGENT_YOUSIGN, OUTILS_LECTURE, OUTILS_DOCUMENT, reglagesAgentYousign, decisionOutil, codeErreurApi, OUTILS_PERMIS, AGENT_PAR_DEFAUT, ENVIRONNEMENT_PAR_DEFAUT };

@@ -66,15 +66,24 @@ function assainirPropositions(brut) {
 }
 
 /**
- * Ajoute une proposition sauf si la même (empreinte + responsable) existe déjà, quel que soit son état : une proposition acceptée,
- * refusée ou expirée n'est pas refaite.
+ * Ajoute une proposition sauf si la même (même empreinte) existe déjà, quel que soit son responsable (étude 26/10 : « fais que la proposition
+ * suive le dossier » — avant, l'empreinte ET le responsable : un dossier qui changeait de responsable recevait la même proposition une
+ * seconde fois, et deux personnes pouvaient autoriser la même relance) :
+ * - déjà là pour le même responsable, ou déjà traitée (acceptée, refusée, expirée) : rien — une proposition n'est jamais refaite ;
+ * - encore en attente chez un AUTRE responsable : elle passe au nouveau (`reattribuee`), même identifiant, rien de neuf n'est créé.
  * @param {any[]} liste @param {any} nouvelle @param {Date} [maintenant]
  */
 function ajouterProposition(liste, nouvelle, maintenant) {
   const p = assainirProposition(Object.assign({ etat: 'proposee', creeLe: (maintenant || new Date()).toISOString() }, nouvelle));
-  if (!p) return { liste, ajoutee: null };
-  if (p.empreinte && liste.some((x) => x.empreinte === p.empreinte && x.responsable === p.responsable)) return { liste, ajoutee: null };
-  return { liste: [...liste, p].slice(-MAX_PROPOSITIONS), ajoutee: p };
+  if (!p) return { liste, ajoutee: null, reattribuee: null };
+  const i = p.empreinte ? liste.findIndex((x) => x.empreinte === p.empreinte) : -1;
+  if (i < 0) return { liste: [...liste, p].slice(-MAX_PROPOSITIONS), ajoutee: p, reattribuee: null };
+  const deja = liste[i];
+  if (deja.responsable === p.responsable || !(deja.etat === 'proposee' || deja.etat === 'vue')) return { liste, ajoutee: null, reattribuee: null };
+  const suivie = Object.assign({}, deja, { responsable: p.responsable });
+  const nouvelleListe = liste.slice();
+  nouvelleListe[i] = suivie;
+  return { liste: nouvelleListe, ajoutee: null, reattribuee: Object.assign({ avant: deja.responsable }, suivie) };
 }
 
 /** @param {any[]} liste @param {string} id @param {'vue' | 'acceptee' | 'refusee'} decision @param {string} par @param {Date} [maintenant] */

@@ -336,16 +336,18 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  // Pure : le rythme de l'étude — actions par jour sur les 7 derniers jours (aujourd'hui en dernier)
-  // et, pour aujourd'hui, qui a fait quoi (l'agenda compte comme un contributeur à part).
+  // Pure : le rythme de l'étude — actions par jour de la SEMAINE EN COURS, du lundi au dimanche (étude 26/10 : « les semaines sont du lundi
+  // au dimanche » ; avant, les 7 derniers jours avec aujourd'hui en dernier), les jours à venir à zéro (`futur`) ; et, pour aujourd'hui, qui
+  // a fait quoi (l'agenda compte comme un contributeur à part). Jours comptés au calendrier (jamais 24 h fixes : changement d'heure).
   function rythmeActivite(entrees, maintenantMs) {
-    const maintenant = maintenantMs || Date.now();
+    const maintenant = new Date(maintenantMs || Date.now());
+    const rang = (maintenant.getDay() + 6) % 7; // lundi = 0
     const jours = [];
-    for (let i = 6; i >= 0; i--) {
-      const ms = maintenant - i * 86400000;
-      const iso = isoLocalDepuisMs(ms);
-      const nom = new Date(ms).toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
-      jours.push({ iso, n: 0, lettre: nom.charAt(0).toUpperCase(), nom, aujourdhui: i === 0 });
+    for (let i = 0; i < 7; i++) {
+      const jour = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate() - rang + i, 12);
+      const iso = isoLocalDepuisMs(jour.getTime());
+      const nom = jour.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '');
+      jours.push({ iso, n: 0, lettre: nom.charAt(0).toUpperCase(), nom, aujourdhui: i === rang, futur: i > rang });
     }
     const index = {};
     jours.forEach((j, i) => { index[j.iso] = i; });
@@ -356,14 +358,14 @@
       const iso = isoLocalDepuisMs(t);
       if (!(iso in index)) return;
       jours[index[iso]].n++;
-      if (iso === jours[6].iso) {
+      if (iso === jours[rang].iso) {
         const qui = e.auteur || 'Agenda';
         parQui[qui] = (parQui[qui] || 0) + 1;
       }
     });
     const equipe = Object.keys(parQui).map(nom => ({ nom, n: parQui[nom], agenda: nom === 'Agenda' }))
       .sort((a, b) => b.n - a.n || a.nom.localeCompare(b.nom));
-    return { jours, aujourdhui: jours[6].n, equipe, max: Math.max(1, ...jours.map(j => j.n)) };
+    return { jours, aujourdhui: jours[rang].n, equipe, max: Math.max(1, ...jours.map(j => j.n)) };
   }
 
   // Pure : les entrées du fil, la même action (même auteur, même texte, même jour) faite sur plusieurs dossiers réunie en UNE ligne
@@ -441,7 +443,7 @@
     const entrees = regrouperActivite(brutes, maintenant).slice(0, limite);
 
     // Barres des 7 jours : hauteur proportionnelle au jour le plus chargé ; aujourd'hui en accent.
-    const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}" title="${escapeAttr(`${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
+    const barres = rythme.jours.map(j => `<span class="act-jour-col${j.aujourdhui ? ' auj' : ''}${j.futur ? ' futur' : ''}" title="${escapeAttr(j.futur ? `${j.nom} : à venir` : `${j.nom} : ${j.n} action${j.n > 1 ? 's' : ''}`)}"><span class="act-barre"><span style="--h:${Math.round(100 * j.n / rythme.max)}%"></span></span><span class="act-lettre">${j.lettre}</span></span>`).join('');
     const maxEquipe = Math.max(1, ...rythme.equipe.map(q => q.n));
     const equipe = rythme.equipe.length ? rythme.equipe.slice(0, 4).map(q => `
       <li class="act-qui" title="${escapeAttr(`${q.agenda ? 'Agenda de l’office' : q.nom} : ${q.n} aujourd’hui`)}">
@@ -478,7 +480,7 @@
 
     const resume = `<div class="act-resume">
         <div class="act-compteur"><span class="act-compteur-num">${rythme.aujourdhui}</span><span class="act-compteur-lib">action${rythme.aujourdhui > 1 ? 's' : ''} aujourd’hui</span></div>
-        <div class="act-semaine" role="img" aria-label="${escapeAttr('Actions par jour sur 7 jours : ' + rythme.jours.map(j => `${j.nom} ${j.n}`).join(', '))}">${barres}</div>
+        <div class="act-semaine" role="img" aria-label="${escapeAttr('Actions par jour de la semaine : ' + rythme.jours.map(j => `${j.nom} ${j.n}`).join(', '))}">${barres}</div>
         ${presentation === 'petit' ? '' : `<ul class="act-equipe" aria-label="Qui a agi aujourd’hui">${equipe}</ul>`}
       </div>`;
     const fil = lignes

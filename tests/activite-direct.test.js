@@ -1,7 +1,7 @@
 'use strict';
 
 // Suivi en direct (« Activité de l'étude ») en version visuelle : catégorie de chaque entrée,
-// rythme des 7 derniers jours, qui a agi aujourd'hui, groupes Aujourd'hui / Hier / Plus tôt.
+// rythme de la semaine (lundi → dimanche), qui a agi aujourd'hui, groupes Aujourd'hui / Hier / Plus tôt.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -22,16 +22,22 @@ test('categorieActivite : agenda, geste fait avant email, pièces, archivage, da
   assert.equal(cat('Prix de vente modifié : 250 000 €'), 'modif');
 });
 
-test('rythmeActivite : 7 jours se terminant aujourd’hui, qui a agi aujourd’hui', () => {
-  const h = (heuresAvant, auteur) => ({ date: new Date(MIDI - heuresAvant * 3600000).toISOString(), auteur: auteur || '' });
-  const r = app.rythmeActivite([h(1, 'Julie VASSELIN'), h(2, 'Julie VASSELIN'), h(3), h(30, 'Jérémy SAUJOT'), h(24 * 10, 'Julie VASSELIN')], MIDI);
+test('rythmeActivite : la semaine du lundi au dimanche, jours à venir à zéro, qui a agi aujourd’hui (26/10)', () => {
+  const MERCREDI = new Date(2026, 8, 30, 12, 0, 0).getTime(); // mercredi 30/09/2026 à midi
+  const h = (heuresAvant, auteur) => ({ date: new Date(MERCREDI - heuresAvant * 3600000).toISOString(), auteur: auteur || '' });
+  const r = app.rythmeActivite([h(1, 'Julie VASSELIN'), h(2, 'Julie VASSELIN'), h(3), h(30, 'Jérémy SAUJOT'), h(24 * 10, 'Julie VASSELIN')], MERCREDI);
   assert.equal(r.jours.length, 7);
-  assert.equal(r.jours[6].aujourdhui, true);
+  assert.equal(r.jours.map((j) => j.lettre).join(''), 'LMMJVSD');
+  assert.equal(r.jours[2].aujourdhui, true);
+  assert.equal(r.jours.filter((j) => j.futur).length, 4);
   assert.equal(r.aujourdhui, 3);
-  assert.equal(r.jours[5].n, 1);
-  assert.equal(r.jours.reduce((t, j) => t + j.n, 0), 4); // l'entrée d'il y a 10 jours est hors fenêtre
+  assert.equal(r.jours[1].n, 1, 'mardi');
+  assert.equal(r.jours.reduce((t, j) => t + j.n, 0), 4); // l'entrée d'il y a 10 jours est hors de la semaine
   assert.equal(r.equipe.map(q => `${q.nom}:${q.n}`).join(','), 'Julie VASSELIN:2,Agenda:1');
-  assert.equal(r.max, 3);
+  // Un lundi : aujourd'hui en PREMIER, la veille (dimanche) appartient à la semaine d'avant.
+  const lundi = app.rythmeActivite([{ date: new Date(MIDI - 30 * 3600000).toISOString(), auteur: 'X' }], MIDI);
+  assert.equal(lundi.jours[0].aujourdhui, true);
+  assert.equal(lundi.jours.reduce((t, j) => t + j.n, 0), 0);
 });
 
 test('groupeJourActivite : Aujourd’hui, Hier, Plus tôt', () => {

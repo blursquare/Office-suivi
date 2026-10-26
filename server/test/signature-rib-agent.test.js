@@ -80,12 +80,15 @@ test('l’agent qui n’a pu qu’essayer l’envoi : « refusé », jamais un f
 });
 
 test('sans lien de brouillon dans la réponse : jamais « créé » ; un lien de modèle n’est pas un brouillon', async () => {
+  // Aucune création appelée : dit tel quel, avec le modèle du RIB et la réponse de l'agent (26/10).
   let r = await service(fauxClient([texte('C’est fait.'), idle('end_turn')])).creerBrouillon(SIGNATAIRE);
-  assert.deepEqual([r.ok, r.code], [false, 'sans_lien']);
+  assert.deepEqual([r.ok, r.code], [false, 'sans_creation']);
+  assert.match(r.raison, /Signature d'attestation et envoi de RIB/);
+  assert.match(r.raison, /C’est fait/);
   r = await service(fauxClient([texte('https://yousign.app/auth/workspace/templates/93797308-f633-411a-8223-4d03c09064e3'), idle('end_turn')])).creerBrouillon(SIGNATAIRE);
-  assert.equal(r.code, 'sans_lien');
+  assert.equal(r.ok, false, 'un lien de modèle n’est pas un brouillon');
   r = await service(fauxClient([texte('https://evil.example/auth/workspace/requests/4a304c31-e229-47d2-9adc-d2b2f443b5bc'), idle('end_turn')])).creerBrouillon(SIGNATAIRE);
-  assert.equal(r.code, 'sans_lien', 'seule l’adresse de Yousign est reprise');
+  assert.equal(r.ok, false, 'seule l’adresse de Yousign est reprise');
 });
 
 test('requires_action ne termine pas ; session arrêtée, essais épuisés, flux fermé : échec', async () => {
@@ -314,4 +317,31 @@ test('agent Yousign : un outil hors liste déjà permis par la console (sans « 
   assert.equal(r.ok, false);
   assert.equal(r.code, 'configuration');
   assert.ok(c.envoyes.some((e) => e.events && e.events[0].type === 'user.interrupt'));
+});
+
+test('brouillon lu dans le RÉSULTAT de la création, sans lien dans la réponse ; refus de Yousign dit tel quel (26/10)', async () => {
+  const ID = '4a304c31-e229-47d2-9adc-d2b2f443b5bc';
+  const creation = { type: 'agent.mcp_tool_use', id: 'sevt_9', name: 'create-signature-request-from-template', evaluated_permission: 'ask' };
+  // Succès : l'identifiant et le lien viennent du résultat de Yousign, l'agent n'a rien recopié.
+  let r = await service(fauxClient([creation, { type: 'agent.mcp_tool_result', mcp_tool_use_id: 'sevt_9', is_error: false,
+    content: [{ type: 'text', text: JSON.stringify({ id: ID, status: 'draft', url: 'https://yousign.app/auth/workspace/requests/' + ID }) }] }, texte('Brouillon prêt.'), idle('end_turn')])).creerBrouillon(SIGNATAIRE);
+  assert.deepEqual([r.ok, r.id], [true, ID]);
+  assert.equal(r.url, 'https://yousign.app/auth/workspace/requests/' + ID);
+  // Un lien d'un autre site dans le résultat n'est jamais repris : le lien de Yousign est reconstruit depuis l'identifiant.
+  r = await service(fauxClient([creation, { type: 'agent.mcp_tool_result', mcp_tool_use_id: 'sevt_9', is_error: false,
+    content: [{ type: 'text', text: JSON.stringify({ id: ID, url: 'https://evil.example/x' }) }] }, idle('end_turn')])).creerBrouillon(SIGNATAIRE);
+  assert.equal(r.url, 'https://yousign.app/auth/workspace/requests/' + ID);
+  // Refus de Yousign : dit, jamais « pas de lien ».
+  r = await service(fauxClient([creation, { type: 'agent.mcp_tool_result', mcp_tool_use_id: 'sevt_9', is_error: true, content: [{ type: 'text', text: 'Forbidden' }] },
+    texte('La création a échoué.'), idle('end_turn')])).creerBrouillon(SIGNATAIRE);
+  assert.deepEqual([r.ok, r.code], [false, 'yousign_refus']);
+});
+
+test('brouillonDepuisResultat et lienYousignSur : purs', () => {
+  const { brouillonDepuisResultat, lienYousignSur } = require('../src/signatureRibAgent');
+  assert.equal(lienYousignSur('https://app.yousign.com/a'), 'https://app.yousign.com/a');
+  assert.equal(lienYousignSur('http://yousign.app/a'), '');
+  assert.equal(lienYousignSur('https://yousign.app.evil.example/a'), '');
+  assert.equal(brouillonDepuisResultat({ content: 'rien' }), null);
+  assert.equal(brouillonDepuisResultat({ content: [{ type: 'text', text: '{"signature_request":{"id":"4A304C31-E229-47D2-9ADC-D2B2F443B5BC"}}' }] }).id, '4a304c31-e229-47d2-9adc-d2b2f443b5bc');
 });

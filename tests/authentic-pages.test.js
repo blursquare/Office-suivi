@@ -1726,3 +1726,23 @@ test('collaborateurAuthentic : la notaire (GOSSART, nom de l’office) n’est j
   assert.equal(app.estAdministrateur('Sophie GOSSART'), true);
   assert.equal(app.FONCTIONS_SIGNATURE_DEFAUT['Sophie GOSSART'], 'Notaire');
 });
+
+test('fiche client d’une SOCIÉTÉ : côté trouvé par ses mots significatifs, société ajoutée aux parties (26/10)', () => {
+  const champs = [
+    { libelle: 'Dénomination sociale*', valeur: 'SCI DES PINS' },
+    { libelle: 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:tabView:identiteClient:societeType:selectonemenu_input', valeur: 'Société civile immobilière' },
+    { libelle: "Numéro d'identification", valeur: '123456789' }
+  ];
+  assert.equal(app.motsSignificatifsSociete('SCI DES PINS').join(','), 'pins');
+  const d = { id: 'd1', nom: 'MARTIN / LES PINS', parties: [{ nom: 'Paul MARTIN', role: 'VENDEUR', civilite: 'M' }], historique: [] };
+  assert.equal(app.roleSocieteAuthenticDansDossier(d, 'SCI DES PINS'), 'ACQUEREUR');
+  const capture = { champs: champs.concat({ libelle: 'ui-ficho-tabs:mainTabPanel:tabForm9:tabContent:tabView:identiteClient:categorie:selectonemenu_input', valeur: 'Société' }), tableaux: [], texte: '' };
+  app.appliquerReleveSurDossier(d, capture, '2026-10-26T10:00:00.000Z');
+  const sci = d.parties.find((p) => p.qualitePersonne === 'morale');
+  assert.ok(sci, JSON.stringify(d.parties));
+  assert.equal(sci.role, 'ACQUEREUR');
+  assert.equal(sci.nom, 'SCI DES PINS');
+  // Relue : jamais ajoutée deux fois.
+  app.appliquerReleveSurDossier(d, capture, '2026-10-26T10:05:00.000Z');
+  assert.equal(d.parties.filter((p) => p.qualitePersonne === 'morale').length, 1);
+});
