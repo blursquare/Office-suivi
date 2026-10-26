@@ -67,21 +67,22 @@ async function enregistrerServeur() {
   const origines = { origins: [url.protocol + "//" + url.hostname + "/*"] };
   // Demandée AVANT toute attente : Chrome n'accepte la demande que pendant le geste de l'utilisateur (une autorisation déjà donnée
   // répond oui sans rien montrer). Fenêtre CLAIRE en application (Chrome --app, 26/10 : « je ne peux pas enregistrer quand ça s'ouvre
-  // dans la fenêtre liée à CLAIRE ») : Chrome n'y montre pas la demande — elle échoue ou ne répond jamais. 5 s au plus, puis la
-  // connexion s'ouvre dans un onglet ordinaire du même profil, où la demande s'affiche.
-  const demande = Promise.race([
-    chrome.permissions.request(origines).catch(() => null),
-    new Promise((r) => setTimeout(() => r(null), 5000))
-  ]);
+  // dans la fenêtre liée à CLAIRE ») : Chrome n'y montre pas la demande — refus immédiat ou aucune réponse. Dans ce cas la connexion
+  // s'ouvre dans un onglet ordinaire du même profil (`?connexion=1`), où la demande s'affiche.
+  const dansOnglet = /[?&]connexion=1/.test(location.search);
+  const debut = Date.now();
+  const demande = chrome.permissions.request(origines).catch(() => null);
   serveur = url.origin;
-  // L'adresse est gardée même sans l'autorisation : l'onglet ouvert plus bas la reprend.
+  // L'adresse est gardée même sans l'autorisation : l'onglet la reprend.
   await chrome.storage.local.set({ serveur });
-  let accorde = await demande;
+  // Dans l'onglet, la boîte de Chrome est attendue sans délai ; dans le panneau, 5 s au plus — une réponse plus tardive est encore prise.
+  let accorde = await (dansOnglet ? demande : Promise.race([demande, new Promise((r) => setTimeout(() => r(undefined), 5000))]));
   if (!accorde && await chrome.permissions.contains(origines).catch(() => false)) accorde = true;
+  if (accorde === undefined) demande.then(async (oui) => { if (oui && await tester()) { msg("#connexion-msg", "Enregistré — CLAIRE répond.", true); rechercher(); } });
+  // Un refus rendu en moins de 300 ms : aucune boîte n'a été montrée (fenêtre CLAIRE) ; plus tard, c'est l'utilisateur qui a refusé.
+  const refuse = accorde === false && Date.now() - debut > 300;
   if (!accorde) {
-    // Dans l'onglet ouvert pour l'autorisation : la réponse de Chrome est dite. Dans le panneau, un refus peut venir de la fenêtre CLAIRE
-    // elle-même (aucune demande montrée) : l'onglet est proposé dans les deux cas.
-    if (/[?&]connexion=1/.test(location.search)) { msg("#connexion-msg", accorde === false ? "Autorisation refusée : l’extension ne pourra pas joindre CLAIRE." : "Chrome n’a pas demandé l’autorisation : ouvrez Détails de l’extension › Accès aux sites."); return; }
+    if (dansOnglet || refuse) { msg("#connexion-msg", refuse ? "Autorisation refusée : l’extension ne pourra pas joindre CLAIRE." : "Chrome n’a pas demandé l’autorisation : ouvrez Détails de l’extension › Accès aux sites."); return; }
     msg("#connexion-msg", "Autorisez CLAIRE dans l’onglet Chrome qui vient de s’ouvrir (bouton Enregistrer), puis revenez ici.");
     chrome.tabs.create({ url: chrome.runtime.getURL("panel/panel.html?connexion=1") });
     return;
@@ -185,7 +186,7 @@ async function init() {
   // Onglet ouvert pour l'autorisation : la connexion reste visible pour cliquer « Enregistrer ».
   if (/[?&]connexion=1/.test(location.search)) $("#connexion").hidden = false;
   // L'autorisation donnée dans l'onglet : le panneau ouvert dans la fenêtre CLAIRE se reconnecte seul.
-  chrome.permissions.onAdded.addListener(async () => { if (serveur && await tester()) rechercher(); });
+  chrome.permissions.onAdded.addListener(async () => { if (serveur && await tester()) { msg("#connexion-msg", "Enregistré — CLAIRE répond.", true); rechercher(); } });
 
   $("#enregistrer").addEventListener("click", enregistrerServeur);
   // Un clic sur le témoin rouvre la connexion (changer l'adresse de CLAIRE).

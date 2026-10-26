@@ -237,7 +237,9 @@
   // montrait que « AB 12, AB 13 », la ligne avec les surfaces étant repliée sous « Modifier ») : « AB 12 (6 a 6 ca), AB 13 » puis le total
   // quand toutes ont leur surface ; 6 parcelles au plus, puis « +N ».
   function texteParcellesCarteBien(d, b) {
-    const igne = contenancesIgnDossier(d);
+    // Contenance de l'IGN (sans commune) seulement quand tous les biens sont dans la même commune : jamais l'« AB 12 » d'une autre.
+    const biens = biensDossier(d);
+    const igne = biens.some((x, i) => biens.some((y, j) => j > i && memeCommune(x, y) === false)) ? null : contenancesIgnDossier(d);
     const lignes = ((b && b.parcelles) || []).filter(p => p && p.section && p.numero).map(p => surfaceParcelleFiche(p, igne));
     if (!lignes.length) return '';
     const textes = lignes.slice(0, 6).map(l => (l.surface ? `${l.ref} (${l.surface})` : l.ref));
