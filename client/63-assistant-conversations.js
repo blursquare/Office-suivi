@@ -238,9 +238,13 @@
           <wa-button appearance="plain" size="s" class="bouton-icone asst-fil-suppr" type="button" onclick="supprimerConversationAssistant('${escapeOnclickArg(c.id)}')" title="Supprimer la conversation" aria-label="Supprimer la conversation">${icone('x')}</wa-button>
         </li>`;
     };
-    zone.innerHTML = groupes.length
+    const total = tousGroupes.reduce((n, g) => n + g.conversations.length, 0);
+    const ouverte = typeof sectionOuverte === 'function' ? sectionOuverte('claire', true) : true;
+    const entete = total ? `<button type="button" class="cx-groupe-titre cx-plie cx-plie-claire" onclick="basculerSectionDiscussions('claire', true)" aria-expanded="${ouverte}">${icone(ouverte ? 'chevron-down' : 'chevron-right')}Claire <span class="cx-nb">${total}</span></button>` : '';
+    if (total && !ouverte) { zone.innerHTML = entete; return; }
+    zone.innerHTML = entete + (groupes.length
       ? groupes.map(g => `<div class="asst-fils-groupe"><div class="asst-fils-titre">${escapeHtml(g.titre)}</div><ul class="asst-fils-liste">${g.conversations.map(ligne).join('')}</ul></div>`).join('')
         + (vue.cachees ? `<button type="button" class="cx-voir-plus" onclick="basculerConversationsAssistant()">Voir les ${vue.cachees} autres</button>`
           : conversationsToutesVisiblesAssistant && tousGroupes.reduce((n, g) => n + g.conversations.length, 0) > CONVERSATIONS_VISIBLES_ASSISTANT ? '<button type="button" class="cx-voir-plus" onclick="basculerConversationsAssistant()">Voir moins</button>' : '')
-      : '<p class="asst-fils-vide">Vos conversations apparaîtront ici.</p>';
+      : '<p class="asst-fils-vide">Vos conversations apparaîtront ici.</p>');
   }

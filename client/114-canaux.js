@@ -10,7 +10,7 @@ var canaux = {
   liste: [], badge: 0, charge: false, collaborateurs: [],
   actif: '',                 // '' = conversations personnelles ; 'general' | 'd:<id>' | 'l:<nom>' | '@traiter' (vue des propositions à décider)
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
-  recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, mesDossiersTous: false, autresDossiersOuverts: false, listeOuverte: true,
+  recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, mesDossiersTous: false, sections: {}, listeOuverte: true,
   claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
   equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
@@ -435,7 +435,7 @@ function renderCanaux() {
     ${filtre ? '' : traiter}
     ${htmlSectionsSlack(filtre)}
     ${bloc('Favoris', s.favoris)}
-    ${bloc('Équipe', s.equipe)}
+    ${s.equipe.length ? htmlGroupePliable('equipe', 'Équipe', s.equipe.length, nonLusLignes(s.equipe), true, `<ul class="cx-liste-c">${s.equipe.map(ligneCanal).join('')}</ul>`, filtre) : ''}
     ${blocMesDossiers(s)}
     ${blocAutresDossiers(s, filtre)}
     ${pliable('Dossiers calmes', s.calmes, canaux.calmesOuverts, 'basculerSectionCanaux(\'calmes\')')}
@@ -443,6 +443,17 @@ function renderCanaux() {
     ${!s.favoris.length && !s.equipe.length && !s.actifs.length && !s.calmes.length && !s.archives.length ? '<p class="asst-fils-vide">Aucun canal ne correspond.</p>' : ''}`;
   if (enSaisie) { const n = zone.querySelector('.cx-filtre input'); if (n) { n.focus(); const l = n.value.length; n.setSelectionRange(l, l); } }
 }
+
+// Blocs pliables de la colonne (mix B + D, étude 26/10) : chevron, nombre et, replié, la pastille des non-lus. `sections` garde le choix
+// de l'utilisateur ; sans choix, `ouvertDefaut` (ouvert si le bloc a du non-lu, sinon celui que la présentation décide).
+function sectionOuverte(cle, ouvertDefaut) { return Object.prototype.hasOwnProperty.call(canaux.sections, cle) ? !!canaux.sections[cle] : !!ouvertDefaut; }
+function basculerSectionDiscussions(cle, ouvertDefaut) { canaux.sections[cle] = !sectionOuverte(cle, ouvertDefaut); renderCanaux(); if (cle === 'claire' && typeof renderFilsAssistant === 'function') renderFilsAssistant(); }
+function htmlGroupePliable(cle, titre, nb, nonLus, ouvertDefaut, contenu, forceOuvert) {
+  const ouvert = forceOuvert || sectionOuverte(cle, ouvertDefaut);
+  const pastille = !ouvert && nonLus ? `<span class="cx-n cx-n-groupe" title="${nonLus} non lu${nonLus > 1 ? 's' : ''}">${nonLus > 99 ? '99+' : nonLus}</span>` : '';
+  return `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="basculerSectionDiscussions('${cle}', ${!!ouvertDefaut})" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${titre}${nb !== '' ? ` <span class="cx-nb">${nb}</span>` : ''}${pastille}</button>${ouvert ? contenu : ''}</div>`;
+}
+function nonLusLignes(lignes) { return lignes.reduce((n, e) => n + (e.notif === 'muet' ? 0 : (Number(e.mentions) || Number(e.nonLus) || 0)), 0); }
 
 // « Mes dossiers » : les 6 premiers, puis « Voir les N autres » (étude 26/10, mix B + D des maquettes).
 var MES_DOSSIERS_VISIBLES = 6;
@@ -453,17 +464,14 @@ function blocMesDossiers(s) {
   const cachees = s.mesActifs.length - lignes.length;
   const plus = cachees ? `<button type="button" class="cx-voir-plus" onclick="basculerMesDossiersCanaux()">Voir les ${cachees} autres</button>`
     : tout && s.mesActifs.length > MES_DOSSIERS_VISIBLES ? '<button type="button" class="cx-voir-plus" onclick="basculerMesDossiersCanaux()">Voir moins</button>' : '';
-  return `<div class="cx-groupe"><div class="cx-groupe-titre">Mes dossiers <span class="cx-nb">${s.mesActifs.length}</span></div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>${plus}</div>`;
+  return htmlGroupePliable('mes', 'Mes dossiers', s.mesActifs.length, nonLusLignes(s.mesActifs), true, `<ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>${plus}`);
 }
 // « Autres dossiers » : replié, avec le nombre de non-lus des dossiers des collègues ; s'ouvre seul pendant une recherche.
 function blocAutresDossiers(s, filtre) {
   if (!s.autresActifs.length) return '';
-  const nonLus = s.autresActifs.reduce((n, e) => n + (e.notif === 'muet' ? 0 : Number(e.nonLus) || 0), 0);
-  const ouvert = canaux.autresDossiersOuverts || !!filtre;
-  return `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="basculerAutresDossiersCanaux()" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${s.mesActifs.length ? 'Autres dossiers' : 'Dossiers'} <span class="cx-nb">${s.autresActifs.length}</span>${!ouvert && nonLus ? `<span class="cx-n cx-n-groupe" title="${nonLus} non lu${nonLus > 1 ? 's' : ''}">${nonLus > 99 ? '99+' : nonLus}</span>` : ''}</button>${ouvert ? `<ul class="cx-liste-c">${s.autresActifs.map(ligneCanal).join('')}</ul>` : ''}</div>`;
+  return htmlGroupePliable('autres', s.mesActifs.length ? 'Autres dossiers' : 'Dossiers', s.autresActifs.length, nonLusLignes(s.autresActifs), !s.mesActifs.length, `<ul class="cx-liste-c">${s.autresActifs.map(ligneCanal).join('')}</ul>`, !!filtre);
 }
 function basculerMesDossiersCanaux() { canaux.mesDossiersTous = !canaux.mesDossiersTous; renderCanaux(); }
-function basculerAutresDossiersCanaux() { canaux.autresDossiersOuverts = !canaux.autresDossiersOuverts; renderCanaux(); }
 
 function filtrerCanaux(valeur) {
   canaux.saisieListe = String(valeur || '');
