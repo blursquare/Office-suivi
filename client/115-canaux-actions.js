@@ -111,6 +111,8 @@ function renderCanalAssistant(zone) {
       : (typeCanal(canaux.actif) === 'dossier'
         ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @Claire. Un collègue : @Prénom. Vous pouvez par exemple demander',
           ['Où en est ce dossier ?', 'Qu’est-ce qui manque pour signer ?', 'Prépare l’appel de fonds'], false, 'folder')
+        : typeCanal(canaux.actif) === 'prive'
+        ? htmlPresentationClaire(nom, 'Une conversation privée.', 'Seules les personnes de cette conversation la voient. Écrivez ici : chaque message prévient les autres. Claire ne répond que si vous l’appelez avec @Claire.', [], false, 'users')
         : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, Claire répond quand on l’appelle avec @Claire. Un collègue : @Prénom.', [], false, 'diese')) + attente;
     return;
   }
