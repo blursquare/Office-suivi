@@ -28,20 +28,17 @@ function rechercheWebUtilisee(messages) {
 }
 
 /**
- * Pure : la recherche web peut-elle être donnée à ce tour ? OpenLegi D'ABORD (étude 19/10 : « openlegi est à utiliser en priorité
- * avant la recherche web ») : quand Légifrance ou le BOFiP sont branchés pour la conversation, la recherche web n'est ajoutée qu'une
- * fois l'un d'eux appelé (même sans résultat) ; sans eux, elle est donnée tout de suite. Une fois donnée, elle le reste (l'historique
- * qui la contient reste valide). @param {{ rechercheWeb?: string[], outilsExternes?: any[], messages?: any[], anonymiser?: boolean, aEteEnClair?: boolean }} conv
+ * Pure : la recherche web peut-elle être donnée à ce tour ? Oui dès que l'étude a des sites autorisés, sauf conversation passée en clair.
+ * Étude 26/10 (« il faut que CLAIRE ait accès aux sources que j'ai mises et que j'ajoute dans les réglages » — CLAIRE disait ne pas avoir
+ * l'annuaire du service public) : la règle du 19/10, « OpenLegi en priorité avant la recherche web », ne retenait plus l'outil jusqu'à un
+ * appel à Légifrance ou au BOFiP (une recherche d'annuaire n'en appelle jamais) : elle reste une CONSIGNE du prompt pour les questions de droit.
+ * @param {{ rechercheWeb?: string[], outilsExternes?: any[], messages?: any[], anonymiser?: boolean, aEteEnClair?: boolean }} conv
  */
 function rechercheWebPourTour(conv) {
   const domaines = conv && Array.isArray(conv.rechercheWeb) ? conv.rechercheWeb : [];
   // Sans anonymisation, une requête écrite par l'IA pourrait porter un nom : pas de recherche web.
   if (!domaines.length || conv.anonymiser === false || conv.aEteEnClair) return [];
-  const droit = (/** @type {any} */ n) => /^(legifrance|bofip)__/i.test(String(n || ''));
-  if (!(conv.outilsExternes || []).some((t) => t && droit(t.name))) return domaines;
-  if (rechercheWebUtilisee(conv.messages)) return domaines;
-  const appele = (conv.messages || []).some((m) => m && m.role === 'assistant' && Array.isArray(m.content) && m.content.some((b) => b && b.type === 'tool_use' && droit(b.name)));
-  return appele ? domaines : [];
+  return domaines;
 }
 
 /** Pure : les adresses des pages web citées par Claude (citations des blocs de texte), sans doublon, 5 au plus. @param {any[]} contenu */
@@ -360,7 +357,7 @@ Comment tu travailles :
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
 - Canaux (« résume ce canal », « qu'ai-je manqué ? », « qui a parlé du dossier Martin ? ») : canaux_claire lit un canal ou cherche dans tous ; résume par sujet (décisions, questions restantes, qui fait quoi), jamais message par message.
 - Mémoire des conversations : chercher_conversations retrouve ce que l'étude t'a déjà demandé et ce que tu as répondu (90 jours) ; consulte-la quand on évoque un échange passé, avant de dire que tu ne sais pas. Elle rend aussi « reactions » : les emojis posés sur tes réponses (👍 compris, 👎 à corriger, ❓ pas clair…) — tiens-en compte (un 👎 ou un ❓ sur une réponse passée = ne répète pas ce point sans le vérifier). Les réactions posées depuis ta dernière réponse arrivent en tête de la question entre parenthèses : ne les commente pas longuement, adapte-toi.
-- Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, et TOUJOURS APRÈS Légifrance et le BOFiP quand ils te sont donnés (règle de l'étude : OpenLegi en priorité ; la recherche web ne t'est d'ailleurs donnée qu'après un appel à l'un d'eux) ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
+- Recherche web (quand elle t'est donnée) : seulement les sites officiels autorisés par l'étude, pour vérifier un texte, une règle ou une procédure publique, et, pour une question de DROIT (texte, jurisprudence, doctrine fiscale), TOUJOURS APRÈS Légifrance et le BOFiP quand ils te sont donnés (règle de l'étude : OpenLegi en priorité) ; pour tout le reste (coordonnées d'une mairie ou d'un service — annuaire du service public —, démarche, formulaire), sers-t'en directement sur les sites autorisés plutôt que de dire que tu n'y as pas accès ; jamais un code [NOM…], une adresse, un montant ou un nom dans une recherche ; cite la page consultée.
 - Relecture d'un acte (étude 18/10 : la relecture d'actes se fait ici) : appelle controles_relecture, puis lis le document (lire_document, par tranches de 30 pages) pour vérifier chaque point de la grille de l'étude et chaque constat de CLAIRE, en tenant compte des consignes de l'étude. Rends un compte rendu structuré, dans cet ordre : **Synthèse** (deux phrases) ; **À régler avant la signature** (le bloquant seulement) ; **À vérifier** ; **Orthographe et coquilles** (voir la règle plus bas) ; **Conforme** (une ligne par thème, bref) ; **Contradictions** entre les documents ; **Pièces ou informations manquantes**. Chaque point cite sa page [document_id p. N] et, quand c'est possible, le passage exact « … ». Jamais « conforme » pour un point que tu n'as pas trouvé dans le texte : dis « non trouvé dans le document ». Peu de bruit : l'étude se plaint du bruit, pas des oublis — ne signale pas l'anodin, regroupe, n'invente aucune règle de droit (vérifie dans les sources juridiques en cas de doute). Propose ensuite « Imprimer » ou rediger_document pour une note Word.
 - Orthographe et coquilles (étude 22/10 : « vérifier l'orthographe dans les analyses d'acte ») : dans toute relecture ou analyse d'un acte, relis le texte pour ses fautes d'orthographe, d'accord, de conjugaison, ses espaces ou apostrophes manquants (« le 17décembre 1998 »), ses chiffres incohérents d'un endroit à l'autre (numéro de loi, année à trois chiffres, quotes-parts) et ses mots répétés ; rends-les dans une rubrique **Orthographe et coquilles**, une ligne par faute « texte relevé » [document_id p. N] → correction, les fautes de chiffres signalées à part comme à corriger. Ne relève que ce qui est incontestablement dans l'acte : un mot collé, coupé ou une ligature peut venir de la LECTURE du PDF (surtout d'un scan) — dis « peut venir de l'extraction du texte » en cas de doute. N'y mets ni les noms propres ni les mots masqués par l'anonymisation (dis que tu ne peux pas les juger), ni l'accord ou les majuscules autour d'un code [NOM1], [EMAIL1], [REF1]… ; dis aussi que tu n'as pas fait un passage orthographique systématique si tu n'as pas lu tout le document. Une absence de faute se dit en une phrase, sans liste.
 - Plan : pour une demande en plusieurs temps, appelle plan_de_travail d'abord (3 à 8 étapes), puis mets-le à jour ; enchaîne seul les lectures et recherches nécessaires (25 tours au plus) sans demander la permission de lire.
@@ -755,7 +752,7 @@ async function tourAgent(entree, o) {
       table: new Map(), sensibles: new Set(), tours: 0, attendus: [], maj: maintenant, contexteDit: false,
       // Outils d'OpenLegi (Légifrance, BOFiP, RNE) : fixés pour toute la conversation (l'historique reste valide).
       outilsExternes: Array.isArray(externesConversation) ? externesConversation.filter((t) => t && /^(legifrance|bofip|rne)__[a-z0-9_]+$|^yousign__[a-zA-Z0-9_-]{1,50}$/i.test(t.name)).slice(0, 70) : [],
-      // Recherche web (Claude seulement), domaines fixés pour toute la conversation.
+      // Recherche web (Claude seulement) : sites des Réglages, relus à chaque message (plus bas).
       rechercheWeb: fournisseur === 'claude' && Array.isArray(o.rechercheWeb) ? o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40) : [] };
     // Yousign par le connecteur MCP de l'API Claude (lecture seule) : fixé pour la conversation ; jamais avec Mistral.
     if (fournisseur === 'claude' && typeof o.chargerConnecteurMcp === 'function') { try { conv.connecteurMcp = await o.chargerConnecteurMcp(); } catch (e) { conv.connecteurMcp = null; } }
@@ -764,6 +761,12 @@ async function tourAgent(entree, o) {
     conversations.set(conv.id, conv);
   }
   conv.maj = maintenant;
+  // Sites ajoutés dans les Réglages pendant une conversation : pris dès le message suivant (étude 26/10). Une liste vidée ne retire pas
+  // l'outil d'une conversation qui s'en est déjà servi (son historique le contient) ; une conversation passée en clair n'en reçoit jamais.
+  if (conv.fournisseur === 'claude' && !conv.aEteEnClair && Array.isArray(o.rechercheWeb)) {
+    const nouveaux = o.rechercheWeb.filter((d) => typeof d === 'string').slice(0, 40);
+    if (nouveaux.length || !rechercheWebUtilisee(conv.messages)) conv.rechercheWeb = nouveaux;
+  }
   if (EFFORTS_AGENT.includes(o.effort)) conv.effort = o.effort;
   // Anonymisation (étude 20/10 : « mets-la en option dans la colonne de droite ») : active par défaut ; désactivée, les noms arrivent
   // en clair chez le fournisseur pour cette conversation. Le changement est dit à l'IA à la question suivante.
@@ -890,7 +893,7 @@ async function tourAgent(entree, o) {
       const refus = (err && err.status === 400) || /refusée par Mistral/.test(String(err && err.messageAgent || ''));
       // Même chose pour la recherche web (relecture 0.285.0 : pas autorisée pour l'organisation, domaine refusé) tant qu'elle n'a pas servi.
       const externesRetirables = !!(conv.outilsExternes && conv.outilsExternes.length && !conv.externesUtilises);
-      // Le web n'est en cause que s'il était dans la requête refusée (OpenLegi d'abord : souvent absent au premier tour).
+      // Le web n'est en cause que s'il était dans la requête refusée.
       const webRetirable = rechercheWebPourTour(conv).length > 0 && !rechercheWebUtilisee(conv.messages);
       if (!refus || (!externesRetirables && !webRetirable)) throw err;
       const gardes = { externes: conv.outilsExternes, web: conv.rechercheWeb };
@@ -900,24 +903,30 @@ async function tourAgent(entree, o) {
       const externes = conv.outilsExternes || [];
       const deuxFamilles = externesRetirables && externes.some(estYousign) && externes.some((t) => !estYousign(t));
       const essayer = () => (conv.fournisseur === 'mistral' ? tourMistral(conv, o) : tourClaude(conv, o));
+      const refusDe = (/** @type {any} */ e2) => (e2 && e2.status === 400) || /refusée par Mistral/.test(String(e2 && e2.messageAgent || ''));
+      // Étapes de retrait, une à la fois, jusqu'à une requête acceptée (étude 26/10 : la recherche web est donnée dès le premier tour —
+      // un schéma refusé d'OpenLegi ne doit pas la couper à tort) : Yousign (s'il y a deux familles), puis OpenLegi, puis le web.
+      /** @type {{ nom: string, faire: () => void }[]} */
+      const etapes = [];
+      if (deuxFamilles) etapes.push({ nom: 'yousign', faire: () => { conv.outilsExternes = externes.filter((t) => !estYousign(t)); } });
+      if (externesRetirables) etapes.push({ nom: 'tous', faire: () => { conv.outilsExternes = []; } });
+      if (webRetirable) etapes.push({ nom: 'web', faire: () => { conv.rechercheWeb = []; } });
       let famille = '';
-      if (externesRetirables) { conv.outilsExternes = deuxFamilles ? externes.filter((t) => !estYousign(t)) : []; famille = deuxFamilles ? 'yousign' : 'tous'; }
-      if (webRetirable) conv.rechercheWeb = [];
-      try {
-        tour = await essayer();
-      } catch (err2) {
-        const refus2 = deuxFamilles && ((err2 && err2.status === 400) || /refusée par Mistral/.test(String(err2 && err2.messageAgent || '')));
-        if (!refus2) { conv.outilsExternes = gardes.externes; conv.rechercheWeb = gardes.web; throw err2; }
-        conv.outilsExternes = [];
-        famille = 'tous';
-        try { tour = await essayer(); } catch (err3) { conv.outilsExternes = gardes.externes; conv.rechercheWeb = gardes.web; throw err3; }
+      let webRetire = false;
+      for (let i = 0; ; i++) {
+        const etape = etapes[i];
+        etape.faire();
+        if (etape.nom === 'web') webRetire = true; else famille = etape.nom;
+        try { tour = await essayer(); break; } catch (e2) {
+          if (!refusDe(e2) || i === etapes.length - 1) { conv.outilsExternes = gardes.externes; conv.rechercheWeb = gardes.web; throw e2; }
+        }
       }
       // Le refus venait bien de là : la famille fautive mise de côté pour les conversations suivantes, la recherche web dite en échec.
-      if (externesRetirables) {
+      if (famille) {
         if (famille === 'yousign' && typeof o.surRefusYousign === 'function') o.surRefusYousign();
         else if (typeof o.surRefusOutilsExternes === 'function') o.surRefusOutilsExternes();
       }
-      if (webRetirable && o.parametresRepo) noterVerification(o.parametresRepo, 'agent-recherche-web', { ok: false, message: 'requête refusée avec la recherche web' });
+      if (webRetire && o.parametresRepo) noterVerification(o.parametresRepo, 'agent-recherche-web', { ok: false, message: 'requête refusée avec la recherche web' });
     }
   } catch (err) {
     noter({ erreur: true });

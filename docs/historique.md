@@ -22111,3 +22111,12 @@ mise à jour du serveur (copie figée, audit 0.354.0 M3) : retélécharger.
 Relecture 0.354.3 : secours PowerShell seulement pour `DisabledByManifest` / `Inconnu` (une coupure voulue — pour CLAIRE, tout le poste, stratégie
 de groupe — n'est jamais contournée, elle est dite) ; « Enabled » dit avec la réserve « Ne pas déranger » ; état « Muet » (PowerShell pas lancé)
 dit à part ; `VERSION_RELAIS` 2.1 rendu par `/etat` (`versionRelais`) — un relais 2.0 est annoncé « version ancienne ».
+
+### 26/10 — 0.354.4 : sites de la recherche web accessibles tout de suite
+
+Étude : « il faut que CLAIRE ait accès aux sources que j'ai mises et que j'ajoute dans les réglages » (CLAIRE : « je n'ai toujours pas accès
+à l'annuaire du service public, le nouvel accès ne figure pas dans mes outils »). Deux causes : `rechercheWebPourTour` ne donnait l'outil
+`web_search` qu'après un appel à Légifrance ou au BOFiP (règle du 19/10 ; une question d'annuaire n'en appelle jamais) ; `conv.rechercheWeb`
+était figé à la naissance de la conversation. Désormais : outil donné dès le premier tour (sauf conversation en clair ou anonymisation coupée),
+priorité à OpenLegi gardée comme consigne du prompt pour les questions de DROIT ; sites relus à chaque message (`tourAgent`, une liste vidée
+ne retire pas un outil déjà servi) ; refus de l'API : retrait un à un (Yousign, OpenLegi, web) pour qu'un schéma d'OpenLegi ne coupe pas le web.
