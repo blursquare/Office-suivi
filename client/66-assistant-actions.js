@@ -337,15 +337,25 @@
     const canal = idCanalPriveEntre(utilisateurPoste, collaborateur);
     if (!canal) return { erreur: 'conversation personnelle introuvable (collaborateur du poste non choisi ?)' };
     const texte = texteDemandeCollaborateur(e, d);
-    if (!(await demanderAutorisationAgent(`Écrire à ${prenomCollaborateur(collaborateur)}, dans votre conversation personnelle : « ${texte} »`))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    const avecTache = e.tache === true;
+    if (!(await demanderAutorisationAgent(`Écrire à ${prenomCollaborateur(collaborateur)}, dans votre conversation personnelle : « ${texte} »${avecTache ? ' — et poser cette tâche dans sa liste « À faire »' : ''}`))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
     let ok = false;
     try {
       const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(canal)}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auteur: utilisateurPoste, texte }) });
       ok = r.ok;
     } catch (err) { ok = false; }
-    noterVerificationPoste('agent-demande-collaborateur', ok ? { detail: 'message privé' } : { ok: false, message: 'message privé non posé' });
-    afficherToast(ok ? `Message envoyé à ${prenomCollaborateur(collaborateur)} dans votre conversation personnelle.` : 'Message NON envoyé : serveur injoignable ou refus.', 'OK', null);
-    return ok ? { fait: true, message: 'écrit dans la conversation personnelle avec ' + prenomCollaborateur(collaborateur) + '; tu ne vois pas sa réponse' } : { erreur: 'message non posé' };
+    // Une tâche dans la liste « À faire » du collègue, seulement si l'utilisateur l'a demandée (étude 26/10) ; pas de message Teams à part.
+    let tache = false;
+    if (ok && avecTache) {
+      try {
+        const rappel = rappelDemandeCollaborateur(e, utilisateurPoste, isoAujourdhuiLocal(), Date.now());
+        const r = await fetchAvecAuth('/api/rappels-perso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rappel }) });
+        tache = r.ok;
+      } catch (err) { tache = false; }
+    }
+    noterVerificationPoste('agent-demande-collaborateur', ok ? { detail: avecTache ? (tache ? 'message privé et tâche' : 'message privé, tâche non posée') : 'message privé' } : { ok: false, message: 'message privé non posé' });
+    afficherToast(ok ? `Message envoyé à ${prenomCollaborateur(collaborateur)} dans votre conversation personnelle${avecTache ? (tache ? ', tâche ajoutée à son « À faire »' : ', tâche NON enregistrée') : ''}.` : 'Message NON envoyé : serveur injoignable ou refus.', 'OK', null);
+    return ok ? { fait: true, message: 'écrit dans la conversation personnelle avec ' + prenomCollaborateur(collaborateur) + '; tu ne vois pas sa réponse', ...(avecTache ? { tache: tache ? 'ajoutée à son « À faire »' : 'non enregistrée' } : {}) } : { erreur: 'message non posé' };
   }
 
   // La tâche posée dans la liste du collaborateur, puis (si ce n'est pas soi) le message Teams. Voie unique de « Demander à CLAIRE » et du
