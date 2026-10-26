@@ -22091,3 +22091,10 @@ sur https://notaires.blois.fr//index.php/utilisateur/seconnecter (`URL_PERIL_BLO
 fenêtre que PowerShell ouvre : l'InputBox et les messages de l'installation étaient cachés, le relais attendait sans fin. `systeme().powershell`
 prend `{ fenetre: true }` pour les boîtes de dialogue (`windowsHide: false` ; PowerShell partage la console du relais, aucune fenêtre en plus) ;
 toasts et fenêtre CLAIRE restent cachés. Test « installation : boîte visible ».
+
+### 26/10 — 0.354.2 : réponse de CLAIRE notifiée même fenêtre visible derrière
+
+Étude : « si j'écris à Claire, j'aurai une notification à sa réponse ? » — `marquerCanalLu` (client/114) ne testait que `document.hidden` :
+une fenêtre CLAIRE visible derrière Word marquait la réponse lue à son arrivée, donc ni non-lu ni notification. Désormais lu seulement
+fenêtre au premier plan (`document.hasFocus()`), et au retour du focus (écouteur `focus`, garde des 20 s sautée). Rejoué dans Chromium
+(non lu sans focus, lu au retour). Reste sans notification : la conversation personnelle (hors canal, gardée sur le poste).

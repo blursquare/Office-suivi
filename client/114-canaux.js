@@ -183,6 +183,7 @@ function demarrerCanaux() {
   setInterval(() => { if (!document.hidden) chargerPhotosCollaborateurs(); }, 5 * 60 * 1000);
   // Fenêtre cachée ou réduite : relue quand même si la pastille de la barre des tâches est allumée (client/122).
   setInterval(() => { if (!document.hidden || pastilleActiveHorsEcran()) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
+  window.addEventListener('focus', () => { if (canaux.actif && ecranAffiche('assistant')) marquerCanalLu(true); });
   minuterieCanalActif = setInterval(() => {
     if (!document.hidden && canaux.actif && !vueSpecialeCanal(canaux.actif) && ecranAffiche('assistant')) chargerMessagesCanal(false);
   }, INTERVALLE_CANAL_ACTIF_MS);
@@ -219,11 +220,13 @@ function fusionnerMessagesCanal(serveur) {
 }
 
 var derniereLectureCanal = 0;
-function marquerCanalLu() {
+function marquerCanalLu(retour) {
   const id = canaux.actif;
-  if (!id || vueSpecialeCanal(id) || !utilisateurPoste || document.hidden) return;
+  // Lu seulement fenêtre CLAIRE AU PREMIER PLAN (étude 26/10 : « si j'écris à Claire, j'aurai une notification à sa réponse ? ») :
+  // une fenêtre restée visible derrière Word marquait la réponse lue à son arrivée, sans notification. Lue au retour (focus).
+  if (!id || vueSpecialeCanal(id) || !utilisateurPoste || document.hidden || !document.hasFocus()) return;
   const c = canaux.liste.find(x => x.id === id);
-  if (c && !c.nonLus && Date.now() - derniereLectureCanal < 20000) return;
+  if (!retour && c && !c.nonLus && Date.now() - derniereLectureCanal < 20000) return;
   derniereLectureCanal = Date.now();
   if (c) { canaux.badge = Math.max(0, canaux.badge - (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? c.mentions : c.nonLus)); c.nonLus = 0; c.mentions = 0; majPastilleCanaux(); renderCanaux(); }
   fetchAvecAuth(`/api/canaux/${encodeURIComponent(id)}/lu`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ utilisateur: utilisateurPoste }) }).catch(() => {});
