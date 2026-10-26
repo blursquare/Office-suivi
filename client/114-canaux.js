@@ -10,7 +10,7 @@ var canaux = {
   liste: [], badge: 0, charge: false, collaborateurs: [],
   actif: '',                 // '' = conversations personnelles ; 'general' | 'd:<id>' | 'l:<nom>' | '@traiter' (vue des propositions à décider)
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
-  recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, listeOuverte: true,
+  recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, mesDossiersTous: false, autresDossiersOuverts: false, listeOuverte: true,
   claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
   equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
@@ -53,7 +53,7 @@ function platCanal(s) {
 
 // Pure : les canaux, rangés pour la colonne. Favoris d'abord ; puis « général » et les canaux libres ; les dossiers en cours qui ont de
 // l'activité (non lus d'abord, puis le plus récent) ; les dossiers calmes (par nom) ; les archivés. Le filtre cherche dans les noms.
-function sectionsCanaux(serveur, dossiersListe, filtre) {
+function sectionsCanaux(serveur, dossiersListe, filtre, moi) {
   const parId = new Map((serveur || []).map(c => [c.id, c]));
   const f = platCanal(filtre).trim();
   const entree = (id, libelle, extra) => {
@@ -64,15 +64,19 @@ function sectionsCanaux(serveur, dossiersListe, filtre) {
   const garde = (e) => !f || platCanal(e.libelle).includes(f);
   const tous = [entree('general', 'général')];
   (serveur || []).filter(c => c.libre).forEach(c => tous.push(entree(c.id, c.nom || c.id.slice(2), { libre: true })));
-  (dossiersListe || []).filter(d => d && d.id).forEach(d => tous.push(entree('d:' + d.id, libelleDossierAffiche(d), { dossier: true, archive: !!d.archive })));
+  (dossiersListe || []).filter(d => d && d.id).forEach(d => tous.push(entree('d:' + d.id, libelleDossierAffiche(d), { dossier: true, archive: !!d.archive, responsable: d.responsable || '' })));
   const retenus = tous.filter(garde);
   const parActivite = (a, b) => (b.nonLus > 0) - (a.nonLus > 0) || b.dernierLe - a.dernierLe || a.libelle.localeCompare(b.libelle, 'fr');
   const favoris = retenus.filter(e => e.favori).sort(parActivite);
   const reste = retenus.filter(e => !e.favori);
+  const actifs = reste.filter(e => e.dossier && !e.archive && (e.dernierLe || e.nonLus)).sort(parActivite);
   return {
     favoris,
     equipe: reste.filter(e => !e.dossier),
-    actifs: reste.filter(e => e.dossier && !e.archive && (e.dernierLe || e.nonLus)).sort(parActivite),
+    actifs,
+    // Mes dossiers d'abord (étude 26/10) : ceux dont je suis le responsable ; les autres vont dans un bloc replié.
+    mesActifs: actifs.filter(e => moi && e.responsable === moi),
+    autresActifs: actifs.filter(e => !(moi && e.responsable === moi)),
     calmes: reste.filter(e => e.dossier && !e.archive && !(e.dernierLe || e.nonLus)).sort((a, b) => a.libelle.localeCompare(b.libelle, 'fr')),
     archives: reste.filter(e => e.dossier && e.archive).sort(parActivite)
   };
@@ -415,7 +419,7 @@ function renderCanaux() {
   if (!zone) return;
   const champFiltre = zone.querySelector('.cx-filtre input');
   const enSaisie = champFiltre && document.activeElement === champFiltre;
-  const s = sectionsCanaux(canaux.liste, dossiers, canaux.filtreListe);
+  const s = sectionsCanaux(canaux.liste, dossiers, canaux.filtreListe, utilisateurPoste);
   const filtre = !!(canaux.saisieListe || canaux.filtreListe).trim();
   const aTraiter = propositionsClaire.liste.length;
   const bloc = (titre, lignes, ouvrable) => lignes.length ? `<div class="cx-groupe"><div class="cx-groupe-titre">${titre}</div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul></div>` : '';
@@ -432,12 +436,34 @@ function renderCanaux() {
     ${htmlSectionsSlack(filtre)}
     ${bloc('Favoris', s.favoris)}
     ${bloc('Équipe', s.equipe)}
-    ${bloc('Dossiers', s.actifs)}
+    ${blocMesDossiers(s)}
+    ${blocAutresDossiers(s, filtre)}
     ${pliable('Dossiers calmes', s.calmes, canaux.calmesOuverts, 'basculerSectionCanaux(\'calmes\')')}
     ${pliable('Archivés', s.archives, canaux.archivesOuverts, 'basculerSectionCanaux(\'archives\')')}
     ${!s.favoris.length && !s.equipe.length && !s.actifs.length && !s.calmes.length && !s.archives.length ? '<p class="asst-fils-vide">Aucun canal ne correspond.</p>' : ''}`;
   if (enSaisie) { const n = zone.querySelector('.cx-filtre input'); if (n) { n.focus(); const l = n.value.length; n.setSelectionRange(l, l); } }
 }
+
+// « Mes dossiers » : les 6 premiers, puis « Voir les N autres » (étude 26/10, mix B + D des maquettes).
+var MES_DOSSIERS_VISIBLES = 6;
+function blocMesDossiers(s) {
+  if (!s.mesActifs.length) return '';
+  const tout = canaux.mesDossiersTous;
+  const lignes = tout ? s.mesActifs : s.mesActifs.slice(0, MES_DOSSIERS_VISIBLES);
+  const cachees = s.mesActifs.length - lignes.length;
+  const plus = cachees ? `<button type="button" class="cx-voir-plus" onclick="basculerMesDossiersCanaux()">Voir les ${cachees} autres</button>`
+    : tout && s.mesActifs.length > MES_DOSSIERS_VISIBLES ? '<button type="button" class="cx-voir-plus" onclick="basculerMesDossiersCanaux()">Voir moins</button>' : '';
+  return `<div class="cx-groupe"><div class="cx-groupe-titre">Mes dossiers <span class="cx-nb">${s.mesActifs.length}</span></div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>${plus}</div>`;
+}
+// « Autres dossiers » : replié, avec le nombre de non-lus des dossiers des collègues ; s'ouvre seul pendant une recherche.
+function blocAutresDossiers(s, filtre) {
+  if (!s.autresActifs.length) return '';
+  const nonLus = s.autresActifs.reduce((n, e) => n + (e.notif === 'muet' ? 0 : Number(e.nonLus) || 0), 0);
+  const ouvert = canaux.autresDossiersOuverts || !!filtre;
+  return `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="basculerAutresDossiersCanaux()" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${s.mesActifs.length ? 'Autres dossiers' : 'Dossiers'} <span class="cx-nb">${s.autresActifs.length}</span>${!ouvert && nonLus ? `<span class="cx-n cx-n-groupe" title="${nonLus} non lu${nonLus > 1 ? 's' : ''}">${nonLus > 99 ? '99+' : nonLus}</span>` : ''}</button>${ouvert ? `<ul class="cx-liste-c">${s.autresActifs.map(ligneCanal).join('')}</ul>` : ''}</div>`;
+}
+function basculerMesDossiersCanaux() { canaux.mesDossiersTous = !canaux.mesDossiersTous; renderCanaux(); }
+function basculerAutresDossiersCanaux() { canaux.autresDossiersOuverts = !canaux.autresDossiersOuverts; renderCanaux(); }
 
 function filtrerCanaux(valeur) {
   canaux.saisieListe = String(valeur || '');

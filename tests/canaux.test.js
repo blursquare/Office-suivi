@@ -143,3 +143,26 @@ test('accès rapide de la barre latérale : Général puis un message privé par
   assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general,moi');
   assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 1);
 });
+
+test('mes dossiers d’abord : les dossiers dont je suis responsable, les autres à part', () => {
+  const ds = [{ id: 'a', nom: 'ALPHA', responsable: 'Julie VASSELIN' }, { id: 'b', nom: 'BETA', responsable: 'Jérémy SAUJOT' }, { id: 'c', nom: 'GAMMA', responsable: 'Julie VASSELIN' }];
+  const serveur = [{ id: 'd:a', nonLus: 0, dernierLe: 10 }, { id: 'd:b', nonLus: 3, dernierLe: 20 }, { id: 'd:c', nonLus: 1, dernierLe: 5 }];
+  const s = app.sectionsCanaux(serveur, ds, '', 'Julie VASSELIN');
+  assert.equal(s.mesActifs.map(e => e.id).join(','), 'd:c,d:a');
+  assert.equal(s.autresActifs.map(e => e.id).join(','), 'd:b');
+  assert.equal(s.actifs.length, 3, 'la liste complète reste disponible');
+  assert.equal(app.sectionsCanaux(serveur, ds, '', '').mesActifs.length, 0, 'poste sans collaborateur : tout dans les autres');
+});
+
+test('conversations avec Claire : 3 visibles, la conversation ouverte jamais cachée, « voir plus » compte le reste', () => {
+  const conv = (id) => ({ id });
+  const groupes = [{ titre: 'Aujourd’hui', conversations: [conv('a'), conv('b')] }, { titre: 'Hier', conversations: [conv('c'), conv('d'), conv('e')] }];
+  const v = app.groupesVisiblesConversationsAssistant(groupes, '', false, 3);
+  assert.equal(v.groupes.map(g => g.conversations.map(c => c.id).join('')).join('|'), 'ab|c');
+  assert.equal(v.cachees, 2);
+  const ouverte = app.groupesVisiblesConversationsAssistant(groupes, 'e', false, 3);
+  assert.equal(ouverte.groupes[1].conversations.map(c => c.id).join(''), 'ce', 'la conversation ouverte reste visible');
+  assert.equal(ouverte.cachees, 1);
+  assert.equal(app.groupesVisiblesConversationsAssistant(groupes, '', true, 3).cachees, 0);
+  assert.equal(app.groupesVisiblesConversationsAssistant([groupes[0]], '', false, 3).cachees, 0, 'peu de conversations : tout est montré');
+});

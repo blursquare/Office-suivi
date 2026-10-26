@@ -11285,3 +11285,8 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .reaction-titre { padding: 8px 2px 4px; font-size: var(--texte-xs); font-weight: 600; color: var(--muted); }
 .reaction-grille { display: grid; grid-template-columns: repeat(8, 32px); gap: 2px; }
 .reaction-vide { padding: 12px 2px; font-size: var(--texte-s); color: var(--muted); }
+
+/* Colonne Discussions (étude 26/10, mix B + D) : « Voir les N autres », pastille d'un bloc replié. */
+.cx-voir-plus { display: block; width: 100%; padding: 4px 8px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: var(--texte-s); text-align: left; cursor: pointer; border-radius: var(--rayon-s); }
+.cx-voir-plus:hover { background: var(--paper-sunk); }
+.cx-n-groupe { margin-left: auto; }

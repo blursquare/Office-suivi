@@ -206,10 +206,31 @@
     if (page) page.classList.remove('fils-ouverts');
   }
 
+  // Étude 26/10 (mix B + D des maquettes) : les 3 conversations les plus récentes, la conversation ouverte toujours visible,
+  // puis « Voir les N autres » — avec 12 conversations, elles ne chassent plus les canaux hors de l'écran.
+  var CONVERSATIONS_VISIBLES_ASSISTANT = 3;
+  var conversationsToutesVisiblesAssistant = false;
+  function basculerConversationsAssistant() { conversationsToutesVisiblesAssistant = !conversationsToutesVisiblesAssistant; renderFilsAssistant(); }
+  // Pure : les conversations à montrer parmi les groupes datés (ordre conservé), { groupes, cachees }.
+  function groupesVisiblesConversationsAssistant(groupes, ouverte, tout, max) {
+    const total = groupes.reduce((n, g) => n + g.conversations.length, 0);
+    if (tout || total <= max) return { groupes, cachees: 0 };
+    let reste = max;
+    const visibles = [];
+    for (const g of groupes) {
+      const gardees = g.conversations.filter((c) => (reste > 0 ? (reste--, true) : c.id === ouverte));
+      if (gardees.length) visibles.push(Object.assign({}, g, { conversations: gardees }));
+    }
+    const montrees = visibles.reduce((n, g) => n + g.conversations.length, 0);
+    return { groupes: visibles, cachees: total - montrees };
+  }
+
   function renderFilsAssistant() {
     const zone = document.getElementById('assistant-fils');
     if (!zone) return;
-    const groupes = groupesConversationsAssistant(assistantConversations, Date.now());
+    const tousGroupes = groupesConversationsAssistant(assistantConversations, Date.now());
+    const vue = groupesVisiblesConversationsAssistant(tousGroupes, assistantConversationId, conversationsToutesVisiblesAssistant, CONVERSATIONS_VISIBLES_ASSISTANT);
+    const groupes = vue.groupes;
     const ligne = (c) => {
       const actif = c.id === assistantConversationId;
       return `<li class="asst-fil${actif ? ' actif' : ''}">
@@ -219,5 +240,7 @@
     };
     zone.innerHTML = groupes.length
       ? groupes.map(g => `<div class="asst-fils-groupe"><div class="asst-fils-titre">${escapeHtml(g.titre)}</div><ul class="asst-fils-liste">${g.conversations.map(ligne).join('')}</ul></div>`).join('')
+        + (vue.cachees ? `<button type="button" class="cx-voir-plus" onclick="basculerConversationsAssistant()">Voir les ${vue.cachees} autres</button>`
+          : conversationsToutesVisiblesAssistant && tousGroupes.reduce((n, g) => n + g.conversations.length, 0) > CONVERSATIONS_VISIBLES_ASSISTANT ? '<button type="button" class="cx-voir-plus" onclick="basculerConversationsAssistant()">Voir moins</button>' : '')
       : '<p class="asst-fils-vide">Vos conversations apparaîtront ici.</p>';
   }
