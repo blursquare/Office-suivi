@@ -1,30 +1,35 @@
 'use strict';
 
-// « Demander à CLAIRE » : une réponse apparaît d'un bloc, en fondu (étude 26/10, client/101-assistant-revelation.js).
+// « Demander à CLAIRE » : la réponse s'écrit peu à peu (étude 22/10, client/101-assistant-revelation.js) — la part pure.
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { chargerApplication } = require('./helpers/load-app');
 
-test('une réponse posée est « en apparition » le temps du fondu seulement, une autre réponse la remplace', () => {
+test('la révélation montre le début du texte, nœud après nœud, et tout à la fin', () => {
   const app = chargerApplication();
-  const a = { role: 'claire', html: '<p>Un</p>' }; const b = { role: 'claire', html: '<p>Deux</p>' };
-  assert.equal(app.messageEnApparitionAssistant(a), false);
-  app.lancerRevelationAssistant(a);
-  assert.equal(app.messageEnApparitionAssistant(a), true);
-  app.lancerRevelationAssistant(b);
-  assert.equal(app.messageEnApparitionAssistant(a), false, 'la précédente ne joue plus');
-  assert.equal(app.messageEnApparitionAssistant(b), true);
-  app.arreterRevelationAssistant();
-  assert.equal(app.messageEnApparitionAssistant(b), false);
-  assert.equal(app.messageEnApparitionAssistant(null), false);
+  const textes = ['Bonjour ', 'Julie', ', voici'];
+  assert.equal(app.textesRevelesAssistant(textes, 0).join('|'), '||');
+  assert.equal(app.textesRevelesAssistant(textes, 3).join('|'), 'Bon||');
+  assert.equal(app.textesRevelesAssistant(textes, 10).join('|'), 'Bonjour |Ju|');
+  assert.equal(app.textesRevelesAssistant(textes, 999).join('|'), 'Bonjour |Julie|, voici');
 });
 
-test('réponse sans IA : 2 s de réflexion au moins, jamais d’attente en plus quand la réponse a déjà mis 2 s', () => {
+test('la révélation dure 3 s au plus quelle que soit la longueur, 4 caractères par image au moins', () => {
   const app = chargerApplication();
-  assert.equal(app.resteReflexionAssistantMs(1000, 1100), 1900);
-  assert.equal(app.resteReflexionAssistantMs(1000, 3000), 0);
-  assert.equal(app.resteReflexionAssistantMs(1000, 9000), 0);
-  assert.equal(app.resteReflexionAssistantMs(5000, 4000), 2000, 'horloge qui recule : l’attente reste bornée à 2 s');
-  assert.equal(app.LATENCE_MINI_REPONSE_ASSISTANT_MS, 2000);
+  assert.equal(app.pasRevelationAssistant(50), 4);
+  assert.equal(app.pasRevelationAssistant(100), 4);
+  assert.ok(app.pasRevelationAssistant(5000) * 100 >= 5000);
+});
+
+test('resteReflexionAssistantMs : 2 s au moins, jamais négatif', () => {
+  const { resteReflexionAssistantMs } = chargerApplication();
+  assert.equal(resteReflexionAssistantMs(1000, 1000), 2000);
+  assert.equal(resteReflexionAssistantMs(1000, 2500), 500);
+  assert.equal(resteReflexionAssistantMs(1000, 5000), 0);
+});
+
+test('debutsBlocsRevelationAssistant : un bloc commence à son premier nœud texte', () => {
+  const { debutsBlocsRevelationAssistant } = chargerApplication();
+  assert.equal(JSON.stringify(debutsBlocsRevelationAssistant([0, 5, 12], [[0], [1, 2], []])), '[0,5,0]');
 });

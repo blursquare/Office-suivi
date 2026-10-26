@@ -150,7 +150,7 @@
       // avatar, prénom et heure en tête d'un groupe de messages du même auteur ; dans la suite, l'heure apparaît au survol dans la marge.
       const auteur = { role: m.role, auteur: m.role === 'moi' ? utilisateurPoste : '' };
       const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(auteur))}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}</span></div>` : '';
-      return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}${messageEnApparitionAssistant(m) ? ' asst-apparait' : ''}" data-index="${i}">
+      return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
           ${r.debutGroupe ? avatarCanal(auteur) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
           <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
           <div class="asst-survol">${htmlBoutonsReactionSurvol(m)}<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
