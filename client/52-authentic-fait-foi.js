@@ -628,7 +628,7 @@
     const fiche = {
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
       type: bien.type || '', description: String(bien.description || '').slice(0, 160),
-      parcelles: bien.parcelles.slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
+      parcelles: bien.parcelles.slice(0, MAX_PARCELLES_BIEN).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
         Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => !detailParcelleVide(k, p[k])).map(k => [k, String(p[k]).slice(0, 60)]))))
     };
     if ((bien.lots || []).length) fiche.lots = bien.lots.slice(0, 40);
@@ -690,21 +690,22 @@
     appliquerBoisAuthentic(d, bien, noter, resultat);
     const cad = (d.bien && d.bien.cadastre) || null;
     const deja = cad ? (Array.isArray(cad.parcelles) && cad.parcelles.length ? cad.parcelles : (cad.section ? [{ section: cad.section, numero: cad.numero }] : [])) : [];
-    const cles = new Set(deja.map(p => cleParcelle(p.section, p.numero)).filter(Boolean));
-    const nouvelles = bien.parcelles.filter(p => { const c = cleParcelle(p.section, p.numero); if (!c || cles.has(c)) return false; cles.add(c); return true; });
+    // La même parcelle = même section, numéro et, si les deux la donnent, même commune : deux « AB 12 » de communes différentes s'ajoutent.
+    const vues = deja.slice();
+    const nouvelles = bien.parcelles.filter(p => { if (!cleParcelle(p.section, p.numero) || vues.some(q => memeParcelle(q, p))) return false; vues.push(p); return true; });
     // Nature, surface et lieu-dit d'Authentic gardés sur la parcelle ; une parcelle déjà sur la fiche en reçoit ce qui lui manque.
     const details = (p) => Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe', 'adresseCadastre', 'zone', 'spf'].filter(k => p && !detailParcelleVide(k, p[k])).map(k => [k, String(p[k]).slice(0, 60)]));
-    const parBien = new Map(bien.parcelles.map(p => [cleParcelle(p.section, p.numero), p]));
+    const parcelleDuBien = (p) => bien.parcelles.find(q => memeParcelle(q, p));
     let complete = false;
     const anciennes = deja.map(p => {
       // Tout ce que la parcelle portait est gardé (lieu-dit et contenance lus dans le compromis compris).
       const sienne = Object.assign({}, p);
-      const a = parBien.get(cleParcelle(p.section, p.numero));
+      const a = parcelleDuBien(p);
       Object.entries(details(a)).forEach(([k, v]) => { if (detailParcelleVide(k, sienne[k])) { sienne[k] = v; complete = true; } });
       return sienne;
     });
     if (!nouvelles.length && !complete) { appliquerBoisAuthentic(d, bien, noter, resultat); return resultat; }
-    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, 40);
+    const parcelles = anciennes.concat(nouvelles.map(p => Object.assign({ section: p.section, numero: p.numero }, details(p)))).slice(0, MAX_PARCELLES_BIEN);
     d.bien = Object.assign({}, d.bien || {});
     d.bien.cadastre = Object.assign({}, cad || {}, { section: parcelles[0].section, numero: parcelles[0].numero, parcelles });
     if (nouvelles.length) noter(`Parcelle${nouvelles.length > 1 ? 's' : ''} relevée${nouvelles.length > 1 ? 's' : ''} dans Authentic ajoutée${nouvelles.length > 1 ? 's' : ''} : ${nouvelles.map(p => `${p.section} ${p.numero}`).join(', ')}`);
@@ -719,11 +720,11 @@
   function retenirImmeublesAuthentic(d, donnees) {
     if (!d || !donnees) return false;
     const ids = donnees.biens || [];
-    const liste = (donnees.immeubles || []).filter(im => !ids.length || ids.includes(im.id)).slice(0, 12).map(im => ({
+    const liste = (donnees.immeubles || []).filter(im => !ids.length || ids.includes(im.id)).slice(0, MAX_IMMEUBLES_DOSSIER).map(im => ({
       adresse: im.adresse && im.adresse.texte ? normaliserAdresse(im.adresse.texte) : '',
       codePostal: (im.adresse && im.adresse.codePostal) || '', commune: (im.adresse && im.adresse.commune) || '',
       type: im.type || '', description: String(im.description || '').slice(0, 160), details: (im.details || []).slice(0, 30),
-      parcelles: (im.parcelles || []).slice(0, 40).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
+      parcelles: (im.parcelles || []).slice(0, MAX_PARCELLES_BIEN).map(p => Object.assign({ section: String(p.section || '').toUpperCase(), numero: String(p.numero || '') },
         Object.fromEntries(['prefixe', 'commune', 'lieuDit', 'nature', 'surface', 'zone', 'spf', 'adresseCadastre'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))))
     })).filter(im => im.adresse || im.parcelles.length);
     if (!liste.length) return false;

@@ -770,7 +770,7 @@
     const fiche = {
       adresse: a.texte ? normaliserAdresse(a.texte) : '', codePostal: a.codePostal || '', commune: a.commune || '',
       type: bien.type || '', description: String(bien.description || '').slice(0, 160),
-      parcelles: (bien.parcelles || []).slice(0, 40).map(details)
+      parcelles: (bien.parcelles || []).slice(0, MAX_PARCELLES_BIEN).map(details)
     };
     if ((bien.lots || []).length) { fiche.lots = bien.lots.slice(0, 40); if (bien.tantiemesTotal != null) fiche.tantiemesTotal = bien.tantiemesTotal; }
     if ((bien.details || []).length) fiche.details = bien.details.slice(0, 30);
@@ -787,7 +787,7 @@
     // Le bien complété ou ajouté : le seul qui a changé (relecture 0.290.1 : l'historique nommait le dernier bien de la liste).
     const iChange = complete ? fusionnes.findIndex((im, i) => JSON.stringify(im) !== JSON.stringify(avantListe[i])) : fusionnes.length - 1;
     const fusion = fusionnes[iChange] || fiche;
-    d.authentic = Object.assign({}, avant, { immeubles: immeubles.slice(0, 12) });
+    d.authentic = Object.assign({}, avant, { immeubles: immeubles.slice(0, MAX_IMMEUBLES_DOSSIER) });
     // La liste affichée : un bien par immeuble, les biens notés autrement (anciens dossiers) gardés.
     const affiche = (im) => ({ adresse: im.adresse || '', type: im.type || '', parcelles: (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '), description: im.description || '' });
     const anciens = (Array.isArray(d.biens) ? d.biens : []).filter(b => !immeubles.some(im => (b.adresse && net(b.adresse) === net(im.adresse)) || (b.parcelles && (im.parcelles || []).some(p => net(b.parcelles).includes(net(p.section + ' ' + p.numero))))));

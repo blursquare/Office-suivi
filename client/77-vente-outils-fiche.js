@@ -369,7 +369,7 @@
       }
     });
     if (!parcelles.length && !lots.length) return null;
-    return { id: 'authentic-apercu', adresse: null, type: lots.length ? 'copropriete' : null, parcelles: parcelles.slice(0, 40), lots: lots.slice(0, 40), tantiemesTotal: null, surface: null, description: '', bois: null, apercu: true };
+    return { id: 'authentic-apercu', adresse: null, type: lots.length ? 'copropriete' : null, parcelles: parcelles.slice(0, MAX_PARCELLES_BIEN), lots: lots.slice(0, 40), tantiemesTotal: null, surface: null, description: '', bois: null, apercu: true };
   }
 
   // Pure : à la création depuis Authentic, l'aperçu de l'immeuble complète le seul bien relevé (lots, parcelles et leurs surfaces

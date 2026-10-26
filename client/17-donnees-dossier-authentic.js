@@ -133,16 +133,15 @@
     const d = donnees || {};
     const ids = d.biens || [];
     const immeubles = (d.immeubles || []).filter(im => !ids.length || ids.includes(im.id));
-    const vues = new Set();
     const out = [];
     immeubles.forEach(im => (im.parcelles || []).forEach(p => {
       const cle = cleParcelle(p.section, p.numero);
-      if (!cle || vues.has(cle)) return;
-      vues.add(cle);
+      // Même section et numéro dans deux communes différentes : deux parcelles (jamais fondues en une).
+      if (!cle || out.some(q => memeParcelle(q, p))) return;
       out.push(Object.assign({ section: String(p.section).toUpperCase(), numero: String(p.numero) },
         Object.fromEntries(['nature', 'surface', 'lieuDit', 'commune', 'prefixe'].filter(k => p[k]).map(k => [k, String(p[k]).slice(0, 60)]))));
     }));
-    return out.slice(0, 40);
+    return out.slice(0, MAX_PARCELLES_BIEN);
   }
 
   // Complète l'extraction (lue dans le texte de l'acte, ou vide) par les données structurées de
