@@ -21980,3 +21980,7 @@ Empreinte relais 1.2 : `919399b7…df4105`.
   test ajouté. Moyens laissés ouverts, dits à l'étude : refus des outils non prévus de l'agent Yousign seulement quand l'appel
   est « à confirmer » ; texte d'un autre message recopié par 🔁/❓ dans la question ; limites de lecture de 0.331.0 aussi
   appliquées à Mistral ; pièces jointes gardées sans quota disque ; lecture libre du NAS ouverte par défaut (choix de l'étude).
+  Publication du 26/10 : la règle du dépôt exige le contrôle « verifier » réussi sur le commit envoyé sur `main` ; lancé à la
+  demande, il a échoué à l'installation de Chromium — `ubuntu-latest` est passé à Ubuntu 26.04, que Playwright 1.56.1 ne sait
+  pas équiper (tests tous verts avant). `verifier.yml` et `build-exe.yml` sont fixés sur `ubuntu-24.04` (aucun changement de
+  CLAIRE, pas de numéro de version).

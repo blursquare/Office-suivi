@@ -22,7 +22,9 @@ jobs:
     # La branche main a ses contrôles dans build-exe.yml : une demande de fusion qui part de main (resynchronisation de « sauvegarde »)
     # ne les refait pas (étude 18/10 : minutes GitHub consommées en double).
     if: github.event_name != 'pull_request' || github.head_ref != 'main'
-    runs-on: ubuntu-latest
+    # Étude 26/10 : ubuntu-latest est passé à Ubuntu 26.04, que Playwright 1.56.1 ne sait pas équiper (« does not support chromium on
+    # ubuntu26.04-x64 ») — machine fixée sur la version où tout a été construit jusqu'ici.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4

@@ -39,7 +39,9 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Étude 26/10 : ubuntu-latest est passé à Ubuntu 26.04, que Playwright 1.56.1 ne sait pas équiper (« does not support chromium on
+    # ubuntu26.04-x64 ») — machine fixée sur la version où tout a été construit jusqu'ici.
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
