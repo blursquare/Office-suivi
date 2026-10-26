@@ -245,7 +245,7 @@
       </dl>
       <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Héritiers</span></span> <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
       <dl class="fiche-proprietes fiche-coordonnees">
-        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span>${autorisationsFonds ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" title="Autorisation de déblocage ou de transfert de fonds de cette personne, en PDF (modèles de l’office ; le modèle se change dans l’outil « Autorisations de fonds »)" onclick="telechargerAutorisationSuccession('${idJs}', '${escapeOnclickArg(p.nom)}')">${icone('download')}Autorisation</wa-button>` : ''}${boutonRibHeritier(p.nom)}`, null, 'prop-pleine')).join('')
+        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span>${autorisationsFonds ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" title="Autorisation de déblocage ou de transfert de fonds de cette personne, en PDF (modèles de l’office ; le modèle se change dans l’outil « Autorisations de fonds »)" onclick="telechargerAutorisationSuccession('${idJs}', '${escapeOnclickArg(p.nom)}')">${icone('download')}Autorisation</wa-button>` : ''}${boutonRibHeritier(p.nom)}${boutonRetirerPersonneSuccession(d, p.nom)}`, null, 'prop-pleine')).join('')
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
         ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
@@ -959,6 +959,14 @@
 
   // Retire un bien de la succession (étude 19/10 : « permettre de retirer un bien à la main » — un bien d'une autre vente y était entré) ;
   // gardé dans la liste des biens retirés pour qu'Authentic ne le remette pas.
+  // La croix d'un héritier : retire sa partie enregistrée sur la fiche (et ce qu'Authentic en avait repris) ; s'il figure dans les comparants
+  // d'Authentic il se remet seul à la lecture suivante. Pas de croix pour une personne qui n'est que dans les comparants.
+  function boutonRetirerPersonneSuccession(d, nom) {
+    const i = (Array.isArray(d.parties) ? d.parties : []).findIndex(p => p && memePersonneNommee([p.prenom, p.nom].filter(Boolean).join(' '), nom));
+    if (i < 0) return '';
+    return `<wa-button appearance="plain" size="s" class="bouton-icone personne-retirer" type="button" title="Retirer de la fiche (Authentic la remettra)" aria-label="Retirer ${escapeAttr(nom)} de la fiche" onclick="demanderRetirerPartie('${escapeOnclickArg(d.id)}', ${i})">${icone('x')}</wa-button>`;
+  }
+
   function retirerBienSuccession(id, source, index) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
@@ -975,7 +983,7 @@
       ajouterHistorique(d, `Bien retiré du dossier : ${bien.adresse || k.parcelles.join(', ')}`);
       await sauvegarder(d);
       render();
-    }, { bouton: 'Retirer', ton: 'danger' });
+    }, { bouton: 'Retirer pour toujours', ton: 'danger', autre: source === 'immeuble' ? { libelle: 'Retirer, Authentic pourra le remettre', action: () => retirerBienPourReprise(id, signatureBienVente(bien)) } : undefined });
   }
 
   // Pure : la partie de la succession que désigne la fiche client — par le nom (et un prénom) parmi les parties, sinon, pour une personne

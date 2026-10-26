@@ -11290,3 +11290,12 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .cx-voir-plus { display: block; width: 100%; padding: 4px 8px; border: 0; background: transparent; color: var(--accent); font: inherit; font-size: var(--texte-s); text-align: left; cursor: pointer; border-radius: var(--rayon-s); }
 .cx-voir-plus:hover { background: var(--paper-sunk); }
 .cx-n-groupe { margin-left: auto; }
+
+/* Croix sur les cartes de parties et de biens de la fiche (étude 26/10) : retirer, Authentic remet. */
+.pb-carte-avec-retrait { position: relative; }
+.pb-carte-avec-retrait .pb-carte { width: 100%; }
+.pb-carte-retirer { position: absolute; top: 4px; right: 30px; opacity: 0; transition: opacity 150ms; }
+.pb-carte-avec-retrait:hover .pb-carte-retirer, .pb-carte-retirer:focus-visible, .pb-carte-avec-retrait:focus-within .pb-carte-retirer { opacity: 1; }
+@media (hover: none) { .pb-carte-retirer { opacity: 1; } }
+.personne-retirer { flex: none; }
+.bien-vider { margin-left: 8px; }

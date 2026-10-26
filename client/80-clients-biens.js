@@ -426,6 +426,29 @@
       });
   }
 
+  // Pure : la croix d'une carte de partie — vente : sa place dans d.parties ; héritier d'une succession : sa partie enregistrée, s'il en a une.
+  // Jamais pour le défunt ni pour une personne qui n'est que dans les comparants d'Authentic (elle se remet seule).
+  function retraitPartieCarte(d, p) {
+    if (!d || !p || p.vide || p.role === 'Défunt') return null;
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const i = parties.findIndex(x => x && memePersonneNommee([x.prenom, x.nom].filter(Boolean).join(' '), p.nom));
+    if (i < 0) return null;
+    return { clic: `demanderRetirerPartie('${escapeOnclickArg(d.id)}', ${i})`, titre: `Retirer ${p.nom} de la fiche (Authentic la remettra)` };
+  }
+
+  // Pure : la croix d'une carte de bien — le bien principal d'une vente se vide ; un bien d'Authentic (autre bien, succession) est retiré
+  // sans être bloqué. Rien si le bien n'est dans aucun des deux.
+  function retraitBienCarte(d, b) {
+    if (!d || !b) return null;
+    const cle = (a) => normaliserPourRecherche(normaliserAdresse(a || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const signature = signatureBienVente(b);
+    const dansImmeubles = ((d.authentic && d.authentic.immeubles) || []).some(x => x && signatureBienVente(x) === signature);
+    const principal = !estSuccession(d) && (cle(b.adresse) && cle(b.adresse) === cle(d.adresseBien));
+    if (principal) return { clic: `demanderViderBien('${escapeOnclickArg(d.id)}')`, titre: 'Vider le bien de la fiche (Authentic le remettra)' };
+    if (dansImmeubles) return { clic: `retirerBienPourReprise('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(signature)}')`, titre: 'Retirer ce bien de la fiche (Authentic pourra le remettre)' };
+    return !estSuccession(d) ? { clic: `demanderViderBien('${escapeOnclickArg(d.id)}')`, titre: 'Vider le bien de la fiche (Authentic le remettra)' } : null;
+  }
+
   function renderCartesClientsBiensDossier(d) {
     if (!d || !d.id) return '';
     const e = cbParDossier.get(d.id);
@@ -445,12 +468,15 @@
     const ailleurs = (liste, peutEtre, nom) => (liste || []).map(x => `<span class="pb-ailleurs-ligne">${peutEtre ? 'Peut-être aussi : ' : 'Aussi : '}<b>${escapeHtml(x.libelle || 'Dossier')}</b> · ${escapeHtml(texteContexteDossierCb(Object.assign({}, x, { role: roleLu(x.id, nom, x.role), avec: (x.avec || []).map(q => Object.assign({}, q, { role: roleLu(x.id, q.nom, q.role) })) })))}</span>`).join('');
     // Carte reliée à sa fiche : un bouton qui l'ouvre ; fiches pas encore lues : « en cours de lecture » ; lues sans fiche pour elle (société,
     // nom introuvable) : une carte simple, jamais un message faux (relecture du 17/10).
-    const carte = (icone_, titre, sous, fiche, genre, ligneAilleurs, sansFiche) => {
+    // `retrait` : { clic, titre } — la croix posée sur la carte (étude 26/10 : retirer une partie ou un bien, qu'Authentic remettra) ; hors du bouton.
+    const croix = (retrait) => (retrait ? `<wa-button appearance="plain" size="s" class="bouton-icone pb-carte-retirer" type="button" title="${escapeAttr(retrait.titre)}" aria-label="${escapeAttr(retrait.titre)}" onclick="${retrait.clic}">${icone('x')}</wa-button>` : '');
+    const carte = (icone_, titre, sous, fiche, genre, ligneAilleurs, sansFiche, retrait) => {
       const corps = `<span class="pb-carte-tete">${icone(icone_)}<span class="pb-carte-titre">${escapeHtml(titre)}</span>${fiche || !f ? icone('chevron-right') : ''}</span>
         ${sous ? `<span class="pb-carte-sous">${escapeHtml(sous)}</span>` : ''}${ligneAilleurs}`;
-      if (fiche) return `<button type="button" class="pb-carte" onclick="ouvrirFicheClientBien('${genre}', '${escapeOnclickArg(fiche.id)}')" title="Ouvrir la fiche ${genre === 'bien' ? 'du bien' : 'client'}">${corps}</button>`;
-      if (!f && !sansFiche) return `<button type="button" class="pb-carte" onclick="afficherToast('Fiche en cours de lecture : réessayez dans un instant.', 'OK', null)">${corps}</button>`;
-      return `<div class="pb-carte pb-carte-simple">${corps}</div>`;
+      const avec = (html) => (retrait ? `<div class="pb-carte-avec-retrait">${html}${croix(retrait)}</div>` : html);
+      if (fiche) return avec(`<button type="button" class="pb-carte" onclick="ouvrirFicheClientBien('${genre}', '${escapeOnclickArg(fiche.id)}')" title="Ouvrir la fiche ${genre === 'bien' ? 'du bien' : 'client'}">${corps}</button>`);
+      if (!f && !sansFiche) return avec(`<button type="button" class="pb-carte" onclick="afficherToast('Fiche en cours de lecture : réessayez dans un instant.', 'OK', null)">${corps}</button>`);
+      return avec(`<div class="pb-carte pb-carte-simple">${corps}</div>`);
     };
     // Chaque fiche ne sert qu'une fois : même nom ET même rôle d'abord (homonymes vendeur / acquéreur, père et fils), puis même nom, puis
     // un nom contenu dans l'autre (prénom à part, prénom composé) s'il ne désigne qu'une fiche.
@@ -473,7 +499,7 @@
     personnesCartesDossier(d).forEach(p => {
       const fiche = p.vide ? null : ficheDe(p);
       if (!parRole.has(p.role)) parRole.set(p.role, []);
-      parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.sous || '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale || p.vide));
+      parRole.get(p.role).push(carte(p.morale ? 'users' : 'user', p.affiche || p.nom, p.sous || '', fiche, 'personne', fiche ? ailleurs(fiche.autres, false, fiche.nom) + ailleurs(fiche.peutEtreAutres, true, fiche.nom) : '', p.morale || p.vide, retraitPartieCarte(d, p)));
     });
     const TITRES = { Vendeur: ['Vendeur', 'Vendeurs'], 'Acquéreur': ['Acquéreur', 'Acquéreurs'], 'Défunt': ['Défunt', 'Défunt'], 'Héritier': ['Héritier', 'Héritiers'], Partie: ['Autre partie', 'Autres parties'] };
     // Titre au style de « Pièces du dossier » (étude 24/10) : icône et titre, plus de petites capitales grises.
@@ -485,7 +511,7 @@
       const parcelles = (b.parcelles || []).map(q => [q.prefixe, q.section, q.numero].filter(Boolean).join(' '));
       const fiche = fichesB.find(x => (x.libelle && b.adresse && normaliserPourRecherche(normaliserAdresse(x.libelle)) === normaliserPourRecherche(normaliserAdresse(b.adresse)))
         || (x.parcelles || []).some(q => parcelles.includes(q))) || (fichesB.length === 1 && biensDossier(d).length === 1 ? fichesB[0] : null);
-      return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [texteParcellesCarteBien(d, b), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '');
+      return carte('home', b.adresse ? normaliserAdresse(b.adresse) : (b.commune || 'Bien'), [texteParcellesCarteBien(d, b), (b.lots || []).length ? `${b.lots.length} lot${b.lots.length > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · '), fiche, 'bien', fiche ? ailleurs(fiche.autres, false, '') : '', false, retraitBienCarte(d, b));
     });
     return `${personnes.join('') || '<span class="hint">Aucune partie</span>'}
       ${biens.length ? groupe(biens.length > 1 ? 'Biens' : 'Bien', biens) : groupe('Bien', ['<span class="hint">Aucun bien relevé</span>'])}`;

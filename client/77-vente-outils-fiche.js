@@ -261,7 +261,7 @@
     // pas les contenances, alors il faut les mettre »).
     const igne = contenancesIgnDossier(d);
     const lignes = liste.filter(p => p && p.section && p.numero).map(p => Object.assign(surfaceParcelleFiche(p, igne),
-      { detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · ') }));
+      { detail: [p.nature, p.lieuDit, plusieursCommunes ? p.commune : ''].filter(Boolean).join(' · '), section: p.section, numero: p.numero, commune: p.commune || '' }));
     const total = lignes.length > 1 && lignes.every(l => l.m2 != null) ? lignes.reduce((s, l) => s + l.m2, 0) : null;
     return { lignes, total: total != null ? formaterContenance(total) : '', manquantes: lignes.filter(l => l.m2 == null).length };
   }
@@ -269,10 +269,11 @@
   function renderParcellesFiche(d) {
     const p = parcellesAfficheesFiche(d);
     if (!p.lignes.length) return '';
-    const lignes = p.lignes.map(l => `<span class="parcelle-fiche"><b>${escapeHtml(l.ref)}</b>${l.surface ? ` · ${escapeHtml(l.surface)}` : ' · <span class="hint">surface inconnue</span>'}${l.detail ? ` <span class="hint">${escapeHtml(l.detail)}</span>` : ''}</span>`).join('');
+    const lignes = p.lignes.map(l => `<span class="parcelle-fiche"><b>${escapeHtml(l.ref)}</b>${l.surface ? ` · ${escapeHtml(l.surface)}` : ' · <span class="hint">surface inconnue</span>'}${l.detail ? ` <span class="hint">${escapeHtml(l.detail)}</span>` : ''}<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Retirer cette parcelle de la fiche" aria-label="Retirer la parcelle ${escapeAttr(l.ref)}" onclick="demanderRetirerParcelle('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(l.section)}', '${escapeOnclickArg(l.numero)}', '${escapeOnclickArg(l.commune)}')">${icone('x')}</wa-button></span>`).join('');
     const total = p.total ? `<span class="parcelle-fiche parcelle-total">Total · ${escapeHtml(p.total)}</span>` : '';
     const aide = p.manquantes ? infoBulle('Surface lue dans la fiche du bien d’Authentic : ouvrez-la dans Authentic pour compléter les parcelles sans surface.') : '';
-    return `<span class="parcelles-fiche">${lignes}${total}</span>${aide}`;
+    const vider = `<button type="button" class="lien-action bien-vider" onclick="demanderViderBien('${escapeOnclickArg(d.id)}')" title="Efface adresse, parcelles et lots, et ce qu’Authentic en avait repris : le bien se remet depuis Authentic">Vider le bien</button>`;
+    return `<span class="parcelles-fiche">${lignes}${total}</span>${aide}${vider}`;
   }
 
   // Pure : la surface d'une ligne du tableau du cadastre d'une fiche bien d'Authentic (étude 19/10 : « il ne prend pas la surface », ZN 4 à
@@ -457,7 +458,7 @@
       ajouterHistorique(d, `Bien retiré du dossier : ${im.adresse ? normaliserAdresse(im.adresse) : [...aRetirer].join(', ')}`);
       await sauvegarder(d);
       render();
-    }, { bouton: 'Retirer', ton: 'danger' });
+    }, { bouton: 'Retirer pour toujours', ton: 'danger', autre: { libelle: 'Retirer, Authentic pourra le remettre', action: () => retirerBienPourReprise(id, signature) } });
   }
   function renderAutresBiensVente(d) {
     const autres = autresBiensVente(d);
