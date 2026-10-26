@@ -383,7 +383,7 @@ function majSaisieCanal() {
   const reel = canaux.actif && !vueSpecialeCanal(canaux.actif);
   if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', vueSpecialeCanal(canaux.actif)); }
   if (champ) champ.placeholder = reel
-    ? `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`
+    ? (typeCanal(canaux.actif) === 'prive' ? `Envoyer un message à ${libelleCanal(canaux.actif, canaux.liste, dossiers)}` : `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`)
     : 'Message à Claire… tapez @ pour citer un dossier';
   if (bascule) {
     bascule.style.display = reel && canaux.actif === 'general' ? '' : 'none';

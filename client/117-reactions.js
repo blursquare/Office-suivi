@@ -29,7 +29,9 @@ function htmlReactionsMessage(m) {
 // Boutons de la barre qui apparaît au survol : 👍 d'un clic et la palette.
 function htmlBoutonsReactionSurvol(m) {
   const cle = escapeOnclickArg(identifiantMessageReaction(m));
-  return `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="reagirMessageAssistant('${cle}', '👍')" title="Compris (👍)" aria-label="Réagir avec 👍">👍</wa-button>
+  // Trois réactions rapides au survol, comme dans Slack (étude 26/10) : ✅ 👀 👍 ; le reste dans le sélecteur.
+  const rapide = (e, titre) => `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="reagirMessageAssistant('${cle}', '${e}')" title="${titre}" aria-label="Réagir avec ${e}">${e}</wa-button>`;
+  return `${rapide('✅', 'Fait / d’accord (✅)')}${rapide('👀', 'Je regarde (👀)')}${rapide('👍', 'Compris (👍)')}
     <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirSelecteurReaction('${cle}', this)" title="Ajouter une réaction" aria-label="Ajouter une réaction">${icone('smile')}</wa-button>`;
 }
 
@@ -42,6 +44,32 @@ function fermerSelecteurReaction() {
 function clicHorsSelecteurReaction(event) { const s = document.getElementById('reaction-selecteur'); if (s && !s.contains(event.target)) fermerSelecteurReaction(); }
 function toucheSelecteurReaction(event) { if (event.key === 'Escape') fermerSelecteurReaction(); }
 
+// Emojis du sélecteur « plus d'emojis » : { e, m } avec des mots pour la recherche (étude 26/10 : recherche + sections, comme Slack).
+var EMOJIS_SMILEYS = [
+  ['😀', 'sourire content'], ['😄', 'rire joie'], ['😂', 'rire larmes mdr'], ['🤣', 'mort de rire'], ['😅', 'soulagement sueur'], ['😊', 'sourire doux'], ['😉', 'clin oeil'],
+  ['😍', 'amour coeur yeux'], ['🥰', 'amour adorer'], ['😘', 'bisou'], ['😎', 'cool lunettes'], ['🤔', 'reflexion question'], ['😮', 'surpris'], ['😢', 'triste pleur'],
+  ['😭', 'sanglots'], ['😡', 'colere'], ['😴', 'dormir fatigue'], ['🤷', 'aucune idee'], ['🙄', 'exaspere'], ['😬', 'gene'], ['🥳', 'fete'], ['🤗', 'calin'], ['🤝', 'accord poignee de main'],
+  ['👏', 'bravo applaudir'], ['💪', 'force courage'], ['🙌', 'bravo mains'], ['👋', 'bonjour salut'], ['👌', 'ok parfait'], ['✌️', 'paix victoire'], ['🤞', 'doigts croises chance'], ['🙏', 'merci priere svp']
+];
+var EMOJIS_TRAVAIL = [
+  ['✅', 'fait valide ok'], ['👀', 'regarde vu'], ['👍', 'pouce compris oui'], ['👎', 'pouce non'], ['❓', 'question'], ['❌', 'non refus'], ['⚠️', 'attention alerte'], ['🔥', 'urgent feu'],
+  ['💡', 'idee'], ['🎯', 'objectif cible'], ['📌', 'epingle'], ['📝', 'note'], ['📎', 'piece jointe'], ['📅', 'agenda date'], ['📞', 'telephone appel'], ['✉️', 'email courrier'],
+  ['🎉', 'fete bravo'], ['❤️', 'coeur merci'], ['✨', 'brillant'], ['🚀', 'lancement rapide'], ['⏳', 'attente'], ['🕐', 'plus tard rappel'], ['🔒', 'clos verrou'], ['👥', 'equipe']
+];
+
+function remplirSelecteurReaction(texte) {
+  const s = document.getElementById('reaction-selecteur');
+  if (!s) return;
+  const q = String(texte || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filtre = (liste) => liste.filter(([e, m]) => !q || e === q || m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q));
+  const bloc = (titre, liste) => {
+    const l = filtre(liste);
+    return l.length ? `<div class="reaction-titre">${escapeHtml(titre)}</div><div class="reaction-grille">${l.map(([e]) => `<button type="button" class="reaction-choix" onclick="choisirReactionPalette('${escapeOnclickArg(e)}')" aria-label="${escapeAttr(e)}">${escapeHtml(e)}</button>`).join('')}</div>` : '';
+  };
+  const html = bloc('Travailler efficacement', EMOJIS_TRAVAIL) + bloc('Smileys et gestes', EMOJIS_SMILEYS);
+  s.querySelector('.reaction-liste').innerHTML = html || '<div class="reaction-vide">Aucun emoji trouvé.</div>';
+}
+
 function ouvrirSelecteurReaction(cle, ancre) {
   const deja = document.getElementById('reaction-selecteur');
   fermerSelecteurReaction();
@@ -52,8 +80,9 @@ function ouvrirSelecteurReaction(cle, ancre) {
   s.dataset.cle = cle;
   s.setAttribute('role', 'dialog');
   s.setAttribute('aria-label', 'Choisir une réaction');
-  s.innerHTML = EMOJIS_PALETTE.map(e => `<button type="button" class="reaction-choix" onclick="choisirReactionPalette('${escapeOnclickArg(e)}')" aria-label="${escapeAttr(e)}">${escapeHtml(e)}</button>`).join('');
+  s.innerHTML = '<input type="search" class="reaction-recherche" placeholder="Rechercher un emoji…" aria-label="Rechercher un emoji" autocomplete="off" oninput="remplirSelecteurReaction(this.value)"><div class="reaction-liste"></div>';
   document.body.appendChild(s);
+  remplirSelecteurReaction('');
   const r = ancre.getBoundingClientRect();
   const l = s.offsetWidth;
   const h = s.offsetHeight;
@@ -61,8 +90,8 @@ function ouvrirSelecteurReaction(cle, ancre) {
   s.style.top = `${r.top - h - 6 > 8 ? r.top - h - 6 : Math.min(window.innerHeight - h - 8, r.bottom + 6)}px`;
   document.addEventListener('mousedown', clicHorsSelecteurReaction, true);
   document.addEventListener('keydown', toucheSelecteurReaction, true);
-  const premier = s.querySelector('button');
-  if (premier) premier.focus();
+  const champ = s.querySelector('.reaction-recherche');
+  if (champ) champ.focus();
 }
 
 function choisirReactionPalette(emoji) {

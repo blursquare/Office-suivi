@@ -1007,13 +1007,18 @@
   .sidebar-sousmenu.ferme { display: none; }
   /* Accès rapide aux discussions sous « Discussions » (étude 26/10) : mêmes sous-items que le tiroir des outils ; barre repliée : masqué. */
   .sidebar-acces-canaux { margin-bottom: 4px; }
-  .sb-canal-marque { flex: none; width: 8px; text-align: center; color: var(--muted); font-weight: 500; }
+  .sb-canal-avatar { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--rayon-xs); border: 1px solid var(--muted); font-size: var(--texte-xs); font-weight: 500; }
+  .sb-canal-avatar .avatar-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .sb-canal-diese { color: var(--muted); }
+  .sb-canal-avatar .cx-pres { position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; background: var(--paper-card); }
+  .sb-canal-avatar .cx-pres.en-ligne { background: var(--cat-vert); }
+  .sb-canal-vous { margin-left: 4px; color: var(--muted); font-size: var(--texte-xs); }
   .sb-canal .sidebar-badge-notif { min-width: 20px; height: 18px; padding: 0 4px; }
   .sb-canal-nom { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; }
   /* Barre repliée : le tiroir reste ouvert, en initiales (# pour Général) ; un point rouge dit qu'il y a du non-lu. */
   .sb-canal-initiale { display: none; }
   .sidebar.repliee .sb-canal .sb-canal-initiale { display: inline; font-size: var(--texte-m); font-weight: 500; }
-  .sidebar.repliee .sb-canal .sb-canal-nom, .sidebar.repliee .sb-canal .sb-canal-marque, .sidebar.repliee .sb-canal .cx-pres { display: none; }
+  .sidebar.repliee .sb-canal .sb-canal-nom, .sidebar.repliee .sb-canal .sb-canal-avatar, .sidebar.repliee .sb-canal .cx-pres { display: none; }
   .sidebar.repliee .sb-canal.non-lu { position: relative; }
   .sidebar.repliee .sb-canal.non-lu::after { content: ''; position: absolute; top: 6px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--notif-nouveau); }
   /* Deux catégories d'outils, Vente et Succession (étude 15/10) : un titre en capitales ; le liseré repart sous chacun. */
@@ -11220,12 +11225,14 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .asst-reaction-ajout { padding: 0 6px; opacity: 0; }
 .asst-reactions:hover .asst-reaction-ajout, .asst-reaction-ajout:focus-visible { opacity: 1; }
 @media (hover: none) { .asst-reaction-ajout { opacity: 1; } }
-.reaction-selecteur { position: fixed; z-index: 1000; display: grid; grid-template-columns: repeat(6, 32px); gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); }
+.reaction-selecteur { position: fixed; z-index: 1000; display: flex; flex-direction: column; gap: 4px; width: 300px; padding: 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); }
 .reaction-choix { width: 32px; height: 32px; border: 0; border-radius: var(--rayon-s); background: transparent; font-size: var(--texte-l); line-height: 1; cursor: pointer; }
 .reaction-choix:hover, .reaction-choix:focus-visible { background: var(--paper-sunk); outline: none; }
 
 /* ---- Mise en forme des messages et barre de saisie — étude 25/10, client/119-mise-en-forme.js ---- */
-.asst-format { display: inline-flex; align-items: center; gap: 0; padding-left: 4px; margin-left: 4px; border-left: 1px solid var(--line); }
+.asst-format { display: flex; align-items: center; gap: 0; padding: 4px 8px 0; flex-wrap: wrap; }
+.asst-page.mode-canal .asst-envoyer-texte { display: none; }
+.asst-page.mode-canal .asst-envoyer { margin-left: auto; }
 .asst-fmt-gras::part(label) { font-weight: 700; }
 .asst-fmt-ital::part(label) { font-style: italic; }
 .asst-fmt-barre::part(label) { text-decoration: line-through; }
@@ -11266,3 +11273,15 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .cx-res-lieu { color: var(--muted); font-size: var(--texte-xs); }
 .cx-res-texte { font-size: var(--texte-s); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .cx-pres.absent { background: repeating-linear-gradient(135deg, var(--cat-rouge) 0 2px, transparent 2px 4px); border-color: var(--cat-rouge); }
+
+/* « Plus tard » d'une proposition : trois choix qui s'ouvrent à côté du bouton (étude 26/10). */
+.pc-plus-tard { display: inline-flex; align-items: center; gap: 4px; }
+.pc-reporter { display: none; align-items: center; gap: 0; }
+.pc-plus-tard.ouvert .pc-reporter { display: inline-flex; }
+
+/* Sélecteur d'emojis avec recherche et sections (étude 26/10). */
+.reaction-recherche { width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); color: var(--ink); font: inherit; }
+.reaction-liste { max-height: 260px; overflow-y: auto; }
+.reaction-titre { padding: 8px 2px 4px; font-size: var(--texte-xs); font-weight: 600; color: var(--muted); }
+.reaction-grille { display: grid; grid-template-columns: repeat(8, 32px); gap: 2px; }
+.reaction-vide { padding: 12px 2px; font-size: var(--texte-s); color: var(--muted); }

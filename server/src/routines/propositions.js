@@ -1,8 +1,9 @@
 // @ts-check
 'use strict';
 // Boîte de propositions de CLAIRE (clé `routines-propositions`) : ce que les routines ont préparé, par collaborateur. Une proposition est
-// un brouillon d'email, un document, une tâche, des dates ou une alerte ; le collaborateur l'autorise, la refuse ou la laisse expirer
-// (30 jours). Une proposition ACCEPTÉE ou REFUSÉE n'est jamais refaite (même empreinte). Rien ici n'envoie ni n'écrit hors de CLAIRE.
+// un brouillon d'email, un document, une tâche, des dates ou une alerte ; le collaborateur l'autorise, la refuse, dit qu'elle est DÉJÀ
+// FAITE (étude 26/10 : fermée sans que CLAIRE exécute rien, ni acceptée ni refusée pour les statistiques), la REPORTE (elle réapparaît
+// à la date choisie) ou la laisse expirer (30 jours). Une proposition ACCEPTÉE, REFUSÉE ou DÉJÀ FAITE n'est jamais refaite (même empreinte). Rien ici n'envoie ni n'écrit hors de CLAIRE.
 // Fonctions pures sur la liste : l'appelant lit et réécrit la clé.
 
 const CLE_PROPOSITIONS = 'routines-propositions';
@@ -12,7 +13,7 @@ const JOURS_EXPIRATION = 30;
 const SEUIL_PROMOTION_PROPOSITIONS = 30;
 const SEUIL_PROMOTION_TAUX = 0.9;
 const TYPES = ['email', 'document', 'tache', 'dates', 'alerte'];
-const ETATS = ['proposee', 'vue', 'acceptee', 'refusee', 'expiree'];
+const ETATS = ['proposee', 'vue', 'acceptee', 'refusee', 'faite', 'expiree'];
 
 /** @param {any} v @param {number} max */
 function texteBorne(v, max) {
@@ -56,7 +57,9 @@ function assainirProposition(p) {
     creeLe: date(p.creeLe),
     traiteLe: date(p.traiteLe),
     traitePar: texteBorne(p.traitePar, 80),
-    resumeTeamsLe: date(p.resumeTeamsLe)
+    resumeTeamsLe: date(p.resumeTeamsLe),
+    // Reportée : cachée de « À traiter » (et de la pastille) jusqu'à cette date, puis de nouveau à décider.
+    reporteJusqua: date(p.reporteJusqua)
   };
 }
 
@@ -86,16 +89,55 @@ function ajouterProposition(liste, nouvelle, maintenant) {
   return { liste: nouvelleListe, ajoutee: null, reattribuee: Object.assign({ avant: deja.responsable }, suivie) };
 }
 
-/** @param {any[]} liste @param {string} id @param {'vue' | 'acceptee' | 'refusee'} decision @param {string} par @param {Date} [maintenant] */
-function decider(liste, id, decision, par, maintenant) {
+/**
+ * Pure : l'instant (ISO) d'un report — « demain », « dans 3 jours », « lundi » (le prochain) ou « maintenant » (reprendre) — à 8 h, heure de
+ * Paris. @param {string} quand @param {Date} [maintenant] @returns {string} '' = reprendre maintenant, null = demande inconnue
+ */
+function dateDeReport(quand, maintenant) {
+  const t = maintenant || new Date();
+  const ymd = (/** @type {Date} */ d) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
+  const aujourdhui = ymd(t);
+  const [y, m, j] = aujourdhui.split('-').map(Number);
+  const jourSemaine = new Date(Date.UTC(y, m - 1, j)).getUTCDay();   // 0 dimanche … 6 samedi
+  /** @type {Record<string, number>} */
+  const jours = { demain: 1, '3-jours': 3, lundi: ((8 - jourSemaine) % 7) || 7 };
+  if (quand === 'reprendre') return '';
+  if (!Object.prototype.hasOwnProperty.call(jours, quand)) return /** @type {any} */ (null);
+  const cible = new Date(Date.UTC(y, m - 1, j + jours[quand])).toISOString().slice(0, 10);
+  // 8 h à Paris : 06:00 UTC l'été, 07:00 l'hiver — on prend celui qui donne bien 8 h.
+  for (const h of [6, 7]) {
+    const essai = new Date(`${cible}T0${h}:00:00Z`);
+    if (Number(essai.toLocaleString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', hour12: false })) === 8) return essai.toISOString();
+  }
+  return new Date(`${cible}T07:00:00Z`).toISOString();
+}
+
+/** Pure : la proposition est-elle reportée à une date pas encore atteinte ? @param {any} p @param {Date} [maintenant] */
+function estReportee(p, maintenant) {
+  return !!(p && p.reporteJusqua && Date.parse(p.reporteJusqua) > (maintenant || new Date()).getTime());
+}
+
+/**
+ * Décide d'une proposition : « vue » (alerte lue), « acceptee », « refusee », « faite » (déjà faite : fermée sans rien exécuter) ou « reporter »
+ * (`options.quand` : demain, 3-jours, lundi, reprendre). Une décision finale ne change plus ; un report ne ferme rien.
+ * @param {any[]} liste @param {string} id @param {'vue' | 'acceptee' | 'refusee' | 'faite' | 'reporter'} decision @param {string} par @param {Date} [maintenant] @param {{ quand?: string }} [options]
+ */
+function decider(liste, id, decision, par, maintenant, options) {
   const i = liste.findIndex((x) => x.id === id);
-  if (i < 0 || !['vue', 'acceptee', 'refusee'].includes(decision)) return { liste, proposition: null };
+  if (i < 0 || !['vue', 'acceptee', 'refusee', 'faite', 'reporter'].includes(decision)) return { liste, proposition: null };
   const avant = liste[i];
   // Une proposition déjà traitée ne change plus (un double clic ne la défait pas) ; « vue » ne rétrograde jamais une décision.
-  if (avant.etat === 'acceptee' || avant.etat === 'refusee' || avant.etat === 'expiree') return { liste, proposition: avant };
+  if (avant.etat === 'acceptee' || avant.etat === 'refusee' || avant.etat === 'faite' || avant.etat === 'expiree') return { liste, proposition: avant };
   if (decision === 'vue' && avant.etat === 'vue') return { liste, proposition: avant };
-  const p = Object.assign({}, avant, { etat: decision }, decision === 'vue' ? {} : { traiteLe: (maintenant || new Date()).toISOString(), traitePar: texteBorne(par, 80) });
   const nouvelle = liste.slice();
+  if (decision === 'reporter') {
+    const jusqua = dateDeReport(String((options && options.quand) || ''), maintenant);
+    if (jusqua === null) return { liste, proposition: null };
+    const p = Object.assign({}, avant, { reporteJusqua: jusqua });
+    nouvelle[i] = p;
+    return { liste: nouvelle, proposition: p };
+  }
+  const p = Object.assign({}, avant, { etat: decision, reporteJusqua: '' }, decision === 'vue' ? {} : { traiteLe: (maintenant || new Date()).toISOString(), traitePar: texteBorne(par, 80) });
   nouvelle[i] = p;
   return { liste: nouvelle, proposition: p };
 }
@@ -113,20 +155,22 @@ function expirer(liste, maintenant) {
 
 /**
  * Les propositions d'un collaborateur (ou de tous), les plus récentes d'abord. `etats` : liste d'états ; `dossierId` : un dossier.
- * @param {any[]} liste @param {{ responsable?: string, tous?: boolean, etats?: string[], dossierId?: string }} filtre
+ * @param {any[]} liste @param {{ responsable?: string, tous?: boolean, etats?: string[], dossierId?: string, reportees?: boolean, maintenant?: Date }} filtre
  */
 function listerPropositions(liste, filtre) {
   const f = filtre || {};
   return liste
     .filter((p) => (f.tous || !f.responsable || p.responsable === f.responsable)
       && (!f.etats || f.etats.includes(p.etat))
+      // `reportees` : vrai = seulement les reportées, faux = sans les reportées (la boîte « À traiter »), absent = toutes.
+      && (f.reportees === undefined || estReportee(p, f.maintenant) === f.reportees)
       && (!f.dossierId || p.dossierId === f.dossierId))
     .sort((a, b) => String(b.creeLe).localeCompare(String(a.creeLe)));
 }
 
-/** Le nombre à traiter (proposées ou vues, pas encore décidées) d'un collaborateur. @param {any[]} liste @param {string} responsable @param {boolean} [tous] */
-function compterATraiter(liste, responsable, tous) {
-  return listerPropositions(liste, { responsable, tous, etats: ['proposee', 'vue'] }).length;
+/** Le nombre à traiter (proposées ou vues, pas encore décidées) d'un collaborateur. @param {any[]} liste @param {string} responsable @param {boolean} [tous] @param {Date} [maintenant] */
+function compterATraiter(liste, responsable, tous, maintenant) {
+  return listerPropositions(liste, { responsable, tous, etats: ['proposee', 'vue'], reportees: false, maintenant }).length;
 }
 
 /**
@@ -161,6 +205,6 @@ function ecrirePropositions(repo, liste) {
 
 module.exports = {
   CLE_PROPOSITIONS, MAX_PROPOSITIONS, JOURS_EXPIRATION, SEUIL_PROMOTION_PROPOSITIONS, SEUIL_PROMOTION_TAUX, TYPES, ETATS,
-  assainirProposition, assainirPropositions, ajouterProposition, decider, expirer, listerPropositions, compterATraiter, statsRoutine,
+  assainirProposition, assainirPropositions, ajouterProposition, decider, dateDeReport, estReportee, expirer, listerPropositions, compterATraiter, statsRoutine,
   lirePropositions, ecrirePropositions
 };

@@ -8,7 +8,7 @@ const { lirePropositions } = require('../routines/propositions');
 const { lireMessages, reagirMessage, canalDuDossier } = require('./canaux');
 
 const CLE_ETAT_CARTES = 'canaux-cartes-etat';
-const ETATS_EMOJIS = ['⏳', '✅', '❌', '💤'];
+const ETATS_EMOJIS = ['⏳', '✅', '❌', '☑️', '💤'];
 const ATTENTE_MS = 24 * 3600 * 1000;
 
 /** Pur : l'emoji d'état d'une proposition ('' = aucun). @param {any} p @param {number} maintenant */
@@ -16,7 +16,10 @@ function emojiEtatCarte(p, maintenant) {
   if (!p) return '';
   if (p.etat === 'acceptee') return '✅';
   if (p.etat === 'refusee') return '❌';
+  if (p.etat === 'faite') return '☑️';
   if (p.etat === 'expiree') return '💤';
+  // Reportée : pas de ⏳ avant sa date (elle n'attend plus de réponse).
+  if ((p.etat === 'proposee' || p.etat === 'vue') && p.reporteJusqua && Date.parse(p.reporteJusqua) > maintenant) return '';
   if ((p.etat === 'proposee' || p.etat === 'vue') && p.creeLe && maintenant - Date.parse(p.creeLe) >= ATTENTE_MS) return '⏳';
   return '';
 }

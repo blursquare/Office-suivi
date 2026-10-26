@@ -5,7 +5,7 @@
 // propositions dont je suis le responsable) alimente la vue « À traiter » des canaux ; les réglages des routines (interrupteurs, trois niveaux
 // d'autonomie) sont dans client/113-reglages-routines.js. Serveur : server/src/routines/, canaux/, routes/routines.js, routes/canaux.js.
 
-var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], charge: false };
+var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], reportees: [], charge: false };
 var INTERVALLE_PROPOSITIONS_MS = 60 * 1000;
 
 // ---- Pures ----
@@ -43,6 +43,7 @@ function etatTexteProposition(p, maintenantMs) {
   const quand = p && p.traiteLe ? ` · ${ageTexteProposition(p.traiteLe, maintenantMs)}` : '';
   if (p && p.etat === 'acceptee') return `Autorisée${par}${quand}`;
   if (p && p.etat === 'refusee') return `Refusée${par}${quand}`;
+  if (p && p.etat === 'faite') return `Déjà fait${par}${quand}`;
   if (p && p.etat === 'expiree') return 'Expirée : sans réponse depuis 30 jours';
   return '';
 }
@@ -81,6 +82,10 @@ async function chargerPropositionsClaire(onglet) {
     if (filtre === 'a-traiter') {
       propositionsClaire.liste = corps.propositions || [];
       propositionsClaire.aTraiter = corps.aTraiter || 0;
+      try {
+        const rr = await fetchAvecAuth(`/api/propositions?utilisateur=${encodeURIComponent(utilisateurPoste)}&etat=reportees`);
+        if (rr.ok) propositionsClaire.reportees = (await rr.json()).propositions || [];
+      } catch (e) { /* les reportées gardent leur dernier état */ }
     } else {
       propositionsClaire.traitees = corps.propositions || [];
       propositionsClaire.aTraiter = corps.aTraiter || 0;
@@ -109,15 +114,22 @@ function carteProposition(p, options) {
     p.routineNom ? `<span class="pc-puce">${escapeHtml(p.routineNom)}</span>` : '',
     p.exemple ? '<span class="pc-puce pc-puce-exemple">Exemple</span>' : ''
   ].join('');
-  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree';
+  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite';
+  const reportee = !traitee && p.reporteJusqua && Date.parse(p.reporteJusqua) > Date.now();
   const moi = peutDeciderProposition(p, utilisateurPoste);
   const actions = traitee
     ? `<p class="pc-etat pc-etat-${escapeAttr(p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>`
     : !moi
       ? `<p class="pc-etat">Pour ${escapeHtml(prenomCollaborateur(p.responsable))} : c’est à elle ou lui de décider.</p>`
+      : reportee
+      ? `<div class="pc-actions"><p class="pc-etat">Reportée jusqu’au ${escapeHtml(new Date(p.reporteJusqua).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))}.</p>
+        <wa-button appearance="outlined" size="s" type="button" onclick="reporterProposition('${idJs}', 'reprendre')">Reprendre maintenant</wa-button></div>`
       : `<div class="pc-actions">
         <wa-button variant="brand" size="s" type="button" onclick="autoriserProposition('${idJs}')">${icone(t.icone)}${escapeHtml(t.bouton)}</wa-button>
         ${p.type === 'alerte' ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="refuserProposition('${idJs}')">Refuser</wa-button>`}
+        ${p.type === 'alerte' ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dejaFaitProposition('${idJs}')" title="Ça a déjà été fait : on ferme sans rien exécuter">Déjà fait</wa-button>
+        <span class="pc-plus-tard"><wa-button appearance="outlined" size="s" type="button" onclick="this.parentNode.classList.toggle('ouvert')" aria-haspopup="true">Plus tard</wa-button>
+          <span class="pc-reporter" role="group" aria-label="Reporter à"><wa-button appearance="plain" size="s" type="button" onclick="reporterProposition('${idJs}', 'demain')">Demain</wa-button><wa-button appearance="plain" size="s" type="button" onclick="reporterProposition('${idJs}', '3-jours')">Dans 3 jours</wa-button><wa-button appearance="plain" size="s" type="button" onclick="reporterProposition('${idJs}', 'lundi')">Lundi</wa-button></span></span>`}
         ${p.dossierId && p.type !== 'alerte' ? `<wa-button appearance="plain" size="s" type="button" onclick="silencerDossierProposition('${idJs}')">Jamais pour ce dossier</wa-button>` : ''}
       </div>`;
   return `<article class="pc-carte pc-type-${escapeAttr(p.type)}${o.compacte ? ' pc-compacte' : ''}${traitee ? ' pc-traitee' : ''}" data-proposition="${escapeAttr(p.id)}">
@@ -156,9 +168,9 @@ function peutDeciderProposition(p, utilisateur) {
   return !!p && (!p.responsable || p.responsable === utilisateur || estAdministrateur(utilisateur));
 }
 
-async function enregistrerDecisionProposition(id, decision) {
+async function enregistrerDecisionProposition(id, decision, quand) {
   const r = await fetchAvecAuth(`/api/propositions/${encodeURIComponent(id)}/decision`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, auteur: utilisateurPoste })
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ decision, auteur: utilisateurPoste, quand: quand || '' })
   });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
   const corps = await r.json();
@@ -262,6 +274,36 @@ async function refuserProposition(id) {
   if (decidee.dejaTraitee) { afficherToast('Cette proposition a déjà été traitée.', 'OK', null); await apresDecisionProposition(); return; }
   noterVerificationPoste('routines-boite-poste', { detail: 'proposition refusée' });
   afficherToast('Refusée : CLAIRE ne la proposera plus.', 'OK', null);
+  await apresDecisionProposition();
+}
+
+// « Déjà fait » : la proposition est fermée sans rien exécuter (étude 26/10 : « qu'est-ce qu'on fait si c'est déjà fait ? »).
+async function dejaFaitProposition(id) {
+  const p = propositionParId(id);
+  if (!p || propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
+  try {
+    const decidee = await enregistrerDecisionProposition(id, 'faite');
+    afficherToast(decidee.dejaTraitee ? 'Cette proposition a déjà été traitée.' : 'Notée « déjà fait » : CLAIRE ne la reproposera pas.', 'OK', null);
+  } catch (e) {
+    afficherToast('Non enregistré : ' + e.message, 'OK', null);
+    return;
+  } finally { delete propositionsEnCours[id]; }
+  await apresDecisionProposition();
+}
+
+// « Plus tard » : la proposition quitte « À traiter » et y revient seule à 8 h (demain, dans 3 jours, lundi) ; « reprendre » la rend tout de suite.
+async function reporterProposition(id, quand) {
+  const p = propositionParId(id);
+  if (!p || propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
+  try {
+    await enregistrerDecisionProposition(id, 'reporter', quand);
+    afficherToast(quand === 'reprendre' ? 'Remise dans « À traiter ».' : 'Reportée : elle reviendra dans « À traiter » à 8 h.', 'OK', null);
+  } catch (e) {
+    afficherToast('Non reporté : ' + e.message, 'OK', null);
+    return;
+  } finally { delete propositionsEnCours[id]; }
   await apresDecisionProposition();
 }
 

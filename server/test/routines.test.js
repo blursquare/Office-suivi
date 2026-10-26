@@ -360,3 +360,20 @@ test('résumé Teams : le titre tient sur une ligne et ne porte aucun lien', () 
   assert.ok(t.includes('• Relancer le client vite'));
   assert.ok(!t.includes('http'));
 });
+
+test('propositions : « déjà fait » ferme sans exécuter, « plus tard » masque jusqu’à 8 h puis revient, « reprendre » la rend', () => {
+  const maintenant = new Date('2026-10-26T18:00:00Z'); // lundi soir
+  let liste = P.ajouterProposition([], { id: 'a', routine: 'r', responsable: 'Julie VASSELIN', type: 'tache', titre: 'T' }).liste;
+  liste = P.decider(liste, 'a', 'reporter', 'Julie VASSELIN', maintenant, { quand: 'demain' }).liste;
+  assert.equal(liste[0].etat, 'proposee');
+  assert.equal(P.estReportee(liste[0], maintenant), true);
+  assert.equal(P.compterATraiter(liste, 'Julie VASSELIN', false, maintenant), 0, 'reportée : plus comptée');
+  assert.equal(P.listerPropositions(liste, { responsable: 'Julie VASSELIN', etats: ['proposee', 'vue'], reportees: false, maintenant }).length, 0);
+  assert.equal(P.listerPropositions(liste, { responsable: 'Julie VASSELIN', etats: ['proposee', 'vue'], reportees: true, maintenant }).length, 1);
+  assert.equal(P.estReportee(liste[0], new Date('2026-10-27T08:00:00Z')), false, 'revenue le lendemain à 8 h');
+  liste = P.decider(liste, 'a', 'reporter', 'Julie VASSELIN', maintenant, { quand: 'reprendre' }).liste;
+  assert.equal(P.estReportee(liste[0], maintenant), false);
+  liste = P.decider(liste, 'a', 'faite', 'Julie VASSELIN', maintenant).liste;
+  assert.equal(liste[0].etat, 'faite');
+  assert.equal(P.decider(liste, 'a', 'refusee', 'Julie VASSELIN').liste[0].etat, 'faite', 'définitif');
+});

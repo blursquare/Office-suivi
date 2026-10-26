@@ -7,7 +7,7 @@
 
 const { routineParId } = require('./catalogue');
 const { lireReglagesRoutines } = require('./reglages');
-const { lirePropositions, ecrirePropositions, expirer } = require('./propositions');
+const { lirePropositions, ecrirePropositions, expirer, estReportee } = require('./propositions');
 const { synchroniserEtatCartes } = require('../canaux/etatCartes');
 const { celebrerSignatures } = require('../canaux/celebrations');
 const signaux = require('../canaux/signaux');
@@ -370,7 +370,7 @@ function creerPlanificateur(deps) {
       if (reglages.teams && info.hhmm >= reglages.heure && etat.dernierResume !== info.iso) {
         parametresRepo.ecrireJsonBrut(CLE_ETAT_ROUTINES, Object.assign({}, etat, { dernierResume: info.iso }));
         const reglagesMail = parametresRepo.lireReglages();
-        const nouvelles = lirePropositions(parametresRepo).filter((p) => p.etat === 'proposee' && !p.resumeTeamsLe && !p.exemple && p.responsable);
+        const nouvelles = lirePropositions(parametresRepo).filter((p) => p.etat === 'proposee' && !estReportee(p, maintenant) && !p.resumeTeamsLe && !p.exemple && p.responsable);
         const parResponsable = new Map();
         for (const p of nouvelles) parResponsable.set(p.responsable, [...(parResponsable.get(p.responsable) || []), p]);
         if (parResponsable.size && !envoiConfigure(reglagesMail)) {

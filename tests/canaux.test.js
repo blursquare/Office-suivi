@@ -135,10 +135,11 @@ test('accès rapide de la barre latérale : Général puis un message privé par
     { id: 'p:bastien-julie-sophie', prive: true, membres: ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Sophie GOSSART'], nonLus: 7 }
   ];
   const l = app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT');
-  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Julie,Jérémy,Sophie');
-  assert.deepEqual(l.map(x => x.nonLus).join(','), '3,2,0,1', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
-  assert.equal(l[1].id, 'p:bastien-julie');
+  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Bastien,Julie,Jérémy,Sophie');
+  assert.deepEqual(l.map(x => x.nonLus).join(','), '3,0,2,0,1', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
+  assert.equal(l[2].id, 'p:bastien-julie');
+  assert.equal(l[1].vous, true);
   // Liste pas encore lue : Général seul, sans pastille.
-  assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general');
+  assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general,moi');
   assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 1);
 });

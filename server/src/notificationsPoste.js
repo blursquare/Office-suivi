@@ -16,7 +16,7 @@ const { accessible } = require('./canaux/extensions');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { clePoste } = require('./appels3cx');
 const { libelleDossierAffiche } = require('../../commun/dossier');
-const { lirePropositions, ecrirePropositions, decider } = require('./routines/propositions');
+const { lirePropositions, ecrirePropositions, decider, estReportee } = require('./routines/propositions');
 const { synchroniserEtatCartes } = require('./canaux/etatCartes');
 const { assainirPhotos } = require('./routes/photosCollaborateurs');
 
@@ -94,7 +94,7 @@ function notificationsRiches(o) {
     for (const id of ids(o.propositions)) {
       const p = toutes.find((x) => x.id === id);
       // Seulement une proposition qui attend encore une décision (« vue » = une alerte lue, déjà traitée).
-      if (!p || p.etat !== 'proposee') continue;
+      if (!p || p.etat !== 'proposee' || estReportee(p)) continue;
       if (p.responsable && p.responsable !== o.collab && !ADMINISTRATEURS.includes(o.collab)) continue;
       sortie.push({ type: 'proposition', id, canal: '@traiter', titre: p.dossierId ? nomCanal(o.repo, o.depot, 'd:' + p.dossierId) : 'Proposition de CLAIRE', auteur: 'CLAIRE', heure: '',
         contexte: 'Proposition de CLAIRE', texte: ligne(p.titre, 160) });
@@ -157,6 +157,23 @@ function refuserDepuisRelais(o) {
 }
 
 /**
+ * « Plus tard » depuis la carte d'une proposition : reportée à demain 8 h (étude 26/10) ; même règle d'accès que « Refuser », rien n'est
+ * fermé ni exécuté : elle revient seule dans « À traiter ».
+ * @param {{ repo: any, collab: string, id: unknown }} o
+ */
+function reporterDepuisRelais(o) {
+  const id = typeof o.id === 'string' ? o.id : '';
+  const liste = lirePropositions(o.repo);
+  const cible = liste.find((x) => x.id === id);
+  if (!cible) return { ok: false, erreur: 'Proposition introuvable.' };
+  if (cible.responsable && cible.responsable !== o.collab && !ADMINISTRATEURS.includes(o.collab)) return { ok: false, erreur: 'Cette proposition n’est pas dans votre boîte.' };
+  if (cible.etat !== 'proposee') return { ok: false, erreur: 'Déjà décidée.' };
+  const r = decider(liste, id, 'reporter', o.collab, undefined, { quand: 'demain' });
+  if (r.liste !== liste) { ecrirePropositions(o.repo, r.liste); try { synchroniserEtatCartes(o.repo); } catch (e) { /* jamais bloquant */ } }
+  return { ok: true };
+}
+
+/**
  * Une réaction posée depuis une carte : seulement un emoji d'humeur, sur le message d'une PERSONNE d'un canal que le collaborateur lit.
  * @param {{ repo: any, collab: string, canal: unknown, mid: unknown, emoji: unknown }} o
  */
@@ -191,4 +208,4 @@ function carteReaction(o) {
     contexte: `${prenom(o.par)} a réagi ${o.emoji} à votre message`, texte: ligne(o.message.texte || o.message.html, 160, !o.message.texte) } };
 }
 
-module.exports = { COLLABORATEURS, EMOJIS_CARTE, collaborateurDuPoste, ligne, nomCanal, notificationsRiches, repondreDepuisRelais, refuserDepuisRelais, reagirDepuisRelais, carteReaction };
+module.exports = { COLLABORATEURS, EMOJIS_CARTE, collaborateurDuPoste, ligne, nomCanal, notificationsRiches, repondreDepuisRelais, refuserDepuisRelais, reporterDepuisRelais, reagirDepuisRelais, carteReaction };

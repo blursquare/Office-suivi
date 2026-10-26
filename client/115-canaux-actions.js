@@ -78,7 +78,9 @@ function htmlMessageCanal(m, i, r, repere) {
 
 function vueATraiter() {
   const liste = propositionsClaire.liste;
-  if (!liste.length) return `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone('list-check')}</div><h2 class="asst-accueil-titre">Rien à décider</h2>
+  const reportees = propositionsClaire.reportees || [];
+  const sectionReportees = reportees.length ? `<section class="cx-traiter-groupe"><header><span class="cx-traiter-canal">${icone('clock')}Reportées (${reportees.length})</span></header>${reportees.map(p => carteProposition(p, { compacte: true })).join('')}</section>` : '';
+  if (!liste.length) return sectionReportees ? `<div class="cx-traiter-vue"><p class="cx-traiter-intro">Rien à décider pour l’instant.</p>${sectionReportees}</div>` :  `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone('list-check')}</div><h2 class="asst-accueil-titre">Rien à décider</h2>
     <p class="asst-accueil-texte">Ce que Claire prépare pour vous — brouillons, documents, tâches — arrive d’abord dans le canal du dossier, puis ici tant que vous n’avez pas décidé.</p></div>`;
   const parDossier = new Map();
   liste.forEach(p => { const k = p.dossierId || ''; parDossier.set(k, (parDossier.get(k) || []).concat([p])); });
@@ -86,7 +88,7 @@ function vueATraiter() {
     const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
     const canal = dossierId ? 'd:' + dossierId : 'general';
     return `<section class="cx-traiter-groupe"><header><button type="button" class="cx-traiter-canal" onclick="ouvrirCanal('${escapeOnclickArg(canal)}')">${icone(d ? 'folder' : 'diese')}${escapeHtml(d ? libelleDossierAffiche(d) : 'général')}</button></header>${ps.map(p => carteProposition(p, { compacte: true })).join('')}</section>`;
-  }).join('')}</div>`;
+  }).join('')}${sectionReportees}</div>`;
 }
 
 function renderCanalAssistant(zone) {

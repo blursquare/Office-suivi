@@ -15,7 +15,7 @@ const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
 const COLLABORATEURS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
-const ETATS_PAR_FILTRE = { 'a-traiter': ['proposee', 'vue'], traitees: ['acceptee', 'refusee', 'expiree'] };
+const ETATS_PAR_FILTRE = { 'a-traiter': ['proposee', 'vue'], traitees: ['acceptee', 'refusee', 'faite', 'expiree'], reportees: ['proposee', 'vue'] };
 
 /** Un collaborateur de la liste fermée, sinon rien. @param {any} v */
 function collaborateurDe(v) {
@@ -88,12 +88,14 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const toutes = expirer(lirePropositions(parametresRepo));
     const filtre = String(req.query.etat || '');
-    const etats = Object.prototype.hasOwnProperty.call(ETATS_PAR_FILTRE, filtre) ? ETATS_PAR_FILTRE[/** @type {'a-traiter' | 'traitees'} */ (filtre)] : undefined;
+    const etats = Object.prototype.hasOwnProperty.call(ETATS_PAR_FILTRE, filtre) ? ETATS_PAR_FILTRE[/** @type {'a-traiter' | 'traitees' | 'reportees'} */ (filtre)] : undefined;
+    // « À traiter » ne montre pas les reportées (elles reviennent à leur date) ; « reportees » les montre seules.
+    const reportees = filtre === 'reportees' ? true : filtre === 'a-traiter' ? false : undefined;
     const dossierId = typeof req.query.dossierId === 'string' ? req.query.dossierId.slice(0, 80) : '';
     res.json({
       aTraiter: compterATraiter(toutes, utilisateur, tous),
       // Le nom de la routine accompagne chaque proposition (pastille de la boîte) ; une routine retirée du catalogue garde un nom neutre.
-      propositions: listerPropositions(toutes, { responsable: utilisateur, tous, etats, dossierId }).slice(0, 200)
+      propositions: listerPropositions(toutes, { responsable: utilisateur, tous, etats, dossierId, reportees }).slice(0, 200)
         .map((p) => Object.assign({}, p, { routineNom: (routineParId(p.routine) || { nom: 'CLAIRE' }).nom }))
     });
   });
@@ -102,11 +104,11 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const par = collaborateurDe(corps.auteur);
     if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    if (!['vue', 'acceptee', 'refusee'].includes(corps.decision)) { res.status(400).json({ erreur: 'Décision inconnue.' }); return; }
+    if (!['vue', 'acceptee', 'refusee', 'faite', 'reporter'].includes(corps.decision)) { res.status(400).json({ erreur: 'Décision inconnue.' }); return; }
     const liste = lirePropositions(parametresRepo);
     const cible = liste.find((x) => x.id === req.params.id);
     if (cible && cible.responsable && cible.responsable !== par && !ADMINISTRATEURS.includes(par)) { res.status(403).json({ erreur: 'Cette proposition n’est pas dans votre boîte.' }); return; }
-    const r = decider(liste, req.params.id, corps.decision, par);
+    const r = decider(liste, req.params.id, corps.decision, par, undefined, { quand: typeof corps.quand === 'string' ? corps.quand : '' });
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
     const dejaTraitee = r.liste === liste;
     if (!dejaTraitee) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
@@ -115,7 +117,7 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     const p = r.proposition;
     const det = p.details || {};
     const niveau = Math.min(Number(det.niveau) || 1, det.geste ? niveauEffectif(lireReglagesRoutines(parametresRepo), p.routine, String(det.geste)) : 1);
-    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue', proposition: Object.assign({}, p, { details: Object.assign({}, det, { niveau: String(niveau) }) }) });
+    res.json({ ok: true, dejaTraitee: dejaTraitee && corps.decision !== 'vue' && corps.decision !== 'reporter', proposition: Object.assign({}, p, { details: Object.assign({}, det, { niveau: String(niveau) }) }) });
   });
 
   return routeur;

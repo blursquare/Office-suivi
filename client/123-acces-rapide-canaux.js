@@ -9,10 +9,12 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi) {
   const l = Array.isArray(liste) ? liste : [];
   const compte = (c) => (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? Number(c.mentions) || 0 : Number(c.nonLus) || 0);
   const general = l.find(c => c.id === 'general') || { id: 'general' };
-  /** @type {{ id: string, libelle: string, titre: string, nom: string, nonLus: number }[]} */
+  /** @type {{ id: string, libelle: string, titre: string, nom: string, nonLus: number, vous?: boolean }[]} */
   const lignes = [{ id: 'general', libelle: 'Général', titre: 'Canal général de l’étude', nom: '', nonLus: compte(general) }];
   for (const nom of Array.isArray(collaborateurs) ? collaborateurs : []) {
-    if (!nom || nom === moi) continue;
+    if (!nom) continue;
+    // Soi-même : une ligne « vous » (étude 26/10) qui mène à sa conversation personnelle avec CLAIRE.
+    if (nom === moi) { lignes.push({ id: 'moi', libelle: String(nom).split(/\s+/)[0], titre: 'Ma conversation avec CLAIRE', nom, nonLus: 0, vous: true }); continue; }
     const c = l.find(x => x.prive && Array.isArray(x.membres) && x.membres.length === 2 && x.membres.includes(moi) && x.membres.includes(nom));
     if (!c) continue;
     const prenom = String(nom).split(/\s+/)[0];
@@ -29,10 +31,14 @@ function majAccesRapideCanaux() {
   const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste);
   const html = lignes.map((x) => {
     const actif = surDiscussions && canaux.actif === x.id;
-    const marque = x.nom ? htmlPresence(x.nom) : '<span class="sb-canal-marque" aria-hidden="true">#</span>';
-    const initiale = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
+    // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.
+    const initiales = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
+    const marque = x.nom
+      ? `<span class="sb-canal-avatar">${contenuAvatarCollaborateur(x.nom, photosCollaborateurs, initiales)}${htmlPresence(x.nom)}</span>`
+      : '<span class="sb-canal-avatar sb-canal-diese" aria-hidden="true">#</span>';
+    const initiale = initiales;
     return `<button type="button" class="sidebar-link sidebar-sousmenu-item sb-canal${actif ? ' actif' : ''}${x.nonLus ? ' non-lu' : ''}" onclick="ouvrirAccesRapideCanal('${escapeOnclickArg(x.id)}')" title="${escapeAttr(x.titre)}" aria-label="${escapeAttr(x.titre + (x.nonLus ? `, ${x.nonLus} non lu${x.nonLus > 1 ? 's' : ''}` : ''))}"${actif ? ' aria-current="true"' : ''}>`
-      + `${marque}<span class="sb-canal-initiale" aria-hidden="true">${escapeHtml(initiale)}</span><span class="sb-canal-nom">${escapeHtml(x.libelle)}</span>`
+      + `${marque}<span class="sb-canal-initiale" aria-hidden="true">${escapeHtml(initiale)}</span><span class="sb-canal-nom">${escapeHtml(x.libelle)}${x.vous ? ' <span class="sb-canal-vous">vous</span>' : ''}</span>`
       + `${x.nonLus ? `<span class="sidebar-badge-notif">${x.nonLus > 99 ? '99+' : x.nonLus}</span>` : ''}</button>`;
   }).join('');
   // Rien à redessiner si rien n'a changé : le focus clavier d'une ligne reste en place (relecture 0.356.0).
@@ -42,5 +48,6 @@ function majAccesRapideCanaux() {
 
 function ouvrirAccesRapideCanal(id) {
   definirOnglet('assistant');
+  if (id === 'moi') { if (typeof quitterCanal === 'function') setTimeout(() => quitterCanal(), 0); return; }
   setTimeout(() => ouvrirCanal(id), 0);
 }
