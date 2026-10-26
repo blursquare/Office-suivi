@@ -1441,35 +1441,6 @@
     return null;
   }
 
-  // Pure : les parcelles d'une fiche bien d'Authentic sans celles de l'« Ancien cadastre » — dès qu'une parcelle a sa surface, celles qui n'en
-  // ont pas sont anciennes (étude 26/10). Aucune surface du tout (fiche partielle) : toutes gardées.
-  function parcellesSansAncienCadastre(parcelles) {
-    const avec = (parcelles || []).filter(p => p && !detailParcelleVide('surface', p.surface));
-    return avec.length ? avec : (parcelles || []).slice();
-  }
-
-  // Modifie d : les parcelles de l'« Ancien cadastre » reprises avant le 26/10 sont retirées des immeubles d'Authentic retenus, et de la fiche
-  // quand elles n'y ont pas de surface (elles venaient de là). Rend true si quelque chose a changé.
-  function retirerParcellesAncienCadastre(d) {
-    if (!d || !d.authentic || !Array.isArray(d.authentic.immeubles)) return false;
-    const cle = (p) => String(p && p.section || '').toUpperCase() + ' ' + String(p && p.numero || '').replace(/^0+(?=\d)/, '');
-    const retirees = new Set();
-    const immeubles = d.authentic.immeubles.map(im => {
-      if (!im || !Array.isArray(im.parcelles)) return im;
-      const gardees = parcellesSansAncienCadastre(im.parcelles);
-      if (gardees.length === im.parcelles.length) return im;
-      im.parcelles.filter(p => !gardees.includes(p)).forEach(p => retirees.add(cle(p)));
-      return Object.assign({}, im, { parcelles: gardees });
-    });
-    if (!retirees.size) return false;
-    d.authentic = Object.assign({}, d.authentic, { immeubles });
-    const cad = d.bien && d.bien.cadastre;
-    if (cad && Array.isArray(cad.parcelles)) cad.parcelles = cad.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface)));
-    if (Array.isArray(d.biens)) d.biens = d.biens.map(b => (b && Array.isArray(b.parcelles) ? Object.assign({}, b, { parcelles: b.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface))) }) : b));
-    ajouterHistorique(d, `Parcelles de l’ancien cadastre retirées : ${[...retirees].join(', ')}`);
-    return true;
-  }
-
   // Pure : la fiche bien → immeuble au format de l'export ZIP (type, adresse, parcelles du cadastre, lots d'une copropriété).
   // Copropriété (structure reçue le 06/10) : l'onglet « Informations du bien » porte le cadastre sous « Parcelle Assise
   // volumétrique » (mêmes colonnes Section / Numéro) ; l'onglet « Lots » n'a ni adresse ni cadastre, seulement les lots.

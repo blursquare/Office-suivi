@@ -36,7 +36,7 @@ test('les personnes proposées : physiques seulement, vendeurs d’abord', () =>
   assert.deepStrictEqual(l.map(p => p.nom), ['A', 'B', 'C']);
 });
 
-test('la ligne de l’onglet Fonds : un brouillon Yousign par acquéreur, société comprise, avec un identifiant protégé', () => {
+test('la ligne de l’onglet Fonds : un brouillon Yousign par partie accompagnée (vendeur compris, 26/10), société comprise, avec un identifiant protégé', () => {
   const app = chargerApplication();
   const d = { id: "a'b", rendezVousSignature: '2099-12-01', parties: [
     { role: 'VENDEUR', nom: 'Paul DUPONT' },
@@ -46,8 +46,8 @@ test('la ligne de l’onglet Fonds : un brouillon Yousign par acquéreur, socié
   assert.match(html, /preparerSignatureRib\('a\\'b', 1\)/);
   assert.match(html, /preparerSignatureRib\('a\\'b', 2\)/);
   assert.match(html, /telechargerAttestationRib\('a\\'b', 1\)/);
-  assert.ok(!/preparerSignatureRib\('a\\'b', 0\)/.test(html), 'le vendeur n’est pas proposé');
+  assert.match(html, /preparerSignatureRib\('a\\'b', 0\)/, 'le vendeur accompagné par l’étude est proposé (26/10)');
   const sci = app.signataireRibDePartie(d, d.parties[2]);
   assert.deepStrictEqual([sci.prenom, sci.nom, sci.email, sci.telephone], ['Représentant', 'SCI DES LICES', 'sci@exemple.fr', '+33655667788']);
-  assert.strictEqual(app.renderLignesSignatureRib({ id: 'x', parties: [{ role: 'VENDEUR', nom: 'A' }] }), '');
+  assert.strictEqual(app.renderLignesSignatureRib({ id: 'x', notaireVendeur: 'Maître Jean NOTAIRE (TOURS)', parties: [{ role: 'VENDEUR', nom: 'A' }] }), '', 'vendeur accompagné par un confrère : rien');
 });

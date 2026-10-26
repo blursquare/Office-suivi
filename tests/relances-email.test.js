@@ -12,7 +12,7 @@ const { chargerApplication } = require('./helpers/load-app.js');
 
 function dossierBase(app, extra) {
   return Object.assign({
-    id: 'd1', nom: 'DUPONT / MARTIN', emailAcquereur: 'martin@example.fr',
+    id: 'd1', nom: 'DUPONT / MARTIN', emailAcquereur: 'martin@example.fr', parties: [{ nom: 'Léa MARTIN', role: 'ACQUEREUR' }],
     typeVente: 'maison', pieces: {}, piecesRetirees: [], piecesPersonnalisees: [],
     piecesEngagementsDetectees: [], analyseJuridique: {}
   }, extra || {});
@@ -494,24 +494,24 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   const app = chargerApplication();
   const auj = '2026-10-01';
   const ouverture = app.echangesSelonStade(dossierBase(app, { pret: '2026-10-20', ventebien: '2026-10-10' }), auj);
-  assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret');
-  assert.equal(ouverture.autres.join(','), 'appelFonds,projet,fondsRecus,rib,agenda,questionnaire');
+  assert.equal(ouverture.utiles.join(','), 'provision,ventePrealable,pret,rib');
+  assert.equal(ouverture.autres.join(','), 'appelFonds,projet,fondsRecus,agenda,questionnaire');
 
   // Rendez-vous pas encore fixé : l'appel de fonds attend (audit 07/10 — planning et « À faire » le placent après le rendez-vous).
   const rdvAFixer = app.echangesSelonStade(dossierBase(app, { pret: '2026-09-20', offrePretStatut: 'recue' }), auj);
-  assert.equal(rdvAFixer.utiles.join(','), 'provision');
+  assert.equal(rdvAFixer.utiles.join(','), 'provision,rib');
   assert.ok(rdvAFixer.autres.includes('appelFonds'));
 
   // Rendez-vous fixé : la provision passe « hors de ce stade », l'offre reçue ne se relance plus.
   const signature = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-15' }), auj);
   // Mêmes moments que « À faire » (audit 07/10) : à J-14, seule la note d'agenda sert ; appel de fonds à J-10, projet à J-7 ou
   // dès l'appel de fonds parti, fonds reçus après l'appel de fonds, RIB à J-3.
-  assert.equal(signature.utiles.join(','), 'agenda');
-  assert.ok(['appelFonds', 'projet', 'fondsRecus', 'rib'].every(c => signature.autres.includes(c)));
+  assert.equal(signature.utiles.join(','), 'rib,agenda');
+  assert.ok(['appelFonds', 'projet', 'fondsRecus'].every(c => signature.autres.includes(c)));
   const j10 = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-11' }), auj);
-  assert.equal(j10.utiles.join(','), 'appelFonds,agenda');
+  assert.equal(j10.utiles.join(','), 'appelFonds,rib,agenda');
   const afParti = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-11', appelFonds: '2026-10-01' }), auj);
-  assert.equal(afParti.utiles.join(','), 'appelFonds,projet,fondsRecus,agenda');
+  assert.equal(afParti.utiles.join(','), 'appelFonds,projet,fondsRecus,rib,agenda');
   const veille = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-10-04', appelFonds: '2026-09-24' }), auj);
   // À J-3 sans fonds relevés : la relance des fonds s'ajoute, comme dans « À faire ».
   assert.equal(veille.utiles.join(','), 'appelFonds,projet,fondsRecus,relanceFonds,rib,agenda');
@@ -520,7 +520,7 @@ test('echangesSelonStade : ce qui sert maintenant d’abord, le reste replié, r
   assert.ok(!signature.utiles.concat(signature.autres).includes('rappelRdv'), 'plus de rappel du rendez-vous');
 
   const signe = app.echangesSelonStade(dossierBase(app, { sansPret: true, rendezVousSignature: '2026-09-15' }), auj);
-  assert.equal(signe.utiles.join(','), 'questionnaire');
+  assert.equal(signe.utiles.join(','), 'rib,questionnaire');
   assert.ok(!signe.utiles.concat(signe.autres).includes('anniversaire'), 'un an après : retiré (07/10)');
 });
 
@@ -559,8 +559,8 @@ test('renderEchangesDossier : le destinataire, le stade, puis les lignes utiles 
   assert.doesNotMatch(html, /'rib'|'provision'/);
   const [utile, replie] = app.renderFondsDossier(dossierBase(app, { parties: [{ role: 'ACQUEREUR', nom: 'MARTIN', prenom: 'Léa' }], sansPret: true, rendezVousSignature: '2099-12-01' })).split('<details class="echanges-hors-stade">');
   // RIB : juste avant la signature (étude 07/10) — replié tant que le rendez-vous est à plus de 3 jours.
-  assert.doesNotMatch(utile, /preparerSignatureRib\('d1', \d+\)/);
-  assert.match(replie, /preparerSignatureRib\('d1', \d+\)/);
+  assert.match(utile, /preparerSignatureRib\('d1', \d+\)/, 'RIB toujours en avant (26/10)');
+  assert.doesNotMatch(replie, /preparerSignatureRib\('d1', \d+\)/);
   assert.doesNotMatch(utile, /'provision'/);
   assert.match(replie, /envoyerRelanceCiblee\('d1', 'provision'\)/);
   const proche = new Date(); proche.setDate(proche.getDate() + 2);

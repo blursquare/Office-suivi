@@ -9,7 +9,7 @@ const app = chargerApplication();
 const AUJ = '2026-09-28';
 
 function dossier(extra) {
-  return Object.assign({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', emailAcquereur: 'client@exemple.fr', historique: [] }, extra);
+  return Object.assign({ id: 'd1', nom: 'DUPONT / MARTIN', responsable: 'Julie VASSELIN', emailAcquereur: 'client@exemple.fr', historique: [], parties: [{ nom: 'Léa MARTIN', role: 'ACQUEREUR' }] }, extra);
 }
 const types = (r) => r.actions.map(a => a.type).join(',');
 
