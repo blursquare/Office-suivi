@@ -35,7 +35,7 @@ test('code d’installation : celui que CLAIRE copie est lu ; tout le reste refu
 
 test('lien claire-relais : actions connues, identifiants seuls, emoji d’humeur seul', () => {
   const l = R.lienAction('reagir', { canal: 'd:abc123', mid: 'm_1', emoji: '👍' });
-  assert.deepEqual(R.actionDuLien(l), { action: 'reagir', canal: 'd:abc123', mid: 'm_1', parent: '', id: '', emoji: '👍' });
+  assert.deepEqual(R.actionDuLien(l), { action: 'reagir', canal: 'd:abc123', mid: 'm_1', parent: '', id: '', emoji: '👍', titre: '' });
   assert.equal(R.actionDuLien('claire-relais:effacer?id=x'), null);
   assert.equal(R.actionDuLien('claire-relais:reagir?canal=d%3Aabc&mid=m1&emoji=%F0%9F%93%8C'), null, '📌 commande un geste : jamais depuis un toast');
   assert.equal(R.actionDuLien('claire-relais:autoriser?id=..%2F..'), null);
@@ -48,7 +48,7 @@ test('toast : XML échappé, boutons d’un message et d’une proposition, lien
   assert.match(x, /^<toast launch="claire-relais:ouvrir\?canal=d%3Aabc" activationType="protocol">/);
   assert.match(x, /VTE - &lt;MARTIN&gt; · 10:12/);
   assert.match(x, /a &amp; b &quot;c&quot;/);
-  assert.match(x, /content="Répondre"/);
+  assert.match(x, /content="Répondre" activationType="protocol" arguments="claire-relais:repondre\?canal=d%3Aabc&amp;mid=m1&amp;titre=VTE%20-%20%3CMARTIN%3E/);
   assert.match(x, /claire-relais:reagir\?canal=d%3Aabc&amp;mid=m1&amp;emoji=%F0%9F%91%8D/);
   assert.match(x, /appLogoOverride" hint-crop="circle" src="C:\\photos\\p.jpg"/);
   const p = R.toastXml({ type: 'proposition', titre: 'Relance de l’offre de prêt', id: 'prop_1', canal: 'd:abc' });
@@ -172,4 +172,22 @@ test('notifications : « CLAIRE » si Windows le permet, sinon PowerShell ; l’
   await R.boucle(s, { tours: 2, pause: 0 });
   assert.equal(journal.postes[0].corps.toasts, undefined);
   assert.equal(journal.postes[1].corps.toasts, 'DisabledByManifest>secours');
+});
+
+test('Répondre : petite fenêtre de réponse (repondre.html) au même profil, sans mettre CLAIRE devant ; titre en texte seul', async () => {
+  const a = R.actionDuLien(R.lienAction('repondre', { canal: 'd:abc', mid: 'm1', titre: 'VTE - X\u0007 · 10:12' }));
+  assert.deepEqual([a.action, a.canal, a.mid, a.titre], ['repondre', 'd:abc', 'm1', 'VTE - X  · 10:12']);
+  assert.equal(R.actionDuLien('claire-relais:repondre?canal=d%3Aabc'), null, 'sans message : rien');
+  assert.equal(R.actionDuLien('claire-relais:repondre?canal=%40traiter&mid=m1'), null);
+  assert.equal(R.adresseReponse('http://serveur.invalid/', a), 'http://serveur.invalid/repondre.html#canal=d%3Aabc&mid=m1&titre=VTE+-+X++%C2%B7+10%3A12');
+  const { s, journal } = fauxSysteme([]);
+  assert.equal(await R.agir(s, R.lienAction('repondre', { canal: 'general', mid: 'm2' })), 0);
+  assert.equal(journal.postes.length, 0, 'rien envoyé au serveur par le relais');
+  assert.equal(journal.ps.length, 1);
+  assert.equal(journal.ps[0].vars.CLAIRE_URL, 'http://serveur.invalid/repondre.html#canal=general&mid=m2');
+  assert.match(R.scriptFenetreReponse(), /Resize\(420,560\)/);
+  assert.doesNotMatch(R.scriptFenetreReponse(), /--window-(size|position)/);
+  assert.doesNotMatch(R.scriptFenetreReponse(), /Bypass|conhost|EncodedCommand/i);
+  // Sans identifiant de message, « Répondre » ouvre CLAIRE comme avant.
+  assert.match(R.toastXml({ type: 'message', auteur: 'Julie', texte: 'x', canal: 'general' }), /content="Répondre" activationType="protocol" arguments="claire-relais:ouvrir\?canal=general"/);
 });

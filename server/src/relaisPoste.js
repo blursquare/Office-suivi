@@ -10,7 +10,7 @@
 // « --relais »), l'exécutable ne démarre pas le serveur mais ce relais (src/entree.js). Ce que Node ne sait pas faire seul sous
 // Windows passe par PowerShell, déjà signé et présent sur chaque poste, comme le lien des appels 3CX (relaisAppelReg.js) :
 //   - notifications : toasts de Windows (centre de notifications), au nom de « CLAIRE » (identifiant d'application déclaré dans
-//     HKCU à l'installation) ; boutons « Répondre » (CLAIRE ouverte sur le canal), réactions d'humeur, « Autoriser » / « Refuser »
+//     HKCU à l'installation) ; boutons « Répondre » (petite fenêtre de réponse, repondre.html), réactions d'humeur, « Autoriser » / « Refuser »
 //     d'une proposition, clic = CLAIRE ouverte ; chaque bouton lance le lien `claire-relais:` que ce même programme reçoit ;
 //   - fenêtre CLAIRE au premier plan (UI Automation + AppActivate, aucun code compilé) ;
 //   - code d'installation demandé et messages par les boîtes de dialogue de Windows.
@@ -35,7 +35,7 @@ const crypto = require('node:crypto');
 const AGENT_HTTP = new http.Agent({ keepAlive: true, maxSockets: 2 });
 const AGENT_HTTPS = new https.Agent({ keepAlive: true, maxSockets: 2 });
 
-var VERSION_RELAIS = '2.1';
+var VERSION_RELAIS = '2.2';
 var PREFIXE_CODE = 'CLAIRE-RELAIS:';
 var PROTOCOLE = 'claire-relais';
 var AUMID = 'CLAIRE.Relais';
@@ -93,7 +93,7 @@ function lienAction(action, p) {
   return PROTOCOLE + ':' + action + (q ? '?' + q : '');
 }
 
-var ACTIONS = ['ouvrir', 'reagir', 'autoriser', 'refuser'];
+var ACTIONS = ['ouvrir', 'repondre', 'reagir', 'autoriser', 'refuser'];
 
 /**
  * Pure : l'action d'un lien `claire-relais:` reçu de Windows, ou null. Jamais lu comme du code : action connue, paramètres
@@ -112,9 +112,12 @@ function actionDuLien(lien) {
   }
   const canal = /^(general|@traiter|[dlp]:[A-Za-z0-9_.:-]{1,70})$/.test(p.canal || '') ? p.canal : '';
   const ident = (/** @type {string} */ v) => (/^[A-Za-z0-9_-]{1,80}$/.test(v || '') ? v : '');
-  const r = { action: m[1], canal, mid: ident(p.mid), parent: ident(p.parent), id: ident(p.id), emoji: REACTIONS_TOAST.includes(p.emoji) ? p.emoji : '' };
+  // `titre` : l'endroit du message (dossier, canal), affiché en TEXTE par la petite fenêtre de réponse ; 80 caractères au plus.
+  const titre = String(p.titre || '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 80);
+  const r = { action: m[1], canal, mid: ident(p.mid), parent: ident(p.parent), id: ident(p.id), emoji: REACTIONS_TOAST.includes(p.emoji) ? p.emoji : '', titre };
   if (r.action === 'reagir' && !(r.canal && r.mid && r.emoji)) return null;
   if ((r.action === 'autoriser' || r.action === 'refuser') && !r.id) return null;
+  if (r.action === 'repondre' && !(r.canal && r.canal !== '@traiter' && r.mid)) return null;
   return r;
 }
 
@@ -134,7 +137,9 @@ function toastXml(n, photo) {
   /** @type {string[]} */
   const actions = [];
   if (type === 'message') {
-    actions.push(`<action content="Répondre" activationType="protocol" arguments="${xml(ouvrir)}"/>`);
+    // « Répondre » : la petite fenêtre de réponse (repondre.html) au-dessus des notifications ; sans identifiant de message, CLAIRE.
+    const repondre = t('mid') && canal ? lienAction('repondre', { canal, mid: t('mid'), titre: ou }) : ouvrir;
+    actions.push(`<action content="Répondre" activationType="protocol" arguments="${xml(repondre)}"/>`);
     if (t('mid')) for (const e of REACTIONS_TOAST) actions.push(`<action content="${xml(e)}" activationType="protocol" arguments="${xml(lienAction('reagir', { canal, mid: t('mid'), emoji: e }))}"/>`);
   } else if (type === 'proposition' && t('id')) {
     actions.push(`<action content="Autoriser" activationType="protocol" arguments="${xml(lienAction('autoriser', { id: t('id') }))}"/>`);
@@ -199,6 +204,35 @@ function scriptMontrerClaire() {
       + 'try{Start-Process chrome.exe -ArgumentList $g -ErrorAction Stop}catch{Start-Process msedge.exe -ArgumentList $g}'
       + '}'
   ].join(';');
+}
+
+/**
+ * Pure : le script qui ouvre la petite fenêtre de réponse (adresse par CLAIRE_URL, profil par CLAIRE_PROFIL), puis la place en 420 × 560 en bas à
+ * droite de l'écran principal, au-dessus de la zone des notifications — même navigateur et même profil que la fenêtre CLAIRE
+ * (son jeton et le collaborateur du poste y sont déjà).
+ */
+function scriptFenetreReponse() {
+  // Sans --window-size ni --window-position (relecture 0.355.0 : Chrome déjà lancé les ignore, Chrome à lancer les appliquerait à
+  // toutes ses fenêtres) : la fenêtre ouverte est retrouvée par son titre (repondre.html) puis placée par UI Automation.
+  return [
+    "$ErrorActionPreference='SilentlyContinue'",
+    'Add-Type -AssemblyName System.Windows.Forms,UIAutomationClient,UIAutomationTypes',
+    '$a=[System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea',
+    "$g=@(('--profile-directory='+$env:CLAIRE_PROFIL),('--app='+$env:CLAIRE_URL))",
+    'try{Start-Process chrome.exe -ArgumentList $g -ErrorAction Stop}catch{Start-Process msedge.exe -ArgumentList $g}',
+    "$t='R'+[char]0xE9+'pondre '+[char]0xB7+' CLAIRE'",
+    '$A=[System.Windows.Automation.AutomationElement]',
+    '$c=New-Object System.Windows.Automation.PropertyCondition($A::NameProperty,$t)',
+    'for($i=0;$i -lt 30;$i++){Start-Sleep -Milliseconds 200;$w=$A::RootElement.FindFirst([System.Windows.Automation.TreeScope]::Children,$c);if($w){break}}',
+    'if($w){try{$p=$w.GetCurrentPattern([System.Windows.Automation.TransformPattern]::Pattern);$p.Resize(420,560);$p.Move([Math]::Max(0,$a.Right-440),[Math]::Max(0,$a.Bottom-580))}catch{}}'
+  ].join(';');
+}
+
+/** Pure : l'adresse de la petite fenêtre de réponse. @param {string} url adresse de CLAIRE (finie par « / ») @param {{ canal: string, mid: string, titre?: string }} a */
+function adresseReponse(url, a) {
+  const q = new URLSearchParams({ canal: a.canal, mid: a.mid });
+  if (a.titre) q.set('titre', a.titre);
+  return url + 'repondre.html#' + q.toString();
 }
 
 /** Pure : le script qui demande le code d'installation (rend le texte saisi sur la sortie). */
@@ -423,6 +457,8 @@ async function agir(s, lien) {
   const a = actionDuLien(lien);
   if (!cfg || !a) return 1;
   const corps = { poste: cfg.poste, jeton: cfg.jeton, relais: VERSION_RELAIS };
+  // Répondre : la petite fenêtre de réponse, sans mettre la fenêtre CLAIRE devant (étude 26/10 : répondre « devant », comme Teams).
+  if (a.action === 'repondre') { await s.powershell(scriptFenetreReponse(), { CLAIRE_URL: adresseReponse(cfg.url, a), CLAIRE_PROFIL: cfg.profil }); return 0; }
   try {
     if (a.action === 'reagir') { await s.poster(cfg.url + 'api/relais-word/reagir', Object.assign(corps, { canal: a.canal, mid: a.mid, emoji: a.emoji })); return 0; }
     // Autoriser et refuser se font dans la fenêtre CLAIRE (un refus y est confirmé : audit 0.354.0, M4), jamais par le relais seul.
@@ -530,7 +566,7 @@ function estModeRelais(exe, args) {
 }
 
 module.exports = {
-  VERSION_RELAIS, PROTOCOLE, AUMID, AUMID_SECOURS, REACTIONS_TOAST, etatToasts, configDuCode, configValide, modeDepuisArgs, lienAction, actionDuLien, toastXml,
+  VERSION_RELAIS, PROTOCOLE, AUMID, AUMID_SECOURS, REACTIONS_TOAST, etatToasts, configDuCode, configValide, modeDepuisArgs, lienAction, actionDuLien, toastXml, scriptFenetreReponse, adresseReponse,
   scriptToasts, scriptMontrerClaire, scriptDemanderCode, scriptMessage, scriptArreterAncien, commandesRegistre, commandesRetrait, nomTuyau,
   estModeRelais, lancerRelais, boucle, agir, installer
 };

@@ -115,7 +115,9 @@ const ASSETS_STATIQUES = {
   '/vendor/plans/dpur-blois-coty.jpg': { fichier: 'vendor/plans/dpur-blois-coty.jpg', type: 'image/jpeg', binaire: true },
   '/manifest.json': { fichier: 'manifest.json', type: 'application/manifest+json; charset=utf-8' },
   '/sw.js': { fichier: 'sw.js', type: 'application/javascript; charset=utf-8' },
-  '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' }
+  '/icone.svg': { fichier: 'icone.svg', type: 'image/svg+xml; charset=utf-8' },
+  // Petite fenêtre de réponse ouverte par « Répondre » d'une notification du relais (étude 26/10), page à part sans CLAIRE.
+  '/repondre.html': { fichier: 'repondre.html', type: 'text/html; charset=utf-8' }
 };
 
 // Sert les fichiers ci-dessus depuis les assets embarqués dans le blob SEA (mode exécutable
@@ -165,7 +167,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // La page de CLAIRE ne s'affiche jamais dans le cadre d'un autre site (clickjacking, cartes « Autoriser » comprises — audit 21/10, M8) ;
   // seulement les pages HTML : les PDF du NAS s'affichent dans des cadres de CLAIRE même.
   app.use((req, res, next) => {
-    if (req.path === '/' || req.path === '/index.html') { res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Content-Security-Policy', "frame-ancestors 'none'"); }
+    if (req.path === '/' || req.path === '/index.html' || req.path === '/repondre.html') { res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Content-Security-Policy', "frame-ancestors 'none'"); }
     next();
   });
   const depot = creerDepot(db);

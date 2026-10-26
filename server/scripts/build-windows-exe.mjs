@@ -207,6 +207,7 @@ async function main() {
       'manifest.json': '../manifest.json',
       'sw.js': '../sw.js',
       'icone.svg': '../icone.svg',
+      'repondre.html': '../repondre.html',
       'build-info.json': 'build/build-info.json',
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
       // Mémoire de CLAIRE, rubrique « Règles et décisions de l'étude » (src/memoire.js) : lus par le serveur, jamais servis.

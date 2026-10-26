@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'sha256-sCBlMtmexvgLQtW1xnvlR0d4WdtkSPLfrFTD75qBCe4='; style-src 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Titre différent de celui de la fenêtre CLAIRE : le relais retrouve la fenêtre principale par son titre exact. -->
+<title>Répondre · CLAIRE</title>
+<link rel="icon" href="/icone.svg" type="image/svg+xml">
+<style>
+  /* Petite fenêtre de réponse ouverte par le bouton « Répondre » d'une notification de Windows (relais du poste, étude 26/10 :
+     « comment répondre devant ? »). Page à part, légère : elle ne charge pas CLAIRE (ni relevés, ni relais, ni tours de fond). */
+  @font-face { font-family: 'Geist'; src: url('/vendor/polices/geist-latin-wght-normal.woff2') format('woff2'); font-weight: 100 900; font-display: swap; }
+  :root { --paper: #E9EDF2; --carte: #FFFFFF; --ink: #16233C; --muted: #647089; --line: #DCE2E9; --accent: #6D2332; --on-accent: #FFFFFF; --erreur: #B42318; }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #14161A; --carte: #1B1E23; --ink: #EDEEF0; --muted: #9AA0A8; --line: #2F343C; --accent: #D08A98; --on-accent: #14161A; --erreur: #F07167; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--paper); color: var(--ink); font: 400 14px/1.45 'Geist', system-ui, sans-serif; display: flex; flex-direction: column; }
+  header { padding: 12px 16px 8px; border-bottom: 1px solid var(--line); background: var(--carte); }
+  header .titre { font-weight: 500; font-size: 16px; }
+  header .ou { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #fil { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .msg .tete { display: flex; gap: 8px; align-items: baseline; }
+  .msg .auteur { font-weight: 600; }
+  .msg .heure { color: var(--muted); font-size: 11px; }
+  .msg .texte { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.depart { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .etat { color: var(--muted); font-size: 12px; padding: 0 16px 4px; min-height: 18px; }
+  .etat.erreur { color: var(--erreur); }
+  form { padding: 8px 16px 16px; background: var(--carte); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  textarea { width: 100%; min-height: 72px; max-height: 160px; resize: vertical; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--paper); color: var(--ink); font: inherit; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  .boutons { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .aide { color: var(--muted); font-size: 11px; }
+  button { height: 32px; padding: 0 16px; border-radius: 10px; font: 500 13px 'Geist', system-ui, sans-serif; cursor: pointer; border: 1px solid var(--line); background: var(--carte); color: var(--ink); }
+  button.principal { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  button:disabled { opacity: 0.6; cursor: default; }
+</style>
+</head>
+<body>
+<header><div class="titre" id="titre">Répondre</div><div class="ou" id="ou"></div></header>
+<div id="fil" aria-live="polite"></div>
+<div class="etat" id="etat"></div>
+<form id="formulaire">
+  <textarea id="texte" placeholder="Votre réponse…" aria-label="Votre réponse" autofocus></textarea>
+  <div class="boutons">
+    <span class="aide">Entrée pour envoyer · Maj+Entrée pour aller à la ligne</span>
+    <span><button type="button" id="fermer">Fermer</button> <button type="submit" class="principal" id="envoyer" disabled>Envoyer</button></span>
+  </div>
+</form>
+<script>
+(function () {
+  'use strict';
+  // Adresse : repondre.html#canal=…&mid=…&titre=… (posée par le relais du poste). Tout est relu comme du texte, jamais comme du HTML.
+  var p = new URLSearchParams(location.hash.slice(1));
+  var canal = /^(general|[dlp]:[A-Za-z0-9_.:-]{1,70})$/.test(p.get('canal') || '') ? p.get('canal') : '';
+  var mid = /^[A-Za-z0-9_-]{1,80}$/.test(p.get('mid') || '') ? p.get('mid') : '';
+  var titre = String(p.get('titre') || '').slice(0, 80);
+  var utilisateur = '';
+  var jeton = '';
+  try { utilisateur = localStorage.getItem('claire-utilisateur-poste') || ''; jeton = localStorage.getItem('claire-token') || ''; } catch (e) { /* stockage fermé */ }
+  var racine = null;
+  var envoiEnCours = false;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function dire(t, erreur) { $('etat').textContent = t || ''; $('etat').className = 'etat' + (erreur ? ' erreur' : ''); }
+  function heure(q) { try { return new Date(q).toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+  // Texte d'une réponse de CLAIRE (HTML) : lu dans un document inerte (DOMParser : ni script, ni image chargée), jamais posé dans la page.
+  function texteDe(m) {
+    if (m.texte) return m.texte;
+    try { return (new DOMParser().parseFromString(String(m.html || ''), 'text/html').body.textContent || '').trim(); } catch (e) { return ''; }
+  }
+  // L'endroit d'après le canal lui-même ; le titre du lien (posé par le relais) seulement pour un dossier (relecture 0.355.0 : un lien
+  // forgé ne fait pas passer « général » pour un dossier).
+  function endroit(c) {
+    if (c === 'general') return 'Général';
+    if (c.indexOf('p:') === 0) return 'Message privé';
+    if (c.indexOf('l:') === 0) return 'Canal ' + c.slice(2);
+    return titre || 'Canal du dossier';
+  }
+
+  // Le jeton de la fenêtre CLAIRE (même profil du navigateur), sinon un jeton demandé comme le fait CLAIRE sans mot de passe.
+  async function connexion() {
+    var r = await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ motDePasse: '' }) });
+    if (!r.ok) throw new Error('Ouvrez CLAIRE pour vous reconnecter');
+    jeton = (await r.json()).jeton || '';
+  }
+  async function api(url, options, deja) {
+    if (!jeton) await connexion();
+    var o = Object.assign({}, options || {});
+    o.headers = Object.assign({}, o.headers || {}, { authorization: 'Bearer ' + jeton });
+    var r = await fetch(url, o);
+    if (r.status === 401 && !deja) { jeton = ''; return api(url, options, true); }
+    return r;
+  }
+
+  function ligne(m, depart) {
+    var div = document.createElement('div');
+    div.className = 'msg' + (depart ? ' depart' : '');
+    var tete = document.createElement('div'); tete.className = 'tete';
+    var a = document.createElement('span'); a.className = 'auteur'; a.textContent = m.claire ? 'CLAIRE' : (m.auteur || '');
+    var h = document.createElement('span'); h.className = 'heure'; h.textContent = heure(m.quand);
+    tete.appendChild(a); tete.appendChild(h);
+    var t = document.createElement('div'); t.className = 'texte'; t.textContent = texteDe(m).slice(0, 2000);
+    div.appendChild(tete); div.appendChild(t);
+    return div;
+  }
+
+  async function charger() {
+    if (!canal || !mid) { dire('Message introuvable : ouvrez CLAIRE.', true); return; }
+    if (!utilisateur) { dire('Ce poste n’a pas encore choisi son collaborateur : ouvrez CLAIRE.', true); return; }
+    $('ou').textContent = endroit(canal);
+    try {
+      var r = await api('/api/canaux/' + encodeURIComponent(canal) + '/messages?utilisateur=' + encodeURIComponent(utilisateur));
+      if (!r.ok) { dire('Ce canal n’est pas lisible depuis ce poste.', true); return; }
+      var messages = ((await r.json()).messages) || [];
+      var m = messages.find(function (x) { return x.id === mid; });
+      if (!m) { dire('Ce message a été retiré.', true); return; }
+      racine = m.parent ? messages.find(function (x) { return x.id === m.parent; }) : m;
+      if (!racine) { dire('Le message de départ de ce fil a été retiré.', true); return; }
+      var reponses = messages.filter(function (x) { return x.parent === racine.id; }).slice(-8);
+      $('titre').textContent = reponses.length ? 'Répondre dans le fil' : 'Répondre à ' + (racine.claire ? 'CLAIRE' : racine.auteur || '');
+      var fil = $('fil');
+      fil.textContent = '';
+      fil.appendChild(ligne(racine, reponses.length > 0));
+      reponses.forEach(function (x) { fil.appendChild(ligne(x, false)); });
+      fil.scrollTop = fil.scrollHeight;
+      $('envoyer').disabled = false;
+      if (/@claire/i.test(texteDe(racine)) || racine.claire) dire('CLAIRE ne répond pas depuis cette petite fenêtre : pour lui écrire, ouvrez CLAIRE.');
+      api('/api/canaux/' + encodeURIComponent(canal) + '/lu', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ utilisateur: utilisateur }) }).catch(function () {});
+    } catch (e) { dire(e && /reconnecter/.test(e.message) ? e.message + '.' : 'Le serveur CLAIRE ne répond pas.', true); }
+  }
+
+  async function envoyer(ev) {
+    if (ev) ev.preventDefault();
+    var texte = $('texte').value.trim();
+    if (!texte || !racine || envoiEnCours) return;
+    envoiEnCours = true; $('envoyer').disabled = true; dire('Envoi…');
+    try {
+      var r = await api('/api/canaux/' + encodeURIComponent(canal) + '/messages', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ auteur: utilisateur, texte: texte, parent: racine.id })
+      });
+      var corps = await r.json().catch(function () { return {}; });
+      if (!r.ok) throw new Error(corps.erreur || 'refus');
+      $('texte').value = '';
+      dire('Envoyé.');
+      setTimeout(function () { window.close(); }, 700);
+    } catch (e) {
+      dire('Non envoyé : ' + (e && e.message && e.message !== 'refus' ? e.message : 'le serveur l’a refusé') + '.', true);
+      envoiEnCours = false; $('envoyer').disabled = false;
+    }
+  }
+
+  $('formulaire').addEventListener('submit', envoyer);
+  $('fermer').addEventListener('click', function () { window.close(); });
+  $('texte').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) envoyer(e);
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.close(); });
+  // Taille et place de secours, si le relais n'a pas pu placer la fenêtre (Chrome déjà ouvert garde la taille de la dernière fenêtre).
+  try { if (window.outerWidth > 700) { window.resizeTo(420, 560); window.moveTo(screen.availWidth - 440, screen.availHeight - 580); } } catch (e) { /* refusé : laissée telle quelle */ }
+  charger();
+})();
+</script>
+</body>
+</html>

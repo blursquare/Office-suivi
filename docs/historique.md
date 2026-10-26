@@ -22121,3 +22121,19 @@ dit à part ; `VERSION_RELAIS` 2.1 rendu par `/etat` (`versionRelais`) — un re
 priorité à OpenLegi gardée comme consigne du prompt pour les questions de DROIT ; sites relus à chaque message (`tourAgent`, une liste vidée
 ne retire pas un outil déjà servi) ; refus de l'API : retrait un à un (Yousign, OpenLegi, web) pour qu'un schéma d'OpenLegi ne coupe pas le web.
 Relecture 0.354.4 : étapes de retrait à état complet (Yousign, OpenLegi, le web SEUL avec OpenLegi rendu, puis les deux) — un web refusé ne suspend plus OpenLegi ; `conv.webRefuse` : un web refusé n'est plus redonné par la relecture des Réglages dans la même conversation.
+
+### 26/10/2026 17 h 51 — 0.355.0 : petite fenêtre de réponse du relais, notifications plus rapides
+
+Étude : « comment avoir les interactions ou cliquer sur les boutons ou répondre devant ? », puis « combien de temps pour que s'affiche
+la notification ? » (15 à 35 s : la fenêtre CLAIRE relisait les canaux toutes les 30 s) et « oui fais les deux ».
+- Une réponse tapée dans le toast lui-même est impossible avec un lien (`activationType="protocol"` ne transmet pas le texte saisi ;
+  il faudrait un activateur COM, du code natif comme le relais C# bloqué par Panda).
+- « Répondre » (relais 2.2, `actionDuLien` action `repondre`, `scriptFenetreReponse`, `adresseReponse`) ouvre `repondre.html` —
+  page à part, sans CLAIRE (aucun tour de fond), même navigateur et même profil que la fenêtre CLAIRE (jeton et collaborateur du
+  poste déjà dans le stockage de l'origine), 420 × 560 en bas à droite de l'écran principal ; fil en texte seul (`textContent`),
+  réponse postée par `POST /api/canaux/:id/messages` avec `parent`, canal marqué lu, fenêtre fermée. CLAIRE n'y répond pas à un
+  @CLAIRE (l'agent tourne dans la fenêtre CLAIRE), comme la réponse de la carte 1.x. Asset déclaré dans `ASSETS_STATIQUES` et le
+  `.exe` ; `frame-ancestors 'none'` comme index.html. Contrôle dans `npm run fumee`. Point terrain `relais-fenetre-reponse`.
+- Canaux relus toutes les 5 s (`INTERVALLE_CANAUX_NOTIFIES_MS`) quand la fenêtre n'est pas regardée et que le relais du poste
+  notifie (`pastilleActiveHorsEcran`), 30 s sinon ; fenêtre cachée sans relais : rien.
+- Le relais doit être réinstallé (Réglages › Notifications) : le XML du toast est écrit par le relais du poste.

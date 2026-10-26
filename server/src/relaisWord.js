@@ -13,7 +13,6 @@
 // sonneries 3CX.
 
 const crypto = require('node:crypto');
-const fs = require('node:fs');
 
 var PREFIXE_CODE_RELAIS = 'CLAIRE-RELAIS:';
 

@@ -376,6 +376,28 @@ try {
     }
     await ctx.close();
   }
+  // Petite fenêtre de réponse du relais (repondre.html, étude 26/10) : le fil affiché, la réponse posée DANS LE FIL, au nom du poste.
+  {
+    const login = await (await fetch(B + '/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ motDePasse: '' }) })).json();
+    const entetes = { 'content-type': 'application/json', authorization: 'Bearer ' + login.jeton };
+    const depart = await (await fetch(B + '/api/canaux/general/messages', { method: 'POST', headers: entetes, body: JSON.stringify({ auteur: 'Bastien ANGLUMENT', texte: 'Qui <b>relit</b> le projet ?' }) })).json();
+    const ctx = await navigateur.newContext({ viewport: { width: 420, height: 560 } });
+    await ctx.addInitScript(() => { try { localStorage.setItem('claire-utilisateur-poste', 'Julie VASSELIN'); } catch (e) { /* sans stockage */ } });
+    const page = await ctx.newPage();
+    const avant = erreurs.length;
+    page.on('pageerror', (e) => erreurs.push('[répondre] ' + e.message));
+    await page.goto(B + '/repondre.html#canal=general&mid=' + depart.message.id + '&titre=G%C3%A9n%C3%A9ral');
+    await page.waitForSelector('.msg .texte');
+    const lu = await page.evaluate(() => ({ texte: document.querySelector('.msg .texte').textContent, gras: !!document.querySelector('#fil b'), ou: document.getElementById('ou').textContent }));
+    await page.fill('#texte', 'Moi, cet après-midi.');
+    await page.press('#texte', 'Enter');
+    await page.waitForFunction(() => /Envoyé/.test(document.getElementById('etat').textContent), null, { timeout: 5000 });
+    const msgs = (await (await fetch(B + '/api/canaux/general/messages?utilisateur=Julie%20VASSELIN', { headers: entetes })).json()).messages;
+    const rep = msgs.find((m) => m.texte === 'Moi, cet après-midi.');
+    verifier(erreurs.length === avant && lu.texte === 'Qui <b>relit</b> le projet ?' && !lu.gras && lu.ou === 'Général' && rep && rep.parent === depart.message.id && rep.auteur === 'Julie VASSELIN',
+      `fenêtre de réponse du relais : fil en texte, réponse dans le fil au nom du poste (${JSON.stringify({ lu, parent: rep && rep.parent === depart.message.id })})`);
+    await ctx.close();
+  }
 } catch (e) {
   erreurs.push('exception : ' + (e && e.stack || e));
 } finally {

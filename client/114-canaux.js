@@ -15,6 +15,7 @@ var canaux = {
   equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
 var INTERVALLE_CANAUX_MS = 30 * 1000;
+var INTERVALLE_CANAUX_NOTIFIES_MS = 5 * 1000;
 var INTERVALLE_CANAL_ACTIF_MS = 8 * 1000;
 var minuterieCanalActif = null;
 
@@ -181,8 +182,17 @@ function demarrerCanaux() {
   chargerCanaux();
   chargerPhotosCollaborateurs();
   setInterval(() => { if (!document.hidden) chargerPhotosCollaborateurs(); }, 5 * 60 * 1000);
-  // Fenêtre cachée ou réduite : relue quand même si la pastille de la barre des tâches est allumée (client/122).
-  setInterval(() => { if (!document.hidden || pastilleActiveHorsEcran()) chargerCanaux(); }, INTERVALLE_CANAUX_MS);
+  // Toutes les 30 s ; toutes les 5 s quand la fenêtre n'est pas regardée et que le relais du poste notifie (étude 26/10 : « combien de
+  // temps pour que s'affiche la notification ? » — 15 à 35 s avant). Fenêtre cachée sans relais : rien.
+  let dernierTourCanaux = Date.now();
+  setInterval(() => {
+    const relais = pastilleActiveHorsEcran();
+    if (document.hidden && !relais) return;
+    const pas = relais && !fenetreClaireRegardee() ? INTERVALLE_CANAUX_NOTIFIES_MS : INTERVALLE_CANAUX_MS;
+    if (Date.now() - dernierTourCanaux < pas - 500) return;
+    dernierTourCanaux = Date.now();
+    chargerCanaux();
+  }, INTERVALLE_CANAUX_NOTIFIES_MS);
   window.addEventListener('focus', () => { if (canaux.actif && ecranAffiche('assistant')) marquerCanalLu(true); });
   minuterieCanalActif = setInterval(() => {
     if (!document.hidden && canaux.actif && !vueSpecialeCanal(canaux.actif) && ecranAffiche('assistant')) chargerMessagesCanal(false);

@@ -8,7 +8,7 @@ par l'outil officiel de Node, celui que l'antivirus de l'étude laisse déjà pa
 Installé une fois par poste et par utilisateur, sans droit d'administrateur, il :
 
 - montre chaque nouveauté de CLAIRE (message, réaction, proposition) en **notification de Windows** (centre de notifications),
-  au nom de « CLAIRE », avec la photo de l'auteur ; boutons : « Répondre » (CLAIRE ouverte sur le canal), 👍 ❤️ (réaction
+  au nom de « CLAIRE », avec la photo de l'auteur ; boutons : « Répondre » (petite fenêtre de réponse `repondre.html` en bas à droite, depuis la version 2.2), 👍 ❤️ (réaction
   envoyée au serveur), « Autoriser » / « Refuser » d'une proposition ; un clic sur la notification ouvre CLAIRE ;
 - met au premier plan la fenêtre CLAIRE (ou l'ouvre) quand on clique « Répondre », « Autoriser » ou la notification.
 
@@ -28,8 +28,8 @@ Lancé depuis Téléchargements, il demande le code d'installation (copié par C
 `%LOCALAPPDATA%\Programs\CLAIRE\CLAIRE-relais.exe`, garde sa configuration dans `%LOCALAPPDATA%\CLAIRE\relais.json` et écrit,
 dans le registre de l'utilisateur (HKCU) seulement :
 
-- `Software\Microsoft\Windows\CurrentVersion\Run`, valeur `CLAIRE-relais` : `conhost.exe --headless "…\CLAIRE-relais.exe" --fond`
-  (démarrage avec la session, sans fenêtre) ;
+- `Software\Microsoft\Windows\CurrentVersion\Run`, valeur `CLAIRE-relais` : `"…\CLAIRE-relais.exe" --fond`
+  (démarrage avec la session ; lancé dans une console, il se relance aussitôt sans elle — une fenêtre noire peut paraître un instant) ;
 - `Software\Classes\claire-relais` : le lien des boutons des notifications (même programme, `--action "%1"`) ;
 - `Software\Classes\AppUserModelId\CLAIRE.Relais` : nom (« CLAIRE ») et icône des notifications.
 
@@ -39,5 +39,5 @@ Retrait : `CLAIRE-relais.exe --retirer`. Contrôle : `CLAIRE-relais.exe --verifi
 
 Aucune exclusion propre au relais n'est en principe nécessaire : le fichier est CLAIRE-serveur.exe. Si Panda le bloque quand même
 sous ce nom, l'exclusion est celle du programme de CLAIRE (même empreinte que `CLAIRE-serveur.exe` de la version installée).
-**Non vérifié sur un poste de l'étude** (notifications, conhost --headless, lien `claire-relais:`) : points `relais-node-*` des
+**Non vérifié sur un poste de l'étude** (notifications, relance sans console, lien `claire-relais:`, petite fenêtre de réponse) : points `relais-node-*` des
 vérifications sur le terrain.
