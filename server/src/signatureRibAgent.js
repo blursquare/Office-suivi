@@ -69,13 +69,16 @@ function brouillonDepuisResultat(e) {
   let objet = null;
   try { objet = JSON.parse(texte); } catch (_) { objet = null; }
   const racine = objet && typeof objet === 'object' ? (objet.signature_request || objet.signatureRequest || objet.data || objet) : null;
-  const RE_UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-  let id = racine && typeof racine.id === 'string' && RE_UUID.test(racine.id) ? racine.id.toLowerCase() : '';
-  const lienBrut = racine && typeof racine.url === 'string' ? racine.url : (((/https:\/\/[^\s"'<>]+/i.exec(texte)) || [''])[0]);
-  const lien = lienYousignSur(lienBrut);
-  if (!id) { const m = RE_UUID.exec(lien || texte); id = m ? m[0].toLowerCase() : ''; }
+  const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // L'identifiant d'une DEMANDE, par une clé nommée seulement — jamais un UUID quelconque du texte (audit 26/10, M5 : celui du modèle passait).
+  const nomme = racine ? [racine.signature_request_id, racine.signatureRequestId, racine.id].find((v) => typeof v === 'string' && RE_UUID.test(v)) : '';
+  // Le lien : seulement le chemin d'une demande (`/requests/<uuid>`) sur Yousign, jamais celui d'un modèle (`/templates/…`).
+  const lienBrut = racine && typeof racine.url === 'string' ? racine.url : '';
+  const lienDemande = (/** @type {string} */ v) => { const l = lienYousignSur(v); const m = l ? RE_BROUILLON.exec(l) : null; return m ? { url: m[0], id: m[1].toLowerCase() } : null; };
+  const parLien = lienDemande(lienBrut) || (objet ? null : lienDemande(((RE_BROUILLON.exec(texte)) || [''])[0]));
+  const id = nomme ? String(nomme).toLowerCase() : (parLien ? parLien.id : '');
   if (!id) return null;
-  return { id, url: lien || 'https://yousign.app/auth/workspace/requests/' + id };
+  return { id, url: parLien && parLien.id === id ? parLien.url : 'https://yousign.app/auth/workspace/requests/' + id };
 }
 
 /** Pure : une adresse https sur un domaine de Yousign (yousign.app, yousign.com et leurs sous-domaines), sinon ''. @param {unknown} v */

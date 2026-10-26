@@ -592,7 +592,9 @@
   // Pure : les parcelles d'une fiche bien d'Authentic sans celles de l'« Ancien cadastre » — dès qu'une parcelle a sa surface, celles qui n'en
   // ont pas sont anciennes (étude 26/10). Aucune surface du tout (fiche partielle) : toutes gardées.
   function parcellesSansAncienCadastre(parcelles) {
-    const avec = (parcelles || []).filter(p => p && !detailParcelleVide('surface', p.surface));
+    // Surface vraiment ABSENTE seulement : un « 0 » (tableau en hectares, parcelle de moins d'un hectare) est une surface (audit 26/10, M6).
+    const absente = (v) => v == null || String(v).trim() === '';
+    const avec = (parcelles || []).filter(p => p && !absente(p.surface));
     return avec.length ? avec : (parcelles || []).slice();
   }
 
@@ -612,8 +614,12 @@
     if (!retirees.size) return false;
     d.authentic = Object.assign({}, d.authentic, { immeubles });
     const cad = d.bien && d.bien.cadastre;
-    if (cad && Array.isArray(cad.parcelles)) cad.parcelles = cad.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface)));
-    if (Array.isArray(d.biens)) d.biens = d.biens.map(b => (b && Array.isArray(b.parcelles) ? Object.assign({}, b, { parcelles: b.parcelles.filter(p => !(retirees.has(cle(p)) && detailParcelleVide('surface', p.surface))) }) : b));
+    const sansSurface = (p) => !p || p.surface == null || String(p.surface).trim() === '';
+    if (cad && Array.isArray(cad.parcelles)) {
+      cad.parcelles = cad.parcelles.filter(p => !(retirees.has(cle(p)) && sansSurface(p)));
+      if (cad.parcelles.length) { cad.section = cad.parcelles[0].section; cad.numero = cad.parcelles[0].numero; }
+    }
+    if (Array.isArray(d.biens)) d.biens = d.biens.map(b => (b && Array.isArray(b.parcelles) ? Object.assign({}, b, { parcelles: b.parcelles.filter(p => !(retirees.has(cle(p)) && sansSurface(p))) }) : b));
     ajouterHistorique(d, `Parcelles de l’ancien cadastre retirées : ${[...retirees].join(', ')}`);
     return true;
   }
@@ -623,6 +629,7 @@
   var MOTS_FORME_SOCIETE = ['sci', 'sarl', 'sas', 'sasu', 'eurl', 'sa', 'snc', 'scp', 'selarl', 'selas', 'scea', 'gaec', 'earl', 'sccv', 'scm', 'spfpl',
     'societe', 'civile', 'immobiliere', 'commerciale', 'anonyme', 'responsabilite', 'limitee', 'simplifiee', 'par', 'actions', 'en', 'nom', 'collectif',
     'de', 'des', 'du', 'la', 'le', 'les', 'l', 'd', 'et', 'a', 'au', 'aux'];
+  var FORMES_SOCIETE = ['sci', 'sarl', 'sas', 'sasu', 'eurl', 'sa', 'snc', 'scp', 'selarl', 'selas', 'scea', 'gaec', 'earl', 'sccv', 'scm', 'spfpl', 'societe'];
   function motsSignificatifsSociete(nom) {
     return normaliserPourRecherche(String(nom || '')).replace(/[^a-z0-9]+/g, ' ').split(' ').filter(m => m && !MOTS_FORME_SOCIETE.includes(m));
   }
@@ -632,15 +639,29 @@
   function roleSocieteAuthenticDansDossier(d, nom) {
     const mots = motsSignificatifsSociete(nom);
     if (!d || !mots.length) return '';
-    const porte = (texte) => { const t = ' ' + normaliserPourRecherche(String(texte || '')).replace(/[^a-z0-9]+/g, ' ') + ' '; return mots.every(m => t.includes(' ' + m + ' ')); };
+    const net = (texte) => normaliserPourRecherche(String(texte || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const porte = (texte) => { const t = ' ' + net(texte) + ' '; return mots.every(m => t.includes(' ' + m + ' ')); };
+    // Seule une SOCIÉTÉ désigne une société (audit 26/10, H1 : « SCI DUPONT » rangée du côté de Paul DUPONT par son seul nom de famille) :
+    // une partie morale, ou un nom qui porte une forme juridique.
+    const forme = (texte) => net(texte).split(' ').some(m => FORMES_SOCIETE.includes(m));
+    const societe = (p) => p && (p.qualitePersonne === 'morale' || forme(p.nom));
+    const cotes = ['VENDEUR', 'ACQUEREUR'];
     const roles = new Set();
-    (Array.isArray(d.parties) ? d.parties : []).forEach(p => { if (p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && porte(p.nom)) roles.add(p.role); });
-    ((d.authentic && d.authentic.comparants) || []).forEach(c => { if (c && (c.role === 'VENDEUR' || c.role === 'ACQUEREUR') && porte(c.nom)) roles.add(c.role); });
+    (Array.isArray(d.parties) ? d.parties : []).forEach(p => { if (p && cotes.includes(p.role) && societe(p) && porte(p.nom)) roles.add(p.role); });
+    const comparants = ((d.authentic && d.authentic.comparants) || []).filter(c => c && cotes.includes(c.role));
+    comparants.forEach(c => { if (forme(c.nom) && porte(c.nom)) roles.add(c.role); });
     if (!roles.size) {
+      // Le nom du dossier, seulement là où ses mots ne sont pas ceux d'une PERSONNE de ce côté (le gérant qui porte le nom de sa SCI).
+      const physique = (role) => (d.parties || []).some(p => p && p.role === role && !societe(p) && porte(p.nom));
       const m = /^\s*(.+?)\s*\/\s*(.+?)\s*$/.exec(String(d.nom || ''));
-      if (m) { if (porte(m[1])) roles.add('VENDEUR'); if (porte(m[2])) roles.add('ACQUEREUR'); }
+      if (m) { if (porte(m[1]) && !physique('VENDEUR')) roles.add('VENDEUR'); if (porte(m[2]) && !physique('ACQUEREUR')) roles.add('ACQUEREUR'); }
     }
-    return roles.size === 1 ? [...roles][0] : '';
+    if (roles.size !== 1) return '';
+    const role = [...roles][0];
+    // Comparants de ce côté lus sans cette société : elle n'est pas partie (gardée « à rattacher », jamais devinée).
+    const duCote = comparants.filter(c => c.role === role);
+    if (duCote.length && !duCote.some(c => porte(c.nom))) return '';
+    return role;
   }
 
   // Modifie d : la partie de ce côté qui porte le nom de la société lue devient une personne morale (raison sociale d'Authentic) ; sans
@@ -650,13 +671,19 @@
     const nom = mots(societe.nom);
     // Jamais une personne physique (prénom ou civilité) ni une partie dont le nom n'est qu'un morceau de la raison sociale :
     // le gérant « DUPONT » vend souvent avec sa « SCI DUPONT ».
-    const cote = (Array.isArray(d.parties) ? d.parties : []).filter(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ')));
+    // … ou la même société écrite autrement (« Société civile immobilière LES PINS » reprise du compromis sans être marquée société, audit
+    // 26/10, M2) : mêmes mots significatifs exactement — jamais « Jean PINS ».
+    const sig = motsSignificatifsSociete(societe.nom).slice().sort().join(' ');
+    // Une forme juridique écrite dans le nom de la partie est exigée : le gérant « DUPONT » n'est jamais « SCI DUPONT » (relecture 0.293.0).
+    const avecForme = (x) => normaliserPourRecherche(String(x.nom || '')).replace(/[^a-z0-9]+/g, ' ').split(' ').some(m => FORMES_SOCIETE.includes(m));
+    const memeSociete = (x) => sig && !x.prenom && !x.civilite && avecForme(x) && motsSignificatifsSociete(x.nom).slice().sort().join(' ') === sig;
+    const cote = (Array.isArray(d.parties) ? d.parties : []).filter(x => x && x.role === role && nom && (mots(x.nom) === nom || (' ' + mots(x.nom) + ' ').includes(' ' + nom + ' ') || memeSociete(x)));
     if (cote.some(x => x.qualitePersonne === 'morale')) return;
     const p = cote.find(x => !x.prenom && !x.civilite);
     if (!p) {
       // Déjà là comme société sous une autre écriture (« LES PINS » / « SCI DES PINS ») : rien de plus.
-      const sig = motsSignificatifsSociete(societe.nom);
-      if ((d.parties || []).some(x => x && x.role === role && x.qualitePersonne === 'morale' && sig.length && sig.every(m => motsSignificatifsSociete(x.nom).includes(m)))) return;
+      const sigListe = motsSignificatifsSociete(societe.nom);
+      if ((d.parties || []).some(x => x && x.role === role && x.qualitePersonne === 'morale' && sigListe.length && sigListe.every(m => motsSignificatifsSociete(x.nom).includes(m)))) return;
       d.parties = (Array.isArray(d.parties) ? d.parties : []).concat({
         nom: String(societe.nom || '').trim(), role, qualiteActe: role === 'VENDEUR' ? 'vendeur' : 'acquéreur', qualitePersonne: 'morale',
         representant: null, origine: 'authentic', emails: (societe.emails || []).slice(0, 3), telephones: (societe.telephones || []).slice(0, 3)

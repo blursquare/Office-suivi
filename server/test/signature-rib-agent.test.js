@@ -345,3 +345,12 @@ test('brouillonDepuisResultat et lienYousignSur : purs', () => {
   assert.equal(brouillonDepuisResultat({ content: 'rien' }), null);
   assert.equal(brouillonDepuisResultat({ content: [{ type: 'text', text: '{"signature_request":{"id":"4A304C31-E229-47D2-9ADC-D2B2F443B5BC"}}' }] }).id, '4a304c31-e229-47d2-9adc-d2b2f443b5bc');
 });
+
+test('brouillonDepuisResultat : jamais l’identifiant ni le lien d’un MODÈLE (audit 26/10, M5)', () => {
+  const { brouillonDepuisResultat } = require('../src/signatureRibAgent');
+  const A = '93797308-f633-411a-8223-4d03c09064e3', B = '4a304c31-e229-47d2-9adc-d2b2f443b5bc';
+  const r = brouillonDepuisResultat({ content: [{ type: 'text', text: JSON.stringify({ template_id: A, signature_request_id: B, url: 'https://yousign.app/auth/workspace/templates/' + A }) }] });
+  assert.deepEqual([r.id, r.url], [B, 'https://yousign.app/auth/workspace/requests/' + B]);
+  assert.equal(brouillonDepuisResultat({ content: 'modèle https://yousign.app/auth/workspace/templates/' + A }), null);
+  assert.equal(brouillonDepuisResultat({ content: 'uuid nu ' + A }), null);
+});

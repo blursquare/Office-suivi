@@ -164,12 +164,15 @@ function lignesVeilleSignature(d) {
   const confirmee = isoValideVeille(d.receptionFondsConfirmeeLe);
   ligne('confirmationFonds', 'Réception des fonds confirmée au client', confirmee ? 'fait' : 'attente', confirmee, '');
 
-  // RIB et pièce d'identité : jamais demandés directement quand un confrère accompagne l'acquéreur.
-  if (notaireParticipantRepresenteAcquereur(d)) {
+  // RIB et pièce d'identité : à toutes les parties que l'étude accompagne (26/10), jamais à celles d'un confrère.
+  const ribParties = typeof partiesSignatureRib === 'function' ? partiesSignatureRib(d) : [];
+  if (!ribParties.length) {
     ligne('rib', 'RIB et pièce d’identité', 'sans-objet', '', 'À demander par l’office du confrère');
   } else {
-    const rib = isoValideVeille(d.ribDemandeLe);
-    ligne('rib', 'RIB et pièce d’identité demandés', rib ? 'fait' : 'attente', rib, '');
+    const dates = ribParties.map(x => ribDemandeLePour(d, x.partie));
+    const toutes = dates.every(Boolean);
+    const derniere = dates.filter(x => /^\d{4}-/.test(x)).sort().pop() || '';
+    ligne('rib', 'RIB et pièce d’identité demandés', toutes ? 'fait' : 'attente', isoValideVeille(derniere), toutes || !dates.some(Boolean) ? '' : `${dates.filter(Boolean).length} sur ${dates.length}`);
   }
   return lignes;
 }

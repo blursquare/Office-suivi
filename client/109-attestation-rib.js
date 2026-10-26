@@ -12,11 +12,6 @@ var COULEURS_ATTESTATION_RIB = { bordeaux: '6D2332', texte: '262224', gris: '666
 var PAGE_ATTESTATION_RIB = { largeur: 595.28, hauteur: 841.89, marge: 56.7 };
 var LOGOS_ATTESTATION_RIB = { logoOffice: { visible: [0.1031, 0.1946, 0.8987, 0.7617] }, logoNotaires: { visible: [0.3172, 0.1117, 0.6841, 0.7792] } };
 
-// Les acquéreurs de la fiche (personnes ou sociétés) : un brouillon Yousign par signataire.
-function acquereursSignatureRib(d) {
-  return (Array.isArray(d && d.parties) ? d.parties : []).map((partie, index) => ({ partie, index })).filter(x => x.partie && x.partie.role === 'ACQUEREUR');
-}
-
 // Les parties à qui l'étude demande le RIB (étude 26/10 : « dans tous les dossiers, sauf lorsqu'on n'accompagne pas un client — accompagné par
 // un confrère ») : les acquéreurs sauf si un confrère les accompagne, les vendeurs sauf si un confrère les accompagne, les héritiers d'une
 // succession (ceux qui sont des parties de la fiche : un héritier lu seulement dans les comparants n'a ni email ni portable). [{ partie, index, role }]
@@ -37,17 +32,38 @@ function partiesSignatureRib(d) {
   return vendeurs.concat(acquereurs);
 }
 
+// Pure : la clé d'une partie pour la demande de RIB (rôle + nom complet), retenue PAR PERSONNE (audit 26/10 : une demande au vendeur cochait
+// celle de l'acquéreur).
+function cleRibPartie(partie) {
+  return String(partie && partie.role || '') + ':' + normaliserPourRecherche([partie && partie.prenom, partie && partie.nom].filter(Boolean).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// La date à laquelle le RIB de cette partie a été demandé, sinon ''. Avant le 26/10 la demande était retenue pour le dossier entier
+// (`ribDemandeLe`, ou la relance par email) : elle vaut pour les acquéreurs, à qui elle s'adressait alors.
+function ribDemandeLePour(d, partie) {
+  const propre = d && d.ribDemandes && d.ribDemandes[cleRibPartie(partie)];
+  if (propre) return propre;
+  if (partie && partie.role === 'ACQUEREUR' && ribDejaDemande(d)) return d.ribDemandeLe || 'avant';
+  return '';
+}
+
+// Une partie accompagnée dont le RIB n'est pas encore demandé ?
+function ribResteADemander(d) {
+  return partiesSignatureRib(d).some(x => !ribDemandeLePour(d, x.partie));
+}
+
 // Ligne de l'onglet Fonds (« Demander le RIB et la pièce d'identité ») : la signature du RIB par Yousign remplace l'email de rappel.
 function renderLignesSignatureRib(d) {
   const liste = partiesSignatureRib(d);
   if (!liste.length) return '';
-  const faite = ribDejaDemande(d);
   return liste.map(({ partie, index, role }) => {
+    const le = ribDemandeLePour(d, partie);
+    const faite = !!le;
     const s = signataireRibDePartie(d, partie);
     const nom = [s.prenom, s.nom].filter(Boolean).join(' ');
     return renderLigneAction({
       categorie: 'rendezVousSignature', categorieLabel: 'Avant la signature', titre: 'Demander le RIB et la pièce d’identité',
-      sous: ([{ VENDEUR: 'Vendeur', ACQUEREUR: 'Acquéreur', HERITIER: 'Héritier' }[role] || '', nom].filter(Boolean).join(' ') + ' · ') + (faite && d.ribDemandeLe ? `Signature demandée le ${formatDateFr(d.ribDemandeLe)}` : 'Signature électronique (code SMS) avec le RIB en pièce jointe'),
+      sous: ([{ VENDEUR: 'Vendeur', ACQUEREUR: 'Acquéreur', HERITIER: 'Héritier' }[role] || '', nom].filter(Boolean).join(' ') + ' · ') + (faite ? (/^\d{4}-/.test(le) ? `Signature demandée le ${formatDateFr(le)}` : 'Déjà demandé') : 'Signature électronique (code SMS) avec le RIB en pièce jointe'),
       faite,
       bouton: { libelle: faite ? 'Renvoyer' : 'Envoyer', icone: icone('pencil'), onclick: `preparerSignatureRib('${escapeOnclickArg(d.id)}', ${Number(index)})`, titre: 'Crée dans Yousign le brouillon du modèle « Signature d’attestation et envoi de RIB » avec cette personne comme signataire (code SMS). Rien n’est envoyé.' },
       secondaires: `<wa-button appearance="plain" class="bouton-icone" size="s" onclick="telechargerAttestationRib('${escapeOnclickArg(d.id)}', ${Number(index)})" title="Attestation en PDF à faire signer" aria-label="Attestation en PDF">${icone('file-text')}</wa-button>`
@@ -91,7 +107,7 @@ async function sonderSignatureRib() {
 (function () { const t = setTimeout(sonderSignatureRib, 4000); if (t && t.unref) t.unref(); })();
 
 // Le brouillon créé par l'agent Yousign du serveur : le lien s'affiche dans CLAIRE. Rien n'est envoyé : l'étude vérifie le brouillon dans Yousign.
-async function creerBrouillonSignatureRib(s, idDossier) {
+async function creerBrouillonSignatureRib(s, idDossier, index) {
   if (signatureRibEnCours) { afficherToast('Un brouillon est déjà en cours de préparation.', 'OK', null); return; }
   signatureRibEnCours = true;
   afficherToast(`Préparation du brouillon pour ${s.prenom} ${s.nom}… (une minute au plus)`, 'OK', null, { fixe: true, cle: 'signature-rib' });
@@ -100,7 +116,7 @@ async function creerBrouillonSignatureRib(s, idDossier) {
     const j = await r.json().catch(() => ({}));
     if (typeof fermerToastFixe === 'function') fermerToastFixe('signature-rib');
     if (r.ok && j.ok && j.url) {
-      noterSignatureRibDemandee(idDossier, j);
+      noterSignatureRibDemandee(idDossier, j, index);
       afficherToast('Brouillon créé dans Yousign : vérifiez-le, puis envoyez-le depuis Yousign.', 'Ouvrir', () => window.open(j.url, '_blank', 'noopener'), { fixe: true, cle: 'signature-rib' });
     } else {
       if (j && j.configuration) signatureRibAuto = false; // réglage à revoir : les prochains clics reprennent le bouton de repli
@@ -115,11 +131,15 @@ async function creerBrouillonSignatureRib(s, idDossier) {
 }
 
 // Le brouillon est créé : la demande de RIB est faite (même effet que l'email de rappel), la tâche et la ligne de l'onglet Fonds se cochent.
-function noterSignatureRibDemandee(idDossier, brouillon) {
+function noterSignatureRibDemandee(idDossier, brouillon, index) {
   const d = dossiers.find(x => x.id === idDossier);
   if (!d) return;
-  d.ribDemandeLe = isoAujourdhuiLocal();
-  if (brouillon && brouillon.id) d.signatureRib = { id: String(brouillon.id), url: String(brouillon.url || ''), le: d.ribDemandeLe };
+  const le = isoAujourdhuiLocal();
+  const partie = Array.isArray(d.parties) ? d.parties[index] : null;
+  // Par personne (26/10) ; la date du dossier ne suit que les acquéreurs (lecture des demandes d'avant).
+  if (partie) d.ribDemandes = Object.assign({}, d.ribDemandes || {}, { [cleRibPartie(partie)]: le });
+  if (!partie || partie.role === 'ACQUEREUR') d.ribDemandeLe = le;
+  if (brouillon && brouillon.id) d.signatureRib = { id: String(brouillon.id), url: String(brouillon.url || ''), le };
   ajouterHistorique(d, LIBELLE_HISTORIQUE_RIB + ' (signature Yousign, brouillon créé)');
   sauvegarder(d);
   render();
@@ -137,7 +157,7 @@ function preparerSignatureRib(idDossier, index) {
     afficherToast(`Il manque sur la fiche : ${manques.join(', ')}. À compléter avant de préparer la signature.`, 'OK', null);
     return;
   }
-  if (signatureRibAuto === true) { creerBrouillonSignatureRib(s, idDossier); return; }
+  if (signatureRibAuto === true) { creerBrouillonSignatureRib(s, idDossier, index); return; }
   // Repli : un simple lien vers Yousign (ouvert dans le geste du clic, sinon le navigateur bloque la fenêtre).
   const fenetre = window.open('https://yousign.app/', '_blank', 'noopener');
   afficherToast(fenetre

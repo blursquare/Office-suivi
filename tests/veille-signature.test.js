@@ -13,7 +13,7 @@ const T = (iso) => new Date(iso);
 // Une vente dont tout est fait, sauf ce que chaque test retire.
 function vente(extra) {
   const d = Object.assign({
-    id: 'v1', nom: 'MARTIN / DURAND', responsable: 'Julie VASSELIN', typeVente: 'maison',
+    id: 'v1', nom: 'MARTIN / DURAND', responsable: 'Julie VASSELIN', typeVente: 'maison', parties: [{ nom: 'Léa DURAND', role: 'ACQUEREUR' }],
     rendezVousSignature: '2026-10-29', rendezVousSignatureHeure: '14:30',
     offrePretStatut: 'recue', historique: [{ date: '2026-10-05T09:00:00', texte: 'Offre de prêt reçue' }],
     pieces: { renonciationPreemption: 'recue' }, piecesTrouveesLe: { renonciationPreemption: '2026-10-02T08:00:00' },

@@ -24,3 +24,16 @@ test('onglet Fonds : la demande de RIB est toujours en avant, dès l’ouverture
   const r2 = app.echangesSelonStade(confreres, '2026-10-26');
   assert.ok(!r2.utiles.includes('rib') && !r2.autres.includes('rib'));
 });
+
+test('RIB retenu PAR PERSONNE : une demande au vendeur ne coche pas celle de l’acquéreur (audit 26/10, M3)', () => {
+  const d = vente({ ribDemandes: {} });
+  const v = d.parties[0], a = d.parties[1];
+  d.ribDemandes[app.cleRibPartie(v)] = '2026-10-20';
+  assert.equal(app.ribDemandeLePour(d, v), '2026-10-20');
+  assert.equal(app.ribDemandeLePour(d, a), '');
+  assert.equal(app.ribResteADemander(d), true);
+  // Ancienne demande du dossier entier : elle valait pour les acquéreurs.
+  const ancien = vente({ ribDemandeLe: '2026-10-01' });
+  assert.equal(app.ribDemandeLePour(ancien, ancien.parties[1]), '2026-10-01');
+  assert.equal(app.ribDemandeLePour(ancien, ancien.parties[0]), '');
+});

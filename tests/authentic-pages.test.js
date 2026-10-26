@@ -1746,3 +1746,20 @@ test('fiche client d’une SOCIÉTÉ : côté trouvé par ses mots significatifs
   app.appliquerReleveSurDossier(d, capture, '2026-10-26T10:05:00.000Z');
   assert.equal(d.parties.filter((p) => p.qualitePersonne === 'morale').length, 1);
 });
+
+test('société : jamais rattachée par un simple nom de famille (audit 26/10, H1) ; même société écrite autrement marquée, pas ajoutée (M2)', () => {
+  // « SCI DUPONT » sur le dossier où Paul DUPONT VEND à MARTIN : pas du côté du vendeur par son seul nom.
+  const d1 = { id: 'd1', nom: 'DUPONT / MARTIN', parties: [{ nom: 'Paul DUPONT', role: 'VENDEUR', civilite: 'M' }, { nom: 'Léa MARTIN', role: 'ACQUEREUR' }], historique: [] };
+  assert.equal(app.roleSocieteAuthenticDansDossier(d1, 'SCI DUPONT'), '');
+  // Paul DUPONT vend à SA SCI : le côté du nom du dossier qui n'est pas celui d'une personne.
+  const d2 = { id: 'd2', nom: 'DUPONT / DUPONT', parties: [{ nom: 'Paul DUPONT', role: 'VENDEUR', civilite: 'M' }], historique: [] };
+  assert.equal(app.roleSocieteAuthenticDansDossier(d2, 'SCI DUPONT'), 'ACQUEREUR');
+  // Comparants lus de ce côté, sans la société : elle n'est pas partie.
+  const d3 = Object.assign({}, d2, { authentic: { comparants: [{ nom: 'Jean DURAND', role: 'ACQUEREUR' }] } });
+  assert.equal(app.roleSocieteAuthenticDansDossier(d3, 'SCI DUPONT'), '');
+  // Reprise du compromis sans être marquée société : marquée, jamais ajoutée en double.
+  const d4 = { id: 'd4', nom: 'MARTIN / LES PINS', parties: [{ nom: 'Paul MARTIN', role: 'VENDEUR', civilite: 'M' }, { nom: 'Société civile immobilière LES PINS', role: 'ACQUEREUR' }], historique: [] };
+  app.marquerSocieteAuthentic(d4, { nom: 'SCI DES PINS', emails: [], telephones: [] }, 'ACQUEREUR', () => {});
+  assert.equal(d4.parties.filter((p) => p.role === 'ACQUEREUR').length, 1);
+  assert.equal(d4.parties[1].qualitePersonne, 'morale');
+});

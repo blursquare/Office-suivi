@@ -273,7 +273,7 @@
         // Acquéreur accompagné par un confrère : c'est son notaire qui lui demande RIB et pièce
         // d'identité, jamais nous (demandé par l'étude le 29/09).
         // Depuis le 26/10 : pour toute partie que l'étude accompagne (vendeurs, acquéreurs — `partiesSignatureRib`), plus seulement l'acquéreur.
-        if (jRdv <= JOURS_RAPPEL_RIB && !ribDejaDemande(d) && partiesSignatureRib(d).length) {
+        if (jRdv <= JOURS_RAPPEL_RIB && ribResteADemander(d)) {
           ajouter({
             type: 'rib', categorie: 'rendezVousSignature', categorieLabel: 'Rendez-vous de signature',
             titre: 'Demander le RIB et la pièce d’identité',

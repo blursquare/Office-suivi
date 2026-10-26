@@ -143,7 +143,8 @@ async function yousignRibAgent(entree) {
       return r.ok && j.ok ? { statut: j.statut, brouillon_cree_le: d.signatureRib.le || '' } : { erreur: (j && j.raison) || 'état illisible' };
     } catch (err) { return { erreur: 'le serveur n’a pas répondu' }; }
   }
-  const liste = acquereursSignatureRib(d);
+  // Les acquéreurs que l'étude accompagne (jamais celui d'un confrère, audit 26/10).
+  const liste = partiesSignatureRib(d).filter(x => x.role === 'ACQUEREUR');
   const choisi = liste[Math.max(1, Number(e.acquereur) || 1) - 1];
   if (!choisi) return { erreur: 'aucun acquéreur à ce rang dans la fiche' };
   const s = signataireRibDePartie(d, choisi.partie);
@@ -156,7 +157,7 @@ async function yousignRibAgent(entree) {
   try {
     const r = await fetchAvecAuth('/api/signature-rib/brouillon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok && j.ok && j.url) { noterSignatureRibDemandee(d.id, j); return { cree: true, lien: j.url, rappel: 'brouillon seulement : l’étude le vérifie et l’envoie dans Yousign' }; }
+    if (r.ok && j.ok && j.url) { noterSignatureRibDemandee(d.id, j, choisi.index); return { cree: true, lien: j.url, rappel: 'brouillon seulement : l’étude le vérifie et l’envoie dans Yousign' }; }
     return { cree: false, erreur: (j && j.raison) || 'le brouillon n’a pas pu être préparé' };
   } catch (err) { return { cree: false, erreur: 'le serveur n’a pas répondu : vérifier dans Yousign si un brouillon a été créé avant de recommencer' }; }
 }

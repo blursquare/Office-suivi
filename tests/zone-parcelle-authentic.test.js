@@ -46,3 +46,9 @@ test('retirerParcellesAncienCadastre : nettoie les immeubles retenus et la fiche
   assert.equal(d.bien.cadastre.parcelles.map((p) => p.numero).join(','), '562,9', 'la parcelle saisie ailleurs reste');
   assert.equal(app.retirerParcellesAncienCadastre(d), false);
 });
+
+test('ancien cadastre : une surface « 0 » (tableau en hectares) est une surface, jamais écartée (audit 26/10, M6)', () => {
+  const app = chargerApplication();
+  const p = app.parcellesSansAncienCadastre([{ section: 'AB', numero: '1', surface: '2' }, { section: 'AB', numero: '2', surface: '0' }, { section: 'AB', numero: '3' }]);
+  assert.equal(p.map((x) => x.numero).join(','), '1,2');
+});
