@@ -157,3 +157,18 @@ test('installation : la boîte du code et les messages sont des fenêtres VISIBL
   assert.ok(!(options[0] && options[0].fenetre));
   void journal;
 });
+
+test('notifications : « CLAIRE » si Windows le permet, sinon PowerShell ; l’état lu remonte au relevé suivant', async () => {
+  const sc = R.scriptToasts();
+  assert.match(sc, /CreateToastNotifier\('CLAIRE\.Relais'\)/);
+  assert.match(sc, /\$n\.Setting/);
+  assert.match(sc, /if\(\$r -ne 'Enabled'\)\{\$n=\[Windows\.UI\.Notifications\.ToastNotificationManager\]::CreateToastNotifier\('\{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7\}\\WindowsPowerShell\\v1\.0\\powershell\.exe'\)/);
+  assert.equal(R.etatToasts(' DisabledForUser>secours\r\n'), 'DisabledForUser>secours');
+  assert.equal(R.etatToasts('<script>'), '');
+  const carte = { type: 'resume', titre: 'CLAIRE', texte: 'essai' };
+  const { s, journal } = fauxSysteme([{ statut: 200, json: { notifications: [carte] } }, { statut: 200, json: {} }]);
+  s.powershell = async (script) => (/Toast/.test(script) ? 'DisabledByManifest>secours' : '');
+  await R.boucle(s, { tours: 2, pause: 0 });
+  assert.equal(journal.postes[0].corps.toasts, undefined);
+  assert.equal(journal.postes[1].corps.toasts, 'DisabledByManifest>secours');
+});

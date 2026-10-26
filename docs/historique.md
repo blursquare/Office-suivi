@@ -22098,3 +22098,13 @@ toasts et fenêtre CLAIRE restent cachés. Test « installation : boîte visible
 une fenêtre CLAIRE visible derrière Word marquait la réponse lue à son arrivée, donc ni non-lu ni notification. Désormais lu seulement
 fenêtre au premier plan (`document.hasFocus()`), et au retour du focus (écouteur `focus`, garde des 20 s sautée). Rejoué dans Chromium
 (non lu sans focus, lu au retour). Reste sans notification : la conversation personnelle (hors canal, gardée sur le poste).
+
+### 26/10 — 0.354.3 : notifications du relais 2.0 qui n'arrivent pas
+
+Étude : « je n'ai aucune notif et aucune pastille » (relais en marche, installation confirmée). Windows écarte EN SILENCE la notification d'un
+AUMID qu'il ne reconnaît pas (`CLAIRE.Relais` déclaré seulement dans `HKCU\Software\Classes\AppUserModelId`, sans raccourci). `scriptToasts`
+lit `ToastNotifier.Setting` ; autre chose que `Enabled` → identifiant de PowerShell (`AUMID_SECOURS`, notifications « Windows PowerShell ») ;
+l'état lu (`etatToasts`) part au relevé suivant (`toasts`), gardé par le serveur (`etatPosteWord`), montré dans Réglages › Notifications
+(`texteEtatToastsWindows`) et noté au point `relais-node-notifications`. Bouton « Envoyer une notification d'essai » (`POST /api/relais-word/essai`,
+`noterCartePoste`). La pastille chiffrée n'existe plus depuis le relais 2.0 (dit à l'étude). NB : le relais installé n'est PAS mis à jour par la
+mise à jour du serveur (copie figée, audit 0.354.0 M3) : retélécharger.

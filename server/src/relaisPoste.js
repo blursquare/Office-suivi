@@ -152,15 +152,33 @@ function litteralPs(v) {
   return "'" + String(v).replace(/'/g, "''") + "'";
 }
 
-/** Pure : le script qui montre les toasts (XML passés par la variable CLAIRE_TOASTS, un par ligne en base64). */
+// Identifiant de PowerShell, que Windows connaît toujours : secours quand « CLAIRE.Relais » n'est pas permis (étude 26/10 : « je n'ai
+// aucune notif » — Windows écarte EN SILENCE la notification d'une application qu'il ne reconnaît pas).
+var AUMID_SECOURS = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe';
+
+/**
+ * Pure : le script qui montre les toasts (XML passés par la variable CLAIRE_TOASTS, en base64 séparés d'une espace). Il demande
+ * d'abord à Windows si « CLAIRE » a le droit de notifier (Setting : Enabled, DisabledForApplication, DisabledForUser,
+ * DisabledByGroupPolicy, DisabledByManifest) ; sinon, l'identifiant de PowerShell. Écrit sur la sortie l'état lu (« Enabled »,
+ * « DisabledForUser>secours »…), rendu au serveur au relevé suivant.
+ */
 function scriptToasts() {
   return [
     "$ErrorActionPreference='SilentlyContinue'",
     '$null=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]',
     '$null=[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]',
     `$n=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${litteralPs(AUMID)})`,
-    "foreach($b in ($env:CLAIRE_TOASTS -split ' ')){if($b){$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)));$n.Show((New-Object Windows.UI.Notifications.ToastNotification $x))}}"
+    "$r='Inconnu';try{$r=[string]$n.Setting}catch{}",
+    `if($r -ne 'Enabled'){$n=[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier(${litteralPs(AUMID_SECOURS)});$r=$r+'>secours'}`,
+    "$e=0;foreach($b in ($env:CLAIRE_TOASTS -split ' ')){if($b){try{$x=New-Object Windows.Data.Xml.Dom.XmlDocument;$x.LoadXml([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b)));$n.Show((New-Object Windows.UI.Notifications.ToastNotification $x))}catch{$e++}}}",
+    "if($e){$r=$r+'>echec'};[Console]::Out.Write($r)"
   ].join(';');
+}
+
+/** Pure : l'état des notifications rendu par le script (lettres et « > » seulement, 60 caractères au plus), sinon ''. @param {unknown} v */
+function etatToasts(v) {
+  const t = String(v || '').trim();
+  return /^[A-Za-z>]{1,60}$/.test(t) ? t : '';
 }
 
 /** Pure : le script qui met la fenêtre CLAIRE au premier plan, sinon l'ouvre (adresse et profil par CLAIRE_URL, CLAIRE_PROFIL). */
@@ -454,11 +472,13 @@ async function boucle(s, o = {}) {
   if (!o.tours && !serveur) return 0;   // un relais tourne déjà dans cette session
   let refus = 0;
   let tour = 0;
+  // Ce que Windows a dit des dernières notifications (scriptToasts), rendu au serveur à chaque relevé : Réglages › Notifications le montre.
+  let etatWindows = '';
   try {
     while (!fin && (!o.tours || tour < o.tours)) {
       tour++;
       try {
-        const r = await s.poster(cfg.url + 'api/relais-word/releve', { poste: cfg.poste, jeton: cfg.jeton, word: false, inchange: true, pastille: 1, relais: VERSION_RELAIS });
+        const r = await s.poster(cfg.url + 'api/relais-word/releve', { poste: cfg.poste, jeton: cfg.jeton, word: false, inchange: true, pastille: 1, relais: VERSION_RELAIS, ...(etatWindows ? { toasts: etatWindows } : {}) });
         if (r.statut === 403) {
           // Jeton refusé (relais réinstallé ailleurs ou retiré) : on ralentit, puis on s'arrête.
           if (++refus >= 10) return 0;
@@ -469,7 +489,7 @@ async function boucle(s, o = {}) {
         const cartes = (r.json && Array.isArray(r.json.notifications) ? r.json.notifications : []).filter((n) => n && n.titre).slice(0, MAX_TOASTS_PAR_RELEVE);
         if (cartes.length) {
           const toasts = cartes.map((n) => Buffer.from(toastXml(n, fichierPhoto(s, n.photo)), 'utf8').toString('base64')).join(' ');
-          await s.powershell(scriptToasts(), { CLAIRE_TOASTS: toasts });
+          etatWindows = etatToasts(await s.powershell(scriptToasts(), { CLAIRE_TOASTS: toasts })) || 'Muet';
         }
       } catch (_) { /* serveur injoignable : relevé suivant */ }
       await pause(o.pause === undefined ? 1000 : o.pause);
@@ -508,7 +528,7 @@ function estModeRelais(exe, args) {
 }
 
 module.exports = {
-  VERSION_RELAIS, PROTOCOLE, AUMID, REACTIONS_TOAST, configDuCode, configValide, modeDepuisArgs, lienAction, actionDuLien, toastXml,
+  VERSION_RELAIS, PROTOCOLE, AUMID, AUMID_SECOURS, REACTIONS_TOAST, etatToasts, configDuCode, configValide, modeDepuisArgs, lienAction, actionDuLien, toastXml,
   scriptToasts, scriptMontrerClaire, scriptDemanderCode, scriptMessage, scriptArreterAncien, commandesRegistre, commandesRetrait, nomTuyau,
   estModeRelais, lancerRelais, boucle, agir, installer
 };

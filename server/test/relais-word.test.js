@@ -279,3 +279,18 @@ test('gestes des cartes : rendus seulement à une fenêtre de la machine du rela
   assert.equal(R.adresseRequete({ socket: { remoteAddress: '::1' } }), 'local');
   assert.equal(R.adresseRequete({ socket: { remoteAddress: '127.0.0.1' } }), 'local', 'le poste serveur, par localhost ou par son adresse');
 });
+
+test('notification d’essai : une carte pour le relais en marche du poste ; l’état de Windows rendu par /etat', async () => {
+  const auth = { authorization: `Bearer ${session}`, 'Content-Type': 'application/json' };
+  const essai = (poste) => fetch(`${baseUrl}/api/relais-word/essai`, { method: 'POST', headers: auth, body: JSON.stringify({ poste }) });
+  assert.equal((await essai('jeremy')).status, 409, 'pas de relais en marche');
+  const cfg = configDuCode(await codePour('Jérémy'));
+  const releve = (corps) => fetch(`${baseUrl}/api/relais-word/releve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }).then(r => r.json());
+  await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.0' });
+  assert.equal((await essai('jeremy')).status, 200);
+  const r = await releve({ poste: 'jeremy', jeton: cfg.jeton, inchange: true, pastille: 1, relais: '2.0', toasts: 'DisabledForUser>secours' });
+  assert.equal(r.notifications.length, 1);
+  assert.match(r.notifications[0].texte, /Notification d’essai/);
+  const etat = await fetch(`${baseUrl}/api/relais-word/etat?poste=jeremy`, { headers: auth }).then(x => x.json());
+  assert.equal(etat.toasts, 'DisabledForUser>secours');
+});

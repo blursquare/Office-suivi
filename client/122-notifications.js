@@ -280,6 +280,7 @@ async function renderReglagesNotifications() {
       <p class="hint" id="notifications-relais">Lecture de l’état du relais…</p>
       <div class="reglages-actions">
         <wa-button appearance="outlined" class="secondary" onclick="installerRelaisNotifications()">Télécharger le relais pour ce poste</wa-button>
+        <wa-button appearance="outlined" class="secondary" onclick="essaiNotificationRelais()">Envoyer une notification d’essai</wa-button>
       </div>
     </div>`;
   let etat = null;
@@ -290,9 +291,34 @@ async function renderReglagesNotifications() {
   const ligne = document.getElementById('notifications-relais');
   if (!ligne) return;
   ligne.textContent = !etat ? 'État du relais inconnu (serveur injoignable).'
-    : etat.actif && etat.pastille ? `Relais en marche pour ${nom} : les notifications de CLAIRE s’affichent sur ce poste.`
+    : etat.actif && etat.pastille ? `Relais en marche pour ${nom}.${texteEtatToastsWindows(etat.toasts)}`
       : etat.actif ? `Le relais de ${nom} est une version ancienne : téléchargez la nouvelle.`
         : `Relais pas en marche pour ${nom} : aucune notification Windows sur ce poste.`;
+}
+
+// Pur : ce que Windows a répondu aux dernières notifications du relais 2.0 (server/src/relaisPoste.js, scriptToasts).
+function texteEtatToastsWindows(t) {
+  const v = String(t || '');
+  if (!v) return ' Aucune notification montrée depuis son démarrage : « Envoyer une notification d’essai » pour vérifier.';
+  if (v === 'Enabled') return ' Windows affiche ses notifications.';
+  if (/echec/.test(v)) return ' Windows a refusé d’afficher la dernière notification.';
+  const raison = /DisabledForUser/.test(v) ? 'les notifications de CLAIRE sont coupées dans les paramètres de Windows (Système › Notifications)'
+    : /DisabledByGroupPolicy/.test(v) ? 'une règle du poste (stratégie de groupe) les interdit'
+      : /DisabledForApplication/.test(v) ? 'elles sont coupées pour CLAIRE dans les paramètres de Windows'
+        : 'Windows ne reconnaît pas encore « CLAIRE »';
+  return /secours/.test(v) ? ` Windows ne laisse pas passer « CLAIRE » (${raison}) : les notifications arrivent au nom de Windows PowerShell.` : ` Notifications bloquées : ${raison}.`;
+}
+
+async function essaiNotificationRelais() {
+  const poste = utilisateurPoste ? clePosteAppels(utilisateurPoste) : '';
+  if (!poste) { afficherToast('Choisissez d’abord le collaborateur de ce poste.', 'OK', null); return; }
+  try {
+    const r = await fetchAvecAuth('/api/relais-word/essai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ poste }) });
+    const corps = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(corps.erreur || 'statut ' + r.status);
+    afficherToast('Notification d’essai envoyée : elle doit paraître en bas à droite dans quelques secondes (fenêtre CLAIRE au premier plan ou non).', 'OK', null);
+    setTimeout(() => { if (document.getElementById('notifications-relais')) renderReglagesNotifications(); }, 6000);
+  } catch (e) { afficherToast(e.message || 'Notification d’essai impossible.', 'OK', null); }
 }
 
 var TEXTE_INSTALLATION_RELAIS = 'Ouvrez « CLAIRE-relais.exe » (le navigateur peut demander de le conserver ; c’est le programme de CLAIRE elle-même, que l’antivirus laisse déjà passer sur le serveur). Windows peut afficher « Windows a protégé votre ordinateur » : « Informations complémentaires », puis « Exécuter quand même ». Il demande le code d’installation : collez-le (Ctrl+V). Un message confirme l’installation ; le relais démarre aussitôt, puis à chaque ouverture de session. Les notifications arrivent dans le centre de notifications de Windows.';

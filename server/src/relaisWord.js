@@ -110,6 +110,8 @@ function appliquerReleveWord(etat, poste, corps, maintenant = Date.now()) {
   p.word = !!corps.word;
   p.appels3cx = corps.appels === 1;
   p.pastilleRelais = corps.pastille === 1;
+  // Relais 2.0 : ce que Windows a répondu aux dernières notifications (« Enabled », « DisabledForUser>secours »…), jamais un texte.
+  if (typeof corps.toasts === 'string' && /^[A-Za-z>]{1,60}$/.test(corps.toasts)) p.toasts = corps.toasts;
   if (!corps.inchange) {
     const titre = texteWord(corps.titre, 200);
     const paragraphe = texteWord(corps.paragraphe, 4000);
@@ -241,7 +243,8 @@ function etatPosteWord(etat, poste, installe, maintenant = Date.now()) {
     n: etat.demarrage + ':' + (p ? p.n : 0),
     resultats: p ? p.resultats.map(r => ({ id: r.id, ok: r.ok, message: r.message })) : [],
     // Le relais en marche sait-il poser la pastille (version de 0.349.0) ?
-    pastille: actif && !!p && p.pastilleRelais === true
+    pastille: actif && !!p && p.pastilleRelais === true,
+    toasts: actif && p && p.toasts ? p.toasts : ''
   };
 }
 

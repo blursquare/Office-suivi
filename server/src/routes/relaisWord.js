@@ -16,7 +16,7 @@ const { clePoste } = require('../appels3cx');
 const { adresseClairePoste } = require('../installationPoste');
 const {
   codeInstallationRelais, lireExecutableRelais, empreinteJeton, nouveauJeton, jetonValide,
-  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste, demanderActionFenetre, adresseRequete
+  appliquerReleveWord, demanderInsertionWord, etatPosteWord, noterPastillePoste, demanderActionFenetre, adresseRequete, noterCartePoste
 } = require('../relaisWord');
 
 var CLE_RELAIS_WORD = 'relais-word';
@@ -103,6 +103,9 @@ function creerRouteurRelaisWordPoste(parametresRepo, etat, options = {}) {
     // Contrôle de l'installation (ou --verifier) : le jeton seul, rien de ce qui attend le relais en marche n'est touché.
     if (corps.verifier === true) { res.json({ ok: true }); return; }
     if (corps.relais === '2.0') noterVerification(parametresRepo, 'relais-node-installation', { detail: 'relevé reçu' });
+    if (corps.relais === '2.0' && typeof corps.toasts === 'string' && /^[A-Za-z>]{1,60}$/.test(corps.toasts)) {
+      noterVerification(parametresRepo, 'relais-node-notifications', /^Enabled$/.test(corps.toasts) || /secours$/.test(corps.toasts) ? { detail: corps.toasts } : { ok: false, message: corps.toasts });
+    }
     const { commandes, appels, renvoyer, pastille, notifications } = appliquerReleveWord(etat, poste, corps);
     const rep = { commandes, pastille };
     if (appels.length) rep.appels = appels;
@@ -139,6 +142,13 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
       catch (e) { console.warn('[CLAIRE] Cartes du relais non écrites :', e && e.message); }   // jamais un texte de message au journal
     }
     res.json(noterPastillePoste(etat, poste, corps, Date.now(), riches, adresseRequete(req)));
+  });
+  // Notification d'essai (étude 26/10 : « je n'ai aucune notif ») : une carte pour le relais de ce poste, montrée à son relevé suivant.
+  routeur.post('/relais-word/essai', (req, res) => {
+    const poste = clePoste((req.body || {}).poste);
+    if (!poste) { res.status(400).json({ erreur: 'Collaborateur attendu.' }); return; }
+    const fait = noterCartePoste(etat, poste, { type: 'resume', titre: 'CLAIRE', texte: 'Notification d’essai : le relais de ce poste fonctionne.' });
+    res.status(fait ? 200 : 409).json(fait ? { ok: true } : { erreur: 'Le relais de ce poste n’est pas en marche (ou c’est une ancienne version).' });
   });
   routeur.post('/relais-word/inserer', (req, res) => {
     const corps = req.body || {};
