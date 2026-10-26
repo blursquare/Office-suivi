@@ -109,7 +109,11 @@ function reprendreRevelationAssistant(zone) {
   const debutsBlocs = debutsBlocsRevelationAssistant(debutsNoeuds, elementsBlocs.map((el) => blocsTexte.get(el)));
   const montrer = (n) => {
     textesRevelesAssistant(textes, n).forEach((v, k) => { noeuds[k].nodeValue = v; });
-    elementsBlocs.forEach((el, k) => { el.style.display = n > debutsBlocs[k] || n >= total ? '' : 'none'; });
+    elementsBlocs.forEach((el, k) => {
+      const visible = n > debutsBlocs[k] || n >= total;
+      if (visible && el.style.display === 'none') el.classList.add('asst-bloc-apparait'); // le bloc se révèle en fondu, avec son texte
+      el.style.display = visible ? '' : 'none';
+    });
   };
   const pas = pasRevelationAssistant(total);
   zone.setAttribute('aria-busy', 'true'); // un lecteur d'écran n'annonce pas chaque fragment : il lit la réponse une fois finie

@@ -22225,3 +22225,7 @@ reste maintenant visible barre repliée aussi : initiales (« # » pour Généra
 ### 0.363.5 (26/10, correction) — révélation progressive rétablie
 
 Étude : « Les animations c'était bien. Les trois petits points top. Mais c'étaient des points les uns au-dessus des autres en début de paragraphe qui s'affichent seuls puis le texte venant se mettre après. » `client/101-assistant-revelation.js` : écriture peu à peu rétablie ; les blocs (li, p, titres, tr, blockquote, pre, ul/ol/table) restent en `display:none` tant que la révélation n'a pas atteint leur premier caractère (`debutsBlocsRevelationAssistant`). Latence mini de 2 s (`pauseReflexionAssistant`) conservée pour les réponses sans IA. Fondu `asst-apparait` retiré.
+
+### 0.363.6 (27/10, correction) — fondu des blocs
+
+Étude : « Le fondu était bien non ? ». Les blocs de la réponse (`.asst-bloc-apparait`, 220 ms, arrêté en reduced-motion) se révèlent en fondu quand la révélation atteint leur texte (`client/101-assistant-revelation.js`).
