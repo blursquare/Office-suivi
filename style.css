@@ -10245,7 +10245,7 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .pc-puce-dossier { cursor: pointer; color: var(--ink); }
 .pc-puce-dossier:hover { border-color: var(--focus); }
 .pc-puce-exemple { border-style: dashed; color: var(--muted); }
-.pc-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.pc-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .pc-etat { margin: 6px 0 0; font-size: var(--texte-xs); color: var(--muted); }
 .pc-etat-acceptee { color: var(--success); }
 .pc-traitee { box-shadow: none; }
