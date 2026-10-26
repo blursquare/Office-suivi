@@ -839,3 +839,10 @@ test('pièces jointes (0.364.0) : 15 documents lus en entier par message, le tex
   assert.match(r.bloc, /page 3 du document 15\./, 'le dernier document est lu jusqu’au bout');
   assert.doesNotMatch(r.bloc, /pj16/);
 });
+
+test('vouvoiement (26/10) : Bastien et Sophie vouvoient Julie et Jérémy — dit à l’agent dans le prompt et l’outil', () => {
+  const { OUTILS_AGENT } = require('../src/assistantAgent');
+  const outil = OUTILS_AGENT.find((t) => t.name === 'demander_collaborateur');
+  assert.match(outil.description, /Bastien et Sophie vouvoient Julie et Jérémy/);
+  assert.match(outil.description, /écrite SOUS SON NOM dans sa conversation personnelle/);
+});

@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.363.3';
+  const VERSION_APP = '0.363.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.363.4', date: '2026-10-26 23:53', resume: "Une tâche demandée à un collègue : quand il la coche, vous êtes prévenu dans votre conversation personnelle avec lui (message de CLAIRE), plus sur Teams. Quand Bastien ou Sophie demandent quelque chose à Julie ou Jérémy par CLAIRE, le message est écrit au vouvoiement." },
     { version: '0.363.3', date: '2026-10-26 23:51', resume: "Demander à CLAIRE : une réponse apparaît maintenant d'un bloc, avec un court fondu, au lieu de s'écrire caractère par caractère après les trois points. Quand elle répond sans passer par l'IA (lecture par mots-clés, geste du poste), elle « réfléchit » au moins 2 secondes, les trois points visibles, comme pour une réponse de l'IA." },
     { version: '0.363.2', date: '2026-10-26 23:47', resume: "Demander à CLAIRE lit jusqu'à 15 documents joints par message (au lieu de 5), chacun en entier : les pages se lisent par tranches jusqu'à 400 pages par document, et le texte est coupé seulement si le plafond de lecture de la conversation est atteint (alors elle le dit)." },
     { version: '0.363.1', date: '2026-10-26 23:45', resume: "Demander à CLAIRE peut de nouveau poser une tâche dans la liste « À faire » d'un collègue, mais seulement si on le lui demande (« mets-lui une tâche ») : le message part dans votre conversation personnelle avec lui et la tâche s'ajoute à son « Aujourd'hui », sans message Teams à part." },

@@ -18,6 +18,8 @@ const { mettreCopiesEnAttente } = require('../nettoyageGmail');
 const { urlLienPiece, baseDepuisRequete } = require('../liensPieces');
 const { adressesLan } = require('../reseau');
 const { formaterMontantEuros } = require('../../../commun/montants');
+const CANAUX = require('../canaux/canaux');
+const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 
 // Factures des successions (étude 15/10 : « simplifier la comptabilité pour Sophie et lui permettre de suivre s'il y a des factures en
 // attente de règlement ») : chaque facture rangée par Claire Scan dans « Factures à régler » est annoncée sur Teams à Sophie GOSSART
@@ -369,21 +371,26 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, collaborateur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
   } catch (e) { console.error('[CLAIRE] Demande à un collaborateur :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
 
+  // « C'est fait » (étude 26/10 : « prévenue dans la conversation Claire », plus sur Teams) : CLAIRE écrit à celui qui avait fait la demande, dans
+  // la conversation personnelle qu'il a avec celui qui l'a faite. Aucun envoi Teams ni email ; la pastille de la conversation le dit.
   router.post('/notifications/demande-faite', async (req, res) => { try {
     const c = req.body || {};
     const t = (v, n) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, n) : '');
     const demandeur = t(c.demandeur, 80);
+    const auteur = t(c.auteur, 80);
     const texte = t(c.texte, 300);
     if (!demandeur || !texte) return res.status(400).json({ erreur: 'demandeur ou texte manquant.' });
-    const reglages = parametresRepo.lireReglages();
-    if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
-    if (!Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, demandeur)) return res.status(400).json({ erreur: 'demandeur inconnu.' });
-    if (c.auteur && !Object.prototype.hasOwnProperty.call(reglages.emailsResponsables || {}, t(c.auteur, 80))) return res.status(400).json({ erreur: 'auteur inconnu.' });
+    const noms = COLLABORATEURS_ABSENCE.map((x) => x.nom);
+    if (!noms.includes(demandeur)) return res.status(400).json({ erreur: 'demandeur inconnu.' });
+    if (!auteur || !noms.includes(auteur) || auteur === demandeur) return res.status(400).json({ erreur: 'auteur inconnu.' });
     if (!demandesDansLaMinute(horloge())) return res.status(429).json({ erreur: 'trop de demandes : réessayez dans une minute.' });
-    const qui = t(c.auteur, 80) || 'Le collaborateur';
-    const message = `✅ CLAIRE — ${qui} a fait ce que vous lui aviez demandé : ${texte}${t(c.dossierNom, 160) ? ` (${t(c.dossierNom, 160)})` : ''}.`;
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, demandeur, message, { sansCopiePour: reglages.emailsResponsables[t(c.auteur, 80)] || null }));
-  } catch (e) { console.error('[CLAIRE] Demande faite :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
+    const canal = CANAUX.idPrive([demandeur, auteur]);
+    const dossier = t(c.dossierNom, 160);
+    const message = `✅ ${CANAUX.prenomDe(auteur)} a fait ce que vous lui aviez demandé : ${texte}${dossier ? ` (${dossier})` : ''}.`;
+    const echappe = message.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const m = canal ? CANAUX.ajouterMessage(parametresRepo, canal, { auteur: 'CLAIRE', claire: true, texte: message, html: `<p>${echappe}</p>` }) : null;
+    res.json({ ok: !!m, canal: m ? canal : '' });
+  } catch (e) { console.error('[CLAIRE] Demande faite :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Message impossible.' }); } });
 
   return router;
 }

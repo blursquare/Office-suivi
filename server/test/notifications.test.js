@@ -252,9 +252,14 @@ test('« Demander à CLAIRE » (13/10) : demande à un collaborateur sur Teams, 
   assert.equal(envois[0].texte, '📌 CLAIRE — Bastien ANGLUMENT vous demande : Appeler la banque pour l’offre (dossier VTE - DUPONT / MARTIN), pour le 15 octobre 2026. La tâche est dans votre liste « Aujourd’hui » de CLAIRE.');
   envois.length = 0;
   reponse = await appeler('/api/notifications/demande-faite', { method: 'POST', body: JSON.stringify({ demandeur: 'Bastien ANGLUMENT', auteur: 'Julie VASSELIN', texte: 'Appeler la banque pour l’offre', dossierNom: 'VTE - DUPONT / MARTIN' }) });
-  assert.equal((await reponse.json()).envoyeResponsable, true);
-  assert.deepEqual(envois.map((e) => e.destinataire), ['bastien@etude.fr']);
-  assert.match(envois[0].texte, /Julie VASSELIN a fait ce que vous lui aviez demandé : Appeler la banque/);
+  const corps = await reponse.json();
+  assert.equal(corps.ok, true);
+  assert.equal(corps.canal, 'p:bastien-julie', 'dans la conversation personnelle des deux collaborateurs');
+  assert.deepEqual(envois, [], 'ni Teams ni email (étude 26/10)');
+  const lus = await (await appeler('/api/canaux/p%3Abastien-julie/messages?utilisateur=' + encodeURIComponent('Bastien ANGLUMENT'))).json();
+  assert.match(lus.messages.map((m) => m.texte).join('\n'), /✅ Julie a fait ce que vous lui aviez demandé : Appeler la banque pour l’offre \(VTE - DUPONT \/ MARTIN\)\./);
+  assert.ok(lus.messages.some((m) => m.claire === true), 'écrit par CLAIRE');
+  assert.equal((await appeler('/api/notifications/demande-faite', { method: 'POST', body: JSON.stringify({ demandeur: 'Bastien ANGLUMENT', auteur: 'Bastien ANGLUMENT', texte: 'x' }) })).status, 400, 'auteur = demandeur : refusé');
   assert.equal((await appeler('/api/notifications/demande-collaborateur', { method: 'POST', body: JSON.stringify({ collaborateur: 'Julie VASSELIN' }) })).status, 400);
 });
 
