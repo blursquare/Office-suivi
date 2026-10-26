@@ -85,7 +85,7 @@ function creerSignatureRibAgent(o = {}) {
   /** @type {Map<string, number>} */
   const attendues = new Map();
   const DUREE_ATTENTE_MS = 10 * 60 * 1000;
-  const cleAppel = (/** @type {any} */ b) => [String(b && b.mode || ''), String(b && b.consigne || '').trim().slice(0, MAX_CONSIGNE_AGENT), String(b && b.id || '').trim().toLowerCase()].join('\u0001');
+  const cleAppel = (/** @type {any} */ b) => [String(b && b.mode || ''), String(b && b.consigne || '').trim().slice(0, MAX_CONSIGNE_AGENT).trim(), String(b && b.id || '').trim().toLowerCase()].join('\u0001');
   /** Les appels d'outils rendus au poste par l'agent de CLAIRE : ceux de yousign_agent qui écrivent sont attendus. @param {any[]} appels */
   function attendre(appels) {
     const t = maintenant();
@@ -157,7 +157,7 @@ function creerSignatureRibAgent(o = {}) {
             return { fin: 'hors_liste' };
           }
           outils.push(nom);
-        } else if (/tool_result$/.test(String(e.type || '')) && appelsEnvoi.has(String(e.tool_use_id || ''))) {
+        } else if (/tool_result$/.test(String(e.type || '')) && appelsEnvoi.has(String(e.mcp_tool_use_id || e.tool_use_id || ''))) {
           // Le résultat de l'envoi : réussi seulement si Yousign n'a pas rendu d'erreur (audit 26/10, M3).
           if (e.is_error) envoiEchoue = true; else envoiConfirme = true;
         } else if (e.type === 'session.error') {
@@ -251,7 +251,7 @@ function creerSignatureRibAgent(o = {}) {
     const b = corps && typeof corps === 'object' ? corps : {};
     const mode = Object.prototype.hasOwnProperty.call(MODES_AGENT_YOUSIGN, b.mode) ? b.mode : '';
     if (!mode) return { ok: false, code: 'donnees', raison: 'Mode inconnu (lecture, modifier ou envoyer).' };
-    const brute = typeof b.consigne === 'string' ? b.consigne.trim().slice(0, MAX_CONSIGNE_AGENT) : '';
+    const brute = typeof b.consigne === 'string' ? b.consigne.trim().slice(0, MAX_CONSIGNE_AGENT).trim() : '';
     const consigne = brute.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ');
     const identifiant = String(b.id || '').trim().toLowerCase();
     if (mode === 'envoyer' && !RE_ID_DEMANDE.test(identifiant)) return { ok: false, code: 'donnees', raison: 'Pour envoyer, l’identifiant de la demande est exigé.' };

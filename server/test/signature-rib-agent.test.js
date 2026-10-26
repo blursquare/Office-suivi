@@ -270,7 +270,7 @@ test('agent Yousign : « envoyer » n’envoie que la demande dite, une fois, sa
     { type: 'agent.mcp_tool_use', id: 'e1', name: 'get-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
     { type: 'agent.mcp_tool_use', id: 'e2', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_B } },
     { type: 'agent.mcp_tool_use', id: 'e3', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
-    { type: 'agent.mcp_tool_result', tool_use_id: 'e3', is_error: false },
+    { type: 'agent.mcp_tool_result', mcp_tool_use_id: 'e3', is_error: false },
     { type: 'agent.mcp_tool_use', id: 'e4', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
     { type: 'agent.mcp_tool_use', id: 'e5', name: 'remove-signature-request-signer', evaluated_permission: 'ask' },
     texte('Envoyée.'), idle('end_turn')
@@ -283,7 +283,7 @@ test('agent Yousign : « envoyer » n’envoie que la demande dite, une fois, sa
   assert.doesNotMatch(c2.envoyes[1].events[0].content[0].text, /envoie aussi/, 'la consigne libre n’est jamais jointe à un envoi');
   const c4 = fauxClient([
     { type: 'agent.mcp_tool_use', id: 'e1', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
-    { type: 'agent.mcp_tool_result', tool_use_id: 'e1', is_error: true },
+    { type: 'agent.mcp_tool_result', mcp_tool_use_id: 'e1', is_error: true },
     texte('Échec.'), idle('end_turn')
   ]);
   const r4 = await attendu(service(c4), { mode: 'envoyer', consigne: '', demande_id: ID_A }).agir({ mode: 'envoyer', consigne: '', id: ID_A });
