@@ -111,6 +111,23 @@
     };
   }
 
+  // Qui reçoit l'acte et quels confrères écrire, d'après la fiche (côté qui reçoit l'acte, sinon le rôle de l'étude et son côté).
+  function notairesActeAgent(d) {
+    if (estSuccession(d)) return {};
+    const notre = coteEtudeDossier(d);
+    const recoit = d.coteInstrumentaire === 'vendeur' || d.coteInstrumentaire === 'acquereur' ? d.coteInstrumentaire
+      : notre && d.roleNotaire === 'participant' ? (notre === 'vendeur' ? 'acquereur' : 'vendeur') : notre && d.roleNotaire === 'instrumentaire' ? notre : '';
+    const notaire = c => (c === 'vendeur' ? d.notaireVendeur : d.notaireAcquereur) || '';
+    const confreres = [];
+    if (confrereRepresenteVendeur(d)) confreres.push({ cote: 'vendeur', notaire: notaire('vendeur'), recoit_l_acte: recoit === 'vendeur', email_connu: !!emailConfrereVendeurDossier(d) });
+    if (notaireParticipantRepresenteAcquereur(d)) confreres.push({ cote: 'acquereur', notaire: notaire('acquereur'), recoit_l_acte: recoit === 'acquereur', email_connu: !!(d.emailNotaireParticipant || emailOfficeConfrereAcquereur(d)) });
+    return {
+      notaire_qui_recoit_l_acte: recoit ? { cote: recoit, notaire: notaire(recoit), notre_office: recoit === notre } : null,
+      confreres,
+      email_au_confrere: confreres.length ? 'faire_geste email avec partie « confrere » (le confrère qui reçoit l’acte d’abord)' : ''
+    };
+  }
+
   function lireDossierAgent(d) {
     const sur = (fn, defaut) => { try { return fn(); } catch (e) { return defaut; } };
     const auj = isoAujourdhuiLocal();
@@ -124,6 +141,8 @@
       coordonnees: { email_vendeur: d.emailVendeur || '', telephone_vendeur: d.telephoneVendeur || '', email_acquereur: d.emailAcquereur || '', telephone_acquereur: d.telephoneAcquereur || '' },
       bien: { adresse: d.adresseBien || '', prix: d.prixVente || null, prix_mobilier: d.prixMobilier || null, cadastre: sur(() => parcellesDossier(d).map(p => ({ prefixe: p.prefixe || '', section: p.section, numero: p.numero, surface: p.surface || '', nature: p.nature || '' })), []), lots: sur(() => (d.bien && d.bien.lots) || [], []) },
       notaire_vendeur: d.notaireVendeur || '', notaire_acquereur: d.notaireAcquereur || '', agence: d.nomAgence || '',
+      // Étude 26/10 : l'agent demandait « lequel est le confrère qui rédige l'acte ? » alors que la fiche le dit.
+      ...sur(() => notairesActeAgent(d), {}),
       honoraires_agence_ttc: sur(() => (d.honoraires && (d.honoraires.montantTTC || d.honoraires.montant)) || null, null),
       dates: { obtention_pret: d.pret || '', vente_prealable: d.ventebien || '', appel_de_fonds_envoye: d.appelFonds || '', projet_envoye: d.projetEnvoye || '', date_butoir: d.acte || '' },
       echeances: estSuccession(d) ? [] : sur(() => echeancesPlanning(d).map(it => ({ libelle: it.label, date: it.iso || '', jours: it.iso ? joursEntre(auj, it.iso) - 1 : null })), []),

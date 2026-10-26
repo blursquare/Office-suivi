@@ -718,7 +718,9 @@
     }
     if (partie === 'acquereur') return { libelle: notaireParticipantRepresenteAcquereur(d) ? 'confrère de l’acquéreur' : 'acquéreur' };
     if (partie === 'confrere') {
-      if (notaireParticipantRepresenteAcquereur(d)) return { libelle: 'confrère de l’acquéreur' };
+      // Deux confrères : celui qui reçoit l'acte d'abord (étude 26/10).
+      const acqConfrere = notaireParticipantRepresenteAcquereur(d);
+      if (acqConfrere && !(d.coteInstrumentaire === 'vendeur' && confrereRepresenteVendeur(d))) return { libelle: 'confrère de l’acquéreur' };
       const e = emailConfrereVendeurDossier(d);
       return e ? { email: e, confrere: true, libelle: 'confrère du vendeur' } : { erreur: 'Aucun confrère avec un email connu sur ce dossier.' };
     }
@@ -747,12 +749,28 @@
     }
     // Pas de modèle reconnu : email libre au client, texte de la phrase en premier jet si elle en porte un.
     // Destinataire, objet et texte donnés par l'agent (audit 15/10 : l'adresse demandée était remplacée par celle du client, objet et texte vides).
-    const destinataireDit = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
-    const destinataire = destinataireDit || emailDestinataireRelance(d) || d.emailVendeur || '';
-    const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), confrere: notaireParticipantRepresenteAcquereur(d), responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
+    // Un texte adressé à un notaire (« Mon cher Maître ») va au confrère, jamais à un client de la fiche (étude 26/10 : l'email au confrère,
+    // rédigé « Mon cher Maître », était adressé à l'acquéreur).
+    const auConfrere = /^\s*(?:mon\s+)?cher\s+ma[iî]tre/i.test(String(p.corps || ''));
+    const emailsClients = destinatairesEmail([d.emailVendeur, d.emailAcquereur].filter(Boolean).join(',')).map(x => x.toLowerCase());
+    const ditBrut = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(p.destinataire || '').trim()) ? String(p.destinataire).trim() : '';
+    // « Mon cher Maître » à un côté qui n'a pas de confrère (notre client) : c'est le confrère de l'autre office qui est visé (relecture 26/10).
+    const coteSansConfrere = (p.partie === 'acquereur' && !notaireParticipantRepresenteAcquereur(d)) || (p.partie === 'vendeur' && !confrereRepresenteVendeur(d));
+    const partie = auConfrere && (!p.partie || coteSansConfrere) ? 'confrere' : (p.partie || '');
+    const destinataireDit = ditBrut && !((partie === 'confrere' || auConfrere) && emailsClients.includes(ditBrut.toLowerCase())) ? ditBrut : '';
+    // La partie demandée (étude 26/10 : l'email au confrère partait au client) : vendeur, acquéreur ou confrère de la fiche.
+    const dest = !destinataireDit && partie ? destinataireEmailAssistant(d, partie) : {};
+    if (dest.erreur) return { html: `<p>${escapeHtml(dest.erreur)}</p>`, boutons: [boutonFicheAssistant(d)] };
+    const versConfrere = partie === 'confrere' || auConfrere || !!dest.confrere || (!dest.email && /confr/.test(dest.libelle || '')) || (!destinataireDit && !partie && notaireParticipantRepresenteAcquereur(d));
+    const destinataire = destinataireDit || dest.email || (partie === 'acquereur' || /acquéreur/.test(dest.libelle || '') ? emailDestinataireRelance(d) : '') || (!partie ? emailDestinataireRelance(d) || d.emailVendeur : '') || '';
+    // Documents du dossier joints (étude 26/10 : « l'offre de prêt est sur le NAS ») : lus ici, jamais par l'IA.
+    const jointes = await piecesJointesEmailAgent(Array.isArray(p.documents) ? p.documents : []);
+    const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), pieces: jointes.pieces, confrere: versConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
     const envoye = !!(r && r.ok && r.mode === 'envoye');
     if (r && r.ok) { ajouterHistorique(d, envoye ? 'Email envoyé depuis les Discussions' : 'Email préparé depuis les Discussions'); sauvegarder(d); }
-    return { html: r && r.ok ? (envoye ? '<p>Email envoyé.</p>' : '<p>Email préparé : envoyez-le depuis Outlook.</p>') : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`) };
+    const perdues = r && r.ok && r.piecesNonJointes && jointes.pieces.length ? '<p>Les documents n’ont pas pu être joints par la messagerie du poste : ajoutez-les à la main.</p>' : '';
+    const manque = perdues + (jointes.manquants ? `<p>${jointes.manquants} document${jointes.manquants > 1 ? 's' : ''} n’a pas pu être joint : ajoutez-le dans la fenêtre d’email.</p>` : '');
+    return { html: (r && r.ok ? (envoye ? '<p>Email envoyé.</p>' : '<p>Email préparé : envoyez-le depuis Outlook.</p>') : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`)) + manque };
   }
 
   // Ce que devient le lieu du rendez-vous de signature dans Outlook après la coche d'un envoi (étude 07/10 : « noter l'envoi dans

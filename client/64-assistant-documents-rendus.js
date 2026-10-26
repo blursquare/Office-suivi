@@ -43,6 +43,29 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     return { nombre: documents.length, ...(documents.length >= MAX_FICHIERS_DOSSIER_AGENT ? { coupe: `seuls les ${MAX_FICHIERS_DOSSIER_AGENT} plus récents sont listés` } : {}), documents };
   }
 
+  // Les documents que l'agent veut joindre à un email (document_id de documents_du_dossier, pièces jointes au message) : le fichier lu
+  // ICI, sous son vrai nom (jamais envoyé à l'IA) ; un identifiant inconnu ou un fichier illisible est compté dans `manquants`.
+  async function piecesJointesEmailAgent(ids) {
+    const pieces = [];
+    let manquants = 0;
+    for (const id of (ids || []).slice(0, 10)) {
+      const doc = documentsAgentConnus[id];
+      try {
+        let blob = null, nom = '';
+        if (doc && doc.sorte === 'joint' && doc.fichier) { blob = doc.fichier; nom = doc.fichier.name || 'document.pdf'; }
+        // Tout document du dossier qui a un chemin (documents_du_dossier, documents_recents : pièce, scan rangé) ; jamais un scan pas encore
+        // rangé ni un fichier de la lecture libre du NAS.
+        else if (doc && doc.chemin && doc.sorte !== 'scan' && doc.sorte !== 'joint' && !doc.libre) {
+          const r = await fetchAvecAuth('/api/nas/fichier?chemin=' + encodeURIComponent(doc.chemin));
+          if (r.ok) { blob = await r.blob(); nom = String(doc.chemin).split(/[\\/]/).pop() || 'document.pdf'; }
+        }
+        if (!blob) { manquants++; continue; }
+        pieces.push({ nom, type: blob.type || 'application/pdf', contenuBase64: await base64DepuisBlob(blob) });
+      } catch (e) { manquants++; }
+    }
+    return { pieces, manquants };
+  }
+
   // Pure : les pages à lire — { debut, fin } dans [1, total], 30 pages au plus ; `fin` 0 ou absent = 30 pages après le début.
   function pagesLectureAgent(total, debut, fin) {
     const t = Math.max(0, parseInt(total, 10) || 0);

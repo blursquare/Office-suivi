@@ -139,3 +139,57 @@ test('« Autoriser pour toute cette demande » : les gestes suivants de la même
   assert.equal(await apres, true);
   app.reinitialiserAutorisationDemandeAgent();
 });
+
+test('lire_dossier : qui reçoit l’acte et quel confrère écrire, d’après la fiche (étude 26/10)', () => {
+  // Participation : notre office côté acquéreur, le confrère du vendeur reçoit l'acte.
+  const d = dossier({ roleNotaire: 'participant', notaireVendeur: 'Maître Paul EXEMPLE (TOURS)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)' });
+  const n = app.notairesActeAgent(d);
+  assert.equal(n.notaire_qui_recoit_l_acte.cote, 'vendeur');
+  assert.equal(n.notaire_qui_recoit_l_acte.notre_office, false);
+  assert.equal(n.confreres.length, 1);
+  assert.equal(n.confreres[0].cote, 'vendeur');
+  assert.equal(n.confreres[0].recoit_l_acte, true);
+  // Le côté noté sur la fiche fait foi.
+  assert.equal(app.notairesActeAgent(dossier({ coteInstrumentaire: 'acquereur', notaireVendeur: 'Maître Sophie GOSSART (BLOIS)', notaireAcquereur: 'Maître Paul EXEMPLE (TOURS)' })).notaire_qui_recoit_l_acte.cote, 'acquereur');
+  // Seul notaire : nous recevons l'acte, aucun confrère.
+  const seul = app.notairesActeAgent(dossier({ roleNotaire: 'instrumentaire', notaireVendeur: 'Maître Sophie GOSSART (BLOIS)' }));
+  assert.equal(seul.notaire_qui_recoit_l_acte.notre_office, true);
+  assert.equal(seul.confreres.length, 0);
+});
+
+test('email libre de l’agent : « Mon cher Maître » va au confrère, jamais au client ; documents joints (étude 26/10)', async () => {
+  const appels = [];
+  app.livrerEmailDossier = async (o) => { appels.push(o); return { ok: true, mode: 'envoye' }; };
+  app.sauvegarder = () => {};
+  const d = dossier({ id: 'dc', roleNotaire: 'participant', notaireVendeur: 'Maître Paul EXEMPLE (TOURS)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)',
+    emailConfrereVendeur: 'office.exemple@notaires.fr', emailAcquereur: 'client.acquereur@exemple.fr' });
+  const corps = 'Mon cher Maître,\n\nVeuillez trouver ci-joint l’offre de prêt.\n\nVotre bien dévoué.';
+  // L'agent donne l'adresse du CLIENT : écartée, l'email part au confrère.
+  await app.gesteEmailAssistant(d, { destinataire: 'client.acquereur@exemple.fr', objet: 'Offre de prêt', corps, partie: '', documents: [] });
+  assert.equal(appels[0].destinataire, 'office.exemple@notaires.fr');
+  assert.equal(appels[0].confrere, true);
+  // Partie « confrere » sans adresse : le confrère de la fiche.
+  await app.gesteEmailAssistant(d, { destinataire: '', objet: 'Offre de prêt', corps: 'Bonjour', partie: 'confrere', documents: [] });
+  assert.equal(appels[1].destinataire, 'office.exemple@notaires.fr');
+  // Partie « acquereur » : le client (notre client, pas de confrère de son côté).
+  await app.gesteEmailAssistant(d, { destinataire: '', objet: 'x', corps: 'Bonjour', partie: 'acquereur', documents: [] });
+  assert.equal(appels[2].destinataire, 'client.acquereur@exemple.fr');
+  // Un document inconnu n'est pas joint ; il est dit.
+  const r = await app.gesteEmailAssistant(d, { destinataire: '', objet: 'x', corps: 'Bonjour', partie: 'confrere', documents: ['doc999'] });
+  assert.equal(appels[3].pieces.length, 0);
+  assert.match(r.html, /n’a pas pu être joint/);
+});
+
+test('email libre : « Mon cher Maître » avec partie acquéreur (notre client) part au confrère, formule du confrère (relecture 26/10)', async () => {
+  const appels = [];
+  app.livrerEmailDossier = async (o) => { appels.push(o); return { ok: true, mode: 'envoye' }; };
+  app.sauvegarder = () => {};
+  const d = dossier({ id: 'dc2', roleNotaire: 'participant', notaireVendeur: 'Maître Paul EXEMPLE (TOURS)', notaireAcquereur: 'Maître Sophie GOSSART (BLOIS)',
+    emailConfrereVendeur: 'office.exemple@notaires.fr', emailAcquereur: 'client.acquereur@exemple.fr' });
+  await app.gesteEmailAssistant(d, { destinataire: '', objet: 'x', corps: 'Mon cher Maître,\n\nCi-joint.', partie: 'acquereur', documents: [] });
+  assert.equal(appels[0].destinataire, 'office.exemple@notaires.fr');
+  assert.equal(appels[0].confrere, true);
+  // Adresse du confrère donnée par l'agent : formule du confrère aussi.
+  await app.gesteEmailAssistant(d, { destinataire: 'office.exemple@notaires.fr', objet: 'x', corps: 'Ci-joint.', partie: 'confrere', documents: [] });
+  assert.equal(appels[1].confrere, true);
+});

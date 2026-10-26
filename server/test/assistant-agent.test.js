@@ -799,3 +799,11 @@ test('outil_champs (24/10) : proposé à l’agent, un code inventé n’est jam
   assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-500));
   assert.equal(r.reponse, 'Voilà.');
 });
+
+test('faire_geste email : documents à joindre = identifiants opaques du poste seulement, 10 au plus (étude 26/10)', () => {
+  const e = entreeOutilPourPoste('faire_geste', { geste: 'email', dossier_id: 'd1', parametres: { partie: 'confrere', documents: ['doc3', 'pj1', '../../etc/passwd', 'C:\\Users\\x.pdf', 42, ...Array.from({ length: 12 }, (_, i) => 'doc' + (i + 10))] } });
+  assert.equal(e.parametres.documents.slice(0, 2).join(','), 'doc3,pj1');
+  assert.equal(e.parametres.documents.length, 10);
+  assert.ok(e.parametres.documents.every((x) => /^[a-z]{1,4}\d{1,6}$/i.test(x)));
+  assert.equal(entreeOutilPourPoste('faire_geste', { geste: 'email', parametres: {} }).parametres.documents.length, 0);
+});

@@ -21992,3 +21992,16 @@ Empreinte relais 1.2 : `919399b7…df4105`.
   routine R5 (`autorisationsNotoriete`) saute ces dossiers ; la fiche n'affiche plus le bouton « Autorisation » des héritiers ; l'outil
   « Autorisations de fonds » ne les liste plus. La clôture des comptes relevée par email (clotureComptesEmail.js) cherche l'étape, absente
   ici : rien n'est coché. Tests mis au type `notoriete-ds` là où ils supposaient un déblocage, cas « notoriété seule » ajoutés.
+
+- **26/10/2026 10 h 22 — 0.350.4 Email au confrère avec l'offre de prêt depuis les Discussions** (étude, capture : CLAIRE demandait « à qui
+  l'adresse-t-on : Maître … (notaire du vendeur) ou Maître Sophie GOSSART (notaire de l'acquéreur) ? » et « je ne peux pas joindre l'offre de
+  prêt moi-même » — « Claire a tout dans le dossier pour faire cela. Il y a noté qui reçoit l'acte et l'offre de prêt et sur le NAS »).
+  `lire_dossier` rend `notaire_qui_recoit_l_acte` { côté, notaire, notre_office } (côté de la fiche, sinon rôle de l'étude et son côté) et
+  `confreres` [{ côté, notaire, reçoit l'acte, email connu }] (`notairesActeAgent`, client/61) ; l'email libre de `faire_geste` suit
+  `partie` (vendeur, acquéreur, confrère — celui qui reçoit l'acte d'abord, `destinataireEmailAssistant`) au lieu d'aller toujours au
+  client, et joint `documents` (document_id de documents_du_dossier ou pièces jointes au message, 10 au plus, identifiants opaques
+  contrôlés par le serveur ; fichier lu sur le poste sous son vrai nom, jamais envoyé à l'IA — `piecesJointesEmailAgent`, client/64).
+  La fenêtre d'email s'ouvre comme d'habitude : rien ne part sans « Envoyer ». Non vérifié avec un vrai NAS ni Exchange.
+  Même jour, capture de l'étude : l'email « Mon cher Maître » au confrère était adressé à l'acquéreur, sans l'offre jointe (version
+  installée : l'email libre allait toujours au client). En plus : un texte qui commence par « (Mon) cher Maître » va au confrère et une
+  adresse de client donnée par l'IA y est écartée ; testé avec un faux envoi (tests/assistant-actions.test.js).

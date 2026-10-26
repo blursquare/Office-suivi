@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.350.3';
+  const VERSION_APP = '0.350.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.350.4', date: '2026-10-26 10:22', resume: "Discussions : CLAIRE sait quel notaire reçoit l’acte et quel confrère écrire, d’après la fiche (elle ne le demande plus) ; un email libre part à la partie demandée (confrère, vendeur, acquéreur) — un email « Mon cher Maître » n’est jamais adressé à un client — et peut joindre les documents du dossier du NAS, l’offre de prêt par exemple — toujours dans la fenêtre d’email, rien ne part sans « Envoyer »." },
     { version: '0.350.3', date: '2026-10-26 10:05', resume: "Successions « Acte de notoriété seul » : plus d’autorisation de fonds — ni étapes de déblocage, de réception des fonds ou de transfert des comptes sur la fiche, ni bouton « Autorisation » sur les héritiers, ni proposition de la routine ; l’outil « Autorisations de fonds » ne les propose plus." },
     { version: '0.350.2', date: '2026-10-26 08:37', resume: "Demander à CLAIRE : la préparation du brouillon Yousign de signature du RIB demande toujours sa propre autorisation, même après « Autoriser pour toute cette demande » (les noms partent en clair chez l’agent Yousign)." },
     { version: '0.350.1', date: '2026-10-25 23:14', resume: "Relais CLAIRE du poste (version 1.3) : pour éviter un nouveau blocage par l’antivirus, il ne lit plus Word ni le presse-papiers (le code d’installation se colle avec Ctrl+V), ne retire plus la marque « téléchargé d’Internet » et n’arrête plus aucun programme de force ; il s’installe dans le dossier habituel des programmes de l’utilisateur. Nouvelle empreinte à donner à Fichorga." },

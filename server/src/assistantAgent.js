@@ -312,13 +312,13 @@ const OUTILS_AGENT = [
   },
   {
     name: 'faire_geste',
-    description: 'Fait un geste dans CLAIRE avec la fonction habituelle. Rappel, coche/décoche d’une échéance, date sur la fiche, archivage, changement de responsable : fait tout de suite, l’utilisateur a un bouton « Annuler ». Email : ouvre la fenêtre d’email pré-remplie, RIEN ne part sans son clic sur « Envoyer ». Placer la signature, nouveau rendez-vous, sondage : l’utilisateur confirme. Le geste affiche lui-même son message à l’utilisateur ; le résultat te dit ce qui s’est passé. Ne fais un geste que s’il est demandé ou clairement souhaité ; pour un geste qui modifie un dossier, sois sûr du dossier.',
+    description: 'Fait un geste dans CLAIRE avec la fonction habituelle. Rappel, coche/décoche d’une échéance, date sur la fiche, archivage, changement de responsable : fait tout de suite, l’utilisateur a un bouton « Annuler ». Email : ouvre la fenêtre d’email pré-remplie, RIEN ne part sans son clic sur « Envoyer » ; « partie » choisit le destinataire de la fiche (confrere = le notaire de l’autre office, celui qui reçoit l’acte en participation : lis « notaire_qui_recoit_l_acte » et « confreres » de lire_dossier, ne le demande pas à l’utilisateur), « documents » joint des PDF du dossier (document_id de documents_du_dossier ou d’une pièce jointe au message — l’offre de prêt, par exemple). Placer la signature, nouveau rendez-vous, sondage : l’utilisateur confirme. Le geste affiche lui-même son message à l’utilisateur ; le résultat te dit ce qui s’est passé. Ne fais un geste que s’il est demandé ou clairement souhaité ; pour un geste qui modifie un dossier, sois sûr du dossier.',
     input_schema: { type: 'object', additionalProperties: false, required: ['geste', 'dossier_id', 'parametres'],
       properties: {
         geste: { type: 'string', enum: GESTES_AGENT, description: 'rappel_ajouter, email (modèle ou email libre : destinataire, objet et corps), echeance_cocher / echeance_decocher (echeance), date_fiche (champ + date), creneaux_signature, rendez_vous_placer (date + heure), sondage_dates (emails aux clients), options_rendez_vous (plusieurs créneaux provisoires posés dans l’agenda SANS email, avec « creneaux » ; sans créneau dit, CLAIRE en propose ; à utiliser pour « poser des options »), rendez_vous_creer (UN rendez-vous ordinaire : titre, date, heure), appel_fonds (ouvre l’outil), provision (montant + texte : type de bien, département), prorata (montant + date + texte), preemption (ouvre le contrôle de l’urbanisme), ouvrir_dossier, ouvrir_ecran (ecran), archiver, responsable (collaborateur)' },
         dossier_id: chaine('"" si le geste ne porte sur aucun dossier'),
         parametres: { type: 'object', additionalProperties: false,
-          required: ['date', 'heure', 'texte', 'modele', 'echeance', 'champ', 'partie', 'ecran', 'collaborateur', 'titre', 'montant', 'creneaux', 'destinataire', 'objet', 'corps'],
+          required: ['date', 'heure', 'texte', 'modele', 'echeance', 'champ', 'partie', 'ecran', 'collaborateur', 'titre', 'montant', 'creneaux', 'destinataire', 'objet', 'corps', 'documents'],
           properties: {
             date: chaine('AAAA-MM-JJ ou ""'), heure: chaine('HH:MM ou ""'), texte: chaine('texte du rappel, ou précision ; "" sinon'),
             modele: { type: 'string', enum: ['', ...A.MODELES_EMAIL_ASSISTANT.map((m) => m.cle)], description: 'modèle d’email' },
@@ -333,7 +333,8 @@ const OUTILS_AGENT = [
               properties: { date: chaine('AAAA-MM-JJ'), heure: chaine('HH:MM') } } },
             destinataire: chaine('email libre : adresse du destinataire (code [EMAIL…] accepté) ; "" = le client du dossier'),
             objet: chaine('email libre : objet ; "" sinon'),
-            corps: chaine('email libre : texte du message (premier jet, sans formule de politesse inventée) ; "" sinon')
+            corps: chaine('email libre : texte du message (premier jet, sans formule de politesse inventée) ; "" sinon'),
+            documents: { type: 'array', description: 'email : PDF à joindre — document_id rendus par documents_du_dossier ou pièces jointes au message (pjN) ; [] sinon', items: { type: 'string' } }
           } }
       } }
   }
@@ -1143,6 +1144,8 @@ function entreeOutilPourPoste(nom, entree) {
   for (const k of ['destinataire', 'objet', 'corps']) {
     propre[k] = typeof p[k] === 'string' ? p[k].replace(/\[(?:NOM|TEL|REF|NUM|MONTANT)\d+\]/g, '[à compléter]').trim().slice(0, k === 'corps' ? 4000 : 300) : '';
   }
+  // Documents à joindre (étude 26/10 : « l'offre de prêt est sur le NAS ») : seulement des identifiants opaques du poste, 10 au plus.
+  propre.documents = (Array.isArray(p.documents) ? p.documents : []).filter((x) => typeof x === 'string' && /^[a-z]{1,4}\d{1,6}$/i.test(x)).slice(0, 10);
   return { geste: GESTES_AGENT.includes(entree.geste) ? entree.geste : '', dossier_id: typeof entree.dossier_id === 'string' ? entree.dossier_id : '',
     parametres: propre };
 }
