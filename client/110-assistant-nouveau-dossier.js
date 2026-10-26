@@ -160,3 +160,37 @@ async function yousignRibAgent(entree) {
     return { cree: false, erreur: (j && j.raison) || 'le brouillon n’a pas pu être préparé' };
   } catch (err) { return { cree: false, erreur: 'le serveur n’a pas répondu : vérifier dans Yousign si un brouillon a été créé avant de recommencer' }; }
 }
+
+// « Demander à CLAIRE » et l'agent Yousign de l'étude (étude 26/10 : « autoriser Claire à avoir accès à Yousign pour lui poser des questions
+// et lui demander d'interagir avec via l'agent API ») : lecture (toutes les demandes de l'étude), brouillons (jamais d'envoi), envoi d'une
+// demande dite. La consigne part en clair à l'agent d'Anthropic : chaque appel a sa carte « Autoriser » — la lecture peut être couverte par
+// « Autoriser pour toute cette demande », jamais une écriture ni un envoi.
+async function yousignAgentDiscussions(entree) {
+  const e = entree || {};
+  const mode = ['lecture', 'modifier', 'envoyer'].includes(e.mode) ? e.mode : '';
+  if (!mode) return { erreur: 'mode inconnu : lecture, modifier ou envoyer' };
+  const consigne = String(e.consigne || '').trim().slice(0, 2000);
+  const id = String(e.demande_id || '').trim();
+  if (mode === 'envoyer' && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return { erreur: 'pour envoyer, donne l’identifiant (UUID) de la demande en brouillon' };
+  if (mode !== 'envoyer' && !consigne) return { erreur: 'consigne vide' };
+  if (signatureRibAuto === null) await sonderSignatureRib();
+  if (signatureRibAuto !== true) return { erreur: 'l’agent Yousign n’est pas utilisable : clé d’API Claude des Réglages absente ou refusée' };
+  const citee = consigne ? ` : « ${consigne.length > 300 ? consigne.slice(0, 300) + '…' : consigne} »` : '';
+  const description = mode === 'lecture'
+    ? `Interroger Yousign par l’agent Yousign d’Anthropic${citee}. Lecture seule. La question part en clair ; la réponse peut citer les noms des signataires.`
+    : mode === 'modifier'
+      ? `Préparer ou modifier un brouillon dans Yousign par l’agent Yousign d’Anthropic${citee}. Rien n’est envoyé. La consigne part en clair (noms compris).`
+      : `ENVOYER la demande de signature ${id} depuis Yousign : les signataires reçoivent l’email de Yousign.${citee}`;
+  if (!(await demanderAutorisationAgent(description, { strict: mode !== 'lecture' }))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  try {
+    const r = await fetchAvecAuth('/api/signature-rib/agent', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode, consigne, id }) });
+    const j = await r.json().catch(() => ({}));
+    if (!(r.ok && j.ok)) {
+      if (j && j.code === 'configuration') signatureRibAuto = false;
+      return { erreur: (j && j.raison) || 'l’agent Yousign n’a pas répondu' };
+    }
+    const envoi = { fait: 'envoyée', echec: 'Yousign a refusé l’envoi', a_verifier: 'envoi demandé sans confirmation de Yousign : vérifier dans Yousign', aucun: 'rien n’a été envoyé' }[j.envoi] || '';
+    return { reponse_de_yousign: j.reponse || '', liens_brouillons: j.liens || [], ...(mode === 'envoyer' ? { envoi } : {}),
+      ...(j.refus ? { note: 'l’agent a demandé un outil hors de ce mode : refusé' } : {}) };
+  } catch (err) { return { erreur: mode === 'lecture' ? 'le serveur n’a pas répondu' : 'le serveur n’a pas répondu : vérifier dans Yousign ce qui a été fait avant de recommencer' }; }
+}

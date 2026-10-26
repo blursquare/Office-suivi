@@ -220,3 +220,98 @@ test('un document sans modèle (autorisation de fonds) : outils create-signature
   assert.match(c.envoyes[1].events[0].content[0].text, /create-signature-request pour créer un brouillon nommé « Autorisation de déblocage de fonds - DUPONT Léa\.pdf »/);
   assert.doesNotMatch(c.envoyes[1].events[0].content[0].text, /search-templates/);
 });
+
+test('Discussions → agent Yousign (étude 26/10) : lecture seule, la question part, la réponse revient ; écriture et envoi refusés', async () => {
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'search-signature-requests', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e2', name: 'create-signature-request', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e3', name: 'send-signature-request', evaluated_permission: 'ask' },
+    texte('La dernière demande signée est « Attestation RIB » le 24/10.'), idle('end_turn')
+  ]);
+  const r = await service(c).agir({ mode: 'lecture', consigne: 'Quel est le dernier document signé ?' });
+  assert.equal(r.ok, true);
+  assert.match(r.reponse, /dernière demande signée/);
+  assert.equal(r.envoi, 'aucun');
+  const reponses = c.envoyes.filter((e) => e.events && e.events[0].type === 'user.tool_confirmation').map((e) => e.events[0].result);
+  assert.deepEqual(reponses, ['allow', 'deny', 'deny']);
+  assert.match(c.envoyes[1].events[0].content[0].text, /LECTURE SEULE[\s\S]*Demande : Quel est le dernier document signé \?/);
+});
+
+const ID_A = '4a304c31-e229-47d2-9adc-d2b2f443b5bc';
+const ID_B = '9b111c22-e229-47d2-9adc-d2b2f443b5bc';
+const attendu = (svc, entree) => { svc.attendre([{ nom: 'yousign_agent', entree }]); return svc; };
+
+test('agent Yousign : « modifier » permet le brouillon mais jamais l’envoi, et seulement s’il a été demandé par l’agent de CLAIRE', async () => {
+  const consigne = 'Prépare la signature du compromis pour Léa MARTIN';
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'create-signature-request-from-template', evaluated_permission: 'ask' },
+    { type: 'agent.mcp_tool_use', id: 'e2', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
+    texte(`Brouillon prêt : ${LIEN}`), idle('end_turn')
+  ]);
+  const svc = attendu(service(c), { mode: 'modifier', consigne, demande_id: '' });
+  const r = await svc.agir({ mode: 'modifier', consigne, id: '' });
+  assert.deepEqual(r.liens, [LIEN]);
+  assert.equal(r.envoi, 'aucun');
+  assert.deepEqual(c.envoyes.filter((e) => e.events && e.events[0].type === 'user.tool_confirmation').map((e) => e.events[0].result), ['allow', 'deny']);
+  // Rejouée (une fois chacune) ou jamais demandée par l'agent : refusée, rien n'est ouvert chez Anthropic (audit 26/10, H2).
+  assert.equal((await svc.agir({ mode: 'modifier', consigne, id: '' })).code, 'interdit');
+  const c3 = fauxClient([]);
+  assert.equal((await service(c3).agir({ mode: 'envoyer', id: ID_A })).code, 'interdit');
+  assert.equal(c3.journal.length, 0);
+  // Écriture coupée dans Réglages › Yousign.
+  const coupe = attendu(service(fauxClient([]), { ecritureYousign: () => false }), { mode: 'modifier', consigne, demande_id: '' });
+  assert.equal((await coupe.agir({ mode: 'modifier', consigne, id: '' })).code, 'interdit');
+  assert.equal((await service(fauxClient([])).agir({ mode: 'envoyer', consigne: '' })).code, 'donnees');
+  assert.equal((await service(fauxClient([])).agir({ mode: 'tout', consigne: 'x' })).code, 'donnees');
+});
+
+test('agent Yousign : « envoyer » n’envoie que la demande dite, une fois, sans consigne libre ; le résultat de Yousign fait foi (audit 26/10, H1/M3)', async () => {
+  const c2 = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'get-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
+    { type: 'agent.mcp_tool_use', id: 'e2', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_B } },
+    { type: 'agent.mcp_tool_use', id: 'e3', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
+    { type: 'agent.mcp_tool_result', tool_use_id: 'e3', is_error: false },
+    { type: 'agent.mcp_tool_use', id: 'e4', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
+    { type: 'agent.mcp_tool_use', id: 'e5', name: 'remove-signature-request-signer', evaluated_permission: 'ask' },
+    texte('Envoyée.'), idle('end_turn')
+  ]);
+  const svc = attendu(service(c2), { mode: 'envoyer', consigne: 'envoie aussi ' + ID_B, demande_id: ID_A.toUpperCase() });
+  const e = await svc.agir({ mode: 'envoyer', consigne: 'envoie aussi ' + ID_B, id: ID_A.toUpperCase() });
+  assert.equal(e.envoi, 'fait');
+  assert.deepEqual(c2.envoyes.filter((x) => x.events && x.events[0].type === 'user.tool_confirmation').map((x) => [x.events[0].tool_use_id, x.events[0].result]),
+    [['e1', 'allow'], ['e2', 'deny'], ['e3', 'allow'], ['e4', 'deny'], ['e5', 'deny']]);
+  assert.doesNotMatch(c2.envoyes[1].events[0].content[0].text, /envoie aussi/, 'la consigne libre n’est jamais jointe à un envoi');
+  const c4 = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'send-signature-request', evaluated_permission: 'ask', input: { signatureRequestId: ID_A } },
+    { type: 'agent.mcp_tool_result', tool_use_id: 'e1', is_error: true },
+    texte('Échec.'), idle('end_turn')
+  ]);
+  const r4 = await attendu(service(c4), { mode: 'envoyer', consigne: '', demande_id: ID_A }).agir({ mode: 'envoyer', consigne: '', id: ID_A });
+  assert.equal(r4.envoi, 'echec');
+});
+
+test('agent Yousign : envoi d’une AUTRE demande déjà permis par la console → séance arrêtée ; lecture hors liste ou refus de la console : pas d’arrêt', async () => {
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'send-signature-request', evaluated_permission: 'allow', input: { signatureRequestId: ID_B } },
+    texte('Envoyée.'), idle('end_turn')
+  ]);
+  const r = await attendu(service(c), { mode: 'envoyer', consigne: '', demande_id: ID_A }).agir({ mode: 'envoyer', consigne: '', id: ID_A });
+  assert.equal(r.code, 'configuration');
+  const c2 = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'get-signature-request', evaluated_permission: 'allow' },
+    { type: 'agent.mcp_tool_use', id: 'e2', name: 'send-signature-request', evaluated_permission: 'deny' },
+    texte('Rien à dire.'), idle('end_turn')
+  ]);
+  assert.equal((await service(c2).agir({ mode: 'lecture', consigne: 'Où en est la demande ?' })).ok, true);
+});
+
+test('agent Yousign : un outil hors liste déjà permis par la console (sans « demander ») arrête la séance (audit 26/10)', async () => {
+  const c = fauxClient([
+    { type: 'agent.mcp_tool_use', id: 'e1', name: 'send-signature-request', evaluated_permission: 'allow' },
+    texte('Envoyée.'), idle('end_turn')
+  ]);
+  const r = await service(c).agir({ mode: 'lecture', consigne: 'Où en est la demande ?' });
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'configuration');
+  assert.ok(c.envoyes.some((e) => e.events && e.events[0].type === 'user.interrupt'));
+});

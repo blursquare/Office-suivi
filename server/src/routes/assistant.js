@@ -217,7 +217,10 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       sensiblesConversations: () => sensiblesConversations(parametresRepo),
       surRefusOutilsExternes: () => { if (injections && injections.openlegi) injections.openlegi.suspendre(); if (injections && injections.yousign) injections.yousign.suspendre(); },
       surRefusYousign: () => { if (injections && injections.yousign) injections.yousign.suspendre(); },
-      surAppelsEcriture: (appels) => { if (injections && injections.yousign) injections.yousign.attendre(appels); } });
+      surAppelsEcriture: (appels) => {
+        if (injections && injections.yousign) injections.yousign.attendre(appels);
+        if (injections && injections.signatureRib && injections.signatureRib.attendre) injections.signatureRib.attendre(appels);
+      } });
     if (sortie.erreur && !sortie.expiree && sortie.erreur !== 'aucun outil attendu') noterVerification(parametresRepo, 'assistant-agent', { ok: false, message: String(sortie.erreur).slice(0, 120) });
     else if (sortie.reponse) noterVerification(parametresRepo, 'assistant-agent', { detail: String(sortie.modele || '') });
     res.json(sortie);

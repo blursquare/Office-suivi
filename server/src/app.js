@@ -66,7 +66,7 @@ const { creerPlanificateur } = require('./routines/planificateur');
 const { creerRouteurCanaux } = require('./routes/canaux');
 const { creerNotifieur } = require('./canaux/notifier');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
-const { creerRouteurYousign, creerYousign } = require('./routes/yousign');
+const { creerRouteurYousign, creerYousign, lireReglagesYousign } = require('./routes/yousign');
 const { creerRouteurSignatureRib } = require('./routes/signatureRib');
 const { creerSignatureRibAgent } = require('./signatureRibAgent');
 const { creerRouteurRelaisWordPoste, creerRouteurRelaisWord } = require('./routes/relaisWord');
@@ -264,13 +264,16 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const openlegi = creerOpenlegi(parametresRepo, { fetch: assistant && assistant.fetchOpenlegi });
   // Yousign (étude 23/10) : même principe, un seul client MCP partagé par l'agent et les Réglages.
   const yousign = creerYousign(parametresRepo, { fetch: assistant && assistant.fetchYousign, fetchOauth: assistant && assistant.fetchOauth });
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign }, parametresRepo));
+  // Agent Yousign d'Anthropic (signature du RIB, Discussions) : un seul service, partagé par sa route et par l'agent de CLAIRE, qui lui dit les
+  // écritures qu'il a demandées (audit 26/10, H2) ; l'écriture suit l'interrupteur de Réglages › Yousign.
+  const signatureRib = creerSignatureRibAgent({ parametresRepo, config, creerClient: assistant && assistant.creerClientSignatureRib, ecritureYousign: () => lireReglagesYousign(parametresRepo).ecriture });
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign, signatureRib }, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOpenlegi(parametresRepo, openlegi));
   // Le retour de Yousign est une navigation du navigateur (sans en-tête Authorization) : le `state` à usage unique le protège.
   const sansAuthRetourYousign = (req, res, next) => (req.method === 'GET' && req.path === '/yousign/oauth/retour' ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
   app.use('/api', sansAuthRetourYousign, creerRouteurYousign(parametresRepo, yousign));
   // Signature du RIB (étude 23/10) : brouillon Yousign préparé par l'agent géré d'Anthropic, avec la clé d'API Claude des Réglages.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureRib(parametresRepo, creerSignatureRibAgent({ parametresRepo, config, creerClient: assistant && assistant.creerClientSignatureRib })));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureRib(parametresRepo, signatureRib));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
   const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });

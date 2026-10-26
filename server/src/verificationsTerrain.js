@@ -240,6 +240,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'À regarder dans Word au bureau (ici seul LibreOffice a rendu le .docx) : position sous la signature, transparence, pas de page blanche ajoutée.' },
   { id: 'signature-rib-claude', depuis: '0.328.0', source: 'serveur', titre: 'Signature du RIB : l’agent Yousign d’Anthropic crée le brouillon depuis le modèle avec le signataire de la fiche',
     comment: 'Agent essayé à la main par l’étude le 23/10 (bon signataire, bon modèle). Reste à voir le même geste depuis CLAIRE : clé d’API du compte de l’agent, coffre éventuel, lien du brouillon rendu, aucun envoi.' },
+  { id: 'yousign-agent-discussions', depuis: '0.351.0', source: 'serveur', titre: 'Discussions : CLAIRE interroge Yousign et y agit par l’agent Yousign d’Anthropic (lecture, brouillons, envoi après autorisation)',
+    comment: 'Poser « quel est le dernier document signé sur Yousign ? », puis faire préparer un brouillon et l’envoyer : réponse lisible, outils de l’agent réglés sur « demander » dans la console d’Anthropic, rien d’envoyé sans la carte.' },
   { id: 'attestation-rib-pdf', depuis: '0.326.0', source: 'poste', titre: 'Attestation de transmission de RIB : PDF composé sur le papier de l’office, à signer par Yousign avec le RIB du client en pièce jointe',
     comment: 'Rendu vérifié ici sur des données inventées ; reste à le déposer dans Yousign et à voir le client le signer par SMS en joignant son RIB (la pièce jointe obligatoire se règle dans Yousign, pas par CLAIRE).' },
   { id: 'courrier-pdfa-authentic', depuis: '0.205.0', source: 'manuel', titre: 'Courrier d’appel de fonds en PDF/A-2U accepté par Authentic (« PDF/A pour Authentic »)',

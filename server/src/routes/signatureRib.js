@@ -9,7 +9,7 @@ const { noterVerification } = require('../verificationsTerrain');
 /** Codes qui disent « l'agent n'est pas utilisable tel que réglé » : le poste repasse au bouton de repli. */
 const CODES_CONFIGURATION = ['configuration', 'cle', 'introuvable'];
 
-/** @param {any} parametresRepo @param {{ disponibilite: Function, creerBrouillon: Function, lireStatut: Function }} service */
+/** @param {any} parametresRepo @param {{ disponibilite: Function, creerBrouillon: Function, lireStatut: Function, agir: Function }} service */
 function creerRouteurSignatureRib(parametresRepo, service) {
   const router = express.Router();
 
@@ -43,6 +43,21 @@ function creerRouteurSignatureRib(parametresRepo, service) {
       res.status(statut).json(r.ok ? { ok: true, statut: r.statut } : { ok: false, code: r.code, raison: r.raison });
     } catch (e) {
       console.error('[signature-rib] statut', e && (e.name || e.status) ? `${e.name || ''} ${e.status || ''}`.trim() : 'erreur');
+      res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
+    }
+  });
+
+  // « Demander à CLAIRE » → l'agent Yousign (étude 26/10) : lire, modifier un brouillon ou envoyer une demande ; le poste a demandé
+  // l'autorisation de l'utilisateur avant.
+  router.post('/signature-rib/agent', express.json({ limit: '8kb' }), async (req, res) => {
+    try {
+      const r = await service.agir(req.body);
+      if (r.ok) noterVerification(parametresRepo, 'yousign-agent-discussions', { detail: 'demande traitée par l’agent Yousign' });
+      else if (r.code !== 'donnees' && r.code !== 'occupe') noterVerification(parametresRepo, 'yousign-agent-discussions', { ok: false, message: r.code });
+      const statut = r.ok ? 200 : r.code === 'donnees' ? 400 : r.code === 'interdit' ? 403 : r.code === 'occupe' ? 409 : 502;
+      res.status(statut).json(r.ok ? { ok: true, reponse: r.reponse, liens: r.liens, envoi: r.envoi || 'aucun', refus: r.refus || 0 } : { ok: false, code: r.code, raison: r.raison });
+    } catch (e) {
+      console.error('[signature-rib] agent', e && (e.name || e.status) ? `${e.name || ''} ${e.status || ''}`.trim() : 'erreur');
       res.status(500).json({ ok: false, code: 'erreur', raison: 'Erreur interne.' });
     }
   });

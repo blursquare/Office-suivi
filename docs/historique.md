@@ -22005,3 +22005,26 @@ Empreinte relais 1.2 : `919399b7…df4105`.
   Même jour, capture de l'étude : l'email « Mon cher Maître » au confrère était adressé à l'acquéreur, sans l'offre jointe (version
   installée : l'email libre allait toujours au client). En plus : un texte qui commence par « (Mon) cher Maître » va au confrère et une
   adresse de client donnée par l'IA y est écartée ; testé avec un faux envoi (tests/assistant-actions.test.js).
+
+- **26/10/2026 10 h 45 — 0.351.0 Yousign dans les Discussions par l'agent Yousign** (étude : « autoriser Claire à avoir accès à Yousign pour lui
+  poser des questions et lui demander d'interagir avec via l'agent API » ; capture : « quel est le dernier document signé sur Yousign ? » →
+  « je n'ai pas accès à la liste des demandes »). Outil `yousign_agent` de l'agent : `lecture` (search/get des demandes, signataires,
+  approbateurs, fil d'activité, modèles, espaces), `modifier` (création et modification de brouillons, signataires, approbateurs, abonnés —
+  `send-signature-request` refusé), `envoyer` (`get` + `send` de LA demande dite, UUID exigé) ; le serveur ouvre une séance de l'agent géré
+  (mêmes identifiants que la signature du RIB) et ne permet que les outils du mode ; un outil hors liste qui arrive déjà permis (réglé
+  « toujours permis » dans la console d'Anthropic) arrête la séance (code `configuration`) — même garde ajoutée au brouillon du RIB (audit
+  du 26/10, point moyen M1). Poste : carte « Autoriser » avant chaque appel (lecture : couverte par « Autoriser pour toute cette demande » ;
+  modifier et envoyer : toujours la leur), consigne écrite par l'IA, codes rétablis, partant EN CLAIR chez Anthropic (dit sur la carte) ;
+  réponse de l'agent rendue en texte, masquée par le serveur comme tout résultat d'outil. Consigne du système : ne plus dire « pas d'accès »,
+  envoyer seulement sur un « envoie » explicite. Tests avec un faux client. Non vérifié avec le vrai agent ni un vrai compte Yousign (point
+  `yousign-agent-discussions`) ; les outils de l'agent doivent être réglés sur « demander » dans la console d'Anthropic.
+  Audit du même jour (`docs/audits/2026-10-26-0.351.0.md`), points Haut corrigés avant l'envoi : (H1) en mode envoyer,
+  `send-signature-request` n'est permis QUE pour la demande dite (champ `signatureRequestId` de l'appel), une seule fois, et la consigne
+  libre n'est plus jointe ; (H2) la route n'écrit ni n'envoie que ce que l'agent de CLAIRE a demandé dans une conversation (mêmes arguments,
+  10 min, une fois — `attendre` appelé par `surAppelsEcriture`, comme les outils yousign__) et suit l'interrupteur « écriture » de
+  Réglages › Yousign ; chaque envoi est noté au journal du serveur (identifiant seul). Moyens corrigés : séance arrêtée seulement pour un
+  outil qui ÉCRIT déjà permis par la console (une lecture ou un refus de la console ne l'arrêtent plus ; message « vérifiez dans Yousign » au
+  brouillon du RIB) ; « envoyée » seulement si Yousign n'a pas rendu d'erreur (`fait` / `echec` / `a_verifier`). Restent, dits à l'étude :
+  la carte d'envoi ne montre que l'identifiant de la demande (pas son titre) ; la consigne part en clair même anonymisation active (choix
+  du RIB), une lecture couverte par « Autoriser pour toute cette demande » ne redemande pas. Un service unique de l'agent Yousign (app.js),
+  file d'attente séparée pour les Discussions et le RIB.
