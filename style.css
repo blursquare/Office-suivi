@@ -11307,3 +11307,27 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 @media (hover: none) { .pb-carte-retirer { opacity: 1; } }
 .personne-retirer { flex: none; }
 .bien-vider { margin-left: 8px; }
+
+/* CLAIRE, une collègue dans les Discussions (étude 26/10) : profil en tête de sa conversation, avatar et statut */
+.pf-claire-av { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--rayon-xs); background: var(--avatar-claire); color: var(--blanc-fixe); }
+.pf-claire-av .icone { width: 14px; height: 14px; }
+.pf-claire-av .cx-pres { position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; background: var(--paper-card); }
+.pf-claire-av .cx-pres.en-ligne { background: var(--cat-vert); border-color: var(--paper-card); }
+.pf-claire-av.pf-grand { width: 56px; height: 56px; border-radius: var(--rayon-m); }
+.pf-claire-av.pf-grand .icone { width: 32px; height: 32px; }
+.pf-claire-av.pf-grand .cx-pres { right: -4px; bottom: -4px; width: 14px; height: 14px; border-width: 2px; }
+.pf-claire { display: flex; align-items: center; gap: 16px; max-width: 720px; margin: 0 auto; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.pf-claire-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pf-claire-nom { margin: 0; font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; }
+.pf-claire-role { margin: 0; color: var(--muted); font-size: var(--texte-s); }
+.pf-claire-statut { margin: 0; font-size: var(--texte-m); font-weight: 500; }
+.pf-claire-statut.pf-anticipe { color: var(--cat-orange); }
+.pf-claire-statut.pf-ecrit, .pf-claire-statut.pf-libre { color: var(--muted); }
+.pf-message { max-width: 720px; margin: 0 auto; padding: 16px 0 0; }
+.pf-texte { margin: 0 0 8px; }
+.pf-item { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.pf-item .pc-carte { margin: 0; }
+.pf-dossier { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; font-size: var(--texte-s); font-weight: 500; color: var(--muted); }
+.pf-dossier .icone { width: 14px; height: 14px; }
+.pf-reportees summary { cursor: pointer; color: var(--muted); font-size: var(--texte-m); margin-bottom: 8px; }
+.cx-claire-ligne .cx-d { display: inline-flex; align-items: center; }

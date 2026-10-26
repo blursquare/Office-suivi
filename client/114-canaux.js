@@ -8,7 +8,7 @@
 
 var canaux = {
   liste: [], badge: 0, charge: false, collaborateurs: [],
-  actif: '',                 // '' = conversations personnelles ; 'general' | 'd:<id>' | 'l:<nom>' | '@traiter' (vue des propositions à décider)
+  actif: '',                 // '' = conversations personnelles ; 'general' | 'd:<id>' | 'l:<nom>' | '@enregistres' ; la conversation de CLAIRE (profil et propositions à décider) est la conversation personnelle
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
   recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, mesDossiersTous: false, sections: {}, listeOuverte: true,
   claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
@@ -280,6 +280,7 @@ function quitterCanal() {
 }
 
 async function ouvrirCanal(id) {
+  if (id === '@traiter') { ouvrirProfilClaire(); return; }   // l'ancienne vue « À traiter » : c'est maintenant la conversation de CLAIRE
   if (!id || id === canaux.actif || occupeAssistant()) return;
   if (typeCanal(id) === '') return;
   garderBrouillonCanal();
@@ -419,7 +420,8 @@ function renderCanaux() {
   const aTraiter = propositionsClaire.liste.length;
   const bloc = (titre, lignes, ouvrable) => lignes.length ? `<div class="cx-groupe"><div class="cx-groupe-titre">${titre}</div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul></div>` : '';
   const pliable = (titre, lignes, ouvert, bascule) => lignes.length ? `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="${bascule}" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${titre} <span class="cx-nb">${lignes.length}</span></button>${ouvert || filtre ? `<ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>` : ''}</div>` : '';
-  const traiter = `<div class="cx-groupe"><ul class="cx-liste-c"><li><button type="button" class="cx-c cx-traiter${canaux.actif === '@traiter' ? ' actif' : ''}" onclick="ouvrirCanal('@traiter')"><span class="cx-d" aria-hidden="true">${icone('list-check')}</span><span class="cx-c-texte"><span class="cx-c-nom">À traiter</span></span>${aTraiter ? `<span class="cx-n cx-n-mention">${aTraiter}</span>` : ''}</button></li></ul></div>`;
+  const statutClaire = statutProfilClaire(aTraiter, assistantEnCours);
+  const traiter = `<div class="cx-groupe"><ul class="cx-liste-c"><li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire(false)}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE</span><small>${escapeHtml(statutClaire.texte)}</small></span>${aTraiter ? `<span class="cx-n cx-n-mention" title="${aTraiter} à décider">${aTraiter}</span>` : ''}</button></li></ul></div>`;
   zone.innerHTML = `
     <div class="cx-entete"><span class="cx-entete-titre">Canaux</span>
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="nouveauCanalLibre()" title="Nouveau canal" aria-label="Nouveau canal">${icone('plus')}</wa-button>

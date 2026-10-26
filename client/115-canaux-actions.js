@@ -76,25 +76,9 @@ function htmlMessageCanal(m, i, r, repere) {
       <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${htmlLienFil(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
 }
 
-function vueATraiter() {
-  const liste = propositionsClaire.liste;
-  const reportees = propositionsClaire.reportees || [];
-  const sectionReportees = reportees.length ? `<section class="cx-traiter-groupe"><header><span class="cx-traiter-canal">${icone('clock')}Reportées (${reportees.length})</span></header>${reportees.map(p => carteProposition(p, { compacte: true })).join('')}</section>` : '';
-  if (!liste.length) return sectionReportees ? `<div class="cx-traiter-vue"><p class="cx-traiter-intro">Rien à décider pour l’instant.</p>${sectionReportees}</div>` :  `<div class="asst-accueil"><div class="asst-accueil-logo" aria-hidden="true">${icone('list-check')}</div><h2 class="asst-accueil-titre">Rien à décider</h2>
-    <p class="asst-accueil-texte">Ce que Claire prépare pour vous — brouillons, documents, tâches — arrive d’abord dans le canal du dossier, puis ici tant que vous n’avez pas décidé.</p></div>`;
-  const parDossier = new Map();
-  liste.forEach(p => { const k = p.dossierId || ''; parDossier.set(k, (parDossier.get(k) || []).concat([p])); });
-  return `<div class="cx-traiter-vue"><p class="cx-traiter-intro">${liste.length} chose${liste.length > 1 ? 's' : ''} à décider. Rien ne part sans votre clic.</p>${[...parDossier.entries()].map(([dossierId, ps]) => {
-    const d = dossierId ? dossiers.find(x => x.id === dossierId) : null;
-    const canal = dossierId ? 'd:' + dossierId : 'general';
-    return `<section class="cx-traiter-groupe"><header><button type="button" class="cx-traiter-canal" onclick="ouvrirCanal('${escapeOnclickArg(canal)}')">${icone(d ? 'folder' : 'diese')}${escapeHtml(d ? libelleDossierAffiche(d) : 'général')}</button></header>${ps.map(p => carteProposition(p, { compacte: true })).join('')}</section>`;
-  }).join('')}${sectionReportees}</div>`;
-}
-
 function renderCanalAssistant(zone) {
   majSaisieCanal();
   renderEnteteCanal();
-  if (canaux.actif === '@traiter') { zone.innerHTML = vueATraiter(); return; }
   if (canaux.actif === '@enregistres') { zone.innerHTML = vueEnregistresCanal(); return; }
   const proche = zone.scrollHeight - zone.scrollTop - zone.clientHeight < 90;
   const sauve = zone.scrollTop;

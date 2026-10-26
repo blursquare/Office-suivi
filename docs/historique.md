@@ -22229,3 +22229,7 @@ reste maintenant visible barre repliée aussi : initiales (« # » pour Généra
 ### 0.363.6 (27/10, correction) — fondu des blocs
 
 Étude : « Le fondu était bien non ? ». Les blocs de la réponse (`.asst-bloc-apparait`, 220 ms, arrêté en reduced-motion) se révèlent en fondu quand la révélation atteint leur texte (`client/101-assistant-revelation.js`).
+
+### 0.364.0 (27/10, nouveauté) — CLAIRE, une collègue dans les Discussions
+
+Étude : « Transforme À traiter en un profil individuel de Claire où elle interagit avec nous, on voit sa photo, son statut, on lui écrit sous forme d'échange. Place-la dans les discussions comme une collègue. » `client/126-profil-claire.js` : `statutProfilClaire` (pure), `htmlProfilClaire`, `htmlAnticipationsClaire` (propositions à décider écrites comme des messages de CLAIRE, reportées repliées), `ouvrirProfilClaire`. Sa conversation = la conversation personnelle de « Demander à CLAIRE » (même agent) ; ligne « CLAIRE » en tête de l'accès rapide (pastille = à décider) et de la liste des canaux ; ancienne ligne « vous » et vue `@traiter` retirées (`ouvrirCanal('@traiter')` mène au profil). Avatar = l'étoile de CLAIRE (pas de photo téléversable : le serveur des photos est limité aux collaborateurs). Test de fumée corrigé (accès rapide à 5 lignes ; l'interrupteur « Claire répond » masqué depuis 0.363.0 n'est plus exigé). Rien d'envoyé plus qu'avant. Audit de nouveauté à faire avant publication.

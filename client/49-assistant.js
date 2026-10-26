@@ -124,21 +124,23 @@
     if (canaux.actif) { renderCanalAssistant(zone); return; }
     majSaisieCanal();
     renderEnteteCanal();
+    // Profil de CLAIRE (photo, statut) et ce qu'elle a anticipé, en tête de sa conversation (client/126).
+    const profil = htmlProfilClaire() + htmlAnticipationsClaire();
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
       const rattache = assistantContexte.dossierId ? dossiers.find(x => x.id === assistantContexte.dossierId) : null;
-      zone.innerHTML = rattache
+      zone.innerHTML = profil + (rattache
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
           'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
           exemplesDossierAssistant(rattache), true, 'folder')
         : htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
           'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
-          suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true);
+          suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true));
       return;
     }
     const reperes = repereMessagesAssistant(assistantMessages);
     const maintenant = Date.now();
-    zone.innerHTML = assistantMessages.map((m, i) => {
+    zone.innerHTML = profil + assistantMessages.map((m, i) => {
       const boutons = (m.boutons || []).map((b, k) => {
         const cle = `${i}-${k}`;
         assistantActions[cle] = b.action;

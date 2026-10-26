@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.363.6';
+  const VERSION_APP = '0.364.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.364.0', date: '2026-10-27 00:56', resume: "CLAIRE devient une collègue dans les Discussions : une ligne « CLAIRE » en tête de la barre latérale et de la liste, avec son avatar, son point « en ligne » et son statut (« J'ai anticipé 3 choses pour vous »). Sa conversation s'ouvre sur son profil, puis sur ce qu'elle a préparé pour vous, écrit comme ses messages avec « Autoriser / Plus tard / Déjà fait » ; vous lui écrivez dessous comme à un collègue. Elle remplace la vue « À traiter »." },
     { version: '0.363.6', date: '2026-10-27 00:01', resume: "Dans la réponse de CLAIRE, chaque puce, paragraphe ou titre apparaît en fondu au moment où son texte s'écrit (en plus de l'écriture progressive)." },
     { version: '0.363.5', date: '2026-10-26 23:58', resume: "La réponse de CLAIRE s'écrit de nouveau peu à peu, mais sans puces ni lignes vides qui apparaissent seules avant leur texte : chaque puce, paragraphe ou titre n'apparaît qu'au moment où son texte commence. Les trois points d'attente restent, et une réponse sans IA met toujours 2 secondes à venir." },
     { version: '0.363.4', date: '2026-10-26 23:53', resume: "Une tâche demandée à un collègue : quand il la coche, vous êtes prévenu dans votre conversation personnelle avec lui (message de CLAIRE), plus sur Teams. Quand Bastien ou Sophie demandent quelque chose à Julie ou Jérémy par CLAIRE, le message est écrit au vouvoiement." },
