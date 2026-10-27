@@ -90,3 +90,22 @@ test('audit 0.384.0 : lecture incomplète dite (formalités annoncées non retro
   assert.match(app.messageEtatHypothecaire(r), /lecture incomplète/i);
   assert.doesNotMatch(app.messageEtatHypothecaire(r), /aucune inscription/i);
 });
+
+test('mise en page réelle d’une Charge (état-réponse ANF relevé le 28/10, noms inventés) : « Date d’extrême effet », créancier du tableau, deux montants', () => {
+  const pages = [
+    'ÉTAT-RÉPONSE Accès des Notaires au Fichier Immobilier BLOIS 1 délivré le 08 juin 2026 Relevé des formalités (Flux) Du 03/04/2002 (BLOIS 1) Au 09/04/2026 (**) 2 formalités délivrées incluant 3 dispositions',
+    'Relevé des formalités - Charge  PRIVILEGE DE PRETEUR DE DENIERS-HYPOTHEQUE CONVENTIONNELLE   PAGE 2 À PAGE 3  Rédacteur :   NOT   ESSAI  Commune :   BLOIS  Date de l\'acte :   15/07/2010  Domicile élu :   BLOIS en l\'étude  Date de dépôt :   13/08/2010  Référence d\'enliassement :   2010 V 1641  Code sages :   4104P01  PRIVILEGE DE PRETEUR DE DENIERS-HYPOTHEQUE CONVENTIONNELLE  Disposition n° 1 / UD1   :   Privilège de prêteur de deniers  Créancier   Numéro d\'identité  -   BANQUE EXEMPLE CENTRE   -  Débiteur   Numéro d\'identité  1   SCI ESSAI   000 000 000  Immeuble(s)   Volume   Lot  Débiteur :   -   BLOIS   C 1   -   -  Montant principal   :   87 000,00 EUR   Accessoires :   17 400,00 EUR   Taux d\'intérêt :   4,63%  Date d\'extrême exigibilité :   05/05/2031   Date d\'extrême effet :   05/05/2032  Disposition n° 2 / UD1   :',
+    'Relevé des formalités - Charge  PRIVILEGE DE PRETEUR DE DENIERS-HYPOTHEQUE CONVENTIONNELLE   PAGE 2 À PAGE 3  Disposition n° 2 / UD1   :   Hypothèque conventionnelle  Montant principal   :   163 000,00 EUR   Accessoires :   32 600,00 EUR  Date d\'extrême exigibilité :   05/05/2031   Date d\'extrême effet :   05/05/2032',
+    'Relevé des formalités - Charge  PRIVILEGE DU VENDEUR   PAGE 4 À PAGE 4  Rédacteur :   NOT   ESSAI  Date de dépôt :   20/12/2010  Référence d\'enliassement :   2010 V 2528  Disposition n° 1 / UD1   :   PRIVILEGE DU VENDEUR  Créancier   Numéro d\'identité  -   SOCIETE PROMOTEUR   -  Propriétaire Immeuble / Contre   Date de naissance  1   DURAND   21/09/1967  Montant principal   :   40 500,00 EUR   Accessoires :   8 100,00 EUR  Date d\'extrême effet :   31/07/2012'
+  ];
+  const r = E.analyserEtatHypothecaire(pages, '2026-10-28');
+  assert.equal(r.lecture.complete, true);
+  assert.equal(r.inscriptions.length, 2);
+  const [ppd, pv] = r.inscriptions;
+  assert.equal(ppd.creancier, 'BANQUE EXEMPLE CENTRE');
+  assert.equal(ppd.montant, '87 000,00 € + 163 000,00 €');
+  assert.equal(ppd.dateExtremeEffet, '2032-05-05', 'jamais la date d’extrême exigibilité');
+  assert.equal(ppd.etat, 'en_cours');
+  assert.equal(pv.creancier, 'SOCIETE PROMOTEUR');
+  assert.equal(pv.etat, 'perimee');
+});

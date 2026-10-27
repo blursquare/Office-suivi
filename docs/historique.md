@@ -22847,4 +22847,9 @@ montant, date extrême d'effet, radiation) suit la même mise en page et reste �
 - Audit corrigé (docs/audits/2026-10-27-0.384.0.md) : une formalité par en-tête (plusieurs Charges sur une page), radiation limitée à
   l'inscription elle-même, contrôle de complétude (formalités annoncées par l'état = formalités lues : 6/6 sur l'état réel ; sinon
   « lecture incomplète », jamais « aucune inscription »), apostrophes et tirets typographiques, date extrême la plus tardive.
-- Questions laissées ouvertes : pièces à réclamer en participation ; saisies et hypothèques légales comptées comme toute Charge.
+- Second état réel reçu le 28/10 (21 pages, jamais commité) : 13 formalités dont 10 Charges — lues 13/13 ; « Date d'extrême effet »
+  (et non « date extrême d'effet »), « Date d'extrême exigibilité » écartée, créancier dans le tableau « Créancier | Numéro d'identité »,
+  deux montants pour un privilège et une hypothèque du même prêt ; 2 inscriptions en cours, 8 privilèges du vendeur périmés. Test sur cette
+  mise en page avec des noms inventés.
+- Réponses de l'étude (28/10) : pièces à réclamer seulement quand l'étude représente le vendeur ; saisies, hypothèques judiciaires et
+  légales et charges des compléments signalées (toutes dans la rubrique Charge ou les compléments : déjà relevées).

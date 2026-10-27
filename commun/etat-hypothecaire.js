@@ -7,8 +7,10 @@
 // (le STOCK) sont des scans de fiches manuscrites, jamais lus ici — seulement comptés, « à relire par le notaire ».
 // Pure : le texte de chaque page (pdf.js, une ligne par page) → les inscriptions en cours, celles radiées ou périmées à part, les charges
 // signalées par l'ADSN dans un complément, les formalités en attente. Rien n'est deviné : un champ non lu reste vide (« à vérifier »).
-// Structure relevée sur un état réel (27/10, rubrique Publication ; aucune Charge dans cet état) : la lecture des champs d'une Charge suit
-// la même mise en page et reste à vérifier sur le premier état qui en porte une (point terrain `etat-hypothecaire`).
+// Structure relevée sur deux états réels (27/10 : rubrique Publication seule ; 28/10 : treize formalités dont dix Charges — privilège de
+// prêteur de deniers et hypothèque conventionnelle d'un même prêt, privilèges du vendeur périmés, hypothèque conventionnelle) : tableau
+// « Créancier | Numéro d'identité », « Montant principal », « Date d'extrême exigibilité » (fin du prêt) et « Date d'extrême effet »
+// (celle de l'inscription). Aucune radiation vue encore : sa lecture reste à vérifier (point terrain `etat-hypothecaire`).
 
 /**
  * @typedef {{ nature: string, page: number, redacteur: string, dateActe: string, dateDepot: string, reference: string, creancier: string,
@@ -101,7 +103,9 @@
         const d = avant.lastIndexOf('Disposition n°');
         const nat = d >= 0 ? net(avant.slice(d).replace(/^Disposition n°\s*\d+\s*\/\s*\S+\s*:\s*/i, '')) : '';
         const comp = /Compl[ée]ment\s*:\s*(.+?)(?=\s+(?:Relev\s*[ée] des formalit|Disposition n°|ANF_\d|\d+\s+sur\s+\d+)|$)/i.exec(f.texte.slice(m.index));
-        complements.push({ nature: nat.slice(0, 80), page: f.page, complement: comp ? net(comp[1]).slice(0, 300) : '' });
+        const c = { nature: nat.slice(0, 80), page: f.page, complement: comp ? net(comp[1]).slice(0, 300) : '' };
+        // Une même charge répétée sur les dispositions d'une formalité (servitude sur plusieurs parcelles) : une fois.
+        if (!complements.some((x) => x.page === c.page && x.nature === c.nature && x.complement === c.complement)) complements.push(c);
       }
     }
     const enAttente = [...formalites.values()].filter((f) => /attente|rejet/.test(f.rubrique)).length;
@@ -117,15 +121,21 @@
       const radiationTotale = mentionTotale && refs.size === 0;
       const radiationPartielle = !mentionTotale && /radiation\s+partielle/i.test(t);
       // La date extrême d'effet : la PLUS TARDIVE citée (une date prorogée ou renouvelée passe devant la date initiale).
-      const dates = [...t.matchAll(new RegExp('(?:date extr[êe]me d' + AP + 'effet|p[ée]remption)\\s*:?\\s*(?:au\\s*)?(\\d{1,2}\\/\\d{1,2}\\/\\d{4})', 'gi'))].map((x) => iso(x[1])).filter(Boolean).sort();
+      // « Date d'extrême effet » (forme de l'état-réponse ANF, relevée le 28/10), « date extrême d'effet », « péremption » — jamais la « date
+      // d'extrême exigibilité » (fin du prêt, pas de l'inscription).
+      const dates = [...t.matchAll(new RegExp('(?:date d' + AP + 'extr[êe]me effet|date extr[êe]me d' + AP + 'effet|p[ée]remption)\\s*:?\\s*(?:au\\s*)?(\\d{1,2}\\/\\d{1,2}\\/\\d{4})', 'gi'))].map((x) => iso(x[1])).filter(Boolean).sort();
       const dateExtremeEffet = dates.length ? dates[dates.length - 1] : '';
-      const montant = (/(?:montant|principal|capital|somme)[^0-9]{0,40}(\d[\d .  ]*,\d{2})\s*(?:EUR|€)/i.exec(t) || [])[1] || '';
-      const creancier = net((/Cr[ée]anciers?(?:\s*,\s*[A-Za-zéè ]+)?\s+(?:\d+\s+)?(.+?)\s+(?:Date de naissance|N°\s*SIREN|Siren|D[ée]biteurs?|Immeuble|Disposition|Montant)/i.exec(t) || [])[1] || '').slice(0, 60);
+      // Un montant principal par disposition (privilège et hypothèque d'un même prêt : deux montants), dans l'ordre.
+      const montants = [...t.matchAll(/(?:montant principal|montant|principal|capital|somme)[^0-9]{0,40}(\d[\d .\u00a0\u202f]*,\d{2})\s*(?:EUR|€)/gi)].map((x) => net(x[1]).replace(/[\u00a0\u202f]/g, ' ') + ' €');
+      const montant = [...new Set(montants)].slice(0, 4).join(' + ');
+      // « Créancier Numéro d'identité - NOM - Débiteur… » (tableau de l'état-réponse ANF, relevé le 28/10) ; sinon le premier nom après « Créancier ».
+      const creancier = net((new RegExp('Cr[ée]anciers?\\s+Num[ée]ro d' + AP + 'identit[ée]\\s+(?:-|\\d+)\\s+(.+?)\\s+(?:-|\\d{3}\\s?\\d{3}\\s?\\d{3})\\s+(?:D[ée]biteurs?|Propri[ée]taire|Immeuble)', 'i').exec(t)
+        || /Cr[ée]anciers?(?:\s*,\s*[A-Za-zéè ]+)?\s+(?:\d+\s+)?(.+?)\s+(?:Date de naissance|N°\s*SIREN|Siren|D[ée]biteurs?|Immeuble|Disposition|Montant)/i.exec(t) || [])[1] || '').slice(0, 60);
       /** @type {'en_cours' | 'radiee' | 'perimee'} */
       const etat = radiationTotale ? 'radiee' : dateExtremeEffet && reference && dateExtremeEffet < (delivreLe || net(aujourdhui)) ? 'perimee' : 'en_cours';
       return {
         nature: c.nature, page: c.page, redacteur: champ(t, /R[ée]dacteur/), dateActe: iso(champ(t, new RegExp('Date de l' + AP + 'acte'))), dateDepot: iso(champ(t, /Date de d[ée]p[ôo]t/)),
-        reference, creancier, montant: montant ? net(montant).replace(/[  ]/g, ' ') + ' €' : '', dateExtremeEffet, etat,
+        reference, creancier, montant, dateExtremeEffet, etat,
         radiation: radiationTotale ? 'totale' : (radiationPartielle || mentionTotale) ? 'partielle' : ''
       };
     });
