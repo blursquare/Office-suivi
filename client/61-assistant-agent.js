@@ -152,7 +152,32 @@
       fonds_confirmes_au_client_le: d.receptionFondsConfirmeeLe || '',
       urbanisme: sur(() => droitsPreemptionFiche(d.preemption).map(x => ({ droit: x.titre || x.cle, statut: x.statut, motif: x.motif || '' })), []),
       authentic: sur(() => d.authentic ? { reference: d.referenceAuthentic || '', acte: d.authentic.acte || null } : null, null),
+      // Vision globale (étude 26/10 : « une vision globale d'un dossier, force de proposition ») : ce qui compte en un coup d'œil, calculé comme les écrans.
+      vue_d_ensemble: sur(() => vueDEnsembleDossierAgent(d), null),
       historique_recent: (d.historique || []).slice(-12).map(h => ({ date: String(h.date || '').slice(0, 10), texte: String(h.texte || '').slice(0, 200) }))
+    };
+  }
+
+  // La vue d'ensemble d'un dossier : état, probabilité de tenue de la signature, ce qui bloque, les gestes dus, ce que CLAIRE a déjà préparé.
+  function vueDEnsembleDossierAgent(d) {
+    const auj = isoAujourdhuiLocal();
+    const etat = etatDossier(d, auj);
+    const echeances = estSuccession(d) ? [] : echeancesPlanning(d);
+    const enRetard = echeances.filter(it => it.iso && it.iso < auj && !echeanceValidee(d, it.type)).map(it => it.label);
+    const attendues = estSuccession(d) ? [] : piecesAttenduesDossier(d);
+    const taches = actionsDuJour([d], auj).filter(a => a.dossier && a.dossier.id === d.id).map(a => a.titre).slice(0, 8);
+    const propositions = (propositionsClaire.liste || []).filter(p => p.dossierId === d.id).map(p => p.titre).slice(0, 6);
+    let probabilite = null;
+    try { if (!estSuccession(d)) probabilite = probabiliteTenueSignature(d, auj, []); } catch (e) { /* facultatif */ }
+    return {
+      etat: etat ? `${etat.texte}${etat.detail ? ' — ' + etat.detail : ''}` : '',
+      probabilite_de_signer_a_la_date_prevue: probabilite ? probabilite.pourcent : null,
+      ce_qui_baisse_la_probabilite: probabilite && Array.isArray(probabilite.facteurs) ? probabilite.facteurs.slice(0, 6).map(f => (f && (f.texte || f.libelle)) || String(f)) : [],
+      echeances_depassees: enRetard,
+      pieces_qui_bloquent: attendues.slice(0, 12),
+      gestes_dus_maintenant: taches,
+      deja_prepare_par_claire_en_attente_de_decision: propositions,
+      rendez_vous_de_signature: d.rendezVousSignature ? `${d.rendezVousSignature}${d.rendezVousSignatureHeure ? ' ' + d.rendezVousSignatureHeure : ''}` : ''
     };
   }
 
@@ -342,7 +367,7 @@
     const contexte = () => {
       // Le dossier rattaché dans la colonne de droite passe avant la fiche ouverte à côté.
       const id = dossierImpose || assistantContexte.dossierId || dossierOuvert || '';
-      return { aujourdhui: isoAujourdhuiLocal(), prenom: prenomPosteAssistant(), dossierId: id, dossierLibelle: libelleDossierAssistant(id) };
+      return { aujourdhui: isoAujourdhuiLocal(), maintenant: new Date().toISOString(), prenom: prenomPosteAssistant(), dossierId: id, dossierLibelle: libelleDossierAssistant(id), authentic: typeof contexteAuthentic === 'function' ? contexteAuthentic() : null };
     };
     assistantEnCours = true;
     assistantEtapeAgent = '';

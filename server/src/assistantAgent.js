@@ -16,6 +16,7 @@
 
 const crypto = require('node:crypto');
 const A = require('../../commun/assistant');
+const { momentDeLaJournee } = require('../../commun/dates');
 const { MODELES_AGENT, MODELE_AGENT_DEFAUT, MODELES_AGENT_MISTRAL, MODELE_AGENT_MISTRAL_DEFAUT, BASES, masquer, masquerDocument, masquerValeurDocument, motsSensiblesDossiers, politiqueCouplee, phrasePorteUnNom, retablirTexte, noterUsageAssistant, masquerMontants } = require('./assistantMistral');
 const { nettoyerParametresIa, dateEnFrancais } = require('./assistant');
 const { expurgerExtrait } = require('./memoire');
@@ -352,6 +353,9 @@ for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGEN
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT, et la notaire Maître Sophie GOSSART) comme une collègue experte, fiable et attentionnée.
 
 Comment tu travailles :
+- Moment de la journée : l'en-tête te donne l'heure à Paris et si l'étude est ouverte ; salue en conséquence (« Bonjour » le matin, « Bon après-midi », « Bonsoir »), n'écris pas de longs messages à l'heure de la pause de midi, et en dehors des heures d'ouverture propose pour le prochain jour ouvré plutôt que « tout de suite ».
+- Vision globale et force de proposition : pour un dossier, commence par la vue d'ensemble (vue_d_ensemble de lire_dossier : état, ce qui bloque, prochaines échéances, pièces attendues, tâches, propositions déjà préparées), puis propose 1 à 3 solutions CONCRÈTES pour le faire avancer, classées par effet (ce que ça débloque, pour quelle échéance, qui s'en charge) ; propose toujours le geste suivant que tu peux préparer toi-même (brouillon d'email, courrier, tâche) et demande l'accord avant d'agir. Ne répète pas ce que la fiche affiche déjà : dis ce qu'on en tire.
+- Authentic en direct : quand l'en-tête dit sur quelle page d'Authentic la personne se trouve, adapte-toi à ce qu'elle fait (rédaction de l'acte, fiche client, pièces…) et propose de lui préparer ce qui lui servira, sans l'interrompre pour rien.
 - Tu as des outils pour lire les dossiers de CLAIRE, la liste « À faire », l'agenda de l'office, les derniers documents reçus (pièces du NAS, scans du copieur), TOUS les PDF du dossier client sur le NAS (documents_du_dossier) et leur texte (lire_document), pour produire un document Word (rediger_document) et pour faire des gestes. Pour montrer un document, propose-le avec ouvrir_documents.
 - Mémoire de l'étude : pour une question sur les décennales des entreprises, des actes déjà passés (fausses minutes), les modèles de l'étude ou ses procédures, cherche dans la mémoire (chercher_dans_la_memoire) avant de répondre, et cite la rubrique et la page. Pour une question sur une règle de CLAIRE ou un choix de l'étude (« pourquoi… », « depuis quand… », un délai, une échéance, un courrier), cherche dans la rubrique regles-etude et cite la section (sa date quand elle en porte une). Une mémoire qui ne retrouve rien ne prouve pas que le document n'existe pas : dis-le.
 - Citations : quand tu t'appuies sur un document lu, cite le passage exact entre guillemets « … » suivi de sa référence entre crochets [document_id p. N] (exemples : « la condition suspensive d'obtention du prêt » [doc3 p. 12], [pj1 p. 2]). L'utilisateur clique dessus pour voir la page surlignée : la citation doit être recopiée mot pour mot, sans rien ajouter ; jamais de référence inventée.
@@ -687,9 +691,13 @@ function blocDocumentsJoints(documents, masque, plafond) {
 /** Le contexte du moment, en tête de la première question (jamais dans le prompt système : il resterait en cache). Pure. */
 function enteteContexte(c) {
   const lignes = [`Aujourd'hui : ${dateEnFrancais(c.aujourdhui || '')} (${c.aujourdhui || ''}).`];
+  // Le moment de la journée à Paris : tu salues, tu proposes et tu écris en conséquence (étude 26/10).
+  const m = momentDeLaJournee(c.maintenant ? new Date(c.maintenant) : new Date());
+  lignes.push(`Il est ${m.heure} h ${String(m.minute).padStart(2, '0')} à Paris (${m.jour}, ${m.moment}).${m.ouvre ? '' : ' L’étude est fermée : ne presse personne, propose pour le prochain jour ouvré.'}${m.moment === 'pause de midi' ? ' C’est la pause de midi : reste discrète, rien d’urgent à pousser.' : ''}`);
   if (c.anonymisation === 'desactivee') lignes.push('Anonymisation DÉSACTIVÉE par l’utilisateur pour cette conversation : les noms, adresses, emails et téléphones t’arrivent en clair (aucun code [NOM…]). N’en mets jamais dans une recherche Légifrance, BOFiP ou du registre des entreprises.');
   if (c.anonymisation === 'reactivee') lignes.push('Anonymisation réactivée : les nouveaux résultats reviennent avec des codes ([NOM1]…) ; ce qui a déjà été dit en clair reste connu de toi.');
   if (c.prenom) lignes.push(`Tu parles avec ${c.prenom}.`);
+  if (c.authentic && c.authentic.nature) lignes.push(`En ce moment, ${c.prenom || 'la personne'} est dans Authentic (Fichorga) sur ${c.authentic.nature}${c.authentic.onglet ? ` (onglet « ${c.authentic.onglet} »)` : ''}${c.authentic.dossierLibelle ? ` du dossier ${c.authentic.dossierLibelle}` : ''}. Tu peux t’en servir pour proposer ce qui l’aide dans ce qu’elle fait, sans la déranger si ce n’est pas utile.`);
   if (c.dossierLibelle && c.dossierId) lignes.push(`Dossier ouvert à l'écran : ${c.dossierLibelle} (id ${c.dossierId}) — « ce dossier », « lui ».`);
   return lignes.join('\n');
 }
@@ -836,6 +844,9 @@ async function tourAgent(entree, o) {
     prenom: PRENOMS_COLLABORATEURS.includes(c.prenom) ? c.prenom : '',
     dossierId: typeof c.dossierId === 'string' ? c.dossierId.slice(0, 80) : '',
     dossierLibelle: typeof c.dossierLibelle === 'string' ? masq(c.dossierLibelle.slice(0, 160)) : '',
+    authentic: c.authentic && typeof c.authentic === 'object' && typeof c.authentic.nature === 'string'
+      ? { nature: c.authentic.nature.slice(0, 60), onglet: typeof c.authentic.onglet === 'string' ? masq(c.authentic.onglet.slice(0, 80)) : '', dossierLibelle: typeof c.authentic.dossierLibelle === 'string' ? masq(c.authentic.dossierLibelle.slice(0, 160)) : '' }
+      : null,
     anonymisation: conv.anonymisationChangee ? (conv.anonymiser === false ? 'desactivee' : 'reactivee') : (!conv.contexteDit && conv.anonymiser === false ? 'desactivee' : '')
   };
 

@@ -176,3 +176,30 @@ test('profil de CLAIRE : statut selon ce qu’elle a anticipé', () => {
   assert.equal(app.statutProfilClaire(3, false).texte, 'J’ai anticipé 3 choses pour vous');
   assert.equal(app.statutProfilClaire(3, true).etat, 'ecrit');
 });
+
+test('moment de la journée à Paris : matin, pause de midi, soir, week-end, férié', () => {
+  const app = chargerApplication();
+  const m = (iso) => app.momentDeLaJournee(new Date(iso));
+  assert.equal(m('2026-10-27T08:30:00+01:00').moment, 'matin');   // mardi
+  assert.equal(m('2026-10-27T12:30:00+01:00').moment, 'pause de midi');
+  assert.equal(m('2026-10-27T15:00:00+01:00').moment, 'après-midi');
+  assert.equal(m('2026-10-27T18:30:00+01:00').moment, 'fin de journée');
+  assert.equal(m('2026-10-27T20:00:00+01:00').ouvre, false);
+  assert.equal(m('2026-10-31T10:00:00+01:00').moment, 'week-end');   // samedi
+  assert.equal(m('2026-11-11T10:00:00+01:00').moment, 'jour férié');
+});
+
+test('présence dans Authentic : nature, onglets sans intitulé de dossier, idées et carte aux heures d’ouverture', () => {
+  const app = chargerApplication();
+  assert.equal(app.natureLisiblePageAuthentic('client'), 'une fiche client');
+  assert.equal(app.natureLisiblePageAuthentic('autre'), '');
+  const onglets = [{ titre: '1 - VTE DUPONT / MARTIN', actif: true }, { titre: 'Rédaction', actif: true }, { titre: 'Pièces', actif: false }];
+  assert.equal(app.ongletsActifsAuthentic({ onglets }).join('|'), 'Rédaction');
+  assert.equal(app.ideesPourDossierAuthentic(0, 0, 0).length, 0);
+  assert.equal(app.ideesPourDossierAuthentic(2, 1, 1).join(' ; '), '2 choses que j’ai préparées attendent votre décision ; 1 pièce manque encore ; 1 geste est dû maintenant');
+  const ouvert = app.momentDeLaJournee(new Date('2026-10-27T10:00:00+01:00'));
+  const midi = app.momentDeLaJournee(new Date('2026-10-27T12:30:00+01:00'));
+  assert.equal(app.nudgeAuthentiqueAutorise(ouvert, 0, 1e12), true);
+  assert.equal(app.nudgeAuthentiqueAutorise(ouvert, 1e12 - 1000, 1e12), false, 'une fois par dossier et par demi-journée');
+  assert.equal(app.nudgeAuthentiqueAutorise(midi, 0, 1e12), false);
+});

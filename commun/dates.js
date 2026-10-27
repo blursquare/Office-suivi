@@ -46,7 +46,31 @@
     return joursFeriesFrance(Number(String(iso).slice(0, 4))).indexOf(String(iso).slice(0, 10)) !== -1;
   }
 
-  const exportes = { pad, addDays, ajouterMois, joursFeriesFrance, estJourFerie };
+  /**
+   * Le moment de la journée à Paris (étude 26/10 : « elle doit savoir à quel moment de la journée nous sommes pour échanger avec les
+   * collègues ») : l'heure, le jour, et si l'étude est ouverte — matin dès 8 h, pause de midi à 14 h, fin de journée à 18 h, fermée
+   * à partir de 19 h, le week-end et les jours fériés.
+   * @param {Date} [date]
+   */
+  function momentDeLaJournee(date) {
+    const d = Object.prototype.toString.call(date) === '[object Date]' && !isNaN(date.getTime()) ? date : new Date();
+    const f = new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    /** @type {Record<string, string>} */
+    const p = {};
+    f.formatToParts(d).forEach(x => { p[x.type] = x.value; });
+    const heure = Number(p.hour) || 0;
+    const minute = Number(p.minute) || 0;
+    const iso = `${p.year}-${p.month}-${p.day}`;
+    const jour = String(p.weekday || '').toLowerCase();
+    const weekend = jour === 'samedi' || jour === 'dimanche';
+    const ferie = estJourFerie(iso);
+    const t = heure * 60 + minute;
+    const moment = weekend ? 'week-end' : ferie ? 'jour férié' : t < 8 * 60 ? 'avant l’ouverture' : t < 12 * 60 ? 'matin' : t < 14 * 60 ? 'pause de midi' : t < 18 * 60 ? 'après-midi' : t < 19 * 60 ? 'fin de journée' : 'soir';
+    const ouvre = !weekend && !ferie && t >= 8 * 60 && t < 19 * 60;
+    return { iso, jour, heure, minute, moment, ouvre, weekend, ferie };
+  }
+
+  const exportes = { pad, addDays, ajouterMois, joursFeriesFrance, estJourFerie, momentDeLaJournee };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

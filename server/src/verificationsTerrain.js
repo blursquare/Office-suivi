@@ -20,6 +20,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 // `source` : 'serveur' (noté par le serveur), 'poste' (noté par une fenêtre CLAIRE, POST
 // /api/verifications-terrain/noter — seuls ces points-là y sont acceptés) ou 'manuel'.
 const VERIFICATIONS_TERRAIN = [
+  { id: 'presence-authentic', depuis: '0.365.0', source: 'poste', titre: 'CLAIRE voit la page d’Authentic consultée : en ouvrant un dossier pour lequel elle a quelque chose de prêt, une carte « vous ouvrez … » apparaît (heures d’ouverture, une fois par dossier et par demi-journée)',
+    comment: 'Coché à la première carte montrée. À essayer au bureau : ouvrir dans Authentic un dossier qui a une proposition en attente ou une pièce manquante ; la carte arrive en quelques secondes avec « Voir avec CLAIRE ». Ne rien montrer à midi ni après 19 h.' },
   { id: 'canaux-mention-teams', depuis: '0.335.0', source: 'serveur', titre: 'Canaux de CLAIRE : une mention « @Prénom » dans un canal prévient la personne sur Teams (au plus une fois par heure et par canal)',
     comment: 'Coché à la première mention notifiée. À essayer au bureau : depuis un poste, écrire « @ » suivi du prénom d’un collègue dans le canal d’un dossier ; le message Teams arrive par la même passerelle que les rappels.' },
   { id: 'canaux-poste', depuis: '0.335.0', source: 'poste', titre: 'Canaux de CLAIRE : le canal d’un dossier se partage entre collaborateurs (messages de l’un lus par l’autre, non-lus, réponse de CLAIRE visible de tous)',
