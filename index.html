@@ -32,14 +32,20 @@
       <!-- Le logo et le mot « Claire » ramènent au tableau de bord (étude 26/10). -->
       <a href="#" class="brand-lien" id="brand-lien" title="Tableau de bord" aria-label="Claire : retour au tableau de bord" onclick="definirOnglet('dashboard'); return false;">
       <span class="brand-mark" aria-hidden="true">
-        <svg class="logo-normal" width="36" height="36" viewBox="0 0 48 48" fill="none">
+        <svg width="36" height="36" viewBox="0 0 48 48" fill="none">
           <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#fff" stroke="#D5D8DD"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#111418" stroke-width="2.2" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <svg class="logo-halloween" width="36" height="36" viewBox="0 0 48 48" fill="none"><rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#EE7B10" stroke="#B34A00"/><path d="M33 12a15 15 0 1 0 0 24" stroke="#2B1600" stroke-width="2.6" stroke-linecap="round"/><path d="M27 23.5 L31.5 29 L40 17" stroke="#2B1600" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M22.4 10.2 L23.1 5.2 Q25 4.4 27.2 5.4 L26.2 10.2 Z" fill="#4F7A1E" stroke="#4F7A1E" stroke-width="1.4" stroke-linejoin="round"/></svg>
       </span>
       <span class="brand-word">Claire</span>
+      <!-- Halloween (étude 27/10, du 24/10 au 02/11, visible seulement sous :root[data-saison="halloween"]) : une toile d'araignée entre le logo
+           et le mot, et une petite citrouille en bas à droite du logo. Le logo reste celui de toute l'année. -->
+      <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+        <symbol id="citrouille-mini" viewBox="-9 -10 18 18"><ellipse cx="-5.5" cy="1" rx="3.1" ry="4.9" fill="#D4590A"/><ellipse cx="5.5" cy="1" rx="3.1" ry="4.9" fill="#D4590A"/><ellipse cx="-2.9" cy="0.6" rx="3.7" ry="5.5" fill="#EA7712"/><ellipse cx="2.9" cy="0.6" rx="3.7" ry="5.5" fill="#EA7712"/><ellipse cx="0" cy="0.5" rx="3.4" ry="5.8" fill="#F8921F"/><path d="M-1.9-4.7Q-3.3 0.8-1.9 5.7M1.9-4.7Q3.3 0.8 1.9 5.7" fill="none" stroke="#B94A06" stroke-width="0.45" stroke-linecap="round" opacity=".75"/><ellipse cx="-4.6" cy="-2.7" rx="0.9" ry="1.5" fill="#FFC070" opacity=".65" transform="rotate(25 -4.6 -2.7)"/><path d="M-1-5.2Q-0.9-7.5 0.6-8.5L2.5-7.5Q1.5-6.9 1.3-5.2Z" fill="#4E8B2A" stroke="#2E5C15" stroke-width="0.5" stroke-linejoin="round"/><path d="M1.6-7.7Q3.5-8.9 4.3-7.3" fill="none" stroke="#4E8B2A" stroke-width="0.6" stroke-linecap="round"/><g fill="#FFD84A" stroke="#5E2A00" stroke-width="0.5" stroke-linejoin="round"><path d="M-4.2-0.5L-1.7-0.5L-3-3Z"/><path d="M1.7-0.5L4.2-0.5L3-3Z"/><path d="M-0.8 1L0.8 1L0-0.5Z"/><path d="M-4.4 1.9L-3.4 3.3L-2.3 2.4L-1.1 3.6L0 2.6L1.1 3.6L2.3 2.4L3.4 3.3L4.4 1.9Q0 8.2-4.4 1.9Z"/></g></symbol>
+      </svg>
+      <svg class="brand-halloween brand-toile" viewBox="-1 -1 32 32" fill="none" stroke="currentColor" stroke-linecap="round" aria-hidden="true"><path d="M0 0L30.00 0.00M0 0L26.53 8.62M0 0L24.27 17.63M0 0L15.87 21.84M0 0L8.99 27.68M0 0L0.00 26.40" stroke-width="0.7"/><path d="M5.56 0.00Q4.24 0.67 4.91 1.60M4.91 1.60Q3.82 1.95 4.49 3.27M4.49 3.27Q2.99 2.99 2.94 4.05M2.94 4.05Q1.89 3.70 1.67 5.13M1.67 5.13Q0.64 4.06 0.00 4.89M11.11 0.00Q8.47 1.34 9.83 3.19M9.83 3.19Q7.64 3.89 8.99 6.53M8.99 6.53Q5.97 5.97 5.88 8.09M5.88 8.09Q3.77 7.41 3.33 10.25M3.33 10.25Q1.29 8.12 0.00 9.78M16.67 0.00Q12.71 2.01 14.74 4.79M14.74 4.79Q11.46 5.84 13.48 9.80M13.48 9.80Q8.96 8.96 8.82 12.14M8.82 12.14Q5.66 11.11 5.00 15.38M5.00 15.38Q1.93 12.18 0.00 14.67M22.22 0.00Q16.94 2.68 19.66 6.39M19.66 6.39Q15.29 7.79 17.98 13.06M17.98 13.06Q11.94 11.94 11.76 16.18M11.76 16.18Q7.55 14.81 6.66 20.50M6.66 20.50Q2.57 16.24 0.00 19.56M27.78 0.00Q21.18 3.35 24.57 7.98M24.57 7.98Q19.11 9.74 22.47 16.33M22.47 16.33Q14.93 14.93 14.69 20.23M14.69 20.23Q9.43 18.51 8.33 25.63M8.33 25.63Q3.22 20.30 0.00 24.44" stroke-width="0.42" opacity=".85"/><circle cx="14.74" cy="4.79" r="0.55" fill="#fff" stroke="none" opacity=".9"/><circle cx="5.88" cy="8.09" r="0.55" fill="#fff" stroke="none" opacity=".9"/><circle cx="17.98" cy="13.06" r="0.55" fill="#fff" stroke="none" opacity=".9"/></svg>
+      <svg class="brand-halloween brand-citrouille" viewBox="0 0 18 18" aria-hidden="true"><use href="#citrouille-mini"/></svg>
       </a>
       <!-- Déplacé ici (petit, à côté du logo) depuis un bloc séparé en haut à droite de la sidebar,
            demandé par l'étude. -->
@@ -2562,12 +2568,11 @@
   <div class="confirm-box connexion-box">
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
-        <svg class="logo-normal" width="34" height="34" viewBox="0 0 48 48" fill="none">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
           <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#fff" stroke="#D5D8DD"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#111418" stroke-width="1.8" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <svg class="logo-halloween" width="34" height="34" viewBox="0 0 48 48" fill="none"><rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#EE7B10" stroke="#B34A00"/><path d="M33 12a15 15 0 1 0 0 24" stroke="#2B1600" stroke-width="2.6" stroke-linecap="round"/><path d="M27 23.5 L31.5 29 L40 17" stroke="#2B1600" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M22.4 10.2 L23.1 5.2 Q25 4.4 27.2 5.4 L26.2 10.2 Z" fill="#4F7A1E" stroke="#4F7A1E" stroke-width="1.4" stroke-linejoin="round"/></svg>
       </span>
       <span class="brand-word">Claire</span>
     </div>
@@ -2744,12 +2749,11 @@
   <div class="confirm-box apropos-box" onclick="event.stopPropagation()">
     <div class="apropos-header">
       <span class="brand-mark" aria-hidden="true">
-        <svg class="logo-normal" width="34" height="34" viewBox="0 0 48 48" fill="none">
+        <svg width="34" height="34" viewBox="0 0 48 48" fill="none">
           <rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#fff" stroke="#D5D8DD"/>
           <path d="M33 12a15 15 0 1 0 0 24" stroke="#111418" stroke-width="1.8" stroke-linecap="round"/>
           <path d="M27 23.5 L31.5 29 L40 17" stroke="#111418" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        <svg class="logo-halloween" width="34" height="34" viewBox="0 0 48 48" fill="none"><rect x="0.5" y="0.5" width="47" height="47" rx="11.5" fill="#EE7B10" stroke="#B34A00"/><path d="M33 12a15 15 0 1 0 0 24" stroke="#2B1600" stroke-width="2.6" stroke-linecap="round"/><path d="M27 23.5 L31.5 29 L40 17" stroke="#2B1600" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M22.4 10.2 L23.1 5.2 Q25 4.4 27.2 5.4 L26.2 10.2 Z" fill="#4F7A1E" stroke="#4F7A1E" stroke-width="1.4" stroke-linejoin="round"/></svg>
       </span>
       <span class="brand-word">Claire</span>
     </div>

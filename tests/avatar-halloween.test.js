@@ -27,12 +27,12 @@ test('seule l’icône « discussion » (l’avatar de CLAIRE) change de forme, 
   assert.equal(app.nomIconeDeSaison('cloche', le(2026, 10, 31)), 'cloche');
 });
 
-test('la citrouille est dessinée aux couleurs des jetons, avec un masque propre à chaque copie', () => {
+test('la citrouille est dessinée comme l’emoji 🎃, avec un masque propre à chaque copie', () => {
   const a = app.icone('discussion-halloween');
   const b = app.icone('discussion-halloween');
-  assert.match(a, /fill:var\(--cat-orange\)/);
-  assert.match(a, /fill:var\(--cat-olive\)/);
-  assert.match(a, /fill:var\(--noir-fixe\)/);
+  assert.match(a, /fill="#F8921F"/);
+  assert.match(a, /fill="#4E8B2A"/);
+  assert.match(a, /fill="#FFD84A"/);
   assert.ok(!/claire-discussions-cut/.test(a), 'le masque est renommé');
   const id = (s) => /mask id="(claire-discussions-\d+)"/.exec(s)[1];
   assert.notEqual(id(a), id(b));
