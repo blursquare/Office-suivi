@@ -224,3 +224,8 @@ test('poste de CLAIRE : décision lue sur la demande, texte du compte rendu', ()
   assert.equal(app.texteDuMessageClaire('<p>Fait &amp; vérifié.</p><ul><li>un</li><li>deux</li></ul>'), 'Fait & vérifié.\nun\ndeux');
   assert.equal(app.POSTE_CLAIRE, false, 'une fenêtre ordinaire n’est pas le poste de CLAIRE');
 });
+
+test('travaux de CLAIRE en arrière-plan : libellé de chaque état', () => {
+  const app = chargerApplication();
+  assert.equal(['attente', 'en-cours', 'fini', 'erreur', 'annule'].map(e => app.libelleEtatTravailClaire({ etat: e })).join('|'), 'En attente|En cours…|Fait|Non terminé|Annulé');
+});

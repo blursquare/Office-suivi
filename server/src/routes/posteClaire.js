@@ -9,6 +9,10 @@ const { routeInterditePosteClaire, jetonDuCookie } = require('../posteClaire');
 const { lirePropositions } = require('../routines/propositions');
 const { deposerProposition } = require('../canaux/deposer');
 const { noterVerification } = require('../verificationsTerrain');
+const { creerFileTravaux } = require('../travauxClaire');
+const { collaborateurDe } = require('./routines');
+
+const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 
 const VALIDEUR = 'Bastien ANGLUMENT';
 
@@ -39,20 +43,39 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
     res.json(Object.assign({ disponible: config && config.authActive === true ? false : true }, poste.etat()));
   });
 
-  // Lui confier un travail : une consigne en français ; elle la traite comme un collaborateur (outils de l'agent) et rend son compte rendu.
-  routeur.post('/poste-claire/travail', async (req, res) => {
+  // Les travaux confiés passent par une FILE traitée en arrière-plan (travauxClaire.js) : la réponse est immédiate, le compte rendu arrive
+  // à la fin dans la liste des travaux et par une proposition « À savoir » au nom du demandeur.
+  const file = creerFileTravaux({ repo: parametresRepo, poste, deposer: (p) => {
+    const r = deposerProposition(parametresRepo, p);
+    if (/^Travail terminé/.test(p.titre)) noterVerification(parametresRepo, 'poste-claire-fenetre', { detail: 'travail rendu' });
+    return r;
+  } });
+  file.reprendre().catch(() => {});
+
+  routeur.post('/poste-claire/travail', (req, res) => {
     if (!ordinaire(req, res)) return;
     if (config && config.authActive === true) { res.status(501).json({ erreur: 'Le poste de CLAIRE ne sait pas encore ouvrir un serveur protégé par mot de passe.' }); return; }
     const consigne = String(req.body && req.body.consigne || '').trim().slice(0, 4000);
+    const demandeur = collaborateurDe(req.body && req.body.demandeur);
     if (!consigne) { res.status(400).json({ erreur: 'Consigne vide.' }); return; }
-    try {
-      const resultat = await poste.travailler(consigne);
-      noterVerification(parametresRepo, 'poste-claire-fenetre', { detail: 'travail rendu' });
-      res.json({ ok: true, resultat: typeof resultat === 'string' ? resultat.slice(0, 8000) : resultat });
-    } catch (e) {
-      const message = String(e && e.message || e).slice(0, 200);
-      res.status(e && e.occupe ? 409 : e && e.introuvable ? 503 : 500).json({ erreur: message });
-    }
+    if (!demandeur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    const r = file.confier(consigne, demandeur);
+    res.status(202).json({ ok: true, id: r.travail.id, position: r.position });
+  });
+
+  routeur.get('/poste-claire/travaux', (req, res) => {
+    if (!ordinaire(req, res)) return;
+    const qui = collaborateurDe(req.query.utilisateur);
+    if (!qui) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    res.json({ travaux: file.lister(qui, ADMINISTRATEURS.includes(qui)).slice(0, 30), poste: poste.etat() });
+  });
+
+  routeur.delete('/poste-claire/travaux/:id', (req, res) => {
+    if (!ordinaire(req, res)) return;
+    const qui = collaborateurDe(req.query.utilisateur);
+    const r = file.annuler(req.params.id, qui, ADMINISTRATEURS.includes(qui));
+    if (r.erreur) { res.status(r.erreur).json({ erreur: r.erreur === 409 ? 'Ce travail a déjà commencé.' : 'Travail introuvable ou pas le vôtre.' }); return; }
+    res.json({ ok: true });
   });
 
   routeur.delete('/poste-claire', async (req, res) => {

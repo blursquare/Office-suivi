@@ -52,6 +52,7 @@ function ouvrirProfilClaire() {
   setTimeout(() => {
     if (typeof quitterCanal === 'function') quitterCanal();
     if (typeof renderAssistant === 'function') renderAssistant();
+    if (typeof chargerTravauxClaire === 'function') chargerTravauxClaire();
     const champ = document.getElementById('assistant-saisie');
     if (champ) champ.focus();
   }, 0);
@@ -63,5 +64,5 @@ function htmlTravailPosteClaire() {
   return `<details class="pf-travail"><summary>${icone('discussion')} Lui confier un travail</summary>
     <p class="pf-travail-aide">Elle le fait sur son ordinateur virtuel, comme une collègue : sans accès aux réglages ni aux envois, et chaque geste vous est soumis pour validation.</p>
     <textarea id="poste-claire-consigne" rows="3" maxlength="4000" placeholder="Ex. : prépare l’appel de fonds du dossier DUPONT et dis-moi ce qui manque pour signer" aria-label="Travail à confier à CLAIRE"></textarea>
-    <div class="pf-travail-actions"><wa-button variant="brand" size="s" type="button" onclick="confierTravailAClaire()">Lui confier</wa-button><span id="poste-claire-etat" class="pf-travail-etat" aria-live="polite"></span></div></details>`;
+    <div class="pf-travail-actions"><wa-button variant="brand" size="s" type="button" onclick="confierTravailAClaire()">Lui confier</wa-button><span class="pf-travail-etat">Elle le fait en arrière-plan : vous pouvez continuer à travailler.</span></div></details>${htmlTravauxClaire()}`;
 }

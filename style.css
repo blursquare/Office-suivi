@@ -11343,3 +11343,16 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-travail-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 .pf-travail-etat { color: var(--muted); font-size: var(--texte-s); }
 html.poste-claire #tab-reglages, html.poste-claire [data-onglet="reglages"] { display: none !important; }
+
+.pf-travaux { max-width: 720px; margin: 0 auto; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
+.pf-travaux-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.pf-travaux ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pf-tr-tete { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pf-tr-etat { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); font-weight: 600; color: var(--muted); min-width: 88px; }
+.pf-tr-fini .pf-tr-etat { color: var(--cat-vert); }
+.pf-tr-erreur .pf-tr-etat, .pf-tr-erreur { color: var(--urgent); }
+.pf-tr-consigne { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--texte-m); }
+.pf-tr-cr { margin: 4px 0 0 96px; font-size: var(--texte-m); }
+.pf-tr-cr summary { cursor: pointer; color: var(--muted); font-size: var(--texte-s); }
+.pf-tr-cr p { margin: 6px 0 0; }
+p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }

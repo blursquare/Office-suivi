@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.367.1';
+  const VERSION_APP = '0.368.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.368.0', date: '2026-10-27 07:32', resume: "CLAIRE travaille en arrière-plan. « Lui confier un travail » ne bloque plus l'écran : vous pouvez lui en confier plusieurs, elle les fait l'un après l'autre sur son ordinateur virtuel. Son profil montre « Ses travaux » (en attente, en cours, fait, avec le compte rendu) et vous êtes prévenu quand chacun est fini. Un travail pas encore commencé s'annule." },
     { version: '0.367.1', date: '2026-10-27 07:25', resume: "Son nom s'écrit CLAIRE partout dans les discussions : au-dessus de ses messages, dans la liste des canaux, les réactions, la recherche, les mentions (@CLAIRE) et la zone de saisie. Le logo de la barre latérale ne change pas." },
     { version: '0.367.0', date: '2026-10-27 01:24', resume: "CLAIRE a son ordinateur virtuel. Dans son profil (Discussions), « Lui confier un travail » : elle l'exécute sur une fenêtre CLAIRE sans écran ouverte par le serveur, comme une collègue — sans accès aux réglages, sans aucun bouton d'envoi — et chaque geste qu'elle veut faire vous est soumis (carte « Demande de CLAIRE », Autoriser ou Refuser). Refusé ou sans réponse, elle n'agit pas." },
     { version: '0.366.0', date: '2026-10-27 01:16', resume: "Tâches du jour : l'horloge de chaque tâche propose maintenant « Repousser à… » (demain, lundi prochain, dans une semaine, dans deux semaines, ou une date choisie) ; la tâche disparaît des tâches du jour jusqu'à ce jour-là, avec « Annuler ». CLAIRE est dans la liste des collègues, avec son mochi étoile comme photo de profil, parmi les messages privés et l'accès rapide de la barre latérale." },

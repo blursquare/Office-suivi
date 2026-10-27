@@ -100,9 +100,49 @@ test('une demande de validation devient une proposition pour Bastien, décidée 
   assert.equal((await (await appeler(`/api/poste-claire/demande/${id}`, {}, cookie)).json()).etat, 'acceptee');
 });
 
-test('lui confier un travail sans navigateur : une erreur claire, jamais un plantage', async () => {
-  const r = await appeler('/api/poste-claire/travail', { method: 'POST', body: JSON.stringify({ consigne: 'fais quelque chose' }) });
-  assert.ok(r.status === 500 || r.status === 503);
-  assert.match((await r.json()).erreur, /navigateur/);
-  assert.equal((await appeler('/api/poste-claire/travail', { method: 'POST', body: JSON.stringify({ consigne: '' }) })).status, 400);
+test('un travail confié part en arrière-plan : réponse immédiate, puis « non terminé » sans navigateur, et le demandeur est prévenu', async () => {
+  const B0 = 'Bastien ANGLUMENT';
+  assert.equal((await appeler('/api/poste-claire/travail', { method: 'POST', body: JSON.stringify({ consigne: '', demandeur: B0 }) })).status, 400);
+  assert.equal((await appeler('/api/poste-claire/travail', { method: 'POST', body: JSON.stringify({ consigne: 'x', demandeur: 'Inconnu' }) })).status, 400);
+  const r = await appeler('/api/poste-claire/travail', { method: 'POST', body: JSON.stringify({ consigne: 'fais quelque chose', demandeur: B0 }) });
+  assert.equal(r.status, 202);
+  const { id } = await r.json();
+  let t;
+  for (let i = 0; i < 50; i++) {
+    t = ((await (await appeler('/api/poste-claire/travaux?utilisateur=' + encodeURIComponent(B0))).json()).travaux || []).find((x) => x.id === id);
+    if (t && t.etat !== 'attente' && t.etat !== 'en-cours') break;
+    await new Promise((ok) => setTimeout(ok, 50));
+  }
+  assert.equal(t.etat, 'erreur');
+  assert.match(t.erreur, /navigateur/);
+  const boite = await (await appeler('/api/propositions?utilisateur=' + encodeURIComponent(B0) + '&etat=a-traiter')).json();
+  assert.ok(boite.propositions.some((p) => p.type === 'alerte' && /Travail non terminé/.test(p.titre)), 'le demandeur est prévenu');
+  // Julie ne voit pas les travaux de Bastien.
+  const julie = await (await appeler('/api/poste-claire/travaux?utilisateur=' + encodeURIComponent('Julie VASSELIN'))).json();
+  assert.ok(!julie.travaux.some((x) => x.id === id));
+});
+
+test('file des travaux : un à la fois, dans l’ordre, annulation avant le début seulement, redémarrage pendant un travail', async () => {
+  const { creerFileTravaux, CLE_TRAVAUX } = require('../src/travauxClaire');
+  const memoire = {};
+  const repo = { lireJsonBrut: (c, d) => (c in memoire ? JSON.parse(memoire[c]) : d), ecrireJsonBrut: (c, v) => { memoire[c] = JSON.stringify(v); } };
+  const ordre = [];
+  let enCours = 0, maxEnCours = 0;
+  const poste = { async travailler(c) { enCours++; maxEnCours = Math.max(maxEnCours, enCours); ordre.push(c); await new Promise((ok) => setTimeout(ok, 20)); enCours--; return 'fait : ' + c; } };
+  const deposes = [];
+  const file = creerFileTravaux({ repo, poste, deposer: (p) => deposes.push(p) });
+  file.confier('un', 'Bastien ANGLUMENT');
+  file.confier('deux', 'Bastien ANGLUMENT');
+  const trois = file.confier('trois', 'Julie VASSELIN').travail;
+  assert.equal(file.annuler(trois.id, 'Bastien ANGLUMENT', false).erreur, 403, 'pas le travail de Bastien');
+  assert.ok(file.annuler(trois.id, 'Julie VASSELIN', false).travail);
+  await new Promise((ok) => setTimeout(ok, 200));
+  assert.equal(ordre.join(','), 'un,deux');
+  assert.equal(maxEnCours, 1, 'un seul travail à la fois');
+  assert.equal(deposes.length, 2);
+  assert.match(deposes[0].titre, /^Travail terminé : un/);
+  // Un travail « en cours » au redémarrage : noté interrompu, jamais refait seul.
+  memoire[CLE_TRAVAUX] = JSON.stringify([{ id: 'tr-x', consigne: 'coupé', demandeur: 'Bastien ANGLUMENT', etat: 'en-cours' }]);
+  const file2 = creerFileTravaux({ repo, poste, deposer: () => {} });
+  assert.equal(file2.lister('Bastien ANGLUMENT', false)[0].etat, 'erreur');
 });

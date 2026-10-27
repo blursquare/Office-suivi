@@ -19,18 +19,24 @@ const verifier = (cond, msg) => { console.log(`  ${cond ? 'ok  ' : 'KO  '} ${msg
 
 const port = await libre();
 const db = ouvrirDb(':memory:');
-const { app, posteClaire, parametresRepo } = creerApp({ db, config: { motDePasse: '', authActive: false, racineRepo: racine, port, jetonCalendrier: '', cheminDb: path.join(os.tmpdir(), `claire-pc-${process.pid}`, 'claire.db') } });
+const { app, posteClaire } = creerApp({ db, config: { motDePasse: '', authActive: false, racineRepo: racine, port, jetonCalendrier: '', cheminDb: path.join(os.tmpdir(), `claire-pc-${process.pid}`, 'claire.db') } });
 const serveur = app.listen(port, '127.0.0.1');
 await new Promise((ok) => serveur.once('listening', ok));
 const base = `http://127.0.0.1:${port}`;
 try {
   // 1. Le serveur lance la fenêtre sans écran à la première consigne ; la page est le poste de CLAIRE.
-  const attente = fetch(`${base}/api/poste-claire/travail`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne: 'Dis simplement bonjour.' }) });
   const t0 = Date.now();
-  // 2. Pendant ce temps : on cherche sa demande de validation (l'agent n'a pas de clé ici, il ne demandera rien) — on contrôle donc la voie à la main plus bas.
-  const r = await attente;
-  const corps = await r.json().catch(() => ({}));
-  verifier(r.status === 200 && typeof corps.resultat === 'string', `la fenêtre s'ouvre et rend un compte rendu (HTTP ${r.status}, ${Math.round((Date.now() - t0) / 1000)} s : ${String(corps.resultat || corps.erreur).slice(0, 80)})`);
+  const r = await fetch(`${base}/api/poste-claire/travail`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne: 'Dis simplement bonjour.', demandeur: 'Bastien ANGLUMENT' }) });
+  const { id: idTravail } = await r.json();
+  verifier(r.status === 202 && Date.now() - t0 < 2000, `le travail est confié tout de suite, en arrière-plan (HTTP ${r.status})`);
+  // 2. Elle le fait en arrière-plan : on suit la file jusqu'au compte rendu (l'agent n'a pas de clé ici).
+  let travail;
+  for (let i = 0; i < 180; i++) {
+    travail = ((await (await fetch(`${base}/api/poste-claire/travaux?utilisateur=${encodeURIComponent('Bastien ANGLUMENT')}`)).json()).travaux || []).find((t) => t.id === idTravail);
+    if (travail && (travail.etat === 'fini' || travail.etat === 'erreur')) break;
+    await new Promise((ok) => setTimeout(ok, 1000));
+  }
+  verifier(travail && travail.etat === 'fini' && typeof travail.resultat === 'string', `la fenêtre s'ouvre et rend un compte rendu en arrière-plan (${travail && travail.etat}, ${Math.round((Date.now() - t0) / 1000)} s : ${String(travail && (travail.resultat || travail.erreur)).slice(0, 80)})`);
   const etat = await (await fetch(`${base}/api/poste-claire/etat`)).json();
   verifier(etat.ouvert === true, 'la fenêtre reste ouverte après le travail');
   // 3. Le cookie du poste : refus des réglages et de l'envoi.

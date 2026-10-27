@@ -73,32 +73,75 @@ if (POSTE_CLAIRE) {
   envoyerRedactionOuverte = function () { return false; };
 }
 
-// Côté collaborateur : confier un travail à CLAIRE (profil de CLAIRE, administrateurs seulement).
-var posteClaireAuTravail = false;
+// Côté collaborateur : confier un travail à CLAIRE (profil de CLAIRE, administrateurs). Il part dans une file sur le serveur et se fait en
+// ARRIÈRE-PLAN (étude 27/10) : l'écran reste libre, on peut en confier plusieurs ; la liste « Ses travaux » suit leur état et le compte rendu
+// arrive à la fin (et dans « J'ai anticipé », comme une proposition « À savoir »).
+var travauxClaire = { liste: [], charge: false, minuterie: null };
+var INTERVALLE_TRAVAUX_CLAIRE_MS = 10 * 1000;
+
+// Pure : le libellé de l'état d'un travail.
+function libelleEtatTravailClaire(t) {
+  if (!t) return '';
+  if (t.etat === 'attente') return 'En attente';
+  if (t.etat === 'en-cours') return 'En cours…';
+  if (t.etat === 'fini') return 'Fait';
+  if (t.etat === 'annule') return 'Annulé';
+  return 'Non terminé';
+}
+
+async function chargerTravauxClaire() {
+  if (POSTE_CLAIRE || !utilisateurPoste || !estAdministrateur(utilisateurPoste)) return;
+  try {
+    const r = await fetchAvecAuth('/api/poste-claire/travaux?utilisateur=' + encodeURIComponent(utilisateurPoste));
+    if (!r.ok) return;
+    const avant = JSON.stringify(travauxClaire.liste.map(t => [t.id, t.etat]));
+    travauxClaire.liste = (await r.json()).travaux || [];
+    travauxClaire.charge = true;
+    const apres = JSON.stringify(travauxClaire.liste.map(t => [t.id, t.etat]));
+    if (avant !== apres) {
+      if (avant !== '[]' && travauxClaire.liste.some(t => t.etat === 'fini' || t.etat === 'erreur')) chargerPropositionsClaire('a-traiter');
+      if (!canaux.actif && typeof renderAssistant === 'function' && ecranAffiche('assistant')) renderAssistant();
+    }
+  } catch (e) { /* le serveur redémarre peut-être : la prochaine relecture suffit */ }
+  // Relu tant qu'un travail attend ou tourne.
+  clearTimeout(travauxClaire.minuterie);
+  if (travauxClaire.liste.some(t => t.etat === 'attente' || t.etat === 'en-cours')) travauxClaire.minuterie = setTimeout(chargerTravauxClaire, INTERVALLE_TRAVAUX_CLAIRE_MS);
+}
+
 async function confierTravailAClaire() {
   const champ = document.getElementById('poste-claire-consigne');
   const consigne = champ ? champ.value.trim() : '';
-  if (!consigne || posteClaireAuTravail) return;
-  posteClaireAuTravail = true;
-  majEtatTravailClaire('CLAIRE travaille sur son poste…');
-  assistantMessages.push({ role: 'moi', html: escapeHtml(consigne), quand: Date.now() });
-  renderAssistant();
+  if (!consigne) return;
   try {
-    const r = await fetchAvecAuth('/api/poste-claire/travail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne }) });
+    const r = await fetchAvecAuth('/api/poste-claire/travail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne, demandeur: utilisateurPoste }) });
     const corps = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(corps.erreur || `HTTP ${r.status}`);
-    assistantMessages.push({ role: 'claire', html: escapeHtml(String(corps.resultat || 'Fait.')).replace(/\n/g, '<br>'), quand: Date.now() });
     if (champ) champ.value = '';
+    afficherToast(corps.position > 1 ? `Confié à CLAIRE (${corps.position}e de la file). Elle vous prévient quand c’est fait.` : 'Confié à CLAIRE : elle s’y met et vous prévient quand c’est fait.', 'OK', null);
   } catch (e) {
-    afficherToast('CLAIRE n’a pas pu travailler : ' + (e.message || e), 'OK', null);
-  } finally {
-    posteClaireAuTravail = false;
-    renderAssistant();
-    chargerPropositionsClaire('a-traiter');
+    afficherToast('Travail non confié : ' + (e.message || e), 'OK', null);
   }
+  await chargerTravauxClaire();
+  renderAssistant();
 }
 
-function majEtatTravailClaire(texte) {
-  const el = document.getElementById('poste-claire-etat');
-  if (el) el.textContent = texte || '';
+async function annulerTravailClaire(id) {
+  try {
+    const r = await fetchAvecAuth(`/api/poste-claire/travaux/${encodeURIComponent(id)}?utilisateur=${encodeURIComponent(utilisateurPoste)}`, { method: 'DELETE' });
+    if (!r.ok) { const c = await r.json().catch(() => ({})); afficherToast(c.erreur || 'Annulation impossible.', 'OK', null); }
+  } catch (e) { afficherToast('Annulation impossible : ' + (e.message || e), 'OK', null); }
+  await chargerTravauxClaire();
+  renderAssistant();
+}
+
+// La liste « Ses travaux » sous le profil : état, consigne, compte rendu dépliable.
+function htmlTravauxClaire() {
+  const l = travauxClaire.liste.slice(0, 8);
+  if (!l.length) return '';
+  return `<div class="pf-travaux"><div class="pf-travaux-titre">Ses travaux</div><ul>${l.map(t => `<li class="pf-tr pf-tr-${escapeAttr(t.etat)}">
+      <div class="pf-tr-tete"><span class="pf-tr-etat">${t.etat === 'en-cours' ? icone('spinner', null, true) : ''}${escapeHtml(libelleEtatTravailClaire(t))}</span>
+        <span class="pf-tr-consigne">${escapeHtml(t.consigne)}</span>
+        ${t.etat === 'attente' ? `<wa-button appearance="plain" size="s" type="button" onclick="annulerTravailClaire('${escapeOnclickArg(t.id)}')">Annuler</wa-button>` : ''}</div>
+      ${t.etat === 'fini' && t.resultat ? `<details class="pf-tr-cr"><summary>Compte rendu</summary><p>${escapeHtml(t.resultat).replace(/\n/g, '<br>')}</p></details>` : ''}
+      ${t.etat === 'erreur' && t.erreur ? `<p class="pf-tr-erreur">${escapeHtml(t.erreur)}</p>` : ''}</li>`).join('')}</ul></div>`;
 }
