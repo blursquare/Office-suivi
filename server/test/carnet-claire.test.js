@@ -162,6 +162,10 @@ test('modèle d’email proposé par CLAIRE (27/10) : refusé s’il cite un cli
     const etat = await (await fetch(base + '/modeles-emails')).json();
     assert.equal(etat.perso.length, 1);
     assert.equal(etat.perso[0].nom, 'Relance diagnostic');
+    for (const corps of ['Écrivez à client@exemple.fr.', 'Appelez le 06 12 34 56 78.', 'IBAN FR76 3000 6000 0112 3456 7890 189.']) {
+      rep = await post({ nom: 'Coordonnées', corps, origine: 'claire' });
+      assert.equal(rep.status, 400, 'coordonnées refusées : ' + corps);
+    }
     rep = await post({ nom: 'Mot pour Fournier', corps: 'Texte libre de l’étude.' });
     assert.equal(rep.status, 201, 'un modèle saisi par l’étude dans les Réglages garde sa liberté');
   } finally { serveur.close(); db.close(); }

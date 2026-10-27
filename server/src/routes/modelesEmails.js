@@ -5,6 +5,9 @@ const express = require('express');
 const { motsNominatifs } = require('../carnetClaire');
 const { lireModelesEmails, ecrireModelesEmails, assainirModelesEmails, RE_CLE_INTEGRE, MAX_PERSO, nouvelIdModele } = require('../modelesEmails');
 
+// Pure : email, téléphone français, IBAN, suite de 6 chiffres et plus.
+const RE_COORDONNEES_MODELE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|(?:(?:\+|00)33|\b0)[1-9](?:[\s./-]?\d{2}){4}\b|\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b|\d(?:[\s.]?\d){5,}/;
+
 function creerRouteurModelesEmails(parametresRepo, depot) {
   const routeur = express.Router();
   const corpsValide = (b) => b && typeof b.corps === 'string' && b.corps.trim();
@@ -37,8 +40,12 @@ function creerRouteurModelesEmails(parametresRepo, depot) {
     if (!corpsValide(b)) return res.status(400).json({ erreur: 'Le texte du modèle est vide.' });
     // Un modèle proposé par CLAIRE d'après un brouillon (étude 27/10) vaut pour toute l'étude : un nom de client ou de dossier resté dans
     // le texte le fait refuser (même règle que les consignes CLAIRE.md).
+    // `origine` est déclarée par le poste : c'est un garde-fou contre une erreur de l'agent, pas un contrôle d'accès (audit 0.374.0, B3).
     if (b.origine === 'claire') {
-      const mots = motsNominatifs(`${b.nom || ''}\n${b.sujet || ''}\n${b.corps || ''}`, depot && depot.tousActifs ? depot.tousActifs() : []);
+      const texteModele = `${String(b.nom || '')}\n${String(b.sujet || '')}\n${String(b.corps || '')}`;
+      // Coordonnées d'une personne (email, téléphone, IBAN, long numéro) : jamais dans un modèle de l'étude (audit 0.374.0, M1).
+      if (RE_COORDONNEES_MODELE.test(texteModele)) return res.status(400).json({ erreur: 'Le modèle vaut pour tous les dossiers : retirez les emails, téléphones, IBAN et numéros (variable ou « [à compléter] »).' });
+      const mots = motsNominatifs(texteModele, depot && depot.tousActifs ? depot.tousActifs() : []);
       if (mots.length) return res.status(400).json({ erreur: `Le modèle vaut pour tous les dossiers : remplacez les noms de clients ou de dossiers par une variable ou « [à compléter] » (${mots.slice(0, 5).join(', ')}).` });
     }
     const etat = lireModelesEmails(parametresRepo);

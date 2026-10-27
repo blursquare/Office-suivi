@@ -3,8 +3,9 @@
 // à CLAIRE d'enregistrer ses modèles de brouillon d'email dans les réglages si on lui demande après une génération »).
 //   - outil `artefact` : lister / lire / modifier ce qui est ouvert dans le panneau de droite (client/99) — brouillon d'email (la fenêtre
 //     d'email de client/28, posée dans le panneau), courrier, document, tableau. Lire rend l'état ACTUEL, corrections de l'utilisateur
-//     comprises (résultat masqué par le serveur comme tout résultat d'outil) ; modifier remplace l'élément sous ses yeux, rien ne part ni
-//     ne s'enregistre (« Envoyer », « Word », « Ranger » restent à l'utilisateur) : pas de carte d'autorisation.
+//     comprises (résultat masqué par le serveur comme tout résultat d'outil ; un tableau : son aperçu seulement) ; modifier remplace
+//     l'élément sous ses yeux — jamais un lien ni un IBAN nouveau, jamais un tableau —, le dit dans la conversation et le panneau ; rien ne
+//     part ni ne s'enregistre (« Envoyer », « Word », « Ranger » restent à l'utilisateur) : pas de carte d'autorisation.
 //   - outil `modele_email` : lister les modèles et leurs variables ; enregistrer un modèle de l'étude (Réglages › Modèles d'emails) après
 //     la carte « Autoriser » — le serveur refuse un modèle qui cite un client ou un dossier (`origine: 'claire'`, routes/modelesEmails.js).
 
@@ -19,27 +20,43 @@ function artefactAgentParId(id) {
   return artefactsAssistant.liste.find(x => x.id === id) || null;
 }
 
+// Le brouillon d'email lié à CET élément du panneau, jamais une autre rédaction ouverte entre-temps (audit 0.374.0, M3).
+function brouillonDeArtefact(a) {
+  return redaction && redaction.artefactId === a.id ? redaction : null;
+}
+
+// Pure : liens et IBAN d'un texte (une correction de CLAIRE n'en ajoute jamais un qui n'y était pas — audit 0.374.0, M4).
+function liensEtIbanTexte(t) {
+  return new Set((String(t || '').match(/https?:\/\/[^\s)\]>"']+|www\.[^\s)\]>"']+|\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b/gi) || []).map(x => x.replace(/\s+/g, '').toLowerCase()));
+}
+
 function lireArtefactAgent(a) {
   if (a.type === 'email') {
-    if (!redaction) return { erreur: 'le brouillon d’email a été fermé ou envoyé' };
-    return { ...resumeArtefactAgent(a), destinataire: redaction.a || '', cc: redaction.cc || '', objet: redaction.sujet || '',
-      texte: String(redaction.texte || texteDeHtmlRedaction(redaction.html) || '').slice(0, MAX_TEXTE_ARTEFACT_AGENT),
-      pieces_jointes: (redaction.pieces || []).length };
+    const r = brouillonDeArtefact(a);
+    if (!r) return { erreur: 'le brouillon d’email a été fermé, envoyé ou remplacé' };
+    return { ...resumeArtefactAgent(a), destinataire: r.a || '', cc: r.cc || '', objet: r.sujet || '',
+      texte: String(r.texte || texteDeHtmlRedaction(r.html) || '').slice(0, MAX_TEXTE_ARTEFACT_AGENT),
+      pieces_jointes: (r.pieces || []).length };
   }
   if (a.type === 'courrier') return { ...resumeArtefactAgent(a), texte: texteCourrierArtefact(a.doc).slice(0, MAX_TEXTE_ARTEFACT_AGENT) };
   if (a.type === 'document') return { ...resumeArtefactAgent(a), texte: String(a.contenu || '').slice(0, MAX_TEXTE_ARTEFACT_AGENT) };
+  // Le tableau d'un calcul ne repasse jamais par l'IA (client/98, audit 21/10 H1 ; audit 0.374.0, H1) : son aperçu seulement, comme à sa création.
   if (a.type === 'tableau') {
-    return { ...resumeArtefactAgent(a), colonnes: a.colonnes, lignes: a.lignes.slice(0, 200).map(l => l.map(v => (v == null ? '' : String(v)))),
-      ...(a.lignes.length > 200 ? { lignes_en_tout: a.lignes.length, note: 'seules les 200 premières lignes sont rendues : ne réécris pas un tableau plus long' } : {}) };
+    return { ...resumeArtefactAgent(a), colonnes: a.colonnes, lignes_total: a.lignes.length,
+      apercu: apercuTableauCalcul(a.lignes.map(l => l.map(v => (v == null ? '' : String(v))))),
+      note: 'pour corriger un tableau, refais le calcul (outil calcul) avec la correction' };
   }
   return { ...resumeArtefactAgent(a), note: 'un outil ouvert se remplit par outil_champs, pas ici' };
 }
 
 function modifierArtefactAgent(a, e) {
   const texte = typeof e.texte === 'string' ? e.texte.replace(/\r/g, '') : '';
+  const avant = a.type === 'email' ? (brouillonDeArtefact(a) || {}).texte : a.type === 'courrier' ? texteCourrierArtefact(a.doc) : a.contenu;
+  const nouveaux = [...liensEtIbanTexte(texte + ' ' + (e.objet || ''))].filter(x => !liensEtIbanTexte(avant).has(x));
+  if (nouveaux.length) return { erreur: 'une correction n’ajoute ni lien ni IBAN qui n’était pas dans le texte : demande à l’utilisateur de le coller lui-même' };
   if (a.type === 'email') {
-    const r = redaction;
-    if (!r) return { erreur: 'le brouillon d’email a été fermé ou envoyé : prépare-le de nouveau' };
+    const r = brouillonDeArtefact(a);
+    if (!r) return { erreur: 'le brouillon d’email a été fermé, envoyé ou remplacé : prépare-le de nouveau' };
     if (r.envoi) return { erreur: 'l’email est en cours d’envoi' };
     if (!texte.trim() && !String(e.objet || '').trim()) return { erreur: 'rien à modifier : donne le texte entier (et l’objet s’il change)' };
     if (String(e.objet || '').trim()) r.sujet = String(e.objet).replace(/\s+/g, ' ').trim().slice(0, 300);
@@ -56,21 +73,22 @@ function modifierArtefactAgent(a, e) {
     renderRedaction();
   } else if (a.type === 'courrier') {
     if (!texte.trim()) return { erreur: 'texte vide : donne le courrier entier' };
-    a.doc = documentCourrierDepuisTexteAgent(texte, '');
+    const doc = documentCourrierDepuisTexteAgent(texte, '');
+    // La date déjà sur la page reste si le texte réécrit l'a omise (audit 0.374.0, B2).
+    if (/…$/.test(doc.date) && a.doc && a.doc.date) doc.date = a.doc.date;
+    a.doc = doc;
   } else if (a.type === 'document') {
     if (!texte.trim()) return { erreur: 'texte vide : donne le document entier' };
     a.contenu = texte.slice(0, 60000);
   } else if (a.type === 'tableau') {
-    if (a.lignes.length > 200) return { erreur: 'tableau trop long pour être réécrit ici : refais le calcul (calcul) avec la correction' };
-    const colonnes = Array.isArray(e.colonnes) ? e.colonnes.map(c => String(c == null ? '' : c).slice(0, 200)).slice(0, 60) : [];
-    const lignes = Array.isArray(e.lignes) ? e.lignes.filter(Array.isArray).slice(0, 2000).map(l => l.slice(0, 60).map(v => String(v == null ? '' : v).slice(0, 2000))) : [];
-    if (!colonnes.length) return { erreur: 'colonnes vides : donne les en-têtes et les lignes entières' };
-    a.colonnes = colonnes;
-    a.lignes = lignes;
+    return { erreur: 'un tableau se corrige en refaisant le calcul (outil calcul) : tu n’en vois que l’aperçu' };
   } else return { erreur: 'cet élément ne se modifie pas ici (un outil se remplit par outil_champs)' };
+  // Une correction de CLAIRE se voit (audit 0.374.0, M4) : bandeau dans le panneau et ligne dans la conversation.
+  a.corrigeLe = Date.now();
   artefactsAssistant.courant = a.id;
   artefactsAssistant.version++;
   renderArtefactAssistant();
+  poserMessageAssistant('claire', `<p>J’ai corrigé « ${escapeHtml(a.titre)} » à droite : relisez-le avant ${a.type === 'email' ? 'd’envoyer' : 'de le télécharger'}.</p>`, []);
   return { fait: true, affiche_a_l_utilisateur: `« ${a.titre} » corrigé dans le panneau de droite ; rien n’est envoyé ni enregistré` };
 }
 
@@ -78,7 +96,7 @@ async function artefactAgent(e) {
   const mode = e && e.mode;
   if (POSTE_CLAIRE) return { erreur: 'pas de panneau sur l’ordinateur de CLAIRE' };
   if (mode === 'lister') {
-    const liste = artefactsAssistant.liste.filter(a => a.type !== 'email' || redaction).map(resumeArtefactAgent);
+    const liste = artefactsAssistant.liste.filter(a => a.type !== 'email' || brouillonDeArtefact(a)).map(resumeArtefactAgent);
     return { elements: liste, ...(liste.length ? {} : { note: 'rien n’est ouvert dans le panneau de droite' }) };
   }
   const a = artefactAgentParId(String(e && e.artefact_id || ''));

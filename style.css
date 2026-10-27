@@ -10936,6 +10936,8 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 @media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
 .asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
 .asst-art-corps > .asst-art-email-place { margin: -16px; }
+.asst-art-corrige { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--muted); font-size: var(--texte-s); }
+.asst-art-corrige .icone { width: 14px; height: 14px; color: var(--focus); }
 .asst-art-email-place > .email-redaction-box { width: 100%; max-width: none; height: auto; min-height: 100%; max-height: none; margin: 0; border-radius: 0; box-shadow: none; }
 .asst-art-email-place .redaction-fermer, .asst-art-email-place .redaction-titre { display: none; }
 .asst-art-document { padding: 24px 28px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); font-size: var(--texte-base); line-height: 1.55; }

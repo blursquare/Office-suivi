@@ -444,7 +444,7 @@
     if (POSTE_CLAIRE || !ecranAffiche('assistant') || !boiteRedactionAssistant() || !redaction) return false;
     artefactsAssistant.liste = artefactsAssistant.liste.filter(x => x.type !== 'email');
     const d = redaction.dossierId ? dossiers.find(x => x.id === redaction.dossierId) : null;
-    ouvrirArtefactAssistant({ type: 'email', titre: redaction.sujet ? 'Email : ' + redaction.sujet.slice(0, 60) : 'Brouillon d’email', dossierId: d ? d.id : '' });
+    redaction.artefactId = ouvrirArtefactAssistant({ type: 'email', titre: redaction.sujet ? 'Email : ' + redaction.sujet.slice(0, 60) : 'Brouillon d’email', dossierId: d ? d.id : '' });
     return true;
   }
 
@@ -524,6 +524,7 @@
         ? `<wa-button variant="brand" size="s" type="button" onclick="monterOutilAssistant('${idj}')">Ouvrir ${escapeHtml(a.titre)} ici</wa-button>`
         : `<wa-button variant="brand" size="s" type="button" onclick="ouvrirOutilDepuisArtefactAssistant('${idj}')">Ouvrir ${escapeHtml(a.titre)}</wa-button>`;
     }
+    if (a.corrigeLe) actions = `<span class="asst-art-corrige">${icone('sparkle')}Corrigé par CLAIRE à ${escapeHtml(new Date(a.corrigeLe).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }))} : relisez avant ${a.type === 'email' ? 'd’envoyer' : 'de télécharger'}</span>` + actions;
     zone.innerHTML = `<div class="asst-art-tete"><span class="asst-art-type" aria-hidden="true">${iconeTypeArtefactAssistant(a.type)}</span><h2 class="asst-art-titre">${escapeHtml(a.titre)}</h2>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="fermerArtefactAssistant()" title="Fermer" aria-label="Fermer">${icone('x')}</wa-button></div>
       ${onglets}<div class="asst-art-actions">${actions}</div><div class="asst-art-corps">${corps}</div>`;

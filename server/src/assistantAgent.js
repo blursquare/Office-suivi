@@ -203,15 +203,13 @@ const OUTILS_AGENT = [
   },
   {
     name: 'artefact',
-    description: 'Ce qui est ouvert dans le panneau de droite de la conversation (étude 27/10) : brouillon d’email (faire_geste « email », ou un brouillon de CLAIRE ouvert depuis une carte), courrier, document, tableau. Mode « lister » : les éléments ouverts (artefact_id, type, titre). Mode « lire » : le contenu ACTUEL d’un élément, corrections de l’utilisateur comprises (email : destinataire, objet, texte ; courrier et document : le texte entier au format de rediger_document ; tableau : colonnes et lignes). Mode « modifier » : quand l’utilisateur te demande une correction (« plus court », « ajoute… », « vouvoie », « change l’objet »), LIS d’abord, puis réécris l’élément EN ENTIER dans « texte » (et « objet » pour un email, « colonnes »/« lignes » pour un tableau) en gardant tout ce qu’on ne t’a pas demandé de changer, corrections de l’utilisateur comprises ; l’élément est remplacé sous ses yeux, rien n’est envoyé ni enregistré (« Envoyer », « Word », « Ranger » restent à l’utilisateur). Ne crée pas un nouvel élément pour une correction.',
+    description: 'Ce qui est ouvert dans le panneau de droite de la conversation (étude 27/10) : brouillon d’email (faire_geste « email », ou un brouillon de CLAIRE ouvert depuis une carte), courrier, document, tableau. Mode « lister » : les éléments ouverts (artefact_id, type, titre). Mode « lire » : le contenu ACTUEL d’un élément, corrections de l’utilisateur comprises (email : destinataire, objet, texte ; courrier et document : le texte entier au format de rediger_document ; tableau : son aperçu seulement). Mode « modifier » : quand l’utilisateur te demande une correction (« plus court », « ajoute… », « vouvoie », « change l’objet »), LIS d’abord, puis réécris l’élément EN ENTIER dans « texte » (et « objet » pour un email) en gardant tout ce qu’on ne t’a pas demandé de changer, corrections de l’utilisateur comprises ; l’élément est remplacé sous ses yeux, rien n’est envoyé ni enregistré (« Envoyer », « Word », « Ranger » restent à l’utilisateur). Une correction n’ajoute jamais un lien ni un IBAN qui n’était pas dans le texte. Un tableau se corrige en refaisant le calcul. Ne crée pas un nouvel élément pour une correction.',
     input_schema: { type: 'object', additionalProperties: false, required: ['mode', 'artefact_id'],
       properties: {
         mode: { type: 'string', enum: ['lister', 'lire', 'modifier'] },
         artefact_id: chaine('id rendu par lister ou par l’outil qui a ouvert l’élément ; "" en mode lister'),
         objet: chaine('email : le nouvel objet ("" = inchangé)'),
-        texte: chaine('modifier : le texte entier, corrigé'),
-        colonnes: { type: 'array', items: { type: 'string' }, description: 'tableau : les en-têtes' },
-        lignes: { type: 'array', items: { type: 'array', items: { type: 'string' } }, description: 'tableau : les lignes' }
+        texte: chaine('modifier : le texte entier, corrigé')
       } }
   },
   {
@@ -943,7 +941,8 @@ async function tourAgent(entree, o) {
       const nomAppel = (conv.nomsAppels || {})[id] || '';
       // Légifrance et BOFiP : des textes publics de droit — seuls les mots des fiches, emails et téléphones sont masqués (le masquage
       // habituel, qui prend tout mot à majuscule, rendrait « Code civil » ou « Cour de cassation » illisibles). RNE : comme le reste.
-      if (nomAppel === 'calcul' && !r.erreur && resultatCalculSuspect(brut)) {
+      // Un tableau relu dans le panneau (outil artefact) passe le même contrôle que le calcul qui l'a fait (audit 0.374.0, H1).
+      if ((nomAppel === 'calcul' || (nomAppel === 'artefact' && brut && brut.type === 'tableau')) && !r.erreur && resultatCalculSuspect(brut)) {
         return { id, contenu: 'Résultat retenu : il contient des valeurs recodées (base64, hexadécimal, lettres séparées, codes de caractères). Renvoie des totaux, des repères (ref) ou des statuts, jamais des valeurs recopiées.', erreur: true };
       }
       const avantCodes = new Set(conv.table.keys());
@@ -1073,7 +1072,10 @@ async function tourAgent(entree, o) {
         : /^rne__/.test(b.nom) ? (conv.anonymiser === false || conv.aEteEnClair ? rneSansPersonnes(b.entree || {}, conv.societes || new Set())
           : retablirSocietes(b.entree || {}, conv.table, conv.societes || new Set(), conv.numsRne))
           // `calcul` : les codes [NOM…] restent des codes — un nom rétabli dans le bac à sable pourrait en ressortir recodé (audit 21/10, H1).
-          : b.nom === 'calcul' ? (b.entree || {}) : entreeOutilPourPoste(b.nom, retablirValeur(b.entree || {}, conv.table)) })),
+          : b.nom === 'calcul' ? (b.entree || {})
+          // `modele_email` : un modèle vaut pour toute l'étude — aucun code rétabli, chacun devient « [à compléter] » (audit 0.374.0, M1).
+          : b.nom === 'modele_email' ? sansCodesInconnus(b.entree || {})
+          : entreeOutilPourPoste(b.nom, retablirValeur(b.entree || {}, conv.table)) })),
       ...(tour.texte ? { note: nettoyerReponseAgent(tour.texte, conv.table) } : {})
     };
     // Yousign : les écritures demandées sont notées côté serveur AVEC les arguments rétablis que le poste enverra — sans cela, aucune n'est faite.

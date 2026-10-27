@@ -897,3 +897,23 @@ test('artefact (27/10) : le brouillon relu part masqué, la correction revient a
   assert.ok(appel, 'la correction revient au poste');
   assert.match(appel.entree.texte, /FOURNIER/, 'avec le vrai nom, rétabli par le serveur');
 });
+
+test('modele_email (audit 0.374.0) : aucun code rétabli, chacun devient « [à compléter] » ; tableau relu recodé : retenu', async () => {
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'lire_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'modele_email', { mode: 'enregistrer', nom: 'Relance', objet: 'Dossier [NOM1]', corps: 'Bonjour [NOM1], écrivez à [EMAIL1].' }),
+      outil('t3', 'artefact', { mode: 'lire', artefact_id: 'art1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Fait.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Enregistre ce brouillon', dossiers: D, contexte: {} }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { nom: 'FOURNIER', email: 'paul.fournier@exemple.fr' } }] }, o);
+  const m = r.appels.find((x) => x.nom === 'modele_email');
+  assert.doesNotMatch(JSON.stringify(m.entree), SECRETS, 'aucun nom rétabli dans un modèle de l’étude');
+  assert.match(m.entree.corps, /\[à compléter\]/);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't2', contenu: { fait: true } },
+    { id: 't3', contenu: { type: 'tableau', apercu: [['UEFVTCBGT1VSTklFUg==']] } }] }, o);
+  const envoye = JSON.stringify(client.requetes[2].messages);
+  assert.match(envoye, /Résultat retenu/, 'un tableau relu aux valeurs recodées est retenu comme un calcul');
+  assert.doesNotMatch(envoye, /UEFVTCBGT1VSTklFUg==/);
+});

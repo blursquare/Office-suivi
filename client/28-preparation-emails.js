@@ -593,6 +593,10 @@
   }
 
   function ouvrirRedactionEmail(o) {
+    // Un brouillon retouché resté ouvert à droite des Discussions, remplacé par une nouvelle rédaction : dit, jamais perdu en silence (audit 0.374.0, M2).
+    if (redaction && redaction.artefactId && (redaction.html !== redaction.htmlDepart || redaction.sujet !== redaction.sujetDepart)) {
+      afficherToast(`Le brouillon « ${redaction.sujet || 'sans objet'} » ouvert à droite a été fermé sans envoi par cette nouvelle rédaction.`, 'OK', null);
+    }
     if (redaction && redaction.resolve) redaction.resolve({ ok: false, annule: true });
     return new Promise((resolve) => {
       const texte = texteEditableEmail(o.corps);

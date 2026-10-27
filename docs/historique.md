@@ -22608,3 +22608,7 @@ pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
   rédaction) ; le brouillon n'est jamais retiré par la limite de 12 artefacts ; une correction de l'agent compte comme une saisie
   (`html` seul, le texte de départ reste : un brouillon de routine refermé la garde) ; jamais de rechargement automatique de la page
   pendant qu'un brouillon est ouvert (`saisieEnCoursPoste`).
+- Audit 0.374.0 (`docs/audits/2026-10-27-0.374.0.md`) : un tableau relu ne rend que son aperçu (jamais ses lignes, contrôle anti-recodage
+  du calcul appliqué) et ne se corrige qu'en refaisant le calcul ; `modele_email` ne reçoit aucun code rétabli et le serveur refuse
+  emails, téléphones, IBAN et numéros dans un modèle de CLAIRE ; l'élément « email » du panneau est lié à SA rédaction ; une correction
+  de CLAIRE est dite (conversation + bandeau du panneau) et n'ajoute ni lien ni IBAN ; date du courrier gardée si l'IA l'omet.
