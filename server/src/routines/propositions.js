@@ -12,7 +12,7 @@ const MAX_PROPOSITIONS = 2000;
 const JOURS_EXPIRATION = 30;
 const SEUIL_PROMOTION_PROPOSITIONS = 30;
 const SEUIL_PROMOTION_TAUX = 0.9;
-const TYPES = ['email', 'document', 'tache', 'dates', 'alerte'];
+const TYPES = ['email', 'document', 'tache', 'dates', 'alerte', 'validation'];   // `validation` : une demande de CLAIRE depuis son poste virtuel (server/src/posteClaire.js)
 const ETATS = ['proposee', 'vue', 'acceptee', 'refusee', 'faite', 'expiree'];
 
 /** @param {any} v @param {number} max */

@@ -15,7 +15,9 @@ var TYPES_PROPOSITION = {
   document: { libelle: 'Document', icone: 'file-text', bouton: 'Ouvrir le document', couleur: 'accent' },
   tache: { libelle: 'Tâche', icone: 'check', bouton: 'Ajouter à ma liste', couleur: 'succes' },
   dates: { libelle: 'Dates proposées', icone: 'calendar', bouton: 'Voir les dates', couleur: 'violet' },
-  alerte: { libelle: 'À savoir', icone: 'info', bouton: 'Marquer comme lu', couleur: 'gris' }
+  alerte: { libelle: 'À savoir', icone: 'info', bouton: 'Marquer comme lu', couleur: 'gris' },
+  // Une demande de CLAIRE depuis son ordinateur virtuel (client/128) : « Autoriser » ne fait rien ici, la décision est lue par son poste.
+  validation: { libelle: 'Demande de CLAIRE', icone: 'discussion', bouton: 'Autoriser', couleur: 'accent' }
 };
 
 // Pure : le descripteur d'un type de proposition (un type inconnu se lit comme une alerte).
@@ -192,6 +194,7 @@ function poserTacheDepuisProposition(p) {
 
 // Ce que fait « Autoriser » : le geste habituel de CLAIRE, JAMAIS un envoi. Rend le message dit à l'utilisateur.
 function executerActionProposition(p) {
+  if (p.type === 'validation') return 'Autorisé : CLAIRE continue sur son poste.';
   const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
   const det = p.details || {};
   if (p.type === 'email') {

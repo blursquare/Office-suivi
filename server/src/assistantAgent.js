@@ -697,6 +697,7 @@ function enteteContexte(c) {
   if (c.anonymisation === 'desactivee') lignes.push('Anonymisation DÉSACTIVÉE par l’utilisateur pour cette conversation : les noms, adresses, emails et téléphones t’arrivent en clair (aucun code [NOM…]). N’en mets jamais dans une recherche Légifrance, BOFiP ou du registre des entreprises.');
   if (c.anonymisation === 'reactivee') lignes.push('Anonymisation réactivée : les nouveaux résultats reviennent avec des codes ([NOM1]…) ; ce qui a déjà été dit en clair reste connu de toi.');
   if (c.prenom) lignes.push(`Tu parles avec ${c.prenom}.`);
+  if (c.posteClaire) lignes.push('Tu travailles sur TON ordinateur virtuel, comme une collaboratrice : sans accès aux réglages ni aux boutons d’envoi (aucun email, aucune signature, aucun message ne part de chez toi). Chaque geste qui modifie quelque chose est soumis à la validation de Bastien : explique en une phrase pourquoi tu le demandes, et si c’est refusé ou sans réponse, ne le fais pas et dis-le dans ton compte rendu. Termine par un compte rendu court : ce que tu as fait, ce que tu as demandé, ce qui reste.');
   if (c.authentic && c.authentic.nature) lignes.push(`En ce moment, ${c.prenom || 'la personne'} est dans Authentic (Fichorga) sur ${c.authentic.nature}${c.authentic.onglet ? ` (onglet « ${c.authentic.onglet} »)` : ''}${c.authentic.dossierLibelle ? ` du dossier ${c.authentic.dossierLibelle}` : ''}. Tu peux t’en servir pour proposer ce qui l’aide dans ce qu’elle fait, sans la déranger si ce n’est pas utile.`);
   if (c.dossierLibelle && c.dossierId) lignes.push(`Dossier ouvert à l'écran : ${c.dossierLibelle} (id ${c.dossierId}) — « ce dossier », « lui ».`);
   return lignes.join('\n');
@@ -844,6 +845,7 @@ async function tourAgent(entree, o) {
     prenom: PRENOMS_COLLABORATEURS.includes(c.prenom) ? c.prenom : '',
     dossierId: typeof c.dossierId === 'string' ? c.dossierId.slice(0, 80) : '',
     dossierLibelle: typeof c.dossierLibelle === 'string' ? masq(c.dossierLibelle.slice(0, 160)) : '',
+    posteClaire: c.posteClaire === true,
     authentic: c.authentic && typeof c.authentic === 'object' && typeof c.authentic.nature === 'string'
       ? { nature: c.authentic.nature.slice(0, 60), onglet: typeof c.authentic.onglet === 'string' ? masq(c.authentic.onglet.slice(0, 80)) : '', dossierLibelle: typeof c.authentic.dossierLibelle === 'string' ? masq(c.authentic.dossierLibelle.slice(0, 160)) : '' }
       : null,

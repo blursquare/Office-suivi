@@ -212,3 +212,15 @@ test('repousser une tâche : demain (jour ouvré), lundi, une et deux semaines',
   // vendredi 30/10 : demain = lundi, pas de doublon « Lundi prochain »
   assert.equal(o('2026-10-30'), 'Demain:2026-11-02 | Dans une semaine:2026-11-06 | Dans deux semaines:2026-11-13');
 });
+
+test('poste de CLAIRE : décision lue sur la demande, texte du compte rendu', () => {
+  const app = chargerApplication();
+  assert.equal(app.decisionValidationPosteClaire('acceptee'), true);
+  assert.equal(app.decisionValidationPosteClaire('refusee'), false);
+  assert.equal(app.decisionValidationPosteClaire('expiree'), false);
+  assert.equal(app.decisionValidationPosteClaire('faite'), false);
+  assert.equal(app.decisionValidationPosteClaire('proposee'), null);
+  assert.equal(app.decisionValidationPosteClaire('vue'), null);
+  assert.equal(app.texteDuMessageClaire('<p>Fait &amp; vérifié.</p><ul><li>un</li><li>deux</li></ul>'), 'Fait & vérifié.\nun\ndeux');
+  assert.equal(app.POSTE_CLAIRE, false, 'une fenêtre ordinaire n’est pas le poste de CLAIRE');
+});

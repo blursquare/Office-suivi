@@ -240,7 +240,7 @@ function demarrer() {
   const { db, reparee } = config.cheminDb === ':memory:' ? { db: ouvrirDb(config.cheminDb), reparee: null } : ouvrirDbVerifiee(config.cheminDb, ouvrirDb);
   if (reparee) console.warn(`[CLAIRE] Base illisible avec son journal (${reparee.controle}) : journal écarté, base rouverte seule. Copie gardée : ${reparee.copie}`);
   let serveur = null;
-  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines } = creerApp({
+  const { app, depot, parametresRepo, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines, posteClaire } = creerApp({
     db,
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
@@ -305,6 +305,7 @@ function demarrer() {
     console.log(`[CLAIRE] Arrêt (${signal})…`);
     const fin = setTimeout(() => process.exit(0), 3000);
     fin.unref();
+    try { if (posteClaire) posteClaire.arreter(); } catch (_) { /* la fenêtre de CLAIRE se ferme avec le serveur */ }
     try { if (serveur) serveur.close(() => { try { db.close(); } catch (_) { /* déjà fermée */ } process.exit(0); }); else { db.close(); process.exit(0); } }
     catch (e) { process.exit(0); }
     if (serveur && typeof serveur.closeAllConnections === 'function') serveur.closeAllConnections();

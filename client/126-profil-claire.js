@@ -43,7 +43,7 @@ function htmlAnticipationsClaire() {
 function htmlProfilClaire() {
   const s = statutProfilClaire(propositionsClaire.liste.length, assistantEnCours);
   return `<header class="pf-claire">${htmlAvatarProfilClaire(true)}<div class="pf-claire-id"><h2 class="pf-claire-nom">CLAIRE</h2>
-    <p class="pf-claire-role">Collègue de l’étude · assistante</p><p class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</p></div></header>`;
+    <p class="pf-claire-role">Collègue de l’étude · assistante</p><p class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</p></div></header>${htmlTravailPosteClaire()}`;
 }
 
 // Ouvre la conversation de CLAIRE depuis la barre latérale ou la liste des discussions.
@@ -55,4 +55,13 @@ function ouvrirProfilClaire() {
     const champ = document.getElementById('assistant-saisie');
     if (champ) champ.focus();
   }, 0);
+}
+
+// « Lui confier un travail » (administrateurs) : elle le fait sur son ordinateur virtuel — sans réglages, sans envoi — et vous demande de valider chaque geste.
+function htmlTravailPosteClaire() {
+  if (POSTE_CLAIRE || !estAdministrateur(utilisateurPoste)) return '';
+  return `<details class="pf-travail"><summary>${icone('discussion')} Lui confier un travail</summary>
+    <p class="pf-travail-aide">Elle le fait sur son ordinateur virtuel, comme une collègue : sans accès aux réglages ni aux envois, et chaque geste vous est soumis pour validation.</p>
+    <textarea id="poste-claire-consigne" rows="3" maxlength="4000" placeholder="Ex. : prépare l’appel de fonds du dossier DUPONT et dis-moi ce qui manque pour signer" aria-label="Travail à confier à CLAIRE"></textarea>
+    <div class="pf-travail-actions"><wa-button variant="brand" size="s" type="button" onclick="confierTravailAClaire()">Lui confier</wa-button><span id="poste-claire-etat" class="pf-travail-etat" aria-live="polite"></span></div></details>`;
 }

@@ -11335,3 +11335,11 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-dossier .icone { width: 14px; height: 14px; }
 .pf-reportees summary { cursor: pointer; color: var(--muted); font-size: var(--texte-m); margin-bottom: 8px; }
 .cx-claire-ligne .cx-d { display: inline-flex; align-items: center; }
+
+.pf-travail { max-width: 720px; margin: 0 auto; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
+.pf-travail > summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-m); font-weight: 500; color: var(--ink); }
+.pf-travail-aide { margin: 8px 0; color: var(--muted); font-size: var(--texte-s); }
+.pf-travail textarea { width: 100%; font: inherit; font-size: var(--texte-m); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px; background: var(--paper-card); color: var(--ink); resize: vertical; }
+.pf-travail-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.pf-travail-etat { color: var(--muted); font-size: var(--texte-s); }
+html.poste-claire #tab-reglages, html.poste-claire [data-onglet="reglages"] { display: none !important; }

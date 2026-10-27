@@ -23,6 +23,8 @@ const { creerRouteurReglages } = require('./routes/reglages');
 const { creerRouteurSauvegarde } = require('./routes/sauvegarde');
 const { creerRouteurUrbanisme } = require('./routes/urbanisme');
 const { creerRouteurNavigation } = require('./routes/navigation');
+const { creerPosteClaire } = require('./posteClaire');
+const { garde: gardePosteClaire, creerRouteurPosteClaire } = require('./routes/posteClaire');
 const { creerRouteurPlanAerien } = require('./routes/planAerien');
 const { creerRouteurDepotDia } = require('./routes/depotDia');
 const { creerRouteurGnau } = require('./routes/gnau');
@@ -161,7 +163,7 @@ function seaOuNull() {
   try { return require('node:sea'); } catch (_) { return null; }
 }
 
-function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord, navigation, memoire }) {
+function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistral, testerMistral, miseAJour, agenda, emailsMatin, rapportTechnique, sondages, exchange, emailsDossiers, urbanisme, assistant, relaisWord, navigation, memoire, posteClaire: posteClaireInjecte }) {
   const app = express();
   // Avant tout : adresse et origine de la requête (securiteHote.js, audit 13/10).
   app.use(creerControleHote(config));
@@ -180,6 +182,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const journalTechnique = creerJournalTechnique(db);
   // authActive === false : accès sans mot de passe (défaut en production, voir config.js). Absent
   // (tests qui construisent leur propre config) : l'authentification reste active.
+  // L'ordinateur virtuel de CLAIRE (étude 26/10) : repéré par son cookie secret dès l'entrée, privé de réglages et d'envois (posteClaire.js).
+  const posteClaire = posteClaireInjecte || creerPosteClaire({ adresse: `http://127.0.0.1:${config.port || 3000}`, profil: path.join(path.dirname(config.cheminDb || '.'), 'poste-claire') });
+  app.use('/api', gardePosteClaire(posteClaire));
   const gestionnaireAuth = creerGestionnaireAuth(config.motDePasse, { desactivee: config.authActive === false });
 
   // Un dossier avec historique/analyse juridique reste petit, 5 Mo est déjà large — sauf la
@@ -325,6 +330,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPlanAerien(config, parametresRepo, depot, urbanisme || {}));
   // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNavigation(config, parametresRepo, depot, navigation || {}));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPosteClaire(parametresRepo, posteClaire, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurVerificationsTerrain(parametresRepo));
@@ -376,7 +382,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines, posteClaire };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

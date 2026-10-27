@@ -367,7 +367,7 @@
     const contexte = () => {
       // Le dossier rattaché dans la colonne de droite passe avant la fiche ouverte à côté.
       const id = dossierImpose || assistantContexte.dossierId || dossierOuvert || '';
-      return { aujourdhui: isoAujourdhuiLocal(), maintenant: new Date().toISOString(), prenom: prenomPosteAssistant(), dossierId: id, dossierLibelle: libelleDossierAssistant(id), authentic: typeof contexteAuthentic === 'function' ? contexteAuthentic() : null };
+      return { aujourdhui: isoAujourdhuiLocal(), maintenant: new Date().toISOString(), prenom: prenomPosteAssistant(), dossierId: id, dossierLibelle: libelleDossierAssistant(id), authentic: typeof contexteAuthentic === 'function' ? contexteAuthentic() : null, posteClaire: POSTE_CLAIRE };
     };
     assistantEnCours = true;
     assistantEtapeAgent = '';
