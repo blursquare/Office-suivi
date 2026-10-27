@@ -201,6 +201,8 @@ async function tourPastille() {
   // Un canal qui monte pendant qu'un autre est lu ne change pas le total : il a quand même sa carte (audit 25/10).
   const aDire = notifications.length || elements.canaux.length || elements.propositions.length || elements.claire.length;
   if (pret && !aDire) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
+  // La pastille de l'application installée (client/130) : posée par la page elle-même, à chaque tour.
+  poserPastilleApplication(total, reglages.pastille);
   // Un relais attend peut-être un « Ouvrir » : la fenêtre redevenue visible demande tout de suite (voir demarrerPastille).
   if (total === etatPastille.envoye && !aDire && !etatPastille.forcer && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
   etatPastille.forcer = false;
@@ -286,6 +288,7 @@ async function renderReglagesNotifications() {
       <h3 class="reglages-section-titre">Ce qui compte ${infoBulle('Chaque rubrique allumée ajoute son nombre à la pastille et donne une notification quand il monte.')}</h3>
       <div class="reglages-liste">${lignes}</div>
     </div>
+    ${htmlPastilleApplication()}
     <div class="reglages-section">
       <h3 class="reglages-section-titre">Relais CLAIRE de ce poste ${infoBulle('Windows ne laisse pas une page web poser une pastille ni une notification depuis une adresse du réseau : c’est le relais CLAIRE du poste (un petit programme de l’étude, sans droit d’administrateur) qui le fait. L’antivirus du cabinet doit l’autoriser : la nouvelle empreinte est à donner à Fichorga (fichier server/relais/LISEZMOI.md du dépôt). Il sert aussi aux appels 3CX (fenêtre CLAIRE au premier plan).')}</h3>
       <p class="hint" id="notifications-relais">Lecture de l’état du relais…</p>

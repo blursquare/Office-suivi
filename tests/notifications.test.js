@@ -57,3 +57,16 @@ test('cartes « comme Teams » : seuls les identifiants des canaux qui montent e
   assert.equal(app.elementsNouveaux(avant, apres, { sources: { messages: false } }).canaux.join(','), 'd:2', 'mentions seules : jamais la carte d’un message qui ne vous cite pas');
   assert.equal(app.reglagesNotificationsComplets(null).apercu, true, 'texte des messages montré par défaut');
 });
+
+test('pastille de l’application installée : état du poste et fichier .reg de la stratégie (adresse seule, Chrome et Edge)', () => {
+  const nav = { setAppBadge() {}, clearAppBadge() {} };
+  assert.equal(app.etatPastilleApplication(nav, { secure: true, installee: true }), 'prete');
+  assert.equal(app.etatPastilleApplication(nav, { secure: true, installee: false }), 'installer');
+  assert.equal(app.etatPastilleApplication({}, { secure: false, installee: false }), 'adresse', 'http://IP : l’API n’est même pas exposée');
+  assert.equal(app.etatPastilleApplication({}, { secure: true, installee: false }), 'navigateur');
+  const reg = app.regPastilleApplication('http://192.168.60.5:3000');
+  assert.match(reg, /^Windows Registry Editor Version 5\.00/);
+  assert.match(reg, /Policies\\Google\\Chrome\\OverrideSecurityRestrictionsOnInsecureOrigin\]\r\n"1"="http:\/\/192\.168\.60\.5:3000"/);
+  assert.match(reg, /Policies\\Microsoft\\Edge\\OverrideSecurityRestrictionsOnInsecureOrigin/);
+  assert.ok(!app.regPastilleApplication('http://x"\r\n[HKEY_LOCAL_MACHINE\\evil]').includes('"\r\n[HKEY_LOCAL_MACHINE\\evil'), 'rien d’autre que l’adresse n’entre dans le fichier');
+});

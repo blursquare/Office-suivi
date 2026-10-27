@@ -22379,3 +22379,41 @@ immédiat ». La règle retenue :
 - Pas de CJN pour un mineur. Pour une société, seuls ses représentants rattachés à sa fiche. Rien sans la BRI - Avant contrat (blocage).
 - Avant de construire : relever par « Copier la structure de la page » les écrans de création Comedec et CJN (libellés exacts des cases et
   du bouton Enregistrer/Valider). Les captures du wiki ne sont pas dans le texte.
+
+### 27/10/2026 — 0.372.0 : pastille de l'application installée (API App Badging de Chrome)
+
+Étude : « L'API native App Badging de Google Chrome permet aux applications web installées (PWA) d'afficher une pastille […] : essaie ça ».
+
+- `client/130-pastille-application.js` : à chaque tour de la pastille (client/122 `tourPastille`), `poserPastilleApplication(total, pastille)`
+  appelle `navigator.setAppBadge(n)` / `clearAppBadge()`. Le nombre est le même que celui du relais (`totalPastille`, réglages du
+  collaborateur). L'appel n'est refait que quand le nombre change. Rien sur le poste virtuel de CLAIRE. Point terrain `pastille-application`,
+  coché quand la pastille est posée dans l'application installée.
+- Conditions que la page ne remplit pas seule : l'application doit être INSTALLÉE (menu ⋮ › Enregistrer et partager › Installer CLAIRE ;
+  `manifest.json` et `sw.js` existaient déjà), et l'adresse `http://<IP>:<port>` tenue pour sûre par Chrome. Sur un poste :
+  `chrome://flags/#unsafely-treat-insecure-origin-as-secure`. Pour tous : la stratégie `OverrideSecurityRestrictionsOnInsecureOrigin` de
+  Chrome et d'Edge, en HKLM (administrateur, donc Fichorga). Le fichier `CLAIRE-adresse-sure.reg` (UTF-16, l'adresse du serveur seule,
+  `regPastilleApplication`) est téléchargé depuis Réglages › Notifications.
+- Réglages › Notifications, bloc « Pastille de l'application installée » (`etatPastilleApplication`) : prête / à installer / adresse pas
+  sûre (consigne du flag et bouton du fichier) / navigateur incapable.
+- Non vérifié sur un vrai Windows. La fenêtre ouverte par les raccourcis `--app` de « CLAIRE en application » n'est pas l'application
+  installée : la pastille ne vient que par l'icône de l'application installée.
+
+### 27/10/2026 — Structures reçues : écran « Ajouter des formalités préalables » d'Authentic, partie Comedec (pas encore lu par CLAIRE)
+
+Deux copies « Copier la structure » données par l'étude, l'une sur une succession, l'autre sur une vente (« Changer de nature » : Vente
+d'immeuble). Données réduites au vocabulaire par l'extension, aucun nom.
+
+- **Onglet du sous-dossier** : « Formalités préalables · Actes · Formalités postérieures », puis « Liste des formalités préalables » et
+  « Ajouter des formalités préalables ». Liste « Toutes les catégories » des modèles (≈ 300 lignes, chacun un `ui-button`) :
+  « Etat civil dématérialisé (…) », « Réquisition d'état », « Réquisition complémentaire … », « Notification SAFER dématérialisée (v…) »,
+  décomptes, lettres. Recherche par `…:tabView:search_input`, tri par `…:tabView:triParNature_input`.
+- **Bloc Comedec (« Etat civil dématérialisé »)** : en tête, cases de « Sélection globale » **Naissance / Mariage / Décès** (non cochées).
+  Puis une ligne par intervenant (« Mme X (CP VILLE) », « M. X époux de Mme Y », « … veuve de … », « … divorcé de … » ; « (null null) »
+  quand la fiche n'a pas de lieu), avec le tableau « Intervenants | Type de Demande ». Une ligne sans intervenant peut porter
+  « Naissance ». Champs de chaque ligne : `…:listeFprComedec:N:comedecTable:N:…`.
+- **Deux cases en bas** : `…:tabView:creationRapide_input` (cochée « oui » dans les deux copies) et une seconde case au nom généré
+  `…:tabView:j_idtNNNN_input` (« non »), très probablement « Envoi immédiat ». Son identifiant change d'une version à l'autre : CLAIRE
+  devra la reconnaître par son LIBELLÉ, jamais par `j_idt…`. Le libellé n'est pas dans la copie.
+- **Manquent encore** : le libellé exact des deux cases et le bouton qui enregistre (« Enregistrer » / « Valider » : les boutons ne
+  sont pas relevés par la copie). Le second envoi, donné comme « CJN », est le même écran Comedec : celui de la CJN (casier judiciaire)
+  reste à copier.
