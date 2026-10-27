@@ -613,8 +613,11 @@
       if (!envoiDirectPossible() && typeof chargerReglagesExchange === 'function') chargerReglagesExchange().then(() => { if (redaction) renderRedaction(); }).catch(() => {});
       // Ouvert depuis les Discussions : le brouillon s'ouvre dans le panneau de droite de la conversation, pas en fenêtre (étude 27/10,
       // client/99 `monterRedactionAssistant`) ; ailleurs, la fenêtre comme avant.
-      if (redaction.mode === 'nouveau' && !(typeof monterRedactionAssistant === 'function' && monterRedactionAssistant())) {
-        if (typeof demonterRedactionAssistant === 'function') demonterRedactionAssistant();   // un brouillon resté à droite revient dans sa fenêtre
+      const aDroite = redaction.mode === 'nouveau' && typeof monterRedactionAssistant === 'function' && monterRedactionAssistant();
+      // Une rédaction qui ne va pas à droite (fenêtre, ou réponse sous un email reçu) : un brouillon resté à droite revient dans sa
+      // fenêtre et quitte le panneau (relecture 0.374.0 : sinon sa boîte périmée agissait sur la nouvelle rédaction).
+      if (!aDroite && typeof demonterRedactionAssistant === 'function') demonterRedactionAssistant();
+      if (redaction.mode === 'nouveau' && !aDroite) {
         const overlay = document.getElementById('email-redaction-overlay');
         if (overlay) overlay.style.display = 'flex';
       }

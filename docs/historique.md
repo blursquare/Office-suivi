@@ -22603,3 +22603,8 @@ pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
   CLAIRE.md) ; un modèle saisi par l'étude dans les Réglages n'est pas contrôlé. L'ordinateur de CLAIRE ne peut pas l'enregistrer (Réglages).
 - Points terrain `email-panneau-envoye`, `modele-email-claire`. Restent en fenêtre : les formulaires de l'agenda (nouveau rendez-vous,
   sondage de dates) et les confirmations.
+- Relecture : un seul brouillon d'email à la fois depuis l'agent (`faireGesteAgent` : un second chassait le premier, retouches comprises) ;
+  une réponse ou une fenêtre ouverte pendant qu'un brouillon est à droite le rend à sa fenêtre (sa boîte agissait sur la nouvelle
+  rédaction) ; le brouillon n'est jamais retiré par la limite de 12 artefacts ; une correction de l'agent compte comme une saisie
+  (`html` seul, le texte de départ reste : un brouillon de routine refermé la garde) ; jamais de rechargement automatique de la page
+  pendant qu'un brouillon est ouvert (`saisieEnCoursPoste`).

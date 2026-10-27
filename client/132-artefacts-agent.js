@@ -46,10 +46,10 @@ function modifierArtefactAgent(a, e) {
     if (texte.trim()) {
       // « [Boutons de réponse] » (sondage) retrouve sa place de boutons, comme une saisie à la main.
       const corps = corpsDepuisTexteEditable(texte.trim().slice(0, 12000), r.boutons);
-      r.corpsOrigine = corps;
-      poserTexteRedaction(r, corps);
+      // Comme une saisie à la main : le texte de l'éditeur change, pas le texte de départ — l'envoi part de l'éditeur, et un brouillon
+      // de routine refermé garde la correction pour sa réouverture (relecture 0.374.0).
+      r.html = htmlRedactionDepuisTexte(corps);
       r.texte = texteEditableEmail(corps);
-      r.texteDepart = r.texte;
       r.proposition = null;
     }
     a.titre = r.sujet ? 'Email : ' + r.sujet.slice(0, 60) : a.titre;

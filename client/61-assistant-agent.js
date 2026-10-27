@@ -285,6 +285,10 @@
     const d = entree.dossier_id ? dossiers.find(x => x.id === entree.dossier_id) : null;
     // Email libre sans dossier (15/10 : « un mail à telle adresse, objet…, texte… ») : la fenêtre d'envoi s'ouvre telle que demandée.
     const pe = (entree.parametres || {});
+    // Un brouillon d'email à la fois (relecture 0.374.0) : un second chasserait le premier, retouches comprises, sans un mot.
+    if (geste.cle === 'email' && typeof redaction !== 'undefined' && redaction) {
+      return { statut: 'en_attente_utilisateur', erreur: 'un brouillon d’email est déjà ouvert à droite : il doit être envoyé ou fermé par l’utilisateur avant le suivant (dis-le-lui ; pour le corriger, outil artefact)' };
+    }
     if (geste.cle === 'email' && !d && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(String(pe.destinataire || '').trim())) {
       livrerEmailDossier({ destinataire: String(pe.destinataire).trim(), sujet: String(pe.objet || ''), corps: String(pe.corps || ''), geste: 'assistant' }).catch(() => {});
       return { statut: 'en_attente_utilisateur', note: 'rien n’est encore envoyé : la fenêtre d’email est ouverte, l’utilisateur doit cliquer sur « Envoyer »' };

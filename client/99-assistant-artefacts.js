@@ -24,7 +24,11 @@
     if (a.type === 'outil' && a.onglet) artefactsAssistant.liste = artefactsAssistant.liste.filter(x => !(x.type === 'outil' && x.onglet === a.onglet));
     a.id = 'art' + (++artefactsAssistant.n);
     artefactsAssistant.liste.push(a);
-    if (artefactsAssistant.liste.length > MAX_ARTEFACTS_ASSISTANT) artefactsAssistant.liste.shift();
+    // Le plus ancien part, jamais le brouillon d'email encore ouvert (il resterait ouvert sans être visible).
+    if (artefactsAssistant.liste.length > MAX_ARTEFACTS_ASSISTANT) {
+      const k = artefactsAssistant.liste.findIndex(x => x.type !== 'email');
+      if (k >= 0) artefactsAssistant.liste.splice(k, 1);
+    }
     artefactsAssistant.courant = a.id;
     artefactsAssistant.version++;
     renderArtefactAssistant();
