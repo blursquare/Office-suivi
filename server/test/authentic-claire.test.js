@@ -120,3 +120,11 @@ test('Comedec : une partie connue par son seul nom de famille ne désigne pas so
   assert.deepEqual(A.demandesComedecIntervenant('Mme MARTIN Léa', [{ nom: 'MARTIN', marie: true }]), []);
   assert.deepEqual(A.demandesComedecIntervenant('M. MARTIN Paul', [{ nom: 'Paul MARTIN', marie: false }]), ['Naissance'], 'prénom porté dans le nom');
 });
+
+test('Silicium : la vérification du poste client n’est passée que sur sa page (étude 27/10)', () => {
+  const A = require('../src/authenticClaire');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: true }), true);
+  assert.equal(A.pageSiliciumAPasser({ element: false, bloque: true, primefaces: true }), false, 'sans l’élément d’Authentic : rien');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true }), false, 'page ordinaire : rien');
+  assert.equal(A.pageSiliciumAPasser(null), false);
+});

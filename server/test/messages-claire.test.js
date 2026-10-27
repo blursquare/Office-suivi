@@ -143,3 +143,19 @@ test('relecture 27/10 : avec une clé, seule la clé fait le doublon ; une menti
   assert.equal(r.claire, true);
   assert.equal(M.messagesDe(repo, 'Julie VASSELIN').length, 0);
 });
+
+test('comme une collègue : chaque notification redite en une phrase courte (étude 27/10)', () => {
+  const M = require('../src/messagesClaire');
+  const R = require('../src/routes/notifications');
+  const court = (t) => M.versionCourte(M.phraseCollegue(t)).court;
+  assert.equal(court('📌 CLAIRE — Rappel : « Obtention du prêt » du dossier VTE - ESSAI arrive à échéance dans 7 jours (le 2026-11-03).\n\nPièces reçues (1) : a'), '« Obtention du prêt » pour VTE - ESSAI dans 7 jours, le 3/11.');
+  assert.equal(court(R.texteDossierComplet('VTE - ESSAI')), 'VTE - ESSAI est complet : vous pouvez lancer la rédaction.');
+  assert.equal(court(R.texteNotificationPieces('VTE - ESSAI', ['État daté'], [])), 'Reçu pour VTE - ESSAI : État daté.');
+  assert.equal(court(R.texteRendezVousAgenda({ dossierNom: 'VTE - ESSAI', action: 'place', date: '2026-11-10', heure: '10:30' })), 'Signature de VTE - ESSAI placée le 10 novembre 2026 à 10 h 30.');
+  assert.equal(court(R.texteDemandeCollaborateur('Bastien', 'rappeler la banque', 'VTE - ESSAI', '')), 'Bastien vous demande : rappeler la banque (VTE - ESSAI).');
+  assert.equal(court('✨ CLAIRE — Une forme inconnue.'), 'Une forme inconnue.', 'texte inconnu : seulement l’en-tête « CLAIRE — » retiré');
+  // La sorte se lit toujours sur le texte d'origine : les rappels se regroupent encore.
+  const r = M.deposerDansBoite([], { texte: '📌 CLAIRE — Rappel : « Prêt » du dossier VTE - ESSAI arrive à échéance dans 7 jours (le 2026-11-03).' }, Date.now());
+  assert.equal(r.message.sorte, 'rappels');
+  assert.ok(/\n|Pièces/.test(M.phraseCollegue('📌 CLAIRE — Rappel : « Prêt » du dossier X arrive à échéance dans 7 jours (le 2026-11-03).\n\nPièces reçues (1) : a')), 'le détail reste dessous');
+});

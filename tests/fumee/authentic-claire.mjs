@@ -31,6 +31,7 @@ const s = await SessionNavigation.ouvrir({ profil: path.join(os.tmpdir(), 'clair
 try {
   await A.seConnecter(s, reglages, etape);
   verifier(await s.evaluer("document.getElementById('accueil').classList.contains('active')"), 'connexion : la page d’accueil s’affiche');
+  verifier(await s.evaluer('window.__silicium') === 2, 'vérification Silicium passée à l’ouverture et après la connexion');
   verifier(JSON.stringify(await s.evaluer('window.__connexion')) === JSON.stringify({ id: 'etude-essai', mdp: 'secret-essai' }), 'identifiant et mot de passe saisis');
 
   const captures = [];

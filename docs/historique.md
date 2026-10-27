@@ -22675,3 +22675,22 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   délivré » — icône `coche-ronde` (client/01) ; `htmlDelivreMessage` (client/115) sous mon dernier message de tout canal (« général » et
   canaux libres, sans lecture suivie, compris) ; « Envoyé » devient « Délivré » avec le rond coché dans les canaux privés et de dossier tant que
   l'œil n'est pas là, et dans la conversation avec Claire.
+- **0.375.5 (27/10, 18 h 02)** — Trois demandes de l'étude :
+  - « Cette présentation est bien carrée pour les cartes, il faudrait la même pour toutes les autres » (capture d'une carte groupée) :
+    `renderCarteTache` (client/104) et `renderCarteRappel` (client/105) reprennent la ligne d'un groupe (`tf-groupe-ligne tf-seule` :
+    dossier + responsable, délai à gauche, icônes du geste, de l'outil et menu « ⋯ » à droite) ; le geste n'est plus un bouton à libellé.
+  - Contrôle de l'urbanisme : « attention les espacements » — le bloc « Monument historique » est rendu DANS `.pr-droits` (il était collé
+    au bloc SAFER) ; « attention CHAILLES (41), exception : c'est bien dans Agglopolys mais ils ont leur propre GNAU » — `reponsesPreemption`
+    pose `chailles` (INSEE 41032), `droitDpu` dit « DIA à la mairie de Chailles, sur son propre guichet unique (portail SIRAP) » et donne
+    le lien `URL_GNAU_CHAILLES` (déjà connu de la Constitution).
+  - Silicium : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est installé ; sinon elle redirige vers une
+    page d'installation et bloque l'accès » ; l'étude passait la page avec `PrimeFaces.ab({ s: 'redirectionInstallationPosteClient',
+    p: 'redirectionInstallationPosteClient', ps: true, pa: ['true'] })`. `passerVerificationSilicium` (authenticClaire.js) le fait à
+    l'ouverture, après la connexion et avant de chercher un dossier, seulement quand la page le demande (élément présent, texte « poste
+    client » / « Silicium », aucun mot de passe visible) — seul appel PrimeFaces écrit en dur ; faux Authentic et fumée à jour.
+  - Étude : « fais des phrases courtes et rapides à comprendre pour toutes les notifications que Claire envoie dans sa conversation, comme si
+    c'était une collègue » — `phraseCollegue` (messagesClaire.js) redit chaque texte fait pour Teams (rappels, fonds, pièces, dossier complet,
+    dates, signatures, tâches faites, demandes, factures, signalements, résumé des routines, travaux) en une phrase courte, le reste (listes,
+    liens) gardé dans le détail ; un texte d'une autre forme perd seulement l'en-tête « CLAIRE — » ; la sorte (regroupement) se lit toujours
+    sur le texte d'origine ; Teams garde ses textes. Message d'arrivée dans Authentic : « Sur VTE - X : 2 décisions à prendre, 1 pièce qui
+    manque. » (`ideesPourDossierAuthentic`, client/127).

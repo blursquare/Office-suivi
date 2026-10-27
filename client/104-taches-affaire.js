@@ -188,26 +188,27 @@ function pastilleDelaiTache(a, avecIcone) {
   return `<span class="tf-delai ${classe}">${avecIcone ? icone('clock') : ''}${escapeHtml(delaiAction(a))}</span>`;
 }
 
-/** Une tâche en CARTE, comme dans le Tableau d'une fiche (case ronde, titre, dossier, délai, outil, geste). @param {any} a */
+/** Une tâche en CARTE : la même présentation que la carte d'un groupe (étude 27/10 : « cette présentation est bien carrée pour les cartes, il
+ *  faudrait la même pour toutes les autres ») — case ronde et titre, puis le dossier et le responsable sur une ligne, le délai et les icônes
+ *  des gestes (outil, menu « ⋯ ») dessous. @param {any} a */
 function renderCarteTache(a) {
   if (a.rappel) return renderCarteRappel(a);
   const cle = escapeOnclickArg(a.cle);
   const outil = outilSupplementaireTache(a);
   const delai = a.jours == null ? (a.delaiTexte ? `<span class="tf-delai">${escapeHtml(a.delaiTexte)}</span>` : '')
-    : pastilleDelaiTache(a, true);
+    : pastilleDelaiTache(a, false);
   const sansGeste = !a.geste || a.geste.type === 'fiche';
   const geste = sansGeste
     ? ''
-    : `<wa-button appearance="outlined" size="s" type="button" class="tf-geste" onclick="executerActionJour('${cle}')" title="${escapeAttr(a.bouton || a.titre)}">${iconeGeste(a)}${escapeHtml(libelleCourtGeste(a))}</wa-button>`;
+    : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="executerActionJour('${cle}')" title="${escapeAttr(libelleCourtGeste(a) + ' — ' + (a.bouton || a.titre))}" aria-label="${escapeAttr(libelleCourtGeste(a))}">${iconeGeste(a)}</wa-button>`;
   const boutonOutil = outil
-    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone tf-outil" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>`
+    ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="${outil.onclick}" title="${escapeAttr('Ouvrir l’outil « ' + outil.libelle + ' » prérempli')}" aria-label="${escapeAttr('Outil ' + outil.libelle)}">${icone(outil.icone)}</wa-button>`
     : '';
   const categorie = a.categorieLabel && !categorieRedondanteTache(a) ? `<span class="dot-label dl-${escapeAttr(a.categorie || 'neutre')} tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>` : '';
   return `<article class="tf-carte${tacheEnRetard(a) ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
     ${categorie}
-    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuTache(a.cle)}</div>
-    <div class="tf-meta">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}${delai}</div>
-    ${geste || boutonOutil ? `<div class="tf-actions-tache">${geste}${boutonOutil}</div>` : ''}
+    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="marquerFaitJour('${cle}')" aria-label="${escapeAttr('Déjà fait : ' + a.titre)}" title="Déjà fait — valider à la main">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span></div>
+    <div class="tf-groupe-ligne tf-seule"><span class="tf-groupe-dossier">${lienDossierTache(a.dossier)}${pastilleCollaborateur(a.dossier.responsable)}</span><span class="tf-groupe-actions">${geste}${boutonOutil}${renderMenuTache(a.cle)}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</div>
   </article>`;
 }
 

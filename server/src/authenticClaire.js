@@ -265,12 +265,47 @@ function gestes(s, etape) {
   return { ev, cdp, cliquerTexte, ecrire, entree, echap, attendreTexte, texte, etape };
 }
 
+// Vérification du poste client Silicium (étude 27/10 : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est
+// installé ; sinon elle redirige vers une page d'installation et bloque l'accès ») : l'étude la passe en déclenchant l'appel serveur que lance
+// normalement l'élément `redirectionInstallationPosteClient`, avec le paramètre true. C'est le SEUL appel PrimeFaces que CLAIRE fait elle-même,
+// écrit ici en dur ; il n'est lancé que sur la page d'installation (adresse « installation », ou texte qui dit à la fois « poste client », « Silicium » et
+// « install… ») où cet élément existe — jamais sur une fiche qui dit seulement « Installation » (diagnostics gaz d'une fiche immeuble).
+const SCRIPT_PAGE_SILICIUM = `(() => {
+  const el = document.getElementById('redirectionInstallationPosteClient');
+  const t = document.body ? String(document.body.innerText || '') : '';
+  const bloque = (/installation/i.test(location.href) || (/poste client/i.test(t) && /silicium/i.test(t) && /install/i.test(t))) && ![...document.querySelectorAll('input[type="password"]')].some((x) => x.getClientRects().length);
+  return { element: !!el, bloque, primefaces: !!(window.PrimeFaces && typeof window.PrimeFaces.ab === 'function') };
+})()`;
+const SCRIPT_PASSER_SILICIUM = "PrimeFaces.ab({ s: 'redirectionInstallationPosteClient', p: 'redirectionInstallationPosteClient', ps: true, pa: ['true'] }), true";
+
+/** Pure : la page est-elle la page d'installation du poste client à passer ? @param {any} etat ce que rend SCRIPT_PAGE_SILICIUM */
+function pageSiliciumAPasser(etat) {
+  return !!(etat && etat.element && etat.bloque && etat.primefaces);
+}
+
+/** Passe la vérification Silicium si la page la montre (trois fois au plus : elle revient après la connexion). Rend le nombre de passages.
+ * @param {any} s @param {(t: string) => void} etape */
+async function passerVerificationSilicium(s, etape) {
+  let n = 0;
+  for (let i = 0; i < 3; i++) {
+    const etat = await s.evaluer(SCRIPT_PAGE_SILICIUM).catch(() => null);
+    if (!pageSiliciumAPasser(etat)) break;
+    etape('Passe la vérification du poste client Silicium');
+    await s.evaluer(SCRIPT_PASSER_SILICIUM).catch(() => null);   // la page qui change pendant l'appel n'arrête rien
+    n++;
+    await s.attendreStable(10000);
+    await attendre(600);
+  }
+  return n;
+}
+
 /** Connexion (identifiant, mot de passe, « Se connecter »). Rien ne s'écrit si la session est déjà ouverte. @param {any} s @param {any} r @param {(t: string) => void} etape */
 async function seConnecter(s, r, etape) {
   if (!r.identifiant || !r.motDePasse) throw new Error('identifiant ou mot de passe d’Authentic non enregistré (Réglages › Authentic)');
   const g = gestes(s, etape);
   etape('Ouvre Authentic');
   await s.aller(r.adresse);
+  await passerVerificationSilicium(s, etape);
   const pw = await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE);
   if (!pw) {
     if (await g.ev(scriptChamp('rechercher'))) { etape('Session déjà ouverte'); return; }
@@ -283,6 +318,7 @@ async function seConnecter(s, r, etape) {
   await g.ecrire(pw, r.motDePasse);
   if (!(await g.cliquerTexte('Se connecter', { exact: true }))) await g.entree();
   await s.attendreStable(20000);
+  await passerVerificationSilicium(s, etape);
   if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw Object.assign(new Error('connexion refusée par Authentic (identifiant ou mot de passe)'), { refusIdentifiants: true });
   etape('Connectée');
 }
@@ -318,6 +354,7 @@ async function ouvrirDossier(s, cible, etape) {
   const lib = String(cible.libelle || '').trim();
   if (!ref && !lib) throw new Error('dossier sans référence ni nom dans Authentic');
   etape('Cherche le dossier');
+  await passerVerificationSilicium(s, etape);
   if (estCeDossier(await g.texte(), cible)) return;
   // Un lien qui porte la référence (« A 2026 00286 VTE … ») ou, sans référence, exactement le libellé.
   const essayer = async () => {
@@ -484,6 +521,6 @@ async function preparerFormalite(s, cible, o) {
 module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve,
+  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium,
   referenceEnTete, estCeDossier, seConnecter, lireDossier, preparerFormalite
 };

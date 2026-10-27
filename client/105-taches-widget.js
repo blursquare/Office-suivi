@@ -281,13 +281,13 @@ function renderLigneRappelCompact(a) {
     <span class="tc-delai">${a.jours == null ? '' : delaiTacheCompact(a)}</span><span class="tc-actions">${boutonEmailRappelTache(a)}${renderMenuRappel(a)}</span></li>`;
 }
 
-/** Un rappel en carte (colonnes). @param {any} a */
+/** Un rappel en carte (colonnes), présenté comme une carte de tâche (étude 27/10). @param {any} a */
 function renderCarteRappel(a) {
   const dossier = a.dossier ? lienDossierTache(a.dossier) : '';
+  const delai = a.jours == null ? '' : delaiTacheCompact(a);
   return `<article class="tf-carte${a.gravite === 'critique' ? ' critique' : ''}" data-cle="${escapeAttr(a.cle)}">
     <span class="dot-label dl-neutre tf-categorie"><span class="dot"></span>${escapeHtml(a.categorieLabel)}</span>
-    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="basculerRappelPerso('${escapeOnclickArg(a.rappelId)}')" aria-label="${escapeAttr('Fait : ' + a.titre)}" title="Fait">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span>${renderMenuRappel(a)}</div>
-    <div class="tf-meta"><span>${escapeHtml(etiquetteRappelTache(a))}</span>${dossier}${a.jours == null ? '' : delaiTacheCompact(a)}</div>
-    <div class="tf-actions-tache">${boutonEmailRappelTache(a)}</div>
+    <div class="tf-ligne"><button type="button" class="tf-rond" onclick="basculerRappelPerso('${escapeOnclickArg(a.rappelId)}')" aria-label="${escapeAttr('Fait : ' + a.titre)}" title="Fait">${icone('check')}</button><span class="tf-titre">${escapeHtml(a.titre)}</span></div>
+    <div class="tf-groupe-ligne tf-seule"><span class="tf-groupe-dossier"><span class="tf-etiquette">${escapeHtml(etiquetteRappelTache(a))}</span>${dossier}</span><span class="tf-groupe-actions">${boutonEmailRappelTache(a)}${renderMenuRappel(a)}</span>${delai ? `<span class="tf-groupe-delai">${delai}</span>` : ''}</div>
   </article>`;
 }

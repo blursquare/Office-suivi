@@ -197,7 +197,7 @@ test('présence dans Authentic : nature, onglets sans intitulé de dossier, idé
   const onglets = [{ titre: '1 - VTE DUPONT / MARTIN', actif: true }, { titre: 'Rédaction', actif: true }, { titre: 'Pièces', actif: false }];
   assert.equal(app.ongletsActifsAuthentic({ onglets }).join('|'), 'Rédaction');
   assert.equal(app.ideesPourDossierAuthentic(0, 0, 0).length, 0);
-  assert.equal(app.ideesPourDossierAuthentic(2, 1, 1).join(' ; '), '2 choses que j’ai préparées attendent votre décision ; 1 pièce manque encore ; 1 geste est dû maintenant');
+  assert.equal(app.ideesPourDossierAuthentic(2, 1, 1).join(', '), '2 décisions à prendre, 1 pièce qui manque, 1 chose à faire');
   const ouvert = app.momentDeLaJournee(new Date('2026-10-27T10:00:00+01:00'));
   const midi = app.momentDeLaJournee(new Date('2026-10-27T12:30:00+01:00'));
   assert.equal(app.nudgeAuthentiqueAutorise(ouvert, 0, 1e12), true);

@@ -11017,6 +11017,9 @@ body.fiche-a-cote .tf-tableau.tf-taches-colonnes { grid-template-columns: repeat
 .tf-groupe { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .tf-groupe-ligne { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "rond dossier dossier" ". delai actions"; column-gap: 8px; row-gap: 0; align-items: center; min-width: 0; padding: 4px 0; border-top: 1px solid var(--line); }
 .tf-groupe-ligne:first-child { border-top: 0; }
+/* Une tâche seule, présentée comme la ligne d'un groupe (étude 27/10) : le dossier et le délai alignés sous le titre. */
+.tf-groupe-ligne.tf-seule { grid-template-columns: 20px minmax(0, 1fr) auto; padding: 0; border-top: 0; }
+.tf-etiquette { flex: none; color: var(--muted); }
 .tf-groupe-ligne > .tf-rond { grid-area: rond; }
 /* Le nom du dossier sur UNE ligne (coupé par « … »), les initiales du responsable juste après, jamais collées ni renvoyées à la ligne. */
 .tf-groupe-dossier { grid-area: dossier; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--texte-s); }

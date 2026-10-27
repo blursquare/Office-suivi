@@ -144,6 +144,8 @@
   function analysePreemptionFiche(p) {
     const rep = Object.assign({}, (p && p.deduites) || {}, (p && p.reponses) || {});
     if (rep.dpur === 'oui' && p && p.insee === DPUR_BLOIS.insee && !rep.dpurDelegataire) rep.dpurDelegataire = DPUR_BLOIS.delegataire;
+    // Chailles (étude 27/10) : relu du code INSEE, pour les dossiers analysés avant l'exception.
+    if (p && String(p.insee || '') === INSEE_CHAILLES) { rep.chailles = true; rep.lienGuichet = URL_GNAU_CHAILLES; }
     const parCle = new Map();
     ((p && p.lignes) || []).forEach(l => { if (l) parCle.set(l.cle || l.libelle, l); });
     return analyserPreemptionParcelles(rep, [...parCle.values()]);

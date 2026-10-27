@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.375.4';
+  const VERSION_APP = '0.375.5';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.375.5', date: '2026-10-27 18:02', resume: "Les cartes de tâches et de rappels prennent la présentation des cartes groupées : le dossier et le responsable sur une ligne, le délai et les icônes dessous. Contrôle de l’urbanisme : à Chailles, la DIA part sur le guichet de la commune (portail SIRAP), avec son lien ; le bloc « Monument historique » est espacé comme les autres. CLAIRE passe la vérification du poste client Silicium à l’ouverture d’Authentic. Dans sa conversation, Claire écrit ses notifications en phrases courtes, comme une collègue (« « Obtention du prêt » pour VTE - MARTIN dans 7 jours, le 3/11. »)." },
   { version: '0.375.4', date: '2026-10-27 17:45', resume: "Comme sur Teams, un rond coché « Délivré » sous votre dernier message, dans tous les canaux (général compris) et dans la conversation avec Claire ; l’œil prend sa place dès que le message est vu." },
   { version: '0.375.3', date: '2026-10-27 17:33', resume: "Dans les Discussions, Claire apparaît comme une collaboratrice : son nom seul, sans « En ligne » ni « Notifications de l’office ». Dans sa conversation, la zone de saisie et les messages prennent toute la largeur, comme dans les canaux." },
     { version: '0.375.2', date: '2026-10-27 16:56', resume: "Un clic sur l'œil « Vu » (ou sur « Envoyé ») déplie qui a vu votre message et à quelle heure, et qui pas encore. Dans la liste des discussions, « Équipe » passe au-dessus de « Messages privés ». Dans les canaux, la zone de saisie prend toute la largeur (comme Slack), les messages aussi, avec une marge." },

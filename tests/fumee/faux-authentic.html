@@ -17,6 +17,11 @@
 </style></head>
 <body>
 <!-- Faux Authentic pour tests/fumee/authentic-claire.mjs : la structure relevée sur les captures de l'étude (27/10), noms inventés. -->
+<!-- Vérification du poste client Silicium (étude 27/10) : à l'ouverture, et de nouveau après la connexion, la page d'installation bloque
+     l'accès ; l'appel « redirectionInstallationPosteClient » avec « true » la passe. -->
+<div class="vue" id="silicium"><h1>Installation du poste client Silicium</h1><p>Le poste client Silicium n'est pas installé sur ce poste.</p>
+  <button type="button" onclick="window.__interdit = 'Installer'">Installer</button></div>
+<script id="redirectionInstallationPosteClient"></script>
 <div class="vue" id="connexion">
   <h1>Authen.tic</h1>
   <label for="id">Identifiant</label> <input type="text" id="id">
@@ -85,12 +90,21 @@
   function voir(id) {
     document.querySelectorAll('.vue').forEach((v) => v.classList.remove('active'));
     document.getElementById(id).classList.add('active');
-    document.getElementById('barre').style.display = id === 'connexion' ? 'none' : 'flex';
+    document.getElementById('barre').style.display = id === 'connexion' || id === 'silicium' ? 'none' : 'flex';
   }
+  let apresSilicium = 'connexion';
+  window.__silicium = 0;
+  window.PrimeFaces = { ab(o) {
+    if (!o || o.s !== 'redirectionInstallationPosteClient' || o.p !== 'redirectionInstallationPosteClient' || !Array.isArray(o.pa) || o.pa[0] !== 'true') { window.__interdit = 'PrimeFaces.ab inattendu'; return; }
+    window.__silicium++;
+    setTimeout(() => voir(apresSilicium), 300);
+  } };
   function seConnecter() {
     window.__connexion = { id: document.getElementById('id').value, mdp: document.getElementById('mdp').value };
     if (document.getElementById('mdp').value !== 'secret-essai') return;
-    voir('accueil');
+    // La vérification revient après la connexion (comme l'a vu l'étude) : la page d'installation, puis l'accueil une fois passée.
+    apresSilicium = 'accueil';
+    voir('silicium');
   }
   document.getElementById('recherche').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
@@ -138,6 +152,6 @@
   function valider() {
     window.__valide = { type: window.__type, rapide: document.getElementById('t:creationRapide_input').checked, envoi: document.getElementById('t:j_idt4242_input').checked, choix: JSON.parse(JSON.stringify(window.__choix)) };
   }
-  voir('connexion');
+  voir('silicium');
 </script>
 </body></html>

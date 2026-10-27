@@ -41,9 +41,10 @@ function contexteAuthentic() {
 // les gestes dus. Rien = pas de carte (jamais un message pour dire qu'il n'y a rien).
 function ideesPourDossierAuthentic(nbPropositions, nbPieces, nbGestes) {
   const l = [];
-  if (nbPropositions) l.push(`${nbPropositions} chose${nbPropositions > 1 ? 's' : ''} que j’ai préparée${nbPropositions > 1 ? 's' : ''} attend${nbPropositions > 1 ? 'ent' : ''} votre décision`);
-  if (nbPieces) l.push(`${nbPieces} pièce${nbPieces > 1 ? 's' : ''} manque${nbPieces > 1 ? 'nt' : ''} encore`);
-  if (nbGestes) l.push(`${nbGestes} geste${nbGestes > 1 ? 's sont dus' : ' est dû'} maintenant`);
+  // Court, comme une collègue (étude 27/10).
+  if (nbPropositions) l.push(`${nbPropositions} décision${nbPropositions > 1 ? 's' : ''} à prendre`);
+  if (nbPieces) l.push(`${nbPieces} pièce${nbPieces > 1 ? 's' : ''} qui manque${nbPieces > 1 ? 'nt' : ''}`);
+  if (nbGestes) l.push(`${nbGestes} chose${nbGestes > 1 ? 's' : ''} à faire`);
   return l;
 }
 
@@ -74,7 +75,7 @@ function verifierNudgeAuthentic() {
   try { noterVerificationPoste('presence-authentic', { detail: 'carte montrée' }); } catch (e) { /* rapport facultatif */ }
   // Un message de CLAIRE dans sa conversation (étude 27/10 : « tu peux en faire un message de conversation »), plus une carte à part ;
   // la carte du relais vient de ce message, une fois.
-  deposerMessageClairePourMoi(`Vous ouvrez ${libelleDossierAffiche(d)} dans Authentic : ${idees.join(' ; ')}.`, { cle: 'authentic:' + d.id + ':' + auj, sorte: 'authentic', dossierId: d.id });
+  deposerMessageClairePourMoi(`Sur ${libelleDossierAffiche(d)} : ${idees.join(', ')}.`, { cle: 'authentic:' + d.id + ':' + auj, sorte: 'authentic', dossierId: d.id });
 }
 
 if (typeof window !== 'undefined' && typeof setInterval === 'function') setInterval(verifierNudgeAuthentic, INTERVALLE_NUDGE_AUTHENTIC_MS);

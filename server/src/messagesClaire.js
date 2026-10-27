@@ -26,11 +26,12 @@ const MAX_ELEMENTS_GROUPE = 20;
 const SORTES = [
   { cle: 'mention', titre: 'Mentions dans les discussions', re: /mentionn|vous a cit/i },
   { cle: 'travail', titre: 'Travaux de CLAIRE', re: /^travail (?:non )?termin/i },
-  { cle: 'routines', titre: 'Préparé par CLAIRE', re: /CLAIRE a préparé|propositions? de CLAIRE|à décider/i },
+  { cle: 'rappels', titre: 'Rappels d’échéances', re: /^\W*(?:CLAIRE\s*[—–-]\s*)?Rappel\b/i },
+  { cle: 'routines', titre: 'Préparé par CLAIRE', re: /CLAIRE a préparé|j’ai préparé \d+ chose|propositions? de CLAIRE|à décider/i },
   { cle: 'pieces', titre: 'Pièces trouvées', re: /pi[eè]ces? (?:trouv|reç|re[çc]ue)|nouvelle pi[eè]ce|offre de pr[eê]t (?:trouv|reç)|dossier complet|fonds (?:sont )?(?:tous )?re[çc]us/i },
   { cle: 'agenda', titre: 'Agenda', re: /rendez-vous|signature (?:plac|d[ée]plac)|à replacer/i },
   { cle: 'rappels', titre: 'Rappels d’échéances', re: /rappel|[ée]ch[ée]ance|J-\d+|date butoir|dans \d+ jours?/i },
-  { cle: 'signalement', titre: 'Signalements', re: /signalement|probl[eè]me signal/i },
+  { cle: 'signalement', titre: 'Signalements', re: /signalement|probl[eè]me (?:bloquant )?signal/i },
   { cle: 'facture', titre: 'Factures de succession', re: /facture/i }
 ];
 
@@ -47,10 +48,64 @@ function versionCourte(texte) {
   const propre = String(texte || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
     .replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
   const premiereLigne = propre.split('\n').map((l) => l.trim()).find(Boolean) || '';
-  const m = /^(.{20,}?[.!?])(?:\s|$)/.exec(premiereLigne);
+  // La première phrase : jamais coupée après une abréviation (« M. », « S.A.R.L. », « etc. ») — relecture 27/10.
+  const m = /^(.{20,}?(?<!\b(?:M|Mme|Mlle|Me|Dr|St|Ste|etc|cf|[A-Z]))[.!?])(?:\s|$)/.exec(premiereLigne);
   let court = m ? m[1] : premiereLigne;
   if (court.length > LONGUEUR_COURT) court = court.slice(0, LONGUEUR_COURT - 1).replace(/\s+\S*$/, '') + '…';
   return { court, complet: propre.slice(0, 4000) };
+}
+
+// Comme une collègue (étude 27/10 : « des phrases courtes et rapides à comprendre pour toutes les notifications que Claire envoie dans sa
+// conversation, comme si c'était une collègue ») : les textes faits pour Teams (« 📌 CLAIRE — Rappel : « X » du dossier D arrive à échéance
+// dans 7 jours (le 2026-11-03). ») sont redits en une phrase courte (« « X » pour D dans 7 jours, le 3/11. »). Le reste du message (listes de
+// pièces, liens) reste dans le détail. Un texte d'une autre forme perd seulement l'en-tête « CLAIRE — », inutile dans sa propre conversation.
+/** @param {string} iso */
+function jourCourt(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  return m ? `${Number(m[3])}/${m[2]}` : String(iso || '');
+}
+const REECRITURES_COLLEGUE = [
+  // Rappels d'échéance (jobs/rappels.js)
+  [/^Rappel : « (.+?) » du dossier (.+?) est à faire aujourd'hui \(le [\d-]+\)\.?/, (m) => `« ${m[1]} » pour ${m[2]}, c’est aujourd’hui.`],
+  [/^Rappel : « (.+?) » du dossier (.+?) arrive à échéance dans (\d+) jours? \(le ([\d-]+)\)\.?/, (m) => `« ${m[1]} » pour ${m[2]} dans ${m[3]} jour${m[3] === '1' ? '' : 's'}, le ${jourCourt(m[4])}.`],
+  // Fonds (jobs/rappels.js)
+  [/^Tous les fonds sont reçus pour le dossier (.+) \(([^)]*)\)\.(?: Rendez-vous de signature le ([^\n]+?)\.)?\n?(?:Vous pouvez confirmer[^\n]*)?/, (m) => `Tous les fonds de ${m[1]} sont arrivés (${m[2]}) : vous pouvez le confirmer au client.${m[3] ? `\n\nSignature le ${m[3]}.` : ''}`],
+  [/^Fonds pas encore reçus en entier pour le dossier (.+?) :(?: Rendez-vous de signature le ([^\n]+?)\.)?\s*\n\s*À ce jour, ([^\n]+?)\.?$/m, (m) => `Les fonds de ${m[1]} ne sont pas encore tous là : ${m[3]}.${m[2] ? `\n\nSignature le ${m[2]}.` : ''}`],
+  // Pièces, dossier complet, facture (routes/notifications.js)
+  [/^Nouvelles? pièces? trouvées? sur le dossier (.+?) : ([^\n]+?)\.?(?=\n|$)/, (m) => `Reçu pour ${m[1]} : ${m[2]}.`],
+  [/^Dossier (.+?) complet : offre de prêt et pièces reçues\./, (m) => `${m[1]} est complet : vous pouvez lancer la rédaction.`],
+  [/^Succession (.+?) : toutes les pièces sont reçues\./, (m) => `Succession ${m[1]} : toutes les pièces sont là.`],
+  [/^Facture à régler · (.+?) : ([^\n]+?)\.?(?=\n|$)/, (m) => `Facture à régler pour ${m[1]} : ${m[2]}.`],
+  // Dates et rendez-vous (routes/notifications.js)
+  [/^(.+?) a envoyé (.+?) du dossier (.+?) \(le [^)]*\)\. La tâche est faite\./, (m) => `${m[1]} a envoyé ${m[2]} de ${m[3]}.`],
+  [/^(.+?) a modifié une date du dossier (.+?) : (.+?) passe du .+? au (.+?)\.$/m, (m) => `${m[1]} a déplacé « ${m[3]} » de ${m[2]} au ${m[4]}.`],
+  [/^(.+?) a ajouté une date au dossier (.+?) : (.+) le (.+?)\.$/m, (m) => `${m[1]} a posé « ${m[3]} » de ${m[2]} le ${m[4]}.`],
+  [/^(.+?) a marqué « annulé \/ à replacer » le rendez-vous de signature du dossier (.+?) \(prévu le (.+?)\) : il est à replacer\./, (m) => `${m[1]} a annulé la signature de ${m[2]} (prévue le ${m[3]}) : à replacer.`],
+  [/^Le rendez-vous de signature du dossier (.+?) \(prévu le (.+?)\) est marqué « annulé \/ à replacer »[^\n]*/, (m) => `La signature de ${m[1]} (prévue le ${m[2]}) est à replacer.`],
+  [/^Rendez-vous de signature du dossier (.+?) déplacé dans l’agenda de l’office : du .+? au (.+?)\.$/m, (m) => `Signature de ${m[1]} déplacée au ${m[2]}.`],
+  [/^Rendez-vous de signature du dossier (.+?) placé dans l’agenda de l’office : le (.+?)\.$/m, (m) => `Signature de ${m[1]} placée le ${m[2]}.`],
+  [/^(.+?) a fait une tâche de votre dossier (.+?) : (.+?)\.$/m, (m) => `${m[1]} a fait « ${m[3].replace(/[.!?]+(?=\s|\(|$)/g, '')} » sur ${m[2]}.`],
+  [/^(.+?) vous demande : (.+?)(?: \(dossier (.+?)\))?(, pour le [^.]+)?\. La tâche est dans votre liste[^\n]*/, (m) => `${m[1]} vous demande : ${m[2]}${m[3] ? ` (${m[3]})` : ''}${m[4] || ''}.`],
+  // Signalement (routes/signalements.js), résumé des routines (routines/planificateur.js), travaux (travauxClaire.js)
+  [/^Problème BLOQUANT signalé(?: par (.+?))?\./, (m) => (m[1] ? `${m[1]} signale un problème bloquant.` : 'Un problème bloquant est signalé.')],
+  [/^Bonjour [^,]+, j’ai préparé (\d+) choses? pour vous :/, (m) => `J’ai préparé ${m[1]} chose${m[1] === '1' ? '' : 's'} pour vous, à décider :`],
+  [/^Travail terminé : (.+?)\.$/m, (m) => `C’est fait : ${m[1]}.`],
+  [/^Travail non terminé : (.+?)\.$/m, (m) => `Je n’ai pas pu finir : ${m[1]}.`]
+];
+
+/** Pure : le texte d'une notification redit comme une collègue (première phrase courte), le reste gardé dessous. @param {string} texte */
+function phraseCollegue(texte) {
+  const brut = String(texte || '').replace(/^\s*(?:<[^>]*>\s*)*/, '');
+  // L'en-tête des messages Teams (« 📌 CLAIRE — ») : inutile quand c'est Claire qui parle.
+  const sansEnTete = brut.replace(/^[^A-Za-zÀ-ÿ«<\d]*CLAIRE\s*[—–-]\s*/, '');
+  for (const [re, fn] of REECRITURES_COLLEGUE) {
+    const m = /** @type {RegExp} */ (re).exec(sansEnTete);
+    if (m && m.index === 0) {
+      const reste = sansEnTete.slice(m[0].length).replace(/^\s+/, '');
+      return /** @type {(m: RegExpExecArray) => string} */ (fn)(m) + (reste ? '\n\n' + reste : '');
+    }
+  }
+  return sansEnTete;
 }
 
 /** @param {any} v @param {number} max */
@@ -79,10 +134,11 @@ function assainirBoites(brut, maintenantMs) {
  * @returns {{ liste: any[], message: any, effet: 'nouveau' | 'groupe' | 'doublon' | 'vide' }}
  */
 function deposerDansBoite(liste, m, maintenantMs) {
-  const { court, complet } = versionCourte(m.texte);
+  const { court, complet } = versionCourte(phraseCollegue(m.texte));
   if (!court) return { liste, message: null, effet: 'vide' };
   const cle = borne(m.cle || '', 160);
-  const sorte = borne(m.sorte || sorteDuTexte(complet), 30);
+  // La sorte se lit sur le texte d'origine (ses mots : « Rappel », « pièce trouvée »…), avant qu'il soit redit.
+  const sorte = borne(m.sorte || sorteDuTexte(versionCourte(m.texte).complet), 30);
   const recents = liste.filter((x) => maintenantMs - Math.max(x.quand, x.maj || 0) < FENETRE_DOUBLON_MS);
   // Avec une clé, seule la clé dit le doublon (relecture 27/10 : deux comptes rendus de la même consigne avaient le même texte court).
   const deja = recents.find((x) => (cle ? x.cle === cle : (!x.cle && (x.court === court || (x.elements || []).some((e) => e.court === court)))));
@@ -150,4 +206,4 @@ function creerAiguillageNotifications(repo, administrateurs) {
   };
 }
 
-module.exports = { CLE_MESSAGES_CLAIRE, LONGUEUR_COURT, sorteDuTexte, versionCourte, assainirBoites, deposerDansBoite, deposerMessageClaire, messagesDe, marquerLus, creerAiguillageNotifications };
+module.exports = { CLE_MESSAGES_CLAIRE, LONGUEUR_COURT, sorteDuTexte, versionCourte, phraseCollegue, assainirBoites, deposerDansBoite, deposerMessageClaire, messagesDe, marquerLus, creerAiguillageNotifications };

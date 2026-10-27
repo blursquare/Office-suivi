@@ -348,3 +348,14 @@ test('zonage : les autres zones touchées par une parcelle sont montrées avec l
   assert.equal(l.autresZones.map(z => `${z.libelle}:${z.famille}`).join(), 'N:N');
   assert.equal(app.lignesZonageParcelles([{ section: 'EB', numero: '0468', statut: 'ok', resultat: { zones: [{ libelle: 'Uv3', typezone: 'U' }] } }], {})[0].autresZones.length, 0);
 });
+
+test('Chailles : dans Agglopolys, mais la DIA part sur son propre guichet (étude 27/10)', () => {
+  const d = droit({ mutation: 'vente', bien: 'bati', achevementMoins4ans: false, zone: 'U', agglopolys: true, chailles: true, lienGuichet: 'https://portail-usager.sirap.com/041032/connexion' }, 'dpu');
+  assert.strictEqual(d.statut, 'oui');
+  assert.match(d.formalite, /Chailles/);
+  assert.match(d.formalite, /portail SIRAP/);
+  assert.strictEqual(d.lien.url, 'https://portail-usager.sirap.com/041032/connexion');
+  const app = chargerApplication();
+  const r = app.reponsesPreemption(Object.assign(app.etatPreemptionVierge(), { insee: '41032' }));
+  assert.ok(r.chailles && /sirap\.com\/041032/.test(r.lienGuichet), 'reconnu par le code INSEE de la commune');
+});

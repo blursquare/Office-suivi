@@ -146,7 +146,7 @@ test('un travail confié part en arrière-plan : réponse immédiate, puis « no
   assert.equal(t.etat, 'erreur');
   assert.match(t.erreur, /navigateur/);
   const boite = await (await appeler('/api/claire-messages?utilisateur=' + encodeURIComponent(B0))).json();
-  assert.ok(boite.messages.some((m) => /Travail non terminé/.test(m.court) && m.sorte === 'travail'), 'le demandeur est prévenu dans la conversation de CLAIRE');
+  assert.ok(boite.messages.some((m) => /Je n’ai pas pu finir/.test(m.court) && m.sorte === 'travail'), 'le demandeur est prévenu dans la conversation de CLAIRE');
   // Julie ne voit pas les travaux de Bastien.
   const julie = await (await appeler('/api/poste-claire/travaux?utilisateur=' + encodeURIComponent('Julie VASSELIN'))).json();
   assert.ok(!julie.travaux.some((x) => x.id === id));

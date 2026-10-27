@@ -90,6 +90,7 @@
     const r = Object.assign({}, e.reponses);
     const lus = zonagesLusPreemption(e);
     if (lus.some(z => z.epciSiren === SIREN_AGGLOPOLYS)) r.agglopolys = true;
+    if (String(e.insee || '') === INSEE_CHAILLES) { r.chailles = true; r.lienGuichet = URL_GNAU_CHAILLES; }
     if (!r.dpur) {
       const blois = dpurBlois(e.insee, parcellesDepuisTexte(e.parcelles), e.adresse);
       if (blois.statut === 'oui') r.dpur = 'oui';
@@ -490,9 +491,8 @@
           <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(dr.titre)}</span>
             <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut]}"><span class="dot"></span>${LIBELLES_STATUT_PREEMPTION[dr.statut]}</span></div>
           ${dr.motif ? `<div class="pr-droit-motif">${escapeHtml(dr.motif)}</div>` : ''}
-          ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} ${escapeHtml(dr.formalite)}</div>` : ''}
-        </div>`).join('')}</div>
-        ${renderPatrimoineOutil(patrimoinePreemption(e))}
+          ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} <span>${escapeHtml(dr.formalite)}${dr.lien ? ` <a href="${escapeAttr(dr.lien.url)}" target="_blank" rel="noopener">${escapeHtml(dr.lien.libelle)}</a>` : ''}</span></div>` : ''}
+        </div>`).join('')}${renderPatrimoineOutil(patrimoinePreemption(e))}</div>
         <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
         ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
           ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
