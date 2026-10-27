@@ -39,7 +39,8 @@ try {
   verifier(r.pages === 4 && captures.length === 4, `lecture : page du dossier + 3 fiches relevées (${captures.length})`);
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
 
-  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [], etape });
+  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape });
+  verifier(!(await s.evaluer('window.__mauvais')), 'l’homonyme des résultats (autre référence) n’est jamais pris');
   const cjn = await s.evaluer('window.__valide');
   verifier(cjn && cjn.type === 'cjn' && cjn.rapide === true && cjn.envoi === false, `CJN validée avec Création rapide allumée et Envoi immédiat ÉTEINT (${JSON.stringify(cjn)})`);
 
@@ -50,9 +51,13 @@ try {
   const choix = (com && com.choix) || {};
   verifier(JSON.stringify(choix['M. MARTIN Paul (41000 BLOIS)']) === '["Naissance"]', 'MARTIN : naissance seule');
   verifier(JSON.stringify(choix['Mme DURAND Claire épouse de M. LEROY Marc']) === '["Naissance","Mariage"]', 'DURAND (mariée) : naissance et mariage');
-  verifier(!choix['M. LEROY Marc'], 'LEROY (conjoint, pas partie) : rien');
+  verifier(!(choix['M. LEROY Marc'] || []).length, 'LEROY (conjoint, pas partie) : « Décès » coché d’avance par Authentic est DÉCOCHÉ');
   verifier(!(await s.evaluer('window.__interdit')), 'aucun bouton interdit cliqué (Envoyer, Nouveau dossier)');
   verifier(!etapes.some((t) => t.includes('secret-essai')), 'le mot de passe n’apparaît dans aucune étape');
+  // Sans référence : aucune demande (on ne peut pas être sûr du dossier).
+  let refus = '';
+  try { await A.preparerFormalite(s, { reference: '', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape }); } catch (e) { refus = e.message; }
+  verifier(/sans référence/.test(refus), 'sans référence d’Authentic : aucune demande');
 } catch (e) {
   console.log('  ÉCHEC parcours interrompu :', e && e.message);
   echecs++;

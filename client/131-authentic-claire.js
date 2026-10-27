@@ -36,6 +36,12 @@ function partiesComedecDossier(d) {
     });
 }
 
+// Pure : les acquéreurs personnes physiques de la fiche (demande de casier : chaque intervenant coché par Authentic doit en être un).
+function acquereursCjnDossier(d) {
+  return (Array.isArray(d && d.parties) ? d.parties : []).filter(p => p && p.role === 'ACQUEREUR' && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
+    .map(p => ({ nom: String(p.nom || ''), prenom: String(p.prenom || ''), role: p.role, marie: false }));
+}
+
 // Pure : pourquoi une demande CJN ne se prépare pas ici ('' = possible). Le casier est interrogé par le notaire qui reçoit l'acte, pour les
 // acquéreurs personnes physiques (wiki d'Authentic, CJN § 2.1).
 function raisonSansCjn(d) {
@@ -80,8 +86,9 @@ async function demandeAuthenticAgent(entree) {
   if (!d) return { erreur: 'dossier_id inconnu' };
   const c = connexionAuthenticClaire || await chargerConnexionAuthenticClaire();
   if (!c || !c.actif || !c.identifiant || !c.motDePasseEnregistre) return { erreur: 'connexion de CLAIRE à Authentic non réglée ou éteinte (Réglages › Authentic, administrateur)' };
+  if (c.refuseLe) return { erreur: 'Authentic a refusé l’identifiant ou le mot de passe : à corriger dans Réglages › Authentic' };
   if (e.mode === 'lire') {
-    const r = await gesteAuthenticClaire('lire', { dossierId: d.id });
+    const r = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '' });
     return r.ok ? { fait: true, statut: 'fait', resultat: r.texte } : { erreur: r.texte, statut: 'echec' };
   }
   if (e.mode !== 'cjn' && e.mode !== 'comedec') return { erreur: 'mode inconnu (lire, cjn, comedec)' };
@@ -90,7 +97,7 @@ async function demandeAuthenticAgent(entree) {
 
 // Préparer une demande CJN ou Comedec après « Autoriser » (agent : carte dans la conversation ; routine : la proposition autorisée).
 async function preparerFormaliteAuthentic(d, type, o) {
-  const parties = type === 'comedec' ? partiesComedecDossier(d) : [];
+  const parties = type === 'comedec' ? partiesComedecDossier(d) : acquereursCjnDossier(d);
   if (type === 'cjn' && raisonSansCjn(d)) return { erreur: 'pas de demande de casier ici : ' + raisonSansCjn(d) };
   if (type === 'comedec' && !parties.length) return { erreur: 'aucune partie que l’étude représente sur la fiche' };
   const quoi = type === 'cjn' ? 'Préparer dans Authentic la demande de casier judiciaire (CJN) des acquéreurs'
@@ -106,16 +113,21 @@ async function preparerFormaliteAuthentic(d, type, o) {
 
 // ---- Réglages › Authentic : le compte de l'étude (administrateur) ----
 
-async function renderReglagesConnexionAuthentic() {
+async function renderReglagesConnexionAuthentic(o) {
   const zone = document.getElementById('reglages-authentic-connexion');
   if (!zone) return;
+  if (zone.dataset.rendu === '1' && !(o && o.forcer)) return;
   const c = await chargerConnexionAuthenticClaire() || { actif: false, adresse: '', identifiant: '', motDePasseEnregistre: false };
   const admin = estAdministrateur(utilisateurPoste);
   const dis = admin ? '' : ' disabled';
+  // Le formulaire n'est redessiné qu'à l'ouverture (ou après un enregistrement) : un relevé d'Authentic qui rafraîchit le journal
+  // n'efface plus un mot de passe en cours de saisie (relecture 0.373.0).
+  if (zone.dataset.rendu === '1' && !(o && o.forcer)) return;
+  zone.dataset.rendu = '1';
   zone.innerHTML = `<div class="reglages-liste">
       <label class="reglages-option" for="authentic-claire-actif">
         <span class="reglages-option-texte"><span class="reglages-option-titre">CLAIRE se connecte à Authentic</span>
-          <span class="reglages-option-sous">${c.actif ? (c.motDePasseEnregistre ? 'Allumée' : 'Allumée, mot de passe à enregistrer') : 'Éteinte'}</span></span>
+          <span class="reglages-option-sous">${c.refuseLe ? `Arrêtée : Authentic a refusé l’identifiant ou le mot de passe le ${formatDateFr(String(c.refuseLe).slice(0, 10))} — corrigez-les pour reprendre` : c.actif ? (c.motDePasseEnregistre ? 'Allumée' : 'Allumée, mot de passe à enregistrer') : 'Éteinte'}</span></span>
         <wa-switch class="switch reglages-switch" id="authentic-claire-actif"${c.actif ? ' checked' : ''}${dis}></wa-switch>
       </label>
       <div class="reglages-champ"><label for="authentic-claire-adresse">Adresse de connexion</label><input type="text" id="authentic-claire-adresse" value="${escapeAttr(c.adresse || '')}" autocomplete="off"${dis}></div>
@@ -140,13 +152,13 @@ async function enregistrerConnexionAuthentic() {
     if (!r.ok) { afficherToast(j.erreur || 'Réglage non enregistré.', 'OK', null); return; }
     connexionAuthenticClaire = j;
     afficherToast('Connexion à Authentic enregistrée.', 'OK', null);
-    renderReglagesConnexionAuthentic();
+    renderReglagesConnexionAuthentic({ forcer: true });
   } catch (e) { afficherToast('Serveur injoignable.', 'OK', null); }
 }
 
 async function essayerConnexionAuthentic() {
   const ligne = document.getElementById('authentic-claire-essai');
   if (ligne) ligne.textContent = 'CLAIRE ouvre Authentic dans le navigateur du serveur…';
-  const r = await gesteAuthenticClaire('essai', {});
+  const r = await gesteAuthenticClaire('essai', { auteur: utilisateurPoste || '' });
   if (ligne) ligne.textContent = r.ok ? 'Connexion réussie.' : 'Échec : ' + r.texte;
 }

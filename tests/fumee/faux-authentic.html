@@ -47,6 +47,11 @@
   <button type="button" onclick="window.__interdit = 'Nouveau dossier'">Nouveau dossier</button>
 </div>
 
+<div class="vue" id="homonyme">
+  <div>A 2026 00499 VTE MARTIN / DURANDEAU</div><div>Comparants (2)</div><div>2 - VTE MARTIN / DURANDEAU</div>
+  <button type="button" onclick="window.__mauvais = true; voir('formalites')">Formalités préalables</button>
+</div>
+
 <div class="vue" id="fiche-martin">
   <label for="j:ficheClientPhysiqueIdentite:nom">Nom de famille</label><input id="j:ficheClientPhysiqueIdentite:nom" value="MARTIN">
   <label for="j:ficheClientPhysiqueIdentite:prenom">Prénom</label><input id="j:ficheClientPhysiqueIdentite:prenom" value="Paul">
@@ -91,7 +96,8 @@
     if (e.key !== 'Enter') return;
     const v = e.target.value;
     voir('accueil');
-    document.getElementById('resultats').innerHTML = /00500|MARTIN/.test(v) ? '<div class="lien" onclick="voir(\'dossier\')">A 2026 00500 VTE MARTIN / DURAND</div>' : 'Aucun résultat';
+    document.getElementById('resultats').innerHTML = /00500|MARTIN/.test(v)
+      ? '<div class="lien" onclick="voir(\'homonyme\')">A 2026 00499 VTE MARTIN / DURANDEAU</div><div class="lien" onclick="voir(\'dossier\')">A 2026 00500 VTE MARTIN / DURAND</div>' : 'Aucun résultat';
   });
   function interrupteurs() {
     return `<div><label>Création rapide :</label><div class="ui-toggleswitch ui-toggleswitch-checked" onclick="this.classList.toggle('ui-toggleswitch-checked'); this.querySelector('input').checked = this.classList.contains('ui-toggleswitch-checked')"><div class="ui-helper-hidden-accessible"><input type="checkbox" id="t:creationRapide_input" checked></div></div>
@@ -106,14 +112,14 @@
         <table><thead><tr><th><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></th><th>Nom de l'intervenant</th></tr></thead>
         <tbody><tr><td><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></td><td>Mme DURAND Claire</td></tr></tbody></table>` + interrupteurs();
     } else {
-      const ligne = (nom) => `<tr><td>${nom}</td><td><div class="ui-selectcheckboxmenu" onclick="ouvrir(this)"></div></td></tr>`;
+      const ligne = (nom) => `<tr><td>${nom}</td><td><div class="ui-selectcheckboxmenu" onclick="ouvrir(this)">${(window.__choix[nom] || []).join(', ')}</div></td></tr>`;
       d.innerHTML = `<div>COMEDEC / SCEC</div><table><thead><tr><th>Intervenants</th><th>Type de Demande</th></tr></thead><tbody>
         ${ligne('M. MARTIN Paul (41000 BLOIS)')}${ligne('Mme DURAND Claire épouse de M. LEROY Marc')}${ligne('M. LEROY Marc')}${ligne('')}</tbody></table>` + interrupteurs()
         + `<div class="ui-selectcheckboxmenu-panel" id="panneau"><ul>${['Naissance', 'Mariage', 'Décès'].map((o) => `<li><div class="ui-chkbox-box" onclick="cocher(this)"></div> ${o}</li>`).join('')}</ul></div>`;
     }
   }
   let ligneOuverte = null;
-  window.__choix = {};
+  window.__choix = { 'M. LEROY Marc': ['Décès'] };
   function ouvrir(el) {
     ligneOuverte = el.closest('tr').cells[0].innerText.trim();
     const p = document.getElementById('panneau');

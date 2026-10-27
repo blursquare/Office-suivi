@@ -283,6 +283,8 @@ function propositionDates(dossiers, aujourdhui, ctx) {
 
 /** Jours avant la signature où la demande de casier est proposée. */
 const JOURS_CJN_AVANT_SIGNATURE = 30;
+/** L'état civil n'est proposé que pour les dossiers créés depuis la mise en service (pas une vague de cartes sur les dossiers en cours). */
+const DATE_DEBUT_COMEDEC_AUTHENTIC = '2026-10-27';
 
 /**
  * Pour un dossier de vente relié à Authentic (référence retenue) et la connexion de CLAIRE allumée (`ctx.authenticActif`) : la demande
@@ -299,7 +301,8 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
     const parties = Array.isArray(d.parties) ? d.parties : [];
     const representees = parties.filter((p) => p && ((p.role === 'VENDEUR' && !confrereVendeur(d)) || (p.role === 'ACQUEREUR' && !confrereAcquereur(d))) && p.qualitePersonne !== 'morale');
     const etatsCivils = d.authentic && Array.isArray(d.authentic.etatsCivils) ? d.authentic.etatsCivils : [];
-    if (representees.length && !etatsCivils.length) {
+    const cree = dateCreationDossier(d);
+    if (representees.length && !etatsCivils.length && cree && cree >= DATE_DEBUT_COMEDEC_AUTHENTIC) {
       sortie.push(proposition(base('formalites-authentic', d, ctx, 'comedec'), {
         type: 'tache', action: 'authentic', empreinte: `authentic-comedec:${d.id}`,
         titre: `Demande d’état civil (Comedec) à préparer — ${libelleDossierAffiche(d)}`,
@@ -323,5 +326,5 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
 
 module.exports = {
   DATE_DEBUT_CONSTITUTION, JOURS_VEILLE_SIGNATURE, joursEntre, semaineIso, dateFr, confrereAcquereur, confrereVendeur, acteSigne, dateCreationDossier,
-  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE
+  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE, DATE_DEBUT_COMEDEC_AUTHENTIC
 };

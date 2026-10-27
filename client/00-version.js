@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.373.1';
+  const VERSION_APP = '0.373.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.373.2', date: '2026-10-27 11:47', resume: "CLAIRE dans Authentic, plus prudente : une demande n'est faite que dans le dossier qui porte SA référence d'Authentic en tête (jamais un homonyme), dans son seul sous-dossier de vente ; pour le casier, chaque personne cochée doit être un acquéreur de la fiche ; pour l'état civil, une demande cochée d'avance par Authentic et non voulue est décochée. Une demande n'est jamais créée deux fois. Un mot de passe refusé arrête toute connexion jusqu'à sa correction (le compte ne se verrouille pas). Une proposition de CLAIRE n'est décidée qu'une fois la demande créée." },
     { version: '0.373.1', date: '2026-10-27 11:39', resume: "L'accès rapide aux discussions de la barre latérale ne clignote plus : il était redessiné toutes les 30 secondes sans rien changer." },
     { version: '0.373.0', date: '2026-10-27 11:31', resume: "CLAIRE se connecte à Authentic, avec le compte de l'étude enregistré dans Réglages › Authentic, par le navigateur du serveur. Dans une conversation ou un canal de dossier : « lis le dossier X dans Authentic » (elle retrouve le dossier, relève la page, les fiches clients et les fiches biens, et la fiche se complète), « prépare la demande de casier » ou « prépare la demande d'état civil » (naissance de chaque partie, mariage des mariés). Les demandes passent toujours par « Autoriser » ; CLAIRE les crée avec « Création rapide » et Envoi immédiat éteint : rien ne part, vous les envoyez depuis Authentic. Elle les propose aussi d'elle-même dans le canal du dossier : l'état civil dès que le dossier est relié à Authentic, le casier à 30 jours de la signature quand l'étude reçoit l'acte." },
     { version: '0.372.0', date: '2026-10-27 11:01', resume: "Pastille sans relais : quand CLAIRE est installée comme application par Chrome ou Edge, elle pose elle-même le nombre de choses à voir sur son icône de la barre des tâches. Il faut que Chrome tienne l'adresse du serveur pour sûre : Réglages › Notifications dit où en est le poste et donne le fichier à faire poser par Fichorga pour tous les postes." },

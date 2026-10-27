@@ -53,7 +53,7 @@ const CATALOGUE = [
     description: 'Le matin, un brouillon de réponse pour chaque email reçu d’un client ou d’un confrère d’un dossier depuis 18 h la veille ouvrée (soir, week-end et jours fériés compris). Rien ne part sans votre clic sur « Envoyer ».',
     gestes: [{ cle: 'reponse', libelle: 'Préparer le brouillon de réponse', niveauMax: 2, sensible: true }] },
   { id: 'formalites-authentic', nom: 'Demandes Comedec et casier dans Authentic', icone: 'file-text', phase: 2, disponible: true, allumeeParDefaut: true,
-    declencheur: 'Dossier de vente relié à Authentic : état civil dès l’ouverture, casier à 30 jours de la signature', ia: false,
+    declencheur: 'Dossier de vente relié à Authentic : état civil à l’ouverture (dossiers créés depuis le 27/10), casier à 30 jours de la signature', ia: false,
     description: 'Propose de préparer dans Authentic la demande d’état civil (Comedec : naissance de chaque partie, mariage des mariés) et, quand l’étude reçoit l’acte, la demande de casier judiciaire des acquéreurs (CJN). « Autoriser » : CLAIRE la crée avec « Création rapide », sans envoi — elle est à envoyer ensuite depuis Authentic.',
     gestes: [{ cle: 'comedec', libelle: 'Préparer la demande d’état civil (Comedec)', niveauMax: 1 }, { cle: 'cjn', libelle: 'Préparer la demande de casier judiciaire (CJN)', niveauMax: 1 }] },
   { id: 'veille-juridique', nom: 'Veille juridique', icone: 'scale', phase: 3, disponible: true, declencheur: 'Chaque semaine, le premier jour ouvré', ia: true,

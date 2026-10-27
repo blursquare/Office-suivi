@@ -22494,3 +22494,31 @@ par CLAIRE et faites sur demande.
 (`icone('discussion')`, client/01) numérote son masque à chaque dessin (`claire-discussions-N`). Le rendu comparé par
 `majAccesRapideCanaux` (client/123) changeait donc à chaque appel, et le bloc était refait toutes les 30 s. Comparaison faite sans ce
 numéro (`cleRenduAccesRapide`) ; plus aucune mutation en 65 s.
+
+### 27/10/2026 — 0.373.2 : relecture et audit de CLAIRE dans Authentic (`docs/audits/2026-10-27-0.373.0.md`)
+
+- **Haut — mauvais dossier** :
+  - `estCeDossier` exige la référence de l'EN-TÊTE (première ligne qui commence par « A AAAA NNNNN ») égale à la sienne ; sans
+    référence, le libellé exact de cet en-tête. Un titre d'onglet ou un homonyme « … MARTINEZ » ne passent plus.
+  - Un lien n'est cliqué que s'il porte la référence.
+  - Une demande CJN / Comedec exige la référence retenue sur la fiche, et UN seul sous-dossier « N - VTE … », vérifié après le clic.
+  - CJN : chaque intervenant coché par Authentic doit être un acquéreur de la fiche (nom et prénom), sinon rien n'est validé.
+- **Moyens** :
+  - **Disjoncteur** : un refus d'identifiants pose `refuseLe`, et plus aucune connexion n'a lieu avant le changement de l'identifiant ou du mot
+    de passe. « Essayer la connexion » est réservé à l'administrateur, et `/lire` demande un collaborateur.
+  - **Comedec** : chaque option de chaque ligne touchée est cochée si voulue et décochée sinon, puis relue. `ui-state-highlight` (le survol)
+    n'est plus lu comme coché. Une partie n'est reconnue que par son nom ET son prénom.
+  - **Doublons** : clé `authentic-demandes` (dossier + type), une demande déjà créée par CLAIRE est refusée (409), et un verrou empêche
+    deux préparations en même temps. Une proposition n'est décidée « acceptée » qu'après la demande créée, et un échec la laisse à
+    décider. Pas de vague de cartes : l'état civil n'est proposé que pour les dossiers créés depuis le 27/10.
+  - **Clics** : chaque clic par position vérifie l'élément réellement sous le point (`elementFromPoint`). Un texte hors de l'écran y est
+    d'abord amené (`scrollIntoView`). Liste noire complétée (`send`, `delete`, `archive`, transmettre, télétransmettre, déposer) et lue
+    sur le BOUTON réellement cliqué. Un nom de dossier ou de personne qui contient un mot de la liste ne bloque plus.
+- **Bas** :
+  - Une tâche dure 8 minutes au plus.
+  - « Session déjà ouverte » n'est retenue que si la page montre la recherche d'Authentic.
+  - Le formulaire des Réglages n'est plus redessiné pendant la saisie.
+  - Point terrain `authentic-lecture` corrigé.
+  - Routes en `@ts-check`.
+- Faux Authentic enrichi : un homonyme en tête des résultats et un « Décès » coché d'avance sur le conjoint. Les deux sont évités et
+  décochés dans Chromium. Une demande sans référence est refusée.

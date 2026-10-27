@@ -52,6 +52,7 @@ test('cible dans Authentic : référence retenue et libellé « VTE NOM / NOM »
 
 test('routine : Comedec proposée une fois pour un dossier relié à Authentic, CJN à 30 jours de la signature quand l’étude reçoit l’acte ; rien sans la connexion', () => {
   const d = { id: 'd1', nom: 'MARTIN / DURAND', responsable: 'Julie VASSELIN', referenceAuthentic: 'A 2026 00500', rendezVousSignature: '2026-11-15',
+    historique: [{ date: '2026-10-27T09:00:00Z', texte: 'Dossier créé' }],
     parties: [{ role: 'VENDEUR', nom: 'MARTIN' }, { role: 'ACQUEREUR', nom: 'DURAND' }] };
   assert.equal(X.formalitesAuthentic([d], '2026-10-27', { niveau: () => 1 }).length, 0, 'connexion éteinte');
   const p = X.formalitesAuthentic([d], '2026-10-27', { niveau: () => 1, authenticActif: true });
@@ -61,6 +62,7 @@ test('routine : Comedec proposée une fois pour un dossier relié à Authentic, 
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { roleNotaire: 'participant' })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'comedec', 'participation : le notaire qui reçoit l’acte fait le CJN');
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { referenceAuthentic: '' })], '2026-10-27', { authenticActif: true }).length, 0, 'pas relié à Authentic');
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { authentic: { etatsCivils: [{ etat: 'positif' }] } })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'cjn', 'état civil déjà demandé');
+  assert.equal(X.formalitesAuthentic([Object.assign({}, d, { historique: [{ date: '2026-09-01T09:00:00Z', texte: 'Dossier créé' }] })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'cjn', 'dossier d’avant la mise en service : pas de vague d’états civils');
 });
 
 test('routes : réglages réservés à l’administrateur, mot de passe jamais rendu ; rien ne se lance connexion éteinte', async () => {
@@ -80,8 +82,41 @@ test('routes : réglages réservés à l’administrateur, mot de passe jamais r
     assert.equal(r.status, 200);
     const lu = await (await appel('/api/authentic-claire/reglages')).text();
     assert.ok(!lu.includes('secret') && lu.includes('"motDePasseEnregistre":true'));
-    const essai = await appel('/api/authentic-claire/essai', 'POST', {});
+    assert.equal((await appel('/api/authentic-claire/essai', 'POST', { auteur: 'Julie VASSELIN' })).status, 403, 'essai réservé à l’administrateur');
+    const essai = await appel('/api/authentic-claire/essai', 'POST', { auteur: 'Bastien ANGLUMENT' });
     assert.equal(essai.status, 409, 'connexion éteinte : rien ne se lance');
+    // Identifiants refusés : plus aucun essai tant qu'ils ne changent pas.
+    await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', actif: true });
     assert.equal((await appel('/api/authentic-claire/formalite', 'POST', { type: 'envoyer', auteur: 'Bastien ANGLUMENT', dossierId: 'x' })).status, 400);
   } finally { s.close(); db.close(); }
+});
+
+test('dossier affiché : la référence de l’EN-TÊTE doit être la sienne (un homonyme, un onglet inactif ne comptent pas)', () => {
+  const page = 'VTE DUPONT / MARTIN\nA 2026 00501 VTE DUPONT / MARTINEZ\nComparants (2)\nperson\nM. DUPONT Jean';
+  assert.equal(A.referenceEnTete(page), 'A 2026 00501');
+  assert.equal(A.estCeDossier(page, { reference: 'A 2026 00500', libelle: 'VTE DUPONT / MARTIN' }), false, 'le libellé ne suffit pas quand la référence est connue');
+  assert.equal(A.estCeDossier(page, { reference: 'A 2026 00501' }), true);
+  assert.equal(A.estCeDossier('A 2026 00501 VTE X\nrien', { reference: 'A 2026 00501' }), false, 'sans « Comparants » : pas une page de dossier');
+  assert.equal(A.estCeDossier(page, { libelle: 'VTE DUPONT / MARTIN' }), false, 'sans référence : libellé EXACT sur une ligne (pas « MARTINEZ »)');
+  assert.equal(A.estCeDossier('A 2026 00500 VTE DUPONT / MARTIN\nComparants (1)', { libelle: 'VTE DUPONT / MARTIN' }), true);
+});
+
+test('liste noire : icônes et verbes d’envoi des écrans d’Authentic', () => {
+  for (const l of ['send', 'delete', 'archive', 'Transmettre', 'Télétransmettre', 'Déposer']) assert.ok(A.libelleInterdit(l), l);
+});
+
+test('disjoncteur : un refus d’identifiants est retenu jusqu’au changement de l’identifiant ou du mot de passe', () => {
+  const repo = fauxRepo();
+  A.ecrireConnexionAuthentic(repo, { actif: true, identifiant: 'etude', motDePasse: 'secret' });
+  A.ecrireConnexionAuthentic(repo, { refuseLe: true });
+  assert.ok(A.lireConnexionAuthentic(repo).refuseLe);
+  A.ecrireConnexionAuthentic(repo, { actif: true });
+  assert.ok(A.lireConnexionAuthentic(repo).refuseLe, 'rallumer ne suffit pas');
+  A.ecrireConnexionAuthentic(repo, { motDePasse: 'autre' });
+  assert.equal(A.lireConnexionAuthentic(repo).refuseLe, '', 'nouveau mot de passe : on peut réessayer');
+});
+
+test('Comedec : une partie connue par son seul nom de famille ne désigne pas son conjoint', () => {
+  assert.deepEqual(A.demandesComedecIntervenant('Mme MARTIN Léa', [{ nom: 'MARTIN', marie: true }]), []);
+  assert.deepEqual(A.demandesComedecIntervenant('M. MARTIN Paul', [{ nom: 'Paul MARTIN', marie: false }]), ['Naissance'], 'prénom porté dans le nom');
 });

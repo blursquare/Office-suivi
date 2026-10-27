@@ -25,7 +25,7 @@ const VERIFICATIONS_TERRAIN = [
   { id: 'authentic-connexion', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE se connecte à Authentic par le navigateur du serveur (compte de Réglages › Authentic)',
     comment: 'Coché à la première connexion réussie. À essayer : Réglages › Authentic › « Essayer la connexion ». Échec « identifiants refusés » : revoir l’identifiant et le mot de passe.' },
   { id: 'authentic-lecture', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE lit un dossier dans Authentic (page du dossier, fiches clients, fiches biens) et la fiche se complète',
-    comment: 'Coché à la première lecture. À essayer : fiche d’une vente › ligne « Authentic » › « Lire dans Authentic », ou « Demander à CLAIRE » : « lis le dossier X dans Authentic ».' },
+    comment: 'Coché à la première lecture. À essayer : dans « Demander à CLAIRE » ou le canal du dossier : « lis le dossier X dans Authentic ».' },
   { id: 'authentic-cjn', depuis: '0.373.0', source: 'serveur', titre: 'Demande de casier judiciaire (CJN) créée dans Authentic par CLAIRE, Création rapide allumée, Envoi immédiat éteint, rien d’envoyé',
     comment: 'Coché quand la demande est créée. À vérifier dans Authentic : la demande est dans le dossier, PAS envoyée.' },
   { id: 'authentic-comedec', depuis: '0.373.0', source: 'serveur', titre: 'Demande d’état civil (Comedec) créée dans Authentic par CLAIRE : naissance de chaque partie, mariage des mariés, rien d’envoyé',
