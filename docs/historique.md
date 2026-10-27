@@ -22421,3 +22421,22 @@ d'immeuble). Données réduites au vocabulaire par l'extension, aucun nom.
 - **Manquent encore** : le libellé exact des deux cases et le bouton qui enregistre (« Enregistrer » / « Valider » : les boutons ne
   sont pas relevés par la copie). Le second envoi, donné comme « CJN », est le même écran Comedec : celui de la CJN (casier judiciaire)
   reste à copier.
+
+### 27/10/2026 — Captures de l'étude : création d'une demande CJN et Comedec dans Authentic (libellés exacts, pas encore construit)
+
+Deux captures d'écran d'Authentic. Aucun nom n'est repris ici : elles portaient de vrais dossiers.
+
+- **Chemin** : sous-dossier de vente › onglet « Formalités préalables » › partie droite « Ajouter des formalités préalables ». La liste de gauche
+  (« 489 formalité(s) trouvée(s) », étoile = favori) porte « Casier Judiciaire National dématérialisé (CJN) » et « Etat civil dématérialisé
+  (COMEDEC) ». Un clic l'ajoute au panneau « Détails · N formalité(s) », et la croix rouge l'en retire.
+- **Bas du panneau, pour les deux** : interrupteur **« Création rapide : »**, ALLUMÉ par défaut ; interrupteur **« Envoi immédiat : »**, ÉTEINT par
+  défaut ; bouton bleu **« Valider »** (coche), qui crée les demandes. C'est le bouton à cliquer, il n'y a pas d'« Enregistrer » ici. Avec « Envoi
+  immédiat » éteint, rien ne part (décision de l'étude du même jour).
+- **CJN** : groupe « CJN », ligne « Casier Judiciaire National dématérialisé (CJN) (N intervenant(s) sur N) », bandeau « La vérification au CJN ne
+  concerne que les acquéreurs âgés de 18 à 120 ans. ». Tableau « Nom de l'intervenant » avec une case par acquéreur (cochée d'office) et une
+  case d'en-tête pour tous.
+- **Comedec** : groupe « COMEDEC / SCEC », ligne « Etat civil dématérialisé (COMEDEC) », bandeau « L'ANTS et le SCEC ne traitent que les actes d'état
+  civil relatifs à des français, des ressortissants français ou des évènements ayant eu lieu en France. ». « Sélection globale : » cases
+  **Naissance / Mariage / Décès**. Tableau « Intervenants | Type de Demande » : une liste à choix multiple par intervenant (Naissance, Mariage… selon
+  la personne). Les intervenants sont les comparants, puis les conjoints cités, puis des lignes sans nom.
+- Reste à construire : le navigateur d'Authentic sans fenêtre (autre conversation). Reste à décider : les demandes que CLAIRE coche par défaut.
