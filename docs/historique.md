@@ -22754,3 +22754,13 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   `echeanceDiaDossier` (réponse à 2 mois), ligne « Réponse à la DIA » (« DIA déposée sur le guichet le … (n° …) »), pièce « Renonciation »
   et « Certificat d'urbanisme » de l'onglet Pièces. Guichet de Chailles (`portail-usager.sirap.com`) ajouté aux pages de l'extension.
   **Non vérifié** : forme réelle du numéro sur la page d'accueil de chaque guichet.
+- **0.381.0 (27/10, 20 h 01)** — Plan Authen.TIC, **étape 5 : GED**. Relevé (`releve.js`, extension Firefox 0.3.14) : `pieces [{ pjId, nom,
+  dossier }]` d'après `selectTreeNode(event, pjId, sdId)` (300 au plus, identifiant contrôlé `[\w-]{1,40}` par le serveur) ; gardée à part
+  (`authentic_pages`, clé `ged`) ; instantané `sousDossier.pieces`. Parcours du serveur : onglet « Pièces jointes » ouvert et relevé à la fin
+  de `lireDossier` (`lirePiecesJointes`) ; **PDF à la demande** (`lirePiecePdf`, `POST /api/authentic-claire/piece`) : dossier, sous-dossier,
+  onglet, clic sur le NOM du fichier (geste `donnee`, vérifié sous le pointeur), adresse `dynamiccontent` de la visionneuse (même site
+  seulement), PDF lu dans la page (20 Mo au plus, en-tête `%PDF` exigé), rendu comme document de la tâche (mémoire, jamais disque ni NAS).
+  Fiche (client/133) : liste par dossier de l'arbre, pièce de la checklist désignée par le nom (`correspondancePieceAuthenticAT`, mêmes
+  règles que le NAS : « reçue » ou « pas encore reçue dans CLAIRE » — rien n'est coché), « aussi sur le NAS » (`nasInventaire`), « Ouvrir »
+  (`ouvrirPieceAuthenticAT`). Point terrain `authentic-piece-pdf`. Faux Authentic : arbre, barre d'actions (Supprimer jamais cliqué),
+  visionneuse. **Non vérifié sur une vraie GED.**

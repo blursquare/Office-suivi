@@ -74,7 +74,8 @@ function htmlSousDossierAT(d) {
     <div class="at-tete"><span class="at-intitule">${escapeHtml(sd.intitule || 'Sous-dossier')}</span>
       ${sd.statut ? `<span class="dot-label ${classeStatutSousDossierAT(sd.statut)}"><span class="dot"></span>${escapeHtml(sd.statut)}${sd.statutLe ? ` · ${escapeHtml(formatDateFr(sd.statutLe))}` : ''}</span>` : ''}
       ${infoBulle('Ce que montre le sous-dossier dans Authentic, à la dernière page relevée' + (lu ? ` (${lu.toLowerCase()})` : '') + ' : rien n’est écrit dans Authentic ni sur la fiche.')}</div>
-    ${groupes || '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
+    ${groupes || (sd.pieces || []).length ? groupes : '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
+    ${htmlPiecesJointesAT(d, sd)}
   </div>`;
 }
 
@@ -93,4 +94,64 @@ function noterSansSuiteVuAT(id) {
 if (typeof window !== 'undefined' && typeof setInterval === 'function') {
   setTimeout(chargerStatutsAuthenticAT, 4000);
   setInterval(chargerStatutsAuthenticAT, 5 * 60 * 1000);
+}
+
+// ---- Étape 5 : les pièces jointes d'Authentic (GED), comparées à la checklist et au NAS, PDF ouvert à la demande ----
+
+// Pure : ce qu'une pièce jointe d'Authentic est pour CLAIRE — la pièce de la checklist que son NOM désigne (mêmes règles que le NAS) et
+// si un fichier du même nom est sur le NAS. { piece: { cle, label, recue } | null, nas: bool }.
+function correspondancePieceAuthenticAT(d, nom, listeCalculee) {
+  const nomNorm = normaliserNomPourMotif(String(nom || '').replace(/\.[a-z0-9]{2,4}$/i, ''));
+  const liste = listeCalculee || (typeof checklistPieces === 'function' ? checklistPieces(d && d.typeVente, d) : []);
+  const p = liste.find(x => correspondancePieceNom(x, nomNorm));
+  const base = (c) => normaliserNomPourMotif(String(c || '').split(/[\\/]/).pop().replace(/\.[a-z0-9]{2,4}$/i, ''));
+  const nas = (Array.isArray(d && d.nasInventaire) ? d.nasInventaire : []).some(c => base(c) === nomNorm);
+  return { piece: p ? { cle: p.cle, label: p.label, recue: !!(d.pieces && d.pieces[p.cle] === 'recue') } : null, nas };
+}
+
+function htmlPiecesJointesAT(d, sd) {
+  const pieces = (sd && sd.pieces) || [];
+  if (!pieces.length) return '';
+  const checklist = typeof checklistPieces === 'function' ? checklistPieces(d && d.typeVente, d) : [];
+  const parDossier = new Map();
+  pieces.forEach(p => { const k = p.dossierGed || 'Pièces jointes'; if (!parDossier.has(k)) parDossier.set(k, []); parDossier.get(k).push(p); });
+  const lignes = [...parDossier.entries()].map(([dossierGed, liste]) => `<li class="at-ged-dossier">${escapeHtml(dossierGed)}</li>${liste.map(p => {
+    const c = correspondancePieceAuthenticAT(d, p.nom, checklist);
+    const etat = c.piece ? (c.piece.recue ? `<span class="at-ged-piece">✓ ${escapeHtml(c.piece.label)}</span>` : `<span class="at-ged-piece at-ged-manque" title="Dans Authentic, pas encore cochée reçue dans CLAIRE">${escapeHtml(c.piece.label)} : pas encore reçue dans CLAIRE</span>`) : '';
+    return `<li class="at-ged-ligne"><span class="at-libelle" title="${escapeAttr(p.nom)}">${escapeHtml(p.nom)}</span>${etat}${c.nas ? '<span class="at-ged-nas">aussi sur le NAS</span>' : ''}
+      <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="ouvrirPieceAuthenticAT('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.pjId)}')" title="Ouvrir le PDF (lu dans Authentic par CLAIRE, une minute environ)" aria-label="Ouvrir le PDF">${icone('file-text')}</wa-button></li>`;
+  }).join('')}`).join('');
+  return `<div class="at-groupe"><div class="at-groupe-titre">Pièces jointes${infoBulle('La liste de la GED du sous-dossier, à la dernière lecture. « Ouvrir » : CLAIRE ouvre la pièce dans Authentic et vous montre le PDF ; rien n’est modifié dans Authentic, le PDF ne reste que quelques minutes en mémoire du serveur.')}<span class="pa-compte">${pieces.length}</span></div><ul class="at-liste">${lignes}</ul></div>`;
+}
+
+// « Ouvrir » : une tâche du navigateur du serveur lit le PDF dans Authentic (une minute environ), puis il s'ouvre dans un onglet.
+async function ouvrirPieceAuthenticAT(dossierId, pjId) {
+  const fenetre = window.open('', '_blank');
+  if (fenetre) fenetre.document.body.textContent = 'CLAIRE ouvre la pièce dans Authentic…';
+  try {
+    const r = await fetchAvecAuth('/api/authentic-claire/piece', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dossierId, pjId, auteur: utilisateurPoste || '' }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.erreur || 'refusé par le serveur');
+    const fin = Date.now() + 5 * 60 * 1000;
+    while (Date.now() < fin) {
+      await new Promise(ok => setTimeout(ok, 2000));
+      const rt = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(j.id)}`);
+      if (rt.status === 404) throw new Error('la lecture n’est plus suivie par le serveur');
+      const t = await rt.json().catch(() => null);
+      if (!t) continue;
+      if (t.etat === 'erreur' || t.etat === 'annule') throw new Error(t.erreur || 'arrêté');
+      if (t.etat !== 'fini') continue;
+      const pdf = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(j.id)}/documents/piece`);
+      if (!pdf.ok) throw new Error('PDF non rendu');
+      const url = URL.createObjectURL(await pdf.blob());
+      setTimeout(() => URL.revokeObjectURL(url), 10 * 60 * 1000);
+      if (fenetre) fenetre.location.href = url;
+      else if (!window.open(url, '_blank')) afficherToast('Le navigateur a bloqué la fenêtre de la pièce : autorisez les fenêtres de CLAIRE, puis recommencez.', 'OK', null);
+      return;
+    }
+    throw new Error('toujours en cours au bout de 5 minutes');
+  } catch (e) {
+    if (fenetre) fenetre.close();
+    afficherToast('Pièce non ouverte : ' + (e && e.message ? e.message : 'erreur'), 'OK', null);
+  }
 }

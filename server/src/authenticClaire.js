@@ -494,6 +494,73 @@ async function lireApercusFormalites(s, o) {
   return n;
 }
 
+// Pièces jointes du sous-dossier (GED, étape 5) : l'onglet « Pièces jointes » ouvert, la liste relevée (nom, identifiant, dossier de l'arbre).
+/** @param {any} s @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o */
+async function lirePiecesJointes(s, o) {
+  const g = gestes(s, o.etape);
+  if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) return false;
+  await s.attendreStable(10000);
+  o.etape('Relève la liste des pièces jointes');
+  await releverPage(s, o.script, o.recevoir);
+  return true;
+}
+
+/** La position du fichier `pjId` dans l'arbre de la GED, vérifiée sous le pointeur : { x, y, nom, bouton } ou null. @param {string} pjId */
+const scriptPositionPiece = (pjId) => `(() => {
+  const id = ${JSON.stringify(String(pjId))};
+  const e = [...document.querySelectorAll('[onclick*="selectTreeNode"]')].find((x) => new RegExp("selectTreeNode\\\\(\\\\s*[^,]*,\\\\s*'?" + id + "'?[\\\\s,)]").test(x.getAttribute('onclick') || ''));
+  if (!e) return null;
+  e.scrollIntoView({ block: 'center' });
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(e.contains(d) || d.contains(e))) return null;
+  // Le bouton sous le pointeur, lu comme dans scriptTrouverTexte (audit 0.381.0) : texte, title, aria-label, corbeille = « supprimer ».
+  const b = d.closest('button, a, [role=button], .ui-button') || d;
+  const corbeille = !!(b.querySelector && b.querySelector('[class*=trash], [class*=delete], [class*=corbeille]')) || /trash|delete|corbeille/i.test(String(d.className || ''));
+  const bouton = [b.innerText, b.getAttribute('title'), b.getAttribute('aria-label'), corbeille ? 'supprimer' : ''].filter(Boolean).join(' ');
+  return { x, y, nom: String(e.textContent || '').trim().slice(0, 200), bouton: String(bouton).trim().slice(0, 160) };
+})()`;
+// L'adresse du PDF affiché par la visionneuse de la GED (`dynamiccontent` de PrimeFaces), du MÊME site seulement.
+const SCRIPT_SOURCE_PDF = `(() => { const u = [...document.querySelectorAll('iframe, embed, object')].map((x) => x.src || x.data || '').find((v) => /dynamiccontent/i.test(v));
+  if (!u) return ''; try { const a = new URL(u, location.href); return a.origin === location.origin ? a.href : ''; } catch (e) { return ''; } })()`;
+/** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 20 Mo ou n'est pas un PDF. @param {string} url */
+const scriptLirePdf = (url) => `fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => {
+  if (!b || b.byteLength > 20 * 1024 * 1024) return null;
+  const u = new Uint8Array(b);
+  if (String.fromCharCode(u[0], u[1], u[2], u[3]) !== '%PDF') return null;
+  let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
+  return btoa(s);
+})`;
+
+/**
+ * Le PDF d'une pièce jointe, à la demande (étape 5 : « PDF affiché à la demande ») : le dossier, son sous-dossier de vente, l'onglet
+ * « Pièces jointes », un clic sur le NOM du fichier (jamais un bouton de la barre d'actions), puis le PDF que la visionneuse affiche,
+ * lu dans la page. Gardé quelques minutes dans la mémoire du serveur, le temps que le poste le reçoive et l'affiche.
+ * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {string} pjId @param {{ etape: (t: string) => void }} o
+ */
+async function lirePiecePdf(s, cible, pjId, o) {
+  if (!/^[\w-]{1,40}$/.test(String(pjId || ''))) throw new Error('pièce inconnue');
+  const g = gestes(s, o.etape);
+  await ouvrirDossier(s, cible, o.etape);
+  await ouvrirSousDossierVente(s, cible, o.etape);
+  if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est pas le bon : rien lu');
+  if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) throw new Error('onglet « Pièces jointes » introuvable');
+  await s.attendreStable(10000);
+  const pos = await g.ev(scriptPositionPiece(pjId));
+  if (!pos) throw new Error('pièce introuvable dans la liste d’Authentic');
+  controlerClic({ geste: 'donnee', vise: pos.nom, bouton: pos.bouton, texte: pos.nom });
+  o.etape('Ouvre la pièce');
+  await s.cliquerPosition(pos.x, pos.y);
+  await s.attendreStable(10000);
+  let url = '';
+  for (let i = 0; i < 20 && !url; i++) { url = String(await g.ev(SCRIPT_SOURCE_PDF) || ''); if (!url) await attendre(500); }
+  if (!url) throw new Error('la visionneuse d’Authentic n’a pas affiché de PDF');
+  const b64 = await g.ev(scriptLirePdf(url));
+  if (!b64) throw new Error('PDF illisible ou de plus de 20 Mo');
+  return { nom: pos.nom, pdf: Buffer.from(String(b64), 'base64') };
+}
+
 /** Relève la page affichée (le relevé de l'extension) et la confie à la file des relevés. @param {any} s @param {string} script @param {(c: any) => any} recevoir */
 async function releverPage(s, script, recevoir) {
   const capture = await s.evaluer(`(() => { ${script}\n; return window.__claireRelever(); })()`);
@@ -550,6 +617,11 @@ async function lireDossier(s, cible, o) {
       if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     } catch (e) { o.etape(`Passe ${fiche} (${String(e && e.message).slice(0, 60)})`); }
   }
+  // La liste des pièces jointes (étape 5), sur la page du dossier : sans jamais bloquer le reste.
+  try {
+    if (!estCeDossier(await g.texte(), cible)) { await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
+    if (estCeDossier(await g.texte(), cible) && await lirePiecesJointes(s, o)) pages++;
+  } catch (e) { o.etape('Pièces jointes non lues'); }
   return { pages, apercus };
 }
 
@@ -637,6 +709,6 @@ async function preparerFormalite(s, cible, o) {
 module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites,
+  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
   referenceEnTete, estCeDossier, seConnecter, lireDossier, preparerFormalite
 };

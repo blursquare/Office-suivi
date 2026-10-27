@@ -170,9 +170,24 @@ window.__claireRelever = function () {
     apercu = { titre: net(titreTiroir ? titreTiroir.textContent : '').slice(0, 200), texte: String(tiroir.innerText || '').slice(0, 8000) };
   }
 
+  // Pièces jointes d'un sous-dossier (GED, étape 5) : chaque fichier de l'arbre porte `selectTreeNode(event, pjId, sdId)` ; son nom, son
+  // identifiant et le dossier de l'arbre qui le contient (Non classé, Annexes MICEN, Parapheur…). Jamais le contenu d'un fichier.
+  var pieces = [];
+  document.querySelectorAll('[onclick*="selectTreeNode"]').forEach(function (el) {
+    if (pieces.length >= 300) return;
+    var m = /selectTreeNode\(\s*[^,]*,\s*'?([\w-]{1,40})'?/.exec(el.getAttribute('onclick') || '');
+    var nomPiece = net(el.textContent).slice(0, 200);
+    if (!m || !nomPiece) return;
+    var noeud = el.closest('li');
+    var parent = noeud && noeud.parentElement ? noeud.parentElement.closest('li') : null;
+    var lib = parent ? (parent.querySelector('.ui-treenode-label') || parent.querySelector('span')) : null;
+    pieces.push({ pjId: m[1], nom: nomPiece, dossier: net(lib ? lib.textContent : '').replace(/\(\d+\)\s*$/, '').trim().slice(0, 80) });
+  });
+
   return {
     titre: document.title,
     apercu: apercu,
+    pieces: pieces,
     onglets: onglets.map(function (o) { return { titre: o.titre, actif: o.actif }; }),
     adresse: location.origin + location.pathname,
     champs: champs,

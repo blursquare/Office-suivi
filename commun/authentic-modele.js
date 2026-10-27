@@ -274,6 +274,9 @@
     const apercus = liste.filter((p) => p.nature === 'apercu' && p.capture.apercu).map((p) => p.capture.apercu)
       .concat(dossier.capture.apercu ? [dossier.capture.apercu] : []);
     for (const a of apercus) rangerApercuAT(tous, apercuFormaliteAT(a.texte, a.titre));
+    // Les pièces jointes (étape 5) : la dernière liste de la GED vue.
+    const ged = liste.filter((p) => (p.nature === 'ged' || p.nature === 'dossier') && Array.isArray(p.capture.pieces) && p.capture.pieces.length).slice(-1)[0];
+    if (ged) sd.pieces = ged.capture.pieces.slice(0, 300).map((/** @type {any} */ x) => ({ pjId: net(x.pjId).slice(0, 40), nom: net(x.nom).slice(0, 200), dossierGed: net(x.dossier).slice(0, 80) }));
     const dates = liste.map((p) => String(p.recueLe || '')).filter(Boolean).sort();
     return { reference: tete.reference, libelle: tete.libelle, sousDossier: sd, luLe: dates[dates.length - 1] || '', pages: liste.length };
   }

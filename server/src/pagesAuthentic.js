@@ -10,6 +10,7 @@
 // Rien ne quitte le bureau ; rien n'est journalisé (les pages nomment des clients).
 
 const crypto = require('node:crypto');
+const AT = require('../../commun/authentic-modele');
 
 const MAX_PAGES_PAR_DOSSIER = 40;
 // Une page gardée au plus (relecture du 17/10 : la base et sa sauvegarde quotidienne grossissaient sans limite).
@@ -105,7 +106,14 @@ function creerPagesAuthentic(db, options = {}) {
       const nature = chaine(releve.nature, 20) || 'dossier';
       // La clé donnée par le poste (qui lit la page : « client:léa exemple »), sinon celle tirée ici des champs.
       const cle = /^(dossier|client:|bien:)/.test(clePoste) ? clePoste : clePageAuthentic(nature, capture);
-      ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
+      // La vue « Pièces jointes » (GED, étape 5) remplace les tableaux de formalités : elle ne prend jamais la place de la page du dossier
+      // (audit 0.381.0 : le panneau du sous-dossier se vidait), seule sa liste est gardée, sous « ged ».
+      const vueGed = cle === 'dossier' && Array.isArray(capture.pieces) && capture.pieces.length > 0 && !AT.lignesFormalitesAT(capture).length;
+      if (!vueGed) ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
+      // La liste des pièces jointes (GED, étape 5) : gardée à part, la dernière vue.
+      if (Array.isArray(capture.pieces) && capture.pieces.length) {
+        ecrire.run(id, 'ged', 'ged', '', chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ pieces: capture.pieces.slice(0, 300) }));
+      }
       // L'aperçu d'une formalité ouvert sur la page (étape 4 du plan Authen.TIC) : gardé à part, une ligne par formalité, pour survivre aux
       // pages suivantes du dossier relevées sans tiroir ouvert.
       const ap = capture.apercu;

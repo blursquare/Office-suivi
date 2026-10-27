@@ -91,3 +91,12 @@ test('étape 4 : l’aperçu d’une formalité (tiroir) rangé sous sa ligne �
   assert.equal(ecv.recuLe, '2026-10-05', 'l’aperçu est rangé sous sa ligne');
   assert.equal(inst.sousDossier.formalitesPrealables[1].recuLe, undefined, 'jamais sous une autre');
 });
+
+test('étape 5 : la liste des pièces jointes (GED) — la dernière vue, identifiant, nom, dossier de l’arbre', () => {
+  const inst = M.instantaneDepuisPagesAT([
+    { nature: 'dossier', capture: PAGE },
+    { nature: 'ged', capture: { pieces: [{ pjId: 'pj1', nom: 'Ancien.pdf', dossier: 'Non classé' }] } },
+    { nature: 'ged', capture: { pieces: [{ pjId: 'pj11', nom: 'Titre de propriété ESSAI.pdf', dossier: 'Non classé' }, { pjId: 'pj12', nom: 'Diagnostics.pdf', dossier: 'Annexes MICEN' }] } }
+  ]);
+  assert.equal(inst.sousDossier.pieces.map((p) => `${p.pjId}:${p.dossierGed}`).join('|'), 'pj11:Non classé|pj12:Annexes MICEN');
+});

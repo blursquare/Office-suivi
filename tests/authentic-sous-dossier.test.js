@@ -40,3 +40,13 @@ test('audit 0.377.0 : « Sans suite » sort de « Nouveau » une fois la fiche o
   app.statutsAuthenticAT.v2 = { statut: 'Sans suite', le: '2026-11-02' };
   assert.ok(app.signauxDossierSuivi(d).some((s) => s.cle === 'authentic-sans-suite'), 'nouvelle date : de nouveau signalé');
 });
+
+test('étape 5 : une pièce jointe d’Authentic rapprochée de la checklist (par son nom) et du NAS ; « Ouvrir » sur chaque ligne', () => {
+  const app = chargerApplication();
+  const d = { id: 'v1', nom: 'ESSAI', typeVente: 'maison', pieces: { titrePropriete: 'recue' }, nasInventaire: ['VTE ESSAI/Diagnostics.pdf'], parties: [], historique: [] };
+  const t = app.correspondancePieceAuthenticAT(d, 'Titre de propriété ESSAI.pdf');
+  assert.ok(t.piece && t.piece.recue);
+  assert.equal(app.correspondancePieceAuthenticAT(d, 'Diagnostics.pdf').nas, true);
+  const html = app.htmlPiecesJointesAT(d, { pieces: [{ pjId: 'pj11', nom: 'Titre de propriété <ESSAI>.pdf', dossierGed: 'Non classé' }] });
+  assert.ok(html.includes("ouvrirPieceAuthenticAT('v1', 'pj11')") && html.includes('Non classé') && html.includes('&lt;ESSAI&gt;'));
+});

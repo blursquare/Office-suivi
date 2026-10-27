@@ -11403,3 +11403,9 @@ p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }
 .at-statut { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 .at-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .at-apercu { grid-column: 2 / -1; font-size: var(--texte-xs); color: var(--muted); }
+.at-ged-dossier { list-style: none; margin-top: 6px; font-size: var(--texte-xs); color: var(--muted); }
+.at-ged-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-s); }
+.at-ged-ligne > .at-libelle { flex: 1 1 160px; min-width: 0; }
+.at-ged-piece { font-size: var(--texte-xs); color: var(--success); }
+.at-ged-piece.at-ged-manque { color: var(--pret); }
+.at-ged-nas { font-size: var(--texte-xs); color: var(--muted); }

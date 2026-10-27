@@ -174,3 +174,19 @@ test('aperçu : la capture normalisée le garde (titre, texte borné), une captu
   assert.equal(normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }] }).apercu, undefined);
   assert.equal(normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }], apercu: { titre: 'x', texte: '  ' } }).apercu, undefined);
 });
+
+test('GED (étape 5) : la liste des pièces jointes gardée à part ; la capture ne garde que des identifiants sûrs', () => {
+  const { normaliserCaptureAuthentic } = require('../src/routes/authentic');
+  const c = normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }], pieces: [{ pjId: 'pj11', nom: 'Titre.pdf', dossier: 'Non classé' }, { pjId: "x');alert(1)//", nom: 'piège' }] });
+  assert.equal(c.pieces.length, 1);
+  const pages = creerPagesAuthentic(baseDossiers());
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: Object.assign({ titre: 'x', tableaux: [], texte: '2 - VTE ESSAI' }, c) });
+  assert.equal(pages.resume('v1').filter((p) => p.nature === 'ged').length, 1);
+  // La vue « Pièces jointes » sans tableau de formalités ne remplace jamais la page du dossier (audit 0.381.0).
+  assert.equal(pages.resume('v1').filter((p) => p.cle === 'dossier').length, 0);
+  const formalites = { titre: 'Formalités préalables', entete: ['Intitulé', 'Date', 'Etat'], lignes: [['ECV État-Civil', '01/10/2026', 'Réponse positive']] };
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:01:00Z', capture: { titre: 'x', tableaux: [formalites], texte: '2 - VTE ESSAI' } });
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:02:00Z', capture: Object.assign({ titre: 'x', tableaux: [], texte: '2 - VTE ESSAI' }, c) });
+  const dossier = pages.pages('v1').find((p) => p.cle === 'dossier');
+  assert.equal(dossier.capture.tableaux.length, 1);
+});

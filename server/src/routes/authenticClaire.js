@@ -14,6 +14,8 @@ const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 // Demandes déjà créées par CLAIRE (dossier + type → date) : jamais deux fois la même (un rejet CJN est facturé ; relecture 0.373.0).
 const CLE_DEMANDES_AUTHENTIC = 'authentic-demandes';
 const DUREE_MAX_TACHE_MS = 8 * 60 * 1000;
+// Le PDF d'une pièce jointe reste en mémoire 5 minutes, le temps que le poste le lise.
+const DUREE_PIECE_MS = 5 * 60 * 1000;
 
 /** Pure : le libellé du dossier tel qu'Authentic l'écrit (« VTE NOM / NOM »), d'après la fiche CLAIRE. @param {any} d */
 function cibleAuthentic(d) {
@@ -43,8 +45,9 @@ function creerRouteurAuthenticClaire(o) {
   /** @type {Set<string>} */
   const enCours = new Set();
 
-  /** Lance une tâche Authentic ; le résultat est dit dans le canal du dossier. @param {string} type @param {string} titre @param {any} d @param {(t: any, s: any, etape: (x: string) => void) => Promise<string>} faire @param {string} [verrou] */
-  function lancer(type, titre, d, faire, verrou) {
+  /** Lance une tâche Authentic ; le résultat est dit dans le canal du dossier. @param {string} type @param {string} titre @param {any} d @param {(t: any, s: any, etape: (x: string) => void) => Promise<string>} faire @param {string} [verrou] @param {{ silencieux?: boolean }} [opt] */
+  function lancer(type, titre, d, faire, verrou, opt) {
+    const dire = !!d && !(opt && opt.silencieux);
     const r = A.lireConnexionAuthentic(repo);
     if (!r.actif) throw Object.assign(new Error('La connexion de CLAIRE à Authentic est éteinte (Réglages › Authentic).'), { statut: 409 });
     if (!r.identifiant || !r.motDePasse) throw Object.assign(new Error('Identifiant ou mot de passe d’Authentic non enregistré (Réglages › Authentic).'), { statut: 409 });
@@ -64,11 +67,11 @@ function creerRouteurAuthenticClaire(o) {
         noterVerification(repo, 'authentic-connexion', { detail: 'connectée' });
         const dit = await faire(t, s, etape);
         t.resultat = { dossierId: d ? d.id : '', texte: dit };
-        if (d) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: dit });
+        if (dire) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: dit });
       } catch (e) {
         if (e && e.refusIdentifiants) { A.ecrireConnexionAuthentic(repo, { refuseLe: true }); noterVerification(repo, 'authentic-connexion', { ok: false, message: 'identifiants refusés' }); }
         // Le message d'erreur ne cite jamais un nom (libellés génériques du parcours).
-        if (d && !(e && e.annule)) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: `${titre} : pas fait — ${String((e && e.message) || 'erreur').slice(0, 200)}.` });
+        if (dire && !(e && e.annule)) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: `${titre} : pas fait — ${String((e && e.message) || 'erreur').slice(0, 200)}.` });
         throw e;
       } finally {
         clearTimeout(minuterie);
@@ -116,6 +119,27 @@ function creerRouteurAuthenticClaire(o) {
       if (r.apercus) noterVerification(repo, 'authentic-apercus', { detail: `${r.apercus} aperçu(s)` });
       return `J’ai lu le dossier dans Authentic (${r.pages} page${r.pages > 1 ? 's' : ''}) : la fiche se complète avec ce qu’Authentic montre.`;
     }));
+  });
+
+  // Le PDF d'une pièce jointe d'Authentic, à la demande (étape 5) : une tâche du navigateur, le PDF rendu comme document de la tâche
+  // (GET /api/navigation/taches/:id/documents/piece), gardé quelques minutes en mémoire, jamais sur le disque ni sur le NAS.
+  routeur.post('/authentic-claire/piece', (req, res) => {
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    if (!collaborateurDe(b.auteur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    const pjId = String(b.pjId || '');
+    if (!/^[\w-]{1,40}$/.test(pjId)) { res.status(400).json({ erreur: 'Pièce inconnue.' }); return; }
+    const d = dossierDe(req, res); if (!d) return;
+    if (!String(d.referenceAuthentic || '').trim()) { res.status(409).json({ erreur: 'Ce dossier n’est pas relié à Authentic par sa référence.' }); return; }
+    // Rattachée au dossier (rangement sur le NAS de CE dossier seul), sans message dans son canal ; une seule ouverture à la fois par pièce.
+    repondre(res, () => lancer('authentic-piece', 'Pièce jointe d’Authentic', d, async (t, s, etape) => {
+      const r = await A.lirePiecePdf(s, cibleAuthentic(d), pjId, { etape });
+      t.documents.push({ id: 'piece', titre: r.nom, nom: /\.pdf$/i.test(r.nom) ? r.nom : r.nom + '.pdf', type: 'application/pdf', octets: r.pdf });
+      // Le PDF ne reste que le temps que le poste le lise (audit 0.381.0 : jusqu'à 20 Mo par tâche gardée 2 h).
+      const oubli = setTimeout(() => { t.documents = (t.documents || []).filter((/** @type {any} */ x) => x.id !== 'piece'); }, DUREE_PIECE_MS);
+      if (oubli && typeof oubli.unref === 'function') oubli.unref();
+      noterVerification(repo, 'authentic-piece-pdf', { detail: 'pièce lue' });
+      return 'Pièce ouverte.';
+    }, `piece:${d.id}:${pjId}`, { silencieux: true }));
   });
 
   routeur.post('/authentic-claire/formalite', (req, res) => {

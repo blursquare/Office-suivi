@@ -16,7 +16,11 @@ const { SessionNavigation } = require(path.join(racine, 'server/src/navigateur/s
 const { trouverNavigateur } = require(path.join(racine, 'server/src/navigateur/chrome.js'));
 
 const page = readFileSync(path.join(racine, 'tests/fumee/faux-authentic.html'));
-const serveur = createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page); });
+// La visionneuse de la GED (`dynamiccontent`) rend un PDF ; tout le reste, la page.
+const serveur = createServer((req, res) => {
+  if (/dynamiccontent/.test(req.url || '')) { res.writeHead(200, { 'Content-Type': 'application/pdf' }); res.end('%PDF-1.4 piece jointe essai'); return; }
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page);
+});
 await new Promise((ok) => serveur.listen(0, '127.0.0.1', ok));
 const adresse = `http://127.0.0.1:${serveur.address().port}/`;
 
@@ -37,7 +41,10 @@ try {
   const captures = [];
   const script = await A.scriptReleve({ racineRepo: racine });
   const r = await A.lireDossier(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, recevoir: (c) => { captures.push(c); return { ok: true }; }, etape });
-  verifier(r.pages === 5 && captures.length === 6, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
+  verifier(captures.some((c) => (c.pieces || []).some((p) => p.pjId === 'pj11' && p.dossier === 'Non classé')), 'la liste des pièces jointes est relevée (identifiant, dossier de l’arbre)');
+  const piece = await A.lirePiecePdf(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, 'pj11', { etape });
+  verifier(piece.pdf.toString().startsWith('%PDF') && /Titre de propriété/.test(piece.nom), 'le PDF d’une pièce jointe est lu à la demande');
+  verifier(r.pages === 6 && captures.length === 7, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
   const avecApercu = captures.find((c) => c.apercu);
   verifier(!!avecApercu && /Reçue le/.test(avecApercu.apercu.texte) && /MARTIN Paul/.test(avecApercu.apercu.titre), 'l’aperçu de la formalité est relevé (tiroir ouvert au survol, titre et dates)');
   verifier(!(await s.evaluer('window.__interdit')), 'la corbeille de la ligne (« Supprimer l’aperçu ») n’est jamais cliquée');

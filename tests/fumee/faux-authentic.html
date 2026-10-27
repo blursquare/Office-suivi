@@ -57,6 +57,11 @@
   <div class="lien" onclick="voir('dossier')">2 - VTE MARTIN / DURAND</div>
   <button type="button" onclick="voir('formalites')">Formalités préalables</button>
   <button type="button">Actes</button>
+  <!-- Pièces jointes (GED, étape 5) : l'arbre (selectTreeNode), la barre d'actions (Supprimer, jamais cliqué) et la visionneuse. -->
+  <button type="button" onclick="document.getElementById('ged').style.display = 'block'; document.getElementById('pageDossier').style.display = 'none'">Pièces jointes</button>
+  <div id="ged" style="display:none"><ul><li><span class="ui-treenode-label">Non classé (1)</span><ul><li><a class="lien" onclick="selectTreeNode(event, 'pj11', 'sd2')">Titre de propriété MARTIN.pdf</a></li></ul></li></ul>
+    <button type="button" onclick="window.__interdit = 'Supprimer (GED)'">Supprimer</button>
+    <iframe id="visionneuse" title="Aperçu" style="width:200px;height:80px"></iframe></div>
   <button type="button" onclick="window.__interdit = 'Nouveau dossier'">Nouveau dossier</button>
 </div>
 
@@ -98,9 +103,11 @@
   function voir(id) {
     document.querySelectorAll('.vue').forEach((v) => v.classList.remove('active'));
     document.getElementById(id).classList.add('active');
+    if (id === 'dossier') { document.getElementById('pageDossier').style.display = ''; document.getElementById('ged').style.display = 'none'; }
     document.getElementById('barre').style.display = id === 'connexion' || id === 'silicium' ? 'none' : 'flex';
   }
   window.__apercus = 0;
+  function selectTreeNode(e, pj) { document.getElementById('visionneuse').src = '/41089-Authentic/javax.faces.resource/dynamiccontent.properties.xhtml?ln=primefaces&elementId=' + pj; }
   function ouvrirApercu() { window.__apercus++; document.getElementById('sideView').style.display = 'block'; }
   function fermerApercu() { document.getElementById('sideView').style.display = 'none'; }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerApercu(); });
