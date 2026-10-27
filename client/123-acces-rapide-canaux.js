@@ -29,7 +29,7 @@ function majAccesRapideCanaux() {
   if (!zone) return;
   if (!utilisateurPoste || !canaux.charge) { zone.style.display = 'none'; zone.textContent = ''; zone.dataset.rendu = ''; return; }
   const surDiscussions = ecranAffiche('assistant');
-  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, propositionsClaire.liste.length);
+  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, propositionsClaire.liste.length + (messagesClaireEtat.nonLus || 0));
   const html = lignes.map((x) => {
     const actif = surDiscussions && (x.claire ? !canaux.actif : canaux.actif === x.id);
     // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.

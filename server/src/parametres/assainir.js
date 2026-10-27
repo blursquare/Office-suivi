@@ -233,12 +233,13 @@ function assainirPreference(brut) {
     const n = b.notifications;
     const sources = {};
     for (const cle of SOURCES_NOTIFICATIONS_PREFERENCE) if (n.sources && typeof n.sources[cle] === 'boolean') sources[cle] = n.sources[cle];
-    out.notifications = { pastille: n.pastille !== false, windows: n.windows !== false, apercu: n.apercu !== false, sources };
+    // `teams` : recevoir AUSSI sur Teams ce que CLAIRE vous écrit (étude 27/10 : « passer par le système de notification CLAIRE et plus par Teams » — éteint par défaut).
+    out.notifications = { pastille: n.pastille !== false, windows: n.windows !== false, apercu: n.apercu !== false, teams: n.teams === true, sources };
   }
   return out;
 }
 const MAX_DOSSIERS_CONSULTES_PREFERENCE = 10;
-const SOURCES_NOTIFICATIONS_PREFERENCE = ['messages', 'mentions', 'traiter', 'suivi', 'scans', 'taches', 'dates', 'reactions'];
+const SOURCES_NOTIFICATIONS_PREFERENCE = ['messages', 'mentions', 'traiter', 'suivi', 'scans', 'taches', 'dates', 'reactions', 'claire'];
 
 function assainirPreferences(brut) {
   const out = {};

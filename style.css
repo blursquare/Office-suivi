@@ -11342,6 +11342,19 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-travail textarea { width: 100%; font: inherit; font-size: var(--texte-m); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px; background: var(--paper-card); color: var(--ink); resize: vertical; }
 .pf-travail-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
 .pf-travail-etat { color: var(--muted); font-size: var(--texte-s); }
+.mc-fil { max-width: 720px; margin: 0 auto; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.mc-titre { margin: 0 0 8px; font-size: var(--texte-m); font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+.mc-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mc-message { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 8px; align-items: baseline; padding: 6px 8px; border-radius: var(--rayon-s); }
+.mc-message.mc-nouveau { background: var(--paper-sunk); }
+.mc-message.mc-nouveau .mc-court { font-weight: 600; }
+.mc-quand { color: var(--muted); font-size: var(--texte-xs); font-variant-numeric: tabular-nums; }
+.mc-corps { min-width: 0; display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.mc-court { margin: 0; font-size: var(--texte-m); }
+.mc-elements { margin: 2px 0 0; padding-left: 16px; font-size: var(--texte-s); color: var(--ink); }
+.mc-detail summary, .mc-plus summary { cursor: pointer; color: var(--muted); font-size: var(--texte-s); }
+.mc-detail p { margin: 4px 0 0; font-size: var(--texte-s); color: var(--muted); }
+.mc-plus { margin-top: 6px; }
 html.poste-claire #tab-reglages, html.poste-claire [data-onglet="reglages"] { display: none !important; }
 
 .pf-travaux { max-width: 720px; margin: 0 auto; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }

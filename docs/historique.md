@@ -22253,3 +22253,27 @@ reste maintenant visible barre repliée aussi : initiales (« # » pour Généra
 ### 0.368.0 (27/10, nouveauté) — travaux de CLAIRE en arrière-plan
 
 Étude : « Tu peux lui faire faire les tâches en arrière-plan ? » — choix : les travaux confiés (pas les tâches du jour d'elle-même). `server/src/travauxClaire.js` : file sur le serveur (clé `poste-claire-travaux`, 50 au plus, les plus anciens finis partent d'abord), traitée un travail à la fois par l'ordinateur virtuel ; `POST /api/poste-claire/travail` {consigne, demandeur} rend 202 aussitôt ; `GET /api/poste-claire/travaux?utilisateur=` (les siens, tous pour un administrateur) ; `DELETE …/travaux/:id` (en attente seulement, le sien ou administrateur). À la fin : compte rendu gardé avec le travail et proposition « À savoir » au nom du demandeur (« Travail terminé : … » / « Travail non terminé : … »). Un travail « en cours » au redémarrage du serveur est noté interrompu, jamais refait seul. Poste : `client/128-poste-claire.js` (`chargerTravauxClaire` relu toutes les 10 s tant qu'un travail attend ou tourne, `htmlTravauxClaire` « Ses travaux » sous le profil, compte rendu dépliable, « Annuler »). Tests : `server/test/poste-claire.test.js` (file, ordre, un seul à la fois, annulation, redémarrage, demandeur prévenu), `tests/fumee/poste-claire.mjs` (vrai Chromium : 202 tout de suite, compte rendu en arrière-plan). Limite : la consigne est gardée en clair sur le serveur du bureau avec le compte rendu (comme les conversations). Audit de nouveauté à faire avant publication.
+
+### 27/10/2026 — 0.369.0 : les notifications passent par CLAIRE, plus par Teams ; CLAIRE ajoute des contacts au Répertoire
+
+Étude : « Pas encore de message : le signal arrive comme une carte sur le poste du collaborateur… tu peux en faire un message de conversation » ;
+« Il faut qu'elle puisse ajouter des contacts au répertoire » ; « repenser toutes les notifications pour qu'elles soient intelligentes et pas trop
+massives. Aujourd'hui on en reçoit trop. Parfois trop longues. Passer par le système de notification CLAIRE et plus par Teams ».
+
+- `server/src/messagesClaire.js` (clé `claire-messages`) : une boîte par collaborateur. Règles qui allègent : version courte (première phrase,
+  160 caractères ; le reste en « Détail ») ; doublon (même clé ou même texte court dans les 12 h) ignoré ; regroupement (une sorte — pièces,
+  rappels, agenda, mentions, routines, signalements, factures — encore non lue depuis moins de 2 h reçoit le suivant : « Pièces trouvées (3) ») ;
+  200 messages et 30 jours au plus.
+- Aiguillage : `envoiEmail.definirAiguillageNotifications` posé par `index.js`. Tout envoi « Teams » (passerelle SMTP → Power Automate) vers
+  l'adresse d'un collaborateur des Réglages devient un message de CLAIRE ; la copie à l'étude va au premier administrateur ; une adresse de
+  personne = Teams comme avant. Préférence `notifications.teams` (Réglages › Notifications › « Recevoir aussi sur Teams », éteinte par défaut) :
+  message de CLAIRE ET Teams. `envoiConfigure` est vrai avec l'aiguillage dès que les rappels sont allumés (le SMTP n'est plus exigé). Un
+  envoi avec un transport injecté (tests, essai) n'est pas aiguillé.
+- Routes `GET /api/claire-messages?utilisateur=`, `POST /api/claire-messages/lus`, `POST /api/claire-messages` (pour soi seulement : arrivée
+  sur un dossier dans Authentic). Poste : `client/129-messages-claire.js` (relu toutes les 30 s ; « Ce que CLAIRE vous dit » sous son profil,
+  8 messages puis « plus anciens » ; lus à l'ouverture du profil) ; pastille de la ligne CLAIRE = propositions + messages non lus ; rubrique
+  « Messages de CLAIRE » des notifications ; carte du relais `type: 'claire'` (version courte, une fois par message — un groupe qui grossit
+  n'en redonne pas). `client/127` : la carte « vous ouvrez … » devient un message (clé `authentic:<dossier>:<jour>`).
+- Outil de l'agent `repertoire_ajouter` (carte « Autoriser ») : un organisme ou un professionnel, jamais un client ; contact existant complété
+  (`contact_id`, rien de perdu) ; code [NOM…] inconnu refusé ; `contactRepertoireDepuisAgent` (client/66). Source « Ajouté par CLAIRE ».
+- Points terrain `messages-claire-recus`, `repertoire-agent`. Tests `server/test/messages-claire.test.js`, `tests/canaux.test.js`.

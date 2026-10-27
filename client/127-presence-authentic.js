@@ -71,11 +71,9 @@ function verifierNudgeAuthentic() {
   ecrireLocal(CLE_NUDGES_AUTHENTIC + utilisateurPoste, JSON.stringify(nudges));
   if (!idees.length) return;
   try { noterVerificationPoste('presence-authentic', { detail: 'carte montrée' }); } catch (e) { /* rapport facultatif */ }
-  const prenom = typeof prenomPosteAssistant === 'function' ? prenomPosteAssistant() : '';
-  afficherToast(`${prenom ? prenom + ', ' : ''}vous ouvrez ${libelleDossierAffiche(d)} : ${idees.join(' ; ')}.`, 'Voir avec CLAIRE', () => {
-    ouvrirProfilClaire();
-    setTimeout(() => { assistantContexte.dossierId = d.id; if (typeof renderColonneAssistant === 'function') renderColonneAssistant(); }, 50);
-  });
+  // Un message de CLAIRE dans sa conversation (étude 27/10 : « tu peux en faire un message de conversation »), plus une carte à part ;
+  // la carte du relais vient de ce message, une fois.
+  deposerMessageClairePourMoi(`Vous ouvrez ${libelleDossierAffiche(d)} dans Authentic : ${idees.join(' ; ')}.`, { cle: 'authentic:' + d.id + ':' + auj, sorte: 'authentic', dossierId: d.id });
 }
 
 if (typeof window !== 'undefined' && typeof setInterval === 'function') setInterval(verifierNudgeAuthentic, INTERVALLE_NUDGE_AUTHENTIC_MS);

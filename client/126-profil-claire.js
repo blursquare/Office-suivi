@@ -43,7 +43,7 @@ function htmlAnticipationsClaire() {
 function htmlProfilClaire() {
   const s = statutProfilClaire(propositionsClaire.liste.length, assistantEnCours);
   return `<header class="pf-claire">${htmlAvatarProfilClaire(true)}<div class="pf-claire-id"><h2 class="pf-claire-nom">CLAIRE</h2>
-    <p class="pf-claire-role">Collègue de l’étude · assistante</p><p class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</p></div></header>${htmlTravailPosteClaire()}`;
+    <p class="pf-claire-role">Collègue de l’étude · assistante</p><p class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</p></div></header>${htmlMessagesClaire()}${htmlTravailPosteClaire()}`;
 }
 
 // Ouvre la conversation de CLAIRE depuis la barre latérale ou la liste des discussions.
@@ -53,6 +53,7 @@ function ouvrirProfilClaire() {
     if (typeof quitterCanal === 'function') quitterCanal();
     if (typeof renderAssistant === 'function') renderAssistant();
     if (typeof chargerTravauxClaire === 'function') chargerTravauxClaire();
+    if (typeof marquerMessagesClaireLus === 'function') marquerMessagesClaireLus();
     const champ = document.getElementById('assistant-saisie');
     if (champ) champ.focus();
   }, 0);

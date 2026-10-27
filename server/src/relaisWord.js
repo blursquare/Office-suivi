@@ -79,6 +79,7 @@ var NOTIFICATION_EXPIRE_MS = 120000;
 var POSTES_MAX = 100;
 /** @type {Record<string, [string, (n: number) => string]>} Rubrique → titre et texte de la bulle (rubrique et nombre, jamais un nom). */
 var TEXTES_NOTIFICATIONS = {
+  claire: ['CLAIRE', n => (n > 1 ? `${n} messages de CLAIRE` : 'Un message de CLAIRE')],
   messages: ['Discussions', n => `${n} nouveau${n > 1 ? 'x' : ''} message${n > 1 ? 's' : ''}`],
   mentions: ['Discussions', n => (n > 1 ? `On vous a cité ${n} fois` : 'On vous a cité')],
   traiter: ['Propositions de CLAIRE', n => `${n} proposition${n > 1 ? 's' : ''} à décider`],
@@ -188,7 +189,7 @@ function noterPastillePoste(etat, poste, corps, maintenant = Date.now(), riches,
     .map(x => ({ titre: TEXTES_NOTIFICATIONS[x.cle][0], texte: TEXTES_NOTIFICATIONS[x.cle][1](x.n), t: maintenant }));
   const cartes = (riches || []).slice(0, NOTIFICATIONS_MAX).map(x => Object.assign({}, x, { t: maintenant }));
   const couvertes = new Set();
-  for (const x of cartes) { if (x.type === 'message') { couvertes.add('Discussions'); } if (x.type === 'proposition') couvertes.add('Propositions de CLAIRE'); }
+  for (const x of cartes) { if (x.type === 'message') { couvertes.add('Discussions'); } if (x.type === 'proposition') couvertes.add('Propositions de CLAIRE'); if (x.type === 'claire') couvertes.add('CLAIRE'); }
   p.notifications = (p.notifications || []).filter(x => maintenant - x.t < NOTIFICATION_EXPIRE_MS)
     .concat(cartes, nouvelles.filter(x => !couvertes.has(x.titre))).slice(-NOTIFICATIONS_MAX);
   // « Ouvrir » / « Autoriser » demandés depuis une carte : faits par la fenêtre CLAIRE de ce poste, dans les 20 s (plus tard, plus de sens).

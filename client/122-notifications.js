@@ -11,6 +11,7 @@
 
 // Les rubriques comptées, dans l'ordre des Réglages. `defaut` : allumée tant que le collaborateur n'a rien réglé.
 var SOURCES_NOTIFICATIONS = [
+  { cle: 'claire', libelle: 'Messages de CLAIRE', aide: 'Ce que CLAIRE vous écrit dans sa conversation : rappels d’échéances, pièces trouvées, rendez-vous déplacés, mentions, ce qu’elle remarque quand vous ouvrez un dossier dans Authentic… (ce qui partait sur Teams). Regroupés et sans doublon.', defaut: true},
   { cle: 'messages', libelle: 'Messages non lus des discussions', aide: 'Les messages non lus des canaux de « Demander à CLAIRE », messages privés et réponses de CLAIRE compris (un canal mis en sourdine ne compte pas ; les propositions de CLAIRE comptent dans « À traiter »).', defaut: true},
   { cle: 'mentions', libelle: 'Mentions (@vous)', aide: 'Les messages où un collègue ou CLAIRE vous cite. Comptés seuls quand les messages non lus sont éteints.', defaut: true},
   { cle: 'traiter', libelle: 'Propositions de CLAIRE à traiter', aide: 'Ce que les routines de CLAIRE attendent de VOTRE décision (« À traiter »).', defaut: true},
@@ -31,7 +32,7 @@ var etatPastille = { envoye: -1, envoyeLe: 0, avant: null, avantDetails: null, d
 function reglagesNotificationsComplets(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   const sources = b.sources && typeof b.sources === 'object' ? b.sources : {};
-  const out = { pastille: b.pastille !== false, windows: b.windows !== false, apercu: b.apercu !== false, sources: {} };
+  const out = { pastille: b.pastille !== false, windows: b.windows !== false, apercu: b.apercu !== false, teams: b.teams === true, sources: {} };
   for (const s of SOURCES_NOTIFICATIONS) out.sources[s.cle] = typeof sources[s.cle] === 'boolean' ? sources[s.cle] : s.defaut;
   return out;
 }
@@ -94,6 +95,7 @@ function compteursNotifications(reglages) {
     messages: lire('messages', () => (canaux.liste || []).reduce((t, c) => t + (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? mentionsHorsCartes(c)
       : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0))), 0)),
     mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + mentionsHorsCartes(c), 0)),
+    claire: lire('claire', () => messagesClaireEtat.nonLus),
     traiter: lire('traiter', () => propositionsClaire.liste.length),
     suivi: lire('suivi', () => totalNotificationsPieces()),
     scans: lire('scans', () => nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif())),
@@ -116,13 +118,14 @@ function detailsNotifications() {
   } catch (e) { /* liste pas encore chargée */ }
   let propositions = [];
   try { propositions = propositionsClaire.liste.map(p => p.id).filter(id => typeof id === 'string'); } catch (e) { /* pas encore chargées */ }
-  return { canaux: canauxN, propositions };
+  const claire = (messagesClaireEtat.liste || []).filter(m => !m.lu).map(m => m.id + '@' + (m.maj || m.quand));
+  return { canaux: canauxN, propositions, claire };
 }
 
 /** Pure : les canaux dont le nombre de non-lus a monté et les propositions apparues, 3 de chaque au plus. */
 function elementsNouveaux(avant, apres, reglages) {
   const r = reglagesNotificationsComplets(reglages);
-  if (!r.windows || !avant) return { canaux: [], propositions: [] };
+  if (!r.windows || !avant) return { canaux: [], propositions: [], claire: [] };
   // Messages éteints, mentions allumées : seulement un canal dont les MENTIONS montent (relecture 25/10 : jamais la carte d'un message
   // qui ne vous cite pas).
   const cle = r.sources.messages ? 'n' : r.sources.mentions ? 'm' : '';
@@ -130,7 +133,11 @@ function elementsNouveaux(avant, apres, reglages) {
   const canauxMontes = cle ? Object.keys(apres.canaux).filter(id => valeur(apres, id) > valeur(avant, id)).slice(0, 3) : [];
   const vues = new Set(avant.propositions);
   const propositions = r.sources.traiter ? apres.propositions.filter(id => !vues.has(id)).slice(0, 3) : [];
-  return { canaux: canauxMontes, propositions };
+  // Un message de CLAIRE : sa carte une fois ; un groupe qui grossit (« Pièces trouvées (3) ») n'en redonne pas — la pastille suit
+  // (étude 27/10 : « on en reçoit trop »).
+  const vuesClaire = new Set((avant.claire || []).map(x => x.split('@')[0]));
+  const claire = r.sources.claire ? (apres.claire || []).filter(x => !vuesClaire.has(x.split('@')[0])).map(x => x.split('@')[0]).slice(0, 2) : [];
+  return { canaux: canauxMontes, propositions, claire };
 }
 
 // Gestes demandés depuis une carte du relais (le relais a mis la fenêtre CLAIRE devant ; le serveur ne les garde que 20 s). Fenêtre
@@ -189,10 +196,10 @@ async function tourPastille() {
   const pret = maintenant - etatPastille.demarreLe >= DELAI_PREMIERE_PASTILLE_MS;
   const regardee = fenetreClaireRegardee();
   const notifications = pret && !regardee ? nouveautesNotifications(etatPastille.avant, compteurs, reglages) : [];
-  const elements = pret && !regardee ? elementsNouveaux(etatPastille.avantDetails, details, reglages) : { canaux: [], propositions: [] };
+  const elements = pret && !regardee ? elementsNouveaux(etatPastille.avantDetails, details, reglages) : { canaux: [], propositions: [], claire: [] };
   // Fenêtre regardée : les compteurs du moment deviennent la référence (ce qu'on voit n'est pas une nouveauté à annoncer plus tard).
   // Un canal qui monte pendant qu'un autre est lu ne change pas le total : il a quand même sa carte (audit 25/10).
-  const aDire = notifications.length || elements.canaux.length || elements.propositions.length;
+  const aDire = notifications.length || elements.canaux.length || elements.propositions.length || elements.claire.length;
   if (pret && !aDire) { etatPastille.avant = compteurs; etatPastille.avantDetails = details; }
   // Un relais attend peut-être un « Ouvrir » : la fenêtre redevenue visible demande tout de suite (voir demarrerPastille).
   if (total === etatPastille.envoye && !aDire && !etatPastille.forcer && maintenant - etatPastille.envoyeLe < RAPPEL_PASTILLE_MS) return;
@@ -231,7 +238,7 @@ function oublierPastilleCollaborateur() {
 
 function enregistrerReglagesNotifications(modif) {
   const r = lireReglagesNotifications();
-  const suivant = { pastille: r.pastille, windows: r.windows, apercu: r.apercu, sources: Object.assign({}, r.sources) };
+  const suivant = { pastille: r.pastille, windows: r.windows, apercu: r.apercu, teams: r.teams, sources: Object.assign({}, r.sources) };
   if (modif.source) suivant.sources[modif.source] = !!modif.valeur;
   else if (modif.cle) suivant[modif.cle] = !!modif.valeur;
   reglagesNotifications = suivant;
@@ -268,6 +275,10 @@ async function renderReglagesNotifications() {
         <label class="reglages-option" for="notif-apercu">
           <span class="reglages-option-texte"><span class="reglages-option-titre">Montrer le texte des messages ${infoBulle('Allumé : la notification montre le canal, l’auteur et le début du message (ou le titre d’une proposition de CLAIRE), et l’on peut répondre, réagir par un emoji, autoriser ou refuser une proposition sans quitter son travail — comme Teams ; la réponse part dans le fil du message ; « Autoriser » ouvre son geste dans CLAIRE (un email ne part qu’après « Envoyer »). CLAIRE ne répond pas à une réponse tapée dans la notification : pour lui demander quelque chose, ouvrez CLAIRE. Les noms des dossiers s’affichent en bas de l’écran. Éteint : seulement la rubrique et le nombre.')}</span></span>
           ${interrupteur('notif-apercu', r.apercu, "enregistrerReglagesNotifications({ cle: 'apercu', valeur: this.checked })", r.windows)}
+        </label>
+        <label class="reglages-option" for="notif-teams">
+          <span class="reglages-option-texte"><span class="reglages-option-titre">Recevoir aussi sur Teams ${infoBulle('Éteint (par défaut) : rappels, pièces trouvées, rendez-vous déplacés, mentions… arrivent seulement dans la conversation de CLAIRE, regroupés et sans doublon. Allumé : ils partent aussi sur Teams, comme avant.')}</span></span>
+          ${interrupteur('notif-teams', r.teams, "enregistrerReglagesNotifications({ cle: 'teams', valeur: this.checked })")}
         </label>
       </div>
     </div>

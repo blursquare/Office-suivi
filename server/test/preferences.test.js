@@ -97,6 +97,6 @@ test('derniers dossiers ouverts : gardés par collaborateur, identifiant et heur
 
 test('assainirPreferences : réglages des notifications — interrupteurs des rubriques connues seulement', () => {
   const p = assainirPreferences({ 'Julie VASSELIN': { notifications: { pastille: false, windows: 'non', sources: { scans: true, messages: false, inconnue: true, suivi: 'oui' } } } });
-  assert.equal(JSON.stringify(p['Julie VASSELIN'].notifications), JSON.stringify({ pastille: false, windows: true, apercu: true, sources: { messages: false, scans: true } }));
+  assert.equal(JSON.stringify(p['Julie VASSELIN'].notifications), JSON.stringify({ pastille: false, windows: true, apercu: true, teams: false, sources: { messages: false, scans: true } }));
   assert.equal(assainirPreferences({ X: { notifications: [1] } }).X, undefined);
 });

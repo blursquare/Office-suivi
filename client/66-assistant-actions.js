@@ -358,6 +358,53 @@
     return ok ? { fait: true, message: 'écrit dans la conversation personnelle avec ' + prenomCollaborateur(collaborateur) + '; tu ne vois pas sa réponse', ...(avecTache ? { tache: tache ? 'ajoutée à son « À faire »' : 'non enregistrée' } : {}) } : { erreur: 'message non posé' };
   }
 
+  // Pure : le contact du Répertoire que l'agent propose (étude 27/10 : « qu'elle puisse ajouter des contacts au répertoire »). `existant` :
+  // le contact à compléter — ce que l'agent laisse vide y est gardé, les listes sont réunies. Rend { contact } ou { erreur }.
+  function contactRepertoireDepuisAgent(e, existant, maintenant) {
+    const t = (v, max) => String(v || '').replace(/\s+/g, ' ').trim().slice(0, max);
+    const l = (v) => (Array.isArray(v) ? v : []).map(x => t(x, 160)).filter(Boolean);
+    const valeurs = [e.organisme, e.service, e.adresse, e.notes].concat(l(e.personnes), l(e.telephones), l(e.emails)).join(' ');
+    if (/\[à compléter\]/.test(valeurs)) return { erreur: 'un nom ou une coordonnée cite un code inconnu : ne mets au répertoire que ce que l’utilisateur ou un document a donné en clair' };
+    const emailFaux = l(e.emails).find(x => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+    if (emailFaux) return { erreur: 'email non valide : ' + emailFaux };
+    const base = existant || { id: 'claire-' + Number(maintenant).toString(36) + Math.random().toString(36).slice(2, 5), source: 'Ajouté par CLAIRE' };
+    const unir = (a, b) => [...new Set((a || []).concat(b))];
+    const contact = Object.assign({}, base, {
+      theme: e.theme || base.theme || 'divers',
+      organisme: t(e.organisme, 140) || base.organisme || '', service: t(e.service, 160) || base.service || '',
+      personnes: unir(base.personnes, l(e.personnes)), adresse: t(e.adresse, 240) || base.adresse || '',
+      telephones: unir(base.telephones, l(e.telephones)), emails: unir(base.emails, l(e.emails)),
+      notes: t(e.notes, 400) || base.notes || ''
+    });
+    if (!contact.organisme && !contact.personnes.length) return { erreur: 'organisme = le nom de l’organisme ou du cabinet' };
+    return { contact };
+  }
+
+  async function ajouterContactRepertoireAgent(entree) {
+    const e = entree || {};
+    if (!repertoireContacts.length) await chargerRepertoire();
+    const existant = e.contact_id ? repertoireContacts.find(c => c.id === e.contact_id) : null;
+    if (e.contact_id && !existant) return { erreur: 'contact_id inconnu : relis le répertoire (outil_claire repertoire, mode lire)' };
+    const r = contactRepertoireDepuisAgent(e, existant, Date.now());
+    if (r.erreur) return { erreur: r.erreur };
+    const c = r.contact;
+    const coord = [c.adresse, ...c.telephones, ...c.emails].filter(Boolean).join(' · ');
+    const theme = (repertoireThemes.find(x => x.cle === c.theme) || {}).libelle || c.theme;
+    if (!(await demanderAutorisationAgent(`${existant ? 'Compléter' : 'Ajouter au Répertoire'} « ${c.organisme || c.personnes[0]} »${c.service ? ' — ' + c.service : ''} (${theme})${coord ? ' : ' + coord : ''}`))) {
+      return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    }
+    try {
+      const rep = await fetchAvecAuth('/api/repertoire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contact: c }) });
+      const j = await rep.json().catch(() => ({}));
+      if (!rep.ok) return { erreur: j.erreur || 'enregistrement refusé' };
+      repertoireContacts = j.contacts || repertoireContacts;
+      if (ecranAffiche('confreres') && typeof renderCarnetConfreres === 'function') renderCarnetConfreres();
+      noterVerificationPoste('repertoire-agent', { detail: existant ? 'contact complété' : 'contact ajouté' });
+      afficherToast(`${existant ? 'Contact complété' : 'Contact ajouté'} au Répertoire : ${c.organisme || c.personnes[0]}.`, 'OK', null);
+      return { fait: true, statut: 'fait', contact_id: c.id };
+    } catch (err) { return { erreur: 'serveur injoignable' }; }
+  }
+
   // La tâche posée dans la liste du collaborateur, puis (si ce n'est pas soi) le message Teams. Voie unique de « Demander à CLAIRE » et du
   // formulaire « Ajouter une tâche » (étude 22/10 : assigner une tâche à un collaborateur). `e` : { texte, date, dossier_id }.
   async function envoyerDemandeCollaborateur(rappel, collaborateur, e, d) {

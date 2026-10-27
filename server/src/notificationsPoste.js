@@ -16,6 +16,7 @@ const { accessible } = require('./canaux/extensions');
 const { COLLABORATEURS_ABSENCE } = require('./agendaOffice');
 const { clePoste } = require('./appels3cx');
 const { libelleDossierAffiche } = require('../../commun/dossier');
+const { messagesDe } = require('./messagesClaire');
 const { lirePropositions, ecrirePropositions, decider, estReportee } = require('./routines/propositions');
 const { synchroniserEtatCartes } = require('./canaux/etatCartes');
 const { assainirPhotos } = require('./routes/photosCollaborateurs');
@@ -66,7 +67,7 @@ const prenom = (/** @type {string} */ nom) => String(nom || '').split(/\s+/)[0];
 /**
  * Les cartes du relais pour ces canaux et ces propositions nouveaux. Un canal illisible pour ce collaborateur, un message de lui-même,
  * une proposition qui n'est pas la sienne : rien.
- * @param {{ repo: any, depot?: any, collab: string, canaux?: unknown, propositions?: unknown }} o
+ * @param {{ repo: any, depot?: any, collab: string, canaux?: unknown, propositions?: unknown, claire?: unknown }} o
  * @returns {{ type: string, titre: string, texte: string, contexte: string, auteur: string, heure: string, canal?: string, mid?: string, parent?: string, id?: string, photo?: string }[]}
  */
 function notificationsRiches(o) {
@@ -88,6 +89,15 @@ function notificationsRiches(o) {
     sortie.push({ type: 'message', canal, mid: m.claire ? '' : m.id, parent: m.parent || m.id, titre: nomCanal(o.repo, o.depot, canal), auteur, heure: heureDe(m.quand), contexte: m.parent ? 'Dans un fil' : '',
       photo: m.claire ? '' : photoDe(m.auteur),
       texte: (m.texte ? ligne(m.texte, LONGUEUR_APERCU) : ligne(m.html, LONGUEUR_APERCU, true)) || (m.pj && m.pj.length ? 'Fichier joint' : '') });
+  }
+  // Les messages de CLAIRE à ce collaborateur (messagesClaire.js) : leur version courte, sans bouton (la carte ouvre sa conversation).
+  if (ids(o.claire).length) {
+    const siens = messagesDe(o.repo, o.collab);
+    for (const id of ids(o.claire)) {
+      const m = siens.find((x) => x.id === id);
+      if (!m || m.lu) continue;
+      sortie.push({ type: 'claire', canal: '@traiter', titre: 'CLAIRE', auteur: 'CLAIRE', heure: heureDe(m.maj || m.quand), contexte: '', texte: ligne(m.court, 160) });
+    }
   }
   if (ids(o.propositions).length) {
     const toutes = lirePropositions(o.repo);

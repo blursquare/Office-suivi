@@ -245,6 +245,8 @@ function demarrer() {
     config,
     miseAJour: { redemarrer: () => redemarrerApresMiseAJour(serveur, db) }
   });
+  // Ce qui partait sur Teams arrive dans les messages de CLAIRE (étude 27/10 ; Réglages › Notifications : « aussi sur Teams » par personne).
+  require('./envoiEmail').definirAiguillageNotifications(require('./messagesClaire').creerAiguillageNotifications(parametresRepo, ['Bastien ANGLUMENT', 'Sophie GOSSART']));
 
   // Surveillance périodique du NAS (nouveaux documents, voir nasWatch.js) : silencieuse si
   // `nasRacine` n'est pas configurée (comme le reste des fonctionnalités liées au NAS), et sans

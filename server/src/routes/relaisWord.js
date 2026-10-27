@@ -139,7 +139,7 @@ function creerRouteurRelaisWord(parametresRepo, etat, options = {}) {
     const el = corps.elements && typeof corps.elements === 'object' ? corps.elements : {};
     let riches = [];
     if (collab && corps.apercu !== false) {
-      try { riches = N.notificationsRiches({ repo: parametresRepo, depot: options.depot, collab, canaux: el.canaux, propositions: el.propositions }); }
+      try { riches = N.notificationsRiches({ repo: parametresRepo, depot: options.depot, collab, canaux: el.canaux, propositions: el.propositions, claire: el.claire }); }
       catch (e) { console.warn('[CLAIRE] Cartes du relais non écrites :', e && e.message); }   // jamais un texte de message au journal
     }
     res.json(noterPastillePoste(etat, poste, corps, Date.now(), riches, adresseRequete(req)));

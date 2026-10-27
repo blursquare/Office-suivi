@@ -36,9 +36,16 @@ const TIMEOUT_MS = 20 * 1000;
 
 // Source de vérité unique pour « l'envoi est-il configuré ? », partagée par le job de rappels, la
 // route de notification de pièces et la route de test — trois endroits qui doivent rester d'accord.
+// L'aiguillage vers les messages de CLAIRE (messagesClaire.js, étude 27/10 : « plus par Teams ») : posé au démarrage du serveur (index.js),
+// absent dans les tests. Il rend un résultat (déposé chez CLAIRE, rien ne part) ou null (partir sur Teams comme avant).
+let aiguillage = null;
+/** @param {any} fn */
+function definirAiguillageNotifications(fn) { aiguillage = typeof fn === 'function' ? fn : null; }
+
 function envoiConfigure(reglages) {
   const r = reglages || {};
-  return !!(r.emailActif && r.smtpHote && r.emailPasserelle);
+  // Avec l'aiguillage vers CLAIRE, il suffit que les rappels soient allumés : rien ne passe par le SMTP.
+  return !!(r.emailActif && (aiguillage || (r.smtpHote && r.emailPasserelle)));
 }
 
 function optionsTransport(reglages) {
@@ -70,6 +77,9 @@ function optionsTransport(reglages) {
 // La version texte garde l'adresse en clair : c'est elle qu'un client de messagerie sans HTML, ou
 // un flux qui lirait le corps en texte, présenterait.
 async function envoyerEmail(reglages, destinataireEmail, message, creerTransportFn) {
+  if (aiguillage && !creerTransportFn) {
+    try { const r = aiguillage(reglages, destinataireEmail, message); if (r) return r; } catch (e) { /* jamais bloquant : Teams comme avant */ }
+  }
   const r = reglages || {};
   const corps = typeof message === 'string' ? { texte: message, html: null } : (message || {});
   const texte = corps.texte || '';
@@ -117,4 +127,4 @@ function memeAdresseEmail(a, b) {
   return na !== '' && na === adresseNormalisee(b);
 }
 
-module.exports = { envoyerEmail, envoiConfigure, optionsTransport, memeAdresseEmail };
+module.exports = { envoyerEmail, envoiConfigure, optionsTransport, memeAdresseEmail, definirAiguillageNotifications };

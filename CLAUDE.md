@@ -232,6 +232,11 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    SMTP Gmail + mot de passe d'application → boîte-passerelle (Objet = adresse du destinataire) →
    flux Power Automate → Teams. La copie gardée par Gmail est effacée **2 h après** (le flux relève
    la boîte Gmail elle-même : l'effacer tout de suite l'empêcherait de passer).
+   **Depuis 0.369.0 (étude 27/10 : « passer par le système de notification CLAIRE et plus par Teams », « on en reçoit trop, parfois trop
+   longues »), ces envois arrivent d'abord dans la conversation de CLAIRE** (`server/src/messagesClaire.js`, aiguillage posé par `index.js` dans
+   `envoyerEmail`) : court (une phrase), jamais deux fois en 12 h, regroupé par sorte tant que non lu (2 h) ; Teams seulement pour qui allume
+   « Recevoir aussi sur Teams » (Réglages › Notifications) ou pour une adresse qui n'est celle d'aucun collaborateur. **Toute nouvelle
+   notification passe par `envoyerEmail` (aiguillée) ou par `deposerMessageClaire`, jamais par un transport à part.**
 5. **Agenda de l'office** (Exchange 2019 de Fichorga, `mail.authentic-connect.fr`), tout par EWS en
    NTLMv2 (`httpntlm`) sur le **calendrier partagé de Sophie** : **lecture** toutes les 2 min (étude, 30/09)
    (`lireCalendrierExchange`, FindItem en vue calendrier, 6 mois en 3 tranches ; envois relevés,

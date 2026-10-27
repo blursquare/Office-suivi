@@ -229,3 +229,37 @@ test('travaux de CLAIRE en arrière-plan : libellé de chaque état', () => {
   const app = chargerApplication();
   assert.equal(['attente', 'en-cours', 'fini', 'erreur', 'annule'].map(e => app.libelleEtatTravailClaire({ etat: e })).join('|'), 'En attente|En cours…|Fait|Non terminé|Annulé');
 });
+
+test('messages de CLAIRE : non-lus et récents d’abord, 8 montrés ; heure selon l’âge', () => {
+  const app = chargerApplication();
+  const liste = Array.from({ length: 10 }, (_, i) => ({ id: 'm' + i, quand: 1000 + i, maj: 1000 + i, court: 'x' }));
+  const r = app.messagesClaireAMontrer(liste, 8);
+  assert.equal(r.montres.length, 8); assert.equal(r.reste, 2); assert.equal(r.montres[0].id, 'm9');
+  const maintenant = new Date(2026, 9, 27, 15, 0).getTime();
+  assert.equal(app.quandMessageClaire(new Date(2026, 9, 27, 9, 42).getTime(), maintenant), '09:42');
+  assert.equal(app.quandMessageClaire(new Date(2026, 9, 26, 17, 5).getTime(), maintenant), 'hier 17:05');
+});
+
+test('notifications : rubrique « Messages de CLAIRE » allumée par défaut, Teams éteint ; un message de CLAIRE a sa carte une fois', () => {
+  const app = chargerApplication();
+  const r = app.reglagesNotificationsComplets({});
+  assert.equal(r.sources.claire, true); assert.equal(r.teams, false);
+  assert.equal(app.reglagesNotificationsComplets({ teams: true }).teams, true);
+  const avant = { canaux: {}, propositions: [], claire: ['a@1'] };
+  const apres = { canaux: {}, propositions: [], claire: ['a@2', 'b@3'] };
+  assert.equal(app.elementsNouveaux(avant, apres, {}).claire.join(','), 'b', 'un groupe qui grossit ne redonne pas de carte');
+  assert.equal(app.elementsNouveaux(avant, apres, { sources: { claire: false } }).claire.length, 0);
+});
+
+test('CLAIRE ajoute un contact au Répertoire : organisme exigé, code inconnu refusé, contact existant complété sans rien perdre', () => {
+  const app = chargerApplication();
+  const vide = { contact_id: '', theme: 'syndics', organisme: '', service: '', personnes: [], adresse: '', telephones: [], emails: [], notes: '' };
+  assert.ok(app.contactRepertoireDepuisAgent(vide, null, 1).erreur);
+  assert.ok(app.contactRepertoireDepuisAgent(Object.assign({}, vide, { organisme: 'Cabinet [à compléter]' }), null, 1).erreur);
+  assert.ok(app.contactRepertoireDepuisAgent(Object.assign({}, vide, { organisme: 'Syndic Exemple', emails: ['pas-un-email'] }), null, 1).erreur);
+  const n = app.contactRepertoireDepuisAgent(Object.assign({}, vide, { organisme: 'Syndic Exemple', emails: ['contact@syndic-exemple.fr'] }), null, 1).contact;
+  assert.equal(n.theme, 'syndics'); assert.equal(n.source, 'Ajouté par CLAIRE'); assert.match(n.id, /^claire-/);
+  const existant = { id: 'c1', theme: 'syndics', organisme: 'Syndic Exemple', adresse: '1 rue Inventée', telephones: ['02 00 00 00 00'], emails: [], personnes: [] };
+  const c = app.contactRepertoireDepuisAgent(Object.assign({}, vide, { contact_id: 'c1', emails: ['contact@syndic-exemple.fr'] }), existant, 1).contact;
+  assert.equal(c.id, 'c1'); assert.equal(c.adresse, '1 rue Inventée'); assert.equal(c.telephones.join(), '02 00 00 00 00'); assert.equal(c.emails.join(), 'contact@syndic-exemple.fr');
+});
