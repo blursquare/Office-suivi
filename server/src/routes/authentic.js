@@ -324,7 +324,7 @@ function creerRouteurAuthentic(options) {
     res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
   });
   // Le statut du sous-dossier de chaque dossier (étape 3 : « Préparation définitive », « Signé », « Sans suite »…) pour le Suivi : lu sur la
-  // page du dossier gardée, 60 s en mémoire (le Suivi le demande à chaque rendu au plus une fois par minute).
+  // page du dossier gardée, 60 s en mémoire (chaque poste le relit toutes les 5 minutes).
   let statutsCache = { t: 0, valeur: /** @type {Record<string, any>} */ ({}) };
   routeur.get('/authentic/statuts', (req, res) => {
     res.setHeader('Cache-Control', 'no-store');

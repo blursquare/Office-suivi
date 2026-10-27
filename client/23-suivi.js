@@ -518,6 +518,7 @@
   }
   function noterDossierConsulte(id) {
     if (!id) return;
+    if (typeof noterSansSuiteVuAT === 'function') noterSansSuiteVuAT(id);
     dossiersConsultesCollaborateur = ajouterDossierConsulte(lireDossiersConsultes(), id, new Date().toISOString());
     enregistrerPreferenceCollaborateur({ dossiersConsultes: dossiersConsultesCollaborateur });
   }

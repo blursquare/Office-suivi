@@ -29,3 +29,14 @@ test('Suivi : un sous-dossier « Sans suite » dans Authentic est signalé, jama
   app.statutsAuthenticAT.v1 = { statut: 'Signé', le: '2026-10-20' };
   assert.ok(!app.signauxDossierSuivi(d).some((s) => s.cle === 'authentic-sans-suite'));
 });
+
+test('audit 0.377.0 : « Sans suite » sort de « Nouveau » une fois la fiche ouverte, revient si la date du badge change', () => {
+  const app = chargerApplication();
+  app.statutsAuthenticAT.v2 = { statut: 'Sans suite', le: '2026-10-20' };
+  const d = { id: 'v2', nom: 'ESSAI', pieces: {}, parties: [], historique: [] };
+  assert.ok(app.signauxDossierSuivi(d).some((s) => s.cle === 'authentic-sans-suite'));
+  app.noterSansSuiteVuAT('v2');
+  assert.ok(!app.signauxDossierSuivi(d).some((s) => s.cle === 'authentic-sans-suite'), 'vu');
+  app.statutsAuthenticAT.v2 = { statut: 'Sans suite', le: '2026-11-02' };
+  assert.ok(app.signauxDossierSuivi(d).some((s) => s.cle === 'authentic-sans-suite'), 'nouvelle date : de nouveau signalé');
+});

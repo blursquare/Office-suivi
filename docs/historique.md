@@ -22723,3 +22723,6 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   `pagesDossierDeTous`, 60 s en mémoire) → signal « Sans suite dans Authentic : à archiver ? » dans « Nouveau » du Suivi
   (`signauxDossierSuivi`), jamais d'archivage d'office. La rédaction, les pièces (ECV « positif », RHF, SAFER) restent alimentées par la
   lecture du poste d'avant (client/30) ; le modèle les montre. Non vérifié sur une vraie page d'Authentic.
+- **0.377.1** — Suites de l'audit 0.377.0 (`docs/audits/2026-10-27-0.377.0.md`) : « Sans suite » vu à l'ouverture de la fiche
+  (`noterSansSuiteVuAT` depuis `noterDossierConsulte`, localStorage du poste), point terrain `authentic-sous-dossier`, `pagesDossierDeTous`
+  limité à la clé « dossier » des dossiers en cours, casier lu avant l'état civil, décisions rendues ancrées.

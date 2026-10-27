@@ -46,6 +46,8 @@
     const tete = /^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)(?![A-Za-z0-9])/.exec(String(libelle || ''));
     if (tete) return /** @type {BadgeAT} */ (tete[1]);
     const t = plat(libelle + ' ' + groupe);
+    // Le libellé d'abord : un casier rangé dans un tableau « Etat civil » reste un casier (audit 0.377.0).
+    if (/casier|cjn/.test(plat(libelle))) return 'CJN';
     if (/etat[- ]civil|comedec/.test(t)) return 'ECV';
     if (/casier|cjn/.test(t)) return 'CJN';
     if (/micen|^copie (simple|authentique)/.test(plat(libelle)) || /micen/.test(plat(groupe))) return 'MIC';
@@ -237,7 +239,7 @@
       statutSousDossier: sd.statut ? { statut: sd.statut, le: sd.statutLe } : null,
       acte: acte ? { libelle: acte.libelle, etat: acte.statut, dates: acte.dates, signeLe: acte.signeLe || '' } : null,
       // En attente : ni reçue, ni revenue, ni décidée (une réponse négative ou une non-préemption est une décision rendue).
-      enAttente: sd.formalitesPrealables.filter((f) => !/positi|negati|re[çc]u|retour le|termin|sign|preemption|refus|decision/i.test(plat(f.statut))).length
+      enAttente: sd.formalitesPrealables.filter((f) => !/positi|negati|re[çc]u|retour le|termin|sign|non[- ]preemption|refus|decision (rendue|du)/i.test(plat(f.statut))).length
     };
   }
 

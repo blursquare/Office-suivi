@@ -90,7 +90,8 @@ function creerPagesAuthentic(db, options = {}) {
   const compter = db.prepare('SELECT cle FROM authentic_pages WHERE dossier_id = ? ORDER BY recue_le DESC');
   const retirer = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ? AND cle = ?');
   const retirerDossier = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ?');
-  const pagesDossierTous = db.prepare("SELECT dossier_id, recue_le, capture FROM authentic_pages WHERE nature = 'dossier'");
+  // La page du dossier (clé « dossier ») des dossiers en cours seulement (audit 0.377.0).
+  const pagesDossierTous = db.prepare("SELECT dossier_id, recue_le, capture FROM authentic_pages WHERE cle = 'dossier' AND dossier_id IN (SELECT id FROM dossiers WHERE archive = 0 AND deleted_at IS NULL)");
   return {
     /** Garde la page pour ce dossier (la plus récente de chaque clé ; les plus anciennes au-delà de 40 sont retirées). */
     garder(dossierId, releve) {

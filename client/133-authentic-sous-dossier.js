@@ -5,13 +5,13 @@
 // Dossier. Le Suivi signale un dossier « Sans suite » dans Authentic (GET /api/authentic/statuts). Rien n'est écrit sur la fiche ni dans
 // Authentic : c'est une lecture de ce qu'Authentic montre, à jour à la dernière page relevée.
 
-var instantanesAuthenticAT = {};   // dossierId → { t, inst, fiche, enCours }
+var instantanesAuthenticAT = {};   // dossierId → { t, inst, enCours }
 var statutsAuthenticAT = {};       // dossierId → { statut, le, luLe }
 var DUREE_INSTANTANE_AT_MS = 60 * 1000;
 var LIBELLES_BADGES_AT = { APR: 'Acte préparatoire', ECV: 'État civil', 'T@': 'Télé@ctes', ACT: 'Acte', MIC: 'Copie MICEN', SPR: 'Publicité foncière', BRI: 'Références immobilières', CJN: 'Casier judiciaire' };
 
 async function chargerInstantaneAuthenticAT(id) {
-  const e = instantanesAuthenticAT[id] || (instantanesAuthenticAT[id] = { t: 0, inst: null, fiche: null, enCours: false });
+  const e = instantanesAuthenticAT[id] || (instantanesAuthenticAT[id] = { t: 0, inst: null, enCours: false });
   if (e.enCours || typeof fetchAvecAuth !== 'function') return;
   e.enCours = true;
   try {
@@ -20,7 +20,6 @@ async function chargerInstantaneAuthenticAT(id) {
     const j = await r.json();
     const avant = JSON.stringify(e.inst);
     e.inst = j.instantane || null;
-    e.fiche = j.fiche || null;
     // Redessiné seulement si quelque chose a changé (jamais de boucle de rendu).
     if (JSON.stringify(e.inst) !== avant) render();
   } catch (err) { /* serveur injoignable : relu au prochain rendu */ } finally { e.t = Date.now(); e.enCours = false; }
@@ -60,13 +59,25 @@ function htmlSousDossierAT(d) {
   const groupes = [['Formalités préalables', sd.formalitesPrealables], ['Actes', sd.actes], ['Formalités postérieures', sd.formalitesPosterieures]]
     .filter(([, l]) => (l || []).length)
     .map(([t, l]) => `<div class="at-groupe"><div class="at-groupe-titre">${escapeHtml(t)}<span class="pa-compte">${l.length}</span></div><ul class="at-liste">${l.map(htmlLigneFormaliteAT).join('')}</ul></div>`).join('');
-  const lu = e.inst.luLe ? `Lu le ${formatDateFr(String(e.inst.luLe).slice(0, 10))}` : '';
+  const lu = /^\d{4}-\d{2}-\d{2}/.test(String(e.inst.luLe || '')) ? `Lu le ${formatDateFr(String(e.inst.luLe).slice(0, 10))}` : '';
   return `<div class="at-sous-dossier">
     <div class="at-tete"><span class="at-intitule">${escapeHtml(sd.intitule || 'Sous-dossier')}</span>
       ${sd.statut ? `<span class="dot-label ${classeStatutSousDossierAT(sd.statut)}"><span class="dot"></span>${escapeHtml(sd.statut)}${sd.statutLe ? ` · ${escapeHtml(formatDateFr(sd.statutLe))}` : ''}</span>` : ''}
       ${infoBulle('Ce que montre le sous-dossier dans Authentic, à la dernière page relevée' + (lu ? ` (${lu.toLowerCase()})` : '') + ' : rien n’est écrit dans Authentic ni sur la fiche.')}</div>
     ${groupes || '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
   </div>`;
+}
+
+// « Sans suite » vu par ce poste : la date du badge, retenue à l'ouverture de la fiche (le signal du Suivi en sort, audit 0.377.0).
+var CLE_SANS_SUITE_VUS_AT = 'claire-authentic-sans-suite-vus';
+function lireSansSuiteVusAT() { try { return JSON.parse(localStorage.getItem(CLE_SANS_SUITE_VUS_AT) || '{}') || {}; } catch (e) { return {}; } }
+function sansSuiteVuAT(id, le) { return lireSansSuiteVusAT()[id] === String(le || ''); }
+function noterSansSuiteVuAT(id) {
+  const st = statutsAuthenticAT[id];
+  if (!st || st.statut !== 'Sans suite') return;
+  const vus = lireSansSuiteVusAT();
+  vus[id] = String(st.le || '');
+  ecrireLocal(CLE_SANS_SUITE_VUS_AT, JSON.stringify(vus));
 }
 
 if (typeof window !== 'undefined' && typeof setInterval === 'function') {
