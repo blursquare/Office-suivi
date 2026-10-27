@@ -828,14 +828,17 @@
     noterEnvoiDansAgenda(id, true);
   }
 
-  // `jours` : 1 (demain, par défaut) ou 7 (dans une semaine) — menu « ⋯ » du widget (étude 23/10).
-  function reporterActionJour(cle, jours) {
-    const n = jours === 7 ? 7 : 1;
+  // `quand` : 1 (demain, par défaut), 7 (dans une semaine) ou une date AAAA-MM-JJ choisie (étude 26/10 : « il y en a trop par jour, pouvoir
+  // les repousser à une date ultérieure pour ne plus les voir sur les tâches du jour ») — menu « ⋯ » du widget et horloge de chaque ligne.
+  function reporterActionJour(cle, quand) {
+    const auj = isoAujourdhuiLocal();
+    const choisie = typeof quand === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(quand) && quand > auj ? quand : '';
+    const n = quand === 7 ? 7 : 1;
     const a = trouverActionJour(cle);
     const etat = lireEtatJour();
-    etat.reports[cle] = addDays(isoAujourdhuiLocal(), n);
+    etat.reports[cle] = choisie || addDays(auj, n);
     ecrireEtatJour(etat);
-    const libelle = n === 7 ? 'Reporté d’une semaine' : 'Reporté à demain';
+    const libelle = choisie ? `Reporté au ${formatDateFr(choisie)}` : n === 7 ? 'Reporté d’une semaine' : 'Reporté à demain';
     if (a) noterTraite(a, libelle);
     apercusJour.delete(cle);
     if (typeof fermerMenusTaches === 'function') fermerMenusTaches();
@@ -1236,7 +1239,7 @@
       caseRonde: dansFiche ? null : { onclick: `marquerFaitJour('${cle}')`, libelle: 'Fait — valider à la main' },
       secondaires: `${dansFiche ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-fait-manuel" onclick="marquerFaitJour('${cle}')" title="Déjà fait — valider à la main" aria-label="Marquer comme déjà fait">${icone('check')}</wa-button>` : ''}
           ${avecDossier ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-ouvrir-fiche" data-ouvrir-dossier="${escapeAttr(a.dossier.id)}" title="Ouvrir la fiche du dossier" aria-label="Ouvrir la fiche de ${escapeAttr(libelleDossierAffiche(a.dossier))}">${icone('file-text')}</wa-button>` : ''}
-          <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="reporterActionJour('${cle}')" title="Plus tard (demain)" aria-label="Reporter à demain">${icone('clock')}</wa-button>`,
+          ${renderMenuReport(cle)}`,
       apercu: a.cle,
       detail: `<p>${escapeHtml(a.contexte)}</p>
             ${renderBrouillonEmail(brouillon)}

@@ -81,9 +81,9 @@ try {
     // Accès rapide aux discussions dans la barre latérale (étude 26/10) : CLAIRE (sa conversation), Général + un message privé par collègue (Julie : Bastien, Jérémy, Sophie).
     await page.waitForFunction(() => document.querySelectorAll('#sidebar-acces-canaux .sb-canal').length === 5, null, { timeout: 10000 }).catch(() => {});
     const acces = await page.evaluate(() => ({ noms: [...document.querySelectorAll('#sidebar-acces-canaux .sb-canal-nom')].map(e => e.textContent).join(','), visible: getComputedStyle(document.getElementById('sidebar-acces-canaux')).display !== 'none' }));
-    verifier(acces.noms === 'CLAIRE,Général,Bastien,Jérémy,Sophie' && (acces.visible || ecran.nom !== 'bureau'), `[${ecran.nom}] barre latérale : accès rapide (${acces.noms})`);
+    verifier(acces.noms === 'Général,Bastien,Jérémy,Sophie,CLAIRE' && (acces.visible || ecran.nom !== 'bureau'), `[${ecran.nom}] barre latérale : accès rapide (${acces.noms})`);
     if (ecran.nom === 'bureau') {
-      await page.click('#sidebar-acces-canaux .sb-canal:nth-child(3)');
+      await page.click('#sidebar-acces-canaux .sb-canal:nth-child(2)');
       await page.waitForFunction(() => canaux.actif === 'general' || /^p:/.test(canaux.actif), null, { timeout: 5000 }).catch(() => {});
       const ouvert = await page.evaluate(() => ({ canal: canaux.actif, ecran: ongletActuel }));
       verifier(ouvert.ecran === 'assistant' && /^p:bastien-julie$/.test(ouvert.canal), `barre latérale : un clic sur Bastien ouvre sa conversation privée (${JSON.stringify(ouvert)})`);

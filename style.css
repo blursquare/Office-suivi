@@ -11044,6 +11044,10 @@ wa-button.tc-voir-tout::part(base) { width: 100%; min-height: 40px; }
 .tache-menu-liste button { border: 0; background: transparent; text-align: left; padding: 6px 12px; border-radius: var(--rayon-s); font-size: var(--texte-m); color: var(--ink); cursor: pointer; white-space: nowrap; }
 .tache-menu-liste button:hover { background: var(--paper-sunk); }
 .tache-menu-liste button.danger { color: var(--urgent); }
+.tache-menu-liste button small { color: var(--muted); font-size: var(--texte-xs); margin-left: 6px; }
+.tache-menu-titre { padding: 6px 12px 4px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.tache-menu-date { display: flex; flex-direction: column; gap: 4px; padding: 6px 12px; font-size: var(--texte-s); color: var(--muted); }
+.tache-menu-date input { font: inherit; font-size: var(--texte-m); color: var(--ink); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); padding: 4px; }
 .tf-ligne .tache-menu { margin-left: auto; }
 .tf-meta .pastille-collab { flex: none; }
 .tc-retirees { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }
@@ -11310,11 +11314,11 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 
 /* CLAIRE, une collègue dans les Discussions (étude 26/10) : profil en tête de sa conversation, avatar et statut */
 .pf-claire-av { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--rayon-xs); background: var(--avatar-claire); color: var(--blanc-fixe); }
-.pf-claire-av .icone { width: 14px; height: 14px; }
+.pf-claire-av .icone { width: 16px; height: 16px; }
 .pf-claire-av .cx-pres { position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; background: var(--paper-card); }
 .pf-claire-av .cx-pres.en-ligne { background: var(--cat-vert); border-color: var(--paper-card); }
 .pf-claire-av.pf-grand { width: 56px; height: 56px; border-radius: var(--rayon-m); }
-.pf-claire-av.pf-grand .icone { width: 32px; height: 32px; }
+.pf-claire-av.pf-grand .icone { width: 40px; height: 40px; }
 .pf-claire-av.pf-grand .cx-pres { right: -4px; bottom: -4px; width: 14px; height: 14px; border-width: 2px; }
 .pf-claire { display: flex; align-items: center; gap: 16px; max-width: 720px; margin: 0 auto; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .pf-claire-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

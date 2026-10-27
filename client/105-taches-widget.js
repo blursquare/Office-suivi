@@ -83,11 +83,33 @@ function renommerTacheJour(cle) {
   render();
 }
 
+/** Pure : les dates proposées pour repousser une tâche — demain (prochain jour ouvré), lundi, dans une semaine, dans deux semaines. @param {string} auj AAAA-MM-JJ */
+function optionsReportTache(auj) {
+  const jour = (iso) => new Date(iso + 'T00:00:00').getDay();   // 0 = dimanche
+  let demain = addDays(auj, 1);
+  while (jour(demain) === 0 || jour(demain) === 6) demain = addDays(demain, 1);
+  let lundi = addDays(auj, 1);
+  while (jour(lundi) !== 1) lundi = addDays(lundi, 1);
+  const options = [{ libelle: 'Demain', iso: demain }];
+  if (lundi !== demain) options.push({ libelle: 'Lundi prochain', iso: lundi });
+  options.push({ libelle: 'Dans une semaine', iso: addDays(auj, 7) }, { libelle: 'Dans deux semaines', iso: addDays(auj, 14) });
+  return options;
+}
+
+/** L'horloge d'une tâche : « Repousser à… » — des dates toutes prêtes ou une date choisie ; la tâche quitte les tâches du jour jusqu'à ce jour-là. @param {string} cle */
+function renderMenuReport(cle) {
+  const c = escapeOnclickArg(cle);
+  const auj = isoAujourdhuiLocal();
+  const boutons = optionsReportTache(auj).map(o => `<button type="button" onclick="reporterActionJour('${c}', '${o.iso}')">${escapeHtml(o.libelle)} <small>${escapeHtml(formatDateFr(o.iso))}</small></button>`).join('');
+  return `<details class="tache-menu ja-plus-tard"><summary class="tache-menu-bouton" aria-label="Repousser cette tâche" title="Repousser à une date ultérieure">${icone('clock')}</summary>
+    <div class="tache-menu-liste"><span class="tache-menu-titre">Repousser à…</span>${boutons}<label class="tache-menu-date">Choisir une date <input type="date" min="${escapeAttr(addDays(auj, 1))}" onchange="if (this.value) reporterActionJour('${c}', this.value)"></label></div></details>`;
+}
+
 /** Le menu « ⋯ » d'une tâche : Renommer, Retirer de la liste. @param {string} cle */
 function renderMenuTache(cle) {
   const c = escapeOnclickArg(cle);
   return `<details class="tache-menu"><summary class="tache-menu-bouton" aria-label="Autres actions" title="Autres actions">${icone('ellipsis')}</summary>
-    <div class="tache-menu-liste"><button type="button" onclick="reporterActionJour('${c}', 1)">Reporter d’un jour</button><button type="button" onclick="reporterActionJour('${c}', 7)">Reporter d’une semaine</button><button type="button" onclick="renommerTacheJour('${c}')">Renommer</button><button type="button" class="danger" onclick="retirerTacheJour('${c}')">Retirer de la liste</button></div></details>`;
+    <div class="tache-menu-liste"><button type="button" onclick="reporterActionJour('${c}', 1)">Reporter d’un jour</button><button type="button" onclick="reporterActionJour('${c}', 7)">Reporter d’une semaine</button><label class="tache-menu-date">Reporter au… <input type="date" min="${escapeAttr(addDays(isoAujourdhuiLocal(), 1))}" onchange="if (this.value) reporterActionJour('${c}', this.value)"></label><button type="button" onclick="renommerTacheJour('${c}')">Renommer</button><button type="button" class="danger" onclick="retirerTacheJour('${c}')">Retirer de la liste</button></div></details>`;
 }
 
 if (typeof document !== 'undefined' && document.addEventListener) {

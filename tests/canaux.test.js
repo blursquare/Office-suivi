@@ -136,13 +136,13 @@ test('accès rapide de la barre latérale : Général puis un message privé par
     { id: 'p:bastien-julie-sophie', prive: true, membres: ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Sophie GOSSART'], nonLus: 7 }
   ];
   const l = app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT');
-  assert.deepEqual(l.map(x => x.libelle).join(','), 'CLAIRE,Général,Julie,Jérémy,Sophie');
-  assert.deepEqual(l.map(x => x.nonLus).join(','), '0,3,2,0,1', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
-  assert.equal(l[2].id, 'p:bastien-julie');
-  assert.equal(l[0].claire, true);
-  assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 3)[0].nonLus, 3, 'la pastille de CLAIRE = ce qu’elle a anticipé');
+  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Julie,Jérémy,Sophie,CLAIRE');
+  assert.deepEqual(l.map(x => x.nonLus).join(','), '3,2,0,1,0', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
+  assert.equal(l[1].id, 'p:bastien-julie');
+  assert.equal(l[4].claire, true);
+  assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 3)[4].nonLus, 3, 'la pastille de CLAIRE = ce qu’elle a anticipé');
   // Liste pas encore lue : Général seul, sans pastille.
-  assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'claire,general');
+  assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general,claire');
   assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 2);
 });
 
@@ -202,4 +202,13 @@ test('présence dans Authentic : nature, onglets sans intitulé de dossier, idé
   assert.equal(app.nudgeAuthentiqueAutorise(ouvert, 0, 1e12), true);
   assert.equal(app.nudgeAuthentiqueAutorise(ouvert, 1e12 - 1000, 1e12), false, 'une fois par dossier et par demi-journée');
   assert.equal(app.nudgeAuthentiqueAutorise(midi, 0, 1e12), false);
+});
+
+test('repousser une tâche : demain (jour ouvré), lundi, une et deux semaines', () => {
+  const app = chargerApplication();
+  const o = (iso) => app.optionsReportTache(iso).map(x => `${x.libelle}:${x.iso}`).join(' | ');
+  // mardi 27/10/2026
+  assert.equal(o('2026-10-27'), 'Demain:2026-10-28 | Lundi prochain:2026-11-02 | Dans une semaine:2026-11-03 | Dans deux semaines:2026-11-10');
+  // vendredi 30/10 : demain = lundi, pas de doublon « Lundi prochain »
+  assert.equal(o('2026-10-30'), 'Demain:2026-11-02 | Dans une semaine:2026-11-06 | Dans deux semaines:2026-11-13');
 });

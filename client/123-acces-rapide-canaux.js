@@ -10,11 +10,7 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
   const compte = (c) => (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? Number(c.mentions) || 0 : Number(c.nonLus) || 0);
   const general = l.find(c => c.id === 'general') || { id: 'general' };
   /** @type {{ id: string, libelle: string, titre: string, nom: string, nonLus: number, claire?: boolean }[]} */
-  // CLAIRE d'abord, comme une collègue (étude 26/10) : sa conversation est la conversation personnelle ; la pastille = ce qu'elle a anticipé et qui attend ma décision.
-  const lignes = [
-    { id: 'claire', libelle: 'CLAIRE', titre: 'Conversation avec CLAIRE', nom: '', nonLus: Math.max(0, Number(aDecider) || 0), claire: true },
-    { id: 'general', libelle: 'Général', titre: 'Canal général de l’étude', nom: '', nonLus: compte(general) }
-  ];
+  const lignes = [{ id: 'general', libelle: 'Général', titre: 'Canal général de l’étude', nom: '', nonLus: compte(general) }];
   for (const nom of Array.isArray(collaborateurs) ? collaborateurs : []) {
     if (!nom) continue;
     if (nom === moi) continue;   // soi-même : plus de ligne « vous », la conversation personnelle est celle de CLAIRE
@@ -23,6 +19,8 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
     const prenom = String(nom).split(/\s+/)[0];
     lignes.push({ id: c.id, libelle: prenom, titre: `Message privé avec ${prenom}`, nom, nonLus: compte(c) });
   }
+  // CLAIRE parmi les collègues, pas à l'écart (étude 26/10) : sa conversation est la conversation personnelle ; la pastille = ce qu'elle a anticipé et qui attend ma décision.
+  lignes.push({ id: 'claire', libelle: 'CLAIRE', titre: 'Conversation avec CLAIRE', nom: '', nonLus: Math.max(0, Number(aDecider) || 0), claire: true });
   return lignes;
 }
 

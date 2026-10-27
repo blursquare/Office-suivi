@@ -115,7 +115,8 @@ function htmlSectionsSlack(filtre) {
   const moi = membreEquipeCanal(utilisateurPoste);
   const monStatut = `<button type="button" class="cx-statut-moi" onclick="ouvrirStatutCanal()" aria-expanded="${!!canaux.statutOuvert}">${htmlPresence(utilisateurPoste)}<span>${moi && moi.statut && (moi.statut.emoji || moi.statut.texte) ? escapeHtml(`${moi.statut.emoji || ''} ${moi.statut.texte || ''}`.trim()) : 'Définir mon statut'}</span></button>`;
   const nonLusPrives = prives.reduce((t, c) => t + (c.notif === 'muet' ? 0 : (Number(c.mentions) || Number(c.nonLus) || 0)), 0);
-  return enreg + (prives.length ? htmlGroupePliable('prives', 'Messages privés', prives.length, nonLusPrives, true, `<ul class="cx-liste-c">${prives.map(lignePriveCanal).join('')}</ul>`) : '')
+  const claire = (propositionsClaire.liste || []).length;
+  return enreg + htmlGroupePliable('prives', 'Messages privés', prives.length + 1, nonLusPrives + claire, true, `<ul class="cx-liste-c">${prives.map(lignePriveCanal).join('')}${ligneClaireCanal()}</ul>`)
     + `<div class="cx-groupe">${monStatut}${canaux.statutOuvert ? htmlStatutEdition() : ''}</div>`;
 }
 

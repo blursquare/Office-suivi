@@ -410,6 +410,14 @@ function ligneCanal(e) {
       <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;
 }
 
+// CLAIRE dans la liste, comme une collègue (étude 26/10 : « mets-la dans la liste des collaborateurs, pas à l'écart ») : sa ligne est celle des
+// messages privés, avec son avatar, son point « en ligne » et son statut ; la pastille = ce qu'elle a anticipé et qui attend ma décision.
+function ligneClaireCanal() {
+  const aTraiter = propositionsClaire.liste.length;
+  const statutClaire = statutProfilClaire(aTraiter, assistantEnCours);
+  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire(false)}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE</span><small>${escapeHtml(statutClaire.texte)}</small></span>${aTraiter ? `<span class="cx-n cx-n-mention" title="${aTraiter} à décider">${aTraiter}</span>` : ''}</button></li>`;
+}
+
 function renderCanaux() {
   const zone = document.getElementById('assistant-canaux');
   if (!zone) return;
@@ -417,11 +425,8 @@ function renderCanaux() {
   const enSaisie = champFiltre && document.activeElement === champFiltre;
   const s = sectionsCanaux(canaux.liste, dossiers, canaux.filtreListe, utilisateurPoste);
   const filtre = !!(canaux.saisieListe || canaux.filtreListe).trim();
-  const aTraiter = propositionsClaire.liste.length;
   const bloc = (titre, lignes, ouvrable) => lignes.length ? `<div class="cx-groupe"><div class="cx-groupe-titre">${titre}</div><ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul></div>` : '';
   const pliable = (titre, lignes, ouvert, bascule) => lignes.length ? `<div class="cx-groupe"><button type="button" class="cx-groupe-titre cx-plie" onclick="${bascule}" aria-expanded="${ouvert}">${icone(ouvert ? 'chevron-down' : 'chevron-right')}${titre} <span class="cx-nb">${lignes.length}</span></button>${ouvert || filtre ? `<ul class="cx-liste-c">${lignes.map(ligneCanal).join('')}</ul>` : ''}</div>` : '';
-  const statutClaire = statutProfilClaire(aTraiter, assistantEnCours);
-  const traiter = `<div class="cx-groupe"><ul class="cx-liste-c"><li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire(false)}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE</span><small>${escapeHtml(statutClaire.texte)}</small></span>${aTraiter ? `<span class="cx-n cx-n-mention" title="${aTraiter} à décider">${aTraiter}</span>` : ''}</button></li></ul></div>`;
   zone.innerHTML = `
     <div class="cx-entete"><span class="cx-entete-titre">Canaux</span>
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="nouveauCanalLibre()" title="Nouveau canal" aria-label="Nouveau canal">${icone('plus')}</wa-button>
@@ -429,7 +434,6 @@ function renderCanaux() {
     ${canaux.nouveau ? `<div class="cx-nouveau-canal"><input type="text" id="canal-nouveau-nom" maxlength="60" placeholder="Nom du canal (ex. compta)" aria-label="Nom du nouveau canal" autocomplete="off" onkeydown="if (event.key === 'Enter') { event.preventDefault(); creerCanalLibreDepuisSaisie(); } else if (event.key === 'Escape') { nouveauCanalLibre(); }">
       <wa-button variant="brand" size="s" type="button" onclick="creerCanalLibreDepuisSaisie()">Créer</wa-button></div>` : ''}
     <div class="cx-filtre"><input type="search" value="${escapeAttr(canaux.saisieListe || canaux.filtreListe)}" placeholder="Canaux, messages… (de:julie)" aria-label="Chercher un canal ou un message" autocomplete="off" oninput="filtrerCanaux(this.value)"></div>
-    ${filtre ? '' : traiter}
     ${htmlSectionsSlack(filtre)}
     ${bloc('Favoris', s.favoris)}
     ${s.equipe.length ? htmlGroupePliable('equipe', 'Équipe', s.equipe.length, nonLusLignes(s.equipe), true, `<ul class="cx-liste-c">${s.equipe.map(ligneCanal).join('')}</ul>`, filtre) : ''}
