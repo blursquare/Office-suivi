@@ -463,8 +463,8 @@
   // Avant que le panneau soit redessiné : les écrans montés (outils, boîte d'email) sont mis à l'abri, jamais effacés avec lui.
   function garerNoeudsMontesAssistant(zone) {
     Object.keys(outilsMontesAssistant).forEach(o => { const n = document.getElementById('onglet-' + o); if (n && zone.contains(n)) garageOutilsAssistant().appendChild(n); });
-    const boite = boiteRedactionAssistant();
-    if (boite && zone.contains(boite)) garageOutilsAssistant().appendChild(boite);
+    const boite = artefactsAssistant.liste.some(x => x.type === 'email') || redaction ? boiteRedactionAssistant() : null;
+    if (boite && typeof zone.contains === 'function' && zone.contains(boite)) garageOutilsAssistant().appendChild(boite);
   }
 
   // ---- Rendu du panneau ----
