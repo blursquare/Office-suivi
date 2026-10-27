@@ -22614,3 +22614,10 @@ pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
   de CLAIRE est dite (conversation + bandeau du panneau) et n'ajoute ni lien ni IBAN ; date du courrier gardée si l'IA l'omet.
 - Relecture des corrections : l'aperçu rendu à l'IA est celui du calcul (`apercuIa`, repères D001…), jamais les lignes affichées ; un montant
   en euros ne fait pas refuser un modèle ; un lien déjà dans l'objet d'un email n'est pas compté comme nouveau.
+
+### 27/10/2026 — 0.374.1 : liens des messages de CLAIRE
+
+Étude 27/10 (capture de la conversation de CLAIRE : « Pièces trouvées », « CNP Assurances : http://…/piece?c=… » en texte brut) : « elle ne
+gère pas les liens ». `htmlTexteMessageClaire` (client/129) : texte échappé, adresses http(s)/www/emails en liens (`lierLiensTexte` de
+client/47, jamais un autre schéma), ouverts à part ; un lien de pièce (`/piece?`) se lit « Ouvrir la pièce » ; « CLAIRE — » en tête de
+ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au texte court, au détail et aux éléments d'un groupe.

@@ -292,3 +292,12 @@ test('accès rapide aux discussions : deux rendus qui ne diffèrent que par le n
   assert.equal(app.cleRenduAccesRapide(a), app.cleRenduAccesRapide(b));
   assert.notEqual(app.cleRenduAccesRapide(a), app.cleRenduAccesRapide(a.replace('mask>', 'mask>3')));
 });
+
+test('message de CLAIRE : liens cliquables, lien d’une pièce lu « Ouvrir la pièce », « CLAIRE — » de tête retiré (étude 27/10)', () => {
+  const app = chargerApplication();
+  const html = app.htmlTexteMessageClaire('✅ CLAIRE — Toutes les pièces sont reçues.\n• Pièce : http://192.168.60.10:3000/piece?c=SUCC+X%2Fa.pdf&e=1&s=z <b>\nVoir https://exemple.fr/page.');
+  assert.match(html, /^✅ Toutes les pièces sont reçues\.<br>/);
+  assert.match(html, /<a href="http:\/\/192\.168\.60\.10:3000\/piece\?c=SUCC\+X%2Fa\.pdf&amp;e=1&amp;s=z" target="_blank" rel="noopener">Ouvrir la pièce<\/a> &lt;b&gt;/);
+  assert.match(html, /<a href="https:\/\/exemple\.fr\/page" target="_blank" rel="noopener">https:\/\/exemple\.fr\/page<\/a>\./);
+  assert.doesNotMatch(app.htmlTexteMessageClaire('javascript:alert(1)'), /<a /);
+});

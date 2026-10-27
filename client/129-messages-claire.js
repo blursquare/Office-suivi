@@ -71,14 +71,24 @@ function entreesFilClaire(messages, notifs) {
   return e.sort((a, b) => a.quand - b.quand || a.ordre - b.ordre || (a.i || 0) - (b.i || 0));
 }
 
+// Pure : le texte d'un message de CLAIRE en HTML (étude 27/10 : « elle ne gère pas les liens ») — échappé, « CLAIRE — » de tête retiré (le nom
+// est déjà au-dessus), retours à la ligne gardés, adresses http(s) et emails en liens ouverts à part ; le lien d'une pièce du NAS (« /piece? »)
+// se lit « Ouvrir la pièce » plutôt que son adresse entière.
+function htmlTexteMessageClaire(texte) {
+  const propre = String(texte || '').split('\n').map(l => l.replace(/^(\s*(?:•\s*)?(?:\p{Extended_Pictographic}\uFE0F?\s*)?)CLAIRE\s+[—–-]\s+/u, '$1')).join('\n');
+  return lierLiensTexte(escapeHtml(propre), '')
+    .replace(/<a href="([^"]*)">([^<]*)<\/a>/g, (tout, href, libelle) => `<a href="${href}" target="_blank" rel="noopener">${/\/piece\?/.test(href) ? 'Ouvrir la pièce' : libelle}</a>`)
+    .replace(/\n/g, '<br>');
+}
+
 // Un message de CLAIRE dans le fil, présenté comme ses autres réponses (avatar, nom, heure ; suite d'un groupe sous la précédente).
 function htmlNotifClaireFil(n, r, maintenant) {
   const lien = (id, texte) => (id && dossiers.find(x => x.id === id)
     ? ` <button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(id)}')">${texte}</button>` : '');
   const elements = (n.elements || []).length > 1
-    ? `<ul>${n.elements.map(e => `<li>${escapeHtml(e.court)}${lien(e.dossierId, 'fiche')}</li>`).join('')}</ul>` : '';
-  const corps = elements ? `<p>${escapeHtml(n.court)}</p>${elements}`
-    : `<p>${escapeHtml(n.detail || n.court).replace(/\n/g, '<br>')}${lien(n.dossierId, 'Ouvrir la fiche')}</p>`;
+    ? `<ul>${n.elements.map(e => `<li>${htmlTexteMessageClaire(e.court)}${lien(e.dossierId, 'fiche')}</li>`).join('')}</ul>` : '';
+  const corps = elements ? `<p>${htmlTexteMessageClaire(n.court)}</p>${elements}`
+    : `<p>${htmlTexteMessageClaire(n.detail || n.court)}${lien(n.dossierId, 'Ouvrir la fiche')}</p>`;
   const rr = r || { nouveauJour: false, debutGroupe: true };
   const jour = rr.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(n.quand, maintenant))}</span></div>` : '';
   const tete = rr.debutGroupe ? `<div class="cx-nom">CLAIRE<span class="cx-heure">${escapeHtml(heureAssistant(n.quand))}</span></div>` : '';
