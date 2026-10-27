@@ -22632,3 +22632,6 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   trois) quand tous les autres ont lu le canal après lui, au survol « Vu par Julie à 15:42 » ; sinon coche « Envoyé » (« · vu par … » en
   partie, à trois). « Lu » = la fenêtre CLAIRE au premier plan sur ce canal (règle de `marquerCanalLu`).
 - Vérifié dans Chromium avec deux postes (Bastien écrit, Julie ouvre : « Envoyé » puis « Vu »).
+- Audit 0.375.0 (`docs/audits/2026-10-27-0.375.0.md`) : l'heure de l'œil est celle de la PREMIÈRE lecture du dernier message (`canaux-vus`,
+  retenue par `marquerLu`), figée — la dernière lecture avançait toutes les 20 s et faisait recharger le canal à chaque relevé. « Tout
+  marquer comme lu » et une fenêtre restée au premier plan sur la conversation valent « Vu », comme sur Teams.

@@ -13,6 +13,9 @@ const { basculerReaction, emojiValide, sensReaction } = /** @type {any} */ (requ
 const CLE_INDEX = 'canaux-index';
 const CLE_LIBRES = 'canaux-libres';
 const CLE_LUS = 'canaux-lus';
+// Première lecture du dernier message d'un canal privé, par collaborateur : { [collab]: { [canal]: { apres, le } } } — l'heure de l'œil « Vu »,
+// figée (relecture 0.375.0 : la dernière lecture avançait toutes les 20 s et rechargeait le canal).
+const CLE_VUS = 'canaux-vus';
 const CLE_PREFS = 'canaux-prefs';
 const CLE_SILENCES = 'canaux-silences';
 const MAX_MESSAGES = 300;
@@ -219,9 +222,19 @@ function lireTable(repo, cle) {
 /** @param {any} repo @param {string} collab @param {string} canal @param {number} [maintenant] */
 function marquerLu(repo, collab, canal, maintenant) {
   if (!canalValide(canal) || !collab) return;
+  const t = maintenant || Date.now();
   const lus = lireTable(repo, CLE_LUS);
-  lus[collab] = Object.assign({}, lus[collab], { [canal]: maintenant || Date.now() });
+  lus[collab] = Object.assign({}, lus[collab], { [canal]: t });
   repo.ecrireJsonBrut(CLE_LUS, lus);
+  if (!canal.startsWith('p:')) return;
+  // Canal privé : la PREMIÈRE lecture après le dernier message est retenue une fois (l'heure de l'œil « Vu »).
+  const dernier = Number((lireIndex(repo)[canal] || {}).dernierLe) || 0;
+  if (!dernier || t < dernier) return;
+  const vus = lireTable(repo, CLE_VUS);
+  const v = (vus[collab] || {})[canal];
+  if (v && v.apres === dernier) return;
+  vus[collab] = Object.assign({}, vus[collab], { [canal]: { apres: dernier, le: t } });
+  repo.ecrireJsonBrut(CLE_VUS, vus);
 }
 
 /**
@@ -233,7 +246,15 @@ function lusParAutresMembres(repo, canal, lecteur, collaborateurs) {
   const membres = membresPrive(canal, collaborateurs);
   if (!membres || !membres.includes(lecteur)) return {};
   const lus = lireTable(repo, CLE_LUS);
-  return Object.fromEntries(membres.filter((m) => m !== lecteur).map((m) => [m, Number((lus[m] || {})[canal]) || 0]));
+  const vus = lireTable(repo, CLE_VUS);
+  const dernier = Number((lireIndex(repo)[canal] || {}).dernierLe) || 0;
+  // Dernier message lu : l'heure de sa PREMIÈRE lecture (figée) ; sinon la dernière lecture, qui reste avant lui. Stable tant que rien ne
+  // change : la signature du canal ne bouge qu'au moment où le message est vu.
+  return Object.fromEntries(membres.filter((m) => m !== lecteur).map((m) => {
+    const lu = Number((lus[m] || {})[canal]) || 0;
+    const v = (vus[m] || {})[canal];
+    return [m, dernier && lu >= dernier ? (v && v.apres === dernier ? Number(v.le) || lu : dernier) : lu];
+  }));
 }
 
 /** Tout marquer comme lu. @param {any} repo @param {string} collab @param {number} [maintenant] */
