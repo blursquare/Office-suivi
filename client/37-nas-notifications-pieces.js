@@ -1877,6 +1877,12 @@
   // contexte restreint, navigateur différent…), l'app reste utilisable normalement — seul le
   // bouton "Installer" ne s'affichera pas, sans autre conséquence.
   if ('serviceWorker' in navigator) {
+    // Seul /sw.js de CLAIRE est gardé (audit 0.372.0 : une adresse http tenue pour sûre laisserait survivre un service worker posé
+    // par un tiers sur le réseau).
+    if (navigator.serviceWorker.getRegistrations) navigator.serviceWorker.getRegistrations().then((liste) => liste.forEach((reg) => {
+      const w = reg.active || reg.waiting || reg.installing;
+      if (w && !/\/sw\.js$/.test(new URL(w.scriptURL).pathname)) reg.unregister();
+    })).catch(() => { /* facultatif */ });
     navigator.serviceWorker.register('sw.js').catch((e) => {
       console.warn('Service worker non enregistré (l\u2019outil reste utilisable normalement) :', e);
     });

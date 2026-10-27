@@ -182,7 +182,7 @@ function fenetreClaireRegardee() { return !document.hidden && document.hasFocus(
 // Les relevés qui alimentent les compteurs continuent fenêtre cachée ou réduite tant que la pastille est allumée ET que le relais de
 // ce collaborateur est installé (client/112, 114 ; audit 25/10 : sinon des relectures pour rien sur tous les postes).
 function pastilleActiveHorsEcran() {
-  return !!utilisateurPoste && etatPastille.relais && lireReglagesNotifications().pastille;
+  return !!utilisateurPoste && (etatPastille.relais || pastilleApplicationActive()) && lireReglagesNotifications().pastille;
 }
 
 async function tourPastille() {
@@ -209,7 +209,8 @@ async function tourPastille() {
   try {
     const r = await fetchAvecAuth('/api/relais-word/pastille', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ poste: clePosteAppels(utilisateurPoste), total, notifications, elements, apercu: reglages.apercu })
+      // Application installée qui pose sa pastille : le relais ne pose pas la sienne sur la même fenêtre (ses notifications restent).
+      body: JSON.stringify({ poste: clePosteAppels(utilisateurPoste), total: pastilleApplicationActive() ? 0 : total, notifications, elements, apercu: reglages.apercu })
     });
     // Les nouveautés ne sont tenues pour annoncées qu'une fois reçues par le serveur (relecture 25/10 : perdues s'il redémarrait).
     if (r.ok) {
@@ -233,6 +234,7 @@ function demarrerPastille() {
 // Changement du collaborateur du poste : nouvelles préférences, nouveaux compteurs de départ.
 function oublierPastilleCollaborateur() {
   reglagesNotifications = null;
+  poserPastilleApplication(0, false);   // la pastille du collaborateur d'avant ne reste pas sur l'icône
   etatPastille = { envoye: -1, envoyeLe: 0, avant: null, avantDetails: null, demarreLe: 0, relais: false };
 }
 

@@ -22397,6 +22397,10 @@ immédiat ». La règle retenue :
   sûre (consigne du flag et bouton du fichier) / navigateur incapable.
 - Non vérifié sur un vrai Windows. La fenêtre ouverte par les raccourcis `--app` de « CLAIRE en application » n'est pas l'application
   installée : la pastille ne vient que par l'icône de l'application installée.
+- Relecture et audit (`docs/audits/2026-10-27-0.372.0.md`, aucun point Haut) : relevés continués fenêtre cachée quand l'application pose
+  sa pastille (`pastilleApplicationActive`), point terrain passé en « manuel », pastille retirée au changement de collaborateur, refus du
+  navigateur retenu (plus d'essai), `edge://flags` dans Edge, total à 0 pour le relais quand l'application badge elle-même, et tout
+  service worker autre que `/sw.js` retiré au démarrage (client/37) — l'adresse http « sûre » vaut pour tout le navigateur du poste.
 
 ### 27/10/2026 — Structures reçues : écran « Ajouter des formalités préalables » d'Authentic, partie Comedec (pas encore lu par CLAIRE)
 

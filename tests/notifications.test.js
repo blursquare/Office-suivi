@@ -62,7 +62,10 @@ test('pastille de l’application installée : état du poste et fichier .reg de
   const nav = { setAppBadge() {}, clearAppBadge() {} };
   assert.equal(app.etatPastilleApplication(nav, { secure: true, installee: true }), 'prete');
   assert.equal(app.etatPastilleApplication(nav, { secure: true, installee: false }), 'installer');
-  assert.equal(app.etatPastilleApplication({}, { secure: false, installee: false }), 'adresse', 'http://IP : l’API n’est même pas exposée');
+  assert.equal(app.etatPastilleApplication({}, { secure: false, installee: false, chromium: true }), 'adresse', 'http://IP : l’API n’est même pas exposée');
+  assert.equal(app.etatPastilleApplication({}, { secure: false, installee: false, chromium: false }), 'navigateur', 'Firefox : le fichier n’y changerait rien');
+  const o = app.octetsUtf16Reg('Aé');
+  assert.equal(Array.from(o).join(','), '255,254,65,0,233,0', 'UTF-16 petit-boutiste avec sa marque');
   assert.equal(app.etatPastilleApplication({}, { secure: true, installee: false }), 'navigateur');
   const reg = app.regPastilleApplication('http://192.168.60.5:3000');
   assert.match(reg, /^Windows Registry Editor Version 5\.00/);
