@@ -151,7 +151,7 @@ try {
           && !!document.querySelector('#assistant-messages .asst-accueil, #assistant-messages .cx-m');
         await ouvrirCanal('@traiter');
         await new Promise((r) => setTimeout(r, 300));
-        const traiter = !!document.querySelector('#assistant-messages .pf-claire');
+        const traiter = !canaux.actif && !!document.querySelector('#assistant-messages .asst-accueil, #assistant-messages .asst-message');
         quitterCanal(); renderAssistant();
         definirOnglet('reglages'); definirSousOngletReglages('routines');
         await new Promise((r) => setTimeout(r, 900));

@@ -89,3 +89,22 @@ test('libelleEmailsExclus : total et détail par motif', () => {
   assert.equal(app.libelleEmailsExclus({ total: 9, parMotif: { SPF: 5, 'Publicité': 2, CRIDON: 2 } }), '9 écartés : SPF 5, publicités 2, CRIDON 2');
   assert.equal(app.libelleEmailsExclus({ total: 0, parMotif: {} }), '');
 });
+
+test('agenda du jour : le rendez-vous et son invitation visio (même titre, mêmes heures) ne font qu’une ligne (étude 27/10)', () => {
+  const l = app.sansDoublonsAgendaJour([
+    { date: '2026-10-27', heure: '17:00', heureFin: '18:00', sujet: 'Point succession Paul VERNIER', lieu: 'Marie en présentiel - Arnaud en visio', categories: ['Visio'] },
+    { date: '2026-10-27', heure: '17:00', heureFin: '18:00', sujet: 'Point succession Paul  VERNIER', categories: ['Catégorie bleue'] },
+    { date: '2026-10-27', heure: '17:00', heureFin: '18:30', sujet: 'Point succession Paul VERNIER' },
+    { date: '2026-10-27', heure: '09:00', heureFin: '10:00', sujet: 'Autre rendez-vous' }
+  ]);
+  assert.equal(l.length, 3, 'deux heures de fin différentes restent deux rendez-vous');
+  assert.equal(l[0].lieu, 'Marie en présentiel - Arnaud en visio');
+  const s = app.sansDoublonsAgendaJour([
+    { date: '2026-10-27', heure: '10:00', heureFin: '11:00', sujet: 'VTE - DUPONT', horsAgenda: true, dossierId: 'd1', dossierNom: 'DUPONT' },
+    { date: '2026-10-27', heure: '10:00', heureFin: '11:00', sujet: 'VTE - DUPONT', itemId: 'outlook-1', categories: ['Vert'] }
+  ]);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].itemId, 'outlook-1', 'l’élément d’Outlook est gardé, pas la signature hors agenda');
+  assert.equal(s[0].dossierId, 'd1', 'il reprend le dossier reconnu');
+  assert.ok(!s[0].horsAgenda);
+});

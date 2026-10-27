@@ -1778,7 +1778,32 @@
   // Les rendez-vous d'une journée en lignes « ajd » (heure, liseré de la couleur Outlook, étiquette,
   // titre) — fenêtre du matin et widget Agenda. `estAujourdhui` : passé / en cours selon l'heure ;
   // `versAgenda` : le titre ouvre le rendez-vous dans la page Agenda (le nom du dossier, sa fiche).
-  function lignesEvenementsAgendaJour(liste, estAujourdhui, versAgenda) {
+  // Pure : un rendez-vous et l'invitation qui ne porte que son lien visio arrivent souvent comme deux éléments de l'agenda, même titre, même
+  // jour, mêmes heures (étude 27/10 : « il s'agit du même rendez-vous, c'est juste que l'autre a le lien visio ») : une seule ligne, celle
+  // qui en dit le plus (dossier reconnu, lieu, catégorie de l'étude), complétée par l'autre (lieu, dossier, catégories). Une signature de
+  // CLAIRE absente d'Outlook (`horsAgenda`) ne passe jamais devant un élément de l'agenda (relecture 0.373.4).
+  function sansDoublonsAgendaJour(liste) {
+    const cle = (e) => [e.date || '', e.journeeEntiere ? 'J' : (e.heure || ''), e.journeeEntiere ? '' : (e.heureFin || ''), normaliserPourRecherche(e.sujet || '').replace(/\s+/g, ' ').trim()].join('|');
+    const poids = (e) => (e.horsAgenda ? -10 : 0) + (e.dossierId ? 4 : 0) + (e.lieu ? 2 : 0) + ((e.categories || []).length ? 1 : 0);
+    const gardes = new Map();
+    for (const e of Array.isArray(liste) ? liste : []) {
+      if (!e || !normaliserPourRecherche(e.sujet || '')) { gardes.set(Symbol('sans-titre'), e); continue; }
+      const k = cle(e);
+      const avant = gardes.get(k);
+      if (!avant) { gardes.set(k, e); continue; }
+      const [garde, autre] = poids(e) > poids(avant) ? [e, avant] : [avant, e];
+      gardes.set(k, Object.assign({}, garde, {
+        lieu: garde.lieu || autre.lieu || '',
+        categories: (garde.categories || []).length ? garde.categories : (autre.categories || []),
+        dossierId: garde.dossierId || autre.dossierId || '',
+        dossierNom: garde.dossierId ? garde.dossierNom : (autre.dossierNom || garde.dossierNom || '')
+      }));
+    }
+    return [...gardes.values()];
+  }
+
+  function lignesEvenementsAgendaJour(listeBrute, estAujourdhui, versAgenda) {
+    const liste = sansDoublonsAgendaJour(listeBrute);
     const maintenant = new Date();
     const heureActuelle = estAujourdhui ? String(maintenant.getHours()).padStart(2, '0') + ':' + String(maintenant.getMinutes()).padStart(2, '0') : '';
     const categories = categoriesRdvReglees();

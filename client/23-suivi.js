@@ -1932,7 +1932,8 @@
     const lundi = debutSemaine(addDays(aujourdhui, 7 * agendaDecalageSemaine));
     if (!agendaWidget.charge || agendaWidget.debut !== lundi || Date.now() - agendaWidget.t > 120000) chargerAgendaWidget();
     const joursCharges = joursDepuis(agendaWidget.debut || lundi, JOURS_WIDGET_AGENDA + 1);
-    const evenements = agendaWidget.evenements.concat(signaturesHorsAgenda(perimetreActifs, agendaWidget.evenements, joursCharges));
+    // Un rendez-vous et l'invitation de son lien visio : une seule ligne, partout dans le widget (listes et compteurs, étude 27/10).
+    const evenements = sansDoublonsAgendaJour(agendaWidget.evenements.concat(signaturesHorsAgenda(perimetreActifs, agendaWidget.evenements, joursCharges)));
     const source = agendaWidget.source;
     const nonRelie = agendaWidget.charge && source && source.configuree === false;
     const lu = agendaWidget.lu ? new Date(agendaWidget.lu) : null;

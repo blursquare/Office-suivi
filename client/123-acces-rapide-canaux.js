@@ -19,7 +19,8 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
     const prenom = String(nom).split(/\s+/)[0];
     lignes.push({ id: c.id, libelle: prenom, titre: `Message privé avec ${prenom}`, nom, nonLus: compte(c) });
   }
-  // CLAIRE parmi les collègues, pas à l'écart (étude 26/10) : sa conversation est la conversation personnelle ; la pastille = ce qu'elle a anticipé et qui attend ma décision.
+  // CLAIRE parmi les collègues, pas à l'écart (étude 26/10) : sa conversation est la conversation personnelle ; la pastille = ses messages non lus
+  // (les propositions sont dans le canal de leur dossier, étude 27/10).
   lignes.push({ id: 'claire', libelle: 'CLAIRE', titre: 'Conversation avec CLAIRE', nom: '', nonLus: Math.max(0, Number(aDecider) || 0), claire: true });
   return lignes;
 }
@@ -34,12 +35,12 @@ function majAccesRapideCanaux() {
   if (!zone) return;
   if (!utilisateurPoste || !canaux.charge) { zone.style.display = 'none'; zone.textContent = ''; zone.dataset.rendu = ''; return; }
   const surDiscussions = ecranAffiche('assistant');
-  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, propositionsClaire.liste.length + (messagesClaireEtat.nonLus || 0));
+  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, messagesClaireEtat.nonLus || 0);
   const html = lignes.map((x) => {
     const actif = surDiscussions && (x.claire ? !canaux.actif : canaux.actif === x.id);
     // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.
     const initiales = x.nom ? x.libelle.charAt(0).toUpperCase() : '#';
-    const marque = x.claire ? htmlAvatarProfilClaire(false)
+    const marque = x.claire ? htmlAvatarProfilClaire()
       : x.nom
       ? htmlAvatarPresence(x.nom)
       : '<span class="sb-canal-avatar sb-canal-diese" aria-hidden="true">#</span>';

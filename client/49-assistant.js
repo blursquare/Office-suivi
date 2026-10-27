@@ -124,12 +124,10 @@
     if (canaux.actif) { renderCanalAssistant(zone); return; }
     majSaisieCanal();
     renderEnteteCanal();
-    // Profil de CLAIRE (photo, statut) et ce qu'elle a anticipé, en tête de sa conversation (client/126).
-    const profil = htmlProfilClaire() + htmlAnticipationsClaire();
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
       const rattache = assistantContexte.dossierId ? dossiers.find(x => x.id === assistantContexte.dossierId) : null;
-      zone.innerHTML = profil + (rattache
+      zone.innerHTML = (rattache
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
           'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
           exemplesDossierAssistant(rattache), true, 'folder')
@@ -145,7 +143,7 @@
     const entrees = entreesFilClaire(assistantMessages, messagesClairePourFil(Date.now()));
     const reperes = repereMessagesAssistant(entrees.map(x => (x.notif ? { role: 'claire', quand: x.notif.quand } : x.m)));
     const maintenant = Date.now();
-    zone.innerHTML = profil + entrees.map((x, k) => {
+    zone.innerHTML = entrees.map((x, k) => {
       const r = reperes[k];
       if (x.notif) return htmlNotifClaireFil(x.notif, r, maintenant);
       const m = x.m, i = x.i;

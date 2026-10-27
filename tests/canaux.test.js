@@ -140,7 +140,7 @@ test('accès rapide de la barre latérale : Général puis un message privé par
   assert.deepEqual(l.map(x => x.nonLus).join(','), '3,2,0,1,0', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
   assert.equal(l[1].id, 'p:bastien-julie');
   assert.equal(l[4].claire, true);
-  assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 3)[4].nonLus, 3, 'la pastille de CLAIRE = ce qu’elle a anticipé');
+  assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 3)[4].nonLus, 3, 'la pastille de CLAIRE = ses messages non lus');
   // Liste pas encore lue : Général seul, sans pastille.
   assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general,claire');
   assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 2);
@@ -169,12 +169,13 @@ test('conversations avec Claire : 3 visibles, la conversation ouverte jamais cac
   assert.equal(app.groupesVisiblesConversationsAssistant([groupes[0]], '', false, 3).cachees, 0, 'peu de conversations : tout est montré');
 });
 
-test('profil de CLAIRE : statut selon ce qu’elle a anticipé', () => {
+test('profil de CLAIRE : « En ligne » à côté de son nom, plus de tâches au-dessus (étude 27/10)', () => {
   const app = chargerApplication();
-  assert.equal(app.statutProfilClaire(0, false).texte, 'En ligne · rien à décider');
-  assert.equal(app.statutProfilClaire(1, false).texte, 'J’ai anticipé 1 chose pour vous');
-  assert.equal(app.statutProfilClaire(3, false).texte, 'J’ai anticipé 3 choses pour vous');
-  assert.equal(app.statutProfilClaire(3, true).etat, 'ecrit');
+  assert.equal(app.statutProfilClaire(false).texte, 'En ligne');
+  assert.equal(app.statutProfilClaire(true).etat, 'ecrit');
+  assert.equal(typeof app.htmlAnticipationsClaire, 'undefined', 'les propositions restent dans le canal de leur dossier');
+  assert.equal(app.canalDeProposition({ dossierId: 'f1' }), 'd:f1', 'une proposition de dossier s’ouvre dans son canal');
+  assert.equal(app.canalDeProposition({}), 'general', 'sans dossier : « général »');
 });
 
 test('moment de la journée à Paris : matin, pause de midi, soir, week-end, férié', () => {

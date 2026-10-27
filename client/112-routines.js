@@ -5,7 +5,7 @@
 // propositions dont je suis le responsable) alimente la vue « À traiter » des canaux ; les réglages des routines (interrupteurs, trois niveaux
 // d'autonomie) sont dans client/113-reglages-routines.js. Serveur : server/src/routines/, canaux/, routes/routines.js, routes/canaux.js.
 
-var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], reportees: [], charge: false };
+var propositionsClaire = { aTraiter: 0, liste: [], traitees: [], charge: false };
 var INTERVALLE_PROPOSITIONS_MS = 60 * 1000;
 
 // ---- Pures ----
@@ -84,10 +84,6 @@ async function chargerPropositionsClaire(onglet) {
     if (filtre === 'a-traiter') {
       propositionsClaire.liste = corps.propositions || [];
       propositionsClaire.aTraiter = corps.aTraiter || 0;
-      try {
-        const rr = await fetchAvecAuth(`/api/propositions?utilisateur=${encodeURIComponent(utilisateurPoste)}&etat=reportees`);
-        if (rr.ok) propositionsClaire.reportees = (await rr.json()).propositions || [];
-      } catch (e) { /* les reportées gardent leur dernier état */ }
     } else {
       propositionsClaire.traitees = corps.propositions || [];
       propositionsClaire.aTraiter = corps.aTraiter || 0;
@@ -104,7 +100,12 @@ function demarrerPropositionsClaire() {
   setInterval(() => { if (!document.hidden || pastilleActiveHorsEcran()) chargerPropositionsClaire(); }, INTERVALLE_PROPOSITIONS_MS);
 }
 
-// ---- La carte d'une proposition (dans un canal, la vue « À traiter » et la fiche) ----
+// Pure : le canal qui porte la carte d'une proposition — celui de son dossier, sinon « général » (server/src/canaux/deposer.js).
+function canalDeProposition(p) {
+  return p && p.dossierId ? 'd:' + p.dossierId : 'general';
+}
+
+// ---- La carte d'une proposition (dans le canal de son dossier, « général » et la fiche) ----
 
 function carteProposition(p, options) {
   const o = options || {};

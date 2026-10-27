@@ -22546,3 +22546,28 @@ publique) :
   - **Couleurs** : celles d'un espace « cs » laissées en `sc`/`scn` sont teintées aussi.
   - **Contenu du site** : il est entouré de q/Q.
   - Revérifié sur le vrai extrait : cadre identique à l'original, parcelle seule surlignée.
+
+### 27/10/2026 — 0.373.4 : conversation de CLAIRE sans tâches au-dessus
+
+Étude 27/10 (capture des Discussions) : « laisser les tâches de dossier dans la conversation du dossier. La discussion individuelle avec
+CLAIRE est juste une conversation, pas de tâches au-dessus », « dans la sidebar mets le En ligne sur la même ligne que son nom », « ici c'est
+plutôt les notifications de l'office de manière générale », « dans les conversations de dossier mets les tâches elles-mêmes ».
+- `htmlAnticipationsClaire` (client/126) retirée : plus de « J'ai anticipé N chose(s) » ni de cartes en tête du profil. Les propositions
+  étaient déjà déposées par `deposerProposition` dans le canal de leur dossier (ou « général ») avec leur carte (`htmlCorpsMessageCanal`) :
+  c'est là qu'elles se décident. La lecture des propositions reportées (`etat=reportees`), qui ne servait qu'à ce bloc, est retirée.
+- `statutProfilClaire(enCours)` : « En ligne » ou « Écrit… », en vert à côté du nom (profil et ligne de la liste) ; rôle
+  « Notifications de l'office » (`ROLE_PROFIL_CLAIRE`) sous le nom.
+- Pastille de CLAIRE (liste des Discussions et accès rapide de la barre latérale) = ses messages non lus seulement ; les propositions
+  comptent dans le canal de leur dossier (`nonLusCartes`/`mentionsCartes` du serveur) et dans la rubrique « À traiter » de la pastille.
+- Relecture : une carte de proposition du relais (`notificationsPoste.js`), « Autoriser » / « Refuser » depuis le relais (client/122) et les
+  toasts « Lancer maintenant » / « Déposer des exemples » (client/113) ouvraient encore `@traiter`, devenu une conversation sans
+  proposition : ils ouvrent le canal qui porte la carte (`canalDeProposition`, « général » sans dossier). La pastille de CLAIRE dans la
+  liste des Discussions suit aussitôt la lecture de ses messages (`majPastilleClaireListes`).
+- Étude 27/10 (même version) : « l'espace CLAIRE En ligne au-dessus de la conversation fait doublon » — l'en-tête du profil
+  (`htmlProfilClaire`, avatar, nom, statut, rôle) est retiré ; « En ligne » ne reste que sur la ligne de CLAIRE de la liste.
+  `profilClaireAffiche` se lit sans lui (page des Discussions, aucun canal ouvert).
+- Étude 27/10 (même version, capture du widget Agenda : « Point succession … » deux fois à 17 h, l'une « À l'office », l'autre « Catégorie
+  bleue » — « il s'agit du même rendez-vous, c'est juste que l'autre a le lien visio ») : `sansDoublonsAgendaJour` (client/24), appliquée
+  par `lignesEvenementsAgendaJour` (widget Agenda, fenêtre du matin) : même jour, mêmes heures de début et de fin, même titre (casse,
+  accents et espaces ignorés) = une ligne, celle qui porte le dossier, le lieu ou une catégorie, complétée par l'autre. La page Agenda
+  garde les deux éléments (ce sont deux éléments d'Outlook, chacun déplaçable et supprimable).

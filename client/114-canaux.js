@@ -413,11 +413,12 @@ function ligneCanal(e) {
 }
 
 // CLAIRE dans la liste, comme une collègue (étude 26/10 : « mets-la dans la liste des collaborateurs, pas à l'écart ») : sa ligne est celle des
-// messages privés, avec son avatar, son point « en ligne » et son statut ; la pastille = ce qu'elle a anticipé et qui attend ma décision.
+// messages privés, avec son avatar et « En ligne » sur la ligne de son nom (étude 27/10), « Notifications de l'office » dessous ; la pastille =
+// ses messages non lus (les propositions sont comptées dans le canal de leur dossier).
 function ligneClaireCanal() {
-  const aTraiter = propositionsClaire.liste.length;
-  const statutClaire = statutProfilClaire(aTraiter, assistantEnCours);
-  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire(false)}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE</span><small>${escapeHtml(statutClaire.texte)}</small></span>${aTraiter ? `<span class="cx-n cx-n-mention" title="${aTraiter} à décider">${aTraiter}</span>` : ''}</button></li>`;
+  const nonLus = Number(messagesClaireEtat.nonLus) || 0;
+  const statut = statutProfilClaire(assistantEnCours);
+  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}${nonLus ? ' non-lu' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire()}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE <span class="cx-claire-statut pf-${escapeAttr(statut.etat)}">${escapeHtml(statut.texte)}</span></span><small>${escapeHtml(ROLE_PROFIL_CLAIRE)}</small></span>${nonLus ? `<span class="cx-n">${nonLus}</span>` : ''}</button></li>`;
 }
 
 function renderCanaux() {

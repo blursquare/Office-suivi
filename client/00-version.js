@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.373.3';
+  const VERSION_APP = '0.373.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.373.4', date: '2026-10-27 13:37', resume: "Discussions : la conversation avec CLAIRE redevient une simple conversation. Il n'y a plus de bloc de tâches au-dessus : les tâches et propositions d'un dossier restent dans la conversation de ce dossier, avec leur carte. L'en-tête « CLAIRE · En ligne » qui faisait doublon au-dessus de la conversation est retiré. Dans la liste, « En ligne » est sur la même ligne que le nom de CLAIRE, avec dessous « Notifications de l'office » ; sa pastille ne compte plus que ses messages non lus. Widget Agenda : un rendez-vous et l'invitation qui porte son lien visio (même titre, mêmes heures) ne font plus qu'une ligne." },
     { version: '0.373.3', date: '2026-10-27 12:22', resume: "Plan de situation surligné : le jaune ne devient plus un gros pavé quand le plan est mis dans l'acte électronique d'Authentic. Il n'y a plus aucune transparence dans le PDF : la parcelle est redessinée avec ses couleurs déjà teintées de jaune, et ses traits, numéros et bâtiments restent lisibles partout. Les plans déjà rangés sur le NAS sont à tirer de nouveau." },
     { version: '0.373.2', date: '2026-10-27 11:47', resume: "CLAIRE dans Authentic, plus prudente : une demande n'est faite que dans le dossier qui porte SA référence d'Authentic en tête (jamais un homonyme), dans son seul sous-dossier de vente ; pour le casier, chaque personne cochée doit être un acquéreur de la fiche ; pour l'état civil, une demande cochée d'avance par Authentic et non voulue est décochée. Une demande n'est jamais créée deux fois. Un mot de passe refusé arrête toute connexion jusqu'à sa correction (le compte ne se verrouille pas). Une proposition de CLAIRE n'est décidée qu'une fois la demande créée." },
     { version: '0.373.1', date: '2026-10-27 11:39', resume: "L'accès rapide aux discussions de la barre latérale ne clignote plus : il était redessiné toutes les 30 secondes sans rien changer." },

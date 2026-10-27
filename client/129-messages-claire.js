@@ -18,13 +18,13 @@ async function chargerMessagesClaire() {
     messagesClaireEtat = { liste: Array.isArray(corps.messages) ? corps.messages : [], nonLus: Number(corps.nonLus) || 0, charge: true, pour: utilisateurPoste };
     const change = avant !== messagesClaireEtat.liste.map(m => m.id + ':' + m.maj).join(',');
     if (change && profilClaireAffiche()) { marquerMessagesClaireLus(); rafraichirMessagesClaire(); }
-    if (change && typeof majAccesRapideCanaux === 'function') majAccesRapideCanaux();
+    if (change) majPastilleClaireListes();
   } catch (e) { /* serveur injoignable : relu au tour suivant */ }
 }
 
 // La conversation de CLAIRE est-elle sous les yeux ? (page « Demander à CLAIRE », aucun canal ouvert)
 function profilClaireAffiche() {
-  return !document.hidden && ecranAffiche('assistant') && !!document.querySelector('.pf-claire');
+  return !document.hidden && ecranAffiche('assistant') && !canaux.actif && !POSTE_CLAIRE;
 }
 
 async function marquerMessagesClaireLus() {
@@ -34,7 +34,13 @@ async function marquerMessagesClaireLus() {
   try {
     await fetchAvecAuth('/api/claire-messages/lus', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ utilisateur: utilisateurPoste }) });
   } catch (e) { /* remarqué au tour suivant */ }
+  majPastilleClaireListes();
+}
+
+// Sa pastille (ses messages non lus) est sur deux listes : l'accès rapide de la barre latérale et la liste des Discussions (relecture 0.373.4).
+function majPastilleClaireListes() {
   if (typeof majAccesRapideCanaux === 'function') majAccesRapideCanaux();
+  if (ecranAffiche('assistant') && typeof renderCanaux === 'function') renderCanaux();
 }
 
 // Un message de CLAIRE pour SOI, déposé depuis ce poste (arrivée sur un dossier dans Authentic, client/127).

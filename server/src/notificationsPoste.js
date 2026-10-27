@@ -106,7 +106,8 @@ function notificationsRiches(o) {
       // Seulement une proposition qui attend encore une décision (« vue » = une alerte lue, déjà traitée).
       if (!p || p.etat !== 'proposee' || estReportee(p)) continue;
       if (p.responsable && p.responsable !== o.collab && !ADMINISTRATEURS.includes(o.collab)) continue;
-      sortie.push({ type: 'proposition', id, canal: '@traiter', titre: p.dossierId ? nomCanal(o.repo, o.depot, 'd:' + p.dossierId) : 'Proposition de CLAIRE', auteur: 'CLAIRE', heure: '',
+      // Le canal qui porte sa carte (étude 27/10 : les propositions restent dans la conversation de leur dossier, « général » sans dossier).
+      sortie.push({ type: 'proposition', id, canal: p.dossierId ? 'd:' + p.dossierId : 'general', titre: p.dossierId ? nomCanal(o.repo, o.depot, 'd:' + p.dossierId) : 'Proposition de CLAIRE', auteur: 'CLAIRE', heure: '',
         contexte: 'Proposition de CLAIRE', texte: ligne(p.titre, 160) });
     }
   }

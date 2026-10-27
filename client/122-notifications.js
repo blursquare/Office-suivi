@@ -142,8 +142,8 @@ function elementsNouveaux(avant, apres, reglages) {
 
 // Gestes demandés depuis une carte du relais (le relais a mis la fenêtre CLAIRE devant ; le serveur ne les garde que 20 s). Fenêtre
 // restée cachée : rien.
-//  - « Ouvrir » : le canal du message, « À traiter » pour une proposition ; une carte de rubrique ne fait que montrer CLAIRE.
-//  - « Autoriser » (étude 25/10 : « remet les autorisations ou refus ») : la proposition est montrée dans « À traiter » puis autorisée
+//  - « Ouvrir » : le canal du message, celui du dossier (ou « général ») pour une proposition ; une carte de rubrique ne fait que montrer CLAIRE.
+//  - « Autoriser » (étude 25/10 : « remet les autorisations ou refus ») : la proposition est montrée dans le canal qui porte sa carte puis autorisée
 //    comme d'un clic — au niveau 1, la fenêtre d'email ou l'outil s'ouvre et rien ne part sans « Envoyer » ; au niveau 2 (CLAIRE agit
 //    seule), une confirmation dans CLAIRE d'abord : la carte ne montre que le titre, jamais le brouillon (audit 25/10).
 function executerActionsRelais(actions) {
@@ -158,7 +158,7 @@ function executerActionsRelais(actions) {
       if (!p) continue;
       definirOnglet('assistant');
       setTimeout(() => {
-        ouvrirCanal('@traiter');
+        ouvrirCanal(canalDeProposition(p));
         if ((Number(p.details && p.details.niveau) || 1) >= 2) demanderConfirmation(`Autoriser « ${p.titre || 'la proposition'} » ? CLAIRE le fera elle-même.`, () => autoriserProposition(a.id), { bouton: 'Autoriser', ton: 'valider' });
         else autoriserProposition(a.id);
       }, 0);
@@ -169,7 +169,7 @@ function executerActionsRelais(actions) {
       if (!p) continue;
       definirOnglet('assistant');
       setTimeout(() => {
-        ouvrirCanal('@traiter');
+        ouvrirCanal(canalDeProposition(p));
         demanderConfirmation(`Refuser « ${p.titre || 'la proposition'} » ?`, () => refuserProposition(a.id), { bouton: 'Refuser' });
       }, 0);
     }
