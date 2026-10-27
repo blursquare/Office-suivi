@@ -4,16 +4,22 @@
 // comme si c'était fait à la main sans dépasser »).
 // - « sans dépasser » : chaque parcelle est un chemin de découpe (clip) — rien n'est peint hors de son contour ;
 // - « à la main » : des passes de surligneur obliques, un peu irrégulières (angle, écart, épaisseur), qui se chevauchent, puis une
-//   passe le long du bord intérieur ; encre translucide en mode « produit » (multiply) : traits et numéros restent lisibles dessous.
+//   passe le long du bord intérieur. L'encre est posée SOUS le plan, opaque, sans aucune transparence (étude 27/10 : « quand je mets un
+//   plan du cadastre dans mon AAE Authentic, il me fait un PDF avec un gros amas jaune par-dessus la parcelle » — la conversion de
+//   l'acte électronique aplatit la transparence : l'encre translucide en mode « produit » posée PAR-DESSUS devenait un aplat qui
+//   cachait traits, bâtiments et numéros). Dessous, le plan est dessiné par-dessus le jaune : traits, numéros et bâtiments restent
+//   visibles partout, à l'écran, à l'impression et dans l'acte.
 // Le placement vient de l'emprise imprimée (MAPBBOX) et de l'échelle : la carte de l'extrait A4 portrait du site est toujours
 // centrée au même point de la page (relevé le 14/10 sur des extraits au 1/500 et au 1/1000, croix du quadrillage à 0,1 pt près).
 
-const { PDFDocument, PDFName, PDFArray, PDFDict, PDFRef, PDFRawStream, decodePDFRawStream, rgb, BlendMode, LineCapStyle, pushGraphicsState, popGraphicsState, moveTo, lineTo, closePath, clipEvenOdd, endPath } = require('pdf-lib');
+const { PDFDocument, PDFName, PDFArray, PDFDict, PDFRef, PDFRawStream, decodePDFRawStream } = require('pdf-lib');
 
 const PT_PAR_MM = 72 / 25.4;
 // Centre de la carte dans la page A4 portrait (595 × 842 pt), en points depuis le HAUT de la page.
 const CENTRE_CARTE_PT = { x: 296.7, depuisHaut: 524.3 };
-const JAUNE_FLUO = rgb(1, 0.95, 0.05);
+// Sous le plan, opaques : les passes un peu plus claires que le trait du bord (le chevauchement d'un vrai surligneur, sans transparence).
+const JAUNE_PASSES = '1 0.96 0.38';
+const JAUNE_BORD = '1 0.91 0.02';
 const LARGEUR_SURLIGNEUR_PT = 13;      // ≈ 4,6 mm : la pointe biseautée d'un surligneur
 const ANGLE_DEGRES = -17;
 
@@ -67,6 +73,57 @@ function passesSurligneur(contour, graine) {
   return passes;
 }
 
+// ---- Teinte jaune sans transparence ----------------------------------------------------------------------------------------------
+
+// Ce que donnait l'encre translucide en mode « produit » sur un gris v : v × (1 − α + α × jaune), α ≈ 0,55. Calculé ici couleur par
+// couleur : le plan redessiné dans la parcelle a déjà ses couleurs « surlignées », sans rien de transparent à aplatir.
+const TEINTE = [1, 0.9725, 0.4775];
+const RE_GRIS_OP = new RegExp(`(${'[-+]?(?:\\d+\\.?\\d*|\\.\\d+)'})\\s+(g|G)(?![A-Za-z0-9*])`, 'g');
+
+/** Pure : un flux de contenu (déjà en gris) dont chaque gris « v g » / « v G » devient sa teinte jaune « r v b rg » / « RG ». @param {string} texte */
+function teinterContenu(texte) {
+  const f = (x) => (Math.round(Math.min(1, Math.max(0, x)) * 1000) / 1000).toString();
+  return texte.replace(RE_GRIS_OP, (_, v, op) => `${TEINTE.map((t) => f(Number(v) * t)).join(' ')} ${op === 'g' ? 'rg' : 'RG'}`);
+}
+
+// ---- Fonds blancs retirés -------------------------------------------------------------------------------------------------------
+
+/**
+ * Pure : un flux de contenu PDF dont les REMPLISSAGES BLANCS ne peignent plus rien (« f » → « n », « B » → « S », « b » → « s ») — le
+ * plan de cadastre.gouv.fr commence par un fond blanc plein qui cacherait le jaune posé dessous ; sur une page blanche il ne montre
+ * rien de plus. Les traits blancs, les autres couleurs, le texte et les chaînes ne sont pas touchés ; q/Q gardent la couleur courante.
+ * Rend null si le flux porte une image en ligne (BI … EI).
+ * @param {string} texte @returns {string | null}
+ */
+function sansFondsBlancs(texte) {
+  if (/(?:^|\s)BI(?:\s|$)/.test(texte)) return null;
+  const RE = /\((?:\\[\s\S]|[^\\)])*\)|<<|>>|<[0-9A-Fa-f\s]*>|\[|\]|\/[^\s/[\]()<>{}]+|[^\s/[\]()<>{}]+/g;
+  let blanc = false;
+  const pile = [];
+  let nombres = [];
+  let sortie = '';
+  let dernier = 0;
+  let change = false;
+  for (let m; (m = RE.exec(texte));) {
+    const t = m[0];
+    if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(t)) { nombres.push(Number(t)); continue; }
+    let remplace = null;
+    if (t === 'g') blanc = nombres.length >= 1 && nombres[nombres.length - 1] >= 0.999;
+    else if (t === 'rg') blanc = nombres.length >= 3 && nombres.slice(-3).every((x) => x >= 0.999);
+    else if (t === 'k') blanc = nombres.length >= 4 && nombres.slice(-4).every((x) => x <= 0.001);
+    else if (t === 'sc' || t === 'scn') blanc = (nombres.length === 1 || nombres.length === 3) && nombres.every((x) => x >= 0.999);
+    else if (t === 'cs') blanc = false;
+    else if (t === 'q') pile.push(blanc);
+    else if (t === 'Q') blanc = pile.length ? !!pile.pop() : false;
+    else if (blanc && (t === 'f' || t === 'F' || t === 'f*')) remplace = 'n';
+    else if (blanc && (t === 'B' || t === 'B*')) remplace = 'S';
+    else if (blanc && (t === 'b' || t === 'b*')) remplace = 's';
+    nombres = [];
+    if (remplace) { sortie += texte.slice(dernier, m.index) + remplace; dernier = m.index + t.length; change = true; }
+  }
+  return change ? sortie + texte.slice(dernier) : texte;
+}
+
 // ---- Plan en niveaux de gris ----------------------------------------------------------------------------------------------------
 
 const NOMBRE = '[-+]?(?:\\d+\\.?\\d*|\\.\\d+)';
@@ -111,7 +168,8 @@ async function griserPage(doc, page) {
   const flux = contenus instanceof PDFArray ? contenus.asArray().map((r) => ctx.lookup(r)) : (contenus ? [contenus] : []);
   const textes = flux.map((f) => (f instanceof PDFRawStream ? lire(f) : null));
   if (textes.length && textes.every((t) => t !== null)) {
-    const gris = griserContenu(textes.join('\n'));
+    const g0 = griserContenu(textes.join('\n'));
+    const gris = g0 === null ? null : sansFondsBlancs(g0);
     if (gris !== null) { page.node.set(PDFName.of('Contents'), ctx.register(ctx.flateStream(Buffer.from(gris, 'latin1')))); reecrits++; }
   }
   /** @param {any} ressources */
@@ -125,7 +183,8 @@ async function griserPage(doc, page) {
       if (!(f instanceof PDFRawStream) || String(f.dict.get(PDFName.of('Subtype'))) !== '/Form') continue;
       const t = lire(f);
       if (t === null) continue;
-      const gris = griserContenu(t);
+      const g0 = griserContenu(t);
+      const gris = g0 === null ? null : sansFondsBlancs(g0);
       if (gris !== null) {
         const entrees = {};
         for (const [k, v] of f.dict.entries()) { const n = String(k); if (!['/Length', '/Filter', '/DecodeParms'].includes(n)) entrees[n.slice(1)] = v; }
@@ -137,6 +196,58 @@ async function griserPage(doc, page) {
   };
   formulaires(page.node.Resources());
   return reecrits;
+}
+
+/**
+ * Une copie de tout le contenu de la page, en formulaire (Form XObject), avec ses formulaires imbriqués copiés eux aussi : fonds blancs
+ * retirés et gris teintés de jaune. Rend sa référence, ou null si un flux ne se relit pas (le surlignage reste alors les seules passes).
+ * @param {any} doc @param {any} page
+ */
+async function copieTeinteePage(doc, page) {
+  const ctx = doc.context;
+  /** @param {any} flux @returns {string | null} */
+  const lire = (flux) => { try { return Buffer.from(decodePDFRawStream(flux).decode()).toString('latin1'); } catch (_) { return null; } };
+  const transformer = (t) => { const b = sansFondsBlancs(t); return b === null ? null : teinterContenu(b); };
+  const copies = new Map();
+  /** Les ressources avec chaque formulaire remplacé par sa copie teintée. @param {any} res @returns {any} */
+  const ressources = (res) => {
+    if (!res) return res;
+    const xo = res.lookupMaybe ? res.lookupMaybe(PDFName.of('XObject'), PDFDict) : null;
+    if (!xo) return res;
+    const nouveau = ctx.obj({});
+    for (const [k, ref] of xo.entries()) nouveau.set(k, ref instanceof PDFRef ? (formulaire(ref) || ref) : ref);
+    const r2 = ctx.obj({});
+    for (const [k, v] of res.entries()) r2.set(k, v);
+    r2.set(PDFName.of('XObject'), nouveau);
+    return r2;
+  };
+  /** @param {any} ref */
+  function formulaire(ref) {
+    if (copies.has(ref.tag)) return copies.get(ref.tag);
+    copies.set(ref.tag, null);
+    const f = ctx.lookup(ref);
+    if (!(f instanceof PDFRawStream) || String(f.dict.get(PDFName.of('Subtype'))) !== '/Form') return null;
+    const t = lire(f);
+    const t2 = t === null ? null : transformer(t);
+    if (t2 === null) return null;
+    const entrees = {};
+    for (const [k, v] of f.dict.entries()) { const n = String(k); if (!['/Length', '/Filter', '/DecodeParms', '/Resources'].includes(n)) entrees[n.slice(1)] = v; }
+    const res = f.dict.lookupMaybe(PDFName.of('Resources'), PDFDict);
+    if (res) entrees.Resources = ressources(res);
+    const copie = ctx.register(ctx.flateStream(Buffer.from(t2, 'latin1'), entrees));
+    copies.set(ref.tag, copie);
+    return copie;
+  }
+  const contenus = page.node.Contents();
+  const flux = contenus instanceof PDFArray ? contenus.asArray().map((r) => ctx.lookup(r)) : (contenus ? [contenus] : []);
+  const textes = flux.map((x) => (x instanceof PDFRawStream ? lire(x) : null));
+  if (!textes.length || textes.some((t) => t === null)) return null;
+  const contenu = transformer(textes.join('\n'));
+  if (contenu === null) return null;
+  const { width, height } = page.getSize();
+  return ctx.register(ctx.flateStream(Buffer.from(contenu, 'latin1'), {
+    Type: 'XObject', Subtype: 'Form', BBox: [0, 0, width, height], Resources: ressources(page.node.Resources())
+  }));
 }
 
 /**
@@ -152,8 +263,10 @@ async function surlignerParcelles(pdf, plan) {
   // Sans l'emprise envoyée par le site, le centre du clic (la zone d'impression s'y centre) et la taille du cadre suffisent.
   // Fond du plan en niveaux de gris (étude 15/10 : « pour mieux voir les parcelles surlignées, passe le plan en noir et nuances de gris ») :
   // les couleurs du plan sont réécrites en gris AVANT la pose du jaune fluo, qui reste la seule couleur de la page.
-  const grises = await griserPage(doc, page);
+  await griserPage(doc, page);
   const emprise = plan.emprisePlan || [plan.centre[0] - 1, plan.centre[1] - 1, plan.centre[0] + 1, plan.centre[1] + 1];
+  const n = (v) => (Math.round(v * 100) / 100).toString();
+  let encre = '';
   for (const p of plan.parcelles) {
     const versPage = (anneau) => /** @type {Array<[number, number]>} */ (anneau.map((q) => pointPage(q, emprise, plan.echelle, height)));
     const contours = p.anneaux.map(versPage).filter((c) => c.length >= 3);
@@ -161,27 +274,38 @@ async function surlignerParcelles(pdf, plan) {
     const trous = (p.trous || []).map(versPage).filter((c) => c.length >= 3);
     if (!contours.length) continue;
     // Découpe : la parcelle seule, contours et trous en pair-impair.
-    const chemin = [...contours, ...trous].flatMap((c) => [moveTo(c[0][0], c[0][1]), ...c.slice(1).map((q) => lineTo(q[0], q[1])), closePath()]);
-    page.pushOperators(pushGraphicsState(), ...chemin, clipEvenOdd(), endPath());
+    const chemin = [...contours, ...trous].map((c) => `${n(c[0][0])} ${n(c[0][1])} m ` + c.slice(1).map((q) => `${n(q[0])} ${n(q[1])} l`).join(' ') + ' h').join(' ');
+    encre += `q ${chemin} W* n 1 J 1 j\n`;
     for (const [i, contour] of contours.entries()) {
       for (const [x1, y1, x2, y2, ep] of passesSurligneur(contour, `${p.section}${p.numero}-${i}`)) {
-        page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: ep, color: JAUNE_FLUO, opacity: 0.42,
-          blendMode: BlendMode.Multiply, lineCap: LineCapStyle.Round });
+        encre += `${JAUNE_PASSES} RG ${n(ep)} w ${n(x1)} ${n(y1)} m ${n(x2)} ${n(y2)} l S\n`;
       }
     }
     // Le long des bords intérieurs, comme on repasse les angles : la moitié intérieure du trait seulement (découpe).
     for (const contour of [...contours, ...trous]) {
-      for (let j = 0; j < contour.length; j++) {
-        const a = contour[j]; const b = contour[(j + 1) % contour.length];
-        page.drawLine({ start: { x: a[0], y: a[1] }, end: { x: b[0], y: b[1] }, thickness: 7, color: JAUNE_FLUO, opacity: 0.38,
-          blendMode: BlendMode.Multiply, lineCap: LineCapStyle.Round });
-      }
+      encre += `${JAUNE_BORD} RG 7 w ` + contour.map((q, j) => `${n(q[0])} ${n(q[1])} ${j ? 'l' : 'm'}`).join(' ') + ' h S\n';
     }
-    page.pushOperators(popGraphicsState());
+    encre += 'Q\n';
   }
-  void grises;
+  // Le plan redessiné DANS la parcelle, par-dessus les passes : fonds blancs retirés (les passes se voient dessous), couleurs déjà teintées
+  // (bâtiments compris) ; traits et numéros restent noirs. Tout est opaque : rien à aplatir pour l'acte électronique.
+  if (encre) {
+    const copie = await copieTeinteePage(doc, page);
+    if (copie) encre = encre.replace(/Q\n/g, `/ClaireTeinte Do Q\n`);
+    const ctx = doc.context;
+    const flux = ctx.register(ctx.flateStream(Buffer.from(encre, 'latin1')));
+    const contenus = page.node.Contents();
+    const avant = contenus instanceof PDFArray ? contenus.asArray() : [page.node.get(PDFName.of('Contents'))];
+    page.node.set(PDFName.of('Contents'), ctx.obj([...avant, flux]));
+    if (copie) {
+      const res = page.node.Resources();
+      let xo = res.lookupMaybe(PDFName.of('XObject'), PDFDict);
+      if (!xo) { xo = ctx.obj({}); res.set(PDFName.of('XObject'), xo); }
+      xo.set(PDFName.of('ClaireTeinte'), copie);
+    }
+  }
   doc.setProducer('CLAIRE (surlignage) — extrait du plan cadastral cadastre.gouv.fr');
   return Buffer.from(await doc.save());
 }
 
-module.exports = { griserContenu, surlignerParcelles, pointPage, passesSurligneur, aleatoire, CENTRE_CARTE_PT };
+module.exports = { griserContenu, sansFondsBlancs, teinterContenu, surlignerParcelles, pointPage, passesSurligneur, aleatoire, CENTRE_CARTE_PT };

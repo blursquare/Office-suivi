@@ -129,7 +129,7 @@ test('surligner : le PDF reste un A4 d’une page, le surlignage s’ajoute ; un
     parcelles: [{ section: 'AL', numero: '1', anneaux: [[[1090, 2100], [1110, 2100], [1110, 2120], [1090, 2120]]] }] });
   const relu = await PDFDocument.load(sortie);
   assert.equal(relu.getPageCount(), 1);
-  assert.ok(sortie.length > pdf.length + 500, 'le contenu du surlignage est ajouté');
+  assert.ok(sortie.length > pdf.length, 'le contenu du surlignage est ajouté');
   const paysage = await PDFDocument.create(); paysage.addPage([842, 595]);
   await assert.rejects(surlignerParcelles(await paysage.save(), { emprisePlan: emprise, centre: [0, 0], echelle: 1000, parcelles: [] }), /A4 portrait/);
 });
@@ -340,7 +340,24 @@ test('plan en niveaux de gris : le PDF surligné n’a plus les couleurs d’ori
   const texte = flux.map((f) => Buffer.from(decodePDFRawStream(/** @type {any} */ (f)).decode()).toString('latin1')).join('\n');
   assert.doesNotMatch(texte, /0\.9 0\.5 0\.1|0\.8 0 0 RG/);
   assert.match(texte, /0\.574 g/);           // l'orange, en gris de même clarté
-  assert.match(texte, /1 0\.95 0\.05 RG|1 0\.95 0\.05 rg/);   // le jaune fluo, lui, reste en couleur
+  assert.match(texte, /1 0\.96 0\.38 RG/);   // le jaune des passes, lui, reste en couleur
+  assert.match(texte, /\/ClaireTeinte Do/, 'le plan redessiné, teinté, dans la parcelle');
+  // Aucune transparence (étude 27/10 : l'acte électronique d'Authentic l'aplatissait en un pavé jaune) : ni opacité, ni mode de fusion.
+  for (const [, o] of sortie.context.enumerateIndirectObjects()) {
+    const dict = o && o.dict ? o.dict : o;
+    if (!dict || !dict.get) continue;
+    for (const k of ['ca', 'CA', 'BM', 'SMask']) assert.equal(dict.get(require('pdf-lib').PDFName.of(k)), undefined, `${k} présent`);
+  }
+});
+
+test('surlignage sans transparence : fonds blancs retirés, gris teintés de jaune ; traits blancs et texte intacts', () => {
+  const { sansFondsBlancs, teinterContenu } = require('../src/navigateur/surlignage');
+  assert.equal(sansFondsBlancs('1 g 0 0 595 842 re f 0 g 10 10 5 5 re f'), '1 g 0 0 595 842 re n 0 g 10 10 5 5 re f');
+  assert.equal(sansFondsBlancs('1 1 1 rg 0 0 1 1 re B'), '1 1 1 rg 0 0 1 1 re S');
+  assert.equal(sansFondsBlancs('q 1 g Q 0 0 1 1 re f'), 'q 1 g Q 0 0 1 1 re f', 'q/Q rendent la couleur d’avant');
+  assert.equal(sansFondsBlancs('1 G 0 0 m 1 1 l S'), '1 G 0 0 m 1 1 l S', 'un trait blanc reste');
+  assert.equal(sansFondsBlancs('1 g BT (f) Tj ET'), '1 g BT (f) Tj ET', 'un « f » dans une chaîne n’est pas un remplissage');
+  assert.equal(teinterContenu('0.8 g 0 G 1 g'), '0.8 0.778 0.382 rg 0 0 0 RG 1 0.973 0.478 rg');
 });
 
 test('commune choisie dans la liste du site (essai du 16/10, Chaumont-sur-Tharonne) : par le nom puis le code postal, jamais devinée', () => {

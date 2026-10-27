@@ -22522,3 +22522,18 @@ numéro (`cleRenduAccesRapide`) ; plus aucune mutation en 65 s.
   - Routes en `@ts-check`.
 - Faux Authentic enrichi : un homonyme en tête des résultats et un « Décès » coché d'avance sur le conjoint. Les deux sont évités et
   décochés dans Chromium. Une demande sans référence est refusée.
+
+### 27/10/2026 — 0.373.3 : plan de situation surligné sans transparence (acte électronique d'Authentic)
+
+Étude : « Quand je mets un plan du cadastre dans mon AAE Authentic, il me fait un PDF avec un gros amas jaune par-dessus la parcelle. »
+Cause : le surlignage était une encre translucide (opacité 0,42 et 0,38, mode « produit »), et la conversion de l'acte électronique aplatit
+la transparence. L'aplat devenait opaque et cachait traits, bâtiment et numéros.
+
+Correction (`server/src/navigateur/surlignage.js`, essayée sur un vrai extrait de cadastre.gouv.fr, parcelle AL 839 de Blois, donnée
+publique) :
+- Dans la découpe de chaque parcelle, les passes de surligneur sont OPAQUES (deux tons de jaune). Par-dessus, une copie de tout le contenu
+  du plan en formulaire (`copieTeinteePage`, formulaires imbriqués copiés aussi) est redessinée, transformée en deux temps :
+  - `sansFondsBlancs` : un remplissage blanc ne peint plus rien, sinon le fond blanc plein du site cachait les passes ;
+  - `teinterContenu` : chaque gris v devient v × (1 ; 0,9725 ; 0,4775), ce que donnait l'encre translucide.
+- Résultat : bâtiment teinté, traits et numéros noirs, et 0 objet transparent dans le PDF (ni `ca`/`CA`, ni `BM`, ni `SMask` — testé).
+- Les plans déjà rangés sur le NAS gardent l'ancien surlignage : à tirer de nouveau.

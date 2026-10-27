@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.373.2';
+  const VERSION_APP = '0.373.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.373.3', date: '2026-10-27 12:22', resume: "Plan de situation surligné : le jaune ne devient plus un gros pavé quand le plan est mis dans l'acte électronique d'Authentic. Il n'y a plus aucune transparence dans le PDF : la parcelle est redessinée avec ses couleurs déjà teintées de jaune, et ses traits, numéros et bâtiments restent lisibles partout. Les plans déjà rangés sur le NAS sont à tirer de nouveau." },
     { version: '0.373.2', date: '2026-10-27 11:47', resume: "CLAIRE dans Authentic, plus prudente : une demande n'est faite que dans le dossier qui porte SA référence d'Authentic en tête (jamais un homonyme), dans son seul sous-dossier de vente ; pour le casier, chaque personne cochée doit être un acquéreur de la fiche ; pour l'état civil, une demande cochée d'avance par Authentic et non voulue est décochée. Une demande n'est jamais créée deux fois. Un mot de passe refusé arrête toute connexion jusqu'à sa correction (le compte ne se verrouille pas). Une proposition de CLAIRE n'est décidée qu'une fois la demande créée." },
     { version: '0.373.1', date: '2026-10-27 11:39', resume: "L'accès rapide aux discussions de la barre latérale ne clignote plus : il était redessiné toutes les 30 secondes sans rien changer." },
     { version: '0.373.0', date: '2026-10-27 11:31', resume: "CLAIRE se connecte à Authentic, avec le compte de l'étude enregistré dans Réglages › Authentic, par le navigateur du serveur. Dans une conversation ou un canal de dossier : « lis le dossier X dans Authentic » (elle retrouve le dossier, relève la page, les fiches clients et les fiches biens, et la fiche se complète), « prépare la demande de casier » ou « prépare la demande d'état civil » (naissance de chaque partie, mariage des mariés). Les demandes passent toujours par « Autoriser » ; CLAIRE les crée avec « Création rapide » et Envoi immédiat éteint : rien ne part, vous les envoyez depuis Authentic. Elle les propose aussi d'elle-même dans le canal du dossier : l'état civil dès que le dossier est relié à Authentic, le casier à 30 jours de la signature quand l'étude reçoit l'acte." },
