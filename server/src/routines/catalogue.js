@@ -28,7 +28,7 @@ const CATALOGUE = [
   { id: 'essai', nom: 'Exemples de propositions', icone: 'sparkle', phase: 0, disponible: true, declencheur: 'À la demande', ia: false,
     description: 'Dépose quelques propositions d’exemple dans votre boîte pour voir à quoi ressemblera le travail de CLAIRE. Sans aucun dossier réel.',
     gestes: [{ cle: 'proposer', libelle: 'Déposer des exemples dans la boîte', niveauMax: 1 }] },
-  { id: 'revue-matin', nom: 'Revue du matin', icone: 'clipboard', phase: 1, disponible: true, declencheur: 'Jours ouvrés, 9 h 30', ia: true,
+  { id: 'revue-matin', nom: 'Revue du matin', icone: 'clipboard', phase: 1, disponible: true, declencheur: 'Jours ouvrés, 9 h 15', ia: true,
     description: 'Repère ce qui bloque chaque dossier (offre de prêt attendue, échéance dépassée, pièces manquantes à trois semaines de la signature) et prépare la relance de l’offre de prêt.',
     gestes: [{ cle: 'relance', libelle: 'Préparer la relance de l’offre de prêt', niveauMax: 2, sensible: true }, { cle: 'tache', libelle: 'Poser une tâche dans « À faire »', niveauMax: 1 }] },
   { id: 'veille-signature', nom: 'Veille de signature', icone: 'calendar', phase: 1, disponible: true, declencheur: '48 h avant le rendez-vous', ia: false,

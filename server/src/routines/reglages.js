@@ -9,7 +9,9 @@ const { CATALOGUE } = require('./catalogue');
 const CLE_REGLAGES_ROUTINES = 'routines-reglages';
 const PLAFOND_DEFAUT_EUROS = 50;
 const PLAFOND_MAX_EUROS = 10000;
-const HEURE_DEFAUT = '09:30';
+// 9 h 15 depuis le 27/10 (étude : « passe son retour du matin à 9 h 15 ») ; un réglage gardé à 9 h 30, l'ancienne heure par défaut, y passe.
+const HEURE_DEFAUT = '09:15';
+const ANCIENNE_HEURE_DEFAUT = '09:30';
 // 2 (25/10) : toutes les routines construites, allumées au niveau 1 au premier passage (étude : « toutes allumées, niveau 1 »).
 const REVISION_REGLAGES_ROUTINES = 2;
 
@@ -29,7 +31,7 @@ function niveauMaxRoutine(r) {
 function assainirReglagesRoutines(brut) {
   const b = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut : {};
   const anciens = b.revision !== REVISION_REGLAGES_ROUTINES;
-  const heure = typeof b.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.heure) ? b.heure : HEURE_DEFAUT;
+  const heure = typeof b.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.heure) && b.heure !== ANCIENNE_HEURE_DEFAUT ? b.heure : HEURE_DEFAUT;
   const plafond = Number(b.plafondEuros);
   /** @type {Record<string, { actif: boolean, niveau: number, gestes: Record<string, number> }>} */
   const routines = {};

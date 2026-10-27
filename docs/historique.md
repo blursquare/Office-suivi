@@ -22295,3 +22295,10 @@ discussion privée elle doit pouvoir voir la mémoire de ses conversations dans 
   8 derniers messages ; ajoutée à la première question d'une conversation dans SON espace (`contexte.vueClaire`, jamais un canal ni le
   poste de CLAIRE) ; chaque texte repris passe par le masquage de la conversation, avec les noms déjà masqués dans les conversations gardées.
   Test « rien de nominatif ne part » dans `server/test/assistant-agent.test.js`.
+
+### 27/10/2026 — 0.370.1 : passage du matin de CLAIRE à 9 h 15
+
+Étude : « Passe son retour du matin à 9 h 15. » `HEURE_DEFAUT` des routines (`server/src/routines/reglages.js`) = 09:15 ; un réglage enregistré
+à 09:30 (l'ancienne valeur par défaut) est lu 09:15, toute autre heure choisie est gardée. Le résumé matinal des ❓/👎 (`signaux.resumerInterrogations`)
+suit la même heure au lieu d'un 09:30 en dur. Aussi : `verifierNudgeAuthentic` (client/127) appelait `.filter` sur le résultat de `actionsDuJour`
+(un objet `{ actions, aVenir }`) — erreur de page relevée par les scénarios Authentic de la fumée, présente depuis 0.365.0.

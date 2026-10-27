@@ -24,7 +24,7 @@ function texteStatsRoutine(s) {
   return morceaux.join(' · ');
 }
 
-// Pure : le prochain passage des routines horaires — « aujourd'hui à 9 h 30 », « demain à 9 h 30 », « lundi à 9 h 30 » (jours ouvrés seulement, jours fériés exclus).
+// Pure : le prochain passage des routines horaires — « aujourd'hui à 9 h 15 », « demain à 9 h 15 », « lundi à 9 h 15 » (jours ouvrés seulement, jours fériés exclus).
 function prochainPassageRoutines(heure, maintenant) {
   const m = /^(\d{2}):(\d{2})$/.exec(heure || '');
   if (!m) return '';

@@ -36,7 +36,7 @@ test('réglages : jamais enregistrés (ou d’avant le 25/10), tout allumé au n
   const d = R.assainirReglagesRoutines(null);
   assert.equal(d.actif, true, 'étude 25/10 : « toutes allumées, niveau 1 »');
   assert.equal(d.plafondEuros, 50);
-  assert.equal(d.heure, '09:30');
+  assert.equal(d.heure, '09:15');
   assert.equal(d.teams, true);
   assert.equal(CATALOGUE.length, Object.keys(d.routines).length);
   for (const r of CATALOGUE) assert.equal(d.routines[r.id].actif, r.id !== 'essai', r.id);
@@ -47,7 +47,7 @@ test('réglages : jamais enregistrés (ou d’avant le 25/10), tout allumé au n
     inconnue: { actif: true }
   } });
   assert.equal(s.actif, true);
-  assert.equal(s.heure, '09:30', 'heure illisible : l’heure par défaut');
+  assert.equal(s.heure, '09:15', 'heure illisible : l’heure par défaut');
   assert.equal(s.plafondEuros, 50, 'plafond négatif : le défaut');
   assert.equal(s.routines.essai.actif, true);
   assert.equal(s.routines.essai.niveau, 1, 'l’essai ne dépasse pas le niveau 1');
@@ -218,11 +218,11 @@ async function planifier(options, fn) {
   await fn({ repo, p, envois });
 }
 
-test('planificateur : le résumé part à 9 h 30 un jour ouvré, une fois, sans les exemples ni ceux dont le collaborateur n’a pas d’adresse', async () => {
+test('planificateur : le résumé part à 9 h 15 un jour ouvré, une fois, sans les exemples ni ceux dont le collaborateur n’a pas d’adresse', async () => {
   await planifier({}, async ({ repo, p, envois }) => {
-    await p.tour(lundi('09:29'));
+    await p.tour(lundi('09:14'));
     assert.equal(envois.length, 0, 'avant l’heure');
-    const bilan = await p.tour(lundi('09:31'));
+    const bilan = await p.tour(lundi('09:16'));
     assert.equal(bilan.resumes, 1);
     assert.equal(envois.length, 1);
     assert.equal(envois[0].adresse, 'julie@exemple.fr');

@@ -65,7 +65,7 @@ function verifierNudgeAuthentic() {
   const auj = isoAujourdhuiLocal();
   const nbProp = (propositionsClaire.liste || []).filter(p => p.dossierId === d.id).length;
   const nbPieces = estSuccession(d) ? 0 : (piecesAttenduesDossier(d) || []).length;
-  const nbGestes = actionsDuJour([d], auj).filter(a => a.dossier && a.dossier.id === d.id).length;
+  const nbGestes = actionsDuJour([d], auj).actions.filter(a => a.dossier && a.dossier.id === d.id).length;
   const idees = ideesPourDossierAuthentic(nbProp, nbPieces, nbGestes);
   nudges[d.id] = Date.now();   // même sans idée : on ne refait pas le calcul à chaque tour
   ecrireLocal(CLE_NUDGES_AUTHENTIC + utilisateurPoste, JSON.stringify(nudges));

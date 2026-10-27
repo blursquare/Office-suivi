@@ -2,7 +2,7 @@
 'use strict';
 // Planificateur des routines de CLAIRE (phase 0, cadrage : docs/spec-routines-claire.md) : un tour par minute, jours ouvrés seulement.
 // Il (1) fait expirer les propositions restées sans réponse 30 jours, (2) lance les routines horaires dues — aucune n'existe encore en phase 0 —
-// et (3) envoie à l'heure choisie (9 h 30 par défaut) UN résumé Teams par collaborateur qui a des propositions nouvelles. Une routine qui échoue
+// et (3) envoie à l'heure choisie (9 h 15 par défaut) UN résumé Teams par collaborateur qui a des propositions nouvelles. Une routine qui échoue
 // est notée au journal et JAMAIS relancée d'elle-même ; un tour est protégé contre le chevauchement. `envoyer` injectable pour les tests.
 
 const { routineParId } = require('./catalogue');
@@ -350,7 +350,7 @@ function creerPlanificateur(deps) {
         if (dossiersActifs.length) signaux.signalerRetards(parametresRepo, dossiersActifs, jourParis.iso);
         if (parametresRepo.lireRappelsPerso) signaux.confirmerTachesFaites(parametresRepo, parametresRepo.lireRappelsPerso(), COLLABORATEURS);
         signaux.feterAnniversaires(parametresRepo, jourParis.iso, maintenant.getTime());
-        if (jourParis.ouvre && jourParis.hhmm >= '09:30') signaux.resumerInterrogations(parametresRepo, jourParis.iso, maintenant.getTime());
+        if (jourParis.ouvre && jourParis.hhmm >= lireReglagesRoutines(parametresRepo).heure) signaux.resumerInterrogations(parametresRepo, jourParis.iso, maintenant.getTime());
       } catch (e) { /* de l'affichage : jamais bloquant */ }
       // Canaux de dossiers supprimés : vidés, une fois par jour.
       const jourPurge = infosParis(maintenant).iso;
