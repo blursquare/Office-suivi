@@ -43,7 +43,8 @@ function lireArtefactAgent(a) {
   // Le tableau d'un calcul ne repasse jamais par l'IA (client/98, audit 21/10 H1 ; audit 0.374.0, H1) : son aperçu seulement, comme à sa création.
   if (a.type === 'tableau') {
     return { ...resumeArtefactAgent(a), colonnes: a.colonnes, lignes_total: a.lignes.length,
-      apercu: apercuTableauCalcul(a.lignes.map(l => l.map(v => (v == null ? '' : String(v))))),
+      // L'aperçu fait au calcul, repères D001… compris — jamais les lignes affichées, où les repères sont devenus des libellés de dossiers.
+      apercu: Array.isArray(a.apercuIa) ? a.apercuIa : [],
       note: 'pour corriger un tableau, refais le calcul (outil calcul) avec la correction' };
   }
   return { ...resumeArtefactAgent(a), note: 'un outil ouvert se remplit par outil_champs, pas ici' };
@@ -51,7 +52,8 @@ function lireArtefactAgent(a) {
 
 function modifierArtefactAgent(a, e) {
   const texte = typeof e.texte === 'string' ? e.texte.replace(/\r/g, '') : '';
-  const avant = a.type === 'email' ? (brouillonDeArtefact(a) || {}).texte : a.type === 'courrier' ? texteCourrierArtefact(a.doc) : a.contenu;
+  const brouillon = a.type === 'email' ? brouillonDeArtefact(a) || {} : null;
+  const avant = brouillon ? `${brouillon.texte || ''} ${brouillon.sujet || ''}` : a.type === 'courrier' ? texteCourrierArtefact(a.doc) : a.contenu;
   const nouveaux = [...liensEtIbanTexte(texte + ' ' + (e.objet || ''))].filter(x => !liensEtIbanTexte(avant).has(x));
   if (nouveaux.length) return { erreur: 'une correction n’ajoute ni lien ni IBAN qui n’était pas dans le texte : demande à l’utilisateur de le coller lui-même' };
   if (a.type === 'email') {

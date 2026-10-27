@@ -166,6 +166,8 @@ test('modèle d’email proposé par CLAIRE (27/10) : refusé s’il cite un cli
       rep = await post({ nom: 'Coordonnées', corps, origine: 'claire' });
       assert.equal(rep.status, 400, 'coordonnées refusées : ' + corps);
     }
+    rep = await post({ nom: 'Prix', corps: 'Le prix de 250 000 € est à verser.', origine: 'claire' });
+    assert.equal(rep.status, 201, 'un montant en euros n’est pas une coordonnée');
     rep = await post({ nom: 'Mot pour Fournier', corps: 'Texte libre de l’étude.' });
     assert.equal(rep.status, 201, 'un modèle saisi par l’étude dans les Réglages garde sa liberté');
   } finally { serveur.close(); db.close(); }

@@ -44,7 +44,8 @@ function creerRouteurModelesEmails(parametresRepo, depot) {
     if (b.origine === 'claire') {
       const texteModele = `${String(b.nom || '')}\n${String(b.sujet || '')}\n${String(b.corps || '')}`;
       // Coordonnées d'une personne (email, téléphone, IBAN, long numéro) : jamais dans un modèle de l'étude (audit 0.374.0, M1).
-      if (RE_COORDONNEES_MODELE.test(texteModele)) return res.status(400).json({ erreur: 'Le modèle vaut pour tous les dossiers : retirez les emails, téléphones, IBAN et numéros (variable ou « [à compléter] »).' });
+      // Un montant en euros (« 250 000 € ») n'est pas une coordonnée : retiré avant le contrôle des numéros.
+      if (RE_COORDONNEES_MODELE.test(texteModele.replace(/\d[\d\s.]*(?:,\d+)?\s?(?:€|euros?\b)/gi, ''))) return res.status(400).json({ erreur: 'Le modèle vaut pour tous les dossiers : retirez les emails, téléphones, IBAN et numéros (variable ou « [à compléter] »).' });
       const mots = motsNominatifs(texteModele, depot && depot.tousActifs ? depot.tousActifs() : []);
       if (mots.length) return res.status(400).json({ erreur: `Le modèle vaut pour tous les dossiers : remplacez les noms de clients ou de dossiers par une variable ou « [à compléter] » (${mots.slice(0, 5).join(', ')}).` });
     }

@@ -22612,3 +22612,5 @@ pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
   du calcul appliqué) et ne se corrige qu'en refaisant le calcul ; `modele_email` ne reçoit aucun code rétabli et le serveur refuse
   emails, téléphones, IBAN et numéros dans un modèle de CLAIRE ; l'élément « email » du panneau est lié à SA rédaction ; une correction
   de CLAIRE est dite (conversation + bandeau du panneau) et n'ajoute ni lien ni IBAN ; date du courrier gardée si l'IA l'omet.
+- Relecture des corrections : l'aperçu rendu à l'IA est celui du calcul (`apercuIa`, repères D001…), jamais les lignes affichées ; un montant
+  en euros ne fait pas refuser un modèle ; un lien déjà dans l'objet d'un email n'est pas compté comme nouveau.

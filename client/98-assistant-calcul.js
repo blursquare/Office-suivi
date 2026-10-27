@@ -170,9 +170,11 @@
       // Le tableau s'ouvre à droite (client/99) : cellules modifiables, Excel, CSV ; l'IA n'en voit qu'un aperçu.
       // Les repères D001… sont remplacés par le libellé du dossier dans ce que voit l'utilisateur ; l'aperçu rendu à l'IA garde les repères.
       const rendre = (c) => (typeof c === 'string' && lu.libelles.has(c) ? lu.libelles.get(c) : c);
-      const idArtefact = ouvrirArtefactAssistant({ type: 'tableau', titre: tableau.titre, colonnes: tableau.colonnes.slice(), lignes: tableau.lignes.map(l => l.map(rendre)) });
+      // L'aperçu avec ses repères est gardé sur l'élément : c'est lui, et lui seul, que l'outil artefact rend à l'IA (relecture 0.374.0).
+      const apercuIa = apercuTableauCalcul(tableau.lignes);
+      const idArtefact = ouvrirArtefactAssistant({ type: 'tableau', titre: tableau.titre, colonnes: tableau.colonnes.slice(), lignes: tableau.lignes.map(l => l.map(rendre)), apercuIa });
       boutons.push({ libelle: 'Ouvrir le tableau', action: () => choisirArtefactAssistant(idArtefact) });
-      sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: apercuTableauCalcul(tableau.lignes),
+      sortie.tableau = { titre: tableau.titre, colonnes: tableau.colonnes, lignes_total: tableau.lignes.length, apercu: apercuIa,
         ...(tableau.coupe ? { coupe: `seules les ${MAX_LIGNES_TABLEAU_CALCUL} premières lignes sont gardées` } : {}) };
       sortie.affiche_a_l_utilisateur = `tableau « ${tableau.titre} » ouvert dans le panneau de droite (modifiable, Excel et CSV)`;
     }
