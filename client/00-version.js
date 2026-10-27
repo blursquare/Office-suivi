@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.369.0';
+  const VERSION_APP = '0.370.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.370.0', date: '2026-10-27 08:00', resume: "La conversation avec CLAIRE devient une vraie conversation : ses messages (rappels, pièces trouvées, comptes rendus de travaux…) arrivent dans le fil, à leur heure, comme ses réponses, au lieu d'une liste en tête. Ses travaux en cours et « Lui confier un travail » passent dans la colonne de droite ; quand un travail est fini, son compte rendu arrive dans la conversation. Et dans son espace, CLAIRE se souvient de vos autres conversations avec elle et de ce qu'elle vous a écrit : vous pouvez y faire référence (« et pour le dossier dont on a parlé hier ? »)." },
     { version: '0.369.0', date: '2026-10-27 07:43', resume: "Les notifications passent par CLAIRE, plus par Teams. Rappels d'échéances, pièces trouvées, rendez-vous déplacés, mentions… arrivent dans sa conversation (« Ce que CLAIRE vous dit », en tête de son profil) : une phrase courte, le détail à déplier, jamais deux fois la même chose, et plusieurs nouvelles du même genre réunies en un seul message (« Pièces trouvées (3) »). Ils comptent dans la pastille de la ligne CLAIRE et donnent une seule notification Windows par message. Quand vous ouvrez un dossier dans Authentic, ce qu'elle a préparé devient aussi un message dans sa conversation. Teams reste possible pour qui le veut : Réglages › Notifications › « Recevoir aussi sur Teams ». Et CLAIRE peut ajouter ou compléter un contact du Répertoire (organismes et professionnels seulement), après votre « Autoriser »." },
     { version: '0.368.0', date: '2026-10-27 07:32', resume: "CLAIRE travaille en arrière-plan. « Lui confier un travail » ne bloque plus l'écran : vous pouvez lui en confier plusieurs, elle les fait l'un après l'autre sur son ordinateur virtuel. Son profil montre « Ses travaux » (en attente, en cours, fait, avec le compte rendu) et vous êtes prévenu quand chacun est fini. Un travail pas encore commencé s'annule." },
     { version: '0.367.1', date: '2026-10-27 07:25', resume: "Son nom s'écrit CLAIRE partout dans les discussions : au-dessus de ses messages, dans la liste des canaux, les réactions, la recherche, les mentions (@CLAIRE) et la zone de saisie. Le logo de la barre latérale ne change pas." },

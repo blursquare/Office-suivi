@@ -17,7 +17,8 @@ const { COLLABORATEURS_ABSENCE } = require('../agendaOffice');
 const COLLABORATEURS_REACTIONS = COLLABORATEURS_ABSENCE.map((c) => c.nom);
 /** Les réactions que ce collaborateur a le droit de voir (jamais le privé d'un autre ni une conversation personnelle d'un autre). @param {string} moi */
 const reactionsVisibles = (repo, moi) => lireReactions(repo).filter((r) => reactionVisiblePar(r, moi, (c) => membresPrive(c, COLLABORATEURS_REACTIONS) || []));
-const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations } = require('../conversationsAgent');
+const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversations, rechercherConversations, sensiblesConversations, memoirePourVueClaire } = require('../conversationsAgent');
+const { messagesDe } = require('../messagesClaire');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
 const { converser } = require('../assistantConversation');
@@ -211,6 +212,10 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       rechercheWeb: (() => { const w = lireRechercheWeb(parametresRepo); return w.actif ? w.domaines : []; })(),
       noterConversation: (info) => noterConversation(parametresRepo, info),
       sensiblesConversations: () => sensiblesConversations(parametresRepo),
+      memoireVueClaire: (prenom, convId, masquer) => {
+        const nom = COLLABORATEURS_REACTIONS.find((n) => n.split(' ')[0] === prenom);
+        return nom ? memoirePourVueClaire({ conversations: lireConversations(parametresRepo), messages: messagesDe(parametresRepo, nom), prenom, convId, masquer }) : '';
+      },
       surRefusOutilsExternes: () => { if (injections && injections.openlegi) injections.openlegi.suspendre(); if (injections && injections.yousign) injections.yousign.suspendre(); },
       surRefusYousign: () => { if (injections && injections.yousign) injections.yousign.suspendre(); },
       surAppelsEcriture: (appels) => {

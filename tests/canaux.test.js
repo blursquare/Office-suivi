@@ -230,14 +230,14 @@ test('travaux de CLAIRE en arrière-plan : libellé de chaque état', () => {
   assert.equal(['attente', 'en-cours', 'fini', 'erreur', 'annule'].map(e => app.libelleEtatTravailClaire({ etat: e })).join('|'), 'En attente|En cours…|Fait|Non terminé|Annulé');
 });
 
-test('messages de CLAIRE : non-lus et récents d’abord, 8 montrés ; heure selon l’âge', () => {
+test('messages de CLAIRE dans le fil : 3 derniers jours et non-lus, chacun à son heure parmi les échanges', () => {
   const app = chargerApplication();
-  const liste = Array.from({ length: 10 }, (_, i) => ({ id: 'm' + i, quand: 1000 + i, maj: 1000 + i, court: 'x' }));
-  const r = app.messagesClaireAMontrer(liste, 8);
-  assert.equal(r.montres.length, 8); assert.equal(r.reste, 2); assert.equal(r.montres[0].id, 'm9');
-  const maintenant = new Date(2026, 9, 27, 15, 0).getTime();
-  assert.equal(app.quandMessageClaire(new Date(2026, 9, 27, 9, 42).getTime(), maintenant), '09:42');
-  assert.equal(app.quandMessageClaire(new Date(2026, 9, 26, 17, 5).getTime(), maintenant), 'hier 17:05');
+  const maintenant = Date.UTC(2026, 9, 27, 12);
+  const h = 3600000;
+  const liste = [{ id: 'vieux-lu', quand: maintenant - 5 * 24 * h, lu: true }, { id: 'vieux-non-lu', quand: maintenant - 5 * 24 * h, lu: false }, { id: 'recent', quand: maintenant - 2 * h, maj: maintenant - h, lu: true }];
+  assert.equal(app.messagesClairePourFil(maintenant, liste).map(m => m.id).join(), 'vieux-non-lu,recent');
+  const entrees = app.entreesFilClaire([{ role: 'moi', quand: maintenant - 3 * h }, { role: 'claire', quand: maintenant - 30 * 60000 }], app.messagesClairePourFil(maintenant, liste));
+  assert.equal(entrees.map(x => (x.notif ? x.notif.id : x.m.role)).join(), 'vieux-non-lu,moi,recent,claire');
 });
 
 test('notifications : rubrique « Messages de CLAIRE » allumée par défaut, Teams éteint ; un message de CLAIRE a sa carte une fois', () => {

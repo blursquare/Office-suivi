@@ -50,7 +50,7 @@ function versionCourte(texte) {
   const m = /^(.{20,}?[.!?])(?:\s|$)/.exec(premiereLigne);
   let court = m ? m[1] : premiereLigne;
   if (court.length > LONGUEUR_COURT) court = court.slice(0, LONGUEUR_COURT - 1).replace(/\s+\S*$/, '') + '…';
-  return { court, complet: propre.slice(0, 2000) };
+  return { court, complet: propre.slice(0, 4000) };
 }
 
 /** @param {any} v @param {number} max */
@@ -87,7 +87,7 @@ function deposerDansBoite(liste, m, maintenantMs) {
   const deja = recents.find((x) => (cle && x.cle === cle) || x.court === court || (x.elements || []).some((e) => e.court === court));
   if (deja) return { liste, message: deja, effet: 'doublon' };
   // Regroupé : même sorte, encore non lu, récent — une seule notification pour le groupe.
-  const groupe = sorte !== 'autre' ? liste.slice().reverse().find((x) => x.sorte === sorte && !x.lu && maintenantMs - (x.maj || x.quand) < FENETRE_GROUPE_MS) : null;
+  const groupe = SORTES.some((x) => x.cle === sorte) && sorte !== 'travail' ? liste.slice().reverse().find((x) => x.sorte === sorte && !x.lu && maintenantMs - (x.maj || x.quand) < FENETRE_GROUPE_MS) : null;
   if (groupe) {
     const elements = (groupe.elements && groupe.elements.length ? groupe.elements : [{ court: groupe.court, quand: groupe.quand, dossierId: groupe.dossierId }])
       .concat([{ court, quand: maintenantMs, dossierId: borne(m.dossierId || '', 80) }]).slice(-MAX_ELEMENTS_GROUPE);

@@ -8,6 +8,7 @@ const crypto = require('node:crypto');
 const { routeInterditePosteClaire, jetonDuCookie } = require('../posteClaire');
 const { lirePropositions } = require('../routines/propositions');
 const { deposerProposition } = require('../canaux/deposer');
+const { deposerMessageClaire } = require('../messagesClaire');
 const { noterVerification } = require('../verificationsTerrain');
 const { creerFileTravaux } = require('../travauxClaire');
 const { collaborateurDe } = require('./routines');
@@ -45,8 +46,9 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
 
   // Les travaux confiés passent par une FILE traitée en arrière-plan (travauxClaire.js) : la réponse est immédiate, le compte rendu arrive
   // à la fin dans la liste des travaux et par une proposition « À savoir » au nom du demandeur.
+  // Le compte rendu arrive comme un message de CLAIRE dans la conversation du demandeur (étude 27/10 : « comme une conversation classique »).
   const file = creerFileTravaux({ repo: parametresRepo, poste, deposer: (p) => {
-    const r = deposerProposition(parametresRepo, p);
+    const r = deposerMessageClaire(parametresRepo, p.responsable, { texte: `${p.titre}.\n\n${p.resume || ''}`.trim(), cle: p.empreinte, sorte: 'travail' });
     if (/^Travail terminé/.test(p.titre)) noterVerification(parametresRepo, 'poste-claire-fenetre', { detail: 'travail rendu' });
     return r;
   } });

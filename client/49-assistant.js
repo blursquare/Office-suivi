@@ -135,18 +135,25 @@
           exemplesDossierAssistant(rattache), true, 'folder')
         : htmlPresentationClaire('CLAIRE', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec CLAIRE.`,
           'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
-          suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true));
+          suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true))
+        + htmlFilClaire(entreesFilClaire([], messagesClairePourFil(Date.now())), Date.now());
+      if (messagesClaireEtat.liste.length) zone.scrollTop = zone.scrollHeight;
       return;
     }
-    const reperes = repereMessagesAssistant(assistantMessages);
+    // Ses messages (rappels, pièces trouvées, comptes rendus…) prennent leur place dans le fil, à leur heure, comme dans une conversation
+    // ordinaire (étude 27/10 : « le flux d'échange doit être comme une conversation classique » ; client/129).
+    const entrees = entreesFilClaire(assistantMessages, messagesClairePourFil(Date.now()));
+    const reperes = repereMessagesAssistant(entrees.map(x => (x.notif ? { role: 'claire', quand: x.notif.quand } : x.m)));
     const maintenant = Date.now();
-    zone.innerHTML = profil + assistantMessages.map((m, i) => {
+    zone.innerHTML = profil + entrees.map((x, k) => {
+      const r = reperes[k];
+      if (x.notif) return htmlNotifClaireFil(x.notif, r, maintenant);
+      const m = x.m, i = x.i;
       const boutons = (m.boutons || []).map((b, k) => {
         const cle = `${i}-${k}`;
         assistantActions[cle] = b.action;
         return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}')">${escapeHtml(b.libelle)}</wa-button>`;
       }).join('');
-      const r = reperes[i];
       const jour = r.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(m.quand, maintenant))}</span></div>` : '';
       // Présentation « comme Slack » (étude 25/10 : « remettre le pseudo de la personne qui parle et l'horaire, comme Slack, pour tout ») :
       // avatar, prénom et heure en tête d'un groupe de messages du même auteur ; dans la suite, l'heure apparaît au survol dans la marge.

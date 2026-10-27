@@ -50,51 +50,50 @@ async function deposerMessageClairePourMoi(texte, options) {
   } catch (e) { return false; }
 }
 
-/** Pur : « 9:42 », « hier 17:05 », « lun. 14:10 » — selon l'âge du message. */
-function quandMessageClaire(quand, maintenant) {
-  const d = new Date(quand);
-  const now = maintenant ? new Date(maintenant) : new Date();
-  const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const jour = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const ecart = Math.round((jour(now) - jour(d)) / 86400000);
-  if (ecart <= 0) return heure;
-  if (ecart === 1) return 'hier ' + heure;
-  if (ecart < 7) return d.toLocaleDateString('fr-FR', { weekday: 'short' }) + ' ' + heure;
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' ' + heure;
+/** Pur : ses messages qui entrent dans le fil — ceux des 3 derniers jours et tous les non-lus, du plus ancien au plus récent. */
+function messagesClairePourFil(maintenant, liste) {
+  const l = Array.isArray(liste) ? liste : messagesClaireEtat.liste;
+  const depuis = (maintenant || Date.now()) - 3 * 86400000;
+  return l.map(m => Object.assign({}, m, { quand: Number(m.maj || m.quand) || 0 }))
+    .filter(m => !m.lu || m.quand >= depuis).sort((a, b) => a.quand - b.quand);
 }
 
-/** Pur : les messages à montrer — les non-lus d'abord, puis les plus récents, 8 au plus (le reste se déplie). */
-function messagesClaireAMontrer(liste, max) {
-  const l = Array.isArray(liste) ? liste.slice() : [];
-  l.sort((a, b) => (Number(b.maj || b.quand) || 0) - (Number(a.maj || a.quand) || 0));
-  return { montres: l.slice(0, max || 8), reste: Math.max(0, l.length - (max || 8)) };
+/** Pur : le fil de la conversation — les échanges et les messages de CLAIRE, chacun à son heure (un échange à la même heure passe avant). */
+function entreesFilClaire(messages, notifs) {
+  const e = (messages || []).map((m, i) => ({ m, i, quand: Number(m.quand) || 0, ordre: 0 }))
+    .concat((notifs || []).map(n => ({ notif: n, quand: n.quand, ordre: 1 })));
+  return e.sort((a, b) => a.quand - b.quand || a.ordre - b.ordre || (a.i || 0) - (b.i || 0));
 }
 
-function htmlUnMessageClaire(m) {
-  const elements = (m.elements || []).length > 1 ? `<ul class="mc-elements">${m.elements.slice().reverse().map(e => `<li>${escapeHtml(e.court)}${e.dossierId && dossiers.find(x => x.id === e.dossierId) ? ` <button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(e.dossierId)}')">fiche</button>` : ''}</li>`).join('')}</ul>` : '';
-  const detail = !elements && m.detail ? `<details class="mc-detail"><summary>Détail</summary><p>${escapeHtml(m.detail).replace(/\n/g, '<br>')}</p></details>` : '';
-  const fiche = !elements && m.dossierId && dossiers.find(x => x.id === m.dossierId)
-    ? `<button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(m.dossierId)}')">Ouvrir la fiche</button>` : '';
-  return `<li class="mc-message${m.lu ? '' : ' mc-nouveau'}"><span class="mc-quand">${escapeHtml(quandMessageClaire(m.maj || m.quand))}</span>
-    <div class="mc-corps"><p class="mc-court">${escapeHtml(m.court)}</p>${elements}${detail}${fiche}</div></li>`;
+// Un message de CLAIRE dans le fil, présenté comme ses autres réponses (avatar, nom, heure ; suite d'un groupe sous la précédente).
+function htmlNotifClaireFil(n, r, maintenant) {
+  const lien = (id, texte) => (id && dossiers.find(x => x.id === id)
+    ? ` <button type="button" class="lien-discret" onclick="ouvrirDossierDrawer('${escapeOnclickArg(id)}')">${texte}</button>` : '');
+  const elements = (n.elements || []).length > 1
+    ? `<ul>${n.elements.map(e => `<li>${escapeHtml(e.court)}${lien(e.dossierId, 'fiche')}</li>`).join('')}</ul>` : '';
+  const corps = elements ? `<p>${escapeHtml(n.court)}</p>${elements}`
+    : `<p>${escapeHtml(n.detail || n.court).replace(/\n/g, '<br>')}${lien(n.dossierId, 'Ouvrir la fiche')}</p>`;
+  const rr = r || { nouveauJour: false, debutGroupe: true };
+  const jour = rr.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(n.quand, maintenant))}</span></div>` : '';
+  const tete = rr.debutGroupe ? `<div class="cx-nom">CLAIRE<span class="cx-heure">${escapeHtml(heureAssistant(n.quand))}</span></div>` : '';
+  return `${jour}<div class="asst-message asst-slack asst-claire asst-notif${rr.debutGroupe ? '' : ' asst-suite'}${n.lu ? '' : ' asst-notif-nouveau'}">
+      ${rr.debutGroupe ? avatarClaireHtml() : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(n.quand))}</span>`}
+      <div class="asst-corps">${tete}<div class="asst-texte">${corps}</div></div></div>`;
 }
 
-// En tête de la conversation de CLAIRE, sous son profil.
-function htmlMessagesClaire() {
-  if (POSTE_CLAIRE || !messagesClaireEtat.liste.length) return '';
-  const { montres, reste } = messagesClaireAMontrer(messagesClaireEtat.liste, 8);
-  const autres = reste ? messagesClaireAMontrer(messagesClaireEtat.liste, 200).montres.slice(8) : [];
-  return `<section class="mc-fil" id="messages-claire" aria-label="Messages de CLAIRE"><h3 class="mc-titre">Ce que CLAIRE vous dit ${infoBulle('Ce qui arrivait sur Teams (rappels, pièces trouvées, mentions, rendez-vous…) et ce que CLAIRE remarque, regroupé et sans doublon. Teams en plus : Réglages › Notifications.')}</h3>
-    <ul class="mc-liste">${montres.map(htmlUnMessageClaire).join('')}</ul>
-    ${autres.length ? `<details class="mc-plus"><summary>${autres.length} plus ancien${autres.length > 1 ? 's' : ''}</summary><ul class="mc-liste">${autres.map(htmlUnMessageClaire).join('')}</ul></details>` : ''}</section>`;
+// Ses messages seuls (conversation encore vide), sous l'accueil.
+function htmlFilClaire(entrees, maintenant) {
+  if (POSTE_CLAIRE) return '';
+  const reperes = repereMessagesAssistant(entrees.map(x => ({ role: 'claire', quand: x.quand })));
+  return entrees.map((x, k) => (x.notif ? htmlNotifClaireFil(x.notif, reperes[k], maintenant) : '')).join('');
 }
 
 function rafraichirMessagesClaire() {
-  const zone = document.getElementById('messages-claire');
-  const html = htmlMessagesClaire();
-  if (zone) { zone.outerHTML = html || '<section id="messages-claire" hidden></section>'; return; }
-  const profil = document.querySelector('.pf-claire');
-  if (profil && html) profil.insertAdjacentHTML('afterend', html);
+  const champ = document.getElementById('assistant-saisie');
+  const valeur = champ ? champ.value : null;
+  renderAssistant();
+  const apres = document.getElementById('assistant-saisie');
+  if (apres && valeur !== null && apres.value !== valeur) apres.value = valeur;
 }
 
 if (typeof window !== 'undefined' && typeof setInterval === 'function') {

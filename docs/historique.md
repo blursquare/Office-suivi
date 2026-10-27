@@ -22277,3 +22277,21 @@ massives. Aujourd'hui on en reçoit trop. Parfois trop longues. Passer par le sy
 - Outil de l'agent `repertoire_ajouter` (carte « Autoriser ») : un organisme ou un professionnel, jamais un client ; contact existant complété
   (`contact_id`, rien de perdu) ; code [NOM…] inconnu refusé ; `contactRepertoireDepuisAgent` (client/66). Source « Ajouté par CLAIRE ».
 - Points terrain `messages-claire-recus`, `repertoire-agent`. Tests `server/test/messages-claire.test.js`, `tests/canaux.test.js`.
+
+### 27/10/2026 — 0.370.0 : la conversation de CLAIRE comme une conversation ; ses travaux dans la colonne de droite ; sa mémoire
+
+Étude : « Agent sans clé… Il lui faut une clé ? » (réponse : non — la fenêtre de son ordinateur virtuel appelle le même agent que
+« Demander à CLAIRE », avec la clé Claude des Réglages ; l'environnement de développement n'en a pas) ; « Pour le fil de discussion CLAIRE
+mettre les tâches en cours dans la sidebar » ; « Le flux d'échange doit être comme une conversation classique » ; « Dans son espace de
+discussion privée elle doit pouvoir voir la mémoire de ses conversations dans les autres demandes ».
+
+- Fil : `entreesFilClaire` (client/129) mêle les échanges de la conversation et les messages de CLAIRE (`messagesClairePourFil` : 3 derniers
+  jours et tous les non-lus) par l'heure ; chacun rendu comme une réponse de CLAIRE (`htmlNotifClaireFil` : avatar, nom, heure, regroupement,
+  séparateur du jour ; non lu = filet à l'accent) ; conversation vide : accueil puis ses messages. Le bloc « Ce que CLAIRE vous dit » est retiré.
+- Colonne de droite : bloc « Ses travaux » (`htmlBlocTravauxColonne`, client/126 — en attente / en cours / rendus, « Lui confier » avec un
+  brouillon gardé entre deux redessins) ; ouverte quand on confie un travail.
+- Compte rendu d'un travail : message de CLAIRE (sorte `travail`, jamais regroupé) au demandeur, à la place de la proposition « À savoir ».
+- Mémoire : `memoirePourVueClaire` (conversationsAgent.js) — 6 autres conversations de la personne (question, réponse courte, dossier) et ses
+  8 derniers messages ; ajoutée à la première question d'une conversation dans SON espace (`contexte.vueClaire`, jamais un canal ni le
+  poste de CLAIRE) ; chaque texte repris passe par le masquage de la conversation, avec les noms déjà masqués dans les conversations gardées.
+  Test « rien de nominatif ne part » dans `server/test/assistant-agent.test.js`.

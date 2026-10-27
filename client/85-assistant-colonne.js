@@ -278,6 +278,7 @@
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerColonneAssistant()" title="Masquer la colonne" aria-label="Masquer la colonne">${icone('x')}</wa-button>
       </div>
       ${typeof htmlColonneCanal === 'function' ? htmlColonneCanal() : ''}
+      ${htmlBlocTravauxColonne()}
       ${a ? `<section class="asst-droite-bloc asst-apercu" aria-label="Aperçu du document">
         <div class="asst-apercu-tete">
           <span class="asst-apercu-nom">${escapeHtml(nomDocumentLocalAssistant(a.docId))}</span>

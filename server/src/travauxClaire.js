@@ -74,11 +74,11 @@ function creerFileTravaux(o) {
         } catch (e) {
           fin = majTravail(suivant.id, { etat: 'erreur', finLe: maintenant().toISOString(), erreur: String(e && e.message || e).slice(0, 300) });
         }
-        // La personne est prévenue : une proposition « À savoir » à son nom, avec le début du compte rendu.
+        // La personne est prévenue : un message de CLAIRE dans sa conversation, avec le compte rendu (routes/posteClaire.js).
         try {
           if (fin) o.deposer({ id: 'pc-' + fin.id, routine: 'poste-claire', responsable: fin.demandeur, type: 'alerte', empreinte: 'poste-claire-fini:' + fin.id,
             titre: (fin.etat === 'fini' ? 'Travail terminé : ' : 'Travail non terminé : ') + fin.consigne.slice(0, 100),
-            resume: (fin.etat === 'fini' ? fin.resultat : fin.erreur).slice(0, 380) });
+            resume: (fin.etat === 'fini' ? fin.resultat : fin.erreur).slice(0, 3500) });
         } catch (e) { if (o.journal) o.journal('travail de CLAIRE : prévenir le demandeur a échoué'); }
       }
     } finally { enMarche = false; }

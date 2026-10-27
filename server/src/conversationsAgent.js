@@ -109,10 +109,36 @@ function rechercherConversations(liste, recherche, dossierId) {
     .map(({ c }) => ({ date: new Date(c.maj).toISOString().slice(0, 10), collaborateur: c.auteur, sujet: c.titre, questions: c.questions, reponse: c.reponse, dossier_id: c.dossierId }));
 }
 
+/**
+ * Pure : la mémoire que CLAIRE relit au début d'une conversation dans SON espace (étude 27/10 : « dans son espace de discussion privée
+ * elle doit pouvoir voir la mémoire de ses conversations dans les autres demandes ») — les autres conversations de cette personne
+ * (6 au plus, les plus récentes) et ses derniers messages à elle (8 au plus). En clair : l'appelant la masque comme une question.
+ * `masquer` : appliqué à chaque texte repris (questions, réponses, messages), jamais aux intitulés de la mémoire.
+ * @param {{ conversations: ConversationGardee[], messages: any[], prenom: string, convId: string, masquer?: (t: string) => string }} o
+ */
+function memoirePourVueClaire(o) {
+  const date = (/** @type {number} */ t) => new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+  const m = typeof o.masquer === 'function' ? o.masquer : (/** @type {string} */ t) => t;
+  const court = (/** @type {unknown} */ t, /** @type {number} */ n) => { const s = String(t == null ? '' : t).replace(/\s+/g, ' ').trim(); return m(s.length > n ? s.slice(0, n - 1) + '…' : s); };
+  const convs = (o.conversations || []).filter((c) => c.auteur === o.prenom && c.id !== o.convId).slice(0, 6);
+  const msgs = (o.messages || []).slice().sort((a, b) => (b.maj || b.quand) - (a.maj || a.quand)).slice(0, 8).reverse();
+  if (!convs.length && !msgs.length) return '';
+  const lignes = ['Ta mémoire (ce que tu as déjà échangé avec ' + o.prenom + ' ailleurs — à reprendre si c’est utile, sans le réciter ; chercher_conversations pour aller plus loin) :'];
+  if (convs.length) {
+    lignes.push('Ses autres conversations avec toi :');
+    for (const c of convs) lignes.push(`- ${date(c.maj)}${c.dossierId ? ` [dossier ${c.dossierId}]` : ''} : « ${court((c.questions || []).slice(-1)[0] || c.titre, 160)} » → ${court(c.reponse, 280)}`);
+  }
+  if (msgs.length) {
+    lignes.push('Ce que tu lui as écrit récemment (notifications, comptes rendus) :');
+    for (const x of msgs) lignes.push(`- ${date(x.maj || x.quand)}${x.dossierId ? ` [dossier ${x.dossierId}]` : ''} : ${court(x.detail || x.court, 280)}`);
+  }
+  return lignes.join('\n');
+}
+
 /** Toutes les valeurs masquées des conversations gardées (pour masquer leur relecture), 3 000 au plus. @param {{ lireJsonBrut: Function }} repo */
 function sensiblesConversations(repo) {
   return [...new Set(lireConversations(repo).flatMap((c) => c.sensibles || []))].slice(0, 3000);
 }
 
-module.exports = { sensiblesConversations, CLE_CONVERSATIONS, CLE_RECHERCHE_WEB, DOMAINES_OFFICIELS_DEFAUT, DUREE_CONVERSATIONS_MS, domainePropre, assainirRechercheWeb, lireRechercheWeb,
+module.exports = { memoirePourVueClaire, sensiblesConversations, CLE_CONVERSATIONS, CLE_RECHERCHE_WEB, DOMAINES_OFFICIELS_DEFAUT, DUREE_CONVERSATIONS_MS, domainePropre, assainirRechercheWeb, lireRechercheWeb,
   ecrireRechercheWeb, conversationsValides, lireConversations, noterConversation, rechercherConversations };

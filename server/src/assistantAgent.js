@@ -787,7 +787,7 @@ function messageErreurAgent(err) {
  * @param {{ conversation?: string, texte?: string, resultats?: Array<{ id: string, contenu?: any, erreur?: boolean }>,
  *   dossiers?: any[], contexte?: any, carnet?: string, historique?: Array<{ role: string, texte: string }>, anonymiser?: boolean, documents?: any[] }} entree
  * @param {{ cle: string, modele?: string, fournisseur?: string, region?: string, client?: any, fetchMistral?: Function,
- *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, chargerConnecteurMcp?: Function, surRefusOutilsExternes?: Function, surRefusYousign?: Function, surAppelsEcriture?: Function, effort?: string, rechercheWeb?: string[], noterConversation?: Function, sensiblesConversations?: Function }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
+ *   parametresRepo?: any, maintenant?: number, outilsExternes?: any[], chargerOutilsExternes?: Function, chargerConnecteurMcp?: Function, surRefusOutilsExternes?: Function, surRefusYousign?: Function, surAppelsEcriture?: Function, effort?: string, rechercheWeb?: string[], noterConversation?: Function, sensiblesConversations?: Function, memoireVueClaire?: Function }} o  `fournisseur` : 'claude' (par défaut) ou 'mistral' (étude 11/10 : « idem pour Mistral »).
  */
 async function tourAgent(entree, o) {
   const maintenant = o.maintenant || Date.now();
@@ -874,7 +874,19 @@ async function tourAgent(entree, o) {
       conv.attendus = [];
     }
     const phrase = masq(texte);
-    const tete = (!conv.contexteDit || contexte.dossierId || contexte.anonymisation ? enteteContexte(contexte) + '\n\n' : '')
+    // Sa conversation à elle (profil de CLAIRE, ni canal ni poste de CLAIRE) : au premier tour, la mémoire de ses autres échanges avec
+    // cette personne, masquée comme la question (étude 27/10).
+    let memoire = '';
+    if (!conv.contexteDit && c.vueClaire === true && typeof o.memoireVueClaire === 'function') {
+      try {
+        // Les noms reçus masqués dans les autres conversations le restent ici, même absents des fiches d'aujourd'hui.
+        if (typeof o.sensiblesConversations === 'function') for (const x of motsSensiblesDossiers([{ parties: o.sensiblesConversations().map((v) => ({ nom: v })) }])) conv.sensibles.add(x);
+        // Chaque texte repris est masqué à part (sa tête de phrase comprise), les intitulés de la mémoire restent lisibles.
+        const m = o.memoireVueClaire(contexte.prenom, conv.id, masq);
+        if (m) memoire = m + '\n\n';
+      } catch (err) { /* la mémoire ne bloque jamais une réponse */ }
+    }
+    const tete = (!conv.contexteDit || contexte.dossierId || contexte.anonymisation ? enteteContexte(contexte) + '\n\n' : '') + memoire
       // Les échanges du poste ne servent qu'à une REPRISE (conversation oubliée ici ou changée de modèle), sans la question en cours.
       + (!conv.contexteDit && repris ? resumeHistoriqueReprise(sansQuestionEnCours(e.historique, texte), conv.sensibles, conv.table, conv.anonymiser === false) : '');
     conv.contexteDit = true;

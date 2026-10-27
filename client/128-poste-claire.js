@@ -75,7 +75,7 @@ if (POSTE_CLAIRE) {
 
 // Côté collaborateur : confier un travail à CLAIRE (profil de CLAIRE, administrateurs). Il part dans une file sur le serveur et se fait en
 // ARRIÈRE-PLAN (étude 27/10) : l'écran reste libre, on peut en confier plusieurs ; la liste « Ses travaux » suit leur état et le compte rendu
-// arrive à la fin (et dans « J'ai anticipé », comme une proposition « À savoir »).
+// arrive à la fin dans sa conversation (message de CLAIRE). « Ses travaux » : colonne de droite (client/126).
 var travauxClaire = { liste: [], charge: false, minuterie: null };
 var INTERVALLE_TRAVAUX_CLAIRE_MS = 10 * 1000;
 
@@ -99,7 +99,7 @@ async function chargerTravauxClaire() {
     travauxClaire.charge = true;
     const apres = JSON.stringify(travauxClaire.liste.map(t => [t.id, t.etat]));
     if (avant !== apres) {
-      if (avant !== '[]' && travauxClaire.liste.some(t => t.etat === 'fini' || t.etat === 'erreur')) chargerPropositionsClaire('a-traiter');
+      if (avant !== '[]' && travauxClaire.liste.some(t => t.etat === 'fini' || t.etat === 'erreur')) chargerMessagesClaire();
       if (!canaux.actif && typeof renderAssistant === 'function' && ecranAffiche('assistant')) renderAssistant();
     }
   } catch (e) { /* le serveur redémarre peut-être : la prochaine relecture suffit */ }
@@ -117,10 +117,12 @@ async function confierTravailAClaire() {
     const corps = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(corps.erreur || `HTTP ${r.status}`);
     if (champ) champ.value = '';
+    brouillonTravailClaire = '';
     afficherToast(corps.position > 1 ? `Confié à CLAIRE (${corps.position}e de la file). Elle vous prévient quand c’est fait.` : 'Confié à CLAIRE : elle s’y met et vous prévient quand c’est fait.', 'OK', null);
   } catch (e) {
     afficherToast('Travail non confié : ' + (e.message || e), 'OK', null);
   }
+  if (!colonneAssistant.ouverte) basculerColonneAssistant();
   await chargerTravauxClaire();
   renderAssistant();
 }
@@ -138,7 +140,7 @@ async function annulerTravailClaire(id) {
 function htmlTravauxClaire() {
   const l = travauxClaire.liste.slice(0, 8);
   if (!l.length) return '';
-  return `<div class="pf-travaux"><div class="pf-travaux-titre">Ses travaux</div><ul>${l.map(t => `<li class="pf-tr pf-tr-${escapeAttr(t.etat)}">
+  return `<div class="pf-travaux"><ul>${l.map(t => `<li class="pf-tr pf-tr-${escapeAttr(t.etat)}">
       <div class="pf-tr-tete"><span class="pf-tr-etat">${t.etat === 'en-cours' ? icone('spinner', null, true) : ''}${escapeHtml(libelleEtatTravailClaire(t))}</span>
         <span class="pf-tr-consigne">${escapeHtml(t.consigne)}</span>
         ${t.etat === 'attente' ? `<wa-button appearance="plain" size="s" type="button" onclick="annulerTravailClaire('${escapeOnclickArg(t.id)}')">Annuler</wa-button>` : ''}</div>

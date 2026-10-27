@@ -846,3 +846,33 @@ test('vouvoiement (26/10) : Bastien et Sophie vouvoient Julie et Jérémy — di
   assert.match(outil.description, /Bastien et Sophie vouvoient Julie et Jérémy/);
   assert.match(outil.description, /écrite SOUS SON NOM dans sa conversation personnelle/);
 });
+
+test('sa conversation (profil de CLAIRE) : la mémoire des autres conversations part au premier tour, masquée ; jamais dans un canal', async () => {
+  const { memoirePourVueClaire } = require('../src/conversationsAgent');
+  const t = Date.UTC(2026, 9, 26, 9);
+  const memoire = memoirePourVueClaire({
+    conversations: [
+      { id: 'c-autre', auteur: 'Bastien', maj: t, titre: 'Offre de prêt', questions: ['Où en est l’offre de prêt de Fournier ?'], reponse: 'Paul FOURNIER attend son offre ; écrire à paul.fournier@exemple.fr.', dossierId: 'd1' },
+      { id: 'c-julie', auteur: 'Julie', maj: t, titre: 'Autre', questions: ['Secret de Julie'], reponse: 'x' },
+      { id: 'c-en-cours', auteur: 'Bastien', maj: t, titre: 'celle-ci', questions: ['celle-ci'], reponse: 'y' }
+    ],
+    messages: [{ id: 'm1', quand: t, court: 'Pièce trouvée : titre de propriété.', dossierId: 'd1' }],
+    prenom: 'Bastien', convId: 'c-en-cours'
+  });
+  assert.match(memoire, /Où en est l’offre de prêt/);
+  assert.match(memoire, /Pièce trouvée/);
+  assert.doesNotMatch(memoire, /Secret de Julie/, 'jamais la conversation d’un autre');
+  assert.doesNotMatch(memoire, /celle-ci/, 'pas la conversation en cours');
+  assert.equal(memoirePourVueClaire({ conversations: [], messages: [], prenom: 'Bastien', convId: '' }), '');
+
+  const client = fauxClient([{ stop_reason: 'end_turn', usage, content: [texte('Je m’en souviens.')] }, { stop_reason: 'end_turn', usage, content: [texte('ok')] }]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5', memoireVueClaire: (p, id, masquer) => memoirePourVueClaire({ conversations: [{ id: 'c-autre', auteur: 'Bastien', maj: t, titre: 'x', questions: ['Où en est l’offre de prêt de Fournier ?'], reponse: 'Paul FOURNIER attend son offre ; écrire à paul.fournier@exemple.fr.', dossierId: 'd1' }], messages: [], prenom: p, convId: id, masquer }), sensiblesConversations: () => ['Paul FOURNIER'] };
+  await tourAgent({ texte: 'Tu te rappelles ?', dossiers: D, contexte: { aujourdhui: '2026-10-27', prenom: 'Bastien', vueClaire: true } }, o);
+  const envoye = JSON.stringify(client.requetes[0].messages);
+  assert.match(envoye, /Ta mémoire/);
+  assert.doesNotMatch(envoye, SECRETS, 'aucune donnée nominative dans : ' + envoye.slice(0, 600));
+  assert.doesNotMatch(envoye, /paul\.fournier/);
+  viderConversationsAgent();
+  await tourAgent({ texte: 'Dans un canal', dossiers: D, contexte: { aujourdhui: '2026-10-27', prenom: 'Bastien' } }, o);
+  assert.doesNotMatch(JSON.stringify(client.requetes[1].messages), /Ta mémoire/, 'hors de son espace : rien');
+});
