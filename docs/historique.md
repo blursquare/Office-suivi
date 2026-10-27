@@ -22655,3 +22655,14 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   Relecture : la page Agenda (rendez-vous à placer, cartes fantômes) garde « Tous » pour l'administrateur (`vueGlobaleAgenda`), elle n'était
   pas visée ; elle suit la bascule du tableau de bord quand celle-ci est touchée. Sophie, administratrice avec peu de dossiers à son nom, verra
   un tableau de bord presque vide par défaut : « Tous les dossiers » d'un clic.
+
+### 27/10/2026 — 0.375.2 : qui a vu le message ; « Équipe » au-dessus des messages privés
+
+Étude 27/10 : « en cliquant sur l'œil, voir qui a vu le message » ; « sidebar de discussion : mets Équipe au-dessus de Message privé ».
+- `htmlLectureMessageCanal` (client/115) : l'œil (ou « Envoyé ») est un bouton ; un clic déplie la liste des autres membres (`canaux.lusPar`)
+  — « vu à HH:MM » ou « pas encore » ; état `canaux.lectureOuverte`, remis à zéro au changement de canal.
+- Liste des canaux : « Équipe » posée entre « Enregistrés » et « Messages privés » (`htmlSectionsSlack(filtre, entre)`).
+- Relecture : en recherche, « Équipe » reste listée sous les résultats (`htmlSectionsSlack`). Étude 27/10 (même version, capture de Slack) :
+  « mets la zone pour taper le texte sur toute la largeur comme sur Slack et le contenu avec une marge » — en canal (`.mode-canal`), saisie
+  sur toute la largeur du fil à 16 px des bords, coins et hauteur plus compacts, messages sans la colonne de 760 px ; la conversation avec
+  Claire garde sa colonne centrée.

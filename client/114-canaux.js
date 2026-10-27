@@ -270,7 +270,7 @@ function quitterCanal() {
   canaux.actif = '';
   majAccesRapideCanaux();
   fermerFilCanal();
-  canaux.messages = []; canaux.cartes = {}; canaux.lusPar = {}; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
+  canaux.messages = []; canaux.cartes = {}; canaux.lusPar = {}; canaux.lectureOuverte = ''; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
   assistantMessages = [];
   assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
   oublierConversationAgent();
@@ -291,7 +291,7 @@ async function ouvrirCanal(id) {
   majAccesRapideCanaux();
   assistantConversationId = '';
   const c = canaux.liste.find(x => x.id === id) || {};
-  Object.assign(canaux, { messages: [], cartes: {}, lusPar: {}, signature: '', luAvant: c.luLe || 0, recherche: '', rechercheOuverte: false, edition: '', forcerBas: true, silences: [],
+  Object.assign(canaux, { messages: [], cartes: {}, lusPar: {}, lectureOuverte: '', signature: '', luAvant: c.luLe || 0, recherche: '', rechercheOuverte: false, edition: '', forcerBas: true, silences: [],
     preferences: { notif: c.notif || 'tous', favori: !!c.favori } });
   assistantMessages = [];
   const dossierId = typeCanal(id) === 'dossier' ? id.slice(2) : '';
@@ -438,9 +438,8 @@ function renderCanaux() {
     ${canaux.nouveau ? `<div class="cx-nouveau-canal"><input type="text" id="canal-nouveau-nom" maxlength="60" placeholder="Nom du canal (ex. compta)" aria-label="Nom du nouveau canal" autocomplete="off" onkeydown="if (event.key === 'Enter') { event.preventDefault(); creerCanalLibreDepuisSaisie(); } else if (event.key === 'Escape') { nouveauCanalLibre(); }">
       <wa-button variant="brand" size="s" type="button" onclick="creerCanalLibreDepuisSaisie()">Créer</wa-button></div>` : ''}
     <div class="cx-filtre"><input type="search" value="${escapeAttr(canaux.saisieListe || canaux.filtreListe)}" placeholder="Canaux, messages… (de:julie)" aria-label="Chercher un canal ou un message" autocomplete="off" oninput="filtrerCanaux(this.value)"></div>
-    ${htmlSectionsSlack(filtre)}
+    ${htmlSectionsSlack(filtre, s.equipe.length ? htmlGroupePliable('equipe', 'Équipe', s.equipe.length, nonLusLignes(s.equipe), true, `<ul class="cx-liste-c">${s.equipe.map(ligneCanal).join('')}</ul>`, filtre) : '')}
     ${bloc('Favoris', s.favoris)}
-    ${s.equipe.length ? htmlGroupePliable('equipe', 'Équipe', s.equipe.length, nonLusLignes(s.equipe), true, `<ul class="cx-liste-c">${s.equipe.map(ligneCanal).join('')}</ul>`, filtre) : ''}
     ${blocMesDossiers(s)}
     ${blocAutresDossiers(s, filtre)}
     ${pliable('Dossiers calmes', s.calmes, canaux.calmesOuverts, 'basculerSectionCanaux(\'calmes\')')}

@@ -10392,7 +10392,7 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .cx-menu-coche { width: 16px; flex: none; color: var(--focus); }
 .cx-menu-coche .icone { width: 14px; height: 14px; }
 /* Le fil : avatars et noms, comme Slack */
-.asst-page.mode-canal .asst-messages { padding-left: 24px; padding-right: 24px; }
+.asst-page.mode-canal .asst-messages { padding-left: 16px; padding-right: 16px; }
 .cx-m { position: relative; display: flex; gap: 12px; max-width: 760px; padding: 4px 0; }
 .cx-m.cx-suite { padding-top: 0; }
 .cx-av { flex: none; width: 32px; height: 32px; border-radius: var(--rayon-m); display: inline-flex; align-items: center; justify-content: center; font-size: var(--texte-s); font-weight: 600; color: var(--blanc-fixe); background: var(--muted); overflow: hidden; }
@@ -10888,6 +10888,13 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-page .asst-saisie textarea#assistant-saisie { min-height: 56px; padding: 16px 20px 8px; border-radius: var(--rayon-carte) var(--rayon-carte) 0 0; }
 .asst-barre { padding: 4px 8px 8px 12px; }
 .asst-pied { text-align: center; }
+/* Canaux « comme Slack » (étude 27/10 : « la zone pour taper le texte sur toute la largeur comme sur Slack, et le contenu avec une marge ») :
+   la saisie prend toute la largeur du fil, à 16 px des bords ; les messages aussi, sans colonne de 760 px. */
+.asst-page.mode-canal .asst-bas { padding: 0 16px 16px; }
+.asst-page.mode-canal .asst-bas > * { max-width: none; }
+.asst-page.mode-canal .asst-saisie { border-radius: var(--rayon-m); box-shadow: none; }
+.asst-page.mode-canal .asst-saisie textarea#assistant-saisie { min-height: 44px; padding: 12px 16px 6px; border-radius: var(--rayon-m) var(--rayon-m) 0 0; }
+.asst-page.mode-canal .cx-m { max-width: none; }
 
 /* Artefacts : un panneau à droite de la conversation. */
 .asst-artefact { display: none; }
@@ -10936,7 +10943,15 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 @media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
 .asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
 .asst-art-corps > .asst-art-email-place { margin: -16px; }
-.cx-lecture { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 2px; color: var(--muted); font-size: var(--texte-xs); }
+.cx-lecture-bloc { display: flex; flex-direction: column; align-items: flex-end; margin-top: 2px; }
+.cx-lecture { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--muted); font-size: var(--texte-xs); }
+button.cx-lecture { border: 0; background: none; padding: 2px 4px; border-radius: var(--rayon-xs); cursor: pointer; font: inherit; font-size: var(--texte-xs); }
+button.cx-lecture:hover { background: var(--paper-sunk); }
+.cx-lecture-detail { list-style: none; margin: 4px 0 0; padding: 6px 10px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); box-shadow: var(--shadow-card); font-size: var(--texte-xs); color: var(--muted); }
+.cx-lecture-detail li { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.cx-lecture-detail li.vu { color: var(--ink); }
+.cx-lecture-detail .icone { width: 14px; height: 14px; }
+.cx-lecture-quand { margin-left: auto; padding-left: 12px; }
 .cx-lecture .icone { width: 14px; height: 14px; }
 .cx-lecture.cx-vu { color: var(--focus); }
 .asst-art-corrige { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; color: var(--muted); font-size: var(--texte-s); }

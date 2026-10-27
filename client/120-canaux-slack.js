@@ -108,8 +108,10 @@ function lignePriveCanal(c) {
       ${avatar}<span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(libellePriveCanal(c.id, canaux.liste))}</span>${statut ? `<small>${escapeHtml(statut)}</small>` : ''}</span>${marque}</button></li>`;
 }
 
-function htmlSectionsSlack(filtre) {
-  if (filtre) return htmlResultatsRechercheGlobale();
+// `entre` : un bloc posé entre « Enregistrés » et « Messages privés » (« Équipe », étude 27/10 : « mets Équipe au-dessus de Messages privés »).
+function htmlSectionsSlack(filtre, entre) {
+  // En recherche : les résultats, puis « Équipe » filtrée comme avant (relecture 0.375.2 : « gén » trouvait encore « général »).
+  if (filtre) return htmlResultatsRechercheGlobale() + (entre || '');
   const prives = (canaux.liste || []).filter(c => c.prive).sort((a, b) => (a.membres || []).length - (b.membres || []).length || b.dernierLe - a.dernierLe);
   const n = (canaux.enregistres || []).length;
   const enreg = `<div class="cx-groupe"><ul class="cx-liste-c"><li><button type="button" class="cx-c${canaux.actif === '@enregistres' ? ' actif' : ''}" onclick="ouvrirCanal('@enregistres')"><span class="cx-d" aria-hidden="true">${icone('signet')}</span><span class="cx-c-texte"><span class="cx-c-nom">Enregistrés</span></span>${n ? `<span class="cx-n cx-n-muet">${n}</span>` : ''}</button></li></ul></div>`;
@@ -117,7 +119,7 @@ function htmlSectionsSlack(filtre) {
   const monStatut = `<button type="button" class="cx-statut-moi" onclick="ouvrirStatutCanal()" aria-expanded="${!!canaux.statutOuvert}">${htmlPresence(utilisateurPoste)}<span>${moi && moi.statut && (moi.statut.emoji || moi.statut.texte) ? escapeHtml(`${moi.statut.emoji || ''} ${moi.statut.texte || ''}`.trim()) : 'Définir mon statut'}</span></button>`;
   const nonLusPrives = prives.reduce((t, c) => t + (c.notif === 'muet' ? 0 : (Number(c.mentions) || Number(c.nonLus) || 0)), 0);
   const claire = (propositionsClaire.liste || []).length;
-  return enreg + htmlGroupePliable('prives', 'Messages privés', prives.length + 1, nonLusPrives + claire, true, `<ul class="cx-liste-c">${prives.map(lignePriveCanal).join('')}${ligneClaireCanal()}</ul>`)
+  return enreg + (entre || '') + htmlGroupePliable('prives', 'Messages privés', prives.length + 1, nonLusPrives + claire, true, `<ul class="cx-liste-c">${prives.map(lignePriveCanal).join('')}${ligneClaireCanal()}</ul>`)
     + `<div class="cx-groupe">${monStatut}${canaux.statutOuvert ? htmlStatutEdition() : ''}</div>`;
 }
 
