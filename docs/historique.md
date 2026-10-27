@@ -22635,3 +22635,23 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
 - Audit 0.375.0 (`docs/audits/2026-10-27-0.375.0.md`) : l'heure de l'œil est celle de la PREMIÈRE lecture du dernier message (`canaux-vus`,
   retenue par `marquerLu`), figée — la dernière lecture avançait toutes les 20 s et faisait recharger le canal à chaque relevé. « Tout
   marquer comme lu » et une fenêtre restée au premier plan sur la conversation valent « Vu », comme sur Teams.
+
+### 27/10/2026 — 0.375.1 : œil dans les canaux de dossier et chez Claire ; « Claire » dans les conversations
+
+Étude 27/10 : « mets aussi l'œil dans les canaux de dossier et pour Claire ; note le nom Claire et non CLAIRE pour les conversations ».
+- Canal de dossier : `lusParAutresMembres` y rend tous les autres collaborateurs (toute l'étude en est membre ; jamais « général » ni un canal
+  libre ; toujours pour un collaborateur connu seulement), première lecture figée (`canaux-vus`) comme en privé ; œil « Vu par Julie, Jérémy »
+  dès qu'UN collègue a lu (`etatLectureMessageCanal(…, unSuffit)`), au survol qui et à quelle heure ; sinon « Envoyé ».
+- Conversation avec Claire : sous ma dernière demande, « Vu par Claire » dès qu'elle écrit ou a répondu après, sinon « Envoyé » (poste seul).
+- Nom affiché « Claire » dans les conversations : auteur des messages (canaux et sa conversation), ligne de la liste, accès rapide de la
+  barre latérale, liste des mentions (on tape toujours @CLAIRE ou @Claire), réactions, résultats de recherche, accueil de sa conversation.
+  Le nom du logiciel reste CLAIRE ailleurs ; ce que l'agent lit des canaux garde « CLAIRE ».
+- Étude 27/10 (même version) : « pour mon tableau de bord, mets de base mes dossiers pour mes tâches » — `vueGlobalePour` : « Mes dossiers »
+  par défaut pour tout collaborateur, administrateur compris (avant : « Tous » pour Bastien et Sophie) ; la bascule du tableau de bord
+  garde « Tous les dossiers », le filtre du Suivi reste « Tous » pour l'administrateur. Les tâches (« Aujourd'hui », fenêtre du matin, « À
+  faire » de Claire et de l'agent — `dossiersPerimetreJour`) suivent cette vue.
+- Relecture : derniers « CLAIRE » des conversations alignés (accueil de sa conversation, accueils des canaux vides, « Claire écrit ») ;
+  `@CLAIRE` reste la façon de l'appeler. L'œil disparaît quand Claire répond après moi (comme Teams : seulement sur le dernier message).
+  Relecture : la page Agenda (rendez-vous à placer, cartes fantômes) garde « Tous » pour l'administrateur (`vueGlobaleAgenda`), elle n'était
+  pas visée ; elle suit la bascule du tableau de bord quand celle-ci est touchée. Sophie, administratrice avec peu de dossiers à son nom, verra
+  un tableau de bord presque vide par défaut : « Tous les dossiers » d'un clic.

@@ -16,9 +16,9 @@ test('prenomCollaborateur : garde le prénom, retire le nom en capitales', () =>
   assert.equal(app.prenomCollaborateur(''), '');
 });
 
-test('vueGlobalePour : globale pour l’administrateur ou un poste inconnu, sauf choix explicite', () => {
+test('vueGlobalePour : « Mes dossiers » par défaut, administrateur compris (27/10) ; globale pour un poste inconnu ou sur choix explicite', () => {
   assert.equal(app.vueGlobalePour('', null), true);
-  assert.equal(app.vueGlobalePour('Bastien ANGLUMENT', null), true);
+  assert.equal(app.vueGlobalePour('Bastien ANGLUMENT', null), false);
   assert.equal(app.vueGlobalePour('Julie VASSELIN', null), false);
   assert.equal(app.vueGlobalePour('Julie VASSELIN', true), true);
   assert.equal(app.vueGlobalePour('Bastien ANGLUMENT', false), false);

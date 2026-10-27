@@ -783,8 +783,8 @@
     const filtreAffaire = champAffaire ? champAffaire.value : '';
 
     const dossiersActifs = dossiers.filter(d => !d.archive);
-    // Le tableau de bord ne montre que les dossiers du collaborateur du poste (sauf vue globale,
-    // par défaut pour l'administrateur) — voir « Collaborateur du poste ». Le Suivi, lui, garde
+    // Le tableau de bord ne montre que les dossiers du collaborateur du poste (sauf vue globale
+    // choisie par la bascule, étude 27/10) — voir « Collaborateur du poste ». Le Suivi, lui, garde
     // tout le portefeuille : il a son propre filtre Responsable.
     const globalDash = vueGlobaleDashboard();
     const perimetreTous = dossiersDuPerimetre(dossiers, utilisateurPoste, globalDash);

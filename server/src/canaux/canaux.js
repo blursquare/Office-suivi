@@ -226,8 +226,8 @@ function marquerLu(repo, collab, canal, maintenant) {
   const lus = lireTable(repo, CLE_LUS);
   lus[collab] = Object.assign({}, lus[collab], { [canal]: t });
   repo.ecrireJsonBrut(CLE_LUS, lus);
-  if (!canal.startsWith('p:')) return;
-  // Canal privé : la PREMIÈRE lecture après le dernier message est retenue une fois (l'heure de l'œil « Vu »).
+  if (!canal.startsWith('p:') && !canal.startsWith('d:')) return;
+  // Canal privé ou de dossier : la PREMIÈRE lecture après le dernier message est retenue une fois (l'heure de l'œil « Vu »).
   const dernier = Number((lireIndex(repo)[canal] || {}).dernierLe) || 0;
   if (!dernier || t < dernier) return;
   const vus = lireTable(repo, CLE_VUS);
@@ -238,12 +238,13 @@ function marquerLu(repo, collab, canal, maintenant) {
 }
 
 /**
- * Quand chacun des AUTRES membres d'un canal privé l'a lu pour la dernière fois (étude 27/10 : « un petit œil comme sur Teams pour voir si
- * notre message a été lu ») — seulement pour un canal privé et pour l'un de ses membres ; {} sinon.
+ * Quand chacun des AUTRES membres d'un canal privé ou de dossier l'a lu (étude 27/10 : « un petit œil comme sur Teams pour voir si notre
+ * message a été lu », puis « aussi dans les canaux de dossier ») — seulement pour l'un de ses membres ; {} pour « général » et les canaux libres.
  * @param {any} repo @param {string} canal @param {string} lecteur @param {string[]} collaborateurs @returns {Record<string, number>}
  */
 function lusParAutresMembres(repo, canal, lecteur, collaborateurs) {
-  const membres = membresPrive(canal, collaborateurs);
+  // Canal de dossier (étude 27/10 : « mets aussi l'œil dans les canaux de dossier ») : toute l'étude en est membre.
+  const membres = canalValide(canal) && canal.startsWith('d:') ? (collaborateurs || []).slice() : membresPrive(canal, collaborateurs);
   if (!membres || !membres.includes(lecteur)) return {};
   const lus = lireTable(repo, CLE_LUS);
   const vus = lireTable(repo, CLE_VUS);

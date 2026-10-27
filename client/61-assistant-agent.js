@@ -203,7 +203,7 @@
 
   function tachesDuJourAgent() {
     const auj = isoAujourdhuiLocal();
-    const { actions } = actionsDuJour(dossiersPerimetreDashboard(), auj);
+    const { actions } = actionsDuJour(dossiersPerimetreJour(), auj);
     const { aFaire, aVenir } = rappelsDuJour(rappelsPerso, auj);
     const rappel = r => ({ texte: r.texte, date: r.echeance || '', dossier_id: r.dossierId || '' });
     return {

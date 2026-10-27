@@ -943,14 +943,22 @@
     return l.filter(d => d && d.responsable === utilisateur);
   }
 
-  // Pure : la vue par défaut dépend du rôle, sauf choix explicite avec la bascule.
+  // Pure : « Mes dossiers » par défaut pour tout collaborateur, administrateur compris (étude 27/10 : « pour mon tableau de bord, mets de
+  // base mes dossiers pour mes tâches ») ; « Tous les dossiers » sur choix de la bascule. Le Suivi garde « Tous » pour l'administrateur.
   function vueGlobalePour(utilisateur, choix) {
     if (!utilisateur) return true;
     if (choix === true || choix === false) return choix;
-    return estAdministrateur(utilisateur);
+    return false;
   }
 
   function vueGlobaleDashboard() { return vueGlobalePour(utilisateurPoste, vueDashboardGlobale); }
+
+  // La page Agenda (rendez-vous à placer, cartes fantômes) garde « Tous » pour l'administrateur, comme avant le 27/10 (seul le tableau de
+  // bord est passé à « Mes dossiers ») ; la bascule du tableau de bord la suit quand elle est touchée.
+  function vueGlobaleAgenda() {
+    if (!utilisateurPoste) return true;
+    return vueDashboardGlobale === true || vueDashboardGlobale === false ? vueDashboardGlobale : estAdministrateur(utilisateurPoste);
+  }
 
   function isoAujourdhuiLocal() {
     const t = new Date();

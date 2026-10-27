@@ -104,7 +104,7 @@ test('repereMessagesCanal : jour, groupes par auteur, séparateur « Nouveau » 
 test('mentionsPourCanal : CLAIRE d’abord, collègues sans soi-même, dossiers hors canal de dossier', () => {
   const ds = [{ id: 'p1', nom: 'MARTIN / DURAND', parties: [] }];
   const dansDossier = app.mentionsPourCanal('', COLLABS, ds, false, 'Julie VASSELIN');
-  assert.equal(dansDossier.map(x => x.nom).join(','), 'CLAIRE,Bastien,Jérémy');
+  assert.equal(dansDossier.map(x => x.nom).join(','), 'Claire,Bastien,Jérémy');
   assert.equal(dansDossier.map(x => x.insere).join(','), '@CLAIRE,@Bastien,@Jérémy');
   assert.equal(app.mentionsPourCanal('jer', COLLABS, ds, false, 'Julie VASSELIN').map(x => x.nom).join(','), 'Jérémy');
   const general = app.mentionsPourCanal('mar', COLLABS, ds, true, 'Julie VASSELIN');
@@ -136,7 +136,7 @@ test('accès rapide de la barre latérale : Général puis un message privé par
     { id: 'p:bastien-julie-sophie', prive: true, membres: ['Bastien ANGLUMENT', 'Julie VASSELIN', 'Sophie GOSSART'], nonLus: 7 }
   ];
   const l = app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT');
-  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Julie,Jérémy,Sophie,CLAIRE');
+  assert.deepEqual(l.map(x => x.libelle).join(','), 'Général,Julie,Jérémy,Sophie,Claire');
   assert.deepEqual(l.map(x => x.nonLus).join(','), '3,2,0,1,0', 'muet = rien, mentions = ses mentions seules, jamais le privé de deux autres ni le groupe de trois');
   assert.equal(l[1].id, 'p:bastien-julie');
   assert.equal(l[4].claire, true);
@@ -310,4 +310,5 @@ test('œil « Vu » (27/10) : vu quand tous les autres membres ont lu après le 
   const g = app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 1200, 'Jérémy SAUJOT': 10 });
   assert.equal(g.vu, false);
   assert.equal(g.par.length, 1);
+  assert.equal(app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 1200, 'Jérémy SAUJOT': 10 }, true).vu, true, 'canal de dossier : un collègue suffit');
 });

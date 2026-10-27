@@ -407,7 +407,7 @@ function ligneCanal(e) {
   const nbNonLus = Number(e.nonLus) || 0;
   const marque = nbMentions ? `<span class="cx-n cx-n-mention" title="${nbMentions} mention${nbMentions > 1 ? 's' : ''} ou à décider">${nbMentions}</span>`
     : nbNonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${nbNonLus}</span>` : '';
-  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'CLAIRE' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
+  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
       <span class="cx-d" aria-hidden="true">${e.favori || e.dossier ? icone(e.favori ? 'etoile' : 'folder') : '<span class="sb-canal-avatar sb-canal-diese">#</span>'}</span>
       <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;
@@ -419,7 +419,7 @@ function ligneCanal(e) {
 function ligneClaireCanal() {
   const nonLus = Number(messagesClaireEtat.nonLus) || 0;
   const statut = statutProfilClaire(assistantEnCours);
-  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}${nonLus ? ' non-lu' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec CLAIRE"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire()}</span><span class="cx-c-texte"><span class="cx-c-nom">CLAIRE <span class="cx-claire-statut pf-${escapeAttr(statut.etat)}">${escapeHtml(statut.texte)}</span></span><small>${escapeHtml(ROLE_PROFIL_CLAIRE)}</small></span>${nonLus ? `<span class="cx-n">${nonLus}</span>` : ''}</button></li>`;
+  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}${nonLus ? ' non-lu' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec Claire"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire()}</span><span class="cx-c-texte"><span class="cx-c-nom">Claire <span class="cx-claire-statut pf-${escapeAttr(statut.etat)}">${escapeHtml(statut.texte)}</span></span><small>${escapeHtml(ROLE_PROFIL_CLAIRE)}</small></span>${nonLus ? `<span class="cx-n">${nonLus}</span>` : ''}</button></li>`;
 }
 
 function renderCanaux() {

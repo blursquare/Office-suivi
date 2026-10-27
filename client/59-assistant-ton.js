@@ -123,7 +123,7 @@ function prenomPosteAssistant() {
 function faitsAssistant(cle, d) {
   if (d) return faitsDossierAssistant(d);
   if (cle === 'taches_jour') {
-    try { return { nbTaches: actionsDuJour(dossiersPerimetreDashboard(), isoAujourdhuiLocal()).actions.length }; } catch (e) { return {}; }
+    try { return { nbTaches: actionsDuJour(dossiersPerimetreJour(), isoAujourdhuiLocal()).actions.length }; } catch (e) { return {}; }
   }
   return {};
 }
@@ -132,7 +132,7 @@ function faitsAssistant(cle, d) {
 function pointJourneeAssistant() {
   try {
     const auj = isoAujourdhuiLocal();
-    const { actions } = actionsDuJour(dossiersPerimetreDashboard(), auj);
+    const { actions } = actionsDuJour(dossiersPerimetreJour(), auj);
     const { aFaire } = rappelsDuJour(rappelsPerso, auj);
     const n = actions.length + aFaire.length;
     if (!n) return 'Rien d’urgent de votre côté pour l’instant.';

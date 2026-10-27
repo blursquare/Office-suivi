@@ -18,7 +18,8 @@ function avatarCanal(m) {
 }
 
 function nomAuteurCanal(m) {
-  if (m.role === 'claire') return 'CLAIRE';
+  // « Claire » dans les conversations (étude 27/10 : « le nom Claire et non CLAIRE pour les conversations »).
+  if (m.role === 'claire') return 'Claire';
   // Le prénom de la personne qui parle, comme sur Slack (jamais « Vous »).
   return prenomCollaborateur(m.role === 'moi' ? (m.auteur || utilisateurPoste) : m.auteur) || 'Vous';
 }
@@ -59,17 +60,23 @@ function htmlActionsMessageCanal(m, i) {
 
 // Pure : l'état de lecture d'un message que j'ai écrit dans un canal privé (étude 27/10 : « un petit œil comme sur Teams ») — `vu` quand
 // tous les autres membres ont lu le canal après lui ; `par` = ceux qui l'ont vu, avec l'heure. null hors canal privé.
-function etatLectureMessageCanal(quand, lusPar) {
+// `unSuffit` (canal de dossier, toute l'étude en est membre) : vu dès qu'un collègue l'a lu.
+function etatLectureMessageCanal(quand, lusPar, unSuffit) {
   const membres = Object.keys(lusPar || {});
   if (!membres.length || !quand) return null;
   const par = membres.filter(c => Number(lusPar[c]) >= quand).map(c => ({ nom: c, le: Number(lusPar[c]) }));
-  return { vu: par.length === membres.length, par, groupe: membres.length > 1 };
+  return { vu: unSuffit ? par.length > 0 : par.length === membres.length, par, groupe: membres.length > 1, unSuffit: !!unSuffit };
 }
 
 // L'œil « Vu » (ou la coche « Envoyé ») sous mon dernier message d'un canal privé.
 function htmlLectureMessageCanal(m) {
-  const e = etatLectureMessageCanal(m.quand, canaux.lusPar);
+  const e = etatLectureMessageCanal(m.quand, canaux.lusPar, typeCanal(canaux.actif) === 'dossier');
   if (!e) return '';
+  if (e.vu && e.unSuffit) {
+    const noms = e.par.map(x => prenomCollaborateur(x.nom));
+    const detail = e.par.map(x => `${prenomCollaborateur(x.nom)} à ${heureAssistant(x.le)}`).join(', ');
+    return `<div class="cx-lecture cx-vu" title="${escapeAttr('Vu par ' + detail)}">${icone('eye')}<span>Vu par ${escapeHtml(noms.length > 3 ? noms.slice(0, 3).join(', ') + ` +${noms.length - 3}` : noms.join(', '))}</span></div>`;
+  }
   if (!e.vu) {
     const partiel = e.par.length ? ` · vu par ${e.par.map(x => prenomCollaborateur(x.nom)).join(', ')}` : '';
     return `<div class="cx-lecture" title="${escapeAttr('Envoyé' + partiel)}">${icone('check')}<span>Envoyé${escapeHtml(partiel)}</span></div>`;
@@ -111,16 +118,16 @@ function renderCanalAssistant(zone) {
   const dernierMoi = !q && visibles.length && visibles[visibles.length - 1].role === 'moi' && visibles[visibles.length - 1].id ? visibles.length - 1 : -1;
   const nom = libelleCanal(canaux.actif, canaux.liste, dossiers);
   assistantActions = {};
-  const attente = assistantEnCours ? `<div class="cx-m cx-claire cx-ecrit">${avatarClaireHtml()}<div class="cx-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '';
+  const attente = assistantEnCours ? `<div class="cx-m cx-claire cx-ecrit">${avatarClaireHtml()}<div class="cx-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '';
   if (!visibles.length) {
     zone.innerHTML = q
       ? `<div class="asst-accueil"><h2 class="asst-accueil-titre">Aucun message</h2><p class="asst-accueil-texte">Rien ne contient « ${escapeHtml(q)} » dans ${escapeHtml(nom)}.</p></div>`
       : (typeCanal(canaux.actif) === 'dossier'
-        ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'CLAIRE y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @CLAIRE. Un collègue : @Prénom. Vous pouvez par exemple demander',
+        ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @CLAIRE. Un collègue : @Prénom. Vous pouvez par exemple demander',
           ['Où en est ce dossier ?', 'Qu’est-ce qui manque pour signer ?', 'Prépare l’appel de fonds'], false, 'folder')
         : typeCanal(canaux.actif) === 'prive'
-        ? htmlPresentationClaire(nom, 'Une conversation privée.', 'Seules les personnes de cette conversation la voient. Écrivez ici : chaque message prévient les autres. CLAIRE ne répond que si vous l’appelez avec @CLAIRE.', [], false, 'users')
-        : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, CLAIRE répond quand on l’appelle avec @CLAIRE. Un collègue : @Prénom.', [], false, 'diese')) + attente;
+        ? htmlPresentationClaire(nom, 'Une conversation privée.', 'Seules les personnes de cette conversation la voient. Écrivez ici : chaque message prévient les autres. Claire ne répond que si vous l’appelez avec @CLAIRE.', [], false, 'users')
+        : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, Claire répond quand on l’appelle avec @CLAIRE. Un collègue : @Prénom.', [], false, 'diese')) + attente;
     return;
   }
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')
@@ -328,7 +335,7 @@ function allerAuMessageCanal(id) {
 // Pure : les propositions de la liste « @ » d'un canal pour une requête (sans accent ni casse).
 function mentionsPourCanal(requete, collaborateurs, dossiersListe, avecDossiers, moi) {
   const q = platCanal(requete).trim();
-  const items = [{ type: 'claire', nom: 'CLAIRE', insere: '@CLAIRE', note: 'lui demander' }]
+  const items = [{ type: 'claire', nom: 'Claire', insere: '@CLAIRE', note: 'lui demander' }]
     .concat((collaborateurs || []).filter(c => c !== moi).map(c => ({ type: 'collab', nom: String(c).split(/\s+/)[0], insere: '@' + String(c).split(/\s+/)[0], note: 'prévenir' })))
     .filter(x => !q || platCanal(x.nom).startsWith(q));
   const ds = avecDossiers ? dossiersMentionAssistant(dossiersListe, requete).map(d => ({ type: 'dossier', nom: d.nom, id: d.id, libelle: libelleDossierAffiche(d), note: d.archive ? 'archivé' : '' })) : [];

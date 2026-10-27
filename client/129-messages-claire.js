@@ -91,7 +91,7 @@ function htmlNotifClaireFil(n, r, maintenant) {
     : `<p>${htmlTexteMessageClaire(n.detail || n.court)}${lien(n.dossierId, 'Ouvrir la fiche')}</p>`;
   const rr = r || { nouveauJour: false, debutGroupe: true };
   const jour = rr.nouveauJour ? `<div class="asst-jour" role="separator"><span>${escapeHtml(libelleJourAssistant(n.quand, maintenant))}</span></div>` : '';
-  const tete = rr.debutGroupe ? `<div class="cx-nom">CLAIRE<span class="cx-heure">${escapeHtml(heureAssistant(n.quand))}</span></div>` : '';
+  const tete = rr.debutGroupe ? `<div class="cx-nom">Claire<span class="cx-heure">${escapeHtml(heureAssistant(n.quand))}</span></div>` : '';
   return `${jour}<div class="asst-message asst-slack asst-claire asst-notif${rr.debutGroupe ? '' : ' asst-suite'}${n.lu ? '' : ' asst-notif-nouveau'}">
       ${rr.debutGroupe ? avatarClaireHtml() : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(n.quand))}</span>`}
       <div class="asst-corps">${tete}<div class="asst-texte">${corps}</div></div></div>`;

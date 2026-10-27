@@ -144,7 +144,7 @@ function htmlResultatsRechercheGlobale() {
   const { q, auteur } = requeteRechercheGlobale(canaux.saisieListe || '');
   if (q.length < 2 && !auteur) return '';
   const lignes = g.resultats.map(r => `<li><button type="button" class="cx-res" onclick="ouvrirResultatRecherche('${escapeOnclickArg(r.canal)}', '${escapeOnclickArg(r.mid)}', '${escapeOnclickArg(r.parent || '')}')">
-      <span class="cx-res-lieu">${escapeHtml(libelleCanal(r.canal, canaux.liste, dossiers))} · ${escapeHtml(r.claire ? 'CLAIRE' : prenomCollaborateur(r.auteur))} · ${escapeHtml(libelleJourAssistant(r.quand, Date.now()))}</span>
+      <span class="cx-res-lieu">${escapeHtml(libelleCanal(r.canal, canaux.liste, dossiers))} · ${escapeHtml(r.claire ? 'Claire' : prenomCollaborateur(r.auteur))} · ${escapeHtml(libelleJourAssistant(r.quand, Date.now()))}</span>
       <span class="cx-res-texte">${escapeHtml(r.extrait)}</span></button></li>`).join('');
   return `<div class="cx-groupe"><div class="cx-groupe-titre">Messages${g.chargement ? '' : ` (${g.resultats.length})`}</div>
     ${g.chargement ? `<p class="asst-fils-vide">${icone('spinner', null, true)} Recherche…</p>` : g.resultats.length ? `<ul class="cx-liste-c cx-resultats-liste">${lignes}</ul>` : '<p class="asst-fils-vide">Aucun message ne correspond (essayez « de:julie » pour un auteur).</p>'}</div>`;
@@ -302,7 +302,7 @@ function vueEnregistresCanal() {
     <p class="asst-accueil-texte">Survolez un message et cliquez sur le signet pour le retrouver ici.</p></div>`;
   return `<div class="cx-traiter-vue"><p class="cx-traiter-intro">${l.length} message${l.length > 1 ? 's' : ''} enregistré${l.length > 1 ? 's' : ''}, à vous seul.</p>${l.map(m => `<section class="cx-traiter-groupe">
       <header><button type="button" class="cx-traiter-canal" onclick="ouvrirResultatRecherche('${escapeOnclickArg(m.canal)}', '${escapeOnclickArg(m.mid)}', '${escapeOnclickArg(m.parent || '')}')">${icone('diese')}${escapeHtml(libelleCanal(m.canal, canaux.liste, dossiers))}</button>
-        <span class="cx-res-lieu">${escapeHtml(m.claire ? 'CLAIRE' : prenomCollaborateur(m.auteur))} · ${escapeHtml(libelleJourAssistant(m.quand, Date.now()))}</span>
+        <span class="cx-res-lieu">${escapeHtml(m.claire ? 'Claire' : prenomCollaborateur(m.auteur))} · ${escapeHtml(libelleJourAssistant(m.quand, Date.now()))}</span>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="retirerEnregistreCanal('${escapeOnclickArg(m.canal)}', '${escapeOnclickArg(m.mid)}')" aria-label="Retirer des enregistrés" title="Retirer">${icone('x')}</wa-button></header>
       <div class="cx-texte">${htmlTexteCanal(m.texte, canaux.collaborateurs, utilisateurPoste)}</div></section>`).join('')}</div>`;
 }

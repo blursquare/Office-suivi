@@ -131,7 +131,7 @@
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
           'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
           exemplesDossierAssistant(rattache), true, 'folder')
-        : htmlPresentationClaire('CLAIRE', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec CLAIRE.`,
+        : htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
           'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
           suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true))
         + htmlFilClaire(entreesFilClaire([], messagesClairePourFil(Date.now())), Date.now());
@@ -141,6 +141,9 @@
     // Ses messages (rappels, pièces trouvées, comptes rendus…) prennent leur place dans le fil, à leur heure, comme dans une conversation
     // ordinaire (étude 27/10 : « le flux d'échange doit être comme une conversation classique » ; client/129).
     const entrees = entreesFilClaire(assistantMessages, messagesClairePourFil(Date.now()));
+    // L'œil de Claire (étude 27/10) : sous ma dernière demande, « Vu par Claire » dès qu'elle l'a prise (elle écrit ou a répondu après).
+    const iDernierMoi = assistantMessages.map(m => m.role).lastIndexOf('moi');
+    const vueParClaire = iDernierMoi >= 0 && (assistantEnCours || assistantMessages.slice(iDernierMoi + 1).some(m => m.role === 'claire'));
     const reperes = repereMessagesAssistant(entrees.map(x => (x.notif ? { role: 'claire', quand: x.notif.quand } : x.m)));
     const maintenant = Date.now();
     zone.innerHTML = entrees.map((x, k) => {
@@ -159,7 +162,7 @@
       const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(auteur))}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}</span></div>` : '';
       return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
           ${r.debutGroupe ? avatarCanal(auteur) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
-          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}
+          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${i === iDernierMoi ? (vueParClaire ? `<div class="cx-lecture cx-vu" title="Vu par Claire">${icone('eye')}<span>Vu par Claire</span></div>` : `<div class="cx-lecture" title="Envoyé">${icone('check')}<span>Envoyé</span></div>`) : ''}
           <div class="asst-survol">${htmlBoutonsReactionSurvol(m)}<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-slack asst-claire asst-ecrit">
@@ -678,7 +681,7 @@
 
   function reponseTachesAssistant() {
     const auj = isoAujourdhuiLocal();
-    const { actions } = actionsDuJour(dossiersPerimetreDashboard(), auj);
+    const { actions } = actionsDuJour(dossiersPerimetreJour(), auj);
     const { aFaire } = rappelsDuJour(rappelsPerso, auj);
     const lignes = actions.slice(0, 12).map(a => `<li>${escapeHtml(a.titre)} — <b>${escapeHtml(libelleDossierAffiche(a.dossier))}</b>${a.contexte ? `<br><span class="asst-note">${escapeHtml(a.contexte)}</span>` : ''}</li>`);
     const rappels = aFaire.slice(0, 8).map(r => `<li>${escapeHtml(r.texte)}${r.dossierId && dossiers.find(x => x.id === r.dossierId) ? ` — <b>${escapeHtml(libelleDossierAssistant(r.dossierId))}</b>` : ''}</li>`);

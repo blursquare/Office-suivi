@@ -135,7 +135,8 @@ test('routes : écrire, lire (signature), notification, droits, lus, préférenc
     assert.equal(e.s, 200); assert.deepEqual(e.c.message.mentions, ['Bastien ANGLUMENT']);
     const l1 = await j('/canaux/d:p1/messages?utilisateur=Bastien%20ANGLUMENT');
     assert.equal(l1.c.messages.length, 1);
-    assert.deepEqual(l1.c.lusPar, {}, 'œil « Vu » : jamais dans un canal partagé');
+    assert.ok('Julie VASSELIN' in l1.c.lusPar && !('Bastien ANGLUMENT' in l1.c.lusPar), 'œil « Vu » d’un canal de dossier : les autres collaborateurs');
+    assert.deepEqual((await j('/canaux/general/messages?utilisateur=Bastien%20ANGLUMENT')).c.lusPar, {}, 'jamais dans « général »');
     await j('/canaux/p:bastien-julie/messages', { method: 'POST', body: JSON.stringify({ auteur: 'Bastien ANGLUMENT', texte: 'Tu as vu ?' }) });
     const pv = await j('/canaux/p:bastien-julie/messages?utilisateur=Bastien%20ANGLUMENT');
     assert.deepEqual(Object.keys(pv.c.lusPar), ['Julie VASSELIN'], 'canal privé : l’heure de lecture de l’autre membre');
@@ -144,7 +145,7 @@ test('routes : écrire, lire (signature), notification, droits, lus, préférenc
     assert.ok(!pv2.c.inchange && pv2.c.lusPar['Julie VASSELIN'] >= pv2.c.messages[0].quand, 'vu : la signature change une fois');
     await j('/canaux/p:bastien-julie/lu', { method: 'POST', body: JSON.stringify({ utilisateur: 'Julie VASSELIN' }) });
     assert.equal((await j(`/canaux/p:bastien-julie/messages?utilisateur=Bastien%20ANGLUMENT&signature=${encodeURIComponent(pv2.c.signature)}`)).c.inchange, true, 'relu : plus de rechargement');
-    assert.equal((await j(`/canaux/d:p1/messages?signature=${encodeURIComponent(l1.c.signature)}`)).c.inchange, true);
+    assert.equal((await j(`/canaux/d:p1/messages?utilisateur=Bastien%20ANGLUMENT&signature=${encodeURIComponent(l1.c.signature)}`)).c.inchange, true);
     // une réponse de CLAIRE : écrite pour le compte de celui qui l'a demandée, jamais en son nom propre
     const cl = await j('/canaux/d:p1/messages', { method: 'POST', body: JSON.stringify({ auteur: 'Julie VASSELIN', claire: true, texte: 'Voici.', html: '<p>Voici.</p>' }) });
     assert.equal(cl.c.message.auteur, 'CLAIRE'); assert.equal(cl.c.message.via, 'Julie VASSELIN');
@@ -246,7 +247,7 @@ test('non-lus : seules les cartes de proposition de CLAIRE sont comptées à par
   assert.equal(c.mentionsCartes, 1, 'la carte adressée à son responsable n’est pas une mention pour la pastille');
 });
 
-test('œil « Vu » (27/10) : heure de lecture des AUTRES membres d’un canal privé seulement, jamais d’un canal partagé ni pour un non-membre', () => {
+test('œil « Vu » (27/10) : heure de lecture des AUTRES membres d’un canal privé ou de dossier, jamais de « général » ni pour un non-membre', () => {
   const repo = fauxRepo();
   const id = C.idPrive(['Bastien ANGLUMENT', 'Julie VASSELIN']);
   C.marquerLu(repo, 'Julie VASSELIN', id, 5000);
@@ -260,4 +261,5 @@ test('œil « Vu » (27/10) : heure de lecture des AUTRES membres d’un canal p
   assert.equal(C.lusParAutresMembres(repo, id, 'Bastien ANGLUMENT', COLLABS)['Julie VASSELIN'], 7000, 'heure de la première lecture, figée');
   assert.deepEqual(C.lusParAutresMembres(repo, id, 'Jérémy SAUJOT', COLLABS), {}, 'un non-membre ne voit rien');
   assert.deepEqual(C.lusParAutresMembres(repo, 'general', 'Bastien ANGLUMENT', COLLABS), {}, 'pas dans un canal partagé');
+  assert.deepEqual(Object.keys(C.lusParAutresMembres(repo, 'd:p1', 'Bastien ANGLUMENT', COLLABS)).sort().join(','), 'Julie VASSELIN,Jérémy SAUJOT', 'canal de dossier : toute l’étude');
 });

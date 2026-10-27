@@ -21,7 +21,7 @@ function htmlReactionsMessage(m) {
   const cle = escapeOnclickArg(identifiantMessageReaction(m));
   return `<div class="asst-reactions">${liste.map(r => {
     const moi = r.par.includes(utilisateurPoste);
-    const noms = r.par.map(p => (p === 'CLAIRE' ? 'CLAIRE' : (prenomCollaborateur(p) || p))).join(', ');
+    const noms = r.par.map(p => (p === 'CLAIRE' ? 'Claire' : (prenomCollaborateur(p) || p))).join(', ');
     return `<button type="button" class="asst-reaction${moi ? ' moi' : ''}" onclick="reagirMessageAssistant('${cle}', '${escapeOnclickArg(r.emoji)}')" title="${escapeAttr(noms)}" aria-pressed="${moi}" aria-label="${escapeAttr(`${r.emoji} ${r.par.length} : ${noms}`)}"><span class="asst-reaction-emoji">${escapeHtml(r.emoji)}</span><span class="asst-reaction-n">${r.par.length}</span></button>`;
   }).join('')}<button type="button" class="asst-reaction asst-reaction-ajout" onclick="ouvrirSelecteurReaction('${cle}', this)" aria-label="Ajouter une réaction" title="Ajouter une réaction">${icone('plus')}</button></div>`;
 }

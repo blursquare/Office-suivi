@@ -21,7 +21,7 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
   }
   // CLAIRE parmi les collègues, pas à l'écart (étude 26/10) : sa conversation est la conversation personnelle ; la pastille = ses messages non lus
   // (les propositions sont dans le canal de leur dossier, étude 27/10).
-  lignes.push({ id: 'claire', libelle: 'CLAIRE', titre: 'Conversation avec CLAIRE', nom: '', nonLus: Math.max(0, Number(aDecider) || 0), claire: true });
+  lignes.push({ id: 'claire', libelle: 'Claire', titre: 'Conversation avec Claire', nom: '', nonLus: Math.max(0, Number(aDecider) || 0), claire: true });
   return lignes;
 }
 

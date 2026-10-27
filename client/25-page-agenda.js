@@ -640,7 +640,7 @@
   // Cartes fantômes de la semaine affichée (vues Semaine et Jour), pour les dossiers du périmètre.
   function fantomesAffichesAgenda() {
     if (agendaVue === 'mois') return [];
-    const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard());
+    const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleAgenda());
     const jours = joursSemaineAgenda(agendaVue === 'jour' ? debutSemaine(agendaJour) : agendaLundi);
     // Un dossier en sondage de créneaux a déjà ses options dans l'agenda : pas de carte fantôme.
     return fantomesSemaineAgenda(perimetre.filter(d => !sondageOuvertDossier(d.id)), evenementsAffichesAgenda(), absencesOffice, jours, isoAujourdhuiLocal());
@@ -1096,7 +1096,7 @@
   // Anticipations : ce que CLAIRE voit venir, avec le geste qui y répond.
   function renderAnticipationsAgenda() {
     const auj = isoAujourdhuiLocal();
-    const global = vueGlobaleDashboard();
+    const global = vueGlobaleAgenda();
     const perimetre = dossiersDuPerimetre(dossiers, utilisateurPoste, global);
     // « Signatures de la semaine » retiré à la demande de l'étude (01/10) ; la probabilité de tenue reste
     // dans le détail de chaque rendez-vous.
