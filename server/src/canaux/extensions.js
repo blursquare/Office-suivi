@@ -108,7 +108,7 @@ function statutDe(repo, collab, maintenant) {
 }
 
 /**
- * Pose le statut de `collab` (« Au tribunal jusqu'à 15 h ») ; `heures` > 0 = expire au bout de ce temps, 0 = jusqu'à nouvel ordre ; vide = effacé.
+ * Pose le statut de `collab` (« En rendez-vous jusqu'à 15 h ») ; `heures` > 0 = expire au bout de ce temps, 0 = jusqu'à nouvel ordre ; vide = effacé.
  * @param {any} repo @param {string} collab @param {{ emoji?: string, texte?: string, heures?: number }} s @param {number} [maintenant]
  */
 function poserStatut(repo, collab, s, maintenant) {

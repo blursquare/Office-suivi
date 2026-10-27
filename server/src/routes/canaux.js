@@ -101,7 +101,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     res.json({ ok: true, enregistres: X.lireEnregistres(parametresRepo, utilisateur).map((e) => `${e.canal}|${e.mid}`) });
   });
 
-  // Mon statut (« Au tribunal jusqu'à 15 h »).
+  // Mon statut (« En rendez-vous jusqu'à 15 h »).
   routeur.put('/canaux/statut', (req, res) => {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const utilisateur = collaborateurDe(corps.auteur);

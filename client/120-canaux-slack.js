@@ -1,8 +1,9 @@
 // Discussions « comme Slack » (étude 25/10, suite de client/114 et 115) : fils de discussion, messages privés, recherche dans tous les canaux,
 // messages enregistrés, statut et présence, résumé d'un canal par Claire. Tout est servi par `server/src/canaux/` ; rien ici n'envoie d'email.
 
+// « Au tribunal » retiré (étude 27/10).
 var STATUTS_RAPIDES = [
-  { emoji: '⚖️', texte: 'Au tribunal', heures: 4 }, { emoji: '🤝', texte: 'En rendez-vous', heures: 2 }, { emoji: '💻', texte: 'En visio', heures: 1 },
+  { emoji: '🤝', texte: 'En rendez-vous', heures: 2 }, { emoji: '💻', texte: 'En visio', heures: 1 },
   { emoji: '🍽️', texte: 'Au déjeuner', heures: 1 }, { emoji: '🌴', texte: 'Absent(e)', heures: 24 }
 ];
 var minuterieRechercheGlobale = null;

@@ -22571,3 +22571,8 @@ plutôt les notifications de l'office de manière générale », « dans les con
   par `lignesEvenementsAgendaJour` (widget Agenda, fenêtre du matin) : même jour, mêmes heures de début et de fin, même titre (casse,
   accents et espaces ignorés) = une ligne, celle qui porte le dossier, le lieu ou une catégorie, complétée par l'autre. La page Agenda
   garde les deux éléments (ce sont deux éléments d'Outlook, chacun déplaçable et supprimable).
+
+### 27/10/2026 — 0.373.5 : statut « Au tribunal » retiré
+
+Étude 27/10 : « retirer le statut au tribunal ». Retiré de `STATUTS_RAPIDES` (client/120) ; un statut déjà posé expire comme avant
+(4 h). Le serveur garde tout statut libre (emoji + texte) : rien n'y change.
