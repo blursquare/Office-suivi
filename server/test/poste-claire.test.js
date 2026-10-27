@@ -67,12 +67,13 @@ test('le jeton du poste est secret : seul le bon jeton est reconnu', () => {
   assert.equal(poste.estPosteClaire(''), false);
 });
 
-let db, serveurApp, baseUrl, jeton, gestion, posteInjecte;
+let db, serveurApp, baseUrl, jeton, gestion, posteInjecte, parametresRepo;
 before(async () => {
   db = ouvrirDb(':memory:');
   posteInjecte = creerPosteClaire({ adresse: 'http://127.0.0.1:9', profil: os.tmpdir() + '/pc3', lancer: async () => { throw new Error('pas de navigateur'); } });
-  const { app, gestionnaireAuth } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' }, posteClaire: posteInjecte });
+  const { app, gestionnaireAuth, parametresRepo: repoApp } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' }, posteClaire: posteInjecte });
   gestion = gestionnaireAuth;
+  parametresRepo = repoApp;
   jeton = gestion.creerSession();
   serveurApp = app.listen(0);
   await new Promise((resolve) => serveurApp.once('listening', resolve));
@@ -106,6 +107,27 @@ test('une demande de validation devient une proposition pour Bastien, décidée 
   const d = await appeler(`/api/propositions/${id}/decision`, { method: 'POST', body: JSON.stringify({ auteur: 'Bastien ANGLUMENT', decision: 'acceptee' }) });
   assert.equal(d.status, 200);
   assert.equal((await (await appeler(`/api/poste-claire/demande/${id}`, {}, cookie)).json()).etat, 'acceptee');
+});
+
+test('une demande de validation sans réponse expire au bout de 8 minutes : un « Autoriser » tardif le dit, CLAIRE n’agit pas', async () => {
+  const { validationAbandonnee, MINUTES_VALIDATION_POSTE_CLAIRE, lirePropositions, ecrirePropositions } = require('../src/routines/propositions');
+  const base = { type: 'validation', routine: 'poste-claire', etat: 'proposee', creeLe: '2026-10-27T09:00:00.000Z' };
+  assert.equal(MINUTES_VALIDATION_POSTE_CLAIRE, 8);
+  assert.equal(validationAbandonnee(base, new Date('2026-10-27T09:07:59Z')), false);
+  assert.equal(validationAbandonnee(base, new Date('2026-10-27T09:08:00Z')), true);
+  assert.equal(validationAbandonnee(Object.assign({}, base, { etat: 'acceptee' }), new Date('2026-10-27T10:00:00Z')), false, 'décidée : rien ne change');
+  assert.equal(validationAbandonnee(Object.assign({}, base, { routine: 'revue-matin', type: 'tache' }), new Date('2026-10-27T10:00:00Z')), false, 'une autre proposition garde ses 30 jours');
+  const cookie = `${NOM_COOKIE_POSTE_CLAIRE}=${posteInjecte.jeton()}`;
+  const { id } = await (await appeler('/api/poste-claire/demande', { method: 'POST', body: JSON.stringify({ description: 'Renommer un fichier' }) }, cookie)).json();
+  // Vieillir la demande de 9 minutes.
+  const liste = lirePropositions(parametresRepo).map((p) => p.id === id ? Object.assign({}, p, { creeLe: new Date(Date.now() - 9 * 60000).toISOString() }) : p);
+  ecrirePropositions(parametresRepo, liste);
+  const d = await (await appeler(`/api/propositions/${id}/decision`, { method: 'POST', body: JSON.stringify({ auteur: 'Bastien ANGLUMENT', decision: 'acceptee' }) })).json();
+  assert.equal(d.dejaTraitee, true);
+  assert.equal(d.proposition.etat, 'expiree');
+  assert.equal((await (await appeler(`/api/poste-claire/demande/${id}`, {}, cookie)).json()).etat, 'expiree');
+  const boite = await (await appeler('/api/propositions?utilisateur=' + encodeURIComponent('Bastien ANGLUMENT') + '&etat=a-traiter')).json();
+  assert.ok(!boite.propositions.some((p) => p.id === id), 'plus « à décider »');
 });
 
 test('un travail confié part en arrière-plan : réponse immédiate, puis « non terminé » sans navigateur, et le demandeur est prévenu', async () => {

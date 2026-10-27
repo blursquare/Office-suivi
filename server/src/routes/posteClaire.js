@@ -6,7 +6,7 @@
 const express = require('express');
 const crypto = require('node:crypto');
 const { routeInterditePosteClaire, jetonDuCookie } = require('../posteClaire');
-const { lirePropositions } = require('../routines/propositions');
+const { lirePropositions, ecrirePropositions, expirer, validationAbandonnee } = require('../routines/propositions');
 const { deposerProposition } = require('../canaux/deposer');
 const { deposerMessageClaire } = require('../messagesClaire');
 const { noterVerification } = require('../verificationsTerrain');
@@ -105,8 +105,11 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
 
   routeur.get('/poste-claire/demande/:id', (req, res) => {
     if (!duPoste(req, res)) return;
-    const p = lirePropositions(parametresRepo).find((x) => x.id === req.params.id && x.routine === 'poste-claire');
+    const liste = lirePropositions(parametresRepo);
+    const p = liste.find((x) => x.id === req.params.id && x.routine === 'poste-claire');
     if (!p) { res.status(404).json({ erreur: 'Demande introuvable.' }); return; }
+    // Délai passé : la demande expire tout de suite (sa carte n'est plus « à décider »), CLAIRE n'agit pas.
+    if (validationAbandonnee(p)) { ecrirePropositions(parametresRepo, expirer(liste)); res.json({ etat: 'expiree' }); return; }
     res.json({ etat: p.etat });
   });
 

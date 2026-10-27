@@ -277,6 +277,9 @@ test('brouillon de CLAIRE : décidé seulement une fois parti (Envoyer, Outlook,
   assert.equal(app.emailBrouillonParti({ ok: false, annule: true }), false);
   assert.equal(app.emailBrouillonParti(false), false);
   assert.equal(app.emailBrouillonParti(undefined), false);
+  // Décision arrivée trop tard : une demande de CLAIRE expirée le dit, jamais « CLAIRE continue ».
+  assert.match(app.texteDejaTraitee({ etat: 'expiree', type: 'validation' }), /expiré.*CLAIRE ne l’a pas faite/);
+  assert.equal(app.texteDejaTraitee({ etat: 'acceptee', type: 'email' }), 'Cette proposition a déjà été traitée.');
   assert.equal(app.emailBrouillonParti({ ok: true, mode: 'exchange' }), true);
   assert.equal(app.emailBrouillonParti({ ok: true, mode: 'mailto' }), true);
   assert.equal(app.emailBrouillonParti(true), true, 'relance au modèle de l’étude partie');

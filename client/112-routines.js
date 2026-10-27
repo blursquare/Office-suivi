@@ -192,6 +192,13 @@ function poserTacheDepuisProposition(p) {
   enregistrerRappelPerso(rappel);
 }
 
+// Pure : ce qui est dit quand la décision arrive trop tard (déjà décidée, ou demande de CLAIRE expirée faute de réponse).
+function texteDejaTraitee(decidee) {
+  if (decidee && decidee.etat === 'expiree') return decidee.type === 'validation'
+    ? 'Cette demande a expiré : sans réponse à temps, CLAIRE ne l’a pas faite.' : 'Cette proposition a expiré.';
+  return 'Cette proposition a déjà été traitée.';
+}
+
 // Ce que fait « Autoriser » : le geste habituel de CLAIRE, JAMAIS un envoi. Rend le message dit à l'utilisateur.
 function executerActionProposition(p) {
   if (p.type === 'validation') return 'Autorisé : CLAIRE continue sur son poste.';
@@ -317,7 +324,7 @@ async function autoriserPropositionSure(id, p) {
     return;
   }
   if (decidee.dejaTraitee) {
-    afficherToast('Cette proposition a déjà été traitée.', 'OK', null);
+    afficherToast(texteDejaTraitee(decidee), 'OK', null);
     await apresDecisionProposition();
     return;
   }
@@ -338,7 +345,7 @@ async function refuserProposition(id) {
     afficherToast('Refus non enregistré : ' + e.message, 'OK', null);
     return;
   }
-  if (decidee.dejaTraitee) { afficherToast('Cette proposition a déjà été traitée.', 'OK', null); await apresDecisionProposition(); return; }
+  if (decidee.dejaTraitee) { afficherToast(texteDejaTraitee(decidee), 'OK', null); await apresDecisionProposition(); return; }
   noterVerificationPoste('routines-boite-poste', { detail: 'proposition refusée' });
   afficherToast('Refusée : CLAIRE ne la proposera plus.', 'OK', null);
   await apresDecisionProposition();

@@ -12,7 +12,23 @@
 
 const { motsSensiblesDossiers, masquer, retablirTexte, MODELES_CLAUDE_ASSISTANT } = require('../assistantMistral');
 const { requeteAssistantClaude, messageErreurClaude } = require('../assistantClaude');
-const { promptPropositionReponse, validerProposition } = require('../envoiEmailsExchange');
+const { promptPropositionReponse, validerProposition, MOTS_MAX_PROPOSITION } = require('../envoiEmailsExchange');
+
+// Une réponse commune à plusieurs emails a droit à un peu plus de place (une phrase par email) : 90 mots pour un email, +40 par email
+// de plus, 170 au plus — sinon elle était refusée comme « trop longue » et le client restait sans brouillon (relecture 27/10).
+const MOTS_MAX_REPONSE_COMMUNE = 170;
+/** Pure : le plafond de mots d'une réponse à `n` emails. @param {number} n */
+function motsMaxReponse(n) { return Math.min(MOTS_MAX_REPONSE_COMMUNE, MOTS_MAX_PROPOSITION + 40 * Math.max(0, (Number(n) || 1) - 1)); }
+/** Le validateur d'une réponse à `n` emails (celui du premier jet d'un email pour n = 1). @param {number} n */
+function validerReponseEmails(n) {
+  if (!(n > 1)) return validerProposition;
+  const max = motsMaxReponse(n);
+  return (/** @type {any} */ o) => {
+    if (!o || typeof o.reponse !== 'string' || !o.reponse.trim()) return 'le champ "reponse" (texte) est obligatoire';
+    const mots = o.reponse.split(/\s+/).filter(Boolean).length;
+    return mots > max ? `réponse trop longue (${mots} mots) : ${max} mots au plus, formules comprises` : null;
+  };
+}
 const { sansSaufErreur } = require('../../../commun/assistant');
 const { estJourFerie } = require('../../../commun/dates');
 const { libelleDossierAffiche, estSuccession } = require('../../../commun/dossier');
@@ -227,11 +243,28 @@ async function reponsesEmailsDuSoir(o) {
       texte, dossier: masquer(libelleDossierAffiche(d), sensibles, table),
       confrere, pj: lus.flatMap((x) => (x.e.pj || []).map(() => 'un document'))
     });
-    let objet;
-    try { objet = await o.ia.json(prompt, SCHEMA_REPONSE, validerProposition, 800); } catch (err) { sortie.erreurs.push(String(err && err.message).slice(0, 80)); continue; }
-    const corps = retablirBrouillon(objet.reponse, table);
-    if (!corps) continue;
     const reponseA = lus[lus.length - 1].e.id;
+    const valider = validerReponseEmails(lus.length);
+    let objet = null;
+    let derniereErreur = '';
+    // Deux essais au plus : le second rappelle la limite quand le premier était trop long.
+    for (let essai = 0; essai < 2 && !objet; essai++) {
+      const rappel = essai && /trop longue/.test(derniereErreur) ? `\n\nATTENTION : ta réponse précédente était trop longue. ${motsMaxReponse(lus.length)} mots au plus, formules comprises.` : '';
+      try { objet = await o.ia.json(prompt + rappel, SCHEMA_REPONSE, valider, 800); } catch (err) {
+        derniereErreur = String(err && err.message);
+        if (!/trop longue/.test(derniereErreur)) break;
+      }
+    }
+    const corps = objet ? retablirBrouillon(objet.reponse, table) : '';
+    if (!corps) {
+      if (derniereErreur) sortie.erreurs.push(derniereErreur.slice(0, 80));
+      // Aucune proposition : les emails ne sont PAS comptés traités, pour qu'un tour suivant réessaie — une seule fois (`echec:`), jamais sans fin.
+      if (!traites['echec:' + reponseA]) {
+        for (const x of lus) delete traites['rep:' + x.e.id];
+        traites['echec:' + reponseA] = new Date(o.maintenantMs).toISOString();
+      }
+      continue;
+    }
     const empreinte = `reponse:${reponseA}`;
     const objets = lus.map((x) => `« ${String(x.e.objet || '(sans objet)').slice(0, 60)} »`);
     sortie.propositions.push({
@@ -333,5 +366,5 @@ async function relancePiecesDemandees(o) {
 
 module.exports = {
   MODELE_ROUTINES, CLE_EMAILS_TRAITES, MAX_EMAILS_PAR_TOUR, veilleOuvree, momentParis, recuApres18h, sensiblesDesDossiers, retablirBrouillon,
-  expediteurConfrereDossier, sujetReponse, lireEmailsTraites, creerIaRoutines, reponsesEmailsDuSoir, promptRelancePieces, relancePiecesDemandees
+  expediteurConfrereDossier, sujetReponse, lireEmailsTraites, motsMaxReponse, validerReponseEmails, creerIaRoutines, reponsesEmailsDuSoir, promptRelancePieces, relancePiecesDemandees
 };

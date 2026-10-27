@@ -213,6 +213,7 @@ test('page servie d\'abord à une fenêtre du même poste ; sans fenêtre de ce 
     const pourJulie = await post('releves/prendre', {}, '10.0.0.2');
     assert.equal(pourJulie.releves.length, 1);
     assert.equal(pourJulie.releves[0].capture.champs[1].valeur, 'MARTEL');
+    assert.equal(pourJulie.releves[0].memePoste, true, 'page de son propre poste : elle dit où Julie est dans Authentic');
     // Fenêtre de Julie fermée depuis plus de 90 s : sa page va à Jérémy plutôt que de se perdre — et MARTEL, prise par Julie sans
     // compte rendu, revient aussi (banc du 19/10 : une page remise à une fenêtre disparue n'était jamais appliquée).
     await post('releve', page('FOURNIER'), '10.0.0.2');
@@ -220,6 +221,7 @@ test('page servie d\'abord à une fenêtre du même poste ; sans fenêtre de ce 
     const tout = await post('releves/prendre', {}, '10.0.0.3');
     assert.equal(tout.releves.map(r => r.capture.champs[1].valeur).sort().join(','), 'FOURNIER,MARTEL');
     const pourJeremy = { releves: tout.releves.filter(r => r.capture.champs[1].valeur === 'FOURNIER') };
+    assert.ok(tout.releves.every(r => r.memePoste === false), 'page d’un autre poste : appliquée, mais ne dit rien de Jérémy');
     // Journal : reçue de quel poste, prise par qui, résultat rapporté par la fenêtre.
     await post('releves/resultats', { resultats: [{ id: pourJeremy.releves[0].id, etat: 'sans-dossier', texte: 'aucun dossier ne porte ces noms' }, { id: 'x', etat: 'pirate' }] }, '10.0.0.3');
     const j = await fetch(b + '/api/authentic/journal').then(r => r.json());

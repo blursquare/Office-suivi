@@ -108,7 +108,8 @@ test('emails du soir : de la veille ouvrée 18 h à 8 h ce matin, le week-end co
 /** Un faux client de l'IA : garde chaque prompt, répond avec `reponse` (une fonction du prompt). */
 function fausseIa(reponse) {
   const prompts = [];
-  return { prompts, disponible: () => ({ ok: true }), async json(prompt) { prompts.push(prompt); return reponse(prompt); }, async texte(prompt) { prompts.push(prompt); return 'Rien de notable cette semaine.'; } };
+  // Le validateur passé par la routine est appliqué, comme le fait le vrai client (creerIaRoutines).
+  return { prompts, disponible: () => ({ ok: true }), async json(prompt, schema, valider) { prompts.push(prompt); const o = reponse(prompt); const pb = valider ? valider(o) : null; if (pb) throw new Error('réponse de Claude hors format (' + pb + ')'); return o; }, async texte(prompt) { prompts.push(prompt); return 'Rien de notable cette semaine.'; } };
 }
 
 const EMAILS = [
@@ -159,6 +160,43 @@ test('emails du soir : plusieurs emails du même client → UNE réponse commune
   assert.match(ia.prompts[0], /2 emails reçus de la même personne/);
   assert.match(ia.prompts[0], /Email 1[\s\S]*Email 2/);
   for (const mot of ['DURAND', 'Léa', 'lea.durand@exemple.fr']) assert.ok(!ia.prompts[0].includes(mot), `« ${mot} » est parti`);
+});
+
+test('emails du soir : une réponse commune a droit à plus de mots ; trop longue deux fois = rien proposé, emails repris au tour suivant, une fois', async () => {
+  assert.equal(IA.motsMaxReponse(1), 90);
+  assert.equal(IA.motsMaxReponse(2), 130);
+  assert.equal(IA.motsMaxReponse(5), 170);
+  const emails = [
+    { id: 'm1', sens: 'recu', dossierId: 'd1', date: '2026-10-23T18:30:00Z', de: { nom: 'Léa DURAND', adresse: 'lea.durand@exemple.fr' }, objet: 'Prêt', pj: [] },
+    { id: 'm2', sens: 'recu', dossierId: 'd1', date: '2026-10-24T20:00:00Z', de: { nom: 'Léa DURAND', adresse: 'lea.durand@exemple.fr' }, objet: 'Signature', pj: [] }
+  ];
+  const lire = async () => ({ texte: 'Une question.' });
+  const mots = (n) => 'Madame, ' + Array.from({ length: n }, () => 'mot').join(' ') + ' Bien cordialement,';
+  // 110 mots : refusé pour un email seul, accepté pour une réponse commune à deux.
+  const repo = fauxRepo();
+  const r = await IA.reponsesEmailsDuSoir({ ia: fausseIa(() => ({ reponse: mots(105) })), parametresRepo: repo, dossiers: [vente({})], emails, aujourdhui: AUJ,
+    maintenantMs: Date.parse('2026-10-26T07:05:00Z'), lireEmail: lire, niveau: () => 1 });
+  assert.equal(r.propositions.length, 1, 'réponse commune de 110 mots proposée');
+  // Trop longue même au second essai (qui rappelle la limite) : rien proposé, les emails ne sont pas comptés traités…
+  const repo2 = fauxRepo();
+  const ia2 = fausseIa(() => ({ reponse: mots(200) }));
+  const r2 = await IA.reponsesEmailsDuSoir({ ia: ia2, parametresRepo: repo2, dossiers: [vente({})], emails, aujourdhui: AUJ,
+    maintenantMs: Date.parse('2026-10-26T07:05:00Z'), lireEmail: lire, niveau: () => 1 });
+  assert.equal(r2.propositions.length, 0);
+  assert.equal(ia2.prompts.length, 2, 'un second essai');
+  assert.match(ia2.prompts[1], /trop longue/);
+  assert.match(r2.erreurs.join(' '), /trop longue/);
+  // … repris au tour suivant (avec une IA qui répond court), puis plus jamais réessayés après un second échec.
+  const r3 = await IA.reponsesEmailsDuSoir({ ia: fausseIa(() => ({ reponse: 'Madame, nous revenons vers vous. Bien cordialement,' })), parametresRepo: repo2, dossiers: [vente({})], emails, aujourdhui: AUJ,
+    maintenantMs: Date.parse('2026-10-26T07:20:00Z'), lireEmail: lire, niveau: () => 1 });
+  assert.equal(r3.propositions.length, 1, 'repris au tour suivant');
+  const repo3 = fauxRepo();
+  const longue = fausseIa(() => ({ reponse: mots(200) }));
+  await IA.reponsesEmailsDuSoir({ ia: longue, parametresRepo: repo3, dossiers: [vente({})], emails, aujourdhui: AUJ, maintenantMs: Date.parse('2026-10-26T07:05:00Z'), lireEmail: lire, niveau: () => 1 });
+  await IA.reponsesEmailsDuSoir({ ia: longue, parametresRepo: repo3, dossiers: [vente({})], emails, aujourdhui: AUJ, maintenantMs: Date.parse('2026-10-26T07:20:00Z'), lireEmail: lire, niveau: () => 1 });
+  const r4 = await IA.reponsesEmailsDuSoir({ ia: longue, parametresRepo: repo3, dossiers: [vente({})], emails, aujourdhui: AUJ, maintenantMs: Date.parse('2026-10-26T07:35:00Z'), lireEmail: lire, niveau: () => 1 });
+  assert.equal(r4.lus, 0, 'un seul nouvel essai, jamais sans fin');
+  assert.equal(longue.prompts.length, 4);
 });
 
 test('relance des pièces : seulement si l’email envoyé demandait une pièce encore manquante ; rien de nominatif ne part', async () => {

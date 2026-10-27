@@ -167,7 +167,9 @@ function creerRouteurAuthentic(options) {
       noter(r, { etat: 'pris', prisLe: t, prisPar: poste || '' });
       enCours.set(r.id, { releve: r, t: maintenant(), essais: (r.essais || 0) + 1 });
     });
-    return pris;
+    // `memePoste` : la page vient de l'extension de CE poste (même adresse réseau) — la fenêtre n'en déduit « où l'on est dans Authentic »
+    // que dans ce cas ; une page d'un poste sans fenêtre CLAIRE est appliquée ici mais ne dit rien de la personne de ce poste.
+    return pris.map(r => Object.assign({}, r, { memePoste: !!r.origine && r.origine === origine }));
   };
   const voir = (req) => {
     const origine = origineDe(req);

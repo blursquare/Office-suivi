@@ -22341,3 +22341,23 @@ ailleurs entre-temps, il ne part qu'une fois. Brouillon refermé : destinataire,
 remis / laissés, plan aérien rangé, plan de cadastre annulé), entrées sans route retirées. Appels non relevés au retour au premier plan dans sa
 fenêtre. Réponse commune : chaque email coupé à 3 400 / n caractères (la fin du dernier n'est plus retirée). Restent : une réponse commune trop
 longue (plus de 90 mots) n'est pas proposée — dite comme erreur du tour ; le chemin du brouillon suit le niveau de dépôt de la proposition.
+
+### 27/10/2026 — 0.371.2 : les trois points restés ouverts après 0.371.1
+
+Étude : « Corrige les trois points ouverts ».
+
+- **Demande de validation de CLAIRE abandonnée** : le poste virtuel n'attend la réponse que 8 minutes. Passé ce délai, la proposition
+  `validation` (routine `poste-claire`) passe « expirée » (`validationAbandonnee`, `MINUTES_VALIDATION_POSTE_CLAIRE` de
+  `server/src/routines/propositions.js`) : par `expirer` (liste « À traiter », tour du planificateur), par la relecture du poste
+  (`GET /api/poste-claire/demande/:id`) et par `decider` elle-même. Un « Autoriser » tardif rend `dejaTraitee` avec l'état
+  `expiree`, et le poste dit « Cette demande a expiré : sans réponse à temps, CLAIRE ne l'a pas faite » (`texteDejaTraitee`, client/112)
+  au lieu de « CLAIRE continue sur son poste ».
+- **Présence dans Authentic** : une page relevée prise par une fenêtre d'un AUTRE poste (le poste d'origine n'avait pas de fenêtre
+  CLAIRE vue depuis 90 s) est toujours appliquée, mais elle ne dit plus « où l'on est » ici. Le serveur marque chaque relevé
+  rendu par `prendrePour` de `memePoste` (même adresse réseau que la fenêtre). `appliquerReleveAuthentic` ne note la présence
+  (client/127) que pour `memePoste === true` et une page non revue. Le message « vous ouvrez … dans Authentic » ne va donc plus
+  chez un collègue.
+- **Réponse commune aux emails du soir trop longue** : la limite passe de 90 mots à 90 + 40 par email de plus, 170 au plus
+  (`motsMaxReponse`, `validerReponseEmails` de `server/src/routines/ia.js`). Une réponse trop longue a un second essai, qui rappelle
+  la limite. Si aucune proposition n'en sort, les emails ne sont plus comptés traités : un tour suivant réessaie, une seule fois
+  (repère `echec:<dernier email>`), jamais sans fin.

@@ -10,6 +10,15 @@ const CLE_PROPOSITIONS = 'routines-propositions';
 // 2 000 (25/10, toutes les routines allumées) : une proposition sortie de la liste perdrait son empreinte et pourrait revenir.
 const MAX_PROPOSITIONS = 2000;
 const JOURS_EXPIRATION = 30;
+// Une demande de validation du poste virtuel de CLAIRE n'est attendue que 8 minutes (DELAI_VALIDATION_POSTE_CLAIRE_MS du poste) :
+// passé ce délai elle a abandonné le geste, la demande expire — un « Autoriser » tardif ne doit pas laisser croire qu'elle continue.
+const MINUTES_VALIDATION_POSTE_CLAIRE = 8;
+
+/** Pure : demande de validation de CLAIRE restée sans réponse au-delà de son délai ? @param {any} p @param {Date} [maintenant] */
+function validationAbandonnee(p, maintenant) {
+  return !!(p && p.type === 'validation' && p.routine === 'poste-claire' && (p.etat === 'proposee' || p.etat === 'vue') && p.creeLe
+    && Date.parse(p.creeLe) <= (maintenant || new Date()).getTime() - MINUTES_VALIDATION_POSTE_CLAIRE * 60000);
+}
 const SEUIL_PROMOTION_PROPOSITIONS = 30;
 const SEUIL_PROMOTION_TAUX = 0.9;
 const TYPES = ['email', 'document', 'tache', 'dates', 'alerte', 'validation'];   // `validation` : une demande de CLAIRE depuis son poste virtuel (server/src/posteClaire.js)
@@ -130,6 +139,11 @@ function decider(liste, id, decision, par, maintenant, options) {
   if (avant.etat === 'acceptee' || avant.etat === 'refusee' || avant.etat === 'faite' || avant.etat === 'expiree') return { liste, proposition: avant };
   if (decision === 'vue' && avant.etat === 'vue') return { liste, proposition: avant };
   const nouvelle = liste.slice();
+  if (validationAbandonnee(avant, maintenant)) {
+    const p = Object.assign({}, avant, { etat: 'expiree' });
+    nouvelle[i] = p;
+    return { liste: nouvelle, proposition: p, expiree: true };
+  }
   if (decision === 'reporter') {
     const jusqua = dateDeReport(String((options && options.quand) || ''), maintenant);
     if (jusqua === null) return { liste, proposition: null };
@@ -147,7 +161,7 @@ function expirer(liste, maintenant) {
   const limite = (maintenant || new Date()).getTime() - JOURS_EXPIRATION * 86400000;
   let change = false;
   const nouvelle = liste.map((p) => {
-    if ((p.etat === 'proposee' || p.etat === 'vue') && p.creeLe && Date.parse(p.creeLe) < limite) { change = true; return Object.assign({}, p, { etat: 'expiree' }); }
+    if (((p.etat === 'proposee' || p.etat === 'vue') && p.creeLe && Date.parse(p.creeLe) < limite) || validationAbandonnee(p, maintenant)) { change = true; return Object.assign({}, p, { etat: 'expiree' }); }
     return p;
   });
   return change ? nouvelle : liste;
@@ -204,7 +218,7 @@ function ecrirePropositions(repo, liste) {
 }
 
 module.exports = {
-  CLE_PROPOSITIONS, MAX_PROPOSITIONS, JOURS_EXPIRATION, SEUIL_PROMOTION_PROPOSITIONS, SEUIL_PROMOTION_TAUX, TYPES, ETATS,
+  CLE_PROPOSITIONS, MAX_PROPOSITIONS, JOURS_EXPIRATION, MINUTES_VALIDATION_POSTE_CLAIRE, validationAbandonnee, SEUIL_PROMOTION_PROPOSITIONS, SEUIL_PROMOTION_TAUX, TYPES, ETATS,
   assainirProposition, assainirPropositions, ajouterProposition, decider, dateDeReport, estReportee, expirer, listerPropositions, compterATraiter, statsRoutine,
   lirePropositions, ecrirePropositions
 };

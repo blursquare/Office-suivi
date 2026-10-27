@@ -110,9 +110,9 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     if (cible && cible.responsable && cible.responsable !== par && !ADMINISTRATEURS.includes(par)) { res.status(403).json({ erreur: 'Cette proposition n’est pas dans votre boîte.' }); return; }
     const r = decider(liste, req.params.id, corps.decision, par, undefined, { quand: typeof corps.quand === 'string' ? corps.quand : '' });
     if (!r.proposition) { res.status(404).json({ erreur: 'Proposition introuvable.' }); return; }
-    const dejaTraitee = r.liste === liste;
+    const dejaTraitee = r.liste === liste || !!r.expiree;
     const encoreOuverte = ['proposee', 'vue'].includes(r.proposition.etat);
-    if (!dejaTraitee) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
+    if (r.liste !== liste) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
     // Le niveau d'autonomie EN VIGUEUR au moment de la décision (audit 25/10) : un niveau abaissé depuis le dépôt s'applique aussi aux
     // propositions déjà en attente — jamais d'envoi sans clic si l'administrateur est revenu au niveau 1.
     const p = r.proposition;

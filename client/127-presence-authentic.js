@@ -20,7 +20,8 @@ function ongletsActifsAuthentic(capture) {
   return liste.filter(o => o && o.actif && o.titre && !/\d+\s*-\s*\S|\bVTE\b|\bSUCC\b|\/|\s-\s/i.test(String(o.titre))).map(o => String(o.titre).trim().slice(0, 60)).slice(0, 2);
 }
 
-// Appelée à chaque page relevée (client/30, `appliquerReleveAuthentic`).
+// Appelée à chaque page relevée PAR L'EXTENSION DE CE POSTE (client/30, `appliquerReleveAuthentic`, `memePoste` du serveur) : une page
+// prise pour un poste sans fenêtre CLAIRE ne dit rien de la personne d'ici.
 function noterPresenceAuthentic(capture) {
   try {
     const nature = natureLisiblePageAuthentic(typePageAuthentic(capture));
