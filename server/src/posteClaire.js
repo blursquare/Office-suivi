@@ -17,7 +17,8 @@ const { lancerNavigateur } = require('./navigateur/chrome');
 
 const NOM_COOKIE_POSTE_CLAIRE = 'claire-poste';
 const INACTIVITE_MS = 10 * 60 * 1000;
-const DELAI_TRAVAIL_MS = 12 * 60 * 1000;
+// 20 min : plus que deux validations de 8 min (relecture 27/10 : à 12 min, un travail attendant deux validations était coupé en cours).
+const DELAI_TRAVAIL_MS = 20 * 60 * 1000;
 const DELAI_DEMARRAGE_MS = 90 * 1000;
 
 // Écritures (et lectures de réglages) que le poste de CLAIRE n'a pas le droit de faire : chemin sans « /api ».
@@ -26,18 +27,39 @@ const INTERDITS_ECRITURE = [
   /^\/notifications(\/|$)/, /^\/mise-a-jour(\/|$)/, /^\/sauvegarde(\/|$)/, /^\/relais-word(\/|$)/, /^\/comptes-collaborateurs(\/|$)/,
   /^\/photos-collaborateurs(\/|$)/, /^\/carnet-claire(\/|$)/, /^\/assistant\/reglages$/, /^\/memoire\/reglages$/, /^\/nas-libre\/reglages$/,
   /^\/openlegi\/reglages$/, /^\/appels\/reglages$/, /^\/rangement-outlook\/reglages$/, /^\/rapport-technique\/envoyer$/, /^\/routines\/reglages$/,
-  /^\/routines\/[^/]+\/lancer$/, /^\/propositions\/[^/]+\/decision$/, /^\/canaux(\/|$)/, /^\/poste-claire\/travail$/, /^\/sondages(\/|$)/, /^\/emails-prepares(\/|$)/
+  /^\/routines\/[^/]+\/lancer$/, /^\/propositions\/[^/]+\/decision$/, /^\/preferences(\/|$)/, /^\/claire-messages(\/|$)/, /^\/canaux(\/|$)/, /^\/poste-claire\/travail$/, /^\/sondages(\/|$)/, /^\/emails-prepares(\/|$)/
+];
+// Les seules écritures permises au poste de CLAIRE : [méthodes, chemin sans « /api »].
+/** @type {[string[], RegExp][]} */
+const PERMIS_ECRITURE = [
+  [['POST'], /^\/assistant\/(agent|comprendre|converser|recherche-web|correspondance-acte)$/],
+  [['POST'], /^\/poste-claire\/demande$/],
+  [['POST', 'PUT'], /^\/dossiers(\/[^/]+)?$/],
+  [['POST', 'PUT'], /^\/rappels-perso(\/[^/]+)?$/],
+  [['POST'], /^\/repertoire$/],
+  [['POST'], /^\/nas\/(explorer\/renommer|explorer\/deplacer|deposer-document)$/],
+  [['POST'], /^\/scans\/ranger$/],
+  [['POST', 'DELETE'], /^\/navigation\/(plan-cadastre|taches\/[^/]+(\/documents\/[^/]+\/ranger)?)$/],
+  [['POST'], /^\/urbanisme\/plan-aerien$/],
+  [['POST'], /^\/openlegi\/appel$/],
+  [['POST'], /^\/(journal-technique|verifications-terrain\/noter)$/],
+  [['POST'], /^\/(login|logout)$/]
 ];
 // Lectures refusées elles aussi : tout ce qui est « réglages », la liste des comptes et les secrets.
-const INTERDITS_LECTURE = [/^\/reglages(\/|$)/, /^\/comptes-collaborateurs(\/|$)/, /^\/mise-a-jour(\/|$)/, /^\/sauvegarde(\/|$)/, /^\/yousign(\/|$)/, /^\/relais-word(\/|$)/];
+const INTERDITS_LECTURE = [/^\/claire-messages(\/|$)/, /^\/reglages(\/|$)/, /^\/comptes-collaborateurs(\/|$)/, /^\/mise-a-jour(\/|$)/, /^\/sauvegarde(\/|$)/, /^\/yousign(\/|$)/, /^\/relais-word(\/|$)/];
 
 /** Pure : cette requête du poste de CLAIRE est-elle refusée ? `chemin` commence par « /api » ou non. @param {string} methode @param {string} chemin */
 function routeInterditePosteClaire(methode, chemin) {
-  const c = String(chemin || '').split('?')[0].replace(/^\/api(?=\/)/, '');
+  // Express ne distingue ni la casse ni la barre finale (relecture 27/10 : « /api/Reglages », « /emails/envoyer/ » passaient) : comparé normalisé.
+  let c = String(chemin || '').split('?')[0];
+  try { c = decodeURIComponent(c); } catch (e) { /* chemin illisible : comparé tel quel */ }
+  c = c.toLowerCase().replace(/\/{2,}/g, '/').replace(/^\/api(?=\/)/, '').replace(/(.)\/+$/, '$1');
   const m = String(methode || 'GET').toUpperCase();
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return INTERDITS_LECTURE.some((re) => re.test(c));
-  // Elle peut demander une validation, lire ses propositions, et appeler l'agent : le reste des écritures n'est refusé que dans la liste.
-  return INTERDITS_ECRITURE.some((re) => re.test(c));
+  // Écritures : une LISTE BLANCHE (audit 27/10, H2 : la liste noire en laissait passer 96 sur 168 — réglages de Claude, Outlook,
+  // suppressions). Seul ce dont son travail a besoin, chaque geste ayant déjà été validé par Bastien côté page ; la liste noire reste en second filet.
+  if (INTERDITS_ECRITURE.some((re) => re.test(c))) return true;
+  return !PERMIS_ECRITURE.some(([methodes, re]) => methodes.includes(m) && re.test(c));
 }
 
 /** Pure : la valeur du cookie `claire-poste` d'un en-tête Cookie. @param {string} cookie */

@@ -73,7 +73,7 @@ function creerRouteurReglages(parametresRepo, envoyerFn, options) {
       res.status(400).json({ erreur: `La boîte-passerelle « ${reglages.emailPasserelle} » n'est pas une adresse email valide. Rien n'a été envoyé.` });
       return;
     }
-    const resultat = await envoyer(reglages, email, MESSAGE_TEST);
+    const resultat = await envoyer(reglages, email, MESSAGE_TEST, undefined, { sansAiguillage: true });
     if (!resultat.ok) {
       res.status(502).json({ erreur: resultat.erreur });
       return;

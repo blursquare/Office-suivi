@@ -141,6 +141,26 @@ test('réponses aux emails du soir : un brouillon par email reçu après 18 h, d
   assert.equal(bis.lus, 0);
 });
 
+test('emails du soir : plusieurs emails du même client → UNE réponse commune, dans le fil du dernier, tous listés ; rien de nominatif ne part', async () => {
+  const repo = fauxRepo();
+  const ia = fausseIa(() => ({ reponse: 'Madame, nous revenons vers vous sur vos deux questions. Bien cordialement,' }));
+  const emails = [
+    { id: 's1', sens: 'recu', dossierId: 'd1', date: '2026-10-23T18:30:00Z', de: { nom: 'Léa DURAND', adresse: 'lea.durand@exemple.fr' }, objet: 'Question sur le prêt', pj: [] },
+    { id: 's2', sens: 'recu', dossierId: 'd1', date: '2026-10-24T20:00:00Z', de: { nom: 'Léa DURAND', adresse: 'Lea.Durand@exemple.fr' }, objet: 'Et la date de signature ?', pj: [] }
+  ];
+  const r = await IA.reponsesEmailsDuSoir({ ia, parametresRepo: repo, dossiers: [vente({})], emails, aujourdhui: AUJ, maintenantMs: Date.parse('2026-10-26T07:05:00Z'),
+    lireEmail: async (id) => ({ texte: id === 's1' ? 'Madame Léa DURAND : le prêt est-il accordé ?' : 'Quelle est la date de signature ? Léa DURAND' }), niveau: () => 1 });
+  assert.equal(r.propositions.length, 1, 'une seule proposition');
+  const p = r.propositions[0];
+  assert.equal(p.details.reponseA, 's2', 'dans le fil du dernier');
+  assert.equal(p.details.emailsRecus, 's1,s2');
+  assert.match(p.resume, /2 emails reçus/);
+  assert.equal(ia.prompts.length, 1);
+  assert.match(ia.prompts[0], /2 emails reçus de la même personne/);
+  assert.match(ia.prompts[0], /Email 1[\s\S]*Email 2/);
+  for (const mot of ['DURAND', 'Léa', 'lea.durand@exemple.fr']) assert.ok(!ia.prompts[0].includes(mot), `« ${mot} » est parti`);
+});
+
 test('relance des pièces : seulement si l’email envoyé demandait une pièce encore manquante ; rien de nominatif ne part', async () => {
   const d = vente({});
   const manquante = checklistPiecesBase('maison', d)[0].label;

@@ -18,7 +18,7 @@ const MAX_MENTIONS_PAR_HEURE = 12;
  */
 function creerNotifieur(deps) {
   const { parametresRepo, depot } = deps;
-  const envoyer = deps.envoyer || ((r, a, t) => require('../envoiEmail').envoyerEmail(r, a, t));
+  const envoyer = deps.envoyer || ((r, a, t) => require('../envoiEmail').envoyerEmail(r, a, t, undefined, { dejaDansCanal: true }));
 
   /** @param {string} canal */
   const libelleCanal = (canal) => {

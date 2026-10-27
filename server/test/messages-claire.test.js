@@ -130,3 +130,16 @@ test('routes : déposer pour soi, lire, marquer lus ; collaborateur inconnu refu
   r = await fetch(`${baseUrl}/api/claire-messages`, { method: 'POST', headers: h, body: JSON.stringify({ utilisateur: 'Julie VASSELIN', texte: '  ' }) });
   assert.equal(r.status, 400);
 });
+
+test('relecture 27/10 : avec une clé, seule la clé fait le doublon ; une mention déjà dans son canal ne fait pas de second message', () => {
+  const t0 = Date.UTC(2026, 9, 27, 9);
+  const a = M.deposerDansBoite([], { texte: 'Travail terminé : vérifie les pièces.', cle: 'poste-claire-fini:1', sorte: 'travail' }, t0);
+  const b = M.deposerDansBoite(a.liste, { texte: 'Travail terminé : vérifie les pièces.', cle: 'poste-claire-fini:2', sorte: 'travail' }, t0 + 60000);
+  assert.equal(b.effet, 'nouveau', 'deux comptes rendus de la même consigne');
+  assert.equal(b.liste.length, 2, 'les travaux ne sont jamais regroupés');
+  const repo = repoMemoire({});
+  const aiguiller = M.creerAiguillageNotifications(repo, ['Bastien ANGLUMENT']);
+  const r = aiguiller({ emailsResponsables: { 'Julie VASSELIN': 'julie@exemple.fr' } }, 'julie@exemple.fr', 'Bastien vous a mentionné dans # général.', { dejaDansCanal: true });
+  assert.equal(r.claire, true);
+  assert.equal(M.messagesDe(repo, 'Julie VASSELIN').length, 0);
+});

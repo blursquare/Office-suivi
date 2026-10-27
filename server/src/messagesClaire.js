@@ -84,7 +84,8 @@ function deposerDansBoite(liste, m, maintenantMs) {
   const cle = borne(m.cle || '', 160);
   const sorte = borne(m.sorte || sorteDuTexte(complet), 30);
   const recents = liste.filter((x) => maintenantMs - Math.max(x.quand, x.maj || 0) < FENETRE_DOUBLON_MS);
-  const deja = recents.find((x) => (cle && x.cle === cle) || x.court === court || (x.elements || []).some((e) => e.court === court));
+  // Avec une clé, seule la clé dit le doublon (relecture 27/10 : deux comptes rendus de la même consigne avaient le même texte court).
+  const deja = recents.find((x) => (cle ? x.cle === cle : (!x.cle && (x.court === court || (x.elements || []).some((e) => e.court === court)))));
   if (deja) return { liste, message: deja, effet: 'doublon' };
   // Regroupé : même sorte, encore non lu, récent — une seule notification pour le groupe.
   const groupe = SORTES.some((x) => x.cle === sorte) && sorte !== 'travail' ? liste.slice().reverse().find((x) => x.sorte === sorte && !x.lu && maintenantMs - (x.maj || x.quand) < FENETRE_GROUPE_MS) : null;
@@ -128,7 +129,7 @@ function marquerLus(repo, qui) {
  * @param {any} repo @param {string[]} administrateurs
  */
 function creerAiguillageNotifications(repo, administrateurs) {
-  return (/** @type {any} */ reglages, /** @type {string} */ destinataire, /** @type {any} */ message) => {
+  return (/** @type {any} */ reglages, /** @type {string} */ destinataire, /** @type {any} */ message, /** @type {any} */ options) => {
     const r = reglages || {};
     const norme = (/** @type {string} */ a) => String(a || '').replace(/.*<([^>]+)>.*/, '$1').trim().toLowerCase();
     const cible = norme(destinataire);
@@ -141,6 +142,7 @@ function creerAiguillageNotifications(repo, administrateurs) {
     try { prefs = repo.lirePreferences ? repo.lirePreferences() : {}; } catch (e) { prefs = {}; }
     const texte = typeof message === 'string' ? message : (message && (message.texte || message.html)) || '';
     const verTeams = qui.some((n) => prefs[n] && prefs[n].notifications && prefs[n].notifications.teams === true);
+    if (options && options.dejaDansCanal) return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
     let depose = false;
     for (const n of qui) { const d = deposerMessageClaire(repo, n, { texte }); if (d.effet === 'nouveau' || d.effet === 'groupe') depose = true; }
     if (depose) { try { require('./verificationsTerrain').noterVerification(repo, 'messages-claire-recus', { detail: 'message déposé' }); } catch (e) { /* jamais bloquant */ } }

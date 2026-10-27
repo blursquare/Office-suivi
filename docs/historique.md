@@ -22310,3 +22310,25 @@ entre étapes du travail et ses travaux dans la sidebar de droite. » Bouton `#a
 montré par `majSaisieCanal`) → `confierDepuisSaisieClaire` (client/128) : la consigne posée dans le fil comme un message, réponse de CLAIRE
 (`texteTravailConfie`, rang dans la file), colonne ouverte. Le formulaire de la colonne est retiré. Bloc « Étapes du travail » renommé « Son travail »
 dans son espace : étapes et lectures de l'agent, puis « En arrière-plan » (`htmlTravauxColonneClaire`). Statut dans `.pf-claire-ligne` à côté du nom.
+
+### 27/10/2026 — 0.371.0 : brouillons de CLAIRE rouvrables, email du client visible, réponse commune ; corrections de la relecture et de l'audit
+
+Étude : « Quand on ouvre un brouillon préparé par CLAIRE, si je le referme je dois pouvoir le rouvrir. Ouvrir le brouillon ne doit pas forcément
+valider la tâche. Pour les brouillons préparés des emails reçus après 18 h, il faut que l'on puisse voir l'e-mail du client » ; « Si le client
+envoie plusieurs emails après 18 h, préparer une réponse commune le matin ».
+
+- `ouvrirBrouillonProposition` (client/112) : un email au niveau 1 n'enregistre la décision « acceptée » qu'une fois parti (« Envoyer », Outlook,
+  messagerie du poste — `emailBrouillonParti`) ; refermé, il reste dans « À traiter » et ses retouches sont gardées sur le poste
+  (`claire-brouillons-propositions:<collaborateur>`, 30 jours, 40 au plus ; `abandonnerRedaction` rend `brouillon`, `ouvrirRedactionEmail` accepte `html`).
+- Fenêtre d'email : `emailsRecus` (ou `reponseA`) → chaque email relu dans Exchange à l'ouverture (`/api/emails-dossiers/contenu`), jamais gardé,
+  en texte échappé, repliable (`htmlEmailRecuRedaction`).
+- `reponsesEmailsDuSoir` (routines/ia.js) : emails regroupés par dossier + expéditeur ; un seul prompt (chaque email masqué à part), réponse dans
+  le fil du dernier, `emailsRecus` = les identifiants (texte séparé par des virgules : les détails d'une proposition ne gardent que des chaînes).
+- Relecture et audit des versions 0.364 à 0.370 (`docs/audits/2026-10-27-0.364.0-0.370.0.md`) — corrigés : garde-fou de l'ordinateur virtuel
+  contournable par la casse / la barre finale (H1) et liste noire incomplète (H2) → chemin normalisé + liste blanche `PERMIS_ECRITURE` ;
+  tâches de fond d'un poste dans sa fenêtre (`fondActif`, client/31) ; `/claire-messages` et `/preferences` refusés au poste ; doublon d'un message
+  de CLAIRE jugé par la clé quand il y en a une (deux comptes rendus de la même consigne) ; mention notifiée une seule fois (`dejaDansCanal`,
+  le canal la compte déjà) ; « Envoyer un test » passe de nouveau par la passerelle (`sansAiguillage`) ; vue d'ensemble d'un dossier de l'agent
+  vide (`actionsDuJour(...).actions`) ; 9 h 30 choisi pour les routines de nouveau gardé (`heureRevue`) ; travail de l'ordinateur virtuel 20 min.
+- Restent (dits à l'étude) : une carte de validation abandonnée par le poste (8 min) reste à décider ; la présence dans Authentic est notée par la
+  fenêtre qui reçoit la page (un autre poste si le sien n'a pas de fenêtre CLAIRE ouverte) ; « Envoyer un test » ne montre pas le message de CLAIRE.

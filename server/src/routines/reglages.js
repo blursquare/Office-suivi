@@ -31,7 +31,9 @@ function niveauMaxRoutine(r) {
 function assainirReglagesRoutines(brut) {
   const b = brut && typeof brut === 'object' && !Array.isArray(brut) ? brut : {};
   const anciens = b.revision !== REVISION_REGLAGES_ROUTINES;
-  const heure = typeof b.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.heure) && b.heure !== ANCIENNE_HEURE_DEFAUT ? b.heure : HEURE_DEFAUT;
+  // 9 h 30 d'avant le 27/10 (l'ancienne valeur par défaut) passe à 9 h 15 une fois ; un 9 h 30 choisi ensuite est gardé (`heureRevue`, relecture 27/10).
+  const heureLue = typeof b.heure === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(b.heure) ? b.heure : HEURE_DEFAUT;
+  const heure = heureLue === ANCIENNE_HEURE_DEFAUT && b.heureRevue !== true ? HEURE_DEFAUT : heureLue;
   const plafond = Number(b.plafondEuros);
   /** @type {Record<string, { actif: boolean, niveau: number, gestes: Record<string, number> }>} */
   const routines = {};
@@ -52,6 +54,7 @@ function assainirReglagesRoutines(brut) {
     revision: REVISION_REGLAGES_ROUTINES,
     actif: anciens ? true : b.actif === true,
     heure,
+    heureRevue: true,
     teams: b.teams !== false,
     plafondEuros: Number.isFinite(plafond) && plafond >= 0 ? Math.min(PLAFOND_MAX_EUROS, Math.round(plafond * 100) / 100) : PLAFOND_DEFAUT_EUROS,
     routines
@@ -75,7 +78,7 @@ function lireReglagesRoutines(repo) {
 /** @param {any} repo @param {any} brut */
 function ecrireReglagesRoutines(repo, brut) {
   // Un réglage écrit est un choix de l'étude : il porte la révision en vigueur (jamais rallumé d'office ensuite).
-  const propre = assainirReglagesRoutines(Object.assign({}, brut, { revision: REVISION_REGLAGES_ROUTINES }));
+  const propre = assainirReglagesRoutines(Object.assign({}, brut, { revision: REVISION_REGLAGES_ROUTINES, heureRevue: true }));
   repo.ecrireJsonBrut(CLE_REGLAGES_ROUTINES, propre);
   return propre;
 }

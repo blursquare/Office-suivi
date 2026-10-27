@@ -1341,9 +1341,12 @@
     // Relue toutes les 5 minutes : une connexion réglée ou réactivée depuis un autre poste arrive ici sans F5.
     setInterval(() => { chargerReglagesExchange().catch(() => {}); }, 5 * 60 * 1000);
     chargerModelesEmails();
+    // L'ordinateur virtuel de CLAIRE (client/128) ne fait aucune tâche de fond d'une fenêtre ordinaire (relecture 27/10) : ni scans rangés
+    // seuls, ni pages d'Authentic appliquées, ni relecture du NAS, ni pièces jointes, ni appels — tout geste y passe par la validation de Bastien.
+    const fondActif = !POSTE_CLAIRE;
     // Scans du copieur (voir chargerScans) : dès que les dossiers sont chargés, en tâche de fond —
     // sans attendre l'état du NAS ni les autres lectures du démarrage.
-    demarrerSurveillanceScans();
+    if (fondActif) demarrerSurveillanceScans();
     // Absences des collaborateurs lues dans l'agenda (voir chargerAbsencesOffice) : chargées au
     // démarrage pour que l'agenda du tableau de bord les affiche d'emblée, puis rafraîchies au même
     // rythme que le tour serveur (2 min) et à chaque ouverture du tableau de bord.
@@ -1383,7 +1386,7 @@
     // 5 minutes — un signalement fait sur un autre poste doit finir par apparaître ici aussi.
     majBadgeSignalements();
     setInterval(majBadgeSignalements, 5 * 60 * 1000);
-    revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
+    if (fondActif) revérifierDossiersLiesAuDemarrage().catch(e => console.error('Relecture des dossiers NAS', e));
     // Résumé des emails du matin : lu au démarrage, puis toutes les 5 minutes (il arrive à 8 h 50).
     chargerResumeEmails();
     setInterval(chargerResumeEmails, 5 * 60 * 1000);
@@ -1392,24 +1395,25 @@
     setInterval(chargerSondages, 2 * 60 * 1000);
     // Emails des dossiers (relevés chaque minute par le serveur, étude 02/10) : pièces jointes rangées sur
     // le NAS et emails de la fiche ouverte relus chaque minute ; les autres fiches relisent à l'ouverture.
-    setTimeout(rangerPiecesJointesReconnues, 30 * 1000);
+    if (fondActif) setTimeout(rangerPiecesJointesReconnues, 30 * 1000);
     setInterval(() => {
       Object.keys(emailsParDossier).forEach(k => { if (k !== dossierOuvert) delete emailsParDossier[k]; });
       rafraichirEmailsFicheOuverte();
-      rangerPiecesJointesReconnues();
+      if (fondActif) rangerPiecesJointesReconnues();
     }, 60 * 1000);
     // Appels 3CX : relevés toutes les 3 s, même fenêtre cachée (c'est là qu'ils comptent).
-    releverAppels();
-    setInterval(releverAppels, INTERVALLE_APPELS_MS);
+    if (fondActif) { releverAppels(); setInterval(releverAppels, INTERVALLE_APPELS_MS); }
     // Une fenêtre cachée longtemps est ralentie par le navigateur (une relève par minute) : relever
     // dès qu'elle revient au premier plan.
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
     // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche,
     // même fenêtre cachée (boucle d'attente) ; relève de secours et au retour au premier plan.
-    boucleRelevesAuthentic();
-    setInterval(releverPagesAuthentic, INTERVALLE_RELEVES_AUTHENTIC_MS);
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverPagesAuthentic(); });
+    if (fondActif) {
+      boucleRelevesAuthentic();
+      setInterval(releverPagesAuthentic, INTERVALLE_RELEVES_AUTHENTIC_MS);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverPagesAuthentic(); });
+    }
     // Page d'Authentic envoyée par l'extension Firefox (#authentic=…), au chargement ou dans un onglet déjà ouvert.
     ouvrirCaptureAuthenticDepuisAdresse();
     window.addEventListener('hashchange', ouvrirCaptureAuthenticDepuisAdresse);

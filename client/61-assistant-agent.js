@@ -165,7 +165,7 @@
     const echeances = estSuccession(d) ? [] : echeancesPlanning(d);
     const enRetard = echeances.filter(it => it.iso && it.iso < auj && !echeanceValidee(d, it.type)).map(it => it.label);
     const attendues = estSuccession(d) ? [] : piecesAttenduesDossier(d);
-    const taches = actionsDuJour([d], auj).filter(a => a.dossier && a.dossier.id === d.id).map(a => a.titre).slice(0, 8);
+    const taches = actionsDuJour([d], auj).actions.filter(a => a.dossier && a.dossier.id === d.id).map(a => a.titre).slice(0, 8);
     const propositions = (propositionsClaire.liste || []).filter(p => p.dossierId === d.id).map(p => p.titre).slice(0, 6);
     let probabilite = null;
     try { if (!estSuccession(d)) probabilite = probabiliteTenueSignature(d, auj, []); } catch (e) { /* facultatif */ }

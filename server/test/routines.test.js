@@ -48,6 +48,8 @@ test('réglages : jamais enregistrés (ou d’avant le 25/10), tout allumé au n
   } });
   assert.equal(s.actif, true);
   assert.equal(s.heure, '09:15', 'heure illisible : l’heure par défaut');
+  assert.equal(R.assainirReglagesRoutines({ heure: '09:30' }).heure, '09:15', 'l’ancienne heure par défaut passe à 9 h 15');
+  assert.equal(R.assainirReglagesRoutines({ heure: '09:30', heureRevue: true }).heure, '09:30', 'un 9 h 30 choisi ensuite est gardé');
   assert.equal(s.plafondEuros, 50, 'plafond négatif : le défaut');
   assert.equal(s.routines.essai.actif, true);
   assert.equal(s.routines.essai.niveau, 1, 'l’essai ne dépasse pas le niveau 1');

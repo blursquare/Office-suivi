@@ -184,37 +184,64 @@ async function reponsesEmailsDuSoir(o) {
     .sort((a, b) => String(a.date).localeCompare(String(b.date))).slice(0, MAX_EMAILS_PAR_TOUR);
   const sensibles = sensiblesDesDossiers(o.dossiers);
   const sortie = { propositions: /** @type {any[]} */ ([]), lus: 0, erreurs: /** @type {string[]} */ ([]) };
+  // Plusieurs emails du même expéditeur pour le même dossier depuis la veille 18 h : UNE réponse commune le matin (étude 27/10 : « si le
+  // client envoie plusieurs emails après 18 h, préparer une réponse commune »), dans le fil du dernier, tous visibles dans la fenêtre.
+  /** @type {Map<string, any[]>} */
+  const groupes = new Map();
   for (const e of candidats) {
-    const d = parId.get(e.dossierId);
-    traites['rep:' + e.id] = new Date(o.maintenantMs).toISOString();
-    let lu;
-    try { lu = await o.lireEmail(e.id); } catch (err) { lu = { erreur: 'lecture impossible' }; }
-    // Identifiants refusés : on s'arrête tout de suite et le disjoncteur de l'agenda est posé (un seul essai, jamais d'enchaînement de refus).
-    if (lu && lu.erreur && /Identifiants de messagerie refusés/.test(String(lu.erreur))) {
-      if (o.signalerRefus) o.signalerRefus();
-      sortie.erreurs.push('identifiants Exchange refusés');
-      break;
+    const k = e.dossierId + '|' + String(e.de.adresse).toLowerCase();
+    if (!groupes.has(k)) groupes.set(k, []);
+    /** @type {any[]} */ (groupes.get(k)).push(e);
+  }
+  let arret = false;
+  for (const groupe of groupes.values()) {
+    if (arret) break;
+    const dernier = groupe[groupe.length - 1];
+    const d = parId.get(dernier.dossierId);
+    const lus = [];
+    for (const e of groupe) {
+      traites['rep:' + e.id] = new Date(o.maintenantMs).toISOString();
+      let lu;
+      try { lu = await o.lireEmail(e.id); } catch (err) { lu = { erreur: 'lecture impossible' }; }
+      // Identifiants refusés : on s'arrête tout de suite et le disjoncteur de l'agenda est posé (un seul essai, jamais d'enchaînement de refus).
+      if (lu && lu.erreur && /Identifiants de messagerie refusés/.test(String(lu.erreur))) {
+        if (o.signalerRefus) o.signalerRefus();
+        sortie.erreurs.push('identifiants Exchange refusés');
+        arret = true;
+        break;
+      }
+      if (!lu || lu.erreur) { sortie.erreurs.push('email illisible dans Exchange'); continue; }
+      sortie.lus += 1;
+      lus.push({ e, texte: String(lu.texte || '') });
     }
-    if (!lu || lu.erreur) { sortie.erreurs.push('email illisible dans Exchange'); continue; }
-    sortie.lus += 1;
+    if (arret || !lus.length) continue;
     const table = new Map();
-    const confrere = expediteurConfrereDossier(d, e.de.adresse);
+    const confrere = expediteurConfrereDossier(d, dernier.de.adresse);
+    const plusieurs = lus.length > 1;
+    // Chaque email masqué à part ; plusieurs = « Email 1 / 2… » avec son objet, la réponse couvre l'ensemble.
+    const texte = plusieurs
+      ? `(${lus.length} emails reçus de la même personne ; UNE seule réponse qui couvre l'ensemble.)\n\n` + lus.map((x, n) => `Email ${n + 1} — objet : ${masquer(String(x.e.objet || '(sans objet)'), sensibles, table)}\n${masquer(x.texte.slice(0, Math.floor(4000 / lus.length)), sensibles, table)}`).join('\n\n')
+      : masquer(lus[0].texte.slice(0, 4000), sensibles, table);
     const prompt = promptPropositionReponse({
-      objet: masquer(String(e.objet || ''), sensibles, table), deNom: masquer(String((e.de && (e.de.nom || '')) || (confrere ? 'un confrère' : 'le client')), sensibles, table),
-      texte: masquer(String(lu.texte || '').slice(0, 4000), sensibles, table), dossier: masquer(libelleDossierAffiche(d), sensibles, table),
-      confrere, pj: (e.pj || []).map(() => 'un document')
+      objet: masquer(String(dernier.objet || ''), sensibles, table), deNom: masquer(String((dernier.de && (dernier.de.nom || '')) || (confrere ? 'un confrère' : 'le client')), sensibles, table),
+      texte, dossier: masquer(libelleDossierAffiche(d), sensibles, table),
+      confrere, pj: lus.flatMap((x) => (x.e.pj || []).map(() => 'un document'))
     });
     let objet;
     try { objet = await o.ia.json(prompt, SCHEMA_REPONSE, validerProposition, 800); } catch (err) { sortie.erreurs.push(String(err && err.message).slice(0, 80)); continue; }
     const corps = retablirBrouillon(objet.reponse, table);
     if (!corps) continue;
-    const empreinte = `reponse:${e.id}`;
+    const reponseA = lus[lus.length - 1].e.id;
+    const empreinte = `reponse:${reponseA}`;
+    const objets = lus.map((x) => `« ${String(x.e.objet || '(sans objet)').slice(0, 60)} »`);
     sortie.propositions.push({
       id: idDepuisEmpreinte(empreinte), routine: 'reponses-emails', responsable: d.responsable, dossierId: d.id,
       type: 'email', action: 'email', empreinte,
-      titre: `Répondre à ${(e.de && (e.de.nom || e.de.adresse)) || 'l’expéditeur'} — ${libelleDossierAffiche(d)}`.slice(0, 140),
-      resume: `Email reçu hors des heures de bureau (« ${String(e.objet || '(sans objet)').slice(0, 80)} ») : un brouillon de réponse est prêt à relire.`,
-      details: { destinataire: e.de.adresse, sujet: sujetReponse(e.objet), corps, reponseA: e.id, confrere, geste: 'reponse', niveau: o.niveau('reponses-emails', 'reponse') }
+      titre: `Répondre à ${(dernier.de && (dernier.de.nom || dernier.de.adresse)) || 'l’expéditeur'} — ${libelleDossierAffiche(d)}`.slice(0, 140),
+      resume: (plusieurs ? `${lus.length} emails reçus hors des heures de bureau (${objets.join(', ')}) : une réponse commune est prête à relire.`
+        : `Email reçu hors des heures de bureau (${objets[0]}) : un brouillon de réponse est prêt à relire.`).slice(0, 380),
+      details: { destinataire: dernier.de.adresse, sujet: sujetReponse(lus[lus.length - 1].e.objet), corps, reponseA, emailsRecus: lus.map((x) => x.e.id).join(','),
+        confrere, geste: 'reponse', niveau: o.niveau('reponses-emails', 'reponse') }
     });
   }
   o.parametresRepo.ecrireJsonBrut(CLE_EMAILS_TRAITES, traites);

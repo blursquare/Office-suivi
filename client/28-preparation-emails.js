@@ -494,14 +494,14 @@
   // jointes visibles, puis « Envoyer » (par Exchange, depuis la boîte du collaborateur) ou « Ouvrir dans
   // Outlook » (le fichier .eml d'avant). Rend { ok, mode: 'envoye' | 'eml' | 'mailto', … } ou { ok: false,
   // annule: true } si la fenêtre est fermée sans rien faire — l'appelant ne marque alors rien.
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '', reponseA = '' }) {
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '', reponseA = '', html = '', emailsRecus = [] }) {
     const corpsFinal = adapterCorpsEmail(corps, confrere);
     if (modeEmailPoste() === 'mailto') {
       noterEmailPrepare({ dossierId, sujet, destinataire, geste });
       const copie = ouvrirBrouillonEmail(destinataire, sujet, texteSansMarques(texteAvecBoutons(corpsFinal, boutons)));
       return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
     }
-    return ouvrirRedactionEmail({ mode: 'nouveau', destinataire, sujet, corps: corpsFinal, pieces, confrere, responsableSignature, boutons, dossierId, geste, reponseA });
+    return ouvrirRedactionEmail({ mode: 'nouveau', destinataire, sujet, corps: corpsFinal, pieces, confrere, responsableSignature, boutons, dossierId, geste, reponseA, html, emailsRecus });
   }
 
   // Le fichier .eml d'avant (« Ouvrir dans Outlook ») : HTML, signature, pièces jointes, prêt à envoyer.
@@ -600,7 +600,10 @@
         mode: o.mode === 'reponse' ? 'reponse' : 'nouveau', resolve,
         dossierId: o.dossierId || '', geste: o.geste || '', a: o.destinataire || '', cc: '', voirCc: false,
         sujet: o.sujet || '', texte, texteDepart: texte, corpsOrigine: o.corps || '', pieces: (o.pieces || []).slice(),
-        html: htmlRedactionDepuisTexte(o.corps), htmlDepart: '',
+        // `o.html` : un brouillon retouché puis refermé, rouvert tel quel (proposition de CLAIRE, client/112) ; il compte comme modifié.
+        html: o.html || htmlRedactionDepuisTexte(o.corps), htmlDepart: '', emailRecu: null,
+        // Les emails reçus auxquels on répond (une réponse commune à plusieurs emails du soir, routines) ; sinon celui de `reponseA`.
+        emailsRecus: Array.isArray(o.emailsRecus) && o.emailsRecus.length ? o.emailsRecus.slice(0, 10) : (o.reponseA ? [o.reponseA] : []),
         boutons: o.boutons || null, confrere: !!o.confrere, responsableSignature: o.responsableSignature || '',
         reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: ''
       };
@@ -610,8 +613,10 @@
         const overlay = document.getElementById('email-redaction-overlay');
         if (overlay) overlay.style.display = 'flex';
       }
-      redaction.htmlDepart = redaction.html;
+      redaction.htmlDepart = o.html ? htmlRedactionDepuisTexte(o.corps) : redaction.html;
+      if (o.html) { const tmp = document.createElement('div'); tmp.innerHTML = o.html; redaction.texte = (tmp.innerText || tmp.textContent || '').replace(/\n$/, ''); }
       renderRedaction();
+      if (redaction.mode === 'nouveau' && redaction.emailsRecus.length) chargerEmailRecuRedaction();
       if (redaction.mode === 'reponse' && redaction.reponseA) demanderPropositionReponse(true);
     });
   }
@@ -627,7 +632,8 @@
   }
   function abandonnerRedaction() {
     const r = redaction;
-    fermerRedaction({ ok: false, annule: true });
+    // Ce qui était écrit repart avec la fermeture : une proposition de CLAIRE le garde pour le rouvrir (client/112).
+    fermerRedaction({ ok: false, annule: true, brouillon: r ? { a: r.a, cc: r.cc, sujet: r.sujet, html: r.html, modifie: r.html !== r.htmlDepart } : null });
     if (r && r.mode === 'reponse') renderInviteReponse();
   }
 
@@ -820,6 +826,7 @@
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn redaction-fermer" onclick="abandonnerRedaction()" title="Fermer" aria-label="Fermer">${icone('x')}</wa-button>
         </div>
         ${emailCite ? `<p class="hint redaction-cite">En réponse à l’email de ${escapeHtml(emailCite.de.nom || emailCite.de.adresse)} du ${escapeHtml(dateCourteEmail(emailCite.date))}, dans le même fil.</p>` : ''}
+        ${htmlEmailRecuRedaction(r)}
         ${envoiDirectPossible() ? '' : '<p class="hint">Envoi direct indisponible : la connexion Exchange n’est pas réglée (Réglages › Agenda et Outlook).</p>'}
         ${renderCarteRedaction()}`;
     } else {
@@ -845,6 +852,40 @@
       if (el.updateComplete && typeof el.updateComplete.then === 'function') el.updateComplete.then(remettreFocus, () => {});
       else remettreFocus();
     }
+  }
+
+  // L'email du client auquel on répond (étude 27/10 : « pour les brouillons des emails reçus après 18 h, il faut que l'on puisse voir
+  // l'e-mail du client ») : relu dans Exchange à l'ouverture de la fenêtre, jamais gardé, montré en texte échappé, replié d'un clic.
+  async function chargerEmailRecuRedaction() {
+    const r = redaction;
+    if (!r || !r.emailsRecus.length) return;
+    r.emailRecu = r.emailsRecus.map(() => ({ etat: 'chargement' }));
+    renderRedaction();
+    const lus = await Promise.all(r.emailsRecus.map(async (id) => {
+      try {
+        const rep = await fetchAvecAuth('/api/emails-dossiers/contenu?emailId=' + encodeURIComponent(id));
+        const corps = await rep.json().catch(() => ({}));
+        return rep.ok ? { etat: 'lu', texte: String(corps.texte || ''), de: corps.de || null, date: corps.date || '', objet: corps.objet || '' } : { etat: 'erreur', message: corps.erreur || 'statut ' + rep.status };
+      } catch (e) { return { etat: 'erreur', message: e.message }; }
+    }));
+    if (redaction !== r) return;   // fenêtre refermée ou remplacée entre-temps
+    r.emailRecu = lus;
+    renderRedaction();
+  }
+
+  function htmlEmailRecuRedaction(r) {
+    const liste = r && Array.isArray(r.emailRecu) ? r.emailRecu : [];
+    if (!liste.length) return '';
+    const un = (e, n) => {
+      const de = e.de && (e.de.nom || e.de.adresse) ? `${e.de.nom || e.de.adresse}${e.de.nom && e.de.adresse ? ` <${e.de.adresse}>` : ''}` : '';
+      const tete = e.etat === 'lu' ? `${liste.length > 1 ? `Email ${n + 1}/${liste.length}` : 'Email reçu'}${de ? ' de ' + de : ''}${e.date ? ' · ' + dateCourteEmail(e.date) : ''}${liste.length > 1 && e.objet ? ' · ' + e.objet : ''}` : (liste.length > 1 ? `Email ${n + 1}/${liste.length}` : 'Email reçu');
+      const corps = e.etat === 'chargement' ? '<p class="hint">Lecture de l’email…</p>'
+        : e.etat === 'erreur' ? `<p class="hint">Email illisible : ${escapeHtml(e.message || '')}</p>`
+          : `<div class="email-lecture-texte">${escapeHtml(e.texte.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim() || '(email sans texte)')}</div>`;
+      const replie = (r.emailsReplies || {})[n];
+      return `<details class="redaction-email-recu"${replie ? '' : ' open'} ontoggle="if (redaction) { redaction.emailsReplies = redaction.emailsReplies || {}; redaction.emailsReplies[${n}] = !this.open; }"><summary>${escapeHtml(tete)}</summary>${corps}</details>`;
+    };
+    return liste.map(un).join('');
   }
 
   async function envoyerRedaction() {

@@ -76,9 +76,12 @@ function optionsTransport(reglages) {
 // HTML —, le flux Power Automate reprenant le corps HTML dans Teams, qui l'affiche mis en forme.
 // La version texte garde l'adresse en clair : c'est elle qu'un client de messagerie sans HTML, ou
 // un flux qui lirait le corps en texte, présenterait.
-async function envoyerEmail(reglages, destinataireEmail, message, creerTransportFn) {
-  if (aiguillage && !creerTransportFn) {
-    try { const r = aiguillage(reglages, destinataireEmail, message); if (r) return r; } catch (e) { /* jamais bloquant : Teams comme avant */ }
+// `options.sansAiguillage` : vraiment par la passerelle (« Envoyer un test » de Réglages › Rappels) ; `options.dejaDansCanal` : une mention,
+// déjà comptée et notifiée par son canal — pas de second message de CLAIRE, Teams seulement pour qui l'a demandé (relecture 27/10).
+async function envoyerEmail(reglages, destinataireEmail, message, creerTransportFn, options) {
+  const o = options || {};
+  if (aiguillage && !creerTransportFn && !o.sansAiguillage) {
+    try { const r = aiguillage(reglages, destinataireEmail, message, o); if (r) return r; } catch (e) { /* jamais bloquant : Teams comme avant */ }
   }
   const r = reglages || {};
   const corps = typeof message === 'string' ? { texte: message, html: null } : (message || {});

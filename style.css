@@ -9392,6 +9392,9 @@ div.redaction-editeur a { color: var(--focus); text-decoration: underline; }
 .redaction-piece-taille { color: var(--muted); white-space: nowrap; }
 .redaction-erreur { margin: 6px 0 0; font-size: var(--texte-m); color: var(--urgent); }
 .redaction-cite { margin: 10px 20px 0; }
+.redaction-email-recu { margin: 10px 20px 0; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-sunk); padding: 8px 12px; }
+.redaction-email-recu > summary { cursor: pointer; font-size: var(--texte-s); font-weight: 600; color: var(--ink); }
+.redaction-email-recu .email-lecture-texte { max-height: 220px; overflow: auto; font-size: var(--texte-m); margin-top: 8px; }
 .redaction-pied { display: flex; align-items: center; gap: 4px; padding-top: 8px; }
 .redaction-modeles { position: relative; }
 .redaction-annuler-modele { margin-left: 4px; white-space: nowrap; }

@@ -22,6 +22,13 @@ test('le poste de CLAIRE : réglages, envois, agenda, Yousign, Teams, mise à jo
   non('POST', '/api/propositions/p1/decision'); non('GET', '/api/comptes-collaborateurs');
   oui('GET', '/api/dossiers'); oui('PUT', '/api/dossiers/d1'); oui('POST', '/api/assistant/agent'); oui('GET', '/api/canaux');
   oui('POST', '/api/poste-claire/demande'); oui('GET', '/api/poste-claire/demande/val-1');
+  // Audit 27/10 : casse et barre finale (Express ne les distingue pas), liste blanche des écritures.
+  non('PUT', '/api/Reglages'); non('POST', '/api/emails/envoyer/'); non('POST', '/api/Emails/Envoyer'); non('POST', '/api/propositions/x/decision/');
+  non('POST', '/api/%72eglages'); non('PUT', '/api/relecture-claude/reglages'); non('PUT', '/api/scans/reglages'); non('POST', '/api/rangement-outlook/ranger');
+  non('DELETE', '/api/dossiers/d1'); non('DELETE', '/api/repertoire/r1'); non('POST', '/api/repertoire/themes'); non('PUT', '/api/preferences');
+  non('POST', '/api/claire-messages'); non('GET', '/api/claire-messages?utilisateur=x'); non('POST', '/api/modeles-emails');
+  oui('POST', '/api/repertoire'); oui('POST', '/api/rappels-perso'); oui('POST', '/api/nas/explorer/renommer'); oui('POST', '/api/login');
+  oui('POST', '/api/navigation/plan-cadastre'); oui('POST', '/api/journal-technique');
 });
 
 test('le cookie du poste est lu dans l’en-tête Cookie', () => {

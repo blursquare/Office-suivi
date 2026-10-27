@@ -244,7 +244,59 @@ async function autoriserProposition(id) {
   } finally { delete propositionsEnCours[id]; }
 }
 
+// Un brouillon d'email de CLAIRE (niveau 1) : « Ouvrir le brouillon » n'est PAS une décision (étude 27/10 : « si je le referme je dois
+// pouvoir le rouvrir ; ouvrir le brouillon ne doit pas forcément valider la tâche »). La proposition reste dans « À traiter » tant que
+// l'email n'est pas parti (« Envoyer », Outlook ou la messagerie du poste) ; refermée, la fenêtre garde ce qui a été retouché, sur ce poste.
+var CLE_BROUILLONS_PROPOSITIONS = 'claire-brouillons-propositions:';
+function brouillonsPropositions() {
+  try { const b = JSON.parse(localStorage.getItem(CLE_BROUILLONS_PROPOSITIONS + (utilisateurPoste || '')) || '{}'); return b && typeof b === 'object' ? b : {}; } catch (e) { return {}; }
+}
+function garderBrouillonProposition(id, brouillon) {
+  const b = brouillonsPropositions();
+  if (brouillon) b[id] = Object.assign({}, brouillon, { le: Date.now() }); else delete b[id];
+  // 30 jours au plus, 40 brouillons au plus : une proposition décidée ailleurs n'en laisse pas pour toujours.
+  const gardes = Object.entries(b).filter(([, x]) => x && Date.now() - (Number(x.le) || 0) < 30 * 86400000)
+    .sort((x, y) => (Number(y[1].le) || 0) - (Number(x[1].le) || 0)).slice(0, 40);
+  ecrireLocal(CLE_BROUILLONS_PROPOSITIONS + (utilisateurPoste || ''), JSON.stringify(Object.fromEntries(gardes)));
+}
+
+/** Pur : l'email est-il parti (ou remis à Outlook / à la messagerie) d'après ce que rend la fenêtre ? */
+function emailBrouillonParti(r) {
+  if (r === false || r == null) return false;
+  if (r === true) return true;
+  return !!(r.ok && !r.annule);
+}
+
+async function ouvrirBrouillonProposition(id, p) {
+  const det = p.details || {};
+  const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
+  let r;
+  if (det.modele && d && typeof MODELES_EMAIL_RELANCE === 'object' && MODELES_EMAIL_RELANCE[det.modele]) {
+    r = await envoyerRelanceCiblee(d.id, det.modele, true);
+  } else {
+    const b = brouillonsPropositions()[id];
+    r = await livrerEmailDossier({ destinataire: b && b.a != null ? b.a : (det.destinataire || ''), sujet: b && b.sujet ? b.sujet : (det.sujet || p.titre), corps: det.corps || '',
+      html: b && b.modifie ? b.html : '', confrere: det.confrere === true || det.confrere === 'true', responsableSignature: d ? d.responsable : '',
+      dossierId: p.dossierId || '', geste: 'routine-claire', reponseA: det.reponseA || '',
+      emailsRecus: String(det.emailsRecus || '').split(',').map(x => x.trim()).filter(Boolean) });
+  }
+  if (!emailBrouillonParti(r)) {
+    if (r && r.annule && r.brouillon && r.brouillon.modifie) garderBrouillonProposition(id, r.brouillon);
+    if (r && r.annule) afficherToast('Brouillon refermé : il reste dans « À traiter », rouvrez-le quand vous voulez.', 'OK', null);
+    return;
+  }
+  garderBrouillonProposition(id, null);
+  try {
+    const decidee = await enregistrerDecisionProposition(id, 'acceptee');
+    if (!decidee.dejaTraitee) noterVerificationPoste('routines-boite-poste', { detail: 'brouillon de CLAIRE envoyé' });
+  } catch (e) {
+    afficherToast('Email parti, mais la proposition n’a pas été close : ' + e.message, 'OK', null);
+  }
+  await apresDecisionProposition();
+}
+
 async function autoriserPropositionSure(id, p) {
+  if (p.type === 'email' && !(Number(p.details && p.details.niveau) >= 2)) { await ouvrirBrouillonProposition(id, p); return; }
   let decidee;
   try {
     decidee = await enregistrerDecisionProposition(id, p.type === 'alerte' ? 'vue' : 'acceptee');
