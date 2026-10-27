@@ -24,6 +24,11 @@ function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
   return lignes;
 }
 
+// Pure : le rendu sans les identifiants de masque numérotés des icônes (ils changent à chaque dessin sans rien changer à l'écran).
+function cleRenduAccesRapide(html) {
+  return String(html || '').replace(/(id="|url\(#)([a-z-]+)-\d+/g, '$1$2');
+}
+
 function majAccesRapideCanaux() {
   const zone = document.getElementById('sidebar-acces-canaux');
   if (!zone) return;
@@ -43,8 +48,11 @@ function majAccesRapideCanaux() {
       + `${marque}<span class="sb-canal-initiale" aria-hidden="true">${escapeHtml(initiale)}</span><span class="sb-canal-nom">${escapeHtml(x.libelle)}</span>`
       + `${x.nonLus ? `<span class="sidebar-badge-notif">${x.nonLus > 99 ? '99+' : x.nonLus}</span>` : ''}</button>`;
   }).join('');
-  // Rien à redessiner si rien n'a changé : le focus clavier d'une ligne reste en place (relecture 0.356.0).
-  if (zone.dataset.rendu !== html) { zone.innerHTML = html; zone.dataset.rendu = html; }
+  // Rien à redessiner si rien n'a changé : le focus clavier d'une ligne reste en place (relecture 0.356.0). L'icône de CLAIRE porte un
+  // identifiant de masque numéroté à chaque dessin (`claire-discussions-N`) : comparé sans lui, sinon le bloc était refait toutes les
+  // 30 s et clignotait (étude 27/10).
+  const empreinte = cleRenduAccesRapide(html);
+  if (zone.dataset.rendu !== empreinte) { zone.innerHTML = html; zone.dataset.rendu = empreinte; }
   zone.style.display = '';
 }
 

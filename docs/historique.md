@@ -22487,3 +22487,10 @@ par CLAIRE et faites sur demande.
 - **Non vérifié sur le vrai Authentic** (points `authentic-connexion`, `authentic-lecture`, `authentic-cjn`, `authentic-comedec`) : le parcours
   suit les libellés relevés, pas encore la page réelle. Authentic s'ouvre ici dans le Chrome ou l'Edge du serveur, pas dans Firefox.
   Réquisition hors formalité (EHF) pas faite : son écran n'a pas encore été relevé.
+
+### 27/10/2026 — 0.373.1 : l'accès rapide aux discussions ne clignote plus
+
+Étude : « le tiroir de discussion dans la sidebar clignote ». Cause relevée dans Chromium (MutationObserver) : l'icône de CLAIRE
+(`icone('discussion')`, client/01) numérote son masque à chaque dessin (`claire-discussions-N`). Le rendu comparé par
+`majAccesRapideCanaux` (client/123) changeait donc à chaque appel, et le bloc était refait toutes les 30 s. Comparaison faite sans ce
+numéro (`cleRenduAccesRapide`) ; plus aucune mutation en 65 s.

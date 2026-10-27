@@ -284,3 +284,10 @@ test('brouillon de CLAIRE : décidé seulement une fois parti (Envoyer, Outlook,
   assert.equal(app.emailBrouillonParti({ ok: true, mode: 'mailto' }), true);
   assert.equal(app.emailBrouillonParti(true), true, 'relance au modèle de l’étude partie');
 });
+
+test('accès rapide aux discussions : deux rendus qui ne diffèrent que par le numéro du masque de l’icône sont le même (pas de clignotement)', () => {
+  const a = '<mask id="claire-discussions-4"></mask><g mask="url(#claire-discussions-4)"></g>';
+  const b = '<mask id="claire-discussions-5"></mask><g mask="url(#claire-discussions-5)"></g>';
+  assert.equal(app.cleRenduAccesRapide(a), app.cleRenduAccesRapide(b));
+  assert.notEqual(app.cleRenduAccesRapide(a), app.cleRenduAccesRapide(a.replace('mask>', 'mask>3')));
+});
