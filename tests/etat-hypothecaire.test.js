@@ -54,3 +54,39 @@ test('poste : pièces à réclamer par créancier, message court de CLAIRE, bloc
   assert.ok(html.includes('2 inscriptions en cours') && html.includes('eh-en-cours') && html.includes('&lt;b&gt;X&lt;/b&gt;') && !html.includes('<b>X</b>'));
   assert.equal(app.htmlEtatHypothecaireFiche({}), '');
 });
+
+test('audit 0.384.0 : deux charges sur une page (l’une radiée), radiation d’une AUTRE inscription, tiret et apostrophe typographiques, date prorogée, page de suite', () => {
+  const tete = 'ÉTAT-RÉPONSE Accès des Notaires au Fichier Immobilier délivré le 29 décembre 2025 Relevé des formalités (Flux) Du 03/04/2002 Au 26/10/2025 4 formalités délivrées incluant 4 dispositions';
+  const pages = [
+    'NOUVELLE VERSION DE L’ÉTAT-RÉPONSE ANF',
+    tete,
+    'Relevé des formalités – Charge HYPOTHEQUE A PAGE 3 À PAGE 3 Date de dépôt : 01/02/2010 Référence d’enliassement : 2010 V 11 Créancier BANQUE UN Débiteurs 1 X Date extrême d’effet : 01/02/2030 HYPOTHEQUE B PAGE 3 À PAGE 3 Date de dépôt : 01/02/2011 Référence d’enliassement : 2011 V 22 Créancier BANQUE DEUX Débiteurs 1 X RADIATION totale déposée le 01/03/2020 ANF_2025_1 3 sur 9',
+    'Relevé des formalités - Charge HYPOTHEQUE C PAGE 4 À PAGE 5 Référence d\'enliassement : 2012 V 33 Créancier BANQUE TROIS Débiteurs 1 X Mention : radiation totale de l\'inscription 2004 V 1 ANF_2025_1 4 sur 9',
+    'Date extrême d\'effet : 01/01/2020 Prorogation : date extrême d\'effet : 01/01/2040 ANF_2025_1 5 sur 9',
+    'Relevé des formalités - Charge PRIVILEGE D PAGE 6 À PAGE 6 Référence d\'enliassement : 2013 V 44 Date extrême d\'effet : 01/01/2020 ANF_2025_1 6 sur 9'
+  ];
+  const r = E.analyserEtatHypothecaire(pages, '2026-10-28');
+  const parNature = Object.fromEntries(r.inscriptions.map((x) => [x.nature, x]));
+  assert.equal(r.inscriptions.length, 4, JSON.stringify(r.inscriptions.map((x) => x.nature)));
+  assert.equal(parNature['HYPOTHEQUE A'].etat, 'en_cours', 'la radiation de B ne radie pas A');
+  assert.equal(parNature['HYPOTHEQUE A'].reference, '2010 V 11', 'apostrophe typographique');
+  assert.equal(parNature['HYPOTHEQUE A'].dateExtremeEffet, '2030-02-01');
+  assert.equal(parNature['HYPOTHEQUE B'].etat, 'radiee');
+  assert.equal(parNature['HYPOTHEQUE C'].etat, 'en_cours', 'radiation d’une autre inscription citée, date prorogée sur la page de suite');
+  assert.equal(parNature['HYPOTHEQUE C'].dateExtremeEffet, '2040-01-01');
+  assert.equal(parNature['PRIVILEGE D'].etat, 'perimee');
+  assert.equal(r.lecture.complete, true);
+});
+
+test('audit 0.384.0 : lecture incomplète dite (formalités annoncées non retrouvées, page non comprise)', () => {
+  const pages = ['ÉTAT-RÉPONSE Accès des Notaires au Fichier Immobilier délivré le 29 décembre 2025 3 formalités délivrées incluant 3 dispositions',
+    'Relevé des formalités - Publication VENTE PAGE 2 À PAGE 2 Référence d\'enliassement : 2013 P 1 ANF_1 2 sur 4',
+    'Un texte que CLAIRE ne sait pas lire, sans rubrique ni en-tête de formalité, assez long pour compter comme une page du flux : '.repeat(3)];
+  const r = E.analyserEtatHypothecaire(pages, '2026-10-28');
+  assert.equal(r.lecture.complete, false);
+  assert.equal(r.lecture.annoncees, 3);
+  assert.equal(r.lecture.reconnues, 1);
+  const app = chargerApplication();
+  assert.match(app.messageEtatHypothecaire(r), /lecture incomplète/i);
+  assert.doesNotMatch(app.messageEtatHypothecaire(r), /aucune inscription/i);
+});

@@ -22844,4 +22844,7 @@ montant, date extrême d'effet, radiation) suit la même mise en page et reste �
   « Décompte de remboursement — X » et « Accord de mainlevée — X » par créancier quand aucun confrère ne représente le vendeur ; message
   de CLAIRE dans le canal du dossier (son responsable est prévenu) ; bloc « État hypothécaire » du panneau Authentic, inscriptions en cours en
   rouge. Tests : `tests/etat-hypothecaire.test.js` (texte inventé à la mise en page réelle).
+- Audit corrigé (docs/audits/2026-10-27-0.384.0.md) : une formalité par en-tête (plusieurs Charges sur une page), radiation limitée à
+  l'inscription elle-même, contrôle de complétude (formalités annoncées par l'état = formalités lues : 6/6 sur l'état réel ; sinon
+  « lecture incomplète », jamais « aucune inscription »), apostrophes et tirets typographiques, date extrême la plus tardive.
 - Questions laissées ouvertes : pièces à réclamer en participation ; saisies et hypothèques légales comptées comme toute Charge.
