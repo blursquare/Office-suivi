@@ -109,3 +109,15 @@ test('mise en page réelle d’une Charge (état-réponse ANF relevé le 28/10, 
   assert.equal(pv.creancier, 'SOCIETE PROMOTEUR');
   assert.equal(pv.etat, 'perimee');
 });
+
+test('relecture 0.384.0 : créancier sans en-tête ni SIREN, montants principaux seuls (deux égaux comptés deux fois), charge sans complément gardée', () => {
+  const h = 'ÉTAT-RÉPONSE Accès des Notaires au Fichier Immobilier délivré le 08 juin 2026';
+  const une = (c) => E.analyserEtatHypothecaire([h, 'Relevé des formalités - Charge HYP X PAGE 2 À PAGE 2 Référence d\'enliassement : 2010 V 1 ' + c], '2026-10-28').inscriptions[0];
+  assert.equal(une('Créancier Numéro d\'identité - BANQUE X - Constituant Numéro d\'identité 1 Y').creancier, 'BANQUE X');
+  assert.equal(une('Créancier Numéro d\'identité 1 BANQUE X 552 120 222 RCS Débiteur').creancier, 'BANQUE X');
+  assert.equal(une('Créancier BANQUE X SA au capital de 1 000 000,00 EUR Débiteur Montant : 87 000,00 EUR').creancier, 'BANQUE X SA');
+  assert.equal(une('Créancier BANQUE X SA au capital de 1 000 000,00 EUR Débiteur Montant : 87 000,00 EUR').montant, '87 000,00 €');
+  assert.equal(une('Montant principal : 87 000,00 EUR Accessoires : 17 400,00 EUR Disposition n° 2 Montant principal : 87 000,00 EUR').montant, '87 000,00 € + 87 000,00 €');
+  const pub = E.analyserEtatHypothecaire([h, 'Relevé des formalités - Publication VENTE PAGE 2 À PAGE 2 Disposition n° 1 / UD1 : Vente Une charge est identifiée dans le complément Disposition n° 2 / UD1 : Vente Une charge est identifiée dans le complément Complément : Servitude de passage.'], '2026-10-28');
+  assert.equal(pub.chargesComplement.length, 2, 'une charge sans complément lu n’est pas fondue dans la suivante');
+});

@@ -102,10 +102,12 @@
         const avant = f.texte.slice(0, m.index);
         const d = avant.lastIndexOf('Disposition n°');
         const nat = d >= 0 ? net(avant.slice(d).replace(/^Disposition n°\s*\d+\s*\/\s*\S+\s*:\s*/i, '')) : '';
-        const comp = /Compl[ée]ment\s*:\s*(.+?)(?=\s+(?:Relev\s*[ée] des formalit|Disposition n°|ANF_\d|\d+\s+sur\s+\d+)|$)/i.exec(f.texte.slice(m.index));
+        const apres = f.texte.slice(m.index);
+        const fin = apres.search(/Disposition n°/);
+        const comp = /Compl[ée]ment\s*:\s*(.+?)(?=\s+(?:Relev\s*[ée] des formalit|Disposition n°|ANF_\d|\d+\s+sur\s+\d+)|$)/i.exec(fin > 0 ? apres.slice(0, fin) : apres);
         const c = { nature: nat.slice(0, 80), page: f.page, complement: comp ? net(comp[1]).slice(0, 300) : '' };
         // Une même charge répétée sur les dispositions d'une formalité (servitude sur plusieurs parcelles) : une fois.
-        if (!complements.some((x) => x.page === c.page && x.nature === c.nature && x.complement === c.complement)) complements.push(c);
+        if (!c.complement || !complements.some((x) => x.page === c.page && x.nature === c.nature && x.complement === c.complement)) complements.push(c);
       }
     }
     const enAttente = [...formalites.values()].filter((f) => /attente|rejet/.test(f.rubrique)).length;
@@ -125,12 +127,19 @@
       // d'extrême exigibilité » (fin du prêt, pas de l'inscription).
       const dates = [...t.matchAll(new RegExp('(?:date d' + AP + 'extr[êe]me effet|date extr[êe]me d' + AP + 'effet|p[ée]remption)\\s*:?\\s*(?:au\\s*)?(\\d{1,2}\\/\\d{1,2}\\/\\d{4})', 'gi'))].map((x) => iso(x[1])).filter(Boolean).sort();
       const dateExtremeEffet = dates.length ? dates[dates.length - 1] : '';
-      // Un montant principal par disposition (privilège et hypothèque d'un même prêt : deux montants), dans l'ordre.
-      const montants = [...t.matchAll(/(?:montant principal|montant|principal|capital|somme)[^0-9]{0,40}(\d[\d .\u00a0\u202f]*,\d{2})\s*(?:EUR|€)/gi)].map((x) => net(x[1]).replace(/[\u00a0\u202f]/g, ' ') + ' €');
-      const montant = [...new Set(montants)].slice(0, 4).join(' + ');
-      // « Créancier Numéro d'identité - NOM - Débiteur… » (tableau de l'état-réponse ANF, relevé le 28/10) ; sinon le premier nom après « Créancier ».
-      const creancier = net((new RegExp('Cr[ée]anciers?\\s+Num[ée]ro d' + AP + 'identit[ée]\\s+(?:-|\\d+)\\s+(.+?)\\s+(?:-|\\d{3}\\s?\\d{3}\\s?\\d{3})\\s+(?:D[ée]biteurs?|Propri[ée]taire|Immeuble)', 'i').exec(t)
-        || /Cr[ée]anciers?(?:\s*,\s*[A-Za-zéè ]+)?\s+(?:\d+\s+)?(.+?)\s+(?:Date de naissance|N°\s*SIREN|Siren|D[ée]biteurs?|Immeuble|Disposition|Montant)/i.exec(t) || [])[1] || '').slice(0, 60);
+      // « Montant principal » de chaque disposition quand l'état l'écrit (jamais les accessoires ni le capital social du créancier) ;
+      // sinon le motif large, hors « capital de » et « accessoires » (relecture 0.384.0). Pas de dédoublonnage : deux dispositions du même
+      // montant font deux montants.
+      const RE_MONTANT = '(\\d[\\d .\\u00a0\\u202f]*,\\d{2})\\s*(?:EUR|€)';
+      const principaux = [...t.matchAll(new RegExp('montant principal\\s*:?\\s*' + RE_MONTANT, 'gi'))].map((x) => x[1]);
+      const larges = principaux.length ? [] : [...t.matchAll(new RegExp('(?:montant|principal|somme)([^0-9]{0,40})' + RE_MONTANT, 'gi'))]
+        .filter((x) => !/accessoire|capital de/i.test(x[1]) && !/accessoire/i.test(t.slice((x.index || 0) - 20, x.index || 0))).map((x) => x[2]);
+      const montants = (principaux.length ? principaux : larges).map((x) => net(x).replace(/[\u00a0\u202f]/g, ' ') + ' €');
+      const montant = montants.slice(0, 4).join(' + ');
+      // Le premier créancier : après « Créancier » (et l'en-tête « Numéro d'identité »), un index « - » ou un chiffre éventuel, jusqu'au SIREN,
+      // au « - » de la colonne vide ou à la rubrique suivante ; un nom qui porte encore un en-tête ou un SIREN est écarté (« à vérifier »).
+      const brutCreancier = net((new RegExp('Cr[ée]anciers?(?:\\s+Num[ée]ro d' + AP + 'identit[ée])?\\s+(?:-\\s+|\\d{1,2}\\s+)?(.+?)(?=\\s+-\\s|\\s+-$|\\s+\\d{3}\\s?\\d{3}\\s?\\d{3}\\b|\\s+au\\s+capital\\b|\\s+(?:Num[ée]ro d' + AP + 'identit|Constituant|Contre|Date de naissance|N°\\s*SIREN|Siren|D[ée]biteurs?|Propri[ée]taire|Immeuble|Disposition|Montant|RCS)\\b)', 'i').exec(t) || [])[1] || '');
+      const creancier = /num[ée]ro d.identit|\d{3}\s?\d{3}\s?\d{3}/i.test(brutCreancier) ? '' : brutCreancier.slice(0, 60);
       /** @type {'en_cours' | 'radiee' | 'perimee'} */
       const etat = radiationTotale ? 'radiee' : dateExtremeEffet && reference && dateExtremeEffet < (delivreLe || net(aujourdhui)) ? 'perimee' : 'en_cours';
       return {
