@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.383.1';
+  const VERSION_APP = '0.384.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.384.0', date: '2026-10-27 23:29', resume: "Relecture de l’état hypothécaire : sur la fiche, panneau « Authentic » › Pièces jointes, « Relire l’état » ouvre l’état-réponse ANF dans Authentic et relève, sans IA, les inscriptions de la rubrique Charge — en cours en rouge (nature, créancier, montant, date de dépôt, date extrême d’effet, page), radiées ou périmées à part —, les charges signalées dans un complément et le nombre de fiches anciennes à relire par le notaire. Une inscription en cours : « Décompte de remboursement » et « Accord de mainlevée » de chaque créancier ajoutés à la checklist quand l’étude représente le vendeur, et un message de CLAIRE dans le canal du dossier." },
   { version: '0.383.1', date: '2026-10-27 21:35', resume: "Notifications : dans le canal d’un dossier, ce qu’écrit CLAIRE ne compte plus que pour le responsable du dossier (et pour qui elle cite) — les autres collaborateurs n’en sont plus notifiés, la pastille ne compte plus ces messages. Une proposition de routine autorisée mais pas encore « Terminée » (constitution, tâche) reste dans « À traiter » et dans la pastille jusqu’au clic sur « Terminé » ; la fiche dit « N à terminer ». Une alerte de CLAIRE lue ne compte plus, ni une proposition déjà décidée dans l’étincelle de « Demander à CLAIRE »." },
   { version: '0.383.0', date: '2026-10-27 21:17', resume: "CLAIRE dans Authentic, étape 8 : « Demander à CLAIRE » lit ce qu’Authentic montre (outil authentic_lire, lecture seule) — le sous-dossier d’un dossier (statut, formalités et leurs dates, actes et n° de répertoire, pièces jointes et la pièce de CLAIRE qu’elles désignent, lignes des suivis) ou les suivis de l’étude (actes à signer, SAFER et DIA, état civil, MICEN). Les noms sont masqués avant de partir vers l’IA, comme tout le reste ; rien n’est ouvert ni écrit dans Authentic." },
   { version: '0.382.0', date: '2026-10-27 21:14', resume: "CLAIRE dans Authentic, étape 7 (suivis) : CLAIRE lit les écrans « Actes à signer », « Suivi SAFER/DIA-DPU », « Suivi État-Civil » et « Suivi MICEN » d’Authentic (le tableau affiché, jamais « Exporter »), au plus toutes les 4 heures les jours ouvrés, ou d’un clic. Nouveau widget « Suivis d’Authentic » (à ajouter depuis « Widgets ») : ce qui est encore en attente sur chaque écran, et les lignes des dossiers de CLAIRE, qui ouvrent leur fiche. Le panneau « Authentic » de la fiche montre les lignes de ce dossier." },

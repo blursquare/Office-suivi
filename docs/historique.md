@@ -22825,3 +22825,23 @@ non-responsable un message de CLAIRE qui ne le cite pas. Restent possibles : les
 comptés pour tous jusqu'à ce que « général » soit ouvert.
 La couleur de la pastille de l'application installée (Chrome, `navigator.setAppBadge`) est choisie par Windows (couleur d'accentuation) :
 une page ne peut pas la rendre rouge ; la pastille du relais, elle, est rouge.
+
+### 27/10 — 0.384.0 : relecture de l'état hypothécaire (annexes d'Authentic)
+
+Étude : « les annexes sont les mêmes que sur le NAS, ça n'a pas d'intérêt ; ce qui peut être bien, c'est la relecture d'un état hypothécaire
+dans les annexes pour vérifier s'il y a des inscriptions hypothécaires » ; choix : annexes d'Authentic ; alerte sur la fiche, pièces à
+réclamer, proposition au responsable ; périmées signalées à part ; « les inscriptions seront en rouge ». Exemple réel reçu (état-réponse ANF,
+nouvelle version de l'ADSN, 36 pages, jamais commité) : pages 2-10 en vrai texte (flux depuis 2002 : en-tête de la demande, personnes et
+immeuble de la demande, relevé des formalités rangé par nature — Registre des dépôts, Volumétrie, Publication, Charge en rouge, en attente /
+rejets —, chaque formalité « NATURE PAGE a À PAGE b », rédacteur, dates d'acte et de dépôt, référence d'enliassement ; pictogramme « Une
+charge est identifiée dans le complément ») ; pages 11-36 = copies de fiches du stock, scans manuscrits (colonne « Charges, privilèges et
+hypothèques » écrite à la main) — non lus, comptés. CET état n'avait AUCUNE formalité Charge : la lecture d'une Charge (créancier,
+montant, date extrême d'effet, radiation) suit la même mise en page et reste à vérifier sur un vrai état (point terrain `etat-hypothecaire`).
+- `commun/etat-hypothecaire.js` : `analyserEtatHypothecaire` (pur), `nomDitEtatHypothecaire`, `inscriptionsEnCours` ; périmée = date extrême
+  d'effet avant la délivrance de l'état ; radiation totale = radiée ; un champ non lu reste vide (« à vérifier »).
+- `client/136-etat-hypothecaire.js` : « Relire l'état » sur une pièce jointe dont le nom dit un état (client/133, `blobPieceAuthenticAT` —
+  la lecture du PDF dans Authentic, mise en commun avec « Ouvrir ») ; texte lu par pdf.js, sans OCR ni IA ; `d.etatHypothecaire` ;
+  « Décompte de remboursement — X » et « Accord de mainlevée — X » par créancier quand aucun confrère ne représente le vendeur ; message
+  de CLAIRE dans le canal du dossier (son responsable est prévenu) ; bloc « État hypothécaire » du panneau Authentic, inscriptions en cours en
+  rouge. Tests : `tests/etat-hypothecaire.test.js` (texte inventé à la mise en page réelle).
+- Questions laissées ouvertes : pièces à réclamer en participation ; saisies et hypothèques légales comptées comme toute Charge.

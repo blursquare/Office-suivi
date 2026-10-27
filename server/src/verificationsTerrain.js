@@ -26,6 +26,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première connexion réussie. À essayer : Réglages › Authentic › « Essayer la connexion ». Échec « identifiants refusés » : revoir l’identifiant et le mot de passe.' },
   { id: 'authentic-lecture', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE lit un dossier dans Authentic (page du dossier, fiches clients, fiches biens) et la fiche se complète',
     comment: 'Coché à la première lecture. À essayer : dans « Demander à CLAIRE » ou le canal du dossier : « lis le dossier X dans Authentic ».' },
+  { id: 'etat-hypothecaire', depuis: '0.384.0', source: 'poste', titre: 'Fiche › Dossier › Authentic › Pièces jointes : « Relire l’état » relève les inscriptions d’un état-réponse ANF',
+    comment: 'Coché à la première relecture. À regarder sur un état qui porte une inscription (rubrique Charge, en rouge) : nature, créancier, montant, date extrême d’effet bien lus ; une radiation ou une péremption bien rangées à part.' },
   { id: 'authentic-suivis', depuis: '0.382.0', source: 'serveur', titre: 'Tableau de bord › « Suivis d’Authentic » : CLAIRE lit les actes à signer, SAFER et DIA, état civil et MICEN dans Authentic',
     comment: 'Coché à la première lecture qui trouve un écran. À regarder : les menus « Suivis » et « Office Manager » s’ouvrent bien par un clic, chaque tableau est lu (référence du dossier, libellé, situation), « Exporter » n’est jamais cliqué.' },
   { id: 'authentic-piece-pdf', depuis: '0.381.0', source: 'serveur', titre: 'Fiche › Dossier › Authentic › Pièces jointes : « Ouvrir » affiche le PDF de la pièce lu dans Authentic',

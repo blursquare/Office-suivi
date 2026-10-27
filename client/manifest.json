@@ -134,5 +134,6 @@
   "132-artefacts-agent.js",
   "133-authentic-sous-dossier.js",
   "134-suivis-authentic.js",
-  "135-authentic-lire-agent.js"
+  "135-authentic-lire-agent.js",
+  "136-etat-hypothecaire.js"
 ]
