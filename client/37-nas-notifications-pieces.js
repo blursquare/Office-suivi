@@ -1697,7 +1697,17 @@
     try { localStorage.setItem(CLE_ACCENT, accent); } catch (e) { /* préférence non enregistrée : sans conséquence */ }
   }
 
+  // Thème de saison (étude 27/10 : « un thème de couleur orange et vert temporaire ») : l'attribut `data-saison` est posé du 24 octobre au
+  // 2 novembre (`halloweenActif`) et retiré après ; les valeurs vivent dans style.css. L'accent choisi n'est ni changé ni enregistré.
+  function appliquerSaison(date) {
+    const racine = document.documentElement;
+    if (!racine || typeof racine.setAttribute !== 'function') return;
+    if (halloweenActif(date)) racine.setAttribute('data-saison', 'halloween');
+    else if (typeof racine.removeAttribute === 'function') racine.removeAttribute('data-saison');
+  }
+
   function chargerAccent() {
+    appliquerSaison();
     let accent = null;
     try { accent = localStorage.getItem(CLE_ACCENT); } catch (e) { /* aucune préférence enregistrée */ }
     appliquerAccent(accent, false);

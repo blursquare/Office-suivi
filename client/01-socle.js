@@ -265,6 +265,10 @@
     // docs/maquettes-icone-discussions/). Le masque porte un identifiant propre à chaque copie (`icone()` le renomme) : deux copies sur la page,
     // dont une dans un bloc caché, ne se volent pas leur masque.
     discussion: '<defs><mask id="claire-discussions-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="#fff"/><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" transform="translate(13.1 13.1) scale(0.25) translate(-12 -12)" fill="#000" stroke="#000" stroke-width="8.6" stroke-linejoin="round"/></mask></defs><g mask="url(#claire-discussions-cut)"><path d="M1.5 8C1.5 4.7 3.9 2.25 7.5 2.25C11.1 2.25 13.5 4.7 13.5 8V10.25C13.5 12.3 12.2 13.75 10 13.75H5C2.8 13.75 1.5 12.3 1.5 10.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><rect x="5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><rect x="8.5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><path d="M6.1 10.3Q7.5 11.2 8.9 10.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></g><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" transform="translate(13.1 13.1) scale(0.25) translate(-12 -12)" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+    // Même icône en période d'Halloween (étude 27/10 : « l'avatar de Claire en mode Halloween avec une citrouille à la place de l'étoile ») :
+    // le robot-mochi, la citrouille mord le coin bas droit à la place de l'étoile. Couleurs des jetons (orange et olive des catégories, noir fixe),
+    // même masque que `discussion` (renommé de la même façon par `icone()`). Choisie seule par `icone('discussion')` quand `halloweenActif()`.
+    'discussion-halloween': '<defs><mask id="claire-discussions-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="#fff"/><g transform="translate(12.9 13.1) scale(0.4)" fill="#000" stroke="#000" stroke-width="4.2" stroke-linejoin="round"><ellipse cx="-3.7" cy="0.7" rx="3.9" ry="5.5"/><ellipse cx="3.7" cy="0.7" rx="3.9" ry="5.5"/><ellipse cx="0" cy="0.5" rx="3.7" ry="5.9"/><path d="M-1.2-5.4L-0.8-8.3Q0.6-8.9 2-8.3L1.2-5.4Z"/></g></mask></defs><g mask="url(#claire-discussions-cut)"><path d="M1.5 8C1.5 4.7 3.9 2.25 7.5 2.25C11.1 2.25 13.5 4.7 13.5 8V10.25C13.5 12.3 12.2 13.75 10 13.75H5C2.8 13.75 1.5 12.3 1.5 10.25Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><rect x="5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><rect x="8.5" y="6.2" width="1.5" height="2.6" rx="0.75" fill="currentColor" stroke="none"/><path d="M6.1 10.3Q7.5 11.2 8.9 10.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></g><g transform="translate(12.9 13.1) scale(0.4)" stroke="none"><g style="fill:var(--cat-orange)"><ellipse cx="-3.7" cy="0.7" rx="3.9" ry="5.5"/><ellipse cx="3.7" cy="0.7" rx="3.9" ry="5.5"/><ellipse cx="0" cy="0.5" rx="3.7" ry="5.9"/></g><path d="M-2.1 -4.3Q-3.2 0.6 -2.1 5.1M2.1 -4.3Q3.2 0.6 2.1 5.1" fill="none" style="stroke:var(--noir-fixe)" stroke-opacity="0.2" stroke-width="0.8" stroke-linecap="round"/><path d="M-1.2-5.4L-0.8-8.3Q0.6-8.9 2-8.3L1.2-5.4Z" style="fill:var(--cat-olive);stroke:var(--cat-olive)" stroke-width="0.9" stroke-linejoin="round"/><path d="M-4.5-0.6L-1.7-0.6L-3.1-3.3Z M1.7-0.6L4.5-0.6L3.1-3.3Z M-0.8 0.9L0.8 0.9L0-0.5Z M-4.5 2L-2.9 3.9L-1.5 2.6L0 4.2L1.5 2.6L2.9 3.9L4.5 2Q0 7.2 -4.5 2Z" style="fill:var(--noir-fixe);stroke:var(--noir-fixe)" stroke-width="1.1" stroke-linejoin="round"/></g>',
     cloche: '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 8.8 0v3.8l1.1 1.3H2.5z" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/>',
     'cloche-barree': '<path d="M3.6 11.2V7.4a4.4 4.4 0 0 1 7.3-3.3M12.4 7.6v3.6l1.1 1.3H2.5" stroke-linejoin="round"/><path d="M6.6 14a1.5 1.5 0 0 0 2.8 0"/><line x1="2.2" y1="2.2" x2="13.8" y2="13.8"/>',
     etoile: '<path d="M8 1.9 9.8 5.8l4.2.5-3.1 2.9.8 4.2L8 11.3l-3.7 2 .8-4.2L2 6.3l4.2-.5z" stroke-linejoin="round"/>',
@@ -273,10 +277,23 @@
   // `cls` porte les classes de mise en page (taille via font-size hérité, marge...) ; `spin` anime
   // une rotation continue (voir @keyframes icone-spin) pour les icônes d'attente (ex. "spinner").
   let compteurMasquesDiscussion = 0;
+  // Pure : la période où l'avatar de CLAIRE est en citrouille — du 24 octobre au 2 novembre (dates locales, mois à partir de 0).
+  function halloweenActif(date) {
+    const d = date && typeof date.getMonth === 'function' ? date : new Date();
+    const m = d.getMonth(), j = d.getDate();
+    return (m === 9 && j >= 24) || (m === 10 && j <= 2);
+  }
+
+  // Pure : l'icône réellement dessinée pour `nom` à cette date (l'avatar de CLAIRE devient une citrouille pendant Halloween).
+  function nomIconeDeSaison(nom, date) {
+    return nom === 'discussion' && halloweenActif(date) ? 'discussion-halloween' : nom;
+  }
+
   function icone(nom, cls, spin) {
+    nom = nomIconeDeSaison(nom);
     let chemin = ICONES[nom];
     if (!chemin) return '';
-    if (nom === 'discussion') chemin = chemin.replace(/claire-discussions-cut/g, 'claire-discussions-' + (++compteurMasquesDiscussion));
+    if (nom === 'discussion' || nom === 'discussion-halloween') chemin = chemin.replace(/claire-discussions-cut/g, 'claire-discussions-' + (++compteurMasquesDiscussion));
     return `<svg class="icone${cls ? ' ' + cls : ''}${spin ? ' icone-spin' : ''}" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${chemin}</svg>`;
   }
 

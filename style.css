@@ -63,6 +63,20 @@
     --accent-clair: #262626; --accent-clair-hover: #0D0D0D;
     --accent-sombre: #D4D4D4; --accent-sombre-hover: #EAEAEA;
   }
+  /* Thème de saison : Halloween (étude 27/10 : « un thème de couleur orange et vert temporaire »). Posé par appliquerSaison() (client/37) du 24 octobre au 2 novembre,
+     par-dessus l'accent choisi (qui n'est ni changé ni enregistré : il revient seul le 3 novembre). Orange pour l'accent, vert sombre pour la barre latérale. */
+  :root[data-saison="halloween"] {
+    --accent-clair: #B34A00; --accent-clair-hover: #8F3A00;
+    --accent-sombre: #F59A3E; --accent-sombre-hover: #F7AE62;
+  }
+  :root[data-saison="halloween"] .sidebar, :root[data-saison="halloween"] .sidebar-burger, :root[data-saison="halloween"] .sidebar-infobulle {
+    --sidebar-bg: #12261B; --sidebar-border: #25422F; --sidebar-actif-bg: #1D3A29; --sidebar-trait: #E8700A;
+    --paper-card: #12261B;
+  }
+  /* Logo : la citrouille remplace la tuile blanche pendant Halloween (index.html : .logo-halloween). */
+  .logo-halloween { display: none; }
+  :root[data-saison="halloween"] .logo-halloween { display: block; }
+  :root[data-saison="halloween"] .logo-normal { display: none; }
 
   :root {
     /* Fond de page gris-bleu froid, nettement plus soutenu que le blanc des cartes (étude 04/10 : « un fond de ce style
