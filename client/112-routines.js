@@ -43,6 +43,8 @@ function ageTexteProposition(iso, maintenantMs) {
 function etatTexteProposition(p, maintenantMs) {
   const par = p && p.traitePar ? ` par ${prenomCollaborateur(p.traitePar)}` : '';
   const quand = p && p.traiteLe ? ` · ${ageTexteProposition(p.traiteLe, maintenantMs)}` : '';
+  // Terminée (étude 27/10) : le travail autorisé est fait.
+  if (p && p.termineeLe) return `Terminée${p.termineePar ? ` par ${prenomCollaborateur(p.termineePar)}` : ''} · ${ageTexteProposition(p.termineeLe, maintenantMs)}`;
   if (p && p.etat === 'acceptee') return `Autorisée${par}${quand}`;
   if (p && p.etat === 'refusee') return `Refusée${par}${quand}`;
   if (p && p.etat === 'faite') return `Déjà fait${par}${quand}`;
@@ -120,8 +122,10 @@ function carteProposition(p, options) {
   const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite';
   const reportee = !traitee && p.reporteJusqua && Date.parse(p.reporteJusqua) > Date.now();
   const moi = peutDeciderProposition(p, utilisateurPoste);
+  // Autorisée, pas encore terminée : « Terminé » quand le travail est fait (étude 27/10 : « comment indiquer que c'est terminé ? »).
+  const terminable = p.etat === 'acceptee' && !p.termineeLe && moi && (p.type === 'document' || p.type === 'tache');
   const actions = traitee
-    ? `<p class="pc-etat pc-etat-${escapeAttr(p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>`
+    ? `<div class="pc-actions"><p class="pc-etat pc-etat-${escapeAttr(p.termineeLe ? 'terminee' : p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>${terminable ? `<wa-button appearance="outlined" size="s" type="button" onclick="terminerProposition('${idJs}')" title="Le travail est fait : la carte est fermée, CLAIRE ne le reproposera pas">${icone('check')}Terminé</wa-button>` : ''}</div>`
     : !moi
       ? `<p class="pc-etat">Pour ${escapeHtml(prenomCollaborateur(p.responsable))} : c’est à elle ou lui de décider.</p>`
       : reportee
@@ -361,6 +365,31 @@ async function refuserProposition(id) {
   noterVerificationPoste('routines-boite-poste', { detail: 'proposition refusée' });
   afficherToast('Refusée : CLAIRE ne la proposera plus.', 'OK', null);
   await apresDecisionProposition();
+}
+
+// « Terminé » : le travail d'une proposition autorisée est fait (étude 27/10).
+async function terminerProposition(id) {
+  if (propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
+  try {
+    await enregistrerDecisionProposition(id, 'terminee');
+    afficherToast('Noté terminé.', 'OK', null);
+  } catch (e) {
+    afficherToast('Non enregistré : ' + e.message, 'OK', null);
+    return;
+  } finally { delete propositionsEnCours[id]; }
+  await apresDecisionProposition();
+}
+
+// Le geste d'une routine fait pour un dossier, dit par l'écran qui l'a fait (la constitution enregistrée ou imprimée…) : ses propositions
+// deviennent « terminées » — Claire le sait, la carte le dit (🏁), rien n'est reproposé. Jamais bloquant.
+async function terminerRoutineDossier(dossierId, routine) {
+  if (!dossierId || !routine || !utilisateurPoste) return;
+  try {
+    const r = await fetchAvecAuth('/api/propositions/terminer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dossierId, routine, auteur: utilisateurPoste }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.terminees) await apresDecisionProposition();
+  } catch (e) { /* le serveur relira plus tard ; rien de bloquant */ }
 }
 
 // « Déjà fait » : la proposition est fermée sans rien exécuter (étude 26/10 : « qu'est-ce qu'on fait si c'est déjà fait ? »).

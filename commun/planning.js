@@ -206,13 +206,25 @@
   // renonciation tacite (étude 07/10 : « pour la DIA on doit avoir le document de renonciation pour signer ») : la date sert à
   // suivre et à relancer la mairie ; le rendez-vous ne se place qu'avec la pièce reçue (preemptionLevee).
   var MOIS_REPONSE_DIA = 2;
+  // La DIA envoyée : relevée dans Authentic, ou déposée sur le guichet unique (numéro relevé par l'extension Chrome, étude 27/10 : « comment
+  // Claire peut détecter que la DIA est envoyée électroniquement et pas depuis Authentic ? »). Le premier envoi compte.
+  /** @param {any} d @returns {{ date: string, numero: string, source: 'authentic' | 'guichet' } | null} */
+  function diaEnvoyeeDossier(d) {
+    const iso = (/** @type {any} */ v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+    const dia = d && d.authentic && d.authentic.demandes && d.authentic.demandes.renonciationPreemption;
+    const g = d && d.gnau && d.gnau.dia;
+    const da = iso(dia && dia.date);
+    const dg = iso(g && g.deposeLe);
+    const numero = g && typeof g.numero === 'string' ? g.numero : '';
+    if (dg && (!da || dg <= da)) return { date: dg, numero, source: 'guichet' };
+    return da ? { date: da, numero, source: 'authentic' } : null;
+  }
+
   /** @param {any} d @returns {string} */
   function echeanceDiaDossier(d) {
     if (!d || preemptionLevee(d)) return '';
-    const dia = d.authentic && d.authentic.demandes && d.authentic.demandes.renonciationPreemption;
-    const envoi = dia && dia.date;
-    if (!envoi || !/^\d{4}-\d{2}-\d{2}$/.test(envoi)) return '';
-    return C.ajouterMois(envoi, MOIS_REPONSE_DIA);
+    const envoi = diaEnvoyeeDossier(d);
+    return envoi ? C.ajouterMois(envoi.date, MOIS_REPONSE_DIA) : '';
   }
 
   // Toutes les échéances ACTIVES d'un dossier, pas seulement la plus proche. Même exclusion que
@@ -330,7 +342,7 @@
     return reels;
   }
 
-  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, JOURS_RELANCE_FONDS, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, saferNonApplicable, echeanceSaferDossier, echeancesPlanning };
+  const exportes = { JOURS_APPEL_FONDS_AVANT_RDV, JOURS_RELANCE_FONDS, echeanceAppelFonds, echeanceValidee, JOURS_REDACTION_AVANT_RDV, etatRedactionActe, repereSignatureRedaction, echeanceRedaction, attentesRedaction, redactionAProposer, pretLeve, piecesPreemptionEnAttente, preemptionLevee, MOIS_REPONSE_DIA, diaEnvoyeeDossier, echeanceDiaDossier, DELAIS_SAFER, delaiSafer, echeanceSaferTacite, saferLevee, saferNonApplicable, echeanceSaferDossier, echeancesPlanning };
   // Node : module.exports ; navigateur : des globaux (noms nus, comme les fonctions de client/).
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(

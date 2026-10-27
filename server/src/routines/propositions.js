@@ -68,7 +68,11 @@ function assainirProposition(p) {
     traitePar: texteBorne(p.traitePar, 80),
     resumeTeamsLe: date(p.resumeTeamsLe),
     // Reportée : cachée de « À traiter » (et de la pastille) jusqu'à cette date, puis de nouveau à décider.
-    reporteJusqua: date(p.reporteJusqua)
+    reporteJusqua: date(p.reporteJusqua),
+    // Terminée (étude 27/10 : « quand une routine est faite, comment indiquer que c'est terminé ? ») : le travail autorisé est fait — par le
+    // geste lui-même (constitution enregistrée…) ou d'un clic « Terminé » sur la carte.
+    termineeLe: date(p.termineeLe),
+    termineePar: texteBorne(p.termineePar, 80)
   };
 }
 
@@ -129,12 +133,23 @@ function estReportee(p, maintenant) {
 /**
  * Décide d'une proposition : « vue » (alerte lue), « acceptee », « refusee », « faite » (déjà faite : fermée sans rien exécuter) ou « reporter »
  * (`options.quand` : demain, 3-jours, lundi, reprendre). Une décision finale ne change plus ; un report ne ferme rien.
- * @param {any[]} liste @param {string} id @param {'vue' | 'acceptee' | 'refusee' | 'faite' | 'reporter'} decision @param {string} par @param {Date} [maintenant] @param {{ quand?: string }} [options]
+ * « terminee » : le travail d'une proposition autorisée est fait (une proposition encore à décider passe « faite », terminée du même coup).
+ * @param {any[]} liste @param {string} id @param {'vue' | 'acceptee' | 'refusee' | 'faite' | 'reporter' | 'terminee'} decision @param {string} par @param {Date} [maintenant] @param {{ quand?: string }} [options]
  */
 function decider(liste, id, decision, par, maintenant, options) {
   const i = liste.findIndex((x) => x.id === id);
-  if (i < 0 || !['vue', 'acceptee', 'refusee', 'faite', 'reporter'].includes(decision)) return { liste, proposition: null };
+  if (i < 0 || !['vue', 'acceptee', 'refusee', 'faite', 'reporter', 'terminee'].includes(decision)) return { liste, proposition: null };
   const avant = liste[i];
+  if (decision === 'terminee') {
+    if (avant.termineeLe || avant.etat === 'refusee' || avant.etat === 'expiree') return { liste, proposition: avant };
+    const quand = (maintenant || new Date()).toISOString();
+    const ouverte = avant.etat === 'proposee' || avant.etat === 'vue';
+    const p = Object.assign({}, avant, { termineeLe: quand, termineePar: texteBorne(par, 80), reporteJusqua: '' },
+      ouverte ? { etat: 'faite', traiteLe: quand, traitePar: texteBorne(par, 80) } : {});
+    const nouvelle = liste.slice();
+    nouvelle[i] = p;
+    return { liste: nouvelle, proposition: p };
+  }
   // Une proposition déjà traitée ne change plus (un double clic ne la défait pas) ; « vue » ne rétrograde jamais une décision.
   if (avant.etat === 'acceptee' || avant.etat === 'refusee' || avant.etat === 'faite' || avant.etat === 'expiree') return { liste, proposition: avant };
   if (decision === 'vue' && avant.etat === 'vue') return { liste, proposition: avant };
@@ -154,6 +169,22 @@ function decider(liste, id, decision, par, maintenant, options) {
   const p = Object.assign({}, avant, { etat: decision, reporteJusqua: '' }, decision === 'vue' ? {} : { traiteLe: (maintenant || new Date()).toISOString(), traitePar: texteBorne(par, 80) });
   nouvelle[i] = p;
   return { liste: nouvelle, proposition: p };
+}
+
+/**
+ * Le travail d'une routine est fait pour ce dossier (le geste lui-même l'a dit : constitution enregistrée…) : chacune de ses propositions encore
+ * ouverte ou autorisée devient « terminée ». Rend la liste et les propositions touchées.
+ * @param {any[]} liste @param {string} dossierId @param {string} routine @param {string} par @param {Date} [maintenant]
+ */
+function terminerParDossier(liste, dossierId, routine, par, maintenant) {
+  let l = liste;
+  const touchees = [];
+  for (const p of liste) {
+    if (p.dossierId !== dossierId || p.routine !== routine || p.termineeLe || p.etat === 'refusee' || p.etat === 'expiree') continue;
+    const r = decider(l, p.id, 'terminee', par, maintenant);
+    if (r.proposition && r.liste !== l) { l = r.liste; touchees.push(r.proposition); }
+  }
+  return { liste: l, touchees };
 }
 
 /** Les propositions non traitées depuis plus de 30 jours passent à « expirée ». @param {any[]} liste @param {Date} [maintenant] */
@@ -219,6 +250,6 @@ function ecrirePropositions(repo, liste) {
 
 module.exports = {
   CLE_PROPOSITIONS, MAX_PROPOSITIONS, JOURS_EXPIRATION, MINUTES_VALIDATION_POSTE_CLAIRE, validationAbandonnee, SEUIL_PROMOTION_PROPOSITIONS, SEUIL_PROMOTION_TAUX, TYPES, ETATS,
-  assainirProposition, assainirPropositions, ajouterProposition, decider, dateDeReport, estReportee, expirer, listerPropositions, compterATraiter, statsRoutine,
+  assainirProposition, assainirPropositions, ajouterProposition, decider, terminerParDossier, dateDeReport, estReportee, expirer, listerPropositions, compterATraiter, statsRoutine,
   lirePropositions, ecrirePropositions
 };

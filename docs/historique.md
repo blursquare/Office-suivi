@@ -22736,3 +22736,21 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   « Fermer » ; rien d'autre n'est cliqué dans le tiroir (corbeille du faux Authentic jamais touchée). Fiche : détails sous chaque ligne
   (`detailsApercuAT`, client/133). Point terrain `authentic-apercus`. **Non vérifié sur une vraie page** : sélecteurs du tiroir et de l'icône
   déduits de la cartographie.
+- **0.379.0 (27/10, 19 h 18)** — Étude : « quand une routine est faite, comment indiquer que c'est terminé ? La constitution est terminée mais
+  Claire ne le sait pas » (capture d'une carte « Autorisée par Bastien »). Décision `terminee` (routines/propositions.js `decider`,
+  `terminerParDossier`) : une proposition autorisée garde son état et reçoit `termineeLe` / `termineePar` ; encore à décider, elle passe « faite »
+  terminée du même coup ; jamais une refusée ou expirée, jamais deux fois. Carte : « Terminée par … » et bouton « Terminé » sur une carte
+  autorisée (document, tâche ; responsable ou administrateur) ; réaction d'état de Claire 🏁 à la place du ✅. Route
+  `POST /api/propositions/terminer { dossierId, routine }`. Constitution enregistrée sur le NAS ou « Imprimer tout » → `d.constitutionFaiteLe`
+  et routine « constitution » du dossier terminée (`terminerRoutineDossier`, client/112) ; un dossier dont la constitution est faite n'est plus
+  proposé (`constitutionDossier`).
+- **0.380.0 (27/10, 19 h 21)** — Étude : « comment Claire peut détecter que la DIA est envoyée électroniquement, et pas depuis Authentic ? »,
+  puis « je sais comment : il faut que l'add-on, quand la DIA est validée, récupère le numéro sur la page d'accueil de la DIA ou du CU ».
+  Extension Chrome 1.1.0 : au lancement d'une saisie, le dépôt attendu (dossier, procédure) est gardé 2 jours (`depotAttendu`) ; sur toute
+  page du guichet, hors saisie, `numeroDepotDansTexte` cherche le numéro national (« DIA|IA 041 018 26 00012 », « CU[ab] … ») et
+  l'envoie (`content.depot` → `POST /api/gnau/depot`), une fois — jamais le texte de la page. Serveur (`routes/gnau.js`) :
+  `numeroDepotGnau` (forme stricte, type de la procédure), `d.gnau.dia|cua = { numero, deposeLe, releveLe }`, historique, point terrain
+  `gnau-depot-numero`. `diaEnvoyeeDossier` (commun/planning.js) : envoi relevé dans Authentic OU dépôt du guichet, le premier compte →
+  `echeanceDiaDossier` (réponse à 2 mois), ligne « Réponse à la DIA » (« DIA déposée sur le guichet le … (n° …) »), pièce « Renonciation »
+  et « Certificat d'urbanisme » de l'onglet Pièces. Guichet de Chailles (`portail-usager.sirap.com`) ajouté aux pages de l'extension.
+  **Non vérifié** : forme réelle du numéro sur la page d'accueil de chaque guichet.

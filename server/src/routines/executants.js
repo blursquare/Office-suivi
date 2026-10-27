@@ -188,7 +188,8 @@ function veilleSignature(dossiers, aujourdhui, ctx) {
 function constitutionDossier(dossiers, aujourdhui, ctx) {
   const sortie = [];
   for (const d of dossiers || []) {
-    if (!dossierOuvert(d)) continue;
+    // Constitution déjà faite (enregistrée ou imprimée depuis l'outil, étude 27/10) : rien à proposer.
+    if (!dossierOuvert(d) || d.constitutionFaiteLe) continue;
     const cree = dateCreationDossier(d);
     if (!cree || cree < DATE_DEBUT_CONSTITUTION || joursEntre(cree, aujourdhui) > 30) continue;
     const succession = estSuccession(d);

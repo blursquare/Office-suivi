@@ -10259,7 +10259,8 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .pc-puce-exemple { border-style: dashed; color: var(--muted); }
 .pc-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .pc-etat { margin: 6px 0 0; font-size: var(--texte-xs); color: var(--muted); }
-.pc-etat-acceptee { color: var(--success); }
+.pc-etat-acceptee, .pc-etat-terminee { color: var(--success); }
+.pc-actions > .pc-etat { margin: 0; }
 .pc-traitee { box-shadow: none; }
 .pc-traitee .pc-rail { opacity: 0.5; }
 /* Le bandeau « CLAIRE a préparé » en tête du Tableau de la fiche du dossier. */

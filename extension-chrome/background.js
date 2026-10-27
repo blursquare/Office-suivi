@@ -110,6 +110,17 @@ async function startRun({ scenario, fiche, speed, continuer }) {
   };
   addLog(run, "Démarrage");
   await setRun(run);
+  // Le dépôt attendu (étude 27/10 : « quand la DIA est validée, récupérer le numéro sur la page d'accueil de la DIA ou du CU ») : gardé
+  // 2 jours, le temps que le notaire relise et valide lui-même ; le numéro est relevé sur la page qui suit la validation.
+  // Plusieurs saisies peuvent attendre leur validation (A, puis B, puis validation de A — audit 0.380.0) : toutes sont gardées, le serveur
+  // départage par la commune du numéro et ne rattache rien s'il hésite.
+  const fd = fiche && fiche.dossier;
+  if (fd && fd.id) {
+    const { depotsAttendus = [] } = await chrome.storage.local.get(["depotsAttendus"]);
+    const proc = String(fiche.procedure || scenario.procedure || "");
+    const garde = depotsAttendus.filter((x) => x && Date.now() - x.le < 2 * 24 * 3600 * 1000 && !(x.dossierId === String(fd.id) && x.procedure === proc));
+    await chrome.storage.local.set({ depotsAttendus: garde.concat({ dossierId: String(fd.id), procedure: proc, le: Date.now() }).slice(-5) });
+  }
   try {
     await ensureContent(tab.id);
     await chrome.tabs.sendMessage(tab.id, { type: "resume" });
@@ -226,6 +237,26 @@ async function handle(msg, sender) {
       if (!sender.tab || !sender.tab.id) return { ok: false };
       await chrome.sidePanel.open({ tabId: sender.tab.id });
       return { ok: true };
+    }
+    // Le numéro du dossier déposé, lu sur la page du guichet après la validation par le notaire : envoyé à CLAIRE pour la fiche (DIA envoyée
+    // le…, n°…) — seulement pour le dépôt attendu (moins de 2 jours), une fois.
+    case "content.depotAttendu": {
+      const { depotsAttendus = [] } = await chrome.storage.local.get(["depotsAttendus"]);
+      const procs = [...new Set(depotsAttendus.filter((x) => x && Date.now() - x.le < 2 * 24 * 3600 * 1000).map((x) => x.procedure))];
+      return procs.length ? { procedures: procs } : null;
+    }
+    case "content.depot": {
+      const { depotsAttendus = [], serveur } = await chrome.storage.local.get(["depotsAttendus", "serveur"]);
+      const candidats = depotsAttendus.filter((x) => x && Date.now() - x.le < 2 * 24 * 3600 * 1000 && x.procedure === msg.procedure);
+      if (!candidats.length || !serveur) return { ok: false };
+      try {
+        const rep = await fetch(`${serveur}/api/gnau/depot`, { method: "POST", credentials: "omit", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ candidats: candidats.map((x) => x.dossierId), procedure: msg.procedure, numero: String(msg.numero || "").slice(0, 40) }) });
+        const j = rep.ok ? await rep.json() : null;
+        if (!j || !j.dossierId) return { ok: false };
+        await chrome.storage.local.set({ depotsAttendus: depotsAttendus.filter((x) => !(x.dossierId === j.dossierId && x.procedure === msg.procedure)) });
+        return { ok: true };
+      } catch (_) { return { ok: false }; }
     }
     case "content.hello": {
       const r = await getRun();

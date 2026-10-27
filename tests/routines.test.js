@@ -93,3 +93,15 @@ test('niveaux d’un geste : jusqu’à son maximum ; le niveau en vigueur ne d�
   assert.equal(app.niveauGesteReglages({ routines: { 'revue-matin': { niveau: 2, gestes: {} } } }, routine, geste), 2);
   assert.equal(app.niveauGesteReglages({}, routine, geste), 1);
 });
+
+test('carte : « Terminée par … » une fois le travail fait, bouton « Terminé » sur une carte autorisée (étude 27/10)', () => {
+  const { chargerApplication } = require('./helpers/load-app');
+  const app = chargerApplication();
+  const t = Date.parse('2026-10-27T18:00:00Z');
+  assert.match(app.etatTexteProposition({ etat: 'acceptee', traitePar: 'Bastien ANGLUMENT', termineeLe: '2026-10-27T17:00:00Z', termineePar: 'Julie VASSELIN' }, t), /^Terminée par Julie/);
+  require('node:vm').runInContext("utilisateurPoste = 'Bastien ANGLUMENT'", app);
+  const html = app.carteProposition({ id: 'p1', type: 'document', etat: 'acceptee', titre: 'Constitution', responsable: 'Bastien ANGLUMENT', creeLe: '2026-10-27T08:00:00Z' });
+  assert.ok(html.includes("terminerProposition('p1')"));
+  const fini = app.carteProposition({ id: 'p1', type: 'document', etat: 'acceptee', termineeLe: '2026-10-27T17:00:00Z', titre: 'Constitution', responsable: 'Bastien ANGLUMENT', creeLe: '2026-10-27T08:00:00Z' });
+  assert.ok(!fini.includes('terminerProposition') && fini.includes('pc-etat-terminee'));
+});

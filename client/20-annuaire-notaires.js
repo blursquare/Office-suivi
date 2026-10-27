@@ -1582,7 +1582,12 @@
       const passe = echeanceDiaFiche < isoAujourdhuiLocal();
       const texte = apresRdv ? 'Après le rendez-vous de signature : sans le document de renonciation, l’acte ne peut pas être signé'
         : passe ? 'Délai de réponse écoulé : réclamer le document de renonciation à la mairie, indispensable pour signer'
-          : 'DIA envoyée : réponse de la commune attendue au plus tard à cette date — le document de renonciation est indispensable pour signer';
+          : (() => {
+            // Déposée sur le guichet unique (numéro relevé par l'extension Chrome, étude 27/10) : la date et le numéro du dépôt.
+            const env = diaEnvoyeeDossier(d);
+            const ou = env && env.source === 'guichet' ? `DIA déposée sur le guichet le ${formatDateFr(env.date)}${env.numero ? ` (n° ${env.numero})` : ''}` : 'DIA envoyée';
+            return `${ou} : réponse de la commune attendue au plus tard à cette date — le document de renonciation est indispensable pour signer`;
+          })();
       lignes.push({ iso: echeanceDiaFiche, html: renderLigneEcheance('dia', 'Réponse à la DIA', echeanceDiaFiche, null, null, null, null, false, `<span class="ech-note${apresRdv || passe ? ' ech-alerte' : ''}">${escapeHtml(texte)}</span>`, false, false) });
     }
     return lignes;

@@ -38,6 +38,12 @@ publication « non répertoriée » sur le Chrome Web Store, ou stratégie d'ent
 6. Les lignes **⧉ « à coller à la main »** et les champs « pas sur cette page » : bouton **Copier** → coller dans le guichet. La valeur
    est déjà au format du guichet (date `JJMMAAAA`, prix `209000`, prix en lettres, parcelles `¢EV¢10¢606¢`…).
 7. Valider et transmettre **vous-même**.
+8. Après la validation, la page du dossier déposé affiche son numéro (« DIA 041 018 26 00012 », « CUa 041 032 26 00007 ») : l'extension
+   le relève **seul** et l'envoie à CLAIRE (extension 1.1.0, étude 27/10) — la fiche dit « DIA déposée sur le guichet le … (n° …) » et la
+   réponse de la commune est attendue à 2 mois, comme pour une DIA envoyée depuis Authentic. Seulement le numéro, jamais le texte de la
+   page, et seulement pendant 2 jours après une saisie faite par CLAIRE. Le numéro n'est relevé que sur la page qui dit le dépôt (« a bien
+   été déposée », accusé, récépissé) et s'il est seul sur la page ; CLAIRE le range sous le dossier de la même commune, jamais en devinant.
+   Mise à jour 1.1.0 : Chrome peut demander d'accepter le nouveau site (guichet de Chailles).
 
 **Panneau en trois étapes** (17/10, logo et thème noir de CLAIRE, clair ou sombre selon Chrome ; pendant le remplissage, la liste des
 étapes — commune, adresses, parcelles, signature, plan, Vérifier, Sauvegarder — montre où en est CLAIRE, comme le bandeau du guichet) : 1 Dossier, 2 Démarche (CU / DIA), 3 « Lancer CLAIRE » ; la vitesse et la copie de structure sont
@@ -116,7 +122,8 @@ surface entière (`98` ou `98,00`), liste exacte des professions, format de la q
 
 ## Données
 
-- Seul le serveur CLAIRE du bureau est interrogé (`/api/gnau/dossiers`, `/api/gnau/fiche/:id`, lecture seule), à l'adresse réglée.
+- Seul le serveur CLAIRE du bureau est interrogé (`/api/gnau/dossiers`, `/api/gnau/fiche/:id`, lecture seule ; `/api/gnau/depot`, le
+  numéro du dépôt après validation), à l'adresse réglée.
 - La fiche ne quitte le bureau que dans le guichet de la commune, saisie dans votre session.
 - Rien n'est gardé par l'extension en dehors de l'adresse de CLAIRE (et du suivi de la saisie en cours, effacé à la fermeture de Chrome).
 - Si l'authentification par mot de passe est activée dans CLAIRE (`"authActive": true`), l'extension n'est pas acceptée.

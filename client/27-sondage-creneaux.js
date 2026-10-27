@@ -1547,6 +1547,11 @@
       if (p.cle === 'actesNaissance' && ps.actesNaissance.total) return { texte: `Authentic : ${ps.actesNaissance.recus}/${ps.actesNaissance.total} revenu${ps.actesNaissance.recus > 1 ? 's' : ''}`, classe: 'dl-pret' };
       if (p.cle === 'ehf' && ps.ehf.envoyeeLe) return { texte: `Réquisition envoyée le ${formatDateFr(ps.ehf.envoyeeLe)}, pas encore revenue`, classe: 'dl-pret' };
     }
+    // Déposée sur le guichet unique (DIA, demande de CU — numéro relevé par l'extension Chrome après la validation, étude 27/10).
+    const guichet = d && d.gnau ? (p.cle === 'renonciationPreemption' ? d.gnau.dia : p.cle === 'certificatUrbanisme' ? d.gnau.cua : null) : null;
+    if (guichet && guichet.numero && !(d.pieces && d.pieces[p.cle] === 'recue')) {
+      return { texte: `${p.cle === 'renonciationPreemption' ? 'DIA déposée' : 'Demande déposée'} sur le guichet${guichet.deposeLe ? ` le ${formatDateFr(guichet.deposeLe)}` : ''} (n° ${guichet.numero})`, classe: '' };
+    }
     const ec = (a.etatsCivils || {})[p.cle];
     if (ec && (ec.casier || RE_CASIER_AUTHENTIC.test(ec.label || ''))) {
       // Casier judiciaire : le statut d'Authentic (« Absence de condamnation »), jamais « Comedec » ; une condamnation signalée en rouge.

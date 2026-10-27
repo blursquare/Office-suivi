@@ -822,6 +822,8 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
         if (!pdfs.length) { if (fenetre) fenetre.close(); majMessageConstitution('Aucun courrier papier à imprimer.'); }
         else {
           montrerPdfImpressionConstitution(fenetre, await fusionnerPdfConstitution(pdfs), `Constitution - ${libelleDossierAffiche(d)}.pdf`.replace(/[\\/:*?"<>|]+/g, ' '));
+          noterConstitutionFaite(d);
+          sauvegarder(d);
           const n = docs.length;
           const suite = !avecPlan ? '' : avecPlan === n ? (n > 1 ? ', chacun suivi de son plan cadastral' : ', suivi du plan cadastral') : `, ${avecPlan} suivi${avecPlan > 1 ? 's' : ''} du plan cadastral`;
           majMessageConstitution(`${n} courrier${n > 1 ? 's' : ''}${suite}, dans un seul PDF ouvert pour l’impression.`);
@@ -839,6 +841,14 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     renderConstitution();
   }
 
+  // La constitution faite (étude 27/10 : « la constitution est terminée mais Claire ne le sait pas ») : la date sur la fiche, et la routine
+  // « Constitution » de ce dossier terminée (sa carte le dit, plus de proposition).
+  function noterConstitutionFaite(d) {
+    if (!d) return;
+    if (!d.constitutionFaiteLe) d.constitutionFaiteLe = isoAujourdhuiLocal();
+    if (typeof terminerRoutineDossier === 'function') terminerRoutineDossier(d.id, 'constitution');
+  }
+
   async function rangerConstitution(fichiers) {
     const d = dossierConstitution();
     if (!d || !d.nasDossier) { majMessageConstitution('Ce dossier n’est pas relié au NAS : rien n’a été rangé.'); return; }
@@ -851,6 +861,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
       ranges++;
     }
     ajouterHistorique(d, `${ranges} courrier${ranges > 1 ? 's' : ''} de constitution de dossier enregistré${ranges > 1 ? 's' : ''} dans le dossier « Constitution » du NAS`);
+    noterConstitutionFaite(d);
     sauvegarder(d);
     majMessageConstitution(`${ranges} fichier${ranges > 1 ? 's' : ''} enregistré${ranges > 1 ? 's' : ''} dans « Constitution », dans le dossier du NAS.`);
     afficherToast(`${ranges} courrier${ranges > 1 ? 's' : ''} dans le dossier « Constitution » du NAS.`);

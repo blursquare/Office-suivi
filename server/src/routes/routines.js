@@ -7,7 +7,9 @@
 const express = require('express');
 const { NIVEAUX, CATALOGUE, routineParId } = require('../routines/catalogue');
 const { lireReglagesRoutines, ecrireReglagesRoutines, assainirReglagesRoutines, niveauEffectif } = require('../routines/reglages');
-const { lirePropositions, ecrirePropositions, listerPropositions, compterATraiter, decider, statsRoutine, expirer } = require('../routines/propositions');
+const { lirePropositions, ecrirePropositions, listerPropositions, compterATraiter, decider, terminerParDossier, statsRoutine, expirer } = require('../routines/propositions');
+// Les routines qu'un écran de CLAIRE peut dire « terminées » (POST /propositions/terminer) : la constitution enregistrée ou imprimée.
+const ROUTINES_TERMINEES_PAR_ECRAN = ['constitution'];
 const { synchroniserEtatCartes } = require('../canaux/etatCartes');
 const { lireJournalRoutines, noterJournalRoutines } = require('../routines/journal');
 const { lireUsageRoutines } = require('../routines/usage');
@@ -100,11 +102,28 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     });
   });
 
+  // Le geste d'une routine fait pour un dossier (constitution enregistrée…) : ses propositions deviennent « terminées » (étude 27/10).
+  routeur.post('/propositions/terminer', (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const par = collaborateurDe(corps.auteur);
+    if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    const dossierId = String(corps.dossierId || '').slice(0, 80);
+    const routine = String(corps.routine || '').slice(0, 60);
+    if (!dossierId || !routine) { res.status(400).json({ erreur: 'Dossier et routine attendus.' }); return; }
+    // Seules les routines dont un ÉCRAN dit que le travail est fait (audit 0.379.0) — jamais une demande de validation de CLAIRE.
+    if (!ROUTINES_TERMINEES_PAR_ECRAN.includes(routine)) { res.status(400).json({ erreur: 'Routine non terminable ainsi.' }); return; }
+    const liste = lirePropositions(parametresRepo);
+    const r = terminerParDossier(liste.filter((p) => p.type !== 'validation'), dossierId, routine, par);
+    if (r.touchees.length) { const parId = new Map(r.liste.map((p) => [p.id, p])); r.liste = liste.map((p) => parId.get(p.id) || p); }
+    if (r.touchees.length) { ecrirePropositions(parametresRepo, r.liste); try { synchroniserEtatCartes(parametresRepo); } catch (e) { /* jamais bloquant */ } }
+    res.json({ ok: true, terminees: r.touchees.length });
+  });
+
   routeur.post('/propositions/:id/decision', (req, res) => {
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const par = collaborateurDe(corps.auteur);
     if (!par) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
-    if (!['vue', 'acceptee', 'refusee', 'faite', 'reporter'].includes(corps.decision)) { res.status(400).json({ erreur: 'Décision inconnue.' }); return; }
+    if (!['vue', 'acceptee', 'refusee', 'faite', 'reporter', 'terminee'].includes(corps.decision)) { res.status(400).json({ erreur: 'Décision inconnue.' }); return; }
     const liste = lirePropositions(parametresRepo);
     const cible = liste.find((x) => x.id === req.params.id);
     if (cible && cible.responsable && cible.responsable !== par && !ADMINISTRATEURS.includes(par)) { res.status(403).json({ erreur: 'Cette proposition n’est pas dans votre boîte.' }); return; }

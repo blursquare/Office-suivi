@@ -379,3 +379,25 @@ test('propositions : « déjà fait » ferme sans exécuter, « plus tard » mas
   assert.equal(liste[0].etat, 'faite');
   assert.equal(P.decider(liste, 'a', 'refusee', 'Julie VASSELIN').liste[0].etat, 'faite', 'définitif');
 });
+
+// Étude 27/10 : « quand une routine est faite, comment indiquer que c'est terminé ? la constitution est terminée mais Claire ne le sait pas ».
+test('terminée : une proposition autorisée se termine (🏁), une encore à décider passe « faite » ; la constitution faite n’est plus proposée', () => {
+  const P = require('../src/routines/propositions');
+  const E = require('../src/canaux/etatCartes');
+  const X = require('../src/routines/executants');
+  const base = { routine: 'constitution', dossierId: 'd1', type: 'document', titre: 'Constitution', resume: '', creeLe: '2026-10-27T08:00:00Z' };
+  let liste = [P.assainirProposition(Object.assign({ id: 'p1', etat: 'acceptee', traitePar: 'Bastien ANGLUMENT' }, base)), P.assainirProposition(Object.assign({ id: 'p2', etat: 'proposee' }, base, { dossierId: 'd2' }))];
+  const r = P.terminerParDossier(liste, 'd1', 'constitution', 'Julie VASSELIN', new Date('2026-10-27T18:00:00Z'));
+  assert.equal(r.touchees.length, 1);
+  assert.equal(r.liste[0].etat, 'acceptee');
+  assert.equal(r.liste[0].termineePar, 'Julie VASSELIN');
+  assert.equal(E.emojiEtatCarte(r.liste[0], Date.now()), '🏁');
+  assert.equal(P.terminerParDossier(r.liste, 'd1', 'constitution', 'Julie VASSELIN').touchees.length, 0, 'jamais deux fois');
+  const ouverte = P.decider(r.liste, 'p2', 'terminee', 'Bastien ANGLUMENT');
+  assert.equal(ouverte.proposition.etat, 'faite');
+  assert.ok(ouverte.proposition.termineeLe);
+  liste = [P.assainirProposition(Object.assign({ id: 'p3', etat: 'refusee' }, base))];
+  assert.equal(P.decider(liste, 'p3', 'terminee', 'Bastien ANGLUMENT').proposition.termineeLe, '', 'une refusée ne se termine pas');
+  const dossier = { id: 'd9', nom: 'ESSAI', typeAffaire: 'succession', parties: [], historique: [{ date: '2026-10-26T09:00:00Z', texte: 'Dossier créé' }], constitutionFaiteLe: '2026-10-27' };
+  assert.equal(X.constitutionDossier([dossier], '2026-10-27', { niveau: () => 1 }).length, 0, 'constitution déjà faite : rien à proposer');
+});
