@@ -353,11 +353,17 @@ test('plan en niveaux de gris : le PDF surligné n’a plus les couleurs d’ori
 test('surlignage sans transparence : fonds blancs retirés, gris teintés de jaune ; traits blancs et texte intacts', () => {
   const { sansFondsBlancs, teinterContenu } = require('../src/navigateur/surlignage');
   assert.equal(sansFondsBlancs('1 g 0 0 595 842 re f 0 g 10 10 5 5 re f'), '1 g 0 0 595 842 re n 0 g 10 10 5 5 re f');
+  // Les bandes blanches qui masquent les débords du cadre, peintes APRÈS le plan, restent (extrait réel de cadastre.gouv.fr).
+  assert.equal(sansFondsBlancs('1 g 0 0 9 9 re f 0 G 1 1 m 5 5 l S 1 1 1 rg 0 0 59 842 re f'), '1 g 0 0 9 9 re n 0 G 1 1 m 5 5 l S 1 1 1 rg 0 0 59 842 re f');
   assert.equal(sansFondsBlancs('1 1 1 rg 0 0 1 1 re B'), '1 1 1 rg 0 0 1 1 re S');
   assert.equal(sansFondsBlancs('q 1 g Q 0 0 1 1 re f'), 'q 1 g Q 0 0 1 1 re f', 'q/Q rendent la couleur d’avant');
+  // griserPage ne retire plus aucun blanc de la page d'origine (relecture 0.373.3 : les bandes du cadre disparaissaient partout).
+  const { griserContenu } = require('../src/navigateur/surlignage');
+  assert.equal(griserContenu('1 1 1 rg 0 0 59 842 re f'), '1 g 0 0 59 842 re f');
   assert.equal(sansFondsBlancs('1 G 0 0 m 1 1 l S'), '1 G 0 0 m 1 1 l S', 'un trait blanc reste');
   assert.equal(sansFondsBlancs('1 g BT (f) Tj ET'), '1 g BT (f) Tj ET', 'un « f » dans une chaîne n’est pas un remplissage');
   assert.equal(teinterContenu('0.8 g 0 G 1 g'), '0.8 0.778 0.382 rg 0 0 0 RG 1 0.973 0.478 rg');
+  assert.equal(teinterContenu('0.5 0.5 0.5 sc'), '0.5 0.486 0.239 rg', 'couleur d’un espace « cs » laissée en sc par le gris');
 });
 
 test('commune choisie dans la liste du site (essai du 16/10, Chaumont-sur-Tharonne) : par le nom puis le code postal, jamais devinée', () => {

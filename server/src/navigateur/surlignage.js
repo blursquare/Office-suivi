@@ -4,11 +4,11 @@
 // comme si c'était fait à la main sans dépasser »).
 // - « sans dépasser » : chaque parcelle est un chemin de découpe (clip) — rien n'est peint hors de son contour ;
 // - « à la main » : des passes de surligneur obliques, un peu irrégulières (angle, écart, épaisseur), qui se chevauchent, puis une
-//   passe le long du bord intérieur. L'encre est posée SOUS le plan, opaque, sans aucune transparence (étude 27/10 : « quand je mets un
+//   passe le long du bord intérieur. L'encre est opaque, sans aucune transparence (étude 27/10 : « quand je mets un
 //   plan du cadastre dans mon AAE Authentic, il me fait un PDF avec un gros amas jaune par-dessus la parcelle » — la conversion de
 //   l'acte électronique aplatit la transparence : l'encre translucide en mode « produit » posée PAR-DESSUS devenait un aplat qui
-//   cachait traits, bâtiments et numéros). Dessous, le plan est dessiné par-dessus le jaune : traits, numéros et bâtiments restent
-//   visibles partout, à l'écran, à l'impression et dans l'acte.
+//   cachait traits, bâtiments et numéros). Dans la parcelle, le plan est REDESSINÉ par-dessus les passes, couleurs déjà teintées de jaune
+//   (`copieTeinteePage`) : traits, numéros et bâtiments restent visibles, à l'écran, à l'impression et dans l'acte.
 // Le placement vient de l'emprise imprimée (MAPBBOX) et de l'échelle : la carte de l'extrait A4 portrait du site est toujours
 // centrée au même point de la page (relevé le 14/10 sur des extraits au 1/500 et au 1/1000, croix du quadrillage à 0,1 pt près).
 
@@ -83,15 +83,24 @@ const RE_GRIS_OP = new RegExp(`(${'[-+]?(?:\\d+\\.?\\d*|\\.\\d+)'})\\s+(g|G)(?![
 /** Pure : un flux de contenu (déjà en gris) dont chaque gris « v g » / « v G » devient sa teinte jaune « r v b rg » / « RG ». @param {string} texte */
 function teinterContenu(texte) {
   const f = (x) => (Math.round(Math.min(1, Math.max(0, x)) * 1000) / 1000).toString();
-  return texte.replace(RE_GRIS_OP, (_, v, op) => `${TEINTE.map((t) => f(Number(v) * t)).join(' ')} ${op === 'g' ? 'rg' : 'RG'}`);
+  const teinte = (v, remplissage) => `${TEINTE.map((t) => f(v * t)).join(' ')} ${remplissage ? 'rg' : 'RG'}`;
+  const N = '[-+]?(?:\\d+\\.?\\d*|\\.\\d+)';
+  // Couleurs d'un espace choisi par « cs » que le gris a laissées en « v v v sc » (RVB) ou « 0 0 0 x sc » (CMJN) : en RVB teinté.
+  return texte
+    .replace(new RegExp(`(${N})\\s+(${N})\\s+(${N})\\s+(${N})\\s+(sc|SC|scn|SCN)(?![A-Za-z0-9*])`, 'g'), (_, c, m, y, k, op) =>
+      teinte((1 - Math.min(1, Number(k))) * (0.299 * (1 - Math.min(1, Number(c))) + 0.587 * (1 - Math.min(1, Number(m))) + 0.114 * (1 - Math.min(1, Number(y)))), op === 'sc' || op === 'scn'))
+    .replace(new RegExp(`(${N})\\s+(${N})\\s+(${N})\\s+(sc|SC|scn|SCN)(?![A-Za-z0-9*])`, 'g'), (_, r, g, b, op) =>
+      teinte(0.299 * Number(r) + 0.587 * Number(g) + 0.114 * Number(b), op === 'sc' || op === 'scn'))
+    .replace(RE_GRIS_OP, (_, v, op) => teinte(Number(v), op === 'g'));
 }
 
 // ---- Fonds blancs retirés -------------------------------------------------------------------------------------------------------
 
 /**
- * Pure : un flux de contenu PDF dont les REMPLISSAGES BLANCS ne peignent plus rien (« f » → « n », « B » → « S », « b » → « s ») — le
- * plan de cadastre.gouv.fr commence par un fond blanc plein qui cacherait le jaune posé dessous ; sur une page blanche il ne montre
- * rien de plus. Les traits blancs, les autres couleurs, le texte et les chaînes ne sont pas touchés ; q/Q gardent la couleur courante.
+ * Pure : un flux de contenu PDF dont les FONDS blancs ne peignent plus rien (« f » → « n », « B » → « S », « b » → « s ») : les
+ * remplissages blancs posés AVANT toute autre peinture du flux (le fond plein du plan de cadastre.gouv.fr, qui cacherait les passes
+ * dans la copie teintée). Ceux qui viennent après (bandes blanches qui masquent ce qui déborde du cadre, halos des numéros) restent
+ * (relecture 0.373.3). Les traits, les autres couleurs, le texte et les chaînes ne sont pas touchés ; q/Q gardent la couleur courante.
  * Rend null si le flux porte une image en ligne (BI … EI).
  * @param {string} texte @returns {string | null}
  */
@@ -104,6 +113,7 @@ function sansFondsBlancs(texte) {
   let sortie = '';
   let dernier = 0;
   let change = false;
+  let peint = false;   // une peinture non blanche a déjà eu lieu : les blancs suivants sont des masques, on les garde
   for (let m; (m = RE.exec(texte));) {
     const t = m[0];
     if (/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(t)) { nombres.push(Number(t)); continue; }
@@ -115,9 +125,10 @@ function sansFondsBlancs(texte) {
     else if (t === 'cs') blanc = false;
     else if (t === 'q') pile.push(blanc);
     else if (t === 'Q') blanc = pile.length ? !!pile.pop() : false;
-    else if (blanc && (t === 'f' || t === 'F' || t === 'f*')) remplace = 'n';
-    else if (blanc && (t === 'B' || t === 'B*')) remplace = 'S';
-    else if (blanc && (t === 'b' || t === 'b*')) remplace = 's';
+    else if (blanc && !peint && (t === 'f' || t === 'F' || t === 'f*')) remplace = 'n';
+    else if (blanc && !peint && (t === 'B' || t === 'B*')) remplace = 'S';
+    else if (blanc && !peint && (t === 'b' || t === 'b*')) remplace = 's';
+    else if (['f', 'F', 'f*', 'B', 'B*', 'b', 'b*', 'S', 's', 'Tj', 'TJ', "'", '"', 'Do', 'sh'].includes(t)) peint = true;
     nombres = [];
     if (remplace) { sortie += texte.slice(dernier, m.index) + remplace; dernier = m.index + t.length; change = true; }
   }
@@ -168,8 +179,7 @@ async function griserPage(doc, page) {
   const flux = contenus instanceof PDFArray ? contenus.asArray().map((r) => ctx.lookup(r)) : (contenus ? [contenus] : []);
   const textes = flux.map((f) => (f instanceof PDFRawStream ? lire(f) : null));
   if (textes.length && textes.every((t) => t !== null)) {
-    const g0 = griserContenu(textes.join('\n'));
-    const gris = g0 === null ? null : sansFondsBlancs(g0);
+    const gris = griserContenu(textes.join('\n'));
     if (gris !== null) { page.node.set(PDFName.of('Contents'), ctx.register(ctx.flateStream(Buffer.from(gris, 'latin1')))); reecrits++; }
   }
   /** @param {any} ressources */
@@ -183,8 +193,7 @@ async function griserPage(doc, page) {
       if (!(f instanceof PDFRawStream) || String(f.dict.get(PDFName.of('Subtype'))) !== '/Form') continue;
       const t = lire(f);
       if (t === null) continue;
-      const g0 = griserContenu(t);
-      const gris = g0 === null ? null : sansFondsBlancs(g0);
+      const gris = griserContenu(t);
       if (gris !== null) {
         const entrees = {};
         for (const [k, v] of f.dict.entries()) { const n = String(k); if (!['/Length', '/Filter', '/DecodeParms'].includes(n)) entrees[n.slice(1)] = v; }
@@ -291,12 +300,17 @@ async function surlignerParcelles(pdf, plan) {
   // (bâtiments compris) ; traits et numéros restent noirs. Tout est opaque : rien à aplatir pour l'acte électronique.
   if (encre) {
     const copie = await copieTeinteePage(doc, page);
+    // Sans copie (flux illisible, image en ligne) : jamais d'aplat opaque sans le plan dessus — le trait du bord seul (relecture 0.373.3).
     if (copie) encre = encre.replace(/Q\n/g, `/ClaireTeinte Do Q\n`);
+    else encre = encre.split('\n').filter((l) => !l.startsWith(JAUNE_PASSES)).join('\n');
     const ctx = doc.context;
     const flux = ctx.register(ctx.flateStream(Buffer.from(encre, 'latin1')));
     const contenus = page.node.Contents();
     const avant = contenus instanceof PDFArray ? contenus.asArray() : [page.node.get(PDFName.of('Contents'))];
-    page.node.set(PDFName.of('Contents'), ctx.obj([...avant, flux]));
+    // Le contenu du site entre « q » et « Q » : un « cm » ou une découpe laissés en place ne déplacent pas la parcelle.
+    const ouvre = ctx.register(ctx.flateStream(Buffer.from('q\n', 'latin1')));
+    const ferme = ctx.register(ctx.flateStream(Buffer.from('\nQ\n', 'latin1')));
+    page.node.set(PDFName.of('Contents'), ctx.obj([ouvre, ...avant, ferme, flux]));
     if (copie) {
       const res = page.node.Resources();
       let xo = res.lookupMaybe(PDFName.of('XObject'), PDFDict);

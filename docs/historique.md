@@ -22537,3 +22537,12 @@ publique) :
   - `teinterContenu` : chaque gris v devient v × (1 ; 0,9725 ; 0,4775), ce que donnait l'encre translucide.
 - Résultat : bâtiment teinté, traits et numéros noirs, et 0 objet transparent dans le PDF (ni `ca`/`CA`, ni `BM`, ni `SMask` — testé).
 - Les plans déjà rangés sur le NAS gardent l'ancien surlignage : à tirer de nouveau.
+- **Relecture** (même version, avant l'envoi) :
+  - **Haut — bandes du cadre** : `sansFondsBlancs` s'appliquait aussi à la page d'origine, qui perdait ses bandes blanches masquant ce qui
+    déborde du cadre du plan. Tout le pourtour débordait. La page d'origine n'est plus que grisée.
+  - **Copie teintée** : seuls ses FONDS blancs sont retirés, c'est-à-dire les blancs peints avant toute autre peinture du flux ; masques et
+    halos de la fin restent.
+  - **Repli** : sans copie possible, le trait du bord seul, jamais un aplat sans le plan dessus.
+  - **Couleurs** : celles d'un espace « cs » laissées en `sc`/`scn` sont teintées aussi.
+  - **Contenu du site** : il est entouré de q/Q.
+  - Revérifié sur le vrai extrait : cadre identique à l'original, parcelle seule surlignée.
