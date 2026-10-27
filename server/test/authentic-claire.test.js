@@ -88,6 +88,13 @@ test('routes : réglages réservés à l’administrateur, mot de passe jamais r
     // Identifiants refusés : plus aucun essai tant qu'ils ne changent pas.
     await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', actif: true });
     assert.equal((await appel('/api/authentic-claire/formalite', 'POST', { type: 'envoyer', auteur: 'Bastien ANGLUMENT', dossierId: 'x' })).status, 400);
+    // Préparer des demandes : éteint par défaut (plan du 27/10, lecture seule) — la route refuse avant tout.
+    const eteinte = await appel('/api/authentic-claire/formalite', 'POST', { type: 'cjn', auteur: 'Bastien ANGLUMENT', dossierId: 'x' });
+    assert.equal(eteinte.status, 409);
+    assert.match((await eteinte.json()).erreur, /éteint/);
+    const reg = await (await appel('/api/authentic-claire/reglages')).json();
+    assert.equal(reg.preparerDemandes, false);
+    assert.ok(Array.isArray(reg.refus), 'les clics refusés sont dans les réglages');
   } finally { s.close(); db.close(); }
 });
 

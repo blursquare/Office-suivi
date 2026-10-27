@@ -23,13 +23,8 @@ const DOMAINES_AUTHENTIC = ['cloud-fichorga.fr'];
 const ADRESSE_DEFAUT = 'https://www.cloud-fichorga.fr/';
 const MAX_FICHES = 12;
 
-// Libellés jamais cliqués par CLAIRE dans Authentic (wiki de Fichorga, fichiers 03 § 9, 04 § 11, 06 ; décision de l'étude du 27/10).
-const RE_INTERDIT = /(envo[iy]|prêt pour envoi|pret pour envoi|signer|signature électronique|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|transmettre|télétransmettre|teletransmettre|déposer|deposer)/i;
-
-/** Pure : un libellé que CLAIRE ne clique jamais. @param {string} libelle */
-function libelleInterdit(libelle) {
-  return RE_INTERDIT.test(String(libelle || ''));
-}
+// Libellés jamais cliqués et gestes permis : authentic/garde.js (étape 1 du plan Authen.TIC, 27/10).
+const { libelleInterdit, controlerClic } = require('./authentic/garde');
 
 /** Pure : les réglages gardés, propres (secret compris : jamais rendu par une route). @param {any} brut */
 function assainirConnexionAuthentic(brut) {
@@ -38,6 +33,8 @@ function assainirConnexionAuthentic(brut) {
   try { const u = new URL(adresse); if (u.protocol !== 'https:' || !/(^|\.)cloud-fichorga\.fr$/i.test(u.hostname) || u.username || u.password) adresse = ''; } catch (_) { adresse = ''; }
   return {
     actif: b.actif === true,
+    // Préparer des demandes dans Authentic (CJN, Comedec) = ÉCRIRE dans Authentic : éteint par défaut (plan validé le 27/10 : lecture seule).
+    preparerDemandes: b.preparerDemandes === true,
     adresse: adresse || ADRESSE_DEFAUT,
     identifiant: typeof b.identifiant === 'string' ? b.identifiant.trim().slice(0, 120) : '',
     motDePasse: typeof b.motDePasse === 'string' ? b.motDePasse.slice(0, 200) : '',
@@ -52,7 +49,7 @@ function lireConnexionAuthentic(repo) { return assainirConnexionAuthentic(repo.l
 
 /** Ce qu'une route rend : jamais le mot de passe, seulement s'il est enregistré. @param {any} r */
 function vueConnexionAuthentic(r) {
-  return { actif: r.actif, adresse: r.adresse, identifiant: r.identifiant, motDePasseEnregistre: !!r.motDePasse, refuseLe: r.refuseLe };
+  return { actif: r.actif, preparerDemandes: r.preparerDemandes, adresse: r.adresse, identifiant: r.identifiant, motDePasseEnregistre: !!r.motDePasse, refuseLe: r.refuseLe };
 }
 
 /** Enregistre (mot de passe gardé s'il n'est pas réémis, effacé sur chaîne vide explicite). @param {any} repo @param {any} modif */
@@ -64,6 +61,7 @@ function ecrireConnexionAuthentic(repo, modif) {
   const change = identifiant.trim() !== avant.identifiant || motDePasse !== avant.motDePasse;
   const suivant = assainirConnexionAuthentic({
     actif: typeof m.actif === 'boolean' ? m.actif : avant.actif,
+    preparerDemandes: typeof m.preparerDemandes === 'boolean' ? m.preparerDemandes : avant.preparerDemandes,
     adresse: typeof m.adresse === 'string' ? m.adresse : avant.adresse,
     identifiant, motDePasse,
     // Le refus retenu tombe quand l'identifiant ou le mot de passe change ; `refuseLe` posé par le serveur seul (noterRefusAuthentic).
@@ -153,7 +151,9 @@ const scriptTrouverTexte = (cible, exact) => `(() => {
   const dessous = document.elementFromPoint(x, y);
   if (!dessous || !(meilleur.e.contains(dessous) || dessous.contains(meilleur.e))) return { cache: true, texte: String(meilleur.e.innerText).trim().slice(0, 160) };
   const bouton = dessous.closest('button, a, [role=button], .ui-button');
-  return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? String(bouton.innerText || bouton.getAttribute('title') || '').trim().slice(0, 80) : '' };
+  // Le libellé contrôlé du bouton : son texte, son titre, son aria-label et une icône de corbeille (audit 0.376.0 : une corbeille sans texte).
+  const icone = bouton && bouton.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
+  return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
 })()`;
 
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
@@ -218,20 +218,24 @@ async function scriptReleve(config) {
 }
 
 /**
- * Les gestes de base sur une séance (navigateur/session.js), pour les parcours ci-dessous.
- * @param {any} s @param {(texte: string) => void} etape
+ * Les gestes de base sur une séance (navigateur/session.js), pour les parcours ci-dessous. `o.ecriture` : écrire dans Authentic est permis
+ * pour CE parcours (préparation CJN / Comedec allumée par l'étude) ; sinon tout geste d'écriture est refusé par la garde.
+ * @param {any} s @param {(texte: string) => void} etape @param {{ ecriture?: boolean }} [o]
  */
-function gestes(s, etape) {
+function gestes(s, etape, o = {}) {
   const ev = (expr) => s.evaluer(expr);
   const cdp = (methode, params) => s.cdp.envoyer(methode, params, s.ongletActif().session);
-  /** Clique un texte visible (jamais un libellé interdit). @param {string} texte @param {{ exact?: boolean, permis?: boolean }} [o] */
-  async function cliquerTexte(texte, o = {}) {
-    const el = await ev(scriptTrouverTexte(texte, !!o.exact));
+  /**
+   * Clique un texte visible. Chaque clic dit son GESTE (authentic/garde.js) : connexion, navigation, donnee (un texte de la fiche : nom du
+   * dossier, d'une personne, d'un bien) ou ecriture ; la garde refuse un geste inconnu, une écriture non permise, un libellé hors de la liste
+   * du geste et tout bouton interdit sous le pointeur.
+   * @param {string} texte @param {{ exact?: boolean, geste: 'connexion' | 'navigation' | 'donnee' | 'ecriture' }} c
+   */
+  async function cliquerTexte(texte, c) {
+    const el = await ev(scriptTrouverTexte(texte, !!(c && c.exact)));
     if (!el) return false;
     if (el.cache) throw new Error(`« ${String(el.texte).slice(0, 40)} » est recouvert par autre chose : pas cliqué`);
-    // Un texte venu de la fiche (nom du dossier, d'une personne) peut contenir un mot de la liste (« EXPORTEC ») : seul le BOUTON
-    // réellement sous le pointeur compte alors ; un libellé du parcours est contrôlé lui-même.
-    if (libelleInterdit(el.bouton) || (!o.permis && libelleInterdit(el.texte))) throw new Error(`bouton « ${String(el.bouton || el.texte).slice(0, 40)} » refusé par CLAIRE`);
+    controlerClic({ geste: c && c.geste, vise: texte, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
     await s.cliquerPosition(el.x, el.y);
     return true;
   }
@@ -316,7 +320,7 @@ async function seConnecter(s, r, etape) {
   if (!id) throw new Error('champ « Identifiant » introuvable sur la page de connexion');
   await g.ecrire(id, r.identifiant);
   await g.ecrire(pw, r.motDePasse);
-  if (!(await g.cliquerTexte('Se connecter', { exact: true }))) await g.entree();
+  if (!(await g.cliquerTexte('Se connecter', { exact: true, geste: 'connexion' }))) await g.entree();
   await s.attendreStable(20000);
   await passerVerificationSilicium(s, etape);
   if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw Object.assign(new Error('connexion refusée par Authentic (identifiant ou mot de passe)'), { refusIdentifiants: true });
@@ -358,7 +362,7 @@ async function ouvrirDossier(s, cible, etape) {
   if (estCeDossier(await g.texte(), cible)) return;
   // Un lien qui porte la référence (« A 2026 00286 VTE … ») ou, sans référence, exactement le libellé.
   const essayer = async () => {
-    const ok = ref ? await g.cliquerTexte(ref, { permis: true }) : await g.cliquerTexte(lib, { exact: true, permis: true });
+    const ok = ref ? await g.cliquerTexte(ref, { geste: 'donnee' }) : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (!ok) return false;
     await s.attendreStable(15000);
     return estCeDossier(await g.texte(), cible);
@@ -381,7 +385,7 @@ async function ouvrirSousDossierVente(s, cible, etape) {
   const lignes = [...new Set(String(await g.texte()).split('\n').map((l) => l.trim()).filter((l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l)))];
   if (lignes.length !== 1) return false;   // aucun, ou plusieurs ventes : on ne choisit pas
   etape('Ouvre le sous-dossier de vente');
-  if (!(await g.cliquerTexte(lignes[0], { exact: true, permis: true }))) return false;
+  if (!(await g.cliquerTexte(lignes[0], { exact: true, geste: 'donnee' }))) return false;
   await s.attendreStable(12000);
   return estCeDossier(await g.texte(), cible);
 }
@@ -425,13 +429,13 @@ async function lireDossier(s, cible, o) {
   for (const [i, nom] of [...comparants, ...immeubles].entries()) {
     const fiche = i < comparants.length ? `la fiche client ${i + 1}` : `la fiche bien ${i - comparants.length + 1}`;
     try {
-      if (!(await g.cliquerTexte(nom, { exact: true, permis: true }))) continue;
+      if (!(await g.cliquerTexte(nom, { exact: true, geste: 'donnee' }))) continue;
       await s.attendreStable(12000);
       o.etape(`Relève ${fiche}`);
       await releverPage(s, o.script, o.recevoir);
       pages++;
       // Retour à la page du dossier : « Retour » d'Authentic, sinon l'onglet du dossier.
-      if (!(await g.cliquerTexte('Retour', { exact: true }))) await g.cliquerTexte(String(cible.reference || cible.libelle || ''), { permis: true });
+      if (!(await g.cliquerTexte('Retour', { exact: true, geste: 'navigation' }))) await g.cliquerTexte(String(cible.reference || cible.libelle || ''), { geste: 'donnee' });
       await s.attendreStable(12000);
       if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     } catch (e) { o.etape(`Passe ${fiche} (${String(e && e.message).slice(0, 60)})`); }
@@ -442,23 +446,25 @@ async function lireDossier(s, cible, o) {
 /**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
- * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean }>, etape: (t: string) => void }} o
+ * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
  */
 async function preparerFormalite(s, cible, o) {
-  const g = gestes(s, o.etape);
+  // Écrire dans Authentic : seulement si l'étude l'a allumé (Réglages › Authentic › « Préparer des demandes »), dit par l'appelant.
+  if (!o.ecriture) throw new Error('préparer des demandes dans Authentic est éteint (Réglages › Authentic) : rien n’est écrit');
+  const g = gestes(s, o.etape, { ecriture: true });
   if (!String(cible.reference || '').trim()) throw new Error('dossier sans référence d’Authentic retenue : aucune demande sans être sûr du dossier');
   await ouvrirDossier(s, cible, o.etape);
   if (!(await ouvrirSousDossierVente(s, cible, o.etape))) throw new Error('sous-dossier de vente introuvable (ou plusieurs) : aucune demande');
   o.etape('Ouvre les formalités préalables');
-  if (!(await g.cliquerTexte('Formalités préalables', { exact: true }))) throw new Error('onglet « Formalités préalables » introuvable');
+  if (!(await g.cliquerTexte('Formalités préalables', { exact: true, geste: 'navigation' }))) throw new Error('onglet « Formalités préalables » introuvable');
   await s.attendreStable(10000);
-  if (!(await g.cliquerTexte('Ajouter des formalités préalables', { exact: true }))) throw new Error('« Ajouter des formalités préalables » introuvable');
+  if (!(await g.cliquerTexte('Ajouter des formalités préalables', { exact: true, geste: 'ecriture' }))) throw new Error('« Ajouter des formalités préalables » introuvable');
   await s.attendreStable(10000);
   const nom = o.type === 'cjn' ? 'Casier Judiciaire National dématérialisé (CJN)' : 'Etat civil dématérialisé (COMEDEC)';
   const champ = await g.ev(scriptChamp('rechercher une formalit'));
   if (champ) { await g.ecrire(champ, o.type === 'cjn' ? 'Casier Judiciaire' : 'COMEDEC'); await attendre(1200); }
   o.etape(o.type === 'cjn' ? 'Ajoute la demande de casier judiciaire' : 'Ajoute la demande d’état civil');
-  if (!(await g.cliquerTexte(nom, { exact: true }))) throw new Error(`formalité « ${nom} » introuvable dans la liste`);
+  if (!(await g.cliquerTexte(nom, { exact: true, geste: 'ecriture' }))) throw new Error(`formalité « ${nom} » introuvable dans la liste`);
   await s.attendreStable(10000);
   if (!(await g.attendreTexte(o.type === 'cjn' ? /acqu[ée]reurs? [aâ]g[ée]s/i : /Type de Demande/i, 10000))) throw new Error('le bloc de la demande ne s’est pas affiché');
 
@@ -511,7 +517,7 @@ async function preparerFormalite(s, cible, o) {
   if (!i.envoi || i.envoi.coche !== false) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
   if (!i.rapide || i.rapide.coche !== true) throw new Error('« Création rapide » n’a pas pu être lue allumée : rien validé');
   o.etape('Création rapide allumée, Envoi immédiat éteint : valide la création');
-  if (!(await g.cliquerTexte('Valider', { exact: true }))) throw new Error('bouton « Valider » introuvable');
+  if (!(await g.cliquerTexte('Valider', { exact: true, geste: 'ecriture' }))) throw new Error('bouton « Valider » introuvable');
   await s.attendreStable(15000);
   const erreurs = (await g.ev(SCRIPT_ERREURS)) || [];
   if (erreurs.length) throw new Error('Authentic a répondu : ' + erreurs.join(' ; ').slice(0, 200));

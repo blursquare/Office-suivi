@@ -22694,3 +22694,20 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
     liens) gardé dans le détail ; un texte d'une autre forme perd seulement l'en-tête « CLAIRE — » ; la sorte (regroupement) se lit toujours
     sur le texte d'origine ; Teams garde ses textes. Message d'arrivée dans Authentic : « Sur VTE - X : 2 décisions à prendre, 1 pièce qui
     manque. » (`ideesPourDossierAuthentic`, client/127).
+- **0.376.0 (27/10, 18 h 25)** — Plan Authen.TIC validé par l'étude (« lance la création de chaque étape »), **étape 1 : garde-fous**.
+  `server/src/authentic/garde.js` : chaque clic du navigateur du serveur dit son GESTE (`connexion`, `navigation` — liste fermée de libellés —,
+  `donnee` — un texte de la fiche —, `ecriture`) ; `controlerClic` refuse un geste inconnu, un libellé hors de la liste du geste, une écriture
+  non permise et tout bouton de la liste noire sous le pointeur (élargie d'après la cartographie : expédier, parapheur, LRE, paraphe,
+  signature, annuler, Ajouter/Retirer du Micen, renommer, enregistrer, déplacer, partager, transférer, imprimer, détacher…) ; refus gardés
+  (50, sans texte de la page) et montrés dans Réglages › Authentic. **« Préparer des demandes dans Authentic (CJN, Comedec) »** = réglage
+  `preparerDemandes` de la clé `authentic-connexion`, ÉTEINT par défaut (réponse par défaut à la question 1 du plan : lecture seule) : route
+  `/formalite` 409, outil de l'agent refusé, routine « formalités Authentic » muette (`authenticActif`), `preparerFormalite` exige
+  `ecriture: true`. Tests : `server/test/authentic-garde.test.js`, fumée du faux Authentic (« éteint : aucun clic »).
+- **0.376.1 (27/10)** — Plan Authen.TIC, **étape 2 : modèle et adaptateur**. `commun/authentic-modele.js` (`// @ts-check`, types JSDoc
+  `InstantaneAT`, `SousDossierAT`, `FormaliteAT`, `ComparantAT`, `ImmeubleAT`, `PieceJointeAT`, `MailAT` — le « modèle TypeScript » du plan,
+  sans compilation) : fonctions pures depuis une page relevée — en-tête (référence, libellé), sous-dossier affiché, statut du badge et sa date
+  (`STATUTS_SOUS_DOSSIER_AT`), comparants et leur qualité, immeubles et leur étiquette, lignes des tableaux classées par badge (APR, ECV, T@,
+  ACT, MIC, SPR, BRI, CJN) et par section ; `instantaneDepuisPagesAT` (pages gardées par dossier, pagesAuthentic.js) et `versFicheAT`
+  (adaptateur vers ce que la fiche lit déjà). Route `GET /api/authentic/dossier/:id/instantane`, calculée à la demande, jamais stockée à part.
+  Branché sur les relevés actuels de l'extension et du navigateur du serveur ; rien ne change pour l'étude. Tests : `tests/authentic-modele.test.js`,
+  `server/test/pages-authentic.test.js`.

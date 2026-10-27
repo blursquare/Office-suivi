@@ -8794,6 +8794,7 @@ button.appel-entrant-fermer svg { width: 14px; height: 14px; }
 .appels-quand, .appels-numero { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .appels-plus summary { cursor: pointer; font-size: var(--texte-s); color: var(--ink-soft); padding-top: 4px; }
 .reglages-sous-titre { margin: 14px 0 4px; font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+.authentic-refus { margin: 0; padding-left: 16px; font-size: var(--texte-s); color: var(--muted); }
 @media (max-width: 600px) {
   .appels-liste li { grid-template-columns: minmax(0, 1fr) auto; }
   .appels-liste li .appels-numero { grid-column: 1 / -1; }

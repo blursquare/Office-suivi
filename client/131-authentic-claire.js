@@ -84,7 +84,8 @@ async function demandeAuthenticAgent(entree) {
   const e = entree || {};
   const d = dossiers.find(x => x.id === e.dossier_id);
   if (!d) return { erreur: 'dossier_id inconnu' };
-  const c = connexionAuthenticClaire || await chargerConnexionAuthenticClaire();
+  // Relu à chaque demande : un réglage changé par l'administrateur sur un autre poste compte tout de suite (audit 0.376.0).
+  const c = await chargerConnexionAuthenticClaire() || connexionAuthenticClaire;
   if (!c || !c.actif || !c.identifiant || !c.motDePasseEnregistre) return { erreur: 'connexion de CLAIRE à Authentic non réglée ou éteinte (Réglages › Authentic, administrateur)' };
   if (c.refuseLe) return { erreur: 'Authentic a refusé l’identifiant ou le mot de passe : à corriger dans Réglages › Authentic' };
   if (e.mode === 'lire') {
@@ -92,6 +93,8 @@ async function demandeAuthenticAgent(entree) {
     return r.ok ? { fait: true, statut: 'fait', resultat: r.texte } : { erreur: r.texte, statut: 'echec' };
   }
   if (e.mode !== 'cjn' && e.mode !== 'comedec') return { erreur: 'mode inconnu (lire, cjn, comedec)' };
+  // Écrire dans Authentic est éteint par défaut (plan du 27/10) : l'administrateur l'allume dans Réglages › Authentic.
+  if (!c.preparerDemandes) return { erreur: 'préparer des demandes dans Authentic est éteint (Réglages › Authentic, administrateur) : CLAIRE ne fait que lire', statut: 'echec' };
   return preparerFormaliteAuthentic(d, e.mode, { agent: true });
 }
 
@@ -130,6 +133,11 @@ async function renderReglagesConnexionAuthentic(o) {
           <span class="reglages-option-sous">${c.refuseLe ? `Arrêtée : Authentic a refusé l’identifiant ou le mot de passe le ${formatDateFr(String(c.refuseLe).slice(0, 10))} — corrigez-les pour reprendre` : c.actif ? (c.motDePasseEnregistre ? 'Allumée' : 'Allumée, mot de passe à enregistrer') : 'Éteinte'}</span></span>
         <wa-switch class="switch reglages-switch" id="authentic-claire-actif"${c.actif ? ' checked' : ''}${dis}></wa-switch>
       </label>
+      <label class="reglages-option" for="authentic-claire-demandes">
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Préparer des demandes dans Authentic <span class="mot-et-info">(CJN, Comedec) ${infoBulle('Éteint, CLAIRE ne fait que LIRE Authentic. Allumé, elle peut créer une demande de casier judiciaire ou d’état civil après « Autoriser » — Création rapide, Envoi immédiat éteint : rien n’est jamais envoyé.')}</span></span>
+          <span class="reglages-option-sous">${c.preparerDemandes ? 'Allumé : CLAIRE peut créer une demande, jamais l’envoyer' : 'Éteint : lecture seule'}</span></span>
+        <wa-switch class="switch reglages-switch" id="authentic-claire-demandes"${c.preparerDemandes ? ' checked' : ''}${dis}></wa-switch>
+      </label>
       <div class="reglages-champ"><label for="authentic-claire-adresse">Adresse de connexion</label><input type="text" id="authentic-claire-adresse" value="${escapeAttr(c.adresse || '')}" autocomplete="off"${dis}></div>
       <div class="reglages-champ"><label for="authentic-claire-identifiant">Identifiant</label><input type="text" id="authentic-claire-identifiant" value="${escapeAttr(c.identifiant || '')}" autocomplete="off"${dis}></div>
       <div class="reglages-champ"><label for="authentic-claire-mdp">Mot de passe</label><input type="password" id="authentic-claire-mdp" placeholder="${c.motDePasseEnregistre ? 'Enregistré — laisser vide pour le garder' : ''}" autocomplete="new-password"${dis}></div>
@@ -138,12 +146,14 @@ async function renderReglagesConnexionAuthentic(o) {
       <wa-button variant="brand" onclick="enregistrerConnexionAuthentic()">Enregistrer</wa-button>
       <wa-button appearance="outlined" class="secondary" onclick="essayerConnexionAuthentic()">Essayer la connexion</wa-button>
     </div>` : '<p class="hint">Réglé par l’administrateur.</p>'}
-    <p class="hint" id="authentic-claire-essai"></p>`;
+    <p class="hint" id="authentic-claire-essai"></p>
+    ${(c.refus || []).length ? `<div class="reglages-sous-titre">Clics refusés par CLAIRE ${infoBulle('Chaque clic de CLAIRE dans Authentic est contrôlé : un bouton qui envoie, signe, supprime, paraphe ou archive n’est jamais cliqué. Ces refus sont normaux ; s’ils se répètent, un parcours a buté sur un écran inattendu.')}</div>
+      <ul class="authentic-refus">${c.refus.map(x => `<li>${escapeHtml(new Date(x.quand).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))} — ${escapeHtml(x.motif)}${x.libelle ? ` : « ${escapeHtml(x.libelle)} »` : ''}</li>`).join('')}</ul>` : ''}`;
 }
 
 async function enregistrerConnexionAuthentic() {
   const val = (id) => (document.getElementById(id) || {}).value;
-  const corps = { auteur: utilisateurPoste || '', actif: !!(document.getElementById('authentic-claire-actif') || {}).checked, adresse: val('authentic-claire-adresse') || '', identifiant: val('authentic-claire-identifiant') || '' };
+  const corps = { auteur: utilisateurPoste || '', actif: !!(document.getElementById('authentic-claire-actif') || {}).checked, preparerDemandes: !!(document.getElementById('authentic-claire-demandes') || {}).checked, adresse: val('authentic-claire-adresse') || '', identifiant: val('authentic-claire-identifiant') || '' };
   const mdp = val('authentic-claire-mdp');
   if (mdp) corps.motDePasse = mdp;
   try {

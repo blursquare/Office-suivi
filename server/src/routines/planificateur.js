@@ -150,7 +150,7 @@ function creerPlanificateur(deps) {
     try { return new Set((parametresRepo.lireSondagesCreneaux ? parametresRepo.lireSondagesCreneaux() : []).filter((x) => x && x.statut === 'ouvert' && x.dossierId).map((x) => x.dossierId)); } catch (e) { return new Set(); }
   };
   // La connexion de CLAIRE à Authentic (Réglages › Authentic) : sans elle, aucune demande Comedec / CJN n'est proposée.
-  const authenticActif = () => { try { const c = require('../authenticClaire').lireConnexionAuthentic(parametresRepo); return !!(c.actif && c.identifiant && c.motDePasse); } catch (e) { return false; } };
+  const authenticActif = () => { try { const c = require('../authenticClaire').lireConnexionAuthentic(parametresRepo); return !!(c.actif && c.preparerDemandes && c.identifiant && c.motDePasse); } catch (e) { return false; } };
   const lireEmail = deps.lireEmail || ((id) => require('../emailsDossiers').lireEmailComplet(parametresRepo, id, deps.injectionsEmails || {}));
   const ia = () => deps.ia || IA.creerIaRoutines({ parametresRepo });
 

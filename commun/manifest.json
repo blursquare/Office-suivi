@@ -16,5 +16,6 @@
   "attestation-rib.js",
   "signature-rib.js",
   "reactions.js",
-  "html-canal.js"
+  "html-canal.js",
+  "authentic-modele.js"
 ]

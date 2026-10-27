@@ -287,7 +287,8 @@ const JOURS_CJN_AVANT_SIGNATURE = 30;
 const DATE_DEBUT_COMEDEC_AUTHENTIC = '2026-10-27';
 
 /**
- * Pour un dossier de vente relié à Authentic (référence retenue) et la connexion de CLAIRE allumée (`ctx.authenticActif`) : la demande
+ * Pour un dossier de vente relié à Authentic (référence retenue), la connexion de CLAIRE allumée ET « Préparer des demandes » allumé
+ * (`ctx.authenticActif`, plan du 27/10 : lecture seule par défaut) : la demande
  * d'état civil (Comedec) une fois par dossier, tant que l'acte n'est pas signé et qu'aucun état civil n'est relevé dans Authentic ; la
  * demande de casier (CJN) quand l'étude reçoit l'acte, qu'un acquéreur est une personne physique et que la signature est dans 30 jours.
  * Le poste fait la demande après « Autoriser » (client/131), Création rapide, sans envoi.

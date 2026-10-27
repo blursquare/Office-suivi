@@ -28,6 +28,7 @@
 // application/json : une page web d'un autre site ne peut pas en poster sans prévol CORS (auquel le
 // serveur ne répond pas) ; l'extension, elle, a la permission de l'adresse de CLAIRE.
 
+const { instantaneDepuisPagesAT, versFicheAT } = require('../../../commun/authentic-modele');
 const express = require('express');
 const crypto = require('node:crypto');
 const { adressesLan } = require('../reseau');
@@ -321,6 +322,15 @@ function creerRouteurAuthentic(options) {
     res.setHeader('Cache-Control', 'no-store');
     if (!pages) { res.json({ pages: [] }); return; }
     res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
+  });
+  // L'instantané d'un dossier (plan Authen.TIC du 27/10, étape 2 ; commun/authentic-modele.js) : sous-dossier, comparants, immeubles,
+  // formalités préalables, actes, formalités postérieures — calculé à la demande depuis les pages gardées, jamais stocké à part.
+  routeur.get('/authentic/dossier/:id/instantane', (req, res) => {
+    const id = String(req.params.id || '');
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) { res.status(400).json({ error: 'Identifiant invalide.' }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    const inst = pages ? instantaneDepuisPagesAT(pages.pages(id)) : null;
+    res.json({ instantane: inst, fiche: versFicheAT(inst) });
   });
   // « Oublier ce qui vient d'Authentic » : les pages gardées partent aussi (sinon la relecture les remettrait).
   routeur.delete('/authentic/dossier/:id/pages', (req, res) => {

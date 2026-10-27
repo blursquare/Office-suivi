@@ -110,3 +110,26 @@ test('serveur : promesse lue comme le poste (en-tête sur sa ligne, onglets inac
     onglets: [{ titre: '1 - Promesse VTE MARTEL/FOURNIER Importer avec 6e SENS', actif: false }, { titre: '2 - VTE MARTEL / FOURNIER', actif: true }] };
   assert.equal(pageHorsVenteAuthentic(vente), false);
 });
+
+// Plan Authen.TIC du 27/10, étape 2 : l'instantané d'un dossier calculé depuis ses pages gardées (commun/authentic-modele.js).
+test('instantané : sous-dossier, statut, comparants et formalités lus dans la page gardée du dossier', async () => {
+  const pages = creerPagesAuthentic(baseDossiers());
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: {
+    titre: 'x', champs: [], texte: 'A 2026 00500 VTE ESSAI / EXEMPLE\n2 - VTE ESSAI / EXEMPLE\nSigné\n29/09/2026\nComparants (1)\nM. ESSAI Paul\nVendeur',
+    tableaux: [{ titre: 'Rédaction', entete: [], lignes: [['ACT Vente ESSAI', '', 'Signé le 29/09/2026', '29/09/2026', 'Signé le 29/09/2026']] }] } });
+  const app = express();
+  app.use('/api', creerRouteurAuthentic({ pages, origine: () => 'local' }));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  const base = `http://127.0.0.1:${serveur.address().port}/api`;
+  try {
+    const r = await (await fetch(base + '/authentic/dossier/v1/instantane')).json();
+    assert.equal(r.instantane.reference, 'A 2026 00500');
+    assert.equal(r.instantane.sousDossier.statut, 'Signé');
+    assert.equal(r.instantane.sousDossier.comparants[0].role, 'Vendeur');
+    assert.equal(r.fiche.acte.badge, undefined);
+    assert.equal(r.fiche.statutSousDossier.le, '2026-09-29');
+    const vide = await (await fetch(base + '/authentic/dossier/v2/instantane')).json();
+    assert.equal(vide.instantane, null, 'aucune page gardée : rien');
+    assert.equal((await fetch(base + '/authentic/dossier/..%2Fx/instantane')).status, 400);
+  } finally { serveur.close(); }
+});

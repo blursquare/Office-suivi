@@ -40,13 +40,13 @@ try {
   verifier(r.pages === 4 && captures.length === 4, `lecture : page du dossier + 3 fiches relevées (${captures.length})`);
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
 
-  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape });
+  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true });
   verifier(!(await s.evaluer('window.__mauvais')), 'l’homonyme des résultats (autre référence) n’est jamais pris');
   const cjn = await s.evaluer('window.__valide');
   verifier(cjn && cjn.type === 'cjn' && cjn.rapide === true && cjn.envoi === false, `CJN validée avec Création rapide allumée et Envoi immédiat ÉTEINT (${JSON.stringify(cjn)})`);
 
   const parties = [{ nom: 'MARTIN', prenom: 'Paul', marie: false }, { nom: 'DURAND', prenom: 'Claire', marie: true }];
-  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'comedec', parties, etape });
+  await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'comedec', parties, etape, ecriture: true });
   const com = await s.evaluer('window.__valide');
   verifier(com && com.type === 'comedec' && com.envoi === false && com.rapide === true, 'Comedec validée sans envoi');
   const choix = (com && com.choix) || {};
@@ -57,8 +57,13 @@ try {
   verifier(!etapes.some((t) => t.includes('secret-essai')), 'le mot de passe n’apparaît dans aucune étape');
   // Sans référence : aucune demande (on ne peut pas être sûr du dossier).
   let refus = '';
-  try { await A.preparerFormalite(s, { reference: '', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape }); } catch (e) { refus = e.message; }
+  try { await A.preparerFormalite(s, { reference: '', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true }); } catch (e) { refus = e.message; }
   verifier(/sans référence/.test(refus), 'sans référence d’Authentic : aucune demande');
+  // Écriture éteinte (défaut, plan du 27/10) : rien n'est tenté dans Authentic.
+  await s.evaluer('window.__valide = null');
+  let eteinte = '';
+  try { await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape }); } catch (e) { eteinte = e.message; }
+  verifier(/éteint/.test(eteinte) && !(await s.evaluer('window.__valide')), 'préparer des demandes éteint : aucune demande, aucun clic');
 } catch (e) {
   console.log('  ÉCHEC parcours interrompu :', e && e.message);
   echecs++;

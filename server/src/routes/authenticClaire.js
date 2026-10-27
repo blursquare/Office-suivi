@@ -91,7 +91,7 @@ function creerRouteurAuthenticClaire(o) {
     return d;
   };
 
-  routeur.get('/authentic-claire/reglages', (req, res) => { res.json(A.vueConnexionAuthentic(A.lireConnexionAuthentic(repo))); });
+  routeur.get('/authentic-claire/reglages', (req, res) => { res.json(Object.assign(A.vueConnexionAuthentic(A.lireConnexionAuthentic(repo)), { refus: require('../authentic/garde').refusRecents().slice(0, 10) })); });
 
   // Le compte de l'étude ne se règle que par un administrateur (Bastien, Sophie).
   routeur.put('/authentic-claire/reglages', (req, res) => {
@@ -121,6 +121,8 @@ function creerRouteurAuthenticClaire(o) {
     const b = req.body && typeof req.body === 'object' ? req.body : {};
     const type = b.type === 'cjn' || b.type === 'comedec' ? b.type : '';
     if (!type) { res.status(400).json({ erreur: 'Demande inconnue (cjn ou comedec).' }); return; }
+    // Écrire dans Authentic : éteint par défaut (plan du 27/10, lecture seule) ; l'administrateur l'allume dans Réglages › Authentic.
+    if (!A.lireConnexionAuthentic(repo).preparerDemandes) { res.status(409).json({ erreur: 'Préparer des demandes dans Authentic est éteint (Réglages › Authentic) : CLAIRE ne fait que lire.' }); return; }
     if (!collaborateurDe(b.auteur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const d = dossierDe(req, res); if (!d) return;
     const parties = partiesDemande(b.parties);
@@ -132,7 +134,7 @@ function creerRouteurAuthenticClaire(o) {
     if (faites[cle] && b.refaire !== true) { res.status(409).json({ erreur: `Déjà préparée par CLAIRE le ${String(faites[cle]).slice(0, 10).split('-').reverse().join('/')} : vérifiez dans Authentic avant d’en créer une autre.` }); return; }
     const nom = type === 'cjn' ? 'Demande de casier judiciaire (CJN)' : 'Demande d’état civil (Comedec)';
     repondre(res, () => lancer('authentic-' + type, nom + ' dans Authentic', d, async (t, s, etape) => {
-      const r = await A.preparerFormalite(s, cibleAuthentic(d), { type, parties, etape });
+      const r = await A.preparerFormalite(s, cibleAuthentic(d), { type, parties, etape, ecriture: A.lireConnexionAuthentic(repo).preparerDemandes });
       const deja = repo.lireJsonBrut(CLE_DEMANDES_AUTHENTIC, {}) || {};
       deja[cle] = new Date().toISOString();
       repo.ecrireJsonBrut(CLE_DEMANDES_AUTHENTIC, deja);
