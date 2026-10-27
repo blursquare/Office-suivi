@@ -31,7 +31,15 @@
   <button type="button" onclick="seConnecter()">Se connecter</button>
 </div>
 
-<div class="barre" id="barre" style="display:none">AUTHEN.TIC <input type="text" placeholder="Rechercher" id="recherche"></div>
+<div class="barre" id="barre" style="display:none">AUTHEN.TIC <input type="text" placeholder="Rechercher" id="recherche">
+  <!-- Menus (étape 7) : « Suivis » et « Office Manager » ouvrent leurs entrées ; chaque écran de suivi porte « Exporter », jamais cliqué. -->
+  <span><button type="button" onclick="menu('m-suivis')">Suivis</button><span class="sous-menu" id="m-suivis" style="display:none">
+    <a class="lien" onclick="suivi('micen')">Suivi MICEN</a> <a class="lien" onclick="suivi('safer')">Suivi SAFER/DIA-DPU</a> <a class="lien" onclick="suivi('etatCivil')">Suivi État-Civil</a></span></span>
+  <span><button type="button" onclick="menu('m-om')">Office Manager</button><span class="sous-menu" id="m-om" style="display:none">
+    <a class="lien" onclick="suivi('actesASigner')">Actes à signer</a> <a class="lien" onclick="window.__interdit = 'Actes signés (graphique)'">Statistique</a></span></span>
+</div>
+<div class="vue" id="ecran-suivi"><h2 id="suivi-titre"></h2><table><thead><tr><th>N° dossier</th><th>Libellé</th><th>Date</th><th>Situation</th></tr></thead><tbody id="suivi-lignes"></tbody></table>
+  <button type="button" onclick="window.__interdit = 'Exporter'">Exporter</button></div>
 
 <div class="vue" id="accueil"><h2>Derniers dossiers ouverts</h2><p>Aucun dossier récent</p><div id="resultats"></div></div>
 
@@ -107,6 +115,20 @@
     document.getElementById('barre').style.display = id === 'connexion' || id === 'silicium' ? 'none' : 'flex';
   }
   window.__apercus = 0;
+  window.__suivis = [];
+  function menu(id) { document.querySelectorAll('.sous-menu').forEach((m) => { m.style.display = m.id === id ? 'inline' : 'none'; }); }
+  const LIGNES_SUIVIS = {
+    actesASigner: [['A 2026 00500', 'Vente MARTIN / DURAND', '15/11/2026', 'À signer']],
+    safer: [['A 2026 00500', 'Formulaire A - DIA auprès de la safer', '01/10/2026', 'Pris en compte'], ['A 2026 00777', 'DIA mairie ESSAI', '02/09/2026', 'Non préemption SAFER']],
+    etatCivil: [['A 2026 00500', 'Acte de naissance - MARTIN Paul', '01/10/2026', 'Envoyé']],
+    micen: [['A 2026 00400', 'Copie authentique ESSAI', '20/10/2026', 'Prêt']]
+  };
+  function suivi(cle) {
+    window.__suivis.push(cle); menu('');
+    document.getElementById('suivi-titre').textContent = cle;
+    document.getElementById('suivi-lignes').innerHTML = LIGNES_SUIVIS[cle].map((l) => '<tr>' + l.map((c) => '<td>' + c + '</td>').join('') + '</tr>').join('');
+    voir('ecran-suivi');
+  }
   function selectTreeNode(e, pj) { document.getElementById('visionneuse').src = '/41089-Authentic/javax.faces.resource/dynamiccontent.properties.xhtml?ln=primefaces&elementId=' + pj; }
   function ouvrirApercu() { window.__apercus++; document.getElementById('sideView').style.display = 'block'; }
   function fermerApercu() { document.getElementById('sideView').style.display = 'none'; }

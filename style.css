@@ -11403,6 +11403,23 @@ p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }
 .at-statut { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 .at-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .at-apercu { grid-column: 2 / -1; font-size: var(--texte-xs); color: var(--muted); }
+.at-ligne-suivi { grid-template-columns: 96px minmax(0, 1fr) auto auto; }
+/* Widget « Suivis d'Authentic » (étape 7) : quatre compteurs, puis les lignes en attente. */
+.sa-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.sa-tuile { display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: var(--rayon-m); background: var(--paper-sunk); min-width: 0; }
+.sa-nombre { font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sa-libelle { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-liste { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; min-height: 0; overflow-y: auto; }
+.sa-vide { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }
+.sa-ligne { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border: 0; border-radius: var(--rayon-s); background: none; color: inherit; font: inherit; font-size: var(--texte-s); text-align: left; }
+button.sa-ligne { cursor: pointer; }
+button.sa-ligne:hover { background: var(--paper-sunk); }
+.sa-ligne > * { min-width: 0; }
+.sa-ecran { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-texte b { font-weight: 500; }
+.sa-dossier, .sa-date { color: var(--muted); }
+.sa-date { font-size: var(--texte-xs); white-space: nowrap; }
 .at-ged-dossier { list-style: none; margin-top: 6px; font-size: var(--texte-xs); color: var(--muted); }
 .at-ged-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-s); }
 .at-ged-ligne > .at-libelle { flex: 1 1 160px; min-width: 0; }

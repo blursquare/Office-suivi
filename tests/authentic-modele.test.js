@@ -100,3 +100,38 @@ test('étape 5 : la liste des pièces jointes (GED) — la dernière vue, identi
   ]);
   assert.equal(inst.sousDossier.pieces.map((p) => `${p.pjId}:${p.dossierGed}`).join('|'), 'pj11:Non classé|pj12:Annexes MICEN');
 });
+
+test('suivis (étape 7) : colonnes par leur en-tête, référence lue, une décision sort de l’attente ; compteurs et lignes d’un dossier', () => {
+  const capture = { tableaux: [
+    { titre: 'petit', entete: ['x'], lignes: [['A 2026 00999']] },
+    { titre: '', entete: ['N° dossier', 'Libellé', 'Date', 'Situation'], lignes: [
+      ['A 2026 00500', 'Formulaire A - DIA auprès de la safer', '01/10/2026', 'Pris en compte'],
+      ['A2026 00777', 'DIA mairie ESSAI', '02/09/2026', 'Non préemption SAFER'],
+      ['', '', '', ''],
+      ['Aucun enregistrement trouvé']] }] };
+  const s = M.suiviDepuisCaptureAT('safer', capture, '2026-10-27T10:00:00Z');
+  assert.equal(s.lignes.length, 2);
+  assert.equal(s.lignes[0].reference, 'A 2026 00500');
+  assert.equal(s.lignes[0].libelle, 'Formulaire A - DIA auprès de la safer');
+  assert.equal(s.lignes[0].situation, 'Pris en compte');
+  assert.equal(s.lignes[0].enAttente, true);
+  assert.equal(s.lignes[1].reference, 'A 2026 00777');
+  assert.equal(s.lignes[1].enAttente, false);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Réponse positive'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Envoyé'), true);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Réponse négative'), true, 'rien délivré : à reprendre');
+  const ec = M.suiviDepuisCaptureAT('etatCivil', { texte: 'Résultats (1 of 3)', tableaux: [{ entete: ['Type d’état civil', 'Dossier', 'Date', 'Etat'], lignes: [['Naissance', 'A 2026 00500 VTE ESSAI / TEST', '01/10/2026', 'Réponse positive']] }] }, 'x');
+  assert.equal(ec.lignes[0].situation, 'Réponse positive', 'l’en-tête « Etat » et non « Type d’état civil »');
+  assert.equal(ec.lignes[0].reference, 'A 2026 00500');
+  assert.equal(ec.lignes[0].enAttente, false);
+  assert.equal(ec.tronque, true, 'tableau paginé : dit');
+  assert.equal(M.ligneSuiviEnAttenteAT('micen', 'Prêt'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('actesASigner', ''), true);
+  const c = M.compteursSuivisAT({ safer: s }, ['A 2026 00500']);
+  assert.equal(c.safer.total, 2);
+  assert.equal(c.safer.enAttente, 1);
+  assert.equal(c.safer.dansClaire, 1);
+  assert.equal(c.micen, null, 'écran jamais lu : rien, pas zéro');
+  assert.equal(M.suivisDuDossierAT({ safer: s }, 'A 2026 00500').length, 1);
+  assert.equal(M.suivisDuDossierAT({ safer: s }, '').length, 0);
+});

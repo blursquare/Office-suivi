@@ -917,3 +917,30 @@ test('modele_email (audit 0.374.0) : aucun code rétabli, chacun devient « [à 
   assert.match(envoye, /Résultat retenu/, 'un tableau relu aux valeurs recodées est retenu comme un calcul');
   assert.doesNotMatch(envoye, /UEFVTCBGT1VSTklFUg==/);
 });
+
+test('authentic_lire (27/10, étape 8) : rien de nominatif ne part des formalités, pièces jointes et suivis ; dates et états partent', async () => {
+  const o = OUTILS_AGENT.find((t) => t.name === 'authentic_lire');
+  assert.ok(o, 'outil authentic_lire proposé');
+  assert.deepEqual(o.input_schema.properties.vue.enum, ['dossier', 'suivis']);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('a1', 'authentic_lire', { vue: 'dossier', dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Où en est Fournier dans Authentic ?', dossiers: D, contexte: {} }, opts);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 'a1', contenu: {
+    dossier_id: 'd1', lu_le: '2026-10-27T09:00:00Z',
+    sous_dossier: { intitule: '2 - VTE FOURNIER / GAUTHIER', statut: 'Préparation définitive', statut_le: '2026-10-14',
+      formalites_prealables: [{ type: 'ECV', libelle: 'ECV État-Civil - Acte de Naissance - FOURNIER Paul', etat: 'Réponse positive', dates: ['2026-10-01'], recuLe: '2026-10-05' },
+        { type: 'APR', libelle: 'Lettre de mission Gauthier Léa', etat: 'Envoyé', dates: ['2026-10-02'] }],
+      actes: [{ type: 'ACT', libelle: 'Acte de vente', etat: 'Non rédigé', dates: [] }], formalites_posterieures: [],
+      pieces_jointes: [{ nom: 'Titre de propriété FOURNIER.pdf', dossier_ged: 'Non classé', piece_de_claire: 'Titre de propriété', recue_dans_claire: true, aussi_sur_le_nas: false }] },
+    dans_les_suivis: [{ ecran: 'SAFER et DIA', libelle: 'DIA mairie 2 rue des Tanneurs', situation: 'Pris en compte', dates: ['2026-10-03'], en_attente: true }]
+  } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-900));
+  assert.match(envoye, /Réponse positive/);
+  assert.match(envoye, /2026-10-05/);
+  assert.match(envoye, /Préparation définitive/);
+  assert.equal(r.reponse, 'Voilà.');
+});

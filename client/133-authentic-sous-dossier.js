@@ -75,6 +75,7 @@ function htmlSousDossierAT(d) {
       ${sd.statut ? `<span class="dot-label ${classeStatutSousDossierAT(sd.statut)}"><span class="dot"></span>${escapeHtml(sd.statut)}${sd.statutLe ? ` · ${escapeHtml(formatDateFr(sd.statutLe))}` : ''}</span>` : ''}
       ${infoBulle('Ce que montre le sous-dossier dans Authentic, à la dernière page relevée' + (lu ? ` (${lu.toLowerCase()})` : '') + ' : rien n’est écrit dans Authentic ni sur la fiche.')}</div>
     ${groupes || (sd.pieces || []).length ? groupes : '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
+    ${typeof htmlSuivisDossierAT === 'function' ? htmlSuivisDossierAT(d) : ''}
     ${htmlPiecesJointesAT(d, sd)}
   </div>`;
 }

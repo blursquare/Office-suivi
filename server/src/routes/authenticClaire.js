@@ -9,6 +9,7 @@ const A = require('../authenticClaire');
 const { collaborateurDe } = require('./routines');
 const { ajouterMessage, canalDuDossier } = require('../canaux/canaux');
 const { noterVerification } = require('../verificationsTerrain');
+const AT = require('../../../commun/authentic-modele');
 
 const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 // Demandes déjà créées par CLAIRE (dossier + type → date) : jamais deux fois la même (un rejet CJN est facturé ; relecture 0.373.0).
@@ -16,6 +17,10 @@ const CLE_DEMANDES_AUTHENTIC = 'authentic-demandes';
 const DUREE_MAX_TACHE_MS = 8 * 60 * 1000;
 // Le PDF d'une pièce jointe reste en mémoire 5 minutes, le temps que le poste le lise.
 const DUREE_PIECE_MS = 5 * 60 * 1000;
+// Les écrans de suivi d'Authentic lus par CLAIRE (étape 7) : gardés sur le serveur du bureau, relus à la demande seulement (« Relire
+// maintenant » du widget) — jamais de connexion automatique au compte de l'étude (audit 0.382.0 : une session ouverte par CLAIRE pourrait
+// déconnecter un collaborateur connecté sous le même compte).
+const CLE_SUIVIS_AUTHENTIC = 'authentic-suivis';
 
 /** Pure : le libellé du dossier tel qu'Authentic l'écrit (« VTE NOM / NOM »), d'après la fiche CLAIRE. @param {any} d */
 function cibleAuthentic(d) {
@@ -142,6 +147,46 @@ function creerRouteurAuthenticClaire(o) {
     }, `piece:${d.id}:${pjId}`, { silencieux: true }));
   });
 
+  // Les suivis d'Authentic (étape 7) : la tâche du navigateur lit les quatre écrans ; le tableau de bord en tire ses compteurs.
+  const lancerSuivis = () => lancer('authentic-suivis', 'Lecture des suivis dans Authentic', null, async (t, s, etape) => {
+    const captures = await A.lireSuivis(s, { script: await releve(), etape });
+    const luLe = new Date().toISOString();
+    const avant = repo.lireJsonBrut(CLE_SUIVIS_AUTHENTIC, null) || {};
+    /** @type {Record<string, any>} */
+    const ecrans = Object.assign({}, avant.ecrans || {});
+    for (const [cle, capture] of Object.entries(captures)) ecrans[cle] = AT.suiviDepuisCaptureAT(/** @type {any} */ (cle), capture, luLe);
+    const n = Object.keys(captures).length;
+    // « Lu » seulement quand un écran l'a été (audit 0.382.0 : sinon le widget disait « Lu à … » sur des données anciennes).
+    repo.ecrireJsonBrut(CLE_SUIVIS_AUTHENTIC, { luLe: n ? luLe : (avant.luLe || ''), essaiLe: luLe, ecrans });
+    noterVerification(repo, 'authentic-suivis', n ? { detail: `${n} écran(s)` } : { ok: false, message: 'aucun écran de suivi trouvé' });
+    return n ? `J’ai lu ${n} écran${n > 1 ? 's' : ''} de suivi dans Authentic.` : 'Aucun écran de suivi trouvé dans Authentic.';
+  }, 'suivis');
+
+  routeur.post('/authentic-claire/suivis', (req, res) => {
+    if (!collaborateurDe(req.body && req.body.auteur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    repondre(res, lancerSuivis);
+  });
+
+  // Ce qui a été lu : compteurs et lignes ; chaque ligne qui porte la référence d'une fiche dit son dossier. Lecture seule : rien n'est
+  // lancé dans Authentic par cette route.
+  routeur.get('/authentic-claire/suivis', (req, res) => {
+    if (!collaborateurDe(req.query && req.query.utilisateur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    const etat = repo.lireJsonBrut(CLE_SUIVIS_AUTHENTIC, null) || { ecrans: {} };
+    const r = A.lireConnexionAuthentic(repo);
+    const enCoursDeLecture = enCours.has('suivis');
+    const dossiers = (o.depot && typeof o.depot.tousActifs === 'function' ? o.depot.tousActifs() : []);
+    /** @type {Record<string, string>} */
+    const parReference = {};
+    for (const d of dossiers) { const ref = AT.referenceDansTexteAT(d && d.referenceAuthentic); if (ref && !parReference[ref]) parReference[ref] = d.id; }
+    /** @type {Record<string, any>} */
+    const ecrans = {};
+    for (const e of AT.ECRANS_SUIVIS_AT) {
+      const sv = etat.ecrans && etat.ecrans[e.cle];
+      ecrans[e.cle] = sv ? Object.assign({}, sv, { lignes: sv.lignes.map((/** @type {any} */ l) => Object.assign({}, l, { dossierId: parReference[l.reference] || '' })) }) : null;
+    }
+    res.json({ luLe: etat.luLe || '', essaiLe: etat.essaiLe || '', enCoursDeLecture, actif: !!r.actif, compteurs: AT.compteursSuivisAT(etat.ecrans || {}, Object.keys(parReference)), ecrans });
+  });
+
   routeur.post('/authentic-claire/formalite', (req, res) => {
     const b = req.body && typeof req.body === 'object' ? req.body : {};
     const type = b.type === 'cjn' || b.type === 'comedec' ? b.type : '';
@@ -171,4 +216,4 @@ function creerRouteurAuthenticClaire(o) {
   return routeur;
 }
 
-module.exports = { creerRouteurAuthenticClaire, cibleAuthentic, partiesDemande, CLE_DEMANDES_AUTHENTIC };
+module.exports = { creerRouteurAuthenticClaire, cibleAuthentic, partiesDemande, CLE_DEMANDES_AUTHENTIC, CLE_SUIVIS_AUTHENTIC };

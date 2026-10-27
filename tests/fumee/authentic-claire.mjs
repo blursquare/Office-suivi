@@ -51,6 +51,14 @@ try {
   verifier(await s.evaluer('window.__apercus') === 1 && await s.evaluer("document.getElementById('sideView').style.display") === 'none', 'aperçu ouvert une fois puis refermé');
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
 
+  // Étape 7 : les quatre écrans de suivi, par leurs menus ; « Exporter » jamais cliqué.
+  const AT = require(path.join(racine, 'commun/authentic-modele.js'));
+  const suivis = await A.lireSuivis(s, { script, etape });
+  verifier(JSON.stringify(Object.keys(suivis).sort()) === JSON.stringify(['actesASigner', 'etatCivil', 'micen', 'safer']), `les quatre écrans de suivi sont relevés (${Object.keys(suivis).join(', ')})`);
+  const safer = AT.suiviDepuisCaptureAT('safer', suivis.safer, '2026-10-27T10:00:00Z');
+  verifier(safer.lignes.length === 2 && safer.lignes[0].reference === 'A 2026 00500' && safer.lignes[0].enAttente && !safer.lignes[1].enAttente, 'SAFER : références lues, « Non préemption » sortie de l’attente');
+  verifier(!(await s.evaluer('window.__interdit')), '« Exporter » et les autres entrées du menu ne sont jamais cliqués');
+
   await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true });
   verifier(!(await s.evaluer('window.__mauvais')), 'l’homonyme des résultats (autre référence) n’est jamais pris');
   const cjn = await s.evaluer('window.__valide');

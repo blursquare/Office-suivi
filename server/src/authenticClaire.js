@@ -229,7 +229,7 @@ function gestes(s, etape, o = {}) {
    * Clique un texte visible. Chaque clic dit son GESTE (authentic/garde.js) : connexion, navigation, donnee (un texte de la fiche : nom du
    * dossier, d'une personne, d'un bien) ou ecriture ; la garde refuse un geste inconnu, une écriture non permise, un libellé hors de la liste
    * du geste et tout bouton interdit sous le pointeur.
-   * @param {string} texte @param {{ exact?: boolean, geste: 'connexion' | 'navigation' | 'donnee' | 'ecriture' }} c
+   * @param {string} texte @param {{ exact?: boolean, geste: 'connexion' | 'navigation' | 'donnee' | 'suivi' | 'ecriture' }} c
    */
   async function cliquerTexte(texte, c) {
     const el = await ev(scriptTrouverTexte(texte, !!(c && c.exact)));
@@ -626,6 +626,34 @@ async function lireDossier(s, cible, o) {
 }
 
 /**
+ * Les écrans de suivi d'Authentic (étape 7 : actes à signer, SAFER/DIA, état civil, MICEN) : chaque écran ouvert par son menu, son tableau
+ * relevé tel qu'affiché (jamais « Exporter », jamais un bouton de la page), rien envoyé à la file des relevés. Un écran introuvable est passé.
+ * Rend { ecran: capture } ; la mise en forme est celle de commun/authentic-modele.js (`suiviDepuisCaptureAT`).
+ * @param {any} s @param {{ script: string, etape: (t: string) => void }} o
+ */
+async function lireSuivis(s, o) {
+  const AT = require('../../commun/authentic-modele');
+  const g = gestes(s, o.etape);
+  /** @type {Record<string, any>} */
+  const captures = {};
+  for (const e of AT.ECRANS_SUIVIS_AT) {
+    try {
+      o.etape(`Ouvre ${e.titre}`);
+      if (!(await g.cliquerTexte(e.menu, { exact: true, geste: 'suivi' }))) { o.etape(`Menu « ${e.menu} » introuvable`); continue; }
+      await s.attendreStable(5000);
+      if (!(await g.cliquerTexte(e.entree, { exact: true, geste: 'suivi' }))) { o.etape(`« ${e.entree} » introuvable`); continue; }
+      await s.attendreStable(15000);
+      const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
+      if (capture) captures[e.cle] = capture;
+    } catch (err) {
+      if (err && err.annule) throw err;
+      o.etape(`Passe ${e.titre} (${String(err && err.message).slice(0, 60)})`);
+    }
+  }
+  return captures;
+}
+
+/**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
  * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
@@ -710,5 +738,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, estCeDossier, seConnecter, lireDossier, preparerFormalite
+  referenceEnTete, estCeDossier, seConnecter, lireDossier, lireSuivis, preparerFormalite
 };

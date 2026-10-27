@@ -345,6 +345,12 @@ const OUTILS_AGENT = [
       } }
   },
   {
+    name: 'authentic_lire',
+    description: 'Ce qu’Authentic montre, tel que CLAIRE l’a déjà relevé (lecture seule : rien n’est ouvert ni écrit dans Authentic, aucune lecture n’est lancée). vue dossier : le sous-dossier de vente d’un dossier — statut du badge (Préparation définitive, Signé, Sans suite…), formalités préalables et postérieures, actes (état de rédaction, date de signature, n° de répertoire), dates créée / envoyée / reçue des aperçus, pièces jointes de la GED et la pièce de CLAIRE que chaque nom désigne, lignes des écrans de suivi qui le concernent, et la date de la dernière lecture. vue suivis : les écrans de suivi de l’étude (actes à signer, SAFER et DIA, état civil, MICEN) — compteurs et lignes encore en attente ; le libellé et le dossier_id ne sont donnés que pour un dossier de CLAIRE. Un état inconnu est dit « autre état ». Une lecture ancienne ou vide : propose authentic_claire (mode lire) pour un dossier, ou dis à l’utilisateur que le widget « Suivis d’Authentic » relit les suivis.',
+    input_schema: { type: 'object', additionalProperties: false, required: ['vue', 'dossier_id'],
+      properties: { vue: { type: 'string', enum: ['dossier', 'suivis'] }, dossier_id: chaine('id du dossier pour la vue dossier ; "" pour la vue suivis') } }
+  },
+  {
     name: 'authentic_claire',
     description: 'Travaille dans Authentic (logiciel de rédaction de l’étude) par le navigateur du serveur, avec le compte de l’étude (étude 27/10). mode lire : retrouve le dossier, relève la page du dossier, ses fiches clients et ses fiches biens — la fiche CLAIRE se complète seule, rien n’est écrit dans Authentic. mode cjn : prépare la demande de casier judiciaire (CJN) des acquéreurs ; mode comedec : prépare la demande d’état civil (Comedec : naissance de chaque partie que l’étude représente, mariage des mariés). Pour cjn et comedec, une carte « Autoriser » s’affiche toujours ; la demande est créée avec « Création rapide » et SANS envoi (« Envoi immédiat » éteint) : dis-le, et que l’étude l’envoie ensuite depuis Authentic. Une à trois minutes. Ne l’utilise que si on te le demande (ou pour une proposition autorisée).',
     input_schema: { type: 'object', additionalProperties: false, required: ['mode', 'dossier_id'],
@@ -389,7 +395,7 @@ const OUTILS_AGENT = [
 // (22/10 : « The compiled grammar is too large » — les énumérations de faire_geste et d'action_dossier, qui ont grossi avec les
 // successions, la dépassaient). Les outils ajoutés le 21/10 et ces deux-là n'y sont pas (leurs champs restent tous obligatoires et le
 // poste revalide chaque entrée, `entreeOutilPourPoste`) ; les autres gardent leur schéma strict.
-const OUTILS_SANS_STRICT = ['artefact', 'modele_email', 'actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib', 'yousign_agent', 'outil_champs', 'canaux_claire', 'repertoire_ajouter', 'authentic_claire'];
+const OUTILS_SANS_STRICT = ['artefact', 'modele_email', 'actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib', 'yousign_agent', 'outil_champs', 'canaux_claire', 'repertoire_ajouter', 'authentic_claire', 'authentic_lire'];
 for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT, et la notaire Maître Sophie GOSSART) comme une collègue experte, fiable et attentionnée.

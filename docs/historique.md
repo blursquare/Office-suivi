@@ -22764,3 +22764,43 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   règles que le NAS : « reçue » ou « pas encore reçue dans CLAIRE » — rien n'est coché), « aussi sur le NAS » (`nasInventaire`), « Ouvrir »
   (`ouvrirPieceAuthenticAT`). Point terrain `authentic-piece-pdf`. Faux Authentic : arbre, barre d'actions (Supprimer jamais cliqué),
   visionneuse. **Non vérifié sur une vraie GED.**
+
+### 27/10 — 0.382.0 : CLAIRE dans Authentic, étape 7 (suivis) — étape 6 (mails) écartée
+
+Étude : « Tu peux ne pas faire l'étape 6 » — les mails d'Authentic ne sont pas lus. Étape 7 du plan : « Suivis et exports : actes à
+signer, SAFER/DIA, état civil, MICEN, puis compteurs du tableau de bord ». Choix : les TABLEAUX affichés sont relevés, jamais
+« Exporter » (reste dans la liste noire de la garde) — un export déposerait un fichier sur le serveur sans rien apporter de plus.
+- Garde (`authentic/garde.js`) : geste `suivi`, libellés fermés (« Suivis », « Office Manager », « Actes à signer », « Suivi
+  SAFER/DIA-DPU », « Suivi État-Civil », « Suivi MICEN ») ; « Actes à signer » porte « signer » : comme une donnée, seul ce que le bouton
+  sous le pointeur porte EN PLUS du libellé est contrôlé.
+- `lireSuivis` (authenticClaire.js) : menu puis entrée, tableau relevé par le relevé de l'extension, rien envoyé dans la file des relevés.
+- Modèle (`commun/authentic-modele.js`) : `ECRANS_SUIVIS_AT`, `suiviDepuisCaptureAT` (plus grand tableau, colonnes par leur en-tête,
+  référence « A 2026 00247 », 300 lignes), `ligneSuiviEnAttenteAT` (une décision, une réponse, « Prêt » sortent de l'attente),
+  `compteursSuivisAT`, `suivisDuDossierAT`.
+- Serveur (`routes/authenticClaire.js`) : clé `authentic-suivis` ; `POST /api/authentic-claire/suivis` (lecture à la main, « Relire
+  maintenant ») ; `GET …/suivis?utilisateur=` (compteurs, lignes rattachées aux fiches par leur référence), qui ne lance JAMAIS rien
+  (audit : une relecture automatique toutes les 4 h, d'abord prévue, ouvrait une session sur le compte de l'étude sans geste de personne —
+  un collaborateur connecté sous le même compte pourrait être déconnecté).
+- Poste (`client/134-suivis-authentic.js`) : widget « Suivis d'Authentic » (hors disposition par défaut, ajouté depuis « Widgets » ;
+  rien n'est demandé au serveur tant qu'il est retiré), quatre compteurs, lignes en attente (dossiers de CLAIRE d'abord, ouvrent la
+  fiche), « Relire maintenant », « première page seulement » quand un tableau est paginé ; panneau « Authentic » de la fiche : « Dans les
+  suivis d'Authentic ». Audit 0.382.0 corrigé : boucle de requêtes du widget après un échec, garde du geste `suivi` qui exige que le bouton
+  sous le pointeur PORTE le libellé visé (« Actes signés », « Statistique » refusés), ligne « Aucun enregistrement trouvé », colonne
+  « Etat » ancrée (pas « Type d'état civil »), « Réponse négative » reste en attente, « Lu » seulement si un écran l'a été.
+- Faux Authentic : menus, quatre écrans, « Exporter » jamais cliqué. Point terrain `authentic-suivis`. **Non vérifié sur le vrai
+  Authentic** (forme des menus PrimeFaces, colonnes réelles de chaque écran).
+
+### 27/10 — 0.383.0 : CLAIRE dans Authentic, étape 8 — outil `authentic_lire` de l'agent
+
+Dernière étape du plan. Outil `authentic_lire` (`server/src/assistantAgent.js`, non strict pour rester à 18 outils stricts — limite de
+la grammaire de l'API ; poste : `client/135-authentic-lire-agent.js`) : LECTURE SEULE de ce que CLAIRE a déjà relevé — vue `dossier`
+(instantané du serveur : intitulé, statut du badge, formalités préalables et postérieures, actes avec dates, n° de répertoire, chrono,
+réponse ; pièces jointes de la GED avec la pièce de CLAIRE désignée par le nom, reçue ou non, aussi sur le NAS ; lignes des suivis du
+dossier ; date de lecture) ou vue `suivis` (compteurs, 80 lignes en attente, dossier_id des dossiers de CLAIRE). Rien n'est ouvert dans
+Authentic (pour relire : `authentic_claire` mode lire, ou le widget). Résultat MASQUÉ par le serveur comme tout résultat d'outil (masquage
+fort) ; test « rien de nominatif ne part » (`server/test/assistant-agent.test.js` : libellés de formalités, nom de pièce jointe, adresse
+d'une ligne de suivi) ; dates, états et statut partent (choix de l'étude pour les dates et statuts). Audit 0.383.0 : un nom de famille en
+TÊTE d'un texte court passe le masquage (limite connue) — le poste n'envoie donc que des mots sûrs : état reconnu sinon « autre état »
+(`etatSurPourAgent`), dossier de la GED au nom connu sinon vide, type de formalité en mots (les sigles ACT, MIC… étaient codés), pas
+d'intitulé du sous-dossier, et pour une ligne de suivi d'un dossier hors de CLAIRE ni libellé ni référence (test client
+`tests/authentic-sous-dossier.test.js`).
