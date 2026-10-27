@@ -383,8 +383,8 @@ function majSaisieCanal() {
   const reel = canaux.actif && !vueSpecialeCanal(canaux.actif);
   if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', vueSpecialeCanal(canaux.actif)); }
   if (champ) champ.placeholder = reel
-    ? (typeCanal(canaux.actif) === 'prive' ? `Envoyer un message à ${libelleCanal(canaux.actif, canaux.liste, dossiers)}` : `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @Claire pour lui demander, @Julie pour prévenir`)
-    : 'Message à Claire… tapez @ pour citer un dossier';
+    ? (typeCanal(canaux.actif) === 'prive' ? `Envoyer un message à ${libelleCanal(canaux.actif, canaux.liste, dossiers)}` : `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @CLAIRE pour lui demander, @Julie pour prévenir`)
+    : 'Message à CLAIRE… tapez @ pour citer un dossier';
   if (bascule) {
     bascule.style.display = 'none';   // « Claire répond » / « Note à l'équipe » n'a plus d'objet : elle ne répond jamais sans être citée
     bascule.classList.toggle('actif', canaux.claireRepond);
@@ -404,7 +404,7 @@ function ligneCanal(e) {
   const nbNonLus = Number(e.nonLus) || 0;
   const marque = nbMentions ? `<span class="cx-n cx-n-mention" title="${nbMentions} mention${nbMentions > 1 ? 's' : ''} ou à décider">${nbMentions}</span>`
     : nbNonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${nbNonLus}</span>` : '';
-  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
+  const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'CLAIRE' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
       <span class="cx-d" aria-hidden="true">${e.favori || e.dossier ? icone(e.favori ? 'etoile' : 'folder') : '<span class="sb-canal-avatar sb-canal-diese">#</span>'}</span>
       <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;

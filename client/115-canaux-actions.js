@@ -18,7 +18,7 @@ function avatarCanal(m) {
 }
 
 function nomAuteurCanal(m) {
-  if (m.role === 'claire') return 'Claire';
+  if (m.role === 'claire') return 'CLAIRE';
   // Le prénom de la personne qui parle, comme sur Slack (jamais « Vous »).
   return prenomCollaborateur(m.role === 'moi' ? (m.auteur || utilisateurPoste) : m.auteur) || 'Vous';
 }
@@ -93,11 +93,11 @@ function renderCanalAssistant(zone) {
     zone.innerHTML = q
       ? `<div class="asst-accueil"><h2 class="asst-accueil-titre">Aucun message</h2><p class="asst-accueil-texte">Rien ne contient « ${escapeHtml(q)} » dans ${escapeHtml(nom)}.</p></div>`
       : (typeCanal(canaux.actif) === 'dossier'
-        ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'Claire y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @Claire. Un collègue : @Prénom. Vous pouvez par exemple demander',
+        ? htmlPresentationClaire(nom, 'Ceci est le canal de ce dossier.', 'CLAIRE y écrit quand elle a préparé quelque chose, et vous pouvez lui parler du dossier sans le citer : appelez-la avec @CLAIRE. Un collègue : @Prénom. Vous pouvez par exemple demander',
           ['Où en est ce dossier ?', 'Qu’est-ce qui manque pour signer ?', 'Prépare l’appel de fonds'], false, 'folder')
         : typeCanal(canaux.actif) === 'prive'
-        ? htmlPresentationClaire(nom, 'Une conversation privée.', 'Seules les personnes de cette conversation la voient. Écrivez ici : chaque message prévient les autres. Claire ne répond que si vous l’appelez avec @Claire.', [], false, 'users')
-        : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, Claire répond quand on l’appelle avec @Claire. Un collègue : @Prénom.', [], false, 'diese')) + attente;
+        ? htmlPresentationClaire(nom, 'Une conversation privée.', 'Seules les personnes de cette conversation la voient. Écrivez ici : chaque message prévient les autres. CLAIRE ne répond que si vous l’appelez avec @CLAIRE.', [], false, 'users')
+        : htmlPresentationClaire(nom, 'Un fil partagé par toute l’étude.', 'Écrivez ici, CLAIRE répond quand on l’appelle avec @CLAIRE. Un collègue : @Prénom.', [], false, 'diese')) + attente;
     return;
   }
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')
@@ -130,7 +130,7 @@ function renderEnteteCanal() {
   zone.innerHTML = `${sig}
     <span class="cx-entete-espace"></span>
     ${canaux.rechercheOuverte ? `<span class="cx-recherche"><input type="search" id="canal-recherche" value="${escapeAttr(canaux.recherche)}" placeholder="Chercher dans le canal…" aria-label="Chercher dans le canal" oninput="chercherCanal(this.value)" onkeydown="if (event.key === 'Escape') basculerRechercheCanal()"></span>` : ''}
-    <wa-button appearance="outlined" size="s" type="button" onclick="resumerCanalAvecClaire()" title="Claire résume ce canal (ce qui s’est dit, les décisions, ce qui reste à faire)">${icone('discussion')} Résumer</wa-button>
+    <wa-button appearance="outlined" size="s" type="button" onclick="resumerCanalAvecClaire()" title="CLAIRE résume ce canal (ce qui s’est dit, les décisions, ce qui reste à faire)">${icone('discussion')} Résumer</wa-button>
     <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerRechercheCanal()" title="Chercher dans le canal" aria-label="Chercher dans le canal">${icone('search')}</wa-button>
     <span class="cx-menu-place"><wa-button appearance="plain" size="s" class="bouton-icone${notif !== 'tous' ? ' cx-reglee' : ''}" type="button" onclick="ouvrirMenuNotifCanal()" title="Notifications de ce canal" aria-label="Notifications de ce canal" aria-haspopup="true">${icone(notif === 'muet' ? 'cloche-barree' : 'cloche')}</wa-button><div class="cx-menu" id="canal-menu-notif" style="display:none;" role="menu"></div></span>
     <wa-button appearance="plain" size="s" class="bouton-icone${canaux.preferences.favori ? ' cx-favori' : ''}" type="button" onclick="basculerFavoriCanal()" title="${canaux.preferences.favori ? 'Retirer des favoris' : 'Ajouter aux favoris'}" aria-label="Favori" aria-pressed="${canaux.preferences.favori}">${icone('etoile')}</wa-button>
@@ -305,7 +305,7 @@ function allerAuMessageCanal(id) {
 // Pure : les propositions de la liste « @ » d'un canal pour une requête (sans accent ni casse).
 function mentionsPourCanal(requete, collaborateurs, dossiersListe, avecDossiers, moi) {
   const q = platCanal(requete).trim();
-  const items = [{ type: 'claire', nom: 'Claire', insere: '@Claire', note: 'lui demander' }]
+  const items = [{ type: 'claire', nom: 'CLAIRE', insere: '@CLAIRE', note: 'lui demander' }]
     .concat((collaborateurs || []).filter(c => c !== moi).map(c => ({ type: 'collab', nom: String(c).split(/\s+/)[0], insere: '@' + String(c).split(/\s+/)[0], note: 'prévenir' })))
     .filter(x => !q || platCanal(x.nom).startsWith(q));
   const ds = avecDossiers ? dossiersMentionAssistant(dossiersListe, requete).map(d => ({ type: 'dossier', nom: d.nom, id: d.id, libelle: libelleDossierAffiche(d), note: d.archive ? 'archivé' : '' })) : [];

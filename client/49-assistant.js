@@ -133,7 +133,7 @@
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
           'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
           exemplesDossierAssistant(rattache), true, 'folder')
-        : htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
+        : htmlPresentationClaire('CLAIRE', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec CLAIRE.`,
           'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
           suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true));
       return;
@@ -159,7 +159,7 @@
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-slack asst-claire asst-ecrit">
           ${avatarClaireHtml()}
-          <div class="asst-corps"><div class="asst-attente" aria-label="Claire écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
+          <div class="asst-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '');
     restaurerConsignesAssistant(zone);
     zone.scrollTop = zone.scrollHeight;
     reprendreRevelationAssistant(zone);

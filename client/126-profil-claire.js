@@ -25,7 +25,7 @@ function htmlAnticipationsClaire() {
     const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
     return d ? `<button type="button" class="pf-dossier" onclick="ouvrirCanal('d:${escapeOnclickArg(d.id)}')" title="Ouvrir le canal du dossier">${icone('folder')}${escapeHtml(libelleDossierAffiche(d))}</button>` : '';
   };
-  const message = (texte, cartes) => `<div class="cx-m cx-claire pf-message">${avatarClaireHtml()}<div class="cx-corps"><div class="cx-nom">Claire</div><p class="pf-texte">${texte}</p>${cartes}</div></div>`;
+  const message = (texte, cartes) => `<div class="cx-m cx-claire pf-message">${avatarClaireHtml()}<div class="cx-corps"><div class="cx-nom">CLAIRE</div><p class="pf-texte">${texte}</p>${cartes}</div></div>`;
   const prenom = typeof prenomPosteAssistant === 'function' ? prenomPosteAssistant() : '';
   let html = '';
   if (liste.length) {
