@@ -22365,3 +22365,17 @@ longue (plus de 90 mots) n'est pas proposée — dite comme erreur du tour ; le 
 - **Relecture** : `!rel.revu` retiré du filtre de présence (revenir sur l'onglet d'un dossier déjà vu doit compter) ; « Refuser » et
   « Plus tard » d'une carte du relais sur une demande de CLAIRE expirée rendent « Demande expirée » au lieu de « ok »
   (`refuserDepuisRelais`, `reporterDepuisRelais`).
+
+### 27/10/2026 — Décision de l'étude : demandes Comedec et CJN préparées par CLAIRE dans Authentic (pas encore construit)
+
+Étude : « Il peut enregistrer (Valider) et avant cocher Envoi immédiat, comme ça je retrouve toutes les demandes à envoyer par la suite
+moi-même. Idem pour les COMEDEC », puis après la lecture du wiki d'Authentic : « Oui, création rapide puis enregistrer, oui décocher Envoi
+immédiat ». La règle retenue :
+
+- CLAIRE coche **« Création rapide »**. Les demandes sont créées, et celles qui sont conformes passent « Prêt pour envoi » (wiki : `docs/wiki-authentic/03-…`
+  de la branche `claude/wiki-authentic-resume`, sections 1.4 et 2.3).
+- La case **« Envoi immédiat » est toujours décochée**. Elle envoie les demandes à l'ANTS ou au CJN, et un rejet fonctionnel du CJN est facturé.
+- Puis **Enregistrer**. L'envoi reste fait par l'étude, depuis le dossier ou depuis le suivi Comedec / CJN.
+- Pas de CJN pour un mineur. Pour une société, seuls ses représentants rattachés à sa fiche. Rien sans la BRI - Avant contrat (blocage).
+- Avant de construire : relever par « Copier la structure de la page » les écrans de création Comedec et CJN (libellés exacts des cases et
+  du bouton Enregistrer/Valider). Les captures du wiki ne sont pas dans le texte.
