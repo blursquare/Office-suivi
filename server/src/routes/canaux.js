@@ -140,10 +140,12 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
       if (p) cartes[m.carte] = carteVisible(p, lecteur);
     }
     const dernier = messages.length ? messages[messages.length - 1] : null;
-    const signature = [messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','), messages.map((m) => (m.reactions || []).map((r) => `${r.emoji}${r.par.join('+')}`).join('')).join(','),
+    // Canal privé : l'heure de lecture des autres membres, pour l'œil « Vu » sous mon dernier message (comme Teams).
+    const lusPar = C.lusParAutresMembres(parametresRepo, id, lecteur, COLLABORATEURS);
+    const signature = [Object.values(lusPar).join(','), messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','), messages.map((m) => (m.reactions || []).map((r) => `${r.emoji}${r.par.join('+')}`).join('')).join(','),
       Object.values(cartes).map((p) => `${p.id}:${p.etat}`).join(',')].join('|');
     if (req.query.signature === signature) { res.json({ inchange: true, signature }); return; }
-    res.json({ signature, messages, cartes, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id) });
+    res.json({ signature, messages, cartes, lusPar, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id) });
   });
 
   routeur.post('/canaux/:id/messages', (req, res) => {

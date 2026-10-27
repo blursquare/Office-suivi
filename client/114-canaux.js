@@ -214,6 +214,7 @@ async function chargerMessagesCanal(force) {
     if (corps.inchange) { marquerCanalLu(); return; }
     canaux.signature = corps.signature || '';
     canaux.cartes = corps.cartes || {};
+    canaux.lusPar = corps.lusPar && typeof corps.lusPar === 'object' ? corps.lusPar : {};
     if (corps.preferences) canaux.preferences = corps.preferences;
     fusionnerMessagesCanal(corps.messages || []);
     marquerCanalLu();
@@ -269,7 +270,7 @@ function quitterCanal() {
   canaux.actif = '';
   majAccesRapideCanaux();
   fermerFilCanal();
-  canaux.messages = []; canaux.cartes = {}; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
+  canaux.messages = []; canaux.cartes = {}; canaux.lusPar = {}; canaux.signature = ''; canaux.recherche = ''; canaux.rechercheOuverte = false; canaux.edition = '';
   assistantMessages = [];
   assistantContexte = { dossierId: dossierOuvert || '', attente: null, historique: [], echanges: [] };
   oublierConversationAgent();
@@ -290,7 +291,7 @@ async function ouvrirCanal(id) {
   majAccesRapideCanaux();
   assistantConversationId = '';
   const c = canaux.liste.find(x => x.id === id) || {};
-  Object.assign(canaux, { messages: [], cartes: {}, signature: '', luAvant: c.luLe || 0, recherche: '', rechercheOuverte: false, edition: '', forcerBas: true, silences: [],
+  Object.assign(canaux, { messages: [], cartes: {}, lusPar: {}, signature: '', luAvant: c.luLe || 0, recherche: '', rechercheOuverte: false, edition: '', forcerBas: true, silences: [],
     preferences: { notif: c.notif || 'tous', favori: !!c.favori } });
   assistantMessages = [];
   const dossierId = typeCanal(id) === 'dossier' ? id.slice(2) : '';

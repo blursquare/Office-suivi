@@ -57,6 +57,27 @@ function htmlActionsMessageCanal(m, i) {
     ${proprio ? bouton(`modifierMessageCanal('${id}')`, 'pencil', 'Modifier') + bouton(`supprimerMessageCanal('${id}')`, 'trash', 'Supprimer') : ''}</div>`;
 }
 
+// Pure : l'état de lecture d'un message que j'ai écrit dans un canal privé (étude 27/10 : « un petit œil comme sur Teams ») — `vu` quand
+// tous les autres membres ont lu le canal après lui ; `par` = ceux qui l'ont vu, avec l'heure. null hors canal privé.
+function etatLectureMessageCanal(quand, lusPar) {
+  const membres = Object.keys(lusPar || {});
+  if (!membres.length || !quand) return null;
+  const par = membres.filter(c => Number(lusPar[c]) >= quand).map(c => ({ nom: c, le: Number(lusPar[c]) }));
+  return { vu: par.length === membres.length, par, groupe: membres.length > 1 };
+}
+
+// L'œil « Vu » (ou la coche « Envoyé ») sous mon dernier message d'un canal privé.
+function htmlLectureMessageCanal(m) {
+  const e = etatLectureMessageCanal(m.quand, canaux.lusPar);
+  if (!e) return '';
+  if (!e.vu) {
+    const partiel = e.par.length ? ` · vu par ${e.par.map(x => prenomCollaborateur(x.nom)).join(', ')}` : '';
+    return `<div class="cx-lecture" title="${escapeAttr('Envoyé' + partiel)}">${icone('check')}<span>Envoyé${escapeHtml(partiel)}</span></div>`;
+  }
+  const detail = e.par.map(x => `${prenomCollaborateur(x.nom)} à ${heureAssistant(x.le)}`).join(', ');
+  return `<div class="cx-lecture cx-vu" title="${escapeAttr('Vu par ' + detail)}">${icone('eye')}<span>Vu${e.groupe ? ' par tous' : ''}</span></div>`;
+}
+
 function htmlMessageCanal(m, i, r, repere) {
   const claire = m.role === 'claire';
   const maintenant = Date.now();
@@ -73,7 +94,7 @@ function htmlMessageCanal(m, i, r, repere) {
   const corps = canaux.edition === m.id ? edition : htmlCorpsMessageCanal(m);
   return `${jour}${nouveau}<div class="cx-m cx-${escapeAttr(m.role)}${r.debutGroupe ? '' : ' cx-suite'}${m.epingle ? ' cx-epingle-m' : ''}" data-index="${i}" data-mid="${escapeAttr(m.id || '')}">
       ${r.debutGroupe ? avatarCanal(m) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
-      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${htmlLienFil(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
+      <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${htmlLienFil(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${repere === 'dernier-moi' ? htmlLectureMessageCanal(m) : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;
 }
 
 function renderCanalAssistant(zone) {
@@ -86,6 +107,8 @@ function renderCanalAssistant(zone) {
   // Les réponses d'un fil n'encombrent pas le canal : elles s'ouvrent sous leur message de départ (sauf dans une recherche).
   const visibles = q ? filtrerMessagesCanal(assistantMessages, q) : assistantMessages.filter(m => !m.parent);
   const reperes = repereMessagesCanal(visibles, q ? 0 : canaux.luAvant, utilisateurPoste);
+  // Mon dernier message du canal (hors recherche) porte l'œil « Vu » : seulement s'il est le dernier écrit, comme Teams.
+  const dernierMoi = !q && visibles.length && visibles[visibles.length - 1].role === 'moi' && visibles[visibles.length - 1].id ? visibles.length - 1 : -1;
   const nom = libelleCanal(canaux.actif, canaux.liste, dossiers);
   assistantActions = {};
   const attente = assistantEnCours ? `<div class="cx-m cx-claire cx-ecrit">${avatarClaireHtml()}<div class="cx-corps"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div></div>` : '';
@@ -101,7 +124,7 @@ function renderCanalAssistant(zone) {
     return;
   }
   zone.innerHTML = (q ? `<div class="cx-resultats">${visibles.length} message${visibles.length > 1 ? 's' : ''} contenant « ${escapeHtml(q)} »</div>` : '')
-    + visibles.map((m, i) => htmlMessageCanal(m, i, reperes[i])).join('') + attente;
+    + visibles.map((m, i) => htmlMessageCanal(m, i, reperes[i], i === dernierMoi ? 'dernier-moi' : '')).join('') + attente;
   if (canaux.forcerBas || proche) { zone.scrollTop = zone.scrollHeight; canaux.forcerBas = false; } else zone.scrollTop = sauve;
   restaurerConsignesAssistant(zone);
   remplirVignettesPiecesJointesAssistant();

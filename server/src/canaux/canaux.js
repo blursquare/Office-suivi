@@ -224,6 +224,18 @@ function marquerLu(repo, collab, canal, maintenant) {
   repo.ecrireJsonBrut(CLE_LUS, lus);
 }
 
+/**
+ * Quand chacun des AUTRES membres d'un canal privé l'a lu pour la dernière fois (étude 27/10 : « un petit œil comme sur Teams pour voir si
+ * notre message a été lu ») — seulement pour un canal privé et pour l'un de ses membres ; {} sinon.
+ * @param {any} repo @param {string} canal @param {string} lecteur @param {string[]} collaborateurs @returns {Record<string, number>}
+ */
+function lusParAutresMembres(repo, canal, lecteur, collaborateurs) {
+  const membres = membresPrive(canal, collaborateurs);
+  if (!membres || !membres.includes(lecteur)) return {};
+  const lus = lireTable(repo, CLE_LUS);
+  return Object.fromEntries(membres.filter((m) => m !== lecteur).map((m) => [m, Number((lus[m] || {})[canal]) || 0]));
+}
+
 /** Tout marquer comme lu. @param {any} repo @param {string} collab @param {number} [maintenant] */
 function toutMarquerLu(repo, collab, maintenant) {
   if (!collab) return;
@@ -406,6 +418,6 @@ function purgerMessagesAnciens(repo, maintenant) {
 module.exports = {
   JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
   CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, slugPrenom, idPrive, membresPrive, privesPour, lireMessages, lireIndex,
-  ajouterMessage, changerMessage, marquerLu, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
+  ajouterMessage, changerMessage, marquerLu, lusParAutresMembres, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
   lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
 };

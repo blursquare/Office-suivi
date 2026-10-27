@@ -236,3 +236,13 @@ test('non-lus : seules les cartes de proposition de CLAIRE sont comptées à par
   assert.equal(c.nonLusCartes, 2, 'toute carte de proposition, même adressée à vous');
   assert.equal(c.mentionsCartes, 1, 'la carte adressée à son responsable n’est pas une mention pour la pastille');
 });
+
+test('œil « Vu » (27/10) : heure de lecture des AUTRES membres d’un canal privé seulement, jamais d’un canal partagé ni pour un non-membre', () => {
+  const repo = fauxRepo();
+  const id = C.idPrive(['Bastien ANGLUMENT', 'Julie VASSELIN']);
+  C.marquerLu(repo, 'Julie VASSELIN', id, 5000);
+  C.marquerLu(repo, 'Bastien ANGLUMENT', id, 6000);
+  assert.deepEqual(C.lusParAutresMembres(repo, id, 'Bastien ANGLUMENT', COLLABS), { 'Julie VASSELIN': 5000 });
+  assert.deepEqual(C.lusParAutresMembres(repo, id, 'Jérémy SAUJOT', COLLABS), {}, 'un non-membre ne voit rien');
+  assert.deepEqual(C.lusParAutresMembres(repo, 'general', 'Bastien ANGLUMENT', COLLABS), {}, 'pas dans un canal partagé');
+});

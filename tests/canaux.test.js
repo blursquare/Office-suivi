@@ -301,3 +301,13 @@ test('message de CLAIRE : liens cliquables, lien d’une pièce lu « Ouvrir la 
   assert.match(html, /<a href="https:\/\/exemple\.fr\/page" target="_blank" rel="noopener">https:\/\/exemple\.fr\/page<\/a>\./);
   assert.doesNotMatch(app.htmlTexteMessageClaire('javascript:alert(1)'), /<a /);
 });
+
+test('œil « Vu » (27/10) : vu quand tous les autres membres ont lu après le message, sinon « Envoyé »', () => {
+  const app = chargerApplication();
+  assert.equal(app.etatLectureMessageCanal(1000, {}), null, 'hors canal privé : rien');
+  assert.equal(app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 999 }).vu, false);
+  assert.equal(app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 1200 }).vu, true);
+  const g = app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 1200, 'Jérémy SAUJOT': 10 });
+  assert.equal(g.vu, false);
+  assert.equal(g.par.length, 1);
+});

@@ -22621,3 +22621,14 @@ pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
 gère pas les liens ». `htmlTexteMessageClaire` (client/129) : texte échappé, adresses http(s)/www/emails en liens (`lierLiensTexte` de
 client/47, jamais un autre schéma), ouverts à part ; un lien de pièce (`/piece?`) se lit « Ouvrir la pièce » ; « CLAIRE — » en tête de
 ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au texte court, au détail et aux éléments d'un groupe.
+
+### 27/10/2026 — 0.375.0 : œil « Vu » dans les conversations privées
+
+Étude 27/10 (capture de l'œil de Teams) : « peux-tu mettre un petit œil comme sur Teams pour voir si notre message a été lu ».
+- Serveur : `lusParAutresMembres` (canaux.js) — l'heure de dernière lecture (`canaux-lus`, déjà tenue par `POST /canaux/:id/lu`) de chacun
+  des AUTRES membres d'un canal PRIVÉ, rendue par `GET /canaux/:id/messages` (`lusPar`) seulement à un membre ; jamais pour un canal partagé
+  (dossier, « général », canal libre) ni pour un non-membre ; comprise dans la signature, pour que l'œil apparaisse au relevé suivant.
+- Poste : sous MON dernier message, s'il est le dernier du canal (comme Teams), `htmlLectureMessageCanal` — œil « Vu » (« Vu par tous » à
+  trois) quand tous les autres ont lu le canal après lui, au survol « Vu par Julie à 15:42 » ; sinon coche « Envoyé » (« · vu par … » en
+  partie, à trois). « Lu » = la fenêtre CLAIRE au premier plan sur ce canal (règle de `marquerCanalLu`).
+- Vérifié dans Chromium avec deux postes (Bastien écrit, Julie ouvre : « Envoyé » puis « Vu »).
