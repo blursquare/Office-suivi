@@ -90,6 +90,7 @@ function creerPagesAuthentic(db, options = {}) {
   const compter = db.prepare('SELECT cle FROM authentic_pages WHERE dossier_id = ? ORDER BY recue_le DESC');
   const retirer = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ? AND cle = ?');
   const retirerDossier = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ?');
+  const pagesDossierTous = db.prepare("SELECT dossier_id, recue_le, capture FROM authentic_pages WHERE nature = 'dossier'");
   return {
     /** Garde la page pour ce dossier (la plus récente de chaque clé ; les plus anciennes au-delà de 40 sont retirées). */
     garder(dossierId, releve) {
@@ -120,7 +121,15 @@ function creerPagesAuthentic(db, options = {}) {
         return capture ? { cle: l.cle, nature: l.nature, intitule: l.intitule, recueLe: l.recue_le, capture } : null;
       }).filter(Boolean);
     },
-    oublier(dossierId) { retirerDossier.run(chaine(dossierId, 80)); }
+    oublier(dossierId) { retirerDossier.run(chaine(dossierId, 80)); },
+    /** La page du dossier de chaque dossier (une par dossier) : [{ dossierId, recueLe, capture }] — pour les statuts du Suivi. */
+    pagesDossierDeTous() {
+      return pagesDossierTous.all().map((/** @type {any} */ l) => {
+        let capture = null;
+        try { capture = JSON.parse(l.capture); } catch (_) { capture = null; }
+        return capture ? { dossierId: l.dossier_id, recueLe: l.recue_le, capture } : null;
+      }).filter(Boolean);
+    }
   };
 }
 

@@ -133,3 +133,19 @@ test('instantané : sous-dossier, statut, comparants et formalités lus dans la 
     assert.equal((await fetch(base + '/authentic/dossier/..%2Fx/instantane')).status, 400);
   } finally { serveur.close(); }
 });
+
+// Étape 3 : le statut du sous-dossier de chaque dossier, pour le Suivi.
+test('statuts : le badge du sous-dossier de chaque dossier lu sur sa page gardée', async () => {
+  const pages = creerPagesAuthentic(baseDossiers());
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: { titre: 'x', champs: [], tableaux: [], texte: '2 - VTE ESSAI / EXEMPLE\nSans suite\n20/10/2026\nComparants (0)' } });
+  pages.garder('v2', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: { titre: 'x', champs: [], tableaux: [], texte: 'rien de lisible' } });
+  const app = express();
+  app.use('/api', creerRouteurAuthentic({ pages, origine: () => 'local' }));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const r = await (await fetch(`http://127.0.0.1:${serveur.address().port}/api/authentic/statuts`)).json();
+    assert.deepEqual(Object.keys(r.statuts), ['v1']);
+    assert.equal(r.statuts.v1.statut, 'Sans suite');
+    assert.equal(r.statuts.v1.le, '2026-10-20');
+  } finally { serveur.close(); }
+});

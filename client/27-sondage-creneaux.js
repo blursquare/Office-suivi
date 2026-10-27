@@ -983,6 +983,9 @@
     // Authentic a changé une donnée déjà reprise (étude 06/10 au soir) : la mise à jour attend une décision sur la fiche.
     const majs = majsEnAttenteAuthentic(d);
     if (majs.length) out.push({ cle: 'authentic', rang: 1, texte: majs.length === 1 ? `Authentic a changé : ${majs[0].libelle}` : `Authentic a changé : ${majs.length} données` });
+    // Sous-dossier passé « Sans suite » dans Authentic (plan Authen.TIC, étape 3) : à archiver ou à écarter, jamais fait d'office.
+    const st = typeof statutsAuthenticAT !== 'undefined' ? statutsAuthenticAT[d.id] : null;
+    if (st && st.statut === 'Sans suite') out.push({ cle: 'authentic-sans-suite', rang: 2, texte: 'Sans suite dans Authentic : à archiver ?' });
     return out;
   }
 

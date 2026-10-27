@@ -52,3 +52,22 @@ test('adaptateur vers la fiche : état de l’acte, statut du sous-dossier, form
   assert.equal(M.instantaneDepuisPagesAT([{ nature: 'client', capture: { texte: 'x' } }]), null, 'sans page du dossier : rien');
   assert.equal(M.versFicheAT(null), null);
 });
+
+test('relecture 0.376.1 : statut près de l’en-tête, onglets inactifs, classement, acte principal, comparants collés', () => {
+  assert.deepEqual(M.statutSousDossierAT('Nouveau\nA 2026 00500\n2 - VTE X / Y\nSigné\n29/09/2026'), { statut: 'Signé', le: '2026-09-29' }, 'un « Nouveau » de menu avant l’en-tête');
+  assert.deepEqual(M.statutSousDossierAT('2 - VTE X / Y\nComparants (1)\nM. X Paul\nRédaction\nACT Vente\nEn cours'), { statut: '', le: '' }, '« En cours » n’est pas un statut');
+  assert.equal(M.intituleSousDossierAT('A 2026 1\n1 - Promesse VTE X / Y\n2 - VTE X / Y Importer avec 6e SENS\nComparants (1)'), '2 - VTE X / Y');
+  assert.equal(M.intituleSousDossierAT('3 - VTE AUTRE / DOSSIER\n2 - VTE X / Y\nComparants (1)', [{ titre: '3 - VTE AUTRE / DOSSIER', actif: false }]), '2 - VTE X / Y');
+  assert.equal(M.badgeLigneAT('Déclaration préalable de travaux', 'Urbanisme'), 'APR');
+  assert.equal(M.sectionLigneAT(M.badgeLigneAT('Attestation de signature', 'Formalités postérieures'), 'Formalités postérieures'), 'posterieures');
+  const l = M.lignesFormalitesAT({ tableaux: [{ titre: 'Rédaction', entete: [], lignes: [['ACT Vente X', '', 'Signé le 29/09/2026'], ['ACT Procuration vente', '', '', 'Non rédigé']] }] });
+  assert.equal(l.length, 2, 'les lignes de la Rédaction sans cellule de date');
+  assert.equal(l[0].signeLe, '2026-09-29');
+  const f = M.versFicheAT({ reference: 'A', libelle: '', luLe: '', pages: 1, sousDossier: { intitule: '', nature: 'VTE', statut: '', statutLe: '', comparants: [], immeubles: [], formalitesPrealables: [{ badge: 'APR', libelle: 'SAFER', groupe: '', statut: 'Non préemption SAFER', dates: [] }], actes: [{ badge: 'ACT', libelle: 'Procuration vente', groupe: '', statut: 'Non rédigé', dates: [] }, { badge: 'ACT', libelle: 'Vente X', groupe: '', statut: 'Signé le 29/09/2026', dates: ['2026-09-29'], signeLe: '2026-09-29' }], formalitesPosterieures: [], pieces: [], mails: [] } });
+  assert.equal(f.acte.libelle, 'Vente X', 'jamais une procuration');
+  assert.equal(f.enAttente, 0, 'une non-préemption est une décision rendue');
+  const g = M.panneauGaucheAT('X Comparants (2)\npersonM. MARTIN Paul\nVendeur\nMme DURAND Claire Acquéreur\nQUALITÉ');
+  assert.equal(g.comparants.map((c) => `${c.nom}=${c.role}`).join('|'), 'M. MARTIN Paul=Vendeur|Mme DURAND Claire=Acquéreur');
+  assert.equal(M.isoDepuisFrAT('31/13/2026'), '');
+  assert.equal(M.isoDepuisFrAT('03/10/20261'), '');
+});

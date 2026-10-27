@@ -24,8 +24,10 @@
 (function (exporter) {
   var BADGES_AT = ['APR', 'ECV', 'T@', 'ACT', 'MIC', 'SPR', 'BRI', 'CJN'];
   // Statuts d'un sous-dossier (badge à côté du titre ; relevés par l'étude le 05/10 : menu du badge).
-  var STATUTS_SOUS_DOSSIER_AT = ['Nouveau', 'Demande de pièces', 'Réception des pièces', 'Préparation projet', 'Préparation définitive', 'Signé', 'En attente', 'Sans suite', 'En cours'];
-  var RE_DATE_FR = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})/;
+  // (« En cours » n'en est pas un : c'est l'état d'une rédaction — relecture 0.376.1.)
+  var STATUTS_SOUS_DOSSIER_AT = ['Nouveau', 'Demande de pièces', 'Réception des pièces', 'Préparation projet', 'Préparation définitive', 'Signé', 'En attente', 'Sans suite'];
+  var RE_DATE_FR = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})(?!\d)/;
+  var RE_DATE_FR_PARTOUT = /(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})(?!\d)/g;
 
   /** @param {any} v */
   function net(v) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); }
@@ -34,7 +36,8 @@
   /** Pure : « 03/10/2026 » → « 2026-10-03 » ('' sinon). @param {string} t */
   function isoDepuisFrAT(t) {
     const m = RE_DATE_FR.exec(net(t));
-    return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+    if (!m || Number(m[1]) < 1 || Number(m[1]) > 31 || Number(m[2]) < 1 || Number(m[2]) > 12) return '';
+    return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
   }
 
   /** Pure : le badge d'une ligne — écrit en tête de son libellé (« ECV Acte de naissance… »), sinon déduit du tableau et du libellé.
@@ -45,19 +48,25 @@
     const t = plat(libelle + ' ' + groupe);
     if (/etat[- ]civil|comedec/.test(t)) return 'ECV';
     if (/casier|cjn/.test(t)) return 'CJN';
-    if (/micen|copie (simple|authentique)/.test(t)) return 'MIC';
+    if (/micen|^copie (simple|authentique)/.test(plat(libelle)) || /micen/.test(plat(groupe))) return 'MIC';
     if (/bordereau|copie hypothecaire/.test(t)) return 'SPR';
     if (/\bbri\b|references immobilieres/.test(t)) return 'BRI';
     if (/requisition|tele@ctes|teleactes|t@/.test(t)) return 'T@';
-    if (/redaction|actes? signe|^acte\b/.test(plat(groupe)) || /^(acte|notoriete|attestation|declaration|vente|donation)\b/.test(plat(libelle))) return 'ACT';
+    // Un acte : dans le tableau « Rédaction » / « Actes signés » ; le libellé seul ne décide que sans tableau nommé (relecture 0.376.1 :
+    // « Déclaration préalable de travaux » d'un tableau d'urbanisme n'est pas un acte).
+    if (/redaction|actes? signe/.test(plat(groupe)) || (!net(groupe) && /^(acte|notoriete|attestation de propriete|declaration de succession|vente|donation)\b/.test(plat(libelle)))) return 'ACT';
     return 'APR';
   }
 
   /** Pure : la section d'une ligne (formalités préalables, actes, formalités postérieures). @param {BadgeAT} badge @param {string} groupe */
   function sectionLigneAT(badge, groupe) {
     const g = plat(groupe);
-    if (badge === 'ACT' || /redaction|actes? signe/.test(g)) return 'actes';
-    if (badge === 'SPR' || badge === 'BRI' || badge === 'MIC' || /bordereau|copie|micen|publication|posterieure/.test(g)) return 'posterieures';
+    // Le tableau décide d'abord (relecture 0.376.1 : une attestation des formalités postérieures n'est pas un acte).
+    if (/posterieure|bordereau|copie|micen|publication|attestation/.test(g)) return 'posterieures';
+    if (/redaction|actes? signe/.test(g)) return 'actes';
+    if (/prealable|etat civil|courrier|demande|banque|tele@ctes|anf|safer|urbanisme/.test(g)) return 'prealables';
+    if (badge === 'ACT') return 'actes';
+    if (badge === 'SPR' || badge === 'BRI' || badge === 'MIC') return 'posterieures';
     return 'prealables';
   }
 
@@ -71,22 +80,55 @@
       if (entete.includes('section') || entete.some((/** @type {string} */ e) => /tantiem|contenance/.test(e))) return;
       ((t && t.lignes) || []).forEach((/** @type {any} */ l) => {
         const cellules = (Array.isArray(l) ? l : []).map(net);
-        const dates = cellules.filter((x) => RE_DATE_FR.test(x)).map(isoDepuisFrAT).filter(Boolean);
-        const textes = cellules.filter((x) => x && !RE_DATE_FR.test(x) && !/^⟦icône⟧/.test(x));
-        if (!dates.length || !textes.length || cellules.length < 3) return;
         const groupe = net(t && t.titre).slice(0, 80);
+        // Les dates de la ligne, même écrites dans un texte (« Signé le 29/09/2026 », « Retour le … »), sans doublon.
+        const dates = [...new Set(cellules.flatMap((x) => (x.match(RE_DATE_FR_PARTOUT) || []).map(isoDepuisFrAT)).filter(Boolean))];
+        const textes = cellules.filter((x) => x && !RE_DATE_FR.test(x) && !/^⟦icône⟧/.test(x));
+        // Une ligne de la Rédaction se lit sans date (« Non rédigé ») ; ailleurs, une date est exigée (lignes de mise en page écartées).
+        const redaction = /redaction|actes? signe/.test(plat(groupe));
+        if (!textes.length || (!dates.length && !(redaction && cellules.filter(Boolean).length >= 2)) || (!redaction && cellules.length < 3)) return;
         const libelle = textes[0].slice(0, 200);
         const badge = badgeLigneAT(libelle, groupe);
-        out.push({ badge, libelle: libelle.replace(/^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)\s+/, ''), groupe, statut: textes.length > 1 ? textes[textes.length - 1].slice(0, 80) : '', dates });
+        const statut = textes.length > 1 ? textes[textes.length - 1].slice(0, 80) : '';
+        /** @type {FormaliteAT} */
+        const f = { badge, libelle: libelle.replace(/^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)\s+/, ''), groupe, statut, dates };
+        const signe = /sign[ée]e? le\s+(\d{1,2}[/.-]\d{1,2}[/.-]\d{4})/i.exec(cellules.join(' '));
+        if (signe) f.signeLe = isoDepuisFrAT(signe[1]);
+        out.push(f);
       });
     });
     return out;
   }
 
-  /** Pure : le statut du sous-dossier (badge à côté du titre) et sa date, lus dans le texte de la page. @param {string} texte */
-  function statutSousDossierAT(texte) {
-    const lignes = String(texte || '').split('\n').map(net).filter(Boolean).slice(0, 80);
-    for (let i = 0; i < lignes.length; i++) {
+  /** Pure : les lignes du texte de la page sans les titres des onglets inactifs (un autre dossier ouvert) ni « Importer avec 6e SENS ».
+   * @param {string} texte @param {any[]} [onglets] */
+  function lignesActivesAT(texte, onglets) {
+    const inactifs = new Set((Array.isArray(onglets) ? onglets : []).filter((o) => o && !o.actif).map((o) => net(o.titre)).filter(Boolean));
+    return String(texte || '').split('\n').map((l) => net(l).replace(/\s*Importer avec 6e SENS\s*$/i, '')).filter((l) => l && !inactifs.has(l));
+  }
+
+  /** Pure : l'indice de l'en-tête du sous-dossier affiché — une ligne « N - … » suivie (3 lignes au plus) d'un statut, de « Comparants »,
+   * « Immeubles » ou « Importer » ; à défaut la première ligne « N - … » qui n'est pas une promesse ni un avenant. @param {string[]} lignes */
+  function indexIntituleAT(lignes) {
+    const candidats = lignes.map((l, i) => (/^\d{1,3}\s*-\s*\S/.test(l) ? i : -1)).filter((i) => i >= 0);
+    const autre = (/** @type {number} */ i) => /^\d{1,3}\s*-\s*(promesse|avenant|compromis)/i.test(lignes[i]);
+    const suivi = (/** @type {number} */ i) => lignes.slice(i + 1, i + 4).some((x) => STATUTS_SOUS_DOSSIER_AT.some((st) => plat(st) === plat(x)) || /^(Comparants|Immeubles|Importer)\b/i.test(x));
+    // La vente suivie de son badge ou de son panneau d'abord, puis tout en-tête suivi, puis la première vente, puis le premier.
+    for (const ok of [(/** @type {number} */ i) => !autre(i) && suivi(i), suivi, (/** @type {number} */ i) => !autre(i), () => true]) {
+      const i = candidats.find(ok);
+      if (i != null) return i;
+    }
+    return -1;
+  }
+
+  /** Pure : le statut du sous-dossier (badge à côté du titre) et sa date, lus dans le texte de la page. @param {string} texte @param {any[]} [onglets] */
+  function statutSousDossierAT(texte, onglets) {
+    const lignes = lignesActivesAT(texte, onglets);
+    // Le badge suit l'en-tête du sous-dossier (« 2 - VTE … ») : seulement les 4 lignes qui le suivent (relecture 0.376.1 : un « Nouveau »
+    // de menu ou un « Signé » d'un tableau plus bas n'est pas le statut).
+    const tete = indexIntituleAT(lignes);
+    if (tete < 0) return { statut: '', le: '' };
+    for (let i = tete + 1; i < Math.min(lignes.length, tete + 5); i++) {
       const s = STATUTS_SOUS_DOSSIER_AT.find((x) => plat(x) === plat(lignes[i]));
       if (!s) continue;
       const le = isoDepuisFrAT(lignes[i + 1] || '');
@@ -104,14 +146,20 @@
     /** @type {ComparantAT[]} */ const comparants = [];
     /** @type {ImmeubleAT[]} */ const immeubles = [];
     let zone = '';
-    for (const l of lignes) {
-      if (/^Comparants\s*\(\d+\)/i.test(l)) { zone = 'c'; continue; }
-      if (/^Immeubles\s*\(\d+\)/i.test(l)) { zone = 'i'; continue; }
+    for (const brute of lignes) {
+      // Icônes collées au texte (« personM. MARTIN Paul », relecture 0.376.1) retirées.
+      const l = brute.replace(/^(person|domain|euro_symbol|business|home|apartment)(?=[A-Z])/, '');
+      if (/(?:^|\s)Comparants\s*\(\d+\)/i.test(l)) { zone = 'c'; continue; }
+      if (/(?:^|\s)Immeubles\s*\(\d+\)/i.test(l)) { zone = 'i'; continue; }
       if (/^(Tiers|Parties prenantes|Formalit[ée]s|Actes)\b/i.test(l) || /^\d{1,3}\s*-\s*\S/.test(l)) { zone = ''; continue; }
       if (zone === 'c') {
         if (RE_QUALITE.test(l)) { if (comparants.length && !comparants[comparants.length - 1].role) comparants[comparants.length - 1].role = l; continue; }
-        if (/^(person|domain|euro_symbol|business)$/i.test(l) || l.length < 4) continue;
-        if (/\b(M\.|Mme|Mlle|Monsieur|Madame)\s|[A-Z]{2,}/.test(l) && comparants.length < 30) comparants.push({ nom: l.slice(0, 120), role: '' });
+        if (/^(person|domain|euro_symbol|business|qualit[ée]|nom|r[ôo]le)$/i.test(l) || l.length < 4) continue;
+        // Qualité écrite en fin de ligne (« Mme DURAND Claire Acquéreur »).
+        const fin = /\s(Vendeur|Acqu[ée]reur|Promettant|B[ée]n[ée]ficiaire|D[ée]funt|H[ée]ritier|L[ée]gataire|Donateur|Donataire)s?$/i.exec(l);
+        const nom = fin ? l.slice(0, fin.index) : l;
+        // Un nom : une civilité, ou au moins deux mots dont un en capitales (jamais un intitulé de colonne d'un seul mot).
+        if ((/\b(M\.|Mme|Mlle|Monsieur|Madame)\s/.test(nom) || (/[A-Z]{2,}/.test(nom) && nom.split(' ').length >= 2)) && comparants.length < 30) comparants.push({ nom: nom.slice(0, 120), role: fin ? fin[1] : '' });
       } else if (zone === 'i') {
         if (/^Immeuble\b/i.test(l)) { if (immeubles.length && !immeubles[immeubles.length - 1].etiquette) immeubles[immeubles.length - 1].etiquette = l.slice(0, 60); continue; }
         if (/^\d{5}\s/.test(l) && immeubles.length < 30) immeubles.push({ adresse: l.slice(0, 160), etiquette: '' });
@@ -136,10 +184,12 @@
     return m ? { reference: m[1].replace(/\s+/g, ' '), libelle: m[2].slice(0, 200) } : { reference: '', libelle: '' };
   }
 
-  /** Pure : l'en-tête du sous-dossier affiché (« 2 - VTE MARTIN / DURAND », jamais une promesse listée en dessous). @param {string} texte */
-  function intituleSousDossierAT(texte) {
-    const l = String(texte || '').split('\n').map(net).find((x) => /^\d{1,3}\s*-\s*\S/.test(x)) || '';
-    return l.slice(0, 200);
+  /** Pure : l'en-tête du sous-dossier affiché (« 2 - VTE MARTIN / DURAND »), jamais un onglet inactif ni une promesse listée.
+   * @param {string} texte @param {any[]} [onglets] */
+  function intituleSousDossierAT(texte, onglets) {
+    const lignes = lignesActivesAT(texte, onglets);
+    const i = indexIntituleAT(lignes);
+    return i >= 0 ? lignes[i].slice(0, 200) : '';
   }
 
   /**
@@ -154,8 +204,9 @@
     if (!dossier) return null;
     const texte = String(dossier.capture.texte || '');
     const tete = enTeteDossierAT(texte);
-    const intitule = intituleSousDossierAT(texte);
-    const { statut, le } = statutSousDossierAT(texte);
+    const onglets = dossier.capture.onglets;
+    const intitule = intituleSousDossierAT(texte, onglets);
+    const { statut, le } = statutSousDossierAT(texte, onglets);
     const { comparants, immeubles } = panneauGaucheAT(texte);
     const lignes = lignesFormalitesAT(dossier.capture);
     /** @type {SousDossierAT} */
@@ -178,16 +229,19 @@
   function versFicheAT(inst) {
     const sd = inst && inst.sousDossier;
     if (!sd) return null;
-    const acte = sd.actes.find((a) => /vente|notoriete|attestation|declaration|donation/i.test(plat(a.libelle))) || sd.actes[0] || null;
+    // L'acte principal, jamais une procuration, une promesse, un mandat ou un courrier (relecture 0.376.1, comme etatActeAuthentic du poste).
+    const principaux = sd.actes.filter((a) => !/procuration|compromis|promesse|mandat|courrier|avant[- ]contrat/.test(plat(a.libelle)));
+    const acte = principaux.find((a) => /vente|notoriete|attestation|declaration|donation/.test(plat(a.libelle))) || principaux[0] || null;
     return {
       reference: inst ? inst.reference : '',
       statutSousDossier: sd.statut ? { statut: sd.statut, le: sd.statutLe } : null,
-      acte: acte ? { libelle: acte.libelle, etat: acte.statut, dates: acte.dates } : null,
-      enAttente: sd.formalitesPrealables.filter((f) => !/positi|re[çc]u|retour le|termin|sign/i.test(f.statut)).length
+      acte: acte ? { libelle: acte.libelle, etat: acte.statut, dates: acte.dates, signeLe: acte.signeLe || '' } : null,
+      // En attente : ni reçue, ni revenue, ni décidée (une réponse négative ou une non-préemption est une décision rendue).
+      enAttente: sd.formalitesPrealables.filter((f) => !/positi|negati|re[çc]u|retour le|termin|sign|preemption|refus|decision/i.test(plat(f.statut))).length
     };
   }
 
-  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
+  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
     natureDossierAT, enTeteDossierAT, intituleSousDossierAT, instantaneDepuisPagesAT, versFicheAT });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

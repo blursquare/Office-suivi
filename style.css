@@ -11384,3 +11384,20 @@ html.poste-claire #tab-reglages, html.poste-claire [data-onglet="reglages"] { di
 .pf-tr-cr summary { cursor: pointer; color: var(--muted); font-size: var(--texte-s); }
 .pf-tr-cr p { margin: 6px 0 0; }
 p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }
+
+/* CLAIRE dans Authentic, étape 3 : le sous-dossier d'Authentic dans le panneau de la fiche (client/133). */
+.at-sous-dossier { display: flex; flex-direction: column; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.at-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.at-intitule { font-weight: 500; font-size: var(--texte-m); }
+.at-groupe-titre { display: flex; align-items: center; gap: 6px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.at-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.at-ligne { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; font-size: var(--texte-s); }
+.at-ligne > * { min-width: 0; }
+.at-badge { justify-self: start; padding: 1px 6px; border-radius: var(--rayon-xs); font-size: var(--texte-xxs); font-weight: 700; color: var(--ink); background: color-mix(in srgb, var(--cat-gris) 25%, transparent); }
+.at-APR { background: color-mix(in srgb, var(--cat-jaune) 35%, transparent); }
+.at-ECV { background: color-mix(in srgb, var(--cat-orange) 30%, transparent); }
+.at-Ta { background: color-mix(in srgb, var(--cat-bleu) 25%, transparent); }
+.at-CJN { background: color-mix(in srgb, var(--cat-violet) 25%, transparent); }
+.at-libelle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.at-statut { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.at-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }

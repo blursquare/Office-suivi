@@ -22711,3 +22711,15 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   (adaptateur vers ce que la fiche lit déjà). Route `GET /api/authentic/dossier/:id/instantane`, calculée à la demande, jamais stockée à part.
   Branché sur les relevés actuels de l'extension et du navigateur du serveur ; rien ne change pour l'étude. Tests : `tests/authentic-modele.test.js`,
   `server/test/pages-authentic.test.js`.
+- Relecture de 0.376.1 (corrigée avec 0.377.0) : statut cherché dans les 4 lignes qui suivent l'en-tête du sous-dossier (plus un « Nouveau » de
+  menu ni un « Signé » de tableau) et « En cours » retiré des statuts ; onglets inactifs et « Importer avec 6e SENS » retirés (`lignesActivesAT`,
+  `indexIntituleAT` : la vente suivie de son badge ou de son panneau d'abord) ; un acte seulement dans « Rédaction / Actes signés » (une
+  déclaration préalable de travaux n'en est pas un), le tableau décide de la section ; lignes de la Rédaction sans date lues, « Signé le … »
+  daté (`signeLe`) ; acte principal jamais une procuration ; comparants aux icônes collées ou à la qualité en fin de ligne ; dates contrôlées.
+- **0.377.0 (27/10, 18 h 41)** — Plan Authen.TIC, **étape 3 : sous-dossier complet**. `client/133-authentic-sous-dossier.js` : bloc en tête du
+  panneau « Authentic » de la fiche (client/89) — intitulé et statut du sous-dossier (couleurs des badges d'Authentic), formalités préalables,
+  actes, formalités postérieures (badge, libellé, état, date), d'après `GET /api/authentic/dossier/:id/instantane` (relu au plus une fois
+  par minute, redessiné seulement si quelque chose change). `GET /api/authentic/statuts` (pages du dossier de tous les dossiers,
+  `pagesDossierDeTous`, 60 s en mémoire) → signal « Sans suite dans Authentic : à archiver ? » dans « Nouveau » du Suivi
+  (`signauxDossierSuivi`), jamais d'archivage d'office. La rédaction, les pièces (ECV « positif », RHF, SAFER) restent alimentées par la
+  lecture du poste d'avant (client/30) ; le modèle les montre. Non vérifié sur une vraie page d'Authentic.

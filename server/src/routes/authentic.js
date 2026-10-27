@@ -28,7 +28,7 @@
 // application/json : une page web d'un autre site ne peut pas en poster sans prévol CORS (auquel le
 // serveur ne répond pas) ; l'extension, elle, a la permission de l'adresse de CLAIRE.
 
-const { instantaneDepuisPagesAT, versFicheAT } = require('../../../commun/authentic-modele');
+const { instantaneDepuisPagesAT, versFicheAT, statutSousDossierAT } = require('../../../commun/authentic-modele');
 const express = require('express');
 const crypto = require('node:crypto');
 const { adressesLan } = require('../reseau');
@@ -322,6 +322,23 @@ function creerRouteurAuthentic(options) {
     res.setHeader('Cache-Control', 'no-store');
     if (!pages) { res.json({ pages: [] }); return; }
     res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
+  });
+  // Le statut du sous-dossier de chaque dossier (étape 3 : « Préparation définitive », « Signé », « Sans suite »…) pour le Suivi : lu sur la
+  // page du dossier gardée, 60 s en mémoire (le Suivi le demande à chaque rendu au plus une fois par minute).
+  let statutsCache = { t: 0, valeur: /** @type {Record<string, any>} */ ({}) };
+  routeur.get('/authentic/statuts', (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    if (!pages || typeof pages.pagesDossierDeTous !== 'function') { res.json({ statuts: {} }); return; }
+    if (maintenant() - statutsCache.t > 60000) {
+      /** @type {Record<string, any>} */
+      const statuts = {};
+      for (const p of pages.pagesDossierDeTous()) {
+        const st = statutSousDossierAT(String(p.capture.texte || ''), p.capture.onglets);
+        if (st.statut) statuts[p.dossierId] = { statut: st.statut, le: st.le, luLe: p.recueLe };
+      }
+      statutsCache = { t: maintenant(), valeur: statuts };
+    }
+    res.json({ statuts: statutsCache.valeur });
   });
   // L'instantané d'un dossier (plan Authen.TIC du 27/10, étape 2 ; commun/authentic-modele.js) : sous-dossier, comparants, immeubles,
   // formalités préalables, actes, formalités postérieures — calculé à la demande depuis les pages gardées, jamais stocké à part.
