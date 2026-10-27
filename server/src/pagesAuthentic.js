@@ -106,6 +106,13 @@ function creerPagesAuthentic(db, options = {}) {
       // La clé donnée par le poste (qui lit la page : « client:léa exemple »), sinon celle tirée ici des champs.
       const cle = /^(dossier|client:|bien:)/.test(clePoste) ? clePoste : clePageAuthentic(nature, capture);
       ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
+      // L'aperçu d'une formalité ouvert sur la page (étape 4 du plan Authen.TIC) : gardé à part, une ligne par formalité, pour survivre aux
+      // pages suivantes du dossier relevées sans tiroir ouvert.
+      const ap = capture.apercu;
+      if (ap && typeof ap === 'object' && String(ap.texte || '').trim()) {
+        const cleAp = 'apercu:' + crypto.createHash('sha1').update(chaine(ap.titre, 200) || String(ap.texte).slice(0, 200)).digest('hex').slice(0, 16);
+        ecrire.run(id, cleAp, 'apercu', chaine(ap.titre, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ apercu: { titre: chaine(ap.titre, 200), texte: String(ap.texte).slice(0, 8000) } }));
+      }
       const cles = compter.all(id).map((/** @type {any} */ l) => l.cle);
       for (const c of cles.slice(MAX_PAGES_PAR_DOSSIER)) retirer.run(id, c);
       return true;

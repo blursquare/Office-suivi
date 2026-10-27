@@ -48,3 +48,13 @@ test('audit 0.376.0 : un texte de la fiche qui contient un mot de la liste se cl
   assert.equal(r.libelle, 'supprim', 'seul le mot interdit est gardé');
   assert.ok(!JSON.stringify(G.refusRecents()).includes('DUPONT'));
 });
+
+test('audit 0.378.0 : l’icône d’aperçu doit dire l’aperçu ; une corbeille ou une icône « delete_forever » jamais', () => {
+  assert.equal(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Aperçu', texte: 'Aperçu' }), '');
+  assert.equal(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'pi pi-image', texte: '' }), '');
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Supprimer l’aperçu pi pi-trash', texte: '' }), /interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'delete_forever', texte: '' }), /ne dit pas|interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'image delete_outline', texte: '' }), /interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: '', texte: '' }), /ne dit pas/, 'sans libellé : pas de clic');
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Procuration / pouvoir', texte: '' }), /ne dit pas/, '« pouvoir » n’est pas « voir »');
+});

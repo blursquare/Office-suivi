@@ -26,6 +26,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première connexion réussie. À essayer : Réglages › Authentic › « Essayer la connexion ». Échec « identifiants refusés » : revoir l’identifiant et le mot de passe.' },
   { id: 'authentic-lecture', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE lit un dossier dans Authentic (page du dossier, fiches clients, fiches biens) et la fiche se complète',
     comment: 'Coché à la première lecture. À essayer : dans « Demander à CLAIRE » ou le canal du dossier : « lis le dossier X dans Authentic ».' },
+  { id: 'authentic-apercus', depuis: '0.378.0', source: 'serveur', titre: 'CLAIRE ouvre l’aperçu de chaque formalité d’un dossier dans Authentic (icône au survol) et en relève les dates',
+    comment: 'Coché à la première lecture qui relève un aperçu. À essayer : « lis le dossier X dans Authentic », puis Fiche › Dossier › Authentic : dates « créée, envoyée, reçue » sous les formalités.' },
   { id: 'authentic-sous-dossier', depuis: '0.377.0', source: 'manuel', titre: 'Fiche › Dossier › Authentic : le sous-dossier (statut, formalités, actes) est celui que montre Authentic',
     comment: 'À regarder sur un dossier ouvert dans Authentic : statut du badge et sa date, badges APR/ECV/ACT/MIC, états et dates. « C’est bon » si tout correspond.' },
   { id: 'email-panneau-envoye', depuis: '0.374.0', source: 'poste', titre: 'Brouillon d’email ouvert à droite de la conversation (Discussions) puis envoyé par Exchange',

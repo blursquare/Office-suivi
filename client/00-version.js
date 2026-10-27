@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.377.1';
+  const VERSION_APP = '0.378.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.378.0', date: '2026-10-27 18:54', resume: "CLAIRE dans Authentic, étape 4 (aperçu des formalités) : en lisant un dossier, CLAIRE ouvre l’aperçu de chaque formalité (l’icône qui apparaît au survol de la ligne), en relève les dates — créée, envoyée, reçue —, la situation et la date de signature d’un acte, le n° de répertoire, le n° chrono d’une copie MICEN, la réponse d’un état civil, puis le referme sans rien toucher d’autre. Ces détails s’affichent sous chaque formalité dans le panneau « Authentic » de la fiche ; l’extension Firefox (0.3.13) les relève aussi quand vous ouvrez un aperçu." },
   { version: '0.377.1', date: '2026-10-27 18:50', resume: "Suivi : « Sans suite dans Authentic » sort de « Nouveau » une fois la fiche ouverte (il revient si la date du statut change). Lecture du sous-dossier affinée (casier judiciaire, décisions rendues)." },
   { version: '0.377.0', date: '2026-10-27 18:41', resume: "CLAIRE dans Authentic, étape 3 (sous-dossier) : dans le panneau « Authentic » de la fiche, le sous-dossier d’Authentic avec son statut (Préparation définitive, Signé, Sans suite… et sa date), puis ses formalités préalables, ses actes et ses formalités postérieures, chacun avec son badge (APR, ECV, T@, ACT, MIC…), son état et sa date. Le Suivi signale un dossier passé « Sans suite » dans Authentic." },
   { version: '0.376.1', date: '2026-10-27 18:27', resume: "CLAIRE dans Authentic, étape 2 (modèle) : les pages d’Authentic gardées pour un dossier se lisent en un « instantané » — sous-dossier et son statut, comparants, immeubles, formalités préalables, actes, formalités postérieures —, base des étapes suivantes. Rien ne change encore à l’écran." },

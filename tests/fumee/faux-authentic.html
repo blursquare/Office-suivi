@@ -14,6 +14,8 @@
   .ui-selectcheckboxmenu-panel li { list-style: none; padding: 4px; }
   button, .lien { cursor: pointer; margin: 4px; }
   li.formalite { list-style: none; padding: 4px; cursor: pointer; }
+  .ligne-form .icone-apercu { visibility: hidden; cursor: pointer; } .ligne-form:hover .icone-apercu { visibility: visible; }
+  #sideView { position: fixed; right: 0; top: 60px; width: 240px; background: #fff; border: 1px solid #333; padding: 8px; }
 </style></head>
 <body>
 <!-- Faux Authentic pour tests/fumee/authentic-claire.mjs : la structure relevée sur les captures de l'étude (27/10), noms inventés. -->
@@ -44,7 +46,13 @@
     <div><span class="lien" onclick="voir('fiche-bien')">41000 BLOIS, 2 rue des Lices</span></div><div>Immeuble vendu</div>
     <div>Tiers (0)</div>
     <table><thead><tr><th>Intitulé</th><th>Date</th><th>Etat</th></tr></thead><tbody><tr><td>Acte de vente</td><td>01/10/2026</td><td>Non rédigé</td></tr></tbody></table>
+    <!-- Formalités préalables (étape 4) : l'icône d'aperçu n'apparaît qu'au survol de la ligne ; le tiroir porte une corbeille jamais cliquée. -->
+    <ul class="formalites-prealables">
+      <li class="ligne-form">ECV État-Civil - Acte de Naissance - MARTIN Paul · 01/10/2026 · Réponse positive <a class="icone-apercu"><i class="pi pi-trash" title="Supprimer l'aperçu" onclick="window.__interdit = 'corbeille de la ligne'">✕</i></a> <span class="icone-apercu" title="Aperçu" onclick="ouvrirApercu()">▣</span></li>
+    </ul>
   </div>
+  <div id="sideView" style="display:none"><h3>État-Civil - Acte de Naissance - MARTIN Paul</h3><div>Créée le</div><div>01/10/2026</div><div>Envoyée le</div><div>02/10/2026</div><div>Reçue le</div><div>05/10/2026</div><div>Réponse positive</div>
+    <button type="button" onclick="window.__interdit = 'Supprimer (aperçu)'">Supprimer</button> <button type="button" onclick="fermerApercu()">Fermer</button></div>
   <div class="lien">1 - Promesse VTE MARTIN / DURAND</div>
   <div class="lien" onclick="voir('dossier')">2 - VTE MARTIN / DURAND</div>
   <button type="button" onclick="voir('formalites')">Formalités préalables</button>
@@ -92,6 +100,10 @@
     document.getElementById(id).classList.add('active');
     document.getElementById('barre').style.display = id === 'connexion' || id === 'silicium' ? 'none' : 'flex';
   }
+  window.__apercus = 0;
+  function ouvrirApercu() { window.__apercus++; document.getElementById('sideView').style.display = 'block'; }
+  function fermerApercu() { document.getElementById('sideView').style.display = 'none'; }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fermerApercu(); });
   let apresSilicium = 'connexion';
   window.__silicium = 0;
   window.PrimeFaces = { ab(o) {

@@ -42,11 +42,21 @@ function classeStatutSousDossierAT(statut) {
   return { 'Signé': 'dl-success', 'Sans suite': 'dl-alerte', 'Préparation définitive': 'dl-acte', 'Préparation projet': 'dl-acte', 'Demande de pièces': 'dl-pret', 'En attente': 'dl-pret', 'Réception des pièces': 'dl-pret' }[statut] || 'dl-neutre';
 }
 
-// Pure : une formalité en une ligne (badge, libellé, état, dernière date).
+// Pure : ce que l'aperçu de la formalité ajoute (étape 4 : dates Créée / Envoyée / Reçue, signature, n° de répertoire, n° chrono, réponse).
+function detailsApercuAT(f) {
+  const j = (iso) => formatDateFr(iso);
+  return [f.creeLe && `créée le ${j(f.creeLe)}`, f.envoyeLe && `envoyée le ${j(f.envoyeLe)}`, f.recuLe && `reçue le ${j(f.recuLe)}`,
+    f.situation && f.situation !== f.statut && f.situation, f.signeLe && `signé le ${j(f.signeLe)}`, f.numeroRepertoire && `répertoire n° ${f.numeroRepertoire}`,
+    f.numeroChrono && `chrono n° ${f.numeroChrono}`, f.reponse].filter(Boolean);
+}
+
+// Pure : une formalité en une ligne (badge, libellé, état, dernière date), et dessous ce que dit son aperçu.
 function htmlLigneFormaliteAT(f) {
   const date = (f.signeLe || (f.dates || []).slice(-1)[0] || '');
+  const details = detailsApercuAT(f);
   return `<li class="at-ligne"><span class="at-badge at-${escapeAttr(String(f.badge).replace('@', 'a'))}" title="${escapeAttr(LIBELLES_BADGES_AT[f.badge] || f.badge)}">${escapeHtml(f.badge)}</span>
-    <span class="at-libelle">${escapeHtml(f.libelle)}</span>${f.statut ? `<span class="at-statut">${escapeHtml(f.statut)}</span>` : ''}${date ? `<span class="at-date">${escapeHtml(formatDateFr(date))}</span>` : ''}</li>`;
+    <span class="at-libelle">${escapeHtml(f.libelle)}</span>${f.statut ? `<span class="at-statut">${escapeHtml(f.statut)}</span>` : ''}${date ? `<span class="at-date">${escapeHtml(formatDateFr(date))}</span>` : ''}
+    ${details.length ? `<span class="at-apercu">${escapeHtml(details.join(' · '))}</span>` : ''}</li>`;
 }
 
 // Le bloc « Sous-dossier dans Authentic » du panneau Authentic de la fiche ('' tant que rien n'est relevé).

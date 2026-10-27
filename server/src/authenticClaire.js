@@ -390,6 +390,110 @@ async function ouvrirSousDossierVente(s, cible, etape) {
   return estCeDossier(await g.texte(), cible);
 }
 
+// Aperçus des formalités (plan Authen.TIC, étape 4 ; cartographie du 27/10 : « s'ouvre par l'icône image qui apparaît au survol d'une ligne
+// de formalité, et non par le clic sur le titre, qui peut bloquer le chargement »). Les lignes : un élément visible dont le texte commence par
+// un badge (APR, ECV, T@, ACT, MIC…), le plus intérieur ; chacune reçoit un repère `data-claire-ligne`.
+const SCRIPT_LIGNES_FORMALITES = `(() => {
+  const re = /^(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)(?=\\s|$)/;
+  const vus = [];
+  document.querySelectorAll('tr, li, [class*="formalite"], [class*="ui-datalist-item"]').forEach((e) => {
+    if (!e.offsetWidth || !e.offsetHeight || e.closest('[id*="previewFormalite"], [id*="sideView"]')) return;
+    const t = String(e.innerText || '').trim();
+    if (!re.test(t) || t.length > 400) return;
+    if ([...e.querySelectorAll('tr, li')].some((x) => re.test(String(x.innerText || '').trim()))) return;
+    vus.push(e);
+  });
+  vus.slice(0, 15).forEach((e, i) => e.setAttribute('data-claire-ligne', String(i)));
+  return Math.min(vus.length, 15);
+})()`;
+/** La ligne i amenée à l'écran ; sa position APRÈS le défilement (audit 0.378.0) : { x, y } ou null. @param {number} i */
+const scriptPlacerLigne = (i) => `(() => {
+  const l = document.querySelector('[data-claire-ligne="${Number(i)}"]');
+  if (!l) return null;
+  l.scrollIntoView({ block: 'center' });
+  const r = l.getBoundingClientRect();
+  return { x: Math.round(r.left + Math.min(r.width / 2, 200)), y: Math.round(r.top + r.height / 2) };
+})()`;
+/**
+ * L'icône d'aperçu de la ligne i, visible après le survol : jamais un élément qui porte le texte de la ligne (son titre), toujours une icône
+ * dont le libellé dit l'aperçu. Le libellé rendu est celui de ce qui est RÉELLEMENT sous le pointeur (titre, aria-label, alt, classe de
+ * l'élément et de son bouton, « supprimer » s'il porte une corbeille) — audit 0.378.0. { x, y, bouton } ou null. @param {number} i
+ */
+const scriptIconeApercu = (i) => `(() => {
+  const l = document.querySelector('[data-claire-ligne="${Number(i)}"]');
+  if (!l) return null;
+  const libelle = (x) => [x.getAttribute('title'), x.getAttribute('aria-label'), x.getAttribute('alt'), typeof x.className === 'string' ? x.className : '', x.innerText].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+  const dit = /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i;
+  const e = [...l.querySelectorAll('button, a, [role=button], i, span, img')]
+    // Jamais une corbeille, même si son titre dit « aperçu » (« Supprimer l'aperçu ») : elle et ce qui la contient sont écartés d'avance ; la
+    // garde contrôle encore ce qui est sous le pointeur.
+    .filter((x) => !/supprim|corbeille|trash|delete|poubelle/i.test(libelle(x) + ' ' + [...x.querySelectorAll('*')].map(libelle).join(' ')))
+    .find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden' && String(x.innerText || '').trim().length <= 3 && dit.test(libelle(x)));
+  if (!e) return null;
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const dessous = document.elementFromPoint(x, y);
+  if (!dessous || !(e.contains(dessous) || dessous.contains(e))) return null;
+  const b = dessous.closest('button, a, [role=button]') || dessous;
+  const corbeille = (b.matches('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') || b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]')) ? ' supprimer' : '';
+  const bouton = (libelle(dessous) + ' ' + (b !== dessous ? libelle(b) : '') + corbeille).replace(/\\s+/g, ' ').trim().slice(0, 160);
+  return bouton ? { x, y, bouton } : null;
+})()`;
+const SELECTEUR_TIROIR = '[id*="previewFormalite"], [id*="sideView"]';
+const SCRIPT_TIROIR_OUVERT = `!![...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length)`;
+// « Fermer » cherché DANS le tiroir seulement, vérifié sous le pointeur : { x, y, texte } ou null.
+const SCRIPT_FERMER_TIROIR = `(() => {
+  const t = [...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length);
+  if (!t) return null;
+  const f = [...t.querySelectorAll('button, a, [role=button]')].find((x) => /^fermer$/i.test(String(x.innerText || x.getAttribute('title') || x.getAttribute('aria-label') || '').trim()));
+  if (!f) return null;
+  const r = f.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  return d && (f.contains(d) || d.contains(f)) ? { x, y, texte: String(f.innerText || f.getAttribute('title') || f.getAttribute('aria-label') || '').trim() } : null;
+})()`;
+
+/**
+ * Ouvre l'aperçu de chaque formalité du sous-dossier affiché (15 au plus), relève la page tiroir ouvert, puis le referme (Échap, sinon
+ * « Fermer » du tiroir). Un tiroir qui ne se referme pas arrête tout (jamais un clic à l'aveugle sous lui). Rien n'est cliqué dans le tiroir
+ * que « Fermer ». Rend le nombre d'aperçus relevés.
+ * @param {any} s @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o
+ */
+async function lireApercusFormalites(s, o) {
+  const g = gestes(s, o.etape);
+  const nb = Number(await g.ev(SCRIPT_LIGNES_FORMALITES)) || 0;
+  let n = 0;
+  for (let i = 0; i < nb; i++) {
+    if (await g.ev(SCRIPT_TIROIR_OUVERT)) break;
+    try {
+      const pos = await g.ev(scriptPlacerLigne(i));
+      if (!pos) continue;
+      await g.cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pos.x, y: pos.y });
+      await attendre(400);
+      const ic = await g.ev(scriptIconeApercu(i));
+      if (!ic) continue;
+      controlerClic({ geste: 'apercu', vise: '', bouton: ic.bouton, texte: ic.bouton });
+      await s.cliquerPosition(ic.x, ic.y);
+      await s.attendreStable(8000);
+      if (!(await g.ev(SCRIPT_TIROIR_OUVERT))) continue;
+      if (n === 0) o.etape('Relève les aperçus des formalités');
+      await releverPage(s, o.script, o.recevoir);
+      n++;
+      await g.echap();
+      await attendre(400);
+      if (await g.ev(SCRIPT_TIROIR_OUVERT)) {
+        const f = await g.ev(SCRIPT_FERMER_TIROIR);
+        if (f) { controlerClic({ geste: 'navigation', vise: f.texte, bouton: f.texte, texte: f.texte }); await s.cliquerPosition(f.x, f.y); await attendre(400); }
+      }
+    } catch (e) {
+      // Un refus de la garde ou une ligne qui ne s'ouvre pas : la ligne suivante, sans s'arrêter.
+      if (e && e.refusGarde) o.etape('Passe un aperçu (refusé par CLAIRE)');
+    }
+  }
+  if (await g.ev(SCRIPT_TIROIR_OUVERT)) o.etape('Un aperçu ne s’est pas refermé : lecture des aperçus arrêtée');
+  return n;
+}
+
 /** Relève la page affichée (le relevé de l'extension) et la confie à la file des relevés. @param {any} s @param {string} script @param {(c: any) => any} recevoir */
 async function releverPage(s, script, recevoir) {
   const capture = await s.evaluer(`(() => { ${script}\n; return window.__claireRelever(); })()`);
@@ -425,6 +529,12 @@ async function lireDossier(s, cible, o) {
   o.etape('Relève la page du dossier');
   await releverPage(s, o.script, o.recevoir);
   let pages = 1;
+  let apercus = 0;
+  // Les aperçus des formalités (étape 4) : sans jamais bloquer la lecture du reste.
+  try { apercus = await lireApercusFormalites(s, o); pages += apercus; } catch (e) { o.etape('Aperçus des formalités non lus'); }
+  // La page du dossier relevée de nouveau, tiroirs refermés : c'est elle que le magasin garde (audit 0.378.0).
+  if (apercus && !(await g.ev(SCRIPT_TIROIR_OUVERT)) && estCeDossier(await g.texte(), cible)) await releverPage(s, o.script, o.recevoir);
+  if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
   const { comparants, immeubles } = liensFichesDuTexte(await g.texte());
   for (const [i, nom] of [...comparants, ...immeubles].entries()) {
     const fiche = i < comparants.length ? `la fiche client ${i + 1}` : `la fiche bien ${i - comparants.length + 1}`;
@@ -440,7 +550,7 @@ async function lireDossier(s, cible, o) {
       if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     } catch (e) { o.etape(`Passe ${fiche} (${String(e && e.message).slice(0, 60)})`); }
   }
-  return { pages };
+  return { pages, apercus };
 }
 
 /**
@@ -527,6 +637,6 @@ async function preparerFormalite(s, cible, o) {
 module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium,
+  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites,
   referenceEnTete, estCeDossier, seConnecter, lireDossier, preparerFormalite
 };

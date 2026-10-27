@@ -22726,3 +22726,13 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
 - **0.377.1** — Suites de l'audit 0.377.0 (`docs/audits/2026-10-27-0.377.0.md`) : « Sans suite » vu à l'ouverture de la fiche
   (`noterSansSuiteVuAT` depuis `noterDossierConsulte`, localStorage du poste), point terrain `authentic-sous-dossier`, `pagesDossierDeTous`
   limité à la clé « dossier » des dossiers en cours, casier lu avant l'état civil, décisions rendues ancrées.
+- **0.378.0 (27/10, 18 h 54)** — Plan Authen.TIC, **étape 4 : aperçu des formalités**. Relevé (`extension-firefox/releve.js`, extension 0.3.13
+  et navigateur du serveur) : `apercu { titre, texte }` quand le tiroir `previewFormalite` / `sideView` est ouvert ; capture normalisée
+  (`normaliserCaptureAuthentic`, 8 000 caractères) et empreinte de doublon le comprennent ; `pagesAuthentic.garder` le garde à part
+  (nature `apercu`, une ligne par formalité, clé = empreinte du titre). Modèle : `apercuFormaliteAT` (Créée / Envoyée / Reçue le, Situation,
+  Date de signature, N° de répertoire, Référence, N° chrono, Réponse positive/négative — valeur sur la ligne ou la suivante) et
+  `rangerApercuAT` (sous la formalité de même libellé, jamais une autre). Parcours du serveur `lireApercusFormalites` (dans `lireDossier`,
+  15 lignes au plus) : survol de la ligne (CDP), clic sur l'icône d'aperçu (geste `apercu` de la garde, bouton contrôlé), relevé, Échap puis
+  « Fermer » ; rien d'autre n'est cliqué dans le tiroir (corbeille du faux Authentic jamais touchée). Fiche : détails sous chaque ligne
+  (`detailsApercuAT`, client/133). Point terrain `authentic-apercus`. **Non vérifié sur une vraie page** : sélecteurs du tiroir et de l'icône
+  déduits de la cartographie.

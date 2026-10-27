@@ -161,13 +161,24 @@ window.__claireRelever = function () {
     onglets.push({ el: t, titre: titre, actif: actif });
   });
 
+  // Aperçu d'une formalité ouvert (tiroir latéral `previewFormalite` / `sideView`, cartographie de l'étude du 27/10) : son titre et son
+  // texte (dates Créée / Envoyée / Reçue, situation, n° de répertoire, n° chrono…), pour que CLAIRE les range sous la bonne formalité.
+  var apercu = null;
+  var tiroir = Array.prototype.find.call(document.querySelectorAll('[id*="previewFormalite"], [id*="sideView"]'), visible);
+  if (tiroir) {
+    var titreTiroir = tiroir.querySelector('h1, h2, h3, h4, .ui-sidebar-header, [class*="titre"], [class*="title"]');
+    apercu = { titre: net(titreTiroir ? titreTiroir.textContent : '').slice(0, 200), texte: String(tiroir.innerText || '').slice(0, 8000) };
+  }
+
   return {
     titre: document.title,
+    apercu: apercu,
     onglets: onglets.map(function (o) { return { titre: o.titre, actif: o.actif }; }),
     adresse: location.origin + location.pathname,
     champs: champs,
     tableaux: tableaux,
-    texte: document.body ? document.body.innerText : ''
+    // Le texte du tiroir d'aperçu n'est pas celui de la page du dossier (il est dans `apercu`) : retiré, pour que la page se lise comme sans tiroir.
+    texte: document.body ? (apercu && tiroir ? String(document.body.innerText).replace(String(tiroir.innerText || ''), '') : document.body.innerText) : ''
   };
 };
 // Valeur rendue quand fond.js injecte ce fichier (bouton « Envoyer à CLAIRE ») : sans elle, c'était la

@@ -113,6 +113,7 @@ function creerRouteurAuthenticClaire(o) {
     repondre(res, () => lancer('authentic-lire', 'Lecture du dossier dans Authentic', d, async (t, s, etape) => {
       const r = await A.lireDossier(s, cible, { script: await releve(), recevoir: (c) => o.recevoirReleve(c, 'claire-serveur'), etape });
       noterVerification(repo, 'authentic-lecture', { detail: `${r.pages} page(s)` });
+      if (r.apercus) noterVerification(repo, 'authentic-apercus', { detail: `${r.apercus} aperçu(s)` });
       return `J’ai lu le dossier dans Authentic (${r.pages} page${r.pages > 1 ? 's' : ''}) : la fiche se complète avec ce qu’Authentic montre.`;
     }));
   });

@@ -71,3 +71,23 @@ test('relecture 0.376.1 : statut près de l’en-tête, onglets inactifs, classe
   assert.equal(M.isoDepuisFrAT('31/13/2026'), '');
   assert.equal(M.isoDepuisFrAT('03/10/20261'), '');
 });
+
+test('étape 4 : l’aperçu d’une formalité (tiroir) rangé sous sa ligne — dates, signature, répertoire, chrono, réponse', () => {
+  const ap = M.apercuFormaliteAT('État-Civil - Acte de Naissance - MARTIN Paul\nCréée le\n01/10/2026\nEnvoyée le : 02/10/2026\nReçue le\n05/10/2026\nRéponse positive', '');
+  assert.equal(ap.creeLe, '2026-10-01');
+  assert.equal(ap.envoyeLe, '2026-10-02');
+  assert.equal(ap.recuLe, '2026-10-05');
+  assert.equal(ap.reponse, 'Réponse positive');
+  const acte = M.apercuFormaliteAT('Situation\nActe signé\nDate de signature\n29/09/2026\nN° de répertoire\n1234\nRéférence\nSG/BA', 'ACT Vente MARTIN / DURAND');
+  assert.equal(acte.situation, 'Acte signé');
+  assert.equal(acte.signeLe, '2026-09-29');
+  assert.equal(acte.numeroRepertoire, '1234');
+  const inst = M.instantaneDepuisPagesAT([
+    { nature: 'dossier', capture: PAGE },
+    { nature: 'apercu', capture: { apercu: { titre: 'ECV État-Civil - Acte de Naissance - MARTIN Paul', texte: 'Créée le 01/10/2026\nReçue le 05/10/2026' } } },
+    { nature: 'apercu', capture: { apercu: { titre: 'Une formalité inconnue', texte: 'Créée le 01/10/2026' } } }
+  ]);
+  const ecv = inst.sousDossier.formalitesPrealables[0];
+  assert.equal(ecv.recuLe, '2026-10-05', 'l’aperçu est rangé sous sa ligne');
+  assert.equal(inst.sousDossier.formalitesPrealables[1].recuLe, undefined, 'jamais sous une autre');
+});

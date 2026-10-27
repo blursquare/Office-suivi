@@ -13,7 +13,8 @@
  * @typedef {{ nom: string, role: string }} ComparantAT
  * @typedef {{ adresse: string, etiquette: string }} ImmeubleAT
  * @typedef {{ badge: BadgeAT, libelle: string, groupe: string, statut: string, dates: string[],
- *   creeLe?: string, envoyeLe?: string, recuLe?: string, signeLe?: string, numeroRepertoire?: string, numeroChrono?: string }} FormaliteAT
+ *   creeLe?: string, envoyeLe?: string, recuLe?: string, signeLe?: string, numeroRepertoire?: string, numeroChrono?: string,
+ *   situation?: string, reponse?: string }} FormaliteAT
  * @typedef {{ pjId: string, nom: string, dossierGed: string }} PieceJointeAT
  * @typedef {{ de: string, le: string, statut: string, objet: string }} MailAT
  * @typedef {{ intitule: string, nature: NatureDossierAT, statut: string, statutLe: string, comparants: ComparantAT[], immeubles: ImmeubleAT[],
@@ -194,6 +195,55 @@
     return i >= 0 ? lignes[i].slice(0, 200) : '';
   }
 
+  // Les libellés de l'aperçu d'une formalité (tiroir `previewFormalite`, cartographie du 27/10 : APR « Créée le / Envoyée le / Reçue le », ACT
+  // « Date de création, situation, date de signature, N° de répertoire, référence », MIC « N° chrono », ECV « Réponse positive »).
+  var CHAMPS_APERCU_AT = [
+    ['creeLe', /^(cr[ée]{2}e? le|date de cr[ée]ation(?: de la copie)?)\s*:?\s*/i, 'date'],
+    ['envoyeLe', /^envoy[ée]e? le\s*:?\s*/i, 'date'],
+    ['recuLe', /^re[çc]u(?:e)? le\s*:?\s*/i, 'date'],
+    ['signeLe', /^date de signature\s*:?\s*/i, 'date'],
+    ['situation', /^situation\s*:?\s*/i, 'texte'],
+    ['numeroRepertoire', /^n[°o]\s*de r[ée]pertoire\s*:?\s*/i, 'texte'],
+    ['numeroChrono', /^n[°o]\s*chrono\s*:?\s*/i, 'texte']
+  ];
+
+  /**
+   * Pure : l'aperçu d'une formalité lu dans le texte du tiroir — la valeur sur la même ligne que son libellé, sinon sur la suivante.
+   * @param {string} texte @param {string} [titre] @returns {Record<string, string>}
+   */
+  function apercuFormaliteAT(texte, titre) {
+    const lignes = String(texte || '').split('\n').map(net).filter(Boolean).slice(0, 200);
+    /** @type {Record<string, string>} */
+    const out = { titre: net(titre) || (lignes[0] || '').slice(0, 200) };
+    for (let i = 0; i < lignes.length; i++) {
+      for (const [cle, re, sorte] of CHAMPS_APERCU_AT) {
+        if (out[/** @type {string} */ (cle)] || !(/** @type {RegExp} */ (re)).test(lignes[i])) continue;
+        let v = lignes[i].replace(/** @type {RegExp} */ (re), '').trim();
+        if (!v && lignes[i + 1]) v = lignes[i + 1];
+        if (sorte === 'date') { const m = /(\d{1,2}[/.-]\d{1,2}[/.-]\d{4})/.exec(v); v = m ? isoDepuisFrAT(m[1]) : ''; }
+        if (v) out[/** @type {string} */ (cle)] = v.slice(0, 80);
+      }
+      if (!out.reponse && /^r[ée]ponse (positive|n[ée]gative)/i.test(lignes[i])) out.reponse = lignes[i].slice(0, 40);
+    }
+    return out;
+  }
+
+  /** Pure : l'aperçu rangé sous sa formalité (même libellé, ou l'un contenu dans l'autre) ; rend vrai s'il a trouvé sa place.
+   * @param {FormaliteAT[]} formalites @param {Record<string, string>} ap */
+  function rangerApercuAT(formalites, ap) {
+    const t = plat(String(ap.titre || '').replace(/^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)\s+/, ''));
+    if (!t) return false;
+    // Le même libellé, sinon le plus long qui contient l'autre — jamais un libellé vide (audit 0.378.0).
+    const avec = formalites.filter((x) => plat(x.libelle));
+    const f = avec.find((x) => plat(x.libelle) === t)
+      || avec.filter((x) => plat(x.libelle).includes(t) || t.includes(plat(x.libelle))).sort((a, b) => plat(b.libelle).length - plat(a.libelle).length)[0];
+    if (!f) return false;
+    for (const k of ['creeLe', 'envoyeLe', 'recuLe', 'signeLe', 'numeroRepertoire', 'numeroChrono']) if (ap[k]) /** @type {any} */ (f)[k] = ap[k];
+    if (ap.situation) f.situation = ap.situation;
+    if (ap.reponse) f.reponse = ap.reponse;
+    return true;
+  }
+
   /**
    * Pure : l'instantané d'un dossier d'après ses pages gardées (pagesAuthentic.js : [{ nature, capture, recueLe }], de la plus ancienne à
    * la plus récente). La DERNIÈRE page du dossier donne le sous-dossier ; les autres natures (pièces jointes, mails…) le complètent quand
@@ -219,6 +269,11 @@
       formalitesPosterieures: lignes.filter((x) => sectionLigneAT(x.badge, x.groupe) === 'posterieures'),
       pieces: [], mails: []
     };
+    // Les aperçus des formalités (étape 4) : pages « apercu » gardées et tiroir ouvert sur la page du dossier, rangés sous leur ligne.
+    const tous = sd.formalitesPrealables.concat(sd.actes, sd.formalitesPosterieures);
+    const apercus = liste.filter((p) => p.nature === 'apercu' && p.capture.apercu).map((p) => p.capture.apercu)
+      .concat(dossier.capture.apercu ? [dossier.capture.apercu] : []);
+    for (const a of apercus) rangerApercuAT(tous, apercuFormaliteAT(a.texte, a.titre));
     const dates = liste.map((p) => String(p.recueLe || '')).filter(Boolean).sort();
     return { reference: tete.reference, libelle: tete.libelle, sousDossier: sd, luLe: dates[dates.length - 1] || '', pages: liste.length };
   }
@@ -243,7 +298,7 @@
     };
   }
 
-  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
+  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, apercuFormaliteAT, rangerApercuAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
     natureDossierAT, enTeteDossierAT, intituleSousDossierAT, instantaneDepuisPagesAT, versFicheAT });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

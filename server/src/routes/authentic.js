@@ -72,7 +72,10 @@ function normaliserCaptureAuthentic(corps) {
     adresse: chaine(c.adresse, L.adresse),
     champs,
     tableaux,
-    texte: String(c.texte || '').slice(0, L.texte)
+    texte: String(c.texte || '').slice(0, L.texte),
+    // Aperçu d'une formalité (tiroir), étape 4 du plan Authen.TIC.
+    ...(c.apercu && typeof c.apercu === 'object' && String(c.apercu.texte || '').trim()
+      ? { apercu: { titre: chaine(c.apercu.titre, L.libelle), texte: String(c.apercu.texte || '').slice(0, 8000) } } : {})
   };
 }
 
@@ -221,7 +224,7 @@ function creerRouteurAuthentic(options) {
     if (!pageAuthenticConnue(capture)) return { ok: true, ignore: true };
     // L'intitulé et l'onglet actif comptent (banc Authentic du 19/10) : deux dossiers aux tableaux identiques (vente toute neuve, succession
     // sans pièce), ouverts l'un après l'autre, n'étaient qu'une page — la seconde était écartée comme doublon.
-    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture)])).digest('hex');
+    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture), capture.apercu ? capture.apercu.texte : ''])).digest('hex');
     const t = maintenant();
     const deja = empreintes.has(empreinte);
     if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) return { ok: true, deja: true };

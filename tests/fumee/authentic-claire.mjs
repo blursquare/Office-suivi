@@ -37,7 +37,11 @@ try {
   const captures = [];
   const script = await A.scriptReleve({ racineRepo: racine });
   const r = await A.lireDossier(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, recevoir: (c) => { captures.push(c); return { ok: true }; }, etape });
-  verifier(r.pages === 4 && captures.length === 4, `lecture : page du dossier + 3 fiches relevées (${captures.length})`);
+  verifier(r.pages === 5 && captures.length === 6, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
+  const avecApercu = captures.find((c) => c.apercu);
+  verifier(!!avecApercu && /Reçue le/.test(avecApercu.apercu.texte) && /MARTIN Paul/.test(avecApercu.apercu.titre), 'l’aperçu de la formalité est relevé (tiroir ouvert au survol, titre et dates)');
+  verifier(!(await s.evaluer('window.__interdit')), 'la corbeille de la ligne (« Supprimer l’aperçu ») n’est jamais cliquée');
+  verifier(await s.evaluer('window.__apercus') === 1 && await s.evaluer("document.getElementById('sideView').style.display") === 'none', 'aperçu ouvert une fois puis refermé');
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
 
   await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true });

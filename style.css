@@ -11401,3 +11401,4 @@ p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }
 .at-libelle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .at-statut { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 .at-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.at-apercu { grid-column: 2 / -1; font-size: var(--texte-xs); color: var(--muted); }
