@@ -162,7 +162,7 @@
       const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(auteur))}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}</span></div>` : '';
       return `${jour}<div class="asst-message asst-slack asst-${m.role}${r.debutGroupe ? '' : ' asst-suite'}" data-index="${i}">
           ${r.debutGroupe ? avatarCanal(auteur) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
-          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${i === iDernierMoi ? (vueParClaire ? `<div class="cx-lecture cx-vu" title="Vu par Claire">${icone('eye')}<span>Vu par Claire</span></div>` : `<div class="cx-lecture" title="Envoyé">${icone('check')}<span>Envoyé</span></div>`) : ''}
+          <div class="asst-corps">${tete}<div class="asst-texte">${m.html}</div>${htmlReactionsMessage(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${i === iDernierMoi ? (vueParClaire ? `<div class="cx-lecture cx-vu" title="Vu par Claire">${icone('eye')}<span>Vu par Claire</span></div>` : `<div class="cx-lecture cx-delivre" title="Délivré">${icone('coche-ronde')}<span>Délivré</span></div>`) : ''}
           <div class="asst-survol">${htmlBoutonsReactionSurvol(m)}<wa-button appearance="plain" size="s" class="bouton-discret" type="button" onclick="copierMessageAssistant(${i})" title="Copier le message">${icone('copier')} Copier</wa-button></div></div>
         </div>`;
     }).join('') + (assistantEnCours ? `<div class="asst-message asst-slack asst-claire asst-ecrit">

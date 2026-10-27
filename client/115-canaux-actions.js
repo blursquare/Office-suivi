@@ -68,13 +68,19 @@ function etatLectureMessageCanal(quand, lusPar, unSuffit) {
   return { vu: unSuffit ? par.length > 0 : par.length === membres.length, par, groupe: membres.length > 1, unSuffit: !!unSuffit };
 }
 
-// L'œil « Vu » (ou la coche « Envoyé ») sous mon dernier message d'un canal privé ou de dossier ; un clic déplie qui l'a vu, à quelle heure,
-// et qui pas encore (étude 27/10 : « en cliquant sur l'œil, voir qui a vu le message »).
+// Le rond coché « Délivré » (étude 27/10 : « mets aussi partout cela pour montrer que le message a été délivré », capture de Teams), sous mon
+// dernier message de TOUT canal — reçu par le serveur, il a un identifiant —, et dans la conversation avec Claire.
+function htmlDelivreMessage() {
+  return `<div class="cx-lecture-bloc"><span class="cx-lecture cx-delivre" title="Délivré">${icone('coche-ronde')}<span>Délivré</span></span></div>`;
+}
+
+// L'œil « Vu » (ou le rond coché « Délivré ») sous mon dernier message d'un canal privé ou de dossier ; un clic déplie qui l'a vu, à quelle
+// heure, et qui pas encore (étude 27/10 : « en cliquant sur l'œil, voir qui a vu le message »). « Général » et les canaux libres : « Délivré ».
 function htmlLectureMessageCanal(m) {
   const e = etatLectureMessageCanal(m.quand, canaux.lusPar, typeCanal(canaux.actif) === 'dossier');
-  if (!e) return '';
+  if (!e) return htmlDelivreMessage();
   const noms = e.par.map(x => prenomCollaborateur(x.nom));
-  const libelle = !e.vu ? `Envoyé${e.par.length ? ' · vu par ' + noms.join(', ') : ''}`
+  const libelle = !e.vu ? `Délivré${e.par.length ? ' · vu par ' + noms.join(', ') : ''}`
     : e.unSuffit ? `Vu par ${noms.length > 3 ? noms.slice(0, 3).join(', ') + ` +${noms.length - 3}` : noms.join(', ')}`
     : `Vu${e.groupe ? ' par tous' : ''}`;
   const ouvert = canaux.lectureOuverte === m.id;
@@ -82,7 +88,7 @@ function htmlLectureMessageCanal(m) {
     const vu = e.par.find(x => x.nom === c);
     return `<li class="${vu ? 'vu' : ''}">${icone(vu ? 'eye' : 'clock')}<span>${escapeHtml(prenomCollaborateur(c))}</span><span class="cx-lecture-quand">${vu ? 'vu à ' + escapeHtml(heureAssistant(vu.le)) : 'pas encore'}</span></li>`;
   }).join('')}</ul>` : '';
-  return `<div class="cx-lecture-bloc"><button type="button" class="cx-lecture${e.vu ? ' cx-vu' : ''}" onclick="basculerLectureCanal('${escapeOnclickArg(m.id)}')" aria-expanded="${ouvert}" title="Qui a vu ce message">${icone(e.vu ? 'eye' : 'check')}<span>${escapeHtml(libelle)}</span></button>${detail}</div>`;
+  return `<div class="cx-lecture-bloc"><button type="button" class="cx-lecture${e.vu ? ' cx-vu' : ''}" onclick="basculerLectureCanal('${escapeOnclickArg(m.id)}')" aria-expanded="${ouvert}" title="Qui a vu ce message">${icone(e.vu ? 'eye' : 'coche-ronde')}<span>${escapeHtml(libelle)}</span></button>${detail}</div>`;
 }
 
 function basculerLectureCanal(id) {

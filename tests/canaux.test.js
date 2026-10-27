@@ -312,3 +312,10 @@ test('œil « Vu » (27/10) : vu quand tous les autres membres ont lu après le 
   assert.equal(g.par.length, 1);
   assert.equal(app.etatLectureMessageCanal(1000, { 'Julie VASSELIN': 1200, 'Jérémy SAUJOT': 10 }, true).vu, true, 'canal de dossier : un collègue suffit');
 });
+
+test('rond coché « Délivré » sous mon dernier message, partout (étude 27/10)', () => {
+  const app = chargerApplication();
+  const html = app.htmlDelivreMessage();
+  assert.match(html, /Délivré/);
+  assert.match(html, /<circle/, 'le rond coché, comme sur Teams');
+});

@@ -217,6 +217,7 @@
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',
     check: '<path d="M3 8.4 6.4 11.8 13 4.6" stroke-linejoin="round"/>',
+    'coche-ronde': '<circle cx="8" cy="8" r="6.3"/><path d="M5.3 8.2 7.2 10.1 10.8 6.2" stroke-linejoin="round"/>',
     'liste-puces': '<circle cx="2.8" cy="4.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="2.8" cy="8.3" r="0.9" fill="currentColor" stroke="none"/><circle cx="2.8" cy="12.3" r="0.9" fill="currentColor" stroke="none"/><path d="M6 4.3H14M6 8.3H14M6 12.3H14"/>',
     'liste-numeros': '<path d="M2.2 3.2 3.2 2.6V6M2.2 6H4.2M2.1 9.6a1 1 0 0 1 2 .3c0 .8-2 1.6-2 2.6h2.1"/><path d="M6.6 4.3H14M6.6 8.3H14M6.6 12.3H14"/>',
     'effacer-format': '<path d="M3.5 3.2h8M7.5 3.2 5.6 12.8"/><path d="M10 9.6l3.6 3.6M13.6 9.6 10 13.2"/>',

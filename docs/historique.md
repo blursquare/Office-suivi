@@ -22671,3 +22671,7 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   `ligneClaireCanal` (client/114) = la ligne d'un message privé : avatar, « Claire », non-lus ; `statutProfilClaire` et `ROLE_PROFIL_CLAIRE`
   retirés. Classe `mode-claire` sur la page (conversation avec Claire, hors poste de CLAIRE) : mêmes règles de saisie pleine largeur que
   `mode-canal`, messages à 16 px des bords comme la saisie (relecture : leur marge de 24 px les décalait).
+- **0.375.4 (27/10, 17 h 45)** — Étude (capture d'un rond coché de Teams) : « mets aussi partout cela pour montrer que le message a été
+  délivré » — icône `coche-ronde` (client/01) ; `htmlDelivreMessage` (client/115) sous mon dernier message de tout canal (« général » et
+  canaux libres, sans lecture suivie, compris) ; « Envoyé » devient « Délivré » avec le rond coché dans les canaux privés et de dossier tant que
+  l'œil n'est pas là, et dans la conversation avec Claire.
