@@ -22666,3 +22666,8 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   « mets la zone pour taper le texte sur toute la largeur comme sur Slack et le contenu avec une marge » — en canal (`.mode-canal`), saisie
   sur toute la largeur du fil à 16 px des bords, coins et hauteur plus compacts, messages sans la colonne de 760 px ; la conversation avec
   Claire garde sa colonne centrée.
+- **0.375.3 (27/10, 17 h 33)** — Étude : « fais aussi la modification pour écrire à Claire dans sa conversation. Retire aussi le En ligne dans
+  la sidebar à côté de Claire, ça on le sait, et Notifications de l'office. Il faut qu'elle soit considérée comme un collaborateur. » —
+  `ligneClaireCanal` (client/114) = la ligne d'un message privé : avatar, « Claire », non-lus ; `statutProfilClaire` et `ROLE_PROFIL_CLAIRE`
+  retirés. Classe `mode-claire` sur la page (conversation avec Claire, hors poste de CLAIRE) : mêmes règles de saisie pleine largeur que
+  `mode-canal`, messages à 16 px des bords comme la saisie (relecture : leur marge de 24 px les décalait).

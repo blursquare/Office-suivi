@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.375.2';
+  const VERSION_APP = '0.375.3';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.375.3', date: '2026-10-27 17:33', resume: "Dans les Discussions, Claire apparaît comme une collaboratrice : son nom seul, sans « En ligne » ni « Notifications de l’office ». Dans sa conversation, la zone de saisie et les messages prennent toute la largeur, comme dans les canaux." },
     { version: '0.375.2', date: '2026-10-27 16:56', resume: "Un clic sur l'œil « Vu » (ou sur « Envoyé ») déplie qui a vu votre message et à quelle heure, et qui pas encore. Dans la liste des discussions, « Équipe » passe au-dessus de « Messages privés ». Dans les canaux, la zone de saisie prend toute la largeur (comme Slack), les messages aussi, avec une marge." },
     { version: '0.375.1', date: '2026-10-27 16:40', resume: "L'œil « Vu » aussi dans les canaux de dossier (« Vu par Julie » dès qu'un collègue a lu votre dernier message) et dans votre conversation avec Claire (« Vu par Claire » dès qu'elle prend votre demande). Dans les conversations, Claire s'appelle désormais « Claire » et non plus « CLAIRE ». Tableau de bord : « Mes dossiers » par défaut pour tous, administrateurs compris (tâches, rendez-vous, alertes) ; « Tous les dossiers » reste à un clic." },
     { version: '0.375.0', date: '2026-10-27 16:14', resume: "Discussions : dans une conversation privée, un petit œil « Vu » apparaît sous votre dernier message dès que votre collègue l'a lu, comme sur Teams (au survol : qui et à quelle heure) ; avant, une coche « Envoyé »." },

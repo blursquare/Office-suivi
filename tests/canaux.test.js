@@ -169,10 +169,10 @@ test('conversations avec Claire : 3 visibles, la conversation ouverte jamais cac
   assert.equal(app.groupesVisiblesConversationsAssistant([groupes[0]], '', false, 3).cachees, 0, 'peu de conversations : tout est montré');
 });
 
-test('profil de CLAIRE : « En ligne » à côté de son nom, plus de tâches au-dessus (étude 27/10)', () => {
+test('profil de CLAIRE : une collaboratrice, sans statut ni rôle, plus de tâches au-dessus (étude 27/10)', () => {
   const app = chargerApplication();
-  assert.equal(app.statutProfilClaire(false).texte, 'En ligne');
-  assert.equal(app.statutProfilClaire(true).etat, 'ecrit');
+  assert.equal(typeof app.statutProfilClaire, 'undefined', 'plus de « En ligne » à côté de son nom');
+  assert.equal(typeof app.ROLE_PROFIL_CLAIRE, 'undefined', 'plus de « Notifications de l’office »');
   assert.equal(typeof app.htmlAnticipationsClaire, 'undefined', 'les propositions restent dans le canal de leur dossier');
   assert.equal(app.canalDeProposition({ dossierId: 'f1' }), 'd:f1', 'une proposition de dossier s’ouvre dans son canal');
   assert.equal(app.canalDeProposition({}), 'general', 'sans dossier : « général »');

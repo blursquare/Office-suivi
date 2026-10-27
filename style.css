@@ -10895,6 +10895,12 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-page.mode-canal .asst-saisie { border-radius: var(--rayon-m); box-shadow: none; }
 .asst-page.mode-canal .asst-saisie textarea#assistant-saisie { min-height: 44px; padding: 12px 16px 6px; border-radius: var(--rayon-m) var(--rayon-m) 0 0; }
 .asst-page.mode-canal .cx-m { max-width: none; }
+/* Même saisie dans la conversation avec Claire (étude 27/10 : « fais aussi la modification pour écrire à Claire dans sa conversation »). */
+.asst-page.mode-claire .asst-bas { padding: 0 16px 16px; }
+.asst-page.mode-claire .asst-bas > * { max-width: none; }
+.asst-page.mode-claire .asst-saisie { border-radius: var(--rayon-m); box-shadow: none; }
+.asst-page.mode-claire .asst-saisie textarea#assistant-saisie { min-height: 44px; padding: 12px 16px 6px; border-radius: var(--rayon-m) var(--rayon-m) 0 0; }
+.asst-page.mode-claire .asst-message.asst-slack { padding-left: 16px; padding-right: 16px; }
 
 /* Artefacts : un panneau à droite de la conversation. */
 .asst-artefact { display: none; }
@@ -11352,8 +11358,6 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-claire-av .icone { width: 16px; height: 16px; }
 .pf-claire-av .cx-pres { position: absolute; right: -3px; bottom: -3px; width: 8px; height: 8px; background: var(--paper-card); }
 .pf-claire-av .cx-pres.en-ligne { background: var(--cat-vert); border-color: var(--paper-card); }
-.cx-claire-statut { margin-left: 4px; font-size: var(--texte-xs); font-weight: 500; color: var(--muted); }
-.cx-claire-statut.pf-libre { color: var(--cat-vert); }
 .cx-claire-ligne .cx-d { display: inline-flex; align-items: center; }
 
 .asst-notif-nouveau .asst-texte { border-left: 2px solid var(--focus); padding-left: 8px; }

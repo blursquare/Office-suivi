@@ -382,10 +382,10 @@ function majSaisieCanal() {
   const saisie = document.querySelector('#onglet-assistant .asst-saisie');
   const page = document.querySelector('#onglet-assistant .asst-page');
   const reel = canaux.actif && !vueSpecialeCanal(canaux.actif);
-  if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-traiter', vueSpecialeCanal(canaux.actif)); }
+  if (page) { page.classList.toggle('mode-canal', !!canaux.actif); page.classList.toggle('mode-claire', !canaux.actif && !POSTE_CLAIRE); page.classList.toggle('mode-traiter', vueSpecialeCanal(canaux.actif)); }
   if (champ) champ.placeholder = reel
     ? (typeCanal(canaux.actif) === 'prive' ? `Envoyer un message à ${libelleCanal(canaux.actif, canaux.liste, dossiers)}` : `Écrire dans ${typeCanal(canaux.actif) === 'dossier' ? '' : '# '}${libelleCanal(canaux.actif, canaux.liste, dossiers)} — @CLAIRE pour lui demander, @Julie pour prévenir`)
-    : 'Message à CLAIRE… tapez @ pour citer un dossier';
+    : 'Envoyer un message à Claire — tapez @ pour citer un dossier';
   if (bascule) {
     bascule.style.display = 'none';   // « Claire répond » / « Note à l'équipe » n'a plus d'objet : elle ne répond jamais sans être citée
     bascule.classList.toggle('actif', canaux.claireRepond);
@@ -416,10 +416,11 @@ function ligneCanal(e) {
 // CLAIRE dans la liste, comme une collègue (étude 26/10 : « mets-la dans la liste des collaborateurs, pas à l'écart ») : sa ligne est celle des
 // messages privés, avec son avatar et « En ligne » sur la ligne de son nom (étude 27/10), « Notifications de l'office » dessous ; la pastille =
 // ses messages non lus (les propositions sont comptées dans le canal de leur dossier).
+// Claire parmi les messages privés, comme une collaboratrice (étude 27/10 : « retire le En ligne à côté de Claire, ça on le sait, et
+// Notifications de l'office ; il faut qu'elle soit considérée comme un collaborateur »).
 function ligneClaireCanal() {
   const nonLus = Number(messagesClaireEtat.nonLus) || 0;
-  const statut = statutProfilClaire(assistantEnCours);
-  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}${nonLus ? ' non-lu' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''} title="Conversation avec Claire"><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire()}</span><span class="cx-c-texte"><span class="cx-c-nom">Claire <span class="cx-claire-statut pf-${escapeAttr(statut.etat)}">${escapeHtml(statut.texte)}</span></span><small>${escapeHtml(ROLE_PROFIL_CLAIRE)}</small></span>${nonLus ? `<span class="cx-n">${nonLus}</span>` : ''}</button></li>`;
+  return `<li><button type="button" class="cx-c cx-claire-ligne${!canaux.actif ? ' actif' : ''}${nonLus ? ' non-lu' : ''}" onclick="ouvrirProfilClaire()"${!canaux.actif ? ' aria-current="true"' : ''}><span class="cx-d" aria-hidden="true">${htmlAvatarProfilClaire()}</span><span class="cx-c-texte"><span class="cx-c-nom">Claire</span></span>${nonLus ? `<span class="cx-n">${nonLus}</span>` : ''}</button></li>`;
 }
 
 function renderCanaux() {
