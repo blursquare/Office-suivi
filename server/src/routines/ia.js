@@ -220,7 +220,7 @@ async function reponsesEmailsDuSoir(o) {
     const plusieurs = lus.length > 1;
     // Chaque email masqué à part ; plusieurs = « Email 1 / 2… » avec son objet, la réponse couvre l'ensemble.
     const texte = plusieurs
-      ? `(${lus.length} emails reçus de la même personne ; UNE seule réponse qui couvre l'ensemble.)\n\n` + lus.map((x, n) => `Email ${n + 1} — objet : ${masquer(String(x.e.objet || '(sans objet)'), sensibles, table)}\n${masquer(x.texte.slice(0, Math.floor(4000 / lus.length)), sensibles, table)}`).join('\n\n')
+      ? `(${lus.length} emails reçus de la même personne ; UNE seule réponse qui couvre l'ensemble.)\n\n` + lus.map((x, n) => `Email ${n + 1} — objet : ${masquer(String(x.e.objet || '(sans objet)'), sensibles, table)}\n${masquer(x.texte.slice(0, Math.floor(3400 / lus.length)), sensibles, table)}`).join('\n\n')
       : masquer(lus[0].texte.slice(0, 4000), sensibles, table);
     const prompt = promptPropositionReponse({
       objet: masquer(String(dernier.objet || ''), sensibles, table), deNom: masquer(String((dernier.de && (dernier.de.nom || '')) || (confrere ? 'un confrère' : 'le client')), sensibles, table),

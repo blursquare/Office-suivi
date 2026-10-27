@@ -32,15 +32,15 @@ const INTERDITS_ECRITURE = [
 // Les seules écritures permises au poste de CLAIRE : [méthodes, chemin sans « /api »].
 /** @type {[string[], RegExp][]} */
 const PERMIS_ECRITURE = [
-  [['POST'], /^\/assistant\/(agent|comprendre|converser|recherche-web|correspondance-acte)$/],
+  [['POST'], /^\/assistant\/(agent|comprendre|converser)$/],
   [['POST'], /^\/poste-claire\/demande$/],
   [['POST', 'PUT'], /^\/dossiers(\/[^/]+)?$/],
   [['POST', 'PUT'], /^\/rappels-perso(\/[^/]+)?$/],
   [['POST'], /^\/repertoire$/],
   [['POST'], /^\/nas\/(explorer\/renommer|explorer\/deplacer|deposer-document)$/],
-  [['POST'], /^\/scans\/ranger$/],
-  [['POST', 'DELETE'], /^\/navigation\/(plan-cadastre|taches\/[^/]+(\/documents\/[^/]+\/ranger)?)$/],
-  [['POST'], /^\/urbanisme\/plan-aerien$/],
+  [['POST'], /^\/scans\/(ranger|annuler|ecarter)$/],
+  [['POST'], /^\/navigation\/(plan-cadastre|taches\/[^/]+\/annuler|taches\/[^/]+\/documents\/[^/]+\/ranger)$/],
+  [['POST'], /^\/urbanisme\/plan-aerien(\/[^/]+\/ranger)?$/],
   [['POST'], /^\/openlegi\/appel$/],
   [['POST'], /^\/(journal-technique|verifications-terrain\/noter)$/],
   [['POST'], /^\/(login|logout)$/]

@@ -271,3 +271,13 @@ test('lui confier depuis la saisie : sa réponse dit qu’elle s’y met et la p
   assert.match(app.texteTravailConfie(3), /J’ai 2 travaux avant celui-ci/);
   assert.match(app.texteTravailConfie(2), /J’ai 1 travail avant celui-ci/);
 });
+
+test('brouillon de CLAIRE : décidé seulement une fois parti (Envoyer, Outlook, messagerie), jamais à la fermeture', () => {
+  const app = chargerApplication();
+  assert.equal(app.emailBrouillonParti({ ok: false, annule: true }), false);
+  assert.equal(app.emailBrouillonParti(false), false);
+  assert.equal(app.emailBrouillonParti(undefined), false);
+  assert.equal(app.emailBrouillonParti({ ok: true, mode: 'exchange' }), true);
+  assert.equal(app.emailBrouillonParti({ ok: true, mode: 'mailto' }), true);
+  assert.equal(app.emailBrouillonParti(true), true, 'relance au modèle de l’étude partie');
+});

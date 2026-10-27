@@ -29,6 +29,7 @@ test('le poste de CLAIRE : réglages, envois, agenda, Yousign, Teams, mise à jo
   non('POST', '/api/claire-messages'); non('GET', '/api/claire-messages?utilisateur=x'); non('POST', '/api/modeles-emails');
   oui('POST', '/api/repertoire'); oui('POST', '/api/rappels-perso'); oui('POST', '/api/nas/explorer/renommer'); oui('POST', '/api/login');
   oui('POST', '/api/navigation/plan-cadastre'); oui('POST', '/api/journal-technique');
+  oui('POST', '/api/scans/annuler'); oui('POST', '/api/scans/ecarter'); oui('POST', '/api/urbanisme/plan-aerien/p1/ranger'); oui('POST', '/api/navigation/taches/t1/annuler');
 });
 
 test('le cookie du poste est lu dans l’en-tête Cookie', () => {

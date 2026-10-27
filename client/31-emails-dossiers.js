@@ -1405,7 +1405,7 @@
     if (fondActif) { releverAppels(); setInterval(releverAppels, INTERVALLE_APPELS_MS); }
     // Une fenêtre cachée longtemps est ralentie par le navigateur (une relève par minute) : relever
     // dès qu'elle revient au premier plan.
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
+    if (fondActif) document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') releverAppels(); });
     ouvrirAppelDepuisAdresse();
     // Pages d'Authentic relevées automatiquement par l'extension : pièces reçues reportées sur la fiche,
     // même fenêtre cachée (boucle d'attente) ; relève de secours et au retour au premier plan.

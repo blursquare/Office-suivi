@@ -494,14 +494,14 @@
   // jointes visibles, puis « Envoyer » (par Exchange, depuis la boîte du collaborateur) ou « Ouvrir dans
   // Outlook » (le fichier .eml d'avant). Rend { ok, mode: 'envoye' | 'eml' | 'mailto', … } ou { ok: false,
   // annule: true } si la fenêtre est fermée sans rien faire — l'appelant ne marque alors rien.
-  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '', reponseA = '', html = '', emailsRecus = [] }) {
+  async function livrerEmailDossier({ destinataire, sujet, corps, pieces = [], confrere = false, responsableSignature = '', boutons = null, dossierId = '', geste = '', reponseA = '', html = '', emailsRecus = [], cc = '', avantEnvoi = null }) {
     const corpsFinal = adapterCorpsEmail(corps, confrere);
     if (modeEmailPoste() === 'mailto') {
       noterEmailPrepare({ dossierId, sujet, destinataire, geste });
       const copie = ouvrirBrouillonEmail(destinataire, sujet, texteSansMarques(texteAvecBoutons(corpsFinal, boutons)));
       return { ok: true, mode: 'mailto', copie, piecesNonJointes: pieces.length > 0 };
     }
-    return ouvrirRedactionEmail({ mode: 'nouveau', destinataire, sujet, corps: corpsFinal, pieces, confrere, responsableSignature, boutons, dossierId, geste, reponseA, html, emailsRecus });
+    return ouvrirRedactionEmail({ mode: 'nouveau', destinataire, sujet, corps: corpsFinal, pieces, confrere, responsableSignature, boutons, dossierId, geste, reponseA, html, emailsRecus, cc, avantEnvoi });
   }
 
   // Le fichier .eml d'avant (« Ouvrir dans Outlook ») : HTML, signature, pièces jointes, prêt à envoyer.
@@ -598,14 +598,16 @@
       const texte = texteEditableEmail(o.corps);
       redaction = {
         mode: o.mode === 'reponse' ? 'reponse' : 'nouveau', resolve,
-        dossierId: o.dossierId || '', geste: o.geste || '', a: o.destinataire || '', cc: '', voirCc: false,
+        dossierId: o.dossierId || '', geste: o.geste || '', a: o.destinataire || '', cc: o.cc || '', voirCc: !!o.cc,
         sujet: o.sujet || '', texte, texteDepart: texte, corpsOrigine: o.corps || '', pieces: (o.pieces || []).slice(),
         // `o.html` : un brouillon retouché puis refermé, rouvert tel quel (proposition de CLAIRE, client/112) ; il compte comme modifié.
         html: o.html || htmlRedactionDepuisTexte(o.corps), htmlDepart: '', emailRecu: null,
         // Les emails reçus auxquels on répond (une réponse commune à plusieurs emails du soir, routines) ; sinon celui de `reponseA`.
         emailsRecus: Array.isArray(o.emailsRecus) && o.emailsRecus.length ? o.emailsRecus.slice(0, 10) : (o.reponseA ? [o.reponseA] : []),
         boutons: o.boutons || null, confrere: !!o.confrere, responsableSignature: o.responsableSignature || '',
-        reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: ''
+        reponseA: o.reponseA || '', email: o.email || null, proposition: null, envoi: false, erreur: '',
+        // `avantEnvoi` : contrôle juste avant l'envoi (une proposition de CLAIRE décidée au clic sur « Envoyer », jamais deux fois — client/112).
+        avantEnvoi: typeof o.avantEnvoi === 'function' ? o.avantEnvoi : null
       };
       // Connexion Exchange pas encore connue de ce poste : relue, « Envoyer » apparaît dès qu'elle l'est.
       if (!envoiDirectPossible() && typeof chargerReglagesExchange === 'function') chargerReglagesExchange().then(() => { if (redaction) renderRedaction(); }).catch(() => {});
@@ -614,7 +616,8 @@
         if (overlay) overlay.style.display = 'flex';
       }
       redaction.htmlDepart = o.html ? htmlRedactionDepuisTexte(o.corps) : redaction.html;
-      if (o.html) { const tmp = document.createElement('div'); tmp.innerHTML = o.html; redaction.texte = (tmp.innerText || tmp.textContent || '').replace(/\n$/, ''); }
+      redaction.aDepart = redaction.a; redaction.sujetDepart = redaction.sujet;
+      if (o.html) { redaction.html = htmlEditeurSur(o.html); redaction.texte = texteDeHtmlRedaction(redaction.html); }
       renderRedaction();
       if (redaction.mode === 'nouveau' && redaction.emailsRecus.length) chargerEmailRecuRedaction();
       if (redaction.mode === 'reponse' && redaction.reponseA) demanderPropositionReponse(true);
@@ -633,7 +636,7 @@
   function abandonnerRedaction() {
     const r = redaction;
     // Ce qui était écrit repart avec la fermeture : une proposition de CLAIRE le garde pour le rouvrir (client/112).
-    fermerRedaction({ ok: false, annule: true, brouillon: r ? { a: r.a, cc: r.cc, sujet: r.sujet, html: r.html, modifie: r.html !== r.htmlDepart } : null });
+    fermerRedaction({ ok: false, annule: true, brouillon: r ? { a: r.a, cc: r.cc, sujet: r.sujet, html: r.html, texteModifie: r.html !== r.htmlDepart, modifie: r.html !== r.htmlDepart || r.a !== r.aDepart || r.sujet !== r.sujetDepart || !!r.cc } : null });
     if (r && r.mode === 'reponse') renderInviteReponse();
   }
 
@@ -861,13 +864,17 @@
     if (!r || !r.emailsRecus.length) return;
     r.emailRecu = r.emailsRecus.map(() => ({ etat: 'chargement' }));
     renderRedaction();
-    const lus = await Promise.all(r.emailsRecus.map(async (id) => {
+    // Un à un, et arrêté au premier refus de la messagerie (CLAUDE.md : un seul essai, jamais une rafale de connexions refusées).
+    const lus = [];
+    for (const id of r.emailsRecus) {
+      if (lus.some(x => x.etat === 'erreur' && /refus|configur/i.test(x.message || ''))) { lus.push({ etat: 'erreur', message: 'non relu (la messagerie a refusé la lecture précédente)' }); continue; }
       try {
         const rep = await fetchAvecAuth('/api/emails-dossiers/contenu?emailId=' + encodeURIComponent(id));
         const corps = await rep.json().catch(() => ({}));
-        return rep.ok ? { etat: 'lu', texte: String(corps.texte || ''), de: corps.de || null, date: corps.date || '', objet: corps.objet || '' } : { etat: 'erreur', message: corps.erreur || 'statut ' + rep.status };
-      } catch (e) { return { etat: 'erreur', message: e.message }; }
-    }));
+        lus.push(rep.ok ? { etat: 'lu', texte: String(corps.texte || ''), de: corps.de || null, date: corps.date || '', objet: corps.objet || '' } : { etat: 'erreur', message: corps.erreur || 'statut ' + rep.status });
+      } catch (e) { lus.push({ etat: 'erreur', message: e.message }); }
+      if (redaction !== r) return;
+    }
     if (redaction !== r) return;   // fenêtre refermée ou remplacée entre-temps
     r.emailRecu = lus;
     renderRedaction();
@@ -898,6 +905,11 @@
     // avant l'appel au serveur et le bouton restait sur « Envoi… ») : une erreur, quelle qu'elle soit, se dit dans la fenêtre.
     try {
       renderRedaction();
+      if (r.avantEnvoi) {
+        const pret = await r.avantEnvoi();
+        if (pret !== true) { r.envoi = false; r.erreur = typeof pret === 'string' ? pret : 'Envoi arrêté.'; renderRedaction(); return; }
+        r.avantEnvoi = null;   // décidé : un nouvel essai après une erreur d'envoi ne redécide pas
+      }
       const edite = r.html !== r.htmlDepart;
       const corps = edite ? corpsDepuisTexteEditable(r.texte, r.boutons) : r.corpsOrigine;
       const images = await imagesSignatureEmail();

@@ -269,6 +269,7 @@ function emailBrouillonParti(r) {
 
 async function ouvrirBrouillonProposition(id, p) {
   const det = p.details || {};
+  let decideeAvant = false;
   const d = p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
   let r;
   if (det.modele && d && typeof MODELES_EMAIL_RELANCE === 'object' && MODELES_EMAIL_RELANCE[det.modele]) {
@@ -276,16 +277,27 @@ async function ouvrirBrouillonProposition(id, p) {
   } else {
     const b = brouillonsPropositions()[id];
     r = await livrerEmailDossier({ destinataire: b && b.a != null ? b.a : (det.destinataire || ''), sujet: b && b.sujet ? b.sujet : (det.sujet || p.titre), corps: det.corps || '',
-      html: b && b.modifie ? b.html : '', confrere: det.confrere === true || det.confrere === 'true', responsableSignature: d ? d.responsable : '',
+      html: b && b.texteModifie ? b.html : '', cc: b && b.cc ? b.cc : '',
+      // Décidée au clic sur « Envoyer », AVANT l'envoi (relecture 27/10) : ouverte par deux personnes, ou refusée ailleurs entre-temps,
+      // elle ne part qu'une fois.
+      avantEnvoi: async () => {
+        try {
+          const dec = await enregistrerDecisionProposition(id, 'acceptee');
+          if (dec.dejaTraitee) return 'Cette proposition a déjà été traitée (envoyée, refusée ou notée faite ailleurs) : rien n’est parti.';
+          decideeAvant = true;
+          return true;
+        } catch (e) { return 'Proposition non enregistrée, rien n’est parti : ' + e.message; }
+      }, confrere: det.confrere === true || det.confrere === 'true', responsableSignature: d ? d.responsable : '',
       dossierId: p.dossierId || '', geste: 'routine-claire', reponseA: det.reponseA || '',
       emailsRecus: String(det.emailsRecus || '').split(',').map(x => x.trim()).filter(Boolean) });
   }
   if (!emailBrouillonParti(r)) {
     if (r && r.annule && r.brouillon && r.brouillon.modifie) garderBrouillonProposition(id, r.brouillon);
-    if (r && r.annule) afficherToast('Brouillon refermé : il reste dans « À traiter », rouvrez-le quand vous voulez.', 'OK', null);
+    if ((r && r.annule) || r === false) afficherToast('Brouillon refermé : il reste dans « À traiter », rouvrez-le quand vous voulez.', 'OK', null);
     return;
   }
   garderBrouillonProposition(id, null);
+  if (decideeAvant) { await apresDecisionProposition(); return; }
   try {
     const decidee = await enregistrerDecisionProposition(id, 'acceptee');
     if (!decidee.dejaTraitee) noterVerificationPoste('routines-boite-poste', { detail: 'brouillon de CLAIRE envoyé' });

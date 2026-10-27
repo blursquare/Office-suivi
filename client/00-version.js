@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.371.0';
+  const VERSION_APP = '0.371.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.371.1', date: '2026-10-27 09:32', resume: "Un brouillon de CLAIRE ouvert par deux personnes ne part qu'une fois : la proposition est décidée au clic sur « Envoyer », et un envoi déjà fait ailleurs est arrêté. Le brouillon refermé garde aussi le destinataire, l'objet et la copie corrigés. Les emails du client sont relus un à un, et plus du tout si la messagerie refuse la connexion." },
     { version: '0.371.0', date: '2026-10-27 09:23', resume: "Les brouillons d'email préparés par CLAIRE se rouvrent : « Ouvrir le brouillon » ne valide plus la proposition, elle reste dans « À traiter » tant que l'email n'est pas parti, et vos retouches sont gardées si vous refermez la fenêtre. Pour une réponse aux emails reçus après 18 h, la fenêtre montre l'email du client au-dessus du brouillon. Et si un client a envoyé plusieurs emails depuis la veille au soir, CLAIRE prépare une seule réponse commune le matin, avec tous ses emails visibles. Aussi : l'ordinateur virtuel de CLAIRE ne fait plus les tâches de fond d'un poste, n'a droit qu'aux gestes dont son travail a besoin, et un 9 h 30 choisi pour les routines est de nouveau gardé." },
     { version: '0.370.2', date: '2026-10-27 08:19', resume: "On confie un travail à CLAIRE depuis la zone de saisie de sa conversation : écrivez la consigne puis « Lui confier » (à côté d'« Envoyer ») ; elle répond qu'elle s'y met et son compte rendu arrive dans le fil. À droite, un seul bloc « Son travail » réunit les étapes de ce qu'elle fait en ce moment et ses travaux en arrière-plan. Son statut (« En ligne · rien à décider »…) s'affiche à côté de son nom." },
     { version: '0.370.1', date: '2026-10-27 08:13', resume: "Le passage du matin de CLAIRE a lieu à 9 h 15 au lieu de 9 h 30 : ses préparations du jour et son résumé arrivent un quart d'heure plus tôt. Un réglage resté à 9 h 30 passe à 9 h 15 ; une autre heure choisie dans Réglages › Routines est gardée. Et le message « vous ouvrez … dans Authentic » ne faisait pas son calcul (erreur à l'écran) : corrigé." },

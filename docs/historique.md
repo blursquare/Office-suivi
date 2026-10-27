@@ -22332,3 +22332,12 @@ envoie plusieurs emails après 18 h, préparer une réponse commune le matin ».
   vide (`actionsDuJour(...).actions`) ; 9 h 30 choisi pour les routines de nouveau gardé (`heureRevue`) ; travail de l'ordinateur virtuel 20 min.
 - Restent (dits à l'étude) : une carte de validation abandonnée par le poste (8 min) reste à décider ; la présence dans Authentic est notée par la
   fenêtre qui reçoit la page (un autre poste si le sien n'a pas de fenêtre CLAIRE ouverte) ; « Envoyer un test » ne montre pas le message de CLAIRE.
+
+### 27/10/2026 — 0.371.1 : corrections de la relecture de 0.371.0
+
+Brouillon de CLAIRE décidé AU CLIC sur « Envoyer », avant l'envoi (`avantEnvoi` de `ouvrirRedactionEmail`) : ouvert sur deux postes ou décidé
+ailleurs entre-temps, il ne part qu'une fois. Brouillon refermé : destinataire, objet et copie gardés même sans retouche du texte, HTML repassé par
+`htmlEditeurSur`. Emails du client relus un à un, arrêt au premier refus de la messagerie. Liste blanche du poste de CLAIRE complétée (scans
+remis / laissés, plan aérien rangé, plan de cadastre annulé), entrées sans route retirées. Appels non relevés au retour au premier plan dans sa
+fenêtre. Réponse commune : chaque email coupé à 3 400 / n caractères (la fin du dernier n'est plus retirée). Restent : une réponse commune trop
+longue (plus de 90 mots) n'est pas proposée — dite comme erreur du tour ; le chemin du brouillon suit le niveau de dépôt de la proposition.
