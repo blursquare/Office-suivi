@@ -97,7 +97,8 @@ function creerRouteurRoutines(parametresRepo, planificateur) {
     res.json({
       aTraiter: compterATraiter(toutes, utilisateur, tous),
       // Le nom de la routine accompagne chaque proposition (pastille de la boîte) ; une routine retirée du catalogue garde un nom neutre.
-      propositions: listerPropositions(toutes, { responsable: utilisateur, tous, etats, dossierId, reportees }).slice(0, 200)
+      // « À traiter » garde aussi les propositions autorisées pas encore terminées (document, tâche), avec leur bouton « Terminé ».
+      propositions: listerPropositions(toutes, { responsable: utilisateur, tous, etats, enCours: filtre === 'a-traiter', dossierId, reportees }).slice(0, 200)
         .map((p) => Object.assign({}, p, { routineNom: (routineParId(p.routine) || { nom: 'CLAIRE' }).nom }))
     });
   });

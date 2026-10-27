@@ -65,7 +65,7 @@ function verifierNudgeAuthentic() {
   const nudges = lireNudgesAuthentic();
   if (!nudgeAuthentiqueAutorise(momentDeLaJournee(new Date()), nudges[d.id], Date.now())) return;
   const auj = isoAujourdhuiLocal();
-  const nbProp = (propositionsClaire.liste || []).filter(p => p.dossierId === d.id).length;
+  const nbProp = (propositionsClaire.liste || []).filter(p => p.dossierId === d.id && propositionADecider(p)).length;
   const nbPieces = estSuccession(d) ? 0 : (piecesAttenduesDossier(d) || []).length;
   const nbGestes = actionsDuJour([d], auj).actions.filter(a => a.dossier && a.dossier.id === d.id).length;
   const idees = ideesPourDossierAuthentic(nbProp, nbPieces, nbGestes);

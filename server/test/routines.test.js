@@ -401,3 +401,20 @@ test('terminée : une proposition autorisée se termine (🏁), une encore à d�
   const dossier = { id: 'd9', nom: 'ESSAI', typeAffaire: 'succession', parties: [], historique: [{ date: '2026-10-26T09:00:00Z', texte: 'Dossier créé' }], constitutionFaiteLe: '2026-10-27' };
   assert.equal(X.constitutionDossier([dossier], '2026-10-27', { niveau: () => 1 }).length, 0, 'constitution déjà faite : rien à proposer');
 });
+
+test('« À traiter » (étude 27/10) : une proposition autorisée (document, tâche) reste à traiter jusqu’à « Terminé » ; une alerte lue en sort', () => {
+  const maintenant = new Date('2026-10-28T09:00:00Z');
+  const liste = [
+    { id: 'a', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'document', traiteLe: '2026-10-28T08:00:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'b', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'document', traiteLe: '2026-10-28T08:00:00Z', termineeLe: '2026-10-28T08:30:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'c', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'email', traiteLe: '2026-10-28T08:00:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'd', responsable: 'Julie VASSELIN', etat: 'vue', type: 'tache', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'e', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'tache', traiteLe: '2026-10-26T08:00:00Z', creeLe: '2026-10-25T08:00:00Z' },
+    { id: 'f', responsable: 'Julie VASSELIN', etat: 'vue', type: 'alerte', creeLe: '2026-10-27T08:00:00Z' }];
+  assert.equal(P.compterATraiter(liste, 'Julie VASSELIN', false, maintenant), 2, 'la vue et l’autorisée récente non terminée');
+  assert.deepEqual(P.listerPropositions(liste, { responsable: 'Julie VASSELIN', etats: ['proposee', 'vue'], enCours: true, maintenant }).map((p) => p.id).sort(), ['a', 'd']);
+  assert.equal(P.enCoursProposition(liste[2], maintenant), false, 'un email autorisé est parti par sa fenêtre : rien à terminer');
+  assert.equal(P.enCoursProposition(liste[4], maintenant), false, 'autorisée avant le bouton « Terminé » : ne revient pas');
+  assert.equal(P.enCoursProposition(liste[0], new Date('2026-11-06T09:00:00Z')), false, 'plus de 7 jours : sortie');
+  assert.equal(P.aDeciderProposition(liste[5]), false, 'une alerte vue est lue');
+});

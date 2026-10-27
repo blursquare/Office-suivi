@@ -83,7 +83,11 @@ function notificationsRiches(o) {
   for (const canal of ids(o.canaux)) {
     if (!C.canalValide(canal) || !accessible(canal, o.collab, COLLABORATEURS)) continue;
     // Le dernier message d'un autre — jamais une carte de proposition (comptée par « À traiter », audit 25/10).
-    const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab && !x.carte).pop();
+    // Dans le canal d'un dossier dont il n'est pas responsable, un message de CLAIRE ne lui est montré que s'il le cite (étude 27/10).
+    let responsable = '';
+    if (canal.startsWith('d:')) { try { const d = o.depot && o.depot.trouverParId ? o.depot.trouverParId(canal.slice(2)) : null; responsable = d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { responsable = ''; } }
+    const claireCachee = (/** @type {any} */ x) => !!x.claire && !!responsable && responsable !== o.collab && !(Array.isArray(x.mentions) && x.mentions.includes(o.collab));
+    const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab && !x.carte && !claireCachee(x)).pop();
     if (!m) continue;
     const auteur = m.claire ? 'CLAIRE' : prenom(m.auteur);
     sortie.push({ type: 'message', canal, mid: m.claire ? '' : m.id, parent: m.parent || m.id, titre: nomCanal(o.repo, o.depot, canal), auteur, heure: heureDe(m.quand), contexte: m.parent ? 'Dans un fil' : '',

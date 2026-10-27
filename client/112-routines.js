@@ -49,6 +49,7 @@ function etatTexteProposition(p, maintenantMs) {
   if (p && p.etat === 'refusee') return `Refusée${par}${quand}`;
   if (p && p.etat === 'faite') return `Déjà fait${par}${quand}`;
   if (p && p.etat === 'expiree') return 'Expirée : sans réponse depuis 30 jours';
+  if (p && p.etat === 'vue' && p.type === 'alerte') return 'Lue';
   return '';
 }
 
@@ -119,7 +120,7 @@ function carteProposition(p, options) {
     p.routineNom ? `<span class="pc-puce">${escapeHtml(p.routineNom)}</span>` : '',
     p.exemple ? '<span class="pc-puce pc-puce-exemple">Exemple</span>' : ''
   ].join('');
-  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite';
+  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite' || (p.etat === 'vue' && p.type === 'alerte');
   const reportee = !traitee && p.reporteJusqua && Date.parse(p.reporteJusqua) > Date.now();
   const moi = peutDeciderProposition(p, utilisateurPoste);
   // Autorisée, pas encore terminée : « Terminé » quand le travail est fait (étude 27/10 : « comment indiquer que c'est terminé ? »).
@@ -448,12 +449,17 @@ async function silencerDossierProposition(id) {
 // ---- Le lien de la fiche du dossier vers son canal ----
 
 // En tête du Tableau de la fiche : le lien vers le canal du dossier — ce que CLAIRE y a écrit, ce qui attend une décision. Rien s'il n'y a rien.
+// Pur : une proposition encore à décider (« À traiter » garde aussi les autorisées pas encore terminées, comptées à part).
+function propositionADecider(p) { return !!p && (p.etat === 'proposee' || (p.etat === 'vue' && p.type !== 'alerte')); }
+
 function renderPropositionsFiche(d) {
-  const aDecider = propositionsClaire.liste.filter(p => p.dossierId === d.id).length;
+  const duDossier = propositionsClaire.liste.filter(p => p.dossierId === d.id);
+  const aDecider = duDossier.filter(propositionADecider).length;
+  const aTerminer = duDossier.length - aDecider;
   const c = typeof canaux === 'object' && canaux.liste ? canaux.liste.find(x => x.id === 'd:' + d.id) : null;
   const nonLus = c ? c.nonLus : 0;
-  if (!aDecider && !nonLus) return '';
-  const texte = [nonLus ? `${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : '', aDecider ? `${aDecider} à décider` : ''].filter(Boolean).join(' · ');
+  if (!aDecider && !aTerminer && !nonLus) return '';
+  const texte = [nonLus ? `${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : '', aDecider ? `${aDecider} à décider` : '', aTerminer ? `${aTerminer} à terminer` : ''].filter(Boolean).join(' · ');
   return `<section class="pc-fiche" aria-label="Canal du dossier">
     <header class="pc-fiche-tete"><span class="pc-etincelle pc-etincelle-petite" aria-hidden="true">${icone('diese')}</span><strong>Canal du dossier</strong><span class="pc-fiche-nb">${escapeHtml(texte)}</span>
       <wa-button variant="brand" size="s" type="button" class="pc-fiche-ouvrir" onclick="ouvrirCanalDepuisFiche('${escapeOnclickArg(d.id)}')">Ouvrir</wa-button></header>

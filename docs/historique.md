@@ -22804,3 +22804,24 @@ TÊTE d'un texte court passe le masquage (limite connue) — le poste n'envoie d
 (`etatSurPourAgent`), dossier de la GED au nom connu sinon vide, type de formalité en mots (les sigles ACT, MIC… étaient codés), pas
 d'intitulé du sous-dossier, et pour une ligne de suivi d'un dossier hors de CLAIRE ni libellé ni référence (test client
 `tests/authentic-sous-dossier.test.js`).
+
+### 27/10 — 0.383.1 : notifications des canaux de dossier et propositions autorisées en attente
+
+Étude (après l'installation de l'application Chrome et de sa pastille) : « ne pas notifier les collaborateurs qui ne sont pas en charge des
+dossiers quand Claire écrit dans les conversations de dossiers » ; « il me met 5 notifications de base alors que tout est lu » ; « les
+routines lues mais en attente : on ne les voit plus notifiées ». Causes : (1) chaque message de CLAIRE dans le canal d'un dossier comptait
+comme non lu pour TOUS les collaborateurs, y compris dans des canaux qu'ils n'ouvrent jamais — cause probable des « 5 de base » ; (2) une
+proposition autorisée (constitution, tâche) quittait « À traiter » sans être finie. Corrigé : `compterCanal(…, sansClaire)` et
+`listerCanaux(…, responsableDe)` (routes/canaux.js : responsable lu sur la fiche) — un message de CLAIRE d'un canal `d:` ne compte que
+pour le responsable du dossier ou pour qui il cite ; les messages des collègues comptent comme avant. `enCoursProposition` : une
+proposition `acceptee` de type document ou tâche sans `termineeLe` reste dans « À traiter » (`listerPropositions` `enCours`,
+`compterATraiter`) et dans la pastille, jusqu'à « Terminé » ; la fiche dit « N à terminer » (`propositionADecider` pour « à décider »).
+Relecture indépendante, corrigé aussi : une ALERTE lue (`vue` : passage au niveau supérieur, fin d'un travail de CLAIRE) restait « à
+traiter » 30 jours — autre source probable d'un compteur fixe (`aDeciderProposition`, carte « Lue ») ; l'étincelle (badge du serveur)
+comptait les cartes de proposition déjà décidées — retirées comme sur le poste ; les autorisées « en cours » se limitent à celles d'après le
+bouton « Terminé » (0.379.0) et de moins de 7 jours (sinon toutes celles depuis le 25/10 revenaient) ; le responsable n'est lu que s'il y a
+un message de CLAIRE non lu (performance) ; un dossier sans responsable : CLAIRE compte pour tous ; la carte du relais ne montre plus à un
+non-responsable un message de CLAIRE qui ne le cite pas. Restent possibles : les messages de CLAIRE dans « général » (veille, signaux),
+comptés pour tous jusqu'à ce que « général » soit ouvert.
+La couleur de la pastille de l'application installée (Chrome, `navigator.setAppBadge`) est choisie par Windows (couleur d'accentuation) :
+une page ne peut pas la rendre rouge ; la pastille du relais, elle, est rouge.

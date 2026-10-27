@@ -373,9 +373,11 @@ function majMentionCanal() {
 // Pur : le bouton « Canal » de la fiche, avec ses messages non lus (et ses propositions à décider) ; la fiche d'un dossier sans fil le montre aussi.
 function htmlBoutonCanalFiche(d) {
   const c = typeof canaux === 'object' && canaux.liste ? canaux.liste.find(x => x.id === 'd:' + d.id) : null;
-  const decider = typeof propositionsClaire === 'object' ? propositionsClaire.liste.filter(p => p.dossierId === d.id).length : 0;
+  const duDossier = typeof propositionsClaire === 'object' ? propositionsClaire.liste.filter(p => p.dossierId === d.id) : [];
+  const decider = duDossier.filter(propositionADecider).length;
+  const aTerminer = duDossier.length - decider;
   const n = (c ? c.nonLus : 0) || 0;
-  const titre = n || decider ? `Canal du dossier : ${[n ? `${n} non lu${n > 1 ? 's' : ''}` : '', decider ? `${decider} à décider` : ''].filter(Boolean).join(', ')}` : 'Canal du dossier : parler du dossier avec l’équipe et CLAIRE';
+  const titre = n || decider || aTerminer ? `Canal du dossier : ${[n ? `${n} non lu${n > 1 ? 's' : ''}` : '', decider ? `${decider} à décider` : '', aTerminer ? `${aTerminer} à terminer` : ''].filter(Boolean).join(', ')}` : 'Canal du dossier : parler du dossier avec l’équipe et CLAIRE';
   return `<wa-button appearance="outlined" size="s" type="button" class="fiche-canal-btn" onclick="ouvrirCanalDepuisFiche('${escapeOnclickArg(d.id)}')" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}"><span slot="start" aria-hidden="true">${icone('diese')}</span>Canal${n ? `<span class="cx-n cx-n-bouton">${n > 99 ? '99+' : n}</span>` : ''}${decider ? `<span class="cx-n cx-n-mention cx-n-bouton">${decider}</span>` : ''}</wa-button>`;
 }
 

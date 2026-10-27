@@ -63,6 +63,11 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
   /** @param {any} p @param {string} utilisateur */
   const carteVisible = (p, utilisateur) => (p.responsable === utilisateur || ADMINISTRATEURS.includes(utilisateur) ? p : Object.assign({}, p, { details: {} }));
 
+  /** Le responsable d'un dossier ('' inconnu). @param {string} dossierId */
+  const responsableDuDossier = (dossierId) => {
+    try { const d = depot && depot.trouverParId ? depot.trouverParId(dossierId) : null; return d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { return ''; }
+  };
+
   routeur.get('/canaux', (req, res) => {
     const utilisateur = collaborateurDe(req.query.utilisateur);
     if (!utilisateur) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
@@ -75,7 +80,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     try { absences = parametresRepo.lireAbsencesAgenda ? parametresRepo.lireAbsencesAgenda() : []; } catch (e) { absences = []; }
     const equipe = COLLABORATEURS.map((nom) => ({ nom, enLigne: nom === utilisateur || X.enLigne(vusLe[nom], maintenant), absent: !!X.absentLe(absences, nom, jour), statut: X.statutDe(parametresRepo, nom, maintenant) }));
     res.json(Object.assign({ collaborateurs: COLLABORATEURS, equipe, enregistres: X.lireEnregistres(parametresRepo, utilisateur).map((e) => `${e.canal}|${e.mid}`) },
-      C.listerCanaux(parametresRepo, utilisateur, COLLABORATEURS)));
+      C.listerCanaux(parametresRepo, utilisateur, COLLABORATEURS, responsableDuDossier)));
   });
 
   // Recherche dans tous les canaux lisibles (étude 25/10) : `q` = les mots, `auteur` = un prénom.
