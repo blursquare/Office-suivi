@@ -42,8 +42,8 @@ function htmlAnticipationsClaire() {
 // L'en-tête du profil : avatar, nom, statut.
 function htmlProfilClaire() {
   const s = statutProfilClaire(propositionsClaire.liste.length, assistantEnCours);
-  return `<header class="pf-claire">${htmlAvatarProfilClaire(true)}<div class="pf-claire-id"><h2 class="pf-claire-nom">CLAIRE</h2>
-    <p class="pf-claire-role">Collègue de l’étude · assistante</p><p class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</p></div></header>`;
+  return `<header class="pf-claire">${htmlAvatarProfilClaire(true)}<div class="pf-claire-id"><div class="pf-claire-ligne"><h2 class="pf-claire-nom">CLAIRE</h2><span class="pf-claire-statut pf-${escapeAttr(s.etat)}">${escapeHtml(s.texte)}</span></div>
+    <p class="pf-claire-role">Collègue de l’étude · assistante</p></div></header>`;
 }
 
 // Ouvre la conversation de CLAIRE depuis la barre latérale ou la liste des discussions.
@@ -59,18 +59,9 @@ function ouvrirProfilClaire() {
   }, 0);
 }
 
-// « Ses travaux » dans la colonne de droite de sa conversation (étude 27/10 : « mettre les tâches en cours dans la sidebar ») : ce qui
-// attend ou tourne en tête, puis les derniers rendus ; « Lui confier un travail » dessous (administrateurs). Elle le fait sur son
-// ordinateur virtuel — sans réglages, sans envoi — et vous demande de valider chaque geste ; son compte rendu arrive dans le fil.
-var brouillonTravailClaire = '';
-function htmlBlocTravauxColonne() {
+// Ses travaux en arrière-plan, mêlés aux étapes du travail en cours dans le bloc « Son travail » de la colonne de droite (étude 27/10 :
+// « faire un mix entre étapes du travail et ses travaux ») ; on les lui confie par la zone de saisie (client/128). '' hors de son espace.
+function htmlTravauxColonneClaire() {
   if (POSTE_CLAIRE || canaux.actif || !estAdministrateur(utilisateurPoste)) return '';
-  const enCours = travauxClaire.liste.filter(t => t.etat === 'attente' || t.etat === 'en-cours').length;
-  return `<details class="asst-droite-bloc" data-bloc="travaux" open>
-      <summary>${icone('list-check')} Ses travaux ${enCours ? `<span class="asst-droite-nb">${enCours}</span>` : ''}</summary>
-      ${htmlTravauxClaire() || '<p class="asst-droite-vide">Aucun travail en cours.</p>'}
-      <div class="pf-travail">
-        <textarea id="poste-claire-consigne" rows="3" maxlength="4000" oninput="brouillonTravailClaire = this.value" placeholder="Ex. : prépare l’appel de fonds du dossier DUPONT et dis-moi ce qui manque pour signer" aria-label="Travail à confier à CLAIRE">${escapeHtml(brouillonTravailClaire)}</textarea>
-        <div class="pf-travail-actions"><wa-button variant="brand" size="s" type="button" onclick="confierTravailAClaire()">Lui confier</wa-button>${infoBulle('Elle le fait en arrière-plan, sur son ordinateur virtuel : sans accès aux réglages ni aux envois, chaque geste vous est soumis pour validation. Son compte rendu arrive dans cette conversation.')}</div>
-      </div></details>`;
+  return htmlTravauxClaire();
 }

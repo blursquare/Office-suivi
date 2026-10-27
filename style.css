@@ -11322,6 +11322,7 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-claire-av.pf-grand .cx-pres { right: -4px; bottom: -4px; width: 14px; height: 14px; border-width: 2px; }
 .pf-claire { display: flex; align-items: center; gap: 16px; max-width: 720px; margin: 0 auto; padding: 16px 0; border-bottom: 1px solid var(--line); }
 .pf-claire-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pf-claire-ligne { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; }
 .pf-claire-nom { margin: 0; font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; }
 .pf-claire-role { margin: 0; color: var(--muted); font-size: var(--texte-s); }
 .pf-claire-statut { margin: 0; font-size: var(--texte-m); font-weight: 500; }
@@ -11336,17 +11337,12 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .pf-reportees summary { cursor: pointer; color: var(--muted); font-size: var(--texte-m); margin-bottom: 8px; }
 .cx-claire-ligne .cx-d { display: inline-flex; align-items: center; }
 
-.pf-travail { max-width: 720px; margin: 0 auto; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
-.pf-travail > summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-m); font-weight: 500; color: var(--ink); }
-.pf-travail-aide { margin: 8px 0; color: var(--muted); font-size: var(--texte-s); }
-.pf-travail textarea { width: 100%; font: inherit; font-size: var(--texte-m); border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px; background: var(--paper-card); color: var(--ink); resize: vertical; }
-.pf-travail-actions { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-.pf-travail-etat { color: var(--muted); font-size: var(--texte-s); }
 .asst-notif-nouveau .asst-texte { border-left: 2px solid var(--focus); padding-left: 8px; }
 html.poste-claire #tab-reglages, html.poste-claire [data-onglet="reglages"] { display: none !important; }
 
 .pf-travaux { max-width: 720px; margin: 0 auto; padding: 8px 0 12px; border-bottom: 1px solid var(--line); }
-#assistant-droite .pf-travaux, #assistant-droite .pf-travail { padding: 4px 0 8px; border-bottom: 0; }
+#assistant-droite .asst-travaux-titre { margin: 8px 0 4px; font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+#assistant-droite .pf-travaux { padding: 4px 0 8px; border-bottom: 0; }
 #assistant-droite .pf-tr-tete { flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
 #assistant-droite .pf-tr-consigne { white-space: normal; overflow: visible; flex-basis: 100%; }
 #assistant-droite .pf-tr-cr, #assistant-droite p.pf-tr-erreur { margin-left: 0; }

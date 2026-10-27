@@ -272,13 +272,15 @@
     const dd = colonneAssistant.docsDossier;
     const etapes = colonneAssistant.etapes;
     const journal = colonneAssistant.journal.slice(-12);
+    // Dans son espace, les travaux qu'on lui a confiés rejoignent les étapes : un seul bloc « Son travail ».
+    const travaux = htmlTravauxColonneClaire();
+    const enCours = travaux ? travauxClaire.liste.filter(t => t.etat === 'attente' || t.etat === 'en-cours').length : 0;
     zone.innerHTML = `
       <div class="asst-droite-tete">
         <span class="asst-droite-titre">Espace de travail</span>
         <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerColonneAssistant()" title="Masquer la colonne" aria-label="Masquer la colonne">${icone('x')}</wa-button>
       </div>
       ${typeof htmlColonneCanal === 'function' ? htmlColonneCanal() : ''}
-      ${htmlBlocTravauxColonne()}
       ${a ? `<section class="asst-droite-bloc asst-apercu" aria-label="Aperçu du document">
         <div class="asst-apercu-tete">
           <span class="asst-apercu-nom">${escapeHtml(nomDocumentLocalAssistant(a.docId))}</span>
@@ -293,10 +295,11 @@
         <div id="assistant-apercu-place" class="asst-apercu-place"></div>
       </section>` : ''}
       <details class="asst-droite-bloc" data-bloc="etapes"${blocsOuvertsColonneAssistant.etapes ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['etapes'] = this.open">
-        <summary>${icone('list-check')} Étapes du travail</summary>
+        <summary>${icone('list-check')} ${travaux || (!canaux.actif && estAdministrateur(utilisateurPoste) && !POSTE_CLAIRE) ? 'Son travail' : 'Étapes du travail'}${enCours ? ` <span class="asst-droite-nb">${enCours}</span>` : ''}</summary>
         ${etapes.length ? `<ol class="asst-etapes">${etapes.map(e => `<li class="asst-etape-${e.etat}"><span class="asst-etape-marque" aria-hidden="true">${e.etat === 'fait' ? icone('check') : ''}</span>${escapeHtml(e.texte)}</li>`).join('')}</ol>` : ''}
         ${journal.length ? `<ul class="asst-journal">${journal.map(j => `<li class="${j.fini ? 'fini' : 'encours'}">${j.fini ? icone('check') : '<span class="asst-journal-point" aria-hidden="true"></span>'}${escapeHtml(j.libelle)}</li>`).join('')}</ul>` : ''}
-        ${!etapes.length && !journal.length ? '<p class="asst-droite-vide">Le plan et les lectures de CLAIRE s’affichent ici pendant qu’elle travaille.</p>' : ''}
+        ${travaux ? `<div class="asst-travaux-titre">En arrière-plan</div>${travaux}` : ''}
+        ${!etapes.length && !journal.length && !travaux ? `<p class="asst-droite-vide">Le plan et les lectures de CLAIRE s’affichent ici pendant qu’elle travaille${!canaux.actif && estAdministrateur(utilisateurPoste) && !POSTE_CLAIRE ? ', avec les travaux que vous lui confiez (« Lui confier » sous la saisie)' : ''}.</p>` : ''}
       </details>
       <details class="asst-droite-bloc" data-bloc="documents"${blocsOuvertsColonneAssistant.documents ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['documents'] = this.open">
         <summary>${icone('file-text')} Documents <span class="asst-droite-nb">${docs.length || ''}</span></summary>

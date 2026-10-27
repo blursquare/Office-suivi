@@ -22302,3 +22302,11 @@ discussion privée elle doit pouvoir voir la mémoire de ses conversations dans 
 à 09:30 (l'ancienne valeur par défaut) est lu 09:15, toute autre heure choisie est gardée. Le résumé matinal des ❓/👎 (`signaux.resumerInterrogations`)
 suit la même heure au lieu d'un 09:30 en dur. Aussi : `verifierNudgeAuthentic` (client/127) appelait `.filter` sur le résultat de `actionsDuJour`
 (un objet `{ actions, aVenir }`) — erreur de page relevée par les scénarios Authentic de la fumée, présente depuis 0.365.0.
+
+### 27/10/2026 — 0.370.2 : « Lui confier » dans la zone de saisie, bloc « Son travail », statut à côté du nom
+
+Étude : « Lui confier une tâche passe par le champ de discussion, pas en sidebar ; mettre la ligne de statut à côté de son nom ; faire un mix
+entre étapes du travail et ses travaux dans la sidebar de droite. » Bouton `#assistant-confier` à côté d'« Envoyer » (son espace, administrateurs ;
+montré par `majSaisieCanal`) → `confierDepuisSaisieClaire` (client/128) : la consigne posée dans le fil comme un message, réponse de CLAIRE
+(`texteTravailConfie`, rang dans la file), colonne ouverte. Le formulaire de la colonne est retiré. Bloc « Étapes du travail » renommé « Son travail »
+dans son espace : étapes et lectures de l'agent, puis « En arrière-plan » (`htmlTravauxColonneClaire`). Statut dans `.pf-claire-ligne` à côté du nom.

@@ -75,7 +75,7 @@ if (POSTE_CLAIRE) {
 
 // Côté collaborateur : confier un travail à CLAIRE (profil de CLAIRE, administrateurs). Il part dans une file sur le serveur et se fait en
 // ARRIÈRE-PLAN (étude 27/10) : l'écran reste libre, on peut en confier plusieurs ; la liste « Ses travaux » suit leur état et le compte rendu
-// arrive à la fin dans sa conversation (message de CLAIRE). « Ses travaux » : colonne de droite (client/126).
+// arrive à la fin dans sa conversation (message de CLAIRE). On le lui confie par la zone de saisie ; « Son travail » : colonne de droite (client/126).
 var travauxClaire = { liste: [], charge: false, minuterie: null };
 var INTERVALLE_TRAVAUX_CLAIRE_MS = 10 * 1000;
 
@@ -108,23 +108,33 @@ async function chargerTravauxClaire() {
   if (travauxClaire.liste.some(t => t.etat === 'attente' || t.etat === 'en-cours')) travauxClaire.minuterie = setTimeout(chargerTravauxClaire, INTERVALLE_TRAVAUX_CLAIRE_MS);
 }
 
-async function confierTravailAClaire() {
-  const champ = document.getElementById('poste-claire-consigne');
+// « Lui confier » de la zone de saisie de sa conversation (étude 27/10 : « lui confier une tâche passe par le champ de discussion ») : la
+// consigne s'écrit dans le fil comme un message, CLAIRE répond qu'elle s'y met ; le travail suit à droite (« Son travail »), son compte
+// rendu arrive dans le fil.
+async function confierDepuisSaisieClaire() {
+  const champ = document.getElementById('assistant-saisie');
   const consigne = champ ? champ.value.trim() : '';
-  if (!consigne) return;
+  if (!consigne) { afficherToast('Écrivez d’abord ce que CLAIRE doit faire, puis « Lui confier ».', 'OK', null); if (champ) champ.focus(); return; }
+  if (assistantEnCours) return;
+  poserMessageAssistant('moi', escapeHtml(consigne).replace(/\n/g, '<br>'));
+  if (champ) { champ.value = ''; champ.style.height = ''; }
   try {
     const r = await fetchAvecAuth('/api/poste-claire/travail', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne, demandeur: utilisateurPoste }) });
     const corps = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(corps.erreur || `HTTP ${r.status}`);
-    if (champ) champ.value = '';
-    brouillonTravailClaire = '';
-    afficherToast(corps.position > 1 ? `Confié à CLAIRE (${corps.position}e de la file). Elle vous prévient quand c’est fait.` : 'Confié à CLAIRE : elle s’y met et vous prévient quand c’est fait.', 'OK', null);
+    poserMessageAssistant('claire', `<p>${escapeHtml(texteTravailConfie(corps.position))}</p>`);
   } catch (e) {
-    afficherToast('Travail non confié : ' + (e.message || e), 'OK', null);
+    poserMessageAssistant('claire', `<p>Je n’ai pas pu prendre ce travail : ${escapeHtml(e.message || String(e))}.</p>`);
   }
   if (!colonneAssistant.ouverte) basculerColonneAssistant();
   await chargerTravauxClaire();
   renderAssistant();
+}
+
+// Pure : la réponse de CLAIRE quand on lui confie un travail.
+function texteTravailConfie(position) {
+  const file = Number(position) > 1 ? ` J’ai ${Number(position) - 1} ${Number(position) > 2 ? 'travaux' : 'travail'} avant celui-ci.` : '';
+  return `C’est noté, je m’en occupe en arrière-plan sur mon ordinateur.${file} Je vous soumets chaque geste avant de le faire et je vous écris ici quand c’est terminé.`;
 }
 
 async function annulerTravailClaire(id) {

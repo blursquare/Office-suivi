@@ -263,3 +263,11 @@ test('CLAIRE ajoute un contact au Répertoire : organisme exigé, code inconnu r
   const c = app.contactRepertoireDepuisAgent(Object.assign({}, vide, { contact_id: 'c1', emails: ['contact@syndic-exemple.fr'] }), existant, 1).contact;
   assert.equal(c.id, 'c1'); assert.equal(c.adresse, '1 rue Inventée'); assert.equal(c.telephones.join(), '02 00 00 00 00'); assert.equal(c.emails.join(), 'contact@syndic-exemple.fr');
 });
+
+test('lui confier depuis la saisie : sa réponse dit qu’elle s’y met et la place dans la file', () => {
+  const app = chargerApplication();
+  assert.match(app.texteTravailConfie(1), /^C’est noté, je m’en occupe en arrière-plan/);
+  assert.doesNotMatch(app.texteTravailConfie(1), /avant celui-ci/);
+  assert.match(app.texteTravailConfie(3), /J’ai 2 travaux avant celui-ci/);
+  assert.match(app.texteTravailConfie(2), /J’ai 1 travail avant celui-ci/);
+});
