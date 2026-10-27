@@ -367,7 +367,7 @@ const OUTILS_AGENT = [
 // (22/10 : « The compiled grammar is too large » — les énumérations de faire_geste et d'action_dossier, qui ont grossi avec les
 // successions, la dépassaient). Les outils ajoutés le 21/10 et ces deux-là n'y sont pas (leurs champs restent tous obligatoires et le
 // poste revalide chaque entrée, `entreeOutilPourPoste`) ; les autres gardent leur schéma strict.
-const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib', 'yousign_agent', 'outil_champs', 'canaux_claire', 'repertoire_ajouter'];
+const OUTILS_SANS_STRICT = ['actions_en_lot', 'scans_claire', 'nas_dossier', 'agenda_evenement', 'nas_libre', 'calcul', 'faire_geste', 'action_dossier', 'nouveau_dossier_vente', 'yousign_rib', 'yousign_agent', 'outil_champs', 'canaux_claire', 'repertoire_ajouter', 'authentic_claire'];
 for (let i = 0; i < OUTILS_AGENT.length; i++) OUTILS_AGENT[i] = { ...OUTILS_AGENT[i], strict: !OUTILS_SANS_STRICT.includes(OUTILS_AGENT[i].name) };
 
 const SYSTEME_AGENT = `Tu es CLAIRE, l'assistante intégrée au logiciel de suivi des dossiers de l'étude notariale de Maître Sophie GOSSART à Blois (ventes immobilières et successions). Tu travailles avec les collaborateurs de l'étude (Bastien ANGLUMENT, Julie VASSELIN, Jérémy SAUJOT, et la notaire Maître Sophie GOSSART) comme une collègue experte, fiable et attentionnée.
