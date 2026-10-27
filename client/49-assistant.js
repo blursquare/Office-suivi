@@ -783,12 +783,22 @@
     const destinataire = destinataireDit || dest.email || (partie === 'acquereur' || /acquéreur/.test(dest.libelle || '') ? emailDestinataireRelance(d) : '') || (!partie ? emailDestinataireRelance(d) || d.emailVendeur : '') || '';
     // Documents du dossier joints (étude 26/10 : « l'offre de prêt est sur le NAS ») : lus ici, jamais par l'IA.
     const jointes = await piecesJointesEmailAgent(Array.isArray(p.documents) ? p.documents : []);
-    const r = await livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), pieces: jointes.pieces, confrere: versConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
-    const envoye = !!(r && r.ok && r.mode === 'envoye');
-    if (r && r.ok) { ajouterHistorique(d, envoye ? 'Email envoyé depuis les Discussions' : 'Email préparé depuis les Discussions'); sauvegarder(d); }
-    const perdues = r && r.ok && r.piecesNonJointes && jointes.pieces.length ? '<p>Les documents n’ont pas pu être joints par la messagerie du poste : ajoutez-les à la main.</p>' : '';
-    const manque = perdues + (jointes.manquants ? `<p>${jointes.manquants} document${jointes.manquants > 1 ? 's' : ''} n’a pas pu être joint : ajoutez-le dans la fenêtre d’email.</p>` : '');
-    return { html: (r && r.ok ? (envoye ? '<p>Email envoyé.</p>' : '<p>Email préparé : envoyez-le depuis Outlook.</p>') : (r && r.annule ? '<p>Email annulé.</p>' : `<p>${escapeHtml((r && r.message) || 'Fenêtre d’email fermée sans envoi.')}</p>`)) + manque };
+    // Le brouillon s'ouvre à droite de la conversation (étude 27/10) et la conversation continue : on peut demander à CLAIRE de le
+    // corriger (outil artefact, client/132) avant de cliquer « Envoyer ». La suite (envoyé, préparé) est notée sur la fiche à la fermeture.
+    const manque = jointes.manquants ? `<p>${jointes.manquants} document${jointes.manquants > 1 ? 's' : ''} n’a pas pu être joint : ajoutez-le dans le brouillon.</p>` : '';
+    const ouverture = livrerEmailDossier({ destinataire, sujet: String(p.objet || ''), corps: String(p.corps || ''), pieces: jointes.pieces, confrere: versConfrere, responsableSignature: d.responsable, dossierId: d.id, geste: 'assistant' });
+    // mode `mailto` (poste sans fenêtre d'email) : la messagerie du poste est déjà ouverte, rien n'attend dans CLAIRE.
+    if (modeEmailPoste() === 'mailto') {
+      const r = await ouverture;
+      if (r && r.ok) { ajouterHistorique(d, 'Email préparé depuis les Discussions'); sauvegarder(d); }
+      return { html: '<p>Email préparé : envoyez-le depuis votre messagerie.</p>' + (r && r.piecesNonJointes && jointes.pieces.length ? '<p>Les documents n’ont pas pu être joints par la messagerie du poste : ajoutez-les à la main.</p>' : '') + manque };
+    }
+    ouverture.then((r) => {
+      if (!r || !r.ok) return;
+      ajouterHistorique(d, r.mode === 'envoye' ? 'Email envoyé depuis les Discussions' : 'Email préparé depuis les Discussions');
+      sauvegarder(d);
+    }).catch(() => {});
+    return { html: `<p>Brouillon d’email ouvert${ecranAffiche('assistant') ? ' à droite' : ''} : relisez-le, demandez-moi une correction si besoin. Rien ne part sans « Envoyer ».</p>` + manque };
   }
 
   // Ce que devient le lieu du rendez-vous de signature dans Outlook après la coche d'un envoi (étude 07/10 : « noter l'envoi dans

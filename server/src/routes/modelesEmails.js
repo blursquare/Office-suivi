@@ -2,9 +2,10 @@
 // Modèles d'emails (voir src/modelesEmails.js) : lecture de tous, écriture modèle par modèle.
 
 const express = require('express');
+const { motsNominatifs } = require('../carnetClaire');
 const { lireModelesEmails, ecrireModelesEmails, assainirModelesEmails, RE_CLE_INTEGRE, MAX_PERSO, nouvelIdModele } = require('../modelesEmails');
 
-function creerRouteurModelesEmails(parametresRepo) {
+function creerRouteurModelesEmails(parametresRepo, depot) {
   const routeur = express.Router();
   const corpsValide = (b) => b && typeof b.corps === 'string' && b.corps.trim();
 
@@ -34,6 +35,12 @@ function creerRouteurModelesEmails(parametresRepo) {
     const b = req.body || {};
     if (!String(b.nom || '').trim()) return res.status(400).json({ erreur: 'Donnez un nom au modèle.' });
     if (!corpsValide(b)) return res.status(400).json({ erreur: 'Le texte du modèle est vide.' });
+    // Un modèle proposé par CLAIRE d'après un brouillon (étude 27/10) vaut pour toute l'étude : un nom de client ou de dossier resté dans
+    // le texte le fait refuser (même règle que les consignes CLAIRE.md).
+    if (b.origine === 'claire') {
+      const mots = motsNominatifs(`${b.nom || ''}\n${b.sujet || ''}\n${b.corps || ''}`, depot && depot.tousActifs ? depot.tousActifs() : []);
+      if (mots.length) return res.status(400).json({ erreur: `Le modèle vaut pour tous les dossiers : remplacez les noms de clients ou de dossiers par une variable ou « [à compléter] » (${mots.slice(0, 5).join(', ')}).` });
+    }
     const etat = lireModelesEmails(parametresRepo);
     if (etat.perso.length >= MAX_PERSO) return res.status(400).json({ erreur: 'Trop de modèles.' });
     const id = nouvelIdModele();

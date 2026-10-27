@@ -159,6 +159,20 @@ try {
         return { liste, canal, traiter, routines: z.querySelectorAll('.rt-routine').length, niveaux: z.querySelectorAll('.rt-niveau').length, interrupteur: !!z.querySelector('#rt-actif') };
       });
       verifier(routines && routines.liste >= 2 && routines.canal && routines.traiter && routines.routines >= 9 && routines.niveaux === 3 && routines.interrupteur, `canaux et routines de CLAIRE : ${routines && routines.liste} canaux listés, canal et « À traiter » ouverts, ${routines && routines.routines} routines, ${routines && routines.niveaux} niveaux`);
+      // Brouillon d'email ouvert depuis les Discussions (27/10) : à droite, dans le panneau, pas en fenêtre ; refermé, la boîte retourne à sa fenêtre.
+      const emailCote = await geste(page, 'brouillon d’email à droite', async () => {
+        definirOnglet('assistant');
+        await new Promise((r) => setTimeout(r, 300));
+        const fin = livrerEmailDossier({ destinataire: 'a@exemple.fr', sujet: 'Essai', corps: 'Madame, Monsieur,\n\nBonjour.', geste: 'assistant' });
+        await new Promise((r) => setTimeout(r, 300));
+        const panneau = !!document.querySelector('#assistant-artefact .email-redaction-box') && document.getElementById('email-redaction-overlay').style.display === 'none';
+        const id = (await artefactAgent({ mode: 'lister' })).elements.find((x) => x.type === 'email').artefact_id;
+        const corrige = (await artefactAgent({ mode: 'modifier', artefact_id: id, texte: 'Madame, Monsieur,\n\nMerci.' })).fait === true;
+        fermerArtefactAssistant();
+        const r = await fin;
+        return { panneau, corrige, annule: !!(r && r.annule), rendue: document.querySelector('.email-redaction-box').parentNode.id === 'email-redaction-overlay' };
+      });
+      verifier(emailCote && emailCote.panneau && emailCote.corrige && emailCote.annule && emailCote.rendue, `brouillon d’email ouvert à droite, corrigé par CLAIRE, refermé sans envoi (${JSON.stringify(emailCote)})`);
       // Recherche de la barre latérale (20/10) : un dossier et un outil se trouvent, Entrée ouvre la fiche.
       const rech = await page.evaluate(async () => {
         const champ = document.getElementById('sidebar-recherche-saisie');

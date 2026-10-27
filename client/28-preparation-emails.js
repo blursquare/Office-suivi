@@ -611,7 +611,10 @@
       };
       // Connexion Exchange pas encore connue de ce poste : relue, « Envoyer » apparaît dès qu'elle l'est.
       if (!envoiDirectPossible() && typeof chargerReglagesExchange === 'function') chargerReglagesExchange().then(() => { if (redaction) renderRedaction(); }).catch(() => {});
-      if (redaction.mode === 'nouveau') {
+      // Ouvert depuis les Discussions : le brouillon s'ouvre dans le panneau de droite de la conversation, pas en fenêtre (étude 27/10,
+      // client/99 `monterRedactionAssistant`) ; ailleurs, la fenêtre comme avant.
+      if (redaction.mode === 'nouveau' && !(typeof monterRedactionAssistant === 'function' && monterRedactionAssistant())) {
+        if (typeof demonterRedactionAssistant === 'function') demonterRedactionAssistant();   // un brouillon resté à droite revient dans sa fenêtre
         const overlay = document.getElementById('email-redaction-overlay');
         if (overlay) overlay.style.display = 'flex';
       }
@@ -629,6 +632,7 @@
     redaction = null;
     const overlay = document.getElementById('email-redaction-overlay');
     if (overlay) { overlay.style.display = 'none'; const z = document.getElementById('email-redaction-contenu'); if (z) z.innerHTML = ''; }
+    if (typeof demonterRedactionAssistant === 'function') demonterRedactionAssistant();
     const zoneReponse = document.getElementById('email-reponse-zone');
     if (zoneReponse) zoneReponse.innerHTML = '';
     if (r && r.resolve) r.resolve(resultat || { ok: false, annule: true });
@@ -926,6 +930,8 @@
       if (!reponse.ok || !res.ok) throw new Error(res.message || res.erreur || 'statut ' + reponse.status);
       if (r.dossierId) delete emailsParDossier[r.dossierId];
       const mode = r.mode;
+      const boite = typeof boiteRedactionAssistant === 'function' ? boiteRedactionAssistant() : null;
+      if (boite && boite.closest('#assistant-artefact')) noterVerificationPoste('email-panneau-envoye', { detail: 'envoyé depuis le panneau des Discussions' });
       notifierEmailEnvoye({ a: r.a, sujet: r.mode === 'reponse' ? sujetReponse((r.email && r.email.objet) || r.sujet) : r.sujet,
         de: res.de || '', repli: !!res.repli, sansFil: !!res.sansFil, dossierId: r.dossierId, pieces: r.pieces.length });
       fermerRedaction({ ok: true, mode: 'envoye', repli: !!res.repli, sansFil: !!res.sansFil, de: res.de || '' });

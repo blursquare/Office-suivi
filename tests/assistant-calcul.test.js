@@ -94,3 +94,21 @@ test('courrier : signature « Maître … » reconnue, titre « # » en gras, pa
   assert.ok([...d.lignes].includes('**Objet : demande**'));
   assert.ok(![...d.lignes].some(l => /GOSSART/.test(l)), 'la signature n’est pas répétée dans le corps');
 });
+
+// ---- Correction sur demande (27/10) : client/99 et 132 ----
+
+test('courrier relu pour une correction : le texte refait le même courrier (destinataire, date, corps, signature)', () => {
+  const d = app.documentCourrierDepuisTexteAgent('Mairie de Blois\n41000 BLOIS\n\nBlois, le 21 octobre 2026\n\n**Objet : Renseignements**\n\nMadame, Monsieur,\n\nMerci.\n\nMe Sophie GOSSART', '1 janvier');
+  const texte = app.texteCourrierArtefact(d);
+  assert.match(texte, /^Mairie de Blois\n41000 BLOIS\n\nBlois, le 21 octobre 2026\n\n\*\*Objet : Renseignements\*\*/);
+  assert.match(texte, /Me Sophie GOSSART$/);
+  const refait = app.documentCourrierDepuisTexteAgent(texte, '1 janvier');
+  assert.equal(JSON.stringify(refait), JSON.stringify(d), 'relire puis réécrire ne change rien');
+});
+
+test('aperçu d’un document de l’agent : titres, listes, tableau, texte échappé', () => {
+  const html = app.htmlDocumentArtefact('Synthèse <b>', '# Points\n\n- **DIA** à envoyer\n- <script>x</script>\n\n1. un\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\nFin.');
+  assert.match(html, /^<h1>Synthèse &lt;b&gt;<\/h1><h2>Points<\/h2><ul><li><strong>DIA<\/strong> à envoyer<\/li><li>&lt;script&gt;/);
+  assert.match(html, /<ol><li>un<\/li><\/ol><table><tr><th>A<\/th><th>B<\/th><\/tr><tr><td>1<\/td><td>2<\/td><\/tr><\/table><p>Fin\.<\/p>$/);
+  assert.equal(JSON.stringify(app.resumeArtefactAgent({ id: 'art2', type: 'document', titre: 'Synthèse', dossierId: '', contenu: 'x' })), '{"artefact_id":"art2","type":"document","titre":"Synthèse"}');
+});

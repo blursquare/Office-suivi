@@ -5,7 +5,9 @@
   //     sur la page ; Word, PDF/A (pour Authentic) et « Ranger dans le dossier du NAS » refont le courrier tel qu'il est affiché ;
   //   - tableau : cellules modifiables, Excel (.xlsx), CSV, copie vers un tableur ;
   //   - outil : la carte de l'outil avec les données de la fiche reprises, et le bouton qui l'ouvre pré-rempli.
-  // Rien ne part vers une IA d'ici : l'agent n'en voit que ce qu'il a lui-même écrit (jamais les corrections faites sur la page).
+  //   - email (27/10) : la fenêtre d'email elle-même, posée dans le panneau ; document (27/10) : l'aperçu d'une note ou d'une synthèse.
+  // Rien ne part vers une IA d'ici. L'agent ne relit ce qui est affiché (corrections comprises) que par l'outil `artefact`, quand on lui
+  // demande de corriger (client/132) — résultat masqué par le serveur comme tout résultat d'outil.
 
   var MAX_ARTEFACTS_ASSISTANT = 12;
   var artefactsAssistant = { liste: [], courant: '', version: 0, rendu: -1, n: 0 };
@@ -39,6 +41,8 @@
   // La croix retire l'artefact affiché (un outil monté retourne à sa place d'origine, intact) ; l'onglet voisin prend le relais.
   function fermerArtefactAssistant() {
     const a = artefactCourantAssistant();
+    // Un brouillon d'email se ferme comme sa fenêtre (rien n'est envoyé) : abandonnerRedaction rend la fenêtre et retire l'artefact.
+    if (a && a.type === 'email') { abandonnerRedaction(); return; }
     if (a) {
       if (a.type === 'outil' && a.onglet && outilsMontesAssistant[a.onglet] && outilsMontesAssistant[a.onglet].artefactId === a.id) demonterOutilAssistant(a.onglet);
       const k = artefactsAssistant.liste.indexOf(a);
@@ -90,6 +94,44 @@
     return ouvrirArtefactAssistant({ type: 'courrier', titre, dossierId: d ? d.id : '', signe: false, doc: documentCourrierDepuisTexteAgent(contenu, auj) });
   }
 
+  // Pure : le courrier tel qu'il est sur la page (corrections comprises), dans la forme que l'IA écrit — relu par l'outil `artefact`
+  // (client/132) pour une correction demandée, puis refait par documentCourrierDepuisTexteAgent.
+  function texteCourrierArtefact(doc) {
+    const adresse = (doc && Array.isArray(doc.adresse) ? doc.adresse : []).filter(l => l && l !== 'À compléter');
+    const lignes = (doc && Array.isArray(doc.lignes) ? doc.lignes : []).slice();
+    while (lignes.length && !String(lignes[0]).trim()) lignes.shift();
+    return [adresse.join('\n'), doc && doc.date || '', lignes.join('\n'), String(doc && doc.signature || 'Me Sophie GOSSART').replace(/^Me\s+/, 'Me ')].filter(Boolean).join('\n\n');
+  }
+
+  // Un document (note, synthèse, tableau) écrit par l'agent : ouvert à droite, en aperçu (étude 27/10 : « tout ce qu'elle génère dans
+  // les conversations, sur le côté ») ; Word et le rangement le refont tel qu'il est (l'agent peut le corriger, outil `artefact`).
+  function ouvrirDocumentArtefactAssistant(titre, contenu, d) {
+    return ouvrirArtefactAssistant({ type: 'document', titre, dossierId: d ? d.id : '', contenu: String(contenu || '') });
+  }
+
+  // Pure : l'aperçu HTML d'un document de l'agent (mêmes blocs que le Word).
+  function htmlDocumentArtefact(titre, contenu) {
+    const runs = (t) => morceauxGrasAgent(t).map(m => (m.gras ? `<strong>${escapeHtml(m.texte)}</strong>` : escapeHtml(m.texte))).join('');
+    const blocs = blocsDocumentAgent(contenu);
+    let html = `<h1>${escapeHtml(titre)}</h1>`;
+    let liste = '';
+    const fermer = () => { if (liste) { html += `</${liste}>`; liste = ''; } };
+    for (const b of blocs) {
+      const voulu = b.type === 'puce' ? 'ul' : b.type === 'numero' ? 'ol' : '';
+      if (voulu !== liste) { fermer(); if (voulu) { html += `<${voulu}>`; liste = voulu; } }
+      if (b.type === 'titre1') html += `<h2>${runs(b.texte)}</h2>`;
+      else if (b.type === 'titre2') html += `<h3>${runs(b.texte)}</h3>`;
+      else if (b.type === 'puce' || b.type === 'numero') html += `<li>${runs(b.texte)}</li>`;
+      else if (b.type === 'tableau') html += `<table>${b.lignes.map((l, i) => `<tr>${l.map(c => (i === 0 ? `<th>${runs(c)}</th>` : `<td>${runs(c)}</td>`)).join('')}</tr>`).join('')}</table>`;
+      else if (b.type === 'saut') html += '<hr>';
+      else html += `<p>${runs(b.texte)}</p>`;
+    }
+    fermer();
+    return html;
+  }
+
+  async function blobDocumentArtefactAssistant(a) { return docxRenduAgent(a.titre, a.contenu); }
+
   function nomFichierArtefactAssistant(a) { return nomFichierRenduAgent(a.titre); }
 
   async function blobCourrierArtefactAssistant(a, format) {
@@ -106,7 +148,8 @@
     const a = artefactsAssistant.liste.find(x => x.id === id);
     if (!a) return;
     try {
-      if (a.type === 'courrier') telechargerFichier(await blobCourrierArtefactAssistant(a, format), nomFichierArtefactAssistant(a) + (format === 'pdf' ? '.pdf' : '.docx'), format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      if (a.type === 'document') telechargerFichier(await blobDocumentArtefactAssistant(a), nomFichierArtefactAssistant(a) + '.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      else if (a.type === 'courrier') telechargerFichier(await blobCourrierArtefactAssistant(a, format), nomFichierArtefactAssistant(a) + (format === 'pdf' ? '.pdf' : '.docx'), format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       else if (a.type === 'tableau') {
         if (format === 'xlsx') telechargerFichier(await blobXlsxArtefactAssistant(a), nomFichierArtefactAssistant(a) + '.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         else telechargerFichier(new Blob([csvDepuisTableauCalcul({ colonnes: a.colonnes, lignes: a.lignes.map(l => l.map(valeurCelluleArtefact)) })], { type: 'text/csv;charset=utf-8' }), nomFichierArtefactAssistant(a) + '.csv', 'text/csv');
@@ -116,11 +159,11 @@
 
   async function rangerArtefactAssistant(id) {
     const a = artefactsAssistant.liste.find(x => x.id === id);
-    if (!a || a.type !== 'courrier') return;
+    if (!a || (a.type !== 'courrier' && a.type !== 'document')) return;
     const d = a.dossierId ? dossiers.find(x => x.id === a.dossierId) : null;
     if (!d || !d.nasDossier) { afficherToast('Ce dossier n’est pas relié au NAS.', 'OK', null); return; }
     try {
-      const blob = await blobCourrierArtefactAssistant(a, 'docx');
+      const blob = a.type === 'document' ? await blobDocumentArtefactAssistant(a) : await blobCourrierArtefactAssistant(a, 'docx');
       const rid = 'rendu-art-' + a.id + '-' + Date.now().toString(36);
       rendusAgent[rid] = { blob, nom: nomFichierArtefactAssistant(a), titre: a.titre, dossierId: d.id, range: '' };
       await rangerRenduAgent(rid);
@@ -385,9 +428,48 @@
     if (a && typeof a.ouvrir === 'function') a.ouvrir();
   }
 
+  // ---- Brouillon d'email ----
+  // La fenêtre d'email (client/28) ouverte depuis les Discussions est posée dans le panneau (étude 27/10 : « qu'elle ouvre ses brouillons
+  // d'email sur le côté ») : la MÊME boîte est déplacée, jamais copiée — mêmes champs, pièces jointes, mise en forme, « Modèles », « Envoyer » ;
+  // rien ne part sans ce clic. Fermée, envoyée ou remplacée, elle retourne dans sa fenêtre (cachée).
+
+  function boiteRedactionAssistant() { return document.querySelector('.email-redaction-box'); }
+
+  // Appelée par ouvrirRedactionEmail : vrai si le brouillon est pris par le panneau (la fenêtre reste alors cachée).
+  function monterRedactionAssistant() {
+    if (POSTE_CLAIRE || !ecranAffiche('assistant') || !boiteRedactionAssistant() || !redaction) return false;
+    artefactsAssistant.liste = artefactsAssistant.liste.filter(x => x.type !== 'email');
+    const d = redaction.dossierId ? dossiers.find(x => x.id === redaction.dossierId) : null;
+    ouvrirArtefactAssistant({ type: 'email', titre: redaction.sujet ? 'Email : ' + redaction.sujet.slice(0, 60) : 'Brouillon d’email', dossierId: d ? d.id : '' });
+    return true;
+  }
+
+  function demonterRedactionAssistant() {
+    const boite = boiteRedactionAssistant();
+    const overlay = document.getElementById('email-redaction-overlay');
+    if (boite && overlay && boite.parentNode !== overlay) overlay.appendChild(boite);
+    if (!artefactsAssistant.liste.some(x => x.type === 'email')) return;
+    const courant = artefactCourantAssistant();
+    const k = artefactsAssistant.liste.findIndex(x => x.type === 'email');
+    artefactsAssistant.liste.splice(k, 1);
+    if (courant && courant.type === 'email') {
+      const voisin = artefactsAssistant.liste[Math.min(k, artefactsAssistant.liste.length - 1)];
+      artefactsAssistant.courant = voisin ? voisin.id : '';
+    }
+    artefactsAssistant.version++;
+    renderArtefactAssistant();
+  }
+
+  // Avant que le panneau soit redessiné : les écrans montés (outils, boîte d'email) sont mis à l'abri, jamais effacés avec lui.
+  function garerNoeudsMontesAssistant(zone) {
+    Object.keys(outilsMontesAssistant).forEach(o => { const n = document.getElementById('onglet-' + o); if (n && zone.contains(n)) garageOutilsAssistant().appendChild(n); });
+    const boite = boiteRedactionAssistant();
+    if (boite && zone.contains(boite)) garageOutilsAssistant().appendChild(boite);
+  }
+
   // ---- Rendu du panneau ----
 
-  function iconeTypeArtefactAssistant(type) { return icone(type === 'courrier' ? 'file-text' : type === 'tableau' ? 'list-check' : 'sparkle'); }
+  function iconeTypeArtefactAssistant(type) { return icone(type === 'courrier' || type === 'document' ? 'file-text' : type === 'tableau' ? 'list-check' : type === 'email' ? 'mail' : 'sparkle'); }
 
   function renderArtefactAssistant() {
     const zone = document.getElementById('assistant-artefact');
@@ -397,11 +479,11 @@
     page.classList.toggle('artefact-ouvert', !!a);
     // Un outil monté a besoin de largeur : le panneau s'élargit.
     page.classList.toggle('artefact-large', !!(a && a.type === 'outil' && a.monte));
-    if (!a) { if (artefactsAssistant.rendu !== artefactsAssistant.version) { Object.keys(outilsMontesAssistant).forEach(o => { const n = document.getElementById('onglet-' + o); if (n && zone.contains(n)) garageOutilsAssistant().appendChild(n); }); zone.innerHTML = ''; artefactsAssistant.rendu = artefactsAssistant.version; } return; }
+    if (!a) { if (artefactsAssistant.rendu !== artefactsAssistant.version) { garerNoeudsMontesAssistant(zone); zone.innerHTML = ''; artefactsAssistant.rendu = artefactsAssistant.version; } return; }
     // Redessiné seulement quand il a changé : une correction en cours sur la page n'est jamais effacée par l'avancement de la conversation.
     if (artefactsAssistant.rendu === artefactsAssistant.version) return;
     artefactsAssistant.rendu = artefactsAssistant.version;
-    Object.keys(outilsMontesAssistant).forEach(o => { const n = document.getElementById('onglet-' + o); if (n && zone.contains(n)) garageOutilsAssistant().appendChild(n); });
+    garerNoeudsMontesAssistant(zone);
     const d = a.dossierId ? dossiers.find(x => x.id === a.dossierId) : null;
     const onglets = artefactsAssistant.liste.length > 1 ? `<div class="asst-art-onglets" role="tablist">${artefactsAssistant.liste.map(x => `<button type="button" role="tab" aria-selected="${x.id === a.id}" class="asst-art-onglet${x.id === a.id ? ' actif' : ''}" onclick="choisirArtefactAssistant('${escapeOnclickArg(x.id)}')">${iconeTypeArtefactAssistant(x.type)}<span>${escapeHtml(x.titre)}</span></button>`).join('')}</div>` : '';
     const idj = escapeOnclickArg(a.id);
@@ -413,6 +495,12 @@
         <wa-button appearance="outlined" size="s" type="button" onclick="telechargerArtefactAssistant('${idj}', 'pdf')">PDF/A</wa-button>
         ${d && d.nasDossier ? `<wa-button appearance="outlined" size="s" type="button" onclick="rangerArtefactAssistant('${idj}')">Ranger dans le dossier</wa-button>` : ''}`;
       corps = `<p class="asst-art-aide">Cliquez dans le texte pour le corriger : Word, PDF/A et le rangement reprennent la page telle qu’elle est affichée.</p><div class="asst-art-feuille" id="assistant-art-feuille">${htmlFeuilleCourrierArtefact(a)}</div>`;
+    } else if (a.type === 'email') {
+      corps = '<div class="asst-art-email-place" id="assistant-art-email-place"></div>';
+    } else if (a.type === 'document') {
+      actions = `<wa-button variant="brand" size="s" type="button" onclick="telechargerArtefactAssistant('${idj}', 'docx')">Word</wa-button>
+        ${d && d.nasDossier ? `<wa-button appearance="outlined" size="s" type="button" onclick="rangerArtefactAssistant('${idj}')">Ranger dans le dossier</wa-button>` : ''}`;
+      corps = `<p class="asst-art-aide">Demandez une correction à CLAIRE dans la conversation : elle reprend le document ici.</p><div class="asst-art-document">${htmlDocumentArtefact(a.titre, a.contenu)}</div>`;
     } else if (a.type === 'tableau') {
       actions = `<wa-button variant="brand" size="s" type="button" onclick="telechargerArtefactAssistant('${idj}', 'xlsx')">Excel</wa-button>
         <wa-button appearance="outlined" size="s" type="button" onclick="telechargerArtefactAssistant('${idj}', 'csv')">CSV</wa-button>
@@ -439,6 +527,9 @@
     // L'écran d'un outil monté : tiré du garage pour être posé dans le panneau.
     const place = document.getElementById('assistant-art-outil-place');
     if (place && a.monte && a.onglet) { const n = document.getElementById('onglet-' + a.onglet); if (n) { place.appendChild(n); n.style.display = ''; } }
+    // La boîte du brouillon d'email : tirée du garage (ou de sa fenêtre) pour être posée dans le panneau.
+    const placeEmail = document.getElementById('assistant-art-email-place');
+    if (placeEmail && a.type === 'email' && boiteRedactionAssistant()) placeEmail.appendChild(boiteRedactionAssistant());
     if (!zone.dataset.edition) {
       zone.dataset.edition = '1';
       zone.addEventListener('focusout', (ev) => { retoucheCourrierArtefactAssistant(ev); retoucheTableauArtefactAssistant(ev); });

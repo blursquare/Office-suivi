@@ -22576,3 +22576,30 @@ plutôt les notifications de l'office de manière générale », « dans les con
 
 Étude 27/10 : « retirer le statut au tribunal ». Retiré de `STATUTS_RAPIDES` (client/120) ; un statut déjà posé expire comme avant
 (4 h). Le serveur garde tout statut libre (emoji + texte) : rien n'y change.
+
+### 27/10/2026 — 0.374.0 : ce que CLAIRE génère s'ouvre à droite, corrigé sur consigne ; modèles d'emails enregistrés par CLAIRE
+
+Étude 27/10 : « permettre à CLAIRE d'enregistrer ses modèles de brouillon d'email dans les réglages si on lui demande après une génération.
+Il faudrait qu'elle ouvre ses brouillons d'email sur le côté. Idem pour tous les éléments qu'elle génère dans les conversations, pas de
+pop-up, et qu'elle puisse les corriger en suivant nos instructions. »
+- **Brouillon d'email à droite** (client/99 `monterRedactionAssistant` / `demonterRedactionAssistant`, appelés par `ouvrirRedactionEmail`
+  et `fermerRedaction` de client/28) : toute fenêtre d'email NOUVEAU ouverte pendant que l'écran des Discussions est affiché (agent,
+  carte d'une proposition, bouton d'une réponse) est la même boîte `.email-redaction-box`, DÉPLACÉE dans le panneau (artefact `email`,
+  un seul à la fois) — jamais copiée : champs, pièces jointes, mise en forme, « Modèles », « Envoyer », « Ouvrir dans Outlook » inchangés ;
+  la croix du panneau = fermer la fenêtre (rien ne part). Une fenêtre ouverte ailleurs reprend sa boîte. Ailleurs que dans les Discussions,
+  la fenêtre comme avant. Avant chaque redessin du panneau, la boîte est mise à l'abri (`garerNoeudsMontesAssistant`), comme un outil monté.
+- **L'agent n'attend plus l'email** (client/49 `gesteEmailAssistant`, email libre d'un dossier) : le brouillon s'ouvre et la conversation
+  continue, pour qu'on puisse demander une correction ; envoyé ou préparé, c'est noté sur la fiche à la fermeture (mode `mailto` : comme avant).
+- **Document à droite** (artefact `document`, `htmlDocumentArtefact`) : `rediger_document` forme document s'ouvre en aperçu (titres,
+  listes, tableau), « Word » refait le .docx, « Ranger dans le dossier » comme avant ; « Rouvrir le document » dans la conversation.
+  Sur l'ordinateur de CLAIRE (`POSTE_CLAIRE`) : la carte « Télécharger » d'avant.
+- **Outil `artefact` de l'agent** (client/132, non strict) : lister, lire (état ACTUEL, corrections de l'utilisateur comprises — email :
+  destinataire, objet, texte ; courrier : `texteCourrierArtefact` ; document ; tableau ≤ 200 lignes), modifier (réécrit en entier ; email :
+  objet et texte seulement, jamais le destinataire ; « [Boutons de réponse] » retrouve ses boutons). Rien n'est envoyé ni enregistré : pas de
+  carte d'autorisation. Le résultat de lecture est masqué par le serveur comme tout résultat d'outil (test `artefact (27/10)`). L'ancienne
+  règle « l'agent ne voit jamais les corrections faites sur la page » tombe : il ne les lit que sur demande de correction.
+- **Outil `modele_email`** : lister (modèles, variables, conditions) ; enregistrer après la carte « Autoriser » → `POST /api/modeles-emails/perso`
+  avec `origine: 'claire'`, que le serveur refuse si le nom, l'objet ou le texte cite un client ou un dossier (`motsNominatifs`, même règle que
+  CLAIRE.md) ; un modèle saisi par l'étude dans les Réglages n'est pas contrôlé. L'ordinateur de CLAIRE ne peut pas l'enregistrer (Réglages).
+- Points terrain `email-panneau-envoye`, `modele-email-claire`. Restent en fenêtre : les formulaires de l'agenda (nouveau rendez-vous,
+  sondage de dates) et les confirmations.

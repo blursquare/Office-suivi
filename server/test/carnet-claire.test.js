@@ -142,3 +142,27 @@ test('relecture 0.280.0 : petits mots et formes juridiques jamais pris pour un n
   assert.doesNotMatch(r, /HERMITE|Zorglub|FR76|00247/);
   assert.match(r, /Maître GOSSART/, 'le nom de l’étude reste lisible');
 });
+
+test('modèle d’email proposé par CLAIRE (27/10) : refusé s’il cite un client, enregistré sinon ; un modèle de l’étude n’est pas contrôlé', async () => {
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const db = ouvrirDb(':memory:');
+  const { app, depot } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, authActive: false } });
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  try {
+    const base = `http://127.0.0.1:${serveur.address().port}/api`;
+    const post = (corps) => fetch(base + '/modeles-emails/perso', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(corps) });
+    depot.creer({ id: 'd1', nom: 'FOURNIER / GAUTHIER', parties: [{ nom: 'FOURNIER' }, { nom: 'GAUTHIER' }] });
+    let rep = await post({ nom: 'Relance diagnostic', sujet: 'Diagnostic', corps: 'Madame Fournier,\n\nMerci.', origine: 'claire' });
+    assert.equal(rep.status, 400);
+    assert.match((await rep.json()).erreur, /Fournier/);
+    rep = await post({ nom: 'Relance diagnostic', sujet: 'Diagnostic — {dossier}', corps: 'Madame, Monsieur,\n\nMerci de nous transmettre le diagnostic.', origine: 'claire', par: 'Bastien ANGLUMENT' });
+    assert.equal(rep.status, 201);
+    const etat = await (await fetch(base + '/modeles-emails')).json();
+    assert.equal(etat.perso.length, 1);
+    assert.equal(etat.perso[0].nom, 'Relance diagnostic');
+    rep = await post({ nom: 'Mot pour Fournier', corps: 'Texte libre de l’étude.' });
+    assert.equal(rep.status, 201, 'un modèle saisi par l’étude dans les Réglages garde sa liberté');
+  } finally { serveur.close(); db.close(); }
+});

@@ -345,7 +345,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPiecesJointes(stockPiecesJointes));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRappelsPerso(parametresRepo));
   // Modèles d'emails de l'étude (Réglages › Modèles d'emails, fenêtre d'email) : voir modelesEmails.js.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurModelesEmails(parametresRepo));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurModelesEmails(parametresRepo, depot));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPreferences(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurMessagesClaire(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRelectureClaude(parametresRepo, db, { creerClient: creerClientClaude, appelerMistral, testerMistral }));

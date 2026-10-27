@@ -876,3 +876,24 @@ test('sa conversation (profil de CLAIRE) : la mémoire des autres conversations 
   await tourAgent({ texte: 'Dans un canal', dossiers: D, contexte: { aujourdhui: '2026-10-27', prenom: 'Bastien' } }, o);
   assert.doesNotMatch(JSON.stringify(client.requetes[1].messages), /Ta mémoire/, 'hors de son espace : rien');
 });
+
+test('artefact (27/10) : le brouillon relu part masqué, la correction revient avec les vrais noms ; outils non stricts', async () => {
+  for (const n of ['artefact', 'modele_email']) {
+    const o = OUTILS_AGENT.find((t) => t.name === n);
+    assert.ok(o, n + ' proposé');
+    assert.equal(o.strict, false, n + ' hors des outils stricts (limite de la grammaire)');
+  }
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('t1', 'artefact', { mode: 'lire', artefact_id: 'art1' })] },
+    { stop_reason: 'tool_use', usage, content: [outil('t2', 'artefact', { mode: 'modifier', artefact_id: 'art1', objet: 'Diagnostic', texte: 'Monsieur [NOM1],\n\nMerci.' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('C’est corrigé.')] }
+  ]);
+  const o = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Raccourcis le brouillon', dossiers: D, contexte: {} }, o);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 't1', contenu: { artefact_id: 'art1', type: 'email', destinataire: 'paul.fournier@exemple.fr',
+    objet: 'Dossier FOURNIER', texte: 'Monsieur Paul FOURNIER,\n\nPouvez-vous nous transmettre le diagnostic du 2 rue des Tanneurs ?' } }] }, o);
+  assert.doesNotMatch(JSON.stringify(client.requetes[1].messages), SECRETS, 'le brouillon relu part masqué');
+  const appel = (r.appels || []).find((x) => x.nom === 'artefact');
+  assert.ok(appel, 'la correction revient au poste');
+  assert.match(appel.entree.texte, /FOURNIER/, 'avec le vrai nom, rétabli par le serveur');
+});

@@ -10935,6 +10935,18 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-art-corps > .asst-art-outil-place { margin: -16px; }
 @media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
 .asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
+.asst-art-corps > .asst-art-email-place { margin: -16px; }
+.asst-art-email-place > .email-redaction-box { width: 100%; max-width: none; height: auto; min-height: 100%; max-height: none; margin: 0; border-radius: 0; box-shadow: none; }
+.asst-art-email-place .redaction-fermer, .asst-art-email-place .redaction-titre { display: none; }
+.asst-art-document { padding: 24px 28px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-s); font-size: var(--texte-base); line-height: 1.55; }
+.asst-art-document h1 { margin: 0 0 16px; font-size: var(--texte-xl); font-weight: 500; text-align: center; }
+.asst-art-document h2 { margin: 20px 0 8px; font-size: var(--texte-l); font-weight: 600; }
+.asst-art-document h3 { margin: 16px 0 6px; font-size: var(--texte-base); font-weight: 600; }
+.asst-art-document p { margin: 0 0 8px; text-align: justify; }
+.asst-art-document ul, .asst-art-document ol { margin: 0 0 8px; padding-left: 24px; }
+.asst-art-document table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+.asst-art-document th, .asst-art-document td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.asst-art-document th { background: var(--paper-sunk); font-weight: 600; }
 
 /* Liste des conversations repliée (étude 21/10) : la conversation prend la place ; le bouton de l'en-tête la rouvre. */
 @media (min-width: 901px) { .asst-page.fils-replies .asst-cote { display: none; } }

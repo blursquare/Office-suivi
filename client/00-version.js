@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.373.5';
+  const VERSION_APP = '0.374.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.374.0', date: '2026-10-27 14:53', resume: "Discussions : ce que CLAIRE prépare s'ouvre à droite de la conversation, plus en fenêtre. Un brouillon d'email s'y ouvre avec tous ses champs, ses pièces jointes, « Modèles » et « Envoyer » ; une note ou une synthèse en Word s'y affiche en aperçu, avec « Word » et « Ranger dans le dossier ». Demandez-lui une correction (« plus court », « ajoute la date », « change l'objet ») : elle reprend l'email, le courrier, le document ou le tableau ouvert, vos retouches comprises, sans rien envoyer. Et « enregistre ce brouillon comme modèle » : après votre « Autoriser », elle l'ajoute à Réglages › Modèles d'emails, les noms du dossier remplacés par des variables (un nom de client resté dans le texte est refusé)." },
     { version: '0.373.5', date: '2026-10-27 14:37', resume: "Discussions : le statut rapide « Au tribunal » est retiré de la liste des statuts (restent En rendez-vous, En visio, Au déjeuner, Absent(e))." },
     { version: '0.373.4', date: '2026-10-27 13:37', resume: "Discussions : la conversation avec CLAIRE redevient une simple conversation. Il n'y a plus de bloc de tâches au-dessus : les tâches et propositions d'un dossier restent dans la conversation de ce dossier, avec leur carte. L'en-tête « CLAIRE · En ligne » qui faisait doublon au-dessus de la conversation est retiré. Dans la liste, « En ligne » est sur la même ligne que le nom de CLAIRE, avec dessous « Notifications de l'office » ; sa pastille ne compte plus que ses messages non lus. Widget Agenda : un rendez-vous et l'invitation qui porte son lien visio (même titre, mêmes heures) ne font plus qu'une ligne." },
     { version: '0.373.3', date: '2026-10-27 12:22', resume: "Plan de situation surligné : le jaune ne devient plus un gros pavé quand le plan est mis dans l'acte électronique d'Authentic. Il n'y a plus aucune transparence dans le PDF : la parcelle est redessinée avec ses couleurs déjà teintées de jaune, et ses traits, numéros et bâtiments restent lisibles partout. Les plans déjà rangés sur le NAS sont à tirer de nouveau." },

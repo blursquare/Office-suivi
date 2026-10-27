@@ -356,10 +356,18 @@ var MAX_RENDUS_AGENT = 12;                  // documents produits gardés dans l
     // Un courrier s'ouvre à droite, sur le papier à en-tête de l'office, à corriger sur la page (étude 21/10, client/99) ; Word, PDF/A et
     // le rangement refont la page telle qu'elle est affichée.
     if (courrier) {
-      await ouvrirCourrierArtefactAssistant(titre, contenu, d);
+      const idCourrier = await ouvrirCourrierArtefactAssistant(titre, contenu, d);
       poserMessageAssistant('claire', `<p>Courrier prêt : <b>${escapeHtml(titre)}</b>${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}. Il est ouvert à droite, sur le papier à en-tête de l’office : corrigez-le sur la page, puis Word, PDF/A ou « Ranger dans le dossier ».</p>`,
-        [{ libelle: 'Rouvrir le courrier', action: () => choisirArtefactAssistant(artefactsAssistant.liste.filter(a => a.type === 'courrier' && a.titre === titre).pop()?.id || '') }]);
-      return { fait: true, affiche_a_l_utilisateur: `courrier « ${titre} » ouvert dans le panneau de droite, sur le papier à en-tête de l’office ; l’utilisateur peut le corriger sur la page avant de le télécharger (Word, PDF/A)${d && d.nasDossier ? ' ou de le ranger dans le dossier du NAS' : ''}` };
+        [{ libelle: 'Rouvrir le courrier', action: () => choisirArtefactAssistant(idCourrier) }]);
+      return { fait: true, artefact_id: idCourrier, affiche_a_l_utilisateur: `courrier « ${titre} » ouvert dans le panneau de droite, sur le papier à en-tête de l’office ; l’utilisateur peut le corriger sur la page avant de le télécharger (Word, PDF/A)${d && d.nasDossier ? ' ou de le ranger dans le dossier du NAS' : ''}` };
+    }
+    // Un document s'ouvre lui aussi à droite, en aperçu (étude 27/10 : « tout ce qu'elle génère, sur le côté ») : Word et le rangement
+    // le refont tel qu'il est affiché, et l'agent le corrige sur demande (outil `artefact`, client/132).
+    if (typeof ouvrirDocumentArtefactAssistant === 'function' && !POSTE_CLAIRE) {
+      const id = ouvrirDocumentArtefactAssistant(titre, contenu, d);
+      poserMessageAssistant('claire', `<p>Document prêt : <b>${escapeHtml(titre)}</b>${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}. Il est ouvert à droite : Word${d && d.nasDossier ? ' ou « Ranger dans le dossier »' : ''}, ou demandez-moi une correction.</p>`,
+        [{ libelle: 'Rouvrir le document', action: () => choisirArtefactAssistant(id) }]);
+      return { fait: true, artefact_id: id, affiche_a_l_utilisateur: `document « ${titre} » ouvert dans le panneau de droite, avec « Word »${d && d.nasDossier ? ' et « Ranger dans le dossier »' : ''} ; pour le corriger, utilise l’outil artefact (mode modifier) sur cet artefact_id` };
     }
     let blob;
     try { blob = courrier ? await courrierRenduAgent(contenu, d) : await docxRenduAgent(titre, contenu); }
