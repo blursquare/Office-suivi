@@ -69,7 +69,7 @@
   .brand-halloween { display: none; }
   :root[data-saison="halloween"] .brand-halloween { display: block; position: absolute; pointer-events: none; }
   .brand-lien { position: relative; }
-  .brand-toile { left: 35px; top: 4px; width: 18px; height: 18px; color: var(--ink-soft); opacity: .85; }
+  .brand-toile { left: 35px; top: 6px; width: 18px; height: 18px; color: var(--ink-soft); opacity: .85; }
   .brand-citrouille { left: 27px; top: 22px; width: 19px; height: 19px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
   .sidebar.repliee .brand-halloween { display: none; }
 
