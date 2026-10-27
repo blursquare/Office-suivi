@@ -210,21 +210,21 @@ function creerRouteurAuthentic(options) {
     journal = journal.filter(e => t - Date.parse(e.recueLe) <= DUREE_JOURNAL_MS).slice(-MAX_JOURNAL);
     for (const [k, v] of empreintes) if (t - v > DUREE_RELEVE_MS) empreintes.delete(k);
   };
-  routeur.post('/authentic/releve', (req, res) => {
-    if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
-    const capture = normaliserCaptureAuthentic(req.body);
-    if (!capture.champs.length && !capture.tableaux.length) { res.json({ ok: true, ignore: true }); return; }
+  // Une page relevée (extension du poste, ou navigateur de CLAIRE sur le serveur — authenticClaire.js, origine « claire-serveur »).
+  /** @param {any} brut @param {string} origine */
+  const recevoirReleve = (brut, origine) => {
+    const capture = normaliserCaptureAuthentic(brut);
+    if (!capture.champs.length && !capture.tableaux.length) return { ok: true, ignore: true };
     // Seules les pages dont CLAIRE connaît la structure sont gardées (étude, 02/10 : « ne lire que les
     // pages dont tu as la structure, pour ne pas surcharger ») : page du dossier, fiche client, fiche bien.
-    if (!pageAuthenticConnue(capture)) { res.json({ ok: true, ignore: true }); return; }
+    if (!pageAuthenticConnue(capture)) return { ok: true, ignore: true };
     // L'intitulé et l'onglet actif comptent (banc Authentic du 19/10) : deux dossiers aux tableaux identiques (vente toute neuve, succession
     // sans pièce), ouverts l'un après l'autre, n'étaient qu'une page — la seconde était écartée comme doublon.
     const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture)])).digest('hex');
     const t = maintenant();
     const deja = empreintes.has(empreinte);
-    if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) { res.json({ ok: true, deja: true }); return; }
+    if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) return { ok: true, deja: true };
     empreintes.set(empreinte, t);
-    const origine = origineDe(req);
     const releve = { id: crypto.randomBytes(9).toString('base64url'), recueLe: new Date(t).toISOString(), origine, capture };
     // Page revue : relue (voir l'en-tête) ; le poste ne répète pas un message « rien de neuf ».
     if (deja) releve.revu = true;
@@ -235,7 +235,11 @@ function creerRouteurAuthentic(options) {
     journal.push({ id: releve.id, recueLe: releve.recueLe, origine, posteOrigine: posteDe(origine), nature: naturePageAuthentic(capture), intitule: intitulePageAuthentic(capture), revu: !!deja, etat: 'en-file' });
     purgerReleves();
     servirAttente();
-    res.json({ ok: true, id: releve.id });
+    return { ok: true, id: releve.id };
+  };
+  routeur.post('/authentic/releve', (req, res) => {
+    if (!req.is('application/json')) { res.status(415).json({ error: 'Corps JSON attendu.' }); return; }
+    res.json(recevoirReleve(req.body, origineDe(req)));
   });
   const mettreEnFile = (element) => {
     aTraiter.push(element);
@@ -356,6 +360,7 @@ function creerRouteurAuthentic(options) {
     res.setHeader('Cache-Control', 'no-store');
     res.json(Object.assign({}, c, { recueLe: new Date(c.recueLe).toISOString() }));
   });
+  routeur.recevoirReleve = recevoirReleve;
   return routeur;
 }
 

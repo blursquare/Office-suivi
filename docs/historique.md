@@ -22440,3 +22440,50 @@ Deux captures d'écran d'Authentic. Aucun nom n'est repris ici : elles portaient
   **Naissance / Mariage / Décès**. Tableau « Intervenants | Type de Demande » : une liste à choix multiple par intervenant (Naissance, Mariage… selon
   la personne). Les intervenants sont les comparants, puis les conjoints cités, puis des lignes sans nom.
 - Reste à construire : le navigateur d'Authentic sans fenêtre (autre conversation). Reste à décider : les demandes que CLAIRE coche par défaut.
+
+### 27/10/2026 — 0.373.0 : CLAIRE dans Authentic (connexion, lecture d'un dossier, demandes CJN et Comedec préparées sans envoi)
+
+Étude : « Construis donc la fonction de connexion à Authentic avec toutes les fonctions dont on a parlé. Les demandes d'action passeront
+pour le moment par les conversations CLAIRE individuelles ou par dossier. » Choix (questions du même jour) : un seul compte (Bastien),
+identifiant et mot de passe sans double authentification, Comedec = naissance de chaque partie + mariage des mariés, demandes proposées
+par CLAIRE et faites sur demande.
+
+- **Serveur** : `server/src/authenticClaire.js`. Le navigateur sans fenêtre du serveur (`navigateur/session.js`, celui du cadastre ; profil à
+  part `navigateur-authentic`, même file d'attente, `lancerAuthentic` de `navigateur/taches.js`) ne charge que `cloud-fichorga.fr`.
+  - Parcours écrits à l'avance, sans IA. Connexion : champ avant le mot de passe, mot de passe, « Se connecter ». Dossier : texte de la
+    page (« Derniers dossiers ouverts »), sinon le champ « Rechercher » avec la référence puis le libellé « VTE NOM / NOM », jusqu'à une
+    page qui montre « Comparants (N) » et le dossier. Sous-dossier « N - VTE … » (jamais la promesse ni l'avenant).
+  - Relevé : le MÊME script que l'extension Firefox (`extension-firefox/releve.js`, asset `authentic/releve.js` du .exe) donne chaque page
+    (dossier, fiches clients, fiches biens) à `recevoirReleve` de `routes/authentic.js` (origine `claire-serveur`), et une fenêtre CLAIRE
+    l'applique comme une page de l'extension.
+  - CJN / Comedec : onglet « Formalités préalables », « Ajouter des formalités préalables », recherche de la formalité, puis ce qui suit.
+    - Comedec : pour chaque ligne « Intervenants | Type de Demande », `demandesComedecIntervenant` donne naissance pour une partie et mariage
+      pour une partie mariée ; rien pour un conjoint non partie ni pour une ligne vide.
+    - CJN : les acquéreurs cochés par Authentic.
+    - Interrupteurs « Création rapide : » et « Envoi immédiat : » LUS (`SCRIPT_INTERRUPTEURS` : classe `ui-toggleswitch-checked`, case
+      cachée, `aria-checked`), corrigés, RELUS. « Valider » n'est cliqué que si Envoi immédiat est lu ÉTEINT et Création rapide ALLUMÉE.
+      Les erreurs PrimeFaces affichées après « Valider » sont rendues.
+  - Liste noire en dur (`libelleInterdit` : envoyer, prêt pour envoi, signer, supprimer, virement, intégrer, nouveau dossier, exporter,
+    réinitialiser, débloquer…). Le mot de passe n'est dans aucune étape ni aucune réponse.
+- **Routes** (`routes/authenticClaire.js`) : `GET/PUT /api/authentic-claire/reglages` (clé `authentic-connexion`, mot de passe jamais rendu,
+  PUT réservé aux administrateurs), `POST /essai`, `POST /lire`, `POST /formalite` (type `cjn` | `comedec`, parties envoyées par le poste).
+  Chaque geste est une tâche suivie par `GET /api/navigation/taches/:id`, et son résultat (fait ou pas fait, et pourquoi) est dit par CLAIRE
+  dans le canal du dossier. Le poste virtuel de CLAIRE ne peut pas les appeler (hors de sa liste blanche).
+- **Poste** (`client/131-authentic-claire.js`) : Réglages › Authentic › « Connexion de CLAIRE à Authentic » (interrupteur, adresse,
+  identifiant, mot de passe, « Essayer la connexion »). Outil `authentic_claire` de l'agent (modes `lire`, `cjn`, `comedec`), avec une carte
+  « Autoriser » STRICTE pour cjn et comedec (jamais couverte par « Autoriser pour toute cette demande »).
+  - `partiesComedecDossier` : vendeurs et acquéreurs personnes physiques, sauf le côté accompagné par un confrère ; mariée = couple
+    « marié » de son côté, ou fiche d'Authentic « Marié(e) ».
+  - `raisonSansCjn` : ni succession, ni participation, ni acquéreur société seul.
+- **Routine** `formalites-authentic` (catalogue, `allumeeParDefaut` : allumée même quand les réglages des routines sont déjà enregistrés) :
+  propositions `tache` dans le canal du dossier, seulement si la connexion est allumée et le dossier relié à Authentic par sa référence.
+  - Comedec : une fois par dossier, tant qu'aucun état civil n'est relevé dans Authentic.
+  - CJN : quand l'étude reçoit l'acte et que la signature est dans 30 jours (`JOURS_CJN_AVANT_SIGNATURE`).
+  - « Autoriser » prépare la demande sur le poste (client/112 → `preparerFormaliteAuthentic`).
+- **Essai** : `tests/fumee/authentic-claire.mjs`, joué par `npm run fumee`, dans un vrai Chromium contre `tests/fumee/faux-authentic.html`
+  (structure des captures et des copies de l'étude, noms inventés ; Envoi immédiat ALLUMÉ au départ, boutons « Envoyer » et « Nouveau
+  dossier » pièges). Connexion, recherche, 4 pages relevées, CJN et Comedec validées avec Envoi immédiat éteint, aucun bouton interdit
+  cliqué.
+- **Non vérifié sur le vrai Authentic** (points `authentic-connexion`, `authentic-lecture`, `authentic-cjn`, `authentic-comedec`) : le parcours
+  suit les libellés relevés, pas encore la page réelle. Authentic s'ouvre ici dans le Chrome ou l'Edge du serveur, pas dans Firefox.
+  Réquisition hors formalité (EHF) pas faite : son écran n'a pas encore été relevé.

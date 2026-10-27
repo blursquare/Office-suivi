@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Authentic</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  .barre { height: 50px; background: #0b4a8b; color: #fff; display: flex; align-items: center; gap: 20px; padding: 0 20px; }
+  .vue { display: none; padding: 20px 260px 20px 20px; } .vue.active { display: block; }
+  .ui-toggleswitch { display: inline-block; width: 40px; height: 20px; background: #ccc; border-radius: 10px; cursor: pointer; vertical-align: middle; }
+  .ui-toggleswitch.ui-toggleswitch-checked { background: #0b4a8b; }
+  .ui-helper-hidden-accessible { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .ui-chkbox-box { display: inline-block; width: 16px; height: 16px; border: 1px solid #333; cursor: pointer; }
+  .ui-chkbox-box.ui-state-active { background: #0b4a8b; }
+  .ui-selectcheckboxmenu { display: inline-block; min-width: 160px; height: 22px; border: 1px solid #999; cursor: pointer; }
+  .ui-selectcheckboxmenu-panel { position: absolute; background: #fff; border: 1px solid #333; padding: 6px; display: none; }
+  .ui-selectcheckboxmenu-panel li { list-style: none; padding: 4px; }
+  button, .lien { cursor: pointer; margin: 4px; }
+  li.formalite { list-style: none; padding: 4px; cursor: pointer; }
+</style></head>
+<body>
+<!-- Faux Authentic pour tests/fumee/authentic-claire.mjs : la structure relevée sur les captures de l'étude (27/10), noms inventés. -->
+<div class="vue" id="connexion">
+  <h1>Authen.tic</h1>
+  <label for="id">Identifiant</label> <input type="text" id="id">
+  <label for="mdp">Mot de passe</label> <input type="password" id="mdp">
+  <button type="button" onclick="seConnecter()">Se connecter</button>
+</div>
+
+<div class="barre" id="barre" style="display:none">AUTHEN.TIC <input type="text" placeholder="Rechercher" id="recherche"></div>
+
+<div class="vue" id="accueil"><h2>Derniers dossiers ouverts</h2><p>Aucun dossier récent</p><div id="resultats"></div></div>
+
+<div class="vue" id="dossier">
+  <div>A 2026 00500 VTE MARTIN / DURAND</div>
+  <div>2 - VTE MARTIN / DURAND</div>
+  <div id="pageDossier">
+    <div>Comparants (2)</div>
+    <div>person</div><div class="lien" onclick="voir('fiche-martin')">M. MARTIN Paul</div><div>Vendeur</div>
+    <div>person</div><div class="lien" onclick="voir('fiche-durand')">Mme DURAND Claire épouse de M. LEROY Marc</div><div>Acquéreur</div>
+    <div>Immeubles (1)</div>
+    <div><span class="lien" onclick="voir('fiche-bien')">41000 BLOIS, 2 rue des Lices</span></div><div>Immeuble vendu</div>
+    <div>Tiers (0)</div>
+    <table><thead><tr><th>Intitulé</th><th>Date</th><th>Etat</th></tr></thead><tbody><tr><td>Acte de vente</td><td>01/10/2026</td><td>Non rédigé</td></tr></tbody></table>
+  </div>
+  <div class="lien">1 - Promesse VTE MARTIN / DURAND</div>
+  <div class="lien" onclick="voir('dossier')">2 - VTE MARTIN / DURAND</div>
+  <button type="button" onclick="voir('formalites')">Formalités préalables</button>
+  <button type="button">Actes</button>
+  <button type="button" onclick="window.__interdit = 'Nouveau dossier'">Nouveau dossier</button>
+</div>
+
+<div class="vue" id="fiche-martin">
+  <label for="j:ficheClientPhysiqueIdentite:nom">Nom de famille</label><input id="j:ficheClientPhysiqueIdentite:nom" value="MARTIN">
+  <label for="j:ficheClientPhysiqueIdentite:prenom">Prénom</label><input id="j:ficheClientPhysiqueIdentite:prenom" value="Paul">
+  <button type="button" onclick="voir('dossier')">Retour</button>
+</div>
+<div class="vue" id="fiche-durand">
+  <label for="j:ficheClientPhysiqueIdentite:nom2">Nom de famille</label><input id="j:ficheClientPhysiqueIdentite:nom2" value="DURAND">
+  <button type="button" onclick="voir('dossier')">Retour</button>
+</div>
+<div class="vue" id="fiche-bien">
+  <label for="j:ficheImmeuble:adresse">Adresse</label><input id="j:ficheImmeuble:adresse" value="2 rue des Lices">
+  <button type="button" onclick="voir('dossier')">Retour</button>
+</div>
+
+<div class="vue" id="formalites">
+  <div>Formalités préalables</div>
+  <button type="button" onclick="document.getElementById('ajout').style.display='block'">Ajouter des formalités préalables</button>
+  <div id="ajout" style="display:none">
+    <input type="text" placeholder="Rechercher une formalité" id="rf">
+    <ul>
+      <li class="formalite" onclick="details('cjn')">Casier Judiciaire National dématérialisé (CJN)</li>
+      <li class="formalite" onclick="details('comedec')">Etat civil dématérialisé (COMEDEC)</li>
+      <li class="formalite">Réquisition d'état</li>
+    </ul>
+    <div id="details"></div>
+  </div>
+  <button type="button" onclick="window.__interdit = 'Envoyer'">Envoyer</button>
+</div>
+
+<script>
+  function voir(id) {
+    document.querySelectorAll('.vue').forEach((v) => v.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    document.getElementById('barre').style.display = id === 'connexion' ? 'none' : 'flex';
+  }
+  function seConnecter() {
+    window.__connexion = { id: document.getElementById('id').value, mdp: document.getElementById('mdp').value };
+    if (document.getElementById('mdp').value !== 'secret-essai') return;
+    voir('accueil');
+  }
+  document.getElementById('recherche').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const v = e.target.value;
+    voir('accueil');
+    document.getElementById('resultats').innerHTML = /00500|MARTIN/.test(v) ? '<div class="lien" onclick="voir(\'dossier\')">A 2026 00500 VTE MARTIN / DURAND</div>' : 'Aucun résultat';
+  });
+  function interrupteurs() {
+    return `<div><label>Création rapide :</label><div class="ui-toggleswitch ui-toggleswitch-checked" onclick="this.classList.toggle('ui-toggleswitch-checked'); this.querySelector('input').checked = this.classList.contains('ui-toggleswitch-checked')"><div class="ui-helper-hidden-accessible"><input type="checkbox" id="t:creationRapide_input" checked></div></div>
+      <label>Envoi immédiat :</label><div class="ui-toggleswitch ui-toggleswitch-checked" onclick="this.classList.toggle('ui-toggleswitch-checked'); this.querySelector('input').checked = this.classList.contains('ui-toggleswitch-checked')"><div class="ui-helper-hidden-accessible"><input type="checkbox" id="t:j_idt4242_input" checked></div></div>
+      <button type="button" onclick="valider()">Valider</button></div>`;
+  }
+  function details(type) {
+    window.__type = type;
+    const d = document.getElementById('details');
+    if (type === 'cjn') {
+      d.innerHTML = `<div>CJN</div><div>La vérification au CJN ne concerne que les acquéreurs âgés de 18 à 120 ans.</div>
+        <table><thead><tr><th><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></th><th>Nom de l'intervenant</th></tr></thead>
+        <tbody><tr><td><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></td><td>Mme DURAND Claire</td></tr></tbody></table>` + interrupteurs();
+    } else {
+      const ligne = (nom) => `<tr><td>${nom}</td><td><div class="ui-selectcheckboxmenu" onclick="ouvrir(this)"></div></td></tr>`;
+      d.innerHTML = `<div>COMEDEC / SCEC</div><table><thead><tr><th>Intervenants</th><th>Type de Demande</th></tr></thead><tbody>
+        ${ligne('M. MARTIN Paul (41000 BLOIS)')}${ligne('Mme DURAND Claire épouse de M. LEROY Marc')}${ligne('M. LEROY Marc')}${ligne('')}</tbody></table>` + interrupteurs()
+        + `<div class="ui-selectcheckboxmenu-panel" id="panneau"><ul>${['Naissance', 'Mariage', 'Décès'].map((o) => `<li><div class="ui-chkbox-box" onclick="cocher(this)"></div> ${o}</li>`).join('')}</ul></div>`;
+    }
+  }
+  let ligneOuverte = null;
+  window.__choix = {};
+  function ouvrir(el) {
+    ligneOuverte = el.closest('tr').cells[0].innerText.trim();
+    const p = document.getElementById('panneau');
+    const choisis = window.__choix[ligneOuverte] || [];
+    p.querySelectorAll('li').forEach((li) => li.querySelector('.ui-chkbox-box').classList.toggle('ui-state-active', choisis.includes(li.innerText.trim())));
+    const r = el.getBoundingClientRect();
+    p.style.left = r.left + 'px'; p.style.top = (r.bottom + scrollY) + 'px'; p.style.display = 'block';
+  }
+  function cocher(b) {
+    b.classList.toggle('ui-state-active');
+    const o = b.parentElement.innerText.trim();
+    const l = window.__choix[ligneOuverte] = window.__choix[ligneOuverte] || [];
+    if (b.classList.contains('ui-state-active')) l.push(o); else l.splice(l.indexOf(o), 1);
+  }
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('panneau') && (document.getElementById('panneau').style.display = 'none'); });
+  function valider() {
+    window.__valide = { type: window.__type, rapide: document.getElementById('t:creationRapide_input').checked, envoi: document.getElementById('t:j_idt4242_input').checked, choix: JSON.parse(JSON.stringify(window.__choix)) };
+  }
+  voir('connexion');
+</script>
+</body></html>

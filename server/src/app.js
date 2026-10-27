@@ -62,6 +62,7 @@ const { creerRouteurEmailsDossiers } = require('./routes/emailsDossiers');
 const { creerRouteurRapportTechnique } = require('./routes/rapportTechnique');
 const { creerRouteurSonnerie, creerRouteurAppels, creerEtatAppels } = require('./routes/appels');
 const { creerRouteurAuthentic } = require('./routes/authentic');
+const { creerRouteurAuthenticClaire } = require('./routes/authenticClaire');
 const { creerPagesAuthentic } = require('./pagesAuthentic');
 const { creerRouteurAssistant } = require('./routes/assistant');
 const { creerRouteurCarnetClaire } = require('./routes/carnetClaire');
@@ -268,7 +269,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Pages rangées dans un dossier : gardées dans la base du bureau (pagesAuthentic.js) ; un magasin indisponible ne bloque jamais CLAIRE.
   let pagesAuthentic = null;
   try { pagesAuthentic = creerPagesAuthentic(db); } catch (e) { console.error('[authentic] pages gardées indisponibles :', e && e.message ? e.message : e); }
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthentic({ pages: pagesAuthentic }));
+  const routeurAuthentic = creerRouteurAuthentic({ pages: pagesAuthentic });
+  app.use('/api', gestionnaireAuth.middlewareAuth, routeurAuthentic);
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDossiers(depot, fichierClientsBiens));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOffrePret(config));
   // Assistant « Demander à CLAIRE » (étude 06/10) : compréhension d'une phrase, IA locale à défaut des mots-clés.
@@ -330,7 +332,10 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Plan aérien IGN des parcelles (numéros, pourcentage de zonage) : services ouverts de l'IGN, voir planAerien.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPlanAerien(config, parametresRepo, depot, urbanisme || {}));
   // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurNavigation(config, parametresRepo, depot, navigation || {}));
+  const routeurNavigation = creerRouteurNavigation(config, parametresRepo, depot, navigation || {});
+  app.use('/api', gestionnaireAuth.middlewareAuth, routeurNavigation);
+  // CLAIRE dans Authentic (étude 27/10) : le navigateur du serveur, même file que le cadastre ; les pages lues vont dans la file des relevés.
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthenticClaire({ parametresRepo, depot, config, gestion: routeurNavigation.gestion, recevoirReleve: routeurAuthentic.recevoirReleve }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPosteClaire(parametresRepo, posteClaire, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());

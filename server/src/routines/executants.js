@@ -279,7 +279,49 @@ function propositionDates(dossiers, aujourdhui, ctx) {
   return sortie;
 }
 
+// ---- Demandes Comedec et CJN dans Authentic (étude 27/10) ----
+
+/** Jours avant la signature où la demande de casier est proposée. */
+const JOURS_CJN_AVANT_SIGNATURE = 30;
+
+/**
+ * Pour un dossier de vente relié à Authentic (référence retenue) et la connexion de CLAIRE allumée (`ctx.authenticActif`) : la demande
+ * d'état civil (Comedec) une fois par dossier, tant que l'acte n'est pas signé et qu'aucun état civil n'est relevé dans Authentic ; la
+ * demande de casier (CJN) quand l'étude reçoit l'acte, qu'un acquéreur est une personne physique et que la signature est dans 30 jours.
+ * Le poste fait la demande après « Autoriser » (client/131), Création rapide, sans envoi.
+ * @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx]
+ */
+function formalitesAuthentic(dossiers, aujourdhui, ctx) {
+  const sortie = [];
+  if (!ctx || !ctx.authenticActif) return sortie;
+  for (const d of dossiers || []) {
+    if (!dossierOuvert(d) || estSuccession(d) || !String(d.referenceAuthentic || '').trim()) continue;
+    const parties = Array.isArray(d.parties) ? d.parties : [];
+    const representees = parties.filter((p) => p && ((p.role === 'VENDEUR' && !confrereVendeur(d)) || (p.role === 'ACQUEREUR' && !confrereAcquereur(d))) && p.qualitePersonne !== 'morale');
+    const etatsCivils = d.authentic && Array.isArray(d.authentic.etatsCivils) ? d.authentic.etatsCivils : [];
+    if (representees.length && !etatsCivils.length) {
+      sortie.push(proposition(base('formalites-authentic', d, ctx, 'comedec'), {
+        type: 'tache', action: 'authentic', empreinte: `authentic-comedec:${d.id}`,
+        titre: `Demande d’état civil (Comedec) à préparer — ${libelleDossierAffiche(d)}`,
+        resume: `Naissance de ${representees.length} partie${representees.length > 1 ? 's' : ''}, mariage des mariés. « Autoriser » : CLAIRE la crée dans Authentic sans l’envoyer.`,
+        details: { formalite: 'comedec' }
+      }));
+    }
+    const rdv = estIso(d.rendezVousSignature) ? String(d.rendezVousSignature).slice(0, 10) : '';
+    const acquereurs = parties.filter((p) => p && p.role === 'ACQUEREUR' && p.qualitePersonne !== 'morale');
+    if (rdv && d.roleNotaire !== 'participant' && acquereurs.length && rdv >= aujourdhui && joursEntre(aujourdhui, rdv) <= JOURS_CJN_AVANT_SIGNATURE) {
+      sortie.push(proposition(base('formalites-authentic', d, ctx, 'cjn'), {
+        type: 'tache', action: 'authentic', empreinte: `authentic-cjn:${d.id}`,
+        titre: `Demande de casier judiciaire (CJN) à préparer — ${libelleDossierAffiche(d)}`,
+        resume: `Signature le ${dateFr(rdv)} : casier des acquéreurs. « Autoriser » : CLAIRE la crée dans Authentic sans l’envoyer (la base des références immobilières doit être alimentée).`,
+        details: { formalite: 'cjn' }
+      }));
+    }
+  }
+  return sortie;
+}
+
 module.exports = {
   DATE_DEBUT_CONSTITUTION, JOURS_VEILLE_SIGNATURE, joursEntre, semaineIso, dateFr, confrereAcquereur, confrereVendeur, acteSigne, dateCreationDossier,
-  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates
+  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE
 };

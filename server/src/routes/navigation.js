@@ -26,6 +26,7 @@ function creerRouteurNavigation(config, parametresRepo, depot, o = {}) {
   const routeur = express.Router();
   // Fin d'une tâche : le point « vérifié au bureau » se coche (ou note l'échec) — une fois, sans rien de personnel.
   const surFin = (t) => {
+    if (t.type !== 'plan-cadastre') return;   // les tâches d'Authentic notent leurs propres points (authenticClaire)
     const point = 'plan-cadastre-surligne';
     if (t.etat === 'fini') noterVerification(parametresRepo, point, { detail: `${((t.resultat && t.resultat.plans) || []).length} plan(s)` });
     // Sans la commune ni les parcelles (entre parenthèses dans les messages du parcours) : rien de personnel au rapport technique.
@@ -122,6 +123,7 @@ function creerRouteurNavigation(config, parametresRepo, depot, o = {}) {
     res.json({ ok: gestion.annuler(req.params.id) });
   });
 
+  routeur.gestion = gestion;
   return routeur;
 }
 

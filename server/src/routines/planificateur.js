@@ -42,7 +42,8 @@ const ROUTINES_CODE = {
   'veille-signature': { fn: X.veilleSignature, quand: 'continu' },
   constitution: { fn: X.constitutionDossier, quand: 'continu' },
   'appel-fonds': { fn: X.appelDeFonds, quand: 'continu' },
-  'autorisations-notoriete': { fn: X.autorisationsNotoriete, quand: 'continu' }
+  'autorisations-notoriete': { fn: X.autorisationsNotoriete, quand: 'continu' },
+  'formalites-authentic': { fn: X.formalitesAuthentic, quand: 'continu' }
 };
 const HEURE_REPRISE_REPONSES = '10:05';
 const INTERVALLE_CONTINU_MS = 15 * 60 * 1000;
@@ -148,6 +149,8 @@ function creerPlanificateur(deps) {
   const sondagesOuverts = () => {
     try { return new Set((parametresRepo.lireSondagesCreneaux ? parametresRepo.lireSondagesCreneaux() : []).filter((x) => x && x.statut === 'ouvert' && x.dossierId).map((x) => x.dossierId)); } catch (e) { return new Set(); }
   };
+  // La connexion de CLAIRE à Authentic (Réglages › Authentic) : sans elle, aucune demande Comedec / CJN n'est proposée.
+  const authenticActif = () => { try { const c = require('../authenticClaire').lireConnexionAuthentic(parametresRepo); return !!(c.actif && c.identifiant && c.motDePasse); } catch (e) { return false; } };
   const lireEmail = deps.lireEmail || ((id) => require('../emailsDossiers').lireEmailComplet(parametresRepo, id, deps.injectionsEmails || {}));
   const ia = () => deps.ia || IA.creerIaRoutines({ parametresRepo });
 
@@ -278,7 +281,7 @@ function creerPlanificateur(deps) {
       if (r.quand === 'matin' ? (info.hhmm < reglages.heure || passages[id] === info.iso) : (maintenant.getTime() - (Date.parse(passages[id] || '') || 0) < INTERVALLE_CONTINU_MS)) continue;
       marquer(id, r.quand === 'matin' ? info.iso : maintenant.toISOString());
       try {
-        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts() }), maintenant);
+        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif() }), maintenant);
       } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }
@@ -326,7 +329,7 @@ function creerPlanificateur(deps) {
     const info = infosParis(maintenant);
     const r = /** @type {any} */ (ROUTINES_CODE)[routineId];
     if (r) {
-      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts() }), maintenant);
+      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif() }), maintenant);
       noterJournalRoutines(parametresRepo, { routine: routineId, texte: `Lancée à la main par ${prenomDe(responsable)} : ${ajoutees} proposition${ajoutees > 1 ? 's' : ''}.`, resultat: ajoutees ? 'ok' : 'rien' }, maintenant);
       return { ok: true, ajoutees, message: ajoutees ? `${ajoutees} proposition${ajoutees > 1 ? 's' : ''} déposée${ajoutees > 1 ? 's' : ''} dans les canaux des dossiers.` : 'Rien de nouveau à proposer pour l’instant.' };
     }

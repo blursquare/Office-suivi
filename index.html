@@ -1917,6 +1917,10 @@
   <section class="reglages-panneau" id="reglages-panneau-authentic" role="tabpanel" aria-labelledby="reglages-onglet-authentic" hidden>
     <h2 class="reglages-titre">Authentic</h2>
     <div class="reglages-section">
+      <h3 class="reglages-section-titre">Connexion de CLAIRE à Authentic <span class="info-i" tabindex="0" data-info="Le navigateur du serveur du bureau (sans fenêtre) se connecte à Authentic avec ce compte pour lire un dossier (la fiche se complète comme avec l'extension) et préparer une demande de casier judiciaire (CJN) ou d'état civil (Comedec) : « Création rapide » allumée, « Envoi immédiat » éteint, puis « Valider » — rien n'est envoyé, la demande est à envoyer ensuite depuis Authentic. Chaque demande passe par une carte « Autoriser » dans une conversation de CLAIRE ou dans le canal du dossier. Le mot de passe reste sur le serveur et n'est jamais affiché."></span></h3>
+      <div id="reglages-authentic-connexion"></div>
+    </div>
+    <div class="reglages-section">
       <h3 class="reglages-section-titre">Fichier clients et immeubles <span class="info-i" tabindex="0" data-info="Export d'Authentic « Recherche de Personnes Physiques » ou « Recherche d'immeubles » (.xls). Le fichier est lu sur ce poste ; seules les colonnes choisies partent au serveur du bureau, jamais à une IA. Les fiches importées sont la base de « Clients et biens » : ce que les dossiers et les pages d'Authentic en disent les complète et passe devant. Un nouvel export remplace le précédent du même genre."></span></h3>
       <div id="reglages-import-cb"></div>
     </div>
@@ -3025,5 +3029,6 @@
 <script src="client/128-poste-claire.js"></script>
 <script src="client/129-messages-claire.js"></script>
 <script src="client/130-pastille-application.js"></script>
+<script src="client/131-authentic-claire.js"></script>
 </body>
 </html>

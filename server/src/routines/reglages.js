@@ -47,7 +47,8 @@ function assainirReglagesRoutines(brut) {
     for (const g of r.gestes) gestes[g.cle] = niveauBorne(sg[g.cle], niveau, g.niveauMax);
     // Une routine non disponible ne peut pas être allumée : elle garde ses niveaux, jamais son interrupteur. Réglages d'avant la
     // révision 2 (étude 25/10 : « toutes allumées, niveau 1 ») : chaque routine allumée une fois, au niveau enregistré.
-    const allumee = anciens ? r.id !== 'essai' : s.actif === true;
+    // Une routine ajoutée après l'enregistrement des réglages (`allumeeParDefaut` du catalogue) arrive allumée, sans toucher aux autres.
+    const allumee = anciens ? r.id !== 'essai' : (saisies[r.id] ? s.actif === true : r.allumeeParDefaut === true);
     routines[r.id] = { actif: !!r.disponible && allumee, niveau, gestes };
   }
   return {

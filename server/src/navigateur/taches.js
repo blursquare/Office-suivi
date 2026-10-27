@@ -45,8 +45,8 @@ function creerGestionnaireTaches(o) {
       creeLe: t.cree, finiLe: t.fini || 0, avecCapture: !!t.capture, rang: t.rang || 0 };
   }
 
-  /** Lance une tâche à la suite des autres. @param {string} type @param {string} titre @param {(t: any, s: any) => Promise<void>} faire @param {string[]} domaines */
-  function lancer(type, titre, faire, domaines) {
+  /** Lance une tâche à la suite des autres. @param {string} type @param {string} titre @param {(t: any, s: any) => Promise<void>} faire @param {string[]} domaines @param {string} [profilTache] */
+  function lancer(type, titre, faire, domaines, profilTache) {
     purger();
     if ([...taches.values()].filter((x) => !x.fini).length >= MAX_EN_ATTENTE) throw Object.assign(new Error('Trop de consultations en attente : réessayer dans quelques minutes.'), { statut: 429 });
     const t = { id: crypto.randomUUID(), type, titre, etat: 'attente', etapes: [], documents: [], cree: Date.now(), fini: 0, capture: '', annule: false, resultat: null, erreur: '' };
@@ -59,7 +59,7 @@ function creerGestionnaireTaches(o) {
       let s = null;
       try {
         etape('Ouvre le navigateur de CLAIRE');
-        s = await SessionNavigation.ouvrir({ profil, domaines, lancer: inj.lancer, refuserAdresse: adresseAchat });
+        s = await SessionNavigation.ouvrir({ profil: profilTache || profil, domaines, lancer: inj.lancer, refuserAdresse: adresseAchat });
         // Capture régulière pour l'écran du poste (« voir CLAIRE travailler »).
         const minuterie = setInterval(() => { if (s) s.capture().then((c) => { t.capture = c; }).catch(() => {}); }, 2500);
         try { await faire(t, s); } finally { clearInterval(minuterie); }
@@ -104,8 +104,14 @@ function creerGestionnaireTaches(o) {
     }, DOMAINES_CADASTRE);
   }
 
+  // Authentic (authenticClaire.js) : un profil à part (cookies de la session de l'étude), même file d'attente que le cadastre.
+  const profilAuthentic = path.join(path.dirname(o.cheminDb || '.'), 'navigateur-authentic');
+  /** @param {string} type @param {string} titre @param {(t: any, s: any) => Promise<void>} faire @param {string[]} domaines */
+  function lancerAuthentic(type, titre, faire, domaines) { return lancer(type, titre, faire, domaines, profilAuthentic); }
+
   return {
     lancerPlanCadastre,
+    lancerAuthentic,
     tache: (id) => { const t = taches.get(String(id)); return t ? vue(t) : null; },
     document: (id, doc) => { const t = taches.get(String(id)); return t ? t.documents.find((d) => d.id === String(doc)) || null : null; },
     capture: (id) => { const t = taches.get(String(id)); return t && t.capture ? Buffer.from(t.capture, 'base64') : null; },

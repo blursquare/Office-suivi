@@ -234,6 +234,12 @@ function executerActionProposition(p) {
     else if (d) ouvrirVeilleSignature(d.id);
     return 'Document ouvert dans son outil : relisez-le avant de l’utiliser.';
   }
+  // Demande Comedec / CJN dans Authentic (client/131) : préparée par le navigateur du serveur, sans envoi ; le résultat est dit dans le canal.
+  if (p.type === 'tache' && (det.formalite === 'cjn' || det.formalite === 'comedec')) {
+    if (!d) return 'Dossier introuvable : rien préparé dans Authentic.';
+    preparerFormaliteAuthentic(d, det.formalite, {}).catch(() => {});
+    return 'CLAIRE prépare la demande dans Authentic (une à deux minutes) ; le résultat sera dit dans le canal du dossier.';
+  }
   if (p.type === 'tache') { poserTacheDepuisProposition(p); return 'Tâche ajoutée dans votre liste « À faire ».'; }
   if (p.type === 'dates' && d) { ouvrirSondageCreneaux(d.id); return 'Sondage de dates ouvert : choisissez les créneaux, rien ne part sans votre clic.'; }
   if (det.ouvrir === 'reglages-routines') { definirOnglet('reglages'); definirSousOngletReglages('routines'); return 'Réglages › Routines ouverts : c’est à vous de décider.'; }

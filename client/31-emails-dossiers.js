@@ -842,6 +842,7 @@
   }
 
   async function renderReglagesAuthentic() {
+    renderReglagesConnexionAuthentic();
     const bloc = document.getElementById('reglages-authentic-journal');
     const fen = document.getElementById('reglages-authentic-fenetres');
     if (!bloc || !authToken) return;

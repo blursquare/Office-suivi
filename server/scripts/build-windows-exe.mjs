@@ -212,7 +212,9 @@ async function main() {
       ...(ico ? { 'icone.ico': 'build/icone.ico' } : {}),
       // Mémoire de CLAIRE, rubrique « Règles et décisions de l'étude » (src/memoire.js) : lus par le serveur, jamais servis.
       'memoire/CLAUDE.md': '../CLAUDE.md',
-      'memoire/historique.md': '../docs/historique.md'
+      'memoire/historique.md': '../docs/historique.md',
+      // Relevé d'une page d'Authentic (le même que l'extension Firefox) : injecté par le navigateur du serveur (src/authenticClaire.js).
+      'authentic/releve.js': '../extension-firefox/releve.js'
     }
   };
   const seaConfigPath = path.join(SERVER_DIR, 'sea-config.json');
