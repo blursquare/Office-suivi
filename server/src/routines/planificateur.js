@@ -44,6 +44,7 @@ const ROUTINES_CODE = {
   'appel-fonds': { fn: X.appelDeFonds, quand: 'continu' },
   'autorisations-notoriete': { fn: X.autorisationsNotoriete, quand: 'continu' }
 };
+const HEURE_REPRISE_REPONSES = '10:05';
 const INTERVALLE_CONTINU_MS = 15 * 60 * 1000;
 const HEURE_DEBUT_BUREAU = '08:00';
 const HEURE_FIN_BUREAU = '19:00';
@@ -286,8 +287,12 @@ function creerPlanificateur(deps) {
     // semaine (le lundi, ou le mardi après un lundi férié) à l'heure du passage — une seule par semaine, vérifiée avant tout appel.
     for (const id of ['reponses-emails', 'relance-pieces']) {
       // 8 h 05 : le relevé des emails des dossiers (toutes les minutes) a eu le temps de prendre ceux arrivés juste avant 8 h.
-      if (!actif(id) || info.hhmm < '08:05' || !auBureau || passages[id] === info.iso) continue;
-      marquer(id, info.iso);
+      if (!actif(id) || info.hhmm < '08:05' || !auBureau) continue;
+      // Les réponses aux emails du soir ont un second passage à 10 h 05 le même jour : il ne relit que les emails dont la réponse n'a pas
+      // pu être préparée au premier (laissés non traités, une seule reprise — `echec:` de routines/ia.js) ; sans eux, aucun appel.
+      const reprise = id === 'reponses-emails' && passages[id] === info.iso && info.hhmm >= HEURE_REPRISE_REPONSES && passages[id + ':reprise'] !== info.iso;
+      if (passages[id] === info.iso && !reprise) continue;
+      marquer(reprise ? id + ':reprise' : id, info.iso);
       try { await routineIa(id, reglages, maintenant); } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }

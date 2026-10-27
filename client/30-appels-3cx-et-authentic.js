@@ -2583,7 +2583,7 @@
   // Applique une page relevée → { etat, dossierId, texte } pour le journal (Réglages › Authentic) :
   // applique, sans-changement, sans-dossier, a-choisir. `rel.revu` : page revue, sans message « rien
   // de neuf ».
-  async function appliquerReleveAuthentic(capture, rel) { if (typeof noterPresenceAuthentic === 'function' && rel && rel.memePoste === true && !rel.revu) noterPresenceAuthentic(capture);   // où l'on est dans Authentic (client/127)
+  async function appliquerReleveAuthentic(capture, rel) { if (typeof noterPresenceAuthentic === 'function' && rel && rel.memePoste === true) noterPresenceAuthentic(capture);   // où l'on est dans Authentic (client/127)
     // Fiche client ouverte avec le volet du conjoint : la fiche, puis le conjoint comme une seconde fiche client du même dossier.
     // Le conjoint ne fait que COMPLÉTER une partie déjà sur ce dossier, reconnue par prénom et nom (relecture 16/10) : ni choix, ni
     // nouvelle partie, ni dossier en consultation changé.

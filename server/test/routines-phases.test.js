@@ -236,6 +236,8 @@ test('planificateur : le lundi, les routines allumées déposent leurs propositi
   await p.tour(new Date('2026-10-26T10:00:00+01:00'));
   await p.tour(new Date('2026-10-26T10:20:00+01:00'));
   assert.equal(P.lirePropositions(repo).length, nombre, 'jamais refaites');
+  // 10 h 20 : le second passage des réponses (10 h 05) a eu lieu, sans rien refaire — il ne relit que les emails laissés non traités.
+  assert.equal(repo.lireJsonBrut('routines-etat', {}).derniersPassages['reponses-emails:reprise'], '2026-10-26');
   // Éteintes : rien.
   const repo2 = fauxRepo();
   R.ecrireReglagesRoutines(repo2, { actif: false });

@@ -163,6 +163,8 @@ function refuserDepuisRelais(o) {
   if (cible.etat !== 'proposee') return { ok: false, erreur: 'Déjà décidée.' };
   const r = decider(liste, id, 'refusee', o.collab);
   if (r.liste !== liste) { ecrirePropositions(o.repo, r.liste); try { synchroniserEtatCartes(o.repo); } catch (e) { /* jamais bloquant */ } }
+  // Demande de CLAIRE restée sans réponse au-delà de son délai : elle vient d'expirer, rien n'a été refusé ni reporté.
+  if (r.expiree) return { ok: false, erreur: 'Demande expirée : CLAIRE ne l’a pas faite.' };
   return { ok: true };
 }
 
@@ -180,6 +182,8 @@ function reporterDepuisRelais(o) {
   if (cible.etat !== 'proposee') return { ok: false, erreur: 'Déjà décidée.' };
   const r = decider(liste, id, 'reporter', o.collab, undefined, { quand: 'demain' });
   if (r.liste !== liste) { ecrirePropositions(o.repo, r.liste); try { synchroniserEtatCartes(o.repo); } catch (e) { /* jamais bloquant */ } }
+  // Demande de CLAIRE restée sans réponse au-delà de son délai : elle vient d'expirer, rien n'a été refusé ni reporté.
+  if (r.expiree) return { ok: false, erreur: 'Demande expirée : CLAIRE ne l’a pas faite.' };
   return { ok: true };
 }
 

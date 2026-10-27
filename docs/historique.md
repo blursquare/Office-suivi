@@ -22359,5 +22359,9 @@ longue (plus de 90 mots) n'est pas proposée — dite comme erreur du tour ; le 
   chez un collègue.
 - **Réponse commune aux emails du soir trop longue** : la limite passe de 90 mots à 90 + 40 par email de plus, 170 au plus
   (`motsMaxReponse`, `validerReponseEmails` de `server/src/routines/ia.js`). Une réponse trop longue a un second essai, qui rappelle
-  la limite. Si aucune proposition n'en sort, les emails ne sont plus comptés traités : un tour suivant réessaie, une seule fois
+  la limite. Si aucune proposition n'en sort, les emails ne sont plus comptés traités. Le planificateur fait un second passage à
+  10 h 05 le même jour (`HEURE_REPRISE_REPONSES`, passage `reponses-emails:reprise`) : il ne relit que ces emails, une seule fois
   (repère `echec:<dernier email>`), jamais sans fin.
+- **Relecture** : `!rel.revu` retiré du filtre de présence (revenir sur l'onglet d'un dossier déjà vu doit compter) ; « Refuser » et
+  « Plus tard » d'une carte du relais sur une demande de CLAIRE expirée rendent « Demande expirée » au lieu de « ok »
+  (`refuserDepuisRelais`, `reporterDepuisRelais`).
