@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.390.0';
+  const VERSION_APP = '0.390.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.390.1', date: '2026-10-28 11:56', resume: "Connexion de CLAIRE à Authentic : l’adresse de l’étude (https://www.cloud-fichorga.fr/41089-Authentic) est désormais celle par défaut ; une adresse réduite à la racine du site, qui ne répond pas, est remplacée par elle. La recherche d’un dossier par son numéro se tape sans espace (« A202600329 »), comme Authentic l’attend." },
   { version: '0.390.0', date: '2026-10-28 11:20', resume: "Ventes : dans l’onglet Fonds, CLAIRE compare le solde de l’affaire lu dans Authentic au « Solde à verser » de l’appel de fonds — égal à 2 € près, ou l’écart, toujours « à vérifier » (le solde peut comprendre un acompte, le dépôt de garantie ou des provisions) ; rien n’est validé seul ; « Lire la comptabilité » / « Relire » sur place, et la même réponse en le demandant à CLAIRE. Quand Authentic ne se charge pas, le message dit maintenant si le serveur lui-même joint le site (alors c’est son navigateur qui bloque) ou non (accès à Internet, proxy ou pare-feu du serveur)." },
   { version: '0.389.0', date: '2026-10-28 10:55', resume: "CLAIRE lit la comptabilité d’un dossier dans Authentic (onglet « Comptabilité », lecture seule) : solde de l’affaire, solde du compte, taxes et dernières opérations, montrés dans le bloc Authentic de l’onglet Dossier (« Lire la comptabilité » / « Relire »). On peut aussi le demander à CLAIRE (« quel est le solde de la succession X ? ») : elle donne la dernière lecture, ou la relit dans Authentic après votre accord." },
   { version: '0.388.0', date: '2026-10-28 10:27', resume: "Successions : le courrier de déblocage ou de transfert des fonds à la banque (vos modèles, mot pour mot) se prépare d’un clic — depuis la carte de l’étape, la tâche du jour ou en le demandant à CLAIRE. On choisit la banque dans le Répertoire (adresse et email modifiables), CLAIRE joint les pièces du dossier du NAS (acte de décès, attestation de dévolution, RIB de l’étude, autorisations des héritiers — à cocher ou décocher) et le courrier en PDF, puis la fenêtre d’email s’ouvre : rien ne part sans « Envoyer ». Envoyé depuis CLAIRE, l’étape se coche ; envoyé d’Outlook, CLAIRE le retrouve dans les emails envoyés (objet qui dit « déblocage » ou « transfert des fonds » et nomme le défunt) et coche l’étape, la tâche, la carte et la routine des autorisations." },

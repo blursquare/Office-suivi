@@ -170,3 +170,18 @@ test('diagnostic quand Authentic ne se charge pas (étude 28/10) : le serveur jo
   assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('lent') }), /ne joint pas Authentic \(aucune réponse/);
   assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('dns') }), /ENOTFOUND/);
 });
+
+test('adresse de connexion de l’étude (28/10) : la racine du site est remplacée par /41089-Authentic, un autre chemin du site gardé', () => {
+  const A = require('../src/authenticClaire');
+  assert.equal(A.assainirConnexionAuthentic({}).adresse, 'https://www.cloud-fichorga.fr/41089-Authentic');
+  assert.equal(A.assainirConnexionAuthentic({ adresse: 'https://www.cloud-fichorga.fr/' }).adresse, 'https://www.cloud-fichorga.fr/41089-Authentic');
+  assert.equal(A.assainirConnexionAuthentic({ adresse: 'https://www.cloud-fichorga.fr/41089-Authentic' }).adresse, 'https://www.cloud-fichorga.fr/41089-Authentic');
+  assert.equal(A.assainirConnexionAuthentic({ adresse: 'https://www.cloud-fichorga.fr/autre-office' }).adresse, 'https://www.cloud-fichorga.fr/autre-office');
+  assert.equal(A.assainirConnexionAuthentic({ adresse: 'https://exemple.fr/41089-Authentic' }).adresse, 'https://www.cloud-fichorga.fr/41089-Authentic');
+});
+
+test('recherche d’un dossier par son numéro : sans espace (étude 28/10)', () => {
+  const A = require('../src/authenticClaire');
+  assert.equal(A.referenceRecherche('A 2026 00329'), 'A202600329');
+  assert.equal(A.referenceRecherche(''), '');
+});

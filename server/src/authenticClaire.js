@@ -20,7 +20,8 @@ const path = require('node:path');
 
 const CLE_CONNEXION_AUTHENTIC = 'authentic-connexion';
 const DOMAINES_AUTHENTIC = ['cloud-fichorga.fr'];
-const ADRESSE_DEFAUT = 'https://www.cloud-fichorga.fr/';
+// L'adresse de connexion de l'étude (étude 28/10 : « ce n'est pas le bon lien, le voici ») : la racine du site ne répond pas.
+const ADRESSE_DEFAUT = 'https://www.cloud-fichorga.fr/41089-Authentic';
 const MAX_FICHES = 12;
 
 // Libellés jamais cliqués et gestes permis : authentic/garde.js (étape 1 du plan Authen.TIC, 27/10).
@@ -30,7 +31,12 @@ const { libelleInterdit, controlerClic } = require('./authentic/garde');
 function assainirConnexionAuthentic(brut) {
   const b = brut && typeof brut === 'object' ? brut : {};
   let adresse = typeof b.adresse === 'string' ? b.adresse.trim().slice(0, 300) : '';
-  try { const u = new URL(adresse); if (u.protocol !== 'https:' || !/(^|\.)cloud-fichorga\.fr$/i.test(u.hostname) || u.username || u.password) adresse = ''; } catch (_) { adresse = ''; }
+  try {
+    const u = new URL(adresse);
+    if (u.protocol !== 'https:' || !/(^|\.)cloud-fichorga\.fr$/i.test(u.hostname) || u.username || u.password) adresse = '';
+    // La racine seule (l'ancienne adresse par défaut) ne répond pas : celle de l'étude la remplace.
+    else if (u.pathname === '/' && !u.search) adresse = '';
+  } catch (_) { adresse = ''; }
   return {
     actif: b.actif === true,
     // Préparer des demandes dans Authentic (CJN, Comedec) = ÉCRIRE dans Authentic : éteint par défaut (plan validé le 27/10 : lecture seule).
@@ -384,6 +390,9 @@ function estCeDossier(texte, cible) {
  * « VTE DUPONT / MARTIN » ouvrait « VTE DUPONT / MARTINEZ »).
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {(t: string) => void} etape
  */
+/** Pure : la référence telle que la recherche d'Authentic l'attend, sans espace (« A 2026 00329 » → « A202600329 »). @param {string} ref */
+function referenceRecherche(ref) { return String(ref || '').replace(/\s+/g, ''); }
+
 async function ouvrirDossier(s, cible, etape) {
   const g = gestes(s, etape);
   const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
@@ -400,7 +409,8 @@ async function ouvrirDossier(s, cible, etape) {
     return estCeDossier(await g.texte(), cible);
   };
   if (await essayer()) return;
-  for (const quoi of [ref, lib].filter(Boolean)) {
+  // La recherche d'Authentic attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
+  for (const quoi of [referenceRecherche(ref), lib].filter(Boolean)) {
     const champ = await g.ev(scriptChamp('rechercher'));
     if (!champ) break;
     await g.ecrire(champ, quoi);
@@ -796,5 +806,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
+  referenceEnTete, referenceRecherche, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };
