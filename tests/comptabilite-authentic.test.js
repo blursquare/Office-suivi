@@ -10,6 +10,8 @@ test('montants d’Authentic : virgule ou point décimal, milliers, signe', () =
   assert.equal(AT.montantAT('-999.9'), -999.9);
   assert.equal(AT.montantAT('12.345,00'), 12345);
   assert.equal(AT.montantAT('Solde'), null);
+  assert.equal(AT.montantAT('−12,50'), -12.5);
+  assert.equal(AT.montantAT('28/10/2026'), null);
 });
 
 test('infos comptables : soldes, taxe, dernières opérations et totaux', () => {
@@ -24,8 +26,9 @@ test('infos comptables : soldes, taxe, dernières opérations et totaux', () => 
   assert.equal(c.taxes[0].montant, 70.08);
   assert.equal(c.operations.length, 2);
   assert.equal(c.operations[0].date, '2026-10-02');
-  assert.equal(c.totalCredit, 12500);
-  assert.equal(c.totalDebit, 350.4);
+  assert.equal(c.totalCreditListe, 12500);
+  assert.equal(c.totalDebitListe, 350.4);
+  assert.equal(c.nombreComptes, 1);
   assert.equal(AT.comptabiliteDepuisCaptureAT(null, '').operations.length, 0);
 });
 
@@ -34,4 +37,13 @@ test('garde : l’onglet « Comptabilité » est un geste de navigation ; « Gé
   assert.doesNotThrow(() => controlerClic({ geste: 'navigation', vise: 'Comptabilité', bouton: 'Comptabilité', texte: 'Comptabilité' }));
   assert.throws(() => controlerClic({ geste: 'navigation', vise: 'Générer en PDF', bouton: 'Générer en PDF', texte: 'Générer en PDF' }));
   assert.throws(() => controlerClic({ geste: 'navigation', vise: 'Ajouter un compte', bouton: 'Ajouter un compte', texte: 'Ajouter un compte' }));
+});
+
+test('tableau défilant : en-tête et corps en deux tables', () => {
+  const c = AT.comptabiliteDepuisCaptureAT({ texte: '', tableaux: [
+    { titre: 'Dernières opérations de l\'affaire', entete: ['Date', 'N° écriture', 'Libellé', 'Débit', 'Crédit', 'Solde'], lignes: [] },
+    { titre: 'Compte', entete: [], lignes: [['03/10/2026', '9', 'Frais', '10.00', '0.0', '-10.00']] }] }, '');
+  assert.equal(c.operations.length, 1);
+  assert.equal(c.operations[0].debit, 10);
+  assert.equal(c.operations[0].solde, -10);
 });

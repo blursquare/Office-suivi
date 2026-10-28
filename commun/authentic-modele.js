@@ -396,11 +396,14 @@
 
   /** Pure : un montant écrit par Authentic (« 1 234,56 € », « 1234.56 », « -999.9 ») → nombre, null s'il n'y en a pas. @param {any} t */
   function montantAT(t) {
-    const m = /-?\s?\d[\d\s\u00a0\u202f.,]*/.exec(String(t == null ? '' : t));
+    const brut = String(t == null ? '' : t);
+    // Une date n'est jamais un montant (« Solde : » suivi d'une date, audit 0.389.0).
+    if (RE_DATE_FR.test(net(brut))) return null;
+    const m = /[-\u2212]?\s?\d[\d\s\u00a0\u202f.,]*/.exec(brut);
     if (!m) return null;
     let x = m[0].replace(/[\s\u00a0\u202f]/g, '');
-    const neg = x.startsWith('-');
-    x = x.replace(/^-/, '');
+    const neg = /^[-\u2212]/.test(x);
+    x = x.replace(/^[-\u2212]/, '');
     const dernier = Math.max(x.lastIndexOf(','), x.lastIndexOf('.'));
     // Le dernier séparateur suivi d'un ou deux chiffres est la virgule ; les autres séparent les milliers.
     if (dernier >= 0 && x.length - dernier - 1 <= 2) x = x.slice(0, dernier).replace(/[.,]/g, '') + '.' + x.slice(dernier + 1);
@@ -425,8 +428,14 @@
     const taxes = lignesTexte.filter((l) => /^taxe\b.*montant/.test(plat(l))).map((l) => ({ libelle: net(l.replace(/-?\s*montant.*$/i, '')).slice(0, 80), montant: montantAT(l.replace(/^.*montant/i, '')) }))
       .filter((x) => x.montant != null).slice(0, 10);
     const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes));
-    const t = tableaux.find((/** @type {any} */ x) => /operation/.test(plat(x.titre || '')) || ((x.entete || []).map(plat).some((/** @type {string} */ e) => /^debit$/.test(e)))) || null;
-    const entete = ((t && t.entete) || []).map(plat);
+    // Un tableau défilant de PrimeFaces : en-tête et corps sont deux tables (audit 0.389.0) — le corps qui a des lignes, l'en-tête de la
+    // table qui le précède s'il n'en a pas.
+    const estCandidat = (/** @type {any} */ x) => /operation/.test(plat(x.titre || '')) || ((x.entete || []).map(plat).some((/** @type {string} */ e) => /^debit$/.test(e)));
+    const iEntete = tableaux.findIndex(estCandidat);
+    const iCorps = iEntete < 0 ? -1 : tableaux.findIndex((/** @type {any} */ x, /** @type {number} */ i) => i >= iEntete && x.lignes.length > 0 && (i === iEntete || estCandidat(x) || !(x.entete || []).length));
+    const t = iCorps >= 0 ? tableaux[iCorps] : null;
+    const enteteBrut = t && (t.entete || []).length ? t.entete : (iEntete >= 0 ? tableaux[iEntete].entete || [] : []);
+    const entete = enteteBrut.map(plat);
     const col = (/** @type {RegExp} */ re, /** @type {number} */ defaut) => { const i = entete.findIndex((/** @type {string} */ e) => re.test(e)); return i >= 0 ? i : defaut; };
     const c = { date: col(/^date/, 0), numero: col(/ecriture|^n/, 1), libelle: col(/libelle/, 2), debit: col(/^debit/, 3), credit: col(/^credit/, 4), solde: col(/^solde/, 5) };
     /** @type {Array<{ date: string, numero: string, libelle: string, debit: number | null, credit: number | null, solde: number | null }>} */
@@ -440,9 +449,11 @@
         debit: montantAT(cel[c.debit]), credit: montantAT(cel[c.credit]), solde: montantAT(cel[c.solde]) });
     });
     const somme = (/** @type {'debit' | 'credit'} */ k) => Math.round(operations.reduce((s, o) => s + (o[k] || 0), 0) * 100) / 100;
+    // Les totaux ne portent que sur les opérations LISTÉES (les dernières), jamais tout le compte (audit 0.389.0).
     return {
       luLe: net(luLe), soldeCompte: apres(/^solde du compte/), soldeAffaire: apres(/^solde de l.affaire/), taxes, operations,
-      totalDebit: somme('debit'), totalCredit: somme('credit'), tronque: !!(t && t.lignes.length > 100)
+      nombreComptes: lignesTexte.filter((l) => /^solde du compte/.test(plat(l))).length,
+      totalDebitListe: somme('debit'), totalCreditListe: somme('credit'), tronque: !!(t && t.lignes.length > 100)
     };
   }
 

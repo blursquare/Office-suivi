@@ -19,7 +19,7 @@ function comptabilitePourAgent(c) {
     lue_le: String(c.luLe).slice(0, 16), solde_compte: c.soldeCompte, solde_affaire: c.soldeAffaire,
     taxes: (c.taxes || []).map(t => ({ montant: t.montant })),
     operations: (c.operations || []).slice(0, 30).map(o => ({ date: o.date, libelle: o.libelle, debit: o.debit, credit: o.credit, solde: o.solde })),
-    total_debit: c.totalDebit, total_credit: c.totalCredit, liste_incomplete: !!c.tronque
+    total_debit_des_operations_listees: c.totalDebitListe, total_credit_des_operations_listees: c.totalCreditListe, nombre_de_comptes: c.nombreComptes || 1, liste_incomplete: !!c.tronque
   };
 }
 
@@ -58,7 +58,7 @@ async function comptabiliteAgent(e) {
   if (!d) return { erreur: 'aucun dossier avec cet id' };
   if (!String(d.referenceAuthentic || '').trim()) return { erreur: 'dossier pas relié à Authentic par sa référence : lis d’abord le dossier dans Authentic' };
   const deja = comptabilitePourAgent((d.authentic || {}).comptabilite);
-  if (!(e && e.relire) && deja) return Object.assign({ dossier_id: d.id }, deja);
+  if (!(e && e.relire === true) && deja) return Object.assign({ dossier_id: d.id }, deja);
   if (lecturesComptabiliteEnCours.has(d.id)) return { erreur: 'une lecture de cette comptabilité est déjà en cours : attends son résultat' };
   if (!(await demanderAutorisationAgent(`Lire la comptabilité de ${libelleDossierAffiche(d)} dans Authentic (onglet « Comptabilité », lecture seule, une minute environ).`))) {
     return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };

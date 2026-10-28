@@ -550,7 +550,7 @@ d'abord là.
 > « Demander à CLAIRE », qui passe **par défaut par l'API Claude (agent activé)**, sinon par Mistral (`api.eu.mistral.ai` par
 > défaut, `api.mistral.ai` si la région « globale » est choisie). Ce qui part chez le fournisseur : la phrase, la date et le prénom
 > du collaborateur, les consignes CLAIRE.md, et les résultats des outils de l'agent (fiches, agenda sans titre ni lieu, texte des
-> documents lus, contrôles de relecture, Légifrance/BOFiP/RNE…), **pseudonymisés par le serveur** — noms, emails, téléphones,
+> documents lus, contrôles de relecture, comptabilité lue dans Authentic — soldes et dernières opérations, montants en clair —, Légifrance/BOFiP/RNE…), **pseudonymisés par le serveur** — noms, emails, téléphones,
 > IBAN, références et mots des fiches remplacés par des codes `[NOM1]`…, table gardée sur le serveur. Masquage par règles, avec ses
 > limites (nom inconnu des fiches écrit en minuscules, noms lus seulement dans Authentic…) ; montants, dates, statuts et pièces
 > partent en clair (choix de l'étude) — seuls les montants sont masqués dans l'échange libre et retirés des recherches juridiques.

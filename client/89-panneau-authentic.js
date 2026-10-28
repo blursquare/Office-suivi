@@ -181,7 +181,7 @@
         <span class="pa-etat"><span class="dot-label ${lien.etat === 'reference' ? 'dl-success' : lien.etat === 'intitule' ? 'dl-acte' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(lien.texte)}</span>${infoBulle(lien.etat === 'aucun' ? 'Les pages d’Authentic ne vont à ce dossier qu’une fois le lien confirmé : ouvrez le dossier dans Authentic, CLAIRE demande « est-ce bien ce dossier ? »' : 'Les pages de ce dossier d’Authentic vont à cette fiche sans question.')}</span>
       </header>
       ${decider}
-      ${htmlSousDossierAT(d)}
+      ${htmlSousDossierAT(d) || (typeof htmlComptabiliteAT === 'function' ? htmlComptabiliteAT(d) : '')}
       ${renderRecuAuthenticFiche(d)}
       ${champs.length ? section('champs', 'Repris sur la fiche', champs.length, corriges ? `<span class="dot-label dl-acte"><span class="dot"></span>${corriges} corrigé${corriges > 1 ? 's' : ''}</span>` : '', `<p class="pa-aide">${icone('pencil')}Tout se corrige sur la fiche : la correction reste, même quand Authentic est relu. Si Authentic change ensuite, CLAIRE demande.</p>${tableChamps}`) : ''}
       ${personnes.length ? section('personnes', 'Fiches client lues', personnes.length, '', cartesPersonnes) : ''}

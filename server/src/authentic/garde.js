@@ -12,7 +12,7 @@
 // technique du serveur.
 
 // Les libellés que CLAIRE ne clique jamais (wiki de Fichorga ; cartographie de l'étude du 27/10 : aperçus des formalités, GED, mails).
-const RE_INTERDIT = /(envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|delete_\w*|trash|poubelle|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler)/i;
+const RE_INTERDIT = /(g[ée]n[ée]rer en pdf|ajouter un compte|d[ée]tacher de l.acte|envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|delete_\w*|trash|poubelle|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler)/i;
 
 /** Pure : un libellé que CLAIRE ne clique jamais. @param {string} libelle */
 function libelleInterdit(libelle) {

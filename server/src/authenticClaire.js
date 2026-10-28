@@ -669,8 +669,12 @@ async function lireComptabilite(s, cible, o) {
   if (!(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) throw new Error('onglet « Comptabilité » introuvable dans le dossier');
   await s.attendreStable(15000);
   if (!(await g.attendreTexte(/Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) throw new Error('page de comptabilité non reconnue (ni « Solde de l’affaire », ni « Dernières opérations »)');
-  // La page affichée est encore celle de CE dossier (son en-tête), sinon rien n'est gardé.
-  if (!estCeDossier(await g.texte(), cible)) throw new Error('la comptabilité affichée n’est pas celle de ce dossier : rien relevé');
+  // La page affichée est encore celle de CE dossier : sa référence en tête (le dossier a été vérifié avant le clic ; « Comparants » peut
+  // disparaître sur cet onglet, audit 0.389.0). Sans référence connue, le contrôle complet.
+  const apres = await g.texte();
+  const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
+  if (ref ? !referenceEnTete(apres) : !estCeDossier(apres, cible)) throw new Error('en-tête du dossier absent de la page de comptabilité : rien relevé');
+  if (ref && referenceEnTete(apres) !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
   o.etape('Relève les infos comptables');
   return s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
 }
