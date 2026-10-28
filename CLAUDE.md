@@ -1019,7 +1019,10 @@ sont plus appelées par le poste.
   « à partir de maintenant toute nouvelle fonction, Claire doit pouvoir la réaliser comme moi ou un collaborateur à notre demande ») : un
   nouveau bouton, geste ou écran vient avec son outil de l'agent (`server/src/assistantAgent.js` + exécutant sur le poste) qui appelle la
   MÊME fonction que l'écran — lecture sans carte, écriture après la carte « Autoriser » (client/66) —, son test « rien de nominatif ne part »
-  et sa ligne dans le prompt de l'agent. Jamais « cliquez sur le bouton » quand un outil peut le faire.
+  et sa ligne dans le prompt de l'agent. Jamais « cliquez sur le bouton » quand un outil peut le faire. Un geste vers l'extérieur ou
+  irréversible (envoi, écriture chez Yousign, suppression) garde sa carte `strict` à chaque fois ; une nouvelle route qui écrit et que le
+  poste de CLAIRE doit pouvoir appeler s'ajoute à `PERMIS_ECRITURE` (server/src/posteClaire.js). Ce qui part vers l'IA : des mots sûrs ou
+  reconnus (vocabulaire fermé), jamais un texte libre mis en minuscules (audit 0.385.0 : le masquage des capitales et des civilités tombait).
 - **Vérifications sur le terrain** (étude, 03/10 — `server/src/verificationsTerrain.js`) : **toute mise à jour qui apporte un
   geste impossible à éprouver ici** (Exchange, Windows, 3CX, Ollama, NAS…) **ajoute son point** à `VERIFICATIONS_TERRAIN`
   (`depuis` = VERSION_APP, `source` serveur/poste/manuel) et l'appel `noterVerification` (serveur) ou

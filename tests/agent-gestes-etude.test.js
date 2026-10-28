@@ -32,10 +32,23 @@ test('état hypothécaire pour l’agent : en cours, radiées ou périmées, lec
 
 test('routines : liste avec identifiants et état ; « terminer » refuse une proposition à décider', async () => {
   const app = chargerApplication();
-  app.propositionsClaire.liste = [{ id: 'p1', titre: 'Constitution', etat: 'acceptee', dossierId: 'v1', creeLe: '2026-10-27T08:00:00Z' }, { id: 'p2', titre: 'Relance', etat: 'proposee', dossierId: 'v1' }];
+  // Liste relue sans serveur : le rechargement est remplacé, la liste posée reste.
+  require('node:vm').runInContext('chargerPropositionsClaire = async () => {};', app);
+  app.propositionsClaire.liste = [{ id: 'p1', titre: 'Constitution', type: 'document', etat: 'acceptee', dossierId: 'v1', creeLe: '2026-10-27T08:00:00Z' }, { id: 'p2', titre: 'Relance', etat: 'proposee', dossierId: 'v1' }, { id: 'p3', titre: 'Email', type: 'email', etat: 'acceptee', dossierId: 'v1' }];
   const l = await app.routinesClaireAgent({ mode: 'lister', dossier_id: 'v1', proposition_id: '' });
-  assert.equal(l.propositions.length, 2);
+  assert.equal(l.propositions.length, 3);
   assert.equal(l.propositions[0].etat, 'autorisée, à terminer');
   const refus = await app.routinesClaireAgent({ mode: 'terminer', dossier_id: '', proposition_id: 'p2' });
   assert.match(refus.erreur, /seule une proposition autorisée/);
+  assert.match((await app.routinesClaireAgent({ mode: 'terminer', dossier_id: '', proposition_id: 'p3' })).erreur, /rien à terminer/, 'un email autorisé : rien à terminer (comme la carte)');
+});
+
+test('audit 0.385.0 : seule une nature reconnue part, jamais un texte libre (« au profit de M. DURAND »)', () => {
+  const app = chargerApplication();
+  assert.equal(app.natureChargePourAgent('PRIVILEGE DE PRETEUR DE DENIERS-HYPOTHEQUE CONVENTIONNELLE', 9), 'privilège de prêteur de deniers et hypothèque conventionnelle');
+  assert.equal(app.natureChargePourAgent('PRIVILEGE DU VENDEUR', 11), 'privilège du vendeur');
+  assert.equal(app.natureChargePourAgent('Pacte de préference', 5), 'pacte de préférence');
+  assert.equal(app.natureChargePourAgent('Engagement au profit de M. DURAND Bernard', 7), 'charge (nature à lire sur l’état, p. 7)');
+  const r = app.lectureEtatHypothecairePourAgent({ inscriptions: [], chargesComplement: [{ nature: 'Servitude de passage au profit de M. DURAND Bernard', page: 4 }] });
+  assert.equal(r.charges_signalees_dans_un_complement[0].nature, 'servitude');
 });

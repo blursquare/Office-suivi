@@ -955,11 +955,25 @@ test('28/10 : etat_hypothecaire, urbanisme_demandes, routines_claire proposés ;
   const r = await tourAgent({ texte: 'Y a-t-il des inscriptions sur Fournier ?', dossiers: D, contexte: {} }, opts);
   await tourAgent({ conversation: r.conversation, resultats: [{ id: 'h1', contenu: {
     dossier_id: 'd1', relu_le: '2026-10-28T08:00:00Z', lecture_complete: true,
-    inscriptions_en_cours: [{ nature: 'hypotheque conventionnelle', creancier: 'SCI FOURNIER GAUTHIER', montant: '87 000,00 €', date_extreme_effet: '2032-05-05', etat: 'en cours', page: 9 }],
-    radiees_ou_perimees: [], charges_signalees_dans_un_complement: [{ nature: 'Pacte de préférence', page: 5 }]
+    inscriptions_en_cours: [{ nature: 'hypothèque conventionnelle', creancier: 'Jean Durand', montant: '87 000,00 €', date_extreme_effet: '2032-05-05', etat: 'en cours', page: 9 }],
+    radiees_ou_perimees: [], charges_signalees_dans_un_complement: [{ nature: 'pacte de préférence', page: 5 }]
   } }] }, opts);
   const envoye = JSON.stringify(client.requetes[1].messages);
   assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-600));
-  assert.match(envoye, /hypotheque conventionnelle/, 'la nature reste lisible (minuscules, client/137)');
+  assert.doesNotMatch(envoye, /Jean|Durand/, 'un créancier absent des fiches, en casse mixte, part masqué en entier');
+  assert.match(envoye, /hypothèque conventionnelle/, 'la nature reconnue reste lisible (client/137)');
+  // urbanisme_demandes et routines_claire : titre d'une proposition et libellés, masqués comme tout résultat d'outil.
+  const c2 = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('u1', 'urbanisme_demandes', { dossier_id: 'd1' }), outil('r1', 'routines_claire', { mode: 'lister', dossier_id: 'd1', proposition_id: '' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  let r2 = await tourAgent({ texte: 'La DIA et les routines de Fournier ?', dossiers: D, contexte: {} }, { cle: 'k', client: c2 });
+  r2 = await tourAgent({ conversation: r2.conversation, resultats: [
+    { id: 'u1', contenu: { dossier_id: 'd1', dia: { demandee: true, envoyee_le: '2026-10-20', par: 'guichet unique (GNAU)', numero_du_guichet: '041018 26 00012' }, cu: { demande: false }, autres_demandes_dans_authentic: [] } },
+    { id: 'r1', contenu: { propositions: [{ proposition_id: 'p1', titre: 'Constitution du dossier — VTE - FOURNIER / LEBLANC', type: 'document', etat: 'autorisée, à terminer' }] } }
+  ] }, { cle: 'k', client: c2 });
+  const envoye2 = JSON.stringify(c2.requetes[1].messages);
+  assert.doesNotMatch(envoye2, /FOURNIER|LEBLANC/, 'titre de la proposition masqué : ' + envoye2.slice(-500));
+  assert.match(envoye2, /2026-10-20/);
   assert.match(envoye, /2032-05-05/);
 });
