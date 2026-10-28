@@ -385,7 +385,7 @@ test('navigation lente (étude 28/10, « Page.navigate : délai dépassé ») : 
   const url = 'https://www.cadastre.gouv.fr/scpc/accueil.do';
   const faux = (arrivee) => {
     const envois = [];
-    return { envois, domaines: DOMAINES_CADASTRE, ongletActif: () => ({ session: 'S' }), stables: 0,
+    return { envois, domaines: DOMAINES_CADASTRE, ongletActif: () => ({ session: 'S' }), stables: 0, evaluer: async () => 1,
       cdp: { envoyer: async (m, p) => { envois.push([m, p]); if (m === 'Page.navigate') throw new Error('Page.navigate : délai dépassé'); return {}; } },
       pageArrivee: async () => arrivee.shift(), attendreStable: async function () { this.stables++; } };
   };
@@ -396,6 +396,11 @@ test('navigation lente (étude 28/10, « Page.navigate : délai dépassé ») : 
   await SessionNavigation.prototype.aller.call(reprise, url);
   assert.equal(reprise.envois.filter((e) => e[0] === 'Page.navigate').length, 2, 'second essai');
   await assert.rejects(SessionNavigation.prototype.aller.call(faux([false, false]), url), /ne répond pas/);
+  // L'ancienne page (même site, repère encore posé) n'est jamais prise pour la nouvelle.
+  let n = 0;
+  const ancienne = { evaluer: async () => (n++ < 2 ? ['www.cadastre.gouv.fr', 'complete', true] : ['www.cadastre.gouv.fr', 'complete', false]) };
+  assert.equal(await SessionNavigation.prototype.pageArrivee.call(ancienne, url, 10000), true);
+  assert.ok(n >= 3, 'attend que le repère ait disparu');
 
   const dialogues = [];
   const s = { cdp: { envoyer: async (m, p) => { dialogues.push([m, p.accept]); return {}; } } };

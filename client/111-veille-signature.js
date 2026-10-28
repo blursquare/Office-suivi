@@ -666,6 +666,8 @@ function ouvrirVeilleSignature(id) {
   const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
   const overlay = document.getElementById('veille-signature-overlay');
   if (!d || !overlay || !instantsSignatureVeille(d)) return;
+  // Jamais en participation, même depuis une proposition déposée avant la 0.386.2 (relecture).
+  if (d.roleNotaire === 'participant') { afficherToast('Pas de fiche de signature : l’acte est reçu par le confrère (participation).', 'OK', null); return; }
   veilleEdition = { id, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
   renderVeilleSignature(d, new Date());
   overlay.style.display = 'flex';

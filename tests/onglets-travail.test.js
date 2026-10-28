@@ -65,3 +65,11 @@ test('chaque écran qui peut devenir un onglet a son titre (étude 12/10 : « ag
   }
   assert.equal(app.libelleOngletTravail({ type: 'outil', nom: 'agenda' }), 'Agenda');
 });
+
+test('onglets du jour (étude 28/10 : « le matin remettre à zéro les onglets ») : ceux d’un autre jour ne sont pas repris', () => {
+  const app = chargerApplication();
+  const lus = [{ type: 'dossier', id: 'a' }];
+  assert.equal(app.ongletsTravailDuJour(lus, '2026-10-28', '2026-10-28').length, 1);
+  assert.equal(app.ongletsTravailDuJour(lus, '2026-10-27', '2026-10-28').length, 0, 'la veille : à zéro');
+  assert.equal(app.ongletsTravailDuJour(lus, '', '2026-10-28').length, 0, 'jour inconnu (avant cette version) : à zéro');
+});

@@ -13,6 +13,14 @@
     'appel-fonds', 'constitution', 'autorisations', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'clients-biens', 'calculateur'];
   var MAX_ONGLETS_TRAVAIL = 12;
   var CLE_ONGLETS_TRAVAIL = 'claire-onglets-travail';
+  // Étude 28/10 : « le matin remettre à zéro les onglets de navigation » — les onglets valent pour UNE journée.
+  var CLE_JOUR_ONGLETS_TRAVAIL = 'claire-onglets-travail-jour';
+  let jourOngletsTravail = '';
+
+  // Pure : les onglets gardés valent-ils encore aujourd'hui ? Un autre jour (ou un jour inconnu) : aucun.
+  function ongletsTravailDuJour(lus, jourLu, aujourdhui) {
+    return jourLu && jourLu === aujourdhui && Array.isArray(lus) ? lus : [];
+  }
   let ongletsTravail = [];        // [{ type: 'dossier', id } | { type: 'outil', nom }], dans l'ordre affiché
   let ongletTravailGlisse = -1;
 
@@ -67,7 +75,8 @@
   }
 
   function enregistrerOngletsTravail() {
-    try { ecrireLocal(CLE_ONGLETS_TRAVAIL, JSON.stringify(ongletsTravail)); } catch (e) { /* stockage indisponible : onglets non gardés */ }
+    jourOngletsTravail = isoAujourdhuiLocal();
+    try { ecrireLocal(CLE_ONGLETS_TRAVAIL, JSON.stringify(ongletsTravail)); ecrireLocal(CLE_JOUR_ONGLETS_TRAVAIL, jourOngletsTravail); } catch (e) { /* stockage indisponible : onglets non gardés */ }
   }
 
   let ongletsTravailRestaures = false;
@@ -75,7 +84,8 @@
     if (ongletsTravailRestaures || !Array.isArray(dossiers) || !dossiers.length) return;
     ongletsTravailRestaures = true;
     let lus = [];
-    try { lus = JSON.parse(localStorage.getItem(CLE_ONGLETS_TRAVAIL) || '[]'); } catch (e) { lus = []; }
+    try { lus = ongletsTravailDuJour(JSON.parse(localStorage.getItem(CLE_ONGLETS_TRAVAIL) || '[]'), localStorage.getItem(CLE_JOUR_ONGLETS_TRAVAIL) || '', isoAujourdhuiLocal()); } catch (e) { lus = []; }
+    jourOngletsTravail = isoAujourdhuiLocal();
     const restes = ongletsTravailValides(lus, dossiers.map(d => d.id));
     // Un onglet ouvert avant le chargement des dossiers est gardé à sa place.
     ongletsTravail.forEach(o => { if (!restes.some(x => cleOngletTravail(x) === cleOngletTravail(o))) restes.push(o); });
@@ -185,11 +195,30 @@
     }).join('');
   }
 
+  // Une fenêtre restée ouverte la nuit : au changement de jour, les onglets repartent de zéro. Rien n'est perdu d'un travail en cours :
+  // pendant une saisie (ou un outil ouvert), seul l'onglet affiché reste, l'écran ne change pas.
+  function remettreOngletsTravailAZero() {
+    if (!jourOngletsTravail || jourOngletsTravail === isoAujourdhuiLocal()) return;
+    if (typeof saisieEnCoursPoste === 'function' && saisieEnCoursPoste()) {
+      const actif = cleOngletTravailActif();
+      ongletsTravail = ongletsTravail.filter(o => cleOngletTravail(o) === actif);
+      enregistrerOngletsTravail();
+      renderOngletsTravail();
+      return;
+    }
+    ongletsTravail = [];
+    enregistrerOngletsTravail();
+    if (dossierOuvert) fermerDossierDrawer();
+    if (ongletActuel !== 'dashboard') definirOnglet('dashboard');
+    renderOngletsTravail();
+  }
+
   // Réordonner en glissant (souris) : l'onglet lâché prend la place de celui qu'on survole.
   function initOngletsTravail() {
     const barre = document.getElementById('onglets-travail');
     if (!barre || barre.dataset.init) return;
     barre.dataset.init = '1';
+    setInterval(remettreOngletsTravailAZero, 60000);
     barre.addEventListener('dragstart', (e) => {
       const el = e.target.closest && e.target.closest('.ot-onglet');
       if (!el) return;

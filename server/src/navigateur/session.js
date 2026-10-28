@@ -297,12 +297,15 @@ class SessionNavigation {
     // commande — on attend qu'elle aboutisse, puis un second essai, avant de dire que le site ne répond pas.
     for (let essai = 1; essai <= 2; essai++) {
       let r;
+      // Repère posé dans la page actuelle : tant qu'il est là, la nouvelle page n'est pas arrivée (relecture 0.386.2 : un second
+      // chargement du même site prenait l'ancienne page pour la nouvelle).
+      await this.evaluer('window.__claireAvant = 1', o.session).catch(() => {});
       try {
         r = await this.cdp.envoyer('Page.navigate', { url: adresse }, o.session, DELAI_NAVIGATION_MS);
       } catch (e) {
         if (!/délai dépassé/.test(String(e && e.message))) throw e;
         if (await this.pageArrivee(adresse, DELAI_NAVIGATION_MS)) { await this.attendreStable(); return; }
-        if (essai === 2) throw new Error('le site ne répond pas (page non chargée en 3 minutes) : réessayer plus tard ; si cela dure, vérifier l’accès à Internet du serveur');
+        if (essai === 2) throw new Error('le site ne répond pas (page non chargée après plusieurs minutes) : réessayer plus tard ; si cela dure, vérifier l’accès à Internet du serveur');
         continue;
       }
       if (r.errorText && !/ERR_ABORTED/.test(r.errorText)) {
@@ -320,8 +323,8 @@ class SessionNavigation {
     const hote = (() => { try { return new URL(adresse).host; } catch (_) { return ''; } })();
     const fin = Date.now() + maxMs;
     while (Date.now() < fin) {
-      const etat = await this.evaluer('[location.host, document.readyState]').catch(() => null);
-      if (etat && hote && etat[0] === hote && etat[1] !== 'loading') return true;
+      const etat = await this.evaluer('[location.host, document.readyState, !!window.__claireAvant]').catch(() => null);
+      if (etat && hote && etat[0] === hote && etat[1] !== 'loading' && !etat[2]) return true;
       await attendre(1000);
     }
     return false;
