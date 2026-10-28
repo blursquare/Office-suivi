@@ -138,5 +138,6 @@
   "136-etat-hypothecaire.js",
   "137-agent-gestes-etude.js",
   "138-agent-coordonnees-bilan.js",
-  "139-courrier-fonds-banque.js"
+  "139-courrier-fonds-banque.js",
+  "140-comptabilite-authentic.js"
 ]

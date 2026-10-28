@@ -1017,3 +1017,21 @@ test('28/10 : courrier_fonds_banque — la banque et le défunt ne partent jamai
   assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
   assert.match(envoye, /2026-10-28/);
 });
+
+test('28/10 : authentic_comptabilite — un nom dans le libellé d’une opération ne part jamais en clair ; montants et dates partent', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'authentic_comptabilite'));
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('k1', 'authentic_comptabilite', { dossier_id: 'd1', relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Quel est le solde de la succession Fournier ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'k1', contenu: { dossier_id: 'd1', lue_le: '2026-10-28T10:00', solde_affaire: -350.4, solde_compte: 12500,
+      operations: [{ date: '2026-10-02', libelle: 'VIR Paul FOURNIER', debit: null, credit: 12500, solde: 12500 }, { date: '2026-10-05', libelle: 'Virement de Léa Gauthier', debit: 350.4, credit: null, solde: 12149.6 }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-600));
+  assert.match(envoye, /12500/);
+  assert.match(envoye, /2026-10-02/);
+});

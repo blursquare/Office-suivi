@@ -77,6 +77,7 @@ function htmlSousDossierAT(d) {
     ${groupes || (sd.pieces || []).length ? groupes : '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
     ${typeof htmlEtatHypothecaireFiche === 'function' ? htmlEtatHypothecaireFiche(d) : ''}
     ${typeof htmlSuivisDossierAT === 'function' ? htmlSuivisDossierAT(d) : ''}
+    ${typeof htmlComptabiliteAT === 'function' ? htmlComptabiliteAT(d) : ''}
     ${htmlPiecesJointesAT(d, sd)}
   </div>`;
 }

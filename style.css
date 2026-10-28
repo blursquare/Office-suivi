@@ -11457,3 +11457,14 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .cfb-piece { color: var(--muted); font-size: var(--texte-xs); white-space: nowrap; }
 .cfb-vide { color: var(--muted); font-size: var(--texte-s); margin: 0; }
 .cfb-manquantes { font-size: var(--texte-s); }
+
+/* Comptabilité lue dans Authentic (client/140). */
+.at-bloc { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.at-bloc-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.at-bloc-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.at-compta-soldes { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: var(--texte-s); }
+.at-compta-table { width: 100%; border-collapse: collapse; font-size: var(--texte-xs); }
+.at-compta-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 2px 4px; }
+.at-compta-table td { padding: 2px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+.at-compta-n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.at-compta-lu { margin: 0; font-size: var(--texte-xs); color: var(--muted); }

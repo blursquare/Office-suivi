@@ -390,7 +390,63 @@
       .filter((l) => l.reference === ref).map((l) => Object.assign({ ecran: e.cle, titre: e.titre }, l)));
   }
 
-  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, apercuFormaliteAT, rangerApercuAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
+  // ---- Comptabilité d'un dossier (étude 28/10 : « l'onglet s'appelle Comptabilité, commence par la succession : infos comptables (MONTANT) ») ----
+  // Structure reçue le 28/10 (succession et vente) : « Solde du compte : [montant] », « Solde de l'affaire : [montant] », « Taxe … - Montant
+  // [montant] », tableau « Dernières opérations de l'affaire » (Date, N° écriture, Libellé, Débit, Crédit, Solde, nombres à point décimal).
+
+  /** Pure : un montant écrit par Authentic (« 1 234,56 € », « 1234.56 », « -999.9 ») → nombre, null s'il n'y en a pas. @param {any} t */
+  function montantAT(t) {
+    const m = /-?\s?\d[\d\s\u00a0\u202f.,]*/.exec(String(t == null ? '' : t));
+    if (!m) return null;
+    let x = m[0].replace(/[\s\u00a0\u202f]/g, '');
+    const neg = x.startsWith('-');
+    x = x.replace(/^-/, '');
+    const dernier = Math.max(x.lastIndexOf(','), x.lastIndexOf('.'));
+    // Le dernier séparateur suivi d'un ou deux chiffres est la virgule ; les autres séparent les milliers.
+    if (dernier >= 0 && x.length - dernier - 1 <= 2) x = x.slice(0, dernier).replace(/[.,]/g, '') + '.' + x.slice(dernier + 1);
+    else x = x.replace(/[.,]/g, '');
+    const n = Number(x);
+    return Number.isFinite(n) ? Math.round((neg ? -n : n) * 100) / 100 : null;
+  }
+
+  /**
+   * Pure : les infos comptables d'une capture de l'onglet « Comptabilité » : soldes du compte et de l'affaire, taxes, dernières opérations
+   * (100 au plus) et leurs totaux. @param {any} capture @param {string} luLe
+   */
+  function comptabiliteDepuisCaptureAT(capture, luLe) {
+    const lignesTexte = String((capture && capture.texte) || '').split('\n').map(net).filter(Boolean);
+    /** @param {RegExp} re */
+    const apres = (re) => {
+      const i = lignesTexte.findIndex((l) => re.test(plat(l)));
+      if (i < 0) return null;
+      const surLaLigne = montantAT(lignesTexte[i].replace(/^[^:]*:/, ''));
+      return /:\s*\S/.test(lignesTexte[i]) && surLaLigne != null ? surLaLigne : montantAT(lignesTexte[i + 1]);
+    };
+    const taxes = lignesTexte.filter((l) => /^taxe\b.*montant/.test(plat(l))).map((l) => ({ libelle: net(l.replace(/-?\s*montant.*$/i, '')).slice(0, 80), montant: montantAT(l.replace(/^.*montant/i, '')) }))
+      .filter((x) => x.montant != null).slice(0, 10);
+    const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes));
+    const t = tableaux.find((/** @type {any} */ x) => /operation/.test(plat(x.titre || '')) || ((x.entete || []).map(plat).some((/** @type {string} */ e) => /^debit$/.test(e)))) || null;
+    const entete = ((t && t.entete) || []).map(plat);
+    const col = (/** @type {RegExp} */ re, /** @type {number} */ defaut) => { const i = entete.findIndex((/** @type {string} */ e) => re.test(e)); return i >= 0 ? i : defaut; };
+    const c = { date: col(/^date/, 0), numero: col(/ecriture|^n/, 1), libelle: col(/libelle/, 2), debit: col(/^debit/, 3), credit: col(/^credit/, 4), solde: col(/^solde/, 5) };
+    /** @type {Array<{ date: string, numero: string, libelle: string, debit: number | null, credit: number | null, solde: number | null }>} */
+    const operations = [];
+    ((t && t.lignes) || []).forEach((/** @type {any} */ l) => {
+      if (operations.length >= 100 || !Array.isArray(l)) return;
+      const cel = l.map(net);
+      const date = isoDepuisFrAT(cel[c.date] || '');
+      if (!date) return;
+      operations.push({ date, numero: String(cel[c.numero] || '').slice(0, 20), libelle: String(cel[c.libelle] || '').slice(0, 160),
+        debit: montantAT(cel[c.debit]), credit: montantAT(cel[c.credit]), solde: montantAT(cel[c.solde]) });
+    });
+    const somme = (/** @type {'debit' | 'credit'} */ k) => Math.round(operations.reduce((s, o) => s + (o[k] || 0), 0) * 100) / 100;
+    return {
+      luLe: net(luLe), soldeCompte: apres(/^solde du compte/), soldeAffaire: apres(/^solde de l.affaire/), taxes, operations,
+      totalDebit: somme('debit'), totalCredit: somme('credit'), tronque: !!(t && t.lignes.length > 100)
+    };
+  }
+
+  exporter({ montantAT, comptabiliteDepuisCaptureAT, BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, apercuFormaliteAT, rangerApercuAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
     natureDossierAT, enTeteDossierAT, intituleSousDossierAT, instantaneDepuisPagesAT, versFicheAT,
     ECRANS_SUIVIS_AT, referenceDansTexteAT, ligneSuiviEnAttenteAT, suiviDepuisCaptureAT, compteursSuivisAT, suivisDuDossierAT });
 })(function (api) {

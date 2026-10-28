@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.388.0';
+  const VERSION_APP = '0.389.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.389.0', date: '2026-10-28 10:55', resume: "CLAIRE lit la comptabilité d’un dossier dans Authentic (onglet « Comptabilité », lecture seule) : solde de l’affaire, solde du compte, taxes et dernières opérations, montrés dans le bloc Authentic de l’onglet Dossier (« Lire la comptabilité » / « Relire »). On peut aussi le demander à CLAIRE (« quel est le solde de la succession X ? ») : elle donne la dernière lecture, ou la relit dans Authentic après votre accord." },
   { version: '0.388.0', date: '2026-10-28 10:27', resume: "Successions : le courrier de déblocage ou de transfert des fonds à la banque (vos modèles, mot pour mot) se prépare d’un clic — depuis la carte de l’étape, la tâche du jour ou en le demandant à CLAIRE. On choisit la banque dans le Répertoire (adresse et email modifiables), CLAIRE joint les pièces du dossier du NAS (acte de décès, attestation de dévolution, RIB de l’étude, autorisations des héritiers — à cocher ou décocher) et le courrier en PDF, puis la fenêtre d’email s’ouvre : rien ne part sans « Envoyer ». Envoyé depuis CLAIRE, l’étape se coche ; envoyé d’Outlook, CLAIRE le retrouve dans les emails envoyés (objet qui dit « déblocage » ou « transfert des fonds » et nomme le défunt) et coche l’étape, la tâche, la carte et la routine des autorisations." },
   { version: '0.387.0', date: '2026-10-28 10:14', resume: "La relance de l’offre de prêt au confrère qui représente l’acquéreur suit désormais votre texte (« Mon Cher Maître, Nous n’avons pas encore reçu la copie d’offre de prêt… », échéance en toutes lettres) — modifiable dans Réglages › Modèles d’emails. Halloween (du 24 octobre au 2 novembre, avec la citrouille) : CLAIRE passe aussi en orange pour tous, puis chacun retrouve la couleur qu’il avait choisie. Une relance écrite par CLAIRE à l’adresse du confrère prend bien le texte du confrère." },
   { version: '0.386.3', date: '2026-10-28 10:04', resume: "Halloween, du 24 octobre au 2 novembre : l’avatar de CLAIRE (le petit robot des Discussions) a une citrouille 🎃 à la place de l’étoile ; le logo reste le même, avec une petite citrouille en bas à droite et une toile d’araignée entre le logo et le mot « Claire ». Les couleurs de CLAIRE ne changent pas. Le 3 novembre, tout revient seul." },

@@ -654,6 +654,28 @@ async function lireSuivis(s, o) {
 }
 
 /**
+ * La comptabilité d'un dossier (étude 28/10 : onglet « Comptabilité », infos comptables) : le dossier ouvert (sous-dossier de vente s'il y en a
+ * un seul), l'onglet cliqué par son nom (geste de navigation), la page relevée telle qu'affichée — jamais « Générer en PDF », « Détacher de
+ * l'acte », « Ajouter un compte » ni aucun autre bouton. Rend la capture ; la mise en forme est commun/authentic-modele.js
+ * (`comptabiliteDepuisCaptureAT`).
+ * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {{ script: string, etape: (t: string) => void }} o
+ */
+async function lireComptabilite(s, cible, o) {
+  const g = gestes(s, o.etape);
+  await ouvrirDossier(s, cible, o.etape);
+  await ouvrirSousDossierVente(s, cible, o.etape);
+  if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est plus le bon : rien relevé');
+  o.etape('Ouvre l’onglet Comptabilité');
+  if (!(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) throw new Error('onglet « Comptabilité » introuvable dans le dossier');
+  await s.attendreStable(15000);
+  if (!(await g.attendreTexte(/Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) throw new Error('page de comptabilité non reconnue (ni « Solde de l’affaire », ni « Dernières opérations »)');
+  // La page affichée est encore celle de CE dossier (son en-tête), sinon rien n'est gardé.
+  if (!estCeDossier(await g.texte(), cible)) throw new Error('la comptabilité affichée n’est pas celle de ce dossier : rien relevé');
+  o.etape('Relève les infos comptables');
+  return s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
+}
+
+/**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
  * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
@@ -738,5 +760,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, estCeDossier, seConnecter, lireDossier, lireSuivis, preparerFormalite
+  referenceEnTete, estCeDossier, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

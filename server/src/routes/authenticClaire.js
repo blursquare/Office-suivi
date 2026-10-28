@@ -187,6 +187,26 @@ function creerRouteurAuthenticClaire(o) {
     res.json({ luLe: etat.luLe || '', essaiLe: etat.essaiLe || '', enCoursDeLecture, actif: !!r.actif, compteurs: AT.compteursSuivisAT(etat.ecrans || {}, Object.keys(parReference)), ecrans });
   });
 
+  // La comptabilité d'un dossier (étude 28/10) : lue à la demande, gardée sur la fiche (`d.authentic.comptabilite`), relue juste avant
+  // d'écrire (audit 13/10). Lecture seule dans Authentic.
+  routeur.post('/authentic-claire/comptabilite', (req, res) => {
+    if (!collaborateurDe(req.body && req.body.auteur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
+    const d = dossierDe(req, res); if (!d) return;
+    if (!String(d.referenceAuthentic || '').trim()) { res.status(409).json({ erreur: 'Ce dossier n’est pas relié à Authentic par sa référence : ouvrez-le une fois dans Authentic.' }); return; }
+    repondre(res, () => lancer('authentic-comptabilite', 'Comptabilité du dossier dans Authentic', d, async (t, s, etape) => {
+      const capture = await A.lireComptabilite(s, cibleAuthentic(d), { script: await releve(), etape });
+      const compta = AT.comptabiliteDepuisCaptureAT(capture, new Date().toISOString());
+      const frais = o.depot.trouverParId(d.id);
+      if (!frais) throw new Error('dossier introuvable dans CLAIRE');
+      frais.authentic = Object.assign({}, frais.authentic, { comptabilite: compta });
+      o.depot.remplacer(frais.id, frais);
+      t.resultat = { dossierId: d.id, comptabilite: compta };
+      noterVerification(repo, 'authentic-comptabilite', { detail: `${compta.operations.length} opération(s)` });
+      const e = (/** @type {number | null} */ n) => (n == null ? 'non lu' : n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+      return `J’ai lu la comptabilité dans Authentic : solde de l’affaire ${e(compta.soldeAffaire)}, solde du compte ${e(compta.soldeCompte)}, ${compta.operations.length} opération${compta.operations.length > 1 ? 's' : ''} récente${compta.operations.length > 1 ? 's' : ''}.`;
+    }, `comptabilite:${d.id}`));
+  });
+
   routeur.post('/authentic-claire/formalite', (req, res) => {
     const b = req.body && typeof req.body === 'object' ? req.body : {};
     const type = b.type === 'cjn' || b.type === 'comedec' ? b.type : '';
