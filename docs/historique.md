@@ -22957,3 +22957,8 @@ Non vérifié sur le vrai Authentic (le cloud ne le joint pas : adresse privée 
 Relecture indépendante : bloc du résultat retrouvé aussi sans identifiant (plus petit ancêtre qui contient le titre du même résultat, joué par le faux
 Authentic) ; « Infos comptables indisponible » (compta non liée) dit tel quel au lieu d'une attente de 20 s ; un libellé de recherche plus large qui
 retrouve le même champ ne retape plus les numéros.
+
+### 28/10/2026 — 0.391.4 : numéro tapé sans espace d'abord
+
+Étude : « Non moi j'ai vu fonctionner que le sans espace » (0.391.3 tapait « A 2026 00329 » d'abord, d'après le relevé). Ordre inversé : « A202600329 »
+puis « A 2026 00329 ». Faite après 19 h : envoyée sur `main` le lendemain à partir de 8 h.

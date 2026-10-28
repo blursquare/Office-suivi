@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.391.3';
+  const VERSION_APP = '0.391.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.391.4', date: '2026-10-28 19:17', resume: "Authentic : la recherche d’un dossier tape d’abord son numéro SANS espace (« A202600329 »), la forme qui fonctionne, puis avec espaces en second essai." },
   { version: '0.391.3', date: '2026-10-28 18:13', resume: "Authentic : CLAIRE ouvre enfin le dossier trouvé par la recherche — elle clique l’icône de dossier bleue du résultat (le titre n’ouvrait qu’un panneau sur le côté) et tape d’abord le numéro avec ses espaces (« A 2026 00329 »). La comptabilité s’ouvre par l’onglet « Infos comptables », son vrai nom." },
   { version: '0.391.2', date: '2026-10-28 15:14', resume: "Mise à jour : un téléchargement de la nouvelle version qui s’arrête en route est abandonné (plus rien reçu pendant 90 s, ou 10 min en tout) au lieu de bloquer « Une mise à jour est déjà en cours » jusqu’au redémarrage du serveur ; une mise à jour restée en cours plus de 20 min est reprise. Authentic : quand CLAIRE ne trouve pas le champ de recherche, son message liste les champs visibles de la page (leurs libellés, jamais une valeur), et elle essaie plus de libellés." },
   { version: '0.391.1', date: '2026-10-28 13:50', resume: "Authentic : la recherche d’un dossier par son numéro est plus sûre — CLAIRE essaie les deux champs de recherche (« Rechercher une affaire », puis « Rechercher »), attend la liste qui s’ouvre, clique le résultat qui contient le numéro (avec ou sans espaces) et, en cas d’échec, dit où elle s’est arrêtée (champ utilisé, numéro affiché ou non, résultat cliqué). Lectures automatiques plus prudentes : jamais « rien trouvé » sur un document qui n’est pas un acte de naissance ou sur une lecture partielle (EHF lu jusqu’à 200 pages, pages de PV non lues dites), cotisation au fonds de travaux et honoraires du syndic écartés des travaux votés, second vote de l’article 25-1 compris ; seuls les documents arrivés à partir d’aujourd’hui sont lus d’eux-mêmes (les 30 derniers jours en le demandant à CLAIRE)." },

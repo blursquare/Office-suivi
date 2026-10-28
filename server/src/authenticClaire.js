@@ -518,11 +518,11 @@ async function ouvrirDossier(s, cible, etape) {
   };
   if (await essayer()) return;
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
-  // Le numéro est tapé AVEC espaces d'abord (« A 2026 00329 » : seule forme vue fonctionner, relevé de l'étude du 28/10), puis sans.
+  // Le numéro est tapé SANS espace d'abord (« A202600329 » : seule forme vue fonctionner par l'étude, 28/10), puis avec (« A 2026 00329 »).
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
   // « recherche » / « search » : seulement par ce que la page affiche (placeholder, aria-label, étiquette), et le NUMÉRO seul — jamais le nom
   // du dossier (noms des clients) dans un champ trouvé par un libellé large (relecture 0.391.2). Ni « affaire » ni « dossier » seuls.
-  const numeros = ref ? [ref, referenceRecherche(ref)] : [];
+  const numeros = ref ? [referenceRecherche(ref), ref] : [];
   // Un libellé plus large qui retrouve un champ DÉJÀ essayé (même place à l'écran) : rien à retaper (relecture 0.391.3).
   const champsEssayes = new Set();
   for (const { libelleChamp, large } of [{ libelleChamp: 'rechercher une affaire', large: false }, { libelleChamp: 'rechercher', large: false }, { libelleChamp: 'recherche', large: true }, { libelleChamp: 'search', large: true }]) {
