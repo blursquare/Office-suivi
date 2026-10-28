@@ -1862,5 +1862,36 @@
     }
   });
 
+  // Numéro du dépôt (étude 27/10 : « l'add-on, quand la DIA est validée, récupère le numéro sur la page d'accueil de la DIA ou du CU ») :
+  // sur une page du guichet, tant qu'un dépôt est attendu (saisie faite par CLAIRE il y a moins de 2 jours), le numéro national du dossier
+  // (« DIA 041 018 26 00012 », « CU 041018 26 A0012 »…) affiché par la page est relevé et envoyé à CLAIRE. Jamais pendant une saisie ;
+  // le texte de la page n'est pas envoyé, seulement le numéro.
+  // Audit 0.380.0 : seulement sur une page qui DIT le dépôt (« a bien été déposée / enregistrée / transmise », accusé, récépissé), et un seul
+  // numéro de cette procédure sur la page — jamais une liste de dossiers où d'autres numéros apparaissent.
+  const RE_PAGE_DEPOT = /a\s+(?:bien\s+)?été\s+(?:déposée?|enregistrée?|transmise?)|dépôt\s+(?:effectué|enregistré|réussi|confirmé)|accusé\s+de\s+(?:dépôt|réception)|récépissé|votre\s+(?:demande|déclaration)\s+(?:a\s+été|est)\s+(?:déposée|enregistrée|transmise)/i;
+  function numeroDepotDansTexte(texte, procedure) {
+    const t = String(texte || "");
+    if (!RE_PAGE_DEPOT.test(t)) return "";
+    const prefixe = procedure === "dia" ? "(?:DIA|IA)" : "CU\\s?[ab]?";
+    const re = new RegExp(`(?:^|[^A-Za-z0-9])(${prefixe})\\s*(\\d{3})\\s*(\\d{3})\\s*(\\d{2})\\s*([A-Z]?\\s?\\d{4,5})(?![0-9])`, "gi");
+    const vus = new Set();
+    for (const m of t.matchAll(re)) vus.add(`${m[1].replace(/\s+/g, "").toUpperCase()} ${m[2]} ${m[3]} ${m[4]} ${m[5].replace(/\s+/g, "").toUpperCase()}`);
+    return vus.size === 1 ? [...vus][0] : "";
+  }
+  async function surveillerNumeroDepot() {
+    const attendu = await send({ type: "content.depotAttendu" });
+    if (!attendu || !Array.isArray(attendu.procedures)) return;
+    for (let i = 0; i < 60; i++) {
+      if (!loopActive) {
+        for (const procedure of attendu.procedures) {
+          const numero = numeroDepotDansTexte(document.body ? document.body.innerText : "", procedure);
+          if (numero) { await send({ type: "content.depot", numero, procedure }); return; }
+        }
+      }
+      await sleep(2000);
+    }
+  }
+
   start(); // reprise automatique après un changement de page
+  surveillerNumeroDepot();
 })();

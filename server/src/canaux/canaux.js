@@ -342,10 +342,12 @@ function leverSilence(repo, dossierId, routine) {
 // ---- Liste des canaux d'un collaborateur, avec non-lus ----
 
 /**
- * Pur : non-lus et mentions d'un canal pour un collaborateur, d'après les `recents` de l'index.
- * @param {any} entree @param {number} luLe @param {string} collab
+ * Pur : non-lus et mentions d'un canal pour un collaborateur, d'après les `recents` de l'index. `sansClaire` : les messages de CLAIRE ne
+ * comptent pas (canal d'un dossier dont il n'est pas responsable — étude 27/10 : « ne pas notifier les collaborateurs qui ne sont pas en
+ * charge du dossier quand Claire écrit dans les conversations de dossiers »), sauf s'ils le citent.
+ * @param {any} entree @param {number} luLe @param {string} collab @param {boolean} [sansClaire]
  */
-function compterCanal(entree, luLe, collab) {
+function compterCanal(entree, luLe, collab, sansClaire) {
   const recents = Array.isArray(entree && entree.recents) ? entree.recents : [];
   let nonLus = 0;
   let mentions = 0;
@@ -353,8 +355,9 @@ function compterCanal(entree, luLe, collab) {
   let mentionsCartes = 0;   // dont celles qui « citent » leur responsable (`pour`) — pas une mention pour la pastille
   for (const r of recents) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
-    nonLus += 1;
     const cite = String(r[2] || '').split('|').includes(collab);
+    if (sansClaire && r[3] === 1 && !cite) continue;
+    nonLus += 1;
     if (cite) mentions += 1;
     // Une réponse de CLAIRE, la veille ou un message qui vous cite restent des messages ; seule la carte d'une proposition est à part
     // (relecture 25/10 : la carte est adressée à son responsable par `pour`, qui la range parmi ses mentions).
@@ -366,9 +369,10 @@ function compterCanal(entree, luLe, collab) {
 /**
  * Les canaux qui ont une activité, les canaux libres et « général », avec non-lus, mentions et préférences ; plus le total du badge
  * (muet = rien, mentions = ses mentions seules).
- * @param {any} repo @param {string} collab
+ * `responsableDe(dossierId)` : le responsable d'un dossier ('' inconnu) — les messages de CLAIRE d'un canal de dossier ne comptent que pour lui.
+ * @param {any} repo @param {string} collab @param {string[]} [collaborateurs] @param {(dossierId: string) => string} [responsableDe]
  */
-function listerCanaux(repo, collab, collaborateurs) {
+function listerCanaux(repo, collab, collaborateurs, responsableDe) {
   const index = lireIndex(repo);
   const lus = lireTable(repo, CLE_LUS)[collab] || {};
   const prefs = lireTable(repo, CLE_PREFS)[collab] || {};
@@ -379,10 +383,17 @@ function listerCanaux(repo, collab, collaborateurs) {
   let badge = 0;
   const canaux = [...ids].filter(canalValide).map((id) => {
     const e = index[id] || {};
-    const c = compterCanal(e, Number(lus[id]) || 0, collab);
+    // Le responsable n'est lu que s'il y a un message de CLAIRE non lu (audit 0.383.1 : un blob par canal à chaque relevé sinon) ; un dossier
+    // sans responsable connu : les messages de CLAIRE comptent pour tous, comme avant.
+    const luLe = Number(lus[id]) || 0;
+    const claireNonLue = id.startsWith('d:') && !!responsableDe && (Array.isArray(e.recents) ? e.recents : []).some((r) => Array.isArray(r) && Number(r[0]) > luLe && r[3] === 1);
+    const resp = claireNonLue ? String(/** @type {any} */ (responsableDe)(id.slice(2)) || '') : '';
+    const c = compterCanal(e, luLe, collab, !!resp && resp !== collab);
     const p = prefs[id] || {};
     const notif = NOTIFICATIONS.includes(p.notif) ? p.notif : 'tous';
-    badge += notif === 'muet' ? 0 : notif === 'mentions' ? c.mentions : c.nonLus;
+    // Comme la pastille du poste : les cartes de proposition comptent par « À traiter », pas comme messages (audit 0.383.1 : une carte
+    // déjà décidée depuis « À traiter » laissait l'étincelle allumée).
+    badge += notif === 'muet' ? 0 : notif === 'mentions' ? Math.max(0, c.mentions - c.mentionsCartes) : Math.max(0, c.nonLus - c.nonLusCartes);
     const libre = libres.find((l) => l.id === id);
     return { id, nom: libre ? libre.nom : '', libre: !!libre, prive: id.startsWith('p:'), membres: id.startsWith('p:') ? (membresPrive(id, collaborateurs || []) || []) : undefined, dernierLe: Number(e.dernierLe) || 0, dernierAuteur: e.dernierAuteur || '', extrait: e.extrait || '',
       nonLus: c.nonLus, mentions: c.mentions, nonLusCartes: c.nonLusCartes, mentionsCartes: c.mentionsCartes, luLe: Number(lus[id]) || 0, notif, favori: p.favori === true };

@@ -13,12 +13,16 @@
  * @typedef {{ nom: string, role: string }} ComparantAT
  * @typedef {{ adresse: string, etiquette: string }} ImmeubleAT
  * @typedef {{ badge: BadgeAT, libelle: string, groupe: string, statut: string, dates: string[],
- *   creeLe?: string, envoyeLe?: string, recuLe?: string, signeLe?: string, numeroRepertoire?: string, numeroChrono?: string }} FormaliteAT
+ *   creeLe?: string, envoyeLe?: string, recuLe?: string, signeLe?: string, numeroRepertoire?: string, numeroChrono?: string,
+ *   situation?: string, reponse?: string }} FormaliteAT
  * @typedef {{ pjId: string, nom: string, dossierGed: string }} PieceJointeAT
  * @typedef {{ de: string, le: string, statut: string, objet: string }} MailAT
  * @typedef {{ intitule: string, nature: NatureDossierAT, statut: string, statutLe: string, comparants: ComparantAT[], immeubles: ImmeubleAT[],
  *   formalitesPrealables: FormaliteAT[], actes: FormaliteAT[], formalitesPosterieures: FormaliteAT[], pieces: PieceJointeAT[], mails: MailAT[] }} SousDossierAT
  * @typedef {{ reference: string, libelle: string, sousDossier: SousDossierAT | null, luLe: string, pages: number }} InstantaneAT
+ * @typedef {'actesASigner' | 'safer' | 'etatCivil' | 'micen'} EcranSuiviAT
+ * @typedef {{ reference: string, libelle: string, dates: string[], situation: string, enAttente: boolean }} LigneSuiviAT
+ * @typedef {{ luLe: string, lignes: LigneSuiviAT[], tronque: boolean }} SuiviAT
  */
 
 (function (exporter) {
@@ -46,6 +50,8 @@
     const tete = /^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)(?![A-Za-z0-9])/.exec(String(libelle || ''));
     if (tete) return /** @type {BadgeAT} */ (tete[1]);
     const t = plat(libelle + ' ' + groupe);
+    // Le libellé d'abord : un casier rangé dans un tableau « Etat civil » reste un casier (audit 0.377.0).
+    if (/casier|cjn/.test(plat(libelle))) return 'CJN';
     if (/etat[- ]civil|comedec/.test(t)) return 'ECV';
     if (/casier|cjn/.test(t)) return 'CJN';
     if (/micen|^copie (simple|authentique)/.test(plat(libelle)) || /micen/.test(plat(groupe))) return 'MIC';
@@ -192,6 +198,55 @@
     return i >= 0 ? lignes[i].slice(0, 200) : '';
   }
 
+  // Les libellés de l'aperçu d'une formalité (tiroir `previewFormalite`, cartographie du 27/10 : APR « Créée le / Envoyée le / Reçue le », ACT
+  // « Date de création, situation, date de signature, N° de répertoire, référence », MIC « N° chrono », ECV « Réponse positive »).
+  var CHAMPS_APERCU_AT = [
+    ['creeLe', /^(cr[ée]{2}e? le|date de cr[ée]ation(?: de la copie)?)\s*:?\s*/i, 'date'],
+    ['envoyeLe', /^envoy[ée]e? le\s*:?\s*/i, 'date'],
+    ['recuLe', /^re[çc]u(?:e)? le\s*:?\s*/i, 'date'],
+    ['signeLe', /^date de signature\s*:?\s*/i, 'date'],
+    ['situation', /^situation\s*:?\s*/i, 'texte'],
+    ['numeroRepertoire', /^n[°o]\s*de r[ée]pertoire\s*:?\s*/i, 'texte'],
+    ['numeroChrono', /^n[°o]\s*chrono\s*:?\s*/i, 'texte']
+  ];
+
+  /**
+   * Pure : l'aperçu d'une formalité lu dans le texte du tiroir — la valeur sur la même ligne que son libellé, sinon sur la suivante.
+   * @param {string} texte @param {string} [titre] @returns {Record<string, string>}
+   */
+  function apercuFormaliteAT(texte, titre) {
+    const lignes = String(texte || '').split('\n').map(net).filter(Boolean).slice(0, 200);
+    /** @type {Record<string, string>} */
+    const out = { titre: net(titre) || (lignes[0] || '').slice(0, 200) };
+    for (let i = 0; i < lignes.length; i++) {
+      for (const [cle, re, sorte] of CHAMPS_APERCU_AT) {
+        if (out[/** @type {string} */ (cle)] || !(/** @type {RegExp} */ (re)).test(lignes[i])) continue;
+        let v = lignes[i].replace(/** @type {RegExp} */ (re), '').trim();
+        if (!v && lignes[i + 1]) v = lignes[i + 1];
+        if (sorte === 'date') { const m = /(\d{1,2}[/.-]\d{1,2}[/.-]\d{4})/.exec(v); v = m ? isoDepuisFrAT(m[1]) : ''; }
+        if (v) out[/** @type {string} */ (cle)] = v.slice(0, 80);
+      }
+      if (!out.reponse && /^r[ée]ponse (positive|n[ée]gative)/i.test(lignes[i])) out.reponse = lignes[i].slice(0, 40);
+    }
+    return out;
+  }
+
+  /** Pure : l'aperçu rangé sous sa formalité (même libellé, ou l'un contenu dans l'autre) ; rend vrai s'il a trouvé sa place.
+   * @param {FormaliteAT[]} formalites @param {Record<string, string>} ap */
+  function rangerApercuAT(formalites, ap) {
+    const t = plat(String(ap.titre || '').replace(/^\s*(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)\s+/, ''));
+    if (!t) return false;
+    // Le même libellé, sinon le plus long qui contient l'autre — jamais un libellé vide (audit 0.378.0).
+    const avec = formalites.filter((x) => plat(x.libelle));
+    const f = avec.find((x) => plat(x.libelle) === t)
+      || avec.filter((x) => plat(x.libelle).includes(t) || t.includes(plat(x.libelle))).sort((a, b) => plat(b.libelle).length - plat(a.libelle).length)[0];
+    if (!f) return false;
+    for (const k of ['creeLe', 'envoyeLe', 'recuLe', 'signeLe', 'numeroRepertoire', 'numeroChrono']) if (ap[k]) /** @type {any} */ (f)[k] = ap[k];
+    if (ap.situation) f.situation = ap.situation;
+    if (ap.reponse) f.reponse = ap.reponse;
+    return true;
+  }
+
   /**
    * Pure : l'instantané d'un dossier d'après ses pages gardées (pagesAuthentic.js : [{ nature, capture, recueLe }], de la plus ancienne à
    * la plus récente). La DERNIÈRE page du dossier donne le sous-dossier ; les autres natures (pièces jointes, mails…) le complètent quand
@@ -217,6 +272,14 @@
       formalitesPosterieures: lignes.filter((x) => sectionLigneAT(x.badge, x.groupe) === 'posterieures'),
       pieces: [], mails: []
     };
+    // Les aperçus des formalités (étape 4) : pages « apercu » gardées et tiroir ouvert sur la page du dossier, rangés sous leur ligne.
+    const tous = sd.formalitesPrealables.concat(sd.actes, sd.formalitesPosterieures);
+    const apercus = liste.filter((p) => p.nature === 'apercu' && p.capture.apercu).map((p) => p.capture.apercu)
+      .concat(dossier.capture.apercu ? [dossier.capture.apercu] : []);
+    for (const a of apercus) rangerApercuAT(tous, apercuFormaliteAT(a.texte, a.titre));
+    // Les pièces jointes (étape 5) : la dernière liste de la GED vue.
+    const ged = liste.filter((p) => (p.nature === 'ged' || p.nature === 'dossier') && Array.isArray(p.capture.pieces) && p.capture.pieces.length).slice(-1)[0];
+    if (ged) sd.pieces = ged.capture.pieces.slice(0, 300).map((/** @type {any} */ x) => ({ pjId: net(x.pjId).slice(0, 40), nom: net(x.nom).slice(0, 200), dossierGed: net(x.dossier).slice(0, 80) }));
     const dates = liste.map((p) => String(p.recueLe || '')).filter(Boolean).sort();
     return { reference: tete.reference, libelle: tete.libelle, sousDossier: sd, luLe: dates[dates.length - 1] || '', pages: liste.length };
   }
@@ -237,12 +300,99 @@
       statutSousDossier: sd.statut ? { statut: sd.statut, le: sd.statutLe } : null,
       acte: acte ? { libelle: acte.libelle, etat: acte.statut, dates: acte.dates, signeLe: acte.signeLe || '' } : null,
       // En attente : ni reçue, ni revenue, ni décidée (une réponse négative ou une non-préemption est une décision rendue).
-      enAttente: sd.formalitesPrealables.filter((f) => !/positi|negati|re[çc]u|retour le|termin|sign|preemption|refus|decision/i.test(plat(f.statut))).length
+      enAttente: sd.formalitesPrealables.filter((f) => !/positi|negati|re[çc]u|retour le|termin|sign|non[- ]preemption|refus|decision (rendue|du)/i.test(plat(f.statut))).length
     };
   }
 
-  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
-    natureDossierAT, enTeteDossierAT, intituleSousDossierAT, instantaneDepuisPagesAT, versFicheAT });
+
+  // Les écrans de suivi d'Authentic lus par CLAIRE (étape 7 : « actes à signer, SAFER/DIA, état civil, MICEN ») : menu, puis entrée du
+  // menu (cartographie de l'étude du 27/10). Le tableau affiché est relevé ; « Exporter » n'est jamais cliqué (liste noire de la garde).
+  /** @type {Array<{ cle: EcranSuiviAT, menu: string, entree: string, titre: string }>} */
+  var ECRANS_SUIVIS_AT = [
+    { cle: 'actesASigner', menu: 'Office Manager', entree: 'Actes à signer', titre: 'Actes à signer' },
+    { cle: 'safer', menu: 'Suivis', entree: 'Suivi SAFER/DIA-DPU', titre: 'SAFER et DIA' },
+    { cle: 'etatCivil', menu: 'Suivis', entree: 'Suivi État-Civil', titre: 'État civil' },
+    { cle: 'micen', menu: 'Suivis', entree: 'Suivi MICEN', titre: 'MICEN' }
+  ];
+  // La référence d'un dossier d'Authentic (« A 2026 00247 »), telle que la fiche la retient.
+  var RE_REFERENCE_AT = /(?<![A-Za-z0-9])([A-Z])\s?(\d{4})\s?(\d{5})(?!\d)/;
+
+  /** Pure : la référence d'Authentic écrite dans un texte, à la forme de la fiche (« A 2026 00247 ») ; '' sinon. @param {string} t */
+  function referenceDansTexteAT(t) {
+    const m = RE_REFERENCE_AT.exec(String(t || ''));
+    return m ? `${m[1]} ${m[2]} ${m[3]}` : '';
+  }
+
+  /** Pure : une ligne d'un écran de suivi est-elle encore en attente ? Les mots d'une affaire finie (reçue, décidée, signée, prête) la sortent.
+   * @param {EcranSuiviAT} ecran @param {string} situation */
+  function ligneSuiviEnAttenteAT(ecran, situation) {
+    const t = plat(situation);
+    if (ecran === 'actesASigner') return true;
+    if (ecran === 'micen') return !/pret|depose|archiv|termin|conserv/.test(t);
+    if (ecran === 'safer') return !/non[- ]?preemption|preemption exercee|renonc|decision|repon|retour|refus/.test(t);
+    // Une réponse NÉGATIVE n'est pas une affaire finie : rien n'a été délivré, la demande est à reprendre (audit 0.382.0).
+    return /negati/.test(t) || !/positi|repon|re[çc]u|delivr|termin|archiv/.test(t);
+  }
+
+  /** Pure : le tableau d'un écran de suivi relevé → ses lignes (référence du dossier, libellé, dates, situation). Le plus grand tableau de
+   * la page compte ; 300 lignes au plus. @param {EcranSuiviAT} ecran @param {any} capture @param {string} luLe @returns {SuiviAT} */
+  function suiviDepuisCaptureAT(ecran, capture, luLe) {
+    const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes));
+    const t = tableaux.sort((/** @type {any} */ a, /** @type {any} */ b) => b.lignes.length - a.lignes.length)[0];
+    // Les colonnes par leur en-tête (« Libellé », « Dossier/Acte »… ; « Situation », « État »…) ; sans en-tête reconnu, le premier texte
+    // est le libellé et le dernier la situation.
+    const entete = ((t && t.entete) || []).map(plat);
+    const colLibelle = entete.findIndex((/** @type {string} */ e) => /libelle|intitule|objet|dossier ?\/ ?acte|^acte|demande|formalite/.test(e));
+    // L'en-tête qui EST l'état (« Situation », « État ») ; « Type d'état civil » ne l'est pas (audit 0.382.0).
+    const colSituation = entete.findIndex((/** @type {string} */ e) => /^(situation|etat|statut)( |$)/.test(e));
+    /** @type {LigneSuiviAT[]} */
+    const lignes = [];
+    ((t && t.lignes) || []).forEach((/** @type {any} */ l) => {
+      if (lignes.length >= 300) return;
+      const brutes = (Array.isArray(l) ? l : []).map(net);
+      const cellules = brutes.filter(Boolean);
+      // Ligne vide, ou ligne « Aucun enregistrement trouvé » d'un tableau vide (audit 0.382.0 : comptée « 1 en attente »).
+      if (!cellules.length || (cellules.length === 1 && /aucun (enregistrement|resultat|element)|no records/.test(plat(cellules[0])))) return;
+      const dates = [...new Set(cellules.flatMap((x) => (x.match(RE_DATE_FR_PARTOUT) || []).map(isoDepuisFrAT)).filter(Boolean))];
+      const reference = referenceDansTexteAT(cellules.join(' '));
+      // La référence retirée d'une cellule qui porte aussi le libellé (« A 2026 00500 VTE … »), jamais la cellule entière.
+      const textes = cellules.map((x) => net(x.replace(RE_REFERENCE_AT, ' '))).filter((x) => x && !RE_DATE_FR.test(x) && !/^⟦icône⟧/.test(x) && !/^\d+$/.test(x));
+      if (!textes.length && !reference) return;
+      const libelle = (colLibelle >= 0 && net(String(brutes[colLibelle] || '').replace(RE_REFERENCE_AT, ' '))) || textes[0] || '';
+      const situation = (colSituation >= 0 ? brutes[colSituation] : textes.filter((x) => x !== libelle).slice(-1)[0]) || '';
+      lignes.push({ reference, libelle: libelle.slice(0, 200), dates, situation: situation.slice(0, 80), enAttente: ligneSuiviEnAttenteAT(ecran, situation) });
+    });
+    // Un tableau paginé (« (1 of 5) », « Page 1 sur 5 ») : seule la page affichée est lue — dit, jamais tu (audit 0.382.0).
+    const pagine = /\(\s*1\s+(of|sur|de)\s+([2-9]|\d{2,})\s*\)|page\s+1\s+(sur|of|de)\s+([2-9]|\d{2,})/i.test(String((capture && capture.texte) || ''));
+    return { luLe: net(luLe), lignes, tronque: !!(t && t.lignes.length > 300) || pagine };
+  }
+
+  /** Pure : les compteurs du tableau de bord d'après les suivis lus : par écran, les lignes en attente (toutes pour les actes à signer), et
+   * celles qui sont des dossiers de CLAIRE. @param {Record<string, SuiviAT>} suivis @param {string[]} references (références des fiches) */
+  function compteursSuivisAT(suivis, references) {
+    const connues = new Set((references || []).map((r) => referenceDansTexteAT(r)).filter(Boolean));
+    /** @type {Record<string, { titre: string, total: number, enAttente: number, dansClaire: number, luLe: string } | null>} */
+    const out = {};
+    ECRANS_SUIVIS_AT.forEach((e) => {
+      const s = suivis && suivis[e.cle];
+      if (!s || !Array.isArray(s.lignes)) { out[e.cle] = null; return; }
+      const attente = s.lignes.filter((l) => l.enAttente);
+      out[e.cle] = { titre: e.titre, total: s.lignes.length, enAttente: attente.length, dansClaire: attente.filter((l) => connues.has(l.reference)).length, luLe: s.luLe || '' };
+    });
+    return out;
+  }
+
+  /** Pure : les lignes des suivis qui portent la référence d'un dossier. @param {Record<string, SuiviAT>} suivis @param {string} reference */
+  function suivisDuDossierAT(suivis, reference) {
+    const ref = referenceDansTexteAT(reference);
+    if (!ref) return [];
+    return ECRANS_SUIVIS_AT.flatMap((e) => ((suivis && suivis[e.cle] && suivis[e.cle].lignes) || [])
+      .filter((l) => l.reference === ref).map((l) => Object.assign({ ecran: e.cle, titre: e.titre }, l)));
+  }
+
+  exporter({ BADGES_AT, STATUTS_SOUS_DOSSIER_AT, isoDepuisFrAT, apercuFormaliteAT, rangerApercuAT, lignesActivesAT, indexIntituleAT, badgeLigneAT, sectionLigneAT, lignesFormalitesAT, statutSousDossierAT, panneauGaucheAT,
+    natureDossierAT, enTeteDossierAT, intituleSousDossierAT, instantaneDepuisPagesAT, versFicheAT,
+    ECRANS_SUIVIS_AT, referenceDansTexteAT, ligneSuiviEnAttenteAT, suiviDepuisCaptureAT, compteursSuivisAT, suivisDuDossierAT });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

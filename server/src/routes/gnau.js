@@ -13,6 +13,22 @@ const { origineRequete } = require('./authentic');
 const { adressesLan } = require('../reseau');
 
 const RE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
+/** Pure : le code INSEE de la commune d'un numéro national (« DIA 041 018 26 00012 » → « 41018 »). @param {string} numero */
+function inseeDuNumeroGnau(numero) {
+  const m = /^\S+ (\d{3}) (\d{3}) /.exec(String(numero || ''));
+  return m ? `${m[1].replace(/^0/, '')}${m[2]}` : '';
+}
+
+/** Pure : le numéro national d'un dépôt (« DIA 041 018 26 00012 », « CU 041 018 26 A0012 »), propre, ou '' s'il n'en a pas la forme.
+ * @param {any} v @param {string} proc 'dia' | 'cua' */
+function numeroDepotGnau(v, proc) {
+  const m = /^(DIA|IA|CU[AB]?)\s*(\d{3})\s*(\d{3})\s*(\d{2})\s*([A-Z]?\d{4,5})$/i.exec(String(v || '').replace(/\s+/g, ' ').trim());
+  if (!m) return '';
+  const type = m[1].toUpperCase();
+  if (proc === 'dia' ? !/^(DIA|IA)$/.test(type) : !/^CU/.test(type)) return '';
+  return `${type} ${m[2]} ${m[3]} ${m[4]} ${m[5].toUpperCase()}`;
+}
 const aujourdhuiParis = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
 
 const TAILLE_MAX_PLAN = 15 * 1024 * 1024;
@@ -48,6 +64,37 @@ function creerRouteurGnau(depot, parametresRepo, config) {
     const d = depot.trouverParId(ouverture.id);
     const dossier = d && !d.deleted ? dossiersGnau([d], '')[0] || null : null;
     res.json({ dossier, le: ouverture.le });
+  });
+
+  // Numéro du dossier déposé sur le guichet, relevé par l'extension après la validation par le notaire (étude 27/10) : la fiche le garde
+  // (`d.gnau.dia` / `d.gnau.cua` : numéro, déposé le), la DIA compte alors comme envoyée (réponse attendue sous 2 mois). Rien d'autre.
+  routeur.post('/gnau/depot', (req, res) => {
+    const b = req.body && typeof req.body === 'object' ? req.body : {};
+    // Les dossiers dont une saisie attend sa validation (audit 0.380.0 : plusieurs possibles) ; `dossierId` seul reste accepté.
+    const ids = (Array.isArray(b.candidats) ? b.candidats : [b.dossierId]).map((x) => String(x || '')).filter((x) => RE_ID.test(x)).slice(0, 5);
+    if (!ids.length) { res.status(400).json({ erreur: 'Identifiant de dossier invalide.' }); return; }
+    const proc = b.procedure === 'dia' ? 'dia' : b.procedure === 'cua' || b.procedure === 'cub' ? 'cua' : '';
+    const numero = numeroDepotGnau(b.numero, proc);
+    if (!proc || !numero) { res.status(400).json({ erreur: 'Numéro de dépôt non reconnu.' }); return; }
+    // La commune du numéro (« 041 018 » = INSEE 41018) : un dossier d'une autre commune connue n'est jamais pris ; plusieurs possibles = rien.
+    const inseeNumero = inseeDuNumeroGnau(numero);
+    const dossiersCandidats = ids.map((x) => depot.trouverParId(x)).filter((x) => x && !x.deleted && x.typeAffaire !== 'succession');
+    const memeCommune = dossiersCandidats.filter((x) => { const i = x.preemption && typeof x.preemption.insee === 'string' ? x.preemption.insee : ''; return !i || i === inseeNumero; });
+    const surs = memeCommune.filter((x) => x.preemption && x.preemption.insee === inseeNumero);
+    const choisi = surs.length === 1 ? surs[0] : memeCommune.length === 1 ? memeCommune[0] : null;
+    if (!choisi) { res.status(dossiersCandidats.length ? 409 : 404).json({ erreur: dossiersCandidats.length ? 'Numéro non rattaché : plusieurs dossiers possibles, ou une autre commune.' : 'Dossier introuvable.' }); return; }
+    const d = choisi;
+    const id = d.id;
+    const g = d.gnau && typeof d.gnau === 'object' ? d.gnau : {};
+    if (g[proc] && g[proc].numero === numero) { res.json({ ok: true, deja: true, dossierId: id }); return; }
+    // Un numéro déjà relevé n'est jamais remplacé par un autre (audit 0.380.0) : à vérifier à la main.
+    if (g[proc] && g[proc].numero) { res.status(409).json({ erreur: 'Un autre numéro est déjà relevé pour ce dossier.' }); return; }
+    const jour = aujourdhuiParis();
+    d.gnau = Object.assign({}, g, { [proc]: { numero, deposeLe: (g[proc] && g[proc].deposeLe) || jour, releveLe: new Date().toISOString() } });
+    d.historique = (Array.isArray(d.historique) ? d.historique : []).concat({ date: new Date().toISOString(), texte: `${proc === 'dia' ? 'DIA' : 'Demande de certificat d’urbanisme'} déposée sur le guichet unique (n° ${numero})`, auteur: 'CLAIRE' });
+    depot.remplacer(id, d);
+    noterVerification(parametresRepo, 'gnau-depot-numero', { detail: proc });
+    res.json({ ok: true, dossierId: id });
   });
 
   routeur.get('/gnau/fiche/:id', (req, res) => {
@@ -99,4 +146,4 @@ function creerRouteurGnau(depot, parametresRepo, config) {
   return routeur;
 }
 
-module.exports = { creerRouteurGnau };
+module.exports = { numeroDepotGnau, inseeDuNumeroGnau, creerRouteurGnau };

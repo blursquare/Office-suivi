@@ -12,7 +12,7 @@
 // technique du serveur.
 
 // Les libellés que CLAIRE ne clique jamais (wiki de Fichorga ; cartographie de l'étude du 27/10 : aperçus des formalités, GED, mails).
-const RE_INTERDIT = /(envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler)/i;
+const RE_INTERDIT = /(envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|delete_\w*|trash|poubelle|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler)/i;
 
 /** Pure : un libellé que CLAIRE ne clique jamais. @param {string} libelle */
 function libelleInterdit(libelle) {
@@ -26,6 +26,12 @@ const GESTES_PERMIS = {
   connexion: { libelles: ['Se connecter'] },
   navigation: { libelles: ['Retour', 'Fermer', 'Rechercher', 'Formalités préalables', 'Formalités postérieures', 'Actes', 'Pièces jointes', 'Mails', 'Accueil', 'Suivis'] },
   donnee: {},
+  // Les écrans de suivi (étape 7) : le menu puis son entrée, libellés de la cartographie seulement. « Actes à signer » porte « signer » :
+  // comme pour une donnée, seul ce que le bouton sous le pointeur porte EN PLUS de ce libellé est contrôlé (un « Exporter » à côté reste refusé).
+  suivi: { libelles: ['Suivis', 'Office Manager', 'Actes à signer', 'Suivi SAFER/DIA-DPU', 'Suivi État-Civil', 'Suivi MICEN'], relatif: true },
+  // L'icône « image » qui ouvre l'aperçu d'une formalité au survol de sa ligne (étape 4) : son libellé (titre, aria-label, classe de
+  // l'icône et de son bouton) doit DIRE l'aperçu, et rien d'interdit (audit 0.378.0 : une corbeille « Supprimer l'aperçu »).
+  apercu: { positif: /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i },
   ecriture: { ecriture: true }
 };
 
@@ -45,12 +51,18 @@ function motifRefus(c) {
   if (!g) return 'geste inconnu';
   if (g.ecriture && !c.ecritureAutorisee) return 'écriture dans Authentic éteinte (Réglages › Authentic)';
   if (g.libelles && !g.libelles.some((/** @type {string} */ l) => plat(l) === plat(c.vise))) return 'libellé hors de la liste de ce geste';
+  if (g.positif && !g.positif.test(String(c.bouton || ''))) return 'libellé qui ne dit pas ce geste';
   // Un texte de la fiche (geste `donnee`) est souvent le lien lui-même : seul ce que le bouton porte EN PLUS de ce texte compte (audit 0.376.0 :
   // « rue de l'Imprimerie », « SCI EXPORTEC » cassaient la lecture) — une corbeille ou « Supprimer » à côté du nom reste refusé.
-  const bouton = c.geste === 'donnee' ? plat(c.bouton).replace(plat(c.vise), ' ') : String(c.bouton || '');
+  const relatif = c.geste === 'donnee' || !!g.relatif;
+  // Une entrée de menu : le bouton sous le pointeur doit PORTER le libellé visé (audit 0.382.0 : « Actes signés », « Statistique » juste à
+  // côté passaient la seule liste noire).
+  if (g.relatif && !plat(c.bouton).includes(plat(c.vise))) return 'bouton sous le pointeur différent du libellé visé';
+  const bouton = relatif ? plat(c.bouton).replace(plat(c.vise), ' ') : String(c.bouton || '');
   if (libelleInterdit(bouton)) return 'bouton interdit';
-  // Un libellé du parcours (navigation, écriture) est contrôlé lui-même ; un texte de la fiche peut contenir un mot de la liste (« EXPORTEC »).
-  if (c.geste !== 'donnee' && libelleInterdit(c.texte || c.vise)) return 'libellé interdit';
+  // Un libellé du parcours (navigation, écriture) est contrôlé lui-même ; un texte de la fiche peut contenir un mot de la liste (« EXPORTEC »),
+  // une entrée de suivi aussi (« Actes à signer ») : sa liste fermée de libellés la tient.
+  if (!relatif && libelleInterdit(c.texte || c.vise)) return 'libellé interdit';
   return '';
 }
 
@@ -59,7 +71,7 @@ function controlerClic(c) {
   const motif = motifRefus(c);
   if (!motif) return;
   // Jamais un texte de la fiche (nom, adresse) : pour un geste `donnee`, seulement le mot interdit trouvé (audit 0.376.0).
-  const libelle = c && c.geste === 'donnee'
+  const libelle = c && (c.geste === 'donnee' || c.geste === 'suivi')
     ? ((RE_INTERDIT.exec(plat(c.bouton).replace(plat(c.vise), ' ')) || [''])[0])
     : String((c && (c.bouton || c.vise)) || '').replace(/\s+/g, ' ').trim().slice(0, 40);
   refus.push({ quand: new Date().toISOString(), geste: String((c && c.geste) || ''), libelle, motif });

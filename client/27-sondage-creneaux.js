@@ -795,6 +795,7 @@
     rendreBloc('kpis', () => renderKpisDashboard(perimetreActifs, perimetreTous));
     rendreBloc('statistiques', () => renderStatistiquesDashboard(perimetreTous));
     rendreBloc('nouveautes', () => renderWidgetNouveautes());
+    rendreBloc('suivis-authentic', () => renderWidgetSuivisAuthentic());
     rendreBloc('accueil', () => renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs)));
     rendreBloc('rendez-vous', () => renderRendezVousDashboard(perimetreActifs));
     rendreBloc('alertes', () => renderAlertesDashboard(perimetreActifs));
@@ -985,7 +986,8 @@
     if (majs.length) out.push({ cle: 'authentic', rang: 1, texte: majs.length === 1 ? `Authentic a changé : ${majs[0].libelle}` : `Authentic a changé : ${majs.length} données` });
     // Sous-dossier passé « Sans suite » dans Authentic (plan Authen.TIC, étape 3) : à archiver ou à écarter, jamais fait d'office.
     const st = typeof statutsAuthenticAT !== 'undefined' ? statutsAuthenticAT[d.id] : null;
-    if (st && st.statut === 'Sans suite') out.push({ cle: 'authentic-sans-suite', rang: 2, texte: 'Sans suite dans Authentic : à archiver ?' });
+    // Vu une fois (fiche ouverte depuis ce statut, comme les autres signaux de « Nouveau ») : plus signalé tant que la date du badge ne change pas.
+    if (st && st.statut === 'Sans suite' && !(typeof sansSuiteVuAT === 'function' && sansSuiteVuAT(d.id, st.le))) out.push({ cle: 'authentic-sans-suite', rang: 2, texte: 'Sans suite dans Authentic : à archiver ?' });
     return out;
   }
 
@@ -1545,6 +1547,11 @@
       const ps = piecesSuccessionAuthentic(a);
       if (p.cle === 'actesNaissance' && ps.actesNaissance.total) return { texte: `Authentic : ${ps.actesNaissance.recus}/${ps.actesNaissance.total} revenu${ps.actesNaissance.recus > 1 ? 's' : ''}`, classe: 'dl-pret' };
       if (p.cle === 'ehf' && ps.ehf.envoyeeLe) return { texte: `Réquisition envoyée le ${formatDateFr(ps.ehf.envoyeeLe)}, pas encore revenue`, classe: 'dl-pret' };
+    }
+    // Déposée sur le guichet unique (DIA, demande de CU — numéro relevé par l'extension Chrome après la validation, étude 27/10).
+    const guichet = d && d.gnau ? (p.cle === 'renonciationPreemption' ? d.gnau.dia : p.cle === 'certificatUrbanisme' ? d.gnau.cua : null) : null;
+    if (guichet && guichet.numero && !(d.pieces && d.pieces[p.cle] === 'recue')) {
+      return { texte: `${p.cle === 'renonciationPreemption' ? 'DIA déposée' : 'Demande déposée'} sur le guichet${guichet.deposeLe ? ` le ${formatDateFr(guichet.deposeLe)}` : ''} (n° ${guichet.numero})`, classe: '' };
     }
     const ec = (a.etatsCivils || {})[p.cle];
     if (ec && (ec.casier || RE_CASIER_AUTHENTIC.test(ec.label || ''))) {

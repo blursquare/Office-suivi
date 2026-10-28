@@ -135,3 +135,24 @@ test('Silicium : la vérification du poste client n’est passée que sur sa pag
   assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true }), false, 'page ordinaire : rien');
   assert.equal(A.pageSiliciumAPasser(null), false);
 });
+
+test('suivis (étape 7) : la route rend les compteurs sans jamais rien lancer ; lecture à la main refusée connexion éteinte', async () => {
+  const os = require('node:os');
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const db = ouvrirDb(':memory:');
+  const { app, gestionnaireAuth } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' } });
+  const jeton = gestionnaireAuth.creerSession();
+  const s = app.listen(0);
+  await new Promise((r) => s.once('listening', r));
+  const base = `http://127.0.0.1:${s.address().port}`;
+  const appel = (chemin, methode, corps) => fetch(base + chemin, { method: methode || 'GET', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined });
+  try {
+    assert.equal((await appel('/api/authentic-claire/suivis')).status, 400, 'collaborateur exigé');
+    const r = await (await appel('/api/authentic-claire/suivis?utilisateur=' + encodeURIComponent('Julie VASSELIN'))).json();
+    assert.equal(r.actif, false);
+    assert.equal(r.enCoursDeLecture, false, 'connexion éteinte : aucune lecture lancée');
+    assert.equal(r.compteurs.safer, null);
+    assert.equal((await appel('/api/authentic-claire/suivis', 'POST', { auteur: 'Julie VASSELIN' })).status, 409, 'lecture à la main : refusée connexion éteinte');
+  } finally { s.close(); db.close(); }
+});

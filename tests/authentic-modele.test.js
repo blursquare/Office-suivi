@@ -71,3 +71,67 @@ test('relecture 0.376.1 : statut près de l’en-tête, onglets inactifs, classe
   assert.equal(M.isoDepuisFrAT('31/13/2026'), '');
   assert.equal(M.isoDepuisFrAT('03/10/20261'), '');
 });
+
+test('étape 4 : l’aperçu d’une formalité (tiroir) rangé sous sa ligne — dates, signature, répertoire, chrono, réponse', () => {
+  const ap = M.apercuFormaliteAT('État-Civil - Acte de Naissance - MARTIN Paul\nCréée le\n01/10/2026\nEnvoyée le : 02/10/2026\nReçue le\n05/10/2026\nRéponse positive', '');
+  assert.equal(ap.creeLe, '2026-10-01');
+  assert.equal(ap.envoyeLe, '2026-10-02');
+  assert.equal(ap.recuLe, '2026-10-05');
+  assert.equal(ap.reponse, 'Réponse positive');
+  const acte = M.apercuFormaliteAT('Situation\nActe signé\nDate de signature\n29/09/2026\nN° de répertoire\n1234\nRéférence\nSG/BA', 'ACT Vente MARTIN / DURAND');
+  assert.equal(acte.situation, 'Acte signé');
+  assert.equal(acte.signeLe, '2026-09-29');
+  assert.equal(acte.numeroRepertoire, '1234');
+  const inst = M.instantaneDepuisPagesAT([
+    { nature: 'dossier', capture: PAGE },
+    { nature: 'apercu', capture: { apercu: { titre: 'ECV État-Civil - Acte de Naissance - MARTIN Paul', texte: 'Créée le 01/10/2026\nReçue le 05/10/2026' } } },
+    { nature: 'apercu', capture: { apercu: { titre: 'Une formalité inconnue', texte: 'Créée le 01/10/2026' } } }
+  ]);
+  const ecv = inst.sousDossier.formalitesPrealables[0];
+  assert.equal(ecv.recuLe, '2026-10-05', 'l’aperçu est rangé sous sa ligne');
+  assert.equal(inst.sousDossier.formalitesPrealables[1].recuLe, undefined, 'jamais sous une autre');
+});
+
+test('étape 5 : la liste des pièces jointes (GED) — la dernière vue, identifiant, nom, dossier de l’arbre', () => {
+  const inst = M.instantaneDepuisPagesAT([
+    { nature: 'dossier', capture: PAGE },
+    { nature: 'ged', capture: { pieces: [{ pjId: 'pj1', nom: 'Ancien.pdf', dossier: 'Non classé' }] } },
+    { nature: 'ged', capture: { pieces: [{ pjId: 'pj11', nom: 'Titre de propriété ESSAI.pdf', dossier: 'Non classé' }, { pjId: 'pj12', nom: 'Diagnostics.pdf', dossier: 'Annexes MICEN' }] } }
+  ]);
+  assert.equal(inst.sousDossier.pieces.map((p) => `${p.pjId}:${p.dossierGed}`).join('|'), 'pj11:Non classé|pj12:Annexes MICEN');
+});
+
+test('suivis (étape 7) : colonnes par leur en-tête, référence lue, une décision sort de l’attente ; compteurs et lignes d’un dossier', () => {
+  const capture = { tableaux: [
+    { titre: 'petit', entete: ['x'], lignes: [['A 2026 00999']] },
+    { titre: '', entete: ['N° dossier', 'Libellé', 'Date', 'Situation'], lignes: [
+      ['A 2026 00500', 'Formulaire A - DIA auprès de la safer', '01/10/2026', 'Pris en compte'],
+      ['A2026 00777', 'DIA mairie ESSAI', '02/09/2026', 'Non préemption SAFER'],
+      ['', '', '', ''],
+      ['Aucun enregistrement trouvé']] }] };
+  const s = M.suiviDepuisCaptureAT('safer', capture, '2026-10-27T10:00:00Z');
+  assert.equal(s.lignes.length, 2);
+  assert.equal(s.lignes[0].reference, 'A 2026 00500');
+  assert.equal(s.lignes[0].libelle, 'Formulaire A - DIA auprès de la safer');
+  assert.equal(s.lignes[0].situation, 'Pris en compte');
+  assert.equal(s.lignes[0].enAttente, true);
+  assert.equal(s.lignes[1].reference, 'A 2026 00777');
+  assert.equal(s.lignes[1].enAttente, false);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Réponse positive'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Envoyé'), true);
+  assert.equal(M.ligneSuiviEnAttenteAT('etatCivil', 'Réponse négative'), true, 'rien délivré : à reprendre');
+  const ec = M.suiviDepuisCaptureAT('etatCivil', { texte: 'Résultats (1 of 3)', tableaux: [{ entete: ['Type d’état civil', 'Dossier', 'Date', 'Etat'], lignes: [['Naissance', 'A 2026 00500 VTE ESSAI / TEST', '01/10/2026', 'Réponse positive']] }] }, 'x');
+  assert.equal(ec.lignes[0].situation, 'Réponse positive', 'l’en-tête « Etat » et non « Type d’état civil »');
+  assert.equal(ec.lignes[0].reference, 'A 2026 00500');
+  assert.equal(ec.lignes[0].enAttente, false);
+  assert.equal(ec.tronque, true, 'tableau paginé : dit');
+  assert.equal(M.ligneSuiviEnAttenteAT('micen', 'Prêt'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('actesASigner', ''), true);
+  const c = M.compteursSuivisAT({ safer: s }, ['A 2026 00500']);
+  assert.equal(c.safer.total, 2);
+  assert.equal(c.safer.enAttente, 1);
+  assert.equal(c.safer.dansClaire, 1);
+  assert.equal(c.micen, null, 'écran jamais lu : rien, pas zéro');
+  assert.equal(M.suivisDuDossierAT({ safer: s }, 'A 2026 00500').length, 1);
+  assert.equal(M.suivisDuDossierAT({ safer: s }, '').length, 0);
+});

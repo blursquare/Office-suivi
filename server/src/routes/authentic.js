@@ -72,7 +72,13 @@ function normaliserCaptureAuthentic(corps) {
     adresse: chaine(c.adresse, L.adresse),
     champs,
     tableaux,
-    texte: String(c.texte || '').slice(0, L.texte)
+    texte: String(c.texte || '').slice(0, L.texte),
+    // Pièces jointes de la GED (étape 5) : identifiant, nom, dossier de l'arbre — 300 au plus.
+    ...(Array.isArray(c.pieces) && c.pieces.length ? { pieces: c.pieces.slice(0, 300).map(p => ({ pjId: chaine(p && p.pjId, 40), nom: chaine(p && p.nom, 200), dossier: chaine(p && p.dossier, 80) }))
+      .filter(p => /^[\w-]{1,40}$/.test(p.pjId) && p.nom) } : {}),
+    // Aperçu d'une formalité (tiroir), étape 4 du plan Authen.TIC.
+    ...(c.apercu && typeof c.apercu === 'object' && String(c.apercu.texte || '').trim()
+      ? { apercu: { titre: chaine(c.apercu.titre, L.libelle), texte: String(c.apercu.texte || '').slice(0, 8000) } } : {})
   };
 }
 
@@ -221,7 +227,7 @@ function creerRouteurAuthentic(options) {
     if (!pageAuthenticConnue(capture)) return { ok: true, ignore: true };
     // L'intitulé et l'onglet actif comptent (banc Authentic du 19/10) : deux dossiers aux tableaux identiques (vente toute neuve, succession
     // sans pièce), ouverts l'un après l'autre, n'étaient qu'une page — la seconde était écartée comme doublon.
-    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture)])).digest('hex');
+    const empreinte = crypto.createHash('sha1').update(JSON.stringify([capture.champs, capture.tableaux, capture.onglets.filter(o => o.actif).map(o => o.titre), intitulePageAuthentic(capture), capture.apercu ? capture.apercu.texte : '', (capture.pieces || []).length])).digest('hex');
     const t = maintenant();
     const deja = empreintes.has(empreinte);
     if (deja && t - empreintes.get(empreinte) < DUREE_DOUBLON_MS) return { ok: true, deja: true };
@@ -324,7 +330,7 @@ function creerRouteurAuthentic(options) {
     res.json({ pages: req.query.contenu === '1' ? pages.pages(id) : pages.resume(id) });
   });
   // Le statut du sous-dossier de chaque dossier (étape 3 : « Préparation définitive », « Signé », « Sans suite »…) pour le Suivi : lu sur la
-  // page du dossier gardée, 60 s en mémoire (le Suivi le demande à chaque rendu au plus une fois par minute).
+  // page du dossier gardée, 60 s en mémoire (chaque poste le relit toutes les 5 minutes).
   let statutsCache = { t: 0, valeur: /** @type {Record<string, any>} */ ({}) };
   routeur.get('/authentic/statuts', (req, res) => {
     res.setHeader('Cache-Control', 'no-store');

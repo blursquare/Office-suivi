@@ -43,10 +43,13 @@ function ageTexteProposition(iso, maintenantMs) {
 function etatTexteProposition(p, maintenantMs) {
   const par = p && p.traitePar ? ` par ${prenomCollaborateur(p.traitePar)}` : '';
   const quand = p && p.traiteLe ? ` · ${ageTexteProposition(p.traiteLe, maintenantMs)}` : '';
+  // Terminée (étude 27/10) : le travail autorisé est fait.
+  if (p && p.termineeLe) return `Terminée${p.termineePar ? ` par ${prenomCollaborateur(p.termineePar)}` : ''} · ${ageTexteProposition(p.termineeLe, maintenantMs)}`;
   if (p && p.etat === 'acceptee') return `Autorisée${par}${quand}`;
   if (p && p.etat === 'refusee') return `Refusée${par}${quand}`;
   if (p && p.etat === 'faite') return `Déjà fait${par}${quand}`;
   if (p && p.etat === 'expiree') return 'Expirée : sans réponse depuis 30 jours';
+  if (p && p.etat === 'vue' && p.type === 'alerte') return 'Lue';
   return '';
 }
 
@@ -117,11 +120,13 @@ function carteProposition(p, options) {
     p.routineNom ? `<span class="pc-puce">${escapeHtml(p.routineNom)}</span>` : '',
     p.exemple ? '<span class="pc-puce pc-puce-exemple">Exemple</span>' : ''
   ].join('');
-  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite';
+  const traitee = p.etat === 'acceptee' || p.etat === 'refusee' || p.etat === 'expiree' || p.etat === 'faite' || (p.etat === 'vue' && p.type === 'alerte');
   const reportee = !traitee && p.reporteJusqua && Date.parse(p.reporteJusqua) > Date.now();
   const moi = peutDeciderProposition(p, utilisateurPoste);
+  // Autorisée, pas encore terminée : « Terminé » quand le travail est fait (étude 27/10 : « comment indiquer que c'est terminé ? »).
+  const terminable = p.etat === 'acceptee' && !p.termineeLe && moi && (p.type === 'document' || p.type === 'tache');
   const actions = traitee
-    ? `<p class="pc-etat pc-etat-${escapeAttr(p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>`
+    ? `<div class="pc-actions"><p class="pc-etat pc-etat-${escapeAttr(p.termineeLe ? 'terminee' : p.etat)}">${escapeHtml(etatTexteProposition(p))}</p>${terminable ? `<wa-button appearance="outlined" size="s" type="button" onclick="terminerProposition('${idJs}')" title="Le travail est fait : la carte est fermée, CLAIRE ne le reproposera pas">${icone('check')}Terminé</wa-button>` : ''}</div>`
     : !moi
       ? `<p class="pc-etat">Pour ${escapeHtml(prenomCollaborateur(p.responsable))} : c’est à elle ou lui de décider.</p>`
       : reportee
@@ -363,6 +368,31 @@ async function refuserProposition(id) {
   await apresDecisionProposition();
 }
 
+// « Terminé » : le travail d'une proposition autorisée est fait (étude 27/10).
+async function terminerProposition(id) {
+  if (propositionsEnCours[id]) return;
+  propositionsEnCours[id] = true;
+  try {
+    await enregistrerDecisionProposition(id, 'terminee');
+    afficherToast('Noté terminé.', 'OK', null);
+  } catch (e) {
+    afficherToast('Non enregistré : ' + e.message, 'OK', null);
+    return;
+  } finally { delete propositionsEnCours[id]; }
+  await apresDecisionProposition();
+}
+
+// Le geste d'une routine fait pour un dossier, dit par l'écran qui l'a fait (la constitution enregistrée ou imprimée…) : ses propositions
+// deviennent « terminées » — Claire le sait, la carte le dit (🏁), rien n'est reproposé. Jamais bloquant.
+async function terminerRoutineDossier(dossierId, routine) {
+  if (!dossierId || !routine || !utilisateurPoste) return;
+  try {
+    const r = await fetchAvecAuth('/api/propositions/terminer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dossierId, routine, auteur: utilisateurPoste }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.terminees) await apresDecisionProposition();
+  } catch (e) { /* le serveur relira plus tard ; rien de bloquant */ }
+}
+
 // « Déjà fait » : la proposition est fermée sans rien exécuter (étude 26/10 : « qu'est-ce qu'on fait si c'est déjà fait ? »).
 async function dejaFaitProposition(id) {
   const p = propositionParId(id);
@@ -419,12 +449,17 @@ async function silencerDossierProposition(id) {
 // ---- Le lien de la fiche du dossier vers son canal ----
 
 // En tête du Tableau de la fiche : le lien vers le canal du dossier — ce que CLAIRE y a écrit, ce qui attend une décision. Rien s'il n'y a rien.
+// Pur : une proposition encore à décider (« À traiter » garde aussi les autorisées pas encore terminées, comptées à part).
+function propositionADecider(p) { return !!p && (p.etat === 'proposee' || (p.etat === 'vue' && p.type !== 'alerte')); }
+
 function renderPropositionsFiche(d) {
-  const aDecider = propositionsClaire.liste.filter(p => p.dossierId === d.id).length;
+  const duDossier = propositionsClaire.liste.filter(p => p.dossierId === d.id);
+  const aDecider = duDossier.filter(propositionADecider).length;
+  const aTerminer = duDossier.length - aDecider;
   const c = typeof canaux === 'object' && canaux.liste ? canaux.liste.find(x => x.id === 'd:' + d.id) : null;
   const nonLus = c ? c.nonLus : 0;
-  if (!aDecider && !nonLus) return '';
-  const texte = [nonLus ? `${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : '', aDecider ? `${aDecider} à décider` : ''].filter(Boolean).join(' · ');
+  if (!aDecider && !aTerminer && !nonLus) return '';
+  const texte = [nonLus ? `${nonLus} message${nonLus > 1 ? 's' : ''} non lu${nonLus > 1 ? 's' : ''}` : '', aDecider ? `${aDecider} à décider` : '', aTerminer ? `${aTerminer} à terminer` : ''].filter(Boolean).join(' · ');
   return `<section class="pc-fiche" aria-label="Canal du dossier">
     <header class="pc-fiche-tete"><span class="pc-etincelle pc-etincelle-petite" aria-hidden="true">${icone('diese')}</span><strong>Canal du dossier</strong><span class="pc-fiche-nb">${escapeHtml(texte)}</span>
       <wa-button variant="brand" size="s" type="button" class="pc-fiche-ouvrir" onclick="ouvrirCanalDepuisFiche('${escapeOnclickArg(d.id)}')">Ouvrir</wa-button></header>

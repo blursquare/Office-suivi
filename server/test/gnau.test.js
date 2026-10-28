@@ -187,3 +187,39 @@ test('profession : catégorie de l’INSEE seulement quand un mot la dit sans am
   assert.equal(categorieInsee('Plombier'), '', 'artisan ou salarié : jamais deviné');
   assert.equal(ficheGnau(dossier(), 'dia', '2026-10-17').vendeur.categorie, 'Retraités');
 });
+
+test('dépôt sur le guichet (étude 27/10) : numéro reconnu gardé sur la fiche, DIA envoyée ; un numéro mal formé ou d’une autre procédure refusé', async () => {
+  const os = require('os');
+  const { ouvrirDb } = require('../src/db');
+  const { creerApp } = require('../src/app');
+  const { numeroDepotGnau } = require('../src/routes/gnau');
+  assert.equal(numeroDepotGnau('DIA 04101826 00012', 'dia'), 'DIA 041 018 26 00012');
+  assert.equal(numeroDepotGnau('CU 041018 26 A0012', 'dia'), '');
+  assert.equal(numeroDepotGnau('<script>', 'dia'), '');
+  const db = ouvrirDb(':memory:');
+  const { app, depot } = creerApp({ db, config: { racineRepo: os.tmpdir(), port: 0, authActive: false } });
+  depot.creer(dossier());
+  const serveur = app.listen(0);
+  await new Promise((r) => serveur.once('listening', r));
+  try {
+    const poster = (corps) => fetch(`http://127.0.0.1:${serveur.address().port}/api/gnau/depot`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+    assert.equal((await poster({ dossierId: 'v1', procedure: 'dia', numero: 'n’importe quoi' })).status, 400);
+    assert.equal((await poster({ dossierId: 'inconnu', procedure: 'dia', numero: 'DIA 041 018 26 00012' })).status, 404);
+    assert.equal((await poster({ dossierId: 'v1', procedure: 'dia', numero: 'DIA 041 018 26 00012' })).status, 200);
+    const d = depot.trouverParId('v1');
+    assert.equal(d.gnau.dia.numero, 'DIA 041 018 26 00012');
+    assert.match(d.gnau.dia.deposeLe, /^\d{4}-\d{2}-\d{2}$/);
+    assert.ok(d.historique.some((h) => /DIA déposée sur le guichet unique \(n° DIA 041 018 26 00012\)/.test(h.texte)));
+    assert.equal((await (await poster({ dossierId: 'v1', procedure: 'dia', numero: 'DIA 041 018 26 00012' })).json()).deja, true, 'jamais deux fois');
+    // Audit 0.380.0 : un autre numéro ne remplace jamais le premier ; plusieurs candidats → la commune du numéro départage, sinon rien.
+    assert.equal((await poster({ dossierId: 'v1', procedure: 'dia', numero: 'DIA 041 018 26 00013' })).status, 409);
+    depot.creer(Object.assign(dossier(), { id: 'v3', nom: 'TROIS', preemption: { insee: '41018' } }));
+    depot.creer(Object.assign(dossier(), { id: 'v4', nom: 'QUATRE', preemption: { insee: '41269' } }));
+    const r = await (await poster({ candidats: ['v3', 'v4'], procedure: 'dia', numero: 'DIA 041 018 26 00020' })).json();
+    assert.equal(r.dossierId, 'v3', 'la commune du numéro (41018) désigne le dossier');
+    depot.creer(Object.assign(dossier(), { id: 'v5', nom: 'CINQ' }));
+    depot.creer(Object.assign(dossier(), { id: 'v6', nom: 'SIX' }));
+    assert.equal((await poster({ candidats: ['v5', 'v6'], procedure: 'dia', numero: 'DIA 041 018 26 00021' })).status, 409, 'deux dossiers possibles : rien');
+    assert.equal((await poster({ candidats: ['v4'], procedure: 'dia', numero: 'DIA 041 018 26 00022' })).status, 409, 'autre commune : rien');
+  } finally { serveur.close(); db.close(); }
+});

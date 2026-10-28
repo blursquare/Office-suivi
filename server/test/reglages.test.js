@@ -239,8 +239,9 @@ test('POST /api/reglages/lancer-rappels : exécute un vrai tour et renvoie son c
 
 // Échéance à J-15 pile, calculée depuis aujourd'hui : un ISO figé rendrait le test caduc au bout
 // de quelques semaines (le rappel ne serait plus dû).
+// Le jour de PARIS (comme les rappels) : en UTC, le test échouait chaque nuit entre minuit et 1 h ou 2 h.
 function joursApres(n) {
-  const d = new Date();
+  const d = new Date(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' }) + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }

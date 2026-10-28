@@ -48,3 +48,24 @@ test('audit 0.376.0 : un texte de la fiche qui contient un mot de la liste se cl
   assert.equal(r.libelle, 'supprim', 'seul le mot interdit est gardé');
   assert.ok(!JSON.stringify(G.refusRecents()).includes('DUPONT'));
 });
+
+test('audit 0.378.0 : l’icône d’aperçu doit dire l’aperçu ; une corbeille ou une icône « delete_forever » jamais', () => {
+  assert.equal(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Aperçu', texte: 'Aperçu' }), '');
+  assert.equal(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'pi pi-image', texte: '' }), '');
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Supprimer l’aperçu pi pi-trash', texte: '' }), /interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'delete_forever', texte: '' }), /ne dit pas|interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'image delete_outline', texte: '' }), /interdit/);
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: '', texte: '' }), /ne dit pas/, 'sans libellé : pas de clic');
+  assert.match(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'Procuration / pouvoir', texte: '' }), /ne dit pas/, '« pouvoir » n’est pas « voir »');
+});
+
+test('suivis (étape 7) : le menu et ses entrées permis (« Actes à signer » compris) ; « Exporter » ou un bouton de plus refusés', () => {
+  assert.equal(G.motifRefus({ geste: 'suivi', vise: 'Suivis', bouton: 'Suivis', texte: 'Suivis' }), '');
+  assert.equal(G.motifRefus({ geste: 'suivi', vise: 'Actes à signer', bouton: 'Actes à signer', texte: 'Actes à signer' }), '');
+  assert.equal(G.motifRefus({ geste: 'suivi', vise: 'Suivi SAFER/DIA-DPU', bouton: 'Suivi SAFER/DIA-DPU', texte: 'Suivi SAFER/DIA-DPU' }), '');
+  assert.notEqual(G.motifRefus({ geste: 'suivi', vise: 'Exporter', bouton: 'Exporter', texte: 'Exporter' }), '');
+  assert.notEqual(G.motifRefus({ geste: 'suivi', vise: 'Actes signés', bouton: 'Actes signés', texte: 'Actes signés' }), '');
+  assert.notEqual(G.motifRefus({ geste: 'suivi', vise: 'Actes à signer', bouton: 'Actes à signer Exporter', texte: 'Actes à signer' }), '');
+  assert.throws(() => G.controlerClic({ geste: 'suivi', vise: 'Actes à signer', bouton: 'Actes à signer Supprimer', texte: 'x' }), /supprim/i);
+  for (const voisin of ['Actes signés', 'Statistique', '']) assert.notEqual(G.motifRefus({ geste: 'suivi', vise: 'Actes à signer', bouton: voisin, texte: voisin }), '', voisin || 'bouton vide');
+});

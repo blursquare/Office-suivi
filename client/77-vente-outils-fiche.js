@@ -197,6 +197,7 @@
     outils.push({ cle: 'prorata', libelle: 'Prorata', icone: 'part-disque', onclick: `ouvrirProrataDepuisFiche('${id}')`, titre: 'Prorata de taxe foncière : date de l’acte reprise de la fiche, avis de taxe foncière lu sur le NAS' });
     const acquereurs = (Array.isArray(d.parties) ? d.parties : []).filter(p => p && p.role === 'ACQUEREUR').length;
     if (acquereurs >= 2) outils.push({ cle: 'quotites', libelle: 'Quotités', icone: 'users', onclick: `ouvrirQuotitesDepuisFiche('${id}')`, titre: 'Quotités d’acquisition des acquéreurs' });
+    outils.push({ cle: 'resume', libelle: 'Résumé pour Sophie', icone: 'sparkle', onclick: `demanderResumeDossier('${id}')`, titre: 'CLAIRE résume le dossier : ce qui s’est passé, emails et appels avec le client, ce qui a bloqué, ce qui s’est bien passé' });
     outils.push({ cle: 'preemption', libelle: 'Contrôle de l’urbanisme', icone: 'shield', onclick: `ouvrirPreemptionDepuisFiche('${id}')`, titre: 'Droits de préemption, zonage, travaux' });
     return outils;
   }

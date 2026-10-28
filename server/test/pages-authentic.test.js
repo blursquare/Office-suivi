@@ -149,3 +149,44 @@ test('statuts : le badge du sous-dossier de chaque dossier lu sur sa page gardé
     assert.equal(r.statuts.v1.le, '2026-10-20');
   } finally { serveur.close(); }
 });
+
+// Étape 4 : l'aperçu d'une formalité ouvert sur la page est gardé à part et rangé dans l'instantané.
+test('aperçu : gardé à part (une ligne par formalité), survit à la page suivante sans tiroir', async () => {
+  const pages = creerPagesAuthentic(baseDossiers());
+  const tableau = [{ titre: 'Etat civil', entete: [], lignes: [['ECV Acte de naissance ESSAI Léa', '', '01/10/2026', '', 'Réponse positive']] }];
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: { titre: 'x', champs: [], tableaux: tableau, texte: '2 - VTE ESSAI\nComparants (0)', apercu: { titre: 'Acte de naissance ESSAI Léa', texte: 'Reçue le\n05/10/2026' } } });
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T10:00:00Z', capture: { titre: 'x', champs: [], tableaux: tableau, texte: '2 - VTE ESSAI\nComparants (0)' } });
+  assert.equal(pages.resume('v1').filter((p) => p.nature === 'apercu').length, 1);
+  const app = express();
+  app.use('/api', creerRouteurAuthentic({ pages, origine: () => 'local' }));
+  const serveur = await new Promise((ok) => { const s = app.listen(0, '127.0.0.1', () => ok(s)); });
+  try {
+    const r = await (await fetch(`http://127.0.0.1:${serveur.address().port}/api/authentic/dossier/v1/instantane`)).json();
+    assert.equal(r.instantane.sousDossier.formalitesPrealables[0].recuLe, '2026-10-05');
+  } finally { serveur.close(); }
+});
+
+test('aperçu : la capture normalisée le garde (titre, texte borné), une capture sans aperçu n’en a pas', () => {
+  const { normaliserCaptureAuthentic } = require('../src/routes/authentic');
+  const c = normaliserCaptureAuthentic({ champs: [{ libelle: 'a', valeur: 'b' }], apercu: { titre: 'Acte de naissance', texte: 'Reçue le 05/10/2026'.padEnd(9000, '.') } });
+  assert.equal(c.apercu.titre, 'Acte de naissance');
+  assert.equal(c.apercu.texte.length, 8000);
+  assert.equal(normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }] }).apercu, undefined);
+  assert.equal(normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }], apercu: { titre: 'x', texte: '  ' } }).apercu, undefined);
+});
+
+test('GED (étape 5) : la liste des pièces jointes gardée à part ; la capture ne garde que des identifiants sûrs', () => {
+  const { normaliserCaptureAuthentic } = require('../src/routes/authentic');
+  const c = normaliserCaptureAuthentic({ champs: [{ libelle: 'a' }], pieces: [{ pjId: 'pj11', nom: 'Titre.pdf', dossier: 'Non classé' }, { pjId: "x');alert(1)//", nom: 'piège' }] });
+  assert.equal(c.pieces.length, 1);
+  const pages = creerPagesAuthentic(baseDossiers());
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:00:00Z', capture: Object.assign({ titre: 'x', tableaux: [], texte: '2 - VTE ESSAI' }, c) });
+  assert.equal(pages.resume('v1').filter((p) => p.nature === 'ged').length, 1);
+  // La vue « Pièces jointes » sans tableau de formalités ne remplace jamais la page du dossier (audit 0.381.0).
+  assert.equal(pages.resume('v1').filter((p) => p.cle === 'dossier').length, 0);
+  const formalites = { titre: 'Formalités préalables', entete: ['Intitulé', 'Date', 'Etat'], lignes: [['ECV État-Civil', '01/10/2026', 'Réponse positive']] };
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:01:00Z', capture: { titre: 'x', tableaux: [formalites], texte: '2 - VTE ESSAI' } });
+  pages.garder('v1', { nature: 'dossier', cle: 'dossier', recueLe: '2026-10-27T09:02:00Z', capture: Object.assign({ titre: 'x', tableaux: [], texte: '2 - VTE ESSAI' }, c) });
+  const dossier = pages.pages('v1').find((p) => p.cle === 'dossier');
+  assert.equal(dossier.capture.tableaux.length, 1);
+});

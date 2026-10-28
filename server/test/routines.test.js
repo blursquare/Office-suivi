@@ -379,3 +379,42 @@ test('propositions : « déjà fait » ferme sans exécuter, « plus tard » mas
   assert.equal(liste[0].etat, 'faite');
   assert.equal(P.decider(liste, 'a', 'refusee', 'Julie VASSELIN').liste[0].etat, 'faite', 'définitif');
 });
+
+// Étude 27/10 : « quand une routine est faite, comment indiquer que c'est terminé ? la constitution est terminée mais Claire ne le sait pas ».
+test('terminée : une proposition autorisée se termine (🏁), une encore à décider passe « faite » ; la constitution faite n’est plus proposée', () => {
+  const P = require('../src/routines/propositions');
+  const E = require('../src/canaux/etatCartes');
+  const X = require('../src/routines/executants');
+  const base = { routine: 'constitution', dossierId: 'd1', type: 'document', titre: 'Constitution', resume: '', creeLe: '2026-10-27T08:00:00Z' };
+  let liste = [P.assainirProposition(Object.assign({ id: 'p1', etat: 'acceptee', traitePar: 'Bastien ANGLUMENT' }, base)), P.assainirProposition(Object.assign({ id: 'p2', etat: 'proposee' }, base, { dossierId: 'd2' }))];
+  const r = P.terminerParDossier(liste, 'd1', 'constitution', 'Julie VASSELIN', new Date('2026-10-27T18:00:00Z'));
+  assert.equal(r.touchees.length, 1);
+  assert.equal(r.liste[0].etat, 'acceptee');
+  assert.equal(r.liste[0].termineePar, 'Julie VASSELIN');
+  assert.equal(E.emojiEtatCarte(r.liste[0], Date.now()), '🏁');
+  assert.equal(P.terminerParDossier(r.liste, 'd1', 'constitution', 'Julie VASSELIN').touchees.length, 0, 'jamais deux fois');
+  const ouverte = P.decider(r.liste, 'p2', 'terminee', 'Bastien ANGLUMENT');
+  assert.equal(ouverte.proposition.etat, 'faite');
+  assert.ok(ouverte.proposition.termineeLe);
+  liste = [P.assainirProposition(Object.assign({ id: 'p3', etat: 'refusee' }, base))];
+  assert.equal(P.decider(liste, 'p3', 'terminee', 'Bastien ANGLUMENT').proposition.termineeLe, '', 'une refusée ne se termine pas');
+  const dossier = { id: 'd9', nom: 'ESSAI', typeAffaire: 'succession', parties: [], historique: [{ date: '2026-10-26T09:00:00Z', texte: 'Dossier créé' }], constitutionFaiteLe: '2026-10-27' };
+  assert.equal(X.constitutionDossier([dossier], '2026-10-27', { niveau: () => 1 }).length, 0, 'constitution déjà faite : rien à proposer');
+});
+
+test('« À traiter » (étude 27/10) : une proposition autorisée (document, tâche) reste à traiter jusqu’à « Terminé » ; une alerte lue en sort', () => {
+  const maintenant = new Date('2026-10-28T09:00:00Z');
+  const liste = [
+    { id: 'a', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'document', traiteLe: '2026-10-28T08:00:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'b', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'document', traiteLe: '2026-10-28T08:00:00Z', termineeLe: '2026-10-28T08:30:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'c', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'email', traiteLe: '2026-10-28T08:00:00Z', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'd', responsable: 'Julie VASSELIN', etat: 'vue', type: 'tache', creeLe: '2026-10-27T08:00:00Z' },
+    { id: 'e', responsable: 'Julie VASSELIN', etat: 'acceptee', type: 'tache', traiteLe: '2026-10-26T08:00:00Z', creeLe: '2026-10-25T08:00:00Z' },
+    { id: 'f', responsable: 'Julie VASSELIN', etat: 'vue', type: 'alerte', creeLe: '2026-10-27T08:00:00Z' }];
+  assert.equal(P.compterATraiter(liste, 'Julie VASSELIN', false, maintenant), 2, 'la vue et l’autorisée récente non terminée');
+  assert.deepEqual(P.listerPropositions(liste, { responsable: 'Julie VASSELIN', etats: ['proposee', 'vue'], enCours: true, maintenant }).map((p) => p.id).sort(), ['a', 'd']);
+  assert.equal(P.enCoursProposition(liste[2], maintenant), false, 'un email autorisé est parti par sa fenêtre : rien à terminer');
+  assert.equal(P.enCoursProposition(liste[4], maintenant), false, 'autorisée avant le bouton « Terminé » : ne revient pas');
+  assert.equal(P.enCoursProposition(liste[0], new Date('2026-11-06T09:00:00Z')), false, 'plus de 7 jours : sortie');
+  assert.equal(P.aDeciderProposition(liste[5]), false, 'une alerte vue est lue');
+});

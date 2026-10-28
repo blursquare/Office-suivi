@@ -10268,7 +10268,8 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .pc-puce-exemple { border-style: dashed; color: var(--muted); }
 .pc-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .pc-etat { margin: 6px 0 0; font-size: var(--texte-xs); color: var(--muted); }
-.pc-etat-acceptee { color: var(--success); }
+.pc-etat-acceptee, .pc-etat-terminee { color: var(--success); }
+.pc-actions > .pc-etat { margin: 0; }
 .pc-traitee { box-shadow: none; }
 .pc-traitee .pc-rail { opacity: 0.5; }
 /* Le bandeau « CLAIRE a préparé » en tête du Tableau de la fiche du dossier. */
@@ -11410,3 +11411,37 @@ p.pf-tr-erreur { margin: 2px 0 0 96px; font-size: var(--texte-s); }
 .at-libelle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .at-statut { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 .at-date { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.at-apercu { grid-column: 2 / -1; font-size: var(--texte-xs); color: var(--muted); }
+/* État hypothécaire relu (0.384.0) : les inscriptions en cours en rouge, comme la rubrique Charge de l'état-réponse. */
+.eh-alerte { margin: 0 0 4px; font-size: var(--texte-s); font-weight: 600; color: var(--urgent); }
+.eh-ok { margin: 0; font-size: var(--texte-s); color: var(--success); }
+.eh-ligne { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-s); padding-left: 8px; border-left: 2px solid var(--line); }
+.eh-ligne.eh-en-cours { border-left-color: var(--urgent); }
+.eh-ligne.eh-en-cours .eh-nature { color: var(--urgent); font-weight: 600; }
+.eh-ligne.eh-complement { border-left-color: var(--urgent); border-left-style: dashed; }
+.eh-detail { font-size: var(--texte-xs); color: var(--muted); }
+.eh-autres summary { cursor: pointer; font-size: var(--texte-xs); color: var(--muted); }
+.eh-note { margin: 4px 0 0; font-size: var(--texte-xs); color: var(--muted); }
+.at-ligne-suivi { grid-template-columns: 96px minmax(0, 1fr) auto auto; }
+/* Widget « Suivis d'Authentic » (étape 7) : quatre compteurs, puis les lignes en attente. */
+.sa-tuiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.sa-tuile { display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: var(--rayon-m); background: var(--paper-sunk); min-width: 0; }
+.sa-nombre { font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.sa-libelle { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-liste { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; min-height: 0; overflow-y: auto; }
+.sa-vide { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }
+.sa-ligne { display: grid; grid-template-columns: 88px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 6px; border: 0; border-radius: var(--rayon-s); background: none; color: inherit; font: inherit; font-size: var(--texte-s); text-align: left; }
+button.sa-ligne { cursor: pointer; }
+button.sa-ligne:hover { background: var(--paper-sunk); }
+.sa-ligne > * { min-width: 0; }
+.sa-ecran { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-texte b { font-weight: 500; }
+.sa-dossier, .sa-date { color: var(--muted); }
+.sa-date { font-size: var(--texte-xs); white-space: nowrap; }
+.at-ged-dossier { list-style: none; margin-top: 6px; font-size: var(--texte-xs); color: var(--muted); }
+.at-ged-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: var(--texte-s); }
+.at-ged-ligne > .at-libelle { flex: 1 1 160px; min-width: 0; }
+.at-ged-piece { font-size: var(--texte-xs); color: var(--success); }
+.at-ged-piece.at-ged-manque { color: var(--pret); }
+.at-ged-nas { font-size: var(--texte-xs); color: var(--muted); }

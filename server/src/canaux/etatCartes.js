@@ -8,12 +8,14 @@ const { lirePropositions } = require('../routines/propositions');
 const { lireMessages, reagirMessage, canalDuDossier } = require('./canaux');
 
 const CLE_ETAT_CARTES = 'canaux-cartes-etat';
-const ETATS_EMOJIS = ['⏳', '✅', '❌', '☑️', '💤'];
+const ETATS_EMOJIS = ['⏳', '✅', '🏁', '❌', '☑️', '💤'];
 const ATTENTE_MS = 24 * 3600 * 1000;
 
 /** Pur : l'emoji d'état d'une proposition ('' = aucun). @param {any} p @param {number} maintenant */
 function emojiEtatCarte(p, maintenant) {
   if (!p) return '';
+  // Terminée (le travail autorisé est fait) : 🏁, à la place du ✅ d'« autorisée ».
+  if (p.termineeLe) return '🏁';
   if (p.etat === 'acceptee') return '✅';
   if (p.etat === 'refusee') return '❌';
   if (p.etat === 'faite') return '☑️';

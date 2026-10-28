@@ -10,6 +10,7 @@
 // Rien ne quitte le bureau ; rien n'est journalisé (les pages nomment des clients).
 
 const crypto = require('node:crypto');
+const AT = require('../../commun/authentic-modele');
 
 const MAX_PAGES_PAR_DOSSIER = 40;
 // Une page gardée au plus (relecture du 17/10 : la base et sa sauvegarde quotidienne grossissaient sans limite).
@@ -90,7 +91,8 @@ function creerPagesAuthentic(db, options = {}) {
   const compter = db.prepare('SELECT cle FROM authentic_pages WHERE dossier_id = ? ORDER BY recue_le DESC');
   const retirer = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ? AND cle = ?');
   const retirerDossier = db.prepare('DELETE FROM authentic_pages WHERE dossier_id = ?');
-  const pagesDossierTous = db.prepare("SELECT dossier_id, recue_le, capture FROM authentic_pages WHERE nature = 'dossier'");
+  // La page du dossier (clé « dossier ») des dossiers en cours seulement (audit 0.377.0).
+  const pagesDossierTous = db.prepare("SELECT dossier_id, recue_le, capture FROM authentic_pages WHERE cle = 'dossier' AND dossier_id IN (SELECT id FROM dossiers WHERE archive = 0 AND deleted_at IS NULL)");
   return {
     /** Garde la page pour ce dossier (la plus récente de chaque clé ; les plus anciennes au-delà de 40 sont retirées). */
     garder(dossierId, releve) {
@@ -104,7 +106,21 @@ function creerPagesAuthentic(db, options = {}) {
       const nature = chaine(releve.nature, 20) || 'dossier';
       // La clé donnée par le poste (qui lit la page : « client:léa exemple »), sinon celle tirée ici des champs.
       const cle = /^(dossier|client:|bien:)/.test(clePoste) ? clePoste : clePageAuthentic(nature, capture);
-      ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
+      // La vue « Pièces jointes » (GED, étape 5) remplace les tableaux de formalités : elle ne prend jamais la place de la page du dossier
+      // (audit 0.381.0 : le panneau du sous-dossier se vidait), seule sa liste est gardée, sous « ged ».
+      const vueGed = cle === 'dossier' && Array.isArray(capture.pieces) && capture.pieces.length > 0 && !AT.lignesFormalitesAT(capture).length;
+      if (!vueGed) ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
+      // La liste des pièces jointes (GED, étape 5) : gardée à part, la dernière vue.
+      if (Array.isArray(capture.pieces) && capture.pieces.length) {
+        ecrire.run(id, 'ged', 'ged', '', chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ pieces: capture.pieces.slice(0, 300) }));
+      }
+      // L'aperçu d'une formalité ouvert sur la page (étape 4 du plan Authen.TIC) : gardé à part, une ligne par formalité, pour survivre aux
+      // pages suivantes du dossier relevées sans tiroir ouvert.
+      const ap = capture.apercu;
+      if (ap && typeof ap === 'object' && String(ap.texte || '').trim()) {
+        const cleAp = 'apercu:' + crypto.createHash('sha1').update(chaine(ap.titre, 200) || String(ap.texte).slice(0, 200)).digest('hex').slice(0, 16);
+        ecrire.run(id, cleAp, 'apercu', chaine(ap.titre, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ apercu: { titre: chaine(ap.titre, 200), texte: String(ap.texte).slice(0, 8000) } }));
+      }
       const cles = compter.all(id).map((/** @type {any} */ l) => l.cle);
       for (const c of cles.slice(MAX_PAGES_PAR_DOSSIER)) retirer.run(id, c);
       return true;

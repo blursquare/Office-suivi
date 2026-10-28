@@ -132,5 +132,10 @@
   "130-pastille-application.js",
   "131-authentic-claire.js",
   "132-artefacts-agent.js",
-  "133-authentic-sous-dossier.js"
+  "133-authentic-sous-dossier.js",
+  "134-suivis-authentic.js",
+  "135-authentic-lire-agent.js",
+  "136-etat-hypothecaire.js",
+  "137-agent-gestes-etude.js",
+  "138-agent-coordonnees-bilan.js"
 ]

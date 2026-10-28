@@ -229,7 +229,7 @@ function gestes(s, etape, o = {}) {
    * Clique un texte visible. Chaque clic dit son GESTE (authentic/garde.js) : connexion, navigation, donnee (un texte de la fiche : nom du
    * dossier, d'une personne, d'un bien) ou ecriture ; la garde refuse un geste inconnu, une écriture non permise, un libellé hors de la liste
    * du geste et tout bouton interdit sous le pointeur.
-   * @param {string} texte @param {{ exact?: boolean, geste: 'connexion' | 'navigation' | 'donnee' | 'ecriture' }} c
+   * @param {string} texte @param {{ exact?: boolean, geste: 'connexion' | 'navigation' | 'donnee' | 'suivi' | 'ecriture' }} c
    */
   async function cliquerTexte(texte, c) {
     const el = await ev(scriptTrouverTexte(texte, !!(c && c.exact)));
@@ -390,6 +390,177 @@ async function ouvrirSousDossierVente(s, cible, etape) {
   return estCeDossier(await g.texte(), cible);
 }
 
+// Aperçus des formalités (plan Authen.TIC, étape 4 ; cartographie du 27/10 : « s'ouvre par l'icône image qui apparaît au survol d'une ligne
+// de formalité, et non par le clic sur le titre, qui peut bloquer le chargement »). Les lignes : un élément visible dont le texte commence par
+// un badge (APR, ECV, T@, ACT, MIC…), le plus intérieur ; chacune reçoit un repère `data-claire-ligne`.
+const SCRIPT_LIGNES_FORMALITES = `(() => {
+  const re = /^(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)(?=\\s|$)/;
+  const vus = [];
+  document.querySelectorAll('tr, li, [class*="formalite"], [class*="ui-datalist-item"]').forEach((e) => {
+    if (!e.offsetWidth || !e.offsetHeight || e.closest('[id*="previewFormalite"], [id*="sideView"]')) return;
+    const t = String(e.innerText || '').trim();
+    if (!re.test(t) || t.length > 400) return;
+    if ([...e.querySelectorAll('tr, li')].some((x) => re.test(String(x.innerText || '').trim()))) return;
+    vus.push(e);
+  });
+  vus.slice(0, 15).forEach((e, i) => e.setAttribute('data-claire-ligne', String(i)));
+  return Math.min(vus.length, 15);
+})()`;
+/** La ligne i amenée à l'écran ; sa position APRÈS le défilement (audit 0.378.0) : { x, y } ou null. @param {number} i */
+const scriptPlacerLigne = (i) => `(() => {
+  const l = document.querySelector('[data-claire-ligne="${Number(i)}"]');
+  if (!l) return null;
+  l.scrollIntoView({ block: 'center' });
+  const r = l.getBoundingClientRect();
+  return { x: Math.round(r.left + Math.min(r.width / 2, 200)), y: Math.round(r.top + r.height / 2) };
+})()`;
+/**
+ * L'icône d'aperçu de la ligne i, visible après le survol : jamais un élément qui porte le texte de la ligne (son titre), toujours une icône
+ * dont le libellé dit l'aperçu. Le libellé rendu est celui de ce qui est RÉELLEMENT sous le pointeur (titre, aria-label, alt, classe de
+ * l'élément et de son bouton, « supprimer » s'il porte une corbeille) — audit 0.378.0. { x, y, bouton } ou null. @param {number} i
+ */
+const scriptIconeApercu = (i) => `(() => {
+  const l = document.querySelector('[data-claire-ligne="${Number(i)}"]');
+  if (!l) return null;
+  const libelle = (x) => [x.getAttribute('title'), x.getAttribute('aria-label'), x.getAttribute('alt'), typeof x.className === 'string' ? x.className : '', x.innerText].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+  const dit = /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i;
+  const e = [...l.querySelectorAll('button, a, [role=button], i, span, img')]
+    // Jamais une corbeille, même si son titre dit « aperçu » (« Supprimer l'aperçu ») : elle et ce qui la contient sont écartés d'avance ; la
+    // garde contrôle encore ce qui est sous le pointeur.
+    .filter((x) => !/supprim|corbeille|trash|delete|poubelle/i.test(libelle(x) + ' ' + [...x.querySelectorAll('*')].map(libelle).join(' ')))
+    .find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden' && String(x.innerText || '').trim().length <= 3 && dit.test(libelle(x)));
+  if (!e) return null;
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const dessous = document.elementFromPoint(x, y);
+  if (!dessous || !(e.contains(dessous) || dessous.contains(e))) return null;
+  const b = dessous.closest('button, a, [role=button]') || dessous;
+  const corbeille = (b.matches('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') || b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]')) ? ' supprimer' : '';
+  const bouton = (libelle(dessous) + ' ' + (b !== dessous ? libelle(b) : '') + corbeille).replace(/\\s+/g, ' ').trim().slice(0, 160);
+  return bouton ? { x, y, bouton } : null;
+})()`;
+const SELECTEUR_TIROIR = '[id*="previewFormalite"], [id*="sideView"]';
+const SCRIPT_TIROIR_OUVERT = `!![...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length)`;
+// « Fermer » cherché DANS le tiroir seulement, vérifié sous le pointeur : { x, y, texte } ou null.
+const SCRIPT_FERMER_TIROIR = `(() => {
+  const t = [...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length);
+  if (!t) return null;
+  const f = [...t.querySelectorAll('button, a, [role=button]')].find((x) => /^fermer$/i.test(String(x.innerText || x.getAttribute('title') || x.getAttribute('aria-label') || '').trim()));
+  if (!f) return null;
+  const r = f.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  return d && (f.contains(d) || d.contains(f)) ? { x, y, texte: String(f.innerText || f.getAttribute('title') || f.getAttribute('aria-label') || '').trim() } : null;
+})()`;
+
+/**
+ * Ouvre l'aperçu de chaque formalité du sous-dossier affiché (15 au plus), relève la page tiroir ouvert, puis le referme (Échap, sinon
+ * « Fermer » du tiroir). Un tiroir qui ne se referme pas arrête tout (jamais un clic à l'aveugle sous lui). Rien n'est cliqué dans le tiroir
+ * que « Fermer ». Rend le nombre d'aperçus relevés.
+ * @param {any} s @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o
+ */
+async function lireApercusFormalites(s, o) {
+  const g = gestes(s, o.etape);
+  const nb = Number(await g.ev(SCRIPT_LIGNES_FORMALITES)) || 0;
+  let n = 0;
+  for (let i = 0; i < nb; i++) {
+    if (await g.ev(SCRIPT_TIROIR_OUVERT)) break;
+    try {
+      const pos = await g.ev(scriptPlacerLigne(i));
+      if (!pos) continue;
+      await g.cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pos.x, y: pos.y });
+      await attendre(400);
+      const ic = await g.ev(scriptIconeApercu(i));
+      if (!ic) continue;
+      controlerClic({ geste: 'apercu', vise: '', bouton: ic.bouton, texte: ic.bouton });
+      await s.cliquerPosition(ic.x, ic.y);
+      await s.attendreStable(8000);
+      if (!(await g.ev(SCRIPT_TIROIR_OUVERT))) continue;
+      if (n === 0) o.etape('Relève les aperçus des formalités');
+      await releverPage(s, o.script, o.recevoir);
+      n++;
+      await g.echap();
+      await attendre(400);
+      if (await g.ev(SCRIPT_TIROIR_OUVERT)) {
+        const f = await g.ev(SCRIPT_FERMER_TIROIR);
+        if (f) { controlerClic({ geste: 'navigation', vise: f.texte, bouton: f.texte, texte: f.texte }); await s.cliquerPosition(f.x, f.y); await attendre(400); }
+      }
+    } catch (e) {
+      // Un refus de la garde ou une ligne qui ne s'ouvre pas : la ligne suivante, sans s'arrêter.
+      if (e && e.refusGarde) o.etape('Passe un aperçu (refusé par CLAIRE)');
+    }
+  }
+  if (await g.ev(SCRIPT_TIROIR_OUVERT)) o.etape('Un aperçu ne s’est pas refermé : lecture des aperçus arrêtée');
+  return n;
+}
+
+// Pièces jointes du sous-dossier (GED, étape 5) : l'onglet « Pièces jointes » ouvert, la liste relevée (nom, identifiant, dossier de l'arbre).
+/** @param {any} s @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o */
+async function lirePiecesJointes(s, o) {
+  const g = gestes(s, o.etape);
+  if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) return false;
+  await s.attendreStable(10000);
+  o.etape('Relève la liste des pièces jointes');
+  await releverPage(s, o.script, o.recevoir);
+  return true;
+}
+
+/** La position du fichier `pjId` dans l'arbre de la GED, vérifiée sous le pointeur : { x, y, nom, bouton } ou null. @param {string} pjId */
+const scriptPositionPiece = (pjId) => `(() => {
+  const id = ${JSON.stringify(String(pjId))};
+  const e = [...document.querySelectorAll('[onclick*="selectTreeNode"]')].find((x) => new RegExp("selectTreeNode\\\\(\\\\s*[^,]*,\\\\s*'?" + id + "'?[\\\\s,)]").test(x.getAttribute('onclick') || ''));
+  if (!e) return null;
+  e.scrollIntoView({ block: 'center' });
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(e.contains(d) || d.contains(e))) return null;
+  // Le bouton sous le pointeur, lu comme dans scriptTrouverTexte (audit 0.381.0) : texte, title, aria-label, corbeille = « supprimer ».
+  const b = d.closest('button, a, [role=button], .ui-button') || d;
+  const corbeille = !!(b.querySelector && b.querySelector('[class*=trash], [class*=delete], [class*=corbeille]')) || /trash|delete|corbeille/i.test(String(d.className || ''));
+  const bouton = [b.innerText, b.getAttribute('title'), b.getAttribute('aria-label'), corbeille ? 'supprimer' : ''].filter(Boolean).join(' ');
+  return { x, y, nom: String(e.textContent || '').trim().slice(0, 200), bouton: String(bouton).trim().slice(0, 160) };
+})()`;
+// L'adresse du PDF affiché par la visionneuse de la GED (`dynamiccontent` de PrimeFaces), du MÊME site seulement.
+const SCRIPT_SOURCE_PDF = `(() => { const u = [...document.querySelectorAll('iframe, embed, object')].map((x) => x.src || x.data || '').find((v) => /dynamiccontent/i.test(v));
+  if (!u) return ''; try { const a = new URL(u, location.href); return a.origin === location.origin ? a.href : ''; } catch (e) { return ''; } })()`;
+/** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 20 Mo ou n'est pas un PDF. @param {string} url */
+const scriptLirePdf = (url) => `fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => {
+  if (!b || b.byteLength > 20 * 1024 * 1024) return null;
+  const u = new Uint8Array(b);
+  if (String.fromCharCode(u[0], u[1], u[2], u[3]) !== '%PDF') return null;
+  let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
+  return btoa(s);
+})`;
+
+/**
+ * Le PDF d'une pièce jointe, à la demande (étape 5 : « PDF affiché à la demande ») : le dossier, son sous-dossier de vente, l'onglet
+ * « Pièces jointes », un clic sur le NOM du fichier (jamais un bouton de la barre d'actions), puis le PDF que la visionneuse affiche,
+ * lu dans la page. Gardé quelques minutes dans la mémoire du serveur, le temps que le poste le reçoive et l'affiche.
+ * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {string} pjId @param {{ etape: (t: string) => void }} o
+ */
+async function lirePiecePdf(s, cible, pjId, o) {
+  if (!/^[\w-]{1,40}$/.test(String(pjId || ''))) throw new Error('pièce inconnue');
+  const g = gestes(s, o.etape);
+  await ouvrirDossier(s, cible, o.etape);
+  await ouvrirSousDossierVente(s, cible, o.etape);
+  if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est pas le bon : rien lu');
+  if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) throw new Error('onglet « Pièces jointes » introuvable');
+  await s.attendreStable(10000);
+  const pos = await g.ev(scriptPositionPiece(pjId));
+  if (!pos) throw new Error('pièce introuvable dans la liste d’Authentic');
+  controlerClic({ geste: 'donnee', vise: pos.nom, bouton: pos.bouton, texte: pos.nom });
+  o.etape('Ouvre la pièce');
+  await s.cliquerPosition(pos.x, pos.y);
+  await s.attendreStable(10000);
+  let url = '';
+  for (let i = 0; i < 20 && !url; i++) { url = String(await g.ev(SCRIPT_SOURCE_PDF) || ''); if (!url) await attendre(500); }
+  if (!url) throw new Error('la visionneuse d’Authentic n’a pas affiché de PDF');
+  const b64 = await g.ev(scriptLirePdf(url));
+  if (!b64) throw new Error('PDF illisible ou de plus de 20 Mo');
+  return { nom: pos.nom, pdf: Buffer.from(String(b64), 'base64') };
+}
+
 /** Relève la page affichée (le relevé de l'extension) et la confie à la file des relevés. @param {any} s @param {string} script @param {(c: any) => any} recevoir */
 async function releverPage(s, script, recevoir) {
   const capture = await s.evaluer(`(() => { ${script}\n; return window.__claireRelever(); })()`);
@@ -425,6 +596,12 @@ async function lireDossier(s, cible, o) {
   o.etape('Relève la page du dossier');
   await releverPage(s, o.script, o.recevoir);
   let pages = 1;
+  let apercus = 0;
+  // Les aperçus des formalités (étape 4) : sans jamais bloquer la lecture du reste.
+  try { apercus = await lireApercusFormalites(s, o); pages += apercus; } catch (e) { o.etape('Aperçus des formalités non lus'); }
+  // La page du dossier relevée de nouveau, tiroirs refermés : c'est elle que le magasin garde (audit 0.378.0).
+  if (apercus && !(await g.ev(SCRIPT_TIROIR_OUVERT)) && estCeDossier(await g.texte(), cible)) await releverPage(s, o.script, o.recevoir);
+  if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
   const { comparants, immeubles } = liensFichesDuTexte(await g.texte());
   for (const [i, nom] of [...comparants, ...immeubles].entries()) {
     const fiche = i < comparants.length ? `la fiche client ${i + 1}` : `la fiche bien ${i - comparants.length + 1}`;
@@ -440,7 +617,40 @@ async function lireDossier(s, cible, o) {
       if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     } catch (e) { o.etape(`Passe ${fiche} (${String(e && e.message).slice(0, 60)})`); }
   }
-  return { pages };
+  // La liste des pièces jointes (étape 5), sur la page du dossier : sans jamais bloquer le reste.
+  try {
+    if (!estCeDossier(await g.texte(), cible)) { await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
+    if (estCeDossier(await g.texte(), cible) && await lirePiecesJointes(s, o)) pages++;
+  } catch (e) { o.etape('Pièces jointes non lues'); }
+  return { pages, apercus };
+}
+
+/**
+ * Les écrans de suivi d'Authentic (étape 7 : actes à signer, SAFER/DIA, état civil, MICEN) : chaque écran ouvert par son menu, son tableau
+ * relevé tel qu'affiché (jamais « Exporter », jamais un bouton de la page), rien envoyé à la file des relevés. Un écran introuvable est passé.
+ * Rend { ecran: capture } ; la mise en forme est celle de commun/authentic-modele.js (`suiviDepuisCaptureAT`).
+ * @param {any} s @param {{ script: string, etape: (t: string) => void }} o
+ */
+async function lireSuivis(s, o) {
+  const AT = require('../../commun/authentic-modele');
+  const g = gestes(s, o.etape);
+  /** @type {Record<string, any>} */
+  const captures = {};
+  for (const e of AT.ECRANS_SUIVIS_AT) {
+    try {
+      o.etape(`Ouvre ${e.titre}`);
+      if (!(await g.cliquerTexte(e.menu, { exact: true, geste: 'suivi' }))) { o.etape(`Menu « ${e.menu} » introuvable`); continue; }
+      await s.attendreStable(5000);
+      if (!(await g.cliquerTexte(e.entree, { exact: true, geste: 'suivi' }))) { o.etape(`« ${e.entree} » introuvable`); continue; }
+      await s.attendreStable(15000);
+      const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
+      if (capture) captures[e.cle] = capture;
+    } catch (err) {
+      if (err && err.annule) throw err;
+      o.etape(`Passe ${e.titre} (${String(err && err.message).slice(0, 60)})`);
+    }
+  }
+  return captures;
 }
 
 /**
@@ -527,6 +737,6 @@ async function preparerFormalite(s, cible, o) {
 module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium,
-  referenceEnTete, estCeDossier, seConnecter, lireDossier, preparerFormalite
+  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
+  referenceEnTete, estCeDossier, seConnecter, lireDossier, lireSuivis, preparerFormalite
 };

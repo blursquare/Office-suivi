@@ -16,7 +16,11 @@ const { SessionNavigation } = require(path.join(racine, 'server/src/navigateur/s
 const { trouverNavigateur } = require(path.join(racine, 'server/src/navigateur/chrome.js'));
 
 const page = readFileSync(path.join(racine, 'tests/fumee/faux-authentic.html'));
-const serveur = createServer((req, res) => { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page); });
+// La visionneuse de la GED (`dynamiccontent`) rend un PDF ; tout le reste, la page.
+const serveur = createServer((req, res) => {
+  if (/dynamiccontent/.test(req.url || '')) { res.writeHead(200, { 'Content-Type': 'application/pdf' }); res.end('%PDF-1.4 piece jointe essai'); return; }
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(page);
+});
 await new Promise((ok) => serveur.listen(0, '127.0.0.1', ok));
 const adresse = `http://127.0.0.1:${serveur.address().port}/`;
 
@@ -37,8 +41,23 @@ try {
   const captures = [];
   const script = await A.scriptReleve({ racineRepo: racine });
   const r = await A.lireDossier(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, recevoir: (c) => { captures.push(c); return { ok: true }; }, etape });
-  verifier(r.pages === 4 && captures.length === 4, `lecture : page du dossier + 3 fiches relevées (${captures.length})`);
+  verifier(captures.some((c) => (c.pieces || []).some((p) => p.pjId === 'pj11' && p.dossier === 'Non classé')), 'la liste des pièces jointes est relevée (identifiant, dossier de l’arbre)');
+  const piece = await A.lirePiecePdf(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, 'pj11', { etape });
+  verifier(piece.pdf.toString().startsWith('%PDF') && /Titre de propriété/.test(piece.nom), 'le PDF d’une pièce jointe est lu à la demande');
+  verifier(r.pages === 6 && captures.length === 7, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
+  const avecApercu = captures.find((c) => c.apercu);
+  verifier(!!avecApercu && /Reçue le/.test(avecApercu.apercu.texte) && /MARTIN Paul/.test(avecApercu.apercu.titre), 'l’aperçu de la formalité est relevé (tiroir ouvert au survol, titre et dates)');
+  verifier(!(await s.evaluer('window.__interdit')), 'la corbeille de la ligne (« Supprimer l’aperçu ») n’est jamais cliquée');
+  verifier(await s.evaluer('window.__apercus') === 1 && await s.evaluer("document.getElementById('sideView').style.display") === 'none', 'aperçu ouvert une fois puis refermé');
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
+
+  // Étape 7 : les quatre écrans de suivi, par leurs menus ; « Exporter » jamais cliqué.
+  const AT = require(path.join(racine, 'commun/authentic-modele.js'));
+  const suivis = await A.lireSuivis(s, { script, etape });
+  verifier(JSON.stringify(Object.keys(suivis).sort()) === JSON.stringify(['actesASigner', 'etatCivil', 'micen', 'safer']), `les quatre écrans de suivi sont relevés (${Object.keys(suivis).join(', ')})`);
+  const safer = AT.suiviDepuisCaptureAT('safer', suivis.safer, '2026-10-27T10:00:00Z');
+  verifier(safer.lignes.length === 2 && safer.lignes[0].reference === 'A 2026 00500' && safer.lignes[0].enAttente && !safer.lignes[1].enAttente, 'SAFER : références lues, « Non préemption » sortie de l’attente');
+  verifier(!(await s.evaluer('window.__interdit')), '« Exporter » et les autres entrées du menu ne sont jamais cliqués');
 
   await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true });
   verifier(!(await s.evaluer('window.__mauvais')), 'l’homonyme des résultats (autre référence) n’est jamais pris');

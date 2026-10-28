@@ -436,7 +436,7 @@ test('vente : agenda et outils reliés à la fiche (placer le rendez-vous, provi
   assert.equal(app.rdvAgendaVente(Object.assign({}, v, { rendezVousSignature: '2026-11-20' }), '2026-10-15'), null);
   assert.equal(app.rdvAgendaVente(Object.assign({}, v, { roleNotaire: 'participant' }), '2026-10-15'), null);
   assert.deepEqual(Object.values(app.saisieProvisionDossier(v)).join('|'), '245000|5000|condo|41');
-  assert.equal(app.outilsVenteFiche(v).map(o => o.cle).join(','), 'agenda,appel-fonds,calculateur,prorata,quotites,preemption');
+  assert.equal(app.outilsVenteFiche(v).map(o => o.cle).join(','), 'agenda,appel-fonds,calculateur,prorata,quotites,resume,preemption');
   const place = app.outilsVenteFiche(Object.assign({}, v, { rendezVousSignature: '2026-11-20', parties: v.parties.slice(0, 2) }));
   assert.equal(place[0].libelle, 'Voir dans l’agenda');
   assert.ok(!place.some(o => o.cle === 'quotites'), 'un seul acquéreur : pas de quotités');

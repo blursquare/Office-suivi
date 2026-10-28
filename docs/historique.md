@@ -22723,3 +22723,167 @@ ligne (repris des anciens objets Teams) retiré, l'emoji gardé. Appliqué au te
   `pagesDossierDeTous`, 60 s en mémoire) → signal « Sans suite dans Authentic : à archiver ? » dans « Nouveau » du Suivi
   (`signauxDossierSuivi`), jamais d'archivage d'office. La rédaction, les pièces (ECV « positif », RHF, SAFER) restent alimentées par la
   lecture du poste d'avant (client/30) ; le modèle les montre. Non vérifié sur une vraie page d'Authentic.
+- **0.377.1** — Suites de l'audit 0.377.0 (`docs/audits/2026-10-27-0.377.0.md`) : « Sans suite » vu à l'ouverture de la fiche
+  (`noterSansSuiteVuAT` depuis `noterDossierConsulte`, localStorage du poste), point terrain `authentic-sous-dossier`, `pagesDossierDeTous`
+  limité à la clé « dossier » des dossiers en cours, casier lu avant l'état civil, décisions rendues ancrées.
+- **0.378.0 (27/10, 18 h 54)** — Plan Authen.TIC, **étape 4 : aperçu des formalités**. Relevé (`extension-firefox/releve.js`, extension 0.3.13
+  et navigateur du serveur) : `apercu { titre, texte }` quand le tiroir `previewFormalite` / `sideView` est ouvert ; capture normalisée
+  (`normaliserCaptureAuthentic`, 8 000 caractères) et empreinte de doublon le comprennent ; `pagesAuthentic.garder` le garde à part
+  (nature `apercu`, une ligne par formalité, clé = empreinte du titre). Modèle : `apercuFormaliteAT` (Créée / Envoyée / Reçue le, Situation,
+  Date de signature, N° de répertoire, Référence, N° chrono, Réponse positive/négative — valeur sur la ligne ou la suivante) et
+  `rangerApercuAT` (sous la formalité de même libellé, jamais une autre). Parcours du serveur `lireApercusFormalites` (dans `lireDossier`,
+  15 lignes au plus) : survol de la ligne (CDP), clic sur l'icône d'aperçu (geste `apercu` de la garde, bouton contrôlé), relevé, Échap puis
+  « Fermer » ; rien d'autre n'est cliqué dans le tiroir (corbeille du faux Authentic jamais touchée). Fiche : détails sous chaque ligne
+  (`detailsApercuAT`, client/133). Point terrain `authentic-apercus`. **Non vérifié sur une vraie page** : sélecteurs du tiroir et de l'icône
+  déduits de la cartographie.
+- **0.379.0 (27/10, 19 h 18)** — Étude : « quand une routine est faite, comment indiquer que c'est terminé ? La constitution est terminée mais
+  Claire ne le sait pas » (capture d'une carte « Autorisée par Bastien »). Décision `terminee` (routines/propositions.js `decider`,
+  `terminerParDossier`) : une proposition autorisée garde son état et reçoit `termineeLe` / `termineePar` ; encore à décider, elle passe « faite »
+  terminée du même coup ; jamais une refusée ou expirée, jamais deux fois. Carte : « Terminée par … » et bouton « Terminé » sur une carte
+  autorisée (document, tâche ; responsable ou administrateur) ; réaction d'état de Claire 🏁 à la place du ✅. Route
+  `POST /api/propositions/terminer { dossierId, routine }`. Constitution enregistrée sur le NAS ou « Imprimer tout » → `d.constitutionFaiteLe`
+  et routine « constitution » du dossier terminée (`terminerRoutineDossier`, client/112) ; un dossier dont la constitution est faite n'est plus
+  proposé (`constitutionDossier`).
+- **0.380.0 (27/10, 19 h 21)** — Étude : « comment Claire peut détecter que la DIA est envoyée électroniquement, et pas depuis Authentic ? »,
+  puis « je sais comment : il faut que l'add-on, quand la DIA est validée, récupère le numéro sur la page d'accueil de la DIA ou du CU ».
+  Extension Chrome 1.1.0 : au lancement d'une saisie, le dépôt attendu (dossier, procédure) est gardé 2 jours (`depotAttendu`) ; sur toute
+  page du guichet, hors saisie, `numeroDepotDansTexte` cherche le numéro national (« DIA|IA 041 018 26 00012 », « CU[ab] … ») et
+  l'envoie (`content.depot` → `POST /api/gnau/depot`), une fois — jamais le texte de la page. Serveur (`routes/gnau.js`) :
+  `numeroDepotGnau` (forme stricte, type de la procédure), `d.gnau.dia|cua = { numero, deposeLe, releveLe }`, historique, point terrain
+  `gnau-depot-numero`. `diaEnvoyeeDossier` (commun/planning.js) : envoi relevé dans Authentic OU dépôt du guichet, le premier compte →
+  `echeanceDiaDossier` (réponse à 2 mois), ligne « Réponse à la DIA » (« DIA déposée sur le guichet le … (n° …) »), pièce « Renonciation »
+  et « Certificat d'urbanisme » de l'onglet Pièces. Guichet de Chailles (`portail-usager.sirap.com`) ajouté aux pages de l'extension.
+  **Non vérifié** : forme réelle du numéro sur la page d'accueil de chaque guichet.
+- **0.381.0 (27/10, 20 h 01)** — Plan Authen.TIC, **étape 5 : GED**. Relevé (`releve.js`, extension Firefox 0.3.14) : `pieces [{ pjId, nom,
+  dossier }]` d'après `selectTreeNode(event, pjId, sdId)` (300 au plus, identifiant contrôlé `[\w-]{1,40}` par le serveur) ; gardée à part
+  (`authentic_pages`, clé `ged`) ; instantané `sousDossier.pieces`. Parcours du serveur : onglet « Pièces jointes » ouvert et relevé à la fin
+  de `lireDossier` (`lirePiecesJointes`) ; **PDF à la demande** (`lirePiecePdf`, `POST /api/authentic-claire/piece`) : dossier, sous-dossier,
+  onglet, clic sur le NOM du fichier (geste `donnee`, vérifié sous le pointeur), adresse `dynamiccontent` de la visionneuse (même site
+  seulement), PDF lu dans la page (20 Mo au plus, en-tête `%PDF` exigé), rendu comme document de la tâche (mémoire, jamais disque ni NAS).
+  Fiche (client/133) : liste par dossier de l'arbre, pièce de la checklist désignée par le nom (`correspondancePieceAuthenticAT`, mêmes
+  règles que le NAS : « reçue » ou « pas encore reçue dans CLAIRE » — rien n'est coché), « aussi sur le NAS » (`nasInventaire`), « Ouvrir »
+  (`ouvrirPieceAuthenticAT`). Point terrain `authentic-piece-pdf`. Faux Authentic : arbre, barre d'actions (Supprimer jamais cliqué),
+  visionneuse. **Non vérifié sur une vraie GED.**
+
+### 27/10 — 0.382.0 : CLAIRE dans Authentic, étape 7 (suivis) — étape 6 (mails) écartée
+
+Étude : « Tu peux ne pas faire l'étape 6 » — les mails d'Authentic ne sont pas lus. Étape 7 du plan : « Suivis et exports : actes à
+signer, SAFER/DIA, état civil, MICEN, puis compteurs du tableau de bord ». Choix : les TABLEAUX affichés sont relevés, jamais
+« Exporter » (reste dans la liste noire de la garde) — un export déposerait un fichier sur le serveur sans rien apporter de plus.
+- Garde (`authentic/garde.js`) : geste `suivi`, libellés fermés (« Suivis », « Office Manager », « Actes à signer », « Suivi
+  SAFER/DIA-DPU », « Suivi État-Civil », « Suivi MICEN ») ; « Actes à signer » porte « signer » : comme une donnée, seul ce que le bouton
+  sous le pointeur porte EN PLUS du libellé est contrôlé.
+- `lireSuivis` (authenticClaire.js) : menu puis entrée, tableau relevé par le relevé de l'extension, rien envoyé dans la file des relevés.
+- Modèle (`commun/authentic-modele.js`) : `ECRANS_SUIVIS_AT`, `suiviDepuisCaptureAT` (plus grand tableau, colonnes par leur en-tête,
+  référence « A 2026 00247 », 300 lignes), `ligneSuiviEnAttenteAT` (une décision, une réponse, « Prêt » sortent de l'attente),
+  `compteursSuivisAT`, `suivisDuDossierAT`.
+- Serveur (`routes/authenticClaire.js`) : clé `authentic-suivis` ; `POST /api/authentic-claire/suivis` (lecture à la main, « Relire
+  maintenant ») ; `GET …/suivis?utilisateur=` (compteurs, lignes rattachées aux fiches par leur référence), qui ne lance JAMAIS rien
+  (audit : une relecture automatique toutes les 4 h, d'abord prévue, ouvrait une session sur le compte de l'étude sans geste de personne —
+  un collaborateur connecté sous le même compte pourrait être déconnecté).
+- Poste (`client/134-suivis-authentic.js`) : widget « Suivis d'Authentic » (hors disposition par défaut, ajouté depuis « Widgets » ;
+  rien n'est demandé au serveur tant qu'il est retiré), quatre compteurs, lignes en attente (dossiers de CLAIRE d'abord, ouvrent la
+  fiche), « Relire maintenant », « première page seulement » quand un tableau est paginé ; panneau « Authentic » de la fiche : « Dans les
+  suivis d'Authentic ». Audit 0.382.0 corrigé : boucle de requêtes du widget après un échec, garde du geste `suivi` qui exige que le bouton
+  sous le pointeur PORTE le libellé visé (« Actes signés », « Statistique » refusés), ligne « Aucun enregistrement trouvé », colonne
+  « Etat » ancrée (pas « Type d'état civil »), « Réponse négative » reste en attente, « Lu » seulement si un écran l'a été.
+- Faux Authentic : menus, quatre écrans, « Exporter » jamais cliqué. Point terrain `authentic-suivis`. **Non vérifié sur le vrai
+  Authentic** (forme des menus PrimeFaces, colonnes réelles de chaque écran).
+
+### 27/10 — 0.383.0 : CLAIRE dans Authentic, étape 8 — outil `authentic_lire` de l'agent
+
+Dernière étape du plan. Outil `authentic_lire` (`server/src/assistantAgent.js`, non strict pour rester à 18 outils stricts — limite de
+la grammaire de l'API ; poste : `client/135-authentic-lire-agent.js`) : LECTURE SEULE de ce que CLAIRE a déjà relevé — vue `dossier`
+(instantané du serveur : intitulé, statut du badge, formalités préalables et postérieures, actes avec dates, n° de répertoire, chrono,
+réponse ; pièces jointes de la GED avec la pièce de CLAIRE désignée par le nom, reçue ou non, aussi sur le NAS ; lignes des suivis du
+dossier ; date de lecture) ou vue `suivis` (compteurs, 80 lignes en attente, dossier_id des dossiers de CLAIRE). Rien n'est ouvert dans
+Authentic (pour relire : `authentic_claire` mode lire, ou le widget). Résultat MASQUÉ par le serveur comme tout résultat d'outil (masquage
+fort) ; test « rien de nominatif ne part » (`server/test/assistant-agent.test.js` : libellés de formalités, nom de pièce jointe, adresse
+d'une ligne de suivi) ; dates, états et statut partent (choix de l'étude pour les dates et statuts). Audit 0.383.0 : un nom de famille en
+TÊTE d'un texte court passe le masquage (limite connue) — le poste n'envoie donc que des mots sûrs : état reconnu sinon « autre état »
+(`etatSurPourAgent`), dossier de la GED au nom connu sinon vide, type de formalité en mots (les sigles ACT, MIC… étaient codés), pas
+d'intitulé du sous-dossier, et pour une ligne de suivi d'un dossier hors de CLAIRE ni libellé ni référence (test client
+`tests/authentic-sous-dossier.test.js`).
+
+### 27/10 — 0.383.1 : notifications des canaux de dossier et propositions autorisées en attente
+
+Étude (après l'installation de l'application Chrome et de sa pastille) : « ne pas notifier les collaborateurs qui ne sont pas en charge des
+dossiers quand Claire écrit dans les conversations de dossiers » ; « il me met 5 notifications de base alors que tout est lu » ; « les
+routines lues mais en attente : on ne les voit plus notifiées ». Causes : (1) chaque message de CLAIRE dans le canal d'un dossier comptait
+comme non lu pour TOUS les collaborateurs, y compris dans des canaux qu'ils n'ouvrent jamais — cause probable des « 5 de base » ; (2) une
+proposition autorisée (constitution, tâche) quittait « À traiter » sans être finie. Corrigé : `compterCanal(…, sansClaire)` et
+`listerCanaux(…, responsableDe)` (routes/canaux.js : responsable lu sur la fiche) — un message de CLAIRE d'un canal `d:` ne compte que
+pour le responsable du dossier ou pour qui il cite ; les messages des collègues comptent comme avant. `enCoursProposition` : une
+proposition `acceptee` de type document ou tâche sans `termineeLe` reste dans « À traiter » (`listerPropositions` `enCours`,
+`compterATraiter`) et dans la pastille, jusqu'à « Terminé » ; la fiche dit « N à terminer » (`propositionADecider` pour « à décider »).
+Relecture indépendante, corrigé aussi : une ALERTE lue (`vue` : passage au niveau supérieur, fin d'un travail de CLAIRE) restait « à
+traiter » 30 jours — autre source probable d'un compteur fixe (`aDeciderProposition`, carte « Lue ») ; l'étincelle (badge du serveur)
+comptait les cartes de proposition déjà décidées — retirées comme sur le poste ; les autorisées « en cours » se limitent à celles d'après le
+bouton « Terminé » (0.379.0) et de moins de 7 jours (sinon toutes celles depuis le 25/10 revenaient) ; le responsable n'est lu que s'il y a
+un message de CLAIRE non lu (performance) ; un dossier sans responsable : CLAIRE compte pour tous ; la carte du relais ne montre plus à un
+non-responsable un message de CLAIRE qui ne le cite pas. Restent possibles : les messages de CLAIRE dans « général » (veille, signaux),
+comptés pour tous jusqu'à ce que « général » soit ouvert.
+La couleur de la pastille de l'application installée (Chrome, `navigator.setAppBadge`) est choisie par Windows (couleur d'accentuation) :
+une page ne peut pas la rendre rouge ; la pastille du relais, elle, est rouge.
+
+### 27/10 — 0.384.0 : relecture de l'état hypothécaire (annexes d'Authentic)
+
+Étude : « les annexes sont les mêmes que sur le NAS, ça n'a pas d'intérêt ; ce qui peut être bien, c'est la relecture d'un état hypothécaire
+dans les annexes pour vérifier s'il y a des inscriptions hypothécaires » ; choix : annexes d'Authentic ; alerte sur la fiche, pièces à
+réclamer, proposition au responsable ; périmées signalées à part ; « les inscriptions seront en rouge ». Exemple réel reçu (état-réponse ANF,
+nouvelle version de l'ADSN, 36 pages, jamais commité) : pages 2-10 en vrai texte (flux depuis 2002 : en-tête de la demande, personnes et
+immeuble de la demande, relevé des formalités rangé par nature — Registre des dépôts, Volumétrie, Publication, Charge en rouge, en attente /
+rejets —, chaque formalité « NATURE PAGE a À PAGE b », rédacteur, dates d'acte et de dépôt, référence d'enliassement ; pictogramme « Une
+charge est identifiée dans le complément ») ; pages 11-36 = copies de fiches du stock, scans manuscrits (colonne « Charges, privilèges et
+hypothèques » écrite à la main) — non lus, comptés. CET état n'avait AUCUNE formalité Charge : la lecture d'une Charge (créancier,
+montant, date extrême d'effet, radiation) suit la même mise en page et reste à vérifier sur un vrai état (point terrain `etat-hypothecaire`).
+- `commun/etat-hypothecaire.js` : `analyserEtatHypothecaire` (pur), `nomDitEtatHypothecaire`, `inscriptionsEnCours` ; périmée = date extrême
+  d'effet avant la délivrance de l'état ; radiation totale = radiée ; un champ non lu reste vide (« à vérifier »).
+- `client/136-etat-hypothecaire.js` : « Relire l'état » sur une pièce jointe dont le nom dit un état (client/133, `blobPieceAuthenticAT` —
+  la lecture du PDF dans Authentic, mise en commun avec « Ouvrir ») ; texte lu par pdf.js, sans OCR ni IA ; `d.etatHypothecaire` ;
+  « Décompte de remboursement — X » et « Accord de mainlevée — X » par créancier quand aucun confrère ne représente le vendeur ; message
+  de CLAIRE dans le canal du dossier (son responsable est prévenu) ; bloc « État hypothécaire » du panneau Authentic, inscriptions en cours en
+  rouge. Tests : `tests/etat-hypothecaire.test.js` (texte inventé à la mise en page réelle).
+- Audit corrigé (docs/audits/2026-10-27-0.384.0.md) : une formalité par en-tête (plusieurs Charges sur une page), radiation limitée à
+  l'inscription elle-même, contrôle de complétude (formalités annoncées par l'état = formalités lues : 6/6 sur l'état réel ; sinon
+  « lecture incomplète », jamais « aucune inscription »), apostrophes et tirets typographiques, date extrême la plus tardive.
+- Second état réel reçu le 28/10 (21 pages, jamais commité) : 13 formalités dont 10 Charges — lues 13/13 ; « Date d'extrême effet »
+  (et non « date extrême d'effet »), « Date d'extrême exigibilité » écartée, créancier dans le tableau « Créancier | Numéro d'identité »,
+  deux montants pour un privilège et une hypothèque du même prêt ; 2 inscriptions en cours, 8 privilèges du vendeur périmés. Test sur cette
+  mise en page avec des noms inventés.
+- Réponses de l'étude (28/10) : pièces à réclamer seulement quand l'étude représente le vendeur ; saisies, hypothèques judiciaires et
+  légales et charges des compléments signalées (toutes dans la rubrique Charge ou les compléments : déjà relevées).
+
+### 28/10 — 0.385.0 : les gestes de l'écran aussi par « Demander à CLAIRE » (règle durable)
+
+Étude : « il faut que l'on puisse demander à Claire si elle peut vérifier s'il y a des inscriptions, si la DIA ou le CU ont été demandés et
+quand, et de terminer une routine. À partir de maintenant toute nouvelle fonction, Claire doit pouvoir la réaliser comme moi ou un
+collaborateur à notre demande. » Règle ajoutée à CLAUDE.md (Conventions de travail). Trois outils de l'agent (non stricts, 18 stricts
+gardés), exécutés par le poste (`client/137-agent-gestes-etude.js`) avec les fonctions de l'écran :
+- `etat_hypothecaire` : la lecture gardée sur la fiche (inscriptions en cours, radiées ou périmées, compléments, lecture complète ou non),
+  ou la relecture dans Authentic (`relireEtatHypothecaireAT`, qui rend désormais `{ etat }` ou `{ erreur }`) après la carte « Autoriser » ;
+  nature envoyée en minuscules (en capitales, le masquage la prenait pour un nom) ; nom de la pièce jamais envoyé.
+- `urbanisme_demandes` : DIA (guichet unique ou Authentic, la plus ancienne, `diaEnvoyeeDossier`, réponse attendue `echeanceDiaDossier`,
+  renonciation reçue), CU (guichet `d.gnau.cua` ou Authentic), autres demandes d'Authentic.
+- `routines_claire` : lister les propositions (à décider, autorisées à terminer) ; terminer une proposition autorisée après « Autoriser »
+  (`enregistrerDecisionProposition(…, 'terminee')`).
+Ligne ajoutée au prompt de l'agent ; tests `tests/agent-gestes-etude.test.js` et « rien de nominatif ne part » (assistant-agent).
+
+### 28/10 — 0.386.0 : coordonnées d'un client et résumé d'un dossier pour Sophie, par « Demander à CLAIRE »
+
+Étude : « elle doit savoir donner les coordonnées d'un client pour lui écrire ou l'appeler » ; « un résumé des dossiers facile à lire pour
+le donner à Sophie : ce qui s'est passé, nombre d'emails et d'appels avec le client, les points qui ont bloqué, ce qui s'est bien passé ».
+`client/138-agent-coordonnees-bilan.js`, outils non stricts :
+- `coordonnees_client` : la carte de la réponse « coordonnées » de CLAIRE (`reponseCoordonneesAssistant` : numéros en texte 3CX et liens
+  `tel:`, emails `mailto:`) posée dans la conversation sur le poste ; l'IA reçoit personnes, téléphones et emails MASQUÉS (rétablis dans
+  sa réponse) et la consigne de proposer l'email (faire_geste) ; une partie représentée par un confrère : on écrit au confrère.
+- `bilan_dossier` : statut, dates clés, délais comparés à la moyenne de l'étude (`statistiquesDelaisDossiers`), emails envoyés / reçus /
+  préparés (`/api/emails-dossiers`, jamais le texte), appels reçus par partie (`/api/appels`), échéances tenues et dépassées, pièces
+  attendues, fonds, faits de l'historique (relances, pièces reçues, rendez-vous déplacés) et 15 derniers événements ; consigne de résumé en
+  cinq points. Bouton « Résumé pour Sophie » des outils de la fiche (vente) → la même demande dans la conversation de CLAIRE
+  (`demanderResumeDossier`). Prompt : proposer de l'envoyer à Sophie en message privé ou d'en faire un document.
+Tests : « rien de nominatif ne part » (noms, téléphones, emails), `tests/agent-coordonnees-bilan.test.js`.
+
+### 28/10/2026 — 0.386.1 : suites de l'audit de 0.386.0 (coordonnées, résumé pour Sophie)
+
+Côté accompagné par un confrère : jamais les coordonnées du client, le confrère à la place (IA et carte). « Signé » = `signatureFaiteSuivi`. Fonds attendus sans rien reçu dits. Bouton « Résumé pour Sophie » : conversation personnelle neuve, dossier imposé, jamais pendant une autre demande. Historique envoyé en vocabulaire fermé (`sorteEvenementBilan`). Emails non lus et appels reçus seulement dits. Rapport : `docs/audits/2026-10-28-0.386.0.md`.

@@ -151,7 +151,8 @@ test('routes : écrire, lire (signature), notification, droits, lus, préférenc
     assert.equal(cl.c.message.auteur, 'CLAIRE'); assert.equal(cl.c.message.via, 'Julie VASSELIN');
     const liste = await j('/canaux?utilisateur=Bastien%20ANGLUMENT');
     const c = liste.c.canaux.find((x) => x.id === 'd:p1');
-    assert.equal(c.nonLus, 2); assert.equal(c.mentions, 1); assert.equal(liste.c.badge, 2);
+    // Bastien n'est pas responsable de p1 (Julie l'est) : la réponse de CLAIRE ne compte pas pour lui (étude 27/10), le message de Julie oui.
+    assert.equal(c.nonLus, 1); assert.equal(c.mentions, 1); assert.equal(liste.c.badge, 1);
     assert.equal((await j('/canaux/d:p1/lu', { method: 'POST', body: JSON.stringify({ utilisateur: 'Bastien ANGLUMENT' }) })).s, 200);
     assert.equal((await j('/canaux?utilisateur=Bastien%20ANGLUMENT')).c.badge, 0);
     assert.equal((await j('/canaux/d:p1/preferences', { method: 'PUT', body: JSON.stringify({ utilisateur: 'Bastien ANGLUMENT', notif: 'muet', favori: true }) })).c.preferences.favori, true);
@@ -262,4 +263,12 @@ test('œil « Vu » (27/10) : heure de lecture des AUTRES membres d’un canal p
   assert.deepEqual(C.lusParAutresMembres(repo, id, 'Jérémy SAUJOT', COLLABS), {}, 'un non-membre ne voit rien');
   assert.deepEqual(C.lusParAutresMembres(repo, 'general', 'Bastien ANGLUMENT', COLLABS), {}, 'pas dans un canal partagé');
   assert.deepEqual(Object.keys(C.lusParAutresMembres(repo, 'd:p1', 'Bastien ANGLUMENT', COLLABS)).sort().join(','), 'Julie VASSELIN,Jérémy SAUJOT', 'canal de dossier : toute l’étude');
+});
+
+test('canal d’un dossier (étude 27/10) : les messages de CLAIRE ne comptent que pour le responsable du dossier, sauf s’ils vous citent', () => {
+  const e = { recents: [[10, 'CLAIRE', '', 1, 0], [11, 'CLAIRE', 'Julie VASSELIN', 1, 0], [12, 'Jérémy SAUJOT', '', 0, 0]] };
+  assert.equal(C.compterCanal(e, 0, 'Julie VASSELIN', false).nonLus, 3, 'responsable : tout compte');
+  const autre = C.compterCanal(e, 0, 'Julie VASSELIN', true);
+  assert.equal(autre.nonLus, 2, 'pas responsable : la réponse qui la cite et le message d’un collègue seulement');
+  assert.equal(autre.mentions, 1);
 });

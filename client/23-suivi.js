@@ -518,6 +518,7 @@
   }
   function noterDossierConsulte(id) {
     if (!id) return;
+    if (typeof noterSansSuiteVuAT === 'function') noterSansSuiteVuAT(id);
     dossiersConsultesCollaborateur = ajouterDossierConsulte(lireDossiersConsultes(), id, new Date().toISOString());
     enregistrerPreferenceCollaborateur({ dossiersConsultes: dossiersConsultesCollaborateur });
   }
@@ -1270,7 +1271,9 @@
     { id: 'pieces', titre: 'Dernières pièces', tailles: TAILLES_WIDGET, defaut: 'petit', hauteur: 1, icone: 'file-text', description: 'Les pièces arrivées sur le NAS ou rangées par Claire Scan.' },
     { id: 'avancement', titre: 'Avancement des dossiers', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'list-check', description: 'Où en est chaque dossier : étapes, pièces, prochaine échéance.' },
     { id: 'activite', titre: 'Activité de l’étude', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, icone: 'users', description: 'Ce que font les collaborateurs et ce que CLAIRE relève, en direct.' },
-    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’avant-contrat (prêt, préemption, signature), avant-contrats signés par mois, et ventes, successions et donations de l’année d’après l’agenda.' }
+    { id: 'statistiques', titre: 'Statistiques', tailles: TAILLES_WIDGET, defaut: 'grand', hauteur: 1, icone: 'bar-chart', description: 'Délais depuis l’avant-contrat (prêt, préemption, signature), avant-contrats signés par mois, et ventes, successions et donations de l’année d’après l’agenda.' },
+    // Étape 7 du plan Authen.TIC (27/10) : hors de la disposition par défaut, il se rajoute depuis « Widgets ».
+    { id: 'suivis-authentic', titre: 'Suivis d’Authentic', tailles: TAILLES_WIDGET, defaut: 'moyen', hauteur: 2, masqueDefaut: true, icone: 'list-check', description: 'Les écrans de suivi d’Authentic lus par CLAIRE : actes à signer, SAFER et DIA, état civil, MICEN — ce qui est encore en attente.' }
   ];
   var NOMS_TAILLE_WIDGET = { petit: 'Étroit (1 colonne)', moyen: 'Moyen (2 colonnes)', grand: 'Large (toute la ligne)' };
   var NOMS_HAUTEUR_WIDGET = { 1: 'Basse (1 rangée)', 2: 'Moyenne (2 rangées)', 3: 'Haute (3 rangées)' };

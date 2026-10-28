@@ -917,3 +917,86 @@ test('modele_email (audit 0.374.0) : aucun code rétabli, chacun devient « [à 
   assert.match(envoye, /Résultat retenu/, 'un tableau relu aux valeurs recodées est retenu comme un calcul');
   assert.doesNotMatch(envoye, /UEFVTCBGT1VSTklFUg==/);
 });
+
+test('authentic_lire (27/10, étape 8) : rien de nominatif ne part des formalités, pièces jointes et suivis ; dates et états partent', async () => {
+  const o = OUTILS_AGENT.find((t) => t.name === 'authentic_lire');
+  assert.ok(o, 'outil authentic_lire proposé');
+  assert.deepEqual(o.input_schema.properties.vue.enum, ['dossier', 'suivis']);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('a1', 'authentic_lire', { vue: 'dossier', dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  let r = await tourAgent({ texte: 'Où en est Fournier dans Authentic ?', dossiers: D, contexte: {} }, opts);
+  r = await tourAgent({ conversation: r.conversation, resultats: [{ id: 'a1', contenu: {
+    dossier_id: 'd1', lu_le: '2026-10-27T09:00:00Z',
+    sous_dossier: { intitule: '2 - VTE FOURNIER / GAUTHIER', statut: 'Préparation définitive', statut_le: '2026-10-14',
+      formalites_prealables: [{ type: 'ECV', libelle: 'ECV État-Civil - Acte de Naissance - FOURNIER Paul', etat: 'Réponse positive', dates: ['2026-10-01'], recuLe: '2026-10-05' },
+        { type: 'APR', libelle: 'Lettre de mission Gauthier Léa', etat: 'Envoyé', dates: ['2026-10-02'] }],
+      actes: [{ type: 'ACT', libelle: 'Acte de vente', etat: 'Non rédigé', dates: [] }], formalites_posterieures: [],
+      pieces_jointes: [{ nom: 'Titre de propriété FOURNIER.pdf', dossier_ged: 'Non classé', piece_de_claire: 'Titre de propriété', recue_dans_claire: true, aussi_sur_le_nas: false }] },
+    dans_les_suivis: [{ ecran: 'SAFER et DIA', libelle: 'DIA mairie 2 rue des Tanneurs', situation: 'Pris en compte', dates: ['2026-10-03'], en_attente: true }]
+  } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-900));
+  assert.match(envoye, /Réponse positive/);
+  assert.match(envoye, /2026-10-05/);
+  assert.match(envoye, /Préparation définitive/);
+  assert.equal(r.reponse, 'Voilà.');
+});
+
+test('28/10 : etat_hypothecaire, urbanisme_demandes, routines_claire proposés ; rien de nominatif ne part de leurs résultats', async () => {
+  for (const n of ['etat_hypothecaire', 'urbanisme_demandes', 'routines_claire']) assert.ok(OUTILS_AGENT.some((t) => t.name === n), n);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('h1', 'etat_hypothecaire', { dossier_id: 'd1', relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Y a-t-il des inscriptions sur Fournier ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 'h1', contenu: {
+    dossier_id: 'd1', relu_le: '2026-10-28T08:00:00Z', lecture_complete: true,
+    inscriptions_en_cours: [{ nature: 'hypothèque conventionnelle', creancier: 'Jean Durand', montant: '87 000,00 €', date_extreme_effet: '2032-05-05', etat: 'en cours', page: 9 }],
+    radiees_ou_perimees: [], charges_signalees_dans_un_complement: [{ nature: 'pacte de préférence', page: 5 }]
+  } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-600));
+  assert.doesNotMatch(envoye, /Jean|Durand/, 'un créancier absent des fiches, en casse mixte, part masqué en entier');
+  assert.match(envoye, /hypothèque conventionnelle/, 'la nature reconnue reste lisible (client/137)');
+  // urbanisme_demandes et routines_claire : titre d'une proposition et libellés, masqués comme tout résultat d'outil.
+  const c2 = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('u1', 'urbanisme_demandes', { dossier_id: 'd1' }), outil('r1', 'routines_claire', { mode: 'lister', dossier_id: 'd1', proposition_id: '' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const r2 = await tourAgent({ texte: 'La DIA et les routines de Fournier ?', dossiers: D, contexte: {} }, { cle: 'k', client: c2 });
+  await tourAgent({ conversation: r2.conversation, resultats: [
+    { id: 'u1', contenu: { dossier_id: 'd1', dia: { demandee: true, envoyee_le: '2026-10-20', par: 'guichet unique (GNAU)', numero_du_guichet: '041018 26 00012' }, cu: { demande: false }, autres_demandes_dans_authentic: [] } },
+    { id: 'r1', contenu: { propositions: [{ proposition_id: 'p1', titre: 'Constitution du dossier — VTE - FOURNIER / LEBLANC', type: 'document', etat: 'autorisée, à terminer' }] } }
+  ] }, { cle: 'k', client: c2 });
+  const envoye2 = JSON.stringify(c2.requetes[1].messages);
+  assert.doesNotMatch(envoye2, /FOURNIER|LEBLANC/, 'titre de la proposition masqué : ' + envoye2.slice(-500));
+  assert.match(envoye2, /2026-10-20/);
+  assert.match(envoye, /2032-05-05/);
+});
+
+test('28/10 : coordonnees_client et bilan_dossier — téléphones, emails et noms ne partent jamais en clair ; chiffres et dates partent', async () => {
+  for (const n of ['coordonnees_client', 'bilan_dossier']) assert.ok(OUTILS_AGENT.some((t) => t.name === n), n);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('c1', 'coordonnees_client', { dossier_id: 'd1', partie: '' }), outil('b1', 'bilan_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  // Politique « couplé à un nom » (poste qui envoie les adresses) : le cas le plus permissif du masquage.
+  const DA = D.map((d) => ({ ...d, adresses: ['BLOIS (41000), 2 rue des Tanneurs'] }));
+  const r = await tourAgent({ texte: 'Le numéro de Fournier et le résumé du dossier pour Sophie', dossiers: DA, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'c1', contenu: { dossier_id: 'd1', vendeur: { personnes: [{ nom: 'Paul FOURNIER', telephones: ['06 12 34 56 78'], emails: ['paul.fournier@exemple.fr'] }], telephone: '06 12 34 56 78', email: 'paul.fournier@exemple.fr' },
+      acquereur: { represente_par_un_confrere: true, ecrire_au_confrere: { notaire: 'Maître Léa GAUTHIER (TOURS)', telephone: '02 47 00 00 00', email: 'office.gauthier@notaires.fr' } } } },
+    { id: 'b1', contenu: { dossier_id: 'd1', statut: 'Prêt', dates_cles: { avant_contrat: '2026-07-01', pret_obtenu: '2026-08-20' }, delais_en_jours: { jusqu_au_pret: { jours: 50, moyenne_etude: 42 } },
+      echanges: { emails_envoyes: 7, emails_recus: 5, appels_recus: 3 }, evenements_recents: [{ date: '2026-08-20', sorte: 'offre de prêt' }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom ni coordonnée : ' + envoye.slice(-700));
+  assert.match(envoye, /emails_envoyes\\":7/);
+  assert.doesNotMatch(envoye, /02 47 00 00 00|office\.gauthier/, 'coordonnées du confrère codées comme toute coordonnée');
+  assert.match(envoye, /2026-08-20/);
+});
