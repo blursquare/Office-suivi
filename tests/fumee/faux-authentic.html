@@ -13,6 +13,7 @@
   .ui-selectcheckboxmenu-panel { position: absolute; background: #fff; border: 1px solid #333; padding: 6px; display: none; }
   .ui-selectcheckboxmenu-panel li { list-style: none; padding: 4px; }
   button, .lien { cursor: pointer; margin: 4px; }
+  .ligne-bloc { display: flex; gap: 40px; align-items: center; } .ui-commandlink { display: inline-block; width: 14px; height: 14px; background: #1e6fd9; cursor: pointer; }
   [id$=':goToDossier'] { display: inline-block; width: 16px; height: 16px; background: #1e6fd9; cursor: pointer; }
   li.formalite { list-style: none; padding: 4px; cursor: pointer; }
   .ligne-form .icone-apercu { visibility: hidden; cursor: pointer; } .ligne-form:hover .icone-apercu { visibility: visible; }
@@ -64,7 +65,9 @@
     <button type="button" onclick="window.__interdit = 'Supprimer (aperçu)'">Supprimer</button> <button type="button" onclick="fermerApercu()">Fermer</button></div>
   <div class="lien">1 - Promesse VTE MARTIN / DURAND</div>
   <div class="lien" onclick="voir('dossier')">2 - VTE MARTIN / DURAND</div>
-  <button type="button" onclick="voir('formalites')">Formalités préalables</button>
+  <!-- Version Silicium (capture du wiki) : la ligne « Formalités préalables (N) » et son « + » sans texte, qui ouvre le volet d'ajout. -->
+  <div class="ligne-bloc"><span>Formalités préalables (2)</span> <a class="ui-commandlink" onclick="voir('formalites'); document.getElementById('ajout').style.display='block'"><i class="pi pi-plus"></i></a></div>
+  <div class="ligne-bloc"><span>Formalités postérieures (0)</span> <a class="ui-commandlink" onclick="window.__interdit = 'plus des formalités postérieures'"><i class="pi pi-plus"></i></a></div>
   <button type="button">Actes</button>
   <!-- Pièces jointes (GED, étape 5) : l'arbre (selectTreeNode), la barre d'actions (Supprimer, jamais cliqué) et la visionneuse. -->
   <button type="button" onclick="document.getElementById('ged').style.display = 'block'; document.getElementById('pageDossier').style.display = 'none'">Pièces jointes</button>
@@ -106,7 +109,7 @@
   <div>Formalités préalables</div>
   <button type="button" onclick="document.getElementById('ajout').style.display='block'">Ajouter des formalités préalables</button>
   <div id="ajout" style="display:none">
-    <input type="text" placeholder="Rechercher une formalité" id="rf">
+    <input type="text" placeholder="Filtrer" id="rf">
     <ul>
       <li class="formalite" onclick="details('cjn')">Casier Judiciaire National dématérialisé (CJN)</li>
       <li class="formalite" onclick="details('comedec')">Etat civil dématérialisé (COMEDEC)</li>

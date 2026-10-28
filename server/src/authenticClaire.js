@@ -240,6 +240,34 @@ const scriptOuvrirResultat = (ref) => `(() => {
   return { x, y, texte: '', bouton: (String(lien.innerText || lien.getAttribute('title') || lien.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() };
 })()`;
 
+// Le « + » au bout de la ligne « Formalités préalables (N) » du sous-dossier (capture du wiki d'Authentic, version Silicium : c'est lui qui
+// ouvre « Ajouter des formalités préalables », pas un onglet). Le bouton sans texte (ou « + ») le plus proche de l'en-tête, dans la même
+// rangée, vérifié sous le pointeur ; jamais une corbeille. Même forme de retour que scriptTrouverTexte.
+const SCRIPT_PLUS_FORMALITES_PREALABLES = `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+  const tetes = [...document.querySelectorAll('a, span, div, h2, h3, h4, label')].filter((e) => e.offsetWidth && /^formalites prealables( \\(\\d+\\))?$/.test(net(e.innerText)));
+  if (!tetes.length) return null;
+  tetes.sort((a, b) => String(a.innerText).length - String(b.innerText).length);
+  const tete = tetes[0];
+  const rt = tete.getBoundingClientRect(), milieu = rt.top + rt.height / 2;
+  let rangee = tete.parentElement;
+  for (let k = 0; rangee && k < 4; k++, rangee = rangee.parentElement) {
+    const boutons = [...rangee.querySelectorAll('a, button, [role=button]')].filter((b) => b !== tete && !b.contains(tete) && b.offsetWidth
+      && /^\\+?$/.test(net(b.innerText)) && !b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]')
+      // Sur la MÊME ligne que l'en-tête (jamais le « + » des comparants ou des formalités postérieures).
+      && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - milieu) < 16);
+    if (!boutons.length) continue;
+    const b = boutons[0];
+    b.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const r = b.getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+    const d = document.elementFromPoint(x, y);
+    if (!d || !(b.contains(d) || d.contains(b))) return { cache: true };
+    return { x, y, texte: '', bouton: String(b.innerText || b.getAttribute('title') || b.getAttribute('aria-label') || '').trim().slice(0, 80) };
+  }
+  return null;
+})()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle, libellesSeuls) => `(() => {
   const seuls = ${libellesSeuls ? 'true' : 'false'};
@@ -878,12 +906,24 @@ async function preparerFormalite(s, cible, o) {
   await ouvrirDossier(s, cible, o.etape);
   if (!(await ouvrirSousDossierVente(s, cible, o.etape))) throw new Error('sous-dossier de vente introuvable (ou plusieurs) : aucune demande');
   o.etape('Ouvre les formalités préalables');
-  if (!(await g.cliquerTexte('Formalités préalables', { exact: true, geste: 'navigation' }))) throw new Error('onglet « Formalités préalables » introuvable');
-  await s.attendreStable(10000);
-  if (!(await g.cliquerTexte('Ajouter des formalités préalables', { exact: true, geste: 'ecriture' }))) throw new Error('« Ajouter des formalités préalables » introuvable');
+  // Version Silicium (capture du wiki) : le « + » au bout de la ligne « Formalités préalables (N) » ouvre le volet « Ajouter des formalités
+  // préalables ». Ancienne version : l'onglet « Formalités préalables », puis « Ajouter des formalités préalables ».
+  const plus = await g.ev(SCRIPT_PLUS_FORMALITES_PREALABLES);
+  if (plus && !plus.cache) {
+    controlerClic({ geste: 'ecriture', vise: 'Ajouter des formalités préalables', bouton: plus.bouton, texte: plus.texte, ecritureAutorisee: true });
+    await s.cliquerPosition(plus.x, plus.y);
+    await s.attendreStable(10000);
+  } else {
+    if (!(await g.cliquerTexte('Formalités préalables', { exact: true, geste: 'navigation' }))) throw new Error('« + » des formalités préalables introuvable');
+    await s.attendreStable(10000);
+  }
+  if (!(await g.attendreTexte(/Ajouter des formalit[ée]s pr[ée]alables/i, 10000))) throw new Error('« Ajouter des formalités préalables » ne s’est pas ouvert');
+  // Le volet peut s'ouvrir déjà sur « Ajouter » : son en-tête n'est recliqué que s'il est là (clic sans effet sinon).
+  await g.cliquerTexte('Ajouter des formalités préalables', { exact: true, geste: 'ecriture' });
   await s.attendreStable(10000);
   const nom = o.type === 'cjn' ? 'Casier Judiciaire National dématérialisé (CJN)' : 'Etat civil dématérialisé (COMEDEC)';
-  const champ = await g.ev(scriptChamp('rechercher une formalit'));
+  // Le filtre de la liste : « Filtrer » (wiki, ancienne version), « Rechercher une formalité » ; sinon la liste entière (le libellé est cherché dedans).
+  const champ = (await g.ev(scriptChamp('rechercher une formalit'))) || (await g.ev(scriptChamp('filtrer')));
   if (champ) { await g.ecrire(champ, o.type === 'cjn' ? 'Casier Judiciaire' : 'COMEDEC'); await attendre(1200); }
   o.etape(o.type === 'cjn' ? 'Ajoute la demande de casier judiciaire' : 'Ajoute la demande d’état civil');
   if (!(await g.cliquerTexte(nom, { exact: true, geste: 'ecriture' }))) throw new Error(`formalité « ${nom} » introuvable dans la liste`);
