@@ -562,9 +562,12 @@
     const l = lecturesScans[cleScan(scan)];
     if (!l || !l.choix) return;
     l.choix[champ] = valeur;
+    // Le nom tapé à la main est celui de l'étude : plus jamais recalculé (étude 28/10 : « j'ai renommé un courrier dans les scans mais il l'a rangé
+    // avec le nom que Claire avait proposé initialement »).
+    if (champ === 'nomCible') l.choix.nomManuel = true;
     if (champ === 'type' || champ === 'dossierId') {
-      // Le type ou la personne changent le nom proposé et la rubrique ; un nom retouché à la main
-      // est gardé tant que ni l'un ni l'autre ne bouge.
+      // Le type ou la personne changent le nom proposé et la rubrique ; un nom retouché à la main reste, quoi qu'on change ensuite.
+      const nomDeLEtude = l.choix.nomManuel ? l.choix.nomCible : '';
       const type = TYPES_SCAN.find(t => t.cle === l.choix.type) || null;
       const d = (dossiers || []).find(x => x.id === l.choix.dossierId);
       const id = d ? scoreDossierScan(d, texteMotsScan((l.lecture && l.lecture.texte) || '')) : null;
@@ -572,6 +575,7 @@
       l.choix.nomCible = nomCibleScan(type, { date: scan.date, personne: id && id.personnes.length === 1 ? id.personnes[0] : '' });
       appliquerRangementSuccessionScan(l.choix, d, l.lecture, l.choix.type, typeof repertoireContacts !== 'undefined' ? repertoireContacts : []);
       if (!l.choix.sousDossier) { l.choix.sousDossier = ''; l.choix.facture = null; }
+      if (nomDeLEtude) l.choix.nomCible = nomDeLEtude;
     }
     renderScans();
   }
@@ -585,6 +589,11 @@
     if (!d || !d.nasDossier) { if (auto) echecsAutoScans.add(cleScan(scan)); }
     if (!d) { if (!auto) afficherToast('Choisissez le dossier client avant de ranger ce scan.', 'OK', null); return; }
     if (!d.nasDossier) { if (!auto) afficherToast('Ce dossier n’est pas relié à son dossier du NAS : reliez-le depuis sa fiche.', 'OK', null); return; }
+    // Ce qui est affiché dans « Nom de la copie » est ce qui est rangé (jamais la copie interne d'un nom d'avant la saisie).
+    if (!auto) {
+      const champNom = [...document.querySelectorAll('input[data-nom-copie]')].find(i => i.dataset.nomCopie === nom);
+      if (champNom && champNom.value.trim()) { choix.nomCible = champNom.value.trim(); }
+    }
     scansEnRangement.add(nom);
     if (!auto) renderScans(true);
     let range = false;
@@ -976,7 +985,7 @@
       <div class="scan-champs">
         <label class="scan-champ"><span>Dossier</span>${champDossierScan(scan, index, c.dossierId, p, bloque)}</label>
         <label class="scan-champ"><span>Pièce</span><select onchange="choisirTypeScan('${nomArg}', this)"${bloque}>${optionsTypesScan(c.type)}</select></label>
-        <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
+        <label class="scan-champ scan-champ-large"><span>Nom de la copie</span><input type="text" data-nom-copie="${escapeAttr(scan.nom)}" value="${escapeAttr(c.nomCible)}" oninput="changerChoixScan('${nomArg}', 'nomCible', this.value)" onchange="renderScans()"${bloque}></label>
       </div>
       <div class="scan-actions">
         <span class="hint">${c.sousDossier ? `Sous-dossier : ${escapeHtml(c.sousDossier)}${c.facture ? ` · ${escapeHtml(c.facture.organisme || 'organisme à préciser')} · ${c.facture.montant ? escapeHtml(formaterPrixCentimes(c.facture.montant)) : 'montant non lu'}` : ''}` : `Rubrique : ${escapeHtml(libelleRubriquesScan(c.rubriques))}`}</span>

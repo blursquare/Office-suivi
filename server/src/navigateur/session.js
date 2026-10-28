@@ -181,8 +181,19 @@ class SessionNavigation {
     await Promise.all([
       this.cdp.envoyer('Page.enable', {}, session),
       this.cdp.envoyer('Emulation.setDeviceMetricsOverride', { width: LARGEUR, height: HAUTEUR, deviceScaleFactor: 1, mobile: false }, session),
-      this.cdp.envoyer('Emulation.setTimezoneOverride', { timezoneId: 'Europe/Paris' }, session)
+      this.cdp.envoyer('Emulation.setTimezoneOverride', { timezoneId: 'Europe/Paris' }, session),
+      this.annoncerNavigateurOrdinaire(session)
     ].map((p) => p.catch(() => {})));
+  }
+
+  /** Le Chrome sans fenêtre s'annonce « HeadlessChrome » : un pare-feu de site (Authentic : « le site ne répond pas ») laisse alors la
+   * page pendre sans réponse. Il s'annonce comme le Chrome ordinaire, même version. @param {string} session */
+  async annoncerNavigateurOrdinaire(session) {
+    if (this.agentUtilisateur === undefined) {
+      const v = await this.cdp.envoyer('Browser.getVersion', {}, undefined, 10000).catch(() => null);
+      this.agentUtilisateur = v && v.userAgent ? String(v.userAgent).replace('HeadlessChrome', 'Chrome') : '';
+    }
+    if (this.agentUtilisateur) await this.cdp.envoyer('Network.setUserAgentOverride', { userAgent: this.agentUtilisateur, acceptLanguage: 'fr-FR,fr' }, session);
   }
 
   /** @param {string} session @param {any} p */
@@ -305,7 +316,7 @@ class SessionNavigation {
       } catch (e) {
         if (!/délai dépassé/.test(String(e && e.message))) throw e;
         if (await this.pageArrivee(adresse, DELAI_NAVIGATION_MS)) { await this.attendreStable(); return; }
-        if (essai === 2) throw new Error('le site ne répond pas (page non chargée après plusieurs minutes) : réessayer plus tard ; si cela dure, vérifier l’accès à Internet du serveur');
+        if (essai === 2) throw new Error(`le site ne répond pas (page non chargée après plusieurs minutes) : ${await this.diagnosticReseau(adresse)}`);
         continue;
       }
       if (r.errorText && !/ERR_ABORTED/.test(r.errorText)) {
@@ -315,6 +326,16 @@ class SessionNavigation {
       }
       await this.attendreStable();
       return;
+    }
+  }
+
+  /** Le serveur lui-même joint-il le site ? Distingue un réseau coupé d'un site qui refuse le navigateur sans fenêtre. @param {string} adresse */
+  async diagnosticReseau(adresse) {
+    try {
+      const r = await fetch(adresse, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(10000) });
+      return `le serveur joint pourtant le site (réponse ${r.status}) : c'est le navigateur de CLAIRE qui est refusé ou bloqué (pare-feu, antivirus) — signaler à Fichorga`;
+    } catch (e) {
+      return `le serveur ne joint pas non plus le site (${(e && e.cause && e.cause.code) || (e && e.name) || 'erreur'}) : vérifier l’accès à Internet, le proxy ou le pare-feu du serveur`;
     }
   }
 
