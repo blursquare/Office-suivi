@@ -180,8 +180,8 @@ const scriptTrouverReference = (ref, liste) => `(() => {
     if (!porte(t) || t.length > c.length + 200) return;
     // Seulement un résultat qu'on clique (lien, option d'une liste, ligne cliquable) — jamais une cellule d'un tableau de suivi.
     // \`liste\` : seulement une option de la liste déroulante qui s'ouvre sous le champ de recherche (avant Entrée).
-    const cliquable = liste ? e.closest('[role=option], .ui-autocomplete li, [role=listbox] *')
-      : e.closest('a, button, [role=option], [role=button], [onclick], .ui-autocomplete li') || getComputedStyle(e).cursor === 'pointer';
+    const cliquable = liste ? e.closest('[role=option], .ui-autocomplete li, .ui-autocomplete-item, .ui-autocomplete-panel li, [role=listbox] *')
+      : e.closest('a, button, [role=option], [role=button], [onclick], .ui-autocomplete li, .ui-autocomplete-item') || getComputedStyle(e).cursor === 'pointer';
     if (!cliquable) return;
     candidats.push({ t, aire: e.offsetWidth * e.offsetHeight, e });
   });
