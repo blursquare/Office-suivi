@@ -50,3 +50,11 @@ test('pastille « routine en attente » : seulement pour les propositions à dé
   app.propositionsClaire.liste = [];
   assert.equal(app.tagRoutineEnAttente({ id: 'd1' }), '');
 });
+
+test('modifier un message : le champ reprend le texte affiché, même quand le message n’a que son HTML (étude 28/10)', () => {
+  assert.equal(app.texteEditableMessageCanal({ texte: 'Bonjour' }), 'Bonjour');
+  assert.equal(app.texteEditableMessageCanal({ html: '<p>oui je vais leur envoyer le projet</p>' }), 'oui je vais leur envoyer le projet');
+  assert.equal(app.texteEditableMessageCanal({ texte: '', html: 'a<br>b' }), 'a\nb');
+  assert.equal(app.texteEditableMessageCanal({}), '');
+  assert.equal(app.texteEditableMessageCanal(null), '');
+});

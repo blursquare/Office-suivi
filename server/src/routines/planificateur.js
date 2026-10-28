@@ -82,7 +82,7 @@ function texteResumeTeams(responsable, propositions, libelleDossier) {
     return `• ${String(p.titre).replace(/https?:\/\/\S+/g, '').replace(/\s+/g, ' ').trim()}${dossier ? ` — ${dossier}` : ''}`;
   });
   const reste = n - lignes.length;
-  return `📝 CLAIRE — Bonjour ${prenomDe(responsable)}, j’ai préparé ${n} chose${n > 1 ? 's' : ''} pour vous :\n${lignes.join('\n')}${reste > 0 ? `\n… et ${reste} autre${reste > 1 ? 's' : ''}` : ''}\n\nOuvrez CLAIRE (l’icône ✦ en haut de la barre) pour les autoriser ou les refuser. Rien ne part sans votre clic.`;
+  return `📝 CLAIRE — Bonjour ${prenomDe(responsable)}, j’ai préparé ${n} chose${n > 1 ? 's' : ''} pour vous :\n${lignes.join('\n')}${reste > 0 ? `\n… et ${reste} autre${reste > 1 ? 's' : ''}` : ''}\n\nPour les autoriser ou les refuser : ouvrez CLAIRE, « Discussions » dans la barre de gauche, puis le canal du dossier concerné (ou « Général »). Rien ne part sans votre clic.`;
 }
 
 /** @param {any} r */
