@@ -22962,3 +22962,29 @@ retrouve le même champ ne retape plus les numéros.
 
 Étude : « Non moi j'ai vu fonctionner que le sans espace » (0.391.3 tapait « A 2026 00329 » d'abord, d'après le relevé). Ordre inversé : « A202600329 »
 puis « A 2026 00329 ». Faite après 19 h : envoyée sur `main` le lendemain à partir de 8 h.
+
+### 28/10/2026 — 0.391.5 : Authentic d'après le wiki de Fichorga et ses captures
+
+Étude : « tu as les captures d'écran dans le wiki », puis « apprends tout le logiciel à l'aide du wiki et des captures d'écran pour connecter
+toutes les fonctions que l'on a prévues ». Le wiki public (wiki-authentic.fichorga.fr, joignable du cloud, contrairement à Authentic) a été lu
+par quatre agents, captures regardées une à une ; comparé au code. Corrigé (`server/src/authenticClaire.js`, `authentic/garde.js`,
+`commun/authentic-modele.js`) :
+- Dossier ouvert reconnu à son bandeau `…:dossierHeader` (page du dossier sans sous-dossier choisi : pas de « Comparants ») ; panneau latéral
+  d'un résultat refermé ; sous-dossier de vente ouvert par la liste `…:selectSousDossier` (le libellé est trois fois sur la page).
+- Fiches client / immeuble de Silicium : « Fermer » (pas de « Retour ») ; nom d'un comparant sans sa qualité.
+- Aperçus : blocs et groupes repliés dépliés par leur chevron fermé (nouveau geste `deplier` de la garde) ; icône d'aperçu = mot d'icône
+  Material (« photo_library ») ; jamais l'engrenage « Constituer » ; badge TAC ; 40 lignes ; tiroir « ouvert » seulement s'il est à l'écran.
+- Pièces jointes : clic sur le NOM du fichier, jamais sa case ; adresse du PDF lue dans `file=` d'un lecteur pdf.js.
+- Garde : `constitu`, `résumer`, `télécharger`, `ouvrir dans Word`, `modifier` interdits.
+- Comptabilité : aucun compte choisi à l'ouverture → libellé « Compte n°… » du compte principal (jamais la case) ; référence exigée seulement
+  si une AUTRE est lue (l'écran ne la montre plus).
+- CJN / Comedec : filtre de la liste des formalités (jamais le « Filtrer » du sous-dossier), chevron de la liste « Type de Demande », « Valider »
+  sans texte (rond vert) ; après « Valider », jamais un échec « à refaire » : bloqué (BRI), commune non adhérente (papier), écran de création
+  resté ouvert sont DITS dans la réponse.
+- Connexion : vérification du poste client Silicium non passée dite tout de suite.
+- Suivis : menu de gauche ouvert au survol (`cliquerMenu`), rubrique recliquée seulement si l'entrée n'est pas visible ; libellés « Suivi SAFER /
+  DIA-DPU », « Suivi SAFER », « Suivi COMEDEC », « Office manager » ; suivi CJN ajouté (jamais l'aperçu d'une réponse : la consulter la clôt) ;
+  groupes par statut dépliés et tous lus, la situation d'une ligne = le titre de son groupe ; « Dépôt OK », « Clôturé » sortent de l'attente ;
+  pagination « 1 à 15 sur 59 » dite.
+Faux Authentic des tests mis à ces formes (bandeau, liste des sous-dossiers, groupe replié, « Fermer », compte à choisir).
+Non vérifié sur le vrai Authentic (adresse privée) ; « Office manager › Actes à signer » est peut-être un graphique (notes de version) : à relever.

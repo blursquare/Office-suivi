@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.391.4';
+  const VERSION_APP = '0.391.5';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.391.5', date: '2026-10-28 20:06', resume: "Authentic, d’après le wiki de Fichorga et ses captures : CLAIRE reconnaît un dossier ouvert à son bandeau et ouvre le sous-dossier de vente par la liste ; elle déplie les blocs repliés et trouve l’icône d’aperçu ; une fiche client se referme par « Fermer » ; en comptabilité elle choisit le compte principal ; les écrans de suivi s’ouvrent par le menu de gauche (libellé « Suivi SAFER / DIA-DPU », suivi CJN en plus) ; après une demande CJN ou Comedec, elle dit si elle est bloquée ou faite en papier." },
   { version: '0.391.4', date: '2026-10-28 19:17', resume: "Authentic : la recherche d’un dossier tape d’abord son numéro SANS espace (« A202600329 »), la forme qui fonctionne, puis avec espaces en second essai." },
   { version: '0.391.3', date: '2026-10-28 18:13', resume: "Authentic : CLAIRE ouvre enfin le dossier trouvé par la recherche — elle clique l’icône de dossier bleue du résultat (le titre n’ouvrait qu’un panneau sur le côté) et tape d’abord le numéro avec ses espaces (« A 2026 00329 »). La comptabilité s’ouvre par l’onglet « Infos comptables », son vrai nom." },
   { version: '0.391.2', date: '2026-10-28 15:14', resume: "Mise à jour : un téléchargement de la nouvelle version qui s’arrête en route est abandonné (plus rien reçu pendant 90 s, ou 10 min en tout) au lieu de bloquer « Une mise à jour est déjà en cours » jusqu’au redémarrage du serveur ; une mise à jour restée en cours plus de 20 min est reprise. Authentic : quand CLAIRE ne trouve pas le champ de recherche, son message liste les champs visibles de la page (leurs libellés, jamais une valeur), et elle essaie plus de libellés." },
