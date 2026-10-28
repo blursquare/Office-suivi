@@ -346,8 +346,12 @@
    * retiré). 300 lignes au plus. @param {EcranSuiviAT} ecran @param {any} capture @param {string} luLe @returns {SuiviAT} */
   function suiviDepuisCaptureAT(ecran, capture, luLe) {
     // Un tableau de mise en page (une seule colonne) n'est pas un groupe de résultats.
-    const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes) && t.lignes.length
+    const candidats = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes) && t.lignes.length
       && ((t.entete || []).length >= 2 || t.lignes.some((/** @type {any} */ l) => Array.isArray(l) && l.filter((/** @type {any} */ x) => net(x)).length >= 2)));
+    // Un GROUPE a un titre « Statut (N) » ; sans groupes, le plus grand tableau seul (un panneau de filtres en tableau ne compte pas).
+    const RE_GROUPE = /\(\s*\d+\s*\)\s*$/;
+    const groupes = candidats.filter((/** @type {any} */ t) => RE_GROUPE.test(net(t.titre)));
+    const tableaux = groupes.length ? groupes : candidats.sort((/** @type {any} */ a, /** @type {any} */ b) => b.lignes.length - a.lignes.length).slice(0, 1);
     /** @type {LigneSuiviAT[]} */
     const lignes = [];
     let total = 0;
@@ -360,7 +364,7 @@
     // L'en-tête qui EST l'état (« Situation », « État ») ; « Type d'état civil » ne l'est pas (audit 0.382.0).
     const colSituation = entete.findIndex((/** @type {string} */ e) => /^(situation|etat|statut)( |$)/.test(e));
     // Le titre du groupe (« Réponse positive (12) ») : la situation des lignes d'un tableau sans colonne d'état.
-    const groupe = net(String(t.titre || '').replace(/\(\s*\d+\s*\)\s*$/, ''));
+    const groupe = RE_GROUPE.test(net(t.titre)) ? net(String(t.titre || '').replace(RE_GROUPE, '')) : '';
     ((t && t.lignes) || []).forEach((/** @type {any} */ l) => {
       if (lignes.length >= 300) return;
       const brutes = (Array.isArray(l) ? l : []).map(net);

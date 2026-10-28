@@ -46,6 +46,7 @@ try {
   verifier(!(await s.evaluer('window.__promesse')), 'depuis la page du dossier (bandeau seul), le sous-dossier de VENTE est ouvert par la liste, jamais la promesse');
   const piece = await A.lirePiecePdf(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, 'pj11', { etape });
   verifier(piece.pdf.toString().startsWith('%PDF') && /Titre de propriété/.test(piece.nom), 'le PDF d’une pièce jointe est lu à la demande');
+  verifier(await s.evaluer('window.__groupes') === 1, 'deux groupes repliés l’un sous l’autre : chacun déplié par son chevron, aucune ligne cliquée');
   verifier(r.pages === 6 && captures.length === 7, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
   const avecApercu = captures.find((c) => c.apercu);
   verifier(!!avecApercu && /Reçue le/.test(avecApercu.apercu.texte) && /MARTIN Paul/.test(avecApercu.apercu.titre), 'l’aperçu de la formalité est relevé (tiroir ouvert au survol, titre et dates)');

@@ -69,3 +69,19 @@ test('suivis (étape 7) : le menu et ses entrées permis (« Actes à signer » 
   assert.throws(() => G.controlerClic({ geste: 'suivi', vise: 'Actes à signer', bouton: 'Actes à signer Supprimer', texte: 'x' }), /supprim/i);
   for (const voisin of ['Actes signés', 'Statistique', '']) assert.notEqual(G.motifRefus({ geste: 'suivi', vise: 'Actes à signer', bouton: voisin, texte: voisin }), '', voisin || 'bouton vide');
 });
+
+test('wiki 28/10 : déplier par un chevron seulement ; nouveaux libellés de suivi ; boutons du wiki interdits', () => {
+  for (const b of ['pi pi-chevron-right', 'ui-tree-toggler ui-icon ui-icon-triangle-1-e', 'keyboard_arrow_right', 'navigate_next']) {
+    assert.equal(G.motifRefus({ geste: 'deplier', vise: '', bouton: b, texte: b }), '', b);
+  }
+  // L'en-tête d'un groupe porte corbeille et avion d'envoi : jamais pris pour un chevron.
+  for (const b of ['', 'pi pi-trash', 'send', 'pi pi-chevron-right Envoyer']) assert.notEqual(G.motifRefus({ geste: 'deplier', vise: '', bouton: b, texte: b }), '', b || 'vide');
+  for (const l of ['Suivi SAFER / DIA-DPU', 'Suivi SAFER', 'Suivi COMEDEC', 'Suivi CJN', 'Office manager']) {
+    assert.equal(G.motifRefus({ geste: 'suivi', vise: l, bouton: l, texte: l }), '', l);
+  }
+  assert.equal(G.motifRefus({ geste: 'navigation', vise: 'Infos comptables', bouton: 'Infos comptables 12,50 €', texte: 'Infos comptables 12,50 €' }), '');
+  for (const b of ['Constituer', 'Résumer BETA', 'Télécharger', 'Ouvrir dans Word', 'Modifier', 'Débloquer']) {
+    assert.ok(G.libelleInterdit(b), b);
+  }
+  assert.equal(G.motifRefus({ geste: 'apercu', vise: '', bouton: 'photo_library', texte: '' }), '');
+});

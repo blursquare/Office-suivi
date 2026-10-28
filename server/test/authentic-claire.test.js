@@ -42,6 +42,10 @@ test('liens des fiches lus dans la page du dossier : comparants puis immeubles',
   const l = A.liensFichesDuTexte(t);
   assert.equal(l.comparants.join('|'), 'M. MARTIN Paul|Mme DURAND Claire');
   assert.equal(l.immeubles.join('|'), '41000 BLOIS, 2 rue des Lices');
+  // Nom et qualité dans deux colonnes d'un tableau (« \t ») : le nom seul ; dans un même élément, le texte reste entier (c'est lui qu'on clique).
+  const t2 = A.liensFichesDuTexte('Comparants (2)\nM. MARTIN Paul\tVendeur\nMme DURAND Claire Acquéreur\nImmeubles (1)\n41000 BLOIS, 2 rue des Lices\tImmeuble vendu');
+  assert.equal(t2.comparants.join('|'), 'M. MARTIN Paul|Mme DURAND Claire Acquéreur');
+  assert.equal(t2.immeubles.join('|'), '41000 BLOIS, 2 rue des Lices');
 });
 
 test('cible dans Authentic : référence retenue et libellé « VTE NOM / NOM » ; parties propres', () => {

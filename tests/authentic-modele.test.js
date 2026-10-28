@@ -134,6 +134,12 @@ test('suivis (étape 7) : colonnes par leur en-tête, référence lue, une déci
   assert.equal(cjn.lignes.map((l) => `${l.situation}:${l.enAttente}`).join('|'), 'Prêt pour envoi:true|Absence de condamnation:false');
   assert.equal(cjn.tronque, true, '« 1 à 15 sur 59 » : paginé');
   assert.equal(M.ligneSuiviEnAttenteAT('micen', 'Dépôt OK'), false);
+  // Sans groupes « Statut (N) » : le plus grand tableau seul, et la situation = la dernière cellule (jamais un titre ordinaire « Suivi MICEN »,
+  // ni un panneau de filtres en tableau compté en lignes).
+  const mic = M.suiviDepuisCaptureAT('micen', { tableaux: [
+    { titre: 'Critères', entete: [], lignes: [['Date début', '01/10/2026', 'Date fin', '31/10/2026']] },
+    { titre: 'Suivi MICEN', entete: ['N° dossier', 'Libellé', 'Date', 'Dépôt'], lignes: [['A 2026 00500', 'Vente ESSAI', '01/10/2026', 'Dépôt OK'], ['A 2026 00501', 'Vente AUTRE', '02/10/2026', 'En cours']] }] }, 'x');
+  assert.equal(mic.lignes.map((l) => `${l.situation}:${l.enAttente}`).join('|'), 'Dépôt OK:false|En cours:true');
   assert.equal(M.ligneSuiviEnAttenteAT('safer', 'Clôturé'), false);
   assert.equal(M.ligneSuiviEnAttenteAT('cjn', 'Bloqué'), true);
   assert.equal(M.ECRANS_SUIVIS_AT.find((e) => e.cle === 'safer').entrees[0], 'Suivi SAFER / DIA-DPU');

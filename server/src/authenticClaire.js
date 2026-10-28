@@ -247,15 +247,20 @@ const SCRIPT_PLUS_FORMALITES_PREALABLES = `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
   const tetes = [...document.querySelectorAll('a, span, div, h2, h3, h4, label')].filter((e) => e.offsetWidth && /^formalites prealables( \\(\\d+\\))?$/.test(net(e.innerText)));
   if (!tetes.length) return null;
-  tetes.sort((a, b) => String(a.innerText).length - String(b.innerText).length);
-  const tete = tetes[0];
+  // Le plus INTÉRIEUR (le texte de l'en-tête, pas la rangée qui le contient avec ses boutons).
+  const tete = tetes.find((e) => !tetes.some((x) => x !== e && e.contains(x)));
   const rt = tete.getBoundingClientRect(), milieu = rt.top + rt.height / 2;
   let rangee = tete.parentElement;
   for (let k = 0; rangee && k < 4; k++, rangee = rangee.parentElement) {
-    const boutons = [...rangee.querySelectorAll('a, button, [role=button]')].filter((b) => b !== tete && !b.contains(tete) && b.offsetWidth
-      && /^\\+?$/.test(net(b.innerText)) && !b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]')
-      // Sur la MÊME ligne que l'en-tête (jamais le « + » des comparants ou des formalités postérieures).
-      && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - milieu) < 16);
+    // Un bouton qui DIT « ajouter » : « + », mot d'icône Material « add… », classe « plus » / « add » (relecture 0.391.5 : jamais un chevron,
+    // un avion ou un engrenage sans texte pris pour le « + »).
+    const ditPlus = (b) => /^(\\+|add|add_box|add_circle|add_circle_outline)?$/.test(net(b.innerText))
+      && (/^(\\+|add\\w*)$/.test(net(b.innerText)) || /(^|[\\s_-])(plus|add)([\\s_-]|$)|pi-plus|fa-plus|ui-icon-plus/.test(String(b.className || '') + ' ' + [...b.querySelectorAll('*')].map((x) => String(x.className || '')).join(' ')));
+    const boutons = [...rangee.querySelectorAll('a, button, [role=button]')].filter((b) => b !== tete && !b.contains(tete) && b.offsetWidth && ditPlus(b)
+      && !b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille], [class*=send], [class*=settings]')
+      // Sur la MÊME ligne que l'en-tête, à sa droite (jamais le « + » des comparants ou des formalités postérieures).
+      && Math.abs(b.getBoundingClientRect().top + b.getBoundingClientRect().height / 2 - milieu) < 16 && b.getBoundingClientRect().left >= rt.right - 2)
+      .sort((a, c) => a.getBoundingClientRect().left - c.getBoundingClientRect().left);
     if (!boutons.length) continue;
     const b = boutons[0];
     b.scrollIntoView({ block: 'center', inline: 'nearest' });
@@ -263,7 +268,8 @@ const SCRIPT_PLUS_FORMALITES_PREALABLES = `(() => {
     const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
     const d = document.elementFromPoint(x, y);
     if (!d || !(b.contains(d) || d.contains(b))) return { cache: true };
-    return { x, y, texte: '', bouton: String(b.innerText || b.getAttribute('title') || b.getAttribute('aria-label') || '').trim().slice(0, 80) };
+    const classes = [b, ...b.querySelectorAll('*')].map((x) => String(x.className || '')).join(' ');
+    return { x, y, texte: '', bouton: [b.innerText, b.getAttribute('title'), b.getAttribute('aria-label'), classes].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim().slice(0, 160) };
   }
   return null;
 })()`;
@@ -272,25 +278,31 @@ const SCRIPT_PLUS_FORMALITES_PREALABLES = `(() => {
 const VISIBLE_ECRAN = `((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && r.left < innerWidth && r.right > 0
   && r.top < innerHeight && r.bottom > 0 && getComputedStyle(e).visibility !== 'hidden'; })`;
 
+// Affiché dans la page (même hors de la fenêtre, sous le bas de l'écran) : un élément d'un onglet caché ou d'un volet fermé n'a pas de boîte.
+const AFFICHE = `((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(e).visibility !== 'hidden'; })`;
+
 // Le bandeau du dossier ouvert (`…:dossierHeader`, relevé de l'étude : « A 2026 00329 VTE … ») — présent sur la page du dossier comme sur celle
 // d'un sous-dossier, quand « Comparants » n'y est pas encore (page du dossier sans sous-dossier choisi, wiki « Crea13 »).
 const SCRIPT_EN_TETE_DOSSIER = `(() => { const e = [...document.querySelectorAll('[id$=":dossierHeader"]')].find(${VISIBLE_ECRAN});
   return e ? String(e.innerText || '') : ''; })()`;
 
 // Les sous-dossiers du dossier (`…:listeSousDossier:<i>:selectSousDossier`, relevé de l'étude), chacun marqué `data-claire-sd` ; leur libellé.
-const SCRIPT_SOUS_DOSSIERS = `(() => [...document.querySelectorAll('[id$=":selectSousDossier"]')].filter(${VISIBLE_ECRAN}).map((a, i) => {
-  a.setAttribute('data-claire-sd', String(i));
-  return String(a.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 200);
-}))()`;
+const SCRIPT_SOUS_DOSSIERS = `(() => {
+  document.querySelectorAll('[data-claire-sd]').forEach((a) => a.removeAttribute('data-claire-sd'));
+  return [...document.querySelectorAll('[id$=":selectSousDossier"]')].filter(${AFFICHE}).map((a, i) => {
+    a.setAttribute('data-claire-sd', String(i));
+    return String(a.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 200);
+  });
+})()`;
 /** Le sous-dossier i, à l'écran et sous le pointeur : { x, y, bouton } ou null. @param {number} i */
 const scriptPlacerSousDossier = (i) => `(() => {
   const a = document.querySelector('[data-claire-sd="${Number(i)}"]');
-  if (!a) return null;
+  if (!a || !${AFFICHE}(a)) return null;
   a.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = a.getBoundingClientRect();
   const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
   const d = document.elementFromPoint(x, y);
-  if (!d || !(a.contains(d) || d.contains(a))) return null;
+  if (!d || !a.contains(d)) return null;
   const b = d.closest('button, a, [role=button]') || d;
   const corbeille = b.querySelector && b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
   return { x, y, bouton: (String(b.innerText || b.getAttribute('title') || '').replace(/\\s+/g, ' ').trim().slice(0, 160) + corbeille).trim() };
@@ -299,40 +311,42 @@ const SCRIPT_SOUS_DOSSIER_OUVERT = `(() => { const e = [...document.querySelecto
   return e ? String(e.innerText || '').replace(/\\s+/g, ' ').trim() : ''; })()`;
 
 /**
- * Les chevrons FERMÉS des blocs repliés dont l'en-tête répond à `re` (texte sans accents, en minuscules) et porte un nombre non nul : « ›
+ * Le PREMIER chevron FERMÉ d'un bloc replié dont l'en-tête répond à `re` (texte sans accents, en minuscules) et porte un nombre non nul : « ›
  * Formalités préalables (3) », un groupe « Envoyé (12) » d'un écran de suivi (captures du wiki, 28/10). Seulement un chevron qui dit être
  * fermé (aria-expanded="false", mot d'icône ou classe « …right »), sur la ligne de l'en-tête — jamais l'en-tête, qui porte « + »,
- * corbeille ou avion d'envoi. [{ x, y, bouton }]. @param {string} reSource
+ * corbeille ou avion d'envoi. UN seul à la fois, amené à l'écran (relecture 0.391.5 : un dépliage déplace tout ce qui suit) : [{ x, y, bouton }].
+ * @param {string} reSource
  */
 const scriptChevronsFermes = (reSource) => `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
   const re = new RegExp(${JSON.stringify(reSource)});
-  const visible = ${VISIBLE_ECRAN};
+  const visible = ${AFFICHE};
   const ferme = (c) => c.getAttribute('aria-expanded') === 'false'
     || /^(keyboard_arrow_right|chevron_right|arrow_right|navigate_next)$/.test(String(c.innerText || '').trim())
     || /(chevron|arrow|caret|triangle)[-_]?(right|1-e)\\b|ui-icon-triangle-1-e|toggler[^ ]*\\s[^ ]*(right|collapsed)/i.test(typeof c.className === 'string' ? c.className : '');
-  const out = [];
+  // Tous les chevrons fermés (comptés), puis le PREMIER seulement amené à l'écran et rendu, avec le nombre qui reste.
+  const paires = [];
   [...document.querySelectorAll('a, span, div, h2, h3, h4, label, legend')].forEach((tete) => {
-    if (out.length >= 12 || !visible(tete) || !re.test(net(tete.innerText))) return;
+    if (paires.length >= 40 || !visible(tete) || !re.test(net(tete.innerText))) return;
     if ([...tete.children].some((c) => re.test(net(c.innerText)))) return;
     const rt = tete.getBoundingClientRect(), milieu = rt.top + rt.height / 2;
     let rangee = tete.parentElement;
     for (let k = 0; rangee && k < 3; k++, rangee = rangee.parentElement) {
       const ch = [...rangee.querySelectorAll('*')].find((c) => visible(c) && !c.contains(tete) && ferme(c)
         && Math.abs(c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2 - milieu) < 14);
-      if (!ch) continue;
-      const r = ch.getBoundingClientRect();
-      const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
-      const d = document.elementFromPoint(x, y);
-      if (d && (ch.contains(d) || d.contains(ch)) && !out.some((o) => o.x === x && o.y === y)) {
-        const b = d.closest('button, a, [role=button]') || d;
-        out.push({ x, y, bouton: [typeof ch.className === 'string' ? ch.className : '', ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
-          b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) });
-      }
-      break;
+      if (ch) { if (!paires.includes(ch)) paires.push(ch); break; }
     }
   });
-  return out;
+  const ch = paires[0];
+  if (!ch) return [];
+  ch.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = ch.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(ch.contains(d) || d.contains(ch))) return [];
+  const b = d.closest('button, a, [role=button]') || d;
+  return [{ x, y, reste: paires.length, bouton: [typeof ch.className === 'string' ? ch.className : '', ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
+    b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) }];
 })()`;
 
 // Le menu de gauche d'Authentic se déplie au SURVOL (relevé de l'étude ; wiki : replié = icônes seules) : le point où poser la souris.
@@ -402,8 +416,13 @@ const SCRIPT_VALIDER_ICONE = `(() => {
   const blocs = [...document.querySelectorAll('div, form, fieldset')].filter((d) => visible(d) && /cr[ée]ation rapide/i.test(String(d.innerText || '')));
   blocs.sort((a, b) => String(a.innerText).length - String(b.innerText).length);
   for (const bloc of blocs.slice(0, 4)) {
+    // Le titre dit « Valider », ou l'icône est une coche (« check », pi-check…) — jamais une case, un interrupteur « …-checked » ni une liste
+    // à cases (relecture 0.391.5).
+    const coche = (x) => /^(check|done|check_circle)$/i.test(String(x.innerText || '').trim())
+      || [x, ...x.querySelectorAll('*')].some((y) => /(^|\\s)(pi-check|fa-check|ui-icon-check)(\\s|$)/.test(String(y.className || '')));
     const b = [...bloc.querySelectorAll('button, a, [role=button]')].find((x) => visible(x) && /^(check|done|check_circle)?$/i.test(String(x.innerText || '').trim())
-      && (/valider/i.test(String(x.getAttribute('title') || '') + ' ' + String(x.getAttribute('aria-label') || '')) || x.querySelector('[class*=check]') || /check/.test(String(x.className || ''))));
+      && !x.closest('.ui-chkbox, .ui-toggleswitch, .ui-inputswitch, .ui-selectcheckboxmenu, [role=checkbox], [role=switch]')
+      && (/^valider$/i.test(String(x.getAttribute('title') || x.getAttribute('aria-label') || '').trim()) || coche(x)));
     if (!b) continue;
     const r = b.getBoundingClientRect();
     const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
@@ -549,17 +568,19 @@ function gestes(s, etape, o = {}) {
    * garde). Rend le nombre de chevrons cliqués. @param {string} reSource */
   async function deplier(reSource) {
     let n = 0;
-    for (let tour = 0; tour < 3; tour++) {
-      const chevrons = (await ev(scriptChevronsFermes(reSource))) || [];
-      if (!chevrons.length) break;
-      for (const c of chevrons.slice(0, 12)) {
-        controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
-        await s.cliquerPosition(c.x, c.y);
-        await attendre(500);
-        n++;
-      }
-      await s.attendreStable(5000);
+    // Un chevron par lecture de la page : chaque dépliage déplace ce qui suit (relecture 0.391.5) ; 20 au plus. Un chevron qui ne s'ouvre
+    // pas laisserait le même nombre de chevrons fermés : arrêt.
+    let reste = Infinity;
+    while (n < 20) {
+      const c = ((await ev(scriptChevronsFermes(reSource))) || [])[0];
+      if (!c || c.reste >= reste) break;
+      reste = c.reste;
+      controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
+      await s.cliquerPosition(c.x, c.y);
+      await attendre(500);
+      n++;
     }
+    if (n) await s.attendreStable(5000);
     return n;
   }
   /** Clique une entrée du menu de gauche (« Suivis », « Suivi MICEN »…) après avoir posé la souris sur le menu, qui se déplie au survol.
@@ -676,7 +697,7 @@ async function seConnecter(s, r, etape) {
   if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw Object.assign(new Error('connexion refusée par Authentic (identifiant ou mot de passe)'), { refusIdentifiants: true });
   // La page « Installation du poste client » encore là après les essais : dit tout de suite, plutôt qu'un dossier « introuvable » plus tard.
   const silicium = await g.ev(SCRIPT_PAGE_SILICIUM).catch(() => null);
-  if (silicium && silicium.bloque) throw new Error('vérification du poste client Silicium non passée : Authentic demande toujours d’installer le poste client');
+  if (silicium && silicium.bloque && silicium.element) throw new Error('vérification du poste client Silicium non passée : Authentic demande toujours d’installer le poste client');
   etape('Connectée');
 }
 
@@ -1016,8 +1037,9 @@ function liensFichesDuTexte(texte) {
   const out = { comparants: /** @type {string[]} */ ([]), immeubles: /** @type {string[]} */ ([]) };
   let zone = '';
   for (const brute of lignes) {
-    // Le nom et sa qualité sur deux colonnes (« M. X\tVendeur », « 41000 BLOIS, … \tImmeuble vendu ») : le nom seul.
-    const l = brute.split('\t')[0].replace(/\s+(Vendeur|Acqu[ée]reur|D[ée]funt|H[ée]ritier|Donateur|Donataire|Pr[êe]teur|Immeuble \S+)$/i, '').trim();
+    // Le nom et sa qualité sur deux colonnes de tableau (« M. X\tVendeur », « 41000 BLOIS, … \tImmeuble vendu ») : le nom seul (le texte
+    // d'un même élément reste entier, c'est lui qui est cliqué).
+    const l = brute.split('\t')[0].trim();
     if (/^Comparants\s*\(\d+\)/i.test(l)) { zone = 'c'; continue; }
     if (/^Immeubles\s*\(\d+\)/i.test(l)) { zone = 'i'; continue; }
     if (/^(Tiers|Parties prenantes)\b/i.test(l) || /^\d{1,3}\s*-\s*\S/.test(l)) { zone = ''; continue; }
@@ -1250,10 +1272,11 @@ async function preparerFormalite(s, cible, o) {
   const remarques = [];
   const erreurs = ((await g.ev(SCRIPT_ERREURS)) || []).filter((m) => !/liaison comedec|n.a pas adh[ée]r/i.test(m));
   const apres = await g.texte();
-  if (o.type === 'cjn' && /Bloqu[ée]|Alimentation obligatoire de la base des r[ée]f[ée]rences/i.test(apres)) remarques.push('casier « Bloqué » : la BRI de l’avant-contrat doit d’abord être envoyée (un notaire peut débloquer)');
+  if (o.type === 'cjn' && (/Alimentation obligatoire de la base des r[ée]f[ée]rences/i.test(apres) || apres.split('\n').some((l) => /\bCJN\b/.test(l) && /Bloqu[ée]/i.test(l)))) remarques.push('casier « Bloqué » : la BRI de l’avant-contrat doit d’abord être envoyée (un notaire peut débloquer)');
   if (/Liaison COMEDEC|n.a pas adh[ée]r[ée] au dispositif COMEDEC/i.test(apres)) remarques.push('commune non adhérente à Comedec : demande faite en courrier papier');
   if (/Cr[ée]ation (CJN|[ÉE]tat[- ]?civil)/i.test(apres)) remarques.push('écran de création encore ouvert dans Authentic : demandes à finir là-bas (non conformes)');
-  if (erreurs.length) remarques.push('Authentic a répondu : ' + erreurs.join(' ; ').slice(0, 200));
+  // Le texte d'un message d'Authentic peut nommer un intervenant : jamais repris, seulement dit (règle de CLAIRE : aucun nom dans une étape).
+  if (erreurs.length) remarques.push(`${erreurs.length} message(s) d’erreur ou d’avertissement affiché(s) par Authentic`);
   return { demandes: choisies, remarques };
 }
 

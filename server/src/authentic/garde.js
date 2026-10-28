@@ -32,10 +32,10 @@ const GESTES_PERMIS = {
     'Suivi COMEDEC', 'Suivi CJN', 'Suivi MICEN'], relatif: true },
   // Déplier un bloc ou un groupe replié (« Formalités préalables (3) », « Envoyé (12) ») : seulement son chevron, dont le libellé (classe,
   // mot d'icône, titre) doit DIRE le dépliage — jamais l'en-tête lui-même, qui porte corbeille, avion d'envoi ou « + » (captures du wiki, 28/10).
-  deplier: { positif: /chevron|arrow|toggler|caret|expand/i },
+  deplier: { positif: /chevron|arrow|toggler|caret|expand|triangle|navigate_next/i },
   // L'icône « image » qui ouvre l'aperçu d'une formalité au survol de sa ligne (étape 4) : son libellé (titre, aria-label, classe de
   // l'icône et de son bouton) doit DIRE l'aperçu, et rien d'interdit (audit 0.378.0 : une corbeille « Supprimer l'aperçu »).
-  apercu: { positif: /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i },
+  apercu: { positif: /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo|collections|perm_media/i },
   ecriture: { ecriture: true }
 };
 

@@ -62,13 +62,18 @@
     <ul class="formalites-prealables" style="display:none">
       <li class="ligne-form">ECV État-Civil - Acte de Naissance - MARTIN Paul · 01/10/2026 · Réponse positive <a class="icone-apercu"><i class="pi pi-trash" title="Supprimer l'aperçu" onclick="window.__interdit = 'corbeille de la ligne'">✕</i></a> <span class="icone-apercu" title="Aperçu" onclick="ouvrirApercu()">▣</span></li>
     </ul>
+    <!-- Second groupe replié, SOUS le premier : déplier le premier le repousse (un chevron à la fois, relu). -->
+    <div class="ligne-bloc"><i class="pi pi-chevron-right" aria-expanded="false" onclick="this.className = 'pi pi-chevron-down'; this.setAttribute('aria-expanded', 'true'); this.parentElement.nextElementSibling.style.display = ''; window.__groupes = (window.__groupes || 0) + 1">›</i><span>Urbanisme (1)</span></div>
+    <ul class="formalites-prealables" style="display:none" onclick="window.__interdit = 'ligne de formalité cliquée'">
+      <li class="ligne-form" style="height:120px">APR Demande de certificat d'urbanisme · 02/10/2026 · Envoyé</li>
+    </ul>
   </div>
   <div id="sideView" style="display:none"><h3>État-Civil - Acte de Naissance - MARTIN Paul</h3><div>Créée le</div><div>01/10/2026</div><div>Envoyée le</div><div>02/10/2026</div><div>Reçue le</div><div>05/10/2026</div><div>Réponse positive</div>
     <button type="button" onclick="window.__interdit = 'Supprimer (aperçu)'">Supprimer</button> <button type="button" onclick="fermerApercu()">Fermer</button></div>
   <div class="lien">1 - Promesse VTE MARTIN / DURAND</div>
   <div class="lien" onclick="voir('dossier')">2 - VTE MARTIN / DURAND</div>
   <!-- Version Silicium (capture du wiki) : la ligne « Formalités préalables (N) » et son « + » sans texte, qui ouvre le volet d'ajout. -->
-  <div class="ligne-bloc"><span>Formalités préalables (2)</span> <a class="ui-commandlink" onclick="voir('formalites'); document.getElementById('ajout').style.display='block'"><i class="pi pi-plus"></i></a></div>
+  <div class="ligne-bloc"><a onclick="window.__interdit = 'chevron pris pour le +'"><i class="pi pi-chevron-down"></i></a><span>Formalités préalables (2)</span> <a class="ui-commandlink" onclick="window.__interdit = 'avion pris pour le +'"><i class="pi pi-send"></i></a> <a class="ui-commandlink" onclick="voir('formalites'); document.getElementById('ajout').style.display='block'"><i class="pi pi-plus"></i></a></div>
   <div class="ligne-bloc"><span>Formalités postérieures (0)</span> <a class="ui-commandlink" onclick="window.__interdit = 'plus des formalités postérieures'"><i class="pi pi-plus"></i></a></div>
   <button type="button">Actes</button>
   <!-- Pièces jointes (GED, étape 5) : l'arbre (selectTreeNode), la barre d'actions (Supprimer, jamais cliqué) et la visionneuse. -->

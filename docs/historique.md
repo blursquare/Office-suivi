@@ -22963,7 +22963,7 @@ retrouve le même champ ne retape plus les numéros.
 Étude : « Non moi j'ai vu fonctionner que le sans espace » (0.391.3 tapait « A 2026 00329 » d'abord, d'après le relevé). Ordre inversé : « A202600329 »
 puis « A 2026 00329 ». Faite après 19 h : envoyée sur `main` le lendemain à partir de 8 h.
 
-### 28/10/2026 — 0.391.5 : Authentic d'après le wiki de Fichorga et ses captures
+### 28/10/2026 — 0.392.0 : Authentic d’après le wiki de Fichorga et ses captures
 
 Étude : « tu as les captures d'écran dans le wiki », puis « apprends tout le logiciel à l'aide du wiki et des captures d'écran pour connecter
 toutes les fonctions que l'on a prévues ». Le wiki public (wiki-authentic.fichorga.fr, joignable du cloud, contrairement à Authentic) a été lu
@@ -22988,3 +22988,10 @@ par quatre agents, captures regardées une à une ; comparé au code. Corrigé (
   pagination « 1 à 15 sur 59 » dite.
 Faux Authentic des tests mis à ces formes (bandeau, liste des sous-dossiers, groupe replié, « Fermer », compte à choisir).
 Non vérifié sur le vrai Authentic (adresse privée) ; « Office manager › Actes à signer » est peut-être un graphique (notes de version) : à relever.
+Relecture indépendante : un chevron à la fois, relu après chaque dépliage (le premier repoussait les suivants : le 2e clic tombait sur une
+ligne) ; « + » exigé comme tel (« + », « add », classe plus/add, à droite de l'en-tête — jamais un chevron, un avion ou un engrenage) et sa classe
+passée à la garde ; « Valider » en icône : titre « Valider » ou coche, jamais une case ni un interrupteur ; suivis : titre de groupe seulement
+s'il a la forme « Statut (N) », sinon le plus grand tableau (plus de panneau de filtres compté) ; listes et chevrons hors de la fenêtre pris
+aussi ; marques des sous-dossiers effacées ; vérification Silicium dite seulement avec l'élément de la page d'installation ; texte d'un message
+d'Authentic jamais repris (peut nommer un client) ; « Bloqué » lu sur une ligne CJN seulement. Version 0.392.0 (nouveauté : suivi CJN,
+remarques après « Valider »).
