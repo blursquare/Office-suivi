@@ -967,8 +967,8 @@ test('28/10 : etat_hypothecaire, urbanisme_demandes, routines_claire proposés ;
     { stop_reason: 'tool_use', usage, content: [outil('u1', 'urbanisme_demandes', { dossier_id: 'd1' }), outil('r1', 'routines_claire', { mode: 'lister', dossier_id: 'd1', proposition_id: '' })] },
     { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
   ]);
-  let r2 = await tourAgent({ texte: 'La DIA et les routines de Fournier ?', dossiers: D, contexte: {} }, { cle: 'k', client: c2 });
-  r2 = await tourAgent({ conversation: r2.conversation, resultats: [
+  const r2 = await tourAgent({ texte: 'La DIA et les routines de Fournier ?', dossiers: D, contexte: {} }, { cle: 'k', client: c2 });
+  await tourAgent({ conversation: r2.conversation, resultats: [
     { id: 'u1', contenu: { dossier_id: 'd1', dia: { demandee: true, envoyee_le: '2026-10-20', par: 'guichet unique (GNAU)', numero_du_guichet: '041018 26 00012' }, cu: { demande: false }, autres_demandes_dans_authentic: [] } },
     { id: 'r1', contenu: { propositions: [{ proposition_id: 'p1', titre: 'Constitution du dossier — VTE - FOURNIER / LEBLANC', type: 'document', etat: 'autorisée, à terminer' }] } }
   ] }, { cle: 'k', client: c2 });
