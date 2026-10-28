@@ -166,7 +166,7 @@ test('diagnostic quand Authentic ne se charge pas (étude 28/10) : le serveur jo
     req.destroy = () => {};
     return req;
   } });
-  assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('ok') }), /joint pourtant Authentic \(réponse 200.*navigateur du serveur/);
+  assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('ok') }), /joint pourtant Authentic \(200.*son navigateur/);
   assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('lent') }), /ne joint pas Authentic \(aucune réponse/);
   assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('dns') }), /ENOTFOUND/);
 });

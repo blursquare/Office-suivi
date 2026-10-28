@@ -48,17 +48,19 @@ test('tableau défilant : en-tête et corps en deux tables', () => {
   assert.equal(c.operations[0].solde, -10);
 });
 
-test('vente : fonds reçus d’après la comptabilité comparés à l’appel de fonds (étude 28/10)', () => {
+test('vente : solde de l’affaire comparé au solde à verser, prudemment (étude 28/10, audit 0.390.0)', () => {
   const { chargerApplication } = require('./helpers/load-app.js');
   const app = chargerApplication();
-  const vente = (compta, attendu) => ({ id: 'v1', nom: 'EXEMPLE', typeVente: 'maison', fondsRecus: attendu ? { attendu, total: 0 } : null, authentic: { comptabilite: Object.assign({ luLe: '2026-10-28T10:00:00Z' }, compta) } });
-  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 25000, totalCreditListe: 25000 }, 25001)).etat, 'complet');
+  const vente = (compta, attendu, autre) => Object.assign({ id: 'v1', nom: 'EXEMPLE', typeVente: 'maison', fondsRecus: attendu ? { attendu, total: 0 } : null, authentic: { comptabilite: Object.assign({ luLe: '2026-10-28T10:00:00Z' }, compta) } }, autre || {});
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 25000 }, 25001)).etat, 'egal');
   const p = app.comparaisonFondsComptaAT(vente({ soldeAffaire: 10000 }, 25000));
-  assert.equal(p.etat, 'partiel');
+  assert.equal(p.etat, 'ecart-moins');
   assert.equal(p.ecart, -15000);
-  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 30000 }, 25000)).etat, 'excedent');
-  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: -120, totalCreditListe: 0 }, 25000)).etat, 'aucun');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 30000 }, 25000)).etat, 'ecart-plus');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: null, totalCreditListe: 0 }, 25000)).etat, 'non-lu', 'jamais « rien reçu » sans solde lu');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 0 }, 1)).etat, 'ecart-moins', 'jamais « égal » sans rien');
   assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 5000 }, null)).etat, 'sans-attendu');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: -12 }, 25000, { echeancesValidees: { rendezVousSignature: true }, rendezVousSignature: '2026-10-01' })).etat, 'signe');
   assert.equal(app.comparaisonFondsComptaAT({ id: 's', typeAffaire: 'succession', authentic: { comptabilite: { luLe: 'x', soldeAffaire: 1 } } }), null);
   assert.equal(app.comparaisonFondsComptaAT({ id: 'v', typeVente: 'maison' }), null);
 });

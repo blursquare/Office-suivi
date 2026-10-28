@@ -317,10 +317,13 @@ function diagnosticAccesAuthentic(adresse, inj) {
     try {
       const req = https.request(adresse, { method: 'HEAD', timeout: 15000 }, (/** @type {any} */ res) => {
         res.resume && res.resume();
-        finir(`le serveur joint pourtant Authentic (réponse ${res.statusCode} en ${((Date.now() - debut) / 1000).toFixed(1).replace('.', ',')} s) : c’est le navigateur du serveur qui ne charge pas la page (proxy ou pare-feu propre au navigateur, vérification du poste Silicium, certificat demandé)`);
+        finir(`le serveur joint pourtant Authentic (${res.statusCode} en ${((Date.now() - debut) / 1000).toFixed(1).replace('.', ',')} s) : c’est son navigateur qui ne charge pas la page (proxy du navigateur, Silicium, certificat demandé)`);
       });
-      req.on('timeout', () => { req.destroy(); finir('le serveur lui-même ne joint pas Authentic (aucune réponse en 15 s) : accès à Internet, proxy ou pare-feu du serveur à vérifier'); });
-      req.on('error', (/** @type {any} */ e) => finir(`le serveur lui-même ne joint pas Authentic (${String((e && e.code) || 'erreur réseau').slice(0, 30)}) : accès à Internet, DNS, proxy ou pare-feu du serveur à vérifier`));
+      req.on('timeout', () => { req.destroy(); finir('le serveur ne joint pas Authentic (aucune réponse en 15 s) : Internet, proxy ou pare-feu du serveur à vérifier'); });
+      req.on('error', (/** @type {any} */ e) => {
+        const code = String((e && e.code) || 'erreur réseau').slice(0, 30);
+        finir(`le serveur ne joint pas Authentic (${code}) : ${/^(CERT_|UNABLE_|SELF_SIGNED|DEPTH_)/.test(code) ? 'certificat intercepté (antivirus ?), ' : ''}Internet, DNS, proxy ou pare-feu du serveur à vérifier`);
+      });
       req.end();
     } catch (e) { finir('diagnostic impossible'); }
   });
@@ -336,7 +339,7 @@ async function seConnecter(s, r, etape) {
   } catch (e) {
     if (!/ne répond pas|non chargée/.test(String(e && e.message))) throw e;
     etape('Authentic ne répond pas : diagnostic de l’accès du serveur');
-    throw new Error(`${String(e.message).replace(/ : réessayer plus tard.*$/, '')} — ${await diagnosticAccesAuthentic(r.adresse)}`);
+    throw new Error(`Authentic ne se charge pas — ${await diagnosticAccesAuthentic(r.adresse)}`);
   }
   await passerVerificationSilicium(s, etape);
   const pw = await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE);
