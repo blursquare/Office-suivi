@@ -349,7 +349,7 @@ function alertesLecturesFiche(d) {
 function pastillesAlertesLecturesEntete(d) {
   const a = alertesLecturesFiche(d);
   if (!a.length) return '';
-  return `<span class="fiche-entete-alertes">${a.map(x => `<span class="garantie-pastille garantie-forte" title="${escapeAttr(String(x.detail || x.libelle).slice(0, 600))}">${icone('alert-triangle')}${escapeHtml(x.libelle)}</span>`).join('')}</span>`;
+  return `<span class="fiche-entete-alertes">${a.map(x => `<span class="garantie-pastille alerte-lecture" title="${escapeAttr(String(x.detail || x.libelle).slice(0, 600))}">${icone('alert-triangle')}${escapeHtml(x.libelle)}</span>`).join('')}</span>`;
 }
 
 function lecturesDocumentsDossier(d) {

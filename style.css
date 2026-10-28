@@ -4640,6 +4640,8 @@
   .garantie-pastille .icone { flex: none; }
   .garantie-pastille.garantie-forte { background: var(--acte); color: var(--blanc-fixe); font-size: var(--texte-m); font-weight: 600; padding: 4px 12px; }
   .garantie-pastille.garantie-inconnue { background: var(--pret-bg); color: var(--pret); }
+  /* Alerte d'une lecture de CLAIRE (inscription hypothécaire, mention marginale, travaux votés) : le rouge-orangé des choses à régler. */
+  .garantie-pastille.alerte-lecture { background: var(--urgent); color: var(--on-accent); font-size: var(--texte-m); font-weight: 600; padding: 4px 12px; }
 
   /* ---- .dot-label : langage unique de statut dans tout l'outil ----
      Un point (ou une icône) coloré + un mot, jamais de fond ni de contour par défaut — remplace
