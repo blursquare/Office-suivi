@@ -35,7 +35,7 @@ test('PV d’AG : seules les résolutions de travaux ADOPTÉES', () => {
   assert.equal(r.resolutions[0].numero, '7');
   assert.match(r.resolutions[0].montant, /45 000,00 €/);
   assert.match(app.messageLectureDocument('pv-ag', 'PV AG.pdf', r), /travaux votés — résolution 7/);
-  assert.match(app.messageLectureDocument('pv-ag', 'PV AG.pdf', { lu: true, date: '', resolutions: [], decoupe: true }), /aucune résolution de travaux adoptée/);
+  assert.match(app.messageLectureDocument('pv-ag', 'PV AG.pdf', { lu: true, date: '', resolutions: [], decoupe: true }), /aucune résolution adoptée qui parle de travaux/);
 });
 
 test('messages : jamais « aucune mention » sur un document non lu', () => {
@@ -77,4 +77,12 @@ test('audit 0.391.0 : une réservation « en cours » restée en plan est repris
   assert.equal(app.lectureDocumentALancer({ enCours: true, le: '2026-10-28T11:55:00Z' }, t), false);
   assert.equal(app.lectureDocumentALancer({ enCours: true, le: '2026-10-28T11:40:00Z' }, t), true);
   assert.equal(app.lectureDocumentALancer({ lu: true, le: '2026-10-01T00:00:00Z' }, t), false);
+});
+
+test('relecture 0.391.1 : travaux sans le mot « travaux » en tête, honoraires cités plus loin', () => {
+  const pv = 'Résolution n° 3 : ravalement de la façade sur rue, devis de l’entreprise retenue pour 52 000 €. Cette résolution est adoptée. '
+    + 'Résolution n° 4 : travaux d’étanchéité de la terrasse et honoraires du syndic afférents. Cette résolution est adoptée. '
+    + 'Résolution n° 5 : honoraires du syndic pour le suivi des travaux. Cette résolution est adoptée.';
+  const r = app.travauxVotesPv(pv);
+  assert.equal(r.resolutions.map(x => x.numero).join(','), '3,4');
 });

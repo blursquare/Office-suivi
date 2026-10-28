@@ -63,6 +63,7 @@ function mentionsRepertoireCivil(texte) {
 // ou les honoraires du syndic, l'approbation des comptes) dont le DERNIER verdict est l'adoption (passerelle de l'article 25-1 : « n'est pas
 // adoptée à la majorité de l'article 25 … second vote … adoptée »). Rend { date, resolutions: [{ numero, intitule, montant }], lu, decoupe }.
 var RE_VERDICT_PV = /(?:est|a\s+[ée]t[ée])\s+adopt[ée]e|adopt[ée]e\s+(?:[àa]\s+la\s+majorit|[àa]\s+l.unanimit)|r[ée]solution\s+adopt[ée]e|rejet[ée]e|non\s+adopt[ée]e|n.est\s+pas\s+adopt[ée]e|n.a\s+pas\s+[ée]t[ée]\s+adopt[ée]e|refus[ée]e|ajourn[ée]e|sans\s+objet/gi;
+var RE_TRAVAUX_PV = /travaux|ravalement|r[ée]fection|remplacement|toiture|ascenseur|[ée]tanch[ée]it[ée]|mise\s+en\s+conformit[ée]|r[ée]novation|isolation/i;
 var RE_RESOLUTION_PV = /(?:^|\s)(?:r[ée]solution\s*(?:n[°ºo]\.?\s*)?(\d{1,3})|(\d{1,3})\s*(?:e|[èe]me|er)\s+r[ée]solution|question\s*n[°ºo]\.?\s*(\d{1,3}))\s*[:.\-–—]/gi;
 function travauxVotesPv(texte) {
   const t = String(texte || '').replace(/\s+/g, ' ');
@@ -79,10 +80,12 @@ function travauxVotesPv(texte) {
   tetes.forEach((h, i) => {
     if (resolutions.length >= 10) return;
     const bloc = t.slice(h.index, i + 1 < tetes.length ? tetes[i + 1].index : t.length).trim();
-    const tete = bloc.slice(0, 400);
-    if (!/travaux/i.test(tete)) return;
-    if (/fonds\s+(?:de\s+)?travaux|cotisation|contrat\s+de\s+syndic|honoraires|approbation\s+des\s+comptes|budget\s+pr[ée]visionnel/i.test(tete)
-      && !/(?:d[ée]cide|vote|autorise|approuve)\s+(?:de\s+(?:faire\s+)?(?:r[ée]aliser|proc[ée]der)|les\s+travaux|la\s+r[ée]alisation)/i.test(tete)) return;
+    const tete = bloc.slice(0, 2500);
+    if (!RE_TRAVAUX_PV.test(tete)) return;
+    // Écartée seulement quand c'est l'OBJET de la résolution (en tête de l'intitulé) : fonds de travaux, contrat ou honoraires du syndic,
+    // comptes, budget — une résolution de travaux qui les cite plus loin reste (relecture 0.391.1).
+    const objet = tete.replace(/^\s*(?:r[ée]solution\s*(?:n[°ºo]\.?\s*)?\d{1,3}|\d{1,3}\s*(?:e|[èe]me|er)\s+r[ée]solution|question\s*n[°ºo]\.?\s*\d{1,3})\s*[:.\-–—]?\s*/i, '').slice(0, 70);
+    if (/^(?:\S+\s+){0,3}?(?:fonds\s+(?:de\s+)?travaux|cotisation|contrat\s+de\s+syndic|d[ée]signation\s+du\s+syndic|honoraires|approbation\s+des\s+comptes|budget\s+pr[ée]visionnel)/i.test(objet)) return;
     const verdicts = bloc.match(RE_VERDICT_PV) || [];
     const dernier = verdicts.length ? verdicts[verdicts.length - 1] : '';
     if (!dernier || /rejet|non\s+adopt|pas\s+(?:[ée]t[ée]\s+)?adopt|refus|ajourn|sans\s+objet/i.test(dernier)) return;
@@ -114,8 +117,8 @@ function messageLectureDocument(sorte, nom, r) {
     if (!r || !r.lu) return `J’ai trouvé le procès-verbal d’AG ${doc}, mais je n’ai pas pu le lire : à relire.`;
     if (!r.resolutions.length) {
       if (!r.decoupe) return `Procès-verbal de l’AG${quand} ${doc} : je n’y reconnais pas les résolutions, à relire.`;
-      if (r.partiel) return `Procès-verbal de l’AG${quand} ${doc} : lecture partielle (${r.partiel}) — aucune résolution de travaux adoptée dans ce que j’ai pu lire, à relire.`;
-      return `Procès-verbal de l’AG${quand} ${doc} lu : aucune résolution de travaux adoptée${r.ocr ? ' (scan lu par reconnaissance de caractères : à relire en cas de doute)' : ''}.`;
+      if (r.partiel) return `Procès-verbal de l’AG${quand} ${doc} : lecture partielle (${r.partiel}) — aucune résolution adoptée qui parle de travaux dans ce que j’ai pu lire, à relire.`;
+      return `Procès-verbal de l’AG${quand} ${doc} lu : aucune résolution adoptée qui parle de travaux${r.ocr ? ' (scan lu par reconnaissance de caractères : à relire en cas de doute)' : ''}.`;
     }
     return `Procès-verbal de l’AG${quand} ${doc} : travaux votés${r.partiel ? ` (lecture partielle : ${r.partiel})` : ''} — ${r.resolutions.slice(0, 3).map(x => `résolution ${x.numero || '?'} : ${x.intitule.slice(0, 90)}${x.montant ? ` (${x.montant})` : ''}`).join(' ; ')}${r.resolutions.length > 3 ? ` (et ${r.resolutions.length - 3} autre${r.resolutions.length > 4 ? 's' : ''})` : ''}. Qui les paie : à régler dans l’acte.`;
   }
@@ -134,12 +137,15 @@ async function textePdfLectureDocument(blob) {
     for (let p = 1; p <= pdf.numPages && p <= MAX_PAGES_LECTURE_DOCUMENT; p++) {
       const page = await pdf.getPage(p);
       let texte = lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n').trim();
+      let ocrFaitPage = false;
       page.cleanup();
       if (texte.replace(/\s+/g, '').length < 30 && ocr < MAX_PAGES_OCR_LECTURE_DOCUMENT && typeof creerWorkerOcr === 'function') {
         if (worker === null) worker = (await creerWorkerOcr()) || false;
-        if (worker) { texte = String(await ocrPage(pdf, p, worker) || '').trim(); ocr++; }
+        if (worker) { texte = String(await ocrPage(pdf, p, worker) || '').trim(); ocr++; ocrFaitPage = true; }
       }
-      if (texte.replace(/\s+/g, '').length < 30) nonLues++;
+      // Non lue : une page sans texte que l'OCR n'a pas pu prendre (plafond, OCR indisponible) — une page passée par l'OCR et restée vide est
+      // une page blanche (verso), pas une lecture partielle (relecture 0.391.1).
+      if (texte.replace(/\s+/g, '').length < 30 && !ocrFaitPage) nonLues++;
       pages.push(texte);
     }
   } finally {
@@ -247,7 +253,7 @@ function planifierLecturesAuthentic(d) {
   // Les pièces d'Authentic n'ont pas de date : seulement pour un dossier ouvert dans CLAIRE depuis la mise en service (sinon toute la GED
   // d'un ancien dossier passerait d'un coup) ; un acte aussi sur le NAS y est lu (audit 0.391.0) ; une pièce en file n'y est mise qu'une fois.
   const cree = ((d.historique || []).find(x => x && x.texte === 'Dossier créé') || {}).date;
-  if (!cree || String(cree).slice(0, 10) < DEBUT_LECTURES_DOCUMENTS) return;
+  if (!cree || !(Date.parse(cree) >= Date.parse(DEBUT_LECTURES_DOCUMENTS + 'T00:00:00'))) return;
   const deja = d.lecturesDocuments || {};
   const maintenant = Date.now();
   let n = 0;
