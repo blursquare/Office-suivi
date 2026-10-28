@@ -308,8 +308,12 @@ async function seConnecter(s, r, etape) {
   if (!r.identifiant || !r.motDePasse) throw new Error('identifiant ou mot de passe d’Authentic non enregistré (Réglages › Authentic)');
   const g = gestes(s, etape);
   etape('Ouvre Authentic');
-  await s.aller(r.adresse);
-  await passerVerificationSilicium(s, etape);
+  // La page d'installation du poste client Silicium « tourne » sans fin (étude 28/10 : « sur Authentic, l'installation qui tourne ») : le
+  // chargement n'aboutit jamais, donc la navigation expire ; on tente alors de la passer avant de conclure que le site est en panne.
+  let erreurNavigation = null;
+  try { await s.aller(r.adresse); } catch (e) { if (e && e.refus) throw e; erreurNavigation = e; }
+  const passages = await passerVerificationSilicium(s, etape);
+  if (erreurNavigation && !passages) throw erreurNavigation;
   const pw = await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE);
   if (!pw) {
     if (await g.ev(scriptChamp('rechercher'))) { etape('Session déjà ouverte'); return; }
