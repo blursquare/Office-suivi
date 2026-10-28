@@ -23045,3 +23045,11 @@ retrouve pas les mêmes. Et dans Authentic ça fait beaucoup de données à l'é
 - Panneau Authentic (client/133, toutes les fiches) : « N demandes : x reçues, y en attente », « À surveiller » (négative, rejet, blocage,
   attente de plus de 30 jours), puis « Voir tout le détail » replié (`resumeFormalitesAT`).
 Non vérifié sur une vraie page de succession (formes des tableaux et des états lues d'après les structures reçues le 05/10 et le 15/10).
+Relecture indépendante et audit (docs/audits/2026-10-28-0.394.0.md, « correct avec réserves », aucun point Haut) : trois « Interrogation d'une
+Banque » sont trois demandes (rang dans la clé), un même acte en Comedec et en papier une seule (meilleur état) ; document déposé sans état =
+reçu ; « demande d'acompte », « matrice / modèle de courrier », convocation, lettre de mission, provision ne sont pas des pièces ; rattachement
+resserré (« acte de naissance / décès / mariage », « livret de famille » — jamais « Livret A », « contrat de mariage ») ; état commun
+`etatLigneDemandeAuthentic` (« En attente de réponse », « Non reçu », « indéterminé » ne sont jamais « reçu ») ; demandes relues en entier à
+chaque page (une reçue reste), oubliées avec « Oublier ce qui vient d'Authentic », lues dès la création ; « x/n revenues » compte une ancienne
+pièce cochée ; résumé du panneau : les demandes = formalités préalables, « À surveiller » compté en entier (8 lignes montrées). Une demande à
+une banque reste une pièce attendue (statut « Attente de pièces ») tant qu'elle n'est pas cochée : c'est la liste voulue par l'étude.

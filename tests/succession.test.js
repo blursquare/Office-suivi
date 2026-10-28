@@ -1233,3 +1233,30 @@ test('succession (étude 28/10) : la liste des pièces faite des demandes d’Au
     { badge: 'APR', libelle: 'd', statut: 'Envoyé', dates: ['2026-10-25'] }] }, '2026-10-28');
   assert.equal(`${r.total}|${r.recues}|${r.attente}|${r.aSurveiller.map((f) => f.libelle).join('')}`, '4|1|2|bc');
 });
+
+test('relecture 0.394.0 : demandes de même libellé, même acte en Comedec et en papier, document déposé, pas des pièces, états trompeurs', () => {
+  const l = (titre, etat, tableau = 'Demande') => ({ titre, etat, date: '2026-10-01', dates: ['2026-10-01'], tableau });
+  const ds = app.demandesSuccessionDepuisLignes([
+    l("APR - Interrogation d'une Banque", 'Mail le 01/10/2026'), l("APR - Interrogation d'une Banque", 'Mail le 01/10/2026'), l("APR - Interrogation d'une Banque", 'Retour le 05/10/2026'),
+    l('ECV - Acte de décès - X', 'Réponse positive', 'Etat civil'), l('APR - Acte de décès - X', 'Envoyé', 'Courrier'),
+    l('Acte de mariage - X', '', 'Etat civil'),
+    l("Lettre banque demande d'acompte", 'Envoyé'), l('Matrice de courrier libre (sans intervenant)', ''),
+    l('APR - Livret A EXEMPLE', 'Envoyé', 'Banque'), l('APR - Caisse ESSAI', 'En attente de réponse')]);
+  const liste = Object.values(ds);
+  assert.equal(liste.filter((x) => /Interrogation/.test(x.libelle)).length, 3, 'trois banques = trois demandes');
+  assert.equal(new Set(Object.keys(ds)).size, liste.length);
+  const deces = liste.filter((x) => /décès/.test(x.libelle));
+  assert.equal(deces.length, 1, 'un même acte en Comedec et en papier = une demande');
+  assert.equal(deces[0].etat, 'recue', 'le meilleur état gagne, quel que soit l’ordre');
+  assert.equal(liste.find((x) => /mariage/.test(x.libelle)).etat, 'recue', 'un document déposé sans état est reçu');
+  assert.ok(!liste.some((x) => /acompte|Matrice/.test(x.libelle)), 'ni une demande d’acompte ni une matrice de courrier');
+  assert.equal(liste.find((x) => /Livret A/.test(x.libelle)).cleBase, '', '« Livret A » n’est pas le livret de famille');
+  assert.equal(liste.find((x) => /Caisse/.test(x.libelle)).etat, 'attente', '« En attente de réponse » n’est pas reçu');
+  assert.equal(app.etatLigneDemandeAuthentic('Non reçu'), 'attente');
+  assert.equal(app.etatLigneDemandeAuthentic('indéterminé'), 'attente');
+  // Une ancienne pièce perso cochée compte dans « x/n revenues ».
+  const d = { typeAffaire: 'succession', pieces: { 'perso-authentic-acte-de-naissance-y': 'recue' },
+    piecesPersonnalisees: [{ cle: 'perso-authentic-acte-de-naissance-y', label: 'Acte de naissance - Y' }],
+    authentic: { demandesSuccession: { 'dem-a': { libelle: 'Acte de naissance - Y', cleBase: 'actesNaissance', etat: 'attente' }, 'dem-b': { libelle: 'Acte de naissance - Z', cleBase: 'actesNaissance', etat: 'attente' } } } };
+  assert.match(app.etatDemandeSuccessionPiece(d, { cle: 'actesNaissance' }).texte, /1\/2/);
+});

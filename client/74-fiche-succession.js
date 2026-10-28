@@ -1038,18 +1038,50 @@
   // « Reçue » seulement sur un mot qui le dit (positif, reçu, retour, délivré, réponse) : un courrier envoyé à une banque reste « attente »
   // jusqu'à ce qu'on le coche (la réponse arrive par courrier, pas dans Authentic).
   function demandesSuccessionDepuisLignes(lignes) {
-    const r = {};
+    const empreinte = (t) => { let h = 0; for (const c of String(t)) h = (h * 31 + c.charCodeAt(0)) | 0; return (h >>> 0).toString(36).slice(0, 6); };
+    // Les lignes groupées par libellé (sans le badge) : trois « Interrogation d'une Banque » sont TROIS demandes (la n-ième de chaque badge
+    // ensemble), un même acte en Comedec (ECV) et en papier (APR) en est UNE, avec son meilleur état (relecture 0.394.0).
+    const groupes = new Map();
     (lignes || []).forEach(l => {
-      if (Object.keys(r).length >= 60 || /r[ée]daction/i.test(l.tableau || '') || /safer/i.test(l.texte || '')) return;
-      const libelle = String(l.titre || '').replace(/^\s*(?:ECV|APR|T@|SPR|CJN|ACT)(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
-      if (!libelle || /^act(?![a-z])|notori[ée]t[ée]|d[ée]claration\s+de\s+succession|attestation\s+(?:immobili|de\s+propri)/i.test(String(l.titre || ''))) return;
-      const t = normaliserPourRecherche(String(l.etat || ''));
-      const etat = /negati|rejet/.test(t) ? 'negative' : /positi|re[cç]u|retour|delivr|repon|termin/.test(t) ? 'recue' : 'attente';
-      const cle = 'dem-' + normaliserPourRecherche(libelle).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+      if (/r[ée]daction/i.test(l.tableau || '') || /safer/i.test(l.texte || '')) return;
+      const titre = String(l.titre || '');
+      const mBadge = /^\s*(ECV|APR|T@|SPR|CJN|ACT)(?![A-Za-z0-9])/i.exec(titre);
+      const badge = mBadge ? mBadge[1].toUpperCase() : '';
+      const libelle = titre.replace(/^\s*(?:ECV|APR|T@|SPR|CJN|ACT)(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      if (!libelle || badge === 'ACT' || /notori[ée]t[ée]|d[ée]claration\s+de\s+succession|attestation\s+(?:immobili|de\s+propri)/i.test(titre) || RE_PAS_UNE_PIECE_SUCCESSION.test(libelle)) return;
+      // Un document déposé sans état (ni courrier ni Comedec) est reçu, comme avant (etatEtatCivilAuthentic).
+      const etat = etatLigneDemandeAuthentic(l.etat, badge === 'APR' || badge === 'ECV' || badge === 'T@' ? 'attente' : 'recue');
       const dates = l.dates || [];
-      r[cle] = { libelle, cleBase: pieceBaseDemandeSuccession(libelle), etat, date: l.date || '', recueLe: etat === 'recue' ? (dates[dates.length - 1] || l.date || '') : '' };
+      const ligne = { badge, libelle, etat, date: l.date || '', recueLe: etat === 'recue' ? (dates[dates.length - 1] || l.date || '') : '' };
+      const k = normaliserPourRecherche(libelle);
+      if (!groupes.has(k)) groupes.set(k, []);
+      groupes.get(k).push(ligne);
+    });
+    const rang = { recue: 2, negative: 1, attente: 0 };
+    const r = {};
+    groupes.forEach((liste, k) => {
+      const parBadge = new Map();
+      liste.forEach(x => { if (!parBadge.has(x.badge)) parBadge.set(x.badge, []); parBadge.get(x.badge).push(x); });
+      const n = Math.max(...[...parBadge.values()].map(v => v.length));
+      for (let i = 0; i < n && Object.keys(r).length < 80; i++) {
+        const meme = [...parBadge.values()].map(v => v[i]).filter(Boolean);
+        const meilleur = meme.reduce((a, b) => (rang[b.etat] > rang[a.etat] ? b : a));
+        const prefixe = k.replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'x';
+        const cle = `dem-${prefixe}-${empreinte(k)}${i ? '-' + (i + 1) : ''}`;
+        r[cle] = { libelle: meilleur.libelle + (n > 1 ? ` (${i + 1})` : ''), cleBase: pieceBaseDemandeSuccession(meilleur.libelle), etat: meilleur.etat,
+          date: meme.map(x => x.date).filter(Boolean).sort()[0] || '', recueLe: meilleur.recueLe };
+      }
     });
     return r;
+  }
+
+  // Pure : une demande d'Authentic vaut reçue — dite reçue, ou son ancienne pièce « perso-authentic-… » cochée (libellé comparé sans badge ni
+  // coupure : l'ancien libellé était coupé à 90 caractères).
+  function demandeSuccessionRecue(d, x) {
+    if (x.etat === 'recue') return true;
+    const lib = normaliserPourRecherche(String(x.libelle || '').replace(/\s*\(\d+\)$/, ''));
+    return ((d && d.piecesPersonnalisees) || []).some(p => /^perso-authentic-/.test(String(p.cle || '')) && d.pieces && d.pieces[p.cle] === 'recue'
+      && (() => { const a = normaliserPourRecherche(String(p.label || '').replace(/^\s*(?:ECV|CJN)(?![A-Za-z0-9])\s*[-:–]?\s*/i, '')); return a && (lib.startsWith(a) || a.startsWith(lib)); })());
   }
 
   // Coche, sur la fiche d'une succession, ce qu'Authentic dit reçu : une demande reçue (sa ligne), une pièce de base quand TOUTES ses demandes
@@ -1075,9 +1107,7 @@
     if (ps.ehf.recue) cocher('ehf', 'État hypothécaire hors formalité (EHF)', `envoyé le ${formatDateFr(ps.ehf.envoyeeLe)}, revenu le ${formatDateFr(ps.ehf.retourLe)}`);
     const demandes = Object.entries((infos && infos.demandesSuccession) || {}).map(([cle, v]) => Object.assign({ cle }, v));
     // Une ancienne pièce « perso-authentic-… » cochée vaut sa demande reçue (la fiche n'en perd rien en passant à la liste d'Authentic).
-    const persoRecues = new Set((d.piecesPersonnalisees || []).filter(p => /^perso-authentic-/.test(String(p.cle || '')) && d.pieces[p.cle] === 'recue')
-      .map(p => normaliserPourRecherche(p.label)));
-    const recue = (x) => x.etat === 'recue' || persoRecues.has(normaliserPourRecherche(x.libelle));
+    const recue = (x) => demandeSuccessionRecue(d, x);
     demandes.filter(x => !x.cleBase && recue(x)).forEach(x => cocher(x.cle, x.libelle, x.recueLe ? `le ${formatDateFr(x.recueLe)}` : ''));
     const parBase = new Map();
     demandes.filter(x => x.cleBase).forEach(x => { if (!parBase.has(x.cleBase)) parBase.set(x.cleBase, []); parBase.get(x.cleBase).push(x); });
@@ -1097,9 +1127,9 @@
     if (!liste.length) return null;
     if (liste.some(x => x.etat === 'negative')) return { texte: 'Authentic : réponse négative — à redemander', classe: 'dl-alerte' };
     if (liste.length > 1) {
-      const recues = liste.filter(x => x.etat === 'recue').length;
+      const recues = liste.filter(x => demandeSuccessionRecue(d, x)).length;
       return { texte: `Authentic : ${recues}/${liste.length} revenue${recues > 1 ? 's' : ''}`, classe: 'dl-pret' };
     }
     const x = liste[0];
-    return { texte: x.etat === 'recue' ? `Authentic : reçue${x.recueLe ? ` le ${formatDateFr(x.recueLe)}` : ''}` : `Authentic : demandée${x.date ? ` le ${formatDateFr(x.date)}` : ''}`, classe: x.etat === 'recue' ? '' : 'dl-pret' };
+    return { texte: demandeSuccessionRecue(d, x) ? `Authentic : reçue${x.recueLe ? ` le ${formatDateFr(x.recueLe)}` : ''}` : `Authentic : demandée${x.date ? ` le ${formatDateFr(x.date)}` : ''}`, classe: x.etat === 'recue' ? '' : 'dl-pret' };
   }

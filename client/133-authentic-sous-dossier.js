@@ -65,12 +65,11 @@ function htmlLigneFormaliteAT(f) {
 // l'écran » ; choix : résumé + ce qui attend) — réponse négative, rejet, blocage, ou demande en attente depuis plus de 30 jours.
 // { total, recues, attente, aSurveiller: FormaliteAT[] }.
 function resumeFormalitesAT(sd, aujourdhuiIso) {
-  const toutes = [...(sd.formalitesPrealables || []), ...(sd.formalitesPosterieures || [])];
+  // Les DEMANDES sont les formalités préalables (les formalités postérieures — publication, Micen — ne le sont pas, relecture 0.394.0).
+  const toutes = sd.formalitesPrealables || [];
   const etat = (f) => {
-    const t = normaliserPourRecherche([f.statut, f.reponse, f.situation].filter(Boolean).join(' '));
-    if (/negati|rejet|bloqu|refus/.test(t)) return 'probleme';
-    if (f.recuLe || /positi|re[cç]u|retour|delivr|repon|termin|sign|pret$|depot ok|absence de condamnation|non preemption/.test(t)) return 'recue';
-    return 'attente';
+    const e = etatLigneDemandeAuthentic([f.statut, f.reponse, f.situation].filter(Boolean).join(' '));
+    return e === 'negative' ? 'probleme' : (f.recuLe || e === 'recue') ? 'recue' : 'attente';
   };
   const auj = aujourdhuiIso || isoAujourdhuiLocal();
   const vieux = (f) => { const d = (f.envoyeLe || (f.dates || []).slice(-1)[0] || ''); return /^\d{4}-\d{2}-\d{2}/.test(d) && ecartJours(d, auj) > 30; };
@@ -79,7 +78,7 @@ function resumeFormalitesAT(sd, aujourdhuiIso) {
     total: toutes.length,
     recues: etats.filter(x => x.e === 'recue').length,
     attente: etats.filter(x => x.e === 'attente').length,
-    aSurveiller: etats.filter(x => x.e === 'probleme' || (x.e === 'attente' && vieux(x.f))).map(x => x.f).slice(0, 8)
+    aSurveiller: etats.filter(x => x.e === 'probleme' || (x.e === 'attente' && vieux(x.f))).map(x => x.f)
   };
 }
 
@@ -96,7 +95,7 @@ function htmlSousDossierAT(d) {
   // À l'écran : une ligne de résumé et ce qui attend ; tout le détail replié (étude 28/10).
   const res = resumeFormalitesAT(sd);
   const resume = res.total ? `<p class="at-resume">${res.total} demande${res.total > 1 ? 's' : ''} : ${res.recues} reçue${res.recues > 1 ? 's' : ''}, ${res.attente} en attente</p>
-    ${res.aSurveiller.length ? `<div class="at-groupe"><div class="at-groupe-titre">À surveiller<span class="pa-compte">${res.aSurveiller.length}</span></div><ul class="at-liste">${res.aSurveiller.map(htmlLigneFormaliteAT).join('')}</ul></div>` : ''}` : '';
+    ${res.aSurveiller.length ? `<div class="at-groupe"><div class="at-groupe-titre">À surveiller<span class="pa-compte">${res.aSurveiller.length}</span></div><ul class="at-liste">${res.aSurveiller.slice(0, 8).map(htmlLigneFormaliteAT).join('')}</ul></div>` : ''}` : '';
   const detail = groupes ? `${resume}<details class="at-detail"><summary>Voir tout le détail</summary>${groupes}</details>` : '';
   const lu = /^\d{4}-\d{2}-\d{2}/.test(String(e.inst.luLe || '')) ? `Lu le ${formatDateFr(String(e.inst.luLe).slice(0, 10))}` : '';
   return `<div class="at-sous-dossier">

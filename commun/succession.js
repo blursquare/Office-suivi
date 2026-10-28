@@ -546,11 +546,27 @@
   // on ne retrouve pas les mêmes » ; choix : la liste faite d'Authentic). Une demande qui est une pièce de base (acte de naissance, de décès,
   // de mariage, livret, FCDDV, EHF, titre) y est rattachée ; les autres (banques, caisses de retraite, impôts…) deviennent des lignes.
   /** @type {Array<[RegExp, string]>} */
+  // Resserré (relecture 0.394.0) : « Livret A », « contrat de mariage », « déclaration de décès CAF » ne sont pas des actes d'état civil.
   var PIECES_BASE_DEMANDES_SUCCESSION = [
-    [/naissance/i, 'actesNaissance'], [/d[ée]c[èe]s/i, 'acteDeces'], [/mariage/i, 'acteMariage'], [/livret/i, 'livretFamille'],
+    [/acte\s+de\s+naissance|(?:copie|extrait)[^.]{0,30}naissance/i, 'actesNaissance'], [/acte\s+de\s+d[ée]c[èe]s|(?:copie|extrait)[^.]{0,30}d[ée]c[èe]s/i, 'acteDeces'],
+    [/acte\s+de\s+mariage|(?:copie|extrait)[^.]{0,30}d.\s*acte\s+de\s+mariage/i, 'acteMariage'], [/livret\s+de\s+famille/i, 'livretFamille'],
     [/fcddv|derni[èe]res?\s*volont|fichier\s*central/i, 'fcddv'], [/hors\s*formalit|r[ée]quisition\s*(?:d.[ée]tat|hors)|[ée]tat\s*hypoth|(?:^|[^a-z])ehf(?:[^a-z]|$)/i, 'ehf'],
     [/titre\s*(?:de\s*)?propri/i, 'titrePropriete']
   ];
+  /** Pure : l'état d'une ligne de demande d'Authentic d'après son état écrit — 'negative' (négatif, rejet, bloqué), 'attente' (attente,
+   * envoyé, en cours, pris en compte, non reçu, sans réponse, à signer…), 'recue' seulement sur un mot qui le dit (positif, reçu(e),
+   * « retour le », délivré, réponse positive, terminé) ; un état vide : `vide` (au choix de l'appelant). @param {string} etat @param {string} [vide] */
+  function etatLigneDemandeAuthentic(etat, vide) {
+    const t = String(etat || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!t) return vide || 'attente';
+    if (/negati|rejet|bloqu|refus/.test(t)) return 'negative';
+    if (/attente|en cours|pris(?:e)? en compte|envoy|non re[cç]u|non delivr|sans reponse|pas de reponse|a signer|non sign|demand|mail le/.test(t)) return 'attente';
+    if (/positi|(?:^|[^a-z])re[cç]ue?s?(?:[^a-z]|$)|retour le|delivr|reponse (?:positive|le|du)|(?:^|[^a-z])termin|signe le|absence de condamnation|non preemption/.test(t)) return 'recue';
+    return 'attente';
+  }
+  // Des lignes qui ne sont pas des pièces (demande d'acompte = des fonds, matrice ou modèle de courrier, convocation, lettre de mission).
+  var RE_PAS_UNE_PIECE_SUCCESSION = /acompte|matrice|courrier\s+libre|mod[eè]le|convocation|lettre\s+de\s+mission|provision|honoraires/i;
+
   /** Pure : la pièce de base d'une demande d'Authentic, '' si elle n'en est pas une. @param {string} libelle */
   function pieceBaseDemandeSuccession(libelle) {
     const r = PIECES_BASE_DEMANDES_SUCCESSION.find(([re]) => re.test(String(libelle || '')));
@@ -576,7 +592,7 @@
     return [...base, ...demandes];
   }
 
-  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, autorisationsFondsSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, pieceBaseDemandeSuccession, demandesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
+  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, autorisationsFondsSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, pieceBaseDemandeSuccession, demandesSuccessionDossier, etatLigneDemandeAuthentic, RE_PAS_UNE_PIECE_SUCCESSION, libelleActeRendezVousSuccession, actesSignesSuccession };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

@@ -1307,6 +1307,7 @@
     const r = Object.assign({}, ancien || {});
     Object.entries(nouveau || {}).forEach(([k, v]) => {
       if ((k === 'premierComparant' || k === 'biensDossier') && v) r[k] = v; // remplacé en entier : le lien d'une ancienne page ne reste pas collé
+      else if (k === 'demandesSuccession' && v) r[k] = Object.assign(Object.fromEntries(Object.entries(r[k] || {}).filter(([, x]) => x && x.etat === 'recue')), v); // relue en entier ; une reçue reste
       else if (v && typeof v === 'object' && !Array.isArray(v)) {
         const base = Object.assign({}, r[k] || {});
         Object.entries(v).forEach(([kk, vv]) => { if (vv) base[kk] = vv; });
@@ -1561,7 +1562,7 @@
       }
       if (type === 'gestion') piecesRecuesAuthentic(lignesDocumentsAuthentic(cap), [], g.succession || /succ/i.test(intitule) ? 'succession' : 'vente')
         .forEach(p => g.documents.set(p.cle, { intitule: p.titre, nomFichier: '', chemin: '', date: p.date, personne: null, piece: p }));
-      if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap));
+      if (type === 'gestion' || type === 'autre') g.infos = fusionnerInfosAuthentic(g.infos, infosDossierAuthentic(cap, g.succession || /succ/i.test(intitule) ? 'succession' : 'vente'));
       if (type === 'gestion' && o && o.apercu && !(g.succession || /succ/i.test(intitule))) g.apercu = apercuImmeubleAuthentic(cap) || g.apercu;
     });
     return fusionnerGroupesAuthentic([...groupes.values()]).map(g => {
@@ -2782,7 +2783,7 @@
       delete d.piecesAuthentic;
       retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
     }
-    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente', 'pret'];
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'demandesSuccession', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente', 'pret'];
     if (champsDossier.some(k => a[k])) {
       const reste = Object.assign({}, a);
       champsDossier.forEach(k => { delete reste[k]; });
