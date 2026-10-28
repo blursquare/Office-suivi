@@ -484,7 +484,7 @@ async function ouvrirDossier(s, cible, etape) {
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
   // « recherche » / « search » : seulement par ce que la page affiche (placeholder, aria-label, étiquette), et le NUMÉRO seul — jamais le nom
   // du dossier (noms des clients) dans un champ trouvé par un libellé large (relecture 0.391.2). Ni « affaire » ni « dossier » seuls.
-  for (const [libelleChamp, large] of [['rechercher une affaire', false], ['rechercher', false], ['recherche', true], ['search', true]]) {
+  for (const { libelleChamp, large } of [{ libelleChamp: 'rechercher une affaire', large: false }, { libelleChamp: 'rechercher', large: false }, { libelleChamp: 'recherche', large: true }, { libelleChamp: 'search', large: true }]) {
     for (const quoi of (large ? [referenceRecherche(ref)] : [referenceRecherche(ref), lib]).filter(Boolean)) {
       const champ = await g.ev(scriptChamp(libelleChamp, large));
       if (!champ) break;
