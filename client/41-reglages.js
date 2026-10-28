@@ -75,7 +75,7 @@
     if (version) version.textContent = VERSION_APP;
     const inter = document.getElementById('reglages-theme-sombre');
     if (inter) inter.checked = document.documentElement.getAttribute('data-theme') === 'dark';
-    appliquerAccent(document.documentElement.getAttribute('data-accent') || 'bordeaux', false);
+    appliquerAccent(accentChoisi, false);
     try {
       const reponse = await fetchAvecAuth('/api/reglages');
       // Une réponse en erreur ne remplit pas le formulaire : vide, il effacerait le compte SMTP et son mot de passe au

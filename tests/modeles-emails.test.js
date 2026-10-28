@@ -25,7 +25,7 @@ test('chaque modèle d’origine, rempli, redonne le texte actuel (objet et corp
   for (const m of app.modelesEmailDossier()) {
     for (const d of CAS) {
       const confrere = app.notaireParticipantRepresenteAcquereur(d);
-      if (/Confrere$/.test(m.cle) !== confrere && ['ventePrealable', 'ventePrealableConfrere', 'confirmationRdv', 'confirmationRdvConfrere', 'projet', 'projetConfrere'].includes(m.cle)) continue;
+      if (/Confrere$/.test(m.cle) !== confrere && ['pret', 'pretConfrere', 'ventePrealable', 'ventePrealableConfrere', 'confirmationRdv', 'confirmationRdvConfrere', 'projet', 'projetConfrere'].includes(m.cle)) continue;
       // Sans rendez-vous, ces emails ne sont jamais proposés (le texte d'origine y laissait « le , »).
       if (!d.rendezVousSignature && ['confirmationRdv', 'confirmationRdvConfrere', 'relanceFonds'].includes(m.cle)) continue;
       const attendu = m.construire(d);
@@ -128,4 +128,13 @@ test('lieu du rendez-vous lu dans l’agenda : le projet rappelle RIB et pièce 
   assert.match(c, /adresser par email votre RIB et votre pièce d’identité/);
   assert.match(sansMarques(app.construireEmailConfirmationRdv(visio).corps), /adresser par email une copie de votre pièce d’identité/);
   assert.doesNotMatch(sansMarques(app.construireEmailProjetActe({ ...BASE }).corps), /RIB/);
+});
+
+test('relance de l’offre de prêt au confrère (étude 28/10) : texte de l’étude mot pour mot, date en lettres', () => {
+  const d = { ...BASE, ...CONFRERE, pret: '2099-11-12' };
+  const r = app.emailDepuisModele('pret', d, { modifies: {}, perso: [] });
+  assert.equal(sansMarques(r.corps), ['Mon Cher Maître,', 'Nous n\'avons pas encore reçu la copie d\'offre de prêt dans le cadre de votre dossier.',
+    'L\'échéance d\'obtention du prêt est fixée au 12 novembre 2099.', 'Je vous remercie de nous transmettre cette offre dès réception, ou de nous indiquer où en est la demande de financement.',
+    'Dans l’attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n'));
+  assert.match(sansMarques(app.emailDepuisModele('pret', { ...BASE, pret: '2099-11-12' }, { modifies: {}, perso: [] }).corps), /^Bonjour,/, 'au client : texte d’avant');
 });

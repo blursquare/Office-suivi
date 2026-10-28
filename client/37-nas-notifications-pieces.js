@@ -1685,12 +1685,24 @@
     return ACCENTS_DISPONIBLES.indexOf(valeur) >= 0 ? valeur : 'bordeaux';
   }
 
+  // Saison d'Halloween (étude 28/10) : l'orange pour tous du 25 octobre au 1er novembre inclus, puis l'accent que chacun avait choisi
+  // revient seul — le choix enregistré n'est jamais touché.
+  var SAISON_HALLOWEEN = { debut: '10-25', fin: '11-01' };
+  // Pure : l'accent imposé par la saison ce jour-là (« AAAA-MM-JJ »), sinon ''.
+  function accentSaisonnier(iso) {
+    const md = String(iso || '').slice(5, 10);
+    return md >= SAISON_HALLOWEEN.debut && md <= SAISON_HALLOWEEN.fin ? 'orange' : '';
+  }
+  let accentChoisi = 'bordeaux';
+
   function appliquerAccent(valeur, enregistrer) {
     const accent = accentValide(valeur);
+    accentChoisi = accent;
+    const affiche = accentSaisonnier(isoAujourdhuiLocal()) || accent;
     const racine = document.documentElement;
     if (!racine || typeof racine.setAttribute !== 'function') return;
-    if (accent === 'bordeaux' && typeof racine.removeAttribute === 'function') racine.removeAttribute('data-accent');
-    else racine.setAttribute('data-accent', accent);
+    if (affiche === 'bordeaux' && typeof racine.removeAttribute === 'function') racine.removeAttribute('data-accent');
+    else racine.setAttribute('data-accent', affiche);
     const radio = document.getElementById('reglages-accent-' + accent);
     if (radio) radio.checked = true;
     if (enregistrer === false) return;
@@ -1701,6 +1713,8 @@
     let accent = null;
     try { accent = localStorage.getItem(CLE_ACCENT); } catch (e) { /* aucune préférence enregistrée */ }
     appliquerAccent(accent, false);
+    // Une fenêtre ouverte au début ou à la fin de la saison change d'elle-même (relu chaque heure).
+    if (!chargerAccent.minuterie) chargerAccent.minuterie = setInterval(() => appliquerAccent(accentChoisi, false), 3600000);
   }
 
   // ---- préférences d'affichage du collaborateur ----

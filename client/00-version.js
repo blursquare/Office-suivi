@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.386.2';
+  const VERSION_APP = '0.387.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.387.0', date: '2026-10-28 10:01', resume: "La relance de l’offre de prêt au confrère qui représente l’acquéreur suit désormais votre texte (« Mon Cher Maître, Nous n’avons pas encore reçu la copie d’offre de prêt… », échéance en toutes lettres) — modifiable dans Réglages › Modèles d’emails. Saison d’Halloween : du 25 octobre au 1er novembre, CLAIRE passe en orange pour tous, puis chacun retrouve la couleur qu’il avait choisie." },
   { version: '0.386.2', date: '2026-10-28 09:47', resume: "La fiche de signature n’est plus proposée pour un acte où nous sommes en participation (ni pop-up, ni tâche « Imprimer la fiche dossier », ni routine, ni bouton). Connexion de CLAIRE à Authentic plus patiente : si le site met du temps à répondre, elle attend la page puis fait un second essai avant d’abandonner, avec un message clair ; une fenêtre « Quitter la page ? » ne la bloque plus (une confirmation reste toujours refusée). Les onglets de navigation repartent de zéro chaque matin (au premier démarrage de la journée, ou au changement de jour pour une fenêtre restée ouverte — un travail en cours n’est jamais fermé)." },
   { version: '0.386.1', date: '2026-10-28 08:14', resume: "Coordonnées et résumé d’un dossier : un client accompagné par un confrère n’est jamais donné à joindre — CLAIRE renvoie vers le confrère (déontologie) ; « signé » seulement si l’acte l’est vraiment ; les fonds attendus sans rien reçu sont dits ; le bouton « Résumé pour Sophie » ouvre une conversation personnelle neuve (jamais un canal partagé) ; le résumé dit quand les emails ne sont pas encore lus et que seuls les appels reçus sont comptés. Même règle quand CLAIRE lit un dossier : rien du client d’un confrère, et l’historique sans son texte libre." },
   { version: '0.386.0', date: '2026-10-28 08:07', resume: "« Demander à CLAIRE » donne les coordonnées d’un client pour lui écrire ou l’appeler (« le numéro de Monsieur X ? » : la carte s’affiche avec les numéros cliquables pour 3CX et les emails, et CLAIRE propose de préparer l’email). Elle fait aussi le résumé d’un dossier pour Sophie : où il en est, dates clés et délais comparés à la moyenne de l’étude, emails et appels avec le client, ce qui a bloqué, ce qui s’est bien passé — bouton « Résumé pour Sophie » dans les outils de la fiche, ou demandé à CLAIRE ; elle peut le lui envoyer en message privé." },
