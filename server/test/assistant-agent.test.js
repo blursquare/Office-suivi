@@ -1035,3 +1035,20 @@ test('28/10 : authentic_comptabilite — un nom dans le libellé d’une opérat
   assert.match(envoye, /12500/);
   assert.match(envoye, /2026-10-02/);
 });
+
+test('28/10 : lectures_documents — les noms d’un résumé (acte de naissance, PV) ne partent jamais en clair', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'lectures_documents'));
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('l1', 'lectures_documents', { dossier_id: 'd1', relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Y a-t-il une mention au répertoire civil pour Fournier ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'l1', contenu: { dossier_id: 'd1', lectures: [{ sorte: 'naissance', lu_le: '2026-10-28', point_a_signaler: true,
+      resume: 'Acte de naissance « Acte naissance Paul FOURNIER.pdf » : mention au répertoire civil (curatelle) — « Paul FOURNIER placé sous curatelle, RC n° 2020-1234 ».' }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-600));
+  assert.match(envoye, /curatelle/);
+});

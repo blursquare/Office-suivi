@@ -22,6 +22,8 @@ async function chargerInstantaneAuthenticAT(id) {
     e.inst = j.instantane || null;
     // Redessiné seulement si quelque chose a changé (jamais de boucle de rendu).
     if (JSON.stringify(e.inst) !== avant) render();
+    // Un acte de naissance dans les pièces jointes d'Authentic : lu une fois, dit dans la discussion (étude 28/10, client/141).
+    if (typeof planifierLecturesAuthentic === 'function') planifierLecturesAuthentic(dossiers.find(x => x && x.id === id));
   } catch (err) { /* serveur injoignable : relu au prochain rendu */ } finally { e.t = Date.now(); e.enCours = false; }
 }
 

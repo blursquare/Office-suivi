@@ -870,6 +870,8 @@
       render();
       return;
     }
+    // Actes de naissance, EHF et PV d'AG du dossier : lus une fois, dits dans la discussion (étude 28/10, client/141).
+    if (typeof planifierLecturesDocuments === 'function') planifierLecturesDocuments(d);
 
     for (const fichier of fichiers) {
       // Plus de sortie anticipée une fois toutes les pièces trouvées : il faut voir TOUS les
