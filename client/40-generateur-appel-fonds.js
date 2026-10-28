@@ -2932,7 +2932,7 @@
     majApercuAppelFonds();
   }
   function reinitialiserAppelFonds() {
-    afDossierDetache = null;
+    afDossierDetache = null; basculerChampsAppelFonds(true);
     afDateLettreChoisie = false;
     const champDateLettre = afEl('af-date-lettre');
     if (champDateLettre) champDateLettre.value = isoAujourdHui();

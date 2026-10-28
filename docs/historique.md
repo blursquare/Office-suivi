@@ -23057,3 +23057,10 @@ une banque reste une pièce attendue (statut « Attente de pièces ») tant qu'e
 ### 0.394.1 (28/10, étude : « réduis les textes de description pour épurer » ; « l'espace non-péril est grisé à Blois »)
 
 Textes d'aide raccourcis (index.html, client/40, 49, 51, 68, 69, 72, 85, 108, 111, 113, catalogue des routines) ; aucune règle ni texte de document touché. Constitution : une démarche en ligne n'est plus `cst-off` mais `cst-enligne` (jamais grisée).
+
+### 0.395.0 (28/10, étude : appel de fonds et constitution épurés, compte rendu d'ouverture, notifications de dossier)
+
+- Appel de fonds : `.af-form.af-replie` masque les sections Clients / Rendez-vous / Bien / Financement ; bouton `#af-modifier-btn` (`basculerChampsAppelFonds`, client/44) ; un clic sur une étape de la barre ou « Effacer » les rouvre.
+- Constitution : `renderItemConstitution` = switch + titre + destinataire + « Modifier » (`cstModifierDoc`, `cstEtat.edition`) ; adresse vide = édition ouverte seule ; mail / imprimer / PDF passent dans l'éditeur ; dupliquer et retirer restent sur la ligne.
+- Succession : `server/src/compteRenduOuverture.js` (Word `.doc` par `word-extractor`, `.docx` par `texteDocx`, fichier retrouvé par son nom « compte rendu / ouverture », racine ou un sous-dossier), route `GET /api/nas/compte-rendu-ouverture`, `chargerCompteRenduConstitution` / `appliquerCompteRenduConstitution` (client/72) : un courrier par banque citée, EHPAD / mutuelle / caisse de retraite cochés selon le compte rendu (une fois par ouverture). **Non vérifié sur le vrai Word de Sophie** (nom du fichier et tournures à confirmer).
+- Notifications : `creerAiguillageNotifications` — `options.dossierId` → message de CLAIRE dans le canal `d:<id>` (une fois pour toute l'étude, `pour` = responsable) au lieu de la conversation personnelle ; `options.sansConversationClaire` (pièces trouvées) → aucun message de CLAIRE. Les routes `notifications/*`, les rappels et l'agenda passent le `dossierId`.

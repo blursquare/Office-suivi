@@ -351,9 +351,54 @@
       lireZonageConstitution(false);
     } else {
       cstEtat.defunt = defuntConstitution(d);
+      if (d.nasDossier) chargerCompteRenduConstitution(id);
     }
     reconstruireDocumentsConstitution(true);
     renderConstitution();
+  }
+
+  // Le compte rendu d'ouverture de Sophie (Word du dossier sur le NAS, lu par le serveur) dit les banques et si le défunt avait un EHPAD, une
+  // mutuelle ou une caisse de retraite : les courriers correspondants sont cochés ou ajoutés (étude 28/10). Sans compte rendu : rien ne change.
+  async function chargerCompteRenduConstitution(id) {
+    const suivi = cstEtat;
+    try {
+      const r = await fetchAvecAuth(`/api/nas/compte-rendu-ouverture?dossierId=${encodeURIComponent(id)}`);
+      const j = await r.json().catch(() => ({}));
+      if (cstEtat !== suivi || !r.ok || !j.trouve) return;
+      appliquerCompteRenduConstitution(j);
+      renderConstitution();
+    } catch (e) { /* serveur injoignable ou NAS absent : les courriers restent ceux d'avant */ }
+  }
+
+  function appliquerCompteRenduConstitution(cr) {
+    const e = cstEtat;
+    if (!e || e.type !== 'succession' || e.compteRenduApplique) return;
+    e.compteRenduApplique = true;
+    const contacts = typeof repertoireContacts !== 'undefined' ? repertoireContacts : [];
+    const norme = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    ['ehpad', 'mutuelle', 'retraite'].forEach(modele => {
+      const voulu = cr[modele] === true;
+      const existant = e.documents.find(x => x.modele === modele);
+      if (existant) existant.actif = voulu;
+      else if (voulu) ajouterDocSuccessionConstitution(modele, false);
+    });
+    const banques = Array.isArray(cr.banques) ? cr.banques : [];
+    if (!banques.length) return;
+    const base = e.documents.find(x => x.modele === 'banque' && !x.ajoute);
+    if (base) base.actif = false;
+    banques.forEach(nom => {
+      const doc = ajouterDocSuccessionConstitution('banque', true);
+      if (!doc) return;
+      doc.libelle = `Banque ${nom}`;
+      const contact = contacts.find(c => c && norme(c.organisme).includes(norme(nom)));
+      if (contact) {
+        doc.lignes = adresseCourrierContact(contact);
+        doc.contactId = contact.id || '';
+        doc.origine = 'Répertoire';
+        doc.modifie = true;
+      } else doc.origine = 'Compte rendu d’ouverture : adresse à chercher dans le répertoire';
+    });
+    e.selection = '';
   }
 
   // La commune du groupe : code INSEE, intercommunalité, guichet du CU et de la DIA, fiche de la mairie (serveur).
@@ -1253,21 +1298,20 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     }
     const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
     const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';
-    const occupe = cstEtat.enCours ? ' disabled' : '';
-    const etatEmail = doc.envoyeLe ? 'Email préparé' : doc.mode === 'courriel' ? (doc.courriel ? `Par email : ${doc.courriel}` : 'Par email : adresse à saisir') : 'Envoyer par email';
-    const action = (ic, titre, geste, classe) => `<wa-button appearance="plain" size="s" type="button" class="bouton-icone${classe ? ' ' + classe : ''}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}" onclick="event.stopPropagation(); ${geste}"${occupe}>${icone(ic)}</wa-button>`;
+    // Adresse vide : l'édition s'ouvre seule (il faut la saisir) ; sinon, le bouton « Modifier » (étude 28/10 : « simplement des lignes cochées »).
+    const adresseVide = !dest;
+    if (choisi && adresseVide) cstEtat.edition = doc.id;
+    const edite = choisi && cstEtat.edition === doc.id;
     return `<div class="cst-item${choisi ? ' choisi' : ''}${doc.actif ? '' : ' cst-off'}" onclick="cstChoisirDoc('${idDoc}')">
         <span class="cst-item-switch" onclick="event.stopPropagation()"><wa-switch size="s"${doc.actif ? ' checked' : ''} onchange="cstBasculerDoc('${idDoc}', this.checked)" aria-label="Préparer ce courrier"></wa-switch></span>
         <span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}${rang}</span>
           <span class="cst-item-dest${dest ? '' : ' manque'}">${escapeHtml(dest || 'Destinataire à compléter')}</span></span>
         <span class="cst-item-actions">
-          ${action('mail', etatEmail, `emailDepuisLigneConstitution('${idDoc}')`, doc.envoyeLe ? 'cst-fait' : doc.mode === 'courriel' ? 'cst-actif-email' : '')}
-          ${action('printer', doc.genre === 'vente' ? 'Imprimer (suivi du plan cadastral)' : 'Imprimer', `imprimerDocumentConstitution('${idDoc}')`)}
-          ${action('download', 'Télécharger en PDF', `telechargerDocumentConstitution('${idDoc}', 'pdf')`)}
+          ${edite && adresseVide ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="event.stopPropagation(); cstModifierDoc('${idDoc}')">${edite ? 'Fermer' : 'Modifier'}</wa-button>`}
           ${doc.genre === 'succession' ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Un autre courrier du même genre (une seconde banque…)" onclick="event.stopPropagation(); cstDupliquerDoc('${idDoc}')">${icone('plus')}</wa-button>` : ''}
           ${doc.ajoute ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" title="Retirer ce courrier" onclick="event.stopPropagation(); cstRetirerDoc('${idDoc}')">${icone('x')}</wa-button>` : ''}
         </span>
-      </div>${choisi ? `<div class="cst-item-edition">${renderEditeurConstitution(doc)}</div>` : ''}`;
+      </div>${edite ? `<div class="cst-item-edition">${renderEditeurConstitution(doc)}</div>` : ''}`;
   }
 
   function renderListeCourriersConstitution() {
@@ -1372,11 +1416,16 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const idDoc = escapeOnclickArg(doc.id);
     if (doc.mode === 'en-ligne') return `<div class="cst-edition"><strong>${escapeHtml(doc.libelle)}</strong><p class="hint">${escapeHtml(doc.note)}</p></div>`;
     const retenir = doc.modele !== 'autre' && (doc.genre === 'vente' ? doc.modeleRetenu : true);
+    const occupe = cstEtat.enCours ? ' disabled' : '';
+    const etatEmail = doc.envoyeLe ? 'Email préparé' : doc.mode === 'courriel' ? (doc.courriel ? `Par email : ${doc.courriel}` : 'Par email : adresse à saisir') : 'Envoyer par email';
+    const action = (ic, titre, geste, classe) => `<wa-button appearance="plain" size="s" type="button" class="bouton-icone${classe ? ' ' + classe : ''}" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}" onclick="${geste}"${occupe}>${icone(ic)}</wa-button>`;
+    const sorties = `<span class="cst-item-actions">${action('mail', etatEmail, `emailDepuisLigneConstitution('${idDoc}')`, doc.envoyeLe ? 'cst-fait' : doc.mode === 'courriel' ? 'cst-actif-email' : '')}${action('printer', doc.genre === 'vente' ? 'Imprimer (suivi du plan cadastral)' : 'Imprimer', `imprimerDocumentConstitution('${idDoc}')`)}${action('download', 'Télécharger en PDF', `telechargerDocumentConstitution('${idDoc}', 'pdf')`)}</span>`;
     return `<div class="cst-edition">
       ${doc.note ? `<p class="hint">${escapeHtml(doc.note)}</p>` : ''}
       <div class="cst-envoi">
         <wa-button-group label="Envoi"><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'papier' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'papier')">Papier</wa-button><wa-button size="s" appearance="outlined" class="vue-bascule-btn${doc.mode === 'courriel' ? ' actif' : ''}" type="button" onclick="cstModeEnvoi('${idDoc}', 'courriel')">Email</wa-button></wa-button-group>
         <wa-button appearance="outlined" size="s" type="button" class="cst-word" onclick="telechargerDocumentConstitution('${idDoc}', 'docx')" title="Télécharger le courrier en Word (.docx)">Word</wa-button>
+        ${sorties}
         ${doc.origine ? `<span class="hint">${/^adresse/i.test(doc.origine) ? escapeHtml(doc.origine) : `Adresse : ${escapeHtml(doc.origine)}`}</span>` : ''}
         ${doc.mode === 'courriel' ? `<input type="email" class="prop-champ cst-courriel" list="cst-emails-proposes" value="${escapeAttr(doc.courriel || '')}" placeholder="adresse@organisme.fr" oninput="cstCourriel('${idDoc}', this.value)" aria-label="Adresse email du destinataire">
           <datalist id="cst-emails-proposes">${(doc.emails || []).map(e => `<option value="${escapeAttr(e.adresse)}">${escapeHtml(e.libelle)}</option>`).join('')}</datalist>
@@ -1487,6 +1536,14 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const dest = resumeDestinataireConstitution(doc);
     el.textContent = dest || 'Destinataire à compléter';
     el.classList.toggle('manque', !dest);
+  }
+
+  // « Modifier » : sélectionne le courrier (aperçu à droite) et ouvre ou ferme son édition sous sa ligne.
+  function cstModifierDoc(id) {
+    if (!cstEtat || !documentConstitution(id)) return;
+    cstEtat.edition = (cstEtat.selection === id && cstEtat.edition === id) ? '' : id;
+    cstEtat.selection = id;
+    renderConstitution();
   }
 
   function cstChoisirDoc(id) {

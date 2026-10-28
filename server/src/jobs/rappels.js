@@ -331,13 +331,13 @@ async function executerTacheRappelsSeule(depot, db, parametresRepo, envoyerFn, a
       continue;
     }
     const texte = r.texte || texteRappel(r);
-    const envoi = await envoyer(reglages, email, texte);
+    const envoi = await envoyer(reglages, email, texte, undefined, { dossierId: r.dossierId });
     if (envoi.ok) {
       resultat.rappelsEnvoyes++;
       if (envoi.messageId) messagesEnvoyes.push(envoi.messageId);
       marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
       if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email)) {
-        const copie = await envoyer(reglages, reglages.copieEmail, texte);
+        const copie = await envoyer(reglages, reglages.copieEmail, texte, undefined, { dossierId: r.dossierId });
         if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
         if (!copie.ok) {
           resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);

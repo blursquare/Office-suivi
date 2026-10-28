@@ -176,11 +176,13 @@ function dedoublonnerPieces(registre, dossierCle, pieces, maintenantMs) {
 // pas à recevoir le compte rendu de son propre geste).
 async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, options = {}) {
   const email = responsable ? reglages.emailsResponsables[responsable] : null;
+  // Aiguillage vers la conversation de CLAIRE : le dossier (sa conversation), ou « pièces » (aucune conversation) — voir messagesClaire.js.
+  const optionsEnvoi = { dossierId: options.dossierId || '', sansConversationClaire: options.sansConversationClaire === true };
   const resultat = { ok: true, envoyeResponsable: false, envoyeCopie: false, erreurs: [] };
   const messagesEnvoyes = [];
 
   if (email) {
-    const envoi = await envoyer(reglages, email, message);
+    const envoi = await envoyer(reglages, email, message, undefined, optionsEnvoi);
     resultat.envoyeResponsable = envoi.ok;
     if (envoi.ok && envoi.messageId) messagesEnvoyes.push(envoi.messageId);
     if (!envoi.ok) resultat.erreurs.push(envoi.erreur);
@@ -190,7 +192,7 @@ async function envoyerAuResponsable(parametresRepo, envoyer, reglages, responsab
 
   if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email) &&
       !(options.sansCopiePour && memeAdresseEmail(reglages.copieEmail, options.sansCopiePour))) {
-    const copie = await envoyer(reglages, reglages.copieEmail, message);
+    const copie = await envoyer(reglages, reglages.copieEmail, message, undefined, optionsEnvoi);
     resultat.envoyeCopie = copie.ok;
     if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
     if (!copie.ok) resultat.erreurs.push(copie.erreur);
@@ -250,7 +252,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
       texte: texteNotificationPieces(dossierNom, labels, liens),
       html: htmlNotificationPieces(dossierNom, labels, liens)
     };
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansConversationClaire: true }));
   });
 
   router.post('/notifications/dossier-complet', async (req, res) => {
@@ -260,7 +262,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!dossierNom) return res.status(400).json({ erreur: 'dossierNom manquant.' });
     const reglages = parametresRepo.lireReglages();
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texteDossierComplet(dossierNom, req.body && req.body.succession === true)));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, texteDossierComplet(dossierNom, req.body && req.body.succession === true), { dossierId: (typeof corps.dossierId === 'string' ? corps.dossierId.trim().slice(0, 80) : '') }));
   });
 
   router.post('/notifications/date-ajoutee', async (req, res) => {
@@ -283,7 +285,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     const message = texteDateAjoutee(dossierNom, auteur, libelle, date, /^\d{4}-\d{2}-\d{2}$/.test(ancienneDate) ? ancienneDate : '',
       texteChamp(corps.heure), texteChamp(corps.ancienneHeure));
     const sansCopiePour = auteur ? reglages.emailsResponsables[auteur] : null;
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour, dossierId: (typeof corps.dossierId === 'string' ? corps.dossierId.trim().slice(0, 80) : '') }));
   });
 
   // Signature marquée « annulé / à replacer » depuis la page Agenda (le poste ; la lecture de
@@ -302,7 +304,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
     const message = texteRendezVousAgenda({ dossierNom, auteur, action: 'aReplacer', date, heure: texteChamp(corps.heure) });
     const sansCopiePour = auteur ? reglages.emailsResponsables[auteur] : null;
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour, dossierId: (typeof corps.dossierId === 'string' ? corps.dossierId.trim().slice(0, 80) : '') }));
   });
 
   router.post('/notifications/tache-faite', async (req, res) => {
@@ -320,7 +322,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     if (!envoiConfigure(reglages)) return res.json({ ok: true, ignore: true });
     const message = texteTacheFaite(dossierNom, auteur, tache, texteChamp(corps.detail));
     const sansCopiePour = reglages.emailsResponsables[auteur] || null;
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour }));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, responsable, message, { sansCopiePour, dossierId: (typeof corps.dossierId === 'string' ? corps.dossierId.trim().slice(0, 80) : '') }));
   });
 
   router.post('/notifications/facture-succession', async (req, res) => { try {
@@ -342,7 +344,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     let url = '';
     if (chemin && typeof parametresRepo.lireSecretLiens === 'function') url = urlLienPiece(baseDepuisRequete(req, adresses), parametresRepo.lireSecretLiens(), chemin);
     const message = { texte: texteFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url), html: htmlFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url) };
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, DESTINATAIRE_FACTURES_SUCCESSION, message));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, DESTINATAIRE_FACTURES_SUCCESSION, message, { dossierId: t(c.dossierId, 80) }));
   } catch (e) { console.error('[CLAIRE] Facture de succession :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
 
   const envoisRecents = [];

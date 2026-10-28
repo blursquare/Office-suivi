@@ -97,6 +97,16 @@
     });
   }
 
+  // Appel de fonds (étude 28/10) : l'espace de dépôt reste, les champs à remplir se déplient sous « Modifier les champs ».
+  function basculerChampsAppelFonds(ouvrir) {
+    const form = document.querySelector('#onglet-appel-fonds .af-form');
+    if (!form) return;
+    const replie = typeof ouvrir === 'boolean' ? !ouvrir : !form.classList.contains('af-replie');
+    form.classList.toggle('af-replie', replie);
+    const bouton = document.getElementById('af-modifier-btn');
+    if (bouton) bouton.textContent = replie ? 'Modifier les champs' : 'Masquer les champs';
+  }
+
   var etapeChoisieOutil = null;     // étape cliquée dans la barre, gardée allumée le temps d'y défiler
 
   function valeurChamp(id) { const e = document.getElementById(id); return e ? String(e.value || '').trim() : ''; }
@@ -147,6 +157,7 @@
       // L'étape cliquée reste allumée pendant le défilement qui y mène (sinon le suivi du défilement la reprendrait).
       etapeChoisieOutil = { outil, jusqua: Date.now() + 1200 };
       const reduit = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (titre && outil === 'appel-fonds' && !titre.offsetParent) basculerChampsAppelFonds(true);
       if (titre) titre.scrollIntoView({ behavior: reduit ? 'auto' : 'smooth', block: 'start' });
     });
     // Toute saisie ou tout clic dans l'outil peut remplir une section : la barre suit (au plus une fois par image).

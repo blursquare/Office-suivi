@@ -194,6 +194,24 @@ function creerRouteurNas(config, depot) {
 
   // Dossier « Fausses minutes » (étude, 03/10) : copies d'actes et attestations de vente à transmettre au client
   // dans les dossiers en participation. Liste (nom, taille, date) puis le PDF choisi, confiné à ce dossier.
+  // Compte rendu d'ouverture d'une succession (étude 28/10) : le Word du dossier client relié, lu par le serveur ; ne rend que les organismes repérés.
+  routeur.get('/nas/compte-rendu-ouverture', routeAsync(async (req, res) => {
+    if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return; }
+    const d = depot && typeof req.query.dossierId === 'string' ? depot.trouverParId(req.query.dossierId) : null;
+    if (!d || !d.nasDossier) { res.json({ trouve: false }); return; }
+    const dossier = await resoudreCheminNas(config.nasRacine, String(d.nasDossier));
+    if (!dossier) { res.json({ trouve: false }); return; }
+    const { trouverCompteRendu, lireTexteWord, analyserCompteRendu } = require('../compteRenduOuverture');
+    const chemin = await trouverCompteRendu(dossier);
+    if (!chemin) { res.json({ trouve: false }); return; }
+    try {
+      res.json(Object.assign({ trouve: true }, analyserCompteRendu(await lireTexteWord(chemin))));
+    } catch (e) {
+      console.warn('[CLAIRE] Compte rendu d’ouverture illisible :', e && e.message);
+      res.json({ trouve: false, illisible: true });
+    }
+  }));
+
   routeur.get('/nas/fausses-minutes', routeAsync(async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await faussesMinutes(config));

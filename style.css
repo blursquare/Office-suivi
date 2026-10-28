@@ -9936,6 +9936,11 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-parcelle-ref { font-weight: 600; }
 .cst-parcelle-lieu, .cst-parcelle-surf { color: var(--muted); font-size: var(--texte-s); }
 .cst-off { opacity: 0.55; }
+.af-form.af-replie .outil-section[data-section="clients"],
+.af-form.af-replie .outil-section[data-section="rdv"],
+.af-form.af-replie .outil-section[data-section="bien"],
+.af-form.af-replie .outil-section[data-section="financement"] { display: none; }
+.af-modifier { margin-top: 12px; }
 .cst-item.cst-enligne { cursor: default; }
 .cst-item.cst-enligne .cst-gnau-lien { font-weight: 600; }
 .cst-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

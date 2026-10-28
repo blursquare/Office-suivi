@@ -1529,7 +1529,7 @@
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste,
+        dossierId: d.id, dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste,
         libelle, date: nouvelleDate, ancienneDate: ancienneDate || '',
         ...(heures ? { heure: heures.heure || '', ancienneHeure: heures.ancienneHeure || '' } : {})
       })
@@ -1543,7 +1543,7 @@
     fetchAvecAuth('/api/notifications/rendez-vous-agenda', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, action: 'aReplacer', date, heure: heure || '' })
+      body: JSON.stringify({ dossierId: d.id, dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, action: 'aReplacer', date, heure: heure || '' })
     }).catch(e => console.warn('Notification « à replacer » impossible :', e.message));
   }
 
@@ -1560,7 +1560,7 @@
     fetchAvecAuth('/api/notifications/tache-faite', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, tache, detail: detail || '' })
+      body: JSON.stringify({ dossierId: d.id, dossierNom: libelleDossierAffiche(d), responsable: d.responsable, auteur: utilisateurPoste, tache, detail: detail || '' })
     }).catch(e => console.warn('Notification « tâche faite » impossible :', e.message));
   }
 
@@ -1580,7 +1580,7 @@
     fetchAvecAuth('/api/notifications/dossier-complet', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, succession })
+      body: JSON.stringify({ dossierId: d.id, dossierNom: libelleDossierAffiche(d), responsable: d.responsable || null, succession })
     }).catch(e => console.warn('Notification « dossier complet » impossible :', e.message));
   }
 

@@ -159,3 +159,21 @@ test('comme une collègue : chaque notification redite en une phrase courte (ét
   assert.equal(r.message.sorte, 'rappels');
   assert.ok(/\n|Pièces/.test(M.phraseCollegue('📌 CLAIRE — Rappel : « Prêt » du dossier X arrive à échéance dans 7 jours (le 2026-11-03).\n\nPièces reçues (1) : a')), 'le détail reste dessous');
 });
+
+test('aiguillage (28/10) : une notification de dossier va dans la conversation du dossier, une seule fois ; les pièces trouvées n’ont aucun message de CLAIRE', () => {
+  const C = require('../src/canaux/canaux');
+  const repo = repoMemoire();
+  const aiguiller = M.creerAiguillageNotifications(repo, ['Bastien ANGLUMENT']);
+  const reglages = { emailsResponsables: { 'Julie VASSELIN': 'julie@exemple.fr' }, copieEmail: 'etude@exemple.fr' };
+  const texte = 'Rappel : « Prêt » du dossier VTE - X arrive à échéance dans 7 jours (le 2026-11-03).';
+  assert.equal(aiguiller(reglages, 'julie@exemple.fr', texte, { dossierId: 'dos1' }).claire, true);
+  aiguiller(reglages, 'etude@exemple.fr', texte, { dossierId: 'dos1' });
+  const messages = C.lireMessages(repo, C.canalDuDossier('dos1'));
+  assert.equal(messages.length, 1, 'la copie à l’étude ne double pas le message du dossier');
+  assert.equal(messages[0].claire, true); assert.equal(messages[0].pour, 'Julie VASSELIN');
+  assert.equal(M.messagesDe(repo, 'Julie VASSELIN').length, 0, 'rien dans la conversation personnelle');
+  const r = aiguiller(reglages, 'julie@exemple.fr', 'Nouvelle pièce trouvée sur le dossier VTE - X : titre.', { sansConversationClaire: true });
+  assert.equal(r.claire, true);
+  assert.equal(M.messagesDe(repo, 'Julie VASSELIN').length, 0);
+  assert.equal(C.lireMessages(repo, C.canalDuDossier('dos1')).length, 1, 'les pièces ne sont pas annoncées dans le dossier non plus');
+});

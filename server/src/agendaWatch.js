@@ -534,7 +534,7 @@ async function notifierRendezVousRelevesAgenda(depot, parametresRepo, misAJour, 
       ancienneDate: m.ancienneDate || ''
     });
     try {
-      await envoyerAuResponsable(parametresRepo, envoyer, reglages, d.responsable, message);
+      await envoyerAuResponsable(parametresRepo, envoyer, reglages, d.responsable, message, { dossierId: d.id });
     } catch (e) {
       console.warn('[CLAIRE] Notification Teams du rendez-vous impossible :', e.message);
     }

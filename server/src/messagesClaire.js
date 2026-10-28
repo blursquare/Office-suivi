@@ -199,6 +199,24 @@ function creerAiguillageNotifications(repo, administrateurs) {
     const texte = typeof message === 'string' ? message : (message && (message.texte || message.html)) || '';
     const verTeams = qui.some((n) => prefs[n] && prefs[n].notifications && prefs[n].notifications.teams === true);
     if (options && options.dejaDansCanal) return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
+    // Pièces trouvées (étude 28/10) : déjà dans le dossier, avec sa pastille — jamais un message de CLAIRE (Teams seulement pour qui l'a demandé).
+    if (options && options.sansConversationClaire) return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
+    // Une notification liée à un dossier va dans la conversation DE CE DOSSIER (étude 28/10), une seule fois pour toute l'étude.
+    const dossierId = options && typeof options.dossierId === 'string' ? options.dossierId.slice(0, 80) : '';
+    if (dossierId && qui.length) {
+      const { ajouterMessage, canalDuDossier, lireMessages, canalValide } = require('./canaux/canaux');
+      const canal = canalDuDossier(dossierId);
+      if (canalValide(canal)) {
+        const { court, complet } = versionCourte(phraseCollegue(texte));
+        if (court) {
+          const t = Date.now();
+          const texteCanal = complet !== court ? complet : court;
+          const deja = lireMessages(repo, canal).some((m) => m.claire && m.texte === texteCanal && t - (Number(m.quand) || 0) < FENETRE_DOUBLON_MS);
+          if (!deja) ajouterMessage(repo, canal, { auteur: 'CLAIRE', claire: true, pour: qui[0], texte: texteCanal }, t);
+        }
+        return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
+      }
+    }
     let depose = false;
     for (const n of qui) { const d = deposerMessageClaire(repo, n, { texte }); if (d.effet === 'nouveau' || d.effet === 'groupe') depose = true; }
     if (depose) { try { require('./verificationsTerrain').noterVerification(repo, 'messages-claire-recus', { detail: 'message déposé' }); } catch (e) { /* jamais bloquant */ } }
