@@ -57,7 +57,9 @@
     <div>Tiers (0)</div>
     <table><thead><tr><th>Intitulé</th><th>Date</th><th>Etat</th></tr></thead><tbody><tr><td>Acte de vente</td><td>01/10/2026</td><td>Non rédigé</td></tr></tbody></table>
     <!-- Formalités préalables (étape 4) : l'icône d'aperçu n'apparaît qu'au survol de la ligne ; le tiroir porte une corbeille jamais cliquée. -->
-    <ul class="formalites-prealables">
+    <!-- Groupe REPLIÉ (captures du wiki, 28/10) : déplié par son chevron seulement. -->
+    <div class="ligne-bloc"><i class="pi pi-chevron-right" aria-expanded="false" onclick="this.className = 'pi pi-chevron-down'; this.setAttribute('aria-expanded', 'true'); this.parentElement.nextElementSibling.style.display = ''">›</i><span>État civil (1)</span></div>
+    <ul class="formalites-prealables" style="display:none">
       <li class="ligne-form">ECV État-Civil - Acte de Naissance - MARTIN Paul · 01/10/2026 · Réponse positive <a class="icone-apercu"><i class="pi pi-trash" title="Supprimer l'aperçu" onclick="window.__interdit = 'corbeille de la ligne'">✕</i></a> <span class="icone-apercu" title="Aperçu" onclick="ouvrirApercu()">▣</span></li>
     </ul>
   </div>
@@ -79,10 +81,23 @@
   <button type="button" onclick="window.__interdit = 'Nouveau dossier'">Nouveau dossier</button>
 </div>
 
+<!-- Écran « € Comptabilité » (capture 4.19.2 du wiki) : sans la référence du dossier, AUCUN compte choisi à l'ouverture ; la case à cocher n'est
+     jamais cliquée, le libellé « Compte n°… » montre le détail. -->
+<!-- Page du DOSSIER sans sous-dossier choisi (wiki « Crea13 ») : le bandeau `…:dossierHeader`, pas de « Comparants », la liste des
+     sous-dossiers `…:selectSousDossier` (la promesse n'est jamais ouverte). -->
+<div class="vue" id="dossier-racine">
+  <div id="ui-ficho-tabs:mainTabPanel:tabForm4:tabContent:dossierHeader">A 2026 00500 VTE MARTIN / DURAND</div>
+  <div>Date de création</div><div>01/09/2026</div>
+  <a class="lien" id="ui-ficho-tabs:mainTabPanel:tabForm4:tabContent:listeSousDossier:0:selectSousDossier" onclick="window.__promesse = true">1 - Promesse VTE MARTIN / DURAND</a>
+  <a class="lien" id="ui-ficho-tabs:mainTabPanel:tabForm4:tabContent:listeSousDossier:1:selectSousDossier" onclick="voir('dossier')">2 - Vente d'immeuble</a>
+</div>
+
 <div class="vue" id="compta">
-  <div>A 2026 00500 VTE MARTIN / DURAND</div>
   <h3>€ Comptabilité</h3><button type="button" onclick="voir('dossier')">← Retour</button>
-  <div>Dernières opérations du compte</div>
+  <div>Compte principal</div>
+  <div class="carte-compte"><div class="ui-chkbox" onclick="window.__interdit = 'case du compte'" style="display:inline-block;width:14px;height:14px;border:1px solid #888"></div>
+    <span onclick="document.getElementById('detail-compte').innerHTML = '<div>Dernières opérations de l’affaire</div>'">Compte n°4110 - ESSAI</span> <span>Solde du compte : 12.5€</span></div>
+  <div id="detail-compte">Sélectionnez un compte pour en voir le détail</div>
   <button type="button" onclick="window.__interdit = 'Générer en PDF'">Générer en PDF</button>
 </div>
 
@@ -94,7 +109,9 @@
 <div class="vue" id="fiche-martin">
   <label for="j:ficheClientPhysiqueIdentite:nom">Nom de famille</label><input id="j:ficheClientPhysiqueIdentite:nom" value="MARTIN">
   <label for="j:ficheClientPhysiqueIdentite:prenom">Prénom</label><input id="j:ficheClientPhysiqueIdentite:prenom" value="Paul">
-  <button type="button" onclick="voir('dossier')">Retour</button>
+  <!-- Fiche client Silicium : « Fermer », « Supprimer la fiche », « Enregistrer les modifications » (wiki, 28/10) ; jamais les deux derniers. -->
+  <button type="button" onclick="voir('dossier')">Fermer</button> <button type="button" onclick="window.__interdit = 'Supprimer la fiche'">Supprimer la fiche</button>
+  <button type="button" onclick="window.__interdit = 'Enregistrer les modifications'">Enregistrer les modifications</button>
 </div>
 <div class="vue" id="fiche-durand">
   <label for="j:ficheClientPhysiqueIdentite:nom2">Nom de famille</label><input id="j:ficheClientPhysiqueIdentite:nom2" value="DURAND">
@@ -165,7 +182,7 @@
     const v = e.target.value;
     voir('accueil');
     document.getElementById('resultats').innerHTML = /00500|MARTIN/.test(v)
-      ? resultat(0, 'A 202600499 VTE MARTIN / DURANDEAU', 'homonyme') + resultat(1, 'A 202600500 VTE MARTIN / DURAND', 'dossier') : 'Aucun résultat';
+      ? resultat(0, 'A 202600499 VTE MARTIN / DURANDEAU', 'homonyme') + resultat(1, 'A 202600500 VTE MARTIN / DURAND', 'dossier-racine') : 'Aucun résultat';
   });
   // Un résultat comme sur le vrai Authentic (relevé de l'étude du 28/10) : le numéro SANS espace entre l'année et le numéro ; le TITRE n'ouvre
   // qu'un panneau latéral (ouvreDossierSideView), l'icône de dossier bleue (goToDossier, sans texte) ouvre le dossier.

@@ -268,6 +268,152 @@ const SCRIPT_PLUS_FORMALITES_PREALABLES = `(() => {
   return null;
 })()`;
 
+// Ce qu'on voit VRAIMENT à l'écran (un volet PrimeFaces fermé reste dans la page, poussé hors de l'écran) — captures du wiki, 28/10.
+const VISIBLE_ECRAN = `((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && r.left < innerWidth && r.right > 0
+  && r.top < innerHeight && r.bottom > 0 && getComputedStyle(e).visibility !== 'hidden'; })`;
+
+// Le bandeau du dossier ouvert (`…:dossierHeader`, relevé de l'étude : « A 2026 00329 VTE … ») — présent sur la page du dossier comme sur celle
+// d'un sous-dossier, quand « Comparants » n'y est pas encore (page du dossier sans sous-dossier choisi, wiki « Crea13 »).
+const SCRIPT_EN_TETE_DOSSIER = `(() => { const e = [...document.querySelectorAll('[id$=":dossierHeader"]')].find(${VISIBLE_ECRAN});
+  return e ? String(e.innerText || '') : ''; })()`;
+
+// Les sous-dossiers du dossier (`…:listeSousDossier:<i>:selectSousDossier`, relevé de l'étude), chacun marqué `data-claire-sd` ; leur libellé.
+const SCRIPT_SOUS_DOSSIERS = `(() => [...document.querySelectorAll('[id$=":selectSousDossier"]')].filter(${VISIBLE_ECRAN}).map((a, i) => {
+  a.setAttribute('data-claire-sd', String(i));
+  return String(a.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 200);
+}))()`;
+/** Le sous-dossier i, à l'écran et sous le pointeur : { x, y, bouton } ou null. @param {number} i */
+const scriptPlacerSousDossier = (i) => `(() => {
+  const a = document.querySelector('[data-claire-sd="${Number(i)}"]');
+  if (!a) return null;
+  a.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = a.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(a.contains(d) || d.contains(a))) return null;
+  const b = d.closest('button, a, [role=button]') || d;
+  const corbeille = b.querySelector && b.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
+  return { x, y, bouton: (String(b.innerText || b.getAttribute('title') || '').replace(/\\s+/g, ' ').trim().slice(0, 160) + corbeille).trim() };
+})()`;
+const SCRIPT_SOUS_DOSSIER_OUVERT = `(() => { const e = [...document.querySelectorAll('[id$=":informationSousDossier:libelle"]')].find(${VISIBLE_ECRAN});
+  return e ? String(e.innerText || '').replace(/\\s+/g, ' ').trim() : ''; })()`;
+
+/**
+ * Les chevrons FERMÉS des blocs repliés dont l'en-tête répond à `re` (texte sans accents, en minuscules) et porte un nombre non nul : « ›
+ * Formalités préalables (3) », un groupe « Envoyé (12) » d'un écran de suivi (captures du wiki, 28/10). Seulement un chevron qui dit être
+ * fermé (aria-expanded="false", mot d'icône ou classe « …right »), sur la ligne de l'en-tête — jamais l'en-tête, qui porte « + »,
+ * corbeille ou avion d'envoi. [{ x, y, bouton }]. @param {string} reSource
+ */
+const scriptChevronsFermes = (reSource) => `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+  const re = new RegExp(${JSON.stringify(reSource)});
+  const visible = ${VISIBLE_ECRAN};
+  const ferme = (c) => c.getAttribute('aria-expanded') === 'false'
+    || /^(keyboard_arrow_right|chevron_right|arrow_right|navigate_next)$/.test(String(c.innerText || '').trim())
+    || /(chevron|arrow|caret|triangle)[-_]?(right|1-e)\\b|ui-icon-triangle-1-e|toggler[^ ]*\\s[^ ]*(right|collapsed)/i.test(typeof c.className === 'string' ? c.className : '');
+  const out = [];
+  [...document.querySelectorAll('a, span, div, h2, h3, h4, label, legend')].forEach((tete) => {
+    if (out.length >= 12 || !visible(tete) || !re.test(net(tete.innerText))) return;
+    if ([...tete.children].some((c) => re.test(net(c.innerText)))) return;
+    const rt = tete.getBoundingClientRect(), milieu = rt.top + rt.height / 2;
+    let rangee = tete.parentElement;
+    for (let k = 0; rangee && k < 3; k++, rangee = rangee.parentElement) {
+      const ch = [...rangee.querySelectorAll('*')].find((c) => visible(c) && !c.contains(tete) && ferme(c)
+        && Math.abs(c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2 - milieu) < 14);
+      if (!ch) continue;
+      const r = ch.getBoundingClientRect();
+      const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+      const d = document.elementFromPoint(x, y);
+      if (d && (ch.contains(d) || d.contains(ch)) && !out.some((o) => o.x === x && o.y === y)) {
+        const b = d.closest('button, a, [role=button]') || d;
+        out.push({ x, y, bouton: [typeof ch.className === 'string' ? ch.className : '', ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
+          b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) });
+      }
+      break;
+    }
+  });
+  return out;
+})()`;
+
+// Le menu de gauche d'Authentic se déplie au SURVOL (relevé de l'étude ; wiki : replié = icônes seules) : le point où poser la souris.
+const SCRIPT_POINT_MENU = `(() => {
+  const r = [...document.querySelectorAll('nav, .layout-sidebar, .layout-menu, [class*=sidebar], [class*=menu-gauche], [class*=side-menu]')]
+    .map((e) => e.getBoundingClientRect()).find((x) => x.width > 20 && x.height > 200 && x.left < 80);
+  return r ? { x: Math.round(r.left + Math.min(r.width / 2, 25)), y: Math.round(r.top + r.height / 2) } : { x: 25, y: Math.round(innerHeight / 2) };
+})()`;
+/** Une entrée du menu (« Suivis », « Suivi SAFER / DIA-DPU »…) visible : le plus petit élément dont le texte est EXACTEMENT ce libellé (sans
+ * casse ni accents), jamais un onglet ; vérifié sous le pointeur. { x, y, bouton } ou null. @param {string} libelle */
+const scriptEntreeMenu = (libelle) => `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
+  const c = net(${JSON.stringify(String(libelle))});
+  const visible = ${VISIBLE_ECRAN};
+  const e = [...document.querySelectorAll('a, span, li, div, button, label')].filter((x) => visible(x) && !x.closest('[role=tab], [role=tablist]') && net(x.innerText) === c)
+    .sort((a, b) => a.offsetWidth * a.offsetHeight - b.offsetWidth * b.offsetHeight)[0];
+  if (!e) return null;
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 100)), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(e.contains(d) || d.contains(e))) return null;
+  const b = d.closest('button, a, [role=button], [role=menuitem], li') || d;
+  return { x, y, bouton: String(b.innerText || b.getAttribute('title') || '').replace(/\\s+/g, ' ').trim().slice(0, 160) };
+})()`;
+
+// Comptabilité : à l'ouverture, AUCUN compte n'est choisi (« Sélectionnez un compte pour en voir le détail », capture 4.19.2 du wiki) — le
+// libellé « Compte n°… » de la carte du compte principal, jamais sa case à cocher (qui active « Détacher de l'acte » et « Générer en PDF »).
+const SCRIPT_COMPTE_PRINCIPAL = `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+  const visible = ${VISIBLE_ECRAN};
+  const tous = [...document.querySelectorAll('span, div, label, a, td, li, b, strong')].filter(visible);
+  const tete = tous.find((e) => net(e.innerText) === 'compte principal');
+  const comptes = tous.filter((e) => /^compte n/.test(net(e.innerText)) && ![...e.children].some((x) => /^compte n/.test(net(x.innerText))));
+  const e = (tete && comptes.find((x) => tete.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING)) || comptes[0];
+  if (!e) return null;
+  e.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  if (!d || !(e.contains(d) || d.contains(e)) || d.closest('.ui-chkbox, input, [role=checkbox]')) return null;
+  const b = d.closest('button, a, [role=button]') || d;
+  return { x, y, texte: String(e.innerText).replace(/\\s+/g, ' ').trim().slice(0, 120), bouton: String(b.innerText || b.getAttribute('title') || '').replace(/\\s+/g, ' ').trim().slice(0, 160) };
+})()`;
+
+// Le filtre de la liste des formalités (volet « Ajouter des formalités préalables ») : un champ dont un ancêtre proche montre la liste
+// (« … formalité(s) trouvée(s) », « Liste des formalités préalables », les entrées CJN / COMEDEC) — jamais le « Filtrer » du sous-dossier.
+const SCRIPT_CHAMP_FILTRE_FORMALITES = `(() => {
+  const re = /formalit[ée]\\(s\\) trouv|liste des formalit|etat civil d[ée]mat|casier judiciaire|ajouter des formalit/i;
+  const visible = ${VISIBLE_ECRAN};
+  let meilleur = null;
+  for (const e of document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=password])')) {
+    if (!visible(e)) continue;
+    let a = e.parentElement;
+    for (let k = 0; a && k < 5; k++, a = a.parentElement) {
+      if (re.test(String(a.innerText || ''))) { if (!meilleur || k < meilleur.k) meilleur = { e, k }; break; }
+    }
+  }
+  if (!meilleur) return null;
+  const r = meilleur.e.getBoundingClientRect();
+  return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+})()`;
+
+// « Valider » de la demande quand il n'a pas de texte (bloc Comedec : rond vert « ✓ », captures 2021-2022 du wiki) : dans le plus petit bloc
+// qui porte « Création rapide », un bouton sans texte (ou « check ») dont le titre dit « Valider » ou qui porte une icône de coche.
+const SCRIPT_VALIDER_ICONE = `(() => {
+  const visible = ${VISIBLE_ECRAN};
+  const blocs = [...document.querySelectorAll('div, form, fieldset')].filter((d) => visible(d) && /cr[ée]ation rapide/i.test(String(d.innerText || '')));
+  blocs.sort((a, b) => String(a.innerText).length - String(b.innerText).length);
+  for (const bloc of blocs.slice(0, 4)) {
+    const b = [...bloc.querySelectorAll('button, a, [role=button]')].find((x) => visible(x) && /^(check|done|check_circle)?$/i.test(String(x.innerText || '').trim())
+      && (/valider/i.test(String(x.getAttribute('title') || '') + ' ' + String(x.getAttribute('aria-label') || '')) || x.querySelector('[class*=check]') || /check/.test(String(x.className || ''))));
+    if (!b) continue;
+    const r = b.getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+    const d = document.elementFromPoint(x, y);
+    if (!d || !(b.contains(d) || d.contains(b))) return null;
+    return { x, y, bouton: [b.getAttribute('title'), b.getAttribute('aria-label'), String(b.innerText || '').trim(), String(b.className || '')].filter(Boolean).join(' ').slice(0, 160) };
+  }
+  return null;
+})()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle, libellesSeuls) => `(() => {
   const seuls = ${libellesSeuls ? 'true' : 'false'};
@@ -297,7 +443,7 @@ const TABLE_COMEDEC = `[...document.querySelectorAll('table')].filter((t) => { c
 const SCRIPT_LIGNES_COMEDEC = `(() => ${TABLE_COMEDEC}.map((tr) => { const td = tr.querySelectorAll('td');
   return { libelle: String(td[0].innerText).replace(/\\s+/g, ' ').trim().slice(0, 200), choisi: String(td[td.length - 1].innerText).replace(/\\s+/g, ' ').trim().slice(0, 80) }; }))()`;
 const scriptLigneComedec = (i) => `(() => { const tr = ${TABLE_COMEDEC}[${Number(i) | 0}]; if (!tr) return null;
-  const td = tr.querySelectorAll('td'); const liste = td[td.length - 1].querySelector('.ui-selectcheckboxmenu, .ui-selectonemenu, select, [role=combobox]') || td[td.length - 1];
+  const td = tr.querySelectorAll('td'); const liste = td[td.length - 1].querySelector('.ui-selectcheckboxmenu-trigger, .ui-selectcheckboxmenu, .ui-selectonemenu, select, [role=combobox]') || td[td.length - 1];
   liste.scrollIntoView({ block: 'center' }); const r = liste.getBoundingClientRect(); if (r.width < 2) return null;
   const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2); const d = document.elementFromPoint(x, y);
   return { x, y, sur: !!(d && (liste.contains(d) || d.contains(liste))) }; })()`;
@@ -399,7 +545,46 @@ function gestes(s, etape, o = {}) {
     return false;
   }
   const texte = () => ev('document.body ? document.body.innerText : ""').then(String).catch(() => '');
-  return { ev, cdp, cliquerTexte, cliquerReference, ouvrirResultat, ecrire, entree, echap, attendreTexte, texte, etape };
+  /** Déplie les blocs ou groupes REPLIÉS dont l'en-tête répond à `reSource` (chevron fermé seulement, geste « deplier » contrôlé par la
+   * garde). Rend le nombre de chevrons cliqués. @param {string} reSource */
+  async function deplier(reSource) {
+    let n = 0;
+    for (let tour = 0; tour < 3; tour++) {
+      const chevrons = (await ev(scriptChevronsFermes(reSource))) || [];
+      if (!chevrons.length) break;
+      for (const c of chevrons.slice(0, 12)) {
+        controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
+        await s.cliquerPosition(c.x, c.y);
+        await attendre(500);
+        n++;
+      }
+      await s.attendreStable(5000);
+    }
+    return n;
+  }
+  /** Clique une entrée du menu de gauche (« Suivis », « Suivi MICEN »…) après avoir posé la souris sur le menu, qui se déplie au survol.
+   * `chercherSeulement` : dit seulement si l'entrée est visible. @param {string} libelle @param {boolean} [chercherSeulement] */
+  async function cliquerMenu(libelle, chercherSeulement) {
+    const p = await ev(SCRIPT_POINT_MENU);
+    if (p) { await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p.x, y: p.y }); await attendre(400); }
+    const el = await ev(scriptEntreeMenu(libelle));
+    if (!el || chercherSeulement) return !!el;
+    controlerClic({ geste: 'suivi', vise: libelle, bouton: el.bouton, texte: libelle, ecritureAutorisee: !!o.ecriture });
+    await s.cliquerPosition(el.x, el.y);
+    return true;
+  }
+  /** Referme le tiroir ou le panneau latéral ouvert (Échap, sinon son « Fermer »). Rend vrai s'il est fermé. */
+  async function fermerTiroir() {
+    if (!(await ev(SCRIPT_TIROIR_OUVERT))) return true;
+    await echap();
+    await attendre(400);
+    if (await ev(SCRIPT_TIROIR_OUVERT)) {
+      const f = await ev(SCRIPT_FERMER_TIROIR);
+      if (f) { controlerClic({ geste: 'navigation', vise: f.texte, bouton: f.texte, texte: f.texte }); await s.cliquerPosition(f.x, f.y); await attendre(400); }
+    }
+    return !(await ev(SCRIPT_TIROIR_OUVERT));
+  }
+  return { ev, cdp, cliquerTexte, cliquerReference, ouvrirResultat, deplier, cliquerMenu, fermerTiroir, ecrire, entree, echap, attendreTexte, texte, etape };
 }
 
 // Vérification du poste client Silicium (étude 27/10 : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est
@@ -489,6 +674,9 @@ async function seConnecter(s, r, etape) {
   await s.attendreStable(20000);
   await passerVerificationSilicium(s, etape);
   if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw Object.assign(new Error('connexion refusée par Authentic (identifiant ou mot de passe)'), { refusIdentifiants: true });
+  // La page « Installation du poste client » encore là après les essais : dit tout de suite, plutôt qu'un dossier « introuvable » plus tard.
+  const silicium = await g.ev(SCRIPT_PAGE_SILICIUM).catch(() => null);
+  if (silicium && silicium.bloque) throw new Error('vérification du poste client Silicium non passée : Authentic demande toujours d’installer le poste client');
   etape('Connectée');
 }
 
@@ -522,6 +710,16 @@ function estCeDossier(texte, cible) {
 /** Pure : la référence telle que la recherche d'Authentic l'attend, sans espace (« A 2026 00329 » → « A202600329 »). @param {string} ref */
 function referenceRecherche(ref) { return String(ref || '').replace(/\s+/g, ''); }
 
+/** CE dossier est-il affiché ? Sa page de sous-dossier (« Comparants » et sa référence en tête), ou la page du dossier sans sous-dossier
+ * choisi, reconnue à son seul BANDEAU `…:dossierHeader` (jamais au titre d'un résultat de recherche, qui commence aussi par la référence).
+ * @param {ReturnType<typeof gestes>} g @param {{ reference?: string, libelle?: string }} cible */
+async function dossierAffiche(g, cible) {
+  if (estCeDossier(await g.texte(), cible)) return true;
+  const tete = String((await g.ev(SCRIPT_EN_TETE_DOSSIER).catch(() => '')) || '');
+  if (!referenceEnTete(tete)) return false;
+  return estCeDossier(`Comparants (0)\n${tete}`, cible);
+}
+
 async function ouvrirDossier(s, cible, etape) {
   const g = gestes(s, etape);
   const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
@@ -529,7 +727,7 @@ async function ouvrirDossier(s, cible, etape) {
   if (!ref && !lib) throw new Error('dossier sans référence ni nom dans Authentic');
   etape('Cherche le dossier');
   await passerVerificationSilicium(s, etape);
-  if (estCeDossier(await g.texte(), cible)) return;
+  if (await dossierAffiche(g, cible)) return;
   // Ce qui s'est passé, pour le message d'échec (étude 28/10 : « dossier … introuvable ») : jamais un nom, seulement les étapes et une référence.
   const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '' };
   // Un lien qui porte la référence (« A 2026 00286 VTE … », ou sans espaces), sinon un résultat qui la CONTIENT ; sans référence, exactement
@@ -539,9 +737,11 @@ async function ouvrirDossier(s, cible, etape) {
       || (apresRecherche && (await g.ouvrirResultat(ref) || await g.cliquerReference(ref))))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (ok) { diag.clic = true; await s.attendreStable(15000); }
+    if (await dossierAffiche(g, cible)) return true;
     const t = await g.texte();
-    if (estCeDossier(t, cible)) return true;
     if (ok) diag.enTete = referenceEnTete(t) || diag.enTete;
+    // Un clic qui n'a ouvert qu'un panneau latéral (titre d'un résultat) : refermé, sinon son voile gris recouvre tout le reste.
+    if (ok) await g.fermerTiroir().catch(() => false);
     return false;
   };
   if (await essayer()) return;
@@ -569,7 +769,7 @@ async function ouvrirDossier(s, cible, etape) {
       if (ref && await g.cliquerReference(ref, true)) {
         diag.clic = true;
         await s.attendreStable(15000);
-        if (estCeDossier(await g.texte(), cible)) return;
+        if (await dossierAffiche(g, cible)) return;
       }
       await g.entree();
       if (ref && String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
@@ -591,6 +791,25 @@ async function ouvrirDossier(s, cible, etape) {
  * Rend faux s'il n'y en a pas. @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {(t: string) => void} etape */
 async function ouvrirSousDossierVente(s, cible, etape) {
   const g = gestes(s, etape);
+  const estVente = (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l);
+  // Un mot d'icône en tête (« folder 2 - Vente d'immeuble ») n'est pas le libellé.
+  const libelle = (/** @type {any} */ l) => String(l || '').replace(/^[a-z_]{3,}\s+(?=\d)/, '').trim();
+  // La liste réelle des sous-dossiers (`…:selectSousDossier`, relevé de l'étude) : le libellé y figure trois fois sur la page (ligne repliable,
+  // titre, liste) — seule la liste est cliquée (wiki, 28/10 : la ligne repliable replierait Comparants et Immeubles).
+  const liste = ((await g.ev(SCRIPT_SOUS_DOSSIERS)) || []).map(libelle);
+  if (liste.length) {
+    const ventes = liste.map((l, i) => ({ l, i })).filter((x) => estVente(x.l));
+    if (ventes.length !== 1) return false;   // aucune, ou plusieurs ventes : on ne choisit pas
+    const ouvert = libelle(await g.ev(SCRIPT_SOUS_DOSSIER_OUVERT));
+    if (ouvert && plat(ouvert) === plat(ventes[0].l) && estCeDossier(await g.texte(), cible)) return true;
+    etape('Ouvre le sous-dossier de vente');
+    const pos = await g.ev(scriptPlacerSousDossier(ventes[0].i));
+    if (!pos) return false;
+    controlerClic({ geste: 'donnee', vise: ventes[0].l, bouton: pos.bouton, texte: ventes[0].l });
+    await s.cliquerPosition(pos.x, pos.y);
+    await s.attendreStable(12000);
+    return estCeDossier(await g.texte(), cible);
+  }
   const lignes = [...new Set(String(await g.texte()).split('\n').map((l) => l.trim()).filter((l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l)))];
   if (lignes.length !== 1) return false;   // aucun, ou plusieurs ventes : on ne choisit pas
   etape('Ouvre le sous-dossier de vente');
@@ -603,7 +822,7 @@ async function ouvrirSousDossierVente(s, cible, etape) {
 // de formalité, et non par le clic sur le titre, qui peut bloquer le chargement »). Les lignes : un élément visible dont le texte commence par
 // un badge (APR, ECV, T@, ACT, MIC…), le plus intérieur ; chacune reçoit un repère `data-claire-ligne`.
 const SCRIPT_LIGNES_FORMALITES = `(() => {
-  const re = /^(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN)(?=\\s|$)/;
+  const re = /^(APR|ECV|T@|ACT|MIC|SPR|BRI|CJN|TAC)(?=\\s|$)/;
   const vus = [];
   document.querySelectorAll('tr, li, [class*="formalite"], [class*="ui-datalist-item"]').forEach((e) => {
     if (!e.offsetWidth || !e.offsetHeight || e.closest('[id*="previewFormalite"], [id*="sideView"]')) return;
@@ -612,8 +831,8 @@ const SCRIPT_LIGNES_FORMALITES = `(() => {
     if ([...e.querySelectorAll('tr, li')].some((x) => re.test(String(x.innerText || '').trim()))) return;
     vus.push(e);
   });
-  vus.slice(0, 15).forEach((e, i) => e.setAttribute('data-claire-ligne', String(i)));
-  return Math.min(vus.length, 15);
+  vus.slice(0, 40).forEach((e, i) => e.setAttribute('data-claire-ligne', String(i)));
+  return Math.min(vus.length, 40);
 })()`;
 /** La ligne i amenée à l'écran ; sa position APRÈS le défilement (audit 0.378.0) : { x, y } ou null. @param {number} i */
 const scriptPlacerLigne = (i) => `(() => {
@@ -632,12 +851,15 @@ const scriptIconeApercu = (i) => `(() => {
   const l = document.querySelector('[data-claire-ligne="${Number(i)}"]');
   if (!l) return null;
   const libelle = (x) => [x.getAttribute('title'), x.getAttribute('aria-label'), x.getAttribute('alt'), typeof x.className === 'string' ? x.className : '', x.innerText].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
-  const dit = /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i;
+  // L'icône d'aperçu est un pictogramme « pile d'images » (captures du wiki, 28/10) — mot d'icône Material écrit dans la page (« photo_library »).
+  const dit = /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo|collections|perm_media/i;
+  // Une icône : 3 caractères au plus, ou un mot d'icône seul ; jamais l'engrenage d'une formalité non constituée (« Constituer »).
+  const court = (x) => { const t = String(x.innerText || '').trim(); return t.length <= 3 || /^[a-z_]{3,30}$/.test(t); };
   const e = [...l.querySelectorAll('button, a, [role=button], i, span, img')]
     // Jamais une corbeille, même si son titre dit « aperçu » (« Supprimer l'aperçu ») : elle et ce qui la contient sont écartés d'avance ; la
     // garde contrôle encore ce qui est sous le pointeur.
-    .filter((x) => !/supprim|corbeille|trash|delete|poubelle/i.test(libelle(x) + ' ' + [...x.querySelectorAll('*')].map(libelle).join(' ')))
-    .find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden' && String(x.innerText || '').trim().length <= 3 && dit.test(libelle(x)));
+    .filter((x) => !/supprim|corbeille|trash|delete|poubelle|settings|constitu|engrenage/i.test(libelle(x) + ' ' + [...x.querySelectorAll('*')].map(libelle).join(' ')))
+    .find((x) => x.getClientRects().length && getComputedStyle(x).visibility !== 'hidden' && court(x) && dit.test(libelle(x)));
   if (!e) return null;
   const r = e.getBoundingClientRect();
   const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
@@ -649,10 +871,10 @@ const scriptIconeApercu = (i) => `(() => {
   return bouton ? { x, y, bouton } : null;
 })()`;
 const SELECTEUR_TIROIR = '[id*="previewFormalite"], [id*="sideView"]';
-const SCRIPT_TIROIR_OUVERT = `!![...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length)`;
+const SCRIPT_TIROIR_OUVERT = `!![...document.querySelectorAll('${SELECTEUR_TIROIR}')].find(${VISIBLE_ECRAN})`;
 // « Fermer » cherché DANS le tiroir seulement, vérifié sous le pointeur : { x, y, texte } ou null.
 const SCRIPT_FERMER_TIROIR = `(() => {
-  const t = [...document.querySelectorAll('${SELECTEUR_TIROIR}')].find((e) => e.getClientRects().length);
+  const t = [...document.querySelectorAll('${SELECTEUR_TIROIR}')].find(${VISIBLE_ECRAN});
   if (!t) return null;
   const f = [...t.querySelectorAll('button, a, [role=button]')].find((x) => /^fermer$/i.test(String(x.innerText || x.getAttribute('title') || x.getAttribute('aria-label') || '').trim()));
   if (!f) return null;
@@ -670,8 +892,12 @@ const SCRIPT_FERMER_TIROIR = `(() => {
  */
 async function lireApercusFormalites(s, o) {
   const g = gestes(s, o.etape);
+  // Les blocs « Formalités préalables (N) », « Actes (N) », « Formalités postérieures (N) » et leurs groupes (« Urbanisme (1) »…) sont souvent
+  // REPLIÉS (captures du wiki, 28/10) : dépliés par leur chevron, jamais par leur titre (l'onglet du même nom ouvre la fenêtre d'ajout).
+  try { await g.deplier('^(formalites prealables|actes|formalites posterieures|[a-z][a-z0-9 \'/@.-]{1,40}) \\(([1-9][0-9]*)\\)$'); } catch (e) { if (e && e.refusGarde) o.etape('Un bloc replié n’a pas été déplié (refusé par CLAIRE)'); }
   const nb = Number(await g.ev(SCRIPT_LIGNES_FORMALITES)) || 0;
-  let n = 0;
+  if (!nb) o.etape('Aucune ligne de formalité visible : aperçus non lus');
+  let n = 0, sansIcone = 0;
   for (let i = 0; i < nb; i++) {
     if (await g.ev(SCRIPT_TIROIR_OUVERT)) break;
     try {
@@ -680,7 +906,7 @@ async function lireApercusFormalites(s, o) {
       await g.cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x: pos.x, y: pos.y });
       await attendre(400);
       const ic = await g.ev(scriptIconeApercu(i));
-      if (!ic) continue;
+      if (!ic) { sansIcone++; continue; }
       controlerClic({ geste: 'apercu', vise: '', bouton: ic.bouton, texte: ic.bouton });
       await s.cliquerPosition(ic.x, ic.y);
       await s.attendreStable(8000);
@@ -688,18 +914,14 @@ async function lireApercusFormalites(s, o) {
       if (n === 0) o.etape('Relève les aperçus des formalités');
       await releverPage(s, o.script, o.recevoir);
       n++;
-      await g.echap();
-      await attendre(400);
-      if (await g.ev(SCRIPT_TIROIR_OUVERT)) {
-        const f = await g.ev(SCRIPT_FERMER_TIROIR);
-        if (f) { controlerClic({ geste: 'navigation', vise: f.texte, bouton: f.texte, texte: f.texte }); await s.cliquerPosition(f.x, f.y); await attendre(400); }
-      }
+      await g.fermerTiroir();
     } catch (e) {
       // Un refus de la garde ou une ligne qui ne s'ouvre pas : la ligne suivante, sans s'arrêter.
       if (e && e.refusGarde) o.etape('Passe un aperçu (refusé par CLAIRE)');
     }
   }
   if (await g.ev(SCRIPT_TIROIR_OUVERT)) o.etape('Un aperçu ne s’est pas refermé : lecture des aperçus arrêtée');
+  if (sansIcone) o.etape(`${sansIcone} ligne(s) sans icône d’aperçu trouvée`);
   return n;
 }
 
@@ -719,20 +941,31 @@ const scriptPositionPiece = (pjId) => `(() => {
   const id = ${JSON.stringify(String(pjId))};
   const e = [...document.querySelectorAll('[onclick*="selectTreeNode"]')].find((x) => new RegExp("selectTreeNode\\\\(\\\\s*[^,]*,\\\\s*'?" + id + "'?[\\\\s,)]").test(x.getAttribute('onclick') || ''));
   if (!e) return null;
-  e.scrollIntoView({ block: 'center' });
-  const r = e.getBoundingClientRect();
+  // Le NOM du fichier (wiki, capture « 212 » : le nom ouvre l'aperçu, la case ne fait que sélectionner) : son libellé, sinon le plus petit
+  // élément de texte, jamais une case à cocher ; la ligne entière en dernier recours.
+  const nomEl = e.querySelector('.ui-treenode-label') || [...e.querySelectorAll('span, a, label')].find((x) => !x.children.length && String(x.textContent || '').trim().length > 3
+    && !x.closest('.ui-chkbox, [role=checkbox]')) || e;
+  nomEl.scrollIntoView({ block: 'center' });
+  const r = nomEl.getBoundingClientRect();
   const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
   const d = document.elementFromPoint(x, y);
-  if (!d || !(e.contains(d) || d.contains(e))) return null;
+  if (!d || !(e.contains(d) || d.contains(e)) || d.closest('.ui-chkbox, input, [role=checkbox]')) return null;
   // Le bouton sous le pointeur, lu comme dans scriptTrouverTexte (audit 0.381.0) : texte, title, aria-label, corbeille = « supprimer ».
   const b = d.closest('button, a, [role=button], .ui-button') || d;
   const corbeille = !!(b.querySelector && b.querySelector('[class*=trash], [class*=delete], [class*=corbeille]')) || /trash|delete|corbeille/i.test(String(d.className || ''));
   const bouton = [b.innerText, b.getAttribute('title'), b.getAttribute('aria-label'), corbeille ? 'supprimer' : ''].filter(Boolean).join(' ');
-  return { x, y, nom: String(e.textContent || '').trim().slice(0, 200), bouton: String(bouton).trim().slice(0, 160) };
+  return { x, y, nom: String(nomEl.textContent || '').trim().slice(0, 200), bouton: String(bouton).trim().slice(0, 160) };
 })()`;
 // L'adresse du PDF affiché par la visionneuse de la GED (`dynamiccontent` de PrimeFaces), du MÊME site seulement.
+// Un lecteur pdf.js servi par Authentic (`…viewer.html?file=<adresse encodée>`, l'allure des captures du wiki) : l'adresse du PDF dans `file`.
 const SCRIPT_SOURCE_PDF = `(() => { const u = [...document.querySelectorAll('iframe, embed, object')].map((x) => x.src || x.data || '').find((v) => /dynamiccontent/i.test(v));
-  if (!u) return ''; try { const a = new URL(u, location.href); return a.origin === location.origin ? a.href : ''; } catch (e) { return ''; } })()`;
+  if (!u) return '';
+  try {
+    let a = new URL(u, location.href);
+    const f = a.searchParams.get('file');
+    if (f && /dynamiccontent/i.test(f)) a = new URL(f, a.href);
+    return a.origin === location.origin ? a.href : '';
+  } catch (e) { return ''; } })()`;
 /** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 20 Mo ou n'est pas un PDF. @param {string} url */
 const scriptLirePdf = (url) => `fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => {
   if (!b || b.byteLength > 20 * 1024 * 1024) return null;
@@ -782,7 +1015,9 @@ function liensFichesDuTexte(texte) {
   const lignes = String(texte || '').split('\n').map((l) => l.trim()).filter(Boolean);
   const out = { comparants: /** @type {string[]} */ ([]), immeubles: /** @type {string[]} */ ([]) };
   let zone = '';
-  for (const l of lignes) {
+  for (const brute of lignes) {
+    // Le nom et sa qualité sur deux colonnes (« M. X\tVendeur », « 41000 BLOIS, … \tImmeuble vendu ») : le nom seul.
+    const l = brute.split('\t')[0].replace(/\s+(Vendeur|Acqu[ée]reur|D[ée]funt|H[ée]ritier|Donateur|Donataire|Pr[êe]teur|Immeuble \S+)$/i, '').trim();
     if (/^Comparants\s*\(\d+\)/i.test(l)) { zone = 'c'; continue; }
     if (/^Immeubles\s*\(\d+\)/i.test(l)) { zone = 'i'; continue; }
     if (/^(Tiers|Parties prenantes)\b/i.test(l) || /^\d{1,3}\s*-\s*\S/.test(l)) { zone = ''; continue; }
@@ -820,8 +1055,10 @@ async function lireDossier(s, cible, o) {
       o.etape(`Relève ${fiche}`);
       await releverPage(s, o.script, o.recevoir);
       pages++;
-      // Retour à la page du dossier : « Retour » d'Authentic, sinon l'onglet du dossier.
-      if (!(await g.cliquerTexte('Retour', { exact: true, geste: 'navigation' }))) await g.cliquerTexte(String(cible.reference || cible.libelle || ''), { geste: 'donnee' });
+      // Retour à la page du dossier : une fiche client ou immeuble de Silicium n'a que « Fermer » (wiki, 28/10) ; « Retour » ailleurs.
+      if (!(await g.cliquerTexte('Fermer', { exact: true, geste: 'navigation' })) && !(await g.cliquerTexte('Retour', { exact: true, geste: 'navigation' }))) {
+        await g.cliquerTexte(String(cible.reference || cible.libelle || ''), { geste: 'donnee' });
+      }
       await s.attendreStable(12000);
       if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     } catch (e) { o.etape(`Passe ${fiche} (${String(e && e.message).slice(0, 60)})`); }
@@ -848,10 +1085,19 @@ async function lireSuivis(s, o) {
   for (const e of AT.ECRANS_SUIVIS_AT) {
     try {
       o.etape(`Ouvre ${e.titre}`);
-      if (!(await g.cliquerTexte(e.menu, { exact: true, geste: 'suivi' }))) { o.etape(`Menu « ${e.menu} » introuvable`); continue; }
-      await s.attendreStable(5000);
-      if (!(await g.cliquerTexte(e.entree, { exact: true, geste: 'suivi' }))) { o.etape(`« ${e.entree} » introuvable`); continue; }
+      // L'entrée d'abord : la rubrique déjà dépliée par l'écran précédent se replierait si on la recliquait (accordéon, wiki 28/10).
+      const visibleEntree = async () => { for (const en of e.entrees) if (await g.cliquerMenu(en, true)) return en; return ''; };
+      let entree = await visibleEntree();
+      if (!entree) {
+        if (!(await g.cliquerMenu(e.menu))) { o.etape(`Menu « ${e.menu} » introuvable`); continue; }
+        await attendre(700);
+        entree = await visibleEntree();
+      }
+      if (!entree || !(await g.cliquerMenu(entree))) { o.etape(`« ${e.entrees[0]} » introuvable`); continue; }
       await s.attendreStable(15000);
+      // Les lignes sont rangées en GROUPES repliés par statut (« Envoyé (12) ») : dépliés par leur chevron seulement — l'en-tête d'un groupe
+      // porte corbeille et avion d'envoi (captures du wiki, 28/10).
+      try { await g.deplier('^[a-z][a-z0-9 \'/-]{2,50} \\(([1-9][0-9]*)\\)$'); } catch (err) { if (err && err.refusGarde) o.etape('Un groupe replié n’a pas été déplié (refusé par CLAIRE)'); }
       const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
       if (capture) captures[e.cle] = capture;
     } catch (err) {
@@ -882,13 +1128,26 @@ async function lireComptabilite(s, cible, o) {
     throw new Error('onglet « Infos comptables » introuvable dans le dossier');
   }
   await s.attendreStable(15000);
-  if (!(await g.attendreTexte(/Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) throw new Error('page de comptabilité non reconnue (ni « Solde de l’affaire », ni « Dernières opérations »)');
-  // La page affichée est encore celle de CE dossier : sa référence en tête (le dossier a été vérifié avant le clic ; « Comparants » peut
-  // disparaître sur cet onglet, audit 0.389.0). Sans référence connue, le contrôle complet.
+  if (!(await g.attendreTexte(/Solde du compte|Compte principal|S[ée]lectionnez un compte|Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) {
+    throw new Error('page de comptabilité non reconnue (ni comptes, ni « Dernières opérations »)');
+  }
+  // À l'ouverture, aucun compte n'est choisi (capture 4.19.2 du wiki) : le compte principal, par son libellé « Compte n°… » (jamais sa case).
+  if (/S[ée]lectionnez un compte/i.test(await g.texte())) {
+    const c = await g.ev(SCRIPT_COMPTE_PRINCIPAL);
+    if (c) {
+      o.etape('Choisit le compte principal');
+      controlerClic({ geste: 'donnee', vise: c.texte, bouton: c.bouton, texte: c.texte });
+      await s.cliquerPosition(c.x, c.y);
+      await s.attendreStable(10000);
+      if (!(await g.attendreTexte(/Derni[èe]res op[ée]rations/i, 10000))) o.etape('Détail du compte non affiché : soldes seulement');
+    } else o.etape('Compte principal introuvable : soldes seulement');
+  }
+  // La page affichée est encore celle de CE dossier : le dossier a été vérifié avant le clic, et l'écran « € Comptabilité » ne montre plus
+  // forcément sa référence (wiki, 28/10) — seule une AUTRE référence lue l'écarte. Sans référence connue, le contrôle complet.
   const apres = await g.texte();
   const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
-  if (ref ? !referenceEnTete(apres) : !estCeDossier(apres, cible)) throw new Error('en-tête du dossier absent de la page de comptabilité : rien relevé');
-  if (ref && referenceEnTete(apres) !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
+  if (!ref && !estCeDossier(apres, cible)) throw new Error('en-tête du dossier absent de la page de comptabilité : rien relevé');
+  if (ref && referenceEnTete(apres) && referenceEnTete(apres) !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
   o.etape('Relève les infos comptables');
   return s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
 }
@@ -923,7 +1182,7 @@ async function preparerFormalite(s, cible, o) {
   await s.attendreStable(10000);
   const nom = o.type === 'cjn' ? 'Casier Judiciaire National dématérialisé (CJN)' : 'Etat civil dématérialisé (COMEDEC)';
   // Le filtre de la liste : « Filtrer » (wiki, ancienne version), « Rechercher une formalité » ; sinon la liste entière (le libellé est cherché dedans).
-  const champ = (await g.ev(scriptChamp('rechercher une formalit'))) || (await g.ev(scriptChamp('filtrer')));
+  const champ = (await g.ev(scriptChamp('rechercher une formalit'))) || (await g.ev(SCRIPT_CHAMP_FILTRE_FORMALITES));
   if (champ) { await g.ecrire(champ, o.type === 'cjn' ? 'Casier Judiciaire' : 'COMEDEC'); await attendre(1200); }
   o.etape(o.type === 'cjn' ? 'Ajoute la demande de casier judiciaire' : 'Ajoute la demande d’état civil');
   if (!(await g.cliquerTexte(nom, { exact: true, geste: 'ecriture' }))) throw new Error(`formalité « ${nom} » introuvable dans la liste`);
@@ -979,11 +1238,23 @@ async function preparerFormalite(s, cible, o) {
   if (!i.envoi || i.envoi.coche !== false) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
   if (!i.rapide || i.rapide.coche !== true) throw new Error('« Création rapide » n’a pas pu être lue allumée : rien validé');
   o.etape('Création rapide allumée, Envoi immédiat éteint : valide la création');
-  if (!(await g.cliquerTexte('Valider', { exact: true, geste: 'ecriture' }))) throw new Error('bouton « Valider » introuvable');
+  if (!(await g.cliquerTexte('Valider', { exact: true, geste: 'ecriture' }))) {
+    // Le bloc Comedec valide par un rond vert « ✓ » sans texte (captures du wiki) : son titre ou sa coche, dans le bloc de « Création rapide ».
+    const v = await g.ev(SCRIPT_VALIDER_ICONE);
+    if (!v) throw new Error('bouton « Valider » introuvable : rien validé');
+    controlerClic({ geste: 'ecriture', vise: 'Valider', bouton: v.bouton, texte: 'Valider', ecritureAutorisee: true });
+    await s.cliquerPosition(v.x, v.y);
+  }
   await s.attendreStable(15000);
-  const erreurs = (await g.ev(SCRIPT_ERREURS)) || [];
-  if (erreurs.length) throw new Error('Authentic a répondu : ' + erreurs.join(' ; ').slice(0, 200));
-  return { demandes: choisies };
+  // Après « Valider », jamais un échec « à refaire » : la demande peut exister (doublon). Ce qu'Authentic montre est DIT (wiki, 28/10).
+  const remarques = [];
+  const erreurs = ((await g.ev(SCRIPT_ERREURS)) || []).filter((m) => !/liaison comedec|n.a pas adh[ée]r/i.test(m));
+  const apres = await g.texte();
+  if (o.type === 'cjn' && /Bloqu[ée]|Alimentation obligatoire de la base des r[ée]f[ée]rences/i.test(apres)) remarques.push('casier « Bloqué » : la BRI de l’avant-contrat doit d’abord être envoyée (un notaire peut débloquer)');
+  if (/Liaison COMEDEC|n.a pas adh[ée]r[ée] au dispositif COMEDEC/i.test(apres)) remarques.push('commune non adhérente à Comedec : demande faite en courrier papier');
+  if (/Cr[ée]ation (CJN|[ÉE]tat[- ]?civil)/i.test(apres)) remarques.push('écran de création encore ouvert dans Authentic : demandes à finir là-bas (non conformes)');
+  if (erreurs.length) remarques.push('Authentic a répondu : ' + erreurs.join(' ; ').slice(0, 200));
+  return { demandes: choisies, remarques };
 }
 
 module.exports = {

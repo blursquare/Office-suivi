@@ -12,7 +12,7 @@
 // technique du serveur.
 
 // Les libellés que CLAIRE ne clique jamais (wiki de Fichorga ; cartographie de l'étude du 27/10 : aperçus des formalités, GED, mails).
-const RE_INTERDIT = /(g[ée]n[ée]rer en pdf|ajouter un compte|d[ée]tacher de l.acte|envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|delete_\w*|trash|poubelle|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler)/i;
+const RE_INTERDIT = /(g[ée]n[ée]rer en pdf|ajouter un compte|d[ée]tacher de l.acte|envo[iy]|prêt pour envoi|pret pour envoi|exp[ée]di|signer|signature|parapheur|paraphe|\blre\b|lettre recommand|supprim|corbeille|virement|euros?\b|intégrer|integrer|nouveau dossier|export|réinitialiser|reinitialiser|mode expert|données littérales|donnees litterales|débloquer|debloquer|déblocage|deblocage|archiver|archive\b|clôturer|cloturer|dupliquer|payer|paiement|\bsend\b|\bdelete\b|delete_\w*|trash|poubelle|transmettre|télétransmettre|teletransmettre|déposer|deposer|ajouter au micen|retirer du micen|renommer|enregistrer|déplacer|deplacer|partager|transf[ée]rer|imprimer|détacher|detacher|annuler|constitu|r[ée]sumer|t[ée]l[ée]charger|ouvrir dans word|\bmodifier\b)/i;
 
 /** Pure : un libellé que CLAIRE ne clique jamais. @param {string} libelle */
 function libelleInterdit(libelle) {
@@ -28,7 +28,11 @@ const GESTES_PERMIS = {
   donnee: {},
   // Les écrans de suivi (étape 7) : le menu puis son entrée, libellés de la cartographie seulement. « Actes à signer » porte « signer » :
   // comme pour une donnée, seul ce que le bouton sous le pointeur porte EN PLUS de ce libellé est contrôlé (un « Exporter » à côté reste refusé).
-  suivi: { libelles: ['Suivis', 'Office Manager', 'Actes à signer', 'Suivi SAFER/DIA-DPU', 'Suivi État-Civil', 'Suivi MICEN'], relatif: true },
+  suivi: { libelles: ['Suivis', 'Office manager', 'Actes à signer', 'Suivi SAFER / DIA-DPU', 'Suivi SAFER/DIA-DPU', 'Suivi SAFER', 'Suivi État-Civil',
+    'Suivi COMEDEC', 'Suivi CJN', 'Suivi MICEN'], relatif: true },
+  // Déplier un bloc ou un groupe replié (« Formalités préalables (3) », « Envoyé (12) ») : seulement son chevron, dont le libellé (classe,
+  // mot d'icône, titre) doit DIRE le dépliage — jamais l'en-tête lui-même, qui porte corbeille, avion d'envoi ou « + » (captures du wiki, 28/10).
+  deplier: { positif: /chevron|arrow|toggler|caret|expand/i },
   // L'icône « image » qui ouvre l'aperçu d'une formalité au survol de sa ligne (étape 4) : son libellé (titre, aria-label, classe de
   // l'icône et de son bouton) doit DIRE l'aperçu, et rien d'interdit (audit 0.378.0 : une corbeille « Supprimer l'aperçu »).
   apercu: { positif: /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo/i },

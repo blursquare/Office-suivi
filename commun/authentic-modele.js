@@ -20,7 +20,7 @@
  * @typedef {{ intitule: string, nature: NatureDossierAT, statut: string, statutLe: string, comparants: ComparantAT[], immeubles: ImmeubleAT[],
  *   formalitesPrealables: FormaliteAT[], actes: FormaliteAT[], formalitesPosterieures: FormaliteAT[], pieces: PieceJointeAT[], mails: MailAT[] }} SousDossierAT
  * @typedef {{ reference: string, libelle: string, sousDossier: SousDossierAT | null, luLe: string, pages: number }} InstantaneAT
- * @typedef {'actesASigner' | 'safer' | 'etatCivil' | 'micen'} EcranSuiviAT
+ * @typedef {'actesASigner' | 'safer' | 'etatCivil' | 'cjn' | 'micen'} EcranSuiviAT
  * @typedef {{ reference: string, libelle: string, dates: string[], situation: string, enAttente: boolean }} LigneSuiviAT
  * @typedef {{ luLe: string, lignes: LigneSuiviAT[], tronque: boolean }} SuiviAT
  */
@@ -307,12 +307,15 @@
 
   // Les écrans de suivi d'Authentic lus par CLAIRE (étape 7 : « actes à signer, SAFER/DIA, état civil, MICEN ») : menu, puis entrée du
   // menu (cartographie de l'étude du 27/10). Le tableau affiché est relevé ; « Exporter » n'est jamais cliqué (liste noire de la garde).
-  /** @type {Array<{ cle: EcranSuiviAT, menu: string, entree: string, titre: string }>} */
+  // `entrees` : les libellés essayés dans l'ordre (captures du wiki, 28/10 : « Suivi SAFER / DIA-DPU » en version récente, « Suivi SAFER »
+  // avant ; « Suivi État-Civil », « Suivi COMEDEC » en 2021). Le suivi CJN : jamais l'aperçu d'une réponse (la consulter la clôture).
+  /** @type {Array<{ cle: EcranSuiviAT, menu: string, entrees: string[], titre: string }>} */
   var ECRANS_SUIVIS_AT = [
-    { cle: 'actesASigner', menu: 'Office Manager', entree: 'Actes à signer', titre: 'Actes à signer' },
-    { cle: 'safer', menu: 'Suivis', entree: 'Suivi SAFER/DIA-DPU', titre: 'SAFER et DIA' },
-    { cle: 'etatCivil', menu: 'Suivis', entree: 'Suivi État-Civil', titre: 'État civil' },
-    { cle: 'micen', menu: 'Suivis', entree: 'Suivi MICEN', titre: 'MICEN' }
+    { cle: 'actesASigner', menu: 'Office manager', entrees: ['Actes à signer'], titre: 'Actes à signer' },
+    { cle: 'safer', menu: 'Suivis', entrees: ['Suivi SAFER / DIA-DPU', 'Suivi SAFER/DIA-DPU', 'Suivi SAFER'], titre: 'SAFER et DIA' },
+    { cle: 'etatCivil', menu: 'Suivis', entrees: ['Suivi État-Civil', 'Suivi COMEDEC'], titre: 'État civil' },
+    { cle: 'cjn', menu: 'Suivis', entrees: ['Suivi CJN'], titre: 'Casier judiciaire' },
+    { cle: 'micen', menu: 'Suivis', entrees: ['Suivi MICEN'], titre: 'MICEN' }
   ];
   // La référence d'un dossier d'Authentic (« A 2026 00247 »), telle que la fiche la retient.
   var RE_REFERENCE_AT = /(?<![A-Za-z0-9])([A-Z])\s?(\d{4})\s?(\d{5})(?!\d)/;
@@ -328,25 +331,36 @@
   function ligneSuiviEnAttenteAT(ecran, situation) {
     const t = plat(situation);
     if (ecran === 'actesASigner') return true;
-    if (ecran === 'micen') return !/pret|depose|archiv|termin|conserv/.test(t);
-    if (ecran === 'safer') return !/non[- ]?preemption|preemption exercee|renonc|decision|repon|retour|refus/.test(t);
+    // MICEN : « Dépôt OK », « Dépôt participant OK », « Acte authentique » sont finis (captures du wiki, 28/10).
+    if (ecran === 'micen') return !/depot (participant )?ok|acte authentique|pret|depose|archiv|termin|conserv/.test(t);
+    if (ecran === 'safer') return !/non[- ]?preemption|preemption exercee|renonc|decision|repon|retour|refus|clotur|annul|abandon|retrait/.test(t);
+    // CJN : une réponse rendue (absence de condamnation, condamnation, clôturée, purgée, expirée) sort de l'attente ; un rejet y reste.
+    if (ecran === 'cjn') return /rejet|bloqu/.test(t) || !/absence de condamnation|condamnation|clotur|purg|expir/.test(t);
     // Une réponse NÉGATIVE n'est pas une affaire finie : rien n'a été délivré, la demande est à reprendre (audit 0.382.0).
     return /negati/.test(t) || !/positi|repon|re[çc]u|delivr|termin|archiv/.test(t);
   }
 
-  /** Pure : le tableau d'un écran de suivi relevé → ses lignes (référence du dossier, libellé, dates, situation). Le plus grand tableau de
-   * la page compte ; 300 lignes au plus. @param {EcranSuiviAT} ecran @param {any} capture @param {string} luLe @returns {SuiviAT} */
+  /** Pure : le tableau d'un écran de suivi relevé → ses lignes (référence du dossier, libellé, dates, situation). Les écrans de suivi rangent
+   * leurs lignes en GROUPES par statut, un tableau par groupe (captures du wiki, 28/10 : « En préparation (3) », « Envoyé », « Réponse
+   * positive »…) : chaque tableau qui a des lignes compte, et sans colonne d'état, la situation d'une ligne est le titre de son groupe (nombre
+   * retiré). 300 lignes au plus. @param {EcranSuiviAT} ecran @param {any} capture @param {string} luLe @returns {SuiviAT} */
   function suiviDepuisCaptureAT(ecran, capture, luLe) {
-    const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes));
-    const t = tableaux.sort((/** @type {any} */ a, /** @type {any} */ b) => b.lignes.length - a.lignes.length)[0];
+    // Un tableau de mise en page (une seule colonne) n'est pas un groupe de résultats.
+    const tableaux = ((capture && capture.tableaux) || []).filter((/** @type {any} */ t) => Array.isArray(t && t.lignes) && t.lignes.length
+      && ((t.entete || []).length >= 2 || t.lignes.some((/** @type {any} */ l) => Array.isArray(l) && l.filter((/** @type {any} */ x) => net(x)).length >= 2)));
+    /** @type {LigneSuiviAT[]} */
+    const lignes = [];
+    let total = 0;
+    tableaux.forEach((/** @type {any} */ t) => {
+    total += t.lignes.length;
     // Les colonnes par leur en-tête (« Libellé », « Dossier/Acte »… ; « Situation », « État »…) ; sans en-tête reconnu, le premier texte
     // est le libellé et le dernier la situation.
     const entete = ((t && t.entete) || []).map(plat);
     const colLibelle = entete.findIndex((/** @type {string} */ e) => /libelle|intitule|objet|dossier ?\/ ?acte|^acte|demande|formalite/.test(e));
     // L'en-tête qui EST l'état (« Situation », « État ») ; « Type d'état civil » ne l'est pas (audit 0.382.0).
     const colSituation = entete.findIndex((/** @type {string} */ e) => /^(situation|etat|statut)( |$)/.test(e));
-    /** @type {LigneSuiviAT[]} */
-    const lignes = [];
+    // Le titre du groupe (« Réponse positive (12) ») : la situation des lignes d'un tableau sans colonne d'état.
+    const groupe = net(String(t.titre || '').replace(/\(\s*\d+\s*\)\s*$/, ''));
     ((t && t.lignes) || []).forEach((/** @type {any} */ l) => {
       if (lignes.length >= 300) return;
       const brutes = (Array.isArray(l) ? l : []).map(net);
@@ -359,12 +373,16 @@
       const textes = cellules.map((x) => net(x.replace(RE_REFERENCE_AT, ' '))).filter((x) => x && !RE_DATE_FR.test(x) && !/^⟦icône⟧/.test(x) && !/^\d+$/.test(x));
       if (!textes.length && !reference) return;
       const libelle = (colLibelle >= 0 && net(String(brutes[colLibelle] || '').replace(RE_REFERENCE_AT, ' '))) || textes[0] || '';
-      const situation = (colSituation >= 0 ? brutes[colSituation] : textes.filter((x) => x !== libelle).slice(-1)[0]) || '';
+      const situation = (colSituation >= 0 ? brutes[colSituation] : (groupe || textes.filter((x) => x !== libelle).slice(-1)[0])) || '';
       lignes.push({ reference, libelle: libelle.slice(0, 200), dates, situation: situation.slice(0, 80), enAttente: ligneSuiviEnAttenteAT(ecran, situation) });
     });
-    // Un tableau paginé (« (1 of 5) », « Page 1 sur 5 ») : seule la page affichée est lue — dit, jamais tu (audit 0.382.0).
-    const pagine = /\(\s*1\s+(of|sur|de)\s+([2-9]|\d{2,})\s*\)|page\s+1\s+(sur|of|de)\s+([2-9]|\d{2,})/i.test(String((capture && capture.texte) || ''));
-    return { luLe: net(luLe), lignes, tronque: !!(t && t.lignes.length > 300) || pagine };
+    });
+    // Un tableau paginé (« (1 of 5) », « Page 1 sur 5 », « Résultats 1 à 10 sur 12 », « Demandes 1 à 15 sur 59 ») : seule la page affichée
+    // est lue — dit, jamais tu (audit 0.382.0 ; formes réelles des captures du wiki, 28/10).
+    const texte = String((capture && capture.texte) || '');
+    const plage = [...texte.matchAll(/\b1\s+[àa]\s+(\d+)\s+sur\s+(\d+)/gi)].some((m) => Number(m[2]) > Number(m[1]));
+    const pagine = plage || /\(\s*1\s+(of|sur|de)\s+([2-9]|\d{2,})\s*\)|page\s+1\s+(sur|of|de)\s+([2-9]|\d{2,})/i.test(texte);
+    return { luLe: net(luLe), lignes, tronque: total > 300 || pagine };
   }
 
   /** Pure : les compteurs du tableau de bord d'après les suivis lus : par écran, les lignes en attente (toutes pour les actes à signer), et

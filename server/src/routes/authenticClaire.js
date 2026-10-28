@@ -231,7 +231,9 @@ function creerRouteurAuthenticClaire(o) {
       deja[cle] = new Date().toISOString();
       repo.ecrireJsonBrut(CLE_DEMANDES_AUTHENTIC, deja);
       noterVerification(repo, 'authentic-' + type, { detail: `${r.demandes} demande(s) créée(s)` });
-      return `${nom} créée dans Authentic, sans envoi (Création rapide, Envoi immédiat éteint) : ${r.demandes} ${type === 'cjn' ? 'acquéreur(s)' : 'acte(s) demandé(s)'}. Elle est à envoyer depuis le dossier ou le suivi ${type === 'cjn' ? 'CJN' : 'Comedec'}.`;
+      // Ce qu'Authentic a montré après « Valider » (bloquée, papier, non conforme) : dit, jamais une demande à refaire (risque de doublon).
+      const dit = (r.remarques || []).length ? ` À vérifier dans Authentic : ${r.remarques.join(' ; ')}.` : '';
+      return `${nom} créée dans Authentic, sans envoi (Création rapide, Envoi immédiat éteint) : ${r.demandes} ${type === 'cjn' ? 'acquéreur(s)' : 'acte(s) demandé(s)'}. Elle est à envoyer depuis le dossier ou le suivi ${type === 'cjn' ? 'CJN' : 'Comedec'}.${dit}`;
     }, cle));
   });
 

@@ -43,6 +43,7 @@ try {
   const r = await A.lireDossier(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, recevoir: (c) => { captures.push(c); return { ok: true }; }, etape });
   verifier(captures.some((c) => (c.pieces || []).some((p) => p.pjId === 'pj11' && p.dossier === 'Non classé')), 'la liste des pièces jointes est relevée (identifiant, dossier de l’arbre)');
   verifier(!(await s.evaluer('window.__panneauLateral')), 'le résultat de recherche est ouvert par son icône (goToDossier), jamais par le titre (panneau latéral)');
+  verifier(!(await s.evaluer('window.__promesse')), 'depuis la page du dossier (bandeau seul), le sous-dossier de VENTE est ouvert par la liste, jamais la promesse');
   const piece = await A.lirePiecePdf(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, 'pj11', { etape });
   verifier(piece.pdf.toString().startsWith('%PDF') && /Titre de propriété/.test(piece.nom), 'le PDF d’une pièce jointe est lu à la demande');
   verifier(r.pages === 6 && captures.length === 7, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
@@ -54,7 +55,7 @@ try {
 
   // Infos comptables : l'onglet au vrai libellé (« Infos comptables 12,50 € »), jamais « Générer en PDF ».
   const compta = await A.lireComptabilite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, etape });
-  verifier(!!compta && /Dernières opérations/.test(JSON.stringify(compta)), 'l’onglet « Infos comptables » est ouvert et relevé');
+  verifier(!!compta && /Dernières opérations/.test(JSON.stringify(compta)), 'l’onglet « Infos comptables » est ouvert, le compte principal choisi par son libellé, le détail relevé');
   verifier(!(await s.evaluer('window.__interdit')), '« Générer en PDF » n’est jamais cliqué');
 
   // Étape 7 : les quatre écrans de suivi, par leurs menus ; « Exporter » jamais cliqué.

@@ -126,6 +126,17 @@ test('suivis (étape 7) : colonnes par leur en-tête, référence lue, une déci
   assert.equal(ec.lignes[0].enAttente, false);
   assert.equal(ec.tronque, true, 'tableau paginé : dit');
   assert.equal(M.ligneSuiviEnAttenteAT('micen', 'Prêt'), false);
+  // Captures du wiki (28/10) : lignes rangées en GROUPES par statut, sans colonne d'état ; « Dépôt OK », « Clôturé » sont finis ;
+  // pagination « Demandes 1 à 15 sur 59 ».
+  const cjn = M.suiviDepuisCaptureAT('cjn', { texte: 'Demandes 1 à 15 sur 59', tableaux: [
+    { titre: 'Prêt pour envoi (1)', entete: ['N° dossier', 'Dossier / Acte', 'Demande', 'Client', 'Date'], lignes: [['A 2026 00500', 'VTE ESSAI / TEST', 'Casier', 'TEST Jean', '01/10/2026']] },
+    { titre: 'Absence de condamnation (1)', entete: ['N° dossier', 'Dossier / Acte', 'Demande', 'Client', 'Date'], lignes: [['A 2026 00501', 'VTE AUTRE / ESSAI', 'Casier', 'ESSAI Marc', '02/10/2026']] }] }, 'x');
+  assert.equal(cjn.lignes.map((l) => `${l.situation}:${l.enAttente}`).join('|'), 'Prêt pour envoi:true|Absence de condamnation:false');
+  assert.equal(cjn.tronque, true, '« 1 à 15 sur 59 » : paginé');
+  assert.equal(M.ligneSuiviEnAttenteAT('micen', 'Dépôt OK'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('safer', 'Clôturé'), false);
+  assert.equal(M.ligneSuiviEnAttenteAT('cjn', 'Bloqué'), true);
+  assert.equal(M.ECRANS_SUIVIS_AT.find((e) => e.cle === 'safer').entrees[0], 'Suivi SAFER / DIA-DPU');
   assert.equal(M.ligneSuiviEnAttenteAT('actesASigner', ''), true);
   const c = M.compteursSuivisAT({ safer: s }, ['A 2026 00500']);
   assert.equal(c.safer.total, 2);
