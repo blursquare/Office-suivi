@@ -1098,19 +1098,13 @@
   // Texte fourni mot pour mot par l'étude (28/10) : relance de l'offre de prêt au CONFRÈRE qui représente l'acquéreur. Seule retouche :
   // « était fixée » une fois l'échéance passée (comme au client) ; sans date, la phrase de l'échéance est retirée.
   function construireEmailRelancePretConfrere(d) {
-    const echeance = d.pret ? `L'échéance d'obtention du prêt ${joursRestants(d.pret) < 0 ? 'était fixée' : 'est fixée'} au ${dateLongueFr(d.pret)}.` : '';
+    const echeance = d.pret ? `L'échéance d'obtention du prêt ${joursRestants(d.pret) < 0 ? 'était fixée' : 'est fixée'} au ${formatDateFr(d.pret)}.` : '';
     return {
       sujet: `Relance — Offre de prêt attendue — ${libelleDossierAffiche(d)}`,
       corps: [FORMULE_APPEL_CONFRERE, 'Nous n\'avons pas encore reçu la copie d\'offre de prêt dans le cadre de votre dossier.', echeance,
         'Je vous remercie de nous transmettre cette offre dès réception, ou de nous indiquer où en est la demande de financement.',
         FORMULE_CLOTURE_CONFRERE].filter(Boolean).join('\n\n')
     };
-  }
-
-  // Pure : « 12 novembre 2026 » (sans le jour de la semaine).
-  function dateLongueFr(iso) {
-    if (!iso) return '';
-    return new Date(String(iso).slice(0, 10) + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   function construireEmailRelancePret(d) {
@@ -1368,8 +1362,7 @@
     { nom: 'l’agence', aide: '« l’agence » suivi de son nom s’il est connu' },
     { nom: 'date et heure du rendez-vous', aide: 'en gras et souligné ; vide sans rendez-vous' },
     { nom: 'lieu du rendez-vous', aide: '« en notre office », visio ou office du confrère' },
-    { nom: 'échéance du prêt', aide: '« est fixée au … » / « était fixée au … »' },
-    { nom: 'échéance du prêt en lettres', aide: '« est fixée au 12 novembre 2026 » / « était fixée au … »' },
+    { nom: 'échéance du prêt', aide: '« est fixée au 12 novembre 2026 » / « était fixée au … »' },
     { nom: 'échéance de la vente préalable', aide: '« est prévue au plus tard le … », « devait intervenir… » ou « reste à réaliser »' },
     { nom: 'date de signature', aide: 'date de l’acte (rendez-vous de signature)' },
     { nom: 'lien avis Google', aide: 'adresse pour laisser un avis sur l’office' }
@@ -1402,10 +1395,6 @@
       return `${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}`;
     }
     if (n === 'lieu du rendez-vous') return d.rendezVousSignature ? lieuRdvEmail(d, confrere) : '';
-    if (n === 'échéance du prêt en lettres') {
-      if (!d.pret) return '';
-      return `${joursRestants(d.pret) < 0 ? 'était fixée' : 'est fixée'} au ${dateLongueFr(d.pret)}`;
-    }
     if (n === 'échéance du prêt') {
       if (!d.pret) return '';
       return `${joursRestants(d.pret) < 0 ? 'était fixée' : 'est fixée'} au ${formatDateFr(d.pret)}`;
@@ -1482,7 +1471,7 @@
       { cle: 'pretConfrere', nom: 'Relance de l’offre de prêt (au confrère)', construire: construireEmailRelancePretConfrere,
         sujet: 'Relance — Offre de prêt attendue — {dossier}',
         corps: [FORMULE_APPEL_CONFRERE, "Nous n'avons pas encore reçu la copie d'offre de prêt dans le cadre de votre dossier.",
-          "L'échéance d'obtention du prêt {échéance du prêt en lettres}.", 'Je vous remercie de nous transmettre cette offre dès réception, ou de nous indiquer où en est la demande de financement.', FORMULE_CLOTURE_CONFRERE].join('\n\n') },
+          "L'échéance d'obtention du prêt {échéance du prêt}.", 'Je vous remercie de nous transmettre cette offre dès réception, ou de nous indiquer où en est la demande de financement.', FORMULE_CLOTURE_CONFRERE].join('\n\n') },
       { cle: 'rib', nom: 'RIB et pièce d’identité', construire: construireEmailRelanceRib,
         sujet: 'RIB et pièce d\'identité pour le rendez-vous de signature — {dossier}',
         corps: ['Bonjour,', '{si pas visio}En prévision du rendez-vous de signature je vous remercie de vous munir de votre RIB et de votre pièce d’identité.', '{si visio}En prévision du rendez-vous de signature en visioconférence, je vous remercie de nous adresser votre RIB et une copie de votre pièce d’identité en cours de validité.', 'Bien cordialement,'].join('\n\n') },
@@ -1982,7 +1971,12 @@
     const modele = MODELES_EMAIL_RELANCE[type];
     if (!d || !modele) return;
     const destinataire = o.destinataire || (modele.destinataire ? modele.destinataire(d) : emailDestinataireRelance(d));
-    const auConfrere = o.destinataire ? !!o.confrere : (modele.confrere === true || notaireParticipantRepresenteAcquereur(d));
+    // Une adresse donnée sans dire qui elle est (l'agent, audit 0.387.0) : confrère si c'est celle de la relance d'un dossier où un confrère
+    // représente l'acquéreur — jamais « Bonjour, … votre offre de prêt » envoyé à un confrère.
+    const memeAdresse = (a, b) => !!a && !!b && String(b).toLowerCase().split(/[\s,;]+/).filter(Boolean).some(x => String(a).toLowerCase().includes(x));
+    const auConfrere = o.destinataire
+      ? (typeof o.confrere === 'boolean' ? o.confrere : (modele.confrere === true || (notaireParticipantRepresenteAcquereur(d) && memeAdresse(o.destinataire, emailDestinataireRelance(d)))))
+      : (modele.confrere === true || notaireParticipantRepresenteAcquereur(d));
     if (!destinataire) {
       const message = modele.confrere === true
         ? "Aucun email renseigné pour le notaire du vendeur — impossible de préparer cette demande."
