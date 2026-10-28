@@ -96,6 +96,12 @@ function basculerLectureCanal(id) {
   renderAssistant();
 }
 
+// Le champ pour corriger son message (dans la liste comme dans un fil : le fil l'oubliait, « Modifier » n'y faisait rien).
+function htmlEditionMessageCanal(m) {
+  return `<div class="cx-edition"><textarea id="canal-edition" rows="2" aria-label="Modifier le message" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enregistrerEditionCanal('${escapeOnclickArg(m.id)}'); } else if (event.key === 'Escape') { annulerEditionCanal(); }">${escapeHtml(m.texte || '')}</textarea>
+      <div class="cx-edition-actions"><wa-button variant="brand" size="s" type="button" onclick="enregistrerEditionCanal('${escapeOnclickArg(m.id)}')">Enregistrer</wa-button><wa-button appearance="plain" size="s" type="button" onclick="annulerEditionCanal()">Annuler</wa-button></div></div>`;
+}
+
 function htmlMessageCanal(m, i, r, repere) {
   const claire = m.role === 'claire';
   const maintenant = Date.now();
@@ -107,9 +113,7 @@ function htmlMessageCanal(m, i, r, repere) {
     return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}')">${escapeHtml(b.libelle)}</wa-button>`;
   }).join('');
   const tete = r.debutGroupe ? `<div class="cx-nom">${escapeHtml(nomAuteurCanal(m))}${htmlStatutAuteurCanal(m.auteur)}${claire && m.via && m.via !== utilisateurPoste ? `<span class="cx-via"> · à la demande de ${escapeHtml(prenomCollaborateur(m.via))}</span>` : ''}${claire && m.pour && m.carte ? `<span class="cx-via"> · pour ${escapeHtml(m.pour === utilisateurPoste ? 'vous' : prenomCollaborateur(m.pour))}</span>` : ''}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}${m.modifieLe ? ' · modifié' : ''}</span>${m.epingle ? `<span class="cx-epingle" title="Épinglé">${icone('pin')}</span>` : ''}</div>` : '';
-  const edition = canaux.edition === m.id ? `<div class="cx-edition"><textarea id="canal-edition" rows="2" aria-label="Modifier le message" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); enregistrerEditionCanal('${escapeOnclickArg(m.id)}'); } else if (event.key === 'Escape') { annulerEditionCanal(); }">${escapeHtml(m.texte || '')}</textarea>
-      <div class="cx-edition-actions"><wa-button variant="brand" size="s" type="button" onclick="enregistrerEditionCanal('${escapeOnclickArg(m.id)}')">Enregistrer</wa-button><wa-button appearance="plain" size="s" type="button" onclick="annulerEditionCanal()">Annuler</wa-button></div></div>` : '';
-  const corps = canaux.edition === m.id ? edition : htmlCorpsMessageCanal(m);
+  const corps = canaux.edition === m.id ? htmlEditionMessageCanal(m) : htmlCorpsMessageCanal(m);
   return `${jour}${nouveau}<div class="cx-m cx-${escapeAttr(m.role)}${r.debutGroupe ? '' : ' cx-suite'}${m.epingle ? ' cx-epingle-m' : ''}" data-index="${i}" data-mid="${escapeAttr(m.id || '')}">
       ${r.debutGroupe ? avatarCanal(m) : `<span class="cx-heure-marge" aria-hidden="true">${escapeHtml(heureAssistant(m.quand))}</span>`}
       <div class="cx-corps">${tete}${corps}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${htmlLienFil(m)}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}${repere === 'dernier-moi' ? htmlLectureMessageCanal(m) : ''}${htmlActionsMessageCanal(m, i)}</div></div>`;

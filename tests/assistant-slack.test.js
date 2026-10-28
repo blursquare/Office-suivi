@@ -76,3 +76,14 @@ test('pièce jointe d’un canal : carte avec son identifiant serveur, ou pastil
   assert.doesNotMatch(sans, /asst-pj-carte/);
   assert.match(sans, /Ancien\.pdf/);
 });
+
+test('modifier un message : le champ de correction est dans la liste ET dans le fil (il manquait au fil), sans doublon pour le message de départ', () => {
+  const m = { id: 'm1', role: 'moi', texte: 'Bonjour', quand: t0, auteur: 'Bastien ANGLUMENT' };
+  assert.match(app.htmlEditionMessageCanal(m), /id="canal-edition"[^>]*>Bonjour<\/textarea>/);
+  app.canaux.edition = 'm1';
+  app.canaux.fil = '';
+  assert.match(app.htmlMessageFil(m), /id="canal-edition"/, 'réponse du fil en cours de correction');
+  app.canaux.fil = 'm1';
+  assert.doesNotMatch(app.htmlMessageFil(m), /id="canal-edition"/, 'le message de départ se corrige dans la liste, un seul champ');
+  app.canaux.edition = ''; app.canaux.fil = '';
+});

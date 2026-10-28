@@ -202,7 +202,7 @@ function htmlMessageFil(m) {
   const claire = m.role === 'claire';
   return `<div class="cx-m cx-${escapeAttr(m.role)}" data-fil-mid="${escapeAttr(m.id || '')}">${avatarCanal(m)}
     <div class="cx-corps"><div class="cx-nom">${escapeHtml(nomAuteurCanal(m))}${htmlStatutAuteurCanal(m.auteur)}<span class="cx-heure">${escapeHtml(heureAssistant(m.quand))}</span></div>
-    ${htmlCorpsMessageCanal(m)}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${claire ? '' : ''}${htmlActionsMessageCanal(m, -1)}</div></div>`;
+    ${canaux.edition === m.id && m.id !== canaux.fil ? htmlEditionMessageCanal(m) : htmlCorpsMessageCanal(m)}${htmlPiecesCanal(m)}${htmlReactionsMessage(m)}${claire ? '' : ''}${htmlActionsMessageCanal(m, -1)}</div></div>`;
 }
 
 // Redessine le corps du fil (le champ de réponse n'est jamais touché : la frappe survit).
