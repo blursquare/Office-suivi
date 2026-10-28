@@ -11,7 +11,7 @@ const defunt = { civilite: 'Madame', prenoms: 'Jeanne Marie', nom: 'DURAND', dom
 const texte = (doc) => doc.lignes.join('\n');
 
 test('neuf modèles de l’étude et le courrier vierge, chacun finissant par la formule de politesse', () => {
-  assert.deepEqual(C.MODELES_COURRIER_SUCCESSION.map(m => m.cle).sort().join(','), 'assurance-vie,autre,banque,carsat,cpam,ehpad,impots,msa,mutuelle,retraite');
+  assert.deepEqual(C.MODELES_COURRIER_SUCCESSION.filter(m => !m.fonds).map(m => m.cle).sort().join(','), 'assurance-vie,autre,banque,carsat,cpam,ehpad,impots,msa,mutuelle,retraite');
   for (const m of C.MODELES_COURRIER_SUCCESSION) {
     assert.ok(m.salutation.endsWith(','), m.cle);
     const l = m.lignes({ f: true, nomUsuel: 'Madame Jeanne DURAND', texteLibre: 'Texte.' });
