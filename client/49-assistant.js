@@ -129,10 +129,10 @@
       const rattache = assistantContexte.dossierId ? dossiers.find(x => x.id === assistantContexte.dossierId) : null;
       zone.innerHTML = (rattache
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
-          'Claire en connaît la fiche, les pièces et les échéances : posez-lui vos questions sans citer le dossier. Vous pouvez par exemple demander',
+          'Claire connaît la fiche, les pièces et les échéances. Par exemple :',
           exemplesDossierAssistant(rattache), true, 'folder')
         : htmlPresentationClaire('Claire', `${accueilAssistant(prenomPosteAssistant(), new Date()).replace(/,? que puis-je faire pour vous \?$/, '')}, ceci est votre espace avec Claire.`,
-          'Un dossier, une tâche, un email, un rendez-vous, un calcul : dites-le en une phrase, et tapez @ pour citer un dossier. Vous pouvez par exemple demander',
+          'Dites-le en une phrase ; « @ » cite un dossier. Par exemple :',
           suggestionsAssistant(dossiersPerimetreDashboard()).slice(0, 5), true))
         + htmlFilClaire(entreesFilClaire([], messagesClairePourFil(Date.now())), Date.now());
       if (messagesClaireEtat.liste.length) zone.scrollTop = zone.scrollHeight;

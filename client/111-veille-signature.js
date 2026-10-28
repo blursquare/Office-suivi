@@ -612,7 +612,7 @@ function renderVeilleSignature(d, maintenant) {
       </div>
     </div>
     <div class="vs-pied">
-      <span class="vs-aide">Cochez et datez ce qui est fait : la fiche imprimée en tient compte. Le dossier garde seulement la trace du téléchargement.</span>
+      <span class="vs-aide">Cochez et datez ce qui est fait : la fiche imprimée en tient compte.</span>
       <span class="vs-actions">
         <wa-button appearance="outlined" type="button" onclick="fermerVeilleSignature()">Fermer</wa-button>
         <wa-button variant="brand" type="button" onclick="telechargerFicheSignature('${escapeOnclickArg(d.id)}')">${icone('download')}Télécharger la fiche (PDF)</wa-button>

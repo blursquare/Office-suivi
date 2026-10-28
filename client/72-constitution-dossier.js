@@ -1159,7 +1159,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     return `<div class="cst-accueil">
         <span class="cst-accueil-icone" aria-hidden="true">${icone('file-text')}</span>
         <h2 class="cst-accueil-titre">Quel dossier constituer ?</h2>
-        <p class="cst-accueil-sous">Les courriers de l’office se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
+        <p class="cst-accueil-sous">Courriers préparés d’après la fiche du dossier.</p>
         <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="cst-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher un dossier de vente ou de succession…" oninput="rechercherDossierConstitution(this.value)" onfocus="rechercherDossierConstitution(this.value)" onblur="masquerResultatsConstitution(event)" aria-label="Rechercher un dossier"><div id="cst-resultats" class="dash-recherche-resultats" style="display:none;" onmousedown="event.preventDefault()"></div></div>
         ${cartes ? `<div class="cst-accueil-liste-titre"><span class="pieces-titre">${icone('clock')}<span class="pieces-titre-texte">Derniers dossiers</span></span></div><div class="cst-accueil-grille">${cartes}</div>` : ''}
       </div>`;
@@ -1248,7 +1248,8 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     const choisi = cstEtat.selection === doc.id;
     const dest = resumeDestinataireConstitution(doc);
     if (doc.mode === 'en-ligne') {
-      return `<div class="cst-item cst-off"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span>${doc.url && /^https:\/\//.test(doc.url) ? `<a class="cst-gnau-lien" href="${escapeAttr(doc.url)}" target="_blank" rel="noopener">${icone('link')}${escapeHtml(doc.lien || 'Ouvrir la démarche')}</a>` : ''}</span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
+      // Une démarche en ligne n'est pas « éteinte » : son lien est le geste (jamais grisé).
+      return `<div class="cst-item cst-enligne"><span class="cst-item-switch"></span><span class="cst-item-texte"><span class="cst-item-titre">${escapeHtml(doc.libelle)}</span><span class="cst-item-dest">${escapeHtml(dest)}</span>${doc.url && /^https:\/\//.test(doc.url) ? `<a class="cst-gnau-lien" href="${escapeAttr(doc.url)}" target="_blank" rel="noopener">${icone('link')}${escapeHtml(doc.lien || 'Ouvrir la démarche')}</a>` : ''}</span><span class="dot-label dl-success"><span class="dot"></span>En ligne</span></div>`;
     }
     const memes = cstEtat.documents.filter(x => x.modele === doc.modele && x.genre === doc.genre && x.groupe === doc.groupe);
     const rang = memes.length > 1 ? ` ${memes.indexOf(doc) + 1}` : '';

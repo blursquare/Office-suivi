@@ -129,7 +129,7 @@ function renderReglagesRoutines() {
       <div class="rt-hero-id">
         <span class="rt-avatar" aria-hidden="true">${icone('sparkle')}</span>
         <div><h3>CLAIRE, quatrième collaboratrice</h3>
-          <p>Elle prépare le travail prévisible — brouillons, documents, tâches — et le dépose dans votre boîte de propositions. Vous décidez ; rien ne part sans votre clic, tant que vous ne lui accordez pas plus.</p></div>
+          <p>Elle prépare brouillons, documents et tâches. Vous décidez ; rien ne part sans votre clic.</p></div>
       </div>
       <label class="rt-hero-switch"><span>${r.actif ? 'Routines activées' : 'Routines éteintes'}</span>
         <wa-switch id="rt-actif" ${r.actif ? 'checked' : ''} ${admin ? '' : 'disabled'} onchange="basculerRoutinesGenerales(this.checked)" aria-label="Activer les routines de CLAIRE"></wa-switch></label>
@@ -138,7 +138,7 @@ function renderReglagesRoutines() {
         <span class="rt-chip">${icone('sparkle')}IA en ligne ce mois-ci : ${escapeHtml(euros(e.usage.euros))} sur ${escapeHtml(euros(r.plafondEuros))}</span>
         <span class="rt-barre" role="img" aria-label="${part} % du plafond mensuel"><span style="width:${part}%"></span></span>
       </div>
-      ${admin ? '' : '<p class="rt-lecture">Lecture seule : l’interrupteur général, le niveau 3 et le niveau 2 des gestes vers l’extérieur sont réservés à l’administrateur.</p>'}
+      ${admin ? '' : '<p class="rt-lecture">Lecture seule : réservé à l’administrateur.</p>'}
     </div>
 
     <div class="reglages-section">

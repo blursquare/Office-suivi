@@ -130,7 +130,7 @@
     const zone = document.getElementById('pr-depot-dia');
     if (!zone) return;
     const e = prEtat || etatPreemptionVierge();
-    if (!e.insee) { zone.innerHTML = '<p class="hint">Choisissez d’abord la commune (code postal) dans « Parcelle et zonage ».</p>'; return; }
+    if (!e.insee) { zone.innerHTML = '<p class="hint">Choisissez d’abord la commune.</p>'; return; }
     const st = etatDepotDia();
     // Un formulaire de correction ouvert n'est pas redessiné (la saisie en cours serait perdue).
     if (st.edition && document.getElementById('depot-dia-mode')) return;

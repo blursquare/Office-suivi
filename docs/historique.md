@@ -23053,3 +23053,7 @@ resserré (« acte de naissance / décès / mariage », « livret de famille » 
 chaque page (une reçue reste), oubliées avec « Oublier ce qui vient d'Authentic », lues dès la création ; « x/n revenues » compte une ancienne
 pièce cochée ; résumé du panneau : les demandes = formalités préalables, « À surveiller » compté en entier (8 lignes montrées). Une demande à
 une banque reste une pièce attendue (statut « Attente de pièces ») tant qu'elle n'est pas cochée : c'est la liste voulue par l'étude.
+
+### 0.394.1 (28/10, étude : « réduis les textes de description pour épurer » ; « l'espace non-péril est grisé à Blois »)
+
+Textes d'aide raccourcis (index.html, client/40, 49, 51, 68, 69, 72, 85, 108, 111, 113, catalogue des routines) ; aucune règle ni texte de document touché. Constitution : une démarche en ligne n'est plus `cst-off` mais `cst-enligne` (jamais grisée).

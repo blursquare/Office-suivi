@@ -1554,7 +1554,7 @@
     if (!note) return;
     note.textContent = afAdresseBienDepuisDossier
       ? 'Adresse reprise du dossier rattaché. Modifiez-la pour obtenir des suggestions officielles.'
-      : "Tapez l'adresse : des suggestions officielles (Base Adresse Nationale) s'affichent.";
+      : "Tapez l'adresse : suggestions officielles.";
   }
 
   // Écrit dans le formulaire tout ce que le dossier permet, puis AFFICHE ce qu'il n'a pas permis.

@@ -359,7 +359,7 @@ function autRendreCorps() {
     carte.innerHTML = `<div class="cst-accueil">
       <span class="cst-accueil-icone" aria-hidden="true">${icone('file-text')}</span>
       <h2 class="cst-accueil-titre">Pour quelle succession ?</h2>
-      <p class="cst-accueil-sous">Les autorisations de déblocage ou de transfert de fonds se préparent d’après la fiche du dossier, qui tient les données d’Authentic.</p>
+      <p class="cst-accueil-sous">Autorisations préparées d’après la fiche du dossier.</p>
       <div class="pr-dossier-recherche-bloc cst-recherche cst-accueil-recherche"><input type="search" id="aut-recherche" class="nas-choix-recherche" autocomplete="off" placeholder="Rechercher une succession…" aria-label="Rechercher une succession" oninput="autRechercher(this.value)"></div>
       <div id="aut-cartes" class="aut-cartes">${autCartesAccueil('')}</div>
     </div>`;
@@ -396,7 +396,7 @@ function autRendreCorps() {
     const corrige = editeCourant && editeCourant.sig === JSON.stringify(autDocumentBrut(d, courant, modele, personnes).map(x => x.texte));
     apercu = `<div class="aut-page" id="aut-page" aria-label="Aperçu de l’autorisation de ${escapeAttr(courant.nom)}">${doc.map((x, i) => (x.vide ? '<div class="aut-para aut-vide"></div>'
       : `<div class="aut-para${x.gras ? ' aut-gras' : ''}" contenteditable="plaintext-only" spellcheck="false" data-i="${i}" oninput="autEditer(this)">${escapeHtml(x.texte)}</div>`)).join('')}</div>
-      <div class="aut-apercu-pied"><span class="hint">Corrigez le texte directement sur la page : le PDF et l’email partent tels qu’ils sont ici.</span>${corrige ? '<button type="button" class="lien-action" onclick="autRetablir()">Revenir au texte d’origine</button>' : ''}</div>`;
+      <div class="aut-apercu-pied"><span class="hint">Corrigez le texte sur la page : PDF et email partent tels quels.</span>${corrige ? '<button type="button" class="lien-action" onclick="autRetablir()">Revenir au texte d’origine</button>' : ''}</div>`;
   }
   carte.innerHTML = `${entete}
     <div class="cst-corps">

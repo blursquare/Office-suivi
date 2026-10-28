@@ -9936,6 +9936,8 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .cst-parcelle-ref { font-weight: 600; }
 .cst-parcelle-lieu, .cst-parcelle-surf { color: var(--muted); font-size: var(--texte-s); }
 .cst-off { opacity: 0.55; }
+.cst-item.cst-enligne { cursor: default; }
+.cst-item.cst-enligne .cst-gnau-lien { font-weight: 600; }
 .cst-ajout { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .cst-ajout .prop-champ { flex: 1 1 80px; min-width: 0; }
 .cst-ajout .cst-cp { flex: 0 1 72px; }

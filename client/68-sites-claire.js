@@ -20,7 +20,7 @@
 
   // Pure : ce qui manque pour lancer une consultation (commune et parcelles de l'outil). Rend '' si rien ne manque.
   function manqueConsultationSites(e) {
-    if (!e || !e.insee) return 'Choisissez d’abord la commune (code postal) dans « Parcelle et zonage ».';
+    if (!e || !e.insee) return 'Choisissez d’abord la commune.';
     if (!parcellesDepuisTexte(e.parcelles).length) return 'Indiquez d’abord les parcelles (section et numéro) dans « Parcelle et zonage ».';
     return '';
   }
