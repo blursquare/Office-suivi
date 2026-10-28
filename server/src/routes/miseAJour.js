@@ -37,6 +37,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
   const sauvegarder = options.sauvegarder
     || (() => sauvegarderEtEnregistrer(db, config && config.cheminDb, parametresRepo));
   let installationEnCours = false;
+  let installationDebut = 0;
 
   // Démarrage qui suit une installation automatique : le build en marche est-il celui installé ?
   if (modeExe && parametresRepo.lireJsonBrut) {
@@ -94,8 +95,14 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
   async function installerDerniere(disponibleConnu) {
     if (!modeExe) throw Object.assign(new Error("La mise à jour ne fonctionne que dans CLAIRE-serveur.exe (ce serveur tourne en mode développement)."), { statut: 409 });
     if (typeof options.redemarrer !== 'function') throw Object.assign(new Error('Redémarrage automatique indisponible sur ce serveur.'), { statut: 503 });
+    // Filet : une installation commencée il y a plus de 20 min est tenue pour abandonnée (le téléchargement a son propre délai de 10 min).
+    if (installationEnCours && Date.now() - installationDebut > 20 * 60 * 1000) {
+      console.warn('[CLAIRE] Mise à jour précédente restée en cours plus de 20 min : reprise.');
+      installationEnCours = false;
+    }
     if (installationEnCours) throw Object.assign(new Error('Une mise à jour est déjà en cours.'), { statut: 409 });
     installationEnCours = true;
+    installationDebut = Date.now();
     const chemins = cheminsExecutable(dossierExe);
     try {
       const disponible = disponibleConnu || await derniereVersionDisponible({ jeton: jeton(), fetchFn });
@@ -141,7 +148,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
   // ---- Installation automatique ----
   const etatAuto = { dernierControle: null, resultat: null, echec: null };
   async function tourAuto() {
-    if (!modeExe || installationEnCours || !parametresRepo.lireReglagesMiseAJour().auto || !jeton()) return null;
+    if (!modeExe || (installationEnCours && Date.now() - installationDebut <= 20 * 60 * 1000) || !parametresRepo.lireReglagesMiseAJour().auto || !jeton()) return null;
     etatAuto.dernierControle = new Date().toISOString();
     let disponible;
     try {

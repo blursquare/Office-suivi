@@ -34,6 +34,9 @@ const NOM_EXE_ANCIEN = 'CLAIRE-serveur.ancien.exe';
 const TAILLE_MIN_EXE = 20 * 1024 * 1024;
 const DELAI_API_MS = 20 * 1000;
 const DELAI_TELECHARGEMENT_MS = 10 * 60 * 1000;
+// Plus rien reçu pendant ce temps : téléchargement abandonné (étude 28/10 : « Une mise à jour est déjà en cours » sans fin — le délai ne
+// couvrait que l'arrivée des en-têtes, un corps arrêté en route bloquait la mise à jour jusqu'au redémarrage du serveur).
+const DELAI_INACTIVITE_TELECHARGEMENT_MS = 90 * 1000;
 
 function numeroBuild(tag) {
   const m = typeof tag === 'string' && tag.startsWith(PREFIXE_TAG) ? /^(\d+)$/.exec(tag.slice(PREFIXE_TAG.length)) : null;
@@ -141,29 +144,60 @@ function cheminsExecutable(dossierExe) {
 // taille et son empreinte au fil de l'écriture. L'URL de l'API renvoie vers le stockage de
 // GitHub ; `fetch` suit la redirection et retire alors lui-même l'en-tête Authorization (autre
 // origine), l'URL de destination étant déjà signée.
-async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetch, tailleMin = TAILLE_MIN_EXE }) {
+async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetch, tailleMin = TAILLE_MIN_EXE, delaiMs = DELAI_TELECHARGEMENT_MS, inactiviteMs = DELAI_INACTIVITE_TELECHARGEMENT_MS }) {
   if (!asset || !asset.url) throw new Error('Publication sans exécutable à télécharger.');
   if (!asset.sha256) throw new Error("GitHub n'a pas publié l'empreinte de cet exécutable : installation refusée par prudence.");
   const partiel = `${destination}.partiel`;
   await fsp.rm(partiel, { force: true });
-  const r = await appelAvecDelai(fetchFn, asset.url, { headers: entetesGithub(jeton, 'application/octet-stream'), redirect: 'follow' }, DELAI_TELECHARGEMENT_MS);
-  if (!r.ok || !r.body) throw erreurGithub(r.status, !!jeton);
+  // Un seul arrêt pour TOUT le téléchargement (en-têtes et corps) : délai total, et délai sans aucune donnée reçue.
+  const controleur = new AbortController();
+  let raison = '';
+  const arreter = (pourquoi) => { if (!raison) { raison = pourquoi; controleur.abort(); } };
+  const minuteurTotal = setTimeout(() => arreter('délai total dépassé'), delaiMs);
+  let minuteurInactif = setTimeout(() => arreter('plus rien reçu de GitHub'), inactiviteMs);
+  const relancerInactif = () => { clearTimeout(minuteurInactif); minuteurInactif = setTimeout(() => arreter('plus rien reçu de GitHub'), inactiviteMs); };
+  const finMinuteurs = () => { clearTimeout(minuteurTotal); clearTimeout(minuteurInactif); };
+  let r;
+  try {
+    r = await fetchFn(asset.url, { headers: entetesGithub(jeton, 'application/octet-stream'), redirect: 'follow', signal: controleur.signal });
+  } catch (e) {
+    finMinuteurs();
+    if (raison || (e && e.name === 'AbortError')) throw new Error(`GitHub ne répond pas (${raison || 'délai dépassé'}) : vérifiez la connexion internet du poste serveur.`);
+    throw new Error("Impossible de joindre GitHub depuis le poste serveur (connexion internet ?).");
+  }
+  if (!r.ok || !r.body) { finMinuteurs(); throw erreurGithub(r.status, !!jeton); }
 
   const hachage = crypto.createHash('sha256');
   let taille = 0;
   const sortie = fs.createWriteStream(partiel);
   try {
-    for await (const morceau of r.body) {
-      const tampon = Buffer.from(morceau);
+    // Lecture morceau par morceau, en course avec l'arrêt : un flux qui ne rend plus rien ne bloque jamais (il est fermé).
+    const iterateur = r.body[Symbol.asyncIterator]();
+    const abandon = new Promise((_, ko) => controleur.signal.addEventListener('abort', () => ko(new Error(raison)), { once: true }));
+    abandon.catch(() => {});
+    for (;;) {
+      let etape;
+      try {
+        etape = await Promise.race([iterateur.next(), abandon]);
+      } catch (e) {
+        if (typeof iterateur.return === 'function') Promise.resolve(iterateur.return()).catch(() => {});
+        throw e;
+      }
+      if (etape.done) break;
+      relancerInactif();
+      const tampon = Buffer.from(etape.value);
       hachage.update(tampon);
       taille += tampon.length;
       if (!sortie.write(tampon)) await new Promise((ok) => sortie.once('drain', ok));
     }
+    if (raison) throw new Error(raison);
     await new Promise((ok, ko) => sortie.end((e) => (e ? ko(e) : ok())));
   } catch (e) {
     sortie.destroy();
     await fsp.rm(partiel, { force: true });
-    throw new Error(`Téléchargement interrompu : ${e.message}`);
+    throw new Error(`Téléchargement interrompu : ${raison || e.message}. Rien n'a été changé.`);
+  } finally {
+    finMinuteurs();
   }
 
   const empreinte = hachage.digest('hex');

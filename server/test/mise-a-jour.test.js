@@ -125,6 +125,21 @@ test('téléchargement : empreinte contrôlée, rien ne reste en cas de refus', 
   assert.equal(fs.readdirSync(dossier).length, 0);
 });
 
+test('téléchargement arrêté en route : abandonné, jamais bloqué (étude 28/10 : « Une mise à jour est déjà en cours »)', async () => {
+  const dossier = dossierTemp();
+  const dest = path.join(dossier, 'CLAIRE-serveur.nouveau.exe');
+  const asset = (await derniereVersionDisponible({ fetchFn: fauxFetch() })).asset;
+  // Un corps qui rend un morceau puis plus rien, pour toujours.
+  const bloque = async () => ({ ok: true, status: 200, body: { [Symbol.asyncIterator]() { let n = 0; return { next: () => (n++ === 0 ? Promise.resolve({ done: false, value: Buffer.from('MZ') }) : new Promise(() => {})) }; } } });
+  const debut = Date.now();
+  await assert.rejects(telechargerExecutable({ asset, destination: dest, fetchFn: bloque, tailleMin: 1, inactiviteMs: 150 }), /plus rien reçu de GitHub/);
+  assert.ok(Date.now() - debut < 3000);
+  assert.equal(fs.readdirSync(dossier).length, 0, 'rien ne reste');
+  // En-têtes qui n'arrivent jamais : même arrêt.
+  const muet = (url, o) => new Promise((_, ko) => o.signal.addEventListener('abort', () => ko(Object.assign(new Error('abort'), { name: 'AbortError' }))));
+  await assert.rejects(telechargerExecutable({ asset, destination: dest, fetchFn: muet, tailleMin: 1, inactiviteMs: 150 }), /ne répond pas/);
+});
+
 test('échange : actuel → ancien, nouveau → actuel ; défait si la seconde étape échoue', async () => {
   const dossier = dossierTemp();
   const c = cheminsExecutable(dossier);
