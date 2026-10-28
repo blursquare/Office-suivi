@@ -30,6 +30,7 @@ test('proposée dans les 48 h avant le rendez-vous, jamais avant, jamais après'
   assert.equal(app.veilleSignatureDue(d, T('2026-10-27T14:29:00')), false);
   assert.equal(app.veilleSignatureDue(d, T('2026-10-27T14:30:00')), true);
   assert.equal(app.veilleSignatureDue(d, T('2026-10-29T09:00:00')), true);
+  assert.equal(app.veilleSignatureDue(Object.assign({}, d, { roleNotaire: 'participant' }), T('2026-10-29T09:00:00')), false, 'participation : jamais');
   assert.equal(app.veilleSignatureDue(d, T('2026-10-29T14:31:00')), false);
 });
 

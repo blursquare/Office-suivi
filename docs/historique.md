@@ -22887,3 +22887,7 @@ Tests : « rien de nominatif ne part » (noms, téléphones, emails), `tests/age
 ### 28/10/2026 — 0.386.1 : suites de l'audit de 0.386.0 (coordonnées, résumé pour Sophie)
 
 Côté accompagné par un confrère : jamais les coordonnées du client, le confrère à la place (IA et carte). « Signé » = `signatureFaiteSuivi`. Fonds attendus sans rien reçu dits. Bouton « Résumé pour Sophie » : conversation personnelle neuve, dossier imposé, jamais pendant une autre demande. Historique envoyé en vocabulaire fermé (`sorteEvenementBilan`). Emails non lus et appels reçus seulement dits. Rapport : `docs/audits/2026-10-28-0.386.0.md`.
+
+### 28/10/2026 — 0.386.2 : fiche de signature hors participation ; navigation patiente
+
+Étude : « ne pas proposer la fiche de signature pour les actes où nous sommes en participation » — `veilleSignatureDue` (pop-up et tâche d'« À faire »), bouton des outils de la fiche (client/77) et routine `veilleSignature` du serveur écartent `roleNotaire === 'participant'`. Étude : « connexion authentic : Échec : Page.navigate : délai dépassé » — `SessionNavigation.aller` : après le délai de la commande (45 s), la page arrivée (même hôte, document chargé, 45 s de plus) est prise, sinon second essai, puis « le site ne répond pas » ; erreur réseau passagère réessayée une fois. Boîtes de dialogue : « Quitter la page ? » et alerte acceptées, confirmation et saisie TOUJOURS refusées (`Page.javascriptDialogOpening`). Cause réelle du délai non connue ici (site lent, accès Internet du serveur, vérification Silicium) : à observer.

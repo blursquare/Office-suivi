@@ -52,9 +52,9 @@ function debutVeilleSignature(debut) {
 }
 
 // Pure : la fiche est-elle « due » — rendez-vous dans les 48 prochaines heures, ou dès le vendredi 17 h si ces 48 h tombent un week-end (et pas encore passé), vente non archivée et pas déjà signée.
-// Jamais pour une succession (autre déroulé, pas de conditions de vente).
+// Jamais pour une succession (autre déroulé, pas de conditions de vente), ni en participation (étude 28/10 : l'acte est reçu par le confrère).
 function veilleSignatureDue(d, maintenant) {
-  if (!d || d.archive || estSuccession(d) || signatureFaiteSuivi(d)) return false;
+  if (!d || d.archive || estSuccession(d) || d.roleNotaire === 'participant' || signatureFaiteSuivi(d)) return false;
   const r = instantsSignatureVeille(d);
   if (!r) return false;
   const t = (maintenant || new Date()).getTime();
