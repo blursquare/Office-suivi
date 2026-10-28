@@ -1685,13 +1685,12 @@
     return ACCENTS_DISPONIBLES.indexOf(valeur) >= 0 ? valeur : 'bordeaux';
   }
 
-  // Saison d'Halloween (étude 28/10) : l'orange pour tous du 25 octobre au 1er novembre inclus, puis l'accent que chacun avait choisi
-  // revient seul — le choix enregistré n'est jamais touché.
-  var SAISON_HALLOWEEN = { debut: '10-25', fin: '11-01' };
+  // Saison d'Halloween (étude 28/10 : « le temps de la saison Halloween définie ensemble, le thème orange pour tous, puis celui que le
+  // collaborateur avait choisi ») : les dates de la citrouille (`halloweenActif`, 24 octobre → 2 novembre) ; le choix enregistré n'est jamais touché.
   // Pure : l'accent imposé par la saison ce jour-là (« AAAA-MM-JJ »), sinon ''.
   function accentSaisonnier(iso) {
-    const md = String(iso || '').slice(5, 10);
-    return md >= SAISON_HALLOWEEN.debut && md <= SAISON_HALLOWEEN.fin ? 'orange' : '';
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    return m && halloweenActif(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12)) ? 'orange' : '';
   }
   let accentChoisi = 'bordeaux';
 
@@ -1709,7 +1708,20 @@
     try { localStorage.setItem(CLE_ACCENT, accent); } catch (e) { /* préférence non enregistrée : sans conséquence */ }
   }
 
+  // Décor de saison (Halloween, étude 27/10) : l'attribut `data-saison` est posé du 24 octobre au 2 novembre (`halloweenActif`) et retiré après ;
+  // seule la marque de la barre latérale en profite (style.css). L'accent orange de la saison est posé par `accentSaisonnier` (étude 28/10), le choix enregistré de chacun ne change pas.
+  function appliquerSaison(date) {
+    const racine = document.documentElement;
+    if (!racine || typeof racine.setAttribute !== 'function') return;
+    if (halloweenActif(date)) racine.setAttribute('data-saison', 'halloween');
+    else if (typeof racine.removeAttribute === 'function') racine.removeAttribute('data-saison');
+  }
+  // Une fenêtre laissée ouverte change de saison toute seule (le 3 novembre, ou le 24 octobre) : relu chaque heure et au retour au premier plan.
+  if (typeof window !== 'undefined' && typeof setInterval === 'function') setInterval(() => appliquerSaison(), 60 * 60 * 1000);
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', () => { if (!document.hidden) appliquerSaison(); });
+
   function chargerAccent() {
+    appliquerSaison();
     let accent = null;
     try { accent = localStorage.getItem(CLE_ACCENT); } catch (e) { /* aucune préférence enregistrée */ }
     appliquerAccent(accent, false);

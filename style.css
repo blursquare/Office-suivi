@@ -63,6 +63,15 @@
     --accent-clair: #262626; --accent-clair-hover: #0D0D0D;
     --accent-sombre: #D4D4D4; --accent-sombre-hover: #EAEAEA;
   }
+  /* Décor de saison (Halloween, du 24 octobre au 2 novembre) : `appliquerSaison()` (client/37) pose `data-saison` sur la page ; seule la marque en profite
+     (le thème orange et vert essayé le 27/10 a été annulé par l'étude : les couleurs de CLAIRE et l'accent choisi ne changent pas). */
+  /* Marque en saison : toile d'araignée entre le logo et le mot, une citrouille en bas à droite du logo (index.html : .brand-halloween). */
+  .brand-halloween { display: none; }
+  :root[data-saison="halloween"] .brand-halloween { display: block; position: absolute; pointer-events: none; }
+  .brand-lien { position: relative; }
+  .brand-toile { left: 35px; top: 6px; width: 18px; height: 18px; color: var(--ink-soft); opacity: .85; }
+  .brand-citrouille { left: 27px; top: 22px; width: 19px; height: 19px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .45)); }
+  .sidebar.repliee .brand-halloween { display: none; }
 
   :root {
     /* Fond de page gris-bleu froid, nettement plus soutenu que le blanc des cartes (étude 04/10 : « un fond de ce style
