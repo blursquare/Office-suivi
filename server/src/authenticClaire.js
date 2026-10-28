@@ -303,12 +303,41 @@ async function passerVerificationSilicium(s, etape) {
   return n;
 }
 
+/**
+ * Diagnostic quand le navigateur du serveur ne charge pas Authentic (étude 28/10 : « le site ne répond pas » deux fois) : le SERVEUR lui-même
+ * (Node, hors navigateur) joint-il l'adresse ? Une seule requête HEAD, 15 s, rien n'est envoyé d'autre (ni identifiant, ni cookie).
+ * Rend une phrase pour le message d'échec. @param {string} adresse @param {{ requete?: any }} [inj]
+ */
+function diagnosticAccesAuthentic(adresse, inj) {
+  const https = (inj && inj.requete) || require('node:https');
+  const debut = Date.now();
+  return new Promise((ok) => {
+    let fini = false;
+    const finir = (/** @type {string} */ t) => { if (!fini) { fini = true; ok(t); } };
+    try {
+      const req = https.request(adresse, { method: 'HEAD', timeout: 15000 }, (/** @type {any} */ res) => {
+        res.resume && res.resume();
+        finir(`le serveur joint pourtant Authentic (réponse ${res.statusCode} en ${((Date.now() - debut) / 1000).toFixed(1).replace('.', ',')} s) : c’est le navigateur du serveur qui ne charge pas la page (proxy ou pare-feu propre au navigateur, vérification du poste Silicium, certificat demandé)`);
+      });
+      req.on('timeout', () => { req.destroy(); finir('le serveur lui-même ne joint pas Authentic (aucune réponse en 15 s) : accès à Internet, proxy ou pare-feu du serveur à vérifier'); });
+      req.on('error', (/** @type {any} */ e) => finir(`le serveur lui-même ne joint pas Authentic (${String((e && e.code) || 'erreur réseau').slice(0, 30)}) : accès à Internet, DNS, proxy ou pare-feu du serveur à vérifier`));
+      req.end();
+    } catch (e) { finir('diagnostic impossible'); }
+  });
+}
+
 /** Connexion (identifiant, mot de passe, « Se connecter »). Rien ne s'écrit si la session est déjà ouverte. @param {any} s @param {any} r @param {(t: string) => void} etape */
 async function seConnecter(s, r, etape) {
   if (!r.identifiant || !r.motDePasse) throw new Error('identifiant ou mot de passe d’Authentic non enregistré (Réglages › Authentic)');
   const g = gestes(s, etape);
   etape('Ouvre Authentic');
-  await s.aller(r.adresse);
+  try {
+    await s.aller(r.adresse);
+  } catch (e) {
+    if (!/ne répond pas|non chargée/.test(String(e && e.message))) throw e;
+    etape('Authentic ne répond pas : diagnostic de l’accès du serveur');
+    throw new Error(`${String(e.message).replace(/ : réessayer plus tard.*$/, '')} — ${await diagnosticAccesAuthentic(r.adresse)}`);
+  }
   await passerVerificationSilicium(s, etape);
   const pw = await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE);
   if (!pw) {
@@ -764,5 +793,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, estCeDossier, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
+  referenceEnTete, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

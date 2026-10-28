@@ -11468,3 +11468,7 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .at-compta-table td { padding: 2px 4px; border-top: 1px solid var(--line); vertical-align: top; }
 .at-compta-n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .at-compta-lu { margin: 0; font-size: var(--texte-xs); color: var(--muted); }
+
+/* Vente : fonds reçus d'après la comptabilité d'Authentic (client/140). */
+.fonds-compta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: var(--texte-s); }
+.fonds-compta-source { color: var(--muted); font-size: var(--texte-xs); }

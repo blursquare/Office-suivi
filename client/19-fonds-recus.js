@@ -618,7 +618,9 @@
         ${lecture ? `<span class="fonds-lecture">${lecture}</span>` : ''}
         ${validation ? `<span class="fonds-quand-meme">${validation}</span>` : ''}
       </div>`;
-    const detail = `<div class="fonds-recus">${jauge}${versements}${pied}</div>`;
+    // Comptabilité d'Authentic comparée à l'appel de fonds (étude 28/10), client/140.
+    const compta = typeof htmlFondsComptaAT === 'function' ? htmlFondsComptaAT(d) : '';
+    const detail = `<div class="fonds-recus">${jauge}${versements}${compta}${pied}</div>`;
 
     const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${escapeOnclickArg(d.id)}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
     let bouton = verifier;

@@ -363,7 +363,7 @@ const OUTILS_AGENT = [
   },
   {
     name: 'authentic_comptabilite',
-    description: 'La comptabilité d’un dossier lue dans l’onglet « Comptabilité » d’Authentic : solde de l’affaire, solde du compte, taxes, dernières opérations (date, libellé, débit, crédit, solde) et leurs totaux. relire = false : la dernière lecture gardée sur la fiche (dis sa date). relire = true, ou aucune lecture encore : CLAIRE la lit dans Authentic après une carte « Autoriser » (lecture seule, une minute environ).',
+    description: 'La comptabilité d’un dossier lue dans l’onglet « Comptabilité » d’Authentic : solde de l’affaire, solde du compte, taxes, dernières opérations (date, libellé, débit, crédit, solde) et leurs totaux ; pour une vente, les fonds reçus d'après Authentic comparés au « Solde à verser » de l'appel de fonds (complet à 2 € près, partiel, excédent). relire = false : la dernière lecture gardée sur la fiche (dis sa date). relire = true, ou aucune lecture encore : CLAIRE la lit dans Authentic après une carte « Autoriser » (lecture seule, une minute environ).',
     input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'relire'],
       properties: { dossier_id: chaine('id du dossier'), relire: { type: 'boolean', description: 'true = relire maintenant dans Authentic (carte « Autoriser »)' } } }
   },

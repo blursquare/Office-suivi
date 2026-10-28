@@ -47,3 +47,18 @@ test('tableau défilant : en-tête et corps en deux tables', () => {
   assert.equal(c.operations[0].debit, 10);
   assert.equal(c.operations[0].solde, -10);
 });
+
+test('vente : fonds reçus d’après la comptabilité comparés à l’appel de fonds (étude 28/10)', () => {
+  const { chargerApplication } = require('./helpers/load-app.js');
+  const app = chargerApplication();
+  const vente = (compta, attendu) => ({ id: 'v1', nom: 'EXEMPLE', typeVente: 'maison', fondsRecus: attendu ? { attendu, total: 0 } : null, authentic: { comptabilite: Object.assign({ luLe: '2026-10-28T10:00:00Z' }, compta) } });
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 25000, totalCreditListe: 25000 }, 25001)).etat, 'complet');
+  const p = app.comparaisonFondsComptaAT(vente({ soldeAffaire: 10000 }, 25000));
+  assert.equal(p.etat, 'partiel');
+  assert.equal(p.ecart, -15000);
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 30000 }, 25000)).etat, 'excedent');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: -120, totalCreditListe: 0 }, 25000)).etat, 'aucun');
+  assert.equal(app.comparaisonFondsComptaAT(vente({ soldeAffaire: 5000 }, null)).etat, 'sans-attendu');
+  assert.equal(app.comparaisonFondsComptaAT({ id: 's', typeAffaire: 'succession', authentic: { comptabilite: { luLe: 'x', soldeAffaire: 1 } } }), null);
+  assert.equal(app.comparaisonFondsComptaAT({ id: 'v', typeVente: 'maison' }), null);
+});

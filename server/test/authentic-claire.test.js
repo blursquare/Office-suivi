@@ -156,3 +156,17 @@ test('suivis (étape 7) : la route rend les compteurs sans jamais rien lancer ; 
     assert.equal((await appel('/api/authentic-claire/suivis', 'POST', { auteur: 'Julie VASSELIN' })).status, 409, 'lecture à la main : refusée connexion éteinte');
   } finally { s.close(); db.close(); }
 });
+
+test('diagnostic quand Authentic ne se charge pas (étude 28/10) : le serveur joint-il le site hors navigateur ?', async () => {
+  const A = require('../src/authenticClaire');
+  const { EventEmitter } = require('node:events');
+  const faux = (mode) => ({ request: (url, o, rappel) => {
+    const req = new EventEmitter();
+    req.end = () => setImmediate(() => { if (mode === 'ok') rappel({ statusCode: 200, resume() {} }); else if (mode === 'lent') req.emit('timeout'); else req.emit('error', Object.assign(new Error('x'), { code: 'ENOTFOUND' })); });
+    req.destroy = () => {};
+    return req;
+  } });
+  assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('ok') }), /joint pourtant Authentic \(réponse 200.*navigateur du serveur/);
+  assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('lent') }), /ne joint pas Authentic \(aucune réponse/);
+  assert.match(await A.diagnosticAccesAuthentic('https://www.cloud-fichorga.fr/', { requete: faux('dns') }), /ENOTFOUND/);
+});
