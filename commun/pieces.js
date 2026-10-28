@@ -184,7 +184,13 @@
         : [...PIECES_URBANISME, PIECE_NON_PERIL, ...PIECES_AUTRES];
     if (!d) return base;
     // Succession (étude 15/10) : les pièces d'une succession (commun/succession.js), puis les pièces personnalisées.
-    if (C.estSuccession(d)) return [...C.piecesSuccessionDossier(d), ...(d.piecesPersonnalisees || []).map(p => ({ cle: p.cle, label: p.label, personnalisee: true }))];
+    if (C.estSuccession(d)) {
+      // Les pièces « perso-authentic-… » d'avant (une par acte d'état civil reçu dans Authentic) doublaient la liste : quand les demandes
+      // d'Authentic sont relevées, elles sont lues par elles (étude 28/10).
+      const avecDemandes = C.demandesSuccessionDossier(d).length > 0;
+      const perso = (d.piecesPersonnalisees || []).filter(p => !(avecDemandes && /^perso-authentic-/.test(String(p.cle || ''))));
+      return [...C.piecesSuccessionDossier(d), ...perso.map(p => ({ cle: p.cle, label: p.label, personnalisee: true }))];
+    }
     const retirees = new Set(d.piecesRetirees || []);
     // DPU « non » dans l'analyse de l'urbanisme (seule une SAFER est à purger, par exemple) : pas de « Renonciation au droit de préemption »
     // dans la checklist — sauf si elle est déjà reçue. Revient seule si l'analyse change (étude 09/10).

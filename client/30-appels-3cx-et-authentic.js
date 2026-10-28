@@ -1292,7 +1292,7 @@
     const r = {
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
-      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes),
+      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes), demandesSuccession: typeAffaire === 'succession' ? demandesSuccessionDepuisLignes(lignes) : null,
       avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture),
       premierComparant: premierComparantAuthentic(capture), premierImmeuble: premierImmeubleAuthentic(capture),
       biensDossier: biensRubriqueAuthentic(capture)
@@ -1604,7 +1604,7 @@
     const deja = new Set(d.piecesAuthentic || []);
     const retirees = new Set(d.piecesRetirees || []);
     return piecesRecuesAuthentic(lignesDocumentsAuthentic(capture), checklistPieces(d.typeVente, d), d.typeAffaire)
-      .filter(p => !deja.has(p.cle) && !retirees.has(p.cle) && !(!p.nouvelle && d.pieces && d.pieces[p.cle] === 'recue'));
+      .filter(p => !deja.has(p.cle) && !retirees.has(p.cle) && !(!p.nouvelle && d.pieces && d.pieces[p.cle] === 'recue') && !(estSuccession(d) && /^perso-authentic-/.test(p.cle)));
   }
 
   // Pure : le côté d'une personne d'une fiche client dans le dossier — d'après ses parties, sinon
@@ -2205,23 +2205,8 @@
       noter(`Demande envoyée${dm.date ? ` le ${formatDateFr(dm.date)}` : ''} : « ${dm.titre} » (Authentic)`);
     });
 
-    // Succession (étude 15/10) : actes de naissance (tous revenus positifs) et EHF (réquisition envoyée et revenue) cochés d'après Authentic.
-    let piecesSuccessionChangees = false;
-    if (estSuccession(d) && type === 'gestion' && d.roleNotaire !== 'participant') {
-      const ps = piecesSuccessionAuthentic(apres);
-      const retirees = new Set(d.piecesRetirees || []);
-      [['actesNaissance', 'Actes de naissance', ps.actesNaissance.recue, `${ps.actesNaissance.recus}/${ps.actesNaissance.total} reçus`],
-        ['ehf', 'État hypothécaire hors formalité (EHF)', ps.ehf.recue, `envoyé le ${formatDateFr(ps.ehf.envoyeeLe)}, revenu le ${formatDateFr(ps.ehf.retourLe)}`]].forEach(([cle, label, recue, detail]) => {
-        if (!recue || retirees.has(cle) || d.pieces[cle] === 'recue') return;
-        d.pieces[cle] = 'recue';
-        d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), cle]));
-        d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), cle]));
-        d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [cle]: maintenant });
-        d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), cle]));
-        noter(`Reçue dans Authentic : « ${label} » (${detail})`);
-        piecesSuccessionChangees = true;
-      });
-    }
+    // Succession : pièces demandées dans Authentic, reçues = cochées (étude 15/10 et 28/10 ; client/74 `cocherPiecesSuccessionAuthentic`).
+    const piecesSuccessionChangees = estSuccession(d) && type === 'gestion' && d.roleNotaire !== 'participant' ? cocherPiecesSuccessionAuthentic(d, apres, noter, maintenant) : false;
     // Succession (étude 15/10) : les actes du tableau « Rédaction » (notoriété, déclaration, attestation, délivrance de legs…) et leur état.
     let actesChanges = false;
     if (estSuccession(d) && type === 'gestion') {

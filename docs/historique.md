@@ -23026,3 +23026,22 @@ Authentic décide de l'alerte ; « HF … ANF », « Réponse à la réquisition
 été celle de l'envoi). Authentic : dépliage limité à l'arbre de la GED, chevron recouvert passé et compté, liste des pièces incomplète dite à
 l'agent, PDF rapatrié par morceaux, `attach_file` et `joindre` retirés de la garde, nom de pièce refusé seulement s'il est un mot de bouton,
 l'arrêt demandé n'est plus avalé. Le bloc « État hypothécaire » reste masqué quand seules des fiches anciennes sont à relire (dit dans la discussion).
+
+### 28/10/2026 — 0.394.0 : pièces d'une succession faites des demandes d'Authentic ; panneau Authentic résumé
+
+Étude : « Dans une succession, dans la partie Authentic il y a les pièces demandées puis dans le dossier il y a les pièces à cocher. Mais on ne
+retrouve pas les mêmes. Et dans Authentic ça fait beaucoup de données à l'écran. » Choix (questions) : « la liste faite d'Authentic » et
+« résumé + ce qui attend ».
+- `demandesSuccessionDepuisLignes` (client/74) : chaque ligne des tableaux d'une page de succession (Etat civil, Demande, Banque, Courrier…),
+  jamais le tableau « Rédaction » ni la SAFER, devient une demande { libelle, cleBase, etat, date, recueLe } gardée dans
+  `d.authentic.demandesSuccession` ; « reçue » seulement sur un mot qui le dit (positif, reçu, retour, délivré, réponse, terminé) — un courrier
+  à une banque reste à cocher. `pieceBaseDemandeSuccession` (commun/succession.js) rattache naissance, décès, mariage, livret, FCDDV, EHF, titre.
+- Checklist (commun/succession.js `piecesSuccessionDossier`, commun/pieces.js) : pièces de base + une ligne par demande qui n'est pas une pièce
+  de base ; les anciennes pièces « perso-authentic-… » (un acte d'état civil reçu = une pièce) ne sont plus montrées quand les demandes sont
+  relevées, et plus créées pour une succession ; une ancienne pièce cochée vaut sa demande reçue.
+- `cocherPiecesSuccessionAuthentic` : demande reçue cochée ; pièce de base cochée quand TOUTES ses demandes sont revenues ; règle d'avant
+  gardée (actes de naissance positifs, EHF revenu) ; jamais décoché.
+- Onglet Pièces : « Authentic : demandée le … », « 1/2 revenue », « réponse négative — à redemander » (`etatDemandeSuccessionPiece`).
+- Panneau Authentic (client/133, toutes les fiches) : « N demandes : x reçues, y en attente », « À surveiller » (négative, rejet, blocage,
+  attente de plus de 30 jours), puis « Voir tout le détail » replié (`resumeFormalitesAT`).
+Non vérifié sur une vraie page de succession (formes des tableaux et des états lues d'après les structures reçues le 05/10 et le 15/10).

@@ -542,17 +542,41 @@
     return manque;
   }
 
-  /** Pure : la checklist standard d'une succession (moins les pièces retirées ; l'immobilier seulement s'il y en a). @param {any} d */
+  // Les pièces DEMANDÉES dans Authentic (étude 28/10 : « dans une succession, Authentic a les pièces demandées, la fiche les pièces à cocher,
+  // on ne retrouve pas les mêmes » ; choix : la liste faite d'Authentic). Une demande qui est une pièce de base (acte de naissance, de décès,
+  // de mariage, livret, FCDDV, EHF, titre) y est rattachée ; les autres (banques, caisses de retraite, impôts…) deviennent des lignes.
+  /** @type {Array<[RegExp, string]>} */
+  var PIECES_BASE_DEMANDES_SUCCESSION = [
+    [/naissance/i, 'actesNaissance'], [/d[ée]c[èe]s/i, 'acteDeces'], [/mariage/i, 'acteMariage'], [/livret/i, 'livretFamille'],
+    [/fcddv|derni[èe]res?\s*volont|fichier\s*central/i, 'fcddv'], [/hors\s*formalit|r[ée]quisition\s*(?:d.[ée]tat|hors)|[ée]tat\s*hypoth|(?:^|[^a-z])ehf(?:[^a-z]|$)/i, 'ehf'],
+    [/titre\s*(?:de\s*)?propri/i, 'titrePropriete']
+  ];
+  /** Pure : la pièce de base d'une demande d'Authentic, '' si elle n'en est pas une. @param {string} libelle */
+  function pieceBaseDemandeSuccession(libelle) {
+    const r = PIECES_BASE_DEMANDES_SUCCESSION.find(([re]) => re.test(String(libelle || '')));
+    return r ? r[1] : '';
+  }
+  /** Pure : les demandes d'Authentic retenues sur la fiche (`d.authentic.demandesSuccession`), en liste. @param {any} d */
+  function demandesSuccessionDossier(d) {
+    const ds = d && d.authentic && d.authentic.demandesSuccession;
+    return ds && typeof ds === 'object' ? Object.entries(ds).map(([cle, v]) => Object.assign({ cle }, v)).filter(x => x && x.libelle) : [];
+  }
+
+  /** Pure : la checklist d'une succession — pièces de base (moins les pièces retirées ; l'immobilier seulement s'il y en a), puis une ligne
+   * par pièce DEMANDÉE dans Authentic qui n'est pas une pièce de base. @param {any} d */
   function piecesSuccessionDossier(d) {
     const retirees = new Set((d && d.piecesRetirees) || []);
     // Notoriété + déclaration : pas d'attestation immobilière, donc aucune pièce d'immobilier (étude 21/10).
     const type = typeSuccessionDef(typeSuccession(d));
     const immobilier = type.cle === 'classique' || (type.cle !== 'notoriete-ds' && successionAvecImmobilier(d));
-    return PIECES_SUCCESSION.filter(p => !retirees.has(p.cle) && (!p.immobilier || immobilier))
+    const base = PIECES_SUCCESSION.filter(p => !retirees.has(p.cle) && (!p.immobilier || immobilier))
       .map(p => ({ cle: p.cle, label: p.label, motifNom: p.motifNom }));
+    const demandes = demandesSuccessionDossier(d).filter(x => !x.cleBase && !retirees.has(x.cle))
+      .map(x => ({ cle: x.cle, label: x.libelle, demandeAuthentic: true }));
+    return [...base, ...demandes];
   }
 
-  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, autorisationsFondsSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
+  const exportes = { rendezVousPasse, titreToutEnsembleSuccession, ETAPES_RDV_SUCCESSION, rendezVousSuccession, etapeEvenementSuccession, empreinteRendezVousSuccession, instantaneRendezVousSuccession, rendezVousRetenu, etapeRendezVousSuccessionDepuisTitre, signatureSuccessionDepuisRendezVous, rendezVousSuccessionDepuisAgenda, TYPES_SUCCESSION, ACTES_SUCCESSION, MOIS_NOTORIETE, MOIS_NOTORIETE_DS_DEBUT, MOIS_CONTROLE_DROITS, MOIS_DECLARATION_SUCCESSION, SEUIL_ACTIF_DECLARATION, PIECES_SUCCESSION, PIECES_NOTORIETE, TYPES_ETAPES_SUCCESSION, JOURS_AVANT_DERNIER_RDV_SUCCESSION, infoSuccession, decesSuccession, successionAvecImmobilier, typeSuccessionPropose, typeSuccession, autorisationsFondsSuccession, typeSuccessionDef, acteBaseDepuisIntitule, acteAuthenticSuccession, actesSuccession, ouvertureSuccession, conjointSurvivant, acteSigneSuccession, etapesSuccession, etapeSuccessionValidee, attentesNotoriete, piecesSuccessionDossier, pieceBaseDemandeSuccession, demandesSuccessionDossier, libelleActeRendezVousSuccession, actesSignesSuccession };
   if (typeof module !== 'undefined' && module.exports) module.exports = exportes; else Object.assign(globalThis, exportes);
 })(
   typeof module !== 'undefined' && module.exports ? Object.assign({}, require('./dates'), require('./dossier')) : /** @type {any} */ (globalThis)

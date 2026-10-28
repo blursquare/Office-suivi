@@ -1198,3 +1198,38 @@ test('dossier de succession repris d’Authentic : la référence qui apparaît 
   assert.notEqual(k('Succession LEBLOND Pierre'), k('Succession DURAND Marie'));
   assert.equal(k('???'), '???', 'sans nom lisible : l’intitulé tel quel');
 });
+
+test('succession (étude 28/10) : la liste des pièces faite des demandes d’Authentic, cochées à leur retour ; panneau Authentic résumé', () => {
+  const lignes = [
+    { titre: 'ECV - Acte de naissance - DUPONT Jean', etat: 'Réponse positive', date: '2026-10-01', dates: ['2026-10-01', '2026-10-05'], tableau: 'Etat civil' },
+    { titre: 'ECV - Acte de naissance - DUPONT Anne', etat: 'Envoyé', date: '2026-10-01', dates: ['2026-10-01'], tableau: 'Etat civil' },
+    { titre: 'APR - Lettre à la banque EXEMPLE', etat: 'Envoyé', date: '2026-09-20', dates: ['2026-09-20'], tableau: 'Banque' },
+    { titre: 'APR - Caisse de retraite ESSAI', etat: 'Retour le 10/10/2026', date: '2026-09-21', dates: ['2026-09-21', '2026-10-10'], tableau: 'Demande' },
+    { titre: 'ACT Acte de notoriété', etat: 'Non rédigé', date: '2026-10-02', dates: ['2026-10-02'], tableau: 'Rédaction' }
+  ];
+  const ds = app.demandesSuccessionDepuisLignes(lignes);
+  const liste = Object.values(ds);
+  assert.equal(liste.length, 4, 'jamais un acte du tableau Rédaction');
+  assert.equal(liste.filter((x) => x.cleBase === 'actesNaissance').length, 2);
+  assert.equal(liste.find((x) => /banque/i.test(x.libelle)).etat, 'attente', 'un courrier envoyé à la banque reste à cocher');
+  assert.equal(liste.find((x) => /retraite/i.test(x.libelle)).etat, 'recue');
+  const d = { id: 's1', nom: 'DUPONT', typeAffaire: 'succession', pieces: {}, historique: [], authentic: { demandesSuccession: ds },
+    piecesPersonnalisees: [{ cle: 'perso-authentic-acte-de-naissance-dupont-jean', label: 'Acte de naissance - DUPONT Jean' }] };
+  const cles = app.checklistPieces(undefined, d).map((p) => p.label);
+  assert.ok(cles.includes('Lettre à la banque EXEMPLE') && cles.includes('Caisse de retraite ESSAI'), 'les demandes deviennent des lignes');
+  assert.ok(cles.includes('Actes de naissance') && !cles.some((l) => /DUPONT Jean/.test(l)), 'naissance rattachée à la pièce de base, plus en double');
+  const notes = [];
+  assert.equal(app.cocherPiecesSuccessionAuthentic(d, d.authentic, (t) => notes.push(t), '2026-10-28T10:00:00Z'), true);
+  const cleRetraite = Object.keys(ds).find((k) => /retraite/.test(k));
+  assert.equal(d.pieces[cleRetraite], 'recue');
+  assert.notEqual(d.pieces.actesNaissance, 'recue', 'un des deux actes de naissance n’est pas revenu');
+  assert.match(app.etatDemandeSuccessionPiece(d, { cle: 'actesNaissance' }).texte, /1\/2 revenue/);
+  assert.match(app.etatDemandeSuccessionPiece(d, { cle: Object.keys(ds).find((k) => /banque/.test(k)) }).texte, /demandée le/);
+  // Panneau Authentic : résumé et seulement ce qui attend depuis longtemps ou a échoué.
+  const r = app.resumeFormalitesAT({ formalitesPrealables: [
+    { badge: 'ECV', libelle: 'a', statut: 'Réponse positive', dates: ['2026-10-01'] },
+    { badge: 'ECV', libelle: 'b', statut: 'Réponse négative', dates: ['2026-10-01'] },
+    { badge: 'APR', libelle: 'c', statut: 'Envoyé', dates: ['2026-08-01'] },
+    { badge: 'APR', libelle: 'd', statut: 'Envoyé', dates: ['2026-10-25'] }] }, '2026-10-28');
+  assert.equal(`${r.total}|${r.recues}|${r.attente}|${r.aSurveiller.map((f) => f.libelle).join('')}`, '4|1|2|bc');
+});

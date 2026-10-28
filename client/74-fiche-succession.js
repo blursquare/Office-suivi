@@ -1029,3 +1029,77 @@
     const complet = [personne.prenom, personne.nom].filter(Boolean).join(' ');
     return !!(smDefunt && smDefunt.conjoint && !rompu(smDefunt) && complet && memePersonneNommee(smDefunt.conjoint, complet));
   }
+
+  // ---- Pièces DEMANDÉES dans Authentic (étude 28/10 : « dans une succession, Authentic a les pièces demandées, la fiche les pièces à cocher ;
+  // on ne retrouve pas les mêmes » — choix : la liste faite d'Authentic) ----
+
+  // Pure : les demandes d'une page de succession d'Authentic (tableaux Etat civil, Demande, Banque, Courrier, Mails-courriers à retour…),
+  // jamais les actes du tableau « Rédaction » ni la SAFER. { cle: { libelle, cleBase, etat: 'recue'|'attente'|'negative', date, recueLe } }.
+  // « Reçue » seulement sur un mot qui le dit (positif, reçu, retour, délivré, réponse) : un courrier envoyé à une banque reste « attente »
+  // jusqu'à ce qu'on le coche (la réponse arrive par courrier, pas dans Authentic).
+  function demandesSuccessionDepuisLignes(lignes) {
+    const r = {};
+    (lignes || []).forEach(l => {
+      if (Object.keys(r).length >= 60 || /r[ée]daction/i.test(l.tableau || '') || /safer/i.test(l.texte || '')) return;
+      const libelle = String(l.titre || '').replace(/^\s*(?:ECV|APR|T@|SPR|CJN|ACT)(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      if (!libelle || /^act(?![a-z])|notori[ée]t[ée]|d[ée]claration\s+de\s+succession|attestation\s+(?:immobili|de\s+propri)/i.test(String(l.titre || ''))) return;
+      const t = normaliserPourRecherche(String(l.etat || ''));
+      const etat = /negati|rejet/.test(t) ? 'negative' : /positi|re[cç]u|retour|delivr|repon|termin/.test(t) ? 'recue' : 'attente';
+      const cle = 'dem-' + normaliserPourRecherche(libelle).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+      const dates = l.dates || [];
+      r[cle] = { libelle, cleBase: pieceBaseDemandeSuccession(libelle), etat, date: l.date || '', recueLe: etat === 'recue' ? (dates[dates.length - 1] || l.date || '') : '' };
+    });
+    return r;
+  }
+
+  // Coche, sur la fiche d'une succession, ce qu'Authentic dit reçu : une demande reçue (sa ligne), une pièce de base quand TOUTES ses demandes
+  // sont reçues (les actes de naissance de chaque héritier), plus la règle d'avant (actes de naissance positifs, EHF revenu). Jamais décoché.
+  // Rend vrai si quelque chose a changé. `noter` écrit l'historique.
+  function cocherPiecesSuccessionAuthentic(d, infos, noter, maintenant) {
+    let change = false;
+    const retirees = new Set(d.piecesRetirees || []);
+    d.pieces = d.pieces || {};
+    const cocher = (cle, label, detail) => {
+      if (!cle || retirees.has(cle) || d.pieces[cle] === 'recue') return;
+      d.pieces[cle] = 'recue';
+      d.piecesValideesManuellement = Array.from(new Set([...(d.piecesValideesManuellement || []), cle]));
+      d.piecesAuthentic = Array.from(new Set([...(d.piecesAuthentic || []), cle]));
+      d.piecesTrouveesLe = Object.assign({}, d.piecesTrouveesLe, { [cle]: maintenant });
+      d.piecesNotifications = Array.from(new Set([...(d.piecesNotifications || []), cle]));
+      noter(`Reçue dans Authentic : « ${label} »${detail ? ` (${detail})` : ''}`);
+      change = true;
+    };
+    // La règle d'avant d'abord (son détail dans l'historique : « 2/2 reçus », dates de la réquisition).
+    const ps = piecesSuccessionAuthentic(infos || {});
+    if (ps.actesNaissance.recue) cocher('actesNaissance', 'Actes de naissance', `${ps.actesNaissance.recus}/${ps.actesNaissance.total} reçus`);
+    if (ps.ehf.recue) cocher('ehf', 'État hypothécaire hors formalité (EHF)', `envoyé le ${formatDateFr(ps.ehf.envoyeeLe)}, revenu le ${formatDateFr(ps.ehf.retourLe)}`);
+    const demandes = Object.entries((infos && infos.demandesSuccession) || {}).map(([cle, v]) => Object.assign({ cle }, v));
+    // Une ancienne pièce « perso-authentic-… » cochée vaut sa demande reçue (la fiche n'en perd rien en passant à la liste d'Authentic).
+    const persoRecues = new Set((d.piecesPersonnalisees || []).filter(p => /^perso-authentic-/.test(String(p.cle || '')) && d.pieces[p.cle] === 'recue')
+      .map(p => normaliserPourRecherche(p.label)));
+    const recue = (x) => x.etat === 'recue' || persoRecues.has(normaliserPourRecherche(x.libelle));
+    demandes.filter(x => !x.cleBase && recue(x)).forEach(x => cocher(x.cle, x.libelle, x.recueLe ? `le ${formatDateFr(x.recueLe)}` : ''));
+    const parBase = new Map();
+    demandes.filter(x => x.cleBase).forEach(x => { if (!parBase.has(x.cleBase)) parBase.set(x.cleBase, []); parBase.get(x.cleBase).push(x); });
+    parBase.forEach((liste, cleBase) => {
+      if (!liste.every(recue)) return;
+      const p = PIECES_SUCCESSION.find(x => x.cle === cleBase);
+      cocher(cleBase, p ? p.label : cleBase, `${liste.length} demande${liste.length > 1 ? 's' : ''} revenue${liste.length > 1 ? 's' : ''}`);
+    });
+    return change;
+  }
+
+  // Pure : ce que l'onglet Pièces dit d'une pièce d'une succession d'après ses demandes d'Authentic (« Demandée le … », « 2/3 revenues »,
+  // « Réponse négative ») — { texte, classe } ou null. Rien pour une pièce reçue.
+  function etatDemandeSuccessionPiece(d, p) {
+    if (!p || (d && d.pieces && d.pieces[p.cle] === 'recue')) return null;
+    const liste = demandesSuccessionDossier(d).filter(x => x.cle === p.cle || x.cleBase === p.cle);
+    if (!liste.length) return null;
+    if (liste.some(x => x.etat === 'negative')) return { texte: 'Authentic : réponse négative — à redemander', classe: 'dl-alerte' };
+    if (liste.length > 1) {
+      const recues = liste.filter(x => x.etat === 'recue').length;
+      return { texte: `Authentic : ${recues}/${liste.length} revenue${recues > 1 ? 's' : ''}`, classe: 'dl-pret' };
+    }
+    const x = liste[0];
+    return { texte: x.etat === 'recue' ? `Authentic : reçue${x.recueLe ? ` le ${formatDateFr(x.recueLe)}` : ''}` : `Authentic : demandée${x.date ? ` le ${formatDateFr(x.date)}` : ''}`, classe: x.etat === 'recue' ? '' : 'dl-pret' };
+  }

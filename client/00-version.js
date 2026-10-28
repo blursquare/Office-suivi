@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.393.0';
+  const VERSION_APP = '0.394.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.394.0', date: '2026-10-28 23:03', resume: "Successions : l’onglet Pièces reprend les pièces demandées dans Authentic — chaque demande (banque, caisse de retraite, impôts…) devient une ligne, les actes de naissance de chaque héritier sont rattachés à « Actes de naissance » (« 1/2 revenue »), et une pièce revenue dans Authentic est cochée seule. Le panneau Authentic de la fiche n’affiche plus qu’un résumé (« 12 demandes : 8 reçues, 4 en attente ») et ce qui est à surveiller ; le détail est replié derrière « Voir tout le détail »." },
   { version: '0.393.0', date: '2026-10-28 22:16', resume: "Actes de naissance : CLAIRE relève toutes les mentions marginales (mariage, divorce, PACS, décès, changement de nom…) avec leur date et le dit dans la discussion du dossier. Sur la fiche, seulement les alertes : une pastille dans l’en-tête (inscription hypothécaire, mention marginale, travaux votés en AG), le détail au survol ; rien quand tout va bien. L’état hypothécaire est retrouvé même dans un répertoire replié des pièces jointes d’Authentic (PDF jusqu’à 60 Mo)." },
   { version: '0.392.0', date: '2026-10-28 20:06', resume: "Authentic, d’après le wiki de Fichorga et ses captures : CLAIRE reconnaît un dossier ouvert à son bandeau et ouvre le sous-dossier de vente par la liste ; elle déplie les blocs repliés et trouve l’icône d’aperçu ; une fiche client se referme par « Fermer » ; en comptabilité elle choisit le compte principal ; les écrans de suivi s’ouvrent par le menu de gauche (libellé « Suivi SAFER / DIA-DPU », suivi CJN en plus) ; après une demande CJN ou Comedec, elle dit si elle est bloquée ou faite en papier." },
   { version: '0.391.4', date: '2026-10-28 19:17', resume: "Authentic : la recherche d’un dossier tape d’abord son numéro SANS espace (« A202600329 »), la forme qui fonctionne, puis avec espaces en second essai." },

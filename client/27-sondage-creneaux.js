@@ -1542,6 +1542,9 @@
   function etatAuthenticPiece(d, p) {
     const a = (d && d.authentic) || {};
     if (/safer/i.test(p.label) && a.safer) return { texte: suiviSaferPiece(d), classe: '' };
+    // Succession : la pièce suivie par ses demandes d'Authentic (étude 28/10, client/74).
+    const demande = estSuccession(d) ? etatDemandeSuccessionPiece(d, p) : null;
+    if (demande) return demande;
     // Succession : actes de naissance et EHF suivis dans Authentic (étude 15/10) — ce qui est revenu, ce qui est attendu.
     if (estSuccession(d) && (p.cle === 'actesNaissance' || p.cle === 'ehf') && !(d.pieces && d.pieces[p.cle] === 'recue')) {
       const ps = piecesSuccessionAuthentic(a);
