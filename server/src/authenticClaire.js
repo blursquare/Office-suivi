@@ -162,6 +162,33 @@ const scriptTrouverTexte = (cible, exact) => `(() => {
   return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
 })()`;
 
+// Un résultat de recherche qui CONTIENT le numéro du dossier, avec ou sans espaces (« VTE X / Y (A202600329) », liste déroulante) — le plus
+// petit élément cliquable qui le porte. Même forme de retour que scriptTrouverTexte. (Étude 28/10 : « dossier A 2026 00329 introuvable ».)
+const scriptTrouverReference = (ref) => `(() => {
+  const compact = (t) => String(t || '').replace(/\\s+/g, '').toLowerCase();
+  const c = compact(${JSON.stringify(String(ref))});
+  if (!c) return null;
+  let meilleur = null;
+  document.querySelectorAll('a, li, tr, td, span, div, [role=option]').forEach((e) => {
+    if (!e.offsetWidth && !e.offsetHeight) return;
+    if (e.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar]')) return;
+    if (e.matches('input, textarea') || e.querySelector('input, textarea')) return;
+    const t = compact(e.innerText);
+    if (!t.includes(c) || t.length > c.length + 200) return;
+    const aire = e.offsetWidth * e.offsetHeight;
+    if (!meilleur || t.length < meilleur.t.length || (t.length === meilleur.t.length && aire < meilleur.aire)) meilleur = { t, aire, e };
+  });
+  if (!meilleur) return null;
+  meilleur.e.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = meilleur.e.getBoundingClientRect();
+  const x = Math.round(r.left + Math.min(r.width / 2, 160)), y = Math.round(r.top + r.height / 2);
+  const dessous = document.elementFromPoint(x, y);
+  if (!dessous || !(meilleur.e.contains(dessous) || dessous.contains(meilleur.e))) return { cache: true, texte: String(meilleur.e.innerText).trim().slice(0, 160) };
+  const bouton = dessous.closest('button, a, [role=button], .ui-button');
+  const icone = bouton && bouton.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
+  return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
+})()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle) => `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase();
@@ -245,6 +272,15 @@ function gestes(s, etape, o = {}) {
     await s.cliquerPosition(el.x, el.y);
     return true;
   }
+  /** Clique le résultat qui porte le numéro du dossier (geste « donnée » : contrôlé par la garde comme tout clic). @param {string} ref */
+  async function cliquerReference(ref) {
+    const el = await ev(scriptTrouverReference(ref));
+    if (!el) return false;
+    if (el.cache) throw new Error(`« ${String(el.texte).slice(0, 40)} » est recouvert par autre chose : pas cliqué`);
+    controlerClic({ geste: 'donnee', vise: ref, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
+    await s.cliquerPosition(el.x, el.y);
+    return true;
+  }
   /** Écrit dans le champ sous le pointeur (tout ce qu'il contenait est remplacé). @param {{ x: number, y: number }} pos @param {string} texte */
   async function ecrire(pos, texte) {
     await s.cliquerPosition(pos.x, pos.y);
@@ -272,7 +308,7 @@ function gestes(s, etape, o = {}) {
     return false;
   }
   const texte = () => ev('document.body ? document.body.innerText : ""').then(String).catch(() => '');
-  return { ev, cdp, cliquerTexte, ecrire, entree, echap, attendreTexte, texte, etape };
+  return { ev, cdp, cliquerTexte, cliquerReference, ecrire, entree, echap, attendreTexte, texte, etape };
 }
 
 // Vérification du poste client Silicium (étude 27/10 : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est
@@ -403,25 +439,40 @@ async function ouvrirDossier(s, cible, etape) {
   etape('Cherche le dossier');
   await passerVerificationSilicium(s, etape);
   if (estCeDossier(await g.texte(), cible)) return;
-  // Un lien qui porte la référence (« A 2026 00286 VTE … ») ou, sans référence, exactement le libellé.
-  // Le lien porte le numéro avec ou sans espaces (relecture 0.390.1) : les deux formes ; une recherche qui ouvre directement le dossier compte.
+  // Ce qui s'est passé, pour le message d'échec (étude 28/10 : « dossier … introuvable ») : jamais un nom, seulement les étapes et une référence.
+  const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '' };
+  // Un lien qui porte la référence (« A 2026 00286 VTE … », ou sans espaces), sinon un résultat qui la CONTIENT ; sans référence, exactement
+  // le libellé. Une recherche qui ouvre directement le dossier compte.
   const essayer = async () => {
-    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' }))
+    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' }) || await g.cliquerReference(ref))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
-    if (!ok) return estCeDossier(await g.texte(), cible);
-    await s.attendreStable(15000);
-    return estCeDossier(await g.texte(), cible);
+    if (ok) { diag.clic = true; await s.attendreStable(15000); }
+    const t = await g.texte();
+    if (estCeDossier(t, cible)) return true;
+    if (ok) diag.enTete = referenceEnTete(t) || diag.enTete;
+    return false;
   };
   if (await essayer()) return;
-  // La recherche d'Authentic attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
-  for (const quoi of [referenceRecherche(ref), lib].filter(Boolean)) {
-    const champ = await g.ev(scriptChamp('rechercher'));
-    if (!champ) break;
-    await g.ecrire(champ, quoi);
-    await g.entree();
-    if (await essayer()) return;
+  // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
+  // La recherche attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
+  for (const libelleChamp of ['rechercher une affaire', 'rechercher']) {
+    for (const quoi of [referenceRecherche(ref), lib].filter(Boolean)) {
+      const champ = await g.ev(scriptChamp(libelleChamp));
+      if (!champ) break;
+      if (!diag.champs.includes(libelleChamp)) diag.champs.push(libelleChamp);
+      await g.ecrire(champ, quoi);
+      await attendre(1500);
+      if (ref && String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
+      if (await essayer()) return;
+      await g.entree();
+      if (ref && String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
+      if (await essayer()) return;
+    }
   }
-  throw new Error(ref ? `dossier ${ref} introuvable dans Authentic` : 'dossier introuvable dans Authentic par son nom');
+  const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »` : 'aucun champ de recherche trouvé',
+    ref ? `numéro affiché ensuite : ${diag.visible ? 'oui' : 'non'}` : '', `résultat cliqué : ${diag.clic ? 'oui' : 'non'}`,
+    diag.enTete ? `page ouverte : ${diag.enTete}` : ''].filter(Boolean).join(' ; ');
+  throw new Error(`${ref ? `dossier ${ref} introuvable dans Authentic` : 'dossier introuvable dans Authentic par son nom'} (${dit})`);
 }
 
 /** Ouvre le sous-dossier de vente (« N - VTE … » / « N - Vente … », jamais la promesse ni l'avenant) et vérifie qu'il est affiché.
@@ -810,5 +861,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, referenceRecherche, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
+  referenceEnTete, referenceRecherche, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

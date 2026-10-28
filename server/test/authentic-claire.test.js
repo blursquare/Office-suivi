@@ -190,3 +190,10 @@ test('recherche d’un dossier par son numéro : sans espace (étude 28/10)', ()
   assert.ok(A.estCeDossier('A202600329 VTE DUPONT / MARTIN\nComparants (2)', { reference: 'A 2026 00329' }));
   assert.equal(A.referenceEnTete('A20260032911 autre'), '', 'jamais un numéro de plus de six chiffres');
 });
+
+test('scriptTrouverReference : script valide, numéro cherché sans espaces (étude 28/10 : « A202600329 »)', () => {
+  const s = A.scriptTrouverReference('A 2026 00329');
+  assert.doesNotThrow(() => new Function('return ' + s));
+  assert.match(s, /"A 2026 00329"/);
+  assert.match(s, /replace\(\/\\s\+\/g, ''\)/);
+});
