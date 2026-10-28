@@ -164,7 +164,8 @@ const scriptTrouverTexte = (cible, exact) => `(() => {
 
 // Un résultat de recherche qui CONTIENT le numéro du dossier, avec ou sans espaces (« VTE X / Y (A202600329) », liste déroulante) — le plus
 // petit élément cliquable qui le porte. Même forme de retour que scriptTrouverTexte. (Étude 28/10 : « dossier A 2026 00329 introuvable ».)
-const scriptTrouverReference = (ref) => `(() => {
+const scriptTrouverReference = (ref, liste) => `(() => {
+  const liste = ${liste ? 'true' : 'false'};
   const compact = (t) => String(t || '').replace(/\\s+/g, '').toLowerCase();
   const c = compact(${JSON.stringify(String(ref))});
   if (!c) return null;
@@ -177,6 +178,11 @@ const scriptTrouverReference = (ref) => `(() => {
     if (e.matches('input, textarea') || e.querySelector('input, textarea')) return;
     const t = compact(e.innerText);
     if (!porte(t) || t.length > c.length + 200) return;
+    // Seulement un résultat qu'on clique (lien, option d'une liste, ligne cliquable) — jamais une cellule d'un tableau de suivi.
+    // \`liste\` : seulement une option de la liste déroulante qui s'ouvre sous le champ de recherche (avant Entrée).
+    const cliquable = liste ? e.closest('[role=option], .ui-autocomplete li, [role=listbox] *')
+      : e.closest('a, button, [role=option], [role=button], [onclick], .ui-autocomplete li') || getComputedStyle(e).cursor === 'pointer';
+    if (!cliquable) return;
     candidats.push({ t, aire: e.offsetWidth * e.offsetHeight, e });
   });
   if (!candidats.length) return null;
@@ -281,8 +287,8 @@ function gestes(s, etape, o = {}) {
     return true;
   }
   /** Clique le résultat qui porte le numéro du dossier (geste « donnée » : contrôlé par la garde comme tout clic). @param {string} ref */
-  async function cliquerReference(ref) {
-    const el = await ev(scriptTrouverReference(ref));
+  async function cliquerReference(ref, liste) {
+    const el = await ev(scriptTrouverReference(ref, !!liste));
     if (!el) return false;
     if (el.cache) return false;   // seuls des éléments recouverts portent le numéro : la recherche continue (Entrée, autre champ)
     controlerClic({ geste: 'donnee', vise: ref, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
@@ -451,8 +457,9 @@ async function ouvrirDossier(s, cible, etape) {
   const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '' };
   // Un lien qui porte la référence (« A 2026 00286 VTE … », ou sans espaces), sinon un résultat qui la CONTIENT ; sans référence, exactement
   // le libellé. Une recherche qui ouvre directement le dossier compte.
-  const essayer = async () => {
-    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' }) || await g.cliquerReference(ref))
+  const essayer = async (apresRecherche) => {
+    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' })
+      || (apresRecherche && await g.cliquerReference(ref)))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (ok) { diag.clic = true; await s.attendreStable(15000); }
     const t = await g.texte();
@@ -471,10 +478,15 @@ async function ouvrirDossier(s, cible, etape) {
       await g.ecrire(champ, quoi);
       await attendre(1500);
       if (ref && String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
-      if (await essayer()) return;
+      // Avant Entrée : seulement une option de la liste déroulante (jamais un autre élément de la page qui porterait le numéro).
+      if (ref && await g.cliquerReference(ref, true)) {
+        diag.clic = true;
+        await s.attendreStable(15000);
+        if (estCeDossier(await g.texte(), cible)) return;
+      }
       await g.entree();
       if (ref && String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
-      if (await essayer()) return;
+      if (await essayer(true)) return;
     }
   }
   const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »` : 'aucun champ de recherche trouvé',
