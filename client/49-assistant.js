@@ -627,9 +627,17 @@
     return { html, boutons: [boutonFicheAssistant(d)] };
   }
 
-  function reponseCoordonneesAssistant(d, partie) {
+  function reponseCoordonneesAssistant(d, partie, options = {}) {
     const blocs = [];
     const cote = (role, libelle) => {
+      // Côté accompagné par un confrère (options.sansCotesRepresentes, outil coordonnees_client) : on écrit au confrère, jamais au client.
+      const represente = options.sansCotesRepresentes && (role === 'VENDEUR'
+        ? typeof confrereRepresenteVendeur === 'function' && confrereRepresenteVendeur(d)
+        : typeof notaireParticipantRepresenteAcquereur === 'function' && notaireParticipantRepresenteAcquereur(d));
+      if (represente) {
+        const notaire = role === 'VENDEUR' ? d.notaireVendeur : d.notaireAcquereur;
+        return `<li><b>${libelle}</b> : représenté par ${escapeHtml(notaire || 'un confrère')} — écrire ou appeler le confrère${!partie || partie === 'confrere' ? ' (ci-dessous)' : ''}.</li>`;
+      }
       const personnes = (d.parties || []).filter(p => p && p.role === role);
       const tels = [...new Set([...(role === 'VENDEUR' ? [d.telephoneVendeur] : [d.telephoneAcquereur]), ...personnes.flatMap(p => p.telephones || [])].filter(Boolean))];
       const emails = [...new Set([...(role === 'VENDEUR' ? [d.emailVendeur] : [d.emailAcquereur]), ...personnes.flatMap(p => p.emails || [])].filter(Boolean))];
@@ -639,10 +647,13 @@
     };
     if (!partie || partie === 'vendeur') blocs.push(cote('VENDEUR', 'Vendeur'));
     if (!partie || partie === 'acquereur') blocs.push(cote('ACQUEREUR', 'Acquéreur'));
-    if (!partie || partie === 'confrere') {
+    const confrereAjoute = options.sansCotesRepresentes && (partie === 'vendeur' || partie === 'acquereur')
+      && (partie === 'vendeur' ? typeof confrereRepresenteVendeur === 'function' && confrereRepresenteVendeur(d)
+        : typeof notaireParticipantRepresenteAcquereur === 'function' && notaireParticipantRepresenteAcquereur(d));
+    if (!partie || partie === 'confrere' || confrereAjoute) {
       const lignes = [];
       [['acquereur', d.notaireAcquereur, d.emailNotaireParticipant], ['vendeur', d.notaireVendeur, d.emailConfrereVendeur]].forEach(([c, nom, email]) => {
-        if (!nom) return;
+        if (!nom || (confrereAjoute && c !== partie)) return;
         const tel = telephoneConfrereDossier(d, c);
         const mail = email || (c === 'acquereur' ? emailOfficeConfrereAcquereur(d) : emailOfficeConfrereVendeur(d));
         lignes.push(`<li><b>Notaire ${c === 'acquereur' ? 'de l’acquéreur' : 'du vendeur'}</b> : ${escapeHtml(nom)}${tel.effectif ? `<br>Tél. : ${texteAppel3cx(tel.effectif)} ${liensAppelTelephone(tel.effectif)}` : ''}${mail ? `<br>Email : <a href="mailto:${escapeAttr(mail)}">${escapeHtml(mail)}</a>` : ''}</li>`);

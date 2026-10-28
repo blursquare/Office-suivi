@@ -22883,3 +22883,7 @@ le donner à Sophie : ce qui s'est passé, nombre d'emails et d'appels avec le c
   cinq points. Bouton « Résumé pour Sophie » des outils de la fiche (vente) → la même demande dans la conversation de CLAIRE
   (`demanderResumeDossier`). Prompt : proposer de l'envoyer à Sophie en message privé ou d'en faire un document.
 Tests : « rien de nominatif ne part » (noms, téléphones, emails), `tests/agent-coordonnees-bilan.test.js`.
+
+### 28/10/2026 — 0.386.1 : suites de l'audit de 0.386.0 (coordonnées, résumé pour Sophie)
+
+Côté accompagné par un confrère : jamais les coordonnées du client, le confrère à la place (IA et carte). « Signé » = `signatureFaiteSuivi`. Fonds attendus sans rien reçu dits. Bouton « Résumé pour Sophie » : conversation personnelle neuve, dossier imposé, jamais pendant une autre demande. Historique envoyé en vocabulaire fermé (`sorteEvenementBilan`). Emails non lus et appels reçus seulement dits. Rapport : `docs/audits/2026-10-28-0.386.0.md`.
