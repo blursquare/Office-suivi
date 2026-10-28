@@ -168,22 +168,29 @@ const scriptTrouverReference = (ref) => `(() => {
   const compact = (t) => String(t || '').replace(/\\s+/g, '').toLowerCase();
   const c = compact(${JSON.stringify(String(ref))});
   if (!c) return null;
-  let meilleur = null;
+  // Le numéro, pas un numéro plus long qui le commence (« A2026003290 ») — audit 0.391.1.
+  const porte = (t) => { let i = t.indexOf(c); while (i >= 0) { if (!/[0-9]/.test(t.charAt(i + c.length))) return true; i = t.indexOf(c, i + 1); } return false; };
+  const candidats = [];
   document.querySelectorAll('a, li, tr, td, span, div, [role=option]').forEach((e) => {
     if (!e.offsetWidth && !e.offsetHeight) return;
-    if (e.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar]')) return;
+    if (e.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar], [role=tab], [role=tablist]')) return;
     if (e.matches('input, textarea') || e.querySelector('input, textarea')) return;
     const t = compact(e.innerText);
-    if (!t.includes(c) || t.length > c.length + 200) return;
-    const aire = e.offsetWidth * e.offsetHeight;
-    if (!meilleur || t.length < meilleur.t.length || (t.length === meilleur.t.length && aire < meilleur.aire)) meilleur = { t, aire, e };
+    if (!porte(t) || t.length > c.length + 200) return;
+    candidats.push({ t, aire: e.offsetWidth * e.offsetHeight, e });
   });
-  if (!meilleur) return null;
-  meilleur.e.scrollIntoView({ block: 'center', inline: 'nearest' });
-  const r = meilleur.e.getBoundingClientRect();
-  const x = Math.round(r.left + Math.min(r.width / 2, 160)), y = Math.round(r.top + r.height / 2);
-  const dessous = document.elementFromPoint(x, y);
-  if (!dessous || !(meilleur.e.contains(dessous) || dessous.contains(meilleur.e))) return { cache: true, texte: String(meilleur.e.innerText).trim().slice(0, 160) };
+  if (!candidats.length) return null;
+  candidats.sort((a, b) => a.t.length - b.t.length || a.aire - b.aire);
+  // Le plus petit élément CLIQUABLE (pas recouvert par une liste déroulante ou une fenêtre) parmi ceux qui portent le numéro.
+  let meilleur = null, x = 0, y = 0, dessous = null;
+  for (const k of candidats.slice(0, 40)) {
+    k.e.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const r = k.e.getBoundingClientRect();
+    const kx = Math.round(r.left + Math.min(r.width / 2, 160)), ky = Math.round(r.top + r.height / 2);
+    const sous = document.elementFromPoint(kx, ky);
+    if (sous && (k.e.contains(sous) || sous.contains(k.e))) { meilleur = k; x = kx; y = ky; dessous = sous; break; }
+  }
+  if (!meilleur) return { cache: true };
   const bouton = dessous.closest('button, a, [role=button], .ui-button');
   const icone = bouton && bouton.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
   return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
@@ -267,7 +274,8 @@ function gestes(s, etape, o = {}) {
   async function cliquerTexte(texte, c) {
     const el = await ev(scriptTrouverTexte(texte, !!(c && c.exact)));
     if (!el) return false;
-    if (el.cache) throw new Error(`« ${String(el.texte).slice(0, 40)} » est recouvert par autre chose : pas cliqué`);
+    // Jamais le texte d'une donnée (nom d'un client) dans un message d'erreur (audit 0.391.1).
+    if (el.cache) throw new Error(`« ${c && c.geste === 'donnee' ? 'l’élément cherché' : String(texte).slice(0, 40)} » est recouvert par autre chose : pas cliqué`);
     controlerClic({ geste: c && c.geste, vise: texte, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
     await s.cliquerPosition(el.x, el.y);
     return true;
@@ -276,7 +284,7 @@ function gestes(s, etape, o = {}) {
   async function cliquerReference(ref) {
     const el = await ev(scriptTrouverReference(ref));
     if (!el) return false;
-    if (el.cache) throw new Error(`« ${String(el.texte).slice(0, 40)} » est recouvert par autre chose : pas cliqué`);
+    if (el.cache) return false;   // seuls des éléments recouverts portent le numéro : la recherche continue (Entrée, autre champ)
     controlerClic({ geste: 'donnee', vise: ref, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
     await s.cliquerPosition(el.x, el.y);
     return true;

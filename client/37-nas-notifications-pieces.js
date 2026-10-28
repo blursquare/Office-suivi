@@ -1631,6 +1631,8 @@
         if (d.dossierLie && !dossierEntierementComplet(d)) {
           await verifierDossierLocal(d.id, false);
         }
+        // Lectures automatiques (client/141) aussi pour un dossier complet : un PV d'AG ou un EHF peut arriver après (audit 0.391.0).
+        else if (d.nasDossier && typeof planifierLecturesDocuments === 'function') planifierLecturesDocuments(d);
         await rendreLaMain();
       }
     } finally {
