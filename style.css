@@ -11445,3 +11445,15 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .at-ged-piece { font-size: var(--texte-xs); color: var(--success); }
 .at-ged-piece.at-ged-manque { color: var(--pret); }
 .at-ged-nas { font-size: var(--texte-xs); color: var(--muted); }
+
+/* Courrier de déblocage ou de transfert des fonds à la banque (client/139). */
+.cfb-box { max-width: 640px; width: calc(100% - 32px); max-height: calc(100vh - 48px); overflow-y: auto; padding: 24px; }
+.cfb-corps { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+.cfb-corps .reglages-champ { display: flex; flex-direction: column; gap: 6px; }
+.cfb-resultats { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; }
+.cfb-pieces { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+.cfb-pieces label { display: flex; gap: 8px; align-items: baseline; font-size: var(--texte-s); }
+.cfb-nom { overflow-wrap: anywhere; }
+.cfb-piece { color: var(--muted); font-size: var(--texte-xs); white-space: nowrap; }
+.cfb-vide { color: var(--muted); font-size: var(--texte-s); margin: 0; }
+.cfb-manquantes { font-size: var(--texte-s); }

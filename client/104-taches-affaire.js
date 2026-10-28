@@ -73,7 +73,9 @@ function tachesEtapesSuccession(d, aujourdhuiIso) {
       titre: TITRES_TACHES_ETAPES_SUCCESSION[e.type],
       contexte: e.label + (e.iso && j !== null ? ` — ${j === 0 ? 'aujourd’hui' : j > 0 ? 'dans ' + j + ' jour' + (j > 1 ? 's' : '') : 'date dépassée'}.` : '.'),
       jours: j, delaiTexte: j === null ? 'à faire' : undefined, gravite: j !== null && j <= 0 ? 'critique' : 'vigilance',
-      geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
+      // Déblocage / transfert : le courrier à la banque se prépare d'ici (étude 28/10).
+      geste: e.type === 'deblocageFonds' || e.type === 'transfertComptes' ? { type: 'fondsBanque', sorte: e.type === 'transfertComptes' ? 'transfert' : 'deblocage' } : { type: 'fiche' },
+      bouton: e.type === 'deblocageFonds' || e.type === 'transfertComptes' ? 'Courrier à la banque' : 'Ouvrir la fiche'
     });
   });
   return taches;

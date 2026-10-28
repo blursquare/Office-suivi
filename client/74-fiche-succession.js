@@ -295,6 +295,8 @@
       if (rdvAgendaSuccession(d, e.type, aujourdhuiIso)) base.bouton = { onclick: `placerRdvSuccessionAgenda('${idJs}', '${escapeOnclickArg(e.type)}')`, titre: 'Ouvrir l’agenda sur ce rendez-vous, prérempli', icone: icone('calendar'), libelle: 'Placer dans l’agenda' };
       // Arbitrage du forfait mobilier relié au contrôle à 2 mois (étude 15/10).
       if (e.type === 'controleDroits' && !e.fait) base.bouton = { onclick: `ouvrirArbitrageDepuisFiche('${idJs}')`, titre: 'Comparer le forfait mobilier de 5 % au coût d’un inventaire avec prisée', icone: icone('scale'), libelle: s.arbitrage ? 'Revoir l’arbitrage' : 'Arbitrage forfait mobilier' };
+      // Courrier de déblocage / transfert des fonds à la banque (étude 28/10) : préparé d'ici, envoyé par email.
+      if ((e.type === 'deblocageFonds' || e.type === 'transfertComptes') && e.active && !e.fait) base.bouton = { onclick: `ouvrirCourrierFondsBanque('${idJs}', '${e.type === 'transfertComptes' ? 'transfert' : 'deblocage'}')`, titre: 'Courrier à la banque avec les pièces du dossier du NAS, envoyé par email', icone: icone('mail'), libelle: 'Courrier à la banque' };
       if (e.fait) { ajouter('fait', Object.assign(base, { fait: true, auto: !cochable })); return; }
       if (e.type === 'ouvertureSuccession' && !e.iso) { ajouter('faire', Object.assign(base, { titre: 'Fixer le rendez-vous d’ouverture avec Sophie', sous: 'Les délais d’1 et 2 mois partent de lui (6 mois : depuis le décès)' })); return; }
       if (!e.active) { ajouter('attente', Object.assign(base, { iso: '', sous: e.type === 'receptionFonds' ? 'Après le déblocage des fonds' : 'Après l’acte de notoriété' })); return; }

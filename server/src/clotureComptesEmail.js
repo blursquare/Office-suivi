@@ -14,6 +14,10 @@
 //      - dont l'objet nomme le défunt par son NOM DE FAMILLE (jamais un prénom) ;
 //      - et dont l'objet parle des comptes (compte, clôture, transfert, déblocage, banque, avoirs, solde), ou qui part le jour où
 //        Authentic note le courrier envoyé par mail (« Mail le … », à un jour près).
+// Étude 28/10 (« détecte dans les emails envoyés si les déblocages auprès des banques ont été faits, et coche la routine, la tâche et la
+// carte ») : un email dont l'objet dit le DÉBLOCAGE ou le TRANSFERT des fonds / des comptes et nomme le défunt (l'objet des courriers
+// préparés par CLAIRE, client/139) suffit, sans courrier relevé dans Authentic ; les mots plus vagues (compte, banque, solde…) gardent la
+// double preuve.
 // Seulement quand l'étape peut se faire (acte de notoriété signé). Un nom de famille porté par deux successions en cours ne désigne
 // aucune des deux. L'étape cochée est « Transfert des comptes » avec un conjoint survivant, sinon « Déblocage des fonds auprès des
 // banques » ; une seule détection par dossier (`d.detectionsEmails.clotureComptes`) : décochée ensuite à la main, jamais recochée.
@@ -49,6 +53,8 @@ function etapeClotureComptes(d) {
 }
 
 const RE_OBJET_COMPTES = /COMPTE|CLOTUR|TRANSFERT|DEBLOCAGE|BANQU|AVOIRS|SOLDE/;
+// Objet explicite : le déblocage ou le transfert des fonds / des comptes (preuve suffisante à elle seule).
+const RE_OBJET_FONDS_EXPLICITE = /DEBLOCAGE|TRANSFERT DES (FONDS|COMPTES|AVOIRS)/;
 
 /** Les mots d'un nom en capitales (≥ 3 lettres, hors mots vides) : les noms de famille. @param {string} brut */
 function nomsEnCapitales(brut) {
@@ -82,13 +88,13 @@ function courriersClotureDossier(d) {
   return l.filter((/** @type {any} */ c) => c && /^\d{4}-\d{2}-\d{2}$/.test(String(c.date || '')));
 }
 
-/** La succession attend-elle encore cette détection (étape active, pas cochée, courrier relevé) ? Pure. @param {any} d */
-function successionACocher(d) {
+/** La succession attend-elle encore cette détection (étape active, pas cochée, courrier relevé — ou objet explicite) ? Pure. @param {any} d @param {boolean} [explicite] */
+function successionACocher(d, explicite) {
   if (!d || d.archive || d.deleted || !estSuccession(d)) return false;
   if (d.detectionsEmails && d.detectionsEmails.clotureComptes) return false;
   const etape = etapesSuccession(d).find((e) => e.type === etapeClotureComptes(d));
   if (!etape || !etape.active || etapeSuccessionValidee(d, etape.type)) return false;
-  return courriersClotureDossier(d).length > 0;
+  return !!explicite || courriersClotureDossier(d).length > 0;
 }
 
 /**
@@ -98,7 +104,8 @@ function successionACocher(d) {
  * @param {(a: string) => boolean} [adresseEtude]
  */
 function courrierEnvoyeParEmail(d, envoye, adresseEtude) {
-  if (!successionACocher(d) || !envoye) return null;
+  const explicite = !!envoye && RE_OBJET_FONDS_EXPLICITE.test(normaliser(envoye.objet));
+  if (!envoye || !successionACocher(d, explicite)) return null;
   const heritiers = new Set(adressesDuDossier(d));
   const externes = (envoye.a || []).map((x) => String(x).toLowerCase())
     .filter((x) => /@/.test(x) && !heritiers.has(x) && !(adresseEtude && adresseEtude(x)));
@@ -110,7 +117,7 @@ function courrierEnvoyeParEmail(d, envoye, adresseEtude) {
     if (jour < plusJours(c.date, -1) || jour > plusJours(c.date, JOURS_APRES_COURRIER)) return false;
     const memeJourQueMail = !!c.mailLe && jour >= plusJours(c.mailLe, -1) && jour <= plusJours(c.mailLe, 1);
     return sujet || memeJourQueMail;
-  }) || null;
+  }) || (explicite ? { intitule: '', date: '', email: true } : null);
 }
 
 /**
@@ -136,7 +143,7 @@ function envoiAGarderPourCloture(envoye, successions) {
  * @param {any} d @param {any} courrier @param {{ objet: string, date: string }} envoye
  */
 function cocherClotureComptes(d, courrier, envoye) {
-  if (!successionACocher(d)) return false;
+  if (!successionACocher(d, !!(courrier && courrier.email))) return false;
   const etape = etapeClotureComptes(d);
   const jour = jourParis(envoye.date);
   d.echeancesValidees = Object.assign({}, d.echeancesValidees, { [etape]: true });
@@ -144,7 +151,9 @@ function cocherClotureComptes(d, courrier, envoye) {
   d.historique = Array.isArray(d.historique) ? d.historique : [];
   const quoi = etape === 'transfertComptes' ? 'Transfert des comptes au profit du conjoint survivant' : 'Déblocage des fonds auprès des banques';
   d.historique.push({ date: new Date().toISOString(),
-    texte: `${quoi} marqué fait par CLAIRE : courrier « ${String(courrier.intitule || '').slice(0, 120)} » créé dans Authentic${courrier.date ? ' le ' + courrier.date.split('-').reverse().join('/') : ''}, envoyé par email à la banque le ${jour.split('-').reverse().join('/')} (« ${String(envoye.objet || '').slice(0, 120)} »)` });
+    texte: courrier.email
+      ? `${quoi} marqué fait par CLAIRE : courrier envoyé par email à la banque le ${jour.split('-').reverse().join('/')} (« ${String(envoye.objet || '').slice(0, 120)} »)`
+      : `${quoi} marqué fait par CLAIRE : courrier « ${String(courrier.intitule || '').slice(0, 120)} » créé dans Authentic${courrier.date ? ' le ' + courrier.date.split('-').reverse().join('/') : ''}, envoyé par email à la banque le ${jour.split('-').reverse().join('/')} (« ${String(envoye.objet || '').slice(0, 120)} »)` });
   return true;
 }
 

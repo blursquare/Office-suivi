@@ -799,6 +799,9 @@
     } else if (geste.type === 'ficheSignature') {
       fermerFenetreAujourdhui();
       ouvrirVeilleSignature(id);
+    } else if (geste.type === 'fondsBanque') {
+      fermerFenetreAujourdhui();
+      ouvrirCourrierFondsBanque(id, geste.sorte);
     } else if (geste.type === 'signatureRib') {
       fermerFenetreAujourdhui();
       preparerSignatureRibDossier(id);
@@ -1106,7 +1109,7 @@
   // ---- Rendu ----
   // Libellé du bouton d'une ligne : un verbe court, le même à chaque fois pour le même geste.
   function libelleCourtGeste(a) {
-    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', ficheSignature: 'Imprimer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander' };
+    const parType = { pret: 'Relancer', ventePrealable: 'Relancer', fonds: 'Confirmer', rib: 'Envoyer', questionnaire: 'Envoyer', questionnaireVendeur: 'Envoyer', questionnaireSuccession: 'Envoyer', appelFonds: 'Préparer', ficheSignature: 'Imprimer', copieActe: 'Choisir', dodEnvoi: 'Envoyer', dodAttendue: 'Demander', deblocageFonds: 'Préparer', transfertComptes: 'Préparer' };
     if (a.type === 'projetEnvoye') return a.geste && a.geste.type === 'email' ? 'Envoyer' : 'Marquer envoyé';
     if (parType[a.type]) return parType[a.type];
     return 'Ouvrir';
@@ -1114,7 +1117,7 @@
 
   function iconeGeste(a) {
     if (!a.geste) return icone('folder');
-    if (a.geste.type === 'email' || a.geste.type === 'questionnaire' || a.geste.type === 'dod') return icone('mail');
+    if (a.geste.type === 'email' || a.geste.type === 'questionnaire' || a.geste.type === 'dod' || a.geste.type === 'fondsBanque') return icone('mail');
     if (a.geste.type === 'marquer') return icone('check');
     if (a.geste.type === 'ficheSignature') return icone('printer');
     if (a.geste.type === 'appelFonds' || a.geste.type === 'copieActe') return icone('file-text');

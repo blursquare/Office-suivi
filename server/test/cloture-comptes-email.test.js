@@ -62,3 +62,18 @@ test('envois gardés pour un recoupement plus tard : 45 jours, sans doublon', ()
   assert.equal(r[0].a[0], 'b@c.fr');
   assert.equal(C.envoisAGarder([{ id: 'a', date: '2020-01-01T10:00:00Z' }], [], null).length, 1, 'sans date du jour : rien n\'est trié');
 });
+
+test('déblocage / transfert des fonds dit dans l’objet (étude 28/10) : l’email envoyé suffit, sans courrier d’Authentic', () => {
+  const d = succession({ authentic: {} });
+  const objet = 'Succession de Madame Marie LEFEBVRE — Déblocage des fonds';
+  const c = C.courrierEnvoyeParEmail(d, { objet, a: ['successions@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude);
+  assert.ok(c && c.email);
+  // Toujours : le nom du défunt, une adresse hors fiche et hors étude, l'étape ouverte (notoriété signée).
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet: 'Déblocage des fonds', a: ['successions@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet, a: ['anne.lefebvre@exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(succession({ authentic: {}, echeancesValidees: {} }), { objet, a: ['b@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude), null);
+  assert.ok(C.courrierEnvoyeParEmail(d, { objet: 'Succession LEFEBVRE - transfert des fonds', a: ['b@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude));
+  assert.equal(C.cocherClotureComptes(d, c, { objet, date: '2026-10-20T09:00:00Z' }), true);
+  assert.equal(d.echeancesValidees.deblocageFonds, true);
+  assert.match(d.historique[d.historique.length - 1].texte, /envoyé par email à la banque le 20\/10\/2026/);
+});

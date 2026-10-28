@@ -581,6 +581,13 @@ async function tourEmailsDossiers(depot, parametresRepo, injections = {}, manuel
       Object.assign(trouve.d, frais);
       servis.add(envoye.id);
       resultat.cloturesCochees = (resultat.cloturesCochees || 0) + 1;
+      // La routine des autorisations de fonds est faite pour ce dossier (étude 28/10 : « cocher la routine ») : sa carte passe « terminée ».
+      try {
+        const P = require('./routines/propositions');
+        const liste = P.lirePropositions(parametresRepo);
+        const r = P.terminerParDossier(liste.filter((p) => p.type !== 'validation'), frais.id, 'autorisations-notoriete', 'CLAIRE');
+        if (r.touchees.length) { const parId = new Map(r.liste.map((p) => [p.id, p])); P.ecrirePropositions(parametresRepo, liste.map((p) => parId.get(p.id) || p)); }
+      } catch (e) { /* jamais bloquant */ }
       noterVerification(parametresRepo, 'succession-cloture-comptes-email');
     }
     etat.envoisNonRattaches = etat.envoisNonRattaches.filter((e) => !servis.has(e.id));

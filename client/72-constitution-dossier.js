@@ -1277,7 +1277,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
           ${e.documents.filter(x => x.groupe === g.cle).map(renderItemConstitution).join('')}
           <div class="cst-ajout cst-ajout-courrier"><wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterViergeVente('${escapeOnclickArg(g.cle)}')"><span slot="start" class="bouton-ajout-plus">+</span>Courrier à un autre organisme</wa-button>${renderSeparerAlignementConstitution(g)}</div></div>`).join('');
     }
-    const modeles = MODELES_COURRIER_SUCCESSION.map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
+    const modeles = MODELES_COURRIER_SUCCESSION.filter(m => !m.fonds).map(m => `<option value="${escapeAttr(m.cle)}"${m.cle === 'mutuelle' ? ' selected' : ''}>${escapeHtml(m.libelle)}</option>`).join('');
     return `${e.documents.map(renderItemConstitution).join('')}
       <div class="cst-ajout cst-ajout-courrier"><select class="prop-champ" id="cst-ajout-modele" aria-label="Courrier à ajouter">${modeles}</select>
         <wa-button appearance="outlined" size="s" class="bouton-ajout" type="button" onclick="cstAjouterDoc()"><span slot="start" class="bouton-ajout-plus">+</span>Ajouter</wa-button></div>`;

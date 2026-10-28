@@ -9,7 +9,7 @@ const { NIVEAUX, CATALOGUE, routineParId } = require('../routines/catalogue');
 const { lireReglagesRoutines, ecrireReglagesRoutines, assainirReglagesRoutines, niveauEffectif } = require('../routines/reglages');
 const { lirePropositions, ecrirePropositions, listerPropositions, compterATraiter, decider, terminerParDossier, statsRoutine, expirer } = require('../routines/propositions');
 // Les routines qu'un écran de CLAIRE peut dire « terminées » (POST /propositions/terminer) : la constitution enregistrée ou imprimée.
-const ROUTINES_TERMINEES_PAR_ECRAN = ['constitution'];
+const ROUTINES_TERMINEES_PAR_ECRAN = ['constitution', 'autorisations-notoriete'];
 const { synchroniserEtatCartes } = require('../canaux/etatCartes');
 const { lireJournalRoutines, noterJournalRoutines } = require('../routines/journal');
 const { lireUsageRoutines } = require('../routines/usage');

@@ -21,7 +21,8 @@
    * @typedef {{ civilite?: string, prenoms?: string, nom?: string, domicile?: string, naissanceDate?: string, naissanceLieu?: string,
    *   decesDate?: string, decesLieu?: string, conjointLien?: string, conjointNom?: string, regime?: string }} DefuntCourrier
    * @typedef {{ f: boolean, nomUsuel: string, texteLibre: string }} VariablesCourrier
-   * @typedef {{ cle: string, libelle: string, destinataire: string[], salutation: string, blancsSignature: number, lignes: (v: VariablesCourrier) => string[] }} ModeleCourrierSuccession
+   * @typedef {{ cle: string, libelle: string, destinataire: string[], salutation: string, blancsSignature: number, lignes: (v: VariablesCourrier) => string[],
+   *   fonds?: boolean, mentionEnvoi?: string }} ModeleCourrierSuccession
    */
 
   // Les courriers de l'étude, LIGNE À LIGNE comme ses originaux (étude 15/10 : « la même disposition, à la ligne près, l'espacement près ») :
@@ -134,6 +135,22 @@
         'Je vous prie d\'agréer, Madame la Trésorière, Monsieur le Trésorier, mes salutations distinguées.'
       ]
     },
+    // Déblocage et transfert des fonds à la banque (étude 28/10 : « Lettre de déblocage des fonds BANQUE », « Lettre de transfert des fonds
+    // BANQUE », mot pour mot ; envoyés par email). `fonds` : hors des courriers d'interrogation de la Constitution de dossier.
+    ...['deblocage', 'transfert'].map((sorte) => ({
+      cle: 'fonds-' + sorte, libelle: sorte === 'deblocage' ? 'Déblocage des fonds' : 'Transfert des fonds', destinataire: [],
+      salutation: 'Madame la Directrice, Monsieur le Directeur,', blancsSignature: 2, fonds: true, mentionEnvoi: 'Envoi par email uniquement',
+      lignes: () => [
+        'Suite à votre dernier courrier relatif à la succession de la personne ci-dessus visée, je vous prie de bien vouloir trouver sous ce pli :', '',
+        '- une copie de l\'acte de décès,',
+        '- une attestation de dévolution,',
+        '- un R.I.B. de l\'étude,',
+        `- les autorisations de ${sorte === 'deblocage' ? 'déblocage' : 'transfert'} des héritiers.`, '',
+        'Ce remboursement aura lieu sous ma responsabilité vis à vis des ayants droit pour lesquels je me porte fort.', '',
+        'Vous en remerciant par avance,', '',
+        'Je vous prie d\'agréer, Madame la Directrice, Monsieur le Directeur, mes salutations distinguées.'
+      ]
+    })),
     {
       // Courrier vierge (étude 15/10 : « des courriers vierges, juste autre organisme ») : le texte se saisit dans l'outil.
       cle: 'autre', libelle: 'Autre organisme', destinataire: [], salutation: 'Madame, Monsieur,', blancsSignature: 2,
@@ -191,7 +208,7 @@
     const prenomUsuel = String(defunt.prenoms || '').trim().split(/\s+/)[0] || '';
     const nomUsuel = [String(defunt.civilite || '').trim(), prenomUsuel, String(defunt.nom || '').trim()].filter(Boolean).join(' ');
     const adresse = (opt.destinataire && opt.destinataire.length ? opt.destinataire : modele.destinataire).map((l) => String(l).trim()).filter(Boolean);
-    if (opt.envoiParMail) adresse.push('Envoi par mail');
+    if (opt.envoiParMail) adresse.push(modele.mentionEnvoi || 'Envoi par mail');
     if (!adresse.length) adresse.push('À compléter');
     const salutation = String(opt.salutation || '').trim() || modele.salutation;
     return {
@@ -205,7 +222,7 @@
   /** Nom de fichier du courrier : « Interrogation Banque - SUCC Alice FRA » (sans caractère interdit). @param {string} cleModele @param {string} nomDossier */
   function nomFichierCourrierSuccession(cleModele, nomDossier) {
     const m = modeleCourrierSuccession(cleModele);
-    return `Interrogation ${m ? m.libelle : 'organisme'}${nomDossier ? ' - ' + nomDossier : ''}`.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
+    return `${m && m.fonds ? '' : 'Interrogation '}${m ? m.libelle : 'organisme'}${nomDossier ? ' - ' + nomDossier : ''}`.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100);
   }
 
   exporter({ MODELES_COURRIER_SUCCESSION, TEXTE_LIBRE_PAR_DEFAUT, modeleCourrierSuccession, dateCourrierSuccession, defuntEstUneFemme, lignesBlocDefunt, documentCourrierSuccession, nomFichierCourrierSuccession });

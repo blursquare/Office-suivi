@@ -14,7 +14,7 @@
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
     documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', rediger_document: 'Je rédige le document…',
-    outil_claire: 'J’utilise l’outil…', outil_champs: 'Je remplis l’outil…', artefact: 'Je reprends ce qui est ouvert à droite…', modele_email: 'Je prépare le modèle d’email…', nouveau_dossier_vente: 'Je prépare le nouveau dossier…', yousign_rib: 'Je consulte Yousign…', yousign_agent: 'Je demande à l’agent Yousign…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…', repertoire_ajouter: 'Je prépare le contact…', authentic_claire: 'Je travaille dans Authentic…', authentic_lire: 'Je regarde ce qu’Authentic montre…', etat_hypothecaire: 'Je regarde l’état hypothécaire…', urbanisme_demandes: 'Je regarde la DIA et le CU…', routines_claire: 'Je regarde les routines…', coordonnees_client: 'Je cherche les coordonnées…', bilan_dossier: 'Je reprends l’histoire du dossier…',
+    outil_claire: 'J’utilise l’outil…', outil_champs: 'Je remplis l’outil…', artefact: 'Je reprends ce qui est ouvert à droite…', modele_email: 'Je prépare le modèle d’email…', nouveau_dossier_vente: 'Je prépare le nouveau dossier…', yousign_rib: 'Je consulte Yousign…', yousign_agent: 'Je demande à l’agent Yousign…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…', repertoire_ajouter: 'Je prépare le contact…', authentic_claire: 'Je travaille dans Authentic…', authentic_lire: 'Je regarde ce qu’Authentic montre…', etat_hypothecaire: 'Je regarde l’état hypothécaire…', urbanisme_demandes: 'Je regarde la DIA et le CU…', routines_claire: 'Je regarde les routines…', coordonnees_client: 'Je cherche les coordonnées…', courrier_fonds_banque: 'Je prépare le courrier à la banque…', bilan_dossier: 'Je reprends l’histoire du dossier…',
     actions_en_lot: 'Je prépare le lot d’actions…', scans_claire: 'Je regarde Claire Scan…', nas_dossier: 'Je regarde le dossier du NAS…', nas_libre: 'Je cherche dans le NAS…', calcul: 'Je calcule…', agenda_evenement: 'Je prépare la modification de l’agenda…',
     faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…', chercher_conversations: 'Je cherche dans nos conversations passées…'
   };
@@ -361,6 +361,7 @@
     if (nom === 'urbanisme_demandes') return urbanismeDemandesAgent(e);
     if (nom === 'routines_claire') return routinesClaireAgent(e);
     if (nom === 'coordonnees_client') return coordonneesClientAgent(e);
+    if (nom === 'courrier_fonds_banque') return courrierFondsBanqueAgent(e);
     if (nom === 'bilan_dossier') return bilanDossierAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);
     if (nom === 'consulter_site') return consulterSiteAgent(e);

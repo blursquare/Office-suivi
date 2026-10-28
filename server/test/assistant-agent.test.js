@@ -1000,3 +1000,20 @@ test('28/10 : coordonnees_client et bilan_dossier — téléphones, emails et no
   assert.doesNotMatch(envoye, /02 47 00 00 00|office\.gauthier/, 'coordonnées du confrère codées comme toute coordonnée');
   assert.match(envoye, /2026-08-20/);
 });
+
+test('28/10 : courrier_fonds_banque — la banque et le défunt ne partent jamais en clair', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'courrier_fonds_banque'));
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('f1', 'courrier_fonds_banque', { dossier_id: 'd1', sorte: '', banque: '', ouvrir: true })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Prépare le déblocage des fonds pour Fournier', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'f1', contenu: { dossier_id: 'd1', sorte: 'deblocage', etape: 'Déblocage des fonds auprès des banques', etape_faite: false,
+      courriers_deja: [{ sorte: 'deblocage', banque_du_repertoire: 'CAISSE EXEMPLE — Service successions Paul FOURNIER', le: '2026-10-28', envoye_depuis_claire: true }], fenetre_ouverte: true } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /2026-10-28/);
+});
