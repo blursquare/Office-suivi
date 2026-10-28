@@ -23016,3 +23016,13 @@ trop charger la fiche dossier visuellement. Juste s'il y a des alertes il faut l
   répertoires repliés de la GED dépliés avant relevé et ouverture d'une pièce ; PDF jusqu'à 60 Mo ; « Terminé » = retour arrivé ; garde :
   « AOP », « réaffecter », fusion et trombone d'ajout aux pièces jointes interdits.
 Non vérifié sur le vrai Authentic ni sur de vrais actes (nom exact du fichier de l'état-réponse, répertoire, taille réelle).
+Relecture indépendante et audit (docs/audits/2026-10-28-0.393.0.md, « correct avec réserves », aucun point Haut) : mentions marginales —
+dernière rubrique « Mentions marginales : » (une citation plus haut n'en est pas une), « - Néant - », abréviations « Mar. », « Div. », « Déc. »,
+« Marié(e) » avec son accent (jamais le prénom Marie), date bornée à la mention suivante et jamais un « né le » du conjoint, PACS « dissous »,
+mentions écrites mais non reconnues = « à relire » (jamais « aucune »), sans rubrique : seules les mentions fortes et c'est dit ; alerte sur
+la fiche seulement pour ce qui change la situation (divorce, séparation, fin de PACS, décès, régime, nom, prénom, adoption, répertoire civil,
+mentions non reconnues) — un simple mariage, un PACS, une reconnaissance sont dits dans la discussion sans pastille. EHF : l'état relu dans
+Authentic décide de l'alerte ; « HF … ANF », « Réponse à la réquisition d'état » restent des états ; « Terminé » retiré (la date de retour aurait
+été celle de l'envoi). Authentic : dépliage limité à l'arbre de la GED, chevron recouvert passé et compté, liste des pièces incomplète dite à
+l'agent, PDF rapatrié par morceaux, `attach_file` et `joindre` retirés de la garde, nom de pièce refusé seulement s'il est un mot de bouton,
+l'arrêt demandé n'est plus avalé. Le bloc « État hypothécaire » reste masqué quand seules des fiches anciennes sont à relire (dit dans la discussion).

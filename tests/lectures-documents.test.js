@@ -103,10 +103,37 @@ test('acte de naissance : mentions marginales (mariage, divorce, PACS, décès�
   assert.equal(n.mentions.length, 0);
   assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: n }), /« néant »/);
   assert.equal(app.mentionsMarginalesNaissance('Acte de naissance. Mentions : Décédé le 1er avril 2020 à Tours.').mentions[0].nature, 'décès');
-  // Sans rubrique : lu quand même, dit « à vérifier ».
-  const s2 = app.mentionsMarginalesNaissance('Extrait d\'acte de naissance. Mariée en 1990 avec X. ');
+  // Sans rubrique : seules les mentions FORTES sont cherchées (le corps parle des parents), et c'est dit « à vérifier ».
+  const s2 = app.mentionsMarginalesNaissance('Extrait d\'acte de naissance. Divorcée par jugement du 2 mai 2001. ');
   assert.equal(s2.rubrique, false);
+  assert.equal(s2.mentions[0].nature, 'divorce');
   assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: s2 }), /rubrique des mentions non reconnue/);
+  assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: app.mentionsMarginalesNaissance('Acte de naissance. née Anne Marie le 2 mars 1960.') }), /pas trouvé la rubrique/);
+});
+
+test('relecture 0.393.0 : abréviations, « Marie », rubrique au bon endroit, date de la bonne mention, alerte seulement pour ce qui change la situation', () => {
+  const ab = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : Mar. le 14/06/1985 à Blois avec Anne T. Div. par jugt du 3/05/1999.');
+  assert.equal(ab.mentions.map((x) => `${x.nature}:${x.date}`).join('|'), 'mariage:1985-06-14|divorce:1999-05-03');
+  const inconnues = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : RCA 2001 jgt TGI Blois réf 1234 transcription illisible voir original.');
+  assert.equal(inconnues.nonReconnues, true);
+  assert.equal(app.alerteActeNaissance({ mentions: [], marginales: inconnues }), true);
+  assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: inconnues }), /je ne les reconnais pas/);
+  assert.equal(app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : - Néant -').neant, true);
+  const corps = app.mentionsMarginalesNaissance('Copie intégrale avec mentions marginales. Fils de Jean et de Marie à Blois, son épouse. Mentions marginales : Néant.');
+  assert.equal(corps.neant, true, 'la dernière rubrique « : » fait foi');
+  assert.equal(corps.mentions.length, 0);
+  const marie = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : Mariée le 1/02/1990 à Blois avec Jean MARIE à Tours.');
+  assert.equal(marie.mentions.map((x) => x.nature).join('|'), 'mariage', '« MARIE » n’est pas une mention');
+  const deux = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : Divorcé de Anne T. Marié le 20/09/2005 à Tours.');
+  assert.equal(deux.mentions.map((x) => `${x.nature}:${x.date}`).join('|'), 'divorce:|mariage:2005-09-20');
+  const conj = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : Mariée avec Paul X, né le 3/03/1955, le 14/06/1985 à Blois.');
+  assert.equal(conj.mentions[0].date, '1985-06-14', 'jamais la date de naissance du conjoint');
+  const pacs = app.mentionsMarginalesNaissance('Acte de naissance. Mentions marginales : Pacte civil de solidarité enregistré le 10/01/2010, dissous le 2/02/2015.');
+  assert.equal(pacs.mentions.map((x) => x.nature).join('|'), 'dissolution du PACS');
+  assert.equal(app.alerteActeNaissance({ mentions: [], marginales: app.mentionsMarginalesNaissance('Acte. Mentions marginales : Marié le 14/06/1985 à Blois.') }), false, 'un mariage seul : pas de pastille');
+  assert.equal(app.alerteActeNaissance({ mentions: [], marginales: deux }), true);
+  // L'état relu décide : une ancienne lecture EHF du NAS ne garde pas l'alerte après une mainlevée.
+  assert.equal(app.alertesLecturesFiche({ etatHypothecaire: { inscriptions: [], lecture: { complete: true } }, lecturesDocuments: { e: { sorte: 'ehf', alerte: true, resume: 'x' } } }).length, 0);
 });
 
 test('fiche : seulement les ALERTES des lectures (rien quand tout va bien) ; état-réponse du retour SPF, jamais la demande ni les annexes', () => {

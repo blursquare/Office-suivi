@@ -76,6 +76,8 @@ function normaliserCaptureAuthentic(corps) {
     // Pièces jointes de la GED (étape 5) : identifiant, nom, dossier de l'arbre — 300 au plus.
     ...(Array.isArray(c.pieces) && c.pieces.length ? { pieces: c.pieces.slice(0, 300).map(p => ({ pjId: chaine(p && p.pjId, 40), nom: chaine(p && p.nom, 200), dossier: chaine(p && p.dossier, 80) }))
       .filter(p => /^[\w-]{1,40}$/.test(p.pjId) && p.nom) } : {}),
+    // Des répertoires de la GED restés repliés : la liste des pièces est incomplète (audit 0.393.0) — un nombre, rien d'autre.
+    ...(Number.isInteger(c.groupesFermes) && c.groupesFermes > 0 ? { groupesFermes: Math.min(c.groupesFermes, 99) } : {}),
     // Aperçu d'une formalité (tiroir), étape 4 du plan Authen.TIC.
     ...(c.apercu && typeof c.apercu === 'object' && String(c.apercu.texte || '').trim()
       ? { apercu: { titre: chaine(c.apercu.titre, L.libelle), texte: String(c.apercu.texte || '').slice(0, 8000) } } : {})

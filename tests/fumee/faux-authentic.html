@@ -78,7 +78,7 @@
   <button type="button">Actes</button>
   <!-- Pièces jointes (GED, étape 5) : l'arbre (selectTreeNode), la barre d'actions (Supprimer, jamais cliqué) et la visionneuse. -->
   <button type="button" onclick="document.getElementById('ged').style.display = 'block'; document.getElementById('pageDossier').style.display = 'none'">Pièces jointes</button>
-  <div id="ged" style="display:none"><ul><li><span class="ui-treenode-label">Non classé (1)</span><ul><li><a class="lien" onclick="selectTreeNode(event, 'pj11', 'sd2')">Titre de propriété MARTIN.pdf</a></li></ul></li>
+  <div id="ged" style="display:none"><ul class="ui-tree"><li><span class="ui-treenode-label">Non classé (1)</span><ul><li><a class="lien" onclick="selectTreeNode(event, 'pj11', 'sd2')">Titre de propriété MARTIN.pdf</a></li></ul></li>
     <!-- Répertoire REPLIÉ de l'arbre (captures du wiki) : l'état hypothécaire n'y est visible qu'une fois déplié par son chevron. -->
     <li><span class="ui-tree-toggler pi pi-chevron-right" aria-expanded="false" onclick="this.className = 'ui-tree-toggler pi pi-chevron-down'; this.setAttribute('aria-expanded', 'true'); this.parentElement.querySelector('ul').style.display = ''">›</span><span class="ui-treenode-label">Réquisitions (1)</span>
       <ul style="display:none"><li><a class="lien" onclick="selectTreeNode(event, 'pj12', 'sd2')">Etat reponse ANF.pdf</a></li></ul></li></ul>

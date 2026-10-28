@@ -112,7 +112,7 @@ function creerPagesAuthentic(db, options = {}) {
       if (!vueGed) ecrire.run(id, cle, nature, chaine(releve.intitule, 200), chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), json);
       // La liste des pièces jointes (GED, étape 5) : gardée à part, la dernière vue.
       if (Array.isArray(capture.pieces) && capture.pieces.length) {
-        ecrire.run(id, 'ged', 'ged', '', chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ pieces: capture.pieces.slice(0, 300) }));
+        ecrire.run(id, 'ged', 'ged', '', chaine(releve.recueLe, 40) || new Date(maintenant()).toISOString(), JSON.stringify({ pieces: capture.pieces.slice(0, 300), ...(capture.groupesFermes ? { groupesFermes: capture.groupesFermes } : {}) }));
       }
       // L'aperçu d'une formalité ouvert sur la page (étape 4 du plan Authen.TIC) : gardé à part, une ligne par formalité, pour survivre aux
       // pages suivantes du dossier relevées sans tiroir ouvert.

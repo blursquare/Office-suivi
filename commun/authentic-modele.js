@@ -18,7 +18,7 @@
  * @typedef {{ pjId: string, nom: string, dossierGed: string }} PieceJointeAT
  * @typedef {{ de: string, le: string, statut: string, objet: string }} MailAT
  * @typedef {{ intitule: string, nature: NatureDossierAT, statut: string, statutLe: string, comparants: ComparantAT[], immeubles: ImmeubleAT[],
- *   formalitesPrealables: FormaliteAT[], actes: FormaliteAT[], formalitesPosterieures: FormaliteAT[], pieces: PieceJointeAT[], mails: MailAT[] }} SousDossierAT
+ *   formalitesPrealables: FormaliteAT[], actes: FormaliteAT[], formalitesPosterieures: FormaliteAT[], pieces: PieceJointeAT[], piecesIncompletes?: boolean, mails: MailAT[] }} SousDossierAT
  * @typedef {{ reference: string, libelle: string, sousDossier: SousDossierAT | null, luLe: string, pages: number }} InstantaneAT
  * @typedef {'actesASigner' | 'safer' | 'etatCivil' | 'cjn' | 'micen'} EcranSuiviAT
  * @typedef {{ reference: string, libelle: string, dates: string[], situation: string, enAttente: boolean }} LigneSuiviAT
@@ -280,6 +280,8 @@
     // Les pièces jointes (étape 5) : la dernière liste de la GED vue.
     const ged = liste.filter((p) => (p.nature === 'ged' || p.nature === 'dossier') && Array.isArray(p.capture.pieces) && p.capture.pieces.length).slice(-1)[0];
     if (ged) sd.pieces = ged.capture.pieces.slice(0, 300).map((/** @type {any} */ x) => ({ pjId: net(x.pjId).slice(0, 40), nom: net(x.nom).slice(0, 200), dossierGed: net(x.dossier).slice(0, 80) }));
+    // Des répertoires restés repliés : liste incomplète, dite (jamais « pas d'état hypothécaire » sur une liste partielle).
+    if (ged && Number(ged.capture.groupesFermes) > 0) sd.piecesIncompletes = true;
     const dates = liste.map((p) => String(p.recueLe || '')).filter(Boolean).sort();
     return { reference: tete.reference, libelle: tete.libelle, sousDossier: sd, luLe: dates[dates.length - 1] || '', pages: liste.length };
   }

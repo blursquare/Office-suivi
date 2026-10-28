@@ -7,11 +7,12 @@
 // Le retour d'une réquisition hors formalité (wiki de Fichorga, 28/10) : trois documents — « Etat réponse », « Annexe usager »,
 // « Certificat conservateur » — rangés dans les pièces jointes, souvent sous « Retours SPF Téléactes » ; seul l'état-réponse se lit.
 // La demande elle-même (« Réquisition d'état », « HF … ») et les deux autres ne sont jamais prises.
-var RE_PIECE_RETOUR_SPF_NON_ETAT = /annexe\s*usager|certificat\s*(du\s*)?conservateur|^\s*hf\s|r[ée]quisition\s*d.[ée]tat|^\s*demande/i;
+var RE_PIECE_RETOUR_SPF_NON_ETAT = /annexe\s*usager|certificat\s*(du\s*)?conservateur|r[ée]quisition\s*d.[ée]tat|^\s*demande/i;
 // Pure : une pièce jointe relevée est-elle un état hypothécaire à lire ?
 function pieceEstEtatHypothecaire(p) {
   const nom = String((p && p.nom) || '');
-  if (!nom || RE_PIECE_RETOUR_SPF_NON_ETAT.test(nom)) return false;
+  // La demande et les annexes du retour SPF jamais ; un nom qui dit la RÉPONSE (« Réponse à la réquisition d'état ») reste un état.
+  if (!nom || (RE_PIECE_RETOUR_SPF_NON_ETAT.test(nom) && !/r[ée]ponse|anf/i.test(nom))) return false;
   return nomDitEtatHypothecaire(nom) || (/retours?\s*spf|hors\s*formalit|r[ée]quisition/i.test(String((p && (p.dossierGed || p.dossier)) || '')) && /r[ée]ponse|anf/i.test(nom));
 }
 function etatsHypothecairesGedAgent(dossierId) {
@@ -69,6 +70,8 @@ async function etatHypothecaireAgent(e) {
   }
   const etats = etatsHypothecairesGedAgent(d.id);
   if (!etats.length) {
+    const sd = ((instantanesAuthenticAT[d.id] || {}).inst || {}).sousDossier;
+    if (sd && sd.piecesIncompletes) return { dossier_id: d.id, note: 'la liste des pièces jointes relevée dans Authentic est INCOMPLÈTE (répertoires restés repliés) : l’état hypothécaire peut y être — ne dis jamais qu’il n’y en a pas ; propose de relire le dossier dans Authentic', derniere_lecture: deja };
     return { dossier_id: d.id, note: 'aucun état hypothécaire parmi les pièces jointes relevées dans Authentic pour ce dossier : lis d’abord le dossier dans Authentic (authentic_claire, mode lire), ou l’état n’est pas encore arrivé', derniere_lecture: deja };
   }
   if ([...relecturesEtatEnCours].some(v => v.startsWith(d.id + '|'))) return { erreur: 'une relecture de cet état est déjà en cours : attends son résultat' };

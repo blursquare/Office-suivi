@@ -317,20 +317,23 @@ const SCRIPT_SOUS_DOSSIER_OUVERT = `(() => { const e = [...document.querySelecto
  * corbeille ou avion d'envoi. UN seul à la fois, amené à l'écran (relecture 0.391.5 : un dépliage déplace tout ce qui suit) : [{ x, y, bouton }].
  * @param {string} reSource
  */
-const scriptChevronsFermes = (reSource) => `(() => {
+const scriptChevronsFermes = (reSource, racine) => `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
   const re = new RegExp(${JSON.stringify(reSource)});
   const visible = ${AFFICHE};
   // Un chevron FERMÉ : son mot d'icône ou sa classe le disent ; « aria-expanded=false » seulement avec une classe de chevron. Jamais le
-  // bouton d'un menu d'actions (SplitButton, MenuButton, aria-haspopup — audit 0.392.0), jamais un chevron déjà refusé par la garde.
+  // bouton d'un menu d'actions (SplitButton, MenuButton, aria-haspopup — audit 0.392.0), jamais un chevron déjà refusé ou recouvert.
   const classe = (c) => (typeof c.className === 'string' ? c.className : '');
-  const ferme = (c) => !c.closest('[aria-haspopup], .ui-splitbutton, .ui-menubutton, [data-claire-refuse]')
+  const ferme = (c) => !c.closest('[aria-haspopup], .ui-splitbutton, .ui-menubutton, [data-claire-refuse], [data-claire-masque]')
     && (/^(keyboard_arrow_right|chevron_right|arrow_right|navigate_next)$/.test(String(c.innerText || '').trim())
       || /(chevron|arrow|caret|triangle)[-_]?(right|1-e)\\b|ui-icon-triangle-1-e|toggler[^ ]*\\s[^ ]*(right|collapsed)/i.test(classe(c))
       || (c.getAttribute('aria-expanded') === 'false' && /toggler|chevron|caret|triangle/i.test(classe(c))));
-  // Tous les chevrons fermés (comptés), puis le PREMIER seulement amené à l'écran et rendu, avec le nombre qui reste.
+  // Seulement dans la zone demandée (l'arbre des pièces jointes, audit 0.393.0), sinon toute la page.
+  const racines = ${JSON.stringify(racine || '')} ? [...document.querySelectorAll(${JSON.stringify(racine || 'body')})].filter(visible) : [document.body];
+  // Tous les chevrons fermés (comptés), puis le PREMIER qui n'est pas recouvert, amené à l'écran ; un chevron recouvert est marqué et passé
+  // (relecture 0.393.0 : il arrêtait tout et le dépliage passait pour complet).
   const paires = [];
-  [...document.querySelectorAll('a, span, div, h2, h3, h4, label, legend')].forEach((tete) => {
+  racines.forEach((rac) => [...rac.querySelectorAll('a, span, div, h2, h3, h4, label, legend')].forEach((tete) => {
     // Un en-tête est court : le texte des grands conteneurs n'est pas recalculé (audit 0.392.0, performance).
     if (paires.length >= 40 || String(tete.textContent || '').length > 120 || !visible(tete) || !re.test(net(tete.innerText))) return;
     if ([...tete.children].some((c) => re.test(net(c.innerText)))) return;
@@ -341,18 +344,19 @@ const scriptChevronsFermes = (reSource) => `(() => {
         && Math.abs(c.getBoundingClientRect().top + c.getBoundingClientRect().height / 2 - milieu) < 14);
       if (ch) { if (!paires.includes(ch)) paires.push(ch); break; }
     }
-  });
-  const ch = paires[0];
-  if (!ch) return [];
-  ch.scrollIntoView({ block: 'center', inline: 'nearest' });
-  const r = ch.getBoundingClientRect();
-  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
-  const d = document.elementFromPoint(x, y);
-  if (!d || !(ch.contains(d) || d.contains(ch))) return [];
-  const b = d.closest('button, a, [role=button]') || d;
-  ch.setAttribute('data-claire-chevron', '1');
-  return [{ x, y, reste: paires.length, bouton: [typeof ch.className === 'string' ? ch.className : '', ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
-    b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) }];
+  }));
+  for (const ch of paires) {
+    ch.scrollIntoView({ block: 'center', inline: 'nearest' });
+    const r = ch.getBoundingClientRect();
+    const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+    const d = document.elementFromPoint(x, y);
+    if (!d || !(ch.contains(d) || d.contains(ch))) { ch.setAttribute('data-claire-masque', '1'); continue; }
+    const b = d.closest('button, a, [role=button]') || d;
+    ch.setAttribute('data-claire-chevron', '1');
+    return { reste: paires.length, cible: { x, y, bouton: [classe(ch), ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
+      b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) } };
+  }
+  return { reste: paires.length, cible: null };
 })()`;
 
 // Le menu de gauche d'Authentic se déplie au SURVOL (relevé de l'étude ; wiki : replié = icônes seules) : le point où poser la souris.
@@ -574,20 +578,22 @@ function gestes(s, etape, o = {}) {
   const texte = () => ev('document.body ? document.body.innerText : ""').then(String).catch(() => '');
   /** Déplie les blocs ou groupes REPLIÉS dont l'en-tête répond à `reSource` (chevron fermé seulement, geste « deplier » contrôlé par la
    * garde). Rend { n : chevrons cliqués, fermes : blocs restés repliés }. @param {string} reSource */
-  async function deplier(reSource) {
+  async function deplier(reSource, racine) {
     let n = 0;
-    // Un chevron par lecture de la page : chaque dépliage déplace ce qui suit (relecture 0.391.5) ; 20 au plus. Un chevron qui ne s'ouvre
-    // pas laisserait le même nombre de chevrons fermés : arrêt.
-    let reste = Infinity;
     let refuses = 0;
+    const nettoyer = (attr) => ev(`(() => document.querySelectorAll('[${attr}]').forEach((x) => x.removeAttribute('${attr}')))()`);
     // Une marque laissée par une lecture interrompue ne doit jamais désigner un autre chevron.
-    await ev(`(() => document.querySelectorAll('[data-claire-chevron]').forEach((x) => x.removeAttribute('data-claire-chevron')))()`);
+    await nettoyer('data-claire-chevron');
+    await nettoyer('data-claire-masque');
+    // Un chevron par lecture de la page : chaque dépliage déplace ce qui suit (relecture 0.391.5) ; 20 au plus.
+    let reste = Infinity;
+    let r = { reste: 0, cible: null };
     while (n + refuses < 20) {
-      const c = ((await ev(scriptChevronsFermes(reSource))) || [])[0];
-      if (!c || c.reste >= reste) break;
-      reste = c.reste;
+      r = (await ev(scriptChevronsFermes(reSource, racine))) || { reste: 0, cible: null };
+      if (!r.cible || r.reste >= reste) break;
+      reste = r.reste;
       try {
-        controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
+        controlerClic({ geste: 'deplier', vise: '', bouton: r.cible.bouton, texte: r.cible.bouton });
       } catch (e) {
         // Refusé par la garde : marqué pour ne plus être proposé, le dépliage continue avec les autres (audit 0.392.0).
         if (!(e && e.refusGarde)) throw e;
@@ -596,16 +602,17 @@ function gestes(s, etape, o = {}) {
         reste = Infinity;
         continue;
       }
-      await ev(`(() => { const x = document.querySelector('[data-claire-chevron]'); if (x) x.removeAttribute('data-claire-chevron'); })()`);
-      await s.cliquerPosition(c.x, c.y);
+      await nettoyer('data-claire-chevron');
+      await s.cliquerPosition(r.cible.x, r.cible.y);
       await attendre(500);
       n++;
     }
     if (n) await s.attendreStable(5000);
-    // Ce qui reste fermé (refusé, ou au-delà de 20) : dit par l'appelant (un suivi incomplet est « tronqué »).
-    const restants = (((await ev(scriptChevronsFermes(reSource))) || [])[0] || { reste: 0 }).reste + refuses;
-    await ev(`(() => document.querySelectorAll('[data-claire-chevron]').forEach((x) => x.removeAttribute('data-claire-chevron')))()`);
-    return { n, fermes: restants };
+    // Ce qui reste fermé (refusé, recouvert ou au-delà de 20) : dit par l'appelant (suivi « tronqué », pièces jointes incomplètes).
+    const fin = (await ev(scriptChevronsFermes(reSource, racine))) || { reste: 0 };
+    await nettoyer('data-claire-chevron');
+    await nettoyer('data-claire-masque');
+    return { n, fermes: (fin.reste || 0) + refuses };
   }
   /** Clique une entrée du menu de gauche (« Suivis », « Suivi MICEN »…) après avoir posé la souris sur le menu, qui se déplie au survol.
    * `chercherSeulement` : dit seulement si l'entrée est visible. @param {string} libelle @param {boolean} [chercherSeulement] */
@@ -942,7 +949,7 @@ async function lireApercusFormalites(s, o) {
   try {
     const d = await g.deplier('^(formalites prealables|actes|formalites posterieures|[a-z][a-z0-9 \'/@.-]{1,40}) \\(([1-9][0-9]*)\\)$');
     if (d.fermes) o.etape(`${d.fermes} bloc(s) replié(s) non déplié(s)`);
-  } catch (e) { o.etape('Blocs repliés non dépliés'); }
+  } catch (e) { if (e && e.annule) throw e; o.etape('Blocs repliés non dépliés'); }
   const nb = Number(await g.ev(SCRIPT_LIGNES_FORMALITES)) || 0;
   if (!nb) o.etape('Aucune ligne de formalité visible : aperçus non lus');
   let n = 0, sansIcone = 0;
@@ -982,17 +989,21 @@ async function lireApercusFormalites(s, o) {
 // Les répertoires de l'arbre de la GED (« Non classé (3) », « Annexes MICEN (1) »…) sont souvent REPLIÉS (captures du wiki, 28/10) : une
 // pièce d'un répertoire fermé — l'EHF, un acte de naissance — n'est ni relevée ni trouvée. Dépliés par leur chevron seulement.
 const RE_NOEUDS_GED = '^[^()]{1,80} \\(([1-9][0-9]*)\\)$';
+// L'arbre de la GED seulement (jamais les blocs « Formalités (N) » ou « Mails (N) » de la page, audit 0.393.0) ; sélecteur à relever.
+const ARBRE_GED = '.ui-tree, [id*="sousDossierTree"], [id*="Tree"], [class*="tree"]';
 
 async function lirePiecesJointes(s, o) {
   const g = gestes(s, o.etape);
   if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) return false;
   await s.attendreStable(10000);
+  let fermes = 0;
   try {
-    const d = await g.deplier(RE_NOEUDS_GED);
-    if (d.fermes) o.etape(`${d.fermes} répertoire(s) des pièces jointes resté(s) replié(s)`);
-  } catch (e) { o.etape('Répertoires des pièces jointes non dépliés'); }
+    fermes = (await g.deplier(RE_NOEUDS_GED, ARBRE_GED)).fermes;
+    if (fermes) o.etape(`${fermes} répertoire(s) des pièces jointes resté(s) replié(s)`);
+  } catch (e) { if (e && e.annule) throw e; fermes = 1; o.etape('Répertoires des pièces jointes non dépliés'); }
   o.etape('Relève la liste des pièces jointes');
-  await releverPage(s, o.script, o.recevoir);
+  // Des répertoires restés repliés : la liste est INCOMPLÈTE, dite (jamais « pas d'EHF » sur une liste partielle, audit 0.393.0).
+  await releverPage(s, o.script, o.recevoir, fermes ? { groupesFermes: fermes } : null);
   return true;
 }
 
@@ -1026,15 +1037,29 @@ const SCRIPT_SOURCE_PDF = `(() => { const u = [...document.querySelectorAll('ifr
     if (f && /dynamiccontent/i.test(f)) a = new URL(f, a.href);
     return a.origin === location.origin ? a.href : '';
   } catch (e) { return ''; } })()`;
-/** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 60 Mo ou n'est pas un PDF (60 Mo : un état hypothécaire
- * avec les fiches anciennes scannées dépasse 20 Mo — le wiki montre déjà un PDF de 19,5 Mo, étude 28/10). @param {string} url */
-const scriptLirePdf = (url) => `fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => {
-  if (!b || b.byteLength > 60 * 1024 * 1024) return null;
-  const u = new Uint8Array(b);
-  if (String.fromCharCode(u[0], u[1], u[2], u[3]) !== '%PDF') return null;
-  let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
-  return btoa(s);
-})`;
+/** Le PDF lu dans la page (cookies de la séance) SANS l'attendre : gardé dans l'onglet (`window.__clairePdf`), en base64, avec son état.
+ * Jusqu'à 60 Mo (un état hypothécaire avec les fiches anciennes scannées dépasse 20 Mo, étude 28/10). Audit 0.393.0 : un seul
+ * `Runtime.evaluate` de 80 Mo dépassait le délai du navigateur et bloquait le serveur — l'appelant attend l'état puis rapatrie par morceaux.
+ * @param {string} url */
+const scriptChargerPdf = (url) => `(() => {
+  window.__clairePdf = { etat: 'en cours', b64: '' };
+  fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => {
+    const n = Number(r.headers.get('content-length') || 0);
+    if (!r.ok || n > 60 * 1024 * 1024) return null;
+    return r.arrayBuffer();
+  }).then((b) => {
+    if (!b || b.byteLength > 60 * 1024 * 1024) { window.__clairePdf = { etat: 'refuse', b64: '' }; return; }
+    const u = new Uint8Array(b);
+    if (String.fromCharCode(u[0], u[1], u[2], u[3]) !== '%PDF') { window.__clairePdf = { etat: 'refuse', b64: '' }; return; }
+    let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
+    window.__clairePdf = { etat: 'pret', b64: btoa(s) };
+  }).catch(() => { window.__clairePdf = { etat: 'refuse', b64: '' }; });
+  return true;
+})()`;
+const SCRIPT_ETAT_PDF = `(() => { const p = window.__clairePdf; return p ? { etat: p.etat, longueur: p.b64.length } : null; })()`;
+/** Un morceau du PDF gardé dans l'onglet (8 Mo de base64). @param {number} debut */
+const scriptMorceauPdf = (debut) => `(window.__clairePdf && window.__clairePdf.b64.slice(${Number(debut) | 0}, ${(Number(debut) | 0) + 8 * 1024 * 1024})) || ''`;
+const SCRIPT_OUBLIER_PDF = `(() => { delete window.__clairePdf; return true; })()`;
 
 /**
  * Le PDF d'une pièce jointe, à la demande (étape 5 : « PDF affiché à la demande ») : le dossier, son sous-dossier de vente, l'onglet
@@ -1051,11 +1076,11 @@ async function lirePiecePdf(s, cible, pjId, o) {
   if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) throw new Error('onglet « Pièces jointes » introuvable');
   await s.attendreStable(10000);
   // La pièce peut être dans un répertoire replié : déplié d'abord (sans bloquer la lecture si rien ne se déplie).
-  if (!(await g.ev(scriptPositionPiece(pjId)))) { try { await g.deplier(RE_NOEUDS_GED); } catch (e) { /* lu tel quel */ } }
+  if (!(await g.ev(scriptPositionPiece(pjId)))) { try { await g.deplier(RE_NOEUDS_GED, ARBRE_GED); } catch (e) { if (e && e.annule) throw e; } }
   const pos = await g.ev(scriptPositionPiece(pjId));
   if (!pos) throw new Error('pièce introuvable dans la liste d’Authentic');
   // Un « nom » court qui est un mot interdit (« Supprimer ») n'est pas un nom de fichier : il neutraliserait la liste noire (audit 0.392.0).
-  if (libelleInterdit(pos.nom) && !/\.[a-z0-9]{2,5}$/i.test(pos.nom)) throw new Error('pièce introuvable dans la liste d’Authentic (libellé douteux) : pas cliqué');
+  if (/^\s*(supprimer|envoyer|signer|exporter|t[ée]l[ée]charger|modifier|d[ée]placer|partager|imprimer|renommer|fusionner)\s*$/i.test(pos.nom)) throw new Error('pièce introuvable dans la liste d’Authentic (libellé douteux) : pas cliqué');
   controlerClic({ geste: 'donnee', vise: pos.nom, bouton: pos.bouton, texte: pos.nom });
   o.etape('Ouvre la pièce');
   await s.cliquerPosition(pos.x, pos.y);
@@ -1063,16 +1088,31 @@ async function lirePiecePdf(s, cible, pjId, o) {
   let url = '';
   for (let i = 0; i < 20 && !url; i++) { url = String(await g.ev(SCRIPT_SOURCE_PDF) || ''); if (!url) await attendre(500); }
   if (!url) throw new Error('la visionneuse d’Authentic n’a pas affiché de PDF');
-  const b64 = await g.ev(scriptLirePdf(url));
-  if (!b64) throw new Error('PDF illisible ou de plus de 60 Mo');
-  return { nom: pos.nom, pdf: Buffer.from(String(b64), 'base64') };
+  // Téléchargé dans l'onglet (3 minutes au plus), puis rapatrié par morceaux de 8 Mo, toujours effacé de l'onglet.
+  try {
+    await g.ev(scriptChargerPdf(url));
+    let etat = null;
+    for (let i = 0; i < 360; i++) {
+      etat = await g.ev(SCRIPT_ETAT_PDF);
+      if (!etat || etat.etat !== 'en cours') break;
+      await attendre(500);
+    }
+    if (!etat || etat.etat !== 'pret' || !etat.longueur) throw new Error('PDF illisible, trop long à venir ou de plus de 60 Mo');
+    const morceaux = [];
+    for (let debut = 0; debut < etat.longueur; debut += 8 * 1024 * 1024) morceaux.push(String(await g.ev(scriptMorceauPdf(debut)) || ''));
+    const b64 = morceaux.join('');
+    if (b64.length !== etat.longueur) throw new Error('PDF reçu incomplet');
+    return { nom: pos.nom, pdf: Buffer.from(b64, 'base64') };
+  } finally {
+    await g.ev(SCRIPT_OUBLIER_PDF).catch(() => false);
+  }
 }
 
 /** Relève la page affichée (le relevé de l'extension) et la confie à la file des relevés. @param {any} s @param {string} script @param {(c: any) => any} recevoir */
-async function releverPage(s, script, recevoir) {
+async function releverPage(s, script, recevoir, ajout) {
   const capture = await s.evaluer(`(() => { ${script}\n; return window.__claireRelever(); })()`);
   if (!capture) return null;
-  return recevoir(capture);
+  return recevoir(ajout ? Object.assign(capture, ajout) : capture);
 }
 
 /** Pure : les noms de comparants et les adresses d'immeubles lus dans le texte de la page du dossier. @param {string} texte */
@@ -1164,7 +1204,7 @@ async function lireSuivis(s, o) {
       // Les lignes sont rangées en GROUPES repliés par statut (« Envoyé (12) ») : dépliés par leur chevron seulement — l'en-tête d'un groupe
       // porte corbeille et avion d'envoi (captures du wiki, 28/10).
       let fermes = 0;
-      try { fermes = (await g.deplier('^[a-z][a-z0-9 \'/-]{2,50} \\(([1-9][0-9]*)\\)$')).fermes; } catch (err) { fermes = 1; }
+      try { fermes = (await g.deplier('^[a-z][a-z0-9 \'/-]{2,50} \\(([1-9][0-9]*)\\)$')).fermes; } catch (err) { if (err && err.annule) throw err; fermes = 1; }
       if (fermes) o.etape(`${e.titre} : ${fermes} groupe(s) resté(s) replié(s), lecture incomplète`);
       const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
       // Des groupes restés repliés : le suivi lu est incomplet, il sera dit « tronqué » (audit 0.392.0).
