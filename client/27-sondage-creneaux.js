@@ -2175,6 +2175,7 @@
                 ${d.adresseBien ? `<span class="fiche-entete-texte">${escapeHtml(normaliserAdresse(d.adresseBien))}</span>` : ''}
                 ${d.prixVente ? `<strong class="fiche-entete-prix">${escapeHtml(formaterPrix(d.prixVente))}</strong>` : ''}
                 ${pastillesHypothequeEntete(d)}
+                ${typeof pastillesAlertesLecturesEntete === 'function' ? pastillesAlertesLecturesEntete(d) : ''}
                 ${pastilleFcddvEntete(d)}
                 ${estSuccession(d) ? '' : boutonOuvrirCompromis}
                 ${boutonDossierNas}

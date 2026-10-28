@@ -122,6 +122,9 @@ function htmlEtatHypothecaireFiche(d) {
       x.etat === 'radiee' ? 'radiée' : x.radiation === 'partielle' ? 'radiation partielle' : '', 'p. ' + x.page].filter(Boolean).join(' · '))}</span></li>`;
   const enCours = e.inscriptions.filter(x => x.etat === 'en_cours');
   const autres = e.inscriptions.filter(x => x.etat !== 'en_cours');
+  // Rien sur la fiche quand tout va bien (étude 28/10 : « ne pas trop charger la fiche ; juste s'il y a des alertes ») : le compte rendu
+  // complet reste dans la discussion du dossier et pour « Demander à CLAIRE ».
+  if (!enCours.length && lectureEtatComplete(e) && !(e.chargesComplement || []).length && !e.enAttente) return '';
   return `<div class="at-groupe eh-bloc"><div class="at-groupe-titre">État hypothécaire${infoBulle('Relu par CLAIRE dans l’état-réponse ANF' + (e.delivreLe ? ` délivré le ${date(e.delivreLe)}` : '') + ' : rubrique Charge du relevé des formalités (depuis 2002). Les fiches d’avant sont des scans manuscrits que CLAIRE ne lit pas : à relire par le notaire. Assistance : le notaire garde l’analyse juridique.')}</div>
     ${!lectureEtatComplete(e) ? `<p class="eh-alerte">Lecture incomplète${e.lecture && e.lecture.annoncees != null ? ` : ${e.lecture.reconnues} formalité${e.lecture.reconnues > 1 ? 's' : ''} lue${e.lecture.reconnues > 1 ? 's' : ''} sur ${e.lecture.annoncees} annoncée${e.lecture.annoncees > 1 ? 's' : ''}` : ''}${e.tronque ? ' (PDF de plus de 200 pages)' : ''} — relevé à vérifier par le notaire.</p>` : ''}
     ${enCours.length ? `<p class="eh-alerte">${plurielEH(enCours.length, 'inscription')} en cours</p><ul class="at-liste">${enCours.map(x => ligne(x, 'eh-en-cours')).join('')}</ul>`

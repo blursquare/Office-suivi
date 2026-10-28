@@ -1159,7 +1159,7 @@
     lignesRhf.forEach(l => {
       const dates = l.dates || (l.date ? [l.date] : []);
       const etat = normaliserPourRecherche(l.etat || '');
-      const estRetour = /re[cç]u|retour|delivr|repon/.test(etat) || /^(?:reponse|retour|etat hypothecaire)/.test(normaliserPourRecherche(l.titre));
+      const estRetour = /re[cç]u|retour|delivr|repon|termin/.test(etat) || /^(?:reponse|retour|etat hypothecaire)/.test(normaliserPourRecherche(l.titre));  // « Terminé » : réponse du SPF (wiki, 28/10)
       if (!r.envoyeeLe && !estRetour) r.envoyeeLe = dateEnvoiLigneAuthentic(l);
       const mRetour = /retour\s*(?:le)?\D{0,6}(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/.exec(normaliserPourRecherche(l.texte || ''));
       if (mRetour) r.retourLe = dateIsoDepuisFr(mRetour[1]);

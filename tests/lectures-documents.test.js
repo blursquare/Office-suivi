@@ -108,3 +108,14 @@ test('acte de naissance : mentions marginales (mariage, divorce, PACS, décès�
   assert.equal(s2.rubrique, false);
   assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: s2 }), /rubrique des mentions non reconnue/);
 });
+
+test('fiche : seulement les ALERTES des lectures (rien quand tout va bien) ; état-réponse du retour SPF, jamais la demande ni les annexes', () => {
+  assert.equal(app.alertesLecturesFiche({ lecturesDocuments: { a: { sorte: 'naissance', alerte: false, resume: 'rien' } } }).length, 0);
+  const a = app.alertesLecturesFiche({ lecturesDocuments: { a: { sorte: 'naissance', alerte: true, resume: 'mention marginale : divorce' }, b: { sorte: 'pv-ag', alerte: true, resume: 'travaux' } } });
+  assert.equal(a.map((x) => x.libelle).join('|'), 'Mention marginale|Travaux votés en AG');
+  assert.equal(app.pastillesAlertesLecturesEntete({}), '');
+  assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Etat reponse.pdf', dossierGed: 'Vente' }), true);
+  assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Annexe usager.pdf', dossierGed: 'Retours SPF Téléactes' }), false);
+  assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Certificat conservateur.pdf', dossierGed: 'Retours SPF Téléactes' }), false);
+  assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Réquisition d’état.pdf', dossierGed: 'Retours SPF Téléactes' }), false);
+});

@@ -327,6 +327,31 @@ function planifierLecturesAuthentic(d) {
 }
 
 // Pour l'onglet Dossier et « Demander à CLAIRE » : les lectures faites, les plus récentes d'abord.
+// Pure : les ALERTES des lectures de CLAIRE pour l'en-tête de la fiche (étude 28/10 : « il ne faut pas trop charger la fiche visuellement ;
+// juste s'il y a des alertes, il faut le voir ») — une pastille par sorte, le détail au survol ; rien quand tout va bien (le compte rendu
+// complet reste dans la discussion du dossier). [{ cle, libelle, detail }].
+function alertesLecturesFiche(d) {
+  const out = [];
+  const e = d && d.etatHypothecaire;
+  const lectures = Object.values((d && d.lecturesDocuments) || {}).filter(x => x && x.alerte && !x.enCours);
+  const ehfEnCours = e && Array.isArray(e.inscriptions) && typeof inscriptionsEnCours === 'function' ? inscriptionsEnCours(e).length : 0;
+  if (ehfEnCours || lectures.some(x => x.sorte === 'ehf')) {
+    out.push({ cle: 'ehf', libelle: 'Inscription hypothécaire', detail: ehfEnCours ? `${ehfEnCours} inscription(s) en cours dans l’état hypothécaire relu par CLAIRE` : (lectures.find(x => x.sorte === 'ehf') || {}).resume || '' });
+  } else if (e && Array.isArray(e.inscriptions) && typeof lectureEtatComplete === 'function' && !lectureEtatComplete(e)) {
+    out.push({ cle: 'ehf', libelle: 'État hypothécaire à vérifier', detail: 'Lecture incomplète de l’état hypothécaire : à vérifier par le notaire' });
+  }
+  const naissances = lectures.filter(x => x.sorte === 'naissance');
+  if (naissances.length) out.push({ cle: 'naissance', libelle: 'Mention marginale', detail: naissances.map(x => x.resume).join('\n') });
+  const pv = lectures.filter(x => x.sorte === 'pv-ag');
+  if (pv.length) out.push({ cle: 'pv-ag', libelle: 'Travaux votés en AG', detail: pv.map(x => x.resume).join('\n') });
+  return out;
+}
+function pastillesAlertesLecturesEntete(d) {
+  const a = alertesLecturesFiche(d);
+  if (!a.length) return '';
+  return `<span class="fiche-entete-alertes">${a.map(x => `<span class="garantie-pastille garantie-forte" title="${escapeAttr(String(x.detail || x.libelle).slice(0, 600))}">${icone('alert-triangle')}${escapeHtml(x.libelle)}</span>`).join('')}</span>`;
+}
+
 function lecturesDocumentsDossier(d) {
   return Object.entries((d && d.lecturesDocuments) || {}).map(([cle, v]) => Object.assign({ cle }, v)).filter(x => !x.enCours)
     .sort((a, b) => String(b.le).localeCompare(String(a.le)));

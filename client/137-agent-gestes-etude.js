@@ -4,9 +4,19 @@
 // écrit sur la fiche passe par la carte « Autoriser / Refuser » (client/66). Résultats masqués par le serveur comme tout résultat d'outil.
 
 // Pure : les états hypothécaires parmi les pièces jointes relevées dans Authentic pour ce dossier.
+// Le retour d'une réquisition hors formalité (wiki de Fichorga, 28/10) : trois documents — « Etat réponse », « Annexe usager »,
+// « Certificat conservateur » — rangés dans les pièces jointes, souvent sous « Retours SPF Téléactes » ; seul l'état-réponse se lit.
+// La demande elle-même (« Réquisition d'état », « HF … ») et les deux autres ne sont jamais prises.
+var RE_PIECE_RETOUR_SPF_NON_ETAT = /annexe\s*usager|certificat\s*(du\s*)?conservateur|^\s*hf\s|r[ée]quisition\s*d.[ée]tat|^\s*demande/i;
+// Pure : une pièce jointe relevée est-elle un état hypothécaire à lire ?
+function pieceEstEtatHypothecaire(p) {
+  const nom = String((p && p.nom) || '');
+  if (!nom || RE_PIECE_RETOUR_SPF_NON_ETAT.test(nom)) return false;
+  return nomDitEtatHypothecaire(nom) || (/retours?\s*spf|hors\s*formalit|r[ée]quisition/i.test(String((p && (p.dossierGed || p.dossier)) || '')) && /r[ée]ponse|anf/i.test(nom));
+}
 function etatsHypothecairesGedAgent(dossierId) {
   const sd = ((instantanesAuthenticAT[dossierId] || {}).inst || {}).sousDossier;
-  return ((sd && sd.pieces) || []).filter(p => nomDitEtatHypothecaire(p.nom));
+  return ((sd && sd.pieces) || []).filter(pieceEstEtatHypothecaire);
 }
 
 // Les natures d'inscriptions et de charges connues : seul un libellé reconnu part vers l'IA (audit 0.385.0 : une nature en texte libre,

@@ -7136,7 +7136,7 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .fonds-offre-muet { color: var(--muted); }
 .fonds-offre-actions { display: flex; gap: 12px; }
 .fonds-offre-a-faire { color: var(--pret); font-weight: 600; }
-.fiche-entete-hypotheque { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.fiche-entete-hypotheque, .fiche-entete-alertes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .hint.echanges-destinataire { margin: 0; }
 
 /* « Ajouter … » : wa-button.bouton-ajout, couche Web Awesome en tête de feuille. */

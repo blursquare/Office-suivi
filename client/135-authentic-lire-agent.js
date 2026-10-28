@@ -21,7 +21,7 @@ function etatSurPourAgent(t) {
 }
 // Pure : un dossier de la GED au nom connu (Non classé, Annexes MICEN, Parapheur…), sinon ''.
 function dossierGedPourAgent(t) {
-  return /^(non class[ée]|annexes?( micen)?|parapheur|pi[eè]ces?( jointes?)?|courriers?( re[çc]us?)?|actes?|identit[ée]|urbanisme|diagnostics?|copropri[ée]t[ée]|comptabilit[ée]|[ée]tat civil|safer|dia|mails?)$/i.test(String(t || '').trim()) ? String(t).trim() : '';
+  return /^(non class[ée]|retours? spf t[ée]l[ée]@?actes|annexes?( micen)?|parapheur|pi[eè]ces?( jointes?)?|courriers?( re[çc]us?)?|actes?|identit[ée]|urbanisme|diagnostics?|copropri[ée]t[ée]|comptabilit[ée]|[ée]tat civil|safer|dia|mails?)$/i.test(String(t || '').trim()) ? String(t).trim() : '';
 }
 
 // Pure : le sous-dossier d'un instantané, réduit à ce que l'agent lit (sans identifiant technique d'Authentic).

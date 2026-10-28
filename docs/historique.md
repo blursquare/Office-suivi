@@ -22999,3 +22999,20 @@ Audit (docs/audits/2026-10-28-0.392.0.md) : verdict « correct avec réserves »
 avant « Valider », nom de pièce = nom de fichier, jamais un bouton de menu déplié, refus de la garde passé chevron par chevron et dit,
 compte principal sous son titre, « Valider cliqué » quand Authentic affiche des messages, aperçus plafonnés à 4 minutes) ; référence en
 comptabilité : vérifiée quand elle est affichée, une page qui n'en montre aucune reste acceptée (raison dans le rapport).
+
+### 28/10/2026 — 0.393.0 : mentions marginales des actes de naissance ; alertes seules sur la fiche ; EHF dans les pièces jointes repliées
+
+Étude : « Et la lecture d'EHF ? » puis « oui vas-y. Lis aussi les actes de naissance pour vérifier les mentions marginales », et « il ne faut pas
+trop charger la fiche dossier visuellement. Juste s'il y a des alertes il faut le voir ».
+- Actes de naissance (client/141) : `mentionsMarginalesNaissance` — mariage, divorce, séparation de corps, PACS et dissolution, changement de
+  régime, décès, changement de nom / prénom, reconnaissance, adoption, avec la première date écrite après ; lu dans la rubrique « Mentions
+  marginales » (le corps de l'acte parle des parents) ; « Néant » = aucune ; sans rubrique, dit « à vérifier ». Message sans nom ni lieu.
+- Fiche : `pastillesAlertesLecturesEntete` (en-tête, à côté de l'hypothèque du prêt) — « Inscription hypothécaire », « État hypothécaire à
+  vérifier », « Mention marginale », « Travaux votés en AG », détail au survol ; rien sans alerte. Le bloc « État hypothécaire » du panneau
+  Authentic n'apparaît plus que s'il y a une alerte (inscription en cours, lecture incomplète, charge d'un complément, formalité en attente).
+- EHF (wiki de Fichorga, pages Réquisitions) : le retour SPF arrive dans l'onglet « Retours » du dépôt (ouvert dans le lecteur du poste, pas lisible
+  par la page) et dans les pièces jointes (« Etat réponse », « Annexe usager », « Certificat conservateur », répertoire « Retours SPF
+  Téléactes » selon un réglage de l'étude) : seul l'état-réponse est pris (`pieceEstEtatHypothecaire`), jamais la demande ni les annexes ;
+  répertoires repliés de la GED dépliés avant relevé et ouverture d'une pièce ; PDF jusqu'à 60 Mo ; « Terminé » = retour arrivé ; garde :
+  « AOP », « réaffecter », fusion et trombone d'ajout aux pièces jointes interdits.
+Non vérifié sur le vrai Authentic ni sur de vrais actes (nom exact du fichier de l'état-réponse, répertoire, taille réelle).
