@@ -951,7 +951,17 @@
     // Tous les fonds reçus, confirmation au client pas encore envoyée (étude 12/10 : « mettre une pastille de notification quand
     // tous les fonds sont reçus ») — jusqu'à la confirmation, comme le compteur de « Suivi des dossiers ».
     const fonds = fondsCompletsAConfirmer(d) ? '<span class="dot-label dl-urgent notif-nouveau-tag notif-fonds-recus" title="Tous les fonds sont reçus — ouvrez la fiche (onglet Fonds) pour confirmer la réception au client"><span class="dot"></span>Fonds reçus</span>' : '';
-    return pieces + fonds + tagMajAuthentic(d);
+    return pieces + fonds + tagMajAuthentic(d) + tagRoutineEnAttente(d);
+  }
+
+  // Pastille « routine en attente » (étude 28/10 : « si une routine est en attente, mettre une pastille de notification pour voir où ») :
+  // CLAIRE a déposé pour ce dossier une proposition que MOI j'ai à décider (« À traiter », client/112) — même rouge que « nouvelle pièce » ;
+  // la fiche montre la même chose sur son bouton « Canal ». Rien tant que les propositions ne sont pas chargées.
+  function tagRoutineEnAttente(d) {
+    if (!d || d.archive || typeof propositionsClaire !== 'object' || !Array.isArray(propositionsClaire.liste)) return '';
+    const n = propositionsClaire.liste.filter(x => x.dossierId === d.id && propositionADecider(x)).length;
+    if (!n) return '';
+    return `<span class="dot-label dl-urgent notif-nouveau-tag notif-routine" title="CLAIRE a ${n} proposition${n > 1 ? 's' : ''} en attente pour ce dossier — ouvrez la fiche, bouton « Canal »"><span class="dot"></span>${n} routine${n > 1 ? 's' : ''} en attente</span>`;
   }
 
   // Pastille « Mise à jour » (étude 06/10 au soir : « une pastille de notification quand un dossier demande une mise à jour ») :

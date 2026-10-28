@@ -94,6 +94,13 @@ async function chargerPropositionsClaire(onglet) {
     propositionsClaire.charge = true;
     if (typeof renderCanaux === 'function') renderCanaux();
     rafraichirPropositionsFiche();
+    // La pastille « routine en attente » des lignes de dossier se redessine seulement quand les dossiers concernés changent.
+    const signature = propositionsClaire.liste.filter(propositionADecider).map(p => p.dossierId || '').sort().join('|');
+    if (signature !== propositionsClaire.signatureDossiers) {
+      const premiere = propositionsClaire.signatureDossiers === undefined;
+      propositionsClaire.signatureDossiers = signature;
+      if (!premiere && typeof render === 'function') render();
+    }
   } catch (e) { /* serveur injoignable : la pastille garde son dernier état */ }
 }
 
@@ -182,7 +189,35 @@ async function enregistrerDecisionProposition(id, decision, quand) {
   });
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
   const corps = await r.json();
-  return Object.assign({}, corps.proposition, { dejaTraitee: !!corps.dejaTraitee });
+  // Une routine faite (« Terminé » ou « Déjà fait ») valide aussi la tâche de la même étape dans le dossier (étude 28/10).
+  let tacheDossier = '';
+  if ((decision === 'terminee' || decision === 'faite') && !corps.dejaTraitee) {
+    try { tacheDossier = validerTacheDossierDeProposition(corps.proposition); } catch (e) { /* jamais bloquant : la décision est enregistrée */ }
+  }
+  return Object.assign({}, corps.proposition, { dejaTraitee: !!corps.dejaTraitee, tacheDossier });
+}
+
+// Pure : ce que « routine faite » valide dans le dossier d — null quand la routine n'a pas de tâche équivalente, quand le dossier est archivé ou
+// une succession, ou quand la tâche est déjà validée. Seules deux routines ont une tâche équivalente (étude 28/10, « celle de la même étape, si elle
+// existe ») : l'appel de fonds (échéance) et la relance de l'offre de prêt de la revue du matin (« Relancer l'offre de prêt » d'« À faire »).
+function tacheDossierDeProposition(d, p, aujourdhui) {
+  if (!d || !p || d.archive || estSuccession(d)) return null;
+  if (p.routine === 'appel-fonds') return echeanceValidee(d, 'appelFonds') ? null : { type: 'appelFonds', texte: 'Appel de fonds coché dans le dossier' };
+  if (p.routine === 'revue-matin' && p.details && p.details.modele === 'pret') {
+    return relanceOffreDue(d.derniereRelanceAuto, aujourdhui) ? { type: 'pret', texte: 'Relance de l’offre de prêt notée dans le dossier' } : null;
+  }
+  return null;
+}
+
+// Le geste : même effet qu'à la main (`cocherEcheance` pour l'appel de fonds, la relance du jour pour l'offre de prêt). Dit ce qui a été validé, '' sinon.
+function validerTacheDossierDeProposition(p) {
+  const d = p && p.dossierId ? dossiers.find(x => x.id === p.dossierId) : null;
+  const aujourdhui = isoAujourdhuiLocal();
+  const t = tacheDossierDeProposition(d, p, aujourdhui);
+  if (!t) return '';
+  if (t.type === 'appelFonds') cocherEcheance(d.id, 'appelFonds');
+  else { d.derniereRelanceAuto = aujourdhui; sauvegarder(d); render(); }
+  return t.texte;
 }
 
 // La tâche d'une proposition « tâche » : un rappel de la liste « À faire » du collaborateur, comme « Ajouter une tâche ».
@@ -376,8 +411,8 @@ async function terminerProposition(id) {
   if (propositionsEnCours[id]) return;
   propositionsEnCours[id] = true;
   try {
-    await enregistrerDecisionProposition(id, 'terminee');
-    afficherToast('Noté terminé.', 'OK', null);
+    const terminee = await enregistrerDecisionProposition(id, 'terminee');
+    afficherToast('Noté terminé.' + (terminee.tacheDossier ? ' ' + terminee.tacheDossier + '.' : ''), 'OK', null);
   } catch (e) {
     afficherToast('Non enregistré : ' + e.message, 'OK', null);
     return;
@@ -403,7 +438,7 @@ async function dejaFaitProposition(id) {
   propositionsEnCours[id] = true;
   try {
     const decidee = await enregistrerDecisionProposition(id, 'faite');
-    afficherToast(decidee.dejaTraitee ? 'Cette proposition a déjà été traitée.' : 'Notée « déjà fait » : CLAIRE ne la reproposera pas.', 'OK', null);
+    afficherToast(decidee.dejaTraitee ? 'Cette proposition a déjà été traitée.' : 'Notée « déjà fait » : CLAIRE ne la reproposera pas.' + (decidee.tacheDossier ? ' ' + decidee.tacheDossier + '.' : ''), 'OK', null);
   } catch (e) {
     afficherToast('Non enregistré : ' + e.message, 'OK', null);
     return;
