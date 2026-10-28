@@ -22868,3 +22868,18 @@ gardés), exécutés par le poste (`client/137-agent-gestes-etude.js`) avec les 
 - `routines_claire` : lister les propositions (à décider, autorisées à terminer) ; terminer une proposition autorisée après « Autoriser »
   (`enregistrerDecisionProposition(…, 'terminee')`).
 Ligne ajoutée au prompt de l'agent ; tests `tests/agent-gestes-etude.test.js` et « rien de nominatif ne part » (assistant-agent).
+
+### 28/10 — 0.386.0 : coordonnées d'un client et résumé d'un dossier pour Sophie, par « Demander à CLAIRE »
+
+Étude : « elle doit savoir donner les coordonnées d'un client pour lui écrire ou l'appeler » ; « un résumé des dossiers facile à lire pour
+le donner à Sophie : ce qui s'est passé, nombre d'emails et d'appels avec le client, les points qui ont bloqué, ce qui s'est bien passé ».
+`client/138-agent-coordonnees-bilan.js`, outils non stricts :
+- `coordonnees_client` : la carte de la réponse « coordonnées » de CLAIRE (`reponseCoordonneesAssistant` : numéros en texte 3CX et liens
+  `tel:`, emails `mailto:`) posée dans la conversation sur le poste ; l'IA reçoit personnes, téléphones et emails MASQUÉS (rétablis dans
+  sa réponse) et la consigne de proposer l'email (faire_geste) ; une partie représentée par un confrère : on écrit au confrère.
+- `bilan_dossier` : statut, dates clés, délais comparés à la moyenne de l'étude (`statistiquesDelaisDossiers`), emails envoyés / reçus /
+  préparés (`/api/emails-dossiers`, jamais le texte), appels reçus par partie (`/api/appels`), échéances tenues et dépassées, pièces
+  attendues, fonds, faits de l'historique (relances, pièces reçues, rendez-vous déplacés) et 15 derniers événements ; consigne de résumé en
+  cinq points. Bouton « Résumé pour Sophie » des outils de la fiche (vente) → la même demande dans la conversation de CLAIRE
+  (`demanderResumeDossier`). Prompt : proposer de l'envoyer à Sophie en message privé ou d'en faire un document.
+Tests : « rien de nominatif ne part » (noms, téléphones, emails), `tests/agent-coordonnees-bilan.test.js`.

@@ -977,3 +977,22 @@ test('28/10 : etat_hypothecaire, urbanisme_demandes, routines_claire proposés ;
   assert.match(envoye2, /2026-10-20/);
   assert.match(envoye, /2032-05-05/);
 });
+
+test('28/10 : coordonnees_client et bilan_dossier — téléphones, emails et noms ne partent jamais en clair ; chiffres et dates partent', async () => {
+  for (const n of ['coordonnees_client', 'bilan_dossier']) assert.ok(OUTILS_AGENT.some((t) => t.name === n), n);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('c1', 'coordonnees_client', { dossier_id: 'd1', partie: '' }), outil('b1', 'bilan_dossier', { dossier_id: 'd1' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Le numéro de Fournier et le résumé du dossier pour Sophie', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'c1', contenu: { dossier_id: 'd1', vendeur: { personnes: [{ nom: 'Paul FOURNIER', telephones: ['06 12 34 56 78'], emails: ['paul.fournier@exemple.fr'] }], telephone: '06 12 34 56 78', email: 'paul.fournier@exemple.fr' } } },
+    { id: 'b1', contenu: { dossier_id: 'd1', statut: 'Prêt', dates_cles: { avant_contrat: '2026-07-01', pret_obtenu: '2026-08-20' }, delais_en_jours: { jusqu_au_pret: { jours: 50, moyenne_etude: 42 } },
+      echanges: { emails_envoyes: 7, emails_recus: 5, appels_recus: 3 }, evenements_recents: [{ date: '2026-08-20', texte: 'Offre de prêt reçue de Paul FOURNIER' }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom ni coordonnée : ' + envoye.slice(-700));
+  assert.match(envoye, /emails_envoyes\\":7/);
+  assert.match(envoye, /2026-08-20/);
+});

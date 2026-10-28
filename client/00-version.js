@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.385.0';
+  const VERSION_APP = '0.386.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.386.0', date: '2026-10-28 08:07', resume: "« Demander à CLAIRE » donne les coordonnées d’un client pour lui écrire ou l’appeler (« le numéro de Monsieur X ? » : la carte s’affiche avec les numéros cliquables pour 3CX et les emails, et CLAIRE propose de préparer l’email). Elle fait aussi le résumé d’un dossier pour Sophie : où il en est, dates clés et délais comparés à la moyenne de l’étude, emails et appels avec le client, ce qui a bloqué, ce qui s’est bien passé — bouton « Résumé pour Sophie » dans les outils de la fiche, ou demandé à CLAIRE ; elle peut le lui envoyer en message privé." },
   { version: '0.385.0', date: '2026-10-28 07:22', resume: "« Demander à CLAIRE » fait ce que vous faites à l’écran : « y a-t-il des inscriptions sur le dossier X ? » (CLAIRE dit la lecture de l’état hypothécaire, ou le relit dans Authentic après « Autoriser »), « la DIA et le CU ont-ils été demandés, et quand ? » (guichet unique ou Authentic, réponse attendue), « termine la routine de constitution de X » (« Terminé » après « Autoriser »). Désormais, toute nouvelle fonction de CLAIRE se demande aussi à CLAIRE." },
   { version: '0.384.0', date: '2026-10-27 23:29', resume: "Relecture de l’état hypothécaire : sur la fiche, panneau « Authentic » › Pièces jointes, « Relire l’état » ouvre l’état-réponse ANF dans Authentic et relève, sans IA, les inscriptions de la rubrique Charge — en cours en rouge (nature, créancier, montant, date de dépôt, date extrême d’effet, page), radiées ou périmées à part —, les charges signalées dans un complément et le nombre de fiches anciennes à relire par le notaire. Une inscription en cours : « Décompte de remboursement » et « Accord de mainlevée » de chaque créancier ajoutés à la checklist quand l’étude représente le vendeur, et un message de CLAIRE dans le canal du dossier." },
   { version: '0.383.1', date: '2026-10-27 21:35', resume: "Notifications : dans le canal d’un dossier, ce qu’écrit CLAIRE ne compte plus que pour le responsable du dossier (et pour qui elle cite) — les autres collaborateurs n’en sont plus notifiés, la pastille ne compte plus ces messages. Une proposition de routine autorisée mais pas encore « Terminée » (constitution, tâche) reste dans « À traiter » et dans la pastille jusqu’au clic sur « Terminé » ; la fiche dit « N à terminer ». Une alerte de CLAIRE lue ne compte plus, ni une proposition déjà décidée dans l’étincelle de « Demander à CLAIRE »." },
