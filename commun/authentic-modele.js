@@ -386,7 +386,8 @@
     const texte = String((capture && capture.texte) || '');
     const plage = [...texte.matchAll(/\b1\s+[àa]\s+(\d+)\s+sur\s+(\d+)/gi)].some((m) => Number(m[2]) > Number(m[1]));
     const pagine = plage || /\(\s*1\s+(of|sur|de)\s+([2-9]|\d{2,})\s*\)|page\s+1\s+(sur|of|de)\s+([2-9]|\d{2,})/i.test(texte);
-    return { luLe: net(luLe), lignes, tronque: total > 300 || pagine };
+    // Des groupes restés repliés (refusés par la garde, ou trop nombreux) : lecture incomplète, dite.
+    return { luLe: net(luLe), lignes, tronque: total > 300 || pagine || Number(capture && capture.groupesFermes) > 0 };
   }
 
   /** Pure : les compteurs du tableau de bord d'après les suivis lus : par écran, les lignes en attente (toutes pour les actes à signer), et

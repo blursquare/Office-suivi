@@ -321,13 +321,18 @@ const scriptChevronsFermes = (reSource) => `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();
   const re = new RegExp(${JSON.stringify(reSource)});
   const visible = ${AFFICHE};
-  const ferme = (c) => c.getAttribute('aria-expanded') === 'false'
-    || /^(keyboard_arrow_right|chevron_right|arrow_right|navigate_next)$/.test(String(c.innerText || '').trim())
-    || /(chevron|arrow|caret|triangle)[-_]?(right|1-e)\\b|ui-icon-triangle-1-e|toggler[^ ]*\\s[^ ]*(right|collapsed)/i.test(typeof c.className === 'string' ? c.className : '');
+  // Un chevron FERMÉ : son mot d'icône ou sa classe le disent ; « aria-expanded=false » seulement avec une classe de chevron. Jamais le
+  // bouton d'un menu d'actions (SplitButton, MenuButton, aria-haspopup — audit 0.392.0), jamais un chevron déjà refusé par la garde.
+  const classe = (c) => (typeof c.className === 'string' ? c.className : '');
+  const ferme = (c) => !c.closest('[aria-haspopup], .ui-splitbutton, .ui-menubutton, [data-claire-refuse]')
+    && (/^(keyboard_arrow_right|chevron_right|arrow_right|navigate_next)$/.test(String(c.innerText || '').trim())
+      || /(chevron|arrow|caret|triangle)[-_]?(right|1-e)\\b|ui-icon-triangle-1-e|toggler[^ ]*\\s[^ ]*(right|collapsed)/i.test(classe(c))
+      || (c.getAttribute('aria-expanded') === 'false' && /toggler|chevron|caret|triangle/i.test(classe(c))));
   // Tous les chevrons fermés (comptés), puis le PREMIER seulement amené à l'écran et rendu, avec le nombre qui reste.
   const paires = [];
   [...document.querySelectorAll('a, span, div, h2, h3, h4, label, legend')].forEach((tete) => {
-    if (paires.length >= 40 || !visible(tete) || !re.test(net(tete.innerText))) return;
+    // Un en-tête est court : le texte des grands conteneurs n'est pas recalculé (audit 0.392.0, performance).
+    if (paires.length >= 40 || String(tete.textContent || '').length > 120 || !visible(tete) || !re.test(net(tete.innerText))) return;
     if ([...tete.children].some((c) => re.test(net(c.innerText)))) return;
     const rt = tete.getBoundingClientRect(), milieu = rt.top + rt.height / 2;
     let rangee = tete.parentElement;
@@ -345,6 +350,7 @@ const scriptChevronsFermes = (reSource) => `(() => {
   const d = document.elementFromPoint(x, y);
   if (!d || !(ch.contains(d) || d.contains(ch))) return [];
   const b = d.closest('button, a, [role=button]') || d;
+  ch.setAttribute('data-claire-chevron', '1');
   return [{ x, y, reste: paires.length, bouton: [typeof ch.className === 'string' ? ch.className : '', ch.getAttribute('aria-label'), String(ch.innerText || '').trim(),
     b !== ch ? String(b.innerText || b.getAttribute('title') || '').trim() : ''].filter(Boolean).join(' ').replace(/\\s+/g, ' ').slice(0, 160) }];
 })()`;
@@ -379,8 +385,10 @@ const SCRIPT_COMPTE_PRINCIPAL = `(() => {
   const visible = ${VISIBLE_ECRAN};
   const tous = [...document.querySelectorAll('span, div, label, a, td, li, b, strong')].filter(visible);
   const tete = tous.find((e) => net(e.innerText) === 'compte principal');
-  const comptes = tous.filter((e) => /^compte n/.test(net(e.innerText)) && ![...e.children].some((x) => /^compte n/.test(net(x.innerText))));
-  const e = (tete && comptes.find((x) => tete.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING)) || comptes[0];
+  const comptes = tous.filter((e) => String(e.textContent || '').length < 160 && /^compte n/.test(net(e.innerText)) && ![...e.children].some((x) => /^compte n/.test(net(x.innerText)))
+    && !(e.matches('label') && (e.getAttribute('for') || e.querySelector('input'))));
+  // Sous le titre « Compte principal » ; sans ce titre, seulement s'il n'y a qu'UN compte (audit 0.392.0 : jamais un autre pris pour lui).
+  const e = tete ? comptes.find((x) => tete.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING) : (comptes.length === 1 ? comptes[0] : null);
   if (!e) return null;
   e.scrollIntoView({ block: 'center', inline: 'nearest' });
   const r = e.getBoundingClientRect();
@@ -565,23 +573,39 @@ function gestes(s, etape, o = {}) {
   }
   const texte = () => ev('document.body ? document.body.innerText : ""').then(String).catch(() => '');
   /** Déplie les blocs ou groupes REPLIÉS dont l'en-tête répond à `reSource` (chevron fermé seulement, geste « deplier » contrôlé par la
-   * garde). Rend le nombre de chevrons cliqués. @param {string} reSource */
+   * garde). Rend { n : chevrons cliqués, fermes : blocs restés repliés }. @param {string} reSource */
   async function deplier(reSource) {
     let n = 0;
     // Un chevron par lecture de la page : chaque dépliage déplace ce qui suit (relecture 0.391.5) ; 20 au plus. Un chevron qui ne s'ouvre
     // pas laisserait le même nombre de chevrons fermés : arrêt.
     let reste = Infinity;
-    while (n < 20) {
+    let refuses = 0;
+    // Une marque laissée par une lecture interrompue ne doit jamais désigner un autre chevron.
+    await ev(`(() => document.querySelectorAll('[data-claire-chevron]').forEach((x) => x.removeAttribute('data-claire-chevron')))()`);
+    while (n + refuses < 20) {
       const c = ((await ev(scriptChevronsFermes(reSource))) || [])[0];
       if (!c || c.reste >= reste) break;
       reste = c.reste;
-      controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
+      try {
+        controlerClic({ geste: 'deplier', vise: '', bouton: c.bouton, texte: c.bouton });
+      } catch (e) {
+        // Refusé par la garde : marqué pour ne plus être proposé, le dépliage continue avec les autres (audit 0.392.0).
+        if (!(e && e.refusGarde)) throw e;
+        await ev(`(() => { const x = document.querySelector('[data-claire-chevron]'); if (x) { x.removeAttribute('data-claire-chevron'); x.setAttribute('data-claire-refuse', '1'); } })()`);
+        refuses++;
+        reste = Infinity;
+        continue;
+      }
+      await ev(`(() => { const x = document.querySelector('[data-claire-chevron]'); if (x) x.removeAttribute('data-claire-chevron'); })()`);
       await s.cliquerPosition(c.x, c.y);
       await attendre(500);
       n++;
     }
     if (n) await s.attendreStable(5000);
-    return n;
+    // Ce qui reste fermé (refusé, ou au-delà de 20) : dit par l'appelant (un suivi incomplet est « tronqué »).
+    const restants = (((await ev(scriptChevronsFermes(reSource))) || [])[0] || { reste: 0 }).reste + refuses;
+    await ev(`(() => document.querySelectorAll('[data-claire-chevron]').forEach((x) => x.removeAttribute('data-claire-chevron')))()`);
+    return { n, fermes: restants };
   }
   /** Clique une entrée du menu de gauche (« Suivis », « Suivi MICEN »…) après avoir posé la souris sur le menu, qui se déplie au survol.
    * `chercherSeulement` : dit seulement si l'entrée est visible. @param {string} libelle @param {boolean} [chercherSeulement] */
@@ -915,12 +939,19 @@ async function lireApercusFormalites(s, o) {
   const g = gestes(s, o.etape);
   // Les blocs « Formalités préalables (N) », « Actes (N) », « Formalités postérieures (N) » et leurs groupes (« Urbanisme (1) »…) sont souvent
   // REPLIÉS (captures du wiki, 28/10) : dépliés par leur chevron, jamais par leur titre (l'onglet du même nom ouvre la fenêtre d'ajout).
-  try { await g.deplier('^(formalites prealables|actes|formalites posterieures|[a-z][a-z0-9 \'/@.-]{1,40}) \\(([1-9][0-9]*)\\)$'); } catch (e) { if (e && e.refusGarde) o.etape('Un bloc replié n’a pas été déplié (refusé par CLAIRE)'); }
+  try {
+    const d = await g.deplier('^(formalites prealables|actes|formalites posterieures|[a-z][a-z0-9 \'/@.-]{1,40}) \\(([1-9][0-9]*)\\)$');
+    if (d.fermes) o.etape(`${d.fermes} bloc(s) replié(s) non déplié(s)`);
+  } catch (e) { o.etape('Blocs repliés non dépliés'); }
   const nb = Number(await g.ev(SCRIPT_LIGNES_FORMALITES)) || 0;
   if (!nb) o.etape('Aucune ligne de formalité visible : aperçus non lus');
   let n = 0, sansIcone = 0;
+  const fin = Date.now() + 4 * 60 * 1000;
   for (let i = 0; i < nb; i++) {
     if (await g.ev(SCRIPT_TIROIR_OUVERT)) break;
+    // Un plafond propre (audit 0.392.0 : 40 lignes × 8 s) ; une étape par ligne, pour que l'arrêt demandé soit vu.
+    if (Date.now() > fin) { o.etape(`Aperçus arrêtés après 4 minutes (${i}/${nb})`); break; }
+    o.etape(`Aperçu ${i + 1}/${nb}`);
     try {
       const pos = await g.ev(scriptPlacerLigne(i));
       if (!pos) continue;
@@ -964,8 +995,8 @@ const scriptPositionPiece = (pjId) => `(() => {
   if (!e) return null;
   // Le NOM du fichier (wiki, capture « 212 » : le nom ouvre l'aperçu, la case ne fait que sélectionner) : son libellé, sinon le plus petit
   // élément de texte, jamais une case à cocher ; la ligne entière en dernier recours.
-  const nomEl = e.querySelector('.ui-treenode-label') || [...e.querySelectorAll('span, a, label')].find((x) => !x.children.length && String(x.textContent || '').trim().length > 3
-    && !x.closest('.ui-chkbox, [role=checkbox]')) || e;
+  const nomEl = e.querySelector('.ui-treenode-label') || [...e.querySelectorAll('span, a, label')].find((x) => !x.children.length
+    && /\\.[a-z0-9]{2,5}$/i.test(String(x.textContent || '').trim()) && !x.closest('.ui-chkbox, [role=checkbox], button, [role=button]')) || e;
   nomEl.scrollIntoView({ block: 'center' });
   const r = nomEl.getBoundingClientRect();
   const x = Math.round(r.left + Math.min(r.width / 2, 120)), y = Math.round(r.top + r.height / 2);
@@ -1012,6 +1043,8 @@ async function lirePiecePdf(s, cible, pjId, o) {
   await s.attendreStable(10000);
   const pos = await g.ev(scriptPositionPiece(pjId));
   if (!pos) throw new Error('pièce introuvable dans la liste d’Authentic');
+  // Un « nom » court qui est un mot interdit (« Supprimer ») n'est pas un nom de fichier : il neutraliserait la liste noire (audit 0.392.0).
+  if (libelleInterdit(pos.nom) && !/\.[a-z0-9]{2,5}$/i.test(pos.nom)) throw new Error('pièce introuvable dans la liste d’Authentic (libellé douteux) : pas cliqué');
   controlerClic({ geste: 'donnee', vise: pos.nom, bouton: pos.bouton, texte: pos.nom });
   o.etape('Ouvre la pièce');
   await s.cliquerPosition(pos.x, pos.y);
@@ -1119,9 +1152,12 @@ async function lireSuivis(s, o) {
       await s.attendreStable(15000);
       // Les lignes sont rangées en GROUPES repliés par statut (« Envoyé (12) ») : dépliés par leur chevron seulement — l'en-tête d'un groupe
       // porte corbeille et avion d'envoi (captures du wiki, 28/10).
-      try { await g.deplier('^[a-z][a-z0-9 \'/-]{2,50} \\(([1-9][0-9]*)\\)$'); } catch (err) { if (err && err.refusGarde) o.etape('Un groupe replié n’a pas été déplié (refusé par CLAIRE)'); }
+      let fermes = 0;
+      try { fermes = (await g.deplier('^[a-z][a-z0-9 \'/-]{2,50} \\(([1-9][0-9]*)\\)$')).fermes; } catch (err) { fermes = 1; }
+      if (fermes) o.etape(`${e.titre} : ${fermes} groupe(s) resté(s) replié(s), lecture incomplète`);
       const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
-      if (capture) captures[e.cle] = capture;
+      // Des groupes restés repliés : le suivi lu est incomplet, il sera dit « tronqué » (audit 0.392.0).
+      if (capture) captures[e.cle] = fermes ? Object.assign(capture, { groupesFermes: fermes }) : capture;
     } catch (err) {
       if (err && err.annule) throw err;
       o.etape(`Passe ${e.titre} (${String(err && err.message).slice(0, 60)})`);
@@ -1169,7 +1205,9 @@ async function lireComptabilite(s, cible, o) {
   const apres = await g.texte();
   const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
   if (!ref && !estCeDossier(apres, cible)) throw new Error('en-tête du dossier absent de la page de comptabilité : rien relevé');
-  if (ref && referenceEnTete(apres) && referenceEnTete(apres) !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
+  // Toute référence affichée (bandeau, puis texte) doit être la sienne ; aucune affichée : le dossier a été vérifié juste avant le clic.
+  const lue = referenceEnTete(String((await g.ev(SCRIPT_EN_TETE_DOSSIER).catch(() => '')) || '')) || referenceEnTete(apres);
+  if (ref && lue && lue !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
   o.etape('Relève les infos comptables');
   return s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
 }
@@ -1191,7 +1229,7 @@ async function preparerFormalite(s, cible, o) {
   // préalables ». Ancienne version : l'onglet « Formalités préalables », puis « Ajouter des formalités préalables ».
   const plus = await g.ev(SCRIPT_PLUS_FORMALITES_PREALABLES);
   if (plus && !plus.cache) {
-    controlerClic({ geste: 'ecriture', vise: 'Ajouter des formalités préalables', bouton: plus.bouton, texte: plus.texte, ecritureAutorisee: true });
+    controlerClic({ geste: 'ecriture', vise: 'Ajouter des formalités préalables', bouton: plus.bouton, texte: plus.texte, ecritureAutorisee: !!o.ecriture });
     await s.cliquerPosition(plus.x, plus.y);
     await s.attendreStable(10000);
   } else {
@@ -1252,6 +1290,9 @@ async function preparerFormalite(s, cible, o) {
     const tous = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter((c) => c.sur);
     return { rapide: tous.find((c) => /cr[ée]ation rapide/i.test(c.libelle)), envoi: tous.find((c) => /envoi imm[ée]diat/i.test(c.libelle)) };
   };
+  // Un seul bloc de création ouvert : sinon « Valider » pourrait être celui d'un autre bloc, où l'envoi est allumé (audit 0.392.0).
+  const nbEnvoi = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter((c) => /envoi imm[ée]diat/i.test(c.libelle)).length;
+  if (nbEnvoi > 1) throw new Error('plusieurs blocs de création ouverts dans Authentic : rien validé');
   let i = await lire();
   if (!i.envoi || !i.rapide) throw new Error('interrupteurs « Création rapide » / « Envoi immédiat » introuvables : rien validé');
   if (i.envoi.coche) { await s.cliquerPosition(i.envoi.x, i.envoi.y); await attendre(500); }
@@ -1264,7 +1305,7 @@ async function preparerFormalite(s, cible, o) {
     // Le bloc Comedec valide par un rond vert « ✓ » sans texte (captures du wiki) : son titre ou sa coche, dans le bloc de « Création rapide ».
     const v = await g.ev(SCRIPT_VALIDER_ICONE);
     if (!v) throw new Error('bouton « Valider » introuvable : rien validé');
-    controlerClic({ geste: 'ecriture', vise: 'Valider', bouton: v.bouton, texte: 'Valider', ecritureAutorisee: true });
+    controlerClic({ geste: 'ecriture', vise: 'Valider', bouton: v.bouton, texte: 'Valider', ecritureAutorisee: !!o.ecriture });
     await s.cliquerPosition(v.x, v.y);
   }
   await s.attendreStable(15000);
@@ -1277,7 +1318,7 @@ async function preparerFormalite(s, cible, o) {
   if (/Cr[ée]ation (CJN|[ÉE]tat[- ]?civil)/i.test(apres)) remarques.push('écran de création encore ouvert dans Authentic : demandes à finir là-bas (non conformes)');
   // Le texte d'un message d'Authentic peut nommer un intervenant : jamais repris, seulement dit (règle de CLAIRE : aucun nom dans une étape).
   if (erreurs.length) remarques.push(`${erreurs.length} message(s) d’erreur ou d’avertissement affiché(s) par Authentic`);
-  return { demandes: choisies, remarques };
+  return { demandes: choisies, remarques, erreurs: erreurs.length };
 }
 
 module.exports = {

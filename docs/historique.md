@@ -22995,3 +22995,7 @@ s'il a la forme « Statut (N) », sinon le plus grand tableau (plus de panneau d
 aussi ; marques des sous-dossiers effacées ; vérification Silicium dite seulement avec l'élément de la page d'installation ; texte d'un message
 d'Authentic jamais repris (peut nommer un client) ; « Bloqué » lu sur une ligne CJN seulement. Version 0.392.0 (nouveauté : suivi CJN,
 remarques après « Valider »).
+Audit (docs/audits/2026-10-28-0.392.0.md) : verdict « correct avec réserves », aucun point Haut ; points Moyen corrigés (un seul bloc de création
+avant « Valider », nom de pièce = nom de fichier, jamais un bouton de menu déplié, refus de la garde passé chevron par chevron et dit,
+compte principal sous son titre, « Valider cliqué » quand Authentic affiche des messages, aperçus plafonnés à 4 minutes) ; référence en
+comptabilité : vérifiée quand elle est affichée, une page qui n'en montre aucune reste acceptée (raison dans le rapport).

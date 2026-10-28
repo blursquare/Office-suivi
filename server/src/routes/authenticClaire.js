@@ -230,7 +230,9 @@ function creerRouteurAuthenticClaire(o) {
       const deja = repo.lireJsonBrut(CLE_DEMANDES_AUTHENTIC, {}) || {};
       deja[cle] = new Date().toISOString();
       repo.ecrireJsonBrut(CLE_DEMANDES_AUTHENTIC, deja);
-      noterVerification(repo, 'authentic-' + type, { detail: `${r.demandes} demande(s) créée(s)` });
+      noterVerification(repo, 'authentic-' + type, r.erreurs ? { ok: false, detail: `${r.erreurs} message(s) d’Authentic après Valider` } : { detail: `${r.demandes} demande(s) créée(s)` });
+      // Des messages d'Authentic après « Valider » : jamais « créée » affirmé, mais marquée faite quand même (pas de doublon).
+      if (r.erreurs) return `${nom} : « Valider » cliqué dans Authentic, qui a affiché ${r.erreurs} message(s) — à vérifier dans Authentic avant toute nouvelle demande.${(r.remarques || []).filter((m) => !/message\(s\) d’erreur/.test(m)).map((m) => ` ${m}.`).join('')}`;
       // Ce qu'Authentic a montré après « Valider » (bloquée, papier, non conforme) : dit, jamais une demande à refaire (risque de doublon).
       const dit = (r.remarques || []).length ? ` À vérifier dans Authentic : ${r.remarques.join(' ; ')}.` : '';
       return `${nom} créée dans Authentic, sans envoi (Création rapide, Envoi immédiat éteint) : ${r.demandes} ${type === 'cjn' ? 'acquéreur(s)' : 'acte(s) demandé(s)'}. Elle est à envoyer depuis le dossier ou le suivi ${type === 'cjn' ? 'CJN' : 'Comedec'}.${dit}`;
