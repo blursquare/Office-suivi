@@ -202,6 +202,15 @@ const scriptTrouverReference = (ref, liste) => `(() => {
   return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
 })()`;
 
+// Les champs de saisie visibles de la page, DÉCRITS par leurs libellés fixes (placeholder, aria-label, étiquette, title, name/id sans
+// chiffres) — jamais leur valeur : pour le message d'échec de la recherche (étude 28/10 : « aucun champ de recherche trouvé »).
+const SCRIPT_CHAMPS_VISIBLES = `(() => [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=password]), textarea')]
+  .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2; })
+  .map((e) => { const l = e.labels && e.labels[0] ? e.labels[0].innerText : '';
+    const d = [e.placeholder, e.getAttribute('aria-label'), l, e.title].map((v) => String(v || '').replace(/\\s+/g, ' ').trim()).find(Boolean);
+    return (d || ('[' + String(e.name || e.id || e.type || 'champ').replace(/[0-9]+/g, '').replace(/[^A-Za-z:_-]/g, '').slice(-30) + ']')).slice(0, 40); })
+  .slice(0, 6))()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle) => `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase();
@@ -470,7 +479,8 @@ async function ouvrirDossier(s, cible, etape) {
   if (await essayer()) return;
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
   // La recherche attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
-  for (const libelleChamp of ['rechercher une affaire', 'rechercher']) {
+  // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
+  for (const libelleChamp of ['rechercher une affaire', 'rechercher', 'recherche', 'search', 'affaire', 'dossier']) {
     for (const quoi of [referenceRecherche(ref), lib].filter(Boolean)) {
       const champ = await g.ev(scriptChamp(libelleChamp));
       if (!champ) break;
@@ -489,7 +499,10 @@ async function ouvrirDossier(s, cible, etape) {
       if (await essayer(true)) return;
     }
   }
-  const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »` : 'aucun champ de recherche trouvé',
+  let visibles = [];
+  if (!diag.champs.length) { try { visibles = (await g.ev(SCRIPT_CHAMPS_VISIBLES)) || []; } catch (_) { /* page fermée */ } }
+  const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »`
+    : `aucun champ de recherche trouvé (champs visibles : ${visibles.length ? visibles.map((v) => `« ${v} »`).join(', ') : 'aucun'})`,
     ref ? `numéro affiché ensuite : ${diag.visible ? 'oui' : 'non'}` : '', `résultat cliqué : ${diag.clic ? 'oui' : 'non'}`,
     diag.enTete ? `page ouverte : ${diag.enTete}` : ''].filter(Boolean).join(' ; ');
   throw new Error(`${ref ? `dossier ${ref} introuvable dans Authentic` : 'dossier introuvable dans Authentic par son nom'} (${dit})`);

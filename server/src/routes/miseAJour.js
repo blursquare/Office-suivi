@@ -38,6 +38,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
     || (() => sauvegarderEtEnregistrer(db, config && config.cheminDb, parametresRepo));
   let installationEnCours = false;
   let installationDebut = 0;
+  let installee = false;   // exe échangé : il ne reste qu'à redémarrer
 
   // Démarrage qui suit une installation automatique : le build en marche est-il celui installé ?
   if (modeExe && parametresRepo.lireJsonBrut) {
@@ -96,6 +97,11 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
     if (!modeExe) throw Object.assign(new Error("La mise à jour ne fonctionne que dans CLAIRE-serveur.exe (ce serveur tourne en mode développement)."), { statut: 409 });
     if (typeof options.redemarrer !== 'function') throw Object.assign(new Error('Redémarrage automatique indisponible sur ce serveur.'), { statut: 503 });
     // Filet : une installation commencée il y a plus de 20 min est tenue pour abandonnée (le téléchargement a son propre délai de 10 min).
+    // Installation déjà RÉUSSIE (exe échangé) mais serveur pas redémarré : redémarrer, jamais retélécharger.
+    if (installee) {
+      setTimeout(() => options.redemarrer(), 300);
+      throw Object.assign(new Error('La nouvelle version est installée : CLAIRE redémarre.'), { statut: 409 });
+    }
     if (installationEnCours && Date.now() - installationDebut > 20 * 60 * 1000) {
       console.warn('[CLAIRE] Mise à jour précédente restée en cours plus de 20 min : reprise.');
       installationEnCours = false;
@@ -119,6 +125,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
       await telechargerExecutable({ asset: disponible.asset, jeton: jeton(), destination: chemins.nouveau, fetchFn, tailleMin: options.tailleMin });
       await echanger(chemins);
       console.log(`[CLAIRE] Mise à jour vers le build ${disponible.build} installée ; redémarrage. Ancienne version conservée : ${NOM_EXE_ANCIEN}`);
+      installee = true;
       return { ok: true, build: disponible.build, ancien: NOM_EXE_ANCIEN };
     } catch (e) {
       installationEnCours = false;
@@ -131,7 +138,12 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
       const r = await installerDerniere();
       // Après l'envoi de la réponse : le navigateur doit savoir que tout s'est bien passé avant que
       // le serveur ne s'arrête. Écouteur posé AVANT res.json, qui peut terminer la réponse aussitôt.
-      res.on('finish', () => setTimeout(() => options.redemarrer(), 300));
+      // « close » aussi : une fenêtre fermée ou rechargée avant la fin de la réponse ne doit pas laisser le nouvel exe en place sans
+      // redémarrer (relecture 0.391.2).
+      let programme = false;
+      const redemarrerUneFois = () => { if (!programme) { programme = true; setTimeout(() => options.redemarrer(), 300); } };
+      res.on('finish', redemarrerUneFois);
+      res.on('close', redemarrerUneFois);
       res.json(r);
     } catch (e) {
       if (!e.statut) console.warn('[CLAIRE] Mise à jour impossible :', e.message);
@@ -148,6 +160,7 @@ function creerRouteurMiseAJour(parametresRepo, db, config, options = {}) {
   // ---- Installation automatique ----
   const etatAuto = { dernierControle: null, resultat: null, echec: null };
   async function tourAuto() {
+    if (installee) { setTimeout(() => options.redemarrer(), 300); return null; }
     if (!modeExe || (installationEnCours && Date.now() - installationDebut <= 20 * 60 * 1000) || !parametresRepo.lireReglagesMiseAJour().auto || !jeton()) return null;
     etatAuto.dernierControle = new Date().toISOString();
     let disponible;

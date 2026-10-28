@@ -165,20 +165,30 @@ async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetc
     if (raison || (e && e.name === 'AbortError')) throw new Error(`GitHub ne répond pas (${raison || 'délai dépassé'}) : vérifiez la connexion internet du poste serveur.`);
     throw new Error("Impossible de joindre GitHub depuis le poste serveur (connexion internet ?).");
   }
-  if (!r.ok || !r.body) { finMinuteurs(); throw erreurGithub(r.status, !!jeton); }
+  if (!r.ok || !r.body) {
+    finMinuteurs();
+    if (r.body && typeof r.body.cancel === 'function') Promise.resolve(r.body.cancel()).catch(() => {});
+    throw erreurGithub(r.status, !!jeton);
+  }
 
   const hachage = crypto.createHash('sha256');
   let taille = 0;
   const sortie = fs.createWriteStream(partiel);
+  // Une erreur d'écriture (disque plein, antivirus) rejette au lieu de faire tomber le serveur ou d'attendre un « drain » qui ne vient pas.
+  const erreurEcriture = new Promise((_, ko) => sortie.on('error', ko));
+  erreurEcriture.catch(() => {});
   try {
     // Lecture morceau par morceau, en course avec l'arrêt : un flux qui ne rend plus rien ne bloque jamais (il est fermé).
     const iterateur = r.body[Symbol.asyncIterator]();
-    const abandon = new Promise((_, ko) => controleur.signal.addEventListener('abort', () => ko(new Error(raison)), { once: true }));
+    const abandon = new Promise((_, ko) => {
+      if (controleur.signal.aborted) ko(new Error(raison));
+      else controleur.signal.addEventListener('abort', () => ko(new Error(raison)), { once: true });
+    });
     abandon.catch(() => {});
     for (;;) {
       let etape;
       try {
-        etape = await Promise.race([iterateur.next(), abandon]);
+        etape = await Promise.race([iterateur.next(), abandon, erreurEcriture]);
       } catch (e) {
         if (typeof iterateur.return === 'function') Promise.resolve(iterateur.return()).catch(() => {});
         throw e;
@@ -188,10 +198,10 @@ async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetc
       const tampon = Buffer.from(etape.value);
       hachage.update(tampon);
       taille += tampon.length;
-      if (!sortie.write(tampon)) await new Promise((ok) => sortie.once('drain', ok));
+      if (!sortie.write(tampon)) await Promise.race([new Promise((ok) => sortie.once('drain', ok)), abandon, erreurEcriture]);
     }
     if (raison) throw new Error(raison);
-    await new Promise((ok, ko) => sortie.end((e) => (e ? ko(e) : ok())));
+    await Promise.race([new Promise((ok, ko) => sortie.end((e) => (e ? ko(e) : ok()))), abandon, erreurEcriture]);
   } catch (e) {
     sortie.destroy();
     await fsp.rm(partiel, { force: true });
