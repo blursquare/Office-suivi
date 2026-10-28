@@ -237,7 +237,10 @@ function executerActionProposition(p) {
     else if (outil.onglet === 'autorisations' && d) ouvrirAutorisationsDepuisFiche(d.id);
     else if (outil.onglet === 'constitution' && d) { definirOnglet('constitution'); choisirDossierConstitution(d.id); }
     else if (outil.onglet) definirOnglet(outil.onglet);
-    else if (d) ouvrirVeilleSignature(d.id);
+    else if (d) {
+      if (d.roleNotaire === 'participant') return 'Pas de fiche de signature : l’acte est reçu par le confrère (participation).';
+      ouvrirVeilleSignature(d.id);
+    }
     return 'Document ouvert dans son outil : relisez-le avant de l’utiliser.';
   }
   if (p.type === 'tache') { poserTacheDepuisProposition(p); return 'Tâche ajoutée dans votre liste « À faire ».'; }

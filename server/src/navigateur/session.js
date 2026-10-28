@@ -18,6 +18,7 @@ const MAX_ELEMENTS = 160;
 const MAX_TEXTE_PAGE = 9000;
 const MAX_DOCUMENTS = 20;
 const MAX_OCTETS_DOCUMENT = 25 * 1024 * 1024;
+const DELAI_NAVIGATION_MS = 45000;
 const TYPES_DOCUMENTS = /^(application\/pdf|application\/x-pdf|image\/(png|jpe?g|gif|tiff))/i;
 
 /** Pure : l'hôte d'une adresse est-il dans la liste (le domaine lui-même ou un sous-domaine) ? https seulement (http pour la seule
@@ -152,6 +153,12 @@ class SessionNavigation {
       return;
     }
     if (m.method === 'Fetch.requestPaused') await this.surRequete(m.sessionId, m.params);
+    // Une boîte de dialogue de la page bloque toute navigation tant qu'elle est ouverte : « Quitter la page ? » et une alerte se ferment
+    // (on quitte, rien n'est envoyé), une confirmation ou une saisie est TOUJOURS refusée (jamais un « OK » à une suppression).
+    if (m.method === 'Page.javascriptDialogOpening') {
+      const accepter = ['beforeunload', 'alert'].includes(String(m.params && m.params.type));
+      await this.cdp.envoyer('Page.handleJavaScriptDialog', { accept: accepter }, m.sessionId).catch(() => {});
+    }
   }
 
   /** Le filtre de la liste blanche sur un onglet ou un cadre. Rend faux s'il n'a pas pu être posé. @param {string} session */
@@ -286,9 +293,41 @@ class SessionNavigation {
   async aller(adresse) {
     if (!adresseAutorisee(adresse, this.domaines)) throw Object.assign(new Error('adresse hors des sites autorisés'), { refus: true });
     const o = this.ongletActif();
-    const r = await this.cdp.envoyer('Page.navigate', { url: adresse }, o.session);
-    if (r.errorText && !/ERR_ABORTED/.test(r.errorText)) throw new Error(`page non chargée (${r.errorText})`);
-    await this.attendreStable();
+    // Un site lent (étude 28/10 : « Page.navigate : délai dépassé » sur Authentic) : la navigation continue après le délai de la
+    // commande — on attend qu'elle aboutisse, puis un second essai, avant de dire que le site ne répond pas.
+    for (let essai = 1; essai <= 2; essai++) {
+      let r;
+      // Repère posé dans la page actuelle : tant qu'il est là, la nouvelle page n'est pas arrivée (relecture 0.386.2 : un second
+      // chargement du même site prenait l'ancienne page pour la nouvelle).
+      await this.cdp.envoyer('Runtime.evaluate', { expression: 'window.__claireAvant = 1' }, o.session, 5000).catch(() => {});
+      try {
+        r = await this.cdp.envoyer('Page.navigate', { url: adresse }, o.session, DELAI_NAVIGATION_MS);
+      } catch (e) {
+        if (!/délai dépassé/.test(String(e && e.message))) throw e;
+        if (await this.pageArrivee(adresse, DELAI_NAVIGATION_MS)) { await this.attendreStable(); return; }
+        if (essai === 2) throw new Error('le site ne répond pas (page non chargée après plusieurs minutes) : réessayer plus tard ; si cela dure, vérifier l’accès à Internet du serveur');
+        continue;
+      }
+      if (r.errorText && !/ERR_ABORTED/.test(r.errorText)) {
+        if (essai === 2 || !/TIMED_OUT|CONNECTION|NETWORK|NAME_NOT_RESOLVED|INTERNET/.test(r.errorText)) throw new Error(`page non chargée (${r.errorText})`);
+        await attendre(3000);
+        continue;
+      }
+      await this.attendreStable();
+      return;
+    }
+  }
+
+  /** La page demandée a-t-elle fini par arriver (même site, document chargé) ? @param {string} adresse @param {number} maxMs */
+  async pageArrivee(adresse, maxMs) {
+    const hote = (() => { try { return new URL(adresse).host; } catch (_) { return ''; } })();
+    const fin = Date.now() + maxMs;
+    while (Date.now() < fin) {
+      const etat = await this.evaluer('[location.host, document.readyState, !!window.__claireAvant]').catch(() => null);
+      if (etat && hote && etat[0] === hote && etat[1] !== 'loading' && !etat[2]) return true;
+      await attendre(1000);
+    }
+    return false;
   }
 
   /** La page lue : titre, adresse, texte, éléments numérotés. */

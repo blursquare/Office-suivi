@@ -164,7 +164,8 @@ function revueDuMatin(dossiers, aujourdhui, ctx) {
 function veilleSignature(dossiers, aujourdhui, ctx) {
   const sortie = [];
   for (const d of dossiers || []) {
-    if (!dossierOuvert(d) || estSuccession(d) || !estIso(d.rendezVousSignature)) continue;
+    // Jamais en participation : l'acte est reçu par le confrère (étude 28/10).
+    if (!dossierOuvert(d) || estSuccession(d) || d.roleNotaire === 'participant' || !estIso(d.rendezVousSignature)) continue;
     const avant = joursEntre(aujourdhui, d.rendezVousSignature);
     if (!(avant >= 0 && avant <= JOURS_VEILLE_SIGNATURE)) continue;
     const quand = avant === 0 ? 'aujourd’hui' : avant === 1 ? 'demain' : `le ${dateFr(d.rendezVousSignature)}`;

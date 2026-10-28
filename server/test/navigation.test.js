@@ -378,3 +378,32 @@ test('commune choisie dans la liste du site (essai du 16/10, Chaumont-sur-Tharon
   assert.equal(communeDansListeCadastre([{ value: 'B1', text: 'VILLEFRANCHE SUR CHER - 41200' }], 'Villefranche-sur-Cher', '41200'), 'B1');
   assert.equal(communeDansListeCadastre([{ value: 'C1', text: 'COEUVRES ET VALSERY - 02600' }], 'Cœuvres-et-Valsery', ''), 'C1');
 });
+
+test('navigation lente (étude 28/10, « Page.navigate : délai dépassé ») : la page arrivée après le délai est prise, sinon un second essai, puis un message clair ; une boîte de dialogue : « Quitter » accepté, confirmation toujours refusée', async () => {
+  const { SessionNavigation } = require('../src/navigateur/session');
+  const { DOMAINES_CADASTRE } = require('../src/navigateur/planCadastre');
+  const url = 'https://www.cadastre.gouv.fr/scpc/accueil.do';
+  const faux = (arrivee) => {
+    const envois = [];
+    return { envois, domaines: DOMAINES_CADASTRE, ongletActif: () => ({ session: 'S' }), stables: 0, evaluer: async () => 1,
+      cdp: { envoyer: async (m, p) => { envois.push([m, p]); if (m === 'Page.navigate') throw new Error('Page.navigate : délai dépassé'); return {}; } },
+      pageArrivee: async () => arrivee.shift(), attendreStable: async function () { this.stables++; } };
+  };
+  const lente = faux([true]);
+  await SessionNavigation.prototype.aller.call(lente, url);
+  assert.equal(lente.stables, 1, 'page arrivée après le délai : on continue');
+  const reprise = faux([false, true]);
+  await SessionNavigation.prototype.aller.call(reprise, url);
+  assert.equal(reprise.envois.filter((e) => e[0] === 'Page.navigate').length, 2, 'second essai');
+  await assert.rejects(SessionNavigation.prototype.aller.call(faux([false, false]), url), /ne répond pas/);
+  // L'ancienne page (même site, repère encore posé) n'est jamais prise pour la nouvelle.
+  let n = 0;
+  const ancienne = { evaluer: async () => (n++ < 2 ? ['www.cadastre.gouv.fr', 'complete', true] : ['www.cadastre.gouv.fr', 'complete', false]) };
+  assert.equal(await SessionNavigation.prototype.pageArrivee.call(ancienne, url, 10000), true);
+  assert.ok(n >= 3, 'attend que le repère ait disparu');
+
+  const dialogues = [];
+  const s = { cdp: { envoyer: async (m, p) => { dialogues.push([m, p.accept]); return {}; } } };
+  for (const type of ['beforeunload', 'alert', 'confirm', 'prompt']) await SessionNavigation.prototype.surEvenement.call(s, { method: 'Page.javascriptDialogOpening', sessionId: 'S', params: { type } });
+  assert.deepEqual(dialogues.map((d) => d[1]), [true, true, false, false]);
+});

@@ -52,9 +52,9 @@ function debutVeilleSignature(debut) {
 }
 
 // Pure : la fiche est-elle « due » — rendez-vous dans les 48 prochaines heures, ou dès le vendredi 17 h si ces 48 h tombent un week-end (et pas encore passé), vente non archivée et pas déjà signée.
-// Jamais pour une succession (autre déroulé, pas de conditions de vente).
+// Jamais pour une succession (autre déroulé, pas de conditions de vente), ni en participation (étude 28/10 : l'acte est reçu par le confrère).
 function veilleSignatureDue(d, maintenant) {
-  if (!d || d.archive || estSuccession(d) || signatureFaiteSuivi(d)) return false;
+  if (!d || d.archive || estSuccession(d) || d.roleNotaire === 'participant' || signatureFaiteSuivi(d)) return false;
   const r = instantsSignatureVeille(d);
   if (!r) return false;
   const t = (maintenant || new Date()).getTime();
@@ -666,6 +666,8 @@ function ouvrirVeilleSignature(id) {
   const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
   const overlay = document.getElementById('veille-signature-overlay');
   if (!d || !overlay || !instantsSignatureVeille(d)) return;
+  // Jamais en participation, même depuis une proposition déposée avant la 0.386.2 (relecture).
+  if (d.roleNotaire === 'participant') { afficherToast('Pas de fiche de signature : l’acte est reçu par le confrère (participation).', 'OK', null); return; }
   veilleEdition = { id, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
   renderVeilleSignature(d, new Date());
   overlay.style.display = 'flex';

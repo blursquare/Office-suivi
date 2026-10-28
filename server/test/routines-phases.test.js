@@ -53,6 +53,7 @@ test('veille de signature : deux jours avant le rendez-vous, une fois par date',
   assert.match(demain[0].resume, /demain à 14 h 30/);
   assert.equal(X.veilleSignature([vente({ rendezVousSignature: '2026-11-02' })], AUJ).length, 0);
   assert.equal(X.veilleSignature([vente({ rendezVousSignature: '2026-10-25' })], AUJ).length, 0, 'passé');
+  assert.equal(X.veilleSignature([vente({ rendezVousSignature: '2026-10-27', roleNotaire: 'participant' })], AUJ).length, 0, 'participation : l’acte est reçu par le confrère');
 });
 
 test('constitution : dossiers créés à compter du 24/10/2026, étude notaire du vendeur au sens large, ou succession', () => {
