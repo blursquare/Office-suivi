@@ -299,7 +299,7 @@ class SessionNavigation {
       let r;
       // Repère posé dans la page actuelle : tant qu'il est là, la nouvelle page n'est pas arrivée (relecture 0.386.2 : un second
       // chargement du même site prenait l'ancienne page pour la nouvelle).
-      await this.evaluer('window.__claireAvant = 1', o.session).catch(() => {});
+      await this.cdp.envoyer('Runtime.evaluate', { expression: 'window.__claireAvant = 1' }, o.session, 5000).catch(() => {});
       try {
         r = await this.cdp.envoyer('Page.navigate', { url: adresse }, o.session, DELAI_NAVIGATION_MS);
       } catch (e) {

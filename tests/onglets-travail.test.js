@@ -71,5 +71,5 @@ test('onglets du jour (étude 28/10 : « le matin remettre à zéro les onglets 
   const lus = [{ type: 'dossier', id: 'a' }];
   assert.equal(app.ongletsTravailDuJour(lus, '2026-10-28', '2026-10-28').length, 1);
   assert.equal(app.ongletsTravailDuJour(lus, '2026-10-27', '2026-10-28').length, 0, 'la veille : à zéro');
-  assert.equal(app.ongletsTravailDuJour(lus, '', '2026-10-28').length, 0, 'jour inconnu (avant cette version) : à zéro');
+  assert.equal(app.ongletsTravailDuJour(lus, '', '2026-10-28').length, 1, 'jour inconnu (le jour de la mise à jour) : gardés');
 });

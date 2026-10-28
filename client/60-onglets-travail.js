@@ -17,9 +17,11 @@
   var CLE_JOUR_ONGLETS_TRAVAIL = 'claire-onglets-travail-jour';
   let jourOngletsTravail = '';
 
-  // Pure : les onglets gardés valent-ils encore aujourd'hui ? Un autre jour (ou un jour inconnu) : aucun.
+  // Pure : les onglets gardés valent-ils encore aujourd'hui ? Un autre jour : aucun. Jour inconnu (poste d'avant cette version, le jour
+  // de la mise à jour) : gardés — sinon chaque fenêtre rechargée par la mise à jour perdrait ses onglets en pleine journée (relecture).
   function ongletsTravailDuJour(lus, jourLu, aujourdhui) {
-    return jourLu && jourLu === aujourdhui && Array.isArray(lus) ? lus : [];
+    if (!Array.isArray(lus)) return [];
+    return !jourLu || jourLu === aujourdhui ? lus : [];
   }
   let ongletsTravail = [];        // [{ type: 'dossier', id } | { type: 'outil', nom }], dans l'ordre affiché
   let ongletTravailGlisse = -1;
