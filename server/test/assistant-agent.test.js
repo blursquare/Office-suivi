@@ -944,3 +944,22 @@ test('authentic_lire (27/10, étape 8) : rien de nominatif ne part des formalit�
   assert.match(envoye, /Préparation définitive/);
   assert.equal(r.reponse, 'Voilà.');
 });
+
+test('28/10 : etat_hypothecaire, urbanisme_demandes, routines_claire proposés ; rien de nominatif ne part de leurs résultats', async () => {
+  for (const n of ['etat_hypothecaire', 'urbanisme_demandes', 'routines_claire']) assert.ok(OUTILS_AGENT.some((t) => t.name === n), n);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('h1', 'etat_hypothecaire', { dossier_id: 'd1', relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Y a-t-il des inscriptions sur Fournier ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 'h1', contenu: {
+    dossier_id: 'd1', relu_le: '2026-10-28T08:00:00Z', lecture_complete: true,
+    inscriptions_en_cours: [{ nature: 'hypotheque conventionnelle', creancier: 'SCI FOURNIER GAUTHIER', montant: '87 000,00 €', date_extreme_effet: '2032-05-05', etat: 'en cours', page: 9 }],
+    radiees_ou_perimees: [], charges_signalees_dans_un_complement: [{ nature: 'Pacte de préférence', page: 5 }]
+  } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, 'aucun nom : ' + envoye.slice(-600));
+  assert.match(envoye, /hypotheque conventionnelle/, 'la nature reste lisible (minuscules, client/137)');
+  assert.match(envoye, /2032-05-05/);
+});

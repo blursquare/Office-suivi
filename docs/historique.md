@@ -22853,3 +22853,18 @@ montant, date extrême d'effet, radiation) suit la même mise en page et reste �
   mise en page avec des noms inventés.
 - Réponses de l'étude (28/10) : pièces à réclamer seulement quand l'étude représente le vendeur ; saisies, hypothèques judiciaires et
   légales et charges des compléments signalées (toutes dans la rubrique Charge ou les compléments : déjà relevées).
+
+### 28/10 — 0.385.0 : les gestes de l'écran aussi par « Demander à CLAIRE » (règle durable)
+
+Étude : « il faut que l'on puisse demander à Claire si elle peut vérifier s'il y a des inscriptions, si la DIA ou le CU ont été demandés et
+quand, et de terminer une routine. À partir de maintenant toute nouvelle fonction, Claire doit pouvoir la réaliser comme moi ou un
+collaborateur à notre demande. » Règle ajoutée à CLAUDE.md (Conventions de travail). Trois outils de l'agent (non stricts, 18 stricts
+gardés), exécutés par le poste (`client/137-agent-gestes-etude.js`) avec les fonctions de l'écran :
+- `etat_hypothecaire` : la lecture gardée sur la fiche (inscriptions en cours, radiées ou périmées, compléments, lecture complète ou non),
+  ou la relecture dans Authentic (`relireEtatHypothecaireAT`, qui rend désormais `{ etat }` ou `{ erreur }`) après la carte « Autoriser » ;
+  nature envoyée en minuscules (en capitales, le masquage la prenait pour un nom) ; nom de la pièce jamais envoyé.
+- `urbanisme_demandes` : DIA (guichet unique ou Authentic, la plus ancienne, `diaEnvoyeeDossier`, réponse attendue `echeanceDiaDossier`,
+  renonciation reçue), CU (guichet `d.gnau.cua` ou Authentic), autres demandes d'Authentic.
+- `routines_claire` : lister les propositions (à décider, autorisées à terminer) ; terminer une proposition autorisée après « Autoriser »
+  (`enregistrerDecisionProposition(…, 'terminee')`).
+Ligne ajoutée au prompt de l'agent ; tests `tests/agent-gestes-etude.test.js` et « rien de nominatif ne part » (assistant-agent).

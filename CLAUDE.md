@@ -1015,6 +1015,11 @@ sont plus appelées par le poste.
 
 ## Conventions de travail
 
+- **Toute nouvelle fonction de CLAIRE doit pouvoir être faite par « Demander à CLAIRE », à la demande d'un collaborateur** (étude 28/10 :
+  « à partir de maintenant toute nouvelle fonction, Claire doit pouvoir la réaliser comme moi ou un collaborateur à notre demande ») : un
+  nouveau bouton, geste ou écran vient avec son outil de l'agent (`server/src/assistantAgent.js` + exécutant sur le poste) qui appelle la
+  MÊME fonction que l'écran — lecture sans carte, écriture après la carte « Autoriser » (client/66) —, son test « rien de nominatif ne part »
+  et sa ligne dans le prompt de l'agent. Jamais « cliquez sur le bouton » quand un outil peut le faire.
 - **Vérifications sur le terrain** (étude, 03/10 — `server/src/verificationsTerrain.js`) : **toute mise à jour qui apporte un
   geste impossible à éprouver ici** (Exchange, Windows, 3CX, Ollama, NAS…) **ajoute son point** à `VERIFICATIONS_TERRAIN`
   (`depuis` = VERSION_APP, `source` serveur/poste/manuel) et l'appel `noterVerification` (serveur) ou

@@ -64,8 +64,8 @@ var relecturesEtatEnCours = new Set();
 
 async function relireEtatHypothecaireAT(dossierId, pjId) {
   const verrou = dossierId + '|' + pjId;
-  if (relecturesEtatEnCours.has(verrou)) { afficherToast('La relecture de cet état est déjà en cours.', 'OK', null); return; }
-  if (!dossiers.some(x => x.id === dossierId)) return;
+  if (relecturesEtatEnCours.has(verrou)) { afficherToast('La relecture de cet état est déjà en cours.', 'OK', null); return { erreur: 'relecture déjà en cours' }; }
+  if (!dossiers.some(x => x.id === dossierId)) return { erreur: 'dossier introuvable' };
   relecturesEtatEnCours.add(verrou);
   afficherToast('CLAIRE ouvre l’état dans Authentic et le relit (une minute environ)…', 'OK', null);
   try {
@@ -100,9 +100,11 @@ async function relireEtatHypothecaireAT(dossierId, pjId) {
     }
     noterVerificationPoste('etat-hypothecaire', { detail: `${etat.inscriptions.length} charge(s) lue(s)` });
     afficherToast(messageEtatHypothecaire(etat), 'OK', null);
+    return { etat };
   } catch (e) {
     noterVerificationPoste('etat-hypothecaire', { ok: false, message: String((e && e.message) || 'erreur').slice(0, 80) });
     afficherToast('État non relu : ' + (e && e.message ? e.message : 'erreur'), 'OK', null);
+    return { erreur: String((e && e.message) || 'erreur').slice(0, 160) };
   } finally {
     relecturesEtatEnCours.delete(verrou);
   }
