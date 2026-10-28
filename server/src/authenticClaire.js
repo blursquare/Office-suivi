@@ -368,8 +368,10 @@ async function seConnecter(s, r, etape) {
 /** Pure : la PREMIÈRE ligne de la page qui commence par une référence d'Authentic (« A 2026 00286 VTE … ») — l'en-tête du dossier affiché
  * (les titres des onglets ne commencent pas par une référence). @param {string} texte */
 function referenceEnTete(texte) {
-  const l = String(texte || '').split('\n').map((x) => x.trim()).find((x) => /^[A-Z]\s+(?:19|20)\d{2}\s+\d{4,6}\b/.test(x));
-  return l ? (/^([A-Z]\s+(?:19|20)\d{2}\s+\d{4,6})\b/.exec(l) || ['', ''])[1].replace(/\s+/g, ' ') : '';
+  // Avec ou sans espaces (« A 2026 00329 » ou « A202600329 », relecture 0.390.1), rendue toujours au format à espaces.
+  const l = String(texte || '').split('\n').map((x) => x.trim()).find((x) => /^[A-Z]\s*(?:19|20)\d{2}\s*\d{4,6}(?!\d)/.test(x));
+  const m = l ? /^([A-Z])\s*((?:19|20)\d{2})\s*(\d{4,6})(?!\d)/.exec(l) : null;
+  return m ? `${m[1]} ${m[2]} ${m[3]}` : '';
 }
 
 /** Pure : le dossier affiché est-il CE dossier ? Référence de l'en-tête égale à la sienne (exigée quand elle est connue) ; sans
@@ -380,8 +382,8 @@ function estCeDossier(texte, cible) {
   if (ref) return referenceEnTete(texte) === ref;
   // Sans référence : l'EN-TÊTE (première ligne qui commence par une référence) porte exactement ce libellé — jamais un titre d'onglet.
   const lib = plat(cible.libelle);
-  const tete = String(texte || '').split('\n').map((x) => x.trim()).find((x) => /^[A-Z]\s+(?:19|20)\d{2}\s+\d{4,6}\b/.test(x));
-  return !!lib && !!tete && plat(tete).replace(/^[a-z]\s+\d{4}\s+\d{4,6}\s+/, '') === lib;
+  const tete = String(texte || '').split('\n').map((x) => x.trim()).find((x) => /^[A-Z]\s*(?:19|20)\d{2}\s*\d{4,6}(?!\d)/.test(x));
+  return !!lib && !!tete && plat(tete).replace(/^[a-z]\s*\d{4}\s*\d{4,6}\s+/, '') === lib;
 }
 
 /**
@@ -402,9 +404,11 @@ async function ouvrirDossier(s, cible, etape) {
   await passerVerificationSilicium(s, etape);
   if (estCeDossier(await g.texte(), cible)) return;
   // Un lien qui porte la référence (« A 2026 00286 VTE … ») ou, sans référence, exactement le libellé.
+  // Le lien porte le numéro avec ou sans espaces (relecture 0.390.1) : les deux formes ; une recherche qui ouvre directement le dossier compte.
   const essayer = async () => {
-    const ok = ref ? await g.cliquerTexte(ref, { geste: 'donnee' }) : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
-    if (!ok) return false;
+    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' }))
+      : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
+    if (!ok) return estCeDossier(await g.texte(), cible);
     await s.attendreStable(15000);
     return estCeDossier(await g.texte(), cible);
   };

@@ -184,4 +184,9 @@ test('recherche d’un dossier par son numéro : sans espace (étude 28/10)', ()
   const A = require('../src/authenticClaire');
   assert.equal(A.referenceRecherche('A 2026 00329'), 'A202600329');
   assert.equal(A.referenceRecherche(''), '');
+  // L'en-tête reconnu avec ou sans espaces, rendu au format à espaces (relecture 0.390.1).
+  assert.equal(A.referenceEnTete('A202600329 VTE DUPONT / MARTIN\nComparants (2)'), 'A 2026 00329');
+  assert.equal(A.referenceEnTete('A 2026 00329 VTE DUPONT / MARTIN'), 'A 2026 00329');
+  assert.ok(A.estCeDossier('A202600329 VTE DUPONT / MARTIN\nComparants (2)', { reference: 'A 2026 00329' }));
+  assert.equal(A.referenceEnTete('A20260032911 autre'), '', 'jamais un numéro de plus de six chiffres');
 });
