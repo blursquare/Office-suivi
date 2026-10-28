@@ -2646,7 +2646,6 @@
   </div>
 </div>
 
-<!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/111-veille-signature.js). -->
 <!-- Courrier de déblocage ou de transfert des fonds à la banque (étude 28/10, client/139-courrier-fonds-banque.js). -->
 <div class="confirm-overlay" id="fonds-banque-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerCourrierFondsBanque(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box cfb-box" role="dialog" aria-modal="true" aria-label="Courrier à la banque">
@@ -2654,6 +2653,7 @@
   </div>
 </div>
 
+<!-- Fiche de veille de signature : pop-up 48 h avant un rendez-vous (étude 24/10, client/111-veille-signature.js). -->
 <div class="confirm-overlay" id="veille-signature-overlay" style="display:none;" onmousedown="if (event.target === this) this.dataset.fond = '1'" onclick="if (event.target === this && this.dataset.fond) fermerVeilleSignature(); this.dataset.fond = ''">
   <div class="confirm-box nas-choix-box veille-box" role="dialog" aria-modal="true" aria-label="Fiche de signature">
     <div id="veille-signature-contenu"></div>

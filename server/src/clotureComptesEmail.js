@@ -54,7 +54,11 @@ function etapeClotureComptes(d) {
 
 const RE_OBJET_COMPTES = /COMPTE|CLOTUR|TRANSFERT|DEBLOCAGE|BANQU|AVOIRS|SOLDE/;
 // Objet explicite : le déblocage ou le transfert des fonds / des comptes (preuve suffisante à elle seule).
-const RE_OBJET_FONDS_EXPLICITE = /DEBLOCAGE|TRANSFERT DES (FONDS|COMPTES|AVOIRS)/;
+const RE_OBJET_FONDS_EXPLICITE = /(?:DEBLOCAGE|TRANSFERT) DES (FONDS|COMPTES|AVOIRS)/;
+// Jamais une demande de frais d'obsèques ni un capital d'assurance-vie (audit 0.388.0) : ce n'est pas le déblocage des comptes.
+const RE_OBJET_PAS_DEBLOCAGE = /OBSEQUE|FUNERAIRE|FUNERAILLE|ASSURANCE/;
+// Un confrère (adresse @notaires.fr) n'est pas la banque.
+const RE_ADRESSE_NOTAIRE = /@notaires\.fr$/;
 
 /** Les mots d'un nom en capitales (≥ 3 lettres, hors mots vides) : les noms de famille. @param {string} brut */
 function nomsEnCapitales(brut) {
@@ -104,7 +108,16 @@ function successionACocher(d, explicite) {
  * @param {(a: string) => boolean} [adresseEtude]
  */
 function courrierEnvoyeParEmail(d, envoye, adresseEtude) {
-  const explicite = !!envoye && RE_OBJET_FONDS_EXPLICITE.test(normaliser(envoye.objet));
+  const objetNorm = envoye ? normaliser(envoye.objet) : '';
+  let explicite = !!envoye && RE_OBJET_FONDS_EXPLICITE.test(objetNorm) && !RE_OBJET_PAS_DEBLOCAGE.test(objetNorm);
+  // Voie explicite : seulement un email parti APRÈS la signature de la notoriété (date connue) — un déblocage demandé avant (frais
+  // d'obsèques…) et gardé 45 jours ne coche jamais l'étape une fois la notoriété signée (audit 0.388.0).
+  if (explicite) {
+    const etape = etapesSuccession(d).find((e) => e.type === etapeClotureComptes(d));
+    const jourEnvoi = jourParis(envoye.date);
+    if (!etape || !etape.iso || !jourEnvoi || jourEnvoi < etape.iso) explicite = false;
+    else if (!(envoye.a || []).some((x) => /@/.test(String(x)) && !RE_ADRESSE_NOTAIRE.test(String(x).toLowerCase()) && !(adresseEtude && adresseEtude(String(x).toLowerCase())))) explicite = false;
+  }
   if (!envoye || !successionACocher(d, explicite)) return null;
   const heritiers = new Set(adressesDuDossier(d));
   const externes = (envoye.a || []).map((x) => String(x).toLowerCase())

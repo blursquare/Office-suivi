@@ -20,8 +20,8 @@ function etapeFondsBanque(sorte) { return sorte === 'transfert' ? 'transfertComp
 
 // Pièces proposées depuis le dossier du NAS, reconnues par le NOM du fichier (jamais par le contenu, règle des pièces).
 var PIECES_FONDS_BANQUE = [
-  { cle: 'deces', libelle: 'Acte de décès', re: /(?:acte|extrait|copie)?.{0,20}d[ée]\s?c[èe]s/i, sauf: /d[ée]claration|succession/i },
-  { cle: 'devolution', libelle: 'Attestation de dévolution', re: /d[ée]volution|notori[ée]t[ée]/i },
+  { cle: 'deces', libelle: 'Acte de décès', re: /(?:acte|extrait|copie|certificat).{0,20}d[ée]\s?c[èe]s|^d[ée]\s?c[èe]s/i, sauf: /d[ée]claration de succession|au jour du d[ée]c[èe]s|projet/i },
+  { cle: 'devolution', libelle: 'Attestation de dévolution', re: /d[ée]volution|notori[ée]t[ée]/i, sauf: /projet/i },
   { cle: 'rib', libelle: 'RIB de l’étude', re: /(?:^|[^a-z])rib(?:[^a-z]|$).*(?:office|[ée]tude|gossart|notaire|cdc|caisse des d[ée]p[oô]ts)|(?:office|[ée]tude|gossart|notaire|cdc).*(?:^|[^a-z])rib(?:[^a-z]|$)/i },
   { cle: 'autorisations', libelle: 'Autorisations des héritiers', re: /autorisation/i }
 ];
@@ -30,7 +30,8 @@ var PIECES_FONDS_BANQUE = [
 // `fichiers` : [{ chemin, nom, date? }].
 function piecesNasFondsBanque(fichiers) {
   const liste = (Array.isArray(fichiers) ? fichiers : []).filter(f => f && f.chemin && /\.pdf$/i.test(String(f.nom || f.chemin)));
-  const nomDe = (f) => String(f.nom || f.chemin.split('/').pop() || '');
+  // Le NOM du fichier seul (jamais ses sous-dossiers ; « \\ » sur le serveur Windows, audit 0.388.0).
+  const nomDe = (f) => String(f.nom || String(f.chemin).split(/[\\/]/).pop() || '');
   const parDate = (a, b) => String(b.date || '').localeCompare(String(a.date || ''));
   const prises = new Set();
   const sortie = [];
@@ -86,7 +87,7 @@ async function ouvrirCourrierFondsBanque(id, sorte, banqueCherchee) {
       const r = await fetchAvecAuth('/api/nas/fichiers?recents=300&dossier=' + encodeURIComponent(d.nasDossier));
       const j = r.ok ? await r.json() : { fichiers: [] };
       const base = String(j.base || '');
-      const fichiers = (j.fichiers || []).map(f => typeof f === 'string' ? { chemin: f } : f).map(f => ({ chemin: (base ? base + '/' : '') + String(f.chemin || f.nom || ''), nom: String(f.chemin || f.nom || '').split('/').pop(), date: f.modifieLe || '' }));
+      const fichiers = (j.fichiers || []).map(f => typeof f === 'string' ? { chemin: f } : f).map(f => ({ chemin: (base ? base + '/' : '') + String(f.chemin || f.nom || ''), nom: String(f.nom || String(f.chemin || '').split(/[\\/]/).pop()), date: f.modifieLe || '' }));
       if (cfbEtat === e) { e.pieces = piecesNasFondsBanque(fichiers); e.chargement = false; renderCourrierFondsBanque(); }
     } catch (err) { if (cfbEtat === e) { e.chargement = false; renderCourrierFondsBanque(); } }
   }
@@ -229,6 +230,11 @@ async function preparerEmailFondsBanque() {
     fermerCourrierFondsBanque();
     const r = await livrerEmailDossier({ destinataire: e.email, sujet: objetEmailFondsBanque(sorte, defunt, d), corps: texteCorpsDocument(doc), pieces,
       responsableSignature: d.responsable, dossierId: d.id, geste: 'fondsBanque:' + sorte });
+    // Messagerie du poste (mailto) : les pièces ne peuvent pas suivre — le dire, et télécharger le courrier.
+    if (r && r.ok && r.piecesNonJointes) {
+      afficherToast('Votre messagerie ne reçoit pas les pièces jointes : le courrier est téléchargé, joignez-le avec les pièces du NAS.', 'OK', null);
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nom; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    }
     if (r && r.ok) { noterCourrierFondsBanque(d, sorte, banque, r.mode); noterVerificationPoste('fonds-banque-email', { detail: r.mode === 'envoye' ? 'envoyé depuis CLAIRE' : 'préparé' }); }
     return r;
   } catch (err) {
@@ -246,10 +252,14 @@ function noterCourrierFondsBanque(d, sorte, banque, mode) {
   d.succession.courriersFonds = (Array.isArray(d.succession.courriersFonds) ? d.succession.courriersFonds : []).concat({ sorte, banque: String(banque || '').slice(0, 120), le: isoAujourdhuiLocal(), envoye: mode === 'envoye' }).slice(-30);
   const quoi = sorte === 'transfert' ? 'transfert' : 'déblocage';
   ajouterHistorique(d, `Courrier de ${quoi} des fonds ${mode === 'envoye' ? 'envoyé' : 'préparé'} par email${banque ? ' à ' + banque : ''}`);
-  const etape = etapeFondsBanque(sorte);
-  if (mode === 'envoye' && !(d.echeancesValidees || {})[etape]) {
+  // L'étape DE LA FICHE (une seule selon le conjoint survivant, jamais celle de la sorte choisie), et seulement si elle est ouverte (notoriété
+  // signée) ; `detectionsEmails.clotureComptes` posé : le serveur ne la recoche jamais après une décoche à la main (audit 0.388.0).
+  const etape = etapeFondsBanque(sorteFondsBanqueDossier(d));
+  const etapeFiche = etapesSuccession(d, isoAujourdhuiLocal()).find(x => x.type === etape);
+  if (mode === 'envoye' && etapeFiche && etapeFiche.active && !etapeFiche.fait) {
     d.echeancesValidees = Object.assign({}, d.echeancesValidees, { [etape]: true });
-    ajouterHistorique(d, `${sorte === 'transfert' ? 'Transfert des comptes au profit du conjoint survivant' : 'Déblocage des fonds auprès des banques'} marqué fait (courrier envoyé depuis CLAIRE)`);
+    d.detectionsEmails = Object.assign({}, d.detectionsEmails, { clotureComptes: isoAujourdhuiLocal() });
+    ajouterHistorique(d, `${etape === 'transfertComptes' ? 'Transfert des comptes au profit du conjoint survivant' : 'Déblocage des fonds auprès des banques'} marqué fait (courrier envoyé depuis CLAIRE)`);
     if (typeof terminerRoutineDossier === 'function') terminerRoutineDossier(d.id, 'autorisations-notoriete');
   }
   sauvegarder(d);

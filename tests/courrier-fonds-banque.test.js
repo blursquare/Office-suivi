@@ -28,8 +28,11 @@ test('pièces du NAS proposées par leur nom ; objet qui nomme le défunt ; sort
     { chemin: 'S/Attestation de dévolution.pdf', nom: 'Attestation de dévolution.pdf' },
     { chemin: 'S/RIB office.pdf', nom: 'RIB office.pdf' },
     { chemin: 'S/Autorisation Paul.pdf', nom: 'Autorisation Paul.pdf' }, { chemin: 'S/Autorisation Marie.pdf', nom: 'Autorisation Marie.pdf' },
-    { chemin: 'S/Courrier banque.pdf', nom: 'Courrier banque.pdf' }, { chemin: 'S/notes.docx', nom: 'notes.docx' }
+    { chemin: 'S/Courrier banque.pdf', nom: 'Courrier banque.pdf' }, { chemin: 'S/notes.docx', nom: 'notes.docx' },
+    { chemin: 'S\\Notoriété\\Projet notoriété.pdf' }, { chemin: 'S\\Banque\\Solde au jour du décès.pdf' }
   ]);
+  assert.ok(p.some((x) => x.nom === 'Projet notoriété.pdf' && !x.coche), 'nom du fichier seul (serveur Windows), un projet n’est pas l’attestation');
+  assert.ok(p.some((x) => x.nom === 'Solde au jour du décès.pdf' && !x.coche), 'un relevé « au jour du décès » n’est pas l’acte de décès');
   assert.equal(p.filter((x) => x.coche).map((x) => x.nom).join(','), 'Acte de décès EXEMPLE.pdf,Attestation de dévolution.pdf,RIB office.pdf,Autorisation Paul.pdf,Autorisation Marie.pdf');
   assert.ok(p.some((x) => x.nom === 'Déclaration de succession.pdf' && !x.coche), 'la déclaration n’est pas l’acte de décès');
   assert.ok(!p.some((x) => x.nom === 'notes.docx'), 'PDF seulement');
@@ -38,4 +41,13 @@ test('pièces du NAS proposées par leur nom ; objet qui nomme le défunt ; sort
   assert.equal(app.objetEmailFondsBanque('deblocage', DEFUNT, { referenceAuthentic: 'A 2026 00001' }), 'Succession de Madame Jeanne EXEMPLE — Déblocage des fonds — Réf. A 2026 00001');
   assert.equal(app.etapeFondsBanque('transfert'), 'transfertComptes');
   assert.equal(app.etapeFondsBanque('deblocage'), 'deblocageFonds');
+});
+
+test('« Demander à CLAIRE » : une banque saisie à la main ne part jamais en clair (« une banque »)', async () => {
+  const app = chargerApplication();
+  const vm = require('node:vm');
+  vm.runInContext("dossiers.push({ id: 's1', nom: 'EXEMPLE', typeAffaire: 'succession', succession: { type: 'notoriete-ds', courriersFonds: [{ sorte: 'deblocage', banque: 'Agence de M. Paul DURAND', le: '2026-10-28', envoye: true }] }, pieces: {}, historique: [], parties: [] })", app);
+  const r = await app.courrierFondsBanqueAgent({ dossier_id: 's1', sorte: '', banque: '', ouvrir: false });
+  assert.equal(r.courriers_deja[0].banque_du_repertoire, 'une banque');
+  assert.equal(r.sorte, 'deblocage');
 });

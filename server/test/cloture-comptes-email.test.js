@@ -64,7 +64,12 @@ test('envois gardés pour un recoupement plus tard : 45 jours, sans doublon', ()
 });
 
 test('déblocage / transfert des fonds dit dans l’objet (étude 28/10) : l’email envoyé suffit, sans courrier d’Authentic', () => {
-  const d = succession({ authentic: {} });
+  const d = succession({ authentic: {}, succession: { type: 'notoriete-ds', notorieteSigneeLe: '2026-10-15' } });
+  // Avant la notoriété (frais d'obsèques…), obsèques ou assurance, ou à un confrère : jamais (audit 0.388.0).
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet: 'Succession LEFEBVRE — Déblocage des fonds', a: ['b@banque-exemple.fr'], date: '2026-10-10T09:00:00Z' }, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet: 'Succession LEFEBVRE — Déblocage des fonds pour les obsèques', a: ['b@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(d, { objet: 'Succession LEFEBVRE — Transfert des fonds', a: ['office.x@notaires.fr'], date: '2026-10-20T09:00:00Z' }, etude), null);
+  assert.equal(C.courrierEnvoyeParEmail(succession({ authentic: {} }), { objet: 'Succession LEFEBVRE — Déblocage des fonds', a: ['b@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude), null, 'date de la notoriété inconnue : double preuve');
   const objet = 'Succession de Madame Marie LEFEBVRE — Déblocage des fonds';
   const c = C.courrierEnvoyeParEmail(d, { objet, a: ['successions@banque-exemple.fr'], date: '2026-10-20T09:00:00Z' }, etude);
   assert.ok(c && c.email);
