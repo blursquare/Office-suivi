@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.395.1';
+  const VERSION_APP = '0.395.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.395.2', date: '2026-10-29 00:55', resume: "Compte rendu d’ouverture d’une succession : « pas de mutuelle » ou « sans EHPAD » ne cochent plus de courrier, « retraité » est reconnu, un choix fait à la main n’est plus écrasé ; lecture d’un ancien Word (.doc) protégée contre les fichiers piégés." },
   { version: '0.395.1', date: '2026-10-29 00:45', resume: "Discussions : « Modifier » un message fonctionne aussi dans un fil de discussion (le champ de correction n’y apparaissait pas)." },
   { version: '0.395.0', date: '2026-10-29 00:30', resume: "Plus épuré : l’appel de fonds garde l’espace de dépôt des pièces et un bouton « Modifier les champs » qui déplie le formulaire ; les courriers de la Constitution sont de simples lignes cochées avec un bouton « Modifier » (l’édition s’ouvre seule quand l’adresse est vide). Succession : CLAIRE lit le compte rendu d’ouverture (Word du dossier sur le NAS) et coche ou ajoute les courriers aux banques citées, à l’EHPAD, à la mutuelle et à la caisse de retraite. Discussions : les notifications d’un dossier arrivent dans la conversation de ce dossier, et les pièces trouvées n’y sont plus annoncées (la pastille de la fiche suffit)." },
   { version: '0.394.1', date: '2026-10-28 23:54', resume: "Interface épurée : les textes d’explication des écrans (Nouveau dossier, Constitution, autorisations, Routines, Discussions…) sont raccourcis. Constitution de dossier : la démarche en ligne de Blois (non-péril) n’est plus grisée, son lien est le geste." },

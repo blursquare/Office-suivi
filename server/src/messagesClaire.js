@@ -202,7 +202,7 @@ function creerAiguillageNotifications(repo, administrateurs) {
     // Pièces trouvées (étude 28/10) : déjà dans le dossier, avec sa pastille — jamais un message de CLAIRE (Teams seulement pour qui l'a demandé).
     if (options && options.sansConversationClaire) return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
     // Une notification liée à un dossier va dans la conversation DE CE DOSSIER (étude 28/10), une seule fois pour toute l'étude.
-    const dossierId = options && typeof options.dossierId === 'string' ? options.dossierId.slice(0, 80) : '';
+    const dossierId = options && typeof options.dossierId === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/.test(options.dossierId) ? options.dossierId : '';
     if (dossierId && qui.length) {
       const { ajouterMessage, canalDuDossier, lireMessages, canalValide } = require('./canaux/canaux');
       const canal = canalDuDossier(dossierId);

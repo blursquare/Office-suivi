@@ -23068,3 +23068,7 @@ Textes d'aide raccourcis (index.html, client/40, 49, 51, 68, 69, 72, 85, 108, 11
 ### 0.395.1 (28/10, étude : « répare le modifier un message dans les conversations »)
 
 `htmlEditionMessageCanal` (client/115) : le champ de correction est partagé par la liste et le fil (`htmlMessageFil`, client/120, l'oubliait : le crayon ne faisait rien dans un fil) ; le message de départ d'un fil se corrige dans la liste (un seul `#canal-edition`).
+
+### 0.395.2 (suites de la relecture et de l'audit de la 0.395.0)
+
+Voir `docs/audits/2026-10-29-0.395.0.md`, section « Suites » : `oleSain` avant `word-extractor`, négations et faux positifs du compte rendu, choix à la main gardé.

@@ -379,7 +379,7 @@
     ['ehpad', 'mutuelle', 'retraite'].forEach(modele => {
       const voulu = cr[modele] === true;
       const existant = e.documents.find(x => x.modele === modele);
-      if (existant) existant.actif = voulu;
+      if (existant) { if (!(e.cochesALaMain || {})[existant.id]) existant.actif = voulu; }
       else if (voulu) ajouterDocSuccessionConstitution(modele, false);
     });
     const banques = Array.isArray(cr.banques) ? cr.banques : [];
@@ -673,7 +673,7 @@
     }
     renderConstitution();
   }
-  function cstBasculerDoc(id, actif) { const x = documentConstitution(id); if (x) { x.actif = !!actif; renderConstitution(); } }
+  function cstBasculerDoc(id, actif) { const x = documentConstitution(id); if (x) { x.actif = !!actif; if (cstEtat) (cstEtat.cochesALaMain = cstEtat.cochesALaMain || {})[id] = true; renderConstitution(); } }
   function cstLignesDoc(id, texte) {
     const x = documentConstitution(id);
     if (!x) return;
