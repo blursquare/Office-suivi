@@ -38,3 +38,18 @@ test('la citrouille est dessinée souriante à contour brun, avec un masque prop
   assert.notEqual(id(a), id(b));
   assert.ok(a.includes(`url(#${id(a)})`));
 });
+
+test('appliquerSaison pose data-saison pendant Halloween et le retire ensuite', () => {
+  const attributs = {};
+  const racine = { setAttribute: (k, v) => { attributs[k] = v; }, removeAttribute: (k) => { delete attributs[k]; } };
+  const avant = app.document.documentElement;
+  app.document.documentElement = racine;
+  try {
+    app.appliquerSaison(le(2026, 10, 27));
+    assert.equal(attributs['data-saison'], 'halloween');
+    app.appliquerSaison(le(2026, 11, 3));
+    assert.equal(attributs['data-saison'], undefined, 'le 3 novembre le décor est retiré');
+    app.appliquerSaison(le(2026, 10, 24));
+    assert.equal(attributs['data-saison'], 'halloween');
+  } finally { app.document.documentElement = avant; }
+});

@@ -1705,6 +1705,9 @@
     if (halloweenActif(date)) racine.setAttribute('data-saison', 'halloween');
     else if (typeof racine.removeAttribute === 'function') racine.removeAttribute('data-saison');
   }
+  // Une fenêtre laissée ouverte change de saison toute seule (le 3 novembre, ou le 24 octobre) : relu chaque heure et au retour au premier plan.
+  if (typeof window !== 'undefined' && typeof setInterval === 'function') setInterval(() => appliquerSaison(), 60 * 60 * 1000);
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', () => { if (!document.hidden) appliquerSaison(); });
 
   function chargerAccent() {
     appliquerSaison();
