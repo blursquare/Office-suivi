@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.390.1';
+  const VERSION_APP = '0.390.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.390.2', date: '2026-10-28 12:25', resume: "Ventes : une seule fiche à imprimer. Le petit bouton « Imprimer » de la fiche ouvre désormais la fiche de signature (la même que le bouton « Fiche de signature », avec la case et la date plus grosses), même sans rendez-vous fixé ; on peut aussi la demander à CLAIRE. Les successions gardent leur fiche actuelle en attendant la leur." },
   { version: '0.390.1', date: '2026-10-28 11:56', resume: "Connexion de CLAIRE à Authentic : l’adresse de l’étude (https://www.cloud-fichorga.fr/41089-Authentic) est désormais celle par défaut ; une adresse réduite à la racine du site, qui ne répond pas, est remplacée par elle. La recherche d’un dossier par son numéro se tape sans espace (« A202600329 »), comme Authentic l’attend." },
   { version: '0.390.0', date: '2026-10-28 11:20', resume: "Ventes : dans l’onglet Fonds, CLAIRE compare le solde de l’affaire lu dans Authentic au « Solde à verser » de l’appel de fonds — égal à 2 € près, ou l’écart, toujours « à vérifier » (le solde peut comprendre un acompte, le dépôt de garantie ou des provisions) ; rien n’est validé seul ; « Lire la comptabilité » / « Relire » sur place, et la même réponse en le demandant à CLAIRE. Quand Authentic ne se charge pas, le message dit maintenant si le serveur lui-même joint le site (alors c’est son navigateur qui bloque) ou non (accès à Internet, proxy ou pare-feu du serveur)." },
   { version: '0.389.0', date: '2026-10-28 10:55', resume: "CLAIRE lit la comptabilité d’un dossier dans Authentic (onglet « Comptabilité », lecture seule) : solde de l’affaire, solde du compte, taxes et dernières opérations, montrés dans le bloc Authentic de l’onglet Dossier (« Lire la comptabilité » / « Relire »). On peut aussi le demander à CLAIRE (« quel est le solde de la succession X ? ») : elle donne la dernière lecture, ou la relit dans Authentic après votre accord." },

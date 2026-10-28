@@ -17,7 +17,9 @@
     repertoire: { libelle: 'Répertoire', onglet: 'confreres' },
     claire_scan: { libelle: 'Claire Scan', onglet: 'scans' },
     nouveau_dossier: { libelle: 'Nouveau dossier', onglet: 'nouveau' },
-    constitution: { libelle: 'Constitution de dossier', onglet: 'constitution' }
+    constitution: { libelle: 'Constitution de dossier', onglet: 'constitution' },
+    // La fiche de signature d'une vente (étude 28/10 : la même que le bouton « Imprimer » de la fiche) : aperçu puis PDF, pas un onglet.
+    fiche_signature: { libelle: 'Fiche de signature', onglet: '' }
   };
   var MAX_RESULTATS_REPERTOIRE_AGENT = 15;
 
@@ -56,6 +58,7 @@
     if (outil === 'appel_fonds' && d) { preparerAppelFondsDepuisDossier(d.id); fin(); return; }
     if (outil === 'controle_urbanisme' && d) { ouvrirPreemptionDepuisFiche(d.id); fin(); return; }
     if (outil === 'constitution' && d) { ouvrirConstitutionDepuisFiche(d.id); fin(); return; }
+    if (outil === 'fiche_signature' && d) { ouvrirVeilleSignature(d.id, { manuel: true }); fin(); return; }
     definirOnglet(o.onglet);
     if (d && outil === 'quotites') choisirDossierQuotites(d.id);
     fin();
@@ -294,6 +297,13 @@
     if (!o) return { erreur: 'outil inconnu' };
     const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
     if (e.dossier_id && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers)' };
+    if (e.outil === 'fiche_signature') {
+      if (e.mode !== 'ouvrir') return { erreur: 'fiche de signature : mode « ouvrir » seulement' };
+      if (!d || estSuccession(d)) return { erreur: 'la fiche de signature est celle d’une vente : donne le dossier de vente' };
+      poserMessageAssistant('claire', `<p>Fiche de signature — ${escapeHtml(libelleDossierAffiche(d))} : prête à ouvrir (aperçu, cases et dates à compléter, puis PDF).</p>`,
+        [{ libelle: 'Ouvrir la fiche de signature', principal: true, action: () => ouvrirVeilleSignature(d.id, { manuel: true }) }]);
+      return { fait: true, affiche_a_l_utilisateur: 'bouton « Ouvrir la fiche de signature » affiché' };
+    }
     if (e.mode === 'ouvrir') {
       // Un outil qui se monte dans le panneau (étude 21/10 : « oui, je le veux ») s'y ouvre tout de suite, prérempli ; les autres (Claire Scan,
       // Nouveau dossier) gardent leur onglet de travail et le panneau montre leur carte.

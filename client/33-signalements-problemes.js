@@ -1105,6 +1105,9 @@
   function imprimerFiche(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
+    // Une seule fiche pour une vente (étude 28/10) : la fiche de signature (client/111, case et date plus grosses), aperçu puis PDF.
+    // Une succession garde la fiche ci-dessous, en attendant la sienne.
+    if (!estSuccession(d) && typeof ouvrirVeilleSignature === 'function') { ouvrirVeilleSignature(id, { manuel: true }); return; }
     const analyse = d.analyseJuridique || { documents: [], engagements: [] };
     const docs = (analyse.documents || []).map(x => typeof x === 'string' ? x : x.label);
     const engs = (analyse.engagements || []).map(x => typeof x === 'string' ? x : x.phrase);

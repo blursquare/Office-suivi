@@ -239,3 +239,16 @@ test('un mot plus large que la ligne (adresse web dans une note) est coupé, jam
   assert.equal(lignes.map(l => l.map(x => x.t).join('')).join('').replace(/ /g, ''), ('voir' + mot + 'ensuite'));
   assert.ok(lignes.length >= 4);
 });
+
+test('une seule fiche pour une vente (étude 28/10) : le bouton « Imprimer » ouvre la fiche de signature, même sans rendez-vous ni en participation ; une succession garde l’ancienne fiche', () => {
+  const { chargerApplication } = require('./helpers/load-app.js');
+  const vm = require('node:vm');
+  const app = chargerApplication();
+  const appels = [];
+  vm.runInContext("dossiers.push({ id: 'v1', nom: 'EXEMPLE', typeVente: 'maison', roleNotaire: 'participant', pieces: {}, historique: [], parties: [] }, { id: 's1', nom: 'DEFUNT', typeAffaire: 'succession', pieces: {}, historique: [], parties: [] })", app);
+  app.ouvrirVeilleSignature = (id, o) => appels.push([id, !!(o && o.manuel)]);
+  vm.runInContext('imprimerFiche("v1")', app);
+  assert.deepEqual(appels.map(a => a.join(':')), ['v1:true']);
+  try { vm.runInContext('imprimerFiche("s1")', app); } catch (e) { /* l'ancienne fiche ouvre une fenêtre : absente des tests */ }
+  assert.equal(appels.length, 1, 'succession : pas la fiche de signature');
+});

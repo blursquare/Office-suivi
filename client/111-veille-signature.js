@@ -590,7 +590,7 @@ function renderVeilleSignature(d, maintenant) {
     <div class="vs-tete">
       <div>
         <h2 class="veille-titre">${icone('printer')}Fiche de signature</h2>
-        <p class="veille-intro">${escapeHtml(f.dossier)} · signature ${escapeHtml(delaiVeilleSignature(d, maintenant))}</p>
+        <p class="veille-intro">${escapeHtml(f.dossier)} · ${instantsSignatureVeille(d) ? 'signature ' + escapeHtml(delaiVeilleSignature(d, maintenant)) : 'rendez-vous de signature pas encore fixé'}</p>
       </div>
       <div class="veille-etat">${resume}</div>
     </div>
@@ -662,12 +662,15 @@ function fermerVeilleSignature() {
 
 // Ouvre l'aperçu de la fiche de signature d'un dossier : à l'ouverture de sa fiche (une fois par rendez-vous), par le bouton « Fiche de signature »
 // de la fiche, ou par la tâche « Imprimer la fiche dossier » d'« À faire ». Compté « vu » dès l'affichage.
-function ouvrirVeilleSignature(id) {
+// `options.manuel` (bouton « Imprimer » de la fiche d'une vente, étude 28/10 : « la même fiche, qu'on appuie sur le petit bouton imprimer ou
+// sur Fiche de signature ») : ouverte aussi sans rendez-vous fixé et en participation — c'est un geste à la main, pas une proposition.
+function ouvrirVeilleSignature(id, options) {
+  const manuel = !!(options && options.manuel);
   const d = (Array.isArray(dossiers) ? dossiers : []).find(x => x && x.id === id);
   const overlay = document.getElementById('veille-signature-overlay');
-  if (!d || !overlay || !instantsSignatureVeille(d)) return;
-  // Jamais en participation, même depuis une proposition déposée avant la 0.386.2 (relecture).
-  if (d.roleNotaire === 'participant') { afficherToast('Pas de fiche de signature : l’acte est reçu par le confrère (participation).', 'OK', null); return; }
+  if (!d || !overlay || (!manuel && !instantsSignatureVeille(d))) return;
+  // Jamais proposée en participation, même depuis une proposition déposée avant la 0.386.2 (relecture).
+  if (!manuel && d.roleNotaire === 'participant') { afficherToast('Pas de fiche de signature : l’acte est reçu par le confrère (participation).', 'OK', null); return; }
   veilleEdition = { id, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
   renderVeilleSignature(d, new Date());
   overlay.style.display = 'flex';
