@@ -979,10 +979,18 @@ async function lireApercusFormalites(s, o) {
 
 // Pièces jointes du sous-dossier (GED, étape 5) : l'onglet « Pièces jointes » ouvert, la liste relevée (nom, identifiant, dossier de l'arbre).
 /** @param {any} s @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o */
+// Les répertoires de l'arbre de la GED (« Non classé (3) », « Annexes MICEN (1) »…) sont souvent REPLIÉS (captures du wiki, 28/10) : une
+// pièce d'un répertoire fermé — l'EHF, un acte de naissance — n'est ni relevée ni trouvée. Dépliés par leur chevron seulement.
+const RE_NOEUDS_GED = '^[^()]{1,80} \\(([1-9][0-9]*)\\)$';
+
 async function lirePiecesJointes(s, o) {
   const g = gestes(s, o.etape);
   if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) return false;
   await s.attendreStable(10000);
+  try {
+    const d = await g.deplier(RE_NOEUDS_GED);
+    if (d.fermes) o.etape(`${d.fermes} répertoire(s) des pièces jointes resté(s) replié(s)`);
+  } catch (e) { o.etape('Répertoires des pièces jointes non dépliés'); }
   o.etape('Relève la liste des pièces jointes');
   await releverPage(s, o.script, o.recevoir);
   return true;
@@ -1018,9 +1026,10 @@ const SCRIPT_SOURCE_PDF = `(() => { const u = [...document.querySelectorAll('ifr
     if (f && /dynamiccontent/i.test(f)) a = new URL(f, a.href);
     return a.origin === location.origin ? a.href : '';
   } catch (e) { return ''; } })()`;
-/** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 20 Mo ou n'est pas un PDF. @param {string} url */
+/** Le PDF lu dans la page (cookies de la séance), en base64 ; null s'il dépasse 60 Mo ou n'est pas un PDF (60 Mo : un état hypothécaire
+ * avec les fiches anciennes scannées dépasse 20 Mo — le wiki montre déjà un PDF de 19,5 Mo, étude 28/10). @param {string} url */
 const scriptLirePdf = (url) => `fetch(${JSON.stringify(url)}, { credentials: 'include' }).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => {
-  if (!b || b.byteLength > 20 * 1024 * 1024) return null;
+  if (!b || b.byteLength > 60 * 1024 * 1024) return null;
   const u = new Uint8Array(b);
   if (String.fromCharCode(u[0], u[1], u[2], u[3]) !== '%PDF') return null;
   let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
@@ -1041,6 +1050,8 @@ async function lirePiecePdf(s, cible, pjId, o) {
   if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est pas le bon : rien lu');
   if (!(await g.cliquerTexte('Pièces jointes', { geste: 'navigation' }))) throw new Error('onglet « Pièces jointes » introuvable');
   await s.attendreStable(10000);
+  // La pièce peut être dans un répertoire replié : déplié d'abord (sans bloquer la lecture si rien ne se déplie).
+  if (!(await g.ev(scriptPositionPiece(pjId)))) { try { await g.deplier(RE_NOEUDS_GED); } catch (e) { /* lu tel quel */ } }
   const pos = await g.ev(scriptPositionPiece(pjId));
   if (!pos) throw new Error('pièce introuvable dans la liste d’Authentic');
   // Un « nom » court qui est un mot interdit (« Supprimer ») n'est pas un nom de fichier : il neutraliserait la liste noire (audit 0.392.0).
@@ -1053,7 +1064,7 @@ async function lirePiecePdf(s, cible, pjId, o) {
   for (let i = 0; i < 20 && !url; i++) { url = String(await g.ev(SCRIPT_SOURCE_PDF) || ''); if (!url) await attendre(500); }
   if (!url) throw new Error('la visionneuse d’Authentic n’a pas affiché de PDF');
   const b64 = await g.ev(scriptLirePdf(url));
-  if (!b64) throw new Error('PDF illisible ou de plus de 20 Mo');
+  if (!b64) throw new Error('PDF illisible ou de plus de 60 Mo');
   return { nom: pos.nom, pdf: Buffer.from(String(b64), 'base64') };
 }
 

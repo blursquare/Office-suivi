@@ -139,7 +139,7 @@ function creerRouteurAuthenticClaire(o) {
     repondre(res, () => lancer('authentic-piece', 'Pièce jointe d’Authentic', d, async (t, s, etape) => {
       const r = await A.lirePiecePdf(s, cibleAuthentic(d), pjId, { etape });
       t.documents.push({ id: 'piece', titre: r.nom, nom: /\.pdf$/i.test(r.nom) ? r.nom : r.nom + '.pdf', type: 'application/pdf', octets: r.pdf });
-      // Le PDF ne reste que le temps que le poste le lise (audit 0.381.0 : jusqu'à 20 Mo par tâche gardée 2 h).
+      // Le PDF ne reste que le temps que le poste le lise (audit 0.381.0 : jusqu'à 60 Mo depuis le 28/10, par tâche gardée 2 h).
       const oubli = setTimeout(() => { t.documents = (t.documents || []).filter((/** @type {any} */ x) => x.id !== 'piece'); }, DUREE_PIECE_MS);
       if (oubli && typeof oubli.unref === 'function') oubli.unref();
       noterVerification(repo, 'authentic-piece-pdf', { detail: 'pièce lue' });

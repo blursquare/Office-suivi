@@ -59,6 +59,59 @@ function mentionsRepertoireCivil(texte) {
   return { acteNaissance: /acte de naissance|extrait d.acte de naissance|copie int[ée]grale|extrait avec filiation|extrait sans filiation/i.test(t), mentions: mentions.map(x => ({ nature: x.nature, reference: x.reference })) };
 }
 
+// Pure : les MENTIONS MARGINALES d'un acte de naissance (étude 28/10 : « lis aussi les actes de naissance pour vérifier les mentions
+// marginales ») — mariage, divorce, séparation de corps, PACS et sa dissolution, changement de régime matrimonial, décès, changement de nom
+// ou de prénom, reconnaissance, adoption — avec leur date quand elle est écrite juste après. Lu dans la rubrique « Mentions marginales » /
+// « Mentions » quand elle existe (le corps de l'acte parle des parents : « son épouse », « mariés ») ; sans rubrique, tout le texte, dit
+// « à vérifier ». « Néant » = aucune. Rend { rubrique, neant, mentions: [{ nature, date }] } — jamais un nom ni un lieu.
+var NATURES_MENTION_MARGINALE = [
+  [/dissolution\s+(?:du|de\s+(?:ce|son))\s+(?:pacte|pacs)|pacs\s+dissous|fin\s+du\s+pacte/i, 'dissolution du PACS'],
+  [/pacte\s+civil\s+de\s+solidarit[ée]|(?:^|[^a-z])pacs(?:[^a-z]|$)|partenaire\s+(?:li[ée]|enregistr)/i, 'PACS'],
+  [/s[ée]paration\s+de\s+corps/i, 'séparation de corps'],
+  [/divorc[ée]e?s?(?:[^a-z]|$)|divorce\s+(?:prononc|par)|jugement\s+de\s+divorce|convention\s+de\s+divorce/i, 'divorce'],
+  [/(?:changement|modification)\s+de\s+(?:son\s+)?r[ée]gime\s+matrimonial|nouveau\s+r[ée]gime\s+matrimonial/i, 'changement de régime matrimonial'],
+  [/(?:^|[^a-z])mari[ée]e?\s+(?:le|[àa]|en|avec)\s|mariage\s+(?:c[ée]l[ée]br[ée]|contract[ée])|a\s+contract[ée]\s+mariage/i, 'mariage'],
+  [/(?:^|[^a-z])d[ée]c[ée]d[ée]e?\s+(?:le|[àa]|en)\s|d[ée]c[èe]s\s+survenu/i, 'décès'],
+  [/changement\s+de\s+nom|(?:porte|portera)\s+d[ée]sormais\s+le\s+nom|nom\s+(?:substitu|chang)/i, 'changement de nom'],
+  [/changement\s+de\s+pr[ée]noms?|pr[ée]noms?\s+(?:modifi|chang)/i, 'changement de prénom'],
+  [/reconnu(?:e)?\s+par|reconnaissance\s+(?:souscrite|faite|par)/i, 'reconnaissance'],
+  [/adopt[ée]e?\s+(?:par|pl[ée]ni|simple)|adoption\s+(?:pl[ée]ni[èe]re|simple)/i, 'adoption']
+];
+var MOIS_MENTION = ['janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre'];
+function dateApresMention(texte) {
+  // La PREMIÈRE date écrite après la mention (chiffres ou lettres), jamais celle d'une mention suivante plus loin.
+  const t = String(texte || '').slice(0, 140);
+  const c = /(\d{1,2})[/.](\d{1,2})[/.](\d{4})/.exec(t);
+  const l = /(\d{1,2})(?:er)?\s+([a-zéèêûô]+)\s+(\d{4})/i.exec(t);
+  const mois = l ? MOIS_MENTION.indexOf(l[2].normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()) : -1;
+  const enLettres = l && mois >= 0 ? `${l[3]}-${String(mois + 1).padStart(2, '0')}-${l[1].padStart(2, '0')}` : '';
+  const enChiffres = c && Number(c[2]) >= 1 && Number(c[2]) <= 12 ? `${c[3]}-${c[2].padStart(2, '0')}-${c[1].padStart(2, '0')}` : '';
+  if (enLettres && (!enChiffres || l.index < c.index)) return enLettres;
+  return enChiffres;
+}
+function mentionsMarginalesNaissance(texte) {
+  const t = String(texte || '').replace(/\s+/g, ' ');
+  const tete = /mentions?\s+marginales?\s*:?|(?:^|\s)mentions?\s*:/i.exec(t);
+  const zone = tete ? t.slice(tete.index + tete[0].length) : t;
+  const neant = !!tete && /^\s*(?:n[ée]ant|aucune|sans\s+objet|pas\s+de\s+mention)/i.test(zone);
+  const mentions = [];
+  if (!neant) {
+    // Chaque mention trouvée à sa place dans le texte (une même nature deux fois — deux mariages — est gardée deux fois, dans l'ordre).
+    const trouvees = [];
+    NATURES_MENTION_MARGINALE.forEach(([re, nature]) => {
+      const g = new RegExp(re.source, 'gi');
+      let m;
+      while ((m = g.exec(zone)) !== null && trouvees.length < 12) {
+        // Un PACS dissous n'est pas aussi un PACS en cours au même endroit ; « mariage » d'un divorce non plus.
+        if (!trouvees.some(x => Math.abs(x.index - m.index) < 25)) trouvees.push({ index: m.index, nature, date: dateApresMention(zone.slice(m.index)) });
+        if (g.lastIndex === m.index) g.lastIndex++;
+      }
+    });
+    trouvees.sort((a, b) => a.index - b.index).forEach(x => mentions.push({ nature: x.nature, date: x.date }));
+  }
+  return { rubrique: !!tete, neant, mentions };
+}
+
 // Pure : les travaux votés dans un PV d'assemblée générale — une résolution de TRAVAUX (jamais la cotisation au fonds de travaux, le contrat
 // ou les honoraires du syndic, l'approbation des comptes) dont le DERNIER verdict est l'adoption (passerelle de l'article 25-1 : « n'est pas
 // adoptée à la majorité de l'article 25 … second vote … adoptée »). Rend { date, resolutions: [{ numero, intitule, montant }], lu, decoupe }.
@@ -101,11 +154,16 @@ function messageLectureDocument(sorte, nom, r) {
   const doc = `« ${String(nom || 'document').slice(0, 80)} »`;
   if (sorte === 'naissance') {
     if (!r || !r.lu) return `J’ai trouvé l’acte de naissance ${doc}, mais je n’ai pas pu le lire : à relire.`;
-    if (r.mentions.length) return `Acte de naissance ${doc} : mention au répertoire civil (${[...new Set(r.mentions.map(x => x.nature))].join(', ')}${r.mentions[0].reference ? ` — ${r.mentions[0].reference}` : ''}). À vérifier avant la signature.`;
+    const marg = (r.marginales && r.marginales.mentions) || [];
+    const listeMarg = marg.map(x => x.nature + (x.date ? ` le ${formatDateFr(x.date)}` : '')).join(', ');
+    const sansRubrique = r.marginales && !r.marginales.rubrique ? ' (rubrique des mentions non reconnue : à vérifier sur l’acte)' : '';
+    if (r.mentions.length) return `Acte de naissance ${doc} : mention au répertoire civil (${[...new Set(r.mentions.map(x => x.nature))].join(', ')}${r.mentions[0].reference ? ` — ${r.mentions[0].reference}` : ''})${listeMarg ? ` ; mentions marginales : ${listeMarg}${sansRubrique}` : ''}. À vérifier avant la signature.`;
+    if (marg.length && r.acteNaissance) return `Acte de naissance ${doc} : mentions marginales — ${listeMarg}${sansRubrique}. À comparer avec la situation de la personne sur la fiche${r.partiel ? ` (lecture partielle : ${r.partiel})` : ''}.`;
     // Jamais « aucune mention » sur un document qui n'est pas un acte de naissance, ni sur une lecture partielle (audit 0.391.0).
     if (!r.acteNaissance) return `J’ai lu ${doc}, mais je n’y reconnais pas un acte de naissance : à relire.`;
     if (r.partiel) return `Acte de naissance ${doc} : lecture partielle (${r.partiel}) — aucune mention au répertoire civil dans ce que j’ai pu lire, à relire.`;
-    return `Acte de naissance ${doc} lu : aucune mention au répertoire civil${r.ocr ? ' (scan lu par reconnaissance de caractères : vérifiez les mentions marginales)' : ''}.`;
+    if (r.marginales && r.marginales.neant) return `Acte de naissance ${doc} lu : mentions marginales « néant », aucune mention au répertoire civil${r.ocr ? ' (scan lu par reconnaissance de caractères : à relire en cas de doute)' : ''}.`;
+    return `Acte de naissance ${doc} lu : aucune mention marginale ni au répertoire civil reconnue${r.ocr ? ' (scan lu par reconnaissance de caractères : vérifiez les mentions marginales)' : ''}.`;
   }
   if (sorte === 'ehf') {
     if (!r || !r.etat) return `J’ai trouvé l’EHF ${doc}, mais je n’ai pas pu le lire : à relire.`;
@@ -187,7 +245,7 @@ async function lireDocumentAutomatique(dossierId, source, ref, nom, sorte) {
     } else {
       const { pages, ocr, partiel } = await textePdfLectureDocument(blob);
       const texte = pages.join('\n');
-      if (sorte === 'naissance') resultat = Object.assign({ lu: texte.replace(/\s+/g, '').length > 80, ocr, partiel }, mentionsRepertoireCivil(texte));
+      if (sorte === 'naissance') resultat = Object.assign({ lu: texte.replace(/\s+/g, '').length > 80, ocr, partiel }, mentionsRepertoireCivil(texte), { marginales: mentionsMarginalesNaissance(texte) });
       else if (sorte === 'pv-ag') resultat = Object.assign({ ocr, partiel }, travauxVotesPv(texte));
     }
   } catch (e) {
@@ -195,7 +253,7 @@ async function lireDocumentAutomatique(dossierId, source, ref, nom, sorte) {
   }
   d = dossiers.find(x => x && x.id === dossierId) || d;
   const message = messageLectureDocument(sorte, nom, resultat);
-  const alerte = !!resultat && ((sorte === 'naissance' && resultat.mentions && resultat.mentions.length > 0)
+  const alerte = !!resultat && ((sorte === 'naissance' && ((resultat.mentions && resultat.mentions.length > 0) || (resultat.marginales && resultat.marginales.mentions.length > 0)))
     || (sorte === 'ehf' && resultat.etat && inscriptionsEnCours(resultat.etat).length > 0) || (sorte === 'pv-ag' && resultat.resolutions && resultat.resolutions.length > 0));
   d.lecturesDocuments = Object.assign({}, d.lecturesDocuments, { [cle]: { sorte, nom: String(nom || '').slice(0, 160), le: new Date().toISOString(), resume: message.slice(0, 500), alerte, lu: !!resultat } });
   ajouterHistorique(d, `Document lu par CLAIRE : ${message.slice(0, 220)}`);

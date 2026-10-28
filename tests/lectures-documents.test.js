@@ -86,3 +86,25 @@ test('relecture 0.391.1 : travaux sans le mot « travaux » en tête, honoraires
   const r = app.travauxVotesPv(pv);
   assert.equal(r.resolutions.map(x => x.numero).join(','), '3,4');
 });
+
+test('acte de naissance : mentions marginales (mariage, divorce, PACS, décès…) avec leur date, jamais un nom', () => {
+  const t = 'COPIE INTÉGRALE D\'ACTE DE NAISSANCE. Le 2 mars 1960 est né Paul EXEMPLE, fils de Jean EXEMPLE et de Marie ESSAI, son épouse, mariés. '
+    + 'MENTIONS MARGINALES : Marié le 14/06/1985 à Blois avec Anne TEST. Divorcé de Anne TEST par jugement du 3 mai 1999. '
+    + 'Pacte civil de solidarité enregistré le 10/01/2010. Dissolution du pacte le 2 février 2015.';
+  const m = app.mentionsMarginalesNaissance(t);
+  assert.equal(m.rubrique, true);
+  assert.equal(m.mentions.map((x) => `${x.nature}:${x.date}`).join('|'), 'mariage:1985-06-14|divorce:1999-05-03|PACS:2010-01-10|dissolution du PACS:2015-02-02');
+  const msg = app.messageLectureDocument('naissance', 'Acte de naissance.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: m });
+  assert.match(msg, /mentions marginales — mariage le 14 juin 1985, divorce le 3 mai 1999/);
+  assert.doesNotMatch(msg, /EXEMPLE|TEST|Blois/, 'ni nom ni lieu dans le message');
+  // « son épouse, mariés » dans le corps (les parents) n'est pas une mention ; « Néant » = aucune.
+  const n = app.mentionsMarginalesNaissance('Acte de naissance de Paul EXEMPLE, fils de Jean et de Marie, son épouse. Mentions marginales : Néant.');
+  assert.equal(n.neant, true);
+  assert.equal(n.mentions.length, 0);
+  assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: n }), /« néant »/);
+  assert.equal(app.mentionsMarginalesNaissance('Acte de naissance. Mentions : Décédé le 1er avril 2020 à Tours.').mentions[0].nature, 'décès');
+  // Sans rubrique : lu quand même, dit « à vérifier ».
+  const s2 = app.mentionsMarginalesNaissance('Extrait d\'acte de naissance. Mariée en 1990 avec X. ');
+  assert.equal(s2.rubrique, false);
+  assert.match(app.messageLectureDocument('naissance', 'a.pdf', { lu: true, acteNaissance: true, mentions: [], marginales: s2 }), /rubrique des mentions non reconnue/);
+});
