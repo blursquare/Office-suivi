@@ -211,6 +211,35 @@ const SCRIPT_CHAMPS_VISIBLES = `(() => [...document.querySelectorAll('input:not(
     return (d || ('[' + String(e.name || e.id || e.type || 'champ').replace(/[0-9]+/g, '').replace(/[^A-Za-z:_-]/g, '').slice(-30) + ']')).slice(0, 40); })
   .slice(0, 6))()`;
 
+// Le lien qui OUVRE le dossier dans le résultat de recherche qui porte son numéro (relevé de l'étude du 28/10 : chaque résultat a deux
+// liens — le titre « A 202600329 VTE … », `…:ouvreDossierSideView`, qui n'ouvre qu'un panneau latéral, et l'icône de dossier bleue, sans texte,
+// `…:goToDossier`, qui ouvre le dossier). Le bloc du résultat doit porter CE numéro (pas un numéro plus long qui le commence), le lien doit
+// être sous le pointeur. Même forme de retour que scriptTrouverTexte.
+const scriptOuvrirResultat = (ref) => `(() => {
+  const compact = (t) => String(t || '').replace(/\\s+/g, '').toLowerCase();
+  const c = compact(${JSON.stringify(String(ref))});
+  if (!c) return null;
+  const porte = (t) => { let i = t.indexOf(c); while (i >= 0) { if (!/[0-9]/.test(t.charAt(i + c.length))) return true; i = t.indexOf(c, i + 1); } return false; };
+  const lien = [...document.querySelectorAll('[id$=":goToDossier"]')].find((a) => {
+    if (!a.getClientRects().length) return false;
+    // Le bloc du résultat : l'élément dont l'identifiant est celui du lien sans « :goToDossier », sinon la ligne qui le contient (jamais le lien).
+    // Sinon le plus petit ancêtre qui contient aussi le titre du MÊME résultat (\`…:ouvreDossierSideView\`), jamais toute la liste.
+    const prefixe = a.id.replace(/:goToDossier$/, '');
+    let bloc = document.getElementById(prefixe);
+    if (!bloc) { const titre = document.getElementById(prefixe + ':ouvreDossierSideView'); bloc = a.parentElement; while (bloc && titre && !bloc.contains(titre)) bloc = bloc.parentElement; }
+    if (!bloc) bloc = a.parentElement && a.parentElement.closest('li, tr');
+    return !!bloc && porte(compact(bloc.innerText));
+  });
+  if (!lien) return null;
+  lien.scrollIntoView({ block: 'center', inline: 'nearest' });
+  const r = lien.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const dessous = document.elementFromPoint(x, y);
+  if (!dessous || !(lien.contains(dessous) || dessous.contains(lien))) return { cache: true };
+  const icone = lien.querySelector('[class*=trash], [class*=delete], [class*=supprim], [class*=corbeille]') ? ' supprimer' : '';
+  return { x, y, texte: '', bouton: (String(lien.innerText || lien.getAttribute('title') || lien.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() };
+})()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle, libellesSeuls) => `(() => {
   const seuls = ${libellesSeuls ? 'true' : 'false'};
@@ -306,6 +335,15 @@ function gestes(s, etape, o = {}) {
     await s.cliquerPosition(el.x, el.y);
     return true;
   }
+  /** Clique l'icône qui ouvre le dossier dans le résultat de recherche qui porte son numéro (jamais le titre, qui n'ouvre qu'un panneau
+   * latéral). @param {string} ref */
+  async function ouvrirResultat(ref) {
+    const el = await ev(scriptOuvrirResultat(ref));
+    if (!el || el.cache) return false;
+    controlerClic({ geste: 'donnee', vise: ref, bouton: el.bouton, texte: el.texte, ecritureAutorisee: !!o.ecriture });
+    await s.cliquerPosition(el.x, el.y);
+    return true;
+  }
   /** Écrit dans le champ sous le pointeur (tout ce qu'il contenait est remplacé). @param {{ x: number, y: number }} pos @param {string} texte */
   async function ecrire(pos, texte) {
     await s.cliquerPosition(pos.x, pos.y);
@@ -333,7 +371,7 @@ function gestes(s, etape, o = {}) {
     return false;
   }
   const texte = () => ev('document.body ? document.body.innerText : ""').then(String).catch(() => '');
-  return { ev, cdp, cliquerTexte, cliquerReference, ecrire, entree, echap, attendreTexte, texte, etape };
+  return { ev, cdp, cliquerTexte, cliquerReference, ouvrirResultat, ecrire, entree, echap, attendreTexte, texte, etape };
 }
 
 // Vérification du poste client Silicium (étude 27/10 : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est
@@ -470,7 +508,7 @@ async function ouvrirDossier(s, cible, etape) {
   // le libellé. Une recherche qui ouvre directement le dossier compte.
   const essayer = async (apresRecherche) => {
     const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' })
-      || (apresRecherche && await g.cliquerReference(ref)))
+      || (apresRecherche && (await g.ouvrirResultat(ref) || await g.cliquerReference(ref))))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (ok) { diag.clic = true; await s.attendreStable(15000); }
     const t = await g.texte();
@@ -480,14 +518,21 @@ async function ouvrirDossier(s, cible, etape) {
   };
   if (await essayer()) return;
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
-  // La recherche attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
+  // Le numéro est tapé AVEC espaces d'abord (« A 2026 00329 » : seule forme vue fonctionner, relevé de l'étude du 28/10), puis sans.
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
   // « recherche » / « search » : seulement par ce que la page affiche (placeholder, aria-label, étiquette), et le NUMÉRO seul — jamais le nom
   // du dossier (noms des clients) dans un champ trouvé par un libellé large (relecture 0.391.2). Ni « affaire » ni « dossier » seuls.
+  const numeros = ref ? [ref, referenceRecherche(ref)] : [];
+  // Un libellé plus large qui retrouve un champ DÉJÀ essayé (même place à l'écran) : rien à retaper (relecture 0.391.3).
+  const champsEssayes = new Set();
   for (const { libelleChamp, large } of [{ libelleChamp: 'rechercher une affaire', large: false }, { libelleChamp: 'rechercher', large: false }, { libelleChamp: 'recherche', large: true }, { libelleChamp: 'search', large: true }]) {
-    for (const quoi of (large ? [referenceRecherche(ref)] : [referenceRecherche(ref), lib]).filter(Boolean)) {
+    const quois = (large ? numeros : [...numeros, lib]).filter(Boolean);
+    for (const quoi of quois) {
       const champ = await g.ev(scriptChamp(libelleChamp, large));
       if (!champ) break;
+      const place = `${champ.x},${champ.y}`;
+      if (quoi === quois[0] && champsEssayes.has(place)) break;
+      champsEssayes.add(place);
       if (!diag.champs.includes(libelleChamp)) diag.champs.push(libelleChamp);
       await g.ecrire(champ, quoi);
       await attendre(1500);
@@ -801,8 +846,13 @@ async function lireComptabilite(s, cible, o) {
   await ouvrirDossier(s, cible, o.etape);
   await ouvrirSousDossierVente(s, cible, o.etape);
   if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est plus le bon : rien relevé');
-  o.etape('Ouvre l’onglet Comptabilité');
-  if (!(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) throw new Error('onglet « Comptabilité » introuvable dans le dossier');
+  o.etape('Ouvre l’onglet Infos comptables');
+  // Le vrai libellé est « Infos comptables » suivi du solde (« Infos comptables 12,50 € », relevé de l'étude du 28/10) ; « Comptabilité » en repli.
+  // En rouge « indisponible » quand la comptabilité n'est pas liée au dossier : dit tel quel, sans attendre une page qui ne viendra pas.
+  if (/infos\s+comptables\s*:?\s*indisponible/i.test(await g.texte())) throw new Error('comptabilité indisponible dans Authentic pour ce dossier (non liée) : rien relevé');
+  if (!(await g.cliquerTexte('Infos comptables', { geste: 'navigation' })) && !(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) {
+    throw new Error('onglet « Infos comptables » introuvable dans le dossier');
+  }
   await s.attendreStable(15000);
   if (!(await g.attendreTexte(/Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) throw new Error('page de comptabilité non reconnue (ni « Solde de l’affaire », ni « Dernières opérations »)');
   // La page affichée est encore celle de CE dossier : sa référence en tête (le dossier a été vérifié avant le clic ; « Comparants » peut

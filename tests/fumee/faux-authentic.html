@@ -13,6 +13,7 @@
   .ui-selectcheckboxmenu-panel { position: absolute; background: #fff; border: 1px solid #333; padding: 6px; display: none; }
   .ui-selectcheckboxmenu-panel li { list-style: none; padding: 4px; }
   button, .lien { cursor: pointer; margin: 4px; }
+  [id$=':goToDossier'] { display: inline-block; width: 16px; height: 16px; background: #1e6fd9; cursor: pointer; }
   li.formalite { list-style: none; padding: 4px; cursor: pointer; }
   .ligne-form .icone-apercu { visibility: hidden; cursor: pointer; } .ligne-form:hover .icone-apercu { visibility: visible; }
   #sideView { position: fixed; right: 0; top: 60px; width: 240px; background: #fff; border: 1px solid #333; padding: 8px; }
@@ -41,7 +42,7 @@
 <div class="vue" id="ecran-suivi"><h2 id="suivi-titre"></h2><table><thead><tr><th>N° dossier</th><th>Libellé</th><th>Date</th><th>Situation</th></tr></thead><tbody id="suivi-lignes"></tbody></table>
   <button type="button" onclick="window.__interdit = 'Exporter'">Exporter</button></div>
 
-<div class="vue" id="accueil"><h2>Derniers dossiers ouverts</h2><p>Aucun dossier récent</p><div id="resultats"></div></div>
+<div class="vue" id="accueil"><h2>Derniers dossiers ouverts</h2><p>Aucun dossier récent</p><ul id="resultats"></ul></div>
 
 <div class="vue" id="dossier">
   <div>A 2026 00500 VTE MARTIN / DURAND</div>
@@ -70,7 +71,16 @@
   <div id="ged" style="display:none"><ul><li><span class="ui-treenode-label">Non classé (1)</span><ul><li><a class="lien" onclick="selectTreeNode(event, 'pj11', 'sd2')">Titre de propriété MARTIN.pdf</a></li></ul></li></ul>
     <button type="button" onclick="window.__interdit = 'Supprimer (GED)'">Supprimer</button>
     <iframe id="visionneuse" title="Aperçu" style="width:200px;height:80px"></iframe></div>
+  <!-- Barre de contenu du vrai Authentic : l'onglet s'appelle « Infos comptables » suivi du solde (relevé de l'étude du 28/10). -->
+  <button type="button" onclick="voir('compta')">Infos comptables 12,50 €</button>
   <button type="button" onclick="window.__interdit = 'Nouveau dossier'">Nouveau dossier</button>
+</div>
+
+<div class="vue" id="compta">
+  <div>A 2026 00500 VTE MARTIN / DURAND</div>
+  <h3>€ Comptabilité</h3><button type="button" onclick="voir('dossier')">← Retour</button>
+  <div>Dernières opérations du compte</div>
+  <button type="button" onclick="window.__interdit = 'Générer en PDF'">Générer en PDF</button>
 </div>
 
 <div class="vue" id="homonyme">
@@ -152,8 +162,18 @@
     const v = e.target.value;
     voir('accueil');
     document.getElementById('resultats').innerHTML = /00500|MARTIN/.test(v)
-      ? '<div class="lien" onclick="voir(\'homonyme\')">A 2026 00499 VTE MARTIN / DURANDEAU</div><div class="lien" onclick="voir(\'dossier\')">A 2026 00500 VTE MARTIN / DURAND</div>' : 'Aucun résultat';
+      ? resultat(0, 'A 202600499 VTE MARTIN / DURANDEAU', 'homonyme') + resultat(1, 'A 202600500 VTE MARTIN / DURAND', 'dossier') : 'Aucun résultat';
   });
+  // Un résultat comme sur le vrai Authentic (relevé de l'étude du 28/10) : le numéro SANS espace entre l'année et le numéro ; le TITRE n'ouvre
+  // qu'un panneau latéral (ouvreDossierSideView), l'icône de dossier bleue (goToDossier, sans texte) ouvre le dossier.
+  function resultat(n, titre, vue) {
+    const id = 'ui-ficho-tabs:mainTabPanel:tabForm3:tabContent:blocResultatsRechercheGlobal:dossierList:' + n;
+    // Le second résultat sans identifiant sur son bloc (div) : CLAIRE le retrouve par le titre du même résultat (relecture 0.391.3).
+    if (n === 1) return `<div><span><a class="lien" id="${id}:ouvreDossierSideView" onclick="window.__panneauLateral = (window.__panneauLateral || 0) + 1">${titre}</a></span>`
+      + ` <span>SG|BA</span> <span>En cours</span> <a id="${id}:goToDossier" title="Ouvrir le dossier" onclick="voir('${vue}')"><i class="pi pi-folder-open"></i></a></div>`;
+    return `<li id="${id}"><a class="lien" id="${id}:ouvreDossierSideView" onclick="window.__panneauLateral = (window.__panneauLateral || 0) + 1">${titre}</a>`
+      + ` <span>SG|BA</span> <span>En cours</span> <a id="${id}:goToDossier" title="Ouvrir le dossier" onclick="voir('${vue}')"><i class="pi pi-folder-open"></i></a></li>`;
+  }
   function interrupteurs() {
     return `<div><label>Création rapide :</label><div class="ui-toggleswitch ui-toggleswitch-checked" onclick="this.classList.toggle('ui-toggleswitch-checked'); this.querySelector('input').checked = this.classList.contains('ui-toggleswitch-checked')"><div class="ui-helper-hidden-accessible"><input type="checkbox" id="t:creationRapide_input" checked></div></div>
       <label>Envoi immédiat :</label><div class="ui-toggleswitch ui-toggleswitch-checked" onclick="this.classList.toggle('ui-toggleswitch-checked'); this.querySelector('input').checked = this.classList.contains('ui-toggleswitch-checked')"><div class="ui-helper-hidden-accessible"><input type="checkbox" id="t:j_idt4242_input" checked></div></div>

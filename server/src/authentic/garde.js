@@ -24,7 +24,7 @@ function libelleInterdit(libelle) {
 // `ecriture` : le geste crée quelque chose dans Authentic — permis seulement si l'étude l'a allumé.
 const GESTES_PERMIS = {
   connexion: { libelles: ['Se connecter'] },
-  navigation: { libelles: ['Retour', 'Fermer', 'Rechercher', 'Formalités préalables', 'Formalités postérieures', 'Actes', 'Pièces jointes', 'Mails', 'Accueil', 'Suivis', 'Comptabilité'] },
+  navigation: { libelles: ['Retour', 'Fermer', 'Rechercher', 'Formalités préalables', 'Formalités postérieures', 'Actes', 'Pièces jointes', 'Mails', 'Accueil', 'Suivis', 'Infos comptables', 'Comptabilité'] },
   donnee: {},
   // Les écrans de suivi (étape 7) : le menu puis son entrée, libellés de la cartographie seulement. « Actes à signer » porte « signer » :
   // comme pour une donnée, seul ce que le bouton sous le pointeur porte EN PLUS de ce libellé est contrôlé (un « Exporter » à côté reste refusé).

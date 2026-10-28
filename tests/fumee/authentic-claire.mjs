@@ -42,6 +42,7 @@ try {
   const script = await A.scriptReleve({ racineRepo: racine });
   const r = await A.lireDossier(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, recevoir: (c) => { captures.push(c); return { ok: true }; }, etape });
   verifier(captures.some((c) => (c.pieces || []).some((p) => p.pjId === 'pj11' && p.dossier === 'Non classé')), 'la liste des pièces jointes est relevée (identifiant, dossier de l’arbre)');
+  verifier(!(await s.evaluer('window.__panneauLateral')), 'le résultat de recherche est ouvert par son icône (goToDossier), jamais par le titre (panneau latéral)');
   const piece = await A.lirePiecePdf(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, 'pj11', { etape });
   verifier(piece.pdf.toString().startsWith('%PDF') && /Titre de propriété/.test(piece.nom), 'le PDF d’une pièce jointe est lu à la demande');
   verifier(r.pages === 6 && captures.length === 7, `lecture : page du dossier, un aperçu de formalité, la page relevée de nouveau tiroir fermé, et 3 fiches (${captures.length})`);
@@ -50,6 +51,11 @@ try {
   verifier(!(await s.evaluer('window.__interdit')), 'la corbeille de la ligne (« Supprimer l’aperçu ») n’est jamais cliquée');
   verifier(await s.evaluer('window.__apercus') === 1 && await s.evaluer("document.getElementById('sideView').style.display") === 'none', 'aperçu ouvert une fois puis refermé');
   verifier(captures.some((c) => (c.champs || []).some((x) => /MARTIN/.test(x.valeur))), 'la fiche client de MARTIN est relevée');
+
+  // Infos comptables : l'onglet au vrai libellé (« Infos comptables 12,50 € »), jamais « Générer en PDF ».
+  const compta = await A.lireComptabilite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, etape });
+  verifier(!!compta && /Dernières opérations/.test(JSON.stringify(compta)), 'l’onglet « Infos comptables » est ouvert et relevé');
+  verifier(!(await s.evaluer('window.__interdit')), '« Générer en PDF » n’est jamais cliqué');
 
   // Étape 7 : les quatre écrans de suivi, par leurs menus ; « Exporter » jamais cliqué.
   const AT = require(path.join(racine, 'commun/authentic-modele.js'));

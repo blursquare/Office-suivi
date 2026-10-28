@@ -22943,3 +22943,17 @@ Suites de l'audit de la 0.391.0 (même version 0.391.1, la 0.391.0 n'étant pas 
 Étude : « J'ai un bug : Une mise à jour est déjà en cours. CLAIRE continue de fonctionner avec la version actuelle. » Cause : `appelAvecDelai` ne bornait que l'arrivée des EN-TÊTES de GitHub ; un corps de 110 Mo arrêté en route (comme le téléchargement de Node qui avait bloqué la construction 943 le même jour) laissait `telechargerExecutable` attendre pour toujours, donc `installationEnCours` vrai jusqu'au redémarrage du serveur — et la mise à jour automatique sautée elle aussi. Correction (server/src/miseAJour.js) : un seul arrêt pour tout le téléchargement (10 min en tout, 90 s sans aucune donnée), lecture en course avec l'arrêt (un flux muet est fermé), fichier partiel effacé ; routes/miseAJour.js : une installation commencée depuis plus de 20 min est tenue pour abandonnée (bouton et tour automatique). Test : corps qui ne rend plus rien, en-têtes qui n'arrivent jamais.
 
 Suites (même version) : relecture indépendante — redémarrage aussi sur `close` de la réponse (fenêtre fermée avant la fin), installation réussie retenue (`installee` : on redémarre, jamais de second téléchargement), erreur d'écriture du `.partiel` rejetée (plus de serveur tombé ni d'attente de `drain`), signal déjà annulé, corps d'une réponse d'erreur annulé. Étude 15 h 15 : « dossier A 2026 00329 introuvable dans Authentic (aucun champ de recherche trouvé ; …) » — `ouvrirDossier` essaie aussi « recherche » et « search », par ce que la page AFFICHE seulement (placeholder, aria-label, étiquette — jamais name/id) et avec le numéro seul, jamais le nom du dossier ; le message d’échec liste en dernier les champs visibles (`SCRIPT_CHAMPS_VISIBLES` : placeholder ou aria-label, sinon name/id sans chiffres — jamais une valeur).
+
+### 28/10/2026 — 0.391.3 : Authentic, dossier « introuvable » et onglet « Infos comptables »
+
+Étude : « dossier A 2026 00329 introuvable » ; relevé du vrai Authentic fourni le 28/10 (chemins de navigation, Authen.TIC Silicium 4.19.3.3). Causes : chaque
+résultat de recherche porte deux liens — le titre « A 202600329 VTE … » (`…:ouvreDossierSideView`) n'ouvre qu'un panneau latéral, l'icône de dossier bleue
+sans texte (`…:goToDossier`) ouvre le dossier ; CLAIRE cliquait le titre. La recherche n'a été vue fonctionner qu'avec le numéro à espaces. L'onglet de la
+comptabilité s'appelle « Infos comptables X,XX € », pas « Comptabilité ». Fait : `scriptOuvrirResultat` (lien `:goToDossier` du bloc qui porte CE numéro,
+vérifié sous le pointeur, garde « donnée ») avant l'ancien clic ; numéro tapé avec espaces puis sans ; « Infos comptables » (garde : libellé de navigation
+ajouté), « Comptabilité » en repli. Faux Authentic des tests mis à la forme réelle des résultats et de l'onglet ; parcours de bout en bout vert.
+Non vérifié sur le vrai Authentic (le cloud ne le joint pas : adresse privée 10.19.64.200). Restent à relever : entrées des menus Suivis et Office manager
+(menu latéral, au survol — `scriptTrouverTexte` écarte les éléments d'une barre latérale), parcours CJN / Comedec.
+Relecture indépendante : bloc du résultat retrouvé aussi sans identifiant (plus petit ancêtre qui contient le titre du même résultat, joué par le faux
+Authentic) ; « Infos comptables indisponible » (compta non liée) dit tel quel au lieu d'une attente de 20 s ; un libellé de recherche plus large qui
+retrouve le même champ ne retape plus les numéros.
