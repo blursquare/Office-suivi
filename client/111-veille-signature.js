@@ -506,10 +506,12 @@ async function telechargerFicheSignature(id) {
   try {
     const { blob, nom } = await genererPdfVeilleSignature(d, saisie.saisies, saisie.notes);
     telechargerFichier(blob, nom, 'application/pdf');
-    noteVeilleSignatureVue(d);
-    // Téléchargée pour CE rendez-vous : la tâche « Imprimer la fiche dossier » d'« À faire » et le pop-up ne reviennent pas.
+    // Téléchargée pour CE rendez-vous : la tâche « Imprimer la fiche dossier » d'« À faire » et le pop-up ne reviennent pas — sauf une
+    // impression à la main avant les 48 h du rendez-vous (relecture 0.390.2 : la fiche serait périmée, le rappel reste dû).
+    const vautPourLeRendezVous = !saisie.manuel || veilleSignatureDue(d, new Date());
+    if (vautPourLeRendezVous) noteVeilleSignatureVue(d);
     d.ficheSignatureImprimeeLe = isoAujourdhuiLocal();
-    d.ficheSignatureImprimeePour = cleVeilleSignature(d);
+    if (vautPourLeRendezVous) d.ficheSignatureImprimeePour = cleVeilleSignature(d);
     ajouterHistorique(d, 'Fiche de signature téléchargée pour impression');
     sauvegarder(d);
     fermerVeilleSignature();
@@ -671,10 +673,11 @@ function ouvrirVeilleSignature(id, options) {
   if (!d || !overlay || (!manuel && !instantsSignatureVeille(d))) return;
   // Jamais proposée en participation, même depuis une proposition déposée avant la 0.386.2 (relecture).
   if (!manuel && d.roleNotaire === 'participant') { afficherToast('Pas de fiche de signature : l’acte est reçu par le confrère (participation).', 'OK', null); return; }
-  veilleEdition = { id, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
+  veilleEdition = { id, manuel, fiche: ficheVeilleSignature(d, { categoriesRdv: categoriesRdvReglees() }), saisies: {}, notes: '' };
   renderVeilleSignature(d, new Date());
   overlay.style.display = 'flex';
-  noteVeilleSignatureVue(d);
+  // Ouverte à la main longtemps avant le rendez-vous (bouton « Imprimer », relecture 0.390.2) : le rappel des 48 h reste dû.
+  if (!manuel || veilleSignatureDue(d, new Date())) noteVeilleSignatureVue(d);
 }
 
 // À l'ouverture de la fiche d'un dossier : la sienne seulement, si elle est due, pas encore proposée, et qu'aucune autre fenêtre n'est ouverte.
