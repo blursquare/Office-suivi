@@ -206,19 +206,21 @@ const scriptTrouverReference = (ref, liste) => `(() => {
 // chiffres) — jamais leur valeur : pour le message d'échec de la recherche (étude 28/10 : « aucun champ de recherche trouvé »).
 const SCRIPT_CHAMPS_VISIBLES = `(() => [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=password]), textarea')]
   .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2; })
-  .map((e) => { const l = e.labels && e.labels[0] ? e.labels[0].innerText : '';
-    const d = [e.placeholder, e.getAttribute('aria-label'), l, e.title].map((v) => String(v || '').replace(/\\s+/g, ' ').trim()).find(Boolean);
+  .map((e) => {
+    const d = [e.placeholder, e.getAttribute('aria-label')].map((v) => String(v || '').replace(/\\s+/g, ' ').trim()).find(Boolean);
     return (d || ('[' + String(e.name || e.id || e.type || 'champ').replace(/[0-9]+/g, '').replace(/[^A-Za-z:_-]/g, '').slice(-30) + ']')).slice(0, 40); })
   .slice(0, 6))()`;
 
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
-const scriptChamp = (libelle) => `(() => {
+const scriptChamp = (libelle, libellesSeuls) => `(() => {
+  const seuls = ${libellesSeuls ? 'true' : 'false'};
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase();
   const c = net(${JSON.stringify(String(libelle))});
   for (const e of document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea')) {
     const r = e.getBoundingClientRect(); if (r.width < 2 || r.height < 2) continue;
     const l = e.labels && e.labels[0] ? e.labels[0].innerText : '';
-    if ([e.placeholder, e.getAttribute('aria-label'), l, e.name, e.id, e.title].some((v) => net(v).includes(c))) return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), motDePasse: e.type === 'password' };
+    // \`seuls\` : seulement ce que l'utilisateur VOIT (placeholder, aria-label, étiquette) — jamais name/id (un « …dossierTabView… » JSF).
+    if ((seuls ? [e.placeholder, e.getAttribute('aria-label'), l] : [e.placeholder, e.getAttribute('aria-label'), l, e.name, e.id, e.title]).some((v) => net(v).includes(c))) return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2), motDePasse: e.type === 'password' };
   }
   return null;
 })()`;
@@ -480,9 +482,11 @@ async function ouvrirDossier(s, cible, etape) {
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
   // La recherche attend le numéro SANS espace (étude 28/10 : « A202600329 ») ; la page l'affiche avec (« A 2026 00329 »).
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
-  for (const libelleChamp of ['rechercher une affaire', 'rechercher', 'recherche', 'search', 'affaire', 'dossier']) {
-    for (const quoi of [referenceRecherche(ref), lib].filter(Boolean)) {
-      const champ = await g.ev(scriptChamp(libelleChamp));
+  // « recherche » / « search » : seulement par ce que la page affiche (placeholder, aria-label, étiquette), et le NUMÉRO seul — jamais le nom
+  // du dossier (noms des clients) dans un champ trouvé par un libellé large (relecture 0.391.2). Ni « affaire » ni « dossier » seuls.
+  for (const [libelleChamp, large] of [['rechercher une affaire', false], ['rechercher', false], ['recherche', true], ['search', true]]) {
+    for (const quoi of (large ? [referenceRecherche(ref)] : [referenceRecherche(ref), lib]).filter(Boolean)) {
+      const champ = await g.ev(scriptChamp(libelleChamp, large));
       if (!champ) break;
       if (!diag.champs.includes(libelleChamp)) diag.champs.push(libelleChamp);
       await g.ecrire(champ, quoi);
@@ -502,9 +506,11 @@ async function ouvrirDossier(s, cible, etape) {
   let visibles = [];
   if (!diag.champs.length) { try { visibles = (await g.ev(SCRIPT_CHAMPS_VISIBLES)) || []; } catch (_) { /* page fermée */ } }
   const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »`
-    : `aucun champ de recherche trouvé (champs visibles : ${visibles.length ? visibles.map((v) => `« ${v} »`).join(', ') : 'aucun'})`,
+    : 'aucun champ de recherche trouvé',
     ref ? `numéro affiché ensuite : ${diag.visible ? 'oui' : 'non'}` : '', `résultat cliqué : ${diag.clic ? 'oui' : 'non'}`,
-    diag.enTete ? `page ouverte : ${diag.enTete}` : ''].filter(Boolean).join(' ; ');
+    diag.enTete ? `page ouverte : ${diag.enTete}` : '',
+    // En dernier : le message est coupé à 320 caractères dans la discussion.
+    !diag.champs.length ? `champs visibles : ${visibles.length ? visibles.map((v) => `« ${v} »`).join(', ') : 'aucun'}` : ''].filter(Boolean).join(' ; ');
   throw new Error(`${ref ? `dossier ${ref} introuvable dans Authentic` : 'dossier introuvable dans Authentic par son nom'} (${dit})`);
 }
 

@@ -203,8 +203,8 @@ async function telechargerExecutable({ asset, jeton, destination, fetchFn = fetc
     if (raison) throw new Error(raison);
     await Promise.race([new Promise((ok, ko) => sortie.end((e) => (e ? ko(e) : ok()))), abandon, erreurEcriture]);
   } catch (e) {
-    sortie.destroy();
-    await fsp.rm(partiel, { force: true });
+    await new Promise((ok) => { sortie.once('close', ok); sortie.destroy(); setTimeout(ok, 2000).unref(); });
+    try { await fsp.rm(partiel, { force: true }); } catch (_) { /* repris au téléchargement suivant */ }
     throw new Error(`Téléchargement interrompu : ${raison || e.message}. Rien n'a été changé.`);
   } finally {
     finMinuteurs();
