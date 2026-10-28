@@ -47,7 +47,7 @@ var SORTES_EVENEMENT_BILAN = [
   [/offre de pret/, 'offre de prêt'], [/^email (envoye|prepare)|email prepare|prepare(e)? par email|envoye par email/, 'email préparé ou envoyé'],
   [/rendez-vous.*(place|fixe|pose)|signature (placee|fixee)/, 'rendez-vous placé'], [/rendez-vous.*(deplace|annule|a replacer|retire)/, 'rendez-vous déplacé ou annulé'],
   [/appel de fonds/, 'appel de fonds'], [/projet/, 'projet d’acte'], [/fonds/, 'fonds'], [/(echeance|date).*(realisee|cochee|validee)/, 'échéance réalisée'],
-  [/preemption|dia\b|safer/, 'préemption (DIA, SAFER)'], [/signe/, 'signature'], [/archiv/, 'archivage'], [/authentic/, 'Authentic']
+  [/preemption|dia\b|safer/, 'préemption (DIA, SAFER)'], [/(^|[^a-z])signe/, 'signature'], [/archiv/, 'archivage'], [/authentic/, 'Authentic']
 ];
 function sorteEvenementBilan(texte) {
   const t = normaliserPourRecherche(String(texte || ''));
@@ -146,7 +146,7 @@ async function bilanDossierAgent(e) {
 function demanderResumeDossier(id) {
   const d = dossiers.find(x => x.id === id);
   if (!d) return;
-  if (assistantTraitementEnCours) { afficherToast('CLAIRE termine une autre demande : réessayez dans un instant.', 'OK', null); return; }
+  if (assistantTraitementEnCours || assistantEnCours) { afficherToast('CLAIRE termine une autre demande : réessayez dans un instant.', 'OK', null); return; }
   if (typeof definirOnglet === 'function') definirOnglet('assistant');
   if (typeof quitterCanal === 'function') quitterCanal();
   if (typeof nouvelleConversationAssistant === 'function') nouvelleConversationAssistant();

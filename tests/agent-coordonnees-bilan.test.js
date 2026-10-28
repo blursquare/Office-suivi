@@ -45,3 +45,15 @@ test('coordonnées : un côté accompagné par un confrère — rien du client �
   assert.doesNotMatch(html, /06 11 11 11 11|client@exemple\.fr/);
   assert.match(html, /représenté par|office@confrere\.exemple/);
 });
+
+test('lire_dossier : côté accompagné par un confrère sans coordonnées, historique en vocabulaire fermé', () => {
+  const app = chargerApplication();
+  const d = { id: 'c3', nom: 'ESSAI / EXEMPLE', typeVente: 'maison', pieces: {}, notaireAcquereur: 'Maître Paul CONFRERE (TOURS)', telephoneAcquereur: '06 11 11 11 11', emailAcquereur: 'client@exemple.fr', emailVendeur: 'v@exemple.fr',
+    historique: [{ date: '2026-10-01T10:00:00Z', texte: 'Durand a rappelé pour la clé' }, { date: '2026-10-02T10:00:00Z', texte: 'Relance de l’offre de prêt envoyée' }], parties: [] };
+  const r = app.lireDossierAgent(d);
+  assert.equal(r.coordonnees.telephone_acquereur, '');
+  assert.equal(r.coordonnees.email_acquereur, '');
+  assert.equal(r.coordonnees.acquereur_represente_par_un_confrere, true);
+  assert.equal(r.coordonnees.email_vendeur, 'v@exemple.fr');
+  assert.equal(JSON.stringify(r.historique_recent), '[{"date":"2026-10-02","sorte":"relance"}]');
+});

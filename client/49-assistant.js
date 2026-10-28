@@ -636,7 +636,7 @@
         : typeof notaireParticipantRepresenteAcquereur === 'function' && notaireParticipantRepresenteAcquereur(d));
       if (represente) {
         const notaire = role === 'VENDEUR' ? d.notaireVendeur : d.notaireAcquereur;
-        return `<li><b>${libelle}</b> : représenté par ${escapeHtml(notaire || 'un confrère')} — écrire ou appeler le confrère${!partie || partie === 'confrere' ? ' (ci-dessous)' : ''}.</li>`;
+        return `<li><b>${libelle}</b> : représenté par ${escapeHtml(notaire || 'un confrère')} — écrire ou appeler le confrère (ci-dessous).</li>`;
       }
       const personnes = (d.parties || []).filter(p => p && p.role === role);
       const tels = [...new Set([...(role === 'VENDEUR' ? [d.telephoneVendeur] : [d.telephoneAcquereur]), ...personnes.flatMap(p => p.telephones || [])].filter(Boolean))];

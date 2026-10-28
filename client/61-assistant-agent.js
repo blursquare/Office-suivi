@@ -138,7 +138,12 @@
       nom_du_dossier: d.nom || '',
       parties: (d.parties || []).filter(Boolean).map(p => ({ role: p.role || '', civilite: p.civilite || '', prenom: p.prenom || '', nom: p.nom || '', nom_usage: p.nomUsage || '', societe: p.qualitePersonne === 'morale' })),
       situation_vendeurs: d.situationVendeur || '', situation_acquereurs: d.situationAcquereur || '',
-      coordonnees: { email_vendeur: d.emailVendeur || '', telephone_vendeur: d.telephoneVendeur || '', email_acquereur: d.emailAcquereur || '', telephone_acquereur: d.telephoneAcquereur || '' },
+      // Un côté accompagné par un confrère : jamais ses coordonnées (déontologie, relecture 0.386.1) — on écrit au confrère.
+      coordonnees: (() => {
+        const v = sur(() => confrereRepresenteVendeur(d), false), a = sur(() => notaireParticipantRepresenteAcquereur(d), false);
+        return { email_vendeur: v ? '' : d.emailVendeur || '', telephone_vendeur: v ? '' : d.telephoneVendeur || '', vendeur_represente_par_un_confrere: !!v,
+          email_acquereur: a ? '' : d.emailAcquereur || '', telephone_acquereur: a ? '' : d.telephoneAcquereur || '', acquereur_represente_par_un_confrere: !!a };
+      })(),
       bien: { adresse: d.adresseBien || '', prix: d.prixVente || null, prix_mobilier: d.prixMobilier || null, cadastre: sur(() => parcellesDossier(d).map(p => ({ prefixe: p.prefixe || '', section: p.section, numero: p.numero, surface: p.surface || '', nature: p.nature || '' })), []), lots: sur(() => (d.bien && d.bien.lots) || [], []) },
       notaire_vendeur: d.notaireVendeur || '', notaire_acquereur: d.notaireAcquereur || '', agence: d.nomAgence || '',
       // Étude 26/10 : l'agent demandait « lequel est le confrère qui rédige l'acte ? » alors que la fiche le dit.
@@ -154,7 +159,8 @@
       authentic: sur(() => d.authentic ? { reference: d.referenceAuthentic || '', acte: d.authentic.acte || null } : null, null),
       // Vision globale (étude 26/10 : « une vision globale d'un dossier, force de proposition ») : ce qui compte en un coup d'œil, calculé comme les écrans.
       vue_d_ensemble: sur(() => vueDEnsembleDossierAgent(d), null),
-      historique_recent: (d.historique || []).slice(-12).map(h => ({ date: String(h.date || '').slice(0, 10), texte: String(h.texte || '').slice(0, 200) }))
+      // Vocabulaire fermé (date + sorte), jamais le texte libre de l'historique : un nom absent des fiches en tête d'un texte court passait (relecture 0.386.1).
+      historique_recent: (d.historique || []).slice(-20).map(h => ({ date: String(h.date || '').slice(0, 10), sorte: sorteEvenementBilan(h && h.texte) })).filter(x => x.sorte !== 'autre').slice(-12)
     };
   }
 
