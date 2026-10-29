@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.396.3';
+  const VERSION_APP = '0.396.7';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,10 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.396.7', date: '2026-10-29 14:24', resume: "Les consignes de CLAIRE (CLAIRE.md) enregistrées en cours de route sont lues au message suivant : la conversation avec CLAIRE est un fil continu, elles n’étaient lues qu’au tout premier message." },
+  { version: '0.396.6', date: '2026-10-29 14:03', resume: "Authentic : pendant une demande de CLAIRE (lecture, état civil, comptabilité), un aperçu s’ouvre en direct en bas à droite — la page du navigateur de CLAIRE, avec son pointeur de souris, rafraîchie chaque seconde et l’étape en cours dessous — pour voir où ça bloque. Fermable, il reste après un échec." },
+  { version: '0.396.5', date: '2026-10-29 13:58', resume: "Demande d’état civil (Comedec) dans Authentic : si la liste « Type de Demande » ne s’ouvre pas au premier clic, CLAIRE reclique une fois, accepte aussi les options du type « Acte de naissance établi à l’étranger » et, en cas d’échec, dit les options lues." },
+  { version: '0.396.4', date: '2026-10-29 13:50', resume: "« Demander à CLAIRE » peut maintenant ouvrir et lister les dossiers de la mémoire (« MODELES - OUTILS », « RAPPEL DE PROCEDURES »…) même quand aucun dossier n’est nommé dans Réglages › IA : avant, elle les voyait mais le NAS répondait « dossier introuvable »." },
   { version: '0.396.3', date: '2026-10-29 13:30', resume: "Demande d’état civil (Comedec) : quand Authentic n’offre pas toutes les options pour une personne née à l’étranger (« Acte de naissance établi à l’étranger »), CLAIRE le dit et valide quand même les autres lignes au lieu de s’arrêter ; seule une liste qui ne s’ouvre pas bloque encore." },
   { version: '0.396.2', date: '2026-10-29 12:51', resume: "Demande d’état civil (Comedec) dans Authentic : le mariage n’est demandé que pour UN des deux époux (c’est le même acte) ; une personne née à l’étranger sans nationalité française n’a pas de demande de naissance (Comedec ne la délivre pas ; née à l’étranger mais française : demandée) et ne bloque plus les autres ; les conjoints qui ne sont pas parties à l’acte ne sont jamais demandés. Ce qu’Authentic ne laisse pas cocher est dit, à faire autrement." },
   { version: '0.396.1', date: '2026-10-29 11:14', resume: "Authentic : CLAIRE passe enfin la vérification du poste client (« Installation du poste… », adresse authentication.xhtml) : elle la reconnaît à l’élément de la page et à PrimeFaces, plus au texte, attend l’arrivée de l’accueil avant de continuer, et ne tente rien si la session est déjà ouverte." },

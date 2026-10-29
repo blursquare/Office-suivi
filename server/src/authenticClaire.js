@@ -1452,7 +1452,16 @@ async function preparerFormalite(s, cible, o) {
       if (!pos || !pos.sur) throw new Error('liste « Type de Demande » recouverte : rien validé');
       await s.cliquerPosition(pos.x, pos.y);
       await attendre(500);
-      const options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
+      let options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
+      // Liste pas ouverte au premier clic : on attend encore, puis UN second clic — seulement si rien n'est ouvert, et sous la même garde de position.
+      if (!options.length) {
+        await attendre(700);
+        options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
+        if (!options.length) {
+          const pos2 = await g.ev(scriptLigneComedec(i));
+          if (pos2 && pos2.sur) { await s.cliquerPosition(pos2.x, pos2.y); await attendre(900); options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || []; }
+        }
+      }
       // Chaque option : cochée si voulue, DÉCOCHÉE sinon (une ligne préremplie par Authentic pour un conjoint ou un décès non voulu).
       for (const opt of options) {
         const voulue = voulues.some((v) => plat(v) === plat(opt.libelle));
@@ -1466,7 +1475,13 @@ async function preparerFormalite(s, cible, o) {
       // personne (née à l'étranger : « Acte de naissance établi à l'étranger », capture de l'étude 29/10) ou qui ne se coche pas : dite, sans bloquer.
       // La BONNE liste : elle offre au moins une des trois demandes (Naissance, Mariage, Décès) — jamais les options d'un autre menu ouvert
       // (relecture 0.396.3) ; sinon rien n'est validé (aussi pour une ligne préremplie à décocher).
-      if (!relues.some((x) => /^(naissance|mariage|d[ée]c[èe]s)$/i.test(plat(x.libelle)))) throw new Error('la liste « Type de Demande » ne s’est pas ouverte : rien validé');
+      // La bonne liste : une option Naissance, Mariage, Décès ou « Acte de naissance établi à l'étranger » (menu d'Authentic, relecture 0.396.3 : jamais les
+      // options d'un autre menu). Les libellés dits à l'échec sont ceux de ce vocabulaire fermé seulement ; les autres sont comptés (jamais un nom de client).
+      const vocabulaire = (x) => /^(naissance|mariage|d[ée]c[èe]s|acte de naissance)( |$)/i.test(plat(x.libelle));
+      if (!relues.some(vocabulaire)) {
+        const connus = relues.filter(vocabulaire).map((x) => String(x.libelle).slice(0, 40));
+        throw new Error(`la liste « Type de Demande » ne s’est pas ouverte (${relues.length ? `${relues.length} option(s) d’un autre menu` : 'aucune option lue'}${connus.length ? ` : ${connus.join(' | ')}` : ''}) : rien validé`);
+      }
       if (manquantes.length) nonCochees += manquantes.length;
       if (relues.some((x) => x.coche && !voulues.some((v) => plat(v) === plat(x.libelle)))) throw new Error('une demande non voulue reste cochée : rien validé');
       choisies += voulues.length - manquantes.length;

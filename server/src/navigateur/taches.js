@@ -61,7 +61,7 @@ function creerGestionnaireTaches(o) {
         etape('Ouvre le navigateur de CLAIRE');
         s = await SessionNavigation.ouvrir({ profil: profilTache || profil, domaines, lancer: inj.lancer, refuserAdresse: adresseAchat });
         // Capture régulière pour l'écran du poste (« voir CLAIRE travailler »).
-        const minuterie = setInterval(() => { if (s) s.capture().then((c) => { if (!t.captureFinale) t.capture = c; }).catch(() => {}); }, 2500);
+        const minuterie = setInterval(() => { if (s) s.capture().then((c) => { if (!t.captureFinale) t.capture = c; }).catch(() => {}); }, 1200);
         try { await faire(t, s); } finally { clearInterval(minuterie); }
         t.capture = await s.capture().catch(() => t.capture);
         t.etat = 'fini';

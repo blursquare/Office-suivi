@@ -180,7 +180,8 @@ test('23/10 : un dossier voisin de la racine (MODELES - OUTILS dans le partage C
   const r = { racines: ['MODELES - OUTILS'], exclus: [] };
   const supp = nl.supplementairesPermis(dossiers, r);
   assert.deepEqual(supp.map((d) => d.nom), ['MODELES - OUTILS'], 'seul le dossier nommé');
-  assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: [], exclus: [] }), [], 'jamais sans dossier nommé');
+  assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: [], exclus: [] }).map((d) => d.nom), ['MODELES - OUTILS', 'RAPPEL DE PROCEDURES'], 'accès libre : tous les dossiers de la mémoire');
+  assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: [], exclus: ['rappel'] }).map((d) => d.nom), ['MODELES - OUTILS'], 'un nom exclu reste écarté');
   assert.deepEqual(nl.supplementairesPermis(dossiers, { racines: ['MODELES - OUTILS'], exclus: ['outils'] }), [], 'un nom exclu n’apparaît pas');
   const racineListe = await nl.listerNasLibre(racine, '', r, supp);
   assert.deepEqual(racineListe.dossiers.map((d) => d.nom), ['MODELES - OUTILS']);

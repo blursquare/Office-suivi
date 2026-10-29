@@ -933,12 +933,15 @@ async function tourAgent(entree, o) {
   const masq = (t) => (conv.anonymiser === false ? t : masquer(t, conv.sensibles, conv.table));
   // Les mots à masquer sont relus à chaque question (un dossier ajouté entre-temps) ; la table, elle, ne change que par ajouts.
   if (Array.isArray(e.dossiers) && e.dossiers.length) { conv.sensibles = motsSensiblesDossiers(e.dossiers); conv.societes = motsSocietesDossiers(e.dossiers); }
-  // Carnet de l'étude (CLAIRE.md) : masqué une fois, au premier tour, avec la table de la conversation ; Mistral le lit dans le
-  // premier message (son prompt système), Claude dans un second bloc système.
-  if (conv.carnet === undefined) {
-    conv.carnet = typeof e.carnet === 'string' && e.carnet.trim() ? masquerCarnet(e.carnet, conv.sensibles, conv.table) : '';
-    if (conv.carnet && conv.fournisseur === 'mistral' && conv.messages[0] && conv.messages[0].role === 'system') {
-      conv.messages[0] = { role: 'system', content: SYSTEME_AGENT + '\n\n' + blocCarnet(conv.carnet) };
+  // Carnet de l'étude (CLAIRE.md) : masqué avec la table de la conversation ; Mistral le lit dans le premier message (son prompt système), Claude dans
+  // un second bloc système. Relu quand son texte CHANGE (étude 29/10 : la conversation avec CLAIRE est la même depuis le début, comme un fil de
+  // discussion : un carnet enregistré en cours de route doit compter au message suivant, pas seulement à la première question).
+  const carnetBrut = typeof e.carnet === 'string' ? e.carnet.trim() : '';
+  if (conv.carnet === undefined || (conv.carnetBrut !== carnetBrut && typeof e.carnet === 'string')) {
+    conv.carnetBrut = carnetBrut;
+    conv.carnet = carnetBrut ? masquerCarnet(e.carnet, conv.sensibles, conv.table) : '';
+    if (conv.fournisseur === 'mistral' && conv.messages[0] && conv.messages[0].role === 'system') {
+      conv.messages[0] = { role: 'system', content: conv.carnet ? SYSTEME_AGENT + '\n\n' + blocCarnet(conv.carnet) : SYSTEME_AGENT };
     }
   }
   const c = e.contexte && typeof e.contexte === 'object' ? e.contexte : {};

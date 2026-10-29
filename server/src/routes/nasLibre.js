@@ -31,7 +31,6 @@ function creerRouteurNasLibre(config, parametresRepo) {
   }
   // Les dossiers de la mémoire hors de la racine des dossiers clients (ex. « MODELES - OUTILS » à côté d'elle), seulement s'ils sont nommés dans « Dossiers ouverts ».
   async function supplementaires(r) {
-    if (!r.racines.length) return [];
     let trouves = [];
     try { trouves = await trouverDossiersMemoire(config); } catch (_) { return []; }
     const racine = path.resolve(config.nasRacine);

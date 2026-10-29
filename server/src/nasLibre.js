@@ -113,11 +113,11 @@ async function cheminReelPermis(nasRacine, abs, r) {
 }
 
 /** Pure : parmi les dossiers de la mémoire hors de la racine des dossiers clients (`{ nom, chemin }`), ceux que l'étude a NOMMÉS dans « Dossiers
- * ouverts » — jamais un autre, jamais sans `racines` (« tout le NAS » reste la racine des dossiers clients). @param {Array<{ nom: string, chemin: string }>} dossiers
+ * ouverts » — jamais un autre ; sans `racines` (accès libre par défaut, 0.397) tous ceux de la mémoire sauf « FAUSSES MINUTES » (noms de clients : à nommer dans « Dossiers ouverts ») et les noms exclus. @param {Array<{ nom: string, chemin: string }>} dossiers
  * @param {{ racines: string[], exclus: string[] }} r */
 function supplementairesPermis(dossiers, r) {
   const premiers = new Set(r.racines.map((x) => simplifier(x.split('/')[0])));
-  return (Array.isArray(dossiers) ? dossiers : []).filter((d) => d && typeof d.nom === 'string' && typeof d.chemin === 'string' && premiers.has(simplifier(d.nom)) && !exclu(segmentsSimples(d.nom), r.exclus));
+  return (Array.isArray(dossiers) ? dossiers : []).filter((d) => d && typeof d.nom === 'string' && typeof d.chemin === 'string' && (r.racines.length ? premiers.has(simplifier(d.nom)) : !/fausses? minutes?/.test(simplifier(d.nom))) && !exclu(segmentsSimples(d.nom), r.exclus));
 }
 
 /** Le dossier réel d'un chemin relatif : sous la racine des dossiers clients, ou — si son premier dossier est l'un des `supp` et n'existe pas sous la racine —

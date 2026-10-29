@@ -89,13 +89,16 @@ async function gesteAuthenticClaire(chemin, corps) {
   } catch (e) { return { ok: false, texte: 'serveur injoignable' }; }
   const fin = Date.now() + 10 * 60 * 1000;
   while (Date.now() < fin) {
-    await new Promise(ok => setTimeout(ok, 2500));
+    await new Promise(ok => setTimeout(ok, 1500));
     try {
       const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(id)}`);
       if (!r.ok) continue;
       const t = await r.json();
       const derniere = (t.etapes || []).slice(-1)[0];
       if (derniere && typeof assistantEtapeAgent !== 'undefined') { assistantEtapeAgent = derniere.texte; }
+      // Étude 29/10 : « mets-moi en direct ce qu'il se passe lors d'une demande, comme pour le cadastre » : l'aperçu s'ouvre dès la première
+      // capture et se met à jour à chaque relevé (étape en cours sous l'image) ; il reste après un échec.
+      if (t.avecCapture && (t.etat === 'en-cours' || t.etat === 'attente')) afficherApercuAuthentic(id, derniere ? derniere.texte : 'CLAIRE travaille dans Authentic…', { enCours: true });
       if (t.etat === 'fini') return { ok: true, texte: (t.resultat && t.resultat.texte) || 'Fait dans Authentic.' };
       if (t.etat === 'erreur' || t.etat === 'annule') {
         // Étude 29/10 : « mets-moi un aperçu du navigateur là où ça plante, en bas à droite, que je peux fermer » (jamais pour un arrêt voulu).
@@ -207,11 +210,13 @@ async function essayerConnexionAuthentic() {
 // à une IA ni au rapport technique) s'affiche en bas à droite, avec le message d'échec ; fermable (×), un clic sur l'image l'agrandit.
 var apercuAuthenticDernier = null;   // { id, texte } : le dernier échec, pour « Demander à CLAIRE » (outil `authentic_apercu`)
 var apercuAuthenticUrl = '';
+var apercuAuthenticFermes = {};   // tâches dont l'utilisateur a fermé l'aperçu : plus d'aperçu en direct pour elles
 
 function fermerApercuAuthentic() {
   const carte = document.getElementById('apercu-authentic');
   if (carte) {
     carte.remove();
+    if (apercuAuthenticDernier) apercuAuthenticFermes[apercuAuthenticDernier.id] = true;
     // La capture (pages d'Authentic) est effacée de la mémoire du serveur à la fermeture.
     if (apercuAuthenticDernier) fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(apercuAuthenticDernier.id)}/capture`, { method: 'DELETE' }).catch(() => {});
   }
@@ -223,24 +228,38 @@ function texteApercuAuthentic(texte) {
   return String(texte || 'échec dans Authentic').replace(/\s+/g, ' ').trim().slice(0, 300);
 }
 
-async function afficherApercuAuthentic(idTache, texte) {
+async function afficherApercuAuthentic(idTache, texte, o = {}) {
+  if (o.enCours && apercuAuthenticFermes[String(idTache)]) return false;
   apercuAuthenticDernier = { id: String(idTache), texte: texteApercuAuthentic(texte) };
   try {
     const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(idTache)}/capture`);
     if (!r.ok) return false;
     const url = URL.createObjectURL(await r.blob());
+    const titre = o.enCours ? 'Authentic — en direct' : 'Authentic — où CLAIRE s’est arrêtée';
+    const existante = document.getElementById('apercu-authentic');
+    // En direct : la même carte, seule l'image et le texte changent (pas de clignotement, l'agrandissement est gardé).
+    if (existante && existante.dataset.tache === String(idTache)) {
+      const img = existante.querySelector('img');
+      const ancienneUrl = apercuAuthenticUrl;
+      if (img) img.src = url;
+      apercuAuthenticUrl = url;
+      if (ancienneUrl) URL.revokeObjectURL(ancienneUrl);
+      const t = existante.querySelector('.apercu-authentic-texte'); if (t) t.textContent = apercuAuthenticDernier.texte;
+      const h = existante.querySelector('.apercu-authentic-tete span'); if (h) h.textContent = titre;
+      return true;
+    }
     // L'ancienne carte part SANS effacer la capture du serveur de cette tâche (c'est la même qui s'affiche).
-    const ancienne = document.getElementById('apercu-authentic');
-    if (ancienne) ancienne.remove();
+    if (existante) existante.remove();
     if (apercuAuthenticUrl) URL.revokeObjectURL(apercuAuthenticUrl);
     apercuAuthenticUrl = url;
     const carte = document.createElement('div');
     carte.id = 'apercu-authentic';
+    carte.dataset.tache = String(idTache);
     carte.className = 'apercu-authentic';
     carte.setAttribute('role', 'status');
-    carte.innerHTML = `<div class="apercu-authentic-tete"><span>Authentic — où CLAIRE s’est arrêtée</span>`
+    carte.innerHTML = `<div class="apercu-authentic-tete"><span>${titre}</span>`
       + `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="fermerApercuAuthentic()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button></div>`
-      + `<img alt="Dernière page du navigateur de CLAIRE dans Authentic" src="${url}" tabindex="0" role="button" title="Agrandir ou réduire" onclick="this.classList.toggle('agrandie')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.classList.toggle('agrandie'); }">`
+      + `<img alt="Page du navigateur de CLAIRE dans Authentic" src="${url}" tabindex="0" role="button" title="Agrandir ou réduire" onclick="this.classList.toggle('agrandie')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.classList.toggle('agrandie'); }">`
       + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`;
     document.body.appendChild(carte);
     requestAnimationFrame(() => carte.classList.add('visible'));

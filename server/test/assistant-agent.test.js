@@ -1067,3 +1067,18 @@ test('29/10 : authentic_apercu — l’IA ne reçoit que « affiché » ou « au
   assert.doesNotMatch(envoye, /data:image|base64/);
   assert.match(envoye, /aperçu affiché/);
 });
+
+test('carnet CLAIRE.md : enregistré en cours de conversation, il compte au message suivant (fil de discussion, étude 29/10)', async () => {
+  const client = fauxClient([
+    { stop_reason: 'end_turn', usage, content: [texte('Bonjour.')] },
+    { stop_reason: 'end_turn', usage, content: [texte('Un CJN est un casier judiciaire.')] },
+    { stop_reason: 'end_turn', usage, content: [texte('Oui.')] }
+  ]);
+  const o = { cle: 'k', client, modele: 'claude-opus-5-5' };
+  let r = await tourAgent({ texte: 'Bonjour', dossiers: D, carnet: '', contexte: { aujourdhui: '2026-10-29', prenom: 'Bastien' } }, o);
+  r = await tourAgent({ conversation: r.conversation, texte: 'C’est quoi un CJN ?', dossiers: D, carnet: 'CJN : casier judiciaire national.', contexte: { aujourdhui: '2026-10-29', prenom: 'Bastien' } }, o);
+  assert.match(JSON.stringify(client.requetes[1].system), /CJN : casier judiciaire national/, 'le carnet enregistré entre-temps est lu');
+  assert.doesNotMatch(JSON.stringify(client.requetes[0].system), /casier judiciaire/);
+  await tourAgent({ conversation: r.conversation, texte: 'Merci', dossiers: D, carnet: 'CJN : casier judiciaire national.', contexte: { aujourdhui: '2026-10-29', prenom: 'Bastien' } }, o);
+  assert.match(JSON.stringify(client.requetes[2].system), /CJN : casier judiciaire national/);
+});

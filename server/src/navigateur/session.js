@@ -91,6 +91,15 @@ const SCRIPT_INSTANTANE = `(() => {
 
 const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Le pointeur dessiné sur une capture : flèche blanche cernée de noir, rond rouge si clic récent ; sans effet sur la page (aucun événement, retiré après la capture). @param {number} x @param {number} y @param {boolean} clic */
+function scriptPointeur(x, y, clic) {
+  return `(() => { const a = document.getElementById('claire-pointeur'); if (a) a.remove(); const d = document.createElement('div'); d.id = 'claire-pointeur';
+    d.style.cssText = 'position:fixed;left:${Number(x) | 0}px;top:${Number(y) | 0}px;width:0;height:0;z-index:2147483647;pointer-events:none;';
+    d.innerHTML = '${clic ? '<div style="position:absolute;left:-16px;top:-16px;width:32px;height:32px;border-radius:50%;background:rgba(220,38,38,.35);border:2px solid rgb(220,38,38)"></div>' : ''}<svg width="22" height="30" viewBox="0 0 22 30" style="position:absolute;left:0;top:0"><path d="M1 1 L1 22 L6.5 17 L10.5 26 L14 24.5 L10 16 L17 16 Z" fill="white" stroke="black" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+    (document.body || document.documentElement).appendChild(d); })()`;
+}
+const SCRIPT_RETIRER_POINTEUR = `(() => { const a = document.getElementById('claire-pointeur'); if (a) a.remove(); })()`;
+
 class SessionNavigation {
   /** @param {any} lancement rendu par lancerNavigateur @param {{ domaines: string[], refuserAdresse?: (adresse: string) => boolean }} o */
   constructor(lancement, o) {
@@ -344,6 +353,7 @@ class SessionNavigation {
     const s = this.ongletActif().session;
     const px = Math.max(0, Math.min(LARGEUR - 1, Math.round(Number(x) || 0)));
     const py = Math.max(0, Math.min(HAUTEUR - 1, Math.round(Number(y) || 0)));
+    this.souris = { x: px, y: py, clicLe: Date.now() };
     await this.cdp.envoyer('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px, y: py }, s);
     await this.cdp.envoyer('Input.dispatchMouseEvent', { type: 'mousePressed', x: px, y: py, button: 'left', clickCount: 1 }, s);
     await this.cdp.envoyer('Input.dispatchMouseEvent', { type: 'mouseReleased', x: px, y: py, button: 'left', clickCount: 1 }, s);
@@ -352,10 +362,25 @@ class SessionNavigation {
     return { nouvelOnglet: this.onglets.length > avant };
   }
 
-  /** Capture de l'écran de l'onglet actif (JPEG, base64), pour suivre CLAIRE en direct sur le poste. */
+  /** Capture de l'écran de l'onglet actif (JPEG, base64), pour suivre CLAIRE en direct sur le poste. Le pointeur de CLAIRE (dernière position de la souris,
+   * rond de clic pendant 1,5 s) y est dessiné le temps de la capture seulement (étude 29/10 : « avec la souris qui bouge ») ; jamais laissé dans la page. */
   async capture() {
-    const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'jpeg', quality: 72 }, this.ongletActif().session);
-    return String(r.data || '');
+    const session = this.ongletActif().session;
+    const m = this.souris;
+    let pose = false;
+    if (m) {
+      const clic = Date.now() - m.clicLe < 1500;
+      try {
+        await this.evaluer(scriptPointeur(m.x, m.y, clic));
+        pose = true;
+      } catch (_) { /* page en navigation : sans pointeur cette fois */ }
+    }
+    try {
+      const r = await this.cdp.envoyer('Page.captureScreenshot', { format: 'jpeg', quality: 72 }, session);
+      return String(r.data || '');
+    } finally {
+      if (pose) await this.evaluer(SCRIPT_RETIRER_POINTEUR).catch(() => {});
+    }
   }
 
   async fermer() {
