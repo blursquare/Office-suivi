@@ -139,6 +139,7 @@ test('Silicium : la vérification du poste client n’est passée que sur sa pag
   assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true }), true, 'le texte de la page varie : l’élément et PrimeFaces suffisent');
   assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: true, session: true }), false, 'session ouverte (champ de recherche affiché) : rien');
   assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: false }), false, 'PrimeFaces non défini : rien');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true, motDePasse: true }), false, 'page de connexion (mot de passe visible) : rien');
   assert.equal(A.pageSiliciumAPasser(null), false);
 });
 

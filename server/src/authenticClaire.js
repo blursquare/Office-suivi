@@ -714,7 +714,7 @@ const SCRIPT_PAGE_SILICIUM = `(() => {
   // Session ouverte = le champ de recherche de l'accueil (« searchForm:query », étude 29/10) est affiché : la page d'installation n'est plus là.
   const recherche = document.getElementById('searchForm:query');
   const session = !!(recherche && recherche.getClientRects().length);
-  return { element: !!el, bloque, session, chemin: String(location.pathname), primefaces: !!(window.PrimeFaces && typeof window.PrimeFaces.ab === 'function') };
+  return { element: !!el, bloque, session, motDePasse: [...document.querySelectorAll('input[type="password"]')].some((x) => x.getClientRects().length), chemin: String(location.pathname), primefaces: !!(window.PrimeFaces && typeof window.PrimeFaces.ab === 'function') };
 })()`;
 const SCRIPT_PASSER_SILICIUM = "PrimeFaces.ab({ s: 'redirectionInstallationPosteClient', p: 'redirectionInstallationPosteClient', ps: true, pa: ['true'] }), true";
 
@@ -722,7 +722,7 @@ const SCRIPT_PASSER_SILICIUM = "PrimeFaces.ab({ s: 'redirectionInstallationPoste
 function pageSiliciumAPasser(etat) {
   // Le test fiable (étude 29/10, l'adresse reste « authentication.xhtml » et le texte varie) : l'élément `redirectionInstallationPosteClient`
   // est dans la page et PrimeFaces est défini ; jamais quand le champ de recherche de l'accueil montre la session déjà ouverte.
-  return !!(etat && etat.element && etat.primefaces && !etat.session);
+  return !!(etat && etat.element && etat.primefaces && !etat.session && !etat.motDePasse);
 }
 
 /** Passe la vérification Silicium si la page la montre (trois fois au plus : elle revient après la connexion). Rend le nombre de passages.
@@ -739,7 +739,7 @@ async function passerVerificationSilicium(s, etape) {
     for (let k = 0; k < 24; k++) {
       await attendre(500);
       const apres = await s.evaluer(SCRIPT_PAGE_SILICIUM).catch(() => null);
-      if (!apres || !apres.element || apres.session || !apres.bloque || apres.chemin !== etat.chemin) break;
+      if (!apres || !apres.element || apres.session || apres.chemin !== etat.chemin) break;
     }
     await s.attendreStable(10000);
   }
@@ -801,7 +801,7 @@ async function seConnecter(s, r, etape) {
   if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw Object.assign(new Error('connexion refusée par Authentic (identifiant ou mot de passe)'), { refusIdentifiants: true });
   // La page « Installation du poste client » encore là après les essais : dit tout de suite, plutôt qu'un dossier « introuvable » plus tard.
   const silicium = await g.ev(SCRIPT_PAGE_SILICIUM).catch(() => null);
-  if (silicium && silicium.bloque && silicium.element) throw new Error('vérification du poste client Silicium non passée : Authentic demande toujours d’installer le poste client');
+  if (pageSiliciumAPasser(silicium)) throw new Error('vérification du poste client Silicium non passée : Authentic demande toujours d’installer le poste client');
   etape('Connectée');
 }
 
