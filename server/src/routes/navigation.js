@@ -94,6 +94,13 @@ function creerRouteurNavigation(config, parametresRepo, depot, o = {}) {
     res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'no-store').send(c);
   });
 
+  // La structure (sans valeurs) de la page où la tâche s'est arrêtée : du texte à copier, gardé en mémoire avec la capture, effacé avec elle.
+  routeur.get('/navigation/taches/:id/structure', (req, res) => {
+    const t = gestion.structure(req.params.id);
+    if (!t) { res.status(404).end(); return; }
+    res.set('Content-Type', 'text/plain; charset=utf-8').set('Cache-Control', 'no-store').send(t);
+  });
+
   routeur.delete('/navigation/taches/:id/capture', (req, res) => {
     res.json({ ok: !!(gestion.effacerCapture && gestion.effacerCapture(req.params.id)) });
   });

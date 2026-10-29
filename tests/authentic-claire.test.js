@@ -42,3 +42,30 @@ test('CJN : pas pour une succession, ni en participation, ni sans acquéreur per
   assert.match(app.raisonSansCjn({ id: 'd2', parties: [] }), /aucun acquéreur/);
   assert.match(app.raisonSansCjn({ id: 'd3', parties: [{ role: 'ACQUEREUR', nom: 'SCI', qualitePersonne: 'morale' }] }), /société/);
 });
+
+test('Comedec et CJN : ce qui est déjà demandé dans Authentic (acte vu sur la page, état autre que « négatif ») n’est pas redemandé', async () => {
+  const d = { id: 'd1', nom: 'X', parties: [{ role: 'VENDEUR', nom: 'EXEMPLE', prenom: 'Ana' }, { role: 'ACQUEREUR', nom: 'ESSAI', prenom: 'Lou' }],
+    authentic: { fichesClients: {}, etatsCivils: {
+      a: { label: 'Acte de naissance EXEMPLE Ana', etat: 'attente' },
+      b: { label: 'Acte de naissance ESSAI Lou', etat: 'negatif' },
+      c: { label: 'Casier judiciaire ESSAI Lou', etat: 'positif', casier: true } } } };
+  const deja = app.etatsCivilsDejaDemandes(d);
+  assert.equal(deja.naissance.length, 1, 'le « négatif » n’y est pas');
+  assert.equal(deja.casier.length, 1);
+  const p = app.partiesComedecDossier(d);
+  assert.equal(p.map((x) => `${x.prenom}:${x.dejaNaissance}`).join('|'), 'Ana:true|Lou:false', 'un « négatif » (rien délivré) peut être redemandé');
+  assert.equal(app.libelleDitPersonne(['acte de naissance exemple ana'], { prenom: 'Ana', nom: 'EXEMPLE' }), true);
+  assert.equal(app.libelleDitPersonne(['acte de naissance exemple ana'], { prenom: 'Zoe', nom: 'EXEMPLE' }), false, 'le nom seul ne suffit pas');
+  // Rien à redemander : la réponse le dit, sans carte ni navigateur.
+  const tout = { id: 'd2', nom: 'Y', parties: [{ role: 'VENDEUR', nom: 'EXEMPLE', prenom: 'Ana' }], authentic: { etatsCivils: { a: { label: 'Acte de naissance EXEMPLE Ana', etat: 'positif' }, b: { label: 'Acte de mariage EXEMPLE Ana', etat: 'attente' } } } };
+  const r = await app.preparerFormaliteAuthentic(tout, 'comedec', { agent: true });
+  assert.equal(r.statut, 'fait');
+  assert.match(r.resultat, /Déjà demandé/);
+});
+
+test('déjà demandé : mots entiers seulement, un casier non délivré se redemande', () => {
+  assert.equal(app.libelleDitPersonne(['acte de naissance royer anne'], { prenom: 'Ann', nom: 'ROY' }), false, '« Ann ROY » n’est pas « ROYER Anne »');
+  assert.equal(app.libelleDitPersonne(['acte de naissance roy ann'], { prenom: 'Ann', nom: 'ROY' }), true);
+  const d = { authentic: { etatsCivils: { a: { label: 'Casier judiciaire ESSAI Lou', etat: 'positif', casier: true, statut: 'Non délivré' }, b: { label: 'Casier judiciaire EXEMPLE Ana', etat: 'positif', casier: true, statut: 'Reçu' } } } };
+  assert.equal(app.etatsCivilsDejaDemandes(d).casier.length, 1, 'seul le casier reçu compte');
+});

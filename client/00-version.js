@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.396.9';
+  const VERSION_APP = '0.396.11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.396.11', date: '2026-10-29 15:29', resume: "CLAIRE ne redemande plus un état civil ou un casier déjà demandé : elle regarde l’état des demandes vu sur la page du dossier dans Authentic (naissance, mariage, casier) et le dit (« déjà demandé »). Elle sait demander un CJN ou un Comedec depuis n’importe quelle discussion, et doit lire Authentic avant." },
+  { version: '0.396.10', date: '2026-10-29 15:20', resume: "Après un échec dans Authentic, l’aperçu propose « Copier la structure de la page » : les boutons, listes et positions de la page où CLAIRE s’est arrêtée, sans aucune valeur ni aucun nom, à coller dans la conversation pour réparer le parcours du premier coup." },
   { version: '0.396.9', date: '2026-10-29 15:01', resume: "Demande d’état civil (Comedec) dans Authentic, tous les cas où une ligne bouge : chaque ligne est retrouvée d’après son libellé à chaque fois (tableau redessiné ou décalé), la liste est ouverte avec jusqu’à trois essais, les options sont relues après chaque clic (panneau refermé ou décalé : réouverture) et la page attend la fin des rafraîchissements avant chaque ligne." },
   { version: '0.396.8', date: '2026-10-29 14:51', resume: "Demande d’état civil (Comedec) dans Authentic : la ligne suivante n’est plus manquée quand la précédente, une fois cochée, fait descendre le tableau (CLAIRE attend que la position ne bouge plus, puis ouvre la liste depuis la page si le clic tombe à côté) ; le mariage est demandé quand la ligne dit « épouse de / époux de », une seule fois par couple." },
   { version: '0.396.7', date: '2026-10-29 14:24', resume: "Les consignes de CLAIRE (CLAIRE.md) enregistrées en cours de route sont lues au message suivant : la conversation avec CLAIRE est un fil continu, elles n’étaient lues qu’au tout premier message." },

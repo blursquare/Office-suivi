@@ -224,3 +224,9 @@ test('Comedec : la position de la ligne est mesurée sans défilement forcé pui
   assert.doesNotThrow(() => new Function('return ' + o));
   assert.doesNotMatch(o, /ui-chkbox|Valider|submit|Envoi/i, 'ne touche ni option ni bouton');
 });
+
+test('Comedec : une demande déjà faite dans Authentic (dejaNaissance, dejaMariage) n’est jamais redemandée, même si le libellé dit « épouse de »', () => {
+  const parties = [{ nom: 'BERNIER', prenom: 'Josette', dejaNaissance: true, dejaMariage: false }];
+  assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Josette épouse de M. PERRIN Steven', parties), ['Mariage']);
+  assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Josette épouse de M. PERRIN Steven', [{ nom: 'BERNIER', prenom: 'Josette', dejaNaissance: true, dejaMariage: true }]), []);
+});

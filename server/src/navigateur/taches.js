@@ -10,6 +10,7 @@ const path = require('node:path');
 const { SessionNavigation, adresseAchat } = require('./session');
 const { planCadastre, DOMAINES_CADASTRE } = require('./planCadastre');
 const { surlignerParcelles } = require('./surlignage');
+const { SCRIPT_STRUCTURE_PAGE, texteStructure } = require('./structurePage');
 
 // Ancienne clé du compte Géofoncier (0.229.0, retiré le 14/10 au soir par l'étude) : effacée au démarrage, aucun secret gardé sans usage.
 const CLE_ANCIENS_REGLAGES = 'sites-agent';
@@ -71,6 +72,8 @@ function creerGestionnaireTaches(o) {
         if (s && !t.annule && !(e && e.annule)) {
           t.capture = await Promise.race([s.capture(), new Promise((ok) => setTimeout(() => ok(t.capture), 4000).unref())]).catch(() => t.capture);
           t.captureFinale = true;   // une capture périodique en retard n'écrase pas la dernière page vue
+          // La structure de cette page SANS valeurs (étude 29/10 : « Claude en secours »), copiable depuis l'aperçu pour réparer le parcours.
+          try { t.structure = texteStructure(await Promise.race([s.evaluer(SCRIPT_STRUCTURE_PAGE), new Promise((ok) => setTimeout(() => ok(null), 4000).unref())])); } catch (_) { /* sans structure */ }
         }
         t.etat = t.annule || (e && e.annule) ? 'annule' : 'erreur';
         t.erreur = t.etat === 'annule' ? 'Arrêté à la demande.' : String((e && e.message) || 'erreur').slice(0, 300);
@@ -121,7 +124,8 @@ function creerGestionnaireTaches(o) {
     document: (id, doc) => { const t = taches.get(String(id)); return t ? t.documents.find((d) => d.id === String(doc)) || null : null; },
     capture: (id) => { const t = taches.get(String(id)); return t && t.capture ? Buffer.from(t.capture, 'base64') : null; },
     // L'aperçu fermé sur le poste : la capture (pages d'Authentic, noms de clients) est effacée de la mémoire du serveur sans attendre la purge.
-    effacerCapture: (id) => { const t = taches.get(String(id)); if (!t || !t.capture) return false; t.capture = ''; return true; },
+    effacerCapture: (id) => { const t = taches.get(String(id)); if (!t) return false; t.structure = ''; if (!t.capture) return false; t.capture = ''; return true; },
+    structure: (id) => { const t = taches.get(String(id)); return t && t.structure ? t.structure : ''; },
     annuler: (id) => { const t = taches.get(String(id)); if (!t || t.fini) return false; t.annule = true; t.etape('Arrêt demandé'); return true; },
     profil
   };

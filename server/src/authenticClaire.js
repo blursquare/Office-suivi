@@ -85,7 +85,7 @@ function plat(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '
  * d'après les parties de la fiche CLAIRE : naissance pour chaque partie, mariage en plus pour une partie mariée (choix de l'étude 27/10).
  * Une ligne qui ne désigne aucune partie (conjoint qui ne vend ni n'achète, ligne vide) : rien. Une partie accompagnée par un confrère :
  * rien (son notaire fait ses demandes).
- * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean }>} parties
+ * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean }>} parties
  * @returns {string[]}
  */
 function demandesComedecIntervenant(libelle, parties) {
@@ -107,7 +107,8 @@ function demandesComedecIntervenant(libelle, parties) {
   // Le libellé de la ligne d'Authentic dit lui-même « épouse de / époux de » (les autres — veuve, divorcé(e) — n'ont plus de mariage à demander) : mariée
   // même quand la fiche de la personne ou la situation du couple ne le disent pas (étude 29/10 : « il ne demande pas le mariage »).
   const marieParLigne = /\b(?:epoux|epouse)\s+de\b/.test(plat(String(libelle || '').replace(/\(.*$/, '')));
-  return [...(p.naissance === false ? [] : ['Naissance']), ...(p.marie || marieParLigne ? ['Mariage'] : [])];
+  // Une demande déjà faite dans Authentic (acte vu sur la page du dossier, état autre que « négatif ») n'est jamais redemandée.
+  return [...(p.naissance === false || p.dejaNaissance ? [] : ['Naissance']), ...((p.marie || marieParLigne) && !p.dejaMariage ? ['Mariage'] : [])];
 }
 
 /** Pure : le nom du conjoint écrit après « époux de / épouse de » dans le libellé d'une ligne (''si aucun) — pour ne demander le mariage qu'UNE fois quand
@@ -1431,7 +1432,7 @@ async function lireComptabilite(s, cible, o) {
 /**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
- * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
+ * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
  */
 async function preparerFormalite(s, cible, o) {
   // Écrire dans Authentic : seulement si l'étude l'a allumé (Réglages › Authentic › « Préparer des demandes »), dit par l'appelant.
@@ -1569,6 +1570,11 @@ async function preparerFormalite(s, cible, o) {
       choisies += voulues.length - manquantes.length;
       await g.echap();
       await attendre(300);
+    }
+    // Tout ce qui était voulu figure déjà dans Authentic : rien n'est coché ni validé (jamais de « Valider » à vide).
+    if (!choisies && (o.parties || []).some((p) => p.dejaNaissance || p.dejaMariage)) {
+      o.etape('Tout est déjà demandé dans Authentic : rien à redemander');
+      return { demandes: 0, remarques: ['tout est déjà demandé dans Authentic : rien à redemander'], erreurs: 0 };
     }
     if (!choisies) throw new Error('aucune partie du dossier reconnue parmi les intervenants : rien de coché, rien validé');
   } else {

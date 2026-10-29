@@ -36,7 +36,9 @@ function partiesDemande(brut) {
   return (Array.isArray(brut) ? brut : []).slice(0, 12).map((p) => ({
     nom: String((p && p.nom) || '').slice(0, 120), prenom: String((p && p.prenom) || '').slice(0, 80), marie: !!(p && p.marie),
     // Né à l'étranger : pas de demande de naissance par Comedec (étude 29/10) — seul `false` est retenu, le reste = naissance demandée.
-    naissance: !(p && p.naissance === false)
+    naissance: !(p && p.naissance === false),
+    // Déjà demandée dans Authentic (état civil vu sur la page du dossier) : jamais redemandée (étude 29/10).
+    dejaNaissance: !!(p && p.dejaNaissance), dejaMariage: !!(p && p.dejaMariage)
   })).filter((p) => p.nom.trim());
 }
 

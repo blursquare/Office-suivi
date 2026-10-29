@@ -23,16 +23,42 @@ function marieeDansAuthentic(d, p) {
   return !!(f && f.situationMatrimoniale && /mari/i.test(String(f.situationMatrimoniale.situation || '')));
 }
 
+// Pure : les demandes d'état civil et de casier DÉJÀ faites dans Authentic, d'après les lignes vues sur la page du dossier (`d.authentic.etatsCivils`) :
+// { naissance: [libellés], mariage: [libellés], casier: [libellés] } en minuscules sans accents. Une ligne « négatif » (rien délivré) peut être redemandée.
+function etatsCivilsDejaDemandes(d) {
+  const r = { naissance: [], mariage: [], casier: [] };
+  Object.values((d && d.authentic && d.authentic.etatsCivils) || {}).forEach(e => {
+    if (!e || e.etat === 'negatif') return;
+    const l = normaliserPourRecherche(String(e.label || ''));
+    // Un casier « non délivré / refusé / rejeté » n'a pas abouti : à redemander.
+    if (e.casier && /non\s*delivr|refus|rejet|erreur/.test(normaliserPourRecherche(String(e.statut || '')))) return;
+    if (e.casier) r.casier.push(l);
+    else if (/naissance/.test(l)) r.naissance.push(l);
+    else if (/mariage/.test(l)) r.mariage.push(l);
+  });
+  return r;
+}
+
+// Pure : un libellé de la liste ci-dessus porte-t-il tous les mots du nom et du prénom de la personne (nom ET prénom : le nom seul désignerait aussi le conjoint) ?
+function libelleDitPersonne(libelles, p) {
+  const mots = normaliserPourRecherche([p && p.prenom, p && p.nom].filter(Boolean).join(' ')).split(/[^a-z0-9]+/).filter(m => m.length > 1);
+  // Mots ENTIERS du libellé (« Ann » n'est pas dans « Anne », « Roy » n'est pas dans « Royer »).
+  return mots.length >= 2 && (libelles || []).some(l => { const jetons = String(l).split(/[^a-z0-9]+/); return mots.every(m => jetons.includes(m)); });
+}
+
 // Pure : les parties de la demande d'état civil (Comedec) — chaque vendeur et acquéreur personne physique que l'étude représente (jamais
 // le côté accompagné par un confrère, qui fait ses demandes) ; mariée = situation du couple « marié » de son côté, ou fiche d'Authentic.
 function partiesComedecDossier(d) {
   const parties = Array.isArray(d && d.parties) ? d.parties : [];
+  const deja = etatsCivilsDejaDemandes(d);
   const exclus = { ACQUEREUR: notaireParticipantRepresenteAcquereur(d), VENDEUR: confrereRepresenteVendeur(d) };
   const liste = parties.filter(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !exclus[p.role] && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
     .map(p => {
       const cote = parties.filter(x => x && x.role === p.role).length;
       const situation = p.role === 'VENDEUR' ? d.situationVendeur : d.situationAcquereur;
-      return { nom: String(p.nom || ''), prenom: String(p.prenom || ''), role: p.role, marie: (cote > 1 && situation === 'marie') || marieeDansAuthentic(d, p), naissance: !neALEtrangerAuthentic(d, p) };
+      const base = { nom: String(p.nom || ''), prenom: String(p.prenom || '') };
+      return { nom: base.nom, prenom: base.prenom, role: p.role, marie: (cote > 1 && situation === 'marie') || marieeDansAuthentic(d, p), naissance: !neALEtrangerAuthentic(d, p),
+        dejaNaissance: libelleDitPersonne(deja.naissance, base), dejaMariage: libelleDitPersonne(deja.mariage, base) };
     });
   // Le mariage d'un couple de parties est UN seul acte : demandé pour un seul des deux époux (étude 29/10). Conjoint non partie : jamais listé.
   // Seulement quand le couple est AVÉRÉ : deux personnes de ce côté et situation du couple « marié » (jamais deux co-vendeurs mariés chacun à un
@@ -135,6 +161,11 @@ async function preparerFormaliteAuthentic(d, type, o) {
   const parties = type === 'comedec' ? partiesComedecDossier(d) : acquereursCjnDossier(d);
   if (type === 'cjn' && raisonSansCjn(d)) return { erreur: 'pas de demande de casier ici : ' + raisonSansCjn(d) };
   if (type === 'comedec' && !parties.length) return { erreur: 'aucune partie que l’étude représente sur la fiche' };
+  // Rien à redemander : chaque demande voulue figure déjà sur la page du dossier dans Authentic (étude 29/10 : « ne pas le redemander »).
+  // Court-circuit seulement quand TOUT est déjà demandé (naissance ET mariage de chaque partie) : sinon le serveur décide ligne par ligne (un libellé
+  // « épouse de » peut demander un mariage que la fiche ne connaît pas) et dit « déjà demandé » si rien n'est à faire (relecture 0.396.11).
+  if (type === 'comedec' && parties.every(p => (p.naissance === false || p.dejaNaissance) && p.dejaMariage)) return { fait: true, statut: 'fait', resultat: 'Déjà demandé dans Authentic : rien à redemander pour ces parties.' };
+  if (type === 'cjn') { const casier = etatsCivilsDejaDemandes(d).casier; if (parties.length && parties.every(p => libelleDitPersonne(casier, p))) return { fait: true, statut: 'fait', resultat: 'Casier judiciaire déjà demandé dans Authentic pour ces acquéreurs : rien à redemander.' }; }
   const quoi = type === 'cjn' ? 'Préparer dans Authentic la demande de casier judiciaire (CJN) des acquéreurs'
     : `Préparer dans Authentic la demande d’état civil (Comedec) : ${parties.map(p => `${[p.prenom, p.nom].filter(Boolean).join(' ')} (${[p.naissance === false ? '' : 'naissance', p.marie ? 'mariage' : ''].filter(Boolean).join(', ') || 'rien à demander'}${p.naissance === false ? ' ; née à l’étranger : pas de naissance par Comedec' : ''})`).join(', ')}`;
   if (o && o.agent && !(await demanderAutorisationAgent(`${quoi} — ${libelleDossierAffiche(d)}. Création rapide allumée, Envoi immédiat éteint : rien n’est envoyé, la demande est à envoyer ensuite depuis Authentic.`, { strict: true }))) {
@@ -260,12 +291,33 @@ async function afficherApercuAuthentic(idTache, texte, o = {}) {
     carte.innerHTML = `<div class="apercu-authentic-tete"><span>${titre}</span>`
       + `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="fermerApercuAuthentic()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button></div>`
       + `<img alt="Page du navigateur de CLAIRE dans Authentic" src="${url}" tabindex="0" role="button" title="Agrandir ou réduire" onclick="this.classList.toggle('agrandie')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.classList.toggle('agrandie'); }">`
-      + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`;
+      + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`
+      + (o.enCours ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="copierStructureApercuAuthentic()" title="Copie la structure de la page (boutons, listes, positions), sans aucune valeur ni nom, à coller dans la conversation pour réparer le parcours">Copier la structure de la page</wa-button>`);
     document.body.appendChild(carte);
     requestAnimationFrame(() => carte.classList.add('visible'));
     if (typeof noterVerificationPoste === 'function') noterVerificationPoste('apercu-authentic', { detail: 'aperçu affiché' });
     return true;
   } catch (e) { return false; }
+}
+
+// Copie la structure (sans valeurs) de la page où la tâche s'est arrêtée : le serveur la garde avec la capture. Étude 29/10 : « Claude en secours ».
+async function copierStructureApercuAuthentic() {
+  if (!apercuAuthenticDernier) return;
+  try {
+    const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(apercuAuthenticDernier.id)}/structure`);
+    if (!r.ok) { afficherToast('Structure de la page indisponible (relancez le geste).', 'OK', null); return; }
+    const texte = await r.text();
+    let ok = false;
+    try { await navigator.clipboard.writeText(texte); ok = true; } catch (_) { /* adresse IP sans HTTPS : repli ci-dessous */ }
+    if (!ok) {
+      const z = document.createElement('textarea'); z.value = texte; z.style.cssText = 'position:fixed;left:-9999px;top:0';
+      document.body.appendChild(z); z.select();
+      try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+      z.remove();
+    }
+    if (ok && typeof noterVerificationPoste === 'function') noterVerificationPoste('structure-page-authentic', { detail: 'structure copiée' });
+    afficherToast(ok ? 'Structure de la page copiée : collez-la dans la conversation.' : 'Copie impossible depuis ce navigateur.', 'OK', null);
+  } catch (e) { afficherToast('Structure de la page indisponible.', 'OK', null); }
 }
 
 // « Demander à CLAIRE » (outil `authentic_apercu`) : rouvre l'aperçu du dernier échec dans Authentic sur ce poste. L'IA ne reçoit jamais l'image :
