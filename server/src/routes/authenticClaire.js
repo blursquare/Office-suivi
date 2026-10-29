@@ -76,7 +76,7 @@ function creerRouteurAuthenticClaire(o) {
       } catch (e) {
         if (e && e.refusIdentifiants) { A.ecrireConnexionAuthentic(repo, { refuseLe: true }); noterVerification(repo, 'authentic-connexion', { ok: false, message: 'identifiants refusés' }); }
         // Le message d'erreur ne cite jamais un nom (libellés génériques du parcours).
-        if (dire && !(e && e.annule)) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: `${titre} : pas fait — ${String((e && e.message) || 'erreur').slice(0, 320)}.` });
+        if (dire && !(e && e.annule)) ajouterMessage(repo, canalDuDossier(d.id), { auteur: 'CLAIRE', claire: true, texte: `${titre} : pas fait — ${String((e && e.message) || 'erreur').slice(0, 520)}.` });
         throw e;
       } finally {
         clearTimeout(minuterie);

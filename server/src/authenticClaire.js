@@ -452,9 +452,11 @@ const SCRIPT_ALLURE_PAGE = `(() => {
   const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2; };
   const texte = String((document.body && document.body.innerText) || '').toLowerCase();
   const MOTS = ['silicium', 'mot de passe', 'connexion', 'identifiant', 'installer', 'erreur', 'expir', 'session', 'accès refusé', 'chargement', 'rechercher', 'comparants', 'formalités', 'dossier'];
-  const icones = [...document.querySelectorAll('button, a, [role=button], .material-icons, .material-symbols-outlined')].filter(vis)
-    .map((e) => String(e.getAttribute('aria-label') || e.title || e.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase())
-    .filter((t) => /^[a-z_]{3,25}$/.test(t));
+  // Seulement le MOT D'ICÔNE d'un élément de police d'icônes (ligature Material : « search », « menu »…) — jamais le texte, le title ni l'aria-label
+  // d'un bouton ou d'un lien (un nom de client en lien d'un seul mot passerait).
+  const icones = [...document.querySelectorAll('.material-icons, .material-symbols-outlined, .material-icons-outlined')].filter(vis)
+    .map((e) => String(e.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase())
+    .filter((t) => /^[a-z]+(?:_[a-z]+)*$/.test(t) && t.length >= 3 && t.length <= 25);
   return { chemin: String(location.pathname).replace(/[0-9]+/g, '#').replace(/;jsessionid=[^/]*/i, '').slice(0, 60),
     champs: [...document.querySelectorAll('input, textarea, select')].filter(vis).length, cadres: document.querySelectorAll('iframe, frame').length,
     boutons: [...document.querySelectorAll('button, [role=button]')].filter(vis).length, mots: MOTS.filter((m) => texte.includes(m)).slice(0, 8),
