@@ -660,13 +660,22 @@ function motsAqs(texte) {
   return String(texte || '').replace(/["\\:()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
-/** Pure : la requête AQS d'une recherche ({ expediteur, objet, texte }) ; '' si rien de cherché. */
-function requeteAqsMails({ expediteur = '', objet = '', texte = '' } = {}) {
+/** Pure : la requête AQS d'une recherche ({ expediteur, objet, texte }) ; '' si rien de cherché. Les mots de l'objet et du texte sont
+ * cherchés chacun (jamais en phrase exacte : « permis construire » trouve « permis de construire ») ; dans les « Éléments envoyés », la
+ * personne cherchée est un DESTINATAIRE (`to:`), jamais l'expéditeur, qui est l'étude. @param {{ expediteur?: string, objet?: string, texte?: string }} q @param {boolean} [envoyes] */
+function requeteAqsMails({ expediteur = '', objet = '', texte = '' } = {}, envoyes = false) {
   const parts = [];
-  const e = motsAqs(expediteur); if (e) parts.push(`from:"${e}"`);
-  const o = motsAqs(objet); if (o) parts.push(`subject:"${o}"`);
-  const t = motsAqs(texte); if (t) parts.push(`"${t}"`);
+  const e = motsAqs(expediteur);
+  if (e) parts.push(`${envoyes ? 'to' : 'from'}:${/\s/.test(e) ? `"${e}"` : e}`);
+  for (const m of motsAqs(objet).split(' ').filter((x) => x.length > 1)) parts.push(`subject:${m}`);
+  for (const m of motsAqs(texte).split(' ').filter((x) => x.length > 1)) parts.push(m);
   return parts.join(' AND ');
+}
+
+/** Pure : le jour (AAAA-MM-JJ) à Paris d'une date EWS en UTC. @param {string} iso */
+function jourParisEmail(iso) {
+  const t = Date.parse(String(iso || ''));
+  return Number.isFinite(t) ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris' }).format(new Date(t)) : String(iso || '').slice(0, 10);
 }
 
 function corpsFindRecherche(dossier, aqs, max) {
@@ -690,6 +699,9 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
   const aqs = requeteAqsMails(q);
+  const agendaWatch = require('./agendaWatch');
+  // Même disjoncteur que la lecture de l'agenda (un mot de passe refusé n'est jamais retenté : verrouillage du compte).
+  if (agendaWatch.lectureAgendaSuspendue(reglages)) return { erreur: 'Messagerie suspendue : identifiants refusés, à corriger dans les Réglages.', statut: 503 };
   if (!aqs) return { erreur: 'Donnez au moins un expéditeur, un mot de l’objet ou un texte à chercher.', statut: 400 };
   const sens = ['recus', 'envoyes', 'tous'].includes(q.sens) ? q.sens : 'tous';
   const dossiersCherches = [];
@@ -708,17 +720,19 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
   /** @type {any[]} */
   const emails = [];
   for (const [dossierEws_, sensMail] of dossiersCherches) {
-    const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindRecherche(dossierEws_, aqs, 60), delaiMs: 30000 }, injections);
+    const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindRecherche(dossierEws_, requeteAqsMails(q, sensMail === 'envoye'), 100), delaiMs: 30000 }, injections);
     if (r.echec) return { erreur: r.echec.message, statut: 502 };
-    if (r.statut === 401 || r.statut === 403) return { erreur: 'Identifiants de messagerie refusés.', statut: 502 };
+    if (r.statut === 401 || r.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
     if (!succes(r.corps)) return { erreur: `Recherche impossible (${codeReponse(r.corps) || r.statut}).`, statut: 502 };
     for (const e of parseFind(r.corps)) {
-      const jour = String(e.date || '').slice(0, 10);
+      const jour = jourParisEmail(e.date);
       if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) continue;
-      const d = e.deAdresse && !internes.includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
+      const d = e.deAdresse && !internes.map((x) => String(x).toLowerCase()).includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
       const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
       MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
-      emails.push({ mail_id: mailId, sens: sensMail, date: e.date, de: e.deNom || e.deAdresse, de_adresse: e.deAdresse, objet: e.objet, apercu: String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
+      emails.push({ mail_id: mailId, sens: sensMail, date: e.date, nom: sensMail === 'envoye' ? 'l’étude' : (e.deNom || e.deAdresse), email_expediteur: e.deAdresse,
+        // Précédés d'un mot d'usage : le masquage voit un nom en tête de l'objet ou de l'aperçu (« Paul Durand vente ») hors de la tête de phrase.
+        objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
     }
   }
   while (MAILS_TROUVES.size > MAX_MAILS_TROUVES) MAILS_TROUVES.delete(MAILS_TROUVES.keys().next().value);
@@ -731,13 +745,15 @@ async function lireMailTrouve(parametresRepo, mailId, injections = {}) {
   const { posterEws } = require('./exchange/ews');
   const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
   if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
+  if (require('./agendaWatch').lectureAgendaSuspendue(reglages)) return { erreur: 'Messagerie suspendue : identifiants refusés, à corriger dans les Réglages.', statut: 503 };
   const t = MAILS_TROUVES.get(String(mailId || ''));
   if (!t) return { erreur: 'Email inconnu ou trop ancien : relance la recherche (chercher_mails).', statut: 404 };
   const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems([t.itemId], true), delaiMs: 30000 }, injections);
   if (r.echec) return { erreur: r.echec.message, statut: 502 };
+  if (r.statut === 401 || r.statut === 403) { require('./agendaWatch').signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
   const lu = succes(r.corps) ? parseGetItems(r.corps).get(t.itemId) : null;
   if (!lu) return { erreur: 'Email introuvable dans la boîte (déplacé ou supprimé).', statut: 404 };
-  return { texte: String(lu.corps || '').slice(0, 6000), a: lu.a, pieces_jointes: lu.pjs.map((p) => p.nom) };
+  return { texte: 'Texte de l’email : ' + String(lu.corps || '').slice(0, 6000), a: lu.a, pieces_jointes: lu.pjs.map((p) => p.nom) };
 }
 
 function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, intervalleMs) {
@@ -760,7 +776,7 @@ module.exports = {
   CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, ecrireEtatTour, idCourt,
   normaliserObjet, correspondAuPrepare, dossierDeEmailEnvoye, texteSansCitation, boitesEnvoyes,
   adressesNouvellesFiches, JOURS_RATTRAPAGE_ADRESSE, dossiersNouveauxEmails,
-  chercherMailsDirect, lireMailTrouve, requeteAqsMails, corpsFindRecherche,
+  chercherMailsDirect, lireMailTrouve, requeteAqsMails, corpsFindRecherche, jourParisEmail,
   corpsFind, corpsGetItems, corpsGetAttachment, parseFind, parseGetItems, parseGetAttachment, promptResumeEmail,
   executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, demarrerSurveillanceEmailsDossiers
 };

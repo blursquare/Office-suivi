@@ -452,12 +452,16 @@ function creerMemoire(db) {
       const filtre = type === 'pdf' ? "ext = 'pdf'" : "ext != 'pdf'";
       // Les dossiers en cours (rubriques « d:<id> », index du NAS, 0.402.0) ne se mêlent jamais aux quatre rubriques de la mémoire.
       const rub = dossiers ? " AND rubrique LIKE 'd:%'" : " AND rubrique NOT LIKE 'd:%'";
-      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre}${rub}${dossiers ? '' : sansExclues('rubrique')} ORDER BY id LIMIT ?`).all(...(dossiers ? [] : exclues), Math.max(1, Math.min(50, Number(limite) || 10)));
+      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre}${rub}${dossiers ? '' : sansExclues('rubrique')} ORDER BY id LIMIT ?`).all(...(dossiers ? [] : exclues), Math.max(1, Math.min(500, Number(limite) || 10)));
     },
-    /** Réserve des PDF pour une fenêtre (statut « en_cours ») : deux fenêtres ne lisent pas le même ; une réservation de plus de 10 min est rendue. */
+    /** Réserve des PDF pour une fenêtre (statut « en_cours ») : deux fenêtres ne lisent pas le même ; une réservation de plus de 45 min est rendue (un lot de scans à l'OCR peut être long). */
     reserverPourPoste(docs) {
-      db.prepare("UPDATE memoire_documents SET statut = 'a_lire' WHERE statut = 'en_cours' AND lu_le < ?").run(Date.now() - 10 * 60 * 1000);
+      db.prepare("UPDATE memoire_documents SET statut = 'a_lire' WHERE statut = 'en_cours' AND lu_le < ?").run(Date.now() - 45 * 60 * 1000);
       for (const d of docs) db.prepare("UPDATE memoire_documents SET statut = 'en_cours', lu_le = ? WHERE id = ? AND statut = 'a_lire'").run(Date.now(), d.id);
+    },
+    /** PDF des dossiers en erreur ou sans texte depuis plus de `ageMs` : remis à lire (NAS indisponible un instant, OCR absent d'un poste). */
+    retenterDossiers(ageMs) {
+      return db.prepare("UPDATE memoire_documents SET statut = 'a_lire', erreur = '' WHERE rubrique LIKE 'd:%' AND statut IN ('erreur', 'vide') AND lu_le < ?").run(Date.now() - ageMs).changes;
     },
     /** Retire de la mémoire tous les documents d'une rubrique (dossier clos ou non relié). */
     retirerRubrique(rubrique) {
@@ -480,7 +484,9 @@ function creerMemoire(db) {
       return db.prepare(`SELECT d.* FROM memoire_documents d LEFT JOIN memoire_resumes r ON r.doc = d.id
         WHERE d.rubrique LIKE 'd:%' AND d.statut = 'lu' AND (r.doc IS NULL OR (r.resume = '' AND r.essais < 2)) ORDER BY d.id LIMIT ?`).all(Math.max(1, Math.min(20, Number(limite) || 5)));
     },
-    enregistrerResume(id, { type = '', emetteur = '', date = '', resume = '' } = {}, echec = false) {
+    enregistrerResume(id, { type = '', emetteur = '', date = '', resume = '' } = {}, echec = false, luLe = null) {
+      // Le document a été relu (fichier changé) pendant que l'IA écrivait : ce résumé est périmé, il n'est pas gardé.
+      if (luLe !== null) { const d = lireStmt.get(Number(id)); if (!d || d.statut !== 'lu' || d.lu_le !== luLe) return; }
       const ex = db.prepare('SELECT essais FROM memoire_resumes WHERE doc = ?').get(Number(id));
       db.prepare('INSERT INTO memoire_resumes (doc, type, emetteur, date_doc, resume, essais, genere_le) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(doc) DO UPDATE SET type = excluded.type, emetteur = excluded.emetteur, date_doc = excluded.date_doc, resume = excluded.resume, essais = excluded.essais, genere_le = excluded.genere_le')
         .run(Number(id), String(type).slice(0, 80), String(emetteur).slice(0, 120), String(date).slice(0, 10), String(resume).slice(0, 600), echec ? ((ex && ex.essais) || 0) + 1 : 0, Date.now());
@@ -502,7 +508,7 @@ function creerMemoire(db) {
     /** Comptes par rubrique et par statut. */
     etat() {
       const lignes = db.prepare('SELECT rubrique, statut, ext, COUNT(*) AS n, COALESCE(SUM(ocr), 0) AS ocr FROM memoire_documents GROUP BY rubrique, statut, ext').all();
-      const passages = db.prepare('SELECT COUNT(*) AS n FROM memoire_passages').get().n;
+      const passages = db.prepare("SELECT COUNT(*) AS n FROM memoire_passages p JOIN memoire_documents d ON d.id = p.doc WHERE d.rubrique NOT LIKE 'd:%'").get().n;
       return { lignes, passages };
     },
     /** Cherche des passages : tous les mots d'abord, puis n'importe lequel ; chaque passage nomme sa rubrique et sa page, jamais son fichier. */

@@ -1,7 +1,8 @@
 // @ts-check
 'use strict';
 // Index du NAS des dossiers en cours (voir indexNas.js) : parcours, PDF à lire par le poste, résumés par l'IA, recherche pour l'agent.
-// Jamais un chemin reçu du réseau : un document se désigne par son identifiant en base. Aucun nom de fichier ne sort (seulement le sous-dossier).
+// Jamais un chemin reçu du réseau : un document se désigne par son identifiant en base. Le chemin d'un PDF n'est rendu qu'au POSTE, qui
+// le garde pour lire_document et ne transmet à l'IA qu'un document_id opaque et le sous-dossier.
 
 const express = require('express');
 const { cheminDocumentMemoire } = require('../memoire');
@@ -13,6 +14,10 @@ const { creerIaRoutines } = require('../routines/ia');
 const CLE_REGLAGES = 'index-nas-reglages';
 const INTERVALLE_PARCOURS_MS = 30 * 60 * 1000;
 const INTERVALLE_RESUMES_MS = 5 * 60 * 1000;
+// Budget propre des résumés (jamais celui des routines, qu'il ne doit pas arrêter) : 15 € par mois, compteur `index-nas-usage`.
+const BUDGET_RESUMES = { cle: 'index-nas-usage', plafondEuros: 15, libelle: 'plafond mensuel des résumés de documents atteint (15 €)' };
+// Une seule fenêtre lit les PDF à la fois (charge des postes) : celle qui a pris des documents il y a moins de 5 min garde la main.
+const DUREE_LECTEUR_MS = 5 * 60 * 1000;
 
 const routeAsync = (fn) => (req, res) => {
   Promise.resolve(fn(req, res)).catch((err) => {
@@ -32,6 +37,8 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   /** @type {any} */
   let dernierResume = { resumes: 0, echecs: 0, ignores: 0 };
   let resumeEnCours = false;
+  /** @type {{ id: string, le: number }} */
+  let lecteur = { id: '', le: 0 };
   const lireReglages = () => {
     const b = parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_REGLAGES, null) : null;
     return { actif: !(b && b.actif === false) };
@@ -46,7 +53,7 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   async function tourResumes() {
     if (resumeEnCours || !memoire || !lireReglages().actif) return dernierResume;
     resumeEnCours = true;
-    try { dernierResume = await resumerDocuments({ memoire, depot, ia: injections.ia || creerIaRoutines({ parametresRepo }), limite: 5 }); }
+    try { dernierResume = await resumerDocuments({ memoire, depot, ia: injections.ia || creerIaRoutines({ parametresRepo, budget: BUDGET_RESUMES }), limite: 5 }); }
     catch (e) { console.error('[index-nas] résumés :', e && e.message ? e.message : e); }
     finally { resumeEnCours = false; }
     return dernierResume;
@@ -69,7 +76,11 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   // Les PDF que le poste doit lire : réservés à la fenêtre qui les prend (deux fenêtres ne lisent pas le même).
   routeur.get('/index-nas/a-lire', routeAsync(async (req, res) => {
     if (!lireReglages().actif) { res.json({ documents: [] }); return; }
-    const docs = memoire.aLire('pdf', Number(req.query.limite) || 5, { dossiers: true });
+    const fenetre = String(req.query.fenetre || '').slice(0, 40);
+    const maintenant = Date.now();
+    if (lecteur.id && lecteur.id !== fenetre && maintenant - lecteur.le < DUREE_LECTEUR_MS) { res.json({ documents: [], autreFenetre: true }); return; }
+    lecteur = { id: fenetre, le: maintenant };
+    const docs = memoire.aLire('pdf', Math.min(2, Number(req.query.limite) || 1), { dossiers: true });
     memoire.reserverPourPoste(docs);
     res.json({ documents: docs.map((d) => ({ id: d.id, rubrique: d.rubrique, nom: d.nom, taille: d.taille, dossier: true })) });
   }));
@@ -88,23 +99,28 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   // Recherche dans les documents d'UN dossier : passages avec le résumé du document (type, émetteur, date) ; sans recherche, l'inventaire.
   routeur.get('/index-nas/chercher', routeAsync(async (req, res) => {
     const dossierId = String(req.query.dossier || '');
-    if (!dossierId || !depot.trouverParId || !depot.trouverParId(dossierId)) { res.status(404).json({ erreur: 'Dossier inconnu.' }); return; }
+    const dossier = dossierId && depot.trouverParId ? depot.trouverParId(dossierId) : null;
+    if (!dossier) { res.status(404).json({ erreur: 'Dossier inconnu.' }); return; }
+    // Le chemin dans le dossier client sert au POSTE seulement (document_id pour lire_document) : il le retire avant de répondre à l'IA.
+    const remarque = !lireReglages().actif ? 'Index des documents éteint (Réglages › Mémoire de CLAIRE) : réponse possiblement périmée ; utilise documents_du_dossier.'
+      : !dossier.nasDossier ? 'Ce dossier n’est pas relié au NAS : aucun document indexé.'
+      : dossier.archive ? 'Dossier archivé : ses documents ne sont plus indexés ; utilise documents_du_dossier.' : '';
     const rubrique = rubriqueDossier(dossierId);
     const q = String(req.query.q || '').slice(0, 300).trim();
     const lu = memoire.etat().lignes.filter((x) => x.rubrique === rubrique);
     const suivi = { fichiers: lu.reduce((s, x) => s + x.n, 0), lus: lu.filter((x) => x.statut === 'lu').reduce((s, x) => s + x.n, 0) };
     if (!q) {
-      const docs = memoire.documentsRubrique(rubrique, 80).map((d) => ({ sous_dossier: sousDossierDe(d.chemin), lu: d.statut === 'lu', type: d.type || '', emetteur: d.emetteur || '', date: d.date_doc || '', resume: d.resume || '' }));
-      res.json({ inventaire: docs, ...suivi });
+      const docs = memoire.documentsRubrique(rubrique, 80).map((d) => ({ chemin: d.ext === 'pdf' ? d.chemin : '', sous_dossier: sousDossierDe(d.chemin), lu: d.statut === 'lu', type: d.type || '', emetteur: d.emetteur || '', date: d.date_doc || '', resume: d.resume || '' }));
+      res.json({ inventaire: docs, ...suivi, remarque });
       return;
     }
     const r = memoire.chercher(q, { rubrique, limite: Number(req.query.limite) || 8 });
     const passages = r.passages.map((p) => {
       const doc = memoire.document(p.doc);
       const rs = memoire.resume(p.doc) || {};
-      return { sous_dossier: doc ? sousDossierDe(doc.chemin) : '', page: p.page || undefined, type: rs.type || '', emetteur: rs.emetteur || '', date: rs.date_doc || '', resume: rs.resume || '', extrait: p.extrait };
+      return { chemin: doc && doc.ext === 'pdf' ? doc.chemin : '', sous_dossier: doc ? sousDossierDe(doc.chemin) : '', page: p.page || undefined, type: rs.type || '', emetteur: rs.emetteur || '', date: rs.date_doc || '', resume: rs.resume || '', extrait: p.extrait };
     });
-    res.json({ passages, ...suivi });
+    res.json({ passages, ...suivi, remarque });
   }));
 
   routeur.demarrerAuto = () => {

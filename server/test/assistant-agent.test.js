@@ -1093,3 +1093,19 @@ test('document « vrai agent » étape 1 : carte des sources, règle d’autonom
   assert.ok(m && m.strict === false && m.input_schema.required.includes('fait'));
   assert.deepEqual(Object.keys(MODELES_AGENT), ['claude-opus-5-5', 'claude-sonnet-5-5'], 'jamais Haiku pour l’agent');
 });
+
+test('0.402.0 : rien de nominatif ne part des résultats de chercher_mails, lire_mail et chercher_nas', () => {
+  const S = motsSensiblesDossiers([{ nom: 'MARTEL / FOURNIER', parties: [{ nom: 'MARTEL', prenom: 'Alex' }, { nom: 'FOURNIER', prenom: 'Camille' }], autres: [] }]);
+  const mails = { emails: [{ mail_id: 'mx1', sens: 'recu', date: '2026-10-27T08:00:00Z', nom: 'Jean Dupont', email_expediteur: 'jean.dupont@exemple.fr',
+    objet: 'Objet : Paul Durand vente', apercu: 'Aperçu : Bonjour, ci-joint le permis de Alex MARTEL', pieces_jointes: true, dossier_id: 'd1' }] };
+  const m1 = JSON.stringify(masquerValeur(mails, S, new Map()));
+  assert.doesNotMatch(m1, /Jean|Dupont|dupont|Paul|Durand|Alex|MARTEL/);
+  assert.match(m1, /permis/);
+  const lu = { texte: 'Texte de l’email : Bonjour Maître, Camille Fournier vous transmet la DAACT. Cordialement, Alex Martel', a: ['camille@exemple.fr'], pieces_jointes: ['DAACT.pdf'] };
+  assert.doesNotMatch(JSON.stringify(masquerValeur(lu, S, new Map())), /Camille|Fournier|Alex|Martel|camille@/);
+  const nas = { passages: [{ document_id: 'doc3', sous_dossier: '3 - AAE', type: 'permis de construire', emetteur: 'Mairie de Vineuil', date: '2014-03-12',
+    resume: 'Permis accordé à Camille FOURNIER pour une extension.', extrait: 'arrêté accordant à Monsieur Alex MARTEL le permis' }] };
+  const m3 = JSON.stringify(masquerValeur(nas, S, new Map()));
+  assert.doesNotMatch(m3, /Camille|FOURNIER|Alex|MARTEL/);
+  assert.match(m3, /permis de construire/);
+});

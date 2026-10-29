@@ -49,9 +49,11 @@
         let texte = lignesDepuisItemsPdf((await page.getTextContent()).items).join('\n').trim();
         page.cleanup();
         if (texte.replace(/\s+/g, '').length < CARACTERES_MIN_PAGE_MEMOIRE && ocr < MAX_PAGES_OCR_MEMOIRE) {
-          memoireMessage = `Lecture par OCR — ${doc.nom} (page ${p} sur ${pdf.numPages})`;
-          renderReglagesMemoire();
+          // Index des dossiers en cours : lecture silencieuse, jamais le nom d'un fichier de client à l'écran.
+          if (!doc.dossier) { memoireMessage = `Lecture par OCR — ${doc.nom} (page ${p} sur ${pdf.numPages})`; renderReglagesMemoire(); }
           if (worker === null) worker = (await creerWorkerOcr()) || false;
+          // OCR injoignable sur ce poste : un scan de dossier reste en erreur (retenté plus tard), jamais enregistré « sans texte ».
+          if (!worker && doc.dossier) throw new Error('OCR indisponible sur ce poste');
           if (worker) { texte = String(await ocrPage(pdf, p, worker) || '').trim(); ocr++; }
         }
         // FAUSSES MINUTES (étude 15/10) : l'acte seulement, jusqu'au tableau de signature ; les annexes qui suivent ne sont jamais lues.
@@ -139,7 +141,7 @@
     const optionFm = e ? `<div class="reglages-option"><div><strong>Lire les fausses minutes</strong>${infoBulle('Option. Quand elle est allumée, les PDF du dossier FAUSSES MINUTES sont lus par le poste, uniquement jusqu’au tableau de signature de l’acte : les annexes qui suivent ne sont pas lues.')}</div>
         <wa-switch id="memoire-fausses-minutes" ${fmActif ? 'checked ' : ''}onchange="basculerFausseMinutesMemoire(this.checked)"></wa-switch></div>` : '';
     const ix = indexNasEtat;
-    const optionIndex = ix ? `<div class="reglages-option"><div><strong>Documents des dossiers en cours</strong>${infoBulle('CLAIRE lit en fond les documents du NAS des dossiers en cours (PDF par le poste, OCR des scans) pour pouvoir y chercher, et fait écrire par Claude un résumé d’une phrase par document (texte pseudonymisé, jamais une pièce d’identité ni un RIB ; compté dans le plafond mensuel des routines).')}
+    const optionIndex = ix ? `<div class="reglages-option"><div><strong>Documents des dossiers en cours</strong>${infoBulle('CLAIRE lit en fond les documents du NAS des dossiers en cours (PDF par le poste, OCR des scans) pour pouvoir y chercher, et fait écrire par Claude un résumé d’une phrase par document (texte pseudonymisé, jamais une pièce d’identité ni un RIB ; plafond propre de 15 € par mois). Une seule fenêtre lit à la fois.')}
         <div class="hint">${ix.lus} lu${ix.lus > 1 ? 's' : ''} sur ${ix.fichiers}${ix.aLire ? ` · <strong>${ix.aLire} à lire</strong>` : ''}${ix.ocr ? ` · ${ix.ocr} par OCR` : ''}${ix.erreurs ? ` · ${ix.erreurs} en erreur` : ''}${ix.parcours && ix.parcours.enCours ? ' · parcours en cours…' : ''}</div></div>
         <wa-switch id="index-nas-actif" ${ix.reglages && ix.reglages.actif ? 'checked ' : ''}onchange="basculerIndexNas(this.checked)"></wa-switch></div>` : '';
     zone.innerHTML = `${optionIndex}${optionFm}${lignes}${resume}${parcours}
@@ -180,12 +182,13 @@
   // Index du NAS des dossiers en cours (0.402.0) : la fenêtre lit en fond les PDF des dossiers (texte, OCR des scans) que le serveur lui
   // réserve, sans bruit ; une seule fenêtre à la fois par document (réservation côté serveur). Éteint par Réglages › Mémoire de CLAIRE.
   var indexNasEnCours = false;
+  var FENETRE_INDEX_NAS = 'f' + Math.random().toString(36).slice(2, 12);
   async function lireIndexNasTous() {
     if (indexNasEnCours || typeof pdfjsLib === 'undefined' || (typeof POSTE_CLAIRE !== 'undefined' && POSTE_CLAIRE)) return;
     indexNasEnCours = true;
     try {
-      for (let tour = 0; tour < 40; tour++) {
-        const r = await fetchAvecAuth('/api/index-nas/a-lire?limite=3');
+      for (let tour = 0; tour < 60; tour++) {
+        const r = await fetchAvecAuth('/api/index-nas/a-lire?limite=1&fenetre=' + FENETRE_INDEX_NAS);
         if (!r.ok) break;
         const docs = ((await r.json()) || {}).documents || [];
         if (!docs.length) break;
@@ -214,10 +217,22 @@
     catch (err) { return { erreur: 'index du NAS injoignable depuis le poste' }; }
     if (!r.ok) return { erreur: r.status === 404 ? 'aucun dossier avec cet id' : 'recherche impossible (' + r.status + ')' };
     const json = await r.json();
-    const incomplet = json.fichiers > json.lus ? { remarque: json.lus + ' documents lus sur ' + json.fichiers + ' : la lecture des autres est en cours, un document peut manquer ; documents_du_dossier et lire_document restent possibles.' } : {};
-    if (json.inventaire) return { documents: json.inventaire, ...incomplet };
-    return json.passages.length ? { nombre: json.passages.length, passages: json.passages, ...incomplet }
-      : { nombre: 0, passages: [], remarque: 'Rien de correspondant dans les documents lus de ce dossier (autres mots, synonymes, ou document pas encore lu ; essaie documents_du_dossier).' };
+    const d = dossiers.find(x => x.id === dossier);
+    // Le chemin reste sur le poste : il devient un document_id que lire_document sait ouvrir ; l'IA ne reçoit jamais le nom du fichier.
+    const avecId = (x) => {
+      const { chemin, ...reste } = x;
+      if (!chemin || !d) return reste;
+      let n = Object.keys(documentsAgentConnus).length;
+      let id;
+      do { id = 'doc' + (++n); } while (documentsAgentConnus[id]);
+      documentsAgentConnus[id] = { sorte: 'fichier', chemin: cheminNasComplet(d, chemin), libelle: x.type || 'document', dossier: d };
+      return { document_id: id, ...reste };
+    };
+    const notes = [json.remarque, json.fichiers > json.lus ? json.lus + ' documents lus sur ' + json.fichiers + ' : la lecture des autres est en cours, un document peut manquer ; documents_du_dossier et lire_document restent possibles.' : ''].filter(Boolean);
+    const incomplet = notes.length ? { remarque: notes.join(' ') } : {};
+    if (json.inventaire) return { documents: json.inventaire.map(avecId), ...incomplet };
+    return json.passages.length ? { nombre: json.passages.length, passages: json.passages.map(avecId), ...incomplet }
+      : { nombre: 0, passages: [], remarque: [json.remarque, 'Rien de correspondant dans les documents lus de ce dossier (autres mots, synonymes, ou document pas encore lu ; essaie documents_du_dossier).'].filter(Boolean).join(' ') };
   }
 
   async function chercherDansLaMemoireAgent(e) {

@@ -83,8 +83,9 @@ async function parcourirDossiersEnCours(o) {
       if (!d || d.archive || !d.nasDossier) etat.retires += o.memoire.retirerRubrique(rub);
     }
     o.memoire.retenterErreursServeur();
+    o.memoire.retenterDossiers(24 * 3600 * 1000);
     const tentes = new Set();
-    const suivant = () => o.memoire.aLire('serveur', 50, { dossiers: true }).find((/** @type {any} */ x) => !tentes.has(x.id));
+    const suivant = () => o.memoire.aLire('serveur', 500, { dossiers: true }).find((/** @type {any} */ x) => !tentes.has(x.id));
     for (let doc = suivant(); doc; doc = suivant()) {
       tentes.add(doc.id);
       const racine = racines[doc.rubrique];
@@ -132,7 +133,8 @@ async function resumerDocuments(o) {
     try {
       const r = resumeAssaini(await o.ia.json(promptResume(masquer(texte, sensibles, table)), SCHEMA_RESUME, null, 500));
       if (!r) throw new Error('résumé inutilisable');
-      o.memoire.enregistrerResume(doc.id, { type: retablirTexte(r.type, table), emetteur: retablirTexte(r.emetteur, table), date: r.date, resume: retablirTexte(r.resume, table) });
+      const sansInventes = (/** @type {string} */ t) => retablirTexte(t, table).replace(/\[(?:NOM|EMAIL|TEL|REF|NUM|MONTANT)\d+\]/g, '[?]');
+      o.memoire.enregistrerResume(doc.id, { type: sansInventes(r.type), emetteur: sansInventes(r.emetteur), date: r.date, resume: sansInventes(r.resume) }, false, doc.lu_le);
       sortie.resumes++;
     } catch (e) {
       o.memoire.enregistrerResume(doc.id, {}, true);

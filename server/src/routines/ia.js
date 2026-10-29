@@ -130,7 +130,7 @@ function lireEmailsTraites(repo, maintenantMs) {
 // ---- L'appel à Claude, compté dans le plafond des routines ----
 
 /**
- * @param {{ parametresRepo: any, sdk?: any, cle?: string }} deps
+ * @param {{ parametresRepo: any, sdk?: any, cle?: string, budget?: { cle: string, plafondEuros: number, libelle: string } }} deps
  * @returns {{ disponible: () => { ok: boolean, raison?: string }, json: (prompt: string, schema: any, valider?: (o: any) => string | null, maxJetons?: number) => Promise<any>, texte: (prompt: string) => Promise<string> }}
  */
 function creerIaRoutines(deps) {
@@ -145,20 +145,24 @@ function creerIaRoutines(deps) {
     }
     return sdk;
   };
-  const reglagesPlafond = () => require('./reglages').lireReglagesRoutines(repo);
+  // Un autre budget que celui des routines (index du NAS, 0.402.0 : son propre compteur et son propre plafond, pour ne jamais arrêter les routines).
+  const budget = deps.budget || null;
+  const reglagesPlafond = () => (budget ? { plafondEuros: budget.plafondEuros } : require('./reglages').lireReglagesRoutines(repo));
+  const usage = () => lireUsageRoutines(repo, undefined, budget ? budget.cle : undefined);
+  const libellePlafond = budget ? budget.libelle : 'plafond mensuel de l’IA des routines atteint';
   return {
     disponible() {
       if (!cle && !deps.sdk) return { ok: false, raison: 'aucune clé Claude (Réglages › IA et relecture d’actes)' };
-      if (plafondAtteint(reglagesPlafond(), lireUsageRoutines(repo))) return { ok: false, raison: 'plafond mensuel de l’IA des routines atteint' };
+      if (plafondAtteint(reglagesPlafond(), usage())) return { ok: false, raison: libellePlafond };
       return { ok: true };
     },
     async json(prompt, schema, valider, maxJetons) {
-      if (plafondAtteint(reglagesPlafond(), lireUsageRoutines(repo))) throw new Error('plafond mensuel de l’IA des routines atteint');
+      if (plafondAtteint(reglagesPlafond(), usage())) throw new Error(libellePlafond);
       let message;
       try { message = await client().messages.create(requeteAssistantClaude(MODELE_ROUTINES, prompt, schema, maxJetons || 1200)); } catch (e) { throw new Error(messageErreurClaude(e)); }
       const u = (message && message.usage) || {};
       const t = MODELES_CLAUDE_ASSISTANT[MODELE_ROUTINES];
-      ajouterDepenseRoutines(repo, { euros: ((u.input_tokens || 0) * t.entree + (u.output_tokens || 0) * t.sortie) / 1e6, jetons: (u.input_tokens || 0) + (u.output_tokens || 0) });
+      ajouterDepenseRoutines(repo, { euros: ((u.input_tokens || 0) * t.entree + (u.output_tokens || 0) * t.sortie) / 1e6, jetons: (u.input_tokens || 0) + (u.output_tokens || 0) }, undefined, budget ? budget.cle : undefined);
       const brut = (message.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
       let objet;
       try { objet = JSON.parse(brut); } catch (e) { throw new Error('réponse de Claude illisible'); }
@@ -167,7 +171,7 @@ function creerIaRoutines(deps) {
       return objet;
     },
     async texte(prompt) {
-      if (plafondAtteint(reglagesPlafond(), lireUsageRoutines(repo))) throw new Error('plafond mensuel de l’IA des routines atteint');
+      if (plafondAtteint(reglagesPlafond(), usage())) throw new Error(libellePlafond);
       let message;
       try { message = await client().messages.create({ model: MODELE_VEILLE, max_tokens: 4000, messages: [{ role: 'user', content: prompt }] }); } catch (e) { throw new Error(messageErreurClaude(e)); }
       const u = (message && message.usage) || {};

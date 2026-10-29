@@ -500,7 +500,9 @@ test('audit 25/10 : un rangement noté pendant un tour n’est pas effacé par l
 test('recherche libre (agent) : requête AQS sûre, dossier reconnu par l’adresse, période filtrée, lecture à la demande jamais gardée', async () => {
   const { db, repo, depot } = preparer();
   try {
-    assert.equal(E.requeteAqsMails({ expediteur: 'Martel"', objet: 'permis (DP)', texte: '' }), 'from:"Martel" AND subject:"permis DP"');
+    assert.equal(E.requeteAqsMails({ expediteur: 'Martel"', objet: 'permis (DP)', texte: '' }), 'from:Martel AND subject:permis AND subject:DP');
+    assert.equal(E.requeteAqsMails({ expediteur: 'Alex Martel', texte: 'permis construire' }, true), 'to:"Alex Martel" AND permis AND construire');
+    assert.equal(E.jourParisEmail('2026-09-30T22:30:00Z'), '2026-10-01', 'jour de Paris, jamais celui de l’UTC');
     assert.equal(E.requeteAqsMails({}), '');
     const vus = [];
     const poster = (o, cb) => {
@@ -518,11 +520,21 @@ test('recherche libre (agent) : requête AQS sûre, dossier reconnu par l’adre
     assert.equal(r.emails[0].dossier_id, 'd1');
     assert.equal(r.emails[0].sens, 'recu');
     assert.ok(!('itemId' in r.emails[0]), 'identifiant Exchange jamais rendu');
-    assert.ok(vus.some((b) => /QueryString>from:&quot;Martel&quot;|QueryString>from:"Martel"/.test(b)));
+    assert.ok(vus.some((b) => /QueryString>from:Martel</.test(b)));
+    assert.ok(vus.some((b) => /sentitems/.test(b) && /QueryString>to:Martel</.test(b)), 'dans les envoyés, la personne est un destinataire');
+    assert.match(r.emails[0].objet, /^Objet : /);
     const lu = await E.lireMailTrouve(repo, r.emails[0].mail_id, { poster });
     assert.match(lu.texte, /permis de construire/);
     assert.deepEqual(lu.pieces_jointes, ['permis.pdf']);
     assert.equal((await E.lireMailTrouve(repo, 'mxinconnu', { poster })).statut, 404);
     assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /permis de construire de 2014/, 'le texte n’est jamais gardé');
+    // Disjoncteur : un refus d'identifiants suspend la recherche, plus aucune requête ensuite.
+    const agendaWatch = require('../src/agendaWatch');
+    let appels = 0;
+    const refus = (o, cb) => { appels++; cb(null, { statusCode: 401, body: '' }); };
+    assert.equal((await E.chercherMailsDirect(repo, depot, { expediteur: 'Martel' }, { poster: refus })).statut, 502);
+    assert.equal((await E.chercherMailsDirect(repo, depot, { expediteur: 'Martel' }, { poster: refus })).statut, 503);
+    assert.equal(appels, 1, 'un seul essai, jamais de nouvel envoi des identifiants refusés');
+    agendaWatch.reinitialiserDisjoncteurAgenda();
   } finally { db.close(); }
 });

@@ -21,16 +21,16 @@ function assainirUsage(brut, maintenant) {
   return { mois, euros: Number.isFinite(euros) && euros > 0 ? Math.round(euros * 10000) / 10000 : 0, jetons: Number.isFinite(jetons) && jetons > 0 ? Math.round(jetons) : 0 };
 }
 
-/** @param {any} repo @param {Date} [maintenant] */
-function lireUsageRoutines(repo, maintenant) {
-  return assainirUsage(repo.lireJsonBrut(CLE_USAGE_ROUTINES, null), maintenant || new Date());
+/** @param {any} repo @param {Date} [maintenant] @param {string} [cle] autre compteur (index du NAS : `index-nas-usage`) */
+function lireUsageRoutines(repo, maintenant, cle) {
+  return assainirUsage(repo.lireJsonBrut(cle || CLE_USAGE_ROUTINES, null), maintenant || new Date());
 }
 
-/** @param {any} repo @param {{ euros?: number, jetons?: number }} depense @param {Date} [maintenant] */
-function ajouterDepenseRoutines(repo, depense, maintenant) {
-  const u = lireUsageRoutines(repo, maintenant);
+/** @param {any} repo @param {{ euros?: number, jetons?: number }} depense @param {Date} [maintenant] @param {string} [cle] */
+function ajouterDepenseRoutines(repo, depense, maintenant, cle) {
+  const u = lireUsageRoutines(repo, maintenant, cle);
   const nouveau = assainirUsage({ mois: u.mois, euros: u.euros + Math.max(0, Number(depense && depense.euros) || 0), jetons: u.jetons + Math.max(0, Number(depense && depense.jetons) || 0) }, maintenant || new Date());
-  repo.ecrireJsonBrut(CLE_USAGE_ROUTINES, nouveau);
+  repo.ecrireJsonBrut(cle || CLE_USAGE_ROUTINES, nouveau);
   return nouveau;
 }
 

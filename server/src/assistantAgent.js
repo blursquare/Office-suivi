@@ -174,13 +174,13 @@ const OUTILS_AGENT = [
   },
   {
     name: 'chercher_nas',
-    description: 'Cherche DANS LE TEXTE des documents du NAS d’un dossier en cours (PDF lus par OCR si besoin, Word) : « le titre de propriété », « permis de construire », « dommages-ouvrage », « facture »… Rend des extraits avec, pour chaque document, son type, son émetteur, sa date et un résumé d’une phrase, et le sous-dossier où il se trouve. Avec recherche "" : l’inventaire du dossier (type, émetteur, date, résumé de chaque document). Plus rapide que documents_du_dossier + lire_document ; lis ensuite le document entier avec lire_document si besoin. Les documents encore en cours de lecture peuvent manquer : une réponse vide ne prouve rien, essaie des synonymes puis documents_du_dossier.',
+    description: 'Cherche DANS LE TEXTE des documents du NAS d’un dossier en cours (PDF lus par OCR si besoin, Word) : « le titre de propriété », « permis de construire », « dommages-ouvrage », « facture »… Rend des extraits avec, pour chaque document, son type, son émetteur, sa date et un résumé d’une phrase, et le sous-dossier où il se trouve. Avec recherche "" : l’inventaire du dossier (type, émetteur, date, résumé de chaque document). Chaque document porte un document_id : lis-le en entier avec lire_document si besoin. Les documents encore en cours de lecture peuvent manquer : une réponse vide ne prouve rien, essaie des synonymes puis documents_du_dossier.',
     input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'recherche'],
       properties: { dossier_id: chaine('id du dossier'), recherche: chaine('2 à 6 mots utiles, ou "" pour l’inventaire') } }
   },
   {
     name: 'chercher_mails',
-    description: 'Cherche des emails dans la messagerie de l’étude (boîte reliée), en direct, par expéditeur (nom ou adresse), mot de l’objet ou texte, sur une période. Rend pour chaque email : mail_id, sens (recu/envoye), date, expéditeur, objet, aperçu, pièces jointes oui/non, dossier_id reconnu par l’adresse (vide si aucun). Pour un client, cherche aussi par son adresse (lire_dossier) et par plusieurs orthographes. Lis ensuite le texte avec lire_mail. Une recherche vide ne prouve pas qu’aucun email n’existe (autre boîte, archive locale d’Outlook, autre orthographe) : dis-le.',
+    description: 'Cherche des emails dans la messagerie de l’étude (boîte reliée), en direct, par expéditeur (nom ou adresse), mot de l’objet ou texte, sur une période. Rend pour chaque email : mail_id, sens (recu/envoye), date (UTC), nom et email de l’expéditeur, objet, aperçu, pièces jointes oui/non, dossier_id reconnu par l’adresse (vide si aucun). Dans les envoyés, « expediteur » désigne le destinataire cherché. Seuls la boîte de réception et les envoyés sont lus (pas les sous-dossiers). Pour un client, cherche aussi par son adresse (lire_dossier) et par plusieurs orthographes. Lis ensuite le texte avec lire_mail. Une recherche vide ne prouve pas qu’aucun email n’existe (autre boîte, archive locale d’Outlook, autre orthographe) : dis-le.',
     input_schema: { type: 'object', additionalProperties: false, required: ['expediteur', 'objet', 'texte', 'depuis', 'jusqu', 'sens'],
       properties: { expediteur: chaine('nom ou adresse de l’expéditeur, ou ""'), objet: chaine('mot de l’objet, ou ""'), texte: chaine('mots du texte, ou ""'),
         depuis: chaine('date AAAA-MM-JJ de début, ou ""'), jusqu: chaine('date AAAA-MM-JJ de fin, ou ""'),
@@ -1084,7 +1084,7 @@ async function tourAgent(entree, o) {
         conv.caracteresLus = (conv.caracteresLus || 0) + contenu.length;
         conv.externesUtilises = true;
       }
-      if (['lire_document', 'controles_relecture'].includes((conv.nomsAppels || {})[id]) && !r.erreur || ((conv.nomsAppels || {})[id] === 'nas_libre' && brut && typeof brut.texte === 'string')) {
+      if (['lire_document', 'controles_relecture', 'lire_mail', 'chercher_nas'].includes((conv.nomsAppels || {})[id]) && !r.erreur || ((conv.nomsAppels || {})[id] === 'nas_libre' && brut && typeof brut.texte === 'string')) {
         if ((conv.caracteresLus || 0) + contenu.length > limiteLectureConversation(conv)) {
           return { id, contenu: 'Limite de lecture de cette conversation atteinte : conclus avec ce que tu as déjà lu, ou propose à l’utilisateur une nouvelle conversation pour la suite.', erreur: true };
         }

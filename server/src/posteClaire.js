@@ -42,6 +42,8 @@ const PERMIS_ECRITURE = [
   [['POST'], /^\/navigation\/(plan-cadastre|taches\/[^/]+\/annuler|taches\/[^/]+\/documents\/[^/]+\/ranger)$/],
   [['POST'], /^\/urbanisme\/plan-aerien(\/[^/]+\/ranger)?$/],
   [['POST'], /^\/openlegi\/appel$/],
+  // Lectures de l'agent en POST (recherche dans la messagerie, rien n'est écrit) : 0.402.0.
+  [['POST'], /^\/emails-dossiers\/chercher(\/lire)?$/],
   [['POST'], /^\/(journal-technique|verifications-terrain\/noter)$/],
   [['POST'], /^\/(login|logout)$/]
 ];
