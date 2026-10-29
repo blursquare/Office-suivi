@@ -1464,7 +1464,9 @@ async function preparerFormalite(s, cible, o) {
       const manquantes = voulues.filter((v) => !relues.some((x) => plat(x.libelle) === plat(v) && x.coche));
       // Une liste qui ne s'est pas ouverte (aucune option lue) = un vrai échec du clic : rien validé. Une option que la liste n'OFFRE pas pour cette
       // personne (née à l'étranger : « Acte de naissance établi à l'étranger », capture de l'étude 29/10) ou qui ne se coche pas : dite, sans bloquer.
-      if (voulues.length && !relues.length) throw new Error('la liste « Type de Demande » ne s’est pas ouverte : rien validé');
+      // La BONNE liste : elle offre au moins une des trois demandes (Naissance, Mariage, Décès) — jamais les options d'un autre menu ouvert
+      // (relecture 0.396.3) ; sinon rien n'est validé (aussi pour une ligne préremplie à décocher).
+      if (!relues.some((x) => /^(naissance|mariage|d[ée]c[èe]s)$/i.test(plat(x.libelle)))) throw new Error('la liste « Type de Demande » ne s’est pas ouverte : rien validé');
       if (manquantes.length) nonCochees += manquantes.length;
       if (relues.some((x) => x.coche && !voulues.some((v) => plat(v) === plat(x.libelle)))) throw new Error('une demande non voulue reste cochée : rien validé');
       choisies += voulues.length - manquantes.length;
