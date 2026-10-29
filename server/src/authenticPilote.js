@@ -10,7 +10,7 @@
 
 const { controlerClic, libelleInterdit } = require('./authentic/garde');
 const { SCRIPT_INTERRUPTEURS } = require('./authenticClaire');
-const { chercherWiki } = require('./authentic/wiki');
+const { chercherWiki, chercherCaptures, chargerCapture } = require('./authentic/wiki');
 
 const MODELE_PILOTE = 'claude-opus-5-5';
 const MAX_PAS = 40;
@@ -140,7 +140,7 @@ function allegerHistorique(messages) {
 
 /**
  * La boucle : Claude voit, agit, jusqu'à `terminer`. Chaque geste est contrôlé AVANT d'être fait ; un geste refusé est dit à Claude (il adapte ou s'arrête).
- * @param {{ s: any, client: any, consigne: string, contexte?: string, modele?: string, etape: (t: string) => void, annule: () => boolean, attendre?: (ms: number) => Promise<void> }} o
+ * @param {{ s: any, client: any, consigne: string, contexte?: string, modele?: string, lireCaptureWiki?: (url: string) => Promise<{ octets: Buffer, statut: number }>, etape: (t: string) => void, annule: () => boolean, attendre?: (ms: number) => Promise<void> }} o
  * @returns {Promise<{ etat: string, compte: string, pas: number, jetons: number }>}
  */
 async function piloter(o) {
@@ -179,6 +179,8 @@ async function piloter(o) {
     for (const a of appels) {
       const e = a.input || {};
       let dit = '';
+      /** @type {any[] | null} */
+      let imagesWiki = null;
       try {
         if (a.name === 'terminer') {
           fin = { etat: ['fait', 'partiel', 'impossible'].includes(e.etat) ? e.etat : 'partiel', compte: String(e.compte_rendu || '').slice(0, 1500), pas, jetons };
@@ -248,6 +250,12 @@ async function piloter(o) {
         } else if (a.name === 'consulter_wiki') {
           const trouves = chercherWiki(String(e.question || '').slice(0, 200), 3);
           dit = trouves.length ? trouves.map((x) => `[${x.titre}]\n${x.texte}`).join('\n\n---\n\n').slice(0, 7000) : 'Rien de proche dans le wiki : essaie d\'autres mots, ou regarde l\'écran.';
+          // Les captures du wiki (lues en direct sur le wiki public, 3 au plus) : Claude VOIT l'écran décrit.
+          const sections = chercherCaptures(String(e.question || '').slice(0, 200), 1);
+          const blocs = [];
+          const chemins = sections.flatMap((sec) => sec.images).slice(0, 3);
+          for (const b of await Promise.all(chemins.map((c) => chargerCapture(c, o.lireCaptureWiki)))) if (b) blocs.push(b);
+          if (blocs.length) { imagesWiki = blocs; dit += `\n\nCaptures du wiki (page « ${sections[0].page.slice(0, 80)} », section « ${sections[0].section.slice(0, 80)} ») : ce sont des écrans d'EXEMPLE d'Authentic, pas l'écran actuel : la dernière image est l'écran réel.`; }
         } else if (a.name === 'attendre') {
           await attendre(Math.max(1, Math.min(10, Math.round(Number(e.secondes) || 1))) * 1000);
           dit = 'Attendu.';
@@ -257,7 +265,7 @@ async function piloter(o) {
         if (err && err.annule) throw err;
         dit = `Erreur : ${String((err && err.message) || 'geste impossible').slice(0, 200)}`;
       }
-      resultats.push({ type: 'tool_result', tool_use_id: a.id, content: [{ type: 'text', text: dit }, await capture()] });
+      resultats.push({ type: 'tool_result', tool_use_id: a.id, content: [{ type: 'text', text: dit }, ...(imagesWiki || []), await capture()] });
     }
     messages.push({ role: 'user', content: resultats });
     if (fin) return fin;
