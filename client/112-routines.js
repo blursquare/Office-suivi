@@ -92,6 +92,7 @@ async function chargerPropositionsClaire(onglet) {
       propositionsClaire.aTraiter = corps.aTraiter || 0;
     }
     propositionsClaire.charge = true;
+    if (typeof majPastilleCanaux === 'function') majPastilleCanaux();
     if (typeof renderCanaux === 'function') renderCanaux();
     rafraichirPropositionsFiche();
   } catch (e) { /* serveur injoignable : la pastille garde son dernier état */ }
@@ -454,6 +455,48 @@ async function silencerDossierProposition(id) {
 // En tête du Tableau de la fiche : le lien vers le canal du dossier — ce que CLAIRE y a écrit, ce qui attend une décision. Rien s'il n'y a rien.
 // Pur : une proposition encore à décider (« À traiter » garde aussi les autorisées pas encore terminées, comptées à part).
 function propositionADecider(p) { return !!p && (p.etat === 'proposee' || (p.etat === 'vue' && p.type !== 'alerte')); }
+
+// Propositions à décider, vues ou non (étude 29/10 : « si ça demande une validation, laisser en attendant une notification en grisée ; si une
+// nouvelle arrive sur le même dossier, passer en rouge »). Une proposition est « vue » quand son canal a été ouvert fenêtre devant : elle
+// reste alors en attente (pastille grise) jusqu'à la décision ; une nouvelle (pas encore vue) est rouge, y compris sur un dossier qui en
+// avait déjà une en attente. Seules les rouges comptent dans la pastille de la barre des tâches.
+function clePropositionsVues() { return 'claire-propositions-vues:' + (utilisateurPoste || 'poste'); }
+
+var cachePropositionsVues = { cle: '', t: 0, ensemble: null };   // relu au plus toutes les 2 s (une lecture par ligne de canal sinon)
+function lirePropositionsVues() {
+  const cle = clePropositionsVues();
+  if (cachePropositionsVues.ensemble && cachePropositionsVues.cle === cle && Date.now() - cachePropositionsVues.t < 2000) return cachePropositionsVues.ensemble;
+  let ensemble;
+  try { const l = JSON.parse(localStorage.getItem(cle) || '[]'); ensemble = new Set(Array.isArray(l) ? l.filter(x => typeof x === 'string') : []); } catch (e) { ensemble = new Set(); }
+  cachePropositionsVues = { cle, t: Date.now(), ensemble };
+  return ensemble;
+}
+
+/** Pure : { nouvelles, attente } parmi les propositions à décider (reportées exclues), d'un canal si `canalId` est donné. */
+function separerPropositionsAttente(liste, vues, canalId, maintenant) {
+  const sortie = { nouvelles: [], attente: [] };
+  const t = maintenant || Date.now();
+  for (const p of Array.isArray(liste) ? liste : []) {
+    if (!propositionADecider(p)) continue;
+    if (p.reporteJusqua && Date.parse(p.reporteJusqua) > t) continue;
+    if (canalId && canalDeProposition(p) !== canalId) continue;
+    (vues && vues.has(p.id) ? sortie.attente : sortie.nouvelles).push(p);
+  }
+  return sortie;
+}
+
+function propositionsEnAttente(canalId) { return separerPropositionsAttente(propositionsClaire.liste, lirePropositionsVues(), canalId); }
+
+// Le canal est sous les yeux : ses propositions à décider passent de rouge à grise.
+function marquerPropositionsVues(canalId) {
+  const vues = lirePropositionsVues();
+  const nouvelles = separerPropositionsAttente(propositionsClaire.liste, vues, canalId).nouvelles;
+  if (!nouvelles.length) return false;
+  for (const p of nouvelles) vues.add(p.id);
+  ecrireLocal(clePropositionsVues(), JSON.stringify(Array.from(vues).slice(-300)));
+  cachePropositionsVues = { cle: '', t: 0, ensemble: null };
+  return true;
+}
 
 function renderPropositionsFiche(d) {
   const duDossier = propositionsClaire.liste.filter(p => p.dossierId === d.id);

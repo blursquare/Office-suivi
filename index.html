@@ -105,6 +105,8 @@
       <button type="button" id="tab-assistant" class="sidebar-link" role="tab" aria-selected="false" onclick="definirOnglet('assistant')" title="Discussions">
         <span class="sidebar-link-icone" id="icon-nav-assistant" aria-hidden="true"></span>Discussions
         <span class="sidebar-badge-notif" id="badge-assistant" style="display:none;"></span>
+        <!-- Propositions de CLAIRE déjà vues qui attendent votre décision (grise) ; une nouvelle repasse en rouge. -->
+        <span class="sidebar-badge-notif sidebar-badge-attente" id="badge-assistant-attente" style="display:none;"></span>
       </button>
       <!-- Accès rapide (étude 26/10) : Général et le message privé avec chaque collègue — client/123-acces-rapide-canaux.js. -->
       <div class="sidebar-sousmenu sidebar-acces-canaux" id="sidebar-acces-canaux" style="display:none;" aria-label="Accès rapide aux discussions"></div>

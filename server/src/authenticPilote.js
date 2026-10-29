@@ -149,17 +149,26 @@ async function piloter(o) {
   const capture = async () => { try { return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await o.s.capture() } }; } catch (_) { return { type: 'text', text: '[capture indisponible : la page charge, attends puis regarde de nouveau]' }; } };
   messages.push({ role: 'user', content: [{ type: 'text', text: `Consigne : ${String(o.consigne).slice(0, 1500)}${o.contexte ? `\n${o.contexte}` : ''}\nVoici l'écran actuel d'Authentic.` }, await capture()] });
   let jetons = 0;
+  let relances = 0;
   for (let pas = 1; pas <= MAX_PAS; pas++) {
     if (o.annule()) return { etat: 'impossible', compte: 'Arrêté à la demande.', pas: pas - 1, jetons };
     if (Date.now() - debut > DUREE_MAX_MS) return { etat: 'partiel', compte: 'Temps écoulé : arrêté avant la fin.', pas: pas - 1, jetons };
     if (jetons > JETONS_MAX) return { etat: 'partiel', compte: 'Plafond de lecture atteint : arrêté avant la fin.', pas: pas - 1, jetons };
     allegerHistorique(messages);
-    const rep = await o.client.messages.create({ model: o.modele || MODELE_PILOTE, max_tokens: 1200, system: SYSTEME, tools: OUTILS, tool_choice: { type: 'any', disable_parallel_tool_use: true }, messages });
+    const rep = await o.client.messages.create({ model: o.modele || MODELE_PILOTE, max_tokens: 1200, system: SYSTEME, tools: OUTILS, tool_choice: { type: 'auto', disable_parallel_tool_use: true }, messages });
     jetons += Number(rep && rep.usage && rep.usage.input_tokens) || 0;
     const blocs = Array.isArray(rep && rep.content) ? rep.content : [];
-    messages.push({ role: 'assistant', content: blocs });
     const appels = blocs.filter((b) => b.type === 'tool_use');
-    if (!appels.length) return { etat: 'partiel', compte: 'Claude n’a plus rien fait : arrêté.', pas, jetons };
+    if (!appels.length) {
+      // Ce modèle n'accepte pas `tool_choice` « any » (400 du 29/10) : en « auto » il peut répondre en texte. Un rappel, une seule fois de suite, puis arrêt.
+      if (relances >= 1 || !blocs.length) return { etat: 'partiel', compte: 'Claude n’a plus rien fait : arrêté.', pas, jetons };
+      relances++;
+      messages.push({ role: 'assistant', content: blocs });
+      messages.push({ role: 'user', content: [{ type: 'text', text: 'Réponds par un outil : un geste (cliquer, ecrire, toucher, defiler, attendre) ou « terminer » avec ton compte rendu.' }] });
+      continue;
+    }
+    relances = 0;
+    messages.push({ role: 'assistant', content: blocs });
     /** @type {any[]} */
     const resultats = [];
     let fin = null;

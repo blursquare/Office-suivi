@@ -167,11 +167,22 @@ async function chargerCanaux() {
 // La pastille de l'étincelle : messages non lus (hors canaux muets) + mentions.
 function majPastilleCanaux() {
   const badge = document.getElementById('badge-assistant');
-  const n = canaux.badge;
+  // Rouge : messages non lus + messages de CLAIRE non lus + propositions pas encore vues. Grise : propositions vues qui attendent votre décision.
+  const nClaire = Math.max(0, Number(typeof messagesClaireEtat === 'object' ? messagesClaireEtat.nonLus : 0) || 0);
+  const nNouvelles = propositionsEnAttente().nouvelles.length;
+  const nAttente = propositionsEnAttente().attente.length;
+  const n = canaux.badge + nClaire + nNouvelles;
   if (badge) { badge.textContent = n > 99 ? '99+' : String(n); badge.style.display = n ? '' : 'none'; }
+  const grise = document.getElementById('badge-assistant-attente');
+  if (grise) { grise.textContent = nAttente > 99 ? '99+' : String(nAttente); grise.style.display = nAttente ? '' : 'none'; grise.title = `${nAttente} proposition${nAttente > 1 ? 's' : ''} de CLAIRE en attente de votre décision`; }
   const bouton = document.getElementById('tab-assistant');
   if (bouton) {
-    const titre = n ? `Discussions : ${n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Discussions';
+    const morceaux = [];
+    if (canaux.badge) morceaux.push(`${canaux.badge} message${canaux.badge > 1 ? 's' : ''} non lu${canaux.badge > 1 ? 's' : ''}`);
+    if (nClaire) morceaux.push(`${nClaire} de CLAIRE`);
+    if (nNouvelles) morceaux.push(`${nNouvelles} proposition${nNouvelles > 1 ? 's' : ''} à décider`);
+    if (nAttente) morceaux.push(`${nAttente} en attente de décision`);
+    const titre = morceaux.length ? 'Discussions : ' + morceaux.join(', ') : 'Discussions';
     bouton.title = titre; bouton.setAttribute('aria-label', titre);
   }
   majAccesRapideCanaux();
@@ -237,9 +248,13 @@ function marquerCanalLu(retour) {
   // une fenêtre restée visible derrière Word marquait la réponse lue à son arrivée, sans notification. Lue au retour (focus).
   if (!id || vueSpecialeCanal(id) || !utilisateurPoste || document.hidden || !document.hasFocus()) return;
   const c = canaux.liste.find(x => x.id === id);
-  if (!retour && c && !c.nonLus && Date.now() - derniereLectureCanal < 20000) return;
+  // Une proposition arrivée entre deux lectures rapprochées passe quand même en grise.
+  if (!retour && c && !c.nonLus && Date.now() - derniereLectureCanal < 20000) { if (marquerPropositionsVues(id)) { majPastilleCanaux(); renderCanaux(); } return; }
   derniereLectureCanal = Date.now();
-  if (c) { canaux.badge = Math.max(0, canaux.badge - (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? c.mentions : c.nonLus)); c.nonLus = 0; c.mentions = 0; majPastilleCanaux(); renderCanaux(); }
+  const propositionsVues = marquerPropositionsVues(id);
+  const avaitDuNonLu = !!(c && (c.nonLus || c.mentions));
+  if (c) { canaux.badge = Math.max(0, canaux.badge - (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? c.mentions : c.nonLus)); c.nonLus = 0; c.mentions = 0; }
+  if (avaitDuNonLu || propositionsVues || retour) { majPastilleCanaux(); renderCanaux(); }
   fetchAvecAuth(`/api/canaux/${encodeURIComponent(id)}/lu`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ utilisateur: utilisateurPoste }) }).catch(() => {});
 }
 
@@ -407,10 +422,12 @@ function ligneCanal(e) {
   const nbNonLus = Number(e.nonLus) || 0;
   const marque = nbMentions ? `<span class="cx-n cx-n-mention" title="${nbMentions} mention${nbMentions > 1 ? 's' : ''} ou à décider">${nbMentions}</span>`
     : nbNonLus ? `<span class="cx-n${muet ? ' cx-n-muet' : ''}">${nbNonLus}</span>` : '';
+  const nbAttente = propositionsEnAttente(e.id).attente.length;
+  const grise = nbAttente ? `<span class="cx-n cx-n-attente" title="${nbAttente} proposition${nbAttente > 1 ? 's' : ''} de CLAIRE en attente de votre décision">${nbAttente}</span>` : '';
   const sous = e.nonLus && e.extrait ? `<small>${escapeHtml(e.dernierAuteur === 'CLAIRE' ? 'Claire' : prenomCollaborateur(e.dernierAuteur))} : ${escapeHtml(e.extrait)}</small>` : '';
   return `<li><button type="button" class="cx-c${actif ? ' actif' : ''}${e.nonLus && !muet ? ' non-lu' : ''}${muet ? ' muet' : ''}" onclick="ouvrirCanal('${escapeOnclickArg(e.id)}')"${actif ? ' aria-current="true"' : ''} title="${escapeAttr(e.libelle)}">
       <span class="cx-d" aria-hidden="true">${e.favori || e.dossier ? icone(e.favori ? 'etoile' : 'folder') : '<span class="sb-canal-avatar sb-canal-diese">#</span>'}</span>
-      <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}</button></li>`;
+      <span class="cx-c-texte"><span class="cx-c-nom">${escapeHtml(e.libelle)}</span>${sous}</span>${muet ? `<span class="cx-muet" aria-label="Muet">${icone('cloche-barree')}</span>` : ''}${marque}${grise}</button></li>`;
 }
 
 // CLAIRE dans la liste, comme une collègue (étude 26/10 : « mets-la dans la liste des collaborateurs, pas à l'écart ») : sa ligne est celle des
@@ -490,6 +507,7 @@ function basculerSectionCanaux(nom) { if (nom === 'calmes') canaux.calmesOuverts
 async function toutMarquerLuCanaux() {
   try { await fetchAvecAuth('/api/canaux/tout-lu', { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ utilisateur: utilisateurPoste }) }); } catch (e) { /* réessayez */ }
   canaux.liste.forEach(c => { c.nonLus = 0; c.mentions = 0; });
+  for (const p of propositionsClaire.liste) marquerPropositionsVues(canalDeProposition(p));
   canaux.badge = 0; majPastilleCanaux(); renderCanaux();
 }
 

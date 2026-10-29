@@ -62,14 +62,14 @@ test('comparaisonDossiersOuverts : ce mois, le précédent, le même mois l’an
 test('lignesActesAgenda : toute l’année en cours (passés + à venir) contre toute l’année précédente', () => {
   const lignes = app.lignesActesAgenda({
     annee: 2026, precedente: 2025,
-    anneeEnCours: { ventes: 51, successions: 12, donations: 7 },
-    actuel: { ventes: 42, successions: 12, donations: 6 },
-    aVenir: { ventes: 9, successions: 0, donations: 1 },
-    memePeriode: { ventes: 38, successions: 15, donations: 6 },
-    anneePrecedente: { ventes: 51, successions: 19, donations: 8 }
+    anneeEnCours: { ventes: 51, successions: 12, donations: 7, dee: 4, pacs: 9 },
+    actuel: { ventes: 42, successions: 12, donations: 6, dee: 3, pacs: 8 },
+    aVenir: { ventes: 9, successions: 0, donations: 1, dee: 1, pacs: 1 },
+    memePeriode: { ventes: 38, successions: 15, donations: 6, dee: 2, pacs: 5 },
+    anneePrecedente: { ventes: 51, successions: 19, donations: 8, dee: 5, pacs: 6 }
   });
   assert.equal(lignes.map(l => `${l.libelle} ${l.annee}=${l.passes}+${l.aVenir} vs ${l.anneePrecedente} (${l.ecart})`).join(' | '),
-    'Ventes 51=42+9 vs 51 (0) | Successions 12=12+0 vs 19 (-7) | Donations 7=6+1 vs 8 (-1)');
+    'Ventes 51=42+9 vs 51 (0) | Successions 12=12+0 vs 19 (-7) | Donations 7=6+1 vs 8 (-1) | Donations entre époux (DEE) 4=3+1 vs 5 (-1) | PACS 9=8+1 vs 6 (3)');
   // Réponse d'un serveur plus ancien (sans anneeEnCours) : passés + à venir.
   assert.equal(app.lignesActesAgenda({ actuel: { ventes: 3 }, aVenir: { ventes: 2 }, anneePrecedente: { ventes: 4 } })[0].annee, 5);
   assert.equal(app.lignesActesAgenda(null).length, 0);

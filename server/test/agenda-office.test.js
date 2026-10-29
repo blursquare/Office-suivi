@@ -443,6 +443,13 @@ test('natureActeAgenda : DONATION en tête, puis référence de vente, puis SUCC
   assert.equal(natureActeAgenda('Succ. MOREAU - attestation'), 'succession');
   assert.equal(natureActeAgenda('SUCCESSION GIRARD'), 'succession');
   assert.equal(natureActeAgenda('Point succès formation'), null);
+  assert.equal(natureActeAgenda('DEE DUPONT'), 'dee');
+  assert.equal(natureActeAgenda('Donation entre époux MARTIN'), 'dee', 'avant « DONATION » seul');
+  assert.equal(natureActeAgenda('PACS DUPONT / MARTIN'), 'pacs');
+  assert.equal(natureActeAgenda('Enregistrement PACS LEROY'), 'pacs');
+  assert.equal(natureActeAgenda('Dee Martin - rendez-vous'), null, 'le prénom Dee n’est pas une DEE');
+  assert.equal(natureActeAgenda('SUCC DUPONT - PACS du défunt'), 'succession', 'une succession qui cite un PACS reste une succession');
+  assert.equal(natureActeAgenda('Deeds du bureau'), null, 'DEE seulement comme mot entier');
   assert.equal(natureActeAgenda('RDV banque pour donation'), null, 'DONATION seulement en tête du titre');
   assert.equal(natureActeAgenda('Rendez-vous client'), null);
 });
@@ -459,9 +466,11 @@ test('compterActesAgendaPeriode : rendez-vous horaires confirmés de la période
     { sujet: 'SUCC MOREAU', date: '2026-05-01', heure: '11:00', annule: true },
     { sujet: 'DONATION GIRARD', date: '2026-06-01', heure: '16:00' },
     { sujet: 'DONATION FAURE', date: '2025-12-31', heure: '16:00' },                             // hors période
+    { sujet: 'DEE ROUX', date: '2026-06-03', heure: '10:00' },
+    { sujet: 'PACS NOEL / FAURE', date: '2026-06-04', heure: '10:00' },
     { sujet: 'Rendez-vous client', date: '2026-06-02', heure: '10:00' }
   ];
-  assert.deepEqual({ ...compterActesAgendaPeriode(evts, '2026-01-01', '2026-12-31', 'annule / a replacer') }, { ventes: 1, successions: 1, donations: 1 });
+  assert.deepEqual({ ...compterActesAgendaPeriode(evts, '2026-01-01', '2026-12-31', 'annule / a replacer') }, { ventes: 1, successions: 1, donations: 1, dee: 1, pacs: 1 });
   assert.equal(compterActesAgendaPeriode(evts, '2026-01-01', '2026-12-31', '').ventes, 2, 'sans catégorie réglée, le rendez-vous jaune compte');
 });
 

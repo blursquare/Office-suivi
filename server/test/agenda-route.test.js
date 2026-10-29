@@ -234,15 +234,15 @@ test('GET /api/agenda/actes-annee : ventes, successions et donations, année en 
   assert.equal(premier.complet, false);
   assert.equal(premier.moisManquants, 1);
   assert.equal(`${premier.annee} ${premier.precedente} ${premier.memeJour}`, '2026 2025 2025-10-03');
-  assert.deepEqual(premier.actuel, { ventes: 1, successions: 1, donations: 0 });
-  assert.deepEqual(premier.aVenir, { ventes: 1, successions: 0, donations: 0 });
-  assert.deepEqual(premier.anneeEnCours, { ventes: 2, successions: 1, donations: 0 }, 'toute l’année, rendez-vous à venir compris');
+  assert.deepEqual(premier.actuel, { ventes: 1, successions: 1, donations: 0, dee: 0, pacs: 0 });
+  assert.deepEqual(premier.aVenir, { ventes: 1, successions: 0, donations: 0, dee: 0, pacs: 0 });
+  assert.deepEqual(premier.anneeEnCours, { ventes: 2, successions: 1, donations: 0, dee: 0, pacs: 0 }, 'toute l’année, rendez-vous à venir compris');
   // Le mois manquant est lu en arrière-plan, puis gardé.
   for (let i = 0; i < 50 && !parametresRepo.lireArchiveAgenda('2025-03'); i++) await new Promise((ok) => setTimeout(ok, 10));
   const second = await (await appeler('/api/agenda/actes-annee?jour=2026-10-03')).json();
   assert.equal(second.complet, true);
   assert.equal(second.message, '');
-  assert.deepEqual(second.memePeriode, { ventes: 2, successions: 1, donations: 0 });
-  assert.deepEqual(second.anneePrecedente, { ventes: 2, successions: 1, donations: 1 });
+  assert.deepEqual(second.memePeriode, { ventes: 2, successions: 1, donations: 0, dee: 0, pacs: 0 });
+  assert.deepEqual(second.anneePrecedente, { ventes: 2, successions: 1, donations: 1, dee: 0, pacs: 0 });
   assert.equal(reponsesEws.length, 0, 'une seule lecture Exchange');
 });

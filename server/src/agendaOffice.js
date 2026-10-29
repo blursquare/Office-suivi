@@ -689,19 +689,26 @@ function compterRendezVousPeriode(evenements, debut, fin) {
 // ni option de sondage, ni marqué « annulé / à replacer » (catégorie réglée) ; un même titre au même
 // jour et à la même heure n'est compté qu'une fois. Pures.
 const RE_DONATION_AGENDA = /^\s*DONATION/i;
+// Donation entre époux (étude 29/10) : « DEE … » ou « Donation entre époux … » en tête du titre, comptée à part des donations.
+const RE_DEE_AGENDA = /^\s*DEE(?![A-Za-zÀ-ɏ])/;   // « DEE » en capitales seulement (jamais le prénom « Dee »)
+const RE_DONATION_ENTRE_EPOUX_AGENDA = /^\s*DONATION\s+ENTRE\s+[EÉ]POUX/i;
+// PACS (étude 29/10) : le mot PACS dans le titre.
+const RE_PACS_AGENDA = /(?<![A-Za-zÀ-ɏ])PACS(?![A-Za-zÀ-ɏ])/i;
 const RE_SUCCESSION_AGENDA = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
 function natureActeAgenda(sujet) {
   const titre = String(sujet || '');
+  if (RE_DEE_AGENDA.test(titre) || RE_DONATION_ENTRE_EPOUX_AGENDA.test(titre.normalize('NFC'))) return 'dee';
   if (RE_DONATION_AGENDA.test(titre)) return 'donation';
   if (extraireReferenceVte(titre)) return 'vente';
   if (RE_SUCCESSION_AGENDA.test(titre)) return 'succession';
+  if (RE_PACS_AGENDA.test(titre)) return 'pacs';
   return null;
 }
 function normaliserCategorieActe(t) {
   return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
-  const compte = { ventes: 0, successions: 0, donations: 0 };
+  const compte = { ventes: 0, successions: 0, donations: 0, dee: 0, pacs: 0 };
   const annule = normaliserCategorieActe(categorieAnnule);
   const vus = new Set();
   for (const e of evenements || []) {
@@ -714,7 +721,7 @@ function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
     const cle = `${e.date}|${e.heure}|${normaliserNomRapprochement(String(e.sujet || ''))}`;
     if (vus.has(cle)) continue;
     vus.add(cle);
-    compte[nature === 'vente' ? 'ventes' : nature === 'succession' ? 'successions' : 'donations']++;
+    compte[{ vente: 'ventes', succession: 'successions', donation: 'donations', dee: 'dee', pacs: 'pacs' }[nature]]++;
   }
   return compte;
 }

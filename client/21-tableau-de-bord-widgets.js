@@ -122,7 +122,7 @@
     const d = actesAgendaAnnee.donnees;
     clearTimeout(minuterieActesAgenda);
     if (d && !d.complet && (d.enCours || !d.message)) minuterieActesAgenda = setTimeout(() => chargerActesAgendaAnnee(true), 20000);
-    if (ongletActuel === 'dashboard') renderStatistiquesDashboard(dossiersDuPerimetre(dossiers, utilisateurPoste, vueGlobaleDashboard()));
+    if (ongletActuel === 'dashboard') renderStatistiquesDashboard();
   }
 
   // Pure : une ligne par nature d'acte, écart de l'année en cours sur la même période l'an dernier.
@@ -132,7 +132,7 @@
   function lignesActesAgenda(donnees) {
     if (!donnees || !donnees.actuel) return [];
     const n = (bloc, cle) => Number((bloc || {})[cle]) || 0;
-    return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations']].map(([cle, libelle]) => {
+    return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations'], ['dee', 'Donations entre époux (DEE)'], ['pacs', 'PACS']].map(([cle, libelle]) => {
       const passes = n(donnees.actuel, cle);
       const aVenir = n(donnees.aVenir, cle);
       const annee = donnees.anneeEnCours ? n(donnees.anneeEnCours, cle) : passes + aVenir;
@@ -159,7 +159,7 @@
       const t = formaterTendance(l.ecart);
       return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
     };
-    const aide = `De janvier à décembre, dans l’agenda partagé : titre commençant par VTE ou VENTE (ventes), contenant SUCC (successions) ou commençant par DONATION (donations). ${d.annee} : rendez-vous passés et déjà placés jusqu’au 31/12. Rendez-vous horaires confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage.`;
+    const aide = `De janvier à décembre, dans l’agenda partagé : titre commençant par VTE ou VENTE (ventes), contenant SUCC (successions), commençant par DONATION (donations), par DEE ou DONATION ENTRE ÉPOUX (donations entre époux) ou contenant PACS (PACS). ${d.annee} : rendez-vous passés et déjà placés jusqu’au 31/12. Rendez-vous horaires confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage.`;
     const ligne = (l) => `<tr title="${escapeAttr(`${l.libelle} ${d.annee} : ${l.annee} (${l.passes} passé${l.passes > 1 ? 's' : ''}, ${l.aVenir} à venir) · ${d.precedente} : ${l.anneePrecedente} (${l.memePeriode} au ${memeJour})`)}">
         <th scope="row">${escapeHtml(l.libelle)}</th>
         <td class="st-actes-n"><b>${sur(l.annee)}</b></td>
@@ -179,14 +179,15 @@
     return { section, ligne: ligneCourte };
   }
 
-  function renderStatistiquesDashboard(perimetreTous) {
+  function renderStatistiquesDashboard() {
     const bloc = document.getElementById('kpi-statistiques');
     if (!bloc) return;
     const presentation = presentationWidget('statistiques');
     const auj = isoAujourdhuiLocal();
     // Délais : tous les dossiers de l'étude, quel que soit le périmètre du tableau de bord.
     const delais = statistiquesDelaisDossiers(dossiers, auj);
-    const cmp = comparaisonDossiersOuverts(perimetreTous, auj);
+    // Toute l'étude, jamais « mes dossiers » (étude 29/10 : « pas par collaborateur mais pour l'étude entière »).
+    const cmp = comparaisonDossiersOuverts(dossiers, auj);
     const annee = auj.slice(0, 4);
     const court = presentation !== 'grand';   // « sept. », « oct. 25 » quand la place manque
     const lignesDelais = [

@@ -142,6 +142,7 @@ test('accès rapide de la barre latérale : Général puis un message privé par
   assert.equal(l[4].claire, true);
   assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 3)[4].nonLus, 3, 'la pastille de CLAIRE = ses messages non lus');
   // Liste pas encore lue : Général seul, sans pastille.
+  assert.equal(app.lignesAccesRapideCanaux(liste, equipe, 'Bastien ANGLUMENT', 0, 2)[0].attente, 2, 'Général : propositions en attente de décision');
   assert.deepEqual(app.lignesAccesRapideCanaux([], equipe, 'Bastien ANGLUMENT').map(x => x.id).join(','), 'general,claire');
   assert.equal(app.lignesAccesRapideCanaux(null, null, 'x').length, 2);
 });
@@ -318,4 +319,20 @@ test('rond coché « Délivré » sous mon dernier message, partout (étude 27/1
   const html = app.htmlDelivreMessage();
   assert.match(html, /Délivré/);
   assert.match(html, /<circle/, 'le rond coché, comme sur Teams');
+});
+
+test('separerPropositionsAttente : rouge = pas encore vue, grise = vue et en attente de décision ; une nouvelle sur le même dossier repasse en rouge', () => {
+  const p = (id, etat, extra) => Object.assign({ id, etat, type: 'email', dossierId: 'd1' }, extra || {});
+  const liste = [p('a', 'proposee'), p('b', 'proposee'), p('c', 'acceptee'), p('d', 'proposee', { dossierId: '' }), p('e', 'vue', { type: 'alerte' }), p('f', 'proposee', { reporteJusqua: '2999-01-01T00:00:00Z' })];
+  let r = app.separerPropositionsAttente(liste, new Set(), '');
+  assert.equal(r.nouvelles.map(x => x.id).join(','), 'a,b,d');
+  assert.equal(r.attente.length, 0);
+  r = app.separerPropositionsAttente(liste, new Set(['a', 'b', 'd']), 'd:d1');
+  assert.equal(r.attente.map(x => x.id).join(','), 'a,b', 'vues : grises, canal du dossier seulement');
+  assert.equal(r.nouvelles.length, 0);
+  const apres = liste.concat([p('g', 'proposee')]);
+  r = app.separerPropositionsAttente(apres, new Set(['a', 'b']), 'd:d1');
+  assert.equal(r.attente.length, 2);
+  assert.equal(r.nouvelles.map(x => x.id).join(','), 'g', 'la nouvelle du même dossier est rouge');
+  assert.equal(app.separerPropositionsAttente(liste, new Set(), 'general').nouvelles.map(x => x.id).join(','), 'd');
 });

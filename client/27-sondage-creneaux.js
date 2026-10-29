@@ -793,7 +793,7 @@
     // reste de l'écran (liste, fiche ouverte, agenda) de s'afficher — l'erreur part au journal technique.
     rendreBloc('avancement', () => renderAvancementDossiers(perimetreActifs));
     rendreBloc('kpis', () => renderKpisDashboard(perimetreActifs, perimetreTous));
-    rendreBloc('statistiques', () => renderStatistiquesDashboard(perimetreTous));
+    rendreBloc('statistiques', () => renderStatistiquesDashboard());
     rendreBloc('nouveautes', () => renderWidgetNouveautes());
     rendreBloc('suivis-authentic', () => renderWidgetSuivisAuthentic());
     rendreBloc('accueil', () => renderAccueilDashboard(perimetreActifs, calculerStatsPortefeuille(perimetreActifs)));

@@ -96,7 +96,8 @@ function compteursNotifications(reglages) {
       : Math.max(0, (Number(c.nonLus) || 0) - (Number(c.nonLusCartes) || 0))), 0)),
     mentions: lire('mentions', () => (canaux.liste || []).filter(c => c.notif !== 'muet').reduce((t, c) => t + mentionsHorsCartes(c), 0)),
     claire: lire('claire', () => messagesClaireEtat.nonLus),
-    traiter: lire('traiter', () => propositionsClaire.liste.length),
+    // Seulement les propositions pas encore vues : celles qui attendent une décision déjà vue restent en gris dans la barre latérale.
+    traiter: lire('traiter', () => propositionsEnAttente().nouvelles.length),
     suivi: lire('suivi', () => totalNotificationsPieces()),
     scans: lire('scans', () => nombreScansEnAttente(etatScans, lecturesScans, echecsAutoScans, rangementAutoScansActif())),
     taches: lire('taches', () => { const e = etatAujourdhui(); return e.actions.length + rappelsEnTaches(e.aujourdhui).length; }),
@@ -117,7 +118,7 @@ function detailsNotifications() {
     }
   } catch (e) { /* liste pas encore chargée */ }
   let propositions = [];
-  try { propositions = propositionsClaire.liste.map(p => p.id).filter(id => typeof id === 'string'); } catch (e) { /* pas encore chargées */ }
+  try { propositions = propositionsEnAttente().nouvelles.map(p => p.id).filter(id => typeof id === 'string'); } catch (e) { /* pas encore chargées */ }
   const claire = (messagesClaireEtat.liste || []).filter(m => !m.lu).map(m => m.id + '@' + (m.maj || m.quand));
   return { canaux: canauxN, propositions, claire };
 }

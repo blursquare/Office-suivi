@@ -5,12 +5,12 @@
 
 // Pure : les lignes à montrer, dans l'ordre — Général, puis chaque collègue dont le message privé existe dans la liste.
 // `nonLus` suit la règle de la pastille de l'étincelle : un canal muet ne compte rien, « mentions » ne compte que les mentions.
-function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider) {
+function lignesAccesRapideCanaux(liste, collaborateurs, moi, aDecider, attenteGeneral) {
   const l = Array.isArray(liste) ? liste : [];
   const compte = (c) => (c.notif === 'muet' ? 0 : c.notif === 'mentions' ? Number(c.mentions) || 0 : Number(c.nonLus) || 0);
   const general = l.find(c => c.id === 'general') || { id: 'general' };
-  /** @type {{ id: string, libelle: string, titre: string, nom: string, nonLus: number, claire?: boolean }[]} */
-  const lignes = [{ id: 'general', libelle: 'Général', titre: 'Canal général de l’étude', nom: '', nonLus: compte(general) }];
+  /** @type {{ id: string, libelle: string, titre: string, nom: string, nonLus: number, attente?: number, claire?: boolean }[]} */
+  const lignes = [{ id: 'general', libelle: 'Général', titre: 'Canal général de l’étude', nom: '', nonLus: compte(general), attente: Math.max(0, Number(attenteGeneral) || 0) }];
   for (const nom of Array.isArray(collaborateurs) ? collaborateurs : []) {
     if (!nom) continue;
     if (nom === moi) continue;   // soi-même : plus de ligne « vous », la conversation personnelle est celle de CLAIRE
@@ -35,7 +35,7 @@ function majAccesRapideCanaux() {
   if (!zone) return;
   if (!utilisateurPoste || !canaux.charge) { zone.style.display = 'none'; zone.textContent = ''; zone.dataset.rendu = ''; return; }
   const surDiscussions = ecranAffiche('assistant');
-  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, messagesClaireEtat.nonLus || 0);
+  const lignes = lignesAccesRapideCanaux(canaux.liste, canaux.collaborateurs && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES, utilisateurPoste, messagesClaireEtat.nonLus || 0, propositionsEnAttente('general').attente.length);
   const html = lignes.map((x) => {
     const actif = surDiscussions && (x.claire ? !canaux.actif : canaux.actif === x.id);
     // Petit avatar encadré : photo ou initiale, point de présence en bas à droite (vert = en ligne, vide = hors ligne) ; « # » encadré pour Général.
@@ -47,7 +47,8 @@ function majAccesRapideCanaux() {
     const initiale = initiales;
     return `<button type="button" class="sidebar-link sidebar-sousmenu-item sb-canal${actif ? ' actif' : ''}${x.nonLus ? ' non-lu' : ''}" onclick="ouvrirAccesRapideCanal('${escapeOnclickArg(x.id)}')" title="${escapeAttr(x.titre)}" aria-label="${escapeAttr(x.titre + (x.nonLus ? `, ${x.nonLus} non lu${x.nonLus > 1 ? 's' : ''}` : ''))}"${actif ? ' aria-current="true"' : ''}>`
       + `${marque}<span class="sb-canal-initiale" aria-hidden="true">${escapeHtml(initiale)}</span><span class="sb-canal-nom">${escapeHtml(x.libelle)}</span>`
-      + `${x.nonLus ? `<span class="sidebar-badge-notif">${x.nonLus > 99 ? '99+' : x.nonLus}</span>` : ''}</button>`;
+      + `${x.nonLus ? `<span class="sidebar-badge-notif">${x.nonLus > 99 ? '99+' : x.nonLus}</span>` : ''}`
+      + `${x.attente ? `<span class="sidebar-badge-notif sidebar-badge-attente" title="${escapeAttr(`${x.attente} proposition${x.attente > 1 ? 's' : ''} en attente de votre décision`)}">${x.attente}</span>` : ''}</button>`;
   }).join('');
   // Rien à redessiner si rien n'a changé : le focus clavier d'une ligne reste en place (relecture 0.356.0). L'icône de CLAIRE porte un
   // identifiant de masque numéroté à chaque dessin (`claire-discussions-N`) : comparé sans lui, sinon le bloc était refait toutes les

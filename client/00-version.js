@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.397.1';
+  const VERSION_APP = '0.398.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.398.1', date: '2026-10-29 18:25', resume: "Claude qui pilote Authentic ne tombe plus sur l’erreur « tool_choice : type tool et any non pris en charge par ce modèle » : le choix d’outil est libre et, si Claude répond en texte, il est relancé une fois." },
+  { version: '0.398.0', date: '2026-10-29 17:46', resume: "Statistiques : tout l’étude (plus « mes dossiers »), avec les PACS et les donations entre époux (DEE) comparés à l’an dernier, à côté des ventes, successions et donations. Pastilles : la barre latérale et la liste des Discussions montrent d’où vient le nombre de l’icône ; une proposition de CLAIRE déjà vue qui attend votre décision reste en gris, une nouvelle sur le même dossier repasse en rouge (seules les rouges comptent dans la pastille de la barre des tâches)." },
   { version: '0.397.1', date: '2026-10-29 17:20', resume: "L’anonymisation ne bloque plus les sigles du métier dans les conversations : EHF, COMEDEC, PAC, HF, DOD, FCDDV, NOTO, PUV, CJN, DS, API… (comme DIA et CRIDON déjà). Un vrai nom reste codé." },
   { version: '0.397.0', date: '2026-10-29 17:01', resume: "Claude peut prendre la main sur Authentic : sur votre demande dans une discussion (« fais ceci dans Authentic »), un Claude pilote le navigateur du serveur, voit les écrans, clique et écrit, avec un aperçu en direct. Éteint par défaut (Réglages › Authentic, avec confirmation : les écrans partent en clair chez Anthropic). Jamais d’envoi, de signature ni de suppression ; « Valider » seulement quand « Envoi immédiat » est éteint." },
   { version: '0.396.12', date: '2026-10-29 16:03', resume: "Comedec ciblé : CLAIRE peut le demander pour un seul type de personne (les vendeurs, ou les acquéreurs) ou pour une seule personne désignée par son nom. Et dans une discussion, la carte « Autoriser » ne disparaît plus au bout de 2 secondes pendant que CLAIRE attend la réponse." },

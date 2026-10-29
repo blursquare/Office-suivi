@@ -60,7 +60,7 @@ test('la boucle : clic, écriture, terminer — le compte rendu revient, une cap
   assert.deepEqual(s.faits.textes, ['123']);
   const second = client.requetes[1].messages;
   assert.equal(second[second.length - 1].content[0].content.some((x) => x.type === 'image'), true, 'la capture revient après le geste');
-  assert.equal(client.requetes[0].tool_choice.type, 'any');
+  assert.equal(client.requetes[0].tool_choice.type, 'auto', 'Opus 5.5 refuse « any » et « tool » (400 du 29/10)');
 });
 
 test('« Valider » est refusé tant qu’« Envoi immédiat » n’est pas lu éteint ; permis dès qu’il l’est', async () => {
@@ -152,4 +152,13 @@ test('audit 0.397.0 : un contrôle sans libellé, un cadre, un interrupteur non 
   assert.deepEqual(enterOk.faits.touches, ['Enter']);
   const confirmer = await essai({ sous: { vide: false, bouton: 'Confirmer', texte: 'Confirmer', motDePasse: false, controle: true, lisible: true, opaque: false, estBascule: false }, envoi: { nombre: 0, tousEteints: false } }, [['cliquer', { x: 9, y: 9 }]]);
   assert.deepEqual(confirmer.faits.clics, [], 'M1 : « Confirmer » traité comme « Valider »');
+});
+
+test('une réponse sans outil est relancée une fois (tool_choice auto), puis la boucle s’arrête', async () => {
+  const s = fauxNavigateur();
+  const client = fauxClient([]);   // le faux client ne rend que du texte
+  const r = await P.piloter(base(s, client));
+  assert.equal(r.etat, 'partiel');
+  assert.equal(client.requetes.length, 2, 'un seul rappel');
+  assert.match(JSON.stringify(client.requetes[1].messages), /Réponds par un outil/);
 });
