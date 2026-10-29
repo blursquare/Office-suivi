@@ -23080,3 +23080,7 @@ Voir `docs/audits/2026-10-29-0.395.0.md`, section « Suites » : `oleSain` avant
 ### 0.395.4 (29/10)
 
 Les cartes de proposition suivent la même règle que les alertes (`claireMasquee`) : pour Sophie (mode `aucune`), ni pastille ni carte du relais ; elles restent décidables par Bastien. Sa liste « À traiter » n'est pas filtrée.
+
+### 29/10/2026 — 0.395.5 : allure de la page quand la recherche d'un dossier échoue
+
+Étude 29/10, après l'installation de la 0.395.4 : « Comptabilité non lue : dossier … introuvable dans Authentic (aucun champ de recherche trouvé ; numéro affiché ensuite : non ; résultat cliqué : non ; champs visibles : aucun) ». Aucun champ de saisie visible : la page n'est pas celle où l'on cherche (accueil sans champ, page de vérification Silicium, cadre, page d'erreur ?). `SCRIPT_ALLURE_PAGE` (server/src/authenticClaire.js) ajoute au message d'échec, sans aucune valeur de la page : chemin sans chiffres ni identifiant de session, nombres de champs / boutons / cadres visibles, mots d'un vocabulaire fermé reconnus dans le texte (silicium, mot de passe, connexion, erreur, session, chargement, comparants, formalités, dossier…), mots d'icône des boutons visibles (`search`, `menu`…). Joué dans Chromium sur une page inventée (aucun nom ne sort). Le cloud ne joint pas Authentic (adresse privée) : le vrai libellé du champ de recherche reste à relever au bureau.

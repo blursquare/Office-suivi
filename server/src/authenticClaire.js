@@ -445,6 +445,22 @@ const SCRIPT_VALIDER_ICONE = `(() => {
   return null;
 })()`;
 
+// L'ALLURE de la page quand la recherche échoue (étude 29/10 : « champs visibles : aucun ») : rien de ce que la page contient en dehors d'un
+// vocabulaire fermé — chemin sans chiffres ni identifiants, nombres d'éléments, mots fixes reconnus, mots d'icône des boutons visibles.
+// { chemin, champs, cadres, boutons, mots: [...], icones: [...] }.
+const SCRIPT_ALLURE_PAGE = `(() => {
+  const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2; };
+  const texte = String((document.body && document.body.innerText) || '').toLowerCase();
+  const MOTS = ['silicium', 'mot de passe', 'connexion', 'identifiant', 'installer', 'erreur', 'expir', 'session', 'accès refusé', 'chargement', 'rechercher', 'comparants', 'formalités', 'dossier'];
+  const icones = [...document.querySelectorAll('button, a, [role=button], .material-icons, .material-symbols-outlined')].filter(vis)
+    .map((e) => String(e.getAttribute('aria-label') || e.title || e.textContent || '').replace(/\\s+/g, ' ').trim().toLowerCase())
+    .filter((t) => /^[a-z_]{3,25}$/.test(t));
+  return { chemin: String(location.pathname).replace(/[0-9]+/g, '#').replace(/;jsessionid=[^/]*/i, '').slice(0, 60),
+    champs: [...document.querySelectorAll('input, textarea, select')].filter(vis).length, cadres: document.querySelectorAll('iframe, frame').length,
+    boutons: [...document.querySelectorAll('button, [role=button]')].filter(vis).length, mots: MOTS.filter((m) => texte.includes(m)).slice(0, 8),
+    icones: [...new Set(icones)].slice(0, 8) };
+})()`;
+
 // Le champ de saisie le plus proche d'un libellé ou d'un texte d'aide (placeholder, aria-label) : { x, y } ou null.
 const scriptChamp = (libelle, libellesSeuls) => `(() => {
   const seuls = ${libellesSeuls ? 'true' : 'false'};
@@ -829,13 +845,18 @@ async function ouvrirDossier(s, cible, etape) {
     }
   }
   let visibles = [];
-  if (!diag.champs.length) { try { visibles = (await g.ev(SCRIPT_CHAMPS_VISIBLES)) || []; } catch (_) { /* page fermée */ } }
+  let allure = null;
+  if (!diag.champs.length) {
+    try { visibles = (await g.ev(SCRIPT_CHAMPS_VISIBLES)) || []; } catch (_) { /* page fermée */ }
+    try { allure = await g.ev(SCRIPT_ALLURE_PAGE); } catch (_) { /* page fermée */ }
+  }
   const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »`
     : 'aucun champ de recherche trouvé',
     ref ? `numéro affiché ensuite : ${diag.visible ? 'oui' : 'non'}` : '', `résultat cliqué : ${diag.clic ? 'oui' : 'non'}`,
     diag.enTete ? `page ouverte : ${diag.enTete}` : '',
     // En dernier : le message est coupé à 320 caractères dans la discussion.
-    !diag.champs.length ? `champs visibles : ${visibles.length ? visibles.map((v) => `« ${v} »`).join(', ') : 'aucun'}` : ''].filter(Boolean).join(' ; ');
+    !diag.champs.length ? `champs visibles : ${visibles.length ? visibles.map((v) => `« ${v} »`).join(', ') : 'aucun'}` : '',
+    allure ? `page ${allure.chemin} : ${allure.champs} champ(s), ${allure.boutons} bouton(s), ${allure.cadres} cadre(s)${allure.mots.length ? `, mots : ${allure.mots.join('/')}` : ''}${allure.icones.length ? `, icônes : ${allure.icones.join('/')}` : ''}` : ''].filter(Boolean).join(' ; ');
   throw new Error(`${ref ? `dossier ${ref} introuvable dans Authentic` : 'dossier introuvable dans Authentic par son nom'} (${dit})`);
 }
 
