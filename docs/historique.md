@@ -23072,3 +23072,7 @@ Textes d'aide raccourcis (index.html, client/40, 49, 51, 68, 69, 72, 85, 108, 11
 ### 0.395.2 (suites de la relecture et de l'audit de la 0.395.0)
 
 Voir `docs/audits/2026-10-29-0.395.0.md`, section « Suites » : `oleSain` avant `word-extractor`, négations et faux positifs du compte rendu, choix à la main gardé.
+
+### 0.395.3 (29/10, étude : qui reçoit quelles notifications)
+
+`modeAlertesDossier` + `claireMasquee` (canaux.js ; `via` et `pour` gardés dans `recents`) : Bastien = alertes de CLAIRE de tous les dossiers (pas ses réponses aux autres) ; la réponse à sa propre demande arrive toujours à chacun, Julie et Jérémy = leurs dossiers, Sophie = aucune alerte de dossier ; l'aiguillage (messagesClaire.js) ne dépose chez Sophie que factures, travaux demandés et mentions ; la facture de succession va dans sa conversation avec CLAIRE (plus dans le fil du dossier) ; cartes du relais alignées (notificationsPoste.js).

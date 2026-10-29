@@ -86,7 +86,9 @@ function notificationsRiches(o) {
     // Dans le canal d'un dossier dont il n'est pas responsable, un message de CLAIRE ne lui est montré que s'il le cite (étude 27/10).
     let responsable = '';
     if (canal.startsWith('d:')) { try { const d = o.depot && o.depot.trouverParId ? o.depot.trouverParId(canal.slice(2)) : null; responsable = d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { responsable = ''; } }
-    const claireCachee = (/** @type {any} */ x) => !!x.claire && !!responsable && responsable !== o.collab && !(Array.isArray(x.mentions) && x.mentions.includes(o.collab));
+    const mode = C.modeAlertesDossier(o.collab);
+    const claireCachee = (/** @type {any} */ x) => !!x.claire && !x.carte && canal.startsWith('d:')
+      && C.claireMasquee(mode, o.collab, responsable, { via: x.via || '', pour: x.pour || '', mention: Array.isArray(x.mentions) && x.mentions.includes(o.collab) });
     const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab && !x.carte && !claireCachee(x)).pop();
     if (!m) continue;
     const auteur = m.claire ? 'CLAIRE' : prenom(m.auteur);

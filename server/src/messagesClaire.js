@@ -21,6 +21,7 @@ const LONGUEUR_COURT = 160;
 const FENETRE_DOUBLON_MS = 12 * 60 * 60 * 1000;
 const FENETRE_GROUPE_MS = 2 * 60 * 60 * 1000;
 const MAX_ELEMENTS_GROUPE = 20;
+const SANS_ALERTES_PERSONNELLES = ['Sophie GOSSART'];
 
 // La sorte d'un message (pour le regrouper), d'après ses mots quand l'appelant ne la dit pas. L'ordre compte : la plus précise d'abord.
 const SORTES = [
@@ -218,6 +219,10 @@ function creerAiguillageNotifications(repo, administrateurs) {
       }
     }
     let depose = false;
+    // Sophie ne reçoit que les factures, les travaux de CLAIRE qu'elle a demandés et ses messages (étude 29/10).
+    const sorteMessage = sorteDuTexte(versionCourte(texte).court);
+    if (SANS_ALERTES_PERSONNELLES.some((n) => qui.includes(n)) && !['facture', 'travail', 'mention'].includes(sorteMessage)) qui = qui.filter((n) => !SANS_ALERTES_PERSONNELLES.includes(n));
+    if (!qui.length) return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };
     for (const n of qui) { const d = deposerMessageClaire(repo, n, { texte }); if (d.effet === 'nouveau' || d.effet === 'groupe') depose = true; }
     if (depose) { try { require('./verificationsTerrain').noterVerification(repo, 'messages-claire-recus', { detail: 'message déposé' }); } catch (e) { /* jamais bloquant */ } }
     return verTeams ? null : { ok: true, erreur: null, messageId: null, claire: true };

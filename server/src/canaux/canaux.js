@@ -130,7 +130,7 @@ function ajouterMessage(repo, canal, brut, maintenant) {
   repo.ecrireJsonBrut(cleMessages(canal), messages.slice(-MAX_MESSAGES));
   const index = lireIndex(repo);
   const ancien = index[canal] || {};
-  const recents = (Array.isArray(ancien.recents) ? ancien.recents : []).concat([[m.quand, m.auteur, m.mentions.concat(m.pour ? [m.pour] : []).join('|'), m.claire ? 1 : 0, m.carte ? 1 : 0]]).slice(-MAX_RECENTS);
+  const recents = (Array.isArray(ancien.recents) ? ancien.recents : []).concat([[m.quand, m.auteur, m.mentions.concat(m.pour ? [m.pour] : []).join('|'), m.claire ? 1 : 0, m.carte ? 1 : 0, m.via || '', m.pour || '']]).slice(-MAX_RECENTS);
   index[canal] = { dernierLe: m.quand, dernierAuteur: m.auteur, extrait: extraitDe(m), recents };
   const ids = Object.keys(index);
   if (ids.length > MAX_CANAUX_INDEX) ids.sort((a, b) => (Number(index[a].dernierLe) || 0) - (Number(index[b].dernierLe) || 0)).slice(0, ids.length - MAX_CANAUX_INDEX).forEach((i) => { delete index[i]; });
@@ -341,11 +341,37 @@ function leverSilence(repo, dossierId, routine) {
 
 // ---- Liste des canaux d'un collaborateur, avec non-lus ----
 
+// Qui reçoit les alertes de CLAIRE dans les conversations de dossier (étude 29/10) : Bastien, celles de tous les dossiers ; Julie et Jérémy,
+// celles de leurs dossiers ; Sophie, aucune (elle ne reçoit que les factures de succession et ses messages). Dans tous les cas, la réponse de
+// CLAIRE à SA demande (`via`) et un message qui le cite lui arrivent.
+const VOIT_TOUTES_LES_ALERTES = ['Bastien ANGLUMENT'];
+const SANS_ALERTES_DE_DOSSIER = ['Sophie GOSSART'];
+/** Pure : 'toutes' | 'aucune' | 'responsable'. @param {string} collab */
+function modeAlertesDossier(collab) { return VOIT_TOUTES_LES_ALERTES.includes(collab) ? 'toutes' : SANS_ALERTES_DE_DOSSIER.includes(collab) ? 'aucune' : 'responsable'; }
+
+/**
+ * Pure : un message de CLAIRE (hors carte de proposition) dans le canal d'un DOSSIER est-il caché à ce collaborateur ?
+ * `x.via` : celui qui l'a demandé ; `x.pour` : le responsable alerté ; `x.mention` : il cite le collaborateur. `resp` : le responsable du dossier ('' inconnu).
+ * @param {string} mode @param {string} collab @param {string} resp @param {{ via?: string, pour?: string, mention?: boolean }} x
+ */
+function claireMasquee(mode, collab, resp, x) {
+  if (x.via === collab || x.mention) return false;
+  if (x.pour) return mode === 'toutes' ? false : mode === 'aucune' ? true : (x.pour !== collab && resp !== collab);
+  if (x.via) return true;
+  return mode === 'toutes' ? false : mode === 'aucune' ? true : (!!resp && resp !== collab);
+}
+
+/** Pur : les champs d'un élément de `recents` (les anciens n'ont ni `via` ni `pour` : le premier cité d'un message de CLAIRE est son `pour`). @param {any[]} r @param {string} collab */
+function champsRecent(r, collab) {
+  const cites = String(r[2] || '').split('|').filter(Boolean);
+  const pour = r[6] !== undefined ? String(r[6] || '') : (r[3] === 1 && cites.length ? cites[0] : '');
+  return { via: String(r[5] || ''), pour, mention: cites.includes(collab) && pour !== collab };
+}
+
 /**
  * Pur : non-lus et mentions d'un canal pour un collaborateur, d'après les `recents` de l'index. `sansClaire` : les messages de CLAIRE ne
- * comptent pas (canal d'un dossier dont il n'est pas responsable — étude 27/10 : « ne pas notifier les collaborateurs qui ne sont pas en
- * charge du dossier quand Claire écrit dans les conversations de dossiers »), sauf s'ils le citent.
- * @param {any} entree @param {number} luLe @param {string} collab @param {boolean} [sansClaire]
+ * comptent pas (booléen : sauf s'ils le citent ; fonction `(champs) => boolean` : `claireMasquee` pour un canal de dossier).
+ * @param {any} entree @param {number} luLe @param {string} collab @param {boolean | ((x: { via: string, pour: string, mention: boolean }) => boolean)} [sansClaire]
  */
 function compterCanal(entree, luLe, collab, sansClaire) {
   const recents = Array.isArray(entree && entree.recents) ? entree.recents : [];
@@ -356,7 +382,10 @@ function compterCanal(entree, luLe, collab, sansClaire) {
   for (const r of recents) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
     const cite = String(r[2] || '').split('|').includes(collab);
-    if (sansClaire && r[3] === 1 && !cite) continue;
+    if (sansClaire && r[3] === 1) {
+      if (typeof sansClaire === 'function') { if (r[4] !== 1 && sansClaire(champsRecent(r, collab))) continue; }
+      else if (!cite) continue;
+    }
     nonLus += 1;
     if (cite) mentions += 1;
     // Une réponse de CLAIRE, la veille ou un message qui vous cite restent des messages ; seule la carte d'une proposition est à part
@@ -386,9 +415,10 @@ function listerCanaux(repo, collab, collaborateurs, responsableDe) {
     // Le responsable n'est lu que s'il y a un message de CLAIRE non lu (audit 0.383.1 : un blob par canal à chaque relevé sinon) ; un dossier
     // sans responsable connu : les messages de CLAIRE comptent pour tous, comme avant.
     const luLe = Number(lus[id]) || 0;
-    const claireNonLue = id.startsWith('d:') && !!responsableDe && (Array.isArray(e.recents) ? e.recents : []).some((r) => Array.isArray(r) && Number(r[0]) > luLe && r[3] === 1);
+    const mode = modeAlertesDossier(collab);
+    const claireNonLue = id.startsWith('d:') && mode === 'responsable' && !!responsableDe && (Array.isArray(e.recents) ? e.recents : []).some((r) => Array.isArray(r) && Number(r[0]) > luLe && r[3] === 1);
     const resp = claireNonLue ? String(/** @type {any} */ (responsableDe)(id.slice(2)) || '') : '';
-    const c = compterCanal(e, luLe, collab, !!resp && resp !== collab);
+    const c = compterCanal(e, luLe, collab, id.startsWith('d:') ? (x) => claireMasquee(mode, collab, resp, x) : false);
     const p = prefs[id] || {};
     const notif = NOTIFICATIONS.includes(p.notif) ? p.notif : 'tous';
     // Comme la pastille du poste : les cartes de proposition comptent par « À traiter », pas comme messages (audit 0.383.1 : une carte
@@ -452,5 +482,5 @@ module.exports = {
   JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
   CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, slugPrenom, idPrive, membresPrive, privesPour, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, lusParAutresMembres, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
-  lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
+  modeAlertesDossier, claireMasquee, lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
 };

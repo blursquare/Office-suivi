@@ -177,3 +177,23 @@ test('aiguillage (28/10) : une notification de dossier va dans la conversation d
   assert.equal(M.messagesDe(repo, 'Julie VASSELIN').length, 0);
   assert.equal(C.lireMessages(repo, C.canalDuDossier('dos1')).length, 1, 'les pièces ne sont pas annoncées dans le dossier non plus');
 });
+
+test('qui voit quoi (29/10) : Bastien toutes les alertes de dossier, Julie et Jérémy les leurs, Sophie seulement factures et messages', () => {
+  const C = require('../src/canaux/canaux');
+  assert.deepEqual(['Bastien ANGLUMENT', 'Sophie GOSSART', 'Julie VASSELIN'].map(C.modeAlertesDossier), ['toutes', 'aucune', 'responsable']);
+  // [quand, auteur, cités, claire, carte, via, pour] : une alerte pour Julie, une réponse de CLAIRE à Julie, un message de CLAIRE sans destinataire
+  const e = { recents: [[2000, 'CLAIRE', 'Julie VASSELIN', 1, 0, '', 'Julie VASSELIN'], [3000, 'CLAIRE', '', 1, 0, 'Julie VASSELIN', ''], [4000, 'CLAIRE', '', 1, 0, '', '']] };
+  const compte = (collab, resp) => C.compterCanal(e, 0, collab, (x) => C.claireMasquee(C.modeAlertesDossier(collab), collab, resp, x)).nonLus;
+  assert.equal(compte('Julie VASSELIN', 'Julie VASSELIN'), 3, 'responsable : alerte, sa réponse, message du dossier');
+  assert.equal(compte('Jérémy SAUJOT', 'Julie VASSELIN'), 0, 'pas son dossier : rien');
+  assert.equal(compte('Bastien ANGLUMENT', 'Julie VASSELIN'), 2, 'Bastien : l’alerte et le message du dossier, pas la réponse faite à Julie');
+  assert.equal(compte('Sophie GOSSART', 'Sophie GOSSART'), 0, 'Sophie, même responsable : aucune alerte de dossier');
+  assert.equal(C.compterCanal({ recents: [[3000, 'CLAIRE', '', 1, 0, 'Sophie GOSSART', '']] }, 0, 'Sophie GOSSART', (x) => C.claireMasquee('aucune', 'Sophie GOSSART', 'Julie VASSELIN', x)).nonLus, 1, 'la réponse de CLAIRE à sa demande lui arrive, même chez un autre responsable');
+  const repo = repoMemoire();
+  const aiguiller = M.creerAiguillageNotifications(repo, ['Bastien ANGLUMENT']);
+  const reglages = { emailsResponsables: { 'Sophie GOSSART': 'sophie@exemple.fr' } };
+  aiguiller(reglages, 'sophie@exemple.fr', 'Rappel : « Prêt » du dossier VTE - X arrive à échéance dans 7 jours (le 2026-11-03).');
+  assert.equal(M.messagesDe(repo, 'Sophie GOSSART').length, 0, 'un rappel n’arrive pas chez Sophie');
+  aiguiller(reglages, 'sophie@exemple.fr', 'Facture à régler · SUCC - X : Enedis, 120 €.');
+  assert.equal(M.messagesDe(repo, 'Sophie GOSSART').length, 1, 'une facture, si');
+});

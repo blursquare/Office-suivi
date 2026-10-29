@@ -344,7 +344,7 @@ function creerRouteurNotifications(parametresRepo, envoyerFn, options = {}) {
     let url = '';
     if (chemin && typeof parametresRepo.lireSecretLiens === 'function') url = urlLienPiece(baseDepuisRequete(req, adresses), parametresRepo.lireSecretLiens(), chemin);
     const message = { texte: texteFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url), html: htmlFactureSuccession(dossierNom, organisme, Number.isFinite(montant) ? montant : null, url) };
-    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, DESTINATAIRE_FACTURES_SUCCESSION, message, { dossierId: t(c.dossierId, 80) }));
+    res.json(await envoyerAuResponsable(parametresRepo, envoyer, reglages, DESTINATAIRE_FACTURES_SUCCESSION, message));
   } catch (e) { console.error('[CLAIRE] Facture de succession :', e && e.message); if (!res.headersSent) res.status(500).json({ erreur: 'Envoi impossible.' }); } });
 
   const envoisRecents = [];
