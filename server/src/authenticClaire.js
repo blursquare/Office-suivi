@@ -861,7 +861,7 @@ async function ouvrirDossier(s, cible, etape) {
       etape('Page vide : ouverture de la page d’accueil d’Authentic');
       const href = String(await g.ev('location.href') || '').replace(/[?#].*$/, '');
       let accueil = '';
-      try { accueil = new URL('main.xhtml', href.replace(/\/?$/, '/')).href; } catch (_) { /* adresse illisible */ }
+      try { accueil = new URL('main.xhtml', /\.[a-z]{2,6}$/i.test(href) ? href : href.replace(/\/?$/, '/')).href; } catch (_) { /* adresse illisible */ }
       if (accueil) {
         try { await s.aller(accueil); } catch (e) { if (!/ne répond pas|non chargée/.test(String(e && e.message))) throw e; }
         await passerVerificationSilicium(s, etape);
