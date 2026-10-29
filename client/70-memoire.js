@@ -143,6 +143,28 @@
   function ouvrirReglagesMemoire() { renderReglagesMemoire(); chargerEtatMemoire(); }
 
   // Outil de l'agent : des passages (rubrique, page, extrait). Aucun nom de fichier ne part ; le serveur masque le résultat avant l'IA.
+
+  // Messagerie (vrai agent, étape 2) : recherche en direct dans la boîte reliée, lecture d'un email trouvé ; le serveur masque le résultat.
+  async function appelerMailsAgent(chemin, corps) {
+    let r;
+    try { r = await fetchAvecAuth(chemin, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) }); }
+    catch (err) { return { erreur: 'messagerie injoignable depuis le poste' }; }
+    let json = {};
+    try { json = await r.json(); } catch (_) { json = {}; }
+    return r.ok ? json : { erreur: json.erreur || ('recherche impossible (' + r.status + ')') };
+  }
+  async function chercherMailsAgent(e) {
+    const texte = (v) => (typeof v === 'string' ? v.trim() : '');
+    const r = await appelerMailsAgent('/api/emails-dossiers/chercher', {
+      expediteur: texte(e.expediteur), objet: texte(e.objet), texte: texte(e.texte), depuis: texte(e.depuis), jusqu: texte(e.jusqu), sens: texte(e.sens), max: 20
+    });
+    if (r.erreur) return r;
+    return r.emails.length ? r : { emails: [], total: 0, remarque: 'Aucun email trouvé dans la boîte reliée avec ces critères (autres mots, autre orthographe, adresse de la fiche à essayer).' };
+  }
+  async function lireMailAgent(e) {
+    return appelerMailsAgent('/api/emails-dossiers/chercher/lire', { mailId: typeof e.mail_id === 'string' ? e.mail_id : '' });
+  }
+
   async function chercherDansLaMemoireAgent(e) {
     const recherche = typeof e.recherche === 'string' ? e.recherche.trim() : '';
     if (!recherche) return { erreur: 'recherche vide' };

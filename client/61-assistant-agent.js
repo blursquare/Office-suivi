@@ -13,7 +13,7 @@
     chercher_dossiers: 'Je cherche le dossier…', lister_dossiers: 'Je parcours les dossiers…', lire_dossier: 'Je lis la fiche…',
     taches_du_jour: 'Je regarde « À faire »…', agenda: 'Je consulte l’agenda…', depuis_hier: 'Je regarde ce qui est arrivé…',
     documents_recents: 'Je regarde les derniers documents…', ouvrir_documents: 'Je prépare les documents…',
-    documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', rediger_document: 'Je rédige le document…',
+    documents_du_dossier: 'Je parcours le dossier du NAS…', lire_document: 'Je lis le document…', chercher_dans_la_memoire: 'Je cherche dans la mémoire de l’étude…', chercher_mails: 'Je cherche dans la messagerie…', lire_mail: 'Je lis l’email…', rediger_document: 'Je rédige le document…',
     authentic_pilote: 'Claude pilote Authentic…', outil_claire: 'J’utilise l’outil…', outil_champs: 'Je remplis l’outil…', artefact: 'Je reprends ce qui est ouvert à droite…', modele_email: 'Je prépare le modèle d’email…', nouveau_dossier_vente: 'Je prépare le nouveau dossier…', yousign_rib: 'Je consulte Yousign…', yousign_agent: 'Je demande à l’agent Yousign…', action_dossier: 'Je prépare l’action…', demander_collaborateur: 'Je prépare la demande…', repertoire_ajouter: 'Je prépare le contact…', authentic_claire: 'Je travaille dans Authentic…', courrier_etat_civil: 'Je prépare le courrier à la mairie…', memoriser: 'Je retiens ce fait…', authentic_lire: 'Je regarde ce qu’Authentic montre…', etat_hypothecaire: 'Je regarde l’état hypothécaire…', urbanisme_demandes: 'Je regarde la DIA et le CU…', routines_claire: 'Je regarde les routines…', coordonnees_client: 'Je cherche les coordonnées…', courrier_fonds_banque: 'Je prépare le courrier à la banque…', authentic_comptabilite: 'Je regarde la comptabilité…', lectures_documents: 'Je regarde les documents lus…', bilan_dossier: 'Je reprends l’histoire du dossier…',
     actions_en_lot: 'Je prépare le lot d’actions…', scans_claire: 'Je regarde Claire Scan…', nas_dossier: 'Je regarde le dossier du NAS…', nas_libre: 'Je cherche dans le NAS…', calcul: 'Je calcule…', agenda_evenement: 'Je prépare la modification de l’agenda…',
     faire_geste: 'Je m’en occupe…', consulter_site: 'Je vais sur le site…', controles_relecture: 'Je relis l’acte avec les contrôles de CLAIRE…', chercher_conversations: 'Je cherche dans nos conversations passées…'
@@ -338,6 +338,8 @@
     if (nom === 'documents_du_dossier') return documentsDuDossierAgent(typeof e.dossier_id === 'string' ? e.dossier_id : '');
     if (nom === 'lire_document') return lireDocumentAgent(e.document_id, e.page_debut, e.page_fin);
     if (nom === 'chercher_dans_la_memoire') return chercherDansLaMemoireAgent(e);
+    if (nom === 'chercher_mails') return chercherMailsAgent(e);
+    if (nom === 'lire_mail') return lireMailAgent(e);
     if (nom === 'rediger_document') return redigerDocumentAgent(e);
     if (nom === 'outil_claire') return outilClaireAgent(e);
     if (nom === 'outil_champs') return champsOutilAgent(e);

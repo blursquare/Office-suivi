@@ -496,3 +496,33 @@ test('audit 25/10 : un rangement noté pendant un tour n’est pas effacé par l
   E.ecrireEtatTour(repo, copieDuTour);
   assert.equal(E.lireEtat(repo).emails[0].pj[0].rangee.chemin, 'Vendeur/a.pdf');
 });
+
+test('recherche libre (agent) : requête AQS sûre, dossier reconnu par l’adresse, période filtrée, lecture à la demande jamais gardée', async () => {
+  const { db, repo, depot } = preparer();
+  try {
+    assert.equal(E.requeteAqsMails({ expediteur: 'Martel"', objet: 'permis (DP)', texte: '' }), 'from:"Martel" AND subject:"permis DP"');
+    assert.equal(E.requeteAqsMails({}), '');
+    const vus = [];
+    const poster = (o, cb) => {
+      vus.push(o.body);
+      if (/GetItem/.test(o.body)) return cb(null, { statusCode: 200, body: getItems([{ id: 'IN7', corps: 'Voici le permis de construire de 2014.', a: ['bastien@office.fr'], pjs: [{ id: 'A1', nom: 'permis.pdf' }] }]) });
+      if (/sentitems/.test(o.body)) return cb(null, { statusCode: 200, body: find([]) });
+      return cb(null, { statusCode: 200, body: find([
+        msgFind('IN7', 'Permis de construire', '2026-10-27T08:00:00Z', 'Alex MARTEL', 'alex.martel@exemple.fr', true),
+        msgFind('IN6', 'Ancien courrier', '2026-01-02T08:00:00Z', 'Alex MARTEL', 'alex.martel@exemple.fr', false)
+      ]) });
+    };
+    assert.equal((await E.chercherMailsDirect(repo, depot, {}, { poster })).statut, 400);
+    const r = await E.chercherMailsDirect(repo, depot, { expediteur: 'Martel', depuis: '2026-10-01', sens: 'tous' }, { poster });
+    assert.equal(r.emails.length, 1, 'l’email de janvier est hors période');
+    assert.equal(r.emails[0].dossier_id, 'd1');
+    assert.equal(r.emails[0].sens, 'recu');
+    assert.ok(!('itemId' in r.emails[0]), 'identifiant Exchange jamais rendu');
+    assert.ok(vus.some((b) => /QueryString>from:&quot;Martel&quot;|QueryString>from:"Martel"/.test(b)));
+    const lu = await E.lireMailTrouve(repo, r.emails[0].mail_id, { poster });
+    assert.match(lu.texte, /permis de construire/);
+    assert.deepEqual(lu.pieces_jointes, ['permis.pdf']);
+    assert.equal((await E.lireMailTrouve(repo, 'mxinconnu', { poster })).statut, 404);
+    assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /permis de construire de 2014/, 'le texte n’est jamais gardé');
+  } finally { db.close(); }
+});

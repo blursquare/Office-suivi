@@ -648,6 +648,98 @@ async function lireEmailComplet(parametresRepo, emailId, injections = {}) {
   return { texte: lu.corps, a: lu.a.length ? lu.a : email.a, de: email.de, objet: email.objet, date: email.date, sens: email.sens };
 }
 
+// ---- Recherche libre dans la boîte reliée (vrai agent, étape 2, 0.401.0) ----
+// « M. X nous a écrit cette semaine ? » : requête EWS en direct (QueryString AQS) dans la réception et/ou les envoyés du compte
+// relié ; rien n'est gardé sauf une table d'identifiants opaques en mémoire (30 min) qui permet de lire un email trouvé. Les résultats
+// passent par le masquage du serveur comme tout résultat d'outil (jamais de corps hors lecture demandée).
+const MAILS_TROUVES = new Map();
+const DUREE_MAILS_TROUVES_MS = 30 * 60 * 1000;
+const MAX_MAILS_TROUVES = 300;
+
+function motsAqs(texte) {
+  return String(texte || '').replace(/["\\:()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+}
+
+/** Pure : la requête AQS d'une recherche ({ expediteur, objet, texte }) ; '' si rien de cherché. */
+function requeteAqsMails({ expediteur = '', objet = '', texte = '' } = {}) {
+  const parts = [];
+  const e = motsAqs(expediteur); if (e) parts.push(`from:"${e}"`);
+  const o = motsAqs(objet); if (o) parts.push(`subject:"${o}"`);
+  const t = motsAqs(texte); if (t) parts.push(`"${t}"`);
+  return parts.join(' AND ');
+}
+
+function corpsFindRecherche(dossier, aqs, max) {
+  return ENVELOPPE_DEBUT
+    + '<m:FindItem Traversal="Shallow"><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
+    + '<t:FieldURI FieldURI="item:Subject"/><t:FieldURI FieldURI="message:From"/><t:FieldURI FieldURI="item:DateTimeReceived"/>'
+    + '<t:FieldURI FieldURI="item:DateTimeSent"/><t:FieldURI FieldURI="item:HasAttachments"/><t:FieldURI FieldURI="item:Preview"/>'
+    + '</t:AdditionalProperties></m:ItemShape>'
+    + `<m:IndexedPageItemView MaxEntriesReturned="${Math.max(1, Math.min(100, Number(max) || 30))}" Offset="0" BasePoint="Beginning"/>`
+    + '<m:SortOrder><t:FieldOrder Order="Descending"><t:FieldURI FieldURI="item:DateTimeReceived"/></t:FieldOrder></m:SortOrder>'
+    + `<m:ParentFolderIds>${dossierEws(dossier, null)}</m:ParentFolderIds>`
+    + `<m:QueryString>${echapperXml(aqs)}</m:QueryString></m:FindItem>` + ENVELOPPE_FIN;
+}
+
+/**
+ * Cherche des emails dans la boîte reliée. @param {any} parametresRepo @param {any} depot
+ * @param {{ expediteur?: string, objet?: string, texte?: string, depuis?: string, jusqu?: string, sens?: string, max?: number }} q
+ */
+async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
+  const { posterEws } = require('./exchange/ews');
+  const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+  if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
+  const aqs = requeteAqsMails(q);
+  if (!aqs) return { erreur: 'Donnez au moins un expéditeur, un mot de l’objet ou un texte à chercher.', statut: 400 };
+  const sens = ['recus', 'envoyes', 'tous'].includes(q.sens) ? q.sens : 'tous';
+  const dossiersCherches = [];
+  if (sens !== 'envoyes') dossiersCherches.push(['inbox', 'recu']);
+  if (sens !== 'recus') dossiersCherches.push(['sentitems', 'envoye']);
+  const depuis = q.depuis && /^\d{4}-\d{2}-\d{2}/.test(q.depuis) ? q.depuis.slice(0, 10) : '';
+  const jusqu = q.jusqu && /^\d{4}-\d{2}-\d{2}/.test(q.jusqu) ? q.jusqu.slice(0, 10) : '';
+  const maintenant = injections.maintenant ? new Date(injections.maintenant).getTime() : Date.now();
+  for (const [id, t] of MAILS_TROUVES) if (maintenant - t.le > DUREE_MAILS_TROUVES_MS) MAILS_TROUVES.delete(id);
+  const etat = lireEtat(parametresRepo);
+  const dossiers = depot && depot.tousActifs ? depot.tousActifs() : [];
+  const rappels = parametresRepo.lireReglages ? parametresRepo.lireReglages() : {};
+  const internes = [reglages.email, ...Object.values((rappels && rappels.emailsResponsables) || {})].filter(Boolean);
+  const ctx = contexteClassement(dossiers, [rappels.smtpUtilisateur, rappels.emailPasserelle].filter(Boolean), { emails: etat.emails, prepares: etat.prepares, internes });
+  const max = Math.max(1, Math.min(40, Number(q.max) || 20));
+  /** @type {any[]} */
+  const emails = [];
+  for (const [dossierEws_, sensMail] of dossiersCherches) {
+    const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindRecherche(dossierEws_, aqs, 60), delaiMs: 30000 }, injections);
+    if (r.echec) return { erreur: r.echec.message, statut: 502 };
+    if (r.statut === 401 || r.statut === 403) return { erreur: 'Identifiants de messagerie refusés.', statut: 502 };
+    if (!succes(r.corps)) return { erreur: `Recherche impossible (${codeReponse(r.corps) || r.statut}).`, statut: 502 };
+    for (const e of parseFind(r.corps)) {
+      const jour = String(e.date || '').slice(0, 10);
+      if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) continue;
+      const d = e.deAdresse && !internes.includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
+      const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
+      MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
+      emails.push({ mail_id: mailId, sens: sensMail, date: e.date, de: e.deNom || e.deAdresse, de_adresse: e.deAdresse, objet: e.objet, apercu: String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
+    }
+  }
+  while (MAILS_TROUVES.size > MAX_MAILS_TROUVES) MAILS_TROUVES.delete(MAILS_TROUVES.keys().next().value);
+  emails.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  return { emails: emails.slice(0, max), total: emails.length };
+}
+
+/** Le texte d'un email trouvé par chercherMailsDirect (relu dans Exchange, jamais gardé), 6 000 caractères au plus. */
+async function lireMailTrouve(parametresRepo, mailId, injections = {}) {
+  const { posterEws } = require('./exchange/ews');
+  const reglages = parametresRepo.lireReglagesExchange ? parametresRepo.lireReglagesExchange() : {};
+  if (!connexionPrete(reglages)) return { erreur: 'La connexion Exchange n’est pas configurée.', statut: 503 };
+  const t = MAILS_TROUVES.get(String(mailId || ''));
+  if (!t) return { erreur: 'Email inconnu ou trop ancien : relance la recherche (chercher_mails).', statut: 404 };
+  const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems([t.itemId], true), delaiMs: 30000 }, injections);
+  if (r.echec) return { erreur: r.echec.message, statut: 502 };
+  const lu = succes(r.corps) ? parseGetItems(r.corps).get(t.itemId) : null;
+  if (!lu) return { erreur: 'Email introuvable dans la boîte (déplacé ou supprimé).', statut: 404 };
+  return { texte: String(lu.corps || '').slice(0, 6000), a: lu.a, pieces_jointes: lu.pjs.map((p) => p.nom) };
+}
+
 function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, intervalleMs) {
   let enCours = false;
   const tour = async () => {
@@ -668,6 +760,7 @@ module.exports = {
   CLE_EMAILS_DOSSIERS, MAX_EMAILS, TAILLE_MAX_PJ, assainirEmailsDossiers, assainirPrepare, lireEtat, ecrireEtat, ecrireEtatTour, idCourt,
   normaliserObjet, correspondAuPrepare, dossierDeEmailEnvoye, texteSansCitation, boitesEnvoyes,
   adressesNouvellesFiches, JOURS_RATTRAPAGE_ADRESSE, dossiersNouveauxEmails,
+  chercherMailsDirect, lireMailTrouve, requeteAqsMails, corpsFindRecherche,
   corpsFind, corpsGetItems, corpsGetAttachment, parseFind, parseGetItems, parseGetAttachment, promptResumeEmail,
   executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, demarrerSurveillanceEmailsDossiers
 };

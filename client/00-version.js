@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.400.0';
+  const VERSION_APP = '0.401.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.401.0', date: '2026-10-29 22:59', resume: "CLAIRE sait chercher dans la messagerie : « M. X nous a écrit cette semaine ? », « a-t-on reçu le permis ? » — elle cherche par expéditeur, objet ou texte dans la boîte de l’étude, retrouve le dossier par l’adresse et lit l’email trouvé (rien n’est gardé). Elle mène l’enquête d’elle-même (fiche, mails, NAS, comptabilité d’Authentic) au lieu d’attendre vos consignes." },
   { version: '0.400.0', date: '2026-10-29 21:47', resume: "CLAIRE devient plus autonome : elle connaît la carte de vos sources (CLAIRE, NAS, mails, Authentic, agenda) et, quand une information lui manque, va la chercher d’elle-même pour une lecture ou vous propose où la trouver avant d’agir ; elle raisonne comme un clerc expérimenté devant un événement. Nouvel outil « memoriser » : un fait durable (préférence, règle) est retenu dans les consignes de CLAIRE après votre accord. Haiku n’est plus proposé." },
   { version: '0.399.1', date: '2026-10-29 20:22', resume: "Claude qui pilote Authentic voit maintenant les captures d’écran du wiki d’Authentic (3 591 captures de 170 pages, lues en direct sur le wiki public) quand il cherche comment faire : écrans d’exemple, jamais l’écran actuel." },
   { version: '0.399.0', date: '2026-10-29 18:43', resume: "État civil : CLAIRE ne demande que l’acte voulu par Comedec (naissance seule, mariage seul) ; pour une mairie sans Comedec (ligne « APR » d’Authentic), elle prépare le courrier papier à la mairie au modèle de l’étude, en Word ou en PDF — sur la fiche (onglet Dossier : Acte de naissance, Acte de mariage, Demandes papier), dans la Constitution de dossier (étape État civil, vente et succession) et à la demande dans une discussion. « Lire l’EHF » sur la fiche. Authentic : les fiches clients déjà connues ne sont plus rouvertes à chaque lecture ; Claude qui pilote consulte la mémoire du wiki d’Authentic ; « Demander à CLAIRE » réfléchit davantage (effort élevé) et compose avec ses outils au lieu de refuser." },

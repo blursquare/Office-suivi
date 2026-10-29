@@ -7,7 +7,7 @@ const express = require('express');
 const { noterVerification } = require('../verificationsTerrain');
 const crypto = require('node:crypto');
 const {
-  lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes
+  lireEtat, ecrireEtat, assainirPrepare, executerTourEmailsDossiers, lirePieceJointe, lireEmailComplet, boitesEnvoyes, chercherMailsDirect, lireMailTrouve
 } = require('../emailsDossiers');
 const { lireEtatRangement, ecrireEtatRangement, executerTourRangement, REGLES_RANGEMENT_OUTLOOK, REGLE_ADRESSES_AJOUTEES, NOM_DOSSIER_OUTLOOK } = require('../rangementOutlook');
 const { copierDansDossierClient, extensionPieceJointe } = require('../scans');
@@ -126,6 +126,22 @@ function creerRouteurEmailsDossiers(parametresRepo, depot, options = {}) {
     ecrireEtat(parametresRepo, etat);
     res.json({ ok: true });
   });
+
+  // Recherche libre dans la boîte reliée (l'agent : « M. X nous a écrit ? »), en direct, rien de gardé.
+  routeur.post('/emails-dossiers/chercher', routeAsync(async (req, res) => {
+    const c = req.body || {};
+    const r = await chercherMailsDirect(parametresRepo, depot, { expediteur: c.expediteur, objet: c.objet, texte: c.texte, depuis: c.depuis, jusqu: c.jusqu, sens: c.sens, max: c.max }, injections);
+    if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(r);
+  }));
+
+  routeur.post('/emails-dossiers/chercher/lire', routeAsync(async (req, res) => {
+    const r = await lireMailTrouve(parametresRepo, String((req.body || {}).mailId || ''), injections);
+    if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(r);
+  }));
 
   // L'email en entier, relu dans Exchange (jamais gardé ni journalisé par le serveur).
   routeur.get('/emails-dossiers/contenu', routeAsync(async (req, res) => {
