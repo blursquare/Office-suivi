@@ -183,6 +183,8 @@
   window.PrimeFaces = { ab(o) {
     if (!o || o.s !== 'redirectionInstallationPosteClient' || o.p !== 'redirectionInstallationPosteClient' || !Array.isArray(o.pa) || o.pa[0] !== 'true') { window.__interdit = 'PrimeFaces.ab inattendu'; return; }
     window.__silicium++;
+    // Comme le vrai Authentic : la page d'installation part (l'élément disparaît avec elle), l'accueil arrive.
+    const el = document.getElementById('redirectionInstallationPosteClient'); if (el) el.remove();
     setTimeout(() => voir(apresSilicium), 300);
   } };
   function seConnecter() {
@@ -190,6 +192,7 @@
     if (document.getElementById('mdp').value !== 'secret-essai') return;
     // La vérification revient après la connexion (comme l'a vu l'étude) : la page d'installation, puis l'accueil une fois passée.
     apresSilicium = 'accueil';
+    if (!document.getElementById('redirectionInstallationPosteClient')) { const e = document.createElement('script'); e.id = 'redirectionInstallationPosteClient'; document.body.appendChild(e); }
     voir('silicium');
   }
   document.getElementById('rnum').addEventListener('keydown', (e) => {
