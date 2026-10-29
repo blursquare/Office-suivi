@@ -34,6 +34,9 @@ test('Comedec : naissance pour chaque partie, mariage pour les mariés ; un conj
   assert.deepEqual(A.demandesComedecIntervenant('M. LEROY Marc', parties), []);
   assert.deepEqual(A.demandesComedecIntervenant('M. LEROY Marc époux de Mme DURAND Claire', parties), [], 'le nom après « époux de » n’est pas la personne');
   assert.deepEqual(A.demandesComedecIntervenant('', parties), []);
+  // Né à l'étranger : pas de naissance (Comedec) ; le mariage reste pour un seul des deux époux (calculé par le poste).
+  assert.deepEqual(A.demandesComedecIntervenant('M. MARTIN Paul', [{ nom: 'MARTIN', prenom: 'Paul', naissance: false, marie: false }]), []);
+  assert.deepEqual(A.demandesComedecIntervenant('M. MARTIN Paul', [{ nom: 'MARTIN', prenom: 'Paul', naissance: false, marie: true }]), ['Mariage']);
   assert.deepEqual(A.demandesComedecIntervenant('M. MARTIN Jean (null null)', parties), [], 'même nom, autre prénom');
 });
 

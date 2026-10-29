@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.396.1';
+  const VERSION_APP = '0.396.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.396.2', date: '2026-10-29 12:51', resume: "Demande d’état civil (Comedec) dans Authentic : le mariage n’est demandé que pour UN des deux époux (c’est le même acte) ; une personne née à l’étranger n’a pas de demande de naissance (Comedec ne la délivre pas) et ne bloque plus les autres ; les conjoints qui ne sont pas parties à l’acte ne sont jamais demandés. Ce qu’Authentic ne laisse pas cocher est dit, à faire autrement." },
   { version: '0.396.1', date: '2026-10-29 11:14', resume: "Authentic : CLAIRE passe enfin la vérification du poste client (« Installation du poste… », adresse authentication.xhtml) : elle la reconnaît à l’élément de la page et à PrimeFaces, plus au texte, attend l’arrivée de l’accueil avant de continuer, et ne tente rien si la session est déjà ouverte." },
   { version: '0.396.0', date: '2026-10-29 10:45', resume: "Quand un geste de CLAIRE dans Authentic échoue (dossier introuvable, page vide…), un aperçu du navigateur de CLAIRE s’affiche en bas à droite de l’écran, à l’endroit où elle s’est arrêtée, avec le message d’échec ; il se ferme d’une croix et s’agrandit d’un clic. Demandez-le aussi à CLAIRE : « montre-moi où tu as planté dans Authentic »." },
   { version: '0.395.7', date: '2026-10-29 10:21', resume: "Appel 3CX d’un client : la fenêtre CLAIRE passe devant en plein écran (au lieu de la moitié de l’écran), neuve ou restaurée. Authentic : quand la page est restée vide (application non affichée), CLAIRE attend, puis ouvre la page d’accueil d’Authentic avant de chercher le dossier, et le dit si la session est perdue." },

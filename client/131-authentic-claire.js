@@ -28,12 +28,28 @@ function marieeDansAuthentic(d, p) {
 function partiesComedecDossier(d) {
   const parties = Array.isArray(d && d.parties) ? d.parties : [];
   const exclus = { ACQUEREUR: notaireParticipantRepresenteAcquereur(d), VENDEUR: confrereRepresenteVendeur(d) };
-  return parties.filter(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !exclus[p.role] && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
+  const liste = parties.filter(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !exclus[p.role] && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
     .map(p => {
       const cote = parties.filter(x => x && x.role === p.role).length;
       const situation = p.role === 'VENDEUR' ? d.situationVendeur : d.situationAcquereur;
-      return { nom: String(p.nom || ''), prenom: String(p.prenom || ''), role: p.role, marie: (cote > 1 && situation === 'marie') || marieeDansAuthentic(d, p) };
+      return { nom: String(p.nom || ''), prenom: String(p.prenom || ''), role: p.role, marie: (cote > 1 && situation === 'marie') || marieeDansAuthentic(d, p), naissance: !neALEtrangerAuthentic(d, p) };
     });
+  // Le mariage d'un couple de parties est UN seul acte : demandé pour un seul des deux époux (étude 29/10). Conjoint non partie : jamais listé.
+  ['VENDEUR', 'ACQUEREUR'].forEach(role => {
+    const mariees = liste.filter(p => p.role === role && p.marie);
+    if (mariees.length === 2) mariees[1].marie = false;
+  });
+  return liste;
+}
+
+// Pure : la personne est-elle née à l'étranger d'après sa fiche client d'Authentic (pays de naissance renseigné et autre que la France) ?
+// Comedec ne délivre pas ces actes (étude 29/10) : pas de demande de naissance pour elle.
+function neALEtrangerAuthentic(d, p) {
+  const fiches = (d && d.authentic && d.authentic.fichesClients) || {};
+  const cle = normaliserPourRecherche([p && p.prenom, p && p.nom].filter(Boolean).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
+  const f = fiches[cle] || Object.values(fiches).find(x => x && cle && normaliserPourRecherche(x.nom || '').replace(/[^a-z0-9]+/g, ' ').trim() === cle);
+  const pays = normaliserPourRecherche(String((f && f.paysNaissance) || '')).replace(/[^a-z]+/g, ' ').trim();
+  return !!pays && !/^(france|fr|france metropolitaine|republique francaise)$/.test(pays);
 }
 
 // Pure : les acquéreurs personnes physiques de la fiche (demande de casier : chaque intervenant coché par Authentic doit en être un).
@@ -108,7 +124,7 @@ async function preparerFormaliteAuthentic(d, type, o) {
   if (type === 'cjn' && raisonSansCjn(d)) return { erreur: 'pas de demande de casier ici : ' + raisonSansCjn(d) };
   if (type === 'comedec' && !parties.length) return { erreur: 'aucune partie que l’étude représente sur la fiche' };
   const quoi = type === 'cjn' ? 'Préparer dans Authentic la demande de casier judiciaire (CJN) des acquéreurs'
-    : `Préparer dans Authentic la demande d’état civil (Comedec) : ${parties.map(p => `${[p.prenom, p.nom].filter(Boolean).join(' ')} (naissance${p.marie ? ', mariage' : ''})`).join(', ')}`;
+    : `Préparer dans Authentic la demande d’état civil (Comedec) : ${parties.map(p => `${[p.prenom, p.nom].filter(Boolean).join(' ')} (${[p.naissance === false ? '' : 'naissance', p.marie ? 'mariage' : ''].filter(Boolean).join(', ') || 'rien à demander'}${p.naissance === false ? ' ; née à l’étranger : pas de naissance par Comedec' : ''})`).join(', ')}`;
   if (o && o.agent && !(await demanderAutorisationAgent(`${quoi} — ${libelleDossierAffiche(d)}. Création rapide allumée, Envoi immédiat éteint : rien n’est envoyé, la demande est à envoyer ensuite depuis Authentic.`, { strict: true }))) {
     return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
   }

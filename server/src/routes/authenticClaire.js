@@ -34,7 +34,9 @@ function cibleAuthentic(d) {
 /** Pure : les parties envoyées par le poste pour une demande Comedec, propres. @param {any} brut */
 function partiesDemande(brut) {
   return (Array.isArray(brut) ? brut : []).slice(0, 12).map((p) => ({
-    nom: String((p && p.nom) || '').slice(0, 120), prenom: String((p && p.prenom) || '').slice(0, 80), marie: !!(p && p.marie)
+    nom: String((p && p.nom) || '').slice(0, 120), prenom: String((p && p.prenom) || '').slice(0, 80), marie: !!(p && p.marie),
+    // Né à l'étranger : pas de demande de naissance par Comedec (étude 29/10) — seul `false` est retenu, le reste = naissance demandée.
+    naissance: !(p && p.naissance === false)
   })).filter((p) => p.nom.trim());
 }
 

@@ -85,7 +85,7 @@ function plat(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '
  * d'après les parties de la fiche CLAIRE : naissance pour chaque partie, mariage en plus pour une partie mariée (choix de l'étude 27/10).
  * Une ligne qui ne désigne aucune partie (conjoint qui ne vend ni n'achète, ligne vide) : rien. Une partie accompagnée par un confrère :
  * rien (son notaire fait ses demandes).
- * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean }>} parties
+ * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean }>} parties
  * @returns {string[]}
  */
 function demandesComedecIntervenant(libelle, parties) {
@@ -103,7 +103,8 @@ function demandesComedecIntervenant(libelle, parties) {
     return !prenom.length || prenom.some((m) => mots.includes(m));
   });
   if (!p) return [];
-  return p.marie ? ['Naissance', 'Mariage'] : ['Naissance'];
+  // Naissance sauf né à l'étranger (Comedec ne la délivre pas : étude 29/10) ; mariage pour UN seul des deux époux (même acte).
+  return [...(p.naissance === false ? [] : ['Naissance']), ...(p.marie ? ['Mariage'] : [])];
 }
 
 // ---- Scripts exécutés dans la page (écrits ici, jamais un texte de l'IA) ----
@@ -1404,7 +1405,7 @@ async function lireComptabilite(s, cible, o) {
 /**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
- * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
+ * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
  */
 async function preparerFormalite(s, cible, o) {
   // Écrire dans Authentic : seulement si l'étude l'a allumé (Réglages › Authentic › « Préparer des demandes »), dit par l'appelant.
@@ -1439,6 +1440,7 @@ async function preparerFormalite(s, cible, o) {
   if (!(await g.attendreTexte(o.type === 'cjn' ? /acqu[ée]reurs? [aâ]g[ée]s/i : /Type de Demande/i, 10000))) throw new Error('le bloc de la demande ne s’est pas affiché');
 
   let choisies = 0;
+  let nonCochees = 0;
   if (o.type === 'comedec') {
     o.etape('Coche naissance pour chaque partie, mariage pour les mariés');
     const lignes = (await g.ev(SCRIPT_LIGNES_COMEDEC)) || [];
@@ -1457,9 +1459,12 @@ async function preparerFormalite(s, cible, o) {
         if (opt.coche !== voulue) { await s.cliquerPosition(opt.x, opt.y); await attendre(300); }
       }
       const relues = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
-      for (const v of voulues) if (!relues.some((x) => plat(x.libelle) === plat(v) && x.coche)) throw new Error(`« ${v} » n’a pas pu être coché : rien validé`);
+      // Une demande qu'Authentic ne laisse pas cocher (personne née à l'étranger, option grisée) : dite, pas bloquante — les autres lignes passent
+      // (étude 29/10 : « il a bloqué sur une demande où une personne est née à l'étranger »). Rien n'est coché de force.
+      const manquantes = voulues.filter((v) => !relues.some((x) => plat(x.libelle) === plat(v) && x.coche));
+      if (manquantes.length) nonCochees += manquantes.length;
       if (relues.some((x) => x.coche && !voulues.some((v) => plat(v) === plat(x.libelle)))) throw new Error('une demande non voulue reste cochée : rien validé');
-      choisies += voulues.length;
+      choisies += voulues.length - manquantes.length;
       await g.echap();
       await attendre(300);
     }
@@ -1507,6 +1512,7 @@ async function preparerFormalite(s, cible, o) {
   if (/Cr[ée]ation (CJN|[ÉE]tat[- ]?civil)/i.test(apres)) remarques.push('écran de création encore ouvert dans Authentic : demandes à finir là-bas (non conformes)');
   // Le texte d'un message d'Authentic peut nommer un intervenant : jamais repris, seulement dit (règle de CLAIRE : aucun nom dans une étape).
   if (erreurs.length) remarques.push(`${erreurs.length} message(s) d’erreur ou d’avertissement affiché(s) par Authentic`);
+  if (nonCochees) remarques.push(`${nonCochees} demande(s) qu’Authentic ne laisse pas cocher (personne née à l’étranger ?) : à faire autrement`);
   return { demandes: choisies, remarques, erreurs: erreurs.length };
 }
 
