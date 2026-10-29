@@ -35,6 +35,9 @@
 
 <div class="barre" id="barre" style="display:none">AUTHEN.TIC <input type="text" placeholder="Rechercher" id="recherche">
   <!-- Menus (étape 7) : « Suivis » et « Office Manager » ouvrent leurs entrées ; chaque écran de suivi porte « Exporter », jamais cliqué. -->
+  <!-- Menu « Dossiers › Rechercher » (étude 29/10) : la page de recherche d'un dossier par son numéro, sans espace. -->
+  <span><button type="button" onclick="menu('m-dossiers')">Dossiers</button><span class="sous-menu" id="m-dossiers" style="display:none">
+    <a class="lien" onclick="voir('recherche-dossier'); menu('')">Rechercher</a></span></span>
   <span><button type="button" onclick="menu('m-suivis')">Suivis</button><span class="sous-menu" id="m-suivis" style="display:none">
     <a class="lien" onclick="suivi('micen')">Suivi MICEN</a> <a class="lien" onclick="suivi('safer')">Suivi SAFER/DIA-DPU</a> <a class="lien" onclick="suivi('etatCivil')">Suivi État-Civil</a></span></span>
   <span><button type="button" onclick="menu('m-om')">Office Manager</button><span class="sous-menu" id="m-om" style="display:none">
@@ -42,6 +45,10 @@
 </div>
 <div class="vue" id="ecran-suivi"><h2 id="suivi-titre"></h2><table><thead><tr><th>N° dossier</th><th>Libellé</th><th>Date</th><th>Situation</th></tr></thead><tbody id="suivi-lignes"></tbody></table>
   <button type="button" onclick="window.__interdit = 'Exporter'">Exporter</button></div>
+
+<div class="vue" id="recherche-dossier"><h2>Recherche de dossiers</h2><label for="rnum">N° de dossier</label> <input type="text" id="rnum" inputmode="numeric">
+  <label for="rlib">Libellé de dossier</label> <input type="text" id="rlib"> <label for="rref">Réf. de dossier</label> <input type="text" id="rref">
+  <table><tbody id="resultats2"></tbody></table></div>
 
 <div class="vue" id="accueil"><h2>Derniers dossiers ouverts</h2><p>Aucun dossier récent</p><ul id="resultats"></ul></div>
 
@@ -185,6 +192,16 @@
     apresSilicium = 'accueil';
     voir('silicium');
   }
+  document.getElementById('rnum').addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const v = e.target.value;
+    window.__rechercheMenu = (window.__rechercheMenu || 0) + 1;
+    // Forme réelle (relevé de l'étude, 29/10) : le numéro s'affiche « A 202600500 » (lettre, espace, chiffres), une ligne de tableau par dossier,
+    // une case à cocher d'export en tête de ligne (jamais cliquée).
+    document.getElementById('resultats2').innerHTML = /00500|MARTIN/.test(v)
+      ? '<tr><td><input type="checkbox" onclick="window.__interdit = \'case export\'"></td><td><a class="lien" onclick="voir(\'homonyme\')">A 202600499</a></td><td>VTE MARTIN / DURANDEAU</td></tr><tr><td><input type="checkbox" onclick="window.__interdit = \'case export\'"></td><td><a class="lien" onclick="voir(\'dossier\')">A 202600500</a></td><td>VTE MARTIN / DURAND</td></tr>'
+      : '<tr><td>Aucun résultat</td></tr>';
+  });
   document.getElementById('recherche').addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     const v = e.target.value;

@@ -445,6 +445,26 @@ const SCRIPT_VALIDER_ICONE = `(() => {
   return null;
 })()`;
 
+// Page « Dossiers › Rechercher » (menu de gauche, étude 29/10 : « il faut aller dans la sidebar Dossiers › Rechercher ») : le champ du NUMÉRO du
+// dossier — par son étiquette visible (placeholder, aria-label, étiquette liée), sinon l'UNIQUE champ de saisie visible hors de la barre du haut.
+// { x, y, motDePasse } ou null ; jamais un champ si plusieurs se disputent la place.
+const SCRIPT_CHAMP_NUMERO_RECHERCHE = `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim().toLowerCase();
+  const champs = [...document.querySelectorAll('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=password]):not([type=submit]):not([type=button])')]
+    .filter((e) => { const r = e.getBoundingClientRect(); return r.width > 20 && r.height > 8 && r.top > 70 && !e.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar], header, [class*=topbar]'); });
+  const etiquette = (e) => [e.placeholder, e.getAttribute('aria-label'), e.labels && e.labels[0] ? e.labels[0].innerText : ''].map(net).join(' ');
+  const pt = (e) => { const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; };
+  // Page réelle (relevé de l'étude, 29/10) : « N° de dossier » (champ numérique), « Libellé de dossier », « Libellé de sous-dossier »,
+  // « Réf. de dossier », « Réf. de l'acte », « N° du répertoire »… — seul « N° de dossier » (ou « Numéro de dossier ») est le bon.
+  const exact = champs.filter((e) => /^(n°|n\\u00ba|no|num[ée]ro)\\s*(de\\s*)?dossier\\b/.test(etiquette(e).trim()));
+  if (exact.length === 1) return pt(exact[0]);
+  if (exact.length > 1) return null;
+  const parNumero = champs.filter((e) => /num[ée]ro|n°|n\\u00ba|dossier/.test(etiquette(e)) && !/libell|sous-dossier|r[ée]f|acte|r[ée]pertoire/.test(etiquette(e)));
+  if (parNumero.length === 1) return pt(parNumero[0]);
+  if (!parNumero.length && champs.length === 1) return pt(champs[0]);
+  return null;
+})()`;
+
 // L'ALLURE de la page quand la recherche échoue (étude 29/10 : « champs visibles : aucun ») : rien de ce que la page contient en dehors d'un
 // vocabulaire fermé — chemin sans chiffres ni identifiants, nombres d'éléments, mots fixes reconnus, mots d'icône des boutons visibles.
 // { chemin, champs, cadres, boutons, mots: [...], icones: [...] }.
@@ -790,6 +810,15 @@ async function dossierAffiche(g, cible) {
   return estCeDossier(`Comparants (0)\n${tete}`, cible);
 }
 
+/** Le numéro tapé dans la recherche : sans espace d'abord (« A202600500 »), puis avec. @param {string} ref */
+const numeros0 = (ref) => [...new Set([String(ref || '').replace(/\D+/g, ''), referenceRecherche(ref)].filter(Boolean))];
+
+/** Le numéro tel que la liste de résultats l'AFFICHE : la lettre, une espace, les chiffres (« A 202600500 », relevé de l'étude 29/10). @param {string} ref */
+function referenceAffichee(ref) {
+  const m = /^([A-Za-z])\s*(\d{4})\s*(\d{4,6})$/.exec(String(ref || '').replace(/\s+/g, ' ').trim().replace(/^([A-Za-z]) (\d)/, '$1$2').replace(/(\d{4}) (\d)/, '$1$2'));
+  return m ? `${m[1].toUpperCase()} ${m[2]}${m[3]}` : '';
+}
+
 async function ouvrirDossier(s, cible, etape) {
   const g = gestes(s, etape);
   const ref = String(cible.reference || '').replace(/\s+/g, ' ').trim();
@@ -799,11 +828,12 @@ async function ouvrirDossier(s, cible, etape) {
   await passerVerificationSilicium(s, etape);
   if (await dossierAffiche(g, cible)) return;
   // Ce qui s'est passé, pour le message d'échec (étude 28/10 : « dossier … introuvable ») : jamais un nom, seulement les étapes et une référence.
-  const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '' };
+  const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '', menu: '' };
   // Un lien qui porte la référence (« A 2026 00286 VTE … », ou sans espaces), sinon un résultat qui la CONTIENT ; sans référence, exactement
   // le libellé. Une recherche qui ouvre directement le dossier compte.
   const essayer = async (apresRecherche) => {
     const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' })
+      || (referenceAffichee(ref) && await g.cliquerTexte(referenceAffichee(ref), { geste: 'donnee' }))
       || (apresRecherche && (await g.ouvrirResultat(ref) || await g.cliquerReference(ref))))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (ok) { diag.clic = true; await s.attendreStable(15000); }
@@ -815,6 +845,31 @@ async function ouvrirDossier(s, cible, etape) {
     return false;
   };
   if (await essayer()) return;
+  // Par le menu de gauche « Dossiers › Rechercher » (étude 29/10) : la page de recherche d'un dossier ; le numéro SANS espace, puis Entrée,
+  // puis le résultat (icône du dossier). Lecture seule : taper et chercher ne créent rien dans Authentic.
+  if (ref) {
+    try {
+      if (!(await g.cliquerMenu('Rechercher', true))) { if (await g.cliquerMenu('Dossiers')) await attendre(700); }
+      if (await g.cliquerMenu('Rechercher')) {
+        diag.menu = 'page ouverte';
+        await s.attendreStable(15000);
+        for (const quoi of numeros0(ref)) {
+          const champ = await g.ev(SCRIPT_CHAMP_NUMERO_RECHERCHE);
+          if (!champ) { diag.menu = 'page ouverte, champ du numéro non trouvé'; break; }
+          diag.menu = 'numéro tapé';
+          await g.ecrire(champ, quoi);
+          await g.entree();
+          await attendre(1500);
+          await s.attendreStable(15000);
+          if (String(await g.texte()).replace(/\s+/g, '').toLowerCase().includes(referenceRecherche(ref).toLowerCase())) diag.visible = true;
+          if (await essayer(true)) return;
+        }
+      } else diag.menu = 'entrée du menu introuvable';
+    } catch (e) {
+      if (e && e.annule) throw e;
+      diag.menu = `échec (${String((e && e.message) || e).slice(0, 60)})`;
+    }
+  }
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
   // Le numéro est tapé SANS espace d'abord (« A202600500 » : seule forme vue fonctionner par l'étude, 28/10), puis avec (« A 2026 00500 »).
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
@@ -854,6 +909,7 @@ async function ouvrirDossier(s, cible, etape) {
   }
   const dit = [diag.champs.length ? `recherche tapée dans « ${diag.champs.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(' » puis « ')} »`
     : 'aucun champ de recherche trouvé',
+    diag.menu ? `menu Dossiers › Rechercher : ${diag.menu}` : '',
     ref ? `numéro affiché ensuite : ${diag.visible ? 'oui' : 'non'}` : '', `résultat cliqué : ${diag.clic ? 'oui' : 'non'}`,
     diag.enTete ? `page ouverte : ${diag.enTete}` : '',
     // En dernier : le message est coupé à 320 caractères dans la discussion.
@@ -1399,5 +1455,5 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  referenceEnTete, referenceRecherche, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
+  referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

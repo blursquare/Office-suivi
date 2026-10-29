@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.395.5';
+  const VERSION_APP = '0.395.6';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.395.6', date: '2026-10-29 09:58', resume: "Authentic : CLAIRE cherche un dossier par le menu de gauche Dossiers › Rechercher, comme sur la vraie page — elle remplit seulement le champ « N° de dossier » (les chiffres d’abord, puis le numéro sans espace), lit la ligne du tableau (numéro affiché « A 202600500 ») et ouvre le dossier ; jamais la case d’export ni les champs voisins." },
   { version: '0.395.5', date: '2026-10-29 09:43', resume: "Authentic : quand CLAIRE ne trouve aucun champ de recherche, son message décrit l’allure de la page où elle se trouve (chemin sans identifiants, nombre de champs, de boutons et de cadres, mots fixes reconnus, icônes) — jamais un nom ni une valeur — pour voir pourquoi la recherche d’un dossier échoue." },
   { version: '0.395.4', date: '2026-10-29 01:30', resume: "Notifications : les propositions de CLAIRE sur les dossiers de Sophie ne lui arrivent plus (pastille et notification), elles vont à Bastien seul." },
   { version: '0.395.3', date: '2026-10-29 01:10', resume: "Notifications : Bastien reçoit les alertes de tous les dossiers, Julie et Jérémy celles de leurs dossiers, Sophie seulement les factures et ses messages (mentions, messages privés, réponses de CLAIRE)." },

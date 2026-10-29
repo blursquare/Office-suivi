@@ -28,7 +28,7 @@ const GESTES_PERMIS = {
   donnee: {},
   // Les écrans de suivi (étape 7) : le menu puis son entrée, libellés de la cartographie seulement. « Actes à signer » porte « signer » :
   // comme pour une donnée, seul ce que le bouton sous le pointeur porte EN PLUS de ce libellé est contrôlé (un « Exporter » à côté reste refusé).
-  suivi: { libelles: ['Suivis', 'Office manager', 'Actes à signer', 'Suivi SAFER / DIA-DPU', 'Suivi SAFER/DIA-DPU', 'Suivi SAFER', 'Suivi État-Civil',
+  suivi: { libelles: ['Dossiers', 'Rechercher', 'Suivis', 'Office manager', 'Actes à signer', 'Suivi SAFER / DIA-DPU', 'Suivi SAFER/DIA-DPU', 'Suivi SAFER', 'Suivi État-Civil',
     'Suivi COMEDEC', 'Suivi CJN', 'Suivi MICEN'], relatif: true },
   // Déplier un bloc ou un groupe replié (« Formalités préalables (3) », « Envoyé (12) ») : seulement son chevron, dont le libellé (classe,
   // mot d'icône, titre) doit DIRE le dépliage — jamais l'en-tête lui-même, qui porte corbeille, avion d'envoi ou « + » (captures du wiki, 28/10).
