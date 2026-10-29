@@ -711,13 +711,18 @@ const SCRIPT_PAGE_SILICIUM = `(() => {
   const el = document.getElementById('redirectionInstallationPosteClient');
   const t = document.body ? String(document.body.innerText || '') : '';
   const bloque = (/installation/i.test(location.href) || (/poste client/i.test(t) && /silicium/i.test(t) && /install/i.test(t))) && ![...document.querySelectorAll('input[type="password"]')].some((x) => x.getClientRects().length);
-  return { element: !!el, bloque, primefaces: !!(window.PrimeFaces && typeof window.PrimeFaces.ab === 'function') };
+  // Session ouverte = le champ de recherche de l'accueil (« searchForm:query », étude 29/10) est affiché : la page d'installation n'est plus là.
+  const recherche = document.getElementById('searchForm:query');
+  const session = !!(recherche && recherche.getClientRects().length);
+  return { element: !!el, bloque, session, chemin: String(location.pathname), primefaces: !!(window.PrimeFaces && typeof window.PrimeFaces.ab === 'function') };
 })()`;
 const SCRIPT_PASSER_SILICIUM = "PrimeFaces.ab({ s: 'redirectionInstallationPosteClient', p: 'redirectionInstallationPosteClient', ps: true, pa: ['true'] }), true";
 
 /** Pure : la page est-elle la page d'installation du poste client à passer ? @param {any} etat ce que rend SCRIPT_PAGE_SILICIUM */
 function pageSiliciumAPasser(etat) {
-  return !!(etat && etat.element && etat.bloque && etat.primefaces);
+  // Le test fiable (étude 29/10, l'adresse reste « authentication.xhtml » et le texte varie) : l'élément `redirectionInstallationPosteClient`
+  // est dans la page et PrimeFaces est défini ; jamais quand le champ de recherche de l'accueil montre la session déjà ouverte.
+  return !!(etat && etat.element && etat.primefaces && !etat.session);
 }
 
 /** Passe la vérification Silicium si la page la montre (trois fois au plus : elle revient après la connexion). Rend le nombre de passages.
@@ -730,8 +735,13 @@ async function passerVerificationSilicium(s, etape) {
     etape('Passe la vérification du poste client Silicium');
     await s.evaluer(SCRIPT_PASSER_SILICIUM).catch(() => null);   // la page qui change pendant l'appel n'arrête rien
     n++;
+    // Attendre la bascule vers l'accueil (main.xhtml, champ de recherche affiché) avant tout nouvel appel : jamais deux fois à l'aveugle.
+    for (let k = 0; k < 24; k++) {
+      await attendre(500);
+      const apres = await s.evaluer(SCRIPT_PAGE_SILICIUM).catch(() => null);
+      if (!apres || !apres.element || apres.session || !apres.bloque || apres.chemin !== etat.chemin) break;
+    }
     await s.attendreStable(10000);
-    await attendre(600);
   }
   return n;
 }

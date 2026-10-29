@@ -136,7 +136,9 @@ test('Silicium : la vérification du poste client n’est passée que sur sa pag
   const A = require('../src/authenticClaire');
   assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: true }), true);
   assert.equal(A.pageSiliciumAPasser({ element: false, bloque: true, primefaces: true }), false, 'sans l’élément d’Authentic : rien');
-  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true }), false, 'page ordinaire : rien');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: false, primefaces: true }), true, 'le texte de la page varie : l’élément et PrimeFaces suffisent');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: true, session: true }), false, 'session ouverte (champ de recherche affiché) : rien');
+  assert.equal(A.pageSiliciumAPasser({ element: true, bloque: true, primefaces: false }), false, 'PrimeFaces non défini : rien');
   assert.equal(A.pageSiliciumAPasser(null), false);
 });
 
