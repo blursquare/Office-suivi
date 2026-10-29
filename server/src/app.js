@@ -31,6 +31,7 @@ const { creerRouteurGnau } = require('./routes/gnau');
 const { creerRouteurClientsBiens } = require('./routes/clientsBiens');
 const { creerFichierClientsBiens } = require('./fichierClientsBiens');
 const { creerRouteurMemoire } = require('./routes/memoire');
+const { creerRouteurIndexNas } = require('./routes/indexNas');
 const { creerRouteurConstitution } = require('./routes/constitution');
 const { creerRouteurNotifications } = require('./routes/notifications');
 const { creerRouteurExclusionsPieces } = require('./routes/exclusionsPieces');
@@ -329,6 +330,9 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Mémoire de CLAIRE (Décennales, Fausses minutes, Modèles - outils, Rappel de procédures) : voir memoire.js.
   const routeurMemoire = creerRouteurMemoire(config, db, parametresRepo, memoire || {});
   app.use('/api', gestionnaireAuth.middlewareAuth, routeurMemoire);
+  // Index du NAS des dossiers en cours (texte des documents, résumés par l'IA) pour l'agent : voir indexNas.js.
+  const routeurIndexNas = creerRouteurIndexNas(config, depot, parametresRepo, routeurMemoire.memoire, (memoire || {}).indexNas || {});
+  app.use('/api', gestionnaireAuth.middlewareAuth, routeurIndexNas);
   // Plan aérien IGN des parcelles (numéros, pourcentage de zonage) : services ouverts de l'IGN, voir planAerien.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPlanAerien(config, parametresRepo, depot, urbanisme || {}));
   // Plan de situation tiré de cadastre.gouv.fr dans le navigateur du serveur : voir navigateur/taches.js.
@@ -390,7 +394,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
     res.status(statut).json({ erreur: statut === 413 ? 'Requête trop volumineuse.' : statut === 400 ? 'Requête invalide.' : 'Erreur interne du serveur.' });
   });
 
-  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, planificateurRoutines, posteClaire };
+  return { app, depot, parametresRepo, gestionnaireAuth, journalTechnique, routeurMiseAJour, routeurMemoire, routeurIndexNas, planificateurRoutines, posteClaire };
 }
 
 // creerMiddlewareAssetsSea/ASSETS_STATIQUES exposées pour les tests uniquement (voir

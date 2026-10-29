@@ -8,12 +8,14 @@
   var memoireLectureEnCours = false;
   var memoireEtat = null;
   var memoireMessage = '';
+  var indexNasEtat = null;
 
   async function chargerEtatMemoire() {
     try {
       const r = await fetchAvecAuth('/api/memoire/etat');
       if (!r.ok) throw new Error(String(r.status));
       memoireEtat = await r.json();
+      try { const ri = await fetchAvecAuth('/api/index-nas/etat'); indexNasEtat = ri.ok ? await ri.json() : null; } catch (_) { indexNasEtat = null; }
     } catch (e) { memoireEtat = null; memoireMessage = 'État de la mémoire illisible pour le moment.'; }
     renderReglagesMemoire();
   }
@@ -35,7 +37,7 @@
   }
 
   async function lirePdfMemoire(doc) {
-    const r = await fetchAvecAuth('/api/memoire/document/' + doc.id + '/fichier');
+    const r = await fetchAvecAuth((doc.dossier ? '/api/index-nas/document/' : '/api/memoire/document/') + doc.id + '/fichier');
     if (!r.ok) throw new Error('fichier illisible (' + r.status + ')');
     const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: await r.arrayBuffer(), verbosity: (pdfjsLib.VerbosityLevel ? pdfjsLib.VerbosityLevel.ERRORS : 0) }).promise;
     const pages = [];
@@ -111,6 +113,11 @@
     await chargerEtatMemoire();
   }
 
+  async function basculerIndexNas(actif) {
+    try { await fetchAvecAuth('/api/index-nas/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: actif === true }) }); } catch (e) { memoireMessage = 'Réglage non enregistré : serveur injoignable.'; }
+    await chargerEtatMemoire();
+  }
+
   async function reessayerMemoire() {
     try { await fetchAvecAuth('/api/memoire/reessayer', { method: 'POST' }); } catch (e) { /* relu ci-dessous */ }
     await chargerEtatMemoire();
@@ -131,7 +138,11 @@
     const aLire = e ? e.rubriques.filter(r => r.cle !== 'fausses-minutes' || fmActif).reduce((s, r) => s + r.aLire, 0) : 0;
     const optionFm = e ? `<div class="reglages-option"><div><strong>Lire les fausses minutes</strong>${infoBulle('Option. Quand elle est allumée, les PDF du dossier FAUSSES MINUTES sont lus par le poste, uniquement jusqu’au tableau de signature de l’acte : les annexes qui suivent ne sont pas lues.')}</div>
         <wa-switch id="memoire-fausses-minutes" ${fmActif ? 'checked ' : ''}onchange="basculerFausseMinutesMemoire(this.checked)"></wa-switch></div>` : '';
-    zone.innerHTML = `${optionFm}${lignes}${resume}${parcours}
+    const ix = indexNasEtat;
+    const optionIndex = ix ? `<div class="reglages-option"><div><strong>Documents des dossiers en cours</strong>${infoBulle('CLAIRE lit en fond les documents du NAS des dossiers en cours (PDF par le poste, OCR des scans) pour pouvoir y chercher, et fait écrire par Claude un résumé d’une phrase par document (texte pseudonymisé, jamais une pièce d’identité ni un RIB ; compté dans le plafond mensuel des routines).')}
+        <div class="hint">${ix.lus} lu${ix.lus > 1 ? 's' : ''} sur ${ix.fichiers}${ix.aLire ? ` · <strong>${ix.aLire} à lire</strong>` : ''}${ix.ocr ? ` · ${ix.ocr} par OCR` : ''}${ix.erreurs ? ` · ${ix.erreurs} en erreur` : ''}${ix.parcours && ix.parcours.enCours ? ' · parcours en cours…' : ''}</div></div>
+        <wa-switch id="index-nas-actif" ${ix.reglages && ix.reglages.actif ? 'checked ' : ''}onchange="basculerIndexNas(this.checked)"></wa-switch></div>` : '';
+    zone.innerHTML = `${optionIndex}${optionFm}${lignes}${resume}${parcours}
       <div class="reglages-actions">
         <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="parcourirMemoireNas()">Parcourir les dossiers</wa-button>
         <wa-button ${aLire && !memoireLectureEnCours ? '' : 'disabled '}variant="brand" size="s" pill type="button" class="action-rapide" onclick="lirePdfMemoireTous()">Lire les PDF${aLire ? ` (${aLire})` : ''}</wa-button>
@@ -163,6 +174,50 @@
   }
   async function lireMailAgent(e) {
     return appelerMailsAgent('/api/emails-dossiers/chercher/lire', { mailId: typeof e.mail_id === 'string' ? e.mail_id : '' });
+  }
+
+
+  // Index du NAS des dossiers en cours (0.402.0) : la fenêtre lit en fond les PDF des dossiers (texte, OCR des scans) que le serveur lui
+  // réserve, sans bruit ; une seule fenêtre à la fois par document (réservation côté serveur). Éteint par Réglages › Mémoire de CLAIRE.
+  var indexNasEnCours = false;
+  async function lireIndexNasTous() {
+    if (indexNasEnCours || typeof pdfjsLib === 'undefined' || (typeof POSTE_CLAIRE !== 'undefined' && POSTE_CLAIRE)) return;
+    indexNasEnCours = true;
+    try {
+      for (let tour = 0; tour < 40; tour++) {
+        const r = await fetchAvecAuth('/api/index-nas/a-lire?limite=3');
+        if (!r.ok) break;
+        const docs = ((await r.json()) || {}).documents || [];
+        if (!docs.length) break;
+        for (const doc of docs) {
+          try {
+            const { pages, ocr } = await lirePdfMemoire(doc);
+            const e = await fetchAvecAuth('/api/memoire/document/' + doc.id + '/texte', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pages, ocr }) });
+            if (!e.ok) throw new Error('enregistrement refusé (' + e.status + ')');
+          } catch (e) {
+            await fetchAvecAuth('/api/memoire/document/' + doc.id + '/erreur', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: String(e && e.message || e).slice(0, 160) }) }).catch(() => {});
+          }
+        }
+      }
+    } catch (e) { /* serveur injoignable : réessayé au prochain passage */ }
+    indexNasEnCours = false;
+  }
+  function demarrerIndexNasFond() {
+    setTimeout(() => { lireIndexNasTous(); setInterval(lireIndexNasTous, 20 * 60 * 1000); }, 90 * 1000);
+  }
+
+  async function chercherNasAgent(e) {
+    const dossier = typeof e.dossier_id === 'string' ? e.dossier_id : '';
+    if (!dossier) return { erreur: 'dossier_id manquant' };
+    let r;
+    try { r = await fetchAvecAuth('/api/index-nas/chercher?dossier=' + encodeURIComponent(dossier) + '&q=' + encodeURIComponent(typeof e.recherche === 'string' ? e.recherche.trim() : '') + '&limite=8'); }
+    catch (err) { return { erreur: 'index du NAS injoignable depuis le poste' }; }
+    if (!r.ok) return { erreur: r.status === 404 ? 'aucun dossier avec cet id' : 'recherche impossible (' + r.status + ')' };
+    const json = await r.json();
+    const incomplet = json.fichiers > json.lus ? { remarque: json.lus + ' documents lus sur ' + json.fichiers + ' : la lecture des autres est en cours, un document peut manquer ; documents_du_dossier et lire_document restent possibles.' } : {};
+    if (json.inventaire) return { documents: json.inventaire, ...incomplet };
+    return json.passages.length ? { nombre: json.passages.length, passages: json.passages, ...incomplet }
+      : { nombre: 0, passages: [], remarque: 'Rien de correspondant dans les documents lus de ce dossier (autres mots, synonymes, ou document pas encore lu ; essaie documents_du_dossier).' };
   }
 
   async function chercherDansLaMemoireAgent(e) {

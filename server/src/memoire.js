@@ -374,6 +374,7 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_memoire_documents_statut ON memoire_documents(statut, ext);
   CREATE TABLE IF NOT EXISTS memoire_passages (id INTEGER PRIMARY KEY AUTOINCREMENT, doc INTEGER NOT NULL, page INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS idx_memoire_passages_doc ON memoire_passages(doc);
+  CREATE TABLE IF NOT EXISTS memoire_resumes (doc INTEGER PRIMARY KEY, type TEXT NOT NULL DEFAULT '', emetteur TEXT NOT NULL DEFAULT '', date_doc TEXT NOT NULL DEFAULT '', resume TEXT NOT NULL DEFAULT '', essais INTEGER NOT NULL DEFAULT 0, genere_le INTEGER NOT NULL DEFAULT 0);
   CREATE VIRTUAL TABLE IF NOT EXISTS memoire_fts USING fts5(texte, tokenize = 'unicode61 remove_diacritics 2');
 `;
 
@@ -413,7 +414,7 @@ function creerMemoire(db) {
       const statutInitial = taille > TAILLE_MAX_OCTETS ? 'trop_gros' : 'a_lire';
       if (!ex) { ajouterStmt.run(rubrique, chemin, nom, ext, taille, modifieMs, statutInitial); return 'nouveau'; }
       if (ex.taille === taille && ex.modifie_ms === modifieMs) return 'inchange';
-      transaction(() => { retirerPassages(ex.id); changerStmt.run(nom, taille, modifieMs, statutInitial, ex.id); });
+      transaction(() => { retirerPassages(ex.id); db.prepare('DELETE FROM memoire_resumes WHERE doc = ?').run(ex.id); changerStmt.run(nom, taille, modifieMs, statutInitial, ex.id); });
       return 'change';
     },
     /** Retire de la mémoire les fichiers d'une rubrique qui n'étaient plus au dernier parcours. */
@@ -422,7 +423,7 @@ function creerMemoire(db) {
       let n = 0;
       for (const d of db.prepare('SELECT id, chemin FROM memoire_documents WHERE rubrique = ?').all(rubrique)) {
         if (vus.has(d.chemin)) continue;
-        transaction(() => { retirerPassages(d.id); supprimerStmt.run(d.id); });
+        transaction(() => { retirerPassages(d.id); db.prepare('DELETE FROM memoire_resumes WHERE doc = ?').run(d.id); supprimerStmt.run(d.id); });
         n++;
       }
       return n;
@@ -447,9 +448,48 @@ function creerMemoire(db) {
     documentPar(rubrique, chemin) { return trouverStmt.get(rubrique, chemin) || null; },
     /** Les documents à lire (statut « a_lire »), du type demandé ('pdf' pour le poste, 'serveur' pour Word et texte). */
     definirExclues(liste) { exclues = (Array.isArray(liste) ? liste : []).filter((x) => typeof x === 'string'); },
-    aLire(type, limite) {
+    aLire(type, limite, { dossiers = false } = {}) {
       const filtre = type === 'pdf' ? "ext = 'pdf'" : "ext != 'pdf'";
-      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre}${sansExclues('rubrique')} ORDER BY id LIMIT ?`).all(...exclues, Math.max(1, Math.min(50, Number(limite) || 1)));
+      // Les dossiers en cours (rubriques « d:<id> », index du NAS, 0.402.0) ne se mêlent jamais aux quatre rubriques de la mémoire.
+      const rub = dossiers ? " AND rubrique LIKE 'd:%'" : " AND rubrique NOT LIKE 'd:%'";
+      return db.prepare(`SELECT * FROM memoire_documents WHERE statut = 'a_lire' AND ${filtre}${rub}${dossiers ? '' : sansExclues('rubrique')} ORDER BY id LIMIT ?`).all(...(dossiers ? [] : exclues), Math.max(1, Math.min(50, Number(limite) || 10)));
+    },
+    /** Réserve des PDF pour une fenêtre (statut « en_cours ») : deux fenêtres ne lisent pas le même ; une réservation de plus de 10 min est rendue. */
+    reserverPourPoste(docs) {
+      db.prepare("UPDATE memoire_documents SET statut = 'a_lire' WHERE statut = 'en_cours' AND lu_le < ?").run(Date.now() - 10 * 60 * 1000);
+      for (const d of docs) db.prepare("UPDATE memoire_documents SET statut = 'en_cours', lu_le = ? WHERE id = ? AND statut = 'a_lire'").run(Date.now(), d.id);
+    },
+    /** Retire de la mémoire tous les documents d'une rubrique (dossier clos ou non relié). */
+    retirerRubrique(rubrique) {
+      let n = 0;
+      for (const d of db.prepare('SELECT id FROM memoire_documents WHERE rubrique = ?').all(rubrique)) {
+        transaction(() => { retirerPassages(d.id); db.prepare('DELETE FROM memoire_resumes WHERE doc = ?').run(d.id); supprimerStmt.run(d.id); });
+        n++;
+      }
+      return n;
+    },
+    /** Les rubriques « d:<id> » présentes. */
+    rubriquesDossiers() { return db.prepare("SELECT DISTINCT rubrique FROM memoire_documents WHERE rubrique LIKE 'd:%'").all().map((r) => r.rubrique); },
+    /** Le texte lu d'un document (passages dans l'ordre), `max` caractères au plus. */
+    texteDocument(id, max = 6000) {
+      const lignes = db.prepare('SELECT f.texte AS texte FROM memoire_passages p JOIN memoire_fts f ON f.rowid = p.id WHERE p.doc = ? ORDER BY p.page, p.id').all(Number(id));
+      return lignes.map((l) => l.texte).join('\n').slice(0, max);
+    },
+    /** Documents lus d'un dossier en cours qui attendent leur résumé (deux essais au plus). */
+    aResumer(limite) {
+      return db.prepare(`SELECT d.* FROM memoire_documents d LEFT JOIN memoire_resumes r ON r.doc = d.id
+        WHERE d.rubrique LIKE 'd:%' AND d.statut = 'lu' AND (r.doc IS NULL OR (r.resume = '' AND r.essais < 2)) ORDER BY d.id LIMIT ?`).all(Math.max(1, Math.min(20, Number(limite) || 5)));
+    },
+    enregistrerResume(id, { type = '', emetteur = '', date = '', resume = '' } = {}, echec = false) {
+      const ex = db.prepare('SELECT essais FROM memoire_resumes WHERE doc = ?').get(Number(id));
+      db.prepare('INSERT INTO memoire_resumes (doc, type, emetteur, date_doc, resume, essais, genere_le) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(doc) DO UPDATE SET type = excluded.type, emetteur = excluded.emetteur, date_doc = excluded.date_doc, resume = excluded.resume, essais = excluded.essais, genere_le = excluded.genere_le')
+        .run(Number(id), String(type).slice(0, 80), String(emetteur).slice(0, 120), String(date).slice(0, 10), String(resume).slice(0, 600), echec ? ((ex && ex.essais) || 0) + 1 : 0, Date.now());
+    },
+    resume(id) { return db.prepare('SELECT * FROM memoire_resumes WHERE doc = ?').get(Number(id)) || null; },
+    /** Les documents d'une rubrique avec leur résumé (inventaire d'un dossier). */
+    documentsRubrique(rubrique, limite = 60) {
+      return db.prepare(`SELECT d.id, d.chemin, d.ext, d.statut, d.pages, r.type, r.emetteur, r.date_doc, r.resume FROM memoire_documents d LEFT JOIN memoire_resumes r ON r.doc = d.id
+        WHERE d.rubrique = ? ORDER BY d.chemin LIMIT ?`).all(rubrique, Math.max(1, Math.min(200, Number(limite) || 60)));
     },
     /** Au début de chaque parcours : les Word et textes en erreur sont retentés (NAS indisponible un instant, fichier verrouillé). */
     retenterErreursServeur() {
@@ -470,7 +510,7 @@ function creerMemoire(db) {
       const mots = motsDeRecherche(question);
       if (!mots.length) return { mots, passages: [] };
       const max = Math.max(1, Math.min(15, Number(limite) || 8));
-      const filtreRubrique = (rubrique ? ' AND d.rubrique = ?' : '') + sansExclues('d.rubrique');
+      const filtreRubrique = (rubrique ? ' AND d.rubrique = ?' : " AND d.rubrique NOT LIKE 'd:%'") + (/^d:/.test(rubrique) ? '' : sansExclues('d.rubrique'));
       const sql = `SELECT f.rowid AS rowid, f.texte AS texte, p.page AS page, p.doc AS doc, d.rubrique AS rubrique
         FROM memoire_fts f JOIN memoire_passages p ON p.id = f.rowid JOIN memoire_documents d ON d.id = p.doc
         WHERE memoire_fts MATCH ?${filtreRubrique} ORDER BY rank LIMIT ?`;
@@ -482,7 +522,7 @@ function creerMemoire(db) {
         /** @type {Array<string | number>} */
         const params = [requeteFts(mots, /** @type {'et' | 'ou'} */ (mode))];
         if (rubrique) params.push(rubrique);
-        params.push(...exclues);
+        if (!/^d:/.test(rubrique)) params.push(...exclues);
         params.push(max * 3);
         let lignes = [];
         try { lignes = db.prepare(sql).all(...params); } catch (_) { lignes = []; }

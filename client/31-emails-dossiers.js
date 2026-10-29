@@ -1398,6 +1398,7 @@
     setInterval(chargerSondages, 2 * 60 * 1000);
     // Emails des dossiers (relevés chaque minute par le serveur, étude 02/10) : pièces jointes rangées sur
     // le NAS et emails de la fiche ouverte relus chaque minute ; les autres fiches relisent à l'ouverture.
+    if (fondActif) demarrerIndexNasFond();
     if (fondActif) setTimeout(rangerPiecesJointesReconnues, 30 * 1000);
     setInterval(() => {
       Object.keys(emailsParDossier).forEach(k => { if (k !== dossierOuvert) delete emailsParDossier[k]; });
