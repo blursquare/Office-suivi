@@ -146,3 +146,9 @@ test('fiche : seulement les ALERTES des lectures (rien quand tout va bien) ; ét
   assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Certificat conservateur.pdf', dossierGed: 'Retours SPF Téléactes' }), false);
   assert.equal(app.pieceEstEtatHypothecaire({ nom: 'Réquisition d’état.pdf', dossierGed: 'Retours SPF Téléactes' }), false);
 });
+
+test('aperçu d’un échec dans Authentic : texte court, espaces normalisés, jamais vide', () => {
+  assert.equal(app.texteApercuAuthentic('  dossier   introuvable\n (menu : page ouverte) '), 'dossier introuvable (menu : page ouverte)');
+  assert.equal(app.texteApercuAuthentic('x'.repeat(500)).length, 300);
+  assert.equal(app.texteApercuAuthentic(''), 'échec dans Authentic');
+});

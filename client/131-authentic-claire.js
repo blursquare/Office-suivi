@@ -185,7 +185,11 @@ var apercuAuthenticUrl = '';
 
 function fermerApercuAuthentic() {
   const carte = document.getElementById('apercu-authentic');
-  if (carte) carte.remove();
+  if (carte) {
+    carte.remove();
+    // La capture (pages d'Authentic) est effacée de la mémoire du serveur à la fermeture.
+    if (apercuAuthenticDernier) fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(apercuAuthenticDernier.id)}/capture`, { method: 'DELETE' }).catch(() => {});
+  }
   if (apercuAuthenticUrl) { URL.revokeObjectURL(apercuAuthenticUrl); apercuAuthenticUrl = ''; }
 }
 
@@ -200,7 +204,10 @@ async function afficherApercuAuthentic(idTache, texte) {
     const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(idTache)}/capture`);
     if (!r.ok) return false;
     const url = URL.createObjectURL(await r.blob());
-    fermerApercuAuthentic();
+    // L'ancienne carte part SANS effacer la capture du serveur de cette tâche (c'est la même qui s'affiche).
+    const ancienne = document.getElementById('apercu-authentic');
+    if (ancienne) ancienne.remove();
+    if (apercuAuthenticUrl) URL.revokeObjectURL(apercuAuthenticUrl);
     apercuAuthenticUrl = url;
     const carte = document.createElement('div');
     carte.id = 'apercu-authentic';
@@ -208,7 +215,7 @@ async function afficherApercuAuthentic(idTache, texte) {
     carte.setAttribute('role', 'status');
     carte.innerHTML = `<div class="apercu-authentic-tete"><span>Authentic — où CLAIRE s’est arrêtée</span>`
       + `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="fermerApercuAuthentic()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button></div>`
-      + `<img alt="Dernière page du navigateur de CLAIRE dans Authentic" src="${url}" onclick="this.classList.toggle('agrandie')">`
+      + `<img alt="Dernière page du navigateur de CLAIRE dans Authentic" src="${url}" tabindex="0" role="button" title="Agrandir ou réduire" onclick="this.classList.toggle('agrandie')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.classList.toggle('agrandie'); }">`
       + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`;
     document.body.appendChild(carte);
     requestAnimationFrame(() => carte.classList.add('visible'));

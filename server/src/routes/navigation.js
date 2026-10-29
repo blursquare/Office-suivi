@@ -94,6 +94,10 @@ function creerRouteurNavigation(config, parametresRepo, depot, o = {}) {
     res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'no-store').send(c);
   });
 
+  routeur.delete('/navigation/taches/:id/capture', (req, res) => {
+    res.json({ ok: !!(gestion.effacerCapture && gestion.effacerCapture(req.params.id)) });
+  });
+
   routeur.get('/navigation/taches/:id/documents/:doc', (req, res) => {
     const d = gestion.document(req.params.id, req.params.doc);
     if (!d) { res.status(404).json({ erreur: 'Document inconnu ou expiré.' }); return; }

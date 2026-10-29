@@ -61,7 +61,7 @@ function creerGestionnaireTaches(o) {
         etape('Ouvre le navigateur de CLAIRE');
         s = await SessionNavigation.ouvrir({ profil: profilTache || profil, domaines, lancer: inj.lancer, refuserAdresse: adresseAchat });
         // Capture régulière pour l'écran du poste (« voir CLAIRE travailler »).
-        const minuterie = setInterval(() => { if (s) s.capture().then((c) => { t.capture = c; }).catch(() => {}); }, 2500);
+        const minuterie = setInterval(() => { if (s) s.capture().then((c) => { if (!t.captureFinale) t.capture = c; }).catch(() => {}); }, 2500);
         try { await faire(t, s); } finally { clearInterval(minuterie); }
         t.capture = await s.capture().catch(() => t.capture);
         t.etat = 'fini';
@@ -70,6 +70,7 @@ function creerGestionnaireTaches(o) {
         // La dernière page du navigateur au moment de l'échec (aperçu du poste, étude 29/10) : 4 s au plus, jamais bloquant.
         if (s && !t.annule && !(e && e.annule)) {
           t.capture = await Promise.race([s.capture(), new Promise((ok) => setTimeout(() => ok(t.capture), 4000).unref())]).catch(() => t.capture);
+          t.captureFinale = true;   // une capture périodique en retard n'écrase pas la dernière page vue
         }
         t.etat = t.annule || (e && e.annule) ? 'annule' : 'erreur';
         t.erreur = t.etat === 'annule' ? 'Arrêté à la demande.' : String((e && e.message) || 'erreur').slice(0, 300);
@@ -119,6 +120,8 @@ function creerGestionnaireTaches(o) {
     tache: (id) => { const t = taches.get(String(id)); return t ? vue(t) : null; },
     document: (id, doc) => { const t = taches.get(String(id)); return t ? t.documents.find((d) => d.id === String(doc)) || null : null; },
     capture: (id) => { const t = taches.get(String(id)); return t && t.capture ? Buffer.from(t.capture, 'base64') : null; },
+    // L'aperçu fermé sur le poste : la capture (pages d'Authentic, noms de clients) est effacée de la mémoire du serveur sans attendre la purge.
+    effacerCapture: (id) => { const t = taches.get(String(id)); if (!t || !t.capture) return false; t.capture = ''; return true; },
     annuler: (id) => { const t = taches.get(String(id)); if (!t || t.fini) return false; t.annule = true; t.etape('Arrêt demandé'); return true; },
     profil
   };

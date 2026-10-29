@@ -407,3 +407,20 @@ test('navigation lente (étude 28/10, « Page.navigate : délai dépassé ») : 
   for (const type of ['beforeunload', 'alert', 'confirm', 'prompt']) await SessionNavigation.prototype.surEvenement.call(s, { method: 'Page.javascriptDialogOpening', sessionId: 'S', params: { type } });
   assert.deepEqual(dialogues.map((d) => d[1]), [true, true, false, false]);
 });
+
+test('capture d’une tâche : effacée à la fermeture de l’aperçu (route DELETE), 404 ensuite', async () => {
+  const express = require('express');
+  const { creerRouteurNavigation } = require('../src/routes/navigation');
+  let capture = Buffer.from('jpeg-essai');
+  const gestion = { tache: () => null, capture: () => capture, effacerCapture: () => { const a = !!capture; capture = null; return a; }, annuler: () => true };
+  const app = express();
+  app.use(express.json());
+  app.use('/api', creerRouteurNavigation({ cheminDb: path.join(os.tmpdir(), 'x.db'), nasRacine: os.tmpdir() }, { lireJsonBrut: (k, d) => d, ecrireJsonBrut: () => {} }, { trouverParId: () => null }, { gestionnaire: gestion, injections: {} }));
+  const serveur = app.listen(0);
+  const B = `http://127.0.0.1:${serveur.address().port}/api`;
+  try {
+    assert.equal((await fetch(B + '/navigation/taches/T1/capture')).status, 200);
+    assert.deepEqual(await (await fetch(B + '/navigation/taches/T1/capture', { method: 'DELETE' })).json(), { ok: true });
+    assert.equal((await fetch(B + '/navigation/taches/T1/capture')).status, 404);
+  } finally { serveur.close(); }
+});
