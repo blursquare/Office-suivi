@@ -69,3 +69,33 @@ test('déjà demandé : mots entiers seulement, un casier non délivré se redem
   const d = { authentic: { etatsCivils: { a: { label: 'Casier judiciaire ESSAI Lou', etat: 'positif', casier: true, statut: 'Non délivré' }, b: { label: 'Casier judiciaire EXEMPLE Ana', etat: 'positif', casier: true, statut: 'Reçu' } } } };
   assert.equal(app.etatsCivilsDejaDemandes(d).casier.length, 1, 'seul le casier reçu compte');
 });
+
+test('Comedec ciblé : un type de personne (vendeurs / acquéreurs) ou une seule personne par son nom', () => {
+  const d = { id: 'd1', nom: 'X', situationVendeur: 'marie', parties: [
+    { role: 'VENDEUR', nom: 'MARTIN', prenom: 'Paul' }, { role: 'VENDEUR', nom: 'MARTIN', prenom: 'Léa' },
+    { role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Claire' }, { role: 'ACQUEREUR', nom: 'LEROY', prenom: 'Marc' }],
+    authentic: { fichesClients: { 'paul martin': { nom: 'Paul MARTIN', situationMatrimoniale: { situation: 'Marié(e)' } }, 'lea martin': { nom: 'Léa MARTIN', situationMatrimoniale: { situation: 'Marié(e)' } } } } };
+  const toutes = app.partiesComedecDossier(d);
+  assert.equal(app.ciblerPartiesComedec(toutes, 'vendeurs', '').parties.map((p) => p.prenom).join(','), 'Paul,Léa');
+  assert.equal(app.ciblerPartiesComedec(toutes, 'acquéreurs', '').parties.map((p) => p.prenom).join(','), 'Claire,Marc');
+  assert.equal(app.ciblerPartiesComedec(toutes, '', 'Claire DURAND').parties.length, 1);
+  assert.match(app.ciblerPartiesComedec(toutes, '', 'MARTIN').erreur, /plusieurs/, 'deux MARTIN : préciser le prénom');
+  assert.equal(app.ciblerPartiesComedec(toutes, '', 'Léa Martin').parties[0].prenom, 'Léa');
+  assert.match(app.ciblerPartiesComedec(toutes, '', 'Zoé ESSAI').erreur, /aucune partie/);
+  assert.doesNotMatch(app.ciblerPartiesComedec(toutes, '', 'Zoé ESSAI').erreur, /Zoé|ESSAI/, 'jamais un nom dans l’erreur');
+  assert.match(app.ciblerPartiesComedec(toutes, 'tiers', '').erreur, /role inconnu/);
+  // Une seule personne mariée : elle garde SON mariage (le dédoublonnage du couple ne s'applique pas quand on ne demande que pour elle).
+  assert.equal(toutes.find((p) => p.prenom === 'Léa').marie, false, 'couple : le mariage n’est demandé que pour le premier');
+  const seule = app.partiesComedecDossier(d, { sansDedoublonnage: true });
+  assert.equal(seule.find((p) => p.prenom === 'Léa').marie, true);
+});
+
+test('Comedec ciblé : un nom inexploitable est refusé ; le mariage déjà demandé pour un époux vaut pour le couple, même ciblé sur l’autre', () => {
+  const d = { id: 'd1', nom: 'X', situationVendeur: 'marie', parties: [{ role: 'VENDEUR', nom: 'MARTIN', prenom: 'Paul' }, { role: 'VENDEUR', nom: 'MARTIN', prenom: 'Léa' }],
+    authentic: { fichesClients: { 'paul martin': { nom: 'Paul MARTIN', situationMatrimoniale: { situation: 'Marié(e)' } }, 'lea martin': { nom: 'Léa MARTIN', situationMatrimoniale: { situation: 'Marié(e)' } } },
+      etatsCivils: { m: { label: 'Acte de mariage MARTIN Paul', etat: 'attente' } } } };
+  const toutes = app.partiesComedecDossier(d, { sansDedoublonnage: true });
+  assert.equal(toutes.find((p) => p.prenom === 'Léa').dejaMariage, true, 'le mariage du couple est déjà demandé (sous le nom de Paul)');
+  assert.match(app.ciblerPartiesComedec(toutes, '', 'J.').erreur, /inexploitable/);
+  assert.match(app.ciblerPartiesComedec(toutes, '', '?').erreur, /inexploitable/);
+});

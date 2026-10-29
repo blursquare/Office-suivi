@@ -51,14 +51,16 @@
   function demanderAutorisationAgent(description, options) {
     const strict = !!(options && options.strict);
     if (autorisationDemandeAgent && !strict) {
-      assistantMessages.push({ role: 'claire', html: htmlAutorisationAgent(description, 'autorise-demande'), boutons: [], quand: Date.now() });
+      assistantMessages.push({ role: 'claire', html: htmlAutorisationAgent(description, 'autorise-demande'), boutons: [], quand: Date.now(), local: true, auteur: 'CLAIRE', parent: (canaux.actif && canaux.parentCourant) || '' });
       renderAssistant();
       return Promise.resolve(true);
     }
     if (autorisationAgentEnAttente) autorisationAgentEnAttente.resoudre(false);
     return new Promise(resoudre => {
       let fini = false;
-      const message = { role: 'claire', html: '', boutons: [], quand: Date.now() };
+      // `local` : dans une discussion, le fil est relu du serveur toutes les quelques secondes et ne garde que les messages « locaux » de ce poste — sans cela la
+      // carte « Autoriser » disparaissait au bout de 2 s alors que l'agent attendait encore la réponse (étude 29/10).
+      const message = { role: 'claire', html: '', boutons: [], quand: Date.now(), local: true, auteur: 'CLAIRE', parent: (canaux.actif && canaux.parentCourant) || '' };
       const conclure = (ok, toutLaDemande) => {
         if (fini) return;
         fini = true;
@@ -66,6 +68,8 @@
         if (toutLaDemande) autorisationDemandeAgent = true;
         if (!ok) autorisationDemandeAgent = false;
         message.boutons = [];
+        // Décidée : la carte reste le temps de l'affichage, puis la relecture du fil la retire (plus `local`) — pas d'empilement de cartes décidées.
+        message.local = false;
         message.html = htmlAutorisationAgent(description, ok ? (toutLaDemande ? 'autorise-demande' : 'autorise') : 'refuse');
         assistantEtapeAgent = ok ? 'Je m’en occupe…' : 'Je réfléchis…';
         renderAssistant();

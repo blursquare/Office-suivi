@@ -46,9 +46,30 @@ function libelleDitPersonne(libelles, p) {
   return mots.length >= 2 && (libelles || []).some(l => { const jetons = String(l).split(/[^a-z0-9]+/); return mots.every(m => jetons.includes(m)); });
 }
 
+// Pure : restreint les parties d'une demande Comedec à un type (« vendeurs » / « acquereurs ») et/ou à UNE personne désignée par son nom (étude 29/10 :
+// « les Comedec uniquement pour une personne par son nom, ou pour un type de personne »). Rend { parties } ou { erreur } (jamais un nom dans l'erreur) :
+// aucune partie ne correspond, ou plusieurs personnes correspondent au nom donné (préciser le prénom).
+function ciblerPartiesComedec(parties, role, personne) {
+  let liste = Array.isArray(parties) ? parties : [];
+  const r = normaliserPourRecherche(String(role || '')).replace(/[^a-z]/g, '');
+  if (/^vendeur/.test(r)) liste = liste.filter(p => p.role === 'VENDEUR');
+  else if (/^acquereur|^acheteur/.test(r)) liste = liste.filter(p => p.role === 'ACQUEREUR');
+  else if (r) return { erreur: 'role inconnu : vendeurs ou acquereurs' };
+  const mots = normaliserPourRecherche(String(personne || '')).split(/[^a-z0-9]+/).filter(m => m.length > 1);
+  if (String(personne || '').trim() && !mots.length) return { erreur: 'nom de personne inexploitable : préciser le nom' };
+  if (mots.length) {
+    const trouvees = liste.filter(p => { const siens = normaliserPourRecherche([p.prenom, p.nom].filter(Boolean).join(' ')).split(/[^a-z0-9]+/); return mots.every(m => siens.includes(m)); });
+    if (!trouvees.length) return { erreur: 'aucune partie de la fiche ne correspond à cette personne' };
+    if (trouvees.length > 1) return { erreur: 'plusieurs personnes de la fiche correspondent à ce nom : préciser le prénom' };
+    liste = trouvees;
+  }
+  if (!liste.length) return { erreur: 'aucune partie à demander pour ce choix' };
+  return { parties: liste };
+}
+
 // Pure : les parties de la demande d'état civil (Comedec) — chaque vendeur et acquéreur personne physique que l'étude représente (jamais
 // le côté accompagné par un confrère, qui fait ses demandes) ; mariée = situation du couple « marié » de son côté, ou fiche d'Authentic.
-function partiesComedecDossier(d) {
+function partiesComedecDossier(d, opt) {
   const parties = Array.isArray(d && d.parties) ? d.parties : [];
   const deja = etatsCivilsDejaDemandes(d);
   const exclus = { ACQUEREUR: notaireParticipantRepresenteAcquereur(d), VENDEUR: confrereRepresenteVendeur(d) };
@@ -65,7 +86,11 @@ function partiesComedecDossier(d) {
   // conjoint extérieur, d'après leur seule fiche — relecture 0.396.2).
   [['VENDEUR', d && d.situationVendeur], ['ACQUEREUR', d && d.situationAcquereur]].forEach(([role, situation]) => {
     const cote = liste.filter(p => p.role === role);
-    if (cote.length === 2 && situation === 'marie' && cote.every(p => p.marie)) cote[1].marie = false;
+    if (cote.length === 2 && situation === 'marie' && cote.every(p => p.marie)) {
+      if (!(opt && opt.sansDedoublonnage)) cote[1].marie = false;
+      // Le mariage du couple est UN seul acte : demandé pour l'un des deux, il l'est pour les deux (même ciblé sur une seule personne).
+      if (cote.some(p => p.dejaMariage)) cote.forEach(p => { p.dejaMariage = true; });
+    }
   });
   return liste;
 }
@@ -153,12 +178,18 @@ async function demandeAuthenticAgent(entree) {
   if (e.mode !== 'cjn' && e.mode !== 'comedec') return { erreur: 'mode inconnu (lire, cjn, comedec)' };
   // Écrire dans Authentic est éteint par défaut (plan du 27/10) : l'administrateur l'allume dans Réglages › Authentic.
   if (!c.preparerDemandes) return { erreur: 'préparer des demandes dans Authentic est éteint (Réglages › Authentic, administrateur) : CLAIRE ne fait que lire', statut: 'echec' };
-  return preparerFormaliteAuthentic(d, e.mode, { agent: true });
+  return preparerFormaliteAuthentic(d, e.mode, { agent: true, role: e.mode === 'comedec' ? e.role : '', personne: e.mode === 'comedec' ? e.personne : '' });
 }
 
 // Préparer une demande CJN ou Comedec après « Autoriser » (agent : carte dans la conversation ; routine : la proposition autorisée).
 async function preparerFormaliteAuthentic(d, type, o) {
-  const parties = type === 'comedec' ? partiesComedecDossier(d) : acquereursCjnDossier(d);
+  let parties = type === 'comedec' ? partiesComedecDossier(d, { sansDedoublonnage: !!(o && o.personne) }) : acquereursCjnDossier(d);
+  // Comedec pour un type de personne (vendeurs / acquéreurs) ou une seule personne désignée par son nom (étude 29/10).
+  if (type === 'comedec' && o && (o.role || o.personne)) {
+    const c = ciblerPartiesComedec(parties, o.role, o.personne);
+    if (c.erreur) return { erreur: c.erreur, statut: 'echec' };
+    parties = c.parties;
+  }
   if (type === 'cjn' && raisonSansCjn(d)) return { erreur: 'pas de demande de casier ici : ' + raisonSansCjn(d) };
   if (type === 'comedec' && !parties.length) return { erreur: 'aucune partie que l’étude représente sur la fiche' };
   // Rien à redemander : chaque demande voulue figure déjà sur la page du dossier dans Authentic (étude 29/10 : « ne pas le redemander »).
