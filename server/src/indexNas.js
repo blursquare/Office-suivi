@@ -15,7 +15,10 @@ const { sensiblesDesDossiers } = require('./routines/ia');
 const MAX_DOSSIERS_PAR_PARCOURS = 400;
 const MAX_CARACTERES_RESUME = 5000;
 // Une pièce d'identité, un RIB, un livret de famille ou une carte vitale n'est JAMAIS résumé par l'IA en ligne (texte gardé sur le serveur du bureau seulement).
-const RE_NOM_SENSIBLE = /(identit|passeport|\bcni\b|carte[ _-]?(nationale|vitale)|titre[ _-]?de[ _-]?s[ée]jour|\brib\b|\biban\b|livret[ _-]?de[ _-]?famille|permis[ _-]?de[ _-]?conduire)/i;
+// Mots cherchés entre séparateurs de nom de fichier (« RIB_Dupont.pdf », « CNI-Martin ») — `\b` ne coupe pas sur « _ » (audit 0.402.0, M2).
+const RE_NOM_SENSIBLE = /(identit|passeport|carte[ _-]?(nationale|vitale|d.?identit)|titre[ _-]?de[ _-]?s[ée]jour|livret[ _-]?de[ _-]?famille|permis[ _-]?de[ _-]?conduire|bulletin|salaire|avis[ _-]?d.?imp[oô]sition|(?:^|[^a-z0-9])(cni|rib|iban|ci|cv|nir)(?=$|[^a-z0-9]))/i;
+// Dans le texte : bande MRZ d'une pièce d'identité, ou un IBAN — le document n'est pas résumé en ligne non plus.
+const RE_TEXTE_SENSIBLE = /(IDFRA|P<FRA|[A-Z0-9<]{30,})|\bFR\d{2}(?:\s?[0-9A-Z]{4}){5}/;
 
 const SCHEMA_RESUME = {
   type: 'object', additionalProperties: false, required: ['type', 'emetteur', 'date', 'resume'],
@@ -90,7 +93,7 @@ async function parcourirDossiersEnCours(o) {
       tentes.add(doc.id);
       const racine = racines[doc.rubrique];
       const cible = racine ? await cheminDocumentMemoire(racine, doc.chemin, fsImpl) : null;
-      if (!cible) continue;
+      if (!cible) { o.memoire.marquerErreur(doc.id, 'fichier introuvable'); continue; }
       try {
         const buf = await fsImpl.readFile(cible);
         const texte = doc.ext === 'docx' ? await texteDocx(buf) : buf.toString('utf8');
@@ -128,6 +131,11 @@ async function resumerDocuments(o) {
     }
     if (!dispo.ok) return { ...sortie, raison: dispo.raison };
     const texte = o.memoire.texteDocument(doc.id, MAX_CARACTERES_RESUME);
+    if (RE_TEXTE_SENSIBLE.test(texte)) {
+      o.memoire.enregistrerResume(doc.id, { type: 'pièce personnelle (identité, RIB…)', resume: 'Pièce personnelle : non résumée (jamais envoyée à l’IA en ligne).' });
+      sortie.ignores++;
+      continue;
+    }
     if (texte.replace(/\s+/g, '').length < 40) { o.memoire.enregistrerResume(doc.id, { resume: 'Document sans texte lisible.' }); sortie.ignores++; continue; }
     const table = new Map();
     try {
@@ -137,12 +145,15 @@ async function resumerDocuments(o) {
       o.memoire.enregistrerResume(doc.id, { type: sansInventes(r.type), emetteur: sansInventes(r.emetteur), date: r.date, resume: sansInventes(r.resume) }, false, doc.lu_le);
       sortie.resumes++;
     } catch (e) {
+      const message = String(e && e.message || '');
+      // Plafond atteint ou API injoignable : ce n'est pas la faute du document, aucun essai n'est compté (audit 0.402.0, B1).
+      if (/plafond/.test(message)) return { ...sortie, raison: 'plafond mensuel atteint' };
+      if (/injoignable|surcharg|overloaded|timeout|délai|ECONN|5\d\d/i.test(message)) return { ...sortie, raison: 'IA injoignable' };
       o.memoire.enregistrerResume(doc.id, {}, true);
       sortie.echecs++;
-      if (/plafond/.test(String(e && e.message))) return { ...sortie, raison: 'plafond mensuel atteint' };
     }
   }
   return sortie;
 }
 
-module.exports = { rubriqueDossier, dossierDeRubrique, cheminSensible, promptResume, resumeAssaini, parcourirDossiersEnCours, resumerDocuments, SCHEMA_RESUME };
+module.exports = { RE_TEXTE_SENSIBLE, rubriqueDossier, dossierDeRubrique, cheminSensible, promptResume, resumeAssaini, parcourirDossiersEnCours, resumerDocuments, SCHEMA_RESUME };

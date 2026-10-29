@@ -653,11 +653,14 @@ async function lireEmailComplet(parametresRepo, emailId, injections = {}) {
 // relié ; rien n'est gardé sauf une table d'identifiants opaques en mémoire (30 min) qui permet de lire un email trouvé. Les résultats
 // passent par le masquage du serveur comme tout résultat d'outil (jamais de corps hors lecture demandée).
 const MAILS_TROUVES = new Map();
+// Objets d'emails personnels de la boîte reliée, jamais rendus à l'agent (paie, arrêt de travail, santé, impôts personnels).
+const RE_MAIL_PERSONNEL = /(bulletin de (paie|salaire)|fiche de paie|\bpaie\b|salaire|arr[eê]t (de travail|maladie)|m[ée]decin|ordonnance|mutuelle sant[ée]|imp[oô]t sur le revenu|urssaf)/i;
 const DUREE_MAILS_TROUVES_MS = 30 * 60 * 1000;
 const MAX_MAILS_TROUVES = 300;
 
 function motsAqs(texte) {
-  return String(texte || '').replace(/["\\:()<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  // Opérateurs AQS neutralisés (OR, AND, NOT, joker) : une requête mal formée rendrait une erreur d'Exchange (audit 0.402.0, B5).
+  return String(typeof texte === 'string' ? texte : '').replace(/["\\:()<>*=]/g, ' ').replace(/(^|\s)(OR|AND|NOT|NEAR)(?=\s|$)/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 }
 
 /** Pure : la requête AQS d'une recherche ({ expediteur, objet, texte }) ; '' si rien de cherché. Les mots de l'objet et du texte sont
@@ -678,13 +681,13 @@ function jourParisEmail(iso) {
   return Number.isFinite(t) ? new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Paris' }).format(new Date(t)) : String(iso || '').slice(0, 10);
 }
 
-function corpsFindRecherche(dossier, aqs, max) {
+function corpsFindRecherche(dossier, aqs, max, offset = 0) {
   return ENVELOPPE_DEBUT
     + '<m:FindItem Traversal="Shallow"><m:ItemShape><t:BaseShape>IdOnly</t:BaseShape><t:AdditionalProperties>'
     + '<t:FieldURI FieldURI="item:Subject"/><t:FieldURI FieldURI="message:From"/><t:FieldURI FieldURI="item:DateTimeReceived"/>'
     + '<t:FieldURI FieldURI="item:DateTimeSent"/><t:FieldURI FieldURI="item:HasAttachments"/><t:FieldURI FieldURI="item:Preview"/>'
     + '</t:AdditionalProperties></m:ItemShape>'
-    + `<m:IndexedPageItemView MaxEntriesReturned="${Math.max(1, Math.min(100, Number(max) || 30))}" Offset="0" BasePoint="Beginning"/>`
+    + `<m:IndexedPageItemView MaxEntriesReturned="${Math.max(1, Math.min(100, Number(max) || 30))}" Offset="${Math.max(0, Math.floor(Number(offset) || 0))}" BasePoint="Beginning"/>`
     + '<m:SortOrder><t:FieldOrder Order="Descending"><t:FieldURI FieldURI="item:DateTimeReceived"/></t:FieldOrder></m:SortOrder>'
     + `<m:ParentFolderIds>${dossierEws(dossier, null)}</m:ParentFolderIds>`
     + `<m:QueryString>${echapperXml(aqs)}</m:QueryString></m:FindItem>` + ENVELOPPE_FIN;
@@ -707,8 +710,8 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
   const dossiersCherches = [];
   if (sens !== 'envoyes') dossiersCherches.push(['inbox', 'recu']);
   if (sens !== 'recus') dossiersCherches.push(['sentitems', 'envoye']);
-  const depuis = q.depuis && /^\d{4}-\d{2}-\d{2}/.test(q.depuis) ? q.depuis.slice(0, 10) : '';
-  const jusqu = q.jusqu && /^\d{4}-\d{2}-\d{2}/.test(q.jusqu) ? q.jusqu.slice(0, 10) : '';
+  const depuis = typeof q.depuis === 'string' && /^\d{4}-\d{2}-\d{2}/.test(q.depuis) ? q.depuis.slice(0, 10) : '';
+  const jusqu = typeof q.jusqu === 'string' && /^\d{4}-\d{2}-\d{2}/.test(q.jusqu) ? q.jusqu.slice(0, 10) : '';
   const maintenant = injections.maintenant ? new Date(injections.maintenant).getTime() : Date.now();
   for (const [id, t] of MAILS_TROUVES) if (maintenant - t.le > DUREE_MAILS_TROUVES_MS) MAILS_TROUVES.delete(id);
   const etat = lireEtat(parametresRepo);
@@ -719,25 +722,34 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
   const max = Math.max(1, Math.min(40, Number(q.max) || 20));
   /** @type {any[]} */
   const emails = [];
+  let exclus = 0;
   for (const [dossierEws_, sensMail] of dossiersCherches) {
-    const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindRecherche(dossierEws_, requeteAqsMails(q, sensMail === 'envoye'), 100), delaiMs: 30000 }, injections);
-    if (r.echec) return { erreur: r.echec.message, statut: 502 };
-    if (r.statut === 401 || r.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
-    if (!succes(r.corps)) return { erreur: `Recherche impossible (${codeReponse(r.corps) || r.statut}).`, statut: 502 };
-    for (const e of parseFind(r.corps)) {
-      const jour = jourParisEmail(e.date);
-      if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) continue;
-      const d = e.deAdresse && !internes.map((x) => String(x).toLowerCase()).includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
-      const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
-      MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
-      emails.push({ mail_id: mailId, sens: sensMail, date: e.date, nom: sensMail === 'envoye' ? 'l’étude' : (e.deNom || e.deAdresse), email_expediteur: e.deAdresse,
-        // Précédés d'un mot d'usage : le masquage voit un nom en tête de l'objet ou de l'aperçu (« Paul Durand vente ») hors de la tête de phrase.
-        objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
+    // Par pages de 100, du plus récent au plus ancien, jusqu'à franchir « depuis » (5 pages au plus) : une période ancienne n'est jamais
+    // cherchée dans les 100 derniers seulement (audit 0.402.0, M3).
+    for (let offset = 0, page = 0; page < 5; page++, offset += 100) {
+      const r = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsFindRecherche(dossierEws_, requeteAqsMails(q, sensMail === 'envoye'), 100, offset), delaiMs: 30000 }, injections);
+      if (r.echec) return { erreur: r.echec.message, statut: 502 };
+      if (r.statut === 401 || r.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
+      if (!succes(r.corps)) return { erreur: `Recherche impossible (${codeReponse(r.corps) || r.statut}).`, statut: 502 };
+      const lot = parseFind(r.corps);
+      for (const e of lot) {
+        const jour = jourParisEmail(e.date);
+        if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) continue;
+        // Emails personnels de la boîte reliée (paie, santé…) : jamais rendus à l'agent (audit 0.402.0, M4).
+        if (RE_MAIL_PERSONNEL.test(String(e.objet || ''))) { exclus++; continue; }
+        const d = sensMail === 'recu' && e.deAdresse && !internes.map((x) => String(x).toLowerCase()).includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
+        const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
+        MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
+        emails.push({ mail_id: mailId, sens: sensMail, date: e.date, nom: sensMail === 'envoye' ? 'l’étude' : (e.deNom || e.deAdresse), email_expediteur: e.deAdresse,
+          // Précédés d'un mot d'usage : le masquage voit un nom en tête de l'objet ou de l'aperçu (« Paul Durand vente ») hors de la tête de phrase.
+          objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
+      }
+      if (lot.length < 100 || !depuis || jourParisEmail(lot[lot.length - 1].date) < depuis) break;
     }
   }
   while (MAILS_TROUVES.size > MAX_MAILS_TROUVES) MAILS_TROUVES.delete(MAILS_TROUVES.keys().next().value);
   emails.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  return { emails: emails.slice(0, max), total: emails.length };
+  return { emails: emails.slice(0, max), total: emails.length, ...(exclus ? { personnels_ecartes: exclus } : {}) };
 }
 
 /** Le texte d'un email trouvé par chercherMailsDirect (relu dans Exchange, jamais gardé), 6 000 caractères au plus. */
@@ -753,7 +765,9 @@ async function lireMailTrouve(parametresRepo, mailId, injections = {}) {
   if (r.statut === 401 || r.statut === 403) { require('./agendaWatch').signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
   const lu = succes(r.corps) ? parseGetItems(r.corps).get(t.itemId) : null;
   if (!lu) return { erreur: 'Email introuvable dans la boîte (déplacé ou supprimé).', statut: 404 };
-  return { texte: 'Texte de l’email : ' + String(lu.corps || '').slice(0, 6000), a: lu.a, pieces_jointes: lu.pjs.map((p) => p.nom) };
+  // Le nom d'une pièce jointe ne part jamais (« Dupont_compromis.pdf ») : seulement son rang et son extension (audit 0.402.0, M1).
+  const ext = (/** @type {string} */ n) => ((String(n).match(/\.([a-z0-9]{1,5})$/i) || [])[1] || 'fichier').toLowerCase();
+  return { texte: 'Texte de l’email : ' + String(lu.corps || '').slice(0, 6000), a: lu.a, pieces_jointes: lu.pjs.map((p, i) => `pièce ${i + 1} (${ext(p.nom)})`) };
 }
 
 function demarrerSurveillanceEmailsDossiers(depot, parametresRepo, config, intervalleMs) {

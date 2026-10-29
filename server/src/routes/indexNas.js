@@ -27,6 +27,9 @@ const routeAsync = (fn) => (req, res) => {
 };
 
 /** Pure : le premier sous-dossier d'un chemin relatif (« 3 - AAE »), '' à la racine. @param {string} chemin */
+/** Pure : une valeur précédée de son libellé (le masquage voit alors un nom en tête de valeur hors de la tête de phrase — audit 0.402.0, M1). */
+const avecLibelle = (lib, v) => (v ? `${lib} : ${v}` : '');
+
 function sousDossierDe(chemin) { const p = String(chemin || '').split('/'); return p.length > 1 ? p[0] : ''; }
 
 /** @param {any} config @param {any} depot @param {any} parametresRepo @param {any} memoire @param {{ fsImpl?: any, ia?: any }} [injections] */
@@ -37,7 +40,7 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   /** @type {any} */
   let dernierResume = { resumes: 0, echecs: 0, ignores: 0 };
   let resumeEnCours = false;
-  /** @type {{ id: string, le: number }} */
+  /** @type {{ id: string, le: number, locale?: boolean }} */
   let lecteur = { id: '', le: 0 };
   const lireReglages = () => {
     const b = parametresRepo.lireJsonBrut ? parametresRepo.lireJsonBrut(CLE_REGLAGES, null) : null;
@@ -78,8 +81,11 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
     if (!lireReglages().actif) { res.json({ documents: [] }); return; }
     const fenetre = String(req.query.fenetre || '').slice(0, 40);
     const maintenant = Date.now();
-    if (lecteur.id && lecteur.id !== fenetre && maintenant - lecteur.le < DUREE_LECTEUR_MS) { res.json({ documents: [], autreFenetre: true }); return; }
-    lecteur = { id: fenetre, le: maintenant };
+    // La fenêtre du poste SERVEUR (localhost) a la priorité : tant qu'elle lit, celles des collaborateurs se reposent (audit 0.402.0, M5).
+    const locale = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(String(req.socket && req.socket.remoteAddress || ''));
+    const autre = lecteur.id && lecteur.id !== fenetre;
+    if (autre && maintenant - lecteur.le < (lecteur.locale && !locale ? 30 * 60 * 1000 : DUREE_LECTEUR_MS) && !(locale && !lecteur.locale)) { res.json({ documents: [], autreFenetre: true }); return; }
+    lecteur = { id: fenetre, le: maintenant, locale };
     const docs = memoire.aLire('pdf', Math.min(2, Number(req.query.limite) || 1), { dossiers: true });
     memoire.reserverPourPoste(docs);
     res.json({ documents: docs.map((d) => ({ id: d.id, rubrique: d.rubrique, nom: d.nom, taille: d.taille, dossier: true })) });
@@ -110,15 +116,16 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
     const lu = memoire.etat().lignes.filter((x) => x.rubrique === rubrique);
     const suivi = { fichiers: lu.reduce((s, x) => s + x.n, 0), lus: lu.filter((x) => x.statut === 'lu').reduce((s, x) => s + x.n, 0) };
     if (!q) {
-      const docs = memoire.documentsRubrique(rubrique, 80).map((d) => ({ chemin: d.ext === 'pdf' ? d.chemin : '', sous_dossier: sousDossierDe(d.chemin), lu: d.statut === 'lu', type: d.type || '', emetteur: d.emetteur || '', date: d.date_doc || '', resume: d.resume || '' }));
-      res.json({ inventaire: docs, ...suivi, remarque });
+      const liste = memoire.documentsRubrique(rubrique, 201);
+      const docs = liste.slice(0, 200).map((d) => ({ chemin: d.ext === 'pdf' ? d.chemin : '', sous_dossier: avecLibelle('Sous-dossier', sousDossierDe(d.chemin)), lu: d.statut === 'lu', type: avecLibelle('Type', d.type), emetteur: avecLibelle('Émetteur', d.emetteur), date: d.date_doc || '', resume: avecLibelle('Résumé', d.resume) }));
+      res.json({ inventaire: docs, ...suivi, remarque: [remarque, liste.length > 200 ? 'Inventaire coupé aux 200 premiers documents : cherche par mots pour les autres.' : ''].filter(Boolean).join(' ') });
       return;
     }
     const r = memoire.chercher(q, { rubrique, limite: Number(req.query.limite) || 8 });
     const passages = r.passages.map((p) => {
       const doc = memoire.document(p.doc);
       const rs = memoire.resume(p.doc) || {};
-      return { chemin: doc && doc.ext === 'pdf' ? doc.chemin : '', sous_dossier: doc ? sousDossierDe(doc.chemin) : '', page: p.page || undefined, type: rs.type || '', emetteur: rs.emetteur || '', date: rs.date_doc || '', resume: rs.resume || '', extrait: p.extrait };
+      return { chemin: doc && doc.ext === 'pdf' ? doc.chemin : '', sous_dossier: avecLibelle('Sous-dossier', doc ? sousDossierDe(doc.chemin) : ''), page: p.page || undefined, type: avecLibelle('Type', rs.type), emetteur: avecLibelle('Émetteur', rs.emetteur), date: rs.date_doc || '', resume: avecLibelle('Résumé', rs.resume), extrait: avecLibelle('Extrait', p.extrait) };
     });
     res.json({ passages, ...suivi, remarque });
   }));
@@ -134,4 +141,4 @@ function creerRouteurIndexNas(config, depot, parametresRepo, memoire, injections
   return routeur;
 }
 
-module.exports = { creerRouteurIndexNas, sousDossierDe };
+module.exports = { creerRouteurIndexNas, sousDossierDe, avecLibelle };

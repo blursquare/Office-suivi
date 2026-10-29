@@ -183,11 +183,16 @@
   // réserve, sans bruit ; une seule fenêtre à la fois par document (réservation côté serveur). Éteint par Réglages › Mémoire de CLAIRE.
   var indexNasEnCours = false;
   var FENETRE_INDEX_NAS = 'f' + Math.random().toString(36).slice(2, 12);
+  // La lecture ne gêne jamais le travail (audit 0.402.0, M5) : seulement après 3 min sans clic ni frappe, ou fenêtre cachée ; arrêtée dès
+  // qu'on reprend la main (le document en cours se finit).
+  var derniereActiviteIndexNas = Date.now();
+  ['pointerdown', 'keydown', 'wheel'].forEach(t => window.addEventListener(t, () => { derniereActiviteIndexNas = Date.now(); }, { passive: true, capture: true }));
+  function posteLibreIndexNas() { return document.visibilityState === 'hidden' || Date.now() - derniereActiviteIndexNas > 3 * 60 * 1000; }
   async function lireIndexNasTous() {
     if (indexNasEnCours || typeof pdfjsLib === 'undefined' || (typeof POSTE_CLAIRE !== 'undefined' && POSTE_CLAIRE)) return;
     indexNasEnCours = true;
     try {
-      for (let tour = 0; tour < 60; tour++) {
+      for (let tour = 0; tour < 60 && posteLibreIndexNas(); tour++) {
         const r = await fetchAvecAuth('/api/index-nas/a-lire?limite=1&fenetre=' + FENETRE_INDEX_NAS);
         if (!r.ok) break;
         const docs = ((await r.json()) || {}).documents || [];
@@ -206,7 +211,7 @@
     indexNasEnCours = false;
   }
   function demarrerIndexNasFond() {
-    setTimeout(() => { lireIndexNasTous(); setInterval(lireIndexNasTous, 20 * 60 * 1000); }, 90 * 1000);
+    setTimeout(() => { lireIndexNasTous(); setInterval(lireIndexNasTous, 4 * 60 * 1000); }, 90 * 1000);
   }
 
   async function chercherNasAgent(e) {

@@ -87,6 +87,12 @@ test('résumés : texte masqué avant l’IA, pièce d’identité jamais envoy�
 });
 
 test('pur : sensibilité du nom, résumé assaini', () => {
+  assert.equal(I.cheminSensible('RIB_Dupont.pdf'), true, 'souligné accepté comme séparateur');
+  assert.equal(I.cheminSensible('CNI-Martin.pdf'), true);
+  assert.equal(I.cheminSensible('Cession fonds.pdf'), false, '« ci » dans un mot n’est pas une carte d’identité');
+  assert.equal(I.RE_TEXTE_SENSIBLE.test('IBAN FR76 3000 4000 0500 0012 3456 789'), true);
+  assert.equal(I.RE_TEXTE_SENSIBLE.test('IDFRAMARTEL<<<<<<<<<<<'), true);
+  assert.equal(I.RE_TEXTE_SENSIBLE.test('Offre de prêt de 200 000 € au taux de 3,2 %'), false);
   assert.equal(I.cheminSensible('Vendeur/Pièce d’identité.pdf'), true);
   assert.equal(I.cheminSensible('RIB acquereur.pdf'), true);
   assert.equal(I.cheminSensible('Offre de prêt.pdf'), false);
@@ -112,7 +118,7 @@ test('route chercher : extraits et résumé par document, sous-dossier seulement
     const base = `http://127.0.0.1:${srv.address().port}/api/index-nas`;
     const r = await (await fetch(`${base}/chercher?dossier=d1&q=permis`)).json();
     assert.equal(r.passages.length, 1);
-    assert.equal(r.passages[0].sous_dossier, '3 - AAE');
+    assert.equal(r.passages[0].sous_dossier, 'Sous-dossier : 3 - AAE');
     const sansChemin = (o) => JSON.stringify(o, (k, v) => (k === 'chemin' ? undefined : v));
     assert.doesNotMatch(sansChemin(r), /Permis\.txt|\.txt|\.pdf/, 'aucun nom de fichier hors du chemin réservé au poste');
     assert.equal(r.passages[0].chemin, '', 'un texte n’a pas de chemin (seuls les PDF s’ouvrent par lire_document)');

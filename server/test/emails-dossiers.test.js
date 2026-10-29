@@ -525,7 +525,8 @@ test('recherche libre (agent) : requête AQS sûre, dossier reconnu par l’adre
     assert.match(r.emails[0].objet, /^Objet : /);
     const lu = await E.lireMailTrouve(repo, r.emails[0].mail_id, { poster });
     assert.match(lu.texte, /permis de construire/);
-    assert.deepEqual(lu.pieces_jointes, ['permis.pdf']);
+    assert.deepEqual(lu.pieces_jointes, ['pièce 1 (pdf)'], 'jamais le nom d’une pièce jointe');
+    assert.equal(E.requeteAqsMails({ texte: 'permis OR * NOT x' }), 'permis', 'opérateurs AQS neutralisés');
     assert.equal((await E.lireMailTrouve(repo, 'mxinconnu', { poster })).statut, 404);
     assert.doesNotMatch(JSON.stringify(E.lireEtat(repo)), /permis de construire de 2014/, 'le texte n’est jamais gardé');
     // Disjoncteur : un refus d'identifiants suspend la recherche, plus aucune requête ensuite.

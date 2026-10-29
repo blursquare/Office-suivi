@@ -1103,9 +1103,13 @@ test('0.402.0 : rien de nominatif ne part des résultats de chercher_mails, lire
   assert.match(m1, /permis/);
   const lu = { texte: 'Texte de l’email : Bonjour Maître, Camille Fournier vous transmet la DAACT. Cordialement, Alex Martel', a: ['camille@exemple.fr'], pieces_jointes: ['DAACT.pdf'] };
   assert.doesNotMatch(JSON.stringify(masquerValeur(lu, S, new Map())), /Camille|Fournier|Alex|Martel|camille@/);
-  const nas = { passages: [{ document_id: 'doc3', sous_dossier: '3 - AAE', type: 'permis de construire', emetteur: 'Mairie de Vineuil', date: '2014-03-12',
-    resume: 'Permis accordé à Camille FOURNIER pour une extension.', extrait: 'arrêté accordant à Monsieur Alex MARTEL le permis' }] };
+  const { avecLibelle } = require('../src/routes/indexNas');
+  const nas = { passages: [{ document_id: 'doc3', sous_dossier: avecLibelle('Sous-dossier', '3 - AAE'), type: avecLibelle('Type', 'permis de construire'), emetteur: avecLibelle('Émetteur', 'Garnier Plomberie'), date: '2014-03-12',
+    resume: avecLibelle('Résumé', 'Permis accordé à Camille FOURNIER pour une extension.'), extrait: avecLibelle('Extrait', 'arrêté accordant à Monsieur Alex MARTEL le permis') }] };
   const m3 = JSON.stringify(masquerValeur(nas, S, new Map()));
-  assert.doesNotMatch(m3, /Camille|FOURNIER|Alex|MARTEL/);
+  assert.doesNotMatch(m3, /Camille|FOURNIER|Alex|MARTEL|Garnier/);
+  // Politique « couplée à un nom » (poste qui envoie les adresses) : l'émetteur en tête de valeur reste masqué grâce à son libellé.
+  const Sc = motsSensiblesDossiers([{ nom: 'MARTEL / FOURNIER', parties: [{ nom: 'MARTEL', prenom: 'Alex' }], autres: [], adresses: ['VINEUIL (41350), 4 rue des Lilas'] }]);
+  assert.doesNotMatch(JSON.stringify(masquerValeur(nas, Sc, new Map())), /Garnier|Alex|MARTEL/);
   assert.match(m3, /permis de construire/);
 });

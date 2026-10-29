@@ -459,9 +459,9 @@ function creerMemoire(db) {
       db.prepare("UPDATE memoire_documents SET statut = 'a_lire' WHERE statut = 'en_cours' AND lu_le < ?").run(Date.now() - 45 * 60 * 1000);
       for (const d of docs) db.prepare("UPDATE memoire_documents SET statut = 'en_cours', lu_le = ? WHERE id = ? AND statut = 'a_lire'").run(Date.now(), d.id);
     },
-    /** PDF des dossiers en erreur ou sans texte depuis plus de `ageMs` : remis à lire (NAS indisponible un instant, OCR absent d'un poste). */
+    /** PDF des dossiers en erreur depuis plus de `ageMs` : remis à lire (NAS indisponible un instant, OCR absent d'un poste). Un document « vide » (scan blanc) ne l'est jamais : il ne repasse pas à l'OCR chaque jour (audit 0.402.0, M6). */
     retenterDossiers(ageMs) {
-      return db.prepare("UPDATE memoire_documents SET statut = 'a_lire', erreur = '' WHERE rubrique LIKE 'd:%' AND statut IN ('erreur', 'vide') AND lu_le < ?").run(Date.now() - ageMs).changes;
+      return db.prepare("UPDATE memoire_documents SET statut = 'a_lire', erreur = '' WHERE rubrique LIKE 'd:%' AND statut = 'erreur' AND lu_le < ?").run(Date.now() - ageMs).changes;
     },
     /** Retire de la mémoire tous les documents d'une rubrique (dossier clos ou non relié). */
     retirerRubrique(rubrique) {
