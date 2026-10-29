@@ -207,3 +207,20 @@ test('scriptTrouverReference : script valide, numéro cherché sans espaces (ét
   assert.match(s, /"A 2026 00500"/);
   assert.match(s, /replace\(\/\\s\+\/g, ''\)/);
 });
+
+test('Comedec : « épouse de / époux de » dans le libellé de la ligne = mariage à demander ; veuve ou divorcé(e) : naissance seule', () => {
+  const parties = [{ nom: 'BERNIER', prenom: 'Josette' }, { nom: 'BERNIER', prenom: 'Nadia' }, { nom: 'BERNIER', prenom: 'Jean-Pierre' }];
+  assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Josette épouse de M. PERRIN Steven', parties), ['Naissance', 'Mariage']);
+  assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Nadia veuve de M. ROUX Michel', parties), ['Naissance']);
+  assert.deepEqual(A.demandesComedecIntervenant('M. BERNIER Jean-Pierre divorcé de Mme DA SILVA Maria', parties), ['Naissance']);
+});
+
+test('Comedec : la position de la ligne est mesurée sans défilement forcé puis la liste peut s’ouvrir depuis la page, sans viser une position', () => {
+  const m = A.scriptLigneComedec(2, true);
+  assert.match(m, /scrollIntoView\(\{ block: 'center', behavior: 'instant' \}\)/);
+  assert.doesNotMatch(A.scriptLigneComedec(2, false), /scrollIntoView/);
+  assert.doesNotThrow(() => new Function('return ' + A.scriptLigneComedec(0, true)));
+  const o = A.scriptOuvrirListeComedec(1);
+  assert.doesNotThrow(() => new Function('return ' + o));
+  assert.doesNotMatch(o, /ui-chkbox|Valider|submit|Envoi/i, 'ne touche ni option ni bouton');
+});

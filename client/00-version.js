@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.396.7';
+  const VERSION_APP = '0.396.9';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.396.9', date: '2026-10-29 15:01', resume: "Demande d’état civil (Comedec) dans Authentic, tous les cas où une ligne bouge : chaque ligne est retrouvée d’après son libellé à chaque fois (tableau redessiné ou décalé), la liste est ouverte avec jusqu’à trois essais, les options sont relues après chaque clic (panneau refermé ou décalé : réouverture) et la page attend la fin des rafraîchissements avant chaque ligne." },
+  { version: '0.396.8', date: '2026-10-29 14:51', resume: "Demande d’état civil (Comedec) dans Authentic : la ligne suivante n’est plus manquée quand la précédente, une fois cochée, fait descendre le tableau (CLAIRE attend que la position ne bouge plus, puis ouvre la liste depuis la page si le clic tombe à côté) ; le mariage est demandé quand la ligne dit « épouse de / époux de », une seule fois par couple." },
   { version: '0.396.7', date: '2026-10-29 14:24', resume: "Les consignes de CLAIRE (CLAIRE.md) enregistrées en cours de route sont lues au message suivant : la conversation avec CLAIRE est un fil continu, elles n’étaient lues qu’au tout premier message." },
   { version: '0.396.6', date: '2026-10-29 14:03', resume: "Authentic : pendant une demande de CLAIRE (lecture, état civil, comptabilité), un aperçu s’ouvre en direct en bas à droite — la page du navigateur de CLAIRE, avec son pointeur de souris, rafraîchie chaque seconde et l’étape en cours dessous — pour voir où ça bloque. Fermable, il reste après un échec." },
   { version: '0.396.5', date: '2026-10-29 13:58', resume: "Demande d’état civil (Comedec) dans Authentic : si la liste « Type de Demande » ne s’ouvre pas au premier clic, CLAIRE reclique une fois, accepte aussi les options du type « Acte de naissance établi à l’étranger » et, en cas d’échec, dit les options lues." },

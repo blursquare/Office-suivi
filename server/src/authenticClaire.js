@@ -104,7 +104,17 @@ function demandesComedecIntervenant(libelle, parties) {
   });
   if (!p) return [];
   // Naissance sauf né à l'étranger (Comedec ne la délivre pas : étude 29/10) ; mariage pour UN seul des deux époux (même acte).
-  return [...(p.naissance === false ? [] : ['Naissance']), ...(p.marie ? ['Mariage'] : [])];
+  // Le libellé de la ligne d'Authentic dit lui-même « épouse de / époux de » (les autres — veuve, divorcé(e) — n'ont plus de mariage à demander) : mariée
+  // même quand la fiche de la personne ou la situation du couple ne le disent pas (étude 29/10 : « il ne demande pas le mariage »).
+  const marieParLigne = /\b(?:epoux|epouse)\s+de\b/.test(plat(String(libelle || '').replace(/\(.*$/, '')));
+  return [...(p.naissance === false ? [] : ['Naissance']), ...(p.marie || marieParLigne ? ['Mariage'] : [])];
+}
+
+/** Pure : le nom du conjoint écrit après « époux de / épouse de » dans le libellé d'une ligne (''si aucun) — pour ne demander le mariage qu'UNE fois quand
+ * les deux époux ont leur ligne. @param {string} libelle */
+function conjointDuLibelle(libelle) {
+  const m = /\b(?:epoux|epouse)\s+de\s+(.+)$/.exec(plat(String(libelle || '').replace(/\(.*$/, '')));
+  return m ? m[1].replace(/^(m\.|mme|mlle|monsieur|madame)\s+/, '').trim() : '';
 }
 
 // ---- Scripts exécutés dans la page (écrits ici, jamais un texte de l'IA) ----
@@ -527,17 +537,29 @@ const TABLE_COMEDEC = `[...document.querySelectorAll('table')].filter((t) => { c
   .flatMap((t) => [...t.querySelectorAll('tbody tr')].filter((tr) => tr.querySelectorAll('td').length >= 2))`;
 const SCRIPT_LIGNES_COMEDEC = `(() => ${TABLE_COMEDEC}.map((tr) => { const td = tr.querySelectorAll('td');
   return { libelle: String(td[0].innerText).replace(/\\s+/g, ' ').trim().slice(0, 200), choisi: String(td[td.length - 1].innerText).replace(/\\s+/g, ' ').trim().slice(0, 80) }; }))()`;
-const scriptLigneComedec = (i) => `(() => { const tr = ${TABLE_COMEDEC}[${Number(i) | 0}]; if (!tr) return null;
+const scriptLigneComedec = (i, defiler) => `(() => { const tr = ${TABLE_COMEDEC}[${Number(i) | 0}]; if (!tr) return null;
   const td = tr.querySelectorAll('td'); const liste = td[td.length - 1].querySelector('.ui-selectcheckboxmenu-trigger, .ui-selectcheckboxmenu, .ui-selectonemenu, select, [role=combobox]') || td[td.length - 1];
-  liste.scrollIntoView({ block: 'center' }); const r = liste.getBoundingClientRect(); if (r.width < 2) return null;
+  ${defiler ? "liste.scrollIntoView({ block: 'center', behavior: 'instant' });" : ''} const r = liste.getBoundingClientRect(); if (r.width < 2) return null;
   const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2); const d = document.elementFromPoint(x, y);
   return { x, y, sur: !!(d && (liste.contains(d) || d.contains(liste))) }; })()`;
+
+// Ouvre la liste de la i-ème ligne DEPUIS LA PAGE (clic du composant PrimeFaces sur sa zone d'ouverture), sans viser de position : filet quand le clic à la
+// position tombe à côté (ligne qui descend après la demande précédente — étude 29/10, 0.396.8). Ne touche à aucune option.
+const scriptOuvrirListeComedec = (i) => `(() => { const tr = ${TABLE_COMEDEC}[${Number(i) | 0}]; if (!tr) return false;
+  const td = tr.querySelectorAll('td'); const cell = td[td.length - 1];
+  const cible = cell.querySelector('.ui-selectcheckboxmenu-trigger') || cell.querySelector('.ui-selectcheckboxmenu-label-container, .ui-selectcheckboxmenu-label') || cell.querySelector('.ui-selectcheckboxmenu');
+  if (!cible) return false;
+  for (const t of ['mousedown', 'mouseup', 'click']) cible.dispatchEvent(new MouseEvent(t, { bubbles: true, cancelable: true, view: window }));
+  return true; })()`;
 
 // Les options du panneau à choix multiple ouvert : [{ libelle, coche, x, y }].
 const SCRIPT_OPTIONS_OUVERTES = `(() => {
   const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim();
   const out = [];
-  document.querySelectorAll('.ui-selectcheckboxmenu-panel li, .ui-selectcheckboxmenu-items li, [role=option]').forEach((li) => {
+  // Seul le panneau VISIBLE compte (jamais un autre menu de la page) ; à défaut de panneau PrimeFaces, les éléments role=option visibles.
+  const panneaux = [...document.querySelectorAll('.ui-selectcheckboxmenu-panel')].filter((p) => { const r = p.getBoundingClientRect(); return r.width > 2 && r.height > 2; });
+  const elements = panneaux.length ? panneaux.flatMap((p) => [...p.querySelectorAll('li')]) : [...document.querySelectorAll('[role=option]')];
+  elements.forEach((li) => {
     const r = li.getBoundingClientRect(); if (r.width < 2 || r.height < 2) return;
     const boite = li.querySelector('.ui-chkbox-box') || li;
     const b = boite.getBoundingClientRect();
@@ -546,6 +568,10 @@ const SCRIPT_OPTIONS_OUVERTES = `(() => {
   });
   return out;
 })()`;
+
+// Amène UNE option du panneau ouvert à l'écran (celle qu'on va cliquer) ; les positions sont ensuite relues, jamais gardées.
+const scriptDefilerOption = (libelle) => `(() => { const l = ${JSON.stringify(String(libelle))}; const n = (t) => String(t || '').replace(/\\s+/g, ' ').trim();
+  const li = [...document.querySelectorAll('.ui-selectcheckboxmenu-panel li')].find((x) => n(x.innerText) === l); if (li) li.scrollIntoView({ block: 'nearest', behavior: 'instant' }); return !!li; })()`;
 
 const SCRIPT_ERREURS = `(() => [...document.querySelectorAll('.ui-messages-error, .ui-growl-message-error, .ui-message-error, .ui-messages-warn, .ui-growl-message-warn')]
   .filter((e) => e.getBoundingClientRect().width > 2).map((e) => String(e.innerText).replace(/\\s+/g, ' ').trim().slice(0, 200)).filter(Boolean).slice(0, 4))()`;
@@ -1444,44 +1470,100 @@ async function preparerFormalite(s, cible, o) {
   if (o.type === 'comedec') {
     o.etape('Coche naissance pour chaque partie, mariage pour les mariés');
     const lignes = (await g.ev(SCRIPT_LIGNES_COMEDEC)) || [];
-    for (const [i, l] of lignes.entries()) {
-      const voulues = demandesComedecIntervenant(l.libelle, o.parties);
-      // Une ligne sans demande voulue et sans rien de coché : on n'y touche pas.
-      if (!voulues.length && !String(l.choisi || '').trim()) continue;
-      const pos = await g.ev(scriptLigneComedec(i));
-      if (!pos || !pos.sur) throw new Error('liste « Type de Demande » recouverte : rien validé');
+    const refusees = {};   // les options qui ne changent pas d'état au clic, pour la ligne en cours
+    const mariagesDemandes = [];   // les conjoints (nom lu dans le libellé) dont le mariage vient d'être demandé sur une ligne plus haute
+    const vocabulaire = (x) => /^(naissance|mariage|d[ée]c[èe]s|acte de naissance)( |$)/i.test(plat(x.libelle));
+    const lireOptions = async () => (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
+    // L'indice COURANT de la ligne : relu à chaque fois d'après son libellé (et son rang parmi les libellés identiques), jamais gardé d'un tour à l'autre —
+    // une ligne cochée change la hauteur du tableau, et un rafraîchissement du composant peut le redessiner entièrement (anticipé, étude 29/10).
+    const indiceLigne = async (libelle, rang) => {
+      const fraiches = (await g.ev(SCRIPT_LIGNES_COMEDEC)) || [];
+      const memes = fraiches.map((x, k) => [x, k]).filter(([x]) => x.libelle === libelle);
+      return memes[rang] ? memes[rang][1] : -1;
+    };
+    // La position de la liste de la ligne, mesurée après un défilement instantané jusqu'à ce qu'elle ne bouge plus.
+    const positionStable = async (idx) => {
+      let pos = await g.ev(scriptLigneComedec(idx, true));
+      for (let k = 0; k < 6 && pos; k++) {
+        await attendre(300);
+        const p2 = await g.ev(scriptLigneComedec(idx, false));
+        const stable = !!p2 && p2.x === pos.x && p2.y === pos.y;
+        pos = p2;
+        if (stable) break;
+      }
+      return pos;
+    };
+    // Ouvre la liste de la ligne : clic à la position, puis (si rien ne s'ouvre) ouverture depuis la page ; rend les options lues ([] = pas ouverte).
+    const ouvrirListe = async (libelle, rang) => {
+      // Échap seulement si un panneau est ouvert (sinon il pourrait fermer autre chose dans la page).
+      if ((await lireOptions()).length) { await g.echap(); await attendre(250); }
+      await s.attendreStable(4000);
+      const idx = await indiceLigne(libelle, rang);
+      if (idx < 0) return { options: [], raison: 'ligne introuvable (tableau redessiné)' };
+      const pos = await positionStable(idx);
+      if (!pos) return { options: [], raison: 'liste introuvable' };
+      if (!pos.sur) return { options: [], raison: 'liste recouverte' };
       await s.cliquerPosition(pos.x, pos.y);
       await attendre(500);
-      let options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
-      // Liste pas ouverte au premier clic : on attend encore, puis UN second clic — seulement si rien n'est ouvert, et sous la même garde de position.
-      if (!options.length) {
-        await attendre(700);
-        options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
-        if (!options.length) {
-          const pos2 = await g.ev(scriptLigneComedec(i));
-          if (pos2 && pos2.sur) { await s.cliquerPosition(pos2.x, pos2.y); await attendre(900); options = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || []; }
+      let options = await lireOptions();
+      if (!options.length) { await attendre(500); options = await lireOptions(); }
+      if (!options.length && (await g.ev(scriptOuvrirListeComedec(idx)))) { await attendre(900); options = await lireOptions(); }
+      return { options, raison: '' };
+    };
+    const occurrences = {};
+    for (const l of lignes) {
+      const rang = occurrences[l.libelle] = (occurrences[l.libelle] === undefined ? 0 : occurrences[l.libelle] + 1);
+      let voulues = demandesComedecIntervenant(l.libelle, o.parties);
+      // Le mariage d'un couple est UN seul acte : si le conjoint nommé sur cette ligne a déjà sa ligne plus haut avec le mariage, il n'est pas redemandé.
+      const nomLigne = plat(String(l.libelle || '').replace(/\(.*$/, '')).split(/\b(?:epoux|epouse|veuve|veuf|divorcee?)\s+de\b/)[0].replace(/^(m\.|mme|mlle|monsieur|madame)\s+/, '').trim();
+      const conjoint = conjointDuLibelle(l.libelle);
+      // Deux noms désignent la même personne si les mots de l'un sont tous dans l'autre (« Prénom NOM » ou « NOM Prénom »).
+      const memeNom = (a, b) => { const x = String(a || '').split(/[\s-]+/).filter((m) => m.length > 1); const y = String(b || '').split(/[\s-]+/).filter((m) => m.length > 1); return !!x.length && !!y.length && (x.every((m) => y.includes(m)) || y.every((m) => x.includes(m))); };
+      if (voulues.includes('Mariage') && mariagesDemandes.some((c) => memeNom(c.nom, nomLigne) || memeNom(c.conjoint, nomLigne) || (conjoint && memeNom(c.nom, conjoint)))) voulues = voulues.filter((v) => v !== 'Mariage');
+      else if (voulues.includes('Mariage')) mariagesDemandes.push({ nom: nomLigne, conjoint });
+      // Une ligne sans demande voulue et sans rien de coché : on n'y touche pas.
+      if (!voulues.length && !String(l.choisi || '').trim()) continue;
+      // Jusqu'à trois essais par ligne : liste pas ouverte, tableau redessiné, panneau refermé au premier clic d'option, clic tombé à côté.
+      let relues = [];
+      let derniere = '';
+      for (let essai = 0; essai < 3; essai++) {
+        let { options, raison } = await ouvrirListe(l.libelle, rang);
+        if (!options.some(vocabulaire)) { derniere = raison || (options.length ? `${options.length} option(s) d’un autre menu` : 'aucune option lue'); relues = options; continue; }
+        // Chaque option : cochée si voulue, DÉCOCHÉE sinon (ligne préremplie par Authentic) ; les options sont RELUES après chaque clic (le panneau peut se
+        // refermer ou se décaler) et jamais cliquées sur des positions gardées.
+        let rouvert = 0;
+        for (let tour = 0; tour < 8; tour++) {
+          const ecart = options.find((opt) => opt.coche !== voulues.some((v) => plat(v) === plat(opt.libelle)) && !(opt.libelle in refusees));
+          if (!ecart) break;
+          // L'option est amenée à l'écran puis RELUE (position fraîche) avant le clic.
+          await g.ev(scriptDefilerOption(ecart.libelle));
+          const fraiche = (await lireOptions()).find((x) => x.libelle === ecart.libelle) || ecart;
+          await s.cliquerPosition(fraiche.x, fraiche.y);
+          await attendre(350);
+          const apres = await lireOptions();
+          if (!apres.some(vocabulaire)) {
+            // Le panneau s'est refermé (ou autre chose s'est ouvert) : une réouverture au plus par essai, sinon l'essai est recommencé.
+            if (rouvert++ >= 1) { options = apres; break; }
+            ({ options } = await ouvrirListe(l.libelle, rang));
+            if (!options.some(vocabulaire)) break;
+            continue;
+          }
+          // Une option qui ne change pas d'état après le clic (grisée, non offerte) : dite, jamais recliquée.
+          const meme = apres.find((x) => x.libelle === ecart.libelle);
+          if (meme && meme.coche === ecart.coche) refusees[ecart.libelle] = true;
+          options = apres;
         }
+        relues = await lireOptions();
+        if (relues.some(vocabulaire)) break;
+        derniere = relues.length ? `${relues.length} option(s) d’un autre menu` : 'aucune option lue';
       }
-      // Chaque option : cochée si voulue, DÉCOCHÉE sinon (une ligne préremplie par Authentic pour un conjoint ou un décès non voulu).
-      for (const opt of options) {
-        const voulue = voulues.some((v) => plat(v) === plat(opt.libelle));
-        if (opt.coche !== voulue) { await s.cliquerPosition(opt.x, opt.y); await attendre(300); }
-      }
-      const relues = (await g.ev(SCRIPT_OPTIONS_OUVERTES)) || [];
+      for (const k of Object.keys(refusees)) delete refusees[k];
+      // La BONNE liste : une option Naissance, Mariage, Décès ou « Acte de naissance établi à l'étranger » (menu d'Authentic, relecture 0.396.3 : jamais les
+      // options d'un autre menu). Les libellés dits à l'échec sont ceux de ce vocabulaire fermé seulement (jamais un nom de client).
+      if (!relues.some(vocabulaire)) throw new Error(`la liste « Type de Demande » ne s’est pas ouverte (${derniere || 'aucune option lue'}) : rien validé`);
       // Une demande qu'Authentic ne laisse pas cocher (personne née à l'étranger, option grisée) : dite, pas bloquante — les autres lignes passent
-      // (étude 29/10 : « il a bloqué sur une demande où une personne est née à l'étranger »). Rien n'est coché de force.
+      // (étude 29/10). Rien n'est coché de force.
       const manquantes = voulues.filter((v) => !relues.some((x) => plat(x.libelle) === plat(v) && x.coche));
-      // Une liste qui ne s'est pas ouverte (aucune option lue) = un vrai échec du clic : rien validé. Une option que la liste n'OFFRE pas pour cette
-      // personne (née à l'étranger : « Acte de naissance établi à l'étranger », capture de l'étude 29/10) ou qui ne se coche pas : dite, sans bloquer.
-      // La BONNE liste : elle offre au moins une des trois demandes (Naissance, Mariage, Décès) — jamais les options d'un autre menu ouvert
-      // (relecture 0.396.3) ; sinon rien n'est validé (aussi pour une ligne préremplie à décocher).
-      // La bonne liste : une option Naissance, Mariage, Décès ou « Acte de naissance établi à l'étranger » (menu d'Authentic, relecture 0.396.3 : jamais les
-      // options d'un autre menu). Les libellés dits à l'échec sont ceux de ce vocabulaire fermé seulement ; les autres sont comptés (jamais un nom de client).
-      const vocabulaire = (x) => /^(naissance|mariage|d[ée]c[èe]s|acte de naissance)( |$)/i.test(plat(x.libelle));
-      if (!relues.some(vocabulaire)) {
-        const connus = relues.filter(vocabulaire).map((x) => String(x.libelle).slice(0, 40));
-        throw new Error(`la liste « Type de Demande » ne s’est pas ouverte (${relues.length ? `${relues.length} option(s) d’un autre menu` : 'aucune option lue'}${connus.length ? ` : ${connus.join(' | ')}` : ''}) : rien validé`);
-      }
       if (manquantes.length) nonCochees += manquantes.length;
       if (relues.some((x) => x.coche && !voulues.some((v) => plat(v) === plat(x.libelle)))) throw new Error('une demande non voulue reste cochée : rien validé');
       choisies += voulues.length - manquantes.length;
@@ -1539,6 +1621,6 @@ async function preparerFormalite(s, cible, o) {
 module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
+  demandesComedecIntervenant, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
   referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

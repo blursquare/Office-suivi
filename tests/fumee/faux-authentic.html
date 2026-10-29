@@ -242,9 +242,11 @@
     }
   }
   let ligneOuverte = null;
+  let celluleOuverte = null;
   window.__choix = { 'M. LEROY Marc': ['Décès'] };
   function ouvrir(el) {
     ligneOuverte = el.closest('tr').cells[0].innerText.trim();
+    celluleOuverte = el;
     const p = document.getElementById('panneau');
     const choisis = window.__choix[ligneOuverte] || [];
     p.querySelectorAll('li').forEach((li) => li.querySelector('.ui-chkbox-box').classList.toggle('ui-state-active', choisis.includes(li.innerText.trim())));
@@ -256,6 +258,16 @@
     const o = b.parentElement.innerText.trim();
     const l = window.__choix[ligneOuverte] = window.__choix[ligneOuverte] || [];
     if (b.classList.contains('ui-state-active')) l.push(o); else l.splice(l.indexOf(o), 1);
+    // Comme la vraie page (capture 29/10) : une fois « Naissance » cochée, une note s'ajoute sous la liste et les lignes suivantes DESCENDENT — après un
+    // court délai (rafraîchissement du composant), pour que la mesure d'une position trop tôt tombe à côté.
+    const cellule = celluleOuverte;
+    setTimeout(() => {
+      if (!cellule || !cellule.isConnected) return;
+      let n = cellule.parentElement.querySelector('.note-decalage');
+      const voulue = (window.__choix[ligneOuverte] || []).includes('Naissance');
+      if (voulue && !n) { n = document.createElement('div'); n.className = 'note-decalage'; n.style.cssText = 'height:44px;font-size:11px'; n.textContent = 'Acte de naissance établi à l’étranger'; cellule.parentElement.appendChild(n); }
+      if (!voulue && n) n.remove();
+    }, 400);
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('panneau') && (document.getElementById('panneau').style.display = 'none'); });
   function valider() {
