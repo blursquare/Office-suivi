@@ -199,6 +199,9 @@ test('fichier .reg du lien claire-devant : PowerShell sans fichier, lien jamais 
   assert.match(script, /'http:\/\/192\.168\.60\.10:3000\/'/);
   assert.match(script, /'--profile-directory=Claire'/);
   assert.match(script, /\[char\]0x2014/);
+  // Étude 29/10 : à l'appel d'un client, CLAIRE passe devant en PLEIN ÉCRAN (restaurée si réduite, puis maximisée) ; fenêtre neuve : maximisée.
+  assert.match(script, /WindowVisualState -eq 2\)\{\$p\.SetWindowVisualState\(0\)\};if\(\$p\.Current\.WindowVisualState -ne 1\)\{\$p\.SetWindowVisualState\(1\)\}/);
+  assert.match(script, /'--start-maximized'/);
   // Le lien de Chrome (%1) tombe dans le commentaire final : jamais exécuté.
   assert.match(commandeRelaisReg(o), / #" "%1"$/);
   // Dans le .reg : guillemets et barres échappés, ASCII hors commentaires ; UTF-16 avec BOM.

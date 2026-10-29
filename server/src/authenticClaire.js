@@ -476,6 +476,10 @@ const SCRIPT_CHAMP_NUMERO_RECHERCHE = `(() => {
   return null;
 })()`;
 
+// Page VIDE (étude 29/10 : « page /…-Authentic/ : 0 champ, 0 bouton, 0 cadre », aucun mot reconnu) : ni champ, ni bouton, ni cadre, presque aucun texte —
+// l'application n'est pas affichée (chargement, redirection, session perdue).
+const SCRIPT_PAGE_VIDE = `(() => !document.body || (String(document.body.innerText || '').trim().length < 30 && !document.querySelector('input, button, a[href], iframe, frame, table')))()`;
+
 // L'ALLURE de la page quand la recherche échoue (étude 29/10 : « champs visibles : aucun ») : rien de ce que la page contient en dehors d'un
 // vocabulaire fermé — chemin sans chiffres ni identifiants, nombres d'éléments, mots fixes reconnus, mots d'icône des boutons visibles.
 // { chemin, champs, cadres, boutons, mots: [...], icones: [...] }.
@@ -847,6 +851,26 @@ async function ouvrirDossier(s, cible, etape) {
   if (!ref && !lib) throw new Error('dossier sans référence ni nom dans Authentic');
   etape('Cherche le dossier');
   await passerVerificationSilicium(s, etape);
+  // Page VIDE (l'application n'est pas affichée) : patience, puis la page d'accueil de l'application (`main.xhtml`, relevé de l'étude : l'adresse
+  // du navigateur est « …/41089-Authentic/main.xhtml ») — jamais une recherche dans une page blanche (étude 29/10).
+  if (await g.ev(SCRIPT_PAGE_VIDE)) {
+    etape('Page vide : attente de l’application');
+    await attendre(4000);
+    await s.attendreStable(15000);
+    if (await g.ev(SCRIPT_PAGE_VIDE)) {
+      etape('Page vide : ouverture de la page d’accueil d’Authentic');
+      const href = String(await g.ev('location.href') || '').replace(/[?#].*$/, '');
+      let accueil = '';
+      try { accueil = new URL('main.xhtml', href.replace(/\/?$/, '/')).href; } catch (_) { /* adresse illisible */ }
+      if (accueil) {
+        try { await s.aller(accueil); } catch (e) { if (!/ne répond pas|non chargée/.test(String(e && e.message))) throw e; }
+        await passerVerificationSilicium(s, etape);
+        await s.attendreStable(15000);
+      }
+      if (await g.ev(SCRIPT_CHAMP_MOT_DE_PASSE)) throw new Error('Authentic affiche sa page de connexion (session perdue) : nouvelle tentative à lancer');
+      if (await g.ev(SCRIPT_PAGE_VIDE)) throw new Error('la page d’Authentic reste vide (application non affichée) : nouvelle tentative à lancer, ou vérifier la connexion dans Réglages › Authentic');
+    }
+  }
   if (await dossierAffiche(g, cible)) return;
   // Ce qui s'est passé, pour le message d'échec (étude 28/10 : « dossier … introuvable ») : jamais un nom, seulement les étapes et une référence.
   const diag = { champs: /** @type {string[]} */ ([]), visible: false, clic: false, enTete: '', menu: '' };

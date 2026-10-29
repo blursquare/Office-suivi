@@ -47,12 +47,14 @@ function scriptRelaisReg({ url, profil }) {
     // L'onglet de 3CX se ferme au signal : on le laisse partir avant de montrer CLAIRE (sinon Chrome reprend la main).
     'Start-Sleep -Milliseconds 700',
     'if($w){'
-      + 'try{$p=$w.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern);if($p.Current.WindowVisualState -eq 2){$p.SetWindowVisualState(0)}}catch{};'
+      // Étude 29/10 : « la fenêtre s'ouvre sur la moitié de l'écran » — à l'appel d'un client, CLAIRE passe devant en PLEIN ÉCRAN (réduite :
+      // restaurée d'abord ; déjà maximisée : rien). WindowVisualState : 0 normale, 1 maximisée, 2 réduite.
+      + 'try{$p=$w.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern);if($p.Current.WindowVisualState -eq 2){$p.SetWindowVisualState(0)};if($p.Current.WindowVisualState -ne 1){$p.SetWindowVisualState(1)}}catch{};'
       + '$s=New-Object -ComObject WScript.Shell;[void]$s.AppActivate($t);try{$w.SetFocus()}catch{};'
       + 'Start-Sleep -Milliseconds 600;[void]$s.AppActivate($t)'
       + '}else{'
       + "$a=if($id){$u+'#appel='+$id}else{$u};"
-      + `$g=@(${litteralPsReg('--profile-directory=' + profil)},('--app='+$a));`
+      + `$g=@(${litteralPsReg('--profile-directory=' + profil)},'--start-maximized',('--app='+$a));`
       + 'try{Start-Process chrome.exe -ArgumentList $g -ErrorAction Stop}catch{Start-Process msedge.exe -ArgumentList $g}'
       + '}'
   ].join(';');
