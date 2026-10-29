@@ -188,6 +188,7 @@ test('qui voit quoi (29/10) : Bastien toutes les alertes de dossier, Julie et J�
   assert.equal(compte('Jérémy SAUJOT', 'Julie VASSELIN'), 0, 'pas son dossier : rien');
   assert.equal(compte('Bastien ANGLUMENT', 'Julie VASSELIN'), 2, 'Bastien : l’alerte et le message du dossier, pas la réponse faite à Julie');
   assert.equal(compte('Sophie GOSSART', 'Sophie GOSSART'), 0, 'Sophie, même responsable : aucune alerte de dossier');
+  assert.equal(C.compterCanal({ recents: [[3000, 'CLAIRE', 'Sophie GOSSART', 1, 1, '', 'Sophie GOSSART']] }, 0, 'Sophie GOSSART', (x) => C.claireMasquee('aucune', 'Sophie GOSSART', 'Sophie GOSSART', x)).nonLus, 0, 'une proposition de son dossier va à Bastien seul');
   assert.equal(C.compterCanal({ recents: [[3000, 'CLAIRE', '', 1, 0, 'Sophie GOSSART', '']] }, 0, 'Sophie GOSSART', (x) => C.claireMasquee('aucune', 'Sophie GOSSART', 'Julie VASSELIN', x)).nonLus, 1, 'la réponse de CLAIRE à sa demande lui arrive, même chez un autre responsable');
   const repo = repoMemoire();
   const aiguiller = M.creerAiguillageNotifications(repo, ['Bastien ANGLUMENT']);

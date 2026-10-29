@@ -87,7 +87,7 @@ function notificationsRiches(o) {
     let responsable = '';
     if (canal.startsWith('d:')) { try { const d = o.depot && o.depot.trouverParId ? o.depot.trouverParId(canal.slice(2)) : null; responsable = d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { responsable = ''; } }
     const mode = C.modeAlertesDossier(o.collab);
-    const claireCachee = (/** @type {any} */ x) => !!x.claire && !x.carte && canal.startsWith('d:')
+    const claireCachee = (/** @type {any} */ x) => !!x.claire && canal.startsWith('d:')
       && C.claireMasquee(mode, o.collab, responsable, { via: x.via || '', pour: x.pour || '', mention: Array.isArray(x.mentions) && x.mentions.includes(o.collab) });
     const m = C.lireMessages(o.repo, canal).filter((x) => x.auteur !== o.collab && !x.carte && !claireCachee(x)).pop();
     if (!m) continue;

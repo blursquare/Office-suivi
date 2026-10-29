@@ -23076,3 +23076,7 @@ Voir `docs/audits/2026-10-29-0.395.0.md`, section « Suites » : `oleSain` avant
 ### 0.395.3 (29/10, étude : qui reçoit quelles notifications)
 
 `modeAlertesDossier` + `claireMasquee` (canaux.js ; `via` et `pour` gardés dans `recents`) : Bastien = alertes de CLAIRE de tous les dossiers (pas ses réponses aux autres) ; la réponse à sa propre demande arrive toujours à chacun, Julie et Jérémy = leurs dossiers, Sophie = aucune alerte de dossier ; l'aiguillage (messagesClaire.js) ne dépose chez Sophie que factures, travaux demandés et mentions ; la facture de succession va dans sa conversation avec CLAIRE (plus dans le fil du dossier) ; cartes du relais alignées (notificationsPoste.js).
+
+### 0.395.4 (29/10)
+
+Les cartes de proposition suivent la même règle que les alertes (`claireMasquee`) : pour Sophie (mode `aucune`), ni pastille ni carte du relais ; elles restent décidables par Bastien. Sa liste « À traiter » n'est pas filtrée.

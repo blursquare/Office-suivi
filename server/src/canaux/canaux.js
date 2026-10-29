@@ -350,7 +350,7 @@ const SANS_ALERTES_DE_DOSSIER = ['Sophie GOSSART'];
 function modeAlertesDossier(collab) { return VOIT_TOUTES_LES_ALERTES.includes(collab) ? 'toutes' : SANS_ALERTES_DE_DOSSIER.includes(collab) ? 'aucune' : 'responsable'; }
 
 /**
- * Pure : un message de CLAIRE (hors carte de proposition) dans le canal d'un DOSSIER est-il caché à ce collaborateur ?
+ * Pure : un message de CLAIRE (carte de proposition comprise : elle porte son responsable en `pour`) dans le canal d'un DOSSIER est-il caché à ce collaborateur ?
  * `x.via` : celui qui l'a demandé ; `x.pour` : le responsable alerté ; `x.mention` : il cite le collaborateur. `resp` : le responsable du dossier ('' inconnu).
  * @param {string} mode @param {string} collab @param {string} resp @param {{ via?: string, pour?: string, mention?: boolean }} x
  */
@@ -383,7 +383,7 @@ function compterCanal(entree, luLe, collab, sansClaire) {
     if (!Array.isArray(r) || Number(r[0]) <= luLe || r[1] === collab) continue;
     const cite = String(r[2] || '').split('|').includes(collab);
     if (sansClaire && r[3] === 1) {
-      if (typeof sansClaire === 'function') { if (r[4] !== 1 && sansClaire(champsRecent(r, collab))) continue; }
+      if (typeof sansClaire === 'function') { if (sansClaire(champsRecent(r, collab))) continue; }
       else if (!cite) continue;
     }
     nonLus += 1;
