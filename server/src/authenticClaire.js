@@ -145,6 +145,8 @@ const scriptTrouverTexte = (cible, exact) => `(() => {
   document.querySelectorAll('a, button, span, div, li, td, label, h1, h2, h3, h4, h5').forEach((e) => {
     if (!e.offsetWidth && !e.offsetHeight) return;
     if (e.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar]')) return;
+    // Jamais un conteneur qui porte une case ou un champ (la case d'export d'une ligne de tableau — relecture 0.395.6).
+    if (e.matches('input, textarea') || e.querySelector('input, textarea')) return;
     const t = net(e.innerText);
     if (!(${exact ? 't === c' : 't === c || t.startsWith(c + " ")'})) return;
     const aire = e.offsetWidth * e.offsetHeight;
@@ -365,6 +367,16 @@ const SCRIPT_POINT_MENU = `(() => {
     .map((e) => e.getBoundingClientRect()).find((x) => x.width > 20 && x.height > 200 && x.left < 80);
   return r ? { x: Math.round(r.left + Math.min(r.width / 2, 25)), y: Math.round(r.top + r.height / 2) } : { x: 25, y: Math.round(innerHeight / 2) };
 })()`;
+/** L'icône (police Material) de ce mot dans le menu de gauche : { x, y } vérifié sous le pointeur, ou null. @param {string} mot */
+const scriptIconeMenu = (mot) => `(() => {
+  const e = [...document.querySelectorAll('.material-icons, .material-symbols-outlined, .material-icons-outlined')]
+    .find((x) => { const r = x.getBoundingClientRect(); return r.width > 2 && r.height > 2 && String(x.textContent || '').trim().toLowerCase() === ${JSON.stringify(String(mot))} && x.closest('nav, .layout-sidebar, .layout-menu, [class*=sidebar]'); });
+  if (!e) return null;
+  const r = e.getBoundingClientRect();
+  const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
+  const d = document.elementFromPoint(x, y);
+  return d && (e.contains(d) || d.contains(e)) ? { x, y } : null;
+})()`;
 /** Une entrée du menu (« Suivis », « Suivi SAFER / DIA-DPU »…) visible : le plus petit élément dont le texte est EXACTEMENT ce libellé (sans
  * casse ni accents), jamais un onglet ; vérifié sous le pointeur. { x, y, bouton } ou null. @param {string} libelle */
 const scriptEntreeMenu = (libelle) => `(() => {
@@ -461,7 +473,6 @@ const SCRIPT_CHAMP_NUMERO_RECHERCHE = `(() => {
   if (exact.length > 1) return null;
   const parNumero = champs.filter((e) => /num[ée]ro|n°|n\\u00ba|dossier/.test(etiquette(e)) && !/libell|sous-dossier|r[ée]f|acte|r[ée]pertoire/.test(etiquette(e)));
   if (parNumero.length === 1) return pt(parNumero[0]);
-  if (!parNumero.length && champs.length === 1) return pt(champs[0]);
   return null;
 })()`;
 
@@ -663,6 +674,16 @@ function gestes(s, etape, o = {}) {
     await s.cliquerPosition(el.x, el.y);
     return true;
   }
+  /** Menu de gauche REPLIÉ (icônes seules, capture de l'étude 29/10) : clique l'icône d'une rubrique par son MOT d'icône (« folder » =
+   * « Dossiers ») pour déplier le menu. Le libellé contrôlé est « <rubrique> <mot d'icône> » : la garde le lit comme un bouton de menu.
+   * @param {string} mot @param {string} libelle */
+  async function cliquerIconeMenu(mot, libelle) {
+    const el = await ev(scriptIconeMenu(mot));
+    if (!el) return false;
+    controlerClic({ geste: 'suivi', vise: libelle, bouton: `${libelle} ${mot}`, texte: libelle, ecritureAutorisee: !!o.ecriture });
+    await s.cliquerPosition(el.x, el.y);
+    return true;
+  }
   /** Referme le tiroir ou le panneau latéral ouvert (Échap, sinon son « Fermer »). Rend vrai s'il est fermé. */
   async function fermerTiroir() {
     if (!(await ev(SCRIPT_TIROIR_OUVERT))) return true;
@@ -674,7 +695,7 @@ function gestes(s, etape, o = {}) {
     }
     return !(await ev(SCRIPT_TIROIR_OUVERT));
   }
-  return { ev, cdp, cliquerTexte, cliquerReference, ouvrirResultat, deplier, cliquerMenu, fermerTiroir, ecrire, entree, echap, attendreTexte, texte, etape };
+  return { ev, cdp, cliquerTexte, cliquerReference, ouvrirResultat, deplier, cliquerMenu, cliquerIconeMenu, fermerTiroir, ecrire, entree, echap, attendreTexte, texte, etape };
 }
 
 // Vérification du poste client Silicium (étude 27/10 : « à l'ouverture d'Authen.TIC, l'application vérifie que le poste client Silicium est
@@ -832,9 +853,10 @@ async function ouvrirDossier(s, cible, etape) {
   // Un lien qui porte la référence (« A 2026 00286 VTE … », ou sans espaces), sinon un résultat qui la CONTIENT ; sans référence, exactement
   // le libellé. Une recherche qui ouvre directement le dossier compte.
   const essayer = async (apresRecherche) => {
-    const ok = ref ? (await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' })
+    // Après une recherche : d'abord l'icône qui OUVRE le dossier (le titre d'un résultat n'ouvre qu'un panneau latéral), puis le texte du numéro.
+    const ok = ref ? ((apresRecherche && await g.ouvrirResultat(ref)) || await g.cliquerTexte(ref, { geste: 'donnee' }) || await g.cliquerTexte(referenceRecherche(ref), { geste: 'donnee' })
       || (referenceAffichee(ref) && await g.cliquerTexte(referenceAffichee(ref), { geste: 'donnee' }))
-      || (apresRecherche && (await g.ouvrirResultat(ref) || await g.cliquerReference(ref))))
+      || (apresRecherche && await g.cliquerReference(ref)))
       : await g.cliquerTexte(lib, { exact: true, geste: 'donnee' });
     if (ok) { diag.clic = true; await s.attendreStable(15000); }
     if (await dossierAffiche(g, cible)) return true;
@@ -849,7 +871,10 @@ async function ouvrirDossier(s, cible, etape) {
   // puis le résultat (icône du dossier). Lecture seule : taper et chercher ne créent rien dans Authentic.
   if (ref) {
     try {
-      if (!(await g.cliquerMenu('Rechercher', true))) { if (await g.cliquerMenu('Dossiers')) await attendre(700); }
+      if (!(await g.cliquerMenu('Rechercher', true))) {
+        // Menu replié (icônes seules) : « Dossiers » par son texte au survol, sinon par son icône de dossier.
+        if (await g.cliquerMenu('Dossiers') || await g.cliquerIconeMenu('folder', 'Dossiers')) await attendre(700);
+      }
       if (await g.cliquerMenu('Rechercher')) {
         diag.menu = 'page ouverte';
         await s.attendreStable(15000);
