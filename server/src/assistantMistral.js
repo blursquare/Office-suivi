@@ -25,12 +25,11 @@ const USAGES = {
   mistral: { cle: CLE_USAGE },
   claude: { cle: 'assistant-ia-usage-claude' }
 };
-// Modèles Claude au choix (étude 08/10 : « je peux passer en Sonnet ou même Haiku ? ») — tarif en dollars par million de jetons
+// Modèles Claude au choix — Haiku retiré le 29/10 (document « vrai agent » : « Sonnet 5 ou supérieur, jamais Haiku ») ; un réglage gardé sur Haiku retombe sur Sonnet. Tarif en dollars par million de jetons
 // (page des prix d'Anthropic relue le 08/10) ; `effort` : le modèle accepte `output_config.effort` (Haiku 4.5 : non envoyé).
 const MODELES_CLAUDE_ASSISTANT = {
   'claude-sonnet-5': { libelle: 'Claude Sonnet 5', entree: 2, sortie: 10, effort: true },
-  'claude-opus-5': { libelle: 'Claude Opus 5', entree: 5, sortie: 25, effort: true },
-  'claude-haiku-4-5': { libelle: 'Claude Haiku 4.5', entree: 1, sortie: 5, effort: false }
+  'claude-opus-5': { libelle: 'Claude Opus 5', entree: 5, sortie: 25, effort: true }
 };
 const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 // Agent (étude 11/10 : « il faut que Demander à CLAIRE soit aussi intelligent que toi » ; choix : dossiers masqués, modèle au choix
@@ -38,8 +37,7 @@ const MODELE_CLAUDE_ASSISTANT_DEFAUT = 'claude-sonnet-5';
 // écriture : 1,25 ×). `secours` : le serveur d'Anthropic relance seul une demande refusée par ses filtres sur un autre modèle.
 const MODELES_AGENT = {
   'claude-opus-5-5': { libelle: 'Claude Opus 5.5', entree: 4, sortie: 20, lectureCache: 0.2, secours: true, compaction: true },
-  'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, lectureCache: 0.2, secours: true },
-  'claude-haiku-5-5': { libelle: 'Claude Haiku 5.5', entree: 0.1, sortie: 0.5, lectureCache: 0.01, secours: false, rechercheBasique: true }
+  'claude-sonnet-5-5': { libelle: 'Claude Sonnet 5.5', entree: 2, sortie: 10, lectureCache: 0.2, secours: true }
 };
 const MODELE_AGENT_DEFAUT = 'claude-opus-5-5';
 // Agent par Mistral (étude 11/10 : « idem pour Mistral ») : mêmes outils, même masquage. Tarif indicatif relevé le 11/10 (dollars par

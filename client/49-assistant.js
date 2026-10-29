@@ -43,7 +43,7 @@
     const nom = d.moteur === 'claude' ? 'IA Claude' : d.moteur === 'mistral' ? 'IA Mistral' : 'IA locale';
     // Agent (11/10) : Claude lit les dossiers avec ses outils, noms masqués par le serveur.
     if (d.agent) {
-      const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5', 'claude-haiku-5-5': 'Claude Haiku 5.5',
+      const modele = { 'claude-opus-5-5': 'Claude Opus 5.5', 'claude-sonnet-5-5': 'Claude Sonnet 5.5',
         'mistral-large-latest': 'Mistral Large', 'mistral-medium-latest': 'Mistral Medium', 'mistral-small-latest': 'Mistral Small' }[d.modele] || (d.moteur === 'mistral' ? 'Mistral' : 'Claude');
       el.innerHTML = `<span class="dot-label dl-success" title="CLAIRE lit les dossiers pour répondre ; noms, emails et téléphones sont remplacés par des codes avant de partir. Une adresse, une référence ou un numéro ne le sont que s’ils sont dans la même phrase ou la même fiche qu’un nom de famille."><span class="dot"></span>${escapeHtml(modele)} — dossiers lus, noms masqués</span>`;
       return;
@@ -1118,7 +1118,7 @@
     return '';
   }
 
-  // Le choix du modèle Claude ne se montre que si l'assistant utilise Claude (étude 08/10 : Sonnet, Opus ou Haiku).
+  // Le choix du modèle Claude ne se montre que si l'assistant utilise Claude (Sonnet ou Opus ; Haiku retiré le 29/10).
   function afficherModeleClaudeAssistant() {
     const ligne = document.getElementById('reglages-assistant-modele-ligne');
     const choix = document.getElementById('reglages-assistant-moteur');

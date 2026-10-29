@@ -42,7 +42,16 @@ function creerRouteurCarnetClaire(parametresRepo, depot) {
     if (consigne.length > MAX_CONSIGNE) { res.status(400).json({ erreur: `Consigne trop longue (${MAX_CONSIGNE} caractères au plus).` }); return; }
     const refus = refusNominatif(consigne);
     if (refus) { res.status(400).json({ erreur: refus }); return; }
-    const auteur = auteurDuCorps(corps.auteur);
+    // Un fait mémorisé PAR L'AGENT (outil `memoriser`, 29/10) : jamais une coordonnée ni un lien (un email mémorisé deviendrait un destinataire réel des brouillons), jamais deux fois la même ligne,
+    // et il est marqué comme venu de CLAIRE (une consigne mémorisée ne vaut pas une consigne écrite par l'étude — audit 0.400.0).
+    const parAgent = corps.origine === 'agent';
+    if (parAgent) {
+      if (/[\w.+-]+@[\w-]+\.[\w.-]+|https?:\/\/|www\.|\b(?:\+?\d[\d .-]{8,}\d)\b|\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){3,}/i.test(consigne)) { res.status(400).json({ erreur: 'Un fait mémorisé ne contient ni adresse email, ni numéro de téléphone ou de compte, ni lien.' }); return; }
+      const net = (t) => String(t).toLowerCase().replace(/[^a-z0-9àâçéèêëîïôûùüÿœ]+/g, ' ').trim();
+      if (net(lireCarnet(parametresRepo).texte).includes(net(consigne))) { res.json({ ok: true, dejaPresent: true, ...vue() }); return; }
+      if (lireCarnet(parametresRepo).texte.length > 15000) { res.status(400).json({ erreur: 'Le carnet est presque plein pour l’agent : faites de la place dans Réglages › Consignes de CLAIRE avant de mémoriser.' }); return; }
+    }
+    const auteur = parAgent ? `CLAIRE, à la demande de ${auteurDuCorps(corps.auteur) || 'l’étude'}` : auteurDuCorps(corps.auteur);
     const jour = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
     const texte = ajouterConsigne(lireCarnet(parametresRepo).texte, consigne, auteur, jour);
     if (texte.length > MAX_CARNET) { res.status(400).json({ erreur: 'Carnet plein : faites de la place dans Réglages › Consignes de CLAIRE.' }); return; }

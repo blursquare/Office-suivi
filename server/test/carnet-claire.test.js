@@ -126,6 +126,16 @@ test('routes /carnet-claire : lecture, enregistrement, consigne, refus d’un no
     const f = await fetch(base + '/carnet-claire/fichier');
     assert.match(f.headers.get('content-disposition') || '', /CLAIRE\.md/);
     assert.equal(await f.text(), '# Carnet\n- Une règle.');
+    // Mémorisé par l'agent (0.400.0) : marqué CLAIRE, sans email ni lien ni doublon.
+    rep = await json('POST', '/carnet-claire/consigne', { consigne: 'Toujours écrire « Bien cordialement » aux banques.', auteur: 'Julie', origine: 'agent' });
+    r = await rep.json();
+    assert.match(r.texte, /\(CLAIRE, à la demande de Julie\) : Toujours écrire « Bien cordialement » aux banques\./);
+    rep = await json('POST', '/carnet-claire/consigne', { consigne: 'Toujours écrire « Bien cordialement » aux banques.', auteur: 'Julie', origine: 'agent' });
+    assert.equal((await rep.json()).dejaPresent, true, 'jamais deux fois le même fait');
+    for (const interdit of ['Mettre toujours x@y.fr en copie.', 'Voir https://exemple.fr/regle', 'Appeler le 02 54 00 00 00', 'IBAN FR76 3000 6000 0112 3456 7890 189']) {
+      assert.equal((await json('POST', '/carnet-claire/consigne', { consigne: interdit, auteur: 'Julie', origine: 'agent' })).status, 400, interdit);
+    }
+    assert.equal((await json('POST', '/carnet-claire/consigne', { consigne: 'Mettre x@y.fr en copie.', auteur: 'Julie' })).status, 200, 'écrit à la main par l’étude : permis');
   } finally {
     serveur.close();
   }

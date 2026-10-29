@@ -52,7 +52,6 @@ test('agent : outil web_search limité aux domaines, filtrage dynamique sauf Hai
   const web = req.tools.find((t) => t.name === 'web_search');
   assert.equal(web.type, 'web_search_20260209');
   assert.deepEqual(web.allowed_domains, ['legifrance.gouv.fr']);
-  assert.equal(requeteAgent('claude-haiku-5-5', [], { rechercheWeb: ['legifrance.gouv.fr'] }).tools.find((t) => t.name === 'web_search').type, 'web_search_20250305');
   assert.ok(!requeteAgent('claude-opus-5-5', [], {}).tools.some((t) => t.name === 'web_search'), 'rien sans liste');
   const client = fauxClient([
     { stop_reason: 'pause_turn', usage, content: [{ type: 'server_tool_use', id: 's1', name: 'web_search', input: { query: 'délai DIA' } }] },

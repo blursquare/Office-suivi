@@ -57,7 +57,7 @@
 
   // ---- Sous la saisie : modèle, réflexion, et un rappel quand l'anonymisation est désactivée ----
 
-  var NOMS_COURTS_MODELES_ASSISTANT = { 'claude-opus-5-5': 'Opus 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5', 'claude-haiku-5-5': 'Haiku 5.5' };
+  var NOMS_COURTS_MODELES_ASSISTANT = { 'claude-opus-5-5': 'Opus 5.5', 'claude-sonnet-5-5': 'Sonnet 5.5' };
 
   function choisirModeleAssistant(valeur) { colonneAssistant.modele = valeur || ''; renderBarreOptionsAssistant(); }
   function choisirReflexionAssistant(valeur) { colonneAssistant.effort = valeur || 'medium'; renderBarreOptionsAssistant(); }

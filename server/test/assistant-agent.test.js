@@ -83,8 +83,7 @@ test('la requête : Opus 5.5 par défaut, effort élevé, système et historique
   const tailleStricts = OUTILS_AGENT.filter((t) => t.strict === true).reduce((n, t) => n + JSON.stringify(t.input_schema).length, 0);
   assert.ok(tailleStricts < 7000, 'schémas stricts trop gros : ' + tailleStricts);
   assert.ok(OUTILS_AGENT.find((t) => t.name === 'faire_geste').strict === false && OUTILS_AGENT.find((t) => t.name === 'action_dossier').strict === false);
-  const haiku = requeteAgent('claude-haiku-5-5', []);
-  assert.equal(haiku.fallbacks, undefined);
+  assert.equal(requeteAgent('claude-haiku-5-5', []).model, 'claude-haiku-5-5', 'un réglage gardé sur Haiku part tel quel : le serveur le ramène avant (modeleAgent)');
   assert.equal(requeteAgent('inconnu', []).max_tokens, 32000);
   assert.deepEqual(requeteAgent('claude-opus-5-5', [], { conclure: true }).tool_choice, { type: 'none' });
 });
@@ -1081,4 +1080,16 @@ test('carnet CLAIRE.md : enregistré en cours de conversation, il compte au mess
   assert.doesNotMatch(JSON.stringify(client.requetes[0].system), /casier judiciaire/);
   await tourAgent({ conversation: r.conversation, texte: 'Merci', dossiers: D, carnet: 'CJN : casier judiciaire national.', contexte: { aujourdhui: '2026-10-29', prenom: 'Bastien' } }, o);
   assert.match(JSON.stringify(client.requetes[2].system), /CJN : casier judiciaire national/);
+});
+
+test('document « vrai agent » étape 1 : carte des sources, règle d’autonomie, raisonnement de clerc, outil memoriser (carte, sans nom de client)', () => {
+  const { SYSTEME_AGENT, OUTILS_AGENT } = require('../src/assistantAgent');
+  const { MODELES_AGENT } = require('../src/assistantMistral');
+  assert.match(SYSTEME_AGENT, /Carte des sources/);
+  for (const source of ['CLAIRE', 'NAS', 'Exchange', 'Authentic', 'agenda']) assert.match(SYSTEME_AGENT, new RegExp(source));
+  assert.match(SYSTEME_AGENT, /ne t'arrête pas/);
+  assert.match(SYSTEME_AGENT, /clerc de notaire expérimenté/);
+  const m = OUTILS_AGENT.find((o) => o.name === 'memoriser');
+  assert.ok(m && m.strict === false && m.input_schema.required.includes('fait'));
+  assert.deepEqual(Object.keys(MODELES_AGENT), ['claude-opus-5-5', 'claude-sonnet-5-5'], 'jamais Haiku pour l’agent');
 });

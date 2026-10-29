@@ -351,22 +351,20 @@ test('Claude en erreur ou sans clé : repli sur les mots-clés, raison dite sans
   assert.equal((await creerClientClaudeAssistant({ cle: '' }).verifierDisponibilite()).disponible, false);
 });
 
-test('modèle Claude au choix (étude 08/10) : Sonnet par défaut, Opus, Haiku sans « effort » ; inconnu → Sonnet ; réglage gardé', async () => {
+test('modèle Claude au choix (étude 08/10) : Sonnet par défaut, Opus ; Haiku retiré (29/10) → Sonnet ; inconnu → Sonnet ; réglage gardé', async () => {
   const { requeteAssistantClaude, creerClientClaudeAssistant } = require('../src/assistantClaude');
   const { assainirReglagesAssistant } = require('../src/assistantMistral');
   assert.equal(requeteAssistantClaude('claude-opus-5', 'x').output_config.effort, 'low');
   assert.equal(requeteAssistantClaude('claude-sonnet-5', 'x').output_config.effort, 'low');
-  const haiku = requeteAssistantClaude('claude-haiku-4-5', 'x');
-  assert.equal('effort' in haiku.output_config, false);
-  assert.equal(haiku.output_config.format.type, 'json_schema');
+  assert.equal(requeteAssistantClaude('claude-sonnet-5', 'x').output_config.format.type, 'json_schema');
   assert.equal(creerClientClaudeAssistant({ cle: 'x', modele: 'claude-inconnu' }).modele, 'claude-sonnet-5');
-  assert.equal(assainirReglagesAssistant({ modeleClaude: 'claude-haiku-4-5' }).modeleClaude, 'claude-haiku-4-5');
+  assert.equal(assainirReglagesAssistant({ modeleClaude: 'claude-haiku-4-5' }).modeleClaude, 'claude-sonnet-5', 'Haiku retiré : un réglage gardé retombe sur Sonnet');
   assert.equal(assainirReglagesAssistant({ modeleClaude: 'gpt' }).modeleClaude, 'claude-sonnet-5');
   const h = { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' };
-  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'claude', modeleClaude: 'claude-haiku-4-5', toutesDemandes: true }) });
+  await fetch(`${baseUrl}/api/assistant/reglages`, { method: 'PUT', headers: h, body: JSON.stringify({ moteur: 'claude', modeleClaude: 'claude-opus-5', toutesDemandes: true }) });
   const r = await (await fetch(`${baseUrl}/api/assistant/reglages`, { headers: h })).json();
-  assert.equal(`${r.moteur} ${r.modeleClaude} ${r.toutesDemandes}`, 'claude claude-haiku-4-5 true');
-  assert.equal(r.modelesClaude.map((m) => m.id).join(','), 'claude-sonnet-5,claude-opus-5,claude-haiku-4-5');
+  assert.equal(`${r.moteur} ${r.modeleClaude} ${r.toutesDemandes}`, 'claude claude-opus-5 true');
+  assert.equal(r.modelesClaude.map((m) => m.id).join(','), 'claude-sonnet-5,claude-opus-5');
 });
 
 test('masquage : les lettres hors français ne coupent plus un nom (audit 13/10)', () => {

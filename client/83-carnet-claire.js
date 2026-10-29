@@ -155,3 +155,21 @@
     } catch (e) { afficherToast(`Consigne non ajoutée : ${e.message}`); }
     finally { delete consignesAssistantEnvoi[id]; }
   }
+
+// Outil `memoriser` de l'agent (document « vrai agent », 29/10) : un fait durable ajouté au carnet CLAIRE.md après la carte « Autoriser » — même route que le bouton
+// « Corriger » ; le serveur refuse tout texte qui cite un client ou un dossier.
+async function memoriserAgent(entree) {
+  const fait = String((entree && entree.fait) || '').replace(/\s+/g, ' ').trim();
+  if (fait.length < 5) return { erreur: 'fait vide' };
+  if (fait.length > 400) return { erreur: 'fait trop long : une phrase courte (400 caractères au plus)' };
+  if (!(await demanderAutorisationAgent(`Retenir dans la mémoire de CLAIRE (consignes de toute l'étude) : « ${fait} »`, { strict: true }))) {
+    return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  }
+  try {
+    const r = await fetchAvecAuth('/api/carnet-claire/consigne', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ consigne: fait, auteur: prenomPosteAssistant(), origine: 'agent' }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { erreur: j.erreur || 'refusé par le serveur', statut: 'echec' };
+    if (j.dejaPresent) return { fait: true, statut: 'fait', resultat: 'Déjà dans les consignes de CLAIRE : rien de plus à retenir.' };
+    return { fait: true, statut: 'fait', resultat: 'Retenu dans les consignes de CLAIRE (Réglages › Consignes de CLAIRE) : relu au début de chaque conversation.' };
+  } catch (e) { return { erreur: 'serveur injoignable', statut: 'echec' }; }
+}

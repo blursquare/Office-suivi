@@ -7,8 +7,7 @@
   var MODELES_COLONNE_ASSISTANT = [
     { valeur: '', libelle: 'Celui des Réglages' },
     { valeur: 'claude-opus-5-5', libelle: 'Claude Opus 5.5 — le plus fin' },
-    { valeur: 'claude-sonnet-5-5', libelle: 'Claude Sonnet 5.5 — équilibré' },
-    { valeur: 'claude-haiku-5-5', libelle: 'Claude Haiku 5.5 — rapide, économique' }
+    { valeur: 'claude-sonnet-5-5', libelle: 'Claude Sonnet 5.5 — équilibré' }
   ];
   var EFFORTS_COLONNE_ASSISTANT = [
     { valeur: 'low', libelle: 'Rapide' },
