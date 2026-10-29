@@ -1462,6 +1462,9 @@ async function preparerFormalite(s, cible, o) {
       // Une demande qu'Authentic ne laisse pas cocher (personne née à l'étranger, option grisée) : dite, pas bloquante — les autres lignes passent
       // (étude 29/10 : « il a bloqué sur une demande où une personne est née à l'étranger »). Rien n'est coché de force.
       const manquantes = voulues.filter((v) => !relues.some((x) => plat(x.libelle) === plat(v) && x.coche));
+      // Tolérée seulement une option PRÉSENTE qui ne se coche pas (grisée) ; une option absente de la liste ouverte = un vrai échec du clic.
+      const absente = manquantes.find((v) => !relues.some((x) => plat(x.libelle) === plat(v)));
+      if (absente) throw new Error('une option de la demande est absente de la liste ouverte : rien validé');
       if (manquantes.length) nonCochees += manquantes.length;
       if (relues.some((x) => x.coche && !voulues.some((v) => plat(v) === plat(x.libelle)))) throw new Error('une demande non voulue reste cochée : rien validé');
       choisies += voulues.length - manquantes.length;

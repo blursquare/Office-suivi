@@ -35,9 +35,11 @@ function partiesComedecDossier(d) {
       return { nom: String(p.nom || ''), prenom: String(p.prenom || ''), role: p.role, marie: (cote > 1 && situation === 'marie') || marieeDansAuthentic(d, p), naissance: !neALEtrangerAuthentic(d, p) };
     });
   // Le mariage d'un couple de parties est UN seul acte : demandé pour un seul des deux époux (étude 29/10). Conjoint non partie : jamais listé.
-  ['VENDEUR', 'ACQUEREUR'].forEach(role => {
-    const mariees = liste.filter(p => p.role === role && p.marie);
-    if (mariees.length === 2) mariees[1].marie = false;
+  // Seulement quand le couple est AVÉRÉ : deux personnes de ce côté et situation du couple « marié » (jamais deux co-vendeurs mariés chacun à un
+  // conjoint extérieur, d'après leur seule fiche — relecture 0.396.2).
+  [['VENDEUR', d && d.situationVendeur], ['ACQUEREUR', d && d.situationAcquereur]].forEach(([role, situation]) => {
+    const cote = liste.filter(p => p.role === role);
+    if (cote.length === 2 && situation === 'marie' && cote.every(p => p.marie)) cote[1].marie = false;
   });
   return liste;
 }
@@ -49,7 +51,8 @@ function neALEtrangerAuthentic(d, p) {
   const cle = normaliserPourRecherche([p && p.prenom, p && p.nom].filter(Boolean).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
   const f = fiches[cle] || Object.values(fiches).find(x => x && cle && normaliserPourRecherche(x.nom || '').replace(/[^a-z0-9]+/g, ' ').trim() === cle);
   const pays = normaliserPourRecherche(String((f && f.paysNaissance) || '')).replace(/[^a-z]+/g, ' ').trim();
-  return !!pays && !/^(france|fr|france metropolitaine|republique francaise)$/.test(pays);
+  // France et ses départements d'outre-mer : actes tenus en France, demandés comme les autres.
+  return !!pays && !/^(france.*|fr|republique francaise|la reunion|reunion|guadeloupe|martinique|guyane|guyane francaise|mayotte)$/.test(pays);
 }
 
 // Pure : les acquéreurs personnes physiques de la fiche (demande de casier : chaque intervenant coché par Authentic doit en être un).

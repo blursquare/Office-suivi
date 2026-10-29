@@ -16,6 +16,13 @@ test('Comedec : les parties que l’étude représente ; mariés d’après la s
   assert.equal(p.map((x) => `${x.prenom} ${x.nom}:${x.marie}`).join('|'), 'Paul MARTIN:true|Léa MARTIN:false|Claire DURAND:true');
 });
 
+test('Comedec : mariage d’un couple de parties demandé une fois ; deux co-vendeurs mariés chacun ailleurs : chacun garde le sien', () => {
+  const frereSoeur = { id: 'd1', nom: 'X', situationVendeur: '', parties: [{ role: 'VENDEUR', nom: 'EXEMPLE', prenom: 'Ana' }, { role: 'VENDEUR', nom: 'ESSAI', prenom: 'Lou' }],
+    authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', situationMatrimoniale: { situation: 'Marié(e)' } }, 'lou essai': { nom: 'Lou ESSAI', situationMatrimoniale: { situation: 'Marié(e)' } } } } };
+  assert.equal(app.partiesComedecDossier(frereSoeur).map((x) => x.marie).join(','), 'true,true');
+  assert.equal(app.neALEtrangerAuthentic({ authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', paysNaissance: 'La Réunion' } } } }, { prenom: 'Ana', nom: 'EXEMPLE' }), false, 'département d’outre-mer : demandée');
+});
+
 test('Comedec : une personne née à l’étranger n’a pas de demande de naissance (Comedec ne la délivre pas) ; née en France : demandée', () => {
   const d = { id: 'd1', nom: 'X', parties: [{ role: 'VENDEUR', nom: 'EXEMPLE', prenom: 'Ana' }, { role: 'ACQUEREUR', nom: 'ESSAI', prenom: 'Lou' }],
     authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', paysNaissance: 'PORTUGAL' }, 'lou essai': { nom: 'Lou ESSAI', paysNaissance: 'France' } } } };
