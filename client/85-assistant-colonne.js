@@ -17,7 +17,7 @@
   ];
   var CLE_COLONNE_ASSISTANT = 'claire-assistant-colonne';
   var blocsOuvertsColonneAssistant = { etapes: true, documents: true, dossier: true, confidentialite: true };
-  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'medium', anonymiser: true, apercu: null, docsDossier: null };
+  var colonneAssistant = { ouverte: colonneAssistantOuverte(), etapes: [], journal: [], lus: {}, modele: '', effort: 'high', anonymiser: true, apercu: null, docsDossier: null };
   var pdfApercuAssistant = null;          // { docId, pdf } : le PDF de l'aperçu, gardé pour feuilleter
   var blocApercuAssistant = null;         // la page dessinée et son surlignage : un élément gardé, replacé à chaque rendu de la colonne
 
@@ -58,7 +58,7 @@
   function reglagesColonneAgent() {
     return {
       ...(colonneAssistant.modele ? { modele: colonneAssistant.modele } : {}),
-      effort: colonneAssistant.effort || 'medium',
+      effort: colonneAssistant.effort || 'high',
       anonymiser: colonneAssistant.anonymiser !== false,
       historique: (assistantContexte.echanges || []).map(e => ({ role: e.role === 'claire' ? 'claire' : 'moi', texte: e.texte || '' }))
     };

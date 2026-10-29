@@ -11509,3 +11509,16 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .sidebar-badge-notif.sidebar-badge-attente { background: var(--paper-sunk); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 .sidebar-badge-notif + .sidebar-badge-notif.sidebar-badge-attente { margin-left: 4px; }
 #tab-assistant .sidebar-badge-attente:not(:last-child) { margin-left: 4px; }
+
+/* Actes d'état civil : fiche et Constitution de dossier (étude 29/10). */
+.ec-papier-bloc { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.ec-papier-liste, .ec-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.ec-papier { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: var(--texte-s); }
+.ec-papier-lib { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ec-personne { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ec-nom { flex: 1 1 160px; font-weight: 500; }
+.ec-acte { display: inline-flex; align-items: center; gap: 4px; }
+.ec-acte-lib { margin-right: 4px; color: var(--muted); font-size: var(--texte-s); }
+.ec-acte-apr .ec-acte-lib { color: var(--urgent); font-weight: 600; }
+.pastille-apr { display: inline-block; padding: 0 4px; border-radius: var(--rayon-xs); background: var(--urgent); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
+.ec-comedec { display: flex; gap: 8px; margin-top: 16px; }

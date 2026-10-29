@@ -18,5 +18,6 @@
   "reactions.js",
   "html-canal.js",
   "authentic-modele.js",
-  "etat-hypothecaire.js"
+  "etat-hypothecaire.js",
+  "courriers-etat-civil.js"
 ]

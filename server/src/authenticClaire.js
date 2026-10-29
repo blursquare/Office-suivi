@@ -92,7 +92,7 @@ function plat(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '
  * d'après les parties de la fiche CLAIRE : naissance pour chaque partie, mariage en plus pour une partie mariée (choix de l'étude 27/10).
  * Une ligne qui ne désigne aucune partie (conjoint qui ne vend ni n'achète, ligne vide) : rien. Une partie accompagnée par un confrère :
  * rien (son notaire fait ses demandes).
- * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean }>} parties
+ * @param {string} libelle @param {Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean, pasNaissance?: boolean, pasMariage?: boolean }>} parties
  * @returns {string[]}
  */
 function demandesComedecIntervenant(libelle, parties) {
@@ -115,7 +115,7 @@ function demandesComedecIntervenant(libelle, parties) {
   // même quand la fiche de la personne ou la situation du couple ne le disent pas (étude 29/10 : « il ne demande pas le mariage »).
   const marieParLigne = /\b(?:epoux|epouse)\s+de\b/.test(plat(String(libelle || '').replace(/\(.*$/, '')));
   // Une demande déjà faite dans Authentic (acte vu sur la page du dossier, état autre que « négatif ») n'est jamais redemandée.
-  return [...(p.naissance === false || p.dejaNaissance ? [] : ['Naissance']), ...((p.marie || marieParLigne) && !p.dejaMariage ? ['Mariage'] : [])];
+  return [...(p.naissance === false || p.dejaNaissance || p.pasNaissance ? [] : ['Naissance']), ...((p.marie || marieParLigne) && !p.dejaMariage && !p.pasMariage ? ['Mariage'] : [])];
 }
 
 /** Pure : le nom du conjoint écrit après « époux de / épouse de » dans le libellé d'une ligne (''si aucun) — pour ne demander le mariage qu'UNE fois quand
@@ -1309,7 +1309,7 @@ function liensFichesDuTexte(texte) {
 
 /**
  * Lire un dossier : page du dossier, fiches clients, fiches biens — chaque page part dans la file des relevés.
- * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o
+ * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void, fiches?: string, dejaClients?: string[], dejaImmeubles?: number }} o
  */
 async function lireDossier(s, cible, o) {
   const g = gestes(s, o.etape);
@@ -1326,7 +1326,18 @@ async function lireDossier(s, cible, o) {
   if (apercus && !(await g.ev(SCRIPT_TIROIR_OUVERT)) && estCeDossier(await g.texte(), cible)) await releverPage(s, o.script, o.recevoir);
   if (!estCeDossier(await g.texte(), cible)) { o.etape('Revient au dossier'); await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
   const { comparants, immeubles } = liensFichesDuTexte(await g.texte());
-  for (const [i, nom] of [...comparants, ...immeubles].entries()) {
+  // Les fiches clients et biens ne sont rouvertes que SI ON LE DEMANDE ou si elles manquent (étude 29/10 : « qu'en utilisant Authentic il n'y ait pas besoin
+  // d'ouvrir à chaque fois les fiches clients, sauf si on lui demande ») : `fiches` = 'toutes' (à la demande), 'aucune', ou par défaut les seules fiches pas
+  // encore connues de la fiche CLAIRE (`dejaClients` : noms déjà relevés ; `dejaImmeubles` : nombre de biens déjà relevés).
+  const modeFiches = o.fiches === 'toutes' || o.fiches === 'aucune' ? o.fiches : 'nouvelles';
+  const connus = new Set((Array.isArray(o.dejaClients) ? o.dejaClients : []).map((n) => plat(String(n))));
+  const aOuvrir = [...comparants, ...immeubles].map((nom, i) => ({ nom, i })).filter(({ nom, i }) => {
+    if (modeFiches === 'toutes') return true;
+    if (modeFiches === 'aucune') return false;
+    return i < comparants.length ? !connus.has(plat(String(nom))) : !(Number(o.dejaImmeubles) >= immeubles.length);
+  });
+  if (aOuvrir.length < comparants.length + immeubles.length) o.etape(`Fiches déjà connues : ${comparants.length + immeubles.length - aOuvrir.length} non rouverte(s)`);
+  for (const { nom, i } of aOuvrir) {
     const fiche = i < comparants.length ? `la fiche client ${i + 1}` : `la fiche bien ${i - comparants.length + 1}`;
     try {
       if (!(await g.cliquerTexte(nom, { exact: true, geste: 'donnee' }))) continue;
@@ -1347,7 +1358,25 @@ async function lireDossier(s, cible, o) {
     if (!estCeDossier(await g.texte(), cible)) { await ouvrirDossier(s, cible, o.etape); await ouvrirSousDossierVente(s, cible, o.etape); }
     if (estCeDossier(await g.texte(), cible) && await lirePiecesJointes(s, o)) pages++;
   } catch (e) { o.etape('Pièces jointes non lues'); }
-  return { pages, apercus };
+  // Les demandes d'état civil PAR PAPIER (ligne « APR » des formalités, étude 29/10) : leur nombre est dit, le courrier se prépare sur la fiche.
+  let papier = 0;
+  try { papier = (await g.texte()).split('\n').filter((l) => /^\s*APR(?![A-Za-z0-9])/.test(l)).length; } catch (e) { /* page illisible : pas de décompte */ }
+  return { pages, apercus, papier };
+}
+
+/**
+ * Après une demande Comedec : retour sur le dossier de vente, la page est relevée (les formalités d'état civil à jour) et les lignes « APR » (demande papier)
+ * sont comptées — rien d'autre : ni fiche, ni aperçu, ni pièce jointe (audit 0.399.0).
+ * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {{ script: string, recevoir: (c: any) => any, etape: (t: string) => void }} o
+ */
+async function relireFormalitesApresDemande(s, cible, o) {
+  const g = gestes(s, o.etape);
+  await ouvrirDossier(s, cible, o.etape);
+  await ouvrirSousDossierVente(s, cible, o.etape);
+  if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est plus le bon : rien relevé');
+  o.etape('Relève les formalités d’état civil');
+  await releverPage(s, o.script, o.recevoir);
+  return { papier: (await g.texte()).split('\n').filter((l) => /^\s*APR(?![A-Za-z0-9])/.test(l)).length };
 }
 
 /**
@@ -1439,7 +1468,7 @@ async function lireComptabilite(s, cible, o) {
 /**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
- * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
+ * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean, pasNaissance?: boolean, pasMariage?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
  */
 async function preparerFormalite(s, cible, o) {
   // Écrire dans Authentic : seulement si l'étude l'a allumé (Réglages › Authentic › « Préparer des demandes »), dit par l'appelant.
@@ -1637,5 +1666,5 @@ module.exports = {
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
   ouvrirDossier, ouvrirSousDossierVente,
-  referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
+  relireFormalitesApresDemande, referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

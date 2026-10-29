@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.398.1';
+  const VERSION_APP = '0.399.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.399.0', date: '2026-10-29 18:43', resume: "État civil : CLAIRE ne demande que l’acte voulu par Comedec (naissance seule, mariage seul) ; pour une mairie sans Comedec (ligne « APR » d’Authentic), elle prépare le courrier papier à la mairie au modèle de l’étude, en Word ou en PDF — sur la fiche (onglet Dossier : Acte de naissance, Acte de mariage, Demandes papier), dans la Constitution de dossier (étape État civil, vente et succession) et à la demande dans une discussion. « Lire l’EHF » sur la fiche. Authentic : les fiches clients déjà connues ne sont plus rouvertes à chaque lecture ; Claude qui pilote consulte la mémoire du wiki d’Authentic ; « Demander à CLAIRE » réfléchit davantage (effort élevé) et compose avec ses outils au lieu de refuser." },
   { version: '0.398.1', date: '2026-10-29 18:25', resume: "Claude qui pilote Authentic ne tombe plus sur l’erreur « tool_choice : type tool et any non pris en charge par ce modèle » : le choix d’outil est libre et, si Claude répond en texte, il est relancé une fois." },
   { version: '0.398.0', date: '2026-10-29 17:46', resume: "Statistiques : tout l’étude (plus « mes dossiers »), avec les PACS et les donations entre époux (DEE) comparés à l’an dernier, à côté des ventes, successions et donations. Pastilles : la barre latérale et la liste des Discussions montrent d’où vient le nombre de l’icône ; une proposition de CLAIRE déjà vue qui attend votre décision reste en gris, une nouvelle sur le même dossier repasse en rouge (seules les rouges comptent dans la pastille de la barre des tâches)." },
   { version: '0.397.1', date: '2026-10-29 17:20', resume: "L’anonymisation ne bloque plus les sigles du métier dans les conversations : EHF, COMEDEC, PAC, HF, DOD, FCDDV, NOTO, PUV, CJN, DS, API… (comme DIA et CRIDON déjà). Un vrai nom reste codé." },

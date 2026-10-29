@@ -128,7 +128,7 @@ test('limites : arrêt demandé, pas au-delà du maximum, historique allégé (c
 test('le prompt dit les règles et les outils ne portent ni envoi ni validation propres', () => {
   assert.match(P.SYSTEME, /JAMAIS un bouton qui envoie, signe/);
   assert.match(P.SYSTEME, /Envoi immédiat/);
-  assert.deepEqual(P.OUTILS.map((o) => o.name), ['cliquer', 'ecrire', 'touche', 'defiler', 'attendre', 'terminer']);
+  assert.deepEqual(P.OUTILS.map((o) => o.name), ['cliquer', 'ecrire', 'touche', 'defiler', 'attendre', 'consulter_wiki', 'terminer']);
 });
 
 test('audit 0.397.0 : un contrôle sans libellé, un cadre, un interrupteur non identifié, une page qui change sous le pointeur sont refusés ; Entrée seulement en recherche', async () => {

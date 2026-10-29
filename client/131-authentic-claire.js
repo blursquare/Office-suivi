@@ -172,13 +172,13 @@ async function demandeAuthenticAgent(entree) {
   if (!c || !c.actif || !c.identifiant || !c.motDePasseEnregistre) return { erreur: 'connexion de CLAIRE à Authentic non réglée ou éteinte (Réglages › Authentic, administrateur)' };
   if (c.refuseLe) return { erreur: 'Authentic a refusé l’identifiant ou le mot de passe : à corriger dans Réglages › Authentic' };
   if (e.mode === 'lire') {
-    const r = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '' });
+    const r = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '', fiches: e.fiches === 'toutes' ? 'toutes' : '' });
     return r.ok ? { fait: true, statut: 'fait', resultat: r.texte } : { erreur: r.texte, statut: 'echec' };
   }
   if (e.mode !== 'cjn' && e.mode !== 'comedec') return { erreur: 'mode inconnu (lire, cjn, comedec)' };
   // Écrire dans Authentic est éteint par défaut (plan du 27/10) : l'administrateur l'allume dans Réglages › Authentic.
   if (!c.preparerDemandes) return { erreur: 'préparer des demandes dans Authentic est éteint (Réglages › Authentic, administrateur) : CLAIRE ne fait que lire', statut: 'echec' };
-  return preparerFormaliteAuthentic(d, e.mode, { agent: true, role: e.mode === 'comedec' ? e.role : '', personne: e.mode === 'comedec' ? e.personne : '' });
+  return preparerFormaliteAuthentic(d, e.mode, { agent: true, role: e.mode === 'comedec' ? e.role : '', personne: e.mode === 'comedec' ? e.personne : '', actes: e.mode === 'comedec' ? e.actes : '' });
 }
 
 // Outil `authentic_pilote` de l'agent : Claude PILOTE Authentic (étude 29/10, server/src/authenticPilote.js). Il voit les écrans EN CLAIRE chez Anthropic : éteint par
@@ -212,15 +212,19 @@ async function preparerFormaliteAuthentic(d, type, o) {
     if (c.erreur) return { erreur: c.erreur, statut: 'echec' };
     parties = c.parties;
   }
+  // Un seul acte demandé (« l'acte de naissance », « le mariage ») : l'autre n'est jamais demandé, même si la ligne d'Authentic le laisserait croire.
+  if (type === 'comedec' && o && (o.actes === 'naissance' || o.actes === 'mariage')) {
+    parties = parties.map(p => Object.assign({}, p, o.actes === 'naissance' ? { pasMariage: true, marie: false } : { pasNaissance: true }));
+  }
   if (type === 'cjn' && raisonSansCjn(d)) return { erreur: 'pas de demande de casier ici : ' + raisonSansCjn(d) };
   if (type === 'comedec' && !parties.length) return { erreur: 'aucune partie que l’étude représente sur la fiche' };
   // Rien à redemander : chaque demande voulue figure déjà sur la page du dossier dans Authentic (étude 29/10 : « ne pas le redemander »).
   // Court-circuit seulement quand TOUT est déjà demandé (naissance ET mariage de chaque partie) : sinon le serveur décide ligne par ligne (un libellé
   // « épouse de » peut demander un mariage que la fiche ne connaît pas) et dit « déjà demandé » si rien n'est à faire (relecture 0.396.11).
-  if (type === 'comedec' && parties.every(p => (p.naissance === false || p.dejaNaissance) && p.dejaMariage)) return { fait: true, statut: 'fait', resultat: 'Déjà demandé dans Authentic : rien à redemander pour ces parties.' };
+  if (type === 'comedec' && parties.every(p => (p.naissance === false || p.dejaNaissance || p.pasNaissance) && (p.dejaMariage || p.pasMariage))) return { fait: true, statut: 'fait', resultat: 'Déjà demandé dans Authentic : rien à redemander pour ces parties.' };
   if (type === 'cjn') { const casier = etatsCivilsDejaDemandes(d).casier; if (parties.length && parties.every(p => libelleDitPersonne(casier, p))) return { fait: true, statut: 'fait', resultat: 'Casier judiciaire déjà demandé dans Authentic pour ces acquéreurs : rien à redemander.' }; }
   const quoi = type === 'cjn' ? 'Préparer dans Authentic la demande de casier judiciaire (CJN) des acquéreurs'
-    : `Préparer dans Authentic la demande d’état civil (Comedec) : ${parties.map(p => `${[p.prenom, p.nom].filter(Boolean).join(' ')} (${[p.naissance === false ? '' : 'naissance', p.marie ? 'mariage' : ''].filter(Boolean).join(', ') || 'rien à demander'}${p.naissance === false ? ' ; née à l’étranger : pas de naissance par Comedec' : ''})`).join(', ')}`;
+    : `Préparer dans Authentic la demande d’état civil (Comedec) : ${parties.map(p => `${[p.prenom, p.nom].filter(Boolean).join(' ')} (${[p.naissance === false || p.pasNaissance ? '' : 'naissance', p.marie && !p.pasMariage ? 'mariage' : ''].filter(Boolean).join(', ') || 'rien à demander'}${p.naissance === false ? ' ; née à l’étranger : pas de naissance par Comedec' : ''})`).join(', ')}`;
   if (o && o.agent && !(await demanderAutorisationAgent(`${quoi} — ${libelleDossierAffiche(d)}. Création rapide allumée, Envoi immédiat éteint : rien n’est envoyé, la demande est à envoyer ensuite depuis Authentic.`, { strict: true }))) {
     return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
   }

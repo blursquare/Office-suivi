@@ -217,7 +217,9 @@
       if (!d.archive && d.roleNotaire !== 'participant') outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers à la mairie : numérotage, alignement, péril, assainissement'));
       outilsVenteFiche(d).forEach(o => outils.push(bouton(o.icone, o.libelle, o.onclick, o.titre)));
     }
-    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}</aside>`;
+    // État civil (Comedec un acte à la fois, demandes papier) et lecture de l'EHF : client/142.
+    const etatCivil = typeof renderEtatCivilFiche === 'function' ? renderEtatCivilFiche(d) : '';
+    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</aside>`;
   }
 
   // Pure : la contenance du cadastre (IGN) de chaque parcelle lue par le Contrôle de l'urbanisme, par clé de parcelle.

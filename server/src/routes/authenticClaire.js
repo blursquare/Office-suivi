@@ -42,7 +42,9 @@ function partiesDemande(brut) {
     // Né à l'étranger : pas de demande de naissance par Comedec (étude 29/10) — seul `false` est retenu, le reste = naissance demandée.
     naissance: !(p && p.naissance === false),
     // Déjà demandée dans Authentic (état civil vu sur la page du dossier) : jamais redemandée (étude 29/10).
-    dejaNaissance: !!(p && p.dejaNaissance), dejaMariage: !!(p && p.dejaMariage)
+    dejaNaissance: !!(p && p.dejaNaissance), dejaMariage: !!(p && p.dejaMariage),
+    // Demande limitée à un seul acte (étude 29/10 : « j'avais demandé l'acte de naissance, il m'a sorti aussi le mariage »).
+    pasNaissance: !!(p && p.pasNaissance), pasMariage: !!(p && p.pasMariage)
   })).filter((p) => p.nom.trim());
 }
 
@@ -138,11 +140,16 @@ function creerRouteurAuthenticClaire(o) {
     if (!collaborateurDe(req.body && req.body.auteur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const d = dossierDe(req, res); if (!d) return;
     const cible = cibleAuthentic(d);
+    const b0 = req.body && typeof req.body === 'object' ? req.body : {};
     repondre(res, () => lancer('authentic-lire', 'Lecture du dossier dans Authentic', d, async (t, s, etape) => {
-      const r = await A.lireDossier(s, cible, { script: await releve(), recevoir: (c) => o.recevoirReleve(c, 'claire-serveur'), etape });
+      // Les fiches clients ne sont rouvertes que si on le demande (`fiches: 'toutes'`) ou si elles manquent (étude 29/10).
+      const clients = Object.values((d.authentic && d.authentic.fichesClients) || {}).filter((f) => f && f.nom).map((f) => String(f.nom));
+      const biens = Array.isArray(d.authentic && d.authentic.immeubles) ? d.authentic.immeubles.length : 0;
+      const r = await A.lireDossier(s, cible, { script: await releve(), recevoir: (c) => o.recevoirReleve(c, 'claire-serveur'), etape,
+        fiches: b0.fiches === 'toutes' ? 'toutes' : undefined, dejaClients: clients, dejaImmeubles: biens });
       noterVerification(repo, 'authentic-lecture', { detail: `${r.pages} page(s)` });
       if (r.apercus) noterVerification(repo, 'authentic-apercus', { detail: `${r.apercus} aperçu(s)` });
-      return `J’ai lu le dossier dans Authentic (${r.pages} page${r.pages > 1 ? 's' : ''}) : la fiche se complète avec ce qu’Authentic montre.`;
+      return `J’ai lu le dossier dans Authentic (${r.pages} page${r.pages > 1 ? 's' : ''}${b0.fiches === 'toutes' ? ', fiches clients rouvertes' : ' ; fiches déjà connues non rouvertes'}) : la fiche se complète avec ce qu’Authentic montre.${r.papier ? ` ${r.papier} demande(s) papier (APR) d’état civil à faire.` : ''}`;
     }));
   });
 
@@ -250,12 +257,20 @@ function creerRouteurAuthenticClaire(o) {
       const deja = repo.lireJsonBrut(CLE_DEMANDES_AUTHENTIC, {}) || {};
       deja[cle] = new Date().toISOString();
       repo.ecrireJsonBrut(CLE_DEMANDES_AUTHENTIC, deja);
+      // Retour sur le dossier de vente : les formalités d'état civil sont relues (étude 29/10 : « s'il voit APR, il doit faire le courrier ») sans rouvrir
+      // aucune fiche ni pièce jointe ; une ligne « APR » = demande papier, dite ici et lue par la fiche (d.authentic.etatsCivilsPapier). Un échec de relecture ne défait rien.
+      if (type === 'comedec') {
+        try {
+          const lu = await A.relireFormalitesApresDemande(s, cibleAuthentic(d), { script: await releve(), recevoir: (c) => o.recevoirReleve(c, 'claire-serveur'), etape });
+          r.papier = lu.papier || 0;
+        } catch (e) { etape('Formalités non relues après la demande'); }
+      }
       noterVerification(repo, 'authentic-' + type, r.erreurs ? { ok: false, detail: `${r.erreurs} message(s) d’Authentic après Valider` } : { detail: `${r.demandes} demande(s) créée(s)` });
       // Des messages d'Authentic après « Valider » : jamais « créée » affirmé, mais marquée faite quand même (pas de doublon).
       if (r.erreurs) return `${nom} : « Valider » cliqué dans Authentic, qui a affiché ${r.erreurs} message(s) — à vérifier dans Authentic avant toute nouvelle demande.${(r.remarques || []).filter((m) => !/message\(s\) d’erreur/.test(m)).map((m) => ` ${m}.`).join('')}`;
       // Ce qu'Authentic a montré après « Valider » (bloquée, papier, non conforme) : dit, jamais une demande à refaire (risque de doublon).
       const dit = (r.remarques || []).length ? ` À vérifier dans Authentic : ${r.remarques.join(' ; ')}.` : '';
-      return `${nom} créée dans Authentic, sans envoi (Création rapide, Envoi immédiat éteint) : ${r.demandes} ${type === 'cjn' ? 'acquéreur(s)' : 'acte(s) demandé(s)'}. Elle est à envoyer depuis le dossier ou le suivi ${type === 'cjn' ? 'CJN' : 'Comedec'}.${dit}`;
+      return `${nom} créée dans Authentic, sans envoi (Création rapide, Envoi immédiat éteint) : ${r.demandes} ${type === 'cjn' ? 'acquéreur(s)' : 'acte(s) demandé(s)'}. Elle est à envoyer depuis le dossier ou le suivi ${type === 'cjn' ? 'CJN' : 'Comedec'}.${dit}${r.papier ? ` ${r.papier} demande(s) PAPIER (APR) dans les formalités d’état civil : le courrier à la mairie se prépare sur la fiche (Demandes papier).` : ''}`;
     }, cle));
   });
 

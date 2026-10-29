@@ -78,7 +78,7 @@ async function etatHypothecaireAgent(e) {
   // Les candidats : un nom d'état-réponse (« Etat réponse », « ANF ») d'abord, puis les autres (réquisition hors formalité…), du dernier
   // relevé au premier ; essayés dans l'ordre jusqu'à un état-réponse lu (audit 0.385.0). Aucun NOM de pièce ne part à l'IA.
   const ordre = etats.slice().reverse().sort((a, b) => (/etat\s*r[ée]?\s*ponse|anf/i.test(b.nom) ? 1 : 0) - (/etat\s*r[ée]?\s*ponse|anf/i.test(a.nom) ? 1 : 0)).slice(0, 3);
-  if (!(await demanderAutorisationAgent(`Relire l’état hypothécaire de ${libelleDossierAffiche(d)} dans Authentic (une minute environ) : inscriptions relevées sur la fiche, pièces de mainlevée ajoutées à la checklist s’il y a une inscription en cours, message dans le canal du dossier.`))) {
+  if (!(e && e.sansCarte) && !(await demanderAutorisationAgent(`Relire l’état hypothécaire de ${libelleDossierAffiche(d)} dans Authentic (une minute environ) : inscriptions relevées sur la fiche, pièces de mainlevée ajoutées à la checklist s’il y a une inscription en cours, message dans le canal du dossier.`))) {
     return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
   }
   let r = null;

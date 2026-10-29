@@ -1572,6 +1572,8 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
         sous: e.zonageEnCours ? 'Lecture…' : z ? `DIA ${z.dia.statut === 'non' ? 'non' : z.dia.statut === 'verifier' ? '?' : 'oui'} · SAFER ${z.safer.statut === 'non' ? 'non' : z.safer.statut === 'verifier' ? '?' : 'oui'}` : 'Zonage à lire',
         html: renderZonageConstitution(d) + renderGnauConstitution() } : null,
       { cle: 'courriers', court: 'Courriers', titre: 'Courriers', compte: `${n} à préparer`, sous: `${n} à préparer`, html: renderListeCourriersConstitution() },
+      { cle: 'etat-civil', court: 'État civil', titre: 'Actes d’état civil', info: 'Demande de l’acte de naissance ou de mariage de chaque personne : par Comedec (créée dans Authentic, rien n’est envoyé) ou, pour une mairie sans Comedec (ligne « APR » d’Authentic), par courrier papier du modèle de l’étude, en Word ou en PDF.',
+        sous: etatCivilSousConstitution(d), html: renderEtatCivilConstitution(d) },
       { cle: 'sortie', court: 'Envoyer ou enregistrer', titre: 'Envoyer ou enregistrer', sous: d.nasDossier ? 'NAS relié' : 'NAS non relié', html: renderSortieConstitution(d) }
     ].filter(Boolean);
   }

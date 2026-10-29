@@ -140,5 +140,6 @@
   "138-agent-coordonnees-bilan.js",
   "139-courrier-fonds-banque.js",
   "140-comptabilite-authentic.js",
-  "141-lectures-documents.js"
+  "141-lectures-documents.js",
+  "142-etat-civil-fiche.js"
 ]

@@ -867,6 +867,20 @@
     });
     return r;
   }
+  // Pure : les demandes d'état civil faites PAR PAPIER (ligne « APR … », étude 29/10 : « s'il voit APR, il doit faire le courrier à la mairie ») —
+  // { cle: { label, type: 'naissance'|'mariage'|'deces', date } }. Une demande Comedec (sans « APR ») n'y figure jamais.
+  function suiviEtatsCivilsPapierAuthentic(lignes) {
+    const r = {};
+    (lignes || []).forEach(l => {
+      const net = normaliserPourRecherche(l.titre || '');
+      if (!/^\s*apr(?![a-z0-9])/.test(net)) return;
+      const type = /acte\s+de\s+naissance|naissance/.test(net) ? 'naissance' : /mariage/.test(net) ? 'mariage' : /deces/.test(net) ? 'deces' : '';
+      if (!type) return;
+      const label = String(l.titre || '').replace(/^\s*APR(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').slice(0, 90);
+      r[clePieceEtatCivilAuthentic(label)] = { label, type, date: l.date || '' };
+    });
+    return r;
+  }
   function labelPieceEtatCivilAuthentic(titre) {
     return String(titre || '').replace(/^\s*ECV(?![A-Za-z0-9])\s*[-:–]?\s*/i, '').slice(0, 90);
   }
@@ -1292,7 +1306,7 @@
     const r = {
       acte: etatActeAuthentic(capture), rhf: suiviRhfAuthentic(lignes), safer: suiviSaferAuthentic(lignes),
       prix: prixAuthentic(capture), collaborateur: collaborateurAuthentic(capture),
-      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), demandes: demandesUrbanismeAuthentic(lignes), demandesSuccession: typeAffaire === 'succession' ? demandesSuccessionDepuisLignes(lignes) : null,
+      etatsCivils: suiviEtatsCivilsAuthentic(lignes, typeAffaire), etatsCivilsPapier: suiviEtatsCivilsPapierAuthentic(lignes), demandes: demandesUrbanismeAuthentic(lignes), demandesSuccession: typeAffaire === 'succession' ? demandesSuccessionDepuisLignes(lignes) : null,
       avantContratLe: dateAvantContratAuthentic(lignes), comparants: comparantsAuthentic(capture),
       premierComparant: premierComparantAuthentic(capture), premierImmeuble: premierImmeubleAuthentic(capture),
       biensDossier: biensRubriqueAuthentic(capture)
@@ -2783,7 +2797,7 @@
       delete d.piecesAuthentic;
       retire.push(`${cles.size} pièce${cles.size > 1 ? 's' : ''}`);
     }
-    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'demandes', 'demandesSuccession', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente', 'pret'];
+    const champsDossier = ['acte', 'rhf', 'safer', 'prix', 'collaborateur', 'etatsCivils', 'etatsCivilsPapier', 'demandes', 'demandesSuccession', 'avantContratLe', 'saferPieceAjoutee', 'valeurs', 'majEnAttente', 'pret'];
     if (champsDossier.some(k => a[k])) {
       const reste = Object.assign({}, a);
       champsDossier.forEach(k => { delete reste[k]; });

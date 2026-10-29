@@ -76,6 +76,7 @@
     for (let i = 0; i < (doc.blancsSignature || 0); i++) vide();
     p.push(xmlParagrapheFidele(doc.signature, 'right', '<w:keepNext/>'));
     if (signatureXml) p.push(signatureXml);
+    if (doc.postScriptum) p.push(xmlParagrapheFidele(doc.postScriptum));
     if (doc.questionnaire) {
       // Une ligne vide en tête de page 2, comme dans le modèle (paragraphe vide après le saut) ; « saut avant » : même rendu dans Word et LibreOffice.
       p.push(xmlParagrapheFidele('', 'both', '<w:pageBreakBefore/>'));
@@ -146,6 +147,7 @@
       o.image('signature', T.x + (T.largeur - T.signatureLargeur) / 2, y + T.decalage + (T.hauteur - T.signatureHauteur) / 2, T.signatureLargeur, T.signatureHauteur);
       y += T.bloc;
     }
+    if (doc.postScriptum) paragraphe(doc.postScriptum);
     if (doc.questionnaire) { o.nouvellePage(); questionnairePdfFidele(doc.questionnaire, o); }
   }
 
@@ -309,6 +311,7 @@
     for (let i = 0; i < (doc.blancsSignature || 0); i++) ligne('');
     ligne(escapeHtml(doc.signature), false, 'cstf-signature');
     if (signe) lignes.push(`<div class="af-tampon-signature cstp-tampon">${img(a.tampon, 'af-tampon', '')}${img(a.signature, 'af-signature-image', '')}</div>`);
+    if (doc.postScriptum) ligne(escapeHtml(doc.postScriptum), false);
     const questionnaire = doc.questionnaire ? `<div class="cstp-page cstp-questionnaire"><div class="cstp-corps cstp-corps-suite cstf-corps">
       <div class="cstf-l"><b>A retourner à :</b></div><div class="cstf-l">&nbsp;</div><div class="cstf-l">&nbsp;</div>
       <div class="cstf-l cstf-retour">Maître Sophie GOSSART</div><div class="cstf-l cstf-retour">3 rue du Bout des Haies</div><div class="cstf-l cstf-retour">41000 BLOIS</div>

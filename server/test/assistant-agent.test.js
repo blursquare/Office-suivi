@@ -64,10 +64,10 @@ test('une question qui lit un dossier : rien de nominatif ne part, la réponse r
   assert.ok(r.coutUsd > 0);
 });
 
-test('la requête : Opus 5.5 par défaut, effort moyen, système et historique en cache, secours d’Anthropic, outils stricts', () => {
+test('la requête : Opus 5.5 par défaut, effort élevé, système et historique en cache, secours d’Anthropic, outils stricts', () => {
   const req = requeteAgent('claude-opus-5-5', [{ role: 'user', content: 'x' }]);
   assert.equal(req.model, 'claude-opus-5-5');
-  assert.equal(req.output_config.effort, 'medium');
+  assert.equal(req.output_config.effort, 'high');
   assert.equal(req.thinking, undefined, 'réflexion adaptative par défaut, jamais désactivée');
   assert.equal(req.system[0].cache_control.type, 'ephemeral');
   assert.equal(req.cache_control.type, 'ephemeral');
@@ -76,7 +76,7 @@ test('la requête : Opus 5.5 par défaut, effort moyen, système et historique e
   assert.deepEqual(req.context_management, { edits: [{ type: 'compact_20260112' }] });
   assert.equal(requeteAgent('claude-sonnet-5-5', []).context_management, undefined);
   assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'high' }).output_config.effort, 'high');
-  assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'max!' }).output_config.effort, 'medium');
+  assert.equal(requeteAgent('claude-opus-5-5', [], { effort: 'max!' }).output_config.effort, 'high');
   assert.ok(OUTILS_AGENT.every((t) => t.input_schema.additionalProperties === false))
   assert.ok(OUTILS_AGENT.filter((t) => t.strict === true).length === 18, 'les outils stricts restent peu nombreux (limite de l’API)');
   // 22/10 : « The compiled grammar is too large » — la grammaire de tous les schémas stricts réunis a une limite ; on reste bien en dessous.
