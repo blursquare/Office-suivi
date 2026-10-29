@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.396.12';
+  const VERSION_APP = '0.397.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.397.1', date: '2026-10-29 17:20', resume: "L’anonymisation ne bloque plus les sigles du métier dans les conversations : EHF, COMEDEC, PAC, HF, DOD, FCDDV, NOTO, PUV, CJN, DS, API… (comme DIA et CRIDON déjà). Un vrai nom reste codé." },
+  { version: '0.397.0', date: '2026-10-29 17:01', resume: "Claude peut prendre la main sur Authentic : sur votre demande dans une discussion (« fais ceci dans Authentic »), un Claude pilote le navigateur du serveur, voit les écrans, clique et écrit, avec un aperçu en direct. Éteint par défaut (Réglages › Authentic, avec confirmation : les écrans partent en clair chez Anthropic). Jamais d’envoi, de signature ni de suppression ; « Valider » seulement quand « Envoi immédiat » est éteint." },
   { version: '0.396.12', date: '2026-10-29 16:03', resume: "Comedec ciblé : CLAIRE peut le demander pour un seul type de personne (les vendeurs, ou les acquéreurs) ou pour une seule personne désignée par son nom. Et dans une discussion, la carte « Autoriser » ne disparaît plus au bout de 2 secondes pendant que CLAIRE attend la réponse." },
   { version: '0.396.11', date: '2026-10-29 15:29', resume: "CLAIRE ne redemande plus un état civil ou un casier déjà demandé : elle regarde l’état des demandes vu sur la page du dossier dans Authentic (naissance, mariage, casier) et le dit (« déjà demandé »). Elle sait demander un CJN ou un Comedec depuis n’importe quelle discussion, et doit lire Authentic avant." },
   { version: '0.396.10', date: '2026-10-29 15:20', resume: "Après un échec dans Authentic, l’aperçu propose « Copier la structure de la page » : les boutons, listes et positions de la page où CLAIRE s’est arrêtée, sans aucune valeur ni aucun nom, à coller dans la conversation pour réparer le parcours du premier coup." },

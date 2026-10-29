@@ -87,7 +87,15 @@ const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA
   // Mots des pièces et des écrans que l'agent lit (11/10) : ce sont des sigles du métier, jamais des noms.
   'ERP', 'SRU', 'ABF', 'TEOM', 'ALUR', 'PLUI', 'ZAE', 'SAS', 'SASU', 'EURL', 'SNC', 'GFA', 'DP', 'PC', 'PA', 'DAACT', 'NAF', 'URSSAF',
   'MICEN', 'AR', 'LRAR', 'BAN', 'CNI', 'ICS', 'PDFA', 'ADNOV', 'TEAMS', 'EWS', 'SMS', 'TF', 'PV', 'RC', 'SA', 'UE', 'OK', 'PJ',
-  'CU', 'IGN', 'INSEE', 'SIRET', 'SIREN', 'RCS', 'TTC', 'HT', 'N°', 'NB', 'CRIDON', 'SPF', 'SPFE', 'ID', 'AA', 'AAAA', 'MM', 'JJ', 'HH']);
+  'CU', 'IGN', 'INSEE', 'SIRET', 'SIREN', 'RCS', 'TTC', 'HT', 'N°', 'NB', 'CRIDON', 'SPF', 'SPFE', 'ID', 'AA', 'AAAA', 'MM', 'JJ', 'HH',
+  // Sigles du métier de l'étude (étude 29/10 : « dans les conversations les acronymes sont souvent bloqués par l'anonymisation : DIA, EHF, COMEDEC, PAC, HF,
+  // CRIDON… ») : jamais des noms de personnes. Un mot de cette liste n'est jamais codé [NOM…] ; un NOM de famille qui en porterait un reste codé s'il est
+  // un mot des fiches (les mots des fiches passent avant).
+  'EHF', 'HF', 'COMEDEC', 'SCEC', 'ANTS', 'FCDDV', 'DOD', 'DS', 'API', 'NOTO', 'CJN', 'PUV', 'PAC', 'ANF', 'ADSN', 'GNAU', 'CRPCEN', 'CSN', 'CNIL', 'RGPD',
+  'EDD', 'RCP', 'AG', 'DTG', 'PPT', 'ASL', 'AFUL', 'CCH', 'CGI', 'BOFIP', 'CPC', 'DMTO', 'TPF', 'IFI', 'CSG', 'CRDS', 'RFR', 'NIF', 'BNC',
+  'DGFIP', 'DDFIP', 'DDT', 'DREAL', 'DRAC', 'INPI', 'RNE', 'ANC', 'SPANC', 'VMC', 'BBC', 'GES', 'LMNP', 'LMP', 'PTZ', 'PLS', 'PSLA', 'BRS', 'OFS',
+  'ANAH', 'MPR', 'CEE', 'CAF', 'CPAM', 'CARSAT', 'MSA', 'EHPAD', 'CCAS', 'SCPI', 'SELARL', 'SELAS', 'SELURL', 'SCP', 'FNAIM', 'UNPI', 'DTA', 'ELAN',
+  'ZAC', 'ACV', 'ORT', 'UA', 'UB', 'CRCA', 'LCL', 'BNP', 'BPCE', 'CIC']);
 
 /**
  * Réglages de l'assistant : moteur 'mistral' (par défaut, choix de l'étude 07/10) ou 'locale' ; `toutesDemandes` : Mistral lit

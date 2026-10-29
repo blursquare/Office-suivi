@@ -230,3 +230,39 @@ test('Comedec : une demande déjà faite dans Authentic (dejaNaissance, dejaMari
   assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Josette épouse de M. PERRIN Steven', parties), ['Mariage']);
   assert.deepEqual(A.demandesComedecIntervenant('Mme BERNIER Josette épouse de M. PERRIN Steven', [{ nom: 'BERNIER', prenom: 'Josette', dejaNaissance: true, dejaMariage: true }]), []);
 });
+
+test('routes : Claude pilote Authentic — éteint par défaut, confirmation exigée pour l’allumer (qui et quand gardés), réservé à l’administrateur', async () => {
+  const os = require('node:os');
+  const { creerApp } = require('../src/app');
+  const { ouvrirDb } = require('../src/db');
+  const db = ouvrirDb(':memory:');
+  const { app, gestionnaireAuth } = creerApp({ db, config: { motDePasse: 'mdp-test', racineRepo: os.tmpdir(), port: 0, jetonCalendrier: '' } });
+  const jeton = gestionnaireAuth.creerSession();
+  const s = app.listen(0);
+  await new Promise((r) => s.once('listening', r));
+  const base = `http://127.0.0.1:${s.address().port}`;
+  const appel = (chemin, methode, corps) => fetch(base + chemin, { method: methode || 'GET', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined });
+  try {
+    const reg0 = await (await appel('/api/authentic-claire/reglages')).json();
+    assert.equal(reg0.piloteClaude, false, 'éteint par défaut');
+    // Éteint : aucune tâche.
+    const eteint = await appel('/api/authentic-claire/pilote', 'POST', { auteur: 'Bastien ANGLUMENT', consigne: 'Coche la naissance de la première personne' });
+    assert.equal(eteint.status, 409);
+    assert.match((await eteint.json()).erreur, /éteint/);
+    // Réservé à l'administrateur, et jamais sans confirmation.
+    assert.equal((await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Julie VASSELIN', piloteClaude: true, confirmePilote: true })).status, 403);
+    const sans = await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', piloteClaude: true });
+    assert.equal(sans.status, 400);
+    assert.match((await sans.json()).erreur, /en clair chez Anthropic/);
+    const avec = await (await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', piloteClaude: true, confirmePilote: true, piloteClaudeLe: 'forgé' })).json();
+    assert.equal(avec.piloteClaude, true);
+    assert.match(avec.piloteClaudeLe, /^Bastien ANGLUMENT le \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/, 'qui et quand posés par le serveur, jamais par le poste');
+    // Allumé mais sans écriture permise : refus.
+    const sansEcriture = await appel('/api/authentic-claire/pilote', 'POST', { auteur: 'Bastien ANGLUMENT', consigne: 'Coche la naissance de la première personne' });
+    assert.equal(sansEcriture.status, 409);
+    assert.match((await sansEcriture.json()).erreur, /Écrire dans Authentic est éteint/);
+    // Éteindre : la trace s'efface.
+    const off = await (await appel('/api/authentic-claire/reglages', 'PUT', { auteur: 'Bastien ANGLUMENT', piloteClaude: false })).json();
+    assert.deepEqual([off.piloteClaude, off.piloteClaudeLe], [false, '']);
+  } finally { s.close(); db.close(); }
+});

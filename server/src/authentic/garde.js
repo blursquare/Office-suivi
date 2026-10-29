@@ -36,7 +36,10 @@ const GESTES_PERMIS = {
   // L'icône « image » qui ouvre l'aperçu d'une formalité au survol de sa ligne (étape 4) : son libellé (titre, aria-label, classe de
   // l'icône et de son bouton) doit DIRE l'aperçu, et rien d'interdit (audit 0.378.0 : une corbeille « Supprimer l'aperçu »).
   apercu: { positif: /aper[çc]u|preview|visibility|(?<![a-z])voir(?![a-z])|image|photo|collections|perm_media/i },
-  ecriture: { ecriture: true }
+  ecriture: { ecriture: true },
+  // Claude PILOTE Authentic (étude 29/10, authenticPilote.js) : tout libellé permis SAUF la liste noire ; « Valider » seulement si un « Envoi immédiat » est
+  // visible et éteint (`envoiEteint`, lu par l'appelant dans la page) ; écriture permise seulement si l'étude l'a allumée.
+  pilote: { ecriture: true, pilote: true }
 };
 
 /** @param {string} t */
@@ -47,13 +50,15 @@ const refus = [];
 
 /**
  * Pure : le clic est-il permis ? Rend '' si oui, sinon le motif du refus.
- * @param {{ geste?: string, vise?: string, bouton?: string, texte?: string, ecritureAutorisee?: boolean }} c
+ * @param {{ geste?: string, vise?: string, bouton?: string, texte?: string, ecritureAutorisee?: boolean, envoiEteint?: boolean }} c
  *   vise : le texte que le parcours voulait cliquer ; bouton : le libellé du bouton réellement sous le pointeur ; texte : le texte de l'élément.
  */
 function motifRefus(c) {
   const g = c && c.geste ? /** @type {any} */ (GESTES_PERMIS)[c.geste] : null;
   if (!g) return 'geste inconnu';
   if (g.ecriture && !c.ecritureAutorisee) return 'écriture dans Authentic éteinte (Réglages › Authentic)';
+  // Le pilote ne valide qu'une création dont « Envoi immédiat » est lu éteint (jamais un envoi sans le vouloir).
+  if (g.pilote && /(^|[^a-z])(valider|validation|confirmer|continuer|oui|ok|creer|soumettre|terminer|finaliser|demander|lancer|appliquer|effectuer|executer)([^a-z]|$)/.test(plat(c.bouton)) && !c.envoiEteint) return 'Valider refusé : « Envoi immédiat » pas lu éteint';
   if (g.libelles && !g.libelles.some((/** @type {string} */ l) => plat(l) === plat(c.vise))) return 'libellé hors de la liste de ce geste';
   if (g.positif && !g.positif.test(String(c.bouton || ''))) return 'libellé qui ne dit pas ce geste';
   // Un texte de la fiche (geste `donnee`) est souvent le lien lui-même : seul ce que le bouton porte EN PLUS de ce texte compte (audit 0.376.0 :

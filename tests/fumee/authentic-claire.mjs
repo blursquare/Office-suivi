@@ -13,6 +13,7 @@ const require = createRequire(import.meta.url);
 const racine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const A = require(path.join(racine, 'server/src/authenticClaire.js'));
 const { SessionNavigation } = require(path.join(racine, 'server/src/navigateur/session.js'));
+const P = require(path.join(racine, 'server/src/authenticPilote.js'));
 const { trouverNavigateur } = require(path.join(racine, 'server/src/navigateur/chrome.js'));
 
 const page = readFileSync(path.join(racine, 'tests/fumee/faux-authentic.html'));
@@ -84,6 +85,33 @@ try {
   verifier(!(choix['M. LEROY Marc'] || []).length, 'LEROY (conjoint, pas partie) : « Décès » coché d’avance par Authentic est DÉCOCHÉ');
   verifier(!(await s.evaluer('window.__interdit')), 'aucun bouton interdit cliqué (Envoyer, Nouveau dossier)');
   verifier(!etapes.some((t) => t.includes('secret-essai')), 'le mot de passe n’apparaît dans aucune étape');
+
+  // Claude PILOTE (étude 29/10) : un faux Claude choisit des positions réelles dans le vrai navigateur ; la garde refuse l'envoi et « Valider » tant que
+  // « Envoi immédiat » est allumé, permet de l'ÉTEINDRE, puis « Valider ».
+  await s.evaluer("window.__valide = null; window.__interdit = null; details('comedec'); true");
+  const centre = async (texteBouton) => s.evaluer(`(() => { const e = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === ${JSON.stringify(texteBouton)}); if (!e) return null; e.scrollIntoView({ block: 'center' }); const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  const interrupteurEnvoi = async () => s.evaluer(`(() => { const l = [...document.querySelectorAll('label')].find((x) => /envoi imm/i.test(x.innerText)); const sw = l && l.nextElementSibling; if (!sw) return null; sw.scrollIntoView({ block: 'center' }); const r = sw.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; })()`);
+  const messagesPilote = [];
+  const pasPilote = (nom, entree) => ({ content: [{ type: 'tool_use', id: 'u' + messagesPilote.length, name: nom, input: entree }], usage: { input_tokens: 100 } });
+  const scenario = [];
+  const clientPilote = { messages: { create: async (req) => { messagesPilote.push(JSON.stringify(req.messages.slice(-1))); const f = scenario.shift(); return f ? await f() : pasPilote('terminer', { etat: 'partiel', compte_rendu: 'fin' }); } } };
+  const sansAttente = async () => {};
+  const posEnvoyer = await centre('Envoyer');
+  scenario.push(async () => pasPilote('cliquer', posEnvoyer || { x: 5, y: 5 }));
+  await P.piloter({ s, client: clientPilote, consigne: 'Essai : clique Envoyer', etape, annule: () => false, attendre: sansAttente });
+  verifier(!!posEnvoyer && !(await s.evaluer('window.__interdit')), 'pilote : « Envoyer » n’est jamais cliqué (refusé par la garde)');
+  verifier(/REFUSÉ par le contrôle de CLAIRE/.test(messagesPilote.join('')), 'pilote : le refus est dit à Claude');
+  const posValider = await centre('Valider');
+  scenario.push(async () => pasPilote('cliquer', posValider || { x: 5, y: 5 }));
+  await P.piloter({ s, client: clientPilote, consigne: 'Essai : valide', etape, annule: () => false, attendre: sansAttente });
+  verifier(!!posValider && !(await s.evaluer('window.__valide')), 'pilote : « Valider » refusé tant qu’« Envoi immédiat » est allumé');
+  const posEnvoi = await interrupteurEnvoi();
+  scenario.push(async () => pasPilote('cliquer', posEnvoi || { x: 5, y: 5 }));
+  scenario.push(async () => { const p = await centre('Valider'); return pasPilote('cliquer', p || { x: 5, y: 5 }); });
+  await P.piloter({ s, client: clientPilote, consigne: 'Essai : éteins l’envoi puis valide', etape, annule: () => false, attendre: sansAttente });
+  const valide = await s.evaluer('window.__valide');
+  verifier(!!posEnvoi && valide && valide.envoi === false, `pilote : « Envoi immédiat » éteint par Claude puis « Valider » permis (${JSON.stringify(valide)})`);
+  verifier(!(await s.evaluer('window.__interdit')), 'pilote : aucun bouton interdit cliqué');
   // Sans référence : aucune demande (on ne peut pas être sûr du dossier).
   let refus = '';
   try { await A.preparerFormalite(s, { reference: '', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true }); } catch (e) { refus = e.message; }

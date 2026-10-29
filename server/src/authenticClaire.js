@@ -41,6 +41,10 @@ function assainirConnexionAuthentic(brut) {
     actif: b.actif === true,
     // Préparer des demandes dans Authentic (CJN, Comedec) = ÉCRIRE dans Authentic : éteint par défaut (plan validé le 27/10 : lecture seule).
     preparerDemandes: b.preparerDemandes === true,
+    // Claude PILOTE Authentic (étude 29/10, authenticPilote.js) : il voit les pages EN CLAIR (noms, dates de naissance : une capture ne se masque pas) chez
+    // Anthropic. Éteint par défaut ; l'administrateur l'allume après confirmation (`piloteClaudeLe` = qui et quand, garde la trace).
+    piloteClaude: b.piloteClaude === true,
+    piloteClaudeLe: typeof b.piloteClaudeLe === 'string' ? b.piloteClaudeLe.slice(0, 80) : '',
     adresse: adresse || ADRESSE_DEFAUT,
     identifiant: typeof b.identifiant === 'string' ? b.identifiant.trim().slice(0, 120) : '',
     motDePasse: typeof b.motDePasse === 'string' ? b.motDePasse.slice(0, 200) : '',
@@ -55,7 +59,7 @@ function lireConnexionAuthentic(repo) { return assainirConnexionAuthentic(repo.l
 
 /** Ce qu'une route rend : jamais le mot de passe, seulement s'il est enregistré. @param {any} r */
 function vueConnexionAuthentic(r) {
-  return { actif: r.actif, preparerDemandes: r.preparerDemandes, adresse: r.adresse, identifiant: r.identifiant, motDePasseEnregistre: !!r.motDePasse, refuseLe: r.refuseLe };
+  return { actif: r.actif, preparerDemandes: r.preparerDemandes, piloteClaude: r.piloteClaude, piloteClaudeLe: r.piloteClaudeLe, adresse: r.adresse, identifiant: r.identifiant, motDePasseEnregistre: !!r.motDePasse, refuseLe: r.refuseLe };
 }
 
 /** Enregistre (mot de passe gardé s'il n'est pas réémis, effacé sur chaîne vide explicite). @param {any} repo @param {any} modif */
@@ -68,6 +72,9 @@ function ecrireConnexionAuthentic(repo, modif) {
   const suivant = assainirConnexionAuthentic({
     actif: typeof m.actif === 'boolean' ? m.actif : avant.actif,
     preparerDemandes: typeof m.preparerDemandes === 'boolean' ? m.preparerDemandes : avant.preparerDemandes,
+    piloteClaude: typeof m.piloteClaude === 'boolean' ? m.piloteClaude : avant.piloteClaude,
+    // Qui l'a allumé (posé par la route, jamais par le poste seul) ; effacé à l'extinction.
+    piloteClaudeLe: typeof m.piloteClaude === 'boolean' ? (m.piloteClaude ? String(m.piloteClaudeLe || '').slice(0, 80) : '') : avant.piloteClaudeLe,
     adresse: typeof m.adresse === 'string' ? m.adresse : avant.adresse,
     identifiant, motDePasse,
     // Le refus retenu tombe quand l'identifiant ou le mot de passe change ; `refuseLe` posé par le serveur seul (noterRefusAuthentic).
@@ -142,7 +149,7 @@ const SCRIPT_INTERRUPTEURS = `(() => {
     const ligne = boite.closest('tr');
     const x = Math.round(r.left + r.width / 2), y = Math.round(r.top + r.height / 2);
     const dessous = document.elementFromPoint(x, y);
-    out.push({ libelle: libelle.slice(0, 80), ligne: ligne ? net(ligne.innerText).slice(0, 160) : '', coche, x, y, sur: !!(dessous && (boite.contains(dessous) || dessous.contains(boite))) });
+    out.push({ libelle: libelle.slice(0, 80), ligne: ligne ? net(ligne.innerText).slice(0, 160) : '', coche, x, y, l: Math.round(r.width), h: Math.round(r.height), sur: !!(dessous && (boite.contains(dessous) || dessous.contains(boite))) });
   });
   return out;
 })()`;
@@ -1625,8 +1632,10 @@ async function preparerFormalite(s, cible, o) {
 }
 
 module.exports = {
+  SCRIPT_INTERRUPTEURS,
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
+  ouvrirDossier, ouvrirSousDossierVente,
   referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

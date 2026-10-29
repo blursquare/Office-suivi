@@ -335,7 +335,8 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const routeurNavigation = creerRouteurNavigation(config, parametresRepo, depot, navigation || {});
   app.use('/api', gestionnaireAuth.middlewareAuth, routeurNavigation);
   // CLAIRE dans Authentic (étude 27/10) : le navigateur du serveur, même file que le cadastre ; les pages lues vont dans la file des relevés.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthenticClaire({ parametresRepo, depot, config, gestion: routeurNavigation.gestion, recevoirReleve: routeurAuthentic.recevoirReleve }));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAuthenticClaire({ parametresRepo, depot, config, gestion: routeurNavigation.gestion, recevoirReleve: routeurAuthentic.recevoirReleve,
+    cleClaude: () => { const r = parametresRepo.lireReglagesClaude ? parametresRepo.lireReglagesClaude() : {}; return (r && r.cleApi) || process.env.ANTHROPIC_API_KEY || ''; } }));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPosteClaire(parametresRepo, posteClaire, config));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurConfreres(parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurPoste());

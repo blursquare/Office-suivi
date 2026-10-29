@@ -181,6 +181,28 @@ async function demandeAuthenticAgent(entree) {
   return preparerFormaliteAuthentic(d, e.mode, { agent: true, role: e.mode === 'comedec' ? e.role : '', personne: e.mode === 'comedec' ? e.personne : '' });
 }
 
+// Outil `authentic_pilote` de l'agent : Claude PILOTE Authentic (étude 29/10, server/src/authenticPilote.js). Il voit les écrans EN CLAIRE chez Anthropic : éteint par
+// défaut (Réglages › Authentic, administrateur, avec confirmation), carte « Autoriser » stricte à chaque fois, jamais étendue à toute la demande.
+async function pilotageAuthenticAgent(entree) {
+  const e = entree || {};
+  const consigne = String(e.consigne || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+  if (consigne.length < 5) return { erreur: 'consigne vide' };
+  const d = e.dossier_id ? dossiers.find(x => x.id === e.dossier_id) : null;
+  if (e.dossier_id && !d) return { erreur: 'dossier_id inconnu' };
+  const c = await chargerConnexionAuthenticClaire() || connexionAuthenticClaire;
+  if (!c || !c.actif || !c.identifiant || !c.motDePasseEnregistre) return { erreur: 'connexion de CLAIRE à Authentic non réglée ou éteinte (Réglages › Authentic, administrateur)' };
+  if (c.refuseLe) return { erreur: 'Authentic a refusé l’identifiant ou le mot de passe : à corriger dans Réglages › Authentic' };
+  if (!c.piloteClaude) return { erreur: 'Claude ne pilote pas Authentic : éteint (Réglages › Authentic, administrateur)', statut: 'echec' };
+  if (!c.preparerDemandes) return { erreur: 'écrire dans Authentic est éteint (Réglages › Authentic, administrateur) : Claude ne pourrait que regarder', statut: 'echec' };
+  if (!(await demanderAutorisationAgent(`Laisser Claude piloter Authentic${d ? ' — ' + libelleDossierAffiche(d) : ''} : « ${consigne.slice(0, 300)} ». Claude verra les écrans d’Authentic EN CLAIR chez Anthropic — noms, dates de naissance, mais aussi pièces d’identité, RIB et actes du dossier — SANS l’anonymisation de CLAIRE ; il ne clique jamais envoyer, signer ni supprimer, et ne valide qu’avec « Envoi immédiat » éteint. Une à sept minutes, aperçu en direct en bas à droite.`, { strict: true }))) {
+    return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  }
+  afficherToast('Claude prend la main sur Authentic (une à sept minutes)…', 'OK', null);
+  const r = await gesteAuthenticClaire('pilote', { dossierId: d ? d.id : '', consigne, auteur: utilisateurPoste || '' });
+  afficherToast(r.ok ? 'Claude a fini dans Authentic.' : `Pilotage arrêté : ${r.texte}`, 'OK', null);
+  return r.ok ? { fait: true, statut: 'fait', resultat: r.texte } : { erreur: r.texte, statut: 'echec' };
+}
+
 // Préparer une demande CJN ou Comedec après « Autoriser » (agent : carte dans la conversation ; routine : la proposition autorisée).
 async function preparerFormaliteAuthentic(d, type, o) {
   let parties = type === 'comedec' ? partiesComedecDossier(d, { sansDedoublonnage: !!(o && o.personne) }) : acquereursCjnDossier(d);
@@ -232,6 +254,11 @@ async function renderReglagesConnexionAuthentic(o) {
           <span class="reglages-option-sous">${c.preparerDemandes ? 'Allumé : CLAIRE peut créer une demande, jamais l’envoyer' : 'Éteint : lecture seule'}</span></span>
         <wa-switch class="switch reglages-switch" id="authentic-claire-demandes"${c.preparerDemandes ? ' checked' : ''}${dis}></wa-switch>
       </label>
+      <label class="reglages-option" for="authentic-claire-pilote">
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Claude peut piloter Authentic <span class="mot-et-info">(à la demande) ${infoBulle('Claude voit alors les pages d’Authentic — noms, adresses, dates de naissance, pièces d’identité, RIB, actes — EN CLAIR chez Anthropic, sans l’anonymisation de CLAIRE : une capture d’écran ne se masque pas. Il ne clique jamais un bouton qui envoie, signe, supprime ou archive, et ne valide qu’avec « Envoi immédiat » éteint. Chaque demande passe par la carte « Autoriser ». Il faut aussi que « Préparer des demandes » soit allumé.')}</span></span>
+          <span class="reglages-option-sous">${c.piloteClaude ? 'Allumé' + (c.piloteClaudeLe ? ' par ' + escapeHtml(c.piloteClaudeLe) : '') + ' : les écrans d’Authentic partent en clair chez Anthropic quand Claude pilote' : 'Éteint : Claude ne voit jamais les écrans d’Authentic'}</span></span>
+        <wa-switch class="switch reglages-switch" id="authentic-claire-pilote"${c.piloteClaude ? ' checked' : ''}${dis}></wa-switch>
+      </label>
       <div class="reglages-champ"><label for="authentic-claire-adresse">Adresse de connexion</label><input type="text" id="authentic-claire-adresse" value="${escapeAttr(c.adresse || '')}" autocomplete="off"${dis}></div>
       <div class="reglages-champ"><label for="authentic-claire-identifiant">Identifiant</label><input type="text" id="authentic-claire-identifiant" value="${escapeAttr(c.identifiant || '')}" autocomplete="off"${dis}></div>
       <div class="reglages-champ"><label for="authentic-claire-mdp">Mot de passe</label><input type="password" id="authentic-claire-mdp" placeholder="${c.motDePasseEnregistre ? 'Enregistré — laisser vide pour le garder' : ''}" autocomplete="new-password"${dis}></div>
@@ -247,9 +274,23 @@ async function renderReglagesConnexionAuthentic(o) {
 
 async function enregistrerConnexionAuthentic() {
   const val = (id) => (document.getElementById(id) || {}).value;
-  const corps = { auteur: utilisateurPoste || '', actif: !!(document.getElementById('authentic-claire-actif') || {}).checked, preparerDemandes: !!(document.getElementById('authentic-claire-demandes') || {}).checked, adresse: val('authentic-claire-adresse') || '', identifiant: val('authentic-claire-identifiant') || '' };
+  const pilote = !!(document.getElementById('authentic-claire-pilote') || {}).checked;
+  const piloteAvant = !!(connexionAuthenticClaire && connexionAuthenticClaire.piloteClaude);
+  const corps = { auteur: utilisateurPoste || '', piloteClaude: pilote, actif: !!(document.getElementById('authentic-claire-actif') || {}).checked, preparerDemandes: !!(document.getElementById('authentic-claire-demandes') || {}).checked, adresse: val('authentic-claire-adresse') || '', identifiant: val('authentic-claire-identifiant') || '' };
   const mdp = val('authentic-claire-mdp');
   if (mdp) corps.motDePasse = mdp;
+  // Allumer le pilotage par Claude = les écrans d'Authentic (noms, dates de naissance) partent EN CLAIRE chez Anthropic : confirmation explicite, comme
+  // la désactivation de l'anonymisation (étude 29/10). Rien n'est enregistré sans elle (le serveur la refuse aussi).
+  if (pilote && !piloteAvant) {
+    renderReglagesConnexionAuthentic({ forcer: true });
+    demanderConfirmation('Allumer le pilotage d’Authentic par Claude ? Quand Claude pilote, il voit les pages d’Authentic — noms, adresses, dates de naissance, pièces d’identité, RIB et actes des clients — EN CLAIR chez Anthropic, SANS l’anonymisation de CLAIRE : une capture d’écran ne se masque pas. Aucun accord de sous-traitance n’est encore attesté. Il ne clique jamais envoyer, signer, supprimer ni archiver, et chaque demande passe par la carte « Autoriser ».',
+      () => envoyerConnexionAuthentic(Object.assign({}, corps, { piloteClaude: true, confirmePilote: true })), { bouton: 'Allumer le pilotage', ton: 'danger' });
+    return;
+  }
+  await envoyerConnexionAuthentic(corps);
+}
+
+async function envoyerConnexionAuthentic(corps) {
   try {
     const r = await fetchAvecAuth('/api/authentic-claire/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
     const j = await r.json().catch(() => ({}));
