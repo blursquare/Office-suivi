@@ -22921,7 +22921,7 @@ Onglets de travail remis à zéro chaque jour (étude 28/10 : « le matin remett
 
 Étude, après le diagnostic « le serveur ne joint pas Authentic (aucune réponse en 15 s) » : « ce n'est pas le bon lien : le voici : https://www.cloud-fichorga.fr/41089-Authentic ». `ADRESSE_DEFAUT` (server/src/authenticClaire.js) devient cette adresse ; `assainirConnexionAuthentic` remplace une adresse réduite à la racine du site (l'ancien défaut, qui ne répond pas) ; tout autre chemin de cloud-fichorga.fr en https reste permis. Les échecs « Page.navigate : délai dépassé » du matin venaient de là.
 
-Étude : « C'est connecté. Pour rechercher un dossier par son numéro il ne faut pas d'espace : A202600329 » — `referenceRecherche` : le numéro tapé dans la recherche d'Authentic sans espace (le lien affiché, lui, garde les espaces).
+Étude : « C'est connecté. Pour rechercher un dossier par son numéro il ne faut pas d'espace : A202600500 » — `referenceRecherche` : le numéro tapé dans la recherche d'Authentic sans espace (le lien affiché, lui, garde les espaces).
 
 ### 28/10/2026 — 0.390.2 : une seule fiche à imprimer pour une vente
 
@@ -22934,7 +22934,7 @@ Onglets de travail remis à zéro chaque jour (étude 28/10 : « le matin remett
 
 ### 28/10/2026 — 0.391.1 : recherche d'un dossier dans Authentic par son numéro
 
-Étude : « Demande d'état civil (Comedec) dans Authentic : pas fait — dossier A 2026 00329 introuvable dans Authentic. » `ouvrirDossier` (server/src/authenticClaire.js) : après le lien qui porte la référence, clic sur le plus petit élément visible qui CONTIENT le numéro, espaces ignorés (`scriptTrouverReference`, résultat dans une liste ou un tableau où le numéro n'est pas en tête ; contrôlé par la garde comme tout clic) ; recherche tapée dans « Rechercher une affaire » puis « Rechercher », numéro sans espace, 1,5 s pour la liste déroulante avant Entrée ; message d'échec avec les étapes (champs essayés, numéro affiché ensuite, résultat cliqué, référence de la page ouverte — jamais un nom). Vérifié dans Chromium sur une page inventée ; la page réelle des résultats d'Authentic reste à voir.
+Étude : « Demande d'état civil (Comedec) dans Authentic : pas fait — dossier A 2026 00500 introuvable dans Authentic. » `ouvrirDossier` (server/src/authenticClaire.js) : après le lien qui porte la référence, clic sur le plus petit élément visible qui CONTIENT le numéro, espaces ignorés (`scriptTrouverReference`, résultat dans une liste ou un tableau où le numéro n'est pas en tête ; contrôlé par la garde comme tout clic) ; recherche tapée dans « Rechercher une affaire » puis « Rechercher », numéro sans espace, 1,5 s pour la liste déroulante avant Entrée ; message d'échec avec les étapes (champs essayés, numéro affiché ensuite, résultat cliqué, référence de la page ouverte — jamais un nom). Vérifié dans Chromium sur une page inventée ; la page réelle des résultats d'Authentic reste à voir.
 
 Suites de l'audit de la 0.391.0 (même version 0.391.1, la 0.391.0 n'étant pas encore publiée) : jamais « aucune mention » sur un document qui n'est pas un acte de naissance (`acteNaissance`) ni sur une lecture partielle (`partiel` : pages non lues, OCR plafonné à 6 pages) ; EHF lu par `textePagesPdfEtat` (200 pages, `tronque` dit) ; PV d'AG : têtes de résolution « Résolution n° N : », « Nème résolution : », « Question n° N » (`RE_RESOLUTION_PV`), DERNIER verdict du bloc (passerelle 25-1), fonds de travaux / cotisation / contrat et honoraires du syndic / comptes / budget écartés, « je n'y reconnais pas les résolutions » si rien n'est découpé ; noms « demande / réquisition / courrier / relance » écartés, « PV de bornage » n'est pas une AG ; mention gardée = nature + « RC n° … », jamais l'identité autour ; réservation « en cours » reprise après 15 min (`lectureDocumentALancer`) ; délai au hasard et fiche relue du serveur avant de réserver (plusieurs postes) ; ni poste sans collaborateur ni fenêtre de CLAIRE ; mise en service `DEBUT_LECTURES_DOCUMENTS` (28/10) pour la lecture seule, 3 documents par dossier et par tour, Authentic seulement pour un dossier ouvert depuis, acte aussi sur le NAS lu une fois ; dossiers complets aussi planifiés au tour du NAS (client/37). Audit 0.391.1 : `scriptTrouverReference` choisit le plus petit élément CLIQUABLE, jamais un numéro plus long ; un message « recouvert » ne cite plus le texte d'une donnée.
 
@@ -22942,12 +22942,12 @@ Suites de l'audit de la 0.391.0 (même version 0.391.1, la 0.391.0 n'étant pas 
 
 Étude : « J'ai un bug : Une mise à jour est déjà en cours. CLAIRE continue de fonctionner avec la version actuelle. » Cause : `appelAvecDelai` ne bornait que l'arrivée des EN-TÊTES de GitHub ; un corps de 110 Mo arrêté en route (comme le téléchargement de Node qui avait bloqué la construction 943 le même jour) laissait `telechargerExecutable` attendre pour toujours, donc `installationEnCours` vrai jusqu'au redémarrage du serveur — et la mise à jour automatique sautée elle aussi. Correction (server/src/miseAJour.js) : un seul arrêt pour tout le téléchargement (10 min en tout, 90 s sans aucune donnée), lecture en course avec l'arrêt (un flux muet est fermé), fichier partiel effacé ; routes/miseAJour.js : une installation commencée depuis plus de 20 min est tenue pour abandonnée (bouton et tour automatique). Test : corps qui ne rend plus rien, en-têtes qui n'arrivent jamais.
 
-Suites (même version) : relecture indépendante — redémarrage aussi sur `close` de la réponse (fenêtre fermée avant la fin), installation réussie retenue (`installee` : on redémarre, jamais de second téléchargement), erreur d'écriture du `.partiel` rejetée (plus de serveur tombé ni d'attente de `drain`), signal déjà annulé, corps d'une réponse d'erreur annulé. Étude 15 h 15 : « dossier A 2026 00329 introuvable dans Authentic (aucun champ de recherche trouvé ; …) » — `ouvrirDossier` essaie aussi « recherche » et « search », par ce que la page AFFICHE seulement (placeholder, aria-label, étiquette — jamais name/id) et avec le numéro seul, jamais le nom du dossier ; le message d’échec liste en dernier les champs visibles (`SCRIPT_CHAMPS_VISIBLES` : placeholder ou aria-label, sinon name/id sans chiffres — jamais une valeur).
+Suites (même version) : relecture indépendante — redémarrage aussi sur `close` de la réponse (fenêtre fermée avant la fin), installation réussie retenue (`installee` : on redémarre, jamais de second téléchargement), erreur d'écriture du `.partiel` rejetée (plus de serveur tombé ni d'attente de `drain`), signal déjà annulé, corps d'une réponse d'erreur annulé. Étude 15 h 15 : « dossier A 2026 00500 introuvable dans Authentic (aucun champ de recherche trouvé ; …) » — `ouvrirDossier` essaie aussi « recherche » et « search », par ce que la page AFFICHE seulement (placeholder, aria-label, étiquette — jamais name/id) et avec le numéro seul, jamais le nom du dossier ; le message d’échec liste en dernier les champs visibles (`SCRIPT_CHAMPS_VISIBLES` : placeholder ou aria-label, sinon name/id sans chiffres — jamais une valeur).
 
 ### 28/10/2026 — 0.391.3 : Authentic, dossier « introuvable » et onglet « Infos comptables »
 
-Étude : « dossier A 2026 00329 introuvable » ; relevé du vrai Authentic fourni le 28/10 (chemins de navigation, Authen.TIC Silicium 4.19.3.3). Causes : chaque
-résultat de recherche porte deux liens — le titre « A 202600329 VTE … » (`…:ouvreDossierSideView`) n'ouvre qu'un panneau latéral, l'icône de dossier bleue
+Étude : « dossier A 2026 00500 introuvable » ; relevé du vrai Authentic fourni le 28/10 (chemins de navigation, Authen.TIC Silicium 4.19.3.3). Causes : chaque
+résultat de recherche porte deux liens — le titre « A 202600500 VTE … » (`…:ouvreDossierSideView`) n'ouvre qu'un panneau latéral, l'icône de dossier bleue
 sans texte (`…:goToDossier`) ouvre le dossier ; CLAIRE cliquait le titre. La recherche n'a été vue fonctionner qu'avec le numéro à espaces. L'onglet de la
 comptabilité s'appelle « Infos comptables X,XX € », pas « Comptabilité ». Fait : `scriptOuvrirResultat` (lien `:goToDossier` du bloc qui porte CE numéro,
 vérifié sous le pointeur, garde « donnée ») avant l'ancien clic ; numéro tapé avec espaces puis sans ; « Infos comptables » (garde : libellé de navigation
@@ -22960,8 +22960,8 @@ retrouve le même champ ne retape plus les numéros.
 
 ### 28/10/2026 — 0.391.4 : numéro tapé sans espace d'abord
 
-Étude : « Non moi j'ai vu fonctionner que le sans espace » (0.391.3 tapait « A 2026 00329 » d'abord, d'après le relevé). Ordre inversé : « A202600329 »
-puis « A 2026 00329 ». Faite après 19 h : envoyée sur `main` le lendemain à partir de 8 h.
+Étude : « Non moi j'ai vu fonctionner que le sans espace » (0.391.3 tapait « A 2026 00500 » d'abord, d'après le relevé). Ordre inversé : « A202600500 »
+puis « A 2026 00500 ». Faite après 19 h : envoyée sur `main` le lendemain à partir de 8 h.
 
 ### 28/10/2026 — 0.392.0 : Authentic d’après le wiki de Fichorga et ses captures
 

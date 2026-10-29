@@ -186,18 +186,18 @@ test('adresse de connexion de l’étude (28/10) : la racine du site est remplac
 
 test('recherche d’un dossier par son numéro : sans espace (étude 28/10)', () => {
   const A = require('../src/authenticClaire');
-  assert.equal(A.referenceRecherche('A 2026 00329'), 'A202600329');
+  assert.equal(A.referenceRecherche('A 2026 00500'), 'A202600500');
   assert.equal(A.referenceRecherche(''), '');
   // L'en-tête reconnu avec ou sans espaces, rendu au format à espaces (relecture 0.390.1).
-  assert.equal(A.referenceEnTete('A202600329 VTE DUPONT / MARTIN\nComparants (2)'), 'A 2026 00329');
-  assert.equal(A.referenceEnTete('A 2026 00329 VTE DUPONT / MARTIN'), 'A 2026 00329');
-  assert.ok(A.estCeDossier('A202600329 VTE DUPONT / MARTIN\nComparants (2)', { reference: 'A 2026 00329' }));
-  assert.equal(A.referenceEnTete('A20260032911 autre'), '', 'jamais un numéro de plus de six chiffres');
+  assert.equal(A.referenceEnTete('A202600500 VTE DUPONT / MARTIN\nComparants (2)'), 'A 2026 00500');
+  assert.equal(A.referenceEnTete('A 2026 00500 VTE DUPONT / MARTIN'), 'A 2026 00500');
+  assert.ok(A.estCeDossier('A202600500 VTE DUPONT / MARTIN\nComparants (2)', { reference: 'A 2026 00500' }));
+  assert.equal(A.referenceEnTete('A20260050011 autre'), '', 'jamais un numéro de plus de six chiffres');
 });
 
-test('scriptTrouverReference : script valide, numéro cherché sans espaces (étude 28/10 : « A202600329 »)', () => {
-  const s = A.scriptTrouverReference('A 2026 00329');
+test('scriptTrouverReference : script valide, numéro cherché sans espaces (étude 28/10 : « A202600500 »)', () => {
+  const s = A.scriptTrouverReference('A 2026 00500');
   assert.doesNotThrow(() => new Function('return ' + s));
-  assert.match(s, /"A 2026 00329"/);
+  assert.match(s, /"A 2026 00500"/);
   assert.match(s, /replace\(\/\\s\+\/g, ''\)/);
 });

@@ -162,14 +162,14 @@ const scriptTrouverTexte = (cible, exact) => `(() => {
   return { x, y, texte: String(meilleur.e.innerText).trim().slice(0, 160), bouton: bouton ? (String(bouton.innerText || bouton.getAttribute('title') || bouton.getAttribute('aria-label') || '').trim().slice(0, 80) + icone).trim() : '' };
 })()`;
 
-// Un résultat de recherche qui CONTIENT le numéro du dossier, avec ou sans espaces (« VTE X / Y (A202600329) », liste déroulante) — le plus
-// petit élément cliquable qui le porte. Même forme de retour que scriptTrouverTexte. (Étude 28/10 : « dossier A 2026 00329 introuvable ».)
+// Un résultat de recherche qui CONTIENT le numéro du dossier, avec ou sans espaces (« VTE X / Y (A202600500) », liste déroulante) — le plus
+// petit élément cliquable qui le porte. Même forme de retour que scriptTrouverTexte. (Étude 28/10 : « dossier A 2026 00500 introuvable ».)
 const scriptTrouverReference = (ref, liste) => `(() => {
   const liste = ${liste ? 'true' : 'false'};
   const compact = (t) => String(t || '').replace(/\\s+/g, '').toLowerCase();
   const c = compact(${JSON.stringify(String(ref))});
   if (!c) return null;
-  // Le numéro, pas un numéro plus long qui le commence (« A2026003290 ») — audit 0.391.1.
+  // Le numéro, pas un numéro plus long qui le commence (« A2026005000 ») — audit 0.391.1.
   const porte = (t) => { let i = t.indexOf(c); while (i >= 0) { if (!/[0-9]/.test(t.charAt(i + c.length))) return true; i = t.indexOf(c, i + 1); } return false; };
   const candidats = [];
   document.querySelectorAll('a, li, tr, td, span, div, [role=option]').forEach((e) => {
@@ -212,7 +212,7 @@ const SCRIPT_CHAMPS_VISIBLES = `(() => [...document.querySelectorAll('input:not(
   .slice(0, 6))()`;
 
 // Le lien qui OUVRE le dossier dans le résultat de recherche qui porte son numéro (relevé de l'étude du 28/10 : chaque résultat a deux
-// liens — le titre « A 202600329 VTE … », `…:ouvreDossierSideView`, qui n'ouvre qu'un panneau latéral, et l'icône de dossier bleue, sans texte,
+// liens — le titre « A 202600500 VTE … », `…:ouvreDossierSideView`, qui n'ouvre qu'un panneau latéral, et l'icône de dossier bleue, sans texte,
 // `…:goToDossier`, qui ouvre le dossier). Le bloc du résultat doit porter CE numéro (pas un numéro plus long qui le commence), le lien doit
 // être sous le pointeur. Même forme de retour que scriptTrouverTexte.
 const scriptOuvrirResultat = (ref) => `(() => {
@@ -281,7 +281,7 @@ const VISIBLE_ECRAN = `((e) => { const r = e.getBoundingClientRect(); return r.w
 // Affiché dans la page (même hors de la fenêtre, sous le bas de l'écran) : un élément d'un onglet caché ou d'un volet fermé n'a pas de boîte.
 const AFFICHE = `((e) => { const r = e.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(e).visibility !== 'hidden'; })`;
 
-// Le bandeau du dossier ouvert (`…:dossierHeader`, relevé de l'étude : « A 2026 00329 VTE … ») — présent sur la page du dossier comme sur celle
+// Le bandeau du dossier ouvert (`…:dossierHeader`, relevé de l'étude : « A 2026 00500 VTE … ») — présent sur la page du dossier comme sur celle
 // d'un sous-dossier, quand « Comparants » n'y est pas encore (page du dossier sans sous-dossier choisi, wiki « Crea13 »).
 const SCRIPT_EN_TETE_DOSSIER = `(() => { const e = [...document.querySelectorAll('[id$=":dossierHeader"]')].find(${VISIBLE_ECRAN});
   return e ? String(e.innerText || '') : ''; })()`;
@@ -735,7 +735,7 @@ async function seConnecter(s, r, etape) {
 /** Pure : la PREMIÈRE ligne de la page qui commence par une référence d'Authentic (« A 2026 00286 VTE … ») — l'en-tête du dossier affiché
  * (les titres des onglets ne commencent pas par une référence). @param {string} texte */
 function referenceEnTete(texte) {
-  // Avec ou sans espaces (« A 2026 00329 » ou « A202600329 », relecture 0.390.1), rendue toujours au format à espaces.
+  // Avec ou sans espaces (« A 2026 00500 » ou « A202600500 », relecture 0.390.1), rendue toujours au format à espaces.
   const l = String(texte || '').split('\n').map((x) => x.trim()).find((x) => /^[A-Z]\s*(?:19|20)\d{2}\s*\d{4,6}(?!\d)/.test(x));
   const m = l ? /^([A-Z])\s*((?:19|20)\d{2})\s*(\d{4,6})(?!\d)/.exec(l) : null;
   return m ? `${m[1]} ${m[2]} ${m[3]}` : '';
@@ -759,7 +759,7 @@ function estCeDossier(texte, cible) {
  * « VTE DUPONT / MARTIN » ouvrait « VTE DUPONT / MARTINEZ »).
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {(t: string) => void} etape
  */
-/** Pure : la référence telle que la recherche d'Authentic l'attend, sans espace (« A 2026 00329 » → « A202600329 »). @param {string} ref */
+/** Pure : la référence telle que la recherche d'Authentic l'attend, sans espace (« A 2026 00500 » → « A202600500 »). @param {string} ref */
 function referenceRecherche(ref) { return String(ref || '').replace(/\s+/g, ''); }
 
 /** CE dossier est-il affiché ? Sa page de sous-dossier (« Comparants » et sa référence en tête), ou la page du dossier sans sous-dossier
@@ -798,7 +798,7 @@ async function ouvrirDossier(s, cible, etape) {
   };
   if (await essayer()) return;
   // Deux champs de recherche dans Authentic : « Rechercher une affaire » puis « Rechercher » ; la liste déroulante d'abord, puis Entrée.
-  // Le numéro est tapé SANS espace d'abord (« A202600329 » : seule forme vue fonctionner par l'étude, 28/10), puis avec (« A 2026 00329 »).
+  // Le numéro est tapé SANS espace d'abord (« A202600500 » : seule forme vue fonctionner par l'étude, 28/10), puis avec (« A 2026 00500 »).
   // Libellés essayés, du plus précis au plus large (le vrai libellé d'Authentic n'est pas encore relevé).
   // « recherche » / « search » : seulement par ce que la page affiche (placeholder, aria-label, étiquette), et le NUMÉRO seul — jamais le nom
   // du dossier (noms des clients) dans un champ trouvé par un libellé large (relecture 0.391.2). Ni « affaire » ni « dossier » seuls.
