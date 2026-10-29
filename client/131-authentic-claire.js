@@ -44,15 +44,21 @@ function partiesComedecDossier(d) {
   return liste;
 }
 
-// Pure : la personne est-elle née à l'étranger d'après sa fiche client d'Authentic (pays de naissance renseigné et autre que la France) ?
-// Comedec ne délivre pas ces actes (étude 29/10) : pas de demande de naissance pour elle.
+// Pure : la personne est-elle née à l'étranger d'après sa fiche client d'Authentic (pays de naissance renseigné et autre que la France) ET
+// d'une nationalité connue qui n'est pas la française ? Comedec ne délivre pas ces actes (étude 29/10) : pas de demande de naissance pour elle.
+// Née à l'étranger mais de nationalité française (acte transcrit en France) : demandée (étude 29/10) ; nationalité inconnue : demandée aussi
+// (une demande qu'Authentic ne laisse pas cocher est dite, sans bloquer les autres).
 function neALEtrangerAuthentic(d, p) {
   const fiches = (d && d.authentic && d.authentic.fichesClients) || {};
   const cle = normaliserPourRecherche([p && p.prenom, p && p.nom].filter(Boolean).join(' ')).replace(/[^a-z0-9]+/g, ' ').trim();
   const f = fiches[cle] || Object.values(fiches).find(x => x && cle && normaliserPourRecherche(x.nom || '').replace(/[^a-z0-9]+/g, ' ').trim() === cle);
   const pays = normaliserPourRecherche(String((f && f.paysNaissance) || '')).replace(/[^a-z]+/g, ' ').trim();
   // France et ses départements d'outre-mer : actes tenus en France, demandés comme les autres.
-  return !!pays && !/^(france.*|fr|republique francaise|la reunion|reunion|guadeloupe|martinique|guyane|guyane francaise|mayotte)$/.test(pays);
+  const neEnFrance = !pays || /^(france.*|fr|republique francaise|la reunion|reunion|guadeloupe|martinique|guyane|guyane francaise|mayotte)$/.test(pays);
+  if (neEnFrance) return false;
+  const nationalite = normaliserPourRecherche(String((f && f.nationalite) || '')).replace(/[^a-z]+/g, ' ').trim();
+  if (!nationalite || /francais|france/.test(nationalite)) return false;
+  return true;
 }
 
 // Pure : les acquéreurs personnes physiques de la fiche (demande de casier : chaque intervenant coché par Authentic doit en être un).

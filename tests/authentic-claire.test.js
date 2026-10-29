@@ -25,8 +25,13 @@ test('Comedec : mariage d’un couple de parties demandé une fois ; deux co-ven
 
 test('Comedec : une personne née à l’étranger n’a pas de demande de naissance (Comedec ne la délivre pas) ; née en France : demandée', () => {
   const d = { id: 'd1', nom: 'X', parties: [{ role: 'VENDEUR', nom: 'EXEMPLE', prenom: 'Ana' }, { role: 'ACQUEREUR', nom: 'ESSAI', prenom: 'Lou' }],
-    authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', paysNaissance: 'PORTUGAL' }, 'lou essai': { nom: 'Lou ESSAI', paysNaissance: 'France' } } } };
+    authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', paysNaissance: 'PORTUGAL', nationalite: 'Portugaise' }, 'lou essai': { nom: 'Lou ESSAI', paysNaissance: 'France' } } } };
   assert.equal(app.partiesComedecDossier(d).map((x) => `${x.prenom}:${x.naissance}`).join('|'), 'Ana:false|Lou:true');
+  // Née à l'étranger mais de nationalité française : la naissance est demandée (acte transcrit) ; nationalité inconnue : demandée aussi.
+  const fiche = (nationalite) => ({ authentic: { fichesClients: { 'ana exemple': { nom: 'Ana EXEMPLE', paysNaissance: 'ALGÉRIE', nationalite } } } });
+  assert.equal(app.neALEtrangerAuthentic(fiche('Française'), { prenom: 'Ana', nom: 'EXEMPLE' }), false);
+  assert.equal(app.neALEtrangerAuthentic(fiche('Algérienne'), { prenom: 'Ana', nom: 'EXEMPLE' }), true);
+  assert.equal(app.neALEtrangerAuthentic(fiche(''), { prenom: 'Ana', nom: 'EXEMPLE' }), false, 'nationalité inconnue : demandée');
   assert.equal(app.neALEtrangerAuthentic({ authentic: { fichesClients: {} } }, { nom: 'X', prenom: 'Y' }), false, 'pays inconnu : demandée');
 });
 
