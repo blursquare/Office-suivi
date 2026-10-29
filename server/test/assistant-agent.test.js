@@ -1052,3 +1052,18 @@ test('28/10 : lectures_documents — les noms d’un résumé (acte de naissance
   assert.doesNotMatch(envoye, SECRETS, envoye.slice(-600));
   assert.match(envoye, /curatelle/);
 });
+
+test('29/10 : authentic_apercu — l’IA ne reçoit que « affiché » ou « aucun échec », jamais l’image', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'authentic_apercu'));
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('a1', 'authentic_apercu', {})] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Montre-moi où CLAIRE a planté dans Authentic', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 'a1', contenu: { fait: true, message: 'aperçu affiché en bas à droite de l’écran de l’utilisateur (fermable)' } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-400));
+  assert.doesNotMatch(envoye, /data:image|base64/);
+  assert.match(envoye, /aperçu affiché/);
+});

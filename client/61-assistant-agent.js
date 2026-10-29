@@ -363,6 +363,7 @@
     if (nom === 'coordonnees_client') return coordonneesClientAgent(e);
     if (nom === 'courrier_fonds_banque') return courrierFondsBanqueAgent(e);
     if (nom === 'authentic_comptabilite') return comptabiliteAgent(e);
+    if (nom === 'authentic_apercu') return apercuAuthenticAgent();
     if (nom === 'lectures_documents') return lecturesDocumentsAgent(e);
     if (nom === 'bilan_dossier') return bilanDossierAgent(e);
     if (nom === 'faire_geste') return faireGesteAgent(e);

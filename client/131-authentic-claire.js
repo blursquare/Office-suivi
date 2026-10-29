@@ -72,7 +72,11 @@ async function gesteAuthenticClaire(chemin, corps) {
       const derniere = (t.etapes || []).slice(-1)[0];
       if (derniere && typeof assistantEtapeAgent !== 'undefined') { assistantEtapeAgent = derniere.texte; }
       if (t.etat === 'fini') return { ok: true, texte: (t.resultat && t.resultat.texte) || 'Fait dans Authentic.' };
-      if (t.etat === 'erreur' || t.etat === 'annule') return { ok: false, texte: t.erreur || 'arrêté' };
+      if (t.etat === 'erreur' || t.etat === 'annule') {
+        // Étude 29/10 : « mets-moi un aperçu du navigateur là où ça plante, en bas à droite, que je peux fermer » (jamais pour un arrêt voulu).
+        if (t.etat === 'erreur' && t.avecCapture) afficherApercuAuthentic(id, t.erreur || 'arrêté');
+        return { ok: false, texte: t.erreur || 'arrêté' };
+      }
     } catch (e) { /* le serveur redémarre peut-être */ }
   }
   return { ok: false, texte: 'toujours en cours au bout de 10 minutes : le résultat sera dit dans le canal du dossier' };
@@ -171,4 +175,52 @@ async function essayerConnexionAuthentic() {
   if (ligne) ligne.textContent = 'CLAIRE ouvre Authentic dans le navigateur du serveur…';
   const r = await gesteAuthenticClaire('essai', { auteur: utilisateurPoste || '' });
   if (ligne) ligne.textContent = r.ok ? 'Connexion réussie.' : 'Échec : ' + r.texte;
+}
+
+// ---- Aperçu du navigateur de CLAIRE quand un geste dans Authentic échoue ----
+// La dernière capture d'écran de la tâche (prise par le serveur au moment de l'échec, gardée en mémoire du serveur seulement, jamais envoyée
+// à une IA ni au rapport technique) s'affiche en bas à droite, avec le message d'échec ; fermable (×), un clic sur l'image l'agrandit.
+var apercuAuthenticDernier = null;   // { id, texte } : le dernier échec, pour « Demander à CLAIRE » (outil `authentic_apercu`)
+var apercuAuthenticUrl = '';
+
+function fermerApercuAuthentic() {
+  const carte = document.getElementById('apercu-authentic');
+  if (carte) carte.remove();
+  if (apercuAuthenticUrl) { URL.revokeObjectURL(apercuAuthenticUrl); apercuAuthenticUrl = ''; }
+}
+
+// Pure : le texte court sous l'aperçu (le message d'échec ne cite jamais un nom : libellés génériques du parcours).
+function texteApercuAuthentic(texte) {
+  return String(texte || 'échec dans Authentic').replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
+async function afficherApercuAuthentic(idTache, texte) {
+  apercuAuthenticDernier = { id: String(idTache), texte: texteApercuAuthentic(texte) };
+  try {
+    const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(idTache)}/capture`);
+    if (!r.ok) return false;
+    const url = URL.createObjectURL(await r.blob());
+    fermerApercuAuthentic();
+    apercuAuthenticUrl = url;
+    const carte = document.createElement('div');
+    carte.id = 'apercu-authentic';
+    carte.className = 'apercu-authentic';
+    carte.setAttribute('role', 'status');
+    carte.innerHTML = `<div class="apercu-authentic-tete"><span>Authentic — où CLAIRE s’est arrêtée</span>`
+      + `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="fermerApercuAuthentic()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button></div>`
+      + `<img alt="Dernière page du navigateur de CLAIRE dans Authentic" src="${url}" onclick="this.classList.toggle('agrandie')">`
+      + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`;
+    document.body.appendChild(carte);
+    requestAnimationFrame(() => carte.classList.add('visible'));
+    if (typeof noterVerificationPoste === 'function') noterVerificationPoste('apercu-authentic', { detail: 'aperçu affiché' });
+    return true;
+  } catch (e) { return false; }
+}
+
+// « Demander à CLAIRE » (outil `authentic_apercu`) : rouvre l'aperçu du dernier échec dans Authentic sur ce poste. L'IA ne reçoit jamais l'image :
+// seulement « affiché » ou « aucun échec récent ».
+async function apercuAuthenticAgent() {
+  if (!apercuAuthenticDernier) return { fait: false, message: 'aucun échec récent dans Authentic sur ce poste' };
+  const ok = await afficherApercuAuthentic(apercuAuthenticDernier.id, apercuAuthenticDernier.texte);
+  return ok ? { fait: true, message: 'aperçu affiché en bas à droite de l’écran de l’utilisateur (fermable)' } : { fait: false, message: 'la capture n’est plus disponible (le serveur la garde peu de temps) : relancer le geste' };
 }

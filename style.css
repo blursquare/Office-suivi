@@ -3468,7 +3468,7 @@
   }
   .notif-envoi-fermer:hover { background: var(--paper-sunk); color: var(--ink); }
   .notif-envoi-fermer:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-  @media (prefers-reduced-motion: reduce) { .notif-envoi { transition: none; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .notif-envoi, .apercu-authentic { transition: none; transform: none; } }
   @media print { .notif-envoi { display: none !important; } }
 
   /* ---- badges de confiance / statut du dossier / appris / estimé ----
@@ -11486,3 +11486,19 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 /* Vente : fonds reçus d'après la comptabilité d'Authentic (client/140). */
 .fonds-compta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: var(--texte-s); }
 .fonds-compta-source { color: var(--muted); font-size: var(--texte-xs); }
+
+/* Aperçu du navigateur de CLAIRE quand un geste dans Authentic échoue (client/131 : où elle s'est arrêtée), en bas à droite, fermable. */
+.apercu-authentic {
+  position: fixed; bottom: 16px; right: 16px; z-index: 1100;
+  width: min(420px, calc(100vw - 32px)); box-sizing: border-box;
+  display: grid; gap: 8px; padding: 12px;
+  background: var(--paper-card); color: var(--ink);
+  border: 1px solid var(--line); border-left: 4px solid var(--urgent); border-radius: var(--rayon-carte);
+  box-shadow: var(--shadow-float);
+  opacity: 0; transform: translateY(8px); transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.apercu-authentic.visible { opacity: 1; transform: none; }
+.apercu-authentic-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--texte-s); font-weight: 500; }
+.apercu-authentic-texte { margin: 0; font-size: var(--texte-xs); color: var(--muted); overflow-wrap: anywhere; }
+.apercu-authentic img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--rayon-s); cursor: zoom-in; background: var(--paper-sunk); }
+.apercu-authentic img.agrandie { position: fixed; inset: 16px; width: auto; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); margin: auto; object-fit: contain; cursor: zoom-out; z-index: 1101; box-shadow: var(--shadow-float); }

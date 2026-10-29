@@ -22,6 +22,8 @@ const CLE_VERIFICATIONS = 'verifications-terrain';
 const VERIFICATIONS_TERRAIN = [
   { id: 'messages-claire-recus', depuis: '0.369.0', source: 'serveur', titre: 'Notifications par CLAIRE : ce qui partait sur Teams (rappels, pièces trouvées, mentions, rendez-vous…) arrive dans la conversation de CLAIRE, regroupé et sans doublon',
     comment: 'Coché au premier message ainsi déposé. À regarder au bureau : la ligne CLAIRE des Discussions porte une pastille, son profil montre « Ce que CLAIRE vous dit » ; plusieurs pièces trouvées dans la même heure font UN message « Pièces trouvées (n) ». Réglages › Notifications › « Recevoir aussi sur Teams » rétablit Teams pour qui le veut.' },
+  { id: 'apercu-authentic', depuis: '0.396.0', source: 'poste', titre: 'Un geste de CLAIRE dans Authentic échoue : l’aperçu du navigateur s’affiche en bas à droite (fermable), à l’endroit où elle s’est arrêtée',
+    comment: 'Coché au premier aperçu affiché. À regarder : une capture lisible de la page d’Authentic, la croix qui ferme, un clic qui agrandit ; « montre-moi où tu as planté dans Authentic » le rouvre.' },
   { id: 'authentic-connexion', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE se connecte à Authentic par le navigateur du serveur (compte de Réglages › Authentic)',
     comment: 'Coché à la première connexion réussie. À essayer : Réglages › Authentic › « Essayer la connexion ». Échec « identifiants refusés » : revoir l’identifiant et le mot de passe.' },
   { id: 'authentic-lecture', depuis: '0.373.0', source: 'serveur', titre: 'CLAIRE lit un dossier dans Authentic (page du dossier, fiches clients, fiches biens) et la fiche se complète',

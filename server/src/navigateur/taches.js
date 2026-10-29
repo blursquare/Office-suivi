@@ -67,6 +67,10 @@ function creerGestionnaireTaches(o) {
         t.etat = 'fini';
         etape('Terminé');
       } catch (e) {
+        // La dernière page du navigateur au moment de l'échec (aperçu du poste, étude 29/10) : 4 s au plus, jamais bloquant.
+        if (s && !t.annule && !(e && e.annule)) {
+          t.capture = await Promise.race([s.capture(), new Promise((ok) => setTimeout(() => ok(t.capture), 4000).unref())]).catch(() => t.capture);
+        }
         t.etat = t.annule || (e && e.annule) ? 'annule' : 'erreur';
         t.erreur = t.etat === 'annule' ? 'Arrêté à la demande.' : String((e && e.message) || 'erreur').slice(0, 300);
       } finally {
