@@ -185,27 +185,30 @@ async function pdfDecompteVendeur(doc) {
   const page = pdf.addPage([595.3, 841.9]);
   const H = 841.9;
   const noir = rgb(0, 0, 0);
-  const ecrire = (texte, x, haut, police, taille, aligne, largeur) => {
+  // `max` : largeur permise ; un texte plus long est écrit plus petit (jusqu'à 6,5 pt) pour ne jamais sortir de sa colonne (relecture 0.406.0).
+  const ecrire = (texte, x, haut, police, tailleVoulue, aligne, largeur, max) => {
     const t = propre(texte);
+    const plein = police.widthOfTextAtSize(t, tailleVoulue);
+    const taille = max && plein > max ? Math.max(6.5, tailleVoulue * max / plein) : tailleVoulue;
     const l = police.widthOfTextAtSize(t, taille);
     const xx = aligne === 'droite' ? x - l : aligne === 'centre' ? x + (largeur - l) / 2 : x;
     page.drawText(t, { x: xx, y: H - haut - taille * 0.8, size: taille, font: police, color: noir });
   };
   const trait = (x1, y1, x2, y2) => page.drawLine({ start: { x: x1, y: H - y1 }, end: { x: x2, y: H - y2 }, thickness: 0.5, color: noir });
-  ecrire(doc.reference, 70.8, 73, normale, 10);
-  ecrire(doc.ligneDate, 70.8, 85.2, normale, 10);
+  ecrire(doc.reference, 70.8, 73, normale, 10, '', 0, 529.9 - 70.8);
+  ecrire(doc.ligneDate, 70.8, 85.2, normale, 10, '', 0, 529.9 - 70.8);
   ecrire(doc.titre, 0, 122.5, grasse, 14, 'centre', 595.3);
   let y = 139.1;
-  doc.destinataire.forEach(l => { ecrire(l, 0, y, grasse, 12, 'centre', 595.3); y += 14.5; });
+  doc.destinataire.forEach(l => { ecrire(l, 0, y, grasse, 12, 'centre', 595.3, 529.9 - 65.5); y += 14.5; });
   const X = [65.5, 311.3, 420.6, 529.9];
   const PAS = 12.65;
   const tableau = (rangees, haut) => {
     rangees.forEach((r, i) => {
       const yr = haut + i * PAS;
       const police = r.gras ? grasse : normale;
-      ecrire(r.libelle, 70.8, yr + 2.4, police, 10);
-      ecrire(r.debit, 415.2, yr + 2.4, police, 10, 'droite');
-      ecrire(r.credit, 524.5, yr + 2.4, police, 10, 'droite');
+      ecrire(r.libelle, 70.8, yr + 2.4, police, 10, '', 0, X[1] - 70.8 - 4);
+      ecrire(r.debit, 415.2, yr + 2.4, police, 10, 'droite', 0, X[2] - X[1] - 10);
+      ecrire(r.credit, 524.5, yr + 2.4, police, 10, 'droite', 0, X[3] - X[2] - 10);
       trait(X[0], yr, X[3], yr);
     });
     const bas = haut + rangees.length * PAS;
@@ -282,6 +285,14 @@ async function dvChoisirDossier(id) {
   dvEtat.lectures = { nas: d.nasDossier ? 'lecture' : 'non relié' };
   renderDecompteVendeur();
   if (d.nasDossier) await dvLireNas(d, dvEtat.jeton, mainlevee);
+}
+
+// Changer de dossier (carte de l'accueil, « Changer de dossier », bouton de la fiche) : confirmé quand des lignes ont été corrigées à la main
+// (relecture 0.406.0 : elles se perdaient en silence).
+function dvOuvrir(id) {
+  if (dvEtat.dossierId && dvEtat.dossierId !== id && dvEtat.lignes.some(x => x.modifiee)) {
+    demanderConfirmation('Quitter ce décompte vendeur ? Les lignes corrigées à la main seront perdues.', () => dvChoisirDossier(id));
+  } else if (dvEtat.dossierId !== id || !id) dvChoisirDossier(id);
 }
 
 // « Relire » : la fiche et le NAS repris ; les corrections à la main perdues, donc confirmé d'abord s'il y en a (audit 0.406.0, M1).
@@ -400,14 +411,14 @@ function initDecompteVendeur() {
 function ouvrirDecompteVendeurDepuisFiche(id) {
   fermerDossierDrawer();
   definirOnglet('decompte-vendeur');
-  dvChoisirDossier(id);
+  dvOuvrir(id);
 }
 
 function dvCartesAccueil(q) {
   const actifs = dvDossiersVente();
   const liste = q ? actifs.filter(x => normaliserPourRecherche(libelleDossierAffiche(x)).includes(q) || normaliserPourRecherche(x.responsable || '').includes(q)).slice(0, 12)
     : (() => { const recents = dossiersConsultesRecents(lireDossiersConsultes(), actifs).map(x => x.dossier); return recents.concat(actifs.filter(x => !recents.includes(x))).slice(0, 6); })();
-  const cartes = liste.map(x => `<button type="button" class="cst-accueil-carte" onclick="dvChoisirDossier('${escapeOnclickArg(x.id)}')">
+  const cartes = liste.map(x => `<button type="button" class="cst-accueil-carte" onclick="dvOuvrir('${escapeOnclickArg(x.id)}')">
       <span class="cst-accueil-carte-icone" aria-hidden="true">${icone('home')}</span>
       <span class="cst-accueil-carte-texte"><span class="cst-accueil-carte-titre">${escapeHtml(libelleDossierAffiche(x))}</span>
       <span class="cst-accueil-carte-sous">${escapeHtml(['Vente', x.referenceAuthentic, x.responsable].filter(Boolean).join(' · '))}</span></span></button>`).join('');
@@ -465,7 +476,7 @@ function dvRendreCorps() {
     <div class="cst-corps">
       <div class="cst-barre">
         <span class="cst-dossier-titre">${escapeHtml(libelleDossierAffiche(d))}</span>
-        <wa-button appearance="outlined" size="s" type="button" onclick="dvChoisirDossier('')" title="Revenir au choix du dossier">${icone('rotate-ccw')} Changer de dossier</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" onclick="dvOuvrir('')" title="Revenir au choix du dossier">${icone('rotate-ccw')} Changer de dossier</wa-button>
         <wa-button appearance="outlined" size="s" type="button" onclick="dvRelire()" title="Reprendre la fiche et relire le NAS">${icone('rotate-ccw')} Relire</wa-button>
         <span class="aut-barre-actions">
           <wa-button appearance="outlined" size="s" type="button" onclick="telechargerDecompteVendeur('word')">${icone('download')}Word</wa-button>
@@ -543,7 +554,6 @@ async function rangerDecompteVendeur() {
     const nom = String(j.chemin || '').split(/[\\/]/).pop() || f.nom + '.pdf';
     dvNoterHistorique(f, `rangé dans le dossier du NAS (${nom})`);
     afficherToast(`Rangé dans le dossier de la vente : ${nom}`, 'OK', null);
-    noterVerificationPoste('decompte-vendeur-email', { detail: 'rangé sur le NAS' });
     return { ok: true, nom };
   } catch (err) {
     afficherToast('Décompte non rangé : ' + (err && err.message ? err.message : 'erreur'), 'OK', null);
