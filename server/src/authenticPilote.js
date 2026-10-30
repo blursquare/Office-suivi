@@ -193,6 +193,17 @@ function allegerHistorique(messages) {
 }
 
 /**
+ * Pure : les blocs d'une réponse de Claude à remettre dans l'historique, SANS ses blocs de réflexion. Leur signature est liée au début exact de la
+ * conversation : `allegerHistorique` retire les anciennes captures, le début change, et l'API refuse le bloc (400 « Invalid `signature` in `thinking`
+ * block », étude 30/10). Jamais un message vide.
+ * @param {any[]} blocs
+ */
+function blocsPourHistorique(blocs) {
+  const gardes = blocs.filter((b) => b && b.type !== 'thinking' && b.type !== 'redacted_thinking');
+  return gardes.length ? gardes : [{ type: 'text', text: '…' }];
+}
+
+/**
  * La boucle : Claude voit, agit, jusqu'à `terminer`. Chaque geste est contrôlé AVANT d'être fait ; un geste refusé est dit à Claude (il adapte ou s'arrête).
  * @param {{ s: any, client: any, consigne: string, contexte?: string, modele?: string, lireCaptureWiki?: (url: string) => Promise<{ octets: Buffer, statut: number }>, etape: (t: string) => void, annule: () => boolean, attendre?: (ms: number) => Promise<void> }} o
  * @returns {Promise<{ etat: string, compte: string, pas: number, jetons: number }>}
@@ -250,12 +261,12 @@ async function piloter(o) {
       // Ce modèle n'accepte pas `tool_choice` « any » (400 du 29/10) : en « auto » il peut répondre en texte. Un rappel, une seule fois de suite, puis arrêt.
       if (relances >= 1 || !blocs.length) return { etat: 'partiel', compte: 'Claude n’a plus rien fait : arrêté.', pas, jetons };
       relances++;
-      messages.push({ role: 'assistant', content: blocs });
+      messages.push({ role: 'assistant', content: blocsPourHistorique(blocs) });
       messages.push({ role: 'user', content: [{ type: 'text', text: 'Réponds par un outil : elements puis cliquer_element, ou un geste (cliquer, ecrire, toucher, defiler, attendre) ou « terminer » avec ton compte rendu.' }] });
       continue;
     }
     relances = 0;
-    messages.push({ role: 'assistant', content: blocs });
+    messages.push({ role: 'assistant', content: blocsPourHistorique(blocs) });
     /** @type {any[]} */
     const resultats = [];
     let fin = null;
@@ -346,4 +357,4 @@ function creerClientClaude(cle) {
   return new Classe({ apiKey: cle, timeout: 120000, maxRetries: 1 });
 }
 
-module.exports = { texteElements, SCRIPT_ELEMENTS, scriptCentreElement, creerClientClaude, MODELE_PILOTE, MAX_PAS, OUTILS, SYSTEME, borner, motifRefusClic, allegerHistorique, scriptSousPointeur, lireInterrupteurs, piloter, libelleInterdit };
+module.exports = { texteElements, SCRIPT_ELEMENTS, scriptCentreElement, creerClientClaude, MODELE_PILOTE, MAX_PAS, OUTILS, SYSTEME, borner, motifRefusClic, allegerHistorique, blocsPourHistorique, scriptSousPointeur, lireInterrupteurs, piloter, libelleInterdit };

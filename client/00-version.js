@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.407.0';
+  const VERSION_APP = '0.407.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.407.1', date: '2026-10-30 13:34', resume: "« Claude pilote Authentic » s’arrêtait au deuxième geste avec une erreur 400 (« Invalid signature in thinking block »). La réflexion de Claude n’est plus renvoyée dans la suite du pilotage, comme l’API le demande : le pilotage va jusqu’au bout." },
     { version: '0.407.0', date: '2026-10-30 12:46', resume: "CLAIRE a désormais toute la mémoire du wiki d’Authentic dans les discussions. Avant, seul « Claude pilote Authentic » l’avait. Elle le consulte avant d’agir dans Authentic, quand une demande bloque (par exemple le casier tant que l’avant-contrat n’a pas été envoyé à la BRI) et pour toute question sur Authentic. Elle dit ce que le wiki explique plutôt que de deviner." },
     { version: '0.406.2', date: '2026-10-30 12:10', resume: "Casier judiciaire (CJN) : CLAIRE s’arrêtait, faute de trouver « Envoi immédiat ». Le vrai bloc n’a que « Création rapide » (le wiki d’Authentic : l’envoi immédiat n’apparaît que si les droits le permettent). Elle valide maintenant la demande de casier une fois « Création rapide » allumée et chaque acquéreur coché, et seulement s’il n’y a aucun « Envoi immédiat » sur la page. Comedec garde sa règle." },
     { version: '0.406.1', date: '2026-10-30 11:47', resume: "Questionnaire de satisfaction : proposé dès le jour de la signature quand l’acte est signé (dans Authentic ou signature cochée), comme la copie de l’acte — il n’apparaissait que le lendemain." },

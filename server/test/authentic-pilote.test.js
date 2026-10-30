@@ -184,3 +184,19 @@ test('étude 30/10 : viser un élément par son libellé (elements puis cliquer_
   assert.deepEqual(s2.faits.clics, []);
   assert.ok(P.OUTILS.some((o) => o.name === 'cliquer_element') && /PRÉFÉRER/.test(P.SYSTEME));
 });
+
+test('les blocs de réflexion ne reviennent jamais dans l’historique (400 « Invalid signature in thinking block » du 30/10)', async () => {
+  const s = fauxNavigateur();
+  const requetes = [];
+  const appels = [['cliquer', { x: 400, y: 300 }], ['terminer', { etat: 'fait', compte_rendu: 'Fait.' }]];
+  const client = { messages: { create: async (req) => {
+    requetes.push(JSON.parse(JSON.stringify(req)));
+    const a = appels.shift();
+    return { content: [{ type: 'thinking', thinking: 'je regarde', signature: 'sig' }, { type: 'redacted_thinking', data: 'x' }, { type: 'tool_use', id: 'u' + requetes.length, name: a[0], input: a[1] }], usage: { input_tokens: 10 } };
+  } } };
+  const r = await P.piloter(base(s, client));
+  assert.equal(r.etat, 'fait');
+  const blocs = requetes[1].messages.filter((m) => m.role === 'assistant').flatMap((m) => m.content);
+  assert.ok(blocs.length && blocs.every((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking'));
+  assert.equal(P.blocsPourHistorique([{ type: 'thinking', thinking: 'a', signature: 's' }]).map((b) => b.type).join(), 'text');
+});

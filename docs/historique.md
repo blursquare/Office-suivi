@@ -23331,3 +23331,11 @@ Relecture : « Création rapide » ramenée à l'écran quand le bloc n'a pas d'
 ### 30/10/2026 — 0.407.0 : toute la mémoire du wiki pour CLAIRE
 
 L'étude (30/10), après le CJN bloqué faute d'« Envoi immédiat » : « tu devrais pourtant avoir déjà ces informations dans le wiki », puis « il faut que CLAIRE ait toute la mémoire du wiki ». Seul le pilote (authenticPilote.js) avait `consulter_wiki`. Désormais l'agent de « Demander à CLAIRE » l'a aussi : outil `consulter_wiki` (assistantAgent.js), route `GET /api/authentic-claire/wiki?q=` (les 4 passages du résumé du wiki les plus proches, `chercherWiki`, sans IA), exécutant `consulterWikiAgent` (client/135), masquage léger (documentation publique, aucune donnée de client), consigne du prompt : consulter avant d'agir dans Authentic, quand une demande échoue ou bloque, et pour toute question sur Authentic, sans inventer. Test : le passage « envoi immédiat si les droits le permettent » est trouvé pour le CJN, la BRI aussi.
+
+### 30/10/2026 — 0.407.1 : pilote d'Authentic, erreur 400 sur la réflexion
+
+L'étude (30/10) : « claude api pilote ne fonctionne pas : Pilotage arrêté : 400 … Invalid `signature` in `thinking` block. The block is bound to a different conversation. »
+Cause : les réponses de Claude (blocs de réflexion signés compris) étaient remises telles quelles dans l'historique, et `allegerHistorique` retire les anciennes
+captures — le début de la conversation change, la signature ne correspond plus. Correctif : `blocsPourHistorique` (server/src/authenticPilote.js) retire les blocs
+`thinking` / `redacted_thinking` des messages de Claude remis dans l'historique (jamais un message vide) ; test dans server/test/authentic-pilote.test.js.
+Non vérifié avec un vrai Claude.
