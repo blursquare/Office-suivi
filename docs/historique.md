@@ -23335,7 +23335,7 @@ L'étude (30/10), après le CJN bloqué faute d'« Envoi immédiat » : « tu de
 ### 30/10/2026 — 0.407.1 : pilote d'Authentic, erreur 400 sur la réflexion
 
 L'étude (30/10) : « claude api pilote ne fonctionne pas : Pilotage arrêté : 400 … Invalid `signature` in `thinking` block. The block is bound to a different conversation. »
-Cause : les réponses de Claude (blocs de réflexion signés compris) étaient remises telles quelles dans l'historique, et `allegerHistorique` retire les anciennes
-captures — le début de la conversation change, la signature ne correspond plus. Correctif : `blocsPourHistorique` (server/src/authenticPilote.js) retire les blocs
+Cause probable (non établie) : les réponses de Claude, blocs de réflexion signés compris, étaient remises telles quelles dans l'historique et l'API n'a plus
+reconnu leur signature. Effet de bord accepté : sans sa réflexion renvoyée, Claude peut moins réfléchir entre deux gestes. Correctif : `blocsPourHistorique` (server/src/authenticPilote.js) retire les blocs
 `thinking` / `redacted_thinking` des messages de Claude remis dans l'historique (jamais un message vide) ; test dans server/test/authentic-pilote.test.js.
 Non vérifié avec un vrai Claude.

@@ -193,9 +193,9 @@ function allegerHistorique(messages) {
 }
 
 /**
- * Pure : les blocs d'une réponse de Claude à remettre dans l'historique, SANS ses blocs de réflexion. Leur signature est liée au début exact de la
- * conversation : `allegerHistorique` retire les anciennes captures, le début change, et l'API refuse le bloc (400 « Invalid `signature` in `thinking`
- * block », étude 30/10). Jamais un message vide.
+ * Pure : les blocs d'une réponse de Claude à remettre dans l'historique, SANS ses blocs de réflexion. L'API a refusé un bloc renvoyé (400 « Invalid
+ * `signature` in `thinking` block … bound to a different conversation », étude 30/10 ; cause exacte non établie) ; elle permet de les retirer des tours
+ * précédents. Jamais un message vide.
  * @param {any[]} blocs
  */
 function blocsPourHistorique(blocs) {
