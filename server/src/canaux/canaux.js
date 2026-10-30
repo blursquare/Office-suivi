@@ -113,6 +113,7 @@ function lireIndex(repo) {
 /** Extrait d'une ligne de liste : texte brut, 100 caractères. @param {any} m */
 function extraitDe(m) {
   const t = (m.texte || String(m.html || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+  if (!t && Array.isArray(m.pj) && m.pj.length) return 'Fichier joint';   // fichier envoyé seul (0.407.8)
   return t.length > 100 ? `${t.slice(0, 99).trimEnd()}…` : t;
 }
 

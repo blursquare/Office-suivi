@@ -57,6 +57,11 @@ test('une demande partie n’est jamais la réponse de la mairie (étude 30/10) 
   assert.equal(cles("Certificat d'alignement.pdf"), 'certificatAlignement');
   assert.equal(cles('Courrier réponse assainissement.pdf'), 'reponseAssainissement');
   assert.equal(cles("Courrier mairie certificat d'urbanisme reçu.pdf"), 'certificatUrbanisme');
+  assert.equal(cles('Courrier renonciation DPU.pdf'), 'renonciationPreemption');
+  assert.equal(cles("Lettre de renonciation au droit de préemption.pdf"), 'renonciationPreemption');
+  assert.equal(cles("Courrier certificat d'urbanisme.pdf"), 'certificatUrbanisme');
+  assert.equal(cles('Courrier SPANC conforme.pdf'), 'reponseAssainissement');
+  assert.equal(Object.keys(app.demandesUrbanismeAuthentic([{ titre: "Courrier - Demande de certificat d'alignement", etat: 'Envoyé' }])).join(), 'certificatAlignement');
   // « Interrogation » dans le nom : le courrier de l'étude, jamais la pièce — sauf l'interrogation du FCDDV (succession).
   assert.equal(cles("Interrogation mairie certificat d'urbanisme.pdf"), '');
   assert.equal(cles('Taxe foncière interrogation SIE.pdf'), '');

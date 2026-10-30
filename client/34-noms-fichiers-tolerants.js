@@ -107,8 +107,10 @@
   // Un nom qui COMMENCE par le geste de l'étude (« Demande de certificat d'alignement », « Courrier demande alignement », « Relance… »)
   // est la demande partie, pas la réponse de la mairie (étude 30/10 : la pièce se cochait alors que la réponse était encore attendue) —
   // sauf si le nom dit la réponse (« Courrier réponse assainissement »). Seulement pour les pièces que l'étude demande (urbanisme, non-péril).
-  var RE_NOM_DEMANDE_PARTIE = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?)(?![a-zà-ÿ])/i;
-  var RE_NOM_REPONSE_RECUE = /r[ée]ponse|retour|arr[êe]t[ée]|d[ée]livr|re[çc]ue?(?![a-zà-ÿ])/i;
+  // Relecture 0.407.8 : « Courrier » ou « Lettre » en tête ne suffit pas (« Courrier renonciation DPU », « Courrier certificat d'urbanisme » sont des
+  // réponses) — il faut un mot de la DEMANDE dans le nom (demande, relance, envoi), en tête ou après « courrier / lettre ».
+  var RE_NOM_DEMANDE_PARTIE = /^\s*(?:(?:courrier|lettre)\s*(?:de\s+|d['’]\s*)?)?(?:demandes?|relances?|envoi|envoy[ée]e?s?)(?![a-zà-ÿ])/i;
+  var RE_NOM_REPONSE_RECUE = /r[ée]ponse|retour|arr[êe]t[ée]|d[ée]livr|re[çc]ue?(?![a-zà-ÿ])|renon|non[\s-]?pr[ée]emption|d[ée]cision/i;
   function nomDitDemandePartie(piece, nomNormalise) {
     const cles = PIECES_URBANISME.map(p => p.cle).concat(PIECE_NON_PERIL.cle);
     return !!piece && cles.includes(piece.cle) && RE_NOM_DEMANDE_PARTIE.test(nomNormalise) && !RE_NOM_REPONSE_RECUE.test(nomNormalise);

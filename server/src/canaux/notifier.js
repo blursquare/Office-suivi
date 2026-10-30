@@ -56,7 +56,7 @@ function creerNotifieur(deps) {
       table[cle] = t;
       table[`${cible}|*`] = { debut: total.debut, n: total.n + 1 };
       parametresRepo.ecrireJsonBrut(CLE_NOTIFS, table);
-      const extrait = String(message.texte || '').replace(/\s+/g, ' ').trim().slice(0, 100);
+      const extrait = String(message.texte || '').replace(/\s+/g, ' ').trim().slice(0, 100) || ((message.pj || []).length ? 'Fichier joint' : '');
       /** @type {any} */
       let r;
       try { r = await envoyer(reglages, adresse, `💬 CLAIRE — ${prenomDe(message.auteur)} vous a mentionné dans ${libelleCanal(canal)} : « ${extrait} »\nOuvrez CLAIRE (✦ Demander à CLAIRE) pour répondre.`); } catch (e) { r = { ok: false }; }

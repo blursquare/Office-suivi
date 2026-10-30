@@ -23432,3 +23432,8 @@ L'étude (même jour, capture d'un message privé à Julie) : un PDF envoyé seu
 Ce texte n'est plus ajouté que dans la conversation avec CLAIRE ; dans une discussion partagée, un fichier seul part sans texte et sans appeler
 CLAIRE (`fichierSeulCanal`, client/49) ; le serveur accepte un message fait d'une pièce jointe seule (`assainirMessage`, route des messages), un
 message vraiment vide reste refusé.
+Relecture : « Courrier » ou « Lettre » en tête ne suffit plus — il faut un mot de la demande (demande, relance, envoi), sinon « Courrier
+renonciation DPU » ou « Courrier certificat d'urbanisme » (réponses) n'étaient plus reconnus ; renonciation / non-préemption / décision
+comptent comme réponse ; « Courrier - Demande de … » d'Authentic retrouve sa pièce (séparateurs entre les préfixes) ; fichier envoyé seul :
+« Fichier joint » comme extrait du canal et dans l'avis de mention. Limite voulue par l'étude : un nom qui porte « interrogation » ne coche
+aucune pièce, même « Réponse interrogation mairie » (sauf une pièce dont le libellé porte ce mot, FCDDV).
