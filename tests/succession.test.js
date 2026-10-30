@@ -621,6 +621,12 @@ test('succession : décompte et appel de fonds 10 jours avant le dernier rendez-
   // « Pas nécessaire » : plus d'appel de fonds.
   d.succession.appelFondsInutile = true;
   assert.ok(!S.etapesSuccession(d, auj).some(e => e.type === 'appelFondsSuccession'));
+  // Étude 30/10 (soir) : avec un conjoint survivant l'appel de fonds est DÛ (l'étude ne reçoit rien des comptes) — « pas nécessaire » ne le retire pas.
+  d.succession.conjointSurvivant = true;
+  const dû = S.etapesSuccession(d, auj).find(e => e.type === 'appelFondsSuccession');
+  assert.ok(dû && dû.facultatif === false, 'conjoint survivant : appel de fonds dû, non facultatif');
+  d.succession.conjointSurvivant = false;
+  assert.ok(!S.etapesSuccession(d, auj).some(e => e.type === 'appelFondsSuccession'), 'sans conjoint : « pas nécessaire » le retire');
   // Coche : echeanceValidee suit.
   d.echeancesValidees.decompteSuccession = true;
   assert.equal(P.echeanceValidee(d, 'decompteSuccession'), true);
@@ -1092,13 +1098,13 @@ test('étude 21/10 : après le contrôle des droits, l\'inventaire se place dans
   assert.equal(app.rdvAgendaSuccession(place, 'controleDroits', '2026-11-05'), null);
 });
 
-test('appel de fonds toujours facultatif (étude 30/10 : souvent inutile avec un conjoint survivant), avec ou sans conjoint', () => {
+test('appel de fonds (étude 30/10 soir) : dû avec un conjoint survivant, facultatif sinon (compte de la succession qui ne couvre pas les frais)', () => {
   const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'notoriete-ds', conjointSurvivant: true, ouvertureLe: '2026-08-15',
     rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2026-12-10', heure: '10:00' }] } });
   const types = S.etapesSuccession(d, '2026-10-22').map(e => e.type);
   assert.ok(types.includes('decompteSuccession'));
   assert.ok(types.includes('appelFondsSuccession'));
-  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, true);
+  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, false);
   d.succession.conjointSurvivant = false;
   assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, true);
 });

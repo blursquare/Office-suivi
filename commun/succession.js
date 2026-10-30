@@ -469,9 +469,12 @@
       // Étude 22/10 : avec les seuls héritiers, la banque débloque les comptes et l'étude se rémunère dessus s'il y a assez, sinon elle demande un
       // complément. Étude 30/10 : « parfois on n'a pas besoin de faire d'appel de fonds pour les frais d'acte, c'est souvent quand il y a un conjoint
       // survivant » — l'étape est facultative dans tous les cas (« Pas nécessaire » d'un clic).
-      if (s.appelFondsInutile !== true) {
+      // Précision de l'étude (30/10, soir) : il y a un appel de fonds QUAND il y a un conjoint survivant (les comptes lui sont transférés, l'étude
+      // ne reçoit rien) OU quand il n'y a pas assez de fonds sur le compte de la succession pour régler les frais d'acte. Avec un conjoint
+      // survivant il est donc dû, sans « Pas nécessaire » ; sinon il reste facultatif.
+      if (s.appelFondsInutile !== true || conjointSurvivant(d)) {
         avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
-          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
+          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: !conjointSurvivant(d) });
       }
       etapes.splice(iDernier, 0, ...avant);
     }

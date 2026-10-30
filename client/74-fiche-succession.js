@@ -310,8 +310,8 @@
       if (e.avantRdv && !e.iso) base.sous = '10 jours avant le dernier rendez-vous, une fois placé';
       const attenteRdv = e.avantRdv && !e.iso;
       if (e.type === 'appelFondsSuccession') {
-        base.sous = [base.sous, conjointSurvivant(d) ? 'Souvent inutile avec un conjoint survivant' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
-        base.bouton = { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier', icone: icone('x'), libelle: 'Pas nécessaire' };
+        base.sous = [base.sous, conjointSurvivant(d) ? 'Dû : conjoint survivant, l’étude ne reçoit rien des comptes' : 'Si le compte de la succession ne couvre pas les frais d’acte'].filter(Boolean).join(' · ');
+        if (!conjointSurvivant(d)) base.bouton = { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier', icone: icone('x'), libelle: 'Pas nécessaire' };
       }
       if (e.type === 'controleDroits') base.sous = [s.droitsDus ? `droits dus : ${s.droitsDus}` : 'droits à vérifier', s.inventaireNecessaire ? `inventaire : ${s.inventaireNecessaire}` : 'inventaire à vérifier'].join(' · ');
       // Décompte et appel de fonds sans rendez-vous placé : en attente, pas « à faire » pendant des mois (relecture 16/10).
@@ -321,7 +321,7 @@
     const etapesCartes = etapesSuccession(d, aujourdhuiIso);
     const dernierActe = etapesCartes.filter(x => x.type === 'notoriete' || x.type === 'declarationSuccession').pop();
     // Sans étape « Appel de fonds » (notoriété seule, 21/10) la carte « Rétablir » ne ferait rien.
-    if (s.appelFondsInutile === true && etapesCartes.some(x => x.type === 'decompteSuccession') && !(dernierActe && dernierActe.fait)) {
+    if (s.appelFondsInutile === true && !conjointSurvivant(d) && etapesCartes.some(x => x.type === 'decompteSuccession') && !(dernierActe && dernierActe.fait)) {
       ajouter('fait', { cle: 'succession:appelFondsInutile', titre: 'Appel de fonds — pas nécessaire', iso: '', sous: 'Fonds suffisants en comptabilité', categorie: 'succession', fait: true, auto: true,
         bouton: { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', false)`, titre: 'Prévoir de nouveau un appel de fonds avant le dernier rendez-vous', icone: icone('rotate-ccw'), libelle: 'Rétablir' } });
     }

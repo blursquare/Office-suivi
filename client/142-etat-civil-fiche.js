@@ -119,6 +119,20 @@ function demanderActeEtatCivilFiche(dossierId, actes) {
   }, { bouton: 'Créer la demande', ton: 'valider' });
 }
 
+// Casier judiciaire (CJN) des acquéreurs, depuis la Constitution de dossier d'une vente (étude 30/10 : « mettre aussi les demandes CJN pour les
+// constitutions de vente ») : la même demande que l'agent et les routines (`preparerFormaliteAuthentic`), préparée dans Authentic sans envoi.
+function demanderCjnFiche(dossierId) {
+  const d = dossiers.find(x => x.id === dossierId);
+  if (!d) return;
+  const raison = raisonSansCjn(d);
+  if (raison) { afficherToast('Pas de demande de casier ici : ' + raison + '.', 'OK', null); return; }
+  demanderConfirmation('Créer dans Authentic la demande de casier judiciaire (CJN) des acquéreurs ? Création rapide, Envoi immédiat éteint : rien n’est envoyé, la demande est à envoyer ensuite depuis Authentic.', async () => {
+    const r = await preparerFormaliteAuthentic(d, 'cjn', { agent: false });
+    if (r && r.erreur) afficherToast(r.erreur, 'OK', null);
+    render();
+  }, { bouton: 'Créer la demande', ton: 'valider' });
+}
+
 function refaireActeEtatCivilFiche(d, actes) {
   demanderConfirmation('Une demande a déjà été préparée. La refaire (par exemple si la précédente ne portait que sur une partie) ? Seuls les actes qui n’y figurent pas encore sont demandés ; rien n’est envoyé.', async () => {
     const r = await preparerFormaliteAuthentic(d, 'comedec', { agent: false, actes, refaire: true });
@@ -183,7 +197,8 @@ function renderEtatCivilConstitution(d) {
   // Vente (étude 30/10 : « d'abord on clique sur le bouton pour rechercher les Comedec et s'il y a des demandes papier, l'outil propose de les
   // faire en papier ») : 1. la demande Comedec dans Authentic ; 2. seulement les demandes qu'Authentic marque « APR » (mairie sans Comedec)
   // reçoivent leur courrier papier ; le courrier pour n'importe quelle personne reste replié, en secours.
-  const comedec = `<div class="ec-comedec"><wa-button variant="brand" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')">${icone('file-text')} Demander par Comedec : naissance</wa-button>${personnes.some(p => p.mariage) ? `<wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')">Comedec : mariage</wa-button>` : ''}</div>`;
+  const cjn = raisonSansCjn(d) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="demanderCjnFiche('${escapeOnclickArg(d.id)}')" title="Demande de casier judiciaire des acquéreurs, préparée dans Authentic (rien n’est envoyé)">${icone('file-text')} Casier judiciaire (CJN)</wa-button>`;
+  const comedec = `<div class="ec-comedec"><wa-button variant="brand" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')">${icone('file-text')} Demander par Comedec : naissance</wa-button>${personnes.some(p => p.mariage) ? `<wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')">Comedec : mariage</wa-button>` : ''}${cjn}</div>`;
   const lignesApr = papier.map(x => {
     const p = x.personne;
     const lib = x.type === 'mariage' ? 'Mariage' : 'Naissance';
