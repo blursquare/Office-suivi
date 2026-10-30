@@ -579,3 +579,20 @@ test('emails des dossiers : confrère sur deux dossiers gardé sans dossier nomm
     assert.equal(ko.statut, 502, 'un échec de lecture des destinataires est dit, jamais « aucun email »');
   } finally { db.close(); }
 });
+
+test('partenaires du dossier (étude 30/10) : syndic absent de la fiche qui cite le dossier gardé, email sans lien écarté', async () => {
+  const { db, repo, depot } = preparer();
+  try {
+    const poster = (o, cb) => {
+      if (/sentitems/.test(o.body)) return cb(null, { statusCode: 200, body: find([]) });
+      return cb(null, { statusCode: 200, body: find([
+        msgFind('IN1', 'Pré-état daté lot 12 - vente MARTEL / FOURNIER', '2026-10-27T08:00:00Z', 'Syndic', 'gestion@syndic-exemple.fr', true),
+        msgFind('IN2', 'Offre de prêt FOURNIER', '2026-10-27T09:00:00Z', 'Courtier', 'contact@courtage-exemple.fr', true),
+        msgFind('IN3', 'Promotion de la semaine', '2026-10-27T10:00:00Z', 'Banque', 'promo@banque-exemple.fr', false)]) });
+    };
+    const r = await E.chercherMailsDirect(repo, depot, { texte: 'semaine', sens: 'recus' }, { poster });
+    assert.equal(r.emails.map((e) => e.email_expediteur).sort().join(','), 'contact@courtage-exemple.fr,gestion@syndic-exemple.fr');
+    assert.ok(r.emails.every((e) => e.dossier_id === 'd1'));
+    assert.equal(r.hors_dossiers_ecartes, 1);
+  } finally { db.close(); }
+});
