@@ -4811,7 +4811,7 @@
     .tabs.tabs-timeline::before, .tabs.tabs-timeline .tab::after { display: none; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .piece-outil, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
   /* ---- wizard "Nouveau dossier" (Importer / Vérifier / Finaliser) ---- */
@@ -11621,17 +11621,14 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .selecteur-gif-source { align-self: flex-end; font-size: var(--texte-xxs); color: var(--muted); }
 .asst-gif::part(label) { font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
 
-/* Outil d'une pièce, tout à droite de sa ligne (retour de l'étude, 30/10, outilPieceFiche de client/77). */
-.piece-outil { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 6px; border: 0; border-radius: var(--rayon-s); background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-xs); font-weight: 500; white-space: nowrap; cursor: pointer; }
-.piece-outil:hover, .piece-outil:focus-visible { background: var(--paper-sunk); }
-.piece-outil .icone { width: 14px; height: 14px; }
 
 .tf-pieces-plus { align-self: flex-start; margin-top: 4px; padding: 2px 0; border: 0; background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-s); font-weight: 500; cursor: pointer; }
 /* Fiche : aucune valeur coupée (retour de l'étude, 30/10) — le texte passe à la ligne, le bouton voisin dessous s'il le faut. */
 .fiche-panneau .prop-texte { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .fiche-panneau .fiche-proprietes dd { flex-wrap: wrap; row-gap: 4px; }
-/* Outils du dossier sous la colonne du milieu de l'onglet Dossier (30/10) : pastilles qui s'enroulent, espacements de Web Awesome (8 px). */
-.fiche-outils-milieu { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
-.fiche-outils-milieu > .section-eyebrow, .fiche-outils-milieu > div, .fiche-outils-milieu > p { flex: 1 1 100%; }
-.fiche-outils-milieu wa-button.action-rapide { margin: 0; --wa-form-control-height: 32px; font-weight: 500; color: var(--ink); }
-.fiche-outils-milieu wa-button.action-rapide .icone { color: var(--focus); }
+/* Barre « Outils » en tête des onglets Pièces et analyse, Dossier et Fonds (30/10) : même place, même forme, pastilles espacées de 8 px. */
+.fiche-outils-barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.fiche-outils-barre > .section-eyebrow { margin-right: 4px; }
+.fiche-outils-barre > div, .fiche-outils-barre > p { flex: 1 1 100%; }
+.fiche-outils-barre wa-button.action-rapide { margin: 0; --wa-form-control-height: 32px; font-weight: 500; color: var(--ink); }
+.fiche-outils-barre wa-button.action-rapide .icone { color: var(--focus); }

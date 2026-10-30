@@ -873,7 +873,6 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
-      ${renderOutilsFiche(d)}
       </div>
         </div>
         ${renderColonneOutilsFiche(d)}

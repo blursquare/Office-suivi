@@ -212,23 +212,35 @@
     return authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${authentic}</aside>` : '';
   }
 
-  // Les outils du dossier, en pastilles, sous la colonne du milieu de l'onglet Dossier.
-  function renderOutilsFiche(d) {
-    if (!d || d.archive && estSuccession(d)) return '';
+  // Outils rangés dans leur onglet (retour de l'étude, 30/10 : « dispatcher les boutons d'outils dans leurs onglets respectifs, au même endroit
+  // dans chaque onglet, sauf Suivi ») : Pièces et analyse = constitution, urbanisme, état civil ; Dossier = agenda, fiche de signature, résumé ;
+  // Fonds = appel de fonds, provision, décompte vendeur, prorata, quotités, autorisations. Pure : { pieces, dossier, fonds } de { icone, libelle, onclick, titre }.
+  var ONGLET_OUTIL_FICHE = { 'Appel de fonds': 'fonds', 'Provision': 'fonds', 'Décompte vendeur': 'fonds', 'Prorata': 'fonds', 'Quotités': 'fonds', 'Contrôle de l’urbanisme': 'pieces' };
+  function outilsParOngletFiche(d) {
+    const r = { pieces: [], dossier: [], fonds: [] };
+    if (!d || d.archive && estSuccession(d)) return r;
     const id = escapeOnclickArg(d.id);
-    const bouton = (ic, libelle, onclick, titre) => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${onclick}" title="${escapeAttr(titre)}">${icone(ic)}${escapeHtml(libelle)}</wa-button>`;
-    const outils = [];
     if (estSuccession(d)) {
-      outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers d’interrogation : banques, assurances, caisses, impôts…'));
+      r.pieces.push({ icone: 'courriers', libelle: 'Constitution de dossier', onclick: `ouvrirConstitutionDepuisFiche('${id}')`, titre: 'Courriers d’interrogation : banques, assurances, caisses, impôts…' });
       // Notoriété seule : aucune autorisation de fonds (étude 26/10).
-      if (autorisationsFondsSuccession(d)) outils.push(bouton('file-text', 'Autorisations de déblocage/transfert', `ouvrirAutorisationsDepuisFiche('${id}')`, 'Déblocage ou transfert de fonds : une autorisation par héritier'));
-    } else {
-      if (!d.archive && d.roleNotaire !== 'participant') outils.push(bouton('courriers', 'Constitution de dossier', `ouvrirConstitutionDepuisFiche('${id}')`, 'Courriers à la mairie : numérotage, alignement, péril, assainissement'));
-      outilsVenteFiche(d).forEach(o => outils.push(bouton(o.icone, o.libelle, o.onclick, o.titre)));
+      if (autorisationsFondsSuccession(d)) r.fonds.push({ icone: 'file-text', libelle: 'Autorisations de déblocage/transfert', onclick: `ouvrirAutorisationsDepuisFiche('${id}')`, titre: 'Déblocage ou transfert de fonds : une autorisation par héritier' });
+      return r;
     }
-    // État civil (Comedec un acte à la fois, demandes papier) et lecture de l'EHF : client/142.
-    const etatCivil = typeof renderEtatCivilFiche === 'function' ? renderEtatCivilFiche(d) : '';
-    return `<div class="fiche-outils-milieu" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</div>`;
+    if (!d.archive && d.roleNotaire !== 'participant') r.pieces.push({ icone: 'courriers', libelle: 'Constitution de dossier', onclick: `ouvrirConstitutionDepuisFiche('${id}')`, titre: 'Courriers à la mairie : numérotage, alignement, péril, assainissement' });
+    // Doublon évité : quand l'onglet Pièces montre sa carte « Contrôle de l'urbanisme » (étude qui reçoit l'acte), la barre ne la répète pas.
+    outilsVenteFiche(d).filter(o => !(o.libelle === 'Contrôle de l’urbanisme' && d.roleNotaire !== 'participant'))
+      .forEach(o => r[ONGLET_OUTIL_FICHE[o.libelle] || 'dossier'].push(o));
+    return r;
+  }
+
+  // La barre « Outils » en tête d'un onglet de la fiche — même place et même forme dans chaque onglet (pastilles, espacement de 8 px).
+  function renderBarreOutilsOnglet(d, onglet) {
+    const outils = outilsParOngletFiche(d)[onglet] || [];
+    // État civil (Comedec un acte à la fois, demandes papier) et lecture de l'EHF : client/142, avec les pièces.
+    const etatCivil = onglet === 'pieces' && typeof renderEtatCivilFiche === 'function' ? renderEtatCivilFiche(d) : '';
+    if (!outils.length && !etatCivil.trim()) return '';
+    const bouton = (o) => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${o.onclick}" title="${escapeAttr(o.titre)}">${icone(o.icone)}${escapeHtml(o.libelle)}</wa-button>`;
+    return `<div class="fiche-outils-barre" aria-label="Outils"><span class="section-eyebrow">Outils</span>${outils.map(bouton).join('')}${etatCivil}</div>`;
   }
 
   // Pure : la contenance du cadastre (IGN) de chaque parcelle lue par le Contrôle de l'urbanisme, par clé de parcelle.
@@ -478,17 +490,3 @@
     return `<span class="parcelles-fiche">${autres.map(({ im, signature }) => `<span class="parcelle-fiche">${escapeHtml(im.adresse ? normaliserAdresse(im.adresse) : (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '))}
       <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer ce bien du dossier" onclick="retirerBienVente('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(signature)}')">${icone('x')}</wa-button></span>`).join('')}</span>`;
   }
-
-// Retour de l'étude (30/10) : l'outil qui sert une pièce, tout à droite de sa ligne dans « Pièces et analyse », selon sa catégorie —
-// urbanisme et non-péril → Constitution de dossier (courriers de demande), préemption et SAFER → Contrôle de l'urbanisme, taxe foncière → Prorata,
-// état daté → Appel de fonds. Pure : { libelle, icone, onclick, titre } ou null. Même voie que la colonne des outils de l'onglet Dossier.
-function outilPieceFiche(d, p) {
-  if (!d || !p || d.archive || estSuccession(d)) return null;
-  const id = escapeOnclickArg(d.id);
-  const urbanisme = (typeof PIECES_URBANISME !== 'undefined' && PIECES_URBANISME.some(x => x.cle === p.cle)) || p.cle === 'nonPeril';
-  if (urbanisme && d.roleNotaire !== 'participant') return { libelle: 'Constitution', icone: 'courriers', onclick: `ouvrirConstitutionDepuisFiche('${id}')`, titre: 'Préparer le courrier de demande (Constitution de dossier)' };
-  if (p.cle === 'renonciationPreemption' || /safer/i.test(p.label || '')) return { libelle: 'Urbanisme', icone: 'shield', onclick: `ouvrirPreemptionDepuisFiche('${id}')`, titre: 'Contrôle de l’urbanisme : DIA, SAFER, zonage' };
-  if (p.cle === 'avisTaxeFonciere') return { libelle: 'Prorata', icone: 'part-disque', onclick: `ouvrirProrataDepuisFiche('${id}')`, titre: 'Prorata de taxe foncière' };
-  if (p.cle === 'etatDate') return { libelle: 'Appel de fonds', icone: 'mail', onclick: `preparerAppelFondsDepuisDossier('${id}')`, titre: 'Appel de fonds (fonds de travaux lu dans l’état daté)' };
-  return null;
-}
