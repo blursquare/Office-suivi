@@ -307,7 +307,9 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
     const representees = parties.filter((p) => p && ((p.role === 'VENDEUR' && !confrereVendeur(d)) || (p.role === 'ACQUEREUR' && !confrereAcquereur(d))) && p.qualitePersonne !== 'morale');
     const etatsCivils = d.authentic && Array.isArray(d.authentic.etatsCivils) ? d.authentic.etatsCivils : [];
     const cree = dateCreationDossier(d);
-    if (representees.length && !etatsCivils.length && cree && cree >= DATE_DEBUT_COMEDEC_AUTHENTIC) {
+    // Jamais en participation (étude 30/10 : « ne pas demander pour les actes où nous sommes en participation ») : le confrère qui reçoit l'acte
+    // fait les demandes d'état civil.
+    if (d.roleNotaire !== 'participant' && representees.length && !etatsCivils.length && cree && cree >= DATE_DEBUT_COMEDEC_AUTHENTIC) {
       sortie.push(proposition(base('formalites-authentic', d, ctx, 'comedec'), {
         type: 'tache', action: 'authentic', empreinte: `authentic-comedec:${d.id}`,
         titre: `Demande d’état civil (Comedec) à préparer — ${libelleDossierAffiche(d)}`,
@@ -327,6 +329,21 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
     }
   }
   return sortie;
+}
+
+/**
+ * Pure : les propositions Comedec encore à décider d'un dossier passé en participation, mises « expirées » (jamais refaites). Rend la liste
+ * d'origine si rien ne change. @param {any[]} liste @param {any[]} dossiers
+ */
+function expirerComedecParticipation(liste, dossiers) {
+  const participants = new Set((dossiers || []).filter((d) => d && d.roleNotaire === 'participant').map((d) => d.id));
+  if (!participants.size) return liste;
+  let change = false;
+  const nouvelle = (liste || []).map((p) => {
+    if (p && (p.etat === 'proposee' || p.etat === 'vue') && /^authentic-comedec:/.test(String(p.empreinte || '')) && participants.has(p.dossierId)) { change = true; return Object.assign({}, p, { etat: 'expiree', motifExpiration: 'participation' }); }
+    return p;
+  });
+  return change ? nouvelle : liste;
 }
 
 // ---- Étape 4 du vrai agent (étude 29/10 : « c'est comme quand Julie ou Jérémy voient quelque chose dans leur dossier que je ne vois pas ») ----
@@ -541,5 +558,5 @@ module.exports = {
   relancesFormalites,
   diagnosticsPerimes, finValiditeDpe, incoherencesSignature, controleRendezVous, derniereActiviteDossier, dossiersBloques, plusMois,
   DATE_DEBUT_CONSTITUTION, JOURS_VEILLE_SIGNATURE, joursEntre, semaineIso, dateFr, confrereAcquereur, confrereVendeur, acteSigne, dateCreationDossier,
-  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE, DATE_DEBUT_COMEDEC_AUTHENTIC
+  dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, expirerComedecParticipation, JOURS_CJN_AVANT_SIGNATURE, DATE_DEBUT_COMEDEC_AUTHENTIC
 };

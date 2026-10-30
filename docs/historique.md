@@ -23350,3 +23350,13 @@ dit et sans bouton), `renderRappelOffrePretFonds`, « Demandes à faire » (ex-�
 de ce stade » dessous. La comparaison au solde à verser reste dans « Fonds reçus », sans son bouton (celui de la carte suffit). Succession : l'onglet
 Fonds existe désormais (comptabilité, RIB des héritiers `renderLignesSignatureRib`, « Autorisations de fonds » sauf notoriété seule) ; plus
 de renvoi de l'onglet Fonds vers le Tableau pour une succession.
+
+### 30/10/2026 — 0.407.3 : pas de Comedec en participation
+
+L'étude (30/10, carte « Demande d'état civil (Comedec) à préparer — VTE - … » sur un dossier en participation) : « ne pas demander pour les actes où
+nous sommes en participation ». `formalitesAuthentic` (server/src/routines/executants.js) saute l'état civil quand `roleNotaire === 'participant'`
+(comme le CJN) ; `expirerComedecParticipation`, à chaque tour du planificateur, passe « expirée » une carte Comedec encore à décider d'un dossier
+en participation (jamais refaite). Le bouton de la fiche et l'agent ne sont pas touchés (demande à la main).
+Relecture : la carte retirée dit « Retirée : en participation, le confrère qui reçoit l'acte fait la demande » (`motifExpiration`) ; retrait fait
+avant l'état des cartes (💤 au même tour). Limite : un dossier remis ensuite en instrumentaire ne reçoit pas de nouvelle carte (empreinte prise) —
+la demande se fait alors à la main.

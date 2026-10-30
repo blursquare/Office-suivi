@@ -48,7 +48,7 @@ function etatTexteProposition(p, maintenantMs) {
   if (p && p.etat === 'acceptee') return `Autorisée${par}${quand}`;
   if (p && p.etat === 'refusee') return `Refusée${par}${quand}`;
   if (p && p.etat === 'faite') return `Déjà fait${par}${quand}`;
-  if (p && p.etat === 'expiree') return 'Expirée : sans réponse depuis 30 jours';
+  if (p && p.etat === 'expiree') return p.motifExpiration === 'participation' ? 'Retirée : en participation, le confrère qui reçoit l’acte fait la demande' : 'Expirée : sans réponse depuis 30 jours';
   if (p && p.etat === 'vue' && p.type === 'alerte') return 'Lue';
   return '';
 }

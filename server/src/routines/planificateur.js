@@ -358,10 +358,16 @@ function creerPlanificateur(deps) {
       const avant = lirePropositions(parametresRepo);
       const apres = expirer(avant, maintenant);
       if (apres !== avant) { bilan.expirees = apres.filter((p, i) => p.etat !== avant[i].etat).length; ecrirePropositions(parametresRepo, apres); }
+      const dossiersActifs = depot && depot.tousActifs ? (() => { try { return depot.tousActifs(); } catch (e) { return []; } })() : [];
+      // Comedec proposé avant que le dossier soit noté en participation (étude 30/10) : la carte encore à décider est retirée.
+      try {
+        const lues = lirePropositions(parametresRepo);
+        const sansComedec = X.expirerComedecParticipation(lues, dossiersActifs);
+        if (sansComedec !== lues) { ecrirePropositions(parametresRepo, sansComedec); bilan.expirees += sansComedec.filter((p, i) => p.etat !== lues[i].etat).length; }
+      } catch (e) { /* jamais bloquant */ }
       // L'état des cartes (⏳ sans réponse depuis un jour, 💤 expirée) se dit par une réaction de CLAIRE sur la carte.
       try { synchroniserEtatCartes(parametresRepo, maintenant.getTime()); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // 🎉 de CLAIRE dans le canal d'un dossier dont l'acte vient d'être signé (une fois par dossier).
-      const dossiersActifs = depot && depot.tousActifs ? (() => { try { return depot.tousActifs(); } catch (e) { return []; } })() : [];
       try { if (dossiersActifs.length) celebrerSignatures(parametresRepo, dossiersActifs); } catch (e) { /* de l'affichage : jamais bloquant */ }
       // Signaux de CLAIRE dans les canaux : ⚠️ retard, ✅ tâche faite, 🎂 anniversaires (jamais bloquants).
       try {

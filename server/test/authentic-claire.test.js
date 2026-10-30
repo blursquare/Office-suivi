@@ -66,7 +66,12 @@ test('routine : Comedec proposée une fois pour un dossier relié à Authentic, 
   assert.deepEqual(p.map((x) => x.details.formalite).sort(), ['cjn', 'comedec']);
   assert.ok(p.every((x) => x.type === 'tache' && x.routine === 'formalites-authentic'));
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { rendezVousSignature: '2026-12-31' })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'comedec', 'signature lointaine : pas encore de CJN');
-  assert.equal(X.formalitesAuthentic([Object.assign({}, d, { roleNotaire: 'participant' })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'comedec', 'participation : le notaire qui reçoit l’acte fait le CJN');
+  assert.equal(X.formalitesAuthentic([Object.assign({}, d, { roleNotaire: 'participant' })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), '', 'participation : le notaire qui reçoit l’acte fait le CJN et l’état civil (étude 30/10)');
+  const cartes = [{ dossierId: 'd1', empreinte: 'authentic-comedec:d1', etat: 'proposee' }, { dossierId: 'd1', empreinte: 'authentic-comedec:d1', etat: 'acceptee' }, { dossierId: 'd2', empreinte: 'authentic-comedec:d2', etat: 'vue' }];
+  const apres = X.expirerComedecParticipation(cartes, [Object.assign({}, d, { roleNotaire: 'participant' }), { id: 'd2' }]);
+  assert.equal(apres[0].motifExpiration, 'participation');
+  assert.equal(apres.map((x) => x.etat).join(), 'expiree,acceptee,vue', 'carte encore à décider d’un dossier en participation retirée, rien d’autre');
+  assert.equal(X.expirerComedecParticipation(cartes, [{ id: 'd2' }]), cartes);
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { referenceAuthentic: '' })], '2026-10-27', { authenticActif: true }).length, 0, 'pas relié à Authentic');
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { authentic: { etatsCivils: [{ etat: 'positif' }] } })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'cjn', 'état civil déjà demandé');
   assert.equal(X.formalitesAuthentic([Object.assign({}, d, { historique: [{ date: '2026-09-01T09:00:00Z', texte: 'Dossier créé' }] })], '2026-10-27', { authenticActif: true }).map((x) => x.details.formalite).join(), 'cjn', 'dossier d’avant la mise en service : pas de vague d’états civils');

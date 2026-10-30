@@ -106,7 +106,7 @@ server/                              Serveur (son propre package.json ; le packa
                                      fiche de la mairie (annuaire du service public), corrections de l'étude ; poste : client/69-depot-dia.js
   src/yousign.js, routes/yousign.js  Yousign (23/10, 0.321.0) : signature électronique, serveur MCP https://api.yousign.app/mcp lu par le SERVEUR (clé Bearer jamais renvoyée, adresse en .yousign.app seulement), outils `yousign__…` de l'agent ; tout outil qui écrit = carte « Autoriser » ; poste : client/106-yousign.js
   src/authenticClaire.js, routes/authenticClaire.js  CLAIRE dans Authentic (27/10, 0.373.0) : navigateur du serveur (cloud-fichorga.fr seul, compte de l'étude, clé `authentic-connexion`,
-                                     mot de passe jamais rendu), parcours sans IA : lire un dossier (relevé = extension-firefox/releve.js → file des relevés), préparer CJN / Comedec
+                                     mot de passe jamais rendu), parcours sans IA : lire un dossier (relevé = extension-firefox/releve.js → file des relevés), préparer CJN / Comedec — jamais proposés en participation, 30/10 —
                                      (Création rapide allumée, Envoi immédiat LU éteint avant « Valider », rien n'est envoyé ; CJN : le vrai bloc n'a pas d'« Envoi immédiat » — droits du compte —, « Valider » permis sans lui, acquéreurs cochés, étude 30/10) ; carte « Autoriser » stricte ; poste : client/131
   src/appels3cx.js, routes/appels.js Appels reçus par 3CX (sonnerie → journal, appelant reconnu, fiche ouverte)
   src/nas.js, nasWatch.js            Lecture du NAS par le serveur, surveillance périodique

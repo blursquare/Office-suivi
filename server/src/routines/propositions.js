@@ -72,7 +72,9 @@ function assainirProposition(p) {
     // Terminée (étude 27/10 : « quand une routine est faite, comment indiquer que c'est terminé ? ») : le travail autorisé est fait — par le
     // geste lui-même (constitution enregistrée…) ou d'un clic « Terminé » sur la carte.
     termineeLe: date(p.termineeLe),
-    termineePar: texteBorne(p.termineePar, 80)
+    termineePar: texteBorne(p.termineePar, 80),
+    // Pourquoi une proposition est retirée sans attendre ses 30 jours (étude 30/10 : 'participation' — Comedec fait par le confrère).
+    motifExpiration: p.motifExpiration === 'participation' ? 'participation' : ''
   };
 }
 
