@@ -31,7 +31,7 @@ function creerNotifieur(deps) {
   };
 
   /**
-   * @param {string} canal @param {{ auteur: string, texte?: string, mentions?: string[] }} message @param {number} [maintenant]
+   * @param {string} canal @param {{ auteur: string, texte?: string, mentions?: string[], pj?: any[] }} message @param {number} [maintenant]
    * @returns {Promise<string[]>} les collaborateurs prévenus
    */
   async function notifierMentions(canal, message, maintenant) {
