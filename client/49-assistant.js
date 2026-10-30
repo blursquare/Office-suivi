@@ -356,10 +356,15 @@
     reinitialiserAutorisationDemandeAgent();   // chaque nouvelle demande repart avec ses propres cartes
     const champ = document.getElementById('assistant-saisie');
     const joints = !texteForce && piecesJointesAssistant.length > 0;
-    const texte = String(texteForce || (champ ? champ.value : '') || '').trim() || (joints ? 'Que contient la pièce jointe et que faut-il en retenir ?' : '');
-    if (!texte || assistantEnCours) return;
-    // Pièces jointes (13/10) : lues par l'agent seulement ; sans lui, elles restent dans la saisie et on le dit.
-    if (joints && !assistantDisponibilite.agent) {
+    // Un fichier envoyé seul dans une discussion partagée (canal, message privé à un collègue) part SANS texte : la question à CLAIRE n'est
+    // ajoutée que dans la conversation avec elle (étude 30/10 : un PDF envoyé à Julie portait « Que contient la pièce jointe… ? »).
+    const texteSaisi = String(texteForce || (champ ? champ.value : '') || '').trim();
+    const fichierSeulCanal = !!canaux.actif && joints && !texteSaisi;
+    const texte = texteSaisi || (joints && !canaux.actif ? 'Que contient la pièce jointe et que faut-il en retenir ?' : '');
+    if ((!texte && !fichierSeulCanal) || assistantEnCours) return;
+    // Pièces jointes (13/10) : lues par l'agent seulement ; sans lui, elles restent dans la saisie et on le dit (un fichier partagé dans une
+    // discussion, sans demande à CLAIRE, n'a pas besoin de l'agent).
+    if (joints && !assistantDisponibilite.agent && !fichierSeulCanal) {
       afficherToast('Les pièces jointes se lisent avec l’agent (Claude ou Mistral, Réglages › IA et relecture d’actes) : il n’est pas disponible.', 'OK', null);
       return;
     }
@@ -380,9 +385,9 @@
       pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.nas ? { nas: p.nas } : p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
     // Dans un fil, la règle est celle du fil (claireRepondDansFil, client/120).
-    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif)))) {
+    if (canaux.actif && (fichierSeulCanal || !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif))))) {
       // Une question sans réponse dans 15 minutes : CLAIRE y répondra (client/144).
-      if (!canaux.parentCourant) noterQuestionCanalPourRelance(canaux.actif, texte);
+      if (!canaux.parentCourant && texte) noterQuestionCanalPourRelance(canaux.actif, texte);
       return;
     }
     marquerVuParClaire();

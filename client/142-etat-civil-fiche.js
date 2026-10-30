@@ -177,9 +177,26 @@ function renderEtatCivilConstitution(d) {
   const cellule = (p, type, libelle) => `<span class="ec-acte${aPapier(p, type) ? ' ec-acte-apr' : ''}"><span class="ec-acte-lib">${escapeHtml(libelle)}${aPapier(p, type) ? ` <span class="pastille-apr" title="Authentic marque cette demande « APR » : papier">APR</span>` : ''}</span>${format(p, type, 'docx', 'Word')}${format(p, type, 'pdf', 'PDF')}</span>`;
   const lignes = personnes.map(p => `<li class="ec-personne"><span class="ec-nom">${escapeHtml([p.prenom, p.nom].filter(Boolean).join(' '))}${p.role === 'DEFUNT' ? ' <span class="hint">défunt</span>' : ''}</span>
       ${cellule(p, 'naissance', 'Naissance')}${p.mariage ? cellule(p, 'mariage', 'Mariage') : ''}</li>`).join('');
-  const comedec = !estSuccession(d) ? `<div class="ec-comedec"><wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')">Comedec : naissance</wa-button>${personnes.some(p => p.mariage) ? `<wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')">Comedec : mariage</wa-button>` : ''}</div>` : '';
-  return `<p class="hint">Mairie sans Comedec : le courrier papier est préparé au modèle de l’étude (tampon et signature p/o), l’enveloppe timbrée est à joindre. La mairie de naissance est celle du lieu de naissance de la fiche : le code postal et le lieu manquants se complètent sur le courrier.</p>
-    <ul class="ec-liste">${lignes}</ul>${comedec}`;
+  const aide = '<p class="hint">Mairie sans Comedec : le courrier papier est préparé au modèle de l’étude (tampon et signature p/o), l’enveloppe timbrée est à joindre. La mairie de naissance est celle du lieu de naissance de la fiche : le code postal et le lieu manquants se complètent sur le courrier.</p>';
+  // Succession : pas de Comedec par CLAIRE, chaque courrier papier se prépare ici.
+  if (estSuccession(d)) return `${aide}<ul class="ec-liste">${lignes}</ul>`;
+  // Vente (étude 30/10 : « d'abord on clique sur le bouton pour rechercher les Comedec et s'il y a des demandes papier, l'outil propose de les
+  // faire en papier ») : 1. la demande Comedec dans Authentic ; 2. seulement les demandes qu'Authentic marque « APR » (mairie sans Comedec)
+  // reçoivent leur courrier papier ; le courrier pour n'importe quelle personne reste replié, en secours.
+  const comedec = `<div class="ec-comedec"><wa-button variant="brand" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')">${icone('file-text')} Demander par Comedec : naissance</wa-button>${personnes.some(p => p.mariage) ? `<wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')">Comedec : mariage</wa-button>` : ''}</div>`;
+  const lignesApr = papier.map(x => {
+    const p = x.personne;
+    const lib = x.type === 'mariage' ? 'Mariage' : 'Naissance';
+    return p
+      ? `<li class="ec-personne"><span class="ec-nom">${escapeHtml([p.prenom, p.nom].filter(Boolean).join(' '))}</span><span class="ec-acte ec-acte-apr"><span class="ec-acte-lib">${lib} <span class="pastille-apr" title="Authentic marque cette demande « APR » : papier">APR</span></span>${format(p, x.type, 'docx', 'Word')}${format(p, x.type, 'pdf', 'PDF')}</span></li>`
+      : `<li class="ec-personne"><span class="ec-nom" title="${escapeAttr(x.libelle)}">${escapeHtml(x.libelle.slice(0, 60))}</span><span class="jour-vide">personne non reconnue : courrier ci-dessous</span></li>`;
+  }).join('');
+  const etape2 = papier.length
+    ? `<span class="section-eyebrow">Demandes papier à faire${infoBulle('Lignes « APR » d’Authentic : la mairie n’est pas sur Comedec. Le courrier est au modèle de l’étude.')}</span><ul class="ec-liste">${lignesApr}</ul>${aide}`
+    : '<p class="hint">Aucune demande papier pour l’instant : après la demande Comedec, une mairie sans Comedec apparaît ici (ligne « APR » d’Authentic) avec son courrier.</p>';
+  return `<span class="section-eyebrow">1. Demande Comedec dans Authentic</span>${comedec}
+    <span class="section-eyebrow">2. Courriers papier</span>${etape2}
+    <details class="ec-papier-tous"><summary>Préparer un courrier papier pour une autre personne</summary><ul class="ec-liste">${lignes}</ul></details>`;
 }
 
 // Outil `courrier_etat_civil` de l'agent : le courrier papier à la mairie (après « Autoriser »), pour une personne ou pour chaque demande APR en attente.

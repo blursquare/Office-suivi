@@ -23407,3 +23407,28 @@ Relecture : responsable lu pour chaque canal de dossier (la valeur ne flotte plu
 en direct marqué fermé à la fin de la tâche même si sa première capture n'est pas encore arrivée. Limite : un « Tous » enregistré AVANT ce
 changement (un simple favori l'enregistrait) reste « Tous » pour ce canal — le régler sur « Mentions » à la main si besoin ; un choix fait reste
 figé si le collaborateur devient ensuite responsable du dossier.
+
+### 30/10/2026 — 0.407.7 : une demande partie n'est pas la réponse de la mairie
+
+L'étude (30/10) : « les demandes de pièce trouvées sur Authentic se rajoutent aux pièces en attente sur la fiche dossier. Se cochent-elles seules
+par la suite si la pièce est trouvée dans le NAS ? » — oui (la demande s'affiche sous la pièce de la checklist, la vérification du NAS la coche par
+le nom du fichier) ; mais un courrier de DEMANDE rangé hors du sous-dossier « Constitution » (« Demande de certificat d'alignement.pdf ») cochait la
+pièce. Réponse de l'étude à la correction proposée : « oui ». `nomDitDemandePartie` (client/34) : pour les pièces d'urbanisme et le non-péril, un nom
+qui COMMENCE par demande / courrier / lettre / relance / envoi n'est jamais la pièce reçue, sauf s'il dit la réponse (réponse, retour, arrêté,
+délivré, reçu). `demandesUrbanismeAuthentic` (client/30) retire désormais tous les mots du geste en tête (« Courrier de demande de numérotage »)
+pour que la demande d'Authentic reste rattachée à sa pièce. Test dans tests/noms-reconnus.test.js.
+L'étude (même jour) : « rajoute qu'un courrier qui porte le nom interrogation sur le commun ne doit pas valider la pièce » — `correspondancePieceNomMotifs`
+(client/34) : un nom qui contient « interrogation » ne coche aucune pièce (checklist, pièces personnalisées, successions), sauf une pièce dont le
+libellé porte ce mot (« Interrogation du FCDDV » : la réponse du fichier central s'appelle ainsi).
+
+### 30/10/2026 — 0.407.8 : Comedec d'abord dans la Constitution ; fichier envoyé seul dans une discussion
+
+L'étude (30/10, capture de l'étape « Actes d'état civil ») : « d'abord on clique sur le bouton pour rechercher les Comedec et s'il y a des demandes
+papier, l'outil CLAIRE propose de les faire en papier depuis CLAIRE ». `renderEtatCivilConstitution` (client/142), vente : « 1. Demande Comedec dans
+Authentic » (bouton principal), « 2. Courriers papier » = seulement les lignes « APR » d'Authentic (`demandesPapierDossier`, personne reconnue par
+nom ET prénom ; sinon le libellé, « personne non reconnue »), le courrier pour toute personne replié (« Préparer un courrier papier pour une autre
+personne ») ; succession inchangée (pas de Comedec par CLAIRE).
+L'étude (même jour, capture d'un message privé à Julie) : un PDF envoyé seul portait « Que contient la pièce jointe et que faut-il en retenir ? ».
+Ce texte n'est plus ajouté que dans la conversation avec CLAIRE ; dans une discussion partagée, un fichier seul part sans texte et sans appeler
+CLAIRE (`fichierSeulCanal`, client/49) ; le serveur accepte un message fait d'une pièce jointe seule (`assainirMessage`, route des messages), un
+message vraiment vide reste refusé.

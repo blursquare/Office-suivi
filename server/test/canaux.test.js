@@ -296,3 +296,10 @@ test('notifications d’un canal de dossier (étude 30/10) : le collaborateur no
   C.reglerPreferences(repo, 'Jérémy SAUJOT', 'd:p1', { notif: 'tous' });
   assert.equal(C.listerCanaux(repo, 'Jérémy SAUJOT', undefined, resp).badge, 2);
 });
+
+test('un fichier envoyé seul (sans texte) est un message ; un message vraiment vide est refusé (étude 30/10)', () => {
+  const repo = fauxRepo();
+  const m = C.ajouterMessage(repo, 'p:bastien-julie', { auteur: 'Bastien ANGLUMENT', texte: '', pj: [{ nom: 'M1.pdf', type: 'pdf', fichierId: 'a'.repeat(32), taille: 1000 }] }, 100);
+  assert.ok(m && m.pj.length === 1 && m.texte === '');
+  assert.equal(C.ajouterMessage(repo, 'p:bastien-julie', { auteur: 'Bastien ANGLUMENT', texte: '', pj: [{ nom: '' }] }, 200), null);
+});

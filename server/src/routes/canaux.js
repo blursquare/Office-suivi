@@ -170,7 +170,8 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const texte = typeof corps.texte === 'string' ? corps.texte.trim() : '';
     if (corps.claire !== true && texte.length > C.MAX_TEXTE_PERSONNE) { res.status(400).json({ erreur: `Message trop long (${C.MAX_TEXTE_PERSONNE} caractères au plus).` }); return; }
     const html = typeof corps.html === 'string' ? corps.html : '';
-    if (!texte && !html) { res.status(400).json({ erreur: 'Message vide.' }); return; }
+    // Un fichier envoyé seul (sans texte) est permis à une personne (étude 30/10) ; vérifié après le filtre des pièces jointes plus bas.
+    if (!texte && !html && !(corps.claire !== true && Array.isArray(corps.pj) && corps.pj.length)) { res.status(400).json({ erreur: 'Message vide.' }); return; }
     // Une réponse de CLAIRE est écrite par le poste de celui qui l'a demandée (`via`) ; une personne écrit sous son nom.
     const claire = corps.claire === true;
     let mentions = claire ? [] : C.mentionsDansTexte(texte, COLLABORATEURS).collaborateurs;
@@ -191,6 +192,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
       const meta = stockPiecesJointes && stockPiecesJointes.meta ? stockPiecesJointes.meta(p.fichierId) : null;
       return !!meta && meta.par === par;
     });
+    if (!texte && !html && !pj.length) { res.status(400).json({ erreur: 'Message vide.' }); return; }
     const m = C.ajouterMessage(parametresRepo, id, {
       auteur: claire ? 'CLAIRE' : par, claire, via: claire ? par : '', texte, html: claire ? htmlSurCanal(html) : '', pj: claire ? [] : pj, mentions, parent
     });

@@ -902,7 +902,7 @@
       let cle = '';
       if (/intention\s+d.?\s*alien|(?:^|[^a-z])dia(?:[^a-z]|$)/.test(net)) cle = 'renonciationPreemption';
       else if (estDemande) {
-        const sansDemande = titre.replace(/^\s*(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?|mail|e-?mail)\s*(?:de|d['’]|du|pour)?\s*/i, '');
+        const sansDemande = titre.replace(/^\s*(?:(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?|mail|e-?mail)\s*(?:de|d['’]|du|pour)?\s*)+/i, '');
         const nom = normaliserNomPourMotif(sansDemande + '.pdf');
         const piece = [...PIECES_URBANISME, PIECE_NON_PERIL].find(p => correspondancePieceNom(p, nom) === 'exact');
         if (piece) cle = piece.cle;

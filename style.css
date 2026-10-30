@@ -11564,7 +11564,9 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .ec-acte-lib { margin-right: 4px; color: var(--muted); font-size: var(--texte-s); }
 .ec-acte-apr .ec-acte-lib { color: var(--urgent); font-weight: 600; }
 .pastille-apr { display: inline-block; padding: 0 4px; border-radius: var(--rayon-xs); background: var(--urgent); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
-.ec-comedec { display: flex; gap: 8px; margin-top: 16px; }
+.ec-comedec { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.ec-papier-tous { margin-top: 16px; font-size: var(--texte-s); }
+.ec-papier-tous > summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 
 /* Décompte vendeur (étude 30/10, client/148-decompte-vendeur.js) : lignes modifiables à gauche, aperçu du courrier à droite. */
 .dv-lignes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }

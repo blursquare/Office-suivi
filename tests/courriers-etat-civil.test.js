@@ -93,6 +93,11 @@ test('le courrier papier se compose en Word avec son P.S., et l’étape de la C
   assert.match(html, /Paul DURAND/);
   assert.match(html, /telechargerCourrierEtatCivil\('v1'/);
   assert.match(app.renderEtatCivilFiche(d), /Lire l’EHF/);
+  // Vente (étude 30/10) : Comedec d'abord ; le courrier papier proposé seulement pour une ligne « APR », le reste replié.
+  assert.ok(html.indexOf('Demander par Comedec') < html.indexOf('Aucune demande papier'), 'Comedec en premier');
+  assert.match(html, /<details class="ec-papier-tous">[\s\S]*Paul DURAND/);
+  const apr = app.renderEtatCivilConstitution(Object.assign({}, d, { authentic: { etatsCivilsPapier: { a: { label: 'Acte de naissance Paul DURAND', type: 'naissance' } } } }));
+  assert.match(apr, /Demandes papier à faire[\s\S]*Paul DURAND[\s\S]*APR[\s\S]*<details/);
 });
 
 test('succession : une ligne APR ne va au défunt que par son prénom ET son nom', () => {

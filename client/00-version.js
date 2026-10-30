@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.407.6';
+  const VERSION_APP = '0.407.8';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,8 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.407.8', date: '2026-10-30 16:32', resume: "Constitution de dossier, actes d’état civil d’une vente : d’abord la demande Comedec dans Authentic, puis CLAIRE propose le courrier papier seulement pour les mairies sans Comedec (lignes « APR » d’Authentic) ; le courrier pour une autre personne reste possible, replié. Discussions : un fichier envoyé seul à un collègue part sans texte — plus de « Que contient la pièce jointe… ? » ajouté tout seul." },
+    { version: '0.407.7', date: '2026-10-30 16:18', resume: "Pièces d’urbanisme (certificat d’urbanisme, alignement, numérotage, non-péril, assainissement) : un fichier du NAS dont le nom commence par « Demande », « Courrier », « Lettre », « Relance » ou « Envoi » est la demande partie, plus la réponse de la mairie — la pièce n’est plus cochée trop tôt. « Courrier réponse… » ou un nom qui dit « reçu » reste la réponse. Un courrier dont le nom porte « interrogation » ne valide jamais une pièce (sauf l’interrogation du FCDDV d’une succession, qui porte ce mot)." },
     { version: '0.407.6', date: '2026-10-30 15:25', resume: "Notifications des discussions de dossier : seul le responsable du dossier est prévenu de chaque message ; les autres collaborateurs ne le sont que si on les cite (@prénom). Bastien reçoit toujours tout. Chacun peut changer ce réglage canal par canal (Tous / Mentions / Muet)." },
     { version: '0.407.5', date: '2026-10-30 15:12', resume: "L’aperçu en direct d’Authentic a un bouton « Arrêter » : CLAIRE s’arrête à l’étape suivante. Il se ferme seul à la fin de la tâche ; après un échec, l’aperçu de l’endroit où CLAIRE s’est arrêtée reste affiché." },
     { version: '0.407.4', date: '2026-10-30 14:43', resume: "Un outil ouvert à côté de la discussion prend toute la hauteur, et sa barre d’étapes reste en haut du panneau au lieu de flotter au milieu. Ouvert ensuite dans un onglet, la fenêtre CLAIRE de l’outil reprend la discussion du dossier, avec ce que CLAIRE vient de faire. Si la comptabilité n’est pas liée à la vente dans Authentic, CLAIRE la lit dans la promesse de vente." },

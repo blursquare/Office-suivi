@@ -45,3 +45,25 @@ test('pièce jointe : « Titre de séjour » n’est pas un titre de propriété
   assert.equal(cu && cu.cle, 'certificatUrbanisme');
   assert.equal(app.pieceDePieceJointe('Contrat de crédit immobilier.pdf', checklist).offre, true);
 });
+
+test('une demande partie n’est jamais la réponse de la mairie (étude 30/10) ; « Courrier réponse … » reste la réponse', () => {
+  const app = chargerApplication();
+  const pieces = app.checklistPieces('maison', {});
+  const cles = (n) => pieces.filter(p => app.correspondancePieceNom(p, app.normaliserNomPourMotif(n))).map(p => p.cle).join(',');
+  assert.equal(cles("Demande de certificat d'alignement.pdf"), '');
+  assert.equal(cles("Courrier demande alignement et numérotage MARTIN.pdf"), '');
+  assert.equal(cles("Relance certificat d'urbanisme.pdf"), '');
+  assert.equal(cles("Envoi demande non péril.pdf"), '');
+  assert.equal(cles("Certificat d'alignement.pdf"), 'certificatAlignement');
+  assert.equal(cles('Courrier réponse assainissement.pdf'), 'reponseAssainissement');
+  assert.equal(cles("Courrier mairie certificat d'urbanisme reçu.pdf"), 'certificatUrbanisme');
+  // « Interrogation » dans le nom : le courrier de l'étude, jamais la pièce — sauf l'interrogation du FCDDV (succession).
+  assert.equal(cles("Interrogation mairie certificat d'urbanisme.pdf"), '');
+  assert.equal(cles('Taxe foncière interrogation SIE.pdf'), '');
+  const succ = app.checklistPieces('maison', { typeAffaire: 'succession' }).concat(app.PIECES_SUCCESSION || []);
+  const fcddv = succ.find(p => p.cle === 'fcddv');
+  if (fcddv) assert.equal(app.correspondancePieceNom(fcddv, app.normaliserNomPourMotif('Interrogation FCDDV DURAND.pdf')), 'exact');
+  // Une demande relevée dans Authentic reste rattachée à sa pièce, même avec plusieurs mots du geste en tête.
+  assert.equal(Object.keys(app.demandesUrbanismeAuthentic([{ titre: 'Courrier de demande de numérotage', etat: 'Envoyé' }])).join(), 'certificatNumerotage');
+  assert.equal(Object.keys(app.demandesUrbanismeAuthentic([{ titre: "Demande de certificat d'urbanisme", etat: 'Envoyé' }])).join(), 'certificatUrbanisme');
+});

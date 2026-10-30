@@ -380,7 +380,7 @@ async function publierMessageCanal(message, meta) {
   if (Array.isArray(m.pj) && m.pj.length) message.pj = m.pj;   // les cartes des pièces jointes s'affichent tout de suite
   const claire = message.role === 'claire';
   const texte = claire ? texteDepuisHtmlCanal(message.html) : (typeof m.texte === 'string' ? m.texte : texteDepuisHtmlCanal(message.html));
-  if (!texte && !message.html) return;
+  if (!texte && !message.html && !(Array.isArray(m.pj) && m.pj.length)) return;   // un fichier envoyé seul est un message (étude 30/10)
   // Un message qui porte un champ de saisie ou un bouton de l'assistant (« Corriger », consigne) n'a de sens que sur ce poste : jamais partagé.
   if (claire && /<(textarea|input|select)\b/i.test(message.html || '')) return;
   canaux.publications += 1;

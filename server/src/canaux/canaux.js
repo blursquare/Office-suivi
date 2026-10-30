@@ -71,7 +71,8 @@ function assainirMessage(m) {
   const texte = typeof m.texte === 'string' ? m.texte.trim().slice(0, MAX_TEXTE) : '';
   const html = typeof m.html === 'string' && m.html.trim() ? m.html.slice(0, MAX_TEXTE) : '';
   const carte = borne(m.carte, 60);
-  if (!texte && !html && !carte) return null;
+  // Un fichier envoyé seul (pièce jointe sans texte) est un message (étude 30/10).
+  if (!texte && !html && !carte && !(Array.isArray(m.pj) && m.pj.some((p) => p && typeof p.nom === 'string' && p.nom.trim()))) return null;
   return {
     id, quand,
     auteur: borne(m.auteur, 80) || 'CLAIRE',

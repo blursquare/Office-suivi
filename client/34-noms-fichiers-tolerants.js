@@ -104,6 +104,15 @@
 
   var RE_DEMANDE_DIA_NOM = /d[ée]claration|intention|demande|envoi|envoy[ée]|notification|notifi[ée]/i;
   var RE_REPONSE_DIA_NOM = /renon|r[ée]ponse|retour|non[\s-]?pr[ée]emption|d[ée]cision|arr[êe]t[ée]/i;
+  // Un nom qui COMMENCE par le geste de l'étude (« Demande de certificat d'alignement », « Courrier demande alignement », « Relance… »)
+  // est la demande partie, pas la réponse de la mairie (étude 30/10 : la pièce se cochait alors que la réponse était encore attendue) —
+  // sauf si le nom dit la réponse (« Courrier réponse assainissement »). Seulement pour les pièces que l'étude demande (urbanisme, non-péril).
+  var RE_NOM_DEMANDE_PARTIE = /^\s*(?:demande|courrier|lettre|relance|envoi|envoy[ée]e?s?)(?![a-zà-ÿ])/i;
+  var RE_NOM_REPONSE_RECUE = /r[ée]ponse|retour|arr[êe]t[ée]|d[ée]livr|re[çc]ue?(?![a-zà-ÿ])/i;
+  function nomDitDemandePartie(piece, nomNormalise) {
+    const cles = PIECES_URBANISME.map(p => p.cle).concat(PIECE_NON_PERIL.cle);
+    return !!piece && cles.includes(piece.cle) && RE_NOM_DEMANDE_PARTIE.test(nomNormalise) && !RE_NOM_REPONSE_RECUE.test(nomNormalise);
+  }
 
   function correspondancePieceNomMotifs(piece, nomNormalise) {
     if (!piece) return null;
@@ -120,6 +129,10 @@
     // « DIA » avec « SAFER » dans le nom : la DIA envoyée à la SAFER ou sa réponse, jamais la renonciation au droit de préemption urbain
     // (étude 19/10 : « s'il y a SAFER dans le nom, à ne pas prendre »).
     if (piece.cle === 'renonciationPreemption' && /(?:^|[^a-z])safer(?:[^a-z]|$)/i.test(nomNormalise)) return null;
+    if (nomDitDemandePartie(piece, nomNormalise)) return null;
+    // Un courrier d'INTERROGATION du commun (banque, caisse, mairie…) est la demande de l'étude, jamais la pièce reçue (étude 30/10) — sauf
+    // la pièce dont c'est le nom même (« Interrogation du FCDDV », dont la réponse porte ce mot).
+    if (/interrogation/i.test(nomNormalise) && !/interrogation/i.test(String(piece.label || ''))) return null;
     if (piece.motifNom && piece.motifNom.test(nomNormalise)) return 'exact';
     // « Pré-état daté » contient les mots « état daté » : la forme tolérante le prendrait.
     if (piece.cle === 'etatDate' && RE_PRE_ETAT_DATE.test(nomNormalise)) return null;
