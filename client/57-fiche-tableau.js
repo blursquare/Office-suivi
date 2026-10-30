@@ -399,7 +399,7 @@ function elementsColonneFiche(liste) {
 }
 
 /** Une carte pour plusieurs pièces à réunir : une ligne par pièce (case ronde, nom qui mène à l'onglet Pièces), l'état commun en tête. */
-function renderGroupePiecesFiche(cartes, changees) {
+function renderGroupePiecesFiche(cartes, changees, enAttente) {
   const etats = [...new Set(cartes.map(c => c.sous).filter(Boolean))];
   // Pas trop de hauteur (étude 30/10) : six pièces au plus, le reste dans l'onglet Pièces (« + N autres »).
   const MAX = 6;
@@ -415,7 +415,7 @@ function renderGroupePiecesFiche(cartes, changees) {
   }).join('');
   const nb = cartes.length;
   return `<article class="tf-carte tf-carte-pieces">
-    <span class="dot-label dl-piece tf-categorie"><span class="dot"></span>${nb} pièces à réunir</span>
+    <span class="dot-label dl-piece tf-categorie"><span class="dot"></span>${nb} pièces à réunir${enAttente ? ` · ${enAttente} en attente` : ''}</span>
     ${etats.length === 1 ? `<span class="tf-sous tf-pieces-etat">${escapeHtml(etats[0])}</span>` : ''}
     <ul class="tf-pieces">${lignes}</ul>
     ${nb > MAX ? `<button type="button" class="tf-lien tf-pieces-plus" onclick="definirOngletFiche('pieces')">+ ${nb - MAX} autre${nb - MAX > 1 ? 's' : ''} dans Pièces et analyse</button>` : ''}
@@ -430,11 +430,14 @@ function renderTableauFiche(d, actions) {
   COLONNES_TABLEAU_FICHE.forEach(col => cartes[col.cle].forEach(c => { parCle[c.cle] = col.cle; }));
   colonnesPrecedentesFiche = { id: d.id, parCle };
   // Ce que CLAIRE a préparé pour CE dossier (étude 24/10, client/112-routines.js) : en tête du Tableau, rien s'il n'y a rien.
+  // Les pièces de la colonne « En attente » (renonciation au droit de préemption, réponse SAFER : elles ne dépendent pas du client) sont dites
+  // sur la carte « À obtenir », pour que le total retombe sur celui du bandeau « Pièces » (relevé par l'étude le 30/10).
+  const piecesEnAttente = (cartes.attente || []).filter(c => /^(piece|document):/.test(c.cle)).length;
   return renderPropositionsFiche(d) + `<div class="tf-tableau" role="list" aria-label="Le dossier en colonnes">${COLONNES_TABLEAU_FICHE.map(col => {
     const liste = cartes[col.cle];
     return `<section class="tf-colonne" role="listitem" data-colonne="${col.cle}" aria-label="${escapeAttr(col.nom)}">
       <header class="tf-colonne-tete"><h3>${escapeHtml(col.nom)}</h3><span class="tf-nb">${liste.length}</span></header>
-      <div class="tf-cartes">${liste.length ? elementsColonneFiche(liste).map(e => (e.groupe ? renderGroupePiecesFiche(e.groupe, changees) : renderCarteTableauFiche(e.carte, changees.has(e.carte.cle), d.id))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
+      <div class="tf-cartes">${liste.length ? elementsColonneFiche(liste).map(e => (e.groupe ? renderGroupePiecesFiche(e.groupe, changees, col.cle === 'obtenir' ? piecesEnAttente : 0) : renderCarteTableauFiche(e.carte, changees.has(e.carte.cle), d.id))).join('') : `<p class="tf-vide">${escapeHtml(col.vide)}</p>`}</div>
     </section>`;
   }).join('')}</div>`;
 }

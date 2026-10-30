@@ -205,11 +205,16 @@
 
   // Colonne des outils à DROITE des deux colonnes de l'onglet Dossier (étude 24/10 : « remettre l'accès aux outils aussi à droite des colonnes,
   // dans les ventes et les successions ») : un bouton par ligne, les mêmes gestes que le bloc du dessous (vente) ou ceux d'une succession (le forfait mobilier a déjà sa ligne « Simuler l'arbitrage » dans le contrôle à 2 mois).
+  // La colonne de droite de l'onglet Dossier : la carte Authentic seule (retour de l'étude, 30/10) ; les outils vont sous la colonne du milieu
+  // (renderOutilsFiche), pour ne pas laisser de grand blanc sous elle.
   function renderColonneOutilsFiche(d) {
-    if (!d) return '';
-    // La carte Authentic en tête de la colonne de droite (retour de l'étude, 30/10), au-dessus des outils.
-    const authentic = typeof renderPanneauAuthentic === 'function' ? renderPanneauAuthentic(d) : '';
-    if (d.archive && estSuccession(d)) return authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${authentic}</aside>` : '';
+    const authentic = d && typeof renderPanneauAuthentic === 'function' ? renderPanneauAuthentic(d) : '';
+    return authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${authentic}</aside>` : '';
+  }
+
+  // Les outils du dossier, en pastilles, sous la colonne du milieu de l'onglet Dossier.
+  function renderOutilsFiche(d) {
+    if (!d || d.archive && estSuccession(d)) return '';
     const id = escapeOnclickArg(d.id);
     const bouton = (ic, libelle, onclick, titre) => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${onclick}" title="${escapeAttr(titre)}">${icone(ic)}${escapeHtml(libelle)}</wa-button>`;
     const outils = [];
@@ -223,7 +228,7 @@
     }
     // État civil (Comedec un acte à la fois, demandes papier) et lecture de l'EHF : client/142.
     const etatCivil = typeof renderEtatCivilFiche === 'function' ? renderEtatCivilFiche(d) : '';
-    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier">${authentic}<span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</aside>`;
+    return `<div class="fiche-outils-milieu" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</div>`;
   }
 
   // Pure : la contenance du cadastre (IGN) de chaque parcelle lue par le Contrôle de l'urbanisme, par clé de parcelle.

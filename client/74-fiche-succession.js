@@ -271,6 +271,7 @@
         ${ligne('scale', 'Forfait mobilier', ligneArbitrageFiche(d), null, 'prop-pleine')}
       </dl>
       ${renderFcddvSuccession(d)}
+      ${renderOutilsFiche(d)}
         </div>
         ${renderColonneOutilsFiche(d)}
       </div>
