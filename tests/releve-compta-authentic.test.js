@@ -30,4 +30,13 @@ test('Comedec d’une succession (étude 30/10 : défunt + héritiers) : naissan
   assert.ok(defunt && defunt.marie && defunt.naissance, 'défunt : naissance et mariage');
   assert.ok(p.some(x => x.role === 'HERITIER' && /Paul/.test(x.nom + ' ' + x.prenom) && !x.marie), 'héritier : naissance seule');
   assert.ok(app.raisonSansCjn(d), 'pas de casier pour une succession');
+  // Héritier marié d'après sa fiche client d'Authentic : son mariage aussi (Comedec et courrier papier).
+  d.authentic = { fichesClients: { 'paul durand': { nom: 'Paul DURAND', situationMatrimoniale: { situation: 'Marié' } } } };
+  assert.ok(app.partiesComedecDossier(d, {}).some(x => x.role === 'HERITIER' && x.marie), 'héritier marié : mariage demandé');
+  assert.ok(app.personnesEtatCivilDossier(d).some(x => x.role === 'HERITIER' && x.mariage), 'courrier papier de mariage proposé');
+  // Demande papier « APR » d'un héritier : rattachée à lui, comme pour une vente.
+  d.authentic.etatsCivilsPapier = { a: { type: 'mariage', label: 'APR Acte de mariage - Paul DURAND' } };
+  const papier = app.demandesPapierDossier(d);
+  assert.equal(papier.length, 1);
+  assert.ok(papier[0].personne && papier[0].personne.role === 'HERITIER');
 });

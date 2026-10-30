@@ -54,7 +54,9 @@ function personnesEtatCivilDossier(d) {
     const liste = [];
     if (df.nom) liste.push({ cle: cleDe({ prenom: df.prenoms, nom: df.nom }), nom: df.nom, prenom: df.prenoms, role: 'DEFUNT', naissance: true, mariage: !!df.conjointNom,
       extra: { naissanceDate: df.naissanceDate, naissanceLieu: df.naissanceLieu, conjoint: df.conjointNom } });
-    (personnesSuccession(d).heritiers || []).forEach(h => { if (h && h.nom) liste.push({ cle: cleDe({ nom: h.nom }), nom: h.nom, prenom: '', role: 'HERITIER', naissance: true, mariage: false, extra: {} }); });
+    // Héritier marié (fiche client d'Authentic) : son mariage aussi, en Comedec comme en courrier papier (étude 30/10). Une ligne Comedec d'Authentic
+    // « … épouse de / époux de … » le demande aussi d'elle-même (serveur, demandesComedecIntervenant).
+    (personnesSuccession(d).heritiers || []).forEach(h => { if (h && h.nom) liste.push({ cle: cleDe({ nom: h.nom }), nom: h.nom, prenom: '', role: 'HERITIER', naissance: true, mariage: typeof marieeDansAuthentic === 'function' && marieeDansAuthentic(d, { nom: h.nom }), extra: {} }); });
     return liste;
   }
   return partiesComedecDossier(d, {}).map(p => ({ cle: cleDe(p), nom: p.nom, prenom: p.prenom, role: p.role, naissance: true, mariage: !!p.marie, extra: {} }));
