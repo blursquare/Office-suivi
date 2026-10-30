@@ -1113,3 +1113,22 @@ test('0.402.0 : rien de nominatif ne part des résultats de chercher_mails, lire
   assert.doesNotMatch(JSON.stringify(masquerValeur(nas, Sc, new Map())), /Garnier|Alex|MARTEL/);
   assert.match(m3, /permis de construire/);
 });
+
+test('30/10 : decompte_vendeur — un nom tapé dans un libellé ne part jamais en clair ; montants et dates partent', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'decompte_vendeur'));
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('v1', 'decompte_vendeur', { dossier_id: 'd1', email: false, relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Fais le décompte vendeur du dossier Fournier', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'v1', contenu: { dossier_id: 'd1', date_signature: '2026-11-20', date_previsionnelle: true,
+      lignes: [{ libelle: 'Prix de vente', sens: 'credit', montant: 180000, source: 'fiche' }, { libelle: 'Remboursement prêt de Paul FOURNIER', sens: 'debit', montant: 98512.3, source: 'saisi à la main' }],
+      debit: 98512.3, credit: 180000, solde: 81487.7, a_completer: [], lecture_nas: ['remboursement : (fichier)'], email_vendeur_connu: true } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /81487\.7/);
+  assert.match(envoye, /2026-11-20/);
+});

@@ -11545,3 +11545,15 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .ec-acte-apr .ec-acte-lib { color: var(--urgent); font-weight: 600; }
 .pastille-apr { display: inline-block; padding: 0 4px; border-radius: var(--rayon-xs); background: var(--urgent); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
 .ec-comedec { display: flex; gap: 8px; margin-top: 16px; }
+
+/* Décompte vendeur (étude 30/10, client/148-decompte-vendeur.js) : lignes modifiables à gauche, aperçu du courrier à droite. */
+.dv-lignes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.dv-ligne { display: grid; grid-template-columns: minmax(0, 1fr) 96px 132px 32px; gap: 6px; align-items: center; }
+.dv-ligne > * { min-width: 0; }
+.dv-ligne input.dv-montant { text-align: right; font-variant-numeric: tabular-nums; }
+.dv-ligne input.dv-a-saisir { border-color: var(--ventebien); }
+.dv-source { grid-column: 1 / -1; font-size: var(--texte-xs); color: var(--muted); margin-top: -2px; }
+.dv-totaux { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0 16px; font-size: var(--texte-m); font-variant-numeric: tabular-nums; }
+.dv-totaux .dv-solde-negatif b { color: var(--urgent); }
+.dv-apercu { width: 100%; overflow: hidden; }
+@media (max-width: 560px) { .dv-ligne { grid-template-columns: minmax(0, 1fr) 96px 32px; } .dv-ligne input.dv-montant { grid-column: 1 / 3; } }

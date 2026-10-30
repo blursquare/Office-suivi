@@ -10,7 +10,7 @@
   // demander à CLAIRE, Claire Scan, réglages… ») : Suivi, Agenda, Nouveau dossier, Claire Scan, Demander à CLAIRE, Réglages et
   // les outils.
   var OUTILS_ONGLETS_TRAVAIL = ['suivi', 'agenda', 'nouveau', 'scans', 'assistant', 'reglages',
-    'appel-fonds', 'constitution', 'autorisations', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'clients-biens', 'calculateur'];
+    'appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'inventaire', 'preemption', 'prorata', 'quotites', 'confreres', 'clients-biens', 'calculateur'];
   var MAX_ONGLETS_TRAVAIL = 12;
   var CLE_ONGLETS_TRAVAIL = 'claire-onglets-travail';
   // Étude 28/10 : « le matin remettre à zéro les onglets de navigation » — les onglets valent pour UNE journée.
@@ -164,7 +164,7 @@
     try { return 'ot-etat-' + etatDossier(d, isoAujourdhuiLocal()).cle; } catch (e) { return ''; }
   }
 
-  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'discussion', reglages: 'settings', 'appel-fonds': 'mail', constitution: 'courriers', autorisations: 'file-text', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', 'clients-biens': 'users', calculateur: 'banknote' };
+  var ICONES_ONGLETS_OUTILS = { suivi: 'list', agenda: 'calendar', nouveau: 'file-text', scans: 'bannette', assistant: 'discussion', reglages: 'settings', 'appel-fonds': 'mail', constitution: 'courriers', autorisations: 'file-text', 'decompte-vendeur': 'banknote', inventaire: 'scale', preemption: 'shield', prorata: 'part-disque', quotites: 'users', confreres: 'book', 'clients-biens': 'users', calculateur: 'banknote' };
 
   function renderOngletsTravail() {
     const barre = document.getElementById('onglets-travail');

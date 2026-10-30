@@ -139,6 +139,10 @@
         <button type="button" id="tab-preemption" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('preemption')">
           <span class="sidebar-link-icone" id="icon-nav-preemption" aria-hidden="true"></span>Contrôle de l’urbanisme
         </button>
+        <!-- Décompte vendeur (étude 30/10, modèle de l'étude, client/148-decompte-vendeur.js). -->
+        <button type="button" id="tab-decompte-vendeur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('decompte-vendeur')">
+          <span class="sidebar-link-icone" id="icon-nav-decompte-vendeur" aria-hidden="true"></span>Décompte vendeur
+        </button>
         <button type="button" id="tab-prorata" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
           <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
         </button>
@@ -1424,6 +1428,11 @@
 <!-- Autorisations de déblocage ou de transfert de fonds d'une succession (étude 23/10, client/108-autorisations-succession.js). -->
 <div class="onglet-panel" id="onglet-autorisations" style="display:none;">
   <div class="card" id="aut-carte"></div>
+</div>
+
+<!-- Décompte vendeur d'une vente (étude 30/10, client/148-decompte-vendeur.js). -->
+<div class="onglet-panel" id="onglet-decompte-vendeur" style="display:none;">
+  <div class="card" id="dv-carte"></div>
 </div>
 
 <!-- Constitution de dossier (étude 15/10, client/72-constitution-dossier.js, commun/constitution.js) : courriers d'interrogation d'une vente ou d'une succession. -->
@@ -3066,5 +3075,6 @@
 <script src="client/145-conversation-unique.js"></script>
 <script src="client/146-claire-flottante.js"></script>
 <script src="client/147-inscriptions-bien.js"></script>
+<script src="client/148-decompte-vendeur.js"></script>
 </body>
 </html>

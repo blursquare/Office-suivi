@@ -1074,6 +1074,7 @@
       'icon-nav-appel-fonds': 'mail',
       'icon-nav-constitution': 'courriers',
       'icon-nav-autorisations': 'file-text',
+      'icon-nav-decompte-vendeur': 'banknote',
       'icon-nav-inventaire': 'scale',
       'icon-af-dropzone': 'upload',
       'icon-reglages-apropos': 'info',

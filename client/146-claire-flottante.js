@@ -4,7 +4,7 @@
 // (même agent, mêmes cartes « Autoriser / Refuser », mêmes outils — `outil_champs` remplit l'écran affiché) : rien n'est dupliqué. La fiche
 // ouverte rattache la demande à son dossier (un nouveau sujet s'ouvre s'il en citait un autre, client/145). Jamais dans un canal.
 
-var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
+var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
 var claireFlottante = { ouverte: false, minuterie: null, signature: '' };
 var precisionEcranAgentEnAttente = '';   // dite à l'agent avec la demande, jamais montrée ni gardée dans le titre du sujet (audit 0.404.0, B1)
 
