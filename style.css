@@ -10900,7 +10900,7 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 
 /* CLAIRE en fenêtre flottante (0.404.0, client/146) : sur un écran d'outil ou une fiche en page. */
 .claire-flottante { position: fixed; right: 24px; bottom: 24px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
-.cf-bouton { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--focus); color: var(--blanc-fixe); box-shadow: var(--shadow-float); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.cf-bouton { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--avatar-claire); color: var(--blanc-fixe); box-shadow: var(--shadow-float); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .cf-bouton .icone { width: 24px; height: 24px; }
 .cf-panneau { width: min(380px, calc(100vw - 32px)); height: min(520px, calc(100vh - 120px)); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-carte); box-shadow: var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
 .cf-tete { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); }
