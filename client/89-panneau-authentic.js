@@ -152,6 +152,9 @@
       ${renderRecuAuthenticFiche(d)}
       ${tuiles ? `<div class="pa-tuiles">${tuiles}</div>` : ''}
       ${(() => { const h = htmlCompleterAuthenticFiche(d); return h ? section('reprendre', 'Tout reprendre d’Authentic', 0, '', `<p class="pa-aide">${icone('info')}Reprend du dossier d’Authentic choisi les personnes, emails, téléphones, le bien et le prix, en remplaçant la fiche (l’ancienne valeur reste dans l’historique). À faire après une correction dans Authentic.</p>${h}`) : ''; })()}
-      ${lien.etat !== 'aucun' || d.authentic ? `<footer class="pa-pied"><wa-button appearance="plain" size="s" type="button" class="bouton-discret" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)">${icone('x')} Oublier ce qui vient d’Authentic</wa-button></footer>` : ''}
+      ${lien.etat !== 'aucun' || d.authentic ? `<footer class="pa-pied">
+        <wa-button appearance="outlined" size="s" type="button" onclick="relireDepuisAuthentic('${escapeOnclickArg(d.id)}')"${relecturesAuthenticEnCours.has(d.id) ? ' loading disabled' : ''} title="Relire toutes les pages d’Authentic gardées pour ce dossier et compléter la fiche">${icone('rotate-ccw')}Relire</wa-button>
+        <wa-button appearance="outlined" size="s" type="button" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)">${icone('x')}Oublier</wa-button>
+      </footer>` : ''}
     </section>`;
   }

@@ -178,8 +178,6 @@
 
   function htmlRecuAuthentic(d, e) {
     const pages = e && e.pages ? e.pages : null;
-    const relecture = relecturesAuthenticEnCours.has(d.id);
-    const bouton = `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" ${relecture || !pages || !pages.length ? 'disabled ' : ''}onclick="relireDepuisAuthentic('${escapeOnclickArg(d.id)}')" title="Relire toutes les pages d’Authentic gardées pour ce dossier avec les règles du jour">${relecture ? icone('spinner', null, true) + ' Relecture…' : icone('rotate-ccw') + ' Relire depuis Authentic'}</wa-button>`;
     if (!pages) return `<span class="hint">…</span>`;
     // Une pastille par page attendue (étude 19/10 : « voir toutes les données qu'il manque ») : reçue (date au survol), ou à ouvrir.
     const attendues = pagesAttenduesAuthentic(d, pages);
@@ -193,7 +191,7 @@
       </div>
       <ul class="pa-pages">${pastilles}</ul>
       ${recues < attendues.length ? `<p class="pa-aide">${icone('info')}Ouvrez dans Authentic les pages en orange : elles arrivent seules.</p>` : ''}
-      <div class="recu-actions">${bouton}</div>`;
+`;
   }
 
   // Pure : « 17/10 à 09:42 ».

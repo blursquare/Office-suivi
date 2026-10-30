@@ -273,8 +273,12 @@
   wa-button.bouton-discret::part(base) { color: inherit; }
   wa-button.bouton-discret:not([disabled]):hover { color: var(--ink); }
   /* Pastille d'action (Revérifier, créneaux proposés…) : bouton contour arrondi, compact. */
-  wa-button.action-rapide { --wa-form-control-height: 28px; --wa-form-control-padding-inline: 12px; font-size: var(--texte-s); color: var(--ink-soft); }
+  /* Harmonisation des boutons (étude 30/10) : la pastille d'action a la taille compacte commune (32 px, texte m), le même arrondi que
+     tous les boutons (plus de pilule) et le texte à l'encre ; son icône à l'accent la distingue. */
+  wa-button.action-rapide { --wa-form-control-height: 32px; --wa-form-control-padding-inline: 12px; font-size: var(--texte-m); font-weight: 500; color: var(--ink); }
   wa-button.action-rapide::part(base) { color: inherit; }
+  wa-button.action-rapide .icone, wa-button.action-rapide svg { color: var(--focus); }
+  wa-button[pill]::part(base) { border-radius: var(--rayon-m); }
   wa-button.action-rapide:not([disabled]):hover { color: var(--focus); }
   wa-button.action-rapide:not([disabled]):hover::part(base) { border-color: var(--focus); }
   /* « Ajouter … » : un seul bouton dans tout CLAIRE (harmonisation du 28/09) — pointillés, « + » en tête, sur toute la
@@ -10806,7 +10810,8 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .pa-identique { display: grid; grid-template-columns: 16px minmax(0, 2fr) minmax(0, 3fr); align-items: baseline; gap: 8px; font-size: var(--texte-s); }
 .pa-identique > .icone { color: var(--success); align-self: center; }
 .pa-identique-valeur { color: var(--ink-soft); overflow-wrap: anywhere; }
-.pa-pied { display: flex; justify-content: flex-end; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.pa-pied { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.pa-pied wa-button { width: 100%; }
 @media (max-width: 600px) {
   .pa-personne-infos { grid-template-columns: minmax(0, 1fr); }
   .pa-tete { flex-wrap: wrap; }
