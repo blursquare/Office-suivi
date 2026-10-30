@@ -7,7 +7,7 @@
 // avant, la fenêtre partait sur une conversation neuve, sans le dossier) : ses derniers messages, et la demande y est écrite pour CLAIRE.
 
 var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
-var claireFlottante = { ouverte: false, minuterie: null, signature: '' };
+var claireFlottante = { ouverte: false, minuterie: null, signature: '', reprise: null };   // reprise : { canal, onglet } — la discussion d'où l'outil a été ouvert
 var precisionEcranAgentEnAttente = '';   // dite à l'agent avec la demande, jamais montrée ni gardée dans le titre du sujet (audit 0.404.0, B1)
 
 // Ce que l'agent reçoit en plus de la phrase (puis oublié) : l'écran ouvert.
@@ -88,8 +88,10 @@ function renderClaireFlottante() {
       return `<wa-button ${b.principal ? 'variant="brand"' : 'appearance="outlined"'} size="s" type="button" onclick="actionAssistant('${cle}'); renderClaireFlottante();">${escapeHtml(b.libelle)}</wa-button>`;
     }).join('');
     // Dans une discussion partagée, un collègue est nommé au-dessus de son message (le HTML d'un message relu du serveur est passé par htmlSurCanal).
-    const auteur = m.role === 'autre' && m.auteur ? `<div class="cf-auteur">${escapeHtml(prenomCollaborateur(m.auteur))}</div>` : '';
-    return `<div class="cf-m cf-${m.role === 'moi' ? 'moi' : 'claire'}">${auteur}<div class="asst-texte">${m.html}</div>${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}</div>`;
+    const auteur = canal && m.role === 'autre' && m.auteur ? `<div class="cf-auteur">${escapeHtml(prenomCollaborateur(m.auteur))}</div>` : '';
+    // Un message de la discussion : le même rendu que l'écran Discussions (htmlSurCanal pour ce qui vient du serveur, cartes de proposition).
+    const corps = canal ? htmlCorpsMessageCanal(m) : `<div class="asst-texte">${m.html}</div>`;
+    return `<div class="cf-m cf-${m.role === 'moi' ? 'moi' : 'claire'}">${auteur}${corps}${boutons ? `<div class="asst-boutons">${boutons}</div>` : ''}</div>`;
   }).join('');
   zone.innerHTML = (html || '<p class="cf-vide">Posez votre question : CLAIRE voit l’écran ouvert et la fiche.</p>')
     + (assistantEnCours ? `<div class="cf-m cf-claire"><div class="asst-attente" aria-label="CLAIRE écrit"><span></span><span></span><span></span>${assistantEtapeAgent ? `<em class="asst-etape">${escapeHtml(assistantEtapeAgent)}</em>` : ''}</div></div>` : '');
@@ -134,11 +136,22 @@ async function envoyerDepuisClaireFlottante() {
 
 // La discussion partagée que la fenêtre reprend : celle d'un dossier ou un canal libre ouvert dans Discussions, jamais une vue « Enregistrés »
 // ni « général » (où CLAIRE ne répond qu'appelée, et qui n'est pas un travail sur un dossier). '' = la conversation personnelle.
+// Seulement sur l'écran de l'outil ouvert DEPUIS cette discussion (« Ouvrir dans un onglet », `noterRepriseClaireFlottante`) : une discussion
+// restée ouverte ailleurs n'est jamais reprise sur un autre écran ni sur une fiche (relecture 0.407.4 : la question serait partie dans le fil
+// partagé d'un autre dossier).
 function canalPourClaireFlottante() {
+  const r = claireFlottante.reprise;
   const id = canaux.actif;
-  if (!id || vueSpecialeCanal(id) || id === 'general') return '';
+  if (!r || !id || r.canal !== id || vueSpecialeCanal(id) || id === 'general') return '';
+  if (ongletActuel !== r.onglet || document.body.classList.contains('fiche-en-page')) return '';
   const sorte = typeCanal(id);
   return sorte === 'dossier' || sorte === 'libre' ? id : '';
+}
+
+// Appelée quand un outil quitte le panneau de la discussion pour son onglet.
+function noterRepriseClaireFlottante(onglet) {
+  claireFlottante.reprise = canaux.actif ? { canal: canaux.actif, onglet } : null;
+  claireFlottante.signature = '';
 }
 
 function ouvrirConversationDepuisFlottante() {

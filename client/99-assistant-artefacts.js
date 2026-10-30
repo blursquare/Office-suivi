@@ -423,6 +423,8 @@
     const a = artefactsAssistant.liste.find(x => x.id === id);
     if (!a || !a.onglet) return;
     demonterOutilAssistant(a.onglet);
+    // La fenêtre CLAIRE de l'outil reprendra cette discussion (étude 30/10, client/146).
+    if (typeof noterRepriseClaireFlottante === 'function') noterRepriseClaireFlottante(a.onglet);
     definirOnglet(a.onglet);
     renderArtefactAssistant();
   }

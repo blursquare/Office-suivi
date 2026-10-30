@@ -11044,7 +11044,7 @@ button.cx-lecture:hover { background: var(--paper-sunk); }
 .asst-page.fils-replies.colonne-ouverte { grid-template-columns: minmax(0, 1fr) 360px; }
 .asst-page.fils-replies.artefact-ouvert { grid-template-columns: minmax(0, 1fr) minmax(460px, 46%); }
 .asst-page.fils-replies.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr) minmax(600px, 62%); }
-@media (min-width: 1800px) { .asst-page.fils-replies.artefact-ouvert.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(460px, 40%) 340px; } }
+@media (min-width: 1800px) { .asst-page.fils-replies.artefact-ouvert.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(460px, 40%) 340px; } .asst-page.fils-replies.artefact-ouvert.artefact-large.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(600px, 62%); } }
 @media (max-width: 1280px) { .asst-page.fils-replies.colonne-ouverte, .asst-page.fils-replies.artefact-ouvert, .asst-page.fils-replies.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) { .asst-fils-replier { display: none; } }
 

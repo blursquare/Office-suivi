@@ -23378,3 +23378,7 @@ L'étude (même jour) : « si la comptabilité n'est pas visible dans la vente, 
 `lireComptabilite` (server/src/authenticClaire.js) : « Infos comptables : indisponible » ou onglet absent dans la vente → `ouvrirSousDossierPromesse`
 (un seul sous-dossier « N - Promesse / Compromis », jamais un avenant), dossier contrôlé de nouveau, même lecture ; `sousDossier: 'promesse'` gardé
 sur la comptabilité et dit sur la carte, dans le message et à l'agent. Faux Authentic (tests/fumee) : vue « promesse » et son scénario.
+Relecture : la reprise ne vaut que sur l'écran de l'outil ouvert DEPUIS la discussion (`noterRepriseClaireFlottante`, posée par « Ouvrir dans
+un onglet ») — jamais une discussion restée ouverte sur un autre écran ni sur une fiche en page ; messages rendus par `htmlCorpsMessageCanal`
+(htmlSurCanal, cartes de proposition) ; grille à deux colonnes aussi conversations repliées à 1 800 px et plus. Limite connue, d'avant : sans
+sous-dossier de vente unique, la comptabilité lue est celle du sous-dossier affiché.
