@@ -1149,6 +1149,8 @@ test('30/10 : consulter_wiki — CLAIRE a la mémoire du wiki d’Authentic (CJN
   const r = await tourAgent({ texte: 'Pourquoi le casier de Fournier ne part pas ?', dossiers: D, contexte: {} }, opts);
   await tourAgent({ conversation: r.conversation, resultats: [{ id: 'w1', contenu: { passages: cjn } }] }, opts);
   const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS);
+  assert.doesNotMatch(JSON.stringify(client.requetes[0].messages), SECRETS);
   assert.match(envoye, /Création rapide|création rapide/);
   assert.match(envoye, /Envoi immédiat|envoi immédiat/);
 });

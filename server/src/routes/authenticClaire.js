@@ -11,6 +11,7 @@ const { ajouterMessage, canalDuDossier } = require('../canaux/canaux');
 const { noterVerification } = require('../verificationsTerrain');
 const AT = require('../../../commun/authentic-modele');
 const { piloter, creerClientClaude } = require('../authenticPilote');
+const { chercherWiki } = require('../authentic/wiki');
 
 const ADMINISTRATEURS = ['Bastien ANGLUMENT', 'Sophie GOSSART'];
 // Demandes déjà créées par CLAIRE (dossier + type → date) : jamais deux fois la même (un rejet CJN est facturé ; relecture 0.373.0).
@@ -194,15 +195,15 @@ function creerRouteurAuthenticClaire(o) {
     repondre(res, lancerSuivis);
   });
 
-  // Ce qui a été lu : compteurs et lignes ; chaque ligne qui porte la référence d'une fiche dit son dossier. Lecture seule : rien n'est
-  // lancé dans Authentic par cette route.
   // Mémoire du wiki d'Authentic pour « Demander à CLAIRE » (étude 30/10 : « il faut que CLAIRE ait toute la mémoire du wiki ») : les passages du
   // résumé du wiki public de Fichorga les plus proches de la question (sans IA, aucune donnée de client), comme l'outil du pilote.
   routeur.get('/authentic-claire/wiki', (req, res) => {
     const q = String(req.query.q || '').slice(0, 300);
-    res.json({ passages: require('../authentic/wiki').chercherWiki(q, 4) });
+    res.json({ passages: chercherWiki(q, 4) });
   });
 
+  // Ce qui a été lu : compteurs et lignes ; chaque ligne qui porte la référence d'une fiche dit son dossier. Lecture seule : rien n'est
+  // lancé dans Authentic par cette route.
   routeur.get('/authentic-claire/suivis', (req, res) => {
     if (!collaborateurDe(req.query && req.query.utilisateur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const etat = repo.lireJsonBrut(CLE_SUIVIS_AUTHENTIC, null) || { ecrans: {} };
