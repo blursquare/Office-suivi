@@ -175,7 +175,7 @@ async function demandeAuthenticAgent(entree) {
   if (!c || !c.actif || !c.identifiant || !c.motDePasseEnregistre) return { erreur: 'connexion de CLAIRE à Authentic non réglée ou éteinte (Réglages › Authentic, administrateur)' };
   if (c.refuseLe) return { erreur: 'Authentic a refusé l’identifiant ou le mot de passe : à corriger dans Réglages › Authentic' };
   if (e.mode === 'lire') {
-    const r = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '', fiches: e.fiches === 'toutes' ? 'toutes' : '' });
+    const r = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '', fiches: e.fiches === 'toutes' || e.fiches === 'aucune' ? e.fiches : '' });
     return r.ok ? { fait: true, statut: 'fait', resultat: r.texte } : { erreur: r.texte, statut: 'echec' };
   }
   if (e.mode !== 'cjn' && e.mode !== 'comedec') return { erreur: 'mode inconnu (lire, cjn, comedec)' };

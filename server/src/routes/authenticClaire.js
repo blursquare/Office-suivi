@@ -147,7 +147,7 @@ function creerRouteurAuthenticClaire(o) {
       const clients = Object.values((d.authentic && d.authentic.fichesClients) || {}).filter((f) => f && f.nom).map((f) => String(f.nom));
       const biens = Array.isArray(d.authentic && d.authentic.immeubles) ? d.authentic.immeubles.length : 0;
       const r = await A.lireDossier(s, cible, { script: await releve(), recevoir: (c) => o.recevoirReleve(c, 'claire-serveur'), etape,
-        fiches: b0.fiches === 'toutes' ? 'toutes' : undefined, dejaClients: clients, dejaImmeubles: biens });
+        fiches: b0.fiches === 'toutes' || b0.fiches === 'aucune' ? b0.fiches : undefined, dejaClients: clients, dejaImmeubles: biens });
       noterVerification(repo, 'authentic-lecture', { detail: `${r.pages} page(s)` });
       if (r.apercus) noterVerification(repo, 'authentic-apercus', { detail: `${r.apercus} aperçu(s)` });
       return `J’ai lu le dossier dans Authentic (${r.pages} page${r.pages > 1 ? 's' : ''}${b0.fiches === 'toutes' ? ', fiches clients rouvertes' : ' ; fiches déjà connues non rouvertes'}) : la fiche se complète avec ce qu’Authentic montre.${r.papier ? ` ${r.papier} demande(s) papier (APR) d’état civil à faire.` : ''}`;

@@ -2418,6 +2418,7 @@
           </div>
           ${!r.fait && rappelParleEmail(r.texte) ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn rappel-perso-email" onclick="ouvrirEmailRappelPerso('${escapeOnclickArg(r.id)}')" title="Préparer un email vierge avec la signature de l'office" aria-label="Préparer un email">${icone('mail')}</wa-button>` : ''}
           ${r.agendaItemId ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr rappel-perso-modif" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" aria-label="Modifier le rappel" title="Modifier">${icone('pencil')}</wa-button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirMenuDonnerTache('${escapeOnclickArg(r.id)}', this)" title="Donner cette tâche à un collègue" aria-label="Donner cette tâche à un collègue">${icone('users')}</wa-button>
           <wa-button appearance="plain" size="s" type="button" class="bouton-icone rappel-perso-suppr" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" aria-label="Supprimer le rappel" title="Supprimer">${icone('x')}</wa-button>`}
         </div>`;
     }).join('');

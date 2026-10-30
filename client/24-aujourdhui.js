@@ -1318,6 +1318,7 @@
         secondaires: r.agendaItemId ? '' : fixe
           ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier le rappel" aria-label="Modifier le rappel">${icone('pencil')}</wa-button>`
           : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="fermerFenetreAujourdhui(); ouvrirEditionRappel('${escapeOnclickArg(r.id)}')" title="Modifier la tâche (texte, date, dossier)" aria-label="Modifier la tâche">${icone('pencil')}</wa-button>
+            <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="ouvrirMenuDonnerTache('${escapeOnclickArg(r.id)}', this)" title="Donner cette tâche à un collègue" aria-label="Donner cette tâche à un collègue">${icone('users')}</wa-button>
             <wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn" onclick="supprimerRappelPerso('${escapeOnclickArg(r.id)}')" title="Supprimer la tâche" aria-label="Supprimer la tâche">${icone('x')}</wa-button>`
       });
     }).join('');
