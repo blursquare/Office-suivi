@@ -298,3 +298,12 @@ test('succession (étude 30/10) : Comedec dans le sous-dossier « N - Succession
   await assert.rejects(A.preparerFormalite({}, { reference: 'A 2026 00001' }, { type: 'cjn', succession: true, ecriture: true, parties: [], etape() {} }), /casier pour une succession/);
   assert.equal(typeof A.ouvrirSousDossierSuccession, 'function');
 });
+
+test('routine : une succession reçoit la même proposition Comedec qu’une vente (étude 30/10), jamais de casier', () => {
+  const d = { id: 's1', nom: 'DURAND', typeAffaire: 'succession', responsable: 'Julie VASSELIN', referenceAuthentic: 'A 2026 00600', rendezVousSignature: '2026-11-15',
+    historique: [{ date: '2026-10-28T09:00:00Z', texte: 'Dossier créé' }], parties: [{ role: 'PARTIE', nom: 'DURAND', prenom: 'Paul' }] };
+  const p = X.formalitesAuthentic([d], '2026-10-30', { niveau: () => 1, authenticActif: true });
+  assert.equal(p.map((x) => x.details.formalite).join(), 'comedec');
+  assert.match(p[0].resume, /défunt/);
+  assert.equal(X.formalitesAuthentic([Object.assign({}, d, { authentic: { etatsCivils: [{ etat: 'positif' }] } })], '2026-10-30', { authenticActif: true }).length, 0, 'état civil déjà demandé');
+});

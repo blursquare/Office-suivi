@@ -302,9 +302,14 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
   const sortie = [];
   if (!ctx || !ctx.authenticActif) return sortie;
   for (const d of dossiers || []) {
-    if (!dossierOuvert(d) || estSuccession(d) || !String(d.referenceAuthentic || '').trim()) continue;
+    if (!dossierOuvert(d) || !String(d.referenceAuthentic || '').trim()) continue;
+    // Succession (étude 30/10 : « le fonctionnement Comedec est le même quels que soient les dossiers, mêmes réglages que pour une vente ») :
+    // la même proposition, pour le défunt et les héritiers ; jamais de casier.
+    const succession = estSuccession(d);
     const parties = Array.isArray(d.parties) ? d.parties : [];
-    const representees = parties.filter((p) => p && ((p.role === 'VENDEUR' && !confrereVendeur(d)) || (p.role === 'ACQUEREUR' && !confrereAcquereur(d))) && p.qualitePersonne !== 'morale');
+    const representees = succession
+      ? parties.filter((p) => p && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
+      : parties.filter((p) => p && ((p.role === 'VENDEUR' && !confrereVendeur(d)) || (p.role === 'ACQUEREUR' && !confrereAcquereur(d))) && p.qualitePersonne !== 'morale');
     const etatsCivils = d.authentic && Array.isArray(d.authentic.etatsCivils) ? d.authentic.etatsCivils : [];
     const cree = dateCreationDossier(d);
     // Jamais en participation (étude 30/10 : « ne pas demander pour les actes où nous sommes en participation ») : le confrère qui reçoit l'acte
@@ -313,13 +318,13 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
       sortie.push(proposition(base('formalites-authentic', d, ctx, 'comedec'), {
         type: 'tache', action: 'authentic', empreinte: `authentic-comedec:${d.id}`,
         titre: `Demande d’état civil (Comedec) à préparer — ${libelleDossierAffiche(d)}`,
-        resume: `Naissance de ${representees.length} partie${representees.length > 1 ? 's' : ''}, mariage des mariés. « Autoriser » : CLAIRE la crée dans Authentic sans l’envoyer.`,
+        resume: succession ? 'Naissance et mariage du défunt, naissance des héritiers (mariage des mariés). « Autoriser » : CLAIRE la crée dans Authentic sans l’envoyer.' : `Naissance de ${representees.length} partie${representees.length > 1 ? 's' : ''}, mariage des mariés. « Autoriser » : CLAIRE la crée dans Authentic sans l’envoyer.`,
         details: { formalite: 'comedec' }
       }));
     }
     const rdv = estIso(d.rendezVousSignature) ? String(d.rendezVousSignature).slice(0, 10) : '';
     const acquereurs = parties.filter((p) => p && p.role === 'ACQUEREUR' && p.qualitePersonne !== 'morale');
-    if (rdv && d.roleNotaire !== 'participant' && acquereurs.length && rdv >= aujourdhui && joursEntre(aujourdhui, rdv) <= JOURS_CJN_AVANT_SIGNATURE) {
+    if (!succession && rdv && d.roleNotaire !== 'participant' && acquereurs.length && rdv >= aujourdhui && joursEntre(aujourdhui, rdv) <= JOURS_CJN_AVANT_SIGNATURE) {
       sortie.push(proposition(base('formalites-authentic', d, ctx, 'cjn'), {
         type: 'tache', action: 'authentic', empreinte: `authentic-cjn:${d.id}`,
         titre: `Demande de casier judiciaire (CJN) à préparer — ${libelleDossierAffiche(d)}`,

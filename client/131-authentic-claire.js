@@ -54,7 +54,10 @@ function ciblerPartiesComedec(parties, role, personne) {
   const r = normaliserPourRecherche(String(role || '')).replace(/[^a-z]/g, '');
   if (/^vendeur/.test(r)) liste = liste.filter(p => p.role === 'VENDEUR');
   else if (/^acquereur|^acheteur/.test(r)) liste = liste.filter(p => p.role === 'ACQUEREUR');
-  else if (r) return { erreur: 'role inconnu : vendeurs ou acquereurs' };
+  // Succession : le défunt ou les héritiers seulement (même ciblage qu'une vente, étude 30/10).
+  else if (/^defunt/.test(r)) liste = liste.filter(p => p.role === 'DEFUNT');
+  else if (/^heritier/.test(r)) liste = liste.filter(p => p.role === 'HERITIER');
+  else if (r) return { erreur: 'role inconnu : vendeurs, acquereurs, defunt ou heritiers' };
   const mots = normaliserPourRecherche(String(personne || '')).split(/[^a-z0-9]+/).filter(m => m.length > 1);
   if (String(personne || '').trim() && !mots.length) return { erreur: 'nom de personne inexploitable : préciser le nom' };
   if (mots.length) {

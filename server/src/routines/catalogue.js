@@ -53,7 +53,7 @@ const CATALOGUE = [
     description: 'Un brouillon de réponse pour chaque email reçu après 18 h.',
     gestes: [{ cle: 'reponse', libelle: 'Préparer le brouillon de réponse', niveauMax: 2, sensible: true }] },
   { id: 'formalites-authentic', nom: 'Demandes Comedec et casier dans Authentic', icone: 'file-text', phase: 2, disponible: true, allumeeParDefaut: true,
-    declencheur: 'Dossier de vente relié à Authentic : état civil à l’ouverture (dossiers créés depuis le 27/10), casier à 30 jours de la signature', ia: false,
+    declencheur: 'Dossier relié à Authentic (vente ou succession) : état civil à l’ouverture (dossiers créés depuis le 27/10) ; casier à 30 jours de la signature, ventes seulement', ia: false,
     description: 'Prépare dans Authentic l’état civil (Comedec) et le casier judiciaire (CJN), sans envoi.',
     gestes: [{ cle: 'comedec', libelle: 'Préparer la demande d’état civil (Comedec)', niveauMax: 1 }, { cle: 'cjn', libelle: 'Préparer la demande de casier judiciaire (CJN)', niveauMax: 1 }] },
   { id: 'controle-rendez-vous', nom: 'Contrôle du rendez-vous de signature', icone: 'calendar', phase: 4, disponible: true, allumeeParDefaut: true, declencheur: 'Chaque matin, pour toute signature à venir (une alerte par date et par liste de points)', ia: false,
