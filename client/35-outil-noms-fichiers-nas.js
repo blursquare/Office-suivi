@@ -14,6 +14,7 @@
     certificatUrbanisme: ['urbanisme', 'cu', 'cua', 'cub', 'certificat'],
     certificatAlignement: ['alignement', 'voirie'],
     certificatNumerotage: ['numerotage', 'adressage'],
+    nonPeril: ['peril', 'insalubrite', 'insalubre', 'securite'],
     reponseAssainissement: ['assainissement', 'spanc', 'egout', 'raccordement'],
     renonciationPreemption: ['preemption', 'dpu', 'dia', 'renonciation', 'aliener'],
     etatDate: ['etat', 'syndic'],

@@ -1617,24 +1617,6 @@
   // En fin d'onglet « Pièces et analyse », replié (étude 07/10 : « à mettre en fin de fiche avec plier déplier ») ; une alerte
   // (conjoint absent) reste dite dans la ligne repliée.
   let authenticDossierOuvert = false;
-  function basculerAuthenticDossier(ouvert) { authenticDossierOuvert = !!ouvert; }
-
-  function renderAuthenticDossier(d) {
-    const lignes = lignesAuthenticDossier(d);
-    const alertes = alertesConjointDossier(d);
-    if (!lignes.length && !alertes.length && !(d.piecesAuthentic || []).length && !d.referenceAuthentic) return '';
-    const releve = d.authentic && d.authentic.releveLe;
-    return `
-      <details class="authentic-dossier"${authenticDossierOuvert ? ' open' : ''} ontoggle="basculerAuthenticDossier(this.open)">
-        <summary><span class="section-eyebrow">Dans Authentic</span>${releve ? `<span class="hint"> · relevé le ${escapeHtml(formatDateFr(releve.slice(0, 10)))}</span>` : ''}${alertes.length ? ` <span class="dot-label dl-pret"><span class="dot"></span>${alertes.length > 1 ? `${alertes.length} alertes` : '1 alerte'}</span>` : ''}</summary>
-        <div class="authentic-dossier-corps">
-          <dl class="authentic-infos">${lignes.map(l => `<div class="authentic-info"><dt>${escapeHtml(l.libelle)}</dt><dd>${l.classe
-            ? `<span class="dot-label ${l.classe}"><span class="dot"></span>${escapeHtml(l.valeur)}</span>` : escapeHtml(l.valeur)}</dd></div>`).join('')}</dl>
-          ${alertes.map(al => `<p class="authentic-alerte"><span class="dot-label dl-pret">${icone('alert-triangle')}${escapeHtml(al.texte)}</span></p>`).join('')}
-          <wa-button appearance="plain" size="s" type="button" class="bouton-discret authentic-oublier" onclick="confirmerOublierDonneesAuthentic('${escapeOnclickArg(d.id)}')" title="Oublier ce qui vient d’Authentic (page d’un autre dossier)">${icone('x')} Oublier ce qui vient d’Authentic</wa-button>
-        </div>
-      </details>`;
-  }
 
   function afficherFormAjoutPiece() {
     ajoutPieceOuvert = true;
@@ -1681,76 +1663,6 @@
     AUTRE: 'Autre acte',
     INCONNU: 'Type non déterminé'
   };
-
-  function renderExtractionDossier(d) {
-    const extraction = d.extraction;
-    const typeActe = d.typeActe;
-    const parties = Array.isArray(d.parties) ? d.parties : [];
-    const notaires = d.notaires;
-    if (!extraction && !typeActe && parties.length === 0 && !notaires) return '';
-
-    // Même vocabulaire que le panneau d'import (voir origineRevision) : l'outil dit d'où vient la
-    // donnée, il ne prétend pas la confirmer. `renseigne` remplace la valeur, qui n'est pas
-    // recopiée dans l'instantané — sans lui, tout serait affiché « Non trouvée ».
-    const badgeOrigine = (etat) => {
-      const o = origineRevision(etat ? Object.assign({}, etat, { valeur: etat.renseigne === false ? null : (etat.valeur || 'x') }) : null);
-      return `<span class="dot-label ${o.dl}">${o.icone ? icone(o.icone) : '<span class="dot"></span>'}${escapeHtml(o.texte)}</span>`;
-    };
-    const blocs = [];
-
-    if (typeActe) {
-      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Type d’acte</span>
-        <span>${escapeHtml(LIBELLES_TYPE_ACTE[typeActe.valeur] || typeActe.valeur)}</span>${badgeOrigine(typeActe)}</div>`);
-    }
-    if (parties.length > 0) {
-      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Parties</span>
-        <span>${parties.map(p => `${escapeHtml(p.nom)} <em>(${p.role === 'VENDEUR' ? 'vendeur' : 'acquéreur'}${p.qualiteActe ? ', désigné « ' + escapeHtml(p.qualiteActe) + ' »' : ''})</em>${p.societe ? ` <span class="hint">${escapeHtml(libelleIdentiteSociete(p.societe))}</span>` : ''}`).join(' · ')}</span></div>`);
-    }
-    if (notaires && (notaires.instrumentaire || notaires.participant)) {
-      const nom = (n) => n ? `${escapeHtml(n.nom)}${n.office ? ' (' + escapeHtml(n.office) + ')' : ''}` : '—';
-      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Notaires</span>
-        <span>Reçoit l’acte : ${nom(notaires.instrumentaire)}${notaires.participant ? ` · Participant : ${nom(notaires.participant)}` : ''}</span>${badgeOrigine({ statut: notaires.statut, origine: notaires.origine, verifie: notaires.verifie, renseigne: true })}</div>`);
-    }
-    const cadastre = d.bien && d.bien.cadastre;
-    if (cadastre && cadastre.section) {
-      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Cadastre</span>
-        <span>${escapeHtml(libelleCadastre(cadastre))}</span></div>`);
-    }
-    // Lots de copropriété relevés dans Authentic (06/10) : numéro, type, étage, surface Carrez, tantièmes.
-    const lots = d.bien && Array.isArray(d.bien.lots) ? d.bien.lots : [];
-    if (lots.length) {
-      blocs.push(`<div class="extraction-ligne"><span class="extraction-libelle">Lot${lots.length > 1 ? 's' : ''}</span>
-        <span>${lots.map(l => escapeHtml(libelleLotCopropriete(l, d.bien.tantiemesTotal))).join(' · ')}</span></div>`);
-    }
-
-    const LIBELLES_CHAMP_EXTRACTION = {
-      nom: 'Nom du dossier', prixVente: 'Prix de vente', prixMobilier: 'Mobilier compris dans le prix', emailAcquereur: 'Email de l’acquéreur',
-      emailVendeur: 'Email du vendeur', adresseBien: 'Adresse du bien', pret: 'Obtention du prêt', acte: 'Signature de l’acte',
-      ventebien: 'Vente préalable', typeVente: 'Type de vente'
-    };
-    const champs = (extraction && extraction.champs) || {};
-    const lignesChamps = Object.keys(champs)
-      .filter(cle => LIBELLES_CHAMP_EXTRACTION[cle])
-      .map(cle => `<div class="extraction-ligne"><span class="extraction-libelle">${LIBELLES_CHAMP_EXTRACTION[cle]}</span>
-        <span>${champs[cle].page ? `p.${champs[cle].page}` : '—'}</span>${badgeOrigine(champs[cle])}</div>`)
-      .join('');
-
-    const alertes = ((extraction && extraction.alertes) || []).map(a =>
-      `<div class="revision-alerte ${a.gravite === 'critique' ? 'critique' : ''}">${icone('alert-triangle')}<span>${escapeHtml(a.message)}</span></div>`
-    ).join('');
-
-    return `
-      <details class="extraction-dossier">
-        <summary><span class="section-eyebrow">Ce que l’outil avait compris de l’acte</span></summary>
-        <div class="extraction-corps">
-          ${alertes}
-          ${blocs.join('')}
-          ${lignesChamps}
-          <p class="hint">Relevé à l’import, pour information.</p>
-        </div>
-      </details>
-    `;
-  }
 
   // Bug corrigé : ce panneau se refermait tout seul. `render()` reconstruit le tiroir à chaque
   // action (revérifier une pièce, corriger une date…) et le `<details>` repartait donc fermé, en
@@ -2039,7 +1951,6 @@
   }
 
   function renderCarteDossier(d) {
-      const confiance = d.confiance || {};
       const historique = d.historique || [];
       const analyse = d.analyseJuridique || { documents: [], engagements: [] };
       // "Ouvrir le compromis" et "Changer de dossier"/"Lier un dossier local" reprennent tous les
@@ -2064,39 +1975,6 @@
           // Même sans prêt (achat comptant), le dossier NAS reste nécessaire pour suivre
           // la checklist de pièces (urbanisme...) — voir renderPiecesDossier ci-dessous.
           : `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')" title="Relier ce dossier à son dossier du NAS">${icone('link')} Relier</wa-button>`);
-      // Statut de l'offre sous la date de la carte "Obtention du prêt" (voir renderLigneEcheance, paramètre
-      // offreBloc). Une puce de couleur plutôt qu'une phrase : le décompte juste au-dessus dit déjà
-      // "✓ Offre reçue" en toutes lettres, la puce ne fait que confirmer d'un coup d'œil sans
-      // répéter — c'est ce doublon de phrases qui avait été signalé. Même texte/couleur que le
-      // badge équivalent de la ligne de tableau (voir statutOffreAffichage) : les deux affichent le
-      // même fait, ils le disent maintenant de la même façon.
-      // Affiché même quand aucun dossier local n'est relié : c'est justement là qu'il faut proposer
-      // de le relier, sans quoi la carte ne dit rien de l'offre et n'offre aucun moyen d'agir.
-      const offreStatut = statutOffreAffichage(d);
-      // Un fichier a été retenu (et son chemin mémorisé) aussi bien pour "reçue" que pour
-      // "à confirmer" : dans les deux cas il y a quelque chose à ouvrir — c'est justement en
-      // l'ouvrant que l'étude tranche le second cas.
-      const offreOuvrable = d.dossierLie && (d.offrePretStatut === 'recue' || d.offrePretStatut === 'aconfirmer');
-      // Garanties du prêt lues dans l'offre (caution, hypothèque légale de prêteur de deniers,
-      // hypothèque conventionnelle — plusieurs possibles) : affichées ici, dans la carte
-      // "Obtention du prêt", emplacement choisi par l'étude.
-      const garanties = garantiesPretAffichees(d);
-      const garantiesBloc = garanties
-        ? `<span class="tab-garanties" title="${garanties.identifiee ? 'Garantie(s) relevée(s) dans l’offre de prêt' : 'Aucune garantie lue dans l’offre de prêt : à vérifier dans l’offre'}">${pastillesGarantiesPret(garanties)}</span>`
-        : '';
-      // Voir d.piecesNotifications/fermerDossierDrawer : l'offre de prêt partage le même
-      // mécanisme "Nouveau" que les pièces de la checklist (pseudo-cle CLE_NOTIF_OFFRE_PRET).
-      const offreEstNouvelle = (d.piecesNotifications || []).includes(CLE_NOTIF_OFFRE_PRET);
-      const offreBloc = !d.sansPret ? `
-        <span class="tab-offre-pret">
-          ${offreOuvrable
-              ? `<button type="button" class="dot-label ${offreStatut.dl}" title="${d.offrePretStatut === 'recue' ? 'Offre de prêt reçue — cliquer pour ouvrir le fichier trouvé' : 'Document trouvé mais non confirmé — cliquer pour l’ouvrir et vérifier'}" onclick="ouvrirOffreTrouvee('${escapeOnclickArg(d.id)}')"><span class="dot"></span>${d.offrePretStatut === 'recue' ? 'Ouvrir le fichier' : 'À confirmer — ouvrir'}</button>`
-              : `<span class="dot-label ${offreStatut.dl}" title="${d.dossierLie ? escapeAttr(offreStatut.texte) : 'Aucun dossier du NAS relié : l’offre n’a pas encore pu être cherchée'}"><span class="dot"></span>${offreStatut.texte}</span>`}
-          ${offreEstNouvelle ? '<span class="dot-label dl-urgent notif-nouveau-tag">Nouveau</span>' : ''}
-          ${d.dossierLie
-              ? `<button type="button" class="lien-action" onclick="verifierDossierLocalDepuisBouton('${escapeOnclickArg(d.id)}', this)">Revérifier</button>`
-              : `<button type="button" class="lien-action" onclick="lierDossierLocal('${escapeOnclickArg(d.id)}')">${icone('link')} Relier un dossier du NAS</button>`}
-        </span>${garantiesBloc}` : '';
       const aujourdhui = isoAujourdHui();
       const avancement = avancementDossier(d, aujourdhui);
       const etapes = etapesAvancement(d, aujourdhui);
@@ -2118,7 +1996,7 @@
       // Tableau (le dossier en quatre colonnes, la préemption — DPU et SAFER — à droite, étude 13/10) · Pièces et analyse · Dossier · Fonds · Échanges · Historique.
       const actionsDuDossier = actionsFicheDossier(d);
       const ongletsFiche = [
-        { cle: 'tableau', libelle: 'Tableau', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
+        { cle: 'tableau', libelle: 'Suivi', compteur: nbEcheancesAVenir ? String(nbEcheancesAVenir) : '', titre: `Le dossier en colonnes — ${nbEcheancesAVenir} échéance(s) à venir`, nouveau: notifications.includes(CLE_NOTIF_OFFRE_PRET) },
         // Pièces et analyse de l'avant-contrat dans le même onglet (étude 05/10) ; sans checklist (participation), l'analyse seule.
         { cle: 'pieces', libelle: estSuccession(d) ? 'Pièces' : (avecPieces ? 'Pièces et analyse' : 'Analyse'),
           compteur: avecPieces ? `${nbPiecesRecues}/${checklist.length}` : (avAnalyse.total ? `${avAnalyse.faits}/${avAnalyse.total}` : ''),
@@ -2187,7 +2065,7 @@
             </header>
 
             ${renderBandeauFiche(d, actionsDuDossier)}
-            ${renderSuiviEtapesFiche(etapes, prochaineEtape, avancement)}
+            ${renderSuiviEtapesFiche(etapes, prochaineEtape, avancement, d)}
 
             <div class="fiche-onglets" role="tablist" aria-label="Sections de la fiche">
               ${ongletsFiche.map(o => `<button type="button" role="tab" class="fiche-onglet${o.cle === onglet ? ' actif' : ''}" data-onglet="${o.cle}" aria-selected="${o.cle === onglet}" title="${escapeAttr(o.titre)}" onclick="definirOngletFiche('${o.cle}')">${o.libelle}${o.compteur ? `<span class="fiche-compteur${o.complet ? ' complet' : ''}">${o.compteur}</span>` : ''}${o.nouveau ? '<span class="fiche-onglet-nouveau" aria-label="Nouveau"></span>' : ''}</button>`).join('')}
@@ -2199,12 +2077,6 @@
               <div class="tf-disposition${d.roleNotaire === 'participant' || estSuccession(d) ? ' sans-cote' : ''}">
                 <div class="tf-principal">
                   ${renderTableauFiche(d, actionsDuDossier)}
-                  <details class="tf-repliable"${echeancesDetailOuvert ? ' open' : ''} ontoggle="echeancesDetailOuvert = this.open">
-                    <summary>Toutes les échéances, dates et rappels</summary>
-                    ${renderProchaineEtapeFiche(d)}
-                    ${echeancesOrdonneesFiche(d, confiance, offreBloc)}
-                    ${renderAjoutEcheance(d)}
-                  </details>
                 </div>
                 ${renderPreemptionTableauFiche(d)}
               </div>
@@ -2240,10 +2112,6 @@
               ${urbaFiche.trim() ? `<div class="fiche-urba-col">${urbaFiche}</div>` : ''}
               </div>
               ${renderInscriptionsBienFiche(d)}
-              <div class="fiche-fin-repliables">
-                ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}
-                ${estSuccession(d) ? '' : renderExtractionDossier(d)}
-              </div>
             </section>
 
             <section class="fiche-panneau" data-onglet="dossier" role="tabpanel"${cache('dossier')}>
@@ -2277,7 +2145,6 @@
   // reconstruisent le tiroir à chaque action. Le mode agrandi, lui, est une préférence du poste.
   let ongletFiche = 'tableau';
   // « Toutes les échéances » (repliées sous le tableau) : l'état survit aux render() qui reconstruisent le tiroir.
-  var echeancesDetailOuvert = false;
 
   // Bascule sans reconstruire le tiroir : les champs en cours de saisie et le défilement restent
   // en place.
@@ -2527,6 +2394,8 @@
   // le wizard. Un simple bouton "+ Ajouter une échéance" bascule vers un mini-formulaire inline
   // (même structure .date-block.autre/.autre-row que le formulaire de création, réutilisée telle
   // quelle plutôt que dupliquée) — voir renderAjoutEcheance(), appelé juste sous .tabs.
+  function ajoutEcheanceEstOuvert() { return ajoutEcheanceOuvert; }
+
   function afficherFormAjoutEcheance() {
     ajoutEcheanceOuvert = true;
     render();

@@ -12,6 +12,12 @@ function cleInscriptionEH(x) {
   return String((x && (x.reference || `${x.nature || ''}|${x.dateDepot || ''}|${x.creancier || ''}`)) || '');
 }
 
+// Pure : la clé « de contenu » d'une inscription (nature + dépôt + créancier), gardée aussi à la suppression : une relecture de l'état qui lit
+// autrement la référence d'enliassement (OCR) ne remet pas sur la fiche une inscription retirée à la main (retour de l'étude 30/10).
+function cleContenuInscriptionEH(x) {
+  return x && (x.nature || x.dateDepot || x.creancier) ? `contenu:${x.nature || ''}|${x.dateDepot || ''}|${x.creancier || ''}` : '';
+}
+
 // Pure : les inscriptions EN COURS qui comptent pour ce dossier (celles du bien et celles à vérifier, hors retirées) — l'alerte de l'en-tête
 // de la fiche et ce que lit l'agent passent par là (relecture 0.405.0).
 function inscriptionsEnCoursDuBien(d) {
@@ -29,7 +35,7 @@ function inscriptionsDuBien(d) {
   const norm = (p) => `${String(p.section || '').toUpperCase().trim().replace(/^0+(?=[A-Z])/, '')}|${String(p.numero || '').replace(/^0+(?=\d)/, '').trim()}`;
   const duBien = new Set((typeof parcellesDossier === 'function' ? parcellesDossier(d) : []).map(norm));
   return e.inscriptions.reduce((r, x) => {
-    if (!x || retirees.has(cleInscriptionEH(x))) return r;
+    if (!x || retirees.has(cleInscriptionEH(x)) || (cleContenuInscriptionEH(x) && retirees.has(cleContenuInscriptionEH(x)))) return r;
     const parcelles = Array.isArray(x.parcelles) ? x.parcelles : [];
     if (!parcelles.length || !duBien.size) r.aVerifier.push(x);
     else if (parcelles.some(p => duBien.has(norm(p)))) r.liees.push(x);
@@ -53,7 +59,8 @@ function retirerInscriptionDossier(d, cle) {
   const x = e && Array.isArray(e.inscriptions) ? e.inscriptions.find(y => cleInscriptionEH(y) === cle) : null;
   if (!x) return null;
   const pieces = piecesMainleveeRetirees(d, x);
-  e.retirees = (Array.isArray(e.retirees) ? e.retirees : []).filter(y => y !== cle).concat(cle);
+  const contenu = cleContenuInscriptionEH(x);
+  e.retirees = (Array.isArray(e.retirees) ? e.retirees : []).filter(y => y !== cle && y !== contenu).concat(cle, contenu || []);
   if (pieces.length) d.piecesPersonnalisees = d.piecesPersonnalisees.filter(p => !pieces.includes(p));
   ajouterHistorique(d, `Inscription retirée de la fiche (erreur de lecture)${pieces.length ? `, ${pieces.length} pièce(s) de mainlevée retirée(s)` : ''} — rien n’est changé dans Authentic`);
   return { retiree: x, pieces };
@@ -69,7 +76,7 @@ function retirerInscriptionFiche(dossierId, cle) {
   afficherToast('Inscription retirée de la fiche.', 'Annuler', () => {
     const d2 = dossiers.find(x => x.id === dossierId);
     if (!d2 || !d2.etatHypothecaire) return;
-    d2.etatHypothecaire.retirees = (d2.etatHypothecaire.retirees || []).filter(x => x !== cle);
+    d2.etatHypothecaire.retirees = (d2.etatHypothecaire.retirees || []).filter(x => x !== cle && x !== cleContenuInscriptionEH(r.retiree));
     d2.piecesPersonnalisees = (d2.piecesPersonnalisees || []).concat(r.pieces.filter(p => !(d2.piecesPersonnalisees || []).some(q => q.cle === p.cle)));
     ajouterHistorique(d2, 'Inscription remise sur la fiche');
     sauvegarder(d2);

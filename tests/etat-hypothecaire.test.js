@@ -164,3 +164,15 @@ test('relecture 0.405.0 : section « 0A », retirer fait tomber les pièces de m
   assert.equal(E.parcellesInscription('Immeuble(s) Volume Lot - BLOIS C 1 - - Référence d’enliassement : 2008 D 1234').map((p) => p.section + p.numero).join(','), 'C1');
   assert.equal(E.parcellesInscription('Immeuble(s) - M. DE 5 - BLOIS C 2').map((p) => p.section + p.numero).join(','), 'C2');
 });
+
+test('retour 30/10 : une inscription retirée à la main ne revient pas à la relecture, même lue avec une autre référence', () => {
+  const app = chargerApplication();
+  const insc = (reference) => ({ nature: 'Hypothèque', etat: 'en_cours', page: 2, reference, dateDepot: '2012-03-01', creancier: 'BANQUE EXEMPLE', parcelles: [{ section: 'A', numero: '45' }] });
+  const d = { id: 'v3', nom: 'ESSAI', typeVente: 'maison', parties: [], historique: [], pieces: {}, piecesPersonnalisees: [],
+    bien: { cadastre: { parcelles: [{ section: 'A', numero: '45' }] } }, etatHypothecaire: { inscriptions: [insc('2012 V 9')] } };
+  assert.ok(app.retirerInscriptionDossier(d, '2012 V 9'));
+  // Relecture : même inscription, référence mal lue (OCR) — la clé de contenu la reconnaît.
+  d.etatHypothecaire = Object.assign({}, d.etatHypothecaire, { inscriptions: [insc('2012 V 9 bis')] });
+  assert.equal(app.inscriptionsDuBien(d).liees.length, 0);
+  assert.equal(app.inscriptionsEnCoursDuBien(d).length, 0);
+});

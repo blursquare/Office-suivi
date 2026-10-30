@@ -927,6 +927,8 @@
     }
     reinitialiserFormulaire();
     definirOnglet('suivi');
+    // Retour de l'étude 30/10 : la fiche du dossier s'ouvre aussitôt après sa création (definirOnglet d'abord, il ferme la fiche affichée).
+    ouvrirDossierDrawer(dossier.id);
     // Rattachement au NAS immédiat quand le nom du dossier désigne sans ambiguïté un dossier
     // client existant : c'est le moment où ça sert le plus, et ça évite le clic « Relier un
     // dossier du NAS » juste après avoir créé le dossier. Jamais attendu (la fiche s'affiche tout

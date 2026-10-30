@@ -1794,48 +1794,6 @@
     return a.categorie === typeEtape;
   }
 
-  function renderProchaineEtapeFiche(d) {
-    if (!d || d.archive) return '';
-    const prochaine = prochaineEcheanceDetail(d);
-    const lignes = [];
-    const autres = [];
-    actionsFicheDossier(d).forEach(a => {
-      (!prochaine || actionLieeEtape(a, prochaine.type) ? lignes : autres).push(renderLigneActionJour(a, false, true));
-    });
-    const creerRdv = renderLigneCreerRdvAgenda(d);
-    if (creerRdv) (!prochaine || ['fixerRdv', 'rendezVousSignature'].includes(prochaine.type) ? lignes : autres).push(creerRdv);
-    // Échec de la note d'agenda automatique, ou envoi noté par CLAIRE depuis le NAS (le serveur ne
-    // l'écrit pas dans l'agenda) : à reprendre, donc à faire.
-    const envoiNoteParNas = d.detectionsNas && d.detectionsNas.appelFonds && d.detectionsNas.appelFonds === d.appelFonds && !d.agendaLieuNoteLe;
-    // Déjà dans l'agenda (écrit par CLAIRE ou à la main dans Outlook) : plus rien à faire.
-    if (((d.agendaLieuEchec && d.agendaLieuEchec.message) || envoiNoteParNas) && !mentionDejaDansAgenda(d)) {
-      const ligneAgenda = renderNoterAgenda(d);
-      if (ligneAgenda) (!prochaine || ['appelFonds', 'projetEnvoye'].includes(prochaine.type) ? lignes : autres).push(ligneAgenda);
-    }
-    if (!prochaine && !lignes.length) return '';
-    let tete = '<div class="prochaine-tete"><span class="section-eyebrow">À faire sur ce dossier</span></div>';
-    let ton = '';
-    if (prochaine) {
-      const j = prochaine.jours;
-      ton = j < 0 || j <= 3 ? 'urgent' : (j <= 15 ? 'proche' : '');
-      const delai = j < 0 ? `dépassée de ${-j} j` : (j === 0 ? "aujourd'hui" : `J-${j}`);
-      tete = `<div class="prochaine-tete">
-        <span class="section-eyebrow">Prochaine étape</span>
-        <div class="prochaine-ligne">
-          <span class="dot-label dl-${prochaine.type}" aria-hidden="true"><span class="dot"></span></span>
-          <strong>${escapeHtml(prochaine.label)}</strong>
-          <span class="prochaine-date">${formatDateFr(prochaine.iso)}</span>
-          <span class="prochaine-delai">${escapeHtml(delai)}</span>
-        </div>
-      </div>`;
-    }
-    return `<div class="prochaine-etape${ton ? ' ' + ton : ''}">
-      ${tete}
-      ${lignes.length ? `<ul class="ja-liste">${lignes.join('')}</ul>` : ''}
-      ${autres.length ? `<div class="prochaine-tete prochaine-autres"><span class="section-eyebrow">Aussi à faire</span></div>
-      <ul class="ja-liste">${autres.join('')}</ul>` : ''}
-    </div>`;
-  }
 
   // Marque une échéance comme réalisée (ou revient en arrière). La date n'est jamais effacée —
   // c'est la différence avec supprimerDateEcheance : le dossier garde la trace de la date butoir,

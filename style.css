@@ -10435,7 +10435,8 @@ body.fiche-a-cote .fiche-droite-colonnes { grid-template-columns: minmax(0, 1fr)
 .cx-av-0 { background: var(--cat-orange); } .cx-av-1 { background: var(--cat-vert); } .cx-av-2 { background: var(--cat-violet); }
 .cx-av-3 { background: var(--cat-bleu); } .cx-av-4 { background: var(--cat-rose); } .cx-av-5 { background: var(--cat-marron); }
 .cx-heure-marge { flex: none; width: 32px; font-size: var(--texte-xs); color: transparent; text-align: center; padding-top: 2px; }
-.cx-m:hover .cx-heure-marge { color: var(--muted); }
+.cx-m:hover .cx-heure-marge, .cx-m:focus-within .cx-heure-marge { color: var(--ink-soft); }
+.cx-heure, .cx-heure-marge, .asst-heure-survol { -webkit-text-fill-color: currentColor; }
 .cx-corps { flex: 1 1 auto; min-width: 0; font-size: var(--texte-base); line-height: 1.5; }
 .cx-nom { display: flex; align-items: baseline; gap: 6px; font-weight: 600; font-size: var(--texte-base); }
 .cx-via, .cx-heure { font-weight: 400; font-size: var(--texte-s); color: var(--muted); }
@@ -11383,10 +11384,11 @@ input[type="text"][aria-invalid="true"] { border-color: var(--urgent); box-shado
 .cx-statut-moi:hover { background: var(--paper-sunk); }
 .cx-statut-form { display: flex; flex-direction: column; gap: 8px; padding: 8px 12px; }
 .cx-statut-champs { display: flex; gap: 8px; align-items: center; }
+.cx-statut-champs input, .cx-statut-actions select { color: var(--ink); background: var(--paper-card); }
 .cx-statut-champs input { flex: 1; min-width: 0; }
-.cx-statut-choix { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); font-size: var(--texte-l); cursor: pointer; }
+.cx-statut-choix { color: var(--ink); width: 32px; height: 32px; border: 1px solid var(--line); border-radius: var(--rayon-s); background: var(--paper-card); font-size: var(--texte-l); cursor: pointer; }
 .cx-statut-rapides { display: flex; flex-wrap: wrap; gap: 4px; }
-.cx-statut-rapide { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); font: inherit; font-size: var(--texte-s); cursor: pointer; }
+.cx-statut-rapide { color: var(--ink); padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); font: inherit; font-size: var(--texte-s); cursor: pointer; }
 .cx-statut-rapide:hover { background: var(--paper-sunk); }
 .cx-statut-actions { display: flex; gap: 8px; align-items: center; }
 .cx-res { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 6px 12px; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; border-radius: var(--rayon-s); }

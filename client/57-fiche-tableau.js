@@ -486,15 +486,16 @@ function renderBandeauFiche(d, actions) {
 }
 
 // Le suivi des étapes, en bande : les étapes qui s'appliquent au dossier, la prochaine en couleur, une barre en segments en pied.
-function renderSuiviEtapesFiche(etapes, prochaineEtape, avancement) {
+function renderSuiviEtapesFiche(etapes, prochaineEtape, avancement, d) {
   if (!etapes.length) return '';
   const detail = [`${avancement.etapesFaites}/${avancement.etapesTotal} étapes`];
   if (avancement.piecesTotal) detail.push(`${avancement.piecesRecues}/${avancement.piecesTotal} pièces`);
   return `<section class="fb-etapes" aria-label="Suivi des étapes">
-    <div class="fb-etapes-tete"><span class="section-eyebrow">Avancement</span><span class="fb-petit">${escapeHtml(detail.join(' · '))}</span><strong class="fb-pct-etapes">${avancement.pct} %</strong></div>
+    <div class="fb-etapes-tete"><span class="section-eyebrow">Avancement</span><span class="fb-petit">${escapeHtml(detail.join(' · '))}</span><strong class="fb-pct-etapes">${avancement.pct} %</strong>${d ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone fb-etape-ajout" onclick="afficherFormAjoutEcheance()" title="Ajouter une date au déroulé du dossier" aria-label="Ajouter une date au déroulé du dossier">${icone('plus')}</wa-button>` : ''}</div>
+    ${d && typeof ajoutEcheanceEstOuvert === 'function' && ajoutEcheanceEstOuvert() ? renderAjoutEcheance(d) : ''}
     <ol class="fb-etapes-liste">${etapes.map(e => {
       const etat = e.fait ? 'fait' : (e === prochaineEtape ? 'encours' : 'afaire');
-      return `<li class="fb-etape ${etat}"><span class="fb-etape-marque">${e.fait ? icone('check') : ''}</span><span class="fb-etape-libelle">${escapeHtml(e.label)}</span><span class="fb-etape-date">${e.iso ? formatDateFr(e.iso) : '—'}</span></li>`;
+      return `<li class="fb-etape ${etat}"><span class="fb-etape-marque">${e.fait ? icone('check') : ''}</span><span class="fb-etape-libelle">${escapeHtml(e.label)}${e.type === 'signature' && d && !estSuccession(d) && d.acte ? ` <small class="fb-etape-butoir" title="Date butoir de l’avant-contrat">· butoir ${escapeHtml(formatDateFr(d.acte))}</small>` : ''}</span><span class="fb-etape-date">${e.iso ? formatDateFr(e.iso) : '—'}</span></li>`;
     }).join('')}</ol>
     <div class="fb-segments" role="img" aria-label="Avancement : ${escapeAttr(detail.join(', '))}">${etapes.map(e => `<span class="${e.fait ? 'fait' : (e === prochaineEtape ? 'encours' : '')}" title="${escapeAttr(e.label)}"></span>`).join('')}</div>
   </section>`;
