@@ -50,9 +50,34 @@ test('poste : pièces à réclamer par créancier, message court de CLAIRE, bloc
   const etat = E.analyserEtatHypothecaire(PAGES, '2026-10-28');
   assert.equal(app.piecesEtatHypothecaire(etat).join(' | '), 'Décompte de remboursement — BANQUE EXEMPLE | Accord de mainlevée — BANQUE EXEMPLE');
   assert.match(app.messageEtatHypothecaire(etat), /^État hypothécaire relu : 1 inscription en cours/);
-  const html = app.htmlEtatHypothecaireFiche({ etatHypothecaire: Object.assign({}, etat, { inscriptions: etat.inscriptions.concat([{ nature: '<b>X</b>', etat: 'en_cours', page: 9 }]) }) });
-  assert.ok(html.includes('2 inscriptions en cours') && html.includes('eh-en-cours') && html.includes('&lt;b&gt;X&lt;/b&gt;') && !html.includes('<b>X</b>'));
-  assert.equal(app.htmlEtatHypothecaireFiche({}), '');
+});
+
+test('fiche (étude 30/10) : seules les inscriptions du bien vendu, à vérifier sans parcelle lue, retirées à la main ; carte échappée', () => {
+  const app = chargerApplication();
+  const etat = E.analyserEtatHypothecaire(PAGES, '2026-10-28');
+  const base = (o) => Object.assign({ id: 'v1', nom: 'ESSAI', typeVente: 'maison', parties: [], historique: [], bien: { cadastre: { parcelles: [{ section: 'C', numero: '1' }] } } }, o);
+  const insc = [
+    { nature: 'Hypothèque A', etat: 'en_cours', page: 2, reference: '2010 V 1', parcelles: [{ section: 'C', numero: '1' }] },
+    { nature: 'Hypothèque B', etat: 'en_cours', page: 3, reference: '2011 V 2', parcelles: [{ section: 'ZK', numero: '44' }] },
+    { nature: '<b>X</b>', etat: 'en_cours', page: 9, reference: '', parcelles: [] }
+  ];
+  const d = base({ etatHypothecaire: Object.assign({}, etat, { inscriptions: insc }) });
+  const r = app.inscriptionsDuBien(d);
+  assert.equal(r.liees.map((x) => x.nature).join(','), 'Hypothèque A');
+  assert.equal(r.autres.map((x) => x.nature).join(','), 'Hypothèque B', 'un autre bien du vendeur : pas montré');
+  assert.equal(r.aVerifier.length, 1, 'parcelle non lue : à vérifier');
+  const html = app.renderInscriptionsBienFiche(d);
+  assert.ok(html.includes('Hypothèque A') && !html.includes('Hypothèque B') && html.includes('&lt;b&gt;X&lt;/b&gt;') && !html.includes('<b>X</b>'));
+  assert.ok(html.includes("retirerInscriptionFiche('v1', '2010 V 1')"));
+  const d2 = base({ etatHypothecaire: Object.assign({}, etat, { inscriptions: insc, retirees: ['2010 V 1'] }) });
+  assert.equal(app.inscriptionsDuBien(d2).liees.length, 0, 'retirée à la main');
+  assert.equal(app.renderInscriptionsBienFiche(base({})), '', 'ni état lu ni état dans Authentic : rien');
+});
+
+test('parcellesInscription : la colonne « Immeuble(s) » de chaque disposition', () => {
+  assert.equal(JSON.stringify(E.parcellesInscription('Immeuble(s)   Volume   Lot  Débiteur :   -   BLOIS   C 1   -   -  Montant principal : 1,00 EUR Disposition n° 2 / UD1 : Immeuble(s) Volume Lot - VINEUIL AB 0123 - - Montant')),
+    '[{"section":"C","numero":"1"},{"section":"AB","numero":"123"}]');
+  assert.equal(E.parcellesInscription('Propriétaire Immeuble / Contre Date de naissance 1 DURAND 21/09/1967').length, 0);
 });
 
 test('audit 0.384.0 : deux charges sur une page (l’une radiée), radiation d’une AUTRE inscription, tiret et apostrophe typographiques, date prorogée, page de suite', () => {
@@ -120,4 +145,22 @@ test('relecture 0.384.0 : créancier sans en-tête ni SIREN, montants principaux
   assert.equal(une('Montant principal : 87 000,00 EUR Accessoires : 17 400,00 EUR Disposition n° 2 Montant principal : 87 000,00 EUR').montant, '87 000,00 € + 87 000,00 €');
   const pub = E.analyserEtatHypothecaire([h, 'Relevé des formalités - Publication VENTE PAGE 2 À PAGE 2 Disposition n° 1 / UD1 : Vente Une charge est identifiée dans le complément Disposition n° 2 / UD1 : Vente Une charge est identifiée dans le complément Complément : Servitude de passage.'], '2026-10-28');
   assert.equal(pub.chargesComplement.length, 2, 'une charge sans complément lu n’est pas fondue dans la suivante');
+});
+
+test('relecture 0.405.0 : section « 0A », retirer fait tomber les pièces de mainlevée non reçues, alerte de l’en-tête limitée au bien', () => {
+  const app = chargerApplication();
+  const d = { id: 'v2', nom: 'ESSAI', typeVente: 'maison', parties: [], historique: [], pieces: {},
+    bien: { cadastre: { parcelles: [{ section: '0A', numero: '045' }] } },
+    piecesPersonnalisees: [{ cle: 'perso-1', label: 'Décompte de remboursement — BANQUE EXEMPLE' }, { cle: 'perso-2', label: 'Accord de mainlevée — BANQUE EXEMPLE' }],
+    etatHypothecaire: { inscriptions: [{ nature: 'Hypothèque', etat: 'en_cours', page: 2, reference: '2012 V 9', creancier: 'BANQUE EXEMPLE', parcelles: [{ section: 'A', numero: '45' }] },
+      { nature: 'Hypothèque', etat: 'en_cours', page: 5, reference: '2013 V 1', creancier: 'AUTRE', parcelles: [{ section: 'ZK', numero: '1' }] }] } };
+  assert.equal(app.inscriptionsDuBien(d).liees.length, 1, '0A 045 = A 45');
+  assert.equal(app.inscriptionsEnCoursDuBien(d).length, 1, 'l’autre bien ne compte pas');
+  assert.equal(app.alertesLecturesFiche(d).filter((a) => a.cle === 'ehf').length, 1);
+  const r = app.retirerInscriptionDossier(d, '2012 V 9');
+  assert.equal(r.pieces.length, 2);
+  assert.equal(d.piecesPersonnalisees.length, 0);
+  assert.equal(app.alertesLecturesFiche(d).filter((a) => a.cle === 'ehf').length, 0, 'retirée : plus d’alerte en tête de fiche');
+  assert.equal(E.parcellesInscription('Immeuble(s) Volume Lot - BLOIS C 1 - - Référence d’enliassement : 2008 D 1234').map((p) => p.section + p.numero).join(','), 'C1');
+  assert.equal(E.parcellesInscription('Immeuble(s) - M. DE 5 - BLOIS C 2').map((p) => p.section + p.numero).join(','), 'C2');
 });

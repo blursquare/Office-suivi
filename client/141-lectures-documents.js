@@ -358,10 +358,11 @@ function alertesLecturesFiche(d) {
   const e = d && d.etatHypothecaire;
   const lectures = Object.values((d && d.lecturesDocuments) || {}).filter(x => x && x.alerte && !x.enCours);
   const etatRelu = !!(e && Array.isArray(e.inscriptions));
-  const ehfEnCours = etatRelu && typeof inscriptionsEnCours === 'function' ? inscriptionsEnCours(e).length : 0;
+  // Seules les inscriptions du bien vendu, hors retirées à la main (étude 30/10, client/147).
+  const ehfEnCours = etatRelu ? inscriptionsEnCoursDuBien(d).length : 0;
   // L'état relu dans Authentic décide quand il existe (une ancienne lecture du NAS ne garde pas l'alerte après une mainlevée).
   if (ehfEnCours || (!etatRelu && lectures.some(x => x.sorte === 'ehf'))) {
-    out.push({ cle: 'ehf', libelle: 'Inscription hypothécaire', detail: ehfEnCours ? `${ehfEnCours} inscription(s) en cours dans l’état hypothécaire relu par CLAIRE` : (lectures.find(x => x.sorte === 'ehf') || {}).resume || '' });
+    out.push({ cle: 'ehf', libelle: 'Inscription hypothécaire', detail: ehfEnCours ? `${ehfEnCours} inscription(s) en cours sur le bien vendu dans l’état hypothécaire relu par CLAIRE` : (lectures.find(x => x.sorte === 'ehf') || {}).resume || '' });
   } else if (e && Array.isArray(e.inscriptions) && typeof lectureEtatComplete === 'function' && !lectureEtatComplete(e)) {
     out.push({ cle: 'ehf', libelle: 'État hypothécaire à vérifier', detail: 'Lecture incomplète de l’état hypothécaire : à vérifier par le notaire' });
   }

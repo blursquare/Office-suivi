@@ -14,7 +14,8 @@
 
 /**
  * @typedef {{ nature: string, page: number, redacteur: string, dateActe: string, dateDepot: string, reference: string, creancier: string,
- *   montant: string, dateExtremeEffet: string, etat: 'en_cours' | 'radiee' | 'perimee', radiation: '' | 'totale' | 'partielle' }} InscriptionEH
+ *   montant: string, dateExtremeEffet: string, etat: 'en_cours' | 'radiee' | 'perimee', radiation: '' | 'totale' | 'partielle',
+ *   parcelles: Array<{ section: string, numero: string }> }} InscriptionEH
  * @typedef {{ nature: string, page: number, complement: string }} ChargeComplementEH
  * @typedef {{ anf: boolean, delivreLe: string, inscriptions: InscriptionEH[], chargesComplement: ChargeComplementEH[], enAttente: number,
  *   facesStock: number, pagesStock: number, flux: { du: string, au: string },
@@ -144,7 +145,7 @@
       const etat = radiationTotale ? 'radiee' : dateExtremeEffet && reference && dateExtremeEffet < (delivreLe || net(aujourdhui)) ? 'perimee' : 'en_cours';
       return {
         nature: c.nature, page: c.page, redacteur: champ(t, /R[ée]dacteur/), dateActe: iso(champ(t, new RegExp('Date de l' + AP + 'acte'))), dateDepot: iso(champ(t, /Date de d[ée]p[ôo]t/)),
-        reference, creancier, montant, dateExtremeEffet, etat,
+        reference, creancier, montant, dateExtremeEffet, etat, parcelles: parcellesInscription(t),
         radiation: radiationTotale ? 'totale' : (radiationPartielle || mentionTotale) ? 'partielle' : ''
       };
     });
@@ -159,6 +160,26 @@
       lecture: { complete, annoncees: Number.isNaN(annoncees) ? null : annoncees, reconnues, pagesNonComprises } };
   }
 
+  /**
+   * Pure : les parcelles citées par une inscription — la colonne « Immeuble(s) » de chaque disposition (« Immeuble(s) Volume Lot Débiteur : -
+   * BLOIS C 1 - - ») : section (1 ou 2 lettres) et numéro (étude 30/10 : « seulement celles liées au bien vendu »). Rien de lu : liste vide.
+   * @param {string} t @returns {Array<{ section: string, numero: string }>}
+   */
+  function parcellesInscription(t) {
+    /** @type {Array<{ section: string, numero: string }>} */
+    const sortie = [];
+    for (const m of String(t || '').matchAll(/Immeubles?\s*\(s\)|Immeubles?\b/g)) {
+      const seg = String(t).slice((m.index || 0) + m[0].length, (m.index || 0) + m[0].length + 260).split(/Montant|Disposition n°|Accessoires|Date d|Cr[ée]ancier|Relev|R[ée]f[ée]rence|Propri[ée]taire/)[0];
+      for (const p of seg.matchAll(/(?<![A-Za-z0-9])([A-Z]{1,2})\s+(\d{1,5})(?![\d/])/g)) {
+        // Un mot de deux lettres d'un nom (« DE », « LE », « JE ») n'est pas une section (relecture 0.405.0).
+        if (/^(DE|DU|LE|LA|JE|ET|EN|AU|UN|ME|MR|NE|SA|SE|SI)$/.test(p[1])) continue;
+        const x = { section: p[1], numero: p[2].replace(/^0+(?=\d)/, '') };
+        if (!sortie.some((y) => y.section === x.section && y.numero === x.numero)) sortie.push(x);
+      }
+    }
+    return sortie;
+  }
+
   /** Pure : le nom d'une pièce jointe qui est un état hypothécaire (état-réponse ANF, hors formalité, renseignements sommaires). @param {string} nom */
   function nomDitEtatHypothecaire(nom) {
     const n = plat(nom).replace(/[_-]+/g, ' ');
@@ -170,7 +191,7 @@
     return ((e && e.inscriptions) || []).filter((x) => x.etat === 'en_cours');
   }
 
-  exporter({ estEtatReponseANF, analyserEtatHypothecaire, nomDitEtatHypothecaire, inscriptionsEnCours });
+  exporter({ estEtatReponseANF, analyserEtatHypothecaire, nomDitEtatHypothecaire, inscriptionsEnCours, parcellesInscription });
 })(function (api) {
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else Object.assign(/** @type {any} */ (globalThis), api);

@@ -23258,3 +23258,29 @@ Relecture et audit de la 0.404.0 (`docs/audits/2026-10-30-0.404.0.md`) :
 - H1 : la liste blanche des mots du droit laissait passer des noms (« Paul Juge », « le Vendeur DUPONT »). Elle n'agit plus qu'après un article ; dans un document, le titre reste et le NOM est codé.
 - Réponse aux questions sans réponse : seulement dans le canal ouvert à l'écran, en lecture seule, 10 par jour au plus. L'ouverture en arrière-plan a été retirée à la seconde relecture.
 - Fenêtre flottante : conversation du collaborateur du poste, rendu sans clignotement, écran dit à l'agent sans apparaître dans la bulle.
+
+### 30/10/2026 — 0.405.0 : inscriptions du bien vendu seulement, carte dans « Pièces et analyse »
+
+Demande de l'étude, le 30/10 : « ne pas afficher toute la liste des annexes d'Authentic, et la liste de toutes les inscriptions. Seulement celles liées au bien vendu. Les afficher dans analyse, nouvelle carte sous analyse de l'avant-contrat, et permettre de les supprimer à la main s'il y a une erreur ». Puis : « dans la carte analyse afficher seulement les inscriptions du bien. Dans la carte authentic : ne plus tout afficher. Ne pas lister toutes les pièces GED et toutes les inscriptions. Mettre un bouton de lecture dans la carte analyse ». Retirer = de CLAIRE seulement.
+
+Construit :
+- `commun/etat-hypothecaire.js` : `parcellesInscription`, qui lit la colonne « Immeuble(s) » de chaque disposition (section, numéro).
+- `client/147-inscriptions-bien.js` :
+  - `inscriptionsDuBien` : rattachement par `parcellesDossier`. Sans parcelle lue, l'inscription est « à vérifier ». Une inscription d'un autre bien n'est pas montrée.
+  - Croix → `d.etatHypothecaire.retirees` (gardé à la relecture), avec « Annuler ».
+  - Boutons « Lire / Relire l'état » et « Ouvrir ».
+- Carte Authentic : une ligne « N pièces jointes dans la GED » à la place des listes. `htmlPiecesJointesAT` et `htmlEtatHypothecaireFiche` sont retirés.
+- Relecture (client/136) : pièces à réclamer et message de CLAIRE limités aux inscriptions du bien vendu.
+
+Limite : l'outil de l'agent `etat_hypothecaire` lit toujours l'état entier.
+
+Relecture de la 0.405.0 (aucun point Haut). Corrections :
+- Alerte de l'en-tête de la fiche et outil de l'agent limités aux inscriptions du bien, hors retirées (`inscriptionsEnCoursDuBien`, `lectureEtatHypothecairePourAgent(e, d)`).
+- Bouton de la carte : `lireEhfDepuisFiche` (état-réponse d'abord, trois pièces au plus). « Ouvrir » ouvre l'état-réponse en premier.
+- Section « 0A » lue comme « A ».
+- Retirer une inscription retire aussi ses pièces de mainlevée pas encore reçues, sauf si une autre inscription du bien a le même créancier. « Annuler » les rend.
+- Clé de repli sans le numéro de page.
+- `parcellesInscription` coupe sur « Référence » et « Propriétaire » et écarte les mots de deux lettres (DE, LE…).
+- Pas de « aucune inscription » sur une lecture incomplète.
+- Note adaptée quand le dossier n'a pas de parcelles.
+- Outil de l'agent : `etat_hypothecaire` `retirer` (carte « Autoriser »).

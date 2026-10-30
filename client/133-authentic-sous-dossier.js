@@ -103,10 +103,9 @@ function htmlSousDossierAT(d) {
       ${sd.statut ? `<span class="dot-label ${classeStatutSousDossierAT(sd.statut)}"><span class="dot"></span>${escapeHtml(sd.statut)}${sd.statutLe ? ` · ${escapeHtml(formatDateFr(sd.statutLe))}` : ''}</span>` : ''}
       ${infoBulle('Ce que montre le sous-dossier dans Authentic, à la dernière page relevée' + (lu ? ` (${lu.toLowerCase()})` : '') + ' : rien n’est écrit dans Authentic ni sur la fiche.')}</div>
     ${groupes || (sd.pieces || []).length ? detail : '<p class="pa-aide">Aucune formalité ni acte relevé sur la page du dossier.</p>'}
-    ${typeof htmlEtatHypothecaireFiche === 'function' ? htmlEtatHypothecaireFiche(d) : ''}
     ${typeof htmlSuivisDossierAT === 'function' ? htmlSuivisDossierAT(d) : ''}
     ${typeof htmlComptabiliteAT === 'function' ? htmlComptabiliteAT(d) : ''}
-    ${htmlPiecesJointesAT(d, sd)}
+    ${(sd.pieces || []).length ? `<p class="at-resume">${sd.pieces.length} pièce${sd.pieces.length > 1 ? 's' : ''} jointe${sd.pieces.length > 1 ? 's' : ''} dans la GED d’Authentic${infoBulle('Plus listées ici (étude 30/10 : « ne plus tout afficher ») : l’état hypothécaire se lit depuis la carte « Inscriptions sur le bien vendu » de l’onglet Pièces et analyse ; CLAIRE ouvre une pièce à la demande (« Demander à CLAIRE »).')}</p>` : ''}
   </div>`;
 }
 
@@ -138,22 +137,6 @@ function correspondancePieceAuthenticAT(d, nom, listeCalculee) {
   const base = (c) => normaliserNomPourMotif(String(c || '').split(/[\\/]/).pop().replace(/\.[a-z0-9]{2,4}$/i, ''));
   const nas = (Array.isArray(d && d.nasInventaire) ? d.nasInventaire : []).some(c => base(c) === nomNorm);
   return { piece: p ? { cle: p.cle, label: p.label, recue: !!(d.pieces && d.pieces[p.cle] === 'recue') } : null, nas };
-}
-
-function htmlPiecesJointesAT(d, sd) {
-  const pieces = (sd && sd.pieces) || [];
-  if (!pieces.length) return '';
-  const checklist = typeof checklistPieces === 'function' ? checklistPieces(d && d.typeVente, d) : [];
-  const parDossier = new Map();
-  pieces.forEach(p => { const k = p.dossierGed || 'Pièces jointes'; if (!parDossier.has(k)) parDossier.set(k, []); parDossier.get(k).push(p); });
-  const lignes = [...parDossier.entries()].map(([dossierGed, liste]) => `<li class="at-ged-dossier">${escapeHtml(dossierGed)}</li>${liste.map(p => {
-    const c = correspondancePieceAuthenticAT(d, p.nom, checklist);
-    const etat = c.piece ? (c.piece.recue ? `<span class="at-ged-piece">✓ ${escapeHtml(c.piece.label)}</span>` : `<span class="at-ged-piece at-ged-manque" title="Dans Authentic, pas encore cochée reçue dans CLAIRE">${escapeHtml(c.piece.label)} : pas encore reçue dans CLAIRE</span>`) : '';
-    return `<li class="at-ged-ligne"><span class="at-libelle" title="${escapeAttr(p.nom)}">${escapeHtml(p.nom)}</span>${etat}${c.nas ? '<span class="at-ged-nas">aussi sur le NAS</span>' : ''}
-      ${typeof pieceEstEtatHypothecaire === 'function' && pieceEstEtatHypothecaire(p) ? `<wa-button appearance="outlined" size="s" type="button" onclick="relireEtatHypothecaireAT('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.pjId)}')" title="CLAIRE lit l’état hypothécaire et relève les inscriptions (rubrique Charge)">Relire l’état</wa-button>` : ''}
-      <wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="ouvrirPieceAuthenticAT('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.pjId)}')" title="Ouvrir le PDF (lu dans Authentic par CLAIRE, une minute environ)" aria-label="Ouvrir le PDF">${icone('file-text')}</wa-button></li>`;
-  }).join('')}`).join('');
-  return `<div class="at-groupe"><div class="at-groupe-titre">Pièces jointes${infoBulle('La liste de la GED du sous-dossier, à la dernière lecture. « Ouvrir » : CLAIRE ouvre la pièce dans Authentic et vous montre le PDF ; rien n’est modifié dans Authentic, le PDF ne reste que quelques minutes en mémoire du serveur.')}<span class="pa-compte">${pieces.length}</span></div><ul class="at-liste">${lignes}</ul></div>`;
 }
 
 // Le PDF d'une pièce jointe, lu dans Authentic par une tâche du navigateur du serveur (une minute environ) : rend un Blob, ou lève l'erreur.

@@ -40,15 +40,19 @@ function natureChargePourAgent(nature, page) {
 }
 
 // Pure : la lecture gardée sur la fiche, pour l'agent (ni rédacteur ni complément en entier : nature, créancier, montant, dates, état).
-function lectureEtatHypothecairePourAgent(e) {
+function lectureEtatHypothecairePourAgent(e, d) {
   if (!e || !Array.isArray(e.inscriptions)) return null;
+  // Avec le dossier : les inscriptions du bien vendu seulement, hors retirées à la main (étude 30/10, client/147) ; les autres biens comptés.
+  const r = d && d.etatHypothecaire === e ? inscriptionsDuBien(d) : null;
+  const liste = r ? r.liees.concat(r.aVerifier) : e.inscriptions;
   // Le créancier part masqué en entier (clé `creancier` du serveur) et revient en clair dans la réponse.
   const ligne = x => ({ nature: natureChargePourAgent(x.nature, x.page), creancier: x.creancier || '', montant: x.montant || '', depose_le: x.dateDepot || '', reference: x.reference || '',
     date_extreme_effet: x.dateExtremeEffet || '', etat: x.etat === 'en_cours' ? 'en cours' : x.etat === 'perimee' ? 'périmée' : 'radiée', page: x.page });
   return {
     relu_le: e.luLe || '', etat_delivre_le: e.delivreLe || '', lecture_complete: lectureEtatComplete(e),
-    inscriptions_en_cours: e.inscriptions.filter(x => x.etat === 'en_cours').map(ligne),
-    radiees_ou_perimees: e.inscriptions.filter(x => x.etat !== 'en_cours').map(ligne),
+    inscriptions_en_cours: liste.filter(x => x.etat === 'en_cours').map(ligne),
+    radiees_ou_perimees: liste.filter(x => x.etat !== 'en_cours').map(ligne),
+    ...(r ? { inscriptions_d_autres_biens_du_vendeur: r.autres.length, retirees_de_la_fiche_par_l_etude: ((e.retirees) || []).length } : {}),
     charges_signalees_dans_un_complement: (e.chargesComplement || []).map(c => ({ nature: natureChargePourAgent(c.nature, c.page), page: c.page })),
     formalites_en_attente_ou_rejetees: e.enAttente || 0,
     faces_de_fiches_anciennes_a_relire: e.facesStock || 0
@@ -60,7 +64,17 @@ function lectureEtatHypothecairePourAgent(e) {
 async function etatHypothecaireAgent(e) {
   const d = dossiers.find(x => x.id === (e && e.dossier_id));
   if (!d) return { erreur: 'aucun dossier avec cet id' };
-  const deja = lectureEtatHypothecairePourAgent(d.etatHypothecaire);
+  const deja = lectureEtatHypothecairePourAgent(d.etatHypothecaire, d);
+  // Retirer une inscription erronée de la fiche (le geste de la croix, client/147) : après « Autoriser », rien dans Authentic.
+  if (e && e.retirer) {
+    const ins = d.etatHypothecaire && (d.etatHypothecaire.inscriptions || []).find(x => x.reference && x.reference === String(e.retirer).trim());
+    if (!ins) return { erreur: 'aucune inscription de cette référence d’enliassement sur la fiche (lis d’abord etat_hypothecaire)' };
+    if (!(await demanderAutorisationAgent(`Retirer de la fiche de ${libelleDossierAffiche(d)} l’inscription ${ins.reference} (erreur de lecture) et ses pièces de mainlevée pas encore reçues — rien n’est changé dans Authentic.`))) return { refuse: true, message: 'l’utilisateur a refusé' };
+    const r = retirerInscriptionDossier(d, cleInscriptionEH(ins));
+    if (!r) return { erreur: 'inscription introuvable' };
+    sauvegarder(d); render();
+    return { fait: true, retiree: ins.reference, pieces_retirees: r.pieces.length };
+  }
   if (!(e && e.relire) && deja) return Object.assign({ dossier_id: d.id }, deja);
   // L'instantané d'Authentic, frais (absent, en échec ou de plus d'une minute : relu ; un chargement déjà lancé est attendu).
   if (typeof chargerInstantaneAuthenticAT === 'function') {
@@ -88,7 +102,7 @@ async function etatHypothecaireAgent(e) {
     if (!(r && /forme d.un état-réponse/.test(String(r.erreur || '')))) break;
   }
   if (!r || !r.etat) return { erreur: 'relecture non faite : ' + ((r && r.erreur) || 'erreur') };
-  return Object.assign({ dossier_id: d.id, fait: true }, lectureEtatHypothecairePourAgent(Object.assign({ luLe: new Date().toISOString() }, r.etat)));
+  return Object.assign({ dossier_id: d.id, fait: true }, lectureEtatHypothecairePourAgent(d.etatHypothecaire, d) || {});
 }
 
 // Pure : la DIA et les demandes d'urbanisme (CU, alignement, numérotage…) d'un dossier — par le guichet unique (numéro relevé par

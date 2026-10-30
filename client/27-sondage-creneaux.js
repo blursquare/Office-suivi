@@ -2239,6 +2239,7 @@
               </div>
               ${urbaFiche.trim() ? `<div class="fiche-urba-col">${urbaFiche}</div>` : ''}
               </div>
+              ${renderInscriptionsBienFiche(d)}
               <div class="fiche-fin-repliables">
                 ${avecPieces ? `${renderAuthenticDossier(d)}${renderDiagnosticParcours(d)}` : ''}
                 ${estSuccession(d) ? '' : renderExtractionDossier(d)}

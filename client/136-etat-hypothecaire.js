@@ -45,7 +45,7 @@ function lectureEtatComplete(etat) {
 function plurielEH(n, mot) { return `${n} ${mot}${n > 1 ? 's' : ''}`; }
 
 function messageEtatHypothecaire(etat) {
-  const n = inscriptionsEnCours(etat).length;
+  const n = inscriptionsEnCours(etat).length;   // `etat` : les inscriptions du bien vendu seulement (relireEtatHypothecaireAT)
   const perimees = ((etat && etat.inscriptions) || []).filter(x => x.etat !== 'en_cours').length;
   const comp = ((etat && etat.chargesComplement) || []).length;
   const attente = (etat && etat.enAttente) || 0;
@@ -77,12 +77,15 @@ async function relireEtatHypothecaireAT(dossierId, pjId) {
     if (!etat.anf && !etat.inscriptions.length) throw new Error('ce document n’a pas la forme d’un état-réponse ANF');
     const piece = (((instantanesAuthenticAT[dossierId] || {}).inst || {}).sousDossier || {}).pieces || [];
     const nom = (piece.find(p => p.pjId === pjId) || {}).nom || '';
-    d.etatHypothecaire = Object.assign({ luLe: new Date().toISOString(), piece: nom }, etat);
-    ajouterHistorique(d, `État hypothécaire relu : ${inscriptionsEnCours(etat).length} inscription(s) en cours`);
+    const retirees = (d.etatHypothecaire && Array.isArray(d.etatHypothecaire.retirees)) ? d.etatHypothecaire.retirees : [];
+    d.etatHypothecaire = Object.assign({ luLe: new Date().toISOString(), piece: nom, retirees }, etat);
+    // Seules les inscriptions du bien vendu comptent (étude 30/10, client/147) : celles d'un autre bien du vendeur sont écartées.
+    const etatBien = Object.assign({}, etat, { inscriptions: (() => { const r = inscriptionsDuBien(d); return r.liees.concat(r.aVerifier); })() });
+    ajouterHistorique(d, `État hypothécaire relu : ${inscriptionsEnCours(etatBien).length} inscription(s) en cours sur le bien vendu`);
     // Pièces à réclamer : seulement quand l'étude représente le vendeur (un confrère du vendeur s'en charge sinon), jamais en double.
-    if (inscriptionsEnCours(etat).length && !(typeof confrereRepresenteVendeur === 'function' && confrereRepresenteVendeur(d))) {
+    if (inscriptionsEnCours(etatBien).length && !(typeof confrereRepresenteVendeur === 'function' && confrereRepresenteVendeur(d))) {
       d.piecesPersonnalisees = d.piecesPersonnalisees || [];
-      for (const label of piecesEtatHypothecaire(etat)) {
+      for (const label of piecesEtatHypothecaire(etatBien)) {
         if (d.piecesPersonnalisees.some(p => p.label === label)) continue;
         d.piecesPersonnalisees.push({ cle: 'perso-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), label });
         ajouterHistorique(d, `Pièce ajoutée à la checklist : « ${label} » (état hypothécaire)`);
@@ -93,14 +96,14 @@ async function relireEtatHypothecaireAT(dossierId, pjId) {
     // Le message de CLAIRE dans le canal du dossier (compté pour son responsable, 0.383.1) ; un échec est dit.
     try {
       const rc = await fetchAvecAuth(`/api/canaux/${encodeURIComponent('d:' + d.id)}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ auteur: utilisateurPoste || '', claire: true, texte: messageEtatHypothecaire(etat) }) });
+        body: JSON.stringify({ auteur: utilisateurPoste || '', claire: true, texte: messageEtatHypothecaire(etatBien) }) });
       if (!rc.ok) throw new Error(String(rc.status));
     } catch (err) {
       afficherToast('Message de CLAIRE non déposé dans le canal du dossier : l’état est quand même relu sur la fiche.', 'OK', null);
     }
     noterVerificationPoste('etat-hypothecaire', { detail: `${etat.inscriptions.length} charge(s) lue(s)` });
-    afficherToast(messageEtatHypothecaire(etat), 'OK', null);
-    return { etat };
+    afficherToast(messageEtatHypothecaire(etatBien), 'OK', null);
+    return { etat: etatBien };
   } catch (e) {
     noterVerificationPoste('etat-hypothecaire', { ok: false, message: String((e && e.message) || 'erreur').slice(0, 80) });
     afficherToast('État non relu : ' + (e && e.message ? e.message : 'erreur'), 'OK', null);
@@ -108,30 +111,4 @@ async function relireEtatHypothecaireAT(dossierId, pjId) {
   } finally {
     relecturesEtatEnCours.delete(verrou);
   }
-}
-
-// Le bloc de la fiche (panneau « Authentic ») : les inscriptions en cours en rouge, puis radiées / périmées, les charges des compléments et
-// les fiches anciennes à relire.
-function htmlEtatHypothecaireFiche(d) {
-  const e = d && d.etatHypothecaire;
-  if (!e || !Array.isArray(e.inscriptions)) return '';
-  const date = (x) => (x ? formatDateFr(x) : '');
-  const ligne = (x, classe) => `<li class="eh-ligne ${classe}"><span class="eh-nature">${escapeHtml(x.nature || 'Inscription')}</span>
-    <span class="eh-detail">${escapeHtml([x.creancier || 'créancier à vérifier', x.montant, x.dateDepot ? 'déposée le ' + date(x.dateDepot) : '', x.reference,
-      x.dateExtremeEffet ? (x.etat === 'perimee' ? 'périmée le ' : 'effet jusqu’au ') + date(x.dateExtremeEffet) : 'date extrême d’effet à vérifier',
-      x.etat === 'radiee' ? 'radiée' : x.radiation === 'partielle' ? 'radiation partielle' : '', 'p. ' + x.page].filter(Boolean).join(' · '))}</span></li>`;
-  const enCours = e.inscriptions.filter(x => x.etat === 'en_cours');
-  const autres = e.inscriptions.filter(x => x.etat !== 'en_cours');
-  // Rien sur la fiche quand tout va bien (étude 28/10 : « ne pas trop charger la fiche ; juste s'il y a des alertes ») : le compte rendu
-  // complet reste dans la discussion du dossier et pour « Demander à CLAIRE ».
-  if (!enCours.length && lectureEtatComplete(e) && !(e.chargesComplement || []).length && !e.enAttente) return '';
-  return `<div class="at-groupe eh-bloc"><div class="at-groupe-titre">État hypothécaire${infoBulle('Relu par CLAIRE dans l’état-réponse ANF' + (e.delivreLe ? ` délivré le ${date(e.delivreLe)}` : '') + ' : rubrique Charge du relevé des formalités (depuis 2002). Les fiches d’avant sont des scans manuscrits que CLAIRE ne lit pas : à relire par le notaire. Assistance : le notaire garde l’analyse juridique.')}</div>
-    ${!lectureEtatComplete(e) ? `<p class="eh-alerte">Lecture incomplète${e.lecture && e.lecture.annoncees != null ? ` : ${e.lecture.reconnues} formalité${e.lecture.reconnues > 1 ? 's' : ''} lue${e.lecture.reconnues > 1 ? 's' : ''} sur ${e.lecture.annoncees} annoncée${e.lecture.annoncees > 1 ? 's' : ''}` : ''}${e.tronque ? ' (PDF de plus de 200 pages)' : ''} — relevé à vérifier par le notaire.</p>` : ''}
-    ${enCours.length ? `<p class="eh-alerte">${plurielEH(enCours.length, 'inscription')} en cours</p><ul class="at-liste">${enCours.map(x => ligne(x, 'eh-en-cours')).join('')}</ul>`
-      : lectureEtatComplete(e) ? `<p class="eh-ok">Aucune inscription en cours dans le relevé des formalités${e.facesStock ? ' depuis 2002' : ''}.</p>` : ''}
-    ${autres.length ? `<details class="eh-autres"><summary>${autres.length} radiée${autres.length > 1 ? 's' : ''} ou périmée${autres.length > 1 ? 's' : ''}</summary><ul class="at-liste">${autres.map(x => ligne(x, 'eh-passee')).join('')}</ul></details>` : ''}
-    ${(e.chargesComplement || []).length ? `<ul class="at-liste">${e.chargesComplement.map(c => `<li class="eh-ligne eh-complement"><span class="eh-nature">${escapeHtml(c.nature || 'Charge')}</span><span class="eh-detail">${escapeHtml((c.complement || 'charge signalée dans le complément') + ' · p. ' + c.page)}</span></li>`).join('')}</ul>` : ''}
-    ${e.enAttente ? `<p class="eh-note">${e.enAttente} formalité${e.enAttente > 1 ? 's' : ''} en attente ou rejetée${e.enAttente > 1 ? 's' : ''} : à vérifier.</p>` : ''}
-    ${e.facesStock ? `<p class="eh-note">${plurielEH(e.facesStock, 'face')} de fiches anciennes (avant 2002) à relire par le notaire.</p>` : ''}
-  </div>`;
 }

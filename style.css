@@ -10881,6 +10881,10 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-sujet-ouvrir:hover { background: var(--paper-sunk); }
 .asst-ancien { opacity: 0.7; }
 .asst-sujet-plus { text-align: center; color: var(--muted); font-size: var(--texte-xs); }
+/* Inscriptions sur le bien vendu (0.405.0, client/147) */
+.inscriptions-actions { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.eh-a-verifier .eh-nature::after { content: " · à vérifier"; color: var(--muted); font-weight: 400; }
+
 /* CLAIRE en fenêtre flottante (0.404.0, client/146) : sur un écran d'outil ou une fiche en page. */
 .claire-flottante { position: fixed; right: 24px; bottom: 24px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
 .cf-bouton { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--focus); color: var(--blanc-fixe); box-shadow: var(--shadow-float); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
