@@ -386,6 +386,7 @@
     if (cle === 'apprentissage') ouvrirPageApprentissage();
     if (cle === 'pieces') renderNomsReconnus();
     if (cle === 'noms-nas') initNomsNas();
+    if (cle === 'general' && typeof renderReglagesGif === 'function') renderReglagesGif();
     if (cle === 'memoire') ouvrirReglagesMemoire();
     if (cle === 'consignes') ouvrirCarnetClaire();
     if (cle === 'routines') ouvrirReglagesRoutines();

@@ -1555,6 +1555,7 @@
           <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('liste')" title="Liste à puces" aria-label="Liste à puces"><span id="icon-assistant-liste" aria-hidden="true"></span></wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone asst-fmt" type="button" onmousedown="event.preventDefault()" onclick="formaterSaisieAssistant('lien')" title="Lien sur des mots" aria-label="Lien"><span id="icon-assistant-lien" aria-hidden="true"></span></wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onmousedown="event.preventDefault()" onclick="ouvrirSelecteurReaction('@saisie', this)" title="Emoji" aria-label="Emoji"><span id="icon-assistant-emoji" aria-hidden="true"></span></wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-icone asst-gif" type="button" onmousedown="event.preventDefault()" onclick="ouvrirSelecteurGif(this)" title="GIF" aria-label="Choisir un GIF" aria-haspopup="dialog">GIF</wa-button>
         </span>
         <textarea id="assistant-saisie" rows="1" lang="fr" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Envoyer un message à Claire — tapez @ pour citer un dossier" aria-label="Votre demande à CLAIRE" title="Entrée pour envoyer · Maj + Entrée pour aller à la ligne" onkeydown="toucheSaisieAssistant(event)" onblur="setTimeout(fermerMentionAssistant, 150)" oninput="this.style.height = ''; this.style.height = Math.min(160, this.scrollHeight) + 'px'; majMentionAssistant();"></textarea>
         <div class="asst-barre">
@@ -1818,6 +1819,8 @@
         </label>
       </div>
     </div>
+    <!-- GIF des discussions (étude 30/10, Tenor) : clé de l'API, administrateur (client/150-gif.js). -->
+    <div class="reglages-section" id="reglages-gif"></div>
   </section>
 
   <!-- ===== Rappels Teams : CLAIRE envoie elle-même un email vers la boîte-passerelle, dont
@@ -3077,5 +3080,6 @@
 <script src="client/147-inscriptions-bien.js"></script>
 <script src="client/148-decompte-vendeur.js"></script>
 <script src="client/149-tache-donnee.js"></script>
+<script src="client/150-gif.js"></script>
 </body>
 </html>

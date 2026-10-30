@@ -74,6 +74,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché quand la demande est créée. À vérifier dans Authentic : la demande est dans le dossier, PAS envoyée.' },
   { id: 'authentic-comedec', depuis: '0.373.0', source: 'serveur', titre: 'Demande d’état civil (Comedec) créée dans Authentic par CLAIRE : naissance de chaque partie, mariage des mariés, rien d’envoyé',
     comment: 'Coché quand la demande est créée. À vérifier dans Authentic : les actes cochés et la demande PAS envoyée.' },
+  { id: 'gif-tenor', depuis: '0.408.0', source: 'serveur', titre: 'GIF des discussions : recherche Tenor par le serveur, image jointe au message',
+    comment: 'Coché à la première recherche réussie (clé Tenor saisie dans Réglages › Général). À voir : le GIF s’affiche dans le message envoyé.' },
   { id: 'authentic-comedec-succession', depuis: '0.408.0', source: 'serveur', titre: 'Comedec d’une succession créée dans Authentic : sous-dossier « Succession » ouvert, naissance et mariage du défunt, naissance des héritiers, rien d’envoyé',
     comment: 'Coché quand la demande d’une succession est créée. À vérifier dans Authentic : le bon sous-dossier, les actes cochés, la demande PAS envoyée.' },
   { id: 'pastille-application', depuis: '0.372.0', source: 'manuel', titre: 'Pastille chiffrée posée par CLAIRE elle-même sur l’icône de l’application installée (Chrome ou Edge, API App Badging)',

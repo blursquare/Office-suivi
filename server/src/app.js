@@ -72,6 +72,8 @@ const { creerPlanificateur } = require('./routines/planificateur');
 const { creerRouteurCanaux } = require('./routes/canaux');
 const { creerNotifieur } = require('./canaux/notifier');
 const { creerRouteurOpenlegi, creerOpenlegi } = require('./routes/openlegi');
+const { creerRouteurGif } = require('./routes/gif');
+const { creerGif } = require('./gif');
 const { creerRouteurYousign, creerYousign, lireReglagesYousign } = require('./routes/yousign');
 const { creerRouteurSignatureRib } = require('./routes/signatureRib');
 const { creerSignatureRibAgent } = require('./signatureRibAgent');
@@ -284,6 +286,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const signatureRib = creerSignatureRibAgent({ parametresRepo, config, creerClient: assistant && assistant.creerClientSignatureRib, ecritureYousign: () => lireReglagesYousign(parametresRepo).ecriture });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAssistant(config, { ...(assistant || {}), openlegi, yousign, signatureRib }, parametresRepo));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurOpenlegi(parametresRepo, openlegi));
+  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurGif(parametresRepo, creerGif(parametresRepo, config && config.fetchGif)));
   // Le retour de Yousign est une navigation du navigateur (sans en-tête Authorization) : le `state` à usage unique le protège.
   const sansAuthRetourYousign = (req, res, next) => (req.method === 'GET' && req.path === '/yousign/oauth/retour' ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
   app.use('/api', sansAuthRetourYousign, creerRouteurYousign(parametresRepo, yousign));
