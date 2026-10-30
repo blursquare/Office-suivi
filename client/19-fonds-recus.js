@@ -88,7 +88,9 @@
       const familles = new Set(caps.concat([p.nomUsage || '']).flatMap(motsDe));
       prenoms.filter(m => !familles.has(m) && !gardes.has(m)).forEach(m => prenomsDePaire.add(m));
     });
-    return [...new Set(mots.filter(m => !prenomsDePaire.has(m)).flatMap(m => paires.has(m) ? paires.get(m).map(w => m + ' ' + w) : [m]))];
+    // Succession : un nom porté aussi par le défunt, sans prénom d'héritier pour le départager, n'est pas cherché seul (un virement « SUCCESSION
+    // DURAND » de la banque n'est pas les frais versés par un héritier DURAND) — relecture 30/10.
+    return [...new Set(mots.filter(m => !prenomsDePaire.has(m)).flatMap(m => paires.has(m) ? paires.get(m).map(w => m + ' ' + w) : (succ && vendeurs.has(m) && !gardes.has(m) ? [] : [m])))];
   }
 
   var RE_MONTANT_RECU = /(?<![\d,])(\d{1,3}(?:[ .  ]\d{3})+|\d+),(\d{2})(?!\d)/g;
@@ -583,7 +585,7 @@
       : b.etat === 'inconnu' ? ['dl-neutre', 'Montant attendu à saisir']
       : ['dl-urgent', 'Aucun reçu trouvé'];
     const sousHtml = `<span class="dot-label ${etatCourt[0]}"><span class="dot"></span>${etatCourt[1]}</span>`
-      + (confirmee ? ` <span class="fonds-confirmation">· confirmé au client le ${formatDateFr(confirmee)}</span>` : '');
+      + (confirmee ? ` <span class="fonds-confirmation">· confirmé ${estSuccession(d) ? 'aux héritiers' : 'au client'} le ${formatDateFr(confirmee)}</span>` : '');
 
     // Les trois chiffres et la jauge.
     const sourceAttendu = f && f.attenduChemin && !d.fondsAttendusManuel
@@ -623,7 +625,7 @@
     // Pied : noms cherchés (modifiables), dernière lecture, confirmation « quand même ».
     const mots = motsPayeurDossier(d);
     const noms = champFondsEditable(d, 'noms', `<span>${mots.length ? escapeHtml(mots.map(m => m.toUpperCase()).join(' / ')) : (estSuccession(d) ? 'nom des héritiers inconnu' : 'nom de l’acquéreur inconnu')}</span>`, d.nomsRecus || '', 'autre nom : d’usage, d’épouse…');
-    const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots),
+    const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, (estSuccession(d) ? 'Chaque versement au nom d’un héritier est listé' : 'Chaque versement au nom de l’acquéreur est listé') + ' : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots),
       (f.recus || []).some(r => r.memorise) ? 'Icône boîte : fichier de reçus supprimé du commun, montant conservé par CLAIRE.' : ''].filter(Boolean).join(' '))}` : '';
     const peutConfirmer = (appelFondsEnvoyeDossier(d) || estSuccession(d)) && !!emailDestinataireRelance(d);
     const complet = b.manuel || (!!f && b.etat === 'complet');
@@ -646,7 +648,7 @@
     const verifier = { libelle: f ? 'Revérifier' : 'Vérifier', icone: icone('rotate-ccw'), onclick: `verifierFondsRecus('${escapeOnclickArg(d.id)}', this)`, titre: 'Lire les reçus comptables déposés sur le NAS' };
     let bouton = verifier;
     if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
-    else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: 'Confirmer la réception des fonds au client' };
+    else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: estSuccession(d) ? 'Confirmer la réception des fonds aux héritiers' : 'Confirmer la réception des fonds au client' };
     const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${escapeOnclickArg(d.id)}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',

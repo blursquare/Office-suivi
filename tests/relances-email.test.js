@@ -793,6 +793,9 @@ test('succession : appel de fonds facultatif, fonds reçus des héritiers, confi
   assert.match(mots, /favier/);
   assert.doesNotMatch(mots, /(^|\|)durand($|\|)/);
   assert.match(mots, /durand marie/);
+  // Héritier sans prénom du nom du défunt : jamais cherché seul (virement de la banque au nom de la succession).
+  const sansPrenom = succ({ parties: [{ role: 'DEFUNT', nom: 'Paul DURAND', qualite: 'Défunt' }, { role: 'HERITIER', nom: 'DURAND', qualite: 'Héritier' }] });
+  assert.doesNotMatch(app.motsPayeurDossier(sansPrenom, []).join('|'), /(^|\|)durand($|\|)/);
   assert.match(app.emailDestinataireRelance(d), /marie@exemple\.fr/);
   assert.match(app.emailDestinataireRelance(d), /luc@exemple\.fr/);
   // Onglet Fonds : l'appel de fonds (« Pas nécessaire ») et le bloc des fonds reçus, montant attendu compris.

@@ -397,7 +397,7 @@
           ajouter({
             type: e.type, categorie: e.type, categorieLabel: e.label,
             titre: e.type === 'decompteSuccession' ? 'Envoyer le décompte à faire valider' : e.type === 'projetSuccession' ? 'Envoyer le projet à faire valider' : 'Envoyer l’appel de fonds',
-            contexte: `Dernier rendez-vous ${j === 0 ? 'aujourd’hui' : j > 0 ? 'dans ' + j + ' jour' + (j > 1 ? 's' : '') : 'passé'}.${e.type === 'appelFondsSuccession' && e.facultatif ? ' Seulement si la comptabilité ne couvre pas nos frais.' : ''}`,
+            contexte: `Dernier rendez-vous ${j === 0 ? 'aujourd’hui' : j > 0 ? 'dans ' + j + ' jour' + (j > 1 ? 's' : '') : 'passé'}.${e.type === 'appelFondsSuccession' && e.facultatif ? (conjointSurvivant(d) ? ' Souvent inutile avec un conjoint survivant.' : ' Seulement si la comptabilité ne couvre pas nos frais.') : ''}`,
             jours: j, gravite: j <= 2 ? 'critique' : 'vigilance',
             geste: { type: 'fiche' }, bouton: 'Ouvrir la fiche'
           });
