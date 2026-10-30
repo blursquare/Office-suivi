@@ -23443,3 +23443,4 @@ Même version — étude : « Ne pas envoyer cette notification quand un dossier
 Même version — étude : « mettre l'icône de CLAIRE mochi » sur le bouton rond de CLAIRE flottante (client/146) : `icone('discussion')` au lieu de l'étincelle, bouton et en-tête de la petite fenêtre.
 
 **0.407.10 (30/10, correction)** — étude : « en noir le bouton en bas à droite pour appeler CLAIRE » : `.cf-bouton` sur `--avatar-claire` (le disque sombre de l'avatar de CLAIRE) au lieu de l'accent.
+Relecture : en mode sombre le noir de l'avatar est celui des cartes — un filet `--line` autour du bouton le détache.
