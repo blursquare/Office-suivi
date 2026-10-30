@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.402.1';
+  const VERSION_APP = '0.403.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+  { version: '0.403.0', date: '2026-10-30 07:58', resume: "CLAIRE devient proactive. Elle envoie un email après votre « oui » sur le brouillon (une carte confirme encore). Elle prévient dans le canal du dossier quand une signature est placée ou déplacée et que quelque chose ne tient pas (délai de réflexion de l’offre, vente préalable, DIA, SAFER, pièces, diagnostics périmés). Elle signale un dossier sans activité depuis trois semaines, dit ce qu’un email reçu permet de faire (offre de prêt, fonds, RIB…) et rappelle de relancer une mairie ou un organisme qui n’a pas répondu. Dans le canal de votre dossier, elle vous répond sans qu’il faille la citer. Elle peut aussi allumer ou éteindre une routine, ajouter un site aux sources web ou couper l’index du NAS, sur demande." },
   { version: '0.402.1', date: '2026-10-30 07:29', resume: "Claude qui pilote Authentic vise désormais les boutons, listes et cases par leur libellé lu dans la page (« Naissance », « Valider »…) au lieu de cliquer au jugé sur des coordonnées : fini le clic à un millimètre à côté d’une liste déroulante. Chaque clic reste contrôlé par la garde de CLAIRE." },
   { version: '0.402.0', date: '2026-10-29 23:21', resume: "CLAIRE retrouve une pièce dans les dossiers en cours : elle lit en fond le texte de tous les documents du NAS (PDF, scans par OCR, Word) et fait écrire un résumé d’une phrase par document (type, émetteur, date). « A-t-on reçu le titre de propriété ? », « M. X a-t-il fait des travaux ? » : elle cherche dans le texte même des pièces. Interrupteur dans Réglages › Mémoire de CLAIRE ; jamais de pièce d’identité ni de RIB envoyés à l’IA." },
   { version: '0.401.0', date: '2026-10-29 22:59', resume: "CLAIRE sait chercher dans la messagerie : « M. X nous a écrit cette semaine ? », « a-t-on reçu le permis ? » — elle cherche par expéditeur, objet ou texte dans la boîte de l’étude, retrouve le dossier par l’adresse et lit l’email trouvé (rien n’est gardé). Elle mène l’enquête d’elle-même (fiche, mails, NAS, comptabilité d’Authentic) au lieu d’attendre vos consignes." },

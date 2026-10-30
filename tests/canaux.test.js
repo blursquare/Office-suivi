@@ -42,6 +42,12 @@ test('claireDoitRepondreCanal : dans un dossier ou un canal libre seulement si o
   assert.equal(app.claireDoitRepondreCanal('Merci Julie, c’est noté', true, COLLABS, 'l:equipe'), false);
   assert.equal(app.claireDoitRepondreCanal('@CLAIRE où en est le prêt ?', true, COLLABS, 'd:abc'), true);
   assert.equal(app.claireDoitRepondreCanal('@Julie et @CLAIRE, regardez', true, COLLABS, 'l:equipe'), true);
+  // Étape 4 (étude 29/10, « selon le responsable ») : le responsable qui écrit dans le canal de SON dossier a sa réponse sans la citer,
+  // sauf s'il s'adresse à un collègue ; jamais dans un canal libre ni pour un autre.
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'd:abc', true), true);
+  assert.equal(app.claireDoitRepondreCanal('@Julie tu peux relancer ?', true, COLLABS, 'd:abc', true), false);
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', true, COLLABS, 'l:equipe', true), false);
+  assert.equal(app.claireDoitRepondreCanal('Où en est le prêt ?', false, COLLABS, 'd:abc', true), false);
 });
 
 test('claireDoitRepondreCanal : « général » comme les autres canaux — seulement si on la cite (0.363.0)', () => {

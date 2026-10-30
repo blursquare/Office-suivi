@@ -9,6 +9,8 @@
 // Les règles métier viennent du code commun (commun/planning.js, succession.js, pieces.js) : aucune n'est réécrite ici.
 
 const P = require('../../../commun/planning');
+const JOURS_REFLEXION_PRET = 11;
+const JOURS_DOSSIER_BLOQUE = 21;
 const S = require('../../../commun/succession');
 const { estSuccession, libelleDossierAffiche } = require('../../../commun/dossier');
 const { piecesRecuesEtManquantes } = require('../piecesChecklist');
@@ -327,7 +329,194 @@ function formalitesAuthentic(dossiers, aujourdhui, ctx) {
   return sortie;
 }
 
+// ---- Étape 4 du vrai agent (étude 29/10 : « c'est comme quand Julie ou Jérémy voient quelque chose dans leur dossier que je ne vois pas ») ----
+
+// Validité des diagnostics pour une vente (durées légales courantes, à vérifier par le collaborateur) : le type est lu dans le résumé du
+// document de l'index du NAS (indexNas.js), la date dans ce même résumé. Jamais deviné : un diagnostic sans date lue n'est pas jugé.
+const VALIDITE_DIAGNOSTICS = [
+  { re: /(etat des risques|\berp\b|errial|esris)/, mois: 6, nom: 'État des risques (ERP)' },
+  { re: /termite/, mois: 6, nom: 'Diagnostic termites' },
+  { re: /electric/, mois: 36, nom: 'Diagnostic électricité' },
+  { re: /\bgaz\b/, mois: 36, nom: 'Diagnostic gaz' },
+  { re: /assainissement/, mois: 36, nom: 'Contrôle de l’assainissement' },
+  { re: /(\bdpe\b|performance energetique)/, mois: 120, nom: 'DPE' }
+];
+const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** Pure : la date ISO `iso` + `mois` mois. @param {string} iso @param {number} mois */
+function plusMois(iso, mois) {
+  const [a, m, j] = String(iso).slice(0, 10).split('-').map(Number);
+  const d = new Date(Date.UTC(a, m - 1 + mois, j));
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Pure : les diagnostics qui ne seront plus valables le jour de la signature, d'après les documents lus du dossier
+ * ({ type, date, resume } de l'index du NAS). Le plus récent de chaque sorte compte. @param {any[]} documents @param {string} signature
+ */
+function diagnosticsPerimes(documents, signature) {
+  const sortie = [];
+  for (const v of VALIDITE_DIAGNOSTICS) {
+    const dates = (documents || []).filter((x) => x && estIso(x.date) && v.re.test(sansAccents(`${x.type} ${x.resume}`))).map((x) => String(x.date).slice(0, 10)).sort();
+    if (!dates.length) continue;
+    const fin = plusMois(dates[dates.length - 1], v.mois);
+    if (fin < String(signature).slice(0, 10)) sortie.push({ nom: v.nom, date: dates[dates.length - 1], fin });
+  }
+  return sortie;
+}
+
+/**
+ * Pure : ce qui ne tient pas avec la date de signature d'une vente — offre de prêt attendue trop tard (11 jours de réflexion), vente préalable,
+ * réponse à la DIA ou délai SAFER après la signature, pièces manquantes, diagnostics périmés le jour J. @param {any} d @param {any[]} [documents]
+ */
+function incoherencesSignature(d, documents) {
+  const rdv = String(d.rendezVousSignature || '').slice(0, 10);
+  const pb = [];
+  if (!estIso(rdv)) return pb;
+  if (!d.sansPret && estIso(d.pret) && !P.echeanceValidee(d, 'pret') && joursEntre(String(d.pret).slice(0, 10), rdv) < JOURS_REFLEXION_PRET) {
+    pb.push({ cle: 'pret', texte: `l’offre de prêt est attendue le ${dateFr(d.pret)} : moins de ${JOURS_REFLEXION_PRET} jours de réflexion avant la signature` });
+  }
+  for (const e of P.echeancesPlanning(d)) {
+    if (!e || !estIso(e.iso) || !['ventebien', 'dia', 'safer'].includes(e.type) || P.echeanceValidee(d, e.type)) continue;
+    if (String(e.iso).slice(0, 10) > rdv) pb.push({ cle: e.type, texte: `${e.label} au ${dateFr(e.iso)}, après la signature` });
+  }
+  const { manquantes } = piecesRecuesEtManquantes(d);
+  if (manquantes.length) pb.push({ cle: 'pieces', texte: `${manquantes.length} pièce${manquantes.length > 1 ? 's' : ''} encore manquante${manquantes.length > 1 ? 's' : ''} (${manquantes.slice(0, 3).join(', ')}${manquantes.length > 3 ? '…' : ''})` });
+  for (const x of diagnosticsPerimes(documents, rdv)) pb.push({ cle: 'diag:' + x.nom, texte: `${x.nom} du ${dateFr(x.date)} : plus valable après le ${dateFr(x.fin)}` });
+  return pb;
+}
+
+/**
+ * Contrôle du rendez-vous : dès qu'une signature est placée ou déplacée (date de la fiche), ce qui ne tient pas avec cette date — une alerte
+ * dans le canal du dossier, une seule par date et par liste de problèmes. @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx]
+ */
+function controleRendezVous(dossiers, aujourdhui, ctx) {
+  const sortie = [];
+  for (const d of dossiers || []) {
+    if (!dossierOuvert(d) || estSuccession(d) || d.roleNotaire === 'participant' || !estIso(d.rendezVousSignature)) continue;
+    const rdv = String(d.rendezVousSignature).slice(0, 10);
+    if (joursEntre(aujourdhui, rdv) < 0) continue;
+    const docs = ctx && typeof ctx.documentsDossier === 'function' ? ctx.documentsDossier(d.id) : [];
+    const pb = incoherencesSignature(d, docs);
+    if (!pb.length) continue;
+    sortie.push(proposition(base('controle-rendez-vous', d, ctx, 'alerte'), {
+      type: 'alerte', action: 'vu', empreinte: `rdvctl:${d.id}:${rdv}:${pb.map((x) => x.cle).sort().join(',')}`,
+      titre: `Signature du ${dateFr(rdv)} : ${pb.length} point${pb.length > 1 ? 's' : ''} à vérifier — ${libelleDossierAffiche(d)}`,
+      resume: pb.map((x) => x.texte).join(' ; ') + '.'
+    }));
+  }
+  return sortie;
+}
+
+/** Pure : la date (AAAA-MM-JJ) de la dernière activité d'un dossier (historique, pièces trouvées), '' sinon. @param {any} d */
+function derniereActiviteDossier(d) {
+  const dates = (Array.isArray(d.historique) ? d.historique : []).map((h) => String(h && h.date || '').slice(0, 10)).filter(estIso);
+  if (d.piecesTrouveesLe && typeof d.piecesTrouveesLe === 'object') for (const v of Object.values(d.piecesTrouveesLe)) if (estIso(v)) dates.push(String(v).slice(0, 10));
+  return dates.sort().pop() || '';
+}
+
+/**
+ * Dossier qui n'avance plus : rien de neuf depuis trois semaines (historique, pièces), ni signé ni archivé — une alerte au responsable dans
+ * le canal du dossier, avec ce qui le retient ; une seule par période d'immobilité. @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx]
+ */
+function dossiersBloques(dossiers, aujourdhui, ctx) {
+  const sortie = [];
+  for (const d of dossiers || []) {
+    if (!dossierOuvert(d)) continue;
+    const derniere = derniereActiviteDossier(d);
+    if (!derniere || joursEntre(derniere, aujourdhui) < JOURS_DOSSIER_BLOQUE) continue;
+    const attente = P.echeancesPlanning(d).filter((e) => e && !P.echeanceValidee(d, e.type)).slice(0, 2).map((e) => `${e.label}${estIso(e.iso) ? ' (' + dateFr(e.iso) + ')' : ''}`);
+    const { manquantes } = estSuccession(d) ? { manquantes: [] } : piecesRecuesEtManquantes(d);
+    const jours = joursEntre(derniere, aujourdhui);
+    sortie.push(proposition(base('dossiers-bloques', d, ctx, 'alerte'), {
+      type: 'alerte', action: 'vu', empreinte: `bloque:${d.id}:${derniere}`,
+      titre: `Rien de neuf depuis ${jours} jours — ${libelleDossierAffiche(d)}`,
+      resume: `Dernière activité le ${dateFr(derniere)}.${attente.length ? ' En attente : ' + attente.join(', ') + '.' : ''}${manquantes.length ? ` ${manquantes.length} pièce${manquantes.length > 1 ? 's' : ''} manquante${manquantes.length > 1 ? 's' : ''}.` : ''} Une relance ?`
+    }));
+  }
+  return sortie;
+}
+
+// ---- Étape 5 du vrai agent : le travail du formaliste (étude 29/10 : « récupérer les pièces automatiquement, relancer les organismes qui
+// n'ont pas répondu ») — une demande envoyée par Authentic (urbanisme, non-péril, DIA) dont la pièce n'est pas revenue après son délai :
+// une tâche de relance au responsable (jamais d'envoi), une par demande et par quinzaine.
+const DELAIS_RELANCE_FORMALITES = { renonciationPreemption: 45, defaut: 15 };
+
+/** @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx] */
+function relancesFormalites(dossiers, aujourdhui, ctx) {
+  const sortie = [];
+  for (const d of dossiers || []) {
+    if (!dossierOuvert(d) || estSuccession(d) || d.roleNotaire === 'participant') continue;
+    const demandes = d.authentic && d.authentic.demandes && typeof d.authentic.demandes === 'object' ? d.authentic.demandes : {};
+    for (const [cle, dem] of Object.entries(demandes)) {
+      if (!dem || !estIso(dem.date)) continue;
+      const cleePiece = cle === 'renonciationPreemption' ? 'renonciationPreemption' : cle;
+      if ((d.pieces || {})[cleePiece] === 'recue') continue;
+      const ecoule = joursEntre(String(dem.date).slice(0, 10), aujourdhui);
+      const delai = DELAIS_RELANCE_FORMALITES[cle] || DELAIS_RELANCE_FORMALITES.defaut;
+      if (ecoule < delai) continue;
+      const quinzaine = Math.floor((ecoule - delai) / 15);
+      const quoi = String(dem.titre || (cle === 'renonciationPreemption' ? 'DIA' : cle)).slice(0, 80);
+      sortie.push(proposition(base('relances-formalites', d, ctx, 'tache'), {
+        type: 'tache', action: 'tache', empreinte: `formalite:${d.id}:${cle}:${String(dem.date).slice(0, 10)}:${quinzaine}`,
+        titre: `Relancer : ${quoi} — ${libelleDossierAffiche(d)}`,
+        resume: `Demande envoyée le ${dateFr(dem.date)} (il y a ${ecoule} jours), réponse pas encore reçue.`,
+        details: { libelle: `Relancer pour « ${quoi} » (demandé le ${dateFr(dem.date)})` }
+      }));
+    }
+  }
+  return sortie;
+}
+
+// ---- Étape 4 : un email reçu dans un dossier donne une proposition dans le canal du dossier (étude 29/10 : « l'agence a envoyé l'offre de
+// prêt, voulez-vous que je l'enregistre sur le NAS et que je prépare un mail au confrère ou au client ? » — « moi je n'ai peut-être pas pensé à
+// ce qu'il faut faire, mais lui est proactif et me propose »). Sans IA : ce que l'email porte (sujet reconnu dans l'objet et le début du texte,
+// pièces jointes) décide des suites proposées ; l'agent fait le reste quand on lui répond. Seulement les emails d'une adresse de fiche,
+// reçus depuis 48 h, sans réponse de l'étude à cet expéditeur depuis.
+const SUITES_SUJETS_EMAIL = {
+  offre: 'enregistrer l’offre sur le NAS, la marquer reçue, calculer les quotités et préparer l’appel de fonds',
+  fonds: 'vérifier l’arrivée des fonds (comptabilité d’Authentic) et confirmer la réception au client',
+  rib: 'ranger le RIB dans le dossier et le cocher',
+  rdv: 'regarder l’agenda et proposer ou confirmer la date',
+  projet: 'relire le projet et répondre au confrère',
+  pieces: 'ranger les pièces jointes et cocher celles de la checklist',
+  urgent: 'répondre en priorité'
+};
+
+/** @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx] */
+function emailsRecusDossiers(dossiers, aujourdhui, ctx) {
+  const sortie = [];
+  const emails = ctx && typeof ctx.emailsDossiers === 'function' ? ctx.emailsDossiers() : [];
+  if (!emails.length) return sortie;
+  const parId = new Map((dossiers || []).map((d) => [d.id, d]));
+  for (const e of emails) {
+    if (!e || e.sens !== 'recu' || !e.dossierId || !estIso(e.date)) continue;
+    if (joursEntre(String(e.date).slice(0, 10), aujourdhui) > 2) continue;
+    const d = parId.get(e.dossierId);
+    if (!d || !dossierOuvert(d)) continue;
+    const adr = String(e.de && e.de.adresse || '').toLowerCase();
+    const repondu = emails.some((x) => x && x.sens === 'envoye' && x.date > e.date && (x.a || []).includes(adr));
+    if (repondu) continue;
+    // Les sujets sont gardés par leur libellé (emailsDossiers.js, SUJETS_EMAIL) : « Offre de prêt », « Fonds », « RIB », « Rendez-vous »…
+    const sujets = (Array.isArray(e.sujets) ? e.sujets : []).map((x) => sansAccents(x));
+    const cles = Object.keys(SUITES_SUJETS_EMAIL).filter((k) => sujets.some((x) => x === k || x.startsWith(/** @type {any} */ ({ offre: 'offre', fonds: 'fonds', rib: 'rib', rdv: 'rendez', projet: 'projet', pieces: 'piece', urgent: 'urgent' })[k])));
+    const pj = Array.isArray(e.pj) ? e.pj.length : 0;
+    if (!cles.length && !pj) continue;
+    const suites = cles.map((k) => /** @type {any} */ (SUITES_SUJETS_EMAIL)[k]);
+    if (!cles.length && pj) suites.push(SUITES_SUJETS_EMAIL.pieces);
+    sortie.push(proposition(base('emails-recus', d, ctx, 'alerte'), {
+      type: 'alerte', action: 'vu', empreinte: `emailrecu:${e.id}`,
+      titre: `Email de ${String(e.de && (e.de.nom || e.de.adresse) || 'un correspondant').slice(0, 60)}${pj ? ` (${pj} pièce${pj > 1 ? 's' : ''} jointe${pj > 1 ? 's' : ''})` : ''} — ${libelleDossierAffiche(d)}`,
+      resume: `« ${String(e.objet || '(sans objet)').slice(0, 120)} ». Je peux ${suites.join(' ; ')} — dites-le-moi ici (@CLAIRE).`
+    }));
+  }
+  return sortie;
+}
+
 module.exports = {
+  emailsRecusDossiers,
+  relancesFormalites,
+  diagnosticsPerimes, incoherencesSignature, controleRendezVous, derniereActiviteDossier, dossiersBloques, plusMois,
   DATE_DEBUT_CONSTITUTION, JOURS_VEILLE_SIGNATURE, joursEntre, semaineIso, dateFr, confrereAcquereur, confrereVendeur, acteSigne, dateCreationDossier,
   dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE, DATE_DEBUT_COMEDEC_AUTHENTIC
 };

@@ -291,7 +291,14 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurSignatureRib(parametresRepo, signatureRib));
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurCarnetClaire(parametresRepo, depot));
   // Routines de CLAIRE (étude 24/10, phase 0) : réglages, boîte de propositions, journal ; le planificateur ne démarre qu'à index.js.
-  const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn });
+  // Documents lus du dossier (index du NAS, 0.402.0) pour le contrôle du rendez-vous : type, date et résumé, jamais un fichier.
+  const documentsDossier = (/** @type {string} */ id) => {
+    try {
+      const m = routeurMemoire && routeurMemoire.memoire;
+      return m ? m.documentsRubrique('d:' + id, 200).map((x) => ({ type: x.type || '', date: x.date_doc || '', resume: x.resume || '' })) : [];
+    } catch (_) { return []; }
+  };
+  const planificateurRoutines = creerPlanificateur({ parametresRepo, depot, envoyer: envoyerEmailFn, documentsDossier });
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurRoutines(parametresRepo, planificateurRoutines));
   // Pièces jointes de « Demander à CLAIRE » et des canaux (étude 25/10) : un dossier de données à côté de la base (un dossier temporaire
   // dans les tests), 90 jours ; purgées au démarrage puis toutes les heures.

@@ -108,6 +108,30 @@ async function artefactAgent(e) {
   return { erreur: 'mode inconnu (lister, lire ou modifier)' };
 }
 
+// ---- Envoyer un brouillon (vrai agent, étape 3 ; étude 29/10 : « voir le brouillon ; si pas de modification il peut envoyer après un oui ;
+// s'il y a des modifications, permettre de reprendre dans la fenêtre brouillon ») ----
+// Le brouillon ouvert dans le panneau part par le MÊME chemin que « Envoyer » (signature, logos, fil de la réponse), après une carte
+// « Autoriser » STRICTE à chaque fois (jamais « pour toute cette demande ») qui montre destinataire, objet et début du texte tel qu'il est
+// dans la fenêtre — corrections de l'utilisateur comprises. Sans Exchange, ou un passage « [à compléter] », rien ne part : la fenêtre le dit.
+async function envoyerMailAgent(e) {
+  if (POSTE_CLAIRE) return { erreur: 'jamais d’envoi depuis l’ordinateur de CLAIRE' };
+  const a = artefactAgentParId(String(e && e.artefact_id || ''));
+  if (!a || a.type !== 'email') return { erreur: 'aucun brouillon d’email avec cet artefact_id : appelle artefact en mode lister' };
+  const r = brouillonDeArtefact(a);
+  if (!r) return { erreur: 'le brouillon d’email a été fermé, envoyé ou remplacé' };
+  if (!envoiDirectPossible()) return { erreur: 'envoi depuis CLAIRE impossible (messagerie non réglée) : l’utilisateur passe par « Ouvrir dans Outlook »' };
+  const etat = etatEnvoiRedaction();
+  if (!etat.possible) return { erreur: 'brouillon pas prêt : ' + etat.motif + ' L’utilisateur le corrige dans la fenêtre, ou demande-toi une correction (artefact, mode modifier).' };
+  const texte = String(r.texte || texteDeHtmlRedaction(r.html) || '').replace(/\s+/g, ' ').trim();
+  const ok = await demanderAutorisationAgent(`Envoyer maintenant l’email à ${r.a}${r.cc ? ' (copie : ' + r.cc + ')' : ''} — objet « ${r.sujet || '(sans objet)'} »${(r.pieces || []).length ? `, ${r.pieces.length} pièce(s) jointe(s)` : ''} : « ${texte.slice(0, 280)}${texte.length > 280 ? '…' : ''} » (texte entier dans le panneau ; corrigez-le là avant d’autoriser si besoin)`, { strict: true });
+  if (!ok) return { refuse: true, message: 'l’utilisateur n’a pas autorisé l’envoi : le brouillon reste ouvert dans le panneau, il peut le reprendre ou te demander une correction' };
+  if (brouillonDeArtefact(a) !== r) return { erreur: 'le brouillon a changé pendant la demande : rien n’est parti' };
+  await envoyerRedaction();
+  if (redaction === r) return { erreur: 'email non envoyé : ' + (r.erreur || 'la fenêtre le dit') };
+  noterVerificationPoste('agent-envoyer-mail', { detail: 'envoyé par l’agent après autorisation' });
+  return { envoye: true, a: r.a, objet: r.sujet };
+}
+
 // ---- Modèles d'emails ----
 
 async function modeleEmailAgent(e) {

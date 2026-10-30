@@ -83,10 +83,24 @@ function sectionsCanaux(serveur, dossiersListe, filtre, moi) {
 }
 
 // Pure : CLAIRE répond-elle à ce message ? Partout — « général » compris depuis 0.363.0 (étude 26/10 : « dans le canal général elle ne
-// peut interagir que si on l'appelle ») — seulement si on la cite (@CLAIRE) ; jamais en « note à l'équipe » (interrupteur coupé).
-function claireDoitRepondreCanal(texte, claireRepond) {
+// peut interagir que si on l'appelle ») — si on la cite (@CLAIRE) ; jamais en « note à l'équipe » (interrupteur coupé). Depuis l'étape 4 du
+// vrai agent (étude 29/10 : « si c'est moi le responsable, j'écris et personne ne répond, c'est moyen » ; choix : « selon le responsable ») :
+// dans le canal d'un DOSSIER, quand celui qui écrit en est le responsable, elle répond aussi sans être citée — sauf s'il s'adresse à un
+// collègue (@julie…).
+function claireDoitRepondreCanal(texte, claireRepond, collaborateurs, canalId, auteurEstResponsable) {
   if (!claireRepond) return false;
-  return /(^|[^a-z0-9])@claire(?![a-z0-9])/.test(platCanal(texte));
+  const t = platCanal(texte);
+  if (/(^|[^a-z0-9])@claire(?![a-z0-9])/.test(t)) return true;
+  if (!auteurEstResponsable || !/^d:/.test(String(canalId || ''))) return false;
+  const prenoms = (collaborateurs || []).map(c => normaliserPourRecherche(String(c && (c.prenom || c.nom || c) || '').split(/\s+/)[0])).filter(Boolean);
+  return !prenoms.some(p => new RegExp('(^|[^a-z0-9])@' + p + '(?![a-z0-9])').test(normaliserPourRecherche(t)));
+}
+
+// Le collaborateur du poste est-il le responsable du dossier de ce canal (« d:<id> ») ?
+function responsableDuCanalEstMoi(canalId) {
+  const m = /^d:(.+)$/.exec(String(canalId || ''));
+  const d = m ? dossiers.find(x => x.id === m[1]) : null;
+  return !!(d && utilisateurPoste && d.responsable === utilisateurPoste);
 }
 
 // Pure : le texte d'un message HTML, sans balises (pour le serveur et la recherche).

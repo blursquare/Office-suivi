@@ -376,7 +376,7 @@
       pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.nas ? { nas: p.nas } : p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
     // Dans un fil, la règle est celle du fil (claireRepondDansFil, client/120).
-    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif))) return;
+    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif)))) return;
     marquerVuParClaire();
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.

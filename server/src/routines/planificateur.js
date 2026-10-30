@@ -43,7 +43,11 @@ const ROUTINES_CODE = {
   constitution: { fn: X.constitutionDossier, quand: 'continu' },
   'appel-fonds': { fn: X.appelDeFonds, quand: 'continu' },
   'autorisations-notoriete': { fn: X.autorisationsNotoriete, quand: 'continu' },
-  'formalites-authentic': { fn: X.formalitesAuthentic, quand: 'continu' }
+  'formalites-authentic': { fn: X.formalitesAuthentic, quand: 'continu' },
+  'controle-rendez-vous': { fn: X.controleRendezVous, quand: 'continu' },
+  'dossiers-bloques': { fn: X.dossiersBloques, quand: 'continu' },
+  'relances-formalites': { fn: X.relancesFormalites, quand: 'continu' },
+  'emails-recus': { fn: X.emailsRecusDossiers, quand: 'continu' }
 };
 const HEURE_REPRISE_REPONSES = '10:05';
 const INTERVALLE_CONTINU_MS = 15 * 60 * 1000;
@@ -281,7 +285,7 @@ function creerPlanificateur(deps) {
       if (r.quand === 'matin' ? (info.hhmm < reglages.heure || passages[id] === info.iso) : (maintenant.getTime() - (Date.parse(passages[id] || '') || 0) < INTERVALLE_CONTINU_MS)) continue;
       marquer(id, r.quand === 'matin' ? info.iso : maintenant.toISOString());
       try {
-        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif() }), maintenant);
+        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: () => { try { return require('../emailsDossiers').lireEtat(parametresRepo).emails; } catch (_) { return []; } } }), maintenant);
       } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }
@@ -329,7 +333,7 @@ function creerPlanificateur(deps) {
     const info = infosParis(maintenant);
     const r = /** @type {any} */ (ROUTINES_CODE)[routineId];
     if (r) {
-      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif() }), maintenant);
+      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: () => { try { return require('../emailsDossiers').lireEtat(parametresRepo).emails; } catch (_) { return []; } } }), maintenant);
       noterJournalRoutines(parametresRepo, { routine: routineId, texte: `Lancée à la main par ${prenomDe(responsable)} : ${ajoutees} proposition${ajoutees > 1 ? 's' : ''}.`, resultat: ajoutees ? 'ok' : 'rien' }, maintenant);
       return { ok: true, ajoutees, message: ajoutees ? `${ajoutees} proposition${ajoutees > 1 ? 's' : ''} déposée${ajoutees > 1 ? 's' : ''} dans les canaux des dossiers.` : 'Rien de nouveau à proposer pour l’instant.' };
     }
