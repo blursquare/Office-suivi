@@ -539,3 +539,21 @@ test('recherche libre (agent) : requête AQS sûre, dossier reconnu par l’adre
     agendaWatch.reinitialiserDisjoncteurAgenda();
   } finally { db.close(); }
 });
+
+test('recherche libre limitée aux emails des dossiers (étude 30/10) : expéditeur hors fiches écarté, envoyé à un client gardé', async () => {
+  const { db, repo, depot } = preparer();
+  try {
+    const poster = (o, cb) => {
+      if (/GetItem/.test(o.body)) return cb(null, { statusCode: 200, body: getItems([{ id: 'SE1', a: ['alex.martel@exemple.fr'] }, { id: 'SE2', a: ['inconnu@ailleurs.fr'] }]) });
+      if (/sentitems/.test(o.body)) return cb(null, { statusCode: 200, body: find([
+        msgFind('SE1', 'Votre dossier', '2026-10-28T08:00:00Z', 'Bastien', 'bastien@office.fr', false),
+        msgFind('SE2', 'Personnel', '2026-10-28T09:00:00Z', 'Bastien', 'bastien@office.fr', false)]) });
+      return cb(null, { statusCode: 200, body: find([
+        msgFind('IN1', 'Pièces', '2026-10-27T08:00:00Z', 'Alex MARTEL', 'alex.martel@exemple.fr', false),
+        msgFind('IN2', 'Newsletter', '2026-10-27T09:00:00Z', 'Lettre', 'news@ailleurs.fr', false)]) });
+    };
+    const r = await E.chercherMailsDirect(repo, depot, { texte: 'dossier', sens: 'tous' }, { poster });
+    assert.equal(r.emails.map((e) => `${e.sens}:${e.dossier_id}`).sort().join(','), 'envoye:d1,recu:d1');
+    assert.equal(r.hors_dossiers_ecartes, 2);
+  } finally { db.close(); }
+});

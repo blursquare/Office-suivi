@@ -723,6 +723,8 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
   /** @type {any[]} */
   const emails = [];
   let exclus = 0;
+  let horsDossiers = 0;
+  const internesMin = internes.map((x) => String(x).toLowerCase());
   for (const [dossierEws_, sensMail] of dossiersCherches) {
     // Par pages de 100, du plus récent au plus ancien, jusqu'à franchir « depuis » (5 pages au plus) : une période ancienne n'est jamais
     // cherchée dans les 100 derniers seulement (audit 0.402.0, M3).
@@ -732,24 +734,43 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
       if (r.statut === 401 || r.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
       if (!succes(r.corps)) return { erreur: `Recherche impossible (${codeReponse(r.corps) || r.statut}).`, statut: 502 };
       const lot = parseFind(r.corps);
-      for (const e of lot) {
+      const candidats = lot.filter((e) => {
         const jour = jourParisEmail(e.date);
-        if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) continue;
+        if ((depuis && jour < depuis) || (jusqu && jour > jusqu)) return false;
         // Emails personnels de la boîte reliée (paie, santé…) : jamais rendus à l'agent (audit 0.402.0, M4).
-        if (RE_MAIL_PERSONNEL.test(String(e.objet || ''))) { exclus++; continue; }
-        const d = sensMail === 'recu' && e.deAdresse && !internes.map((x) => String(x).toLowerCase()).includes(e.deAdresse) ? dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: e.deAdresse }, ctx) : null;
+        if (RE_MAIL_PERSONNEL.test(String(e.objet || ''))) { exclus++; return false; }
+        return true;
+      });
+      // Étude 30/10 : « limitée aux e-mails des dossiers pour l'instant » — un email reçu n'est rendu que si son expéditeur est une
+      // adresse d'une fiche (client, partie d'Authentic, confrère) ; un envoyé, que si un de ses destinataires l'est (relus par GetItem).
+      /** @type {Map<string, string[]>} */
+      let destinataires = new Map();
+      if (sensMail === 'envoye' && candidats.length) {
+        const g = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems(candidats.map((e) => e.itemId), false), delaiMs: 30000 }, injections);
+        if (g.statut === 401 || g.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
+        if (!g.echec && succes(g.corps)) destinataires = new Map([...parseGetItems(g.corps)].map(([id, v]) => [id, v.a]));
+      }
+      for (const e of candidats) {
+        const adresses = sensMail === 'recu' ? [e.deAdresse] : (destinataires.get(e.itemId) || []);
+        let d = null;
+        for (const a of adresses) {
+          if (!a || internesMin.includes(a)) continue;
+          d = dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: a }, ctx);
+          if (d) break;
+        }
+        if (!d) { horsDossiers++; continue; }
         const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
         MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
         emails.push({ mail_id: mailId, sens: sensMail, date: e.date, nom: sensMail === 'envoye' ? 'l’étude' : (e.deNom || e.deAdresse), email_expediteur: e.deAdresse,
           // Précédés d'un mot d'usage : le masquage voit un nom en tête de l'objet ou de l'aperçu (« Paul Durand vente ») hors de la tête de phrase.
-          objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
+          objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d.id });
       }
       if (lot.length < 100 || !depuis || jourParisEmail(lot[lot.length - 1].date) < depuis) break;
     }
   }
   while (MAILS_TROUVES.size > MAX_MAILS_TROUVES) MAILS_TROUVES.delete(MAILS_TROUVES.keys().next().value);
   emails.sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  return { emails: emails.slice(0, max), total: emails.length, ...(exclus ? { personnels_ecartes: exclus } : {}) };
+  return { emails: emails.slice(0, max), total: emails.length, ...(exclus ? { personnels_ecartes: exclus } : {}), ...(horsDossiers ? { hors_dossiers_ecartes: horsDossiers } : {}) };
 }
 
 /** Le texte d'un email trouvé par chercherMailsDirect (relu dans Exchange, jamais gardé), 6 000 caractères au plus. */
