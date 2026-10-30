@@ -68,7 +68,7 @@
       };
       const minuterie = setTimeout(() => terminer({ erreur: `calcul trop long : arrêté après ${Math.round(delaiMs / 1000)} s (simplifie le code ou réduis les données)` }), delaiMs);
       function ecoute(ev) {
-        if (ev.source !== cadre.contentWindow || !ev.data) return;
+        if (!cadre.contentWindow || ev.source !== cadre.contentWindow || !ev.data) return; // cadre déjà retiré : rien à lui dire (rapport du 30/10)
         if (ev.data.pret) { cadre.contentWindow.postMessage({ type: 'calcul', jeton, code, donnees }, '*'); return; }
         if (ev.data.jeton !== jeton || !ev.data.reponse) return;
         terminer(ev.data.reponse.erreur ? { erreur: ev.data.reponse.erreur } : { valeur: ev.data.reponse.valeur });

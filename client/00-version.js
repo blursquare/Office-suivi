@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.407.8';
+  const VERSION_APP = '0.407.9';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.407.9', date: '2026-10-30 17:08', resume: "« Demander à CLAIRE » : quand l’API Claude refuse la réflexion gardée d’une conversation (« bound to a different conversation », après un repli sur un autre modèle), CLAIRE refait la demande une fois sans cette réflexion au lieu d’afficher une erreur. Calcul libre : plus d’erreur si le cadre du calcul est déjà fermé quand il répond." },
     { version: '0.407.8', date: '2026-10-30 16:32', resume: "Constitution de dossier, actes d’état civil d’une vente : d’abord la demande Comedec dans Authentic, puis CLAIRE propose le courrier papier seulement pour les mairies sans Comedec (lignes « APR » d’Authentic) ; le courrier pour une autre personne reste possible, replié. Discussions : un fichier envoyé seul à un collègue part sans texte — plus de « Que contient la pièce jointe… ? » ajouté tout seul." },
     { version: '0.407.7', date: '2026-10-30 16:18', resume: "Pièces d’urbanisme (certificat d’urbanisme, alignement, numérotage, non-péril, assainissement) : un fichier du NAS dont le nom commence par « Demande », « Courrier », « Lettre », « Relance » ou « Envoi » est la demande partie, plus la réponse de la mairie — la pièce n’est plus cochée trop tôt. « Courrier réponse… » ou un nom qui dit « reçu » reste la réponse. Un courrier dont le nom porte « interrogation » ne valide jamais une pièce (sauf l’interrogation du FCDDV d’une succession, qui porte ce mot)." },
     { version: '0.407.6', date: '2026-10-30 15:25', resume: "Notifications des discussions de dossier : seul le responsable du dossier est prévenu de chaque message ; les autres collaborateurs ne le sont que si on les cite (@prénom). Bastien reçoit toujours tout. Chacun peut changer ce réglage canal par canal (Tous / Mentions / Muet)." },
