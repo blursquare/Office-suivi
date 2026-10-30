@@ -9,6 +9,7 @@
 // Même interface que le client Ollama (`verifierDisponibilite`, `genererJson`) : comprendreDemande ne voit pas la différence.
 
 const A = require('../../commun/assistant');
+const { PRENOMS, MOTS_DROIT } = require('./prenoms');
 
 const MODELE_ASSISTANT_MISTRAL = 'mistral-small-latest';
 // Tarif de Mistral Small (début octobre 2026), en dollars par million de jetons, majoration de l'inférence dans l'UE comprise.
@@ -78,7 +79,7 @@ const MOTS_MAJUSCULE_GARDES = new Set(['Agenda', 'Suivi', 'Réglages', 'Outils',
   'Etat', 'Envoi', 'Rendez', 'Obtention', 'Date', 'Délai', 'Échéance', 'Urgent', 'Complet', 'Attente', 'Nouveau',
   // Collaborateurs de l'étude (pas des clients ; le prompt les nomme déjà) et outils / écrans de CLAIRE.
   'Bastien', 'Julie', 'Jérémy', 'Sophie', 'Quotités', 'Prorata', 'Provision', 'Décompte', 'Relecture', 'Contrôle', 'Urbanisme',
-  'Rappels', 'Rappel', 'Préemption', 'Inventaire', 'Forfait', 'Mobilier', 'Simulateur', 'Arbitrage', 'Courriers', 'Tâches', 'Notes',
+  'Constitution', 'Autorisations', 'Clients', 'Rappels', 'Rappel', 'Préemption', 'Inventaire', 'Forfait', 'Mobilier', 'Simulateur', 'Arbitrage', 'Courriers', 'Tâches', 'Notes',
   'Modèles', 'Collaborateurs', 'Téléphonie', 'Sauvegarde', 'Mise', 'Général', 'Signalements', 'Activité', 'Statistiques', 'Avancement']);
 const SIGLES = new Set(['VTE', 'SUCC', 'RIB', 'SAFER', 'DPU', 'DIA', 'PDF', 'TVA', 'TTC', 'HT', 'AF', 'NAS', 'CLAIRE', 'IA', 'EUR',
   'OK', 'RDV', 'SCI', 'SARL', 'PLU', 'CU', 'DPE', 'RHF', 'AAE', 'ECV', 'APR', 'JV', 'BA', 'JS', 'PJ', 'CDC',
@@ -285,11 +286,18 @@ function masquer(texte, sensibles, table, couple) {
       if (couplee && n.length >= 3 && sensibles.adresses.has(n)) return false;
       if (parOrigine.has(m.toLowerCase())) return true;          // déjà masqué ailleurs dans la conversation
       if (SIGLES.has(m) || MOTS_MAJUSCULE_GARDES.has(m)) return false;
+      // Mots du droit écrits avec une majuscule (« la Cour de cassation », « le Vendeur ») : jamais un nom (étude 30/10), sauf mot des fiches (plus haut).
+      // Seulement après un article (« la Cour », « le Vendeur », « du Code ») : « Paul Juge », « Jean Lot » restent des noms (audit 0.404.0, H1).
+      // Après un article au pluriel, seulement un mot au pluriel (« les Vendeurs », jamais « les Garant », une famille). Un mot du droit qui suit un
+      // autre (« le Code Civil », « la Cour de Cassation ») et l'élision (« l'Article ») le sont aussi (relecture 0.404.0).
+      if (MOTS_DROIT.has(m) && motDroitApresArticle(m, i, morceaux, String(tout).slice(0, position))) return false;
       // Capitales (deux lettres au moins) : un nom — sauf une section cadastrale (« AB 123 »).
       if (m.length >= 2 && m === m.toUpperCase() && /\p{Lu}/u.test(m) && !/^(?:[LDJNSMTC]|QU)$/.test(m)) return !(m.length === 2 && /^\s*\d/.test(suite));
       if (!/^\p{Lu}\p{Ll}/u.test(m)) return false;
       const tete = enTete && (i === 0 || (i === 1 && /^[LDlds]$/.test(morceaux[0])));
       if (!tete) return true;
+      // Un prénom courant en tête de phrase suivi d'un mot à majuscule (« Marie Dupont a appelé ») : une personne (étude 30/10).
+      if (i === 0 && PRENOMS.has(n) && /^[ \t]+\p{Lu}/u.test(suite)) return true;
       return texteLibre && !MOTS_COURANTS_TETE.has(n);
     });
     return sensible ? jeton('NOM', mot) : mot;
@@ -344,20 +352,47 @@ function masquerDocument(texte, sensibles, table) {
   const capitales = '\\p{Lu}{3,}(?:-\\p{Lu}{2,})?';
   const prenom = '\\p{Lu}\\p{Ll}[\\p{L}\\p{M}\'’-]+(?:-\\p{Lu}\\p{Ll}[\\p{L}\\p{M}]+)?';
   const gardeMot = (mot) => MOTS_NON_PRENOMS_DOCUMENT.has(A.normaliserDemande(mot).replace(/[^a-z]/g, ''));
+  // Un titre du droit devant un NOM (« le Vendeur DUPONT », « le Maire GIRARDOT ») : le titre reste lisible, le NOM est codé (audit 0.404.0, H1′).
+  const titre = (mot) => MOTS_DROIT.has(mot);
   t = t.replace(new RegExp(`(?<![\\p{L}\\[])(${prenom})([ \\t]+)(${capitales})(?![\\p{L}\\]])`, 'gu'),
-    (m, p, esp, nom) => (gardeMot(p) || gardeMot(nom) ? m : jeton('NOM', p) + esp + jeton('NOM', nom)));
+    (m, p, esp, nom) => (gardeMot(p) || gardeMot(nom) ? m : (titre(p) ? p : jeton('NOM', p)) + esp + jeton('NOM', nom)));
   t = t.replace(new RegExp(`(?<![\\p{L}\\[])(${capitales})([ \\t]+)(${prenom})(?![\\p{L}\\]])`, 'gu'),
-    (m, nom, esp, p) => (gardeMot(p) || gardeMot(nom) ? m : jeton('NOM', nom) + esp + jeton('NOM', p)));
+    (m, nom, esp, p) => (gardeMot(p) || gardeMot(nom) ? m : jeton('NOM', nom) + esp + (titre(p) ? p : jeton('NOM', p))));
+  // « Prénom Nom » en casse mixte (« Marie Dupont », « Jean-Luc Moreau ») : un prénom courant (liste de prénoms, étude 30/10 — au lieu d'un
+  // modèle local) suivi d'un mot à majuscule qui n'est ni un mot du droit ni un mot du métier. Avant : passait en clair s'il était absent des fiches.
+  const prenomMixte = '\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?';
+  t = t.replace(new RegExp(`(?<![\\p{L}\\[])(${prenomMixte})([ \\t]+)(\\p{Lu}\\p{Ll}[\\p{L}\\p{M}'’-]*)(?![\\p{L}\\]])`, 'gu'), (m, p, esp, nom, position, tout) => {
+    const premier = A.normaliserDemande(p.split('-')[0]).replace(/[^a-z]/g, '');
+    if (!PRENOMS.has(premier) || SIGLES.has(nom) || MOTS_MAJUSCULE_GARDES.has(nom)) return m;
+    // Une voie ou un lieu au nom d'une personne (« rue Victor Hugo », « place Jean Jaurès », « Saint-Pierre ») : une adresse, pas un nom (audit 0.404.0, M6).
+    if (RE_AVANT_VOIE_PRENOM.test(String(tout).slice(Math.max(0, position - 40), position))) return m;
+    return jeton('NOM', p) + esp + jeton('NOM', nom);
+  });
   // Mots des fiches (noms, adresse, agence, notaires), toute casse, morceaux d'un nom à tiret ou apostrophe compris.
   t = t.replace(/\[(?:NOM|EMAIL|TEL|REF|NUM)\d+\]|\p{L}[\p{L}\p{M}'’-]*/gu, (mot) => {
     if (mot.startsWith('[')) return mot;
     const sensible = (x) => { const n = A.normaliserDemande(x).replace(/^[^a-z]+|[^a-z]+$/g, ''); return n.length >= 2 && sensibles.has(n); };
-    return sensible(mot) || mot.split(/['’-]/).some((m) => m.length >= 3 && sensible(m)) ? jeton('NOM', mot) : mot;
+    // Un nom déjà codé plus haut (« Marie Dupontel », « Jean MARTINEAU ») l'est aussi quand il revient seul (relecture 0.404.0).
+    const dejaCode = /^\p{Lu}/u.test(mot) && mot.length >= 3 && parOrigine.has(mot.toLowerCase()) && !SIGLES.has(mot) && !MOTS_DROIT.has(mot);
+    return dejaCode || sensible(mot) || mot.split(/['’-]/).some((m) => m.length >= 3 && sensible(m)) ? jeton('NOM', mot) : mot;
   });
   // Adresse des fiches, références et longs numéros : codés seulement dans les phrases qui portent un nom (domicile et lieu de naissance
   // d'une personne le sont toujours, plus haut).
   if (couplee) t = dansPhrases(t, (p) => /\[NOM\d+\]/.test(p), (p) => masquerNumeros(masquerMotsAdresse(p, sensibles.adresses, jeton), jeton));
   return t;
+}
+
+// Mots qui annoncent une voie ou un lieu (juste avant un « Prénom Nom ») : rue, avenue, place, lycée, Saint…
+const RE_AVANT_VOIE_PRENOM = /(?:^|[^\p{L}])(?:rue|ruelle|avenue|av\.?|boulevard|bd|place|pl\.?|all[ée]e|impasse|chemin|quai|square|cours|route|rte|passage|r[ée]sidence|lotissement|lieu[- ]dit|cit[ée]|coll[èe]ge|lyc[ée]e|[ée]cole|saint|sainte|st|ste)\s*$/iu;
+
+/** Pure : un mot du droit est-il lisible à cette place (après un article, un autre mot du droit, ou élidé « l'Article ») ? */
+function motDroitApresArticle(mot, i, morceaux, avant) {
+  if (i === 1 && /^[ldLD]$/.test(morceaux[0])) return true;
+  if (i !== 0) return false;
+  if (/(?:^|[^\p{L}])(?:le|la|l['’]|du|de\s+la|au|ce|cet|cette|un|une|son|sa|notre|votre)\s*$/iu.test(avant)) return true;
+  if (/(?:^|[^\p{L}])(?:les|des|aux|ces|ses|leurs|nos|vos)\s*$/iu.test(avant)) return /[sx]$/.test(mot);
+  const prec = /([\p{L}'’-]+)(?:\s+(?:de|du|des|d['’]))?\s*$/u.exec(avant);
+  return !!(prec && MOTS_DROIT.has(prec[1].replace(/^[ldLD]['’]/, '')));
 }
 
 /** Pure : masquerDocument sur toutes les chaînes d'une valeur (résultat d'un outil qui lit un document). */

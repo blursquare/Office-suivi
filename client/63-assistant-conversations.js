@@ -84,6 +84,8 @@
     try { texte = localStorage.getItem(cle) || ''; } catch (e) { texte = ''; }
     assistantConversations = lireConversationsAssistant(texte, Date.now());
     assistantConversationId = '';
+    // Conversation unique (client/145) : le sujet de moins de trois heures reprend à l'ouverture de la page.
+    reprendreSujetRecentAssistant();
   }
 
   // La conversation affichée (globaux de client/49 et 61) recopiée dans la liste, puis écrite (au plus une fois par seconde).

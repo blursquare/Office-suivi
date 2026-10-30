@@ -12,7 +12,7 @@ var canaux = {
   messages: [], cartes: {}, signature: '', preferences: { notif: 'tous', favori: false }, luAvant: 0,
   recherche: '', rechercheOuverte: false, filtreListe: '', calmesOuverts: false, archivesOuverts: false, mesDossiersTous: false, sections: {}, listeOuverte: true,
   claireRepond: true, edition: '', publications: 0, forcerBas: false, silences: [], nouveau: false,
-  equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
+  equipe: [], enregistres: [], fil: '', filTexte: '', parentCourant: '', claireRepondFil: false, questionSansRelance: false, dernierMessageMoi: null, suivi: null, rechercheGlobale: { q: '', resultats: [], chargement: false }, enregistresVue: []
 };
 var INTERVALLE_CANAUX_MS = 30 * 1000;
 var INTERVALLE_CANAUX_NOTIFIES_MS = 5 * 1000;

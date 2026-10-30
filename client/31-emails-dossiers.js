@@ -1333,6 +1333,8 @@
     // Boîte de propositions de CLAIRE (étude 24/10) : la pastille de la barre latérale, relue chaque minute.
     demarrerPropositionsClaire();
     demarrerCanaux();
+    demarrerRelanceQuestionsClaire();
+    demarrerClaireFlottante();
     // Pastille de la barre des tâches et notifications Windows par le relais du poste (étude 25/10, client/122).
     demarrerPastille();
     chargerRappelsPerso();

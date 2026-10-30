@@ -342,3 +342,35 @@ test('separerPropositionsAttente : rouge = pas encore vue, grise = vue et en att
   assert.equal(r.nouvelles.map(x => x.id).join(','), 'g', 'la nouvelle du même dossier est rouge');
   assert.equal(app.separerPropositionsAttente(liste, new Set(), 'general').nouvelles.map(x => x.id).join(','), 'd');
 });
+
+test('questionsSansReponseCanal : une question sans réponse depuis 15 min, dans un dossier, de l’auteur du poste (étude 30/10)', () => {
+  const t0 = Date.UTC(2026, 9, 30, 9, 0);
+  const q = { id: 'm1', role: 'moi', auteur: 'Julie VASSELIN', quand: t0, texte: 'Le diagnostic termites est-il arrivé ?' };
+  const f = (msgs, maintenant, faites) => app.questionsSansReponseCanal(msgs, 'Julie VASSELIN', 'd:abc', maintenant, COLLABS, faites).map((m) => m.id).join(',');
+  assert.equal(f([q], t0 + 16 * 60000), 'm1');
+  assert.equal(f([q], t0 + 10 * 60000), '', 'avant 15 min : rien');
+  assert.equal(f([q], t0 + 3 * 3600000), '', 'au-delà de deux heures : on laisse');
+  assert.equal(f([q], t0 + 16 * 60000, ['m1']), '', 'déjà relancée');
+  assert.equal(f([q, { id: 'm2', role: 'autre', auteur: 'Bastien ANGLUMENT', quand: t0 + 60000, parent: 'm1', texte: 'Oui' }], t0 + 16 * 60000), '', 'réponse dans le fil');
+  assert.equal(f([q, { id: 'm2', role: 'autre', auteur: 'Bastien ANGLUMENT', quand: t0 + 60000, texte: 'Je regarde' }], t0 + 16 * 60000), '', 'réponse dans le canal');
+  assert.equal(f([q, { id: 'm2', role: 'moi', auteur: 'Julie VASSELIN', quand: t0 + 60000, texte: 'Quelqu’un ?' }], t0 + 16 * 60000), 'm1,m2', 'son propre message ne répond pas : deux questions, une seule réponse de CLAIRE (tour)');
+  assert.equal(f([Object.assign({}, q, { texte: 'Le diagnostic est arrivé.' })], t0 + 16 * 60000), '', 'pas une question');
+  assert.equal(f([Object.assign({}, q, { texte: '@julie tu as le diagnostic ?' })], t0 + 16 * 60000), '', 'adressée à un collègue');
+  assert.equal(f([Object.assign({}, q, { texte: '@CLAIRE le diagnostic ?' })], t0 + 16 * 60000), '', 'CLAIRE citée : déjà traitée');
+  assert.equal(app.questionsSansReponseCanal([q], 'Julie VASSELIN', 'general', t0 + 16 * 60000, COLLABS, []).length, 0, 'jamais hors d’un dossier');
+  assert.equal(app.questionsSansReponseCanal([q], 'Bastien ANGLUMENT', 'd:abc', t0 + 16 * 60000, COLLABS, []).length, 0, 'seul le poste de l’auteur');
+});
+
+test('heuresBureauRelanceClaire : semaine, 8 h – 19 h, hors jour férié', () => {
+  assert.equal(app.heuresBureauRelanceClaire(new Date(2026, 9, 30, 10, 0)), true);
+  assert.equal(app.heuresBureauRelanceClaire(new Date(2026, 9, 30, 19, 30)), false);
+  assert.equal(app.heuresBureauRelanceClaire(new Date(2026, 9, 31, 10, 0)), false, 'samedi');
+  assert.equal(app.heuresBureauRelanceClaire(new Date(2026, 10, 11, 10, 0)), false, '11 novembre');
+});
+
+test('canauxARelancer : dus de 15 min à 2 h, plus vieux oubliés (audit 0.404.0, M4)', () => {
+  const t0 = Date.UTC(2026, 9, 30, 9, 0);
+  const r = app.canauxARelancer([{ canal: 'd:a', quand: t0 - 20 * 60000 }, { canal: 'd:b', quand: t0 - 5 * 60000 }, { canal: 'd:c', quand: t0 - 3 * 3600000 }], t0);
+  assert.equal(r.dus.join(','), 'd:a');
+  assert.equal(r.gardes.map((x) => x.canal).join(','), 'd:a,d:b');
+});

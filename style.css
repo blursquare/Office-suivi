@@ -9622,7 +9622,6 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-principal { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 /* Conversations (étude 12/10) : colonne à gauche, comme Claude ou Slack ; un tiroir sous 900 px. */
 .asst-cote { display: flex; flex-direction: column; gap: 12px; min-height: 0; padding: 12px 8px; border-right: 1px solid var(--line); background: var(--paper-sunk); }
-.asst-cote .asst-nouvelle { width: 100%; }
 .asst-fils { flex: 1 1 auto; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
 .asst-fils-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 0 8px 4px; }
 .asst-fils-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -9634,12 +9633,12 @@ table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height
 .asst-fil-suppr { opacity: 0; }
 .asst-fil:hover .asst-fil-suppr, .asst-fil:focus-within .asst-fil-suppr { opacity: 1; }
 .asst-fils-vide { color: var(--muted); font-size: var(--texte-s); padding: 0 8px; margin: 0; }
-.asst-fils-bouton, .asst-nouvelle-tete { display: none; }
+.asst-fils-bouton { display: none; }
 @media (max-width: 900px) {
   .asst-page { grid-template-columns: minmax(0, 1fr); }
   .asst-cote { display: none; position: absolute; z-index: 5; top: 0; bottom: 0; left: 0; width: min(280px, 85%); box-shadow: var(--shadow-float); }
   .asst-page.fils-ouverts .asst-cote { display: flex; }
-  .asst-fils-bouton, .asst-nouvelle-tete { display: inline-flex; }
+  .asst-fils-bouton { display: inline-flex; }
 }
 @media (hover: none) { .asst-fil-suppr { opacity: 1; } }
 .asst-tete { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); min-height: 56px; }
@@ -10877,6 +10876,26 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 /* Séparateur de jour comme sur Slack (étude 25/10) : un filet sur toute la largeur de la colonne et, au milieu, la pastille du jour. */
 .asst-jour { max-width: none; margin: 12px 24px 4px; color: var(--ink); font-size: var(--texte-s); }
 .asst-jour span { padding: 4px 14px; font-weight: 600; box-shadow: var(--shadow-card); }
+/* Conversation unique (0.404.0, client/145) : les sujets précédents au-dessus du sujet en cours, en lecture. */
+.asst-sujet-ouvrir { border: 1px solid var(--line); border-radius: var(--rayon-pilule); padding: 4px 14px; background: var(--paper-card); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asst-sujet-ouvrir:hover { background: var(--paper-sunk); }
+.asst-ancien { opacity: 0.7; }
+.asst-sujet-plus { text-align: center; color: var(--muted); font-size: var(--texte-xs); }
+/* CLAIRE en fenêtre flottante (0.404.0, client/146) : sur un écran d'outil ou une fiche en page. */
+.claire-flottante { position: fixed; right: 24px; bottom: 24px; z-index: 900; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.cf-bouton { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--focus); color: var(--blanc-fixe); box-shadow: var(--shadow-float); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.cf-bouton .icone { width: 24px; height: 24px; }
+.cf-panneau { width: min(380px, calc(100vw - 32px)); height: min(520px, calc(100vh - 120px)); background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-carte); box-shadow: var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
+.cf-tete { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--line); }
+.cf-titre { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: var(--texte-m); }
+.cf-dossier { flex: 1; min-width: 0; color: var(--muted); font-size: var(--texte-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-messages { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; font-size: var(--texte-m); }
+.cf-m { max-width: 100%; }
+.cf-moi { align-self: flex-end; background: var(--paper-sunk); border-radius: var(--rayon-m); padding: 6px 12px; }
+.cf-vide { color: var(--muted); margin: 0; }
+.cf-saisie { display: flex; gap: 8px; align-items: flex-end; padding: 8px; border-top: 1px solid var(--line); }
+.cf-saisie textarea { flex: 1; min-height: 40px; resize: none; border: 1px solid var(--line); border-radius: var(--rayon-m); padding: 8px; font: inherit; background: var(--paper-card); color: var(--ink); }
+@media print { .claire-flottante { display: none !important; } }
 .asst-message { display: block; max-width: 720px; margin: 0 auto; padding: 8px 0; }
 .asst-message:hover { background: transparent; }
 .asst-message.asst-suite { padding-top: 2px; padding-bottom: 2px; }

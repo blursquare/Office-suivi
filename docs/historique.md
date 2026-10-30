@@ -23219,3 +23219,42 @@ Relecture indépendante de la 0.403.1 (quatre défauts, tous corrigés) :
 - Réglages des routines jamais enregistrés, ou d'avant la révision 2 : une routine `allumeeParDefaut: false` reste éteinte.
 - Dossiers bloqués : seules les attentes extérieures (prêt, vente préalable, DIA, SAFER) excusent l'immobilité. « Fixer le rendez-vous » et « Rédaction », datés dans le futur, rendaient la routine muette.
 - `envoyer_mail` : un brouillon disparu pendant la carte n'est plus dit « rien n'est parti », car l'utilisateur a pu l'envoyer lui-même.
+
+### 30/10/2026 — 0.404.0 : vrai agent, fin de l'étape 5 et chantiers transversaux
+
+Choix de l'étude du 30/10 :
+- Scans : « OCR masqué seulement ». Rien ne change, jamais une image de scan chez Anthropic.
+- Conversation : « une seule, fils par sujet ».
+- Masquage : « liste de prénoms + mots du droit ».
+- Canaux : CLAIRE répond seule après « 15 min ».
+
+Construit :
+- `client/144-canaux-relance-claire.js` : question sans réponse dans le canal d'un dossier.
+  - Lancée par le poste de l'auteur, canal ouvert, heures de bureau, de 15 min à 2 h.
+  - Plusieurs questions d'affilée donnent une seule réponse.
+  - La question n'est pas réécrite (`canaux.questionSansRelance`).
+  - 👀 puis ✅ sur la question.
+- `server/src/prenoms.js` (`PRENOMS`, `MOTS_DROIT`), utilisé par `masquer` et `masquerDocument` (`server/src/assistantMistral.js`).
+  - Un prénom courant en tête de phrase suivi d'un mot à majuscule est codé.
+  - « Prénom Nom » en casse mixte est codé dans un document.
+  - Les mots du droit à majuscule ne sont jamais codés, sauf mot des fiches.
+  - Test : `server/test/masquage-prenoms.test.js`.
+- `client/145-conversation-unique.js` : plus de « Nouvelle conversation » (index.html, style.css).
+  - Nouveau sujet quand un autre dossier est cité (@), ou après 3 h.
+  - Trois sujets précédents de la semaine affichés au-dessus.
+  - Le sujet de moins de 3 h reprend à l'ouverture.
+- `client/146-claire-flottante.js` : CLAIRE flottante sur les écrans d'outils et les fiches en page.
+  - Même conversation, cartes « Autoriser » comprises.
+  - L'écran ouvert est dit à l'agent (nom d'écran seulement).
+  - L'outil s'ouvre déjà en pleine page par « Ouvrir dans un onglet » de l'artefact.
+
+Contrôle de l'urbanisme « rempli seul sous validation » : déjà en place depuis les 07-08/10.
+- `analyserPreemptionDossier` est lancé à l'ajout d'un dossier.
+- Les travaux du compromis sont lus seuls (`lireTravauxDossierAuto`).
+- Les questions restantes se répondent sur la fiche.
+- Rien de nouveau n'a été construit pour ce point.
+
+Relecture et audit de la 0.404.0 (`docs/audits/2026-10-30-0.404.0.md`) :
+- H1 : la liste blanche des mots du droit laissait passer des noms (« Paul Juge », « le Vendeur DUPONT »). Elle n'agit plus qu'après un article ; dans un document, le titre reste et le NOM est codé.
+- Réponse aux questions sans réponse : seulement dans le canal ouvert à l'écran, en lecture seule, 10 par jour au plus. L'ouverture en arrière-plan a été retirée à la seconde relecture.
+- Fenêtre flottante : conversation du collaborateur du poste, rendu sans clignotement, écran dit à l'agent sans apparaître dans la bulle.

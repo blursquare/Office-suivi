@@ -1513,10 +1513,10 @@
 <div class="onglet-panel" id="onglet-assistant" style="display:none;">
   <!-- Présentation « façon Claude » (étude 21/10, avant : « à la Slack ») : demande en bulle, réponse en pleine largeur ; @ pour citer un dossier. -->
   <div class="asst-page">
-    <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. -->
+    <!-- Conversations (étude 12/10 : « suivre plusieurs conversations ») — gardées sur ce poste seulement. Depuis 0.404.0 (étude 30/10 :
+         « une seule, fils par sujet ») : plus de « Nouvelle conversation », un sujet s'ouvre de lui-même (client/145). -->
     <aside class="asst-cote" aria-label="Conversations et canaux">
       <section class="asst-cote-conversations" aria-label="Mes conversations avec Claire">
-        <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle" onclick="nouvelleConversationAssistant()"><span slot="start" class="bouton-ajout-plus">+</span>Nouvelle conversation</wa-button>
         <div class="asst-fils" id="assistant-fils"></div>
       </section>
       <!-- Canaux (étude 24/10, client/112-canaux.js) : un fil partagé par dossier, « général » et canaux libres. -->
@@ -1530,7 +1530,6 @@
       <div class="asst-etat" id="assistant-etat"></div>
       <div class="cx-entete-canal" id="canal-entete" style="display:none;"></div>
       <span class="asst-tete-espace"></span>
-      <wa-button appearance="outlined" size="s" type="button" class="asst-nouvelle-tete" onclick="nouvelleConversationAssistant()">Nouvelle conversation</wa-button>
       <wa-button appearance="plain" size="s" class="bouton-icone asst-colonne-bouton" id="assistant-colonne-bouton" aria-controls="assistant-droite" aria-expanded="false" type="button" onclick="basculerColonneAssistant()" title="Espace de travail : documents, aperçu, dossier, étapes" aria-label="Espace de travail"><span id="icon-assistant-colonne" aria-hidden="true"></span></wa-button>
     </div>
     <div class="asst-messages" id="assistant-messages" aria-live="polite"></div>
@@ -3063,5 +3062,8 @@
 <script src="client/141-lectures-documents.js"></script>
 <script src="client/142-etat-civil-fiche.js"></script>
 <script src="client/143-assistant-reglages.js"></script>
+<script src="client/144-canaux-relance-claire.js"></script>
+<script src="client/145-conversation-unique.js"></script>
+<script src="client/146-claire-flottante.js"></script>
 </body>
 </html>

@@ -15,7 +15,8 @@
   function initAssistant() {
     chargerConversationsAssistant();
     chargerCanaux();
-    if (dossierOuvert && !canaux.actif) assistantContexte.dossierId = dossierOuvert;   // un canal de dossier garde SON dossier
+    // Un canal de dossier garde SON dossier ; un sujet repris garde le sien (client/145 : un autre dossier ouvre un nouveau sujet à la demande).
+    if (dossierOuvert && !canaux.actif && !assistantMessages.length) assistantContexte.dossierId = dossierOuvert;
     renderAssistant();
     chargerDisponibiliteAssistant();
     const champ = document.getElementById('assistant-saisie');
@@ -127,7 +128,7 @@
     if (!assistantMessages.length) {
       arreterRevelationAssistant();
       const rattache = assistantContexte.dossierId ? dossiers.find(x => x.id === assistantContexte.dossierId) : null;
-      zone.innerHTML = (rattache
+      zone.innerHTML = htmlSujetsPrecedentsAssistant() + (rattache
         ? htmlPresentationClaire(libelleDossierAffiche(rattache), 'Ceci est votre discussion sur ce dossier.',
           'Claire connaît la fiche, les pièces et les échéances. Par exemple :',
           exemplesDossierAssistant(rattache), true, 'folder')
@@ -146,7 +147,7 @@
     const vueParClaire = iDernierMoi >= 0 && (assistantEnCours || assistantMessages.slice(iDernierMoi + 1).some(m => m.role === 'claire'));
     const reperes = repereMessagesAssistant(entrees.map(x => (x.notif ? { role: 'claire', quand: x.notif.quand } : x.m)));
     const maintenant = Date.now();
-    zone.innerHTML = entrees.map((x, k) => {
+    zone.innerHTML = htmlSujetsPrecedentsAssistant() + entrees.map((x, k) => {
       const r = reperes[k];
       if (x.notif) return htmlNotifClaireFil(x.notif, r, maintenant);
       const m = x.m, i = x.i;
@@ -369,14 +370,21 @@
     fermerMentionAssistant();
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
+    // Conversation unique (client/145) : un autre dossier cité, ou trois heures sans échange — un nouveau sujet s'ouvre de lui-même.
+    if (!canaux.actif && !texteForce && !assistantContexte.attente && nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, impose, Date.now())) ouvrirNouveauSujetAssistant(impose);
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
     // Dans une conversation personnelle la carte est dans le message ; dans un canal, le serveur renvoie les pièces du message (`pj`) et
     // le fil les montre de la même façon (htmlPiecesCanal).
-    poserMessageAssistant('moi', htmlTexteCanal(texte, canaux.collaborateurs, utilisateurPoste) + (pieces.length && !canaux.actif ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte,
+    // Question restée sans réponse (client/144) : la question est déjà dans le canal, seule la réponse de CLAIRE s'écrit.
+    if (!canaux.questionSansRelance) poserMessageAssistant('moi', htmlTexteCanal(texte, canaux.collaborateurs, utilisateurPoste) + (pieces.length && !canaux.actif ? `<div class="asst-pj-liste">${pieces.map(p => htmlCartePieceJointeAssistant(p)).join('')}</div>` : ''), [], { texte,
       pj: pieces.map(p => ({ nom: p.nom, type: p.sorte, ...(p.nas ? { nas: p.nas } : p.serveurId ? { fichierId: p.serveurId, taille: p.fichier ? p.fichier.size : 0 } : {}) })) });
     // Dans un canal, un message adressé à un collègue (@Julie) ou écrit « à l'équipe » n'appelle pas CLAIRE.
     // Dans un fil, la règle est celle du fil (claireRepondDansFil, client/120).
-    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif)))) return;
+    if (canaux.actif && !(canaux.parentCourant ? canaux.claireRepondFil : claireDoitRepondreCanal(texte, canaux.actif === 'general' ? canaux.claireRepond : true, canaux.collaborateurs, canaux.actif, responsableDuCanalEstMoi(canaux.actif)))) {
+      // Une question sans réponse dans 15 minutes : CLAIRE y répondra (client/144).
+      if (!canaux.parentCourant) noterQuestionCanalPourRelance(canaux.actif, texte);
+      return;
+    }
     marquerVuParClaire();
     noterEchangeAssistant('moi', texte);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
@@ -413,7 +421,7 @@
       catch (e) { console.warn('Lecture des pièces jointes :', e && e.message); }
       finally { assistantEnCours = false; assistantEtapeAgent = ''; }
     }
-    if (assistantDisponibilite.agent && (pieces.length || !assistantContexte.attente) && await envoyerAgentAssistant(texte + mentionPiecesJointesAgent(piecesALire), impose, documentsJoints)) return;
+    if (assistantDisponibilite.agent && (pieces.length || !assistantContexte.attente) && await envoyerAgentAssistant(texte + mentionPiecesJointesAgent(piecesALire) + precisionEcranAgent(), impose, documentsJoints)) return;
     if (pieces.length) { poserMessageAssistant('claire', '<p>Je n’ai pas pu lire la pièce jointe : l’agent n’a pas répondu. Réessayez dans un instant.</p>'); return; }
     assistantEnCours = true;
     renderAssistant();

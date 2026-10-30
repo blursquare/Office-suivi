@@ -68,3 +68,33 @@ test('étude 12/10 : jamais « Sauf erreur de ma part » — filtre des réponse
     });
   }
 });
+
+test('conversation unique (0.404.0) : nouveau sujet sur un autre dossier ou après trois heures ; sujets précédents de moins de 7 jours', () => {
+  const t0 = Date.UTC(2026, 9, 30, 9, 0);
+  const msgs = [{ role: 'moi', html: 'x', quand: t0 }];
+  assert.equal(app.nouveauSujetAssistant([], 'd1', 'd2', t0), false, 'sujet vide : on y reste');
+  assert.equal(app.nouveauSujetAssistant(msgs, 'd1', 'd2', t0 + 60000), true, 'autre dossier cité');
+  assert.equal(app.nouveauSujetAssistant(msgs, 'd1', 'd1', t0 + 60000), false);
+  assert.equal(app.nouveauSujetAssistant(msgs, 'd1', '', t0 + 60000), false, 'aucun dossier cité');
+  assert.equal(app.nouveauSujetAssistant(msgs, '', 'd2', t0 + 60000), false, 'sujet sans dossier : le dossier cité s’y rattache');
+  assert.equal(app.nouveauSujetAssistant(msgs, 'd1', '', t0 + 4 * 3600000), true, 'trois heures sans échange');
+  const conv = (id, majLe) => ({ id, majLe, messages: [{ role: 'moi', html: id }] });
+  const liste = [conv('a', t0 - 8 * 86400000), conv('b', t0 - 86400000), conv('c', t0 - 3600000), conv('d', t0 - 60000), conv('e', t0 - 120000)];
+  assert.equal(app.sujetsPrecedentsAssistant(liste, 'd', t0).map(c => c.id).join(','), 'b,c,e');
+  assert.equal(app.sujetAReprendreAssistant(liste, t0).id, 'd');
+  assert.equal(app.sujetAReprendreAssistant([conv('x', t0 - 4 * 3600000)], t0), null);
+});
+
+test('CLAIRE flottante : écran d’outil ou fiche en page, jamais sur Discussions, sur l’ordinateur de CLAIRE ni sans agent', () => {
+  assert.equal(app.claireFlottanteVisible('appel-fonds', false, true, false), true);
+  assert.equal(app.claireFlottanteVisible('dashboard', true, true, false), true, 'fiche en page');
+  assert.equal(app.claireFlottanteVisible('dashboard', false, true, false), false, 'le tableau de bord a son widget');
+  assert.equal(app.claireFlottanteVisible('assistant', true, true, false), false);
+  assert.equal(app.claireFlottanteVisible('quotites', false, false, false), false, 'agent indisponible');
+  assert.equal(app.claireFlottanteVisible('quotites', false, true, true), false, 'ordinateur de CLAIRE');
+});
+
+test('htmlAncienMessageAssistant : un ancien sujet se lit sans boutons, champs ni gestionnaires (audit 0.404.0, B9)', () => {
+  const h = app.htmlAncienMessageAssistant('<p id="x" onclick="f()">Texte</p><wa-button onclick="g()">Corriger</wa-button><textarea>a</textarea><input id="y">');
+  assert.equal(h, '<p>Texte</p>');
+});
