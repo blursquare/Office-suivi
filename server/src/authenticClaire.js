@@ -1050,9 +1050,18 @@ async function ouvrirDossier(s, cible, etape) {
 
 /** Ouvre le sous-dossier de vente (« N - VTE … » / « N - Vente … », jamais la promesse ni l'avenant) et vérifie qu'il est affiché.
  * Rend faux s'il n'y en a pas. @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {(t: string) => void} etape */
-async function ouvrirSousDossierVente(s, cible, etape) {
+async function ouvrirSousDossierVente(s, cible, etape) { return ouvrirSousDossierDe(s, cible, etape, 'vente'); }
+
+/** Le sous-dossier de la PROMESSE (ou du compromis), jamais un avenant — pour la comptabilité quand la vente n'en a pas (étude 30/10). */
+async function ouvrirSousDossierPromesse(s, cible, etape) { return ouvrirSousDossierDe(s, cible, etape, 'promesse'); }
+
+/** @param {any} s @param {any} cible @param {(t: string) => void} etape @param {'vente' | 'promesse'} sorte */
+async function ouvrirSousDossierDe(s, cible, etape, sorte) {
   const g = gestes(s, etape);
-  const estVente = (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l);
+  const estVente = sorte === 'promesse'
+    ? (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(Promesse|Compromis)\b/i.test(l) && !/avenant/i.test(l)
+    : (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l);
+  const nomEtape = sorte === 'promesse' ? 'Ouvre le sous-dossier de la promesse' : 'Ouvre le sous-dossier de vente';
   // Un mot d'icône en tête (« folder 2 - Vente d'immeuble ») n'est pas le libellé.
   const libelle = (/** @type {any} */ l) => String(l || '').replace(/^[a-z_]{3,}\s+(?=\d)/, '').trim();
   // La liste réelle des sous-dossiers (`…:selectSousDossier`, relevé de l'étude) : le libellé y figure trois fois sur la page (ligne repliable,
@@ -1063,7 +1072,7 @@ async function ouvrirSousDossierVente(s, cible, etape) {
     if (ventes.length !== 1) return false;   // aucune, ou plusieurs ventes : on ne choisit pas
     const ouvert = libelle(await g.ev(SCRIPT_SOUS_DOSSIER_OUVERT));
     if (ouvert && plat(ouvert) === plat(ventes[0].l) && estCeDossier(await g.texte(), cible)) return true;
-    etape('Ouvre le sous-dossier de vente');
+    etape(nomEtape);
     const pos = await g.ev(scriptPlacerSousDossier(ventes[0].i));
     if (!pos) return false;
     controlerClic({ geste: 'donnee', vise: ventes[0].l, bouton: pos.bouton, texte: ventes[0].l });
@@ -1071,9 +1080,9 @@ async function ouvrirSousDossierVente(s, cible, etape) {
     await s.attendreStable(12000);
     return estCeDossier(await g.texte(), cible);
   }
-  const lignes = [...new Set(String(await g.texte()).split('\n').map((l) => l.trim()).filter((l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l)))];
-  if (lignes.length !== 1) return false;   // aucun, ou plusieurs ventes : on ne choisit pas
-  etape('Ouvre le sous-dossier de vente');
+  const lignes = [...new Set(String(await g.texte()).split('\n').map((l) => l.trim()).filter(estVente))];
+  if (lignes.length !== 1) return false;   // aucun, ou plusieurs : on ne choisit pas
+  etape(nomEtape);
   if (!(await g.cliquerTexte(lignes[0], { exact: true, geste: 'donnee' }))) return false;
   await s.attendreStable(12000);
   return estCeDossier(await g.texte(), cible);
@@ -1467,12 +1476,26 @@ async function lireComptabilite(s, cible, o) {
   await ouvrirDossier(s, cible, o.etape);
   await ouvrirSousDossierVente(s, cible, o.etape);
   if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est plus le bon : rien relevé');
-  o.etape('Ouvre l’onglet Infos comptables');
-  // Le vrai libellé est « Infos comptables » suivi du solde (« Infos comptables 12,50 € », relevé de l'étude du 28/10) ; « Comptabilité » en repli.
-  // En rouge « indisponible » quand la comptabilité n'est pas liée au dossier : dit tel quel, sans attendre une page qui ne viendra pas.
-  if (/infos\s+comptables\s*:?\s*indisponible/i.test(await g.texte())) throw new Error('comptabilité indisponible dans Authentic pour ce dossier (non liée) : rien relevé');
-  if (!(await g.cliquerTexte('Infos comptables', { geste: 'navigation' })) && !(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) {
-    throw new Error('onglet « Infos comptables » introuvable dans le dossier');
+  // La comptabilité n'est pas toujours liée à la vente : celle de la PROMESSE est lue à la place (étude 30/10 : « si la comptabilité n'est pas
+  // visible dans la vente, aller voir dans l'onglet comptabilité de la promesse de vente »). Le dossier est contrôlé de nouveau.
+  const absente = (/** @type {string} */ m) => Object.assign(new Error(m), { comptaAbsente: true });
+  const ouvrirOnglet = async () => {
+    o.etape('Ouvre l’onglet Infos comptables');
+    // Le vrai libellé est « Infos comptables » suivi du solde (« Infos comptables 12,50 € », relevé de l'étude du 28/10) ; « Comptabilité » en repli.
+    // En rouge « indisponible » quand la comptabilité n'est pas liée au sous-dossier : dit tel quel, sans attendre une page qui ne viendra pas.
+    if (/infos\s+comptables\s*:?\s*indisponible/i.test(await g.texte())) throw absente('comptabilité indisponible dans Authentic pour ce dossier (non liée) : rien relevé');
+    if (!(await g.cliquerTexte('Infos comptables', { geste: 'navigation' })) && !(await g.cliquerTexte('Comptabilité', { exact: true, geste: 'navigation' }))) {
+      throw absente('onglet « Infos comptables » introuvable dans le dossier');
+    }
+  };
+  let sousDossier = 'vente';
+  try { await ouvrirOnglet(); } catch (e) {
+    if (!(e && /** @type {any} */ (e).comptaAbsente)) throw e;
+    o.etape('Comptabilité absente de la vente : regarde dans la promesse');
+    if (!(await ouvrirSousDossierPromesse(s, cible, o.etape))) throw e;
+    if (!estCeDossier(await g.texte(), cible)) throw new Error('le dossier ouvert n’est plus le bon : rien relevé');
+    await ouvrirOnglet();
+    sousDossier = 'promesse';
   }
   await s.attendreStable(15000);
   if (!(await g.attendreTexte(/Solde du compte|Compte principal|S[ée]lectionnez un compte|Solde de l.affaire|Derni[èe]res op[ée]rations/i, 20000))) {
@@ -1498,7 +1521,8 @@ async function lireComptabilite(s, cible, o) {
   const lue = referenceEnTete(String((await g.ev(SCRIPT_EN_TETE_DOSSIER).catch(() => '')) || '')) || referenceEnTete(apres);
   if (ref && lue && lue !== ref) throw new Error('la comptabilité affichée est celle d’un autre dossier : rien relevé');
   o.etape('Relève les infos comptables');
-  return s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
+  const capture = await s.evaluer(`(() => { ${o.script}\n; return window.__claireRelever(); })()`);
+  return capture && typeof capture === 'object' ? Object.assign({}, capture, { sousDossierCompta: sousDossier }) : capture;
 }
 
 /**

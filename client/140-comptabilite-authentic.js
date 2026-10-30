@@ -16,7 +16,7 @@ function montantComptaAT(n) {
 function comptabilitePourAgent(c) {
   if (!c || !c.luLe) return null;
   return {
-    lue_le: String(c.luLe).slice(0, 16), solde_compte: c.soldeCompte, solde_affaire: c.soldeAffaire,
+    lue_le: String(c.luLe).slice(0, 16), lue_dans: c.sousDossier === 'promesse' ? 'promesse (la vente n’a pas de comptabilité liée)' : 'vente', solde_compte: c.soldeCompte, solde_affaire: c.soldeAffaire,
     taxes: (c.taxes || []).map(t => ({ montant: t.montant })),
     operations: (c.operations || []).slice(0, 30).map(o => ({ date: o.date, libelle: o.libelle, debit: o.debit, credit: o.credit, solde: o.solde })),
     total_debit_des_operations_listees: c.totalDebitListe, total_credit_des_operations_listees: c.totalCreditListe, nombre_de_comptes: c.nombreComptes || 1, liste_incomplete: !!c.tronque
@@ -33,7 +33,7 @@ function htmlComptabiliteAT(d) {
   return `<div class="at-bloc at-compta"><div class="at-bloc-tete"><span class="at-bloc-titre">Comptabilité ${infoBulle('Lue dans l’onglet « Comptabilité » d’Authentic par CLAIRE (lecture seule).')}</span>${bouton}</div>
     <div class="at-compta-soldes"><span>Solde de l’affaire <b>${escapeHtml(montantComptaAT(c.soldeAffaire))}</b></span><span>Solde du compte <b>${escapeHtml(montantComptaAT(c.soldeCompte))}</b></span>${(c.taxes || []).map(t => `<span>${escapeHtml(t.libelle || 'Taxe')} <b>${escapeHtml(montantComptaAT(t.montant))}</b></span>`).join('')}</div>
     ${lignes ? `<table class="at-compta-table"><thead><tr><th>Date</th><th>Opération</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${lignes}</tbody></table>` : '<p class="cfb-vide">Aucune opération récente.</p>'}
-    <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.tronque ? ' · liste des opérations incomplète' : ''}</p></div>`;
+    <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.sousDossier === 'promesse' ? ' · dans la promesse' : ''}${c.tronque ? ' · liste des opérations incomplète' : ''}</p></div>`;
 }
 
 // Carte « Comptabilité » de l'onglet Fonds (étude 30/10 : « carte comptabilité lue sur Authentic avec un bouton pour lire ou relire ») — vente
@@ -56,7 +56,7 @@ function renderComptabiliteFonds(d) {
         ${(c.taxes || []).map(x => `<li><span class="fonds-offre-cle">${escapeHtml(x.libelle || 'Taxe')}</span><span>${escapeHtml(montantComptaAT(x.montant))}</span></li>`).join('')}
       </ul>
       ${lignes ? `<table class="at-compta-table"><thead><tr><th>Date</th><th>Opération</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${lignes}</tbody></table>` : '<p class="at-compta-lu">Aucune opération récente.</p>'}
-      <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.tronque ? ' · liste des opérations incomplète' : ''}${(c.nombreComptes || 1) > 1 ? ' · plusieurs comptes : seul le premier solde est lu' : ''}</p>`;
+      <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.sousDossier === 'promesse' ? ' · dans la promesse (la vente n’en a pas)' : ''}${c.tronque ? ' · liste des opérations incomplète' : ''}${(c.nombreComptes || 1) > 1 ? ' · plusieurs comptes : seul le premier solde est lu' : ''}</p>`;
   }
   return `<div class="echanges-groupe fonds-compta-carte">
       <div class="echanges-tete">

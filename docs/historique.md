@@ -23360,3 +23360,21 @@ en participation (jamais refaite). Le bouton de la fiche et l'agent ne sont pas 
 Relecture : la carte retirée dit « Retirée : en participation, le confrère qui reçoit l'acte fait la demande » (`motifExpiration`) ; retrait fait
 avant l'état des cartes (💤 au même tour). Limite : un dossier remis ensuite en instrumentaire ne reçoit pas de nouvelle carte (empreinte prise) —
 la demande se fait alors à la main.
+
+### 30/10/2026 — 0.407.4 : outil à côté de la discussion, fenêtre CLAIRE qui reprend la discussion, comptabilité de la promesse
+
+L'étude (30/10, deux captures) : « il y a un bug d'interface quand CLAIRE ouvre les outils à côté du chat ; et quand je l'ouvre dans un onglet il faut
+qu'elle reprenne la conversation — j'ai dû lui redemander ce qu'elle avait fait et elle n'avait pas rechoisi le dossier ».
+- Panneau : à 1 800 px et plus, colonne « Espace de travail » ouverte, la grille d'un outil monté (`artefact-large`, deux colonnes) recevait trois
+  enfants : l'espace de travail passait sous la conversation et le panneau n'avait que la hauteur de la première rangée (moitié haute de l'écran).
+  `.artefact-large .asst-droite` masqué. Barre d'étapes collée par `top: calc(8px + var(--decalage-onglets))` dans le corps du panneau qui défile
+  seul : elle flottait à 48 px du haut → `top: -16px` (marge intérieure du corps). Mesuré dans Chromium à 1 900 px : panneau de 960 px, barre au
+  bord haut du corps après défilement.
+- Fenêtre CLAIRE flottante (client/146) : elle QUITTAIT la discussion ouverte pour la conversation personnelle (conversation neuve, sans dossier).
+  Elle reprend maintenant la discussion d'un dossier ou d'un canal libre (`canalPourClaireFlottante`, jamais « général » ni les vues spéciales) :
+  ses huit derniers messages (collègue nommé), la demande y est écrite avec « @CLAIRE » ajouté (sauf si elle cite un collègue), messages relus
+  toutes les 8 s quand la fenêtre est ouverte hors de l'écran Discussions.
+L'étude (même jour) : « si la comptabilité n'est pas visible dans la vente, aller voir dans l'onglet comptabilité de la promesse de vente ».
+`lireComptabilite` (server/src/authenticClaire.js) : « Infos comptables : indisponible » ou onglet absent dans la vente → `ouvrirSousDossierPromesse`
+(un seul sous-dossier « N - Promesse / Compromis », jamais un avenant), dossier contrôlé de nouveau, même lecture ; `sousDossier: 'promesse'` gardé
+sur la comptabilité et dit sur la carte, dans le message et à l'agent. Faux Authentic (tests/fumee) : vue « promesse » et son scénario.

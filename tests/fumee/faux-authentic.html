@@ -107,6 +107,14 @@
   <a class="lien" id="ui-ficho-tabs:mainTabPanel:tabForm4:tabContent:listeSousDossier:1:selectSousDossier" onclick="voir('dossier')">2 - Vente d'immeuble</a>
 </div>
 
+<!-- Sous-dossier de la PROMESSE (étude 30/10) : sa comptabilité est lue quand celle de la vente n'est pas liée. -->
+<div class="vue" id="promesse">
+  <div>A 2026 00500 VTE MARTIN / DURAND</div>
+  <div>1 - Promesse VTE MARTIN / DURAND</div>
+  <div>Comparants (2)</div>
+  <button type="button" onclick="window.__comptaPromesse = true; voir('compta')">Infos comptables 40,00 €</button>
+</div>
+
 <div class="vue" id="compta">
   <h3>€ Comptabilité</h3><button type="button" onclick="voir('dossier')">← Retour</button>
   <div>Compte principal</div>

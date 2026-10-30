@@ -239,7 +239,7 @@ function creerRouteurAuthenticClaire(o) {
       o.depot.remplacer(frais.id, frais);
       noterVerification(repo, 'authentic-comptabilite', { detail: `${compta.operations.length} opération(s)` });
       const e = (/** @type {number | null} */ n) => (n == null ? 'non lu' : n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
-      return `J’ai lu la comptabilité dans Authentic : solde de l’affaire ${e(compta.soldeAffaire)}, solde du compte ${e(compta.soldeCompte)}, ${compta.operations.length} opération${compta.operations.length > 1 ? 's' : ''} récente${compta.operations.length > 1 ? 's' : ''}.`;
+      return `J’ai lu la comptabilité dans Authentic${compta.sousDossier === 'promesse' ? ' (dans la promesse : la vente n’en a pas)' : ''} : solde de l’affaire ${e(compta.soldeAffaire)}, solde du compte ${e(compta.soldeCompte)}, ${compta.operations.length} opération${compta.operations.length > 1 ? 's' : ''} récente${compta.operations.length > 1 ? 's' : ''}.`;
     // Sans message dans le canal du dossier à chaque lecture (bruit) : le poste le dit, la fiche se met à jour.
     }, `comptabilite:${d.id}`, { silencieux: true }));
   });

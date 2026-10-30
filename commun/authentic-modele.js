@@ -478,7 +478,9 @@
     return {
       luLe: net(luLe), soldeCompte: apres(/^solde du compte/), soldeAffaire: apres(/^solde de l.affaire/), taxes, operations,
       nombreComptes: lignesTexte.filter((l) => /^solde du compte/.test(plat(l))).length,
-      totalDebitListe: somme('debit'), totalCreditListe: somme('credit'), tronque: !!(t && t.lignes.length > 100)
+      totalDebitListe: somme('debit'), totalCreditListe: somme('credit'), tronque: !!(t && t.lignes.length > 100),
+      // Lue dans la promesse quand la vente n'avait pas de comptabilité liée (étude 30/10).
+      sousDossier: capture && capture.sousDossierCompta === 'promesse' ? 'promesse' : 'vente'
     };
   }
 

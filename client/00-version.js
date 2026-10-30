@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.407.3';
+  const VERSION_APP = '0.407.4';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.407.4', date: '2026-10-30 14:43', resume: "Un outil ouvert à côté de la discussion prend toute la hauteur, et sa barre d’étapes reste en haut du panneau au lieu de flotter au milieu. Ouvert ensuite dans un onglet, la fenêtre CLAIRE de l’outil reprend la discussion du dossier, avec ce que CLAIRE vient de faire. Si la comptabilité n’est pas liée à la vente dans Authentic, CLAIRE la lit dans la promesse de vente." },
     { version: '0.407.3', date: '2026-10-30 14:16', resume: "CLAIRE ne propose plus la demande d’état civil (Comedec) quand l’étude est en participation : c’est le confrère qui reçoit l’acte qui la fait, comme le casier judiciaire. Une carte déjà proposée sur un tel dossier est retirée." },
     { version: '0.407.2', date: '2026-10-30 13:52', resume: "L’onglet Fonds de la fiche est sur trois colonnes : la comptabilité lue dans Authentic (bouton « Lire la comptabilité » ou « Relire »), l’offre de prêt quand il y en a une, puis les demandes à faire. Les successions ont aussi leur onglet Fonds : la comptabilité, la demande de RIB aux héritiers et les autorisations de fonds." },
     { version: '0.407.1', date: '2026-10-30 13:34', resume: "« Claude pilote Authentic » s’arrêtait au deuxième geste avec une erreur 400 (« Invalid signature in thinking block »). La réflexion de Claude n’est plus renvoyée dans la suite du pilotage, comme l’API le demande : le pilotage va jusqu’au bout." },

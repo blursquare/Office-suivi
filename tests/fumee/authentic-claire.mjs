@@ -61,6 +61,13 @@ try {
   const compta = await A.lireComptabilite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, etape });
   verifier(!!compta && /Dernières opérations/.test(JSON.stringify(compta)), 'l’onglet « Infos comptables » est ouvert, le compte principal choisi par son libellé, le détail relevé');
   verifier(!(await s.evaluer('window.__interdit')), '« Générer en PDF » n’est jamais cliqué');
+  verifier(compta && compta.sousDossierCompta === 'vente', 'comptabilité liée à la vente : lue dans la vente');
+  // Comptabilité non liée à la vente (« Infos comptables : indisponible ») : celle de la promesse est lue (étude 30/10).
+  await s.evaluer(`(() => { voir('dossier'); const b = [...document.querySelectorAll('#dossier button')].find((x) => /Infos comptables/.test(x.textContent)); b.textContent = 'Infos comptables : indisponible'; b.onclick = () => { window.__interdit = 'onglet indisponible cliqué'; };
+    const l = [...document.querySelectorAll('#dossier .lien')].find((x) => /^1 - Promesse/.test(x.textContent)); l.onclick = () => voir('promesse'); document.getElementById('detail-compte').textContent = 'Sélectionnez un compte pour en voir le détail'; })()`);
+  const comptaPromesse = await A.lireComptabilite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { script, etape });
+  verifier(comptaPromesse && comptaPromesse.sousDossierCompta === 'promesse' && await s.evaluer('window.__comptaPromesse') === true, 'comptabilité indisponible dans la vente : celle de la promesse est lue');
+  verifier(!(await s.evaluer('window.__interdit')), 'l’onglet « indisponible » de la vente n’est jamais cliqué');
 
   // Étape 7 : les quatre écrans de suivi, par leurs menus ; « Exporter » jamais cliqué.
   const AT = require(path.join(racine, 'commun/authentic-modele.js'));
