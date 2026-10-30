@@ -1132,3 +1132,23 @@ test('30/10 : decompte_vendeur — un nom tapé dans un libellé ne part jamais 
   assert.match(envoye, /81487\.7/);
   assert.match(envoye, /2026-11-20/);
 });
+
+test('30/10 : consulter_wiki — CLAIRE a la mémoire du wiki d’Authentic (CJN : envoi immédiat selon les droits ; BRI avant le CJN)', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'consulter_wiki'));
+  assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /consulter_wiki/);
+  const { chercherWiki } = require('../src/authentic/wiki');
+  const cjn = chercherWiki('CJN création rapide envoi immédiat', 4);
+  assert.ok(cjn.some((p) => /envoi immédiat\W{0,3}\s*si les droits le permettent/.test(p.texte)), JSON.stringify(cjn.map((p) => p.titre)));
+  assert.ok(chercherWiki('BRI avant contrat blocage CJN', 4).some((p) => /BRI/.test(p.texte)));
+  // Documentation publique : masquage léger, le texte reste lisible pour l'IA.
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('w1', 'consulter_wiki', { question: 'CJN envoi immédiat' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Pourquoi le casier de Fournier ne part pas ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [{ id: 'w1', contenu: { passages: cjn } }] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.match(envoye, /Création rapide|création rapide/);
+  assert.match(envoye, /Envoi immédiat|envoi immédiat/);
+});

@@ -196,6 +196,13 @@ function creerRouteurAuthenticClaire(o) {
 
   // Ce qui a été lu : compteurs et lignes ; chaque ligne qui porte la référence d'une fiche dit son dossier. Lecture seule : rien n'est
   // lancé dans Authentic par cette route.
+  // Mémoire du wiki d'Authentic pour « Demander à CLAIRE » (étude 30/10 : « il faut que CLAIRE ait toute la mémoire du wiki ») : les passages du
+  // résumé du wiki public de Fichorga les plus proches de la question (sans IA, aucune donnée de client), comme l'outil du pilote.
+  routeur.get('/authentic-claire/wiki', (req, res) => {
+    const q = String(req.query.q || '').slice(0, 300);
+    res.json({ passages: require('../authentic/wiki').chercherWiki(q, 4) });
+  });
+
   routeur.get('/authentic-claire/suivis', (req, res) => {
     if (!collaborateurDe(req.query && req.query.utilisateur)) { res.status(400).json({ erreur: 'Collaborateur inconnu.' }); return; }
     const etat = repo.lireJsonBrut(CLE_SUIVIS_AUTHENTIC, null) || { ecrans: {} };

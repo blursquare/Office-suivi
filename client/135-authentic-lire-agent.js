@@ -74,3 +74,17 @@ async function authenticLireAgent(e) {
     ...(sd ? {} : { note: 'aucune page d’Authentic relevée pour ce dossier : authentic_claire (mode lire) la relève' })
   };
 }
+
+// « Demander à CLAIRE » (outil `consulter_wiki`, étude 30/10 : « il faut que CLAIRE ait toute la mémoire du wiki ») : les passages du wiki d'Authentic
+// les plus proches de la question, lus sur le serveur (documentation publique de Fichorga, aucune donnée de client).
+async function consulterWikiAgent(e) {
+  const q = String((e && e.question) || '').trim().slice(0, 300);
+  if (!q) return { erreur: 'question vide' };
+  try {
+    const r = await fetchAvecAuth('/api/authentic-claire/wiki?q=' + encodeURIComponent(q));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { erreur: j.erreur || `le serveur a répondu ${r.status}` };
+    const passages = Array.isArray(j.passages) ? j.passages : [];
+    return passages.length ? { passages } : { passages: [], note: 'rien de proche dans le wiki : reformule avec d’autres mots, sinon dis que le wiki ne le décrit pas' };
+  } catch (err) { return { erreur: 'serveur injoignable' }; }
+}
