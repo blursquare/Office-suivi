@@ -2155,6 +2155,19 @@
     appliquerPieceAppelFonds(type);
   }
 
+  // Le dossier repris par l'outil (pour lire son relevé dans la comptabilité d'Authentic, client/140).
+  function dossierAppelFondsLie() {
+    return afDossierLie ? dossiers.find(x => x.id === afDossierLie) || null : null;
+  }
+
+  // Pose un relevé de compte déjà analysé (comptabilité d'Authentic) comme la pièce « relevé de compte client ».
+  function poserReleveCompteAppelFonds(analyse) {
+    effacerPieceAppelFonds('releve', true);
+    afPieces.releve = { fichier: 'Comptabilité d’Authentic', analyse };
+    appliquerPieceAppelFonds('releve');
+    return { ok: true, texte: 'Relevé lu dans la comptabilité d’Authentic' };
+  }
+
   // `pourRemplacer` : la pièce est retirée parce qu'une autre arrive — le bloc n'est pas redessiné.
   function effacerPieceAppelFonds(type, pourRemplacer) {
     const piece = afPieces[type];

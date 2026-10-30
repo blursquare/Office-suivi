@@ -7350,6 +7350,7 @@ button.confrere-carnet-office:focus-visible, button.carnet-dossier:focus-visible
   background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); transition: border-color 0.15s;
 }
 .piece-tuile:hover, .piece-tuile:focus-visible { border-color: var(--focus); }
+button.piece-tuile { font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .piece-tuile-icone {
   display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px;
   border-radius: var(--rayon-s); background: var(--paper-sunk); color: var(--ink-soft);

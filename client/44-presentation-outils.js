@@ -282,6 +282,13 @@
       const ico = e.etat === 'lu' ? 'check' : e.etat === 'erreur' ? 'alert-triangle' : 'file-text';
       const pose = e.etat === 'lu' && etatsTuilesAvant[outil + ':' + t.cle] !== undefined && etatsTuilesAvant[outil + ':' + t.cle] !== e.texte;
       etatsTuilesAvant[outil + ':' + t.cle] = e.etat === 'lu' ? e.texte : '';
+      // Relevé de compte client : dossier relié à Authentic = lu dans sa comptabilité, plus de PDF à déposer (étude 30/10).
+      if (outil === 'af' && t.cle === 'releve' && typeof dossierAppelFondsLie === 'function' && (dossierAppelFondsLie() || {}).referenceAuthentic) {
+        return `<button type="button" class="piece-tuile piece-${e.etat}${pose ? ' anim-pose' : ''}" data-piece="${t.cle}" onclick="lireReleveCompteDansAuthentic()" title="Lire le relevé dans la comptabilité d’Authentic">
+        <span class="piece-tuile-icone" aria-hidden="true">${icone(ico)}</span>
+        <span class="piece-tuile-texte"><span class="piece-tuile-titre">${escapeHtml(t.titre)}</span><span class="piece-tuile-etat">${escapeHtml(e.etat === 'vide' ? 'Lire dans Authentic' : e.texte)}</span></span>
+      </button>`;
+      }
       return `<label for="${t.champ}" class="piece-tuile piece-${e.etat}${pose ? ' anim-pose' : ''}" data-piece="${t.cle}" title="${e.etat === 'vide' ? 'Choisir' : 'Remplacer'} : ${escapeAttr(t.titre)}">
         <span class="piece-tuile-icone" aria-hidden="true">${icone(ico)}</span>
         <span class="piece-tuile-texte"><span class="piece-tuile-titre">${escapeHtml(t.titre)}</span><span class="piece-tuile-etat">${escapeHtml(e.texte)}</span></span>

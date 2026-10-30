@@ -629,6 +629,11 @@
       const analyse = analyseFcddv(texte);
       const actuel = dossiers.find(x => x.id === dossierId);
       if (!actuel) return;
+      // Retour de l'étude 30/10 : l'interrogation retrouvée dans le dossier FCDDV du commun vaut pièce reçue (la checklist ne la cherchait que dans le dossier du client).
+      if (communChemin && (actuel.pieces || {}).fcddv !== 'recue') {
+        actuel.pieces = Object.assign({}, actuel.pieces, { fcddv: 'recue' });
+        ajouterHistorique(actuel, 'Pièce « FCDDV » reçue : réponse retrouvée dans le dossier FCDDV du commun');
+      }
       if (!analyse.aucune && !analyse.inscriptions.length) {
         noterVerificationPoste('fcddv-lu', { ok: false, detail: 'réponse sans inscription ni mention « aucune » reconnue' });
         if (!silencieux) afficherToast('FCDDV lu, mais rien de reconnu : saisissez les inscriptions à la main.');

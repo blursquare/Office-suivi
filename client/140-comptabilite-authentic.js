@@ -152,3 +152,28 @@ async function comptabiliteAgent(e) {
   const f = dossiers.find(x => x && x.id === d.id) || d;
   return Object.assign({ dossier_id: d.id, fait: true }, comptabilitePourAgent((f.authentic || {}).comptabilite) || { note: 'lue, la fiche se met à jour dans un instant' }, comparer(f));
 }
+
+// Pure : la comptabilité d'Authentic mise sous la forme d'un relevé de compte client lu (même résultat que `analyserReleveCompteClient` sur le
+// PDF de JurisWeb) — retour de l'étude 30/10 : « pour l'appel de fonds, au lieu de déposer le relevé de compte client, aller le chercher dans la
+// compta d'Authentic ». Une ligne par opération, les deux colonnes Débit / Crédit toujours écrites, donc aucune colonne devinée.
+function analyseReleveDepuisComptabilite(c) {
+  const montant = (n) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const lignes = ['Relevé de compte client'];
+  (c && Array.isArray(c.operations) ? c.operations : []).forEach((o) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(o && o.date || ''));
+    if (!m || !o.libelle || !(Number(o.debit) > 0 || Number(o.credit) > 0)) return;
+    lignes.push(`${m[3]}/${m[2]}/${m[1]} ${String(o.libelle).replace(/\s+/g, ' ').trim()} ${montant(o.debit)} ${montant(o.credit)}`);
+  });
+  return analyserReleveCompteClient(lignes);
+}
+
+// « Lire dans Authentic » de l'outil Appel de fonds : relit la comptabilité du dossier relié (navigateur du serveur, lecture seule) puis pose le
+// relevé comme une pièce lue. Rend { ok, texte }.
+async function lireReleveCompteDansAuthentic() {
+  const d = typeof dossierAppelFondsLie === 'function' ? dossierAppelFondsLie() : null;
+  if (!d || !String(d.referenceAuthentic || '').trim()) { afficherToast('Reliez d’abord un dossier qui a sa référence Authentic : le relevé est lu dans sa comptabilité.', 'OK', null); return { ok: false, texte: 'pas de dossier Authentic' }; }
+  const r = await lireComptabiliteAT(d.id);
+  const c = ((dossiers.find((x) => x.id === d.id) || d).authentic || {}).comptabilite;
+  if (!r.ok || !c) return { ok: false, texte: r.texte || 'comptabilité non lue' };
+  return poserReleveCompteAppelFonds(analyseReleveDepuisComptabilite(c));
+}
