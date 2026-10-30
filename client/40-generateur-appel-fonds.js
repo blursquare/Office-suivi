@@ -2890,7 +2890,6 @@
   // défaut, le .docx est téléchargé à côté, à joindre à la main.
   async function preparerEmailAppelFonds(btn) {
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    // Succession : le courrier de l'outil est celui d'une vente (« votre acquisition ») — pas d'email depuis l'outil (relecture 30/10).
     const destinataire = d && !estSuccession(d) ? emailDestinataireRelance(d) : '';
     if (!destinataire) {
       afficherToast("Reliez un dossier dont l'email du destinataire est renseigné pour préparer l'email.", 'OK', null);
