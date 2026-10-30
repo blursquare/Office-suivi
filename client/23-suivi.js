@@ -824,7 +824,6 @@
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
           ${(renderClientsAPlacer(d, ligne) + renderPersonnesConnues(d, ligne)).trim() ? `<dl class="fiche-proprietes">${renderClientsAPlacer(d, ligne)}${renderPersonnesConnues(d, ligne)}</dl>` : ''}
-          ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${escapeOnclickArg(d.id)}', this.open)">
             <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier les parties, les coordonnées et le bien</span><span onclick="event.preventDefault()">${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus ; s’il change ensuite, CLAIRE demande.')}</span>${icone('chevron-down')}</summary>
       <dl class="fiche-proprietes fiche-coordonnees">
@@ -842,7 +841,7 @@
         </div>
         <div class="fiche-dossier-droite">
           <!--bascule-champs-vides-->
-      <div class="fiche-droite-colonnes"><div class="fiche-droite-col">
+      <div class="fiche-droite-col">
       <dl class="fiche-proprietes">
         ${ligne('user', 'Responsable', responsable, `resp-${d.id}`)}
         ${ligne('home', 'Type de vente', typeVente, `tv-${d.id}`)}
@@ -860,7 +859,7 @@
         ${d.honoraires && !d.honoraires.direct ? ligne('users', 'Négociation', `<span class="prop-texte">${escapeHtml(libelleHonoraires(d.honoraires).replace(/^Négociée par /, ''))}</span>`, null, 'prop-pleine') : ''}
         ${d.fondsTravaux ? ligne('package', 'Fonds de travaux', `<span class="prop-texte">${escapeHtml(libelleFondsTravaux(d.fondsTravaux))}</span>`, null, 'prop-pleine') : ''}
       </dl>
-      </div><div class="fiche-droite-col">
+      <!-- Notaires sous la négociation, dans la même colonne (retour de l'étude, 30/10). -->
       <dl class="fiche-proprietes">
         ${ligne('scale', 'Notaire vendeur', notaire('vendeur', d.notaireVendeur), `not-vendeur-${d.id}`, 'prop-pleine' + siVide(!d.notaireVendeur && d.coteInstrumentaire !== 'vendeur' && !nonPlaces.length))}
         ${ligne('scale', 'Notaire acquéreur', notaire('acquereur', d.notaireAcquereur), `not-acquereur-${d.id}`, 'prop-pleine' + siVide(!d.notaireAcquereur && d.coteInstrumentaire !== 'acquereur' && !nonPlaces.length))}
@@ -874,7 +873,7 @@
         ${telParticipant}
         ${ligne('flag', 'Notre étude', ligneRole)}
       </dl>
-      </div></div>
+      </div>
         </div>
         ${renderColonneOutilsFiche(d)}
       </div>

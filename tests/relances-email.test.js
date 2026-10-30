@@ -753,15 +753,15 @@ test('copie de l’acte du confrère (étude 22/10) : demandée 48 h après la s
   assert.equal(String(b.corps).replace(/[’']/g, "'"), ['Mon Cher Maître,', 'Pouvez-vous nous envoyer la copie du titre de propriété s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n'));
 });
 
-test('onglet Fonds en colonnes (étude 30/10) : comptabilité d’Authentic, offre de prêt s’il y en a une, demandes à faire ; succession sans offre', () => {
+test('onglet Fonds (retour de l’étude, 30/10) : « Demandes à faire » en haut, comptabilité et offre de prêt dessous ; succession sans offre', () => {
   const app = chargerApplication();
   const avecPret = app.renderFondsDossier(dossierBase(app, { referenceAuthentic: 'A 2026 00001', offrePretStatut: '', sansPret: false, datePret: '2099-12-01' }));
-  assert.match(avecPret, /fonds-colonnes-3/);
-  const ordre = ['Comptabilité', 'Offre de prêt', 'Demandes à faire'].map(t => avecPret.indexOf(`pieces-titre-texte">${t}<`));
-  assert.ok(ordre.every((x, i) => x > 0 && (i === 0 || x > ordre[i - 1])), 'comptabilité, offre, demandes dans cet ordre');
+  assert.match(avecPret, /fonds-bas fonds-colonnes-2/);
+  const ordre = ['Demandes à faire', 'Comptabilité', 'Offre de prêt'].map(t => avecPret.indexOf(`pieces-titre-texte">${t}<`));
+  assert.ok(ordre.every((x, i) => x > 0 && (i === 0 || x > ordre[i - 1])), 'demandes, puis comptabilité et offre dessous');
   assert.match(avecPret, /lireComptabiliteAT\('d1'\)[^>]*>[\s\S]*?Lire la comptabilité/);
   const lue = app.renderFondsDossier(dossierBase(app, { referenceAuthentic: 'A 2026 00001', sansPret: true, authentic: { comptabilite: { luLe: '2026-10-30T10:00', soldeAffaire: 1250.5, soldeCompte: 1250.5, operations: [] } } }));
-  assert.match(lue, /fonds-colonnes-2/);
+  assert.match(lue, /fonds-bas fonds-colonnes-1/, 'sans prêt : la comptabilité seule sous les demandes');
   assert.match(lue, /Relire/);
   assert.match(lue, /Solde de l’affaire/);
   const sansRef = app.renderFondsDossier(dossierBase(app, { sansPret: true }));
@@ -812,4 +812,15 @@ test('succession : appel de fonds facultatif, fonds reçus des héritiers, confi
   const email = app.MODELES_EMAIL_RELANCE.fonds.construire(d);
   assert.match(email.corps, /frais de la succession/);
   assert.doesNotMatch(email.corps, /acquisition/);
+});
+
+test('onglet Fonds (retour de l’étude, 30/10) : l’arrivée des fonds dans sa propre carte, sortie de « Demandes à faire »', () => {
+  const app = chargerApplication();
+  const dans = (n) => { const x = new Date(); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
+  const html = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: dans(5), appelFonds: dans(-3), echeancesValidees: { appelFonds: true } }));
+  const i = html.indexOf('pieces-titre-texte">Arrivée des fonds<');
+  const j = html.indexOf('pieces-titre-texte">Demandes à faire<');
+  assert.ok(i > 0 && j > i, 'la carte « Arrivée des fonds » vient avant « Demandes à faire »');
+  assert.equal((html.match(/Fonds reçus en comptabilité/g) || []).length, 1, 'la ligne n’est qu’une fois, dans sa carte');
+  assert.match(html, /fonds-haut fonds-colonnes-2/);
 });

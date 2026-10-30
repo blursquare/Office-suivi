@@ -227,7 +227,6 @@
         <div class="fiche-dossier-gauche">
           ${renderCartesClientsBiensDossier(d)}
       ${df.avertissements.map(a => `<p class="cst-alerte">${escapeHtml(a)}</p>`).join('')}
-          ${renderPanneauAuthentic(d)}
           <details class="pb-modifier"${modifPartiesOuverts.has(d.id) ? ' open' : ''} ontoggle="basculerModifierPartiesFiche('${idJs}', this.open)">
             <summary>${icone('pencil')}<span class="pb-modifier-titre">Modifier le défunt, les héritiers et les biens</span><span onclick="event.preventDefault()">${infoBulle('Une correction faite ici reste, même quand Authentic est relu. Ce qui vient d’Authentic se voit dans le panneau « Authentic » juste au-dessus.')}</span>${icone('chevron-down')}</summary>
       <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('user')}<span class="pieces-titre-texte">Le défunt</span>${df.source ? `<span class="pieces-type">· ${escapeHtml(df.source)}</span>` : ''}</span></div>

@@ -559,7 +559,7 @@
     const { stade, utiles, autres } = echangesSelonStade(d, isoAujourdhuiLocal());
     const garder = (c) => CLES_ECHANGES_FONDS.includes(c) === fonds;
     const lignes = (cles) => cles.filter(garder).map(c => renderLigneEchange(d, c)).filter(Boolean);
-    return { stade, utiles: lignes(utiles), autres: lignes(autres) };
+    return { stade, utiles: lignes(utiles), autres: lignes(autres), cles: utiles.filter(garder) };
   }
 
   // Lignes hors du stade du dossier : toujours visibles, en grisé sous les lignes utiles (étude 05/10, plus de repli).
@@ -654,6 +654,7 @@
   function renderFondsDossier(d) {
     const succession = estSuccession(d);
     let demandes;
+    let arrivee = '';
     let autres = [];
     if (succession) {
       const rib = partiesSignatureRib(d).length ? renderLignesSignatureRib(d) : '';
@@ -669,6 +670,13 @@
     } else {
       const l = lignesEchangesOnglet(d, true);
       autres = l.autres;
+      // Retour de l'étude (30/10) : le suivi de l'arrivée des fonds dans sa propre carte, sorti de « Demandes à faire ».
+      const ligneArrivee = l.cles.includes('fondsRecus') ? renderLigneEchange(d, 'fondsRecus') : '';
+      if (ligneArrivee) l.utiles = l.cles.filter(c => c !== 'fondsRecus').map(c => renderLigneEchange(d, c)).filter(Boolean);
+      arrivee = ligneArrivee ? `<div class="echanges-groupe">
+        <div class="echanges-tete"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Arrivée des fonds</span></span></div>
+        <ul class="ja-liste">${ligneArrivee}</ul>
+      </div>` : '';
       const hint = texteDestinataireEchanges(d);
       demandes = `<div class="echanges-groupe">
         <div class="echanges-tete">
@@ -680,8 +688,12 @@
       </div>`;
     }
     const offre = succession ? '' : renderRappelOffrePretFonds(d);
-    const colonnes = [renderComptabiliteFonds(d), offre, demandes].filter(Boolean);
-    return `<div class="fonds-colonnes fonds-colonnes-${colonnes.length}">${colonnes.map(c => `<div class="fonds-colonne">${c}</div>`).join('')}</div>
+    // Vente (retour de l'étude, 30/10) : en haut l'arrivée des fonds et, plus étroite, « Demandes à faire » ; dessous la comptabilité et l'offre de prêt.
+    const grille = (cartes, classe) => cartes.length ? `<div class="fonds-colonnes ${classe} fonds-colonnes-${cartes.length}">${cartes.map(c => `<div class="fonds-colonne">${c}</div>`).join('')}</div>` : '';
+    const disposition = succession
+      ? grille([renderComptabiliteFonds(d), demandes].filter(Boolean), '')
+      : grille([arrivee, demandes].filter(Boolean), 'fonds-haut') + grille([renderComptabiliteFonds(d), offre].filter(Boolean), 'fonds-bas');
+    return `${disposition}
       ${succession ? renderAppelFondsSuccessionFonds(d) : renderProvisionFondsFiche(d)}
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;

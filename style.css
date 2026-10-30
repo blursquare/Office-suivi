@@ -4811,7 +4811,7 @@
     .tabs.tabs-timeline::before, .tabs.tabs-timeline .tab::after { display: none; }
     .tab { border: 1px solid #999; margin-bottom: 6pt; padding: 6pt; background: #fff !important; }
     .analyse-juridique { background: #fff; border: 1px solid #999; }
-    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
+    .icon-btn, .tab-select-icone-wrap, .icon-crayon, .icon-valider, .nom-edition, .tab-date-edition, .tab-suppr, .ajout-echeance-btn, .ajout-echeance-form, .piece-actions, .piece-outil, .pieces-voir-plus, .ajout-piece-btn, .ajout-piece-form, .diagnostic-parcours, .extraction-dossier, .engagement-suppr, .analyse-doc-suppr, .analyse-engagement-edition, .ajout-engagement-btn, .ajout-engagement-form { display: none !important; }
   }
 
   /* ---- wizard "Nouveau dossier" (Importer / Vérifier / Finaliser) ---- */
@@ -7144,12 +7144,15 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 @media (max-width: 1440px) { .fonds-colonnes-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fonds-colonnes-3 > .fonds-colonne:nth-child(3) { grid-column: 1 / -1; } }
 .fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
 .fonds-colonnes-1 { grid-template-columns: minmax(0, 1fr); }
+/* Onglet Fonds d'une vente (30/10) : l'arrivée des fonds large, « Demandes à faire » plus étroite ; comptabilité et offre de prêt dessous, à parts égales. */
+.fonds-haut.fonds-colonnes-2 { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
+.fonds-bas.fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .fonds-colonne { min-width: 0; }
 .fiche-panneau .fonds-colonne > .echanges-groupe { margin: 0; }
 .fonds-compta-carte .at-compta-table { margin-top: 4px; }
 .fonds-colonne .fonds-offre-lignes li { grid-template-columns: 120px minmax(0, 1fr); }
-@media (max-width: 1100px) { .fonds-colonnes-3, .fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); } }
-body.fiche-a-cote .fonds-colonnes-3, body.fiche-a-cote .fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1100px) { .fonds-colonnes-3, .fonds-colonnes-2, .fonds-haut.fonds-colonnes-2, .fonds-bas.fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); } }
+body.fiche-a-cote .fonds-colonnes-3, body.fiche-a-cote .fonds-colonnes-2, body.fiche-a-cote .fonds-haut.fonds-colonnes-2, body.fiche-a-cote .fonds-bas.fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); }
 .fonds-offre-a-faire { color: var(--pret); font-weight: 600; }
 .fiche-entete-hypotheque, .fiche-entete-alertes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .hint.echanges-destinataire { margin: 0; }
@@ -10158,9 +10161,12 @@ body.fiche-a-cote .fiche-dossier-colonnes { grid-template-columns: minmax(0, 1fr
 .fiche-droite-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .fiche-dossier-colonnes.fiche-dossier-vente { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); }
 /* Outils à droite des colonnes (étude 24/10) : un bouton par ligne, collés en haut au défilement. */
-.fiche-dossier-colonnes:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) 200px; }
-.fiche-dossier-colonnes.fiche-dossier-vente:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr) 200px; }
-.fiche-outils-droite { display: flex; flex-direction: column; gap: 8px; align-self: start; position: sticky; top: calc(8px + var(--decalage-onglets, 0px)); }
+.fiche-dossier-colonnes:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr) 280px; }
+.fiche-dossier-colonnes.fiche-dossier-vente:has(> .fiche-outils-droite) { grid-template-columns: minmax(0, 4fr) minmax(0, 7fr) 280px; }
+.fiche-outils-droite { display: flex; flex-direction: column; gap: 8px; align-self: start; }
+/* Carte Authentic en tête de la colonne des outils (30/10) : son en-tête passe à la ligne dans la colonne étroite. */
+.fiche-outils-droite .pa-carte { margin-bottom: 8px; }
+.fiche-outils-droite .pa-tete { flex-wrap: wrap; }
 .fiche-outils-droite wa-button.action-rapide { margin: 0; width: 100%; --wa-form-control-height: 40px; font-weight: 500; color: var(--ink); }
 .fiche-outils-droite wa-button.action-rapide::part(base) { justify-content: flex-start; }
 .fiche-outils-droite wa-button.action-rapide::part(label) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -11609,3 +11615,8 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .selecteur-gif-case:focus-visible { outline: 2px solid var(--focus); }
 .selecteur-gif-source { align-self: flex-end; font-size: var(--texte-xxs); color: var(--muted); }
 .asst-gif::part(label) { font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
+
+/* Outil d'une pièce, tout à droite de sa ligne (retour de l'étude, 30/10, outilPieceFiche de client/77). */
+.piece-outil { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 6px; border: 0; border-radius: var(--rayon-s); background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-xs); font-weight: 500; white-space: nowrap; cursor: pointer; }
+.piece-outil:hover, .piece-outil:focus-visible { background: var(--paper-sunk); }
+.piece-outil .icone { width: 14px; height: 14px; }

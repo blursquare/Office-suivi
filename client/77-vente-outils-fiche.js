@@ -206,7 +206,10 @@
   // Colonne des outils à DROITE des deux colonnes de l'onglet Dossier (étude 24/10 : « remettre l'accès aux outils aussi à droite des colonnes,
   // dans les ventes et les successions ») : un bouton par ligne, les mêmes gestes que le bloc du dessous (vente) ou ceux d'une succession (le forfait mobilier a déjà sa ligne « Simuler l'arbitrage » dans le contrôle à 2 mois).
   function renderColonneOutilsFiche(d) {
-    if (!d || d.archive && estSuccession(d)) return '';
+    if (!d) return '';
+    // La carte Authentic en tête de la colonne de droite (retour de l'étude, 30/10), au-dessus des outils.
+    const authentic = typeof renderPanneauAuthentic === 'function' ? renderPanneauAuthentic(d) : '';
+    if (d.archive && estSuccession(d)) return authentic ? `<aside class="fiche-outils-droite" aria-label="Authentic">${authentic}</aside>` : '';
     const id = escapeOnclickArg(d.id);
     const bouton = (ic, libelle, onclick, titre) => `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="${onclick}" title="${escapeAttr(titre)}">${icone(ic)}${escapeHtml(libelle)}</wa-button>`;
     const outils = [];
@@ -220,7 +223,7 @@
     }
     // État civil (Comedec un acte à la fois, demandes papier) et lecture de l'EHF : client/142.
     const etatCivil = typeof renderEtatCivilFiche === 'function' ? renderEtatCivilFiche(d) : '';
-    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier"><span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</aside>`;
+    return `<aside class="fiche-outils-droite" aria-label="Outils du dossier">${authentic}<span class="section-eyebrow">Outils</span>${outils.join('')}${etatCivil}</aside>`;
   }
 
   // Pure : la contenance du cadastre (IGN) de chaque parcelle lue par le Contrôle de l'urbanisme, par clé de parcelle.
@@ -470,3 +473,17 @@
     return `<span class="parcelles-fiche">${autres.map(({ im, signature }) => `<span class="parcelle-fiche">${escapeHtml(im.adresse ? normaliserAdresse(im.adresse) : (im.parcelles || []).map(p => `${p.section} ${p.numero}`).join(', '))}
       <wa-button appearance="plain" size="s" class="bouton-icone" title="Retirer ce bien du dossier" onclick="retirerBienVente('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(signature)}')">${icone('x')}</wa-button></span>`).join('')}</span>`;
   }
+
+// Retour de l'étude (30/10) : l'outil qui sert une pièce, tout à droite de sa ligne dans « Pièces et analyse », selon sa catégorie —
+// urbanisme et non-péril → Constitution de dossier (courriers de demande), préemption et SAFER → Contrôle de l'urbanisme, taxe foncière → Prorata,
+// état daté → Appel de fonds. Pure : { libelle, icone, onclick, titre } ou null. Même voie que la colonne des outils de l'onglet Dossier.
+function outilPieceFiche(d, p) {
+  if (!d || !p || d.archive || estSuccession(d)) return null;
+  const id = escapeOnclickArg(d.id);
+  const urbanisme = (typeof PIECES_URBANISME !== 'undefined' && PIECES_URBANISME.some(x => x.cle === p.cle)) || p.cle === 'nonPeril';
+  if (urbanisme && d.roleNotaire !== 'participant') return { libelle: 'Constitution', icone: 'courriers', onclick: `ouvrirConstitutionDepuisFiche('${id}')`, titre: 'Préparer le courrier de demande (Constitution de dossier)' };
+  if (p.cle === 'renonciationPreemption' || /safer/i.test(p.label || '')) return { libelle: 'Urbanisme', icone: 'shield', onclick: `ouvrirPreemptionDepuisFiche('${id}')`, titre: 'Contrôle de l’urbanisme : DIA, SAFER, zonage' };
+  if (p.cle === 'avisTaxeFonciere') return { libelle: 'Prorata', icone: 'part-disque', onclick: `ouvrirProrataDepuisFiche('${id}')`, titre: 'Prorata de taxe foncière' };
+  if (p.cle === 'etatDate') return { libelle: 'Appel de fonds', icone: 'mail', onclick: `preparerAppelFondsDepuisDossier('${id}')`, titre: 'Appel de fonds (fonds de travaux lu dans l’état daté)' };
+  return null;
+}
