@@ -658,7 +658,7 @@
     if (succession) {
       const rib = partiesSignatureRib(d).length ? renderLignesSignatureRib(d) : '';
       const aut = autorisationsFondsSuccession(d) && !d.archive
-        ? `<div class="fonds-offre-actions"><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirAutorisationsDepuisFiche('${escapeOnclickArg(d.id)}')">${icone('file-text')} Autorisations de fonds</wa-button></div>` : '';
+        ? `<div class="fonds-offre-actions"><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirAutorisationsDepuisFiche('${escapeOnclickArg(d.id)}')">${icone('file-text')} Autorisations de déblocage/transfert</wa-button></div>` : '';
       demandes = `<div class="echanges-groupe">
         <div class="echanges-tete">
           <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Demandes à faire</span></span>
@@ -682,7 +682,7 @@
     const offre = succession ? '' : renderRappelOffrePretFonds(d);
     const colonnes = [renderComptabiliteFonds(d), offre, demandes].filter(Boolean);
     return `<div class="fonds-colonnes fonds-colonnes-${colonnes.length}">${colonnes.map(c => `<div class="fonds-colonne">${c}</div>`).join('')}</div>
-      ${succession ? '' : renderProvisionFondsFiche(d)}
+      ${succession ? renderAppelFondsSuccessionFonds(d) : renderProvisionFondsFiche(d)}
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }

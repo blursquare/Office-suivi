@@ -40,7 +40,7 @@ const CATALOGUE = [
   { id: 'appel-fonds', nom: 'Appel de fonds', icone: 'banknote', phase: 2, disponible: true, declencheur: '10 jours avant la signature', ia: false,
     description: 'Prépare le courrier et le décompte quand l’étude représente l’acquéreur.',
     gestes: [{ cle: 'courrier', libelle: 'Préparer le courrier et le décompte', niveauMax: 1 }] },
-  { id: 'autorisations-notoriete', nom: 'Autorisations de fonds (notoriété)', icone: 'file-text', phase: 2, disponible: true, declencheur: '48 h avant une notoriété', ia: false,
+  { id: 'autorisations-notoriete', nom: 'Autorisations de déblocage/transfert (notoriété)', icone: 'file-text', phase: 2, disponible: true, declencheur: '48 h avant une notoriété', ia: false,
     description: 'Prépare les autorisations de fonds des comptes du défunt.',
     gestes: [{ cle: 'pdf', libelle: 'Préparer les autorisations', niveauMax: 1 }] },
   { id: 'relance-pieces', nom: 'Relance des pièces demandées', icone: 'mail', phase: 3, disponible: true, declencheur: '48 h après un email qui réclame une pièce', ia: true,

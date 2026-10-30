@@ -1230,6 +1230,21 @@
     };
   }
 
+  // Succession (étude 30/10) : confirmation aux héritiers que les fonds appelés pour les frais d'acte sont reçus, avec le rappel du prochain
+  // rendez-vous d'acte. Premier jet de CLAIRE (le modèle de l'étude parle d'« acquisition ») — à remplacer par le texte de l'étude.
+  function construireEmailReceptionFondsSuccession(d) {
+    const heure = heureEmail(d.rendezVousSignatureHeure);
+    const rdv = d.rendezVousSignature
+      ? `\n\nNous vous rappelons que le rendez-vous de signature est fixé au ${MARQUE_FORT_DEBUT}${dateAvecJourFr(d.rendezVousSignature)}${heure ? ' à ' + heure : ''}${MARQUE_FORT_FIN}, ${lieuRdvEmail(d, false)}.`
+        + (typeRdvEmail(d) === 'visio' ? '\n\nLe rendez-vous se tenant en visioconférence, je vous remercie de nous adresser par email vos pièces d’identité.'
+          : '\n\nJe vous remercie de vous munir de vos pièces d’identité pour le rendez-vous.')
+      : '';
+    return {
+      sujet: `Réception des fonds — ${libelleDossierAffiche(d)}`,
+      corps: `Bonjour,\n\nNous vous confirmons que les fonds destinés au règlement des frais de la succession ont bien été reçus en notre comptabilité.${rdv}\n\nNous restons à votre disposition pour toute question.`
+    };
+  }
+
   // Envoi du projet d'acte au client (demandé par l'étude le 30/09), avec le rappel du rendez-vous
   // de signature comme dans la confirmation de réception des fonds. Le projet lui-même est un
   // document Word de l'office que CLAIRE ne détient pas : il se joint dans Outlook, l'email le dit.
@@ -1268,7 +1283,7 @@
     rib: { cle: 'rib', libelle: 'RIB', construire: (d, c) => emailDepuisModele('rib', d, undefined, c), historique: 'Relance manuelle envoyée — RIB', date: 'ribDemandeLe' },
     ventePrealable: { cle: 'ventePrealable', libelle: 'Vente préalable', construire: (d, c) => emailDepuisModele('ventePrealable', d, undefined, c), historique: 'Relance envoyée — vente préalable', date: 'relanceVentePrealableLe' },
     // `date` : champ du dossier qui mémorise l'envoi, pour que la carte dise ensuite « confirmée le … ».
-    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: (d, c) => emailDepuisModele('fonds', d, undefined, c), historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
+    fonds: { cle: 'fonds', libelle: 'Confirmer la réception des fonds', construire: (d, c) => estSuccession(d) ? construireEmailReceptionFondsSuccession(d) : emailDepuisModele('fonds', d, undefined, c), historique: 'Email envoyé — confirmation de réception des fonds en comptabilité', date: 'receptionFondsConfirmeeLe' },
     // L'envoi du projet EST l'étape « Envoi projet » du dossier : sa date est d.projetEnvoye (même
     // effet que la date saisie sur la fiche ou « Marquer envoyé », agenda compris).
     projet: { cle: 'projet', libelle: 'Projet d’acte', construire: (d, c) => emailDepuisModele('projet', d, undefined, c), historique: 'Email envoyé — projet d’acte', date: 'projetEnvoye' },
@@ -1978,7 +1993,8 @@
       ? (typeof o.confrere === 'boolean' ? o.confrere : (modele.confrere === true || (notaireParticipantRepresenteAcquereur(d) && memeAdresse(o.destinataire, emailDestinataireRelance(d)))))
       : (modele.confrere === true || notaireParticipantRepresenteAcquereur(d));
     if (!destinataire) {
-      const message = modele.confrere === true
+      const message = estSuccession(d) ? "Aucun email d'héritier renseigné pour ce dossier — impossible de préparer cet email."
+        : modele.confrere === true
         ? "Aucun email renseigné pour le notaire du vendeur — impossible de préparer cette demande."
         : notaireParticipantRepresenteAcquereur(d)
         ? "Aucun email renseigné pour le notaire de l'acquéreur — impossible de préparer cette relance."

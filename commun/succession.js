@@ -466,11 +466,12 @@
       { type: 'projetSuccession', label: 'Envoi du projet à faire valider', iso: dernier.fait ? '' : avantRdv,
         fait: dernier.fait || cocheeSuccession(d, 'projetSuccession'), attente: false, active: true, avantRdv: true }];
       // Appel de fonds = les clients versent les frais d'acte à l'office ; le décompte (autre étape) = le tableau qui leur dit ce qu'ils vont recevoir.
-      // Étude 22/10 : avec un conjoint survivant on TRANSFÈRE les fonds et il y a très peu en comptabilité — l'appel de fonds est dû ; avec les seuls
-      // héritiers, la banque débloque les comptes et l'étude se rémunère dessus s'il y a assez, sinon elle demande un complément (étape facultative).
+      // Étude 22/10 : avec les seuls héritiers, la banque débloque les comptes et l'étude se rémunère dessus s'il y a assez, sinon elle demande un
+      // complément. Étude 30/10 : « parfois on n'a pas besoin de faire d'appel de fonds pour les frais d'acte, c'est souvent quand il y a un conjoint
+      // survivant » — l'étape est facultative dans tous les cas (« Pas nécessaire » d'un clic).
       if (s.appelFondsInutile !== true) {
         avant.push({ type: 'appelFondsSuccession', label: 'Appel de fonds', iso: dernier.fait ? '' : avantRdv,
-          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: !conjointSurvivant(d) });
+          fait: dernier.fait || cocheeSuccession(d, 'appelFondsSuccession'), attente: false, active: true, avantRdv: true, facultatif: true });
       }
       etapes.splice(iDernier, 0, ...avant);
     }

@@ -27,7 +27,7 @@ function zoneClaireFlottante() {
     z.id = 'claire-flottante';
     z.className = 'claire-flottante';
     z.innerHTML = `<div class="cf-panneau" id="cf-panneau" role="dialog" aria-label="CLAIRE" style="display:none;">
-        <div class="cf-tete"><span class="cf-titre">${icone('sparkle')}CLAIRE</span><span class="cf-dossier" id="cf-dossier"></span>
+        <div class="cf-tete"><span class="cf-titre">${icone('discussion')}CLAIRE</span><span class="cf-dossier" id="cf-dossier"></span>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirConversationDepuisFlottante()" title="Ouvrir la conversation en grand" aria-label="Ouvrir la conversation en grand">${icone('discussion')}</wa-button>
           <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="basculerClaireFlottante(false)" title="Fermer" aria-label="Fermer">${icone('x')}</wa-button></div>
         <div class="cf-messages" id="cf-messages" aria-live="polite"></div>
@@ -35,7 +35,7 @@ function zoneClaireFlottante() {
           <textarea id="cf-texte" rows="2" placeholder="Demandez à CLAIRE… (elle voit cet écran)" onkeydown="if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); envoyerDepuisClaireFlottante(); }"></textarea>
           <wa-button variant="brand" size="s" type="submit">Envoyer</wa-button>
         </form></div>
-      <button type="button" class="cf-bouton" id="cf-bouton" onclick="basculerClaireFlottante()" title="Demander à CLAIRE" aria-label="Demander à CLAIRE">${icone('sparkle')}</button>`;
+      <button type="button" class="cf-bouton" id="cf-bouton" onclick="basculerClaireFlottante()" title="Demander à CLAIRE" aria-label="Demander à CLAIRE">${icone('discussion')}</button>`;
     document.body.appendChild(z);
   }
   return z;

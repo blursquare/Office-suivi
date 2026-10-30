@@ -989,7 +989,7 @@
 
   function gesteOutilAssistant(d, outil) {
     if (outil === 'appel-fonds') {
-      if (estSuccession(d)) return { html: '<p>Pas d’appel de fonds pour une succession.</p>' };
+      if (estSuccession(d)) return { html: '<p>Pour une succession, l’appel de fonds et les fonds reçus se suivent dans l’onglet Fonds de la fiche.</p>' };
       preparerAppelFondsDepuisDossier(d.id);
       return { html: `<p>Outil Appel de fonds ouvert sur ${escapeHtml(libelleDossierAffiche(d))} ; les pièces du NAS sont relues.</p>` };
     }

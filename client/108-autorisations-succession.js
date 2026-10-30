@@ -352,7 +352,7 @@ function autRendreCorps() {
   if (!carte) return;
   const liste = autDossiersSuccession();
   const d = autDossierChoisi();
-  const entete = `<div class="dash-header"><div><div class="dash-eyebrow">Succession</div><div class="dash-titre-ligne"><h1 class="dash-titre">Autorisations de fonds</h1>${infoBulle('Déblocage de fonds pour un héritier sans conjoint survivant ; transfert de fonds pour le conjoint survivant, et pour chaque héritier au nom du conjoint survivant. Texte des modèles de l’office, identité reprise de la fiche : ce qui manque est marqué « [à compléter] » et se corrige sur l’aperçu.')}</div></div></div>`;
+  const entete = `<div class="dash-header"><div><div class="dash-eyebrow">Succession</div><div class="dash-titre-ligne"><h1 class="dash-titre">Autorisations de déblocage/transfert</h1>${infoBulle('Déblocage de fonds pour un héritier sans conjoint survivant ; transfert de fonds pour le conjoint survivant, et pour chaque héritier au nom du conjoint survivant. Texte des modèles de l’office, identité reprise de la fiche : ce qui manque est marqué « [à compléter] » et se corrige sur l’aperçu.')}</div></div></div>`;
   if (!liste.length) { carte.innerHTML = `${entete}<p class="hint">Aucune succession en cours. Créez-en une depuis Authentic (« Nouveau dossier »).</p>`; return; }
   if (!d) {
     autEtat.dossierId = '';

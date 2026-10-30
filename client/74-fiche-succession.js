@@ -245,7 +245,7 @@
       </dl>
       <div class="fiche-sous-titre fiche-titre-bloc"><span class="pieces-titre">${icone('users')}<span class="pieces-titre-texte">Héritiers</span></span> <span class="hint">· ${heritiers.length}${compsLus ? ' · d’après les comparants d’Authentic' : ''}</span>${compsLus ? '' : ' ' + infoBulle('Les comparants de la page du dossier d’Authentic (qualité « Défunt » / « Héritier ») ne sont pas encore lus : ouvrez la page du dossier dans Authentic. En attendant, toutes les personnes du dossier sauf le défunt sont montrées.')}</div>
       <dl class="fiche-proprietes fiche-coordonnees">
-        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span>${autorisationsFonds ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" title="Autorisation de déblocage ou de transfert de fonds de cette personne, en PDF (modèles de l’office ; le modèle se change dans l’outil « Autorisations de fonds »)" onclick="telechargerAutorisationSuccession('${idJs}', '${escapeOnclickArg(p.nom)}')">${icone('download')}Autorisation</wa-button>` : ''}${boutonRibHeritier(p.nom)}${boutonRetirerPersonneSuccession(d, p.nom)}`, null, 'prop-pleine')).join('')
+        ${heritiers.length ? heritiers.map((p, i) => ligne(i ? 'users' : 'user', i ? '' : 'Héritiers', `<span class="succ-personne"><span class="prop-texte">${escapeHtml(p.nom)}${p.nomUsage ? ` <span class="hint">(${escapeHtml(p.nomUsage)})</span>` : ''}${p.qualite ? ` <span class="dot-label dl-neutre"><span class="dot"></span>${escapeHtml(p.qualite)}</span>` : ''}</span>${coordonnees(p) ? ` <span class="hint">${coordonnees(p)}</span>` : ''}${p.comparant ? '<span class="succ-etat-civil hint">Fiche client pas encore lue dans Authentic</span>' : etatCivil(p.nom)}</span>${autorisationsFonds ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" title="Autorisation de déblocage ou de transfert de fonds de cette personne, en PDF (modèles de l’office ; le modèle se change dans l’outil « Autorisations de déblocage/transfert »)" onclick="telechargerAutorisationSuccession('${idJs}', '${escapeOnclickArg(p.nom)}')">${icone('download')}Autorisation</wa-button>` : ''}${boutonRibHeritier(p.nom)}${boutonRetirerPersonneSuccession(d, p.nom)}`, null, 'prop-pleine')).join('')
           : ligne('users', 'Héritiers', '<span class="prop-texte vide">Aucun — ouvrez la page du dossier dans Authentic</span>', null, 'prop-pleine')}
         ${autres.length ? ligne('users', 'Autres', `<span class="succ-personne"><span class="prop-texte">${autres.map(p => escapeHtml(p.nom)).join(', ')}</span><span class="hint">Ni défunt ni héritier dans les comparants d’Authentic</span></span>`, null, 'prop-pleine') : ''}
       </dl>
@@ -310,7 +310,7 @@
       if (e.avantRdv && !e.iso) base.sous = '10 jours avant le dernier rendez-vous, une fois placé';
       const attenteRdv = e.avantRdv && !e.iso;
       if (e.type === 'appelFondsSuccession') {
-        base.sous = [base.sous, conjointSurvivant(d) ? 'Fonds transférés au conjoint, peu en comptabilité : appel de fonds dû' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
+        base.sous = [base.sous, conjointSurvivant(d) ? 'Souvent inutile avec un conjoint survivant' : 'Si la comptabilité ne couvre pas nos frais'].filter(Boolean).join(' · ');
         base.bouton = { onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier', icone: icone('x'), libelle: 'Pas nécessaire' };
       }
       if (e.type === 'controleDroits') base.sous = [s.droitsDus ? `droits dus : ${s.droitsDus}` : 'droits à vérifier', s.inventaireNecessaire ? `inventaire : ${s.inventaireNecessaire}` : 'inventaire à vérifier'].join(' · ');
@@ -345,6 +345,41 @@
     personnesSuccession(d).heritiers.forEach(h => [].concat(Array.isArray(h.emails) ? h.emails : [], h.email ? [h.email] : [], ((ficheClientDe(d, h.nom) || {}).emails) || [])
       .forEach(e => destinatairesEmail(e).forEach(x => vus.add(x))));
     return Array.from(vus).join(', ');
+  }
+
+  // Onglet Fonds d'une succession (étude 30/10 : « il détecte que des fonds sont arrivés mais on ne peut pas confirmer la réception au client ; on
+  // ne voit pas non plus le montant appelé comme pour une vente ; parfois pas d'appel de fonds, souvent avec un conjoint survivant ») : l'étape
+  // « Appel de fonds » (Pas nécessaire / Rétablir), puis le bloc « Fonds reçus » de la vente — montant appelé lu dans le courrier du NAS ou saisi,
+  // versements des héritiers, « Confirmer » aux héritiers. Rien pour une succession sans étape d'appel de fonds ni reçus lus.
+  function renderAppelFondsSuccessionFonds(d) {
+    if (!d || !estSuccession(d)) return '';
+    const s = infoSuccession(d);
+    const idJs = escapeOnclickArg(d.id);
+    const etapes = etapesSuccession(d, isoAujourdhuiLocal());
+    const etape = etapes.find(e => e.type === 'appelFondsSuccession');
+    const possible = !!etape || (s.appelFondsInutile === true && etapes.some(e => e.type === 'decompteSuccession'));
+    const dejaLus = !!(d.fondsRecus && (d.fondsRecus.recus || []).length) || !!d.fondsValidesLe;
+    if (!possible && !dejaLus) return '';
+    let ligne = '';
+    if (s.appelFondsInutile === true) {
+      ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds — pas nécessaire', faite: true,
+        sousHtml: '<span class="dot-label dl-neutre"><span class="dot"></span>Fonds suffisants en comptabilité</span>',
+        bouton: { libelle: 'Rétablir', icone: icone('rotate-ccw'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', false)`, titre: 'Prévoir de nouveau un appel de fonds avant le dernier rendez-vous' } });
+    } else if (etape) {
+      const quand = etape.fait ? 'Fait' : etape.iso ? `À envoyer le ${formatDateFr(etape.iso)}` : '10 jours avant le dernier rendez-vous, une fois placé';
+      const conseil = conjointSurvivant(d) ? 'souvent inutile avec un conjoint survivant' : 'si la comptabilité ne couvre pas nos frais';
+      ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds des frais d’acte', faite: !!etape.fait,
+        sousHtml: `<span class="dot-label ${etape.fait ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(quand)}</span> <span class="hint">· ${escapeHtml(conseil)}</span>`,
+        bouton: etape.fait ? null : { libelle: 'Pas nécessaire', icone: icone('x'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier' } });
+    }
+    const recus = s.appelFondsInutile === true && !dejaLus ? '' : renderFondsRecus(d);
+    if (!ligne && !recus) return '';
+    return `<div class="echanges-groupe">
+        <div class="echanges-tete">
+          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Appel de fonds et fonds reçus</span></span>
+        </div>
+        <ul class="ja-liste ja-taches">${ligne}${recus}</ul>
+      </div>`;
   }
 
   // « Pas nécessaire » / « Rétablir » de l'appel de fonds d'une succession (étude 16/10 : « parfois » seulement).

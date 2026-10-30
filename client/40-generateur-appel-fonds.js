@@ -1456,7 +1456,7 @@
     const bouton = afEl('af-brouillon-outlook');
     if (!bouton) return;
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    bouton.style.display = (d && emailDestinataireRelance(d)) ? '' : 'none';
+    bouton.style.display = (d && !estSuccession(d) && emailDestinataireRelance(d)) ? '' : 'none';
     // « Enregistrer dans le dossier de la vente » : seulement quand le dossier relié l'est aussi au NAS (étude 23/10).
     const ranger = afEl('af-ranger-nas');
     if (ranger) ranger.style.display = (d && d.nasDossier) ? '' : 'none';
@@ -2890,7 +2890,7 @@
   // défaut, le .docx est téléchargé à côté, à joindre à la main.
   async function preparerEmailAppelFonds(btn) {
     const d = afDossierLie ? dossiers.find(x => x.id === afDossierLie) : null;
-    const destinataire = d ? emailDestinataireRelance(d) : '';
+    const destinataire = d && !estSuccession(d) ? emailDestinataireRelance(d) : '';
     if (!destinataire) {
       afficherToast("Reliez un dossier dont l'email du destinataire est renseigné pour préparer l'email.", 'OK', null);
       return;
