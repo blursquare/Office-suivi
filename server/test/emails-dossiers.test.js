@@ -596,3 +596,15 @@ test('partenaires du dossier (étude 30/10) : syndic absent de la fiche qui cite
     assert.equal(r.hors_dossiers_ecartes, 1);
   } finally { db.close(); }
 });
+
+test('partenaires : preuve forte exigée (relecture 30/10) — un nom courant seul, un nom de deux dossiers, une adresse de l’étude ne rattachent rien', () => {
+  const M = require('../src/emailsMatin');
+  const D1 = { id: 'a', nom: 'ROY / PETIT', parties: [] }, D2 = { id: 'b', nom: 'MARTIN / DUBOIS' }, D3 = { id: 'c', nom: 'MARTIN / LEROY' };
+  const ctx = M.contexteClassement([D1, D2, D3], [], { emails: [], prepares: [], internes: ['bastien@office.fr'] });
+  const t = (sujet, de = 'x@partenaire.fr') => (M.dossierPartenaireEmail({ sujet, apercu: '', deAdresse: de }, ctx) || {}).id || '';
+  assert.equal(t('Le petit guide de la DIA'), '', 'un mot commun sans mot du métier ne rattache pas');
+  assert.equal(t('Pré-état daté MARTIN'), '', 'un nom porté par deux dossiers n’en désigne aucun');
+  assert.equal(t('Pré-état daté MARTIN / LEROY'), 'c');
+  assert.equal(t('Offre de prêt PETIT'), 'a', 'un nom propre à un dossier + un mot du métier');
+  assert.equal(t('Vente ROY / PETIT', 'autre@office.fr'), '', 'jamais une adresse du domaine de l’étude');
+});

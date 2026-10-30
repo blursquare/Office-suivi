@@ -38,7 +38,7 @@ function cocherProjetSurCopieFraiche(depot, d, envoye) {
 }
 const { lireXml, tous, premier, texte: texteXml, texteDe, attribut, identifiantElement, codeReponse: codeReponseXml, succesSansErreur } = require('./exchange/xml');
 const {
-  contexteClassement, dossierDeEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
+  contexteClassement, dossierPartenaireEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, parmiDossiersAdresse, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN
 } = require('./emailsMatin');
 
 const CLE_EMAILS_DOSSIERS = 'emails-dossiers';
@@ -765,12 +765,12 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
         }
         // Partenaires du dossier (étude 30/10 : « aussi les emails des partenaires du dossier même si pas notés dans la fiche : syndic,
         // banque, courtiers, agence immobilière… ») : un email qui CITE un dossier (« VTE - NOM », noms des parties dans l'objet), qui
-        // répond à un fil d'un dossier ou vient d'une adresse à qui l'étude a écrit pour un dossier — la règle du résumé des emails.
+        // répond à un fil d'un dossier, vient d'une adresse à qui l'étude a écrit pour un dossier, ou nomme le dossier dans l'objet avec une preuve forte (`dossierPartenaireEmail`).
         if (!deDossier) {
           for (const a of adresses) {
             const am = String(a || '').toLowerCase();
             if (!am || internesMin.includes(am)) continue;
-            d = dossierDeEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: am }, ctx);
+            d = dossierPartenaireEmail({ sujet: e.objet, apercu: e.apercu, deAdresse: am }, ctx);
             if (d) { deDossier = true; break; }
           }
         }

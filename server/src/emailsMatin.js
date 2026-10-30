@@ -245,6 +245,28 @@ function dossierDeEmail(e, ctx) {
     || null;
 }
 
+// Un email d'un PARTENAIRE du dossier (étude 30/10 : syndic, banque, courtier, agence — adresse absente des fiches) : rattaché seulement
+// avec une preuve forte (relecture 30/10 : un seul nom courant dans l'objet rattachait une lettre d'information ou un rendez-vous
+// personnel) — « VTE - NOM » cité, réponse à un fil d'un seul dossier, adresse à qui l'étude a écrit pour un seul dossier, ou les noms
+// du dossier dans l'OBJET : deux noms au moins, ou un nom avec un mot du métier (vente, prêt, offre, lot…) ; un nom porté par
+// plusieurs dossiers en cours n'en désigne aucun. Jamais une adresse de l'étude ou de CLAIRE.
+const RE_MOT_METIER_OBJET = /(^|[^A-Z])(VENTE|VTE|DOSSIER|ACQUEREURS?|VENDEURS?|PRET|OFFRE|COMPROMIS|PROMESSE|SYNDIC|COPROPRIETE|LOT|ETAT DATE|PRE ETAT|APPEL DE (FONDS|CHARGES)|FINANCEMENT|NOTAIRE|SIGNATURE|DIAGNOSTICS?|SUCCESSION|ACTE)([^A-Z]|$)/;
+function dossierPartenaireEmail(e, ctx) {
+  const adresse = String(e.deAdresse || '').toLowerCase();
+  if (!adresse || ctx.ignorees.has(adresse) || (ctx.adresseEtude && ctx.adresseEtude(adresse))) return null;
+  const sujetN = normaliser(e.sujet);
+  const texteN = sujetN + ' ' + normaliser(e.apercu);
+  const parFil = (carte, cle) => { const id = carte && cle ? carte.get(cle) : null; return id ? ctx.parId.get(id) || null : null; };
+  const cite = dossierVteCite(texteN, ctx.actifs) || (estReponse(e.sujet) ? parFil(ctx.parObjet, normaliserObjet(e.sujet)) : null) || parFil(ctx.adressesEcrites, adresse);
+  if (cite) return cite;
+  const scores = ctx.actifs.map((d) => ({ d, n: motsDuDossier(d).filter(m => new RegExp(`(^|[^A-Z])${m}([^A-Z]|$)`).test(sujetN)).length })).filter((x) => x.n > 0);
+  if (!scores.length) return dossierVteCite(texteN, ctx.archives || []);
+  const max = Math.max(...scores.map((x) => x.n));
+  const meilleurs = scores.filter((x) => x.n === max);
+  if (meilleurs.length !== 1) return null;
+  return max >= 2 || RE_MOT_METIER_OBJET.test(sujetN) ? meilleurs[0].d : null;
+}
+
 // Emails des dossiers (étude 07/10 : « des emails se sont glissés alors qu'ils ne sont pas du dossier ; ne mettre que les emails
 // liés aux adresses des clients ») : un email reçu n'est rattaché que par l'ADRESSE de son expéditeur, inscrite sur une fiche
 // (clients, parties relevées dans Authentic, confrère) — jamais par l'objet, un fil ou une adresse à qui l'étude a écrit ; l'objet
@@ -518,7 +540,7 @@ function demarrerResumeEmails(depot, parametresRepo, intervalleMs = 60 * 1000, c
 }
 
 module.exports = {
-  contexteClassement, dossierDeEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, domainesEtude, parmiDossiersAdresse, adressesDuDossier, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
+  contexteClassement, dossierDeEmail, dossierPartenaireEmail, dossierDeEmailParAdresse, emailLieAuxAdressesDuDossier, domainesEtude, parmiDossiersAdresse, adressesDuDossier, normaliserObjet, normaliser, SUJETS_EMAIL, echapperXml, ENVELOPPE_DEBUT, ENVELOPPE_FIN,
   CLE_RESUME_EMAILS, debutFenetreEmails, corpsFindEmails, parseFindEmails, classerEmails, motsDuDossier,
   genererResumeEmails, lireResume, resumeDu, demarrerResumeEmails, momentParis,
   entreesSyntheseEmails, promptSyntheseEmails, validerSyntheseEmails, normaliserSyntheseEmails, completerSyntheseIa,

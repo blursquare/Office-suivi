@@ -124,8 +124,16 @@ const SCRIPT_ELEMENTS = `(() => {
 const scriptCentreElement = (n) => `(() => {
   const e = (window.__claireElements || [])[${Math.max(0, (Number(n) | 0) - 1)}];
   if (!e || !e.isConnected) return null;
-  const r = e.getBoundingClientRect(); if (r.width < 3 || r.height < 3 || r.bottom < 0 || r.top > innerHeight) return null;
-  return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  const r = e.getBoundingClientRect(); const st = getComputedStyle(e);
+  if (r.width < 3 || r.height < 3 || st.visibility === 'hidden' || st.display === 'none') return null;
+  // Le centre de la PARTIE VISIBLE de l'élément, et l'élément doit être celui qu'on y touche : recouvert (liste ouverte, dialogue) ou hors
+  // écran = null — jamais un clic qui tomberait sur un voisin (relecture 0.402.1).
+  const g = Math.max(0, r.left), d = Math.min(innerWidth - 1, r.right), h = Math.max(0, r.top), b = Math.min(innerHeight - 1, r.bottom);
+  if (d - g < 3 || b - h < 3) return null;
+  const x = Math.round((g + d) / 2), y = Math.round((h + b) / 2);
+  const haut = document.elementFromPoint(x, y);
+  if (!haut || !(haut === e || e.contains(haut) || haut.contains(e))) return null;
+  return { x, y };
 })()`;
 
 /** Pure : la liste rendue à Claude (filtrée par des mots du libellé, 150 lignes au plus). @param {any[]} liste @param {string} [filtre] */
@@ -269,7 +277,7 @@ async function piloter(o) {
           dit = texteElements(liste, String(e.filtre || '').slice(0, 80));
         } else if (a.name === 'cliquer_element') {
           const c = await o.s.evaluer(scriptCentreElement(e.n));
-          dit = !c ? 'Élément introuvable : la page a changé. Relis « elements ».' : await cliquerControle(borner(c.x, LARGEUR), borner(c.y, HAUTEUR));
+          dit = !c ? 'Élément introuvable, recouvert ou hors écran : la page a changé. Relis « elements » (et défile si besoin).' : await cliquerControle(borner(c.x, LARGEUR), borner(c.y, HAUTEUR));
         } else if (a.name === 'ecrire') {
           const champ = await o.s.evaluer(SCRIPT_CHAMP_ACTIF);
           if (!champ || !champ.saisie || champ.motDePasse) dit = 'Écriture REFUSÉE : le focus n’est pas dans un champ de saisie de texte (ou c’est un mot de passe). Clique d’abord dans le champ.';
