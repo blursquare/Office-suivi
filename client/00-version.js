@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.406.1';
+  const VERSION_APP = '0.406.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.406.2', date: '2026-10-30 12:10', resume: "Casier judiciaire (CJN) : CLAIRE s’arrêtait, faute de trouver « Envoi immédiat ». Le vrai bloc n’a que « Création rapide » (le wiki d’Authentic : l’envoi immédiat n’apparaît que si les droits le permettent). Elle valide maintenant la demande de casier une fois « Création rapide » allumée et chaque acquéreur coché, et seulement s’il n’y a aucun « Envoi immédiat » sur la page. Comedec garde sa règle." },
     { version: '0.406.1', date: '2026-10-30 11:47', resume: "Questionnaire de satisfaction : proposé dès le jour de la signature quand l’acte est signé (dans Authentic ou signature cochée), comme la copie de l’acte — il n’apparaissait que le lendemain." },
     { version: '0.406.0', date: '2026-10-30 11:37', resume: "Nouvel outil « Décompte vendeur » (Outils › Vente, et ligne « Outils » de la fiche d’une vente), sur votre modèle : références du dossier, date de signature (prévisionnelle tant que le rendez-vous n’est pas placé), « DECOMPTE VENDEUR », le vendeur, puis le tableau DEBIT / CREDIT — prix de vente et prorata de taxes foncières au crédit ; commission d’agence quand elle est à la charge du vendeur, remboursement anticipé du prêt lu dans le décompte de la banque trouvé sur le NAS, provision sur frais d’acte de mainlevée de 450 € (modifiable) au débit — « Ensemble », « Solde » et la phrase du R.I.B. Toutes les lignes se corrigent, s’ajoutent ou se retirent ; un montant non lu reste « à saisir ». Mis en page comme votre modèle (sans en-tête ni signature) : PDF, Word, « Ranger dans le dossier » du NAS d’un clic, email au vendeur avec le PDF (rien ne part sans « Envoyer »). Pas proposé quand un confrère représente le vendeur. « Demander à CLAIRE » sait aussi le préparer." },
   { version: '0.405.1', date: '2026-10-30 09:56', resume: "Casier judiciaire (CJN) : avant de valider, CLAIRE coche toujours la case devant chaque acquéreur et décoche toute autre personne. Elle relit les cases et ne valide que si tout est juste. État civil : une demande déjà faite peut être refaite, par exemple quand la précédente ne portait que sur un seul acte. Sur la fiche, « Refaire la demande » est proposé quand c'est déjà demandé ; à CLAIRE, il suffit de dire que la précédente est fausse. La nouvelle demande s'ajoute à l'ancienne, que vous supprimez vous-même dans Authentic." },

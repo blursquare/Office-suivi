@@ -73,7 +73,7 @@ try {
   await A.preparerFormalite(s, { reference: 'A 2026 00500', libelle: 'VTE MARTIN / DURAND' }, { type: 'cjn', parties: [{ nom: 'DURAND', prenom: 'Claire' }], etape, ecriture: true });
   verifier(!(await s.evaluer('window.__mauvais')), 'l’homonyme des résultats (autre référence) n’est jamais pris');
   const cjn = await s.evaluer('window.__valide');
-  verifier(cjn && cjn.type === 'cjn' && cjn.rapide === true && cjn.envoi === false, `CJN validée avec Création rapide allumée et Envoi immédiat ÉTEINT (${JSON.stringify(cjn)})`);
+  verifier(cjn && cjn.type === 'cjn' && cjn.rapide === true && cjn.envoi === null, `CJN validée avec Création rapide allumée, sans interrupteur d’envoi comme le vrai bloc (${JSON.stringify(cjn)})`);
   verifier(cjn && cjn.cases && cjn.cases['Mme DURAND Claire (41000 BLOIS)'] === true && cjn.cases['M. MARTIN Paul (41000 BLOIS)'] === false, `CJN : l’acquéreur coché, l’autre personne décochée avant « Valider » (${JSON.stringify(cjn && cjn.cases)})`);
 
   const parties = [{ nom: 'MARTIN', prenom: 'Paul', marie: false }, { nom: 'DURAND', prenom: 'Claire', marie: true }];

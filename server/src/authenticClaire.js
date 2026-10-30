@@ -1668,15 +1668,20 @@ async function preparerFormalite(s, cible, o) {
   const nbEnvoi = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter((c) => /envoi imm[ée]diat/i.test(c.libelle)).length;
   if (nbEnvoi > 1) throw new Error('plusieurs blocs de création ouverts dans Authentic : rien validé');
   let i = await lire();
-  if (!i.envoi || !i.rapide) throw new Error('interrupteurs « Création rapide » / « Envoi immédiat » introuvables : rien validé');
-  if (i.envoi.coche) { await s.cliquerPosition(i.envoi.x, i.envoi.y); await attendre(500); }
+  // CJN : le vrai bloc n'a QUE « Création rapide » (capture de l'étude du 30/10 ; le wiki, lot 03 § 2.3 : « envoi immédiat si les droits le
+  // permettent » — pas d'interrupteur = pas d'envoi possible pour ce compte) ; « Valider » y crée la demande — l'étude l'a voulu (30/10 :
+  // « valider sans Envoi immédiat », CJN seulement). Permis seulement quand AUCUN « Envoi immédiat » n'est sur la page (sinon la règle d'avant).
+  const cjnSansEnvoi = o.type === 'cjn' && nbEnvoi === 0 && !i.envoi;
+  if ((!i.envoi && !cjnSansEnvoi) || !i.rapide) throw new Error('interrupteurs « Création rapide » / « Envoi immédiat » introuvables : rien validé');
+  if (i.envoi && i.envoi.coche) { await s.cliquerPosition(i.envoi.x, i.envoi.y); await attendre(500); }
   if (!i.rapide.coche) { await s.cliquerPosition(i.rapide.x, i.rapide.y); await attendre(500); }
   i = await lire();
-  if (!i.envoi || i.envoi.coche !== false) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
+  if (!cjnSansEnvoi && (!i.envoi || i.envoi.coche !== false)) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
+  if (cjnSansEnvoi && (i.envoi || ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).some((c) => /envoi imm[ée]diat/i.test(c.libelle)))) throw new Error('« Envoi immédiat » apparu sur la page : rien validé');
   if (!i.rapide || i.rapide.coche !== true) throw new Error('« Création rapide » n’a pas pu être lue allumée : rien validé');
   // CJN : les cases relues juste avant « Valider » (le basculement d'un interrupteur peut redessiner le tableau).
   if (o.type === 'cjn') verifierCasesCjn(((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter(estLigneIntervenantCjn), o.parties);
-  o.etape('Création rapide allumée, Envoi immédiat éteint : valide la création');
+  o.etape(cjnSansEnvoi ? 'Création rapide allumée, acquéreurs cochés : valide la demande de casier' : 'Création rapide allumée, Envoi immédiat éteint : valide la création');
   if (!(await g.cliquerTexte('Valider', { exact: true, geste: 'ecriture' }))) {
     // Le bloc Comedec valide par un rond vert « ✓ » sans texte (captures du wiki) : son titre ou sa coche, dans le bloc de « Création rapide ».
     const v = await g.ev(SCRIPT_VALIDER_ICONE);
