@@ -66,3 +66,28 @@ async function donnerRappelPerso(id, collegue, silencieux) {
   });
   return { fait: true, a: collegue };
 }
+
+// Outil `donner_tache` de l'agent (règle du dépôt, étude 28/10 : toute fonction faisable par « Demander à CLAIRE ») : lister ses tâches
+// personnelles à faire, ou en donner une à un collègue après la carte « Autoriser » — la même fonction que le bouton de la tâche.
+async function donnerTacheAgent(entree) {
+  const e = entree || {};
+  if (e.mode === 'lister') {
+    const taches = rappelsPerso.filter((r) => r && !r.fait && !r.agendaItemId).slice(0, 40).map((r) => {
+      const d = r.dossierId ? dossiers.find((x) => x.id === r.dossierId) : null;
+      return { tache_id: r.id, texte: String(r.texte || '').slice(0, 200), date: r.echeance || '', dossier: d ? libelleDossierAffiche(d) : '' };
+    });
+    return { taches, nombre: taches.length };
+  }
+  if (e.mode !== 'donner') return { erreur: 'mode inconnu (lister ou donner)' };
+  const collegue = COLLABORATEURS_AGENT[e.collaborateur];
+  if (!collegue) return { erreur: 'collaborateur : Bastien, Julie, Jérémy ou Sophie' };
+  if (collegue === utilisateurPoste) return { erreur: 'c’est l’utilisateur lui-même : la tâche est déjà dans sa liste' };
+  const r = rappelsPerso.find((x) => x.id === e.tache_id && !x.fait);
+  if (!r) return { erreur: 'tache_id inconnu ou tâche déjà faite : appelle d’abord le mode lister' };
+  if (r.agendaItemId) return { erreur: 'tâche posée dans l’agenda (rendez-vous rouge) : à changer dans Outlook' };
+  if (!(await demanderAutorisationAgent(`Donner à ${prenomCollaborateur(collegue)} la tâche « ${String(r.texte || '').slice(0, 160)} » : elle quitte votre liste et passe dans la sienne ; un message le prévient dans votre conversation personnelle.`))) {
+    return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+  }
+  const res = await donnerRappelPerso(r.id, collegue, true);
+  return res && res.fait ? { fait: true, statut: 'fait', resultat: `Tâche donnée à ${prenomCollaborateur(collegue)}.` } : { erreur: (res && res.erreur) || 'tâche non donnée', statut: 'echec' };
+}

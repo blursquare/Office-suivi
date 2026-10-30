@@ -1154,3 +1154,12 @@ test('30/10 : consulter_wiki — CLAIRE a la mémoire du wiki d’Authentic (CJN
   assert.match(envoye, /Création rapide|création rapide/);
   assert.match(envoye, /Envoi immédiat|envoi immédiat/);
 });
+
+test('donner_tache (étude 30/10) : lister ou donner, collaborateur dans une liste fermée, aucun nom libre en argument', () => {
+  const { OUTILS_AGENT } = require('../src/assistantAgent');
+  const outil = OUTILS_AGENT.find((t) => t.name === 'donner_tache');
+  assert.ok(outil, 'outil présent');
+  assert.deepEqual(outil.input_schema.properties.mode.enum, ['lister', 'donner']);
+  assert.deepEqual(outil.input_schema.properties.collaborateur.enum, ['', 'Bastien', 'Julie', 'Jérémy', 'Sophie']);
+  assert.deepEqual(Object.keys(outil.input_schema.properties).sort(), ['collaborateur', 'mode', 'tache_id']);
+});
