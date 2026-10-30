@@ -20,7 +20,7 @@ const GARDER_CAPTURES = 2;    // les captures plus anciennes sont retirées de l
 const LARGEUR = 1280;
 const HAUTEUR = 800;
 
-const SYSTEME = `Tu pilotes Authentic (logiciel de rédaction d'actes de l'étude notariale de Maître Sophie GOSSART, à Blois) dans un navigateur, pour un collaborateur de l'étude qui t'a donné une consigne. Tu vois l'écran (${LARGEUR}x${HAUTEUR} pixels) et tu agis avec les outils : cliquer (x, y), ecrire (texte), touche, defiler, attendre, terminer. Une capture te revient après chaque geste ; le pointeur blanc est celui de ta dernière position.
+const SYSTEME = `Tu pilotes Authentic (logiciel de rédaction d'actes de l'étude notariale de Maître Sophie GOSSART, à Blois) dans un navigateur, pour un collaborateur de l'étude qui t'a donné une consigne. Tu vois l'écran (${LARGEUR}x${HAUTEUR} pixels) et tu agis avec les outils : elements (la liste numérotée de ce qui se clique et se remplit, avec son libellé) puis cliquer_element (n) — À PRÉFÉRER : un clic au jugé sur des coordonnées tombe parfois quelques pixels à côté (une liste déroulante ratée d'un millimètre a déjà tout fait échouer) —, cliquer (x, y) seulement pour ce que la liste ne montre pas, ecrire (texte), touche, defiler, attendre, terminer. Une capture te revient après chaque geste ; le pointeur blanc est celui de ta dernière position.
 Règles absolues (tenues par un contrôle que tu ne peux pas contourner) :
 - Tu ne cliques JAMAIS un bouton qui envoie, signe, paraphe, supprime, archive, imprime, télécharge ou expédie (envoi, signature, parapheur, corbeille, « Supprimer… ») : le geste est refusé. Si la consigne l'exige, tu t'arrêtes et tu le dis.
 - « Valider » n'est cliqué que dans un bloc de création où « Envoi immédiat » est visible et ÉTEINT : si « Envoi immédiat » est allumé, éteins-le d'abord (clique son interrupteur) ; ne l'allume jamais. « Création rapide » doit être allumée pour une demande rapide.
@@ -34,6 +34,9 @@ Tu termines TOUJOURS par l'outil terminer, avec un compte rendu court : ce qui e
 const OUTILS = [
   { name: 'cliquer', description: 'Clique à la position (x, y) de la capture, en pixels.', input_schema: { type: 'object', additionalProperties: false, required: ['x', 'y'],
     properties: { x: { type: 'integer', minimum: 0, maximum: LARGEUR - 1 }, y: { type: 'integer', minimum: 0, maximum: HAUTEUR - 1 } } } },
+  { name: 'elements', description: 'La liste des éléments cliquables et des champs VISIBLES à l\'écran (boutons, liens, onglets, cases, champs, options d\'une liste ouverte), chacun avec un numéro, sa nature et son libellé lu dans la page. Préfère-la aux coordonnées : vise ensuite l\'élément par son numéro (cliquer_element). Relis-la après chaque changement de page ou ouverture de liste : les numéros changent.', input_schema: { type: 'object', additionalProperties: false, properties: { filtre: { type: 'string', description: 'mots du libellé cherché (facultatif) : « Naissance », « Valider », « N° de dossier »' } } } },
+  { name: 'cliquer_element', description: 'Clique au centre de l\'élément numéro n de la dernière liste rendue par « elements » (même contrôle que cliquer). Pour une liste déroulante : clique-la, relis « elements », puis clique l\'option voulue par son numéro.', input_schema: { type: 'object', additionalProperties: false, required: ['n'],
+    properties: { n: { type: 'integer', minimum: 1, maximum: 400 } } } },
   { name: 'ecrire', description: 'Écrit un texte dans le champ qui a le focus (clique d\'abord dans le champ). remplacer: true efface son contenu avant.', input_schema: { type: 'object', additionalProperties: false, required: ['texte'],
     properties: { texte: { type: 'string', maxLength: 200 }, remplacer: { type: 'boolean' } } } },
   { name: 'touche', description: 'Appuie sur une touche.', input_schema: { type: 'object', additionalProperties: false, required: ['nom'],
@@ -90,6 +93,49 @@ async function lireInterrupteurs(s, x, y) {
   // L'interrupteur DANS lequel tombe le point (sa boîte), jamais un voisin proche.
   const bascule = tous.find((c) => Math.abs(x - c.x) <= (c.l || 40) / 2 + 1 && Math.abs(y - c.y) <= (c.h || 20) / 2 + 1) || null;
   return { illisible: false, envoi: { nombre: envois.length, tousEteints: envois.length > 0 && envois.every((c) => !c.coche) }, bascule: bascule ? { libelle: String(bascule.libelle || ''), coche: !!bascule.coche } : null };
+}
+
+/** Les éléments visibles qu'on peut cliquer ou remplir, numérotés dans l'ordre de lecture (haut → bas, gauche → droite), avec leur centre et leur libellé
+ * lu dans la page. Les références sont gardées dans la page (`window.__claireElements`) pour que cliquer_element relise le centre au moment du clic. */
+const SCRIPT_ELEMENTS = `(() => {
+  const net = (t) => String(t || '').replace(/\\s+/g, ' ').trim();
+  const sel = 'a[href], button, input:not([type=hidden]), select, textarea, [role=button], [role=link], [role=tab], [role=option], [role=menuitem], [role=checkbox], [role=switch], [role=combobox], [role=treeitem], .ui-selectonemenu, .ui-selectcheckboxmenu, .ui-selectonemenu-item, .ui-selectcheckboxmenu-item, .ui-chkbox-box, .ui-menuitem-link, .ui-commandlink, .ui-button, .ui-tabs-nav li, label[for], [onclick]';
+  const vus = new Set(); const liste = [];
+  for (const e of document.querySelectorAll(sel)) {
+    if (vus.has(e)) continue; vus.add(e);
+    const r = e.getBoundingClientRect(); const st = getComputedStyle(e);
+    if (r.width < 3 || r.height < 3 || st.visibility === 'hidden' || st.display === 'none' || Number(st.opacity) === 0) continue;
+    if (r.bottom < 0 || r.right < 0 || r.top > innerHeight || r.left > innerWidth) continue;
+    const x = Math.round(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2))), y = Math.round(Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)));
+    const haut = document.elementFromPoint(x, y); if (!haut || !(haut === e || e.contains(haut) || haut.contains(e))) continue; // caché sous autre chose
+    const lab = e.id ? document.querySelector('label[for="' + CSS.escape(e.id) + '"]') : null;
+    const libelle = net([e.getAttribute('aria-label'), e.matches('input,textarea') ? (e.placeholder || '') : '', lab ? lab.innerText : '', e.matches('input[type=text],input:not([type]),textarea') ? '' : e.innerText, e.getAttribute('title'), e.matches('input[type=submit],input[type=button]') ? e.value : ''].filter(Boolean).join(' · ')).slice(0, 90);
+    const nature = e.matches('input[type=checkbox], .ui-chkbox-box, [role=checkbox]') ? 'case' : e.matches('[role=switch], .ui-toggleswitch, .ui-inputswitch') ? 'interrupteur' : e.matches('input, textarea') ? 'champ' : e.matches('select, .ui-selectonemenu, .ui-selectcheckboxmenu, [role=combobox]') ? 'liste' : e.matches('[role=option], .ui-selectonemenu-item, .ui-selectcheckboxmenu-item') ? 'option' : e.matches('[role=tab], .ui-tabs-nav li') ? 'onglet' : e.matches('a') ? 'lien' : e.matches('label') ? 'libellé' : 'bouton';
+    const coche = e.matches('input[type=checkbox]') ? e.checked : (e.classList.contains('ui-state-active') || e.getAttribute('aria-checked') === 'true' || e.getAttribute('aria-selected') === 'true');
+    if (!libelle && nature !== 'champ' && nature !== 'case') continue;
+    liste.push({ e, x, y, nature, libelle, coche: !!coche, motDePasse: e.matches('input[type=password]') });
+  }
+  liste.sort((a, b) => (Math.abs(a.y - b.y) > 8 ? a.y - b.y : a.x - b.x));
+  window.__claireElements = liste.slice(0, 400).map((l) => l.e);
+  return liste.slice(0, 400).map((l, i) => ({ n: i + 1, nature: l.nature, libelle: l.motDePasse ? '(mot de passe)' : l.libelle, coche: l.coche, x: l.x, y: l.y }));
+})()`;
+
+/** Le centre ACTUEL de l'élément n de la dernière liste (il a pu bouger) ; null s'il a disparu de la page ou de l'écran. @param {number} n */
+const scriptCentreElement = (n) => `(() => {
+  const e = (window.__claireElements || [])[${Math.max(0, (Number(n) | 0) - 1)}];
+  if (!e || !e.isConnected) return null;
+  const r = e.getBoundingClientRect(); if (r.width < 3 || r.height < 3 || r.bottom < 0 || r.top > innerHeight) return null;
+  return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+})()`;
+
+/** Pure : la liste rendue à Claude (filtrée par des mots du libellé, 150 lignes au plus). @param {any[]} liste @param {string} [filtre] */
+function texteElements(liste, filtre) {
+  const mots = String(filtre || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').split(/\s+/).filter(Boolean);
+  const norme = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const gardes = (Array.isArray(liste) ? liste : []).filter((l) => !mots.length || mots.every((m) => norme(l.libelle).includes(m)));
+  if (!gardes.length) return mots.length ? 'Aucun élément visible ne porte ces mots : relis « elements » sans filtre, ou défile.' : 'Aucun élément cliquable visible.';
+  return gardes.slice(0, 150).map((l) => `${l.n}. [${l.nature}${l.nature === 'case' || l.nature === 'interrupteur' || l.nature === 'option' || l.nature === 'onglet' ? (l.coche ? ', coché' : '') : ''}] ${l.libelle || '(sans libellé)'} — (${l.x}, ${l.y})`).join('\n')
+    + (gardes.length > 150 ? `\n… ${gardes.length - 150} de plus : précise le filtre.` : '');
 }
 
 const SCRIPT_CHAMP_ACTIF = `(() => { const a = document.activeElement; const m = (x) => String((x && x.matches && x.matches('input[type=text], input[type=search], input[type=number], input:not([type]), textarea')) ? 1 : 0);
@@ -152,6 +198,35 @@ async function piloter(o) {
   // Une capture qui échoue (page en navigation) ne casse pas la boucle : le geste est fait, Claude en est prévenu.
   const capture = async () => { try { return { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await o.s.capture() } }; } catch (_) { return { type: 'text', text: '[capture indisponible : la page charge, attends puis regarde de nouveau]' }; } };
   messages.push({ role: 'user', content: [{ type: 'text', text: `Consigne : ${String(o.consigne).slice(0, 1500)}${o.contexte ? `\n${o.contexte}` : ''}\nVoici l'écran actuel d'Authentic.` }, await capture()] });
+  /** Un clic CONTRÔLÉ en (x, y) — le même pour cliquer et cliquer_element : la garde juge ce que la page montre sous le pointeur. Rend ce qui est dit à Claude. */
+  const cliquerControle = async (/** @type {number} */ x, /** @type {number} */ y) => {
+    let dit = '';
+
+    const info = await o.s.evaluer(scriptSousPointeur(x, y));
+    const etat = await lireInterrupteurs(o.s, x, y);
+    const motif = etat.illisible ? 'interrupteurs illisibles' : motifRefusClic(info, etat.envoi, etat.bascule);
+    if (motif) dit = `Clic REFUSÉ par le contrôle de CLAIRE : ${motif}. Choisis un autre geste, ou termine en le disant.`;
+    else {
+      // Le pointeur est posé d'abord, puis la page est relue APRÈS un court délai : une icône qui apparaît au survol (corbeille, avion d'envoi) prend la place
+      // sous le pointeur ; si l'élément a changé, le clic est annulé (relecture 0.397.0).
+      await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+      await attendre(180);
+      const info2 = await o.s.evaluer(scriptSousPointeur(x, y));
+      if (!info2 || info2.bouton !== info.bouton || info2.estBascule !== info.estBascule) dit = 'Clic REFUSÉ par le contrôle de CLAIRE : la page a changé sous le pointeur. Regarde la nouvelle capture.';
+      else {
+        o.etape(`Clique en (${x}, ${y})`);
+        await o.s.cliquerPosition(x, y);
+        dit = 'Clic fait.';
+        // Filet : si « Envoi immédiat » vient de s'ALLUMER (composant mal identifié), il est éteint aussitôt et Claude en est prévenu.
+        const apres = await lireInterrupteurs(o.s, x, y);
+        if (etat.envoi.nombre > 0 && etat.envoi.tousEteints && apres.envoi.nombre > 0 && !apres.envoi.tousEteints) {
+          await o.s.cliquerPosition(x, y);
+          dit = 'Clic fait, mais « Envoi immédiat » s\u2019est allumé : CLAIRE l\u2019a éteint de nouveau. Ne l\u2019allume jamais.';
+        }
+      }
+    }
+    return dit;
+  };
   let jetons = 0;
   let relances = 0;
   for (let pas = 1; pas <= MAX_PAS; pas++) {
@@ -168,7 +243,7 @@ async function piloter(o) {
       if (relances >= 1 || !blocs.length) return { etat: 'partiel', compte: 'Claude n’a plus rien fait : arrêté.', pas, jetons };
       relances++;
       messages.push({ role: 'assistant', content: blocs });
-      messages.push({ role: 'user', content: [{ type: 'text', text: 'Réponds par un outil : un geste (cliquer, ecrire, toucher, defiler, attendre) ou « terminer » avec ton compte rendu.' }] });
+      messages.push({ role: 'user', content: [{ type: 'text', text: 'Réponds par un outil : elements puis cliquer_element, ou un geste (cliquer, ecrire, toucher, defiler, attendre) ou « terminer » avec ton compte rendu.' }] });
       continue;
     }
     relances = 0;
@@ -188,30 +263,13 @@ async function piloter(o) {
           continue;
         }
         if (a.name === 'cliquer') {
-          const x = borner(e.x, LARGEUR), y = borner(e.y, HAUTEUR);
-          const info = await o.s.evaluer(scriptSousPointeur(x, y));
-          const etat = await lireInterrupteurs(o.s, x, y);
-          const motif = etat.illisible ? 'interrupteurs illisibles' : motifRefusClic(info, etat.envoi, etat.bascule);
-          if (motif) dit = `Clic REFUSÉ par le contrôle de CLAIRE : ${motif}. Choisis un autre geste, ou termine en le disant.`;
-          else {
-            // Le pointeur est posé d'abord, puis la page est relue APRÈS un court délai : une icône qui apparaît au survol (corbeille, avion d'envoi) prend la place
-            // sous le pointeur ; si l'élément a changé, le clic est annulé (relecture 0.397.0).
-            await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
-            await attendre(180);
-            const info2 = await o.s.evaluer(scriptSousPointeur(x, y));
-            if (!info2 || info2.bouton !== info.bouton || info2.estBascule !== info.estBascule) dit = 'Clic REFUSÉ par le contrôle de CLAIRE : la page a changé sous le pointeur. Regarde la nouvelle capture.';
-            else {
-              o.etape(`Clique en (${x}, ${y})`);
-              await o.s.cliquerPosition(x, y);
-              dit = 'Clic fait.';
-              // Filet : si « Envoi immédiat » vient de s'ALLUMER (composant mal identifié), il est éteint aussitôt et Claude en est prévenu.
-              const apres = await lireInterrupteurs(o.s, x, y);
-              if (etat.envoi.nombre > 0 && etat.envoi.tousEteints && apres.envoi.nombre > 0 && !apres.envoi.tousEteints) {
-                await o.s.cliquerPosition(x, y);
-                dit = 'Clic fait, mais « Envoi immédiat » s\u2019est allumé : CLAIRE l\u2019a éteint de nouveau. Ne l\u2019allume jamais.';
-              }
-            }
-          }
+          dit = await cliquerControle(borner(e.x, LARGEUR), borner(e.y, HAUTEUR));
+        } else if (a.name === 'elements') {
+          const liste = await o.s.evaluer(SCRIPT_ELEMENTS);
+          dit = texteElements(liste, String(e.filtre || '').slice(0, 80));
+        } else if (a.name === 'cliquer_element') {
+          const c = await o.s.evaluer(scriptCentreElement(e.n));
+          dit = !c ? 'Élément introuvable : la page a changé. Relis « elements ».' : await cliquerControle(borner(c.x, LARGEUR), borner(c.y, HAUTEUR));
         } else if (a.name === 'ecrire') {
           const champ = await o.s.evaluer(SCRIPT_CHAMP_ACTIF);
           if (!champ || !champ.saisie || champ.motDePasse) dit = 'Écriture REFUSÉE : le focus n’est pas dans un champ de saisie de texte (ou c’est un mot de passe). Clique d’abord dans le champ.';
@@ -260,7 +318,7 @@ async function piloter(o) {
           await attendre(Math.max(1, Math.min(10, Math.round(Number(e.secondes) || 1))) * 1000);
           dit = 'Attendu.';
         } else dit = 'Outil inconnu.';
-        if (a.name !== 'attendre' && a.name !== 'consulter_wiki') await o.s.attendreStable(6000).catch(() => {});
+        if (a.name !== 'attendre' && a.name !== 'consulter_wiki' && a.name !== 'elements') await o.s.attendreStable(6000).catch(() => {});
       } catch (err) {
         if (err && err.annule) throw err;
         dit = `Erreur : ${String((err && err.message) || 'geste impossible').slice(0, 200)}`;
@@ -280,4 +338,4 @@ function creerClientClaude(cle) {
   return new Classe({ apiKey: cle, timeout: 120000, maxRetries: 1 });
 }
 
-module.exports = { creerClientClaude, MODELE_PILOTE, MAX_PAS, OUTILS, SYSTEME, borner, motifRefusClic, allegerHistorique, scriptSousPointeur, lireInterrupteurs, piloter, libelleInterdit };
+module.exports = { texteElements, SCRIPT_ELEMENTS, scriptCentreElement, creerClientClaude, MODELE_PILOTE, MAX_PAS, OUTILS, SYSTEME, borner, motifRefusClic, allegerHistorique, scriptSousPointeur, lireInterrupteurs, piloter, libelleInterdit };

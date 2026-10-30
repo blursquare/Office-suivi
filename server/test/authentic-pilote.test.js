@@ -18,6 +18,8 @@ function fauxNavigateur(o = {}) {
     cliquerPosition: async (x, y) => { faits.clics.push([x, y]); },
     cdp: { envoyer: async (m, p) => { if (m === 'Input.insertText') faits.textes.push(p.text); if (m === 'Input.dispatchKeyEvent' && p.type === 'keyDown') faits.touches.push(p.key); } },
     evaluer: async (expr) => {
+      if (/window.__claireElements = /.test(expr)) return o.elements || [];
+      if (/__claireElements \|\| \[\]\)\[/.test(expr)) { const n = Number((/\)\[(\d+)\]/.exec(expr) || [])[1]); const el = (o.elements || [])[n]; return el ? { x: el.x, y: el.y } : null; }
       if (/interactifSel/.test(expr)) {
         const base = o.sous || { vide: false, bouton: 'Naissance', texte: '', motDePasse: false, controle: true, lisible: true, opaque: false, estBascule: false };
         // Un interrupteur sous le pointeur : le relevé de la page dit « c'est un interrupteur » (la liste des interrupteurs dit lequel).
@@ -128,7 +130,7 @@ test('limites : arrêt demandé, pas au-delà du maximum, historique allégé (c
 test('le prompt dit les règles et les outils ne portent ni envoi ni validation propres', () => {
   assert.match(P.SYSTEME, /JAMAIS un bouton qui envoie, signe/);
   assert.match(P.SYSTEME, /Envoi immédiat/);
-  assert.deepEqual(P.OUTILS.map((o) => o.name), ['cliquer', 'ecrire', 'touche', 'defiler', 'attendre', 'consulter_wiki', 'terminer']);
+  assert.deepEqual(P.OUTILS.map((o) => o.name), ['cliquer', 'elements', 'cliquer_element', 'ecrire', 'touche', 'defiler', 'attendre', 'consulter_wiki', 'terminer']);
 });
 
 test('audit 0.397.0 : un contrôle sans libellé, un cadre, un interrupteur non identifié, une page qui change sous le pointeur sont refusés ; Entrée seulement en recherche', async () => {
@@ -161,4 +163,24 @@ test('une réponse sans outil est relancée une fois (tool_choice auto), puis la
   assert.equal(r.etat, 'partiel');
   assert.equal(client.requetes.length, 2, 'un seul rappel');
   assert.match(JSON.stringify(client.requetes[1].messages), /Réponds par un outil/);
+});
+
+test('étude 30/10 : viser un élément par son libellé (elements puis cliquer_element) — même contrôle que le clic, jamais au jugé', async () => {
+  const elements = [{ n: 1, nature: 'liste', libelle: 'Type de demande', coche: false, x: 300, y: 210 }, { n: 2, nature: 'option', libelle: 'Naissance', coche: false, x: 310, y: 240 }, { n: 3, nature: 'bouton', libelle: 'Valider', coche: false, x: 700, y: 650 }];
+  assert.match(P.texteElements(elements, 'naissance'), /^2\. \[option\] Naissance — \(310, 240\)$/);
+  assert.match(P.texteElements(elements, 'mariage'), /Aucun élément visible/);
+  const s = fauxNavigateur({ elements });
+  const client = fauxClient([['elements', { filtre: '' }], ['cliquer_element', { n: 2 }], ['cliquer_element', { n: 9 }], ['terminer', { etat: 'fait', compte_rendu: 'ok' }]]);
+  const r = await P.piloter(base(s, client));
+  assert.equal(r.etat, 'fait');
+  assert.deepEqual(s.faits.clics, [[310, 240]], 'clic au centre relu de l’élément');
+  const textes = JSON.stringify(client.requetes.map((q) => q.messages[q.messages.length - 1]));
+  assert.match(textes, /1\. \[liste\] Type de demande/);
+  assert.match(textes, /Élément introuvable/);
+  // Le clic d'un élément passe par la garde : « Supprimer » visé par numéro reste refusé.
+  const s2 = fauxNavigateur({ elements, sous: { vide: false, bouton: 'Supprimer le dossier', texte: 'Supprimer', motDePasse: false, controle: true, lisible: true, opaque: false, estBascule: false } });
+  const c2 = fauxClient([['cliquer_element', { n: 3 }], ['terminer', { etat: 'impossible', compte_rendu: 'refusé' }]]);
+  await P.piloter(base(s2, c2));
+  assert.deepEqual(s2.faits.clics, []);
+  assert.ok(P.OUTILS.some((o) => o.name === 'cliquer_element') && /PRÉFÉRER/.test(P.SYSTEME));
 });
