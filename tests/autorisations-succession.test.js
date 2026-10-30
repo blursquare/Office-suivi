@@ -6,20 +6,20 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const A = require('../commun/autorisations-succession');
 
-const defunt = { civilite: 'Madame', prenoms: 'Thi Thien', nom: 'NGUYEN', profession: 'retraitée', domicile: 'BLOIS (41000), 4 rue Champagne', naissanceLieu: 'SAIGON (VIETNAM)', naissanceDate: '1925-10-05', nationalite: 'française', decesLieu: 'BRACIEUX (41250)', decesDate: '2026-09-13', conjointLien: 'Veuve de', conjointNom: 'Monsieur Georges BERNE' };
-const fils = { civilite: 'Monsieur', prenoms: 'Philippe', nom: 'NGUYEN', profession: 'retraité', domicile: 'PARIS (75011), 13 boulevard de Belleville', naissanceLieu: 'ORLEANS (45000)', naissanceDate: '1960-07-19', nationalite: 'française', conjointLien: 'Époux de', conjointNom: 'Madame Thi Trang HO', mariage: 'Monsieur Philippe NGUYEN et Madame Thi Trang HO mariés le 04 avril 1991.' };
+const defunt = { civilite: 'Madame', prenoms: 'Rose Anne', nom: 'VALDOR', profession: 'retraitée', domicile: 'BLOIS (41000), 12 rue des Essais', naissanceLieu: 'HANOÏ (VIETNAM)', naissanceDate: '1925-10-05', nationalite: 'française', decesLieu: 'CHAILLES (41120)', decesDate: '2026-09-13', conjointLien: 'Veuve de', conjointNom: 'Monsieur Lucien MAREUIL' };
+const fils = { civilite: 'Monsieur', prenoms: 'Philippe', nom: 'VALDOR', profession: 'retraité', domicile: 'PARIS (75011), 8 rue du Modèle', naissanceLieu: 'ORLEANS (45000)', naissanceDate: '1960-07-19', nationalite: 'française', conjointLien: 'Époux de', conjointNom: 'Madame Lise ABEL', mariage: 'Monsieur Philippe VALDOR et Madame Lise ABEL mariés le 04 avril 1991.' };
 const texte = (doc) => doc.map((x) => x.texte).join('\n');
 
 test('déblocage : texte du modèle, signataire masculin, défunte, pas de ligne de PACS pour un marié', () => {
   const doc = A.documentAutorisationSuccession('deblocage', { signataire: fils, defunt });
   const t = texte(doc);
   assert.match(t, /^LE SOUSSIGNÉ :/);
-  assert.match(t, /Monsieur Philippe NGUYEN, retraité, demeurant à PARIS \(75011\), 13 boulevard de Belleville\./);
-  assert.match(t, /Epoux de Madame Thi Trang HO\./);
+  assert.match(t, /Monsieur Philippe VALDOR, retraité, demeurant à PARIS \(75011\), 8 rue du Modèle\./);
+  assert.match(t, /Epoux de Madame Lise ABEL\./);
   assert.match(t, /Né à ORLEANS \(45000\), le 19 juillet 1960\./);
   assert.match(t, /Habile à se dire et porter héritier de :/);
-  assert.match(t, /Madame Thi Thien NGUYEN, en son vivant retraitée, veuve de Monsieur Georges BERNE demeurant à BLOIS \(41000\), 4 rue Champagne,/);
-  assert.match(t, /Décédée à BRACIEUX \(41250\), le 13 septembre 2026\./);
+  assert.match(t, /Madame Rose Anne VALDOR, en son vivant retraitée, veuve de Monsieur Lucien MAREUIL demeurant à BLOIS \(41000\), 12 rue des Essais,/);
+  assert.match(t, /Décédée à CHAILLES \(41120\), le 13 septembre 2026\./);
   assert.match(t, /- La clôture et le remboursement de l'ensemble des comptes, plans et livrets ouverts au nom du défunt ;/);
   assert.match(t, /DECHARGE ledit organisme financier et Maître Sophie GOSSART de toute responsabilité à la suite de ce remboursement\./);
   assert.doesNotMatch(t, /pacte civil/);
@@ -28,15 +28,15 @@ test('déblocage : texte du modèle, signataire masculin, défunte, pas de ligne
 });
 
 test('héritier : transfert au nom du conjoint survivant ; signataire féminin non pacsée = ligne de PACS ; conjoint : agissant en qualité de conjoint survivant', () => {
-  const fille = { civilite: 'Madame', prenoms: 'Sophie', nom: 'ORANGER', conjointLien: 'Divorcée de', conjointNom: 'Monsieur Denis DUBOIS', naissanceLieu: 'CREIL', naissanceDate: '1968-02-06' };
-  const h = texte(A.documentAutorisationSuccession('heritier', { signataire: fille, defunt, conjointSurvivant: 'Monsieur Maurice Albert ORANGER' }));
+  const fille = { civilite: 'Madame', prenoms: 'Sophie', nom: 'DORVAL', conjointLien: 'Divorcée de', conjointNom: 'Monsieur Marc LEBLOND', naissanceLieu: 'MONTARGIS', naissanceDate: '1968-02-06' };
+  const h = texte(A.documentAutorisationSuccession('heritier', { signataire: fille, defunt, conjointSurvivant: 'Monsieur Paul Henri DORVAL' }));
   assert.match(h, /^LA SOUSSIGNÉE :/);
   assert.match(h, /N'ayant pas conclu, à ce jour, de pacte civil de solidarité régi par les articles 515-1 et suivants du Code civil\./);
-  assert.match(h, /le transfert au nom de Monsieur Maurice Albert ORANGER des comptes, plans et livrets ouverts au nom du défunt\./);
-  const c = texte(A.documentAutorisationSuccession('conjoint', { signataire: { civilite: 'Monsieur', prenoms: 'Maurice Albert', nom: 'ORANGER' }, defunt: Object.assign({}, defunt, { conjointLien: 'Épouse de', conjointNom: 'Monsieur Maurice Albert ORANGER' }) }));
+  assert.match(h, /le transfert au nom de Monsieur Paul Henri DORVAL des comptes, plans et livrets ouverts au nom du défunt\./);
+  const c = texte(A.documentAutorisationSuccession('conjoint', { signataire: { civilite: 'Monsieur', prenoms: 'Paul Henri', nom: 'DORVAL' }, defunt: Object.assign({}, defunt, { conjointLien: 'Épouse de', conjointNom: 'Monsieur Paul Henri DORVAL' }) }));
   assert.match(c, /Agissant en qualité de conjoint survivant de :/);
-  assert.match(c, /Madame Thi Thien NGUYEN, épouse de Monsieur Maurice Albert ORANGER, en son vivant retraitée, demeurant à BLOIS/);
-  assert.match(c, /le transfert au nom de Monsieur Maurice Albert ORANGER des comptes/);
+  assert.match(c, /Madame Rose Anne VALDOR, épouse de Monsieur Paul Henri DORVAL, en son vivant retraitée, demeurant à BLOIS/);
+  assert.match(c, /le transfert au nom de Monsieur Paul Henri DORVAL des comptes/);
   assert.doesNotMatch(c, /pacte civil/);
 });
 
@@ -47,7 +47,7 @@ test('une donnée absente reste « à compléter » et est comptée ; modèle pr
   assert.equal(A.modeleParDefautAutorisation(true, true), 'conjoint');
   assert.equal(A.modeleParDefautAutorisation(false, true), 'heritier');
   assert.equal(A.modeleParDefautAutorisation(false, false), 'deblocage');
-  assert.equal(A.nomFichierAutorisation('deblocage', { nom: 'NGUYEN', prenoms: 'Philippe' }), 'Autorisation de déblocage de fonds - NGUYEN Philippe.pdf');
+  assert.equal(A.nomFichierAutorisation('deblocage', { nom: 'VALDOR', prenoms: 'Philippe' }), 'Autorisation de déblocage de fonds - VALDOR Philippe.pdf');
   assert.equal(A.dateAutorisation('2026-13-01'), '');
 });
 

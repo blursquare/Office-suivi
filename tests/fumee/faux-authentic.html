@@ -233,7 +233,7 @@
     if (type === 'cjn') {
       d.innerHTML = `<div>CJN</div><div>La vérification au CJN ne concerne que les acquéreurs âgés de 18 à 120 ans.</div>
         <table><thead><tr><th><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></th><th>Nom de l'intervenant</th></tr></thead>
-        <tbody><tr><td><div class="ui-chkbox"><div class="ui-chkbox-box ui-state-active"></div></div></td><td>Mme DURAND Claire</td></tr></tbody></table>` + interrupteurs();
+        <tbody>${[['Mme DURAND Claire (41000 BLOIS)', false], ['M. MARTIN Paul (41000 BLOIS)', true]].map(([nom, coche]) => `<tr><td><div class="ui-chkbox"><div class="ui-chkbox-box${coche ? ' ui-state-active' : ''}" onclick="this.classList.toggle('ui-state-active')"></div></div></td><td>${nom}</td></tr>`).join('')}</tbody></table>` + interrupteurs();
     } else {
       const ligne = (nom) => `<tr><td>${nom}</td><td><div class="ui-selectcheckboxmenu" onclick="ouvrir(this)">${(window.__choix[nom] || []).join(', ')}</div></td></tr>`;
       d.innerHTML = `<div>COMEDEC / SCEC</div><table><thead><tr><th>Intervenants</th><th>Type de Demande</th></tr></thead><tbody>
@@ -271,7 +271,7 @@
   }
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.getElementById('panneau') && (document.getElementById('panneau').style.display = 'none'); });
   function valider() {
-    window.__valide = { type: window.__type, rapide: document.getElementById('t:creationRapide_input').checked, envoi: document.getElementById('t:j_idt4242_input').checked, choix: JSON.parse(JSON.stringify(window.__choix)) };
+    window.__valide = { type: window.__type, rapide: document.getElementById('t:creationRapide_input').checked, envoi: document.getElementById('t:j_idt4242_input').checked, choix: JSON.parse(JSON.stringify(window.__choix)), cases: Object.fromEntries([...document.querySelectorAll('#details tbody tr')].filter((r) => r.querySelector('.ui-chkbox-box')).map((r) => [r.cells[1].innerText.trim(), r.querySelector('.ui-chkbox-box').classList.contains('ui-state-active')])) };
   }
   voir('silicium');
 </script>

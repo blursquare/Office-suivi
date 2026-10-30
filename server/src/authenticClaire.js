@@ -96,10 +96,22 @@ function plat(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '
  * @returns {string[]}
  */
 function demandesComedecIntervenant(libelle, parties) {
+  const p = partieDeLaLigne(libelle, parties);
+  if (!p) return [];
+  // Naissance sauf né à l'étranger (Comedec ne la délivre pas : étude 29/10) ; mariage pour UN seul des deux époux (même acte).
+  // Le libellé de la ligne d'Authentic dit lui-même « épouse de / époux de » (les autres — veuve, divorcé(e) — n'ont plus de mariage à demander) : mariée
+  // même quand la fiche de la personne ou la situation du couple ne le disent pas (étude 29/10 : « il ne demande pas le mariage »).
+  const marieParLigne = /\b(?:epoux|epouse)\s+de\b/.test(plat(String(libelle || '').replace(/\(.*$/, '')));
+  // Une demande déjà faite dans Authentic (acte vu sur la page du dossier, état autre que « négatif ») n'est jamais redemandée.
+  return [...(p.naissance === false || p.dejaNaissance || p.pasNaissance ? [] : ['Naissance']), ...((p.marie || marieParLigne) && !p.dejaMariage && !p.pasMariage ? ['Mariage'] : [])];
+}
+
+/** Pure : la partie de la fiche que désigne une ligne d'intervenant d'Authentic (nom ET prénom), sinon null. @param {string} libelle @param {any[]} parties */
+function partieDeLaLigne(libelle, parties) {
   // Le nom de la personne de la ligne : avant « époux de / épouse de / veuve de / divorcé(e) de » et la parenthèse du lieu.
   const tete = plat(String(libelle || '').replace(/\(.*$/, '')).split(/\b(?:epoux|epouse|veuve|veuf|divorcee?)\s+de\b/)[0]
     .replace(/^(m\.|mme|mlle|monsieur|madame)\s+/, '').trim();
-  if (!tete) return [];
+  if (!tete) return null;
   const mots = tete.split(/[\s-]+/).filter((m) => m.length > 1);
   const p = (parties || []).find((x) => {
     const nom = plat(x.nom).split(/[\s-]+/).filter((m) => m.length > 1);
@@ -109,13 +121,37 @@ function demandesComedecIntervenant(libelle, parties) {
     if (nom.length + prenom.length < 2 || !nom.every((m) => mots.includes(m))) return false;
     return !prenom.length || prenom.some((m) => mots.includes(m));
   });
-  if (!p) return [];
-  // Naissance sauf né à l'étranger (Comedec ne la délivre pas : étude 29/10) ; mariage pour UN seul des deux époux (même acte).
-  // Le libellé de la ligne d'Authentic dit lui-même « épouse de / époux de » (les autres — veuve, divorcé(e) — n'ont plus de mariage à demander) : mariée
-  // même quand la fiche de la personne ou la situation du couple ne le disent pas (étude 29/10 : « il ne demande pas le mariage »).
-  const marieParLigne = /\b(?:epoux|epouse)\s+de\b/.test(plat(String(libelle || '').replace(/\(.*$/, '')));
-  // Une demande déjà faite dans Authentic (acte vu sur la page du dossier, état autre que « négatif ») n'est jamais redemandée.
-  return [...(p.naissance === false || p.dejaNaissance || p.pasNaissance ? [] : ['Naissance']), ...((p.marie || marieParLigne) && !p.dejaMariage && !p.pasMariage ? ['Mariage'] : [])];
+  return p || null;
+}
+
+/** Pure : une case d'une ligne d'intervenant du bloc CJN (« Mme NOM Prénom (41000 BLOIS) »), jamais l'en-tête ni une autre case. @param {any} c */
+function estLigneIntervenantCjn(c) {
+  return !!(c && c.ligne && !/nom de l.intervenant/i.test(c.ligne) && /\(\s*\d{5}\b/.test(c.ligne));
+}
+
+/** Pure : les cases du bloc CJN sont-elles justes ? Chaque acquéreur a SA case cochée, aucune autre ne l'est ; sinon une erreur (rien validé). @param {any[]} cases @param {any[]} parties */
+function verifierCasesCjn(cases, parties) {
+  const cochees = cases.filter((c) => c.coche);
+  if (!cochees.length) throw new Error('aucun acquéreur coché dans la demande de casier : rien validé');
+  if (cochees.some((c) => !partieDeLaLigne(c.ligne, parties))) throw new Error('un intervenant coché n’est pas un acquéreur de la fiche : rien validé');
+  const manquants = (parties || []).filter((p) => !cochees.some((c) => partieDeLaLigne(c.ligne, [p])));
+  if (manquants.length) throw new Error(`${manquants.length} acquéreur(s) de la fiche sans case cochée dans la liste d’Authentic : rien validé`);
+  return cochees.length;
+}
+
+/** Coche la case de chaque acquéreur, décoche les autres intervenants, relit après chaque clic ; rend le nombre de cases cochées. */
+async function cocherAcquereursCjn(g, s, parties) {
+  await g.ev(`(() => { const t = [...document.querySelectorAll('th, td, span, div')].find((e) => /^nom de l.intervenant$/i.test(String(e.innerText || '').trim())); if (t) t.scrollIntoView({ block: 'start' }); })()`);
+  await attendre(300);
+  for (let i = 0; i < 12; i++) {
+    const cases = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter(estLigneIntervenantCjn);
+    const a = cases.find((c) => !!partieDeLaLigne(c.ligne, parties) !== !!c.coche);
+    if (!a) return verifierCasesCjn(cases, parties);
+    if (!a.sur) throw new Error('la case d’un intervenant est recouverte : rien validé');
+    await s.cliquerPosition(a.x, a.y);
+    await attendre(400);
+  }
+  throw new Error('les cases des acquéreurs ne se laissent pas cocher : rien validé');
 }
 
 /** Pure : le nom du conjoint écrit après « époux de / épouse de » dans le libellé d'une ligne (''si aucun) — pour ne demander le mariage qu'UNE fois quand
@@ -1614,12 +1650,12 @@ async function preparerFormalite(s, cible, o) {
     }
     if (!choisies) throw new Error('aucune partie du dossier reconnue parmi les intervenants : rien de coché, rien validé');
   } else {
-    // CJN : chaque intervenant coché par Authentic doit être un acquéreur de la fiche (nom et prénom), sinon rien n'est validé.
-    const cases = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter((c) => c.ligne && c.coche && !/nom de l.intervenant/i.test(c.ligne));
-    if (!cases.length) throw new Error('aucun acquéreur coché dans la demande de casier : rien validé');
-    const etranger = cases.find((c) => !demandesComedecIntervenant(c.ligne, o.parties).length);
-    if (etranger) throw new Error('un intervenant coché n’est pas un acquéreur de la fiche : rien validé');
-    choisies = cases.length;
+    // CJN (étude 30/10 : « toujours cocher les cases devant les noms des acquéreurs avant de valider ») : la case de chaque acquéreur de la fiche
+    // (nom et prénom) est COCHÉE par CLAIRE si elle ne l'est pas, celle d'un intervenant qui n'est pas acquéreur décochée ; puis tout est RELU —
+    // un acquéreur non coché ou un autre coché : rien n'est validé. La case d'en-tête « Nom de l'intervenant » (tout cocher) n'est jamais touchée.
+    // Relecture 0.405.1 : seules les lignes d'intervenant (« NOM Prénom (41000 BLOIS) ») sont touchées ; la liste est ramenée à l'écran ; un clic
+    // seulement sur une case dégagée, puis tout est relu (un clic redessine) ; chaque acquéreur de la fiche doit avoir SA case cochée.
+    choisies = await cocherAcquereursCjn(g, s, o.parties);
   }
 
   // Les deux interrupteurs : Création rapide ALLUMÉE, Envoi immédiat ÉTEINT — lus avant, corrigés, RELUS avant « Valider ».
@@ -1638,6 +1674,8 @@ async function preparerFormalite(s, cible, o) {
   i = await lire();
   if (!i.envoi || i.envoi.coche !== false) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
   if (!i.rapide || i.rapide.coche !== true) throw new Error('« Création rapide » n’a pas pu être lue allumée : rien validé');
+  // CJN : les cases relues juste avant « Valider » (le basculement d'un interrupteur peut redessiner le tableau).
+  if (o.type === 'cjn') verifierCasesCjn(((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter(estLigneIntervenantCjn), o.parties);
   o.etape('Création rapide allumée, Envoi immédiat éteint : valide la création');
   if (!(await g.cliquerTexte('Valider', { exact: true, geste: 'ecriture' }))) {
     // Le bloc Comedec valide par un rond vert « ✓ » sans texte (captures du wiki) : son titre ou sa coche, dans le bloc de « Création rapide ».
@@ -1664,7 +1702,7 @@ module.exports = {
   SCRIPT_INTERRUPTEURS,
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
-  demandesComedecIntervenant, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
+  demandesComedecIntervenant, partieDeLaLigne, verifierCasesCjn, estLigneIntervenantCjn, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
   ouvrirDossier, ouvrirSousDossierVente,
   relireFormalitesApresDemande, referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

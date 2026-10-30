@@ -23284,3 +23284,30 @@ Relecture de la 0.405.0 (aucun point Haut). Corrections :
 - Pas de « aucune inscription » sur une lecture incomplète.
 - Note adaptée quand le dossier n'a pas de parcelles.
 - Outil de l'agent : `etat_hypothecaire` `retirer` (carte « Autoriser »).
+
+### 30/10/2026 — 0.405.1 : CJN, cases des acquéreurs cochées ; Comedec, « refaire »
+
+Demandes de l'étude (30/10) :
+- « Pour une demande de casier judiciaire toujours cocher les cases devant les noms des acquéreurs avant de valider. »
+- « Il a fait une erreur et demandé qu'un seul acte de naissance. Il faut donc avoir la possibilité de recommencer. »
+
+Construit :
+- `server/src/authenticClaire.js` :
+  - Nouvelle fonction `partieDeLaLigne`, qui reconnaît la personne d'une ligne (nom ET prénom).
+  - Bloc CJN : la case de chaque acquéreur est cochée, celle de tout autre intervenant décochée. Les cases sont relues avant « Valider ». L'en-tête « Nom de l'intervenant » n'est jamais touché.
+- `client/131-authentic-claire.js` : option `refaire`.
+  - Les marques « déjà demandé » d'Authentic ne retiennent plus rien.
+  - La carte prévient que la nouvelle demande s'ajoute.
+  - Outil `authentic_claire` : `refaire`.
+- `client/142` : « Refaire la demande » quand la fiche répond « déjà demandé ».
+
+Données de test :
+- Le test des autorisations de succession reprenait des noms et une adresse d'un vrai dossier. Ils sont remplacés par des valeurs inventées.
+- L'historique git les garde.
+
+Relecture de la 0.405.1. Corrections :
+- « Refaire » ne remet plus les « déjà demandé » à zéro : sinon l'acte déjà demandé était redemandé, en doublon. Il ne fait que passer le refus « Déjà préparée par CLAIRE » du serveur (`refaire`).
+- La fiche propose aussi « Refaire » sur ce refus. C'est le cas signalé par l'étude.
+- CJN : seules les lignes d'intervenant « … (41000 BLOIS) » sont touchées (`estLigneIntervenantCjn`).
+- CJN : la liste est ramenée à l'écran. Un clic seulement sur une case dégagée, puis la liste est relue après chaque clic (`cocherAcquereursCjn`).
+- CJN : chaque acquéreur de la fiche doit avoir SA case cochée, vérifié aussi juste avant « Valider » (`verifierCasesCjn`).

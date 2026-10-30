@@ -266,3 +266,25 @@ test('routes : Claude pilote Authentic — éteint par défaut, confirmation exi
     assert.deepEqual([off.piloteClaude, off.piloteClaudeLe], [false, '']);
   } finally { s.close(); db.close(); }
 });
+
+test('CJN (étude 30/10) : la case d’un acquéreur se reconnaît par nom ET prénom ; le conjoint du même nom ou un vendeur, jamais', () => {
+  const A = require('../src/authenticClaire');
+  const acq = [{ nom: 'FOURNEL', prenom: 'Hugo' }, { nom: 'TESSIER', prenom: 'Lina' }];
+  assert.ok(A.partieDeLaLigne('M. FOURNEL Hugo (41000 BLOIS)', acq));
+  assert.ok(A.partieDeLaLigne('Mme TESSIER Lina (41000 BLOIS)', acq));
+  assert.equal(A.partieDeLaLigne('Mme FOURNEL Odile (41000 BLOIS)', acq), null);
+  assert.equal(A.partieDeLaLigne('Nom de l’intervenant', acq), null);
+});
+
+test('CJN (relecture 0.405.1) : chaque acquéreur doit avoir SA case cochée ; un autre coché ou un absent → rien validé', () => {
+  const A = require('../src/authenticClaire');
+  const acq = [{ nom: 'FOURNEL', prenom: 'Hugo' }, { nom: 'TESSIER', prenom: 'Lina' }];
+  const l = (ligne, coche) => ({ ligne, coche });
+  assert.equal(A.estLigneIntervenantCjn(l('Nom de l’intervenant', true)), false);
+  assert.equal(A.estLigneIntervenantCjn(l('Création rapide', true)), false);
+  assert.equal(A.estLigneIntervenantCjn(l('M. FOURNEL Hugo (41000 BLOIS)', true)), true);
+  assert.equal(A.verifierCasesCjn([l('M. FOURNEL Hugo (41000 BLOIS)', true), l('Mme TESSIER Lina (41000 BLOIS)', true)], acq), 2);
+  assert.throws(() => A.verifierCasesCjn([l('M. FOURNEL Hugo (41000 BLOIS)', true)], acq), /sans case cochée/);
+  assert.throws(() => A.verifierCasesCjn([l('M. FOURNEL Hugo (41000 BLOIS)', true), l('Mme TESSIER Lina (41000 BLOIS)', true), l('M. AUTRE Paul (41000 BLOIS)', true)], acq), /pas un acquéreur/);
+  assert.throws(() => A.verifierCasesCjn([], acq), /aucun acquéreur/);
+});

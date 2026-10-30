@@ -114,7 +114,16 @@ function demanderActeEtatCivilFiche(dossierId, actes) {
   demanderConfirmation(`Créer dans Authentic la demande d’état civil (Comedec) pour ${quoi} des parties ? Création rapide, Envoi immédiat éteint : rien n’est envoyé, la demande reste à envoyer depuis Authentic.`, async () => {
     const r = await preparerFormaliteAuthentic(d, 'comedec', { agent: false, actes });
     if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Demandes papier » sur la fiche.', 'OK', null);
+    // Déjà demandé, mais la demande précédente est fausse (un seul acte au lieu de tous, étude 30/10) : on peut recommencer.
+    if ((r && r.fait && /d[ée]j[àa] demand[ée]/i.test(String(r.resultat || ''))) || (r && /d[ée]j[àa] pr[ée]par[ée]e par CLAIRE/i.test(String(r.erreur || '')))) refaireActeEtatCivilFiche(d, actes);
   }, { bouton: 'Créer la demande', ton: 'valider' });
+}
+
+function refaireActeEtatCivilFiche(d, actes) {
+  demanderConfirmation('Une demande a déjà été préparée. La refaire (par exemple si la précédente ne portait que sur une partie) ? Seuls les actes qui n’y figurent pas encore sont demandés ; rien n’est envoyé.', async () => {
+    const r = await preparerFormaliteAuthentic(d, 'comedec', { agent: false, actes, refaire: true });
+    if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Demandes papier » sur la fiche.', 'OK', null);
+  }, { bouton: 'Refaire la demande', ton: 'valider' });
 }
 
 // Lire l'état hypothécaire depuis la fiche : le clic vaut autorisation (pas de carte).
