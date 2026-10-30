@@ -417,9 +417,10 @@ const OUTILS_AGENT = [
   },
   {
     name: 'decompte_vendeur',
-    description: 'Décompte vendeur d’une vente, sur le modèle de l’étude : ouvre l’outil « Décompte vendeur » sur le poste et rend ses lignes (libellé, débit ou crédit, montant, d’où vient le montant), les totaux et le solde — prix de vente et prorata de taxes foncières (avis du NAS) au crédit ; commission d’agence à la charge du vendeur, remboursement anticipé du prêt LU dans le décompte de la banque trouvé sur le NAS et provision de mainlevée de 450 € au débit. Un montant non lu est « à saisir » (a_completer) : le dire, jamais l’inventer. email = true : prépare l’email au vendeur avec le PDF (carte « Autoriser », puis la fenêtre d’email — rien ne part sans « Envoyer »). relire = true : reprend la fiche et relit le NAS (les corrections à la main sont perdues).',
-    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'email', 'relire'],
+    description: 'Décompte vendeur d’une vente, sur le modèle de l’étude : ouvre l’outil « Décompte vendeur » sur le poste et rend ses lignes (libellé, débit ou crédit, montant, d’où vient le montant), les totaux et le solde — prix de vente et prorata de taxes foncières (avis du NAS) au crédit ; commission d’agence à la charge du vendeur, remboursement anticipé du prêt LU dans le décompte de la banque trouvé sur le NAS et provision de mainlevée de 450 € au débit. Un montant non lu est « à saisir » (a_completer) : le dire, jamais l’inventer. Jamais quand un confrère représente le vendeur (l’outil le refuse). ranger = true : le PDF dans le dossier du NAS (carte « Autoriser »). email = true : prépare l’email au vendeur avec le PDF (carte « Autoriser », puis la fenêtre d’email — rien ne part sans « Envoyer »). relire = true : reprend la fiche et relit le NAS (les corrections à la main sont perdues).',
+    input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'email', 'relire', 'ranger'],
       properties: { dossier_id: chaine('id du dossier de vente'), email: { type: 'boolean', description: 'true = préparer l’email au vendeur (carte « Autoriser »)' },
+        ranger: { type: 'boolean', description: 'true = ranger le PDF dans le dossier client du NAS (carte « Autoriser »)' },
         relire: { type: 'boolean', description: 'true = reprendre la fiche et relire le NAS' } } }
   },
   {

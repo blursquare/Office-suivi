@@ -75,6 +75,13 @@ test('après la signature : questionnaire, jamais au confrère', () => {
   assert.strictEqual(types(confrere), 'questionnaireVendeur');
 });
 
+test('signé aujourd’hui (Authentic ou case cochée) : questionnaire proposé le jour même ; rendez-vous du jour seulement : pas encore (étude 30/10)', () => {
+  const base = { rendezVousSignature: AUJ, sansPret: true, echeancesValidees: { appelFonds: true, projetEnvoye: true } };
+  assert.match(types(app.actionsDuJour([dossier(Object.assign({}, base, { authentic: { acte: { etat: 'signe', date: AUJ } } }))], AUJ)), /questionnaire/);
+  assert.match(types(app.actionsDuJour([dossier(Object.assign({}, base, { echeancesValidees: { appelFonds: true, projetEnvoye: true, rendezVousSignature: true } }))], AUJ)), /questionnaire/);
+  assert.doesNotMatch(types(app.actionsDuJour([dossier(base)], AUJ)), /questionnaire/);
+});
+
 test('les autres points ouvrent la fiche ; un dossier archivé ne produit rien', () => {
   // Vente préalable qui approche : un brouillon de relance en un clic (client ou confrère)…
   const r = app.actionsDuJour([dossier({ sansPret: true, ventebien: '2026-09-30' })], AUJ);

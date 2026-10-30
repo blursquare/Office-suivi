@@ -1117,7 +1117,7 @@ test('0.402.0 : rien de nominatif ne part des résultats de chercher_mails, lire
 test('30/10 : decompte_vendeur — un nom tapé dans un libellé ne part jamais en clair ; montants et dates partent', async () => {
   assert.ok(OUTILS_AGENT.some((t) => t.name === 'decompte_vendeur'));
   const client = fauxClient([
-    { stop_reason: 'tool_use', usage, content: [outil('v1', 'decompte_vendeur', { dossier_id: 'd1', email: false, relire: false })] },
+    { stop_reason: 'tool_use', usage, content: [outil('v1', 'decompte_vendeur', { dossier_id: 'd1', email: false, relire: false, ranger: false })] },
     { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
   ]);
   const opts = { cle: 'k', client };

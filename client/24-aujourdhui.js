@@ -349,7 +349,10 @@
         if (succession) break;
         const dateSig = dateSignatureDossier(d, aujourdhuiIso);
         const jSig = dateSig ? ecartJours(aujourdhuiIso, dateSig) : null;
-        if (jSig === null || jSig >= 0 || jSig < -JOURS_QUESTIONNAIRE || q.fait || q.exclu) continue;
+        // Dès le jour même quand l'acte est VRAIMENT signé (signé dans Authentic ou coché — étude 30/10 : « la vente est signée, les copies
+        // d'acte sont envoyées mais je n'ai pas la proposition du questionnaire ») ; un rendez-vous du jour seulement, dès le lendemain.
+        const signeAujourdhui = jSig === 0 && signatureFaiteSuivi(d);
+        if (jSig === null || (jSig >= 0 && !signeAujourdhui) || jSig < -JOURS_QUESTIONNAIRE || q.fait || q.exclu) continue;
         const signe = `Acte signé le ${formatDateFr(dateSig)}.`;
         const archivage = texteArchivageQuestionnaire(d, q.partie).replace(/^l/, 'L');
         ajouter(Object.assign({
