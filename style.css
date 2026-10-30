@@ -7147,7 +7147,12 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 /* Onglet Fonds d'une vente (30/10) : l'arrivée des fonds large, « Demandes à faire » plus étroite ; comptabilité et offre de prêt dessous, à parts égales. */
 .fonds-haut.fonds-colonnes-2 { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .fonds-bas.fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.fonds-colonne { min-width: 0; }
+.fonds-colonne { min-width: 0; display: flex; flex-direction: column; }
+/* Cartes d'une même rangée de même hauteur, textes jamais coupés dans l'onglet Fonds (retour de l'étude, 30/10). */
+.fonds-colonnes { align-items: stretch; }
+.fonds-colonne > * { flex: 1 1 auto; }
+.fiche-panneau .fonds-colonne .ja-titre, .fiche-panneau .echanges-groupe .ja-titre { white-space: normal; overflow: visible; text-overflow: clip; }
+.fiche-panneau .fonds-colonne .ja-sous { -webkit-line-clamp: unset; line-clamp: unset; }
 .fiche-panneau .fonds-colonne > .echanges-groupe { margin: 0; }
 .fonds-compta-carte .at-compta-table { margin-top: 4px; }
 .fonds-colonne .fonds-offre-lignes li { grid-template-columns: 120px minmax(0, 1fr); }
@@ -11620,3 +11625,13 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .piece-outil { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 2px 6px; border: 0; border-radius: var(--rayon-s); background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-xs); font-weight: 500; white-space: nowrap; cursor: pointer; }
 .piece-outil:hover, .piece-outil:focus-visible { background: var(--paper-sunk); }
 .piece-outil .icone { width: 14px; height: 14px; }
+
+.tf-pieces-plus { align-self: flex-start; margin-top: 4px; padding: 2px 0; border: 0; background: transparent; color: var(--focus); font: inherit; font-size: var(--texte-s); font-weight: 500; cursor: pointer; }
+/* Fiche : aucune valeur coupée (retour de l'étude, 30/10) — le texte passe à la ligne, le bouton voisin dessous s'il le faut. */
+.fiche-panneau .prop-texte { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+.fiche-panneau .fiche-proprietes dd { flex-wrap: wrap; row-gap: 4px; }
+/* Colonne de droite de l'onglet Dossier (30/10) : moins haute — les outils en pastilles qui s'enroulent, la carte Authentic et les titres sur toute la largeur. */
+.fiche-outils-droite { flex-direction: row; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
+.fiche-outils-droite > .pa-carte, .fiche-outils-droite > .section-eyebrow, .fiche-outils-droite > div, .fiche-outils-droite > p { flex: 1 1 100%; }
+.fiche-outils-droite wa-button.action-rapide { width: auto; --wa-form-control-height: 32px; }
+.fiche-outils-droite wa-button.action-rapide::part(label) { white-space: nowrap; overflow: visible; }

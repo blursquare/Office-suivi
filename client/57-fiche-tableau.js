@@ -401,7 +401,9 @@ function elementsColonneFiche(liste) {
 /** Une carte pour plusieurs pièces à réunir : une ligne par pièce (case ronde, nom qui mène à l'onglet Pièces), l'état commun en tête. */
 function renderGroupePiecesFiche(cartes, changees) {
   const etats = [...new Set(cartes.map(c => c.sous).filter(Boolean))];
-  const lignes = cartes.map(c => {
+  // Pas trop de hauteur (étude 30/10) : six pièces au plus, le reste dans l'onglet Pièces (« + N autres »).
+  const MAX = 6;
+  const lignes = cartes.slice(0, MAX).map(c => {
     const rond = c.coche
       ? `<button type="button" class="tf-rond" onclick="${c.coche.onclick}" aria-label="${escapeAttr(c.coche.libelle + ' : ' + c.titre)}" title="${escapeAttr(c.coche.libelle)}">${icone('check')}</button>`
       : `<span class="tf-rond tf-rond-auto" aria-hidden="true">${icone('clock')}</span>`;
@@ -416,6 +418,7 @@ function renderGroupePiecesFiche(cartes, changees) {
     <span class="dot-label dl-piece tf-categorie"><span class="dot"></span>${nb} pièces à réunir</span>
     ${etats.length === 1 ? `<span class="tf-sous tf-pieces-etat">${escapeHtml(etats[0])}</span>` : ''}
     <ul class="tf-pieces">${lignes}</ul>
+    ${nb > MAX ? `<button type="button" class="tf-lien tf-pieces-plus" onclick="definirOngletFiche('pieces')">+ ${nb - MAX} autre${nb - MAX > 1 ? 's' : ''} dans Pièces et analyse</button>` : ''}
   </article>`;
 }
 
@@ -489,7 +492,7 @@ function renderBandeauFiche(d, actions) {
 function renderSuiviEtapesFiche(etapes, prochaineEtape, avancement, d) {
   if (!etapes.length) return '';
   const detail = [`${avancement.etapesFaites}/${avancement.etapesTotal} étapes`];
-  if (avancement.piecesTotal) detail.push(`${avancement.piecesRecues}/${avancement.piecesTotal} pièces`);
+  // Le nombre de pièces n'est plus répété ici : le bandeau « Pièces » le dit déjà (doublon relevé le 30/10).
   return `<section class="fb-etapes" aria-label="Suivi des étapes">
     <div class="fb-etapes-tete"><span class="section-eyebrow">Avancement</span><span class="fb-petit">${escapeHtml(detail.join(' · '))}</span><strong class="fb-pct-etapes">${avancement.pct} %</strong>${d ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone fb-etape-ajout" onclick="afficherFormAjoutEcheance()" title="Ajouter une date au déroulé du dossier" aria-label="Ajouter une date au déroulé du dossier">${icone('plus')}</wa-button>` : ''}</div>
     ${d && typeof ajoutEcheanceEstOuvert === 'function' && ajoutEcheanceEstOuvert() ? renderAjoutEcheance(d) : ''}

@@ -1454,6 +1454,7 @@
       : ordonnees.filter((p, i) => i < MAX_PIECES_VISIBLES || pieces[p.cle] !== 'recue' || notifs.includes(p.cle));
     const cachees = ordonnees.length - visibles.length;
 
+    const outilsVus = new Set();
     const ligne = (p) => {
       const statut = pieces[p.cle] || 'inconnu';
       const s = libellePiece(statut);
@@ -1493,8 +1494,11 @@
         ? `<button type="button" class="piece-action" onclick="reinitialiserStatutPieceStandard('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')" title="Réinitialiser (mauvaise correspondance ou fichier renommé)" aria-label="Réinitialiser le statut de cette pièce">${icone('rotate-ccw')}</button>`
         : '';
       const suppr = `<button type="button" class="piece-action piece-action-suppr" onclick="${p.personnalisee ? `supprimerPiecePersonnalisee('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}')` : `retirerPieceStandard('${escapeOnclickArg(d.id)}', '${escapeOnclickArg(p.cle)}', '${arg}')`}" title="Retirer cette pièce de la checklist de ce dossier" aria-label="Retirer cette pièce">${icone('x')}</button>`;
+      // Un seul accès par catégorie (étude 30/10) : l'outil n'est montré qu'au bout de la première pièce qu'il sert.
       const o = typeof outilPieceFiche === 'function' ? outilPieceFiche(d, p) : null;
-      const outil = o ? `<button type="button" class="piece-outil" onclick="${o.onclick}" title="${escapeAttr(o.titre)}">${icone(o.icone)}<span>${escapeHtml(o.libelle)}</span></button>` : '';
+      const premier = o && !outilsVus.has(o.libelle);
+      if (premier) outilsVus.add(o.libelle);
+      const outil = premier ? `<button type="button" class="piece-outil" onclick="${o.onclick}" title="${escapeAttr(o.titre)}">${icone(o.icone)}<span>${escapeHtml(o.libelle)}</span></button>` : '';
       return `<li class="piece-ligne ${s.cls}${valideeMain ? ' validee-main' : ''}">${caseHtml}<span class="piece-libelle">${nom}${tags}</span><span class="piece-actions">${reinit}${suppr}</span>${outil}</li>`;
     };
 
