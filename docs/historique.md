@@ -23339,3 +23339,14 @@ Cause probable (non établie) : les réponses de Claude, blocs de réflexion sig
 reconnu leur signature. Effet de bord accepté : sans sa réflexion renvoyée, Claude peut moins réfléchir entre deux gestes. Correctif : `blocsPourHistorique` (server/src/authenticPilote.js) retire les blocs
 `thinking` / `redacted_thinking` des messages de Claude remis dans l'historique (jamais un message vide) ; test dans server/test/authentic-pilote.test.js.
 Non vérifié avec un vrai Claude.
+
+### 30/10/2026 — 0.407.2 : onglet Fonds en trois colonnes, aussi pour les successions
+
+L'étude (30/10) : « fiche dossier vente et succession met sur trois colonnes : 1 - carte comptabilité lu sur Authentic avec un bouton pour lire ou
+relire, 2 - carte offre de prêt s'il y en a une, 3 - les demandes à faire » ; réponses : onglet Fonds, « demandes à faire » = les gestes des fonds.
+`renderFondsDossier` (client/29) : `.fonds-colonnes` (3 colonnes, 2 sans offre, une sous 1 100 px ou en fiche à côté) — `renderComptabiliteFonds`
+(client/140 : soldes, taxes, six dernières opérations, « Lire la comptabilité » / « Relire » par `lireComptabiliteAT` ; sans référence d'Authentic,
+dit et sans bouton), `renderRappelOffrePretFonds`, « Demandes à faire » (ex-« Fonds du dossier ») ; provision, courriers d'appel de fonds et « Hors
+de ce stade » dessous. La comparaison au solde à verser reste dans « Fonds reçus », sans son bouton (celui de la carte suffit). Succession : l'onglet
+Fonds existe désormais (comptabilité, RIB des héritiers `renderLignesSignatureRib`, « Autorisations de fonds » sauf notoriété seule) ; plus
+de renvoi de l'onglet Fonds vers le Tableau pour une succession.

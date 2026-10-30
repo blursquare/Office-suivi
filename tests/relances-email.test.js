@@ -752,3 +752,27 @@ test('copie de l’acte du confrère (étude 22/10) : demandée 48 h après la s
   assert.equal(b.a, 'dupuis@notaires.fr');
   assert.equal(String(b.corps).replace(/[’']/g, "'"), ['Mon Cher Maître,', 'Pouvez-vous nous envoyer la copie du titre de propriété s\'il vous plait ?', 'Dans l\'attente et vous en remerciant par avance,', 'Votre bien dévoué.'].join('\n\n'));
 });
+
+test('onglet Fonds en colonnes (étude 30/10) : comptabilité d’Authentic, offre de prêt s’il y en a une, demandes à faire ; succession sans offre', () => {
+  const app = chargerApplication();
+  const avecPret = app.renderFondsDossier(dossierBase(app, { referenceAuthentic: 'A 2026 00001', offrePretStatut: '', sansPret: false, datePret: '2099-12-01' }));
+  assert.match(avecPret, /fonds-colonnes-3/);
+  const ordre = ['Comptabilité', 'Offre de prêt', 'Demandes à faire'].map(t => avecPret.indexOf(`pieces-titre-texte">${t}<`));
+  assert.ok(ordre.every((x, i) => x > 0 && (i === 0 || x > ordre[i - 1])), 'comptabilité, offre, demandes dans cet ordre');
+  assert.match(avecPret, /lireComptabiliteAT\('d1'\)[^>]*>[\s\S]*?Lire la comptabilité/);
+  const lue = app.renderFondsDossier(dossierBase(app, { referenceAuthentic: 'A 2026 00001', sansPret: true, authentic: { comptabilite: { luLe: '2026-10-30T10:00', soldeAffaire: 1250.5, soldeCompte: 1250.5, operations: [] } } }));
+  assert.match(lue, /fonds-colonnes-2/);
+  assert.match(lue, /Relire/);
+  assert.match(lue, /Solde de l’affaire/);
+  const sansRef = app.renderFondsDossier(dossierBase(app, { sansPret: true }));
+  assert.match(sansRef, /Référence d’Authentic inconnue/);
+  assert.doesNotMatch(sansRef, /lireComptabiliteAT/);
+  const succ = app.renderFondsDossier(dossierBase(app, { typeAffaire: 'succession', referenceAuthentic: 'A 2026 00002' }));
+  assert.match(succ, /fonds-colonnes-2/);
+  assert.doesNotMatch(succ, /Offre de prêt|Provision/);
+  assert.match(succ, /Demander le RIB/);
+  const classique = app.renderFondsDossier(dossierBase(app, { typeAffaire: 'succession', succession: { type: 'classique' } }));
+  assert.match(classique, /ouvrirAutorisationsDepuisFiche\('d1'\)/);
+  const noto = app.renderFondsDossier(dossierBase(app, { typeAffaire: 'succession', succession: { type: 'notoriete' } }));
+  assert.doesNotMatch(noto, /Autorisations de fonds/, 'notoriété seule : aucune autorisation de fonds');
+});

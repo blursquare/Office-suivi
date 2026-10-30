@@ -648,19 +648,41 @@
       </div>`;
   }
 
+  // Trois colonnes (étude 30/10 : « 1 - carte comptabilité lue sur Authentic avec un bouton pour lire ou relire, 2 - carte offre de prêt s'il y en a
+  // une, 3 - les demandes à faire ») ; l'offre absente, deux colonnes. Succession (même jour) : comptabilité et demandes (RIB des héritiers,
+  // autorisations de fonds), jamais d'offre ni de provision. Provision, courriers d'appel de fonds et « Hors de ce stade » restent dessous.
   function renderFondsDossier(d) {
-    const { stade, utiles, autres } = lignesEchangesOnglet(d, true);
-    const hint = texteDestinataireEchanges(d);
-    return `<div class="echanges-groupe">
+    const succession = estSuccession(d);
+    let demandes;
+    let autres = [];
+    if (succession) {
+      const rib = partiesSignatureRib(d).length ? renderLignesSignatureRib(d) : '';
+      const aut = autorisationsFondsSuccession(d) && !d.archive
+        ? `<div class="fonds-offre-actions"><wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="ouvrirAutorisationsDepuisFiche('${escapeOnclickArg(d.id)}')">${icone('file-text')} Autorisations de fonds</wa-button></div>` : '';
+      demandes = `<div class="echanges-groupe">
         <div class="echanges-tete">
-          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Fonds du dossier</span></span>
-          <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[stade])}</span>
+          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Demandes à faire</span></span>
+        </div>
+        ${rib ? `<ul class="ja-liste">${rib}</ul>` : (aut ? '' : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>')}
+        ${aut}
+      </div>`;
+    } else {
+      const l = lignesEchangesOnglet(d, true);
+      autres = l.autres;
+      const hint = texteDestinataireEchanges(d);
+      demandes = `<div class="echanges-groupe">
+        <div class="echanges-tete">
+          <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Demandes à faire</span></span>
+          <span class="echanges-stade" title="Stade du dossier, lu dans ses dates">${escapeHtml(STADES_DOSSIER[l.stade])}</span>
         </div>
         ${hint ? `<p class="hint echanges-destinataire">${hint}</p>` : ''}
-        ${utiles.length ? `<ul class="ja-liste">${utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
-      </div>
-      ${renderRappelOffrePretFonds(d)}
-      ${renderProvisionFondsFiche(d)}
+        ${l.utiles.length ? `<ul class="ja-liste">${l.utiles.join('')}</ul>` : '<p class="fiche-vide">Rien à faire sur les fonds à ce stade.</p>'}
+      </div>`;
+    }
+    const offre = succession ? '' : renderRappelOffrePretFonds(d);
+    const colonnes = [renderComptabiliteFonds(d), offre, demandes].filter(Boolean);
+    return `<div class="fonds-colonnes fonds-colonnes-${colonnes.length}">${colonnes.map(c => `<div class="fonds-colonne">${c}</div>`).join('')}</div>
+      ${succession ? '' : renderProvisionFondsFiche(d)}
       ${renderAppelsFondsDossier(d)}
       ${renderAutresEchanges(autres)}`;
   }

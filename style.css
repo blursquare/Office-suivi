@@ -7137,6 +7137,19 @@ wa-button.ech-ico.ech-ico-suppr:hover { color: var(--urgent); }
 .fonds-offre-delai.depasse { color: var(--urgent); font-weight: 600; }
 .fonds-offre-muet { color: var(--muted); }
 .fonds-offre-actions { display: flex; gap: 12px; }
+/* Onglet Fonds en colonnes (étude 30/10) : comptabilité d'Authentic, offre de prêt, demandes à faire ; une colonne sur écran étroit ou en fiche à côté. */
+.fonds-colonnes { display: grid; gap: 16px; margin-bottom: 16px; align-items: start; }
+.fonds-colonnes-3 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr); }
+/* Sous 1 440 px (barre latérale comprise), les lignes d'action des demandes n'ont plus la place : comptabilité et offre côte à côte, demandes dessous. */
+@media (max-width: 1440px) { .fonds-colonnes-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .fonds-colonnes-3 > .fonds-colonne:nth-child(3) { grid-column: 1 / -1; } }
+.fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.fonds-colonnes-1 { grid-template-columns: minmax(0, 1fr); }
+.fonds-colonne { min-width: 0; }
+.fiche-panneau .fonds-colonne > .echanges-groupe { margin: 0; }
+.fonds-compta-carte .at-compta-table { margin-top: 4px; }
+.fonds-colonne .fonds-offre-lignes li { grid-template-columns: 120px minmax(0, 1fr); }
+@media (max-width: 1100px) { .fonds-colonnes-3, .fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); } }
+body.fiche-a-cote .fonds-colonnes-3, body.fiche-a-cote .fonds-colonnes-2 { grid-template-columns: minmax(0, 1fr); }
 .fonds-offre-a-faire { color: var(--pret); font-weight: 600; }
 .fiche-entete-hypotheque, .fiche-entete-alertes { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .hint.echanges-destinataire { margin: 0; }

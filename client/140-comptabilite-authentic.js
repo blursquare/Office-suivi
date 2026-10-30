@@ -36,6 +36,37 @@ function htmlComptabiliteAT(d) {
     <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.tronque ? ' · liste des opérations incomplète' : ''}</p></div>`;
 }
 
+// Carte « Comptabilité » de l'onglet Fonds (étude 30/10 : « carte comptabilité lue sur Authentic avec un bouton pour lire ou relire ») — vente
+// et succession ; mêmes montants que le panneau « Authentic », même lecture (`lireComptabiliteAT`).
+function renderComptabiliteFonds(d) {
+  if (!d) return '';
+  const c = (d.authentic || {}).comptabilite;
+  const avecReference = !!String(d.referenceAuthentic || '').trim();
+  const enCours = lecturesComptabiliteEnCours.has(d.id);
+  const bouton = avecReference && !d.archive
+    ? `<wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="lireComptabiliteAT('${escapeOnclickArg(d.id)}')"${enCours ? ' loading disabled' : ''}>${icone(c ? 'rotate-ccw' : 'banknote')} ${c ? 'Relire' : 'Lire la comptabilité'}</wa-button>` : '';
+  let corps;
+  if (!avecReference) corps = '<p class="fiche-vide">Référence d’Authentic inconnue : CLAIRE ne sait pas quel dossier ouvrir.</p>';
+  else if (!c || !c.luLe) corps = '<p class="fiche-vide">Pas encore lue.</p>';
+  else {
+    const lignes = (c.operations || []).slice(0, 6).map(o => `<tr><td>${escapeHtml(formatDateFr(o.date))}</td><td>${escapeHtml(o.libelle)}</td><td class="at-compta-n">${o.debit ? escapeHtml(montantComptaAT(o.debit)) : ''}</td><td class="at-compta-n">${o.credit ? escapeHtml(montantComptaAT(o.credit)) : ''}</td></tr>`).join('');
+    corps = `<ul class="fonds-offre-lignes">
+        <li><span class="fonds-offre-cle">Solde de l’affaire</span><span>${escapeHtml(montantComptaAT(c.soldeAffaire))}</span></li>
+        <li><span class="fonds-offre-cle">Solde du compte</span><span>${escapeHtml(montantComptaAT(c.soldeCompte))}</span></li>
+        ${(c.taxes || []).map(x => `<li><span class="fonds-offre-cle">${escapeHtml(x.libelle || 'Taxe')}</span><span>${escapeHtml(montantComptaAT(x.montant))}</span></li>`).join('')}
+      </ul>
+      ${lignes ? `<table class="at-compta-table"><thead><tr><th>Date</th><th>Opération</th><th>Débit</th><th>Crédit</th></tr></thead><tbody>${lignes}</tbody></table>` : '<p class="at-compta-lu">Aucune opération récente.</p>'}
+      <p class="at-compta-lu">Lu le ${escapeHtml(formatDateFr(String(c.luLe).slice(0, 10)))}${c.tronque ? ' · liste des opérations incomplète' : ''}${(c.nombreComptes || 1) > 1 ? ' · plusieurs comptes : seul le premier solde est lu' : ''}</p>`;
+  }
+  return `<div class="echanges-groupe fonds-compta-carte">
+      <div class="echanges-tete">
+        <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Comptabilité</span>${infoBulle('Lue dans l’onglet « Comptabilité » d’Authentic par le navigateur du serveur (lecture seule).')}</span>
+      </div>
+      ${corps}
+      ${bouton ? `<div class="fonds-offre-actions">${bouton}</div>` : ''}
+    </div>`;
+}
+
 // Lit la comptabilité dans Authentic (tâche du navigateur du serveur) ; la fiche est relue ensuite. Rend { ok, texte }.
 async function lireComptabiliteAT(id) {
   if (lecturesComptabiliteEnCours.has(id)) return { ok: false, texte: 'lecture déjà en cours' };
@@ -82,10 +113,9 @@ function comparaisonFondsComptaAT(d) {
 function htmlFondsComptaAT(d) {
   if (!d || estSuccession(d) || !String(d.referenceAuthentic || '').trim()) return '';
   const k = comparaisonFondsComptaAT(d);
-  const enCours = lecturesComptabiliteEnCours.has(d.id);
-  const bouton = `<wa-button appearance="outlined" size="s" type="button" onclick="lireComptabiliteAT('${escapeOnclickArg(d.id)}')"${enCours ? ' loading disabled' : ''}>${icone('banknote')}${k ? 'Relire' : 'Lire la comptabilité'}</wa-button>`;
+  // Lire / relire : bouton de la carte « Comptabilité » de l'onglet Fonds (étude 30/10), plus ici.
+  if (!k) return '';
   const aide = infoBulle('Solde de l’affaire dans Authentic (lecture seule) comparé au « Solde à verser » du courrier d’appel de fonds, à 2 € près. Il peut comprendre un acompte, le dépôt de garantie ou des provisions : vérifiez l’écriture dans Authentic avant de valider les fonds.');
-  if (!k) return `<div class="fonds-compta"><span>Comptabilité d’Authentic ${aide}</span>${bouton}</div>`;
   const m = montantComptaAT;
   const textes = {
     egal: ['dl-neutre', `solde de l’affaire ${m(k.solde)}, égal au solde à verser (à 2 € près) — à vérifier avant de valider les fonds`],
@@ -98,7 +128,7 @@ function htmlFondsComptaAT(d) {
   const [cls, texte] = textes[k.etat];
   const notes = [k.plusieursComptes ? 'plusieurs comptes : seul le premier solde est lu' : '', k.chezConfrere ? 'participation : les fonds peuvent être encaissés par le confrère' : ''].filter(Boolean).join(' · ');
   return `<div class="fonds-compta"><span class="dot-label ${cls}"><span class="dot"></span>Authentic : ${escapeHtml(texte)}</span>
-    <span class="fonds-compta-source">lu le ${escapeHtml(formatDateFr(String(k.luLe).slice(0, 10)))}${notes ? ' · ' + escapeHtml(notes) : ''} ${aide}</span>${bouton}</div>`;
+    <span class="fonds-compta-source">lu le ${escapeHtml(formatDateFr(String(k.luLe).slice(0, 10)))}${notes ? ' · ' + escapeHtml(notes) : ''} ${aide}</span></div>`;
 }
 
 // « Demander à CLAIRE » (outil `authentic_comptabilite`) : la lecture gardée ; relire = une session dans Authentic, après « Autoriser ».
