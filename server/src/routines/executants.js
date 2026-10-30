@@ -232,7 +232,7 @@ function appelDeFonds(dossiers, aujourdhui, ctx) {
   return sortie;
 }
 
-// ---- R5 — Autorisations de fonds avant une notoriété ----
+// ---- R5 — Autorisations de déblocage/transfert avant une notoriété ----
 
 /** 48 h avant le rendez-vous d'un acte de notoriété : les autorisations de déblocage ou de transfert, d'après les fiches d'Authentic. @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx] */
 function autorisationsNotoriete(dossiers, aujourdhui, ctx) {
@@ -249,7 +249,7 @@ function autorisationsNotoriete(dossiers, aujourdhui, ctx) {
       if (!(avant >= 0 && avant <= JOURS_AUTORISATIONS_NOTORIETE)) continue;
       sortie.push(proposition(base('autorisations-notoriete', d, ctx, 'pdf'), {
         type: 'document', action: 'outil', empreinte: `autorisations:${d.id}:${r.date}`,
-        titre: `Autorisations de fonds — ${libelleDossierAffiche(d)}`,
+        titre: `Autorisations de déblocage/transfert — ${libelleDossierAffiche(d)}`,
         resume: `Notoriété le ${dateFr(r.date)} : les autorisations de déblocage ou de transfert des comptes sont prêtes à relire.`,
         details: { outil: 'autorisations' }
       }));

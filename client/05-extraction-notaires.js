@@ -712,6 +712,8 @@
   // personnelle du client dans ce cas), sinon l'email de l'acquéreur lui-même.
   // À défaut d'adresse saisie sur le dossier, celle de l'office du confrère dans le carnet.
   function emailDestinataireRelance(d) {
+    // Succession : les héritiers (confirmation de réception des fonds, étude 30/10).
+    if (d && estSuccession(d)) return typeof emailsHeritiersSuccession === 'function' ? emailsHeritiersSuccession(d) : '';
     if (notaireParticipantRepresenteAcquereur(d)) return d.emailNotaireParticipant || emailOfficeConfrereAcquereur(d);
     return d.emailAcquereur || '';
   }

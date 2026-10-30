@@ -1505,7 +1505,16 @@
   // dossier (parcours du NAS, validation manuelle d'une pièce, pièce personnalisée cochée).
   function doitNotifierDossierComplet(d) {
     if (!d || d.archive || d.roleNotaire === 'participant') return false;
+    if (redactionLanceeOuSigne(d)) return false;
     return dossierEntierementComplet(d) && !d.completNotifieLe;
+  }
+
+  // « Vous pouvez lancer la rédaction » n'a plus de sens (étude 30/10 : message reçu pour un dossier qui venait d'être signé, alors qu'il
+  // avait déjà été envoyé à temps) : rédaction « En cours » ou acte signé dans Authentic, rédaction cochée, signature faite ou passée.
+  function redactionLanceeOuSigne(d) {
+    if (!d) return false;
+    if (signatureFaiteSuivi(d) || dateSignatureDossier(d)) return true;
+    return !estSuccession(d) && (['redaction', 'signe'].includes(etatRedactionActe(d)) || echeanceValidee(d, 'redaction'));
   }
 
   // Prévenir le responsable du dossier, par la chaîne des rappels (email → passerelle → Teams),
@@ -1568,7 +1577,9 @@
     if (!d) return;
     const analyse = elementsAnalyseEnAttente(d);
     if (!dossierEntierementComplet(d) || analyse.engagements.length || analyse.documents.length) {
-      if (d.completNotifieLe) d.completNotifieLe = null;
+      // Une pièce qui repasse manquante après le lancement de la rédaction (ou la signature) ne rouvre pas la notification : le
+      // responsable a déjà été prévenu, et le dossier ne redeviendra pas « à rédiger ».
+      if (d.completNotifieLe && !redactionLanceeOuSigne(d)) d.completNotifieLe = null;
       return;
     }
     if (!doitNotifierDossierComplet(d)) return;

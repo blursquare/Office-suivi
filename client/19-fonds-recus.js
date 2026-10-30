@@ -29,10 +29,26 @@
   // verse sous son nom d'épouse, que l'acte lu ne donnait pas (29/09).
   // `autres` (facultatif, sinon les dossiers en cours du poste) : un nom de famille porté aussi par un AUTRE dossier en cours
   // (deux dossiers ROY, étude 07/10) est cherché avec le prénom de l'acquéreur, comme un nom partagé avec le vendeur.
+  // Succession (étude 30/10 : « il détecte que des fonds sont arrivés mais on ne peut pas confirmer la réception ») : les payeurs de l'appel de
+  // fonds sont les héritiers (conjoint survivant compris) ; le nom du défunt tient la place du vendeur — porté aussi par ses enfants, il n'est
+  // cherché qu'avec leur prénom, pour qu'un virement de la banque au nom de la succession ne passe pas pour les frais versés par un héritier.
+  function payeursFondsDossier(d) {
+    const parties = Array.isArray(d && d.parties) ? d.parties : [];
+    if (d && estSuccession(d)) { try { return personnesSuccession(d).heritiers || []; } catch (e) { return []; } }
+    return parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR');
+  }
+  function nomDefuntFonds(d) {
+    let nom = '';
+    try { nom = (defuntConstitution(d).champs || {}).nom || ''; } catch (e) { nom = ''; }
+    return nom || String(d && d.nom || '').replace(/^\s*(?:SUCC(?:ESSION)?)\b[\s\-–]*/i, '');
+  }
+
   function motsPayeurDossier(d, autres) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
-    const acquereurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
-    const nom = String(d && d.nom || '');
+    const succ = !!d && estSuccession(d);
+    const payeurs = payeursFondsDossier(d);
+    const acquereurs = payeurs.map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
+    const nom = succ ? '' : String(d && d.nom || '');
     const source = [
       acquereurs.length ? acquereurs.join(' ') : extraireNomAcquereur(nom),
       acquereurs.length && nom.includes(' / ') ? extraireNomAcquereur(nom) : '',
@@ -43,8 +59,8 @@
     const mots = [...new Set(motsDe(source))];
     // Vendeur et acquéreur du même nom (étude 07/10 : « les parties doivent partout être identifiées par nom et prénom ») : le nom
     // partagé ne désigne plus l'acquéreur seul — il est cherché avec le prénom (« martin lea », tous les mots dans le titulaire).
-    const vendeurs = new Set(parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '))
-      .concat(nom.includes('/') ? [nom.split('/')[0]] : []).flatMap(motsDe));
+    const vendeurs = new Set((succ ? [nomDefuntFonds(d)] : parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '))
+      .concat(nom.includes('/') ? [nom.split('/')[0]] : [])).flatMap(motsDe));
     // Noms de FAMILLE des autres dossiers en cours (nom du dossier, mots en capitales des parties) — jamais leurs prénoms.
     const ailleurs = new Set();
     const liste = Array.isArray(autres) ? autres : (typeof dossiers !== 'undefined' && Array.isArray(dossiers) ? dossiers : []);
@@ -65,7 +81,7 @@
     // prénom ne désigne personne seul. Prénom = `prenom`, ou les mots hors capitales d'un nom qui en porte (« Jean MARTIN »). Une
     // société, un nom sans capitale (« Martin Léa »), le côté acquéreur du nom du dossier et `nomsRecus` ne perdent rien.
     const gardes = new Set(motsDe([nom.includes('/') ? extraireNomAcquereur(nom) : '', String(d && d.nomsRecus || '')].join(' ')));
-    parties.filter(p => p && String(p.role || '').toUpperCase() === 'ACQUEREUR' && p.qualitePersonne !== 'morale').forEach(p => {
+    payeurs.filter(p => p && p.qualitePersonne !== 'morale').forEach(p => {
       const mots = String(p.nom || '').split(/\s+/).filter(Boolean);
       const caps = mots.filter(w => w.length > 1 && w === w.toUpperCase() && /\p{Lu}/u.test(w));
       const prenoms = (caps.length ? mots.filter(w => !caps.includes(w)) : []).concat([p.prenom || '']).flatMap(motsDe);
@@ -193,7 +209,7 @@
   function motsVendeurDossier(d) {
     const parties = Array.isArray(d && d.parties) ? d.parties : [];
     const vendeurs = parties.filter(p => p && String(p.role || '').toUpperCase() === 'VENDEUR').map(p => [p.nom, p.nomUsage].filter(Boolean).join(' '));
-    const source = vendeurs.length ? vendeurs.join(' ') : String(d && d.nom || '').split('/')[0];
+    const source = d && estSuccession(d) ? nomDefuntFonds(d) : (vendeurs.length ? vendeurs.join(' ') : String(d && d.nom || '').split('/')[0]);
     const acquereur = motsPayeurDossier(d);
     return [...new Set(normaliserPourRecherche(source).split(/[^a-z]+/)
       .filter(m => m.length >= 3 && !MOTS_IGNORES_PAYEUR.includes(m) && !acquereur.includes(m)))];
@@ -361,7 +377,7 @@
     if (!nasDisponible()) { signaler('Le NAS n’est pas accessible depuis le serveur : impossible de lire les reçus.'); return; }
     const mots = motsPayeurDossier(d);
     const motsVente = motsVendeurDossier(d);
-    if (!mots.length) { signaler('Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.'); return; }
+    if (!mots.length) { signaler(estSuccession(d) ? 'Nom des héritiers inconnu : impossible de reconnaître leurs reçus.' : 'Nom de l’acquéreur inconnu : impossible de reconnaître ses reçus.'); return; }
     if (btn) { btn.disabled = true; btn.innerHTML = `${icone('spinner', null, true)} Lecture des reçus…`; }
     try {
       const aujourdhui = isoAujourdhuiLocal();
@@ -429,7 +445,7 @@
     if (!utilisateur) return [];
     return (liste || []).filter(d => {
       if (!d || d.archive || d.responsable !== utilisateur || d.receptionFondsConfirmeeLe) return false;
-      if (!(d.appelFonds || echeanceValidee(d, 'appelFonds')) || !d.rendezVousSignature) return false;
+      if (!(d.appelFonds || appelFondsEnvoyeDossier(d)) || !d.rendezVousSignature) return false;
       const j = ecartJours(aujourdhuiIso, d.rendezVousSignature);
       if (j === null || j < 0 || j > JOURS_VERIF_FONDS_AVANT_RDV) return false;
       const f = d.fondsRecus;
@@ -548,8 +564,13 @@
   // Réception des fonds, en visuel (demandé par l'étude le 29/09 : « plus clair, moins de texte ») :
   // trois chiffres (reçu, attendu, reste ou écart), une jauge, puis les versements retenus en lignes
   // courtes. Le détail (fichiers lus, noms cherchés, marge de 2 €) passe dans les pastilles « i ».
+  // L'appel de fonds envoyé : l'étape de la vente, ou celle de la succession (« Appel de fonds » avant le dernier rendez-vous).
+  function appelFondsEnvoyeDossier(d) {
+    return estSuccession(d) ? echeanceValidee(d, 'appelFondsSuccession') : echeanceValidee(d, 'appelFonds');
+  }
+
   function renderFondsRecus(d) {
-    if (!echeanceValidee(d, 'appelFonds') && !d.fondsRecus && !d.rendezVousSignature && !d.fondsValidesLe) return '';
+    if (!appelFondsEnvoyeDossier(d) && !d.fondsRecus && !d.rendezVousSignature && !d.fondsValidesLe) return '';
     const f = d.fondsRecus;
     const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
     const b = bilanFondsDossier(d);
@@ -601,10 +622,10 @@
 
     // Pied : noms cherchés (modifiables), dernière lecture, confirmation « quand même ».
     const mots = motsPayeurDossier(d);
-    const noms = champFondsEditable(d, 'noms', `<span>${mots.length ? escapeHtml(mots.map(m => m.toUpperCase()).join(' / ')) : 'nom de l’acquéreur inconnu'}</span>`, d.nomsRecus || '', 'autre nom : d’usage, d’épouse…');
+    const noms = champFondsEditable(d, 'noms', `<span>${mots.length ? escapeHtml(mots.map(m => m.toUpperCase()).join(' / ')) : (estSuccession(d) ? 'nom des héritiers inconnu' : 'nom de l’acquéreur inconnu')}</span>`, d.nomsRecus || '', 'autre nom : d’usage, d’épouse…');
     const lecture = f ? `${f.fichiersLus} reçu${f.fichiersLus > 1 ? 's' : ''} lu${f.fichiersLus > 1 ? 's' : ''} · ${new Date(f.verifieLe).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} ${infoBulle([`Reçus lus depuis le ${formatDateFr(f.depuis)}.`, 'Chaque versement au nom de l’acquéreur est listé : vérifiez qu’il concerne bien ce dossier.', renderDossiersRecusLus(f, mots),
       (f.recus || []).some(r => r.memorise) ? 'Icône boîte : fichier de reçus supprimé du commun, montant conservé par CLAIRE.' : ''].filter(Boolean).join(' '))}` : '';
-    const peutConfirmer = echeanceValidee(d, 'appelFonds') && !!emailDestinataireRelance(d);
+    const peutConfirmer = (appelFondsEnvoyeDossier(d) || estSuccession(d)) && !!emailDestinataireRelance(d);
     const complet = b.manuel || (!!f && b.etat === 'complet');
     const confirmer = `envoyerRelanceCiblee('${escapeOnclickArg(d.id)}', 'fonds')`;
     // Validation à la main (étude 06/10) : fonds vus sur le compte de l'étude à la Caisse des Dépôts sans reçu lu — vaut

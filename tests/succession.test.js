@@ -1092,13 +1092,13 @@ test('étude 21/10 : après le contrôle des droits, l\'inventaire se place dans
   assert.equal(app.rdvAgendaSuccession(place, 'controleDroits', '2026-11-05'), null);
 });
 
-test('conjoint survivant : l’appel de fonds est dû (on transfère les fonds, peu en comptabilité), non facultatif ; héritiers seuls : facultatif', () => {
+test('appel de fonds toujours facultatif (étude 30/10 : souvent inutile avec un conjoint survivant), avec ou sans conjoint', () => {
   const d = base({ biens: [{ adresse: 'X' }], succession: { type: 'notoriete-ds', conjointSurvivant: true, ouvertureLe: '2026-08-15',
     rendezVous: [{ id: 'a', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: '2026-12-10', heure: '10:00' }] } });
   const types = S.etapesSuccession(d, '2026-10-22').map(e => e.type);
   assert.ok(types.includes('decompteSuccession'));
   assert.ok(types.includes('appelFondsSuccession'));
-  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, false);
+  assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, true);
   d.succession.conjointSurvivant = false;
   assert.equal(S.etapesSuccession(d, '2026-10-22').find(e => e.type === 'appelFondsSuccession').facultatif, true);
 });

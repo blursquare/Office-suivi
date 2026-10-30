@@ -774,5 +774,39 @@ test('onglet Fonds en colonnes (étude 30/10) : comptabilité d’Authentic, off
   const classique = app.renderFondsDossier(dossierBase(app, { typeAffaire: 'succession', succession: { type: 'classique' } }));
   assert.match(classique, /ouvrirAutorisationsDepuisFiche\('d1'\)/);
   const noto = app.renderFondsDossier(dossierBase(app, { typeAffaire: 'succession', succession: { type: 'notoriete' } }));
-  assert.doesNotMatch(noto, /Autorisations de fonds/, 'notoriété seule : aucune autorisation de fonds');
+  assert.doesNotMatch(noto, /Autorisations de déblocage/, 'notoriété seule : aucune autorisation de fonds');
+});
+
+test('succession : appel de fonds facultatif, fonds reçus des héritiers, confirmation aux héritiers (étude 30/10)', () => {
+  const app = chargerApplication();
+  const rdv = '2099-12-10';
+  const parties = [
+    { role: 'DEFUNT', nom: 'Paul DURAND', qualite: 'Défunt' },
+    { role: 'HERITIER', nom: 'Marie DURAND', qualite: 'Héritier', email: 'marie@exemple.fr' },
+    { role: 'HERITIER', nom: 'Luc FAVIER', qualite: 'Héritier', email: 'luc@exemple.fr' }
+  ];
+  const succ = (plus) => dossierBase(app, Object.assign({ nom: 'SUCC DURAND', typeAffaire: 'succession', parties, defunt: { nom: 'DURAND', prenoms: 'Paul' },
+    succession: { type: 'notoriete-ds', ouvertureLe: '2099-08-01', rendezVous: [{ id: 'r', etape: 'declarationSuccession', titre: 'SUCC DURAND', date: rdv, heure: '10:00' }] } }, plus || {}));
+  const d = succ();
+  // Payeurs = les héritiers ; le nom du défunt, porté par une héritière, n'est cherché qu'avec son prénom.
+  const mots = app.motsPayeurDossier(d, []).join('|');
+  assert.match(mots, /favier/);
+  assert.doesNotMatch(mots, /(^|\|)durand($|\|)/);
+  assert.match(mots, /durand marie/);
+  assert.match(app.emailDestinataireRelance(d), /marie@exemple\.fr/);
+  assert.match(app.emailDestinataireRelance(d), /luc@exemple\.fr/);
+  // Onglet Fonds : l'appel de fonds (« Pas nécessaire ») et le bloc des fonds reçus, montant attendu compris.
+  const html = app.renderFondsDossier(succ({ fondsRecus: { verifieLe: '2099-12-01T10:00:00Z', regle: 2, depuis: '2099-09-01', fichiersLus: 1, total: 1500, attendu: 1500, recus: [{ chemin: 'a.pdf', fichier: 'a.pdf', page: 1, montant: 1500, date: '2099-11-30' }] } }));
+  assert.match(html, /Appel de fonds et fonds reçus/);
+  assert.match(html, /Pas nécessaire/);
+  assert.match(html, /Tous les fonds sont reçus/);
+  assert.match(html, /envoyerRelanceCiblee\('d1', 'fonds'\)/);
+  // Pas nécessaire : plus de bloc des fonds reçus tant que rien n'a été lu, « Rétablir » proposé.
+  const inutile = app.renderFondsDossier(succ({ succession: Object.assign({}, d.succession, { appelFondsInutile: true }) }));
+  assert.match(inutile, /Rétablir/);
+  assert.doesNotMatch(inutile, /Fonds reçus en comptabilité/);
+  // Email : premier jet propre à la succession, jamais « votre acquisition ».
+  const email = app.MODELES_EMAIL_RELANCE.fonds.construire(d);
+  assert.match(email.corps, /frais de la succession/);
+  assert.doesNotMatch(email.corps, /acquisition/);
 });

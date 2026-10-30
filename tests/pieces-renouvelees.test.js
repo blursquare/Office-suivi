@@ -71,4 +71,10 @@ test('doitNotifierDossierComplet : une seule fois, jamais pour un dossier incomp
   assert.equal(app.doitNotifierDossierComplet(incomplet), false);
   // Achat comptant : pas d'offre à attendre.
   assert.equal(app.doitNotifierDossierComplet(dossierComplet({ sansPret: true, offrePretStatut: 'inconnu' })), true);
+  // Étude 30/10 : plus jamais une fois la rédaction lancée ou l'acte signé.
+  assert.equal(app.doitNotifierDossierComplet(dossierComplet({ authentic: { acte: { etat: 'redaction' } } })), false);
+  assert.equal(app.doitNotifierDossierComplet(dossierComplet({ authentic: { acte: { etat: 'signe', date: '2026-10-29' } } })), false);
+  assert.equal(app.doitNotifierDossierComplet(dossierComplet({ echeancesValidees: { redaction: true } })), false);
+  assert.equal(app.doitNotifierDossierComplet(dossierComplet({ rendezVousSignature: '2020-01-10' })), false);
+  assert.equal(app.doitNotifierDossierComplet(dossierComplet({ authentic: { acte: { etat: 'a_rediger' } } })), true);
 });
