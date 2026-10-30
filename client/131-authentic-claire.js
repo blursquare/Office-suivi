@@ -72,6 +72,15 @@ function ciblerPartiesComedec(parties, role, personne) {
 function partiesComedecDossier(d, opt) {
   const parties = Array.isArray(d && d.parties) ? d.parties : [];
   const deja = etatsCivilsDejaDemandes(d);
+  // Succession (étude 30/10 : « défunt + héritiers ») : naissance et mariage du défunt (mariage s'il avait un conjoint), naissance de chaque héritier ;
+  // jamais le décès. Mêmes personnes que l'étape « État civil » de la Constitution (personnesEtatCivilDossier, client/142).
+  if (estSuccession(d)) {
+    return (typeof personnesEtatCivilDossier === 'function' ? personnesEtatCivilDossier(d) : []).filter(p => p && String(p.nom || '').trim()).map(p => {
+      const base = { nom: String(p.nom || ''), prenom: String(p.prenom || '') };
+      return { nom: base.nom, prenom: base.prenom, role: p.role, marie: !!p.mariage, naissance: !neALEtrangerAuthentic(d, p),
+        dejaNaissance: libelleDitPersonne(deja.naissance, base), dejaMariage: libelleDitPersonne(deja.mariage, base) };
+    });
+  }
   const exclus = { ACQUEREUR: notaireParticipantRepresenteAcquereur(d), VENDEUR: confrereRepresenteVendeur(d) };
   const liste = parties.filter(p => p && (p.role === 'VENDEUR' || p.role === 'ACQUEREUR') && !exclus[p.role] && p.qualitePersonne !== 'morale' && String(p.nom || '').trim())
     .map(p => {

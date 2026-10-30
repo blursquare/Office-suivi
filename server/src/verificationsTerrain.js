@@ -74,6 +74,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché quand la demande est créée. À vérifier dans Authentic : la demande est dans le dossier, PAS envoyée.' },
   { id: 'authentic-comedec', depuis: '0.373.0', source: 'serveur', titre: 'Demande d’état civil (Comedec) créée dans Authentic par CLAIRE : naissance de chaque partie, mariage des mariés, rien d’envoyé',
     comment: 'Coché quand la demande est créée. À vérifier dans Authentic : les actes cochés et la demande PAS envoyée.' },
+  { id: 'authentic-comedec-succession', depuis: '0.408.0', source: 'serveur', titre: 'Comedec d’une succession créée dans Authentic : sous-dossier « Succession » ouvert, naissance et mariage du défunt, naissance des héritiers, rien d’envoyé',
+    comment: 'Coché quand la demande d’une succession est créée. À vérifier dans Authentic : le bon sous-dossier, les actes cochés, la demande PAS envoyée.' },
   { id: 'pastille-application', depuis: '0.372.0', source: 'manuel', titre: 'Pastille chiffrée posée par CLAIRE elle-même sur l’icône de l’application installée (Chrome ou Edge, API App Badging)',
     comment: 'À cocher « C’est bon » quand la pastille rouge chiffrée se voit sur l’icône de CLAIRE installée (la page ne peut pas le voir elle-même). Il faut que l’adresse du serveur soit tenue pour sûre (chrome://flags/#unsafely-treat-insecure-origin-as-secure, ou le .reg de Réglages › Notifications posé par Fichorga), puis menu ⋮ › Enregistrer et partager › Installer CLAIRE.' },
   { id: 'repertoire-agent', depuis: '0.369.0', source: 'poste', titre: 'CLAIRE ajoute ou complète un contact du Répertoire (après « Autoriser »)',

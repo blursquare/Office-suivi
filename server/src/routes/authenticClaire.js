@@ -255,13 +255,15 @@ function creerRouteurAuthenticClaire(o) {
     const parties = partiesDemande(b.parties);
     if (!parties.length) { res.status(400).json({ erreur: type === 'cjn' ? 'Aucun acquéreur pour la demande de casier.' : 'Aucune partie pour la demande d’état civil.' }); return; }
     if (!String(d.referenceAuthentic || '').trim()) { res.status(409).json({ erreur: 'Ce dossier n’est pas relié à Authentic par sa référence : ouvrez-le une fois dans Authentic.' }); return; }
+    const succession = d.typeAffaire === 'succession';
+    if (type === 'cjn' && succession) { res.status(409).json({ erreur: 'Pas de demande de casier pour une succession.' }); return; }
     if (type === 'cjn' && d.roleNotaire === 'participant') { res.status(409).json({ erreur: 'Le notaire qui reçoit l’acte fait la demande de casier.' }); return; }
     const cle = `${d.id}:${type}`;
     const faites = repo.lireJsonBrut(CLE_DEMANDES_AUTHENTIC, {}) || {};
     if (faites[cle] && b.refaire !== true) { res.status(409).json({ erreur: `Déjà préparée par CLAIRE le ${String(faites[cle]).slice(0, 10).split('-').reverse().join('/')} : vérifiez dans Authentic avant d’en créer une autre.` }); return; }
     const nom = type === 'cjn' ? 'Demande de casier judiciaire (CJN)' : 'Demande d’état civil (Comedec)';
     repondre(res, () => lancer('authentic-' + type, nom + ' dans Authentic', d, async (t, s, etape) => {
-      const r = await A.preparerFormalite(s, cibleAuthentic(d), { type, parties, etape, ecriture: A.lireConnexionAuthentic(repo).preparerDemandes });
+      const r = await A.preparerFormalite(s, cibleAuthentic(d), { type, parties, etape, succession, ecriture: A.lireConnexionAuthentic(repo).preparerDemandes });
       const deja = repo.lireJsonBrut(CLE_DEMANDES_AUTHENTIC, {}) || {};
       deja[cle] = new Date().toISOString();
       repo.ecrireJsonBrut(CLE_DEMANDES_AUTHENTIC, deja);
@@ -273,7 +275,7 @@ function creerRouteurAuthenticClaire(o) {
           r.papier = lu.papier || 0;
         } catch (e) { etape('Formalités non relues après la demande'); }
       }
-      noterVerification(repo, 'authentic-' + type, r.erreurs ? { ok: false, detail: `${r.erreurs} message(s) d’Authentic après Valider` } : { detail: `${r.demandes} demande(s) créée(s)` });
+      noterVerification(repo, 'authentic-' + type + (succession ? '-succession' : ''), r.erreurs ? { ok: false, detail: `${r.erreurs} message(s) d’Authentic après Valider` } : { detail: `${r.demandes} demande(s) créée(s)` });
       // Des messages d'Authentic après « Valider » : jamais « créée » affirmé, mais marquée faite quand même (pas de doublon).
       if (r.erreurs) return `${nom} : « Valider » cliqué dans Authentic, qui a affiché ${r.erreurs} message(s) — à vérifier dans Authentic avant toute nouvelle demande.${(r.remarques || []).filter((m) => !/message\(s\) d’erreur/.test(m)).map((m) => ` ${m}.`).join('')}`;
       // Ce qu'Authentic a montré après « Valider » (bloquée, papier, non conforme) : dit, jamais une demande à refaire (risque de doublon).

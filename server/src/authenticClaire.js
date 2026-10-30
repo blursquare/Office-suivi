@@ -1052,16 +1052,21 @@ async function ouvrirDossier(s, cible, etape) {
  * Rend faux s'il n'y en a pas. @param {any} s @param {{ reference?: string, libelle?: string }} cible @param {(t: string) => void} etape */
 async function ouvrirSousDossierVente(s, cible, etape) { return ouvrirSousDossierDe(s, cible, etape, 'vente'); }
 
+/** Le sous-dossier de la SUCCESSION (« 1 - Succession … veuve … », structure reçue le 15/10) — pour une demande Comedec d'une succession (étude 30/10). */
+async function ouvrirSousDossierSuccession(s, cible, etape) { return ouvrirSousDossierDe(s, cible, etape, 'succession'); }
+
 /** Le sous-dossier de la PROMESSE (ou du compromis), jamais un avenant — pour la comptabilité quand la vente n'en a pas (étude 30/10). */
 async function ouvrirSousDossierPromesse(s, cible, etape) { return ouvrirSousDossierDe(s, cible, etape, 'promesse'); }
 
-/** @param {any} s @param {any} cible @param {(t: string) => void} etape @param {'vente' | 'promesse'} sorte */
+/** @param {any} s @param {any} cible @param {(t: string) => void} etape @param {'vente' | 'promesse' | 'succession'} sorte */
 async function ouvrirSousDossierDe(s, cible, etape, sorte) {
   const g = gestes(s, etape);
   const estVente = sorte === 'promesse'
     ? (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(Promesse|Compromis)\b/i.test(l) && !/avenant/i.test(l)
-    : (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l);
-  const nomEtape = sorte === 'promesse' ? 'Ouvre le sous-dossier de la promesse' : 'Ouvre le sous-dossier de vente';
+    : sorte === 'succession'
+      ? (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(Succession|SUCC)\b/i.test(l) && !/avenant/i.test(l)
+      : (/** @type {string} */ l) => /^\d{1,3}\s*-\s*(VTE|Vente)\b/i.test(l) && !/promesse|avenant|compromis/i.test(l);
+  const nomEtape = sorte === 'promesse' ? 'Ouvre le sous-dossier de la promesse' : sorte === 'succession' ? 'Ouvre le sous-dossier de la succession' : 'Ouvre le sous-dossier de vente';
   // Un mot d'icône en tête (« folder 2 - Vente d'immeuble ») n'est pas le libellé.
   const libelle = (/** @type {any} */ l) => String(l || '').replace(/^[a-z_]{3,}\s+(?=\d)/, '').trim();
   // La liste réelle des sous-dossiers (`…:selectSousDossier`, relevé de l'étude) : le libellé y figure trois fois sur la page (ligne repliable,
@@ -1528,15 +1533,17 @@ async function lireComptabilite(s, cible, o) {
 /**
  * Prépare une demande CJN ou Comedec dans le sous-dossier de vente : Création rapide allumée, Envoi immédiat éteint, puis Valider.
  * @param {any} s @param {{ reference?: string, libelle?: string }} cible
- * @param {{ type: 'cjn' | 'comedec', parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean, pasNaissance?: boolean, pasMariage?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
+ * @param {{ type: 'cjn' | 'comedec', succession?: boolean, parties: Array<{ nom: string, prenom?: string, marie?: boolean, naissance?: boolean, dejaNaissance?: boolean, dejaMariage?: boolean, pasNaissance?: boolean, pasMariage?: boolean }>, etape: (t: string) => void, ecriture?: boolean }} o
  */
 async function preparerFormalite(s, cible, o) {
   // Écrire dans Authentic : seulement si l'étude l'a allumé (Réglages › Authentic › « Préparer des demandes »), dit par l'appelant.
   if (!o.ecriture) throw new Error('préparer des demandes dans Authentic est éteint (Réglages › Authentic) : rien n’est écrit');
   const g = gestes(s, o.etape, { ecriture: true });
   if (!String(cible.reference || '').trim()) throw new Error('dossier sans référence d’Authentic retenue : aucune demande sans être sûr du dossier');
+  if (o.succession && o.type !== 'comedec') throw new Error('pas de demande de casier pour une succession');
   await ouvrirDossier(s, cible, o.etape);
-  if (!(await ouvrirSousDossierVente(s, cible, o.etape))) throw new Error('sous-dossier de vente introuvable (ou plusieurs) : aucune demande');
+  // Succession (étude 30/10) : Comedec seulement, dans le sous-dossier « N - Succession … » ; le bloc Comedec y est le même que pour une vente (structure du 27/10).
+  if (o.succession ? !(await ouvrirSousDossierSuccession(s, cible, o.etape)) : !(await ouvrirSousDossierVente(s, cible, o.etape))) throw new Error(`sous-dossier ${o.succession ? 'de la succession' : 'de vente'} introuvable (ou plusieurs) : aucune demande`);
   o.etape('Ouvre les formalités préalables');
   // Version Silicium (capture du wiki) : le « + » au bout de la ligne « Formalités préalables (N) » ouvre le volet « Ajouter des formalités
   // préalables ». Ancienne version : l'onglet « Formalités préalables », puis « Ajouter des formalités préalables ».
@@ -1735,6 +1742,6 @@ module.exports = {
   CLE_CONNEXION_AUTHENTIC, DOMAINES_AUTHENTIC, ADRESSE_DEFAUT,
   libelleInterdit, assainirConnexionAuthentic, lireConnexionAuthentic, vueConnexionAuthentic, ecrireConnexionAuthentic,
   demandesComedecIntervenant, partieDeLaLigne, verifierCasesCjn, estLigneIntervenantCjn, scriptLigneComedec, scriptOuvrirListeComedec, liensFichesDuTexte, scriptReleve, pageSiliciumAPasser, passerVerificationSilicium, lireApercusFormalites, lirePiecesJointes, lirePiecePdf,
-  ouvrirDossier, ouvrirSousDossierVente,
+  ouvrirDossier, ouvrirSousDossierVente, ouvrirSousDossierSuccession,
   relireFormalitesApresDemande, referenceEnTete, referenceRecherche, referenceAffichee, scriptTrouverReference, estCeDossier, diagnosticAccesAuthentic, seConnecter, lireDossier, lireSuivis, lireComptabilite, preparerFormalite
 };

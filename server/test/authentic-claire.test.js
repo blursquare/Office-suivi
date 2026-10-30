@@ -293,3 +293,8 @@ test('CJN (relecture 0.405.1) : chaque acquéreur doit avoir SA case cochée ; u
   assert.throws(() => A.verifierCasesCjn([l('M. FOURNEL Hugo (41000 BLOIS)', true), l('Mme TESSIER Lina (41000 BLOIS)', true), l('M. AUTRE Paul (41000 BLOIS)', true)], acq), /pas un acquéreur/);
   assert.throws(() => A.verifierCasesCjn([], acq), /aucun acquéreur/);
 });
+
+test('succession (étude 30/10) : Comedec dans le sous-dossier « N - Succession … », jamais de casier', async () => {
+  await assert.rejects(A.preparerFormalite({}, { reference: 'A 2026 00001' }, { type: 'cjn', succession: true, ecriture: true, parties: [], etape() {} }), /casier pour une succession/);
+  assert.equal(typeof A.ouvrirSousDossierSuccession, 'function');
+});

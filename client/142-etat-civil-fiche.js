@@ -155,7 +155,7 @@ function renderEtatCivilFiche(d) {
   const personnes = personnesEtatCivilDossier(d);
   const succession = estSuccession(d);
   const boutons = [];
-  if (!succession && personnes.length) {
+  if (personnes.length) {
     boutons.push(bouton('file-text', 'Acte de naissance', `demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')`, 'Demande Comedec de l’acte de naissance de chaque partie (créée dans Authentic, rien n’est envoyé)'));
     if (personnes.some(p => p.mariage)) boutons.push(bouton('file-text', 'Acte de mariage', `demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')`, 'Demande Comedec de l’acte de mariage du couple (un seul acte pour les deux époux)'));
   }
@@ -192,8 +192,7 @@ function renderEtatCivilConstitution(d) {
   const lignes = personnes.map(p => `<li class="ec-personne"><span class="ec-nom">${escapeHtml([p.prenom, p.nom].filter(Boolean).join(' '))}${p.role === 'DEFUNT' ? ' <span class="hint">défunt</span>' : ''}</span>
       ${cellule(p, 'naissance', 'Naissance')}${p.mariage ? cellule(p, 'mariage', 'Mariage') : ''}</li>`).join('');
   const aide = '<p class="hint">Mairie sans Comedec : le courrier papier est préparé au modèle de l’étude (tampon et signature p/o), l’enveloppe timbrée est à joindre. La mairie de naissance est celle du lieu de naissance de la fiche : le code postal et le lieu manquants se complètent sur le courrier.</p>';
-  // Succession : pas de Comedec par CLAIRE, chaque courrier papier se prépare ici.
-  if (estSuccession(d)) return `${aide}<ul class="ec-liste">${lignes}</ul>`;
+  // Succession (étude 30/10) : la même demande Comedec que pour une vente (défunt et héritiers, sous-dossier de la succession), puis les courriers papier.
   // Vente (étude 30/10 : « d'abord on clique sur le bouton pour rechercher les Comedec et s'il y a des demandes papier, l'outil propose de les
   // faire en papier ») : 1. la demande Comedec dans Authentic ; 2. seulement les demandes qu'Authentic marque « APR » (mairie sans Comedec)
   // reçoivent leur courrier papier ; le courrier pour n'importe quelle personne reste replié, en secours.

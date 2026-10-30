@@ -19,3 +19,15 @@ test('relevé de compte client lu dans la comptabilité d’Authentic (étude 30
   assert.equal(a.ambigues, 0, 'les deux colonnes sont écrites : aucune colonne devinée');
   assert.equal(app.analyseReleveDepuisComptabilite(null).ecritures.length, 0);
 });
+
+test('Comedec d’une succession (étude 30/10 : défunt + héritiers) : naissance et mariage du défunt, naissance des héritiers, jamais de casier', () => {
+  const app = chargerApplication();
+  const d = { id: 's1', nom: 'DURAND', typeAffaire: 'succession', historique: [], pieces: {},
+    defunt: { nom: 'DURAND', prenoms: 'Jean', conjointNom: 'Marie DURAND' },
+    parties: [{ role: 'PARTIE', nom: 'DURAND', prenom: 'Paul' }, { role: 'PARTIE', nom: 'DURAND', prenom: 'Jean' }] };
+  const p = app.partiesComedecDossier(d, {});
+  const defunt = p.find(x => x.role === 'DEFUNT');
+  assert.ok(defunt && defunt.marie && defunt.naissance, 'défunt : naissance et mariage');
+  assert.ok(p.some(x => x.role === 'HERITIER' && /Paul/.test(x.nom + ' ' + x.prenom) && !x.marie), 'héritier : naissance seule');
+  assert.ok(app.raisonSansCjn(d), 'pas de casier pour une succession');
+});
