@@ -272,3 +272,27 @@ test('canal d’un dossier (étude 27/10) : les messages de CLAIRE ne comptent q
   assert.equal(autre.nonLus, 2, 'pas responsable : la réponse qui la cite et le message d’un collègue seulement');
   assert.equal(autre.mentions, 1);
 });
+
+test('notifications d’un canal de dossier (étude 30/10) : le collaborateur non concerné n’est prévenu que s’il est cité ; Bastien, de tout', () => {
+  const repo = fauxRepo();
+  C.ajouterMessage(repo, 'd:p1', { auteur: 'Julie VASSELIN', texte: 'a' }, 100);
+  C.ajouterMessage(repo, 'd:p1', { auteur: 'Julie VASSELIN', texte: 'b', mentions: ['Jérémy SAUJOT'] }, 200);
+  const resp = () => 'Julie VASSELIN';
+  const jeremy = C.listerCanaux(repo, 'Jérémy SAUJOT', undefined, resp);
+  assert.equal(jeremy.canaux.find((x) => x.id === 'd:p1').notif, 'mentions');
+  assert.equal(jeremy.badge, 1, 'seul le message qui le cite');
+  const bastien = C.listerCanaux(repo, 'Bastien ANGLUMENT', undefined, resp);
+  assert.equal(bastien.canaux.find((x) => x.id === 'd:p1').notif, 'tous');
+  assert.equal(bastien.badge, 2);
+  assert.equal(C.listerCanaux(repo, 'Sophie GOSSART', undefined, resp).canaux.find((x) => x.id === 'd:p1').notif, 'mentions');
+  assert.equal(C.preferences(repo, 'Jérémy SAUJOT', 'd:p1', resp).notif, 'mentions');
+  // Responsable du dossier : tout ; responsable inconnu : tout, comme avant.
+  C.ajouterMessage(repo, 'd:p2', { auteur: 'Bastien ANGLUMENT', texte: 'c' }, 300);
+  assert.equal(C.listerCanaux(repo, 'Jérémy SAUJOT', undefined, (id) => (id === 'p2' ? 'Jérémy SAUJOT' : 'Julie VASSELIN')).canaux.find((x) => x.id === 'd:p2').notif, 'tous');
+  assert.equal(C.listerCanaux(repo, 'Jérémy SAUJOT', undefined, () => '').canaux.find((x) => x.id === 'd:p1').notif, 'tous');
+  // Un choix du collaborateur passe avant ; un favori changé seul ne fige pas la notification.
+  C.reglerPreferences(repo, 'Jérémy SAUJOT', 'd:p1', { favori: true });
+  assert.equal(C.preferences(repo, 'Jérémy SAUJOT', 'd:p1', resp).notif, 'mentions');
+  C.reglerPreferences(repo, 'Jérémy SAUJOT', 'd:p1', { notif: 'tous' });
+  assert.equal(C.listerCanaux(repo, 'Jérémy SAUJOT', undefined, resp).badge, 2);
+});

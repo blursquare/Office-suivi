@@ -11543,6 +11543,7 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 }
 .apercu-authentic.visible { opacity: 1; transform: none; }
 .apercu-authentic-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--texte-s); font-weight: 500; }
+.apercu-authentic-arret { align-self: flex-start; }
 .apercu-authentic-texte { margin: 0; font-size: var(--texte-xs); color: var(--muted); overflow-wrap: anywhere; }
 .apercu-authentic img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--rayon-s); cursor: zoom-in; background: var(--paper-sunk); }
 .apercu-authentic img.agrandie { position: fixed; inset: 16px; width: auto; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); margin: auto; object-fit: contain; cursor: zoom-out; z-index: 1101; box-shadow: var(--shadow-float); }

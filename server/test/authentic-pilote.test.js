@@ -111,8 +111,12 @@ test('jamais de saisie dans un mot de passe ni hors champ ; Entrée seulement da
 
 test('limites : arrêt demandé, pas au-delà du maximum, historique allégé (captures anciennes retirées), coordonnées bornées', async () => {
   const s = fauxNavigateur();
-  const arret = await P.piloter(base(s, fauxClient([['cliquer', { x: 1, y: 1 }]]), { annule: () => true }));
-  assert.equal(arret.etat, 'impossible');
+  await assert.rejects(P.piloter(base(s, fauxClient([['cliquer', { x: 1, y: 1 }]]), { annule: () => true })), (e) => e.annule === true, 'arrêt demandé : la tâche est arrêtée, pas un échec');
+  // Arrêt demandé PENDANT la réponse de Claude : le geste qu'il a décidé n'est pas fait (étude 30/10, bouton « Arrêter »).
+  let appelsAnnule = 0;
+  const sArret = fauxNavigateur();
+  await assert.rejects(P.piloter(base(sArret, fauxClient([['cliquer', { x: 5, y: 5 }]]), { annule: () => ++appelsAnnule > 1 })), (e) => e.annule === true);
+  assert.equal(sArret.faits.clics.length, 0, 'aucun clic après l’arrêt');
   const infini = fauxClient(Array.from({ length: 60 }, () => ['attendre', { secondes: 1 }]));
   const r = await P.piloter(base(fauxNavigateur(), infini));
   assert.equal(r.pas, P.MAX_PAS);

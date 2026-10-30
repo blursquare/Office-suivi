@@ -23382,3 +23382,28 @@ Relecture : la reprise ne vaut que sur l'écran de l'outil ouvert DEPUIS la disc
 un onglet ») — jamais une discussion restée ouverte sur un autre écran ni sur une fiche en page ; messages rendus par `htmlCorpsMessageCanal`
 (htmlSurCanal, cartes de proposition) ; grille à deux colonnes aussi conversations repliées à 1 800 px et plus. Limite connue, d'avant : sans
 sous-dossier de vente unique, la comptabilité lue est celle du sous-dossier affiché.
+
+### 30/10/2026 — 0.407.5 : aperçu en direct d'Authentic fermé à la fin, bouton « Arrêter »
+
+L'étude (30/10) : « à la fin de la tâche fermer la fenêtre Authentic en direct et ajouter un bouton stop de secours pendant le déroulé de la
+tâche ». client/131 : `gesteAuthenticClaire` ferme l'aperçu EN DIRECT de sa tâche quand elle est finie ou arrêtée (`fermerApercuDirectAuthentic`,
+`data-mode="direct"` sur la carte ; un échec garde l'aperçu de l'endroit où CLAIRE s'est arrêtée, la carte est reconstruite au changement de mode
+pour avoir « Copier la structure » au lieu de « Arrêter »). « Arrêter » (variant danger) → `POST /api/navigation/taches/:id/annuler` (déjà là) :
+le serveur arrête à l'étape suivante (parcours écrits : `etape` lève l'arrêt ; pilote : `annule()` à chaque pas). Point terrain `authentic-arret`.
+Relecture : une capture en direct arrivée après la fin de la tâche ne rouvre rien et ne remplace jamais l'aperçu d'un échec ; l'outil
+`authentic_apercu` ne désigne que le dernier ÉCHEC (une tâche en direct ne le remplace plus) ; pilote : arrêt vérifié aussi avant chaque geste
+décidé par Claude, et levé comme un arrêt (« arrêté », jamais compté comme un échec du pilote). Limite : l'arrêt de sûreté au bout de 8 minutes
+se présente aussi comme « Arrêté à la demande ».
+
+### 30/10/2026 — 0.407.6 : notifications des discussions de dossier pour le seul responsable
+
+L'étude (30/10) : « il ne faut pas de notification pour les conversations de dossier pour le collaborateur qui n'est pas concerné ; seul Bastien a
+toutes les notifications ». `notifParDefautDossier` (server/src/canaux/canaux.js) : tant que le collaborateur n'a rien réglé, le canal d'un
+dossier dont il n'est pas le responsable est en « mentions » (prévenu seulement s'il est cité) ; Bastien (`VOIT_TOUTES_LES_ALERTES`) : « tous » ;
+Sophie (`SANS_ALERTES_DE_DOSSIER`) : « mentions » ; responsable inconnu : « tous », comme avant. Appliqué à la liste des canaux (badge, pastille et
+notifications Windows du poste, qui lisent `notif`) et aux préférences affichées dans le canal ; un choix Tous / Mentions / Muet passe avant ; un
+favori changé seul ne fige plus la notification (`reglerPreferences`). Responsable lu seulement quand le canal a un message non lu d'un autre.
+Relecture : responsable lu pour chaque canal de dossier (la valeur ne flotte plus selon les non-lus), gardé 30 s en mémoire par la route ; aperçu
+en direct marqué fermé à la fin de la tâche même si sa première capture n'est pas encore arrivée. Limite : un « Tous » enregistré AVANT ce
+changement (un simple favori l'enregistrait) reste « Tous » pour ce canal — le régler sur « Mentions » à la main si besoin ; un choix fait reste
+figé si le collaborateur devient ensuite responsable du dossier.

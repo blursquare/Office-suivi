@@ -150,6 +150,9 @@ async function gesteAuthenticClaire(chemin, corps) {
       // Étude 29/10 : « mets-moi en direct ce qu'il se passe lors d'une demande, comme pour le cadastre » : l'aperçu s'ouvre dès la première
       // capture et se met à jour à chaque relevé (étape en cours sous l'image) ; il reste après un échec.
       if (t.avecCapture && (t.etat === 'en-cours' || t.etat === 'attente')) afficherApercuAuthentic(id, derniere ? derniere.texte : 'CLAIRE travaille dans Authentic…', { enCours: true });
+      // Fin de la tâche (étude 30/10 : « à la fin de la tâche fermer la fenêtre Authentic en direct ») : l'aperçu en direct se ferme ; un échec
+      // garde le sien (où CLAIRE s'est arrêtée).
+      if (t.etat === 'fini' || t.etat === 'annule') fermerApercuDirectAuthentic(id);
       if (t.etat === 'fini') return { ok: true, texte: (t.resultat && t.resultat.texte) || 'Fait dans Authentic.' };
       if (t.etat === 'erreur' || t.etat === 'annule') {
         // Étude 29/10 : « mets-moi un aperçu du navigateur là où ça plante, en bas à droite, que je peux fermer » (jamais pour un arrêt voulu).
@@ -320,7 +323,7 @@ async function essayerConnexionAuthentic() {
 // ---- Aperçu du navigateur de CLAIRE quand un geste dans Authentic échoue ----
 // La dernière capture d'écran de la tâche (prise par le serveur au moment de l'échec, gardée en mémoire du serveur seulement, jamais envoyée
 // à une IA ni au rapport technique) s'affiche en bas à droite, avec le message d'échec ; fermable (×), un clic sur l'image l'agrandit.
-var apercuAuthenticDernier = null;   // { id, texte } : le dernier échec, pour « Demander à CLAIRE » (outil `authentic_apercu`)
+var apercuAuthenticDernier = null;   // { id, texte } : le dernier échec, pour « Demander à CLAIRE » (outil `authentic_apercu`) — jamais une tâche en direct
 var apercuAuthenticUrl = '';
 var apercuAuthenticFermes = {};   // tâches dont l'utilisateur a fermé l'aperçu : plus d'aperçu en direct pour elles
 
@@ -328,11 +331,39 @@ function fermerApercuAuthentic() {
   const carte = document.getElementById('apercu-authentic');
   if (carte) {
     carte.remove();
-    if (apercuAuthenticDernier) apercuAuthenticFermes[apercuAuthenticDernier.id] = true;
-    // La capture (pages d'Authentic) est effacée de la mémoire du serveur à la fermeture.
-    if (apercuAuthenticDernier) fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(apercuAuthenticDernier.id)}/capture`, { method: 'DELETE' }).catch(() => {});
+    const id = carte.dataset.tache || '';
+    if (id) {
+      apercuAuthenticFermes[id] = true;
+      // La capture (pages d'Authentic) est effacée de la mémoire du serveur à la fermeture.
+      fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(id)}/capture`, { method: 'DELETE' }).catch(() => {});
+      if (apercuAuthenticDernier && apercuAuthenticDernier.id === id) apercuAuthenticDernier = null;
+    }
   }
   if (apercuAuthenticUrl) { URL.revokeObjectURL(apercuAuthenticUrl); apercuAuthenticUrl = ''; }
+}
+
+// Ferme l'aperçu EN DIRECT de cette tâche (jamais celui d'un échec, ni celui d'une autre tâche).
+function fermerApercuDirectAuthentic(idTache) {
+  // Marquée d'abord : une capture en direct encore en route (demandée avant la fin) ne rouvrira pas la carte (relecture 0.407.6).
+  apercuAuthenticFermes[String(idTache)] = true;
+  const carte = document.getElementById('apercu-authentic');
+  if (carte && carte.dataset.tache === String(idTache) && carte.dataset.mode === 'direct') fermerApercuAuthentic();
+}
+
+// Bouton « Arrêter » de l'aperçu en direct (étude 30/10 : « un bouton stop de secours pendant le déroulé de la tâche ») : le serveur arrête la
+// tâche à l'étape suivante du parcours (`annuler` des tâches du navigateur) ; rien d'autre n'est cliqué dans Authentic après l'arrêt.
+async function arreterTacheAuthentic(idTache, bouton) {
+  if (bouton) { bouton.loading = true; bouton.disabled = true; }
+  try {
+    const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(idTache)}/annuler`, { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    const t = document.querySelector('#apercu-authentic .apercu-authentic-texte');
+    if (t) t.textContent = j.ok ? 'Arrêt demandé : CLAIRE s’arrête à l’étape suivante.' : 'La tâche est déjà terminée.';
+    if (typeof noterVerificationPoste === 'function') noterVerificationPoste('authentic-arret', { detail: j.ok ? 'arrêt demandé' : 'déjà terminée' });
+  } catch (e) {
+    if (bouton) { bouton.loading = false; bouton.disabled = false; }
+    afficherToast('Serveur injoignable : arrêt non demandé.', 'OK', null);
+  }
 }
 
 // Pure : le texte court sous l'aperçu (le message d'échec ne cite jamais un nom : libellés génériques du parcours).
@@ -342,21 +373,28 @@ function texteApercuAuthentic(texte) {
 
 async function afficherApercuAuthentic(idTache, texte, o = {}) {
   if (o.enCours && apercuAuthenticFermes[String(idTache)]) return false;
-  apercuAuthenticDernier = { id: String(idTache), texte: texteApercuAuthentic(texte) };
+  const info = { id: String(idTache), texte: texteApercuAuthentic(texte) };
+  if (!o.enCours) apercuAuthenticDernier = info;
   try {
     const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(idTache)}/capture`);
     if (!r.ok) return false;
-    const url = URL.createObjectURL(await r.blob());
+    const blob = await r.blob();
+    // Relu APRÈS l'attente (relecture 0.407.5) : une capture en direct arrivée après la fin de la tâche ne rouvre rien, et ne remplace jamais
+    // l'aperçu d'un échec de la même tâche.
+    const deja = document.getElementById('apercu-authentic');
+    if (o.enCours && (apercuAuthenticFermes[String(idTache)] || (deja && deja.dataset.tache === String(idTache) && deja.dataset.mode === 'echec'))) return false;
+    const url = URL.createObjectURL(blob);
     const titre = o.enCours ? 'Authentic — en direct' : 'Authentic — où CLAIRE s’est arrêtée';
     const existante = document.getElementById('apercu-authentic');
     // En direct : la même carte, seule l'image et le texte changent (pas de clignotement, l'agrandissement est gardé).
-    if (existante && existante.dataset.tache === String(idTache)) {
+    const mode = o.enCours ? 'direct' : 'echec';
+    if (existante && existante.dataset.tache === String(idTache) && existante.dataset.mode === mode) {
       const img = existante.querySelector('img');
       const ancienneUrl = apercuAuthenticUrl;
       if (img) img.src = url;
       apercuAuthenticUrl = url;
       if (ancienneUrl) URL.revokeObjectURL(ancienneUrl);
-      const t = existante.querySelector('.apercu-authentic-texte'); if (t) t.textContent = apercuAuthenticDernier.texte;
+      const t = existante.querySelector('.apercu-authentic-texte'); if (t) t.textContent = info.texte;
       const h = existante.querySelector('.apercu-authentic-tete span'); if (h) h.textContent = titre;
       return true;
     }
@@ -367,13 +405,15 @@ async function afficherApercuAuthentic(idTache, texte, o = {}) {
     const carte = document.createElement('div');
     carte.id = 'apercu-authentic';
     carte.dataset.tache = String(idTache);
+    carte.dataset.mode = mode;
     carte.className = 'apercu-authentic';
     carte.setAttribute('role', 'status');
     carte.innerHTML = `<div class="apercu-authentic-tete"><span>${titre}</span>`
       + `<wa-button appearance="plain" size="s" type="button" class="bouton-icone" onclick="fermerApercuAuthentic()" title="Fermer l’aperçu" aria-label="Fermer l’aperçu">${icone('x')}</wa-button></div>`
       + `<img alt="Page du navigateur de CLAIRE dans Authentic" src="${url}" tabindex="0" role="button" title="Agrandir ou réduire" onclick="this.classList.toggle('agrandie')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.classList.toggle('agrandie'); }">`
-      + `<p class="apercu-authentic-texte">${escapeHtml(apercuAuthenticDernier.texte)}</p>`
-      + (o.enCours ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="copierStructureApercuAuthentic()" title="Copie la structure de la page (boutons, listes, positions), sans aucune valeur ni nom, à coller dans la conversation pour réparer le parcours">Copier la structure de la page</wa-button>`);
+      + `<p class="apercu-authentic-texte">${escapeHtml(info.texte)}</p>`
+      + (o.enCours ? `<wa-button variant="danger" size="s" type="button" class="apercu-authentic-arret" onclick="arreterTacheAuthentic('${escapeOnclickArg(String(idTache))}', this)" title="Arrête la tâche de CLAIRE dans Authentic à l’étape suivante">${icone('x')} Arrêter</wa-button>`
+        : `<wa-button appearance="outlined" size="s" type="button" onclick="copierStructureApercuAuthentic()" title="Copie la structure de la page (boutons, listes, positions), sans aucune valeur ni nom, à coller dans la conversation pour réparer le parcours">Copier la structure de la page</wa-button>`);
     document.body.appendChild(carte);
     requestAnimationFrame(() => carte.classList.add('visible'));
     if (typeof noterVerificationPoste === 'function') noterVerificationPoste('apercu-authentic', { detail: 'aperçu affiché' });

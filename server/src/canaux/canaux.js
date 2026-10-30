@@ -268,21 +268,26 @@ function toutMarquerLu(repo, collab, maintenant) {
   repo.ecrireJsonBrut(CLE_LUS, lus);
 }
 
-/** @param {any} repo @param {string} collab @param {string} canal @returns {{ notif: string, favori: boolean }} */
-function preferences(repo, collab, canal) {
+/**
+ * `responsableDe` (facultatif) : pour la valeur par défaut d'un canal de dossier (`notifParDefautDossier`), comme dans la liste des canaux.
+ * @param {any} repo @param {string} collab @param {string} canal @param {(dossierId: string) => string} [responsableDe] @returns {{ notif: string, favori: boolean }}
+ */
+function preferences(repo, collab, canal, responsableDe) {
   const p = (lireTable(repo, CLE_PREFS)[collab] || {})[canal] || {};
-  return { notif: NOTIFICATIONS.includes(p.notif) ? p.notif : 'tous', favori: p.favori === true };
+  if (NOTIFICATIONS.includes(p.notif)) return { notif: p.notif, favori: p.favori === true };
+  const mode = modeAlertesDossier(collab);
+  const resp = String(canal).startsWith('d:') && mode === 'responsable' && responsableDe ? String(responsableDe(String(canal).slice(2)) || '') : '';
+  return { notif: notifParDefautDossier(canal, mode, collab, resp), favori: p.favori === true };
 }
 
 /** @param {any} repo @param {string} collab @param {string} canal @param {{ notif?: string, favori?: boolean }} changement */
 function reglerPreferences(repo, collab, canal, changement) {
   if (!canalValide(canal) || !collab) return null;
   const table = lireTable(repo, CLE_PREFS);
-  const avant = preferences(repo, collab, canal);
-  const apres = {
-    notif: changement.notif !== undefined && NOTIFICATIONS.includes(changement.notif) ? changement.notif : avant.notif,
-    favori: changement.favori !== undefined ? changement.favori === true : avant.favori
-  };
+  const avant = (table[collab] || {})[canal] || {};
+  // Un favori changé seul ne fige pas la notification : sans choix du collaborateur, elle reste la valeur par défaut (notifParDefautDossier).
+  const notif = changement.notif !== undefined && NOTIFICATIONS.includes(changement.notif) ? changement.notif : (NOTIFICATIONS.includes(avant.notif) ? avant.notif : '');
+  const apres = Object.assign(notif ? { notif } : {}, { favori: changement.favori !== undefined ? changement.favori === true : avant.favori === true });
   table[collab] = Object.assign({}, table[collab], { [canal]: apres });
   repo.ecrireJsonBrut(CLE_PREFS, table);
   return apres;
@@ -348,6 +353,19 @@ const VOIT_TOUTES_LES_ALERTES = ['Bastien ANGLUMENT'];
 const SANS_ALERTES_DE_DOSSIER = ['Sophie GOSSART'];
 /** Pure : 'toutes' | 'aucune' | 'responsable'. @param {string} collab */
 function modeAlertesDossier(collab) { return VOIT_TOUTES_LES_ALERTES.includes(collab) ? 'toutes' : SANS_ALERTES_DE_DOSSIER.includes(collab) ? 'aucune' : 'responsable'; }
+
+/**
+ * Pur : la notification d'un canal tant que le collaborateur n'a rien réglé (étude 30/10 : « il ne faut pas de notification pour les conversations
+ * de dossier pour le collaborateur qui n'est pas concerné ; seul Bastien a toutes les notifications ») : le canal d'un dossier dont il n'est pas
+ * le responsable ne le prévient que s'il est cité (« mentions ») ; Bastien, tout ; Sophie, ses mentions seulement ; responsable inconnu : tout,
+ * comme avant. Un réglage fait par le collaborateur (Tous / Mentions / Muet) passe toujours avant.
+ * @param {string} canal @param {string} mode @param {string} collab @param {string} resp
+ */
+function notifParDefautDossier(canal, mode, collab, resp) {
+  if (!String(canal).startsWith('d:') || mode === 'toutes' || !collab) return 'tous';
+  if (mode === 'aucune') return 'mentions';
+  return resp && resp !== collab ? 'mentions' : 'tous';
+}
 
 /**
  * Pure : un message de CLAIRE (carte de proposition comprise : elle porte son responsable en `pour`) dans le canal d'un DOSSIER est-il caché à ce collaborateur ?
@@ -416,11 +434,11 @@ function listerCanaux(repo, collab, collaborateurs, responsableDe) {
     // sans responsable connu : les messages de CLAIRE comptent pour tous, comme avant.
     const luLe = Number(lus[id]) || 0;
     const mode = modeAlertesDossier(collab);
-    const claireNonLue = id.startsWith('d:') && mode === 'responsable' && !!responsableDe && (Array.isArray(e.recents) ? e.recents : []).some((r) => Array.isArray(r) && Number(r[0]) > luLe && r[3] === 1);
-    const resp = claireNonLue ? String(/** @type {any} */ (responsableDe)(id.slice(2)) || '') : '';
+    // Le responsable, pour chaque canal de dossier (la notification par défaut en dépend, même canal lu) : la route le garde 30 s en mémoire.
+    const resp = id.startsWith('d:') && mode === 'responsable' && responsableDe ? String(responsableDe(id.slice(2)) || '') : '';
     const c = compterCanal(e, luLe, collab, id.startsWith('d:') ? (x) => claireMasquee(mode, collab, resp, x) : false);
     const p = prefs[id] || {};
-    const notif = NOTIFICATIONS.includes(p.notif) ? p.notif : 'tous';
+    const notif = NOTIFICATIONS.includes(p.notif) ? p.notif : notifParDefautDossier(id, mode, collab, resp);
     // Comme la pastille du poste : les cartes de proposition comptent par « À traiter », pas comme messages (audit 0.383.1 : une carte
     // déjà décidée depuis « À traiter » laissait l'étincelle allumée).
     badge += notif === 'muet' ? 0 : notif === 'mentions' ? Math.max(0, c.mentions - c.mentionsCartes) : Math.max(0, c.nonLus - c.nonLusCartes);
@@ -482,5 +500,5 @@ module.exports = {
   JOURS_CONSERVATION_MESSAGES, purgerMessagesAnciens, MAX_TEXTE_PERSONNE, MAX_CANAUX_INDEX, purgerCanauxOrphelins,
   CLE_INDEX, NOTIFICATIONS, MAX_MESSAGES, RE_CANAL, canalValide, canalDuDossier, prenomDe, plat, mentionsDansTexte, assainirMessage, reagirMessage, slugPrenom, idPrive, membresPrive, privesPour, lireMessages, lireIndex,
   ajouterMessage, changerMessage, marquerLu, lusParAutresMembres, toutMarquerLu, preferences, reglerPreferences, lireLibres, creerCanalLibre, idLibreDepuisNom,
-  modeAlertesDossier, claireMasquee, lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
+  modeAlertesDossier, notifParDefautDossier, claireMasquee, lireSilences, silencer, estSilence, leverSilence, compterCanal, listerCanaux
 };

@@ -63,9 +63,17 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
   /** @param {any} p @param {string} utilisateur */
   const carteVisible = (p, utilisateur) => (p.responsable === utilisateur || ADMINISTRATEURS.includes(utilisateur) ? p : Object.assign({}, p, { details: {} }));
 
-  /** Le responsable d'un dossier ('' inconnu). @param {string} dossierId */
+  /** Le responsable d'un dossier ('' inconnu), gardé 30 s : la liste des canaux le lit pour chaque canal de dossier à chaque relevé de chaque poste
+   * (relecture 0.407.6 — sans cela, un dossier décodé par canal et par relevé, ce que l'audit 0.383.1 voulait éviter). @param {string} dossierId */
+  const responsables = new Map();
   const responsableDuDossier = (dossierId) => {
-    try { const d = depot && depot.trouverParId ? depot.trouverParId(dossierId) : null; return d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { return ''; }
+    const deja = responsables.get(dossierId);
+    if (deja && Date.now() - deja.le < 30000) return deja.resp;
+    let resp = '';
+    try { const d = depot && depot.trouverParId ? depot.trouverParId(dossierId) : null; resp = d && typeof d.responsable === 'string' ? d.responsable : ''; } catch (e) { resp = ''; }
+    if (responsables.size > 2000) responsables.clear();
+    responsables.set(dossierId, { resp, le: Date.now() });
+    return resp;
   };
 
   routeur.get('/canaux', (req, res) => {
@@ -150,7 +158,7 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const signature = [Object.values(lusPar).join(','), messages.length, dernier ? dernier.id : '', messages.reduce((s, m) => s + (m.modifieLe || 0), 0), messages.filter((m) => m.epingle).map((m) => m.id).join(','), messages.map((m) => (m.reactions || []).map((r) => `${r.emoji}${r.par.join('+')}`).join('')).join(','),
       Object.values(cartes).map((p) => `${p.id}:${p.etat}`).join(',')].join('|');
     if (req.query.signature === signature) { res.json({ inchange: true, signature }); return; }
-    res.json({ signature, messages, cartes, lusPar, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id) });
+    res.json({ signature, messages, cartes, lusPar, preferences: C.preferences(parametresRepo, collaborateurDe(req.query.utilisateur), id, responsableDuDossier) });
   });
 
   routeur.post('/canaux/:id/messages', (req, res) => {
@@ -253,7 +261,8 @@ function creerRouteurCanaux(parametresRepo, notifieur, depot, stockPiecesJointes
     const corps = req.body && typeof req.body === 'object' ? req.body : {};
     const utilisateur = collaborateurDe(corps.utilisateur);
     if (!id || !utilisateur) { res.status(400).json({ erreur: 'Demande incomplète.' }); return; }
-    res.json({ ok: true, preferences: C.reglerPreferences(parametresRepo, utilisateur, id, { notif: corps.notif, favori: corps.favori }) });
+    if (!C.reglerPreferences(parametresRepo, utilisateur, id, { notif: corps.notif, favori: corps.favori })) { res.status(400).json({ erreur: 'Canal inconnu.' }); return; }
+    res.json({ ok: true, preferences: C.preferences(parametresRepo, utilisateur, id, responsableDuDossier) });
   });
 
   // « Jamais pour ce dossier » : CLAIRE ne dépose plus de proposition (de cette routine, ou de toutes) sur ce dossier.

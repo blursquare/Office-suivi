@@ -249,7 +249,8 @@ async function piloter(o) {
   let jetons = 0;
   let relances = 0;
   for (let pas = 1; pas <= MAX_PAS; pas++) {
-    if (o.annule()) return { etat: 'impossible', compte: 'Arrêté à la demande.', pas: pas - 1, jetons };
+    // « Arrêter » de l'aperçu en direct (étude 30/10) : la tâche s'arrête comme arrêtée, jamais comptée comme un échec du pilote.
+    if (o.annule()) throw Object.assign(new Error('Arrêté à la demande.'), { annule: true });
     if (Date.now() - debut > DUREE_MAX_MS) return { etat: 'partiel', compte: 'Temps écoulé : arrêté avant la fin.', pas: pas - 1, jetons };
     if (jetons > JETONS_MAX) return { etat: 'partiel', compte: 'Plafond de lecture atteint : arrêté avant la fin.', pas: pas - 1, jetons };
     allegerHistorique(messages);
@@ -271,6 +272,8 @@ async function piloter(o) {
     const resultats = [];
     let fin = null;
     for (const a of appels) {
+      // Arrêt demandé pendant la réponse de Claude : le geste décidé n'est pas fait.
+      if (o.annule()) throw Object.assign(new Error('Arrêté à la demande.'), { annule: true });
       const e = a.input || {};
       let dit = '';
       /** @type {any[] | null} */
