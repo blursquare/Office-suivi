@@ -748,22 +748,27 @@ async function chercherMailsDirect(parametresRepo, depot, q, injections = {}) {
       if (sensMail === 'envoye' && candidats.length) {
         const g = await posterEws({ url: reglages.url, email: reglages.email, motDePasse: reglages.motDePasse, body: corpsGetItems(candidats.map((e) => e.itemId), false), delaiMs: 30000 }, injections);
         if (g.statut === 401 || g.statut === 403) { agendaWatch.signalerIdentifiantsRefuses(reglages); return { erreur: 'Identifiants de messagerie refusés.', statut: 502 }; }
-        if (!g.echec && succes(g.corps)) destinataires = new Map([...parseGetItems(g.corps)].map(([id, v]) => [id, v.a]));
+        // Un échec n'est jamais tu (l'agent conclurait « aucun email ») ; un élément déplacé entre-temps n'empêche pas de lire les autres.
+        if (g.echec || g.statut !== 200) return { erreur: g.echec ? g.echec.message : `Lecture des destinataires impossible (${g.statut}).`, statut: 502 };
+        destinataires = new Map([...parseGetItems(g.corps)].map(([id, v]) => [id, v.a]));
       }
       for (const e of candidats) {
         const adresses = sensMail === 'recu' ? [e.deAdresse] : (destinataires.get(e.itemId) || []);
         let d = null;
+        let deDossier = false;
         for (const a of adresses) {
-          if (!a || internesMin.includes(a)) continue;
-          d = dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: a }, ctx);
-          if (d) break;
+          const am = String(a || '').toLowerCase();
+          if (!am || internesMin.includes(am) || !(ctx.parAdresse.has(am) || ctx.parAdresseArchive.has(am))) continue;
+          // Adresse d'une fiche en cours : l'email est « d'un dossier » ; le dossier n'est nommé que si l'adresse ou l'objet le désigne seul.
+          deDossier = true;
+          d = d || dossierDeEmailParAdresse({ sujet: e.objet, apercu: e.apercu, deAdresse: am }, ctx);
         }
-        if (!d) { horsDossiers++; continue; }
+        if (!deDossier) { horsDossiers++; continue; }
         const mailId = 'mx' + require('node:crypto').createHash('sha1').update(e.itemId).digest('hex').slice(0, 14);
         MAILS_TROUVES.set(mailId, { itemId: e.itemId, le: maintenant });
         emails.push({ mail_id: mailId, sens: sensMail, date: e.date, nom: sensMail === 'envoye' ? 'l’étude' : (e.deNom || e.deAdresse), email_expediteur: e.deAdresse,
           // Précédés d'un mot d'usage : le masquage voit un nom en tête de l'objet ou de l'aperçu (« Paul Durand vente ») hors de la tête de phrase.
-          objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d.id });
+          objet: 'Objet : ' + (e.objet || ''), apercu: 'Aperçu : ' + String(e.apercu || '').slice(0, 240), pieces_jointes: !!e.pj, dossier_id: d ? d.id : '' });
       }
       if (lot.length < 100 || !depuis || jourParisEmail(lot[lot.length - 1].date) < depuis) break;
     }

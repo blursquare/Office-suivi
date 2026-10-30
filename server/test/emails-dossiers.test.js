@@ -557,3 +557,25 @@ test('recherche libre limitée aux emails des dossiers (étude 30/10) : expédit
     assert.equal(r.hors_dossiers_ecartes, 2);
   } finally { db.close(); }
 });
+
+test('emails des dossiers : confrère sur deux dossiers gardé sans dossier nommé, Cc et majuscules, GetItem en échec dit', async () => {
+  const { db, repo } = preparer();
+  try {
+    const D2 = { id: 'd2', nom: 'ROUX / BLANC', emailNotaireParticipant: 'etude.confrere@notaires.fr', emailAcquereur: 'b@exemple.fr' };
+    const D1 = { ...DOSSIER, emailNotaireParticipant: 'etude.confrere@notaires.fr' };
+    const depot2 = { tousActifs: () => [D1, D2] };
+    const errItem = '<m:GetItemResponseMessage ResponseClass="Error"><m:ResponseCode>ErrorItemNotFound</m:ResponseCode></m:GetItemResponseMessage>';
+    const poster = (o, cb) => {
+      if (/GetItem/.test(o.body)) return cb(null, { statusCode: 200, body: getItems([{ id: 'SE1', a: ['x@ailleurs.fr', 'ALEX.MARTEL@EXEMPLE.FR'] }]).replace('</m:ResponseMessages>', errItem + '</m:ResponseMessages>') });
+      if (/sentitems/.test(o.body)) return cb(null, { statusCode: 200, body: find([msgFind('SE1', 'Suite', '2026-10-28T08:00:00Z', 'B', 'bastien@office.fr', false), msgFind('SE9', 'Disparu', '2026-10-28T08:00:00Z', 'B', 'bastien@office.fr', false)]) });
+      return cb(null, { statusCode: 200, body: find([msgFind('IN1', 'Votre courrier du 12', '2026-10-27T08:00:00Z', 'Étude', 'etude.confrere@notaires.fr', false)]) });
+    };
+    const r = await E.chercherMailsDirect(repo, depot2, { texte: 'courrier', sens: 'tous' }, { poster });
+    const recu = r.emails.find((e) => e.sens === 'recu');
+    assert.ok(recu, 'le confrère de deux dossiers est bien un expéditeur de dossier');
+    assert.equal(recu.dossier_id, '', 'dossier non deviné quand l’objet ne départage pas');
+    assert.equal(r.emails.find((e) => e.sens === 'envoye').dossier_id, 'd1', 'destinataire en majuscules, second de la liste');
+    const ko = await E.chercherMailsDirect(repo, depot2, { texte: 'suite', sens: 'envoyes' }, { poster: (o, cb) => (/GetItem/.test(o.body) ? cb(null, { statusCode: 500, body: '' }) : poster(o, cb)) });
+    assert.equal(ko.statut, 502, 'un échec de lecture des destinataires est dit, jamais « aucun email »');
+  } finally { db.close(); }
+});
