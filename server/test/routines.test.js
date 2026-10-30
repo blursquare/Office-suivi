@@ -39,7 +39,7 @@ test('réglages : jamais enregistrés (ou d’avant le 25/10), tout allumé au n
   assert.equal(d.heure, '09:15');
   assert.equal(d.teams, true);
   assert.equal(CATALOGUE.length, Object.keys(d.routines).length);
-  for (const r of CATALOGUE) assert.equal(d.routines[r.id].actif, r.id !== 'essai', r.id);
+  for (const r of CATALOGUE) assert.equal(d.routines[r.id].actif, r.id !== 'essai' && r.allumeeParDefaut !== false, r.id);
   for (const r of CATALOGUE) assert.equal(d.routines[r.id].niveau, 1);
   const s = R.assainirReglagesRoutines({ revision: R.REVISION_REGLAGES_ROUTINES, actif: true, heure: '25:99', plafondEuros: -3, routines: {
     essai: { actif: true, niveau: 3 },

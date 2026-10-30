@@ -108,9 +108,13 @@ async function lirePageCnaf(url) {
 
 /**
  * @param {{ parametresRepo: any, depot?: any, envoyer?: (reglages: any, adresse: string, texte: string) => Promise<{ ok: boolean, erreur?: string | null }>,
- *   ia?: any, lireEmail?: (id: string) => Promise<any>, injectionsEmails?: any, lireUrl?: (url: string) => Promise<string>, posterEws?: (corps: string) => Promise<any> }} deps
+ *   ia?: any, lireEmail?: (id: string) => Promise<any>, injectionsEmails?: any, lireUrl?: (url: string) => Promise<string>, posterEws?: (corps: string) => Promise<any>,
+ *   documentsDossier?: (id: string) => any[] }} deps
  *   `ia`, `lireEmail`, `lireUrl`, `posterEws` : faux client de l'IA, lecture d'un email, d'une page du CNAF, de la boîte Exchange (tests)
  */
+// Routines du « vrai agent » (0.403.0) : un seul point de vérification sur le terrain.
+const ROUTINES_PROACTIVES = new Set(['controle-rendez-vous', 'dossiers-bloques', 'emails-recus', 'relances-formalites']);
+
 function creerPlanificateur(deps) {
   const { parametresRepo, depot } = deps;
   const lireUrl = deps.lireUrl || lirePageCnaf;
@@ -158,13 +162,16 @@ function creerPlanificateur(deps) {
   const lireEmail = deps.lireEmail || ((id) => require('../emailsDossiers').lireEmailComplet(parametresRepo, id, deps.injectionsEmails || {}));
   const ia = () => deps.ia || IA.creerIaRoutines({ parametresRepo });
 
+  /** Emails des dossiers relevés par emailsDossiers.js (routine « emails reçus »). */
+  const emailsDesDossiers = () => { try { return require('../emailsDossiers').lireEtat(parametresRepo).emails; } catch (_) { return []; } };
+
   /** Dépose les propositions d'une routine et le dit au journal. @param {string} routineId @param {any[]} liste @param {Date} maintenant */
   function deposer(routineId, liste, maintenant) {
     let ajoutees = 0;
     for (const p of liste) if (deposerProposition(parametresRepo, p, maintenant).ok) ajoutees += 1;
     const nom = (routineParId(routineId) || { nom: routineId }).nom;
     if (ajoutees) noterJournalRoutines(parametresRepo, { routine: routineId, texte: `${nom} : ${ajoutees} proposition${ajoutees > 1 ? 's' : ''} déposée${ajoutees > 1 ? 's' : ''}.`, resultat: 'ok', niveau: 1 }, maintenant);
-    if (ajoutees && ROUTINES_CODE[/** @type {keyof typeof ROUTINES_CODE} */ (routineId)]) noterVerification(parametresRepo, 'routines-' + routineId, { detail: 'proposition déposée' });
+    if (ajoutees && ROUTINES_CODE[/** @type {keyof typeof ROUTINES_CODE} */ (routineId)]) noterVerification(parametresRepo, ROUTINES_PROACTIVES.has(routineId) ? 'routines-proactives' : 'routines-' + routineId, { detail: 'proposition déposée' });
     return ajoutees;
   }
 
@@ -285,7 +292,7 @@ function creerPlanificateur(deps) {
       if (r.quand === 'matin' ? (info.hhmm < reglages.heure || passages[id] === info.iso) : (maintenant.getTime() - (Date.parse(passages[id] || '') || 0) < INTERVALLE_CONTINU_MS)) continue;
       marquer(id, r.quand === 'matin' ? info.iso : maintenant.toISOString());
       try {
-        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: () => { try { return require('../emailsDossiers').lireEtat(parametresRepo).emails; } catch (_) { return []; } } }), maintenant);
+        deposer(id, r.fn(lesDossiers(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: emailsDesDossiers }), maintenant);
       } catch (e) {
         noterJournalRoutines(parametresRepo, { routine: id, texte: `Routine interrompue : ${String(e && e.message).slice(0, 120)}`, resultat: 'erreur' }, maintenant);
       }
@@ -333,7 +340,7 @@ function creerPlanificateur(deps) {
     const info = infosParis(maintenant);
     const r = /** @type {any} */ (ROUTINES_CODE)[routineId];
     if (r) {
-      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: () => { try { return require('../emailsDossiers').lireEtat(parametresRepo).emails; } catch (_) { return []; } } }), maintenant);
+      const ajoutees = deposer(routineId, r.fn(dossiersOuverts(), info.iso, { niveau: niveauPour(reglages), sondagesOuverts: sondagesOuverts(), authenticActif: authenticActif(), documentsDossier: deps.documentsDossier, emailsDossiers: emailsDesDossiers }), maintenant);
       noterJournalRoutines(parametresRepo, { routine: routineId, texte: `Lancée à la main par ${prenomDe(responsable)} : ${ajoutees} proposition${ajoutees > 1 ? 's' : ''}.`, resultat: ajoutees ? 'ok' : 'rien' }, maintenant);
       return { ok: true, ajoutees, message: ajoutees ? `${ajoutees} proposition${ajoutees > 1 ? 's' : ''} déposée${ajoutees > 1 ? 's' : ''} dans les canaux des dossiers.` : 'Rien de nouveau à proposer pour l’instant.' };
     }

@@ -119,13 +119,15 @@ async function envoyerMailAgent(e) {
   if (!a || a.type !== 'email') return { erreur: 'aucun brouillon d’email avec cet artefact_id : appelle artefact en mode lister' };
   const r = brouillonDeArtefact(a);
   if (!r) return { erreur: 'le brouillon d’email a été fermé, envoyé ou remplacé' };
+  if (r.envoi) return { erreur: 'l’envoi de ce brouillon est déjà en cours (l’utilisateur a cliqué « Envoyer ») : ne pas le relancer' };
   if (!envoiDirectPossible()) return { erreur: 'envoi depuis CLAIRE impossible (messagerie non réglée) : l’utilisateur passe par « Ouvrir dans Outlook »' };
   const etat = etatEnvoiRedaction();
   if (!etat.possible) return { erreur: 'brouillon pas prêt : ' + etat.motif + ' L’utilisateur le corrige dans la fenêtre, ou demande-toi une correction (artefact, mode modifier).' };
   const texte = String(r.texte || texteDeHtmlRedaction(r.html) || '').replace(/\s+/g, ' ').trim();
   const ok = await demanderAutorisationAgent(`Envoyer maintenant l’email à ${r.a}${r.cc ? ' (copie : ' + r.cc + ')' : ''} — objet « ${r.sujet || '(sans objet)'} »${(r.pieces || []).length ? `, ${r.pieces.length} pièce(s) jointe(s)` : ''} : « ${texte.slice(0, 280)}${texte.length > 280 ? '…' : ''} » (texte entier dans le panneau ; corrigez-le là avant d’autoriser si besoin)`, { strict: true });
   if (!ok) return { refuse: true, message: 'l’utilisateur n’a pas autorisé l’envoi : le brouillon reste ouvert dans le panneau, il peut le reprendre ou te demander une correction' };
-  if (brouillonDeArtefact(a) !== r) return { erreur: 'le brouillon a changé pendant la demande : rien n’est parti' };
+  if (brouillonDeArtefact(a) !== r) return { erreur: 'le brouillon n’est plus celui de la carte (l’utilisateur l’a peut-être envoyé lui-même par « Envoyer », ou fermé) : rien n’est reparti, ne pas le renvoyer ; demander à l’utilisateur s’il est parti' };
+  if (r.envoi) return { envoye: 'en cours', message: 'l’utilisateur a cliqué « Envoyer » pendant la demande : l’envoi est en cours dans la fenêtre' };
   await envoyerRedaction();
   if (redaction === r) return { erreur: 'email non envoyé : ' + (r.erreur || 'la fenêtre le dit') };
   noterVerificationPoste('agent-envoyer-mail', { detail: 'envoyé par l’agent après autorisation' });

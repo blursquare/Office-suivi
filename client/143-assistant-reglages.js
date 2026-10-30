@@ -42,7 +42,7 @@
         const r = (etat.catalogue || []).find(x => x.id === cle);
         if (!r) return { erreur: 'routine inconnue : lis d’abord les réglages (mode lire) pour sa clé' };
         if (!['allumee', 'eteinte'].includes(valeur)) return { erreur: 'valeur : allumee ou eteinte' };
-        const ok = await demanderAutorisationAgent(`${valeur === 'allumee' ? 'Allumer' : 'Éteindre'} la routine « ${r.nom || r.id} » (Réglages › Routines, pour toute l’étude)`);
+        const ok = await demanderAutorisationAgent(`${valeur === 'allumee' ? 'Allumer' : 'Éteindre'} la routine « ${r.nom || r.id} » (Réglages › Routines, pour toute l’étude)`, { strict: valeur === 'allumee' });
         if (!ok) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
         await lireJsonAgent('/api/routines/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ routines: { [cle]: { actif: valeur === 'allumee' } }, auteur: utilisateurPoste }) });
         return { fait: true, routine: r.nom || r.id, allumee: valeur === 'allumee' };
@@ -55,14 +55,14 @@
         const sites = (web.domaines || []).slice();
         const present = sites.includes(site);
         if ((cle === 'ajouter') === present) return { deja: true, message: `le site ${site} est ${present ? 'déjà dans' : 'déjà absent de'} la liste` };
-        const ok = await demanderAutorisationAgent(`${cle === 'ajouter' ? 'Ajouter' : 'Retirer'} le site ${site} ${cle === 'ajouter' ? 'aux' : 'des'} sources de la recherche web (Réglages › IA et relecture d’actes, pour toute l’étude)`);
+        const ok = await demanderAutorisationAgent(`${cle === 'ajouter' ? 'Ajouter' : 'Retirer'} le site ${site} ${cle === 'ajouter' ? 'aux' : 'des'} sources de la recherche web (Réglages › IA et relecture d’actes, pour toute l’étude)`, { strict: cle === 'ajouter' });
         if (!ok) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
         const nouveaux = cle === 'ajouter' ? sites.concat(site) : sites.filter(x => x !== site);
         const rep = await lireJsonAgent('/api/assistant/recherche-web', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: web.actif !== false, domaines: nouveaux }) });
         return { fait: true, sites: rep.domaines || nouveaux };
       }
       if (!['allume', 'eteint'].includes(valeur)) return { erreur: 'valeur : allume ou eteint' };
-      const ok = await demanderAutorisationAgent(`${valeur === 'allume' ? 'Allumer' : 'Éteindre'} la lecture en fond des documents du NAS des dossiers en cours (Réglages › Mémoire de CLAIRE)`);
+      const ok = await demanderAutorisationAgent(`${valeur === 'allume' ? 'Allumer' : 'Éteindre'} la lecture en fond des documents du NAS des dossiers en cours (Réglages › Mémoire de CLAIRE)`, { strict: valeur === 'allume' });
       if (!ok) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
       await lireJsonAgent('/api/index-nas/reglages', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actif: valeur === 'allume' }) });
       return { fait: true, index_nas_allume: valeur === 'allume' };

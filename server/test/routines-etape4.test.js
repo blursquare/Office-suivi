@@ -15,6 +15,17 @@ test('diagnostics : un ERP de plus de six mois, un DPE valable ; sans date lue, 
   assert.equal(p.map((x) => x.nom).join(','), 'État des risques (ERP)');
   assert.equal(p[0].fin, '2026-09-01');
   assert.equal(X.plusMois('2026-03-01', 6), '2026-09-01');
+  assert.equal(X.plusMois('2026-08-31', 6), '2027-02-28', 'fin de mois : jamais de débordement');
+});
+
+test('diagnostics (audit 0.403.0) : DPE d’avant le 01/07/2021 périmé selon le décret ; le résumé d’un compromis ne compte pas', () => {
+  assert.equal(X.finValiditeDpe('2019-05-01'), '2024-12-31');
+  assert.equal(X.finValiditeDpe('2016-05-01'), '2022-12-31');
+  assert.equal(X.finValiditeDpe('2022-05-01'), '2032-05-01');
+  assert.equal(X.diagnosticsPerimes([{ type: 'DPE', date: '2019-05-01', resume: '' }], '2026-11-20').map((x) => x.nom).join(','), 'DPE');
+  assert.deepEqual(X.diagnosticsPerimes([{ type: 'compromis de vente', date: '2026-02-01', resume: 'Compromis signé, DPE, ERP et état termites annexés' }], '2026-11-20'), []);
+  assert.deepEqual(X.diagnosticsPerimes([{ type: 'facture', date: '2020-01-01', resume: 'électricité' }], '2026-11-20'), []);
+  assert.deepEqual(X.diagnosticsPerimes([{ type: 'courrier de la mairie', date: '2020-01-01', resume: 'assainissement collectif' }], '2026-11-20'), []);
 });
 
 test('contrôle du rendez-vous : offre trop tard, pièces, diagnostic périmé — une alerte par date et par liste de problèmes', () => {
@@ -23,28 +34,39 @@ test('contrôle du rendez-vous : offre trop tard, pièces, diagnostic périmé �
   const r = X.controleRendezVous([d], '2026-10-30', ctx);
   assert.equal(r.length, 1);
   assert.equal(r[0].type, 'alerte');
-  assert.match(r[0].resume, /moins de 11 jours de réflexion/);
+  assert.match(r[0].resume, /délai de réflexion de 10 jours/);
   assert.match(r[0].resume, /État des risques/);
   const r2 = X.controleRendezVous([Object.assign({}, d, { rendezVousSignature: '2026-11-21' })], '2026-10-30', ctx);
   assert.notEqual(r2[0].empreinte, r[0].empreinte, 'déplacé : nouveau contrôle');
   assert.deepEqual(X.controleRendezVous([vente({ rendezVousSignature: '2026-11-20', roleNotaire: 'participant' })], '2026-10-30', ctx), []);
   assert.deepEqual(X.controleRendezVous([vente({ rendezVousSignature: '2026-10-01', pret: '2026-09-28' })], '2026-10-30', ctx), [], 'rendez-vous passé : rien');
+  assert.deepEqual(X.controleRendezVous([vente({ rendezVousSignature: '2027-01-20' })], '2026-10-30', { documentsDossier: () => [] }), [], 'pièces manquantes loin de la signature : la revue du matin le dit à J-21');
 });
 
 test('dossiers bloqués : trois semaines sans activité → une alerte avec ce qui retient ; activité récente → rien', () => {
-  const vieux = vente({ historique: [{ date: '2026-10-01T09:00:00', texte: 'Pièce reçue' }], pret: '2026-11-15' });
+  const vieux = vente({ historique: [{ date: '2026-10-01T09:00:00', texte: 'Pièce reçue' }], pret: '2026-10-15' });
   const r = X.dossiersBloques([vieux], '2026-10-30');
   assert.equal(r.length, 1);
   assert.match(r[0].titre, /Rien de neuf depuis 29 jours/);
   assert.equal(r[0].empreinte, 'bloque:v1:2026-10-01');
   assert.deepEqual(X.dossiersBloques([vente()], '2026-10-30'), []);
+  assert.deepEqual(X.dossiersBloques([Object.assign({}, vieux, { pret: '2026-11-15' })], '2026-10-30'), [], 'offre attendue plus tard : l’attente est normale');
+  assert.deepEqual(X.dossiersBloques([Object.assign({}, vieux, { rendezVousSignature: '2026-12-15' })], '2026-10-30'), [], 'rendez-vous placé : rien');
+  assert.equal(X.dossiersBloques([Object.assign({}, vieux, { acte: '2027-01-15' })], '2026-10-30').length, 1, 'date butoir à venir (fixer le rendez-vous) : l’attente est celle de l’étude, signalée');
   assert.deepEqual(X.dossiersBloques([vente({ archive: true, historique: [{ date: '2026-09-01' }] })], '2026-10-30'), []);
 });
 
-test('catalogue : les deux routines de l’étape 4, allumées par défaut, sans IA, niveau 1 seulement', () => {
-  for (const id of ['controle-rendez-vous', 'dossiers-bloques']) {
+test('catalogue : routines des étapes 4-5 sans IA, niveau 1 ; les deux plus bavardes éteintes par défaut (audit 0.403.0)', () => {
+  for (const id of ['controle-rendez-vous', 'dossiers-bloques', 'emails-recus', 'relances-formalites']) {
     const r = CATALOGUE.find((x) => x.id === id);
-    assert.ok(r && r.allumeeParDefaut && !r.ia && r.gestes.every((g) => g.niveauMax === 1));
+    assert.ok(r && !r.ia && r.gestes.every((g) => g.niveauMax === 1));
+    assert.equal(r.allumeeParDefaut, !['dossiers-bloques', 'emails-recus'].includes(id), id);
+  }
+  const { assainirReglagesRoutines } = require('../src/routines/reglages');
+  for (const brut of [{}, { revision: 1 }]) {
+    const reg = assainirReglagesRoutines(brut);
+    assert.equal(reg.routines['dossiers-bloques'].actif, false, 'réglages jamais enregistrés ou anciens : éteinte');
+    assert.equal(reg.routines['controle-rendez-vous'].actif, true);
   }
 });
 
@@ -54,6 +76,7 @@ test('étape 5 : une demande d’Authentic sans réponse après 15 jours → tâ
   assert.equal(r.map((x) => x.titre.split(' — ')[0]).join('|'), 'Relancer : Note de renseignements d’urbanisme');
   assert.notEqual(X.relancesFormalites([d], '2026-11-05')[0].empreinte, r[0].empreinte, 'nouvelle quinzaine : nouvelle relance');
   assert.deepEqual(X.relancesFormalites([vente(Object.assign({}, d, { pieces: { noteUrbanisme: 'recue' } }))], '2026-10-20'), []);
+  assert.deepEqual(X.relancesFormalites([vente(Object.assign({}, d, { piecesRetirees: ['noteUrbanisme', 'renonciationPreemption'] }))], '2026-12-20'), [], 'pièce retirée par l’étude : jamais relancée');
 });
 
 test('email reçu dans un dossier : sujet reconnu ou pièce jointe → proposition des suites ; déjà répondu ou ancien → rien', () => {

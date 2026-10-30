@@ -338,7 +338,7 @@ const VALIDITE_DIAGNOSTICS = [
   { re: /termite/, mois: 6, nom: 'Diagnostic termites' },
   { re: /electric/, mois: 36, nom: 'Diagnostic électricité' },
   { re: /\bgaz\b/, mois: 36, nom: 'Diagnostic gaz' },
-  { re: /assainissement/, mois: 36, nom: 'Contrôle de l’assainissement' },
+  { re: /(non collectif|spanc)/, mois: 36, nom: 'Contrôle de l’assainissement non collectif' },
   { re: /(\bdpe\b|performance energetique)/, mois: 120, nom: 'DPE' }
 ];
 const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -346,9 +346,22 @@ const sansAccents = (t) => String(t || '').toLowerCase().normalize('NFD').replac
 /** Pure : la date ISO `iso` + `mois` mois. @param {string} iso @param {number} mois */
 function plusMois(iso, mois) {
   const [a, m, j] = String(iso).slice(0, 10).split('-').map(Number);
-  const d = new Date(Date.UTC(a, m - 1 + mois, j));
+  const dernierJour = new Date(Date.UTC(a, m - 1 + mois + 1, 0)).getUTCDate();
+  const d = new Date(Date.UTC(a, m - 1 + mois, Math.min(j, dernierJour)));
   return d.toISOString().slice(0, 10);
 }
+
+/** Pure : fin de validité d'un DPE (décret 2020-1610 : établi de 2013 à 2017 → 31/12/2022, du 01/01/2018 au 30/06/2021 → 31/12/2024, sinon 10 ans). @param {string} date */
+function finValiditeDpe(date) {
+  if (date < '2018-01-01') return '2022-12-31';
+  if (date < '2021-07-01') return '2024-12-31';
+  return plusMois(date, 120);
+}
+
+// Seul le TYPE du document dit un diagnostic (jamais le résumé, qui cite souvent les annexes d'un compromis), et jamais un compromis, une
+// facture, un acte ou un courrier.
+const RE_TYPE_DIAGNOSTIC = /(diagnostic|constat|etat|dpe|erp|rapport|controle|spanc)/;
+const RE_TYPE_PAS_DIAGNOSTIC = /(compromis|promesse|facture|acte|courrier|avant-contrat)/;
 
 /**
  * Pure : les diagnostics qui ne seront plus valables le jour de la signature, d'après les documents lus du dossier
@@ -357,9 +370,14 @@ function plusMois(iso, mois) {
 function diagnosticsPerimes(documents, signature) {
   const sortie = [];
   for (const v of VALIDITE_DIAGNOSTICS) {
-    const dates = (documents || []).filter((x) => x && estIso(x.date) && v.re.test(sansAccents(`${x.type} ${x.resume}`))).map((x) => String(x.date).slice(0, 10)).sort();
+    const dates = (documents || []).filter((x) => {
+      if (!x || !estIso(x.date)) return false;
+      const t = sansAccents(x.type);
+      return RE_TYPE_DIAGNOSTIC.test(t) && !RE_TYPE_PAS_DIAGNOSTIC.test(t) && v.re.test(t);
+    }).map((x) => String(x.date).slice(0, 10)).sort();
     if (!dates.length) continue;
-    const fin = plusMois(dates[dates.length - 1], v.mois);
+    const derniere = dates[dates.length - 1];
+    const fin = v.nom === 'DPE' ? finValiditeDpe(derniere) : plusMois(derniere, v.mois);
     if (fin < String(signature).slice(0, 10)) sortie.push({ nom: v.nom, date: dates[dates.length - 1], fin });
   }
   return sortie;
@@ -367,22 +385,22 @@ function diagnosticsPerimes(documents, signature) {
 
 /**
  * Pure : ce qui ne tient pas avec la date de signature d'une vente — offre de prêt attendue trop tard (11 jours de réflexion), vente préalable,
- * réponse à la DIA ou délai SAFER après la signature, pièces manquantes, diagnostics périmés le jour J. @param {any} d @param {any[]} [documents]
+ * réponse à la DIA ou délai SAFER après la signature, pièces manquantes, diagnostics périmés le jour J. @param {any} d @param {any[]} [documents] @param {string} [aujourdhui]
  */
-function incoherencesSignature(d, documents) {
+function incoherencesSignature(d, documents, aujourdhui) {
   const rdv = String(d.rendezVousSignature || '').slice(0, 10);
   const pb = [];
   if (!estIso(rdv)) return pb;
   if (!d.sansPret && estIso(d.pret) && !P.echeanceValidee(d, 'pret') && joursEntre(String(d.pret).slice(0, 10), rdv) < JOURS_REFLEXION_PRET) {
-    pb.push({ cle: 'pret', texte: `l’offre de prêt est attendue le ${dateFr(d.pret)} : moins de ${JOURS_REFLEXION_PRET} jours de réflexion avant la signature` });
+    pb.push({ cle: 'pret', texte: `l’offre de prêt est attendue jusqu’au ${dateFr(d.pret)} : le délai de réflexion de 10 jours (acceptation au 11e) pourrait ne pas être écoulé à la signature, à vérifier` });
   }
   for (const e of P.echeancesPlanning(d)) {
     if (!e || !estIso(e.iso) || !['ventebien', 'dia', 'safer'].includes(e.type) || P.echeanceValidee(d, e.type)) continue;
     if (String(e.iso).slice(0, 10) > rdv) pb.push({ cle: e.type, texte: `${e.label} au ${dateFr(e.iso)}, après la signature` });
   }
   const { manquantes } = piecesRecuesEtManquantes(d);
-  if (manquantes.length) pb.push({ cle: 'pieces', texte: `${manquantes.length} pièce${manquantes.length > 1 ? 's' : ''} encore manquante${manquantes.length > 1 ? 's' : ''} (${manquantes.slice(0, 3).join(', ')}${manquantes.length > 3 ? '…' : ''})` });
-  for (const x of diagnosticsPerimes(documents, rdv)) pb.push({ cle: 'diag:' + x.nom, texte: `${x.nom} du ${dateFr(x.date)} : plus valable après le ${dateFr(x.fin)}` });
+  if (manquantes.length && (!aujourdhui || joursEntre(aujourdhui, rdv) <= JOURS_PIECES_AVANT_RDV)) pb.push({ cle: 'pieces', texte: `${manquantes.length} pièce${manquantes.length > 1 ? 's' : ''} encore manquante${manquantes.length > 1 ? 's' : ''} (${manquantes.slice(0, 3).join(', ')}${manquantes.length > 3 ? '…' : ''})` });
+  for (const x of diagnosticsPerimes(documents, rdv)) pb.push({ cle: 'diag:' + x.nom, texte: `${x.nom} du ${dateFr(x.date)} : sans doute plus valable après le ${dateFr(x.fin)}, à vérifier` });
   return pb;
 }
 
@@ -397,7 +415,7 @@ function controleRendezVous(dossiers, aujourdhui, ctx) {
     const rdv = String(d.rendezVousSignature).slice(0, 10);
     if (joursEntre(aujourdhui, rdv) < 0) continue;
     const docs = ctx && typeof ctx.documentsDossier === 'function' ? ctx.documentsDossier(d.id) : [];
-    const pb = incoherencesSignature(d, docs);
+    const pb = incoherencesSignature(d, docs, aujourdhui);
     if (!pb.length) continue;
     sortie.push(proposition(base('controle-rendez-vous', d, ctx, 'alerte'), {
       type: 'alerte', action: 'vu', empreinte: `rdvctl:${d.id}:${rdv}:${pb.map((x) => x.cle).sort().join(',')}`,
@@ -419,10 +437,15 @@ function derniereActiviteDossier(d) {
  * Dossier qui n'avance plus : rien de neuf depuis trois semaines (historique, pièces), ni signé ni archivé — une alerte au responsable dans
  * le canal du dossier, avec ce qui le retient ; une seule par période d'immobilité. @param {any[]} dossiers @param {string} aujourdhui @param {any} [ctx]
  */
+const ATTENTES_EXTERIEURES = ['pret', 'ventebien', 'dia', 'safer'];
+
 function dossiersBloques(dossiers, aujourdhui, ctx) {
   const sortie = [];
   for (const d of dossiers || []) {
-    if (!dossierOuvert(d)) continue;
+    if (!dossierOuvert(d) || estSuccession(d) || estIso(d.rendezVousSignature)) continue;
+    // Une réponse EXTÉRIEURE attendue à une date à venir (offre de prêt, vente préalable, DIA, SAFER) : l'attente est normale. Jamais les
+    // étapes de l'étude (fixer le rendez-vous, rédaction…), datées presque toujours dans le futur (relecture 0.403.1).
+    if (P.echeancesPlanning(d).some((e) => e && ATTENTES_EXTERIEURES.includes(e.type) && !P.echeanceValidee(d, e.type) && estIso(e.iso) && joursEntre(aujourdhui, e.iso) >= 0)) continue;
     const derniere = derniereActiviteDossier(d);
     if (!derniere || joursEntre(derniere, aujourdhui) < JOURS_DOSSIER_BLOQUE) continue;
     const attente = P.echeancesPlanning(d).filter((e) => e && !P.echeanceValidee(d, e.type)).slice(0, 2).map((e) => `${e.label}${estIso(e.iso) ? ' (' + dateFr(e.iso) + ')' : ''}`);
@@ -450,8 +473,8 @@ function relancesFormalites(dossiers, aujourdhui, ctx) {
     const demandes = d.authentic && d.authentic.demandes && typeof d.authentic.demandes === 'object' ? d.authentic.demandes : {};
     for (const [cle, dem] of Object.entries(demandes)) {
       if (!dem || !estIso(dem.date)) continue;
-      const cleePiece = cle === 'renonciationPreemption' ? 'renonciationPreemption' : cle;
-      if ((d.pieces || {})[cleePiece] === 'recue') continue;
+      if ((d.pieces || {})[cle] === 'recue' || (Array.isArray(d.piecesRetirees) && d.piecesRetirees.includes(cle))) continue;
+      if (cle === 'renonciationPreemption' && P.preemptionLevee(d)) continue;
       const ecoule = joursEntre(String(dem.date).slice(0, 10), aujourdhui);
       const delai = DELAIS_RELANCE_FORMALITES[cle] || DELAIS_RELANCE_FORMALITES.defaut;
       if (ecoule < delai) continue;
@@ -516,7 +539,7 @@ function emailsRecusDossiers(dossiers, aujourdhui, ctx) {
 module.exports = {
   emailsRecusDossiers,
   relancesFormalites,
-  diagnosticsPerimes, incoherencesSignature, controleRendezVous, derniereActiviteDossier, dossiersBloques, plusMois,
+  diagnosticsPerimes, finValiditeDpe, incoherencesSignature, controleRendezVous, derniereActiviteDossier, dossiersBloques, plusMois,
   DATE_DEBUT_CONSTITUTION, JOURS_VEILLE_SIGNATURE, joursEntre, semaineIso, dateFr, confrereAcquereur, confrereVendeur, acteSigne, dateCreationDossier,
   dossierOuvert, idDepuisEmpreinte, revueDuMatin, veilleSignature, constitutionDossier, appelDeFonds, autorisationsNotoriete, propositionDates, formalitesAuthentic, JOURS_CJN_AVANT_SIGNATURE, DATE_DEBUT_COMEDEC_AUTHENTIC
 };

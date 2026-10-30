@@ -23194,3 +23194,28 @@ Relecture (30/10) : `cliquer_element` vise le centre de la partie VISIBLE et exi
 - Étape 4 : routines sans IA (`executants.js`) — `controle-rendez-vous` (signature placée ou déplacée : moins de 11 jours de réflexion après l'offre, vente préalable / DIA / SAFER après la date, pièces manquantes, diagnostics périmés le jour J d'après les documents de l'index du NAS — ERP et termites 6 mois, électricité, gaz, assainissement 3 ans, DPE 10 ans, durées courantes à vérifier ; une alerte par date et par liste de problèmes), `dossiers-bloques` (rien de neuf depuis 21 jours), `emails-recus` (email d'une adresse de fiche avec sujet reconnu ou pièce jointe, sans réponse : les suites possibles dites dans le canal du dossier) ; CLAIRE répond dans le canal d'un DOSSIER à son responsable sans être citée (sauf s'il s'adresse à un collègue), `claireDoitRepondreCanal` + `responsableDuCanalEstMoi`.
 - Étape 5 : `relances-formalites` — demande envoyée par Authentic (urbanisme, non-péril, DIA) dont la pièce n'est pas revenue après 15 jours (DIA 45) : tâche de relance, une par quinzaine.
 - Restent : une seule conversation avec CLAIRE et ses fils (le bouton « Nouvelle conversation » retiré), l'outil en pleine page avec CLAIRE en fenêtre flottante, la liste blanche des termes juridiques et un modèle local de détection des noms pour la pseudonymisation, la lecture directe des scans par Claude (arbitrage de l'étude).
+
+### 30/10/2026 — 0.403.1 : suites de l'audit de la 0.403.0
+
+Audit `docs/audits/2026-10-30-0.403.0.md` (aucun point Haut). Corrigés :
+- M1 : `dossiers-bloques` et `emails-recus` sont éteintes par défaut. Pièces manquantes du contrôle du rendez-vous à J-21 seulement. Dossiers bloqués : ni succession, ni rendez-vous placé, ni échéance à venir encore attendue.
+- M2 : relance des organismes. Une pièce retirée (`piecesRetirees`) ou une préemption levée ne sont plus relancées.
+- M3 : diagnostics jugés sur le TYPE du document seulement (jamais le résumé). Compromis, factures, actes et courriers sont exclus. L'assainissement est limité au non collectif.
+- M4 : DPE, décret 2020-1610 (`finValiditeDpe`).
+- M5 : `modifier_reglage`, carte stricte pour allumer une routine, allumer l'index du NAS ou ajouter un site (non stricte pour éteindre ou retirer).
+- B1 : point terrain `agent-proactif` pour envoyer_mail et les quatre routines.
+- B2 : `plusMois` sans débordement de fin de mois.
+- B3 : textes au conditionnel, « à vérifier ».
+- B5 : envoi déjà en cours détecté.
+- B8 : lambda des emails factorisée, déclencheur du catalogue corrigé.
+
+Restent tels quels :
+- B4 : « emails reçus » éteinte par défaut.
+- B6 : contrôle administrateur de l'index côté poste, comme l'existant.
+- B7 : coût de l'agent pour le responsable, choix de l'étude.
+
+Relecture indépendante de la 0.403.1 (quatre défauts, tous corrigés) :
+- Points terrain : `agent-envoyer-mail` (poste) et `routines-proactives` (serveur). Le point `agent-proactif`, manuel, ne pouvait pas se cocher seul.
+- Réglages des routines jamais enregistrés, ou d'avant la révision 2 : une routine `allumeeParDefaut: false` reste éteinte.
+- Dossiers bloqués : seules les attentes extérieures (prêt, vente préalable, DIA, SAFER) excusent l'immobilité. « Fixer le rendez-vous » et « Rédaction », datés dans le futur, rendaient la routine muette.
+- `envoyer_mail` : un brouillon disparu pendant la carte n'est plus dit « rien n'est parti », car l'utilisateur a pu l'envoyer lui-même.
