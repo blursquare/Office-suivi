@@ -83,3 +83,38 @@ test('web refusé, OpenLegi innocent : OpenLegi rendu et jamais suspendu ; le we
   await tourAgent({ conversation: r1.conversation, texte: 'Et son email ?', dossiers: [], contexte: {} }, o);
   assert.equal(requetes.length, avant + 1, 'un seul essai au message suivant : le web n’est pas redonné');
 });
+
+test('réflexion liée à une autre conversation (400) : un nouvel essai sans les blocs de réflexion, la question n’est pas perdue', async () => {
+  const { tourAgent, viderConversationsAgent, sansBlocsReflexion } = require('../src/assistantAgent');
+  viderConversationsAgent();
+  const h = [{ role: 'user', content: 'Q' }, { role: 'assistant', content: [{ type: 'thinking', thinking: 'x', signature: 's' }, { type: 'redacted_thinking', data: 'd' }] }, { role: 'assistant', content: [{ type: 'thinking', thinking: 'y', signature: 's' }, { type: 'text', text: 'R' }] }];
+  const propre = sansBlocsReflexion(h);
+  assert.deepEqual(propre[1].content, [{ type: 'text', text: '…' }]);
+  assert.deepEqual(propre[2].content, [{ type: 'text', text: 'R' }]);
+  assert.equal(h[1].content.length, 2, 'l’original n’est pas modifié');
+  const requetes = [];
+  let n = 0;
+  const client = { beta: { messages: { create: async (req) => {
+    requetes.push(JSON.parse(JSON.stringify(req)));
+    n++;
+    if (n === 2) { const e = new Error('messages.1.content.0: Invalid `signature` in `thinking` block. The block is bound to a different conversation.'); e.status = 400; throw e; }
+    return { content: [{ type: 'thinking', thinking: 'ok', signature: 'sig' }, { type: 'text', text: 'Réponse.' }], stop_reason: 'end_turn', usage: { input_tokens: 10, output_tokens: 5 } };
+  } } } };
+  const parametresRepo = { lireJsonBrut: (c, d) => d, ecrireJsonBrut: (c, v) => v };
+  const r1 = await tourAgent({ texte: 'Bonjour', dossiers: [], contexte: {} }, { cle: 'k', client, parametresRepo });
+  const r2 = await tourAgent({ conversation: r1.conversation, texte: 'Et ensuite ?', dossiers: [], contexte: {} }, { cle: 'k', client, parametresRepo });
+  assert.equal(n, 3, 'une requête, le refus, puis le nouvel essai');
+  assert.match(JSON.stringify(requetes[1].messages), /thinking/);
+  assert.doesNotMatch(JSON.stringify(requetes[2].messages), /"type":"thinking"/);
+  assert.match(String(r2.texte || r2.reponse || JSON.stringify(r2)), /Réponse\./);
+});
+
+test('un autre refus 400 n’est pas rejoué sans réflexion', async () => {
+  const { tourAgent, viderConversationsAgent } = require('../src/assistantAgent');
+  viderConversationsAgent();
+  let n = 0;
+  const client = { beta: { messages: { create: async () => { n++; const e = new Error('invalid_request_error: max_tokens too large'); e.status = 400; throw e; } } } };
+  const parametresRepo = { lireJsonBrut: (c, d) => d, ecrireJsonBrut: (c, v) => v };
+  await tourAgent({ texte: 'Bonjour', dossiers: [], contexte: {} }, { cle: 'k', client, parametresRepo }).catch(() => {});
+  assert.ok(n <= 2, 'pas de boucle');
+});

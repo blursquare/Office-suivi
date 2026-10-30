@@ -1259,11 +1259,22 @@ function sansBlocsMcp(messages) {
   });
 }
 
+/** L'historique sans les blocs de réflexion (`thinking`, `redacted_thinking`) : l'API en refuse un lié à une autre conversation ou à un autre modèle (repli Opus/Sonnet). Une réponse réduite à sa réflexion devient « … ». Pure. @param {any[]} messages */
+function sansBlocsReflexion(messages) {
+  return messages.map((m) => {
+    if (!m || !Array.isArray(m.content)) return m;
+    const contenu = m.content.filter((b) => !(b && (b.type === 'thinking' || b.type === 'redacted_thinking')));
+    if (contenu.length === m.content.length) return m;
+    return contenu.length ? { ...m, content: contenu } : { ...m, content: [{ type: 'text', text: '…' }] };
+  });
+}
+
 async function tourClaude(conv, o) {
   const sdk = o.client || creerClientAgent(o.cle);
   let message;
   const textes = [];
   let coutUsd = 0, entree = 0, sortie = 0;
+  let reflexionRetiree = false;
   // Un outil serveur (recherche web) peut mettre le tour en pause (« pause_turn ») : la requête est relancée telle quelle, 3 fois au plus.
   for (let relance = 0; relance < 4; relance++) {
     let mcp = null;
@@ -1276,6 +1287,14 @@ async function tourClaude(conv, o) {
         conv.connecteurMcp = null;
         conv.messages = sansBlocsMcp(conv.messages);
         if (o.parametresRepo) noterVerification(o.parametresRepo, 'yousign-connecteur-claude', { ok: false, message: String(err.message || '').slice(0, 120) });
+        relance--;
+        continue;
+      }
+      // « Invalid `signature` in `thinking` block. The block is bound to a different conversation » (rapports du 29 et du 30/10) :
+      // la réflexion gardée dans l'historique ne vaut plus (repli sur un autre modèle) ; un seul nouvel essai SANS ces blocs, la question n'est pas perdue.
+      if (!reflexionRetiree && err && err.status === 400 && /thinking/i.test(String(err.message || '')) && /different conversation|bound to/i.test(String(err.message || ''))) {
+        reflexionRetiree = true;
+        conv.messages = sansBlocsReflexion(conv.messages);
         relance--;
         continue;
       }
@@ -1427,5 +1446,5 @@ function viderConversationsAgent() { conversations.clear(); }
 /** Une conversation est-elle encore connue ici ? @param {string} id */
 function conversationAgentConnue(id) { return !!id && conversations.has(id); }
 
-module.exports = { sansBlocsMcp, messageErreurAgent, blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
+module.exports = { sansBlocsMcp, sansBlocsReflexion, messageErreurAgent, blocDocumentsJoints, sansMotsDesFiches, sansNomsPropres, rneSansPersonnes, EFFORTS_AGENT, resumeHistoriqueReprise, limiteLectureConversation, conversationAgentConnue, motsSocietesDossiers, retablirSocietes, argumentsDroitSansMontants, OUTILS_AGENT, GESTES_AGENT, SYSTEME_AGENT, tourAgent, requeteAgent, requeteAgentMistral, outilsMistral, masquerValeur, masquerValeurLegere, resultatCalculSuspect, retablirValeur, nettoyerReponseAgent,
   coutAgentUsd, enteteContexte, entreeOutilPourPoste, viderConversationsAgent, MAX_TOURS_OUTILS, rechercheWebPourTour };
