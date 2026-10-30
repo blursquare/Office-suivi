@@ -1660,7 +1660,8 @@ async function preparerFormalite(s, cible, o) {
 
   // Les deux interrupteurs : Création rapide ALLUMÉE, Envoi immédiat ÉTEINT — lus avant, corrigés, RELUS avant « Valider ».
   const lire = async () => {
-    await g.ev(`(() => { const l = [...document.querySelectorAll('label, span, div')].find((e) => /^envoi imm[ée]diat/i.test(String(e.innerText).trim()) && e.children.length < 3); if (l) l.scrollIntoView({ block: 'center' }); })()`);
+    // Ramené à l'écran : « Envoi immédiat », sinon « Création rapide » (bloc CJN sans interrupteur d'envoi — relecture 0.406.2).
+    await g.ev(`(() => { const trouver = (re) => [...document.querySelectorAll('label, span, div')].find((e) => re.test(String(e.innerText).trim()) && e.children.length < 3); const l = trouver(/^envoi imm[ée]diat/i) || trouver(/^cr[ée]ation rapide/i); if (l) l.scrollIntoView({ block: 'center' }); })()`);
     const tous = ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter((c) => c.sur);
     return { rapide: tous.find((c) => /cr[ée]ation rapide/i.test(c.libelle)), envoi: tous.find((c) => /envoi imm[ée]diat/i.test(c.libelle)) };
   };
@@ -1678,6 +1679,8 @@ async function preparerFormalite(s, cible, o) {
   i = await lire();
   if (!cjnSansEnvoi && (!i.envoi || i.envoi.coche !== false)) throw new Error('« Envoi immédiat » n’a pas pu être lu éteint : rien validé');
   if (cjnSansEnvoi && (i.envoi || ((await g.ev(SCRIPT_INTERRUPTEURS)) || []).some((c) => /envoi imm[ée]diat/i.test(c.libelle)))) throw new Error('« Envoi immédiat » apparu sur la page : rien validé');
+  // Filet (relecture 0.406.2) : le TEXTE de la page, sans condition de visibilité ni de composant, ne doit nommer aucun « Envoi immédiat ».
+  if (cjnSansEnvoi && (await g.ev(`/envoi\\s+imm[ée]diat/i.test(String(document.body && document.body.innerText || ''))`))) throw new Error('« Envoi immédiat » écrit sur la page : rien validé');
   if (!i.rapide || i.rapide.coche !== true) throw new Error('« Création rapide » n’a pas pu être lue allumée : rien validé');
   // CJN : les cases relues juste avant « Valider » (le basculement d'un interrupteur peut redessiner le tableau).
   if (o.type === 'cjn') verifierCasesCjn(((await g.ev(SCRIPT_INTERRUPTEURS)) || []).filter(estLigneIntervenantCjn), o.parties);
