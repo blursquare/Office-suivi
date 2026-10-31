@@ -356,7 +356,9 @@ function demarrer() {
     }
 
     // Après une mise à jour en un clic, la fenêtre déjà ouverte se recharge d'elle-même.
-    if (!process.env.CLAIRE_APRES_MISE_A_JOUR) ouvrirNavigateur(url);
+    // Plus de fenêtre sur localhost au démarrage (étude 31/10 : la fenêtre CLAIRE du poste est lancée sur l'adresse IP par le dossier
+    // Démarrage de Windows) — sauf `"ouvrirFenetreAuDemarrage": true` dans config.json.
+    if (!process.env.CLAIRE_APRES_MISE_A_JOUR && config.ouvrirFenetreAuDemarrage) ouvrirNavigateur(url);
   });
 
   // Port déjà occupé (un serveur CLAIRE déjà lancé, masqué par Lancer-CLAIRE-en-arriere-plan.vbs,

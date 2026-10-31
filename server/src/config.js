@@ -80,6 +80,9 @@ function resoudreConfigExecutable(dossierExe, fsImpl = fs) {
       // Noms de machine acceptés en plus des adresses IP et de localhost (audit 13/10, voir securiteHote.js) — vide par défaut.
       hotesAutorises: Array.isArray(brut.hotesAutorises) ? brut.hotesAutorises.filter((x) => typeof x === 'string') : [],
       authActive: brut.authActive === true,
+      // Étude 31/10 : « quand le serveur CLAIRE se lance il ouvre une fenêtre sur localhost, il faudrait l'annuler car CLAIRE se lance déjà
+      // sur 192 via shell:startup » — plus de fenêtre au démarrage, sauf `"ouvrirFenetreAuDemarrage": true` dans config.json.
+      ouvrirFenetreAuDemarrage: brut.ouvrirFenetreAuDemarrage === true,
       genere: false
     };
   }

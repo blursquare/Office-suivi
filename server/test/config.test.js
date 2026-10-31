@@ -45,7 +45,7 @@ test('config.json déjà présent (ancien jeton calendrier compris) : reprend to
 
   // `nasRacine` vide : jamais générée automatiquement, contrairement au mot de passe — seule
   // l'étude sait où sont ses dossiers clients (voir src/nas.js). L'ancien jeton est ignoré.
-  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, nasRacine: '', nasScans: '', hotesAutorises: [], authActive: false, genere: false });
+  assert.deepEqual(resultat, { motDePasse: 'abc123', port: 4000, nasRacine: '', nasScans: '', hotesAutorises: [], authActive: false, ouvrirFenetreAuDemarrage: false, genere: false });
   assert.deepEqual(fs.ecritures, {}); // aucune écriture quand la config existe déjà au complet
 });
 
@@ -89,4 +89,11 @@ test('config.json illisible : erreur explicite nommant le fichier et la règle d
     }
   );
   assert.deepEqual(fs.ecritures, {}); // surtout : ne jamais réécrire par-dessus un fichier qu'on n'a pas su lire
+});
+
+test('fenêtre au démarrage (étude 31/10) : jamais par défaut, seulement avec "ouvrirFenetreAuDemarrage": true', () => {
+  const avec = resoudreConfigExecutable('/exe', creerFsFictif({ '/exe/config.json': JSON.stringify({ authPassword: 'x', ouvrirFenetreAuDemarrage: true }) }));
+  assert.equal(avec.ouvrirFenetreAuDemarrage, true);
+  const sans = resoudreConfigExecutable('/exe', creerFsFictif({ '/exe/config.json': JSON.stringify({ authPassword: 'x', ouvrirFenetreAuDemarrage: 'oui' }) }));
+  assert.equal(sans.ouvrirFenetreAuDemarrage, false);
 });
