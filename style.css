@@ -11867,6 +11867,7 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .cliche-volet-tete { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
 .cliche-volet-titre { font-size: var(--texte-l); font-weight: 500; font-variant-numeric: tabular-nums; }
 .cliche-volet-sous { font-size: var(--texte-s); color: var(--muted); }
+.cliche-volet-avis { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--cat-orange); white-space: nowrap; }
 .cliche-volet-liens { margin-left: auto; display: flex; gap: 12px; font-size: var(--texte-s); }
 .cliche-volet-liens a { display: inline-flex; align-items: center; gap: 4px; color: var(--focus); text-decoration: none; }
 .cliche-carte { position: relative; flex: 1 1 auto; min-height: 240px; background: var(--paper-sunk); }

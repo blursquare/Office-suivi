@@ -8,7 +8,11 @@
 // le contour peut donc tomber à quelques dizaines de mètres — « Ajuster le contour » le fait glisser à la main. Ne part que l'identifiant
 // public du cliché.
 
-var visionneuseCliche = { gauche: '', droite: '', cartes: {}, decalages: {}, ajuster: false, synchro: false };
+// Mesure du 31/10 (6 sites du Loir-et-Cher, une photo par décennie) : depuis 2000, le contour tombe juste ; avant, l'emprise publiée est
+// approximative et il faut souvent l'ajuster à la main.
+var ANNEE_CLICHE_PRECIS = 2000;
+
+var visionneuseCliche = { gauche: '', droite: '', cartes: {}, decalages: {}, ajuster: false, synchro: false, rendu: 0 };
 
 // ===== Calculs purs (testés) =====
 
@@ -20,10 +24,11 @@ function planLocalCliche(coins) {
 }
 
 // Pure : le point au sol d'un pixel du cliché (coins = haut gauche, haut droit, bas droit, bas gauche de l'image, en [lon, lat]).
-function pointDuPixelCliche(coins, x, y, largeur, hauteur) {
+function pointDuPixelCliche(coins, x, y, largeur, hauteur, cadre) {
   const pl = planLocalCliche(coins);
   const q = coins.map(c => pl.vers(c[0], c[1]));
-  const u = x / largeur; const v = y / hauteur;
+  const f = cadre || [0, 0, 1, 1];
+  const u = (x / largeur - f[0]) / (f[2] - f[0]); const v = (y / hauteur - f[1]) / (f[3] - f[1]);
   const X = (1 - u) * (1 - v) * q[0][0] + u * (1 - v) * q[1][0] + u * v * q[2][0] + (1 - u) * v * q[3][0];
   const Y = (1 - u) * (1 - v) * q[0][1] + u * (1 - v) * q[1][1] + u * v * q[2][1] + (1 - u) * v * q[3][1];
   const r = pl.depuis(X, Y);
@@ -31,7 +36,7 @@ function pointDuPixelCliche(coins, x, y, largeur, hauteur) {
 }
 
 // Pure : le pixel du cliché d'un point au sol (inverse de la précédente, par approximations successives) ; null si les coins sont illisibles.
-function pixelDuPointCliche(coins, lon, lat, largeur, hauteur) {
+function pixelDuPointCliche(coins, lon, lat, largeur, hauteur, cadre) {
   if (!Array.isArray(coins) || coins.length !== 4 || !(largeur > 0) || !(hauteur > 0)) return null;
   const pl = planLocalCliche(coins);
   const q = coins.map(c => pl.vers(c[0], c[1]));
@@ -51,13 +56,68 @@ function pixelDuPointCliche(coins, lon, lat, largeur, hauteur) {
     if (Math.abs(a) < 1e-9 && Math.abs(b) < 1e-9) break;
   }
   if (!Number.isFinite(u) || !Number.isFinite(v)) return null;
-  return { x: u * largeur, y: v * hauteur, dedans: u >= 0 && u <= 1 && v >= 0 && v <= 1 };
+  const fr = cadre || [0, 0, 1, 1];
+  return { x: (fr[0] + u * (fr[2] - fr[0])) * largeur, y: (fr[1] + v * (fr[3] - fr[1])) * hauteur, dedans: u >= 0 && u <= 1 && v >= 0 && v <= 1 };
 }
 
 // Pure : les contours des parcelles ([[lon, lat], …] par anneau) en pixels du cliché, décalés de (dx, dy).
-function contoursSurCliche(contours, coins, largeur, hauteur, decalage) {
+function contoursSurCliche(contours, coins, largeur, hauteur, decalage, cadre) {
   const d = decalage || { dx: 0, dy: 0 };
-  return (contours || []).map(a => a.map(p => pixelDuPointCliche(coins, p[0], p[1], largeur, hauteur)).filter(Boolean).map(p => [p.y + d.dy, p.x + d.dx])).filter(a => a.length > 2);
+  return (contours || []).map(a => a.map(p => pixelDuPointCliche(coins, p[0], p[1], largeur, hauteur, cadre)).filter(Boolean).map(p => [p.y + d.dy, p.x + d.dx])).filter(a => a.length > 2);
+}
+
+// Pure : la photo dans l'image numérisée (étude 31/10, mesure sur 6 sites du Loir-et-Cher). Les films anciens ont été numérisés avec leur
+// cadre noir, leurs repères et une bande de texte ou d'instruments ; l'emprise publiée par l'IGN ne couvre que la photo. Depuis chaque
+// bord, dans ses 15 %, la dernière ligne ou colonne surtout sombre (d'un seul tenant depuis le bord) marque la fin du cadre. `lum` : luminance 0-255, w × h.
+// Rend [gauche, haut, droite, bas] en fractions de l'image.
+function cadreDuCliche(lum, w, h) {
+  if (!lum || !(w > 8) || !(h > 8)) return [0, 0, 1, 1];
+  const sombreCol = (x) => { let n = 0; let t = 0; for (let y = 0; y < h; y += 2) { t++; if (lum[y * w + x] < 45) n++; } return n / t; };
+  const sombreLig = (y) => { let n = 0; let t = 0; for (let x = 0; x < w; x += 2) { t++; if (lum[y * w + x] < 45) n++; } return n / t; };
+  // Le cadre part du bord : on s'arrête dès qu'une bande de photo (3 % de l'image sans ligne sombre) suit — une zone sombre à
+  // l'intérieur de la photo (forêt, ombre) n'est jamais prise pour le cadre.
+  const avancer = (n, f, depuisFin) => {
+    let dernier = -1; let clairs = 0;
+    for (let k = 0; k < Math.floor(n * 0.15); k++) {
+      const i = depuisFin ? n - 1 - k : k;
+      if (f(i) > 0.35) { dernier = k; clairs = 0; } else if (++clairs > Math.max(2, n * 0.03)) break;
+    }
+    return dernier + 1;
+  };
+  const debut = (n, f) => avancer(n, f, false);
+  const fin = (n, f) => n - avancer(n, f, true);
+  return [debut(w, sombreCol) / w, debut(h, sombreLig) / h, fin(w, sombreCol) / w, fin(h, sombreLig) / h];
+}
+
+// Pure : le cadre détecté n'est retenu que si sa forme est celle de l'emprise au sol (à 5 % près) — sinon une photo sombre (forêt, nuit)
+// serait prise pour un cadre ; on garde alors l'image entière.
+function cadreRetenuCliche(cadre, coins, largeur, hauteur) {
+  if (!cadre || !Array.isArray(coins) || coins.length !== 4) return [0, 0, 1, 1];
+  const pl = planLocalCliche(coins);
+  const q = coins.map(c => pl.vers(c[0], c[1]));
+  const haut = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]); const gauche = Math.hypot(q[3][0] - q[0][0], q[3][1] - q[0][1]);
+  const forme = ((cadre[2] - cadre[0]) * largeur) / ((cadre[3] - cadre[1]) * hauteur);
+  return gauche && Math.abs(forme / (haut / gauche) - 1) < 0.05 && cadre[2] > cadre[0] && cadre[3] > cadre[1] ? cadre : [0, 0, 1, 1];
+}
+
+// La vue d'ensemble du cliché (son plus petit niveau qui dépasse 300 px) lue sur un canevas : le cadre de la photo.
+async function cadreClicheIgn(c, info) {
+  const base = `/api/urbanisme/cliche/${encodeURIComponent(c.lot)}/${encodeURIComponent(c.id)}`;
+  let k = info.niveaux.length - 1;
+  while (k > 0 && Math.max(info.niveaux[k].largeur, info.niveaux[k].hauteur) < 300) k--;
+  const nv = info.niveaux[k];
+  if (nv.largeur > 1600 || nv.hauteur > 1600) return [0, 0, 1, 1];
+  const toile = document.createElement('canvas');
+  toile.width = nv.largeur; toile.height = nv.hauteur;
+  const ctx = toile.getContext('2d', { willReadFrequently: true });
+  const attentes = [];
+  for (let j = 0; j < Math.ceil(nv.hauteur / 512); j++) for (let i = 0; i < Math.ceil(nv.largeur / 512); i++) attentes.push(imageClicheIgn(`${base}/${k}/${i}/${j}`).then(img => { if (img) ctx.drawImage(img, i * 512, j * 512); return !!img; }));
+  const lus = await Promise.all(attentes);
+  if (!lus.every(Boolean)) return [0, 0, 1, 1];
+  const d = ctx.getImageData(0, 0, nv.largeur, nv.hauteur).data;
+  const lum = new Uint8Array(nv.largeur * nv.hauteur);
+  for (let i = 0; i < lum.length; i++) lum[i] = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000;
+  return cadreRetenuCliche(cadreDuCliche(lum, nv.largeur, nv.hauteur), c.coins, info.largeur, info.hauteur);
 }
 
 // Pure : un cliché par année pour la liste « Comparer avec » (le premier de l'année), le plus récent d'abord.
@@ -123,6 +183,7 @@ function renderVisionneuseCliche() {
   const volet = (c, cote) => `<div class="cliche-volet">
       <div class="cliche-volet-tete">
         <span class="cliche-volet-titre">${escapeHtml(String(c.annee))}</span><span class="cliche-volet-sous">${escapeHtml(libelleClicheIgn(c))}</span>
+        ${c.annee < ANNEE_CLICHE_PRECIS ? `<span class="cliche-volet-avis" title="${escapeAttr('Mesure du 31/10 sur 6 sites du Loir-et-Cher : avant 2000, l’emprise publiée par l’IGN est approximative ; le contour tombe juste environ une fois sur quatre, souvent à quelques dizaines de mètres, parfois beaucoup plus. Repérez le bien sur la photo et faites glisser le contour (« Ajuster le contour »).')}">${icone('alert-triangle')} Position approximative : à vérifier</span>` : ''}
         <span class="cliche-volet-liens">
           <a href="${escapeAttr(c.telecharger || '')}" target="_blank" rel="noopener" title="Le fichier d’origine de l’IGN (TIFF, souvent plus de 100 Mo)">${icone('download')} Télécharger l’original</a>
           ${clichesCarte.centre ? `<a href="${escapeAttr(lienRemonterLeTemps(clichesCarte.centre.lon, clichesCarte.centre.lat, c.annee, c.mission))}" target="_blank" rel="noopener">${icone('lien-externe')} Remonter le temps</a>` : ''}
@@ -144,9 +205,12 @@ function renderVisionneuseCliche() {
       </header>
       <div class="cliche-corps${d ? ' deux' : ''}">${volet(g, 'gauche')}${d ? volet(d, 'droite') : ''}</div>
     </div>`;
+  // Un rendu plus récent (autre cliché comparé entre-temps) l'emporte : jamais deux cartes sur la même zone.
+  const jeton = ++visionneuseCliche.rendu;
   chargerLeafletCarte().then(L => {
-    monterVoletCliche(L, 'gauche', g);
-    if (d) monterVoletCliche(L, 'droite', d);
+    if (jeton !== visionneuseCliche.rendu) return;
+    monterVoletCliche(L, 'gauche', g, jeton);
+    if (d) monterVoletCliche(L, 'droite', d, jeton);
   }).catch(() => {
     overlay.querySelectorAll('.cliche-carte').forEach(z => { z.innerHTML = `<p class="pr-erreur">${icone('alert-triangle')} Carte indisponible.</p>`; });
   });
@@ -200,7 +264,7 @@ function imageClicheIgn(url) {
   return p;
 }
 
-async function monterVoletCliche(L, cote, c) {
+async function monterVoletCliche(L, cote, c, jeton) {
   const zone = document.getElementById(`cliche-carte-${cote}`);
   if (!zone) return;
   let info;
@@ -213,6 +277,10 @@ async function monterVoletCliche(L, cote, c) {
     return;
   }
   if (document.getElementById(`cliche-carte-${cote}`) !== zone || clicheIgnParId(cote === 'gauche' ? visionneuseCliche.gauche : visionneuseCliche.droite) !== c) return;
+  // Le cadre noir des films anciens est écarté avant de poser le contour (mesure du 31/10 : sans cela, les clichés d'avant 2000 tombaient
+  // souvent à plusieurs centaines de mètres).
+  const cadre = c.coins ? await cadreClicheIgn(c, info).catch(() => [0, 0, 1, 1]) : [0, 0, 1, 1];
+  if (document.getElementById(`cliche-carte-${cote}`) !== zone || (jeton && jeton !== visionneuseCliche.rendu)) return;
   zone.innerHTML = '';
   const N = info.niveaux.length - 1;
   const W = info.largeur; const H = info.hauteur;
@@ -263,9 +331,9 @@ async function monterVoletCliche(L, cote, c) {
   });
   new Couche({ tileSize: 512, minZoom: 0, maxZoom: N + 1, noWrap: true, bounds: bornes, keepBuffer: 2 }).addTo(carte);
   const centre = clichesCarte.centre;
-  const pix = centre && c.coins ? pixelDuPointCliche(c.coins, centre.lon, centre.lat, W, H) : null;
+  const pix = centre && c.coins ? pixelDuPointCliche(c.coins, centre.lon, centre.lat, W, H, cadre) : null;
   const groupe = L.layerGroup().addTo(carte);
-  const m = { carte, c, W, H, N, M, groupe, pix };
+  const m = { carte, c, W, H, N, M, groupe, pix, cadre };
   visionneuseCliche.cartes[cote] = m;
   dessinerContourCliche(L, m);
   if (pix && pix.dedans) { const p = M.versEcran(pix.x, pix.y); carte.setView([p[1], p[0]], Math.max(0, N - 1)); }
@@ -300,7 +368,7 @@ function dessinerContourCliche(L, m) {
   if (!m.c.coins) return;
   const vue = prEtat && prEtat.historique && prEtat.historique.vue;
   const d = visionneuseCliche.decalages[m.c.id] || { dx: 0, dy: 0 };
-  const anneaux = contoursSurCliche(vue && vue.contours, m.c.coins, m.W, m.H, null)
+  const anneaux = contoursSurCliche(vue && vue.contours, m.c.coins, m.W, m.H, null, m.cadre)
     .map(a => a.map(p => { const e = m.M.versEcran(p[1], p[0]); return [e[1] + d.dy, e[0] + d.dx]; }));
   if (anneaux.length) L.polygon(anneaux, { color: couleurJetonCarte('cat-jaune'), weight: 3, fill: false, interactive: false }).addTo(m.groupe);
 }
@@ -309,7 +377,7 @@ function dessinerContourCliche(L, m) {
 function resolutionCliche(m) {
   const k = planLocalCliche(m.c.coins);
   const a = k.vers(m.c.coins[0][0], m.c.coins[0][1]); const b = k.vers(m.c.coins[1][0], m.c.coins[1][1]);
-  return Math.hypot(a[0] - b[0], a[1] - b[1]) * 111320 / m.W || 1;
+  return Math.hypot(a[0] - b[0], a[1] - b[1]) * 111320 / (m.W * ((m.cadre || [0, 0, 1, 1])[2] - (m.cadre || [0, 0, 1, 1])[0])) || 1;
 }
 
 function synchroniserClichesIgn(source) {
@@ -322,8 +390,8 @@ function synchroniserClichesIgn(source) {
   const da = visionneuseCliche.decalages[a.c.id] || { dx: 0, dy: 0 };
   const db = visionneuseCliche.decalages[b.c.id] || { dx: 0, dy: 0 };
   const pa = a.M.versCliche(c.lng - da.dx, c.lat - da.dy);
-  const sol = pointDuPixelCliche(a.c.coins, pa[0], pa[1], a.W, a.H);
-  const p = pixelDuPointCliche(b.c.coins, sol.lon, sol.lat, b.W, b.H);
+  const sol = pointDuPixelCliche(a.c.coins, pa[0], pa[1], a.W, a.H, a.cadre);
+  const p = pixelDuPointCliche(b.c.coins, sol.lon, sol.lat, b.W, b.H, b.cadre);
   if (!p) return;
   const e = b.M.versEcran(p.x, p.y);
   // Même échelle au sol : le zoom tient compte de la taille du pixel de chaque cliché et de son nombre de niveaux.

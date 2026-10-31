@@ -126,3 +126,22 @@ test('cliché de l’IGN tourné nord en haut, comme le cadastre (étude 31/10)'
   assert.equal(`${Math.round(b.ouest)},${Math.round(b.est)},${Math.round(b.nord)},${Math.round(b.sud)}`, '-1000,0,-1466,0');
   assert.equal(app.matriceCliche(null, 10, 10), null);
 });
+
+test('cliché ancien : cadre noir du film écarté, retenu seulement s’il a la forme de l’emprise (mesure du 31/10)', () => {
+  // Image de 100 × 110 : photo claire de 90 × 90 (5 px de cadre noir à gauche, à droite et en haut ; bande sombre de 15 px en bas).
+  const w = 100; const h = 110; const lum = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) lum[y * w + x] = x >= 5 && x < 95 && y >= 5 && y < 95 ? 180 : 10;
+  const cadre = app.cadreDuCliche(lum, w, h);
+  assert.equal(cadre.map(v => Math.round(v * 100) / 100).join(','), '0.05,0.05,0.95,0.86');
+  // Emprise carrée au sol : retenu ; emprise deux fois plus large que haute : refusé, image entière.
+  const carre = [[1.0000, 47.0090], [1.0133, 47.0090], [1.0133, 47.0000], [1.0000, 47.0000]];
+  assert.equal(app.cadreRetenuCliche(cadre, carre, w, h).join(','), cadre.join(','));
+  const large = [[1.0000, 47.0045], [1.0266, 47.0045], [1.0266, 47.0000], [1.0000, 47.0000]];
+  assert.equal(app.cadreRetenuCliche(cadre, large, w, h).join(','), '0,0,1,1');
+  // Le centre de l'emprise tombe au centre de la photo, pas au centre de l'image numérisée.
+  const p = app.pixelDuPointCliche(carre, 1.00665, 47.0045, w, h, cadre);
+  assert.ok(Math.abs(p.x - 50) < 0.5 && Math.abs(p.y - 50) < 0.5, JSON.stringify(p));
+  const q = app.pointDuPixelCliche(carre, p.x, p.y, w, h, cadre);
+  assert.ok(Math.abs(q.lon - 1.00665) < 1e-9 && Math.abs(q.lat - 47.0045) < 1e-9);
+  assert.equal(app.cadreDuCliche(null, 0, 0).join(','), '0,0,1,1');
+});
