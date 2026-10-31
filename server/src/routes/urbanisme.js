@@ -7,6 +7,7 @@ const express = require('express');
 const { communesDuCodePostal, zonageParcelle } = require('../urbanisme');
 const { vueParcelles, photoAerienne, autorisationsSitadel, raisonEchecSitadel } = require('../historiqueParcelle');
 const { noterVerification } = require('../verificationsTerrain');
+const clichesIgn = require('../clichesIgn');
 const carte = require('../carteUrbanisme');
 
 function creerRouteurUrbanisme(parametresRepo, injections = {}) {
@@ -109,6 +110,27 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
       noterVerification(parametresRepo, 'carte-urbanisme-cliches', { ok: false, message: 'Géoplateforme injoignable' });
       res.status(502).json({ erreur: 'Liste des clichés de l’IGN injoignable pour le moment.' });
     }
+  });
+
+  // Un cliché aérien d'origine (étude 31/10 : « ouvrir la photo dans une fenêtre pour se déplacer dedans ») : ses dimensions, puis ses carrés
+  // en JPEG, lus par morceaux dans le fichier officiel de la Géoplateforme (voir clichesIgn.js). Ne part que l'identifiant public du cliché.
+  routeur.get('/urbanisme/cliche/:lot/:cliche/info', async (req, res) => {
+    try {
+      const e = await clichesIgn.enteteCliche(req.params.lot, req.params.cliche, injections);
+      if (e.erreur) return res.status(e.erreur === 'Cliché inconnu.' ? 400 : 422).json(e);
+      noterVerification(parametresRepo, 'cliche-ign-visionneuse', { detail: `${e.niveaux.length} niveau(x)` });
+      res.json({ largeur: e.largeur, hauteur: e.hauteur, carre: e.carre, niveaux: e.niveaux.map((n) => ({ largeur: n.largeur, hauteur: n.hauteur })), telecharger: e.url });
+    } catch (e) {
+      noterVerification(parametresRepo, 'cliche-ign-visionneuse', { ok: false, message: 'Géoplateforme injoignable' });
+      res.status(502).json({ erreur: 'Cliché de l’IGN injoignable pour le moment.' });
+    }
+  });
+  routeur.get('/urbanisme/cliche/:lot/:cliche/:n/:x/:y', async (req, res) => {
+    try {
+      const r = await clichesIgn.carreCliche(req.params.lot, req.params.cliche, Number(req.params.n), Number(req.params.x), Number(req.params.y), injections);
+      if (r.erreur) return res.status(404).end();
+      res.set('Content-Type', 'image/jpeg').set('Cache-Control', 'private, max-age=604800').send(r.jpeg);
+    } catch (e) { res.status(502).end(); }
   });
 
   // L'entrée de l'adresse la plus proche (Street View devant le bien, au clic).

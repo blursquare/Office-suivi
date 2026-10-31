@@ -60,12 +60,40 @@ test('sections du dossier et ventes filtrées sans doublon, les plus récentes d
   assert.equal(app.resumeVenteCarte(terrain), 'Terrain · terrain 28 a 20 ca');
 });
 
-test('adresse de la Base adresse nationale : celle de la parcelle, sinon le plus proche avec sa parcelle', () => {
-  assert.match(app.texteAdresseBanCarte([{ libelle: '7 rue X', certifie: true }], null), /Adresse de cette parcelle, vérifiée par la commune/);
-  const voisin = app.texteAdresseBanCarte([], { libelle: '40 rue des Sorbiers', distance: 165, banLue: true, certifie: true, parcelles: ['ER 80'] });
-  assert.match(voisin, /à 165 m, rattaché à la parcelle ER 80 · vérifié par la commune — pas l’adresse de cette parcelle/);
-  assert.match(app.texteAdresseBanCarte([], { libelle: 'x', distance: 5, banLue: true, certifie: false, parcelles: [] }), /rattaché à aucune parcelle/);
-  assert.equal(app.texteAdresseBanCarte([], null), '');
+test('adresse : seulement celle que la commune a rattachée à la parcelle, jamais la plus proche (étude 31/10)', () => {
+  assert.equal(app.texteAdresseBanCarte([{ libelle: '7 rue X', certifie: true }], true), 'Adresse de cette parcelle, vérifiée par la commune');
+  assert.match(app.texteAdresseBanCarte([{ libelle: '7 rue X', certifie: false }], true), /pas encore certifiée/);
+  assert.match(app.texteAdresseBanCarte([], true), /Aucune adresse rattachée à cette parcelle/);
+  assert.match(app.texteAdresseBanCarte([], false), /non lue/);
+  assert.equal(app.lienCertificatAdressage('41295_0140_00007'), 'https://adresse.data.gouv.fr/carte-base-adresse-nationale?id=41295_0140_00007');
+  assert.equal(app.lienCertificatAdressage('x"><script>'), '');
+  const html = app.adresseParcelleCarteHtml({ adressesParcelle: [{ libelle: '7 rue des Prés 41350 Vineuil', certifie: true, banId: '41295_0140_00007' }], adresseLue: true });
+  assert.match(html, /certifiee/);
+  assert.match(html, /Certificat d’adressage/);
+});
+
+test('calques : un à la fois, sauf « Superposer »', () => {
+  const j = (o) => Object.keys(o).filter(k => o[k]).join(',');
+  const depart = { cadastre: true, plu: false, ventes: false };
+  assert.equal(j(app.couchesApresClicCarte(depart, 'plu', false)), 'plu');
+  assert.equal(j(app.couchesApresClicCarte({ cadastre: false, plu: true, ventes: false }, 'plu', false)), '');
+  assert.equal(j(app.couchesApresClicCarte(depart, 'ventes', true)), 'cadastre,ventes');
+  assert.equal(j(app.couchesSansSuperpositionCarte({ cadastre: true, plu: true, ventes: true })), 'cadastre');
+  assert.equal(j(app.couchesSansSuperpositionCarte({ cadastre: false, plu: true, ventes: true })), 'plu');
+});
+
+test('cliché de l’IGN : pixel d’un point au sol et inverse, contour décalé', () => {
+  // Cliché « tête en bas » (nord en bas de l'image), 1 000 × 500 px.
+  const coins = [[1.01, 47.00], [1.00, 47.00], [1.00, 47.01], [1.01, 47.01]];
+  const p = app.pixelDuPointCliche(coins, 1.0075, 47.0025, 1000, 500);
+  assert.ok(Math.abs(p.x - 250) < 0.01 && Math.abs(p.y - 125) < 0.01 && p.dedans);
+  const q = app.pointDuPixelCliche(coins, p.x, p.y, 1000, 500);
+  assert.ok(Math.abs(q.lon - 1.0075) < 1e-9 && Math.abs(q.lat - 47.0025) < 1e-9);
+  assert.equal(app.pixelDuPointCliche(coins, 1.02, 47.005, 1000, 500).dedans, false);
+  assert.equal(app.pixelDuPointCliche(null, 1, 47, 10, 10), null);
+  const anneaux = app.contoursSurCliche([[[1.0075, 47.0025], [1.005, 47.0025], [1.005, 47.005]]], coins, 1000, 500, { dx: 10, dy: -5 });
+  assert.equal(anneaux[0].map(x => x.map(v => Math.round(v)).join(':')).join(' '), '120:260 120:510 245:510');
+  assert.equal(app.clichesParAnneeIgn([{ annee: 2011, cliches: [{ id: 'a', coins: null }, { id: 'b', coins }] }, { annee: 1947, cliches: [] }]).map(c => c.id).join(), 'b');
 });
 
 test('clichés de l’IGN : lien « Remonter le temps » centré sur le bien, à l’année et à la mission', () => {
@@ -79,6 +107,8 @@ test('vue de la rue et décennies des clichés', () => {
   assert.equal(app.lienStreetView(47.570033, 1.383485), 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=47.570033,1.383485');
   assert.deepEqual(JSON.parse(JSON.stringify(app.pointStreetViewCarte({ adressesParcelle: [{ position: { lat: 1, lon: 2 } }], adresse: { position: { lat: 3, lon: 4 } } }))), { lat: 1, lon: 2 });
   assert.deepEqual(JSON.parse(JSON.stringify(app.pointStreetViewCarte({ adressesParcelle: [], adresse: null, point: { lat: 5, lon: 6 } }))), { lat: 5, lon: 6 });
+  // Jamais le numéro le plus proche (étude 31/10) : sans adresse de la parcelle, le point cliqué.
+  assert.deepEqual(JSON.parse(JSON.stringify(app.pointStreetViewCarte({ adressesParcelle: [], adresse: { position: { lat: 3, lon: 4 } }, point: { lat: 5, lon: 6 } }))), { lat: 5, lon: 6 });
   const d = app.decenniesClichesCarte([{ annee: 2018 }, { annee: 2011 }, { annee: 1986 }, { annee: 1955 }, { annee: 1949 }, { annee: 1946 }]);
   assert.equal(d.map(x => `${x.decennie}:${x.annees.join('/')}`).join(' | '), 'Années 2010:2018/2011 | Années 80:1986 | Années 50:1955 | Années 40:1949/1946');
 });

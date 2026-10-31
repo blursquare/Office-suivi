@@ -58,9 +58,12 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
   assert.ok(Math.abs(p.zones[0].part + p.zones[1].part - 1) < 0.02);
   assert.ok(p.zones.every(z => z.part > 0.2 && z.part < 0.8), JSON.stringify(p.zones));
   assert.ok(['UB', 'A'].includes(p.zone.libelle));
-  assert.equal(p.adresse.distance, 20, 'le plus proche…');
-  assert.equal(p.adresse.parcelles[0], 'E 1021', '… est rattaché à la voisine');
+  assert.equal(p.adresse, undefined, 'jamais le numéro le plus proche (étude 31/10 : il est rattaché à la voisine)');
   assert.equal(p.adressesParcelle.length, 1);
+  assert.equal(p.adressesParcelle[0].banId, '41099_0027_00007', 'pour le lien du certificat d’adressage');
+  assert.equal(p.adresseLue, true);
+  assert.equal(p.patrimoine.lu, true);
+  assert.equal(p.patrimoine.servitudes[0].type, 'ac1', 'zone ABF : abords d’un monument historique');
   assert.equal(p.adressesParcelle[0].libelle, '7 Rue des Lilas 41230 Gy-en-Sologne', 'l’adresse officielle de E 1020');
   assert.equal(p.adressesParcelle[0].certifie, true);
   assert.equal(p.alignement.length, 1);
@@ -156,6 +159,22 @@ test('clichés de l’IGN : mission lue dans l’identifiant, rangés par année
   ] });
   assert.equal(annees.map(a => a.annee).join(','), '2002,1955');
   assert.equal(annees[0].cliches.map(c => c.numero).join(','), '505,506');
+  // Avec l'emprise et le point : un cliché par mission, celui où le point est le plus au centre (Web Mercator, comme la couche pva:image).
+  const merc = (lon, lat) => [lon * Math.PI / 180 * 6378137, Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * 6378137];
+  const emprise = (cx, cy) => { const pts = [[cx + 0.01, cy - 0.01], [cx, cy - 0.01], [cx - 0.01, cy - 0.01], [cx - 0.01, cy], [cx - 0.01, cy + 0.01], [cx, cy + 0.01], [cx + 0.01, cy + 0.01], [cx + 0.01, cy]]; return { type: 'Polygon', coordinates: [[...pts, pts[0]].map(q => merc(q[0], q[1]))] }; };
+  const g = (id, numero, cx) => ({ geometry: emprise(cx, 47.57), properties: { image_identifier: id, date_cliche: '2011-09-30Z', numero_image: numero, dataset_identifier: 'P11000132', orientation: 359 } });
+  const centres = C.clichesDepuisPva({ features: [
+    g('IGNF_PVA_1-0__2011-09-30__CP11000132_FD41x00023_01833', 1833, 1.3910),
+    g('IGNF_PVA_1-0__2011-09-30__CP11000132_FD41x00023_01834', 1834, 1.3836),
+    g('IGNF_PVA_1-0__2011-09-30__CP11000132_FD41x00023_01835', 1835, 1.3760)
+  ] }, { lon: 1.383485, lat: 47.570033 });
+  assert.equal(centres[0].cliches.length, 1);
+  const choisi = centres[0].cliches[0];
+  assert.equal(choisi.numero, 1834, 'le bien au milieu de la photo');
+  assert.equal(choisi.telecharger, 'https://data.geopf.fr/telechargement/download/pva/P11000132/IGNF_PVA_1-0__2011-09-30__CP11000132_FD41x00023_01834.tif');
+  assert.deepEqual(choisi.coins.map(c => c.map(v => Math.round(v * 1e4) / 1e4)), [[1.3936, 47.56], [1.3736, 47.56], [1.3736, 47.58], [1.3936, 47.58]], 'haut gauche, haut droit, bas droit, bas gauche de l’image');
+  assert.equal(C.coinsDuCliche({ type: 'Polygon', coordinates: [[[0, 0], [1, 1]]] }), null);
+  assert.deepEqual(C.lonLatDePva([1.5, 47]), [1.5, 47]);
   const appels = [];
   const r = await C.clichesAeriens(1.383485, 47.570033, { fetch: async (u) => { appels.push(u); return reponse({ features: [] }); } });
   assert.deepEqual(r.annees, []);

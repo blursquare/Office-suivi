@@ -1,6 +1,8 @@
 // @ts-check
 'use strict';
 
+const { urlCliche } = require('./clichesIgn');
+
 // Carte du Contrôle de l'urbanisme (étude 31/10 : « reproduire Géofoncier dans CLAIRE : la carte interactive pour voir les parcelles et
 // les numéros, calculer des surfaces, fonds IGN ou photo aérienne, plan du cadastre, DVF pour voir les ventes, le service des numéros
 // (adresse.data.gouv.fr), alignement, PC, PLU — l'outil ultime, simple et épuré »). Tout passe par le SERVEUR, comme le reste de
@@ -206,10 +208,13 @@ async function adresseOfficielleParcelle(proches, idu, injections) {
   const fiches = await Promise.all(liste.map((a) => ficheBan(a.id, injections).catch(() => null)));
   const avec = liste.map((a, i) => {
     const f = fiches[i];
-    const { id: _id, ...reste } = a;
-    return Object.assign(reste, f ? { certifie: f.certifie, parcelles: f.parcelles.map(parcelleLisible), rattachee: !!idu && f.parcelles.includes(idu), banLue: true } : { banLue: false });
+    const { id: banId, ...reste } = a;
+    // Identifiant public de l'adresse (clé d'interopérabilité) : la page de l'adresse sur adresse.data.gouv.fr, où se télécharge le
+    // certificat d'adressage.
+    return Object.assign(reste, { banId: /^[0-9A-Za-z_]{5,40}$/.test(String(banId || '')) ? String(banId) : '' }, f ? { certifie: f.certifie, parcelles: f.parcelles.map(parcelleLisible), rattachee: !!idu && f.parcelles.includes(idu), banLue: true } : { banLue: false });
   });
-  return { deLaParcelle: avec.filter((a) => a.rattachee), plusProche: avec[0] || null };
+  // Étude 31/10 : « ne pas choisir l'adresse la plus proche, ça fausse tout » — seule l'adresse que la commune a rattachée à CETTE parcelle.
+  return { deLaParcelle: avec.filter((a) => a.rattachee), banLue: fiches.every(Boolean) };
 }
 
 /** Pure : servitudes d'alignement (EL7) d'une réponse assiette-sup du Géoportail. @param {...any} reponses */
@@ -275,12 +280,14 @@ async function pointCarte(lon, lat, injections) {
         zone = z && z.properties ? { libelle: String(z.properties.libelle || ''), libelong: String(z.properties.libelong || ''), typezone: String(z.properties.typezone || '') } : null;
       }
     }
-    let adresses = { deLaParcelle: /** @type {any[]} */ ([]), plusProche: /** @type {any} */ (null) };
+    let adresses = { deLaParcelle: /** @type {any[]} */ ([]), banLue: false };
     if (adresse.status === 'fulfilled') {
       try { adresses = await adresseOfficielleParcelle(adressesDepuisReverse(adresse.value), parcelle ? parcelle.idu : '', injections); } catch (_) { /* fiches BAN non lues */ }
     }
     const alignement = !g || (supL.status === 'rejected' && supS.status === 'rejected') ? null
       : alignementDepuisSup(supL.status === 'fulfilled' ? supL.value : null, supS.status === 'fulfilled' ? supS.value : null);
+    // Monuments historiques et sites protégés (abords d'un monument : avis de l'architecte des bâtiments de France), comme l'analyse.
+    const patrimoine = supS.status === 'fulfilled' ? { lu: true, servitudes: require('./urbanisme').patrimoineDepuisSup(supS.value) } : (g ? { lu: false, servitudes: [] } : null);
     return {
       point: p,
       parcelle,
@@ -288,13 +295,13 @@ async function pointCarte(lon, lat, injections) {
       zone,
       zones,
       zoneLue: zonesLues.status === 'fulfilled',
-      adresse: adresses.plusProche,
       adressesParcelle: adresses.deLaParcelle,
-      adresseLue: adresse.status === 'fulfilled',
-      alignement
+      adresseLue: adresse.status === 'fulfilled' && adresses.banLue,
+      alignement,
+      patrimoine
     };
   // Pas gardé si tout a échoué, ni si les fiches de la Base adresse nationale n'ont pas répondu (relu au clic suivant).
-  }, (v) => (v.cadastreLu || v.zoneLue || v.adresseLue) && !(v.adresse && v.adresse.banLue === false));
+  }, (v) => (v.cadastreLu || v.zoneLue || v.adresseLue) && v.adresseLue);
 }
 
 /** Zones du PLU dans l'emprise affichée (contour, libellé, type). @param {unknown} emprise @param {any} [injections] */
@@ -375,9 +382,42 @@ function missionDuCliche(id) {
   return m ? m[1] : '';
 }
 
-/** Pure : les clichés rangés par année, les plus récents d'abord. @param {any} reponse */
-function clichesDepuisPva(reponse) {
+const R_TERRE = 6378137;
+/** Pure : un point [x, y] de la couche pva:image (Web Mercator, mètres) en [lon, lat] ; déjà en degrés : tel quel. @param {number[]} q */
+function lonLatDePva(q) {
+  const x = Number(q[0]); const y = Number(q[1]);
+  if (Math.abs(x) <= 180 && Math.abs(y) <= 90) return [x, y];
+  return [x / R_TERRE * 180 / Math.PI, (2 * Math.atan(Math.exp(y / R_TERRE)) - Math.PI / 2) * 180 / Math.PI];
+}
+/**
+ * Pure : les quatre coins au sol d'un cliché, dans l'ordre haut gauche, haut droit, bas droit, bas gauche de l'IMAGE. L'emprise de la couche
+ * pva:image commence par le coin haut gauche de l'image et tourne dans le sens des aiguilles d'une montre, avec un point au milieu de chaque côté
+ * (vérifié le 31/10 sur les clichés 2008 et 2011 de Vineuil : le point calculé tombe sur le bâtiment). Emprise illisible : null.
+ * @param {any} geometrie
+ */
+function coinsDuCliche(geometrie) {
+  const anneau = geometrie && geometrie.type === 'Polygon' && Array.isArray(geometrie.coordinates) ? geometrie.coordinates[0]
+    : geometrie && geometrie.type === 'MultiPolygon' && Array.isArray(geometrie.coordinates) && geometrie.coordinates[0] ? geometrie.coordinates[0][0] : null;
+  if (!Array.isArray(anneau) || anneau.length < 5) return null;
+  const pts = anneau.slice(0, -1);
+  const idx = pts.length === 8 ? [0, 2, 4, 6] : pts.length === 4 ? [0, 1, 2, 3] : null;
+  if (!idx || !pts.every((q) => Array.isArray(q) && Number.isFinite(Number(q[0])) && Number.isFinite(Number(q[1])))) return null;
+  return idx.map((i) => lonLatDePva(pts[i]).map((v) => Math.round(v * 1e6) / 1e6));
+}
+
+/** Pure : distance (en degrés « aplatis ») du centre d'un cliché à un point — pour garder, par mission, le cliché où le bien est au milieu.
+ * @param {number[][]} coins @param {{ lon: number, lat: number }} p */
+function ecartAuCentre(coins, p) {
+  const cx = coins.reduce((s, c) => s + c[0], 0) / 4; const cy = coins.reduce((s, c) => s + c[1], 0) / 4;
+  return Math.hypot((cx - p.lon) * Math.cos(p.lat * Math.PI / 180), cy - p.lat);
+}
+
+/** Pure : les clichés rangés par année, les plus récents d'abord ; avec un point, un seul cliché par mission — celui où le point est le plus
+ * au centre (étude 31/10 : sinon le bien tombait au bord de la photo). @param {any} reponse @param {{ lon: number, lat: number }} [point] */
+function clichesDepuisPva(reponse, point) {
   const vus = new Set();
+  /** @type {Map<string, any>} */
+  const parMission = new Map();
   const liste = [];
   for (const f of (reponse && Array.isArray(reponse.features) ? reponse.features : [])) {
     const p = (f && f.properties) || {};
@@ -385,9 +425,20 @@ function clichesDepuisPva(reponse) {
     const date = String(p.date_cliche || '').slice(0, 10);
     if (!/^IGNF_PVA_/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || vus.has(id)) continue;
     vus.add(id);
-    liste.push({ id, date, annee: Number(date.slice(0, 4)), numero: Number(p.numero_image) || null, mission: missionDuCliche(id),
-      lot: String(p.dataset_identifier || ''), orientation: Number.isFinite(Number(p.orientation)) ? Number(p.orientation) : null });
+    const lot = String(p.dataset_identifier || '');
+    const coins = coinsDuCliche(f.geometry);
+    const c = { id, date, annee: Number(date.slice(0, 4)), numero: Number(p.numero_image) || null, mission: missionDuCliche(id), lot,
+      orientation: Number.isFinite(Number(p.orientation)) ? Number(p.orientation) : null, coins, telecharger: urlCliche(lot, id) };
+    if (point && coins) {
+      const ecart = ecartAuCentre(coins, point);
+      const deja = parMission.get(lot || c.mission);
+      if (deja && deja.ecart <= ecart) continue;
+      parMission.set(lot || c.mission, { ecart, c });
+      continue;
+    }
+    liste.push(c);
   }
+  for (const { c } of parMission.values()) liste.push(c);
   liste.sort((a, b) => b.date.localeCompare(a.date) || (a.numero || 0) - (b.numero || 0));
   /** @type {Array<{ annee: number, cliches: any[] }>} */
   const annees = [];
@@ -406,9 +457,9 @@ async function clichesAeriens(lon, lat, injections) {
   const d = 0.0005;
   const bbox = [p.lat - d, p.lon - d, p.lat + d, p.lon + d].map((x) => x.toFixed(6)).join(',');
   return enCache('pva', `${p.lon}:${p.lat}`, 7 * 24 * 3600 * 1000, 100, async () => {
-    const r = await lireJson(`${GEOPF}/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=pva:image&COUNT=500&OUTPUTFORMAT=application/json`
-      + `&PROPERTYNAME=image_identifier,dataset_identifier,date_cliche,numero_image,orientation&BBOX=${bbox},urn:ogc:def:crs:EPSG::4326`, injections);
-    return { point: p, annees: clichesDepuisPva(r) };
+    const r = await lireJson(`${GEOPF}/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=pva:image&COUNT=1000&OUTPUTFORMAT=application/json`
+      + `&BBOX=${bbox},urn:ogc:def:crs:EPSG::4326`, injections);
+    return { point: p, annees: clichesDepuisPva(r, p) };
   });
 }
 
@@ -424,4 +475,4 @@ async function entreeProche(lon, lat, injections) {
 
 function viderCacheCarte() { Object.values(caches).forEach((c) => c.clear()); tuiles.clear(); octetsTuiles = 0; echecsTuiles = 0; tuilesCoupeesJusqua = 0; enCours.clear(); }
 
-module.exports = { entreeProche, missionDuCliche, clichesDepuisPva, clichesAeriens, COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };
+module.exports = { entreeProche, missionDuCliche, coinsDuCliche, lonLatDePva, clichesDepuisPva, clichesAeriens, COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };

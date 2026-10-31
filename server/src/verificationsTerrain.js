@@ -356,6 +356,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première lecture réussie des ventes (app.dvf.etalab.gouv.fr) depuis le serveur du bureau.' },
   { id: 'carte-urbanisme-cliches', depuis: '0.416.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : clichés aériens de l’IGN de la parcelle listés par année',
     comment: 'Coché à la première liste reçue de la Géoplateforme (couche pva:image) par le serveur du bureau ; le lien « Remonter le temps » se vérifie à l’œil.' },
+  { id: 'cliche-ign-visionneuse', depuis: '0.416.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : un cliché de l’IGN s’ouvre dans CLAIRE (lu par morceaux sur la Géoplateforme), la parcelle entourée',
+    comment: 'Coché à la première ouverture réussie. À l’œil : onglet Travaux › un cliché › la photo s’affiche, on s’y déplace, le contour jaune tombe sur la parcelle (sinon « Ajuster le contour »).' },
   { id: 'sitadel-parcelle', depuis: '0.201.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : autorisations d’urbanisme de la parcelle lues dans Sitadel',
     comment: 'Coché à la première recherche réussie depuis le serveur du bureau (accès Internet sortant vers data.statistiques.developpement-durable.gouv.fr).' },
   { id: 'travaux-compromis-nas', depuis: '0.200.0', source: 'poste', titre: 'Contrôle de l’urbanisme : travaux déclarés lus dans le compromis du NAS (autorisation, achèvement, décennale)',

@@ -11786,8 +11786,10 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-cliche-annee:hover { background: var(--paper-sunk); }
 .pr-cliche-annee.actif { background: var(--focus); border-color: var(--focus); color: var(--blanc-fixe); }
 .pr-cliches { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.pr-cliche { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); color: var(--ink); text-decoration: none; }
-.pr-cliche:hover { background: var(--paper-sunk); }
+.pr-cliche { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: var(--rayon-m); overflow: hidden; }
+.pr-cliche-ouvrir { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.pr-cliche-ouvrir:hover, .pr-cliche-ext:hover { background: var(--paper-sunk); }
+.pr-cliche-ext { display: flex; align-items: center; padding: 0 12px; border-left: 1px solid var(--line); color: var(--muted); }
 .pr-cliche-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pr-cliche-date { font-weight: 500; }
 .pr-cliche-sous { font-size: var(--texte-xs); color: var(--muted); }
@@ -11821,3 +11823,47 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .cst-accueil-liste-titre { align-self: center; text-align: center; }
 .cst-accueil-liste-titre .pieces-titre { justify-content: center; }
 #onglet-preemption.pr-en-accueil > .dash-header .dash-header-actions { display: none; }
+
+/* Contrôle de l'urbanisme — calques, fiche compacte de la parcelle (étude 31/10) */
+.pr-carte-superposer { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 32px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); font-size: var(--texte-s); color: var(--ink); cursor: pointer; }
+.pr-carte-parcelle { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.pr-carte-parcelle .pr-fiche-tete { align-items: center; gap: 8px; }
+.pr-carte-parcelle .pr-fiche-num { font-size: var(--texte-2xl); }
+.pr-carte-parcelle .pr-fiche-commune { flex: 1 1 auto; font-size: var(--texte-m); }
+.pr-carte-parcelle .pr-fiche-actions { padding-top: 0; gap: 0; }
+.pr-fiche-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin-top: 8px; }
+.pr-fiche-case { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pr-fiche-case.large { grid-column: 1 / -1; }
+.pr-fiche-case .pr-fiche-titre { padding-top: 0; }
+.pr-fiche-case .pr-fiche-valeur { font-size: var(--texte-m); }
+.pr-fiche-adresse { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+.pr-adresse-pastille { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 10px; border-radius: var(--rayon-pilule); border: 1px solid var(--line); font-size: var(--texte-m); font-weight: 500; color: var(--ink); }
+.pr-fiche-adresse.certifiee .pr-adresse-pastille { background: color-mix(in srgb, var(--cat-vert) 16%, var(--paper-card)); border-color: color-mix(in srgb, var(--cat-vert) 55%, var(--paper-card)); }
+.pr-fiche-adresse.certifiee .pr-adresse-pastille .icone { color: var(--cat-vert); }
+.pr-adresse-source { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: var(--texte-s); color: var(--muted); }
+.pr-adresse-source a { display: inline-flex; align-items: center; gap: 4px; color: var(--focus); white-space: nowrap; }
+.pr-fiche-adresse-vide { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }
+
+/* Visionneuse des clichés de l'IGN (étude 31/10) */
+.cliche-ign-overlay { z-index: 1200; }
+.cliche-ign { width: min(1600px, 100%); height: calc(100vh - 48px); }
+.cliche-ign .scan-apercu-tete { flex-wrap: wrap; gap: 8px; }
+.cliche-comparer { display: inline-flex; align-items: center; gap: 8px; font-size: var(--texte-s); color: var(--muted); white-space: nowrap; }
+#cliche-ign-overlay .cliche-comparer select { height: 32px; min-height: 32px; padding: 0 28px 0 10px; line-height: 30px; font-size: var(--texte-s); width: auto; max-width: 260px; }
+.cliche-corps { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; background: var(--line); }
+.cliche-corps.deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cliche-volet { display: flex; flex-direction: column; min-height: 0; background: var(--paper-card); }
+.cliche-volet-tete { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 8px 16px; }
+.cliche-volet-titre { font-size: var(--texte-l); font-weight: 500; font-variant-numeric: tabular-nums; }
+.cliche-volet-sous { font-size: var(--texte-s); color: var(--muted); }
+.cliche-volet-liens { margin-left: auto; display: flex; gap: 12px; font-size: var(--texte-s); }
+.cliche-volet-liens a { display: inline-flex; align-items: center; gap: 4px; color: var(--focus); text-decoration: none; }
+.cliche-carte { position: relative; flex: 1 1 auto; min-height: 240px; background: var(--paper-sunk); }
+.cliche-carte .cliche-etat, .cliche-carte .pr-erreur { padding: 16px; }
+.cliche-carte.cliche-ajuster, .cliche-carte.cliche-ajuster .leaflet-interactive { cursor: move; }
+.cliche-avis { position: absolute; z-index: 600; top: 12px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); box-shadow: var(--shadow-card); font-size: var(--texte-s); }
+@media (max-width: 760px) {
+  .cliche-ign { height: 100%; border-radius: 0; border: none; }
+  .cliche-corps.deux { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .pr-fiche-grille { grid-template-columns: minmax(0, 1fr); }
+}

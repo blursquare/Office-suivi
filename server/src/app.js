@@ -334,7 +334,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
   // Tuiles de la carte (relecture 0.416.0) : chargées en <img> par Leaflet, sans en-tête d'authentification ; elles ne portent que des
   // fonds publics de l'IGN — servies hors session, le reste de l'urbanisme garde le contrôle d'accès.
-  const sansAuthTuiles = (req, res, next) => (req.method === 'GET' && req.path.startsWith('/urbanisme/tuile/') ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
+  const sansAuthTuiles = (req, res, next) => (req.method === 'GET' && (req.path.startsWith('/urbanisme/tuile/') || /^\/urbanisme\/cliche\/[^/]+\/[^/]+\/\d+\/\d+\/\d+$/.test(req.path)) ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
   app.use('/api', sansAuthTuiles, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
   // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));

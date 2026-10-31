@@ -9,11 +9,12 @@
 // la Base adresse nationale, servitude d'alignement, ventes DVF. Ne partent que des coordonnées, un code INSEE et une section.
 // Les DMPC et le nom du géomètre-expert sont sur Géofoncier (données des géomètres, non ouvertes) : un lien l'ouvre centré sur la parcelle.
 
-var carteUrb = { map: null, fond: 'plan', couches: { cadastre: true, plu: false, ventes: false }, calques: {}, cleDossier: '', ajustee: '',
+var carteUrb = { map: null, fond: 'plan', couches: { cadastre: true, plu: false, ventes: false }, superposer: false, calques: {}, cleDossier: '', ajustee: '',
   selection: null, lectureClic: 0, mesure: null, ventes: {}, filtreVentes: 'tout', venteChoisie: '', voirVentes: 30, onglet: 'controle', pluCellules: {}, pluVues: new Set(), pluLecture: 0 };
 
 var ONGLETS_COTE_CARTE = [
-  { cle: 'controle', libelle: 'Contrôle' }, { cle: 'parcelle', libelle: 'Parcelle' }, { cle: 'ventes', libelle: 'Ventes' },
+  // Étude 31/10 : « mettre Contrôle et Parcelle dans le même onglet » — la fiche de la parcelle en tête de l'onglet Contrôle.
+  { cle: 'controle', libelle: 'Contrôle' }, { cle: 'ventes', libelle: 'Ventes' },
   { cle: 'travaux', libelle: 'Travaux' }, { cle: 'plans', libelle: 'Plans' }
 ];
 
@@ -91,9 +92,10 @@ function lienStreetView(lat, lon) {
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${Number(lat).toFixed(6)},${Number(lon).toFixed(6)}`;
 }
 
-// Le point d'où regarder la parcelle : l'entrée de son adresse (sur la voie), sinon celle du numéro le plus proche, sinon le point cliqué.
+// Le point d'où regarder la parcelle : l'entrée de son adresse (sur la voie), sinon le point cliqué (étude 31/10 : jamais le numéro le plus
+// proche, qui peut être celui du voisin).
 function pointStreetViewCarte(s) {
-  const a = (s && s.adressesParcelle || []).find(x => x.position) || (s && s.adresse && s.adresse.position ? s.adresse : null);
+  const a = (s && s.adressesParcelle || []).find(x => x.position);
   if (a) return a.position;
   return s && s.point ? { lat: s.point.lat, lon: s.point.lon } : null;
 }
@@ -244,6 +246,9 @@ function dessinerDossierCarte(L) {
     carteUrb.map.fitBounds(L.latLngBounds(anneaux.flat()), { padding: [60, 60], maxZoom: 18 });
   }
   etatCarte('');
+  // La fiche de la parcelle du dossier s'affiche d'elle-même en tête de l'onglet Contrôle (étude 31/10).
+  const premiere = (vue.etiquettes || []).find(e => e.dossier && Number.isFinite(e.x) && Number.isFinite(e.y));
+  if (!carteUrb.selection && premiere) interrogerPointCarte(premiere.y, premiere.x);
 }
 
 function recentrerCarteDossier() {
@@ -270,7 +275,8 @@ function renderBarreCarte() {
     </wa-button-group>
     <wa-button-group label="Calques">
       ${bascule(carteUrb.couches.cadastre, 'Cadastre', "basculerCoucheCarte('cadastre')", 'Parcelles et numéros du cadastre')}${bascule(carteUrb.couches.plu, 'PLU', "basculerCoucheCarte('plu')", 'Zones du document d’urbanisme (Géoportail de l’urbanisme)')}${bascule(carteUrb.couches.ventes, 'Ventes', "basculerCoucheCarte('ventes')", 'Ventes publiées (DVF) des sections du dossier')}
-    </wa-button-group>`;
+    </wa-button-group>
+    <label class="pr-carte-superposer" title="Afficher plusieurs calques à la fois"><wa-switch size="small" id="pr-carte-superposer" ${carteUrb.superposer ? 'checked' : ''} onchange="basculerSuperpositionCarte(this.checked)"></wa-switch><span>Superposer</span></label>`;
   const outil = (nom, ic, titre, appel, actif) => `<wa-button appearance="outlined" size="s" class="bouton-icone pr-carte-outil${actif ? ' actif' : ''}" type="button" title="${escapeAttr(titre)}" aria-label="${escapeAttr(titre)}" onclick="${appel}">${icone(ic)}</wa-button>`;
   const m = carteUrb.mesure;
   outils.innerHTML = outil('surface', 'mesure-surface', 'Mesurer une surface', "commencerMesureCarte('surface')", m && m.mode === 'surface')
@@ -285,11 +291,43 @@ function choisirFondCarte(fond) {
   renderBarreCarte();
 }
 
+// Pure : les calques après un clic (étude 31/10 : « passer de Cadastre à PLU et Ventes sans superposer ; à côté, un choix pour superposer »).
+// Sans superposition, un calque à la fois : le choisir éteint les autres ; un second clic l'éteint.
+function couchesApresClicCarte(couches, nom, superposer) {
+  const suite = Object.assign({}, couches);
+  const allume = !suite[nom];
+  if (!superposer && allume) Object.keys(suite).forEach(k => { suite[k] = false; });
+  suite[nom] = allume;
+  return suite;
+}
+
+// Pure : en quittant la superposition, un seul calque reste — le cadastre s'il est allumé, sinon le premier allumé.
+function couchesSansSuperpositionCarte(couches) {
+  const garde = couches.cadastre ? 'cadastre' : Object.keys(couches).find(k => couches[k]);
+  const suite = {};
+  Object.keys(couches).forEach(k => { suite[k] = k === garde; });
+  return suite;
+}
+
+function basculerSuperpositionCarte(oui) {
+  carteUrb.superposer = !!oui;
+  if (!carteUrb.superposer) {
+    const avant = carteUrb.couches;
+    carteUrb.couches = couchesSansSuperpositionCarte(avant);
+    if (avant.plu && !carteUrb.couches.plu) etatCarte('');
+    if (avant.ventes && !carteUrb.couches.ventes) dessinerVentesCarte();
+  }
+  appliquerCouchesCarte();
+  renderBarreCarte();
+}
+
 function basculerCoucheCarte(nom) {
   if (!(nom in carteUrb.couches)) return;
-  carteUrb.couches[nom] = !carteUrb.couches[nom];
+  const avant = carteUrb.couches;
+  carteUrb.couches = couchesApresClicCarte(avant, nom, carteUrb.superposer);
+  if (avant.plu && !carteUrb.couches.plu) etatCarte('');
+  if (avant.ventes && !carteUrb.couches.ventes && nom !== 'ventes') dessinerVentesCarte();
   if (nom === 'ventes' && carteUrb.couches.ventes) chargerVentesDossierCarte();
-  if (nom === 'plu' && !carteUrb.couches.plu) etatCarte('');   // relecture 0.416.0 : « Rapprochez-vous… » restait affiché
   appliquerCouchesCarte();
   renderBarreCarte();
   if (nom === 'ventes') dessinerVentesCarte();
@@ -379,7 +417,7 @@ function clicCarteUrbanisme(latlng) {
 function interrogerPointCarte(lat, lon) {
   const tour = ++carteUrb.lectureClic;
   carteUrb.selection = { lecture: true, point: { lat, lon } };
-  choisirOngletCoteCarte('parcelle');
+  choisirOngletCoteCarte('controle');
   return fetchAvecAuth(`/api/urbanisme/point?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}`).then(async rep => {
     const j = await rep.json().catch(() => ({}));
     if (tour !== carteUrb.lectureClic) return null;
@@ -411,50 +449,66 @@ function renderParcelleCarte() {
   const z = document.getElementById('pr-carte-parcelle');
   if (!z) return;
   const s = carteUrb.selection;
-  if (!s) { z.innerHTML = `<div class="pr-cote-vide">${icone('map-pin')}<span>Cliquez sur une parcelle de la carte pour lire son numéro, sa contenance, sa zone, son adresse et ses ventes.</span></div>`; return; }
+  if (!s) { z.innerHTML = `<div class="pr-cote-vide">${icone('map-pin')}<span>Cliquez sur une parcelle de la carte pour lire son numéro, sa contenance, sa zone et son adresse.</span></div>`; return; }
   if (s.lecture) { z.innerHTML = `<p class="hint">${icone('spinner')} Lecture de la parcelle…</p>`; return; }
   if (s.erreur) { z.innerHTML = `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(s.erreur)}</p>`; return; }
   const p = s.parcelle;
-  const ligne = (titre, valeur, detail) => `<div class="pr-fiche-ligne"><span class="pr-fiche-titre">${escapeHtml(titre)}</span><span class="pr-fiche-valeur">${valeur}${detail ? `<span class="pr-fiche-detail">${detail}</span>` : ''}</span></div>`;
+  // Étude 31/10 : « pas trop haut et des informations claires » — des cases sur deux colonnes, l'explication dans la pastille « i ».
+  const cas = (titre, valeur, aide, large) => `<div class="pr-fiche-case${large ? ' large' : ''}"><span class="pr-fiche-titre">${escapeHtml(titre)}${aide ? ` <span class="info-i" tabindex="0" data-info="${escapeAttr(aide)}"></span>` : ''}</span><span class="pr-fiche-valeur">${valeur}</span></div>`;
   const parts = Array.isArray(s.zones) && s.zones.length > 1 ? s.zones : null;
   const zone = parts ? `${renderBarreZonesParcelle(parts) || ''}<span class="pr-zt-codes">${parts.map(z => `${escapeHtml(z.libelle)} ${escapeHtml(pourcentZone(z.part))}`).join(' · ')}</span>`
     : s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}${s.zones && s.zones.length === 1 ? ' <span class="pr-zt-part">100 %</span>' : ''}</span>`
     : s.zoneLue ? 'Aucun PLU publié' : 'Non lue';
-  const zoneDetail = parts ? escapeHtml(parts.map(z => `${z.libelle} : ${z.libelong}`).filter(Boolean).join(' · ')) : s.zone ? escapeHtml(s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
-  // Adresse officielle (étude 31/10, Base adresse nationale) : le numéro rattaché à CETTE parcelle par la commune ; sinon le plus proche,
-  // en disant à quelle parcelle il est rattaché — le plus proche peut être celui du voisin.
-  const officielles = Array.isArray(s.adressesParcelle) ? s.adressesParcelle : [];
-  const adresse = officielles.length ? officielles.map(a => escapeHtml(a.libelle)).join('<br>')
-    : s.adresse ? escapeHtml(s.adresse.libelle) : s.adresseLue ? 'Aucun numéro trouvé à proximité' : 'Non lue';
-  const adresseDetail = texteAdresseBanCarte(officielles, s.adresse);
-  const alignement = s.alignement == null ? 'Non lu' : s.alignement.length ? escapeHtml(s.alignement.map(a => a.nom).join(' · ')) : 'Aucun plan d’alignement publié';
-  const alignementDetail = s.alignement && s.alignement.length ? 'Servitude EL7 : demander le certificat d’alignement à la commune.' : s.alignement ? 'Seules les communes qui ont versé leurs servitudes au Géoportail y figurent.' : '';
+  const zoneAide = parts ? parts.map(z => `${z.libelle} : ${z.libelong}`).filter(Boolean).join(' · ') : s.zone ? (s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
+  const adresse = adresseParcelleCarteHtml(s);
+  const patr = s.patrimoine && typeof lignePatrimoinePreemption === 'function' ? lignePatrimoinePreemption(s.patrimoine) : null;
+  const abf = patr ? `<span class="dot-label ${CLASSES_PATRIMOINE[patr.statut] || 'dl-neutre'}">${escapeHtml(patr.statut === 'oui' ? 'Oui — avis de l’ABF' : patr.statut === 'non' ? 'Non' : 'À vérifier')}</span>` : 'Non lue';
+  const abfAide = patr ? [patr.motif, patr.conseil, AIDE_PATRIMOINE].filter(Boolean).join(' — ') : '';
+  const alignement = s.alignement == null ? 'Non lu' : s.alignement.length ? escapeHtml(s.alignement.map(a => a.nom).join(' · ')) : 'Aucun publié';
+  const alignementAide = s.alignement && s.alignement.length ? 'Servitude EL7 : demander le certificat d’alignement à la commune.' : 'Seules les communes qui ont versé leurs servitudes au Géoportail y figurent.';
   const ventesParcelle = p ? ventesFiltreesCarte(Object.values(carteUrb.ventes).map(x => x.ventes), 'tout').filter(v => (v.parcelles || []).includes(p.idu)) : [];
+  const ventes = ventesParcelle.length ? `${ventesParcelle.length} vente${ventesParcelle.length > 1 ? 's' : ''}` : 'Aucune publiée';
+  const ventesAide = ventesParcelle[0] ? `Dernière : ${formatDateFr(ventesParcelle[0].date)} · ${ventesParcelle[0].prix ? formaterMontantEuros(ventesParcelle[0].prix) : 'prix non publié'}` : 'Ventes publiées (DVF) des cinq dernières années.';
+  const actions = `<span class="pr-fiche-actions">
+      <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirStreetViewCarte()" title="Google Street View devant le bien (« Voir d’autres dates » pour les années passées)" aria-label="Street View">${icone('eye')}</wa-button>
+      <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirGeofoncierCarte()" title="DMPC et géomètre-expert sur Géofoncier" aria-label="Géofoncier">${icone('lien-externe')}</wa-button>
+    </span>`;
   z.innerHTML = p ? `<div class="pr-fiche-tete">
         <span class="pr-fiche-num">${escapeHtml(p.section)} ${escapeHtml(p.numero)}</span>
-        <span class="pr-fiche-commune">${escapeHtml(p.commune)}</span>
+        <span class="pr-fiche-commune" title="${escapeAttr('Identifiant cadastral ' + p.idu)}">${escapeHtml(p.commune)} · ${escapeHtml(contenanceCadastrale(p.contenance))}</span>
+        ${actions}
       </div>
-      ${ligne('Contenance', escapeHtml(contenanceCadastrale(p.contenance)), p.contenance ? escapeHtml(surfaceLisible(p.contenance)) : '')}
-      ${ligne('Zone du PLU', zone, zoneDetail)}
-      ${ligne('Adresse', adresse, adresseDetail)}
-      ${ligne('Alignement', alignement, alignementDetail)}
-      ${ligne('Ventes (DVF)', ventesParcelle.length ? `${ventesParcelle.length} vente${ventesParcelle.length > 1 ? 's' : ''}` : 'Aucune vente publiée', ventesParcelle[0] ? `Dernière : ${escapeHtml(formatDateFr(ventesParcelle[0].date))} · ${escapeHtml(ventesParcelle[0].prix ? formaterMontantEuros(ventesParcelle[0].prix) : 'prix non publié')}` : '')}
-      <div class="pr-fiche-actions">
-        <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirStreetViewCarte()" title="Google Street View devant le bien : « Voir d’autres dates » en haut à gauche pour les années passées">${icone('eye')} Street View</wa-button>
-        <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirGeofoncierCarte()">${icone('lien-externe')} DMPC et géomètre sur Géofoncier</wa-button>
-      </div>
-      <p class="hint">Identifiant cadastral ${escapeHtml(p.idu)}</p>`
-    : `<p class="hint">Aucune parcelle à cet endroit (voie, cours d’eau ou domaine public).</p>${ligne('Adresse', adresse, adresseDetail)}${ligne('Zone du PLU', zone, zoneDetail)}`;
+      ${adresse}
+      <div class="pr-fiche-grille">
+        ${cas('Zone du PLU', zone, zoneAide, !!parts)}
+        ${cas('Zone ABF', abf, abfAide)}
+        ${cas('Alignement', alignement, alignementAide)}
+        ${cas('Ventes (DVF)', ventes, ventesAide)}
+      </div>`
+    : `<p class="hint">Aucune parcelle à cet endroit (voie, cours d’eau ou domaine public).</p><div class="pr-fiche-grille">${cas('Zone du PLU', zone, zoneAide, true)}</div>`;
 }
 
-// Pure : ce que dit la Base adresse nationale de l'adresse affichée.
-function texteAdresseBanCarte(officielles, plusProche) {
-  if (officielles && officielles.length) return `Adresse de cette parcelle${officielles.some(a => a.certifie) ? ', vérifiée par la commune' : ''} (Base adresse nationale)`;
-  if (!plusProche) return '';
-  const loin = plusProche.distance != null ? `Numéro le plus proche, à ${longueurLisible(plusProche.distance)}` : 'Numéro le plus proche';
-  if (!plusProche.banLue) return `${loin} · Base adresse nationale`;
-  const rattache = plusProche.parcelles && plusProche.parcelles.length ? `rattaché à la parcelle ${plusProche.parcelles.join(', ')}` : 'rattaché à aucune parcelle';
-  return `${loin}, ${rattache}${plusProche.certifie ? ' · vérifié par la commune' : ''} — pas l’adresse de cette parcelle`;
+// L'adresse de la parcelle (étude 31/10 : « ne pas choisir l'adresse la plus proche, ça fausse tout ; seulement si l'adresse de la parcelle
+// est sur le site de l'adressage : une pastille verte avec l'adresse et le lien de téléchargement du certificat, et "Adresse de cette
+// parcelle, vérifiée par la commune" »).
+function adresseParcelleCarteHtml(s) {
+  const officielles = Array.isArray(s.adressesParcelle) ? s.adressesParcelle : [];
+  if (!officielles.length) return `<p class="pr-fiche-adresse-vide">${escapeHtml(texteAdresseBanCarte(officielles, s.adresseLue))}</p>`;
+  return officielles.map(a => `<div class="pr-fiche-adresse${a.certifie ? ' certifiee' : ''}">
+      <span class="pr-adresse-pastille">${a.certifie ? icone('check') : icone('map-pin')} ${escapeHtml(a.libelle)}</span>
+      <span class="pr-adresse-source">${escapeHtml(texteAdresseBanCarte([a], true))}${a.certifie && a.banId ? ` <a href="${escapeAttr(lienCertificatAdressage(a.banId))}" target="_blank" rel="noopener">${icone('download')} Certificat d’adressage</a>` : ''}</span>
+    </div>`).join('');
+}
+
+// Pure : la page de l'adresse sur adresse.data.gouv.fr, d'où se télécharge le certificat d'adressage d'une adresse certifiée.
+function lienCertificatAdressage(banId) {
+  return /^[0-9A-Za-z_]{5,40}$/.test(String(banId || '')) ? `https://adresse.data.gouv.fr/carte-base-adresse-nationale?id=${encodeURIComponent(banId)}` : '';
+}
+
+// Pure : ce que dit la Base adresse nationale de l'adresse de la parcelle.
+function texteAdresseBanCarte(officielles, lue) {
+  if (officielles && officielles.length) return officielles.some(a => a.certifie) ? 'Adresse de cette parcelle, vérifiée par la commune' : 'Adresse rattachée à cette parcelle, pas encore certifiée par la commune';
+  return lue ? 'Aucune adresse rattachée à cette parcelle dans la Base adresse nationale' : 'Adresse non lue (Base adresse nationale injoignable)';
 }
 
 // ===== Ventes DVF =====
@@ -664,8 +718,9 @@ async function parcellesCarteAgent(etat) {
       contenance: p && p.contenance ? contenanceCadastrale(p.contenance) : 'non lue',
       zone_plu: Array.isArray(j.zones) && j.zones.length > 1 ? j.zones.map(z => `${z.libelle} ${pourcentZone(z.part)} (${z.libelong})`).join(' ; ') : j.zone ? `${j.zone.libelle} — ${j.zone.libelong}` : j.zoneLue ? 'aucun PLU publié (RNU ou carte communale : à vérifier en mairie)' : 'non lue',
       // Deux clés (relecture 0.416.0) : le numéro et sa voie, masqués comme tout résultat d'outil ; ce que la Base adresse nationale en dit, à part.
-      numero_de_voie: (j.adressesParcelle || []).length ? j.adressesParcelle.map(a => a.libelle).join(' ; ') : j.adresse ? j.adresse.libelle : j.adresseLue ? 'aucun numéro à proximité' : 'non lu',
-      numero_de_voie_source: texteAdresseBanCarte(j.adressesParcelle || [], j.adresse),
+      numero_de_voie: (j.adressesParcelle || []).length ? j.adressesParcelle.map(a => a.libelle).join(' ; ') : j.adresseLue ? 'aucune adresse rattachée à cette parcelle' : 'non lu',
+      numero_de_voie_source: texteAdresseBanCarte(j.adressesParcelle || [], j.adresseLue),
+      zone_abf: j.patrimoine ? (lignePatrimoinePreemption(j.patrimoine) || {}).motif || 'non lue' : 'non lue',
       alignement: j.alignement == null ? 'non lu' : j.alignement.length ? j.alignement.map(a => a.nom).join(' ; ') : 'aucun plan d’alignement publié au Géoportail',
       geofoncier: p ? lienGeofoncier(c.y, c.x, 18) : ''
     });
@@ -691,9 +746,8 @@ async function ventesCarteAgent(etat, filtre) {
 }
 
 // ===== Clichés aériens de l'IGN (étude 31/10 : « les photos aériennes individuelles de Remonter le temps, par année, pour comparer ») =====
-// La liste vient du serveur (liste officielle de la Géoplateforme) ; chaque cliché s'ouvre sur « Remonter le temps », centré sur le bien,
-// à son année et sa mission (forme du lien relevée par l'étude le 31/10). L'image elle-même n'est pas reprise dans CLAIRE (pas de service
-// officiel documenté).
+// La liste vient du serveur (liste officielle de la Géoplateforme), un cliché par mission — celui où le bien est le plus au centre ; chaque
+// cliché s'ouvre dans la visionneuse de CLAIRE (client/157, fichier officiel lu par morceaux), « Remonter le temps » restant à côté.
 
 var clichesCarte = { cle: '', etat: '', annees: [], annee: 0, erreur: '' };
 
@@ -734,7 +788,7 @@ function renderClichesCarte() {
   const blocRue = `<h2 class="pr-cote-titre">Vue de la rue</h2>
     <div class="pr-rue"><span class="pr-cote-sous">Google Street View devant le bien ; les années passées : « Voir d’autres dates », en haut à gauche.</span>
       <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirStreetViewTravaux()">${icone('eye')} Street View</wa-button></div>`;
-  const tete = `${blocRue}<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre sur « Remonter le temps », centré sur le bien, pour le voir en grand et le télécharger.')}"></span></h2>`;
+  const tete = `${blocRue}<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre dans CLAIRE, la parcelle entourée, pour s’y déplacer, le comparer à une autre année et le télécharger.')}"></span></h2>`;
   if (clichesCarte.etat === 'lecture') { z.innerHTML = `${tete}<p class="hint">${icone('spinner')} Liste des clichés…</p>`; return; }
   if (clichesCarte.etat === 'erreur') { z.innerHTML = `${tete}<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(clichesCarte.erreur)} <a href="#" onclick="event.preventDefault(); clichesCarte.cle = ''; renderClichesCarte()">Réessayer</a></p>`; return; }
   if (!clichesCarte.annees.length) { z.innerHTML = `${tete}<p class="hint">Aucun cliché de l’IGN publié sur ce point.</p>`; return; }
@@ -742,11 +796,13 @@ function renderClichesCarte() {
   const cc = clichesCarte.centre;
   z.innerHTML = `${tete}
     <div class="pr-cliches-decennies" role="group" aria-label="Années des clichés">${decenniesClichesCarte(clichesCarte.annees).map(d => `<div class="pr-cliches-decennie"><span class="pr-cliches-decennie-titre">${d.decennie}</span><span class="pr-cliches-annees">${d.annees.map(a => `<button type="button" class="pr-cliche-annee${a === choisie.annee ? ' actif' : ''}" onclick="choisirAnneeClichesCarte(${Number(a)})">${Number(a)}</button>`).join('')}</span></div>`).join('')}</div>
-    <div class="pr-cliches">${choisie.cliches.slice(0, 12).map(x => `<a class="pr-cliche" href="${escapeAttr(lienRemonterLeTemps(cc.lon, cc.lat, x.annee, x.mission))}" target="_blank" rel="noopener">
-        <span class="pr-cliche-texte"><span class="pr-cliche-date">${escapeHtml(formatDateFr(x.date))}</span><span class="pr-cliche-sous">Cliché ${escapeHtml(String(x.numero || '—'))} · mission ${escapeHtml(x.mission || x.lot || '—')}</span></span>
-        <span class="pr-cliche-voir">${icone('lien-externe')} Voir</span>
-      </a>`).join('')}</div>
-    ${choisie.cliches.length > 12 ? `<p class="hint">${choisie.cliches.length - 12} autres clichés cette année-là sur « Remonter le temps ».</p>` : ''}`;
+    <div class="pr-cliches">${choisie.cliches.slice(0, 12).map(x => `<div class="pr-cliche">
+        <button type="button" class="pr-cliche-ouvrir" onclick="ouvrirClicheIgn('${escapeOnclickArg(x.id)}')" title="Ouvrir la photo, la parcelle entourée">
+          <span class="pr-cliche-texte"><span class="pr-cliche-date">${escapeHtml(formatDateFr(x.date))}</span><span class="pr-cliche-sous">Cliché ${escapeHtml(String(x.numero || '—'))} · mission ${escapeHtml(x.mission || x.lot || '—')}</span></span>
+          <span class="pr-cliche-voir">${icone('maximize')} Ouvrir</span>
+        </button>
+        <a class="pr-cliche-ext" href="${escapeAttr(lienRemonterLeTemps(cc.lon, cc.lat, x.annee, x.mission))}" target="_blank" rel="noopener" title="Voir sur « Remonter le temps »" aria-label="Remonter le temps">${icone('lien-externe')}</a>
+      </div>`).join('')}</div>`;
 }
 
 // Pure : les années regroupées par décennie (étude 31/10 : « regroupe par décennie »), la plus récente d'abord.
@@ -793,5 +849,6 @@ async function clichesCarteAgent(etat) {
   const j = await rc.json().catch(() => ({}));
   if (!rc.ok) return { erreur: j.erreur || 'liste des clichés non lue' };
   return { annees: (j.annees || []).map(a => ({ annee: a.annee, nombre: a.cliches.length, dates: [...new Set(a.cliches.map(x => x.date))].slice(0, 5),
-    lien: lienRemonterLeTemps(c.lon, c.lat, a.annee, a.cliches[0] && a.cliches[0].mission) })), source: 'prises de vues aériennes de l’IGN (Géoplateforme) — image sur « Remonter le temps »' };
+    lien: lienRemonterLeTemps(c.lon, c.lat, a.annee, a.cliches[0] && a.cliches[0].mission), telecharger: a.cliches[0] ? a.cliches[0].telecharger || '' : '' })),
+    source: 'prises de vues aériennes de l’IGN (Géoplateforme) — fichier d’origine à télécharger, ou image sur « Remonter le temps »' };
 }
