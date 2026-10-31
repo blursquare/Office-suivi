@@ -210,6 +210,7 @@
     prEtat = prefillPreemption(d);
     renderPreemption();
     if (prEtat.cp) chargerCommunesPreemption(true);
+    else lancerZonageSiPretPreemption();   // commune déjà connue (analyse gardée sur la fiche), sans code postal
     if (!prEtat.travaux && d.dossierLie && d.nasDossier) lireTravauxCompromisPreemption();
   }
 
@@ -283,7 +284,7 @@
     const erreur = await lireCommunesEtatPreemption(prEtat);
     if (erreur) prEtat.erreurZonage = erreur;
     renderPreemption();
-    if (puisZonage && prEtat.insee && parcellesDepuisTexte(prEtat.parcelles).length) lireZonagePreemption();
+    if (puisZonage) lancerZonageSiPretPreemption();
   }
 
   // Toutes les parcelles (20 au plus), trois à la fois : chaque ligne du tableau se remplit dès que sa réponse arrive.
@@ -311,8 +312,19 @@
   function changerChampPreemption(champ, valeur) {
     prEtat[champ] = valeur;
     if (champ === 'insee' || champ === 'parcelles') { prEtat.zonages = []; prEtat.erreurZonage = ''; }
-    if (champ === 'cp') { prEtat.insee = ''; chargerCommunesPreemption(false); return; }
+    if (champ === 'cp') { prEtat.insee = ''; chargerCommunesPreemption(true); return; }
     renderPreemption();
+    if (champ === 'insee' || champ === 'parcelles') lancerZonageSiPretPreemption();
+  }
+
+  // Étude 31/10 : « quand CLAIRE le remplit, elle lance aussi la lecture des parcelles sur le Géoportail » — dès que la commune et au moins une
+  // parcelle sont connues (dossier repris, champ rempli par « Demander à CLAIRE » ou à la main), le zonage est lu sans attendre le bouton ;
+  // une seule lecture à la fois, jamais relancée sur un zonage déjà lu.
+  function lancerZonageSiPretPreemption() {
+    const e = prEtat;
+    if (!e || e.lecture || !e.insee || !parcellesDepuisTexte(e.parcelles).length) return;
+    if ((e.zonages || []).length) return;
+    lireZonagePreemption();
   }
 
   // Une réponse : valeur, ou retirée (« effacer » une réponse oui/non en recliquant).
