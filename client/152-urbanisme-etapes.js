@@ -123,44 +123,56 @@ function apercusAttendusPreemption(st) {
   return out;
 }
 
+// Les aperçus sont gardés À PART de l'état de l'outil (relecture 0.416.0 : un état remplacé — autre dossier, « Effacer » — abandonnait ses
+// URL locales sans les rendre) : toute URL dont le plan n'est plus attendu est rendue au rendu suivant ou dès sa lecture finie.
+var apercusPlansPreemption = {};
+
 async function chargerApercuPlanPreemption(attendu) {
-  const st = etatSitesPreemption();
-  st.apercus = st.apercus || {};
-  if (st.apercus[attendu.cle]) return;
-  st.apercus[attendu.cle] = { etat: 'lecture', url: '' };
+  if (apercusPlansPreemption[attendu.cle]) return;
+  apercusPlansPreemption[attendu.cle] = { etat: 'lecture', url: '' };
+  let resultat;
   try {
     const r = await fetchAvecAuth(attendu.url);
     if (!r.ok) throw new Error(`réponse ${r.status}`);
-    st.apercus[attendu.cle] = { etat: 'ok', url: URL.createObjectURL(await r.blob()) };
+    resultat = { etat: 'ok', url: URL.createObjectURL(await r.blob()) };
   } catch (err) {
-    st.apercus[attendu.cle] = { etat: 'erreur', url: '' };
+    resultat = { etat: 'erreur', url: '' };
   }
-  if (prEtat && prEtat.sites === st) renderApercuPlanPreemption();
+  const encoreAttendu = prEtat && apercusAttendusPreemption(etatSitesPreemption()).some(a => a.cle === attendu.cle);
+  if (!encoreAttendu) { if (resultat.url) URL.revokeObjectURL(resultat.url); delete apercusPlansPreemption[attendu.cle]; return; }
+  apercusPlansPreemption[attendu.cle] = resultat;
+  renderApercuPlanPreemption();
 }
 
 function renderApercuPlanPreemption() {
   const zone = document.getElementById('pr-plan-apercu');
   if (!zone || !prEtat) return;
   const st = etatSitesPreemption();
-  st.apercus = st.apercus || {};
   const attendus = apercusAttendusPreemption(st);
+  Object.keys(apercusPlansPreemption).forEach(k => {
+    if (attendus.some(a => a.cle === k)) return;
+    if (apercusPlansPreemption[k].url) URL.revokeObjectURL(apercusPlansPreemption[k].url);
+    delete apercusPlansPreemption[k];
+  });
   if (!attendus.length) {
     zone.innerHTML = st.plan && st.plan.etat !== 'erreur' && st.plan.etat !== 'fini' ? '<p class="hint pr-plan-attente">Plan cadastral demandé à cadastre.gouv.fr…</p>' : '';
-    zone.dataset.apercus = '';
     return;
   }
-  attendus.forEach(a => { if (!st.apercus[a.cle]) chargerApercuPlanPreemption(a); });
-  // Les URL locales d'aperçus qui ne sont plus montrés (autre dossier, plan retiré) sont rendues.
-  Object.keys(st.apercus).forEach(k => { if (!attendus.some(a => a.cle === k)) { if (st.apercus[k].url) URL.revokeObjectURL(st.apercus[k].url); delete st.apercus[k]; } });
-  const empreinte = attendus.map(a => `${a.cle}:${st.apercus[a.cle] ? st.apercus[a.cle].etat : ''}`).join('|');
-  if (zone.dataset.apercus === empreinte) return;   // une iframe déjà affichée n'est pas rechargée
-  zone.dataset.apercus = empreinte;
-  zone.innerHTML = attendus.map(a => {
-    const x = st.apercus[a.cle] || { etat: 'lecture' };
-    return `<figure class="pr-plan-apercu-fig"><figcaption class="pr-cote-sous">${escapeHtml(a.titre)}</figcaption>${x.etat === 'ok'
+  attendus.forEach(a => { if (!apercusPlansPreemption[a.cle]) chargerApercuPlanPreemption(a); });
+  // Une figure par plan : seule celle dont l'état change est réécrite (un PDF déjà affiché n'est pas rechargé).
+  const hint = zone.querySelector(':scope > .pr-plan-attente');
+  if (hint) hint.remove();
+  zone.querySelectorAll(':scope > .pr-plan-apercu-fig').forEach(f => { if (!attendus.some(a => a.cle === f.dataset.cle)) f.remove(); });
+  attendus.forEach((a, i) => {
+    const x = apercusPlansPreemption[a.cle] || { etat: 'lecture' };
+    let fig = [...zone.querySelectorAll(':scope > .pr-plan-apercu-fig')].find(f => f.dataset.cle === a.cle);
+    if (fig && fig.dataset.etat === x.etat) return;
+    if (!fig) { fig = document.createElement('figure'); fig.className = 'pr-plan-apercu-fig'; fig.dataset.cle = a.cle; zone.insertBefore(fig, zone.children[i] || null); }
+    fig.dataset.etat = x.etat;
+    fig.innerHTML = `<figcaption class="pr-cote-sous">${escapeHtml(a.titre)}</figcaption>${x.etat === 'ok'
       ? `<iframe class="pr-plan-cadre" src="${escapeAttr(x.url)}#view=FitH" title="${escapeAttr(a.titre)}"></iframe>`
-      : x.etat === 'erreur' ? '<p class="hint">Aperçu indisponible : ouvrez le plan ci-dessous.</p>' : '<p class="hint">Aperçu du plan…</p>'}</figure>`;
-  }).join('');
+      : x.etat === 'erreur' ? '<p class="hint">Aperçu indisponible : ouvrez le plan ci-dessous.</p>' : '<p class="hint">Aperçu du plan…</p>'}`;
+  });
 }
 
 function renderStepperPreemption(page) {
