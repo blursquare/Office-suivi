@@ -153,4 +153,5 @@ test('31/10 : DPU renforcé lu dans les informations du document d’urbanisme (
   assert.equal(simple.perimetre, true); assert.equal(simple.renforce, false);
   assert.deepEqual(dpuDepuisInfos(null), { lu: false, perimetre: false, renforce: false, libelles: [] });
   assert.equal(dpuDepuisInfos({ features: [] }).lu, true);
+  assert.equal(dpuDepuisInfos({ features: [f('DPU non renforcé', '')] }).renforce, false);
 });

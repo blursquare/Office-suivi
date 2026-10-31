@@ -24,7 +24,9 @@ function pageCourantePreemption(e) {
 // Pure : le droit de préemption urbain publié au Géoportail par la commune, sur les parcelles lues (server/src/urbanisme.js, dpuDepuisInfos).
 function dpuGeoportailPreemption(lus) {
   const dpus = (lus || []).map(z => z && z.dpu).filter(Boolean);
+  const tous = (k) => dpus.length > 0 && dpus.length === (lus || []).length && dpus.every(x => x[k]);
   return { lu: dpus.some(x => x.lu), perimetre: dpus.some(x => x.perimetre), renforce: dpus.some(x => x.renforce),
+    toutesPerimetre: tous('perimetre'), toutesRenforce: tous('renforce'),
     libelles: [...new Set(dpus.flatMap(x => x.libelles || []))].slice(0, 5) };
 }
 
@@ -40,9 +42,10 @@ function etatDpuRenforcePreemption(e) {
   const lus = zonagesLusPreemption(e);
   if (!lus.length) return { statut: '', source: '', motif: '' };
   const gpu = dpuGeoportailPreemption(lus);
-  if (gpu.renforce) return { statut: 'oui', source: 'Géoportail de l’urbanisme (périmètre publié par la commune)', motif: gpu.libelles.join(' ; ') || 'périmètre de DPU renforcé' };
+  if (gpu.toutesRenforce) return { statut: 'oui', source: 'Géoportail de l’urbanisme (périmètre publié par la commune)', motif: gpu.libelles.join(' ; ') || 'périmètre de DPU renforcé' };
+  if (gpu.renforce) return { statut: 'probable', source: 'Géoportail de l’urbanisme (périmètre publié par la commune)', motif: 'une partie seulement des parcelles touche le périmètre du DPU renforcé (peut-être par sa bordure) : à vérifier sur le plan' };
   if (gpu.perimetre) return { statut: 'verifier', source: 'Géoportail de l’urbanisme', motif: `DPU publié (${gpu.libelles.join(' ; ') || 'périmètre'}), sans mention « renforcé » — un DPU renforcé voté sans être publié reste possible : à vérifier en mairie si le bien n’est soumis qu’au DPU renforcé` };
-  return { statut: 'verifier', source: gpu.lu ? 'Géoportail de l’urbanisme' : '', motif: gpu.lu ? 'la commune n’a publié aucun périmètre de droit de préemption au Géoportail : à vérifier en mairie (délibération)' : 'informations du document d’urbanisme non lues : à vérifier en mairie' };
+  return { statut: 'verifier', source: gpu.lu ? 'Géoportail de l’urbanisme' : '', motif: gpu.lu ? 'aucun périmètre de droit de préemption publié au Géoportail sur ces parcelles : à vérifier en mairie (délibération)' : 'informations du document d’urbanisme non lues : à vérifier en mairie' };
 }
 
 var LIBELLES_DPUR_PREEMPTION = { oui: 'Dans un périmètre', probable: 'Probable', non: 'Hors périmètre', verifier: 'À vérifier' };
@@ -114,6 +117,7 @@ async function chargerApercuPlanPreemption(plan) {
   const st = etatSitesPreemption();
   const doc = (plan.documents || [])[0];
   if (!doc || (st.apercu && st.apercu.tache === plan.id)) return;
+  if (st.apercu && st.apercu.url) URL.revokeObjectURL(st.apercu.url);
   st.apercu = { tache: plan.id, url: '', etat: 'lecture' };
   try {
     const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(plan.id)}/documents/${encodeURIComponent(doc.id)}`);
@@ -240,7 +244,7 @@ function reponsesAgentUrbanisme(reponses) {
   return { reponses: out, refusees };
 }
 
-// Pure : ce que l'agent reçoit — sans nom ni adresse : commune, parcelles et zones, droits, DPU renforcé, patrimoine, questions restantes.
+// Pure : ce que l'agent reçoit — sans nom de personne (à Blois, le motif du DPU renforcé peut citer la rue, liste fermée ; masqué par le serveur comme tout résultat) : commune, parcelles et zones, droits, DPU renforcé, patrimoine, questions restantes.
 function resultatAgentUrbanisme(e) {
   const rep = reponsesPreemption(e);
   const lignes = lignesZonageParcelles(e.zonages || [], rep.zonesParcelles);
@@ -292,7 +296,7 @@ async function controleUrbanismeAgent(entree) {
   if (e.action === 'ouvrir') {
     const copie = etat;
     poserMessageAssistant('claire', `<p>Contrôle de l’urbanisme — ${escapeHtml(libelleDossierAffiche(d))} : prêt, avec le plan cadastral demandé à l’ouverture.</p>`,
-      [{ libelle: 'Voir le contrôle', principal: true, action: () => { prEtat = copie; prEtat.page = 'rendu'; definirOnglet('preemption'); renderPreemption(); preparerRenduPreemption(); } }]);
+      [{ libelle: 'Voir le contrôle', principal: true, action: () => { prEtat = Object.assign({}, copie, { reponses: Object.assign({}, copie.reponses), zonages: (copie.zonages || []).slice(), sites: null, page: 'rendu' }); definirOnglet('preemption'); renderPreemption(); preparerRenduPreemption(); } }]);
     return Object.assign(resultatAgentUrbanisme(etat), { affiche_a_l_utilisateur: 'bouton « Voir le contrôle » affiché' });
   }
   return Object.assign(resultatAgentUrbanisme(etat), refusees.length ? { reponses_refusees: refusees } : {});

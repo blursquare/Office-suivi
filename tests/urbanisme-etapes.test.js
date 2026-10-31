@@ -26,6 +26,14 @@ test('DPU renforcé : Blois par la délibération, ailleurs le périmètre publi
   assert.equal(app.etatDpuRenforcePreemption(ailleurs({ lu: true, perimetre: false, renforce: false, libelles: [] })).statut, 'verifier');
   assert.equal(app.etatDpuRenforcePreemption(Object.assign(vierge(), { insee: '41018', parcelles: 'AL 839' })).statut, 'oui', 'Blois, AL 839');
   assert.equal(app.etatDpuRenforcePreemption(Object.assign(vierge(), { insee: '41269', parcelles: 'AB 12' })).statut, '', 'zonage pas encore lu');
+  // Une seule parcelle sur deux dans le périmètre (bordure ?) : « probable », jamais la réponse « oui » pour toutes.
+  const deux = Object.assign(vierge(), { insee: '41269', parcelles: 'AB 12, AB 13', zonages: [lu({ lu: true, perimetre: true, renforce: true, libelles: ['DPU renforcé'] }), lu({ lu: true, perimetre: false, renforce: false, libelles: [] })] });
+  assert.equal(app.etatDpuRenforcePreemption(deux).statut, 'probable');
+  assert.equal(app.reponsesPreemption(deux).dpur, undefined);
+  // Agglopolys : la règle par zone fait foi, le DPU « institué » n'est pas déduit du Géoportail.
+  const agglo = ailleurs({ lu: true, perimetre: true, renforce: false, libelles: ['DPU'] });
+  agglo.zonages[0].resultat.epciSiren = '200030385';
+  assert.equal(app.reponsesPreemption(agglo).dpuInstitue, undefined);
   // Le périmètre renforcé publié répond à la question du DPU renforcé et dit que le DPU est institué.
   const r = app.reponsesPreemption(ailleurs({ lu: true, perimetre: true, renforce: true, libelles: ['DPU renforcé'] }));
   assert.equal(r.dpur, 'oui');

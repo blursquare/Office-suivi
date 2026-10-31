@@ -59,6 +59,9 @@
     if (outil === 'controle_urbanisme' && d) { ouvrirPreemptionDepuisFiche(d.id); fin(); return; }
     if (outil === 'constitution' && d) { ouvrirConstitutionDepuisFiche(d.id); fin(); return; }
     if (outil === 'fiche_signature' && d) { ouvrirVeilleSignature(d.id, { manuel: true }); fin(); return; }
+    if (outil === 'provision' && d) { ouvrirProvisionDepuisFiche(d.id); fin(); return; }
+    if (outil === 'prorata' && d) { ouvrirProrataDepuisFiche(d.id); fin(); return; }
+    if (outil === 'forfait_mobilier' && d && estSuccession(d)) { ouvrirArbitrageDepuisFiche(d.id); fin(); return; }
     definirOnglet(o.onglet);
     if (d && outil === 'quotites') choisirDossierQuotites(d.id);
     fin();

@@ -199,7 +199,7 @@
     // Barre d'étapes d'un outil (client/44-presentation-outils.js) : à jour dès l'arrivée sur l'écran.
     if (typeof ETAPES_OUTILS !== 'undefined' && ETAPES_OUTILS[nom]) setTimeout(() => majSommaireOutil(nom), 0);
     // Premier écran « Quel dossier ? » (client/153) : regardé après le geste en cours, qui rattache peut-être déjà un dossier (ouverture depuis la fiche).
-    if (typeof majAccueilOutil === 'function') setTimeout(() => majAccueilOutil(nom), 0);
+    if (typeof majAccueilOutil === 'function') { const parNavigation = ouvertureParNavigationOutil(); setTimeout(() => majAccueilOutil(nom, false, parNavigation), 0); }
     // Sur mobile, choisir une section referme la sidebar repliable (voir toggleSidebarMobile).
     toggleSidebarMobile(false);
     document.getElementById('onglet-dashboard').style.display = nom === 'dashboard' ? '' : 'none';

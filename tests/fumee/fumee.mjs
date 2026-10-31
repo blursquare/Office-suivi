@@ -138,6 +138,11 @@ try {
         reinitialiserPreemption();
         definirOnglet('calculateur');
         await new Promise(r2 => setTimeout(r2, 50));
+        r.sansNavigation = !document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
+        definirOnglet('dashboard');
+        dernierClicNavigationOutils = Date.now();   // comme un clic dans la barre latérale
+        definirOnglet('calculateur');
+        await new Promise(r2 => setTimeout(r2, 50));
         r.accueilProvision = document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
         continuerSansDossierAccueilOutil('calculateur');
         r.sansDossier = !document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
@@ -145,7 +150,7 @@ try {
       });
       verifier(pr && pr.accueil === 'dossier' && pr.carte && pr.apres === 'parcelles' && pr.barre && pr.questions === 'questions' && pr.rendu === 'rendu' && pr.synthese === 4,
         `urbanisme en étapes : dossier → parcelles → questions → contrôle (${JSON.stringify(pr)})`);
-      verifier(pr && pr.accueilProvision && pr.sansDossier, `outils : premier écran « Quel dossier ? », puis « Continuer sans dossier » (${JSON.stringify(pr && { a: pr.accueilProvision, s: pr.sansDossier })})`);
+      verifier(pr && pr.accueilProvision && pr.sansDossier && pr.sansNavigation, `outils : premier écran « Quel dossier ? », puis « Continuer sans dossier » (${JSON.stringify(pr && { a: pr.accueilProvision, s: pr.sansDossier })})`);
       // Tâches à venir (13/10) : visibles par le lien de la carte « Aujourd'hui », listées dans la grande fenêtre de toutes les tâches.
       const avenir = await geste(page, 'tâches à venir', () => {
         definirOnglet('dashboard');

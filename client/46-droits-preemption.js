@@ -99,9 +99,11 @@
       // 12/10 : « non » posé sans source rendait le DPU non applicable à un bien soumis au seul DPU renforcé).
     }
     // Ailleurs : le périmètre publié par la commune au Géoportail (information « droit de préemption urbain [renforcé] », client/152).
+    // Relecture 0.413.0 : une parcelle qui touche le périmètre (bordure comprise) ne vaut pas pour toutes — « oui » seulement si TOUTES les
+    // parcelles lues y sont ; le DPU « institué » n'est déduit que hors Agglopolys (où la règle par zone U/AU fait foi).
     const gpu = dpuGeoportailPreemption(lus);
-    if (!r.dpur && gpu.renforce) r.dpur = 'oui';
-    if (!r.dpuInstitue && gpu.perimetre) r.dpuInstitue = 'oui';
+    if (!r.dpur && gpu.toutesRenforce) r.dpur = 'oui';
+    if (!r.dpuInstitue && !r.agglopolys && gpu.toutesPerimetre) r.dpuInstitue = 'oui';
     if (r.dpur === 'oui' && e.insee === DPUR_BLOIS.insee) r.dpurDelegataire = DPUR_BLOIS.delegataire;
     return r;
   }
@@ -416,12 +418,6 @@
     const lignes = lignesZonageParcelles(e.zonages, rep.zonesParcelles);
     const analyse = analyserPreemptionParcelles(rep, lignes);
     const d = e.dossierId ? dossiers.find(x => x.id === e.dossierId) : null;
-
-    const pill = document.getElementById('pr-dossier-pill');
-    if (pill) pill.innerHTML = d ? `<div class="dash-recherche-pill">
-        <span class="dot-label dl-success"><span class="dot"></span>${escapeHtml(libelleDossierAffiche(d))}</span>
-        <wa-button appearance="outlined" size="s" pill type="button" class="action-rapide" onclick="reinitialiserPreemption()">Détacher</wa-button>
-      </div>` : '';
 
     const zone = document.getElementById('pr-parcelle');
     if (zone) {

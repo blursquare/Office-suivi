@@ -23527,3 +23527,10 @@ sélectionner le dossier ».
 - `client/153-accueil-outils.js` : `ACCUEIL_OUTILS` (appel de fonds, quotités, provision, prorata, forfait mobilier, urbanisme), écran posé
   par `definirOnglet` (client/22) après le geste en cours, « Continuer sans dossier », « Changer de dossier » dans l'en-tête. Constitution,
   Décompte vendeur et Autorisations avaient déjà le leur.
+- 31/10, relecture et audit de 0.413.0 (`docs/audits/audit-0.413.0.md`, aucun point Haut) : l'écran « Quel dossier ? » ne s'affiche plus que
+  pour un outil ouvert par la barre latérale ou les onglets de travail (`ouvertureParNavigationOutil`), jamais dans le panneau de la
+  conversation — il recouvrait un outil préparé par une réponse de CLAIRE ou un courrier repris ; `outil_claire` ouvre la provision, le
+  prorata et le forfait mobilier sur le dossier ; le DPU lu au Géoportail ne vaut que si TOUTES les parcelles lues sont dans le périmètre
+  (sinon « probable », à vérifier sur le plan), et le DPU « institué » n'en est jamais déduit à Agglopolys (règle par zone) ; « non renforcé »
+  n'est pas un DPU renforcé ; l'aperçu du plan libère l'ancien ; « Voir le contrôle » copie l'état de l'agent ; reste connu : après une
+  ouverture du Prorata depuis une fiche, l'écran « Quel dossier ? » ne revient plus pour cet outil (variable jamais remise à vide).

@@ -1,8 +1,8 @@
 // Premier écran « Quel dossier ? » des outils (étude 31/10 : « pour tous les outils, il faut prévoir un premier écran pour sélectionner le
 // dossier, comme ça, ça va alléger l'interface par la suite »). Même page que la Constitution de dossier et le Décompte vendeur (qui l'ont
 // déjà) : au centre la recherche, puis les derniers dossiers ouverts par le collaborateur ; un clic ouvre l'outil prérempli par la fonction
-// habituelle d'ouverture depuis la fiche. « Continuer sans dossier » garde la simulation libre. Un outil ouvert depuis une fiche ou par
-// « Demander à CLAIRE » a déjà son dossier : l'écran ne s'affiche pas.
+// habituelle d'ouverture depuis la fiche. « Continuer sans dossier » garde la simulation libre. Seule une ouverture par la barre latérale
+// ou les onglets de travail le montre : depuis une fiche, une réponse de CLAIRE ou un courrier repris, l'outil s'affiche tel qu'il a été préparé.
 //
 // Pour un nouvel outil : une entrée ici (titre, filtre vente / succession, fonction de choix, dossier déjà rattaché) ; l'écran se pose seul
 // par-dessus le contenu du panneau `#onglet-<outil>` (règle .outil-en-accueil de style.css). Le Contrôle de l'urbanisme montre la même page
@@ -22,6 +22,16 @@ var ACCUEIL_OUTILS = {
   preemption: { titre: 'Quel dossier contrôler ?', sous: 'Commune, parcelles et nature du bien repris de la fiche ; le zonage est lu aussitôt.', icone: 'map-pin', filtre: 'vente',
     pages: true, choisir: (id) => choisirDossierPreemption(id), sansDossier: () => continuerSansDossierPreemption(), lie: () => !!(prEtat && (prEtat.dossierId || prEtat.sansDossier)) }
 };
+
+// L'écran ne s'affiche que pour un outil ouvert par la NAVIGATION — barre latérale, onglets de travail (relecture 0.413.0 : une réponse
+// chiffrée de CLAIRE, un courrier repris de l'historique, l'outil monté dans le panneau de la conversation étaient recouverts).
+var dernierClicNavigationOutils = 0;
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('click', (ev) => {
+    if (ev.target && ev.target.closest && ev.target.closest('#sidebar, #onglets-travail')) dernierClicNavigationOutils = Date.now();
+  }, true);
+}
+function ouvertureParNavigationOutil() { return Date.now() - dernierClicNavigationOutils < 1500; }
 
 // Outils pour lesquels l'utilisateur a choisi « Continuer sans dossier » (le temps de la session de la page).
 var accueilOutilsSansDossier = new Set();
@@ -103,12 +113,13 @@ function revenirAccueilOutil(outil) {
 
 // Pose ou retire l'écran d'accueil sur le panneau de l'outil (appelée à chaque affichage d'un écran, client/22). `forcer` : même si un
 // dossier est rattaché (l'utilisateur veut en changer).
-function majAccueilOutil(outil, forcer) {
+function majAccueilOutil(outil, forcer, navigation) {
   const c = ACCUEIL_OUTILS[outil];
   if (!c || c.pages) return;
   const panneau = document.getElementById('onglet-' + outil);
   if (!panneau) return;
-  const montrer = forcer || (!c.lie() && !accueilOutilsSansDossier.has(outil));
+  const dansConversation = !!(panneau.closest && panneau.closest('#assistant-artefact'));
+  const montrer = forcer || (!dansConversation && !c.lie() && !accueilOutilsSansDossier.has(outil) && (navigation || panneau.classList.contains('outil-en-accueil')));
   let zone = panneau.querySelector(':scope > .outil-accueil');
   if (!montrer) {
     panneau.classList.remove('outil-en-accueil');

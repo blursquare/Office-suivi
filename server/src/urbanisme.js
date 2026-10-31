@@ -116,7 +116,7 @@ function dpuDepuisInfos(infos) {
   const lu = !!(infos && Array.isArray(infos.features));
   const liste = proprietes(infos, (x) => [String(x.libelle || ''), String(x.libelong || '')].join(' — ').replace(/^ — | — $/g, '').trim()).filter(Boolean);
   const dpu = liste.filter((t) => /pr[ée]emption/i.test(t) && !/commerc|artisan|fonds de commerce|espaces?\s+naturels?|\bENS\b|SAFER|agricole|for[êe]t/i.test(t));
-  return { lu, perimetre: dpu.length > 0, renforce: dpu.some((t) => /renforc/i.test(t)), libelles: [...new Set(dpu)].slice(0, 5) };
+  return { lu, perimetre: dpu.length > 0, renforce: dpu.some((t) => /renforc/i.test(t) && !/non[\s-]+renforc/i.test(t)), libelles: [...new Set(dpu)].slice(0, 5) };
 }
 
 function syntheseZonage(parcelle, gpu) {
