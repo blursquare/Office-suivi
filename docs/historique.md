@@ -23582,3 +23582,5 @@ ma place. »
   bouton d'une carte de proposition — y compris les « Demande de CLAIRE » de son ordinateur virtuel — est « jamais » : « Ouvrir le brouillon »
   envoyait l'email au niveau 2 sans carte) ; « Excel », un libellé en « + », « écarter », « coller », « laisser », « rétablir » ajoutés. Reste
   connu (Bas) : un clic libre peut ouvrir une confirmation de l'écran que l'agent ne voit pas ; la carte ne montre que le libellé du bouton.
+
+- 31/10, 0.415.1 (étude : « mettre « Envoyer via Yousign » ») : bouton de la signature du RIB (client/109, tâche d'« À faire » client/24) ; colonne du geste des listes de tâches 132 → 168 px (le libellé dépassait, mesuré dans Chromium). L'étude accepte aussi que les administrateurs lisent la consigne des demandes reprises des collaborateurs.

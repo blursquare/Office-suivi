@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.415.0';
+  const VERSION_APP = '0.415.1';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.415.1', date: '2026-10-31 15:17', resume: "Signature du RIB : le bouton dit « Envoyer via Yousign » (« Renvoyer via Yousign » une fois fait), dans l’onglet Fonds et dans « À faire » ; la colonne des boutons des listes de tâches est un peu plus large pour qu’il tienne." },
     { version: '0.415.0', date: '2026-10-31 14:58', resume: "CLAIRE appuie elle-même sur les boutons de CLAIRE, à votre place : calculer, lire le zonage, tirer le plan cadastral, passer à l’étape suivante, ouvrir une fiche… sans rien vous demander. Ce qui modifie un dossier (enregistrer, valider, cocher, ajouter, placer, ranger) passe par sa carte « Autoriser », et ce qui retire ou supprime par une carte à chaque fois. Jamais : télécharger, envoyer, imprimer, exporter en PDF ou Word, Outlook, signer, Yousign, Teams, mot de passe, ni aucun bouton des Réglages — elle vous dit de le faire." },
     { version: '0.414.0', date: '2026-10-31 14:54', resume: "Un seul bouton « Envoyer » dans la conversation avec CLAIRE : « Lui confier » disparaît. Si vous fermez CLAIRE pendant qu’elle travaille sur votre demande, elle la termine seule sur le serveur et vous laisse son compte rendu dans sa conversation. Les gestes qu’elle veut faire pendant ce temps vous sont demandés à vous (« Demande de CLAIRE » dans « À traiter ») ; rien n’est jamais envoyé. Les pièces jointes d’une demande ne suivent pas : elle le dit dans son compte rendu." },
     { version: '0.413.0', date: '2026-10-31 12:55', resume: "Contrôle de l’urbanisme en étapes : 1. choisir le dossier ; 2. les parcelles et leurs zones (lues aussitôt), avec le droit de préemption renforcé retrouvé pour la commune (Blois par sa délibération, ailleurs le périmètre publié par la mairie au Géoportail, sinon « à vérifier ») ; 3. les questions qui restent (mutation, bien, SAFER, bois) ; 4. un écran final : synthèse, droits à purger, où déposer la DIA, plan cadastral demandé tout seul et affiché, plan aérien, travaux et photos aériennes. CLAIRE sait faire les mêmes étapes à votre demande et vous pose les questions qu’elle ne peut pas trancher. Et pour tous les outils (appel de fonds, quotités, provision, prorata, forfait mobilier) : un premier écran « Quel dossier ? » ; « Continuer sans dossier » reste possible." },
