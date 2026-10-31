@@ -144,4 +144,6 @@ test('cliché ancien : cadre noir du film écarté, retenu seulement s’il a la
   const q = app.pointDuPixelCliche(carre, p.x, p.y, w, h, cadre);
   assert.ok(Math.abs(q.lon - 1.00665) < 1e-9 && Math.abs(q.lat - 47.0045) < 1e-9);
   assert.equal(app.cadreDuCliche(null, 0, 0).join(','), '0,0,1,1');
+  // Photo sombre sur ses quatre bords : arrêté à 15 % partout, refusé (relecture).
+  assert.equal(app.cadreRetenuCliche([0.15, 0.15, 0.85, 0.85], carre, w, w).join(','), '0,0,1,1');
 });

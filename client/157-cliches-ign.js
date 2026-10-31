@@ -12,6 +12,9 @@
 // approximative et il faut souvent l'ajuster à la main.
 var ANNEE_CLICHE_PRECIS = 2000;
 
+/** @type {Map<string, number[]>} */
+var cadresClichesIgn = new Map();
+
 var visionneuseCliche = { gauche: '', droite: '', cartes: {}, decalages: {}, ajuster: false, synchro: false, rendu: 0 };
 
 // ===== Calculs purs (testés) =====
@@ -97,7 +100,9 @@ function cadreRetenuCliche(cadre, coins, largeur, hauteur) {
   const q = coins.map(c => pl.vers(c[0], c[1]));
   const haut = Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]); const gauche = Math.hypot(q[3][0] - q[0][0], q[3][1] - q[0][1]);
   const forme = ((cadre[2] - cadre[0]) * largeur) / ((cadre[3] - cadre[1]) * hauteur);
-  return gauche && Math.abs(forme / (haut / gauche) - 1) < 0.05 && cadre[2] > cadre[0] && cadre[3] > cadre[1] ? cadre : [0, 0, 1, 1];
+  // Un cadre arrêté à la limite des 15 % sur les quatre bords n'est pas un cadre de film mais une photo sombre partout.
+  const auBout = cadre[0] >= 0.149 && cadre[1] >= 0.149 && cadre[2] <= 0.851 && cadre[3] <= 0.851;
+  return gauche && !auBout && Math.abs(forme / (haut / gauche) - 1) < 0.05 && cadre[2] > cadre[0] && cadre[3] > cadre[1] ? cadre : [0, 0, 1, 1];
 }
 
 // La vue d'ensemble du cliché (son plus petit niveau qui dépasse 300 px) lue sur un canevas : le cadre de la photo.
@@ -155,6 +160,7 @@ function fermerClicheIgn() {
   Object.values(visionneuseCliche.cartes).forEach(m => { try { m.carte.remove(); } catch (e) { /* déjà retirée */ } });
   visionneuseCliche.cartes = {};
   imagesClichesIgn.clear();
+  cadresClichesIgn.clear();
   if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
 }
 
@@ -279,13 +285,19 @@ async function monterVoletCliche(L, cote, c, jeton) {
   if (document.getElementById(`cliche-carte-${cote}`) !== zone || clicheIgnParId(cote === 'gauche' ? visionneuseCliche.gauche : visionneuseCliche.droite) !== c) return;
   // Le cadre noir des films anciens est écarté avant de poser le contour (mesure du 31/10 : sans cela, les clichés d'avant 2000 tombaient
   // souvent à plusieurs centaines de mètres).
-  const cadre = c.coins ? await cadreClicheIgn(c, info).catch(() => [0, 0, 1, 1]) : [0, 0, 1, 1];
+  // Seulement pour les films anciens (relecture : une photo récente sombre sur ses quatre bords serait recadrée à tort) ; gardé par cliché.
+  let cadre = cadresClichesIgn.get(c.id);
+  if (!cadre) {
+    cadre = c.coins && c.annee < ANNEE_CLICHE_PRECIS ? await cadreClicheIgn(c, info).catch(() => [0, 0, 1, 1]) : [0, 0, 1, 1];
+    cadresClichesIgn.set(c.id, cadre);
+  }
   if (document.getElementById(`cliche-carte-${cote}`) !== zone || (jeton && jeton !== visionneuseCliche.rendu)) return;
   zone.innerHTML = '';
   const N = info.niveaux.length - 1;
   const W = info.largeur; const H = info.hauteur;
   // Sans emprise lisible, la photo reste telle quelle (ni rotation ni contour) ; sinon, nord en haut.
-  const M = matriceCliche(c.coins, W, H) || { a: 1, b: 0, c: 0, d: 1, versEcran: (x, y) => [x, y], versCliche: (x, y) => [x, y] };
+  // La photo est le cadre : sa forme vraie (sans bande noire), pour que l'image ne soit ni écrasée ni étirée une fois tournée.
+  const M = matriceCliche(c.coins, W * (cadre[2] - cadre[0]), H * (cadre[3] - cadre[1])) || { a: 1, b: 0, c: 0, d: 1, versEcran: (x, y) => [x, y], versCliche: (x, y) => [x, y] };
   const bo = bornesEcranCliche(M, W, H);
   // Coordonnées de la carte = l'écran tourné, en pixels du cliché (y vers le bas) ; au zoom N, un pixel d'écran = un pixel du cliché.
   const crs = L.extend({}, L.CRS.Simple, {
