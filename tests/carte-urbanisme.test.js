@@ -112,3 +112,17 @@ test('vue de la rue et décennies des clichés', () => {
   const d = app.decenniesClichesCarte([{ annee: 2018 }, { annee: 2011 }, { annee: 1986 }, { annee: 1955 }, { annee: 1949 }, { annee: 1946 }]);
   assert.equal(d.map(x => `${x.decennie}:${x.annees.join('/')}`).join(' | '), 'Années 2010:2018/2011 | Années 80:1986 | Années 50:1955 | Années 40:1949/1946');
 });
+
+test('cliché de l’IGN tourné nord en haut, comme le cadastre (étude 31/10)', () => {
+  // Cliché « tête en bas » : le haut de l'image est au sud. Tourné, son coin haut gauche (au sud-est) passe en bas à droite.
+  const coins = [[1.01, 47.00], [1.00, 47.00], [1.00, 47.01], [1.01, 47.01]];
+  // 0,01° de longitude ≈ 0,682 × 0,01° de latitude à 47° : 1 000 px de large, 1 466 de haut, pixels carrés au sol.
+  const m = app.matriceCliche(coins, 1000, 1466);
+  const r = (v) => v.map(x => Math.round(x * 1000) / 1000).join(',');
+  assert.equal(r(m.versEcran(1, 0)), '-1,0', 'vers la droite de l’image = vers l’ouest');
+  assert.equal(r(m.versEcran(0, 1)), '0,-1', 'vers le bas de l’image = vers le nord');
+  assert.equal(r(m.versCliche(...m.versEcran(120, 340))), '120,340');
+  const b = app.bornesEcranCliche(m, 1000, 1466);
+  assert.equal(`${Math.round(b.ouest)},${Math.round(b.est)},${Math.round(b.nord)},${Math.round(b.sud)}`, '-1000,0,-1466,0');
+  assert.equal(app.matriceCliche(null, 10, 10), null);
+});

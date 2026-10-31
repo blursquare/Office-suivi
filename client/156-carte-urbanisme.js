@@ -411,13 +411,14 @@ function lireCarreauxPluCarte() {
 
 function clicCarteUrbanisme(latlng) {
   if (carteUrb.mesure) { ajouterPointMesureCarte(latlng); return; }
+  // Un clic sur la carte montre la fiche ; la lecture automatique de la parcelle du dossier ne change pas d'onglet (relecture 0.416.0).
+  choisirOngletCoteCarte('controle');
   interrogerPointCarte(latlng.lat, latlng.lng);
 }
 
 function interrogerPointCarte(lat, lon) {
   const tour = ++carteUrb.lectureClic;
   carteUrb.selection = { lecture: true, point: { lat, lon } };
-  choisirOngletCoteCarte('controle');
   return fetchAvecAuth(`/api/urbanisme/point?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}`).then(async rep => {
     const j = await rep.json().catch(() => ({}));
     if (tour !== carteUrb.lectureClic) return null;
@@ -453,39 +454,37 @@ function renderParcelleCarte() {
   if (s.lecture) { z.innerHTML = `<p class="hint">${icone('spinner')} Lecture de la parcelle…</p>`; return; }
   if (s.erreur) { z.innerHTML = `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(s.erreur)}</p>`; return; }
   const p = s.parcelle;
-  // Étude 31/10 : « pas trop haut et des informations claires » — des cases sur deux colonnes, l'explication dans la pastille « i ».
-  const cas = (titre, valeur, aide, large) => `<div class="pr-fiche-case${large ? ' large' : ''}"><span class="pr-fiche-titre">${escapeHtml(titre)}${aide ? ` <span class="info-i" tabindex="0" data-info="${escapeAttr(aide)}"></span>` : ''}</span><span class="pr-fiche-valeur">${valeur}</span></div>`;
+  // Étude 31/10 : « pas trop haut, des informations claires », « fais quelque chose de propre » — une ligne par information, titre à
+  // gauche, valeur à droite, filet entre les deux ; l'explication dans la pastille « i ».
+  const ligne = (titre, valeur, aide) => `<div class="pr-ligne"><span class="pr-ligne-titre">${escapeHtml(titre)}${aide ? ` <span class="info-i" tabindex="0" data-info="${escapeAttr(aide)}"></span>` : ''}</span><span class="pr-ligne-valeur">${valeur}</span></div>`;
   const parts = Array.isArray(s.zones) && s.zones.length > 1 ? s.zones : null;
-  const zone = parts ? `${renderBarreZonesParcelle(parts) || ''}<span class="pr-zt-codes">${parts.map(z => `${escapeHtml(z.libelle)} ${escapeHtml(pourcentZone(z.part))}`).join(' · ')}</span>`
-    : s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}${s.zones && s.zones.length === 1 ? ' <span class="pr-zt-part">100 %</span>' : ''}</span>`
+  const zone = parts ? `${renderBarreZonesParcelle(parts) || ''}<span class="pr-ligne-detail">${parts.map(z => `${escapeHtml(z.libelle)} ${escapeHtml(pourcentZone(z.part))}`).join(' · ')}</span>`
+    : s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}</span>`
     : s.zoneLue ? 'Aucun PLU publié' : 'Non lue';
   const zoneAide = parts ? parts.map(z => `${z.libelle} : ${z.libelong}`).filter(Boolean).join(' · ') : s.zone ? (s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
-  const adresse = adresseParcelleCarteHtml(s);
   const patr = s.patrimoine && typeof lignePatrimoinePreemption === 'function' ? lignePatrimoinePreemption(s.patrimoine) : null;
-  const abf = patr ? `<span class="dot-label ${CLASSES_PATRIMOINE[patr.statut] || 'dl-neutre'}">${escapeHtml(patr.statut === 'oui' ? 'Oui — avis de l’ABF' : patr.statut === 'non' ? 'Non' : 'À vérifier')}</span>` : 'Non lue';
-  const abfAide = patr ? [patr.motif, patr.conseil, AIDE_PATRIMOINE].filter(Boolean).join(' — ') : '';
+  const abf = patr ? `<span class="dot-label ${CLASSES_PATRIMOINE[patr.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(patr.statut === 'oui' ? 'Oui, avis de l’ABF' : patr.statut === 'non' ? 'Non' : 'À vérifier')}</span>${patr.statut === 'oui' ? `<span class="pr-ligne-detail">${escapeHtml(patr.motif)}</span>` : ''}` : 'Non lue';
+  const abfAide = patr ? [patr.statut === 'oui' ? patr.conseil : patr.motif, AIDE_PATRIMOINE].filter(Boolean).join(' — ') : '';
   const alignement = s.alignement == null ? 'Non lu' : s.alignement.length ? escapeHtml(s.alignement.map(a => a.nom).join(' · ')) : 'Aucun publié';
   const alignementAide = s.alignement && s.alignement.length ? 'Servitude EL7 : demander le certificat d’alignement à la commune.' : 'Seules les communes qui ont versé leurs servitudes au Géoportail y figurent.';
   const ventesParcelle = p ? ventesFiltreesCarte(Object.values(carteUrb.ventes).map(x => x.ventes), 'tout').filter(v => (v.parcelles || []).includes(p.idu)) : [];
-  const ventes = ventesParcelle.length ? `${ventesParcelle.length} vente${ventesParcelle.length > 1 ? 's' : ''}` : 'Aucune publiée';
-  const ventesAide = ventesParcelle[0] ? `Dernière : ${formatDateFr(ventesParcelle[0].date)} · ${ventesParcelle[0].prix ? formaterMontantEuros(ventesParcelle[0].prix) : 'prix non publié'}` : 'Ventes publiées (DVF) des cinq dernières années.';
+  const ventes = ventesParcelle.length ? `${ventesParcelle.length} vente${ventesParcelle.length > 1 ? 's' : ''}<span class="pr-ligne-detail">Dernière : ${escapeHtml(formatDateFr(ventesParcelle[0].date))} · ${escapeHtml(ventesParcelle[0].prix ? formaterMontantEuros(ventesParcelle[0].prix) : 'prix non publié')}</span>` : 'Aucune publiée';
   const actions = `<span class="pr-fiche-actions">
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirStreetViewCarte()" title="Google Street View devant le bien (« Voir d’autres dates » pour les années passées)" aria-label="Street View">${icone('eye')}</wa-button>
       <wa-button appearance="plain" size="s" class="bouton-icone" type="button" onclick="ouvrirGeofoncierCarte()" title="DMPC et géomètre-expert sur Géofoncier" aria-label="Géofoncier">${icone('lien-externe')}</wa-button>
     </span>`;
   z.innerHTML = p ? `<div class="pr-fiche-tete">
         <span class="pr-fiche-num">${escapeHtml(p.section)} ${escapeHtml(p.numero)}</span>
-        <span class="pr-fiche-commune" title="${escapeAttr('Identifiant cadastral ' + p.idu)}">${escapeHtml(p.commune)} · ${escapeHtml(contenanceCadastrale(p.contenance))}</span>
+        <span class="pr-fiche-commune" title="${escapeAttr('Identifiant cadastral ' + p.idu)}">${escapeHtml(p.commune)}</span>
         ${actions}
       </div>
-      ${adresse}
-      <div class="pr-fiche-grille">
-        ${cas('Zone du PLU', zone, zoneAide, !!parts)}
-        ${cas('Zone ABF', abf, abfAide)}
-        ${cas('Alignement', alignement, alignementAide)}
-        ${cas('Ventes (DVF)', ventes, ventesAide)}
-      </div>`
-    : `<p class="hint">Aucune parcelle à cet endroit (voie, cours d’eau ou domaine public).</p><div class="pr-fiche-grille">${cas('Zone du PLU', zone, zoneAide, true)}</div>`;
+      ${ligne('Contenance', escapeHtml(contenanceCadastrale(p.contenance)))}
+      ${ligne('Adresse', adresseParcelleCarteHtml(s))}
+      ${ligne('Zone du PLU', zone, zoneAide)}
+      ${ligne('Zone ABF', abf, abfAide)}
+      ${ligne('Alignement', alignement, alignementAide)}
+      ${ligne('Ventes', ventes, 'Ventes publiées (DVF) des cinq dernières années.')}`
+    : `<p class="hint">Aucune parcelle à cet endroit (voie, cours d’eau ou domaine public).</p>${ligne('Zone du PLU', zone, zoneAide)}`;
 }
 
 // L'adresse de la parcelle (étude 31/10 : « ne pas choisir l'adresse la plus proche, ça fausse tout ; seulement si l'adresse de la parcelle
@@ -493,11 +492,12 @@ function renderParcelleCarte() {
 // parcelle, vérifiée par la commune" »).
 function adresseParcelleCarteHtml(s) {
   const officielles = Array.isArray(s.adressesParcelle) ? s.adressesParcelle : [];
-  if (!officielles.length) return `<p class="pr-fiche-adresse-vide">${escapeHtml(texteAdresseBanCarte(officielles, s.adresseLue))}</p>`;
-  return officielles.map(a => `<div class="pr-fiche-adresse${a.certifie ? ' certifiee' : ''}">
-      <span class="pr-adresse-pastille">${a.certifie ? icone('check') : icone('map-pin')} ${escapeHtml(a.libelle)}</span>
-      <span class="pr-adresse-source">${escapeHtml(texteAdresseBanCarte([a], true))}${a.certifie && a.banId ? ` <a href="${escapeAttr(lienCertificatAdressage(a.banId))}" target="_blank" rel="noopener">${icone('download')} Certificat d’adressage</a>` : ''}</span>
-    </div>`).join('');
+  if (!officielles.length) return `<span class="pr-ligne-detail pr-ligne-seule">${escapeHtml(texteAdresseBanCarte(officielles, s.adresseLue))}</span>`;
+  return officielles.map(a => `<span class="pr-adresse${a.certifie ? ' certifiee' : ''}">
+      <span class="pr-adresse-pastille">${a.certifie ? icone('check') : ''}${escapeHtml(a.libelle)}</span>
+      <span class="pr-ligne-detail">${escapeHtml(texteAdresseBanCarte([a], true))}</span>
+      ${a.certifie && a.banId ? `<a class="pr-adresse-lien" href="${escapeAttr(lienCertificatAdressage(a.banId))}" target="_blank" rel="noopener">${icone('download')} Certificat d’adressage</a>` : ''}
+    </span>`).join('');
 }
 
 // Pure : la page de l'adresse sur adresse.data.gouv.fr, d'où se télécharge le certificat d'adressage d'une adresse certifiée.

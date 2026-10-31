@@ -214,7 +214,10 @@ async function adresseOfficielleParcelle(proches, idu, injections) {
     return Object.assign(reste, { banId: /^[0-9A-Za-z_]{5,40}$/.test(String(banId || '')) ? String(banId) : '' }, f ? { certifie: f.certifie, parcelles: f.parcelles.map(parcelleLisible), rattachee: !!idu && f.parcelles.includes(idu), banLue: true } : { banLue: false });
   });
   // Étude 31/10 : « ne pas choisir l'adresse la plus proche, ça fausse tout » — seule l'adresse que la commune a rattachée à CETTE parcelle.
-  return { deLaParcelle: avec.filter((a) => a.rattachee), banLue: fiches.every(Boolean) };
+  // « Non lue » seulement si une fiche d'un identifiant bien formé n'a pas répondu (relecture 0.416.0 : un identifiant de forme inattendue
+  // n'a pas de fiche, il ne doit pas empêcher de garder le point).
+  const formeOk = (a) => /^[0-9A-Za-z_]{5,40}$/.test(String(a.id || ''));
+  return { deLaParcelle: avec.filter((a) => a.rattachee), banLue: liste.every((a, i) => !formeOk(a) || !!fiches[i]) };
 }
 
 /** Pure : servitudes d'alignement (EL7) d'une réponse assiette-sup du Géoportail. @param {...any} reponses */

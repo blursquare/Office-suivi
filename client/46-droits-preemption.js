@@ -511,24 +511,12 @@
             <span class="dot-label ${CLASSES_STATUT_PREEMPTION[dr.statut]}"><span class="dot"></span>${LIBELLES_STATUT_PREEMPTION[dr.statut]}</span></div>
           ${dr.motif ? `<div class="pr-droit-motif">${escapeHtml(dr.motif)}</div>` : ''}
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} <span>${escapeHtml(dr.formalite)}${dr.lien ? ` <a href="${escapeAttr(dr.lien.url)}" target="_blank" rel="noopener">${escapeHtml(dr.lien.libelle)}</a>` : ''}</span></div>` : ''}
-        </div>`).join('')}${renderPatrimoineOutil(patrimoinePreemption(e))}</div>
+        </div>`).join('')}</div>
         <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>`;
     }
     renderTravauxPreemption();
     renderSitesPreemption();
     renderEtapesPreemption();
-  }
-
-  // Le bloc « Monument historique » sous les droits, dans l'outil (même forme qu'un droit : titre, état, motif, conseil).
-  function renderPatrimoineOutil(patrimoine) {
-    const l = lignePatrimoinePreemption(patrimoine);
-    if (!l) return '';
-    return `<div class="pr-droits"><div class="pr-droit pr-patrimoine">
-        <div class="pr-droit-tete"><span class="pr-droit-titre">${escapeHtml(l.titre)}${infoBulle(AIDE_PATRIMOINE)}</span>
-          <span class="dot-label ${CLASSES_PATRIMOINE[l.statut]}"><span class="dot"></span>${LIBELLES_PATRIMOINE[l.statut]}</span></div>
-        <div class="pr-droit-motif">${escapeHtml(l.motif)}</div>
-        ${l.conseil ? `<div class="pr-droit-formalite">${icone('alert-triangle')} ${escapeHtml(l.conseil)}</div>` : ''}
-      </div></div>`;
   }
 
   function basculerPlansDpurBlois() {

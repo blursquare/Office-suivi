@@ -97,11 +97,12 @@ function fermerClicheIgn() {
   if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
 }
 
+// Échap ferme la visionneuse seule, jamais ce qui est dessous (relecture 0.416.0 : écouté en capture, comme l'aperçu des scans).
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const o = document.getElementById('cliche-ign-overlay');
-  if (o && o.style.display !== 'none' && o.innerHTML) fermerClicheIgn();
-});
+  if (o && o.style.display !== 'none' && o.innerHTML) { e.stopPropagation(); e.preventDefault(); fermerClicheIgn(); }
+}, true);
 
 function libelleClicheIgn(c) { return `${formatDateFr(c.date)} · cliché ${c.numero || '—'}`; }
 
@@ -164,6 +165,39 @@ function basculerAjusterCliche() {
   });
 }
 
+// Pure : la matrice qui tourne le cliché pour que le nord soit en haut, comme la carte et le cadastre (étude 31/10 : « faire tourner les
+// photos pour que les clichés soient dans le même sens que les parcelles »). D = M · P, P en pixels du cliché, D en « pixels » de l'écran
+// (même taille : la matrice ne fait que tourner, d'après la direction au sol des bords haut et gauche de l'image).
+function matriceCliche(coins, largeur, hauteur) {
+  if (!Array.isArray(coins) || coins.length !== 4 || !(largeur > 0) || !(hauteur > 0)) return null;
+  const pl = planLocalCliche(coins);
+  const q = coins.map(c => pl.vers(c[0], c[1]));
+  const ux = [(q[1][0] - q[0][0]) / largeur, (q[1][1] - q[0][1]) / largeur];   // au sol, un pixel vers la droite de l'image
+  const uy = [(q[3][0] - q[0][0]) / hauteur, (q[3][1] - q[0][1]) / hauteur];   // au sol, un pixel vers le bas de l'image
+  const r = Math.hypot(ux[0], ux[1]) || 1;
+  // Écran : x vers l'est, y vers le sud.
+  const a = ux[0] / r; const b = -ux[1] / r; const c = uy[0] / r; const d = -uy[1] / r;
+  const det = a * d - b * c;
+  if (!det) return null;
+  return { a, b, c, d, versEcran: (x, y) => [a * x + c * y, b * x + d * y], versCliche: (X, Y) => [(d * X - c * Y) / det, (-b * X + a * Y) / det] };
+}
+
+// Pure : l'emprise à l'écran d'un cliché tourné (les quatre coins de l'image passés par la matrice).
+function bornesEcranCliche(m, largeur, hauteur) {
+  const pts = [[0, 0], [largeur, 0], [largeur, hauteur], [0, hauteur]].map(p => m.versEcran(p[0], p[1]));
+  const xs = pts.map(p => p[0]); const ys = pts.map(p => p[1]);
+  return { ouest: Math.min(...xs), est: Math.max(...xs), nord: Math.min(...ys), sud: Math.max(...ys) };
+}
+
+var imagesClichesIgn = new Map();
+function imageClicheIgn(url) {
+  if (imagesClichesIgn.has(url)) { const p = imagesClichesIgn.get(url); imagesClichesIgn.delete(url); imagesClichesIgn.set(url, p); return p; }
+  const p = new Promise(res => { const img = new Image(); img.onload = () => res(img); img.onerror = () => res(null); img.src = url; });
+  imagesClichesIgn.set(url, p);
+  while (imagesClichesIgn.size > 240) imagesClichesIgn.delete(imagesClichesIgn.keys().next().value);
+  return p;
+}
+
 async function monterVoletCliche(L, cote, c) {
   const zone = document.getElementById(`cliche-carte-${cote}`);
   if (!zone) return;
@@ -180,53 +214,92 @@ async function monterVoletCliche(L, cote, c) {
   zone.innerHTML = '';
   const N = info.niveaux.length - 1;
   const W = info.largeur; const H = info.hauteur;
-  // Coordonnées de la carte = pixels du cliché en pleine définition (y vers le bas) ; au zoom N, un pixel d'écran = un pixel du cliché.
+  // Sans emprise lisible, la photo reste telle quelle (ni rotation ni contour) ; sinon, nord en haut.
+  const M = matriceCliche(c.coins, W, H) || { a: 1, b: 0, c: 0, d: 1, versEcran: (x, y) => [x, y], versCliche: (x, y) => [x, y] };
+  const bo = bornesEcranCliche(M, W, H);
+  // Coordonnées de la carte = l'écran tourné, en pixels du cliché (y vers le bas) ; au zoom N, un pixel d'écran = un pixel du cliché.
   const crs = L.extend({}, L.CRS.Simple, {
     transformation: new L.Transformation(1, 0, 1, 0),
     scale: (z) => Math.pow(2, z - N),
     zoom: (s) => Math.log(s) / Math.LN2 + N
   });
-  const bornes = L.latLngBounds([0, 0], [H, W]);
+  const bornes = L.latLngBounds([bo.nord, bo.ouest], [bo.sud, bo.est]);
   const carte = L.map(zone, { crs, minZoom: 0, maxZoom: N + 1, zoomSnap: 0.5, attributionControl: true, maxBounds: bornes.pad(0.2) });
   carte.attributionControl.setPrefix('').addAttribution('Prise de vues aérienne © IGN');
-  const Couche = L.TileLayer.extend({ getTileUrl: (t) => `/api/urbanisme/cliche/${encodeURIComponent(c.lot)}/${encodeURIComponent(c.id)}/${N - t.z}/${t.x}/${t.y}` });
-  new Couche('', { tileSize: info.carre || 512, minZoom: 0, maxNativeZoom: N, maxZoom: N + 1, noWrap: true, bounds: bornes, keepBuffer: 2 }).addTo(carte);
-  const vue = prEtat && prEtat.historique && prEtat.historique.vue;
+  const niveaux = info.niveaux;
+  const base = `/api/urbanisme/cliche/${encodeURIComponent(c.lot)}/${encodeURIComponent(c.id)}`;
+  // Chaque case de l'écran est dessinée sur un canevas : les carrés du cliché qui la recouvrent, tournés (Leaflet ne tourne pas une couche).
+  const Couche = L.GridLayer.extend({
+    createTile(t, fait) {
+      const taille = this.getTileSize();
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      const toile = document.createElement('canvas');
+      toile.width = taille.x * ratio; toile.height = taille.y * ratio;
+      const k = Math.max(0, Math.min(N, N - t.z));
+      const s = Math.pow(2, t.z - N);
+      const x0 = t.x * taille.x / s; const y0 = t.y * taille.y / s;
+      const coinsCase = [[x0, y0], [x0 + taille.x / s, y0], [x0, y0 + taille.y / s], [x0 + taille.x / s, y0 + taille.y / s]].map(p => M.versCliche(p[0], p[1]));
+      const f = Math.pow(2, k);
+      const nv = niveaux[k];
+      const cols = Math.ceil(nv.largeur / 512); const lignes = Math.ceil(nv.hauteur / 512);
+      const xs = coinsCase.map(p => p[0] / f / 512); const ys = coinsCase.map(p => p[1] / f / 512);
+      const i0 = Math.max(0, Math.floor(Math.min(...xs))); const i1 = Math.min(cols - 1, Math.floor(Math.max(...xs)));
+      const j0 = Math.max(0, Math.floor(Math.min(...ys))); const j1 = Math.min(lignes - 1, Math.floor(Math.max(...ys)));
+      const attentes = [];
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) attentes.push(imageClicheIgn(`${base}/${k}/${i}/${j}`).then(img => ({ img, i, j })));
+      if (!attentes.length) { setTimeout(() => fait(null, toile), 0); return toile; }
+      Promise.all(attentes).then(liste => {
+        const ctx = toile.getContext('2d');
+        const e = s * f * ratio;
+        ctx.setTransform(e * M.a, e * M.b, e * M.c, e * M.d, -x0 * s * ratio, -y0 * s * ratio);
+        // Un pixel de recouvrement entre carrés : pas de fil clair à leurs joints une fois tournés.
+        liste.forEach(({ img, i, j }) => { if (img) ctx.drawImage(img, i * 512, j * 512, img.width + 1, img.height + 1); });
+        fait(null, toile);
+      });
+      return toile;
+    }
+  });
+  new Couche({ tileSize: 512, minZoom: 0, maxZoom: N + 1, noWrap: true, bounds: bornes, keepBuffer: 2 }).addTo(carte);
   const centre = clichesCarte.centre;
-  const pix = centre ? pixelDuPointCliche(c.coins, centre.lon, centre.lat, W, H) : null;
+  const pix = centre && c.coins ? pixelDuPointCliche(c.coins, centre.lon, centre.lat, W, H) : null;
   const groupe = L.layerGroup().addTo(carte);
-  const m = { carte, c, W, H, N, groupe, pix };
+  const m = { carte, c, W, H, N, M, groupe, pix };
   visionneuseCliche.cartes[cote] = m;
   dessinerContourCliche(L, m);
-  if (pix && pix.dedans) carte.setView([pix.y, pix.x], Math.max(0, N - 1));
+  if (pix && pix.dedans) { const p = M.versEcran(pix.x, pix.y); carte.setView([p[1], p[0]], Math.max(0, N - 1)); }
   else {
     carte.fitBounds(bornes);
     const avis = document.createElement('p');
     avis.className = 'cliche-avis';
-    avis.textContent = vue ? 'Le bien n’est pas sur ce cliché : choisissez-en un autre.' : 'Parcelles du dossier non lues : contour impossible.';
+    avis.textContent = !c.coins ? 'Emprise du cliché illisible : contour impossible.' : centre ? 'Le bien n’est pas sur ce cliché : choisissez-en un autre.' : 'Parcelles du dossier non lues : contour impossible.';
     zone.appendChild(avis);
   }
-  // Glisser le contour (mode « Ajuster ») : le décalage est gardé par cliché tant que CLAIRE est ouverte.
+  // Glisser le contour (mode « Ajuster », souris ou doigt) : le décalage est gardé par cliché tant que CLAIRE est ouverte.
   let depart = null;
-  carte.on('mousedown', (e) => { if (visionneuseCliche.ajuster) { depart = { ll: e.latlng, d: Object.assign({ dx: 0, dy: 0 }, visionneuseCliche.decalages[c.id]) }; } });
-  carte.on('mousemove', (e) => {
+  const point = (ev) => carte.mouseEventToLatLng(ev);
+  zone.addEventListener('pointerdown', (ev) => { if (!visionneuseCliche.ajuster) return; depart = { ll: point(ev), d: Object.assign({ dx: 0, dy: 0 }, visionneuseCliche.decalages[c.id]) }; try { zone.setPointerCapture(ev.pointerId); } catch (e) { /* ancien navigateur */ } ev.preventDefault(); });
+  zone.addEventListener('pointermove', (ev) => {
     if (!depart) return;
-    visionneuseCliche.decalages[c.id] = { dx: depart.d.dx + (e.latlng.lng - depart.ll.lng), dy: depart.d.dy + (e.latlng.lat - depart.ll.lat) };
+    const ll = point(ev);
+    visionneuseCliche.decalages[c.id] = { dx: depart.d.dx + (ll.lng - depart.ll.lng), dy: depart.d.dy + (ll.lat - depart.ll.lat) };
     dessinerContourCliche(L, m);
   });
   const finir = () => { depart = null; };
-  carte.on('mouseup', finir);
-  carte.on('mouseout', finir);
+  zone.addEventListener('pointerup', finir);
+  zone.addEventListener('pointercancel', finir);
   if (visionneuseCliche.ajuster) { carte.dragging.disable(); zone.classList.add('cliche-ajuster'); }
   // Deux clichés : le second suit le premier, au même endroit du sol.
   carte.on('moveend', () => synchroniserClichesIgn(cote));
-  setTimeout(() => { carte.invalidateSize(); if (cote === 'droite') synchroniserClichesIgn('gauche'); }, 60);
+  setTimeout(() => { carte.invalidateSize(); synchroniserClichesIgn('gauche'); }, 60);
 }
 
 function dessinerContourCliche(L, m) {
   m.groupe.clearLayers();
+  if (!m.c.coins) return;
   const vue = prEtat && prEtat.historique && prEtat.historique.vue;
-  const anneaux = contoursSurCliche(vue && vue.contours, m.c.coins, m.W, m.H, visionneuseCliche.decalages[m.c.id]);
+  const d = visionneuseCliche.decalages[m.c.id] || { dx: 0, dy: 0 };
+  const anneaux = contoursSurCliche(vue && vue.contours, m.c.coins, m.W, m.H, null)
+    .map(a => a.map(p => { const e = m.M.versEcran(p[1], p[0]); return [e[1] + d.dy, e[0] + d.dx]; }));
   if (anneaux.length) L.polygon(anneaux, { color: couleurJetonCarte('cat-jaune'), weight: 3, fill: false, interactive: false }).addTo(m.groupe);
 }
 
@@ -241,16 +314,19 @@ function synchroniserClichesIgn(source) {
   if (visionneuseCliche.synchro) return;
   const a = visionneuseCliche.cartes[source];
   const b = visionneuseCliche.cartes[source === 'gauche' ? 'droite' : 'gauche'];
-  if (!a || !b) return;
+  // Sans emprise lisible d'un des deux clichés, pas de correspondance au sol (relecture 0.416.0).
+  if (!a || !b || !a.c.coins || !b.c.coins) return;
   const c = a.carte.getCenter();
   const da = visionneuseCliche.decalages[a.c.id] || { dx: 0, dy: 0 };
   const db = visionneuseCliche.decalages[b.c.id] || { dx: 0, dy: 0 };
-  const sol = pointDuPixelCliche(a.c.coins, c.lng - da.dx, c.lat - da.dy, a.W, a.H);
+  const pa = a.M.versCliche(c.lng - da.dx, c.lat - da.dy);
+  const sol = pointDuPixelCliche(a.c.coins, pa[0], pa[1], a.W, a.H);
   const p = pixelDuPointCliche(b.c.coins, sol.lon, sol.lat, b.W, b.H);
   if (!p) return;
-  visionneuseCliche.synchro = true;
+  const e = b.M.versEcran(p.x, p.y);
   // Même échelle au sol : le zoom tient compte de la taille du pixel de chaque cliché et de son nombre de niveaux.
   const z = a.carte.getZoom() - a.N + b.N + Math.log2(resolutionCliche(b) / resolutionCliche(a));
-  b.carte.setView([p.y + db.dy, p.x + db.dx], Math.max(0, Math.min(b.N + 1, z)), { animate: false });
+  visionneuseCliche.synchro = true;
+  b.carte.setView([e[1] + db.dy, e[0] + db.dx], Math.max(0, Math.min(b.N + 1, z)), { animate: false });
   visionneuseCliche.synchro = false;
 }

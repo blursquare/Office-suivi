@@ -11824,25 +11824,51 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .cst-accueil-liste-titre .pieces-titre { justify-content: center; }
 #onglet-preemption.pr-en-accueil > .dash-header .dash-header-actions { display: none; }
 
-/* Contrôle de l'urbanisme — calques, fiche compacte de la parcelle (étude 31/10) */
-.pr-carte-superposer { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 32px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); font-size: var(--texte-s); color: var(--ink); cursor: pointer; }
-.pr-carte-parcelle { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.pr-carte-parcelle .pr-fiche-tete { align-items: center; gap: 8px; }
-.pr-carte-parcelle .pr-fiche-num { font-size: var(--texte-2xl); }
-.pr-carte-parcelle .pr-fiche-commune { flex: 1 1 auto; font-size: var(--texte-m); }
-.pr-carte-parcelle .pr-fiche-actions { padding-top: 0; gap: 0; }
-.pr-fiche-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; margin-top: 8px; }
-.pr-fiche-case { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.pr-fiche-case.large { grid-column: 1 / -1; }
-.pr-fiche-case .pr-fiche-titre { padding-top: 0; }
-.pr-fiche-case .pr-fiche-valeur { font-size: var(--texte-m); }
-.pr-fiche-adresse { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
-.pr-adresse-pastille { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 2px 10px; border-radius: var(--rayon-pilule); border: 1px solid var(--line); font-size: var(--texte-m); font-weight: 500; color: var(--ink); }
-.pr-fiche-adresse.certifiee .pr-adresse-pastille { background: color-mix(in srgb, var(--cat-vert) 16%, var(--paper-card)); border-color: color-mix(in srgb, var(--cat-vert) 55%, var(--paper-card)); }
-.pr-fiche-adresse.certifiee .pr-adresse-pastille .icone { color: var(--cat-vert); }
-.pr-adresse-source { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; font-size: var(--texte-s); color: var(--muted); }
-.pr-adresse-source a { display: inline-flex; align-items: center; gap: 4px; color: var(--focus); white-space: nowrap; }
-.pr-fiche-adresse-vide { margin: 8px 0 0; font-size: var(--texte-s); color: var(--muted); }
+/* Contrôle de l'urbanisme — barre de droite (étude 31/10 : « fais quelque chose de propre », « plus carré », « tous les onglets sur la
+   largeur », « attention aux textes coupés ») : des lignes titre / valeur séparées d'un filet, pas de cartes dans la carte. */
+.pr-carte-superposer { display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; height: 32px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); font-size: var(--texte-s); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.pr-cote-onglets { padding: 12px 16px; }
+.pr-cote-onglets wa-button-group { display: block; width: 100%; }
+.pr-cote-onglets wa-button-group::part(base) { display: flex; width: 100%; }
+.pr-cote-onglets wa-button { flex: 1 1 0; min-width: 0; }
+.pr-cote-onglets wa-button::part(base) { width: 100%; padding-inline: 6px; }
+.pr-cote-onglets wa-button::part(label) { white-space: nowrap; }
+.pr-cote-corps { padding: 0 16px 16px; }
+.pr-cote-panneau { gap: 0; }
+.pr-cote .pr-cote-titre { display: flex; align-items: center; gap: 8px; margin: 24px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--line); font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.pr-cote-compte { margin-left: auto; font-size: var(--texte-s); font-weight: 600; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+.pr-cote-compte.rouge { color: var(--urgent); }
+.pr-cote-compte.orange { color: var(--cat-orange); }
+.pr-cote-compte.vert { color: var(--success); }
+.pr-carte-parcelle .pr-fiche-tete { display: flex; align-items: baseline; gap: 8px; padding: 16px 0 12px; }
+.pr-carte-parcelle .pr-fiche-num { font-size: var(--texte-2xl); line-height: 1.1; }
+.pr-carte-parcelle .pr-fiche-commune { flex: 1 1 auto; min-width: 0; font-size: var(--texte-m); color: var(--muted); overflow-wrap: anywhere; }
+.pr-carte-parcelle .pr-fiche-actions { display: flex; gap: 0; padding: 0; align-self: center; }
+.pr-ligne { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); align-items: baseline; }
+.pr-ligne-titre { display: flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--muted); }
+.pr-ligne-valeur { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; font-size: var(--texte-m); color: var(--ink); overflow-wrap: anywhere; }
+.pr-ligne-valeur .pr-jauge, .pr-ligne-valeur .pr-zt-barre { align-self: stretch; }
+.pr-ligne-detail { font-size: var(--texte-s); color: var(--muted); overflow-wrap: anywhere; }
+.pr-adresse { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.pr-adresse-pastille { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: var(--rayon-xs); border: 1px solid var(--line); font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.pr-adresse.certifiee .pr-adresse-pastille { background: color-mix(in srgb, var(--cat-vert) 14%, var(--paper-card)); border-color: color-mix(in srgb, var(--cat-vert) 50%, var(--paper-card)); }
+.pr-adresse.certifiee .pr-adresse-pastille .icone { color: var(--cat-vert); flex: none; }
+.pr-adresse-lien { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--focus); text-decoration: none; }
+.pr-adresse-lien:hover { text-decoration: underline; }
+.pr-alerte { display: flex; align-items: baseline; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line-soft); font-size: var(--texte-s); color: var(--urgent); }
+.pr-alerte .icone { flex: none; align-self: center; }
+.pr-alerte > span { flex: 1 1 auto; min-width: 0; }
+.pr-alerte a { flex: none; color: var(--focus); font-weight: 500; }
+.pr-cote .pr-droits { gap: 0; }
+.pr-cote .pr-droit { padding: 12px 0 12px 12px; border: 0; border-top: 1px solid var(--line-soft); border-left: 3px solid var(--line); border-radius: 0; background: none; }
+.pr-cote .pr-droit-oui { border-left-color: var(--urgent); }
+.pr-cote .pr-droit-verifier { border-left-color: var(--pret); }
+.pr-cote .pr-droit-non { border-left-color: var(--success); }
+.pr-cote .pr-droit-tete { align-items: baseline; }
+.pr-cote .pr-droit-tete .dot-label { flex: none; white-space: nowrap; }
+.pr-cote .pr-droit-motif, .pr-cote .pr-droit-formalite { font-size: var(--texte-s); }
+.pr-cote #pr-resultat > .hint { margin: 12px 0 0; font-size: var(--texte-xs); }
+@media (max-width: 760px) { .pr-ligne { grid-template-columns: 88px minmax(0, 1fr); } }
 
 /* Visionneuse des clichés de l'IGN (étude 31/10) */
 .cliche-ign-overlay { z-index: 1200; }
@@ -11867,3 +11893,6 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
   .cliche-corps.deux { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
   .pr-fiche-grille { grid-template-columns: minmax(0, 1fr); }
 }
+.cst-depot-dia { margin-top: 8px; }
+.cst-depot-dia .sites-carte { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; gap: 8px; }
+.cst-depot-dia .depot-dia-mairie { border-radius: var(--rayon-xs); }

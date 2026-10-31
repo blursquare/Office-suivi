@@ -219,19 +219,20 @@ function renderBarreDossierPreemption(page) {
     </div></div>`;
 }
 
+// L'en-tête des droits de la barre de droite (étude 31/10 : « attention aux doublons » — plus de tuiles qui répètent la fiche de la parcelle
+// et la liste des droits) : le nombre de droits à purger dans le titre, le DPU renforcé et les questions restantes en lignes.
 function renderSynthesePreemption() {
   const zone = document.getElementById('pr-synthese');
   if (!zone || !prEtat) return;
   const s = synthesePreemption(prEtat);
-  const tuile = (titre, valeur, detail, ton) => `<div class="pr-tuile pr-tuile-${ton}"><span class="pr-tuile-titre">${escapeHtml(titre)}</span><span class="pr-tuile-valeur">${escapeHtml(valeur)}</span>${detail ? `<span class="pr-tuile-detail">${escapeHtml(detail)}</span>` : ''}</div>`;
-  const zones = [...new Set(s.parcelles.map(p => p.zone).filter(z => z && z !== '—'))];
-  zone.innerHTML = `<div class="pr-synthese">
-      ${tuile('Droits à purger', s.aPurger.length ? String(s.aPurger.length) : 'Aucun', s.aPurger.join(' · ') || (s.aVerifier.length ? `${s.aVerifier.length} à vérifier` : 'd’après les réponses données'), s.aPurger.length ? 'rouge' : s.aVerifier.length ? 'orange' : 'vert')}
-      ${tuile('Zonage', zones.join(' · ') || '—', `${s.commune || 'commune ?'} · ${s.parcelles.length} parcelle${s.parcelles.length > 1 ? 's' : ''}`, 'neutre')}
-      ${tuile('DPU renforcé', LIBELLES_DPUR_PREEMPTION[s.dpur.statut] || '—', s.dpur.source, s.dpur.statut === 'oui' ? 'rouge' : s.dpur.statut === 'non' ? 'vert' : 'neutre')}
-      ${tuile('Patrimoine', s.patrimoine ? s.patrimoine.titre : '—', s.patrimoine ? (LIBELLES_PATRIMOINE[s.patrimoine.statut] || '') : '', s.patrimoine && s.patrimoine.statut === 'oui' ? 'orange' : 'neutre')}
-    </div>
-    ${s.questions ? `<p class="pr-erreur">${icone('alert-triangle')} ${s.questions} question${s.questions > 1 ? 's restent' : ' reste'} sans réponse : certains droits restent « à vérifier ». <a href="#" onclick="event.preventDefault(); allerPagePreemption('parcelles')">Y répondre</a></p>` : ''}`;
+  const compte = document.getElementById('pr-droits-compte');
+  if (compte) {
+    compte.textContent = s.aPurger.length ? String(s.aPurger.length) : s.aVerifier.length ? `${s.aVerifier.length} à vérifier` : 'aucun';
+    compte.className = `pr-cote-compte ${s.aPurger.length ? 'rouge' : s.aVerifier.length ? 'orange' : 'vert'}`;
+  }
+  const dpur = LIBELLES_DPUR_PREEMPTION[s.dpur.statut] || '—';
+  zone.innerHTML = `<div class="pr-ligne"><span class="pr-ligne-titre">DPU renforcé</span><span class="pr-ligne-valeur"><span class="dot-label ${CLASSES_DPUR_PREEMPTION[s.dpur.statut] || 'dl-neutre'}"><span class="dot"></span>${escapeHtml(dpur)}</span><span class="pr-ligne-detail">${escapeHtml(s.dpur.source || '')}</span></span></div>
+    ${s.questions ? `<div class="pr-alerte">${icone('alert-triangle')}<span>${s.questions} question${s.questions > 1 ? 's' : ''} sans réponse : des droits restent « à vérifier ».</span><a href="#" onclick="event.preventDefault(); allerPagePreemption('parcelles')">Répondre</a></div>` : ''}`;
 }
 
 // Appelée à la fin de renderPreemption (client/46) : l'étape affichée et tout ce qui l'entoure.

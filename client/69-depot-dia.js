@@ -1,6 +1,6 @@
   // ===== Où déposer la DIA (étude 15/10 : « rechercher les guichets uniques (GNAU) des communes pour savoir où faire les demandes de
-  // déclaration d'intention d'aliéner » — Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher). Section « Où déposer la DIA » du Contrôle
-  // de l'urbanisme : guichet numérique, courriel ou courrier d'après les pages officielles lues (base livrée par le serveur,
+  // déclaration d'intention d'aliéner » — Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher). Section « Où déposer la DIA » de la Constitution
+  // de dossier d'une vente (étude 31/10 : « la partie où demander la DIA, retire-la du Contrôle et mets-la dans Constitution de vente ») : guichet numérique, courriel ou courrier d'après les pages officielles lues (base livrée par le serveur,
   // server/src/depotDia.js), fiche de la mairie (annuaire du service public) et correction par l'étude. Rien n'est déduit :
   // sans page lue, « à vérifier ». =====
 
@@ -11,12 +11,22 @@
     { cle: 'inconnu', libelle: 'À vérifier' }
   ];
 
-  // L'état de la section, rangé dans l'état de l'outil (oublié avec lui) : { insee, etat: 'chargement'|'ok'|'erreur', donnees, edition }.
-  function etatDepotDia() {
-    if (!prEtat) return { insee: '', etat: 'vide' };
-    if (!prEtat.depotDia) prEtat.depotDia = { insee: '', etat: 'vide' };
-    return prEtat.depotDia;
+  // L'état de la section, rangé dans l'état de la Constitution (oublié avec lui) : { insee, etat: 'chargement'|'ok'|'erreur', donnees, edition }.
+  function porteurDepotDia() { return typeof cstEtat !== 'undefined' && cstEtat ? cstEtat : null; }
+  // La commune : celle choisie parmi les communes du dossier (cstEtat.diaCommune), sinon la première dont le code INSEE est connu.
+  function communeDepotDia() {
+    const e = porteurDepotDia();
+    const groupes = e && Array.isArray(e.groupes) ? e.groupes.filter(g => g.info && g.info.etat === 'ok' && g.info.insee) : [];
+    return groupes.find(g => g.cle === e.diaCommune) || groupes[0] || null;
   }
+  function inseeDepotDia() { const g = communeDepotDia(); return g ? g.info.insee : ''; }
+  function etatDepotDia() {
+    const e = porteurDepotDia();
+    if (!e) return { insee: '', etat: 'vide' };
+    if (!e.depotDia) e.depotDia = { insee: '', etat: 'vide' };
+    return e.depotDia;
+  }
+  function poserDepotDia(v) { const e = porteurDepotDia(); if (e) e.depotDia = v; }
 
   // Pure : une adresse web sûre pour un lien (http/https seulement), sinon ''.
   function lienDepotDiaSur(url) {
@@ -45,20 +55,30 @@
 
   // Charge (une fois par commune) la fiche de dépôt ; le rendu suit.
   function lancerDepotDia() {
-    const e = prEtat;
-    if (!e || !e.insee) return;
+    const insee = inseeDepotDia();
+    if (!insee) return;
     const st = etatDepotDia();
-    if (st.insee === e.insee && st.etat !== 'vide') return;
-    prEtat.depotDia = { insee: e.insee, etat: 'chargement' };
-    const insee = e.insee;
+    if (st.insee === insee && st.etat !== 'vide') return;
+    poserDepotDia({ insee, etat: 'chargement' });
+    const porteur = porteurDepotDia();
+    const encore = () => porteurDepotDia() === porteur && inseeDepotDia() === insee;
     fetchAvecAuth(`/api/urbanisme/depot-dia?insee=${encodeURIComponent(insee)}`)
       .then(async r => {
         const j = await r.json().catch(() => ({}));
-        if (!prEtat || prEtat.insee !== insee) return;
-        prEtat.depotDia = r.ok ? { insee, etat: 'ok', donnees: j } : { insee, etat: 'erreur', erreur: j.erreur || `réponse ${r.status}` };
+        if (!encore()) return;
+        poserDepotDia(r.ok ? { insee, etat: 'ok', donnees: j } : { insee, etat: 'erreur', erreur: j.erreur || `réponse ${r.status}` });
         renderDepotDia();
       })
-      .catch(() => { if (prEtat && prEtat.insee === insee) { prEtat.depotDia = { insee, etat: 'erreur', erreur: 'Serveur injoignable.' }; renderDepotDia(); } });
+      .catch(() => { if (encore()) { poserDepotDia({ insee, etat: 'erreur', erreur: 'Serveur injoignable.' }); renderDepotDia(); } });
+  }
+
+  // Plusieurs communes dans le dossier : le choix de celle dont on montre le dépôt.
+  function choisirCommuneDepotDia(cle) {
+    const e = porteurDepotDia();
+    if (!e) return;
+    e.diaCommune = cle;
+    lancerDepotDia();
+    renderDepotDia();
   }
 
   function ouvrirCorrectionDepotDia() {
@@ -85,7 +105,7 @@
       const r = await fetchAvecAuth(`/api/urbanisme/depot-dia/${encodeURIComponent(st.insee)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.erreur || `réponse ${r.status}`);
-      prEtat.depotDia = { insee: st.insee, etat: 'vide' };
+      poserDepotDia({ insee: st.insee, etat: 'vide' });
       afficherToast('Dépôt de la DIA corrigé pour cette commune.');
       lancerDepotDia();
     } catch (err) {
@@ -99,7 +119,7 @@
     try {
       const r = await fetchAvecAuth(`/api/urbanisme/depot-dia/${encodeURIComponent(st.insee)}`, { method: 'DELETE' });
       if (!r.ok) throw new Error(`réponse ${r.status}`);
-      prEtat.depotDia = { insee: st.insee, etat: 'vide' };
+      poserDepotDia({ insee: st.insee, etat: 'vide' });
       lancerDepotDia();
     } catch (err) {
       afficherToast(`Non retiré : ${err.message}`);
@@ -125,12 +145,24 @@
       </div>`;
   }
 
-  // La section : ce qu'il faut faire pour la commune de l'outil, sa mairie et la correction de l'étude.
+  // Le cadre de la section dans l'étape « DIA et SAFER » de la Constitution d'une vente ; le contenu suit (renderDepotDia).
+  function renderBlocDepotDiaConstitution() {
+    const e = porteurDepotDia();
+    if (!e || e.type !== 'vente') return '';
+    const groupes = (e.groupes || []).filter(g => g.info && g.info.etat === 'ok' && g.info.insee);
+    const choisie = communeDepotDia();
+    const choix = groupes.length > 1 ? `<wa-button-group label="Commune">${groupes.map(g => `<wa-button appearance="outlined" size="s" class="vue-bascule-btn${choisie && choisie.cle === g.cle ? ' actif' : ''}" type="button" onclick="choisirCommuneDepotDia('${escapeOnclickArg(g.cle)}')">${escapeHtml(g.commune)}</wa-button>`).join('')}</wa-button-group>` : '';
+    return `<div class="cst-bloc-titre">Où déposer la DIA ${infoBulle('Guichet numérique, courriel ou courrier d’après les pages officielles lues par CLAIRE (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher), fiche de la mairie de l’annuaire du service public. Corrigeable par l’étude ; rien n’est déduit : sans page lue, « à vérifier ».')}</div>
+      ${renderGnauConstitution()}${choix}<div id="cst-depot-dia" class="cst-depot-dia"></div>`;
+  }
+
+  // La section : ce qu'il faut faire pour la commune, sa mairie et la correction de l'étude. Le bouton du guichet est juste au-dessus
+  // (renderGnauConstitution) : il n'est pas répété ici.
   function renderDepotDia() {
-    const zone = document.getElementById('pr-depot-dia');
+    const zone = document.getElementById('cst-depot-dia');
     if (!zone) return;
-    const e = prEtat || etatPreemptionVierge();
-    if (!e.insee) { zone.innerHTML = '<p class="hint">Choisissez d’abord la commune.</p>'; return; }
+    if (!inseeDepotDia()) { zone.innerHTML = '<p class="hint">Commune du bien pas encore retrouvée.</p>'; return; }
+    lancerDepotDia();
     const st = etatDepotDia();
     // Un formulaire de correction ouvert n'est pas redessiné (la saisie en cours serait perdue).
     if (st.edition && document.getElementById('depot-dia-mode')) return;
@@ -149,13 +181,12 @@
       : j.origine === 'commune' ? 'Procédure propre à la commune' : j.origine === 'epci-partiel' ? `Intercommunalité${j.epci ? ` (${j.epci.nom})` : ''} : guichet pour certaines communes seulement` : j.origine === 'epci' ? `Procédure de l’intercommunalité${j.epci ? ` (${j.epci.nom})` : ''}` : 'Rien de relevé';
     const verifie = d.verifieLe && j.origine !== 'etude' ? `${d.indiquePar ? `Indiqué par ${d.indiquePar}` : 'Page lue'} le ${formatDateFr(d.verifieLe)}` : '';
     zone.innerHTML = `<div class="sites-carte">
-        <div class="sites-carte-tete"><span class="sites-carte-titre">${icone('map-pin')} ${escapeHtml(j.commune)}</span>
-          <span class="dot-label ${d.mode === 'inconnu' ? 'dl-neutre' : 'dl-success'}"><span class="dot"></span>${escapeHtml(libelleModeDepotDia(d.mode))}</span></div>
+        <div class="sites-carte-tete"><span class="dot-label ${d.mode === 'inconnu' ? 'dl-neutre' : 'dl-success'}"><span class="dot"></span>${escapeHtml(libelleModeDepotDia(d.mode))}</span></div>
         <ul class="depot-dia-lignes">${lignesDepotDia(j).map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>
-        <div class="sites-ligne">
-          ${url ? `<a class="lien-action" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')} ${d.mode === 'guichet' ? 'Ouvrir le guichet' : 'Ouvrir la page'}</a>` : ''}
+        ${(url && d.mode !== 'guichet') || d.courriel ? `<div class="sites-ligne">
+          ${url && d.mode !== 'guichet' ? `<a class="lien-action" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')} Ouvrir la page</a>` : ''}
           ${d.courriel ? `<wa-button appearance="outlined" size="s" onclick="copierCourrielDepotDia('${escapeOnclickArg(d.courriel)}')">${icone('mail')} Copier ${escapeHtml(d.courriel)}</wa-button>` : ''}
-        </div>
+        </div>` : ''}
         <p class="hint">${escapeHtml([origine, verifie].filter(Boolean).join(' · '))}${source && !d.indiquePar ? ` · <a href="${escapeAttr(source)}" target="_blank" rel="noopener">page lue</a>` : ''}</p>
         ${m ? `<div class="depot-dia-mairie"><span class="pieces-titre">${icone('home')}<span class="pieces-titre-texte">Mairie</span></span>
             <span>${escapeHtml(m.nom)}${m.adresse ? ` — ${escapeHtml(m.adresse)}` : ''}</span>

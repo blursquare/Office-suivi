@@ -12,6 +12,8 @@ const BASE = 'https://data.geopf.fr/telechargement/download/pva';
 const DELAI_MS = 15000;
 const RE_LOT = /^[0-9A-Z][0-9A-Z-]{2,20}$/;
 const RE_CLICHE = /^IGNF_PVA_[0-9A-Za-z_.-]{10,140}$/;
+// Bornes d'une lecture (relecture 0.416.0) : un carré JPEG de 512 px pèse quelques centaines de Ko ; les tables et listes de l'en-tête, moins.
+const OCTETS_PLAGE_MAX = 4 * 1024 * 1024;
 
 /** Pure : l'adresse de téléchargement officielle d'un cliché, ou '' si l'identifiant n'est pas sûr. @param {unknown} lot @param {unknown} cliche */
 function urlCliche(lot, cliche) {
@@ -24,15 +26,19 @@ function fetchDe(injections) { return (injections && injections.fetch) || fetch;
 
 /** Lit les octets [debut, fin] du fichier. @param {string} url @param {number} debut @param {number} fin @param {any} injections */
 async function lirePlage(url, debut, fin, injections) {
+  if (!(fin >= debut) || fin - debut + 1 > OCTETS_PLAGE_MAX) throw new Error('Plage trop grande.');
   const r = await fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Range: `bytes=${debut}-${fin}` } });
-  if (r.status !== 206 && r.status !== 200) {
-    const e = new Error(`réponse ${r.status}`);
+  // Seule une réponse partielle est lue (relecture 0.416.0) : un relais qui ignorerait la plage rendrait tout le fichier (plus de 100 Mo).
+  if (r.status !== 206) {
+    try { if (r.body && typeof r.body.cancel === 'function') await r.body.cancel(); } catch (_) { /* déjà fermé */ }
+    const e = new Error(r.status === 200 ? 'Lecture par morceaux non prise en charge.' : `réponse ${r.status}`);
     /** @type {any} */ (e).statut = r.status;
     throw e;
   }
+  const annonce = Number(r.headers && typeof r.headers.get === 'function' ? r.headers.get('content-length') : NaN);
+  if (Number.isFinite(annonce) && annonce > fin - debut + 1) throw new Error('Réponse plus grande que la plage demandée.');
   const b = Buffer.from(await r.arrayBuffer());
-  // Un serveur qui ignorerait la plage rendrait tout le fichier : on n'en garde que la partie demandée.
-  return r.status === 200 ? b.subarray(debut, fin + 1) : b;
+  return b.length > fin - debut + 1 ? b.subarray(0, fin - debut + 1) : b;
 }
 
 const TAILLES_TYPE = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8, 16: 8 };
@@ -103,10 +109,24 @@ async function valeursTag(url, t, le, tete, injections) {
 }
 
 /** L'en-tête d'un cliché : dimensions de chaque niveau, carrés, tables JPEG. Gardé (30 clichés). @param {string} lot @param {string} cliche @param {any} [injections] */
+const enteteEnCours = new Map();
+/** @type {Map<string, number>} */
+const enteteEchecs = new Map();
 async function enteteCliche(lot, cliche, injections) {
   const url = urlCliche(lot, cliche);
   if (!url) return { erreur: 'Cliché inconnu.' };
   if (entetes.has(url)) return entetes.get(url);
+  // Une seule lecture à la fois par cliché (une fenêtre demande une douzaine de carrés d'un coup) ; un échec n'est pas retenté avant une minute.
+  if ((enteteEchecs.get(url) || 0) > Date.now()) throw new Error('Cliché injoignable (nouvel essai dans une minute).');
+  if (enteteEnCours.has(url)) return enteteEnCours.get(url);
+  const p = lireEnteteCliche(url, injections).catch((e) => { enteteEchecs.set(url, Date.now() + 60000); if (enteteEchecs.size > 100) enteteEchecs.clear(); throw e; })
+    .finally(() => enteteEnCours.delete(url));
+  enteteEnCours.set(url, p);
+  return p;
+}
+
+/** @param {string} url @param {any} injections */
+async function lireEnteteCliche(url, injections) {
   const tete = await lirePlage(url, 0, 131071, injections);
   const { le, niveaux } = lireIfds(tete);
   const lus = [];
@@ -116,7 +136,9 @@ async function enteteCliche(lot, cliche, injections) {
     const hauteur = (await valeursTag(url, t[257], le, tete, injections) || [])[0];
     const carre = (await valeursTag(url, t[322], le, tete, injections) || [])[0];
     const compression = (await valeursTag(url, t[259], le, tete, injections) || [])[0];
-    if (!largeur || !hauteur || carre !== 512 || compression !== 7 || !t[324] || !t[325]) continue;
+    const hauteurCarre = (await valeursTag(url, t[323], le, tete, injections) || [carre])[0];
+    const plans = (await valeursTag(url, t[284], le, tete, injections) || [1])[0];
+    if (!largeur || !hauteur || carre !== 512 || hauteurCarre !== 512 || plans !== 1 || compression !== 7 || !t[324] || !t[325]) continue;
     lus.push({ largeur, hauteur, carre,
       decalages: await valeursTag(url, t[324], le, tete, injections), tailles: await valeursTag(url, t[325], le, tete, injections),
       tables: t[347] ? Buffer.from(/** @type {any} */ (await valeursTag(url, t[347], le, tete, injections))) : null });
@@ -171,6 +193,6 @@ async function carreCliche(lot, cliche, niveau, x, y, injections) {
   return { jpeg };
 }
 
-function viderCacheCliches() { entetes.clear(); carres.clear(); octetsCarres = 0; }
+function viderCacheCliches() { entetes.clear(); carres.clear(); octetsCarres = 0; enteteEnCours.clear(); enteteEchecs.clear(); }
 
 module.exports = { urlCliche, lireIfds, jpegDuCarre, enteteCliche, carreCliche, viderCacheCliches };

@@ -248,9 +248,6 @@
 
   // La section de l'outil.
   function renderSitesPreemption() {
-    // La fiche de dépôt de la DIA suit la même commune (client/69-depot-dia.js).
-    lancerDepotDia();
-    renderDepotDia();
     const zone = document.getElementById('pr-sites');
     if (!zone) return;
     const e = prEtat || etatPreemptionVierge();
