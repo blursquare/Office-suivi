@@ -167,11 +167,17 @@ function empriseValide(texte) {
 
 /** Pure : les adresses BAN d'une réponse du géocodage inverse, la plus proche d'abord. @param {any} geo */
 function adressesDepuisReverse(geo) {
-  return (geo && Array.isArray(geo.features) ? geo.features : []).map((f) => f && f.properties).filter((p) => p && p.label).map((p) => ({
-    id: /^[0-9A-Za-z_]{5,40}$/.test(String(p.id || '')) ? String(p.id) : '',
-    libelle: String(p.label), numero: String(p.housenumber || ''), voie: String(p.street || p.name || ''),
-    distance: Number.isFinite(Number(p.distance)) ? Math.round(Number(p.distance)) : null
-  }));
+  return (geo && Array.isArray(geo.features) ? geo.features : []).filter((f) => f && f.properties && f.properties.label).map((f) => {
+    const p = f.properties;
+    const c = f.geometry && Array.isArray(f.geometry.coordinates) ? f.geometry.coordinates.map(Number) : [];
+    return {
+      id: /^[0-9A-Za-z_]{5,40}$/.test(String(p.id || '')) ? String(p.id) : '',
+      libelle: String(p.label), numero: String(p.housenumber || ''), voie: String(p.street || p.name || ''),
+      distance: Number.isFinite(Number(p.distance)) ? Math.round(Number(p.distance)) : null,
+      // Position de l'entrée (sur la voie) : sert à ouvrir Street View devant le bien.
+      position: c.length === 2 && c.every(Number.isFinite) ? { lon: Math.round(c[0] * 1e6) / 1e6, lat: Math.round(c[1] * 1e6) / 1e6 } : null
+    };
+  });
 }
 /** Pure : l'adresse BAN la plus proche (compatibilité). @param {any} geo */
 function adresseDepuisReverse(geo) { return adressesDepuisReverse(geo)[0] || null; }

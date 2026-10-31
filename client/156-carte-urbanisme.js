@@ -85,6 +85,24 @@ function lienGeofoncier(lat, lon, zoom) {
   return `https://public.geofoncier.fr/#${z}/${Number(lat).toFixed(6)}/${Number(lon).toFixed(6)}`;
 }
 
+// Pure : lien Google Street View devant un point (adresse des « Maps URLs » de Google, sans clé) — l'année se choisit sur place par
+// « Voir d'autres dates » (étude 31/10 : « les vues des années de Google Street View » ; Google ne donne pas les années passées autrement).
+function lienStreetView(lat, lon) {
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${Number(lat).toFixed(6)},${Number(lon).toFixed(6)}`;
+}
+
+// Le point d'où regarder la parcelle : l'entrée de son adresse (sur la voie), sinon celle du numéro le plus proche, sinon le point cliqué.
+function pointStreetViewCarte(s) {
+  const a = (s && s.adressesParcelle || []).find(x => x.position) || (s && s.adresse && s.adresse.position ? s.adresse : null);
+  if (a) return a.position;
+  return s && s.point ? { lat: s.point.lat, lon: s.point.lon } : null;
+}
+
+function ouvrirStreetViewCarte() {
+  const p = pointStreetViewCarte(carteUrb.selection);
+  if (p) window.open(lienStreetView(p.lat, p.lon), '_blank', 'noopener');
+}
+
 // Pure : les sections cadastrales distinctes d'une liste de parcelles (« AB 12, AB 13, C 4 » → ['AB', 'C']).
 function sectionsDesParcellesCarte(texte) {
   return [...new Set(parcellesDepuisTexte(texte).map(p => p.section))].slice(0, 6);
@@ -422,6 +440,7 @@ function renderParcelleCarte() {
       ${ligne('Alignement', alignement, alignementDetail)}
       ${ligne('Ventes (DVF)', ventesParcelle.length ? `${ventesParcelle.length} vente${ventesParcelle.length > 1 ? 's' : ''}` : 'Aucune vente publiée', ventesParcelle[0] ? `Dernière : ${escapeHtml(formatDateFr(ventesParcelle[0].date))} · ${escapeHtml(ventesParcelle[0].prix ? formaterMontantEuros(ventesParcelle[0].prix) : 'prix non publié')}` : '')}
       <div class="pr-fiche-actions">
+        <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirStreetViewCarte()" title="Google Street View devant le bien : « Voir d’autres dates » en haut à gauche pour les années passées">${icone('eye')} Street View</wa-button>
         <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirGeofoncierCarte()">${icone('lien-externe')} DMPC et géomètre sur Géofoncier</wa-button>
       </div>
       <p class="hint">Identifiant cadastral ${escapeHtml(p.idu)}</p>`
@@ -701,7 +720,13 @@ function renderClichesCarte() {
   if (!c) { z.innerHTML = ''; return; }
   const cle = `${c.lon.toFixed(5)}:${c.lat.toFixed(5)}`;
   if (clichesCarte.cle !== cle) {
-    clichesCarte = { cle, etat: 'lecture', annees: [], annee: 0, erreur: '', centre: c };
+    clichesCarte = { cle, etat: 'lecture', annees: [], annee: 0, erreur: '', centre: c, rue: null };
+    // La vue de la rue : l'entrée de l'adresse du bien (Base adresse nationale), pour ouvrir Street View devant lui.
+    fetchAvecAuth(`/api/urbanisme/point?lon=${c.lon}&lat=${c.lat}`).then(r => r.ok ? r.json() : null).then(j => {
+      if (clichesCarte.cle !== cle || !j) return;
+      clichesCarte.rue = pointStreetViewCarte(j);
+      renderClichesCarte();
+    }).catch(() => { /* sans adresse : Street View depuis le centre des parcelles */ });
     fetchAvecAuth(`/api/urbanisme/cliches?lon=${c.lon}&lat=${c.lat}`).then(async r => {
       const j = await r.json().catch(() => ({}));
       if (clichesCarte.cle !== cle) return;
@@ -712,19 +737,36 @@ function renderClichesCarte() {
       renderClichesCarte();
     }).catch(() => { if (clichesCarte.cle === cle) { clichesCarte.etat = 'erreur'; clichesCarte.erreur = 'Serveur injoignable.'; renderClichesCarte(); } });
   }
-  const tete = `<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre sur « Remonter le temps », centré sur le bien, pour le voir en grand et le télécharger.')}"></span></h2>`;
+  const rue = clichesCarte.rue || c;
+  const blocRue = `<h2 class="pr-cote-titre">Vue de la rue</h2>
+    <div class="pr-rue"><span class="pr-cote-sous">Google Street View devant le bien ; les années passées : « Voir d’autres dates », en haut à gauche.</span>
+      <wa-button appearance="outlined" size="s" type="button" onclick="window.open('${escapeOnclickArg(lienStreetView(rue.lat, rue.lon))}', '_blank', 'noopener')">${icone('eye')} Street View</wa-button></div>`;
+  const tete = `${blocRue}<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre sur « Remonter le temps », centré sur le bien, pour le voir en grand et le télécharger.')}"></span></h2>`;
   if (clichesCarte.etat === 'lecture') { z.innerHTML = `${tete}<p class="hint">${icone('spinner')} Liste des clichés…</p>`; return; }
   if (clichesCarte.etat === 'erreur') { z.innerHTML = `${tete}<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(clichesCarte.erreur)}</p>`; return; }
   if (!clichesCarte.annees.length) { z.innerHTML = `${tete}<p class="hint">Aucun cliché de l’IGN publié sur ce point.</p>`; return; }
   const choisie = clichesCarte.annees.find(a => a.annee === clichesCarte.annee) || clichesCarte.annees[0];
   const cc = clichesCarte.centre;
   z.innerHTML = `${tete}
-    <div class="pr-cliches-annees" role="group" aria-label="Années des clichés">${clichesCarte.annees.map(a => `<button type="button" class="pr-cliche-annee${a.annee === choisie.annee ? ' actif' : ''}" onclick="choisirAnneeClichesCarte(${Number(a.annee)})">${Number(a.annee)}</button>`).join('')}</div>
+    <div class="pr-cliches-decennies" role="group" aria-label="Années des clichés">${decenniesClichesCarte(clichesCarte.annees).map(d => `<div class="pr-cliches-decennie"><span class="pr-cliches-decennie-titre">${d.decennie}</span><span class="pr-cliches-annees">${d.annees.map(a => `<button type="button" class="pr-cliche-annee${a === choisie.annee ? ' actif' : ''}" onclick="choisirAnneeClichesCarte(${Number(a)})">${Number(a)}</button>`).join('')}</span></div>`).join('')}</div>
     <div class="pr-cliches">${choisie.cliches.slice(0, 12).map(x => `<a class="pr-cliche" href="${escapeAttr(lienRemonterLeTemps(cc.lon, cc.lat, x.annee, x.mission))}" target="_blank" rel="noopener">
         <span class="pr-cliche-texte"><span class="pr-cliche-date">${escapeHtml(formatDateFr(x.date))}</span><span class="pr-cliche-sous">Cliché ${escapeHtml(String(x.numero || '—'))} · mission ${escapeHtml(x.mission || x.lot || '—')}</span></span>
         <span class="pr-cliche-voir">${icone('lien-externe')} Voir</span>
       </a>`).join('')}</div>
     ${choisie.cliches.length > 12 ? `<p class="hint">${choisie.cliches.length - 12} autres clichés cette année-là sur « Remonter le temps ».</p>` : ''}`;
+}
+
+// Pure : les années regroupées par décennie (étude 31/10 : « regroupe par décennie »), la plus récente d'abord.
+function decenniesClichesCarte(annees) {
+  const out = [];
+  (annees || []).map(a => Number(a.annee)).filter(Number.isFinite).sort((x, y) => y - x).forEach(a => {
+    const d = Math.floor(a / 10) * 10;
+    const decennie = d < 2000 ? `Années ${String(d).slice(2)}` : `Années ${d}`;
+    let g = out.find(x => x.decennie === decennie);
+    if (!g) { g = { decennie, annees: [] }; out.push(g); }
+    if (!g.annees.includes(a)) g.annees.push(a);
+  });
+  return out;
 }
 
 function choisirAnneeClichesCarte(annee) {

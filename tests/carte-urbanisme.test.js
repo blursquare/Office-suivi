@@ -74,3 +74,11 @@ test('clichés de l’IGN : lien « Remonter le temps » centré sur le bien, à
   assert.equal(`${c.lon},${c.lat}`, '1.5,47.5');
   assert.equal(app.centreParcellesCarte(null), null);
 });
+
+test('vue de la rue et décennies des clichés', () => {
+  assert.equal(app.lienStreetView(47.570033, 1.383485), 'https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=47.570033,1.383485');
+  assert.deepEqual(JSON.parse(JSON.stringify(app.pointStreetViewCarte({ adressesParcelle: [{ position: { lat: 1, lon: 2 } }], adresse: { position: { lat: 3, lon: 4 } } }))), { lat: 1, lon: 2 });
+  assert.deepEqual(JSON.parse(JSON.stringify(app.pointStreetViewCarte({ adressesParcelle: [], adresse: null, point: { lat: 5, lon: 6 } }))), { lat: 5, lon: 6 });
+  const d = app.decenniesClichesCarte([{ annee: 2018 }, { annee: 2011 }, { annee: 1986 }, { annee: 1955 }, { annee: 1949 }, { annee: 1946 }]);
+  assert.equal(d.map(x => `${x.decennie}:${x.annees.join('/')}`).join(' | '), 'Années 2010:2018/2011 | Années 80:1986 | Années 50:1955 | Années 40:1949/1946');
+});

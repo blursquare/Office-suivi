@@ -11772,7 +11772,18 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-fiche-detail { font-size: var(--texte-s); color: var(--muted); }
 .pr-fiche-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
 .pr-zone-pastille { align-self: flex-start; padding: 1px 8px; border-radius: var(--rayon-s); border: 1px solid var(--zone); color: var(--ink); font-weight: 600; background: color-mix(in srgb, var(--zone) 18%, transparent); }
+.pr-cliches-decennies { display: flex; flex-direction: column; gap: 6px; }
+.pr-cliches-decennie { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.pr-cliches-decennie-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .pr-cliches-annees { display: flex; flex-wrap: wrap; gap: 4px; }
+/* Barre de droite de l'écran Contrôle (étude 31/10) : photos l'une sous l'autre, autorisations Sitadel sur deux lignes. */
+.pr-cote .pr-photos { grid-template-columns: minmax(0, 1fr); }
+.pr-cote .pr-sitadel-ligne { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-areas: 'type date etat' 'type quoi quoi'; row-gap: 2px; }
+.pr-cote .pr-sitadel-type { grid-area: type; align-self: start; }
+.pr-cote .pr-sitadel-date { grid-area: date; }
+.pr-cote .pr-sitadel-quoi { grid-area: quoi; white-space: normal; display: block; }
+.pr-cote .pr-sitadel-ligne > .dot-label { grid-area: etat; }
+.pr-rue { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .pr-cliche-annee { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); font: inherit; font-size: var(--texte-s); font-variant-numeric: tabular-nums; cursor: pointer; }
 .pr-cliche-annee:hover { background: var(--paper-sunk); }
 .pr-cliche-annee.actif { background: var(--focus); border-color: var(--focus); color: var(--blanc-fixe); }
