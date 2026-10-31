@@ -571,14 +571,14 @@
     return estSuccession(d) ? echeanceValidee(d, 'appelFondsSuccession') : echeanceValidee(d, 'appelFonds');
   }
 
-  function renderFondsRecus(d) {
+  function renderFondsRecus(d, opts) {
     if (!appelFondsEnvoyeDossier(d) && !d.fondsRecus && !d.rendezVousSignature && !d.fondsValidesLe) return '';
     const f = d.fondsRecus;
     const attendu = d.fondsAttendusManuel || (f && f.attendu) || null;
     const b = bilanFondsDossier(d);
     const confirmee = d.receptionFondsConfirmeeLe;
     const etatCourt = b.manuel ? ['dl-success', `Fonds validés le ${formatDateFr(d.fondsValidesLe)}${d.fondsValidesPar ? ' par ' + prenomCollaborateur(d.fondsValidesPar) : ''}`]
-      : !f ? ['dl-neutre', 'Pas encore vérifié']
+      : !f ? ['dl-neutre', 'Reçus pas encore lus']
       : b.etat === 'complet' ? ['dl-success', 'Tous les fonds sont reçus']
       : b.etat === 'excedent' ? ['dl-pret', 'Écart à vérifier']
       : b.etat === 'partiel' ? ['dl-pret', `Reste ${formaterPrixCentimes(b.reste)}`]
@@ -591,7 +591,7 @@
     const sourceAttendu = f && f.attenduChemin && !d.fondsAttendusManuel
       ? `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn fonds-source" onclick="ouvrirFichierNas('${escapeOnclickArg(f.attenduChemin)}')" title="${escapeAttr('Lu dans ' + (f.attenduSource || 'le décompte'))}" aria-label="Ouvrir le décompte">${icone('file-text')}</wa-button>`
       : '';
-    const valeurAttendu = attendu ? formaterPrixCentimes(attendu) : '—';
+    const valeurAttendu = attendu ? formaterPrixCentimes(attendu) : 'à saisir';
     const troisieme = b.manuel ? null : b.etat === 'excedent'
       ? { libelle: 'Écart', valeur: '+' + formaterPrixCentimes(b.ecart), cls: 'fonds-chiffre-alerte' }
       : b.attendu
@@ -605,7 +605,7 @@
         <div class="fonds-chiffres">
           ${f ? `<div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Reçu</span><strong>${formaterPrixCentimes(b.total)}</strong></div>` : ''}
           <div class="fonds-chiffre"><span class="fonds-chiffre-libelle">Attendu ${infoBulle('À 2 € près : au-delà, en plus ou en moins, CLAIRE signale un écart.')}</span>
-            <span class="fonds-chiffre-valeur">${champFondsEditable(d, 'attendu', `<strong>${valeurAttendu}</strong>${sourceAttendu}`, attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"')}</span></div>
+            <span class="fonds-chiffre-valeur">${champFondsEditable(d, 'attendu', `${attendu ? `<strong>${valeurAttendu}</strong>` : `<span class="fonds-a-saisir">${valeurAttendu}</span>`}${sourceAttendu}`, attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"')}</span></div>
           ${troisieme ? `<div class="fonds-chiffre ${troisieme.cls}"><span class="fonds-chiffre-libelle">${troisieme.libelle}</span><strong>${troisieme.valeur}</strong></div>` : ''}
         </div>
         ${b.attendu || b.manuel ? `<div class="fonds-barre ${clsBarre}" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>` : ''}
@@ -650,6 +650,16 @@
     if (peutConfirmer && confirmee) bouton = { libelle: 'Renvoyer', icone: icone('mail'), onclick: confirmer, titre: 'Renvoyer la confirmation de réception des fonds' };
     else if (peutConfirmer && complet) bouton = { libelle: 'Confirmer', icone: icone('mail'), onclick: confirmer, titre: estSuccession(d) ? 'Confirmer la réception des fonds aux héritiers' : 'Confirmer la réception des fonds au client' };
     const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${escapeOnclickArg(d.id)}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
+    // Carte « Arrivée des fonds » de l'onglet Fonds (retour de l'étude, 31/10 : « pas joli et on comprend pas ») : l'état écrit
+    // en clair dans une pastille, le geste du moment à droite, sans la ligne d'action et ses points de couleur.
+    if (opts && opts.carte) {
+      const btn = `<wa-button ${bouton === verifier ? 'appearance="outlined"' : 'variant="brand"'} size="s" type="button" onclick="${bouton.onclick}" title="${escapeAttr(bouton.titre)}">${bouton.icone} ${bouton.libelle}</wa-button>`;
+      return `<div class="fonds-arrivee-tete">
+          <span class="avancement-pilule ${etatCourt[0]}">${etatCourt[1]}</span>
+          ${confirmee ? `<span class="fonds-confirmation">confirmé ${estSuccession(d) ? 'aux héritiers' : 'au client'} le ${formatDateFr(confirmee)}</span>` : ''}
+          <span class="fonds-arrivee-actions">${reverifierIcone}${btn}</span>
+        </div>${detail}`;
+    }
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,

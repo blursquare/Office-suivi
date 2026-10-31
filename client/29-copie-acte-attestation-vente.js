@@ -671,11 +671,11 @@
       const l = lignesEchangesOnglet(d, true);
       autres = l.autres;
       // Retour de l'étude (30/10) : le suivi de l'arrivée des fonds dans sa propre carte, sorti de « Demandes à faire ».
-      const ligneArrivee = l.cles.includes('fondsRecus') ? renderLigneEchange(d, 'fondsRecus') : '';
+      const ligneArrivee = l.cles.includes('fondsRecus') ? renderFondsRecus(d, { carte: true }) : '';
       if (ligneArrivee) l.utiles = l.cles.filter(c => c !== 'fondsRecus').map(c => renderLigneEchange(d, c)).filter(Boolean);
-      arrivee = ligneArrivee ? `<div class="echanges-groupe">
+      arrivee = ligneArrivee ? `<div class="echanges-groupe fonds-arrivee">
         <div class="echanges-tete"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Arrivée des fonds</span></span></div>
-        <ul class="ja-liste">${ligneArrivee}</ul>
+        ${ligneArrivee}
       </div>` : '';
       const hint = texteDestinataireEchanges(d);
       demandes = `<div class="echanges-groupe">

@@ -11632,8 +11632,17 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .fiche-panneau .prop-texte { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
 .fiche-panneau .fiche-proprietes dd { flex-wrap: wrap; row-gap: 4px; }
 /* Barre « Outils » en tête des onglets Pièces et analyse, Dossier et Fonds (30/10) : même place, même forme, pastilles espacées de 8 px. */
-.fiche-outils-barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.fiche-outils-barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; margin-bottom: 16px; }
 .fiche-outils-barre > .section-eyebrow { margin-right: 4px; }
 .fiche-outils-barre > div, .fiche-outils-barre > p { flex: 1 1 100%; }
 .fiche-outils-barre wa-button.action-rapide { margin: 0; --wa-form-control-height: 32px; font-weight: 500; color: var(--ink); }
 .fiche-outils-barre wa-button.action-rapide .icone { color: var(--focus); }
+
+/* Carte « Arrivée des fonds » (31/10) : l'état en pastille, le geste à droite. */
+.fonds-arrivee-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fonds-arrivee-tete .avancement-pilule { min-width: 0; }
+.fonds-arrivee-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.fonds-arrivee .fonds-recus { margin: 0; }
+.fonds-a-saisir { font-size: var(--texte-base); color: var(--muted); }
+.fonds-compta-texte { font-size: var(--texte-s); font-weight: 500; color: var(--ink-soft); }
+.fonds-compta-texte.dl-pret { color: var(--pret); }

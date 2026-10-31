@@ -127,7 +127,7 @@ function htmlFondsComptaAT(d) {
   };
   const [cls, texte] = textes[k.etat];
   const notes = [k.plusieursComptes ? 'plusieurs comptes : seul le premier solde est lu' : '', k.chezConfrere ? 'participation : les fonds peuvent être encaissés par le confrère' : ''].filter(Boolean).join(' · ');
-  return `<div class="fonds-compta"><span class="dot-label ${cls}"><span class="dot"></span>Authentic : ${escapeHtml(texte)}</span>
+  return `<div class="fonds-compta"><span class="fonds-compta-texte ${cls}">Dans Authentic : ${escapeHtml(texte)}</span>
     <span class="fonds-compta-source">lu le ${escapeHtml(formatDateFr(String(k.luLe).slice(0, 10)))}${notes ? ' · ' + escapeHtml(notes) : ''} ${aide}</span></div>`;
 }
 

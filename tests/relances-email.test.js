@@ -821,6 +821,8 @@ test('onglet Fonds (retour de l’étude, 30/10) : l’arrivée des fonds dans s
   const i = html.indexOf('pieces-titre-texte">Arrivée des fonds<');
   const j = html.indexOf('pieces-titre-texte">Demandes à faire<');
   assert.ok(i > 0 && j > i, 'la carte « Arrivée des fonds » vient avant « Demandes à faire »');
-  assert.equal((html.match(/Fonds reçus en comptabilité/g) || []).length, 1, 'la ligne n’est qu’une fois, dans sa carte');
+  assert.equal((html.match(/fonds-arrivee-tete/g) || []).length, 1, 'le suivi des fonds n’est qu’une fois, dans sa carte');
+  assert.doesNotMatch(html, /Fonds reçus en comptabilité/, 'plus de ligne d’action dans la carte (31/10 : « on comprend pas »)');
+  assert.match(html, /avancement-pilule dl-neutre">Reçus pas encore lus</, 'l’état écrit en clair dans une pastille');
   assert.match(html, /fonds-haut fonds-colonnes-2/);
 });
