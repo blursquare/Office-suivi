@@ -696,7 +696,8 @@ const RE_DONATION_ENTRE_EPOUX_AGENDA = /^\s*DONATION\s+ENTRE\s+[EÉ]POUX/i;
 const RE_PACS_AGENDA = /^\s*PACS(?![A-Za-zÀ-ɏ])/i;
 // Promesse de vente (étude 31/10 : « détecter aussi le PUV ») : PUV EN TÊTE du titre, comme PACS et DEE.
 const RE_PUV_AGENDA = /^\s*PUV(?![A-Za-zÀ-ɏ])/i;
-const RE_SUCCESSION_AGENDA = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
+// Succession (étude 31/10 : « la même règle, SUCC ou SUCCESSION en début de titre ») : en tête seulement.
+const RE_SUCCESSION_AGENDA = /^\s*SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
 function natureActeAgenda(sujet) {
   const titre = String(sujet || '');
   if (RE_DEE_AGENDA.test(titre) || RE_DONATION_ENTRE_EPOUX_AGENDA.test(titre.normalize('NFC'))) return 'dee';
