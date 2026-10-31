@@ -23517,3 +23517,9 @@ Point terrain `decoupage-compromis`. Non vérifié au bureau : vrai NAS, noms r�
   fiche ; une pièce corrigée puis rangée de nouveau arrive en « Nom (2) ».
 - Agent : `decouper_compromis` prend `corrections` (pages, rubrique, ranger, couper_a) — mêmes gestes, rien sur le NAS.
 - Essayé dans Chromium sur un vrai compromis de 251 pages (hors dépôt) : 16 pièces, gestes, thème sombre, téléphone sans débordement.
+- Étude, même soir : « s'il y a une page de garde devant l'annexe, ne pas la prendre en compte ». Les séparations « Annexe n° » du
+  logiciel de l'agence n'étaient déjà jamais reprises ; s'y ajoute toute page de garde en tête d'annexe (`pageDeGardeAnnexe` : page
+  de 6 lignes au plus qui commence par « Annexe(s) », « Pièce(s) annexée(s) », « Document(s) annexe(s) » ; jamais une page vide —
+  un scan n'a pas de texte —, jamais la dernière page d'une annexe). Pages de garde gardées dans `dcEtat.gardes` : « garde » sur la
+  vignette, ni + ni « Ajouter la page », retirées d'une saisie de pages (écran et agent). Les deux compromis réels du 31/10 : découpage
+  inchangé (pas de page de garde en plus des séparations).

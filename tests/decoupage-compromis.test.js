@@ -187,3 +187,16 @@ test('31/10 : corrections de l’aperçu — page ajoutée ou retirée, coupe en
   assert.equal(v.map(x => `${x.page}${x.dedans ? '' : '*'}`).join(','), '7*,8,9,10,11*');
   assert.equal(app.vignettesPieceDecoupage([1, 2], 2).map(x => x.page).join(','), '1,2', 'ni page 0 ni page au-delà du document');
 });
+
+test('31/10 : page de garde devant une annexe — jamais reprise dans la pièce', () => {
+  const pages = [corps('COMPROMIS'), sep(1, 'Copie titre propriete', 'titre'), 'ANNEXE N°1\nTitre de propriété', corps("L'AN DEUX MILLE QUINZE"), '',
+    sep(2, 'Reglement de copropriete', 'rcp'), '', corps('REGLEMENT DE COPROPRIETE'), sep(3, 'Plan', 'plan'), 'Annexe 3'];
+  const r = app.piecesDecoupageCompromis(pages);
+  assert.equal(r.pieces.map(p => p.pages.join('-')).join('|'), '1|4-5|7-8|10', 'page de garde (3) retirée, page scannée vide (7) gardée, une annexe réduite à sa page de garde la garde');
+  assert.equal(r.gardes.join(','), '2,3,6,9');
+  assert.equal(app.pageDeGardeAnnexe('Annexe 3'), true);
+  assert.equal(app.pageDeGardeAnnexe('Pièces annexées'), true);
+  assert.equal(app.pageDeGardeAnnexe(''), false);
+  assert.equal(app.pageDeGardeAnnexe(corps('REGLEMENT DE COPROPRIETE')), false);
+  assert.equal(app.pageDeGardeAnnexe('Annexe 1\n' + 'ligne\n'.repeat(8)), false, 'une page pleine n’est pas une page de garde');
+});
