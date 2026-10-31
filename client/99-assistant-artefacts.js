@@ -335,7 +335,7 @@
   }
 
   // Ouvre l'outil prérempli (la fonction habituelle), puis déplace son écran dans le panneau et rend l'écran à la conversation.
-  function monterOutilAssistant(artefactId) {
+  function monterOutilAssistant(artefactId, apresMonte) {
     const a = artefactsAssistant.liste.find(x => x.id === artefactId);
     if (!a || a.type !== 'outil' || !outilMontableAssistant(a.onglet)) return;
     const d = a.dossierId ? dossiers.find(x => x.id === a.dossierId) : null;
@@ -362,6 +362,7 @@
       artefactsAssistant.version++;
       definirOnglet('assistant');
       renderArtefactAssistant();
+      if (typeof apresMonte === 'function') apresMonte();
     });
   }
 
@@ -482,6 +483,11 @@
     const page = document.querySelector('#onglet-assistant .asst-page');
     if (!zone || !page) return;
     const a = artefactCourantAssistant();
+    // Un autre artefact (ou aucun) : l'espace de travail posé par-dessus l'artefact (client/85) se retire.
+    if ((a ? a.id : '') !== (artefactsAssistant.dernierOuvert || '')) {
+      artefactsAssistant.dernierOuvert = a ? a.id : '';
+      if (colonneAssistant.surArtefact) { colonneAssistant.surArtefact = false; page.classList.remove('colonne-sur-artefact'); }
+    }
     page.classList.toggle('artefact-ouvert', !!a);
     // Un outil monté a besoin de largeur : le panneau s'élargit.
     page.classList.toggle('artefact-large', !!(a && a.type === 'outil' && a.monte));

@@ -308,12 +308,29 @@
       // Un outil qui se monte dans le panneau (étude 21/10 : « oui, je le veux ») s'y ouvre tout de suite, prérempli ; les autres (Claire Scan,
       // Nouveau dossier) gardent leur onglet de travail et le panneau montre leur carte.
       const montable = outilMontableAssistant(o.onglet);
-      const idArtefact = ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d), { onglet: o.onglet, outil: e.outil });
-      if (montable) monterOutilAssistant(idArtefact);
-      poserMessageAssistant('claire', `<p>${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''} ${montable ? 's’ouvre à droite, prérempli.' : 'est prêt à ouvrir (carte à droite).'}</p>`,
-        montable ? [{ libelle: 'Voir l’outil', action: () => choisirArtefactAssistant(idArtefact) }]
-          : [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
-      return { fait: true, affiche_a_l_utilisateur: montable ? `${o.libelle} ouvert dans le panneau de droite, prérempli avec le dossier` : `bouton « Ouvrir ${o.libelle} » affiché` };
+      const carte = () => ouvrirOutilArtefactAssistant(o.libelle, d, () => ouvrirOutilClaireAgent(e.outil, d), { onglet: o.onglet, outil: e.outil });
+      const nomOutil = `${escapeHtml(o.libelle)}${d ? ` — ${escapeHtml(libelleDossierAffiche(d))}` : ''}`;
+      if (montable) {
+        // La carte n'est posée et « s'ouvre à droite » dit qu'une fois le remplacement accepté : un travail en cours sur un autre
+        // dossier demande d'abord confirmation, et un refus laisse l'outil et sa carte tels qu'ils étaient (relecture 21/10).
+        let monte = false;
+        ouvrirOutilClaireAgent(e.outil, d, false, () => {
+          monte = true;
+          const idArtefact = carte();
+          monterOutilAssistant(idArtefact, () => {
+            poserMessageAssistant('claire', `<p>${nomOutil} s’ouvre à droite, prérempli.</p>`, [{ libelle: 'Voir l’outil', action: () => choisirArtefactAssistant(idArtefact) }]);
+          });
+        });
+        if (!monte) {
+          poserMessageAssistant('claire', `<p>${nomOutil} : l’outil porte déjà un travail sur un autre dossier. Répondez dans la fenêtre : « Mettre à jour » le remplace, « Annuler » le garde tel quel.</p>`);
+          return { fait: false, en_attente: `l’utilisateur doit confirmer le remplacement du travail en cours dans ${o.libelle} ; s’il refuse, l’outil reste tel quel et n’est pas ouvert` };
+        }
+        return { fait: true, affiche_a_l_utilisateur: `${o.libelle} ouvert dans le panneau de droite, prérempli avec le dossier` };
+      }
+      const idArtefact = carte();
+      poserMessageAssistant('claire', `<p>${nomOutil} est prêt à ouvrir (carte à droite).</p>`,
+        [{ libelle: `Ouvrir ${o.libelle}`, principal: true, action: () => ouvrirOutilClaireAgent(e.outil, d) }, { libelle: 'Voir la carte', action: () => choisirArtefactAssistant(idArtefact) }]);
+      return { fait: true, affiche_a_l_utilisateur: `bouton « Ouvrir ${o.libelle} » affiché` };
     }
     if (e.mode === 'ajouter') return ajouterOrganismesConstitutionAgent(e.outil, d, e.texte);
     try { return lectureOutilClaireAgent(e.outil, d, e.texte); } catch (err) { return { erreur: 'lecture impossible : ' + String(err && err.message || err).slice(0, 120) }; }

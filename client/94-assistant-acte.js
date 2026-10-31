@@ -87,6 +87,7 @@
   // ---- Anonymisation (colonne de droite) ----
 
   function ouvrirColonneConfidentialiteAssistant() {
+    if (espaceTravailCacheAssistant()) colonneAssistant.surArtefact = true;
     colonneAssistant.ouverte = true;
     blocsOuvertsColonneAssistant.confidentialite = true;
     renderColonneAssistant();

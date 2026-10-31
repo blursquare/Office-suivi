@@ -31,7 +31,18 @@
     try { const v = localStorage.getItem(CLE_COLONNE_ASSISTANT); return v === null ? true : v === '1'; } catch (e) { return true; }
   }
 
+  // Avec un artefact ouvert, l'espace de travail n'a pas de place (sous 1 800 px, ou à côté d'un outil monté) : le bouton le pose
+  // alors PAR-DESSUS l'artefact, le temps d'y toucher (anonymisation, aperçu d'une citation), et le même bouton le retire.
+  function espaceTravailCacheAssistant() {
+    const page = document.querySelector('#onglet-assistant .asst-page');
+    const zone = document.getElementById('assistant-droite');
+    return !!(page && zone && page.classList.contains('artefact-ouvert') && !page.classList.contains('colonne-sur-artefact') && !zone.getClientRects().length);
+  }
+
   function basculerColonneAssistant() {
+    const page = document.querySelector('#onglet-assistant .asst-page');
+    if (page && page.classList.contains('colonne-sur-artefact')) { colonneAssistant.surArtefact = false; renderColonneAssistant(); return; }
+    if (espaceTravailCacheAssistant()) { colonneAssistant.ouverte = true; colonneAssistant.surArtefact = true; renderColonneAssistant(); return; }
     colonneAssistant.ouverte = !document.querySelector('.asst-page.colonne-ouverte');
     ecrireLocal(CLE_COLONNE_ASSISTANT, colonneAssistant.ouverte ? '1' : '0');
     renderColonneAssistant();
@@ -152,6 +163,7 @@
   // L'aperçu : la page dessinée ici, la citation surlignée et dite « retrouvée » ou non (vérification mot pour mot, accents,
   // casse et espaces ignorés). Chaque demande est un objet : une demande remplacée entre-temps n'écrit plus rien.
   async function afficherApercuAssistant(docId, page, extrait) {
+    if (espaceTravailCacheAssistant()) colonneAssistant.surArtefact = true;
     colonneAssistant.ouverte = true;
     const ap = { docId, page: page || 1, extrait: extrait || '', etat: 'chargement', total: 0 };
     colonneAssistant.apercu = ap;
@@ -256,6 +268,7 @@
     const zone = document.getElementById('assistant-droite');
     if (!page || !zone) return;
     page.classList.toggle('colonne-ouverte', !!colonneAssistant.ouverte);
+    page.classList.toggle('colonne-sur-artefact', !!(colonneAssistant.ouverte && colonneAssistant.surArtefact));
     const bouton = document.getElementById('assistant-colonne-bouton');
     if (bouton) bouton.setAttribute('aria-expanded', String(!!colonneAssistant.ouverte));
     // Rien à redessiner si la colonne est fermée ; une liste en cours de choix n'est pas refaite (le focus serait perdu).

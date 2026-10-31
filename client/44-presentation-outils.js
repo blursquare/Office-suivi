@@ -205,23 +205,35 @@
       return titre && titre.offsetParent ? { cle: e.cle, haut: titre.getBoundingClientRect().top } : null;
     }).filter(Boolean);
     if (etapeChoisieOutil && etapeChoisieOutil.outil === outil && Date.now() < etapeChoisieOutil.jusqua) return;
-    const enBas = window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
-    const courante = etapeCouranteOutil(positions, Math.max(160, window.innerHeight * 0.35), enBas ? window.innerHeight : 0);
+    // Outil monté dans le panneau de « Demander à CLAIRE » (client/99) : c'est le panneau qui défile, pas la page — positions,
+    // ligne de lecture et bas de l'écran se prennent dans le panneau.
+    const conteneur = panneau.closest('.asst-art-corps');
+    let courante;
+    if (conteneur) {
+      const haut = conteneur.getBoundingClientRect().top;
+      const h = conteneur.clientHeight;
+      const enBasPanneau = conteneur.scrollTop > 0 && conteneur.scrollTop + h >= conteneur.scrollHeight - 4;
+      courante = etapeCouranteOutil(positions.map(p => ({ cle: p.cle, haut: p.haut - haut })), Math.max(120, h * 0.35), enBasPanneau ? h : 0);
+    } else {
+      const enBas = window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 4;
+      courante = etapeCouranteOutil(positions, Math.max(160, window.innerHeight * 0.35), enBas ? window.innerHeight : 0);
+    }
     if (courante && stepper.active !== courante) stepper.active = courante;
   }
 
   function ongletOutilVisible() {
-    return Object.keys(ETAPES_OUTILS).find(o => { const p = panneauOutil(o); return p && p.style.display !== 'none'; }) || '';
+    return Object.keys(ETAPES_OUTILS).find(o => { const p = panneauOutil(o); return p && p.style.display !== 'none' && p.getClientRects().length; }) || '';
   }
 
   function initPresentationOutils() {
     Object.keys(ETAPES_OUTILS).forEach(construireSommaireOutil);
     let attente = false;
-    window.addEventListener('scroll', () => {
+    // En capture sur le document : le défilement de la page ET celui du panneau d'un outil monté (un « scroll » ne remonte pas).
+    document.addEventListener('scroll', () => {
       if (attente) return;
       attente = true;
       requestAnimationFrame(() => { attente = false; const o = ongletOutilVisible(); if (o) majSommaireOutil(o); });
-    }, { passive: true });
+    }, { passive: true, capture: true });
     // Les lectures du NAS et les reprises de dossier finissent après le clic : un tour toutes les 2 s tant qu'un outil est
     // affiché suffit à cocher ce qu'elles ont rempli.
     setInterval(() => { const o = ongletOutilVisible(); if (o) majSommaireOutil(o); }, 2000);

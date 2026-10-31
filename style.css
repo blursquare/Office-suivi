@@ -11066,6 +11066,10 @@ button.cx-lecture:hover { background: var(--paper-sunk); }
 @media (min-width: 1800px) { .asst-page.fils-replies.artefact-ouvert.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(460px, 40%) 340px; } .asst-page.fils-replies.artefact-ouvert.artefact-large.colonne-ouverte { grid-template-columns: minmax(0, 1fr) minmax(600px, 62%); } }
 @media (max-width: 1280px) { .asst-page.fils-replies.colonne-ouverte, .asst-page.fils-replies.artefact-ouvert, .asst-page.fils-replies.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) { .asst-fils-replier { display: none; } }
+/* Espace de travail posé par-dessus l'artefact quand il n'a pas sa colonne (client/85, colonne-sur-artefact). */
+.asst-page.artefact-ouvert.colonne-sur-artefact .asst-droite, .asst-page.artefact-ouvert.artefact-large.colonne-sur-artefact .asst-droite {
+  display: flex; position: absolute; z-index: 8; top: 0; bottom: 0; right: 0; width: min(380px, 92%); box-shadow: var(--shadow-float);
+}
 
 /* Tâches du jour : choix Tout / Ventes / Successions (étude 22/10, client/104-taches-affaire.js). */
 .ja-bascule-affaire { margin: 0 0 8px; }
