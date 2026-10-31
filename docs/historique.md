@@ -23498,3 +23498,9 @@ elle me dit qu'elle le fait en arrière-plan, il faut vraiment qu'elle le fasse 
 - `nas_libre` chercher : mots vides retirés, pluriels ramenés au singulier, ponctuation ignorée (`motsRechercheNom`, `nomComparable`).
 - Prompt de l'agent : pour un modèle, mémoire (rubrique MODELES - OUTILS) puis `nas_libre` en 1–2 mots puis lister le dossier ; une seule
   réponse écrite après les recherches.
+- 31/10, relecture indépendante de 0.412.0 : (1) un délai dépassé ferme la fenêtre de CLAIRE (`arreter`) — avant, la page continuait l'agent
+  pendant que le travail suivant démarrait ; le délai réel est celui de la fenêtre (20 min), 25 min reste un filet ; (2) un brouillon resté
+  ouvert par un travail précédent est fermé avant le travail et n'est jamais rapporté à un autre demandeur ; (3) bascule sans « @ » prudente :
+  seul un nom de famille (mots en capitales d'un nom en casse mixte), écrit avec une majuscule dans la phrase, hors formes de société, mots
+  d'adresse et prénoms des collaborateurs (`nomsDeFamilleBasculeAssistant`, `MOTS_NON_NOMS_BASCULE`) ; (4) un nom aussi porté par un dossier
+  archivé ne fait rien basculer.

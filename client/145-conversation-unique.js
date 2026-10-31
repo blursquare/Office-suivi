@@ -19,18 +19,40 @@ function nouveauSujetAssistant(messages, dossierDuSujet, dossierImpose, maintena
 }
 
 // Pure : le dossier EN COURS dont on parle sans « @ » (étude 31/10 : « quand je parle d'un dossier déjà en cours, il faut basculer
-// automatiquement dedans »). Reconnu par toutes les données de la fiche (reconnaitreDossier), mais retenu seulement quand le nom du dossier
-// ou celui d'une partie est écrit dans la phrase — un mot d'adresse, d'agence ou de notaire seul ne fait jamais basculer — et qu'un seul
-// dossier en cours correspond (jamais deviné entre deux).
+// automatiquement dedans »). Prudent (relecture 0.412.0 : « un petit point » basculait vers un dossier PETIT) :
+// - seul un NOM DE FAMILLE compte : nom du dossier ou d'une partie, en ne gardant d'un nom en casse mixte que ses mots en capitales
+//   (« Camille FOURNIER » → FOURNIER), jamais un prénom, une forme de société (SCI, commune…), un mot de l'adresse d'un bien ni le prénom
+//   d'un collaborateur ;
+// - ce nom est écrit avec une majuscule dans la phrase (« Faure », « FAURE ») : un mot courant tapé en minuscules ne fait rien basculer ;
+// - un seul dossier en cours le porte, et aucun dossier archivé (« le dossier ROY signé l'an dernier ») — sinon rien, jamais deviné.
+var MOTS_NON_NOMS_BASCULE = new Set(['sci', 'scp', 'sarl', 'sas', 'sasu', 'eurl', 'snc', 'societe', 'commune', 'ville', 'mairie', 'consorts', 'consort', 'indivision', 'succession', 'epoux', 'vte', 'succ']);
+function nomsDeFamilleBasculeAssistant(d) {
+  const mots = (txt) => {
+    const brut = String(txt || '');
+    const capitales = brut.match(/[A-ZÀ-Þ][A-ZÀ-Þ'’-]{2,}/g);
+    return motsUtilesAssistant(capitales && /[a-zà-ÿ]/.test(brut) ? capitales.join(' ') : brut);
+  };
+  return [...new Set([d.nom, ...(d.parties || []).map(p => p && (p.nom || '') + ' ' + (p.nomUsage || ''))].flatMap(mots))];
+}
 function dossierCiteSansArobaseAssistant(texte, liste) {
-  const enCours = (Array.isArray(liste) ? liste : []).filter(d => d && d.id && !d.archive);
-  if (!enCours.length) return '';
-  const r = reconnaitreDossier(texte, enCours);
-  if (!r.dossier) return '';
-  const d = enCours.find(x => x.id === r.dossier);
-  const mots = new Set(motsUtilesAssistant(texte));
-  const noms = motsUtilesAssistant([d.nom, ...(d.parties || []).map(p => p && ((p.nom || '') + ' ' + (p.nomUsage || '')))].join(' '));
-  return noms.some(m => mots.has(m)) ? d.id : '';
+  const tous = (Array.isArray(liste) ? liste : []).filter(d => d && d.id);
+  const brut = String(texte || '');
+  const ecritsAvecMajuscule = new Set(motsUtilesAssistant((brut.match(/[A-ZÀ-Þ][\p{L}'’-]{2,}/gu) || []).join(' ')));
+  if (!ecritsAvecMajuscule.size) return '';
+  const exclus = new Set([...MOTS_NON_NOMS_BASCULE,
+    ...tous.flatMap(d => (d.adresses || []).flatMap(a => motsUtilesAssistant(a))),
+    ...(typeof RESPONSABLES !== 'undefined' ? RESPONSABLES : []).flatMap(r => motsUtilesAssistant(String((r && (r.prenom || r.nom)) || r || '').split(/\s+/)[0]))]);
+  const porteurs = new Map();
+  tous.forEach(d => nomsDeFamilleBasculeAssistant(d).filter(m => !exclus.has(m) && ecritsAvecMajuscule.has(m)).forEach(m => {
+    if (!porteurs.has(m)) porteurs.set(m, []);
+    porteurs.get(m).push(d);
+  }));
+  const candidats = new Set();
+  for (const ds of porteurs.values()) {
+    if (ds.some(d => d.archive)) return '';
+    ds.forEach(d => candidats.add(d.id));
+  }
+  return candidats.size === 1 ? [...candidats][0] : '';
 }
 
 // Pure : les sujets montrés au-dessus du sujet en cours — de moins de 7 jours, les plus anciens d'abord, 3 au plus.

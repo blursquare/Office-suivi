@@ -124,4 +124,16 @@ test('dossier cité sans @ (étude 31/10) : nom du dossier ou d’une partie, un
   assert.equal(app.dossierCiteSansArobaseAssistant('Et le dossier Legrand ?', liste), '', 'archivé : pas de bascule');
   assert.equal(app.dossierCiteSansArobaseAssistant('Appelle l’agence Delorme', liste), '', 'un mot d’agence seul ne suffit pas');
   assert.equal(app.dossierCiteSansArobaseAssistant('Quel est le délai de rétractation SRU ?', liste), '');
+  assert.equal(app.dossierCiteSansArobaseAssistant('ou en est faure', liste), '', 'nom tapé en minuscules : pas de bascule');
+  const autres = [
+    { id: 'p1', nom: 'PETIT / ROY', parties: [{ nom: 'PETIT' }, { nom: 'ROY' }] },
+    { id: 'p2', nom: 'ROY / MARTEAU', archive: true, parties: [{ nom: 'ROY' }] },
+    { id: 'p3', nom: 'FOURNIER / LEBON', parties: [{ nom: 'Camille FOURNIER' }, { nom: 'SCI LEBON' }], adresses: ['BLOIS (41000), 2 rue Denis Papin'] }
+  ];
+  assert.equal(app.dossierCiteSansArobaseAssistant('Fais un petit point sur mes échéances', autres), '', 'mot courant en minuscules');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Le dossier Roy signé l’an dernier', autres), '', 'homonyme archivé : rien');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Appelle Camille demain', autres), '', 'prénom d’une partie : rien');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Les actes à Blois cette semaine', autres), '', 'ville d’une adresse : rien');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Où en est Fournier ?', autres), 'p3');
+  assert.equal(app.dossierCiteSansArobaseAssistant('Demande à Julie le RIB', autres), '');
 });

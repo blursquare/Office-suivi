@@ -11,7 +11,7 @@ const CLE_TRAVAUX = 'poste-claire-travaux';
 const MAX_TRAVAUX = 50;
 const ETATS_TRAVAIL = ['attente', 'en-cours', 'fini', 'erreur', 'annule'];
 // Un travail ne bloque jamais la file (étude 31/10 : « quand je lui envoie une tâche, si elle dit qu'elle le fait en arrière-plan, il faut
-// vraiment qu'elle le fasse » — un travail resté « en attente » sans fin) : au-delà de 25 min, il est arrêté et noté non terminé.
+// vraiment qu'elle le fasse » — un travail resté « en attente » sans fin) : au-delà de 20 min (délai de la fenêtre), il est arrêté, la fenêtre fermée, et noté non terminé ; 25 min = filet si la fenêtre ne répond plus.
 const DELAI_MAX_TRAVAIL_MS = 25 * 60 * 1000;
 
 /** @param {any} v @param {number} max */
@@ -73,9 +73,11 @@ function creerFileTravaux(o) {
         let fin;
         try {
           let minuterie;
-          const delai = new Promise((_, ko) => { minuterie = setTimeout(() => ko(new Error('Arrêté au bout de 25 minutes : CLAIRE n’a pas fini (une validation attendue, ou sa fenêtre ne répond plus).')), o.delaiMaxMs || DELAI_MAX_TRAVAIL_MS); });
+          const delai = new Promise((_, ko) => { minuterie = setTimeout(() => ko(new Error('Arrêté : la fenêtre de CLAIRE ne répondait plus.')), o.delaiMaxMs || DELAI_MAX_TRAVAIL_MS); });
           let r;
-          try { r = await Promise.race([o.poste.travailler(suivant.consigne), delai]); } finally { clearTimeout(minuterie); }
+          try { r = await Promise.race([o.poste.travailler(suivant.consigne), delai]); }
+          catch (e) { if (o.poste.arreter) await Promise.resolve(o.poste.arreter()).catch(() => {}); throw e; }   // la fenêtre fermée : rien ne continue derrière
+          finally { clearTimeout(minuterie); }
           fin = majTravail(suivant.id, { etat: 'fini', finLe: maintenant().toISOString(), resultat: typeof r === 'string' ? r : JSON.stringify(r || '') });
         } catch (e) {
           fin = majTravail(suivant.id, { etat: 'erreur', finLe: maintenant().toISOString(), erreur: String(e && e.message || e).slice(0, 300) });

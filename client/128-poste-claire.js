@@ -54,11 +54,15 @@ async function travaillerPosteClaire(consigne) {
   while (Date.now() < attente && !(Array.isArray(dossiers) && dossiers.length)) await new Promise((ok) => setTimeout(ok, 500));
   assistantMessages = [];
   assistantContexte = { dossierId: '', attente: null, historique: [], echanges: [] };
+  // Un brouillon resté ouvert par un travail précédent (d'un autre collaborateur peut-être) n'est jamais rapporté (relecture 0.412.0).
+  if (typeof redaction !== 'undefined' && redaction) fermerRedaction({ ok: false, annule: true });
   const texte = 'Travail confié à ton poste virtuel : ' + String(consigne || '').slice(0, 4000);
   await envoyerAgentAssistant(texte);
   const derniere = assistantMessages.filter((m) => m.role === 'claire' && m.html && !/asst-autorisation/.test(m.html)).pop();
   const compteRendu = derniere ? texteDuMessageClaire(derniere.html) : 'Je n’ai rien à rapporter.';
-  return (compteRendu + brouillonPosteClaire()).slice(0, 8000);
+  const brouillon = brouillonPosteClaire();
+  if (typeof redaction !== 'undefined' && redaction) fermerRedaction({ ok: false, annule: true });
+  return (compteRendu + brouillon).slice(0, 8000);
 }
 
 // Un brouillon d'email préparé dans la fenêtre sans écran (rien n'y part, « Envoyer » y est inerte) : rapporté dans le compte rendu, sinon
@@ -97,7 +101,7 @@ function explicationTravailClaire(t, maintenant) {
   if (!t) return '';
   const depuis = (iso) => { const m = Math.max(0, Math.round((maintenant - (Date.parse(iso || '') || maintenant)) / 60000)); return m < 1 ? 'à l’instant' : `depuis ${m} min`; };
   if (t.etat === 'attente') return `Confié ${depuis(t.creeLe)} : il démarre dès que le travail précédent est fini (un à la fois, vérifié chaque minute).`;
-  if (t.etat === 'en-cours') return `En cours ${depuis(t.debutLe)}, dans sa fenêtre CLAIRE invisible sur le serveur : elle lit et prépare comme dans la conversation ; un geste qui modifie quelque chose attend votre validation (« Demande de CLAIRE » dans À traiter) ; rien n’est envoyé. Arrêté au bout de 25 min.`;
+  if (t.etat === 'en-cours') return `En cours ${depuis(t.debutLe)}, dans sa fenêtre CLAIRE invisible sur le serveur : elle lit et prépare comme dans la conversation ; un geste qui modifie quelque chose attend votre validation (« Demande de CLAIRE » dans À traiter) ; rien n’est envoyé. Arrêté au bout de 20 min s’il n’a pas fini.`;
   return '';
 }
 

@@ -153,6 +153,10 @@ function creerPosteClaire(o) {
       return r.result ? r.result.value : null;
     } catch (e) {
       derniereErreur = String(e && e.message || e).slice(0, 200);
+      // Relecture 0.412.0 : sur un délai dépassé, la page continuait l'agent pendant que le travail suivant démarrait (deux agents mêlés).
+      // La fenêtre est fermée : le travail suivant repart d'une fenêtre neuve.
+      await arreter().catch(() => {});
+      if (/délai dépassé/.test(String(e && e.message))) throw new Error(`Arrêté au bout de ${Math.round(DELAI_TRAVAIL_MS / 60000)} minutes : CLAIRE n’a pas fini (une validation restée sans réponse, ou sa fenêtre ne répondait plus).`);
       throw e;
     } finally {
       enTravail = false;
