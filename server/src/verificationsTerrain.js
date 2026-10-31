@@ -354,6 +354,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché au premier clic sur la carte qui trouve une parcelle (API Carto et géocodage de l’IGN).' },
   { id: 'carte-urbanisme-dvf', depuis: '0.416.0', source: 'serveur', titre: 'Carte du Contrôle de l’urbanisme : ventes DVF de la section lues',
     comment: 'Coché à la première lecture réussie des ventes (app.dvf.etalab.gouv.fr) depuis le serveur du bureau.' },
+  { id: 'carte-urbanisme-cliches', depuis: '0.416.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : clichés aériens de l’IGN de la parcelle listés par année',
+    comment: 'Coché à la première liste reçue de la Géoplateforme (couche pva:image) par le serveur du bureau ; le lien « Remonter le temps » se vérifie à l’œil.' },
   { id: 'sitadel-parcelle', depuis: '0.201.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : autorisations d’urbanisme de la parcelle lues dans Sitadel',
     comment: 'Coché à la première recherche réussie depuis le serveur du bureau (accès Internet sortant vers data.statistiques.developpement-durable.gouv.fr).' },
   { id: 'travaux-compromis-nas', depuis: '0.200.0', source: 'poste', titre: 'Contrôle de l’urbanisme : travaux déclarés lus dans le compromis du NAS (autorisation, achèvement, décennale)',

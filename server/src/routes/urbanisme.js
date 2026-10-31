@@ -98,6 +98,19 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
     } catch (e) { injoignable(res, e); }
   });
 
+  // Clichés aériens de l'IGN qui couvrent le bien (liste officielle de la Géoplateforme), par année.
+  routeur.get('/urbanisme/cliches', async (req, res) => {
+    try {
+      const c = await carte.clichesAeriens(req.query.lon, req.query.lat, injections);
+      if (c.erreur) return res.status(400).json(c);
+      noterVerification(parametresRepo, 'carte-urbanisme-cliches', { detail: `${c.annees.length} année(s)` });
+      res.json(c);
+    } catch (e) {
+      noterVerification(parametresRepo, 'carte-urbanisme-cliches', { ok: false, message: 'Géoplateforme injoignable' });
+      res.status(502).json({ erreur: 'Liste des clichés de l’IGN injoignable pour le moment.' });
+    }
+  });
+
   routeur.get('/urbanisme/dvf', async (req, res) => {
     try {
       const v = await carte.ventesSection(req.query.insee, req.query.section, req.query.prefixe, injections);

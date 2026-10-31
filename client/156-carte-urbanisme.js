@@ -142,6 +142,7 @@ function majCarteUrbanisme() {
   renderBarreCarte();
   renderParcelleCarte();
   renderVentesCarte();
+  renderClichesCarte();
   chargerLeafletCarte().then((L) => {
     if (!carteUrb.map || carteUrb.map.getContainer() !== zone) creerCarteUrbanisme(L, zone);
     else carteUrb.map.invalidateSize();
@@ -668,4 +669,78 @@ async function ventesCarteAgent(etat, filtre) {
     prix_m2_bati: v.prixM2 ? `${v.prixM2} €/m²` : '', adresse: v.adresse, parcelles: (v.parcelles || []).map(x => `${x.slice(8, 10).replace(/^0/, '')} ${Number(x.slice(10))}`)
   }));
   return { sections, ventes, nombre: ventes.length, ...(erreurs.length ? { erreurs } : {}), source: 'DVF (DGFiP, publié par Etalab), cinq dernières années, sans nom' };
+}
+
+// ===== Clichés aériens de l'IGN (étude 31/10 : « les photos aériennes individuelles de Remonter le temps, par année, pour comparer ») =====
+// La liste vient du serveur (liste officielle de la Géoplateforme) ; chaque cliché s'ouvre sur « Remonter le temps », centré sur le bien,
+// à son année et sa mission (forme du lien relevée par l'étude le 31/10). L'image elle-même n'est pas reprise dans CLAIRE (pas de service
+// officiel documenté).
+
+var clichesCarte = { cle: '', etat: '', annees: [], annee: 0, erreur: '' };
+
+// Pure : le centre des parcelles du dossier (lon, lat), d'après la vue des parcelles déjà lue.
+function centreParcellesCarte(vue) {
+  const e = (vue && vue.etiquettes || []).filter(x => x.dossier && Number.isFinite(x.x) && Number.isFinite(x.y));
+  if (e.length) return { lon: e.reduce((s, x) => s + x.x, 0) / e.length, lat: e.reduce((s, x) => s + x.y, 0) / e.length };
+  const em = vue && vue.emprise;
+  return em && em.length === 4 ? { lon: (em[0] + em[2]) / 2, lat: (em[1] + em[3]) / 2 } : null;
+}
+
+// Pure : le lien « Remonter le temps » d'un cliché.
+function lienRemonterLeTemps(lon, lat, annee, mission) {
+  const q = [`lon=${Number(lon).toFixed(6)}`, `lat=${Number(lat).toFixed(6)}`, 'z=15', 'layer=pva'];
+  if (annee) q.push(`year=${encodeURIComponent(annee)}`);
+  if (mission) q.push(`mission=${encodeURIComponent(mission)}`);
+  return `https://remonterletemps.ign.fr/telecharger/?${q.join('&')}`;
+}
+
+function renderClichesCarte() {
+  const z = document.getElementById('pr-cliches');
+  if (!z || !prEtat) return;
+  const c = centreParcellesCarte(prEtat.historique && prEtat.historique.vue);
+  if (!c) { z.innerHTML = ''; return; }
+  const cle = `${c.lon.toFixed(5)}:${c.lat.toFixed(5)}`;
+  if (clichesCarte.cle !== cle) {
+    clichesCarte = { cle, etat: 'lecture', annees: [], annee: 0, erreur: '', centre: c };
+    fetchAvecAuth(`/api/urbanisme/cliches?lon=${c.lon}&lat=${c.lat}`).then(async r => {
+      const j = await r.json().catch(() => ({}));
+      if (clichesCarte.cle !== cle) return;
+      clichesCarte.etat = r.ok ? 'ok' : 'erreur';
+      clichesCarte.annees = r.ok && Array.isArray(j.annees) ? j.annees : [];
+      clichesCarte.erreur = r.ok ? '' : (j.erreur || 'Liste non lue.');
+      clichesCarte.annee = clichesCarte.annees[0] ? clichesCarte.annees[0].annee : 0;
+      renderClichesCarte();
+    }).catch(() => { if (clichesCarte.cle === cle) { clichesCarte.etat = 'erreur'; clichesCarte.erreur = 'Serveur injoignable.'; renderClichesCarte(); } });
+  }
+  const tete = `<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre sur « Remonter le temps », centré sur le bien, pour le voir en grand et le télécharger.')}"></span></h2>`;
+  if (clichesCarte.etat === 'lecture') { z.innerHTML = `${tete}<p class="hint">${icone('spinner')} Liste des clichés…</p>`; return; }
+  if (clichesCarte.etat === 'erreur') { z.innerHTML = `${tete}<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(clichesCarte.erreur)}</p>`; return; }
+  if (!clichesCarte.annees.length) { z.innerHTML = `${tete}<p class="hint">Aucun cliché de l’IGN publié sur ce point.</p>`; return; }
+  const choisie = clichesCarte.annees.find(a => a.annee === clichesCarte.annee) || clichesCarte.annees[0];
+  const cc = clichesCarte.centre;
+  z.innerHTML = `${tete}
+    <div class="pr-cliches-annees" role="group" aria-label="Années des clichés">${clichesCarte.annees.map(a => `<button type="button" class="pr-cliche-annee${a.annee === choisie.annee ? ' actif' : ''}" onclick="choisirAnneeClichesCarte(${Number(a.annee)})">${Number(a.annee)}</button>`).join('')}</div>
+    <div class="pr-cliches">${choisie.cliches.slice(0, 12).map(x => `<a class="pr-cliche" href="${escapeAttr(lienRemonterLeTemps(cc.lon, cc.lat, x.annee, x.mission))}" target="_blank" rel="noopener">
+        <span class="pr-cliche-texte"><span class="pr-cliche-date">${escapeHtml(formatDateFr(x.date))}</span><span class="pr-cliche-sous">Cliché ${escapeHtml(String(x.numero || '—'))} · mission ${escapeHtml(x.mission || x.lot || '—')}</span></span>
+        <span class="pr-cliche-voir">${icone('lien-externe')} Voir</span>
+      </a>`).join('')}</div>
+    ${choisie.cliches.length > 12 ? `<p class="hint">${choisie.cliches.length - 12} autres clichés cette année-là sur « Remonter le temps ».</p>` : ''}`;
+}
+
+function choisirAnneeClichesCarte(annee) {
+  clichesCarte.annee = Number(annee) || 0;
+  renderClichesCarte();
+}
+
+// « Demander à CLAIRE » : controle_urbanisme action « cliches » — les mêmes clichés, par année, avec leur lien.
+async function clichesCarteAgent(etat) {
+  const r = await fetchAvecAuth(`/api/urbanisme/vue?insee=${encodeURIComponent(etat.insee)}&parcelles=${encodeURIComponent(etat.parcelles)}`);
+  const vue = await r.json().catch(() => ({}));
+  const c = r.ok ? centreParcellesCarte(vue) : null;
+  if (!c) return { erreur: vue.erreur || 'parcelles introuvables au cadastre' };
+  const rc = await fetchAvecAuth(`/api/urbanisme/cliches?lon=${c.lon}&lat=${c.lat}`);
+  const j = await rc.json().catch(() => ({}));
+  if (!rc.ok) return { erreur: j.erreur || 'liste des clichés non lue' };
+  return { annees: (j.annees || []).map(a => ({ annee: a.annee, nombre: a.cliches.length, dates: [...new Set(a.cliches.map(x => x.date))].slice(0, 5),
+    lien: lienRemonterLeTemps(c.lon, c.lat, a.annee, a.cliches[0] && a.cliches[0].mission) })), source: 'prises de vues aériennes de l’IGN (Géoplateforme) — image sur « Remonter le temps »' };
 }

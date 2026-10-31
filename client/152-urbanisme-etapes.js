@@ -334,6 +334,7 @@ async function controleUrbanismeAgent(entree) {
   }
   if (e.action === 'parcelles') return parcellesCarteAgent(etat);
   if (e.action === 'ventes') return ventesCarteAgent(etat, e.filtre);
+  if (e.action === 'cliches') return clichesCarteAgent(etat);
   if (e.action === 'ouvrir') {
     const copie = etat;
     poserMessageAssistant('claire', `<p>Contrôle de l’urbanisme — ${escapeHtml(libelleDossierAffiche(d))} : prêt, avec le plan cadastral demandé à l’ouverture.</p>`,

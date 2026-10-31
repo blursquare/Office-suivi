@@ -141,3 +141,23 @@ test('tuiles : coupe-circuit après dix échecs de suite', async () => {
   assert.equal(t.vide, true);
   assert.equal(appels, 10, 'plus aucune demande pendant la coupure');
 });
+
+test('clichés de l’IGN : mission lue dans l’identifiant, rangés par année, plus récents d’abord, sans doublon', async () => {
+  assert.equal(C.missionDuCliche('IGNF_PVA_1-0__2002-07-22__CP02000042_2002_fd3741_250_c_0505'), 'P02000042');
+  assert.equal(C.missionDuCliche('IGNF_PVA_1-0__1986-09-02__C2021-0191_1986_CDP7745_0108'), '2021-0191');
+  assert.equal(C.missionDuCliche('autre chose'), '');
+  const f = (id, date, numero) => ({ properties: { image_identifier: id, date_cliche: date + 'Z', numero_image: numero, dataset_identifier: 'x', orientation: 269 } });
+  const annees = C.clichesDepuisPva({ features: [
+    f('IGNF_PVA_1-0__1955-04-14__C2521-0051_1955_F2021-2521_0169', '1955-04-14', 169),
+    f('IGNF_PVA_1-0__2002-07-22__CP02000042_2002_fd3741_250_c_0506', '2002-07-22', 506),
+    f('IGNF_PVA_1-0__2002-07-22__CP02000042_2002_fd3741_250_c_0505', '2002-07-22', 505),
+    f('IGNF_PVA_1-0__2002-07-22__CP02000042_2002_fd3741_250_c_0505', '2002-07-22', 505),
+    { properties: { image_identifier: 'pas un cliché', date_cliche: '2002-01-01Z' } }
+  ] });
+  assert.equal(annees.map(a => a.annee).join(','), '2002,1955');
+  assert.equal(annees[0].cliches.map(c => c.numero).join(','), '505,506');
+  const appels = [];
+  const r = await C.clichesAeriens(1.383485, 47.570033, { fetch: async (u) => { appels.push(u); return reponse({ features: [] }); } });
+  assert.deepEqual(r.annees, []);
+  assert.match(appels[0], /^https:\/\/data\.geopf\.fr\/wfs\/ows\?.*TYPENAMES=pva:image.*BBOX=47\.569533,1\.382985,47\.570533,1\.383985/);
+});

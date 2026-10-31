@@ -33,10 +33,10 @@ const PNG_VIDE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADU
 // Caches SÉPARÉS par sorte (audit 0.416.0 : un seul Map dont chaque plafond purgeait les autres sortes) ; une demande déjà en cours est
 // réunie avec la suivante ; au plus 8 requêtes simultanées vers les services de l'IGN et d'Etalab.
 /** @type {Record<string, Map<string, { le: number, valeur: any }>>} */
-const caches = { p: new Map(), z: new Map(), dvf: new Map(), ban: new Map() };
+const caches = { p: new Map(), z: new Map(), dvf: new Map(), ban: new Map(), pva: new Map() };
 /** @type {Map<string, Promise<any>>} */
 const enCours = new Map();
-/** @param {'p'|'z'|'dvf'|'ban'} sorte @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire @param {(v: any) => boolean} [garder] */
+/** @param {'p'|'z'|'dvf'|'ban'|'pva'} sorte @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire @param {(v: any) => boolean} [garder] */
 async function enCache(sorte, cle, dureeMs, max, lire, garder) {
   const cache = caches[sorte];
   const c = cache.get(cle);
@@ -358,6 +358,54 @@ async function ventesSection(insee, section, prefixe, injections) {
   return enCache('dvf', `${code}:${sec}`, 24 * 3600 * 1000, 80, async () => ({ insee: code, section: sec, ventes: ventesDepuisDvf(await lireJson(`${DVF}/${code}/${sec}`, injections)) }));
 }
 
+// ---- Clichés aériens de l'IGN (étude 31/10 : « récupérer les photos aériennes individuelles de Remonter le temps, par année ») ----------
+// Liste officielle des prises de vues aériennes (couche pva:image du service WFS de la Géoplateforme, données ouvertes) : chaque cliché qui
+// couvre le point, avec sa date, sa mission, son numéro et l'orientation du nord. L'image elle-même se voit sur « Remonter le temps »
+// (lien ouvert par le poste) : aucun service officiel documenté ne la donne encore. Ne part que le point (un carré de ±50 m).
+
+/** Pure : le code de mission d'un identifiant de cliché (« IGNF_PVA_1-0__2002-07-22__CP02000042_2002_… » → « P02000042 »). @param {string} id */
+function missionDuCliche(id) {
+  const m = /^IGNF_PVA_[^_]+(?:_[^_]+)*?__\d{4}-\d{2}-\d{2}__C?([0-9A-Z][0-9A-Z-]{3,20})_/.exec(String(id || ''));
+  return m ? m[1] : '';
+}
+
+/** Pure : les clichés rangés par année, les plus récents d'abord. @param {any} reponse */
+function clichesDepuisPva(reponse) {
+  const vus = new Set();
+  const liste = [];
+  for (const f of (reponse && Array.isArray(reponse.features) ? reponse.features : [])) {
+    const p = (f && f.properties) || {};
+    const id = String(p.image_identifier || '');
+    const date = String(p.date_cliche || '').slice(0, 10);
+    if (!/^IGNF_PVA_/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || vus.has(id)) continue;
+    vus.add(id);
+    liste.push({ id, date, annee: Number(date.slice(0, 4)), numero: Number(p.numero_image) || null, mission: missionDuCliche(id),
+      lot: String(p.dataset_identifier || ''), orientation: Number.isFinite(Number(p.orientation)) ? Number(p.orientation) : null });
+  }
+  liste.sort((a, b) => b.date.localeCompare(a.date) || (a.numero || 0) - (b.numero || 0));
+  /** @type {Array<{ annee: number, cliches: any[] }>} */
+  const annees = [];
+  for (const c of liste) {
+    let a = annees.find((x) => x.annee === c.annee);
+    if (!a) { a = { annee: c.annee, cliches: [] }; annees.push(a); }
+    a.cliches.push(c);
+  }
+  return annees;
+}
+
+/** Les clichés aériens de l'IGN qui couvrent un point. @param {unknown} lon @param {unknown} lat @param {any} [injections] */
+async function clichesAeriens(lon, lat, injections) {
+  const p = pointValide(lon, lat);
+  if (!p) return { erreur: 'Point hors de France.' };
+  const d = 0.0005;
+  const bbox = [p.lat - d, p.lon - d, p.lat + d, p.lon + d].map((x) => x.toFixed(6)).join(',');
+  return enCache('pva', `${p.lon}:${p.lat}`, 7 * 24 * 3600 * 1000, 100, async () => {
+    const r = await lireJson(`${GEOPF}/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=pva:image&COUNT=500&OUTPUTFORMAT=application/json`
+      + `&PROPERTYNAME=image_identifier,dataset_identifier,date_cliche,numero_image,orientation&BBOX=${bbox},urn:ogc:def:crs:EPSG::4326`, injections);
+    return { point: p, annees: clichesDepuisPva(r) };
+  });
+}
+
 function viderCacheCarte() { Object.values(caches).forEach((c) => c.clear()); tuiles.clear(); octetsTuiles = 0; echecsTuiles = 0; tuilesCoupeesJusqua = 0; enCours.clear(); }
 
-module.exports = { COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };
+module.exports = { missionDuCliche, clichesDepuisPva, clichesAeriens, COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };

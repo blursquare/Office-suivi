@@ -11772,6 +11772,17 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-fiche-detail { font-size: var(--texte-s); color: var(--muted); }
 .pr-fiche-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
 .pr-zone-pastille { align-self: flex-start; padding: 1px 8px; border-radius: var(--rayon-s); border: 1px solid var(--zone); color: var(--ink); font-weight: 600; background: color-mix(in srgb, var(--zone) 18%, transparent); }
+.pr-cliches-annees { display: flex; flex-wrap: wrap; gap: 4px; }
+.pr-cliche-annee { padding: 2px 8px; border: 1px solid var(--line); border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); font: inherit; font-size: var(--texte-s); font-variant-numeric: tabular-nums; cursor: pointer; }
+.pr-cliche-annee:hover { background: var(--paper-sunk); }
+.pr-cliche-annee.actif { background: var(--focus); border-color: var(--focus); color: var(--blanc-fixe); }
+.pr-cliches { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.pr-cliche { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--rayon-m); color: var(--ink); text-decoration: none; }
+.pr-cliche:hover { background: var(--paper-sunk); }
+.pr-cliche-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pr-cliche-date { font-weight: 500; }
+.pr-cliche-sous { font-size: var(--texte-xs); color: var(--muted); }
+.pr-cliche-voir { display: inline-flex; align-items: center; gap: 4px; font-size: var(--texte-s); color: var(--focus); white-space: nowrap; }
 .pr-ventes-tete { display: flex; flex-direction: column; gap: 8px; }
 .pr-ventes { display: flex; flex-direction: column; gap: 6px; }
 .pr-vente { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font: inherit; cursor: pointer; }

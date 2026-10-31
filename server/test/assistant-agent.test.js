@@ -1196,7 +1196,7 @@ test('31/10 : controle_urbanisme — étapes de l’outil pour l’agent ; rien 
 
 test('31/10 : controle_urbanisme parcelles et ventes (carte) — rien de nominatif ne part, zones, parts et prix partent', async () => {
   const outilU = OUTILS_AGENT.find((t) => t.name === 'controle_urbanisme');
-  assert.ok(outilU.input_schema.properties.action.enum.includes('parcelles') && outilU.input_schema.properties.action.enum.includes('ventes'));
+  assert.ok(['parcelles', 'ventes', 'cliches'].every(a => outilU.input_schema.properties.action.enum.includes(a)));
   assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /parcelles et les ventes|ventes DVF/);
   const client = fauxClient([
     { stop_reason: 'tool_use', usage, content: [outil('p1', 'controle_urbanisme', { dossier_id: 'd1', action: 'parcelles' }), outil('v1', 'controle_urbanisme', { dossier_id: 'd1', action: 'ventes' })] },

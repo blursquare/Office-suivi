@@ -67,3 +67,10 @@ test('adresse de la Base adresse nationale : celle de la parcelle, sinon le plus
   assert.match(app.texteAdresseBanCarte([], { libelle: 'x', distance: 5, banLue: true, certifie: false, parcelles: [] }), /rattaché à aucune parcelle/);
   assert.equal(app.texteAdresseBanCarte([], null), '');
 });
+
+test('clichés de l’IGN : lien « Remonter le temps » centré sur le bien, à l’année et à la mission', () => {
+  assert.equal(app.lienRemonterLeTemps(1.580849, 47.348714, 2001, 'P02000042'), 'https://remonterletemps.ign.fr/telecharger/?lon=1.580849&lat=47.348714&z=15&layer=pva&year=2001&mission=P02000042');
+  const c = app.centreParcellesCarte({ etiquettes: [{ dossier: true, x: 1, y: 47 }, { dossier: true, x: 2, y: 48 }, { dossier: false, x: 9, y: 9 }] });
+  assert.equal(`${c.lon},${c.lat}`, '1.5,47.5');
+  assert.equal(app.centreParcellesCarte(null), null);
+});
