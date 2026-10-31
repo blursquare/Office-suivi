@@ -373,7 +373,7 @@ var RUBRIQUES_DECOUPAGE = [
 ];
 
 // choisie = pièce montrée dans l'aperçu, pageVue = page affichée en grand, rotations = { page: quart de tour en degrés }.
-var dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: 0, choisie: '', pageVue: 0, gardes: [], rotations: {} };
+var dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: 0, choisie: '', pageVue: 0, gardes: [], rotations: {}, loupe: false };
 var dcNumeroPieceAjoutee = 0;
 
 function dcDossier() { return dossiers.find(x => x && x.id === dcEtat.dossierId) || null; }
@@ -394,7 +394,7 @@ function compromisCompletNas(d, fichiers) {
 async function dcChoisirDossier(id) {
   const d = dossiers.find(x => x && x.id === id);
   dcFermerApercu(dcEtat.source);
-  dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: dcEtat.jeton + 1, choisie: '', pageVue: 0, gardes: [], rotations: {} };
+  dcEtat = { dossierId: '', source: null, pages: [], pieces: [], separateurs: 0, lecture: '', message: '', range: false, jeton: dcEtat.jeton + 1, choisie: '', pageVue: 0, gardes: [], rotations: {}, loupe: false };
   if (!decoupagePossible(d)) { renderDecoupage(); return; }
   dcEtat.dossierId = d.id;
   if (!d.nasDossier) { dcEtat.message = 'Dossier non relié au NAS : choisissez le PDF du compromis signé.'; renderDecoupage(); return; }
@@ -591,22 +591,53 @@ function dcChoisirPiece(id) {
   dcEtat.choisie = p.id;
   dcEtat.pageVue = p.pages[0] || 0;
   renderDecoupage();
+  dcMontrerPageVue();
 }
 
+// La page sélectionnée est montrée (étude 31/10 : « et voir la page sélectionnée ») : en grand, entière à l'écran, sa vignette
+// marquée ; un clic sur la page en grand l'ouvre en plein écran (loupe).
 function dcVoirPage(n) {
   if (!(n >= 1 && n <= dcEtat.pages.length)) return;
   dcEtat.pageVue = n;
   renderDecoupage();
+  dcMontrerPageVue();
 }
 
-// Page suivante ou précédente de la pièce choisie (‹ ›).
-function dcPageVoisine(sens) {
-  const p = dcPiece(dcEtat.choisie);
-  if (!p || !p.pages.length) return;
-  const i = p.pages.indexOf(dcEtat.pageVue);
-  const j = i < 0 ? 0 : Math.min(p.pages.length - 1, Math.max(0, i + sens));
-  dcVoirPage(p.pages[j]);
+// Fait défiler la fenêtre juste ce qu'il faut pour voir la page en grand entière (rien si elle l'est déjà, ni en plein écran).
+function dcMontrerPageVue() {
+  if (dcEtat.loupe) return;
+  const el = document.querySelector('#dc-carte .dc-grande-page');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
+
+// Pages que ‹ › parcourent : celles des vignettes (la pièce, encadrée de la page d'avant et de celle d'après).
+function dcPagesParcourues() {
+  const p = dcPiece(dcEtat.choisie);
+  return p && p.pages.length ? vignettesPieceDecoupage(p.pages, dcEtat.pages.length).map(v => v.page) : [];
+}
+
+// Page suivante ou précédente (‹ ›, flèches du clavier).
+function dcPageVoisine(sens) {
+  const l = dcPagesParcourues();
+  if (!l.length) return;
+  const i = l.indexOf(dcEtat.pageVue);
+  const j = i < 0 ? 0 : Math.min(l.length - 1, Math.max(0, i + sens));
+  if (l[j] !== dcEtat.pageVue) dcVoirPage(l[j]);
+}
+
+function dcOuvrirLoupe() { if (dcEtat.pageVue) { dcEtat.loupe = true; renderDecoupage(); } }
+function dcFermerLoupe() { if (dcEtat.loupe) { dcEtat.loupe = false; renderDecoupage(); } }
+
+// Clavier sur l'écran de l'outil, hors d'un champ : ← → changent de page, Échap ferme le plein écran.
+document.addEventListener('keydown', ev => {
+  if (typeof ecranAffiche !== 'function' || !ecranAffiche('decoupage') || !dcEtat.source) return;
+  const cible = ev.target;
+  if (cible && (/^(input|select|textarea)$/i.test(cible.tagName || '') || cible.isContentEditable)) return;
+  if (ev.altKey || ev.ctrlKey || ev.metaKey) return;
+  if (ev.key === 'ArrowLeft' || ev.key === 'ArrowUp') { ev.preventDefault(); dcPageVoisine(-1); }
+  else if (ev.key === 'ArrowRight' || ev.key === 'ArrowDown') { ev.preventDefault(); dcPageVoisine(1); }
+  else if (ev.key === 'Escape' && dcEtat.loupe) { ev.preventDefault(); dcFermerLoupe(); }
+});
 
 // Correction d'un clic : une page de la pièce retirée, ou la page voisine (grisée) ajoutée.
 function dcBasculerPage(id, n) {
@@ -688,6 +719,7 @@ function dcTournerPiece(id) {
 // à la demande puis gardée. Rendu en « print » : en « display », pdf.js attend l'image suivante de l'écran, arrêtée fenêtre cachée.
 var DC_LARGEUR_VIGNETTE = 160;
 var DC_LARGEUR_GRANDE = 900;
+var DC_LARGEUR_LOUPE = 1600;
 
 function dcFermerApercu(source) {
   if (!source) return;
@@ -720,13 +752,15 @@ function dcImagePage(source, n, largeur, rot) {
   return promesse;
 }
 
+function dcPrioriteImage(img) { return img.classList.contains('dc-image-loupe') ? 2 : img.classList.contains('dc-image-grande') ? 1 : 0; }
+
 // Remplit les images encore vides de l'écran, une à la fois (la grande d'abord), tant que l'écran n'a pas changé de document.
 async function dcRemplirImages() {
   const source = dcEtat.source;
   if (!source || typeof pdfjsLib === 'undefined') return;
   const carte = document.getElementById('dc-carte');
   if (!carte) return;
-  const vides = Array.from(carte.querySelectorAll('img[data-dc-page]:not([src])')).sort((a, b) => b.classList.contains('dc-image-grande') - a.classList.contains('dc-image-grande'));
+  const vides = Array.from(carte.querySelectorAll('img[data-dc-page]:not([src])')).sort((a, b) => dcPrioriteImage(b) - dcPrioriteImage(a));
   for (const img of vides) {
     if (!img.isConnected) continue;
     const n = Number(img.dataset.dcPage); const largeur = Number(img.dataset.dcLargeur); const rot = Number(img.dataset.dcRot) || 0;
@@ -860,7 +894,7 @@ function dcRendreCorps() {
         </div>
         ${dcDetailPiece()}
       </div>
-    </div>`;
+    </div>${dcLoupe()}`;
   // La colonne des vignettes défile seule jusqu'à la page affichée (jamais la page entière).
   const active = carte.querySelector('.dc-vignette.actif');
   if (active) {
@@ -869,6 +903,26 @@ function dcRendreCorps() {
     bande.scrollLeft = Math.max(0, active.offsetLeft - bande.offsetLeft - (bande.clientWidth - active.clientWidth) / 2);
   }
   dcRemplirImages();
+}
+
+// Plein écran de la page sélectionnée : ‹ › (et les flèches) parcourent la pièce, ↻ la tourne, Échap ou × ferme.
+function dcLoupe() {
+  const p = dcPiece(dcEtat.choisie);
+  const n = dcEtat.pageVue;
+  if (!dcEtat.loupe || !p || !n) return '';
+  const l = dcPagesParcourues();
+  const i = l.indexOf(n);
+  const garde = dcEtat.gardes.includes(n);
+  return `<div class="dc-loupe" role="dialog" aria-label="Page ${n} en plein écran" onclick="if (event.target === this) dcFermerLoupe()">
+      <div class="dc-loupe-barre">
+        <span class="dc-loupe-titre">${escapeHtml(p.nom)} · page ${n} / ${dcEtat.pages.length}${p.pages.includes(n) ? '' : garde ? ' · page de garde, jamais reprise' : ' · hors de cette pièce'}</span>
+        <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page précédente"${i > 0 ? '' : ' disabled'} onclick="dcPageVoisine(-1)">${icone('chevron-left')}</wa-button>
+        <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page suivante"${i >= 0 && i < l.length - 1 ? '' : ' disabled'} onclick="dcPageVoisine(1)">${icone('chevron-right')}</wa-button>
+        ${garde ? '' : `<wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Tourner cette page" aria-label="Tourner cette page" onclick="dcTourner([${n}])">${icone('rotate-cw')}</wa-button>`}
+        <wa-button appearance="plain" size="s" class="bouton-icone" type="button" title="Fermer (Échap)" aria-label="Fermer le plein écran" onclick="dcFermerLoupe()">${icone('x')}</wa-button>
+      </div>
+      <div class="dc-loupe-page">${dcBaliseImage(n, DC_LARGEUR_LOUPE, 'dc-image-loupe')}</div>
+    </div>`;
 }
 
 var ICONES_SORTES_DECOUPAGE = { compromis: 'file-text', annexe: 'paperclip', diagnostic: 'shield', diagnostics: 'list-check' };
@@ -893,11 +947,13 @@ function dcDetailPiece() {
   const n = p.pages.includes(dcEtat.pageVue) || vignettesPieceDecoupage(p.pages, total).some(v => v.page === dcEtat.pageVue) ? dcEtat.pageVue : p.pages[0];
   const dedans = p.pages.includes(n);
   const rang = p.pages.indexOf(n);
+  const parcourues = vignettesPieceDecoupage(p.pages, total).map(v => v.page);
+  const iVue = parcourues.indexOf(n);
   const peutCouper = !!scinderPagesDecoupage(p.pages, n);
   const garde = (x) => dcEtat.gardes.includes(x);
   const vignettes = vignettesPieceDecoupage(p.pages, total).map(v => `<div class="dc-vignette${v.dedans ? '' : ' dc-hors'}${v.page === n ? ' actif' : ''}">
       <button type="button" class="dc-vignette-image" onclick="dcVoirPage(${v.page})" title="Voir la page ${v.page} en grand">${dcBaliseImage(v.page, DC_LARGEUR_VIGNETTE, 'dc-image')}</button>
-      <span class="dc-vignette-pied"><span>${garde(v.page) ? 'garde' : `p. ${v.page}`}</span>
+      <span class="dc-vignette-pied"><span>${garde(v.page) ? 'garde' : `p. ${v.page}`}${v.page === n ? ' · affichée' : ''}</span>
         ${garde(v.page) ? '' : `<button type="button" class="dc-vignette-geste" onclick="dcTourner([${v.page}])" title="Tourner cette page d’un quart de tour" aria-label="Tourner la page ${v.page}">${icone('rotate-cw')}</button><button type="button" class="dc-vignette-geste" onclick="dcBasculerPage('${ido}', ${v.page})" title="${v.dedans ? 'Retirer cette page de la pièce' : 'Ajouter cette page à la pièce'}" aria-label="${v.dedans ? 'Retirer' : 'Ajouter'} la page ${v.page}">${icone(v.dedans ? 'x' : 'plus')}</button>`}</span>
     </div>`).join('');
   return `<div class="dc-centre">
@@ -917,16 +973,16 @@ function dcDetailPiece() {
       </div>
       <div class="dc-grande">
         <div class="dc-grande-barre">
-          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page précédente"${rang > 0 ? '' : ' disabled'} onclick="dcPageVoisine(-1)">${icone('chevron-left')}</wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page précédente"${iVue > 0 ? '' : ' disabled'} onclick="dcPageVoisine(-1)">${icone('chevron-left')}</wa-button>
           <span class="dc-grande-numero">Page ${n} / ${total}${dedans ? ` · ${rang + 1}ᵉ sur ${p.pages.length}` : garde(n) ? ' · page de garde, jamais reprise' : ' · hors de cette pièce'}</span>
-          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page suivante"${dedans && rang < p.pages.length - 1 ? '' : ' disabled'} onclick="dcPageVoisine(1)">${icone('chevron-right')}</wa-button>
+          <wa-button appearance="plain" size="s" class="bouton-icone" type="button" aria-label="Page suivante"${iVue >= 0 && iVue < parcourues.length - 1 ? '' : ' disabled'} onclick="dcPageVoisine(1)">${icone('chevron-right')}</wa-button>
           <span class="dc-grande-gestes">
             ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcTourner([${n}])" title="Tourner cette page d’un quart de tour (sens des aiguilles d’une montre)">${icone('rotate-cw')}Tourner</wa-button>`}
             ${peutCouper ? `<wa-button appearance="outlined" size="s" type="button" onclick="dcScinder('${ido}', ${n})" title="Deux annexes réunies : la suite, à partir de cette page, devient une nouvelle pièce">${icone('ciseaux')}Couper ici</wa-button>` : ''}
             ${garde(n) ? '' : `<wa-button appearance="outlined" size="s" type="button" onclick="dcBasculerPage('${ido}', ${n})">${icone(dedans ? 'x' : 'plus')}${dedans ? 'Retirer' : 'Ajouter'}</wa-button>`}
           </span>
         </div>
-        <div class="dc-grande-page${dedans ? '' : ' dc-hors'}">${dcBaliseImage(n, DC_LARGEUR_GRANDE, 'dc-image-grande')}</div>
+        <button type="button" class="dc-grande-page${dedans ? '' : ' dc-hors'}" onclick="dcOuvrirLoupe()" title="Voir la page ${n} en plein écran">${dcBaliseImage(n, DC_LARGEUR_GRANDE, 'dc-image-grande')}<span class="dc-grande-loupe" aria-hidden="true">${icone('maximize')}</span></button>
       </div>
     </div>
     <div class="dc-cote">

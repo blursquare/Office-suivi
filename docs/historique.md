@@ -23549,3 +23549,7 @@ les aperçus de petites pages à droite les uns sur les autres dans une sidebar 
 - Essayé dans Chromium : accueil, dépôt d'annexes sans compromis (56 pages tirées du compromis réel, hors dépôt), rattachement,
   rotation rangée (rotation lue dans le PDF rangé), compromis du NAS ; aucune erreur de page, pas de débordement au téléphone.
   Les trois compromis réels : découpage inchangé.
+- Étude, même soir : « et voir la page sélectionnée ». La vignette de la page affichée est marquée (« · affichée », contour de
+  l'accent) ; la fenêtre défile juste ce qu'il faut pour montrer la page en grand entière (`dcMontrerPageVue`) ; un clic sur la page
+  en grand l'ouvre en plein écran (`dcLoupe`, 1 600 px de large : ‹ › , ↻, ×) ; ← → (et ↑ ↓) parcourent les pages des vignettes —
+  la pièce et ses deux voisines —, hors d'un champ de saisie ; Échap ferme le plein écran.
