@@ -363,11 +363,11 @@ async function executerTacheRappelsSeule(depot, db, parametresRepo, envoyerFn, a
         const copie = await envoyer(reglages, reglages.copieEmail, texte, undefined, { dossierId: r.dossierId });
         if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
         if (!copie.ok) {
-          resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${r.libelle} : ${copie.erreur}`);
+          resultat.erreurs.push(`Copie (${reglages.copieEmail}) pour ${r.nomDossier} — ${groupe.map((x) => x.libelle).join(', ')} : ${copie.erreur}`);
         }
       }
     } else {
-      resultat.erreurs.push(`${r.nomDossier} — ${r.libelle} : ${envoi.erreur}`);
+      resultat.erreurs.push(`${r.nomDossier} — ${groupe.map((x) => x.libelle).join(', ')} : ${envoi.erreur}`);
     }
   }
 

@@ -28,9 +28,10 @@ function transport(reponses) {
   const corps = [];
   const poster = (o, cb) => {
     corps.push(o.body);
-    const cle = /Id="deleteditems"/.test(o.body) ? 'corbeille' : /FindFolder/.test(o.body) ? 'dossiers' : /MoveItem/.test(o.body) ? 'deplace' : 'find';
+    const versCorbeille = /MoveItem/.test(o.body) && /Id="deleteditems"/.test(o.body);
+    const cle = /MoveItem/.test(o.body) ? 'deplace' : /Id="deleteditems"/.test(o.body) ? 'corbeille' : /FindFolder/.test(o.body) ? 'dossiers' : 'find';
     if (reponses.pendant) reponses.pendant(cle);
-    cb(null, { statusCode: 200, body: reponses[cle] || dossiers([]) });
+    cb(null, { statusCode: 200, body: (versCorbeille && reponses.deplaceCorbeille) || reponses[cle] || dossiers([]) });
   };
   return { poster, corps };
 }
@@ -47,6 +48,14 @@ test('pur : les deux règles de l’étude, rien d’autre', () => {
   assert.equal(R.regleRangementPourEmail({ objet: 'Dossier FIDJI', de: 'x@y.fr' }), null);
   assert.equal(R.regleRangementPourEmail({ objet: 'Bonjour', de: 'quarantaine@notaires.fr.exemple.com' }), null);
   assert.equal(R.regleRangementPourEmail({ objet: 'RE: quarantaine@notaires.fr', de: 'client@exemple.fr' }), null);
+  // Relevés de compte de la DGFiP (étude 31/10) : objet ET domaine.
+  assert.equal(R.regleRangementPourEmail({ objet: 'Relevé de compte du mois de septembre 2026', de: 'sie.blois@dgfip.finances.gouv.fr' }).id, 'dgfip-releve-compte');
+  assert.equal(R.regleRangementPourEmail({ objet: 'RELEVE DE COMPTE DU MOIS DE OCTOBRE', de: 'Tresorerie@DGFIP.finances.gouv.fr' }).id, 'dgfip-releve-compte');
+  assert.equal(R.regleRangementPourEmail({ objet: 'Relevé de compte du mois de septembre', de: 'banque@exemple.fr' }), null);
+  assert.equal(R.regleRangementPourEmail({ objet: 'Avis d’imposition', de: 'sie.blois@dgfip.finances.gouv.fr' }), null);
+  assert.equal(R.regleRangementPourEmail({ objet: 'RE: Relevé de compte du mois de septembre', de: 'sie.blois@dgfip.finances.gouv.fr' }), null);
+  assert.equal(R.regleRangementPourEmail({ objet: 'Relevé de compte du mois de mai', de: 'x@faux-dgfip.finances.gouv.fr.exemple.com' }), null);
+  assert.equal(R.regleRangementPourEmail({ objet: 'Message mis en quarantaine', de: 'quarantaine@notaires.fr' }).cible, 'corbeille');
 });
 
 test('pur : dossier « Traiter à distance » retrouvé sans tenir compte des accents ni de la casse ; absent ou double → rien', () => {
@@ -64,16 +73,19 @@ test('tour : seuls les emails des règles sont déplacés dans le dossier, compt
   const t = transport({
     dossiers: dossiers([['INBOX', 'Boîte de réception'], ['TAD', 'Traiter à distance']]),
     find: find([msg('m1', 'Facture Dossier FIDJI 2026-0042', 'spf@dgfip.finances.gouv.fr'), msg('m2', 'Offre de prêt', 'banque@exemple.fr'), msg('m3', 'Quarantaine', 'quarantaine@notaires.fr')]),
-    deplace: deplace(['Success', 'Success'])
+    deplace: deplace(['Success'])
   });
   const r = await R.executerTourRangement(repo, { poster: t.poster }, true);
   assert.equal(r.ok, true);
   assert.equal(r.ranges, 2);
-  const move = t.corps.find((c) => /MoveItem/.test(c));
-  assert.match(move, /<t:FolderId Id="TAD"\/>/);
-  assert.match(move, /Id="m1"/);
-  assert.match(move, /Id="m3"/);
-  assert.doesNotMatch(move, /Id="m2"/);
+  const moves = t.corps.filter((c) => /MoveItem/.test(c));
+  assert.equal(moves.length, 2);
+  assert.match(moves[0], /<t:FolderId Id="TAD"\/>/);
+  assert.match(moves[0], /Id="m1"/);
+  assert.doesNotMatch(moves[0], /Id="m2"|Id="m3"/);
+  // Quarantaine : dans la corbeille (Éléments supprimés), jamais effacée (étude 31/10).
+  assert.match(moves[1], /<m:ToFolderId><t:DistinguishedFolderId Id="deleteditems"\/><\/m:ToFolderId>/);
+  assert.match(moves[1], /Id="m3"/);
   assert.equal(t.corps.some((c) => /HardDelete|DeleteItem|item:Body/.test(c)), false);
   const etat = R.lireEtatRangement(repo);
   assert.equal(etat.ranges['spf-facture-fidji'], 1);
@@ -150,7 +162,8 @@ test('tour : l’interrupteur coupé pendant un tour reste coupé ; lot en parti
   const reponses = {
     dossiers: dossiers([['TAD', 'Traiter à distance']]),
     find: find([msg('m1', 'Facture Dossier FIDJI', 'spf@dgfip.finances.gouv.fr'), msg('m2', 'Alerte', 'quarantaine@notaires.fr')]),
-    deplace: deplace(['Success', 'Error']),
+    deplace: deplace(['Success']),
+    deplaceCorbeille: deplace(['Error']),
     pendant: (cle) => { if (cle === 'deplace') { const e = R.lireEtatRangement(repo); e.actif = false; R.ecrireEtatRangement(repo, e); } }
   };
   const t = transport(reponses);

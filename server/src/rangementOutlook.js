@@ -7,7 +7,8 @@
 // derniers emails de la BOÎTE DE RÉCEPTION du compte relié (objet et expéditeur seulement — jamais le texte), REÇUS DEPUIS LA MISE EN
 // PLACE seulement (étude 19/10 : « que ma boîte et que les prochains » — repère `depuis`, posé au premier tour et à chaque remise en
 // marche ; les emails déjà là ne bougent pas) ; ceux qu'une
-// règle désigne sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier « Traiter à distance » de la même boîte.
+// règle désigne sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier « Traiter à distance » de la même boîte — ou, pour une règle
+// `cible: 'corbeille'` (quarantaine, étude 31/10), dans ses Éléments supprimés, d'où ils se récupèrent.
 // Le dossier est retrouvé par son nom (accents et casse ignorés) ; absent ou en double → rien n'est déplacé, l'état le dit
 // dans Réglages › Agenda et Outlook. Un déplacement refusé n'est pas retenté avant 6 h. Les règles sont écrites ici, à la
 // demande de l'étude : une nouvelle règle = une entrée de REGLES_RANGEMENT_OUTLOOK + son test.
@@ -26,7 +27,7 @@ const MAX_DEPLACES_TOUR = 50;
 const DELAI_REESSAI_MS = 6 * 3600 * 1000;
 const MAX_ECHECS_GARDES = 200;
 
-/** @typedef {{ id: string, libelle: string, objet?: string, expediteur?: string }} RegleRangement */
+/** @typedef {{ id: string, libelle: string, objet?: string, objetDebut?: string, expediteur?: string, domaine?: string, cible?: 'corbeille' }} RegleRangement */
 /** Adresses d'expéditeurs ajoutées par l'étude dans les Réglages (étude 19/10 : « un champ pour rajouter des adresses, exemple
  * facturation@… ») : une règle de plus, comptée à part. */
 const REGLE_ADRESSES_AJOUTEES = { id: 'adresses-ajoutees', libelle: 'Adresses ajoutées par l’étude' };
@@ -36,7 +37,10 @@ const RE_ADRESSE_EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i;
 /** @type {RegleRangement[]} */
 const REGLES_RANGEMENT_OUTLOOK = [
   { id: 'spf-facture-fidji', libelle: 'Objet « Facture Dossier FIDJI » (SPF)', objet: 'facture dossier fidji' },
-  { id: 'quarantaine-notaires', libelle: 'Expéditeur quarantaine@notaires.fr', expediteur: 'quarantaine@notaires.fr' }
+  // Étude 31/10 : « pour les mises en quarantaine, plutôt les déplacer dans la corbeille » — Éléments supprimés (récupérables), jamais effacés.
+  { id: 'quarantaine-notaires', libelle: 'Expéditeur quarantaine@notaires.fr → corbeille', expediteur: 'quarantaine@notaires.fr', cible: 'corbeille' },
+  // Étude 31/10 : « classer dans à traiter les emails qui ont pour objet "Relevé de compte du mois de…" provenant du domaine @dgfip.finances.gouv.fr ».
+  { id: 'dgfip-releve-compte', libelle: 'Objet « Relevé de compte du mois de… » (DGFiP)', objetDebut: 'releve de compte du mois de', domaine: 'dgfip.finances.gouv.fr' }
 ];
 
 const ENVELOPPE_DEBUT = '<?xml version="1.0" encoding="utf-8"?>'
@@ -63,9 +67,14 @@ function regleRangementPourEmail(e, expediteurs) {
   // Une réponse ou un transfert (« RE: », « TR: »…) vient de quelqu'un d'autre que l'expéditeur visé (relecture 19/10) : jamais
   // désigné par l'objet.
   const reponse = /^(re|tr|fw|fwd)\s*:/.test(objet);
+  // Chaque condition posée par la règle doit tenir (objet ET domaine pour la DGFiP).
   for (const r of REGLES_RANGEMENT_OUTLOOK) {
-    if (r.objet && !reponse && objet.includes(normaliserTexte(r.objet))) return r;
-    if (r.expediteur && de === normaliserTexte(r.expediteur)) return r;
+    if ((r.objet || r.objetDebut) && reponse) continue;
+    if (r.objet && !objet.includes(normaliserTexte(r.objet))) continue;
+    if (r.objetDebut && !objet.startsWith(normaliserTexte(r.objetDebut))) continue;
+    if (r.expediteur && de !== normaliserTexte(r.expediteur)) continue;
+    if (r.domaine && !de.endsWith('@' + normaliserTexte(r.domaine))) continue;
+    if (r.objet || r.objetDebut || r.expediteur || r.domaine) return r;
   }
   if (de && (expediteurs || []).some((a) => normaliserTexte(a) === de)) return REGLE_ADRESSES_AJOUTEES;
   return null;
@@ -115,10 +124,11 @@ function parseRecents(corps) {
   })).filter((m) => m.itemId);
 }
 
-/** @param {string[]} itemIds @param {string} dossierId */
+/** `dossierId` = 'deleteditems' : la corbeille (Éléments supprimés) de la boîte. @param {string[]} itemIds @param {string} dossierId */
 function corpsMoveItems(itemIds, dossierId) {
+  const cible = dossierId === 'deleteditems' ? '<t:DistinguishedFolderId Id="deleteditems"/>' : `<t:FolderId Id="${echapperXml(dossierId)}"/>`;
   return ENVELOPPE_DEBUT
-    + `<m:MoveItem><m:ToFolderId><t:FolderId Id="${echapperXml(dossierId)}"/></m:ToFolderId><m:ItemIds>`
+    + `<m:MoveItem><m:ToFolderId>${cible}</m:ToFolderId><m:ItemIds>`
     + itemIds.map((id) => `<t:ItemId Id="${echapperXml(id)}"/>`).join('')
     + '</m:ItemIds></m:MoveItem>' + ENVELOPPE_FIN;
 }
@@ -250,15 +260,23 @@ async function tourRangement(parametresRepo, injections, manuel) {
     .filter((m) => m.regle && !(etat.echecs[m.itemId] && Date.parse(etat.echecs[m.itemId]) > limite))
     .slice(0, MAX_DEPLACES_TOUR);
   if (aRanger.length) {
-    const d = await poster(corpsMoveItems(aRanger.map((m) => m.itemId), dossierConnu));
-    if (refus(d)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
-    const succes = d.echec ? [] : parseMoveItems(d.corps);
-    aRanger.forEach((m, i) => {
-      if (succes[i]) { etat.ranges[m.regle.id] = (etat.ranges[m.regle.id] || 0) + 1; resultat.ranges += 1; delete etat.echecs[m.itemId]; }
-      else etat.echecs[m.itemId] = maintenant.toISOString();
-    });
-    // Rien n'a pu être déplacé : le dossier a peut-être été renommé ou recréé — il est recherché au tour suivant.
-    if (!resultat.ranges) dossierConnu = '';
+    // Un déplacement par destination : le dossier « Traité à distance », ou la corbeille pour une règle `cible: 'corbeille'`.
+    const lots = [aRanger.filter((m) => m.regle.cible !== 'corbeille'), aRanger.filter((m) => m.regle.cible === 'corbeille')].filter((l) => l.length);
+    /** @type {any} */
+    let d = null;
+    let rangesDossier = 0;
+    for (const lot of lots) {
+      const versCorbeille = lot[0].regle.cible === 'corbeille';
+      d = await poster(corpsMoveItems(lot.map((m) => m.itemId), versCorbeille ? 'deleteditems' : dossierConnu));
+      if (refus(d)) { agendaWatch.signalerIdentifiantsRefuses(reglages); return finir('erreur', 'Identifiants de messagerie refusés : vérifiez les Réglages.'); }
+      const succes = d.echec ? [] : parseMoveItems(d.corps);
+      lot.forEach((m, i) => {
+        if (succes[i]) { etat.ranges[m.regle.id] = (etat.ranges[m.regle.id] || 0) + 1; resultat.ranges += 1; delete etat.echecs[m.itemId]; if (!versCorbeille) rangesDossier += 1; }
+        else etat.echecs[m.itemId] = maintenant.toISOString();
+      });
+      // Rien n'a pu être déplacé vers le dossier : il a peut-être été renommé ou recréé — il est recherché au tour suivant.
+      if (!versCorbeille && !rangesDossier) dossierConnu = '';
+    }
     if (resultat.ranges) etat.dernierRangement = maintenant.toISOString();
     noterVerification(parametresRepo, 'rangement-outlook', resultat.ranges
       ? { detail: `${resultat.ranges} email(s) déplacé(s)` }

@@ -313,7 +313,7 @@ dans `index.html`** (le test `structure-client` refuse tout décalage).
    **Rangement dans Outlook** (étude 19/10 : « placer dans Traiter à distance les e-mails du SPF avec l'objet Facture Dossier FIDJI, les emails de quarantaine@notaires.fr » ;
    `server/src/rangementOutlook.js`, Réglages › Agenda et Outlook › Rangement dans Outlook) : toutes les 5 min, objet et expéditeur des 300 derniers emails de la boîte
    de réception du compte relié (jamais le texte), **reçus depuis la mise en marche seulement** (étude : « que ma boîte et que les prochains » — repère `depuis`, posé au
-   premier tour et à la remise en marche) ; ceux d'une règle de `REGLES_RANGEMENT_OUTLOOK` sont DÉPLACÉS (MoveItem, jamais supprimés) dans le dossier
+   premier tour et à la remise en marche) ; ceux d'une règle de `REGLES_RANGEMENT_OUTLOOK` (dont, étude 31/10, l'objet « Relevé de compte du mois de… » venu de `@dgfip.finances.gouv.fr`) sont DÉPLACÉS (MoveItem, jamais supprimés ; **quarantaine@notaires.fr → Éléments supprimés** depuis le 31/10, `cible: 'corbeille'`, récupérables) dans le dossier
    « TRAITÉ A DISTANCE » (sous-dossier de la boîte de réception ; « Traiter à distance » aussi reconnu, `NOMS_DOSSIER_OUTLOOK`) de la même boîte, retrouvé par son nom (accents et casse ignorés ; absent ou en double → rien) ; même disjoncteur que l'agenda, un
    refus n'est pas retenté avant 6 h ; une nouvelle règle = une entrée + son test ; **adresses d'expéditeurs ajoutées par l'étude** (étude 19/10, champ des Réglages, `expediteurs` de la clé, 50 au plus, règle `adresses-ajoutees`) ; point terrain `rangement-outlook`.
 6. **Secrets** (mot de passe SMTP, clés API Mistral/Anthropic, mot de passe Exchange, **mots de passe Exchange des collaborateurs**
