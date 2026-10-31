@@ -459,6 +459,10 @@ test('natureActeAgenda : DONATION en tête, puis référence de vente, puis SUCC
   assert.equal(natureActeAgenda('SUCCESSION - Paul DURAND'), 'succession');
   assert.equal(natureActeAgenda('NOTO - Paul DURAND (SUCC)'), null);
   assert.equal(natureActeAgenda('RDV SUCC DURAND'), null);
+  // Vente (étude 31/10) : VTE ou VENTE en tête du titre.
+  assert.equal(natureActeAgenda('Vente - DUPONT / MARTIN'), 'vente');
+  assert.equal(natureActeAgenda('RDV VTE - DUPONT / MARTIN'), null);
+  assert.equal(natureActeAgenda('VENTES FAURE'), null, 'mot entier');
   assert.equal(natureActeAgenda('Dee Martin - rendez-vous'), null, 'le prénom Dee n’est pas une DEE');
   assert.equal(natureActeAgenda('SUCC DUPONT - PACS du défunt'), 'succession', 'une succession qui cite un PACS reste une succession');
   assert.equal(natureActeAgenda('Deeds du bureau'), null, 'DEE seulement comme mot entier');

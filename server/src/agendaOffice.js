@@ -695,6 +695,7 @@ const RE_DONATION_ENTRE_EPOUX_AGENDA = /^\s*DONATION\s+ENTRE\s+[EÉ]POUX/i;
 // PACS (étude 29/10, puis 31/10 : « le nom de l'acte en début de rendez-vous, ex. PACS - … ou DEE - … ») : PACS EN TÊTE du titre seulement.
 const RE_PACS_AGENDA = /^\s*PACS(?![A-Za-zÀ-ɏ])/i;
 // Promesse de vente (étude 31/10 : « détecter aussi le PUV ») : PUV EN TÊTE du titre, comme PACS et DEE.
+const RE_VENTE_AGENDA = /^\s*(?:VTE|VENTE)(?![A-Za-zÀ-ɏ])/i;
 const RE_PUV_AGENDA = /^\s*PUV(?![A-Za-zÀ-ɏ])/i;
 // Succession (étude 31/10 : « la même règle, SUCC ou SUCCESSION en début de titre ») : en tête seulement.
 const RE_SUCCESSION_AGENDA = /^\s*SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
@@ -703,7 +704,8 @@ function natureActeAgenda(sujet) {
   if (RE_DEE_AGENDA.test(titre) || RE_DONATION_ENTRE_EPOUX_AGENDA.test(titre.normalize('NFC'))) return 'dee';
   if (RE_DONATION_AGENDA.test(titre)) return 'donation';
   if (RE_PUV_AGENDA.test(titre)) return 'puv';
-  if (extraireReferenceVte(titre)) return 'vente';
+  // Vente (étude 31/10 : « pour les ventes prends VTE ou VENTE ») : en tête du titre, comme les autres actes.
+  if (RE_VENTE_AGENDA.test(titre)) return 'vente';
   if (RE_SUCCESSION_AGENDA.test(titre)) return 'succession';
   if (RE_PACS_AGENDA.test(titre)) return 'pacs';
   return null;
