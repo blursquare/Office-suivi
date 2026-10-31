@@ -290,6 +290,7 @@
   // Toutes les parcelles (20 au plus), trois à la fois : chaque ligne du tableau se remplit dès que sa réponse arrive.
   async function lireZonagePreemption() {
     const parcelles = parcellesDepuisTexte(prEtat.parcelles);
+    if (prEtat.lecture) return;   // une lecture à la fois : le bouton ne double pas une lecture déjà lancée
     if (!prEtat.insee || !parcelles.length) { prEtat.erreurZonage = 'Choisir la commune et indiquer la ou les parcelles (ex. AL 839, AL 840).'; renderPreemption(); return; }
     const etat = prEtat;
     etat.lecture = true;
@@ -299,6 +300,8 @@
     await lecture;
     etat.lecture = false;
     if (prEtat === etat) renderPreemption();
+    // Commune ou parcelles changées pendant la lecture (le tableau a été vidé) : relue avec les nouvelles valeurs.
+    if (prEtat === etat) lancerZonageSiPretPreemption();
   }
 
   // Zone retenue d'une parcelle, choisie à la main (vide = celle du Géoportail).
@@ -311,7 +314,8 @@
 
   function changerChampPreemption(champ, valeur) {
     prEtat[champ] = valeur;
-    if (champ === 'insee' || champ === 'parcelles') { prEtat.zonages = []; prEtat.erreurZonage = ''; }
+    // Le code postal aussi (relecture 0.410.2 : la commune changeait, le zonage de l'ancienne restait et n'était jamais relu).
+    if (champ === 'insee' || champ === 'parcelles' || champ === 'cp') { prEtat.zonages = []; prEtat.erreurZonage = ''; }
     if (champ === 'cp') { prEtat.insee = ''; chargerCommunesPreemption(true); return; }
     renderPreemption();
     if (champ === 'insee' || champ === 'parcelles') lancerZonageSiPretPreemption();
