@@ -11725,3 +11725,4 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .cst-accueil-grille > .cst-accueil-carte { flex: 0 1 320px; }
 .cst-accueil-liste-titre { align-self: center; text-align: center; }
 .cst-accueil-liste-titre .pieces-titre { justify-content: center; }
+#onglet-preemption.pr-en-accueil > .dash-header .dash-header-actions { display: none; }

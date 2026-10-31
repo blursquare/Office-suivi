@@ -206,6 +206,9 @@ function renderEtapesPreemption() {
   const stepper = document.getElementById('pr-stepper');
   // Pas de barre d'étapes sur la page du choix du dossier (étude 31/10 : « ne mets pas les étapes dans la première page de choix »).
   if (stepper) stepper.innerHTML = page === 'dossier' ? '' : renderStepperPreemption(page);
+  // Pas d'« Effacer » sur la page du choix : il n'y a encore rien à effacer (étude 31/10).
+  const panneau = document.getElementById('onglet-preemption');
+  if (panneau) panneau.classList.toggle('pr-en-accueil', page === 'dossier');
   document.querySelectorAll('#onglet-preemption > .pr-page').forEach(s => { s.style.display = s.dataset.page === page ? '' : 'none'; });
   const accueil = document.getElementById('pr-accueil');
   // L'accueil n'est redessiné qu'à l'arrivée (une lecture qui avance ne doit pas effacer une recherche en cours de frappe).

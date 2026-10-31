@@ -23537,3 +23537,4 @@ sélectionner le dossier ».
 - 31/10, retour de l'étude sur 0.413.0 : « ne mets pas les étapes dans la première page de choix » (barre d'étapes masquée sur la page du
   dossier) ; « centre les cartes au milieu pour ne pas étendre et éviter les blancs » (cartes de 320 px centrées, sur autant de lignes qu'il
   faut, pour toutes les pages « Quel dossier ? », Constitution et Décompte vendeur compris).
+- 31/10, retour de l'étude : « pas de Effacer au premier écran, il n'y a pas de donnée » (bouton masqué sur la page du choix du dossier ; les autres outils le masquaient déjà sous l'écran d'accueil).
