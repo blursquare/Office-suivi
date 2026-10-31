@@ -358,6 +358,8 @@ const VERIFICATIONS_TERRAIN = [
     comment: 'Coché à la première liste reçue de la Géoplateforme (couche pva:image) par le serveur du bureau ; le lien « Remonter le temps » se vérifie à l’œil.' },
   { id: 'cliche-ign-visionneuse', depuis: '0.416.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : un cliché de l’IGN s’ouvre dans CLAIRE (lu par morceaux sur la Géoplateforme), la parcelle entourée',
     comment: 'Coché à la première ouverture réussie. À l’œil : onglet Travaux › un cliché › la photo s’affiche, on s’y déplace, le contour jaune tombe sur la parcelle (sinon « Ajuster le contour »).' },
+  { id: 'cliche-recalage-ign', depuis: '0.416.0', source: 'poste', titre: 'Contrôle de l’urbanisme : un cliché d’avant 2000 recalé automatiquement sur l’orthophoto historique de l’IGN',
+    comment: 'Coché au premier recalage tenté sur un poste (recalé ou refusé). À l’œil : badge vert « Recalé sur l’orthophoto IGN … » et contour sur le bien ; sinon « Position approximative ».' },
   { id: 'sitadel-parcelle', depuis: '0.201.0', source: 'serveur', titre: 'Contrôle de l’urbanisme : autorisations d’urbanisme de la parcelle lues dans Sitadel',
     comment: 'Coché à la première recherche réussie depuis le serveur du bureau (accès Internet sortant vers data.statistiques.developpement-durable.gouv.fr).' },
   { id: 'travaux-compromis-nas', depuis: '0.200.0', source: 'poste', titre: 'Contrôle de l’urbanisme : travaux déclarés lus dans le compromis du NAS (autorisation, achèvement, décennale)',

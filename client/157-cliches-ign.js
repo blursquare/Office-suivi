@@ -276,7 +276,7 @@ function imageClicheIgn(url) {
   // Un carré en échec n'est pas gardé : il sera redemandé (relecture 0.416.0).
   const p = new Promise(res => { const img = new Image(); img.onload = () => res(img); img.onerror = () => { imagesClichesIgn.delete(url); res(null); }; img.src = url; });
   imagesClichesIgn.set(url, p);
-  while (imagesClichesIgn.size > 80) imagesClichesIgn.delete(imagesClichesIgn.keys().next().value);
+  while (imagesClichesIgn.size > 160) imagesClichesIgn.delete(imagesClichesIgn.keys().next().value);
   return p;
 }
 
@@ -390,27 +390,47 @@ async function monterVoletCliche(L, cote, c, jeton) {
 async function lancerRecalageClicheIgn(L, m, info, cote, jeton) {
   const etat = document.getElementById(`cliche-recalage-${cote}`);
   const dire = (html, classe) => { if (etat) { etat.innerHTML = html; etat.className = `cliche-volet-avis ${classe || ''}`; } };
+  // La vue de départ : si l'utilisateur a bougé pendant le calcul, on ne la lui reprend pas (relecture).
+  const vueDepart = { centre: m.carte.getCenter(), zoom: m.carte.getZoom() };
   let rc = recalagesClichesIgn.get(m.c.id);
-  if (!rc) {
+  if (!rc || typeof rc.then === 'function') {
     dire(`${icone('spinner')} Recalage sur l’orthophoto de l’IGN…`, 'en-cours');
-    try { rc = await recalerClicheIgn(m.c, info, m.cadre, clichesCarte.centre); } catch (e) { rc = null; }
-    rc = rc || { refuse: true };
-    recalagesClichesIgn.set(m.c.id, rc);
+    // La promesse est gardée tout de suite : un second rendu pendant le calcul ne relance pas le même recalage.
+    if (!rc) {
+      rc = recalerClicheIgn(m.c, info, m.cadre, clichesCarte.centre).then(r => {
+        // Un échec de lecture (référence ou carré injoignable) n'est pas gardé : il sera retenté à la prochaine ouverture.
+        if (r) recalagesClichesIgn.set(m.c.id, r); else recalagesClichesIgn.delete(m.c.id);
+        if (r) noterVerificationPoste('cliche-recalage-ign', { ok: true, detail: r.refuse ? 'accord trop faible : refusé' : `recalé sur ${r.couche}` });
+        return r;
+      }).catch(() => { recalagesClichesIgn.delete(m.c.id); return null; });
+      recalagesClichesIgn.set(m.c.id, rc);
+    }
+    rc = await rc;
   }
   if (jeton !== visionneuseCliche.rendu || visionneuseCliche.cartes[cote] !== m) return;
-  if (rc.refuse) {
+  if (!rc || rc.refuse) {
     dire(`${icone('alert-triangle')} Position approximative : à vérifier`, '');
-    if (etat) etat.title = 'Avant 2000, l’emprise publiée par l’IGN est approximative et le cliché n’a pas pu être recalé sûrement sur l’orthophoto historique (accord trop faible ou ambigu). Repérez le bien et faites glisser le contour (« Ajuster le contour »).';
+    if (etat) etat.title = rc ? 'Avant 2000, l’emprise publiée par l’IGN est approximative et le cliché n’a pas pu être recalé sûrement sur l’orthophoto historique (accord trop faible ou ambigu). Repérez le bien et faites glisser le contour (« Ajuster le contour »).'
+      : 'Avant 2000, l’emprise publiée par l’IGN est approximative ; l’orthophoto de référence n’a pas pu être lue (nouvel essai à la prochaine ouverture). Repérez le bien et faites glisser le contour (« Ajuster le contour »).';
+    return;
+  }
+  // Un contour déjà glissé à la main sur ce cliché : le choix de l'utilisateur l'emporte, le recalage n'est pas ajouté par-dessus.
+  const manuel = visionneuseCliche.decalages[m.c.id];
+  if (manuel && (manuel.dx || manuel.dy)) {
+    dire(`${icone('check')} Contour ajusté à la main`, 'ok');
+    recalagesClichesIgn.set(m.c.id, Object.assign({}, rc, { refuse: true, ignore: true }));
     return;
   }
   dire(`${icone('check')} Recalé sur l’orthophoto IGN ${escapeHtml(rc.couche)}`, 'ok');
   if (etat) etat.title = `Routes, haies et bâtiments alignés sur l’orthophoto historique de l’IGN (${rc.couche}) : contour replacé de ${Math.round(Math.hypot(rc.est, rc.nord))} m. Mesure du 31/10 : les recalages retenus étaient tous justes ; vérifiez quand même d’un coup d’œil.`;
   dessinerContourCliche(L, m);
+  const aBouge = !m.carte.getCenter().equals(vueDepart.centre) || m.carte.getZoom() !== vueDepart.zoom;
+  if (aBouge) return;
   const centre = clichesCarte.centre;
   const pc = pointRecaleCliche(centre.lon, centre.lat, rc);
   const p = pixelDuPointCliche(m.c.coins, pc[0], pc[1], m.W, m.H, m.cadre);
   if (p && p.dedans) { const e = m.M.versEcran(p.x, p.y); visionneuseCliche.synchro = true; m.carte.setView([e[1], e[0]], m.carte.getZoom(), { animate: false }); visionneuseCliche.synchro = false; }
-  synchroniserClichesIgn(cote === 'gauche' ? 'gauche' : 'droite');
+  synchroniserClichesIgn(cote);
 }
 
 function dessinerContourCliche(L, m) {

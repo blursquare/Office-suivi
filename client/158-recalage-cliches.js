@@ -118,6 +118,9 @@ function decalageRecalage(gRef, rw, gZone, zw, mParPx, reglages) {
 
 // ===== Sur le poste =====
 
+// Rend la main à l'écran entre deux calculs lourds (relecture : environ 1 s de calcul par cliché ; la carte ne doit pas geler).
+function laisserRespirerRecalage() { return new Promise(r => setTimeout(r, 0)); }
+
 function luminanceToile(ctx, w, h, sansDonnee) {
   const d = ctx.getImageData(0, 0, w, h).data;
   const lum = new Float32Array(w * h);
@@ -157,6 +160,7 @@ async function recalerClicheIgn(c, info, cadre, centre) {
     const cRef = tRef.getContext('2d', { willReadFrequently: true });
     cRef.drawImage(ref, 0, 0, rw, rw);
     const lum = luminanceToile(cRef, rw, rw, true);
+    await laisserRespirerRecalage();
     let pleins = 0; for (let i = 0; i < lum.length; i++) if (lum[i] === lum[i] && lum[i] < 250) pleins++;
     if (pleins < lum.length * 0.8) continue;
     gRef = gradientAvecTrous(lum, rw, rw); couche = essai;
@@ -198,13 +202,16 @@ async function recalerClicheIgn(c, info, cadre, centre) {
   carres.forEach(({ img, i, j }) => { if (img) cZone.drawImage(img, i * 512, j * 512, img.width + 1, img.height + 1); });
   cZone.setTransform(1, 0, 0, 1, 0, 0);
   // Hors du cliché ou dans le cadre noir : sans donnée.
+  await laisserRespirerRecalage();
   const lumZone = luminanceToile(cZone, zw, zw, true);
   const ax0 = cadre[0] * W; const ay0 = cadre[1] * H; const ax1 = cadre[2] * W; const ay1 = cadre[3] * H;
   for (let Y = 0; Y < zw; Y++) for (let X = 0; X < zw; X++) {
     const qx = p0.x + ax[0] * (X - zw / 2) + ay[0] * (Y - zw / 2); const qy = p0.y + ax[1] * (X - zw / 2) + ay[1] * (Y - zw / 2);
     if (qx < ax0 || qy < ay0 || qx > ax1 || qy > ay1) lumZone[Y * zw + X] = NaN;
   }
+  await laisserRespirerRecalage();
   const gZone = gradientAvecTrous(lumZone, zw, zw);
+  await laisserRespirerRecalage();
   const d = decalageRecalage(gRef, rw, gZone, zw, mParPx);
   return Object.assign(d, { couche, mParPx });
 }
