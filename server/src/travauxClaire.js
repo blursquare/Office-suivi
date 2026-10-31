@@ -111,7 +111,9 @@ function creerFileTravaux(o) {
     lister: (qui, tous) => travauxVisibles(lire(), qui, tous),
     reprendre: () => traiter(),
     /** Vrai pendant qu'un travail est traité (pour le dire à l'écran). */
-    enMarche: () => enMarche
+    enMarche: () => enMarche,
+    /** Le travail en cours (pour savoir qui doit valider ses gestes), sinon null. */
+    enCours: () => lire().find((t) => t.etat === 'en-cours') || null
   };
 }
 

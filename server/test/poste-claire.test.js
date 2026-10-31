@@ -176,3 +176,22 @@ test('file des travaux : un à la fois, dans l’ordre, annulation avant le déb
   const file2 = creerFileTravaux({ repo, poste, deposer: () => {} });
   assert.equal(file2.lister('Bastien ANGLUMENT', false)[0].etat, 'erreur');
 });
+
+test('31/10 : la file dit le travail en cours (ses gestes sont validés par son demandeur), et un délai dépassé ferme la fenêtre', async () => {
+  const { creerFileTravaux } = require('../src/travauxClaire');
+  const memoire = {};
+  const repo = { lireJsonBrut: (c, d) => (c in memoire ? JSON.parse(memoire[c]) : d), ecrireJsonBrut: (c, v) => { memoire[c] = JSON.stringify(v); } };
+  let vu = null;
+  let arrete = 0;
+  let file;
+  const poste = { async travailler() { vu = file.enCours(); await new Promise(() => {}); }, async arreter() { arrete++; } };
+  const deposes = [];
+  file = creerFileTravaux({ repo, poste, deposer: (p) => deposes.push(p), delaiMaxMs: 30 });
+  assert.equal(file.enCours(), null);
+  file.confier('Prépare la réponse à l’agence', 'Julie VASSELIN');
+  await new Promise((ok) => setTimeout(ok, 120));
+  assert.equal(vu && vu.demandeur, 'Julie VASSELIN');
+  assert.equal(arrete, 1, 'fenêtre fermée après le délai');
+  assert.match(deposes[0].titre, /^Travail non terminé/);
+  assert.equal(file.enCours(), null);
+});

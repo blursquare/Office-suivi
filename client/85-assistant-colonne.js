@@ -311,7 +311,7 @@
         ${etapes.length ? `<ol class="asst-etapes">${etapes.map(e => `<li class="asst-etape-${e.etat}"><span class="asst-etape-marque" aria-hidden="true">${e.etat === 'fait' ? icone('check') : ''}</span>${escapeHtml(e.texte)}</li>`).join('')}</ol>` : ''}
         ${journal.length ? `<ul class="asst-journal">${journal.map(j => `<li class="${j.fini ? 'fini' : 'encours'}">${j.fini ? icone('check') : '<span class="asst-journal-point" aria-hidden="true"></span>'}${escapeHtml(j.libelle)}</li>`).join('')}</ul>` : ''}
         ${travaux ? `<div class="asst-travaux-titre">En arrière-plan</div>${travaux}` : ''}
-        ${!etapes.length && !journal.length && !travaux ? `<p class="asst-droite-vide">Le travail de CLAIRE s’affiche ici${!canaux.actif && estAdministrateur(utilisateurPoste) && !POSTE_CLAIRE ? ', avec les travaux que vous lui confiez (« Lui confier » sous la saisie)' : ''}.</p>` : ''}
+        ${!etapes.length && !journal.length && !travaux ? `<p class="asst-droite-vide">Le travail de CLAIRE s’affiche ici${!canaux.actif && !POSTE_CLAIRE ? ', et ce qu’elle finit sur le serveur si vous fermez CLAIRE pendant une demande' : ''}.</p>` : ''}
       </details>
       <details class="asst-droite-bloc" data-bloc="documents"${blocsOuvertsColonneAssistant.documents ? ' open' : ''} ontoggle="blocsOuvertsColonneAssistant['documents'] = this.open">
         <summary>${icone('file-text')} Documents <span class="asst-droite-nb">${docs.length || ''}</span></summary>

@@ -63,3 +63,17 @@ test('premier écran des outils : dossiers en cours du bon genre, derniers consu
   assert.ok(app.ACCUEIL_OUTILS.preemption.pages, 'le contrôle de l’urbanisme montre l’accueil dans sa première étape');
   ['appel-fonds', 'quotites', 'calculateur', 'prorata', 'inventaire'].forEach(o => assert.ok(app.ACCUEIL_OUTILS[o], o));
 });
+
+test('arrière-plan automatique (31/10) : la demande en cours est confiée au serveur en partant, avec ce qui était déjà autorisé', () => {
+  const d = { texte: 'Prépare la réponse à l’agence', dossierId: 'd1', pieces: 1, autorises: ['Cocher la pièce « ERP »'], debut: 1000 };
+  const c = app.consigneRepriseArrierePlan(d, 'VTE - MOREAU');
+  assert.match(c, /fenêtre fermée avant la fin/);
+  assert.match(c, /Prépare la réponse à l’agence/);
+  assert.match(c, /VTE - MOREAU/);
+  assert.match(c, /Déjà autorisé.*ERP/);
+  assert.match(c, /pièces jointes/);
+  assert.equal(app.confierEnPartant(d, 5000, false), true);
+  assert.equal(app.confierEnPartant(d, 1500, false), false, 'à peine lancée');
+  assert.equal(app.confierEnPartant(d, 5000, true), false, 'page gardée en cache');
+  assert.equal(app.confierEnPartant(null, 5000, false), false);
+});

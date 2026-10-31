@@ -422,8 +422,6 @@ function majSaisieCanal() {
     bascule.innerHTML = canaux.claireRepond ? `${icone('discussion')}Claire répond` : `${icone('users')}Note à l’équipe`;
     bascule.title = canaux.claireRepond ? 'Claire répond à votre message (sauf s’il s’adresse à un collègue avec @). Cliquez pour écrire seulement à l’équipe.' : 'Seule l’équipe lit ce message. Cliquez pour que CLAIRE réponde.';
   }
-  const confier = document.getElementById('assistant-confier');
-  if (confier) confier.style.display = !canaux.actif && !POSTE_CLAIRE && estAdministrateur(utilisateurPoste) ? '' : 'none';
   if (saisie) saisie.classList.toggle('canal-note', reel && canaux.actif === 'general' && !canaux.claireRepond);
 }
 

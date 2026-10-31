@@ -349,7 +349,7 @@
     if (assistantTraitementEnCours) return;
     assistantTraitementEnCours = true;
     const suivi = debuterSuiviReactionsClaire();
-    try { await envoyerDemandeAssistantSuite(texteForce); } finally { assistantTraitementEnCours = false; suivi.fin(); }
+    try { await envoyerDemandeAssistantSuite(texteForce); } finally { assistantTraitementEnCours = false; suivi.fin(); finirDemandeArrierePlan(); }
   }
 
   async function envoyerDemandeAssistantSuite(texteForce) {
@@ -400,6 +400,8 @@
     }
     marquerVuParClaire();
     noterEchangeAssistant('moi', texte);
+    // Fermée avant la fin, la fenêtre confie la demande au serveur (client/154, étude 31/10 : « automatique si je pars »).
+    if (!canaux.actif) debuterDemandeArrierePlan(texte, impose || assistantContexte.dossierId, pieces.length);
     // On attendait le nom d'un dossier : la phrase est ce nom, on reprend la demande précédente.
     // Avec des pièces jointes, la phrase va à l'agent qui les lit (relecture 13/10 : elles étaient perdues après « Lequel ? »).
     if (pieces.length) assistantContexte.attente = null;

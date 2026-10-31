@@ -98,7 +98,9 @@ function creerRouteurPosteClaire(parametresRepo, poste, config) {
     if (!lignes.length) { res.status(400).json({ erreur: 'Description vide.' }); return; }
     const id = 'val-' + crypto.randomBytes(9).toString('base64url');
     const r = deposerProposition(parametresRepo, {
-      id, routine: 'poste-claire', responsable: VALIDEUR, dossierId: String(corps.dossierId || '').slice(0, 80), type: 'validation',
+      // Les gestes d'un travail sont validés par celui qui l'a demandé (étude 31/10 : la demande d'un collaborateur continue en arrière-plan
+      // quand il ferme CLAIRE — c'est à lui de dire oui) ; sans travail connu, par Bastien.
+      id, routine: 'poste-claire', responsable: (file.enCours() && collaborateurDe(file.enCours().demandeur)) || VALIDEUR, dossierId: String(corps.dossierId || '').slice(0, 80), type: 'validation',
       titre: lignes[0].slice(0, 140), resume: lignes.slice(1).join(' · ').slice(0, 400), empreinte: 'poste-claire:' + id
     });
     if (!r.ok) { res.status(409).json({ erreur: r.silence ? 'Ce dossier est en silence.' : 'Demande non enregistrée.' }); return; }

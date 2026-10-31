@@ -23538,3 +23538,18 @@ sélectionner le dossier ».
   dossier) ; « centre les cartes au milieu pour ne pas étendre et éviter les blancs » (cartes de 320 px centrées, sur autant de lignes qu'il
   faut, pour toutes les pages « Quel dossier ? », Constitution et Décompte vendeur compris).
 - 31/10, retour de l'étude : « pas de Effacer au premier écran, il n'y a pas de donnée » (bouton masqué sur la page du choix du dossier ; les autres outils le masquaient déjà sous l'écran d'accueil).
+
+### 31/10/2026 — 0.414.0 : un seul bouton, CLAIRE continue seule si on ferme la fenêtre
+
+Étude (31/10) : « je ne vois pas la différence entre le bouton Envoyer, où elle peut déjà faire tout ça dans la conversation, et Lui confier ;
+les deux boutons pourraient être réunis » ; choix : « automatique si je pars ».
+
+- `client/154-arriere-plan-auto.js` : `debuterDemandeArrierePlan` (appelé à l'envoi d'une demande hors canal, agent disponible),
+  `finirDemandeArrierePlan` (fin de la demande) ; à `pagehide` (fenêtre fermée ou rechargée, pas une page gardée en cache, demande lancée depuis
+  plus d'une seconde) la demande part par `navigator.sendBeacon` à `POST /api/poste-claire/travail` (`consigneRepriseArrierePlan` : la demande,
+  le dossier, les gestes déjà autorisés — `demanderAutorisationAgent` enveloppé —, pièces jointes non transmises).
+- Les gestes d'un travail sont validés par SON demandeur (`file.enCours()` de `travauxClaire.js`, route `/poste-claire/demande`), Bastien sinon.
+- Bouton « Lui confier » retiré (index.html, client/114, `confierDepuisSaisieClaire`, `texteTravailConfie`) ; la route reste, appelée par la reprise.
+- Limites : une reprise reprend la demande au début (la conversation de l'agent sur le poste est perdue) ; un geste déjà fait peut être proposé
+  une seconde fois — il passe par une « Demande de CLAIRE » et la consigne demande de vérifier la fiche avant ; non vérifié au bureau
+  (fermeture réelle d'une fenêtre `--app` de Chrome, `sendBeacon` sur le réseau du bureau).
