@@ -23534,3 +23534,6 @@ sélectionner le dossier ».
   (sinon « probable », à vérifier sur le plan), et le DPU « institué » n'en est jamais déduit à Agglopolys (règle par zone) ; « non renforcé »
   n'est pas un DPU renforcé ; l'aperçu du plan libère l'ancien ; « Voir le contrôle » copie l'état de l'agent ; reste connu : après une
   ouverture du Prorata depuis une fiche, l'écran « Quel dossier ? » ne revient plus pour cet outil (variable jamais remise à vide).
+- 31/10, retour de l'étude sur 0.413.0 : « ne mets pas les étapes dans la première page de choix » (barre d'étapes masquée sur la page du
+  dossier) ; « centre les cartes au milieu pour ne pas étendre et éviter les blancs » (cartes de 320 px centrées, sur autant de lignes qu'il
+  faut, pour toutes les pages « Quel dossier ? », Constitution et Décompte vendeur compris).

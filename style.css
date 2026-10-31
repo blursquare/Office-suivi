@@ -11718,3 +11718,10 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
   .pr-rendu-grille { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 560px) { .pr-synthese { grid-template-columns: minmax(0, 1fr); } }
+
+/* Premières pages « Quel dossier ? » (étude 31/10 : « centre les cartes au milieu pour ne pas étendre et éviter les blancs ») : cartes de
+   largeur fixe, centrées, sur autant de lignes qu'il faut — une carte seule ne s'étire plus. */
+.cst-accueil-grille { display: flex; flex-wrap: wrap; justify-content: center; }
+.cst-accueil-grille > .cst-accueil-carte { flex: 0 1 320px; }
+.cst-accueil-liste-titre { align-self: center; text-align: center; }
+.cst-accueil-liste-titre .pieces-titre { justify-content: center; }

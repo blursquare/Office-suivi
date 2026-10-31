@@ -204,7 +204,8 @@ function renderEtapesPreemption() {
   if (!prEtat) return;
   const page = pageCourantePreemption(prEtat);
   const stepper = document.getElementById('pr-stepper');
-  if (stepper) stepper.innerHTML = renderStepperPreemption(page);
+  // Pas de barre d'étapes sur la page du choix du dossier (étude 31/10 : « ne mets pas les étapes dans la première page de choix »).
+  if (stepper) stepper.innerHTML = page === 'dossier' ? '' : renderStepperPreemption(page);
   document.querySelectorAll('#onglet-preemption > .pr-page').forEach(s => { s.style.display = s.dataset.page === page ? '' : 'none'; });
   const accueil = document.getElementById('pr-accueil');
   // L'accueil n'est redessiné qu'à l'arrivée (une lecture qui avance ne doit pas effacer une recherche en cours de frappe).
