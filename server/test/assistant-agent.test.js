@@ -1193,3 +1193,20 @@ test('31/10 : controle_urbanisme — étapes de l’outil pour l’agent ; rien 
   assert.match(envoye, /UB/);
   assert.match(envoye, /achevementMoins4ans/);
 });
+
+test('31/10 : outil_boutons — les libellés de boutons partent masqués comme tout résultat d’outil', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'outil_boutons'));
+  assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /outil_boutons/);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('b1', 'outil_boutons', { cible: 'fiche', mode: 'lister', bouton: '' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Calcule la provision du dossier Fournier', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'b1', contenu: { nombre: 2, boutons: [{ id: 'b1', libelle: 'Calculer', clic: 'permis' }, { id: 'b2', libelle: 'Ouvrir la fiche de Paul FOURNIER', clic: 'permis' }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /Calculer/);
+});

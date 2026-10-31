@@ -23553,3 +23553,20 @@ les deux boutons pourraient être réunis » ; choix : « automatique si je pars
 - Limites : une reprise reprend la demande au début (la conversation de l'agent sur le poste est perdue) ; un geste déjà fait peut être proposé
   une seconde fois — il passe par une « Demande de CLAIRE » et la consigne demande de vérifier la fiche avant ; non vérifié au bureau
   (fermeture réelle d'une fenêtre `--app` de Chrome, `sendBeacon` sur le réseau du bureau).
+
+### 31/10/2026 — 0.415.0 : CLAIRE appuie sur les boutons
+
+Étude (31/10) : « il faut autoriser CLAIRE à appuyer sur tous les boutons de CLAIRE, mais certains non : télécharger, envoyer. Calculer, oui ;
+lire le zonage, oui ; demander le plan cadastral, oui… elle ne peut pas valider un téléchargement, couper un service dans les réglages,
+enregistrer un nouveau mot de passe ni envoyer quelque chose à un client ou à un service. Le reste, comme si c'était moi, sauf qu'elle le fait à
+ma place. »
+
+- `client/155-boutons-agent.js`, outil `outil_boutons` de l'agent (cible : un outil, même monté à droite de la conversation, « fiche » ou
+  « ecran ») : lister (id posé en `data-agent-bouton`, libellé, droit) puis cliquer (`el.click()`, comme la souris).
+- `classementBoutonAgent` (libellé + titre + place) : jamais (télécharger, envoyer, imprimer, exporter, PDF/Word/CSV, Outlook, signer,
+  Yousign, Teams, mot de passe, identifiant, mise à jour, sauvegarde/restauration, partager, tout bouton des Réglages, lien de téléchargement) ;
+  carte stricte (supprimer, effacer, retirer, archiver, vider, réinitialiser, détacher, oublier) ; carte (enregistrer, valider, cocher, ajouter,
+  créer, placer, ranger, autoriser/refuser…) ; sinon libre. Les pastilles « i » ne sont pas des boutons.
+- Prompt : plus de « tu ne cliques sur rien » ; remplir un outil jusqu'au bout = remplir puis cliquer ce qui le fait avancer.
+- Le poste de CLAIRE garde le refus du serveur sur les envois et les réglages. Limite : le classement lit le LIBELLÉ — un bouton d'envoi
+  dont le texte ne dit pas l'envoi serait vu comme libre (aucun relevé dans les écrans actuels ; à signaler).

@@ -1027,7 +1027,7 @@ sont plus appelées par le poste.
   « à partir de maintenant toute nouvelle fonction, Claire doit pouvoir la réaliser comme moi ou un collaborateur à notre demande ») : un
   nouveau bouton, geste ou écran vient avec son outil de l'agent (`server/src/assistantAgent.js` + exécutant sur le poste) qui appelle la
   MÊME fonction que l'écran — lecture sans carte, écriture après la carte « Autoriser » (client/66) —, son test « rien de nominatif ne part »
-  et sa ligne dans le prompt de l'agent. Jamais « cliquez sur le bouton » quand un outil peut le faire. Un geste vers l'extérieur ou
+  et sa ligne dans le prompt de l'agent. Jamais « cliquez sur le bouton » quand un outil peut le faire. **Depuis 0.415.0 (étude 31/10 : « appuyer sur tous les boutons comme si c'était moi ») l'agent clique lui-même les boutons d'un outil, de la fiche ou de l'écran (`outil_boutons`, `client/155-boutons-agent.js`)** : `classementBoutonAgent` — jamais télécharger, envoyer, imprimer, exporter, Outlook, signer, Yousign, Teams, mot de passe ni un bouton des Réglages ; carte « Autoriser » pour ce qui écrit, stricte pour ce qui retire ; libre pour le reste. Un nouveau bouton d'envoi ou de téléchargement DIT l'envoi ou le téléchargement dans son libellé ou son titre (sinon il serait cliquable). Un geste vers l'extérieur ou
   irréversible (envoi, écriture chez Yousign, suppression) garde sa carte `strict` à chaque fois ; une nouvelle route qui écrit et que le
   poste de CLAIRE doit pouvoir appeler s'ajoute à `PERMIS_ECRITURE` (server/src/posteClaire.js). Ce qui part vers l'IA : des mots sûrs ou
   reconnus (vocabulaire fermé), jamais un texte libre mis en minuscules (audit 0.385.0 : le masquage des capitales et des civilités tombait).

@@ -153,5 +153,6 @@
   "151-gestes-fiche-agent.js",
   "152-urbanisme-etapes.js",
   "153-accueil-outils.js",
-  "154-arriere-plan-auto.js"
+  "154-arriere-plan-auto.js",
+  "155-boutons-agent.js"
 ]

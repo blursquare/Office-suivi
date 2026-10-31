@@ -77,3 +77,22 @@ test('arrière-plan automatique (31/10) : la demande en cours est confiée au se
   assert.equal(app.confierEnPartant(d, 5000, true), false, 'page gardée en cache');
   assert.equal(app.confierEnPartant(null, 5000, false), false);
 });
+
+test('boutons (31/10) : calculer et lire sans carte, écrire après la carte, jamais télécharger, envoyer ni les Réglages', () => {
+  const c = (l, t, p) => app.classementBoutonAgent(l, t || '', p || '');
+  assert.equal(c('Calculer'), 'libre');
+  assert.equal(c('Lire le zonage'), 'libre');
+  assert.equal(c('Tirer le plan de situation'), 'libre');
+  assert.equal(c('Suivant : questions →'), 'libre');
+  assert.equal(c('Enregistrer sur la fiche'), 'carte');
+  assert.equal(c('Placer le rendez-vous de signature'), 'carte');
+  assert.equal(c('Retirer ce bien du dossier'), 'strict');
+  assert.equal(c('Télécharger l’annexe (.docx)'), 'jamais');
+  assert.equal(c('Envoyer les emails (3)'), 'jamais');
+  assert.equal(c('PDF/A pour Authentic'), 'jamais');
+  assert.equal(c('Imprimer tout (2)'), 'jamais');
+  assert.equal(c('Ouvrir dans Outlook'), 'jamais');
+  assert.equal(c('Ok', 'Envoyer la demande au client'), 'jamais', 'le titre compte aussi');
+  assert.equal(c('Calculer', '', 'reglages'), 'jamais', 'aucun bouton des Réglages');
+  assert.equal(c('Ouvrir', '', 'telechargement'), 'jamais', 'un lien de téléchargement');
+});
