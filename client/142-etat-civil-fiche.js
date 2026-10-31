@@ -106,24 +106,58 @@ async function telechargerCourrierEtatCivil(dossierId, cle, type, format) {
   }
 }
 
-// Demande Comedec d'UN acte depuis la fiche : confirmée par l'utilisateur (c'est son clic), Envoi immédiat éteint comme toujours.
-function demanderActeEtatCivilFiche(dossierId, actes) {
+// Pure : ce que la demande Comedec du dossier demanderait, personne par personne, d'après ce qu'Authentic montre déjà (étude 31/10 : « un seul
+// bouton pour demander en même temps ; analyser en amont si des demandes ont déjà été faites, voir lesquelles et ne pas les redemander »).
+// naissance / mariage : 'a_demander' | 'deja' | 'etranger' (naissance hors Comedec) | null (pas de mariage à demander pour cette personne).
+function analyseComedecDossier(d) {
+  const lignes = partiesComedecDossier(d).map(p => ({
+    nom: [p.prenom, p.nom].filter(Boolean).join(' '),
+    naissance: p.naissance === false ? 'etranger' : p.dejaNaissance ? 'deja' : 'a_demander',
+    mariage: p.marie ? (p.dejaMariage ? 'deja' : 'a_demander') : null
+  }));
+  const aDemander = lignes.reduce((n, l) => n + (l.naissance === 'a_demander' ? 1 : 0) + (l.mariage === 'a_demander' ? 1 : 0), 0);
+  const deja = lignes.reduce((n, l) => n + (l.naissance === 'deja' ? 1 : 0) + (l.mariage === 'deja' ? 1 : 0), 0);
+  return { lignes, aDemander, deja };
+}
+
+// Un seul bouton : CLAIRE relit d'abord le dossier dans Authentic (les demandes déjà faites), puis crée en UNE demande Comedec les actes qui
+// manquent (naissance de chaque partie, mariage du couple) — jamais un acte déjà demandé ; rien n'est envoyé (Envoi immédiat éteint).
+function demanderActesComedecDossier(dossierId) {
   const d = dossiers.find(x => x.id === dossierId);
   if (!d) return;
-  const quoi = actes === 'mariage' ? 'l’acte de mariage' : actes === 'naissance' ? 'l’acte de naissance' : 'les actes de naissance et de mariage';
-  demanderConfirmation(`Créer dans Authentic la demande d’état civil (Comedec) pour ${quoi} des parties ? Création rapide, Envoi immédiat éteint : rien n’est envoyé, la demande reste à envoyer depuis Authentic.`, async () => {
-    const r = await preparerFormaliteAuthentic(d, 'comedec', { agent: false, actes });
-    if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Demandes papier » sur la fiche.', 'OK', null);
-    // Déjà demandé, mais la demande précédente est fausse (un seul acte au lieu de tous, étude 30/10) : on peut recommencer.
-    if ((r && r.fait && /d[ée]j[àa] demand[ée]/i.test(String(r.resultat || ''))) || (r && /d[ée]j[àa] pr[ée]par[ée]e par CLAIRE/i.test(String(r.erreur || '')))) refaireActeEtatCivilFiche(d, actes);
+  const a = analyseComedecDossier(d);
+  const liste = a.lignes.map(l => [l.naissance === 'a_demander' ? `naissance de ${l.nom}` : '', l.mariage === 'a_demander' ? `mariage de ${l.nom}` : ''].filter(Boolean).join(', ')).filter(Boolean).join(' ; ');
+  demanderConfirmation(`Créer dans Authentic, en une seule demande Comedec, les actes qui manquent${liste ? ` (${liste})` : ''} ? CLAIRE relit d’abord le dossier dans Authentic : un acte déjà demandé n’est pas redemandé. Création rapide, Envoi immédiat éteint : rien n’est envoyé.`, async () => {
+    const avant = JSON.stringify((d.authentic && d.authentic.etatsCivils) || {});
+    afficherToast('CLAIRE relit le dossier dans Authentic pour voir les demandes déjà faites…', 'OK', null);
+    const lu = await gesteAuthenticClaire('lire', { dossierId: d.id, auteur: utilisateurPoste || '', fiches: '' });
+    // La page relue arrive par la file des relevés : quelques secondes au plus pour qu'elle soit appliquée à la fiche.
+    if (lu && lu.ok) {
+      for (let k = 0; k < 12; k++) {
+        const x = dossiers.find(y => y.id === dossierId) || d;
+        if (JSON.stringify((x.authentic && x.authentic.etatsCivils) || {}) !== avant) break;
+        await new Promise(ok => setTimeout(ok, 1000));
+      }
+    }
+    const frais = dossiers.find(y => y.id === dossierId) || d;
+    const apres = analyseComedecDossier(frais);
+    render();
+    if (!apres.aDemander) { afficherToast(`Déjà demandé dans Authentic : rien à redemander (${apres.deja} acte${apres.deja > 1 ? 's' : ''}).`, 'OK', null); return; }
+    const r = await preparerFormaliteAuthentic(frais, 'comedec', { agent: false });
+    if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Courriers papier ».', 'OK', null);
+    render();
   }, { bouton: 'Créer la demande', ton: 'valider' });
 }
 
-function refaireActeEtatCivilFiche(d, actes) {
-  demanderConfirmation('Une demande a déjà été préparée. La refaire (par exemple si la précédente ne portait que sur une partie) ? Seuls les actes qui n’y figurent pas encore sont demandés ; rien n’est envoyé.', async () => {
-    const r = await preparerFormaliteAuthentic(d, 'comedec', { agent: false, actes, refaire: true });
-    if (r && r.fait && /papier|APR/i.test(String(r.resultat || ''))) afficherToast('Une demande papier est à faire : voir « Demandes papier » sur la fiche.', 'OK', null);
-  }, { bouton: 'Refaire la demande', ton: 'valider' });
+// L'état de la demande Comedec, une ligne par personne : ce qui est déjà demandé dans Authentic, ce qui reste à demander.
+function htmlAnalyseComedec(d) {
+  const a = analyseComedecDossier(d);
+  if (!a.lignes.length) return { html: '<p class="hint">Aucune partie que l’étude représente : pas de demande Comedec.</p>', a };
+  const pastille = (etat, acte) => etat === 'deja' ? `<span class="dot-label dl-success"><span class="dot"></span>${acte} déjà demandé</span>`
+    : etat === 'etranger' ? `<span class="dot-label dl-neutre" title="Née à l’étranger, nationalité étrangère : Comedec ne délivre pas cet acte"><span class="dot"></span>${acte} : hors Comedec</span>`
+    : etat === 'a_demander' ? `<span class="dot-label dl-pret"><span class="dot"></span>${acte} à demander</span>` : '';
+  const lignes = a.lignes.map(l => `<li class="ec-personne"><span class="ec-nom">${escapeHtml(l.nom)}</span><span class="ec-etats">${pastille(l.naissance, 'Acte de naissance')} ${pastille(l.mariage, 'Acte de mariage')}</span></li>`).join('');
+  return { html: `<ul class="ec-liste ec-analyse">${lignes}</ul>`, a };
 }
 
 // Lire l'état hypothécaire depuis la fiche : le clic vaut autorisation (pas de carte).
@@ -142,8 +176,8 @@ function renderEtatCivilFiche(d) {
   const succession = estSuccession(d);
   const boutons = [];
   if (!succession && personnes.length) {
-    boutons.push(bouton('file-text', 'Acte de naissance', `demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')`, 'Demande Comedec de l’acte de naissance de chaque partie (créée dans Authentic, rien n’est envoyé)'));
-    if (personnes.some(p => p.mariage)) boutons.push(bouton('file-text', 'Acte de mariage', `demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')`, 'Demande Comedec de l’acte de mariage du couple (un seul acte pour les deux époux)'));
+    const n = analyseComedecDossier(d).aDemander;
+    boutons.push(bouton('file-text', n ? `Actes d’état civil (${n})` : 'Actes d’état civil : déjà demandés', `demanderActesComedecDossier('${escapeOnclickArg(d.id)}')`, 'Une seule demande Comedec pour tous les actes qui manquent (naissance de chaque partie, mariage du couple), après relecture du dossier dans Authentic ; un acte déjà demandé n’est pas redemandé ; rien n’est envoyé'));
   }
   if (!succession) boutons.push(bouton('archive', 'Lire l’EHF', `lireEhfDepuisFiche('${escapeOnclickArg(d.id)}')`, 'Relire l’état hypothécaire (état-réponse) déposé dans Authentic : inscriptions, pièces de mainlevée'));
   const papier = demandesPapierDossier(d);
@@ -183,7 +217,12 @@ function renderEtatCivilConstitution(d) {
   // Vente (étude 30/10 : « d'abord on clique sur le bouton pour rechercher les Comedec et s'il y a des demandes papier, l'outil propose de les
   // faire en papier ») : 1. la demande Comedec dans Authentic ; 2. seulement les demandes qu'Authentic marque « APR » (mairie sans Comedec)
   // reçoivent leur courrier papier ; le courrier pour n'importe quelle personne reste replié, en secours.
-  const comedec = `<div class="ec-comedec"><wa-button variant="brand" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'naissance')">${icone('file-text')} Demander par Comedec : naissance</wa-button>${personnes.some(p => p.mariage) ? `<wa-button appearance="outlined" size="s" type="button" onclick="demanderActeEtatCivilFiche('${escapeOnclickArg(d.id)}', 'mariage')">Comedec : mariage</wa-button>` : ''}</div>`;
+  // Étude 31/10 : un seul bouton pour toutes les demandes, après l'état de ce qui est déjà demandé dans Authentic.
+  const analyse = htmlAnalyseComedec(d);
+  const n = analyse.a.aDemander;
+  const comedec = `${analyse.html}<div class="ec-comedec">${n
+    ? `<wa-button variant="brand" size="s" type="button" onclick="demanderActesComedecDossier('${escapeOnclickArg(d.id)}')">${icone('file-text')} Demander par Comedec (${n} acte${n > 1 ? 's' : ''})</wa-button>`
+    : (analyse.a.lignes.length ? `<span class="hint">Tout est déjà demandé dans Authentic.</span><wa-button appearance="outlined" size="s" type="button" onclick="demanderActesComedecDossier('${escapeOnclickArg(d.id)}')" title="Relire le dossier dans Authentic, puis demander ce qui manquerait">Vérifier dans Authentic</wa-button>` : '')}</div>`;
   const lignesApr = papier.map(x => {
     const p = x.personne;
     const lib = x.type === 'mariage' ? 'Mariage' : 'Naissance';

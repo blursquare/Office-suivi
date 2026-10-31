@@ -11566,6 +11566,8 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .ec-acte-apr .ec-acte-lib { color: var(--urgent); font-weight: 600; }
 .pastille-apr { display: inline-block; padding: 0 4px; border-radius: var(--rayon-xs); background: var(--urgent); color: var(--blanc-fixe); font-size: var(--texte-xxs); font-weight: 700; letter-spacing: 0.06em; }
 .ec-comedec { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.ec-comedec { align-items: center; }
+.ec-analyse .ec-etats { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }
 .ec-papier-tous { margin-top: 16px; font-size: var(--texte-s); }
 .ec-papier-tous > summary { cursor: pointer; color: var(--muted); margin-bottom: 8px; }
 

@@ -95,6 +95,10 @@ test('le courrier papier se compose en Word avec son P.S., et l’étape de la C
   assert.match(app.renderEtatCivilFiche(d), /Lire l’EHF/);
   // Vente (étude 30/10) : Comedec d'abord ; le courrier papier proposé seulement pour une ligne « APR », le reste replié.
   assert.ok(html.indexOf('Demander par Comedec') < html.indexOf('Aucune demande papier'), 'Comedec en premier');
+  // Un seul bouton (étude 31/10) : le nombre d'actes qui manquent, l'état de chaque personne.
+  assert.match(html, /Demander par Comedec \(1 acte\)/);
+  assert.doesNotMatch(html, /Comedec : mariage/);
+  assert.match(html, /Acte de naissance à demander/);
   assert.match(html, /<details class="ec-papier-tous">[\s\S]*Paul DURAND/);
   const apr = app.renderEtatCivilConstitution(Object.assign({}, d, { authentic: { etatsCivilsPapier: { a: { label: 'Acte de naissance Paul DURAND', type: 'naissance' } } } }));
   assert.match(apr, /Demandes papier à faire[\s\S]*Paul DURAND[\s\S]*APR[\s\S]*<details/);
@@ -108,4 +112,27 @@ test('succession : une ligne APR ne va au défunt que par son prénom ET son nom
   const papier = app.demandesPapierDossier(d);
   assert.equal(papier.find(x => /Marie/.test(x.libelle)).personne, null, 'le conjoint n’est pas le défunt');
   assert.equal(papier.find(x => /Jean/.test(x.libelle)).personne.role, 'DEFUNT');
+});
+
+test('Comedec : un seul bouton, ce qui est déjà demandé dans Authentic n’est ni compté ni redemandé (étude 31/10)', () => {
+  const { chargerApplication } = require('./helpers/load-app.js');
+  const app = chargerApplication();
+  const d = { id: 'v2', nom: 'MARTIN / DURAND', typeAffaire: 'vente', situationAcquereur: 'marie',
+    parties: [{ role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Paul' }, { role: 'ACQUEREUR', nom: 'DURAND', prenom: 'Léa' }],
+    authentic: { etatsCivils: { a: { label: 'Acte de naissance DURAND Paul', etat: 'attente' } } } };
+  const a = app.analyseComedecDossier(d);
+  assert.equal(a.lignes.map(l => `${l.nom}:${l.naissance}:${l.mariage}`).join('|'), 'Paul DURAND:deja:a_demander|Léa DURAND:a_demander:null');
+  assert.equal(a.aDemander, 2);
+  assert.equal(a.deja, 1);
+  const html = app.renderEtatCivilConstitution(d);
+  assert.match(html, /Demander par Comedec \(2 actes\)/);
+  assert.match(html, /Acte de naissance déjà demandé/);
+  assert.equal((html.match(/demanderActesComedecDossier\('v2'\)/g) || []).length, 1, 'un seul bouton');
+  // Tout déjà demandé : plus de bouton de demande, « Vérifier dans Authentic » seulement.
+  const tout = Object.assign({}, d, { authentic: { etatsCivils: { a: { label: 'Acte de naissance DURAND Paul' }, b: { label: 'Acte de naissance DURAND Léa' }, c: { label: 'Acte de mariage DURAND Paul' } } } });
+  assert.equal(app.analyseComedecDossier(tout).aDemander, 0);
+  const h2 = app.renderEtatCivilConstitution(tout);
+  assert.match(h2, /Tout est déjà demandé dans Authentic/);
+  assert.doesNotMatch(h2, /Demander par Comedec/);
+  assert.match(app.renderEtatCivilFiche(tout), /Actes d’état civil : déjà demandés/);
 });
