@@ -692,8 +692,8 @@ const RE_DONATION_AGENDA = /^\s*DONATION/i;
 // Donation entre époux (étude 29/10) : « DEE … » ou « Donation entre époux … » en tête du titre, comptée à part des donations.
 const RE_DEE_AGENDA = /^\s*DEE(?![A-Za-zÀ-ɏ])/;   // « DEE » en capitales seulement (jamais le prénom « Dee »)
 const RE_DONATION_ENTRE_EPOUX_AGENDA = /^\s*DONATION\s+ENTRE\s+[EÉ]POUX/i;
-// PACS (étude 29/10) : le mot PACS dans le titre.
-const RE_PACS_AGENDA = /(?<![A-Za-zÀ-ɏ])PACS(?![A-Za-zÀ-ɏ])/i;
+// PACS (étude 29/10, puis 31/10 : « le nom de l'acte en début de rendez-vous, ex. PACS - … ou DEE - … ») : PACS EN TÊTE du titre seulement.
+const RE_PACS_AGENDA = /^\s*PACS(?![A-Za-zÀ-ɏ])/i;
 const RE_SUCCESSION_AGENDA = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
 function natureActeAgenda(sujet) {
   const titre = String(sujet || '');

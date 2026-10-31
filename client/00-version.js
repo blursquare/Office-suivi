@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.408.1';
+  const VERSION_APP = '0.408.2';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.408.2', date: '2026-10-31 10:43', resume: "Statistiques, actes à l’agenda : un PACS n’est compté que si le titre du rendez-vous commence par PACS (« PACS - … »), comme une donation entre époux par DEE (« DEE - … ») ; « Enregistrement PACS … » n’est plus compté." },
     { version: '0.408.1', date: '2026-10-31 10:28', resume: "Barre latérale : l’outil s’appelle « Autor. déblocage/transf. » pour tenir sur une ligne (le nom complet en bulle au survol et sur l’écran de l’outil)." },
     { version: '0.408.0', date: '2026-10-31 10:21', resume: "Petite fenêtre de CLAIRE sur un outil : quand un dossier est choisi dans l’outil (Appel de fonds, Quotités, Contrôle de l’urbanisme, Constitution, Autorisations, Décompte vendeur, Provision), la discussion est rattachée à ce dossier — son nom s’affiche en haut. « @ » propose les collègues et les dossiers : un dossier choisi rattache la demande à ce dossier ; un collègue cité (@Julie) reçoit le message dans la discussion du dossier (ou en message privé sans dossier), et il en est prévenu — CLAIRE n’y répond pas." },
     { version: '0.407.13', date: '2026-10-31 10:03', resume: "Actes d’état civil par Comedec : un seul bouton « Demander par Comedec (N actes) » dans la Constitution de dossier et sur la fiche, à la place des boutons naissance et mariage. Avant le bouton, l’état de chaque personne : acte déjà demandé dans Authentic ou à demander. Au clic, CLAIRE relit d’abord le dossier dans Authentic, puis demande en une fois seulement ce qui manque — jamais un acte déjà demandé." },
