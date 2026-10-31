@@ -3,8 +3,8 @@
 // Surlignage jaune fluo des parcelles sur le PDF officiel du cadastre (étude 14/10 : « les surligner en fluo jaune pour les repérer
 // comme si c'était fait à la main sans dépasser »).
 // - « sans dépasser » : chaque parcelle est un chemin de découpe (clip) — rien n'est peint hors de son contour ;
-// - « à la main » : des passes de surligneur obliques, un peu irrégulières (angle, écart, épaisseur), qui se chevauchent, puis une
-//   passe le long du bord intérieur. L'encre est opaque, sans aucune transparence (étude 27/10 : « quand je mets un
+// - fluo PROPRE (étude 31/10 : « ne plus mettre sur le plan de faux effet surligné, mettre le fluo propre partout sur la parcelle ») :
+//   un aplat jaune fluo uni qui remplit toute la parcelle (avant : des passes de surligneur obliques « à la main »). L'encre est opaque, sans aucune transparence (étude 27/10 : « quand je mets un
 //   plan du cadastre dans mon AAE Authentic, il me fait un PDF avec un gros amas jaune par-dessus la parcelle » — la conversion de
 //   l'acte électronique aplatit la transparence : l'encre translucide en mode « produit » posée PAR-DESSUS devenait un aplat qui
 //   cachait traits, bâtiments et numéros). Dans la parcelle, le plan est REDESSINÉ par-dessus les passes, couleurs déjà teintées de jaune
@@ -17,25 +17,9 @@ const { PDFDocument, PDFName, PDFArray, PDFDict, PDFRef, PDFRawStream, decodePDF
 const PT_PAR_MM = 72 / 25.4;
 // Centre de la carte dans la page A4 portrait (595 × 842 pt), en points depuis le HAUT de la page.
 const CENTRE_CARTE_PT = { x: 296.7, depuisHaut: 524.3 };
-// Sous le plan, opaques : les passes un peu plus claires que le trait du bord (le chevauchement d'un vrai surligneur, sans transparence).
-const JAUNE_PASSES = '1 0.96 0.38';
+// Sous le plan, opaque : un seul jaune fluo uni qui remplit la parcelle ; le trait du bord, plus soutenu, ne sert que sans plan redessiné.
+const JAUNE_FLUO = '1 0.95 0.2';
 const JAUNE_BORD = '1 0.91 0.02';
-const LARGEUR_SURLIGNEUR_PT = 13;      // ≈ 4,6 mm : la pointe biseautée d'un surligneur
-const ANGLE_DEGRES = -17;
-
-/** Pure : un générateur pseudo-aléatoire reproductible (même parcelle → même tracé). @param {string} graine */
-function aleatoire(graine) {
-  let h = 2166136261;
-  for (const c of String(graine)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
-  let a = h >>> 0;
-  return () => {
-    a = (a + 0x6D2B79F5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /**
  * Pure : un point du terrain (mètres, système du site) → point de la page PDF (points, origine en bas à gauche).
@@ -46,31 +30,6 @@ function pointPage(p, emprisePlan, echelle, hauteurPage) {
   const cx = (emprisePlan[0] + emprisePlan[2]) / 2;
   const cy = (emprisePlan[1] + emprisePlan[3]) / 2;
   return [CENTRE_CARTE_PT.x + (p[0] - cx) * k, (hauteurPage - CENTRE_CARTE_PT.depuisHaut) + (p[1] - cy) * k];
-}
-
-/**
- * Pure : les passes de surligneur qui couvrent un contour (en points de page) — segments [x1, y1, x2, y2, épaisseur], obliques,
- * légèrement irréguliers. Ils débordent du contour : la découpe les arrête au bord.
- * @param {Array<[number, number]>} contour @param {string} graine
- */
-function passesSurligneur(contour, graine) {
-  const r = aleatoire(graine);
-  const a = ANGLE_DEGRES * Math.PI / 180;
-  const ux = Math.cos(a); const uy = Math.sin(a);        // sens du trait
-  const vx = -uy; const vy = ux;                           // perpendiculaire : on avance de passe en passe
-  const us = contour.map((q) => q[0] * ux + q[1] * uy);
-  const vs = contour.map((q) => q[0] * vx + q[1] * vy);
-  const uMin = Math.min(...us) - 6; const uMax = Math.max(...us) + 6;
-  const vMin = Math.min(...vs); const vMax = Math.max(...vs);
-  const passes = [];
-  const pas = LARGEUR_SURLIGNEUR_PT * 0.6;
-  for (let v = vMin - LARGEUR_SURLIGNEUR_PT * 0.3; v <= vMax + LARGEUR_SURLIGNEUR_PT * 0.3; v += pas * (0.9 + r() * 0.2)) {
-    const derive = (r() - 0.5) * 0.06;                     // le poignet ne trace jamais tout à fait droit
-    const v1 = v + (r() - 0.5) * 1.6; const v2 = v + (uMax - uMin) * derive + (r() - 0.5) * 1.6;
-    const ep = LARGEUR_SURLIGNEUR_PT * (0.92 + r() * 0.14);
-    passes.push([uMin * ux + v1 * vx, uMin * uy + v1 * vy, uMax * ux + v2 * vx, uMax * uy + v2 * vy, ep]);
-  }
-  return passes;
 }
 
 // ---- Teinte jaune sans transparence ----------------------------------------------------------------------------------------------
@@ -284,16 +243,9 @@ async function surlignerParcelles(pdf, plan) {
     if (!contours.length) continue;
     // Découpe : la parcelle seule, contours et trous en pair-impair.
     const chemin = [...contours, ...trous].map((c) => `${n(c[0][0])} ${n(c[0][1])} m ` + c.slice(1).map((q) => `${n(q[0])} ${n(q[1])} l`).join(' ') + ' h').join(' ');
-    encre += `q ${chemin} W* n 1 J 1 j\n`;
-    for (const [i, contour] of contours.entries()) {
-      for (const [x1, y1, x2, y2, ep] of passesSurligneur(contour, `${p.section}${p.numero}-${i}`)) {
-        encre += `${JAUNE_PASSES} RG ${n(ep)} w ${n(x1)} ${n(y1)} m ${n(x2)} ${n(y2)} l S\n`;
-      }
-    }
-    // Le long des bords intérieurs, comme on repasse les angles : la moitié intérieure du trait seulement (découpe).
-    for (const contour of [...contours, ...trous]) {
-      encre += `${JAUNE_BORD} RG 7 w ` + contour.map((q, j) => `${n(q[0])} ${n(q[1])} ${j ? 'l' : 'm'}`).join(' ') + ' h S\n';
-    }
+    // Aplat uni (pair-impair : les trous restent blancs) ; le bord, lui, n'est gardé que si le plan ne peut pas être redessiné dessus.
+    encre += `q ${chemin} W* n 1 J 1 j\n${JAUNE_FLUO} rg ${chemin} f*\n`;
+    encre += '%bord ' + [...contours, ...trous].map((contour) => `${JAUNE_BORD} RG 3 w ` + contour.map((q, j) => `${n(q[0])} ${n(q[1])} ${j ? 'l' : 'm'}`).join(' ') + ' h S').join(' ') + '\n';
     encre += 'Q\n';
   }
   // Le plan redessiné DANS la parcelle, par-dessus les passes : fonds blancs retirés (les passes se voient dessous), couleurs déjà teintées
@@ -301,8 +253,8 @@ async function surlignerParcelles(pdf, plan) {
   if (encre) {
     const copie = await copieTeinteePage(doc, page);
     // Sans copie (flux illisible, image en ligne) : jamais d'aplat opaque sans le plan dessus — le trait du bord seul (relecture 0.373.3).
-    if (copie) encre = encre.replace(/Q\n/g, `/ClaireTeinte Do Q\n`);
-    else encre = encre.split('\n').filter((l) => !l.startsWith(JAUNE_PASSES)).join('\n');
+    if (copie) encre = encre.split('\n').filter((l) => !l.startsWith('%bord ')).join('\n').replace(/Q\n/g, `/ClaireTeinte Do Q\n`);
+    else encre = encre.split('\n').filter((l) => !l.startsWith(JAUNE_FLUO)).map((l) => l.startsWith('%bord ') ? l.slice(6) : l).join('\n');
     const ctx = doc.context;
     const flux = ctx.register(ctx.flateStream(Buffer.from(encre, 'latin1')));
     const contenus = page.node.Contents();
@@ -322,4 +274,4 @@ async function surlignerParcelles(pdf, plan) {
   return Buffer.from(await doc.save());
 }
 
-module.exports = { griserContenu, sansFondsBlancs, teinterContenu, surlignerParcelles, pointPage, passesSurligneur, aleatoire, CENTRE_CARTE_PT };
+module.exports = { griserContenu, sansFondsBlancs, teinterContenu, surlignerParcelles, pointPage, CENTRE_CARTE_PT, JAUNE_FLUO };

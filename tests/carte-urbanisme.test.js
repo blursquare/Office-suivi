@@ -59,3 +59,11 @@ test('sections du dossier et ventes filtrées sans doublon, les plus récentes d
   assert.equal(app.resumeVenteCarte(maison), 'Maison 95 m² 4 p. · terrain 8 a 20 ca');
   assert.equal(app.resumeVenteCarte(terrain), 'Terrain · terrain 28 a 20 ca');
 });
+
+test('adresse de la Base adresse nationale : celle de la parcelle, sinon le plus proche avec sa parcelle', () => {
+  assert.match(app.texteAdresseBanCarte([{ libelle: '7 rue X', certifie: true }], null), /Adresse de cette parcelle, vérifiée par la commune/);
+  const voisin = app.texteAdresseBanCarte([], { libelle: '40 rue des Sorbiers', distance: 165, banLue: true, certifie: true, parcelles: ['ER 80'] });
+  assert.match(voisin, /à 165 m, rattaché à la parcelle ER 80 · vérifié par la commune — pas l’adresse de cette parcelle/);
+  assert.match(app.texteAdresseBanCarte([], { libelle: 'x', distance: 5, banLue: true, certifie: false, parcelles: [] }), /rattaché à aucune parcelle/);
+  assert.equal(app.texteAdresseBanCarte([], null), '');
+});

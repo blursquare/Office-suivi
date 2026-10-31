@@ -41,7 +41,11 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
       { geometry: { type: 'Polygon', coordinates: [[[1.579, 47.339], [1.5805, 47.339], [1.5805, 47.342], [1.579, 47.342], [1.579, 47.339]]] }, properties: { libelle: 'UB', libelong: 'Zone urbaine', typezone: 'U' } },
       { geometry: { type: 'Polygon', coordinates: [[[1.5805, 47.339], [1.582, 47.339], [1.582, 47.342], [1.5805, 47.342], [1.5805, 47.339]]] }, properties: { libelle: 'A', libelong: 'Zone agricole', typezone: 'A' } }
     ]));
-    if (url.includes('/geocodage/reverse')) return reponse(fc([{ properties: { label: '7 Rue des Lilas 41230 Gy-en-Sologne', housenumber: '7', street: 'Rue des Lilas', distance: 60.4 } }]));
+    if (url.includes('/geocodage/reverse')) return reponse(fc([
+      { properties: { id: '41099_0027_00009', label: '9 Rue des Lilas 41230 Gy-en-Sologne', housenumber: '9', street: 'Rue des Lilas', distance: 20.2 } },
+      { properties: { id: '41099_0027_00007', label: '7 Rue des Lilas 41230 Gy-en-Sologne', housenumber: '7', street: 'Rue des Lilas', distance: 60.4 } }]));
+    if (url.includes('/lookup/41099_0027_00009')) return reponse({ certifie: true, parcelles: ['410990000E1021'] });
+    if (url.includes('/lookup/41099_0027_00007')) return reponse({ certifie: true, parcelles: ['410990000E1020'] });
     if (url.includes('assiette-sup-l')) return reponse(fc([{ properties: { suptype: 'el7', nomsuplitt: 'Plan d’alignement RD 12' } }]));
     if (url.includes('assiette-sup-s')) return reponse(fc([{ properties: { suptype: 'ac1', nomsuplitt: 'Église' } }]));
     return reponse({}, 404);
@@ -54,10 +58,14 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
   assert.ok(Math.abs(p.zones[0].part + p.zones[1].part - 1) < 0.02);
   assert.ok(p.zones.every(z => z.part > 0.2 && z.part < 0.8), JSON.stringify(p.zones));
   assert.ok(['UB', 'A'].includes(p.zone.libelle));
-  assert.equal(p.adresse.distance, 60);
+  assert.equal(p.adresse.distance, 20, 'le plus proche…');
+  assert.equal(p.adresse.parcelles[0], 'E 1021', '… est rattaché à la voisine');
+  assert.equal(p.adressesParcelle.length, 1);
+  assert.equal(p.adressesParcelle[0].libelle, '7 Rue des Lilas 41230 Gy-en-Sologne', 'l’adresse officielle de E 1020');
+  assert.equal(p.adressesParcelle[0].certifie, true);
   assert.equal(p.alignement.length, 1);
   assert.equal(p.alignement[0].nom, 'Plan d’alignement RD 12');
-  for (const u of appels) assert.match(u, /^https:\/\/(apicarto\.ign\.fr|data\.geopf\.fr)\//);
+  for (const u of appels) assert.match(u, /^https:\/\/(apicarto\.ign\.fr|data\.geopf\.fr|plateforme\.adresse\.data\.gouv\.fr)\//);
   assert.deepEqual(await C.pointCarte('x', 47), { erreur: 'Point hors de France.' });
 });
 

@@ -1206,12 +1206,13 @@ test('31/10 : controle_urbanisme parcelles et ventes (carte) — rien de nominat
   const r = await tourAgent({ texte: 'Quelles ventes près du bien du dossier Fournier ?', dossiers: D, contexte: {} }, opts);
   await tourAgent({ conversation: r.conversation, resultats: [
     { id: 'p1', contenu: { parcelles: [{ parcelle: 'AB 12', commune: 'Vineuil', contenance: '6 a 40 ca', zone_plu: 'UA1 93 % (zone urbaine) ; A 7 % (zone agricole)',
-      adresse_la_plus_proche: '3 rue des Lilas 41350 Vineuil (à 12 m) — chez Paul FOURNIER', alignement: 'aucun plan d’alignement publié au Géoportail' }] } },
+      numero_de_voie: '3 rue des Lilas 41350 Vineuil — chez Paul FOURNIER', numero_de_voie_source: 'Numéro le plus proche, à 12 m, rattaché à la parcelle AB 13 · vérifié par la commune — pas l’adresse de cette parcelle', alignement: 'aucun plan d’alignement publié au Géoportail' }] } },
     { id: 'v1', contenu: { sections: ['AB'], ventes: [{ date: '2025-06-27', prix: '87.000,00 €', quoi: 'Maison 80 m² 4 p.', adresse: 'RUE DES LILAS FOURNIER', parcelles: ['AB 14'] }] } }
   ] }, opts);
   const envoye = JSON.stringify(client.requetes[1].messages);
   assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
   assert.match(envoye, /UA1 93 %/);
+  assert.match(envoye, /rattaché à la parcelle AB 13/, 'l’explication de la Base adresse nationale reste lisible');
   assert.match(envoye, /87\.000,00/);
 });
 

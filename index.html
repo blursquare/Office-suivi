@@ -1602,23 +1602,24 @@
   </section>
   <div id="pr-barre-dossier" class="pr-barre-dossier"></div>
   <section class="pr-page" data-page="parcelles" style="display:none;">
-    <div class="calc-card pr-carte-etape">
-      <h2 class="outil-section-tete">Parcelles et zones <span class="info-i" tabindex="0" data-info="Géoportail de l’urbanisme (IGN) : chaque parcelle est lue dès que la commune et les parcelles sont connues ; seuls la commune et les numéros de parcelle sont envoyés."></span></h2>
-      <div id="pr-parcelle"></div>
-      <div id="pr-dpur-carte"></div>
-      <div class="pr-nav" data-page="parcelles"></div>
+    <!-- Parcelles et questions réunies (étude 31/10 : « les écrans 2 et 3 peuvent être réunis, moins de blanc, pas de champs sur toute la
+         largeur ») : à gauche le lieu, les zones et le DPU renforcé, à droite les questions. -->
+    <div class="pr-etape-deux">
+      <div class="calc-card pr-carte-etape">
+        <h2 class="outil-section-tete">Parcelles et zones <span class="info-i" tabindex="0" data-info="Géoportail de l’urbanisme (IGN) : chaque parcelle est lue dès que la commune et les parcelles sont connues ; seuls la commune et les numéros de parcelle sont envoyés."></span></h2>
+        <div id="pr-parcelle"></div>
+        <div id="pr-dpur-carte"></div>
+      </div>
+      <div class="calc-card pr-carte-etape pr-questions">
+        <h2 class="outil-section-tete">Mutation</h2>
+        <div id="pr-mutation-zone"></div>
+        <h2 class="outil-section-tete">Bien vendu</h2>
+        <div id="pr-bien-zone"></div>
+        <h2 class="outil-section-tete">Agricole et forestier</h2>
+        <div id="pr-rural-zone"></div>
+      </div>
     </div>
-  </section>
-  <section class="pr-page" data-page="questions" style="display:none;">
-    <div class="calc-card pr-carte-etape">
-      <h2 class="outil-section-tete">Mutation</h2>
-      <div id="pr-mutation-zone"></div>
-      <h2 class="outil-section-tete">Bien vendu</h2>
-      <div id="pr-bien-zone"></div>
-      <h2 class="outil-section-tete">Agricole et forestier — SAFER, bois et forêts</h2>
-      <div id="pr-rural-zone"></div>
-      <div class="pr-nav" data-page="questions"></div>
-    </div>
+    <div class="pr-nav" data-page="parcelles"></div>
   </section>
   <section class="pr-page" data-page="rendu" style="display:none;">
     <!-- Écran d'analyse (étude 31/10 : « l'outil ultime du contrôle de l'urbanisme, simple et épuré ») : la carte à gauche

@@ -288,6 +288,8 @@
           : `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(aerien.erreur || 'Plan non tiré.')}</p>`) : ''}
       </div>`;
     if (actif) { const el = document.getElementById(actif); if (el && el.focus) el.focus(); }
+    // L'aperçu des plans tirés suit (onglet Plans de l'écran Contrôle, client/152).
+    if (typeof renderApercuPlanPreemption === 'function' && prEtat && pageCourantePreemption(prEtat) === 'rendu') renderApercuPlanPreemption();
   }
 
   // ===== « Demander à CLAIRE » : l'outil consulter_site de l'agent (plan de situation seulement) =====

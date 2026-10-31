@@ -1467,14 +1467,15 @@
   // Deux sources, jamais en même temps, demandé ainsi par l'étude : quand un dossier est rattaché,
   // son adresse est reprise telle quelle (elle a déjà été relue et corrigée à la création du
   // dossier, la redemander à un service extérieur n'apporterait rien) ; sans dossier rattaché, le
-  // champ propose les adresses officielles de la Base Adresse Nationale (api-adresse.data.gouv.fr).
+  // champ propose les adresses officielles de la Base Adresse Nationale, par le géocodage de la Géoplateforme de l'IGN
+  // (data.geopf.fr/geocodage — 31/10 : l'ancien service api-adresse.data.gouv.fr ne répond plus, l'État l'a remplacé par celui-ci).
   //
   // **Seul appel réseau vers un service tiers de tout CLAIRE.** Ce qui part est le texte tapé dans
   // ce champ, rien d'autre — jamais le nom du dossier, des parties ni aucune autre donnée client.
   // L'API est un service public de l'État, sans compte ni clé. Si le poste n'a pas d'accès
   // internet, l'appel échoue silencieusement et le champ reste une saisie libre : la génération du
   // courrier ne dépend à aucun moment de ce service.
-  var API_ADRESSE_DATA_GOUV = 'https://api-adresse.data.gouv.fr/search/';
+  var API_ADRESSE_DATA_GOUV = 'https://data.geopf.fr/geocodage/search';
   var MIN_CARACTERES_SUGGESTION_ADRESSE = 4;
   var DELAI_SUGGESTION_ADRESSE_MS = 250;
   var afAdresseBienDepuisDossier = false;
@@ -1482,7 +1483,7 @@
   var afGenerationSuggestionAdresse = 0;
 
   function urlRechercheAdresseDataGouv(requete) {
-    return API_ADRESSE_DATA_GOUV + '?q=' + encodeURIComponent(String(requete || '').trim()) + '&limit=5&autocomplete=1';
+    return API_ADRESSE_DATA_GOUV + '?q=' + encodeURIComponent(String(requete || '').trim()) + '&limit=5&autocomplete=1&index=address';
   }
 
   // La BAN renvoie du GeoJSON : `label` est l'adresse complète (« 5 rue des Lilas 41000 Blois »),

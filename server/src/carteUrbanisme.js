@@ -7,7 +7,8 @@
 // l'urbanisme, et seulement vers des services publics ouverts, sans IA ni compte :
 //   - tuiles de la Géoplateforme de l'IGN (plan IGN, photographies aériennes, parcellaire du cadastre avec ses numéros) ;
 //   - API Carto de l'IGN (parcelle sous un point, zones du PLU d'une emprise, servitude d'alignement EL7 de la parcelle) ;
-//   - géocodage inverse de la Géoplateforme (Base adresse nationale : le numéro de voie le plus proche) ;
+//   - géocodage inverse de la Géoplateforme et fiche de l'adresse à la Base adresse nationale (plateforme.adresse.data.gouv.fr : adresse
+//     vérifiée par la commune, parcelles auxquelles elle est rattachée) ;
 //   - DVF d'Etalab (ventes publiées d'une section cadastrale : date, prix, nature, surfaces — jamais un nom, DVF n'en a pas).
 // NE PARTENT QUE : des coordonnées (un point cliqué, l'emprise affichée, un numéro de tuile), un code INSEE et une section. Jamais un nom,
 // un dossier ni l'adresse d'un client. Les plans de bornage et les DMPC des géomètres-experts (Géofoncier) ne sont pas des données
@@ -16,6 +17,7 @@
 const GEOPF = 'https://data.geopf.fr';
 const APICARTO = 'https://apicarto.ign.fr/api';
 const DVF = 'https://app.dvf.etalab.gouv.fr/api/mutations3';
+const BAN_LOOKUP = 'https://plateforme.adresse.data.gouv.fr/lookup';
 const DELAI_MS = 15000;
 
 // Couches de tuiles permises — rien d'autre ne passe par la route (liste blanche).
@@ -31,10 +33,10 @@ const PNG_VIDE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADU
 // Caches SÉPARÉS par sorte (audit 0.416.0 : un seul Map dont chaque plafond purgeait les autres sortes) ; une demande déjà en cours est
 // réunie avec la suivante ; au plus 8 requêtes simultanées vers les services de l'IGN et d'Etalab.
 /** @type {Record<string, Map<string, { le: number, valeur: any }>>} */
-const caches = { p: new Map(), z: new Map(), dvf: new Map() };
+const caches = { p: new Map(), z: new Map(), dvf: new Map(), ban: new Map() };
 /** @type {Map<string, Promise<any>>} */
 const enCours = new Map();
-/** @param {'p'|'z'|'dvf'} sorte @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire @param {(v: any) => boolean} [garder] */
+/** @param {'p'|'z'|'dvf'|'ban'} sorte @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire @param {(v: any) => boolean} [garder] */
 async function enCache(sorte, cle, dureeMs, max, lire, garder) {
   const cache = caches[sorte];
   const c = cache.get(cle);
@@ -77,9 +79,9 @@ let tuilesCoupeesJusqua = 0;
 /** @param {any} injections */
 function fetchDe(injections) { return (injections && injections.fetch) || fetch; }
 
-/** @param {string} url @param {any} injections */
-async function lireJson(url, injections) {
-  const r = await borne(() => fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Accept: 'application/json' } }));
+/** @param {string} url @param {any} injections @param {number} [delaiMs] */
+async function lireJson(url, injections, delaiMs) {
+  const r = await borne(() => fetchDe(injections)(url, { signal: AbortSignal.timeout(delaiMs || DELAI_MS), headers: { Accept: 'application/json' } }));
   if (!r.ok) {
     const e = new Error(`réponse ${r.status}`);
     /** @type {any} */ (e).statut = r.status;
@@ -163,12 +165,45 @@ function empriseValide(texte) {
   return [o, s, e, n].map((x) => Math.round(x * 1e5) / 1e5);
 }
 
-/** Pure : l'adresse BAN la plus proche, d'une réponse du géocodage inverse. @param {any} geo */
-function adresseDepuisReverse(geo) {
-  const f = geo && Array.isArray(geo.features) ? geo.features[0] : null;
-  const p = f && f.properties;
-  if (!p || !p.label) return null;
-  return { libelle: String(p.label), numero: String(p.housenumber || ''), voie: String(p.street || p.name || ''), distance: Number.isFinite(Number(p.distance)) ? Math.round(Number(p.distance)) : null };
+/** Pure : les adresses BAN d'une réponse du géocodage inverse, la plus proche d'abord. @param {any} geo */
+function adressesDepuisReverse(geo) {
+  return (geo && Array.isArray(geo.features) ? geo.features : []).map((f) => f && f.properties).filter((p) => p && p.label).map((p) => ({
+    id: /^[0-9A-Za-z_]{5,40}$/.test(String(p.id || '')) ? String(p.id) : '',
+    libelle: String(p.label), numero: String(p.housenumber || ''), voie: String(p.street || p.name || ''),
+    distance: Number.isFinite(Number(p.distance)) ? Math.round(Number(p.distance)) : null
+  }));
+}
+/** Pure : l'adresse BAN la plus proche (compatibilité). @param {any} geo */
+function adresseDepuisReverse(geo) { return adressesDepuisReverse(geo)[0] || null; }
+
+/** Pure : « ER 80 » d'après un identifiant cadastral de 14 caractères. @param {string} idu */
+function parcelleLisible(idu) {
+  const m = /^\d[0-9AB]\d{3}\d{3}([0-9A-Z]{2})(\d{4})$/.exec(String(idu || ''));
+  return m ? `${m[1].replace(/^0(?=[A-Z])/, '')} ${Number(m[2])}` : String(idu || '');
+}
+
+/** Fiche BAN d'une adresse (étude 31/10, adresse.data.gouv.fr) : adresse vérifiée par la commune (`certifie`) et parcelles auxquelles la
+ * commune l'a rattachée. Rien de nominatif : un identifiant d'adresse publique. @param {string} id @param {any} [injections] */
+async function ficheBan(id, injections) {
+  if (!/^[0-9A-Za-z_]{5,40}$/.test(String(id || ''))) return null;
+  return enCache('ban', id, 24 * 3600 * 1000, 500, async () => {
+    const d = await lireJson(`${BAN_LOOKUP}/${encodeURIComponent(id)}`, injections, 5000);
+    return { certifie: d && d.certifie === true, parcelles: (d && Array.isArray(d.parcelles) ? d.parcelles : []).map(String).filter((x) => /^[0-9A-Z]{14}$/.test(x)).slice(0, 20) };
+  });
+}
+
+/** L'adresse officielle d'une parcelle : parmi les numéros les plus proches, ceux que la commune a rattachés à CETTE parcelle ; sinon le plus
+ * proche, avec la parcelle à laquelle il est rattaché (étude 31/10 : le numéro le plus proche peut être celui du voisin).
+ * @param {any[]} proches @param {string} idu @param {any} [injections] */
+async function adresseOfficielleParcelle(proches, idu, injections) {
+  const liste = (proches || []).slice(0, 5);
+  const fiches = await Promise.all(liste.map((a) => ficheBan(a.id, injections).catch(() => null)));
+  const avec = liste.map((a, i) => {
+    const f = fiches[i];
+    const { id: _id, ...reste } = a;
+    return Object.assign(reste, f ? { certifie: f.certifie, parcelles: f.parcelles.map(parcelleLisible), rattachee: !!idu && f.parcelles.includes(idu), banLue: true } : { banLue: false });
+  });
+  return { deLaParcelle: avec.filter((a) => a.rattachee), plusProche: avec[0] || null };
 }
 
 /** Pure : servitudes d'alignement (EL7) d'une réponse assiette-sup du Géoportail. @param {...any} reponses */
@@ -198,7 +233,7 @@ async function pointCarte(lon, lat, injections) {
   return enCache('p', `${p.lon}:${p.lat}`, 3600 * 1000, 400, async () => {
     const [cad, adresse] = await Promise.allSettled([
       lireJson(`${APICARTO}/cadastre/parcelle?geom=${geom}`, injections),
-      lireJson(`${GEOPF}/geocodage/reverse?lon=${p.lon}&lat=${p.lat}&limit=1&index=address`, injections)
+      lireJson(`${GEOPF}/geocodage/reverse?lon=${p.lon}&lat=${p.lat}&limit=5&index=address`, injections)
     ]);
     const f = cad.status === 'fulfilled' && cad.value && Array.isArray(cad.value.features) ? cad.value.features[0] : null;
     const pp = (f && f.properties) || null;
@@ -234,6 +269,10 @@ async function pointCarte(lon, lat, injections) {
         zone = z && z.properties ? { libelle: String(z.properties.libelle || ''), libelong: String(z.properties.libelong || ''), typezone: String(z.properties.typezone || '') } : null;
       }
     }
+    let adresses = { deLaParcelle: /** @type {any[]} */ ([]), plusProche: /** @type {any} */ (null) };
+    if (adresse.status === 'fulfilled') {
+      try { adresses = await adresseOfficielleParcelle(adressesDepuisReverse(adresse.value), parcelle ? parcelle.idu : '', injections); } catch (_) { /* fiches BAN non lues */ }
+    }
     const alignement = !g || (supL.status === 'rejected' && supS.status === 'rejected') ? null
       : alignementDepuisSup(supL.status === 'fulfilled' ? supL.value : null, supS.status === 'fulfilled' ? supS.value : null);
     return {
@@ -243,11 +282,13 @@ async function pointCarte(lon, lat, injections) {
       zone,
       zones,
       zoneLue: zonesLues.status === 'fulfilled',
-      adresse: adresse.status === 'fulfilled' ? adresseDepuisReverse(adresse.value) : null,
+      adresse: adresses.plusProche,
+      adressesParcelle: adresses.deLaParcelle,
       adresseLue: adresse.status === 'fulfilled',
       alignement
     };
-  }, (v) => v.cadastreLu || v.zoneLue || v.adresseLue);
+  // Pas gardé si tout a échoué, ni si les fiches de la Base adresse nationale n'ont pas répondu (relu au clic suivant).
+  }, (v) => (v.cadastreLu || v.zoneLue || v.adresseLue) && !(v.adresse && v.adresse.banLue === false));
 }
 
 /** Zones du PLU dans l'emprise affichée (contour, libellé, type). @param {unknown} emprise @param {any} [injections] */
@@ -319,4 +360,4 @@ async function ventesSection(insee, section, prefixe, injections) {
 
 function viderCacheCarte() { Object.values(caches).forEach((c) => c.clear()); tuiles.clear(); octetsTuiles = 0; echecsTuiles = 0; tuilesCoupeesJusqua = 0; enCours.clear(); }
 
-module.exports = { COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };
+module.exports = { COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };

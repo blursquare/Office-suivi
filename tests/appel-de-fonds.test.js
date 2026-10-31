@@ -305,7 +305,8 @@ test('prefillAppelFonds propose le département et le type de bien du contrôle'
 
 test('urlRechercheAdresseDataGouv encode la requête et borne les résultats', () => {
   const url = app.urlRechercheAdresseDataGouv('5 rue des Lilas, Blois');
-  assert.ok(url.startsWith('https://api-adresse.data.gouv.fr/search/?q='));
+  assert.ok(url.startsWith('https://data.geopf.fr/geocodage/search?q='));
+  assert.match(url, /index=address/);
   // L'espace et la virgule doivent être encodés : une URL mal formée rend une 400 silencieuse.
   assert.ok(url.includes('5%20rue%20des%20Lilas%2C%20Blois'));
   assert.ok(url.includes('limit=5'));

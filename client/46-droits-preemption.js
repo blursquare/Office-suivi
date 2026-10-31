@@ -370,10 +370,23 @@
   // parcelle, zone du document d'urbanisme, zone retenue (modifiable), contenance ; document, informations et prescriptions
   // communes en dessous, les secondes repliées.
   // Barre de répartition des zones dans la parcelle (U rouge, AU orange, A jaune, N vert), seulement quand elle est à cheval et mesurée.
+  // Pure : le type de zone d'un code du Géoportail (« U », « AU », « A », « N »).
+  function typeCourtZone(typezone) {
+    const t = String(typezone || '').toUpperCase();
+    return /^AU/.test(t) ? 'AU' : (t.match(/^[UAN]/) || [''])[0] || t.slice(0, 2);
+  }
+
+  // Jauge de répartition (étude 31/10 : « mettre plutôt U et A, et la jauge avec le type de zone A, U ou N juste au-dessus ») : le type et
+  // sa part au-dessus, la barre dessous ; une même famille (UA1 + UB) est réunie.
   function renderBarreZonesParcelle(parts) {
-    const p = (parts || []).filter(x => x.part != null && x.part > 0);
+    const brutes = (parts || []).filter(x => x.part != null && x.part > 0);
+    if (brutes.length < 2) return '';
+    const fam = new Map();
+    brutes.forEach(x => { const t = typeCourtZone(x.typezone); const y = fam.get(t) || { libelle: t, typezone: x.typezone, part: 0 }; y.part += x.part; fam.set(t, y); });
+    const p = [...fam.values()].sort((a, b) => b.part - a.part);
     if (p.length < 2) return '';
-    return `<div class="pr-zt-barre" role="img" aria-label="${escapeAttr(p.map(x => `${x.libelle} ${pourcentZone(x.part)}`).join(', '))}">${p.map(x => `<span style="flex:${Math.max(0.02, x.part)};--zone:var(--${couleurZonePlu(x.typezone)})" title="${escapeAttr(`${x.libelle} ${pourcentZone(x.part)}`)}"></span>`).join('')}</div>`;
+    return `<div class="pr-jauge"><div class="pr-jauge-types">${p.map(x => `<span class="pr-jauge-type" style="--zone:var(--${couleurZonePlu(x.typezone)})"><strong>${escapeHtml(x.libelle)}</strong> ${escapeHtml(pourcentZone(x.part))}</span>`).join('')}</div>`
+      + `<div class="pr-zt-barre" role="img" aria-label="${escapeAttr(p.map(x => `${x.libelle} ${pourcentZone(x.part)}`).join(', '))}">${p.map(x => `<span style="flex:${Math.max(0.02, x.part)};--zone:var(--${couleurZonePlu(x.typezone)})" title="${escapeAttr(`${x.libelle} ${pourcentZone(x.part)}`)}"></span>`).join('')}</div></div>`;
   }
 
   function renderTableauZonagePreemption(e, lignes) {
@@ -387,7 +400,10 @@
         <td class="pr-zt-parcelle">${escapeHtml(l.libelle)}</td>
         <td class="pr-zt-zone">${l.statut === 'lecture' ? `<span class="hint">${icone('spinner')} Lecture…</span>`
           : l.statut === 'erreur' ? `<span class="pr-zt-erreur" title="${escapeAttr(l.erreur)}">${icone('alert-triangle')} ${escapeHtml(l.erreur)}</span>`
-          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${(l.parts || []).length > 1 && l.parts[0].part != null ? ` <span class="pr-zt-part">${escapeHtml(pourcentZone(l.parts[0].part))}</span>` : ''}${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}${(l.autresZones || []).length ? `<div class="pr-zt-aussi"><span class="dot-label dl-pret"><span class="dot"></span>Touche aussi</span> ${l.autresZones.map(z => { const p = (l.parts || []).find(x => x.libelle === z.libelle); return `<strong>${escapeHtml(z.libelle)}</strong>${p && p.part != null ? ` <span class="pr-zt-part">${escapeHtml(pourcentZone(p.part))}</span>` : ''}${z.famille ? ` (${escapeHtml(z.famille)})` : ''}`; }).join(', ')}</div>` : ''}${renderBarreZonesParcelle(l.parts)}` : '<span class="hint">aucune zone lue</span>'}</td>
+          : l.zone ? (renderBarreZonesParcelle(l.parts)
+            ? `${renderBarreZonesParcelle(l.parts)}<div class="pr-zt-codes">${(l.parts || []).map(z => `<span title="${escapeAttr((z.libelle === l.zone ? l.libelong : ((l.autresZones || []).find(a => a.libelle === z.libelle) || {}).libelong) || '')}">${escapeHtml(z.libelle)} ${escapeHtml(pourcentZone(z.part))}</span>`).join(' · ')}</div>`
+            : `<strong>${escapeHtml(l.zone)}</strong>${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}${(l.autresZones || []).length ? `<div class="pr-zt-aussi"><span class="dot-label dl-pret"><span class="dot"></span>Touche aussi</span> ${l.autresZones.map(z => `<strong>${escapeHtml(z.libelle)}</strong>${z.famille ? ` (${escapeHtml(z.famille)})` : ''}`).join(', ')}</div>` : ''}`)
+          : '<span class="hint">aucune zone lue</span>'}</td>
         <td class="pr-zt-retenue"><select aria-label="Zone retenue pour ${escapeAttr(l.libelle)}" onchange="choisirZoneParcellePreemption('${escapeOnclickArg(l.cle)}', this.value)">
           <option value="">${l.lue ? escapeHtml(l.lue) + ' (lue)' : 'Inconnue'}</option>
           ${ZONES_PREEMPTION.map(z => `<option value="${z.cle}"${l.choisie && l.famille === z.cle ? ' selected' : ''}>${escapeHtml(z.libelle)}</option>`).join('')}

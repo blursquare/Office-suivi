@@ -12,7 +12,7 @@ const fs = require('node:fs');
 
 const { versCC, zoneCCDepuisSrs, emprisePoints } = require('../src/navigateur/lambert');
 const { echelleExtrait, emprisePlanDepuisEnvoi, departementDepuisInsee, groupesPlans, communeDansListeCadastre } = require('../src/navigateur/planCadastre');
-const { pointPage, passesSurligneur, surlignerParcelles, aleatoire } = require('../src/navigateur/surlignage');
+const { pointPage, surlignerParcelles } = require('../src/navigateur/surlignage');
 const { adresseAutorisee, adresseAchat, nomFichierReponse } = require('../src/navigateur/session');
 const { cheminsNavigateur, argumentsLancement, ConnexionCdp } = require('../src/navigateur/chrome');
 const { creerGestionnaireTaches } = require('../src/navigateur/taches');
@@ -89,25 +89,6 @@ test('placement sur la page : la croix du quadrillage d’un extrait réel tombe
   const e500 = [1573486.404, 7156204.275, 1573584.154, 7156309.775];
   const q = pointPage([1573550, 7156250], e500, 500, 842);
   assert.ok(Math.abs(q[0] - 380.2) < 0.4 && Math.abs((842 - q[1]) - 564.3) < 0.4, String(q));
-});
-
-test('passes du surligneur : reproductibles, obliques, elles couvrent toute la parcelle', () => {
-  const carre = [[100, 100], [160, 100], [160, 150], [100, 150]];
-  const a = passesSurligneur(carre, 'AL694-0');
-  assert.deepEqual(passesSurligneur(carre, 'AL694-0'), a, 'même parcelle → même tracé');
-  assert.notDeepEqual(passesSurligneur(carre, 'AL695-0'), a, 'une autre parcelle → un autre tracé');
-  assert.ok(a.length >= 5);
-  // Chaque point du carré est à moins d'une demi-épaisseur d'une passe : pas de trou.
-  const distance = (px, py, s) => {
-    const [x1, y1, x2, y2] = s; const dx = x2 - x1; const dy = y2 - y1;
-    const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
-    return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-  };
-  for (let x = 100; x <= 160; x += 5) {
-    for (let y = 100; y <= 150; y += 5) assert.ok(a.some((s) => distance(x, y, s) <= s[4] / 2 + 0.01), `trou en ${x},${y}`);
-  }
-  const r = aleatoire('x');
-  for (let i = 0; i < 50; i++) { const v = r(); assert.ok(v >= 0 && v < 1); }
 });
 
 test('surligner : une parcelle à trou (enclave) se surligne sans erreur', async () => {
@@ -340,7 +321,8 @@ test('plan en niveaux de gris : le PDF surligné n’a plus les couleurs d’ori
   const texte = flux.map((f) => Buffer.from(decodePDFRawStream(/** @type {any} */ (f)).decode()).toString('latin1')).join('\n');
   assert.doesNotMatch(texte, /0\.9 0\.5 0\.1|0\.8 0 0 RG/);
   assert.match(texte, /0\.574 g/);           // l'orange, en gris de même clarté
-  assert.match(texte, /1 0\.96 0\.38 RG/);   // le jaune des passes, lui, reste en couleur
+  assert.match(texte, /1 0\.95 0\.2 rg .* f\*/);   // un aplat jaune fluo uni sur toute la parcelle (étude 31/10 : plus d’effet surligneur)
+  assert.doesNotMatch(texte, /%bord/);
   assert.match(texte, /\/ClaireTeinte Do/, 'le plan redessiné, teinté, dans la parcelle');
   // Aucune transparence (étude 27/10 : l'acte électronique d'Authentic l'aplatissait en un pavé jaune) : ni opacité, ni mode de fusion.
   for (const [, o] of sortie.context.enumerateIndirectObjects()) {

@@ -398,12 +398,16 @@ function renderParcelleCarte() {
   const p = s.parcelle;
   const ligne = (titre, valeur, detail) => `<div class="pr-fiche-ligne"><span class="pr-fiche-titre">${escapeHtml(titre)}</span><span class="pr-fiche-valeur">${valeur}${detail ? `<span class="pr-fiche-detail">${detail}</span>` : ''}</span></div>`;
   const parts = Array.isArray(s.zones) && s.zones.length > 1 ? s.zones : null;
-  const zone = parts ? `<span class="pr-zones-parts">${parts.map(z => `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(z.typezone)})">${escapeHtml(z.libelle || z.typezone)} <span class="pr-zt-part">${escapeHtml(pourcentZone(z.part))}</span></span>`).join('')}</span>${renderBarreZonesParcelle(parts)}`
+  const zone = parts ? `${renderBarreZonesParcelle(parts) || ''}<span class="pr-zt-codes">${parts.map(z => `${escapeHtml(z.libelle)} ${escapeHtml(pourcentZone(z.part))}`).join(' · ')}</span>`
     : s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}${s.zones && s.zones.length === 1 ? ' <span class="pr-zt-part">100 %</span>' : ''}</span>`
     : s.zoneLue ? 'Aucun PLU publié' : 'Non lue';
   const zoneDetail = parts ? escapeHtml(parts.map(z => `${z.libelle} : ${z.libelong}`).filter(Boolean).join(' · ')) : s.zone ? escapeHtml(s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
-  const adresse = s.adresse ? escapeHtml(s.adresse.libelle) : s.adresseLue ? 'Aucun numéro trouvé à proximité' : 'Non lue';
-  const adresseDetail = s.adresse && s.adresse.distance != null ? `Base adresse nationale · à ${escapeHtml(longueurLisible(s.adresse.distance))} du point cliqué` : '';
+  // Adresse officielle (étude 31/10, Base adresse nationale) : le numéro rattaché à CETTE parcelle par la commune ; sinon le plus proche,
+  // en disant à quelle parcelle il est rattaché — le plus proche peut être celui du voisin.
+  const officielles = Array.isArray(s.adressesParcelle) ? s.adressesParcelle : [];
+  const adresse = officielles.length ? officielles.map(a => escapeHtml(a.libelle)).join('<br>')
+    : s.adresse ? escapeHtml(s.adresse.libelle) : s.adresseLue ? 'Aucun numéro trouvé à proximité' : 'Non lue';
+  const adresseDetail = texteAdresseBanCarte(officielles, s.adresse);
   const alignement = s.alignement == null ? 'Non lu' : s.alignement.length ? escapeHtml(s.alignement.map(a => a.nom).join(' · ')) : 'Aucun plan d’alignement publié';
   const alignementDetail = s.alignement && s.alignement.length ? 'Servitude EL7 : demander le certificat d’alignement à la commune.' : s.alignement ? 'Seules les communes qui ont versé leurs servitudes au Géoportail y figurent.' : '';
   const ventesParcelle = p ? ventesFiltreesCarte(Object.values(carteUrb.ventes).map(x => x.ventes), 'tout').filter(v => (v.parcelles || []).includes(p.idu)) : [];
@@ -421,6 +425,16 @@ function renderParcelleCarte() {
       </div>
       <p class="hint">Identifiant cadastral ${escapeHtml(p.idu)}</p>`
     : `<p class="hint">Aucune parcelle à cet endroit (voie, cours d’eau ou domaine public).</p>${ligne('Adresse', adresse, adresseDetail)}${ligne('Zone du PLU', zone, zoneDetail)}`;
+}
+
+// Pure : ce que dit la Base adresse nationale de l'adresse affichée.
+function texteAdresseBanCarte(officielles, plusProche) {
+  if (officielles && officielles.length) return `Adresse de cette parcelle${officielles.some(a => a.certifie) ? ', vérifiée par la commune' : ''} (Base adresse nationale)`;
+  if (!plusProche) return '';
+  const loin = plusProche.distance != null ? `Numéro le plus proche, à ${longueurLisible(plusProche.distance)}` : 'Numéro le plus proche';
+  if (!plusProche.banLue) return `${loin} · Base adresse nationale`;
+  const rattache = plusProche.parcelles && plusProche.parcelles.length ? `rattaché à la parcelle ${plusProche.parcelles.join(', ')}` : 'rattaché à aucune parcelle';
+  return `${loin}, ${rattache}${plusProche.certifie ? ' · vérifié par la commune' : ''} — pas l’adresse de cette parcelle`;
 }
 
 // ===== Ventes DVF =====
@@ -629,7 +643,9 @@ async function parcellesCarteAgent(etat) {
       parcelle: p ? `${p.section} ${p.numero}` : String(c.texte || ''), commune: p ? p.commune : '',
       contenance: p && p.contenance ? contenanceCadastrale(p.contenance) : 'non lue',
       zone_plu: Array.isArray(j.zones) && j.zones.length > 1 ? j.zones.map(z => `${z.libelle} ${pourcentZone(z.part)} (${z.libelong})`).join(' ; ') : j.zone ? `${j.zone.libelle} — ${j.zone.libelong}` : j.zoneLue ? 'aucun PLU publié (RNU ou carte communale : à vérifier en mairie)' : 'non lue',
-      adresse_la_plus_proche: j.adresse ? `${j.adresse.libelle}${j.adresse.distance != null ? ` (à ${j.adresse.distance} m)` : ''}` : j.adresseLue ? 'aucun numéro à proximité' : 'non lue',
+      // Deux clés (relecture 0.416.0) : le numéro et sa voie, masqués comme tout résultat d'outil ; ce que la Base adresse nationale en dit, à part.
+      numero_de_voie: (j.adressesParcelle || []).length ? j.adressesParcelle.map(a => a.libelle).join(' ; ') : j.adresse ? j.adresse.libelle : j.adresseLue ? 'aucun numéro à proximité' : 'non lu',
+      numero_de_voie_source: texteAdresseBanCarte(j.adressesParcelle || [], j.adresse),
       alignement: j.alignement == null ? 'non lu' : j.alignement.length ? j.alignement.map(a => a.nom).join(' ; ') : 'aucun plan d’alignement publié au Géoportail',
       geofoncier: p ? lienGeofoncier(c.y, c.x, 18) : ''
     });

@@ -10,14 +10,15 @@
 
 var PAGES_PREEMPTION = [
   { cle: 'dossier', court: 'Dossier' },
-  { cle: 'parcelles', court: 'Parcelles et zones' },
-  { cle: 'questions', court: 'Questions' },
+  // Parcelles et questions sur un seul écran (étude 31/10 : « les écrans 2 et 3 peuvent être réunis, moins de blanc »).
+  { cle: 'parcelles', court: 'Parcelles et questions' },
   { cle: 'rendu', court: 'Contrôle' }
 ];
 
 // Pure : l'étape affichée. Sans dossier choisi (ni « sans dossier »), toujours la première.
 function pageCourantePreemption(e) {
   if (!e || e.page === 'dossier' || (!e.dossierId && !e.sansDossier)) return 'dossier';
+  if (e.page === 'questions') return 'parcelles';   // ancienne étape « Questions », réunie aux parcelles
   return PAGES_PREEMPTION.some(p => p.cle === e.page) ? e.page : 'parcelles';
 }
 
@@ -113,18 +114,26 @@ function preparerRenduPreemption() {
 }
 
 // L'aperçu du premier plan cadastral tiré, dans l'écran final (le PDF lu par le serveur, affiché dans un cadre).
-async function chargerApercuPlanPreemption(plan) {
+// Aperçus des plans tirés dans l'onglet Plans (étude 31/10 : « dans l'onglet Plan, mettre un aperçu du plan tiré ») : chaque plan de
+// situation rendu par cadastre.gouv.fr et le plan aérien, lus une fois (URL locale du fichier), montrés dans la page.
+function apercusAttendusPreemption(st) {
+  const out = [];
+  if (st.plan && st.plan.etat === 'fini') (st.plan.documents || []).forEach(doc => out.push({ cle: `p:${st.plan.id}:${doc.id}`, titre: doc.titre || 'Plan de situation', url: `/api/navigation/taches/${encodeURIComponent(st.plan.id)}/documents/${encodeURIComponent(doc.id)}` }));
+  if (st.aerien && st.aerien.etat === 'fini' && st.aerien.id) out.push({ cle: `a:${st.aerien.id}`, titre: st.aerien.nom || 'Plan aérien', url: `/api/urbanisme/plan-aerien/${encodeURIComponent(st.aerien.id)}` });
+  return out;
+}
+
+async function chargerApercuPlanPreemption(attendu) {
   const st = etatSitesPreemption();
-  const doc = (plan.documents || [])[0];
-  if (!doc || (st.apercu && st.apercu.tache === plan.id)) return;
-  if (st.apercu && st.apercu.url) URL.revokeObjectURL(st.apercu.url);
-  st.apercu = { tache: plan.id, url: '', etat: 'lecture' };
+  st.apercus = st.apercus || {};
+  if (st.apercus[attendu.cle]) return;
+  st.apercus[attendu.cle] = { etat: 'lecture', url: '' };
   try {
-    const r = await fetchAvecAuth(`/api/navigation/taches/${encodeURIComponent(plan.id)}/documents/${encodeURIComponent(doc.id)}`);
+    const r = await fetchAvecAuth(attendu.url);
     if (!r.ok) throw new Error(`réponse ${r.status}`);
-    st.apercu = { tache: plan.id, url: URL.createObjectURL(await r.blob()), etat: 'ok' };
+    st.apercus[attendu.cle] = { etat: 'ok', url: URL.createObjectURL(await r.blob()) };
   } catch (err) {
-    st.apercu = { tache: plan.id, url: '', etat: 'erreur' };
+    st.apercus[attendu.cle] = { etat: 'erreur', url: '' };
   }
   if (prEtat && prEtat.sites === st) renderApercuPlanPreemption();
 }
@@ -133,16 +142,25 @@ function renderApercuPlanPreemption() {
   const zone = document.getElementById('pr-plan-apercu');
   if (!zone || !prEtat) return;
   const st = etatSitesPreemption();
-  const plan = st.plan;
-  if (!plan || plan.etat !== 'fini') {
-    zone.innerHTML = plan && plan.etat !== 'erreur' ? '<p class="hint pr-plan-attente">Plan cadastral demandé à cadastre.gouv.fr…</p>' : '';
+  st.apercus = st.apercus || {};
+  const attendus = apercusAttendusPreemption(st);
+  if (!attendus.length) {
+    zone.innerHTML = st.plan && st.plan.etat !== 'erreur' && st.plan.etat !== 'fini' ? '<p class="hint pr-plan-attente">Plan cadastral demandé à cadastre.gouv.fr…</p>' : '';
+    zone.dataset.apercus = '';
     return;
   }
-  if (!st.apercu || st.apercu.tache !== plan.id) { zone.innerHTML = '<p class="hint">Aperçu du plan…</p>'; chargerApercuPlanPreemption(plan); return; }
-  if (st.apercu.etat !== 'ok') { zone.innerHTML = st.apercu.etat === 'lecture' ? '<p class="hint">Aperçu du plan…</p>' : ''; return; }
-  if (zone.querySelector('iframe') && zone.dataset.tache === plan.id) return;
-  zone.dataset.tache = plan.id;
-  zone.innerHTML = `<iframe class="pr-plan-cadre" src="${escapeAttr(st.apercu.url)}#view=FitH" title="Plan cadastral"></iframe>`;
+  attendus.forEach(a => { if (!st.apercus[a.cle]) chargerApercuPlanPreemption(a); });
+  // Les URL locales d'aperçus qui ne sont plus montrés (autre dossier, plan retiré) sont rendues.
+  Object.keys(st.apercus).forEach(k => { if (!attendus.some(a => a.cle === k)) { if (st.apercus[k].url) URL.revokeObjectURL(st.apercus[k].url); delete st.apercus[k]; } });
+  const empreinte = attendus.map(a => `${a.cle}:${st.apercus[a.cle] ? st.apercus[a.cle].etat : ''}`).join('|');
+  if (zone.dataset.apercus === empreinte) return;   // une iframe déjà affichée n'est pas rechargée
+  zone.dataset.apercus = empreinte;
+  zone.innerHTML = attendus.map(a => {
+    const x = st.apercus[a.cle] || { etat: 'lecture' };
+    return `<figure class="pr-plan-apercu-fig"><figcaption class="pr-cote-sous">${escapeHtml(a.titre)}</figcaption>${x.etat === 'ok'
+      ? `<iframe class="pr-plan-cadre" src="${escapeAttr(x.url)}#view=FitH" title="${escapeAttr(a.titre)}"></iframe>`
+      : x.etat === 'erreur' ? '<p class="hint">Aperçu indisponible : ouvrez le plan ci-dessous.</p>' : '<p class="hint">Aperçu du plan…</p>'}</figure>`;
+  }).join('');
 }
 
 function renderStepperPreemption(page) {
@@ -150,8 +168,7 @@ function renderStepperPreemption(page) {
   const i = PAGES_PREEMPTION.findIndex(p => p.cle === page);
   const choisi = !!(e && (e.dossierId || e.sansDossier));
   const syn = choisi ? synthesePreemption(e) : null;
-  const sous = { dossier: e && e.dossierId ? 'choisi' : e && e.sansDossier ? 'sans dossier' : '', parcelles: syn ? `${syn.parcelles.length} parcelle${syn.parcelles.length > 1 ? 's' : ''}` : '',
-    questions: syn ? (syn.questions ? `${syn.questions} à répondre` : 'aucune restante') : '', rendu: syn ? (syn.aPurger.length ? `${syn.aPurger.length} à purger` : '') : '' };
+  const sous = { dossier: e && e.dossierId ? 'choisi' : e && e.sansDossier ? 'sans dossier' : '', parcelles: syn ? `${syn.parcelles.length} parcelle${syn.parcelles.length > 1 ? 's' : ''}${syn.questions ? ` · ${syn.questions} question${syn.questions > 1 ? 's' : ''}` : ''}` : '', rendu: syn ? (syn.aPurger.length ? `${syn.aPurger.length} à purger` : '') : '' };
   const coche = '<span slot="icon" class="anim-etape-coche" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" pathLength="1"/></svg></span>';
   return `<div class="outil-sommaire-place cst-sommaire"><wa-stepper class="outil-sommaire" ${choisi ? 'clickable ' : ''}orientation="horizontal" label="Étapes du contrôle de l’urbanisme" active="${escapeAttr(page)}">${PAGES_PREEMPTION.map((p, k) => `<wa-step name="${escapeAttr(p.cle)}"${k < i ? ' completed data-suite' : ''}${k <= i ? ' data-avant-suite data-atteinte' : ''}>${escapeHtml(p.court)}${sous[p.cle] ? `<span slot="description">${escapeHtml(sous[p.cle])}</span>` : ''}${k < i ? coche : ''}</wa-step>`).join('')}</wa-stepper></div>`;
 }
@@ -164,15 +181,14 @@ document.addEventListener('wa-step-change', (ev) => {
 function renderNavPreemption(page) {
   const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
   const bouton = (cle, texte, principal) => `<wa-button ${principal ? 'variant="brand"' : 'appearance="outlined"'} type="button" onclick="allerPagePreemption('${cle}')">${texte}</wa-button>`;
-  if (page === 'parcelles') return `<span></span>${bouton('questions', 'Suivant : questions →', true)}`;
-  if (page === 'questions') return `${bouton('parcelles', '← Parcelles et zones')}${bouton('rendu', 'Voir le contrôle →', true)}`;
+  if (page === 'parcelles') return `<span></span>${bouton('rendu', 'Voir le contrôle →', true)}`;
   // « Enregistrer sur la fiche » en bas à droite de l'écran final (étude 31/10), plus sous les droits à purger.
   if (page === 'rendu') {
-    if (!d) return `${bouton('questions', '← Questions')}<span class="hint">Sans dossier : rien à enregistrer.</span>`;
+    if (!d) return `${bouton('parcelles', '← Parcelles et questions')}<span class="hint">Sans dossier : rien à enregistrer.</span>`;
     const etat = d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
       ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`
       : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : '';
-    return `${bouton('questions', '← Questions')}<span class="pr-nav-fin">${etat}<wa-button variant="brand" type="button" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button></span>`;
+    return `${bouton('parcelles', '← Parcelles et questions')}<span class="pr-nav-fin">${etat}<wa-button variant="brand" type="button" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button></span>`;
   }
   return '';
 }
@@ -203,7 +219,7 @@ function renderSynthesePreemption() {
       ${tuile('DPU renforcé', LIBELLES_DPUR_PREEMPTION[s.dpur.statut] || '—', s.dpur.source, s.dpur.statut === 'oui' ? 'rouge' : s.dpur.statut === 'non' ? 'vert' : 'neutre')}
       ${tuile('Patrimoine', s.patrimoine ? s.patrimoine.titre : '—', s.patrimoine ? (LIBELLES_PATRIMOINE[s.patrimoine.statut] || '') : '', s.patrimoine && s.patrimoine.statut === 'oui' ? 'orange' : 'neutre')}
     </div>
-    ${s.questions ? `<p class="pr-erreur">${icone('alert-triangle')} ${s.questions} question${s.questions > 1 ? 's restent' : ' reste'} sans réponse : certains droits restent « à vérifier ». <a href="#" onclick="event.preventDefault(); allerPagePreemption('questions')">Y répondre</a></p>` : ''}`;
+    ${s.questions ? `<p class="pr-erreur">${icone('alert-triangle')} ${s.questions} question${s.questions > 1 ? 's restent' : ' reste'} sans réponse : certains droits restent « à vérifier ». <a href="#" onclick="event.preventDefault(); allerPagePreemption('parcelles')">Y répondre</a></p>` : ''}`;
 }
 
 // Appelée à la fin de renderPreemption (client/46) : l'étape affichée et tout ce qui l'entoure.

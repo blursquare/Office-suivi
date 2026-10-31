@@ -13,7 +13,8 @@ test('étapes : sans dossier choisi, toujours la première ; un dossier choisi m
   assert.equal(app.pageCourantePreemption(null), 'dossier');
   assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { page: 'rendu' })), 'dossier', 'pas d’écran final sans dossier');
   assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { dossierId: 'd1' })), 'parcelles');
-  assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { sansDossier: true, page: 'questions' })), 'questions');
+  assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { sansDossier: true, page: 'questions' })), 'parcelles', 'questions réunies aux parcelles');
+  assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { sansDossier: true, page: 'rendu' })), 'rendu');
   assert.equal(app.pageCourantePreemption(Object.assign(vierge(), { dossierId: 'd1', page: 'dossier' })), 'dossier', '« Changer de dossier »');
 });
 
@@ -107,4 +108,13 @@ test('boutons (31/10) : calculer et lire sans carte, écrire après la carte, ja
   assert.equal(f('+ Personne', ''), 'carte');
   assert.equal(f('👥', "reagirMessageAssistant('m', '👥')"), 'carte');
   assert.equal(f('Calculer', 'calculerQuotites()'), 'libre');
+});
+
+test('jauge des zones : types U / A / N avec leur part, une même famille réunie', () => {
+  const h = app.renderBarreZonesParcelle([{ libelle: 'UA1', typezone: 'U', part: 0.6 }, { libelle: 'UB', typezone: 'U', part: 0.33 }, { libelle: 'A', typezone: 'A', part: 0.07 }]);
+  assert.match(h, /<strong>U<\/strong> 93 %/);
+  assert.match(h, /<strong>A<\/strong> 7 %/);
+  assert.equal(app.renderBarreZonesParcelle([{ libelle: 'UA1', typezone: 'U', part: 0.6 }, { libelle: 'UB', typezone: 'U', part: 0.4 }]), '', 'une seule famille : pas de jauge');
+  assert.equal(app.typeCourtZone('AUc'), 'AU');
+  assert.equal(app.typeCourtZone('Nh'), 'N');
 });
