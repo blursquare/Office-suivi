@@ -363,13 +363,13 @@
     let ligne = '';
     if (s.appelFondsInutile === true) {
       ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds — pas nécessaire', faite: true,
-        sousHtml: '<span class="dot-label dl-neutre"><span class="dot"></span>Fonds suffisants en comptabilité</span>',
+        sous: 'Fonds suffisants en comptabilité',
         bouton: { libelle: 'Rétablir', icone: icone('rotate-ccw'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', false)`, titre: 'Prévoir de nouveau un appel de fonds avant le dernier rendez-vous' } });
     } else if (etape) {
       const quand = etape.fait ? 'Fait' : etape.iso ? `À envoyer le ${formatDateFr(etape.iso)}` : '10 jours avant le dernier rendez-vous, une fois placé';
       const conseil = conjointSurvivant(d) ? 'souvent inutile avec un conjoint survivant' : 'si la comptabilité ne couvre pas nos frais';
       ligne = renderLigneAction({ categorie: 'appelFonds', categorieLabel: 'Appel de fonds', titre: 'Appel de fonds des frais d’acte', faite: !!etape.fait,
-        sousHtml: `<span class="dot-label ${etape.fait ? 'dl-success' : 'dl-neutre'}"><span class="dot"></span>${escapeHtml(quand)}</span> <span class="hint">· ${escapeHtml(conseil)}</span>`,
+        sous: `${quand} · ${conseil}`,
         bouton: etape.fait ? null : { libelle: 'Pas nécessaire', icone: icone('x'), onclick: `marquerAppelFondsSuccessionInutile('${idJs}', true)`, titre: 'Les fonds en comptabilité suffisent : pas d’appel de fonds dans ce dossier' } });
     }
     const recus = s.appelFondsInutile === true && !dejaLus ? '' : renderFondsRecus(d);
@@ -378,7 +378,7 @@
         <div class="echanges-tete">
           <span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Appel de fonds et fonds reçus</span></span>
         </div>
-        <ul class="ja-liste ja-taches">${ligne}${recus}</ul>
+        <ul class="ja-liste">${ligne}${recus}</ul>
       </div>`;
   }
 
