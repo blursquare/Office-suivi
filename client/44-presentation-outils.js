@@ -184,6 +184,7 @@
       }
       if (step) step.dataset.vu = '1';
     });
+    poserTraitsEtapes(stepper);
     etatsSectionsOutil(etapes, faits).forEach(({ cle, etat }) => {
       const section = panneau.querySelector(`.outil-section[data-section="${cle}"]`);
       if (!section) return;
@@ -312,7 +313,10 @@ function poserTraitsEtapes(stepper) {
   const steps = [...stepper.querySelectorAll('wa-step')];
   if (!steps.length) return;
   const etat = steps.map(s => s.hasAttribute('data-trait'));
-  const cle = stepper.getAttribute('label') || '';
+  // Clé : le panneau + le libellé (relecture 0.416.0 : tous les outils portent « Sections de l’outil » et deux d’entre eux le même nombre
+  // d’étapes — l’un partait de l’état de l’autre).
+  const panneau = stepper.closest('[id^="onglet-"]');
+  const cle = `${panneau ? panneau.id : ''}|${stepper.getAttribute('label') || ''}`;
   const avant = traitsEtapesVus.get(cle);
   traitsEtapesVus.set(cle, etat);
   const calme = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -335,19 +339,9 @@ function poserTraitsEtapes(stepper) {
   });
 }
 
-// Toute barre d'étapes de CLAIRE (outils, Contrôle de l'urbanisme, Constitution de dossier) : posée à son arrivée et à chaque changement.
-if (typeof MutationObserver !== 'undefined' && typeof document !== 'undefined' && document.documentElement) {
-  const enAttente = new Set();
-  let planifie = false;
-  new MutationObserver(liste => {
-    liste.forEach(m => {
-      const cible = m.target && m.target.closest ? m.target.closest('wa-stepper') : null;
-      if (cible) enAttente.add(cible);
-      (m.addedNodes || []).forEach(n => { if (n.querySelectorAll) { if (n.matches && n.matches('wa-stepper')) enAttente.add(n); n.querySelectorAll('wa-stepper').forEach(x => enAttente.add(x)); } });
-    });
-    if (enAttente.size && !planifie) {
-      planifie = true;
-      setTimeout(() => { planifie = false; const l = [...enAttente]; enAttente.clear(); l.forEach(poserTraitsEtapes); }, 0);
-    }
-  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-trait'] });
+// Appelée après chaque rendu d'une barre d'étapes (client/44 majSommaireOutil, client/152, client/72) — pas d'observateur sur tout le
+// document (relecture 0.416.0 : du travail à chaque mutation de l'application pour trois barres).
+function poserTraitsEtapesDans(zone) {
+  if (!zone || !zone.querySelectorAll) return;
+  setTimeout(() => zone.querySelectorAll('wa-stepper.outil-sommaire').forEach(poserTraitsEtapes), 0);
 }

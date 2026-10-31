@@ -720,13 +720,7 @@ function renderClichesCarte() {
   if (!c) { z.innerHTML = ''; return; }
   const cle = `${c.lon.toFixed(5)}:${c.lat.toFixed(5)}`;
   if (clichesCarte.cle !== cle) {
-    clichesCarte = { cle, etat: 'lecture', annees: [], annee: 0, erreur: '', centre: c, rue: null };
-    // La vue de la rue : l'entrée de l'adresse du bien (Base adresse nationale), pour ouvrir Street View devant lui.
-    fetchAvecAuth(`/api/urbanisme/point?lon=${c.lon}&lat=${c.lat}`).then(r => r.ok ? r.json() : null).then(j => {
-      if (clichesCarte.cle !== cle || !j) return;
-      clichesCarte.rue = pointStreetViewCarte(j);
-      renderClichesCarte();
-    }).catch(() => { /* sans adresse : Street View depuis le centre des parcelles */ });
+    clichesCarte = { cle, etat: 'lecture', annees: [], annee: 0, erreur: '', centre: c };
     fetchAvecAuth(`/api/urbanisme/cliches?lon=${c.lon}&lat=${c.lat}`).then(async r => {
       const j = await r.json().catch(() => ({}));
       if (clichesCarte.cle !== cle) return;
@@ -737,13 +731,12 @@ function renderClichesCarte() {
       renderClichesCarte();
     }).catch(() => { if (clichesCarte.cle === cle) { clichesCarte.etat = 'erreur'; clichesCarte.erreur = 'Serveur injoignable.'; renderClichesCarte(); } });
   }
-  const rue = clichesCarte.rue || c;
   const blocRue = `<h2 class="pr-cote-titre">Vue de la rue</h2>
     <div class="pr-rue"><span class="pr-cote-sous">Google Street View devant le bien ; les années passées : « Voir d’autres dates », en haut à gauche.</span>
-      <wa-button appearance="outlined" size="s" type="button" onclick="window.open('${escapeOnclickArg(lienStreetView(rue.lat, rue.lon))}', '_blank', 'noopener')">${icone('eye')} Street View</wa-button></div>`;
+      <wa-button appearance="outlined" size="s" type="button" onclick="ouvrirStreetViewTravaux()">${icone('eye')} Street View</wa-button></div>`;
   const tete = `${blocRue}<h2 class="pr-cote-titre">Clichés de l’IGN <span class="info-i" tabindex="0" data-info="${escapeAttr('Les photographies aériennes d’origine de l’IGN qui couvrent le bien, depuis 1945 (liste officielle de la Géoplateforme). Chaque cliché s’ouvre sur « Remonter le temps », centré sur le bien, pour le voir en grand et le télécharger.')}"></span></h2>`;
   if (clichesCarte.etat === 'lecture') { z.innerHTML = `${tete}<p class="hint">${icone('spinner')} Liste des clichés…</p>`; return; }
-  if (clichesCarte.etat === 'erreur') { z.innerHTML = `${tete}<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(clichesCarte.erreur)}</p>`; return; }
+  if (clichesCarte.etat === 'erreur') { z.innerHTML = `${tete}<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(clichesCarte.erreur)} <a href="#" onclick="event.preventDefault(); clichesCarte.cle = ''; renderClichesCarte()">Réessayer</a></p>`; return; }
   if (!clichesCarte.annees.length) { z.innerHTML = `${tete}<p class="hint">Aucun cliché de l’IGN publié sur ce point.</p>`; return; }
   const choisie = clichesCarte.annees.find(a => a.annee === clichesCarte.annee) || clichesCarte.annees[0];
   const cc = clichesCarte.centre;
@@ -767,6 +760,22 @@ function decenniesClichesCarte(annees) {
     if (!g.annees.includes(a)) g.annees.push(a);
   });
   return out;
+}
+
+// Street View devant le bien, demandé AU CLIC (relecture 0.416.0 : la lecture complète d'un point — cadastre, zones, servitudes, adresses —
+// partait à chaque dossier pour un seul lien) : seulement l'entrée de l'adresse la plus proche du centre des parcelles (géocodage inverse).
+async function ouvrirStreetViewTravaux() {
+  const c = clichesCarte.centre;
+  if (!c) return;
+  const fenetre = window.open('', '_blank');
+  let p = { lat: c.lat, lon: c.lon };
+  try {
+    const r = await fetchAvecAuth(`/api/urbanisme/entree?lon=${c.lon}&lat=${c.lat}`);
+    const j = r.ok ? await r.json() : null;
+    if (j && j.position) p = j.position;
+  } catch (e) { /* depuis le centre des parcelles */ }
+  const url = lienStreetView(p.lat, p.lon);
+  if (fenetre) { fenetre.opener = null; fenetre.location = url; } else window.open(url, '_blank', 'noopener');
 }
 
 function choisirAnneeClichesCarte(annee) {

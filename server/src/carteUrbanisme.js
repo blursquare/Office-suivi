@@ -412,6 +412,16 @@ async function clichesAeriens(lon, lat, injections) {
   });
 }
 
+/** L'entrée de l'adresse la plus proche d'un point (géocodage inverse seul) — pour ouvrir Street View devant le bien.
+ * @param {unknown} lon @param {unknown} lat @param {any} [injections] */
+async function entreeProche(lon, lat, injections) {
+  const p = pointValide(lon, lat);
+  if (!p) return { erreur: 'Point hors de France.' };
+  const geo = await lireJson(`${GEOPF}/geocodage/reverse?lon=${p.lon}&lat=${p.lat}&limit=1&index=address`, injections, 5000);
+  const a = adressesDepuisReverse(geo)[0];
+  return { position: a && a.position ? a.position : null };
+}
+
 function viderCacheCarte() { Object.values(caches).forEach((c) => c.clear()); tuiles.clear(); octetsTuiles = 0; echecsTuiles = 0; tuilesCoupeesJusqua = 0; enCours.clear(); }
 
-module.exports = { missionDuCliche, clichesDepuisPva, clichesAeriens, COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };
+module.exports = { entreeProche, missionDuCliche, clichesDepuisPva, clichesAeriens, COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, adressesDepuisReverse, parcelleLisible, adresseOfficielleParcelle, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };

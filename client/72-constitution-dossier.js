@@ -1597,7 +1597,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
   function majStepperConstitution() {
     const zone = document.getElementById('cst-stepper');
     const d = dossierConstitution();
-    if (zone && d && cstEtat) zone.outerHTML = renderStepperConstitution(etapesConstitution(d));
+    if (zone && d && cstEtat) { const parent = zone.parentNode; zone.outerHTML = renderStepperConstitution(etapesConstitution(d)); poserTraitsEtapesDans(parent); }
   }
 
   function cstEtape(i) {
@@ -1605,6 +1605,7 @@ p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--doux); }
     cstEtat.etape = i;
     cstEtat.etapeMax = Math.max(cstEtat.etapeMax || 0, i); // étapes déjà atteintes : jamais pâles dans la barre
     renderConstitution();
+    poserTraitsEtapesDans(document.getElementById('onglet-constitution') || document);
     const z = document.getElementById('cst-stepper');
     if (z) z.scrollIntoView({ block: 'nearest' });
   }

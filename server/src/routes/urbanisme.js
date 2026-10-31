@@ -111,6 +111,15 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
     }
   });
 
+  // L'entrée de l'adresse la plus proche (Street View devant le bien, au clic).
+  routeur.get('/urbanisme/entree', async (req, res) => {
+    try {
+      const e = await carte.entreeProche(req.query.lon, req.query.lat, injections);
+      if (e.erreur) return res.status(400).json(e);
+      res.json(e);
+    } catch (e) { res.status(502).json({ erreur: 'Géocodage injoignable.' }); }
+  });
+
   routeur.get('/urbanisme/dvf', async (req, res) => {
     try {
       const v = await carte.ventesSection(req.query.insee, req.query.section, req.query.prefixe, injections);

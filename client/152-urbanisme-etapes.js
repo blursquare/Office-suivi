@@ -240,7 +240,7 @@ function renderEtapesPreemption() {
   const page = pageCourantePreemption(prEtat);
   const stepper = document.getElementById('pr-stepper');
   // Pas de barre d'étapes sur la page du choix du dossier (étude 31/10 : « ne mets pas les étapes dans la première page de choix »).
-  if (stepper) stepper.innerHTML = page === 'dossier' ? '' : renderStepperPreemption(page);
+  if (stepper) { stepper.innerHTML = page === 'dossier' ? '' : renderStepperPreemption(page); poserTraitsEtapesDans(stepper); }
   // Pas d'« Effacer » sur la page du choix : il n'y a encore rien à effacer (étude 31/10).
   const panneau = document.getElementById('onglet-preemption');
   if (panneau) panneau.classList.toggle('pr-en-accueil', page === 'dossier');
