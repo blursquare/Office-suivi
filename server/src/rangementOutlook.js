@@ -264,6 +264,8 @@ async function tourRangement(parametresRepo, injections, manuel) {
     const lots = [aRanger.filter((m) => m.regle.cible !== 'corbeille'), aRanger.filter((m) => m.regle.cible === 'corbeille')].filter((l) => l.length);
     /** @type {any} */
     let d = null;
+    /** @type {any} */
+    let echecLot = null;
     let rangesDossier = 0;
     for (const lot of lots) {
       const versCorbeille = lot[0].regle.cible === 'corbeille';
@@ -276,12 +278,15 @@ async function tourRangement(parametresRepo, injections, manuel) {
       });
       // Rien n'a pu être déplacé vers le dossier : il a peut-être été renommé ou recréé — il est recherché au tour suivant.
       if (!versCorbeille && !rangesDossier) dossierConnu = '';
+      // Un lot entièrement refusé est dit, même quand l'autre a réussi (relecture 31/10) ; le premier refus garde sa cause.
+      if (!echecLot && lot.every((m) => etat.echecs[m.itemId] === maintenant.toISOString())) echecLot = { d, versCorbeille };
     }
     if (resultat.ranges) etat.dernierRangement = maintenant.toISOString();
-    noterVerification(parametresRepo, 'rangement-outlook', resultat.ranges
+    const cause = echecLot ? (echecLot.d.echec ? echecLot.d.echec.message : `déplacement ${echecLot.versCorbeille ? 'vers la corbeille' : `vers « ${NOM_DOSSIER_OUTLOOK} »`} refusé (${analyseEws(echecLot.d.corps).code || echecLot.d.statut})`) : '';
+    noterVerification(parametresRepo, 'rangement-outlook', !echecLot
       ? { detail: `${resultat.ranges} email(s) déplacé(s)` }
-      : { ok: false, message: d.echec ? d.echec.message : `déplacement refusé (${analyseEws(d.corps).code || d.statut})` });
-    if (!resultat.ranges) return finir('erreur', d.echec ? d.echec.message : `Déplacement refusé par Exchange (${analyseEws(d.corps).code || d.statut}).`);
+      : { ok: false, message: cause });
+    if (echecLot) return finir('erreur', cause.charAt(0).toUpperCase() + cause.slice(1) + '.');
   }
   resultat.ok = true;
   return finir('ok', '');

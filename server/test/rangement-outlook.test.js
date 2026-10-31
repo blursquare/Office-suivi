@@ -187,3 +187,19 @@ test('adresses ajoutées par l’étude : rangées aussi, liste assainie (étude
   assert.equal(r.ranges, 1);
   assert.equal(R.lireEtatRangement(repo).ranges['adresses-ajoutees'], 1);
 });
+
+test('tour : quarantaine rangée dans la corbeille mais dossier refusé — l’échec du dossier est dit (relecture 31/10)', async () => {
+  const repo = preparer();
+  const t = transport({
+    dossiers: dossiers([['TAD', 'Traité à distance']]),
+    find: find([msg('m1', 'Relevé de compte du mois de septembre 2026', 'sie@dgfip.finances.gouv.fr'), msg('m2', 'Alerte', 'quarantaine@notaires.fr')]),
+    deplace: deplace(['Error']), deplaceCorbeille: deplace(['Success'])
+  });
+  const r = await R.executerTourRangement(repo, { poster: t.poster }, true);
+  assert.equal(r.ranges, 1);
+  assert.match(r.erreur || '', /Traité à distance/);
+  const etat = R.lireEtatRangement(repo);
+  assert.equal(etat.statut, 'erreur');
+  assert.equal(etat.ranges['quarantaine-notaires'], 1);
+  assert.ok(etat.echecs.m1);
+});

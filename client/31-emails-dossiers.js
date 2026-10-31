@@ -588,7 +588,7 @@
       : e.statut === 'introuvable' || e.statut === 'erreur' ? ['dl-urgent', e.message || 'Erreur'] : ['dl-neutre', 'Pas encore lancé'];
     zone.innerHTML = `
       <label class="reglages-option" for="rangement-outlook-actif">
-        <span class="reglages-option-texte"><span class="reglages-option-titre">Déplacer dans « ${escapeHtml(e.dossier)} »</span></span>
+        <span class="reglages-option-texte"><span class="reglages-option-titre">Ranger dans « ${escapeHtml(e.dossier)} » (quarantaine : corbeille)</span></span>
         <wa-switch class="switch reglages-switch" id="rangement-outlook-actif" ${e.actif ? 'checked' : ''} onchange="basculerRangementOutlook(this.checked)"></wa-switch>
       </label>
       <ul class="emails-boites">
