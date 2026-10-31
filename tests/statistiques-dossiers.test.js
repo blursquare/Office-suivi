@@ -69,7 +69,7 @@ test('lignesActesAgenda : toute l’année en cours (passés + à venir) contre 
     anneePrecedente: { ventes: 51, successions: 19, donations: 8, dee: 5, pacs: 6 }
   });
   assert.equal(lignes.map(l => `${l.libelle} ${l.annee}=${l.passes}+${l.aVenir} vs ${l.anneePrecedente} (${l.ecart})`).join(' | '),
-    'Ventes 51=42+9 vs 51 (0) | Successions 12=12+0 vs 19 (-7) | Donations 7=6+1 vs 8 (-1) | Donations entre époux (DEE) 4=3+1 vs 5 (-1) | PACS 9=8+1 vs 6 (3)');
+    'Ventes 51=42+9 vs 51 (0) | Successions 12=12+0 vs 19 (-7) | Donations 7=6+1 vs 8 (-1) | Donations entre époux (DEE) 4=3+1 vs 5 (-1) | PACS 9=8+1 vs 6 (3) | Promesses de vente (PUV) 0=0+0 vs 0 (0)');
   // Réponse d'un serveur plus ancien (sans anneeEnCours) : passés + à venir.
   assert.equal(app.lignesActesAgenda({ actuel: { ventes: 3 }, aVenir: { ventes: 2 }, anneePrecedente: { ventes: 4 } })[0].annee, 5);
   assert.equal(app.lignesActesAgenda(null).length, 0);

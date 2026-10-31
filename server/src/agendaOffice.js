@@ -694,11 +694,14 @@ const RE_DEE_AGENDA = /^\s*DEE(?![A-Za-zÀ-ɏ])/;   // « DEE » en capitales se
 const RE_DONATION_ENTRE_EPOUX_AGENDA = /^\s*DONATION\s+ENTRE\s+[EÉ]POUX/i;
 // PACS (étude 29/10, puis 31/10 : « le nom de l'acte en début de rendez-vous, ex. PACS - … ou DEE - … ») : PACS EN TÊTE du titre seulement.
 const RE_PACS_AGENDA = /^\s*PACS(?![A-Za-zÀ-ɏ])/i;
+// Promesse de vente (étude 31/10 : « détecter aussi le PUV ») : PUV EN TÊTE du titre, comme PACS et DEE.
+const RE_PUV_AGENDA = /^\s*PUV(?![A-Za-zÀ-ɏ])/i;
 const RE_SUCCESSION_AGENDA = /(?<![A-Za-zÀ-ɏ])SUCC(?:ESSIONS?)?(?![A-Za-zÀ-ɏ])/i;
 function natureActeAgenda(sujet) {
   const titre = String(sujet || '');
   if (RE_DEE_AGENDA.test(titre) || RE_DONATION_ENTRE_EPOUX_AGENDA.test(titre.normalize('NFC'))) return 'dee';
   if (RE_DONATION_AGENDA.test(titre)) return 'donation';
+  if (RE_PUV_AGENDA.test(titre)) return 'puv';
   if (extraireReferenceVte(titre)) return 'vente';
   if (RE_SUCCESSION_AGENDA.test(titre)) return 'succession';
   if (RE_PACS_AGENDA.test(titre)) return 'pacs';
@@ -708,7 +711,7 @@ function normaliserCategorieActe(t) {
   return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
-  const compte = { ventes: 0, successions: 0, donations: 0, dee: 0, pacs: 0 };
+  const compte = { ventes: 0, successions: 0, donations: 0, dee: 0, pacs: 0, puv: 0 };
   const annule = normaliserCategorieActe(categorieAnnule);
   const vus = new Set();
   for (const e of evenements || []) {
@@ -721,7 +724,7 @@ function compterActesAgendaPeriode(evenements, debut, fin, categorieAnnule) {
     const cle = `${e.date}|${e.heure}|${normaliserNomRapprochement(String(e.sujet || ''))}`;
     if (vus.has(cle)) continue;
     vus.add(cle);
-    compte[{ vente: 'ventes', succession: 'successions', donation: 'donations', dee: 'dee', pacs: 'pacs' }[nature]]++;
+    compte[{ vente: 'ventes', succession: 'successions', donation: 'donations', dee: 'dee', pacs: 'pacs', puv: 'puv' }[nature]]++;
   }
   return compte;
 }

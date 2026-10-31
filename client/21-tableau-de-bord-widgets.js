@@ -132,7 +132,7 @@
   function lignesActesAgenda(donnees) {
     if (!donnees || !donnees.actuel) return [];
     const n = (bloc, cle) => Number((bloc || {})[cle]) || 0;
-    return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations'], ['dee', 'Donations entre époux (DEE)'], ['pacs', 'PACS']].map(([cle, libelle]) => {
+    return [['ventes', 'Ventes'], ['successions', 'Successions'], ['donations', 'Donations'], ['dee', 'Donations entre époux (DEE)'], ['pacs', 'PACS'], ['puv', 'Promesses de vente (PUV)']].map(([cle, libelle]) => {
       const passes = n(donnees.actuel, cle);
       const aVenir = n(donnees.aVenir, cle);
       const annee = donnees.anneeEnCours ? n(donnees.anneeEnCours, cle) : passes + aVenir;
@@ -159,7 +159,7 @@
       const t = formaterTendance(l.ecart);
       return `<span class="st-ecart">${t.icone}${t.texte}</span>`;
     };
-    const aide = `De janvier à décembre, dans l’agenda partagé : titre commençant par VTE ou VENTE (ventes), contenant SUCC (successions), commençant par DONATION (donations), par DEE ou DONATION ENTRE ÉPOUX (donations entre époux), par PACS (PACS) — le nom de l’acte en tête du titre, ex. « PACS - … », « DEE - … ». ${d.annee} : rendez-vous passés et déjà placés jusqu’au 31/12. Rendez-vous horaires confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage.`;
+    const aide = `De janvier à décembre, dans l’agenda partagé : titre commençant par VTE ou VENTE (ventes), contenant SUCC (successions), commençant par DONATION (donations), par DEE ou DONATION ENTRE ÉPOUX (donations entre époux), par PACS (PACS) ou par PUV (promesses de vente) — le nom de l’acte en tête du titre, ex. « PACS - … », « DEE - … ». ${d.annee} : rendez-vous passés et déjà placés jusqu’au 31/12. Rendez-vous horaires confirmés (sans « ? »), ni annulés ni « à replacer », ni options d’un sondage.`;
     const ligne = (l) => `<tr title="${escapeAttr(`${l.libelle} ${d.annee} : ${l.annee} (${l.passes} passé${l.passes > 1 ? 's' : ''}, ${l.aVenir} à venir) · ${d.precedente} : ${l.anneePrecedente} (${l.memePeriode} au ${memeJour})`)}">
         <th scope="row">${escapeHtml(l.libelle)}</th>
         <td class="st-actes-n"><b>${sur(l.annee)}</b></td>
