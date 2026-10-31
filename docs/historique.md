@@ -23584,3 +23584,7 @@ ma place. »
   connu (Bas) : un clic libre peut ouvrir une confirmation de l'écran que l'agent ne voit pas ; la carte ne montre que le libellé du bouton.
 
 - 31/10, 0.415.1 (étude : « mettre « Envoyer via Yousign » ») : bouton de la signature du RIB (client/109, tâche d'« À faire » client/24) ; colonne du geste des listes de tâches 132 → 168 px (le libellé dépassait, mesuré dans Chromium). L'étude accepte aussi que les administrateurs lisent la consigne des demandes reprises des collaborateurs.
+
+### 31/10/2026 — 0.415.2 : bouton « Enregistrer sur la fiche » du Contrôle de l'urbanisme
+
+Étude : « il faut mettre le bouton enregistrer sur la fiche en bas à droite ; il est aussi à retirer en dessous de droits à purger ». Le bouton et l'état (« Enregistré le … », « Modifié depuis… ») passent dans la barre du bas de l'écran Contrôle (`renderNavPreemption`, client/152) ; retirés du bloc des droits (client/46).

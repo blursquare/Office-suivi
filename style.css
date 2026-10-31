@@ -11701,6 +11701,7 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-carte-etape { display: flex; flex-direction: column; gap: 12px; }
 .pr-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; }
 .pr-nav:empty { display: none; }
+.pr-nav-fin { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .pr-dpur-carte { margin-top: 4px; }
 .pr-synthese { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .pr-tuile { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--rayon-carte); background: var(--paper-card); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); min-width: 0; border-top: 4px solid var(--line); }

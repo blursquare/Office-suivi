@@ -166,7 +166,14 @@ function renderNavPreemption(page) {
   const bouton = (cle, texte, principal) => `<wa-button ${principal ? 'variant="brand"' : 'appearance="outlined"'} type="button" onclick="allerPagePreemption('${cle}')">${texte}</wa-button>`;
   if (page === 'parcelles') return `<span></span>${bouton('questions', 'Suivant : questions →', true)}`;
   if (page === 'questions') return `${bouton('parcelles', '← Parcelles et zones')}${bouton('rendu', 'Voir le contrôle →', true)}`;
-  if (page === 'rendu') return `${bouton('questions', '← Questions')}<span class="hint">${d ? '« Enregistrer sur la fiche » est sous les droits.' : 'Sans dossier : rien à enregistrer.'}</span>`;
+  // « Enregistrer sur la fiche » en bas à droite de l'écran final (étude 31/10), plus sous les droits à purger.
+  if (page === 'rendu') {
+    if (!d) return `${bouton('questions', '← Questions')}<span class="hint">Sans dossier : rien à enregistrer.</span>`;
+    const etat = d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
+      ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`
+      : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : '';
+    return `${bouton('questions', '← Questions')}<span class="pr-nav-fin">${etat}<wa-button variant="brand" type="button" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button></span>`;
+  }
   return '';
 }
 

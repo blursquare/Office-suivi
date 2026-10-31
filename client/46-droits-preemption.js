@@ -417,7 +417,6 @@
     const rep = reponsesPreemption(e);
     const lignes = lignesZonageParcelles(e.zonages, rep.zonesParcelles);
     const analyse = analyserPreemptionParcelles(rep, lignes);
-    const d = e.dossierId ? dossiers.find(x => x.id === e.dossierId) : null;
 
     const zone = document.getElementById('pr-parcelle');
     if (zone) {
@@ -488,11 +487,7 @@
           ${dr.motif ? `<div class="pr-droit-motif">${escapeHtml(dr.motif)}</div>` : ''}
           ${dr.formalite ? `<div class="pr-droit-formalite">${icone('file-text')} <span>${escapeHtml(dr.formalite)}${dr.lien ? ` <a href="${escapeAttr(dr.lien.url)}" target="_blank" rel="noopener">${escapeHtml(dr.lien.libelle)}</a>` : ''}</span></div>` : ''}
         </div>`).join('')}${renderPatrimoineOutil(patrimoinePreemption(e))}</div>
-        <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>
-        ${d ? `<div class="reglages-actions"><wa-button variant="brand" onclick="enregistrerPreemptionFiche()">${icone('check')} Enregistrer sur la fiche</wa-button>
-          ${d.preemption && d.preemption.le ? (preemptionModifieeDepuisFiche(d.preemption, preemptionPourFiche(prEtat), prEtat)
-            ? `<span class="dot-label dl-alerte"><span class="dot"></span>Modifié depuis l’enregistrement du ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))} — à enregistrer</span>`
-            : `<span class="hint">Enregistré le ${escapeHtml(formatDateFr(d.preemption.le.slice(0, 10)))}</span>`) : ''}</div>` : ''}`;
+        <p class="hint">Assistance à la décision : le notaire garde la <span class="mot-et-info">décision. ${infoBulle('D’après les tableaux fournis par l’étude (Cheuvreux, CRIDON, Letulle). Exceptions (parent jusqu’au 4e degré, preneur en place…) à vérifier au cas par cas.')}</span></p>`;
     }
     renderTravauxPreemption();
     renderSitesPreemption();
