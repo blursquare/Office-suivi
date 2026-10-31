@@ -72,13 +72,20 @@
       .catch(() => { if (encore()) { poserDepotDia({ insee, etat: 'erreur', erreur: 'Serveur injoignable.' }); renderDepotDia(); } });
   }
 
+  // Le bouton du guichet au-dessus (renderGnauConstitution) lit le dépôt chargé avec la commune : après une correction de l'étude, une
+  // adresse nouvelle n'y est pas encore — elle reste alors dans la carte (relecture 0.416.0).
+  function guichetDejaMontreDepotDia(url) {
+    const g = communeDepotDia();
+    const d = g && g.info && g.info.depot;
+    return !!(d && lienDepotDiaSur(d.url) === url);
+  }
+
   // Plusieurs communes dans le dossier : le choix de celle dont on montre le dépôt.
   function choisirCommuneDepotDia(cle) {
     const e = porteurDepotDia();
     if (!e) return;
     e.diaCommune = cle;
-    lancerDepotDia();
-    renderDepotDia();
+    if (typeof renderConstitution === 'function') renderConstitution(); else { lancerDepotDia(); renderDepotDia(); }
   }
 
   function ouvrirCorrectionDepotDia() {
@@ -183,8 +190,8 @@
     zone.innerHTML = `<div class="sites-carte">
         <div class="sites-carte-tete"><span class="dot-label ${d.mode === 'inconnu' ? 'dl-neutre' : 'dl-success'}"><span class="dot"></span>${escapeHtml(libelleModeDepotDia(d.mode))}</span></div>
         <ul class="depot-dia-lignes">${lignesDepotDia(j).map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>
-        ${(url && d.mode !== 'guichet') || d.courriel ? `<div class="sites-ligne">
-          ${url && d.mode !== 'guichet' ? `<a class="lien-action" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')} Ouvrir la page</a>` : ''}
+        ${(url && (d.mode !== 'guichet' || !guichetDejaMontreDepotDia(url))) || d.courriel ? `<div class="sites-ligne">
+          ${url && (d.mode !== 'guichet' || !guichetDejaMontreDepotDia(url)) ? `<a class="lien-action" href="${escapeAttr(url)}" target="_blank" rel="noopener">${icone('link')} ${d.mode === 'guichet' ? 'Ouvrir le guichet' : 'Ouvrir la page'}</a>` : ''}
           ${d.courriel ? `<wa-button appearance="outlined" size="s" onclick="copierCourrielDepotDia('${escapeOnclickArg(d.courriel)}')">${icone('mail')} Copier ${escapeHtml(d.courriel)}</wa-button>` : ''}
         </div>` : ''}
         <p class="hint">${escapeHtml([origine, verifie].filter(Boolean).join(' · '))}${source && !d.indiquePar ? ` · <a href="${escapeAttr(source)}" target="_blank" rel="noopener">page lue</a>` : ''}</p>

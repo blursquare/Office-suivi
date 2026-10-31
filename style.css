@@ -11717,14 +11717,6 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-nav:empty { display: none; }
 .pr-nav-fin { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .pr-dpur-carte { margin-top: 4px; }
-.pr-synthese { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-.pr-tuile { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--rayon-carte); background: var(--paper-card); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); min-width: 0; border-top: 4px solid var(--line); }
-.pr-tuile-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-.pr-tuile-valeur { font-size: var(--texte-xl); font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
-.pr-tuile-detail { font-size: var(--texte-s); color: var(--muted); overflow-wrap: anywhere; }
-.pr-tuile-rouge { border-top-color: var(--urgent); }
-.pr-tuile-orange { border-top-color: var(--cat-orange); }
-.pr-tuile-vert { border-top-color: var(--success); }
 /* Écran d'analyse (étude 31/10, client/156-carte-urbanisme.js) : la carte à gauche, les informations dans une barre à droite. */
 .pr-analyse { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; align-items: stretch; height: max(560px, calc(100vh - 380px)); }
 .pr-carte-bloc { position: relative; min-width: 0; border-radius: var(--rayon-carte); overflow: hidden; background: var(--paper-sunk); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); }
@@ -11748,9 +11740,6 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-carte .leaflet-control-attribution { font-size: var(--texte-xxs); background: var(--paper-card); color: var(--muted); }
 .pr-carte .leaflet-control-scale-line { font-size: var(--texte-xxs); background: var(--paper-card); }
 .pr-cote { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-radius: var(--rayon-carte); background: var(--paper-card); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); overflow: hidden; }
-.pr-cote-onglets { padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
-.pr-cote-onglets wa-button-group { display: flex; }
-.pr-cote-onglets wa-button { flex: 1 1 0; }
 .pr-onglet-nb { font-size: var(--texte-xxs); opacity: 0.75; font-variant-numeric: tabular-nums; }
 .pr-cote-corps { flex: 1 1 auto; overflow-y: auto; padding: 16px; }
 .pr-cote-panneau { display: flex; flex-direction: column; gap: 12px; }
@@ -11758,9 +11747,6 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-cote-sous { font-size: var(--texte-s); color: var(--muted); }
 .pr-cote-vide { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--muted); font-size: var(--texte-s); }
 .pr-cote-vide .icone { width: 24px; height: 24px; }
-.pr-cote .pr-synthese { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
-.pr-cote .pr-tuile { padding: 12px; box-shadow: none; }
-.pr-cote .pr-tuile-valeur { font-size: var(--texte-l); }
 .pr-fiche-tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .pr-fiche-num { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
 .pr-fiche-commune { font-size: var(--texte-base); color: var(--muted); }
@@ -11808,13 +11794,12 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-plan-apercu-fig { margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
 .pr-plan-cadre { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-sunk); }
 @media (max-width: 1100px) {
-  .pr-synthese { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pr-analyse { grid-template-columns: minmax(0, 1fr); height: auto; }
   .pr-carte-bloc { height: 520px; }
   .pr-cote { max-height: none; }
   .pr-carte-barre { max-width: calc(100% - 64px); }
 }
-@media (max-width: 560px) { .pr-synthese { grid-template-columns: minmax(0, 1fr); } }
+
 
 /* Premières pages « Quel dossier ? » (étude 31/10 : « centre les cartes au milieu pour ne pas étendre et éviter les blancs ») : cartes de
    largeur fixe, centrées, sur autant de lignes qu'il faut — une carte seule ne s'étire plus. */
@@ -11887,11 +11872,11 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .cliche-carte { position: relative; flex: 1 1 auto; min-height: 240px; background: var(--paper-sunk); }
 .cliche-carte .cliche-etat, .cliche-carte .pr-erreur { padding: 16px; }
 .cliche-carte.cliche-ajuster, .cliche-carte.cliche-ajuster .leaflet-interactive { cursor: move; }
+.cliche-carte.cliche-ajuster { touch-action: none; }
 .cliche-avis { position: absolute; z-index: 600; top: 12px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 12px; background: var(--paper-card); border: 1px solid var(--line); border-radius: var(--rayon-m); box-shadow: var(--shadow-card); font-size: var(--texte-s); }
 @media (max-width: 760px) {
   .cliche-ign { height: 100%; border-radius: 0; border: none; }
   .cliche-corps.deux { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-  .pr-fiche-grille { grid-template-columns: minmax(0, 1fr); }
 }
 .cst-depot-dia { margin-top: 8px; }
 .cst-depot-dia .sites-carte { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; gap: 8px; }

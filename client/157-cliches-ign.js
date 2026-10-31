@@ -94,6 +94,7 @@ function fermerClicheIgn() {
   const overlay = document.getElementById('cliche-ign-overlay');
   Object.values(visionneuseCliche.cartes).forEach(m => { try { m.carte.remove(); } catch (e) { /* déjà retirée */ } });
   visionneuseCliche.cartes = {};
+  imagesClichesIgn.clear();
   if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
 }
 
@@ -124,7 +125,7 @@ function renderVisionneuseCliche() {
         <span class="cliche-volet-titre">${escapeHtml(String(c.annee))}</span><span class="cliche-volet-sous">${escapeHtml(libelleClicheIgn(c))}</span>
         <span class="cliche-volet-liens">
           <a href="${escapeAttr(c.telecharger || '')}" target="_blank" rel="noopener" title="Le fichier d’origine de l’IGN (TIFF, souvent plus de 100 Mo)">${icone('download')} Télécharger l’original</a>
-          <a href="${escapeAttr(lienRemonterLeTemps(clichesCarte.centre.lon, clichesCarte.centre.lat, c.annee, c.mission))}" target="_blank" rel="noopener">${icone('lien-externe')} Remonter le temps</a>
+          ${clichesCarte.centre ? `<a href="${escapeAttr(lienRemonterLeTemps(clichesCarte.centre.lon, clichesCarte.centre.lat, c.annee, c.mission))}" target="_blank" rel="noopener">${icone('lien-externe')} Remonter le temps</a>` : ''}
         </span>
       </div>
       <div class="cliche-carte" id="cliche-carte-${cote}"><p class="hint cliche-etat">${icone('spinner')} Lecture du cliché…</p></div>
@@ -192,9 +193,10 @@ function bornesEcranCliche(m, largeur, hauteur) {
 var imagesClichesIgn = new Map();
 function imageClicheIgn(url) {
   if (imagesClichesIgn.has(url)) { const p = imagesClichesIgn.get(url); imagesClichesIgn.delete(url); imagesClichesIgn.set(url, p); return p; }
-  const p = new Promise(res => { const img = new Image(); img.onload = () => res(img); img.onerror = () => res(null); img.src = url; });
+  // Un carré en échec n'est pas gardé : il sera redemandé (relecture 0.416.0).
+  const p = new Promise(res => { const img = new Image(); img.onload = () => res(img); img.onerror = () => { imagesClichesIgn.delete(url); res(null); }; img.src = url; });
   imagesClichesIgn.set(url, p);
-  while (imagesClichesIgn.size > 240) imagesClichesIgn.delete(imagesClichesIgn.keys().next().value);
+  while (imagesClichesIgn.size > 80) imagesClichesIgn.delete(imagesClichesIgn.keys().next().value);
   return p;
 }
 
@@ -277,7 +279,7 @@ async function monterVoletCliche(L, cote, c) {
   // Glisser le contour (mode « Ajuster », souris ou doigt) : le décalage est gardé par cliché tant que CLAIRE est ouverte.
   let depart = null;
   const point = (ev) => carte.mouseEventToLatLng(ev);
-  zone.addEventListener('pointerdown', (ev) => { if (!visionneuseCliche.ajuster) return; depart = { ll: point(ev), d: Object.assign({ dx: 0, dy: 0 }, visionneuseCliche.decalages[c.id]) }; try { zone.setPointerCapture(ev.pointerId); } catch (e) { /* ancien navigateur */ } ev.preventDefault(); });
+  zone.addEventListener('pointerdown', (ev) => { if (!visionneuseCliche.ajuster || (ev.target && ev.target.closest && ev.target.closest('.leaflet-control'))) return; depart = { ll: point(ev), d: Object.assign({ dx: 0, dy: 0 }, visionneuseCliche.decalages[c.id]) }; try { zone.setPointerCapture(ev.pointerId); } catch (e) { /* ancien navigateur */ } ev.preventDefault(); });
   zone.addEventListener('pointermove', (ev) => {
     if (!depart) return;
     const ll = point(ev);
