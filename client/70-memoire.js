@@ -132,7 +132,7 @@
     const fmActif = !!(e && e.reglages && e.reglages.fausseMinutes);
     const lignes = e ? e.rubriques.map(r => {
       const etat = r.interne ? `<span class="hint">${r.lus ? 'à jour à chaque version de CLAIRE' : 'lu au prochain parcours'} · règles de CLAIRE et historique des décisions</span>` : r.cle === 'fausses-minutes' && !fmActif ? '<span class="hint">lecture éteinte (option ci-dessous)</span>' : !r.trouve ? '<span class="hint">dossier introuvable sur le NAS</span>'
-        : `${r.lus} lu${r.lus > 1 ? 's' : ''} sur ${r.fichiers}${r.aLire ? ` · <strong>${r.aLire} à lire</strong>` : ''}${r.ocr ? ` · ${r.ocr} par OCR` : ''}${r.vides ? ` · ${r.vides} sans texte` : ''}${r.erreurs ? ` · ${r.erreurs} en erreur` : ''}${r.tropGros ? ` · ${r.tropGros} trop gros` : ''}`;
+        : `${r.lus} lu${r.lus > 1 ? 's' : ''} sur ${r.fichiers}${r.aLire ? ` · <strong>${r.aLire} à lire</strong>` : ''}${r.ocr ? ` · ${r.ocr} par OCR` : ''}${r.vides ? ` · ${r.vides} sans texte` : ''}${r.erreurs ? ` · ${r.erreurs} en erreur` : ''}${r.tropGros ? ` · ${r.tropGros} trop gros` : ''}${texteNonLusMemoire(r.nonLus)}`;
       return `<div class="reglages-option"><div><strong>${escapeHtml(r.nom)}</strong><div class="hint">${etat}</div></div></div>`;
     }).join('') : '';
     const parcours = e && e.parcours.enCours ? '<p class="hint">Parcours en cours…</p>' : '';
@@ -253,3 +253,10 @@
     return passages.length ? { nombre: passages.length, passages }
       : { nombre: 0, passages: [], remarque: 'Rien de correspondant dans la mémoire (documents pas encore tous lus, ou autres mots à essayer).' };
   }
+
+// Pure : les fichiers d'un format que la mémoire ne lit pas (étude 31/10 : « 62 documents alors qu'il y en a le double »), par extension.
+function texteNonLusMemoire(nonLus) {
+  const l = Object.entries(nonLus || {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  const total = l.reduce((s, [, n]) => s + n, 0);
+  return total ? ` · ${total} non lu${total > 1 ? 's' : ''} (format ${l.slice(0, 4).map(([x, n]) => `.${escapeHtml(x)} ×${n}`).join(', ')}${l.length > 4 ? '…' : ''})` : '';
+}

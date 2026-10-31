@@ -7,7 +7,7 @@
 // serveur avant l'envoi, dépense comptée dans le plafond mensuel de l'IA des routines. Lecture seule : rien n'est jamais écrit sur le NAS.
 
 const fsp = require('node:fs/promises');
-const { listerFichiersMemoire, cheminDocumentMemoire, texteDocx } = require('./memoire');
+const { listerFichiersMemoire, cheminDocumentMemoire, texteFichierMemoire } = require('./memoire');
 const { dossierClientAbsolu } = require('./explorateurNas');
 const { masquer, retablirTexte } = require('./assistantMistral');
 const { sensiblesDesDossiers } = require('./routines/ia');
@@ -96,7 +96,7 @@ async function parcourirDossiersEnCours(o) {
       if (!cible) { o.memoire.marquerErreur(doc.id, 'fichier introuvable'); continue; }
       try {
         const buf = await fsImpl.readFile(cible);
-        const texte = doc.ext === 'docx' ? await texteDocx(buf) : buf.toString('utf8');
+        const texte = await texteFichierMemoire(doc.ext, buf);
         o.memoire.enregistrerTexte(doc.id, [{ n: 0, texte }]);
         etat.luServeur++;
       } catch (e) {

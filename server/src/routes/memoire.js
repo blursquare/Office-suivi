@@ -58,7 +58,7 @@ function creerRouteurMemoire(config, db, parametresRepo, injections = {}) {
       const n = (statut) => l.filter((x) => x.statut === statut).reduce((s, x) => s + x.n, 0);
       return { cle: r.cle, libelle: r.libelle, nom: r.nom, interne: !!r.interne, trouve: !!r.interne || dossiers.some((d) => d.cle === r.cle),
         fichiers: l.reduce((s, x) => s + x.n, 0), lus: n('lu'), aLire: n('a_lire'), vides: n('vide'), erreurs: n('erreur'), tropGros: n('trop_gros'),
-        ocr: l.reduce((s, x) => s + x.ocr, 0) };
+        ocr: l.reduce((s, x) => s + x.ocr, 0), nonLus: (etat.nonLus || {})[r.cle] || {} };
     });
     res.json({ reglages: lireReglages(), rubriques, passages, parcours: { enCours: etat.enCours, debut: etat.debut, fin: etat.fin, vus: etat.vus, nouveaux: etat.nouveaux, changes: etat.changes, retires: etat.retires, erreur: etat.erreur } });
   }));

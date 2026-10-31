@@ -35,7 +35,10 @@ const SOURCES_REGLES = [
   { chemin: 'historique.md', nom: 'Historique des décisions', asset: 'memoire/historique.md', repo: 'docs/historique.md' }
 ];
 
-const EXTENSIONS_LUES = ['pdf', 'docx', 'txt', 'md'];
+// Étude 31/10 : « CLAIRE n'a scanné que 62 documents sur MODELES - OUTILS alors qu'il y en a le double » — les modèles d'une étude sont
+// aussi en ancien Word (.doc), modèles Word (.dotx), OpenOffice (.odt), RTF et Excel : lus ici ; les autres formats sont comptés (« non lus »).
+const EXTENSIONS_LUES = ['pdf', 'docx', 'txt', 'md', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'odt', 'rtf', 'xlsx', 'xlsm'];
+const EXTENSIONS_WORD_ZIP = ['docx', 'docm', 'dotx', 'dotm'];
 const PROFONDEUR_MAX = 6;
 const MAX_FICHIERS_PAR_RUBRIQUE = 20000;
 const TAILLE_MAX_OCTETS = 60 * 1024 * 1024;           // au-delà, le fichier n'est pas lu (statut « trop_gros »)
@@ -190,6 +193,85 @@ async function texteDocx(buf) {
   const doc = entrees.get('word/document.xml');
   if (!doc) throw new Error('pas un document Word');
   return texteDocumentXml((await contenuZip(buf, doc)).toString('utf8'));
+}
+
+/** Pure : le texte d'un `content.xml` OpenDocument (.odt) — un paragraphe ou titre par ligne. @param {string} xml */
+function texteOdtXml(xml) {
+  return sansEntitesXml(String(xml || '')
+    .replace(/<text:tab\s*\/>/g, '\t').replace(/<text:line-break\s*\/>/g, '\n').replace(/<text:s(?:\s[^>]*)?\/>/g, ' ')
+    .replace(/<\/text:(?:p|h)>/g, '\n').replace(/<[^>]*>/g, ''))
+    .split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+/** Le texte d'un document OpenOffice / LibreOffice (.odt). @param {Buffer} buf */
+async function texteOdt(buf) {
+  const e = entreesZip(buf).get('content.xml');
+  if (!e) throw new Error('pas un document OpenDocument');
+  return texteOdtXml((await contenuZip(buf, e)).toString('utf8'));
+}
+
+/** Le texte d'un classeur Excel (.xlsx, .xlsm) : ses textes (chaînes partagées et cellules en ligne), un par ligne ; les nombres sont laissés.
+ * @param {Buffer} buf */
+async function texteXlsx(buf) {
+  const entrees = entreesZip(buf);
+  const textes = [];
+  const lire = async (nom) => { const e = entrees.get(nom); return e ? (await contenuZip(buf, e)).toString('utf8') : ''; };
+  const partagees = await lire('xl/sharedStrings.xml');
+  for (const m of partagees.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)) textes.push(sansEntitesXml(m[1]));
+  for (const nom of [...entrees.keys()].filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).slice(0, 50)) {
+    for (const m of (await lire(nom)).matchAll(/<is>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)) textes.push(sansEntitesXml(m[1]));
+  }
+  if (!partagees && !textes.length && !entrees.has('xl/workbook.xml')) throw new Error('pas un classeur Excel');
+  return textes.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+/** Pure : le texte d'un fichier RTF — mots de contrôle et groupes de destination retirés, \'hh (Windows-1252) et \uN décodés. @param {Buffer} buf */
+function texteRtf(buf) {
+  const s = buf.toString('latin1');
+  if (!s.startsWith('{\\rtf')) throw new Error('pas un fichier RTF');
+  let sortie = '';
+  let profondeurIgnoree = 0;
+  let profondeur = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '{') { profondeur++; if (s.startsWith('{\\*', i) || /^\{\\(?:fonttbl|colortbl|stylesheet|info|pict|header|footer|listtable|listoverridetable|rsidtbl|generator|xmlnstbl|themedata|colorschememapping|datastore|latentstyles)/.test(s.slice(i, i + 24))) { if (!profondeurIgnoree) profondeurIgnoree = profondeur; } continue; }
+    if (c === '}') { if (profondeurIgnoree === profondeur) profondeurIgnoree = 0; profondeur--; continue; }
+    if (c === '\\') {
+      const m = /^\\(?:'([0-9a-f]{2})|u(-?\d+) ?\??|([a-z]+)(-?\d+)? ?|([\\{}~_-]))/i.exec(s.slice(i, i + 40));
+      if (!m) continue;
+      i += m[0].length - 1;
+      if (profondeurIgnoree) continue;
+      if (m[1]) sortie += Buffer.from([parseInt(m[1], 16)]).toString('latin1');
+      else if (m[2]) sortie += String.fromCharCode(((Number(m[2]) % 65536) + 65536) % 65536);
+      else if (m[3]) { if (m[3] === 'par' || m[3] === 'line' || m[3] === 'row') sortie += '\n'; else if (m[3] === 'tab' || m[3] === 'cell') sortie += '\t'; }
+      else if (m[5] === '~') sortie += ' ';
+      else if (m[5] && '\\{}'.includes(m[5])) sortie += m[5];
+      continue;
+    }
+    if (!profondeurIgnoree && c !== '\r' && c !== '\n') sortie += c;
+  }
+  return sortie.split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter(Boolean).join('\n');
+}
+
+/** Pure : le texte d'un ancien Word (.doc, .dot — format binaire de Word 97-2003), par repérage des suites de caractères lisibles en
+ * UTF-16 et en Windows-1252 (la plus longue des deux) — pour la recherche, sans la mise en page. @param {Buffer} buf */
+function texteDocBinaire(buf) {
+  if (buf.length < 512 || buf.readUInt32LE(0) !== 0xE011CFD0) throw new Error('pas un ancien document Word');
+  const garder = (texte, re) => (texte.match(re) || []).map((x) => x.replace(/[\r\x07\x0b\x0c]/g, '\n').replace(/[ \t]+/g, ' ').trim()).filter((x) => /\p{L}{3}/u.test(x));
+  const utf16 = garder(buf.toString('utf16le'), /[\p{L}\p{N}\p{P}\p{Zs}\t\r\x07\x0b€§°«»’–—]{24,}/gu);
+  const huit = garder(buf.toString('latin1'), /[\x20-\x7e\xa0-\xff\t\r\x07\x0b]{24,}/g);
+  const somme = (l) => l.reduce((n, x) => n + x.length, 0);
+  return (somme(utf16) >= somme(huit) ? utf16 : huit).join('\n').slice(0, 2000000);
+}
+
+/** Le texte d'un fichier de la mémoire lu par le serveur, selon son extension. @param {string} ext @param {Buffer} buf */
+async function texteFichierMemoire(ext, buf) {
+  if (EXTENSIONS_WORD_ZIP.includes(ext)) return texteDocx(buf);
+  if (ext === 'odt') return texteOdt(buf);
+  if (ext === 'xlsx' || ext === 'xlsm') return texteXlsx(buf);
+  if (ext === 'rtf') return texteRtf(buf);
+  if (ext === 'doc' || ext === 'dot') return texteDocBinaire(buf);
+  return buf.toString('utf8');
 }
 
 // ---- Passages (purs) ---------------------------------------------------------------------------------------------------------
@@ -550,6 +632,8 @@ function creerMemoire(db) {
 async function listerFichiersMemoire(racine, fsImpl = fsp) {
   /** @type {Array<{ chemin: string, nom: string, ext: string, taille: number, modifieMs: number }>} */
   const fichiers = [];
+  /** @type {Record<string, number>} */
+  const nonLus = {};   // formats que la mémoire ne lit pas : comptés par extension, pour le dire dans les Réglages
   // Faux dès qu'un dossier n'a pas répondu ou que le plafond est atteint : le listage est alors incomplet (jamais de retrait d'après lui).
   let complet = true;
   const file = [{ chemin: racine, profondeur: 0 }];
@@ -562,14 +646,16 @@ async function listerFichiersMemoire(racine, fsImpl = fsp) {
       if (e.isDirectory()) { if (courant.profondeur < PROFONDEUR_MAX && !/^[.#@$~]/.test(e.name)) file.push({ chemin: absolu, profondeur: courant.profondeur + 1 }); continue; }
       const ext = extensionLue(e.name);
       // Fichiers temporaires de Word (« ~$… ») et fichiers cachés : jamais lus.
-      if (!ext || /^[.~]/.test(e.name) || fichiers.length >= MAX_FICHIERS_PAR_RUBRIQUE) continue;
+      if (/^[.~]/.test(e.name) || /^thumbs\.db$|^desktop\.ini$/i.test(e.name)) continue;
+      if (!ext) { const m = /\.([A-Za-z0-9]{1,5})$/.exec(e.name); const x = m ? m[1].toLowerCase() : 'sans extension'; nonLus[x] = (nonLus[x] || 0) + 1; continue; }
+      if (fichiers.length >= MAX_FICHIERS_PAR_RUBRIQUE) continue;
       let st = null;
       try { st = await fsImpl.stat(absolu); } catch (_) { complet = false; continue; }
       fichiers.push({ chemin: path.relative(racine, absolu).split(path.sep).join('/'), nom: e.name, ext, taille: st.size, modifieMs: Math.round(st.mtimeMs) });
     }
   }
   if (file.length) complet = false;
-  return { fichiers, complet };
+  return { fichiers, complet, nonLus };
 }
 
 /** Le fichier d'un document de la mémoire, confiné à son dossier (liens symboliques résolus). null si hors du dossier. @param {string} racine @param {string} relatif @param {any} [fsImpl] */
@@ -600,7 +686,8 @@ async function parcourirMemoire(o) {
     etat.dossiers = dossiers.map((d) => ({ cle: d.cle, libelle: d.libelle }));
     for (const d of dossiers) {
       if ((o.ignorer || []).includes(d.cle)) continue; // rubrique en option, éteinte
-      const { fichiers, complet } = await listerFichiersMemoire(d.chemin, fsImpl);
+      const { fichiers, complet, nonLus } = await listerFichiersMemoire(d.chemin, fsImpl);
+      etat.nonLus = Object.assign({}, etat.nonLus, { [d.cle]: nonLus || {} });
       for (const f of fichiers) {
         const r = o.memoire.voirFichier(d.cle, f.chemin, f.nom, f.ext, f.taille, f.modifieMs);
         etat.vus++;
@@ -621,7 +708,7 @@ async function parcourirMemoire(o) {
       if (!cible) continue;
       try {
         const buf = await fsImpl.readFile(cible);
-        const texte = doc.ext === 'docx' ? await texteDocx(buf) : buf.toString('utf8');
+        const texte = await texteFichierMemoire(doc.ext, buf);
         o.memoire.enregistrerTexte(doc.id, [{ n: 0, texte }]);
         etat.luServeur++;
       } catch (e) {
@@ -650,6 +737,6 @@ function expurgerExtrait(texte) {
 
 module.exports = {
   SOURCES_REGLES, sectionsMarkdown, empreinteTexte, indexerRegles, titreSectionRegles, texteSourceRegles,
-  expurgerExtrait, RUBRIQUES_MEMOIRE, normaliserNom, rubriqueDuNom, extensionLue, trouverDossiersMemoire, entreesZip, contenuZip, texteDocumentXml, texteDocx,
+  expurgerExtrait, texteFichierMemoire, texteOdtXml, texteRtf, texteDocBinaire, RUBRIQUES_MEMOIRE, normaliserNom, rubriqueDuNom, extensionLue, trouverDossiersMemoire, entreesZip, contenuZip, texteDocumentXml, texteDocx,
   decouperTexte, passagesDesPages, motsDeRecherche, requeteFts, extraitAutour, creerMemoire, listerFichiersMemoire, cheminDocumentMemoire, parcourirMemoire
 };

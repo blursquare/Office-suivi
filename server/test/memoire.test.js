@@ -39,7 +39,8 @@ test('les quatre dossiers sont reconnus par leur nom (casse, accents et ponctuat
   assert.equal(M.rubriqueDuNom('RAPPEL DE PROCEDURES').cle, 'rappel-procedures');
   assert.equal(M.rubriqueDuNom('MAISON'), null);
   assert.equal(M.extensionLue('Attestation.PDF'), 'pdf');
-  assert.equal(M.extensionLue('x.xlsx'), '');
+  assert.equal(M.extensionLue('x.xlsx'), 'xlsx', 'Excel lu depuis le 31/10');
+  assert.equal(M.extensionLue('x.exe'), '');
 });
 
 test('Word : le texte des paragraphes, sans les passages supprimés ; archive illisible refusée', async () => {
@@ -101,7 +102,7 @@ function nasInvente() {
   fs.writeFileSync(path.join(proc, 'Procédure SAFER.docx'), docx(['Notifier la SAFER par Vigifoncier', 'Délai de deux mois']));
   fs.writeFileSync(path.join(proc, 'notes.txt'), 'Rappel : vérifier la purge du droit de préemption urbain.');
   fs.writeFileSync(path.join(proc, '~$Procédure SAFER.docx'), 'verrou Word');
-  fs.writeFileSync(path.join(proc, 'tableau.xlsx'), 'ignoré');
+  fs.writeFileSync(path.join(proc, 'plan.dwg'), 'ignoré');   // format non lu (Excel l'est depuis le 31/10)
   return { racine, config: { nasRacine: path.join(commun, 'DOSSIERS') } };
 }
 
@@ -314,4 +315,47 @@ test('règles : une source retirée sort de la mémoire ; le poste ne peut pas r
     assert.equal(r.status, 404);
     assert.equal(memoire.chercher('piégée', { rubrique: 'regles-etude' }).passages.length, 0);
   } finally { serveur.close(); }
+});
+
+/** Une archive ZIP d'une seule entrée déflatée. */
+function zipUn(nomEntree, contenu) {
+  const donnees = zlib.deflateRawSync(Buffer.from(contenu, 'utf8'));
+  const nom = Buffer.from(nomEntree);
+  const taille = Buffer.byteLength(contenu, 'utf8');
+  const local = Buffer.alloc(30); local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(8, 8); local.writeUInt32LE(donnees.length, 18); local.writeUInt32LE(taille, 22); local.writeUInt16LE(nom.length, 26);
+  const corps = Buffer.concat([local, nom, donnees]);
+  const central = Buffer.alloc(46); central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(8, 10); central.writeUInt32LE(donnees.length, 20); central.writeUInt32LE(taille, 24); central.writeUInt16LE(nom.length, 28); central.writeUInt32LE(0, 42);
+  const fin = Buffer.alloc(22); fin.writeUInt32LE(0x06054b50, 0); fin.writeUInt16LE(1, 8); fin.writeUInt16LE(1, 10); fin.writeUInt32LE(46 + nom.length, 12); fin.writeUInt32LE(corps.length, 16);
+  return Buffer.concat([corps, central, nom, fin]);
+}
+
+test('autres formats des modèles (étude 31/10 : « 62 documents alors qu’il y en a le double ») : .dotx, .odt, .rtf, .xlsx, ancien .doc', async () => {
+  assert.match(await M.texteFichierMemoire('dotx', docx(['Modèle de courrier au syndic'])), /Modèle de courrier au syndic/);
+  const odt = zipUn('content.xml', '<office:document-content><office:body><office:text><text:h>Procuration</text:h><text:p>Le mandant<text:tab/>donne pouvoir &amp; mandat.</text:p></office:text></office:body></office:document-content>');
+  assert.equal(await M.texteFichierMemoire('odt', odt), 'Procuration\nLe mandant donne pouvoir & mandat.');
+  const rtf = Buffer.from("{\\rtf1\\ansi{\\fonttbl{\\f0 Times;}}{\\*\\generator Word;}\\pard Attestation de propri\\'e9t\\'e9\\par Fait \\u224? Blois\\par}", 'latin1');
+  assert.equal(M.texteRtf(rtf), 'Attestation de propriété\nFait à Blois');
+  const xlsx = zipUn('xl/sharedStrings.xml', '<sst><si><t>Barème des émoluments</t></si><si><t xml:space="preserve">Frais de mutation</t></si></sst>');
+  assert.equal(await M.texteFichierMemoire('xlsx', xlsx), 'Barème des émoluments\nFrais de mutation');
+  // Ancien Word : en-tête OLE puis texte en UTF-16, comme Word 97-2003 l'écrit.
+  const entete = Buffer.alloc(1024); entete.writeUInt32LE(0xE011CFD0, 0); entete.writeUInt32LE(0xE11AB1A1, 4);
+  const doc = Buffer.concat([entete, Buffer.from('Modèle de procuration pour vendre un bien immobilier\r', 'utf16le'), Buffer.alloc(256)]);
+  assert.match(M.texteDocBinaire(doc), /Modèle de procuration pour vendre un bien immobilier/);
+  assert.throws(() => M.texteDocBinaire(Buffer.from('pas un doc')));
+  assert.throws(() => M.texteRtf(Buffer.from('pas un rtf')));
+});
+
+test('parcours : les fichiers d’un format non lu sont comptés par extension (dit dans les Réglages)', async () => {
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'memoire-formats-'));
+  fs.writeFileSync(path.join(racine, 'a.docx'), docx(['x']));
+  fs.writeFileSync(path.join(racine, 'b.doc'), Buffer.alloc(10));
+  fs.writeFileSync(path.join(racine, 'c.xls'), 'x');
+  fs.writeFileSync(path.join(racine, 'd.xls'), 'x');
+  fs.writeFileSync(path.join(racine, 'Thumbs.db'), 'x');
+  fs.writeFileSync(path.join(racine, '~$e.docx'), 'x');
+  try {
+    const { fichiers, nonLus } = await M.listerFichiersMemoire(racine);
+    assert.deepEqual(fichiers.map((f) => f.nom).sort(), ['a.docx', 'b.doc']);
+    assert.deepEqual(nonLus, { xls: 2 });
+  } finally { fs.rmSync(racine, { recursive: true, force: true }); }
 });
