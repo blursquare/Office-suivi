@@ -11638,11 +11638,27 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .fiche-outils-barre wa-button.action-rapide { margin: 0; --wa-form-control-height: 32px; font-weight: 500; color: var(--ink); }
 .fiche-outils-barre wa-button.action-rapide .icone { color: var(--focus); }
 
-/* Carte « Arrivée des fonds » (31/10) : l'état en pastille, le geste à droite. */
-.fonds-arrivee-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.fonds-arrivee-tete .avancement-pilule { min-width: 0; }
+/* Carte « Arrivée des fonds » (31/10) : une teinte dominante selon l'arrivée des fonds — vert tout est là, orange en partie,
+   rouge rien de reçu ; le montant reçu en grand, la jauge et le message à la couleur de la carte. */
+.fonds-arrivee { --fonds-ton: var(--urgent); }
+.fiche-panneau .echanges-groupe.fonds-arrivee { gap: 12px; padding-bottom: 16px; border-color: color-mix(in srgb, var(--fonds-ton) 45%, var(--line)); background: color-mix(in srgb, var(--fonds-ton) 6%, var(--paper-card)); }
+.fonds-arrivee.fonds-ton-vert { --fonds-ton: var(--success); }
+.fonds-arrivee.fonds-ton-orange { --fonds-ton: var(--pret); }
+.fiche-panneau .echanges-groupe.fonds-arrivee > .echanges-tete { background: color-mix(in srgb, var(--fonds-ton) 10%, transparent); border-radius: var(--rayon-m) var(--rayon-m) 0 0; border-bottom-color: color-mix(in srgb, var(--fonds-ton) 25%, var(--line-soft)); }
+.fonds-etat-libelle { display: inline-flex; align-items: center; gap: 6px; font-size: var(--texte-s); font-weight: 600; color: var(--fonds-ton); }
+.fonds-etat-point { width: 8px; height: 8px; border-radius: 50%; background: var(--fonds-ton); }
+.fonds-montant { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.fonds-montant > .fonds-non-lu { font-size: var(--texte-3xl); font-weight: 500; color: var(--muted); }
+.fonds-montant > strong { font-size: var(--texte-5xl); font-weight: 500; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.fonds-montant-sur { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: var(--texte-l); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.fonds-arrivee .fonds-barre { height: 6px; background: color-mix(in srgb, var(--fonds-ton) 14%, var(--line-soft)); }
+.fonds-arrivee .fonds-barre > span { background: var(--fonds-ton); }
+.fonds-arrivee-ligne { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.fonds-message { font-size: var(--texte-base); color: var(--ink); }
+.fonds-ton-texte { font-weight: 600; color: var(--fonds-ton); }
 .fonds-arrivee-actions { margin-left: auto; display: flex; align-items: center; gap: 4px; }
-.fonds-arrivee .fonds-recus { margin: 0; }
+.fonds-arrivee .fonds-recus-detail { margin: 0; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--fonds-ton) 20%, var(--line-soft)); }
 .fonds-a-saisir { font-size: var(--texte-base); color: var(--muted); }
 .fonds-compta-texte { font-size: var(--texte-s); font-weight: 500; color: var(--ink-soft); }
 .fonds-compta-texte.dl-pret { color: var(--pret); }
+@media (max-width: 520px) { .fonds-montant > strong { font-size: var(--texte-3xl); } }

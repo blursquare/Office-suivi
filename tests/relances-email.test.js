@@ -821,8 +821,16 @@ test('onglet Fonds (retour de l’étude, 30/10) : l’arrivée des fonds dans s
   const i = html.indexOf('pieces-titre-texte">Arrivée des fonds<');
   const j = html.indexOf('pieces-titre-texte">Demandes à faire<');
   assert.ok(i > 0 && j > i, 'la carte « Arrivée des fonds » vient avant « Demandes à faire »');
-  assert.equal((html.match(/fonds-arrivee-tete/g) || []).length, 1, 'le suivi des fonds n’est qu’une fois, dans sa carte');
+  assert.equal((html.match(/echanges-groupe fonds-arrivee /g) || []).length, 1, 'le suivi des fonds n’est qu’une fois, dans sa carte');
   assert.doesNotMatch(html, /Fonds reçus en comptabilité/, 'plus de ligne d’action dans la carte (31/10 : « on comprend pas »)');
-  assert.match(html, /avancement-pilule dl-neutre">Reçus pas encore lus</, 'l’état écrit en clair dans une pastille');
+  assert.match(html, /fonds-arrivee fonds-ton-rouge/, 'rien de reçu : la carte en rouge (31/10)');
+  assert.match(html, /fonds-etat-point"><\/span>Reçus pas encore lus</, 'l’état écrit en clair');
+  const partiel = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: dans(5), appelFonds: dans(-3), echeancesValidees: { appelFonds: true },
+    fondsRecus: { attendu: 1000, total: 400, recus: [], fichiersLus: 1, verifieLe: new Date().toISOString(), depuis: dans(-10) } }));
+  assert.match(partiel, /fonds-ton-orange/);
+  assert.match(partiel, /Il manque <b class="fonds-ton-texte">600,00\s€<\/b> · signature dans 5 jours/);
+  const complet = app.renderFondsDossier(dossierBase(app, { sansPret: true, rendezVousSignature: dans(5), appelFonds: dans(-3), echeancesValidees: { appelFonds: true },
+    fondsRecus: { attendu: 1000, total: 1000, recus: [], fichiersLus: 1, verifieLe: new Date().toISOString(), depuis: dans(-10) } }));
+  assert.match(complet, /fonds-ton-vert/);
   assert.match(html, /fonds-haut fonds-colonnes-2/);
 });

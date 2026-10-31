@@ -652,19 +652,52 @@
     const reverifierIcone = bouton === verifier ? '' : `<wa-button appearance="plain" size="s" type="button" class="bouton-icone icon-btn ja-plus-tard" onclick="verifierFondsRecus('${escapeOnclickArg(d.id)}', this)" title="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}" aria-label="${f ? 'Revérifier les reçus' : 'Vérifier les reçus'}">${icone('rotate-ccw')}</wa-button>`;
     // Carte « Arrivée des fonds » de l'onglet Fonds (retour de l'étude, 31/10 : « pas joli et on comprend pas ») : l'état écrit
     // en clair dans une pastille, le geste du moment à droite, sans la ligne d'action et ses points de couleur.
-    if (opts && opts.carte) {
-      const btn = `<wa-button ${bouton === verifier ? 'appearance="outlined"' : 'variant="brand"'} size="s" type="button" onclick="${bouton.onclick}" title="${escapeAttr(bouton.titre)}">${bouton.icone} ${bouton.libelle}</wa-button>`;
-      return `<div class="fonds-arrivee-tete">
-          <span class="avancement-pilule ${etatCourt[0]}">${etatCourt[1]}</span>
-          ${confirmee ? `<span class="fonds-confirmation">confirmé ${estSuccession(d) ? 'aux héritiers' : 'au client'} le ${formatDateFr(confirmee)}</span>` : ''}
-          <span class="fonds-arrivee-actions">${reverifierIcone}${btn}</span>
-        </div>${detail}`;
-    }
+    if (opts && opts.carte) return carteArriveeFonds(d, { f, b, attendu, confirmee, bouton, verifier, reverifierIcone, sourceAttendu, versements, compta, pied });
     return renderLigneAction({
       categorie: 'appelFonds', categorieLabel: 'Fonds reçus', titre: 'Fonds reçus en comptabilité',
       sousHtml, faite: !!confirmee, bouton, secondaires: reverifierIcone,
       detail, detailOuvert: true
     });
+  }
+
+  // Carte « Arrivée des fonds » de l'onglet Fonds (étude 31/10 : « pas joli et on comprend pas », puis « ce style, avec une couleur
+  // dominante selon l'arrivée des fonds, rouge orange vert ») : le montant reçu en grand sur l'attendu, une jauge, ce qui manque et
+  // le temps avant la signature, le geste à droite ; teinte de la carte = vert tout est là, orange en partie ou à vérifier,
+  // rouge rien de reçu. Le détail (versements, Authentic, noms cherchés) dessous, en petit.
+  function carteArriveeFonds(d, x) {
+    const { f, b, attendu, confirmee, bouton, verifier, reverifierIcone, sourceAttendu, versements, compta, pied } = x;
+    const succ = estSuccession(d);
+    const recu = b.manuel ? (b.total || attendu || 0) : (f ? b.total : 0);
+    const ton = b.manuel || (f && b.etat === 'complet') ? 'vert'
+      : f && (b.etat === 'partiel' || b.etat === 'excedent' || (b.etat === 'inconnu' && b.total > 0)) ? 'orange' : 'rouge';
+    const etiquette = b.manuel ? 'Fonds validés à la main'
+      : ton === 'vert' ? 'Tous les fonds sont reçus'
+      : b.etat === 'excedent' ? 'Écart à vérifier'
+      : ton === 'orange' ? 'Fonds incomplets'
+      : f ? 'Aucun fonds reçu' : 'Reçus pas encore lus';
+    const rdv = String(d.rendezVousSignature || '').slice(0, 10);
+    const jours = rdv ? Math.round((new Date(rdv + 'T12:00:00') - new Date(isoAujourdhuiLocal() + 'T12:00:00')) / 864e5) : null;
+    const quand = jours === null ? '' : jours > 1 ? `signature dans ${jours} jours` : jours === 1 ? 'signature demain' : jours === 0 ? 'signature aujourd’hui' : '';
+    const attenduHtml = champFondsEditable(d, 'attendu', attendu ? `<span>${formaterPrixCentimes(attendu)}</span>${sourceAttendu}` : `<span class="fonds-a-saisir">montant attendu à saisir</span>`,
+      attendu ? String(attendu).replace('.', ',') : '', 'lu dans le décompte', 'inputmode="decimal"');
+    let message;
+    if (confirmee) message = `Tout est arrivé · confirmé ${succ ? 'aux héritiers' : 'au client'} le ${formatDateFr(confirmee)}`;
+    else if (ton === 'vert') message = `Tout est arrivé · reste à prévenir ${succ ? 'les héritiers' : 'le client'}`;
+    else if (b.etat === 'excedent') message = `<b class="fonds-ton-texte">${formaterPrixCentimes(b.ecart)}</b> de plus que l’attendu, à vérifier`;
+    else if (!f) message = `Lisez les reçus comptables déposés sur le NAS${quand ? ' · ' + quand : ''}`;
+    else if (b.attendu) message = `Il manque <b class="fonds-ton-texte">${formaterPrixCentimes(b.reste)}</b>${quand ? ' · ' + quand : ''}`;
+    else message = `Saisissez le montant attendu pour savoir ce qui manque${quand ? ' · ' + quand : ''}`;
+    const pct = ton === 'vert' ? 100 : b.attendu ? Math.min(100, Math.round((recu / b.attendu) * 100)) : 0;
+    const btn = `<wa-button ${bouton === verifier ? 'appearance="outlined"' : 'variant="brand"'} size="s" type="button" onclick="${bouton.onclick}" title="${escapeAttr(bouton.titre)}">${bouton.icone} ${bouton.libelle}</wa-button>`;
+    return `<div class="echanges-groupe fonds-arrivee fonds-ton-${ton}">
+        <div class="echanges-tete"><span class="pieces-titre">${icone('banknote')}<span class="pieces-titre-texte">Arrivée des fonds</span></span>
+          <span class="fonds-etat-libelle"><span class="fonds-etat-point"></span>${etiquette}</span></div>
+        <div class="fonds-montant">${f || b.manuel ? `<strong>${formaterPrixCentimes(recu)}</strong><span class="fonds-montant-sur">reçus sur ${attenduHtml}</span>` : `<span class="fonds-non-lu">Reçus non lus</span><span class="fonds-montant-sur">attendu : ${attenduHtml}</span>`}</div>
+        <div class="fonds-barre fonds-barre-ton" role="img" aria-label="${pct} % des fonds attendus reçus"><span style="width:${pct}%"></span></div>
+        <div class="fonds-arrivee-ligne"><span class="fonds-message">${message}</span>
+          <span class="fonds-arrivee-actions">${reverifierIcone}${btn}</span></div>
+        <div class="fonds-recus fonds-recus-detail">${versements}${compta}${pied}</div>
+      </div>`;
   }
 
   // « Valider les fonds reçus » (étude 06/10) : les fonds sont sur le compte de l'étude à la Caisse des Dépôts mais aucun reçu
