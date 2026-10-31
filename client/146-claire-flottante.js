@@ -6,7 +6,7 @@
 // discussion d'un dossier (« Ouvrir dans un onglet ») garde CETTE discussion (étude 30/10 : « il faut qu'elle reprenne la conversation » —
 // avant, la fenêtre partait sur une conversation neuve, sans le dossier) : ses derniers messages, et la demande y est écrite pour CLAIRE.
 
-var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
+var ECRANS_CLAIRE_FLOTTANTE = ['appel-fonds', 'constitution', 'autorisations', 'decompte-vendeur', 'decoupage', 'inventaire', 'preemption', 'prorata', 'quotites', 'calculateur', 'confreres', 'clients-biens', 'nouveau', 'agenda', 'suivi'];
 var claireFlottante = { ouverte: false, minuterie: null, signature: '', reprise: null };   // reprise : { canal, onglet } — la discussion d'où l'outil a été ouvert
 var precisionEcranAgentEnAttente = '';   // dite à l'agent avec la demande, jamais montrée ni gardée dans le titre du sujet (audit 0.404.0, B1)
 

@@ -31,7 +31,7 @@ function envoyerFlux(res, cible) {
 }
 const { faussesMinutes, trouverDossierFaussesMinutes, resoudreFichierFaussesMinutes } = require('../faussesMinutes');
 const { fcddvCommun, trouverDossierFcddv, resoudreFichierFcddv, cheminFcddvPermis } = require('../fcddvCommun');
-const { copierDansDossierClient } = require('../scans');
+const { copierDansDossierClient, RUBRIQUES_SCANS } = require('../scans');
 
 // Toute lecture du NAS est asynchrone depuis qu'un balayage synchrone a été identifié comme la
 // cause des gels du serveur (voir nas.js et CLAUDE.md) : pendant qu'une route attend le NAS, le
@@ -120,6 +120,29 @@ function creerRouteurNas(config, depot) {
       sousDossier: b.sousDossier === 'Constitution' ? 'Constitution' : '' });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
     res.json({ ok: true, chemin: r.chemin });
+  }));
+
+  // « Découper le compromis » (étude 31/10, client/152-decoupage-compromis.js) : une pièce tirée du compromis signé (le compromis
+  // seul, une annexe, un diagnostic, le PDF de tous les diagnostics) rangée dans la rubrique de sa thématique du dossier client —
+  // COPIE, jamais d'écrasement (« Nom (2).pdf »), dossier relu sur la fiche, jamais un chemin du poste. PDF seulement, 30 Mo au
+  // plus (un règlement de copropriété scanné) ; rubriques = clés de RUBRIQUES_SCANS seulement (sous-dossier retrouvé par son nom,
+  // racine du dossier client à défaut, jamais créé).
+  routeur.post('/nas/deposer-annexe', routeAsync(async (req, res) => {
+    const b = req.body || {};
+    if (!config.nasRacine) { res.status(503).json({ erreur: 'Aucun dossier NAS configuré.' }); return; }
+    const base64 = typeof b.contenu === 'string' ? b.contenu : '';
+    if (!base64 || base64.length > 40 * 1024 * 1024 || !/^[A-Za-z0-9+/=\s]+$/.test(base64)) { res.status(400).json({ erreur: 'Document vide ou trop lourd.' }); return; }
+    const contenu = Buffer.from(base64, 'base64');
+    if (contenu.length < 5 || contenu.toString('latin1', 0, 5) !== '%PDF-') { res.status(400).json({ erreur: 'Ce n’est pas un PDF.' }); return; }
+    const d = depot && typeof b.dossierId === 'string' ? depot.trouverParId(b.dossierId) : null;
+    if (!d || !d.nasDossier) { res.status(400).json({ erreur: 'Dossier inconnu ou non relié au NAS.' }); return; }
+    const rubriques = (Array.isArray(b.rubriques) ? b.rubriques : []).filter((r) => typeof r === 'string' && Object.prototype.hasOwnProperty.call(RUBRIQUES_SCANS, r)).slice(0, 4);
+    let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120) : '';
+    if (/^\s*(con|prn|aux|nul|com\d|lpt\d)\s*$/i.test(nom)) nom = 'Document ' + nom.trim();
+    const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier),
+      rubriques, nomCible: nom || 'Annexe du compromis', extension: 'pdf', contenu });
+    if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }
+    res.json({ ok: true, chemin: r.chemin, rubrique: r.rubrique || '' });
   }));
 
   routeur.get('/nas/fichiers', routeAsync(async (req, res) => {

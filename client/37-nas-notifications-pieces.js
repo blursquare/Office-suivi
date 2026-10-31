@@ -237,6 +237,8 @@
   // Pure : pourquoi ce fichier n'est jamais pris pour l'avant-contrat ('' = il peut l'être).
   function raisonExclusionAvantContrat(nomFichier, contexte) {
     if (RE_NOM_PROJET_AVANT_CONTRAT.test(normaliserPourRecherche(String(nomFichier || '')))) return 'projet';
+    // Pièce tirée du compromis par « Découper le compromis » (étude 31/10) : jamais prise pour l'avant-contrat d'origine.
+    if (/sans les annexes|annexe du compromis|tous les diagnostics/.test(normaliserPourRecherche(String(nomFichier || '')))) return 'decoupe';
     return nomsEtrangersAvantContrat(nomFichier, contexte).length ? 'autre-nom' : '';
   }
 

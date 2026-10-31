@@ -1133,6 +1133,28 @@ test('30/10 : decompte_vendeur — un nom tapé dans un libellé ne part jamais 
   assert.match(envoye, /2026-11-20/);
 });
 
+test('31/10 : decouper_compromis — un nom glissé dans le nom d’une pièce ne part jamais en clair ; pages et rubriques partent', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'decouper_compromis'));
+  assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /decouper_compromis/);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('c1', 'decouper_compromis', { dossier_id: 'd1', ranger: false, relire: false })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Découpe le compromis du dossier Fournier', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'c1', contenu: { dossier_id: 'd1', pages_total: 244, separations_trouvees: 17,
+      pieces: [{ id: 'p1', sorte: 'compromis', titre_piece: 'Compromis signé (sans les annexes)', pages: '1-25, 244', nb_pages: 26, rubrique: 'SRU', ranger: true, rangee: false, reconnue: true },
+        { id: 'p2', sorte: 'annexe', titre_piece: 'Pièce d’identité de Paul FOURNIER - annexe du compromis', pages: '27', nb_pages: 1, rubrique: 'Vendeur', ranger: true, rangee: false, reconnue: true },
+        { id: 'p3', sorte: 'diagnostics', titre_piece: 'Diagnostics techniques - tous les diagnostics', pages: '78-162', nb_pages: 85, rubrique: 'Diagnostics', ranger: true, rangee: false, reconnue: true }],
+      dossier_nas_relie: true } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /78-162/);
+  assert.match(envoye, /Diagnostics techniques/);
+});
+
 test('30/10 : consulter_wiki — CLAIRE a la mémoire du wiki d’Authentic (CJN : envoi immédiat selon les droits ; BRI avant le CJN)', async () => {
   assert.ok(OUTILS_AGENT.some((t) => t.name === 'consulter_wiki'));
   assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /consulter_wiki/);

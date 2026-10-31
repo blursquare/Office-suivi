@@ -150,5 +150,6 @@
   "148-decompte-vendeur.js",
   "149-tache-donnee.js",
   "150-gif.js",
-  "151-gestes-fiche-agent.js"
+  "151-gestes-fiche-agent.js",
+  "152-decoupage-compromis.js"
 ]

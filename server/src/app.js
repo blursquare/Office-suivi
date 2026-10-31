@@ -204,7 +204,7 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   const jsonEmail = express.json({ limit: '40mb' });
   app.use((req, res, next) => (req.path.startsWith('/api/relecture-claude/') ? jsonRelecture
     : req.path.startsWith('/api/relectures') || req.path === '/api/clients-biens/import' ? jsonBilan
-      : req.path === '/api/emails/envoyer' ? jsonEmail : jsonStandard)(req, res, next));
+      : req.path === '/api/emails/envoyer' || req.path === '/api/nas/deposer-annexe' ? jsonEmail : jsonStandard)(req, res, next));
 
   // Sert index.html/style.css/script.js/manifest.json/sw.js/icone.svg : depuis la racine du dépôt
   // en mode développement (`npm start`), depuis les assets embarqués du blob SEA en mode

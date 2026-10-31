@@ -23472,3 +23472,32 @@ Branche `claude/retours-2026-10-30` (contient aussi le correctif 0.407.11 des ra
 Étude (31/10) : « Quand le serveur CLAIRE se lance il ouvre une fenêtre sur localhost, il faudrait l'annuler car CLAIRE se lance déjà sur 192 via shell:startup ». `index.js` n'appelle plus `ouvrirNavigateur(url)` au démarrage, sauf `"ouvrirFenetreAuDemarrage": true` dans config.json (`config.js`, faux par défaut et pour toute autre valeur ; test `server/test/config.test.js`). Le raccourci CLAIRE du menu Démarrer (localhost) reste. Non vérifié sur le serveur du bureau.
 - 31/10, envoi du samedi (étude : « Ce matin je suis arrivé au bureau » → « Tout, avec relecture ») : audit et relecture de 0.409.0–0.410.1 (`docs/audits/2026-10-31-0.410.0.md`) ; corrigés avant l'envoi : lecteurs Excel et OpenOffice en temps linéaire (fichier forgé qui figeait le serveur), `partie_retirer` par la personne elle-même et carte stricte, `authentic_completer` refusé sans la ligne Authentic de la fiche, `piece_non_recue` (validation à la main, « sur aucun dossier », stricte), RTF en Windows-1252 et `\binN`, plafond de 10 Mo pour .doc/.rtf, « .doc » reconnu par ses premiers octets, `ouvrirFenetreAuDemarrage` recopié dans la configuration de l'exécutable, index des dossiers limité aux formats d'avant.
 - 31/10, suite : relecture des corrections — un geste strict (retirer une personne, remettre une pièce en manquante) garde sa carte même dans un lot (client/96) ; l'index des dossiers retire aussi les résumés des formats qu'il ne lit plus.
+
+### 31/10/2026 — 0.411.0 : Découper le compromis
+
+Étude (31/10) : « quelle technologie pour découper un compromis de vente qui a toutes ses annexes à la suite, les identifier, les
+renommer et les classer par thématique dans le dossier NAS de l'office ? », puis deux compromis réels déposés (non commités) et
+« pour les diags faire des PDF par diag et un PDF unique avec tous les diags ».
+
+Constat sur les deux PDF (244 et 251 pages, logiciel Modelo de Septeo, signés par SignServer) : devant chaque annexe, une page à
+texte « Annexe n°N » / libellé / nom du fichier déposé ; 91 et 168 pages sans texte (annexes scannées) — leur type se lit sur la
+page de séparation, sans OCR. Un dossier de diagnostics en un seul bloc (annexe « Attestation de mesurage » qui portait tout le DDT)
+se redécoupe par le titre en tête de page ; ailleurs, un fichier par diagnostic chez l'agence.
+
+Choix techniques (rien de nouveau à embarquer) : pdf.js pour le texte des pages (`lignesDepuisItemsPdf`), règles pures dans
+`client/152-decoupage-compromis.js` (`separateurAnnexeCompromis`, `decouperPagesCompromis`, `typeAnnexeCompromis` — table
+`ANNEXES_COMPROMIS` puis `TYPES_SCAN` de Claire Scan —, `repartirDiagnosticsAnnexe`, `piecesDecoupageCompromis`), pdf-lib
+(déjà chargé pour le PDF/A) pour copier les pages de chaque pièce. Services de découpage en ligne écartés (contrainte n° 1).
+Règles : jamais le texte du compromis (il cite toutes les pièces) ; page de séparation jamais recopiée ; compromis = pages avant
+la première séparation + certificat de signature final ; une annexe reconnue par son libellé n'est jamais redécoupée ni prise pour
+un diagnostic (« Fiche synthétique de copropriété ») ; pièces du diagnostiqueur (attestation sur l'honneur, assurance,
+certificats) seulement dans le PDF unique ; nom = libellé de CLAIRE + « - annexe du compromis », jamais le nom du fichier de
+l'agence (noms de clients) ; pièce d'identité / justificatif rangés côté Vendeur ou Acquéreur seulement si le libellé le dit.
+Sans page « Annexe n° », rien n'est deviné : le document entier est proposé, pages à corriger à la main.
+Rejoué sur les deux compromis : 26 et 16 pièces, coupures justes, ≈ 0,7 s pour fabriquer les PDF (le plus gros 6,7 Mo).
+
+Nouvelle écriture sur le NAS : `POST /api/nas/deposer-annexe` (PDF, 40 Mo de JSON, rubriques = clés de `RUBRIQUES_SCANS`, copie
+`copierDansDossierClient`, jamais d'écrasement ni de sous-dossier créé, dossier relu sur la fiche), sur clic « Ranger dans le
+dossier » ou après la carte « Autoriser » de l'outil `decouper_compromis` de l'agent (`titre_piece` : le nom choisi par CLAIRE reste
+lisible, un nom de client tapé dans le nom est masqué comme tout résultat d'outil). Ajoutée à `PERMIS_ECRITURE` du poste de CLAIRE.
+Point terrain `decoupage-compromis`. Non vérifié au bureau : vrai NAS, noms réels des rubriques, autres logiciels d'agence.

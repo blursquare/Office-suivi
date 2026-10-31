@@ -178,6 +178,7 @@
     // Tableau de bord (étude 05/10 : « change d'icône ») : des tuiles de tailles différentes, comme ses widgets.
     'tableau-bord': '<rect x="1.8" y="1.8" width="5.4" height="6.6" rx="1.3"/><rect x="8.8" y="1.8" width="5.4" height="3.8" rx="1.3"/><rect x="8.8" y="7.2" width="5.4" height="7" rx="1.3"/><rect x="1.8" y="10" width="5.4" height="4.2" rx="1.3"/>',
     // Trombone (joindre un fichier) et avion en papier (envoyer un email).
+    ciseaux: '<circle cx="4" cy="4.5" r="2"/><circle cx="4" cy="11.5" r="2"/><line x1="5.7" y1="5.6" x2="14" y2="12"/><line x1="5.7" y1="10.4" x2="14" y2="4"/>',
     paperclip: '<path d="M13.5 7.5 8 13a3.2 3.2 0 0 1-4.5-4.5l6-6a2.1 2.1 0 0 1 3 3L6.6 11.4a1 1 0 0 1-1.5-1.5L10.5 4.5"/>',
     send: '<path d="M14.5 1.5 7 9"/><path d="M14.5 1.5 10 14.5 7 9 1.5 6z"/>',
     signet: '<path d="M4 2.5h8v11L8 10.5 4 13.5z"/>',

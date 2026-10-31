@@ -37,7 +37,7 @@ const PERMIS_ECRITURE = [
   [['POST', 'PUT'], /^\/dossiers(\/[^/]+)?$/],
   [['POST', 'PUT'], /^\/rappels-perso(\/[^/]+)?$/],
   [['POST'], /^\/repertoire$/],
-  [['POST'], /^\/nas\/(explorer\/renommer|explorer\/deplacer|deposer-document)$/],
+  [['POST'], /^\/nas\/(explorer\/renommer|explorer\/deplacer|deposer-document|deposer-annexe)$/],
   [['POST'], /^\/scans\/(ranger|annuler|ecarter)$/],
   [['POST'], /^\/navigation\/(plan-cadastre|taches\/[^/]+\/annuler|taches\/[^/]+\/documents\/[^/]+\/ranger)$/],
   [['POST'], /^\/urbanisme\/plan-aerien(\/[^/]+\/ranger)?$/],

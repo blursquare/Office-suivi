@@ -368,3 +368,27 @@ test('deposer-document : sousDossier « Constitution » créé dans le dossier c
   chemin = (await r.json()).chemin;
   assert.equal(path.dirname(path.join(racine, chemin)), path.join(racine, '2024-118 DUPONT MARTIN'), 'un autre nom ne crée rien');
 });
+
+// « Découper le compromis » (étude 31/10) : chaque pièce dans la rubrique de sa thématique (sous-dossier retrouvé par son nom, jamais
+// créé ; racine à défaut), PDF seulement, rubriques limitées à celles de Claire Scan, jamais d'écrasement ni de chemin du poste.
+test('deposer-annexe : pièce du compromis rangée dans sa rubrique, racine à défaut, PDF seulement', async () => {
+  const poster = (corps) => fetch(`${baseUrl}/api/nas/deposer-annexe`, { method: 'POST', headers: { Authorization: `Bearer ${jeton}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
+  const client = path.join(racine, '2024-118 DUPONT MARTIN');
+  fs.mkdirSync(path.join(client, '4 - DIAGNOSTICS'), { recursive: true });
+  const pdf = Buffer.from('%PDF-1.7\ncontenu inventé').toString('base64');
+  let r = await poster({ dossierId: 'n1', nom: 'Diagnostic de performance énergétique (DPE) - annexe du compromis', contenu: pdf, rubriques: ['diagnostics'] });
+  assert.equal(r.status, 200);
+  let j = await r.json();
+  assert.equal(path.dirname(path.join(racine, j.chemin)), path.join(client, '4 - DIAGNOSTICS'));
+  r = await poster({ dossierId: 'n1', nom: 'Diagnostic de performance énergétique (DPE) - annexe du compromis', contenu: pdf, rubriques: ['diagnostics'] });
+  assert.equal(path.basename((await r.json()).chemin), 'Diagnostic de performance énergétique (DPE) - annexe du compromis (2).pdf', 'jamais d’écrasement');
+  r = await poster({ dossierId: 'n1', nom: 'Règlement de copropriété - annexe du compromis', contenu: pdf, rubriques: ['copro'] });
+  j = await r.json();
+  assert.equal(path.dirname(path.join(racine, j.chemin)), client, 'rubrique absente : racine du dossier, rien créé');
+  assert.ok(!fs.readdirSync(client, { withFileTypes: true }).some((e) => e.isDirectory() && /COPRO/i.test(e.name)), 'aucun sous-dossier créé');
+  r = await poster({ dossierId: 'n1', nom: 'x', contenu: pdf, rubriques: ['../../ailleurs', 'diagnostics'] });
+  assert.equal(path.dirname(path.join(racine, (await r.json()).chemin)), path.join(client, '4 - DIAGNOSTICS'), 'une rubrique inconnue est ignorée');
+  assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: Buffer.from('PK\u0003\u0004x').toString('base64'), rubriques: [] })).status, 400, 'pas un PDF');
+  assert.equal((await poster({ dossierId: 'inconnu', nom: 'x', contenu: pdf })).status, 400, 'dossier inconnu');
+  assert.equal((await poster({ dossierId: 'n2', nom: 'x', contenu: pdf })).status, 400, 'dossier non relié');
+});

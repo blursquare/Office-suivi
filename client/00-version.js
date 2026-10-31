@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.410.1';
+  const VERSION_APP = '0.411.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.411.0', date: '2026-10-31 20:33', resume: "Nouvel outil « Découper le compromis » (Outils › Vente, et sur la fiche d’une vente reliée au NAS) : le compromis signé de l’agence, qui arrive avec toutes ses annexes à la suite, est découpé aux pages « Annexe n° » — le compromis seul, une pièce par annexe (identité, titre, plan, règlement de copropriété, PV d’AG…), un PDF par diagnostic et un PDF de tous les diagnostics —, chaque pièce nommée et rangée dans la rubrique de sa thématique du dossier du NAS, après relecture (noms, pages et rubriques modifiables). Ce sont des copies, l’original reste tel quel. « Demander à CLAIRE » sait aussi le faire." },
     { version: '0.410.1', date: '2026-10-31 09:45', resume: "Le serveur CLAIRE n’ouvre plus de fenêtre sur localhost à son démarrage : la fenêtre CLAIRE du poste est lancée sur l’adresse du serveur par le dossier Démarrage de Windows. Pour la retrouver : « ouvrirFenetreAuDemarrage »: true dans config.json." },
     { version: '0.410.0', date: '2026-10-31 08:50', resume: "Mémoire de CLAIRE : elle lit aussi les anciens Word (.doc), les modèles Word (.dotx), les documents OpenOffice (.odt), les fichiers RTF et les classeurs Excel (.xlsx) — avant, seuls les PDF, Word récents et textes étaient lus, d’où la moitié de « MODELES - OUTILS » manquante. Réglages › Mémoire de CLAIRE dit combien de fichiers restent non lus et de quel format." },
     { version: '0.409.0', date: '2026-10-31 08:39', resume: "« Demander à CLAIRE » fait les autres gestes de la fiche, comme vous, après votre « Autoriser » : ajouter ou retirer une pièce de la checklist, remettre en manquante une pièce reconnue à tort, décocher un engagement, changer le type de vente, annuler la validation des fonds ou relire les reçus comptables, accepter ou ignorer les mises à jour proposées par Authentic, compléter la fiche depuis Authentic, retirer une personne de la fiche, et pour une succession son type, le conjoint survivant, le rendez-vous d’ouverture, le testament, la donation entre époux, les droits dus ou l’inventaire. Chaque geste passe par le même bouton que sur la fiche." },

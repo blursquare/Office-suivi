@@ -143,6 +143,10 @@
         <button type="button" id="tab-decompte-vendeur" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('decompte-vendeur')">
           <span class="sidebar-link-icone" id="icon-nav-decompte-vendeur" aria-hidden="true"></span>Décompte vendeur
         </button>
+        <!-- Découper le compromis (étude 31/10, client/152-decoupage-compromis.js) : annexes séparées, nommées et rangées sur le NAS. -->
+        <button type="button" id="tab-decoupage" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('decoupage')">
+          <span class="sidebar-link-icone" id="icon-nav-decoupage" aria-hidden="true"></span>Découper le compromis
+        </button>
         <button type="button" id="tab-prorata" class="sidebar-link sidebar-sousmenu-item" role="tab" aria-selected="false" onclick="definirOnglet('prorata')">
           <span class="sidebar-link-icone" id="icon-nav-prorata" aria-hidden="true"></span>Prorata & répartitions
         </button>
@@ -1428,6 +1432,11 @@
 <!-- Autorisations de déblocage ou de transfert de fonds d'une succession (étude 23/10, client/108-autorisations-succession.js). -->
 <div class="onglet-panel" id="onglet-autorisations" style="display:none;">
   <div class="card" id="aut-carte"></div>
+</div>
+
+<!-- Découper le compromis (étude 31/10, client/152-decoupage-compromis.js). -->
+<div class="onglet-panel" id="onglet-decoupage" style="display:none;">
+  <div class="card" id="dc-carte"></div>
 </div>
 
 <!-- Décompte vendeur d'une vente (étude 30/10, client/148-decompte-vendeur.js). -->
@@ -3082,5 +3091,6 @@
 <script src="client/149-tache-donnee.js"></script>
 <script src="client/150-gif.js"></script>
 <script src="client/151-gestes-fiche-agent.js"></script>
+<script src="client/152-decoupage-compromis.js"></script>
 </body>
 </html>
