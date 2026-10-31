@@ -148,3 +148,26 @@ test('agent : jamais le libellé de l’agence ni un nom tapé (audit 0.411.0, H
   assert.equal(app.titrePieceAgentDecoupage(Object.assign({}, r.pieces.find(p => p.numero === 2), { nom: 'Titre de M. DUPONT' })), 'Titre de propriété');
   assert.equal(app.titrePieceAgentDecoupage(r.pieces[0]), 'Compromis signé (sans les annexes)');
 });
+
+test('relecture 0.411.0 : DDT au libellé inconnu redécoupé ; motifs larges resserrés ; annexe signée à part en dernier ; PDF unique recalculé', () => {
+  // DDT en bloc sous un libellé inconnu, ouvert par une page de garde reconnue par Claire Scan.
+  const ddt = app.piecesDecoupageCompromis([corps('COMPROMIS'), sep(1, 'rapports 23-1059', 'x'),
+    corps('Votre dossier de diagnostic technique', 'Madame, Monsieur\nLigne\nLigne'), corps('Constat de risque d\'exposition au Plomb'), corps('Etat de l’Installation Intérieure d’Électricité')]);
+  assert.equal(ddt.pieces.map(p => p.label).join(','), 'Compromis signé,Dossier de diagnostics techniques (synthèse),Constat de risque d’exposition au plomb (CREP),État de l’installation intérieure d’électricité,Diagnostics techniques');
+  const libelles = (l) => app.typeAnnexeCompromis(l, '', '').label;
+  assert.equal(libelles('Cahier des charges du lotissement'), 'Cahier des charges');
+  assert.equal(libelles('Extrait Kbis immatriculation SCI'), 'Extrait Kbis');
+  assert.equal(libelles('0084 - attest immat 002991403'), 'Attestation d’immatriculation de la copropriété');
+  assert.notEqual(libelles('Justificatif apport personnel acquereur'), 'Justificatif de domicile');
+  assert.equal(libelles('justificatif saranya'), 'Justificatif de domicile');
+  // Une annexe signée à part, en dernier, sans certificat final : ses pages restent à elle.
+  const d = app.decouperPagesCompromis([corps('COMPROMIS'), sep(1, 'Mandat', 'm'), corps('Mandat de vente'), corps('Certificat de signature électronique', 'Solution\nLigne'), corps('Suite')]);
+  assert.equal(d.segments.map(s => s.pages.join('-')).join('|'), '1|3-4-5');
+  // PDF unique : suit les pages corrigées et les diagnostics décochés ; pièces du diagnostiqueur gardées.
+  const r = app.piecesDecoupageCompromis(compromisInvente());
+  const plomb = r.pieces.find(p => p.diagnostic === 'plomb');
+  plomb.inclure = false;
+  const dpe = r.pieces.find(p => p.diagnostic === 'dpe');
+  dpe.pages = [17];
+  assert.equal(app.saisieDepuisPagesDecoupage(app.pagesTousDiagnostics(r.pieces)), '13-17, 19, 21-23, 25');
+});

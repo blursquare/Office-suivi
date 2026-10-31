@@ -18,7 +18,8 @@
 // « ANNEXE 1 : A L'ADRESSE SAISIE… » d'un état des risques n'est pas une séparation (pas de « n° », phrase longue).
 var RE_SEPARATEUR_ANNEXE = /^annexe\s*n\s*[°o]\s*(\d{1,3})\s*$/;
 var LIGNES_MAX_SEPARATEUR = 6;
-var RE_CERTIFICAT_SIGNATURE = /^certificat de signature electronique/;
+// Le certificat qui clôt TOUT le document dit « … du document » ; celui d'une annexe signée à part ne termine rien (relecture 0.411.0).
+var RE_CERTIFICAT_SIGNATURE = /^certificat de signature electronique du document/;
 
 // Diagnostics : titre en tête de page (début de la première ou de la deuxième ligne) → diagnostic. `annexe` = même motif lu
 // dans le libellé ou le nom de fichier d'une page de séparation (« dpe (23) », « electricite (20) », « Attestation de mesurage »).
@@ -48,13 +49,15 @@ var ANNEXES_COMPROMIS = [
   { motif: /reglement de copropriete|\brcp\b|etat descriptif de division/, type: 'reglementCopro' },
   { motif: /carnet (d'?)?entretien/, label: 'Carnet d’entretien de l’immeuble', rubriques: ['copro'] },
   { motif: /fiche synthetique/, label: 'Fiche synthétique de la copropriété', rubriques: ['copro'] },
+  { motif: /cahier des charges/, label: 'Cahier des charges', rubriques: [] },
+  { motif: /\bkbis\b|extrait k\b/, label: 'Extrait Kbis', rubriques: [] },
   { motif: /immatriculation|\bimmat\b/, label: 'Attestation d’immatriculation de la copropriété', rubriques: ['copro'] },
   { motif: /\bpv\b|proces[- ]verbal|assemblee generale|\bag[eo]\b/, type: 'pvAssemblee' },
   { motif: /informations? financi|appel de (fonds|charges|provisions?)|provisions|charges|decompte de charges/, label: 'Informations financières de la copropriété', rubriques: ['copro'] },
   { motif: /titre (de )?propriete|attestation (immobiliere|de propriete)/, type: 'titrePropriete' },
   { motif: /plan cadastral|extrait cadastral|plan de situation/, type: 'planCadastral' },
   { motif: /piece d'?identite|\bcni\b|carte (nationale )?d'?identite|passe?port|titre de sejour/, type: 'identite' },
-  { motif: /justificatif (de )?domicile|justificatif/, label: 'Justificatif de domicile', parPartie: true },
+  { motif: /justificatif (de )?domicile|justificatif(?! ((d'?)?apport|(de )?(revenus|financement|ressources|fonds)))/, label: 'Justificatif de domicile', parPartie: true },
   { motif: /\brib\b|releve d'?identite bancaire/, type: 'rib' },
   { motif: /certificat d'?urbanisme|note de renseignements d'?urbanisme/, type: 'certificatUrbanisme' },
   { motif: /taxe fonciere/, type: 'avisTaxeFonciere' },
@@ -149,6 +152,11 @@ function typeAnnexeCompromis(libelle, fichier, textePremierePage) {
   // Rien dans le libellé : la première page lisible, comme Claire Scan.
   if (typeof typePieceScan === 'function' && typeof enTeteScan === 'function') {
     const ty = typePieceScan(enTeteScan(textePremierePage || ''));
+    // Une page de garde de DDT reconnue par Claire Scan est un bloc de diagnostics : redécoupé comme tel (relecture 0.411.0).
+    if (ty && (ty.cle === 'diagnosticsTechniques' || ty.cle === 'erp')) {
+      const diag = ty.cle === 'erp' ? 'erp' : 'synthese'; const d = diagnosticParCle(diag);
+      return { cle: 'diag:' + diag, label: d.label, rubriques: diag === 'erp' ? ['environnement', 'diagnostics', 'aae'] : ['diagnostics'], diagnostic: diag, parPartie: false };
+    }
     if (ty) return { cle: ty.cle, label: ty.label, rubriques: ty.rubriques || [], diagnostic: '', parPartie: !!ty.parPartie };
   }
   return { cle: '', label: '', rubriques: [], diagnostic: '', parPartie: false };
@@ -197,6 +205,7 @@ function piecesDecoupageCompromis(pages) {
   const dec = decouperPagesCompromis(pages);
   const pieces = [];
   const pagesDiag = [];
+  const pagesDiagnostiqueur = [];
   let n = 0;
   const ajouter = (p) => { pieces.push(Object.assign({ id: 'p' + (++n), inclure: true }, p)); };
   dec.segments.forEach(seg => {
@@ -214,7 +223,7 @@ function piecesDecoupageCompromis(pages) {
     if (estDiag) {
       parties.forEach(p => {
         pagesDiag.push(...p.pages);
-        if (p.diagnostic === 'diagnostiqueur') return; // seulement dans le PDF unique
+        if (p.diagnostic === 'diagnostiqueur') { pagesDiagnostiqueur.push(...p.pages); return; } // seulement dans le PDF unique
         const d = diagnosticParCle(p.diagnostic) || diagnosticParCle('synthese');
         ajouter({ sorte: 'diagnostic', label: d.label, nom: nomPieceDecoupage(d.label), pages: p.pages, rubriques: d.cle === 'erp' ? ['environnement', 'diagnostics', 'aae'] : ['diagnostics'], diagnostic: d.cle, numero: seg.numero, libelleLu: seg.libelle });
       });
@@ -226,7 +235,7 @@ function piecesDecoupageCompromis(pages) {
     ajouter({ sorte: 'annexe', label, nom: nomPieceDecoupage(label), pages: seg.pages, rubriques, diagnostic: '', numero: seg.numero, libelleLu: seg.libelle, reconnu: !!ty.label });
   });
   if (pagesDiag.length) {
-    ajouter({ sorte: 'diagnostics', label: 'Diagnostics techniques', nom: nomPieceDecoupage('', 'diagnostics'), pages: pagesDiag, rubriques: ['diagnostics'], diagnostic: '', numero: 0, libelleLu: '' });
+    ajouter({ sorte: 'diagnostics', label: 'Diagnostics techniques', nom: nomPieceDecoupage('', 'diagnostics'), pages: pagesDiag, rubriques: ['diagnostics'], diagnostic: '', numero: 0, libelleLu: '', pagesDiagnostiqueur });
   }
   return { separateurs: dec.separateurs, pieces };
 }
@@ -240,6 +249,15 @@ function titrePieceAgentDecoupage(p) {
   if (p.sorte === 'diagnostics') return 'Diagnostics techniques (tous les diagnostics)';
   if (p.sorte === 'diagnostic' || p.reconnu) return String(p.label || '');
   return `Annexe n°${Number(p.numero) || 0} (non reconnue)`;
+}
+
+// Pages du PDF unique de tous les diagnostics d'après les pièces de diagnostic cochées (pages corrigées comprises) et les pièces du
+// diagnostiqueur, dans l'ordre du document, sans doublon (relecture 0.411.0 : il gardait les pages d'origine). Pure.
+function pagesTousDiagnostics(pieces) {
+  const unique = (pieces || []).find(p => p && p.sorte === 'diagnostics');
+  const pages = new Set(unique && Array.isArray(unique.pagesDiagnostiqueur) ? unique.pagesDiagnostiqueur : []);
+  (pieces || []).filter(p => p && p.sorte === 'diagnostic' && p.inclure !== false).forEach(p => p.pages.forEach(n => pages.add(n)));
+  return [...pages].sort((a, b) => a - b);
 }
 
 // Pages saisies à la main (« 3-7, 9 ») → numéros de page valides, dans l'ordre, sans doublon ; null si illisible. Pure.
@@ -320,7 +338,7 @@ async function dcChoisirDossier(id) {
   } catch (e) {
     if (jeton !== dcEtat.jeton) return;
     dcEtat.lecture = 'erreur';
-    dcEtat.message = 'NAS injoignable ou compromis illisible : choisissez le PDF à la main.';
+    dcEtat.message = `Compromis non lu (${e && e.message ? e.message : 'NAS injoignable'}) : choisissez le PDF à la main.`;
     renderDecoupage();
   }
 }
@@ -401,7 +419,12 @@ function dcChanger(id, champ, valeur) {
     if (!lu) { afficherToast(`Pages illisibles : écrivez par exemple « 3-7, 9 » (1 à ${dcEtat.pages.length}).`, 'OK', null); renderDecoupage(); return; }
     p.pages = lu; p.saisie = saisieDepuisPagesDecoupage(lu);
   }
-  p.rangee = '';
+  // Une pièce déjà rangée ne redevient « à ranger » que si ce qu'elle contient ou son nom change (relecture 0.411.0 : copie « (2) »).
+  if (champ !== 'inclure') p.rangee = '';
+  if (p.sorte === 'diagnostic' && (champ === 'pages' || champ === 'inclure')) {
+    const unique = dcEtat.pieces.find(x => x.sorte === 'diagnostics');
+    if (unique && !unique.modifiee) { unique.pages = pagesTousDiagnostics(dcEtat.pieces); unique.saisie = saisieDepuisPagesDecoupage(unique.pages); unique.rangee = ''; }
+  }
   if (champ !== 'nom') renderDecoupage();
 }
 
@@ -553,8 +576,14 @@ async function decouperCompromisAgent(e) {
   const d = dossiers.find(x => x && x.id === String((e && e.dossier_id) || ''));
   if (!d) return { erreur: 'aucun dossier avec cet id' };
   if (!decoupagePossible(d)) return { erreur: estSuccession(d) ? 'une succession n’a pas de compromis' : 'dossier archivé' };
+  const remplacer = dcEtat.dossierId !== d.id || !dcEtat.source || e.relire;
+  if (remplacer && dcEtat.range) return { erreur: 'un rangement est en cours dans l’outil : redemande dans un instant' };
+  if (remplacer && dcEtat.pieces.some(p => p.modifiee && !p.rangee)) {
+    const ok = await demanderAutorisationAgent('Remplacer le découpage ouvert (des pièces y ont été corrigées à la main et pas encore rangées) par celui de ce dossier ?');
+    if (!ok) return { erreur: 'refusé par l’utilisateur : le découpage ouvert est gardé' };
+  }
   definirOnglet('decoupage');
-  if (dcEtat.dossierId !== d.id || !dcEtat.source || e.relire) await dcChoisirDossier(d.id);
+  if (remplacer) await dcChoisirDossier(d.id);
   if (dcEtat.dossierId !== d.id) return { erreur: 'un autre dossier a été ouvert dans l’outil pendant la lecture : redemande' };
   if (!dcEtat.source) return { erreur: dcEtat.message || 'compromis non lu', dossier_nas_relie: !!d.nasDossier, consigne: 'Outil ouvert : l’utilisateur peut y choisir le PDF du compromis à la main.' };
   const sortie = {
@@ -568,6 +597,7 @@ async function decouperCompromisAgent(e) {
     const n = ids.length;
     if (!d.nasDossier) return Object.assign(sortie, { rangement: 'dossier non relié au NAS : rien rangé' });
     if (!n) return Object.assign(sortie, { rangement: 'rien à ranger' });
+    if (dcEtat.range) return Object.assign(sortie, { rangement: 'un rangement est déjà en cours' });
     const ok = await demanderAutorisationAgent(`Ranger ${n} pièce(s) tirée(s) du compromis (${libelleDossierAffiche(d)}) dans le dossier du NAS ? Ce sont des copies, l’original reste tel quel.`);
     if (!ok) return Object.assign(sortie, { rangement: 'refusé par l’utilisateur' });
     if (dcEtat.dossierId !== d.id) return Object.assign(sortie, { rangement: 'un autre dossier a été ouvert entre-temps : rien rangé' });
