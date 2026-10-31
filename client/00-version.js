@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.415.2';
+  const VERSION_APP = '0.416.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.416.0', date: '2026-10-31 16:58', resume: "Contrôle de l’urbanisme : l’écran final devient une vraie carte, comme Géofoncier — plan IGN ou photo aérienne, cadastre avec les numéros, zones du PLU, ventes DVF de la section, outil pour mesurer une surface ou une distance. Un clic sur une parcelle donne son numéro, sa contenance, sa zone, l’adresse la plus proche, le plan d’alignement et ses ventes ; un bouton ouvre Géofoncier sur la parcelle pour les DMPC et le géomètre. Les informations du contrôle passent dans une barre à droite (Contrôle, Parcelle, Ventes, Travaux, Plans). « Lire le zonage » est mis en avant tant que rien n’est lu. CLAIRE peut aussi lire les parcelles et les ventes à votre demande." },
     { version: '0.415.2', date: '2026-10-31 16:40', resume: "Contrôle de l'urbanisme : « Enregistrer sur la fiche » en bas à droite de l'écran final, avec la date du dernier enregistrement ; il n'est plus sous les droits à purger." },
     { version: '0.415.1', date: '2026-10-31 15:17', resume: "Signature du RIB : le bouton dit « Envoyer via Yousign » (« Renvoyer via Yousign » une fois fait), dans l’onglet Fonds et dans « À faire » ; la colonne des boutons des listes de tâches est un peu plus large pour qu’il tienne." },
     { version: '0.415.0', date: '2026-10-31 14:58', resume: "CLAIRE appuie elle-même sur les boutons de CLAIRE, à votre place : calculer, lire le zonage, tirer le plan cadastral, passer à l’étape suivante, ouvrir une fiche… sans rien vous demander. Ce qui modifie un dossier (enregistrer, valider, cocher, ajouter, placer, ranger) passe par sa carte « Autoriser », et ce qui retire ou supprime par une carte à chaque fois. Jamais : télécharger, envoyer, imprimer, exporter en PDF ou Word, Outlook, signer, Yousign, Teams, mot de passe, ni aucun bouton des Réglages — elle vous dit de le faire." },

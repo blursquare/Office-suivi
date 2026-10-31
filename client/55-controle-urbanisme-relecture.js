@@ -528,6 +528,7 @@
           ? { vue: v, images: {}, gauche: priseDeVueAvantTravaux(v.couches, travaux), droite: 'actuelle' }
           : { erreur: v.erreur || 'Parcelle introuvable au cadastre.', images: {} };
         renderTravauxPreemption();
+        if (pageCourantePreemption(prEtat) === 'rendu') majCarteUrbanisme();   // les parcelles du dossier sur la carte (client/156)
         if (r.ok) { chargerPhotoPreemption(prEtat.historique.gauche); chargerPhotoPreemption(prEtat.historique.droite); }
       })
       .catch(() => { if (prEtat && cleHistoriquePreemption() === cle) { prEtat.historique = { erreur: 'Serveur injoignable.', images: {} }; renderTravauxPreemption(); } });

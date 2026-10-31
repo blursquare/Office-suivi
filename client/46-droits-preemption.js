@@ -436,7 +436,9 @@
             <input type="text" id="pr-adresse" value="${escapeAttr(e.adresse)}" onchange="changerChampPreemption('adresse', this.value)"></div>
         </div>
         <div class="pr-zonage-actions">
-          <wa-button appearance="outlined" size="s" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('map-pin')} Lire le zonage</wa-button>
+          ${lignes.length
+    ? `<wa-button appearance="outlined" size="s" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('rotate-ccw')} Relire le zonage</wa-button>`
+    : `<wa-button variant="brand" onclick="lireZonagePreemption()"${e.lecture ? ' loading' : ''}>${icone('map-pin')} Lire le zonage</wa-button>`}
           ${infoBulle('Géoportail de l’urbanisme (IGN) : chaque parcelle est lue ; seuls la commune et les numéros de parcelle sont envoyés.')}
         </div>
         ${e.erreurZonage ? `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(e.erreurZonage)}</p>` : ''}

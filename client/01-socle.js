@@ -213,6 +213,12 @@
     key: '<circle cx="5.2" cy="5.2" r="2.8"/><path d="M7.2 7.2 13.5 13.5"/><path d="M11 10 12.6 8.4"/>',
     spinner: '<path d="M14 8a6 6 0 1 1-2-4.5"/>',
     banknote: '<rect x="1.3" y="4.3" width="13.4" height="7.4" rx="1.4"/><circle cx="8" cy="8" r="1.9"/>',
+    // Carte du Contrôle de l'urbanisme (étude 31/10) : mesurer une surface, une distance, les calques, recentrer, ouvrir ailleurs.
+    'mesure-surface': '<path d="M3 4.5 11.5 2.5 14 10 6 13.5Z" stroke-linejoin="round"/><circle cx="3" cy="4.5" r="1.1"/><circle cx="11.5" cy="2.5" r="1.1"/><circle cx="14" cy="10" r="1.1"/><circle cx="6" cy="13.5" r="1.1"/>',
+    regle: '<rect x="1.2" y="5" width="13.6" height="6" rx="1.2" transform="rotate(-30 8 8)"/><path d="M5.2 9.9 4.4 8.5M7.4 8.6 6.4 6.9M9.6 7.3 8.8 5.9" />',
+    calques: '<path d="M8 2 14.5 5.5 8 9 1.5 5.5Z" stroke-linejoin="round"/><path d="M1.5 8.5 8 12 14.5 8.5" stroke-linejoin="round"/>',
+    viser: '<circle cx="8" cy="8" r="5"/><circle cx="8" cy="8" r="1.4"/><line x1="8" y1="1" x2="8" y2="3"/><line x1="8" y1="13" x2="8" y2="15"/><line x1="1" y1="8" x2="3" y2="8"/><line x1="13" y1="8" x2="15" y2="8"/>',
+    'lien-externe': '<path d="M9.5 2.5h4v4"/><line x1="13.5" y1="2.5" x2="7.5" y2="8.5"/><path d="M12 9.5v3.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>',
     'map-pin': '<path d="M8 14.3S13 9.7 13 6.2A5 5 0 0 0 3 6.2C3 9.7 8 14.3 8 14.3Z" stroke-linejoin="round"/><circle cx="8" cy="6.2" r="1.7"/>',
     pencil: '<path d="M11.1 2.3a1.5 1.5 0 0 1 2.1 2.1L5.4 12.2l-2.9.7.7-2.9 7.9-7.7Z" stroke-linejoin="round"/>',
     x: '<line x1="3.5" y1="3.5" x2="12.5" y2="12.5"/><line x1="12.5" y1="3.5" x2="3.5" y2="12.5"/>',

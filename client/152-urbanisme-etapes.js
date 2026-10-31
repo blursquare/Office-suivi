@@ -225,7 +225,7 @@ function renderEtapesPreemption() {
   const dpur = document.getElementById('pr-dpur-carte');
   if (dpur) dpur.innerHTML = renderDpurCartePreemption(prEtat);
   document.querySelectorAll('#onglet-preemption .pr-nav').forEach(n => { n.innerHTML = n.dataset.page === page ? renderNavPreemption(page) : ''; });
-  if (page === 'rendu') { renderSynthesePreemption(); renderApercuPlanPreemption(); }
+  if (page === 'rendu') { renderSynthesePreemption(); renderApercuPlanPreemption(); majCarteUrbanisme(); }
 }
 
 // ===== « Demander à CLAIRE » : controle_urbanisme — les mêmes étapes, sans écran =====
@@ -304,6 +304,8 @@ async function controleUrbanismeAgent(entree) {
     const fait = enregistrerPreemptionEtat(dossiers.find(x => x.id === d.id) || d, etat);
     return { enregistre: true, a_purger: fait.a_purger, pieces_ajoutees: fait.pieces.length };
   }
+  if (e.action === 'parcelles') return parcellesCarteAgent(etat);
+  if (e.action === 'ventes') return ventesCarteAgent(etat, e.filtre);
   if (e.action === 'ouvrir') {
     const copie = etat;
     poserMessageAssistant('claire', `<p>Contrôle de l’urbanisme — ${escapeHtml(libelleDossierAffiche(d))} : prêt, avec le plan cadastral demandé à l’ouverture.</p>`,

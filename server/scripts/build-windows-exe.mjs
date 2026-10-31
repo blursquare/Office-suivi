@@ -195,6 +195,8 @@ async function main() {
       'vendor/web-awesome/web-awesome.js': '../vendor/web-awesome/web-awesome.js',
       'vendor/xlsx/xlsx.full.min.js': '../vendor/xlsx/xlsx.full.min.js',
       'vendor/web-awesome/web-awesome-theme.css': '../vendor/web-awesome/web-awesome-theme.css',
+      'vendor/leaflet/leaflet.js': '../vendor/leaflet/leaflet.js',
+      'vendor/leaflet/leaflet.css': '../vendor/leaflet/leaflet.css',
       'vendor/polices/geist-latin-wght-normal.woff2': '../vendor/polices/geist-latin-wght-normal.woff2',
       'vendor/polices/geist-latin-ext-wght-normal.woff2': '../vendor/polices/geist-latin-ext-wght-normal.woff2',
       'vendor/polices/courrier/LiberationSerif-Regular.ttf': '../vendor/polices/courrier/LiberationSerif-Regular.ttf',

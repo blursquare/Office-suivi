@@ -1,0 +1,61 @@
+'use strict';
+
+// Carte du Contrôle de l'urbanisme (étude 31/10, client/156-carte-urbanisme.js) : mesures, contenance, ventes DVF, liens.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { chargerApplication } = require('./helpers/load-app.js');
+
+const app = chargerApplication();
+
+test('mesure : surface d’un carré de 100 m de côté et périmètre', () => {
+  // 100 m en latitude ≈ 0,000899° ; en longitude à 47,5° ≈ 0,001331°.
+  const lat = 47.5; const dLat = 100 / 111194.9; const dLon = 100 / (111194.9 * Math.cos(lat * Math.PI / 180));
+  const carre = [[lat, 1.3], [lat + dLat, 1.3], [lat + dLat, 1.3 + dLon], [lat, 1.3 + dLon]];
+  const aire = app.aireGeodesiqueM2(carre);
+  assert.ok(Math.abs(aire - 10000) < 60, `aire ${aire}`);
+  assert.ok(Math.abs(app.longueurLigneM(carre, true) - 400) < 2);
+  assert.ok(Math.abs(app.longueurLigneM(carre.slice(0, 2)) - 100) < 1);
+  assert.equal(app.aireGeodesiqueM2(carre.slice(0, 2)), 0, 'deux points : pas de surface');
+});
+
+test('contenance cadastrale à la française', () => {
+  assert.equal(app.contenanceCadastrale(20185), '2 ha 01 a 85 ca');
+  assert.equal(app.contenanceCadastrale(1234), '12 a 34 ca');
+  assert.equal(app.contenanceCadastrale(85), '85 ca');
+  assert.equal(app.contenanceCadastrale(0), '—');
+  assert.equal(app.contenanceCadastrale(10000), '1 ha 00 a 00 ca');
+});
+
+test('résultat d’une mesure : distance puis surface, consigne tant qu’il manque des points', () => {
+  assert.match(app.resultatMesureCarte('distance', [[47.5, 1.3]]).detail, /double-clic/);
+  assert.equal(app.resultatMesureCarte('surface', [[47.5, 1.3], [47.501, 1.3]]).valeur, '—');
+  const r = app.resultatMesureCarte('surface', [[47.5, 1.3], [47.501, 1.3], [47.501, 1.301]]);
+  assert.match(r.valeur, /m²$/);
+  assert.match(r.detail, /périmètre/);
+});
+
+test('couleur d’une zone du PLU : U rouge, AU orange, A jaune, N vert', () => {
+  assert.equal(app.couleurZonePlu('U'), 'cat-rouge');
+  assert.equal(app.couleurZonePlu('AUc'), 'cat-orange');
+  assert.equal(app.couleurZonePlu('A'), 'cat-jaune');
+  assert.equal(app.couleurZonePlu('N'), 'cat-vert');
+  assert.equal(app.couleurZonePlu(''), 'cat-gris');
+});
+
+test('lien Géofoncier centré sur le point (forme #zoom/lat/lon du site)', () => {
+  assert.equal(app.lienGeofoncier(47.348421, 1.582102, 18), 'https://public.geofoncier.fr/#18/47.348421/1.582102');
+  assert.equal(app.lienGeofoncier(47, 1, 99), 'https://public.geofoncier.fr/#20/47.000000/1.000000');
+});
+
+test('sections du dossier et ventes filtrées sans doublon, les plus récentes d’abord', () => {
+  assert.equal(app.sectionsDesParcellesCarte('AB 12, AB 13, C 4').join(','), 'AB,C');
+  const maison = { id: 'm1', date: '2024-05-02', locaux: [{ type: 'Maison', surface: 95, pieces: 4 }], surfaceTerrain: 820 };
+  const terrain = { id: 't1', date: '2025-01-10', locaux: [], surfaceTerrain: 2820 };
+  const toutes = app.ventesFiltreesCarte([[maison, terrain], [maison]], 'tout');
+  assert.equal(toutes.map(v => v.id).join(','), 't1,m1');
+  assert.equal(app.ventesFiltreesCarte([[maison, terrain]], 'bati').map(v => v.id).join(','), 'm1');
+  assert.equal(app.ventesFiltreesCarte([[maison, terrain]], 'terrain').map(v => v.id).join(','), 't1');
+  assert.equal(app.resumeVenteCarte(maison), 'Maison 95 m² 4 p. · terrain 8 a 20 ca');
+  assert.equal(app.resumeVenteCarte(terrain), 'Terrain · terrain 28 a 20 ca');
+});

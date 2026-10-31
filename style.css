@@ -11711,12 +11711,69 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-tuile-rouge { border-top-color: var(--urgent); }
 .pr-tuile-orange { border-top-color: var(--cat-orange); }
 .pr-tuile-vert { border-top-color: var(--success); }
-.pr-rendu-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.pr-rendu-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* Écran d'analyse (étude 31/10, client/156-carte-urbanisme.js) : la carte à gauche, les informations dans une barre à droite. */
+.pr-analyse { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 16px; align-items: stretch; height: max(560px, calc(100vh - 380px)); }
+.pr-carte-bloc { position: relative; min-width: 0; border-radius: var(--rayon-carte); overflow: hidden; background: var(--paper-sunk); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); }
+.pr-carte { position: absolute; inset: 0; background: var(--paper-sunk); font-family: var(--police); }
+.pr-carte-vide { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: var(--texte-s); }
+.pr-carte-barre { position: absolute; top: 12px; left: 12px; z-index: 500; display: flex; flex-wrap: wrap; gap: 8px; max-width: calc(100% - 200px); }
+.pr-carte-outils { position: absolute; top: 12px; right: 12px; z-index: 500; display: flex; flex-direction: column; gap: 6px; }
+.pr-carte-barre wa-button-group, .pr-carte-outils wa-button { box-shadow: var(--shadow-float); border-radius: var(--rayon-m); }
+.pr-carte-outil.actif::part(base), .pr-carte-outil.actif:hover::part(base) { background: var(--focus); color: var(--blanc-fixe); border-color: var(--focus); }
+.pr-carte-etat { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 500; padding: 6px 12px; border-radius: var(--rayon-pilule); background: var(--paper-card); color: var(--ink); font-size: var(--texte-s); box-shadow: var(--shadow-float); white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+.pr-carte-etat:empty { display: none; }
+.pr-carte-mesure { position: absolute; left: 12px; bottom: 40px; z-index: 500; display: flex; flex-direction: column; gap: 2px; min-width: 220px; padding: 12px 16px; border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); }
+.pr-mesure-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.pr-mesure-valeur { font-size: var(--texte-2xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.pr-mesure-detail { font-size: var(--texte-s); color: var(--muted); }
+.pr-mesure-actions { display: flex; gap: 6px; margin-top: 6px; }
+.pr-carte-mesure-en-cours { cursor: crosshair; }
+.pr-carte .leaflet-tooltip.pr-carte-num { background: var(--paper-card); border: 1px solid var(--focus); color: var(--ink); font-weight: 600; font-size: var(--texte-s); padding: 1px 6px; border-radius: var(--rayon-xs); box-shadow: none; }
+.pr-carte .leaflet-tooltip.pr-carte-zone { background: transparent; border: 0; box-shadow: none; color: var(--ink); font-weight: 700; font-size: var(--texte-s); text-shadow: 0 0 3px var(--paper-card), 0 0 3px var(--paper-card); padding: 0; }
+.pr-carte .leaflet-tooltip.pr-carte-num::before, .pr-carte .leaflet-tooltip.pr-carte-zone::before { display: none; }
+.pr-carte .leaflet-control-attribution { font-size: var(--texte-xxs); background: var(--paper-card); color: var(--muted); }
+.pr-carte .leaflet-control-scale-line { font-size: var(--texte-xxs); background: var(--paper-card); }
+.pr-cote { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-radius: var(--rayon-carte); background: var(--paper-card); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); overflow: hidden; }
+.pr-cote-onglets { padding: 12px 12px 8px; border-bottom: 1px solid var(--line); }
+.pr-cote-onglets wa-button-group { display: flex; }
+.pr-cote-onglets wa-button { flex: 1 1 0; }
+.pr-onglet-nb { font-size: var(--texte-xxs); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.pr-cote-corps { flex: 1 1 auto; overflow-y: auto; padding: 16px; }
+.pr-cote-panneau { display: flex; flex-direction: column; gap: 12px; }
+.pr-cote-titre { margin: 8px 0 0; font-size: var(--texte-l); font-weight: 500; color: var(--ink); }
+.pr-cote-sous { font-size: var(--texte-s); color: var(--muted); }
+.pr-cote-vide { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center; color: var(--muted); font-size: var(--texte-s); }
+.pr-cote-vide .icone { width: 24px; height: 24px; }
+.pr-cote .pr-synthese { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 0; }
+.pr-cote .pr-tuile { padding: 12px; box-shadow: none; }
+.pr-cote .pr-tuile-valeur { font-size: var(--texte-l); }
+.pr-fiche-tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.pr-fiche-num { font-size: var(--texte-3xl); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); }
+.pr-fiche-commune { font-size: var(--texte-base); color: var(--muted); }
+.pr-fiche-ligne { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.pr-fiche-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.pr-fiche-valeur { display: flex; flex-direction: column; gap: 2px; font-size: var(--texte-base); color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.pr-fiche-detail { font-size: var(--texte-s); color: var(--muted); }
+.pr-fiche-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
+.pr-zone-pastille { align-self: flex-start; padding: 1px 8px; border-radius: var(--rayon-s); border: 1px solid var(--zone); color: var(--ink); font-weight: 600; background: color-mix(in srgb, var(--zone) 18%, transparent); }
+.pr-ventes-tete { display: flex; flex-direction: column; gap: 8px; }
+.pr-ventes { display: flex; flex-direction: column; gap: 6px; }
+.pr-vente { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font: inherit; cursor: pointer; }
+.pr-vente:hover { background: var(--paper-sunk); }
+.pr-vente.actif { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.pr-vente-haut, .pr-vente-bas { display: flex; justify-content: space-between; gap: 8px; }
+.pr-vente-prix { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pr-vente-date { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
+.pr-vente-quoi { font-size: var(--texte-s); }
+.pr-vente-bas { font-size: var(--texte-xs); color: var(--muted); }
+.pr-vente-m2 { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pr-plan-cadre { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-sunk); }
 @media (max-width: 1100px) {
   .pr-synthese { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pr-rendu-grille { grid-template-columns: minmax(0, 1fr); }
+  .pr-analyse { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .pr-carte-bloc { height: 520px; }
+  .pr-cote { max-height: none; }
+  .pr-carte-barre { max-width: calc(100% - 64px); }
 }
 @media (max-width: 560px) { .pr-synthese { grid-template-columns: minmax(0, 1fr); } }
 

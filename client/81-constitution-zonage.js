@@ -121,7 +121,7 @@
     const outil = `<wa-button appearance="outlined" size="s" type="button" onclick="ouvrirPreemptionDepuisFiche('${escapeOnclickArg(d.id)}')">${icone('map-pin')} Ouvrir le Contrôle de l’urbanisme</wa-button>`;
     if (e.zonageEnCours) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">${icone('spinner', null, true)} Lecture du zonage sur le Géoportail…</p></div>`;
     if (!z) return `<div class="cst-zonage" id="cst-zonage">${tete}<p class="hint">Zonage pas encore lu.</p>
-      <div class="cst-zonage-actions"><wa-button appearance="outlined" size="s" type="button" onclick="lireZonageConstitution(true)">Lire le zonage</wa-button>${outil}</div></div>`;
+      <div class="cst-zonage-actions"><wa-button variant="brand" size="s" type="button" onclick="lireZonageConstitution(true)">${icone('map-pin')} Lire le zonage</wa-button>${outil}</div></div>`;
     const dl = s => s === 'oui' || s === 'probable' ? 'dl-urgent' : s === 'non' ? 'dl-success' : 'dl-pret';
     const ligne = (titre, r) => `<div class="cst-zonage-droit"><span class="cst-zonage-titre">${escapeHtml(titre)}</span><span class="dot-label ${dl(r.statut)}"><span class="dot"></span>${escapeHtml(r.texte)}</span>${r.motif ? `<span class="hint">${escapeHtml(r.motif)}</span>` : ''}</div>`;
     const zones = renderParcellesZonage(z.zones, naturesParcellesConstitution());

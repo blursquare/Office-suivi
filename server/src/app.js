@@ -109,6 +109,9 @@ const ASSETS_STATIQUES = {
   // SheetJS 0.20.3 (lecture des exports .xls d'Authentic, Réglages › Authentic — 19/10) : servi par CLAIRE, version corrigée des failles de 0.18.5.
   '/vendor/xlsx/xlsx.full.min.js': { fichier: 'vendor/xlsx/xlsx.full.min.js', type: 'application/javascript; charset=utf-8' },
   '/vendor/web-awesome/web-awesome-theme.css': { fichier: 'vendor/web-awesome/web-awesome-theme.css', type: 'text/css; charset=utf-8' },
+  // Leaflet 1.9.4 (BSD-2, carte du Contrôle de l'urbanisme — étude 31/10), paquet local : aucun appel extérieur pour la bibliothèque.
+  '/vendor/leaflet/leaflet.js': { fichier: 'vendor/leaflet/leaflet.js', type: 'application/javascript; charset=utf-8' },
+  '/vendor/leaflet/leaflet.css': { fichier: 'vendor/leaflet/leaflet.css', type: 'text/css; charset=utf-8' },
   // Police de l'interface (Geist, OFL — étude 04/10), embarquée : aucun appel extérieur. Binaire : lue sans encodage.
   '/vendor/polices/geist-latin-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-wght-normal.woff2', type: 'font/woff2', binaire: true },
   '/vendor/polices/geist-latin-ext-wght-normal.woff2': { fichier: 'vendor/polices/geist-latin-ext-wght-normal.woff2', type: 'font/woff2', binaire: true },

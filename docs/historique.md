@@ -23588,3 +23588,15 @@ ma place. »
 ### 31/10/2026 — 0.415.2 : bouton « Enregistrer sur la fiche » du Contrôle de l'urbanisme
 
 Étude : « il faut mettre le bouton enregistrer sur la fiche en bas à droite ; il est aussi à retirer en dessous de droits à purger ». Le bouton et l'état (« Enregistré le … », « Modifié depuis… ») passent dans la barre du bas de l'écran Contrôle (`renderNavPreemption`, client/152) ; retirés du bloc des droits (client/46).
+
+### 31/10/2026 — 0.416.0 : carte façon Géofoncier dans le Contrôle de l'urbanisme
+
+Étude : « comment reproduire Géofoncier dans CLAIRE… dans l'outil Contrôle de l'urbanisme, sur l'écran d'analyse, avec les infos actuelles dans une sidebar à droite. J'aurai besoin de la carte interactive pour voir les parcelles et les numéros, télécharger les DMPC associés aux parcelles et connaître le nom du géomètre. Calculer des surfaces avec un outil pour dessiner et mesurer. Fonds de carte IGN ou photo aérienne, plan du cadastre, immobilier DVF pour voir les ventes, le service des numéros (adresse.data.gouv.fr), alignement, PC, PLU. L'outil ultime de contrôle de l'urbanisme, simple à utiliser et épuré. » Puis : « le bouton Lire le zonage n'est pas mis en avant ».
+
+- Leaflet 1.9.4 (BSD-2) embarqué dans `vendor/leaflet/` (déclaré dans `ASSETS_STATIQUES` et les assets du .exe), chargé à la première carte.
+- `server/src/carteUrbanisme.js` + routes `GET /api/urbanisme/tuile/:couche/:z/:x/:y` (liste blanche plan / photo / cadastre de la Géoplateforme, cache 3 000 tuiles, image transparente si l'IGN ne répond pas), `/point` (parcelle sous le clic, zone du PLU, géocodage inverse BAN, servitude EL7), `/zones` (zones du PLU de l'emprise, 2 km au plus), `/dvf` (ventes Etalab d'une section, regroupées par mutation, locaux comptés une fois). Ne partent que des coordonnées, un code INSEE, une section.
+- `client/156-carte-urbanisme.js` : carte, calques, mesures (surface par excès sphérique, distance haversine, contenance « ha a ca »), barre de droite à onglets ; les blocs du contrôle (synthèse, droits, DIA, travaux/Sitadel, plans) y sont déplacés avec leurs identifiants.
+- DMPC et géomètre-expert : données des géomètres sur Géofoncier, non ouvertes ; leurs routes internes ne sont pas appelées (refusé : contournement d'un site). Un bouton ouvre `public.geofoncier.fr/#zoom/lat/lon` sur la parcelle.
+- Agent : `controle_urbanisme` actions `parcelles` et `ventes`.
+- « Lire le zonage » : bouton principal tant que rien n'est lu, puis « Relire le zonage » discret (outil et Constitution de dossier).
+- Testé ici avec les vrais services (Gy-en-Sologne E 1020 : contenance, BAN à 60 m, pas de PLU ; 31 ventes DVF de la section ; zones Ui1 de Blois). Points terrain `carte-urbanisme-tuiles|point|dvf`.

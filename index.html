@@ -1621,16 +1621,32 @@
     </div>
   </section>
   <section class="pr-page" data-page="rendu" style="display:none;">
-    <div id="pr-synthese"></div>
-    <div class="pr-rendu-grille">
-      <div class="pr-rendu-col">
-        <div class="calc-card"><h2 class="outil-section-tete">Droits à purger</h2><div id="pr-resultat"></div></div>
-        <div class="calc-card"><h2 class="outil-section-tete">Où déposer la DIA <span class="info-i" tabindex="0" data-info="Guichet numérique, courriel ou courrier d’après les pages officielles lues par CLAIRE (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher), fiche de la mairie de l’annuaire du service public. Corrigeable par l’étude ; rien n’est déduit : sans page lue, « à vérifier »."></span></h2><div id="pr-depot-dia"></div></div>
+    <!-- Écran d'analyse (étude 31/10 : « l'outil ultime du contrôle de l'urbanisme, simple et épuré ») : la carte à gauche
+         (client/156-carte-urbanisme.js — fonds IGN, cadastre, PLU, ventes DVF, mesures), les informations dans une barre à droite. -->
+    <div class="pr-analyse">
+      <div class="pr-carte-bloc">
+        <div id="pr-carte" class="pr-carte" role="application" aria-label="Carte de la parcelle : cliquez une parcelle pour la lire"></div>
+        <div id="pr-carte-barre" class="pr-carte-barre"></div>
+        <div id="pr-carte-outils" class="pr-carte-outils"></div>
+        <div id="pr-carte-mesure" class="pr-carte-mesure" style="display:none;"></div>
+        <div id="pr-carte-etat" class="pr-carte-etat"></div>
       </div>
-      <div class="pr-rendu-col">
-        <div class="calc-card"><h2 class="outil-section-tete">Plan cadastral <span class="info-i" tabindex="0" data-info="CLAIRE le demande elle-même à cadastre.gouv.fr dès l’arrivée sur cette étape, dans le navigateur du serveur, sans IA. Seuls la commune et les numéros de parcelle partent vers ce site."></span></h2><div id="pr-plan-apercu"></div><div id="pr-sites"></div></div>
-        <div class="calc-card"><h2 class="outil-section-tete">Travaux, photos aériennes et autorisations</h2><div id="pr-travaux"></div></div>
-      </div>
+      <aside class="pr-cote" aria-label="Contrôle de l’urbanisme">
+        <div id="pr-cote-onglets" class="pr-cote-onglets"></div>
+        <div class="pr-cote-corps">
+          <div class="pr-cote-panneau" data-onglet="controle">
+            <div id="pr-synthese"></div>
+            <h2 class="pr-cote-titre">Droits à purger</h2><div id="pr-resultat"></div>
+            <h2 class="pr-cote-titre">Où déposer la DIA <span class="info-i" tabindex="0" data-info="Guichet numérique, courriel ou courrier d’après les pages officielles lues par CLAIRE (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher), fiche de la mairie de l’annuaire du service public. Corrigeable par l’étude ; rien n’est déduit : sans page lue, « à vérifier »."></span></h2><div id="pr-depot-dia"></div>
+          </div>
+          <div class="pr-cote-panneau" data-onglet="parcelle" style="display:none;"><div id="pr-carte-parcelle"></div></div>
+          <div class="pr-cote-panneau" data-onglet="ventes" style="display:none;"><div id="pr-carte-ventes"></div></div>
+          <div class="pr-cote-panneau" data-onglet="travaux" style="display:none;"><div id="pr-travaux"></div></div>
+          <div class="pr-cote-panneau" data-onglet="plans" style="display:none;">
+            <h2 class="pr-cote-titre">Plan cadastral <span class="info-i" tabindex="0" data-info="CLAIRE le demande elle-même à cadastre.gouv.fr dès l’arrivée sur cette étape, dans le navigateur du serveur, sans IA. Seuls la commune et les numéros de parcelle partent vers ce site."></span></h2><div id="pr-plan-apercu"></div><div id="pr-sites"></div>
+          </div>
+        </div>
+      </aside>
     </div>
     <div class="pr-nav" data-page="rendu"></div>
   </section>
@@ -3090,5 +3106,6 @@
 <script src="client/153-accueil-outils.js"></script>
 <script src="client/154-arriere-plan-auto.js"></script>
 <script src="client/155-boutons-agent.js"></script>
+<script src="client/156-carte-urbanisme.js"></script>
 </body>
 </html>
