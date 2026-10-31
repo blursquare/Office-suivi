@@ -11030,7 +11030,7 @@ html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
 .asst-artefact .outil-sommaire-place { top: -16px; }   /* le corps du panneau a 16 px de marge intérieure */
 .asst-art-corps > .asst-art-outil-place { margin: -16px; }
 @media (max-width: 1280px) { .asst-page.artefact-ouvert.artefact-large { grid-template-columns: minmax(0, 1fr); } .asst-page.artefact-large .asst-artefact { width: min(900px, 98%); } }
-.asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; }
+.asst-art-outil-place > .onglet-panel { max-width: none; margin: 0; padding: 20px 24px 32px; }   /* outil monté : marges intérieures (étude 31/10 : « c’est collé ») */
 .asst-art-corps > .asst-art-email-place { margin: -16px; }
 .cx-lecture-bloc { display: flex; flex-direction: column; align-items: flex-end; margin-top: 2px; }
 .cx-lecture { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--muted); font-size: var(--texte-xs); }
