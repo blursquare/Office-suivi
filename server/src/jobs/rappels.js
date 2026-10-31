@@ -242,25 +242,35 @@ Vous pouvez confirmer la réception des fonds au client depuis la fiche (onglet 
 À ce jour, ${etat}.`;
 }
 
-// Les pièces reçues/manquantes (voir piecesChecklist.js) sont ajoutées au message SEULEMENT si le
-// dossier a une checklist applicable (jamais pour un rôle "participant", voir la fonction) — sans
-// quoi le message afficherait deux lignes vides "(0) : aucune" sur chaque rappel de ce type de
-// dossier, du bruit plutôt qu'une information.
-// Un seul texte par rappel, sans objet séparé : l'objet de l'email transporte désormais l'adresse
-// du destinataire, lue par le flux pour router le message Teams (voir envoiEmail.js). L'ancien
-// `sujetRappel()` a disparu avec l'architecture qui l'avait fait naître — il ne faisait de toute
-// façon que répéter la première phrase de ce corps, déjà autonome.
+// Étude 31/10 : « arrêter de lister toutes les pièces pour les notifications ; les notifications doivent être visuelles et faire comprendre
+// tout de suite ce qu'il faut faire ; les réunir pour un même dossier ». Plus de liste des pièces reçues : seulement le nombre de pièces encore
+// manquantes, quand il y en a. Plusieurs rappels du même dossier, le même jour, partent en UN message (texteRappelsDossier).
+// Un seul texte par rappel, sans objet séparé : l'objet de l'email transporte l'adresse du destinataire, lue par le flux pour router le
+// message Teams (voir envoiEmail.js).
+/** @param {any} r */
+function lignePiecesManquantes(r) {
+  const n = ((r.pieces && r.pieces.manquantes) || []).length;
+  return n ? `\n\nIl manque encore ${n} pièce${n > 1 ? 's' : ''} au dossier.` : '';
+}
+/** @param {any} r */
 function texteRappel(r) {
   const jour = r.seuil === 1 ? 'jour' : 'jours';
-  let texte = r.seuil === 0
+  const texte = r.seuil === 0
     ? `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} est à faire aujourd'hui (le ${r.iso}).`
     : `📌 CLAIRE — Rappel : « ${r.libelle} » du dossier ${r.nomDossier} arrive à échéance dans ${r.seuil} ${jour} (le ${r.iso}).`;
-  const { recues, manquantes } = r.pieces || { recues: [], manquantes: [] };
-  if (recues.length || manquantes.length) {
-    texte += `\n\nPièces reçues (${recues.length}) : ${recues.length ? recues.join(', ') : 'aucune'}`;
-    texte += `\nPièces manquantes (${manquantes.length}) : ${manquantes.length ? manquantes.join(', ') : 'aucune'}`;
-  }
-  return texte;
+  return texte + lignePiecesManquantes(r);
+}
+/** @param {string} iso */
+function jourMois(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+  return m ? `${Number(m[3])}/${m[2]}` : String(iso || '');
+}
+/** Plusieurs rappels d'un même dossier : un titre, une ligne par geste (aujourd'hui d'abord). @param {any[]} liste */
+function texteRappelsDossier(liste) {
+  if (liste.length === 1) return texteRappel(liste[0]);
+  const tries = liste.slice().sort((a, b) => (a.seuil - b.seuil) || String(a.libelle).localeCompare(String(b.libelle), 'fr'));
+  const lignes = tries.map((r) => `• ${r.libelle} — ${r.seuil === 0 ? 'aujourd’hui' : `dans ${r.seuil} jour${r.seuil === 1 ? '' : 's'}, le ${jourMois(r.iso)}`}`);
+  return `📌 CLAIRE — Rappel : ${tries.length} choses à faire pour le dossier ${tries[0].nomDossier}.\n${lignes.join('\n')}` + lignePiecesManquantes(tries[0]);
 }
 
 // Un seul tour : lit les réglages (SMTP + passerelle + emails), calcule les rappels dus, envoie ceux dont le
@@ -324,18 +334,31 @@ async function executerTacheRappelsSeule(depot, db, parametresRepo, envoyerFn, a
   const envoyer = envoyerFn || envoyerEmail;
   const messagesEnvoyes = [];
 
+  // Les rappels d'un même dossier pour le même collaborateur partent ensemble (étude 31/10) ; les alertes de fonds gardent leur message.
+  /** @type {Array<Array<Record<string, any>>>} */
+  const envois = [];
+  /** @type {Map<string, Array<Record<string, any>>>} */
+  const parDossier = new Map();
   for (const r of dus) {
+    if (r.texte) { envois.push([r]); continue; }
+    const cle = `${r.dossierId}|${r.responsable}`;
+    if (!parDossier.has(cle)) { const g = []; parDossier.set(cle, g); envois.push(g); }
+    /** @type {Array<Record<string, any>>} */ (parDossier.get(cle)).push(r);
+  }
+
+  for (const groupe of envois) {
+    const r = groupe[0];
     const email = reglages.emailsResponsables[r.responsable];
     if (!email) {
       resultat.erreurs.push(`${r.responsable} : aucune adresse email configurée (voir Réglages).`);
       continue;
     }
-    const texte = r.texte || texteRappel(r);
+    const texte = r.texte || texteRappelsDossier(groupe);
     const envoi = await envoyer(reglages, email, texte, undefined, { dossierId: r.dossierId });
     if (envoi.ok) {
-      resultat.rappelsEnvoyes++;
+      resultat.rappelsEnvoyes += groupe.length;
       if (envoi.messageId) messagesEnvoyes.push(envoi.messageId);
-      marquerStmt.run(r.dossierId, r.reminderKey, new Date().toISOString());
+      for (const x of groupe) marquerStmt.run(x.dossierId, x.reminderKey, new Date().toISOString());
       if (reglages.copieEmail && !memeAdresseEmail(reglages.copieEmail, email)) {
         const copie = await envoyer(reglages, reglages.copieEmail, texte, undefined, { dossierId: r.dossierId });
         if (copie.ok && copie.messageId) messagesEnvoyes.push(copie.messageId);
@@ -390,6 +413,6 @@ function demarrerTacheRappels(depot, db, config, parametresRepo, envoyerFn) {
 module.exports = {
   libelleDossier,
   SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, CLE_DELAIS_RAPPELS, ECHEANCES_DELAIS_RAPPELS, assainirDelaisRappels, lireDelaisRappels, echeanceValidee, toutesEcheances, joursRestants, echeanceSaferDossier,
-  calculerRappelsDus, texteRappel, executerTacheRappels, demarrerTacheRappels,
+  calculerRappelsDus, texteRappel, texteRappelsDossier, executerTacheRappels, demarrerTacheRappels,
   bilanFonds, jourSemaine, alertesFondsDues, texteAlerteFonds
 };

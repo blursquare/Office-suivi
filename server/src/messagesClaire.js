@@ -69,6 +69,7 @@ const REECRITURES_COLLEGUE = [
   // Rappels d'échéance (jobs/rappels.js)
   [/^Rappel : « (.+?) » du dossier (.+?) est à faire aujourd'hui \(le [\d-]+\)\.?/, (m) => `« ${m[1]} » pour ${m[2]}, c’est aujourd’hui.`],
   [/^Rappel : « (.+?) » du dossier (.+?) arrive à échéance dans (\d+) jours? \(le ([\d-]+)\)\.?/, (m) => `« ${m[1]} » pour ${m[2]} dans ${m[3]} jour${m[3] === '1' ? '' : 's'}, le ${jourCourt(m[4])}.`],
+  [/^Rappel : (\d+) choses à faire pour le dossier (.+?)\.(?=\n|$)/, (m) => `${m[2]} : ${m[1]} choses à faire.`],
   // Fonds (jobs/rappels.js)
   [/^Tous les fonds sont reçus pour le dossier (.+) \(([^)]*)\)\.(?: Rendez-vous de signature le ([^\n]+?)\.)?\n?(?:Vous pouvez confirmer[^\n]*)?/, (m) => `Tous les fonds de ${m[1]} sont arrivés (${m[2]}) : vous pouvez le confirmer au client.${m[3] ? `\n\nSignature le ${m[3]}.` : ''}`],
   [/^Fonds pas encore reçus en entier pour le dossier (.+?) :(?: Rendez-vous de signature le ([^\n]+?)\.)?\s*\n\s*À ce jour, ([^\n]+?)\.?$/m, (m) => `Les fonds de ${m[1]} ne sont pas encore tous là : ${m[3]}.${m[2] ? `\n\nSignature le ${m[2]}.` : ''}`],

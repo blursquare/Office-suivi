@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
 const {
   SEUILS_RAPPELS_PAR_TYPE, SEUILS_RAPPELS_DEFAUT, seuilsPourType, assainirDelaisRappels,
   echeanceValidee, toutesEcheances, joursRestants,
-  calculerRappelsDus, texteRappel, executerTacheRappels
+  calculerRappelsDus, texteRappel, texteRappelsDossier, executerTacheRappels
 } = require('../src/jobs/rappels');
 const { ouvrirDb } = require('../src/db');
 const { creerDepot } = require('../src/dossiersRepo');
@@ -181,14 +181,27 @@ test('texteRappel accorde "jour"/"jours" et nomme le dossier et l\'échéance', 
   assert.match(texteRappel({ libelle: "Signature de l'acte", nomDossier: 'X / Y', seuil: 7, iso: '2026-11-04' }), /7 jours/);
 });
 
-test('texteRappel : ajoute la liste des pièces reçues/manquantes quand elle est fournie', () => {
+test('texteRappel : plus de liste des pièces (étude 31/10), seulement le nombre de pièces encore manquantes', () => {
   const r = {
     libelle: 'Obtention du prêt', nomDossier: 'X / Y', seuil: 15, iso: '2026-11-11',
-    pieces: { recues: ["Certificat d'urbanisme"], manquantes: ['ERP (état des risques et pollution)'] }
+    pieces: { recues: ["Certificat d'urbanisme", 'Titre de propriété'], manquantes: ['ERP (état des risques et pollution)'] }
   };
   const texte = texteRappel(r);
-  assert.match(texte, /Pièces reçues \(1\) : Certificat d'urbanisme/);
-  assert.match(texte, /Pièces manquantes \(1\) : ERP/);
+  assert.doesNotMatch(texte, /Pièces reçues|Certificat d'urbanisme|ERP/);
+  assert.match(texte, /Il manque encore 1 pièce au dossier\./);
+  assert.doesNotMatch(texteRappel(Object.assign({}, r, { pieces: { recues: ['A'], manquantes: [] } })), /pièce/i);
+});
+
+test('texteRappelsDossier : plusieurs rappels du même dossier en un message, une ligne par geste (étude 31/10)', () => {
+  const base = { nomDossier: 'SUCC - ESSAI', iso: '2026-11-02', seuil: 0, pieces: { recues: ['A', 'B'], manquantes: [] } };
+  const t = texteRappelsDossier([Object.assign({ libelle: 'Appel de fonds' }, base), Object.assign({ libelle: 'Envoi du décompte à faire valider' }, base),
+    Object.assign({}, base, { libelle: 'Signature', seuil: 7, iso: '2026-11-09' })]);
+  assert.match(t, /3 choses à faire pour le dossier SUCC - ESSAI\./);
+  assert.match(t, /• Appel de fonds — aujourd’hui\n• Envoi du décompte à faire valider — aujourd’hui\n• Signature — dans 7 jours, le 9\/11/);
+  assert.doesNotMatch(t, /Pièces|\bA, B/);
+  // Dans la conversation de CLAIRE : redit court, les lignes dessous.
+  const M = require('../src/messagesClaire');
+  assert.match(M.phraseCollegue(t), /^SUCC - ESSAI : 3 choses à faire\.\n\n• Appel de fonds/);
 });
 
 test('texteRappel : aucune ligne de pièces quand il n\'y en a aucune (dossier participant, ou champ absent)', () => {
@@ -248,7 +261,8 @@ test('executerTacheRappels : envoie le rappel dû, le marque dans reminder_log, 
   assert.equal(envois.length, 1);
   assert.equal(envois[0].email, 'b@etude.fr');
   assert.match(envois[0].texte, /DUPONT \/ MARTIN/);
-  assert.match(envois[0].texte, /Pièces (reçues|manquantes)/, 'la liste des pièces doit accompagner le rappel');
+  assert.doesNotMatch(envois[0].texte, /Pièces (reçues|manquantes)/, 'plus de liste des pièces (étude 31/10)');
+  assert.match(envois[0].texte, /Il manque encore \d+ pièces? au dossier/);
 
   // Un second tour LE MÊME JOUR (le job tourne toutes les 30 minutes) : déjà marqué, pas de renvoi.
   const r2 = await executerTacheRappels(depot, db, parametresRepo, envoyerFn, '2026-10-27');
@@ -768,4 +782,22 @@ test('les délais réglés par l étude remplacent les seuils d origine', () => 
 test('délais : null, chaîne vide et valeurs hors bornes ne deviennent jamais « le jour même » ; projetSuccession part le jour de son échéance', () => {
   assert.deepEqual(assainirDelaisRappels({ pret: [null, '', [], 366, -2, '7'] }), { pret: [7] });
   assert.deepEqual(seuilsPourType('projetSuccession'), [0]);
+});
+
+test('executerTacheRappels : les rappels du même dossier le même jour partent en un seul message, tous marqués (étude 31/10)', async () => {
+  const db = ouvrirDb(':memory:');
+  const depot = creerDepot(db);
+  const parametresRepo = creerRepoParametres(db);
+  // Prêt et vente préalable au même jour : deux rappels J-15 le 27/10.
+  depot.creer({ id: 'g1', nom: 'DUPONT / MARTIN', responsable: 'Bastien ANGLUMENT', pret: '2026-11-11', ventebien: '2026-11-11' });
+  parametresRepo.ecrireReglages({ emailActif: true, smtpHote: 'smtp.test', emailPasserelle: 'passerelle@etude.fr', emailsResponsables: { 'Bastien ANGLUMENT': 'b@etude.fr' } });
+  const envois = [];
+  const r = await executerTacheRappels(depot, db, parametresRepo, async (reg, email, texte) => { envois.push(texte); return { ok: true }; }, '2026-10-27');
+  assert.equal(r.rappelsDus, 2);
+  assert.equal(r.rappelsEnvoyes, 2);
+  assert.equal(envois.length, 1, 'un seul message pour le dossier');
+  assert.match(envois[0], /2 choses à faire pour le dossier VTE - DUPONT \/ MARTIN\./);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM reminder_log').get().n, 2);
+  const r2 = await executerTacheRappels(depot, db, parametresRepo, async (reg, email, texte) => { envois.push(texte); return { ok: true }; }, '2026-10-27');
+  assert.equal(r2.rappelsDus, 0);
 });

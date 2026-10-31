@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.407.10';
+  const VERSION_APP = '0.407.11';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.407.11', date: '2026-10-31 09:48', resume: "Notifications de rappel plus lisibles : plus de liste des pièces reçues (seulement « Il manque encore N pièces » quand il en manque), et les rappels d’un même dossier le même jour arrivent en un seul message — « SUCC - … : 3 choses à faire », puis une ligne par geste avec son jour." },
     { version: '0.407.10', date: '2026-10-30 17:44', resume: "Le bouton rond en bas à droite pour appeler CLAIRE (outils et fiches) est noir, comme son avatar." },
     { version: '0.407.9', date: '2026-10-30 16:57', resume: "Successions, onglet Fonds : un bloc « Appel de fonds et fonds reçus » comme pour une vente — montant appelé (lu dans le courrier du NAS ou saisi), versements des héritiers, « Confirmer » la réception aux héritiers (premier jet de CLAIRE). L’appel de fonds est facultatif dans tous les cas (« Pas nécessaire » d’un clic), souvent inutile avec un conjoint survivant. « Autorisations de fonds » s’appelle désormais « Autorisations de déblocage/transfert ». Le message « … est complet : vous pouvez lancer la rédaction » ne part plus une fois la rédaction « En cours » dans Authentic, l’acte signé ou son rendez-vous passé — une pièce qui repasse manquante après coup ne le fait plus revenir. Le bouton rond de CLAIRE sur les outils et les fiches porte son mochi." },
     { version: '0.407.8', date: '2026-10-30 16:32', resume: "Constitution de dossier, actes d’état civil d’une vente : d’abord la demande Comedec dans Authentic, puis CLAIRE propose le courrier papier seulement pour les mairies sans Comedec (lignes « APR » d’Authentic) ; le courrier pour une autre personne reste possible, replié. Discussions : un fichier envoyé seul à un collègue part sans texte — plus de « Que contient la pièce jointe… ? » ajouté tout seul." },
