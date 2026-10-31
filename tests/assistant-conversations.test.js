@@ -107,3 +107,11 @@ test('CLAIRE flottante : les collègues cités par @, jamais soi-même ni CLAIRE
   assert.equal(cites.join('|'), 'Julie VASSELIN|Jérémy SAUJOT');
   assert.equal(app.collegueCitesClaireFlottante('écrire à julie@exemple.fr').length, 0);
 });
+
+test('CLAIRE flottante : canal privé d’un groupe de deux ou trois, prénoms rangés (audit 0.408.0)', () => {
+  const { chargerApplication } = require('./helpers/load-app.js');
+  const app = chargerApplication();
+  assert.equal(app.canalPriveClaireFlottante(['Julie VASSELIN', 'Bastien ANGLUMENT']), 'p:bastien-julie');
+  assert.equal(app.canalPriveClaireFlottante(['Bastien ANGLUMENT', 'Julie VASSELIN', 'Jérémy SAUJOT']), 'p:bastien-jeremy-julie');
+  assert.equal(app.canalPriveClaireFlottante(['Bastien ANGLUMENT']), '');
+});

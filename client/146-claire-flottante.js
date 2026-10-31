@@ -33,7 +33,7 @@ function zoneClaireFlottante() {
         <div class="cf-messages" id="cf-messages" aria-live="polite"></div>
         <form class="cf-saisie" onsubmit="event.preventDefault(); envoyerDepuisClaireFlottante();">
           <div class="asst-mention cf-mention" id="cf-mention" role="listbox" style="display:none;"></div>
-          <textarea id="cf-texte" rows="2" placeholder="Demandez à CLAIRE… @ pour un collègue ou un dossier" oninput="majMentionClaireFlottante()" onkeydown="toucheClaireFlottante(event)"></textarea>
+          <textarea id="cf-texte" rows="2" aria-controls="cf-mention" aria-expanded="false" placeholder="Demandez à CLAIRE… @ pour un collègue ou un dossier" oninput="majMentionClaireFlottante()" onkeydown="toucheClaireFlottante(event)"></textarea>
           <wa-button variant="brand" size="s" type="submit">Envoyer</wa-button>
         </form></div>
       <button type="button" class="cf-bouton" id="cf-bouton" onclick="basculerClaireFlottante()" title="Demander à CLAIRE" aria-label="Demander à CLAIRE">${icone('discussion')}</button>`;
@@ -103,7 +103,7 @@ function renderClaireFlottante() {
 async function envoyerDepuisClaireFlottante() {
   const champ = document.getElementById('cf-texte');
   const texte = champ ? champ.value.trim() : '';
-  if (!texte || (typeof occupeAssistant === 'function' && occupeAssistant())) return;
+  if (!texte) return;
   const canal = canalPourClaireFlottante();
   fermerMentionClaireFlottante();
   // Un collègue cité (@julie) hors d'une discussion reprise : le message va à l'équipe, pas à CLAIRE (étude 31/10 : « des @ pour interpeller
@@ -112,11 +112,16 @@ async function envoyerDepuisClaireFlottante() {
     const cites = collegueCitesClaireFlottante(texte);
     if (cites.length && !/(^|[^a-z0-9])@claire(?![a-z0-9])/i.test(texte)) {
       const idLie = dossierLieClaireFlottante(texte);
-      const cible = idLie ? 'd:' + idLie : idCanalPriveEntre(utilisateurPoste, cites[0]);
-      if (!cible || !utilisateurPoste) { afficherToast('Choisissez d’abord votre nom (collaborateur du poste) pour écrire à un collègue.', 'OK', null); return; }
+      if (!utilisateurPoste) { afficherToast('Choisissez d’abord votre nom (collaborateur du poste) pour écrire à un collègue.', 'OK', null); return; }
+      // Sans dossier : un message privé qui réunit l'auteur et les collègues cités (trois prénoms au plus, comme Discussions), sinon un par collègue
+      // — jamais un collègue cité hors d'un canal qu'il peut lire (audit 0.408.0).
+      const cibles = idLie ? ['d:' + idLie] : (cites.length <= 2 ? [canalPriveClaireFlottante([utilisateurPoste].concat(cites))] : cites.map(c => idCanalPriveEntre(utilisateurPoste, c)));
+      if (cibles.some(c => !c)) { afficherToast('Message non envoyé : collègue non reconnu.', 'OK', null); return; }
       try {
-        const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(cible)}/messages`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ auteur: utilisateurPoste, claire: false, texte, html: '', pj: [], parent: '' }) });
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
+        for (const cible of cibles) {
+          const r = await fetchAvecAuth(`/api/canaux/${encodeURIComponent(cible)}/messages`, { method: 'POST', headers: enteteJsonCanaux(), body: JSON.stringify({ auteur: utilisateurPoste, claire: false, texte, html: '', pj: [], parent: '' }) });
+          if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erreur || `HTTP ${r.status}`);
+        }
         champ.value = '';
         claireFlottante.dossierChoisi = null;
         const d = idLie ? dossiers.find(x => x.id === idLie) : null;
@@ -126,6 +131,7 @@ async function envoyerDepuisClaireFlottante() {
       return;
     }
   }
+  if (typeof occupeAssistant === 'function' && occupeAssistant()) return;
   let demande = texte;
   if (canal) {
     // Dans la discussion du dossier : la demande s'adresse à CLAIRE, sauf si elle cite un collègue (@julie…).
@@ -199,7 +205,7 @@ function demarrerClaireFlottante() {
 // ---- Dossier rattaché et « @ » de la fenêtre flottante (étude 31/10) ----
 
 // Le dossier choisi sur l'écran de l'outil affiché (Appel de fonds, Quotités, Contrôle de l'urbanisme, Constitution, Autorisations, Décompte
-// vendeur, Provision), '' sinon. Jamais deviné : la valeur que l'outil garde lui-même.
+// vendeur), '' sinon. (Provision : son dossier n'est pas remis à zéro à chaque ouverture — audit 0.408.0 — il ne rattache pas.) Jamais deviné : la valeur que l'outil garde lui-même.
 function dossierEcranClaireFlottante() {
   if (document.body.classList.contains('fiche-en-page')) return '';
   const o = typeof ongletActuel === 'string' ? ongletActuel : '';
@@ -209,8 +215,7 @@ function dossierEcranClaireFlottante() {
     : o === 'preemption' ? v(() => prEtat && prEtat.dossierId)
     : o === 'constitution' ? v(() => cstEtat && cstEtat.dossierId)
     : o === 'autorisations' ? v(() => autEtat && autEtat.dossierId)
-    : o === 'decompte-vendeur' ? v(() => dvEtat && dvEtat.dossierId)
-    : o === 'calculateur' ? v(() => provisionDossierId) : '';
+    : o === 'decompte-vendeur' ? v(() => dvEtat && dvEtat.dossierId) : '';
   return id && dossiers.some(x => x.id === id) ? id : '';
 }
 
@@ -218,7 +223,9 @@ function dossierEcranClaireFlottante() {
 // l'écran de l'outil, sinon la fiche ouverte ailleurs.
 function dossierLieClaireFlottante(texte) {
   const c = claireFlottante.dossierChoisi;
-  if (c && (texte === undefined || String(texte).includes(c.nom))) return c.id;
+  const champ = typeof document !== 'undefined' ? document.getElementById('cf-texte') : null;
+  const t = texte === undefined ? (champ ? champ.value : '') : texte;
+  if (c && String(t).includes(c.nom)) return c.id;
   if (document.body.classList.contains('fiche-en-page') && dossierOuvert) return dossierOuvert;
   return dossierEcranClaireFlottante() || dossierOuvert || '';
 }
@@ -238,16 +245,19 @@ function majMentionClaireFlottante() {
   const m = avant.match(/(^|\s)@([^\s@]{0,30})$/);
   if (!m) { fermerMentionClaireFlottante(); return; }
   const collabs = (canaux && Array.isArray(canaux.collaborateurs) && canaux.collaborateurs.length ? canaux.collaborateurs : RESPONSABLES).map(c => String(c && (c.nom || c) || ''));
-  const liste = mentionsPourCanal(m[2], collabs, dossiers, true, utilisateurPoste);
+  const liste = mentionsPourCanal(m[2], collabs, dossiers, !canalPourClaireFlottante(), utilisateurPoste);
   if (!liste.length) { fermerMentionClaireFlottante(); return; }
   const prec = claireFlottante.mention;
   claireFlottante.mention = { ouverte: true, debut: avant.length - m[2].length - 1, liste, choix: Math.min(prec.ouverte ? prec.choix : 0, liste.length - 1) };
   menu.innerHTML = liste.map((x, k) => `<button type="button" class="asst-mention-ligne${k === claireFlottante.mention.choix ? ' actif' : ''}" role="option" aria-selected="${k === claireFlottante.mention.choix}" onmousedown="event.preventDefault(); choisirMentionClaireFlottante(${k})">
       <span class="asst-mention-nom">${escapeHtml(x.libelle || x.nom)}</span>${x.note ? `<span class="asst-mention-note">${escapeHtml(x.note)}</span>` : (x.type === 'dossier' ? '<span class="asst-mention-note">rattacher</span>' : '')}</button>`).join('');
   menu.style.display = 'block';
+  champ.setAttribute('aria-expanded', 'true');
 }
 
 function fermerMentionClaireFlottante() {
+  const champ = document.getElementById('cf-texte');
+  if (champ) champ.setAttribute('aria-expanded', 'false');
   claireFlottante.mention = { ouverte: false, debut: -1, liste: [], choix: 0 };
   const menu = document.getElementById('cf-mention');
   if (menu) { menu.style.display = 'none'; menu.innerHTML = ''; }
@@ -279,4 +289,11 @@ function toucheClaireFlottante(e) {
   if (mt.ouverte && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); choisirMentionClaireFlottante(mt.choix); return; }
   if (mt.ouverte && e.key === 'Escape') { e.preventDefault(); fermerMentionClaireFlottante(); return; }
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyerDepuisClaireFlottante(); }
+}
+
+// Le canal privé d'un groupe de deux ou trois collaborateurs (prénoms rangés, comme `idCanalPriveEntre` et le serveur), '' sinon.
+function canalPriveClaireFlottante(noms) {
+  const slug = (nom) => normaliserPourRecherche(String(nom || '').trim().split(/\s+/)[0] || '').replace(/[^a-z]/g, '');
+  const slugs = [...new Set((noms || []).map(slug).filter(Boolean))].sort();
+  return slugs.length >= 2 && slugs.length <= 3 ? `p:${slugs.join('-')}` : '';
 }
