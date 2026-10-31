@@ -136,9 +136,11 @@ function creerRouteurNas(config, depot) {
     if (contenu.length < 5 || contenu.toString('latin1', 0, 5) !== '%PDF-') { res.status(400).json({ erreur: 'Ce n’est pas un PDF.' }); return; }
     const d = depot && typeof b.dossierId === 'string' ? depot.trouverParId(b.dossierId) : null;
     if (!d || !d.nasDossier) { res.status(400).json({ erreur: 'Dossier inconnu ou non relié au NAS.' }); return; }
+    if (d.archive || d.typeAffaire === 'succession') { res.status(400).json({ erreur: 'Seule une vente en cours se découpe.' }); return; }
     const rubriques = (Array.isArray(b.rubriques) ? b.rubriques : []).filter((r) => typeof r === 'string' && Object.prototype.hasOwnProperty.call(RUBRIQUES_SCANS, r)).slice(0, 4);
-    let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120) : '';
-    if (/^\s*(con|prn|aux|nul|com\d|lpt\d)\s*$/i.test(nom)) nom = 'Document ' + nom.trim();
+    let nom = typeof b.nom === 'string' ? b.nom.slice(0, 120).trim() : '';
+    // Nom réservé de Windows, nu ou suivi d'une extension (« CON », « nul.txt ») : jamais tel quel (audit 0.411.0, B1).
+    if (/^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$/i.test(nom)) nom = 'Document ' + nom;
     const r = await copierDansDossierClient({ nasRacine: config.nasRacine, dossierNas: String(d.nasDossier),
       rubriques, nomCible: nom || 'Annexe du compromis', extension: 'pdf', contenu });
     if (r.erreur) { res.status(r.statut || 400).json({ erreur: r.erreur }); return; }

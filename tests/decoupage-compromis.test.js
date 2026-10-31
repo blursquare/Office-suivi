@@ -138,3 +138,13 @@ test('avant-contrat du NAS : jamais une pièce découpée par CLAIRE, toujours l
   assert.equal(app.choisirAvantContratNas(fichiers, '', null).fichier.nom, 'Compromis signé.pdf');
   assert.equal(app.raisonExclusionAvantContrat('Diagnostics techniques - tous les diagnostics.pdf', null), 'decoupe');
 });
+
+test('agent : jamais le libellé de l’agence ni un nom tapé (audit 0.411.0, H1) — libellé de CLAIRE ou « Annexe n°N (non reconnue) »', () => {
+  const r = app.piecesDecoupageCompromis([corps('COMPROMIS'), sep(1, 'attestation dupont paul', 'dupont'), corps('Texte'), sep(2, 'Copie titre propriete', 'x'), corps("L'AN DEUX MILLE")]);
+  const inconnue = r.pieces.find(p => p.numero === 1);
+  assert.equal(inconnue.reconnu, false);
+  assert.match(inconnue.nom, /dupont/i, 'le nom proposé à l’écran reprend le libellé, l’utilisateur le corrige');
+  assert.equal(app.titrePieceAgentDecoupage(inconnue), 'Annexe n°1 (non reconnue)');
+  assert.equal(app.titrePieceAgentDecoupage(Object.assign({}, r.pieces.find(p => p.numero === 2), { nom: 'Titre de M. DUPONT' })), 'Titre de propriété');
+  assert.equal(app.titrePieceAgentDecoupage(r.pieces[0]), 'Compromis signé (sans les annexes)');
+});

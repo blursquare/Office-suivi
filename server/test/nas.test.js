@@ -391,4 +391,6 @@ test('deposer-annexe : pièce du compromis rangée dans sa rubrique, racine à d
   assert.equal((await poster({ dossierId: 'n1', nom: 'x', contenu: Buffer.from('PK\u0003\u0004x').toString('base64'), rubriques: [] })).status, 400, 'pas un PDF');
   assert.equal((await poster({ dossierId: 'inconnu', nom: 'x', contenu: pdf })).status, 400, 'dossier inconnu');
   assert.equal((await poster({ dossierId: 'n2', nom: 'x', contenu: pdf })).status, 400, 'dossier non relié');
+  r = await poster({ dossierId: 'n1', nom: 'nul.txt', contenu: pdf, rubriques: [] });
+  assert.equal(path.basename((await r.json()).chemin), 'Document nul.txt.pdf', 'nom réservé de Windows suivi d’une extension');
 });

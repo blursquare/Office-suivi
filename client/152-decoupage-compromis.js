@@ -231,6 +231,17 @@ function piecesDecoupageCompromis(pages) {
   return { separateurs: dec.separateurs, pieces };
 }
 
+// Ce que l'agent reçoit pour nommer une pièce (audit 0.411.0, H1) : le libellé de CLAIRE d'une pièce reconnue, sinon « Annexe n°N
+// (non reconnue) » — jamais le nom modifiable ni le libellé de la page de séparation de l'agence, qui portent souvent un nom de client.
+// Pure.
+function titrePieceAgentDecoupage(p) {
+  if (!p) return '';
+  if (p.sorte === 'compromis') return 'Compromis signé (sans les annexes)';
+  if (p.sorte === 'diagnostics') return 'Diagnostics techniques (tous les diagnostics)';
+  if (p.sorte === 'diagnostic' || p.reconnu) return String(p.label || '');
+  return `Annexe n°${Number(p.numero) || 0} (non reconnue)`;
+}
+
 // Pages saisies à la main (« 3-7, 9 ») → numéros de page valides, dans l'ordre, sans doublon ; null si illisible. Pure.
 function pagesDepuisSaisieDecoupage(texte, total) {
   const s = String(texte || '').replace(/\s+/g, '');
@@ -323,13 +334,15 @@ async function dcLire(fichier, nom, jeton) {
   renderDecoupage();
   // pdf.js détache le tampon qu'on lui donne : une copie, l'original sert à pdf-lib.
   const pdf = await pdfjsLib.getDocument({ isEvalSupported: false, data: octets.slice() }).promise;
-  if (pdf.numPages > PAGES_MAX_DECOUPAGE) throw new Error(`document de ${pdf.numPages} pages, ${PAGES_MAX_DECOUPAGE} au plus`);
+  if (pdf.numPages > PAGES_MAX_DECOUPAGE) { const n = pdf.numPages; try { pdf.destroy(); } catch (_) { /* rien */ } throw new Error(`document de ${n} pages, ${PAGES_MAX_DECOUPAGE} au plus`); }
   const pages = [];
-  for (let p = 1; p <= pdf.numPages; p++) {
-    if (jeton !== dcEtat.jeton) return;
-    const c = await (await pdf.getPage(p)).getTextContent();
-    pages.push(lignesDepuisItemsPdf(c.items).join('\n'));
-  }
+  try {
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (jeton !== dcEtat.jeton) return;
+      const c = await (await pdf.getPage(p)).getTextContent();
+      pages.push(lignesDepuisItemsPdf(c.items).join('\n'));
+    }
+  } finally { try { pdf.destroy(); } catch (_) { /* déjà fermé */ } }
   if (jeton !== dcEtat.jeton) return;
   const r = piecesDecoupageCompromis(pages);
   dcEtat.source = { nom: nom || fichier.name || 'compromis.pdf', octets };
@@ -465,12 +478,19 @@ function dcRendreCorps() {
 }
 
 // PDF d'une pièce : ses pages copiées du compromis d'origine (pdf-lib, chargé à la demande).
-async function pdfPieceDecoupage(piece, cache) {
-  if (!dcEtat.source) throw new Error('aucun document lu');
+// Le compromis d'origine est analysé une fois par pdf-lib et gardé avec la source (audit 0.411.0, B5) ; un PDF chiffré est refusé :
+// ses pages recopiées seraient illisibles (M3).
+async function pdfPieceDecoupage(piece, source) {
+  const s = source || dcEtat.source;
+  if (!s) throw new Error('aucun document lu');
   if (!window.PDFLib) await afChargerScript(URL_PDF_LIB_PDFA, SRI_PDF_LIB_PDFA);
   const { PDFDocument } = window.PDFLib;
-  const src = (cache && cache.src) || await PDFDocument.load(dcEtat.source.octets, { ignoreEncryption: true });
-  if (cache) cache.src = src;
+  if (!s.pdfLib) {
+    const src = await PDFDocument.load(s.octets, { ignoreEncryption: true });
+    if (src.isEncrypted) throw new Error('PDF protégé par un mot de passe : impossible d’en recopier les pages');
+    s.pdfLib = src;
+  }
+  const src = s.pdfLib;
   const doc = await PDFDocument.create();
   (await doc.copyPages(src, piece.pages.map(n => n - 1))).forEach(pg => doc.addPage(pg));
   return new Blob([await doc.save()], { type: 'application/pdf' });
@@ -490,19 +510,21 @@ async function telechargerPieceDecoupage(id) {
 }
 
 // Range les pièces cochées et pas encore rangées dans le dossier client du NAS, une par une (copie, jamais d'écrasement).
-async function rangerDecoupage() {
+async function rangerDecoupage(ids) {
   const d = dcDossier();
   if (!d || !d.nasDossier || dcEtat.range || !dcEtat.source) return { ok: false, rangees: 0 };
-  const jeton = dcEtat.jeton;
-  const aFaire = dcEtat.pieces.filter(p => p.inclure && !p.rangee);
-  dcEtat.range = true;
+  // État figé (audit 0.411.0, B2/B3) : un changement de dossier pendant le rangement ne touche ni le nouvel état ni les pièces rangées ;
+  // `ids` = les pièces annoncées sur la carte « Autoriser ».
+  const etat = dcEtat;
+  const jeton = etat.jeton;
+  const aFaire = etat.pieces.filter(p => p.inclure && !p.rangee && (!ids || ids.includes(p.id)));
+  etat.range = true;
   renderDecoupage();
-  const cache = {};
   let rangees = 0; const echecs = [];
   for (const p of aFaire) {
     if (jeton !== dcEtat.jeton) break;
     try {
-      const blob = await pdfPieceDecoupage(p, cache);
+      const blob = await pdfPieceDecoupage(p, etat.source);
       const r = await fetchAvecAuth('/api/nas/deposer-annexe', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dossierId: d.id, nom: p.nom, contenu: await base64DepuisBlob(blob), rubriques: p.rubriques || [] }) });
       const j = await r.json().catch(() => ({}));
@@ -512,13 +534,13 @@ async function rangerDecoupage() {
     } catch (e) { echecs.push(`${p.nom} : ${e && e.message ? e.message : 'erreur'}`); }
     if (jeton === dcEtat.jeton) renderDecoupage();
   }
-  dcEtat.range = false;
+  etat.range = false;
   if (rangees) {
     ajouterHistorique(d, `Compromis découpé : ${rangees} pièce(s) rangée(s) dans le dossier du NAS`);
     sauvegarder(d);
     if (typeof verifierDossierLocal === 'function') verifierDossierLocal(d.id, false);
   }
-  noterVerificationPoste('decoupage-compromis', { ok: !echecs.length && rangees > 0, detail: `${rangees} pièce(s) rangée(s), ${echecs.length} échec(s), ${dcEtat.separateurs} séparation(s)` });
+  noterVerificationPoste('decoupage-compromis', { ok: !echecs.length && rangees > 0, detail: `${rangees} pièce(s) rangée(s), ${echecs.length} échec(s), ${etat.separateurs} séparation(s)` });
   afficherToast(echecs.length ? `${rangees} pièce(s) rangée(s), ${echecs.length} non rangée(s) : ${echecs[0]}` : `${rangees} pièce(s) rangée(s) dans le dossier de la vente.`, 'OK', null);
   if (jeton === dcEtat.jeton) renderDecoupage();
   return { ok: !echecs.length, rangees, echecs: echecs.length };
@@ -537,18 +559,19 @@ async function decouperCompromisAgent(e) {
   if (!dcEtat.source) return { erreur: dcEtat.message || 'compromis non lu', dossier_nas_relie: !!d.nasDossier, consigne: 'Outil ouvert : l’utilisateur peut y choisir le PDF du compromis à la main.' };
   const sortie = {
     dossier_id: d.id, pages_total: dcEtat.pages.length, separations_trouvees: dcEtat.separateurs,
-    pieces: dcEtat.pieces.map(p => ({ id: p.id, sorte: p.sorte, titre_piece: p.nom, pages: p.saisie, nb_pages: p.pages.length, rubrique: libelleRubriqueDecoupage(p.rubrique), ranger: !!p.inclure, rangee: !!p.rangee, reconnue: p.reconnu !== false })),
+    pieces: dcEtat.pieces.map(p => ({ id: p.id, sorte: p.sorte, titre_piece: titrePieceAgentDecoupage(p), pages: p.saisie, nb_pages: p.pages.length, rubrique: libelleRubriqueDecoupage(p.rubrique), ranger: !!p.inclure, rangee: !!p.rangee, reconnue: p.reconnu !== false })),
     dossier_nas_relie: !!d.nasDossier,
     consigne: 'Outil « Découper le compromis » ouvert sur le poste : l’utilisateur y corrige noms, pages et rubriques, puis « Ranger dans le dossier ».'
   };
   if (e.ranger) {
-    const n = dcEtat.pieces.filter(p => p.inclure && !p.rangee).length;
+    const ids = dcEtat.pieces.filter(p => p.inclure && !p.rangee).map(p => p.id);
+    const n = ids.length;
     if (!d.nasDossier) return Object.assign(sortie, { rangement: 'dossier non relié au NAS : rien rangé' });
     if (!n) return Object.assign(sortie, { rangement: 'rien à ranger' });
     const ok = await demanderAutorisationAgent(`Ranger ${n} pièce(s) tirée(s) du compromis (${libelleDossierAffiche(d)}) dans le dossier du NAS ? Ce sont des copies, l’original reste tel quel.`);
     if (!ok) return Object.assign(sortie, { rangement: 'refusé par l’utilisateur' });
     if (dcEtat.dossierId !== d.id) return Object.assign(sortie, { rangement: 'un autre dossier a été ouvert entre-temps : rien rangé' });
-    const r = await rangerDecoupage();
+    const r = await rangerDecoupage(ids);
     sortie.rangement = `${r.rangees} rangée(s)${r.echecs ? `, ${r.echecs} échec(s)` : ''}`;
   }
   return sortie;
