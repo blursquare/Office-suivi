@@ -16,9 +16,11 @@ function preparerGesteFicheAgent(e, d, dossier) {
   const succ = estSuccession(d);
   switch (e.action) {
     case 'piece_ajouter': {
-      const label = String(e.libelle || '').trim();
+      const label = String(e.libelle || '').replace(/\s+/g, ' ').trim();
       if (!label || /\[à compléter\]/.test(label)) return { erreur: 'libelle = le nom de la pièce à ajouter' };
-      if ((d.piecesPersonnalisees || []).some(p => normaliserPourRecherche(p.label) === normaliserPourRecherche(label))) return { erreur: 'cette pièce est déjà dans la checklist' };
+      let liste = d.piecesPersonnalisees || [];
+      try { liste = liste.concat(checklistPieces(d.typeVente, d)); } catch (err) { /* checklist illisible : les pièces ajoutées suffisent */ }
+      if (liste.some(p => p && normaliserPourRecherche(p.label) === normaliserPourRecherche(label))) return { erreur: 'cette pièce est déjà dans la checklist' };
       return { description: `Ajouter la pièce « ${label.slice(0, 120)} » à la checklist${dossier}.`, label };
     }
     case 'piece_retirer': {
@@ -32,7 +34,9 @@ function preparerGesteFicheAgent(e, d, dossier) {
       if (!p) return { erreur: 'pièce introuvable dans la checklist : reprends son libellé exact (pieces_recues)' };
       if (/^perso-/.test(p.cle)) return { erreur: 'pièce ajoutée à la main : retire-la (piece_retirer) ou laisse-la' };
       if ((d.pieces || {})[p.cle] !== 'recue') return { erreur: 'cette pièce n’est pas notée reçue' };
-      return { description: `Remettre « ${p.label} » en manquante (le fichier reconnu à tort ne sera plus proposé pour cette pièce)${dossier}.`, piece: p };
+      const main = (d.piecesValideesManuellement || []).includes(p.cle);
+      return { description: main ? `Retirer la validation à la main de « ${p.label} » (elle sera de nouveau cherchée sur le NAS)${dossier}.`
+        : `Remettre « ${p.label} » en manquante — le nom du fichier reconnu à tort ne sera plus proposé pour cette pièce, sur aucun dossier${dossier}.`, piece: p, main, strict: !main };
     }
     case 'engagement_defait': {
       const n = parseInt(e.numero, 10);
@@ -58,15 +62,19 @@ function preparerGesteFicheAgent(e, d, dossier) {
       const majs = typeof majsEnAttenteAuthentic === 'function' ? majsEnAttenteAuthentic(d) : [];
       if (!majs.length) return { erreur: 'aucune mise à jour d’Authentic en attente sur ce dossier' };
       if (e.valeur !== 'accepter' && e.valeur !== 'ignorer') return { erreur: 'valeur = accepter ou ignorer' };
-      return { description: `${e.valeur === 'accepter' ? 'Écrire sur la fiche' : 'Ignorer'} ${majs.length > 1 ? `les ${majs.length} mises à jour proposées` : 'la mise à jour proposée'} par Authentic${dossier}.`, cles: majs.map(m => m.cle) };
+      const detail = majs.slice(0, 8).map(m => `${m.libelle || m.cle} : ${m.apres || '—'}${m.avant ? ` (avant : ${m.avant})` : ''}`).join(' ; ');
+      return { description: `${e.valeur === 'accepter' ? 'Écrire sur la fiche' : 'Ignorer'} ${majs.length > 1 ? `les ${majs.length} mises à jour proposées` : 'la mise à jour proposée'} par Authentic${dossier} — ${detail}${majs.length > 8 ? ' ; …' : ''}.`, cles: majs.map(m => m.cle) };
     }
     case 'authentic_completer':
+      // Le geste de l'écran lit le dossier d'Authentic choisi sur la ligne « Authentic » de la fiche affichée (relecture 0.409.0 : sans
+      // elle, rien n'était écrit et l'agent annonçait « fait »).
+      if (typeof document === 'undefined' || !document.getElementById('auth-comp-' + d.id)) return { erreur: 'ouvre d’abord la fiche de ce dossier (onglet Dossier, ligne « Authentic ») : le complément se fait depuis elle ; sinon le dossier n’a pas été relevé dans Authentic ces 24 h' };
       return { description: `Compléter la fiche avec le dossier relevé dans Authentic (parties, coordonnées, bien, prix, référence)${dossier}.` };
     case 'partie_retirer': {
       const x = partiesNumeroteesAgent(d)[parseInt(e.numero, 10) - 1];
       if (!x) return { erreur: 'partie introuvable : numero = sa position dans parties de lire_dossier, à partir de 1' };
       const nom = [x.p.prenom, x.p.nom].map(v => String(v || '').trim()).filter(Boolean).join(' ') || 'cette personne';
-      return { description: `Retirer ${nom} de la fiche (Authentic pourra la remettre)${dossier}.`, index: x.index };
+      return { description: `Retirer ${nom} de la fiche (Authentic pourra la remettre)${dossier}.`, partie: x.p, strict: true };
     }
     case 'succession_champ': {
       const champ = String(e.libelle || '').trim();
@@ -76,7 +84,7 @@ function preparerGesteFicheAgent(e, d, dossier) {
       if (/\[à compléter\]/.test(v)) return { erreur: 'valeur inconnue : demande-la à l’utilisateur' };
       if (champ === 'type' && v && !TYPES_SUCCESSION.some(t => t.cle === v)) return { erreur: `type = ${TYPES_SUCCESSION.map(t => t.cle).join(', ')}` };
       if (champ === 'ouvertureLe' && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) return { erreur: 'date au format AAAA-MM-JJ' };
-      if (['conjointSurvivant', 'testament', 'donationEpoux', 'droitsDus', 'inventaireNecessaire'].includes(champ) && !['', 'oui', 'non'].includes(v)) return { erreur: 'valeur = oui, non ou ""' };
+      if (['conjointSurvivant', 'testament', 'donationEpoux', 'droitsDus', 'inventaireNecessaire', 'actifSuperieurSeuil'].includes(champ) && !['', 'oui', 'non'].includes(v)) return { erreur: 'valeur = oui, non ou ""' };
       return { description: `Succession : « ${CHAMPS_SUCCESSION[champ] || champ} » → ${v || 'effacé'}${dossier}.`, champ, valeur: champ === 'actifSuperieurSeuil' ? v === 'oui' : v };
     }
     default: return { erreur: 'action inconnue' };
@@ -87,7 +95,7 @@ function executerGesteFicheAgent(e, d, prep) {
   switch (e.action) {
     case 'piece_ajouter': ajouterPiecePersonnalisee(d.id, prep.label); return;
     case 'piece_retirer': avecConfirmationAccordee(() => supprimerPiecePersonnalisee(d.id, prep.piece.cle)); return;
-    case 'piece_non_recue': avecConfirmationAccordee(() => reinitialiserStatutPieceStandard(d.id, prep.piece.cle, prep.piece.label)); return;
+    case 'piece_non_recue': avecConfirmationAccordee(() => (prep.main ? retirerValidationManuellePiece : reinitialiserStatutPieceStandard)(d.id, prep.piece.cle, prep.piece.label)); return;
     case 'engagement_defait': {
       const i = (d.analyseJuridique && d.analyseJuridique.engagements || []).indexOf(prep.engagement);
       if (i < 0 || !prep.engagement.fait) throw new Error('l’engagement a changé entre-temps');
@@ -99,7 +107,13 @@ function executerGesteFicheAgent(e, d, prep) {
     case 'fonds_verifier': verifierFondsRecus(d.id, null); return;
     case 'authentic_maj': (e.valeur === 'accepter' ? accepterMajsAuthentic : ignorerMajsAuthentic)(d.id, prep.cles); return;
     case 'authentic_completer': avecConfirmationAccordee(() => completerDossierDepuisAuthentic(d.id)); return;
-    case 'partie_retirer': avecConfirmationAccordee(() => demanderRetirerPartie(d.id, prep.index)); return;
+    case 'partie_retirer': {
+      // Retrouvée par la personne elle-même au moment du clic (relecture 0.409.0 : dans un lot, le premier retrait décalait les suivants).
+      const index = (d.parties || []).indexOf(prep.partie);
+      if (index < 0) throw new Error('cette personne n’est plus sur la fiche (elle a changé entre-temps)');
+      avecConfirmationAccordee(() => demanderRetirerPartie(d.id, index));
+      return;
+    }
     case 'succession_champ': changerSuccession(d.id, prep.champ, prep.valeur); return;
     default: throw new Error('action inconnue');
   }

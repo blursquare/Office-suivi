@@ -222,7 +222,14 @@ test('gestes de la fiche par l’agent (étude 31/10 : « que Claude utilise CLA
   assert.ok(p({ action: 'authentic_maj', valeur: 'accepter' }).erreur, 'rien en attente');
   const r = p({ action: 'partie_retirer', numero: 2 });
   assert.match(r.description, /Luc PETIT/, 'même numérotation que lire_dossier (sans les vides)');
-  assert.equal(r.index, 2);
+  assert.equal(r.partie, d.parties[2], 'la personne elle-même est gardée : retrouvée au clic, jamais par une position qui a pu glisser');
+  // Pièce validée à la main : on retire la validation (comme l'écran), on ne réinitialise pas la reconnaissance du NAS.
+  const piece = app.checklistPieces('maison', d)[0];
+  d.pieces[piece.cle] = 'recue'; d.piecesValideesManuellement = [piece.cle];
+  const nr = p({ action: 'piece_non_recue', piece: piece.label });
+  assert.equal(nr.main, true);
+  assert.match(nr.description, /validation à la main/);
+  assert.ok(p({ action: 'piece_ajouter', libelle: piece.label }).erreur, 'une pièce standard n’est pas ajoutée en double');
   assert.ok(p({ action: 'succession_champ', libelle: 'type', valeur: 'x' }).erreur, 'pas une succession');
   assert.ok(p({ action: 'inconnue' }).erreur);
 });

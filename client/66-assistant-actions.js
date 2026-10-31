@@ -295,7 +295,7 @@
     if (!sansDossier && !d) return { erreur: 'dossier introuvable : cherche-le d’abord (chercher_dossiers) et passe son id' };
     const prep = preparerActionDossierAgent(e, d);
     if (prep.erreur) return { erreur: prep.erreur };
-    if (!(await demanderAutorisationAgent(prep.description))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
+    if (!(await demanderAutorisationAgent(prep.description, { strict: !!prep.strict }))) return { refuse: true, message: 'l’utilisateur a refusé : ne le refais pas sans nouvelle demande' };
     try { executerActionDossierAgent(e, d, prep); } catch (err) { return { erreur: 'échec : ' + String(err && err.message || err).slice(0, 160) }; }
     return { fait: true, action: prep.description };
   }

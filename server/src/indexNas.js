@@ -8,6 +8,9 @@
 
 const fsp = require('node:fs/promises');
 const { listerFichiersMemoire, cheminDocumentMemoire, texteFichierMemoire } = require('./memoire');
+
+// Formats de l'index des dossiers (résumé d'une phrase par Anthropic) : ceux d'avant le 31/10.
+const FORMATS_INDEX_NAS = ['pdf', 'docx', 'txt', 'md'];
 const { dossierClientAbsolu } = require('./explorateurNas');
 const { masquer, retablirTexte } = require('./assistantMistral');
 const { sensiblesDesDossiers } = require('./routines/ia');
@@ -71,7 +74,11 @@ async function parcourirDossiersEnCours(o) {
       const rubrique = rubriqueDossier(d.id);
       racines[rubrique] = abs;
       etat.dossiers++;
-      const { fichiers, complet } = await listerFichiersMemoire(abs, fsImpl);
+      const listage = await listerFichiersMemoire(abs, fsImpl);
+      const complet = listage.complet;
+      // Les formats que la mémoire lit depuis le 31/10 (.doc, .xlsx, .rtf, .odt…) ne partent PAS au résumé chez Anthropic : l'étude a demandé
+      // la mémoire (« MODELES - OUTILS »), pas d'élargir ce flux automatique (relecture 0.410.0) — à décider par elle.
+      const fichiers = listage.fichiers.filter((f) => FORMATS_INDEX_NAS.includes(f.ext));
       for (const f of fichiers) {
         const r = o.memoire.voirFichier(rubrique, f.chemin, f.nom, f.ext, f.taille, f.modifieMs);
         etat.vus++;

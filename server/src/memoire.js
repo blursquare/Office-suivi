@@ -133,7 +133,8 @@ async function contenuZip(buf, e) {
 
 /** Pure : décode les entités XML courantes. @param {string} s */
 function sansEntitesXml(s) {
-  return s.replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+  const point = (/** @type {number} */ n) => (n >= 0 && n <= 0x10FFFF ? String.fromCodePoint(n) : '\uFFFD');   // audit 0.410.0 : un code hors Unicode faisait échouer tout le fichier
+  return s.replace(/&#x([0-9a-f]{1,8});/gi, (_, h) => point(parseInt(h, 16))).replace(/&#(\d{1,8});/g, (_, n) => point(Number(n)))
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
 }
 
@@ -197,9 +198,23 @@ async function texteDocx(buf) {
 
 /** Pure : le texte d'un `content.xml` OpenDocument (.odt) — un paragraphe ou titre par ligne. @param {string} xml */
 function texteOdtXml(xml) {
-  return sansEntitesXml(String(xml || '')
-    .replace(/<text:tab\s*\/>/g, '\t').replace(/<text:line-break\s*\/>/g, '\n').replace(/<text:s(?:\s[^>]*)?\/>/g, ' ')
-    .replace(/<\/text:(?:p|h)>/g, '\n').replace(/<[^>]*>/g, ''))
+  // Balises parcourues par indexOf, jamais par une expression régulière (audit 0.410.0 : `<[^>]*>` était quadratique sur une suite de « < »).
+  const s = String(xml || '');
+  let sortie = '';
+  let i = 0;
+  while (i < s.length) {
+    const d = s.indexOf('<', i);
+    if (d < 0) { sortie += s.slice(i); break; }
+    sortie += s.slice(i, d);
+    const f = s.indexOf('>', d);
+    if (f < 0) break;
+    const nom = s.slice(d + 1, Math.min(f, d + 24));
+    if (/^text:tab\b/.test(nom)) sortie += '\t';
+    else if (/^text:line-break\b/.test(nom) || /^\/text:(?:p|h)\b/.test(nom)) sortie += '\n';
+    else if (/^text:s\b/.test(nom)) sortie += ' ';
+    i = f + 1;
+  }
+  return sansEntitesXml(sortie)
     .split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter(Boolean).join('\n');
 }
 
@@ -210,6 +225,41 @@ async function texteOdt(buf) {
   return texteOdtXml((await contenuZip(buf, e)).toString('utf8'));
 }
 
+/** Pure : le contenu des balises `<t …>…</t>` d'un XML, par indexOf (linéaire — audit 0.410.0 : les regex paresseuses imbriquées étaient
+ * cubiques sur un classeur forgé). Avec `dans`, seulement à l'intérieur des blocs `<dans>…</dans>` (cellules en ligne d'une feuille).
+ * @param {string} xml @param {string} [dans] @returns {string[]} */
+function textesBalisesT(xml, dans) {
+  /** @type {string[]} */
+  const sortie = [];
+  const extraire = (/** @type {string} */ bloc) => {
+    let i = 0;
+    while (i < bloc.length) {
+      let d = bloc.indexOf('<t', i);
+      while (d >= 0 && !/[\s>/]/.test(bloc[d + 2] || '')) d = bloc.indexOf('<t', d + 1);
+      if (d < 0) break;
+      const g = bloc.indexOf('>', d);
+      if (g < 0) break;
+      if (bloc[g - 1] === '/') { i = g + 1; continue; }
+      const f = bloc.indexOf('</t>', g);
+      if (f < 0) break;
+      sortie.push(sansEntitesXml(bloc.slice(g + 1, f)));
+      i = f + 4;
+    }
+  };
+  if (!dans) { extraire(String(xml || '')); return sortie; }
+  const s = String(xml || '');
+  let i = 0;
+  while (i < s.length) {
+    const d = s.indexOf('<' + dans + '>', i);
+    if (d < 0) break;
+    const f = s.indexOf('</' + dans + '>', d);
+    if (f < 0) break;
+    extraire(s.slice(d, f));
+    i = f + dans.length + 3;
+  }
+  return sortie;
+}
+
 /** Le texte d'un classeur Excel (.xlsx, .xlsm) : ses textes (chaînes partagées et cellules en ligne), un par ligne ; les nombres sont laissés.
  * @param {Buffer} buf */
 async function texteXlsx(buf) {
@@ -217,13 +267,16 @@ async function texteXlsx(buf) {
   const textes = [];
   const lire = async (nom) => { const e = entrees.get(nom); return e ? (await contenuZip(buf, e)).toString('utf8') : ''; };
   const partagees = await lire('xl/sharedStrings.xml');
-  for (const m of partagees.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)) textes.push(sansEntitesXml(m[1]));
-  for (const nom of [...entrees.keys()].filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).slice(0, 50)) {
-    for (const m of (await lire(nom)).matchAll(/<is>[\s\S]*?<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)) textes.push(sansEntitesXml(m[1]));
-  }
-  if (!partagees && !textes.length && !entrees.has('xl/workbook.xml')) throw new Error('pas un classeur Excel');
+  textes.push(...textesBalisesT(partagees));
+  for (const nom of [...entrees.keys()].filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)).slice(0, 50)) textes.push(...textesBalisesT(await lire(nom), 'is'));
+  if (!partagees && !entrees.has('xl/workbook.xml') && ![...entrees.keys()].some((n) => n.startsWith('xl/worksheets/'))) throw new Error('pas un classeur Excel');
   return textes.map((t) => t.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
 }
+
+// Octets 0x80-0x9F de Windows-1252 (le reste est Latin-1) : « \'92 » est une apostrophe, « \'80 » l'euro (audit 0.410.0).
+const CP1252_80_9F = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008DŽ\u008F\u0090‘’“”•–—˜™š›œ\u009DžŸ';
+/** Pure : un octet « hh » du RTF en caractère Windows-1252. @param {string} h */
+function octetCp1252(h) { const n = parseInt(h, 16); return n >= 0x80 && n <= 0x9F ? CP1252_80_9F[n - 0x80] : String.fromCharCode(n); }
 
 /** Pure : le texte d'un fichier RTF — mots de contrôle et groupes de destination retirés, \'hh (Windows-1252) et \uN décodés. @param {Buffer} buf */
 function texteRtf(buf) {
@@ -237,11 +290,13 @@ function texteRtf(buf) {
     if (c === '{') { profondeur++; if (s.startsWith('{\\*', i) || /^\{\\(?:fonttbl|colortbl|stylesheet|info|pict|header|footer|listtable|listoverridetable|rsidtbl|generator|xmlnstbl|themedata|colorschememapping|datastore|latentstyles)/.test(s.slice(i, i + 24))) { if (!profondeurIgnoree) profondeurIgnoree = profondeur; } continue; }
     if (c === '}') { if (profondeurIgnoree === profondeur) profondeurIgnoree = 0; profondeur--; continue; }
     if (c === '\\') {
-      const m = /^\\(?:'([0-9a-f]{2})|u(-?\d+) ?\??|([a-z]+)(-?\d+)? ?|([\\{}~_-]))/i.exec(s.slice(i, i + 40));
+      const m = /^\\(?:'([0-9a-f]{2})|u(-?\d+) ?(?:\\'[0-9a-f]{2}|\?)?|([a-z]+)(-?\d+)? ?|([\\{}~_-]))/i.exec(s.slice(i, i + 40));
       if (!m) continue;
       i += m[0].length - 1;
+      // Données binaires (\binN) : sautées, une accolade y fausserait les groupes.
+      if (m[3] === 'bin' && m[4]) { i += Math.max(0, Number(m[4])); continue; }
       if (profondeurIgnoree) continue;
-      if (m[1]) sortie += Buffer.from([parseInt(m[1], 16)]).toString('latin1');
+      if (m[1]) sortie += octetCp1252(m[1]);
       else if (m[2]) sortie += String.fromCharCode(((Number(m[2]) % 65536) + 65536) % 65536);
       else if (m[3]) { if (m[3] === 'par' || m[3] === 'line' || m[3] === 'row') sortie += '\n'; else if (m[3] === 'tab' || m[3] === 'cell') sortie += '\t'; }
       else if (m[5] === '~') sortie += ' ';
@@ -264,8 +319,18 @@ function texteDocBinaire(buf) {
   return (somme(utf16) >= somme(huit) ? utf16 : huit).join('\n').slice(0, 2000000);
 }
 
-/** Le texte d'un fichier de la mémoire lu par le serveur, selon son extension. @param {string} ext @param {Buffer} buf */
+// Ancien Word et RTF : lus d'un bloc sur le fil du serveur — plafonnés plus bas que les autres (relecture 0.410.0 : un fichier de 60 Mo
+// figeait le serveur plusieurs secondes).
+const TAILLE_MAX_DOC_RTF = 10 * 1024 * 1024;
+
+/** Le texte d'un fichier de la mémoire lu par le serveur, selon son extension — et ses premiers octets : un « .doc » qui est en réalité un
+ * RTF ou un Word récent est lu comme tel. @param {string} ext @param {Buffer} buf */
 async function texteFichierMemoire(ext, buf) {
+  if ((ext === 'doc' || ext === 'dot' || ext === 'rtf') && buf.length > TAILLE_MAX_DOC_RTF) throw new Error('fichier trop gros pour être lu');
+  if (ext === 'doc' || ext === 'dot') {
+    if (buf.subarray(0, 5).toString('latin1') === '{\\rtf') ext = 'rtf';
+    else if (buf.subarray(0, 2).toString('latin1') === 'PK') ext = 'docx';
+  }
   if (EXTENSIONS_WORD_ZIP.includes(ext)) return texteDocx(buf);
   if (ext === 'odt') return texteOdt(buf);
   if (ext === 'xlsx' || ext === 'xlsm') return texteXlsx(buf);

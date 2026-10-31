@@ -113,6 +113,8 @@ let nasScans = process.env.NAS_SCANS || '';
 // depuis le réseau du bureau. Réactivable par CLAIRE_AUTH=1 (développement) ou "authActive": true
 // dans config.json (exécutable).
 let authActive = process.env.CLAIRE_AUTH === '1';
+// Fenêtre CLAIRE sur localhost au démarrage (index.js) : jamais par défaut depuis le 31/10, "ouvrirFenetreAuDemarrage": true dans config.json.
+let ouvrirFenetreAuDemarrage = false;
 
 if (!motDePasse && estSea()) {
   const dossierExe = path.dirname(process.execPath);
@@ -122,6 +124,7 @@ if (!motDePasse && estSea()) {
   nasRacine = nasRacine || resolu.nasRacine;
   nasScans = nasScans || resolu.nasScans || '';
   authActive = authActive || resolu.authActive === true;
+  ouvrirFenetreAuDemarrage = resolu.ouvrirFenetreAuDemarrage === true;
   cheminDb = path.join(dossierExe, 'data', 'claire.db');
   if (resolu.genere && authActive) {
     console.log(`[config] Premier lancement : mot de passe partagé généré automatiquement.`);
@@ -140,6 +143,7 @@ const config = {
   cheminDb,
   motDePasse,
   authActive,
+  ouvrirFenetreAuDemarrage,
   // Dossier racine contenant les dossiers clients sur le NAS de l'étude, lu par le serveur pour
   // tous les postes du bureau (voir nas.js). Vide = fonctionnalité désactivée, signalée comme
   // telle dans l'interface plutôt que silencieusement inopérante.

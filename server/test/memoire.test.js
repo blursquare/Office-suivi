@@ -359,3 +359,22 @@ test('parcours : les fichiers d’un format non lu sont comptés par extension (
     assert.deepEqual(nonLus, { xls: 2 });
   } finally { fs.rmSync(racine, { recursive: true, force: true }); }
 });
+
+test('relecture 0.410.0 : RTF (caractère Unicode suivi de son repli, sans doublon) ; .doc qui est un RTF ou un Word récent ; plafond', async () => {
+  const rtf = Buffer.from("{\\rtf1\\ansi\\pard L\\u8217\\'92acte\\par}", 'latin1');
+  assert.equal(M.texteRtf(rtf), 'L’acte');
+  assert.equal(await M.texteFichierMemoire('doc', rtf), 'L’acte', 'un .doc enregistré en RTF');
+  assert.match(await M.texteFichierMemoire('doc', docx(['Modèle Word récent nommé .doc'])), /Modèle Word récent/);
+  await assert.rejects(() => M.texteFichierMemoire('doc', Buffer.alloc(11 * 1024 * 1024)), /trop gros/);
+});
+
+test('audit 0.410.0 : classeur et OpenOffice forgés lus en temps linéaire ; \\\'92 RTF = apostrophe', async () => {
+  const debut = Date.now();
+  await M.texteFichierMemoire('xlsx', zipUn('xl/worksheets/sheet1.xml', '<is><t>'.repeat(20000)));
+  await M.texteFichierMemoire('xlsx', zipUn('xl/sharedStrings.xml', '<t>'.repeat(200000)));
+  M.texteOdtXml('<'.repeat(400000));
+  assert.ok(Date.now() - debut < 3000, 'aucune lecture quadratique');
+  assert.equal(await M.texteFichierMemoire('xlsx', zipUn('xl/worksheets/sheet1.xml', '<row><c t="inlineStr"><is><t>Prix net</t></is></c></row>')), 'Prix net');
+  assert.equal(M.texteRtf(Buffer.from("{\\rtf1 l\\'92acte \\'80\\par}", 'latin1')), 'l’acte €');
+  assert.equal(M.texteOdtXml('<text:p>&#x110000;ok</text:p>'), '�ok');
+});
