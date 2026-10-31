@@ -20,7 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
-    { version: '0.409.1', date: '2026-10-31 11:02', resume: "Statistiques, actes à l’agenda : une succession n’est comptée que si le titre du rendez-vous commence par SUCC ou SUCCESSION (« SUCC - … »), comme les autres actes." },
+    { version: '0.409.1', date: '2026-10-31 11:02', resume: "Statistiques, actes à l’agenda : une succession n’est comptée que si le titre du rendez-vous commence par SUCC ou SUCCESSION (« SUCC - … »), comme les autres actes. Une nature sans aucun acte ni cette année ni l’an dernier n’est plus listée (place gagnée dans le widget ; les ventes restent toujours)." },
     { version: '0.409.0', date: '2026-10-31 11:01', resume: "Statistiques, actes à l’agenda : une ligne « Promesses de vente (PUV) » — comptés les rendez-vous dont le titre commence par PUV (« PUV - … »), comme les PACS et les DEE, sur l’année en cours et l’année précédente." },
     { version: '0.408.2', date: '2026-10-31 10:43', resume: "Statistiques, actes à l’agenda : un PACS n’est compté que si le titre du rendez-vous commence par PACS (« PACS - … »), comme une donation entre époux par DEE (« DEE - … ») ; « Enregistrement PACS … » n’est plus compté." },
     { version: '0.408.1', date: '2026-10-31 10:28', resume: "Barre latérale : l’outil s’appelle « Autor. déblocage/transf. » pour tenir sur une ligne (le nom complet en bulle au survol et sur l’écran de l’outil)." },

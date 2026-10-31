@@ -170,7 +170,7 @@
         <h3 class="jour-carte-sous-titre">Actes à l’agenda, sur l’année${infoBulle(aide)}</h3>
         <table class="st-actes">
           <thead><tr><th></th><th scope="col">${d.annee}</th><th scope="col">${d.precedente}</th><th scope="col" aria-label="Écart"></th></tr></thead>
-          <tbody>${lignes.map(ligne).join('')}</tbody>
+          <tbody>${lignes.filter(l => l.cle === 'ventes' || !d.complet || l.annee || l.anneePrecedente).map(ligne).join('')}</tbody>
         </table>
         ${note ? `<div class="st-ecarts w-fixe">${note}</div>` : ''}
       </div>`;
