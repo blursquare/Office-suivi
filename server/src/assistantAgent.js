@@ -438,10 +438,14 @@ const OUTILS_AGENT = [
   },
   {
     name: 'decouper_compromis',
-    description: 'Découper le compromis signé d’une vente (compromis d’agence avec toutes ses annexes à la suite) : ouvre l’outil « Découper le compromis » sur le poste, lit le compromis du dossier du NAS et rend les pièces proposées — le compromis seul, une pièce par annexe (titre de propriété, identité, plan, règlement de copropriété, PV d’AG…), un PDF par diagnostic et un PDF de tous les diagnostics — avec leur nom, leurs pages et la rubrique du dossier où elles iront. ranger = true : les range dans le dossier du NAS (copies, carte « Autoriser »).',
+    description: 'Découper le compromis signé d’une vente (compromis d’agence avec toutes ses annexes à la suite) : ouvre l’outil « Découper le compromis » sur le poste, lit le compromis du dossier du NAS et rend les pièces proposées — le compromis seul, une pièce par annexe (titre de propriété, identité, plan, règlement de copropriété, PV d’AG…), un PDF par diagnostic et un PDF de tous les diagnostics — avec leur nom, leurs pages et la rubrique du dossier où elles iront. corrections : sur demande de l’utilisateur (« le titre de propriété commence page 40 », « coupe l’annexe 6 page 80 »), corrige des pièces de l’outil avant de ranger — pages, rubrique, à ranger ou non, coupure en deux à une page (la suite devient une nouvelle pièce) ; rien n’est écrit sur le NAS. ranger = true : les range dans le dossier du NAS (copies, carte « Autoriser »).',
     input_schema: { type: 'object', additionalProperties: false, required: ['dossier_id', 'ranger', 'relire'],
       properties: { dossier_id: chaine('id du dossier de vente'), ranger: { type: 'boolean', description: 'true = ranger les pièces cochées dans le dossier du NAS (carte « Autoriser »)' },
-        relire: { type: 'boolean', description: 'true = relire le compromis du NAS (les corrections faites dans l’outil sont perdues)' } } }
+        relire: { type: 'boolean', description: 'true = relire le compromis du NAS (les corrections faites dans l’outil sont perdues)' },
+        corrections: { type: 'array', description: 'corrections demandées par l’utilisateur, sinon omis', items: { type: 'object', additionalProperties: false, required: ['piece_id'],
+          properties: { piece_id: chaine('id de la pièce rendu par l’outil'), pages: chaine('nouvelles pages, ex. « 40-52, 54 »'),
+            rubrique: { type: 'string', enum: ['', 'sru', 'diagnostics', 'environnement', 'copro', 'etatDate', 'preEtatDate', 'titre', 'aae', 'vendeur', 'acquereur', 'hypotheque', 'travaux', 'construction', 'comptabilite', 'pret'], description: 'rubrique du dossier ("" = racine)' },
+            ranger: { type: 'boolean', description: 'false = ne pas ranger cette pièce' }, couper_a: { type: 'integer', description: 'numéro de page où couper la pièce en deux' } } } } } }
   },
   {
     name: 'etat_hypothecaire',

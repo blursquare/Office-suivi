@@ -11629,18 +11629,52 @@ button.sa-ligne:hover { background: var(--paper-sunk); }
 .dv-page-pied { margin-top: 32px; }
 /* @fin-papier */
 
-/* Découper le compromis (étude 31/10, client/152-decoupage-compromis.js) : une ligne par pièce — case, sorte et nom, pages, rubrique, téléchargement, état. */
+/* Découper le compromis (étude 31/10, client/152-decoupage-compromis.js) : les pièces à gauche, l'aperçu de la pièce choisie à droite
+   (étude 31/10 : « présentation plus visuelle avec l'aperçu à droite du PDF »). */
 .dc-choisir { display: inline-flex; }
 .dc-choisir .dc-fichier { display: none; }
-.dc-liste { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.dc-ligne { display: grid; grid-template-columns: 20px minmax(0, 1fr) 120px 200px 32px minmax(0, 160px); gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
-.dc-ligne > * { min-width: 0; }
-.dc-ligne.dc-exclue { opacity: 0.55; }
-.dc-ligne-texte { display: flex; flex-direction: column; gap: 2px; }
-.dc-sorte { font-size: var(--texte-xs); color: var(--muted); }
-.dc-ligne input.dc-pages { font-variant-numeric: tabular-nums; }
-.dc-etat { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 900px) { .dc-ligne { grid-template-columns: 20px minmax(0, 1fr) 32px; } .dc-ligne .dc-pages, .dc-ligne .dc-rubrique, .dc-ligne .dc-etat { grid-column: 2 / -1; } }
+.dc-mise-en-page { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.dc-gauche { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.dc-droite { position: sticky; top: calc(12px + var(--decalage-onglets)); max-height: calc(100vh - 24px - var(--decalage-onglets)); overflow: auto; min-width: 0; padding: 12px; border-radius: var(--rayon-carte); background: var(--paper-card); border: var(--bord-carte); }
+.dc-resume { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.dc-a-verifier { color: var(--pret); }
+.dc-liste { display: flex; flex-direction: column; gap: 4px; }
+.dc-piece { display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 6px; align-items: center; padding: 0 0 0 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); }
+.dc-piece.actif { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.dc-piece.dc-exclue { opacity: 0.55; }
+.dc-piece-corps { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 8px 6px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.dc-piece-texte, .dc-detail-titre { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.dc-piece-nom { font-size: var(--texte-m); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-piece-sous { font-size: var(--texte-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-piece-icone { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 28px; height: 28px; border-radius: var(--rayon-s); background: var(--paper-sunk); color: var(--muted); }
+.dc-piece-icone.dc-sorte-compromis { color: var(--acte); }
+.dc-piece-icone.dc-sorte-diagnostic, .dc-piece-icone.dc-sorte-diagnostics { color: var(--ventebien); }
+.dc-piece-etat { flex: 0 0 auto; font-size: var(--texte-xs); }
+.dc-piece-etat.dc-rangee { color: var(--success); }
+.dc-piece-etat.dc-verifier { padding: 1px 6px; border-radius: var(--rayon-pilule); background: var(--pret-bg); color: var(--pret); font-weight: 600; }
+.dc-detail { display: flex; flex-direction: column; gap: 12px; }
+.dc-detail-tete { display: flex; align-items: center; gap: 8px; }
+.dc-detail-tete input.dc-detail-nom { font-size: var(--texte-l); font-weight: 500; }
+.dc-detail-champs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.dc-champ { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--texte-xs); color: var(--muted); }
+.dc-champ input.dc-pages { font-variant-numeric: tabular-nums; }
+.dc-grande { display: flex; flex-direction: column; gap: 6px; }
+.dc-grande-barre { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.dc-grande-numero { font-size: var(--texte-s); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dc-grande-gestes { display: inline-flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.dc-grande-page { display: flex; justify-content: center; padding: 8px; border-radius: var(--rayon-m); background: var(--paper-sunk); }
+.dc-image-grande { display: block; width: auto; max-width: 100%; height: calc(100vh - 360px - var(--decalage-onglets)); min-height: 360px; aspect-ratio: 210 / 297; object-fit: contain; background: var(--blanc-fixe); box-shadow: var(--shadow-card); }
+.dc-vignettes { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.dc-vignette { display: flex; flex-direction: column; gap: 2px; flex: 0 0 72px; }
+.dc-vignette-image { padding: 0; border: 2px solid transparent; border-radius: var(--rayon-s); background: var(--paper-sunk); cursor: pointer; }
+.dc-vignette.actif .dc-vignette-image { border-color: var(--focus); }
+.dc-image { display: block; width: 100%; aspect-ratio: 210 / 297; object-fit: contain; background: var(--blanc-fixe); border-radius: var(--rayon-xs); }
+.dc-image-erreur { background: var(--paper-sunk); }
+.dc-hors .dc-image, .dc-grande-page.dc-hors .dc-image-grande { opacity: 0.4; }
+.dc-vignette-pied { display: flex; align-items: center; justify-content: space-between; font-size: var(--texte-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dc-vignette-geste { display: inline-flex; padding: 2px; border: 0; border-radius: var(--rayon-xs); background: none; color: var(--muted); cursor: pointer; }
+.dc-vignette-geste:hover { background: var(--paper-sunk); color: var(--ink); }
+@media (max-width: 1000px) { .dc-mise-en-page { grid-template-columns: minmax(0, 1fr); } .dc-droite { position: static; max-height: none; } }
 
 /* GIF des discussions (étude 30/10, client/150-gif.js) */
 .selecteur-gif { position: fixed; z-index: 60; width: min(360px, calc(100vw - 16px)); display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); box-shadow: var(--shadow-float); color: var(--ink); }

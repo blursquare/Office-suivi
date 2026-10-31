@@ -23501,3 +23501,19 @@ Nouvelle écriture sur le NAS : `POST /api/nas/deposer-annexe` (PDF, 40 Mo de JS
 dossier » ou après la carte « Autoriser » de l'outil `decouper_compromis` de l'agent (`titre_piece` : le nom choisi par CLAIRE reste
 lisible, un nom de client tapé dans le nom est masqué comme tout résultat d'outil). Ajoutée à `PERMIS_ECRITURE` du poste de CLAIRE.
 Point terrain `decoupage-compromis`. Non vérifié au bureau : vrai NAS, noms réels des rubriques, autres logiciels d'agence.
+
+### 31/10/2026 — 0.411.1 : Découper le compromis, aperçu et corrections
+
+Étude : « Revoir pour une présentation plus visuelle avec l'aperçu à droite du PDF. Comment faire s'il y a une erreur ? »
+- Écran en deux colonnes (`client/152-decoupage-compromis.js`, `dcDetailPiece`) : pièces à gauche (icône par sorte, pages, rubrique,
+  « À vérifier » pour une annexe non reconnue, coche verte une fois rangée), à droite la pièce choisie : nom, pages, rubrique, bande
+  des vignettes (`vignettesPieceDecoupage` : ses pages, plus la page d'avant et celle d'après grisées), la page en grand.
+- Images dessinées par pdf.js à la demande (`dcImagePage`, rendu `print`, gardées par page et par taille, document fermé au
+  changement de dossier, `dcFermerApercu`).
+- Corrections avant rangement : + / × sur une vignette (`basculerPageDecoupage`, jamais une pièce vide), « Couper ici »
+  (`scinderPagesDecoupage` : la suite devient une pièce ajoutée — un diagnostic coupé reste un diagnostic, dans le PDF de tous les
+  diagnostics), « Ajouter une pièce » (annexe non repérée, à partir de la page affichée), retrait d'une pièce ajoutée seulement.
+- Après rangement : ce sont des copies ; une pièce mal nommée ou mal placée se renomme ou se déplace dans « Dossier NAS » de la
+  fiche ; une pièce corrigée puis rangée de nouveau arrive en « Nom (2) ».
+- Agent : `decouper_compromis` prend `corrections` (pages, rubrique, ranger, couper_a) — mêmes gestes, rien sur le NAS.
+- Essayé dans Chromium sur un vrai compromis de 251 pages (hors dépôt) : 16 pièces, gestes, thème sombre, téléphone sans débordement.

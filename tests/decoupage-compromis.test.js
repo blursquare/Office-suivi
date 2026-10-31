@@ -171,3 +171,17 @@ test('relecture 0.411.0 : DDT au libellé inconnu redécoupé ; motifs larges re
   dpe.pages = [17];
   assert.equal(app.saisieDepuisPagesDecoupage(app.pagesTousDiagnostics(r.pieces)), '13-17, 19, 21-23, 25');
 });
+
+test('31/10 : corrections de l’aperçu — page ajoutée ou retirée, coupe en deux, vignettes encadrées', () => {
+  assert.equal(app.basculerPageDecoupage([5, 6, 7], 8).join(','), '5,6,7,8');
+  assert.equal(app.basculerPageDecoupage([5, 6, 7], 4).join(','), '4,5,6,7');
+  assert.equal(app.basculerPageDecoupage([5, 6, 7], 6).join(','), '5,7');
+  assert.equal(app.basculerPageDecoupage([5], 5).join(','), '5', 'une pièce garde au moins une page');
+  const coupe = app.scinderPagesDecoupage([12, 13, 14, 15, 16], 14);
+  assert.equal(coupe.map(x => x.join('-')).join('|'), '12-13|14-15-16');
+  assert.equal(app.scinderPagesDecoupage([12, 13, 14], 12), null, 'pas de coupe sur la première page');
+  assert.equal(app.scinderPagesDecoupage([12, 13, 14], 20), null, 'pas de coupe hors de la pièce');
+  const v = app.vignettesPieceDecoupage([8, 9, 10], 20);
+  assert.equal(v.map(x => `${x.page}${x.dedans ? '' : '*'}`).join(','), '7*,8,9,10,11*');
+  assert.equal(app.vignettesPieceDecoupage([1, 2], 2).map(x => x.page).join(','), '1,2', 'ni page 0 ni page au-delà du document');
+});
