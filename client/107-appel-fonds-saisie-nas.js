@@ -148,12 +148,39 @@ var AF_POINTS_RECAP = [
 function majRecapManquantsAppelFonds() {
   const liste = document.querySelector('#af-recap-prefill ul.af-recap-manquant');
   if (!liste) return;
+  let reste = 0;
   liste.querySelectorAll('li').forEach(li => {
     const point = AF_POINTS_RECAP.find(x => x.motif.test(li.textContent || ''));
     let fait = false;
     try { fait = !!(point && point.fait()); } catch (e) { fait = false; }
     li.classList.toggle('af-recap-fait', fait);
+    if (!fait) reste++;
   });
+  const bloc = liste.closest('.af-recap-bloc');
+  const nb = bloc && bloc.querySelector('.af-recap-nb');
+  if (nb) nb.textContent = reste ? String(reste) : 'fait';
+  if (bloc) bloc.classList.toggle('af-recap-regle', !reste);
+}
+
+// « Repris du dossier » / « À compléter vous-même » (étude 31/10 : « prend trop de place et jamais lu ») : une ligne repliée avec le
+// nombre de points, la liste au clic.
+function blocRecapAppelFonds(titre, items, cls) {
+  if (!items.length) return '';
+  return `<details class="af-recap-bloc${cls ? ' ' + cls : ''}"><summary class="af-recap-titre">${titre} <span class="af-recap-nb">${items.length}</span></summary>`
+    + `<ul class="${cls}">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></details>`;
+}
+
+function ajouterRecapAppelFonds(texte) {
+  const recap = afEl('af-recap-prefill');
+  if (!recap) return;
+  let liste = recap.querySelector('.af-recap-bloc ul:not(.af-recap-manquant)');
+  if (!liste) {
+    recap.insertAdjacentHTML('afterbegin', blocRecapAppelFonds('Repris du dossier', [texte], ''));
+    return;
+  }
+  liste.insertAdjacentHTML('beforeend', `<li>${escapeHtml(texte)}</li>`);
+  const nb = liste.closest('.af-recap-bloc').querySelector('.af-recap-nb');
+  if (nb) nb.textContent = String(liste.children.length);
 }
 
 // Nom de famille d'un client pour « Monsieur et Madame NOM » : la suite de mots en capitales du nom (« Paul DUPONT » et

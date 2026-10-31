@@ -1625,10 +1625,7 @@
 
     const recap = afEl('af-recap-prefill');
     if (recap) {
-      const bloc = (titre, items, cls) => items.length
-        ? `<div class="af-recap-bloc"><div class="af-recap-titre">${titre}</div><ul class="${cls}">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul></div>`
-        : '';
-      recap.innerHTML = bloc('Repris du dossier', p.repris, '') + bloc('À compléter vous-même', p.aCompleter, 'af-recap-manquant');
+      recap.innerHTML = blocRecapAppelFonds('Repris du dossier', p.repris, '') + blocRecapAppelFonds('À compléter vous-même', p.aCompleter, 'af-recap-manquant');
       recap.className = 'af-recap af-recap-visible';
       majRecapManquantsAppelFonds();
     }
@@ -2547,17 +2544,6 @@
     if (!r.ok) throw new Error(`Lecture impossible (${r.status})`);
     return new File([await r.blob()], nom || 'piece.pdf', { type: 'application/pdf' });
   }
-  function ajouterRecapAppelFonds(texte) {
-    const recap = afEl('af-recap-prefill');
-    if (!recap) return;
-    let liste = recap.querySelector('.af-recap-bloc ul:not(.af-recap-manquant)');
-    if (!liste) {
-      recap.insertAdjacentHTML('afterbegin', '<div class="af-recap-bloc"><div class="af-recap-titre">Repris du dossier</div><ul></ul></div>');
-      liste = recap.querySelector('.af-recap-bloc ul');
-    }
-    liste.insertAdjacentHTML('beforeend', `<li>${escapeHtml(texte)}</li>`);
-  }
-
   async function reprendrePiecesNasAppelFonds(d) {
     if (!d || !d.dossierLie || !d.nasDossier || !nasDisponible() || typeof pdfjsLib === 'undefined') return;
     const jeton = ++afRecherchePiecesNas;

@@ -780,8 +780,7 @@
     const recap = document.getElementById('qt-recap-prefill');
     if (recap) {
       recap.className = 'af-recap af-recap-visible';
-      recap.innerHTML = `<div class="af-recap-bloc"><div class="af-recap-titre">Repris du dossier</div><ul>${p.repris.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>
-        <div class="af-recap-bloc af-recap-manquant"><div class="af-recap-titre">À compléter</div><ul>${p.aCompleter.map(x => `<li>${escapeHtml(x)}</li>`).join('')}</ul></div>`;
+      recap.innerHTML = blocRecapAppelFonds('Repris du dossier', p.repris, '') + blocRecapAppelFonds('À compléter', p.aCompleter, 'af-recap-manquant');
     }
     renderQuotites();
   }

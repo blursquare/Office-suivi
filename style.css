@@ -5169,6 +5169,16 @@ input[type="search"].af-historique-recherche { width: 100%; }
   font-size: var(--texte-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--muted); margin-bottom: 4px;
 }
+.af-recap.af-recap-visible { gap: 4px; }
+details.af-recap-bloc > summary.af-recap-titre { display: flex; align-items: center; gap: 6px; margin: 0; padding: 4px 0; cursor: pointer; list-style: none; }
+details.af-recap-bloc > summary.af-recap-titre::-webkit-details-marker { display: none; }
+details.af-recap-bloc > summary.af-recap-titre::before { content: '▸'; font-size: var(--texte-xs); transition: transform 150ms ease; }
+details.af-recap-bloc[open] > summary.af-recap-titre::before { transform: rotate(90deg); }
+details.af-recap-bloc[open] > ul { margin-bottom: 8px; }
+.af-recap-nb { padding: 0 6px; border-radius: var(--rayon-pilule); background: var(--paper-sunk); color: var(--ink-soft); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+details.af-recap-manquant > summary .af-recap-nb { background: color-mix(in srgb, var(--urgent) 14%, transparent); color: var(--urgent); }
+details.af-recap-manquant.af-recap-regle > summary .af-recap-nb { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+@media (prefers-reduced-motion: reduce) { details.af-recap-bloc > summary.af-recap-titre::before { transition: none; } }
 .af-recap ul { margin: 0; padding-left: 16px; }
 .af-recap li { margin-bottom: 2px; }
 .af-recap-manquant { color: color-mix(in srgb, var(--urgent) 88%, var(--ink)); }
