@@ -369,6 +369,13 @@
   // Le zonage lu, une ligne par parcelle (étude 06/10 : « attention à ne pas mettre trop de scroll, pense à un tableau ») :
   // parcelle, zone du document d'urbanisme, zone retenue (modifiable), contenance ; document, informations et prescriptions
   // communes en dessous, les secondes repliées.
+  // Barre de répartition des zones dans la parcelle (U rouge, AU orange, A jaune, N vert), seulement quand elle est à cheval et mesurée.
+  function renderBarreZonesParcelle(parts) {
+    const p = (parts || []).filter(x => x.part != null && x.part > 0);
+    if (p.length < 2) return '';
+    return `<div class="pr-zt-barre" role="img" aria-label="${escapeAttr(p.map(x => `${x.libelle} ${pourcentZone(x.part)}`).join(', '))}">${p.map(x => `<span style="flex:${Math.max(0.02, x.part)};--zone:var(--${couleurZonePlu(x.typezone)})" title="${escapeAttr(`${x.libelle} ${pourcentZone(x.part)}`)}"></span>`).join('')}</div>`;
+  }
+
   function renderTableauZonagePreemption(e, lignes) {
     if (!lignes.length) return '';
     const lus = zonagesLusPreemption(e);
@@ -380,7 +387,7 @@
         <td class="pr-zt-parcelle">${escapeHtml(l.libelle)}</td>
         <td class="pr-zt-zone">${l.statut === 'lecture' ? `<span class="hint">${icone('spinner')} Lecture…</span>`
           : l.statut === 'erreur' ? `<span class="pr-zt-erreur" title="${escapeAttr(l.erreur)}">${icone('alert-triangle')} ${escapeHtml(l.erreur)}</span>`
-          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}${(l.autresZones || []).length ? `<div class="pr-zt-aussi"><span class="dot-label dl-pret"><span class="dot"></span>Touche aussi</span> ${l.autresZones.map(z => `<strong>${escapeHtml(z.libelle)}</strong>${z.famille ? ` (${escapeHtml(z.famille)})` : ''}`).join(', ')}</div>` : ''}` : '<span class="hint">aucune zone lue</span>'}</td>
+          : l.zone ? `<strong>${escapeHtml(l.zone)}</strong>${(l.parts || []).length > 1 && l.parts[0].part != null ? ` <span class="pr-zt-part">${escapeHtml(pourcentZone(l.parts[0].part))}</span>` : ''}${l.libelong ? ` <span class="pr-zt-long" title="${escapeAttr(l.libelong)}">${escapeHtml(l.libelong)}</span>` : ''}${(l.autresZones || []).length ? `<div class="pr-zt-aussi"><span class="dot-label dl-pret"><span class="dot"></span>Touche aussi</span> ${l.autresZones.map(z => { const p = (l.parts || []).find(x => x.libelle === z.libelle); return `<strong>${escapeHtml(z.libelle)}</strong>${p && p.part != null ? ` <span class="pr-zt-part">${escapeHtml(pourcentZone(p.part))}</span>` : ''}${z.famille ? ` (${escapeHtml(z.famille)})` : ''}`; }).join(', ')}</div>` : ''}${renderBarreZonesParcelle(l.parts)}` : '<span class="hint">aucune zone lue</span>'}</td>
         <td class="pr-zt-retenue"><select aria-label="Zone retenue pour ${escapeAttr(l.libelle)}" onchange="choisirZoneParcellePreemption('${escapeOnclickArg(l.cle)}', this.value)">
           <option value="">${l.lue ? escapeHtml(l.lue) + ' (lue)' : 'Inconnue'}</option>
           ${ZONES_PREEMPTION.map(z => `<option value="${z.cle}"${l.choisie && l.famille === z.cle ? ' selected' : ''}>${escapeHtml(z.libelle)}</option>`).join('')}
@@ -392,7 +399,7 @@
     const natures = new Map();
     (((dossier && dossier.bien && dossier.bien.cadastre && dossier.bien.cadastre.parcelles) || [])).forEach(p => { if (p && p.nature) natures.set(cleParcelle(p.section, p.numero), p.nature); });
     const cartes = renderParcellesZonage(lignes.filter(l => l.statut !== 'lecture').map(l => ({ parcelle: l.libelle, cle: l.cle, code: l.zone || '', famille: l.choisie ? l.famille : (l.typezone || l.famille || ''),
-      libelong: l.libelong || '', contenance: l.contenance || 0, zone: (l.autresZones || []).length && !l.choisie ? `+ en partie ${l.autresZones.map(z => z.libelle).join(', ')}` : '' })), natures);
+      libelong: l.libelong || '', contenance: l.contenance || 0, zone: (l.autresZones || []).length && !l.choisie ? `+ en partie ${l.autresZones.map(z => { const p = (l.parts || []).find(x => x.libelle === z.libelle); return p && p.part != null ? `${z.libelle} (${pourcentZone(p.part)})` : z.libelle; }).join(', ')}` : '' })), natures);
     return `<div class="pr-zonage">${cartes}
         <div class="pr-zt-cadre"><table class="pr-zt">
           <thead><tr><th>Parcelle</th><th>Zone lue</th><th>Zone retenue</th><th class="pr-zt-surface">Contenance</th></tr></thead>

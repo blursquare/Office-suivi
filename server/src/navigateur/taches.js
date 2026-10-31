@@ -27,7 +27,10 @@ function creerGestionnaireTaches(o) {
   const taches = new Map();
   let file = Promise.resolve();
   const inj = o.injections || {};
-  const profil = path.join(path.dirname(o.cheminDb || '.'), 'navigateur');
+  // Profil à côté de la base ; base en mémoire (tests, captures) : dossier temporaire du système — jamais le dossier de lancement
+  // (audit 0.416.0 : un profil Chrome entier avait été créé, puis commité, à la racine du dépôt).
+  const surDisque = o.cheminDb && o.cheminDb !== ':memory:';
+  const profil = surDisque ? path.join(path.dirname(o.cheminDb), 'navigateur') : path.join(require('node:os').tmpdir(), 'claire-navigateur-essai');
 
   // Le mot de passe Géofoncier saisi pendant la 0.229.0 ne reste pas en base.
   try { const ancien = o.parametresRepo.lireJsonBrut(CLE_ANCIENS_REGLAGES, null); if (ancien && Object.keys(ancien).length) o.parametresRepo.ecrireJsonBrut(CLE_ANCIENS_REGLAGES, {}); } catch (_) { /* base sans la clé */ }

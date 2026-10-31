@@ -18,3 +18,7 @@ banc-essai/
 # Fichiers de vérification jetables (captures Playwright, scripts de bac à sable)
 scratchpad/
 dist-essai/
+
+# Profil du navigateur de CLAIRE créé par un essai lancé depuis la racine (jamais commité — audit 0.416.0).
+/navigateur/
+/undefined/

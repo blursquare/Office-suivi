@@ -28,24 +28,58 @@ const COUCHES_TUILES = {
 // Une image transparente de 1 × 1 : rendue quand l'IGN ne répond pas (la carte reste propre, sans image cassée).
 const PNG_VIDE = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 
-/** @type {Map<string, { le: number, valeur: any }>} */
-const cache = new Map();
-/** @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire */
-async function enCache(cle, dureeMs, max, lire) {
+// Caches SÉPARÉS par sorte (audit 0.416.0 : un seul Map dont chaque plafond purgeait les autres sortes) ; une demande déjà en cours est
+// réunie avec la suivante ; au plus 8 requêtes simultanées vers les services de l'IGN et d'Etalab.
+/** @type {Record<string, Map<string, { le: number, valeur: any }>>} */
+const caches = { p: new Map(), z: new Map(), dvf: new Map() };
+/** @type {Map<string, Promise<any>>} */
+const enCours = new Map();
+/** @param {'p'|'z'|'dvf'} sorte @param {string} cle @param {number} dureeMs @param {number} max @param {() => Promise<any>} lire @param {(v: any) => boolean} [garder] */
+async function enCache(sorte, cle, dureeMs, max, lire, garder) {
+  const cache = caches[sorte];
   const c = cache.get(cle);
   if (c && Date.now() - c.le < dureeMs) { cache.delete(cle); cache.set(cle, c); return c.valeur; }
-  const valeur = await lire();
-  cache.set(cle, { le: Date.now(), valeur });
-  while (cache.size > max) cache.delete(/** @type {string} */ (cache.keys().next().value));
-  return valeur;
+  const k = sorte + ':' + cle;
+  const deja = enCours.get(k);
+  if (deja) return deja;
+  const p = lire().then((valeur) => {
+    if (!garder || garder(valeur)) {
+      cache.set(cle, { le: Date.now(), valeur });
+      while (cache.size > max) cache.delete(/** @type {string} */ (cache.keys().next().value));
+    }
+    return valeur;
+  }).finally(() => enCours.delete(k));
+  enCours.set(k, p);
+  return p;
 }
+
+const SIMULTANES_MAX = 8;
+let actifs = 0;
+/** @type {Array<() => void>} */
+const attente = [];
+/** @template T @param {() => Promise<T>} fn @returns {Promise<T>} */
+async function borne(fn) {
+  if (actifs >= SIMULTANES_MAX) await new Promise((ok) => attente.push(/** @type {() => void} */ (ok)));
+  actifs++;
+  try { return await fn(); } finally { actifs--; const suivant = attente.shift(); if (suivant) suivant(); }
+}
+
+// Tuiles : cache borné en OCTETS (60 Mo), le plus ancien lu sort d'abord ; délai court et coupe-circuit — l'IGN lent ou injoignable
+// ne doit pas occuper les connexions du poste vers CLAIRE (audit 0.416.0).
+const OCTETS_TUILES_MAX = 60 * 1024 * 1024;
+const DELAI_TUILE_MS = 5000;
+/** @type {Map<string, { type: string, octets: Buffer }>} */
+const tuiles = new Map();
+let octetsTuiles = 0;
+let echecsTuiles = 0;
+let tuilesCoupeesJusqua = 0;
 
 /** @param {any} injections */
 function fetchDe(injections) { return (injections && injections.fetch) || fetch; }
 
 /** @param {string} url @param {any} injections */
 async function lireJson(url, injections) {
-  const r = await fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Accept: 'application/json' } });
+  const r = await borne(() => fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS), headers: { Accept: 'application/json' } }));
   if (!r.ok) {
     const e = new Error(`réponse ${r.status}`);
     /** @type {any} */ (e).statut = r.status;
@@ -71,21 +105,44 @@ async function tuileIgn(couche, z, x, y, injections) {
   const t = tuileValide(couche, z, x, y);
   if (!t) return null;
   const c = COUCHES_TUILES[t.couche];
-  const cle = `t:${t.couche}:${t.z}:${t.x}:${t.y}`;
-  const deja = cache.get(cle);
-  if (deja) return deja.valeur;
+  const cle = `${t.couche}:${t.z}:${t.x}:${t.y}`;
+  const deja = tuiles.get(cle);
+  if (deja) { tuiles.delete(cle); tuiles.set(cle, deja); return deja; }
+  const vide = { type: 'image/png', octets: PNG_VIDE, vide: true };
+  if (Date.now() < tuilesCoupeesJusqua) return vide;
   const url = `${GEOPF}/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${c.layer}&STYLE=normal&FORMAT=${encodeURIComponent(c.format)}`
     + `&TILEMATRIXSET=PM&TILEMATRIX=${t.z}&TILEROW=${t.y}&TILECOL=${t.x}`;
-  try {
-    const r = await fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_MS) });
-    if (!r.ok) return { type: 'image/png', octets: PNG_VIDE, vide: true };
-    const valeur = { type: c.format, octets: Buffer.from(await r.arrayBuffer()) };
-    cache.set(cle, { le: Date.now(), valeur });
-    while (cache.size > 3000) cache.delete(/** @type {string} */ (cache.keys().next().value));
-    return valeur;
-  } catch (_) {
-    return { type: 'image/png', octets: PNG_VIDE, vide: true };
-  }
+  const k = 't:' + cle;
+  if (enCours.has(k)) return enCours.get(k);
+  const p = (async () => {
+    try {
+      const r = await borne(() => fetchDe(injections)(url, { signal: AbortSignal.timeout(DELAI_TUILE_MS) }));
+      if (!r.ok) { echecTuile(r.status >= 500); return vide; }
+      const octets = Buffer.from(await r.arrayBuffer());
+      if (octets.length > 2 * 1024 * 1024) return vide;
+      echecsTuiles = 0;
+      const valeur = { type: c.format, octets };
+      tuiles.set(cle, valeur);
+      octetsTuiles += octets.length;
+      while (octetsTuiles > OCTETS_TUILES_MAX && tuiles.size) {
+        const plusAncienne = /** @type {string} */ (tuiles.keys().next().value);
+        octetsTuiles -= /** @type {any} */ (tuiles.get(plusAncienne)).octets.length;
+        tuiles.delete(plusAncienne);
+      }
+      return valeur;
+    } catch (_) {
+      echecTuile(true);
+      return vide;
+    }
+  })().finally(() => enCours.delete(k));
+  enCours.set(k, p);
+  return p;
+}
+
+/** Dix échecs de suite (réseau, délai, erreur du service) : plus aucune tuile demandée pendant une minute. @param {boolean} compte */
+function echecTuile(compte) {
+  if (!compte) return;
+  if (++echecsTuiles >= 10) { tuilesCoupeesJusqua = Date.now() + 60000; echecsTuiles = 0; }
 }
 
 /** Pure : un point en France (métropole et outre-mer larges) ? @param {unknown} lon @param {unknown} lat */
@@ -131,16 +188,16 @@ function alignementDepuisSup(...reponses) {
   return liste.slice(0, 5);
 }
 
-/** Ce qu'il y a sous un point cliqué : la parcelle (identifiant, section, numéro, contenance, contour), sa zone du PLU, le numéro de voie
- * le plus proche (BAN) et l'alignement. Chaque source manquante est dite « non lue », jamais devinée. @param {unknown} lon @param {unknown} lat @param {any} [injections] */
+/** Ce qu'il y a sous un point cliqué : la parcelle (identifiant, section, numéro, contenance, contour), ses zones du PLU avec la part de
+ * chacune (étude 31/10 : « comme le Géoportail, les pourcentages en zone A ou U »), le numéro de voie le plus proche (BAN) et l'alignement.
+ * Chaque source manquante est dite « non lue », jamais devinée. @param {unknown} lon @param {unknown} lat @param {any} [injections] */
 async function pointCarte(lon, lat, injections) {
   const p = pointValide(lon, lat);
   if (!p) return { erreur: 'Point hors de France.' };
   const geom = encodeURIComponent(JSON.stringify({ type: 'Point', coordinates: [p.lon, p.lat] }));
-  return enCache(`p:${p.lon}:${p.lat}`, 3600 * 1000, 400, async () => {
-    const [cad, zone, adresse] = await Promise.allSettled([
+  return enCache('p', `${p.lon}:${p.lat}`, 3600 * 1000, 400, async () => {
+    const [cad, adresse] = await Promise.allSettled([
       lireJson(`${APICARTO}/cadastre/parcelle?geom=${geom}`, injections),
-      lireJson(`${APICARTO}/gpu/zone-urba?geom=${geom}`, injections),
       lireJson(`${GEOPF}/geocodage/reverse?lon=${p.lon}&lat=${p.lat}&limit=1&index=address`, injections)
     ]);
     const f = cad.status === 'fulfilled' && cad.value && Array.isArray(cad.value.features) ? cad.value.features[0] : null;
@@ -150,24 +207,47 @@ async function pointCarte(lon, lat, injections) {
       section: String(pp.section || '').replace(/^0(?=[A-Z])/, ''), numero: String(Number(pp.numero) || pp.numero || ''),
       contenance: Number(pp.contenance) || null, geometry: f.geometry || null
     } : null;
-    const z = zone.status === 'fulfilled' && zone.value && Array.isArray(zone.value.features) ? zone.value.features[0] : null;
-    let alignement = null;
-    if (parcelle && parcelle.geometry) {
-      const g = encodeURIComponent(JSON.stringify(parcelle.geometry));
-      const sup = await Promise.allSettled([lireJson(`${APICARTO}/gpu/assiette-sup-l?geom=${g}`, injections), lireJson(`${APICARTO}/gpu/assiette-sup-s?geom=${g}`, injections)]);
-      alignement = sup.every((s) => s.status === 'rejected') ? null : alignementDepuisSup(...sup.map((s) => s.status === 'fulfilled' ? s.value : null));
+    // Zones : celles qui touchent la parcelle (une seule lecture, qui donne aussi la part de chacune) ; sans parcelle, la zone sous le point.
+    // Servitudes et zones lues ensemble (audit 0.416.0 : l'une après l'autre, la latence s'additionnait).
+    const g = parcelle && parcelle.geometry ? encodeURIComponent(JSON.stringify(parcelle.geometry)) : '';
+    const [zonesLues, supL, supS] = await Promise.allSettled([
+      parcelle && parcelle.geometry ? require('./urbanisme').zonesAvecGeometrie(parcelle.geometry, injections) : lireJson(`${APICARTO}/gpu/zone-urba?geom=${geom}`, injections),
+      g ? lireJson(`${APICARTO}/gpu/assiette-sup-l?geom=${g}`, injections) : Promise.reject(new Error('sans parcelle')),
+      g ? lireJson(`${APICARTO}/gpu/assiette-sup-s?geom=${g}`, injections) : Promise.reject(new Error('sans parcelle'))
+    ]);
+    let zones = null;
+    let zone = null;
+    if (zonesLues.status === 'fulfilled') {
+      if (parcelle && parcelle.geometry) {
+        const touchees = /** @type {any[]} */ (zonesLues.value);
+        zones = [];
+        if (touchees.length) {
+          try {
+            const rep = require('./planAerien').repartitionZonage(parcelle.geometry, touchees);
+            zones = rep.surface > 0 ? rep.zones.filter((z) => z.part >= 0.01).map((z) => ({ libelle: z.libelle, libelong: z.libelong, typezone: z.typezone, part: Math.round(z.part * 1000) / 1000 })) : [];
+          } catch (_) { zones = touchees.map((z) => ({ libelle: z.libelle, libelong: z.libelong, typezone: z.typezone, part: null })); }
+          if (!zones.length) zones = touchees.slice(0, 1).map((z) => ({ libelle: z.libelle, libelong: z.libelong, typezone: z.typezone, part: null }));
+        }
+        zone = zones[0] ? { libelle: zones[0].libelle, libelong: zones[0].libelong, typezone: zones[0].typezone } : null;
+      } else {
+        const z = zonesLues.value && Array.isArray(zonesLues.value.features) ? zonesLues.value.features[0] : null;
+        zone = z && z.properties ? { libelle: String(z.properties.libelle || ''), libelong: String(z.properties.libelong || ''), typezone: String(z.properties.typezone || '') } : null;
+      }
     }
+    const alignement = !g || (supL.status === 'rejected' && supS.status === 'rejected') ? null
+      : alignementDepuisSup(supL.status === 'fulfilled' ? supL.value : null, supS.status === 'fulfilled' ? supS.value : null);
     return {
       point: p,
       parcelle,
       cadastreLu: cad.status === 'fulfilled',
-      zone: z && z.properties ? { libelle: String(z.properties.libelle || ''), libelong: String(z.properties.libelong || ''), typezone: String(z.properties.typezone || '') } : null,
-      zoneLue: zone.status === 'fulfilled',
+      zone,
+      zones,
+      zoneLue: zonesLues.status === 'fulfilled',
       adresse: adresse.status === 'fulfilled' ? adresseDepuisReverse(adresse.value) : null,
       adresseLue: adresse.status === 'fulfilled',
       alignement
     };
-  });
+  }, (v) => v.cadastreLu || v.zoneLue || v.adresseLue);
 }
 
 /** Zones du PLU dans l'emprise affichée (contour, libellé, type). @param {unknown} emprise @param {any} [injections] */
@@ -176,7 +256,7 @@ async function zonesCarte(emprise, injections) {
   if (!e) return { erreur: 'Emprise trop grande : rapprochez-vous pour voir les zones.' };
   const [o, s, est, n] = e;
   const geom = encodeURIComponent(JSON.stringify({ type: 'Polygon', coordinates: [[[o, s], [est, s], [est, n], [o, n], [o, s]]] }));
-  return enCache(`z:${e.join(',')}`, 600 * 1000, 60, async () => {
+  return enCache('z', e.join(','), 3600 * 1000, 200, async () => {
     const r = await lireJson(`${APICARTO}/gpu/zone-urba?geom=${geom}`, injections);
     const zones = (r && Array.isArray(r.features) ? r.features : []).filter((f) => f && f.geometry).slice(0, 300).map((f) => ({
       type: 'Feature', geometry: f.geometry,
@@ -234,9 +314,9 @@ async function ventesSection(insee, section, prefixe, injections) {
   const code = String(insee || '').trim().toUpperCase();
   const sec = sectionDvf(section, prefixe);
   if (!/^\d[0-9AB]\d{3}$/.test(code) || !sec) return { erreur: 'Commune ou section inconnue.' };
-  return enCache(`dvf:${code}:${sec}`, 24 * 3600 * 1000, 80, async () => ({ insee: code, section: sec, ventes: ventesDepuisDvf(await lireJson(`${DVF}/${code}/${sec}`, injections)) }));
+  return enCache('dvf', `${code}:${sec}`, 24 * 3600 * 1000, 80, async () => ({ insee: code, section: sec, ventes: ventesDepuisDvf(await lireJson(`${DVF}/${code}/${sec}`, injections)) }));
 }
 
-function viderCacheCarte() { cache.clear(); }
+function viderCacheCarte() { Object.values(caches).forEach((c) => c.clear()); tuiles.clear(); octetsTuiles = 0; echecsTuiles = 0; tuilesCoupeesJusqua = 0; enCours.clear(); }
 
 module.exports = { COUCHES_TUILES, tuileValide, tuileIgn, pointValide, empriseValide, adresseDepuisReverse, alignementDepuisSup, pointCarte, zonesCarte, sectionDvf, ventesDepuisDvf, ventesSection, viderCacheCarte };

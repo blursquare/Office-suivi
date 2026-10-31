@@ -1194,6 +1194,27 @@ test('31/10 : controle_urbanisme — étapes de l’outil pour l’agent ; rien 
   assert.match(envoye, /achevementMoins4ans/);
 });
 
+test('31/10 : controle_urbanisme parcelles et ventes (carte) — rien de nominatif ne part, zones, parts et prix partent', async () => {
+  const outilU = OUTILS_AGENT.find((t) => t.name === 'controle_urbanisme');
+  assert.ok(outilU.input_schema.properties.action.enum.includes('parcelles') && outilU.input_schema.properties.action.enum.includes('ventes'));
+  assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /parcelles et les ventes|ventes DVF/);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('p1', 'controle_urbanisme', { dossier_id: 'd1', action: 'parcelles' }), outil('v1', 'controle_urbanisme', { dossier_id: 'd1', action: 'ventes' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Quelles ventes près du bien du dossier Fournier ?', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'p1', contenu: { parcelles: [{ parcelle: 'AB 12', commune: 'Vineuil', contenance: '6 a 40 ca', zone_plu: 'UA1 93 % (zone urbaine) ; A 7 % (zone agricole)',
+      adresse_la_plus_proche: '3 rue des Lilas 41350 Vineuil (à 12 m) — chez Paul FOURNIER', alignement: 'aucun plan d’alignement publié au Géoportail' }] } },
+    { id: 'v1', contenu: { sections: ['AB'], ventes: [{ date: '2025-06-27', prix: '87.000,00 €', quoi: 'Maison 80 m² 4 p.', adresse: 'RUE DES LILAS FOURNIER', parcelles: ['AB 14'] }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /UA1 93 %/);
+  assert.match(envoye, /87\.000,00/);
+});
+
 test('31/10 : outil_boutons — les libellés de boutons partent masqués comme tout résultat d’outil', async () => {
   assert.ok(OUTILS_AGENT.some((t) => t.name === 'outil_boutons'));
   assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /outil_boutons/);

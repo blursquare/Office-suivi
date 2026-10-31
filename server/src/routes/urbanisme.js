@@ -69,10 +69,13 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
 
   // Carte du Contrôle de l'urbanisme (étude 31/10, carteUrbanisme.js) : tuiles de l'IGN, point cliqué, zones du PLU, ventes DVF.
   // Ne partent que des coordonnées, un numéro de tuile, un code INSEE et une section.
+  const tuilesNotees = new Set();
   routeur.get('/urbanisme/tuile/:couche/:z/:x/:y', async (req, res) => {
     const t = await carte.tuileIgn(req.params.couche, Number(req.params.z), Number(req.params.x), Number(req.params.y), injections);
     if (!t) return res.status(404).end();
-    if (!t.vide) noterVerification(parametresRepo, 'carte-urbanisme-tuiles', { detail: req.params.couche });
+    // Une fois par couche et par démarrage (audit 0.416.0 : une lecture de la base à chaque tuile).
+    if (!t.vide && !tuilesNotees.has(req.params.couche)) { tuilesNotees.add(req.params.couche); noterVerification(parametresRepo, 'carte-urbanisme-tuiles', { detail: req.params.couche }); }
+    if (t.vide) res.set('X-Claire-Vide', '1');
     res.set('Content-Type', t.type).set('Cache-Control', t.vide ? 'no-store' : 'private, max-age=604800').send(t.octets);
   });
 
@@ -80,7 +83,9 @@ function creerRouteurUrbanisme(parametresRepo, injections = {}) {
     try {
       const p = await carte.pointCarte(req.query.lon, req.query.lat, injections);
       if (p.erreur) return res.status(400).json(p);
-      noterVerification(parametresRepo, 'carte-urbanisme-point', { detail: p.parcelle ? 'parcelle lue' : 'aucune parcelle' });
+      // Coché au premier clic qui trouve une parcelle ; un cadastre injoignable est un échec (relecture 0.416.0).
+      if (p.cadastreLu && p.parcelle) noterVerification(parametresRepo, 'carte-urbanisme-point', { detail: 'parcelle lue' });
+      else if (!p.cadastreLu) noterVerification(parametresRepo, 'carte-urbanisme-point', { ok: false, message: 'cadastre injoignable' });
       res.json(p);
     } catch (e) { injoignable(res, e); }
   });

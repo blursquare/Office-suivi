@@ -10,7 +10,7 @@
 // Les DMPC et le nom du géomètre-expert sont sur Géofoncier (données des géomètres, non ouvertes) : un lien l'ouvre centré sur la parcelle.
 
 var carteUrb = { map: null, fond: 'plan', couches: { cadastre: true, plu: false, ventes: false }, calques: {}, cleDossier: '', ajustee: '',
-  selection: null, lectureClic: 0, mesure: null, ventes: {}, filtreVentes: 'tout', venteChoisie: '', voirVentes: 30, onglet: 'controle', pluCle: '', pluLecture: 0 };
+  selection: null, lectureClic: 0, mesure: null, ventes: {}, filtreVentes: 'tout', venteChoisie: '', voirVentes: 30, onglet: 'controle', pluCellules: {}, pluVues: new Set(), pluLecture: 0 };
 
 var ONGLETS_COTE_CARTE = [
   { cle: 'controle', libelle: 'Contrôle' }, { cle: 'parcelle', libelle: 'Parcelle' }, { cle: 'ventes', libelle: 'Ventes' },
@@ -167,6 +167,7 @@ function creerCarteUrbanisme(L, zone) {
     plu: L.layerGroup(), ventes: L.layerGroup(), dossier: L.layerGroup(), selection: L.layerGroup(), mesure: L.layerGroup()
   };
   carteUrb.map = map;
+  carteUrb.pluCellules = {}; carteUrb.pluVues = new Set(); carteUrb.pluLecture++;
   carteUrb.ajustee = '';
   carteUrb.cleDossier = '';
   appliquerCouchesCarte();
@@ -199,7 +200,12 @@ function dessinerDossierCarte(L) {
   const vue = prEtat && prEtat.historique && prEtat.historique.vue;
   const cleVue = cle + (vue ? '|vue' : '');
   if (carteUrb.cleDossier === cleVue) return;
-  if (carteUrb.cleDossier.split('|').slice(0, 2).join('|') !== cle) { carteUrb.selection = null; carteUrb.calques.selection.clearLayers(); renderParcelleCarte(); }
+  if (carteUrb.cleDossier.split('|').slice(0, 2).join('|') !== cle) {
+    // Autre dossier (relecture 0.416.0) : sélection, clic en cours et ventes du dossier précédent oubliés.
+    carteUrb.selection = null; carteUrb.lectureClic++; carteUrb.calques.selection.clearLayers();
+    carteUrb.ventes = {}; carteUrb.venteChoisie = ''; carteUrb.voirVentes = 30; carteUrb.calques.ventes.clearLayers();
+    renderParcelleCarte(); renderVentesCarte(); renderOngletsCoteCarte();
+  }
   carteUrb.cleDossier = cleVue;
   const groupe = carteUrb.calques.dossier;
   groupe.clearLayers();
@@ -264,6 +270,7 @@ function basculerCoucheCarte(nom) {
   if (!(nom in carteUrb.couches)) return;
   carteUrb.couches[nom] = !carteUrb.couches[nom];
   if (nom === 'ventes' && carteUrb.couches.ventes) chargerVentesDossierCarte();
+  if (nom === 'plu' && !carteUrb.couches.plu) etatCarte('');   // relecture 0.416.0 : « Rapprochez-vous… » restait affiché
   appliquerCouchesCarte();
   renderBarreCarte();
   if (nom === 'ventes') dessinerVentesCarte();
@@ -279,34 +286,68 @@ function ouvrirGeofoncierCarte() {
 
 // ===== Zones du PLU de l'emprise affichée =====
 
+// Lu par CARREAUX FIXES de 0,01° (≈ 1 km) : un déplacement ne relit que les carreaux nouveaux, le cache du serveur les retrouve, une zone
+// déjà dessinée ne l'est pas deux fois (audit 0.416.0 : chaque déplacement relisait toute l'emprise). Attente de 300 ms après le geste.
+var PAS_CARREAU_PLU = 0.01;
+var minuteurPluCarte = 0;
 function majZonesPluCarte() {
+  clearTimeout(minuteurPluCarte);
+  minuteurPluCarte = setTimeout(lireCarreauxPluCarte, 300);
+}
+
+// Pure : les carreaux (coin sud-ouest « lon,lat » arrondi) qui couvrent une emprise ; [] si elle en demande plus de `max`.
+function carreauxPluCarte(ouest, sud, est, nord, max) {
+  const pas = PAS_CARREAU_PLU;
+  const r = (x) => Math.round(x * 100) / 100;
+  const out = [];
+  for (let x = Math.floor(ouest / pas); x * pas < est; x++) {
+    for (let y = Math.floor(sud / pas); y * pas < nord; y++) {
+      out.push(`${r(x * pas)},${r(y * pas)}`);
+      if (out.length > (max || 12)) return [];
+    }
+  }
+  return out;
+}
+
+function lireCarreauxPluCarte() {
   const map = carteUrb.map; const L = window.L;
   if (!map || !L || !carteUrb.couches.plu) return;
   const b = map.getBounds();
-  const r = (x) => Math.round(x * 1000) / 1000;
-  // Une emprise un peu plus large que l'écran, arrondie : un petit déplacement ne relit rien.
-  const o = r(b.getWest() - 0.002); const s = r(b.getSouth() - 0.002); const e = r(b.getEast() + 0.002); const n = r(b.getNorth() + 0.002);
-  if (e - o > 0.03 || n - s > 0.02) { etatCarte('Rapprochez-vous pour voir les zones du PLU.'); return; }
-  const cle = [o, s, e, n].join(',');
-  if (cle === carteUrb.pluCle) return;
-  carteUrb.pluCle = cle;
-  const tour = ++carteUrb.pluLecture;
+  const carreaux = carreauxPluCarte(b.getWest(), b.getSouth(), b.getEast(), b.getNorth(), 12);
+  if (!carreaux.length) { etatCarte('Rapprochez-vous pour voir les zones du PLU.'); return; }
+  const aLire = carreaux.filter(c => !carteUrb.pluCellules[c]);
+  if (!aLire.length) { etatCarte(carteUrb.pluVues.size ? '' : 'Aucune zone de PLU publiée ici (règlement national d’urbanisme ou carte communale ?).'); return; }
   etatCarte('Zones du PLU : lecture…');
-  fetchAvecAuth(`/api/urbanisme/zones?emprise=${encodeURIComponent(cle)}`).then(async rep => {
-    const j = await rep.json().catch(() => ({}));
-    if (tour !== carteUrb.pluLecture) return;
-    const groupe = carteUrb.calques.plu;
-    groupe.clearLayers();
-    if (!rep.ok) { carteUrb.pluCle = ''; etatCarte(j.erreur || 'Zones du PLU non lues.'); return; }
-    const feats = Array.isArray(j.features) ? j.features : [];
-    if (!feats.length) { etatCarte('Aucune zone de PLU publiée ici (règlement national d’urbanisme ou carte communale ?).'); return; }
-    L.geoJSON({ type: 'FeatureCollection', features: feats }, {
-      interactive: false,
-      style: (f) => { const c = couleurJetonCarte(couleurZonePlu(f.properties.typezone)); return { color: c, weight: 1.5, fillColor: c, fillOpacity: 0.16 }; },
-      onEachFeature: (f, couche) => { if (f.properties.libelle) couche.bindTooltip(escapeHtml(f.properties.libelle), { permanent: true, direction: 'center', className: 'pr-carte-zone' }); }
-    }).addTo(groupe);
-    etatCarte('');
-  }).catch(() => { if (tour === carteUrb.pluLecture) { carteUrb.pluCle = ''; etatCarte('Géoportail de l’urbanisme injoignable.'); } });
+  const tour = carteUrb.pluLecture;
+  let restant = aLire.length;
+  aLire.forEach(c => {
+    carteUrb.pluCellules[c] = 'lecture';
+    const [x, y] = c.split(',').map(Number);
+    const emprise = [x, y, Math.round((x + PAS_CARREAU_PLU) * 100) / 100, Math.round((y + PAS_CARREAU_PLU) * 100) / 100].join(',');
+    fetchAvecAuth(`/api/urbanisme/zones?emprise=${encodeURIComponent(emprise)}`).then(async rep => {
+      const j = await rep.json().catch(() => ({}));
+      if (tour !== carteUrb.pluLecture) return;
+      if (!rep.ok) { delete carteUrb.pluCellules[c]; etatCarte(j.erreur || 'Zones du PLU non lues.'); return; }
+      carteUrb.pluCellules[c] = 'ok';
+      const nouvelles = (Array.isArray(j.features) ? j.features : []).filter(f => {
+        const cle = `${f.properties && f.properties.libelle}|${JSON.stringify(f.geometry && f.geometry.coordinates).slice(0, 120)}`;
+        if (carteUrb.pluVues.has(cle)) return false;
+        carteUrb.pluVues.add(cle);
+        return true;
+      });
+      if (nouvelles.length) L.geoJSON({ type: 'FeatureCollection', features: nouvelles }, {
+        interactive: false,
+        style: (f) => { const col = couleurJetonCarte(couleurZonePlu(f.properties.typezone)); return { color: col, weight: 1.5, fillColor: col, fillOpacity: 0.16 }; },
+        onEachFeature: (f, couche) => { if (f.properties.libelle) couche.bindTooltip(escapeHtml(f.properties.libelle), { permanent: true, direction: 'center', className: 'pr-carte-zone' }); }
+      }).addTo(carteUrb.calques.plu);
+    }).catch(() => { if (tour === carteUrb.pluLecture) { delete carteUrb.pluCellules[c]; etatCarte('Géoportail de l’urbanisme injoignable.'); } })
+      .finally(() => {
+        if (tour !== carteUrb.pluLecture || --restant) return;
+        if (!/injoignable|non lues|Rapprochez/.test((document.getElementById('pr-carte-etat') || {}).textContent || '')) {
+          etatCarte(carteUrb.pluVues.size ? '' : 'Aucune zone de PLU publiée ici (règlement national d’urbanisme ou carte communale ?).');
+        }
+      });
+  });
 }
 
 // ===== Clic sur la carte : la parcelle =====
@@ -327,7 +368,8 @@ function interrogerPointCarte(lat, lon) {
     dessinerSelectionCarte();
     renderParcelleCarte();
     const p = carteUrb.selection.parcelle;
-    if (p && p.insee && p.section) chargerVentesSectionCarte(p.insee, p.section);
+    // Préfixe de commune associée : caractères 6 à 8 de l'identifiant cadastral (« 000 » le plus souvent).
+    if (p && p.insee && p.section) chargerVentesSectionCarte(p.insee, p.section, String(p.idu || '').slice(5, 8));
     return carteUrb.selection;
   }).catch(() => {
     if (tour !== carteUrb.lectureClic) return null;
@@ -355,9 +397,11 @@ function renderParcelleCarte() {
   if (s.erreur) { z.innerHTML = `<p class="pr-erreur">${icone('alert-triangle')} ${escapeHtml(s.erreur)}</p>`; return; }
   const p = s.parcelle;
   const ligne = (titre, valeur, detail) => `<div class="pr-fiche-ligne"><span class="pr-fiche-titre">${escapeHtml(titre)}</span><span class="pr-fiche-valeur">${valeur}${detail ? `<span class="pr-fiche-detail">${detail}</span>` : ''}</span></div>`;
-  const zone = s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}</span>`
+  const parts = Array.isArray(s.zones) && s.zones.length > 1 ? s.zones : null;
+  const zone = parts ? `<span class="pr-zones-parts">${parts.map(z => `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(z.typezone)})">${escapeHtml(z.libelle || z.typezone)} <span class="pr-zt-part">${escapeHtml(pourcentZone(z.part))}</span></span>`).join('')}</span>${renderBarreZonesParcelle(parts)}`
+    : s.zone ? `<span class="pr-zone-pastille" style="--zone:var(--${couleurZonePlu(s.zone.typezone)})">${escapeHtml(s.zone.libelle || s.zone.typezone)}${s.zones && s.zones.length === 1 ? ' <span class="pr-zt-part">100 %</span>' : ''}</span>`
     : s.zoneLue ? 'Aucun PLU publié' : 'Non lue';
-  const zoneDetail = s.zone ? escapeHtml(s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
+  const zoneDetail = parts ? escapeHtml(parts.map(z => `${z.libelle} : ${z.libelong}`).filter(Boolean).join(' · ')) : s.zone ? escapeHtml(s.zone.libelong || '') : s.zoneLue ? 'Règlement national d’urbanisme ou carte communale : à vérifier en mairie.' : '';
   const adresse = s.adresse ? escapeHtml(s.adresse.libelle) : s.adresseLue ? 'Aucun numéro trouvé à proximité' : 'Non lue';
   const adresseDetail = s.adresse && s.adresse.distance != null ? `Base adresse nationale · à ${escapeHtml(longueurLisible(s.adresse.distance))} du point cliqué` : '';
   const alignement = s.alignement == null ? 'Non lu' : s.alignement.length ? escapeHtml(s.alignement.map(a => a.nom).join(' · ')) : 'Aucun plan d’alignement publié';
@@ -386,12 +430,14 @@ function chargerVentesDossierCarte() {
   sectionsDesParcellesCarte(prEtat.parcelles).forEach(s => chargerVentesSectionCarte(prEtat.insee, s));
 }
 
-function chargerVentesSectionCarte(insee, section) {
-  const cle = `${insee}:${section}`;
-  if (carteUrb.ventes[cle]) return;
+function chargerVentesSectionCarte(insee, section, prefixe) {
+  const pre = /^\d{3}$/.test(String(prefixe || '')) ? String(prefixe) : '000';
+  const cle = `${insee}:${pre}:${section}`;
+  // Une section en erreur se relit à la demande suivante (relecture 0.416.0 : une coupure passagère durait jusqu'au F5).
+  if (carteUrb.ventes[cle] && !carteUrb.ventes[cle].erreur) return;
   carteUrb.ventes[cle] = { lecture: true, ventes: [] };
   renderVentesCarte();
-  fetchAvecAuth(`/api/urbanisme/dvf?insee=${encodeURIComponent(insee)}&section=${encodeURIComponent(section)}`).then(async rep => {
+  fetchAvecAuth(`/api/urbanisme/dvf?insee=${encodeURIComponent(insee)}&section=${encodeURIComponent(section)}&prefixe=${pre}`).then(async rep => {
     const j = await rep.json().catch(() => ({}));
     carteUrb.ventes[cle] = rep.ok ? { ventes: Array.isArray(j.ventes) ? j.ventes : [], section } : { erreur: j.erreur || 'Ventes non lues.', ventes: [], section };
     renderVentesCarte();
@@ -462,6 +508,7 @@ function choisirVenteCarte(id) {
 
 function commencerMesureCarte(mode) {
   if (carteUrb.mesure && carteUrb.mesure.mode === mode) { effacerMesureCarte(); return; }
+  if (carteUrb.calques.mesure) carteUrb.calques.mesure.clearLayers();
   carteUrb.mesure = { mode: mode === 'distance' ? 'distance' : 'surface', points: [], fini: false };
   if (carteUrb.map) { carteUrb.map.doubleClickZoom.disable(); carteUrb.map.getContainer().classList.add('pr-carte-mesure-en-cours'); }
   dessinerMesureCarte();
@@ -471,7 +518,10 @@ function commencerMesureCarte(mode) {
 function ajouterPointMesureCarte(latlng) {
   const m = carteUrb.mesure;
   if (!m) return;
-  if (m.fini) { m.points = []; m.fini = false; }
+  if (m.fini) { m.points = []; m.fini = false; if (carteUrb.calques.mesure) carteUrb.calques.mesure.clearLayers(); m.forme = null; m.marqueurs = []; }
+  const dernier = m.points[m.points.length - 1];
+  // Le double-clic de fin envoie aussi deux clics au même endroit : un point identique au précédent n'est pas repris.
+  if (dernier && Math.abs(dernier[0] - latlng.lat) < 1e-7 && Math.abs(dernier[1] - latlng.lng) < 1e-7) return;
   m.points.push([latlng.lat, latlng.lng]);
   dessinerMesureCarte();
 }
@@ -511,6 +561,8 @@ function resultatMesureCarte(mode, points) {
     detail: p.length > 2 ? `${contenanceCadastrale(aire)} · périmètre ${longueurLisible(longueurLigneM(p, true))}` : 'Cliquez les angles du terrain ; double-clic pour finir.' };
 }
 
+// La forme de la mesure est gardée et seulement déplacée au survol (audit 0.416.0 : tout était recréé à chaque mouvement de souris) ;
+// le panneau n'est reconstruit que quand ses boutons changent, sinon seul le texte est remplacé.
 function dessinerMesureCarte() {
   const L = window.L;
   const m = carteUrb.mesure;
@@ -519,16 +571,29 @@ function dessinerMesureCarte() {
   const points = m.survol ? m.points.concat([m.survol]) : m.points;
   if (L && carteUrb.calques.mesure) {
     const g = carteUrb.calques.mesure;
-    g.clearLayers();
     const c = couleurJetonCarte('focus');
-    if (m.mode === 'surface' && points.length > 2) L.polygon(points, { color: c, weight: 2, dashArray: m.fini ? null : '6 4', fillOpacity: 0.15, interactive: false }).addTo(g);
-    else if (points.length > 1) L.polyline(points, { color: c, weight: 2, dashArray: m.fini ? null : '6 4', interactive: false }).addTo(g);
-    m.points.forEach(p => L.circleMarker(p, { radius: 4, color: c, weight: 2, fillColor: couleurJetonCarte('blanc-fixe'), fillOpacity: 1, interactive: false }).addTo(g));
+    const polygone = m.mode === 'surface' && points.length > 2;
+    const style = { color: c, weight: 2, dashArray: m.fini ? null : '6 4', fillOpacity: 0.15, interactive: false };
+    if (m.forme && (m.formePolygone !== polygone)) { g.removeLayer(m.forme); m.forme = null; }
+    if (points.length > 1) {
+      if (!m.forme) { m.forme = (polygone ? L.polygon(points, style) : L.polyline(points, style)).addTo(g); m.formePolygone = polygone; }
+      else { m.forme.setLatLngs(points); m.forme.setStyle({ dashArray: style.dashArray }); }
+    } else if (m.forme) { g.removeLayer(m.forme); m.forme = null; }
+    m.marqueurs = m.marqueurs || [];
+    while (m.marqueurs.length > m.points.length) g.removeLayer(m.marqueurs.pop());
+    for (let i = m.marqueurs.length; i < m.points.length; i++) m.marqueurs.push(L.circleMarker(m.points[i], { radius: 4, color: c, weight: 2, fillColor: couleurJetonCarte('blanc-fixe'), fillOpacity: 1, interactive: false }).addTo(g));
   }
   const r = resultatMesureCarte(m.mode, points);
+  const terminer = !m.fini && m.points.length > (m.mode === 'surface' ? 2 : 1);
   z.style.display = '';
-  z.innerHTML = `<span class="pr-mesure-titre">${escapeHtml(r.titre)}</span><span class="pr-mesure-valeur">${escapeHtml(r.valeur)}</span><span class="pr-mesure-detail">${escapeHtml(r.detail)}</span>
-    <span class="pr-mesure-actions">${!m.fini && m.points.length > (m.mode === 'surface' ? 2 : 1) ? '<wa-button appearance="outlined" size="s" type="button" onclick="terminerMesureCarte()">Terminer</wa-button>' : ''}<wa-button appearance="plain" size="s" type="button" onclick="effacerMesureCarte()">Effacer</wa-button></span>`;
+  if (z.dataset.terminer !== String(terminer) || !z.querySelector('.pr-mesure-valeur')) {
+    z.dataset.terminer = String(terminer);
+    z.innerHTML = `<span class="pr-mesure-titre"></span><span class="pr-mesure-valeur"></span><span class="pr-mesure-detail"></span>
+      <span class="pr-mesure-actions">${terminer ? '<wa-button appearance="outlined" size="s" type="button" onclick="terminerMesureCarte()">Terminer</wa-button>' : ''}<wa-button appearance="plain" size="s" type="button" onclick="effacerMesureCarte()">Effacer</wa-button></span>`;
+  }
+  z.querySelector('.pr-mesure-titre').textContent = r.titre;
+  z.querySelector('.pr-mesure-valeur').textContent = r.valeur;
+  z.querySelector('.pr-mesure-detail').textContent = r.detail;
 }
 
 // ===== Barre de droite : onglets =====
@@ -563,7 +628,7 @@ async function parcellesCarteAgent(etat) {
     parcelles.push({
       parcelle: p ? `${p.section} ${p.numero}` : String(c.texte || ''), commune: p ? p.commune : '',
       contenance: p && p.contenance ? contenanceCadastrale(p.contenance) : 'non lue',
-      zone_plu: j.zone ? `${j.zone.libelle} — ${j.zone.libelong}` : j.zoneLue ? 'aucun PLU publié (RNU ou carte communale : à vérifier en mairie)' : 'non lue',
+      zone_plu: Array.isArray(j.zones) && j.zones.length > 1 ? j.zones.map(z => `${z.libelle} ${pourcentZone(z.part)} (${z.libelong})`).join(' ; ') : j.zone ? `${j.zone.libelle} — ${j.zone.libelong}` : j.zoneLue ? 'aucun PLU publié (RNU ou carte communale : à vérifier en mairie)' : 'non lue',
       adresse_la_plus_proche: j.adresse ? `${j.adresse.libelle}${j.adresse.distance != null ? ` (à ${j.adresse.distance} m)` : ''}` : j.adresseLue ? 'aucun numéro à proximité' : 'non lue',
       alignement: j.alignement == null ? 'non lu' : j.alignement.length ? j.alignement.map(a => a.nom).join(' ; ') : 'aucun plan d’alignement publié au Géoportail',
       geofoncier: p ? lienGeofoncier(c.y, c.x, 18) : ''

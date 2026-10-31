@@ -332,7 +332,10 @@ function creerApp({ db, config, envoyerEmailFn, creerClientClaude, appelerMistra
   // Historique des courriers d'appel de fonds (outil Appel de fonds, onglet Fonds de la fiche) : voir appelsFonds.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurAppelsFonds(parametresRepo));
   // Zonage d'une parcelle (outil « Droits de préemption ») : API Carto de l'IGN, voir urbanisme.js.
-  app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
+  // Tuiles de la carte (relecture 0.416.0) : chargées en <img> par Leaflet, sans en-tête d'authentification ; elles ne portent que des
+  // fonds publics de l'IGN — servies hors session, le reste de l'urbanisme garde le contrôle d'accès.
+  const sansAuthTuiles = (req, res, next) => (req.method === 'GET' && req.path.startsWith('/urbanisme/tuile/') ? next() : gestionnaireAuth.middlewareAuth(req, res, next));
+  app.use('/api', sansAuthTuiles, creerRouteurUrbanisme(parametresRepo, urbanisme || {}));
   // Où déposer la DIA (guichet, courriel, courrier ; fiche de la mairie) : voir depotDia.js.
   app.use('/api', gestionnaireAuth.middlewareAuth, creerRouteurDepotDia(parametresRepo, urbanisme || {}));
   // CU et DIA sur les guichets uniques : fiche d'un dossier lue par l'extension Chrome (extension-chrome/, voir gnau.js).

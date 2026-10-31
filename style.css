@@ -9620,6 +9620,9 @@ table.pr-zt tfoot td { border-top: 1px solid var(--line); border-bottom: 0; font
 .pr-zt-parcelle { white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 500; }
 .pr-zt-zone { min-width: 0; }
 .pr-zt-aussi { margin-top: 4px; font-size: var(--texte-s); }
+.pr-zt-part { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.pr-zt-barre { display: flex; gap: 2px; height: 6px; margin-top: 6px; max-width: 260px; border-radius: var(--rayon-pilule); overflow: hidden; }
+.pr-zt-barre > span { background: var(--zone); min-width: 2px; }
 .pr-zt-long { color: var(--muted); display: inline-block; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .pr-zt-erreur { color: var(--urgent); display: inline-flex; gap: 4px; align-items: center; }
 table.pr-zt td.pr-zt-retenue select { min-width: 120px; min-height: 32px; height: 32px; padding: 2px 8px; font-size: var(--texte-m); }
@@ -11756,6 +11759,7 @@ wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pr-fiche-detail { font-size: var(--texte-s); color: var(--muted); }
 .pr-fiche-actions { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 4px; }
 .pr-zone-pastille { align-self: flex-start; padding: 1px 8px; border-radius: var(--rayon-s); border: 1px solid var(--zone); color: var(--ink); font-weight: 600; background: color-mix(in srgb, var(--zone) 18%, transparent); }
+.pr-zones-parts { display: flex; flex-wrap: wrap; gap: 6px; }
 .pr-ventes-tete { display: flex; flex-direction: column; gap: 8px; }
 .pr-ventes { display: flex; flex-direction: column; gap: 6px; }
 .pr-vente { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 12px; text-align: left; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-card); color: var(--ink); font: inherit; cursor: pointer; }

@@ -4,12 +4,13 @@
 const { test, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const C = require('../src/carteUrbanisme');
+const U = require('../src/urbanisme');
 
 const reponse = (corps, statut = 200) => ({ ok: statut < 400, status: statut, json: async () => corps, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer });
 const fc = (feats) => ({ type: 'FeatureCollection', features: feats });
 const carre = { type: 'Polygon', coordinates: [[[1.58, 47.34], [1.581, 47.34], [1.581, 47.341], [1.58, 47.34]]] };
 
-beforeEach(() => C.viderCacheCarte());
+beforeEach(() => { C.viderCacheCarte(); U.viderCacheUrbanisme(); });
 
 test('tuiles : liste blanche des couches, zoom et numéros bornés', () => {
   assert.ok(C.tuileValide('plan', 17, 66110, 46560));
@@ -35,7 +36,11 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
   const fetch = async (url) => {
     appels.push(url);
     if (url.includes('/cadastre/parcelle')) return reponse(fc([{ type: 'Feature', geometry: carre, properties: { idu: '410990000E1020', code_insee: '41099', nom_com: 'Gy-en-Sologne', section: '0E', numero: '1020', contenance: 20185 } }]));
-    if (url.includes('/gpu/zone-urba')) return reponse(fc([{ properties: { libelle: 'UB', libelong: 'Zone urbaine', typezone: 'U' } }]));
+    // Deux zones qui se partagent la parcelle : moitié ouest UB, moitié est A.
+    if (url.includes('/gpu/zone-urba')) return reponse(fc([
+      { geometry: { type: 'Polygon', coordinates: [[[1.579, 47.339], [1.5805, 47.339], [1.5805, 47.342], [1.579, 47.342], [1.579, 47.339]]] }, properties: { libelle: 'UB', libelong: 'Zone urbaine', typezone: 'U' } },
+      { geometry: { type: 'Polygon', coordinates: [[[1.5805, 47.339], [1.582, 47.339], [1.582, 47.342], [1.5805, 47.342], [1.5805, 47.339]]] }, properties: { libelle: 'A', libelong: 'Zone agricole', typezone: 'A' } }
+    ]));
     if (url.includes('/geocodage/reverse')) return reponse(fc([{ properties: { label: '7 Rue des Lilas 41230 Gy-en-Sologne', housenumber: '7', street: 'Rue des Lilas', distance: 60.4 } }]));
     if (url.includes('assiette-sup-l')) return reponse(fc([{ properties: { suptype: 'el7', nomsuplitt: 'Plan d’alignement RD 12' } }]));
     if (url.includes('assiette-sup-s')) return reponse(fc([{ properties: { suptype: 'ac1', nomsuplitt: 'Église' } }]));
@@ -45,7 +50,10 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
   assert.equal(p.parcelle.section, 'E');
   assert.equal(p.parcelle.numero, '1020');
   assert.equal(p.parcelle.contenance, 20185);
-  assert.equal(p.zone.libelle, 'UB');
+  assert.equal(p.zones.length, 2, 'la parcelle est à cheval sur deux zones');
+  assert.ok(Math.abs(p.zones[0].part + p.zones[1].part - 1) < 0.02);
+  assert.ok(p.zones.every(z => z.part > 0.2 && z.part < 0.8), JSON.stringify(p.zones));
+  assert.ok(['UB', 'A'].includes(p.zone.libelle));
   assert.equal(p.adresse.distance, 60);
   assert.equal(p.alignement.length, 1);
   assert.equal(p.alignement[0].nom, 'Plan d’alignement RD 12');
@@ -53,13 +61,18 @@ test('point cliqué : parcelle, zone, adresse BAN et alignement ; seuls des coor
   assert.deepEqual(await C.pointCarte('x', 47), { erreur: 'Point hors de France.' });
 });
 
-test('point cliqué : une source muette est dite non lue, jamais devinée', async () => {
-  const p = await C.pointCarte(1.5, 47.3, { fetch: async () => { throw new Error('réseau'); } });
+test('point cliqué : une source muette est dite non lue, jamais devinée, et n’est pas gardée', async () => {
+  let appels = 0;
+  const fetch = async () => { appels++; throw new Error('réseau'); };
+  const p = await C.pointCarte(1.5, 47.3, { fetch });
   assert.equal(p.parcelle, null);
   assert.equal(p.cadastreLu, false);
   assert.equal(p.zoneLue, false);
   assert.equal(p.adresseLue, false);
   assert.equal(p.alignement, null);
+  const avant = appels;
+  await C.pointCarte(1.5, 47.3, { fetch });
+  assert.ok(appels > avant, 'un échec complet est relu au clic suivant');
 });
 
 test('zones du PLU : emprise bornée (2 km au plus)', async () => {
@@ -96,4 +109,27 @@ test('DVF : section au format d’Etalab, commune vérifiée', async () => {
   assert.deepEqual(r.ventes, []);
   assert.equal(appels[0], 'https://app.dvf.etalab.gouv.fr/api/mutations3/41099/0000E');
   assert.ok((await C.ventesSection('../x', 'E')).erreur);
+});
+
+test('caches séparés : une lecture de zones ne vide pas les ventes ; demandes simultanées réunies', async () => {
+  let appels = 0;
+  const fetch = async (u) => { appels++; return reponse(u.includes('mutations3') ? { mutations: [] } : fc([])); };
+  await C.ventesSection('41099', 'E', '', { fetch });
+  for (let i = 0; i < 70; i++) await C.zonesCarte(`1.${300 + i},47.58,1.${300 + i}5,47.585`, { fetch });
+  const n = appels;
+  await C.ventesSection('41099', 'E', '', { fetch });
+  assert.equal(appels, n, 'les ventes sont restées en cache');
+  const [a, b] = await Promise.all([C.ventesSection('41099', 'AB', '', { fetch }), C.ventesSection('41099', 'AB', '', { fetch })]);
+  assert.equal(appels, n + 1, 'une seule requête pour deux demandes identiques');
+  assert.equal(a, b);
+});
+
+test('tuiles : coupe-circuit après dix échecs de suite', async () => {
+  let appels = 0;
+  const fetch = async () => { appels++; throw new Error('réseau'); };
+  for (let i = 0; i < 10; i++) await C.tuileIgn('plan', 15, i, 1, { fetch });
+  assert.equal(appels, 10);
+  const t = await C.tuileIgn('plan', 15, 50, 1, { fetch });
+  assert.equal(t.vide, true);
+  assert.equal(appels, 10, 'plus aucune demande pendant la coupure');
 });

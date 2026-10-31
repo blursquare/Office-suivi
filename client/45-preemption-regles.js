@@ -322,6 +322,21 @@
   // ---- Plusieurs parcelles (étude 06/10 : « le zonage doit être détecté par parcelle, il peut y en avoir plusieurs ») ----
   // Pure : une ligne par parcelle lue — zone du Géoportail, famille retenue (celle choisie à la main pour cette parcelle, sinon
   // celle de la zone lue), contenance. `zonages` : [{ section, numero, statut: 'lecture'|'ok'|'erreur', resultat, erreur }].
+  // Pure : [{ libelle, typezone, part }] — part entre 0 et 1, ou null quand le serveur ne l'a pas mesurée (plusieurs zones sans contour lisible).
+  function partsZonesParcelle(r) {
+    const zones = ((r && r.zones) || []).filter(z => z && z.libelle);
+    if (!zones.length) return [];
+    if (zones.length === 1) return [{ libelle: zones[0].libelle, typezone: zones[0].typezone || '', part: 1 }];
+    return zones.map(z => ({ libelle: z.libelle, typezone: z.typezone || '', part: Number.isFinite(Number(z.part)) && z.part !== undefined ? Number(z.part) : null }));
+  }
+
+  // Pure : « 72 % » (arrondi ; « < 1 % » pour une toute petite part).
+  function pourcentZone(part) {
+    if (part == null || !Number.isFinite(part)) return '';
+    const p = Math.round(part * 100);
+    return p < 1 && part > 0 ? '< 1 %' : `${p} %`;
+  }
+
   function lignesZonageParcelles(zonages, surcharges) {
     const choix = surcharges || {};
     return (zonages || []).map(z => {
@@ -336,8 +351,11 @@
       // EB 469 « est en zone N », l'écran n'en montrait qu'une).
       const autresZones = ((r && r.zones) || []).slice(1).filter(x => x && x.libelle && x.libelle !== (zone && zone.libelle))
         .map(x => ({ libelle: x.libelle, typezone: x.typezone || '', libelong: x.libelong || '', famille: familleZonePreemption(x.typezone) }));
+      // Part de chaque zone dans la parcelle (étude 31/10 : « le Géoportail donne les pourcentages en zone A ou U ») : calculée par le
+      // serveur quand la parcelle touche plusieurs zones (zonesSansBordure) ; une seule zone = toute la parcelle.
+      const parts = partsZonesParcelle(r);
       return {
-        autresFamilles, autresZones,
+        autresFamilles, autresZones, parts,
         cle, libelle: `${z.section} ${Number(z.numero) || z.numero}`, statut: z.statut, erreur: z.erreur || '',
         zone: zone ? zone.libelle : '', typezone: zone ? zone.typezone : '', libelong: zone ? zone.libelong || '' : '',
         lue, famille: choix[cle] || lue, choisie: !!choix[cle],
