@@ -36,8 +36,24 @@ Demande de l'étude : « Quel est le pourcentage de réussite ? » — puis « c
    les clichés d'avant 2000.
 3. **Photo non redressée** (relief, inclinaison) : quelques mètres à quelques dizaines de mètres, surtout loin du centre.
 
+## Recalage automatique (même jour, demande de l'étude : « repère-toi avec les routes et bâtiments alentour »)
+
+`client/158-recalage-cliches.js` : l'orthophoto historique de l'IGN de l'époque (1950-1965, 1965-1980, 1980-1995, 2000-2005, déjà
+recalée ; une couche vide sur le secteur — 1965-1980 et 1980-1995 à Vendôme — est sautée) sert de référence sur 1,2 km autour du bien ;
+le cliché est rendu nord en haut à la même échelle sur 2,6 km ; on cherche le décalage où les contours de l'image (gradient : routes,
+haies, bâtiments) se superposent le mieux, du grossier au fin. Retenu seulement si l'accord grossier dépasse 0,42 et est net.
+
+Sur les 36 clichés anciens : **17 recalés, tous justes à l'œil** (cathédrale de Blois 1958, Trinité de Vendôme 1949-1957-1978,
+églises, château de Lavardin 1949 à 1997…), 19 refusés (accord trop faible : paysage trop changé, photo sombre, couche absente) —
+ceux-là gardent la position de l'emprise et « Position approximative ».
+
+| Avant 2000 (34 jugés) | Juste | Approché | Faux |
+|---|---|---|---|
+| Emprise seule (cadre écarté) | 7 | 11 | 13 (sur 31) |
+| Avec recalage | 20 (59 %) | 2 (6 %) | 12 (35 %) |
+
+Aucun recalage retenu n'a déplacé un contour juste vers un faux.
+
 ## Suites possibles
 
-- Recalage automatique sur une photo récente (repérer routes et bâtiments communs) : chantier à part, résultat non garanti sur les
-  années 1950 où le paysage a beaucoup changé.
 - Retenir le décalage ajusté à la main pour une mission entière (toutes les photos d'un même vol sont décalées pareil).

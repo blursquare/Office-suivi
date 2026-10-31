@@ -14,6 +14,15 @@ var ANNEE_CLICHE_PRECIS = 2000;
 
 /** @type {Map<string, number[]>} */
 var cadresClichesIgn = new Map();
+// Recalage automatique sur l'orthophoto historique de l'IGN (client/158), gardé par cliché : { est, nord, couche } ou { refuse }.
+/** @type {Map<string, any>} */
+var recalagesClichesIgn = new Map();
+
+// Pure : le point au sol à projeter par l'emprise pour tomber sur le bien, d'après le recalage (mètres vers l'est et le nord).
+function pointRecaleCliche(lon, lat, recalage) {
+  if (!recalage || recalage.refuse || !Number.isFinite(recalage.est)) return [lon, lat];
+  return [lon + recalage.est / (111320 * Math.cos(lat * Math.PI / 180)), lat + recalage.nord / 110574];
+}
 
 var visionneuseCliche = { gauche: '', droite: '', cartes: {}, decalages: {}, ajuster: false, synchro: false, rendu: 0 };
 
@@ -161,6 +170,7 @@ function fermerClicheIgn() {
   visionneuseCliche.cartes = {};
   imagesClichesIgn.clear();
   cadresClichesIgn.clear();
+  recalagesClichesIgn.clear();
   if (overlay) { overlay.style.display = 'none'; overlay.innerHTML = ''; }
 }
 
@@ -189,7 +199,7 @@ function renderVisionneuseCliche() {
   const volet = (c, cote) => `<div class="cliche-volet">
       <div class="cliche-volet-tete">
         <span class="cliche-volet-titre">${escapeHtml(String(c.annee))}</span><span class="cliche-volet-sous">${escapeHtml(libelleClicheIgn(c))}</span>
-        ${c.annee < ANNEE_CLICHE_PRECIS ? `<span class="cliche-volet-avis" title="${escapeAttr('Mesure du 31/10 sur 6 sites du Loir-et-Cher : avant 2000, l’emprise publiée par l’IGN est approximative ; le contour tombe juste environ une fois sur quatre, souvent à quelques dizaines de mètres, parfois beaucoup plus. Repérez le bien sur la photo et faites glisser le contour (« Ajuster le contour »).')}">${icone('alert-triangle')} Position approximative : à vérifier</span>` : ''}
+        ${c.annee < ANNEE_CLICHE_PRECIS ? `<span class="cliche-volet-avis" id="cliche-recalage-${cote}"></span>` : ''}
         <span class="cliche-volet-liens">
           <a href="${escapeAttr(c.telecharger || '')}" target="_blank" rel="noopener" title="Le fichier d’origine de l’IGN (TIFF, souvent plus de 100 Mo)">${icone('download')} Télécharger l’original</a>
           ${clichesCarte.centre ? `<a href="${escapeAttr(lienRemonterLeTemps(clichesCarte.centre.lon, clichesCarte.centre.lat, c.annee, c.mission))}" target="_blank" rel="noopener">${icone('lien-externe')} Remonter le temps</a>` : ''}
@@ -370,9 +380,37 @@ async function monterVoletCliche(L, cote, c, jeton) {
   zone.addEventListener('pointerup', finir);
   zone.addEventListener('pointercancel', finir);
   if (visionneuseCliche.ajuster) { carte.dragging.disable(); zone.classList.add('cliche-ajuster'); }
+  // Recalage sur l'orthophoto historique de l'IGN (avant 2000) : le contour se replace de lui-même s'il est sûr.
+  if (c.coins && centre && c.annee < ANNEE_CLICHE_PRECIS) lancerRecalageClicheIgn(L, m, info, cote, jeton);
   // Deux clichés : le second suit le premier, au même endroit du sol.
   carte.on('moveend', () => synchroniserClichesIgn(cote));
   setTimeout(() => { carte.invalidateSize(); synchroniserClichesIgn('gauche'); }, 60);
+}
+
+async function lancerRecalageClicheIgn(L, m, info, cote, jeton) {
+  const etat = document.getElementById(`cliche-recalage-${cote}`);
+  const dire = (html, classe) => { if (etat) { etat.innerHTML = html; etat.className = `cliche-volet-avis ${classe || ''}`; } };
+  let rc = recalagesClichesIgn.get(m.c.id);
+  if (!rc) {
+    dire(`${icone('spinner')} Recalage sur l’orthophoto de l’IGN…`, 'en-cours');
+    try { rc = await recalerClicheIgn(m.c, info, m.cadre, clichesCarte.centre); } catch (e) { rc = null; }
+    rc = rc || { refuse: true };
+    recalagesClichesIgn.set(m.c.id, rc);
+  }
+  if (jeton !== visionneuseCliche.rendu || visionneuseCliche.cartes[cote] !== m) return;
+  if (rc.refuse) {
+    dire(`${icone('alert-triangle')} Position approximative : à vérifier`, '');
+    if (etat) etat.title = 'Avant 2000, l’emprise publiée par l’IGN est approximative et le cliché n’a pas pu être recalé sûrement sur l’orthophoto historique (accord trop faible ou ambigu). Repérez le bien et faites glisser le contour (« Ajuster le contour »).';
+    return;
+  }
+  dire(`${icone('check')} Recalé sur l’orthophoto IGN ${escapeHtml(rc.couche)}`, 'ok');
+  if (etat) etat.title = `Routes, haies et bâtiments alignés sur l’orthophoto historique de l’IGN (${rc.couche}) : contour replacé de ${Math.round(Math.hypot(rc.est, rc.nord))} m. Mesure du 31/10 : les recalages retenus étaient tous justes ; vérifiez quand même d’un coup d’œil.`;
+  dessinerContourCliche(L, m);
+  const centre = clichesCarte.centre;
+  const pc = pointRecaleCliche(centre.lon, centre.lat, rc);
+  const p = pixelDuPointCliche(m.c.coins, pc[0], pc[1], m.W, m.H, m.cadre);
+  if (p && p.dedans) { const e = m.M.versEcran(p.x, p.y); visionneuseCliche.synchro = true; m.carte.setView([e[1], e[0]], m.carte.getZoom(), { animate: false }); visionneuseCliche.synchro = false; }
+  synchroniserClichesIgn(cote === 'gauche' ? 'gauche' : 'droite');
 }
 
 function dessinerContourCliche(L, m) {
@@ -380,7 +418,9 @@ function dessinerContourCliche(L, m) {
   if (!m.c.coins) return;
   const vue = prEtat && prEtat.historique && prEtat.historique.vue;
   const d = visionneuseCliche.decalages[m.c.id] || { dx: 0, dy: 0 };
-  const anneaux = contoursSurCliche(vue && vue.contours, m.c.coins, m.W, m.H, null, m.cadre)
+  const rc = recalagesClichesIgn.get(m.c.id);
+  const contours = (vue && vue.contours || []).map(a => a.map(p => pointRecaleCliche(p[0], p[1], rc)));
+  const anneaux = contoursSurCliche(contours, m.c.coins, m.W, m.H, null, m.cadre)
     .map(a => a.map(p => { const e = m.M.versEcran(p[1], p[0]); return [e[1] + d.dy, e[0] + d.dx]; }));
   if (anneaux.length) L.polygon(anneaux, { color: couleurJetonCarte('cat-jaune'), weight: 3, fill: false, interactive: false }).addTo(m.groupe);
 }
@@ -402,8 +442,12 @@ function synchroniserClichesIgn(source) {
   const da = visionneuseCliche.decalages[a.c.id] || { dx: 0, dy: 0 };
   const db = visionneuseCliche.decalages[b.c.id] || { dx: 0, dy: 0 };
   const pa = a.M.versCliche(c.lng - da.dx, c.lat - da.dy);
-  const sol = pointDuPixelCliche(a.c.coins, pa[0], pa[1], a.W, a.H, a.cadre);
-  const p = pixelDuPointCliche(b.c.coins, sol.lon, sol.lat, b.W, b.H, b.cadre);
+  const solA = pointDuPixelCliche(a.c.coins, pa[0], pa[1], a.W, a.H, a.cadre);
+  // Le point vu sur le cliché A est, au vrai, décalé de son recalage ; on le reporte sur B avec le recalage de B.
+  const ra = recalagesClichesIgn.get(a.c.id);
+  const vrai = ra && !ra.refuse ? pointRecaleCliche(solA.lon, solA.lat, { est: -ra.est, nord: -ra.nord }) : [solA.lon, solA.lat];
+  const pb = pointRecaleCliche(vrai[0], vrai[1], recalagesClichesIgn.get(b.c.id));
+  const p = pixelDuPointCliche(b.c.coins, pb[0], pb[1], b.W, b.H, b.cadre);
   if (!p) return;
   const e = b.M.versEcran(p.x, p.y);
   // Même échelle au sol : le zoom tient compte de la taille du pixel de chaque cliché et de son nombre de niveaux.
