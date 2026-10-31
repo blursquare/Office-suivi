@@ -11686,3 +11686,35 @@ wa-button.fonds-plus.actif::part(base) { background: color-mix(in srgb, var(--fo
 .asst-page:not(.mode-claire) .asst-nouveau-sujet { display: none; }
 wa-button.asst-nouveau-sujet { margin-right: 4px; }
 .pf-tr-quoi { margin: 4px 0 0; font-size: var(--texte-s); color: var(--muted); }
+
+/* Premier écran « Quel dossier ? » des outils (étude 31/10, client/153) : posé par-dessus le contenu du panneau, l'en-tête reste. */
+.outil-accueil { display: none; }
+.onglet-panel.outil-en-accueil > .outil-accueil { display: block; }
+.onglet-panel.outil-en-accueil > :not(.dash-header):not(.outil-accueil) { display: none !important; }
+.onglet-panel.outil-en-accueil > .dash-header .dash-header-actions { display: none; }
+.outil-accueil-cartes { width: 100%; }
+.outil-accueil-sans { margin-top: 16px; }
+
+/* Contrôle de l'urbanisme en étapes (étude 31/10, client/152). */
+.pr-barre-dossier:empty { display: none; }
+.pr-barre-dossier { margin-bottom: 16px; }
+.pr-carte-etape { display: flex; flex-direction: column; gap: 12px; }
+.pr-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; }
+.pr-nav:empty { display: none; }
+.pr-dpur-carte { margin-top: 4px; }
+.pr-synthese { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.pr-tuile { display: flex; flex-direction: column; gap: 4px; padding: 16px; border-radius: var(--rayon-carte); background: var(--paper-card); border: 1px solid var(--bord-carte); box-shadow: var(--shadow-card); min-width: 0; border-top: 4px solid var(--line); }
+.pr-tuile-titre { font-size: var(--texte-xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.pr-tuile-valeur { font-size: var(--texte-xl); font-weight: 500; color: var(--ink); overflow-wrap: anywhere; }
+.pr-tuile-detail { font-size: var(--texte-s); color: var(--muted); overflow-wrap: anywhere; }
+.pr-tuile-rouge { border-top-color: var(--urgent); }
+.pr-tuile-orange { border-top-color: var(--cat-orange); }
+.pr-tuile-vert { border-top-color: var(--success); }
+.pr-rendu-grille { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.pr-rendu-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.pr-plan-cadre { width: 100%; height: 520px; border: 1px solid var(--line); border-radius: var(--rayon-m); background: var(--paper-sunk); }
+@media (max-width: 1100px) {
+  .pr-synthese { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pr-rendu-grille { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) { .pr-synthese { grid-template-columns: minmax(0, 1fr); } }

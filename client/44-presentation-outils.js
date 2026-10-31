@@ -44,17 +44,6 @@
       { cle: 'acte', libelle: "Date de l'acte", saisie: true, requis: true, fait: () => !!valeurChamp('prorata-date') },
       { cle: 'repartition', libelle: 'Répartition', fait: () => elementVisible('prorata-resultat') }
     ],
-    preemption: [
-      { cle: 'dossier', libelle: 'Dossier', saisie: true, fait: () => !!(prEtat && prEtat.dossierId) },
-      { cle: 'parcelle', libelle: 'Parcelle', saisie: true, fait: () => !!(prEtat && (prEtat.zonages || []).some(z => z.statut === 'ok')) },
-      { cle: 'mutation', libelle: 'Mutation', saisie: true, requis: true, fait: () => !!(prEtat && prEtat.reponses.mutation) },
-      { cle: 'bien', libelle: 'Bien', saisie: true, requis: true, fait: () => !!(prEtat && prEtat.reponses.bien) },
-      { cle: 'rural', libelle: 'Agricole et forestier', saisie: true },
-      { cle: 'resultat', libelle: 'Droits', fait: () => !!(prEtat && !analyserPreemption(reponsesPreemption(prEtat)).manques.length) },
-      { cle: 'depot', libelle: 'Dépôt DIA', fait: () => !!(prEtat && prEtat.depotDia && prEtat.depotDia.etat === 'ok' && prEtat.depotDia.donnees && prEtat.depotDia.donnees.depot && prEtat.depotDia.donnees.depot.mode !== 'inconnu') },
-      { cle: 'travaux', libelle: 'Travaux', fait: () => !!(prEtat && prEtat.travaux && prEtat.travaux.liste) },
-      { cle: 'sites', libelle: 'Plan de situation', fait: () => !!(prEtat && prEtat.sites && prEtat.sites.plan && prEtat.sites.plan.etat === 'fini') }
-    ],
     inventaire: [
       { cle: 'droits', libelle: 'Droits simulés', saisie: true, requis: true, fait: () => !!(valeurChamp('inv-droits-sans') && valeurChamp('inv-droits-avec')) },
       { cle: 'cout', libelle: "Coût de l'inventaire", saisie: true },

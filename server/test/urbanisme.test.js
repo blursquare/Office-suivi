@@ -142,3 +142,15 @@ test('zone voisine seulement touchée au bord : écartée, dite en bordure (étu
   // Sans contour : rien n'est retiré.
   assert.equal(zonesSansBordure(parcelle, { features: [{}, {}] }, zones).zones.length, 2);
 });
+
+test('31/10 : DPU renforcé lu dans les informations du document d’urbanisme (rien de publié ≠ pas de DPU)', () => {
+  const { dpuDepuisInfos } = require('../src/urbanisme');
+  const f = (libelle, libelong) => ({ properties: { libelle, libelong } });
+  const r = dpuDepuisInfos({ features: [f('DPU renforcé', 'Périmètre du droit de préemption urbain renforcé'), f('Périmètre de droit de préemption commercial', '')] });
+  assert.equal(r.lu, true); assert.equal(r.perimetre, true); assert.equal(r.renforce, true);
+  assert.equal(r.libelles.length, 1, 'le droit de préemption commercial n’est pas le DPU');
+  const simple = dpuDepuisInfos({ features: [f('Droit de préemption urbain', '')] });
+  assert.equal(simple.perimetre, true); assert.equal(simple.renforce, false);
+  assert.deepEqual(dpuDepuisInfos(null), { lu: false, perimetre: false, renforce: false, libelles: [] });
+  assert.equal(dpuDepuisInfos({ features: [] }).lu, true);
+});

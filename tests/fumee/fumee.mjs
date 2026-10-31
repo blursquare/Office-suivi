@@ -122,6 +122,30 @@ try {
         const cst = await page.evaluate(() => (document.getElementById('cst-corps') || {}).textContent || '');
         verifier(cst.includes(attendu), `constitution ${id} : écran rendu (${attendu})`);
       }
+      // Contrôle de l'urbanisme en étapes et premier écran « Quel dossier ? » des outils (31/10, client/152 et 153).
+      const pr = await geste(page, 'urbanisme en étapes', async () => {
+        reinitialiserPreemption();
+        definirOnglet('preemption');
+        await new Promise(r => setTimeout(r, 50));
+        const vue = () => [...document.querySelectorAll('#onglet-preemption > .pr-page')].filter(s => s.style.display !== 'none').map(s => s.dataset.page).join(',');
+        const r = { accueil: vue(), carte: !!document.querySelector('#pr-accueil .cst-accueil-carte') };
+        choisirDossierAccueilOutil('preemption', 'f1');
+        r.apres = vue();
+        r.barre = /MOREAU/.test((document.getElementById('pr-barre-dossier') || {}).textContent || '');
+        allerPagePreemption('questions'); r.questions = vue();
+        allerPagePreemption('rendu'); r.rendu = vue();
+        r.synthese = document.querySelectorAll('#pr-synthese .pr-tuile').length;
+        reinitialiserPreemption();
+        definirOnglet('calculateur');
+        await new Promise(r2 => setTimeout(r2, 50));
+        r.accueilProvision = document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
+        continuerSansDossierAccueilOutil('calculateur');
+        r.sansDossier = !document.getElementById('onglet-calculateur').classList.contains('outil-en-accueil');
+        return r;
+      });
+      verifier(pr && pr.accueil === 'dossier' && pr.carte && pr.apres === 'parcelles' && pr.barre && pr.questions === 'questions' && pr.rendu === 'rendu' && pr.synthese === 4,
+        `urbanisme en étapes : dossier → parcelles → questions → contrôle (${JSON.stringify(pr)})`);
+      verifier(pr && pr.accueilProvision && pr.sansDossier, `outils : premier écran « Quel dossier ? », puis « Continuer sans dossier » (${JSON.stringify(pr && { a: pr.accueilProvision, s: pr.sansDossier })})`);
       // Tâches à venir (13/10) : visibles par le lien de la carte « Aujourd'hui », listées dans la grande fenêtre de toutes les tâches.
       const avenir = await geste(page, 'tâches à venir', () => {
         definirOnglet('dashboard');

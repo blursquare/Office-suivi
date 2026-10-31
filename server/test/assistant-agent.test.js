@@ -1173,3 +1173,23 @@ test('lire_dossier (31/10) : pièces ajoutées à la main et nouveaux gestes de 
   const lot = OUTILS_AGENT.find(o => o.name === 'actions_en_lot');
   assert.deepEqual(lot.input_schema.properties.actions.items.properties.action.enum, outil.input_schema.properties.action.enum);
 });
+
+test('31/10 : controle_urbanisme — étapes de l’outil pour l’agent ; rien de nominatif ne part, zones et droits partent', async () => {
+  assert.ok(OUTILS_AGENT.some((t) => t.name === 'controle_urbanisme'));
+  assert.match(require('../src/assistantAgent').SYSTEME_AGENT, /controle_urbanisme/);
+  const client = fauxClient([
+    { stop_reason: 'tool_use', usage, content: [outil('u1', 'controle_urbanisme', { dossier_id: 'd1', action: 'analyser' })] },
+    { stop_reason: 'end_turn', usage, content: [texte('Voilà.')] }
+  ]);
+  const opts = { cle: 'k', client };
+  const r = await tourAgent({ texte: 'Fais le contrôle de l’urbanisme du dossier Fournier', dossiers: D, contexte: {} }, opts);
+  await tourAgent({ conversation: r.conversation, resultats: [
+    { id: 'u1', contenu: { commune: 'Vineuil', parcelles: [{ parcelle: 'AB 12', zone: 'UB' }],
+      droits: [{ droit: 'Droit de préemption urbain', statut: 'À purger', motif: 'zone UB — bien de Paul FOURNIER', formalite: 'DIA à la commune' }],
+      questions_restantes: [{ cle: 'achevementMoins4ans', question: 'L’immeuble est-il achevé depuis moins de 4 ans ?', reponse: 'oui ou non' }] } }
+  ] }, opts);
+  const envoye = JSON.stringify(client.requetes[1].messages);
+  assert.doesNotMatch(envoye, SECRETS, envoye.slice(-500));
+  assert.match(envoye, /UB/);
+  assert.match(envoye, /achevementMoins4ans/);
+});

@@ -98,6 +98,10 @@
       // Ailleurs qu'à Blois, aucun périmètre de DPU renforcé n'est connu : la question reste posée quand elle compte (audit
       // 12/10 : « non » posé sans source rendait le DPU non applicable à un bien soumis au seul DPU renforcé).
     }
+    // Ailleurs : le périmètre publié par la commune au Géoportail (information « droit de préemption urbain [renforcé] », client/152).
+    const gpu = dpuGeoportailPreemption(lus);
+    if (!r.dpur && gpu.renforce) r.dpur = 'oui';
+    if (!r.dpuInstitue && gpu.perimetre) r.dpuInstitue = 'oui';
     if (r.dpur === 'oui' && e.insee === DPUR_BLOIS.insee) r.dpurDelegataire = DPUR_BLOIS.delegataire;
     return r;
   }
@@ -177,37 +181,16 @@
   }
 
   function reinitialiserPreemption() {
-    prEtat = etatPreemptionVierge();
-    const champ = document.getElementById('pr-dossier-recherche');
-    if (champ) champ.value = '';
+    prEtat = etatPreemptionVierge();   // retour à la première étape : le choix du dossier
     renderPreemption();
-  }
-
-  function rechercherDossierPreemption(valeur) {
-    const boite = document.getElementById('pr-dossier-resultats');
-    if (!boite) return;
-    const q = normaliserPourRecherche(String(valeur || '').trim());
-    if (!q) { boite.style.display = 'none'; boite.innerHTML = ''; return; }
-    const trouves = dossiers.filter(d => !d.archive && !estSuccession(d) &&
-      (normaliserPourRecherche(libelleDossierAffiche(d)).includes(q) || normaliserPourRecherche(d.responsable || '').includes(q))).slice(0, 8);
-    boite.innerHTML = trouves.length
-      ? trouves.map(d => `<button type="button" class="dash-recherche-ligne" onclick="choisirDossierPreemption('${escapeOnclickArg(d.id)}')">
-          <span class="dash-recherche-nom">${escapeHtml(libelleDossierAffiche(d))}</span>
-          <span class="dash-recherche-resp">${escapeHtml(d.responsable || '')}</span>
-        </button>`).join('')
-      : '<div class="dash-recherche-vide">Aucun dossier ne correspond.</div>';
-    boite.style.display = 'block';
   }
 
   // Depuis la fiche (« Vérifier les droits de préemption ») ou la recherche de l'outil.
   function choisirDossierPreemption(id) {
     const d = dossiers.find(x => x.id === id);
     if (!d) return;
-    const champ = document.getElementById('pr-dossier-recherche');
-    if (champ) champ.value = '';
-    const boite = document.getElementById('pr-dossier-resultats');
-    if (boite) { boite.style.display = 'none'; boite.innerHTML = ''; }
     prEtat = prefillPreemption(d);
+    prEtat.page = 'parcelles';   // le dossier choisi, on passe aux parcelles (client/152)
     renderPreemption();
     if (prEtat.cp) chargerCommunesPreemption(true);
     else lancerZonageSiPretPreemption();   // commune déjà connue (analyse gardée sur la fiche), sans code postal
@@ -517,7 +500,7 @@
     }
     renderTravauxPreemption();
     renderSitesPreemption();
-    if (typeof majSommaireOutil === 'function') majSommaireOutil('preemption');
+    renderEtapesPreemption();
   }
 
   // Le bloc « Monument historique » sous les droits, dans l'outil (même forme qu'un droit : titre, état, motif, conseil).
@@ -588,11 +571,17 @@
   function enregistrerPreemptionFiche() {
     const d = prEtat && prEtat.dossierId ? dossiers.find(x => x.id === prEtat.dossierId) : null;
     if (!d) return;
+    enregistrerPreemptionEtat(d, prEtat);
+    renderPreemption();
+  }
+
+  // Le même enregistrement, pour l'écran ou pour « Demander à CLAIRE » (client/152, controle_urbanisme) : rend ce qui est à purger.
+  function enregistrerPreemptionEtat(d, etat) {
     // Pièces déjà ajoutées par une analyse précédente : suivies, pour être retirées si le droit tombe.
     const avant = d.preemption && d.preemption.piecesAjoutees;
     const travauxAvant = d.preemption && d.preemption.travaux;
     const sitadelAvant = d.preemption && d.preemption.sitadel;
-    d.preemption = Object.assign(preemptionPourFiche(prEtat), { signature: signaturePreemptionDossier(d) }, avant ? { piecesAjoutees: avant } : {});
+    d.preemption = Object.assign(preemptionPourFiche(etat), { signature: signaturePreemptionDossier(d) }, avant ? { piecesAjoutees: avant } : {});
     if (!d.preemption.travaux && travauxAvant) d.preemption.travaux = travauxAvant;
     if (!d.preemption.sitadel && sitadelAvant) d.preemption.sitadel = sitadelAvant;
     const pieces = appliquerPreemptionSurPieces(d, { explicite: true });
@@ -600,7 +589,7 @@
     ajouterHistorique(d, `Droits de préemption vérifiés : ${aPurger.length ? 'à purger — ' + aPurger.join(', ') : 'aucun droit à purger'}${pieces.length ? ' — ' + pieces.join(' ; ') : ''}`);
     sauvegarder(d);
     afficherToast(aPurger.length ? `Enregistré sur la fiche : ${aPurger.join(', ')} à purger.` : 'Enregistré sur la fiche : aucun droit à purger.');
-    renderPreemption();
+    return { a_purger: aPurger, pieces };
   }
 
   // Une réponse oui / non posée sur la ligne d'une question (outil ou fiche).

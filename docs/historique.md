@@ -23504,3 +23504,26 @@ elle me dit qu'elle le fait en arrière-plan, il faut vraiment qu'elle le fasse 
   seul un nom de famille (mots en capitales d'un nom en casse mixte), écrit avec une majuscule dans la phrase, hors formes de société, mots
   d'adresse et prénoms des collaborateurs (`nomsDeFamilleBasculeAssistant`, `MOTS_NON_NOMS_BASCULE`) ; (4) un nom aussi porté par un dossier
   archivé ne fait rien basculer.
+
+### 31/10/2026 — 0.413.0 : contrôle de l'urbanisme en étapes, premier écran « Quel dossier ? » des outils
+
+Étude (31/10) : « reprendre l'outil contrôle de l'urbanisme et, au lieu de tout avoir sur le même écran, faire étape par étape : une première où
+on sélectionne le dossier, un peu comme pour constituer le dossier ; ensuite on voit les parcelles, ça lit automatiquement les zones ; retrouver
+en fonction des mairies s'il y a un droit de préemption renforcé ; poser les questions pour affiner le droit de préemption, SAFER et compagnie ;
+puis le rendu avec le contrôle de l'urbanisme, le plan cadastral qui s'affiche, demandé automatiquement, les photos aériennes… un bel écran final.
+Si CLAIRE doit l'utiliser ou le remplir toute seule, qu'elle fasse bien toutes les étapes. » ; « pour tous les outils, prévoir un premier écran pour
+sélectionner le dossier ».
+
+- `client/152-urbanisme-etapes.js` : `PAGES_PREEMPTION`, `pageCourantePreemption`, barre d'étapes (wa-stepper), barre du dossier, navigation ;
+  les zones de l'écran d'avant gardent leurs identifiants et leurs rendus (client/46, 55, 68, 69). Écran final : `synthesePreemption` (tuiles),
+  `preparerRenduPreemption` (plan de situation et plan aérien demandés à l'arrivée, une fois), aperçu du PDF du plan dans un cadre.
+- DPU renforcé : `dpuDepuisInfos` (server/src/urbanisme.js) lit l'information « droit de préemption urbain » du document d'urbanisme (le
+  droit de préemption commercial, les ENS, la SAFER exclus) ; `etatDpuRenforcePreemption` : réponse donnée, puis délibération connue (Blois),
+  puis Géoportail, sinon « à vérifier » ; `reponsesPreemption` en déduit `dpur` et `dpuInstitue` sans écraser une réponse donnée. Forme réelle
+  des libellés publiés par les communes du 41 non vérifiée (aucune réponse réelle ici : API Carto injoignable).
+- Agent : outil `controle_urbanisme` (analyser, repondre, enregistrer après la carte « Autoriser », ouvrir) — mêmes fonctions que l'écran
+  (`prefillPreemption`, `lireZonagesEtatPreemption`, `analyserPreemptionParcelles`, `enregistrerPreemptionEtat`) ; consigne : poser à
+  l'utilisateur les questions que la fiche ne tranche pas.
+- `client/153-accueil-outils.js` : `ACCUEIL_OUTILS` (appel de fonds, quotités, provision, prorata, forfait mobilier, urbanisme), écran posé
+  par `definirOnglet` (client/22) après le geste en cours, « Continuer sans dossier », « Changer de dossier » dans l'en-tête. Constitution,
+  Décompte vendeur et Autorisations avaient déjà le leur.

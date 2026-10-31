@@ -1595,42 +1595,46 @@
       <wa-button appearance="outlined" class="secondary" onclick="reinitialiserPreemption()">Effacer</wa-button>
     </div>
   </div>
-  <div class="outil-sommaire-place" data-outil="preemption"></div>
-  <div class="af-grid pr-grid">
-    <div class="calc-card af-form">
-      <h2 class="outil-section-tete" data-etape="dossier">Dossier suivi</h2>
-      <div class="calc-champ">
-        <label for="pr-dossier-recherche">Reprendre la commune, les parcelles et le bien d'un dossier</label>
-        <div class="dash-recherche" style="width:100%;">
-          <input type="search" id="pr-dossier-recherche" placeholder="Rechercher un dossier par nom ou responsable…" oninput="rechercherDossierPreemption(this.value)" autocomplete="off">
-          <div id="pr-dossier-resultats" class="dash-recherche-resultats" style="display:none;"></div>
-        </div>
-        <div id="pr-dossier-pill"></div>
-      </div>
-
-      <h2 class="outil-section-tete" data-etape="parcelle">Parcelle et zonage</h2>
+  <!-- En étapes (étude 31/10 : « au lieu de tout avoir sur le même écran, faire étape par étape ») : dossier, parcelles et zones, questions,
+       contrôle — client/152-urbanisme-etapes.js. Les identifiants des zones restent ceux de l'écran unique d'avant (mêmes rendus). -->
+  <div id="pr-stepper"></div>
+  <section class="pr-page" data-page="dossier">
+    <div id="pr-accueil"></div>
+  </section>
+  <div id="pr-barre-dossier" class="pr-barre-dossier"></div>
+  <section class="pr-page" data-page="parcelles" style="display:none;">
+    <div class="calc-card pr-carte-etape">
+      <h2 class="outil-section-tete">Parcelles et zones <span class="info-i" tabindex="0" data-info="Géoportail de l’urbanisme (IGN) : chaque parcelle est lue dès que la commune et les parcelles sont connues ; seuls la commune et les numéros de parcelle sont envoyés."></span></h2>
       <div id="pr-parcelle"></div>
-
-      <h2 class="outil-section-tete" data-etape="mutation">Mutation</h2>
+      <div id="pr-dpur-carte"></div>
+      <div class="pr-nav" data-page="parcelles"></div>
+    </div>
+  </section>
+  <section class="pr-page" data-page="questions" style="display:none;">
+    <div class="calc-card pr-carte-etape">
+      <h2 class="outil-section-tete">Mutation</h2>
       <div id="pr-mutation-zone"></div>
-
-      <h2 class="outil-section-tete" data-etape="bien">Bien vendu</h2>
+      <h2 class="outil-section-tete">Bien vendu</h2>
       <div id="pr-bien-zone"></div>
-
-      <h2 class="outil-section-tete" data-etape="rural">Agricole et forestier</h2>
+      <h2 class="outil-section-tete">Agricole et forestier — SAFER, bois et forêts</h2>
       <div id="pr-rural-zone"></div>
+      <div class="pr-nav" data-page="questions"></div>
     </div>
-    <div class="calc-card af-apercu-col">
-      <h2 class="outil-section-tete" data-etape="resultat">Droits à purger</h2>
-      <div id="pr-resultat"></div>
-      <h2 class="outil-section-tete" data-etape="depot">Où déposer la DIA <span class="info-i" tabindex="0" data-info="Guichet numérique, courriel ou courrier d’après les pages officielles lues par CLAIRE (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher), fiche de la mairie de l’annuaire du service public. Corrigeable par l’étude ; rien n’est déduit : sans page lue, « à vérifier »."></span></h2>
-      <div id="pr-depot-dia"></div>
-      <h2 class="outil-section-tete" data-etape="travaux">Travaux et autorisations</h2>
-      <div id="pr-travaux"></div>
-      <h2 class="outil-section-tete" data-etape="sites">Plan de situation <span class="info-i" tabindex="0" data-info="CLAIRE va elle-même sur cadastre.gouv.fr, dans le navigateur du serveur, sans IA. Seuls la commune et les numéros de parcelle partent vers ce site."></span></h2>
-      <div id="pr-sites"></div>
+  </section>
+  <section class="pr-page" data-page="rendu" style="display:none;">
+    <div id="pr-synthese"></div>
+    <div class="pr-rendu-grille">
+      <div class="pr-rendu-col">
+        <div class="calc-card"><h2 class="outil-section-tete">Droits à purger</h2><div id="pr-resultat"></div></div>
+        <div class="calc-card"><h2 class="outil-section-tete">Où déposer la DIA <span class="info-i" tabindex="0" data-info="Guichet numérique, courriel ou courrier d’après les pages officielles lues par CLAIRE (Loir-et-Cher, Loiret, Indre-et-Loire, Indre, Cher), fiche de la mairie de l’annuaire du service public. Corrigeable par l’étude ; rien n’est déduit : sans page lue, « à vérifier »."></span></h2><div id="pr-depot-dia"></div></div>
+      </div>
+      <div class="pr-rendu-col">
+        <div class="calc-card"><h2 class="outil-section-tete">Plan cadastral <span class="info-i" tabindex="0" data-info="CLAIRE le demande elle-même à cadastre.gouv.fr dès l’arrivée sur cette étape, dans le navigateur du serveur, sans IA. Seuls la commune et les numéros de parcelle partent vers ce site."></span></h2><div id="pr-plan-apercu"></div><div id="pr-sites"></div></div>
+        <div class="calc-card"><h2 class="outil-section-tete">Travaux, photos aériennes et autorisations</h2><div id="pr-travaux"></div></div>
+      </div>
     </div>
-  </div>
+    <div class="pr-nav" data-page="rendu"></div>
+  </section>
 </div>
 
 <div class="onglet-panel" id="onglet-clients-biens" style="display:none;">
@@ -3083,5 +3087,7 @@
 <script src="client/149-tache-donnee.js"></script>
 <script src="client/150-gif.js"></script>
 <script src="client/151-gestes-fiche-agent.js"></script>
+<script src="client/152-urbanisme-etapes.js"></script>
+<script src="client/153-accueil-outils.js"></script>
 </body>
 </html>

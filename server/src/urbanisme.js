@@ -108,6 +108,17 @@ function zonesSansBordure(parcelle, geoZones, zones) {
   return { zones: gardees, bordures: avec.filter(bord).map((z) => ({ libelle: z.libelle, typezone: z.typezone, part: z.part, surface: z.surface })) };
 }
 
+/** Pure : le droit de préemption urbain lu dans les « informations » du document d'urbanisme (étude 31/10 : « retrouver en fonction des
+ * mairies s'il y a un droit de préemption renforcé »). Les communes qui versent leurs périmètres au Géoportail y portent une information
+ * « Droit de préemption urbain » ; « renforcé » se lit dans son libellé. Rien de publié ne veut pas dire « pas de DPU » (`lu` seulement).
+ * @param {any} infos @returns {{ lu: boolean, perimetre: boolean, renforce: boolean, libelles: string[] }} */
+function dpuDepuisInfos(infos) {
+  const lu = !!(infos && Array.isArray(infos.features));
+  const liste = proprietes(infos, (x) => [String(x.libelle || ''), String(x.libelong || '')].join(' — ').replace(/^ — | — $/g, '').trim()).filter(Boolean);
+  const dpu = liste.filter((t) => /pr[ée]emption/i.test(t) && !/commerc|artisan|fonds de commerce|espaces?\s+naturels?|\bENS\b|SAFER|agricole|for[êe]t/i.test(t));
+  return { lu, perimetre: dpu.length > 0, renforce: dpu.some((t) => /renforc/i.test(t)), libelles: [...new Set(dpu)].slice(0, 5) };
+}
+
 function syntheseZonage(parcelle, gpu) {
   const p = parcelle && parcelle.properties ? parcelle.properties : {};
   const docs = proprietes(gpu.document, (x) => ({ type: String(x.du_type || ''), titre: String(x.grid_title || ''), partition: String(x.partition || '') }));
@@ -125,6 +136,7 @@ function syntheseZonage(parcelle, gpu) {
     rnu: !!(commune && commune.rnu),
     // `lu` : la couche des servitudes a répondu ; sans réponse, « aucune servitude » ne veut rien dire.
     patrimoine: { lu: !!(gpu.sup && Array.isArray(gpu.sup.features)), servitudes: patrimoineDepuisSup(gpu.sup) },
+    dpu: dpuDepuisInfos(gpu.infos),
     zones,
     bordures,
     infos: [...new Set(infos)].slice(0, 30),
@@ -229,4 +241,4 @@ async function parcellesDansPolygone(polygone, injections) {
 
 function viderCacheUrbanisme() { cache.clear(); cacheZones.clear(); }
 
-module.exports = { zonesSansBordure, parcelleIntrouvable, sectionsDeLaCommune, zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
+module.exports = { dpuDepuisInfos, zonesSansBordure, parcelleIntrouvable, sectionsDeLaCommune, zonesAvecGeometrie, parcellesDansPolygone, normaliserParcelle, parcelleCadastre, communesDuCodePostal, syntheseZonage, patrimoineDepuisSup, zonageParcelle, viderCacheUrbanisme };
