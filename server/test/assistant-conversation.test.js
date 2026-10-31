@@ -98,3 +98,15 @@ test('relecture 0.209.0 : les montants ne partent pas, ils sont rétablis au ret
   const net = nettoyerReponseConversation(long);
   assert.ok(net.length <= 1500 && net.endsWith('.'), 'coupée à la fin d’une phrase');
 });
+
+test('même sujet ou nouveau (étude 31/10) : rien de nominatif ne part, oui / non seulement', async () => {
+  const { memeSujet, promptMemeSujet } = require('../src/assistantConversation');
+  let prompt = '';
+  const client = { genererJson: async (p) => { prompt = p; return { meme_sujet: false }; } };
+  const r = await memeSujet({ precedentes: ['Où en est le dossier FOURNIER ?', 'Relance Paul FOURNIER pour 12 500 €'], texte: 'Et GAUTHIER, il a envoyé son RIB ?', dossiers: D }, client);
+  assert.equal(r, false);
+  assert.doesNotMatch(prompt, /FOURNIER|GAUTHIER|Paul|12 500/, 'noms et montants masqués');
+  assert.match(prompt, /En cas de doute : même sujet/);
+  assert.match(promptMemeSujet(['a'], 'b'), /JSON seul/);
+  await assert.rejects(() => memeSujet({ precedentes: ['x'], texte: 'y' }, { genererJson: async (p, valider) => { const e = valider({}); throw new Error(e); } }));
+});

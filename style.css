@@ -11681,3 +11681,7 @@ wa-button.fonds-plus { --wa-form-control-height: 32px; }
 wa-button.fonds-plus::part(base) { width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--fonds-ton) 10%, var(--paper-sunk)); }
 wa-button.fonds-plus.actif::part(base) { background: color-mix(in srgb, var(--fonds-ton) 22%, var(--paper-sunk)); }
 @media (max-width: 520px) { .fonds-montant > strong { font-size: var(--texte-3xl); } }
+
+/* « Nouveau sujet » (étude 31/10) : seulement dans la conversation avec CLAIRE, jamais dans un canal. */
+.asst-page:not(.mode-claire) .asst-nouveau-sujet { display: none; }
+wa-button.asst-nouveau-sujet { margin-right: 4px; }

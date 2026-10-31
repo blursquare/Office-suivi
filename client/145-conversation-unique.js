@@ -71,3 +71,45 @@ function htmlSujetsPrecedentsAssistant() {
       + msgs.map(m => `<div class="asst-message asst-slack asst-${m.role === 'moi' ? 'moi' : 'claire'} asst-ancien"><div class="asst-corps"><div class="asst-texte">${htmlAncienMessageAssistant(m.html)}</div></div></div>`).join('');
   }).join('') + `<div class="asst-jour asst-sujet asst-sujet-courant" role="separator"><span>${assistantMessages.length ? 'Sujet en cours' : 'Nouveau sujet'}</span></div>`;
 }
+
+// ---- Changer de sujet (étude 31/10 : « je passe souvent d'un dossier à un autre ou d'une question juridique à la lecture d'un compromis…
+// ça se mélange et à droite il me laisse les analyses précédentes » ; choix : bouton « Nouveau sujet », document joint, détection par l'IA ;
+// la colonne de droite ne montre que le sujet en cours). ----
+
+// Le bouton « Nouveau sujet » de l'en-tête : la conversation reste unique, le sujet change (colonne de droite remise à zéro).
+function nouveauSujetManuelAssistant() {
+  if (canaux.actif || assistantEnCours) return;
+  if (!assistantMessages.length) { afficherToast('C’est déjà un sujet neuf.', 'OK', null); return; }
+  ouvrirNouveauSujetAssistant('');
+  renderAssistant();
+  const champ = document.getElementById('assistant-saisie');
+  if (champ) champ.focus();
+}
+
+// Pure : un document joint ouvre-t-il un nouveau sujet ? Oui, sauf quand la demande le rattache à ce qui précède (« compare avec », « aussi »,
+// « le même », « l'autre », « précédent », « ci-dessus », « celui-ci »…) ou que le sujet en cours est vide.
+var RE_SUITE_DOCUMENT_ASSISTANT = /\b(?:compar\w*|aussi|m[êe]me|autre|pr[ée]c[ée]dent\w*|ci-dessus|ci-joint\w* aussi|celui-ci|celle-ci|avec (?:le|la|l['’]|ce|cette)|en plus|suite|toujours|encore|ensemble|les deux)\b/i;
+function nouveauSujetParDocumentAssistant(messages, texteSaisi) {
+  if (!(Array.isArray(messages) && messages.some(m => m && m.role === 'moi'))) return false;
+  return !RE_SUITE_DOCUMENT_ASSISTANT.test(String(texteSaisi || ''));
+}
+
+// Pure : les dernières demandes du collaborateur dans le sujet en cours (texte seul), pour la détection par l'IA.
+function demandesPrecedentesAssistant(contexte) {
+  return ((contexte && contexte.echanges) || []).filter(e => e && e.role !== 'claire' && String(e.texte || '').trim()).slice(-3).map(e => String(e.texte).slice(0, 400));
+}
+
+// Détection par l'IA (serveur, noms et montants masqués) : faux seulement si l'IA répond « autre sujet » ; une IA absente, lente (4 s) ou en
+// erreur garde le sujet en cours.
+async function changementDeSujetParIaAssistant(texte) {
+  const precedentes = demandesPrecedentesAssistant(assistantContexte);
+  if (!precedentes.length || !String(texte || '').trim()) return false;
+  try {
+    const delai = new Promise(ok => setTimeout(() => ok(null), 4000));
+    const appel = fetchAvecAuth('/api/assistant/meme-sujet', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texte, precedentes, dossiers: typeof dossiersPourAssistant === 'function' ? dossiersPourAssistant(dossiers) : [] }) })
+      .then(r => (r.ok ? r.json() : null)).catch(() => null);
+    const r = await Promise.race([appel, delai]);
+    return !!(r && r.memeSujet === false);
+  } catch (e) { return false; }
+}

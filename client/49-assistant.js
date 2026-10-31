@@ -376,7 +376,13 @@
     const impose = dossierMentionneAssistant(texte, mentionsChoisiesAssistant);
     mentionsChoisiesAssistant = [];
     // Conversation unique (client/145) : un autre dossier cité, ou trois heures sans échange — un nouveau sujet s'ouvre de lui-même.
-    if (!canaux.actif && !texteForce && !assistantContexte.attente && nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, impose, Date.now())) ouvrirNouveauSujetAssistant(impose);
+    if (!canaux.actif && !texteForce && !assistantContexte.attente && assistantMessages.length) {
+      // Étude 31/10 : aussi un document joint (sauf « compare avec… »), puis, faute d'indice, l'IA juge si la demande change de sujet.
+      const change = nouveauSujetAssistant(assistantMessages, assistantContexte.dossierId, impose, Date.now())
+        || (pieces.length > 0 && nouveauSujetParDocumentAssistant(assistantMessages, texteSaisi))
+        || (!pieces.length && !impose && await changementDeSujetParIaAssistant(texte));
+      if (change) ouvrirNouveauSujetAssistant(impose);
+    }
     if (impose && dossiers.some(x => x.id === impose)) assistantContexte.dossierId = impose;
     // Dans une conversation personnelle la carte est dans le message ; dans un canal, le serveur renvoie les pièces du message (`pj`) et
     // le fil les montre de la même façon (htmlPiecesCanal).

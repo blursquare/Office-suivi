@@ -21,7 +21,7 @@ const { lireRechercheWeb, ecrireRechercheWeb, noterConversation, lireConversatio
 const { messagesDe } = require('../messagesClaire');
 const { lireReglagesOpenlegi } = require('./openlegi');
 const { creerClientClaudeAssistant } = require('../assistantClaude');
-const { converser } = require('../assistantConversation');
+const { converser, memeSujet } = require('../assistantConversation');
 const { noterVerification } = require('../verificationsTerrain');
 
 const chaine = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
@@ -173,6 +173,22 @@ function creerRouteurAssistant(config, injections, parametresRepo) {
       const raison = err && err.message ? String(err.message).slice(0, 160) : 'réponse illisible';
       noterVerification(parametresRepo, 'assistant-conversation', { ok: false, message: raison.slice(0, 120) });
       res.json({ reponse: '', raison });
+    }
+  }));
+
+  // Même sujet ou nouveau (étude 31/10) : { memeSujet: true | false | null } — null sans IA en ligne ou en cas d'erreur (le poste garde alors
+  // le sujet en cours). Rien n'est gardé ni journalisé.
+  routeur.post('/assistant/meme-sujet', routeAsync(async (req, res) => {
+    const corps = req.body && typeof req.body === 'object' ? req.body : {};
+    const texte = typeof corps.texte === 'string' ? corps.texte.trim() : '';
+    const precedentes = Array.isArray(corps.precedentes) ? corps.precedentes.filter((t) => typeof t === 'string' && t.trim()) : [];
+    if (!texte || !precedentes.length) { res.json({ memeSujet: null }); return; }
+    const m = moteurCourant();
+    if (m.moteur === 'locale') { res.json({ memeSujet: null }); return; }
+    try {
+      res.json({ memeSujet: await memeSujet({ texte, precedentes, dossiers: dossiersDuCorps(corps) }, m.client) });
+    } catch (err) {
+      res.json({ memeSujet: null });
     }
   }));
 

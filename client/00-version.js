@@ -11,7 +11,7 @@
   // scripts/prochaine-version.js nouveaute|correction` donne le numéro suivant et l'heure de Paris — ne pas deviner, ne pas recopier celui du
   // commit précédent. Les 3 fichiers de l'outil sont utilisés hors de tout dépôt chez l'étude : aucune information git
   // n'est disponible à l'exécution, le numéro vit ici.
-  const VERSION_APP = '0.410.2';
+  const VERSION_APP = '0.411.0';
 
   // Court historique des dernières versions (la plus récente en tête), affiché sous le numéro de
   // version dans l'écran "À propos" — le numéro seul dit "ce n'est pas la même version", cette
@@ -20,6 +20,7 @@
   // (au-delà, l'historique complet reste dans CLAUDE.md) ; ajouter une entrée en tête à CHAQUE mise
   // à jour de VERSION_APP, jamais la remplacer seule sans laisser de trace du changement précédent.
   const HISTORIQUE_VERSIONS = [
+    { version: '0.411.0', date: '2026-10-31 12:20', resume: "Conversation avec CLAIRE : les sujets ne se mélangent plus. Un bouton « Nouveau sujet » en haut de la conversation ; un document joint (compromis, offre…) ouvre aussi un sujet neuf, sauf si vous écrivez « compare avec… » ; et quand vous changez de question sans le dire (d’un dossier à une question juridique…), CLAIRE le reconnaît et repart d’une page blanche. À chaque sujet, la colonne de droite repart à zéro (documents, étapes, aperçu) ; ses travaux finis depuis plus d’une heure n’y restent plus." },
     { version: '0.410.2', date: '2026-10-31 11:04', resume: "Contrôle de l’urbanisme : dès que la commune et les parcelles sont connues — dossier repris, champs remplis par « Demander à CLAIRE » ou à la main —, le zonage de chaque parcelle est lu sur le Géoportail sans attendre le bouton « Lire le zonage »." },
     { version: '0.410.1', date: '2026-10-31 09:45', resume: "Le serveur CLAIRE n’ouvre plus de fenêtre sur localhost à son démarrage : la fenêtre CLAIRE du poste est lancée sur l’adresse du serveur par le dossier Démarrage de Windows. Pour la retrouver : « ouvrirFenetreAuDemarrage »: true dans config.json." },
     { version: '0.410.0', date: '2026-10-31 08:50', resume: "Mémoire de CLAIRE : elle lit aussi les anciens Word (.doc), les modèles Word (.dotx), les documents OpenOffice (.odt), les fichiers RTF et les classeurs Excel (.xlsx) — avant, seuls les PDF, Word récents et textes étaient lus, d’où la moitié de « MODELES - OUTILS » manquante. Réglages › Mémoire de CLAIRE dit combien de fichiers restent non lus et de quel format." },

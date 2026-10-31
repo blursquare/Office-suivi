@@ -98,3 +98,17 @@ test('htmlAncienMessageAssistant : un ancien sujet se lit sans boutons, champs n
   const h = app.htmlAncienMessageAssistant('<p id="x" onclick="f()">Texte</p><wa-button onclick="g()">Corriger</wa-button><textarea>a</textarea><input id="y">');
   assert.equal(h, '<p>Texte</p>');
 });
+
+test('changer de sujet (étude 31/10) : document joint, demandes précédentes, travaux de la colonne', () => {
+  const app = chargerApplication();
+  const msgs = [{ role: 'moi', html: 'x' }, { role: 'claire', html: 'y' }];
+  assert.equal(app.nouveauSujetParDocumentAssistant(msgs, 'Que contient ce compromis ?'), true, 'un document joint ouvre un sujet');
+  assert.equal(app.nouveauSujetParDocumentAssistant(msgs, 'Compare avec le précédent'), false, '« compare avec » le rattache');
+  assert.equal(app.nouveauSujetParDocumentAssistant([], 'Que contient ce compromis ?'), false, 'sujet vide : rien à couper');
+  assert.equal(app.demandesPrecedentesAssistant({ echanges: [{ role: 'moi', texte: 'a' }, { role: 'claire', texte: 'b' }, { role: 'moi', texte: 'c' }] }).join('|'), 'a|c');
+  const maintenant = Date.parse('2026-10-31T12:00:00Z');
+  const l = app.travauxVisiblesClaire([
+    { id: '1', etat: 'en-cours' }, { id: '2', etat: 'attente' },
+    { id: '3', etat: 'fini', finLe: '2026-10-31T11:30:00Z' }, { id: '4', etat: 'erreur', finLe: '2026-10-31T09:00:00Z' }], maintenant);
+  assert.equal(l.map(t => t.id).join(','), '1,2,3', 'un travail fini depuis plus d’une heure quitte la colonne');
+});

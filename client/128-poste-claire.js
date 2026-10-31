@@ -147,8 +147,15 @@ async function annulerTravailClaire(id) {
 }
 
 // La liste « Ses travaux » sous le profil : état, consigne, compte rendu dépliable.
+// Pure : les travaux montrés — en attente, en cours, et ceux finis depuis moins d'une heure (étude 31/10 : la colonne de droite ne garde pas
+// les travaux d'avant ; ils restent dans la conversation, où leur compte rendu est arrivé).
+function travauxVisiblesClaire(liste, maintenant) {
+  return (Array.isArray(liste) ? liste : []).filter(t => t && (t.etat === 'attente' || t.etat === 'en-cours'
+    || (Date.parse(t.finLe || '') || 0) > maintenant - 3600 * 1000));
+}
+
 function htmlTravauxClaire() {
-  const l = travauxClaire.liste.slice(0, 8);
+  const l = travauxVisiblesClaire(travauxClaire.liste, Date.now()).slice(0, 8);
   if (!l.length) return '';
   return `<div class="pf-travaux"><ul>${l.map(t => `<li class="pf-tr pf-tr-${escapeAttr(t.etat)}">
       <div class="pf-tr-tete"><span class="pf-tr-etat">${t.etat === 'en-cours' ? icone('spinner', null, true) : ''}${escapeHtml(libelleEtatTravailClaire(t))}</span>

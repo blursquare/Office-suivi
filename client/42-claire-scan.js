@@ -1051,7 +1051,7 @@
       'icon-nav-dashboard': 'tableau-bord',
       'icon-nav-suivi': 'list',
       'icon-nav-assistant': 'discussion',
-      'icon-sidebar-recherche': 'search', 'icon-assistant-colonne': 'volet-droit',
+      'icon-sidebar-recherche': 'search', 'icon-assistant-colonne': 'volet-droit', 'icon-assistant-nouveau-sujet': 'plus',
       'icon-assistant-envoyer': 'send',
       'icon-assistant-joindre': 'plus',
       'icon-assistant-emoji': 'smile',

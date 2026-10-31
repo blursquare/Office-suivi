@@ -91,4 +91,32 @@ async function converser(entree, client) {
   return { reponse: nettoyerReponseConversation(objet.reponse, ps.table) };
 }
 
-module.exports = { SCHEMA_CONVERSATION, promptConversation, validerConversation, nettoyerReponseConversation, converser, PRENOMS_COLLABORATEURS };
+// ---- Même sujet ou nouveau ? (étude 31/10 : « je passe souvent d'un dossier à un autre ou d'une question juridique à la lecture d'un
+// compromis… ça se mélange » ; choix : détection par l'IA, en plus du bouton « Nouveau sujet » et du document joint). L'IA ne voit que les
+// dernières demandes du collaborateur et la nouvelle, noms et montants masqués comme dans l'échange libre ; elle ne répond que oui / non.
+const SCHEMA_MEME_SUJET = { type: 'object', additionalProperties: false, required: ['meme_sujet'], properties: { meme_sujet: { type: 'boolean' } } };
+
+/** Pure : le prompt. @param {string[]} precedentes @param {string} nouvelle */
+function promptMemeSujet(precedentes, nouvelle) {
+  return `Un collaborateur d'une étude notariale parle avec son assistante. Voici ses dernières demandes, puis sa nouvelle demande.
+Dis si la nouvelle demande POURSUIT le même sujet (même dossier, même document, même question, suite logique, précision, « et pour… », « fais-le », « merci ») ou si elle OUVRE un sujet différent (autre dossier, autre client, question juridique sans lien, autre document, autre tâche). Les codes comme [NOM1] remplacent des noms : deux codes différents désignent des personnes différentes. En cas de doute : même sujet.
+Demandes précédentes :
+${precedentes.map((t) => `- ${t}`).join('\n')}
+Nouvelle demande : « ${nouvelle} »
+JSON seul : {"meme_sujet": true ou false}`;
+}
+
+/** @param {{ precedentes: string[], texte: string, dossiers?: any[] }} entree @param {any} client @returns {Promise<boolean>} */
+async function memeSujet(entree, client) {
+  const nettoyer = (/** @type {any} */ t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  const texte = nettoyer(entree && entree.texte);
+  const historique = (Array.isArray(entree && entree.precedentes) ? entree.precedentes : []).slice(-3).map(nettoyer).filter(Boolean).map((t) => ({ role: 'moi', texte: t }));
+  const ps = pseudonymiserDemande(texte, { aujourdhui: '', dossierLibelle: '', historique }, (entree && entree.dossiers) || []);
+  const precedentes = ps.contexte.historique.map((/** @type {any} */ h) => masquerMontants(h.texte, ps.table));
+  const objet = await client.genererJson(promptMemeSujet(precedentes, masquerMontants(ps.texte, ps.table)),
+    (/** @type {any} */ o) => (o && typeof o.meme_sujet === 'boolean' ? null : 'meme_sujet attendu'),
+    { longueurMax: 60, delaiMs: 8 * 1000, sansRelance: true, schema: SCHEMA_MEME_SUJET });
+  return objet.meme_sujet;
+}
+
+module.exports = { SCHEMA_MEME_SUJET, promptMemeSujet, memeSujet, SCHEMA_CONVERSATION, promptConversation, validerConversation, nettoyerReponseConversation, converser, PRENOMS_COLLABORATEURS };
